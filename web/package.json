@@ -1,0 +1,24 @@
+{
+  "name": "f1db-web",
+  "version": "2.6.0",
+  "private": true,
+  "type": "module",
+  "description": "Browser front end for the F1 Verified Facts Database. SQLite compiled to WebAssembly, querying f1.db directly — no server, no API.",
+  "license": "MIT",
+  "scripts": {
+    "assets": "node scripts/copy-assets.js",
+    "dev": "npm run assets && vite",
+    "build": "npm run assets && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.18.3",
+    "sql.js": "^1.14.2"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.1.1",
+    "vite": "^8.2.2"
+  }
+}

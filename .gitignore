@@ -23,3 +23,13 @@ f1.db-journal
 f1.db-wal
 f1.db-shm
 *.db.bak
+
+# The web front end.
+web/node_modules/
+web/dist/
+
+# Copied into place by web/scripts/copy-assets.js before every dev run and
+# build: f1.db from the repository root, the wasm from the installed sql.js.
+# Committing either would mean a second copy that can drift from the first.
+web/public/f1.db
+web/public/sql-wasm.wasm

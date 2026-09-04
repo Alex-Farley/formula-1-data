@@ -62,6 +62,7 @@ Built 2026-09-04. Current 2026 data verified against formula1.com the same day
 | `harvest/venues.txt` | The raw race-venue harvest, same format. |
 | `harvest/append.py` | Appends rows to a harvest file, checking shape and flagging duplicates. |
 | `tools/fastf1_load.py` | Loads per-lap timing, stints, pit stops, race control, radio and the 2018– finishing order from the F1 live timing API. Needs network; not part of the build. |
+| `web/` | A React front end that queries `f1.db` in the browser, via SQLite compiled to WebAssembly. Static site, no server. See *In a browser* below. |
 | `docs/BUILD-NOTES.md` | What changed in each version, what it exposed, what was deliberately not done. |
 | `CONTRIBUTING.md` | How to add data without breaking the checks. Read before editing. |
 | `ATTRIBUTION.md` | Where the data came from, and the licensing that follows from it. **Read before making this public.** |
@@ -160,6 +161,24 @@ seasons' standings.
 ./f1 sql "SELECT ..."       # arbitrary SQL
 ./f1 schema                 # tables, columns, row counts
 ```
+
+### In a browser
+
+`web/` is a React front end that runs the same queries client-side: SQLite
+compiled to WebAssembly, the database fetched whole, no server and no API.
+
+```bash
+cd web
+npm install
+npm run dev            # http://localhost:5173
+npm run build          # → web/dist/, a static site ready to upload
+```
+
+It browses seasons, drivers, constructors, circuits and cars, has a SQL
+console equivalent to `./f1 sql`, and gives `known_gaps` and the open
+discrepancies a page of their own. The database it serves is whichever one
+`build.py` last produced — `f1.db` is copied in at build time rather than
+committed twice. See [`web/README.md`](web/README.md).
 
 Or hit it directly — it's a plain SQLite file:
 
