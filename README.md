@@ -31,6 +31,13 @@ hand-entered, and the externally sourced figures are kept alongside them for
 comparison. Every headline record in the database now matches the official
 figure exactly.
 
+```bash
+git clone <your-repo-url> && cd f1db
+make all          # rebuild, verify, export — no dependencies
+./f1              # list the query commands
+./f1 car mp4/4
+```
+
 Built 2026-09-04. Current 2026 data verified against formula1.com the same day
 (after round 12, Zandvoort).
 
@@ -53,10 +60,19 @@ Built 2026-09-04. Current 2026 data verified against formula1.com the same day
 | `harvest/races.txt` | The raw race-winner harvest, one race per line. Human-readable and diffable. |
 | `harvest/poles.txt` | The raw pole / fastest-lap harvest, same format. |
 | `harvest/venues.txt` | The raw race-venue harvest, same format. |
+| `harvest/append.py` | Appends rows to a harvest file, checking shape and flagging duplicates. |
 | `tools/fastf1_load.py` | Loads per-lap timing, stints, pit stops, race control, radio and the 2018– finishing order from the F1 live timing API. Needs network; not part of the build. |
+| `docs/BUILD-NOTES.md` | What changed in each version, what it exposed, what was deliberately not done. |
+| `CONTRIBUTING.md` | How to add data without breaking the checks. Read before editing. |
+| `ATTRIBUTION.md` | Where the data came from, and the licensing that follows from it. **Read before making this public.** |
+| `Makefile` | `make all` = build, verify, export. |
+| `requirements.txt` | Empty for the database itself; `fastf1` only for the loader. |
 
 Workflow for any change: edit `data/*.py` → `python3 build.py` → `python3 verify.py`
-→ `python3 export_json.py --compat`.
+→ `python3 export_json.py --compat`. Or `make all`.
+
+**No dependencies.** Everything except `tools/fastf1_load.py` is Python 3.9+
+standard library.
 
 ---
 
@@ -628,3 +644,24 @@ credits; shared fastest laps recorded as shared; every driver's wins, poles and
 fastest laps equalling the race records exactly; no external-vs-derived
 difference that is not declared; and ten headline career records asserted
 against their known official figures.
+
+---
+
+## Licence
+
+Two licences cover this repository, in the normal way for a data project:
+
+- **Code** — `build.py`, `verify.py`, `audit.py`, `export_json.py`, `f1`,
+  `tools/`, `schema.sql` — [MIT](LICENSE).
+- **Data** — `data/`, `harvest/`, `f1.db`, `f1_database.json`,
+  `f1_compat.json` — [CC BY-SA 4.0](LICENSE-DATA).
+
+Race results, driver, constructor, circuit and car data in this repository
+are derived from Wikipedia and are licensed under
+[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
+Current-season data is from formula1.com. Formula 1, F1 and Grand Prix are
+trademarks of Formula One Licensing BV; this project is unaffiliated with
+and unendorsed by Formula One or the FIA.
+
+See [`ATTRIBUTION.md`](ATTRIBUTION.md) for the source of every part of the
+data and the reasoning behind the split.

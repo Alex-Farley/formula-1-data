@@ -1,0 +1,1161 @@
+1950|1|Silverstone Circuit|Giuseppe Farina
+1950|2|Circuit de Monaco|Juan Manuel Fangio
+1950|3|Indianapolis Motor Speedway|Johnnie Parsons
+1950|4|Circuit Bremgarten|Giuseppe Farina
+1950|5|Circuit de Spa-Francorchamps|Juan Manuel Fangio
+1950|6|Reims-Gueux|Juan Manuel Fangio
+1950|7|Autodromo Nazionale di Monza|Giuseppe Farina
+1951|1|Circuit Bremgarten|Juan Manuel Fangio
+1951|2|Indianapolis Motor Speedway|Lee Wallard
+1951|3|Circuit de Spa-Francorchamps|Giuseppe Farina
+1951|4|Reims-Gueux|Juan Manuel Fangio
+1951|5|Silverstone Circuit|Jose Froilan Gonzalez
+1951|6|Nurburgring|Alberto Ascari
+1951|7|Autodromo Nazionale di Monza|Alberto Ascari
+1951|8|Pedralbes Circuit|Juan Manuel Fangio
+1952|1|Circuit Bremgarten|Piero Taruffi
+1952|2|Indianapolis Motor Speedway|Troy Ruttman
+1952|3|Circuit de Spa-Francorchamps|Alberto Ascari
+1952|4|Rouen-Les-Essarts|Alberto Ascari
+1952|5|Silverstone Circuit|Alberto Ascari
+1952|6|Nurburgring|Alberto Ascari
+1952|7|Circuit Zandvoort|Alberto Ascari
+1952|8|Autodromo Nazionale di Monza|Alberto Ascari
+1953|1|Autodromo Oscar Alfredo Galvez|Alberto Ascari
+1953|2|Indianapolis Motor Speedway|Bill Vukovich
+1953|3|Circuit Zandvoort|Alberto Ascari
+1953|4|Circuit de Spa-Francorchamps|Alberto Ascari
+1953|5|Reims-Gueux|Mike Hawthorn
+1953|6|Silverstone Circuit|Alberto Ascari
+1953|7|Nurburgring|Giuseppe Farina
+1953|8|Circuit Bremgarten|Alberto Ascari
+1953|9|Autodromo Nazionale di Monza|Juan Manuel Fangio
+1954|1|Autodromo Oscar Alfredo Galvez|Juan Manuel Fangio
+1954|2|Indianapolis Motor Speedway|Bill Vukovich
+1954|3|Circuit de Spa-Francorchamps|Juan Manuel Fangio
+1954|4|Reims-Gueux|Juan Manuel Fangio
+1954|5|Silverstone Circuit|Jose Froilan Gonzalez
+1954|6|Nurburgring|Juan Manuel Fangio
+1954|7|Circuit Bremgarten|Juan Manuel Fangio
+1954|8|Autodromo Nazionale di Monza|Juan Manuel Fangio
+1954|9|Pedralbes Circuit|Mike Hawthorn
+1955|1|Autodromo Oscar Alfredo Galvez|Juan Manuel Fangio
+1955|2|Circuit de Monaco|Maurice Trintignant
+1955|3|Indianapolis Motor Speedway|Bob Sweikert
+1955|4|Circuit de Spa-Francorchamps|Juan Manuel Fangio
+1955|5|Circuit Zandvoort|Juan Manuel Fangio
+1955|6|Aintree Motor Racing Circuit|Stirling Moss
+1955|7|Autodromo Nazionale di Monza|Juan Manuel Fangio
+1956|1|Autodromo Oscar Alfredo Galvez|Luigi Musso
+1956|2|Circuit de Monaco|Stirling Moss
+1956|3|Indianapolis Motor Speedway|Pat Flaherty
+1956|4|Circuit de Spa-Francorchamps|Peter Collins
+1956|5|Reims-Gueux|Peter Collins
+1956|6|Silverstone Circuit|Juan Manuel Fangio
+1956|7|Nurburgring|Juan Manuel Fangio
+1956|8|Autodromo Nazionale di Monza|Stirling Moss
+1957|1|Autodromo Oscar Alfredo Galvez|Juan Manuel Fangio
+1957|2|Circuit de Monaco|Juan Manuel Fangio
+1957|3|Indianapolis Motor Speedway|Sam Hanks
+1957|4|Rouen-Les-Essarts|Juan Manuel Fangio
+1957|5|Aintree Motor Racing Circuit|Tony Brooks
+1957|6|Nurburgring|Juan Manuel Fangio
+1957|7|Pescara Circuit|Stirling Moss
+1957|8|Autodromo Nazionale di Monza|Stirling Moss
+1958|1|Autodromo Oscar Alfredo Galvez|Stirling Moss
+1958|2|Circuit de Monaco|Maurice Trintignant
+1958|3|Circuit Zandvoort|Stirling Moss
+1958|4|Indianapolis Motor Speedway|Jimmy Bryan
+1958|5|Circuit de Spa-Francorchamps|Tony Brooks
+1958|6|Reims-Gueux|Mike Hawthorn
+1958|7|Silverstone Circuit|Peter Collins
+1958|8|Nurburgring|Tony Brooks
+1958|9|Circuito da Boavista|Stirling Moss
+1958|10|Autodromo Nazionale di Monza|Tony Brooks
+1958|11|Ain-Diab Circuit|Stirling Moss
+1959|1|Circuit de Monaco|Jack Brabham
+1959|2|Indianapolis Motor Speedway|Rodger Ward
+1959|3|Circuit Zandvoort|Jo Bonnier
+1959|4|Reims-Gueux|Tony Brooks
+1959|5|Aintree Motor Racing Circuit|Jack Brabham
+1959|6|AVUS|Tony Brooks
+1959|7|Monsanto Park Circuit|Stirling Moss
+1959|8|Autodromo Nazionale di Monza|Stirling Moss
+1959|9|Sebring International Raceway|Bruce McLaren
+1960|1|Autodromo Oscar Alfredo Galvez|Bruce McLaren
+1960|2|Circuit de Monaco|Stirling Moss
+1960|3|Indianapolis Motor Speedway|Jim Rathmann
+1960|4|Circuit Zandvoort|Jack Brabham
+1960|5|Circuit de Spa-Francorchamps|Jack Brabham
+1960|6|Reims-Gueux|Jack Brabham
+1960|7|Silverstone Circuit|Jack Brabham
+1960|8|Circuito da Boavista|Jack Brabham
+1960|9|Autodromo Nazionale di Monza|Phil Hill
+1960|10|Riverside International Raceway|Stirling Moss
+1961|1|Circuit de Monaco|Stirling Moss
+1961|2|Circuit Zandvoort|Wolfgang von Trips
+1961|3|Circuit de Spa-Francorchamps|Phil Hill
+1961|4|Reims-Gueux|Giancarlo Baghetti
+1961|5|Aintree Motor Racing Circuit|Wolfgang von Trips
+1961|6|Nurburgring|Stirling Moss
+1961|7|Autodromo Nazionale di Monza|Phil Hill
+1961|8|Watkins Glen International|Innes Ireland
+1962|1|Circuit Zandvoort|Graham Hill
+1962|2|Circuit de Monaco|Bruce McLaren
+1962|3|Circuit de Spa-Francorchamps|Jim Clark
+1962|4|Rouen-Les-Essarts|Dan Gurney
+1962|5|Aintree Motor Racing Circuit|Jim Clark
+1962|6|Nurburgring|Graham Hill
+1962|7|Autodromo Nazionale di Monza|Graham Hill
+1962|8|Watkins Glen International|Jim Clark
+1962|9|Prince George Circuit|Graham Hill
+1963|1|Circuit de Monaco|Graham Hill
+1963|2|Circuit de Spa-Francorchamps|Jim Clark
+1963|3|Circuit Zandvoort|Jim Clark
+1963|4|Reims-Gueux|Jim Clark
+1963|5|Silverstone Circuit|Jim Clark
+1963|6|Nurburgring|John Surtees
+1963|7|Autodromo Nazionale di Monza|Jim Clark
+1963|8|Watkins Glen International|Graham Hill
+1963|9|Magdalena Mixhuca|Jim Clark
+1963|10|Prince George Circuit|Jim Clark
+1964|1|Circuit de Monaco|Graham Hill
+1964|2|Circuit Zandvoort|Jim Clark
+1964|3|Circuit de Spa-Francorchamps|Jim Clark
+1964|4|Rouen-Les-Essarts|Dan Gurney
+1964|5|Brands Hatch|Jim Clark
+1964|6|Nurburgring|John Surtees
+1964|7|Zeltweg Air Base|Lorenzo Bandini
+1964|8|Autodromo Nazionale di Monza|John Surtees
+1964|9|Watkins Glen International|Graham Hill
+1964|10|Magdalena Mixhuca|Dan Gurney
+1965|1|Prince George Circuit|Jim Clark
+1965|2|Circuit de Monaco|Graham Hill
+1965|3|Circuit de Spa-Francorchamps|Jim Clark
+1965|4|Charade Circuit|Jim Clark
+1965|5|Silverstone Circuit|Jim Clark
+1965|6|Circuit Zandvoort|Jim Clark
+1965|7|Nurburgring|Jim Clark
+1965|8|Autodromo Nazionale di Monza|Jackie Stewart
+1965|9|Watkins Glen International|Graham Hill
+1965|10|Magdalena Mixhuca|Richie Ginther
+1966|1|Circuit de Monaco|Jackie Stewart
+1966|2|Circuit de Spa-Francorchamps|John Surtees
+1966|3|Reims-Gueux|Jack Brabham
+1966|4|Brands Hatch|Jack Brabham
+1966|5|Circuit Zandvoort|Jack Brabham
+1966|6|Nurburgring|Jack Brabham
+1966|7|Autodromo Nazionale di Monza|Ludovico Scarfiotti
+1966|8|Watkins Glen International|Jim Clark
+1966|9|Magdalena Mixhuca|John Surtees
+1967|1|Kyalami Grand Prix Circuit|Pedro Rodriguez
+1967|2|Circuit de Monaco|Denny Hulme
+1967|3|Circuit Zandvoort|Jim Clark
+1967|4|Circuit de Spa-Francorchamps|Dan Gurney
+1967|5|Bugatti Circuit|Jack Brabham
+1967|6|Silverstone Circuit|Jim Clark
+1967|7|Nurburgring|Denny Hulme
+1967|8|Mosport Park|Jack Brabham
+1967|9|Autodromo Nazionale di Monza|John Surtees
+1967|10|Watkins Glen International|Jim Clark
+1967|11|Magdalena Mixhuca|Jim Clark
+1968|1|Kyalami Grand Prix Circuit|Jim Clark
+1968|2|Circuito Permanente del Jarama|Graham Hill
+1968|3|Circuit de Monaco|Graham Hill
+1968|4|Circuit de Spa-Francorchamps|Bruce McLaren
+1968|5|Circuit Zandvoort|Jackie Stewart
+1968|6|Rouen-Les-Essarts|Jacky Ickx
+1968|7|Brands Hatch|Jo Siffert
+1968|8|Nurburgring|Jackie Stewart
+1968|9|Autodromo Nazionale di Monza|Denny Hulme
+1968|10|Circuit Mont-Tremblant|Denny Hulme
+1968|11|Watkins Glen International|Jackie Stewart
+1968|12|Magdalena Mixhuca|Graham Hill
+1969|1|Kyalami Grand Prix Circuit|Jackie Stewart
+1969|2|Montjuic Circuit|Jackie Stewart
+1969|3|Circuit de Monaco|Graham Hill
+1969|4|Circuit Zandvoort|Jackie Stewart
+1969|5|Charade Circuit|Jackie Stewart
+1969|6|Silverstone Circuit|Jackie Stewart
+1969|7|Nurburgring|Jacky Ickx
+1969|8|Autodromo Nazionale di Monza|Jackie Stewart
+1969|9|Mosport Park|Jacky Ickx
+1969|10|Watkins Glen International|Jochen Rindt
+1969|11|Magdalena Mixhuca|Denny Hulme
+1970|1|Kyalami Grand Prix Circuit|Jack Brabham
+1970|2|Circuito Permanente del Jarama|Jackie Stewart
+1970|3|Circuit de Monaco|Jochen Rindt
+1970|4|Circuit de Spa-Francorchamps|Pedro Rodriguez
+1970|5|Circuit Zandvoort|Jochen Rindt
+1970|6|Charade Circuit|Jochen Rindt
+1970|7|Brands Hatch|Jochen Rindt
+1970|8|Hockenheimring|Jochen Rindt
+1970|9|Osterreichring|Jacky Ickx
+1970|10|Autodromo Nazionale di Monza|Clay Regazzoni
+1970|11|Circuit Mont-Tremblant|Jacky Ickx
+1970|12|Watkins Glen International|Emerson Fittipaldi
+1970|13|Magdalena Mixhuca|Jacky Ickx
+1971|1|Kyalami Grand Prix Circuit|Mario Andretti
+1971|2|Montjuic Circuit|Jackie Stewart
+1971|3|Circuit de Monaco|Jackie Stewart
+1971|4|Circuit Zandvoort|Jacky Ickx
+1971|5|Circuit Paul Ricard|Jackie Stewart
+1971|6|Silverstone Circuit|Jackie Stewart
+1971|7|Nurburgring|Jackie Stewart
+1971|8|Osterreichring|Jo Siffert
+1971|9|Autodromo Nazionale di Monza|Peter Gethin
+1971|10|Mosport Park|Jackie Stewart
+1971|11|Watkins Glen International|Francois Cevert
+1972|1|Autodromo de Buenos Aires|Jackie Stewart
+1972|2|Kyalami Grand Prix Circuit|Denny Hulme
+1972|3|Circuito Permanente del Jarama|Emerson Fittipaldi
+1972|4|Circuit de Monaco|Jean-Pierre Beltoise
+1972|5|Nivelles-Baulers|Emerson Fittipaldi
+1972|6|Charade Circuit|Jackie Stewart
+1972|7|Brands Hatch|Emerson Fittipaldi
+1972|8|Nurburgring|Jacky Ickx
+1972|9|Osterreichring|Emerson Fittipaldi
+1972|10|Autodromo Nazionale di Monza|Emerson Fittipaldi
+1972|11|Mosport Park|Jackie Stewart
+1972|12|Watkins Glen International|Jackie Stewart
+1973|1|Autodromo de Buenos Aires|Emerson Fittipaldi
+1973|2|Autodromo de Interlagos|Emerson Fittipaldi
+1973|3|Kyalami Grand Prix Circuit|Jackie Stewart
+1973|4|Montjuic Circuit|Emerson Fittipaldi
+1973|5|Circuit Zolder|Jackie Stewart
+1973|6|Circuit de Monaco|Jackie Stewart
+1973|7|Scandinavian Raceway|Denny Hulme
+1973|8|Circuit Paul Ricard|Ronnie Peterson
+1973|9|Silverstone Circuit|Peter Revson
+1973|10|Circuit Zandvoort|Jackie Stewart
+1973|11|Nurburgring|Jackie Stewart
+1973|12|Osterreichring|Ronnie Peterson
+1973|13|Autodromo Nazionale di Monza|Ronnie Peterson
+1973|14|Mosport Park|Peter Revson
+1973|15|Watkins Glen International|Ronnie Peterson
+1974|1|Autodromo de Buenos Aires|Denny Hulme
+1974|2|Autodromo de Interlagos|Emerson Fittipaldi
+1974|3|Kyalami Grand Prix Circuit|Carlos Reutemann
+1974|4|Circuito Permanente del Jarama|Niki Lauda
+1974|5|Nivelles-Baulers|Emerson Fittipaldi
+1974|6|Circuit de Monaco|Ronnie Peterson
+1974|7|Scandinavian Raceway|Jody Scheckter
+1974|8|Circuit Zandvoort|Niki Lauda
+1974|9|Dijon-Prenois|Ronnie Peterson
+1974|10|Brands Hatch|Jody Scheckter
+1974|11|Nurburgring|Clay Regazzoni
+1974|12|Osterreichring|Carlos Reutemann
+1974|13|Autodromo Nazionale di Monza|Ronnie Peterson
+1974|14|Mosport Park|Emerson Fittipaldi
+1974|15|Watkins Glen International|Carlos Reutemann
+1975|1|Autodromo de Buenos Aires|Emerson Fittipaldi
+1975|2|Autodromo de Interlagos|Carlos Pace
+1975|3|Kyalami Grand Prix Circuit|Jody Scheckter
+1975|4|Montjuic Circuit|Jochen Mass
+1975|5|Circuit de Monaco|Niki Lauda
+1975|6|Circuit Zolder|Niki Lauda
+1975|7|Scandinavian Raceway|Niki Lauda
+1975|8|Circuit Zandvoort|James Hunt
+1975|9|Circuit Paul Ricard|Niki Lauda
+1975|10|Silverstone Circuit|Emerson Fittipaldi
+1975|11|Nurburgring|Carlos Reutemann
+1975|12|Osterreichring|Vittorio Brambilla
+1975|13|Autodromo Nazionale di Monza|Clay Regazzoni
+1975|14|Watkins Glen International|Niki Lauda
+1976|1|Autodromo de Interlagos|Niki Lauda
+1976|2|Kyalami Grand Prix Circuit|Niki Lauda
+1976|3|Long Beach Street Circuit|Clay Regazzoni
+1976|4|Circuito Permanente del Jarama|James Hunt
+1976|5|Circuit Zolder|Niki Lauda
+1976|6|Circuit de Monaco|Niki Lauda
+1976|7|Scandinavian Raceway|Jody Scheckter
+1976|8|Circuit Paul Ricard|James Hunt
+1976|9|Brands Hatch|Niki Lauda
+1976|10|Nurburgring|James Hunt
+1976|11|Osterreichring|John Watson
+1976|12|Circuit Zandvoort|James Hunt
+1976|13|Autodromo Nazionale di Monza|Ronnie Peterson
+1976|14|Mosport Park|James Hunt
+1976|15|Watkins Glen International|James Hunt
+1976|16|Fuji Speedway|Mario Andretti
+1977|1|Autodromo de Buenos Aires|Jody Scheckter
+1977|2|Autodromo de Interlagos|Carlos Reutemann
+1977|3|Kyalami Grand Prix Circuit|Niki Lauda
+1977|4|Long Beach Street Circuit|Mario Andretti
+1977|5|Circuito Permanente del Jarama|Mario Andretti
+1977|6|Circuit de Monaco|Jody Scheckter
+1977|7|Circuit Zolder|Gunnar Nilsson
+1977|8|Scandinavian Raceway|Jacques Laffite
+1977|9|Dijon-Prenois|Mario Andretti
+1977|10|Silverstone Circuit|James Hunt
+1977|11|Hockenheimring|Niki Lauda
+1977|12|Osterreichring|Alan Jones
+1977|13|Circuit Zandvoort|Niki Lauda
+1977|14|Autodromo Nazionale di Monza|Mario Andretti
+1977|15|Watkins Glen International|James Hunt
+1977|16|Mosport Park|Jody Scheckter
+1977|17|Fuji Speedway|James Hunt
+1978|1|Autodromo de Buenos Aires|Mario Andretti
+1978|2|Jacarepagua|Carlos Reutemann
+1978|3|Kyalami Grand Prix Circuit|Ronnie Peterson
+1978|4|Long Beach Street Circuit|Carlos Reutemann
+1978|5|Circuit de Monaco|Patrick Depailler
+1978|6|Circuit Zolder|Mario Andretti
+1978|7|Circuito Permanente del Jarama|Mario Andretti
+1978|8|Scandinavian Raceway|Niki Lauda
+1978|9|Circuit Paul Ricard|Mario Andretti
+1978|10|Brands Hatch|Carlos Reutemann
+1978|11|Hockenheimring|Mario Andretti
+1978|12|Osterreichring|Ronnie Peterson
+1978|13|Circuit Zandvoort|Mario Andretti
+1978|14|Autodromo Nazionale di Monza|Niki Lauda
+1978|15|Watkins Glen International|Carlos Reutemann
+1978|16|Ile Notre-Dame Circuit|Gilles Villeneuve
+1979|1|Autodromo de Buenos Aires|Jacques Laffite
+1979|2|Autodromo de Interlagos|Jacques Laffite
+1979|3|Kyalami Grand Prix Circuit|Gilles Villeneuve
+1979|4|Long Beach Street Circuit|Gilles Villeneuve
+1979|5|Circuito Permanente del Jarama|Patrick Depailler
+1979|6|Circuit Zolder|Jody Scheckter
+1979|7|Circuit de Monaco|Jody Scheckter
+1979|8|Dijon-Prenois|Jean-Pierre Jabouille
+1979|9|Silverstone Circuit|Clay Regazzoni
+1979|10|Hockenheimring|Alan Jones
+1979|11|Osterreichring|Alan Jones
+1979|12|Circuit Zandvoort|Alan Jones
+1979|13|Autodromo Nazionale di Monza|Jody Scheckter
+1979|14|Ile Notre-Dame Circuit|Alan Jones
+1979|15|Watkins Glen International|Gilles Villeneuve
+1980|1|Autodromo de Buenos Aires|Alan Jones
+1980|2|Autodromo de Interlagos|Rene Arnoux
+1980|3|Kyalami Grand Prix Circuit|Rene Arnoux
+1980|4|Long Beach Street Circuit|Nelson Piquet
+1980|5|Circuit Zolder|Didier Pironi
+1980|6|Circuit de Monaco|Carlos Reutemann
+1980|7|Circuit Paul Ricard|Alan Jones
+1980|8|Brands Hatch|Alan Jones
+1980|9|Hockenheimring|Jacques Laffite
+1980|10|Osterreichring|Jean-Pierre Jabouille
+1980|11|Circuit Zandvoort|Nelson Piquet
+1980|12|Autodromo Dino Ferrari|Nelson Piquet
+1980|13|Ile Notre-Dame Circuit|Alan Jones
+1980|14|Watkins Glen International|Alan Jones
+1981|1|Long Beach Street Circuit|Alan Jones
+1981|2|Autodromo de Jacarepagua|Carlos Reutemann
+1981|3|Autodromo de Buenos Aires|Nelson Piquet
+1981|4|Autodromo Dino Ferrari|Nelson Piquet
+1981|5|Circuit Zolder|Carlos Reutemann
+1981|6|Circuit de Monaco|Gilles Villeneuve
+1981|7|Circuito Permanente del Jarama|Gilles Villeneuve
+1981|8|Dijon-Prenois|Alain Prost
+1981|9|Silverstone Circuit|John Watson
+1981|10|Hockenheimring|Nelson Piquet
+1981|11|Osterreichring|Jacques Laffite
+1981|12|Circuit Zandvoort|Alain Prost
+1981|13|Autodromo Nazionale di Monza|Alain Prost
+1981|14|Ile Notre-Dame Circuit|Jacques Laffite
+1981|15|Caesars Palace Grand Prix Circuit|Alan Jones
+1982|1|Kyalami Grand Prix Circuit|Alain Prost
+1982|2|Autodromo de Jacarepagua|Alain Prost
+1982|3|Long Beach Street Circuit|Niki Lauda
+1982|4|Autodromo Dino Ferrari|Didier Pironi
+1982|5|Circuit Zolder|John Watson
+1982|6|Circuit de Monaco|Riccardo Patrese
+1982|7|Detroit Street Circuit|John Watson
+1982|8|Circuit Gilles Villeneuve|Nelson Piquet
+1982|9|Circuit Zandvoort|Didier Pironi
+1982|10|Brands Hatch|Niki Lauda
+1982|11|Circuit Paul Ricard|Rene Arnoux
+1982|12|Hockenheimring|Patrick Tambay
+1982|13|Osterreichring|Elio de Angelis
+1982|14|Dijon-Prenois|Keke Rosberg
+1982|15|Autodromo Nazionale di Monza|Rene Arnoux
+1982|16|Caesars Palace Grand Prix Circuit|Michele Alboreto
+1983|1|Autodromo de Jacarepagua|Nelson Piquet
+1983|2|Long Beach Street Circuit|John Watson
+1983|3|Circuit Paul Ricard|Alain Prost
+1983|4|Autodromo Dino Ferrari|Patrick Tambay
+1983|5|Circuit de Monaco|Keke Rosberg
+1983|6|Circuit de Spa-Francorchamps|Alain Prost
+1983|7|Detroit Street Circuit|Michele Alboreto
+1983|8|Circuit Gilles Villeneuve|Rene Arnoux
+1983|9|Silverstone Circuit|Alain Prost
+1983|10|Hockenheimring|Rene Arnoux
+1983|11|Osterreichring|Alain Prost
+1983|12|Circuit Zandvoort|Rene Arnoux
+1983|13|Autodromo Nazionale di Monza|Nelson Piquet
+1983|14|Brands Hatch|Nelson Piquet
+1983|15|Kyalami Grand Prix Circuit|Riccardo Patrese
+1984|1|Autodromo de Jacarepagua|Alain Prost
+1984|2|Kyalami Grand Prix Circuit|Niki Lauda
+1984|3|Circuit Zolder|Michele Alboreto
+1984|4|Autodromo Dino Ferrari|Alain Prost
+1984|5|Dijon-Prenois|Niki Lauda
+1984|6|Circuit de Monaco|Alain Prost
+1984|7|Circuit Gilles Villeneuve|Nelson Piquet
+1984|8|Detroit Street Circuit|Nelson Piquet
+1984|9|Fair Park Street Circuit|Keke Rosberg
+1984|10|Brands Hatch|Niki Lauda
+1984|11|Hockenheimring|Alain Prost
+1984|12|Osterreichring|Niki Lauda
+1984|13|Circuit Zandvoort|Alain Prost
+1984|14|Autodromo Nazionale di Monza|Niki Lauda
+1984|15|Nurburgring GP-Strecke|Alain Prost
+1984|16|Autodromo do Estoril|Alain Prost
+1985|1|Autodromo de Jacarepagua|Alain Prost
+1985|2|Autodromo do Estoril|Ayrton Senna
+1985|3|Autodromo Dino Ferrari|Elio de Angelis
+1985|4|Circuit de Monaco|Alain Prost
+1985|5|Circuit Gilles Villeneuve|Michele Alboreto
+1985|6|Detroit Street Circuit|Keke Rosberg
+1985|7|Circuit Paul Ricard|Nelson Piquet
+1985|8|Silverstone Circuit|Alain Prost
+1985|9|Nurburgring GP-Strecke|Michele Alboreto
+1985|10|Osterreichring|Alain Prost
+1985|11|Circuit Zandvoort|Niki Lauda
+1985|12|Autodromo Nazionale di Monza|Alain Prost
+1985|13|Circuit de Spa-Francorchamps|Ayrton Senna
+1985|14|Brands Hatch|Nigel Mansell
+1985|15|Kyalami Grand Prix Circuit|Nigel Mansell
+1985|16|Adelaide Street Circuit|Keke Rosberg
+1986|1|Autodromo de Jacarepagua|Nelson Piquet
+1986|2|Circuito de Jerez|Ayrton Senna
+1986|3|Autodromo Dino Ferrari|Alain Prost
+1986|4|Circuit de Monaco|Alain Prost
+1986|5|Circuit de Spa-Francorchamps|Nigel Mansell
+1986|6|Circuit Gilles Villeneuve|Nigel Mansell
+1986|7|Detroit Street Circuit|Ayrton Senna
+1986|8|Circuit Paul Ricard|Nigel Mansell
+1986|9|Brands Hatch|Nigel Mansell
+1986|10|Hockenheimring|Nelson Piquet
+1986|11|Hungaroring|Nelson Piquet
+1986|12|Osterreichring|Alain Prost
+1986|13|Autodromo Nazionale di Monza|Nelson Piquet
+1986|14|Autodromo do Estoril|Nigel Mansell
+1986|15|Autodromo Hermanos Rodriguez|Gerhard Berger
+1986|16|Adelaide Street Circuit|Alain Prost
+1987|1|Autodromo de Jacarepagua|Alain Prost
+1987|2|Autodromo Dino Ferrari|Nigel Mansell
+1987|3|Circuit de Spa-Francorchamps|Alain Prost
+1987|4|Circuit de Monaco|Ayrton Senna
+1987|5|Detroit Street Circuit|Ayrton Senna
+1987|6|Circuit Paul Ricard|Nigel Mansell
+1987|7|Silverstone Circuit|Nigel Mansell
+1987|8|Hockenheimring|Nelson Piquet
+1987|9|Hungaroring|Nelson Piquet
+1987|10|Osterreichring|Nigel Mansell
+1987|11|Autodromo Nazionale di Monza|Nelson Piquet
+1987|12|Autodromo do Estoril|Alain Prost
+1987|13|Circuito de Jerez|Nigel Mansell
+1987|14|Autodromo Hermanos Rodriguez|Nigel Mansell
+1987|15|Suzuka International Racing Course|Gerhard Berger
+1987|16|Adelaide Street Circuit|Gerhard Berger
+1988|1|Autodromo de Jacarepagua|Alain Prost
+1988|2|Autodromo Dino Ferrari|Ayrton Senna
+1988|3|Circuit de Monaco|Alain Prost
+1988|4|Autodromo Hermanos Rodriguez|Alain Prost
+1988|5|Circuit Gilles Villeneuve|Ayrton Senna
+1988|6|Detroit Street Circuit|Ayrton Senna
+1988|7|Circuit Paul Ricard|Alain Prost
+1988|8|Silverstone Circuit|Ayrton Senna
+1988|9|Hockenheimring|Ayrton Senna
+1988|10|Hungaroring|Ayrton Senna
+1988|11|Circuit de Spa-Francorchamps|Ayrton Senna
+1988|12|Autodromo Nazionale di Monza|Gerhard Berger
+1988|13|Autodromo do Estoril|Alain Prost
+1988|14|Circuito de Jerez|Alain Prost
+1988|15|Suzuka International Racing Course|Ayrton Senna
+1988|16|Adelaide Street Circuit|Alain Prost
+1989|1|Autodromo de Jacarepagua|Nigel Mansell
+1989|2|Autodromo Dino Ferrari|Ayrton Senna
+1989|3|Circuit de Monaco|Ayrton Senna
+1989|4|Autodromo Hermanos Rodriguez|Ayrton Senna
+1989|5|Phoenix Street Circuit|Alain Prost
+1989|6|Circuit Gilles Villeneuve|Thierry Boutsen
+1989|7|Circuit Paul Ricard|Alain Prost
+1989|8|Silverstone Circuit|Alain Prost
+1989|9|Hockenheimring|Ayrton Senna
+1989|10|Hungaroring|Nigel Mansell
+1989|11|Circuit de Spa-Francorchamps|Ayrton Senna
+1989|12|Autodromo Nazionale di Monza|Alain Prost
+1989|13|Autodromo do Estoril|Gerhard Berger
+1989|14|Circuito de Jerez|Ayrton Senna
+1989|15|Suzuka International Racing Course|Alessandro Nannini
+1989|16|Adelaide Street Circuit|Thierry Boutsen
+1990|1|Phoenix Street Circuit|Ayrton Senna
+1990|2|Autodromo Jose Carlos Pace|Alain Prost
+1990|3|Autodromo Dino Ferrari|Riccardo Patrese
+1990|4|Circuit de Monaco|Ayrton Senna
+1990|5|Circuit Gilles Villeneuve|Ayrton Senna
+1990|6|Autodromo Hermanos Rodriguez|Alain Prost
+1990|7|Circuit Paul Ricard|Alain Prost
+1990|8|Silverstone Circuit|Alain Prost
+1990|9|Hockenheimring|Ayrton Senna
+1990|10|Hungaroring|Thierry Boutsen
+1990|11|Circuit de Spa-Francorchamps|Ayrton Senna
+1990|12|Autodromo Nazionale di Monza|Ayrton Senna
+1990|13|Autodromo do Estoril|Nigel Mansell
+1990|14|Circuito de Jerez|Alain Prost
+1990|15|Suzuka International Racing Course|Nelson Piquet
+1990|16|Adelaide Street Circuit|Nelson Piquet
+1991|1|Phoenix Street Circuit|Ayrton Senna
+1991|2|Autodromo Jose Carlos Pace|Ayrton Senna
+1991|3|Autodromo Dino Ferrari|Ayrton Senna
+1991|4|Circuit de Monaco|Ayrton Senna
+1991|5|Circuit Gilles Villeneuve|Nelson Piquet
+1991|6|Autodromo Hermanos Rodriguez|Riccardo Patrese
+1991|7|Circuit de Nevers Magny-Cours|Nigel Mansell
+1991|8|Silverstone Circuit|Nigel Mansell
+1991|9|Hockenheimring|Nigel Mansell
+1991|10|Hungaroring|Ayrton Senna
+1991|11|Circuit de Spa-Francorchamps|Ayrton Senna
+1991|12|Autodromo Nazionale di Monza|Nigel Mansell
+1991|13|Autodromo do Estoril|Riccardo Patrese
+1991|14|Circuit de Barcelona-Catalunya|Nigel Mansell
+1991|15|Suzuka International Racing Course|Gerhard Berger
+1991|16|Adelaide Street Circuit|Ayrton Senna
+1992|1|Kyalami Grand Prix Circuit|Nigel Mansell
+1992|2|Autodromo Hermanos Rodriguez|Nigel Mansell
+1992|3|Autodromo Jose Carlos Pace|Nigel Mansell
+1992|4|Circuit de Barcelona-Catalunya|Nigel Mansell
+1992|5|Autodromo Dino Ferrari|Nigel Mansell
+1992|6|Circuit de Monaco|Ayrton Senna
+1992|7|Circuit Gilles Villeneuve|Gerhard Berger
+1992|8|Circuit de Nevers Magny-Cours|Nigel Mansell
+1992|9|Silverstone Circuit|Nigel Mansell
+1992|10|Hockenheimring|Nigel Mansell
+1992|11|Hungaroring|Ayrton Senna
+1992|12|Circuit de Spa-Francorchamps|Michael Schumacher
+1992|13|Autodromo Nazionale di Monza|Ayrton Senna
+1992|14|Autodromo do Estoril|Nigel Mansell
+1992|15|Suzuka International Racing Course|Riccardo Patrese
+1992|16|Adelaide Street Circuit|Gerhard Berger
+1993|1|Kyalami Grand Prix Circuit|Alain Prost
+1993|2|Autodromo Jose Carlos Pace|Ayrton Senna
+1993|3|Donington Park|Ayrton Senna
+1993|4|Autodromo Dino Ferrari|Alain Prost
+1993|5|Circuit de Barcelona-Catalunya|Alain Prost
+1993|6|Circuit de Monaco|Ayrton Senna
+1993|7|Circuit Gilles Villeneuve|Alain Prost
+1993|8|Circuit de Nevers Magny-Cours|Alain Prost
+1993|9|Silverstone Circuit|Alain Prost
+1993|10|Hockenheimring|Alain Prost
+1993|11|Hungaroring|Damon Hill
+1993|12|Circuit de Spa-Francorchamps|Damon Hill
+1993|13|Autodromo Nazionale di Monza|Damon Hill
+1993|14|Autodromo do Estoril|Michael Schumacher
+1993|15|Suzuka International Racing Course|Ayrton Senna
+1993|16|Adelaide Street Circuit|Ayrton Senna
+1994|1|Autodromo Jose Carlos Pace|Michael Schumacher
+1994|2|TI Circuit|Michael Schumacher
+1994|3|Autodromo Dino Ferrari|Michael Schumacher
+1994|4|Circuit de Monaco|Michael Schumacher
+1994|5|Circuit de Barcelona-Catalunya|Damon Hill
+1994|6|Circuit Gilles Villeneuve|Michael Schumacher
+1994|7|Circuit de Nevers Magny-Cours|Michael Schumacher
+1994|8|Silverstone Circuit|Damon Hill
+1994|9|Hockenheimring|Gerhard Berger
+1994|10|Hungaroring|Michael Schumacher
+1994|11|Circuit de Spa-Francorchamps|Damon Hill
+1994|12|Autodromo Nazionale di Monza|Damon Hill
+1994|13|Autodromo do Estoril|Damon Hill
+1994|14|Circuito de Jerez|Michael Schumacher
+1994|15|Suzuka International Racing Course|Damon Hill
+1994|16|Adelaide Street Circuit|Nigel Mansell
+1995|1|Autodromo Jose Carlos Pace|Michael Schumacher
+1995|2|Autodromo Oscar Alfredo Galvez|Damon Hill
+1995|3|Autodromo Dino Ferrari|Damon Hill
+1995|4|Circuit de Barcelona-Catalunya|Michael Schumacher
+1995|5|Circuit de Monaco|Michael Schumacher
+1995|6|Circuit Gilles Villeneuve|Jean Alesi
+1995|7|Circuit de Nevers Magny-Cours|Michael Schumacher
+1995|8|Silverstone Circuit|Johnny Herbert
+1995|9|Hockenheimring|Michael Schumacher
+1995|10|Hungaroring|Damon Hill
+1995|11|Circuit de Spa-Francorchamps|Michael Schumacher
+1995|12|Autodromo Nazionale di Monza|Johnny Herbert
+1995|13|Autodromo do Estoril|David Coulthard
+1995|14|Nurburgring GP-Strecke|Michael Schumacher
+1995|15|TI Circuit|Michael Schumacher
+1995|16|Suzuka International Racing Course|Michael Schumacher
+1995|17|Adelaide Street Circuit|Damon Hill
+1996|1|Albert Park Circuit|Damon Hill
+1996|2|Autodromo Jose Carlos Pace|Damon Hill
+1996|3|Autodromo Oscar Alfredo Galvez|Damon Hill
+1996|4|Nurburgring GP-Strecke|Jacques Villeneuve
+1996|5|Autodromo Dino Ferrari|Damon Hill
+1996|6|Circuit de Monaco|Olivier Panis
+1996|7|Circuit de Barcelona-Catalunya|Michael Schumacher
+1996|8|Circuit Gilles Villeneuve|Damon Hill
+1996|9|Circuit de Nevers Magny-Cours|Damon Hill
+1996|10|Silverstone Circuit|Jacques Villeneuve
+1996|11|Hockenheimring|Damon Hill
+1996|12|Hungaroring|Jacques Villeneuve
+1996|13|Circuit de Spa-Francorchamps|Michael Schumacher
+1996|14|Autodromo Nazionale di Monza|Michael Schumacher
+1996|15|Autodromo do Estoril|Jacques Villeneuve
+1996|16|Suzuka Circuit|Damon Hill
+1997|1|Albert Park Circuit|David Coulthard
+1997|2|Autodromo Jose Carlos Pace|Jacques Villeneuve
+1997|3|Autodromo Oscar Alfredo Galvez|Jacques Villeneuve
+1997|4|Autodromo Dino Ferrari|Heinz-Harald Frentzen
+1997|5|Circuit de Monaco|Michael Schumacher
+1997|6|Circuit de Barcelona-Catalunya|Jacques Villeneuve
+1997|7|Circuit Gilles Villeneuve|Michael Schumacher
+1997|8|Circuit de Nevers Magny-Cours|Michael Schumacher
+1997|9|Silverstone Circuit|Jacques Villeneuve
+1997|10|Hockenheimring|Gerhard Berger
+1997|11|Hungaroring|Jacques Villeneuve
+1997|12|Circuit de Spa-Francorchamps|Michael Schumacher
+1997|13|Autodromo Nazionale di Monza|David Coulthard
+1997|14|A1-Ring|Jacques Villeneuve
+1997|15|Nurburgring GP-Strecke|Jacques Villeneuve
+1997|16|Suzuka Circuit|Michael Schumacher
+1997|17|Circuito de Jerez|Mika Hakkinen
+1998|1|Albert Park Circuit|Mika Hakkinen
+1998|2|Autodromo Jose Carlos Pace|Mika Hakkinen
+1998|3|Autodromo Oscar Alfredo Galvez|Michael Schumacher
+1998|4|Autodromo Dino Ferrari|David Coulthard
+1998|5|Circuit de Barcelona-Catalunya|Mika Hakkinen
+1998|6|Circuit de Monaco|Mika Hakkinen
+1998|7|Circuit Gilles Villeneuve|Michael Schumacher
+1998|8|Circuit de Nevers Magny-Cours|Michael Schumacher
+1998|9|Silverstone Circuit|Michael Schumacher
+1998|10|A1-Ring|Mika Hakkinen
+1998|11|Hockenheimring|Mika Hakkinen
+1998|12|Hungaroring|Michael Schumacher
+1998|13|Circuit de Spa-Francorchamps|Damon Hill
+1998|14|Autodromo Nazionale di Monza|Michael Schumacher
+1998|15|Nurburgring GP-Strecke|Mika Hakkinen
+1998|16|Suzuka Circuit|Mika Hakkinen
+1999|1|Albert Park Circuit|Eddie Irvine
+1999|2|Autodromo Jose Carlos Pace|Mika Hakkinen
+1999|3|Autodromo Dino Ferrari|Michael Schumacher
+1999|4|Circuit de Monaco|Michael Schumacher
+1999|5|Circuit de Barcelona-Catalunya|Mika Hakkinen
+1999|6|Circuit Gilles Villeneuve|Mika Hakkinen
+1999|7|Circuit de Nevers Magny-Cours|Heinz-Harald Frentzen
+1999|8|Silverstone Circuit|David Coulthard
+1999|9|A1-Ring|Eddie Irvine
+1999|10|Hockenheimring|Eddie Irvine
+1999|11|Hungaroring|Mika Hakkinen
+1999|12|Circuit de Spa-Francorchamps|David Coulthard
+1999|13|Autodromo Nazionale di Monza|Heinz-Harald Frentzen
+1999|14|Nurburgring GP-Strecke|Johnny Herbert
+1999|15|Sepang International Circuit|Eddie Irvine
+1999|16|Suzuka Circuit|Mika Hakkinen
+2000|1|Albert Park Circuit|Michael Schumacher
+2000|2|Autodromo Jose Carlos Pace|Michael Schumacher
+2000|3|Autodromo Dino Ferrari|Michael Schumacher
+2000|4|Silverstone Circuit|David Coulthard
+2000|5|Circuit de Barcelona-Catalunya|Mika Hakkinen
+2000|6|Nurburgring GP-Strecke|Michael Schumacher
+2000|7|Circuit de Monaco|David Coulthard
+2000|8|Circuit Gilles Villeneuve|Michael Schumacher
+2000|9|Circuit de Nevers Magny-Cours|David Coulthard
+2000|10|A1-Ring|Mika Hakkinen
+2000|11|Hockenheimring|Rubens Barrichello
+2000|12|Hungaroring|Mika Hakkinen
+2000|13|Circuit de Spa-Francorchamps|Mika Hakkinen
+2000|14|Autodromo Nazionale di Monza|Michael Schumacher
+2000|15|Indianapolis Motor Speedway|Michael Schumacher
+2000|16|Suzuka Circuit|Michael Schumacher
+2000|17|Sepang International Circuit|Michael Schumacher
+2001|1|Albert Park Circuit|Michael Schumacher
+2001|2|Sepang International Circuit|Michael Schumacher
+2001|3|Autodromo Jose Carlos Pace|David Coulthard
+2001|4|Autodromo Dino Ferrari|Ralf Schumacher
+2001|5|Circuit de Barcelona-Catalunya|Michael Schumacher
+2001|6|A1-Ring|David Coulthard
+2001|7|Circuit de Monaco|Michael Schumacher
+2001|8|Circuit Gilles Villeneuve|Ralf Schumacher
+2001|9|Nurburgring GP-Strecke|Michael Schumacher
+2001|10|Circuit de Nevers Magny-Cours|Michael Schumacher
+2001|11|Silverstone Circuit|Mika Hakkinen
+2001|12|Hockenheimring|Ralf Schumacher
+2001|13|Hungaroring|Michael Schumacher
+2001|14|Circuit de Spa-Francorchamps|Michael Schumacher
+2001|15|Autodromo Nazionale di Monza|Juan Pablo Montoya
+2001|16|Indianapolis Motor Speedway|Mika Hakkinen
+2001|17|Suzuka Circuit|Michael Schumacher
+2002|1|Albert Park Circuit|Michael Schumacher
+2002|2|Sepang International Circuit|Ralf Schumacher
+2002|3|Autodromo Jose Carlos Pace|Michael Schumacher
+2002|4|Autodromo Dino Ferrari|Michael Schumacher
+2002|5|Circuit de Barcelona-Catalunya|Michael Schumacher
+2002|6|A1-Ring|Michael Schumacher
+2002|7|Circuit de Monaco|David Coulthard
+2002|8|Circuit Gilles Villeneuve|Michael Schumacher
+2002|9|Nurburgring GP-Strecke|Rubens Barrichello
+2002|10|Silverstone Circuit|Michael Schumacher
+2002|11|Circuit de Nevers Magny-Cours|Michael Schumacher
+2002|12|Hockenheimring|Michael Schumacher
+2002|13|Hungaroring|Rubens Barrichello
+2002|14|Circuit de Spa-Francorchamps|Michael Schumacher
+2002|15|Autodromo Nazionale di Monza|Rubens Barrichello
+2002|16|Indianapolis Motor Speedway|Rubens Barrichello
+2002|17|Suzuka Circuit|Michael Schumacher
+2003|1|Albert Park Circuit|David Coulthard
+2003|2|Sepang International Circuit|Kimi Raikkonen
+2003|3|Autodromo Jose Carlos Pace|Giancarlo Fisichella
+2003|4|Autodromo Dino Ferrari|Michael Schumacher
+2003|5|Circuit de Barcelona-Catalunya|Michael Schumacher
+2003|6|A1-Ring|Michael Schumacher
+2003|7|Circuit de Monaco|Juan Pablo Montoya
+2003|8|Circuit Gilles Villeneuve|Michael Schumacher
+2003|9|Nurburgring GP-Strecke|Ralf Schumacher
+2003|10|Circuit de Nevers Magny-Cours|Ralf Schumacher
+2003|11|Silverstone Circuit|Rubens Barrichello
+2003|12|Hockenheimring|Juan Pablo Montoya
+2003|13|Hungaroring|Fernando Alonso
+2003|14|Autodromo Nazionale di Monza|Michael Schumacher
+2003|15|Indianapolis Motor Speedway|Michael Schumacher
+2003|16|Suzuka Circuit|Rubens Barrichello
+2004|1|Albert Park Circuit|Michael Schumacher
+2004|2|Sepang International Circuit|Michael Schumacher
+2004|3|Bahrain International Circuit|Michael Schumacher
+2004|4|Autodromo Dino Ferrari|Michael Schumacher
+2004|5|Circuit de Barcelona-Catalunya|Michael Schumacher
+2004|6|Circuit de Monaco|Jarno Trulli
+2004|7|Nurburgring GP-Strecke|Michael Schumacher
+2004|8|Circuit Gilles Villeneuve|Michael Schumacher
+2004|9|Indianapolis Motor Speedway|Michael Schumacher
+2004|10|Circuit de Nevers Magny-Cours|Michael Schumacher
+2004|11|Silverstone Circuit|Michael Schumacher
+2004|12|Hockenheimring|Michael Schumacher
+2004|13|Hungaroring|Michael Schumacher
+2004|14|Circuit de Spa-Francorchamps|Kimi Raikkonen
+2004|15|Autodromo Nazionale di Monza|Rubens Barrichello
+2004|16|Shanghai International Circuit|Rubens Barrichello
+2004|17|Suzuka Circuit|Michael Schumacher
+2004|18|Autodromo Jose Carlos Pace|Juan Pablo Montoya
+2005|1|Albert Park Circuit|Giancarlo Fisichella
+2005|2|Sepang International Circuit|Fernando Alonso
+2005|3|Bahrain International Circuit|Fernando Alonso
+2005|4|Autodromo Dino Ferrari|Fernando Alonso
+2005|5|Circuit de Barcelona-Catalunya|Kimi Raikkonen
+2005|6|Circuit de Monaco|Kimi Raikkonen
+2005|7|Nurburgring GP-Strecke|Fernando Alonso
+2005|8|Circuit Gilles Villeneuve|Kimi Raikkonen
+2005|9|Indianapolis Motor Speedway|Michael Schumacher
+2005|10|Circuit de Nevers Magny-Cours|Fernando Alonso
+2005|11|Silverstone Circuit|Juan Pablo Montoya
+2005|12|Hockenheimring|Fernando Alonso
+2005|13|Hungaroring|Kimi Raikkonen
+2005|14|Istanbul Park|Kimi Raikkonen
+2005|15|Autodromo Nazionale di Monza|Juan Pablo Montoya
+2005|16|Circuit de Spa-Francorchamps|Kimi Raikkonen
+2005|17|Autodromo Jose Carlos Pace|Juan Pablo Montoya
+2005|18|Suzuka Circuit|Kimi Raikkonen
+2005|19|Shanghai International Circuit|Fernando Alonso
+2006|1|Bahrain International Circuit|Fernando Alonso
+2006|2|Sepang International Circuit|Giancarlo Fisichella
+2006|3|Albert Park Circuit|Fernando Alonso
+2006|4|Autodromo Dino Ferrari|Michael Schumacher
+2006|5|Nurburgring GP-Strecke|Michael Schumacher
+2006|6|Circuit de Barcelona-Catalunya|Fernando Alonso
+2006|7|Circuit de Monaco|Fernando Alonso
+2006|8|Silverstone Circuit|Fernando Alonso
+2006|9|Circuit Gilles Villeneuve|Fernando Alonso
+2006|10|Indianapolis Motor Speedway|Michael Schumacher
+2006|11|Circuit de Nevers Magny-Cours|Michael Schumacher
+2006|12|Hockenheimring|Michael Schumacher
+2006|13|Hungaroring|Jenson Button
+2006|14|Istanbul Park|Felipe Massa
+2006|15|Autodromo Nazionale di Monza|Michael Schumacher
+2006|16|Shanghai International Circuit|Michael Schumacher
+2006|17|Suzuka Circuit|Fernando Alonso
+2006|18|Autodromo Jose Carlos Pace|Felipe Massa
+2007|1|Albert Park Circuit|Kimi Raikkonen
+2007|2|Sepang International Circuit|Fernando Alonso
+2007|3|Bahrain International Circuit|Felipe Massa
+2007|4|Circuit de Barcelona-Catalunya|Felipe Massa
+2007|5|Circuit de Monaco|Fernando Alonso
+2007|6|Circuit Gilles Villeneuve|Lewis Hamilton
+2007|7|Indianapolis Motor Speedway|Lewis Hamilton
+2007|8|Circuit de Nevers Magny-Cours|Kimi Raikkonen
+2007|9|Silverstone Circuit|Kimi Raikkonen
+2007|10|Nurburgring GP-Strecke|Fernando Alonso
+2007|11|Hungaroring|Lewis Hamilton
+2007|12|Istanbul Park|Felipe Massa
+2007|13|Autodromo Nazionale di Monza|Fernando Alonso
+2007|14|Circuit de Spa-Francorchamps|Kimi Raikkonen
+2007|15|Fuji Speedway|Lewis Hamilton
+2007|16|Shanghai International Circuit|Kimi Raikkonen
+2007|17|Autodromo Jose Carlos Pace|Kimi Raikkonen
+2008|1|Albert Park Circuit|Lewis Hamilton
+2008|2|Sepang International Circuit|Kimi Raikkonen
+2008|3|Bahrain International Circuit|Felipe Massa
+2008|4|Circuit de Barcelona-Catalunya|Kimi Raikkonen
+2008|5|Istanbul Park|Felipe Massa
+2008|6|Circuit de Monaco|Lewis Hamilton
+2008|7|Circuit Gilles Villeneuve|Robert Kubica
+2008|8|Circuit de Nevers Magny-Cours|Felipe Massa
+2008|9|Silverstone Circuit|Lewis Hamilton
+2008|10|Hockenheimring|Lewis Hamilton
+2008|11|Hungaroring|Heikki Kovalainen
+2008|12|Valencia Street Circuit|Felipe Massa
+2008|13|Circuit de Spa-Francorchamps|Felipe Massa
+2008|14|Autodromo Nazionale di Monza|Sebastian Vettel
+2008|15|Marina Bay Street Circuit|Fernando Alonso
+2008|16|Fuji Speedway|Fernando Alonso
+2008|17|Shanghai International Circuit|Lewis Hamilton
+2008|18|Autodromo Jose Carlos Pace|Felipe Massa
+2009|1|Albert Park Circuit|Jenson Button
+2009|2|Sepang International Circuit|Jenson Button
+2009|3|Shanghai International Circuit|Sebastian Vettel
+2009|4|Bahrain International Circuit|Jenson Button
+2009|5|Circuit de Barcelona-Catalunya|Jenson Button
+2009|6|Circuit de Monaco|Jenson Button
+2009|7|Istanbul Park|Jenson Button
+2009|8|Silverstone Circuit|Sebastian Vettel
+2009|9|Nurburgring GP-Strecke|Mark Webber
+2009|10|Hungaroring|Lewis Hamilton
+2009|11|Valencia Street Circuit|Rubens Barrichello
+2009|12|Circuit de Spa-Francorchamps|Kimi Raikkonen
+2009|13|Autodromo Nazionale di Monza|Rubens Barrichello
+2009|14|Marina Bay Street Circuit|Lewis Hamilton
+2009|15|Suzuka Circuit|Sebastian Vettel
+2009|16|Autodromo Jose Carlos Pace|Mark Webber
+2009|17|Yas Marina Circuit|Sebastian Vettel
+2010|1|Bahrain International Circuit|Fernando Alonso
+2010|2|Albert Park Circuit|Jenson Button
+2010|3|Sepang International Circuit|Sebastian Vettel
+2010|4|Shanghai International Circuit|Jenson Button
+2010|5|Circuit de Barcelona-Catalunya|Mark Webber
+2010|6|Circuit de Monaco|Mark Webber
+2010|7|Istanbul Park|Lewis Hamilton
+2010|8|Circuit Gilles Villeneuve|Lewis Hamilton
+2010|9|Valencia Street Circuit|Sebastian Vettel
+2010|10|Silverstone Circuit|Mark Webber
+2010|11|Hockenheimring|Fernando Alonso
+2010|12|Hungaroring|Mark Webber
+2010|13|Circuit de Spa-Francorchamps|Lewis Hamilton
+2010|14|Autodromo Nazionale di Monza|Fernando Alonso
+2010|15|Marina Bay Street Circuit|Fernando Alonso
+2010|16|Suzuka Circuit|Sebastian Vettel
+2010|17|Korea International Circuit|Fernando Alonso
+2010|18|Autodromo Jose Carlos Pace|Sebastian Vettel
+2010|19|Yas Marina Circuit|Sebastian Vettel
+2011|1|Albert Park Circuit|Sebastian Vettel
+2011|2|Sepang International Circuit|Sebastian Vettel
+2011|3|Shanghai International Circuit|Lewis Hamilton
+2011|4|Istanbul Park|Sebastian Vettel
+2011|5|Circuit de Barcelona-Catalunya|Sebastian Vettel
+2011|6|Circuit de Monaco|Sebastian Vettel
+2011|7|Circuit Gilles Villeneuve|Jenson Button
+2011|8|Valencia Street Circuit|Sebastian Vettel
+2011|9|Silverstone Circuit|Fernando Alonso
+2011|10|Nurburgring GP-Strecke|Lewis Hamilton
+2011|11|Hungaroring|Jenson Button
+2011|12|Circuit de Spa-Francorchamps|Sebastian Vettel
+2011|13|Autodromo Nazionale di Monza|Sebastian Vettel
+2011|14|Marina Bay Street Circuit|Sebastian Vettel
+2011|15|Suzuka Circuit|Jenson Button
+2011|16|Korea International Circuit|Sebastian Vettel
+2011|17|Buddh International Circuit|Sebastian Vettel
+2011|18|Yas Marina Circuit|Lewis Hamilton
+2011|19|Autodromo Jose Carlos Pace|Mark Webber
+2012|1|Albert Park Circuit|Jenson Button
+2012|2|Sepang International Circuit|Fernando Alonso
+2012|3|Shanghai International Circuit|Nico Rosberg
+2012|4|Bahrain International Circuit|Sebastian Vettel
+2012|5|Circuit de Barcelona-Catalunya|Pastor Maldonado
+2012|6|Circuit de Monaco|Mark Webber
+2012|7|Circuit Gilles Villeneuve|Lewis Hamilton
+2012|8|Valencia Street Circuit|Fernando Alonso
+2012|9|Silverstone Circuit|Mark Webber
+2012|10|Hockenheimring|Fernando Alonso
+2012|11|Hungaroring|Lewis Hamilton
+2012|12|Circuit de Spa-Francorchamps|Jenson Button
+2012|13|Autodromo Nazionale di Monza|Lewis Hamilton
+2012|14|Marina Bay Street Circuit|Sebastian Vettel
+2012|15|Suzuka Circuit|Sebastian Vettel
+2012|16|Korea International Circuit|Sebastian Vettel
+2012|17|Buddh International Circuit|Sebastian Vettel
+2012|18|Yas Marina Circuit|Kimi Raikkonen
+2012|19|Circuit of the Americas|Lewis Hamilton
+2012|20|Autodromo Jose Carlos Pace|Jenson Button
+2013|1|Albert Park Circuit|Kimi Raikkonen
+2013|2|Sepang International Circuit|Sebastian Vettel
+2013|3|Shanghai International Circuit|Fernando Alonso
+2013|4|Bahrain International Circuit|Sebastian Vettel
+2013|5|Circuit de Barcelona-Catalunya|Fernando Alonso
+2013|6|Circuit de Monaco|Nico Rosberg
+2013|7|Circuit Gilles Villeneuve|Sebastian Vettel
+2013|8|Silverstone Circuit|Nico Rosberg
+2013|9|Nurburgring GP-Strecke|Sebastian Vettel
+2013|10|Hungaroring|Lewis Hamilton
+2013|11|Circuit de Spa-Francorchamps|Sebastian Vettel
+2013|12|Autodromo Nazionale di Monza|Sebastian Vettel
+2013|13|Marina Bay Street Circuit|Sebastian Vettel
+2013|14|Korea International Circuit|Sebastian Vettel
+2013|15|Suzuka Circuit|Sebastian Vettel
+2013|16|Buddh International Circuit|Sebastian Vettel
+2013|17|Yas Marina Circuit|Sebastian Vettel
+2013|18|Circuit of the Americas|Sebastian Vettel
+2013|19|Autodromo Jose Carlos Pace|Sebastian Vettel
+2014|1|Albert Park Circuit|Nico Rosberg
+2014|2|Sepang International Circuit|Lewis Hamilton
+2014|3|Bahrain International Circuit|Lewis Hamilton
+2014|4|Shanghai International Circuit|Lewis Hamilton
+2014|5|Circuit de Barcelona-Catalunya|Lewis Hamilton
+2014|6|Circuit de Monaco|Nico Rosberg
+2014|7|Circuit Gilles Villeneuve|Daniel Ricciardo
+2014|8|Red Bull Ring|Nico Rosberg
+2014|9|Silverstone Circuit|Lewis Hamilton
+2014|10|Hockenheimring|Nico Rosberg
+2014|11|Hungaroring|Daniel Ricciardo
+2014|12|Circuit de Spa-Francorchamps|Daniel Ricciardo
+2014|13|Autodromo Nazionale di Monza|Lewis Hamilton
+2014|14|Marina Bay Street Circuit|Lewis Hamilton
+2014|15|Suzuka Circuit|Lewis Hamilton
+2014|16|Sochi Autodrom|Lewis Hamilton
+2014|17|Circuit of the Americas|Lewis Hamilton
+2014|18|Autodromo Jose Carlos Pace|Nico Rosberg
+2014|19|Yas Marina Circuit|Lewis Hamilton
+2015|1|Albert Park Circuit|Lewis Hamilton
+2015|2|Sepang International Circuit|Sebastian Vettel
+2015|3|Shanghai International Circuit|Lewis Hamilton
+2015|4|Bahrain International Circuit|Lewis Hamilton
+2015|5|Circuit de Barcelona-Catalunya|Nico Rosberg
+2015|6|Circuit de Monaco|Nico Rosberg
+2015|7|Circuit Gilles Villeneuve|Lewis Hamilton
+2015|8|Red Bull Ring|Nico Rosberg
+2015|9|Silverstone Circuit|Lewis Hamilton
+2015|10|Hungaroring|Sebastian Vettel
+2015|11|Circuit de Spa-Francorchamps|Lewis Hamilton
+2015|12|Autodromo Nazionale di Monza|Lewis Hamilton
+2015|13|Marina Bay Street Circuit|Sebastian Vettel
+2015|14|Suzuka Circuit|Lewis Hamilton
+2015|15|Sochi Autodrom|Lewis Hamilton
+2015|16|Circuit of the Americas|Lewis Hamilton
+2015|17|Autodromo Hermanos Rodriguez|Nico Rosberg
+2015|18|Autodromo Jose Carlos Pace|Nico Rosberg
+2015|19|Yas Marina Circuit|Nico Rosberg
+2016|1|Albert Park Circuit|Nico Rosberg
+2016|2|Bahrain International Circuit|Nico Rosberg
+2016|3|Shanghai International Circuit|Nico Rosberg
+2016|4|Sochi Autodrom|Nico Rosberg
+2016|5|Circuit de Barcelona-Catalunya|Max Verstappen
+2016|6|Circuit de Monaco|Lewis Hamilton
+2016|7|Circuit Gilles Villeneuve|Lewis Hamilton
+2016|8|Baku City Circuit|Nico Rosberg
+2016|9|Red Bull Ring|Lewis Hamilton
+2016|10|Silverstone Circuit|Lewis Hamilton
+2016|11|Hungaroring|Lewis Hamilton
+2016|12|Hockenheimring|Lewis Hamilton
+2016|13|Circuit de Spa-Francorchamps|Nico Rosberg
+2016|14|Autodromo Nazionale di Monza|Nico Rosberg
+2016|15|Marina Bay Street Circuit|Nico Rosberg
+2016|16|Sepang International Circuit|Daniel Ricciardo
+2016|17|Suzuka Circuit|Nico Rosberg
+2016|18|Circuit of the Americas|Lewis Hamilton
+2016|19|Autodromo Hermanos Rodriguez|Lewis Hamilton
+2016|20|Autodromo Jose Carlos Pace|Lewis Hamilton
+2016|21|Yas Marina Circuit|Lewis Hamilton
+2017|1|Albert Park Circuit|Sebastian Vettel
+2017|2|Shanghai International Circuit|Lewis Hamilton
+2017|3|Bahrain International Circuit|Sebastian Vettel
+2017|4|Sochi Autodrom|Valtteri Bottas
+2017|5|Circuit de Barcelona-Catalunya|Lewis Hamilton
+2017|6|Circuit de Monaco|Sebastian Vettel
+2017|7|Circuit Gilles Villeneuve|Lewis Hamilton
+2017|8|Baku City Circuit|Daniel Ricciardo
+2017|9|Red Bull Ring|Valtteri Bottas
+2017|10|Silverstone Circuit|Lewis Hamilton
+2017|11|Hungaroring|Sebastian Vettel
+2017|12|Circuit de Spa-Francorchamps|Lewis Hamilton
+2017|13|Autodromo Nazionale di Monza|Lewis Hamilton
+2017|14|Marina Bay Street Circuit|Lewis Hamilton
+2017|15|Sepang International Circuit|Max Verstappen
+2017|16|Suzuka Circuit|Lewis Hamilton
+2017|17|Circuit of the Americas|Lewis Hamilton
+2017|18|Autodromo Hermanos Rodriguez|Max Verstappen
+2017|19|Autodromo Jose Carlos Pace|Sebastian Vettel
+2017|20|Yas Marina Circuit|Valtteri Bottas
+2018|1|Albert Park Circuit|Sebastian Vettel
+2018|2|Bahrain International Circuit|Sebastian Vettel
+2018|3|Shanghai International Circuit|Daniel Ricciardo
+2018|4|Baku City Circuit|Lewis Hamilton
+2018|5|Circuit de Barcelona-Catalunya|Lewis Hamilton
+2018|6|Circuit de Monaco|Daniel Ricciardo
+2018|7|Circuit Gilles Villeneuve|Sebastian Vettel
+2018|8|Circuit Paul Ricard|Lewis Hamilton
+2018|9|Red Bull Ring|Max Verstappen
+2018|10|Silverstone Circuit|Sebastian Vettel
+2018|11|Hockenheimring|Lewis Hamilton
+2018|12|Hungaroring|Lewis Hamilton
+2018|13|Circuit de Spa-Francorchamps|Sebastian Vettel
+2018|14|Autodromo Nazionale di Monza|Lewis Hamilton
+2018|15|Marina Bay Street Circuit|Lewis Hamilton
+2018|16|Sochi Autodrom|Lewis Hamilton
+2018|17|Suzuka Circuit|Lewis Hamilton
+2018|18|Circuit of the Americas|Kimi Raikkonen
+2018|19|Autodromo Hermanos Rodriguez|Max Verstappen
+2018|20|Autodromo Jose Carlos Pace|Lewis Hamilton
+2018|21|Yas Marina Circuit|Lewis Hamilton
+2019|1|Albert Park Circuit|Valtteri Bottas
+2019|2|Bahrain International Circuit|Lewis Hamilton
+2019|3|Shanghai International Circuit|Lewis Hamilton
+2019|4|Baku City Circuit|Valtteri Bottas
+2019|5|Circuit de Barcelona-Catalunya|Lewis Hamilton
+2019|6|Circuit de Monaco|Lewis Hamilton
+2019|7|Circuit Gilles Villeneuve|Lewis Hamilton
+2019|8|Circuit Paul Ricard|Lewis Hamilton
+2019|9|Red Bull Ring|Max Verstappen
+2019|10|Silverstone Circuit|Lewis Hamilton
+2019|11|Hockenheimring|Max Verstappen
+2019|12|Hungaroring|Lewis Hamilton
+2019|13|Circuit de Spa-Francorchamps|Charles Leclerc
+2019|14|Autodromo Nazionale di Monza|Charles Leclerc
+2019|15|Marina Bay Street Circuit|Sebastian Vettel
+2019|16|Sochi Autodrom|Lewis Hamilton
+2019|17|Suzuka Circuit|Valtteri Bottas
+2019|18|Autodromo Hermanos Rodriguez|Lewis Hamilton
+2019|19|Circuit of the Americas|Valtteri Bottas
+2019|20|Autodromo Jose Carlos Pace|Max Verstappen
+2019|21|Yas Marina Circuit|Lewis Hamilton
+2020|1|Red Bull Ring|Valtteri Bottas
+2020|2|Red Bull Ring|Lewis Hamilton
+2020|3|Hungaroring|Lewis Hamilton
+2020|4|Silverstone Circuit|Lewis Hamilton
+2020|5|Silverstone Circuit|Max Verstappen
+2020|6|Circuit de Barcelona-Catalunya|Lewis Hamilton
+2020|7|Circuit de Spa-Francorchamps|Lewis Hamilton
+2020|8|Autodromo Nazionale di Monza|Pierre Gasly
+2020|9|Autodromo Internazionale del Mugello|Lewis Hamilton
+2020|10|Sochi Autodrom|Valtteri Bottas
+2020|11|Nurburgring GP-Strecke|Lewis Hamilton
+2020|12|Autodromo Internacional do Algarve|Lewis Hamilton
+2020|13|Autodromo Dino Ferrari|Lewis Hamilton
+2020|14|Istanbul Park|Lewis Hamilton
+2020|15|Bahrain International Circuit|Lewis Hamilton
+2020|16|Bahrain International Circuit|Sergio Perez
+2020|17|Yas Marina Circuit|Max Verstappen
+2021|1|Bahrain International Circuit|Lewis Hamilton
+2021|2|Autodromo Dino Ferrari|Max Verstappen
+2021|3|Autodromo Internacional do Algarve|Lewis Hamilton
+2021|4|Circuit de Barcelona-Catalunya|Lewis Hamilton
+2021|5|Circuit de Monaco|Max Verstappen
+2021|6|Baku City Circuit|Sergio Perez
+2021|7|Circuit Paul Ricard|Max Verstappen
+2021|8|Red Bull Ring|Max Verstappen
+2021|9|Red Bull Ring|Max Verstappen
+2021|10|Silverstone Circuit|Lewis Hamilton
+2021|11|Hungaroring|Esteban Ocon
+2021|12|Circuit de Spa-Francorchamps|Max Verstappen
+2021|13|Circuit Zandvoort|Max Verstappen
+2021|14|Autodromo Nazionale di Monza|Daniel Ricciardo
+2021|15|Sochi Autodrom|Lewis Hamilton
+2021|16|Istanbul Park|Valtteri Bottas
+2021|17|Circuit of the Americas|Max Verstappen
+2021|18|Autodromo Hermanos Rodriguez|Max Verstappen
+2021|19|Autodromo Jose Carlos Pace|Lewis Hamilton
+2021|20|Lusail International Circuit|Lewis Hamilton
+2021|21|Jeddah Corniche Circuit|Lewis Hamilton
+2021|22|Yas Marina Circuit|Max Verstappen
+2022|1|Bahrain International Circuit|Charles Leclerc
+2022|2|Jeddah Corniche Circuit|Max Verstappen
+2022|3|Albert Park Circuit|Charles Leclerc
+2022|4|Autodromo Dino Ferrari|Max Verstappen
+2022|5|Miami International Autodrome|Max Verstappen
+2022|6|Circuit de Barcelona-Catalunya|Max Verstappen
+2022|7|Circuit de Monaco|Sergio Perez
+2022|8|Baku City Circuit|Max Verstappen
+2022|9|Circuit Gilles Villeneuve|Max Verstappen
+2022|10|Silverstone Circuit|Carlos Sainz
+2022|11|Red Bull Ring|Charles Leclerc
+2022|12|Circuit Paul Ricard|Max Verstappen
+2022|13|Hungaroring|Max Verstappen
+2022|14|Circuit de Spa-Francorchamps|Max Verstappen
+2022|15|Circuit Zandvoort|Max Verstappen
+2022|16|Autodromo Nazionale di Monza|Max Verstappen
+2022|17|Marina Bay Street Circuit|Sergio Perez
+2022|18|Suzuka Circuit|Max Verstappen
+2022|19|Circuit of the Americas|Max Verstappen
+2022|20|Autodromo Hermanos Rodriguez|Max Verstappen
+2022|21|Autodromo Jose Carlos Pace|George Russell
+2022|22|Yas Marina Circuit|Max Verstappen
+2023|1|Bahrain International Circuit|Max Verstappen
+2023|2|Jeddah Corniche Circuit|Sergio Perez
+2023|3|Albert Park Circuit|Max Verstappen
+2023|4|Baku City Circuit|Sergio Perez
+2023|5|Miami International Autodrome|Max Verstappen
+2023|6|Circuit de Monaco|Max Verstappen
+2023|7|Circuit de Barcelona-Catalunya|Max Verstappen
+2023|8|Circuit Gilles Villeneuve|Max Verstappen
+2023|9|Red Bull Ring|Max Verstappen
+2023|10|Silverstone Circuit|Max Verstappen
+2023|11|Hungaroring|Max Verstappen
+2023|12|Circuit de Spa-Francorchamps|Max Verstappen
+2023|13|Circuit Zandvoort|Max Verstappen
+2023|14|Autodromo Nazionale di Monza|Max Verstappen
+2023|15|Marina Bay Street Circuit|Carlos Sainz
+2023|16|Suzuka Circuit|Max Verstappen
+2023|17|Lusail International Circuit|Max Verstappen
+2023|18|Circuit of the Americas|Max Verstappen
+2023|19|Autodromo Hermanos Rodriguez|Max Verstappen
+2023|20|Autodromo Jose Carlos Pace|Max Verstappen
+2023|21|Las Vegas Strip Circuit|Max Verstappen
+2023|22|Yas Marina Circuit|Max Verstappen
+2024|1|Bahrain International Circuit|Max Verstappen
+2024|2|Jeddah Corniche Circuit|Max Verstappen
+2024|3|Albert Park Circuit|Carlos Sainz
+2024|4|Suzuka Circuit|Max Verstappen
+2024|5|Shanghai International Circuit|Max Verstappen
+2024|6|Miami International Autodrome|Lando Norris
+2024|7|Autodromo Dino Ferrari|Max Verstappen
+2024|8|Circuit de Monaco|Charles Leclerc
+2024|9|Circuit Gilles Villeneuve|Max Verstappen
+2024|10|Circuit de Barcelona-Catalunya|Max Verstappen
+2024|11|Red Bull Ring|George Russell
+2024|12|Silverstone Circuit|Lewis Hamilton
+2024|13|Hungaroring|Oscar Piastri
+2024|14|Circuit de Spa-Francorchamps|Lewis Hamilton
+2024|15|Circuit Zandvoort|Lando Norris
+2024|16|Autodromo Nazionale di Monza|Charles Leclerc
+2024|17|Baku City Circuit|Oscar Piastri
+2024|18|Marina Bay Street Circuit|Lando Norris
+2024|19|Circuit of the Americas|Charles Leclerc
+2024|20|Autodromo Hermanos Rodriguez|Carlos Sainz
+2024|21|Autodromo Jose Carlos Pace|Max Verstappen
+2024|22|Las Vegas Strip Circuit|George Russell
+2024|23|Lusail International Circuit|Max Verstappen
+2024|24|Yas Marina Circuit|Lando Norris
+2025|1|Albert Park Circuit|Lando Norris
+2025|2|Shanghai International Circuit|Oscar Piastri
+2025|3|Suzuka Circuit|Max Verstappen
+2025|4|Bahrain International Circuit|Oscar Piastri
+2025|5|Jeddah Corniche Circuit|Oscar Piastri
+2025|6|Miami International Autodrome|Oscar Piastri
+2025|7|Autodromo Dino Ferrari|Max Verstappen
+2025|8|Circuit de Monaco|Lando Norris
+2025|9|Circuit de Barcelona-Catalunya|Oscar Piastri
+2025|10|Circuit Gilles Villeneuve|George Russell
+2025|11|Red Bull Ring|Lando Norris
+2025|12|Silverstone Circuit|Lando Norris
+2025|13|Circuit de Spa-Francorchamps|Oscar Piastri
+2025|14|Hungaroring|Lando Norris
+2025|15|Circuit Zandvoort|Oscar Piastri
+2025|16|Autodromo Nazionale di Monza|Max Verstappen
+2025|17|Baku City Circuit|Max Verstappen
+2025|18|Marina Bay Street Circuit|George Russell
+2025|19|Circuit of the Americas|Max Verstappen
+2025|20|Autodromo Hermanos Rodriguez|Lando Norris
+2025|21|Autodromo Jose Carlos Pace|Lando Norris
+2025|22|Las Vegas Strip Circuit|Max Verstappen
+2025|23|Lusail International Circuit|Max Verstappen
+2025|24|Yas Marina Circuit|Max Verstappen
+2026|1|Albert Park Circuit|George Russell
+2026|2|Shanghai International Circuit|Kimi Antonelli
+2026|3|Suzuka Circuit|Kimi Antonelli
+2026|4|Miami International Autodrome|Kimi Antonelli
+2026|5|Circuit Gilles Villeneuve|Kimi Antonelli
+2026|6|Circuit de Monaco|Kimi Antonelli
+2026|7|Circuit de Barcelona-Catalunya|Lewis Hamilton
+2026|8|Red Bull Ring|George Russell
+2026|9|Silverstone Circuit|Charles Leclerc
+2026|10|Circuit de Spa-Francorchamps|Kimi Antonelli
+2026|11|Hungaroring|Lando Norris
+2026|12|Circuit Zandvoort|Lando Norris

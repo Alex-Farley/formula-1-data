@@ -1,0 +1,44 @@
+Data licence — CC BY-SA 4.0
+
+This licence covers the data in this repository: data/, harvest/, f1.db,
+f1_database.json and f1_compat.json (but not the code — see LICENSE).
+
+Copyright (c) 2026 Alex Farley and Wikipedia contributors.
+
+The data is licensed under the Creative Commons Attribution-ShareAlike 4.0
+International License (CC BY-SA 4.0):
+
+    https://creativecommons.org/licenses/by-sa/4.0/
+
+Full legal code:
+
+    https://creativecommons.org/licenses/by-sa/4.0/legalcode
+
+## Why CC BY-SA
+
+Bare facts — who won a race, how long a circuit is — are not copyrightable,
+and a database of those facts would be free to license under anything. But
+this database also contains prose taken from or closely following Wikipedia
+articles: the car design histories, circuit descriptions, and some notes and
+glossary entries. Wikipedia text is licensed CC BY-SA 4.0, and that prose
+carries the same attribution and share-alike requirements with it. Rather
+than draw a line field-by-field, the whole data release is licensed CC BY-SA
+4.0. See ATTRIBUTION.md for the source of every part of the data and the
+reasoning in full.
+
+## Attribution
+
+Race results, driver, constructor, circuit and car data in this repository
+are derived from Wikipedia and are licensed under CC BY-SA 4.0. Current-season
+data is from formula1.com. Formula 1, F1 and Grand Prix are trademarks of
+Formula One Licensing BV; this project is unaffiliated with and unendorsed by
+Formula One or the FIA.
+
+## Live timing data
+
+tools/fastf1_load.py optionally loads per-lap timing, stints, pit stops, race
+control messages and team radio from the Formula 1 live timing API via
+FastF1. That data belongs to Formula One Management and is not covered by
+this licence, is not redistributed, and is not committed to this repository
+— the relevant tables are empty in the committed database and are filled
+only locally when you run the loader yourself. See ATTRIBUTION.md.

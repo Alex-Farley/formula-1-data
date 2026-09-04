@@ -1,0 +1,675 @@
+#!/usr/bin/env python3
+"""
+f1 — query tool for the F1 Verified Facts Database.
+
+  ./f1 champions                 every season's champion
+  ./f1 champions 1970 1979       a range of seasons
+  ./f1 season 1976               everything about one season
+  ./f1 driver hamilton           a driver's record (id or partial name)
+  ./f1 team ferrari              a constructor's record
+  ./f1 lineage enstone           a team's name changes over time
+  ./f1 circuit spa               a circuit, its layout history and its winners
+  ./f1 circuits                  every circuit by number of championship races
+  ./f1 circuits italy            every circuit in one country
+  ./f1 venues 1976               where each round of a season was held
+  ./f1 lost                      circuits dropped from the calendar
+  ./f1 car mp4/4                 a car: full spec, design story, its races
+  ./f1 cars                      the register, by wins
+  ./f1 cars ferrari              one constructor's cars
+  ./f1 evolution                 how the technology moved, car by car
+  ./f1 telemetry                 what per-lap and radio data is loaded
+  ./f1 rules 1994                regulation changes in a year
+  ./f1 rules technical           regulation changes by category
+  ./f1 safety                    the safety timeline
+  ./f1 tech                      landmark technical innovations
+  ./f1 records                   notable records
+  ./f1 eras                      the sport's periods
+  ./f1 glossary drs              look up a term
+  ./f1 grid                      the current season's entry list
+  ./f1 standings                 current standings
+  ./f1 standings 2025            a season's final standings
+  ./f1 wins                      career win leaders (derived from race results)
+  ./f1 gp monaco                 every winner of one Grand Prix
+  ./f1 races 1988                every race in a season: pole, fastest lap, winner
+  ./f1 poles                     career pole leaders
+  ./f1 fastest                   career fastest-lap leaders
+  ./f1 slams                     grand slams: pole + win + fastest lap
+  ./f1 gaps                      what the data is missing, and open discrepancies
+  ./f1 events                    every Grand Prix, how often held and where
+  ./f1 search senna              free-text search across every table
+  ./f1 unverified                everything not yet officially verified
+  ./f1 sql "SELECT ..."          arbitrary SQL
+  ./f1 schema                    tables, columns and views
+"""
+import os
+import signal
+import sqlite3
+import sys
+import textwrap
+
+# so that piping into head/less does not raise
+signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+
+DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "f1.db")
+W = 100
+
+
+def con():
+    if not os.path.exists(DB):
+        sys.exit("f1.db not found — run: python3 build.py")
+    c = sqlite3.connect(DB)
+    c.row_factory = sqlite3.Row
+    return c
+
+
+def table(rows, cols=None, maxw=48):
+    rows = list(rows)
+    if not rows:
+        print("(no results)")
+        return
+    cols = cols or rows[0].keys()
+    data = [[("" if r[c] is None else str(r[c]))[:maxw] for c in cols] for r in rows]
+    widths = [max(len(c), *(len(d[i]) for d in data)) for i, c in enumerate(cols)]
+    print("  ".join(c.upper().ljust(w) for c, w in zip(cols, widths)))
+    print("  ".join("-" * w for w in widths))
+    for d in data:
+        print("  ".join(v.ljust(w) for v, w in zip(d, widths)))
+    print(f"\n{len(rows)} row(s)")
+
+
+def para(label, text, indent=2):
+    if not text:
+        return
+    print(f"{label}:")
+    for line in textwrap.wrap(str(text), W - indent):
+        print(" " * indent + line)
+
+
+def main():
+    if len(sys.argv) < 2:
+        print(__doc__)
+        return
+    c = con()
+    cmd = sys.argv[1].lower()
+    a = sys.argv[2:]
+
+    if cmd == "champions":
+        if len(a) == 2:
+            q = "SELECT * FROM v_champions WHERE year BETWEEN ? AND ?"
+            rows = c.execute(q, (a[0], a[1]))
+        else:
+            rows = c.execute("SELECT * FROM v_champions WHERE champion IS NOT NULL")
+        table(rows, ["year", "champion", "team", "points", "runner_up", "margin",
+                     "constructors_champion"])
+
+    elif cmd == "season":
+        y = int(a[0])
+        r = c.execute("SELECT * FROM v_champions WHERE year=?", (y,)).fetchone()
+        s = c.execute("SELECT * FROM seasons WHERE year=?", (y,)).fetchone()
+        if not s:
+            sys.exit(f"no season {y}")
+        print(f"\n{'=' * W}\n  {y} FIA FORMULA ONE WORLD CHAMPIONSHIP\n{'=' * W}\n")
+        if r and r["champion"]:
+            print(f"  Drivers' champion       {r['champion']} ({r['team']}) — {r['points']} pts")
+            print(f"  Runner-up               {r['runner_up']} — {r['runner_up_points']} pts"
+                  f"   (margin {s['margin']})")
+            print(f"  Constructors' champion  {r['constructors_champion'] or 'n/a'}"
+                  f" — {s['constructors_points'] or 'n/a'} pts")
+        print(f"  Rounds                  {s['rounds']}")
+        print(f"  Engine formula          {s['engine_formula']}")
+        print(f"  Tyres                   {s['tyre_suppliers']}\n")
+        para("  Notes", s["notes"], 4)
+        regs = c.execute("SELECT category, title, detail FROM regulation_changes WHERE year=?",
+                         (y,)).fetchall()
+        if regs:
+            print("\n  Regulation changes this year:")
+            for g in regs:
+                print(f"    [{g['category']}] {g['title']}")
+                for line in textwrap.wrap(g["detail"] or "", W - 8):
+                    print("        " + line)
+        saf = c.execute("SELECT milestone, description FROM safety_milestones WHERE year=?",
+                        (y,)).fetchall()
+        if saf:
+            print("\n  Safety:")
+            for g in saf:
+                print(f"    {g['milestone']}")
+        inn = c.execute("SELECT innovation, originator FROM technical_innovations WHERE year=?",
+                        (y,)).fetchall()
+        if inn:
+            print("\n  Technical:")
+            for g in inn:
+                print(f"    {g['innovation']} — {g['originator']}")
+        wins = c.execute("""SELECT round, gp_name, winner FROM race_results
+                            LEFT JOIN drivers ON drivers.id=race_results.winner_id
+                            WHERE year=? ORDER BY round""", (y,)).fetchall()
+        if wins:
+            print("\n  Race winners:")
+            for g in c.execute("""SELECT r.round, r.gp_name, d.full_name AS w
+                                  FROM race_results r LEFT JOIN drivers d ON d.id=r.winner_id
+                                  WHERE r.year=? ORDER BY r.round""", (y,)):
+                print(f"    {g['round']:>2}. {g['gp_name']:<34} {g['w']}")
+        print()
+
+    elif cmd == "driver":
+        k = f"%{a[0]}%"
+        rows = c.execute("""SELECT * FROM drivers WHERE id LIKE ? OR full_name LIKE ?
+                            ORDER BY titles DESC, wins DESC""", (k, k)).fetchall()
+        if not rows:
+            sys.exit("no match")
+        for d in rows[:4]:
+            print(f"\n{'=' * W}\n  {d['full_name']}  ({d['nationality']})\n{'=' * W}")
+            fields = [("Seasons", f"{d['first_season'] or '?'}-{d['last_season'] or 'present'}"),
+                      ("Born", d["born"]), ("Died", d["died"]),
+                      ("Starts", d["starts"]), ("Wins", d["wins"]),
+                      ("Podiums", d["podiums"]), ("Poles", d["poles"]),
+                      ("Fastest laps", d["fastest_laps"]),
+                      ("Career points", d["career_points"]),
+                      ("Titles", f"{d['titles']}  ({d['title_years']})" if d["titles"] else "0"),
+                      ("Status", d["status"]), ("Confidence", d["confidence"])]
+            for label, val in fields:
+                if val not in (None, "", "None"):
+                    print(f"  {label:<16}{val}")
+            print()
+            para("  Notes", d["notes"], 4)
+            ent = c.execute("""SELECT year, car, power_unit, car_number, c.name AS team
+                               FROM season_entries e LEFT JOIN constructors c
+                               ON c.id=e.constructor_id WHERE driver_id=?""",
+                            (d["id"],)).fetchall()
+            for e in ent:
+                print(f"\n  {e['year']} entry: {e['team']} {e['car']} "
+                      f"({e['power_unit']}), #{e['car_number']}")
+            w = c.execute("""SELECT year, COUNT(*) n FROM race_results WHERE winner_id=?
+                             GROUP BY year""", (d["id"],)).fetchall()
+            if w:
+                print("\n  Wins recorded in this database: " +
+                      ", ".join(f"{r['year']}: {r['n']}" for r in w))
+
+    elif cmd == "team":
+        k = f"%{a[0]}%"
+        rows = c.execute("SELECT * FROM constructors WHERE id LIKE ? OR name LIKE ?",
+                         (k, k)).fetchall()
+        if not rows:
+            sys.exit("no match")
+        for t in rows[:4]:
+            print(f"\n{'=' * W}\n  {t['name']}  —  {t['full_name'] or ''}\n{'=' * W}")
+            for label, val in [("Country", t["country"]), ("Base", t["base"]),
+                               ("Entered", t["first_entry"]),
+                               ("Last entry", t["last_entry"] or "still competing"),
+                               ("Wins", t["wins"]),
+                               ("Constructors' titles", t["constructors_titles"]),
+                               ("Drivers' titles", t["drivers_titles"]),
+                               ("Title years", t["title_years"]),
+                               ("Confidence", t["confidence"])]:
+                if val not in (None, ""):
+                    print(f"  {label:<22}{val}")
+            print()
+            para("  Notes", t["notes"], 4)
+            if t["lineage_chain"]:
+                ln = c.execute("""SELECT * FROM constructor_lineage WHERE chain_id=?
+                                  ORDER BY sequence""", (t["lineage_chain"],)).fetchall()
+                if len(ln) > 1:
+                    print(f"\n  Lineage — {ln[0]['chain_name']}:")
+                    for g in ln:
+                        print(f"    {g['from_year']}-{g['to_year'] or 'present':<8} "
+                              f"{g['entity_name']}")
+            ch = c.execute("""SELECT year, d.full_name FROM seasons s LEFT JOIN drivers d
+                              ON d.id=s.drivers_champion WHERE s.champion_team=?
+                              ORDER BY year""", (t["id"],)).fetchall()
+            if ch:
+                print("\n  Drivers' championships won with this team:")
+                for g in ch:
+                    print(f"    {g['year']}  {g['full_name']}")
+
+    elif cmd == "lineage":
+        k = f"%{a[0]}%" if a else "%"
+        rows = c.execute("""SELECT chain_name, sequence, entity_name, from_year, to_year, note
+                            FROM constructor_lineage
+                            WHERE chain_id LIKE ? OR chain_name LIKE ? OR entity_name LIKE ?
+                            ORDER BY chain_id, sequence""", (k, k, k)).fetchall()
+        chain = None
+        for r in rows:
+            if r["chain_name"] != chain:
+                chain = r["chain_name"]
+                print(f"\n  {chain}\n  {'-' * len(chain)}")
+            print(f"    {r['from_year']}-{r['to_year'] or 'present':<8} {r['entity_name']}")
+            for line in textwrap.wrap(r["note"] or "", W - 10):
+                print("          " + line)
+        print()
+
+    elif cmd == "circuit":
+        k = f"%{a[0]}%"
+        rows = c.execute("""SELECT * FROM circuits WHERE id LIKE ? OR name LIKE ?
+                            OR country LIKE ?""", (k, k, k)).fetchall()
+        if not rows:
+            sys.exit("no match")
+        for t in rows[:5]:
+            print(f"\n{'=' * W}\n  {t['name']}  —  {t['locality']}, {t['country']}\n{'=' * W}")
+            for label, val in [("Type", t["circuit_type"]),
+                               ("First GP", t["first_gp"]),
+                               ("Last GP", t["last_gp"] or "still in use"),
+                               ("Length", f"{t['length_km']} km"),
+                               ("Turns", t["turns"]), ("Direction", t["direction"])]:
+                if val not in (None, ""):
+                    print(f"  {label:<12}{val}")
+            print()
+            para("  Character", t["characteristics"], 4)
+            print()
+            para("  Notes", t["notes"], 4)
+            lay = c.execute("""SELECT * FROM circuit_layouts WHERE circuit_id=?
+                               ORDER BY from_year""", (t["id"],)).fetchall()
+            if lay:
+                print("\n  Layout history:")
+                for g in lay:
+                    span = f"{g['from_year']}-{g['to_year'] or 'present'}"
+                    mark = "" if g["by_year"] else "  [one-off]"
+                    print(f"    {span:<14}{g['layout_name']} "
+                          f"({g['length_km']} km){mark}")
+                    for line in textwrap.wrap(g["change_reason"] or "", W - 10):
+                        print("          " + line)
+
+            v = c.execute("SELECT * FROM v_circuits WHERE id=?", (t["id"],)).fetchone()
+            if v and v["races"]:
+                ev_n = v["events_hosted"]
+                extra = (f", and {v['scheduled']} more scheduled"
+                         if v["scheduled"] else "")
+                print(f"\n  {v['races']} championship races over "
+                      f"{v['seasons_used']} seasons{extra}, hosting "
+                      f"{ev_n} different Grand Prix." if ev_n == 1 else
+                      f"\n  {v['races']} championship races over "
+                      f"{v['seasons_used']} seasons{extra}, hosting "
+                      f"{ev_n} different Grands Prix.")
+                ev = c.execute("""SELECT r.name_used gp, COUNT(*) n,
+                        MIN(r.year) f, MAX(r.year) l
+                    FROM races r WHERE r.circuit_id=?
+                    GROUP BY r.gp_id ORDER BY n DESC""", (t["id"],)).fetchall()
+                print("\n  Events held here:")
+                for e in ev:
+                    print(f"    {e['n']:>3}  {e['gp']}  ({e['f']}-{e['l']})")
+                print("\n  Most successful drivers here:")
+                table(c.execute("""SELECT driver, wins, first_win, last_win
+                    FROM v_circuit_winners WHERE circuit_id=? AND wins>1
+                    ORDER BY wins DESC, last_win""", (t["id"],)).fetchall())
+                print("\n  Most successful constructors here:")
+                table(c.execute("""SELECT constructor, wins, first_win, last_win
+                    FROM v_circuit_constructors WHERE circuit_id=? AND wins>1
+                    ORDER BY wins DESC, last_win""", (t["id"],)).fetchall())
+
+    elif cmd == "circuits":
+        if a:
+            k = f"%{a[0]}%"
+            rows = c.execute("""SELECT * FROM v_circuits
+                WHERE country LIKE ? OR name LIKE ? OR locality LIKE ?
+                ORDER BY races DESC""", (k, k, k)).fetchall()
+            if not rows:
+                sys.exit("no match")
+            table(rows, ["name", "locality", "country", "circuit_type",
+                         "races", "scheduled", "first_gp", "last_gp", "layouts"])
+        else:
+            print("\n  By circuit\n")
+            table(c.execute("""SELECT name, country, circuit_type, races,
+                first_gp, last_gp, events_hosted FROM v_circuits
+                WHERE races > 0""").fetchall())
+            print("\n  By country\n")
+            table(c.execute("""SELECT country, circuits, races, first_gp, last_gp
+                FROM v_circuits_by_country WHERE races > 0""").fetchall())
+
+    elif cmd == "venues":
+        if not a:
+            sys.exit("usage: f1 venues <year>")
+        rows = c.execute("""SELECT round, gp_name, circuit, country, locality,
+            layout_name, length_km, turns FROM v_race_venues WHERE year=?
+            ORDER BY round""", (a[0],)).fetchall()
+        if not rows:
+            sys.exit("no such season")
+        print(f"\n  {a[0]} — where each round was held\n")
+        table(rows)
+
+    elif cmd == "lost":
+        print("\n  Circuits that have dropped off the calendar\n")
+        table(c.execute("""SELECT name, country, races, first_gp, last_gp,
+            years_since FROM v_lost_circuits""").fetchall())
+
+    elif cmd == "car":
+        k = f"%{a[0]}%" if a else "%"
+        rows = c.execute("""SELECT * FROM cars WHERE id LIKE ? OR full_name LIKE ?
+                            OR designation LIKE ? ORDER BY wins DESC""",
+                         (k, k, k)).fetchall()
+        if not rows:
+            sys.exit("no match")
+        for t in rows[:3]:
+            cons = c.execute("SELECT name FROM constructors WHERE id=?",
+                             (t["constructor_id"],)).fetchone()[0]
+            yrs = f"{t['from_year']}-{t['to_year'] or 'present'}"
+            print(f"\n{'=' * W}\n  {t['full_name']}  —  {cons}, {yrs}\n{'=' * W}")
+            if t["concept"]:
+                print()
+                for line in textwrap.wrap(t["concept"], W - 4):
+                    print("  " + line)
+
+            print("\n  POWER UNIT")
+            for label, v in [("Engine", t["engine_name"]),
+                             ("Layout", t["engine_config"]),
+                             ("Capacity", f"{t['capacity_cc']} cc" if t["capacity_cc"] else None),
+                             ("Aspiration", t["aspiration"]),
+                             ("Power", f"{t['power_bhp']} bhp" if t["power_bhp"] else None),
+                             ("Rev limit", f"{t['rev_limit_rpm']} rpm" if t["rev_limit_rpm"] else None)]:
+                if v not in (None, ""):
+                    print(f"    {label:<14}{v}")
+            if t["power_note"]:
+                for line in textwrap.wrap(t["power_note"], W - 18):
+                    print(f"    {'':<14}{line}")
+
+            print("\n  CHASSIS")
+            for label, v in [("Construction", t["chassis_type"]),
+                             ("Gearbox", t["gearbox"]),
+                             ("Brakes", t["brakes"]),
+                             ("Weight", f"{t['weight_kg']} kg" if t["weight_kg"] else None),
+                             ("Wheelbase", f"{t['wheelbase_mm']} mm" if t["wheelbase_mm"] else None),
+                             ("Track", (f"{t['track_front_mm']} / {t['track_rear_mm']} mm"
+                                        if t["track_front_mm"] else None)),
+                             ("Tyres", t["tyres"])]:
+                if v not in (None, ""):
+                    print(f"    {label:<14}{v}")
+            if t["suspension"]:
+                print()
+                for line in textwrap.wrap("Suspension: " + t["suspension"], W - 6):
+                    print("    " + line)
+
+            if t["designers"]:
+                print()
+                for line in textwrap.wrap("Designed by " + t["designers"], W - 6):
+                    print("    " + line)
+            if t["innovations"]:
+                print()
+                para("  Introduced", t["innovations"], 4)
+            if t["story"]:
+                print()
+                para("  Story", t["story"], 4)
+            if t["outcome"]:
+                print()
+                para("  Record", t["outcome"], 4)
+
+            if t["races"] == 0:
+                print("\n  No races linked to this car yet. Its seasons are "
+                      "absent from CAR_SEASONS")
+                print("  because the team ran more than one chassis in them — "
+                      "see ./f1 gaps.")
+            else:
+                print(f"\n  Derived from the race records: {t['wins']} wins, "
+                      f"{t['poles']} poles, {t['fastest_laps']} fastest laps, "
+                      f"across {t['races']} races with a recorded entry.")
+                print("  This database records winners, pole-sitters and "
+                      "fastest-lap setters only,")
+                print("  so these are lower bounds unless every season is "
+                      "linked.")
+                wins = c.execute("""SELECT year, round, gp_name, driver FROM v_car_races
+                    WHERE car_id=? AND won=1 ORDER BY year, round""",
+                    (t["id"],)).fetchall()
+                if wins:
+                    print("\n  Wins:")
+                    for w in wins:
+                        print(f"    {w['year']} r{w['round']:<3} "
+                              f"{w['gp_name']:<34} {w['driver']}")
+            sc = t["spec_confidence"] or t["confidence"]
+            print(f"\n  Confidence: {t['confidence']} (specifications: {sc})")
+            if t["source"]:
+                print(f"  Source: {t['source']}")
+
+    elif cmd == "cars":
+        if a:
+            k = f"%{a[0]}%"
+            rows = c.execute("""SELECT * FROM v_cars WHERE constructor LIKE ?
+                OR car LIKE ? ORDER BY from_year""", (k, k)).fetchall()
+            if not rows:
+                sys.exit("no match")
+        else:
+            rows = c.execute("SELECT * FROM v_cars").fetchall()
+        table(rows, ["car", "constructor", "from_year", "to_year", "engine_name",
+                     "wins", "poles", "fastest_laps", "drivers_titles",
+                     "constructors_titles"])
+
+    elif cmd == "evolution":
+        print("\n  How the car changed, landmark by landmark\n")
+        table(c.execute("""SELECT from_year, car, chassis_type, engine_config,
+            aspiration, capacity_cc, power_bhp, weight_kg
+            FROM v_car_evolution""").fetchall(), maxw=30)
+        print("\n  What each one introduced:\n")
+        for r in c.execute("""SELECT from_year, car, innovations FROM v_car_evolution
+                              WHERE innovations IS NOT NULL"""):
+            print(f"  {r['from_year']}  {r['car']}")
+            for line in textwrap.wrap(r["innovations"], W - 8):
+                print("        " + line)
+
+    elif cmd == "telemetry":
+        n = {t: c.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0] for t in
+             ("race_timing", "laps", "stints", "pit_stops",
+              "race_control_messages", "team_radio")}
+        print("\n  Per-lap, timing and radio data\n")
+        for k, v in n.items():
+            print(f"    {k:<24}{v:>9,} rows")
+        if not n["laps"]:
+            print("""
+  Empty. These tables are filled by tools/fastf1_load.py, which reads the
+  Formula 1 live timing API through FastF1 and needs network access:
+
+      pip install fastf1
+      python3 tools/fastf1_load.py --years 2018-2026 --results --radio
+
+  F1 publishes this data from 2018 only. Nothing exists for earlier seasons,
+  which is why the rest of this database stops at the race result. That run
+  also fills the full classified finishing order for 2018-2026, checked
+  against the winner already stored.""")
+        else:
+            print()
+            table(c.execute("""SELECT year, races, races_with_laps, laps
+                FROM v_lap_coverage WHERE laps > 0""").fetchall())
+        nr = c.execute("SELECT COUNT(*) FROM team_radio WHERE notable=1").fetchone()[0]
+        if nr:
+            print(f"\n  {nr} notable radio exchanges:\n")
+            for r in c.execute("""SELECT t.speaker, t.transcript, t.context,
+                    rc.year, rc.name_used
+                FROM team_radio t LEFT JOIN races rc ON rc.id=t.race_id
+                WHERE t.notable=1 ORDER BY rc.year, t.id"""):
+                print(f"    {r['year']} {r['name_used']}")
+                print(f"      {r['speaker']}")
+                print(f'      "{r["transcript"]}"')
+                if r["context"]:
+                    for line in textwrap.wrap(r["context"], W - 8):
+                        print("        " + line)
+                print()
+
+    elif cmd == "rules":
+        if a and a[0].isdigit():
+            rows = c.execute("SELECT * FROM regulation_changes WHERE year=?", (a[0],))
+        elif a:
+            rows = c.execute("""SELECT * FROM regulation_changes WHERE category=?
+                                ORDER BY year""", (a[0],))
+        else:
+            rows = c.execute("SELECT * FROM regulation_changes ORDER BY year")
+        for r in rows:
+            print(f"\n  {r['year']}  [{r['category']}]  {r['title']}")
+            for line in textwrap.wrap(r["detail"] or "", W - 6):
+                print("      " + line)
+            if r["impact"]:
+                print("      -> " + "\n         ".join(textwrap.wrap(r["impact"], W - 9)))
+        print()
+
+    elif cmd == "safety":
+        for r in c.execute("SELECT * FROM safety_milestones ORDER BY year"):
+            print(f"\n  {r['year']}  {r['milestone']}")
+            if r["trigger_event"]:
+                print(f"      after: {r['trigger_event']}")
+            for line in textwrap.wrap(r["description"] or "", W - 6):
+                print("      " + line)
+        print()
+
+    elif cmd == "tech":
+        for r in c.execute("SELECT * FROM technical_innovations ORDER BY year"):
+            ban = f"  (banned {r['banned_year']})" if r["banned_year"] else ""
+            print(f"\n  {r['year']}  {r['innovation']} — {r['originator']}{ban}")
+            for line in textwrap.wrap(r["description"] or "", W - 6):
+                print("      " + line)
+            if r["legacy"]:
+                print("      -> " + "\n         ".join(textwrap.wrap(r["legacy"], W - 9)))
+        print()
+
+    elif cmd == "records":
+        table(c.execute("SELECT category, record, holder, value, as_of FROM records"),
+              maxw=44)
+
+    elif cmd == "eras":
+        for r in c.execute("SELECT * FROM eras ORDER BY from_year"):
+            print(f"\n  {r['from_year']}-{r['to_year'] or 'present'}  {r['era_name'].upper()}")
+            for line in textwrap.wrap(r["summary"], W - 6):
+                print("      " + line)
+            print(f"      dominant: {r['dominant_teams']}")
+            print(f"      features: {r['defining_features']}")
+        print()
+
+    elif cmd == "glossary":
+        k = f"%{a[0]}%" if a else "%"
+        for r in c.execute("""SELECT * FROM glossary WHERE term LIKE ? OR definition LIKE ?
+                              ORDER BY term""", (k, k)):
+            print(f"\n  {r['term']}  [{r['category']}]")
+            for line in textwrap.wrap(r["definition"], W - 6):
+                print("      " + line)
+        print()
+
+    elif cmd == "grid":
+        table(c.execute("SELECT * FROM v_current_grid"))
+
+    elif cmd == "standings":
+        y = a[0] if a else "2026"
+        print(f"\n  DRIVERS — {y}")
+        table(c.execute("""SELECT position, entity AS driver, team, points, as_of
+                           FROM standings WHERE year=? AND table_type='drivers'
+                           ORDER BY position""", (y,)))
+        print(f"\n  CONSTRUCTORS — {y}")
+        table(c.execute("""SELECT position, entity AS team, points FROM standings
+                           WHERE year=? AND table_type='constructors'
+                           ORDER BY position""", (y,)))
+
+    elif cmd == "wins":
+        n = int(a[0]) if a else 40
+        table(c.execute(f"SELECT * FROM v_wins_by_driver LIMIT {n}"))
+
+    elif cmd == "gp":
+        k = f"%{' '.join(a)}%"
+        rows = c.execute("""SELECT year, round, gp_name, winner, co_winner, constructor
+                            FROM v_race_winners WHERE gp_name LIKE ?
+                            ORDER BY year""", (k,)).fetchall()
+        if not rows:
+            sys.exit("no match")
+        print(f"\n  {rows[0]['gp_name']} — {len(rows)} editions in this database\n")
+        table(rows, ["year", "gp_name", "winner", "co_winner", "constructor"])
+        from collections import Counter
+        tally = Counter(r["winner"] for r in rows)
+        print("\n  most wins: " + ", ".join(f"{w} ({n})" for w, n in tally.most_common(5)))
+
+    elif cmd == "races":
+        y = int(a[0])
+        table(c.execute("""SELECT r.round, r.gp_name, r.pole, r.fastest_lap,
+                                  d.full_name AS winner, cn.name AS constructor
+                           FROM race_results r
+                           LEFT JOIN drivers d ON d.id = r.winner_id
+                           LEFT JOIN constructors cn ON cn.id = r.constructor_id
+                           WHERE r.year=? ORDER BY r.round""", (y,)), maxw=26)
+
+    elif cmd == "poles":
+        n = int(a[0]) if a else 30
+        table(c.execute(f"SELECT * FROM v_poles_by_driver LIMIT {n}"))
+
+    elif cmd == "fastest":
+        n = int(a[0]) if a else 30
+        table(c.execute(f"SELECT * FROM v_fastest_laps_by_driver LIMIT {n}"))
+
+    elif cmd == "slams":
+        rows = c.execute("SELECT * FROM v_grand_slams").fetchall()
+        from collections import Counter
+        tally = Counter(r["driver"] for r in rows)
+        print(f"\n  {len(rows)} grand slams (pole, win and fastest lap in one race)\n")
+        for d, n in tally.most_common(20):
+            print(f"    {n:>3}  {d}")
+        print()
+
+    elif cmd == "events":
+        k = f"%{' '.join(a)}%" if a else "%"
+        table(c.execute("""SELECT id, name, country, editions, first_held, last_held,
+                                  circuits_recorded, circuit_coverage
+                           FROM v_grands_prix
+                           WHERE name LIKE ? OR country LIKE ? OR id LIKE ?
+                           ORDER BY editions DESC""", (k, k, k)), maxw=40)
+
+    elif cmd == "gaps":
+        print("\n  KNOWN GAPS — what the data does not yet cover\n")
+        for r in c.execute("SELECT * FROM known_gaps ORDER BY races_affected DESC"):
+            print(f"    {r['area']}  ({r['races_affected']} races)")
+            for line in textwrap.wrap(r["description"], W - 8):
+                print("        " + line)
+            print(f"        -> {r['resolution']}\n")
+        print("  CORRECTIONS — an external figure was checked and found wrong\n")
+        for r in c.execute("SELECT * FROM discrepancies WHERE status LIKE 'resolved%'"):
+            print(f"    {r['subject']} {r['field']}: {r['stored_value']} -> {r['derived_value']}")
+            for line in textwrap.wrap(r["assessment"], W - 8):
+                print("        " + line)
+            print()
+        print("  OPEN DISCREPANCIES — external figure disagrees with the race records\n")
+        for r in c.execute("SELECT * FROM discrepancies WHERE status LIKE 'open%'"):
+            print(f"    {r['subject']} {r['field']}: "
+                  f"external {r['stored_value']}, derived {r['derived_value']}")
+            for line in textwrap.wrap(r["assessment"], W - 8):
+                print("        " + line)
+            print()
+
+    elif cmd == "search":
+        term = f"%{' '.join(a)}%"
+        found = 0
+        for tbl, cols in [
+                ("drivers", ["full_name", "notes"]),
+                ("constructors", ["name", "notes"]),
+                ("circuits", ["name", "notes", "characteristics"]),
+                ("seasons", ["notes"]),
+                ("regulation_changes", ["title", "detail", "impact"]),
+                ("technical_innovations", ["innovation", "description", "legacy"]),
+                ("safety_milestones", ["milestone", "description", "trigger_event"]),
+                ("records", ["record", "holder", "detail"]),
+                ("glossary", ["term", "definition"]),
+                ("governance", ["event", "detail", "significance"]),
+                ("personnel", ["full_name", "significance"]),
+                ("eras", ["era_name", "summary"]),
+                ("constructor_lineage", ["entity_name", "note"]),
+                ("grands_prix", ["name", "notes"])]:
+            where = " OR ".join(f"{col} LIKE ?" for col in cols)
+            rows = c.execute(f"SELECT * FROM {tbl} WHERE {where}",
+                             tuple([term] * len(cols))).fetchall()
+            if rows:
+                print(f"\n  ── {tbl} ({len(rows)}) " + "─" * (W - len(tbl) - 12))
+                for r in rows[:12]:
+                    label = r[cols[0]]
+                    yr = f"{r['year']}  " if "year" in r.keys() and r["year"] else ""
+                    print(f"    {yr}{label}")
+                found += len(rows)
+        print(f"\n  {found} match(es)\n")
+
+    elif cmd == "unverified":
+        table(c.execute("SELECT * FROM v_unverified ORDER BY tbl, label"))
+
+    elif cmd == "sql":
+        rows = c.execute(a[0]).fetchall()
+        table(rows, maxw=60)
+
+    elif cmd == "schema":
+        for r in c.execute("""SELECT name, type FROM sqlite_master
+                              WHERE type IN ('table','view') ORDER BY type, name"""):
+            n = c.execute(f"SELECT COUNT(*) FROM {r['name']}").fetchone()[0]
+            cols = [x[1] for x in c.execute(f"PRAGMA table_info({r['name']})")]
+            print(f"\n  {r['type'].upper():<5} {r['name']}  ({n} rows)")
+            print("        " + ", ".join(cols))
+        print()
+
+    else:
+        print(__doc__)
+
+
+if __name__ == "__main__":
+    main()

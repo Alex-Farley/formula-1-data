@@ -1,0 +1,20 @@
+# The database itself has NO dependencies. build.py, verify.py, audit.py,
+# export_json.py and the ./f1 query tool use only the Python standard library
+# (sqlite3 ships with CPython). Python 3.9+.
+#
+# These are needed only by tools/fastf1_load.py, which pulls per-lap timing,
+# tyre stints, pit stops, race control messages and team radio from the
+# Formula 1 live timing API. Nothing else in the project imports them.
+
+fastf1>=3.8
+
+# Optional: only for `tools/fastf1_load.py --transcribe`, which transcribes
+# team radio clips with a LOCAL model. Nothing is sent to a third-party
+# service. Install it yourself if you want transcripts:
+#
+#   pip install openai-whisper
+#
+# Optional: only for `--telemetry-parquet`, to write car telemetry beside the
+# database. fastf1 already pulls pandas; pyarrow is the Parquet writer:
+#
+#   pip install pyarrow
