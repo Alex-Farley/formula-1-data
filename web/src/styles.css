@@ -533,6 +533,242 @@ button.primary:disabled {
   font-variant-numeric: tabular-nums;
 }
 
+/* ----------------------------------------------------------------- charts */
+
+/*
+ * Chart colour is set apart from UI colour on purpose. The accent red belongs
+ * to things you can click — links, the active tab, the Run button — so a red
+ * data mark would read as interactive. The series hue is the validated blue
+ * from the reference palette instead, which also means slots 2 and 3 (orange,
+ * aqua) are already checked against these surfaces if a chart ever needs a
+ * second series.
+ *
+ * Validated with the skill's own script against this app's panel colours,
+ * rather than assumed:
+ *   light #2a78d6,#eb6834,#1baf7a on #ffffff --pairs all → all checks pass
+ *     (aqua at 2.82:1 carries a contrast WARN; every figure ships a table
+ *      view, which is the relief that warning requires)
+ *   dark  #3987e5,#d95926,#199e70 on #191920 --pairs all → all checks pass
+ * The brand red was tried first and fails the dark-mode lightness band
+ * (OKLCH L 0.739 against a 0.48–0.67 band), which is why it is not used here.
+ */
+:root {
+  --series-1: #2a78d6;
+  --chart-grid: #e1e0d9;
+  --chart-axis: #c3c2b7;
+  --chart-tick: #898781;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Selected for the dark surface, not an automatic flip of the light step. */
+    --series-1: #3987e5;
+    --chart-grid: #2c2c2a;
+    --chart-axis: #383835;
+    --chart-tick: #898781;
+  }
+}
+
+.figure {
+  margin: 0 0 44px;
+  padding: 18px 20px 14px;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.figure figcaption h3 {
+  margin: 0;
+  font-size: 17px;
+  letter-spacing: -0.01em;
+}
+
+.figure-sub {
+  margin: 3px 0 14px;
+  font-size: 13.5px;
+  color: var(--ink-faint);
+}
+
+.plot {
+  width: 100%;
+}
+
+.chart {
+  position: relative;
+}
+
+.figure-foot {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--rule);
+}
+
+.figure-foot .note {
+  margin: 0;
+  flex: 1 1 auto;
+}
+
+.figure-foot .chip {
+  flex: 0 0 auto;
+}
+
+.figure-table {
+  margin-top: 14px;
+}
+
+/* A chart's table is often two or three narrow columns. Stretching those
+   across the full card leaves a year at one edge and its value at the other,
+   so these shrink-wrap to their content and still scroll when they outgrow
+   the card. */
+.figure-table .table-scroll {
+  width: fit-content;
+  max-width: 100%;
+}
+
+.figure-table table {
+  width: auto;
+  min-width: 280px;
+}
+
+/* The width:1% that collapses numeric columns elsewhere is a percentage of
+   the table width, which is circular once the table itself is sizing to its
+   content. Inside a figure the content does the sizing. */
+.figure-table th.num,
+.figure-table td.num {
+  width: auto;
+}
+
+/* Chrome: hairline, solid, one step off the surface. Never dashed. */
+.grid {
+  stroke: var(--chart-grid);
+  stroke-width: 1;
+}
+
+.axis {
+  stroke: var(--chart-axis);
+  stroke-width: 1;
+}
+
+.crosshair {
+  stroke: var(--chart-axis);
+  stroke-width: 1;
+}
+
+/* Text wears text tokens. Identity comes from the mark beside it, never from
+   colouring the words. */
+.tick {
+  fill: var(--chart-tick);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cap-label,
+.end-label {
+  fill: var(--ink-soft);
+  font-size: 11.5px;
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+}
+
+.row-label {
+  fill: var(--ink-soft);
+  font-size: 12px;
+}
+
+.series-line {
+  fill: none;
+  stroke: var(--series-1);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.series-fill {
+  fill: var(--series-1);
+}
+
+.dot {
+  fill: var(--series-1);
+}
+
+/* The 2px surface ring: a slightly larger circle in the surface colour sits
+   under the dot, so overlapping points stay legible without a stroke. */
+.dot-ring {
+  fill: var(--panel);
+}
+
+.dot-halo {
+  fill: none;
+  stroke: var(--series-1);
+  stroke-width: 2;
+  opacity: 0.35;
+}
+
+.hit {
+  fill: transparent;
+  cursor: crosshair;
+}
+
+.mark .hit {
+  cursor: default;
+}
+
+.mark:hover .series-fill,
+.mark.is-active .series-fill {
+  filter: brightness(1.12);
+}
+
+.hit:focus-visible,
+.mark:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.chart-tip {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+  padding: 7px 10px;
+  margin-left: 12px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  white-space: nowrap;
+}
+
+.tip-row {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+/* A short stroke of the series colour, not a filled box: at tooltip density a
+   swatch is data-weight ink doing a label's job. */
+.tip-key {
+  width: 12px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--series-1);
+  transform: translateY(-3px);
+}
+
+.tip-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.tip-label {
+  font-size: 12.5px;
+  color: var(--ink-faint);
+}
+
 @media (max-width: 640px) {
   main {
     padding: 24px 16px 48px;
@@ -546,7 +782,16 @@ button.primary:disabled {
     font-size: 23px;
   }
 
-  td:not(.num) {
+  td.prose {
     max-width: 30ch;
+  }
+
+  .figure {
+    padding: 14px 12px 12px;
+  }
+
+  .figure-foot {
+    flex-direction: column;
+    gap: 10px;
   }
 }

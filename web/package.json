@@ -9,7 +9,8 @@
     "assets": "node scripts/copy-assets.js",
     "dev": "npm run assets && vite",
     "build": "npm run assets && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node test/smoke.mjs"
   },
   "dependencies": {
     "react": "^19.2.8",
@@ -19,6 +20,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^6.1.1",
+    "playwright": "^1.62.1",
     "vite": "^8.2.2"
   }
 }

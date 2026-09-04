@@ -11,6 +11,11 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    # The build and all 121 checks run in well under a minute. A cap this far
+    # above that never trips on a slow runner, and turns a hang into a failure
+    # in minutes rather than letting it hold a runner for the default six
+    # hours.
+    timeout-minutes: 10
     strategy:
       matrix:
         python-version: ["3.9", "3.12"]
@@ -57,6 +62,11 @@ jobs:
   # cannot find the database, should fail here rather than on someone's laptop.
   web:
     runs-on: ubuntu-latest
+    # Higher than `check` because this job installs npm packages and a browser.
+    # A warm npm cache puts the whole job near a minute; a cold one has taken
+    # seven, almost all of it in `npm ci`. Twenty leaves room for a cold cache
+    # on a slow day without letting a wedged browser sit for hours.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -83,3 +93,15 @@ jobs:
           test -s dist/f1.db || { echo "::error::dist/f1.db is missing"; exit 1; }
           test -s dist/sql-wasm.wasm || { echo "::error::dist/sql-wasm.wasm is missing"; exit 1; }
           cmp ../f1.db dist/f1.db || { echo "::error::dist/f1.db is not the built database"; exit 1; }
+
+      - name: Install Chromium
+        working-directory: web
+        run: npx playwright install --with-deps chromium
+
+      # The build only proves the JavaScript compiles. This proves SQLite
+      # loaded, the queries returned, and the charts drew - and it checks the
+      # rendered counts against f1.db itself, so it stays honest as the data
+      # grows. Takes a few seconds.
+      - name: Drive the built site in a browser
+        working-directory: web
+        run: npm test
