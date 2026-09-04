@@ -40,6 +40,14 @@ USE
 
 A full load is about 270 requests and takes a few minutes.
 
+EXIT CODE
+    0 only when the run fetched everything it set out to. It exits 1 if any
+    season could not be fetched, or if any row was skipped because its driver
+    is not in the register - either leaves the classification incomplete, and
+    verify.py has no completeness test that would catch it afterwards. The
+    rows that did load are committed either way; this loader is idempotent,
+    so the fix is to address what it reports and run it again.
+
 IMPORTANT: build.py drops and rebuilds f1.db from scratch, so run this after
 any rebuild. It is idempotent - rerunning replaces rows rather than
 duplicating them.
@@ -138,11 +146,13 @@ def main():
     totals = dict(rows=0, races=0, skipped_race=0, skipped_driver=0, refused=0)
     missing_cons = set()
 
+    failed_years = []
     for year in range(lo, hi + 1):
         try:
             rows = season_results(year, a.sleep)
         except Exception as e:                                   # noqa: BLE001
             print(f"{year}: {e}", file=sys.stderr)
+            failed_years.append(year)
             continue
         if not rows:
             continue
@@ -283,6 +293,33 @@ def main():
     print("\n  Now run:  python3 verify.py")
     print("  The podium reconciliation there compares the derived counts")
     print("  against the official figures and is what proves this load.")
+
+    # An incomplete load must not exit 0. A caller chaining this into
+    # `... && python3 verify.py` would otherwise treat a run that dropped
+    # whole seasons, or every row belonging to a driver the register does not
+    # hold, as a load worth checking - and verify.py has no completeness test
+    # for the classification, only a warning when none of it is present.
+    #
+    # Skipped drivers are reported rather than invented: registering a driver
+    # from the results feed is what this loader exists to prevent, and the
+    # register is authored with provenance per driver. The documented loop is
+    # to add them to PODIUM_ONLY_DRIVERS, rebuild and rerun; a non-zero exit
+    # is what makes that loop visible instead of optional.
+    problems = []
+    if failed_years:
+        problems.append(f"{len(failed_years)} season(s) could not be fetched: "
+                        + ", ".join(str(y) for y in failed_years))
+    if unresolved:
+        problems.append(f"{totals['skipped_driver']} row(s) skipped for "
+                        f"{len(unresolved)} driver(s) not in the register")
+    if problems:
+        print("\n  INCOMPLETE LOAD - this run did not fetch the whole "
+              "classification:")
+        for problem in problems:
+            print(f"    - {problem}")
+        print("  Rows that did load are committed, and this loader is "
+              "idempotent, so fix the above and rerun.")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
