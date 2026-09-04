@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { linear, ticks, zeroTo } from './scales.js'
+import { linear, ticks, zeroAxis } from './scales.js'
+import { svgPoint } from './pointer.js'
 import { Tooltip, TipRow } from './Figure.jsx'
 
 const M = { top: 14, right: 58, bottom: 30, left: 46 }
@@ -24,23 +25,27 @@ export default function LineChart({
 }) {
   const [active, setActive] = useState(null)
 
+  // Before any scale is built: Math.min of nothing is Infinity and the last
+  // row is undefined, so an empty result throws rather than drawing an empty
+  // chart. After the hook, never before it — hooks cannot be conditional.
+  if (data.length === 0) return <p className="muted">Nothing to plot.</p>
+
   const plotW = Math.max(width - M.left - M.right, 10)
   const plotH = height - M.top - M.bottom
 
   const xs = data.map(x)
   const sx = linear([Math.min(...xs), Math.max(...xs)], [M.left, M.left + plotW])
-  const sy = linear(zeroTo(data.map(y)), [M.top + plotH, M.top])
+  const yAxis = zeroAxis(data.map(y), 4)
+  const sy = linear(yAxis.domain, [M.top + plotH, M.top])
 
-  const yTicks = ticks(sy.domain[0], sy.domain[1], 4)
   const xTicks = ticks(sx.domain[0], sx.domain[1], Math.max(2, Math.floor(plotW / 90)))
 
   const d = data.map((row, i) => `${i ? 'L' : 'M'}${sx(x(row))},${sy(y(row))}`).join(' ')
   const last = data[data.length - 1]
 
   // The pointer aims at a year, not at a 2px line: snap to the nearest x.
-  function nearest(clientX, target) {
-    const box = target.getBoundingClientRect()
-    const value = sx.invert(clientX - box.left)
+  function nearest(event) {
+    const value = sx.invert(svgPoint(event).x)
     let best = 0
     for (let i = 1; i < data.length; i++) {
       if (Math.abs(x(data[i]) - value) < Math.abs(x(data[best]) - value)) best = i
@@ -70,7 +75,7 @@ export default function LineChart({
         )}. Full values in the table below.`}
       >
         <g aria-hidden="true">
-          {yTicks.map((t) => (
+          {yAxis.ticks.map((t) => (
             <g key={t}>
               <line
                 className="grid"
@@ -133,7 +138,7 @@ export default function LineChart({
           tabIndex={0}
           role="application"
           aria-label={`${label}: use the left and right arrow keys to read each point`}
-          onPointerMove={(e) => setActive(nearest(e.clientX, e.currentTarget))}
+          onPointerMove={(e) => setActive(nearest(e))}
           onPointerLeave={() => setActive(null)}
           onFocus={() => setActive((i) => i ?? data.length - 1)}
           onBlur={() => setActive(null)}

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { linear, ticks, zeroTo } from './scales.js'
+import { linear, zeroAxis } from './scales.js'
 import { columnPath, thickness } from './marks.js'
 import { Tooltip, TipRow } from './Figure.jsx'
 
@@ -24,13 +24,16 @@ export default function ColumnChart({
 }) {
   const [active, setActive] = useState(null)
 
+  // See LineChart: with no rows the band width divides by zero.
+  if (data.length === 0) return <p className="muted">Nothing to plot.</p>
+
   const plotW = Math.max(width - M.left - M.right, 10)
   const plotH = height - M.top - M.bottom
 
   const band = plotW / data.length
   const w = thickness(band)
-  const sy = linear(zeroTo(data.map(y)), [M.top + plotH, M.top])
-  const yTicks = ticks(sy.domain[0], sy.domain[1], 4)
+  const yAxis = zeroAxis(data.map(y), 4)
+  const sy = linear(yAxis.domain, [M.top + plotH, M.top])
 
   const baseline = sy(sy.domain[0])
 
@@ -43,7 +46,7 @@ export default function ColumnChart({
         aria-label={`${label}. ${data.length} columns. Full values in the table below.`}
       >
         <g aria-hidden="true">
-          {yTicks.map((t) => (
+          {yAxis.ticks.map((t) => (
             <g key={t}>
               <line className="grid" x1={M.left} x2={M.left + plotW} y1={sy(t)} y2={sy(t)} />
               <text className="tick" x={M.left - 8} y={sy(t)} dy="0.32em" textAnchor="end">

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Page } from '../components/Page.jsx'
 import { ErrorBox } from '../components/State.jsx'
 import DataTable from '../components/DataTable.jsx'
-import { readOnlyComplaint, run } from '../db.js'
+import { readOnlyComplaint, runReadOnly } from '../db.js'
 
 const STORED = 'f1db.console.sql'
 
@@ -96,7 +96,7 @@ export default function Console() {
     setError(null)
     const started = performance.now()
     try {
-      const data = await run(sql)
+      const data = await runReadOnly(sql)
       setResult(data)
       setElapsed(performance.now() - started)
     } catch (e) {

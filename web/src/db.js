@@ -68,12 +68,36 @@ export async function first(sql, params = []) {
 }
 
 /**
- * Reject anything that is not a read.
+ * Run a statement and undo anything it changed.
  *
- * This is a guard rail, not a security boundary, and there is nothing here to
- * protect: the database is a copy in the visitor's own tab, thrown away on
- * reload. It exists so that a mistyped DELETE in the console gives a clear
- * message instead of silently emptying the table you are looking at.
+ * This — not the prefix check below — is what actually keeps the console from
+ * altering the database. A statement cannot be classified as a read by looking
+ * at its first word: SQLite accepts a WITH clause in front of DELETE, INSERT
+ * and UPDATE too, so
+ *
+ *     WITH t AS (SELECT 1) DELETE FROM drivers
+ *
+ * begins with WITH and empties the table. Rather than chase that with a
+ * cleverer pattern — which then rejects an honest `WHERE note LIKE '%delete%'`
+ * — wrap the statement in a transaction and roll it back. Whatever it turns
+ * out to be, the copy in this tab is the same afterwards as before.
+ */
+export async function runReadOnly(sql, params = []) {
+  const db = await getDatabase()
+  db.exec('BEGIN')
+  try {
+    return await run(sql, params)
+  } finally {
+    db.exec('ROLLBACK')
+  }
+}
+
+/**
+ * A clear message for an obvious mistake.
+ *
+ * A courtesy, not the guarantee — runReadOnly above is the guarantee. This
+ * only catches the common case early so the reader gets an explanation rather
+ * than an empty result.
  */
 export function readOnlyComplaint(sql) {
   const stripped = sql
@@ -82,7 +106,7 @@ export function readOnlyComplaint(sql) {
     .trim()
   if (!stripped) return 'Nothing to run.'
   if (!/^(select|with|explain|pragma)\b/i.test(stripped)) {
-    return 'Only SELECT, WITH, EXPLAIN and PRAGMA are run here. The database is a copy in your browser, but an accidental write would still change what you are looking at until you reload.'
+    return 'Only SELECT, WITH, EXPLAIN and PRAGMA are run here. The database is a copy in your browser, and anything that does change it is rolled back — but a write is not what you meant to type.'
   }
   return null
 }

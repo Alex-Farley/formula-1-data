@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { linear, ticks, zeroTo } from './scales.js'
+import { linear, ticks, zeroAxis } from './scales.js'
+import { svgPoint } from './pointer.js'
 import { Tooltip, TipRow } from './Figure.jsx'
 
 const M = { top: 16, right: 16, bottom: 30, left: 52 }
@@ -25,24 +26,25 @@ export default function DotPlot({
 }) {
   const [active, setActive] = useState(null)
 
+  // See LineChart: an empty result would reduce over nothing and throw.
+  if (data.length === 0) return <p className="muted">Nothing to plot.</p>
+
   const plotW = Math.max(width - M.left - M.right, 10)
   const plotH = height - M.top - M.bottom
 
   const xs = data.map(x)
   const sx = linear([Math.min(...xs), Math.max(...xs)], [M.left, M.left + plotW])
-  const sy = linear(zeroTo(data.map(y)), [M.top + plotH, M.top])
+  const yAxis = zeroAxis(data.map(y), 4)
+  const sy = linear(yAxis.domain, [M.top + plotH, M.top])
 
-  const yTicks = ticks(sy.domain[0], sy.domain[1], 4)
   const xTicks = ticks(sx.domain[0], sx.domain[1], Math.max(2, Math.floor(plotW / 90)))
 
   const peak = data.reduce((best, row) => (y(row) > y(best) ? row : best), data[0])
 
   // Nearest-point rather than dead-centre: an 8px dot is a pinpoint, and these
   // overlap where several cars share a decade.
-  function nearest(e) {
-    const box = e.currentTarget.getBoundingClientRect()
-    const px = e.clientX - box.left
-    const py = e.clientY - box.top
+  function nearest(event) {
+    const { x: px, y: py } = svgPoint(event)
     let best = 0
     let bestD = Infinity
     data.forEach((row, i) => {
@@ -66,7 +68,7 @@ export default function DotPlot({
         aria-label={`${label}. ${data.length} points. Full values in the table below.`}
       >
         <g aria-hidden="true">
-          {yTicks.map((t) => (
+          {yAxis.ticks.map((t) => (
             <g key={t}>
               <line className="grid" x1={M.left} x2={M.left + plotW} y1={sy(t)} y2={sy(t)} />
               <text className="tick" x={M.left - 8} y={sy(t)} dy="0.32em" textAnchor="end">

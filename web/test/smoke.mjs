@@ -43,6 +43,8 @@ if (!existsSync(join(web, 'dist', 'index.html'))) {
 
 const db = new DatabaseSync(join(web, '..', 'f1.db'))
 const count = (sql, ...args) => db.prepare(sql).get(...args).n
+/** The first column of the first row — for expectations that are not counts. */
+const one = (sql, ...args) => Object.values(db.prepare(sql).get(...args))[0]
 
 // Each route, and how many table rows the database says it should show.
 const ROUTES = [
@@ -228,27 +230,91 @@ if (await visit('/trends', 'svg .series-line')) {
   const ugly = tickText.filter((t) => /\.\d\d/.test(t))
   ugly.length === 0 ? pass('axis ticks are round') : fail(`ragged axis ticks: ${ugly.join(', ')}`)
 
-  // Nothing may be drawn outside its own frame.
-  const clipped = await page.evaluate(() =>
-    [...document.querySelectorAll('.chart svg')].flatMap((svg) => {
-      const box = svg.getBoundingClientRect()
-      return [...svg.querySelectorAll('text')]
-        .filter((t) => {
-          const r = t.getBoundingClientRect()
-          return (
-            r.width > 0 &&
-            (r.top < box.top - 0.5 ||
-              r.bottom > box.bottom + 0.5 ||
-              r.left < box.left - 0.5 ||
-              r.right > box.right + 0.5)
-          )
-        })
-        .map((t) => t.textContent)
-    }),
+  // The top gridline must sit at or above the data, or the peak is drawn
+  // flush against the frame with the last tick below it.
+  const maxRounds = one('SELECT MAX(rounds) FROM seasons')
+  const topTick = await page.evaluate(() =>
+    Math.max(
+      // y-axis ticks are the end-anchored ones; the x-axis ticks are centred.
+      ...[...document.querySelectorAll('figure')[0].querySelectorAll('text.tick')]
+        .filter((t) => t.getAttribute('text-anchor') === 'end')
+        .map((t) => parseFloat(t.textContent)),
+    ),
   )
-  clipped.length === 0
-    ? pass('no clipped labels')
-    : fail(`labels drawn outside the chart: ${clipped.join(' | ')}`)
+  topTick >= maxRounds
+    ? pass(`top gridline ${topTick} covers the data max ${maxRounds}`)
+    : fail(`top gridline is ${topTick} but the data reaches ${maxRounds}`)
+
+  // THE TOOLTIP MUST SAY THE RIGHT THING. Asserting that one merely appears
+  // proved nothing: the first version of these charts measured the pointer
+  // against the plot rect while comparing against SVG coordinates, so it read
+  // a value ~46px to the left — hovering the 2026 point reported 2022, and
+  // every check still passed.
+  const lastYear = one('SELECT MAX(year) FROM seasons')
+  const lastRounds = one('SELECT rounds FROM seasons ORDER BY year DESC LIMIT 1')
+  const frame = await page.locator('.chart svg').first().boundingBox()
+  const lastDot = await page.evaluate(() => {
+    const dots = document.querySelectorAll('.chart svg')[0].querySelectorAll('circle.dot')
+    const d = dots[dots.length - 1]
+    return { cx: +d.getAttribute('cx'), cy: +d.getAttribute('cy') }
+  })
+  await page.mouse.move(frame.x + lastDot.cx, frame.y + lastDot.cy)
+  await page.waitForTimeout(150)
+  const tip = (await page.locator('.chart-tip').first().innerText()).replace(/\n/g, ' ')
+  tip.includes(String(lastYear)) && tip.includes(String(lastRounds))
+    ? pass(`tooltip over the last point reads ${lastYear} · ${lastRounds}`)
+    : fail(`tooltip over the last point says "${tip}", expected ${lastYear} and ${lastRounds}`)
+
+  // Same for the dot plot, which had the same bug with a different offset.
+  const peakCar = one(
+    'SELECT full_name FROM cars WHERE power_bhp IS NOT NULL ORDER BY power_bhp DESC, from_year LIMIT 1',
+  )
+  // Scroll it under the pointer first — boundingBox is viewport-relative, so
+  // hovering a figure below the fold aims the mouse at nothing.
+  await page.locator('.chart svg').nth(2).scrollIntoViewIfNeeded()
+  await page.waitForTimeout(200)
+  const dotFrame = await page.locator('.chart svg').nth(2).boundingBox()
+  const peak = await page.evaluate(() => {
+    const dots = [...document.querySelectorAll('.chart svg')[2].querySelectorAll('circle.dot')]
+    // The topmost dot, and its own cx — taken together so a tie cannot pair
+    // one dot's x with another's y.
+    const top = dots.reduce((hi, d) => (+d.getAttribute('cy') < +hi.getAttribute('cy') ? d : hi))
+    return { cx: +top.getAttribute('cx'), cy: +top.getAttribute('cy') }
+  })
+  await page.mouse.move(dotFrame.x + peak.cx, dotFrame.y + peak.cy)
+  await page.waitForTimeout(150)
+  const dotTip = (await page.locator('.chart-tip').first().innerText()).replace(/\n/g, ' ')
+  dotTip.includes(peakCar)
+    ? pass(`tooltip over the highest-powered car names it`)
+    : fail(`tooltip over the peak says "${dotTip}", expected "${peakCar}"`)
+
+  // Nothing may be drawn outside its own frame — checked at phone width too,
+  // which is where a long row label runs out of gutter.
+  for (const [w, h] of [[1280, 900], [390, 800]]) {
+    await page.setViewportSize({ width: w, height: h })
+    await page.waitForTimeout(300)
+    const clipped = await page.evaluate(() =>
+      [...document.querySelectorAll('.chart svg')].flatMap((svg) => {
+        const box = svg.getBoundingClientRect()
+        return [...svg.querySelectorAll('text')]
+          .filter((t) => {
+            const r = t.getBoundingClientRect()
+            return (
+              r.width > 0 &&
+              (r.top < box.top - 0.5 ||
+                r.bottom > box.bottom + 0.5 ||
+                r.left < box.left - 0.5 ||
+                r.right > box.right + 0.5)
+            )
+          })
+          .map((t) => t.textContent)
+      }),
+    )
+    clipped.length === 0
+      ? pass(`no clipped labels at ${w}px`)
+      : fail(`labels drawn outside the chart at ${w}px: ${clipped.join(' | ')}`)
+  }
+  await page.setViewportSize({ width: 1280, height: 900 })
 }
 
 console.log('\nsql console')
@@ -259,6 +325,20 @@ if (await visit('/console', 'textarea.sql')) {
     pass(`returned ${await page.locator('tbody tr').count()} rows`)
   } catch {
     fail('the console query returned nothing')
+  }
+
+  // The console must not be able to change the database — including through a
+  // form the prefix check waves past, because SQLite accepts WITH in front of
+  // DELETE. Run the real thing and check the rows are still there.
+  await page.fill('textarea.sql', 'WITH t AS (SELECT 1) DELETE FROM drivers')
+  await page.click('button.primary')
+  await page.waitForTimeout(400)
+  if (await visit('/drivers', 'table')) {
+    const drivers = count('SELECT COUNT(*) n FROM drivers')
+    const rendered = await page.locator('tbody tr').count()
+    rendered === drivers
+      ? pass(`a WITH ... DELETE in the console left all ${drivers} drivers intact`)
+      : fail(`a WITH ... DELETE in the console removed rows: ${rendered} left of ${drivers}`)
   }
 }
 
