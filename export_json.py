@@ -1,0 +1,148 @@
+#!/usr/bin/env python3
+"""
+Export f1.db to JSON.
+
+  python3 export_json.py                -> f1_database.json (everything)
+  python3 export_json.py --compat       -> also writes f1_compat.json, which
+                                           keeps the key names of the original
+                                           v1 file so existing consumers of
+                                           that file keep working.
+"""
+import json
+import os
+import sqlite3
+import sys
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+DB = os.path.join(HERE, "f1.db")
+
+
+def dump(con, table, order=None):
+    q = f"SELECT * FROM {table}"
+    if order:
+        q += f" ORDER BY {order}"
+    return [dict(r) for r in con.execute(q)]
+
+
+def main():
+    con = sqlite3.connect(DB)
+    con.row_factory = sqlite3.Row
+    meta = {r["key"]: r["value"] for r in con.execute("SELECT * FROM meta")}
+
+    out = {
+        "database_name": meta.get("database_name"),
+        "version": meta.get("version"),
+        "built": meta.get("built"),
+        "verification_policy": {
+            "confidence_ladder": dump(con, "provenance", "rank"),
+            "missing_fact_policy": meta.get("missing_fact_policy"),
+            "promotion_rule": meta.get("promotion_rule"),
+            "allowed_sources": [r["source"] for r in con.execute(
+                "SELECT source FROM source_registry WHERE authority='official'")],
+            "forbidden_as_authority": [r["source"] for r in con.execute(
+                "SELECT source FROM source_registry WHERE authority='forbidden'")],
+        },
+        "coverage": meta.get("coverage_note"),
+        "seasons": dump(con, "seasons", "year"),
+        "drivers": dump(con, "drivers", "titles DESC, wins DESC, full_name"),
+        "constructors": dump(con, "constructors", "constructors_titles DESC, name"),
+        "constructor_lineage": dump(con, "constructor_lineage", "chain_id, sequence"),
+        "engine_manufacturers": dump(con, "engine_manufacturers", "first_year"),
+        "engine_eras": dump(con, "engine_eras", "from_year"),
+        "cars": dump(con, "cars", "wins DESC, from_year"),
+        "circuits": dump(con, "circuits", "country, name"),
+        "circuit_layouts": dump(con, "circuit_layouts", "circuit_id, from_year"),
+        "grands_prix": dump(con, "grands_prix", "first_held"),
+        "eras": dump(con, "eras", "from_year"),
+        "regulation_changes": dump(con, "regulation_changes", "year, category"),
+        "technical_innovations": dump(con, "technical_innovations", "year"),
+        "safety_milestones": dump(con, "safety_milestones", "year"),
+        "tyre_suppliers": dump(con, "tyre_suppliers", "from_year"),
+        "points_systems": dump(con, "points_systems", "from_year"),
+        "governance": dump(con, "governance", "year"),
+        "personnel": dump(con, "personnel", "full_name"),
+        "records": dump(con, "records", "category"),
+        "glossary": dump(con, "glossary", "term"),
+        "races": dump(con, "races", "year, round"),
+        "race_entries": dump(con, "race_entries", "race_id, id"),
+        "race_timing": dump(con, "race_timing", "race_id"),
+        "team_radio": dump(con, "team_radio", "notable DESC, race_id"),
+        "known_gaps": dump(con, "known_gaps", "id"),
+        "discrepancies": dump(con, "discrepancies", "status, subject"),
+        "standings": dump(con, "standings", "year DESC, table_type, position"),
+        "calendar": dump(con, "calendar", "year, round"),
+        "grands_prix_register": dump(con, "grands_prix", "first_held"),
+        "season_entries": dump(con, "season_entries", "year, id"),
+        "source_registry": dump(con, "source_registry", "priority"),
+        "fia_regulation_issues_2026": {
+            k.split("::", 1)[1]: v for k, v in meta.items() if k.startswith("fia_issue::")},
+    }
+
+    # laps, stints, pit_stops and race_control_messages are deliberately NOT
+    # exported: they are empty in the distributed build and, once
+    # tools/fastf1_load.py has run, run to hundreds of thousands of rows.
+    # Query them in SQLite, or export them yourself.
+
+    path = os.path.join(HERE, "f1_database.json")
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(out, f, indent=2, ensure_ascii=False)
+    print(f"wrote {path}  ({os.path.getsize(path) / 1024:.0f} KB)")
+
+    if "--compat" in sys.argv:
+        teams = [dict(r) for r in con.execute("""
+            SELECT c.name, c.full_name, c.base, c.first_entry,
+                   s.position, s.points
+            FROM constructors c
+            JOIN standings s ON s.entity_id=c.id AND s.year=2026
+                            AND s.table_type='constructors'
+            ORDER BY s.position""")]
+        for t in teams:
+            t["drivers"] = [r[0] for r in con.execute("""
+                SELECT d.full_name FROM season_entries e JOIN drivers d ON d.id=e.driver_id
+                JOIN constructors c ON c.id=e.constructor_id
+                WHERE e.year=2026 AND e.role='race' AND c.name=?""", (t["name"],))]
+        compat = {
+            "database_name": out["database_name"],
+            "version": out["version"],
+            "verification_date": meta.get("verification_date"),
+            "verification_policy": out["verification_policy"],
+            "teams_2026": teams,
+            "drivers_2026": {
+                "full_season_entry_set": [dict(r) for r in con.execute("""
+                    SELECT d.full_name AS name, d.nationality_code, e.car_number AS number,
+                           c.name AS team
+                    FROM season_entries e JOIN drivers d ON d.id=e.driver_id
+                    JOIN constructors c ON c.id=e.constructor_id
+                    WHERE e.year=2026 AND e.role='race'""")],
+                "in_season_reserve_or_substitute": [dict(r) for r in con.execute("""
+                    SELECT d.full_name AS name, d.nationality_code, e.car_number AS number,
+                           c.name AS team_context, e.role AS status
+                    FROM season_entries e JOIN drivers d ON d.id=e.driver_id
+                    JOIN constructors c ON c.id=e.constructor_id
+                    WHERE e.year=2026 AND e.role!='race'""")],
+            },
+            "driver_standings_snapshot_2026": [dict(r) for r in con.execute("""
+                SELECT position, entity AS driver, team, points FROM standings
+                WHERE year=2026 AND table_type='drivers' ORDER BY position""")],
+            "calendar_2026_current": [dict(r) for r in con.execute("""
+                SELECT round, country, city, dates, circuit_name, circuit_id, sprint, status
+                FROM calendar WHERE year=2026 ORDER BY round""")],
+            "history_baseline": {
+                "championship_start": "1950",
+                "first_world_champion": "Nino Farina (1950)",
+                "drivers_champions_count_at_end_2025": con.execute(
+                    "SELECT COUNT(*) FROM drivers WHERE titles>0").fetchone()[0],
+                "constructors_championship_started": 1958,
+                "most_driver_titles": "Lewis Hamilton and Michael Schumacher — 7 each",
+                "most_recent_champion": "Lando Norris — 2025",
+            },
+            "source_registry": out["source_registry"],
+        }
+        p2 = os.path.join(HERE, "f1_compat.json")
+        with open(p2, "w", encoding="utf-8") as f:
+            json.dump(compat, f, indent=2, ensure_ascii=False)
+        print(f"wrote {p2}  ({os.path.getsize(p2) / 1024:.0f} KB)")
+
+
+if __name__ == "__main__":
+    main()

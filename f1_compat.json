@@ -1,0 +1,786 @@
+{
+  "database_name": "F1 Verified Facts Project Memory Database",
+  "version": "2.6",
+  "verification_date": "2026-09-04",
+  "verification_policy": {
+    "confidence_ladder": [
+      {
+        "confidence": "verified",
+        "rank": 1,
+        "definition": "Checked directly against an official FIA or Formula 1 source during database construction. Safe to state as fact and to cite.",
+        "may_publish": 1
+      },
+      {
+        "confidence": "high",
+        "rank": 2,
+        "definition": "A well-established record, consistently published in official sources over many years. Safe to rely on; cite the official archive if publishing.",
+        "may_publish": 1
+      },
+      {
+        "confidence": "reference",
+        "rank": 3,
+        "definition": "Harvested from Wikipedia's season results tables, which are transcribed from FIA classifications. Every row was cross-checked on load against independently held season data. Reliable for results; not official under this database's policy, so cite the FIA/F1 archive if publishing.",
+        "may_publish": 1
+      },
+      {
+        "confidence": "medium",
+        "rank": 4,
+        "definition": "Correct in substance. An exact figure or date may have drifted or may move with the current season. Confirm before publication.",
+        "may_publish": 0
+      },
+      {
+        "confidence": "unverified",
+        "rank": 5,
+        "definition": "Placeholder, disputed, or known to be incomplete. Never state as fact.",
+        "may_publish": 0
+      }
+    ],
+    "missing_fact_policy": "Mark UNVERIFIED / NOT FOUND IN OFFICIAL SOURCES; never invent.",
+    "promotion_rule": "Never promote a fact to 'verified' without an official FIA or Formula 1 source.",
+    "allowed_sources": [
+      "FIA Formula 1 regulations",
+      "FIA 2026 Formula One Championship archive",
+      "Formula1.com",
+      "Official F1 team websites",
+      "Official circuit/promoter sources",
+      "Official driver profiles",
+      "F1 results archive"
+    ],
+    "forbidden_as_authority": [
+      "Fan sites, Reddit, secondary media, unsourced databases"
+    ]
+  },
+  "teams_2026": [
+    {
+      "name": "Mercedes",
+      "full_name": "Mercedes-AMG PETRONAS Formula One Team",
+      "base": "Brackley, United Kingdom",
+      "first_entry": 1954,
+      "position": 1,
+      "points": 425.0,
+      "drivers": [
+        "George Russell",
+        "Andrea Kimi Antonelli"
+      ]
+    },
+    {
+      "name": "Ferrari",
+      "full_name": "Scuderia Ferrari HP",
+      "base": "Maranello, Italy",
+      "first_entry": 1950,
+      "position": 2,
+      "points": 338.0,
+      "drivers": [
+        "Charles Leclerc",
+        "Sir Lewis Hamilton"
+      ]
+    },
+    {
+      "name": "McLaren",
+      "full_name": "McLaren Mastercard F1 Team",
+      "base": "Woking, United Kingdom",
+      "first_entry": 1966,
+      "position": 3,
+      "points": 263.0,
+      "drivers": [
+        "Lando Norris",
+        "Oscar Piastri"
+      ]
+    },
+    {
+      "name": "Red Bull Racing",
+      "full_name": "Oracle Red Bull Racing",
+      "base": "Milton Keynes, United Kingdom",
+      "first_entry": 2005,
+      "position": 4,
+      "points": 186.0,
+      "drivers": [
+        "Max Verstappen",
+        "Isack Hadjar"
+      ]
+    },
+    {
+      "name": "Racing Bulls",
+      "full_name": "Visa Cash App Racing Bulls Formula One Team",
+      "base": "Faenza, Italy",
+      "first_entry": 1985,
+      "position": 5,
+      "points": 66.0,
+      "drivers": [
+        "Liam Lawson",
+        "Arvid Lindblad"
+      ]
+    },
+    {
+      "name": "Alpine",
+      "full_name": "BWT Alpine Formula One Team",
+      "base": "Enstone, United Kingdom",
+      "first_entry": 2021,
+      "position": 6,
+      "points": 63.0,
+      "drivers": [
+        "Pierre Gasly",
+        "Franco Colapinto"
+      ]
+    },
+    {
+      "name": "Haas F1 Team",
+      "full_name": "TGR Haas F1 Team",
+      "base": "Kannapolis, United States",
+      "first_entry": 2016,
+      "position": 7,
+      "points": 21.0,
+      "drivers": [
+        "Esteban Ocon",
+        "Oliver Bearman"
+      ]
+    },
+    {
+      "name": "Audi",
+      "full_name": "Audi Revolut F1 Team",
+      "base": "Hinwil, Switzerland",
+      "first_entry": 2026,
+      "position": 8,
+      "points": 16.0,
+      "drivers": [
+        "Nico Hulkenberg",
+        "Gabriel Bortoleto"
+      ]
+    },
+    {
+      "name": "Williams",
+      "full_name": "Atlassian Williams F1 Team",
+      "base": "Grove, United Kingdom",
+      "first_entry": 1977,
+      "position": 9,
+      "points": 11.0,
+      "drivers": [
+        "Carlos Sainz",
+        "Alexander Albon"
+      ]
+    },
+    {
+      "name": "Aston Martin",
+      "full_name": "Aston Martin Aramco Formula One Team",
+      "base": "Silverstone, United Kingdom",
+      "first_entry": 2021,
+      "position": 10,
+      "points": 3.0,
+      "drivers": [
+        "Fernando Alonso",
+        "Lance Stroll"
+      ]
+    },
+    {
+      "name": "Cadillac",
+      "full_name": "Cadillac Formula 1 Team",
+      "base": "Silverstone, United Kingdom",
+      "first_entry": 2026,
+      "position": 11,
+      "points": 0.0,
+      "drivers": [
+        "Sergio Perez",
+        "Valtteri Bottas"
+      ]
+    }
+  ],
+  "drivers_2026": {
+    "full_season_entry_set": [
+      {
+        "name": "George Russell",
+        "nationality_code": "GBR",
+        "number": 63,
+        "team": "Mercedes"
+      },
+      {
+        "name": "Andrea Kimi Antonelli",
+        "nationality_code": "ITA",
+        "number": 12,
+        "team": "Mercedes"
+      },
+      {
+        "name": "Charles Leclerc",
+        "nationality_code": "MON",
+        "number": 16,
+        "team": "Ferrari"
+      },
+      {
+        "name": "Sir Lewis Hamilton",
+        "nationality_code": "GBR",
+        "number": 44,
+        "team": "Ferrari"
+      },
+      {
+        "name": "Lando Norris",
+        "nationality_code": "GBR",
+        "number": 1,
+        "team": "McLaren"
+      },
+      {
+        "name": "Oscar Piastri",
+        "nationality_code": "AUS",
+        "number": 81,
+        "team": "McLaren"
+      },
+      {
+        "name": "Max Verstappen",
+        "nationality_code": "NED",
+        "number": 3,
+        "team": "Red Bull Racing"
+      },
+      {
+        "name": "Isack Hadjar",
+        "nationality_code": "FRA",
+        "number": 6,
+        "team": "Red Bull Racing"
+      },
+      {
+        "name": "Liam Lawson",
+        "nationality_code": "NZL",
+        "number": 30,
+        "team": "Racing Bulls"
+      },
+      {
+        "name": "Arvid Lindblad",
+        "nationality_code": "GBR",
+        "number": 41,
+        "team": "Racing Bulls"
+      },
+      {
+        "name": "Pierre Gasly",
+        "nationality_code": "FRA",
+        "number": 10,
+        "team": "Alpine"
+      },
+      {
+        "name": "Franco Colapinto",
+        "nationality_code": "ARG",
+        "number": 43,
+        "team": "Alpine"
+      },
+      {
+        "name": "Esteban Ocon",
+        "nationality_code": "FRA",
+        "number": 31,
+        "team": "Haas F1 Team"
+      },
+      {
+        "name": "Oliver Bearman",
+        "nationality_code": "GBR",
+        "number": 87,
+        "team": "Haas F1 Team"
+      },
+      {
+        "name": "Nico Hulkenberg",
+        "nationality_code": "GER",
+        "number": 27,
+        "team": "Audi"
+      },
+      {
+        "name": "Gabriel Bortoleto",
+        "nationality_code": "BRA",
+        "number": 5,
+        "team": "Audi"
+      },
+      {
+        "name": "Carlos Sainz",
+        "nationality_code": "ESP",
+        "number": 55,
+        "team": "Williams"
+      },
+      {
+        "name": "Alexander Albon",
+        "nationality_code": "THA",
+        "number": 23,
+        "team": "Williams"
+      },
+      {
+        "name": "Fernando Alonso",
+        "nationality_code": "ESP",
+        "number": 14,
+        "team": "Aston Martin"
+      },
+      {
+        "name": "Lance Stroll",
+        "nationality_code": "CAN",
+        "number": 18,
+        "team": "Aston Martin"
+      },
+      {
+        "name": "Sergio Perez",
+        "nationality_code": "MEX",
+        "number": 11,
+        "team": "Cadillac"
+      },
+      {
+        "name": "Valtteri Bottas",
+        "nationality_code": "FIN",
+        "number": 77,
+        "team": "Cadillac"
+      }
+    ],
+    "in_season_reserve_or_substitute": [
+      {
+        "name": "Yuki Tsunoda",
+        "nationality_code": "JPN",
+        "number": 22,
+        "team_context": "Racing Bulls",
+        "status": "reserve"
+      }
+    ]
+  },
+  "driver_standings_snapshot_2026": [
+    {
+      "position": 1,
+      "driver": "Kimi Antonelli",
+      "team": "Mercedes",
+      "points": 242.0
+    },
+    {
+      "position": 2,
+      "driver": "George Russell",
+      "team": "Mercedes",
+      "points": 183.0
+    },
+    {
+      "position": 3,
+      "driver": "Lewis Hamilton",
+      "team": "Ferrari",
+      "points": 183.0
+    },
+    {
+      "position": 4,
+      "driver": "Lando Norris",
+      "team": "McLaren",
+      "points": 159.0
+    },
+    {
+      "position": 5,
+      "driver": "Charles Leclerc",
+      "team": "Ferrari",
+      "points": 155.0
+    },
+    {
+      "position": 6,
+      "driver": "Max Verstappen",
+      "team": "Red Bull Racing",
+      "points": 112.0
+    },
+    {
+      "position": 7,
+      "driver": "Oscar Piastri",
+      "team": "McLaren",
+      "points": 104.0
+    },
+    {
+      "position": 8,
+      "driver": "Isack Hadjar",
+      "team": "Red Bull Racing",
+      "points": 68.0
+    },
+    {
+      "position": 9,
+      "driver": "Liam Lawson",
+      "team": "Racing Bulls",
+      "points": 49.0
+    },
+    {
+      "position": 10,
+      "driver": "Pierre Gasly",
+      "team": "Alpine",
+      "points": 44.0
+    },
+    {
+      "position": 11,
+      "driver": "Arvid Lindblad",
+      "team": "Racing Bulls",
+      "points": 23.0
+    },
+    {
+      "position": 12,
+      "driver": "Franco Colapinto",
+      "team": "Alpine",
+      "points": 19.0
+    },
+    {
+      "position": 13,
+      "driver": "Oliver Bearman",
+      "team": "Haas F1 Team",
+      "points": 18.0
+    },
+    {
+      "position": 14,
+      "driver": "Gabriel Bortoleto",
+      "team": "Audi",
+      "points": 10.0
+    },
+    {
+      "position": 15,
+      "driver": "Nico Hulkenberg",
+      "team": "Audi",
+      "points": 6.0
+    },
+    {
+      "position": 16,
+      "driver": "Carlos Sainz",
+      "team": "Williams",
+      "points": 6.0
+    },
+    {
+      "position": 17,
+      "driver": "Alexander Albon",
+      "team": "Williams",
+      "points": 5.0
+    },
+    {
+      "position": 18,
+      "driver": "Esteban Ocon",
+      "team": "Haas F1 Team",
+      "points": 3.0
+    },
+    {
+      "position": 19,
+      "driver": "Fernando Alonso",
+      "team": "Aston Martin",
+      "points": 3.0
+    },
+    {
+      "position": 20,
+      "driver": "Yuki Tsunoda",
+      "team": "Racing Bulls",
+      "points": 0.0
+    },
+    {
+      "position": 21,
+      "driver": "Lance Stroll",
+      "team": "Aston Martin",
+      "points": 0.0
+    },
+    {
+      "position": 22,
+      "driver": "Valtteri Bottas",
+      "team": "Cadillac",
+      "points": 0.0
+    },
+    {
+      "position": 23,
+      "driver": "Sergio Perez",
+      "team": "Cadillac",
+      "points": 0.0
+    }
+  ],
+  "calendar_2026_current": [
+    {
+      "round": 1,
+      "country": "Australia",
+      "city": "Melbourne",
+      "dates": "06-08 Mar 2026",
+      "circuit_name": "Albert Park",
+      "circuit_id": "albert-park",
+      "sprint": 0,
+      "status": "completed"
+    },
+    {
+      "round": 2,
+      "country": "China",
+      "city": "Shanghai",
+      "dates": "13-15 Mar 2026",
+      "circuit_name": "Shanghai International Circuit",
+      "circuit_id": "shanghai",
+      "sprint": 1,
+      "status": "completed"
+    },
+    {
+      "round": 3,
+      "country": "Japan",
+      "city": "Suzuka",
+      "dates": "27-29 Mar 2026",
+      "circuit_name": "Suzuka Circuit",
+      "circuit_id": "suzuka",
+      "sprint": 0,
+      "status": "completed"
+    },
+    {
+      "round": 4,
+      "country": "United States",
+      "city": "Miami Gardens, Florida",
+      "dates": "01-03 May 2026",
+      "circuit_name": "Miami International Autodrome",
+      "circuit_id": "miami",
+      "sprint": 1,
+      "status": "completed"
+    },
+    {
+      "round": 5,
+      "country": "Canada",
+      "city": "Montreal",
+      "dates": "22-24 May 2026",
+      "circuit_name": "Circuit Gilles-Villeneuve",
+      "circuit_id": "gilles-villeneuve",
+      "sprint": 1,
+      "status": "completed"
+    },
+    {
+      "round": 6,
+      "country": "Monaco",
+      "city": "Monte Carlo",
+      "dates": "05-07 Jun 2026",
+      "circuit_name": "Circuit de Monaco",
+      "circuit_id": "monaco",
+      "sprint": 0,
+      "status": "completed"
+    },
+    {
+      "round": 7,
+      "country": "Spain",
+      "city": "Montmelo",
+      "dates": "12-14 Jun 2026",
+      "circuit_name": "Circuit de Barcelona-Catalunya",
+      "circuit_id": "catalunya",
+      "sprint": 0,
+      "status": "completed"
+    },
+    {
+      "round": 8,
+      "country": "Austria",
+      "city": "Spielberg",
+      "dates": "26-28 Jun 2026",
+      "circuit_name": "Red Bull Ring",
+      "circuit_id": "red-bull-ring",
+      "sprint": 0,
+      "status": "completed"
+    },
+    {
+      "round": 9,
+      "country": "United Kingdom",
+      "city": "Silverstone, Northamptonshire",
+      "dates": "03-05 Jul 2026",
+      "circuit_name": "Silverstone Circuit",
+      "circuit_id": "silverstone",
+      "sprint": 1,
+      "status": "completed"
+    },
+    {
+      "round": 10,
+      "country": "Belgium",
+      "city": "Stavelot",
+      "dates": "17-19 Jul 2026",
+      "circuit_name": "Circuit de Spa-Francorchamps",
+      "circuit_id": "spa",
+      "sprint": 0,
+      "status": "completed"
+    },
+    {
+      "round": 11,
+      "country": "Hungary",
+      "city": "Mogyorod",
+      "dates": "24-26 Jul 2026",
+      "circuit_name": "Hungaroring",
+      "circuit_id": "hungaroring",
+      "sprint": 0,
+      "status": "completed"
+    },
+    {
+      "round": 12,
+      "country": "Netherlands",
+      "city": "Zandvoort",
+      "dates": "21-23 Aug 2026",
+      "circuit_name": "Circuit Zandvoort",
+      "circuit_id": "zandvoort",
+      "sprint": 1,
+      "status": "completed"
+    },
+    {
+      "round": 13,
+      "country": "Italy",
+      "city": "Monza",
+      "dates": "04-06 Sep 2026",
+      "circuit_name": "Autodromo Nazionale Monza",
+      "circuit_id": "monza",
+      "sprint": 0,
+      "status": "scheduled"
+    },
+    {
+      "round": 14,
+      "country": "Spain",
+      "city": "Madrid",
+      "dates": "11-13 Sep 2026",
+      "circuit_name": "Madrid IFEMA",
+      "circuit_id": "madring",
+      "sprint": 0,
+      "status": "scheduled"
+    },
+    {
+      "round": 15,
+      "country": "Azerbaijan",
+      "city": "Baku",
+      "dates": "24-26 Sep 2026",
+      "circuit_name": "Baku City Circuit",
+      "circuit_id": "baku",
+      "sprint": 0,
+      "status": "scheduled"
+    },
+    {
+      "round": 16,
+      "country": "Bahrain",
+      "city": "Sepang",
+      "dates": "02-04 Oct 2026",
+      "circuit_name": "Sepang International Circuit",
+      "circuit_id": "sepang",
+      "sprint": 0,
+      "status": "scheduled"
+    },
+    {
+      "round": 17,
+      "country": "Singapore",
+      "city": "Singapore",
+      "dates": "09-11 Oct 2026",
+      "circuit_name": "Marina Bay Street Circuit",
+      "circuit_id": "marina-bay",
+      "sprint": 1,
+      "status": "scheduled"
+    },
+    {
+      "round": 18,
+      "country": "United States",
+      "city": "Austin, Texas",
+      "dates": "23-25 Oct 2026",
+      "circuit_name": "Circuit of The Americas",
+      "circuit_id": "cota",
+      "sprint": 0,
+      "status": "scheduled"
+    },
+    {
+      "round": 19,
+      "country": "Mexico",
+      "city": "Mexico City",
+      "dates": "30 Oct-01 Nov 2026",
+      "circuit_name": "Autodromo Hermanos Rodriguez",
+      "circuit_id": "rodriguez",
+      "sprint": 0,
+      "status": "scheduled"
+    },
+    {
+      "round": 20,
+      "country": "Brazil",
+      "city": "Sao Paulo",
+      "dates": "06-08 Nov 2026",
+      "circuit_name": "Autodromo Jose Carlos Pace (Interlagos)",
+      "circuit_id": "interlagos",
+      "sprint": 0,
+      "status": "scheduled"
+    },
+    {
+      "round": 21,
+      "country": "United States",
+      "city": "Las Vegas, Nevada",
+      "dates": "19-21 Nov 2026",
+      "circuit_name": "Las Vegas Strip Circuit",
+      "circuit_id": "las-vegas",
+      "sprint": 0,
+      "status": "scheduled"
+    },
+    {
+      "round": 22,
+      "country": "Qatar",
+      "city": "Lusail",
+      "dates": "27-29 Nov 2026",
+      "circuit_name": "Lusail International Circuit",
+      "circuit_id": "lusail",
+      "sprint": 0,
+      "status": "scheduled"
+    },
+    {
+      "round": 23,
+      "country": "United Arab Emirates",
+      "city": "Abu Dhabi",
+      "dates": "04-06 Dec 2026",
+      "circuit_name": "Yas Marina Circuit",
+      "circuit_id": "yas-marina",
+      "sprint": 0,
+      "status": "scheduled"
+    }
+  ],
+  "history_baseline": {
+    "championship_start": "1950",
+    "first_world_champion": "Nino Farina (1950)",
+    "drivers_champions_count_at_end_2025": 35,
+    "constructors_championship_started": 1958,
+    "most_driver_titles": "Lewis Hamilton and Michael Schumacher — 7 each",
+    "most_recent_champion": "Lando Norris — 2025"
+  },
+  "source_registry": [
+    {
+      "id": 1,
+      "priority": 1,
+      "source": "FIA Formula 1 regulations",
+      "url": "https://www.fia.com/regulations/formula-1",
+      "use": "Primary authority for sporting, technical, financial and operational rules.",
+      "authority": "official"
+    },
+    {
+      "id": 2,
+      "priority": 2,
+      "source": "FIA 2026 Formula One Championship archive",
+      "url": "https://www.fia.com/events/fia-formula-one-world-championship/season-2026/2026-fia-formula-one-world-championship",
+      "use": "Primary authority for FIA championship calendar, classifications and event status.",
+      "authority": "official"
+    },
+    {
+      "id": 3,
+      "priority": 3,
+      "source": "Formula1.com",
+      "url": "https://www.formula1.com/",
+      "use": "Official Formula 1/FOM source for teams, drivers, cars, schedules, results and official explainers.",
+      "authority": "official"
+    },
+    {
+      "id": 4,
+      "priority": 4,
+      "source": "Official F1 team websites",
+      "url": "https://www.formula1.com/en/teams",
+      "use": "Official team facts, car names, power units, staff, bases and team history.",
+      "authority": "official"
+    },
+    {
+      "id": 5,
+      "priority": 5,
+      "source": "Official circuit/promoter sources",
+      "url": "https://www.formula1.com/en/racing/2026",
+      "use": "Circuit/event facts; verify against FIA homologation where a technical or legal detail matters.",
+      "authority": "official"
+    },
+    {
+      "id": 6,
+      "priority": 6,
+      "source": "Official driver profiles",
+      "url": "https://www.formula1.com/en/drivers",
+      "use": "Driver nationality, number, biography and career statistics.",
+      "authority": "official"
+    },
+    {
+      "id": 7,
+      "priority": 7,
+      "source": "F1 results archive",
+      "url": "https://www.formula1.com/en/results",
+      "use": "Season-by-season classifications and race results.",
+      "authority": "official"
+    },
+    {
+      "id": 8,
+      "priority": 8,
+      "source": "Wikipedia season results tables",
+      "url": "https://en.wikipedia.org/wiki/List_of_Formula_One_World_Championship_points_scoring_systems",
+      "use": "Admitted as a REFERENCE source for race-by-race results only (see the 'reference' confidence tier). Its season tables are transcribed from FIA classifications and were cross-checked on load against independently held season data. Not admissible for narrative, attribution or contested claims, and never promoted to 'verified' without an FIA/F1 check.",
+      "authority": "reference"
+    },
+    {
+      "id": 9,
+      "priority": 9,
+      "source": "Fan sites, Reddit, secondary media, unsourced databases",
+      "url": null,
+      "use": "FORBIDDEN as authority under this database's verification policy. May be used to locate an official source, never to establish a fact.",
+      "authority": "forbidden"
+    }
+  ]
+}

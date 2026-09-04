@@ -1,0 +1,1022 @@
+-- =====================================================================
+-- F1 Verified Facts Database — relational schema
+-- Version 2.0 (2026-09-04)
+--
+-- Provenance model
+-- ----------------
+-- Every fact table carries:
+--   confidence  'verified' | 'high' | 'medium' | 'unverified'
+--   source      URL or citation where the fact was checked
+--
+--   verified   = checked this session against fia.com / formula1.com
+--   high       = well-established record, stable across decades of
+--                official publication; safe to rely on
+--   reference  = harvested from Wikipedia's season results tables, which
+--                are transcribed from FIA classifications. Cross-checked
+--                on load against independently held season data. Usable,
+--                but not official under this database's policy.
+--   medium     = correct in substance, detail (exact figure, exact
+--                date) worth confirming before publication
+--   unverified = placeholder / disputed / known-incomplete
+--
+-- Rule inherited from v1: never promote a fact to 'verified' without
+-- an official source. See the `provenance` table for the ladder.
+-- =====================================================================
+
+PRAGMA foreign_keys = ON;
+
+-- ---------------------------------------------------------------- meta
+CREATE TABLE meta (
+    key             TEXT PRIMARY KEY,
+    value           TEXT NOT NULL
+);
+
+CREATE TABLE provenance (
+    confidence      TEXT PRIMARY KEY,
+    rank            INTEGER NOT NULL,
+    definition      TEXT NOT NULL,
+    may_publish     INTEGER NOT NULL   -- 1 = safe to state as fact
+);
+
+CREATE TABLE source_registry (
+    id              INTEGER PRIMARY KEY,
+    priority        INTEGER NOT NULL,
+    source          TEXT NOT NULL,
+    url             TEXT,
+    use             TEXT,
+    authority       TEXT NOT NULL DEFAULT 'official'  -- official | reference | forbidden
+);
+
+-- ------------------------------------------------------------- people
+CREATE TABLE drivers (
+    id              TEXT PRIMARY KEY,          -- slug, e.g. 'juan-manuel-fangio'
+    full_name       TEXT NOT NULL,
+    nationality     TEXT,
+    nationality_code TEXT,
+    born            TEXT,                      -- ISO date where known
+    died            TEXT,
+    first_season    INTEGER,
+    last_season     INTEGER,
+    entries         INTEGER,
+    starts          INTEGER,
+    wins            INTEGER,
+    podiums         INTEGER,
+    poles           INTEGER,
+    fastest_laps    INTEGER,
+    career_points   REAL,
+    titles          INTEGER DEFAULT 0,
+    title_years     TEXT,                      -- comma-separated
+    status          TEXT,                      -- active | retired | deceased
+    stats_as_of     TEXT,                      -- when the career figures were true
+    -- wins / poles / fastest_laps above are DERIVED from race_results and
+    -- race_credits, which cover every championship race 1950-2026. They are
+    -- therefore always internally consistent and always current.
+    -- The *_external columns hold the separately sourced figure for the same
+    -- statistic, so the two can be compared. Where they disagree, the
+    -- difference is recorded in the discrepancies table rather than hidden.
+    wins_external           INTEGER,
+    poles_external          INTEGER,
+    fastest_laps_external   INTEGER,
+    external_source         TEXT,
+    notes           TEXT,
+    confidence      TEXT NOT NULL DEFAULT 'medium' REFERENCES provenance(confidence),
+    source          TEXT
+);
+
+CREATE TABLE personnel (
+    id              TEXT PRIMARY KEY,
+    full_name       TEXT NOT NULL,
+    nationality     TEXT,
+    role            TEXT,                      -- designer | team principal | official | founder
+    active_from     INTEGER,
+    active_to       INTEGER,
+    associated_with TEXT,
+    significance    TEXT,
+    confidence      TEXT NOT NULL DEFAULT 'medium' REFERENCES provenance(confidence)
+);
+
+-- ------------------------------------------------------- constructors
+CREATE TABLE constructors (
+    id              TEXT PRIMARY KEY,
+    name            TEXT NOT NULL,
+    full_name       TEXT,
+    country         TEXT,
+    base            TEXT,
+    first_entry     INTEGER,
+    last_entry      INTEGER,                   -- NULL = still competing
+    entries         INTEGER,
+    wins            INTEGER,
+    poles           INTEGER,
+    constructors_titles INTEGER DEFAULT 0,
+    drivers_titles  INTEGER DEFAULT 0,
+    title_years     TEXT,
+    lineage_chain   TEXT,                      -- FK-ish to constructor_lineage.chain_id
+    active          INTEGER NOT NULL DEFAULT 0,
+    notes           TEXT,
+    confidence      TEXT NOT NULL DEFAULT 'medium' REFERENCES provenance(confidence),
+    source          TEXT
+);
+
+-- A single continuous racing operation that changed names/owners over
+-- time, e.g. Enstone: Toleman > Benetton > Renault > Lotus > Renault > Alpine
+CREATE TABLE constructor_lineage (
+    id              INTEGER PRIMARY KEY,
+    chain_id        TEXT NOT NULL,
+    chain_name      TEXT NOT NULL,
+    sequence        INTEGER NOT NULL,
+    entity_name     TEXT NOT NULL,
+    from_year       INTEGER,
+    to_year         INTEGER,
+    note            TEXT,
+    confidence      TEXT NOT NULL DEFAULT 'high' REFERENCES provenance(confidence)
+);
+
+-- --------------------------------------------------- engines / power units
+CREATE TABLE engine_manufacturers (
+    id              TEXT PRIMARY KEY,
+    name            TEXT NOT NULL,
+    country         TEXT,
+    first_year      INTEGER,
+    last_year       INTEGER,
+    wins            INTEGER,
+    constructors_titles INTEGER DEFAULT 0,
+    drivers_titles  INTEGER DEFAULT 0,
+    notes           TEXT,
+    confidence      TEXT NOT NULL DEFAULT 'medium' REFERENCES provenance(confidence)
+);
+
+CREATE TABLE engine_eras (
+    id              INTEGER PRIMARY KEY,
+    from_year       INTEGER NOT NULL,
+    to_year         INTEGER,
+    era_name        TEXT NOT NULL,
+    formula         TEXT NOT NULL,
+    aspiration      TEXT,
+    typical_config  TEXT,
+    approx_power_bhp TEXT,
+    rev_limit       TEXT,
+    notes           TEXT,
+    confidence      TEXT NOT NULL DEFAULT 'high' REFERENCES provenance(confidence)
+);
+
+-- ------------------------------------------------------------ seasons
+CREATE TABLE seasons (
+    year            INTEGER PRIMARY KEY,
+    rounds          INTEGER,
+    drivers_champion TEXT REFERENCES drivers(id),
+    champion_team   TEXT REFERENCES constructors(id),
+    champion_points REAL,
+    champion_wins   INTEGER,
+    runner_up       TEXT REFERENCES drivers(id),
+    runner_up_points REAL,
+    margin          REAL,
+    constructors_champion TEXT REFERENCES constructors(id),
+    constructors_points REAL,
+    engine_formula  TEXT,
+    tyre_suppliers  TEXT,
+    notes           TEXT,
+    confidence      TEXT NOT NULL DEFAULT 'high' REFERENCES provenance(confidence),
+    source          TEXT
+);
+
+-- Championship entries: who drove what, in which year
+CREATE TABLE season_entries (
+    id              INTEGER PRIMARY KEY,
+    year            INTEGER NOT NULL REFERENCES seasons(year),
+    constructor_id  TEXT REFERENCES constructors(id),
+    driver_id       TEXT REFERENCES drivers(id),
+    car             TEXT,
+    power_unit      TEXT,
+    car_number      INTEGER,
+    role            TEXT DEFAULT 'race',       -- race | reserve | substitute
+    note            TEXT,
+    confidence      TEXT NOT NULL DEFAULT 'high' REFERENCES provenance(confidence)
+);
+
+CREATE TABLE standings (
+    id              INTEGER PRIMARY KEY,
+    year            INTEGER NOT NULL,
+    table_type      TEXT NOT NULL,             -- drivers | constructors
+    position        INTEGER NOT NULL,
+    entity          TEXT NOT NULL,             -- driver or constructor display name
+    entity_id       TEXT,
+    team            TEXT,
+    points          REAL,
+    as_of           TEXT,                      -- 'final' or a date for in-progress
+    confidence      TEXT NOT NULL DEFAULT 'high' REFERENCES provenance(confidence),
+    source          TEXT
+);
+
+-- ------------------------------------------------- circuits and events
+CREATE TABLE circuits (
+    id              TEXT PRIMARY KEY,
+    name            TEXT NOT NULL,
+    official_name   TEXT,
+    locality        TEXT,
+    country         TEXT,
+    circuit_type    TEXT,                      -- permanent | street | hybrid | oval | road
+    first_gp        INTEGER,
+    last_gp         INTEGER,
+    gp_count        INTEGER,
+    length_km       REAL,
+    turns           INTEGER,
+    direction       TEXT,                      -- clockwise | anti-clockwise
+    characteristics TEXT,
+    notes           TEXT,
+    confidence      TEXT NOT NULL DEFAULT 'medium' REFERENCES provenance(confidence),
+    source          TEXT
+);
+
+CREATE TABLE circuit_layouts (
+    id              INTEGER PRIMARY KEY,
+    circuit_id      TEXT NOT NULL REFERENCES circuits(id),
+    layout_key      TEXT NOT NULL,             -- stable id, unique per circuit
+    layout_name     TEXT,
+    from_year       INTEGER,
+    to_year         INTEGER,
+    -- 1: this layout is what was raced at this circuit for every season in
+    --    [from_year, to_year], and such rows form a complete non-overlapping
+    --    timeline. 0: a one-off used for particular races only, reachable
+    --    solely through races.layout_key. A season that ran two different
+    --    layouts - Bahrain in 2020 - needs the second one flagged this way.
+    by_year         INTEGER NOT NULL DEFAULT 1,
+    length_km       REAL,
+    turns           INTEGER,
+    change_reason   TEXT,
+    confidence      TEXT NOT NULL DEFAULT 'medium' REFERENCES provenance(confidence),
+    UNIQUE (circuit_id, layout_key)
+);
+
+-- ------------------------------------------------------------------ cars
+-- One row per car model. A car is a chassis design, not a season: the Lotus
+-- 79 raced in 1978 and 1979 and is one row. Where a design was substantially
+-- revised and given a new designation - 72C, 72D, 72E - each designation is
+-- its own row, chained through supersedes_id, because that is how results
+-- were published and how the cars are talked about.
+--
+-- The spec columns are patchy ON PURPOSE. A famous car has published figures;
+-- a 1954 privateer entry does not. A NULL here means "not established", never
+-- "zero", and spec_confidence records how good the figures that ARE here are.
+CREATE TABLE cars (
+    id              TEXT PRIMARY KEY,          -- lotus-79, ferrari-312t
+    constructor_id  TEXT NOT NULL REFERENCES constructors(id),
+    designation     TEXT NOT NULL,             -- "79", "312T", "MP4/4"
+    full_name       TEXT NOT NULL,             -- "Lotus 79"
+    from_year       INTEGER,
+    to_year         INTEGER,
+    supersedes_id   TEXT REFERENCES cars(id),  -- the design this evolved from
+    designers       TEXT,                      -- comma-separated
+    engine_id       TEXT REFERENCES engine_manufacturers(id),
+    engine_name     TEXT,                      -- "Ford Cosworth DFV" as published
+    tyres           TEXT,
+
+    -- power unit
+    engine_config   TEXT,                      -- V8, V12, flat-12, turbo I4
+    capacity_cc     INTEGER,
+    aspiration      TEXT,                      -- naturally aspirated | turbo | hybrid
+    power_bhp       INTEGER,                   -- peak race power as published
+    power_note      TEXT,                      -- qualifying boost, era caveats
+    rev_limit_rpm   INTEGER,
+
+    -- chassis and running gear
+    chassis_type    TEXT,                      -- spaceframe | aluminium monocoque
+                                               -- | carbon-fibre composite
+    gearbox         TEXT,
+    suspension      TEXT,
+    brakes          TEXT,
+    weight_kg       REAL,                      -- as raced, to the era's rules
+    wheelbase_mm    INTEGER,
+    track_front_mm  INTEGER,
+    track_rear_mm   INTEGER,
+    fuel_capacity_l INTEGER,
+
+    -- what the car was for, and what it changed
+    concept         TEXT,                      -- the design idea in one line
+    innovations     TEXT,                      -- what it introduced
+    story           TEXT,                      -- the deep dive, where warranted
+    outcome         TEXT,                      -- what it actually achieved
+
+    -- derived at build time from race_entries, never stored by hand
+    -- races with a RECORDED entry, not races entered: race_entries holds
+    -- only winners, pole-sitters and fastest-lap setters, so this is always
+    -- a lower bound on the car's true race count.
+    races           INTEGER DEFAULT 0,
+    wins            INTEGER DEFAULT 0,
+    poles           INTEGER DEFAULT 0,
+    fastest_laps    INTEGER DEFAULT 0,
+    -- authored, not derived: a title season is often shared between two
+    -- chassis (Lotus ran the 78 and the 79 through 1978) and there is no
+    -- defensible rule for splitting a championship between them. These are
+    -- the titles the car was the team's primary chassis for.
+    drivers_titles  INTEGER DEFAULT 0,
+    constructors_titles INTEGER DEFAULT 0,
+
+    landmark        INTEGER NOT NULL DEFAULT 0, -- 1 = in the deep-dive set
+    confidence      TEXT NOT NULL DEFAULT 'medium' REFERENCES provenance(confidence),
+    spec_confidence TEXT REFERENCES provenance(confidence),
+    source          TEXT,
+    UNIQUE (constructor_id, designation)
+);
+
+CREATE TABLE grands_prix (
+    id              TEXT PRIMARY KEY,
+    name            TEXT NOT NULL,
+    country         TEXT,
+    first_held      INTEGER,
+    last_held       INTEGER,
+    editions        INTEGER,
+    circuits_used   TEXT,
+    aliases         TEXT,                      -- other names this event has carried
+    notes           TEXT,
+    confidence      TEXT NOT NULL DEFAULT 'medium' REFERENCES provenance(confidence)
+);
+
+
+-- =====================================================================
+-- The race model (v2.4)
+--
+-- `races` is one row per championship event.
+-- `race_entries` is one row per driver per race.
+--
+-- Every per-driver fact about a race - who was on pole, who won, who set
+-- the fastest lap - is an attribute of an ENTRY, not of the race. Before
+-- v2.4 those three facts were columns on the race row plus a separate
+-- credits table, which meant a shared win and a shared fastest lap were
+-- modelled two different ways and neither could be extended to a full
+-- finishing order without changing shape again.
+--
+-- Deriving from entries:
+--   pole         grid = 1
+--   win          finish_position = 1
+--   fastest lap  fastest_lap = 1
+-- Adding the rest of the finishing order is then pure INSERT.
+-- =====================================================================
+CREATE TABLE races (
+    id              INTEGER PRIMARY KEY,
+    year            INTEGER NOT NULL REFERENCES seasons(year),
+    round           INTEGER NOT NULL,
+    gp_id           TEXT NOT NULL REFERENCES grands_prix(id),
+    name_used       TEXT NOT NULL,             -- the name carried that year
+    circuit_id      TEXT REFERENCES circuits(id),
+    layout_key      TEXT,                      -- overrides the year lookup
+    dates           TEXT,
+    sprint          INTEGER NOT NULL DEFAULT 0,
+    status          TEXT NOT NULL DEFAULT 'completed',
+    note            TEXT,
+    confidence      TEXT NOT NULL DEFAULT 'reference' REFERENCES provenance(confidence),
+    source          TEXT,
+    UNIQUE (year, round)
+);
+
+CREATE TABLE race_entries (
+    id              INTEGER PRIMARY KEY,
+    race_id         INTEGER NOT NULL REFERENCES races(id),
+    driver_id       TEXT NOT NULL REFERENCES drivers(id),
+    constructor_id  TEXT REFERENCES constructors(id),
+    car_id          TEXT REFERENCES cars(id),  -- the specific chassis model
+    entrant         TEXT,                      -- chassis-engine as published
+    grid            INTEGER,                   -- 1 = pole position
+    finish_position INTEGER,                   -- 1 = race win
+    shared_drive    INTEGER NOT NULL DEFAULT 0,
+    fastest_lap     INTEGER NOT NULL DEFAULT 0,
+    fastest_lap_shared INTEGER,                -- how many drivers shared it
+    -- Reserved for the full finishing order. Declared now so that adding it
+    -- is pure INSERT and no consumer of this schema has to change.
+    classified      INTEGER,                   -- 1 = classified finisher
+    status          TEXT,                      -- Finished | +1 Lap | Engine | Accident ...
+    laps_completed  INTEGER,
+    points          REAL,
+    note            TEXT,
+    confidence      TEXT NOT NULL DEFAULT 'reference' REFERENCES provenance(confidence),
+    source          TEXT,
+    UNIQUE (race_id, driver_id)
+);
+
+CREATE INDEX idx_races_year      ON races(year, round);
+CREATE INDEX idx_races_gp        ON races(gp_id);
+CREATE INDEX idx_races_circuit   ON races(circuit_id);
+CREATE INDEX idx_entries_race    ON race_entries(race_id);
+CREATE INDEX idx_entries_driver  ON race_entries(driver_id);
+CREATE INDEX idx_entries_cons    ON race_entries(constructor_id);
+CREATE INDEX idx_entries_win     ON race_entries(finish_position);
+CREATE INDEX idx_entries_grid    ON race_entries(grid);
+CREATE INDEX idx_entries_fl      ON race_entries(fastest_lap);
+-- composite indexes so the per-race lookups in the compatibility views and
+-- in any "who won / who was on pole" query are index-only
+CREATE INDEX idx_entries_race_pos  ON race_entries(race_id, finish_position);
+CREATE INDEX idx_entries_race_grid ON race_entries(race_id, grid);
+CREATE INDEX idx_entries_race_fl   ON race_entries(race_id, fastest_lap);
+CREATE INDEX idx_entries_driver_pos ON race_entries(driver_id, finish_position);
+CREATE INDEX idx_entries_car     ON race_entries(car_id);
+CREATE INDEX idx_cars_constructor ON cars(constructor_id);
+CREATE INDEX idx_cars_years       ON cars(from_year, to_year);
+
+-- ------------------------------------------- rules, tech and safety
+CREATE TABLE regulation_changes (
+    id              INTEGER PRIMARY KEY,
+    year            INTEGER NOT NULL,
+    category        TEXT NOT NULL,             -- technical | sporting | safety | financial | format
+    title           TEXT NOT NULL,
+    detail          TEXT,
+    impact          TEXT,
+    confidence      TEXT NOT NULL DEFAULT 'high' REFERENCES provenance(confidence),
+    source          TEXT
+);
+
+CREATE TABLE technical_innovations (
+    id              INTEGER PRIMARY KEY,
+    year            INTEGER NOT NULL,
+    innovation      TEXT NOT NULL,
+    originator      TEXT,
+    description     TEXT,
+    legacy          TEXT,
+    banned_year     INTEGER,
+    confidence      TEXT NOT NULL DEFAULT 'high' REFERENCES provenance(confidence)
+);
+
+CREATE TABLE safety_milestones (
+    id              INTEGER PRIMARY KEY,
+    year            INTEGER NOT NULL,
+    milestone       TEXT NOT NULL,
+    trigger_event   TEXT,
+    description     TEXT,
+    confidence      TEXT NOT NULL DEFAULT 'high' REFERENCES provenance(confidence)
+);
+
+CREATE TABLE tyre_suppliers (
+    id              INTEGER PRIMARY KEY,
+    supplier        TEXT NOT NULL,
+    from_year       INTEGER,
+    to_year         INTEGER,
+    exclusive       INTEGER DEFAULT 0,
+    notes           TEXT,
+    confidence      TEXT NOT NULL DEFAULT 'high' REFERENCES provenance(confidence)
+);
+
+CREATE TABLE points_systems (
+    id              INTEGER PRIMARY KEY,
+    from_year       INTEGER NOT NULL,
+    to_year         INTEGER,
+    scoring         TEXT NOT NULL,
+    fastest_lap     TEXT,
+    dropped_scores  TEXT,
+    notes           TEXT,
+    confidence      TEXT NOT NULL DEFAULT 'high' REFERENCES provenance(confidence)
+);
+
+CREATE TABLE records (
+    id              INTEGER PRIMARY KEY,
+    category        TEXT NOT NULL,
+    record          TEXT NOT NULL,
+    holder          TEXT,
+    value           TEXT,
+    detail          TEXT,
+    as_of           TEXT,
+    confidence      TEXT NOT NULL DEFAULT 'high' REFERENCES provenance(confidence)
+);
+
+CREATE TABLE eras (
+    id              INTEGER PRIMARY KEY,
+    from_year       INTEGER NOT NULL,
+    to_year         INTEGER,
+    era_name        TEXT NOT NULL,
+    summary         TEXT,
+    dominant_teams  TEXT,
+    defining_features TEXT,
+    confidence      TEXT NOT NULL DEFAULT 'high' REFERENCES provenance(confidence)
+);
+
+CREATE TABLE glossary (
+    term            TEXT PRIMARY KEY,
+    category        TEXT,
+    definition      TEXT NOT NULL,
+    confidence      TEXT NOT NULL DEFAULT 'high' REFERENCES provenance(confidence)
+);
+
+CREATE TABLE governance (
+    id              INTEGER PRIMARY KEY,
+    year            INTEGER,
+    event           TEXT NOT NULL,
+    detail          TEXT,
+    significance    TEXT,
+    confidence      TEXT NOT NULL DEFAULT 'high' REFERENCES provenance(confidence)
+);
+
+-- --------------------------------------------------------- indexes
+CREATE INDEX idx_seasons_champion       ON seasons(drivers_champion);
+CREATE INDEX idx_seasons_cchampion      ON seasons(constructors_champion);
+CREATE INDEX idx_sentries_year           ON season_entries(year);
+CREATE INDEX idx_sentries_driver         ON season_entries(driver_id);
+CREATE INDEX idx_sentries_constructor    ON season_entries(constructor_id);
+CREATE INDEX idx_standings_year         ON standings(year, table_type);
+CREATE INDEX idx_regs_year              ON regulation_changes(year);
+CREATE INDEX idx_regs_category          ON regulation_changes(category);
+CREATE INDEX idx_innov_year             ON technical_innovations(year);
+CREATE INDEX idx_safety_year            ON safety_milestones(year);
+CREATE INDEX idx_layouts_circuit        ON circuit_layouts(circuit_id);
+CREATE INDEX idx_lineage_chain          ON constructor_lineage(chain_id, sequence);
+CREATE INDEX idx_drivers_titles         ON drivers(titles);
+CREATE INDEX idx_drivers_wins           ON drivers(wins);
+
+-- ----------------------------------------------------------- views
+CREATE VIEW v_champions AS
+SELECT s.year,
+       d.full_name        AS champion,
+       d.nationality      AS nationality,
+       c.name             AS team,
+       s.champion_points  AS points,
+       s.champion_wins    AS wins,
+       ru.full_name       AS runner_up,
+       s.runner_up_points AS runner_up_points,
+       s.margin           AS margin,
+       cc.name            AS constructors_champion,
+       s.rounds           AS rounds
+FROM seasons s
+LEFT JOIN drivers d       ON d.id  = s.drivers_champion
+LEFT JOIN drivers ru      ON ru.id = s.runner_up
+LEFT JOIN constructors c  ON c.id  = s.champion_team
+LEFT JOIN constructors cc ON cc.id = s.constructors_champion
+ORDER BY s.year;
+
+CREATE VIEW v_title_count AS
+SELECT d.full_name, d.nationality, d.titles, d.title_years, d.wins, d.poles
+FROM drivers d
+WHERE d.titles > 0
+ORDER BY d.titles DESC, d.wins DESC;
+
+CREATE VIEW v_constructor_titles AS
+SELECT name, country, constructors_titles, drivers_titles, wins,
+       first_entry, last_entry, title_years
+FROM constructors
+WHERE constructors_titles > 0 OR drivers_titles > 0
+ORDER BY constructors_titles DESC, wins DESC;
+
+CREATE VIEW v_current_grid AS
+SELECT e.car_number, d.full_name AS driver, d.nationality_code, c.name AS team,
+       e.car, e.power_unit, e.role
+FROM season_entries e
+LEFT JOIN drivers d      ON d.id = e.driver_id
+LEFT JOIN constructors c ON c.id = e.constructor_id
+WHERE e.year = 2026
+ORDER BY e.role, c.name, e.car_number;
+
+CREATE VIEW v_season_timeline AS
+SELECT s.year, s.rounds, d.full_name AS champion, cc.name AS constructors_champion,
+       s.engine_formula, s.tyre_suppliers, s.notes
+FROM seasons s
+LEFT JOIN drivers d       ON d.id  = s.drivers_champion
+LEFT JOIN constructors cc ON cc.id = s.constructors_champion
+ORDER BY s.year;
+
+CREATE VIEW v_unverified AS
+SELECT 'drivers' AS tbl, id AS key, full_name AS label, confidence FROM drivers WHERE confidence IN ('medium','unverified')
+UNION ALL SELECT 'constructors', id, name, confidence FROM constructors WHERE confidence IN ('medium','unverified')
+UNION ALL SELECT 'circuits', id, name, confidence FROM circuits WHERE confidence IN ('medium','unverified')
+UNION ALL SELECT 'seasons', CAST(year AS TEXT), CAST(year AS TEXT), confidence FROM seasons WHERE confidence IN ('medium','unverified');
+
+-- ------------------------------------------- race-result views (v2.1)
+
+
+
+
+-- Known gaps in the harvest, and open discrepancies between a hand-entered
+-- career figure and the figure derived from the race records. Recorded
+-- rather than silently reconciled: where two sources disagree and neither
+-- can be checked against an official source, the disagreement IS the fact.
+-- --------------------------------------------------------------- timing
+-- Per-race timing, one row per race. Times are stored as text exactly as
+-- published ("1:24.303") and as seconds for arithmetic, because the published
+-- form is the citable one and the numeric form is the useful one. Both are
+-- written from the same harvested string so they cannot disagree.
+CREATE TABLE race_timing (
+    race_id         INTEGER PRIMARY KEY REFERENCES races(id),
+    pole_time       TEXT,
+    pole_seconds    REAL,
+    fastest_lap_time TEXT,
+    fastest_lap_seconds REAL,
+    fastest_lap_number INTEGER,
+    winner_time     TEXT,                      -- total race time
+    winner_seconds  REAL,
+    margin          TEXT,                      -- gap to second, as published
+    margin_seconds  REAL,                      -- NULL when the gap is in laps
+    margin_laps     INTEGER,                   -- set instead when lapped
+    laps            INTEGER,                   -- race distance in laps
+    distance_km     REAL,
+    confidence      TEXT NOT NULL DEFAULT 'reference' REFERENCES provenance(confidence),
+    source          TEXT
+);
+
+-- Per-lap data. Empty in the distributed database: F1 does not publish lap
+-- times before 2018 in any retrievable form, and the 2018- data comes from
+-- the live timing API through FastF1, which needs network access this build
+-- environment does not have. tools/fastf1_load.py populates these four
+-- tables; the schema is here so that a database built with them and one
+-- built without are the same shape.
+CREATE TABLE laps (
+    id              INTEGER PRIMARY KEY,
+    race_id         INTEGER NOT NULL REFERENCES races(id),
+    driver_id       TEXT REFERENCES drivers(id),
+    driver_code     TEXT,                      -- VER, HAM: FastF1's key
+    lap_number      INTEGER NOT NULL,
+    position        INTEGER,
+    lap_seconds     REAL,
+    sector1_seconds REAL,
+    sector2_seconds REAL,
+    sector3_seconds REAL,
+    speed_trap_kph  REAL,
+    compound        TEXT,                      -- SOFT | MEDIUM | HARD | INTER | WET
+    tyre_life       INTEGER,                   -- laps on this set
+    fresh_tyre      INTEGER,
+    stint           INTEGER,
+    is_personal_best INTEGER,
+    deleted         INTEGER,                   -- lap time deleted by the stewards
+    deleted_reason  TEXT,
+    track_status    TEXT,                      -- yellow, SC, VSC, red as flagged
+    source          TEXT NOT NULL DEFAULT 'fastf1',
+    UNIQUE (race_id, driver_code, lap_number)
+);
+
+CREATE TABLE stints (
+    id              INTEGER PRIMARY KEY,
+    race_id         INTEGER NOT NULL REFERENCES races(id),
+    driver_id       TEXT REFERENCES drivers(id),
+    driver_code     TEXT,
+    stint           INTEGER NOT NULL,
+    compound        TEXT,
+    lap_start       INTEGER,
+    lap_end         INTEGER,
+    laps_run        INTEGER,
+    source          TEXT NOT NULL DEFAULT 'fastf1',
+    UNIQUE (race_id, driver_code, stint)
+);
+
+CREATE TABLE pit_stops (
+    id              INTEGER PRIMARY KEY,
+    race_id         INTEGER NOT NULL REFERENCES races(id),
+    driver_id       TEXT REFERENCES drivers(id),
+    driver_code     TEXT,
+    stop_number     INTEGER,
+    lap_number      INTEGER,
+    stationary_seconds REAL,                   -- NULL: FastF1 gives pit lane
+    pit_lane_seconds REAL,                     -- time, not the stop itself
+    source          TEXT NOT NULL DEFAULT 'fastf1',
+    UNIQUE (race_id, driver_code, stop_number)
+);
+
+-- ------------------------------------------------------ radio and control
+-- Race control messages are published as text and are fully structured:
+-- flags, safety cars, investigations, penalties, deleted lap times.
+CREATE TABLE race_control_messages (
+    id              INTEGER PRIMARY KEY,
+    race_id         INTEGER NOT NULL REFERENCES races(id),
+    session         TEXT NOT NULL DEFAULT 'race', -- race | qualifying | sprint
+    utc_time        TEXT,
+    lap_number      INTEGER,
+    category        TEXT,                      -- Flag | SafetyCar | Drs | Other
+    flag            TEXT,                      -- GREEN | YELLOW | DOUBLE YELLOW | RED ...
+    scope           TEXT,                      -- Track | Sector | Driver
+    sector          INTEGER,
+    driver_number   INTEGER,
+    message         TEXT NOT NULL,
+    source          TEXT NOT NULL DEFAULT 'fastf1',
+    UNIQUE (race_id, session, utc_time, message)
+);
+
+-- Team radio. F1 publishes the AUDIO, not transcripts, so `transcript` is
+-- filled only where one has been made: tools/fastf1_load.py can transcribe
+-- with a local Whisper model if one is installed, and otherwise records the
+-- clip and its URL with transcript NULL. `notable` marks the curated set of
+-- historically significant exchanges, which are transcribed from broadcast
+-- and are the only rows that exist for seasons before 2018.
+CREATE TABLE team_radio (
+    id              INTEGER PRIMARY KEY,
+    race_id         INTEGER REFERENCES races(id),
+    driver_id       TEXT REFERENCES drivers(id),
+    driver_code     TEXT,
+    utc_time        TEXT,
+    lap_number      INTEGER,
+    speaker         TEXT,                      -- driver | engineer | team
+    transcript      TEXT,
+    audio_url       TEXT,
+    notable         INTEGER NOT NULL DEFAULT 0,
+    context         TEXT,                      -- why this one matters
+    confidence      TEXT NOT NULL DEFAULT 'reference' REFERENCES provenance(confidence),
+    source          TEXT NOT NULL DEFAULT 'fastf1'
+);
+
+CREATE INDEX idx_laps_race        ON laps(race_id, lap_number);
+CREATE INDEX idx_laps_driver      ON laps(race_id, driver_code);
+CREATE INDEX idx_stints_race      ON stints(race_id);
+CREATE INDEX idx_pits_race        ON pit_stops(race_id);
+CREATE INDEX idx_rcm_race         ON race_control_messages(race_id);
+CREATE INDEX idx_radio_race       ON team_radio(race_id);
+CREATE INDEX idx_radio_notable    ON team_radio(notable);
+
+CREATE TABLE known_gaps (
+    id              INTEGER PRIMARY KEY,
+    field           TEXT NOT NULL,             -- which column is incomplete
+    area            TEXT NOT NULL,
+    description     TEXT NOT NULL,
+    races_affected  INTEGER,
+    resolution      TEXT
+);
+
+CREATE TABLE discrepancies (
+    id              INTEGER PRIMARY KEY,
+    subject         TEXT NOT NULL,
+    field           TEXT NOT NULL,
+    stored_value    TEXT,
+    derived_value   TEXT,
+    assessment      TEXT NOT NULL,
+    status          TEXT NOT NULL DEFAULT 'open'
+);
+
+-- Shared poles and fastest laps: one row per driver credited. Used because
+-- several early races had two or more drivers set identical times, and the
+-- official record credits every one of them.
+
+-- --------------------------------------- pole / fastest lap views (v2.2)
+
+
+-- Pole + win + fastest lap in the same race
+
+
+
+
+-- =====================================================================
+-- Race views (v2.4)
+--
+-- The first two reproduce the pre-v2.4 `race_results` and `race_credits`
+-- tables exactly, so anything written against them keeps working. New
+-- queries should go to races / race_entries.
+-- =====================================================================
+CREATE VIEW race_results AS
+SELECT r.id, r.year, r.round, r.name_used AS gp_name, r.gp_id, r.circuit_id,
+       w.driver_id       AS winner_id,
+       wd.full_name      AS winner,
+       cw.driver_id      AS co_winner_id,
+       w.constructor_id  AS constructor_id,
+       cn.name           AS constructor,
+       w.entrant         AS entrant,
+       pd.full_name      AS pole,
+       p.driver_id       AS pole_id,
+       fd.full_name      AS fastest_lap,
+       f.driver_id       AS fastest_lap_id,
+       r.note, r.confidence, r.source
+FROM races r
+LEFT JOIN race_entries w  ON w.race_id = r.id AND w.finish_position = 1
+                         AND w.id = (SELECT MIN(id) FROM race_entries
+                                     WHERE race_id = r.id AND finish_position = 1)
+LEFT JOIN race_entries cw ON cw.race_id = r.id AND cw.finish_position = 1
+                         AND cw.id != w.id
+LEFT JOIN race_entries p  ON p.race_id = r.id AND p.grid = 1
+LEFT JOIN race_entries f  ON f.race_id = r.id AND f.fastest_lap = 1
+                         AND f.id = (SELECT MIN(id) FROM race_entries
+                                     WHERE race_id = r.id AND fastest_lap = 1)
+LEFT JOIN drivers wd      ON wd.id = w.driver_id
+LEFT JOIN drivers pd      ON pd.id = p.driver_id
+LEFT JOIN drivers fd      ON fd.id = f.driver_id
+LEFT JOIN constructors cn ON cn.id = w.constructor_id;
+
+CREATE VIEW race_credits AS
+SELECT r.year, r.round, 'pole' AS credit_type, e.driver_id, 1 AS shared_with
+FROM races r JOIN race_entries e ON e.race_id = r.id WHERE e.grid = 1
+UNION ALL
+SELECT r.year, r.round, 'fastest_lap', e.driver_id,
+       COALESCE(e.fastest_lap_shared, 1)
+FROM races r JOIN race_entries e ON e.race_id = r.id WHERE e.fastest_lap = 1;
+
+CREATE VIEW v_race_winners AS
+SELECT r.year, r.round, r.name_used AS gp_name, g.name AS grand_prix,
+       ci.name AS circuit,
+       d.full_name AS winner, d2.full_name AS co_winner,
+       c.name AS constructor, e.entrant, r.confidence
+FROM races r
+JOIN race_entries e ON e.race_id = r.id AND e.finish_position = 1
+                   AND e.id = (SELECT MIN(id) FROM race_entries
+                               WHERE race_id = r.id AND finish_position = 1)
+LEFT JOIN race_entries e2 ON e2.race_id = r.id AND e2.finish_position = 1 AND e2.id != e.id
+LEFT JOIN drivers d       ON d.id  = e.driver_id
+LEFT JOIN drivers d2      ON d2.id = e2.driver_id
+LEFT JOIN constructors c  ON c.id  = e.constructor_id
+LEFT JOIN grands_prix g   ON g.id  = r.gp_id
+LEFT JOIN circuits ci     ON ci.id = r.circuit_id
+ORDER BY r.year, r.round;
+
+CREATE VIEW v_wins_by_driver AS
+SELECT d.full_name, d.nationality, COUNT(*) AS wins,
+       MIN(r.year) AS first_win, MAX(r.year) AS last_win, d.titles
+FROM race_entries e JOIN races r ON r.id = e.race_id JOIN drivers d ON d.id = e.driver_id
+WHERE e.finish_position = 1
+GROUP BY d.id ORDER BY wins DESC, first_win;
+
+CREATE VIEW v_wins_by_constructor AS
+SELECT c.name, c.country, COUNT(DISTINCT e.race_id) AS wins,
+       MIN(r.year) AS first_win, MAX(r.year) AS last_win, c.constructors_titles
+FROM race_entries e JOIN races r ON r.id = e.race_id
+JOIN constructors c ON c.id = e.constructor_id
+WHERE e.finish_position = 1
+GROUP BY c.id ORDER BY wins DESC;
+
+CREATE VIEW v_wins_by_decade AS
+SELECT (r.year/10)*10 AS decade, d.full_name, COUNT(*) AS wins
+FROM race_entries e JOIN races r ON r.id = e.race_id JOIN drivers d ON d.id = e.driver_id
+WHERE e.finish_position = 1
+GROUP BY decade, d.id ORDER BY decade, wins DESC;
+
+CREATE VIEW v_poles_by_driver AS
+SELECT d.full_name, d.nationality, COUNT(*) AS poles,
+       MIN(r.year) AS first_pole, MAX(r.year) AS last_pole
+FROM race_entries e JOIN races r ON r.id = e.race_id JOIN drivers d ON d.id = e.driver_id
+WHERE e.grid = 1
+GROUP BY d.id ORDER BY poles DESC, first_pole;
+
+CREATE VIEW v_fastest_laps_by_driver AS
+SELECT d.full_name, d.nationality, COUNT(*) AS fastest_laps,
+       MIN(r.year) AS first, MAX(r.year) AS last,
+       SUM(CASE WHEN e.fastest_lap_shared > 1 THEN 1 ELSE 0 END) AS shared
+FROM race_entries e JOIN races r ON r.id = e.race_id JOIN drivers d ON d.id = e.driver_id
+WHERE e.fastest_lap = 1
+GROUP BY d.id ORDER BY fastest_laps DESC;
+
+CREATE VIEW v_grand_slams AS
+SELECT r.year, r.round, r.name_used AS gp_name, d.full_name AS driver,
+       c.name AS constructor
+FROM races r
+JOIN race_entries e ON e.race_id = r.id
+JOIN drivers d ON d.id = e.driver_id
+LEFT JOIN constructors c ON c.id = e.constructor_id
+WHERE e.grid = 1 AND e.finish_position = 1 AND e.fastest_lap = 1
+ORDER BY r.year, r.round;
+
+CREATE VIEW v_pole_to_win AS
+SELECT r.year, COUNT(*) AS races,
+       SUM(CASE WHEN EXISTS (SELECT 1 FROM race_entries e
+                             WHERE e.race_id = r.id AND e.grid = 1
+                               AND e.finish_position = 1) THEN 1 ELSE 0 END) AS pole_converted
+FROM races r GROUP BY r.year ORDER BY r.year;
+
+CREATE VIEW v_stat_reconciliation AS
+SELECT d.full_name,
+       d.wins AS derived_wins, d.wins_external,
+       d.poles AS derived_poles, d.poles_external,
+       d.fastest_laps AS derived_fl, d.fastest_laps_external,
+       d.last_season, d.confidence
+FROM drivers d
+WHERE d.wins_external IS NOT NULL OR d.poles_external IS NOT NULL
+ORDER BY d.wins DESC;
+
+-- Every event, with how many times it has been held and where
+CREATE VIEW v_grands_prix AS
+SELECT g.id, g.name, g.country, COUNT(r.id) AS editions,
+       MIN(r.year) AS first_held, MAX(r.year) AS last_held,
+       COUNT(DISTINCT r.circuit_id) AS circuits_recorded,
+       COUNT(r.circuit_id) || '/' || COUNT(r.id) AS circuit_coverage
+FROM grands_prix g LEFT JOIN races r ON r.gp_id = g.id
+GROUP BY g.id ORDER BY editions DESC;
+
+-- The calendar is the race table seen as a schedule. It was a separate table
+-- until v2.4, which meant the 2026 season existed in two places.
+CREATE VIEW calendar AS
+SELECT r.id, r.year, r.round, r.name_used AS gp_name, r.gp_id,
+       g.country, ci.locality AS city, r.circuit_id, ci.name AS circuit_name,
+       r.dates, r.sprint, r.status, r.confidence, r.source
+FROM races r
+LEFT JOIN grands_prix g ON g.id = r.gp_id
+LEFT JOIN circuits ci   ON ci.id = r.circuit_id
+ORDER BY r.year, r.round;
+
+-- ------------------------------------------------------------- circuits
+-- Every circuit with its championship record, in one row.
+CREATE VIEW v_circuits AS
+SELECT c.id, c.name, c.country, c.locality, c.circuit_type,
+       COUNT(CASE WHEN r.status='completed' THEN 1 END) AS races,
+       COUNT(CASE WHEN r.status!='completed' THEN 1 END) AS scheduled,
+       MIN(CASE WHEN r.status='completed' THEN r.year END) AS first_gp,
+       MAX(CASE WHEN r.status='completed' THEN r.year END) AS last_gp,
+       COUNT(DISTINCT CASE WHEN r.status='completed' THEN r.year END)
+                                 AS seasons_used,
+       COUNT(DISTINCT CASE WHEN r.status='completed' THEN r.gp_id END)
+                                 AS events_hosted,
+       (SELECT COUNT(*) FROM circuit_layouts l WHERE l.circuit_id = c.id)
+                                 AS layouts,
+       c.length_km, c.turns, c.direction
+FROM circuits c LEFT JOIN races r ON r.circuit_id = c.id
+GROUP BY c.id ORDER BY races DESC, c.name;
+
+-- Who has won most often at each circuit.
+CREATE VIEW v_circuit_winners AS
+SELECT r.circuit_id, c.name AS circuit, e.driver_id, d.full_name AS driver,
+       COUNT(DISTINCT r.id) AS wins,
+       MIN(r.year) AS first_win, MAX(r.year) AS last_win
+FROM races r
+JOIN race_entries e ON e.race_id = r.id AND e.finish_position = 1
+JOIN circuits c     ON c.id = r.circuit_id
+JOIN drivers d      ON d.id = e.driver_id
+GROUP BY r.circuit_id, e.driver_id
+ORDER BY r.circuit_id, wins DESC, driver;
+
+-- The same for constructors.
+CREATE VIEW v_circuit_constructors AS
+SELECT r.circuit_id, c.name AS circuit, e.constructor_id,
+       t.name AS constructor, COUNT(DISTINCT r.id) AS wins,
+       MIN(r.year) AS first_win, MAX(r.year) AS last_win
+FROM races r
+JOIN race_entries e  ON e.race_id = r.id AND e.finish_position = 1
+JOIN circuits c      ON c.id = r.circuit_id
+JOIN constructors t  ON t.id = e.constructor_id
+GROUP BY r.circuit_id, e.constructor_id
+ORDER BY r.circuit_id, wins DESC, constructor;
+
+-- Countries ranked by how much championship racing they have held.
+CREATE VIEW v_circuits_by_country AS
+SELECT c.country, COUNT(DISTINCT c.id) AS circuits, COUNT(r.id) AS races,
+       MIN(r.year) AS first_gp, MAX(r.year) AS last_gp,
+       GROUP_CONCAT(DISTINCT c.name) AS venues
+FROM circuits c LEFT JOIN races r ON r.circuit_id = c.id
+                                 AND r.status = 'completed' 
+GROUP BY c.country ORDER BY races DESC;
+
+-- Each race with the circuit and the exact configuration in use that year.
+CREATE VIEW v_race_venues AS
+SELECT r.id AS race_id, r.year, r.round, r.name_used AS gp_name, r.gp_id,
+       r.circuit_id, c.name AS circuit, c.country, c.locality,
+       l.layout_name, COALESCE(l.length_km, c.length_km) AS length_km,
+       COALESCE(l.turns, c.turns) AS turns,
+       -- Where the circuit has a researched layout timeline the figures are
+       -- those actually raced that year. Otherwise they are the circuit's
+       -- current figures, which may not be what was raced.
+       CASE WHEN l.id IS NOT NULL THEN 'as raced' ELSE 'current layout' END
+            AS figures
+FROM races r
+LEFT JOIN circuits c ON c.id = r.circuit_id
+LEFT JOIN circuit_layouts l ON l.circuit_id = r.circuit_id AND (
+       (r.layout_key IS NOT NULL AND l.layout_key = r.layout_key)
+    OR (r.layout_key IS NULL AND l.by_year = 1 AND r.year >= l.from_year
+        AND (l.to_year IS NULL OR r.year <= l.to_year)))
+ORDER BY r.year, r.round;
+
+-- Venues no longer in use, most recently dropped first.
+CREATE VIEW v_lost_circuits AS
+SELECT c.id, c.name, c.country, COUNT(r.id) AS races,
+       MIN(r.year) AS first_gp, MAX(r.year) AS last_gp,
+       2026 - MAX(r.year) AS years_since
+FROM circuits c JOIN races r ON r.circuit_id = c.id
+WHERE NOT EXISTS (SELECT 1 FROM races s WHERE s.circuit_id = c.id AND s.year >= 2025)
+GROUP BY c.id
+ORDER BY last_gp DESC;
+
+-- ---------------------------------------------------------------- cars
+-- The register with its derived competition record.
+CREATE VIEW v_cars AS
+SELECT c.id, c.full_name AS car, t.name AS constructor, c.from_year, c.to_year,
+       c.engine_name, c.engine_config, c.capacity_cc, c.aspiration, c.power_bhp,
+       c.chassis_type, c.weight_kg,
+       c.races AS recorded_races, c.wins, c.poles, c.fastest_laps,
+       c.drivers_titles, c.constructors_titles, c.landmark,
+       c.designers, c.concept, c.confidence, c.spec_confidence
+FROM cars c JOIN constructors t ON t.id = c.constructor_id
+ORDER BY c.wins DESC, c.from_year;
+
+-- Every race a car is known to have won, taken pole for or set fastest lap in.
+CREATE VIEW v_car_races AS
+SELECT c.id AS car_id, c.full_name AS car, r.year, r.round,
+       r.name_used AS gp_name, ci.name AS circuit, d.full_name AS driver,
+       CASE WHEN e.finish_position = 1 THEN 1 ELSE 0 END AS won,
+       CASE WHEN e.grid = 1 THEN 1 ELSE 0 END AS pole,
+       e.fastest_lap
+FROM race_entries e
+JOIN cars c     ON c.id = e.car_id
+JOIN races r    ON r.id = e.race_id
+JOIN drivers d  ON d.id = e.driver_id
+LEFT JOIN circuits ci ON ci.id = r.circuit_id
+ORDER BY r.year, r.round;
+
+-- How the technology moved: one row per car, in the order the cars appeared.
+CREATE VIEW v_car_evolution AS
+SELECT c.from_year, c.full_name AS car, t.name AS constructor,
+       c.chassis_type, c.engine_config, c.aspiration, c.capacity_cc,
+       c.power_bhp, c.weight_kg, c.innovations
+FROM cars c JOIN constructors t ON t.id = c.constructor_id
+WHERE c.landmark = 1
+ORDER BY c.from_year, c.full_name;
+
+-- Design lineages: a car and everything descended from it.
+CREATE VIEW v_car_lineage AS
+WITH RECURSIVE chain(root, id, full_name, from_year, depth) AS (
+    SELECT id, id, full_name, from_year, 0 FROM cars WHERE supersedes_id IS NULL
+    UNION ALL
+    SELECT ch.root, c.id, c.full_name, c.from_year, ch.depth + 1
+    FROM cars c JOIN chain ch ON c.supersedes_id = ch.id
+)
+SELECT root, id, full_name, from_year, depth FROM chain
+ORDER BY root, depth;
+
+-- What per-lap data exists, by season. Empty until fastf1_load.py has run.
+CREATE VIEW v_lap_coverage AS
+SELECT r.year,
+       COUNT(DISTINCT r.id) AS races,
+       COUNT(DISTINCT CASE WHEN l.id IS NOT NULL THEN r.id END) AS races_with_laps,
+       COUNT(l.id) AS laps
+FROM races r LEFT JOIN laps l ON l.race_id = r.id
+GROUP BY r.year ORDER BY r.year;

@@ -1,0 +1,53 @@
+name: build and verify
+
+# The database is generated from data/*.py, so the build IS the test: if a
+# data edit breaks a cross-check, verify.py exits 1 and this fails.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # No dependencies: everything but tools/fastf1_load.py is stdlib only.
+      - name: Rebuild the database
+        run: python3 build.py
+
+      - name: Verify
+        run: python3 verify.py
+
+      - name: Audit
+        run: python3 audit.py
+
+      - name: Regenerate the JSON exports
+        run: python3 export_json.py --compat
+
+      # A committed artefact that does not match its sources is a stale
+      # artefact. Fail rather than let the two drift apart.
+      - name: Check the committed artefacts are current
+        run: |
+          if ! git diff --quiet -- f1_database.json f1_compat.json; then
+            echo "::error::The committed JSON exports do not match a fresh build."
+            echo "Run 'make all' and commit the result."
+            git diff --stat -- f1_database.json f1_compat.json
+            exit 1
+          fi
+
+      - name: Smoke-test the query tool
+        run: |
+          ./f1 champions 2020 2025
+          ./f1 car mp4/4
+          ./f1 circuit spa
+          ./f1 gaps

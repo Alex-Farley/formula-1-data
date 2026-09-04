@@ -1,0 +1,25 @@
+# FastF1's HTTP cache. Large, regenerable, and specific to your machine —
+# but keep it locally: a warm cache turns an hours-long load into minutes.
+.fastf1cache/
+
+# Car telemetry dumps from tools/fastf1_load.py --telemetry-parquet.
+# Hundreds of MB per race weekend. Never commit these.
+*.parquet
+telemetry/
+out/
+
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Working copies of the database. The committed f1.db is the built artefact;
+# these are scratch.
+f1.db-journal
+f1.db-wal
+f1.db-shm
+*.db.bak
