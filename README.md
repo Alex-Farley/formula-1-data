@@ -174,11 +174,16 @@ npm run dev            # http://localhost:5173
 npm run build          # → web/dist/, a static site ready to upload
 ```
 
-It browses seasons, drivers, constructors, circuits and cars, has a SQL
-console equivalent to `./f1 sql`, and gives `known_gaps` and the open
-discrepancies a page of their own. The database it serves is whichever one
-`build.py` last produced — `f1.db` is copied in at build time rather than
-committed twice. See [`web/README.md`](web/README.md).
+It browses seasons, drivers, constructors, circuits and cars, plots four
+charts over the race records, has a SQL console equivalent to `./f1 sql`, and
+gives `known_gaps` and the open discrepancies a page of their own. The
+database it serves is whichever one `build.py` last produced — `f1.db` is
+copied in at build time rather than committed twice.
+
+`npm test` drives the built site in a real browser and checks what it renders
+against `f1.db` itself, so the front end is covered by the same discipline as
+the data: the expectations come from the database, not from a fixture that has
+to be maintained. See [`web/README.md`](web/README.md).
 
 Or hit it directly — it's a plain SQLite file:
 

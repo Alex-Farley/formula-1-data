@@ -17,10 +17,13 @@
  *     note in ../README.md for one that did.
  *
  * USE
- *     npm test                    builds nothing; run npm run build first
- *     npm test -- --keep          leave the preview server running
+ *     npm run build && npm test
+ *     CHROME_PATH=/path/to/chrome npm test    reuse a browser you already have
  *
- * It starts its own preview server on a free port and stops it on the way out.
+ * It reuses a preview server if one is already listening, otherwise starts
+ * one and stops it again on the way out. The whole app is loaded once and
+ * then navigated through its own router, so the database is fetched and the
+ * wasm instantiated a single time for the entire run.
  */
 import { spawn } from 'node:child_process'
 import { DatabaseSync } from 'node:sqlite'
@@ -73,27 +76,61 @@ const fail = (msg) => {
 const pass = (msg) => console.log(`  ok    ${msg}`)
 
 // --------------------------------------------------------------- the server
-const server = spawn('npx', ['vite', 'preview', '--port', String(PORT)], {
-  cwd: web,
-  stdio: 'ignore',
-})
-const stop = () => {
-  if (!process.argv.includes('--keep')) server.kill()
+const alive = async () => {
+  try {
+    return (await fetch(BASE)).ok
+  } catch {
+    return false
+  }
 }
-process.on('exit', stop)
-process.on('SIGINT', () => process.exit(130))
 
-async function waitForServer(attempts = 40) {
-  for (let i = 0; i < attempts; i++) {
-    try {
-      const r = await fetch(BASE)
-      if (r.ok) return
-    } catch {
-      /* not up yet */
-    }
+// Reuse a preview server that is already up rather than paying to start
+// another one — and, more importantly, never leave a second one running.
+let server = null
+if (await alive()) {
+  console.log(`reusing the preview server already on ${BASE}`)
+} else {
+  // detached puts it in its own process group. npx spawns vite as a child, so
+  // killing the npx pid alone orphans the server that is actually holding the
+  // port — which leaks a process per run locally and hangs the job in CI.
+  server = spawn('npx', ['vite', 'preview', '--port', String(PORT)], {
+    cwd: web,
+    stdio: 'ignore',
+    detached: true,
+  })
+  // detached without unref is a deadlock: the parent's event loop stays alive
+  // waiting on the child handle, so the exit handler that would kill it never
+  // runs. The test finishes its checks and then hangs on a clean pass.
+  server.unref()
+  for (let i = 0; i < 40 && !(await alive()); i++) {
     await new Promise((r) => setTimeout(r, 250))
   }
-  throw new Error(`preview server never came up on ${BASE}`)
+  if (!(await alive())) {
+    server.kill()
+    console.error(`\npreview server never came up on ${BASE}\n`)
+    process.exit(1)
+  }
+}
+
+// Only ever kill a server this process started, and kill the whole group.
+// SIGTERM matters as much as a clean exit here: a `timeout 60 npm test`, or
+// CI cancelling the job, would otherwise leave the server behind.
+const stop = () => {
+  if (!server) return
+  const { pid } = server
+  server = null
+  try {
+    process.kill(-pid, 'SIGTERM')
+  } catch {
+    /* already gone */
+  }
+}
+process.on('exit', stop)
+for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+  process.on(signal, () => {
+    stop()
+    process.exit(130)
+  })
 }
 
 // --------------------------------------------------------------- the checks
@@ -108,8 +145,6 @@ try {
   )
   process.exit(1)
 }
-
-await waitForServer()
 
 // CHROME_PATH lets an environment that already has a browser - a CI image, a
 // sandbox with one preinstalled - point at it instead of downloading a second
@@ -130,8 +165,24 @@ const consoleErrors = []
 page.on('console', (m) => m.type() === 'error' && consoleErrors.push(m.text()))
 page.on('pageerror', (e) => consoleErrors.push(`uncaught: ${e.message}`))
 
+// The app is loaded ONCE and then navigated by its own router.
+//
+// A page.goto() per route would be a full reload each time: re-fetching the
+// 1.6 MB database and re-instantiating the wasm engine for every check, to
+// reach data already sitting in memory. Setting location.hash drives the
+// HashRouter client-side, which is both what a visitor's session actually
+// does and about an order of magnitude less work.
+await page.goto(`${BASE}/#/`, { waitUntil: 'load' })
+await page.waitForSelector('table', { timeout: 30000 })
+
 async function visit(route, selector) {
-  await page.goto(`${BASE}/#${route}`, { waitUntil: 'load' })
+  await page.evaluate((r) => {
+    // Blank the hash first so re-visiting the current route still triggers a
+    // route change, and so the wait below cannot pass on the previous page's
+    // leftover markup.
+    window.location.hash = '#/__blank'
+    window.location.hash = `#${r}`
+  }, route)
   try {
     await page.waitForSelector(selector, { timeout: 20000 })
     return true

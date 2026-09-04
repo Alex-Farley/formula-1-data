@@ -83,3 +83,15 @@ jobs:
           test -s dist/f1.db || { echo "::error::dist/f1.db is missing"; exit 1; }
           test -s dist/sql-wasm.wasm || { echo "::error::dist/sql-wasm.wasm is missing"; exit 1; }
           cmp ../f1.db dist/f1.db || { echo "::error::dist/f1.db is not the built database"; exit 1; }
+
+      - name: Install Chromium
+        working-directory: web
+        run: npx playwright install --with-deps chromium
+
+      # The build only proves the JavaScript compiles. This proves SQLite
+      # loaded, the queries returned, and the charts drew - and it checks the
+      # rendered counts against f1.db itself, so it stays honest as the data
+      # grows. Takes a few seconds.
+      - name: Drive the built site in a browser
+        working-directory: web
+        run: npm test
