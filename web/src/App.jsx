@@ -10,6 +10,7 @@ import Circuit from './pages/Circuit.jsx'
 import Cars from './pages/Cars.jsx'
 import Car from './pages/Car.jsx'
 import Console from './pages/Console.jsx'
+import Trends from './pages/Trends.jsx'
 import Gaps from './pages/Gaps.jsx'
 import NotFound from './pages/NotFound.jsx'
 
@@ -19,6 +20,7 @@ const NAV = [
   { to: '/constructors', label: 'Constructors' },
   { to: '/circuits', label: 'Circuits' },
   { to: '/cars', label: 'Cars' },
+  { to: '/trends', label: 'Trends' },
   { to: '/console', label: 'SQL' },
   { to: '/gaps', label: 'Gaps' },
 ]
@@ -58,6 +60,7 @@ export default function App() {
           <Route path="/circuits/:id" element={<Circuit />} />
           <Route path="/cars" element={<Cars />} />
           <Route path="/cars/:id" element={<Car />} />
+          <Route path="/trends" element={<Trends />} />
           <Route path="/console" element={<Console />} />
           <Route path="/gaps" element={<Gaps />} />
           <Route path="*" element={<NotFound />} />
