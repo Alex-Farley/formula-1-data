@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { linear, ticks, zeroTo } from './scales.js'
+import { linear, zeroAxis } from './scales.js'
 import { barPath, thickness } from './marks.js'
 import { Tooltip, TipRow } from './Figure.jsx'
 
@@ -24,16 +24,16 @@ export default function BarChart({
 }) {
   const [active, setActive] = useState(null)
 
+  // See LineChart: with no rows the plot has no height and no scale.
+  if (data.length === 0) return <p className="muted">Nothing to plot.</p>
+
   const left = M.left + labelWidth
   const plotW = Math.max(width - left - M.right, 10)
   const plotH = data.length * ROW
   const height = plotH + M.top + M.bottom
 
-  const sx = linear(zeroTo(data.map(y)), [left, left + plotW])
-  // Ticks are spaced generously rather than as densely as the axis will hold:
-  // asking for more of them pushes the step off round numbers, and a tick at
-  // 0.25 that the value formatter prints as "0.3" is an axis that lies.
-  const xTicks = ticks(sx.domain[0], sx.domain[1], Math.max(2, Math.floor(plotW / 150)))
+  const xAxis = zeroAxis(data.map(y), Math.max(2, Math.floor(plotW / 150)))
+  const sx = linear(xAxis.domain, [left, left + plotW])
   const h = thickness(ROW)
 
   return (
@@ -45,7 +45,7 @@ export default function BarChart({
         aria-label={`${label}. ${data.length} bars. Full values in the table below.`}
       >
         <g aria-hidden="true">
-          {xTicks.map((t) => (
+          {xAxis.ticks.map((t) => (
             <g key={t}>
               <line className="grid" x1={sx(t)} x2={sx(t)} y1={M.top} y2={M.top + plotH} />
               <text className="tick" x={sx(t)} y={height - 8} textAnchor="middle">

@@ -25,6 +25,13 @@ FROM cars
 WHERE power_bhp IS NOT NULL
 ORDER BY from_year, full_name`
 
+/**
+ * "Sir Lewis Hamilton" → "Hamilton". Enough to identify a champion, and short
+ * enough that the row label still fits its gutter on a phone — the full name
+ * overflows the frame below about 560px and gets clipped by the SVG.
+ */
+const surname = (name) => String(name).split(' ').pop()
+
 const MARGINS = `
 SELECT year, champion, runner_up, margin
 FROM v_champions
@@ -136,7 +143,7 @@ export default function Trends() {
               <BarChart
                 width={width}
                 data={data.rows}
-                x={(r) => `${r.year}  ${r.champion}`}
+                x={(r) => `${r.year}  ${width < 560 ? surname(r.champion) : r.champion}`}
                 y={(r) => r.margin}
                 labelWidth={Math.min(220, Math.max(140, width * 0.32))}
                 formatValue={(v) => fmt(v, Number.isInteger(v) ? 0 : 1)}
