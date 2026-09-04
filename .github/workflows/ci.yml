@@ -11,6 +11,11 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
+    # The build and all 121 checks run in well under a minute. A cap this far
+    # above that never trips on a slow runner, and turns a hang into a failure
+    # in minutes rather than letting it hold a runner for the default six
+    # hours.
+    timeout-minutes: 10
     strategy:
       matrix:
         python-version: ["3.9", "3.12"]
@@ -57,6 +62,11 @@ jobs:
   # cannot find the database, should fail here rather than on someone's laptop.
   web:
     runs-on: ubuntu-latest
+    # Higher than `check` because this job installs npm packages and a browser.
+    # A warm npm cache puts the whole job near a minute; a cold one has taken
+    # seven, almost all of it in `npm ci`. Twenty leaves room for a cold cache
+    # on a slow day without letting a wedged browser sit for hours.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
