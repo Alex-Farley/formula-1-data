@@ -644,3 +644,24 @@ credits; shared fastest laps recorded as shared; every driver's wins, poles and
 fastest laps equalling the race records exactly; no external-vs-derived
 difference that is not declared; and ten headline career records asserted
 against their known official figures.
+
+---
+
+## Licence
+
+Two licences cover this repository, in the normal way for a data project:
+
+- **Code** — `build.py`, `verify.py`, `audit.py`, `export_json.py`, `f1`,
+  `tools/`, `schema.sql` — [MIT](LICENSE).
+- **Data** — `data/`, `harvest/`, `f1.db`, `f1_database.json`,
+  `f1_compat.json` — [CC BY-SA 4.0](LICENSE-DATA).
+
+Race results, driver, constructor, circuit and car data in this repository
+are derived from Wikipedia and are licensed under
+[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
+Current-season data is from formula1.com. Formula 1, F1 and Grand Prix are
+trademarks of Formula One Licensing BV; this project is unaffiliated with
+and unendorsed by Formula One or the FIA.
+
+See [`ATTRIBUTION.md`](ATTRIBUTION.md) for the source of every part of the
+data and the reasoning behind the split.
