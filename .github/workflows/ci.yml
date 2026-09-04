@@ -51,3 +51,35 @@ jobs:
           ./f1 car mp4/4
           ./f1 circuit spa
           ./f1 gaps
+
+  # The front end queries f1.db directly, so it has no tests of its own to run
+  # against a fixture - but a build that does not compile, or a copy step that
+  # cannot find the database, should fail here rather than on someone's laptop.
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install
+        working-directory: web
+        run: npm ci
+
+      - name: Build
+        working-directory: web
+        run: npm run build
+
+      # copy-assets.js puts both of these in place; if either is missing the
+      # site loads and then fails at the first query, which is exactly the
+      # failure that is easy to ship.
+      - name: Check the site carries the database and the engine
+        working-directory: web
+        run: |
+          test -s dist/f1.db || { echo "::error::dist/f1.db is missing"; exit 1; }
+          test -s dist/sql-wasm.wasm || { echo "::error::dist/sql-wasm.wasm is missing"; exit 1; }
+          cmp ../f1.db dist/f1.db || { echo "::error::dist/f1.db is not the built database"; exit 1; }
