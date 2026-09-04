@@ -31,8 +31,10 @@ def _norm(s):
     s = unicodedata.normalize("NFKD", s)
     s = "".join(c for c in s if not unicodedata.combining(c))
     s = s.lower().replace(".", "").replace("'", "").replace("-", " ")
-    for honorific in ("sir ", "jr", "junior"):
-        s = s.replace(honorific, "")
+    # 'sir' is an honorific and is dropped. 'jr' is NOT: it is the only thing
+    # separating Nelson Piquet from Nelson Piquet Jr, and stripping it used to
+    # give the son his father's 23 wins.
+    s = s.replace("sir ", "")
     return " ".join(s.split())
 
 
@@ -437,6 +439,23 @@ POLE_ONLY_NOTE = ("Added to the register from the pole position and fastest lap 
 # area, description, races_affected, resolution
 # ---------------------------------------------------------------------
 KNOWN_GAPS = [
+    ("finish_position", "the full race classification",
+     "race_entries holds the winner, the pole-sitter and the fastest-lap "
+     "setter for every race - about 2.1 rows per race against a real field "
+     "of 15 to 22. Second place, third place, retirements, grid positions "
+     "and per-race points are NOT in the distributed database. They are "
+     "available: 26,137 rows covering 1950-2026 sit behind the Jolpica-F1 "
+     "API, and tools/ergast_load.py fetches and loads them, self-validating "
+     "on the winner already stored. It is not part of the build because the "
+     "build is offline. Until it is run, drivers.podiums stays hand-entered "
+     "for the 7 drivers who have an official figure and is NULL for everyone "
+     "else, and 73 register entries have no race rows at all.", 0,
+     "python3 tools/ergast_load.py  (about 270 requests, a few minutes). "
+     "Then rerun verify.py: the podium reconciliation compares the derived "
+     "counts against the official figures and is what proves the load. "
+     "Do NOT transcribe these rows by hand - an attempt to do so during "
+     "v2.7 put fabricated results into four of five sampled 2008 rows, and "
+     "only that reconciliation caught it."),
     ("car_id", "the car each race was won in",
      "29 cars are in the register, all of them landmarks, with full "
      "specifications and a design history. They are linked to races through "

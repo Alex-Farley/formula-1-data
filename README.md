@@ -1,4 +1,4 @@
-# F1 Verified Facts Database — v2.6
+# F1 Verified Facts Database — v2.7
 
 An expansion of the original single-file JSON into a normalised, queryable
 SQLite database covering 1950–2026, with the JSON kept as a generated export.
@@ -12,6 +12,13 @@ harvested from Wikipedia's season tables under a new `reference` confidence tier
 replaces the per-race one, every Grand Prix now has a canonical id, and
 `audit.py` reports on the shape of the database rather than its contents.
 See *Structure* below.
+
+**v2.7** adds the **register and the loader for the full race
+classification** — 62 podium-scoring drivers and 10 constructors that earlier
+harvests never saw, the id mapping to the Jolpica-F1 API, and
+`tools/ergast_load.py`, which fills every classified finisher, retirement
+cause and grid position for 1950–2026. See *The finishing order* below, and
+read it before touching that data by hand.
 
 **v2.6** adds the **cars**: a register of 29 landmark chassis with full
 technical specifications and design histories, linked to the races they won,
@@ -53,7 +60,7 @@ Built 2026-09-04. Current 2026 data verified against formula1.com the same day
 | `f1_compat.json` | JSON in the *original* v1 key layout, so anything already consuming that file keeps working. |
 | `schema.sql` | The schema, commented. |
 | `build.py` | Rebuilds `f1.db` from the data modules. Idempotent. |
-| `verify.py` | 121 integrity, cross-tabulation and sanity checks. Exit code 1 on failure. |
+| `verify.py` | 125 integrity, cross-tabulation and sanity checks. Exit code 1 on failure. |
 | `audit.py` | Structural health check: fill rates, coverage, keys, redundancy, readiness. |
 | `export_json.py` | Regenerates the JSON exports from the database. |
 | `data/*.py` | The source data, as readable Python literals. **Edit here, then rebuild.** |
@@ -61,8 +68,8 @@ Built 2026-09-04. Current 2026 data verified against formula1.com the same day
 | `harvest/poles.txt` | The raw pole / fastest-lap harvest, same format. |
 | `harvest/venues.txt` | The raw race-venue harvest, same format. |
 | `harvest/append.py` | Appends rows to a harvest file, checking shape and flagging duplicates. |
+| `tools/ergast_load.py` | Loads the full race classification — every finisher, retirement, grid position and per-race points, 1950–2026 — from the Jolpica-F1 API. Needs network; not part of the build. |
 | `tools/fastf1_load.py` | Loads per-lap timing, stints, pit stops, race control, radio and the 2018– finishing order from the F1 live timing API. Needs network; not part of the build. |
-| `web/` | A React front end that queries `f1.db` in the browser, via SQLite compiled to WebAssembly. Static site, no server. See *In a browser* below. |
 | `docs/BUILD-NOTES.md` | What changed in each version, what it exposed, what was deliberately not done. |
 | `CONTRIBUTING.md` | How to add data without breaking the checks. Read before editing. |
 | `ATTRIBUTION.md` | Where the data came from, and the licensing that follows from it. **Read before making this public.** |
@@ -92,8 +99,9 @@ drivers. The eleven Indianapolis 500s that counted towards the championship
 (1950–60) are included and flagged, with no constructor attributed, because
 their chassis were never Formula One constructors.
 
-**Drivers** — 182 rows: **every driver ever to win a championship race, take a
-pole, or set a fastest lap**, 1950 to 2026, plus every World Champion with full
+**Drivers** — 244 rows: **every driver ever to win a championship race, take a
+pole, set a fastest lap, or finish on a podium**, 1950 to 2026, plus every
+World Champion with full
 career figures and the complete 2026 entry list. Chris Amon, Nick Heidfeld and
 Andrea de Cesaris are here on their poles and fastest laps alone.
 
@@ -161,29 +169,6 @@ seasons' standings.
 ./f1 sql "SELECT ..."       # arbitrary SQL
 ./f1 schema                 # tables, columns, row counts
 ```
-
-### In a browser
-
-`web/` is a React front end that runs the same queries client-side: SQLite
-compiled to WebAssembly, the database fetched whole, no server and no API.
-
-```bash
-cd web
-npm install
-npm run dev            # http://localhost:5173
-npm run build          # → web/dist/, a static site ready to upload
-```
-
-It browses seasons, drivers, constructors, circuits and cars, plots four
-charts over the race records, has a SQL console equivalent to `./f1 sql`, and
-gives `known_gaps` and the open discrepancies a page of their own. The
-database it serves is whichever one `build.py` last produced — `f1.db` is
-copied in at build time rather than committed twice.
-
-`npm test` drives the built site in a real browser and checks what it renders
-against `f1.db` itself, so the front end is covered by the same discipline as
-the data: the expectations come from the database, not from a fixture that has
-to be maintained. See [`web/README.md`](web/README.md).
 
 Or hit it directly — it's a plain SQLite file:
 
@@ -477,6 +462,82 @@ that reason.
 
 ---
 
+---
+
+## The finishing order
+
+`race_entries` holds about **2.1 rows per race**: the winner, the pole-sitter
+and the fastest-lap setter. A real field is 15 to 22. That one number is why
+there are no podium counts, no retirements, no per-race points and no grid
+positions beyond pole — they are all the same gap wearing different hats.
+
+The data exists. **26,137 rows covering 1950–2026** sit behind the
+[Jolpica-F1 API](https://api.jolpi.ca), the maintained successor to Ergast,
+with position, grid, laps, retirement cause and points for every entry.
+`tools/ergast_load.py` fetches and loads them:
+
+```bash
+python3 tools/ergast_load.py            # about 270 requests, a few minutes
+python3 verify.py
+```
+
+It is self-validating in the same way as everything else here: the race must
+already exist, the driver must already resolve to a register entry, and **the
+winner it reports must equal the winner already stored or the race is refused
+outright** rather than half-written.
+
+v2.7 does the part that cannot be automated — the register and the mapping:
+
+- **62 drivers added** who reached a podium without ever winning a race,
+  taking pole or setting a fastest lap, so no earlier harvest had a reason to
+  create them. Names, nationalities and dates of birth come from the same API
+  as the results, so a result can never reference a driver this database had
+  to invent.
+- **10 constructors added** — Talbot-Lago, Gordini, Connaught, Lola,
+  Fittipaldi, Larrousse, Leyton House, Onyx, Dallara, Footwork.
+- **All 202 Jolpica driver ids and all 75 constructor ids resolve**, including
+  the ones surname matching cannot: Graham vs Phil vs Damon Hill, Keke vs
+  Nico Rosberg, Jacques vs Gilles Villeneuve, Jim vs Dick Rathmann.
+- Indianapolis chassis builders (Kurtis Kraft, Kuzma, Deidt and the rest) map
+  to no constructor at all, because the Indy 500 entries of 1950–60 were not
+  Formula One constructors. That is the same rule the race harvest already
+  applied to the Indy winners.
+
+### Why there is a script and not a harvest file
+
+An earlier attempt at this filled `harvest/podiums.txt` by relaying API
+responses by hand. The podium reconciliation caught it: Hamilton came out at
+206 podiums against an official 207, and tracing that one row back showed
+**four of five sampled 2008 third places were fabricated** — Heidfeld,
+Heidfeld, Webber where the answer was Kovalainen, Kubica, Hamilton. The whole
+file was discarded.
+
+The lesson is in `CONTRIBUTING.md` and in `known_gaps`: thousands of rows
+cannot be moved by hand, and the check that catches it must exist before the
+data is trusted, not after.
+
+### Two things the load will surface
+
+Both were found while building it, and both are handled:
+
+- **A shared drive gives every co-driver the car's grid slot.** Accepting
+  that as pole gave Farina a 1955 pole for a car González had qualified, so
+  neither the loader nor the build accepts `grid = 1` from this source. Pole
+  belongs to the pole harvest, which holds one per race for all 1,161.
+- **A driver can finish twice in one race.** At the 1955 Argentine Grand
+  Prix, run in such heat that drivers swapped cars repeatedly, Farina and
+  Trintignant each shared two cars that finished on the podium.
+  `race_entries` is one row per driver per race and cannot hold both, so the
+  better result is kept. It is the only race in history where this happens.
+
+### A latent bug this uncovered
+
+`_norm()`, the name matcher, stripped `"jr"` as an honorific. Adding Nelson
+Piquet Jr. therefore collapsed him onto his father and handed the son 23
+wins. The stripping is gone, and the driver lookup now **fails loudly on any
+two names that normalise to the same string** instead of letting one silently
+overwrite the other.
+
 ## The confidence model
 
 Your v1 policy was "official sources only, never invent". That's the right
@@ -548,8 +609,11 @@ self-consistent by construction, always current, and impossible to drift. The
 previously hand-entered or externally checked values are kept in
 `wins_external`, `poles_external` and `fastest_laps_external`.
 
-The two are compared on every build. Across **182 drivers on three fields — 546
-comparisons — there are 7 differences**, and every one is accounted for:
+The two are compared on every build. Across the **234 drivers that hold an
+official figure — 391 comparisons — there are 5 live differences**, and every
+one is accounted for. Two more were errors in the external figure, found the
+same way and since corrected, which is why they no longer appear as
+differences:
 
 - **2 were errors in the external figure, now corrected.** John Surtees's
   fastest laps were entered as 11; the reference record says 10, matching the
@@ -574,7 +638,7 @@ known official figures — Hamilton 106/104/69, Schumacher 91/68/77, Senna
 41/65/19, Fangio 24/29/23 and so on. All ten match.
 
 Current distribution: seasons 75 high / 2 verified; constructors 38 high /
-15 medium / 2 verified; race results 1,125 reference / 36 verified; 2,332 pole
+25 medium / 2 verified; race results 1,125 reference / 36 verified; 2,332 pole
 and fastest-lap credits, all reference.
 
 ---
@@ -592,8 +656,9 @@ queried, not just read here. `./f1 gaps` prints them with the fix for each.
   would also make podium counts checkable the same way wins, poles and fastest
   laps now are.
 - **The full driver register.** Roughly 780 people have started a championship
-  Grand Prix; 182 are here. Everyone who ever won a race, took a pole or set a
-  fastest lap is now included, so what remains is the tail who did none of those.
+  Grand Prix; 244 are here. Everyone who ever won a race, took a pole, set a
+  fastest lap or finished on a podium is now included, so what remains is the
+  tail who did none of those.
 - **Lap times, grid positions, retirements, qualifying.** Not held at all.
 - **Podiums and career points** remain hand-entered. Wins, poles and fastest laps
   are now derived and self-consistent; podiums are not.
@@ -668,24 +733,3 @@ credits; shared fastest laps recorded as shared; every driver's wins, poles and
 fastest laps equalling the race records exactly; no external-vs-derived
 difference that is not declared; and ten headline career records asserted
 against their known official figures.
-
----
-
-## Licence
-
-Two licences cover this repository, in the normal way for a data project:
-
-- **Code** — `build.py`, `verify.py`, `audit.py`, `export_json.py`, `f1`,
-  `tools/`, `schema.sql` — [MIT](LICENSE).
-- **Data** — `data/`, `harvest/`, `f1.db`, `f1_database.json`,
-  `f1_compat.json` — [CC BY-SA 4.0](LICENSE-DATA).
-
-Race results, driver, constructor, circuit and car data in this repository
-are derived from Wikipedia and are licensed under
-[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
-Current-season data is from formula1.com. Formula 1, F1 and Grand Prix are
-trademarks of Formula One Licensing BV; this project is unaffiliated with
-and unendorsed by Formula One or the FIA.
-
-See [`ATTRIBUTION.md`](ATTRIBUTION.md) for the source of every part of the
-data and the reasoning behind the split.

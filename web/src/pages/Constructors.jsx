@@ -20,7 +20,7 @@ export default function Constructors() {
   return (
     <Page
       title="Constructors"
-      lede="55 constructors, and the ten continuous racing operations that connect them across their name changes. Enstone is Toleman → Benetton → Renault → Lotus → Renault → Alpine; Brackley is Tyrrell → BAR → Honda → Brawn → Mercedes."
+      lede="65 constructors, and the ten continuous racing operations that connect them across their name changes. Enstone is Toleman → Benetton → Renault → Lotus → Renault → Alpine; Brackley is Tyrrell → BAR → Honda → Brawn → Mercedes."
     >
       <Result state={state} what="Loading the database">
         {(data) => {

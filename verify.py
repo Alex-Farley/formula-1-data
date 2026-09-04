@@ -455,6 +455,78 @@ bad = con.execute("""SELECT id, from_year, to_year FROM constructor_lineage
     WHERE to_year IS NOT NULL AND to_year < from_year""").fetchall()
 check("lineage periods run forwards", not bad)
 
+print("\nFINISHING ORDER AND PODIUMS")
+n_pod = con.execute("""SELECT COUNT(*) FROM race_entries
+    WHERE finish_position IN (2, 3)""").fetchone()[0]
+n_field = con.execute("""SELECT COUNT(*) FROM race_entries
+    WHERE finish_position > 3""").fetchone()[0]
+races_with_pod = con.execute("""SELECT COUNT(DISTINCT race_id) FROM race_entries
+    WHERE finish_position IN (2, 3)""").fetchone()[0]
+held = con.execute("SELECT COUNT(*) FROM races WHERE status='completed'").fetchone()[0]
+print(f"  [info] {n_pod} second/third places across {races_with_pod} of "
+      f"{held} races; {n_field} finishers below third")
+if not n_pod:
+    print("  [info] no classification loaded - run tools/ergast_load.py")
+
+# Structural checks. All hold whether the classification is loaded or not.
+bad = con.execute("""SELECT COUNT(*) FROM (
+    SELECT race_id, finish_position FROM race_entries
+    WHERE finish_position IS NOT NULL
+    GROUP BY race_id, finish_position
+    HAVING COUNT(*) > SUM(shared_drive) + 1)""").fetchone()[0]
+check("no finishing position is claimed twice except by a shared drive",
+      bad == 0, f"{bad} positions")
+
+bad = con.execute("""SELECT COUNT(*) FROM race_entries
+    WHERE finish_position IS NOT NULL AND finish_position < 1""").fetchone()[0]
+check("finishing positions are positive", bad == 0, f"{bad} bad")
+
+bad = con.execute("""SELECT COUNT(*) FROM race_entries e JOIN races r
+    ON r.id = e.race_id WHERE r.status != 'completed'
+    AND e.finish_position IS NOT NULL""").fetchone()[0]
+check("no result is recorded against an unrun race", bad == 0, f"{bad} rows")
+
+# Every race that has a second place must have a first.
+bad = con.execute("""SELECT COUNT(DISTINCT e.race_id) FROM race_entries e
+    WHERE e.finish_position = 2 AND NOT EXISTS (
+        SELECT 1 FROM race_entries w WHERE w.race_id = e.race_id
+          AND w.finish_position = 1)""").fetchone()[0]
+check("every race with a second place has a winner", bad == 0, f"{bad} races")
+
+# THE reconciliation. Derived podium counts against the official figures.
+# This is the check that caught fabricated rows during the v2.7 harvest, and
+# it is the reason the podium data can be trusted at all.
+if n_pod:
+    rows = con.execute("""SELECT full_name, podiums, podiums_external, status
+        FROM drivers WHERE podiums_external IS NOT NULL
+        ORDER BY podiums_external DESC""").fetchall()
+    over, under = [], []
+    for r in rows:
+        d = r["podiums"] - r["podiums_external"]
+        if d < 0:
+            under.append(f"{r['full_name']} {r['podiums']} vs {r['podiums_external']}")
+        elif d > 0 and r["status"] != "active":
+            over.append(f"{r['full_name']} {r['podiums']} vs {r['podiums_external']}")
+    # A retired driver's total cannot move; an active driver's can only grow
+    # past a figure captured earlier in the season.
+    check("no driver has fewer podiums than the official figure", not under,
+          "; ".join(under))
+    check("no retired driver has more podiums than the official figure",
+          not over, "; ".join(over))
+    exact = sum(1 for r in rows if r["podiums"] == r["podiums_external"])
+    print(f"  [info] {exact} of {len(rows)} drivers match their official "
+          f"podium count exactly")
+else:
+    warn("podium reconciliation ran", False,
+         "no classification loaded, so the strongest check on this data "
+         "is not running - see tools/ergast_load.py")
+
+bad = con.execute("""SELECT COUNT(*) FROM drivers d
+    WHERE NOT EXISTS (SELECT 1 FROM race_entries e WHERE e.driver_id = d.id)"""
+    ).fetchone()[0]
+print(f"  [info] {bad} drivers in the register have no race entry yet "
+      f"(they gain one when the classification loads)")
+
 print("\nCARS")
 from data import cars as _CR
 nc = con.execute("SELECT COUNT(*) FROM cars").fetchone()[0]
