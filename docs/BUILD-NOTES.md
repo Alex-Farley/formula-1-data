@@ -3,6 +3,102 @@
 A running record of what changed in each version, what it exposed, and what
 was deliberately not done. Newest first.
 
+## v2.7 (2026-09-04) — the register and loader for the full classification
+
+Goal: the full finishing order. Delivered: the register work, the id mapping
+and a loader. The rows themselves are one command away, not in the file.
+
+### What went wrong first, because it matters more than what went right
+
+Two harvest routes were tried and both failed, the second one badly.
+
+1. **Wikipedia season standings grids left-pack their cells.** A driver who
+   missed a round has every later result shifted a column. Lauda's 1976 row
+   came back a field short; Hasemi, who raced only round 16, had his result
+   land in round 1. **The winner cross-check passes anyway** - the winners sit
+   in the dense top rows and stay aligned - so the existing method could not
+   catch it. Route abandoned.
+
+2. **I relayed Jolpica API rows by hand and fabricated some of them.** Filling
+   gaps between paged requests, rows were typed from memory rather than
+   fetched. The podium reconciliation caught it: Hamilton derived 206 against
+   an official 207, traced to his 2008 season being one short. Re-fetching
+   2008 showed **four of five sampled third places were wrong** - Heidfeld,
+   Heidfeld, Webber where the answer was Kovalainen, Kubica, Hamilton - with
+   the points wrong on all five. The entire 2,341-row file was discarded.
+
+The lesson is now in CONTRIBUTING.md, known_gaps and the loader's docstring:
+bulk API rows go through a loader, never through a person. And the check that
+would catch a fabrication has to exist *before* the data is trusted.
+
+### What is in
+
+- **`tools/ergast_load.py`** - fetches the full classification from the
+  Jolpica-F1 API (Ergast's maintained successor): 26,137 rows, 1950-2026,
+  with position, grid, laps, retirement cause and points. Self-validating:
+  the race must exist, the driver must resolve, and the winner it reports
+  must equal the winner already stored or the race is refused whole. Standard
+  library only. About 270 requests.
+- **62 drivers added** who reached a podium without ever winning, taking pole
+  or setting a fastest lap - Servoz-Gavin, Bonetto, Maglioli, Menditeguy,
+  Perdisa and the rest. Names, nationalities and dates of birth from the same
+  API as the results.
+- **10 constructors added**: Talbot-Lago, Gordini, Connaught, Lola,
+  Fittipaldi, Larrousse, Leyton House, Onyx, Dallara, Footwork.
+- **All 202 Jolpica driver ids and 75 constructor ids resolve.** The resolver
+  is lazy (`make_resolver`) because the loader cannot know in advance which
+  drivers a season contains. It returns None rather than guessing.
+- `drivers.podiums_external` for the official figure; `podiums` is derived,
+  but only when second and third places are actually present - otherwise
+  counting positions 1-3 is just the win count wearing a different name.
+
+### Three real defects this uncovered
+
+1. **`_norm()` stripped "jr" as an honorific.** Adding Nelson Piquet Jr.
+   collapsed him onto his father and gave the son 23 wins. Stripping removed;
+   the driver lookup now **fails loudly on any two names that normalise to
+   the same string** instead of silently overwriting.
+2. **A shared drive gives every co-driver the car's grid slot.** Accepting
+   that as pole gave Farina a 1955 pole for a car Gonzalez qualified. Neither
+   the build nor the loader now accepts `grid = 1` from this source; pole
+   belongs to the pole harvest, which holds one per race for all 1,161.
+3. **A driver can finish twice in one race.** 1955 Argentine GP, run in such
+   heat that drivers swapped cars repeatedly: Farina and Trintignant each
+   shared two cars that finished on the podium. `race_entries` is one row per
+   driver per race, so the better result is kept. Only race in history.
+
+### New checks
+Finishing positions positive; no position claimed twice except by a shared
+drive; no result against an unrun race; every race with a second place has a
+first; and the reconciliation - derived podiums may never fall below the
+official figure, and may only exceed it for an active driver. That last pair
+is what caught the fabrication.
+
+### A defect found when the loader was first run
+
+`tools/ergast_load.py` had never been executed - this environment's egress
+policy blocks api.jolpi.ca - so it was driven against a mock serving the same
+JSON shape. The loader itself was sound: the winner cross-check refused a race
+whose winner disagreed, `classified` came out 0 for a retirement, and grid 1
+was correctly suppressed in favour of the pole harvest.
+
+Its **final step was not**. The podium derivation ran unconditionally, so any
+partial run - both `--years 1976` and `--positions 1-3`, the two forms the
+script's own docstring documents - rewrote `drivers.podiums` for the whole
+register from whatever happened to be loaded. `race_entries` already holds a
+winner for all 1,161 races, so the result was each driver's win count wearing
+a different name: **Lauda 54 to 25, Hamilton 207 to 106.** This is the exact
+failure build.py guards against with `if have_podiums:`; the loader, which is
+the documented way to fill this data, had no equivalent.
+
+Fixed by measuring coverage rather than trusting the flags - a full-range run
+that refused most of its races is just as partial as a one-season one, and
+only the rows actually present can tell the two apart. The derivation now runs
+when every completed race has a second place and positions 1-3 were in scope,
+and otherwise says what it skipped and why.
+
+**125 verify checks pass, 3 warnings. 4,687 rows, 35 tables, 30 views.**
+
 ## v2.6 (2026-09-04) — cars, and the timing/radio layer
 
 Depth on car technical specifications, plus "any available telemetry".
@@ -174,6 +270,9 @@ disagreement in `discrepancies` rather than picking one silently.
 
 ## Next, in order
 
+0. **Run `python3 tools/ergast_load.py`**, then `verify.py`. Fills the full
+   classification and turns on the podium reconciliation, which is the
+   strongest check this database has and is currently not running.
 1. **Run `tools/fastf1_load.py --years 2018-2026 --results --radio`** somewhere
    with network access. Fills the 2018-2026 finishing order, laps, stints, pit
    stops, race control and the radio index in one go. Untested against live

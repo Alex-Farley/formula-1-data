@@ -24,9 +24,10 @@ from data import harvest as HV     # noqa: E402
 from data import events as EV      # noqa: E402
 from data import cars as CR        # noqa: E402
 from data import radio as RA       # noqa: E402
+from data import results as RS     # noqa: E402
 
 DB = os.path.join(HERE, "f1.db")
-VERSION = "2.6"
+VERSION = "2.7"
 BUILT = "2026-09-04"
 
 
@@ -104,6 +105,18 @@ def build():
             (did, name, nat, code, 0, 0, note, "medium",
              "https://en.wikipedia.org/wiki/List_of_Formula_One_polesitters"))
 
+    # Drivers who reached a podium but never won, took pole or set a fastest
+    # lap. Names and dates come from the same API as the podium rows, so a
+    # result can never reference a driver this database had to invent.
+    for lid, eid, name, nat, code, born in RS.PODIUM_ONLY_DRIVERS:
+        cur.execute("""INSERT INTO drivers (id, full_name, nationality,
+            nationality_code, born, wins, titles, notes, confidence, source)
+            VALUES (?,?,?,?,?,0,0,?,?,?)""",
+            (lid, name, nat, code, born or None,
+             "Added to the register from the podium harvest: reached a podium "
+             "without ever winning a race, taking pole or setting a fastest lap.",
+             "reference", "https://api.jolpi.ca/ergast/f1/drivers/" + eid))
+
     # The wins / poles / fastest_laps just inserted are hand-entered from
     # reference records. Move them to the *_external columns now, before the
     # derived figures overwrite the main ones.
@@ -122,6 +135,16 @@ def build():
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (cid, name, full, country, base, first, last, wins, ct, dt, tyears, chain,
              active, notes, conf, "https://www.formula1.com/en/teams"))
+
+    # Constructors that reached a podium but are not in the main register:
+    # short-lived teams, and the pre-1961 marques that never won.
+    for cid, name, full, base, first, nat, notes, conf in RS.NEW_CONSTRUCTORS:
+        cur.execute("""INSERT INTO constructors (id, name, full_name, country,
+            base, first_entry, wins, constructors_titles, drivers_titles,
+            active, notes, confidence, source)
+            VALUES (?,?,?,?,?,?,0,0,0,0,?,?,?)""",
+            (cid, name, full, nat, base, first, notes, conf,
+             "https://api.jolpi.ca/ergast/f1/constructors/"))
 
     for i, (chain, cname, seq, ent, fy, ty, note) in enumerate(T.LINEAGE, 1):
         cur.execute("""INSERT INTO constructor_lineage
@@ -292,8 +315,19 @@ def build():
     # Races and race entries
     # =================================================================
     gp_map = EV.name_to_id()
-    lookup = {HV._norm(r[1]): r[0]
-              for r in cur.execute("SELECT id, full_name FROM drivers")}
+    # Built with collision detection. Two drivers whose names normalise to the
+    # same string would otherwise overwrite each other silently, and the
+    # harvest would credit one with the other's results.
+    lookup, _clash = {}, {}
+    for _did, _name in cur.execute("SELECT id, full_name FROM drivers"):
+        _k = HV._norm(_name)
+        if _k in lookup:
+            _clash.setdefault(_k, [lookup[_k]]).append(_did)
+        lookup[_k] = _did
+    _clash = {k: v for k, v in _clash.items() if k not in HV.DRIVER_ALIASES}
+    if _clash:
+        raise SystemExit("driver names collide under _norm(): " + "; ".join(
+            f"{k!r} -> {v}" for k, v in _clash.items()))
     lookup.update(HV.DRIVER_ALIASES)
 
     def driver_id(name, where):
@@ -471,6 +505,94 @@ def build():
             raise SystemExit(
                 f"race layout override: no {cid} race at {yr} round {rnd}")
 
+    # --- second and third place, from the Jolpica-F1 API
+    # Checked three ways before anything is written:
+    #   1. the race must exist in this database;
+    #   2. the driver must resolve to a register entry - no invented drivers;
+    #   3. the row must not claim a position the winner already holds, and no
+    #      two drivers may claim the same position in the same race.
+    # A driver who already has an entry (as pole-sitter or fastest-lap setter)
+    # is UPDATED, not duplicated.
+    dmap, unresolved = RS.build_driver_map(cur)
+    if unresolved:
+        raise SystemExit("podiums: unresolved driver ids: " + ", ".join(unresolved))
+
+    claimed = {}
+    applied = 0
+    for h in RS.load():
+        rid = race_key.get((h["year"], h["round"]))
+        if rid is None:
+            raise SystemExit(f"podiums: no race at {h['year']} r{h['round']}")
+        did = dmap[h["driver_ergast"]]
+        # Two drivers may legitimately share a position: they shared a car.
+        # A shared drive has the same constructor and the same lap count -
+        # Serafini and Ascari, second at Monza in 1950, are the first of them.
+        # Anything else claiming a taken position is an error, not a share.
+        key = (rid, h["position"])
+        prev = claimed.get(key)
+        shared = 0
+        if prev:
+            if prev["driver"] == did:
+                raise SystemExit(
+                    f"podiums: {h['year']} r{h['round']} lists {did} twice "
+                    f"at position {h['position']}")
+            if (prev["constructor"] != h["constructor_ergast"]
+                    or prev["laps"] != h["laps"]):
+                raise SystemExit(
+                    f"podiums: {h['year']} r{h['round']} position "
+                    f"{h['position']} claimed by {prev['driver']} and {did} "
+                    f"in different cars - not a shared drive")
+            shared = 1
+            cur.execute("""UPDATE race_entries SET shared_drive=1
+                WHERE race_id=? AND driver_id=?""", (rid, prev["driver"]))
+        claimed[key] = {"driver": did, "constructor": h["constructor_ergast"],
+                        "laps": h["laps"]}
+
+        winner = cur.execute("""SELECT driver_id FROM race_entries
+            WHERE race_id=? AND finish_position=1 ORDER BY id LIMIT 1""",
+            (rid,)).fetchone()
+        if winner and winner[0] == did:
+            raise SystemExit(
+                f"podiums: {h['year']} r{h['round']} says {did} finished "
+                f"{h['position']}, but this database has him as the winner")
+
+        # Grid is taken from this source EXCEPT where it is 1. Pole is
+        # established for all 1,161 races by the pole harvest, and it is a
+        # single fact per race; this source hands the car's grid slot to every
+        # driver who shared it, so accepting grid 1 here gave Farina a pole in
+        # 1955 for a car Gonzalez had qualified.
+        grid = h["grid"] if h["grid"] and h["grid"] > 1 else None
+
+        cur.execute("""INSERT INTO race_entries (race_id, driver_id,
+                constructor_id, finish_position, grid, classified, status,
+                laps_completed, points, shared_drive, confidence, source)
+            VALUES (?,?,?,?,?,1,?,?,?,?,?,?)
+            ON CONFLICT (race_id, driver_id) DO UPDATE SET
+                constructor_id  = COALESCE(excluded.constructor_id, constructor_id),
+                -- A driver who shared two cars that both finished on the
+                -- podium keeps the better result: race_entries is one row per
+                -- driver per race and cannot hold two. The 1955 Argentine
+                -- Grand Prix, run in extreme heat with drivers swapping cars,
+                -- is the only race where this happens. It is in known_gaps.
+                finish_position = MIN(COALESCE(finish_position, 99),
+                                      excluded.finish_position),
+                grid            = COALESCE(grid, excluded.grid),
+                classified      = 1,
+                status          = excluded.status,
+                laps_completed  = excluded.laps_completed,
+                points          = excluded.points,
+                shared_drive    = MAX(shared_drive, excluded.shared_drive)""",
+            (rid, did, h["constructor_id"], h["position"], grid,
+             h["status"], h["laps"], h["points"], shared, h["confidence"],
+             h["source"]))
+        applied += 1
+    # harvest/podiums.txt is empty in the distributed build: the full
+    # classification comes from tools/ergast_load.py, which writes to the
+    # database directly. The file path is kept so a harvested subset can be
+    # loaded the same way, and so this loader's checks apply either way.
+    if applied:
+        print(f"  podiums: {applied} rows from harvest/podiums.txt")
+
     # --- notable team radio. A small curated set, each checked against a
     # written source. The bulk radio index for 2018- is loaded separately by
     # tools/fastf1_load.py and is flagged notable=0.
@@ -487,13 +609,15 @@ def build():
             (rid, did, f"{speaker} [{channel}]", text, ctx, conf, src))
 
     # --- career figures checked against the official driver pages.
-    # Entries, starts, podiums and points are not derivable from the race
-    # records this database holds, so they are stored directly. Wins and
-    # poles ARE derivable, so the official figures go to the external
+    # Entries, starts and points are not derivable from the race records this
+    # database holds, so they are stored directly. Wins, poles and - since
+    # v2.7, when second and third place were harvested for every race -
+    # PODIUMS are derivable, so the official figures go to the external
     # columns to be compared against the derived ones.
     for did, (entries, starts, wins, podiums, poles, pts) in D.VERIFIED_STATS.items():
-        n = cur.execute("""UPDATE drivers SET entries=?, starts=?, podiums=?,
-            career_points=?, stats_as_of=?, wins_external=?, poles_external=?,
+        n = cur.execute("""UPDATE drivers SET entries=?, starts=?,
+            podiums_external=?, career_points=?, stats_as_of=?,
+            wins_external=?, poles_external=?,
             external_source=?, confidence='verified' WHERE id=?""",
             (entries, starts, podiums, pts, D.STATS_AS_OF, wins, poles,
              "formula1.com driver page, " + D.STATS_AS_OF, did)).rowcount
@@ -542,6 +666,20 @@ def build():
     cur.execute("""UPDATE drivers SET fastest_laps = (
             SELECT COUNT(*) FROM race_entries e
             WHERE e.driver_id = drivers.id AND e.fastest_lap = 1)""")
+    # Podiums are derivable ONLY when second and third places are present.
+    # Without them, counting finish_position 1-3 would just be the win count
+    # wearing a different name, so the authored figure is left alone and
+    # drivers.podiums stays hand-entered, as it was before v2.7.
+    have_podiums = cur.execute("""SELECT COUNT(*) FROM race_entries
+        WHERE finish_position IN (2, 3)""").fetchone()[0]
+    if have_podiums:
+        cur.execute("""UPDATE drivers SET podiums = (
+                SELECT COUNT(DISTINCT e.race_id) FROM race_entries e
+                WHERE e.driver_id = drivers.id
+                  AND e.finish_position BETWEEN 1 AND 3)""")
+    else:
+        cur.execute("UPDATE drivers SET podiums = podiums_external "
+                    "WHERE podiums_external IS NOT NULL")
     for did, *_ in HV.POLE_ONLY_DRIVERS:
         cur.execute("""UPDATE drivers SET
             first_season = (SELECT MIN(r.year) FROM race_entries e

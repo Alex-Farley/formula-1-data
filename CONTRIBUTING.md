@@ -77,6 +77,20 @@ races Ascari won in a Ferrari 500, and every winner matched. Where your check
 does not constrain the value, find a second table that does, or do not store
 the value. This is why the chassis-per-race harvest is still an open gap.
 
+## Never move bulk data by hand
+
+Harvest files are for data you can read and check line by line. Thousands of
+rows from an API are not that, and must come through a loader —
+`tools/ergast_load.py` or `tools/fastf1_load.py` — which fetches and writes
+without a human in the middle.
+
+This is not a style preference. During v2.7 an API harvest was relayed by
+hand and rows were typed from memory to fill gaps between paged requests.
+Four of five sampled 2008 third places were fabricated. The only reason it
+was caught is that the derived podium counts were reconciled against official
+figures and Hamilton came out one short. If you find yourself typing result
+rows into a heredoc, stop and write a loader.
+
 ## Adding checks
 
 `verify.py` is the point of the project. If you add data that can be

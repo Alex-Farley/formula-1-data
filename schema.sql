@@ -68,8 +68,10 @@ CREATE TABLE drivers (
     title_years     TEXT,                      -- comma-separated
     status          TEXT,                      -- active | retired | deceased
     stats_as_of     TEXT,                      -- when the career figures were true
-    -- wins / poles / fastest_laps above are DERIVED from race_results and
-    -- race_credits, which cover every championship race 1950-2026. They are
+    -- wins / poles / fastest_laps / podiums above are DERIVED from the race
+    -- records, which cover every championship race 1950-2026. Podiums became
+    -- derivable in v2.7, when second and third place were harvested for every
+    -- race; before that the figure was hand-entered. They are
     -- therefore always internally consistent and always current.
     -- The *_external columns hold the separately sourced figure for the same
     -- statistic, so the two can be compared. Where they disagree, the
@@ -77,6 +79,7 @@ CREATE TABLE drivers (
     wins_external           INTEGER,
     poles_external          INTEGER,
     fastest_laps_external   INTEGER,
+    podiums_external        INTEGER,
     external_source         TEXT,
     notes           TEXT,
     confidence      TEXT NOT NULL DEFAULT 'medium' REFERENCES provenance(confidence),

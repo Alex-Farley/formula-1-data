@@ -22,7 +22,7 @@ export default function Drivers() {
   return (
     <Page
       title="Drivers"
-      lede="Every driver who has won a championship race, taken a pole or set a fastest lap, plus every World Champion and the current grid — 182 in all. Wins, poles and fastest laps are derived from the race records rather than stored."
+      lede="Every driver who has won a championship race, taken a pole, set a fastest lap or stood on a podium, plus every World Champion and the current grid — 244 in all. Wins, poles and fastest laps are derived from the race records rather than stored."
     >
       <Result state={state} what="Loading the database">
         {(data) => {

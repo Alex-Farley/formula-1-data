@@ -173,7 +173,30 @@ print(f"\n  {nb} of those radio rows are the curated notable set; the rest, and"
 print("  every other row above, come from tools/fastf1_load.py, which needs")
 print("  network access this build environment does not have.")
 
-head(8, "READINESS FOR A FULL FINISHING ORDER")
+head(8, "CLASSIFICATION COVERAGE")
+n, held = con.execute("""SELECT COUNT(*),
+    (SELECT COUNT(*) FROM races WHERE status='completed') FROM race_entries"""
+    ).fetchone()
+pod = con.execute("""SELECT COUNT(*) FROM race_entries
+    WHERE finish_position IN (2,3)""").fetchone()[0]
+field = con.execute("""SELECT COUNT(*) FROM race_entries
+    WHERE finish_position > 3""").fetchone()[0]
+print(f"  {n} entries across {held} races = {n/held:.1f} per race")
+print(f"  second and third places: {pod}")
+print(f"  finishers below third:   {field}")
+if not pod:
+    print("\n  The classification has not been loaded. race_entries holds the")
+    print("  winner, the pole-sitter and the fastest-lap setter only, which is")
+    print("  why podiums, retirements, per-race points and grid positions are")
+    print("  absent. tools/ergast_load.py fills all four in one run:")
+    print("      python3 tools/ergast_load.py && python3 verify.py")
+noent = con.execute("""SELECT COUNT(*) FROM drivers d WHERE NOT EXISTS
+    (SELECT 1 FROM race_entries e WHERE e.driver_id = d.id)""").fetchone()[0]
+print(f"\n  {noent} of {con.execute('SELECT COUNT(*) FROM drivers').fetchone()[0]} "
+      f"register entries have no race rows yet")
+print()
+
+head(9, "READINESS FOR A FULL FINISHING ORDER")
 e = con.execute("SELECT COUNT(*) FROM race_entries").fetchone()[0]
 r = con.execute("SELECT COUNT(*) FROM races WHERE status='completed'").fetchone()[0]
 print(f"  race_entries holds {e} rows across {r} races ({e/r:.1f} per race)")
