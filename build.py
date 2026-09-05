@@ -358,8 +358,19 @@ def build():
         yrs = chassis_years.get(ch_id) or set()
         # The season matters here too: the Alfa Romeo C42 and C43 are F1DB
         # `alfa-romeo` chassis and Sauber cars.
-        our_cons = HV.constructor_for_f1db(f1db_cons,
-                                           min(yrs) if yrs else None)
+        #
+        # Every season the chassis raced must agree about which constructor
+        # it belongs to. Taking one of them - the first, say - would silently
+        # pick the wrong entity for a chassis that raced across a rename.
+        # None does today; the build refuses rather than wait for one.
+        _cands = {HV.constructor_for_f1db(f1db_cons, y) for y in yrs} or \
+                 {HV.constructor_for_f1db(f1db_cons)}
+        if len(_cands) > 1:
+            raise SystemExit(
+                f"chassis {ch_id} raced {min(yrs)}-{max(yrs)}, which spans a "
+                f"constructor rename: {sorted(_cands)}. Split the chassis or "
+                f"the mapping; do not let one season decide.")
+        our_cons = _cands.pop()
         sp = specs.get(ch_id, {})
         cur.execute("""INSERT INTO chassis (id, constructor_id,
             f1db_constructor_id, name, full_name, car_id, first_year,

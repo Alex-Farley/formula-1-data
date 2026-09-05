@@ -162,13 +162,6 @@ NEW_CONSTRUCTORS = [
 ]
 
 
-# Jolpica ids whose meaning depends on the season, because one name was two
-# constructors. Each entry is (from_year, to_year, target).
-#
-# These were invisible until the constructor register was extended: the
-# earlier entity had no row, so the entries either went nowhere or quietly
-# took the later entity's id. verify.py now refuses an entry credited to a
-# constructor that was not racing that season, which is what surfaced them.
 # Jolpica constructors this register deliberately does not hold, with the
 # reason. Declared so the loader's "not in the register" line stays a list of
 # real gaps rather than a list that is always noise.
@@ -184,6 +177,13 @@ CONSTRUCTOR_NON_MAPPING = {
 }
 
 
+# Jolpica ids whose meaning depends on the season, because one name was two
+# constructors. Each entry is (from_year, to_year, target).
+#
+# These were invisible until the constructor register was extended: the
+# earlier entity had no row, so the entries either went nowhere or quietly
+# took the later entity's id. verify.py now refuses an entry credited to a
+# constructor that was not racing that season, which is what surfaced them.
 CONSTRUCTOR_ALIASES_BY_YEAR = {
     # Frank Williams Racing Cars (1975) and Wolf-Williams (1976) are not the
     # Williams that first entered in 1977 - Frank Williams sold out to Walter

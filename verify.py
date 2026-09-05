@@ -679,15 +679,22 @@ _ours = {r[0] for r in con.execute("SELECT id FROM constructors")}
 # be in this register, aliased to a team that is, or declared as a deliberate
 # exclusion. Nothing may simply be absent - which is how Ensign started 133
 # Grands Prix without a row here.
+# Every SEASON must resolve, not just one of them. An id whose meaning
+# changes part-way - `alfa-romeo` is the register's own constructor until
+# 1985 and Sauber's branding from 2019 - can have one season land in the
+# register while another lands nowhere. Testing only the last season would
+# pass on that.
 _gap = []
 for _c, _slots in _ent.items():
     if not (_slots - _indy):
         continue                       # Indianapolis-only, correctly excluded
-    if _HV.constructor_for_f1db(_c, max(y for y, _ in _slots)) in _ours:
-        continue
     if _c in _T.F1DB_CONSTRUCTOR_ALIASES or _c in _T.F1DB_CONSTRUCTOR_NON_MAPPING:
         continue
-    _gap.append(f"{_c} ({len(_slots - _indy)} entries)")
+    _unresolved = sorted({_y for _y, _ in _slots
+                          if _HV.constructor_for_f1db(_c, _y) not in _ours})
+    if _unresolved:
+        _gap.append(f"{_c} ({len(_unresolved)} season(s): "
+                    f"{_unresolved[0]}-{_unresolved[-1]})")
 check("every constructor that entered a non-Indianapolis race is in the "
       "register, aliased, or declared", not _gap, "; ".join(sorted(_gap)[:6]))
 
@@ -710,7 +717,6 @@ print(f"  [info] {_unmapped} F1DB constructors remain unmapped; all but the "
       f"project has never counted as Formula One constructors")
 
 print("\nTHE CHASSIS REGISTER")
-from data import harvest as _HV
 nch = con.execute("SELECT COUNT(*) FROM chassis").fetchone()[0]
 neng = con.execute("SELECT COUNT(*) FROM engines").fetchone()[0]
 nent = con.execute("SELECT COUNT(*) FROM season_entrants").fetchone()[0]
