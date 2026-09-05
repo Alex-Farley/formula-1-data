@@ -1,4 +1,4 @@
-# F1 Verified Facts Database — v2.9
+# F1 Verified Facts Database — v2.10
 
 An expansion of the original single-file JSON into a normalised, queryable
 SQLite database covering 1950–2026, with the JSON kept as a generated export.
@@ -12,6 +12,12 @@ harvested from Wikipedia's season tables under a new `reference` confidence tier
 replaces the per-race one, every Grand Prix now has a canonical id, and
 `audit.py` reports on the shape of the database rather than its contents.
 See *Structure* below.
+
+**v2.10** adds `tools/ergast_load.py --from-dump`, which loads the full
+classification from Jolpica's hash-verified database dump rather than ~270
+paged API requests. Not for speed: a dump is one consistent snapshot that can
+be **pinned and reproduced**, and `--verify-dump` diffs it against the API
+race by race to keep it honest. Both paths produce identical rows.
 
 **v2.9** resolves the chassis **per round** rather than per season, using the
 driver round-ranges inside F1DB's entry lists: chassis coverage 34% to 76%,

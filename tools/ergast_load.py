@@ -28,8 +28,33 @@ SELF-VALIDATING, like every other loader here
 INSTALL
     Nothing. Standard library only.
 
+TWO WAYS IN
+    The API pages through ~270 requests. The database dump is one
+    hash-verified zip. Both produce identical rows - `--verify-dump` proves
+    it - and everything downstream, including the winner cross-check, is
+    shared rather than written twice.
+
+    Prefer the dump for history. The reason is not speed: it is that a dump
+    is one consistent snapshot with a SHA256, so a load can be pinned and
+    reproduced, where paging a live API for minutes leaves a seam between
+    pages if the data moves under you. That seam is where v2.7's hand-relayed
+    rows were fabricated.
+
+    The free tier lags 14 days, which costs nothing for 1950-2025 and does
+    matter for the current season - a race run since the dump was cut simply
+    is not in it, and the winner cross-check cannot fire on rows that never
+    arrived. The loader detects that and says so rather than exiting clean.
+
+    The licence is unchanged either way: Ergast data is CC BY-NC-SA and the
+    free dump tier is explicitly non-commercial. These rows are never
+    committed to this repository. See ATTRIBUTION.md.
+
 USE
     python3 tools/ergast_load.py                    # everything, 1950-2026
+    python3 tools/ergast_load.py --from-dump        # the same, from one zip
+    python3 tools/ergast_load.py --verify-dump 8    # diff the two, load none
+    python3 tools/ergast_load.py --from-dump \
+        --dump-sha256 617bd037...                   # pin an exact snapshot
     python3 tools/ergast_load.py --years 1976       # one season
     python3 tools/ergast_load.py --years 2000-2010
     python3 tools/ergast_load.py --positions 1-3    # podiums only (fast)
@@ -66,6 +91,9 @@ sys.path.insert(0, HERE)
 DB = os.path.join(HERE, "f1.db")
 BASE = "https://api.jolpi.ca/ergast/f1"
 PAGE = 100
+
+DUMP_INDEX = "https://api.jolpi.ca/data/dumps/download/"
+DUMP_CACHE = os.path.join(HERE, ".jolpicadump")
 
 from data import results as RS          # noqa: E402  (id maps live here)
 
@@ -123,6 +151,254 @@ def season_results(year, sleep):
         time.sleep(sleep)
 
 
+# =====================================================================
+# The database dump, an alternative to 270 paginated requests.
+#
+# https://api.jolpi.ca/data/dumps/download/ advertises a zipped set of CSVs
+# with a SHA256 and an upload timestamp. The free tier is delayed 14 days and
+# needs no authentication; the latest dump needs a supporter key.
+#
+# The reason to prefer it is NOT that it is one request instead of 270. It is
+# that a dump is a snapshot with a hash: the whole load comes from one
+# consistent state of their database, it can be pinned, and it can be
+# re-verified. Paging through a live API for several minutes cannot promise
+# any of that - a mid-load update leaves a seam between pages, and the seam
+# between pages is exactly where v2.7's hand-relayed rows were fabricated.
+#
+# For history the 14-day delay costs nothing: 1950-2025 does not change.
+#
+# What it does NOT change is the licence. Ergast's data is CC BY-NC-SA and
+# the free dump tier is explicitly non-commercial, so these rows still are
+# not committed to this repository. See ATTRIBUTION.md.
+#
+# One thing that turned out better than expected: `sessionentry.detail` holds
+# the same human-readable status text the API returns ("Finished", "+1 Lap",
+# "Engine"), so nothing here has to decode Jolpica's integer status enum
+# against a definition that lives in their model source. The integer is
+# carried too, and the two are checked against each other.
+# =====================================================================
+
+# sessionentry.status is an integer enum whose meaning lives in Jolpica's
+# model source. It is NOT used to fill anything - `detail` supplies the text -
+# but a row whose integer contradicts its text means the dump's shape has
+# changed underneath this script, and that is worth failing on.
+STATUS_CLASS = {
+    "0": "finished", "1": "lapped", "10": "accident", "11": "mechanical",
+    "20": "disqualified", "30": "did not participate", "40": "other",
+}
+
+
+def dump_index():
+    return json.loads(fetch_bytes(DUMP_INDEX).decode("utf-8"))
+
+
+def fetch_bytes(url, tries=4):
+    req = urllib.request.Request(url, headers={
+        "User-Agent": "formula-1-data/2.9 (+https://github.com/Alex-Farley/"
+                      "formula-1-data)"})
+    for attempt in range(tries):
+        try:
+            with urllib.request.urlopen(req, timeout=300) as r:
+                return r.read()
+        except Exception as e:                                   # noqa: BLE001
+            if attempt == tries - 1:
+                raise
+            wait = 2 ** (attempt + 1)
+            print(f"  ! {e} - retrying in {wait}s", file=sys.stderr)
+            time.sleep(wait)
+
+
+def get_dump(tier, expect_hash=None):
+    """Download (or reuse) the dump and return its path.
+
+    The advertised SHA256 is checked on every use, cached copy included. A
+    dump that does not match what the index says it is gets deleted rather
+    than read: half a download and a tampered file look the same from here.
+    """
+    import hashlib
+    index = dump_index()
+    key = f"{tier}_dumps"
+    if key not in index or "csv" not in index[key]:
+        sys.exit(f"the dump index offers no {tier} csv dump; it lists "
+                 f"{sorted(index.get('available_types', []))}")
+    meta = index[key]["csv"]
+    want = expect_hash or meta["file_hash"]
+    os.makedirs(DUMP_CACHE, exist_ok=True)
+    path = os.path.join(DUMP_CACHE, f"jolpica-{want[:12]}.zip")
+
+    def digest(p):
+        h = hashlib.sha256()
+        with open(p, "rb") as f:
+            for chunk in iter(lambda: f.read(1 << 20), b""):
+                h.update(chunk)
+        return h.hexdigest()
+
+    if os.path.exists(path) and digest(path) == want:
+        print(f"  dump {want[:12]} already cached ({os.path.getsize(path) / 1e6:.1f} MB)")
+        return path, meta
+    print(f"  fetching the {tier} dump, {meta['file_size'] / 1e6:.1f} MB, "
+          f"uploaded {meta['uploaded_at'][:10]}")
+    blob = fetch_bytes(meta["download_url"])
+    got = hashlib.sha256(blob).hexdigest()
+    if got != want:
+        sys.exit(f"dump hash mismatch: the index advertises {want}, the "
+                 f"download is {got}. Not reading it.")
+    with open(path, "wb") as f:
+        f.write(blob)
+    print(f"  sha256 {got[:12]} verified against the index")
+    return path, meta
+
+
+def dump_results(path):
+    """Every race result in the dump, as {year: [row, ...]}.
+
+    Rows come out in the same shape season_results() produces from the API,
+    so everything downstream - the winner cross-check, the driver resolution,
+    the insert - is shared between the two paths rather than written twice.
+    """
+    import csv
+    import io
+    import zipfile
+
+    z = zipfile.ZipFile(path)
+
+    def table(name, *cols):
+        want = f"formula_one_{name}.csv"
+        if want not in z.namelist():
+            sys.exit(f"the dump has no {want}; its layout has changed")
+        with z.open(want) as f:
+            r = csv.DictReader(io.TextIOWrapper(f, encoding="utf-8"))
+            missing = [c for c in cols if c not in (r.fieldnames or [])]
+            if missing:
+                sys.exit(f"{want} is missing column(s) {missing}; the dump's "
+                         f"layout has changed. Columns are addressed by name "
+                         f"on purpose - Jolpica guarantees the names but "
+                         f"explicitly not their order.")
+            for row in r:
+                yield row
+
+    season = {r["id"]: int(r["year"]) for r in table("season", "id", "year")}
+    # `number` is the round within its season, which is what races.round
+    # holds. `race_number` is a global counter across all history - the 1951
+    # Swiss Grand Prix is round 1 and race 8 - and using it would put every
+    # row against the wrong race.
+    #
+    # A cancelled round has no number at all: the 2026 Saudi Arabian Grand
+    # Prix is the only one, and it is skipped rather than defaulted.
+    rounds = {}
+    for r in table("round", "id", "season_id", "number", "is_cancelled"):
+        if r["is_cancelled"] == "t" or not r["number"]:
+            continue
+        rounds[r["id"]] = (r["season_id"], int(r["number"]))
+    # Race sessions only. The dump also carries qualifying, practice and
+    # sprints; a sprint is a race but it is not a Grand Prix result and this
+    # database keeps them apart.
+    sessions = {r["id"]: r["round_id"]
+                for r in table("session", "id", "round_id", "type",
+                               "is_cancelled")
+                if r["type"] == "R" and r["is_cancelled"] != "t"}
+    drivers = {r["id"]: (r["reference"],
+                         " ".join(x for x in (r["forename"], r["surname"]) if x))
+               for r in table("driver", "id", "reference", "forename", "surname")}
+    teams = {r["id"]: r["reference"] for r in table("team", "id", "reference")}
+    team_driver = {r["id"]: (r["driver_id"], r["team_id"])
+                   for r in table("teamdriver", "id", "driver_id", "team_id")}
+    round_entry = {r["id"]: r["team_driver_id"]
+                   for r in table("roundentry", "id", "team_driver_id")}
+
+    out, bad_status = {}, []
+    for r in table("sessionentry", "session_id", "round_entry_id", "position",
+                   "grid", "laps_completed", "points", "status", "detail",
+                   "is_classified", "round_entry_id"):
+        rid = sessions.get(r["session_id"])
+        if rid is None or rid not in rounds or not r["position"]:
+            continue
+        td = team_driver.get(round_entry.get(r["round_entry_id"], ""), None)
+        if td is None:
+            continue
+        ref, name = drivers.get(td[0], (None, None))
+        if ref is None:
+            continue
+        season_id, number = rounds[rid]
+        # The integer enum and the text must agree about whether the car
+        # finished. They are two encodings of one fact and a disagreement
+        # means the dump's shape has moved.
+        if r["status"] == "0" and r["detail"] and r["detail"] != "Finished":
+            bad_status.append((r["status"], r["detail"]))
+        out.setdefault(season[season_id], []).append({
+            "year": season[season_id],
+            "round": number,
+            "position": int(r["position"]),
+            # The API's positionText is "1", "R", "D" and so on; the dump
+            # says the same thing in a boolean, which is what it is used for.
+            "position_text": "1" if r["is_classified"] == "t" else "R",
+            "driver": ref,
+            "driver_name": name,
+            "constructor": teams.get(td[1], ""),
+            "grid": int(r["grid"] or 0),
+            "laps": int(r["laps_completed"] or 0),
+            "status": r["detail"] or None,
+            "points": float(r["points"] or 0),
+        })
+    if bad_status:
+        sys.exit(f"the dump's status enum and its detail text disagree on "
+                 f"{len(bad_status)} rows, e.g. {bad_status[:3]}. Jolpica's "
+                 f"encoding has changed; check STATUS_CLASS before trusting "
+                 f"this load.")
+    return out
+
+
+def compare_dump_to_api(a, lo, hi):
+    """Read the same races from the dump and from the API and diff them.
+
+    The dump is faster, hashable and consistent, but it is a second
+    implementation of the same fetch and a second implementation is a second
+    place to be wrong. The API resolves the status enum, names the driver and
+    the constructor, and has been the reference here since v2.7 - so it is
+    what the dump is checked against, not the other way round.
+
+    Returns a message on disagreement and None when they match.
+    """
+    import random
+    path, meta = get_dump(a.dump_tier, a.dump_sha256)
+    dumped = dump_results(path)
+    years = [y for y in range(lo, hi + 1) if dumped.get(y)]
+    if not years:
+        return "the dump holds no races in that range"
+
+    def key(rows):
+        return {(r["year"], r["round"], r["driver"]): (
+            r["position"], r["position_text"].isdigit(), r["constructor"],
+            r["grid"], r["laps"], r["status"], r["points"]) for r in rows}
+
+    random.seed(0)                     # a repeatable sample, not a lucky one
+    picks = random.sample(years, min(a.verify_dump, len(years)))
+    bad = 0
+    for year in sorted(picks):
+        api = key(season_results(year, a.sleep))
+        dmp = key(dumped[year])
+        if api == dmp:
+            print(f"  {year}: {len(api)} rows identical")
+            continue
+        bad += 1
+        only_api = sorted(set(api) - set(dmp))
+        only_dmp = sorted(set(dmp) - set(api))
+        differ = [k for k in set(api) & set(dmp) if api[k] != dmp[k]]
+        print(f"  {year}: DIFFERS - {len(only_api)} only in the API, "
+              f"{len(only_dmp)} only in the dump, {len(differ)} disagree")
+        for k in (only_api[:3] + only_dmp[:3]):
+            print(f"      {k}")
+        for k in differ[:3]:
+            print(f"      {k}\n        api  {api[k]}\n        dump {dmp[k]}")
+    if bad:
+        return (f"{bad} of {len(picks)} sampled seasons disagree between the "
+                f"dump and the API. Do not load from the dump until this is "
+                f"understood.")
+    print(f"\n  {len(picks)} seasons sampled, every row identical. "
+          f"dump {meta['file_hash'][:12]}, uploaded {meta['uploaded_at'][:10]}")
+    return None
+
+
 def main():
     ap = argparse.ArgumentParser(
         description=__doc__,
@@ -134,6 +410,24 @@ def main():
     ap.add_argument("--db", default=DB)
     ap.add_argument("--sleep", type=float, default=0.4)
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--from-dump", action="store_true",
+                    help="load from the database dump instead of 270 paged "
+                         "API requests: one hash-verified snapshot, so the "
+                         "whole load comes from one consistent state")
+    ap.add_argument("--dump-tier", choices=("delayed", "latest"),
+                    default="delayed",
+                    help="'delayed' (default) is free, needs no key and lags "
+                         "14 days, which costs nothing for history; 'latest' "
+                         "needs a supporter API key")
+    ap.add_argument("--verify-dump", metavar="N", type=int, nargs="?",
+                    const=8,
+                    help="load nothing; instead read N races from the dump "
+                         "AND from the API and compare them row by row. The "
+                         "API is the reference implementation - this is what "
+                         "keeps the dump path honest as their schema moves.")
+    ap.add_argument("--dump-sha256",
+                    help="require this exact dump. Pins a load to one "
+                         "snapshot so it can be reproduced byte for byte.")
     a = ap.parse_args()
 
     lo, _, hi = a.years.partition("-")
@@ -154,14 +448,30 @@ def main():
     totals = dict(rows=0, races=0, skipped_race=0, skipped_driver=0, refused=0)
     missing_cons = set()
 
+    if a.verify_dump:
+        sys.exit(compare_dump_to_api(a, lo, hi))
+
+    from_dump = None
+    source_note = f"{BASE}/{{year}}/results/"
+    if a.from_dump:
+        path, meta = get_dump(a.dump_tier, a.dump_sha256)
+        from_dump = dump_results(path)
+        source_note = (f"{DUMP_INDEX} {a.dump_tier} csv "
+                       f"{meta['file_hash'][:12]} ({meta['uploaded_at'][:10]})")
+        print(f"  {sum(len(v) for v in from_dump.values())} race results "
+              f"across {len(from_dump)} seasons in the dump")
+
     failed_years = []
     for year in range(lo, hi + 1):
-        try:
-            rows = season_results(year, a.sleep)
-        except Exception as e:                                   # noqa: BLE001
-            print(f"{year}: {e}", file=sys.stderr)
-            failed_years.append(year)
-            continue
+        if from_dump is not None:
+            rows = from_dump.get(year, [])
+        else:
+            try:
+                rows = season_results(year, a.sleep)
+            except Exception as e:                               # noqa: BLE001
+                print(f"{year}: {e}", file=sys.stderr)
+                failed_years.append(year)
+                continue
         if not rows:
             continue
 
@@ -238,7 +548,8 @@ def main():
                                               excluded.shared_drive)""",
                     (rid, did, cid, e["position"], grid, classified,
                      e["status"], e["laps"], e["points"], shared,
-                     f"{BASE}/{year}/results/"))
+                     source_note.format(year=year)
+                     if "{year}" in source_note else source_note))
                 loaded += 1
             totals["races"] += 1
 
@@ -247,7 +558,8 @@ def main():
         totals["rows"] += loaded
         print(f"{year}: {loaded} entries across {len(by_race)} races"
               + (f", {refused} refused" if refused else ""))
-        time.sleep(a.sleep)
+        if from_dump is None:
+            time.sleep(a.sleep)
 
     # Podiums are derivable ONLY from a complete classification. On a partial
     # load they are not: race_entries already holds a winner for all 1,161
@@ -315,6 +627,27 @@ def main():
     # to add them to PODIUM_ONLY_DRIVERS, rebuild and rerun; a non-zero exit
     # is what makes that loop visible instead of optional.
     problems = []
+    # A dump is a snapshot, and the free tier's is fourteen days old. Races
+    # run since it was cut simply are not in it, and the load looks clean:
+    # the winner cross-check cannot fire on rows that never arrived. For
+    # history that costs nothing - 1950-2025 does not change - but for the
+    # current season it is a silent partial load, so name it.
+    if from_dump is not None and not a.dry_run:
+        empty = cur.execute("""SELECT year, round FROM races
+            WHERE status = 'completed' AND year BETWEEN ? AND ?
+              AND NOT EXISTS (SELECT 1 FROM race_entries e
+                              WHERE e.race_id = races.id
+                                AND e.status IS NOT NULL)
+            ORDER BY year, round""", (lo, hi)).fetchall()
+        if empty:
+            problems.append(
+                f"{len(empty)} completed race(s) got no rows at all: "
+                + ", ".join(f"{y} r{r}" for y, r in empty[:8])
+                + (" ..." if len(empty) > 8 else "")
+                + f". This dump was cut on {meta['uploaded_at'][:10]}; the "
+                  f"free tier lags {dump_index().get('delay_days', 14)} days, "
+                  f"so anything raced since is not in it. Use --dump-tier "
+                  f"latest (needs a supporter key) or the API for those.")
     if failed_years:
         problems.append(f"{len(failed_years)} season(s) could not be fetched: "
                         + ", ".join(str(y) for y in failed_years))

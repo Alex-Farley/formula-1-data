@@ -3,6 +3,58 @@
 A running record of what changed in each version, what it exposed, and what
 was deliberately not done. Newest first.
 
+## v2.10 (2026-09-05) — loading from the database dump
+
+`tools/ergast_load.py --from-dump` reads Jolpica's database dump instead of
+paging ~270 API requests. Both paths produce identical rows and share every
+downstream check.
+
+**The reason is not speed.** A dump is one consistent snapshot with a SHA256
+and an upload timestamp: a load can be pinned to an exact state and
+reproduced. Paging a live API for several minutes cannot promise that, and
+the seam between pages is precisely where v2.7's hand-relayed rows were
+fabricated. The `source` column now records the dump's hash and date, so a
+row names the snapshot it came from.
+
+`--verify-dump N` loads nothing and instead reads N seasons both ways and
+diffs them row by row. The API stays the reference implementation, because a
+second fetch is a second place to be wrong. 1955, 1976, 1983, 1999, 2003,
+2008, 2012, 2015 and 2023 all come back identical, position, grid, status,
+laps, points and shared-drive flag included.
+
+### One concern that turned out smaller than expected
+
+The worry about adopting dumps was the integer status enum, whose meaning
+lives only in Jolpica's model source. It is not a problem:
+`sessionentry.detail` carries the same human-readable text the API returns -
+"Finished", "+1 Lap", "Engine" - so nothing here decodes an enum to fill a
+column. The integer is read only to assert it agrees with the text, and the
+load fails if it stops doing so.
+
+### Two that turned out real
+
+**The free tier is fourteen days behind, and a stale dump loads clean.** The
+delayed dump was cut on 2026-08-21; round 12 was raced on the 23rd. Those
+rows simply are not in the file, and none of the existing checks can see
+that - the winner cross-check cannot fire on a row that never arrived. The
+loader now compares the completed races in range against the races that got
+rows, and reports any that got none, naming the dump's date. For 1950-2025
+the lag costs nothing.
+
+**Two columns needed care.** `round.number` is the round within its season;
+`race_number` is a global counter across all history, so the 1951 Swiss Grand
+Prix is round 1 and race 8. Using the wrong one would have put every row
+against the wrong race. And one round - the cancelled 2026 Saudi Arabian
+Grand Prix - has no number at all, so cancelled rounds and sessions are
+skipped rather than defaulted.
+
+Every column is addressed by name. Jolpica guarantees the names and
+explicitly does not guarantee their order, and reading a generated file by
+position has now cost this project two full re-harvests in one day.
+
+The licence is unchanged: the free dump tier is non-commercial, exactly like
+the API, so these rows are still never committed.
+
 ## v2.9 (2026-09-05) — the round, and the first live run of both loaders
 
 Two things the previous release left on the table: F1DB's per-round driver

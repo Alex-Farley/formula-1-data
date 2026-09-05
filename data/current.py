@@ -310,14 +310,20 @@ SOURCE_REGISTRY = [
      "tools/ergast_load.py.", "reference",
      "CC BY-NC-SA 4.0 on the Ergast data it continues: NON-COMMERCIAL. That "
      "is the most restrictive licence of any source here and it is the "
-     "reason these rows are loaded locally rather than committed.",
+     "reason these rows are loaded locally rather than committed. The "
+     "database dumps carry the same terms on their free tier; commercial use "
+     "needs a supporter key.",
      "Per event, community-run, and explicitly a volunteer continuation "
      "after Ergast's shutdown - the least certain future of any source here.",
      "The winner it reports for a race must equal the winner already stored "
      "from the Wikipedia harvest or the race is refused whole; and the "
      "derived podium counts are reconciled against official career figures. "
-     "That reconciliation is what caught a hand-relayed fabrication in "
-     "v2.7."),
+     "That reconciliation is what caught a hand-relayed fabrication in v2.7, "
+     "and it is what caught the loader's own resolver handing Wilson "
+     "Fittipaldi's Brabham results to his brother Emerson on its first live "
+     "run. The dump path is checked against the API path race by race "
+     "(--verify-dump), because a second fetch implementation is a second "
+     "place to be wrong."),
 
     (13, "OpenF1", "https://openf1.org",
      "Car telemetry from 2023: speed, throttle, brake, RPM, gear and "

@@ -108,6 +108,13 @@ to Ergast. Ergast's data was published under
 **non-commercial** clause makes it the most restrictive source used here, more
 restrictive than the rest of this repository.
 
+The same applies to the **database dumps** at
+`https://api.jolpi.ca/data/dumps/download/`, which `tools/ergast_load.py
+--from-dump` uses. The free tier needs no authentication and is delayed 14
+days; it is explicitly **non-commercial**. Commercial use requires a
+supporter API key. Using a dump instead of the API changes the mechanics of
+the fetch and nothing about the licence.
+
 That is one of the reasons those 26,137 rows are loaded locally by you and are
 not committed: `race_entries` in the distributed build holds only what the
 Wikipedia harvest established. The other reason is the build rule — the

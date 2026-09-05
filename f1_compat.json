@@ -1,6 +1,6 @@
 {
   "database_name": "F1 Verified Facts Project Memory Database",
-  "version": "2.9",
+  "version": "2.10",
   "verification_date": "2026-09-05",
   "verification_policy": {
     "confidence_ladder": [
@@ -838,9 +838,9 @@
       "url": "https://api.jolpi.ca/ergast/f1/",
       "use": "The full race classification 1950-2026: every finisher and retirement with position, grid, laps, cause and points. Loaded by tools/ergast_load.py.",
       "authority": "reference",
-      "licence": "CC BY-NC-SA 4.0 on the Ergast data it continues: NON-COMMERCIAL. That is the most restrictive licence of any source here and it is the reason these rows are loaded locally rather than committed.",
+      "licence": "CC BY-NC-SA 4.0 on the Ergast data it continues: NON-COMMERCIAL. That is the most restrictive licence of any source here and it is the reason these rows are loaded locally rather than committed. The database dumps carry the same terms on their free tier; commercial use needs a supporter key.",
       "cadence": "Per event, community-run, and explicitly a volunteer continuation after Ergast's shutdown - the least certain future of any source here.",
-      "checkability": "The winner it reports for a race must equal the winner already stored from the Wikipedia harvest or the race is refused whole; and the derived podium counts are reconciled against official career figures. That reconciliation is what caught a hand-relayed fabrication in v2.7."
+      "checkability": "The winner it reports for a race must equal the winner already stored from the Wikipedia harvest or the race is refused whole; and the derived podium counts are reconciled against official career figures. That reconciliation is what caught a hand-relayed fabrication in v2.7, and it is what caught the loader's own resolver handing Wilson Fittipaldi's Brabham results to his brother Emerson on its first live run. The dump path is checked against the API path race by race (--verify-dump), because a second fetch implementation is a second place to be wrong."
     },
     {
       "id": 13,
