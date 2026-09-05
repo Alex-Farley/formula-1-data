@@ -10,7 +10,9 @@ different positions, and the data has an obligation attached to it.
 | Race winners 1950–2026 | Wikipedia season articles | 1,161 races |
 | Pole position and fastest lap 1950–2026 | Wikipedia season articles | 1,161 / 1,160 |
 | Race venues 1950–2026 | Wikipedia season articles | 1,161 |
-| Car specifications and design histories | Wikipedia per-car articles | 29 cars |
+| Car specifications and design histories | Wikipedia per-car articles | 29 curated cars |
+| Chassis specifications | Wikipedia per-car articles, `{{Racing car}}` infobox | see `harvest/car_specs.txt` |
+| Chassis, engine and season-entrant register | [F1DB](https://github.com/f1db/f1db) | 1,153 chassis, 424 engines, 1,925 entrant rows |
 | Circuit register and layout timelines | Wikipedia per-circuit articles | 80 circuits, 49 layouts |
 | Notable team radio transcripts | Wikipedia per-race articles | 6 |
 | 2026 season, entry list, standings, calendar | formula1.com | current season |
@@ -22,6 +24,24 @@ Every row carries a `confidence` value and most carry a `source` URL. The
 `./f1 unverified` lists everything still sitting at `medium`.
 
 ## The obligation
+
+There are two, from two different licences, and they are not the same shape.
+
+### F1DB — CC BY 4.0
+
+`harvest/chassis.txt`, `harvest/engines.txt`, `harvest/f1db_constructors.txt`
+and `harvest/entrants.txt` are generated from
+[F1DB](https://github.com/f1db/f1db), which is licensed
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). That is
+**attribution only — there is no share-alike**, so it places no condition on
+how the rest of this database is licensed. It does require attribution, which
+is given here, in the header of every generated file, in `source_registry`,
+and in `tools/f1db_fetch.py`.
+
+This is the most permissive licence of any bulk source used here, and it is
+part of why F1DB was chosen.
+
+### Wikipedia — CC BY-SA 4.0
 
 **Wikipedia text is licensed CC BY-SA 4.0.** Bare facts — who won a race, how
 long a circuit is — are not copyrightable, and a database of those facts is
@@ -39,6 +59,10 @@ In practice that means one of:
 2. **Rewrite the prose fields in your own words** (`cars.story`,
    `cars.concept`, `cars.outcome`, `circuits.notes`, `circuits.characteristics`,
    `regulation_changes.detail`, `glossary.definition`, `technical_innovations.*`)
+   — note that the harvested `chassis` specification fields are short factual
+   values copied verbatim from an infobox ("Aluminium monocoque", "5-speed
+   manual"), which is much closer to fact than to expression, but they were
+   still taken from a CC BY-SA source
    and then license the remaining factual data however you like. This is real
    work but it is not enormous — it is a few hundred fields.
 3. **Keep the repository private**, in which case none of this applies.
@@ -68,9 +92,27 @@ If you go with CC BY-SA, something like this in the README covers it:
 > Race results, driver, constructor, circuit and car data in this repository
 > are derived from Wikipedia and are licensed under
 > [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
+> The chassis, engine and season-entrant register is derived from
+> [F1DB](https://github.com/f1db/f1db), licensed
+> [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 > Current-season data is from formula1.com. Formula 1, F1 and Grand Prix are
 > trademarks of Formula One Licensing BV; this project is unaffiliated with
 > and unendorsed by Formula One or the FIA.
+
+## Jolpica-F1 — CC BY-NC-SA 4.0, and why those rows are not committed
+
+`tools/ergast_load.py` fills the full race classification from
+[Jolpica-F1](https://github.com/jolpica/jolpica-f1), the maintained successor
+to Ergast. Ergast's data was published under
+[CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) — the
+**non-commercial** clause makes it the most restrictive source used here, more
+restrictive than the rest of this repository.
+
+That is one of the reasons those 26,137 rows are loaded locally by you and are
+not committed: `race_entries` in the distributed build holds only what the
+Wikipedia harvest established. The other reason is the build rule — the
+database is a function of the sources in this repository, and a row no fresh
+build could reproduce does not belong in the committed artefact.
 
 ## Live timing data
 

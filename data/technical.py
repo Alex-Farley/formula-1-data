@@ -125,6 +125,96 @@ SAFETY = [
     (2026, "Roll-hoop vertical test raised to 20 g", None, "Up from 16 g, alongside a two-stage nose-cone concept in the 2026 framework."),
 ]
 
+# ---------------------------------------------------------------------
+# Numeric limits the regulations impose on every car in a season.
+#
+# These exist as a table of their own for one reason. Modern Formula One
+# cars are documented far more thinly than historic ones: current-era
+# specifications are competitive secrets, and most "weight" quoted for a
+# recent car is simply that season's regulation minimum. The 2026 figures in
+# circulation - 768 kg, a 3,400 mm wheelbase, 1,900 mm of width - are limits
+# in the rules, not measurements of any particular car.
+#
+# Putting one of them in a per-car field would be inference presented as
+# fact, which is the failure this project has already hit twice. So a
+# regulation limit is stored here, where it applies to the whole grid, and
+# tools/wikispec_fetch.py drops a harvested car figure that merely restates
+# one. A car field left NULL means the car's own figure is not established.
+#
+# A row covers from_year..to_year inclusive. `to_year` is set ONLY where the
+# source records the next change; where it does not, the row covers the one
+# year it was stated for and stops. Carrying a value forward across a change
+# the source does not mention would invent a limit. That is why the series
+# has holes - 1989-2003, 2005-2012, 2014-2016, 2018-2023 - and the holes are
+# the honest shape of what has been established, not an oversight.
+#
+# from_year, to_year, field, value, unit, note, confidence, source
+# ---------------------------------------------------------------------
+_HFOR = "https://en.wikipedia.org/wiki/History_of_Formula_One_regulations"
+_FIA2026 = "https://www.fia.com/regulations/formula-1"
+
+REGULATION_LIMITS = [
+    (1961, 1965, "minimum_weight_kg", 450.0, "kg",
+     "The first minimum weight in Formula One; there was none before 1961.",
+     "reference", _HFOR),
+    (1966, 1969, "minimum_weight_kg", 500.0, "kg",
+     "Raised with the 3.0-litre formula.", "reference", _HFOR),
+    (1970, 1971, "minimum_weight_kg", 530.0, "kg",
+     "Raised alongside mandatory bladder fuel cells.", "reference", _HFOR),
+    (1972, 1972, "minimum_weight_kg", 550.0, "kg",
+     "Raised alongside safety foam in the fuel tanks.", "reference", _HFOR),
+    (1973, 1980, "minimum_weight_kg", 575.0, "kg",
+     "Raised with the mandatory crushable structure around the fuel tanks. "
+     "The 1980 regulations restate it unchanged, which is what bounds this "
+     "row rather than an assumption that nothing happened in between.",
+     "reference", _HFOR),
+    (1981, 1981, "minimum_weight_kg", 585.0, "kg",
+     "Raised with the survival cell extending to the driver's feet.",
+     "reference", _HFOR),
+    (1982, 1982, "minimum_weight_kg", 580.0, "kg",
+     "Reduced when rigid skirts were legalised.", "reference", _HFOR),
+    (1983, 1986, "minimum_weight_kg", 540.0, "kg",
+     "Reduced when ground-effect undertrays were outlawed.",
+     "reference", _HFOR),
+    (1987, 1987, "minimum_weight_kg", 500.0, "kg",
+     "Reduced when naturally aspirated engines were re-allowed at 3,500 cc.",
+     "reference", _HFOR),
+    (1988, 1988, "minimum_weight_kg", 540.0, "kg",
+     "Raised with the mandatory static crash test. The next change this "
+     "source records is 2004, so the row stops here rather than carry a "
+     "1988 figure through the 1990s.", "reference", _HFOR),
+    (2004, 2004, "minimum_weight_kg", 605.0, "kg",
+     "605 kg in qualifying, and not below 600 kg at any other time, "
+     "including driver and fuel.", "reference", _HFOR),
+    (2013, 2013, "minimum_weight_kg", 642.0, "kg",
+     "The last year of the V8 formula. The hybrid rules raised it again for "
+     "2014; this source does not give that figure, so the row stops here.",
+     "reference", _HFOR),
+    (2017, 2017, "minimum_weight_kg", 728.0, "kg",
+     "Raised with the wider car and wider tyres.", "reference", _HFOR),
+    (2024, 2024, "minimum_weight_kg", 798.0, "kg",
+     "Recorded only because the 2025 change is stated as an increase FROM "
+     "798 kg, which fixes the 2024 figure.", "reference", _HFOR),
+    (2025, 2025, "minimum_weight_kg", 800.0, "kg",
+     "Raised by 2 kg for the higher driver allowance and 5 kg for the "
+     "mandated driver cooling system.", "reference", _HFOR),
+    (2026, 2026, "minimum_weight_kg", 768.0, "kg",
+     "The first deliberate weight reduction in decades: 722 kg of car and "
+     "driver plus 46 kg of estimated tyre mass in the FIA overview. Every "
+     "2026 car will be built to this number, so it says nothing about any "
+     "one of them.", "reference", _FIA2026),
+
+    (2017, 2025, "maximum_width_mm", 2000.0, "mm",
+     "Widened from 1,800 mm for 2017; reduced again for 2026, which is what "
+     "bounds this row.", "reference", _HFOR),
+    (2026, 2026, "maximum_width_mm", 1900.0, "mm",
+     "Part of the 2026 reduction in car size.", "reference", _FIA2026),
+    (2026, 2026, "maximum_wheelbase_mm", 3400.0, "mm",
+     "The first wheelbase cap in the modern rules. A 2026 car quoted at "
+     "3,400 mm is being quoted the rule.", "reference", _FIA2026),
+]
+
+
 # supplier, from_year, to_year, exclusive, notes
 TYRES = [
     ("Pirelli", 1950, 1958, 0, "Present at the championship's founding."),

@@ -3,6 +3,163 @@
 A running record of what changed in each version, what it exposed, and what
 was deliberately not done. Newest first.
 
+## v2.8 (2026-09-05) — the chassis register, and what a constraining check is
+
+Goal: technical data on the cars, working backwards. `cars` held 29 landmark
+chassis against 2,424 race records; the balance was wrong.
+
+### What is in
+
+- **`chassis`, 1,153 rows** — every chassis that has raced, from
+  [F1DB](https://github.com/f1db/f1db) (CC BY 4.0) via
+  `tools/f1db_fetch.py`. Plus **`engines` (424)**, **`season_entrants`
+  (1,925)** and the constructor names, all generated into `harvest/`, all
+  diffable, none touched by a person.
+- **`tools/wikispec_fetch.py`** — chassis specifications off the
+  `{{Racing car}}` infobox on each car's own article. There is no unified
+  Formula One car specification dataset anywhere; F1DB's register carries
+  **no technical data at all**, and this is where the numbers live.
+- **`regulation_limits`** — the numeric limits the rules put on a whole grid.
+- **819 of 1,161 races now have a known winning chassis**, up from a car
+  linkage that covered 267 of 2,424 entries. 779 chassis carry harvested
+  specifications; 132 of them publish a career win total, and the wins this
+  database derives independently from its own race records agree exactly for
+  97 and never exceed for any.
+
+### The gap that was closed, and the half that was not
+
+`known_gaps` #1 had stood since v2.6: the chassis-per-race harvest was
+abandoned because the winner cross-check does not constrain the chassis. A
+1952 trial returned "Ferrari 125 F2" for races Ascari won in a Ferrari 500 and
+every winner matched, because the winner tells you which race a row describes
+and nothing whatever about what he drove.
+
+F1DB's per-season entry lists are the second source that check was missing.
+They are also not a complete answer, and saying so is the point:
+
+> **F1DB records which chassis a constructor ran in a SEASON. It does not
+> record which chassis ran in which ROUND.**
+
+Where a team ran two designs the entry list names both with no round
+attribution. So a constructor-season constrains the chassis only when it names
+exactly one. Ferrari in 1952 names five — the 500, plus a 125, a 166, a 212
+and a 375S in privateers' hands — and gets no link at all. That is the correct
+answer for 1952 and it is the answer the abandoned harvest should have given.
+
+321 constructor-seasons are in that position; `v_ambiguous_seasons` lists
+them. Coverage therefore tracks how teams operated rather than spreading
+evenly: 4 per cent for the 1960s, 49 per cent for the 2020s.
+
+**The check ran against 41 assertions this database already held** —
+`CAR_SEASONS`, already proved against published win totals — and none
+disagreed.
+
+### Three checks before a specification page is read
+
+Guessing that "Ferrari 312T2" is the article for `ferrari-312t2` is inference,
+and inference is what produced the invented Ferrari 125. A title is only a
+candidate; a page is read only if it agrees with facts established elsewhere:
+the **constructor** its infobox names must be the one F1DB gives the chassis;
+the **years** it reports must fall inside the seasons F1DB records it entered;
+and the **title** must be a form of the chassis's own name.
+
+Refusals are logged with reasons in `harvest/car_specs.log`. The constructor
+check caught five real modelling disagreements — the Lola THL1 is a Haas
+(USA) car on Wikipedia, the Williams FW is an Iso-Marlboro, the Venturi LC92 a
+Fomet — none of which were resolved by force.
+
+### The finding that changed the plan, and the defect it exposed here
+
+**Modern cars are documented far more thinly than historic ones.** Current-era
+specifications are competitive secrets; most "weight" quoted for a recent car
+is that season's regulation minimum, and the 2026 figures in circulation —
+768 kg, 3,400 mm, 1,900 mm — are limits every car on the grid is built to.
+Storing one in a per-car field is inference presented as fact.
+
+Applying that test to the **existing hand-curated data** found four:
+
+```
+mclaren-m23    575 kg = the 1973 minimum
+lotus-88       585 kg = the 1981 minimum
+mclaren-mp4-4  540 kg = the 1988 minimum
+ferrari-f2004  605 kg = the 2004 minimum
+```
+
+All four are now NULL, with the reason recorded in `data/cars.py: WITHDRAWN`
+and in `discrepancies`. Six more curated weights are almost certainly the same
+thing — R25 605, RB6 620, W05 691, W11 746, RB19 798 — but this project does
+not withdraw a figure on a suspicion, and no *sourced* limit for those seasons
+exists yet. They stay, flagged, as open work.
+
+### A test the data does on itself
+
+`regulation_limits` only covers the years a source actually states a limit
+for; carrying a value across an unrecorded change would invent one, so the
+series has holes by design and whole eras are uncovered.
+
+The harvest closes them from the other direction. A figure that is genuinely a
+measurement of one car is that car's alone; **a figure that three or more
+different constructors all quote for cars racing in the same season is the
+rule they were built to.** Run in `build.py` over the harvested rows, that
+test recovered the whole modern minimum-weight series without being told any
+of it — 500, 505, 515, 540, 550, 580, 585, 595, 600, 605, 620, 640, 691, 702,
+733, 743, 770 kg — from the fact that whole grids share each figure. It took
+the chassis weight fill from 346 down to 199, which is the honest number.
+
+**It was wrong three times before it was right, and each correction is a rule
+worth keeping:**
+
+1. *Constructors, not cars.* The first version required three cars and
+   dropped the BRM P126, P133 and P138 wheelbase, because those three share
+   one — they are the same car evolved. Three cars from one constructor is
+   evidence of nothing.
+2. *Per season, not per group.* The second required one year common to every
+   car quoting the value. But a minimum stays in force for years, so the cars
+   need not overlap each other — 600 kg covers 1995 to 2003 — and the test
+   fired almost never. Counting per season also fixes the reverse error:
+   620 kg is quoted by fourteen constructors, thirteen of them in 2010 and
+   the fourteenth a 1955 Lancia, which keeps its figure because in 1955
+   nobody else shared it.
+3. *Weight only.* "A figure a whole grid shares is the rule" holds only where
+   a rule actually fixes that figure. Minimum weight has been fixed
+   continuously since 1961; **wheelbase has never been capped at all except
+   for 2026**. Run on wheelbase the test dropped 2,540 mm, 2,692 mm and
+   2,794 mm from fifteen cars — 100, 106 and 110 inches exactly. Designers of
+   that era worked in imperial and rounded to the same round numbers. Those
+   are real measurements, and they are kept.
+
+The sweep also moved out of the fetcher into the build, so the harvest file
+records what the page said and the database records what survived the checks.
+That move exposed a fourth defect: the fetcher applied the *sourced* limit
+drop per chassis, but a family article is one row covering several — the
+Ferrari F2004 and F2004M share a row spanning 2004-2005 — so whichever
+chassis happened to be read first decided which seasons were tested, and the
+F2004's 605 kg survived. The check now runs in the build against the span
+actually stored.
+
+### Sources, assessed
+
+`source_registry` gained `licence`, `cadence` and `checkability`, and every
+source used by this project is now judged on those three rather than on how
+much data it has. The last one matters most: a source nothing here can
+contradict is a source being trusted, not checked, and this project has twice
+paid for trusting one.
+
+That assessment is why F1DB was chosen — CC BY 4.0, attribution only, no
+share-alike, re-released after every race with a public commit history — and
+why Jolpica's rows are loaded locally rather than committed: the Ergast data
+it continues is CC BY-**NC**-SA, the most restrictive licence in use here.
+
+### Still open
+
+- The specification harvest's name check is too strict in one direction. It
+  refuses "Alfa Romeo 158/159 Alfetta" for `alfa-romeo-159` and "Alfa Romeo
+  Racing C38" for `alfa-romeo-c38`, both of which are the right article. The
+  fix is to allow the chassis name as a token subsequence of the title rather
+  than a strict prefix; the constructor and year checks would still gate it.
+- Six curated weights await a sourced limit for their season.
+- `tools/ergast_load.py` still has not completed a full live run.
+
 ## v2.7 (2026-09-04) — the register and loader for the full classification
 
 Goal: the full finishing order. Delivered: the register work, the id mapping

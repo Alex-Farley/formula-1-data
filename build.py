@@ -27,8 +27,8 @@ from data import radio as RA       # noqa: E402
 from data import results as RS     # noqa: E402
 
 DB = os.path.join(HERE, "f1.db")
-VERSION = "2.7"
-BUILT = "2026-09-04"
+VERSION = "2.8"
+BUILT = "2026-09-05"
 
 
 def build():
@@ -41,7 +41,8 @@ def build():
     # ---------------------------------------------------------- meta
     cur.executemany("INSERT INTO provenance VALUES (?,?,?,?)", N.PROVENANCE)
     cur.executemany(
-        "INSERT INTO source_registry (priority, source, url, use, authority) VALUES (?,?,?,?,?)",
+        "INSERT INTO source_registry (priority, source, url, use, authority,"
+        " licence, cadence, checkability) VALUES (?,?,?,?,?,?,?,?)",
         N.SOURCE_REGISTRY)
     cur.executemany("INSERT INTO meta VALUES (?,?)", [
         ("database_name", "F1 Verified Facts Project Memory Database"),
@@ -52,13 +53,18 @@ def build():
         ("promotion_rule", "Never promote a fact to 'verified' without an official FIA or Formula 1 source."),
         ("coverage_seasons", "1950-2026"),
         ("coverage_note",
-         "Complete for: season champions, race-by-race winners 1950-2026, pole position "
+         "Complete for: the chassis register (every chassis that has raced), engines, "
+         "per-season entry lists, season champions, race-by-race winners 1950-2026, pole position "
          "1950-2024, fastest lap 1950-2024 bar 12 races, the circuit of every race "
          "1950-2026, constructor lineage, engine formulae, regulation changes, safety "
          "milestones, points systems. "
          "Partial by design for: full driver register (every race winner, pole-sitter and "
          "fastest-lap setter, not all ~780 starters); full finishing order; qualifying, "
-         "grid and lap-by-lap data (not held). See the known_gaps table."),
+         "grid and lap-by-lap data (not held); chassis specifications, which exist only "
+         "on the per-car articles and are thin for the modern era because teams do not "
+         "publish them. The chassis a race was won in is known where the season's entry "
+         "list names one chassis for the constructor and NULL where it names several. "
+         "See the known_gaps table."),
     ])
 
     # ------------------------------------------------------- drivers
@@ -236,6 +242,229 @@ def build():
              tyres, cfg, cc, asp, bhp, pnote, rev, ctype, gbox, susp, brakes,
              wt, wb, tf, tr, fuel, concept, innov, story, outcome, dt, ct,
              landmark, conf, sconf, src))
+
+    # A figure withdrawn because it described the regulations rather than the
+    # car must actually be gone, and the reason must be on the record.
+    for car_id, field, old, reason in CR.WITHDRAWN:
+        row = cur.execute(f"SELECT {field} FROM cars WHERE id=?",
+                          (car_id,)).fetchone()
+        if row is None:
+            raise SystemExit(f"WITHDRAWN names unknown car {car_id}")
+        if row[0] is not None:
+            raise SystemExit(
+                f"{car_id}.{field} is declared withdrawn but still holds "
+                f"{row[0]}. Set it to None in data/cars.py.")
+        cur.execute("""INSERT INTO discrepancies (subject, field, stored_value,
+            derived_value, assessment, status)
+            SELECT full_name, ?, ?, 'NULL', ?, 'resolved - withdrawn'
+            FROM cars WHERE id = ?""", (field, str(old), reason, car_id))
+
+    # --- regulation limits. Loaded before the chassis register so the
+    # register's weights can be measured against them.
+    for i, (fy, ty, field, value, unit, note, conf, src) in \
+            enumerate(X.REGULATION_LIMITS, 1):
+        cur.execute("""INSERT INTO regulation_limits (id, from_year, to_year,
+            field, value, unit, note, confidence, source)
+            VALUES (?,?,?,?,?,?,?,?,?)""",
+            (i, fy, ty, field, value, unit, note, conf, src))
+
+    # --- the chassis, engine and entrant register (F1DB, via
+    # tools/f1db_fetch.py). Bulk rows: no person has touched them.
+    known_cons = {r[0] for r in cur.execute("SELECT id FROM constructors")}
+    known_eng = {r[0] for r in cur.execute("SELECT id FROM engine_manufacturers")}
+
+    for eid, man, name, full, cap, cfg, asp in HV.load_engines():
+        our_man = HV.constructor_for_f1db(man)
+        cur.execute("""INSERT INTO engines (id, manufacturer_id,
+            f1db_manufacturer_id, name, full_name, capacity_l, configuration,
+            aspiration, confidence, source) VALUES (?,?,?,?,?,?,?,?,?,?)""",
+            (eid, our_man if our_man in known_eng else None, man, name, full,
+             float(cap) if cap else None, cfg,
+             asp.replace("_", " ").lower() if asp else None,
+             HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
+
+    entrants = HV.load_entrants()
+    # seasons a chassis was entered, from the entry lists
+    chassis_years = {}
+    for year, _entrant, _cons, _eman, ch_ids, _eng, _tyres in entrants:
+        for ch in ch_ids:
+            chassis_years.setdefault(ch, set()).add(year)
+
+    # chassis -> the curated car that covers it, from CAR_CHASSIS
+    chassis_car = {}
+    for car_id, ch_ids in CR.CAR_CHASSIS.items():
+        for ch in ch_ids:
+            if ch in chassis_car:
+                raise SystemExit(
+                    f"chassis {ch} is claimed by both {chassis_car[ch]} "
+                    f"and {car_id}")
+            chassis_car[ch] = car_id
+
+    specs = {}
+    for row in HV.load_car_specs():
+        for ch in (row["chassis_ids"] or "").split("+"):
+            if ch:
+                specs[ch] = row
+
+    def _int(v):
+        return int(float(v)) if v else None
+
+    def _float(v):
+        return float(v) if v else None
+
+    for ch_id, f1db_cons, name, full in HV.load_chassis():
+        if ch_id in chassis_car and chassis_car[ch_id] not in seen_cars:
+            raise SystemExit(f"CAR_CHASSIS names unknown car "
+                             f"{chassis_car[ch_id]}")
+        our_cons = HV.constructor_for_f1db(f1db_cons)
+        yrs = chassis_years.get(ch_id) or set()
+        sp = specs.get(ch_id, {})
+        cur.execute("""INSERT INTO chassis (id, constructor_id,
+            f1db_constructor_id, name, full_name, car_id, first_year,
+            last_year, seasons, article, designers, chassis_type, susp_front,
+            susp_rear, engine_name, engine_config, aspiration,
+            engine_position, gearbox, gears, brakes, fuel, tyres, capacity_cc,
+            power_bhp, power_note, weight_kg, wheelbase_mm, track_front_mm,
+            track_rear_mm, fuel_capacity_l, predecessor, successor,
+            published_races, published_wins, published_poles, confidence,
+            spec_source, source) VALUES (""" + ",".join("?" * 39) + ")",
+            (ch_id, our_cons if our_cons in known_cons else None, f1db_cons,
+             name, full, chassis_car.get(ch_id),
+             min(yrs) if yrs else None, max(yrs) if yrs else None, len(yrs),
+             sp.get("article"), sp.get("designers"), sp.get("chassis_type"),
+             sp.get("susp_front"), sp.get("susp_rear"), sp.get("engine_name"),
+             sp.get("engine_config"), sp.get("aspiration"),
+             sp.get("engine_position"), sp.get("gearbox"), sp.get("gears"),
+             sp.get("brakes"), sp.get("fuel"), sp.get("tyres"),
+             _int(sp.get("capacity_cc")), _int(sp.get("power_bhp")),
+             sp.get("power_note"), _float(sp.get("weight_kg")),
+             _int(sp.get("wheelbase_mm")), _int(sp.get("track_front_mm")),
+             _int(sp.get("track_rear_mm")), _int(sp.get("fuel_l")),
+             sp.get("predecessor"), sp.get("successor"),
+             _int(sp.get("races")), _int(sp.get("wins")), _int(sp.get("poles")),
+             HV.F1DB_CONFIDENCE,
+             ("https://en.wikipedia.org/wiki/" +
+              sp["article"].replace(" ", "_")) if sp.get("article") else None,
+             HV.F1DB_SOURCE))
+
+    # --- a regulation figure is not a measurement, part one
+    #
+    # Drop any harvested figure that exactly restates a limit this database
+    # has a source for. tools/wikispec_fetch.py already does this, but it
+    # does it per chassis, and a family article carries one row for several
+    # chassis - so the Ferrari F2004 and F2004M share a row whose span is
+    # 2004-2005, and whichever chassis was read first decided which seasons
+    # were tested. Doing it here, against the span actually stored, closes
+    # that. The build is where the guarantee belongs anyway: the harvest can
+    # be re-run by anyone, and this cannot be skipped.
+    reg_by_year = {}
+    for lo_, hi_, field_, val_, _u, _n, _c, _s in X.REGULATION_LIMITS:
+        for y in range(lo_, (hi_ or lo_) + 1):
+            reg_by_year.setdefault(y, {})[field_] = val_
+    for col, field_, what in (("weight_kg", "minimum_weight_kg", "minimum"),
+                              ("wheelbase_mm", "maximum_wheelbase_mm", "maximum")):
+        for cid_, val, lo_, hi_ in cur.execute(
+                f"""SELECT id, {col}, first_year, last_year FROM chassis
+                    WHERE {col} IS NOT NULL AND first_year IS NOT NULL""").fetchall():
+            hit = [y for y in range(lo_, (hi_ or lo_) + 1)
+                   if reg_by_year.get(y, {}).get(field_) == val]
+            if hit:
+                cur.execute(f"UPDATE chassis SET {col}=NULL WHERE id=?", (cid_,))
+                cur.execute("""INSERT INTO discrepancies (subject, field,
+                    stored_value, derived_value, assessment, status)
+                    SELECT full_name, ?, ?, 'NULL', ?, 'resolved - withdrawn'
+                    FROM chassis WHERE id = ?""",
+                    (col, str(val),
+                     f"{val:g} is the {hit[0]} regulation {what}, which every "
+                     f"car that season was built to. It describes the rules, "
+                     f"not this car.", cid_))
+
+    # --- a regulation figure is not a measurement, part two
+    #
+    # regulation_limits catches only the years a limit has actually been
+    # sourced for, and that series is full of holes on purpose: carrying a
+    # value across a change no source records would invent one. Whole eras
+    # are uncovered.
+    #
+    # The data closes them from the other direction. A figure that is
+    # genuinely a measurement of one car is that car's alone; a figure that
+    # three or more DIFFERENT CONSTRUCTORS all quote for cars racing in the
+    # same season is the rule they were built to.
+    #
+    # Both qualifications are load-bearing, and each was learned by getting
+    # it wrong:
+    #
+    #   * Constructors, not cars. The BRM P126, P133 and P138 share a
+    #     wheelbase because they are one car evolved. Three cars from one
+    #     constructor is evidence of nothing.
+    #   * Per season, not per group. A minimum stays in force for years, so
+    #     the cars quoting it need not overlap each other - 600 kg covers
+    #     1995 to 2003. Requiring one year common to all of them made the
+    #     test fire almost never. Counting per season also stops the reverse
+    #     error: 620 kg is quoted by fourteen constructors, but thirteen of
+    #     them are 2010 and the fourteenth is a 1955 Lancia, which keeps its
+    #     figure because in 1955 nobody else shared it.
+    #   * Weight only. The test says "a figure a whole grid shares is the
+    #     rule", which is sound only where a rule actually fixes that figure.
+    #     Minimum weight has been fixed for the whole grid continuously since
+    #     1961. Wheelbase has never been capped at all except for 2026, which
+    #     regulation_limits already covers - so a shared wheelbase cannot be
+    #     a regulation and must be something else. Running the test on it
+    #     dropped 2,540 mm, 2,692 mm and 2,794 mm from fifteen cars, which
+    #     are 100, 106 and 110 inches exactly: designers of that era worked
+    #     in imperial and rounded to the same numbers. Those are real
+    #     measurements and they are kept.
+    for col, what in (("weight_kg", "minimum weight"),):
+        rows_ = cur.execute(
+            f"""SELECT id, {col}, f1db_constructor_id, first_year, last_year
+                FROM chassis
+                WHERE {col} IS NOT NULL AND first_year IS NOT NULL""").fetchall()
+        # (value, season) -> constructors quoting it, and the chassis doing so
+        by_year = {}
+        for cid_, val, cons_, lo_, hi_ in rows_:
+            for y in range(lo_, (hi_ or lo_) + 1):
+                cons, ids = by_year.setdefault((val, y), (set(), set()))
+                cons.add(cons_)
+                ids.add(cid_)
+        drop, evidence = set(), {}
+        for (val, y), (cons, ids) in by_year.items():
+            if len(cons) < 3:
+                continue
+            drop |= ids
+            best = evidence.get(val)
+            if best is None or len(cons) > best[1]:
+                evidence[val] = (y, len(cons), len(ids))
+        if drop:
+            cur.executemany(f"UPDATE chassis SET {col}=NULL WHERE id=?",
+                            [(c,) for c in sorted(drop)])
+            for val, (y, ncons, nids) in sorted(evidence.items()):
+                cur.execute("""INSERT INTO discrepancies (subject, field,
+                    stored_value, derived_value, assessment, status)
+                    VALUES (?,?,?,?,?,?)""",
+                    (f"{nids} chassis quoting {val:g}", col, str(val), "NULL",
+                     f"{ncons} different constructors racing in {y} all quote "
+                     f"{val:g} for this field. A figure a whole grid shares is "
+                     f"the season's {what}, not a measurement of any one car, "
+                     f"so it is not stored per chassis. The rule itself "
+                     f"belongs in regulation_limits.",
+                     "resolved - withdrawn"))
+
+    known_years = {r[0] for r in cur.execute("SELECT year FROM seasons")}
+    for i, (year, entrant, f1db_cons, eng_man, ch_ids, eng_ids, tyres) in \
+            enumerate(entrants, 1):
+        if year not in known_years:
+            raise SystemExit(f"entrants.txt: season {year} is not in the "
+                             f"season register")
+        our_cons = HV.constructor_for_f1db(f1db_cons)
+        cur.execute("""INSERT INTO season_entrants (id, year, entrant_id,
+            f1db_constructor_id, constructor_id, engine_manufacturer_id,
+            chassis_ids, chassis_count, engine_ids, tyre_ids, confidence,
+            source) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (i, year, entrant, f1db_cons,
+             our_cons if our_cons in known_cons else None, eng_man,
+             "+".join(ch_ids) or None, len(ch_ids),
+             "+".join(eng_ids) or None, "+".join(tyres) or None,
+             HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
 
     for gid, name, country, aliases, notes in EV.GRANDS_PRIX:
         cur.execute("""INSERT INTO grands_prix (id, name, country, aliases, notes,
@@ -770,6 +999,87 @@ def build():
         LIMIT 1""").fetchone()
     if bad:
         raise SystemExit("car season: an entry falls outside its car's years")
+
+    # --- link race entries to the CHASSIS that scored them
+    #
+    # known_gaps #1 has stood since v2.6: the chassis-per-race harvest was
+    # abandoned because the winner cross-check does not constrain the
+    # chassis. A 1952 trial returned "Ferrari 125 F2" for races Ascari won in
+    # a Ferrari 500 and every winner still matched, because the winner says
+    # which race a row describes and nothing at all about what he drove.
+    #
+    # The entry lists are the constraint that was missing. They are also not
+    # a complete answer, and that limit is the whole design of this block:
+    #
+    #   F1DB records which chassis a constructor ran in a SEASON. It does not
+    #   record which chassis ran in which ROUND.
+    #
+    # So a constructor-season constrains the chassis only when the entry
+    # lists name exactly one for it across every entrant. Ferrari in 1952
+    # names five - the 500 Ascari won everything in, plus a 125, a 166, a 212
+    # and a 375S in other people's hands - and gets no link at all. That is
+    # the correct answer for 1952 and it is the answer the abandoned harvest
+    # should have given.
+    season_chassis = {}
+    for year, _entrant, f1db_cons, _eman, ch_ids, _eng, _tyres in entrants:
+        our = HV.constructor_for_f1db(f1db_cons)
+        if our in known_cons:
+            season_chassis.setdefault((our, year), set()).update(ch_ids)
+    unambiguous = {k: next(iter(v)) for k, v in season_chassis.items()
+                   if len(v) == 1}
+
+    # The check, before anything is written. CAR_SEASONS + CAR_CHASSIS are a
+    # fact this database already holds, asserted by hand and already proved
+    # against published win totals. Where F1DB's entry lists resolve the same
+    # constructor-season to a single chassis, it must be one this database
+    # already assigns to that car. A disagreement is not reconciled quietly;
+    # it stops the build.
+    for car_id, yr in CR.CAR_SEASONS:
+        cons = cur.execute("SELECT constructor_id FROM cars WHERE id=?",
+                           (car_id,)).fetchone()[0]
+        found = unambiguous.get((cons, yr))
+        if found and found not in CR.CAR_CHASSIS.get(car_id, ()):
+            raise SystemExit(
+                f"chassis linkage: the {yr} entry lists give {cons} exactly "
+                f"one chassis, {found}, but CAR_SEASONS says that season "
+                f"belongs to {car_id}, whose chassis are "
+                f"{CR.CAR_CHASSIS.get(car_id)}")
+
+    for (cons, yr), ch_id in unambiguous.items():
+        cur.execute("""UPDATE race_entries SET chassis_id=?
+            WHERE constructor_id=? AND race_id IN
+                  (SELECT id FROM races WHERE year=?)""", (ch_id, cons, yr))
+    # A chassis may not be credited with a race run outside the seasons the
+    # entry lists record it in. This cannot fail given how the links are
+    # made; it is here so that it cannot start failing silently later.
+    bad = cur.execute("""SELECT e.id FROM race_entries e
+        JOIN chassis c ON c.id = e.chassis_id JOIN races r ON r.id = e.race_id
+        WHERE r.year < c.first_year OR r.year > c.last_year LIMIT 1""").fetchone()
+    if bad:
+        raise SystemExit("chassis linkage: an entry falls outside its "
+                         "chassis's entered seasons")
+
+    cur.execute("""UPDATE chassis SET
+        races = (SELECT COUNT(DISTINCT e.race_id) FROM race_entries e
+                 WHERE e.chassis_id = chassis.id),
+        wins = (SELECT COUNT(DISTINCT e.race_id) FROM race_entries e
+                WHERE e.chassis_id = chassis.id AND e.finish_position = 1)""")
+
+    # The reconciliation. `wins` is counted from this database's own race
+    # records through the linkage above; `published_wins` was read off the
+    # car's Wikipedia article by a different route entirely. A chassis cannot
+    # have won more races than its published career total, and one that has
+    # means the linkage is wrong.
+    over = cur.execute("""SELECT id, full_name, wins, published_wins
+        FROM chassis WHERE published_wins IS NOT NULL AND wins > published_wins
+        ORDER BY wins - published_wins DESC""").fetchall()
+    for cid_, full_, derived_, published_ in over:
+        # A family article publishes the family's total, so a single chassis
+        # in a family can only ever come in under it. Exceeding it is a real
+        # linkage error.
+        raise SystemExit(
+            f"chassis linkage: {full_} is credited with {derived_} wins from "
+            f"the race records but its article publishes {published_}")
 
     cur.execute("""UPDATE cars SET
         races = (SELECT COUNT(DISTINCT e.race_id) FROM race_entries e

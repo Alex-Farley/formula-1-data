@@ -456,23 +456,46 @@ KNOWN_GAPS = [
      "Do NOT transcribe these rows by hand - an attempt to do so during "
      "v2.7 put fabricated results into four of five sampled 2008 rows, and "
      "only that reconciliation caught it."),
-    ("car_id", "the car each race was won in",
-     "29 cars are in the register, all of them landmarks, with full "
-     "specifications and a design history. They are linked to races through "
-     "data/cars.py CAR_SEASONS, which asserts per (car, season) that a "
-     "constructor ran one chassis that year. That covers 262 of 2,424 race "
-     "entries. It stops where a team ran two cars in a season - Lotus in "
-     "1970, Cooper in 1960, Williams in 1982 - because a blanket year link "
-     "would then be wrong, and it stops entirely for the several hundred "
-     "chassis that never won anything. The register is deliberately not a "
-     "list of every car that ever started a Grand Prix.", 0,
-     "Harvest the chassis model per race from the season articles, which "
-     "print it in the same results table the winners came from. Reject any "
-     "value the article does not actually contain: a trial harvest of 1952 "
-     "returned an inferred 'Ferrari 125 F2' for races Ascari won in a "
-     "Ferrari 500, and the winner cross-check does not catch that, so the "
-     "harvested chassis must also be checked against that season's entry "
-     "list before it is stored."),
+    ("chassis_id", "the chassis each race was won in, before 1980",
+     "The winning chassis is now known for 819 of 1,161 races. It comes from "
+     "F1DB's per-season entry lists, which record which chassis a constructor "
+     "ran in a season - the second, constraining source the abandoned harvest "
+     "was missing. What is left is not a smaller version of the same problem, "
+     "it is a different one, and it has a hard edge: **F1DB records what a "
+     "team ran in a SEASON, not what it ran in a ROUND.** Where a constructor "
+     "used more than one design in a year the entry list names them all "
+     "without saying which raced where, so the season constrains nothing and "
+     "the entries stay NULL. 321 constructor-seasons are in that position; "
+     "v_ambiguous_seasons lists them. The gap is therefore concentrated "
+     "almost entirely before 1980 - the 1960s stand at 4 per cent linked "
+     "against 49 per cent for the 2020s - because a modern team runs one car "
+     "all season while a 1960s constructor was a name several privateers "
+     "entered several different chassis under.", 0,
+     "Per-round entry lists, which F1DB does not have. The season articles "
+     "print a chassis column in the same results table the winners came "
+     "from, and that column IS per round. Harvesting it is only safe with "
+     "the check that is now available: a harvested chassis must appear in "
+     "that constructor's entry list for that season, or be refused. Without "
+     "that second test the winner cross-check passes on an invented value - "
+     "a 1952 trial returned 'Ferrari 125 F2' for races Ascari won in a "
+     "Ferrari 500 and every winner matched."),
+    ("cars.weight_kg", "weight and wheelbase for the modern era",
+     "Modern cars are documented far more thinly than historic ones, and the "
+     "thinness is deliberate on the teams' part: current-era specifications "
+     "are competitive secrets, so a team publishes a power-unit badge, a "
+     "suspension layout and very little else. Most 'weight' quoted for a "
+     "recent car is simply that season's regulation minimum, and the 2026 "
+     "figures in circulation - 768 kg, a 3,400 mm wheelbase, 1,900 mm of "
+     "width - are limits in the rules that every car on the grid is built "
+     "to. Storing one in a per-car field would be inference presented as "
+     "fact. They are in regulation_limits instead, and the harvest drops a "
+     "car figure that only restates one. The practical consequence is that "
+     "going backwards yields much richer rows than starting at 2026: the "
+     "recent chassis are thin and say so.", 1,
+     "Nothing to fix by finding a better source, because no better source "
+     "exists - the figures are not published. A car field stays NULL until a "
+     "measurement of that car, rather than of the rules it was built to, is "
+     "established."),
     ("cars.poles", "the car each pole was taken in",
      "The pole and fastest-lap harvest recorded who set them but not what "
      "they drove, so 655 of 1,161 pole entries carry no constructor and "
@@ -559,3 +582,151 @@ CORRECTIONS = [
      "also the number found in the race data. Corrected in favour of the derived "
      "figure, which two independent sources now agree on."),
 ]
+
+
+# =====================================================================
+# The chassis, engine and entrant register (harvest/chassis.txt,
+# harvest/engines.txt, harvest/f1db_constructors.txt, harvest/entrants.txt)
+#
+# Source: F1DB (https://github.com/f1db/f1db), CC BY 4.0, re-released after
+# every race. Fetched by tools/f1db_fetch.py, which writes these files and is
+# the only thing that ever writes them: 1,153 chassis and 1,925 entrant rows
+# are far past the scale CONTRIBUTING.md allows a person to move by hand.
+#
+# Confidence: 'reference'. F1DB is a maintained, versioned community database
+# with an explicit licence and a public revision history, which is better
+# provenance than most of what is available here - but it is not an FIA
+# source and is not promoted to 'verified'.
+#
+# What the entrant data does and does not settle
+# ----------------------------------------------
+# known_gaps #1 records that the chassis-per-race harvest was abandoned
+# because the winner cross-check does not constrain the chassis: a 1952 trial
+# returned "Ferrari 125 F2" for races Ascari won in a Ferrari 500, and every
+# winner still matched. F1DB's season -> constructor -> chassis mapping is the
+# second source that check was missing.
+#
+# It is not a complete answer, and pretending otherwise would repeat the
+# original mistake in a new form. **F1DB records which chassis a constructor
+# ran in a season. It does not record which chassis ran in which round.**
+# Where a team ran more than one design in a year the entrant block lists
+# them all with no round attribution, so the mapping constrains the chassis
+# only for a constructor-season that used exactly one. Those are linked; the
+# rest stay NULL and the ambiguity is stored, not dropped.
+# =====================================================================
+CHASSIS_FILE = os.path.join(HERE, "..", "harvest", "chassis.txt")
+ENGINES_FILE = os.path.join(HERE, "..", "harvest", "engines.txt")
+F1DB_CONS_FILE = os.path.join(HERE, "..", "harvest", "f1db_constructors.txt")
+ENTRANTS_FILE = os.path.join(HERE, "..", "harvest", "entrants.txt")
+SPECS_FILE = os.path.join(HERE, "..", "harvest", "car_specs.txt")
+
+F1DB_SOURCE = "https://github.com/f1db/f1db"
+F1DB_CONFIDENCE = "reference"
+
+# F1DB constructor id -> this database's constructor id, for the seven that
+# do not already share one. Six are spelling; the seventh is not.
+F1DB_CONSTRUCTORS = {
+    "honda": "honda-works",
+    "talbot-lago": "lago",
+    "leyton-house": "leyton",
+    "prost": "prost-gp",
+    "stewart": "stewart-gp",
+    "surtees": "surtees-team",
+}
+
+# Constructors this database holds that F1DB has no constructor for, with the
+# reason. Declared rather than forced: a mapping invented to make a join
+# succeed is a fabrication with a foreign key on it.
+F1DB_NON_MAPPING = {
+    "rob-walker":
+        "F1DB models R.R.C. Walker Racing Team as an ENTRANT, not a "
+        "constructor, which is right: Rob Walker never built a car. He "
+        "entered other people's - the Cooper T51 Moss won Argentina 1958 in, "
+        "and later Lotuses. This database records him as a constructor "
+        "because the race records credit the win to 'Cooper-Climax' entered "
+        "by Walker and the constructor column had to hold something. The two "
+        "models disagree; neither is wrong on the facts.",
+}
+
+
+def _read_pipe(path, fields):
+    """Read one of the generated register files, checking the field count on
+    every line. A short row is a truncated file, not something to pad."""
+    rows = []
+    with open(os.path.abspath(path), encoding="utf-8") as f:
+        for n, line in enumerate(f, 1):
+            line = line.rstrip("\n")
+            if not line.strip() or line.startswith("#"):
+                continue
+            parts = line.split("|")
+            if len(parts) != fields:
+                raise SystemExit(
+                    f"{os.path.basename(path)}:{n}: {len(parts)} fields, "
+                    f"expected {fields}. Rerun tools/f1db_fetch.py.")
+            rows.append([p.strip() or None for p in parts])
+    return rows
+
+
+def load_chassis():
+    """chassis_id, constructor_id, name, full_name"""
+    return _read_pipe(CHASSIS_FILE, 4)
+
+
+def load_engines():
+    """engine_id, manufacturer_id, name, full_name, capacity_l, config, aspiration"""
+    return _read_pipe(ENGINES_FILE, 7)
+
+
+def load_f1db_constructors():
+    """constructor_id, name, full_name, country_id"""
+    return _read_pipe(F1DB_CONS_FILE, 4)
+
+
+def load_entrants():
+    """year, entrant_id, constructor_id, engine_manufacturer_id,
+    [chassis_ids], [engine_ids], [tyre_ids]
+
+    The three id lists are lists because F1DB writes them as lists whenever a
+    constructor ran more than one in a season and does not say which ran
+    where. Splitting them into separate rows here would invent the pairing.
+    """
+    out = []
+    for (year, entrant, cons, eng_man, chassis, engines,
+         tyres) in _read_pipe(ENTRANTS_FILE, 7):
+        out.append((int(year), entrant, cons, eng_man,
+                    (chassis or "").split("+") if chassis else [],
+                    (engines or "").split("+") if engines else [],
+                    (tyres or "").split("+") if tyres else []))
+    return out
+
+
+def constructor_for_f1db(f1db_id):
+    """This database's constructor id for an F1DB one, or None where there is
+    deliberately no mapping."""
+    return F1DB_CONSTRUCTORS.get(f1db_id, f1db_id)
+
+
+def load_car_specs():
+    """The Wikipedia infobox harvest. Returns a list of dicts keyed by the
+    column names in the file header, or [] if the harvest has not been run."""
+    path = os.path.abspath(SPECS_FILE)
+    if not os.path.exists(path):
+        return []
+    cols, rows = None, []
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.rstrip("\n")
+            if line.startswith("#"):
+                if "|" in line:
+                    cols = [c.strip() for c in line.lstrip("# ").split("|")]
+                continue
+            if not line.strip():
+                continue
+            parts = line.split("|")
+            if cols is None or len(parts) != len(cols):
+                raise SystemExit(
+                    f"car_specs.txt: {len(parts)} fields, expected "
+                    f"{len(cols) if cols else '?'}. Rerun "
+                    f"tools/wikispec_fetch.py.")
+            rows.append({c: (v.strip() or None) for c, v in zip(cols, parts)})
+    return rows

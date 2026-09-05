@@ -208,26 +208,139 @@ REGULATIONS_2026 = {
     },
 }
 
+# priority, source, url, use, authority, licence, cadence, checkability
+#
+# The last three are the assessment, and they are the point of this table.
+# A source is judged on what you may do with it, how often it is maintained,
+# and - above all - on whether anything already held here can contradict it.
+# A source nothing can contradict is a source you are trusting, not checking,
+# and this project has twice paid for trusting one.
 SOURCE_REGISTRY = [
     (1, "FIA Formula 1 regulations", "https://www.fia.com/regulations/formula-1",
-     "Primary authority for sporting, technical, financial and operational rules.", "official"),
+     "Primary authority for sporting, technical, financial and operational rules.", "official",
+     "FIA copyright; published for reference, not redistribution.",
+     "Reissued per season, amended in-season by WMSC decision.",
+     "Nothing here outranks it. Its own numbers are checked against each "
+     "other across seasons, and the limits it sets are stored in "
+     "regulation_limits rather than on any car."),
     (2, "FIA 2026 Formula One Championship archive",
      "https://www.fia.com/events/fia-formula-one-world-championship/season-2026/2026-fia-formula-one-world-championship",
-     "Primary authority for FIA championship calendar, classifications and event status.", "official"),
+     "Primary authority for FIA championship calendar, classifications and event status.", "official",
+     "FIA copyright.", "Per event, during the season.",
+     "The 2026 calendar it gives is checked against the stored race register "
+     "on every build."),
     (3, "Formula1.com", "https://www.formula1.com/",
-     "Official Formula 1/FOM source for teams, drivers, cars, schedules, results and official explainers.", "official"),
+     "Official Formula 1/FOM source for teams, drivers, cars, schedules, results and official explainers.", "official",
+     "FOM copyright; no reuse licence.", "Continuous during the season.",
+     "Its career totals are reconciled against totals derived from the race "
+     "records. That is what caught Russell's pole count and, before it, an "
+     "internally inconsistent set of 2026 figures on the same pages."),
     (4, "Official F1 team websites", "https://www.formula1.com/en/teams",
-     "Official team facts, car names, power units, staff, bases and team history.", "official"),
+     "Official team facts, car names, power units, staff, bases and team history.", "official",
+     "Team copyright.", "Around a launch, then rarely.",
+     "Car names cross-check against the chassis register; nothing else "
+     "here can contradict a team's own history page."),
     (5, "Official circuit/promoter sources", "https://www.formula1.com/en/racing/2026",
-     "Circuit/event facts; verify against FIA homologation where a technical or legal detail matters.", "official"),
+     "Circuit/event facts; verify against FIA homologation where a technical or legal detail matters.", "official",
+     "Promoter copyright.", "Around an event.",
+     "Circuit length and turn counts are checked against the layout "
+     "timelines, which must be complete and non-overlapping where present."),
     (6, "Official driver profiles", "https://www.formula1.com/en/drivers",
-     "Driver nationality, number, biography and career statistics.", "official"),
+     "Driver nationality, number, biography and career statistics.", "official",
+     "FOM copyright.", "Per event.",
+     "Every career win, pole and fastest-lap total is recomputed from the "
+     "race records and compared."),
     (7, "F1 results archive", "https://www.formula1.com/en/results",
-     "Season-by-season classifications and race results.", "official"),
+     "Season-by-season classifications and race results.", "official",
+     "FOM copyright.", "Per event.",
+     "The winner of every race is held independently from the Wikipedia "
+     "harvest; the two must agree."),
     (8, "Wikipedia season results tables", "https://en.wikipedia.org/wiki/List_of_Formula_One_World_Championship_points_scoring_systems",
-     "Admitted as a REFERENCE source for race-by-race results only (see the 'reference' confidence tier). Its season tables are transcribed from FIA classifications and were cross-checked on load against independently held season data. Not admissible for narrative, attribution or contested claims, and never promoted to 'verified' without an FIA/F1 check.", "reference"),
+     "Admitted as a REFERENCE source for race-by-race results only (see the 'reference' confidence tier). Its season tables are transcribed from FIA classifications and were cross-checked on load against independently held season data. Not admissible for narrative, attribution or contested claims, and never promoted to 'verified' without an FIA/F1 check.", "reference",
+     "CC BY-SA 4.0. Share-alike reaches any prose taken from it - see "
+     "ATTRIBUTION.md.", "Continuous, by anyone.",
+     "Race count per season, contiguous rounds, and every driver and "
+     "constructor name resolving to the register. NOT sufficient on its own "
+     "for standings grids: they left-pack their cells, a driver who missed a "
+     "round shifts every later result a column, and the winner cross-check "
+     "passes anyway because winners sit in the dense top rows. That route "
+     "is closed."),
     (9, "Fan sites, Reddit, secondary media, unsourced databases", None,
-     "FORBIDDEN as authority under this database's verification policy. May be used to locate an official source, never to establish a fact.", "forbidden"),
+     "FORBIDDEN as authority under this database's verification policy. May be used to locate an official source, never to establish a fact.", "forbidden",
+     "Various and mostly unstated.", "Various.",
+     "Nothing. That is the reason for the ban, not the size of the data."),
+
+    (10, "F1DB", "https://github.com/f1db/f1db",
+     "The chassis, engine, constructor and per-season entrant register: every "
+     "chassis that has raced, and which constructor entered which chassis in "
+     "which season. Loaded by tools/f1db_fetch.py. Its entrant mapping is the "
+     "second, constraining source the chassis-per-race harvest was missing.",
+     "reference",
+     "CC BY 4.0 - attribution only, no share-alike. The most permissive "
+     "licence of any bulk source used here.",
+     "Re-released after every race, versioned, with a public commit history "
+     "and a changelog. Better maintained than anything else at this scale.",
+     "Its (constructor, season) -> chassis mapping is checked against the 41 "
+     "CAR_SEASONS assertions this database already held and had already "
+     "proved against published win totals. Its chassis register is checked "
+     "against the Wikipedia per-car articles for constructor and seasons. "
+     "It carries NO technical specifications at all, so nothing it says can "
+     "be mistaken for one."),
+
+    (11, "Wikipedia per-car articles ({{Racing car}} infobox)",
+     "https://en.wikipedia.org/wiki/Category:Formula_One_cars",
+     "Chassis specifications: construction, suspension, engine, gearbox, "
+     "brakes, weight, wheelbase, track, tyres, designers, predecessor and "
+     "successor. There is no unified specification dataset for Formula One "
+     "cars anywhere; this is where the data lives. Harvested by "
+     "tools/wikispec_fetch.py.", "reference",
+     "CC BY-SA 4.0.", "Continuous, by anyone; a historic car's article may "
+     "not change for years, which for a fixed specification is a feature.",
+     "Three checks, all of which must pass before a page is read at all: "
+     "the constructor the infobox names must be the one F1DB gives the "
+     "chassis; the years it reports must fall inside the seasons F1DB "
+     "records it entered; and the article title must be a form of the "
+     "chassis's own name. Afterwards its published win total is reconciled "
+     "against the wins derived from this database's race records."),
+
+    (12, "Jolpica-F1 (Ergast's maintained successor)",
+     "https://api.jolpi.ca/ergast/f1/",
+     "The full race classification 1950-2026: every finisher and retirement "
+     "with position, grid, laps, cause and points. Loaded by "
+     "tools/ergast_load.py.", "reference",
+     "CC BY-NC-SA 4.0 on the Ergast data it continues: NON-COMMERCIAL. That "
+     "is the most restrictive licence of any source here and it is the "
+     "reason these rows are loaded locally rather than committed.",
+     "Per event, community-run, and explicitly a volunteer continuation "
+     "after Ergast's shutdown - the least certain future of any source here.",
+     "The winner it reports for a race must equal the winner already stored "
+     "from the Wikipedia harvest or the race is refused whole; and the "
+     "derived podium counts are reconciled against official career figures. "
+     "That reconciliation is what caught a hand-relayed fabrication in "
+     "v2.7."),
+
+    (13, "OpenF1", "https://openf1.org",
+     "Car telemetry from 2023: speed, throttle, brake, RPM, gear and "
+     "position at about 3.7 Hz, plus intervals, stints and radio. Free with "
+     "no authentication for historical data; only real-time needs a "
+     "subscription. NOT loaded: it covers 2023+ where FastF1 covers 2018+, "
+     "and telemetry does not belong in this file at all.", "reference",
+     "MIT for the code; the underlying data is Formula One Management's.",
+     "Real-time during a session.",
+     "Its lap and stint data can be checked against FastF1's for the "
+     "overlapping seasons, which is the only reason it would be worth "
+     "adding. Nothing in this database constrains a telemetry sample."),
+
+    (14, "Formula 1 live timing, via FastF1",
+     "https://github.com/theOehrly/Fast-F1",
+     "Per-lap timing, tyre stints, pit stops, race control messages and the "
+     "team radio index, 2018 onwards. Loaded by tools/fastf1_load.py.",
+     "reference",
+     "MIT for the library; the data is Formula One Management's and FastF1's "
+     "guidance is personal, non-commercial use. Never committed here.",
+     "Live during a session; nothing exists before 2018 and nothing will.",
+     "Its finishing order is checked against the winner already stored, the "
+     "same test the Jolpica loader applies."),
 ]
 
 PROVENANCE = [

@@ -1,4 +1,4 @@
-# F1 Verified Facts Database — v2.7
+# F1 Verified Facts Database — v2.8
 
 An expansion of the original single-file JSON into a normalised, queryable
 SQLite database covering 1950–2026, with the JSON kept as a generated export.
@@ -12,6 +12,16 @@ harvested from Wikipedia's season tables under a new `reference` confidence tier
 replaces the per-race one, every Grand Prix now has a canonical id, and
 `audit.py` reports on the shape of the database rather than its contents.
 See *Structure* below.
+
+**v2.8** adds the **chassis register**: every chassis that has raced — 1,153
+of them — with the engines, the per-season entry lists, and whatever
+specification could be established from each car's own article. The entry
+lists are the second, constraining source the abandoned chassis harvest was
+missing, and the winning chassis is now known for 819 of 1,161 races. It also
+adds `regulation_limits`, because most "weight" published for a modern car is
+that season's regulation minimum and not a measurement of anything — a test
+that found four such figures already sitting in the curated data. See *Cars
+and chassis* below.
 
 **v2.7** adds the **register and the loader for the full race
 classification** — 62 podium-scoring drivers and 10 constructors that earlier
@@ -43,10 +53,12 @@ git clone <your-repo-url> && cd f1db
 make all          # rebuild, verify, export — no dependencies
 ./f1              # list the query commands
 ./f1 car mp4/4
+./f1 chassis lotus
 ```
 
-Built 2026-09-04. Current 2026 data verified against formula1.com the same day
-(after round 12, Zandvoort).
+Built 2026-09-05. Current 2026 data verified against formula1.com on
+2026-09-04 (after round 12, Zandvoort). The chassis register is F1DB
+v2026.12.0.
 
 ---
 
@@ -54,13 +66,13 @@ Built 2026-09-04. Current 2026 data verified against formula1.com the same day
 
 | File | What it is |
 |---|---|
-| `f1.db` | The SQLite database. 35 tables, 30 views, ~4,600 rows. This is the artefact. |
+| `f1.db` | The SQLite database. 38 tables, 34 views, ~8,200 rows. This is the artefact. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. |
 | `f1_compat.json` | JSON in the *original* v1 key layout, so anything already consuming that file keeps working. |
 | `schema.sql` | The schema, commented. |
 | `build.py` | Rebuilds `f1.db` from the data modules. Idempotent. |
-| `verify.py` | 125 integrity, cross-tabulation and sanity checks. Exit code 1 on failure. |
+| `verify.py` | 136 integrity, cross-tabulation and sanity checks. Exit code 1 on failure. |
 | `audit.py` | Structural health check: fill rates, coverage, keys, redundancy, readiness. |
 | `export_json.py` | Regenerates the JSON exports from the database. |
 | `data/*.py` | The source data, as readable Python literals. **Edit here, then rebuild.** |
@@ -68,6 +80,14 @@ Built 2026-09-04. Current 2026 data verified against formula1.com the same day
 | `harvest/poles.txt` | The raw pole / fastest-lap harvest, same format. |
 | `harvest/venues.txt` | The raw race-venue harvest, same format. |
 | `harvest/append.py` | Appends rows to a harvest file, checking shape and flagging duplicates. |
+| `harvest/chassis.txt` | Every chassis that has raced. **Generated** by `tools/f1db_fetch.py` — do not edit. |
+| `harvest/engines.txt` | Every engine, with capacity, configuration and aspiration. **Generated.** |
+| `harvest/entrants.txt` | Season → entrant → constructor → chassis/engine/tyre. **Generated.** |
+| `harvest/f1db_constructors.txt` | Constructor names, for the specification cross-check. **Generated.** |
+| `harvest/car_specs.txt` | Chassis specifications off the per-car articles. **Generated** by `tools/wikispec_fetch.py`. |
+| `harvest/car_specs.log` | Every chassis that was refused, and the reason. **Generated.** |
+| `tools/f1db_fetch.py` | Pulls the chassis, engine, constructor and entrant register from F1DB (CC BY 4.0) into the four generated harvest files. Needs network; not part of the build. |
+| `tools/wikispec_fetch.py` | Harvests chassis specifications from the `{{Racing car}}` infobox on each car's article, refusing any page that disagrees with the register. Needs network; not part of the build. |
 | `tools/ergast_load.py` | Loads the full race classification — every finisher, retirement, grid position and per-race points, 1950–2026 — from the Jolpica-F1 API. Needs network; not part of the build. |
 | `tools/fastf1_load.py` | Loads per-lap timing, stints, pit stops, race control, radio and the 2018– finishing order from the F1 live timing API. Needs network; not part of the build. |
 | `docs/BUILD-NOTES.md` | What changed in each version, what it exposed, what was deliberately not done. |
@@ -352,46 +372,137 @@ Filling this in exposed two errors and one modelling failure:
 
 ---
 
-## Cars
+## Cars and chassis
 
-A car here is a **chassis design, not a season**: the Lotus 79 raced in 1978
-and 1979 and is one row. Where a design was revised and renamed in period —
-312T, 312T2, 312T3 — the series is held as one row and the variants are
-described in its notes, because that is how the results were published.
+There are two layers here and they are deliberately not merged.
 
-Twenty-nine cars are in the register and every one of them is a landmark, with
-the engine, chassis construction, gearbox, suspension, brakes, weight and
-dimensions as published, plus three things a spec sheet does not carry: the
-**concept** in one line, what the car **introduced**, and what it actually
-**achieved**. The spec columns are patchy on purpose. A NULL is "not
-established", never zero, and `spec_confidence` says how good the figures that
-are there are.
+**`cars` is a curated set of 29.** A car in that table is a *design family*:
+the Lotus 79 raced in 1978 and 1979 and is one row; the Ferrari 312T through
+312T5 is one row, because that is how the results were published and how the
+reference pages treat it. Each carries engine, chassis construction, gearbox,
+suspension, brakes, weight and dimensions as published, plus three things a
+spec sheet does not — the **concept** in one line, what the car
+**introduced**, and what it actually **achieved**.
 
-### Linking cars to races, and proving the link
+**`chassis` is the register: 1,153 rows, every chassis that has raced.** It is
+loaded from [F1DB](https://github.com/f1db/f1db) (CC BY 4.0) by
+`tools/f1db_fetch.py` — a scale at which nobody types anything — and 779 of
+them carry a specification `tools/wikispec_fetch.py` established off that
+chassis's own Wikipedia article. `chassis.car_id` joins the two.
+
+132 of those articles publish a career win total. The wins this database
+derives independently, from its own race records through the linkage below,
+**agree exactly for 97 of them and exceed for none**.
+
+Where both layers hold the same figure the build **compares them instead of
+picking one**: a value derived twice by different routes is the strongest
+evidence this database has, and a disagreement goes to `discrepancies`.
+
+```
+./f1 cars                # the 29 curated designs
+./f1 chassis lotus       # every Lotus chassis in the register
+./f1 ambiguous           # the constructor-seasons that cannot be resolved
+./f1 limits              # what each season's rules capped
+```
+
+### Where the specifications come from, and what refuses them
+
+There is no unified specification dataset for Formula One cars anywhere.
+F1DB's chassis register is complete and carries **no technical data at all**;
+the numbers live in the `{{Racing car}}` infobox on each car's own article,
+whose fields map almost one-for-one onto this schema.
+
+Guessing that "Ferrari 312T2" is the article for the chassis F1DB calls
+`ferrari-312t2` is inference, and inference is what put an invented "Ferrari
+125 F2" into the abandoned 1952 harvest. So a title is only a candidate, and a
+page is read only if it agrees with three things established elsewhere:
+
+1. the **constructor** its infobox names must be the one F1DB gives that
+   chassis;
+2. the **years** it reports must fall inside the seasons F1DB records that
+   chassis as entered;
+3. the **title** must be a form of the chassis's own name — Wikipedia
+   documents families on one page, so "Lotus 72C" legitimately redirects to
+   "Lotus 72", but a namesake is refused. Searching for "Ferrari 312/66"
+   offers "Ferrari 312T" first, and that is not a form of the same name.
+
+A page failing any of the three is refused whole and logged in
+`harvest/car_specs.log` with the reason. Nothing is partially accepted and a
+near miss is never nudged into a match.
+
+### Regulation limits are not measurements
+
+**Modern cars are documented far more thinly than historic ones**, and going
+backwards yields much richer rows than starting at 2026. This is not a
+harvesting failure: current-era specifications are competitive secrets, so a
+team publishes a power-unit badge, a suspension layout and very little else.
+
+Most "weight" quoted for a recent car is simply that season's regulation
+minimum. The 2026 figures in circulation — 768 kg, a 3,400 mm wheelbase,
+1,900 mm of width — are **limits in the rules that every car on the grid is
+built to**, not measurements of any one of them. Putting one in a per-car
+field would be inference presented as fact.
+
+So they live in `regulation_limits`, where a rule belongs, and the harvest
+drops a car figure that only restates one. `verify.py` then checks that no
+regulation limit has leaked into a car's own field. The 2026 rows in `chassis`
+are thin, and the database says so rather than padding them.
+
+### Linking a race to a chassis, and where that stops
 
 `data/cars.py` has a `CAR_SEASONS` list. A `(car, year)` pair asserts that
 every race this constructor won, took pole for or set fastest lap in that
-season was in this car. That is a strong claim, so it is not made where a team
-ran two cars in one year — Lotus in 1970, Cooper in 1960, Williams in 1982.
-Those seasons are simply absent and the entries stay unlinked.
+season was in this car — a strong claim, so it is not made where a team ran
+two cars in one year.
 
-The claim is then **checked rather than trusted**. `EXPECTED` holds each car's
-career wins and poles as published on its own reference page; the build derives
-the same two figures from the race records, and `verify.py` fails if:
+The claim is **checked rather than trusted**. `EXPECTED` holds each car's
+published career wins and poles; the build derives the same two figures from
+the race records, and `verify.py` fails if any car has *more* wins than its
+published total, or if a car whose seasons are all linked does not match
+*exactly*. Eleven cars are fully linked and all eleven match to the race —
+MP4/4 on 15, F2004 on 15, RB19 on 21, 312T on 27. That found a real error:
+Vanwall's figure had been entered as 6, the 1958 season total, not the career 9.
 
-- any car has **more** wins or poles than its published total, ever; or
-- a car whose seasons are **all** linked does not match its published win
-  total **exactly**.
+Since v2.8 the same thing is done at chassis resolution, from a second source.
+F1DB's per-season entry lists record which chassis a constructor ran in a
+season — the constraint the abandoned chassis harvest was missing, because the
+race winner tells you which race a row describes and nothing whatever about
+what he drove. The winning chassis is now known for **819 of 1,161 races**.
 
-Eleven cars are fully linked and all eleven match to the race — the MP4/4 on
-15, the F2004 on 15, the RB19 on 21, the 312T on 27. That found a real error
-during the build: Vanwall's figure had been entered as 6, which is the 1958
-season total, not the career 9.
+The limit is hard and it decides the shape of the whole result:
+
+> **F1DB records which chassis a constructor ran in a SEASON. It does not
+> record which chassis ran in which ROUND.**
+
+Where a team used more than one design in a year, the entry list names them
+all with no round attribution, so the season constrains nothing and those
+entries stay NULL. Ferrari in 1952 entered five different chassis — the 500
+Ascari won everything in, plus a 125, a 166, a 212 and a 375S in other
+people's hands — and gets no link at all. That is the correct answer for 1952,
+and it is the answer the abandoned harvest should have given.
+
+The consequence is that coverage is not spread evenly over time. It tracks how
+teams actually operated:
+
+| Decade | Entries linked to a chassis |
+|---|---|
+| 1950s | 21% |
+| 1960s | 4% |
+| 1970s | 11% |
+| 1980s | 35% |
+| 1990s | 42% |
+| 2000s | 41% |
+| 2010s | 47% |
+| 2020s | 49% |
+
+A modern team runs one car all season and the entry list settles it. A 1960s
+"constructor" was a name several privateers entered several different chassis
+under, and the season settles nothing. `./f1 ambiguous` lists all 321
+unresolvable constructor-seasons; the remaining work is in `known_gaps`.
 
 Poles are a lower bound by construction and are only checked for *not
-exceeding* the published figure. The pole harvest recorded who took pole but
-not what they drove, so 655 of the 1,161 pole entries carry no constructor and
-cannot be attached to a car. That is in `known_gaps`, not hidden.
+exceeding* the published figure: the pole harvest recorded who took pole but
+not what they drove, so 655 of 1,161 pole entries carry no constructor.
 
 ---
 

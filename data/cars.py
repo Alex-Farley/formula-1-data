@@ -176,7 +176,7 @@ CARS = [
      "90-degree V8", 2993, "naturally aspirated", 465, None, 10800,
      "aluminium monocoque", "Hewland FG400 5/6-speed manual",
      "Front: double wishbone with inboard coilovers. Rear: double wishbone",
-     "disc", 575.0, 2565, None, None, None,
+     "disc", None, 2565, None, None, None,
      "A deformable-structure chassis built to the new 1973 safety rules, developed for six years without ever being replaced",
      None,
      "The M23 won titles three years apart with two different drivers and was still scoring points in its sixth season. Hunt's 1976 championship in it - won by a point after Lauda's Nurburgring crash and withdrawal at a flooded Fuji - is the season most people who do not follow the sport have still heard of.",
@@ -297,7 +297,7 @@ CARS = [
      "90-degree V8", 2993, "naturally aspirated", 490, None, 11000,
      "twin carbon-fibre composite chassis", "Lotus/Hewland 5-speed manual",
      "Top rocker arms, lower wishbones, inboard springs front and rear",
-     "disc", 585.0, None, None, None, None,
+     "disc", None, None, None, None, None,
      "Two chassis, one inside the other: the outer one takes the aerodynamic load and runs stiff, the inner one carries the driver and rides softly",
      "The twin-chassis principle, and one of the first extensive uses of carbon fibre in a chassis",
      "Ground-effect cars had to run rock-hard suspension to keep the skirts sealed, which by 1981 was punishing enough to hurt drivers. Chapman's answer separated the two jobs. Rival teams protested that the sprung outer body was a movable aerodynamic device; the car was excluded from three race weekends and never started a Grand Prix. It is the clearest case in the sport's history of a rule stopping a genuinely good idea, and Chapman's disgust at it is usually read as the beginning of the end of Lotus.",
@@ -312,7 +312,7 @@ CARS = [
      12500,
      "carbon-fibre honeycomb monocoque", "Weismann-McLaren 6-speed manual",
      "Front: double wishbones, pull/push-rod actuated coil springs and dampers. Rear: double wishbones, rocker-arm actuated",
-     "carbon disc", 540.0, 2875, None, None, None,
+     "carbon disc", None, 2875, None, None, None,
      "Murray's very low Brabham packaging, Honda's last and best turbo, and the two fastest drivers alive",
      None,
      "In the final year of turbos, with boost and fuel cut hard, McLaren won 15 of 16 races and led 1,003 of 1,031 laps. The one it lost was Monza, two laps from the end, when Senna hit a backmarker while leading - five weeks after Enzo Ferrari's death, and Ferrari finished first and second. Senna and Prost took 199 of a possible 240 points between them and did not speak civilly again for years.",
@@ -344,7 +344,7 @@ CARS = [
      "carbon-fibre and honeycomb composite monocoque",
      "Ferrari 7-speed sequential semi-automatic",
      "Independent front and rear, pushrod-activated torsion springs",
-     "carbon disc", 605.0, None, None, None, None,
+     "carbon disc", None, None, None, None, None,
      "The last and best of the V10s, at the end of five years of Ferrari getting everything slightly more right than everyone else",
      None,
      "The F2004 still holds outright lap records at circuits that have not been reprofiled since, which is a strange thing to be able to say about a car from 2004 - modern cars are heavier, on worse tyres, with less engine. It was the end of the run: Schumacher's seventh title, Ferrari's sixth straight constructors' championship, and then the tyre rules changed and it stopped.",
@@ -518,6 +518,109 @@ EXPECTED = {
     "mercedes-w11": (13, 15),
     "red-bull-rb19": (21, None),
 }
+
+
+# ---------------------------------------------------------------------
+# Which chassis in the register each curated car covers.
+#
+# `cars` and `chassis` are different units and this is the join between
+# them. A car here is a design family, because that is how the sport and its
+# reference pages treat one: "Ferrari 312T" means the 312T through the 312T5,
+# and Wikipedia redirects every one of those titles to a single article. F1DB
+# registers each machine separately - ferrari-312t, ferrari-312t2,
+# ferrari-312t2b, ferrari-312t3, ferrari-312t4, ferrari-312t4b, ferrari-312t5.
+#
+# Twenty-nine lines, written out and checked one at a time, which is what
+# CONTRIBUTING.md allows a person to do. The 1,153-row register itself came
+# through a loader.
+#
+# verify.py checks every id here exists in the register, that its constructor
+# agrees with the car's, that no chassis is claimed by two cars, and that the
+# seasons the register records for it fall inside the car's stated life. A
+# typo cannot survive any of those.
+# ---------------------------------------------------------------------
+CAR_CHASSIS = {
+    "alfa-158": ["alfa-romeo-158", "alfa-romeo-159"],
+    "ferrari-500": ["ferrari-500"],
+    "mercedes-w196": ["mercedes-w196"],
+    "maserati-250f": ["maserati-250f"],
+    "vanwall-vw5": ["vanwall-vw-5"],
+    "cooper-t51": ["cooper-t51"],
+    "lotus-25": ["lotus-25"],
+    "lotus-49": ["lotus-49", "lotus-49b", "lotus-49c"],
+    # F1DB has no bare `lotus-72`: the 1970 car is registered from the 72B on.
+    "lotus-72": ["lotus-72b", "lotus-72c", "lotus-72d", "lotus-72e"],
+    "ferrari-312b": ["ferrari-312b", "ferrari-312b2", "ferrari-312b3",
+                     "ferrari-312b3-74"],
+    "mclaren-m23": ["mclaren-m23", "mclaren-m23b", "mclaren-m23c",
+                    "mclaren-m23d", "mclaren-m23e"],
+    "ferrari-312t": ["ferrari-312t", "ferrari-312t2", "ferrari-312t2b",
+                     "ferrari-312t3", "ferrari-312t4", "ferrari-312t4b",
+                     "ferrari-312t5"],
+    "tyrrell-p34": ["tyrrell-p34"],
+    "renault-rs01": ["renault-rs01"],
+    "lotus-78": ["lotus-78"],
+    "lotus-79": ["lotus-79"],
+    "brabham-bt46": ["brabham-bt46", "brabham-bt46b", "brabham-bt46c"],
+    "williams-fw07": ["williams-fw07", "williams-fw07b", "williams-fw07c",
+                      "williams-fw07d"],
+    "mclaren-mp4-1": ["mclaren-mp4-1", "mclaren-mp4-1b", "mclaren-mp4-1c",
+                      "mclaren-mp4-1e"],
+    # Both 88s were entered and neither was allowed to race.
+    "lotus-88": ["lotus-88", "lotus-88b"],
+    "mclaren-mp4-4": ["mclaren-mp4-4"],
+    "williams-fw14": ["williams-fw14", "williams-fw14b"],
+    # The F2004M is the 2005 interim car and falls outside this row's
+    # 2004-2004 life, so it is not claimed here.
+    "ferrari-f2004": ["ferrari-f2004"],
+    "renault-r25": ["renault-r25"],
+    "brawn-bgp001": ["brawn-bgp-001"],
+    "red-bull-rb6": ["red-bull-rb6"],
+    "mercedes-w05": ["mercedes-f1-w05"],
+    "mercedes-w11": ["mercedes-f1-w11"],
+    "red-bull-rb19": ["red-bull-rb19"],
+}
+
+
+# ---------------------------------------------------------------------
+# Figures withdrawn from a car row because they turned out to describe the
+# regulations rather than the car.
+#
+# Four of the sixteen weights originally researched here were the season's
+# regulation minimum. That is not a transcription error - it is what most
+# published "weight" figures for a Formula One car actually are, because a
+# team builds to the limit and does not publish what it achieved. Storing one
+# in a per-car field is inference presented as fact, which is the failure this
+# project has hit twice before by other routes.
+#
+# They are recorded here rather than quietly deleted: `verify.py` asserts the
+# field really is NULL now, and build.py writes each into `discrepancies`, so
+# the removal is visible and reversible if a real measurement ever turns up.
+# The limits themselves are in data/technical.py REGULATION_LIMITS.
+#
+# Six more weights are almost certainly the same thing - R25 605, RB6 620,
+# W05 691, W11 746, RB19 798, and the 2005 carry-over - but this project does
+# not withdraw a figure on a suspicion. They stay until a SOURCED limit for
+# those seasons proves them, which is open work.
+#
+#   car_id, field, withdrawn_value, reason
+# ---------------------------------------------------------------------
+WITHDRAWN = [
+    ("mclaren-m23", "weight_kg", 575.0,
+     "575 kg is the minimum weight imposed for 1973 and still in force in "
+     "1980, not a measurement of the M23."),
+    ("lotus-88", "weight_kg", 585.0,
+     "585 kg is the 1981 minimum weight, raised that year with the survival "
+     "cell requirement. The 88 was never allowed to race, so a measured "
+     "weight for it would be a curiosity in any case."),
+    ("mclaren-mp4-4", "weight_kg", 540.0,
+     "540 kg is the 1988 minimum weight, raised that season with the "
+     "mandatory static crash test. The MP4/4's real weight is not "
+     "established."),
+    ("ferrari-f2004", "weight_kg", 605.0,
+     "605 kg is the 2004 minimum in qualifying trim, including driver and "
+     "fuel. Every car on the 2004 grid was built to it."),
+]
 
 
 def seasons_complete(car_id, from_year, to_year):

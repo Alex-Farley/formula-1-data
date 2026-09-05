@@ -14,8 +14,12 @@ f1 — query tool for the F1 Verified Facts Database.
   ./f1 venues 1976               where each round of a season was held
   ./f1 lost                      circuits dropped from the calendar
   ./f1 car mp4/4                 a car: full spec, design story, its races
-  ./f1 cars                      the register, by wins
+  ./f1 cars                      the curated cars, by wins
   ./f1 cars ferrari              one constructor's cars
+  ./f1 chassis                   the full register, every chassis that raced
+  ./f1 chassis lotus             one constructor's chassis
+  ./f1 ambiguous                 seasons the entry lists cannot resolve
+  ./f1 limits                    what each season's rules capped
   ./f1 evolution                 how the technology moved, car by car
   ./f1 telemetry                 what per-lap and radio data is loaded
   ./f1 rules 1994                regulation changes in a year
@@ -427,6 +431,49 @@ def main():
         table(rows, ["car", "constructor", "from_year", "to_year", "engine_name",
                      "wins", "poles", "fastest_laps", "drivers_titles",
                      "constructors_titles"])
+
+    elif cmd == "chassis":
+        if a:
+            k = f"%{a[0]}%"
+            rows = c.execute("""SELECT * FROM v_chassis WHERE constructor LIKE ?
+                OR chassis LIKE ? OR id LIKE ? ORDER BY first_year""",
+                (k, k, k)).fetchall()
+            if not rows:
+                sys.exit("no match")
+        else:
+            rows = c.execute("SELECT * FROM v_chassis").fetchall()
+        print(f"\n  {len(rows)} chassis. 'register only' means the chassis is "
+              f"known to have raced and\n  no specification has been "
+              f"established for it - never that it had none.\n")
+        table(rows, ["chassis", "constructor", "first_year", "last_year",
+                     "recorded_races", "wins", "engine_name", "chassis_type",
+                     "specs"], maxw=28)
+
+    elif cmd == "ambiguous":
+        print("\n  Constructor-seasons the entry lists cannot resolve to one")
+        print("  chassis. F1DB records what a team ran in a season, not what")
+        print("  it ran in a round, so these entries stay unlinked rather")
+        print("  than being guessed at. This is the open half of the")
+        print("  chassis-per-race gap.\n")
+        table(c.execute("""SELECT year, constructor, chassis, unlinked_entries
+            FROM v_ambiguous_seasons LIMIT 40""").fetchall(), maxw=52)
+
+    elif cmd == "limits":
+        print("\n  Numeric limits the regulations put on every car in a")
+        print("  season. A modern car quoted at the minimum weight is being")
+        print("  quoted the rule, not measured - which is why these live")
+        print("  here and not in a car's own fields.\n")
+        for r in c.execute("""SELECT field, from_year, to_year, value, unit,
+                note FROM v_regulation_limits"""):
+            span = (str(r["from_year"]) if r["from_year"] == r["to_year"]
+                    else f"{r['from_year']}-{r['to_year']}")
+            print(f"  {span:<10} {r['field']:<22} "
+                  f"{r['value']:g} {r['unit']}")
+            for line in textwrap.wrap(r["note"] or "", W - 8):
+                print("        " + line)
+        print("\n  The series has holes on purpose. A row covers only the")
+        print("  years a source actually states it for; carrying a value")
+        print("  across an unrecorded change would invent a limit.\n")
 
     elif cmd == "evolution":
         print("\n  How the car changed, landmark by landmark\n")
