@@ -1,4 +1,4 @@
-# F1 Verified Facts Database — v2.11
+# F1 Verified Facts Database — v2.12
 
 An expansion of the original single-file JSON into a normalised, queryable
 SQLite database covering 1950–2026, with the JSON kept as a generated export.
@@ -12,6 +12,13 @@ harvested from Wikipedia's season tables under a new `reference` confidence tier
 replaces the per-race one, every Grand Prix now has a canonical id, and
 `audit.py` reports on the shape of the database rather than its contents.
 See *Structure* below.
+
+**v2.12** closes the **constructor register**: 65 rows to 150. Eighty-five
+teams that entered a championship Grand Prix had no row here — Ensign started
+133 races, Osella 172. Adding them exposed a defect nothing could previously
+see, an entry credited to a constructor that was not racing that season, and
+the new check found five teams that were really two: Alfa Romeo, ATS,
+Williams, Wolf and Aston Martin. See *Cars and chassis* and the build notes.
 
 **v2.11** adds `--timing`, which loads **628,454 race laps back to 1996** and
 12,627 pit stops from 2011 out of the same dump — twenty-two seasons further
@@ -92,13 +99,13 @@ v2026.12.0.
 
 | File | What it is |
 |---|---|
-| `f1.db` | The SQLite database. 39 tables, 34 views, ~8,300 rows. This is the artefact. |
+| `f1.db` | The SQLite database. 39 tables, 34 views, ~8,400 rows. This is the artefact. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. |
 | `f1_compat.json` | JSON in the *original* v1 key layout, so anything already consuming that file keeps working. |
 | `schema.sql` | The schema, commented. |
 | `build.py` | Rebuilds `f1.db` from the data modules. Idempotent. |
-| `verify.py` | 143 integrity, cross-tabulation and sanity checks. Exit code 1 on failure. |
+| `verify.py` | 147 integrity, cross-tabulation and sanity checks. Exit code 1 on failure. |
 | `audit.py` | Structural health check: fill rates, coverage, keys, redundancy, readiness. |
 | `export_json.py` | Regenerates the JSON exports from the database. |
 | `data/*.py` | The source data, as readable Python literals. **Edit here, then rebuild.** |

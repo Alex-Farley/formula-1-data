@@ -3,6 +3,97 @@
 A running record of what changed in each version, what it exposed, and what
 was deliberately not done. Newest first.
 
+## v2.12 (2026-09-05) — the constructor register, and five teams that were two
+
+Eighty-five constructors that entered a championship Grand Prix had no row in
+this database. Both loaders had been reporting them for two versions -
+`ergast_load.py` as "constructors not in the register, stored as NULL", the
+chassis work as 593 entrant rows and 256 chassis that could not join to
+anything. **Ensign started 133 Grands Prix and Osella 172; neither existed
+here.**
+
+The register goes from 65 to 150. Unmapped chassis fall from 256 to 59,
+unmapped entrant rows from 593 to 345, and the classification load now leaves
+one constructor unresolved instead of fifty-two.
+
+### What is authored and what is not
+
+The **ids** are the register decision and are written out one per line in
+`data/teams.py: F1DB_CONSTRUCTORS`, each with the seasons and entry count
+that justify it. The **attributes** - name, full name, country, first and
+last entry - are read at build time from the generated harvest files.
+
+That split is the point. CONTRIBUTING.md forbids inventing a register entry
+from a bulk feed; it does not forbid a person deciding which entities exist
+and letting the machine supply their spelling. Nobody typed eighty-five team
+names, and no team appears without a line someone read. `wins` is left NULL,
+which build.py reads as "derive it" - and none of the eighty-five ever won.
+
+### The admission test, and the one deliberate exclusion
+
+A constructor is admitted when it entered at least one championship race that
+was **not** the Indianapolis 500. That test, not a judgement about stature,
+separates these from the thirty-one Indianapolis chassis makers this project
+has always excluded.
+
+Kurtis Kraft is the case that fails cleanly on neither side. 185 of its 186
+entries are Indianapolis; the exception is Rodger Ward's midget at Sebring in
+1959, a genuine Grand Prix entry. Admitting the constructor to capture that
+one entry would drag the other 185 roadsters into the constructor statistics,
+so it stays out and the cost is recorded rather than hidden.
+
+### The check that found the rest
+
+Adding the register exposed a defect nothing had been able to see: **an entry
+credited to a constructor that was not racing that season.** Zhou Guanyu's
+fastest laps at Suzuka 2022 and Bahrain 2023 sat against Alfa Romeo, whose
+last entry as a constructor was 1985 - thirty-seven years earlier. F1DB's
+`alfa-romeo` covers the 1950-51 works team, the 1979-85 return, and the name
+Sauber raced under from 2019; this register's covers only the first two.
+
+`verify.py` now refuses any such entry, and both id mappings take a season.
+The check then found four more of exactly the same shape, none of them
+previously visible because the earlier entity had no row to land on:
+
+| Season | Was credited to | Actually |
+|---|---|---|
+| 2019-23 | Alfa Romeo (last entry 1985) | Sauber, under Alfa Romeo branding |
+| 1978-84 | ATS (1963) | ATS the wheel manufacturer, a different team |
+| 1975 | Williams (from 1977) | Frank Williams Racing Cars |
+| 1976 | Walter Wolf Racing (from 1977) | Wolf-Williams |
+| 1959-60 | *nothing* | Aston Martin's DBR4/DBR5 spell |
+
+### Two register corrections it forced
+
+**Aston Martin's first entry is 1959, not 2021.** It entered the DBR4 and
+DBR5 as a constructor in 1959-60. Two spells under one marque is how this
+register already treats Mercedes and Alfa Romeo, so the row now spans both
+and the seven 1959-60 entries have somewhere to go.
+
+**Penske's last entry is 1977, not 1976.** The team withdrew after 1976, but
+the PC4 was entered through 1977 by ATS Racing and Interscope - and the
+constructor credit for a chassis belongs to whoever built it, not whoever
+entered it.
+
+### One disagreement left standing
+
+Jolpica records Scuderia Milano as a constructor for two 1950 entries. F1DB
+records the same entries as Scuderia Milano *entering Maseratis* and holds no
+Milano constructor at all. The sources disagree about whether a constructor
+existed, neither can be checked against an official 1950 entry list here, and
+this project does not pick one silently. The constructor is not created, the
+two entries keep a NULL, and the disagreement is declared in
+`CONSTRUCTOR_NON_MAPPING` so the loader reports it as a decision rather than
+a gap.
+
+### New checks
+
+Every constructor F1DB records entering a non-Indianapolis race must now be
+in the register, aliased, or declared - so a future F1DB release cannot
+reintroduce the gap quietly. Plus: every alias points at a team that exists,
+nothing is both admitted and excluded, and no entry is credited to a
+constructor that was not racing that season.
+
 ## v2.11 (2026-09-05) — lap times back to 1996
 
 `--timing` loads the dump's per-lap times and pit stops:

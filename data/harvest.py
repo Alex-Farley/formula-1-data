@@ -463,46 +463,23 @@ KNOWN_GAPS = [
      "naming them. "
      "Do NOT transcribe these rows by hand - an attempt to do so during "
      "v2.7 put fabricated results into four of five sampled 2008 rows."),
-    ("chassis_id", "the chassis each race was won in, before 1980",
-     "The winning chassis is now known for 819 of 1,161 races. It comes from "
-     "F1DB's per-season entry lists, which record which chassis a constructor "
-     "ran in a season - the second, constraining source the abandoned harvest "
-     "was missing. What is left is not a smaller version of the same problem, "
-     "it is a different one, and it has a hard edge: **F1DB records what a "
-     "team ran in a SEASON, not what it ran in a ROUND.** Where a constructor "
-     "used more than one design in a year the entry list names them all "
-     "without saying which raced where, so the season constrains nothing and "
-     "the entries stay NULL. 321 constructor-seasons are in that position; "
-     "v_ambiguous_seasons lists them. The gap is therefore concentrated "
-     "almost entirely before 1980 - the 1960s stand at 4 per cent linked "
-     "against 49 per cent for the 2020s - because a modern team runs one car "
-     "all season while a 1960s constructor was a name several privateers "
-     "entered several different chassis under.", 0,
-     "Per-round entry lists, which F1DB does not have. The season articles "
-     "print a chassis column in the same results table the winners came "
-     "from, and that column IS per round. Harvesting it is only safe with "
-     "the check that is now available: a harvested chassis must appear in "
-     "that constructor's entry list for that season, or be refused. Without "
-     "that second test the winner cross-check passes on an invented value - "
-     "a 1952 trial returned 'Ferrari 125 F2' for races Ascari won in a "
-     "Ferrari 500 and every winner matched."),
-    ("cars.weight_kg", "weight and wheelbase for the modern era",
-     "Modern cars are documented far more thinly than historic ones, and the "
-     "thinness is deliberate on the teams' part: current-era specifications "
-     "are competitive secrets, so a team publishes a power-unit badge, a "
-     "suspension layout and very little else. Most 'weight' quoted for a "
-     "recent car is simply that season's regulation minimum, and the 2026 "
-     "figures in circulation - 768 kg, a 3,400 mm wheelbase, 1,900 mm of "
-     "width - are limits in the rules that every car on the grid is built "
-     "to. Storing one in a per-car field would be inference presented as "
-     "fact. They are in regulation_limits instead, and the harvest drops a "
-     "car figure that only restates one. The practical consequence is that "
-     "going backwards yields much richer rows than starting at 2026: the "
-     "recent chassis are thin and say so.", 1,
-     "Nothing to fix by finding a better source, because no better source "
-     "exists - the figures are not published. A car field stays NULL until a "
-     "measurement of that car, rather than of the rules it was built to, is "
-     "established."),
+    ("chassis_id", "the chassis each race was won in, where a season is ambiguous",
+     "The winning chassis is known for 874 of 1,161 races. It comes from "
+     "F1DB's entry lists, resolved through the driver and the round: F1DB "
+     "records which chassis a constructor ran in a SEASON and which driver "
+     "an entrant ran in which ROUND, and the second is far sharper than the "
+     "first. What is left is the entrants that ran more than one design and "
+     "do not say which raced where - Gold Leaf Team Lotus in 1970 entered a "
+     "49C, a 72B and a 72C, so Rindt's wins stay NULL while Soler-Roig's "
+     "single Garvey Team Lotus entry resolves. v_ambiguous_seasons lists "
+     "them. The gap is concentrated before 1980 because a modern team runs "
+     "one car all season while a 1960s constructor was a name several "
+     "privateers entered several different chassis under.", 0,
+     "Per-round chassis data, which no source in use here has. The season "
+     "articles print a chassis column in the same results table the winners "
+     "came from, and that column IS per round. Harvesting it is only safe "
+     "with the check that now exists: a harvested chassis must appear in "
+     "that constructor's entry list for that season, or be refused."),
     ("cars.poles", "the car each pole was taken in, where the season is ambiguous",
      "This was the largest gap in the car data and is now mostly closed. The "
      "pole and fastest-lap harvest recorded who set them but not what they "
@@ -653,6 +630,7 @@ CORRECTIONS = [
 # =====================================================================
 CHASSIS_FILE = os.path.join(HERE, "..", "harvest", "chassis.txt")
 F1DB_DRIVERS_FILE = os.path.join(HERE, "..", "harvest", "f1db_drivers.txt")
+F1DB_COUNTRIES_FILE = os.path.join(HERE, "..", "harvest", "f1db_countries.txt")
 ENTRANT_DRIVERS_FILE = os.path.join(HERE, "..", "harvest", "entrant_drivers.txt")
 ENGINES_FILE = os.path.join(HERE, "..", "harvest", "engines.txt")
 F1DB_CONS_FILE = os.path.join(HERE, "..", "harvest", "f1db_constructors.txt")
@@ -742,10 +720,41 @@ def load_entrants():
     return out
 
 
-def constructor_for_f1db(f1db_id):
-    """This database's constructor id for an F1DB one, or None where there is
-    deliberately no mapping."""
+def constructor_for_f1db(f1db_id, year=None):
+    """This database's constructor id for an F1DB one.
+
+    `year` matters for the same reason it does in constructor_id_for() above:
+    one name can be two teams. F1DB's `alfa-romeo` covers three entities -
+    the works team that won the first two championships, the works return of
+    1979-85, and the naming rights Sauber raced under from 2019. This
+    register's `alfa-romeo` is only the first two, and its own note says so.
+
+    Without the year, Zhou Guanyu's fastest laps at Suzuka 2022 and Bahrain
+    2023 were credited to a constructor whose last entry was 1985, thirty-
+    seven years earlier. Nothing caught it, because no check asked whether an
+    entry's constructor was actually racing that season. One does now.
+    """
+    from data import teams as _T
+    if year is not None:
+        renamed = F1DB_CONSTRUCTORS_BY_YEAR.get(f1db_id)
+        if renamed:
+            for lo, hi, target in renamed:
+                if lo <= year <= (hi or year):
+                    return target
+    if f1db_id in _T.F1DB_CONSTRUCTOR_ALIASES:
+        return _T.F1DB_CONSTRUCTOR_ALIASES[f1db_id]
     return F1DB_CONSTRUCTORS.get(f1db_id, f1db_id)
+
+
+# F1DB ids whose meaning depends on the season. from_year, to_year, target.
+F1DB_CONSTRUCTORS_BY_YEAR = {
+    "alfa-romeo": [(2019, 2023, "sauber")],
+}
+
+
+def load_f1db_countries():
+    """country_id, name, alpha3, demonym"""
+    return _read_pipe(F1DB_COUNTRIES_FILE, 4)
 
 
 def load_f1db_drivers():

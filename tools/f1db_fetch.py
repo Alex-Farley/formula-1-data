@@ -181,6 +181,19 @@ def constructor_rows(data, yaml):
     return sorted(rows)
 
 
+def country_rows(data, yaml):
+    """Country ids to their names, so a constructor's country can be written
+    the way this register writes it rather than title-cased from a slug.
+    `united-states-of-america` is not "United States Of America"."""
+    import glob
+    rows = []
+    for p in sorted(glob.glob(os.path.join(data, "countries", "*.yml"))):
+        d = yaml.safe_load(open(p, encoding="utf-8"))
+        rows.append("|".join(_clean(d.get(k)) for k in
+                             ("id", "name", "alpha3Code", "demonym")))
+    return sorted(rows)
+
+
 def driver_rows(data, yaml):
     """The driver register, so a race entry can be resolved to an F1DB driver
     id offline. Names only - this file never creates a driver."""
@@ -289,6 +302,9 @@ def main():
     ok &= write("f1db_constructors.txt",
                 "constructor_id|name|full_name|country_id",
                 constructor_rows(data, yaml), version, commit, args.check)
+    ok &= write("f1db_countries.txt",
+                "country_id|name|alpha3|demonym",
+                country_rows(data, yaml), version, commit, args.check)
     ok &= write("f1db_drivers.txt",
                 "driver_id|name|first_name|last_name|date_of_birth",
                 driver_rows(data, yaml), version, commit, args.check)

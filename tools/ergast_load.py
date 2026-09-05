@@ -617,7 +617,7 @@ def main():
 
     known_cons = {r[0] for r in cur.execute("SELECT id FROM constructors")}
     totals = dict(rows=0, races=0, skipped_race=0, skipped_driver=0, refused=0)
-    missing_cons = set()
+    missing_cons, declared_cons = set(), set()
 
     if a.verify_dump:
         sys.exit(compare_dump_to_api(a, lo, hi))
@@ -690,9 +690,12 @@ def main():
                     unresolved.add(e["driver"])
                     totals["skipped_driver"] += 1
                     continue
-                cid = RS._resolve_constructor(e["constructor"])
+                cid = RS._resolve_constructor(e["constructor"], e["year"])
                 if cid and cid not in known_cons:
-                    missing_cons.add(e["constructor"])
+                    if e["constructor"] not in RS.CONSTRUCTOR_NON_MAPPING:
+                        missing_cons.add(e["constructor"])
+                    else:
+                        declared_cons.add(e["constructor"])
                     cid = None
                 # Pole belongs to the pole harvest: this source hands the
                 # car's grid slot to every driver who shared it, so accepting
@@ -774,6 +777,10 @@ def main():
               f"register: {', '.join(sorted(unresolved)[:20])}")
         print(f"  Add them to PODIUM_ONLY_DRIVERS in data/results.py, rebuild, "
               f"and rerun.")
+    if declared_cons:
+        print(f"  constructors deliberately not held, stored as NULL: "
+              f"{', '.join(sorted(declared_cons))} "
+              f"(see data/results.py CONSTRUCTOR_NON_MAPPING)")
     if missing_cons:
         print(f"  constructors not in the register, stored as NULL: "
               f"{', '.join(sorted(missing_cons))}")

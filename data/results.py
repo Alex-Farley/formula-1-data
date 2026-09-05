@@ -67,6 +67,19 @@ DRIVER_ALIASES = {
 # ---------------------------------------------------------------------
 CONSTRUCTOR_ALIASES = {
     "alfa": "alfa-romeo",
+    # Teams the constructor register gained from F1DB, under the spelling
+    # Jolpica uses. Verified against the seasons each id actually appears in
+    # rather than assumed from the name.
+    "behra-porsche": "behra-porsche",   # would otherwise split at the hyphen
+    "lambo": "modena",                  # 1991; the team raced as Lambo
+    "lotus_racing": "caterham",         # 2010-11, before the Caterham name
+    "manor": "virgin",                  # 2015-16
+    "marussia": "virgin",               # 2012-14
+    "mf1": "midland",                   # 2006
+    "spyker_mf1": "midland",            # also 2006, after Spyker bought in
+    "moda": "andrea-moda",              # 1992
+    "simca": "simca-gordini",           # 1950-53
+    "tomaso": "de-tomaso",              # 1963 and 1970
     "prost": "prost-gp",
     "stewart": "stewart-gp",
     "team_lotus": "lotus",
@@ -94,6 +107,8 @@ INDY_CHASSIS = {
     "trevis", "marchese", "salih", "stevens", "wetteroth", "adams",
     "langley", "rae", "olson", "nichels", "christensen", "dunn", "meskowski",
     "ewing", "elder", "sutton",
+    # 1953 Indianapolis entries, the same case as the rest of this set.
+    "turner", "del_roy",
 }
 
 # Constructors that appear on a podium but are not yet in the register.
@@ -147,15 +162,62 @@ NEW_CONSTRUCTORS = [
 ]
 
 
-def _resolve_constructor(eid):
+# Jolpica ids whose meaning depends on the season, because one name was two
+# constructors. Each entry is (from_year, to_year, target).
+#
+# These were invisible until the constructor register was extended: the
+# earlier entity had no row, so the entries either went nowhere or quietly
+# took the later entity's id. verify.py now refuses an entry credited to a
+# constructor that was not racing that season, which is what surfaced them.
+# Jolpica constructors this register deliberately does not hold, with the
+# reason. Declared so the loader's "not in the register" line stays a list of
+# real gaps rather than a list that is always noise.
+CONSTRUCTOR_NON_MAPPING = {
+    "milano":
+        "Jolpica records Scuderia Milano as a constructor for two 1950 "
+        "entries. F1DB records the same entries as Scuderia Milano ENTERING "
+        "Maseratis, and holds no Milano constructor at all. The two sources "
+        "disagree about whether a constructor existed, neither can be "
+        "checked against an official 1950 entry list here, and this project "
+        "does not pick one silently - so the constructor is not created and "
+        "the two entries keep a NULL.",
+}
+
+
+CONSTRUCTOR_ALIASES_BY_YEAR = {
+    # Frank Williams Racing Cars (1975) and Wolf-Williams (1976) are not the
+    # Williams that first entered in 1977 - Frank Williams sold out to Walter
+    # Wolf and bought his way back with a new company.
+    "williams": [(1950, 1975, "frank-williams-racing-cars")],
+    "wolf": [(1976, 1976, "wolf-williams")],
+    # Two unrelated teams called ATS: Automobili Turismo e Sport, which
+    # entered five races in 1963, and the German wheel manufacturer, which
+    # ran from 1978 to 1984. F1DB keeps them as `ats` and `ats-wheels`.
+    "ats": [(1978, 1984, "ats-wheels")],
+    # Alfa Romeo was a naming-rights partner to Sauber from 2019, not a
+    # constructor. The register's own note on `alfa-romeo` says so, and its
+    # last entry as a constructor was 1985.
+    "alfa": [(2019, 2023, "sauber")],
+}
+
+
+def _resolve_constructor(eid, year=None):
     """Jolpica constructor id -> this database's id, or None.
 
     None means one of two things, and the loader distinguishes them: an
     Indianapolis chassis builder (correct, no Formula One constructor), or a
     constructor not yet in the register (a gap).
+
+    `year` disambiguates a name that was two different constructors. Without
+    it, 1975's Frank Williams entries land on the 1977 Williams and 1976's
+    Wolf-Williams on Walter Wolf Racing.
     """
     if eid in INDY_CHASSIS:
         return None
+    if year is not None:
+        for lo, hi, target in CONSTRUCTOR_ALIASES_BY_YEAR.get(eid, ()):
+            if lo <= year <= hi:
+                return target
     if eid in CONSTRUCTOR_ALIASES:
         return CONSTRUCTOR_ALIASES[eid]
     # brabham-alfa_romeo, cooper-climax: chassis first, engine second
