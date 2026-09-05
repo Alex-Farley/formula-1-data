@@ -35,6 +35,18 @@ NOT_EXPORTED = {
     "stints": "as laps",
     "pit_stops": "as laps",
     "race_control_messages": "as laps",
+    # Session-grain tables. race_entries is exported because the finishing
+    # order IS the release; these three are the same data one level finer and
+    # they take the file from 12 MB to 44 MB, which stops being a convenient
+    # export and starts being a download. They are in f1.db, which ships in
+    # this repository, and one SQL query away.
+    "qualifying": "27k rows of session detail; query it in f1.db",
+    "pit_stops": "22k rows; and FastF1 adds more locally",
+    # The centreline of one circuit is tens of thousands of coordinates. It is
+    # the only ODbL-licensed data here and it is confined to f1.db on purpose
+    # (see ATTRIBUTION.md), so exporting it would carry share-alike into a
+    # file whose whole point is being easy to reuse. Query it in SQLite.
+    "circuit_geometry": "ODbL geometry, deliberately confined to f1.db",
 }
 
 
@@ -87,6 +99,11 @@ def main():
         "car_seasons": dump(con, "car_seasons", "car_id, year"),
         "circuits": dump(con, "circuits", "country, name"),
         "circuit_layouts": dump(con, "circuit_layouts", "circuit_id, from_year"),
+        # References and credits, never images. Exporting them is the whole
+        # point: a consumer of the JSON needs the licence and the photographer
+        # as much as the file name, because showing one without the other is
+        # not allowed.
+        "article_images": dump(con, "article_images", "article"),
         "grands_prix": dump(con, "grands_prix", "first_held"),
         "eras": dump(con, "eras", "from_year"),
         "regulation_changes": dump(con, "regulation_changes", "year, category"),
@@ -104,7 +121,12 @@ def main():
         "team_radio": dump(con, "team_radio", "notable DESC, race_id"),
         "known_gaps": dump(con, "known_gaps", "id"),
         "discrepancies": dump(con, "discrepancies", "status, subject"),
-        "standings": dump(con, "standings", "year DESC, table_type, position"),
+        # The END-OF-SEASON classification for every year, not the running
+        # total after all 1,161 rounds - that is 34,000 rows and 10 MB, and
+        # it is a different question than "who won the championship".
+        "standings": [dict(r) for r in con.execute(
+            """SELECT * FROM standings WHERE after_round IS NULL
+               ORDER BY year DESC, table_type, position""")],
         "calendar": dump(con, "calendar", "year, round"),
         "grands_prix_register": dump(con, "grands_prix", "first_held"),
         "season_entries": dump(con, "season_entries", "year, id"),

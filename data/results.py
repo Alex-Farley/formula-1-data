@@ -60,6 +60,43 @@ DRIVER_ALIASES = {
     # by matching names order-insensitively, which would start joining
     # genuinely different people.
     "zhou": "zhou",
+    # Spelling differences between Jolpica and the F1DB-derived register.
+    # Each was checked against the seasons and entries the two agree on, not
+    # guessed from the surname.
+    "crossley": "geoffrey-crossley",        # "Geoff" / "Geoffrey"
+    "fontes": "asdrubal-fontes-bayardo",    # Jolpica drops the second surname
+    "jerry_unser": "jerry-unser-jr",        # the Jr. is in the register name
+    "papis": "max-papis",                   # "Massimiliano" / "Max"
+    "ahrens": "kurt-ahrens-jr",             # the Jr. again
+    "graffenried": "emmanuel-de-graffenried",   # "Toulo" was his nickname
+    "montagny": "franck-montagny",
+    "aitken": "jack-aitken",
+    # Jolpica records this driver's forename against another driver's
+    # surname - "Boy Lunger", conflating Boy Hayje with Brett Lunger. F1DB,
+    # the entry lists and the race records all say Boy Hayje.
+    "hayje": "boy-hayje",
+    # Two sources, two forms of the same person's name. Each was checked
+    # against the seasons and entries the two agree on.
+    "zanardi": "alex-zanardi",              # "Alessandro" / "Alex"
+    "tomaso": "alejandro-de-tomaso",        # "Alessandro" / "Alejandro"
+    "ramos": "hermano-da-silva-ramos",      # "Hernando" / "Hermano"
+    "webb": "spider-webb",                  # "Travis" / his racing name
+}
+
+# Jolpica drivers this register does not hold, with the reason. Jolpica
+# records a championship entry for each; F1DB holds no such driver at all,
+# and the register is built from F1DB. Neither source can be checked against
+# an official entry list here, so the disagreement is declared rather than
+# resolved by inventing a driver - which is the one thing the loader must
+# never do. 14 drivers, 60-odd rows, all of them 1950s and 1960s entries or
+# non-starters.
+DRIVER_NON_MAPPING = {
+    "abate": "Carlo Abate", "bira": "Prince Bira", "blignaut": "Alex Blignaut",
+    "boffa": "Menato Boffa", "clapham": "David Clapham", "duke": "Geoff Duke",
+    "hocking": "Gary Hocking", "ken_miles": "Ken Miles",
+    "monarch": "Thomas Monarch", "monteverdi": "Peter Monteverdi",
+    "reed": "Ray Reed", "slotemaker": "Rob Slotemaker", "vos": "Ernie de Vos",
+    "vyver": "Syd van der Vyver",
 }
 
 # ---------------------------------------------------------------------
@@ -80,6 +117,10 @@ CONSTRUCTOR_ALIASES = {
     "moda": "andrea-moda",              # 1992
     "simca": "simca-gordini",           # 1950-53
     "tomaso": "de-tomaso",              # 1963 and 1970
+    "arzani-volpini": "arzani-volpini",  # would split at the hyphen
+    "butterworth": "aston-butterworth",  # Jolpica drops the "Aston"
+    "derrington": "derrington-francis",  # and the "Francis"
+    "tec-mec": "tec-mec",                # would split at the hyphen
     "prost": "prost-gp",
     "stewart": "stewart-gp",
     "team_lotus": "lotus",
@@ -108,7 +149,9 @@ INDY_CHASSIS = {
     "langley", "rae", "olson", "nichels", "christensen", "dunn", "meskowski",
     "ewing", "elder", "sutton",
     # 1953 Indianapolis entries, the same case as the rest of this set.
-    "turner", "del_roy",
+    "turner", "del_roy", "pankratz", "snowberger",
+    # Jolpica's own spelling of Christensen, which is already in this set.
+    "vhristensen",
 }
 
 # Constructors that appear on a podium but are not yet in the register.
@@ -188,7 +231,6 @@ CONSTRUCTOR_ALIASES_BY_YEAR = {
     # Frank Williams Racing Cars (1975) and Wolf-Williams (1976) are not the
     # Williams that first entered in 1977 - Frank Williams sold out to Walter
     # Wolf and bought his way back with a new company.
-    "williams": [(1950, 1975, "frank-williams-racing-cars")],
     "wolf": [(1976, 1976, "wolf-williams")],
     # Two unrelated teams called ATS: Automobili Turismo e Sport, which
     # entered five races in 1963, and the German wheel manufacturer, which
@@ -198,6 +240,18 @@ CONSTRUCTOR_ALIASES_BY_YEAR = {
     # constructor. The register's own note on `alfa-romeo` says so, and its
     # last entry as a constructor was 1985.
     "alfa": [(2019, 2023, "sauber")],
+    # Frank Williams's 1976 entries reach Jolpica under both `williams` and
+    # `wolf`; F1DB has the whole season as Wolf-Williams.
+    "williams": [(1950, 1975, "frank-williams-racing-cars"),
+                 (1976, 1976, "wolf-williams")],
+    # A target of None means "deliberately unmapped for these seasons" - the
+    # id is real, but not for this era. Jolpica records BMW as a constructor
+    # for six 1952-53 entries. F1DB holds a BMW constructor for 1969 only,
+    # the 269 that ran the German Grand Prix, and records the 1952-53 cars as
+    # Veritas and AFM chassis with BMW ENGINES, which is what an engine
+    # supplier is. This register follows F1DB: those six entries keep a NULL
+    # rather than being credited to a constructor seventeen years early.
+    "bmw": [(1950, 1968, None)],
 }
 
 
@@ -217,7 +271,7 @@ def _resolve_constructor(eid, year=None):
     if year is not None:
         for lo, hi, target in CONSTRUCTOR_ALIASES_BY_YEAR.get(eid, ()):
             if lo <= year <= hi:
-                return target
+                return target          # None = deliberately unmapped here
     if eid in CONSTRUCTOR_ALIASES:
         return CONSTRUCTOR_ALIASES[eid]
     # brabham-alfa_romeo, cooper-climax: chassis first, engine second
@@ -407,24 +461,39 @@ def make_resolver(cur):
             elif id_toks in by_full:
                 did = by_full[id_toks]
             else:
-                # Surname fallback. Accept it only where the source has not
-                # told us a forename that the register entry does not share:
-                # a bare `fittipaldi` arriving as "Wilson Fittipaldi" must
-                # not become this register's Emerson.
+                # Surname fallback, narrowed by the name the source states.
+                #
+                # This does two jobs at once, and it has to do both. It
+                # rejects a namesake - a bare `fittipaldi` arriving as
+                # "Wilson Fittipaldi" must not become this register's
+                # Emerson - and it PICKS BETWEEN people who share a surname,
+                # which a register of 860 drivers routinely contains.
+                #
+                # The second job was added when the register grew. Before
+                # that, `moss` was the only Moss and the bare surname
+                # resolved on its own. Admitting Bill Moss made the lookup
+                # ambiguous, the fallback gave up, and the 1955 British Grand
+                # Prix was refused on a winner mismatch - Stirling Moss no
+                # longer resolved to anyone. The refusal is the system
+                # working: nothing was mis-attributed, the race was declined
+                # whole. Duncan Hamilton and the other Brabhams do the same
+                # thing to Lewis Hamilton and Jack Brabham.
+                #
+                # One may be a fuller form of the other - this register holds
+                # "Sir Stirling Moss" where the source says "Stirling Moss" -
+                # so the test is subset either way, not equality.
                 for k in (" ".join(id_toks), id_toks[-1] if id_toks else ""):
                     cands = by_surname.get(k, [])
-                    if len(cands) != 1:
+                    if not cands:
                         continue
                     if name_toks:
-                        stated, ours = set(name_toks), toks_by_id[cands[0]]
-                        # One may be a fuller form of the other - this
-                        # register holds "Sir Lewis Hamilton" where the
-                        # source says "Lewis Hamilton" - but a forename
-                        # neither shares means a different person.
-                        if not (stated <= ours or ours <= stated):
-                            break
-                    did = cands[0]
-                    break
+                        stated = set(name_toks)
+                        cands = [d for d in cands
+                                 if stated <= toks_by_id[d]
+                                 or toks_by_id[d] <= stated]
+                    if len(cands) == 1:
+                        did = cands[0]
+                        break
         cache[key] = did
         return did
 

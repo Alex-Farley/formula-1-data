@@ -1,6 +1,6 @@
 {
   "database_name": "F1 Verified Facts Project Memory Database",
-  "version": "2.12",
+  "version": "2.15",
   "verification_date": "2026-09-05",
   "verification_policy": {
     "confidence_ladder": [
@@ -64,6 +64,162 @@
       ]
     },
     {
+      "name": "Mercedes",
+      "full_name": "Mercedes-AMG PETRONAS Formula One Team",
+      "base": "Brackley, United Kingdom",
+      "first_entry": 1954,
+      "position": 1,
+      "points": 43.0,
+      "drivers": [
+        "George Russell",
+        "Andrea Kimi Antonelli"
+      ]
+    },
+    {
+      "name": "Mercedes",
+      "full_name": "Mercedes-AMG PETRONAS Formula One Team",
+      "base": "Brackley, United Kingdom",
+      "first_entry": 1954,
+      "position": 1,
+      "points": 98.0,
+      "drivers": [
+        "George Russell",
+        "Andrea Kimi Antonelli"
+      ]
+    },
+    {
+      "name": "Mercedes",
+      "full_name": "Mercedes-AMG PETRONAS Formula One Team",
+      "base": "Brackley, United Kingdom",
+      "first_entry": 1954,
+      "position": 1,
+      "points": 135.0,
+      "drivers": [
+        "George Russell",
+        "Andrea Kimi Antonelli"
+      ]
+    },
+    {
+      "name": "Mercedes",
+      "full_name": "Mercedes-AMG PETRONAS Formula One Team",
+      "base": "Brackley, United Kingdom",
+      "first_entry": 1954,
+      "position": 1,
+      "points": 180.0,
+      "drivers": [
+        "George Russell",
+        "Andrea Kimi Antonelli"
+      ]
+    },
+    {
+      "name": "Mercedes",
+      "full_name": "Mercedes-AMG PETRONAS Formula One Team",
+      "base": "Brackley, United Kingdom",
+      "first_entry": 1954,
+      "position": 1,
+      "points": 219.0,
+      "drivers": [
+        "George Russell",
+        "Andrea Kimi Antonelli"
+      ]
+    },
+    {
+      "name": "Mercedes",
+      "full_name": "Mercedes-AMG PETRONAS Formula One Team",
+      "base": "Brackley, United Kingdom",
+      "first_entry": 1954,
+      "position": 1,
+      "points": 244.0,
+      "drivers": [
+        "George Russell",
+        "Andrea Kimi Antonelli"
+      ]
+    },
+    {
+      "name": "Mercedes",
+      "full_name": "Mercedes-AMG PETRONAS Formula One Team",
+      "base": "Brackley, United Kingdom",
+      "first_entry": 1954,
+      "position": 1,
+      "points": 262.0,
+      "drivers": [
+        "George Russell",
+        "Andrea Kimi Antonelli"
+      ]
+    },
+    {
+      "name": "Mercedes",
+      "full_name": "Mercedes-AMG PETRONAS Formula One Team",
+      "base": "Brackley, United Kingdom",
+      "first_entry": 1954,
+      "position": 1,
+      "points": 302.0,
+      "drivers": [
+        "George Russell",
+        "Andrea Kimi Antonelli"
+      ]
+    },
+    {
+      "name": "Mercedes",
+      "full_name": "Mercedes-AMG PETRONAS Formula One Team",
+      "base": "Brackley, United Kingdom",
+      "first_entry": 1954,
+      "position": 1,
+      "points": 333.0,
+      "drivers": [
+        "George Russell",
+        "Andrea Kimi Antonelli"
+      ]
+    },
+    {
+      "name": "Mercedes",
+      "full_name": "Mercedes-AMG PETRONAS Formula One Team",
+      "base": "Brackley, United Kingdom",
+      "first_entry": 1954,
+      "position": 1,
+      "points": 358.0,
+      "drivers": [
+        "George Russell",
+        "Andrea Kimi Antonelli"
+      ]
+    },
+    {
+      "name": "Mercedes",
+      "full_name": "Mercedes-AMG PETRONAS Formula One Team",
+      "base": "Brackley, United Kingdom",
+      "first_entry": 1954,
+      "position": 1,
+      "points": 379.0,
+      "drivers": [
+        "George Russell",
+        "Andrea Kimi Antonelli"
+      ]
+    },
+    {
+      "name": "Mercedes",
+      "full_name": "Mercedes-AMG PETRONAS Formula One Team",
+      "base": "Brackley, United Kingdom",
+      "first_entry": 1954,
+      "position": 1,
+      "points": 425.0,
+      "drivers": [
+        "George Russell",
+        "Andrea Kimi Antonelli"
+      ]
+    },
+    {
+      "name": "Mercedes",
+      "full_name": "Mercedes-AMG PETRONAS Formula One Team",
+      "base": "Brackley, United Kingdom",
+      "first_entry": 1954,
+      "position": 1,
+      "points": 425.0,
+      "drivers": [
+        "George Russell",
+        "Andrea Kimi Antonelli"
+      ]
+    },
+    {
       "name": "Ferrari",
       "full_name": "Scuderia Ferrari HP",
       "base": "Maranello, Italy",
@@ -73,6 +229,318 @@
       "drivers": [
         "Charles Leclerc",
         "Sir Lewis Hamilton"
+      ]
+    },
+    {
+      "name": "Ferrari",
+      "full_name": "Scuderia Ferrari HP",
+      "base": "Maranello, Italy",
+      "first_entry": 1950,
+      "position": 2,
+      "points": 27.0,
+      "drivers": [
+        "Charles Leclerc",
+        "Sir Lewis Hamilton"
+      ]
+    },
+    {
+      "name": "Ferrari",
+      "full_name": "Scuderia Ferrari HP",
+      "base": "Maranello, Italy",
+      "first_entry": 1950,
+      "position": 2,
+      "points": 67.0,
+      "drivers": [
+        "Charles Leclerc",
+        "Sir Lewis Hamilton"
+      ]
+    },
+    {
+      "name": "Ferrari",
+      "full_name": "Scuderia Ferrari HP",
+      "base": "Maranello, Italy",
+      "first_entry": 1950,
+      "position": 2,
+      "points": 90.0,
+      "drivers": [
+        "Charles Leclerc",
+        "Sir Lewis Hamilton"
+      ]
+    },
+    {
+      "name": "Ferrari",
+      "full_name": "Scuderia Ferrari HP",
+      "base": "Maranello, Italy",
+      "first_entry": 1950,
+      "position": 2,
+      "points": 110.0,
+      "drivers": [
+        "Charles Leclerc",
+        "Sir Lewis Hamilton"
+      ]
+    },
+    {
+      "name": "Ferrari",
+      "full_name": "Scuderia Ferrari HP",
+      "base": "Maranello, Italy",
+      "first_entry": 1950,
+      "position": 2,
+      "points": 147.0,
+      "drivers": [
+        "Charles Leclerc",
+        "Sir Lewis Hamilton"
+      ]
+    },
+    {
+      "name": "Ferrari",
+      "full_name": "Scuderia Ferrari HP",
+      "base": "Maranello, Italy",
+      "first_entry": 1950,
+      "position": 2,
+      "points": 165.0,
+      "drivers": [
+        "Charles Leclerc",
+        "Sir Lewis Hamilton"
+      ]
+    },
+    {
+      "name": "Ferrari",
+      "full_name": "Scuderia Ferrari HP",
+      "base": "Maranello, Italy",
+      "first_entry": 1950,
+      "position": 2,
+      "points": 190.0,
+      "drivers": [
+        "Charles Leclerc",
+        "Sir Lewis Hamilton"
+      ]
+    },
+    {
+      "name": "Ferrari",
+      "full_name": "Scuderia Ferrari HP",
+      "base": "Maranello, Italy",
+      "first_entry": 1950,
+      "position": 2,
+      "points": 204.0,
+      "drivers": [
+        "Charles Leclerc",
+        "Sir Lewis Hamilton"
+      ]
+    },
+    {
+      "name": "Ferrari",
+      "full_name": "Scuderia Ferrari HP",
+      "base": "Maranello, Italy",
+      "first_entry": 1950,
+      "position": 2,
+      "points": 255.0,
+      "drivers": [
+        "Charles Leclerc",
+        "Sir Lewis Hamilton"
+      ]
+    },
+    {
+      "name": "Ferrari",
+      "full_name": "Scuderia Ferrari HP",
+      "base": "Maranello, Italy",
+      "first_entry": 1950,
+      "position": 2,
+      "points": 285.0,
+      "drivers": [
+        "Charles Leclerc",
+        "Sir Lewis Hamilton"
+      ]
+    },
+    {
+      "name": "Ferrari",
+      "full_name": "Scuderia Ferrari HP",
+      "base": "Maranello, Italy",
+      "first_entry": 1950,
+      "position": 2,
+      "points": 307.0,
+      "drivers": [
+        "Charles Leclerc",
+        "Sir Lewis Hamilton"
+      ]
+    },
+    {
+      "name": "Ferrari",
+      "full_name": "Scuderia Ferrari HP",
+      "base": "Maranello, Italy",
+      "first_entry": 1950,
+      "position": 2,
+      "points": 338.0,
+      "drivers": [
+        "Charles Leclerc",
+        "Sir Lewis Hamilton"
+      ]
+    },
+    {
+      "name": "Ferrari",
+      "full_name": "Scuderia Ferrari HP",
+      "base": "Maranello, Italy",
+      "first_entry": 1950,
+      "position": 2,
+      "points": 338.0,
+      "drivers": [
+        "Charles Leclerc",
+        "Sir Lewis Hamilton"
+      ]
+    },
+    {
+      "name": "McLaren",
+      "full_name": "McLaren Mastercard F1 Team",
+      "base": "Woking, United Kingdom",
+      "first_entry": 1966,
+      "position": 3,
+      "points": 263.0,
+      "drivers": [
+        "Lando Norris",
+        "Oscar Piastri"
+      ]
+    },
+    {
+      "name": "McLaren",
+      "full_name": "McLaren Mastercard F1 Team",
+      "base": "Woking, United Kingdom",
+      "first_entry": 1966,
+      "position": 3,
+      "points": 10.0,
+      "drivers": [
+        "Lando Norris",
+        "Oscar Piastri"
+      ]
+    },
+    {
+      "name": "McLaren",
+      "full_name": "McLaren Mastercard F1 Team",
+      "base": "Woking, United Kingdom",
+      "first_entry": 1966,
+      "position": 3,
+      "points": 18.0,
+      "drivers": [
+        "Lando Norris",
+        "Oscar Piastri"
+      ]
+    },
+    {
+      "name": "McLaren",
+      "full_name": "McLaren Mastercard F1 Team",
+      "base": "Woking, United Kingdom",
+      "first_entry": 1966,
+      "position": 3,
+      "points": 46.0,
+      "drivers": [
+        "Lando Norris",
+        "Oscar Piastri"
+      ]
+    },
+    {
+      "name": "McLaren",
+      "full_name": "McLaren Mastercard F1 Team",
+      "base": "Woking, United Kingdom",
+      "first_entry": 1966,
+      "position": 3,
+      "points": 94.0,
+      "drivers": [
+        "Lando Norris",
+        "Oscar Piastri"
+      ]
+    },
+    {
+      "name": "McLaren",
+      "full_name": "McLaren Mastercard F1 Team",
+      "base": "Woking, United Kingdom",
+      "first_entry": 1966,
+      "position": 3,
+      "points": 106.0,
+      "drivers": [
+        "Lando Norris",
+        "Oscar Piastri"
+      ]
+    },
+    {
+      "name": "McLaren",
+      "full_name": "McLaren Mastercard F1 Team",
+      "base": "Woking, United Kingdom",
+      "first_entry": 1966,
+      "position": 3,
+      "points": 116.0,
+      "drivers": [
+        "Lando Norris",
+        "Oscar Piastri"
+      ]
+    },
+    {
+      "name": "McLaren",
+      "full_name": "McLaren Mastercard F1 Team",
+      "base": "Woking, United Kingdom",
+      "first_entry": 1966,
+      "position": 3,
+      "points": 141.0,
+      "drivers": [
+        "Lando Norris",
+        "Oscar Piastri"
+      ]
+    },
+    {
+      "name": "McLaren",
+      "full_name": "McLaren Mastercard F1 Team",
+      "base": "Woking, United Kingdom",
+      "first_entry": 1966,
+      "position": 3,
+      "points": 159.0,
+      "drivers": [
+        "Lando Norris",
+        "Oscar Piastri"
+      ]
+    },
+    {
+      "name": "McLaren",
+      "full_name": "McLaren Mastercard F1 Team",
+      "base": "Woking, United Kingdom",
+      "first_entry": 1966,
+      "position": 3,
+      "points": 179.0,
+      "drivers": [
+        "Lando Norris",
+        "Oscar Piastri"
+      ]
+    },
+    {
+      "name": "McLaren",
+      "full_name": "McLaren Mastercard F1 Team",
+      "base": "Woking, United Kingdom",
+      "first_entry": 1966,
+      "position": 3,
+      "points": 195.0,
+      "drivers": [
+        "Lando Norris",
+        "Oscar Piastri"
+      ]
+    },
+    {
+      "name": "McLaren",
+      "full_name": "McLaren Mastercard F1 Team",
+      "base": "Woking, United Kingdom",
+      "first_entry": 1966,
+      "position": 3,
+      "points": 220.0,
+      "drivers": [
+        "Lando Norris",
+        "Oscar Piastri"
+      ]
+    },
+    {
+      "name": "McLaren",
+      "full_name": "McLaren Mastercard F1 Team",
+      "base": "Woking, United Kingdom",
+      "first_entry": 1966,
+      "position": 3,
+      "points": 263.0,
+      "drivers": [
+        "Lando Norris",
+        "Oscar Piastri"
       ]
     },
     {
@@ -100,6 +568,162 @@
       ]
     },
     {
+      "name": "Red Bull Racing",
+      "full_name": "Oracle Red Bull Racing",
+      "base": "Milton Keynes, United Kingdom",
+      "first_entry": 2005,
+      "position": 4,
+      "points": 8.0,
+      "drivers": [
+        "Max Verstappen",
+        "Isack Hadjar"
+      ]
+    },
+    {
+      "name": "Haas F1 Team",
+      "full_name": "TGR Haas F1 Team",
+      "base": "Kannapolis, United States",
+      "first_entry": 2016,
+      "position": 4,
+      "points": 17.0,
+      "drivers": [
+        "Esteban Ocon",
+        "Oliver Bearman"
+      ]
+    },
+    {
+      "name": "Haas F1 Team",
+      "full_name": "TGR Haas F1 Team",
+      "base": "Kannapolis, United States",
+      "first_entry": 2016,
+      "position": 4,
+      "points": 18.0,
+      "drivers": [
+        "Esteban Ocon",
+        "Oliver Bearman"
+      ]
+    },
+    {
+      "name": "Red Bull Racing",
+      "full_name": "Oracle Red Bull Racing",
+      "base": "Milton Keynes, United Kingdom",
+      "first_entry": 2005,
+      "position": 4,
+      "points": 30.0,
+      "drivers": [
+        "Max Verstappen",
+        "Isack Hadjar"
+      ]
+    },
+    {
+      "name": "Red Bull Racing",
+      "full_name": "Oracle Red Bull Racing",
+      "base": "Milton Keynes, United Kingdom",
+      "first_entry": 2005,
+      "position": 4,
+      "points": 57.0,
+      "drivers": [
+        "Max Verstappen",
+        "Isack Hadjar"
+      ]
+    },
+    {
+      "name": "Red Bull Racing",
+      "full_name": "Oracle Red Bull Racing",
+      "base": "Milton Keynes, United Kingdom",
+      "first_entry": 2005,
+      "position": 4,
+      "points": 69.0,
+      "drivers": [
+        "Max Verstappen",
+        "Isack Hadjar"
+      ]
+    },
+    {
+      "name": "Red Bull Racing",
+      "full_name": "Oracle Red Bull Racing",
+      "base": "Milton Keynes, United Kingdom",
+      "first_entry": 2005,
+      "position": 4,
+      "points": 89.0,
+      "drivers": [
+        "Max Verstappen",
+        "Isack Hadjar"
+      ]
+    },
+    {
+      "name": "Red Bull Racing",
+      "full_name": "Oracle Red Bull Racing",
+      "base": "Milton Keynes, United Kingdom",
+      "first_entry": 2005,
+      "position": 4,
+      "points": 115.0,
+      "drivers": [
+        "Max Verstappen",
+        "Isack Hadjar"
+      ]
+    },
+    {
+      "name": "Red Bull Racing",
+      "full_name": "Oracle Red Bull Racing",
+      "base": "Milton Keynes, United Kingdom",
+      "first_entry": 2005,
+      "position": 4,
+      "points": 128.0,
+      "drivers": [
+        "Max Verstappen",
+        "Isack Hadjar"
+      ]
+    },
+    {
+      "name": "Red Bull Racing",
+      "full_name": "Oracle Red Bull Racing",
+      "base": "Milton Keynes, United Kingdom",
+      "first_entry": 2005,
+      "position": 4,
+      "points": 151.0,
+      "drivers": [
+        "Max Verstappen",
+        "Isack Hadjar"
+      ]
+    },
+    {
+      "name": "Red Bull Racing",
+      "full_name": "Oracle Red Bull Racing",
+      "base": "Milton Keynes, United Kingdom",
+      "first_entry": 2005,
+      "position": 4,
+      "points": 177.0,
+      "drivers": [
+        "Max Verstappen",
+        "Isack Hadjar"
+      ]
+    },
+    {
+      "name": "Red Bull Racing",
+      "full_name": "Oracle Red Bull Racing",
+      "base": "Milton Keynes, United Kingdom",
+      "first_entry": 2005,
+      "position": 4,
+      "points": 186.0,
+      "drivers": [
+        "Max Verstappen",
+        "Isack Hadjar"
+      ]
+    },
+    {
+      "name": "Red Bull Racing",
+      "full_name": "Oracle Red Bull Racing",
+      "base": "Milton Keynes, United Kingdom",
+      "first_entry": 2005,
+      "position": 4,
+      "points": 186.0,
+      "drivers": [
+        "Max Verstappen",
+        "Isack Hadjar"
+      ]
+    },
+    {
       "name": "Racing Bulls",
       "full_name": "Visa Cash App Racing Bulls Formula One Team",
       "base": "Faenza, Italy",
@@ -109,6 +733,318 @@
       "drivers": [
         "Liam Lawson",
         "Arvid Lindblad"
+      ]
+    },
+    {
+      "name": "Haas F1 Team",
+      "full_name": "TGR Haas F1 Team",
+      "base": "Kannapolis, United States",
+      "first_entry": 2016,
+      "position": 5,
+      "points": 6.0,
+      "drivers": [
+        "Esteban Ocon",
+        "Oliver Bearman"
+      ]
+    },
+    {
+      "name": "Red Bull Racing",
+      "full_name": "Oracle Red Bull Racing",
+      "base": "Milton Keynes, United Kingdom",
+      "first_entry": 2005,
+      "position": 5,
+      "points": 12.0,
+      "drivers": [
+        "Max Verstappen",
+        "Isack Hadjar"
+      ]
+    },
+    {
+      "name": "Alpine",
+      "full_name": "BWT Alpine Formula One Team",
+      "base": "Enstone, United Kingdom",
+      "first_entry": 2021,
+      "position": 5,
+      "points": 16.0,
+      "drivers": [
+        "Pierre Gasly",
+        "Franco Colapinto"
+      ]
+    },
+    {
+      "name": "Alpine",
+      "full_name": "BWT Alpine Formula One Team",
+      "base": "Enstone, United Kingdom",
+      "first_entry": 2021,
+      "position": 5,
+      "points": 23.0,
+      "drivers": [
+        "Pierre Gasly",
+        "Franco Colapinto"
+      ]
+    },
+    {
+      "name": "Alpine",
+      "full_name": "BWT Alpine Formula One Team",
+      "base": "Enstone, United Kingdom",
+      "first_entry": 2021,
+      "position": 5,
+      "points": 35.0,
+      "drivers": [
+        "Pierre Gasly",
+        "Franco Colapinto"
+      ]
+    },
+    {
+      "name": "Alpine",
+      "full_name": "BWT Alpine Formula One Team",
+      "base": "Enstone, United Kingdom",
+      "first_entry": 2021,
+      "position": 5,
+      "points": 50.0,
+      "drivers": [
+        "Pierre Gasly",
+        "Franco Colapinto"
+      ]
+    },
+    {
+      "name": "Alpine",
+      "full_name": "BWT Alpine Formula One Team",
+      "base": "Enstone, United Kingdom",
+      "first_entry": 2021,
+      "position": 5,
+      "points": 57.0,
+      "drivers": [
+        "Pierre Gasly",
+        "Franco Colapinto"
+      ]
+    },
+    {
+      "name": "Alpine",
+      "full_name": "BWT Alpine Formula One Team",
+      "base": "Enstone, United Kingdom",
+      "first_entry": 2021,
+      "position": 5,
+      "points": 57.0,
+      "drivers": [
+        "Pierre Gasly",
+        "Franco Colapinto"
+      ]
+    },
+    {
+      "name": "Alpine",
+      "full_name": "BWT Alpine Formula One Team",
+      "base": "Enstone, United Kingdom",
+      "first_entry": 2021,
+      "position": 5,
+      "points": 60.0,
+      "drivers": [
+        "Pierre Gasly",
+        "Franco Colapinto"
+      ]
+    },
+    {
+      "name": "Alpine",
+      "full_name": "BWT Alpine Formula One Team",
+      "base": "Enstone, United Kingdom",
+      "first_entry": 2021,
+      "position": 5,
+      "points": 61.0,
+      "drivers": [
+        "Pierre Gasly",
+        "Franco Colapinto"
+      ]
+    },
+    {
+      "name": "Racing Bulls",
+      "full_name": "Visa Cash App Racing Bulls Formula One Team",
+      "base": "Faenza, Italy",
+      "first_entry": 1985,
+      "position": 5,
+      "points": 66.0,
+      "drivers": [
+        "Liam Lawson",
+        "Arvid Lindblad"
+      ]
+    },
+    {
+      "name": "Racing Bulls",
+      "full_name": "Visa Cash App Racing Bulls Formula One Team",
+      "base": "Faenza, Italy",
+      "first_entry": 1985,
+      "position": 5,
+      "points": 66.0,
+      "drivers": [
+        "Liam Lawson",
+        "Arvid Lindblad"
+      ]
+    },
+    {
+      "name": "Racing Bulls",
+      "full_name": "Visa Cash App Racing Bulls Formula One Team",
+      "base": "Faenza, Italy",
+      "first_entry": 1985,
+      "position": 5,
+      "points": 66.0,
+      "drivers": [
+        "Liam Lawson",
+        "Arvid Lindblad"
+      ]
+    },
+    {
+      "name": "Alpine",
+      "full_name": "BWT Alpine Formula One Team",
+      "base": "Enstone, United Kingdom",
+      "first_entry": 2021,
+      "position": 6,
+      "points": 63.0,
+      "drivers": [
+        "Pierre Gasly",
+        "Franco Colapinto"
+      ]
+    },
+    {
+      "name": "Racing Bulls",
+      "full_name": "Visa Cash App Racing Bulls Formula One Team",
+      "base": "Faenza, Italy",
+      "first_entry": 1985,
+      "position": 6,
+      "points": 4.0,
+      "drivers": [
+        "Liam Lawson",
+        "Arvid Lindblad"
+      ]
+    },
+    {
+      "name": "Racing Bulls",
+      "full_name": "Visa Cash App Racing Bulls Formula One Team",
+      "base": "Faenza, Italy",
+      "first_entry": 1985,
+      "position": 6,
+      "points": 12.0,
+      "drivers": [
+        "Liam Lawson",
+        "Arvid Lindblad"
+      ]
+    },
+    {
+      "name": "Red Bull Racing",
+      "full_name": "Oracle Red Bull Racing",
+      "base": "Milton Keynes, United Kingdom",
+      "first_entry": 2005,
+      "position": 6,
+      "points": 16.0,
+      "drivers": [
+        "Max Verstappen",
+        "Isack Hadjar"
+      ]
+    },
+    {
+      "name": "Haas F1 Team",
+      "full_name": "TGR Haas F1 Team",
+      "base": "Kannapolis, United States",
+      "first_entry": 2016,
+      "position": 6,
+      "points": 18.0,
+      "drivers": [
+        "Esteban Ocon",
+        "Oliver Bearman"
+      ]
+    },
+    {
+      "name": "Racing Bulls",
+      "full_name": "Visa Cash App Racing Bulls Formula One Team",
+      "base": "Faenza, Italy",
+      "first_entry": 1985,
+      "position": 6,
+      "points": 21.0,
+      "drivers": [
+        "Liam Lawson",
+        "Arvid Lindblad"
+      ]
+    },
+    {
+      "name": "Racing Bulls",
+      "full_name": "Visa Cash App Racing Bulls Formula One Team",
+      "base": "Faenza, Italy",
+      "first_entry": 1985,
+      "position": 6,
+      "points": 35.0,
+      "drivers": [
+        "Liam Lawson",
+        "Arvid Lindblad"
+      ]
+    },
+    {
+      "name": "Racing Bulls",
+      "full_name": "Visa Cash App Racing Bulls Formula One Team",
+      "base": "Faenza, Italy",
+      "first_entry": 1985,
+      "position": 6,
+      "points": 41.0,
+      "drivers": [
+        "Liam Lawson",
+        "Arvid Lindblad"
+      ]
+    },
+    {
+      "name": "Racing Bulls",
+      "full_name": "Visa Cash App Racing Bulls Formula One Team",
+      "base": "Faenza, Italy",
+      "first_entry": 1985,
+      "position": 6,
+      "points": 44.0,
+      "drivers": [
+        "Liam Lawson",
+        "Arvid Lindblad"
+      ]
+    },
+    {
+      "name": "Racing Bulls",
+      "full_name": "Visa Cash App Racing Bulls Formula One Team",
+      "base": "Faenza, Italy",
+      "first_entry": 1985,
+      "position": 6,
+      "points": 59.0,
+      "drivers": [
+        "Liam Lawson",
+        "Arvid Lindblad"
+      ]
+    },
+    {
+      "name": "Racing Bulls",
+      "full_name": "Visa Cash App Racing Bulls Formula One Team",
+      "base": "Faenza, Italy",
+      "first_entry": 1985,
+      "position": 6,
+      "points": 61.0,
+      "drivers": [
+        "Liam Lawson",
+        "Arvid Lindblad"
+      ]
+    },
+    {
+      "name": "Alpine",
+      "full_name": "BWT Alpine Formula One Team",
+      "base": "Enstone, United Kingdom",
+      "first_entry": 2021,
+      "position": 6,
+      "points": 61.0,
+      "drivers": [
+        "Pierre Gasly",
+        "Franco Colapinto"
+      ]
+    },
+    {
+      "name": "Alpine",
+      "full_name": "BWT Alpine Formula One Team",
+      "base": "Enstone, United Kingdom",
+      "first_entry": 2021,
+      "position": 6,
+      "points": 63.0,
+      "drivers": [
+        "Pierre Gasly",
+        "Franco Colapinto"
       ]
     },
     {
@@ -140,11 +1076,479 @@
       "full_name": "Audi Revolut F1 Team",
       "base": "Hinwil, Switzerland",
       "first_entry": 2026,
+      "position": 7,
+      "points": 2.0,
+      "drivers": [
+        "Nico Hulkenberg",
+        "Gabriel Bortoleto"
+      ]
+    },
+    {
+      "name": "Alpine",
+      "full_name": "BWT Alpine Formula One Team",
+      "base": "Enstone, United Kingdom",
+      "first_entry": 2021,
+      "position": 7,
+      "points": 10.0,
+      "drivers": [
+        "Pierre Gasly",
+        "Franco Colapinto"
+      ]
+    },
+    {
+      "name": "Racing Bulls",
+      "full_name": "Visa Cash App Racing Bulls Formula One Team",
+      "base": "Faenza, Italy",
+      "first_entry": 1985,
+      "position": 7,
+      "points": 14.0,
+      "drivers": [
+        "Liam Lawson",
+        "Arvid Lindblad"
+      ]
+    },
+    {
+      "name": "Racing Bulls",
+      "full_name": "Visa Cash App Racing Bulls Formula One Team",
+      "base": "Faenza, Italy",
+      "first_entry": 1985,
+      "position": 7,
+      "points": 14.0,
+      "drivers": [
+        "Liam Lawson",
+        "Arvid Lindblad"
+      ]
+    },
+    {
+      "name": "Haas F1 Team",
+      "full_name": "TGR Haas F1 Team",
+      "base": "Kannapolis, United States",
+      "first_entry": 2016,
+      "position": 7,
+      "points": 19.0,
+      "drivers": [
+        "Esteban Ocon",
+        "Oliver Bearman"
+      ]
+    },
+    {
+      "name": "Haas F1 Team",
+      "full_name": "TGR Haas F1 Team",
+      "base": "Kannapolis, United States",
+      "first_entry": 2016,
+      "position": 7,
+      "points": 21.0,
+      "drivers": [
+        "Esteban Ocon",
+        "Oliver Bearman"
+      ]
+    },
+    {
+      "name": "Haas F1 Team",
+      "full_name": "TGR Haas F1 Team",
+      "base": "Kannapolis, United States",
+      "first_entry": 2016,
+      "position": 7,
+      "points": 21.0,
+      "drivers": [
+        "Esteban Ocon",
+        "Oliver Bearman"
+      ]
+    },
+    {
+      "name": "Haas F1 Team",
+      "full_name": "TGR Haas F1 Team",
+      "base": "Kannapolis, United States",
+      "first_entry": 2016,
+      "position": 7,
+      "points": 21.0,
+      "drivers": [
+        "Esteban Ocon",
+        "Oliver Bearman"
+      ]
+    },
+    {
+      "name": "Haas F1 Team",
+      "full_name": "TGR Haas F1 Team",
+      "base": "Kannapolis, United States",
+      "first_entry": 2016,
+      "position": 7,
+      "points": 21.0,
+      "drivers": [
+        "Esteban Ocon",
+        "Oliver Bearman"
+      ]
+    },
+    {
+      "name": "Haas F1 Team",
+      "full_name": "TGR Haas F1 Team",
+      "base": "Kannapolis, United States",
+      "first_entry": 2016,
+      "position": 7,
+      "points": 21.0,
+      "drivers": [
+        "Esteban Ocon",
+        "Oliver Bearman"
+      ]
+    },
+    {
+      "name": "Haas F1 Team",
+      "full_name": "TGR Haas F1 Team",
+      "base": "Kannapolis, United States",
+      "first_entry": 2016,
+      "position": 7,
+      "points": 21.0,
+      "drivers": [
+        "Esteban Ocon",
+        "Oliver Bearman"
+      ]
+    },
+    {
+      "name": "Haas F1 Team",
+      "full_name": "TGR Haas F1 Team",
+      "base": "Kannapolis, United States",
+      "first_entry": 2016,
+      "position": 7,
+      "points": 21.0,
+      "drivers": [
+        "Esteban Ocon",
+        "Oliver Bearman"
+      ]
+    },
+    {
+      "name": "Haas F1 Team",
+      "full_name": "TGR Haas F1 Team",
+      "base": "Kannapolis, United States",
+      "first_entry": 2016,
+      "position": 7,
+      "points": 21.0,
+      "drivers": [
+        "Esteban Ocon",
+        "Oliver Bearman"
+      ]
+    },
+    {
+      "name": "Audi",
+      "full_name": "Audi Revolut F1 Team",
+      "base": "Hinwil, Switzerland",
+      "first_entry": 2026,
       "position": 8,
       "points": 16.0,
       "drivers": [
         "Nico Hulkenberg",
         "Gabriel Bortoleto"
+      ]
+    },
+    {
+      "name": "Alpine",
+      "full_name": "BWT Alpine Formula One Team",
+      "base": "Enstone, United Kingdom",
+      "first_entry": 2021,
+      "position": 8,
+      "points": 1.0,
+      "drivers": [
+        "Pierre Gasly",
+        "Franco Colapinto"
+      ]
+    },
+    {
+      "name": "Audi",
+      "full_name": "Audi Revolut F1 Team",
+      "base": "Hinwil, Switzerland",
+      "first_entry": 2026,
+      "position": 8,
+      "points": 2.0,
+      "drivers": [
+        "Nico Hulkenberg",
+        "Gabriel Bortoleto"
+      ]
+    },
+    {
+      "name": "Audi",
+      "full_name": "Audi Revolut F1 Team",
+      "base": "Hinwil, Switzerland",
+      "first_entry": 2026,
+      "position": 8,
+      "points": 2.0,
+      "drivers": [
+        "Nico Hulkenberg",
+        "Gabriel Bortoleto"
+      ]
+    },
+    {
+      "name": "Williams",
+      "full_name": "Atlassian Williams F1 Team",
+      "base": "Grove, United Kingdom",
+      "first_entry": 1977,
+      "position": 8,
+      "points": 5.0,
+      "drivers": [
+        "Carlos Sainz",
+        "Alexander Albon"
+      ]
+    },
+    {
+      "name": "Williams",
+      "full_name": "Atlassian Williams F1 Team",
+      "base": "Grove, United Kingdom",
+      "first_entry": 1977,
+      "position": 8,
+      "points": 7.0,
+      "drivers": [
+        "Carlos Sainz",
+        "Alexander Albon"
+      ]
+    },
+    {
+      "name": "Williams",
+      "full_name": "Atlassian Williams F1 Team",
+      "base": "Grove, United Kingdom",
+      "first_entry": 1977,
+      "position": 8,
+      "points": 11.0,
+      "drivers": [
+        "Carlos Sainz",
+        "Alexander Albon"
+      ]
+    },
+    {
+      "name": "Williams",
+      "full_name": "Atlassian Williams F1 Team",
+      "base": "Grove, United Kingdom",
+      "first_entry": 1977,
+      "position": 8,
+      "points": 11.0,
+      "drivers": [
+        "Carlos Sainz",
+        "Alexander Albon"
+      ]
+    },
+    {
+      "name": "Williams",
+      "full_name": "Atlassian Williams F1 Team",
+      "base": "Grove, United Kingdom",
+      "first_entry": 1977,
+      "position": 8,
+      "points": 11.0,
+      "drivers": [
+        "Carlos Sainz",
+        "Alexander Albon"
+      ]
+    },
+    {
+      "name": "Williams",
+      "full_name": "Atlassian Williams F1 Team",
+      "base": "Grove, United Kingdom",
+      "first_entry": 1977,
+      "position": 8,
+      "points": 11.0,
+      "drivers": [
+        "Carlos Sainz",
+        "Alexander Albon"
+      ]
+    },
+    {
+      "name": "Williams",
+      "full_name": "Atlassian Williams F1 Team",
+      "base": "Grove, United Kingdom",
+      "first_entry": 1977,
+      "position": 8,
+      "points": 11.0,
+      "drivers": [
+        "Carlos Sainz",
+        "Alexander Albon"
+      ]
+    },
+    {
+      "name": "Audi",
+      "full_name": "Audi Revolut F1 Team",
+      "base": "Hinwil, Switzerland",
+      "first_entry": 2026,
+      "position": 8,
+      "points": 12.0,
+      "drivers": [
+        "Nico Hulkenberg",
+        "Gabriel Bortoleto"
+      ]
+    },
+    {
+      "name": "Audi",
+      "full_name": "Audi Revolut F1 Team",
+      "base": "Hinwil, Switzerland",
+      "first_entry": 2026,
+      "position": 8,
+      "points": 16.0,
+      "drivers": [
+        "Nico Hulkenberg",
+        "Gabriel Bortoleto"
+      ]
+    },
+    {
+      "name": "Audi",
+      "full_name": "Audi Revolut F1 Team",
+      "base": "Hinwil, Switzerland",
+      "first_entry": 2026,
+      "position": 8,
+      "points": 16.0,
+      "drivers": [
+        "Nico Hulkenberg",
+        "Gabriel Bortoleto"
+      ]
+    },
+    {
+      "name": "Williams",
+      "full_name": "Atlassian Williams F1 Team",
+      "base": "Grove, United Kingdom",
+      "first_entry": 1977,
+      "position": 9,
+      "points": 11.0,
+      "drivers": [
+        "Carlos Sainz",
+        "Alexander Albon"
+      ]
+    },
+    {
+      "name": "Williams",
+      "full_name": "Atlassian Williams F1 Team",
+      "base": "Grove, United Kingdom",
+      "first_entry": 1977,
+      "position": 9,
+      "points": 0.0,
+      "drivers": [
+        "Carlos Sainz",
+        "Alexander Albon"
+      ]
+    },
+    {
+      "name": "Williams",
+      "full_name": "Atlassian Williams F1 Team",
+      "base": "Grove, United Kingdom",
+      "first_entry": 1977,
+      "position": 9,
+      "points": 2.0,
+      "drivers": [
+        "Carlos Sainz",
+        "Alexander Albon"
+      ]
+    },
+    {
+      "name": "Williams",
+      "full_name": "Atlassian Williams F1 Team",
+      "base": "Grove, United Kingdom",
+      "first_entry": 1977,
+      "position": 9,
+      "points": 2.0,
+      "drivers": [
+        "Carlos Sainz",
+        "Alexander Albon"
+      ]
+    },
+    {
+      "name": "Audi",
+      "full_name": "Audi Revolut F1 Team",
+      "base": "Hinwil, Switzerland",
+      "first_entry": 2026,
+      "position": 9,
+      "points": 2.0,
+      "drivers": [
+        "Nico Hulkenberg",
+        "Gabriel Bortoleto"
+      ]
+    },
+    {
+      "name": "Audi",
+      "full_name": "Audi Revolut F1 Team",
+      "base": "Hinwil, Switzerland",
+      "first_entry": 2026,
+      "position": 9,
+      "points": 2.0,
+      "drivers": [
+        "Nico Hulkenberg",
+        "Gabriel Bortoleto"
+      ]
+    },
+    {
+      "name": "Audi",
+      "full_name": "Audi Revolut F1 Team",
+      "base": "Hinwil, Switzerland",
+      "first_entry": 2026,
+      "position": 9,
+      "points": 2.0,
+      "drivers": [
+        "Nico Hulkenberg",
+        "Gabriel Bortoleto"
+      ]
+    },
+    {
+      "name": "Audi",
+      "full_name": "Audi Revolut F1 Team",
+      "base": "Hinwil, Switzerland",
+      "first_entry": 2026,
+      "position": 9,
+      "points": 2.0,
+      "drivers": [
+        "Nico Hulkenberg",
+        "Gabriel Bortoleto"
+      ]
+    },
+    {
+      "name": "Audi",
+      "full_name": "Audi Revolut F1 Team",
+      "base": "Hinwil, Switzerland",
+      "first_entry": 2026,
+      "position": 9,
+      "points": 2.0,
+      "drivers": [
+        "Nico Hulkenberg",
+        "Gabriel Bortoleto"
+      ]
+    },
+    {
+      "name": "Audi",
+      "full_name": "Audi Revolut F1 Team",
+      "base": "Hinwil, Switzerland",
+      "first_entry": 2026,
+      "position": 9,
+      "points": 6.0,
+      "drivers": [
+        "Nico Hulkenberg",
+        "Gabriel Bortoleto"
+      ]
+    },
+    {
+      "name": "Audi",
+      "full_name": "Audi Revolut F1 Team",
+      "base": "Hinwil, Switzerland",
+      "first_entry": 2026,
+      "position": 9,
+      "points": 10.0,
+      "drivers": [
+        "Nico Hulkenberg",
+        "Gabriel Bortoleto"
+      ]
+    },
+    {
+      "name": "Williams",
+      "full_name": "Atlassian Williams F1 Team",
+      "base": "Grove, United Kingdom",
+      "first_entry": 1977,
+      "position": 9,
+      "points": 11.0,
+      "drivers": [
+        "Carlos Sainz",
+        "Alexander Albon"
+      ]
+    },
+    {
+      "name": "Williams",
+      "full_name": "Atlassian Williams F1 Team",
+      "base": "Grove, United Kingdom",
+      "first_entry": 1977,
+      "position": 9,
+      "points": 11.0,
+      "drivers": [
+        "Carlos Sainz",
+        "Alexander Albon"
       ]
     },
     {
@@ -169,6 +1573,318 @@
       "drivers": [
         "Fernando Alonso",
         "Lance Stroll"
+      ]
+    },
+    {
+      "name": "Cadillac",
+      "full_name": "Cadillac Formula 1 Team",
+      "base": "Silverstone, United Kingdom",
+      "first_entry": 2026,
+      "position": 10,
+      "points": 0.0,
+      "drivers": [
+        "Sergio Perez",
+        "Valtteri Bottas"
+      ]
+    },
+    {
+      "name": "Cadillac",
+      "full_name": "Cadillac Formula 1 Team",
+      "base": "Silverstone, United Kingdom",
+      "first_entry": 2026,
+      "position": 10,
+      "points": 0.0,
+      "drivers": [
+        "Sergio Perez",
+        "Valtteri Bottas"
+      ]
+    },
+    {
+      "name": "Cadillac",
+      "full_name": "Cadillac Formula 1 Team",
+      "base": "Silverstone, United Kingdom",
+      "first_entry": 2026,
+      "position": 10,
+      "points": 0.0,
+      "drivers": [
+        "Sergio Perez",
+        "Valtteri Bottas"
+      ]
+    },
+    {
+      "name": "Cadillac",
+      "full_name": "Cadillac Formula 1 Team",
+      "base": "Silverstone, United Kingdom",
+      "first_entry": 2026,
+      "position": 10,
+      "points": 0.0,
+      "drivers": [
+        "Sergio Perez",
+        "Valtteri Bottas"
+      ]
+    },
+    {
+      "name": "Cadillac",
+      "full_name": "Cadillac Formula 1 Team",
+      "base": "Silverstone, United Kingdom",
+      "first_entry": 2026,
+      "position": 10,
+      "points": 0.0,
+      "drivers": [
+        "Sergio Perez",
+        "Valtteri Bottas"
+      ]
+    },
+    {
+      "name": "Aston Martin",
+      "full_name": "Aston Martin Aramco Formula One Team",
+      "base": "Silverstone, United Kingdom",
+      "first_entry": 1959,
+      "position": 10,
+      "points": 1.0,
+      "drivers": [
+        "Fernando Alonso",
+        "Lance Stroll"
+      ]
+    },
+    {
+      "name": "Aston Martin",
+      "full_name": "Aston Martin Aramco Formula One Team",
+      "base": "Silverstone, United Kingdom",
+      "first_entry": 1959,
+      "position": 10,
+      "points": 1.0,
+      "drivers": [
+        "Fernando Alonso",
+        "Lance Stroll"
+      ]
+    },
+    {
+      "name": "Aston Martin",
+      "full_name": "Aston Martin Aramco Formula One Team",
+      "base": "Silverstone, United Kingdom",
+      "first_entry": 1959,
+      "position": 10,
+      "points": 1.0,
+      "drivers": [
+        "Fernando Alonso",
+        "Lance Stroll"
+      ]
+    },
+    {
+      "name": "Aston Martin",
+      "full_name": "Aston Martin Aramco Formula One Team",
+      "base": "Silverstone, United Kingdom",
+      "first_entry": 1959,
+      "position": 10,
+      "points": 1.0,
+      "drivers": [
+        "Fernando Alonso",
+        "Lance Stroll"
+      ]
+    },
+    {
+      "name": "Aston Martin",
+      "full_name": "Aston Martin Aramco Formula One Team",
+      "base": "Silverstone, United Kingdom",
+      "first_entry": 1959,
+      "position": 10,
+      "points": 1.0,
+      "drivers": [
+        "Fernando Alonso",
+        "Lance Stroll"
+      ]
+    },
+    {
+      "name": "Aston Martin",
+      "full_name": "Aston Martin Aramco Formula One Team",
+      "base": "Silverstone, United Kingdom",
+      "first_entry": 1959,
+      "position": 10,
+      "points": 1.0,
+      "drivers": [
+        "Fernando Alonso",
+        "Lance Stroll"
+      ]
+    },
+    {
+      "name": "Aston Martin",
+      "full_name": "Aston Martin Aramco Formula One Team",
+      "base": "Silverstone, United Kingdom",
+      "first_entry": 1959,
+      "position": 10,
+      "points": 3.0,
+      "drivers": [
+        "Fernando Alonso",
+        "Lance Stroll"
+      ]
+    },
+    {
+      "name": "Aston Martin",
+      "full_name": "Aston Martin Aramco Formula One Team",
+      "base": "Silverstone, United Kingdom",
+      "first_entry": 1959,
+      "position": 10,
+      "points": 3.0,
+      "drivers": [
+        "Fernando Alonso",
+        "Lance Stroll"
+      ]
+    },
+    {
+      "name": "Cadillac",
+      "full_name": "Cadillac Formula 1 Team",
+      "base": "Silverstone, United Kingdom",
+      "first_entry": 2026,
+      "position": 11,
+      "points": 0.0,
+      "drivers": [
+        "Sergio Perez",
+        "Valtteri Bottas"
+      ]
+    },
+    {
+      "name": "Aston Martin",
+      "full_name": "Aston Martin Aramco Formula One Team",
+      "base": "Silverstone, United Kingdom",
+      "first_entry": 1959,
+      "position": 11,
+      "points": 0.0,
+      "drivers": [
+        "Fernando Alonso",
+        "Lance Stroll"
+      ]
+    },
+    {
+      "name": "Aston Martin",
+      "full_name": "Aston Martin Aramco Formula One Team",
+      "base": "Silverstone, United Kingdom",
+      "first_entry": 1959,
+      "position": 11,
+      "points": 0.0,
+      "drivers": [
+        "Fernando Alonso",
+        "Lance Stroll"
+      ]
+    },
+    {
+      "name": "Aston Martin",
+      "full_name": "Aston Martin Aramco Formula One Team",
+      "base": "Silverstone, United Kingdom",
+      "first_entry": 1959,
+      "position": 11,
+      "points": 0.0,
+      "drivers": [
+        "Fernando Alonso",
+        "Lance Stroll"
+      ]
+    },
+    {
+      "name": "Aston Martin",
+      "full_name": "Aston Martin Aramco Formula One Team",
+      "base": "Silverstone, United Kingdom",
+      "first_entry": 1959,
+      "position": 11,
+      "points": 0.0,
+      "drivers": [
+        "Fernando Alonso",
+        "Lance Stroll"
+      ]
+    },
+    {
+      "name": "Aston Martin",
+      "full_name": "Aston Martin Aramco Formula One Team",
+      "base": "Silverstone, United Kingdom",
+      "first_entry": 1959,
+      "position": 11,
+      "points": 0.0,
+      "drivers": [
+        "Fernando Alonso",
+        "Lance Stroll"
+      ]
+    },
+    {
+      "name": "Cadillac",
+      "full_name": "Cadillac Formula 1 Team",
+      "base": "Silverstone, United Kingdom",
+      "first_entry": 2026,
+      "position": 11,
+      "points": 0.0,
+      "drivers": [
+        "Sergio Perez",
+        "Valtteri Bottas"
+      ]
+    },
+    {
+      "name": "Cadillac",
+      "full_name": "Cadillac Formula 1 Team",
+      "base": "Silverstone, United Kingdom",
+      "first_entry": 2026,
+      "position": 11,
+      "points": 0.0,
+      "drivers": [
+        "Sergio Perez",
+        "Valtteri Bottas"
+      ]
+    },
+    {
+      "name": "Cadillac",
+      "full_name": "Cadillac Formula 1 Team",
+      "base": "Silverstone, United Kingdom",
+      "first_entry": 2026,
+      "position": 11,
+      "points": 0.0,
+      "drivers": [
+        "Sergio Perez",
+        "Valtteri Bottas"
+      ]
+    },
+    {
+      "name": "Cadillac",
+      "full_name": "Cadillac Formula 1 Team",
+      "base": "Silverstone, United Kingdom",
+      "first_entry": 2026,
+      "position": 11,
+      "points": 0.0,
+      "drivers": [
+        "Sergio Perez",
+        "Valtteri Bottas"
+      ]
+    },
+    {
+      "name": "Cadillac",
+      "full_name": "Cadillac Formula 1 Team",
+      "base": "Silverstone, United Kingdom",
+      "first_entry": 2026,
+      "position": 11,
+      "points": 0.0,
+      "drivers": [
+        "Sergio Perez",
+        "Valtteri Bottas"
+      ]
+    },
+    {
+      "name": "Cadillac",
+      "full_name": "Cadillac Formula 1 Team",
+      "base": "Silverstone, United Kingdom",
+      "first_entry": 2026,
+      "position": 11,
+      "points": 0.0,
+      "drivers": [
+        "Sergio Perez",
+        "Valtteri Bottas"
+      ]
+    },
+    {
+      "name": "Cadillac",
+      "full_name": "Cadillac Formula 1 Team",
+      "base": "Silverstone, United Kingdom",
+      "first_entry": 2026,
+      "position": 11,
+      "points": 0.0,
+      "drivers": [
+        "Sergio Perez",
+        "Valtteri Bottas"
       ]
     },
     {
@@ -337,9 +2053,165 @@
       "points": 242.0
     },
     {
+      "position": 1,
+      "driver": "George Russell",
+      "team": null,
+      "points": 25.0
+    },
+    {
+      "position": 1,
+      "driver": "George Russell",
+      "team": null,
+      "points": 51.0
+    },
+    {
+      "position": 1,
+      "driver": "Andrea Kimi Antonelli",
+      "team": null,
+      "points": 72.0
+    },
+    {
+      "position": 1,
+      "driver": "Andrea Kimi Antonelli",
+      "team": null,
+      "points": 100.0
+    },
+    {
+      "position": 1,
+      "driver": "Andrea Kimi Antonelli",
+      "team": null,
+      "points": 131.0
+    },
+    {
+      "position": 1,
+      "driver": "Andrea Kimi Antonelli",
+      "team": null,
+      "points": 156.0
+    },
+    {
+      "position": 1,
+      "driver": "Andrea Kimi Antonelli",
+      "team": null,
+      "points": 156.0
+    },
+    {
+      "position": 1,
+      "driver": "Andrea Kimi Antonelli",
+      "team": null,
+      "points": 171.0
+    },
+    {
+      "position": 1,
+      "driver": "Andrea Kimi Antonelli",
+      "team": null,
+      "points": 179.0
+    },
+    {
+      "position": 1,
+      "driver": "Andrea Kimi Antonelli",
+      "team": null,
+      "points": 204.0
+    },
+    {
+      "position": 1,
+      "driver": "Andrea Kimi Antonelli",
+      "team": null,
+      "points": 219.0
+    },
+    {
+      "position": 1,
+      "driver": "Andrea Kimi Antonelli",
+      "team": null,
+      "points": 242.0
+    },
+    {
+      "position": 1,
+      "driver": "Andrea Kimi Antonelli",
+      "team": null,
+      "points": 242.0
+    },
+    {
       "position": 2,
       "driver": "George Russell",
       "team": "Mercedes",
+      "points": 183.0
+    },
+    {
+      "position": 2,
+      "driver": "Andrea Kimi Antonelli",
+      "team": null,
+      "points": 18.0
+    },
+    {
+      "position": 2,
+      "driver": "Andrea Kimi Antonelli",
+      "team": null,
+      "points": 47.0
+    },
+    {
+      "position": 2,
+      "driver": "George Russell",
+      "team": null,
+      "points": 63.0
+    },
+    {
+      "position": 2,
+      "driver": "George Russell",
+      "team": null,
+      "points": 80.0
+    },
+    {
+      "position": 2,
+      "driver": "George Russell",
+      "team": null,
+      "points": 88.0
+    },
+    {
+      "position": 2,
+      "driver": "Sir Lewis Hamilton",
+      "team": null,
+      "points": 90.0
+    },
+    {
+      "position": 2,
+      "driver": "Sir Lewis Hamilton",
+      "team": null,
+      "points": 115.0
+    },
+    {
+      "position": 2,
+      "driver": "George Russell",
+      "team": null,
+      "points": 131.0
+    },
+    {
+      "position": 2,
+      "driver": "George Russell",
+      "team": null,
+      "points": 154.0
+    },
+    {
+      "position": 2,
+      "driver": "Sir Lewis Hamilton",
+      "team": null,
+      "points": 159.0
+    },
+    {
+      "position": 2,
+      "driver": "Sir Lewis Hamilton",
+      "team": null,
+      "points": 169.0
+    },
+    {
+      "position": 2,
+      "driver": "George Russell",
+      "team": null,
+      "points": 183.0
+    },
+    {
+      "position": 2,
+      "driver": "George Russell",
+      "team": null,
       "points": 183.0
     },
     {
@@ -349,9 +2221,165 @@
       "points": 183.0
     },
     {
+      "position": 3,
+      "driver": "Charles Leclerc",
+      "team": null,
+      "points": 15.0
+    },
+    {
+      "position": 3,
+      "driver": "Charles Leclerc",
+      "team": null,
+      "points": 34.0
+    },
+    {
+      "position": 3,
+      "driver": "Charles Leclerc",
+      "team": null,
+      "points": 49.0
+    },
+    {
+      "position": 3,
+      "driver": "Charles Leclerc",
+      "team": null,
+      "points": 59.0
+    },
+    {
+      "position": 3,
+      "driver": "Charles Leclerc",
+      "team": null,
+      "points": 75.0
+    },
+    {
+      "position": 3,
+      "driver": "George Russell",
+      "team": null,
+      "points": 88.0
+    },
+    {
+      "position": 3,
+      "driver": "George Russell",
+      "team": null,
+      "points": 106.0
+    },
+    {
+      "position": 3,
+      "driver": "Sir Lewis Hamilton",
+      "team": null,
+      "points": 125.0
+    },
+    {
+      "position": 3,
+      "driver": "Sir Lewis Hamilton",
+      "team": null,
+      "points": 147.0
+    },
+    {
+      "position": 3,
+      "driver": "George Russell",
+      "team": null,
+      "points": 154.0
+    },
+    {
+      "position": 3,
+      "driver": "George Russell",
+      "team": null,
+      "points": 160.0
+    },
+    {
+      "position": 3,
+      "driver": "Sir Lewis Hamilton",
+      "team": null,
+      "points": 183.0
+    },
+    {
+      "position": 3,
+      "driver": "Sir Lewis Hamilton",
+      "team": null,
+      "points": 183.0
+    },
+    {
       "position": 4,
       "driver": "Lando Norris",
       "team": "McLaren",
+      "points": 159.0
+    },
+    {
+      "position": 4,
+      "driver": "Sir Lewis Hamilton",
+      "team": null,
+      "points": 12.0
+    },
+    {
+      "position": 4,
+      "driver": "Sir Lewis Hamilton",
+      "team": null,
+      "points": 33.0
+    },
+    {
+      "position": 4,
+      "driver": "Sir Lewis Hamilton",
+      "team": null,
+      "points": 41.0
+    },
+    {
+      "position": 4,
+      "driver": "Lando Norris",
+      "team": null,
+      "points": 51.0
+    },
+    {
+      "position": 4,
+      "driver": "Sir Lewis Hamilton",
+      "team": null,
+      "points": 72.0
+    },
+    {
+      "position": 4,
+      "driver": "Charles Leclerc",
+      "team": null,
+      "points": 75.0
+    },
+    {
+      "position": 4,
+      "driver": "Charles Leclerc",
+      "team": null,
+      "points": 75.0
+    },
+    {
+      "position": 4,
+      "driver": "Oscar Piastri",
+      "team": null,
+      "points": 80.0
+    },
+    {
+      "position": 4,
+      "driver": "Charles Leclerc",
+      "team": null,
+      "points": 108.0
+    },
+    {
+      "position": 4,
+      "driver": "Charles Leclerc",
+      "team": null,
+      "points": 126.0
+    },
+    {
+      "position": 4,
+      "driver": "Charles Leclerc",
+      "team": null,
+      "points": 138.0
+    },
+    {
+      "position": 4,
+      "driver": "Lando Norris",
+      "team": null,
+      "points": 159.0
+    },
+    {
+      "position": 4,
+      "driver": "Lando Norris",
+      "team": null,
       "points": 159.0
     },
     {
@@ -361,9 +2389,165 @@
       "points": 155.0
     },
     {
+      "position": 5,
+      "driver": "Lando Norris",
+      "team": null,
+      "points": 10.0
+    },
+    {
+      "position": 5,
+      "driver": "Oliver Bearman",
+      "team": null,
+      "points": 17.0
+    },
+    {
+      "position": 5,
+      "driver": "Lando Norris",
+      "team": null,
+      "points": 25.0
+    },
+    {
+      "position": 5,
+      "driver": "Sir Lewis Hamilton",
+      "team": null,
+      "points": 51.0
+    },
+    {
+      "position": 5,
+      "driver": "Lando Norris",
+      "team": null,
+      "points": 58.0
+    },
+    {
+      "position": 5,
+      "driver": "Oscar Piastri",
+      "team": null,
+      "points": 58.0
+    },
+    {
+      "position": 5,
+      "driver": "Lando Norris",
+      "team": null,
+      "points": 73.0
+    },
+    {
+      "position": 5,
+      "driver": "Lando Norris",
+      "team": null,
+      "points": 79.0
+    },
+    {
+      "position": 5,
+      "driver": "Lando Norris",
+      "team": null,
+      "points": 97.0
+    },
+    {
+      "position": 5,
+      "driver": "Lando Norris",
+      "team": null,
+      "points": 103.0
+    },
+    {
+      "position": 5,
+      "driver": "Lando Norris",
+      "team": null,
+      "points": 128.0
+    },
+    {
+      "position": 5,
+      "driver": "Charles Leclerc",
+      "team": null,
+      "points": 155.0
+    },
+    {
+      "position": 5,
+      "driver": "Charles Leclerc",
+      "team": null,
+      "points": 155.0
+    },
+    {
       "position": 6,
       "driver": "Max Verstappen",
       "team": "Red Bull Racing",
+      "points": 112.0
+    },
+    {
+      "position": 6,
+      "driver": "Max Verstappen",
+      "team": null,
+      "points": 8.0
+    },
+    {
+      "position": 6,
+      "driver": "Lando Norris",
+      "team": null,
+      "points": 15.0
+    },
+    {
+      "position": 6,
+      "driver": "Oscar Piastri",
+      "team": null,
+      "points": 21.0
+    },
+    {
+      "position": 6,
+      "driver": "Oscar Piastri",
+      "team": null,
+      "points": 43.0
+    },
+    {
+      "position": 6,
+      "driver": "Oscar Piastri",
+      "team": null,
+      "points": 48.0
+    },
+    {
+      "position": 6,
+      "driver": "Lando Norris",
+      "team": null,
+      "points": 58.0
+    },
+    {
+      "position": 6,
+      "driver": "Oscar Piastri",
+      "team": null,
+      "points": 68.0
+    },
+    {
+      "position": 6,
+      "driver": "Charles Leclerc",
+      "team": null,
+      "points": 79.0
+    },
+    {
+      "position": 6,
+      "driver": "Oscar Piastri",
+      "team": null,
+      "points": 82.0
+    },
+    {
+      "position": 6,
+      "driver": "Oscar Piastri",
+      "team": null,
+      "points": 92.0
+    },
+    {
+      "position": 6,
+      "driver": "Max Verstappen",
+      "team": null,
+      "points": 109.0
+    },
+    {
+      "position": 6,
+      "driver": "Max Verstappen",
+      "team": null,
+      "points": 112.0
+    },
+    {
+      "position": 6,
+      "driver": "Max Verstappen",
+      "team": null,
       "points": 112.0
     },
     {
@@ -373,9 +2557,165 @@
       "points": 104.0
     },
     {
+      "position": 7,
+      "driver": "Oliver Bearman",
+      "team": null,
+      "points": 6.0
+    },
+    {
+      "position": 7,
+      "driver": "Pierre Gasly",
+      "team": null,
+      "points": 9.0
+    },
+    {
+      "position": 7,
+      "driver": "Oliver Bearman",
+      "team": null,
+      "points": 17.0
+    },
+    {
+      "position": 7,
+      "driver": "Max Verstappen",
+      "team": null,
+      "points": 26.0
+    },
+    {
+      "position": 7,
+      "driver": "Max Verstappen",
+      "team": null,
+      "points": 43.0
+    },
+    {
+      "position": 7,
+      "driver": "Max Verstappen",
+      "team": null,
+      "points": 43.0
+    },
+    {
+      "position": 7,
+      "driver": "Max Verstappen",
+      "team": null,
+      "points": 55.0
+    },
+    {
+      "position": 7,
+      "driver": "Max Verstappen",
+      "team": null,
+      "points": 73.0
+    },
+    {
+      "position": 7,
+      "driver": "Max Verstappen",
+      "team": null,
+      "points": 76.0
+    },
+    {
+      "position": 7,
+      "driver": "Max Verstappen",
+      "team": null,
+      "points": 91.0
+    },
+    {
+      "position": 7,
+      "driver": "Oscar Piastri",
+      "team": null,
+      "points": 92.0
+    },
+    {
+      "position": 7,
+      "driver": "Oscar Piastri",
+      "team": null,
+      "points": 104.0
+    },
+    {
+      "position": 7,
+      "driver": "Oscar Piastri",
+      "team": null,
+      "points": 104.0
+    },
+    {
       "position": 8,
       "driver": "Isack Hadjar",
       "team": "Red Bull Racing",
+      "points": 68.0
+    },
+    {
+      "position": 8,
+      "driver": "Arvid Lindblad",
+      "team": null,
+      "points": 4.0
+    },
+    {
+      "position": 8,
+      "driver": "Max Verstappen",
+      "team": null,
+      "points": 8.0
+    },
+    {
+      "position": 8,
+      "driver": "Pierre Gasly",
+      "team": null,
+      "points": 15.0
+    },
+    {
+      "position": 8,
+      "driver": "Oliver Bearman",
+      "team": null,
+      "points": 17.0
+    },
+    {
+      "position": 8,
+      "driver": "Pierre Gasly",
+      "team": null,
+      "points": 20.0
+    },
+    {
+      "position": 8,
+      "driver": "Pierre Gasly",
+      "team": null,
+      "points": 35.0
+    },
+    {
+      "position": 8,
+      "driver": "Pierre Gasly",
+      "team": null,
+      "points": 41.0
+    },
+    {
+      "position": 8,
+      "driver": "Isack Hadjar",
+      "team": null,
+      "points": 42.0
+    },
+    {
+      "position": 8,
+      "driver": "Isack Hadjar",
+      "team": null,
+      "points": 52.0
+    },
+    {
+      "position": 8,
+      "driver": "Isack Hadjar",
+      "team": null,
+      "points": 60.0
+    },
+    {
+      "position": 8,
+      "driver": "Isack Hadjar",
+      "team": null,
+      "points": 68.0
+    },
+    {
+      "position": 8,
+      "driver": "Isack Hadjar",
+      "team": null,
+      "points": 68.0
+    },
+    {
+      "position": 8,
+      "driver": "Isack Hadjar",
+      "team": null,
       "points": 68.0
     },
     {
@@ -385,9 +2725,165 @@
       "points": 49.0
     },
     {
+      "position": 9,
+      "driver": "Gabriel Bortoleto",
+      "team": null,
+      "points": 2.0
+    },
+    {
+      "position": 9,
+      "driver": "Liam Lawson",
+      "team": null,
+      "points": 8.0
+    },
+    {
+      "position": 9,
+      "driver": "Max Verstappen",
+      "team": null,
+      "points": 12.0
+    },
+    {
+      "position": 9,
+      "driver": "Pierre Gasly",
+      "team": null,
+      "points": 16.0
+    },
+    {
+      "position": 9,
+      "driver": "Oliver Bearman",
+      "team": null,
+      "points": 18.0
+    },
+    {
+      "position": 9,
+      "driver": "Isack Hadjar",
+      "team": null,
+      "points": 26.0
+    },
+    {
+      "position": 9,
+      "driver": "Isack Hadjar",
+      "team": null,
+      "points": 34.0
+    },
+    {
+      "position": 9,
+      "driver": "Pierre Gasly",
+      "team": null,
+      "points": 41.0
+    },
+    {
+      "position": 9,
+      "driver": "Pierre Gasly",
+      "team": null,
+      "points": 42.0
+    },
+    {
+      "position": 9,
+      "driver": "Pierre Gasly",
+      "team": null,
+      "points": 42.0
+    },
+    {
+      "position": 9,
+      "driver": "Liam Lawson",
+      "team": null,
+      "points": 43.0
+    },
+    {
+      "position": 9,
+      "driver": "Liam Lawson",
+      "team": null,
+      "points": 49.0
+    },
+    {
+      "position": 9,
+      "driver": "Liam Lawson",
+      "team": null,
+      "points": 49.0
+    },
+    {
       "position": 10,
       "driver": "Pierre Gasly",
       "team": "Alpine",
+      "points": 44.0
+    },
+    {
+      "position": 10,
+      "driver": "Pierre Gasly",
+      "team": null,
+      "points": 1.0
+    },
+    {
+      "position": 10,
+      "driver": "Arvid Lindblad",
+      "team": null,
+      "points": 4.0
+    },
+    {
+      "position": 10,
+      "driver": "Liam Lawson",
+      "team": null,
+      "points": 10.0
+    },
+    {
+      "position": 10,
+      "driver": "Liam Lawson",
+      "team": null,
+      "points": 10.0
+    },
+    {
+      "position": 10,
+      "driver": "Liam Lawson",
+      "team": null,
+      "points": 16.0
+    },
+    {
+      "position": 10,
+      "driver": "Liam Lawson",
+      "team": null,
+      "points": 24.0
+    },
+    {
+      "position": 10,
+      "driver": "Liam Lawson",
+      "team": null,
+      "points": 28.0
+    },
+    {
+      "position": 10,
+      "driver": "Liam Lawson",
+      "team": null,
+      "points": 30.0
+    },
+    {
+      "position": 10,
+      "driver": "Liam Lawson",
+      "team": null,
+      "points": 39.0
+    },
+    {
+      "position": 10,
+      "driver": "Liam Lawson",
+      "team": null,
+      "points": 39.0
+    },
+    {
+      "position": 10,
+      "driver": "Pierre Gasly",
+      "team": null,
+      "points": 42.0
+    },
+    {
+      "position": 10,
+      "driver": "Pierre Gasly",
+      "team": null,
+      "points": 44.0
+    },
+    {
+      "position": 10,
+      "driver": "Pierre Gasly",
+      "team": null,
       "points": 44.0
     },
     {
@@ -397,9 +2893,165 @@
       "points": 23.0
     },
     {
+      "position": 11,
+      "driver": "Esteban Ocon",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 11,
+      "driver": "Isack Hadjar",
+      "team": null,
+      "points": 4.0
+    },
+    {
+      "position": 11,
+      "driver": "Arvid Lindblad",
+      "team": null,
+      "points": 4.0
+    },
+    {
+      "position": 11,
+      "driver": "Franco Colapinto",
+      "team": null,
+      "points": 7.0
+    },
+    {
+      "position": 11,
+      "driver": "Franco Colapinto",
+      "team": null,
+      "points": 15.0
+    },
+    {
+      "position": 11,
+      "driver": "Oliver Bearman",
+      "team": null,
+      "points": 18.0
+    },
+    {
+      "position": 11,
+      "driver": "Oliver Bearman",
+      "team": null,
+      "points": 18.0
+    },
+    {
+      "position": 11,
+      "driver": "Oliver Bearman",
+      "team": null,
+      "points": 18.0
+    },
+    {
+      "position": 11,
+      "driver": "Arvid Lindblad",
+      "team": null,
+      "points": 20.0
+    },
+    {
+      "position": 11,
+      "driver": "Arvid Lindblad",
+      "team": null,
+      "points": 22.0
+    },
+    {
+      "position": 11,
+      "driver": "Arvid Lindblad",
+      "team": null,
+      "points": 23.0
+    },
+    {
+      "position": 11,
+      "driver": "Arvid Lindblad",
+      "team": null,
+      "points": 23.0
+    },
+    {
+      "position": 11,
+      "driver": "Arvid Lindblad",
+      "team": null,
+      "points": 23.0
+    },
+    {
       "position": 12,
       "driver": "Franco Colapinto",
       "team": "Alpine",
+      "points": 19.0
+    },
+    {
+      "position": 12,
+      "driver": "Alexander Albon",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 12,
+      "driver": "Oscar Piastri",
+      "team": null,
+      "points": 3.0
+    },
+    {
+      "position": 12,
+      "driver": "Isack Hadjar",
+      "team": null,
+      "points": 4.0
+    },
+    {
+      "position": 12,
+      "driver": "Arvid Lindblad",
+      "team": null,
+      "points": 4.0
+    },
+    {
+      "position": 12,
+      "driver": "Isack Hadjar",
+      "team": null,
+      "points": 14.0
+    },
+    {
+      "position": 12,
+      "driver": "Franco Colapinto",
+      "team": null,
+      "points": 15.0
+    },
+    {
+      "position": 12,
+      "driver": "Franco Colapinto",
+      "team": null,
+      "points": 16.0
+    },
+    {
+      "position": 12,
+      "driver": "Franco Colapinto",
+      "team": null,
+      "points": 16.0
+    },
+    {
+      "position": 12,
+      "driver": "Oliver Bearman",
+      "team": null,
+      "points": 18.0
+    },
+    {
+      "position": 12,
+      "driver": "Franco Colapinto",
+      "team": null,
+      "points": 19.0
+    },
+    {
+      "position": 12,
+      "driver": "Franco Colapinto",
+      "team": null,
+      "points": 19.0
+    },
+    {
+      "position": 12,
+      "driver": "Franco Colapinto",
+      "team": null,
+      "points": 19.0
+    },
+    {
+      "position": 12,
+      "driver": "Franco Colapinto",
+      "team": null,
       "points": 19.0
     },
     {
@@ -409,9 +3061,165 @@
       "points": 18.0
     },
     {
+      "position": 13,
+      "driver": "Liam Lawson",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 13,
+      "driver": "Carlos Sainz",
+      "team": null,
+      "points": 2.0
+    },
+    {
+      "position": 13,
+      "driver": "Gabriel Bortoleto",
+      "team": null,
+      "points": 2.0
+    },
+    {
+      "position": 13,
+      "driver": "Isack Hadjar",
+      "team": null,
+      "points": 4.0
+    },
+    {
+      "position": 13,
+      "driver": "Carlos Sainz",
+      "team": null,
+      "points": 6.0
+    },
+    {
+      "position": 13,
+      "driver": "Arvid Lindblad",
+      "team": null,
+      "points": 11.0
+    },
+    {
+      "position": 13,
+      "driver": "Arvid Lindblad",
+      "team": null,
+      "points": 13.0
+    },
+    {
+      "position": 13,
+      "driver": "Arvid Lindblad",
+      "team": null,
+      "points": 14.0
+    },
+    {
+      "position": 13,
+      "driver": "Franco Colapinto",
+      "team": null,
+      "points": 18.0
+    },
+    {
+      "position": 13,
+      "driver": "Oliver Bearman",
+      "team": null,
+      "points": 18.0
+    },
+    {
+      "position": 13,
+      "driver": "Oliver Bearman",
+      "team": null,
+      "points": 18.0
+    },
+    {
+      "position": 13,
+      "driver": "Oliver Bearman",
+      "team": null,
+      "points": 18.0
+    },
+    {
+      "position": 13,
+      "driver": "Oliver Bearman",
+      "team": null,
+      "points": 18.0
+    },
+    {
       "position": 14,
       "driver": "Gabriel Bortoleto",
       "team": "Audi",
+      "points": 10.0
+    },
+    {
+      "position": 14,
+      "driver": "Franco Colapinto",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 14,
+      "driver": "Gabriel Bortoleto",
+      "team": null,
+      "points": 2.0
+    },
+    {
+      "position": 14,
+      "driver": "Carlos Sainz",
+      "team": null,
+      "points": 2.0
+    },
+    {
+      "position": 14,
+      "driver": "Carlos Sainz",
+      "team": null,
+      "points": 4.0
+    },
+    {
+      "position": 14,
+      "driver": "Arvid Lindblad",
+      "team": null,
+      "points": 5.0
+    },
+    {
+      "position": 14,
+      "driver": "Carlos Sainz",
+      "team": null,
+      "points": 6.0
+    },
+    {
+      "position": 14,
+      "driver": "Carlos Sainz",
+      "team": null,
+      "points": 6.0
+    },
+    {
+      "position": 14,
+      "driver": "Carlos Sainz",
+      "team": null,
+      "points": 6.0
+    },
+    {
+      "position": 14,
+      "driver": "Gabriel Bortoleto",
+      "team": null,
+      "points": 6.0
+    },
+    {
+      "position": 14,
+      "driver": "Gabriel Bortoleto",
+      "team": null,
+      "points": 10.0
+    },
+    {
+      "position": 14,
+      "driver": "Gabriel Bortoleto",
+      "team": null,
+      "points": 10.0
+    },
+    {
+      "position": 14,
+      "driver": "Gabriel Bortoleto",
+      "team": null,
+      "points": 10.0
+    },
+    {
+      "position": 14,
+      "driver": "Gabriel Bortoleto",
+      "team": null,
       "points": 10.0
     },
     {
@@ -421,9 +3229,165 @@
       "points": 6.0
     },
     {
+      "position": 15,
+      "driver": "Carlos Sainz",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 15,
+      "driver": "Franco Colapinto",
+      "team": null,
+      "points": 1.0
+    },
+    {
+      "position": 15,
+      "driver": "Esteban Ocon",
+      "team": null,
+      "points": 1.0
+    },
+    {
+      "position": 15,
+      "driver": "Gabriel Bortoleto",
+      "team": null,
+      "points": 2.0
+    },
+    {
+      "position": 15,
+      "driver": "Gabriel Bortoleto",
+      "team": null,
+      "points": 2.0
+    },
+    {
+      "position": 15,
+      "driver": "Alexander Albon",
+      "team": null,
+      "points": 5.0
+    },
+    {
+      "position": 15,
+      "driver": "Alexander Albon",
+      "team": null,
+      "points": 5.0
+    },
+    {
+      "position": 15,
+      "driver": "Alexander Albon",
+      "team": null,
+      "points": 5.0
+    },
+    {
+      "position": 15,
+      "driver": "Carlos Sainz",
+      "team": null,
+      "points": 6.0
+    },
+    {
+      "position": 15,
+      "driver": "Carlos Sainz",
+      "team": null,
+      "points": 6.0
+    },
+    {
+      "position": 15,
+      "driver": "Carlos Sainz",
+      "team": null,
+      "points": 6.0
+    },
+    {
+      "position": 15,
+      "driver": "Nico Hulkenberg",
+      "team": null,
+      "points": 6.0
+    },
+    {
+      "position": 15,
+      "driver": "Nico Hulkenberg",
+      "team": null,
+      "points": 6.0
+    },
+    {
       "position": 16,
       "driver": "Carlos Sainz",
       "team": "Williams",
+      "points": 6.0
+    },
+    {
+      "position": 16,
+      "driver": "Sergio Perez",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 16,
+      "driver": "Esteban Ocon",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 16,
+      "driver": "Franco Colapinto",
+      "team": null,
+      "points": 1.0
+    },
+    {
+      "position": 16,
+      "driver": "Esteban Ocon",
+      "team": null,
+      "points": 1.0
+    },
+    {
+      "position": 16,
+      "driver": "Esteban Ocon",
+      "team": null,
+      "points": 1.0
+    },
+    {
+      "position": 16,
+      "driver": "Esteban Ocon",
+      "team": null,
+      "points": 3.0
+    },
+    {
+      "position": 16,
+      "driver": "Esteban Ocon",
+      "team": null,
+      "points": 3.0
+    },
+    {
+      "position": 16,
+      "driver": "Esteban Ocon",
+      "team": null,
+      "points": 3.0
+    },
+    {
+      "position": 16,
+      "driver": "Alexander Albon",
+      "team": null,
+      "points": 5.0
+    },
+    {
+      "position": 16,
+      "driver": "Alexander Albon",
+      "team": null,
+      "points": 5.0
+    },
+    {
+      "position": 16,
+      "driver": "Alexander Albon",
+      "team": null,
+      "points": 5.0
+    },
+    {
+      "position": 16,
+      "driver": "Carlos Sainz",
+      "team": null,
+      "points": 6.0
+    },
+    {
+      "position": 16,
+      "driver": "Carlos Sainz",
+      "team": null,
       "points": 6.0
     },
     {
@@ -433,9 +3397,165 @@
       "points": 5.0
     },
     {
+      "position": 17,
+      "driver": "Isack Hadjar",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 17,
+      "driver": "Nico Hulkenberg",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 17,
+      "driver": "Nico Hulkenberg",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 17,
+      "driver": "Alexander Albon",
+      "team": null,
+      "points": 1.0
+    },
+    {
+      "position": 17,
+      "driver": "Alexander Albon",
+      "team": null,
+      "points": 1.0
+    },
+    {
+      "position": 17,
+      "driver": "Gabriel Bortoleto",
+      "team": null,
+      "points": 2.0
+    },
+    {
+      "position": 17,
+      "driver": "Gabriel Bortoleto",
+      "team": null,
+      "points": 2.0
+    },
+    {
+      "position": 17,
+      "driver": "Gabriel Bortoleto",
+      "team": null,
+      "points": 2.0
+    },
+    {
+      "position": 17,
+      "driver": "Esteban Ocon",
+      "team": null,
+      "points": 3.0
+    },
+    {
+      "position": 17,
+      "driver": "Esteban Ocon",
+      "team": null,
+      "points": 3.0
+    },
+    {
+      "position": 17,
+      "driver": "Esteban Ocon",
+      "team": null,
+      "points": 3.0
+    },
+    {
+      "position": 17,
+      "driver": "Alexander Albon",
+      "team": null,
+      "points": 5.0
+    },
+    {
+      "position": 17,
+      "driver": "Alexander Albon",
+      "team": null,
+      "points": 5.0
+    },
+    {
       "position": 18,
       "driver": "Esteban Ocon",
       "team": "Haas F1 Team",
+      "points": 3.0
+    },
+    {
+      "position": 18,
+      "driver": "Oscar Piastri",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 18,
+      "driver": "Alexander Albon",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 18,
+      "driver": "Alexander Albon",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 18,
+      "driver": "Nico Hulkenberg",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 18,
+      "driver": "Nico Hulkenberg",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 18,
+      "driver": "Fernando Alonso",
+      "team": null,
+      "points": 1.0
+    },
+    {
+      "position": 18,
+      "driver": "Fernando Alonso",
+      "team": null,
+      "points": 1.0
+    },
+    {
+      "position": 18,
+      "driver": "Fernando Alonso",
+      "team": null,
+      "points": 1.0
+    },
+    {
+      "position": 18,
+      "driver": "Fernando Alonso",
+      "team": null,
+      "points": 1.0
+    },
+    {
+      "position": 18,
+      "driver": "Fernando Alonso",
+      "team": null,
+      "points": 1.0
+    },
+    {
+      "position": 18,
+      "driver": "Nico Hulkenberg",
+      "team": null,
+      "points": 2.0
+    },
+    {
+      "position": 18,
+      "driver": "Esteban Ocon",
+      "team": null,
+      "points": 3.0
+    },
+    {
+      "position": 18,
+      "driver": "Esteban Ocon",
+      "team": null,
       "points": 3.0
     },
     {
@@ -445,9 +3565,165 @@
       "points": 3.0
     },
     {
+      "position": 19,
+      "driver": "Nico Hulkenberg",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 19,
+      "driver": "Valtteri Bottas",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 19,
+      "driver": "Valtteri Bottas",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 19,
+      "driver": "Valtteri Bottas",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 19,
+      "driver": "Valtteri Bottas",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 19,
+      "driver": "Nico Hulkenberg",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 19,
+      "driver": "Nico Hulkenberg",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 19,
+      "driver": "Nico Hulkenberg",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 19,
+      "driver": "Nico Hulkenberg",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 19,
+      "driver": "Nico Hulkenberg",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 19,
+      "driver": "Fernando Alonso",
+      "team": null,
+      "points": 1.0
+    },
+    {
+      "position": 19,
+      "driver": "Fernando Alonso",
+      "team": null,
+      "points": 3.0
+    },
+    {
+      "position": 19,
+      "driver": "Fernando Alonso",
+      "team": null,
+      "points": 3.0
+    },
+    {
       "position": 20,
       "driver": "Yuki Tsunoda",
       "team": "Racing Bulls",
+      "points": 0.0
+    },
+    {
+      "position": 20,
+      "driver": "Fernando Alonso",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 20,
+      "driver": "Sergio Perez",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 20,
+      "driver": "Sergio Perez",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 20,
+      "driver": "Sergio Perez",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 20,
+      "driver": "Sergio Perez",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 20,
+      "driver": "Valtteri Bottas",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 20,
+      "driver": "Valtteri Bottas",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 20,
+      "driver": "Valtteri Bottas",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 20,
+      "driver": "Valtteri Bottas",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 20,
+      "driver": "Valtteri Bottas",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 20,
+      "driver": "Lance Stroll",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 20,
+      "driver": "Yuki Tsunoda",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 20,
+      "driver": "Yuki Tsunoda",
+      "team": null,
       "points": 0.0
     },
     {
@@ -457,15 +3733,177 @@
       "points": 0.0
     },
     {
+      "position": 21,
+      "driver": "Valtteri Bottas",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 21,
+      "driver": "Fernando Alonso",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 21,
+      "driver": "Fernando Alonso",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 21,
+      "driver": "Fernando Alonso",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 21,
+      "driver": "Lance Stroll",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 21,
+      "driver": "Sergio Perez",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 21,
+      "driver": "Sergio Perez",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 21,
+      "driver": "Sergio Perez",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 21,
+      "driver": "Sergio Perez",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 21,
+      "driver": "Sergio Perez",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 21,
+      "driver": "Valtteri Bottas",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 21,
+      "driver": "Lance Stroll",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 21,
+      "driver": "Lance Stroll",
+      "team": null,
+      "points": 0.0
+    },
+    {
       "position": 22,
       "driver": "Valtteri Bottas",
       "team": "Cadillac",
       "points": 0.0
     },
     {
+      "position": 22,
+      "driver": "Lance Stroll",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 22,
+      "driver": "Lance Stroll",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 22,
+      "driver": "Lance Stroll",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 22,
+      "driver": "Fernando Alonso",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 22,
+      "driver": "Lance Stroll",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 22,
+      "driver": "Lance Stroll",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 22,
+      "driver": "Lance Stroll",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 22,
+      "driver": "Lance Stroll",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 22,
+      "driver": "Lance Stroll",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 22,
+      "driver": "Sergio Perez",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 22,
+      "driver": "Valtteri Bottas",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 22,
+      "driver": "Valtteri Bottas",
+      "team": null,
+      "points": 0.0
+    },
+    {
       "position": 23,
       "driver": "Sergio Perez",
       "team": "Cadillac",
+      "points": 0.0
+    },
+    {
+      "position": 23,
+      "driver": "Sergio Perez",
+      "team": null,
+      "points": 0.0
+    },
+    {
+      "position": 23,
+      "driver": "Sergio Perez",
+      "team": null,
       "points": 0.0
     }
   ],
@@ -814,11 +4252,11 @@
       "priority": 10,
       "source": "F1DB",
       "url": "https://github.com/f1db/f1db",
-      "use": "The chassis, engine, constructor and per-season entrant register: every chassis that has raced, and which constructor entered which chassis in which season. Loaded by tools/f1db_fetch.py. Its entrant mapping is the second, constraining source the chassis-per-race harvest was missing.",
+      "use": "Since v2.15 the primary source for RESULTS as well as registers: the full classification for all 1,161 races (27,555 entries, 1950-2026), qualifying (26,975), championship standings after every round (34,495) and pit stops (22,472) - plus the chassis, engine, constructor and per-season entrant register it already supplied. Loaded by tools/f1db_fetch.py into diffable text, then built offline.",
       "authority": "reference",
-      "licence": "CC BY 4.0 - attribution only, no share-alike. The most permissive licence of any bulk source used here.",
+      "licence": "CC BY 4.0 - attribution only, no share-alike, and NO NON-COMMERCIAL CLAUSE. That last absence is not a footnote: it is the reason the full classification ships in the committed database when the same facts from Jolpica-F1 could only ever be loaded onto a local copy. The most permissive licence of any bulk source used here, and now the most consequential.",
       "cadence": "Re-released after every race, versioned, with a public commit history and a changelog. Better maintained than anything else at this scale.",
-      "checkability": "Its (constructor, season) -> chassis mapping is checked against the 41 CAR_SEASONS assertions this database already held and had already proved against published win totals. Its chassis register is checked against the Wikipedia per-car articles for constructor and seasons. It carries NO technical specifications at all, so nothing it says can be mistaken for one."
+      "checkability": "Heavily, in four independent places, all of them held here before F1DB was read. (1) The winner of every one of the 1,161 races came from the Wikipedia harvest; a race whose winner disagreed is refused WHOLE, and none was. The comparison is on sets, because a shared drive puts two drivers on position 1 and both are winners. (2) The champion, the runner-up and both their point totals for 76 seasons were already in `seasons`; the final standings must reproduce all four and do. (3) Qualifying position 1 is checked against the pole-sitter already stored - 13 races differ, every one a grid penalty or a sprint weekend, each recorded rather than resolved. (4) Its (constructor, season) -> chassis mapping is checked against the 41 CAR_SEASONS assertions already proved against published win totals. It carries NO technical specifications at all, so nothing it says can be mistaken for one."
     },
     {
       "id": 11,
@@ -836,11 +4274,11 @@
       "priority": 12,
       "source": "Jolpica-F1 (Ergast's maintained successor)",
       "url": "https://api.jolpi.ca/ergast/f1/",
-      "use": "The full race classification 1950-2026: every finisher and retirement with position, grid, laps, cause and points. Loaded by tools/ergast_load.py.",
+      "use": "A SECOND OPINION on the full classification, which F1DB now supplies under a licence that permits committing it. tools/ergast_load.py no longer overwrites: it compares, records every disagreement in `discrepancies`, and leaves the stored value alone. It remains the ONLY source here for 628,454 lap times back to 1996, which F1DB does not carry.",
       "authority": "reference",
-      "licence": "CC BY-NC-SA 4.0 on the Ergast data it continues: NON-COMMERCIAL. That is the most restrictive licence of any source here and it is the reason these rows are loaded locally rather than committed. The database dumps carry the same terms on their free tier; commercial use needs a supporter key.",
+      "licence": "CC BY-NC-SA 4.0 on the Ergast data it continues: NON-COMMERCIAL. The most restrictive licence of any source here, and the reason these rows are loaded locally rather than committed. That restriction now costs nothing for results, because F1DB supplies the same facts under CC BY.",
       "cadence": "Per event, community-run, and explicitly a volunteer continuation after Ergast's shutdown - the least certain future of any source here.",
-      "checkability": "The winner it reports for a race must equal the winner already stored from the Wikipedia harvest or the race is refused whole; and the derived podium counts are reconciled against official career figures. That reconciliation is what caught a hand-relayed fabrication in v2.7, and it is what caught the loader's own resolver handing Wilson Fittipaldi's Brabham results to his brother Emerson on its first live run. The dump path is checked against the API path race by race (--verify-dump), because a second fetch implementation is a second place to be wrong."
+      "checkability": "Now cuts both ways. Its winner must still equal the one already stored or the race is refused whole. Beyond that it CHECKS rather than writes: on a full load it disagrees with F1DB on 118 of 26,082 finishing positions, 0.45 per cent, and the pattern is a real difference in reading rather than an error - F1DB leaves a disqualified driver's position vacant while Jolpica promotes everyone below, so the 1983 Brazilian Grand Prix has no second place in one and Lauda second in the other. Its reconciliation caught a hand-relayed fabrication in v2.7 and the loader's own resolver handing Wilson Fittipaldi's Brabham results to his brother Emerson. The dump path is checked against the API path race by race (--verify-dump), because a second fetch implementation is a second place to be wrong."
     },
     {
       "id": 13,
@@ -863,6 +4301,28 @@
       "licence": "MIT for the library; the data is Formula One Management's and FastF1's guidance is personal, non-commercial use. Never committed here.",
       "cadence": "Live during a session; nothing exists before 2018 and nothing will.",
       "checkability": "Its finishing order is checked against the winner already stored, the same test the Jolpica loader applies."
+    },
+    {
+      "id": 15,
+      "priority": 15,
+      "source": "Wikimedia Commons (via the MediaWiki API)",
+      "url": "https://commons.wikimedia.org/",
+      "use": "The lead photograph of each accepted car article, and the attribution needed to display it. Loaded by tools/wikimedia_images.py. NO IMAGE IS STORED - article_images holds a reference and its credit, and the pixels are fetched from upload.wikimedia.org by whatever renders the page.",
+      "authority": "reference",
+      "licence": "Per file, and they differ: sixteen distinct licence strings across 602 rows - CC BY-SA at four versions, CC BY at four more, CC0, public domain and national variants. There is no blanket credit line, so each row carries its own and the build refuses a file that names no author.",
+      "cadence": "Continuous, by anyone. The lead image of an article is whatever an editor last put there, which is why the Commons-only and licence checks run on every build rather than once at harvest.",
+      "checkability": "Weak, and this is the one place in the database where that is true. The ARTICLE is constrained - it already passed the three checks in tools/wikispec_fetch.py for constructor, seasons and name - so the claim recorded is 'the article proved to describe this chassis leads with this file'. But nothing here constrains what a photograph SHOWS, and there is no second source to disagree. Testing whether the file name mentions the car finds only 265 of 602, because most correct images are filed under the driver, so the test is recorded as name_matches and enforced nowhere. The failure it half-detects is real: the ATS D5 article leads with a photograph of officials and police. These rows are 'unverified' because that is what they are."
+    },
+    {
+      "id": 16,
+      "priority": 16,
+      "source": "OpenStreetMap (via api.openstreetmap.org)",
+      "url": "https://www.openstreetmap.org/",
+      "use": "Circuit centrelines: the shape of each track as currently mapped, stored as GeoJSON on circuit_geometry. Loaded by tools/osm_geometry.py. Relation ids come from Wikidata (P402), which is CC0 and brokers the identifier without constraining anything.",
+      "authority": "reference",
+      "licence": "ODbL 1.0 - share-alike AND a database right. That is a different obligation from every other source here, and it is confined to one table on purpose; see ATTRIBUTION.md. Nothing else derives from it.",
+      "cadence": "Continuous, by anyone, and it maps only what is on the ground NOW. There is no historic geometry to be had: Spa's 14.1 km road course and Monza's banking are unmapped and unmappable, and Wikidata's own layout entities carry length and dates but no coordinates.",
+      "checkability": "Strong, and it fired immediately. A circuit relation is not an ordered ring - its members include the pit lane - so a naive sum puts Monaco at 3.745 km against a published 3.337, twelve per cent long, and nothing about that number looks wrong on its own. What rejects it is length_km, held here before OSM was consulted. Excluding the pit lane by member role gives 3.388 km, and anything outside two per cent is refused rather than stored with a caveat. The measurement is then re-run in build.py from the stored coordinates, with its own copy of the arithmetic, because sharing the tool's would check nothing."
     }
   ]
 }

@@ -616,8 +616,11 @@ def main():
     unresolved = set()
 
     known_cons = {r[0] for r in cur.execute("SELECT id FROM constructors")}
-    totals = dict(rows=0, races=0, skipped_race=0, skipped_driver=0, refused=0)
-    missing_cons, declared_cons = set(), set()
+    conflicts = []
+    totals = dict(rows=0, races=0, skipped_race=0, skipped_driver=0,
+                  conflicts=0,
+                  skipped_declared=0, refused=0)
+    missing_cons, declared_cons, declared_drv = set(), set(), set()
 
     if a.verify_dump:
         sys.exit(compare_dump_to_api(a, lo, hi))
@@ -687,8 +690,12 @@ def main():
                     continue
                 did = resolve(e["driver"], e.get("driver_name"))
                 if did is None:
-                    unresolved.add(e["driver"])
-                    totals["skipped_driver"] += 1
+                    if e["driver"] in RS.DRIVER_NON_MAPPING:
+                        declared_drv.add(e["driver"])
+                        totals["skipped_declared"] += 1
+                    else:
+                        unresolved.add(e["driver"])
+                        totals["skipped_driver"] += 1
                     continue
                 cid = RS._resolve_constructor(e["constructor"], e["year"])
                 if cid and cid not in known_cons:
@@ -706,6 +713,40 @@ def main():
                 if a.dry_run:
                     loaded += 1
                     continue
+
+                # Since v2.15 the committed build already holds the full
+                # classification, from F1DB, which is CC BY. So the common
+                # case here is no longer an empty row waiting to be filled -
+                # it is a SECOND OPINION on a row that already exists, and a
+                # second opinion is worth more than a second copy.
+                #
+                # Where the two disagree on a finishing position the
+                # disagreement is recorded and the stored value is left
+                # alone. Overwriting would destroy the only evidence that
+                # anything was ever in doubt, and this database's rule is
+                # that a source conflict neither side can settle goes on the
+                # record rather than to whichever loader ran last.
+                held = cur.execute("""SELECT finish_position, source
+                    FROM race_entries WHERE race_id=? AND driver_id=?""",
+                    (rid, did)).fetchone()
+                if (held and held[0] is not None and e["position"] is not None
+                        and held[0] != e["position"]
+                        and "f1db" in (held[1] or "").lower()):
+                    conflicts.append((year, rnd, did, held[0], e["position"]))
+                    cur.execute("""INSERT OR IGNORE INTO discrepancies
+                        (subject, field, stored_value, derived_value,
+                         assessment, status) VALUES (?,?,?,?,?,?)""",
+                        (f"{year} round {rnd}, {did}", "finish_position",
+                         str(held[0]), str(e["position"]),
+                         "F1DB and Jolpica-F1 give different finishing "
+                         "positions for the same driver in the same race. "
+                         "The F1DB value is the one stored, because it is "
+                         "what the committed build is a function of; this "
+                         "row is the evidence that the two sources differ.",
+                         "open"))
+                    loaded += 1
+                    continue
+
                 cur.execute("""INSERT INTO race_entries (race_id, driver_id,
                         constructor_id, finish_position, grid, classified,
                         status, laps_completed, points, shared_drive,
@@ -733,6 +774,7 @@ def main():
         if not a.dry_run:
             con.commit()
         totals["rows"] += loaded
+        totals["conflicts"] = len(conflicts)
         print(f"{year}: {loaded} entries across {len(by_race)} races"
               + (f", {refused} refused" if refused else ""))
         if from_dump is None:
@@ -770,13 +812,30 @@ def main():
           + ("  (dry run, nothing written)" if a.dry_run else ""))
     if totals["refused"]:
         print(f"  {totals['refused']} races REFUSED on a winner mismatch")
+    if totals["conflicts"]:
+        # Not an error. The committed build holds F1DB's classification; this
+        # is where Jolpica reads the same race differently, recorded in
+        # `discrepancies` and left for a person rather than resolved by
+        # whichever loader ran last.
+        print(f"  {totals['conflicts']} finishing positions where Jolpica "
+              f"disagrees with the stored F1DB value - recorded in "
+              f"discrepancies, nothing overwritten")
+        for c in conflicts[:5]:
+            print(f"     {c[0]} r{c[1]} {c[2]}: stored P{c[3]}, "
+                  f"Jolpica P{c[4]}")
     if totals["skipped_race"]:
         print(f"  {totals['skipped_race']} races not in this database, skipped")
-    if totals["skipped_driver"]:
+    if unresolved:
         print(f"  {totals['skipped_driver']} rows skipped, driver not in the "
               f"register: {', '.join(sorted(unresolved)[:20])}")
         print(f"  Add them to PODIUM_ONLY_DRIVERS in data/results.py, rebuild, "
               f"and rerun.")
+    if declared_drv:
+        print(f"  {totals['skipped_declared']} row(s) skipped for "
+              f"{len(declared_drv)} driver(s) this register deliberately does "
+              f"not hold: {', '.join(sorted(declared_drv))} "
+              f"(see data/results.py DRIVER_NON_MAPPING). A declared "
+              f"disagreement, not a gap.")
     if declared_cons:
         print(f"  constructors deliberately not held, stored as NULL: "
               f"{', '.join(sorted(declared_cons))} "

@@ -67,8 +67,11 @@ SEASONS = [
      "Title decided at Monza where Wolfgang von Trips was killed along with 15 spectators. Phil Hill became the first American champion.", "high"),
     (1962, 9, "g-hill", "brm", 42, 4, "clark", 30, "brm", 42, F_15, T_60S,
      "BRM's only championship, and Graham Hill's first.", "high"),
-    (1963, 10, "clark", "lotus", 54, 7, "ginther", 29, "lotus", 54, F_15, T_60S,
-     "Clark's seven wins from ten starts in the Lotus 25 monocoque — the first fully stressed-skin F1 chassis.", "high"),
+    # Graham Hill and Richie Ginther both finished on 29. Hill is the
+    # runner-up on countback, and this row said Ginther until the F1DB
+    # standings load compared the two.
+    (1963, 10, "clark", "lotus", 54, 7, "g-hill", 29, "lotus", 54, F_15, T_60S,
+     "Clark's seven wins from ten starts in the Lotus 25 monocoque — the first fully stressed-skin F1 chassis. Graham Hill and Richie Ginther tied for second on 29 points; Hill took it on countback.", "high"),
     (1964, 10, "surtees", "ferrari", 40, 2, "g-hill", 39, "ferrari", 45, F_15, T_60S,
      "John Surtees remains the only person to win world championships on both two wheels and four.", "high"),
     (1965, 10, "clark", "lotus", 54, 6, "g-hill", 40, "lotus", 54, F_15, T_60S,

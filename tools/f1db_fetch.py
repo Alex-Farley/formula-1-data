@@ -195,15 +195,20 @@ def country_rows(data, yaml):
 
 
 def driver_rows(data, yaml):
-    """The driver register, so a race entry can be resolved to an F1DB driver
-    id offline. Names only - this file never creates a driver."""
+    """The driver register: enough to resolve a race entry to an F1DB driver
+    offline, and enough to describe one the register admits.
+
+    This file never decides that a driver exists - data/drivers.py does that,
+    one authored line at a time. It only supplies the spelling, the dates and
+    the nationality for the ones already admitted."""
     import glob
     rows = []
     for p in sorted(glob.glob(os.path.join(data, "drivers", "*.yml"))):
         d = yaml.safe_load(open(p, encoding="utf-8"))
         rows.append("|".join(_clean(d.get(k)) for k in
                              ("id", "name", "firstName", "lastName",
-                              "dateOfBirth")))
+                              "dateOfBirth", "dateOfDeath", "abbreviation",
+                              "nationalityCountryId")))
     return sorted(rows)
 
 
@@ -277,6 +282,166 @@ def entrant_rows(data, yaml):
     return rows
 
 
+# ---------------------------------------------------------------- results
+#
+# F1DB carries the full classification for all 1,161 races back to 1950, plus
+# qualifying, the starting grid, per-round standings and pit stops. It is
+# CC BY 4.0 - attribution only - which is what makes this different in kind
+# from the same data via Jolpica: those rows are CC BY-NC-SA and cannot be
+# committed, which is why known_gaps #1 existed for seven versions. These
+# can.
+#
+# The two sources are kept side by side rather than one replacing the other.
+# tools/ergast_load.py still runs, and where it disagrees the disagreement is
+# recorded in `discrepancies` instead of one silently winning.
+
+# F1DB writes a position as an integer when the driver was classified and as
+# a code when they were not. Both are kept: `position` for ordering, and the
+# code for what actually happened, because "did not qualify" and "retired on
+# lap 3" are different facts and collapsing them loses the late-1980s story
+# entirely - 1,041 DNQs and 338 failures to PRE-qualify.
+POSITION_CODES = {"NC", "DNF", "DNQ", "DNPQ", "DNP", "DNS", "DSQ", "EX"}
+
+
+def _races(data, yaml):
+    """Yield (year, round, race_dir) for every race F1DB holds, in order."""
+    seasons = os.path.join(data, "seasons")
+    for year in sorted(os.listdir(seasons), key=lambda x: (not x.isdigit(), x)):
+        rdir = os.path.join(seasons, year, "races")
+        if not year.isdigit() or not os.path.isdir(rdir):
+            continue
+        for entry in sorted(os.listdir(rdir)):
+            path = os.path.join(rdir, entry)
+            if os.path.isdir(path) and entry.split("-")[0].isdigit():
+                yield int(year), int(entry.split("-")[0]), path
+
+
+def _load(path, yaml):
+    if not os.path.exists(path):
+        return []
+    with open(path, encoding="utf-8") as f:
+        return yaml.safe_load(f) or []
+
+
+def _pos(value):
+    """(position, position_text). An integer position, or a code, never both."""
+    if value is None:
+        return "", ""
+    if isinstance(value, int):
+        return str(value), str(value)
+    text = str(value).strip()
+    if text.isdigit():
+        return text, text
+    if text not in POSITION_CODES:
+        raise SystemExit(
+            f"F1DB position {text!r} is not an integer and not one of "
+            f"{sorted(POSITION_CODES)}. The vocabulary has changed; decide "
+            f"what it means before storing it.")
+    return "", text
+
+
+def result_rows(data, yaml):
+    rows = []
+    for year, rnd, path in _races(data, yaml):
+        results = _load(os.path.join(path, "race-results.yml"), yaml)
+        # A shared drive is two rows with the same position AND the same car
+        # number - Musso handing his Ferrari to Fangio at Buenos Aires in
+        # 1956. Both drivers are credited, which is what the official record
+        # does and what this database already held for the three cases it
+        # knew about. Detecting it here means the flag travels with the row
+        # rather than being rediscovered downstream.
+        # A shared drive requires a CLASSIFIED position. Two drivers who
+        # both failed to qualify under the same car number shared nothing -
+        # they were entered in different sessions - and keying on the raw
+        # position made 58 DNQ and DNS pairs look like shared drives,
+        # including four after 1964, when the practice had ended.
+        by_car = {}
+        for r in results:
+            if not isinstance(r.get("position"), int):
+                continue
+            key = (r["position"], r.get("driverNumber"))
+            by_car[key] = by_car.get(key, 0) + 1
+        for r in results:
+            pos, text = _pos(r.get("position"))
+            shared = by_car.get(
+                (r.get("position"), r.get("driverNumber")), 0) > 1
+            rows.append("|".join(_clean(v) for v in (
+                year, rnd, pos, text,
+                r.get("driverId"), r.get("constructorId"),
+                r.get("engineManufacturerId"), r.get("tyreManufacturerId"),
+                r.get("driverNumber"), r.get("laps"), r.get("time"),
+                r.get("timePenalty"), r.get("gap"), r.get("interval"),
+                r.get("reasonRetired"), r.get("points"),
+                r.get("gridPosition"), 1 if shared else 0)))
+    return rows
+
+
+def qualifying_rows(data, yaml):
+    rows = []
+    for year, rnd, path in _races(data, yaml):
+        for r in _load(os.path.join(path, "qualifying-results.yml"), yaml):
+            pos, text = _pos(r.get("position"))
+            rows.append("|".join(_clean(v) for v in (
+                year, rnd, pos, text,
+                r.get("driverId"), r.get("constructorId"),
+                r.get("driverNumber"),
+                # Pre-1996 qualifying is one time; the knockout era is three
+                # segments and no single time. Both shapes are written and
+                # the empty ones stay empty rather than being back-filled
+                # from whichever segment happens to be fastest.
+                r.get("time"), r.get("q1"), r.get("q2"), r.get("q3"),
+                r.get("gap"), r.get("interval"), r.get("laps"))))
+    return rows
+
+
+def standings_rows(data, yaml):
+    """Championship standings after every round, and at the end of a season.
+
+    The constructors' championship is awarded to a CHASSIS-ENGINE
+    combination, not to a chassis maker. In 1960 that is seven entries for
+    five constructors: Cooper-Climax won it with 48 points while
+    Cooper-Maserati and Cooper-Castellotti tied for fifth on 3. Keying these
+    rows on the constructor alone silently collapses them and hands Cooper
+    the wrong total.
+
+    after_round is empty for the end-of-season row. That is not the same as
+    "after the last round": a season's final classification is the thing the
+    title is awarded on, and before 1991 it was the best N results rather
+    than the running total, so the two can differ.
+    """
+    rows = []
+    for year, rnd, path in _races(data, yaml):
+        for who, fname, key in (
+                ("drivers", "driver-standings.yml", "driverId"),
+                ("constructors", "constructor-standings.yml", "constructorId")):
+            for r in _load(os.path.join(path, fname), yaml):
+                rows.append("|".join(_clean(v) for v in (
+                    year, rnd, who, r.get("position"), r.get(key),
+                    r.get("engineManufacturerId"), r.get("points"))))
+    seasons = os.path.join(data, "seasons")
+    for year in sorted(os.listdir(seasons)):
+        if not year.isdigit():
+            continue
+        for who, fname, key in (
+                ("drivers", "driver-standings.yml", "driverId"),
+                ("constructors", "constructor-standings.yml", "constructorId")):
+            for r in _load(os.path.join(seasons, year, fname), yaml):
+                rows.append("|".join(_clean(v) for v in (
+                    year, "", who, r.get("position"), r.get(key),
+                    r.get("engineManufacturerId"), r.get("points"))))
+    return rows
+
+
+def pit_stop_rows(data, yaml):
+    rows = []
+    for year, rnd, path in _races(data, yaml):
+        for r in _load(os.path.join(path, "pit-stops.yml"), yaml):
+            rows.append("|".join(_clean(v) for v in (
+                year, rnd, r.get("driverId"), r.get("stop"), r.get("lap"),
+                r.get("time"), r.get("timeMillis"))))
+    return rows
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -306,7 +471,8 @@ def main():
                 "country_id|name|alpha3|demonym",
                 country_rows(data, yaml), version, commit, args.check)
     ok &= write("f1db_drivers.txt",
-                "driver_id|name|first_name|last_name|date_of_birth",
+                "driver_id|name|first_name|last_name|date_of_birth|"
+                "date_of_death|abbreviation|nationality_country_id",
                 driver_rows(data, yaml), version, commit, args.check)
     ok &= write("entrants.txt",
                 "year|entrant_id|constructor_id|engine_manufacturer_id|"
@@ -318,6 +484,32 @@ def main():
                 "driver_id|rounds|test_driver"
                 "   (rounds is verbatim: '1-10', '1,4-5'; empty = did not race)",
                 entrant_driver_rows(data, yaml), version, commit, args.check)
+
+    # The full classification and everything derived from a session. These are
+    # large files and they are committed on purpose: CC BY 4.0 has no
+    # non-commercial clause, so unlike the same data from Jolpica they belong
+    # in the repository rather than only on a local copy.
+    ok &= write("race_results.txt",
+                "year|round|position|position_text|driver_id|constructor_id|"
+                "engine_manufacturer_id|tyre_manufacturer_id|driver_number|"
+                "laps|time|time_penalty|gap|interval|reason_retired|points|"
+                "grid|shared_drive",
+                result_rows(data, yaml), version, commit, args.check)
+    ok &= write("qualifying.txt",
+                "year|round|position|position_text|driver_id|constructor_id|"
+                "driver_number|time|q1|q2|q3|gap|interval|laps",
+                qualifying_rows(data, yaml), version, commit, args.check)
+    ok &= write("standings.txt",
+                "year|round|table_type|position|entity_id|"
+                "engine_manufacturer_id|points"
+                "   (round empty = the end-of-season classification; the "
+                "constructors' championship is by CHASSIS-ENGINE, so "
+                "Cooper-Climax and Cooper-Maserati are separate entries)",
+                standings_rows(data, yaml), version, commit, args.check)
+    ok &= write("f1db_pit_stops.txt",
+                "year|round|driver_id|stop|lap|time|time_millis",
+                pit_stop_rows(data, yaml), version, commit, args.check)
+
     if args.check and not ok:
         sys.exit("the committed harvest files are out of date with F1DB")
 

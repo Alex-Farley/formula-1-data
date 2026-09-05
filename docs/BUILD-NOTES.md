@@ -3,6 +3,298 @@
 A running record of what changed in each version, what it exposed, and what
 was deliberately not done. Newest first.
 
+## v2.15 (2026-09-05) — the gap that was a licence
+
+`race_entries` was 2,424 rows: the winner, the pole-sitter and the fastest-lap
+setter of each race, about 2.1 rows against a real field of 15 to 22. It is
+now **27,555 — every entry of every one of the 1,161 races**, in the
+committed database, with **26,975 qualifying rows**, **34,495 standings rows**
+and 22,472 pit stops beside it.
+
+    race_entries               2,424 -> 27,555
+    qualifying                     0 -> 26,975
+    standings                     65 -> 34,495
+    pit stops (committed)          0 -> 22,472
+    podium reconciliation    untestable -> 6 of 7 exact, in the shipped build
+
+`known_gaps` #1 called this a licensing decision for seven versions, and that
+was true but incomplete. The rows came from Jolpica-F1, whose Ergast lineage
+is CC BY-**NC**-SA, so they could be loaded onto your copy and never
+committed. F1DB has the same facts under **CC BY 4.0** — attribution only, no
+share-alike, no non-commercial clause — and F1DB was **already a source in
+this project**, supplying the chassis, engine and entrant registers since
+v2.9. Nothing had to be fetched from anywhere new. The gap was a reading of
+one licence that survived because nobody looked at the other.
+
+### What proves it
+
+Four checks, all held here independently before F1DB was read:
+
+1. **Every winner.** All 1,161 already stored from the Wikipedia harvest; a
+   race whose winner disagreed is refused whole. None was. The comparison is
+   on SETS — a shared drive puts two drivers on position 1 and both are
+   winners, and taking "the" winner made 1956 Argentina and 1957 Britain look
+   like disagreements when both sources said the same thing. That was my first
+   reported result and it was wrong.
+2. **76 seasons of champion and runner-up**, with both point totals, already
+   in `seasons`. The final standings reproduce all four every year.
+3. **Every pole-sitter.** Qualifying P1 is checked against it. 13 races differ
+   and every one is a grid penalty or a sprint weekend.
+4. **Jolpica, still loading.** `ergast_load.py` no longer writes over
+   anything: it compares and records. 118 disagreements in 26,082 entries.
+
+### Three things the model could not say
+
+Each found by a check failing, not by reading the schema.
+
+**A result is not always a number.** 8,769 DNFs, 1,041 DNQs, 338 DNPQs, 381
+DNSs, 161 DSQs, 200 NCs. `position_text` keeps the source's vocabulary and
+`finish_position` stays a clean integer. Collapsing them loses the late
+1980s, when failing to pre-qualify was most of a small team's season.
+
+**The constructors' championship is contested by a chassis-ENGINE pair.** The
+1960 table is seven entries for five constructors: Cooper-Climax 48,
+Cooper-Maserati 3, Cooper-Castellotti 3. Keying standings on the constructor
+alone made 22 seasons look like source disagreements — I reported them as
+such before checking, and every one was my own model collapsing two
+championship entries into one.
+
+**An entry can have points and no position.** Michael Schumacher scored 78 in
+1997 and was EXCLUDED from the classification after Jerez. Stored as position
+0 he sorted first, and the check comparing `seasons` to the standings duly
+reported him as that year's champion.
+
+### Two errors in the curated data
+
+Both caught by the new cross-checks, both in rows that had been there for
+versions:
+
+- **1963 runner-up.** Recorded as Ginther. He and Graham Hill both finished on
+  29 points; Hill takes it on countback and is the official runner-up.
+- **Matra's first entry.** Recorded as 1967. The 1966 German Grand Prix
+  classified Formula Two cars alongside the Formula One field, Matra entered
+  four, and Beltoise finished eighth.
+
+A third was a check that had been wrong rather than data: `no entry falls
+outside its car's years` conflated a car's DESIGN life with its RACING life.
+The Ferrari 500 is a 1952-53 works car that privateers entered until 1957.
+The check now runs against the chassis register, which is the source that
+knows when a chassis actually raced, and the 17 privateer entries are counted
+rather than fatal.
+
+### Also
+
+- `tools/ergast_load.py` is now a **checker**. Where Jolpica disagrees with
+  the stored value it writes a `discrepancies` row and leaves the data alone.
+  The pattern in the 118: F1DB leaves a disqualified driver's position vacant,
+  Jolpica promotes everyone below. The 1983 Brazilian Grand Prix has no second
+  place in one reading and Lauda second in the other.
+- `data/harvest.py: _read_named()` learned that a generated header can carry a
+  trailing note after its last column — `entrants.txt` has done so since v2.9,
+  and only positional readers had ever read it.
+- f1.db is 20 MB, from 3.2. `build.py` now VACUUMs; the web app fetches the
+  file whole and it gzips to about 5 MB. `f1_database.json` keeps
+  `race_entries` and the end-of-season standings; qualifying, pit stops and
+  the per-round standings are in f1.db and one query away.
+- `verify.py` 158 -> 170 checks, in a new *The full classification* section.
+
+## v2.14 (2026-09-05) — pictures, and the number that rejected one
+
+Two additions that both point at things this repository does not contain, for
+opposite reasons.
+
+### Photographs: the one place with no cross-check
+
+`article_images` records the lead image of 602 of the 645 accepted car
+articles — file, licence, photographer, description page. **No image is
+stored.** The pixels come from Wikimedia at render time and `f1.db` does not
+grow by a byte.
+
+I nearly did not do this, on the grounds that a photograph is not a fact with
+a source. That was too broad. *"The article proved to describe this chassis
+leads with this file, CC BY-SA 3.0 by Morio"* **is** a fact about Wikipedia,
+and rerunning the harvest re-establishes it. The article was already
+constrained — it passed the constructor, seasons and name checks in
+`wikispec_fetch.py` — so these are not images found by searching for a car's
+name, which is the inference that put an invented "Ferrari 125 F2" into the
+abandoned 1952 harvest.
+
+Three checks refuse a row, at harvest and again at build:
+
+- **Commons only.** All 610 files on the measured run were `shared`, which
+  makes the check look redundant. It is not: a file uploaded locally to
+  en.wikipedia.org is local *because* it is non-free, and the lead image of an
+  article is whatever an editor last put there.
+- **A free licence**, matched against a list of prefixes rather than a pattern
+  over "cc". `CC BY-NC` and `CC BY-ND` both start "CC BY" and neither is free
+  enough to display.
+- **An author to attribute.** Seven files name none and were refused; one more
+  states no licence at all.
+
+There is no blanket credit line. **Sixteen distinct licence strings** appear
+across 602 rows — CC BY-SA at five versions, CC BY at four, CC0, public
+domain, and national variants like `CC BY-SA 2.0 de`. Each row carries its
+own, and the web smoke test asserts the caption renders with both author and
+licence, because an image shown without its credit is not an ugly page, it is
+an infringing one.
+
+**What cannot be checked is whether the photograph shows the car.** Nothing
+here constrains the content of an image and there is no second source to
+disagree. Testing whether the file name mentions the chassis finds 265 of 602,
+because most correct images are filed under the driver —
+`File:Jos_Verstappen_2000_Monza_(cropped).jpg` really is an Arrows A21 — so as
+a rule it would throw away half the good rows. It is stored as `name_matches`
+and **enforced nowhere**. The failure it half-detects is real: the ATS D5
+article leads with
+
+    File:Grand_Prix_van_NL_op_circuit_van_Zandvoort_nr._10_,_11_officials_en_politie...
+
+which is a photograph of officials and police. Every row is `unverified`, and
+`./f1 images` lists the 337 for someone to look at.
+
+### Centrelines: the check fired on the first circuit tried
+
+`circuit_geometry` stores a circuit's shape as GeoJSON, traced from
+OpenStreetMap, drawn as inline SVG with no tiles and no map library.
+
+Overpass is unreachable from here — `overpass-api.de`, `overpass.kumi.systems`
+and `overpass.private.coffee` all fail the same way — so a circuit is
+addressed by **relation id** through the plain OSM API instead. That is the
+better shape anyway: a bounding box returns whatever is inside a rectangle, a
+relation id names one object. The ids come from Wikidata (P402), which is CC0.
+
+Then the point of doing it here at all. A circuit relation is not an ordered
+ring; its members include the pit lane:
+
+    Monaco, OSM relation 148194
+      all 42 member ways                   3.745 km   +12.2%
+      excluding role=pit_lane (0.357 km)   3.388 km    +1.5%
+      published, already in this database  3.337 km
+
+A naive implementation stores 3.745 and is wrong by 408 metres, and **nothing
+about that number looks wrong on its own**. `length_km` is the only thing that
+says otherwise, and this database held it long before OSM was consulted. Rows
+outside 2% are refused, not stored with a caveat. The measurement is then
+re-run in `build.py` from the stored coordinates with its own copy of the
+haversine — deliberately duplicated, because sharing the tool's arithmetic
+would check nothing.
+
+Two things stay absent on purpose. **Historic geometry does not exist
+anywhere**: OSM maps what is on the ground, and Wikidata's historic-layout
+entities — `Q66712049`, "Circuit de Monaco Grand Prix Circuit (1929-1972)" —
+carry a length and a date range but no coordinates. So Spa's 14.1 km Ardennes
+course and Monza's banking have no row rather than a modern shape standing in
+for them, and `verify.py` fails the build if a trace is ever attached to a
+layout whose timeline has closed. And **ODbL 1.0** — share-alike plus a
+database right, a stronger obligation than anything else here — is confined to
+this one table, so dropping it drops the obligation.
+
+### Also
+
+- `data/harvest.py` gains `_read_named()`, one header-driven reader shared by
+  three harvests. Positional reads of a generated file are the trap that cost
+  two full re-harvests in v2.9.
+- `verify.py` 150 → 158 checks, in a new *Illustration and geometry* section.
+- `./f1 images`, and a geometry line on `./f1 circuit`.
+
+## v2.13 (2026-09-05) — the driver register, and a flag that means the wrong thing
+
+618 drivers who entered a championship Grand Prix had no row here. The
+register held 244 of roughly 860, and that was the binding constraint on
+everything downstream: `ergast_load.py` skipped **5,490 classification rows**
+because the driver could not be resolved, and it refuses to invent one.
+Pierluigi Martini entered 124 Grands Prix, Philippe Alliot 116, Piercarlo
+Ghinzani 111. None of them existed in this database.
+
+    drivers                     244 -> 862
+    rows skipped, no driver   5,490 -> 33
+    race_entries on a load   20,555 -> 25,995
+    podium reconciliation    6 of 7 -> 7 of 7 exact
+
+The 7-of-7 is the part that matters. Russell derived one podium more than his
+official figure for two versions; the check tolerated it because he is an
+active driver whose published total is older. With the register complete the
+derived figure matches exactly, so the tolerance is no longer carrying
+anything.
+
+Same shape as the constructor register in v2.12: the ids are authored one per
+line in `data/drivers.py: F1DB_DRIVERS` with the seasons and entry count that
+justify each, and every attribute comes from the generated harvest files.
+Nobody typed six hundred names.
+
+### Why Indianapolis drivers are admitted when Indianapolis constructors are not
+
+73 of these entered nothing but the Indianapolis 500. The constructor
+register excludes the Indianapolis *chassis makers* because they were never
+Formula One constructors. Drivers are the opposite case and this project
+settled it in v2.1: the ten Indianapolis winners have been in the register
+since then, because the official record counts an Indianapolis start in
+1950-60 as a World Championship start. Johnnie Parsons never contested a
+European Grand Prix and is here. Excluding the other 73 would contradict
+that.
+
+### A flag that means the wrong thing
+
+The first admission list was 616, and it was wrong. The test skipped F1DB's
+`testDriver` flag - and **that flag records a driver's ROLE in the team, not
+whether they raced.** Jack Aitken is a Williams test driver for 2020 and
+carries `rounds: 16`, because he started the Sakhir Grand Prix in Russell's
+place. Franck Montagny is flagged the same for 2006 and raced rounds 5-11 for
+Super Aguri. The test is `rounds`, nothing else: a driver with rounds entered
+those rounds; a test driver with none never entered. The same wrong filter was
+in the per-round chassis resolution from v2.11 and is fixed there too.
+
+### What the winner cross-check caught
+
+Admitting 618 drivers **broke the classification loader**, and the winner
+cross-check refused a race rather than mis-attributing it. `moss` had always
+resolved on its surname because Stirling was the only Moss in the register.
+Admitting **Bill Moss** made the lookup ambiguous, the fallback gave up, and
+the 1955 British Grand Prix was refused - the source's winner resolved to
+nobody. Duncan Hamilton and the other Brabhams did the same to Lewis Hamilton
+and Jack Brabham.
+
+Nothing was corrupted. A race was declined whole, which is what that check is
+for. The fix is that the surname fallback now *narrows* by the name the
+source states rather than giving up: "Stirling Moss" is a subset of "Sir
+Stirling Moss" and not of "Bill Moss", so it resolves to one driver. It still
+refuses a namesake - "Wilson Fittipaldi" is a subset of neither Emerson nor
+anyone else.
+
+Wilson Fittipaldi now has his own row, which closes the v2.9 defect at the
+root rather than by refusing to resolve him.
+
+### Sources disagreeing, declared rather than resolved
+
+- **14 drivers** Jolpica records with championship entries that F1DB does not
+  hold at all - Prince Bira, Geoff Duke, Ken Miles, Gary Hocking and others,
+  33 rows between them. Declared in `DRIVER_NON_MAPPING`; the loader now
+  reports them as a decision rather than a gap, and no longer counts them as
+  an incomplete load.
+- **BMW.** Jolpica records BMW as a constructor for six 1952-53 entries. F1DB
+  holds a BMW constructor for 1969 only and records the 1952-53 cars as
+  Veritas and AFM chassis with BMW *engines*. Those entries keep a NULL
+  rather than being credited to a constructor seventeen years early. Handled
+  by a year-scoped refusal - a mapping target of None.
+- **Nine name-form disagreements** resolved by declared alias, each checked
+  against the seasons and entries the two sources agree on: Alessandro/Alex
+  Zanardi, Alessandro/Alejandro de Tomaso, Hernando/Hermano da Silva Ramos,
+  Geoff/Geoffrey Crossley and the rest. One is a plain Jolpica error - it
+  records Boy Hayje's forename against Brett Lunger's surname, as "Boy
+  Lunger".
+
+**Emilio de Villota** now has his own row. He entered fifteen Grands Prix and
+was previously kept out of the resolver entirely, because this register's
+`de-villota` is **Maria** de Villota - his daughter, who tested for Marussia
+and never entered a race. Two rows under two ids, and the resolver still
+refuses to join them.
+
+### New checks
+
+150 total. Every driver F1DB records entering a championship race must be in
+the register; no two F1DB drivers may normalise onto one register entry; and
+no two register rows may share a full name.
+
 ## v2.12 (2026-09-05) — the constructor register, and five teams that were two
 
 Eighty-five constructors that entered a championship Grand Prix had no row in

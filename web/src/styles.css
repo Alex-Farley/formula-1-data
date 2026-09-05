@@ -795,3 +795,53 @@ button.primary:disabled {
     gap: 10px;
   }
 }
+
+/* ------------------------------------------------------- photographs
+ *
+ * The caption is not optional furniture. Almost every one of these files is
+ * CC BY or CC BY-SA, where crediting the photographer is a condition of
+ * showing the picture at all, so the credit is styled to be read rather than
+ * tucked away at the edge of legibility.
+ */
+.commons {
+  margin: 1.5rem 0;
+}
+
+.commons img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 6px;
+  border: 1px solid var(--rule);
+  background: var(--panel);
+}
+
+.commons figcaption,
+.trackmap figcaption {
+  margin-top: 0.5rem;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+/* ------------------------------------------------------- track maps
+ *
+ * currentColor on the path so the line follows the theme rather than being
+ * pinned to one background. The shape is the data; nothing else is drawn.
+ */
+.trackmap {
+  margin: 1.5rem 0;
+}
+
+.trackmap svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 6px;
+  border: 1px solid var(--rule);
+  background: var(--panel);
+}
+
+.trackmap-line {
+  stroke: var(--accent);
+}

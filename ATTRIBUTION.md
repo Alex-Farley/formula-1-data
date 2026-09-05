@@ -12,8 +12,14 @@ different positions, and the data has an obligation attached to it.
 | Race venues 1950–2026 | Wikipedia season articles | 1,161 |
 | Car specifications and design histories | Wikipedia per-car articles | 29 curated cars |
 | Chassis specifications | Wikipedia per-car articles, `{{Racing car}}` infobox | see `harvest/car_specs.txt` |
+| **Full race classification 1950–2026** | [F1DB](https://github.com/f1db/f1db) | 27,555 entries, 1,161 races |
+| **Qualifying 1950–2026** | [F1DB](https://github.com/f1db/f1db) | 26,975 rows |
+| **Championship standings, every round** | [F1DB](https://github.com/f1db/f1db) | 34,495 rows |
+| Pit stops | [F1DB](https://github.com/f1db/f1db) | 22,472 |
 | Chassis, engine and season-entrant register | [F1DB](https://github.com/f1db/f1db) | 1,153 chassis, 424 engines, 1,925 entrant rows |
 | Circuit register and layout timelines | Wikipedia per-circuit articles | 80 circuits, 49 layouts |
+| Car photographs (references and credits, not images) | [Wikimedia Commons](https://commons.wikimedia.org/) | 602 articles |
+| Circuit centrelines | [OpenStreetMap](https://www.openstreetmap.org/), ids via [Wikidata](https://www.wikidata.org/) | see `v_geometry_coverage` |
 | Notable team radio transcripts | Wikipedia per-race articles | 6 |
 | 2026 season, entry list, standings, calendar | formula1.com | current season |
 | Career totals (entries, starts, podiums, points) | formula1.com driver pages | 7 drivers at `verified` |
@@ -38,8 +44,17 @@ how the rest of this database is licensed. It does require attribution, which
 is given here, in the header of every generated file, in `source_registry`,
 and in `tools/f1db_fetch.py`.
 
-This is the most permissive licence of any bulk source used here, and it is
-part of why F1DB was chosen.
+This is the most permissive licence of any bulk source used here, and since
+v2.15 it is the single most important fact about this repository's data.
+
+**The absence of a non-commercial clause is why the full classification
+ships.** `race_entries`, `qualifying`, `standings` and F1DB's `pit_stops` —
+111,497 rows between them — are built from `harvest/race_results.txt`,
+`harvest/qualifying.txt`, `harvest/standings.txt` and
+`harvest/f1db_pit_stops.txt`, all generated from F1DB. The same facts are
+available from Jolpica-F1 under CC BY-NC-SA and were loaded locally and never
+committed for seven versions on exactly that basis. Nothing about the data
+changed; the licence did.
 
 ### Wikipedia — CC BY-SA 4.0
 
@@ -73,6 +88,52 @@ case for quotation — but they are quotations, not facts.
 
 *This is a description of the licences involved, not legal advice.*
 
+### Wikimedia Commons — sixteen different licences, one per file
+
+`article_images` records the lead photograph of each accepted car article.
+**No image is stored in this repository or in `f1.db`.** The row is a
+*reference and its credit*: which file the article leads with, who took it,
+and under what licence. The pixels are fetched from `upload.wikimedia.org` by
+whatever renders the page, under Wikimedia's terms.
+
+There is **no single licence** covering these files. Across 602 rows there are
+sixteen distinct licence strings — CC BY-SA at 1.0, 2.0, 2.5, 3.0 and 4.0,
+CC BY at 2.0, 2.5, 3.0 and 4.0, CC0, public domain, and national variants such
+as CC BY-SA 2.0 de and CC BY-SA 3.0 nl. So there is no blanket credit line you
+can write once. Each row carries its own `licence`, `licence_url` and `artist`,
+and **any display must show them**: attribution is a condition of CC BY and
+CC BY-SA, not a courtesy.
+
+Three things are enforced, at harvest time and again on every build:
+
+- the file must be on **Commons**, never a local en.wikipedia.org upload — a
+  file is uploaded locally *because* it is non-free, so linking one would be a
+  licence violation that looks like a working feature;
+- it must state a licence, checked against a list of what is actually free
+  (`CC BY-NC` and `CC BY-ND` both begin "CC BY" and neither qualifies);
+- it must name someone to attribute. Eight files were refused on the run that
+  produced the committed data: seven name no author, one states no licence.
+
+### OpenStreetMap — ODbL 1.0, and why it is confined to one table
+
+`circuit_geometry` holds circuit centrelines traced from OpenStreetMap, which
+is licensed
+[ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/). ODbL is
+**share-alike and carries a database right** — a different and stronger
+obligation than anything else here, and notably stronger than the CC BY that
+made F1DB attractive.
+
+It is therefore deliberately quarantined: **`circuit_geometry` is the only
+table derived from OpenStreetMap**, nothing else in the database depends on
+it, and dropping the table removes the obligation entirely. If you would
+rather not take ODbL on, do not run `tools/osm_geometry.py`; everything else
+builds and verifies without it.
+
+Any use of the geometry must credit **© OpenStreetMap contributors** and share
+derived geometry under ODbL. The relation ids come from
+[Wikidata](https://www.wikidata.org/), which is **CC0** and places no
+obligation on anything at all.
+
 ## Suggested arrangement
 
 Two licences, which is normal for a data project:
@@ -95,6 +156,11 @@ If you go with CC BY-SA, something like this in the README covers it:
 > The chassis, engine and season-entrant register is derived from
 > [F1DB](https://github.com/f1db/f1db), licensed
 > [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+> Circuit centrelines are © OpenStreetMap contributors, licensed
+> [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/); their relation
+> ids come from [Wikidata](https://www.wikidata.org/) (CC0). Car photographs
+> are hosted on Wikimedia Commons and each carries its own licence and
+> credit, recorded per file in `article_images`.
 > Current-season data is from formula1.com. Formula 1, F1 and Grand Prix are
 > trademarks of Formula One Licensing BV; this project is unaffiliated with
 > and unendorsed by Formula One or the FIA.
@@ -115,11 +181,14 @@ days; it is explicitly **non-commercial**. Commercial use requires a
 supporter API key. Using a dump instead of the API changes the mechanics of
 the fetch and nothing about the licence.
 
-That is one of the reasons those 26,137 rows are loaded locally by you and are
-not committed: `race_entries` in the distributed build holds only what the
-Wikipedia harvest established. The other reason is the build rule — the
-database is a function of the sources in this repository, and a row no fresh
-build could reproduce does not belong in the committed artefact.
+Since v2.15 that restriction costs nothing. The classification itself comes
+from F1DB under CC BY, so `race_entries` ships complete; `tools/ergast_load.py`
+now runs as a **cross-check** rather than a source, recording where Jolpica
+reads a race differently and overwriting nothing. Its rows are still never
+committed — the build rule holds, and a row no fresh build could reproduce
+does not belong in the distributed artefact — but nothing is missing without
+them. What Jolpica still supplies uniquely is 628,454 lap times back to 1996,
+which F1DB does not carry.
 
 ## Live timing data
 

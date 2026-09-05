@@ -206,14 +206,34 @@ CREATE TABLE standings (
     id              INTEGER PRIMARY KEY,
     year            INTEGER NOT NULL,
     table_type      TEXT NOT NULL,             -- drivers | constructors
-    position        INTEGER NOT NULL,
+    -- NULL where the entry has no championship position. That is not a gap:
+    -- Michael Schumacher scored 78 points in 1997 and was EXCLUDED from the
+    -- classification after Jerez, so he has points and no position. Storing
+    -- a 0 there put him first in every query that ordered by position.
+    position        INTEGER,
+    position_text   TEXT,                      -- "2", or DSQ / EX
     entity          TEXT NOT NULL,             -- driver or constructor display name
     entity_id       TEXT,
+    -- The constructors' championship is contested by a CHASSIS-ENGINE
+    -- combination, not by a chassis maker. Cooper-Climax won 1960 with 48
+    -- points; Cooper-Maserati and Cooper-Castellotti tied for fifth on 3.
+    -- Without this column those are one row and Cooper's total is whichever
+    -- happened to be written last. NULL on driver rows.
+    engine_id       TEXT,
     team            TEXT,
     points          REAL,
-    as_of           TEXT,                      -- 'final' or a date for in-progress
+    -- The round these standings stood after. NULL is the END-OF-SEASON
+    -- classification, which is not the same fact as "after the last round":
+    -- before 1991 the championship counted only a driver's best N results,
+    -- so the final table and the running total genuinely differ.
+    after_round     INTEGER,
+    as_of           TEXT,                      -- 'final' | 'round 7' | a date
     confidence      TEXT NOT NULL DEFAULT 'high' REFERENCES provenance(confidence),
-    source          TEXT
+    source          TEXT,
+    -- as_of is in the key so an official live snapshot and a derived
+    -- end-of-season row can coexist for the same season without one
+    -- silently overwriting the other.
+    UNIQUE (year, table_type, after_round, entity_id, engine_id, as_of)
 );
 
 -- ------------------------------------------------- circuits and events
@@ -253,6 +273,42 @@ CREATE TABLE circuit_layouts (
     turns           INTEGER,
     change_reason   TEXT,
     confidence      TEXT NOT NULL DEFAULT 'medium' REFERENCES provenance(confidence),
+    UNIQUE (circuit_id, layout_key)
+);
+
+-- The centreline of a circuit as OpenStreetMap maps it, checked against the
+-- length this database already held.
+--
+-- ODbL 1.0, which is share-alike AND carries a database right. That is a
+-- different obligation from anything else here and it is confined to this
+-- one table on purpose - see ATTRIBUTION.md. Nothing else in the database
+-- derives from OpenStreetMap.
+--
+-- The trace can only ever be the CURRENT layout: OSM maps what is on the
+-- ground. Historic configurations - Spa's 14.1 km road course, Monza's
+-- banking - have no geometry source anywhere, so they have no row here, and
+-- layout_key names the configuration a trace actually corresponds to rather
+-- than letting a modern shape stand in for a 1955 one.
+--
+-- measured_km, published_km and delta_pct are all stored so the check is
+-- visible in the data and not only in the loader. A naive sum of a circuit
+-- relation's member ways includes the pit lane and puts Monaco 12% long;
+-- what rejects that is published_km, which came from somewhere else.
+CREATE TABLE circuit_geometry (
+    circuit_id      TEXT NOT NULL REFERENCES circuits(id),
+    -- NULL where the circuit has no layout timeline at all. Never a historic
+    -- layout: a trace is of the shape that exists now.
+    layout_key      TEXT,
+    wikidata_id     TEXT NOT NULL,             -- Q171400; CC0, brokers the id
+    osm_relation    INTEGER NOT NULL,          -- 148194
+    centreline      TEXT NOT NULL,             -- GeoJSON MultiLineString, lon/lat
+    measured_km     REAL NOT NULL,             -- summed from centreline
+    published_km    REAL NOT NULL,             -- what it was checked against
+    delta_pct       REAL NOT NULL,             -- signed, and small by construction
+    node_count      INTEGER,
+    osm_timestamp   TEXT,                      -- the relation version measured
+    licence         TEXT NOT NULL DEFAULT 'ODbL-1.0',
+    confidence      TEXT NOT NULL DEFAULT 'reference' REFERENCES provenance(confidence),
     UNIQUE (circuit_id, layout_key)
 );
 
@@ -409,6 +465,43 @@ CREATE TABLE chassis (
 -- luck rather than by construction, and the moment poles could be attributed
 -- it showed: McLaren ran the M23 and M26 through 1976-77, and the blanket
 -- gave the M23 sixteen poles against a published career fourteen.
+-- The lead image of each car article, and the attribution needed to show it.
+--
+-- NO IMAGE IS STORED. This is a reference and its credit: which file an
+-- article leads with, who took it, under what licence. The pixels are fetched
+-- from upload.wikimedia.org by whatever renders the page, under Wikimedia's
+-- terms; this database redistributes nothing and f1.db does not grow.
+--
+-- The claim is checkable and it is deliberately narrow: "the article already
+-- proved to describe this chassis leads with this file". The article passed
+-- the three checks in tools/wikispec_fetch.py before it got here, so the row
+-- is not an image found by searching for a car's name.
+--
+-- What CANNOT be checked is whether the photograph shows the car. Nothing in
+-- this database constrains the content of an image and there is no second
+-- source to disagree. Testing whether the file name mentions the chassis
+-- finds under half the correct images - most are filed under the driver -
+-- so name_matches is RECORDED AND ENFORCED NOWHERE. These rows are
+-- 'unverified' because that is what they are.
+CREATE TABLE article_images (
+    article         TEXT PRIMARY KEY,          -- joins chassis.article
+    file_name       TEXT NOT NULL,             -- 'File:...' as Commons spells it
+    -- Must be 'shared'. A file hosted locally on en.wikipedia.org is local
+    -- BECAUSE it is non-free; linking one would be a licence violation.
+    repository      TEXT NOT NULL,
+    -- Every file carries its own. Sixteen distinct licence strings appear
+    -- across these rows, so there is no blanket credit line for them.
+    licence         TEXT NOT NULL,
+    licence_url     TEXT,
+    artist          TEXT,                      -- plain text; the API returns HTML
+    credit          TEXT,
+    description_url TEXT NOT NULL,             -- the Commons file page
+    width           INTEGER,
+    height          INTEGER,
+    name_matches    INTEGER NOT NULL DEFAULT 0,
+    confidence      TEXT NOT NULL DEFAULT 'unverified' REFERENCES provenance(confidence)
+);
+
 CREATE TABLE car_seasons (
     car_id          TEXT NOT NULL REFERENCES cars(id),
     year            INTEGER NOT NULL,
@@ -546,7 +639,19 @@ CREATE TABLE race_entries (
     chassis_id      TEXT REFERENCES chassis(id),
     entrant         TEXT,                      -- chassis-engine as published
     grid            INTEGER,                   -- 1 = pole position
-    finish_position INTEGER,                   -- 1 = race win
+    -- The grid slot as the source states it. Almost always the same number
+    -- as `grid`, but 236 entries started from the PIT LANE, which is not a
+    -- grid slot at all. NULLing those would say "we do not know where they
+    -- started", which is the opposite of the truth.
+    grid_text       TEXT,
+    finish_position INTEGER,                   -- 1 = race win; NULL if unclassified
+    -- The result as the source states it, losslessly: "1", or one of NC,
+    -- DNF, DNQ, DNPQ, DNP, DNS, DSQ, EX. finish_position is an integer so it
+    -- can be ordered and counted; this keeps what actually happened, because
+    -- "did not qualify" and "retired on lap 3" are different facts and
+    -- collapsing them loses the late-1980s entirely - 1,041 failures to
+    -- qualify and 338 failures to PRE-qualify.
+    position_text   TEXT,
     shared_drive    INTEGER NOT NULL DEFAULT 0,
     fastest_lap     INTEGER NOT NULL DEFAULT 0,
     fastest_lap_shared INTEGER,                -- how many drivers shared it
@@ -587,6 +692,37 @@ CREATE INDEX idx_cars_constructor ON cars(constructor_id);
 CREATE INDEX idx_cars_years       ON cars(from_year, to_year);
 
 -- ------------------------------------------- rules, tech and safety
+-- Qualifying, which is a session and not a property of the race.
+--
+-- This is deliberately NOT a column on race_entries. race_entries.grid is the
+-- STARTING GRID, which penalties, engine changes and pit-lane starts move
+-- away from the qualifying order; F1DB publishes the two separately for the
+-- same reason. A driver can also qualify and never start, and 1,041 drivers
+-- failed to qualify at all - none of which fits on a row about a race.
+--
+-- Pre-1996 qualifying is a single time. The knockout era has three segments
+-- and no single time, so both shapes are stored and neither is back-filled
+-- from the other: q1/q2/q3 are NULL for 1950, and `time` is NULL for 2021.
+CREATE TABLE qualifying (
+    id              INTEGER PRIMARY KEY,
+    race_id         INTEGER NOT NULL REFERENCES races(id),
+    driver_id       TEXT NOT NULL REFERENCES drivers(id),
+    constructor_id  TEXT REFERENCES constructors(id),
+    position        INTEGER,                   -- NULL where not classified
+    position_text   TEXT,                      -- "1", DNQ, DNPQ, DNS ...
+    driver_number   INTEGER,
+    time            TEXT,                      -- as published: "1:50.800"
+    q1              TEXT,
+    q2              TEXT,
+    q3              TEXT,
+    gap             TEXT,
+    interval        TEXT,
+    laps            INTEGER,
+    confidence      TEXT NOT NULL DEFAULT 'reference' REFERENCES provenance(confidence),
+    source          TEXT,
+    UNIQUE (race_id, driver_id)
+);
+
 CREATE TABLE regulation_changes (
     id              INTEGER PRIMARY KEY,
     year            INTEGER NOT NULL,
@@ -1118,6 +1254,55 @@ GROUP BY r.circuit_id, e.constructor_id
 ORDER BY r.circuit_id, wins DESC, constructor;
 
 -- Countries ranked by how much championship racing they have held.
+-- Circuits with a traced centreline, and how far the trace sits from the
+-- length that admitted it. Sorted worst-first: the interesting row is always
+-- the one closest to the tolerance, not the one that matched exactly.
+CREATE VIEW v_circuit_geometry AS
+SELECT g.circuit_id, c.name AS circuit, c.country,
+       COALESCE(g.layout_key, '-') AS layout,
+       g.measured_km, g.published_km, g.delta_pct,
+       g.node_count, g.osm_relation, g.osm_timestamp, g.licence,
+       -- The coordinates themselves. Without them this view describes a
+       -- centreline it cannot draw, which is what it did for one build.
+       g.centreline
+FROM circuit_geometry g JOIN circuits c ON c.id = g.circuit_id
+ORDER BY ABS(g.delta_pct) DESC;
+
+-- What has a trace and what does not, by whether the circuit is still in use.
+-- The shape of this is the point: OSM maps the present, so a circuit that
+-- stopped hosting Grands Prix in 1976 is not missing its geometry, it has
+-- none to have.
+CREATE VIEW v_geometry_coverage AS
+SELECT CASE WHEN c.last_gp IS NULL THEN 'in use' ELSE 'former' END AS status,
+       COUNT(*) AS circuits,
+       SUM(CASE WHEN g.circuit_id IS NOT NULL THEN 1 ELSE 0 END) AS traced,
+       ROUND(100.0 * SUM(CASE WHEN g.circuit_id IS NOT NULL THEN 1 ELSE 0 END)
+             / COUNT(*), 1) AS pct
+FROM circuits c LEFT JOIN circuit_geometry g ON g.circuit_id = c.id
+GROUP BY status ORDER BY status;
+
+-- Every car that can be illustrated, with the credit that must appear beside
+-- it. A row here is a licence obligation, not a decoration: where
+-- attribution_required is 1 the artist line is not optional.
+CREATE VIEW v_car_images AS
+SELECT DISTINCT ch.car_id, c.full_name AS car, i.article,
+       i.file_name, i.licence, i.licence_url, i.artist, i.credit,
+       i.description_url, i.width, i.height, i.name_matches
+FROM article_images i
+JOIN chassis ch ON ch.article = i.article
+JOIN cars c ON c.id = ch.car_id
+WHERE ch.car_id IS NOT NULL;
+
+-- The images whose file name does not mention the car. NOT a list of wrong
+-- images - most are correct and simply filed under the driver - but it is
+-- where a wrong one will be, and it is the only handle there is.
+CREATE VIEW v_images_to_check AS
+SELECT i.article, i.file_name, i.licence, i.description_url,
+       (SELECT COUNT(*) FROM chassis ch WHERE ch.article = i.article) AS chassis
+FROM article_images i
+WHERE i.name_matches = 0
+ORDER BY chassis DESC, i.article;
+
 CREATE VIEW v_circuits_by_country AS
 SELECT c.country, COUNT(DISTINCT c.id) AS circuits, COUNT(r.id) AS races,
        MIN(r.year) AS first_gp, MAX(r.year) AS last_gp,

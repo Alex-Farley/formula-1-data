@@ -3,6 +3,7 @@ import { useQuery } from '../useQuery.js'
 import { Confidence, Page, Section, Stats } from '../components/Page.jsx'
 import { Result } from '../components/State.jsx'
 import DataTable from '../components/DataTable.jsx'
+import CommonsImage from '../components/CommonsImage.jsx'
 import { cell, span } from '../format.js'
 
 const CAR = `
@@ -20,6 +21,12 @@ SELECT year, round, gp_name, circuit, driver, won, pole, fastest_lap
 FROM v_car_races
 WHERE car_id = ?
 ORDER BY year, round`
+
+// The lead image of whichever article describes this car, with the credit its
+// licence requires. LIMIT 1 because a car can span several chassis articles
+// and one photograph is enough; the rest are reachable through v_car_images.
+const IMAGE = `
+SELECT * FROM v_car_images WHERE car_id = ? LIMIT 1`
 
 const SPEC = [
   ['Designers', 'designers'],
@@ -42,6 +49,7 @@ export default function Car() {
   const { id } = useParams()
   const car = useQuery(CAR, [id])
   const races = useQuery(RACES, [id])
+  const image = useQuery(IMAGE, [id])
 
   return (
     <Result state={car} what="Loading the car">
@@ -76,6 +84,9 @@ export default function Car() {
                 { label: "Constructors' titles", value: c.constructors_titles },
               ]}
             />
+            {image.data?.rows?.[0] && (
+              <CommonsImage row={image.data.rows[0]} width={800} />
+            )}
             {c.concept && (
               <p className="lede">
                 <strong>Concept.</strong> {c.concept}

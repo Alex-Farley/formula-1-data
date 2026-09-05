@@ -3,6 +3,7 @@ import { useQuery } from '../useQuery.js'
 import { Confidence, Page, Section, Stats } from '../components/Page.jsx'
 import { Result } from '../components/State.jsx'
 import DataTable from '../components/DataTable.jsx'
+import TrackMap from '../components/TrackMap.jsx'
 import { cell, span } from '../format.js'
 
 // The prose and the register entry come from `circuits`, but the race counts
@@ -28,6 +29,12 @@ FROM circuit_layouts
 WHERE circuit_id = ?
 ORDER BY from_year, layout_key`
 
+// The traced centreline, where there is one. Most circuits have none: OSM maps
+// what is on the ground, so a venue that stopped hosting Grands Prix decades
+// ago has no geometry to hold rather than a missing row.
+const GEOMETRY = `
+SELECT * FROM v_circuit_geometry WHERE circuit_id = ?`
+
 const WINNERS = `
 SELECT driver_id, driver, wins, first_win, last_win
 FROM v_circuit_winners
@@ -44,6 +51,7 @@ export default function Circuit() {
   const { id } = useParams()
   const circuit = useQuery(CIRCUIT, [id])
   const layouts = useQuery(LAYOUTS, [id])
+  const geometry = useQuery(GEOMETRY, [id])
   const winners = useQuery(WINNERS, [id])
   const races = useQuery(RACES, [id])
 
@@ -81,6 +89,7 @@ export default function Circuit() {
                 { label: 'Direction', value: c.direction },
               ]}
             />
+            {geometry.data?.rows?.[0] && <TrackMap row={geometry.data.rows[0]} />}
             {c.characteristics && <p className="lede">{c.characteristics}</p>}
             {c.notes && <p className="note">{c.notes}</p>}
 

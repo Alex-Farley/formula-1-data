@@ -6,6 +6,8 @@ Build f1.db from schema.sql and the data modules.
 
 Idempotent: deletes and rebuilds the database each run.
 """
+import json
+import math
 import os
 import sqlite3
 import sys
@@ -27,7 +29,23 @@ from data import radio as RA       # noqa: E402
 from data import results as RS     # noqa: E402
 
 DB = os.path.join(HERE, "f1.db")
-VERSION = "2.12"
+VERSION = "2.15"
+
+
+def _haversine(a, b):
+    """Metres between two (lat, lon) pairs on the IUGG mean-radius sphere.
+
+    Deliberately duplicated from tools/osm_geometry.py rather than imported.
+    The point of re-measuring geometry at build time is to check the tool's
+    arithmetic; sharing the tool's arithmetic would check nothing.
+    """
+    R = 6371008.8
+    p1, p2 = math.radians(a[0]), math.radians(b[0])
+    dp = p2 - p1
+    dl = math.radians(b[1] - a[1])
+    h = (math.sin(dp / 2) ** 2
+         + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2)
+    return 2 * R * math.asin(math.sqrt(h))
 BUILT = "2026-09-05"
 
 
@@ -122,6 +140,51 @@ def build():
              "Added to the register from the podium harvest: reached a podium "
              "without ever winning a race, taking pole or setting a fastest lap.",
              "reference", "https://api.jolpi.ca/ergast/f1/drivers/" + eid))
+
+    # --- drivers admitted from the F1DB register (data/drivers.py
+    # F1DB_DRIVERS). The ids are authored there; every attribute comes from
+    # the generated harvest files, so nobody types six hundred names and no
+    # driver appears without a reviewed line.
+    known_drv = {r[0] for r in cur.execute("SELECT id FROM drivers")}
+    f1db_drv = {r[0]: r for r in HV.load_f1db_drivers()}
+    f1db_ctry = {r[0]: (r[1], r[2]) for r in HV.load_f1db_countries()}
+    drv_years = {}
+    for year, _e, _c, _em, f1db_id, rounds, test in HV.load_entrant_drivers():
+        # `rounds` is the test, NOT the testDriver flag. F1DB's flag records
+        # the driver's ROLE in the team, not whether they raced: Jack Aitken
+        # is a Williams test driver for 2020 and has `rounds: 16`, because he
+        # started the Sakhir Grand Prix in Russell's place. Franck Montagny
+        # is flagged the same for 2006 and raced rounds 5-11 for Super Aguri.
+        # A driver with rounds entered those rounds; a test driver with none
+        # never entered.
+        if not rounds:
+            continue
+        drv_years.setdefault(f1db_id, set()).add(year)
+    for f1db_id in D.F1DB_DRIVERS:
+        if f1db_id in known_drv:
+            raise SystemExit(
+                f"F1DB_DRIVERS admits {f1db_id}, which the register already "
+                f"holds. Remove it from the list.")
+        meta = f1db_drv.get(f1db_id)
+        if meta is None:
+            raise SystemExit(f"F1DB_DRIVERS admits {f1db_id}, which is not in "
+                             f"harvest/f1db_drivers.txt. Rerun "
+                             f"tools/f1db_fetch.py.")
+        yrs = drv_years.get(f1db_id)
+        if not yrs:
+            raise SystemExit(f"F1DB_DRIVERS admits {f1db_id}, which the entry "
+                             f"lists show entering no championship race")
+        _id, name, _first, _last, born, died, abbr, nat_id = meta
+        nat, code = f1db_ctry.get(nat_id, (None, None))
+        cur.execute("""INSERT INTO drivers (id, full_name, nationality,
+            nationality_code, born, died, first_season, last_season, titles,
+            status, confidence, source)
+            VALUES (?,?,?,?,?,?,?,?,0,?,?,?)""",
+            (f1db_id, name, nat, code, born, died, min(yrs), max(yrs),
+             "deceased" if died else
+             ("active" if max(yrs) >= 2026 else "retired"),
+             HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
+        known_drv.add(f1db_id)
 
     # The wins / poles / fastest_laps just inserted are hand-entered from
     # reference records. Move them to the *_external columns now, before the
@@ -269,7 +332,14 @@ def build():
     f1db_country = {r[0]: r[1] for r in HV.load_f1db_countries()}
     cons_years = {}
     for year, _e, f1db_cons, _em, _d, rounds, test in HV.load_entrant_drivers():
-        if test or not rounds:
+        # `rounds` is the test, NOT the testDriver flag. F1DB's flag records
+        # the driver's ROLE in the team, not whether they raced: Jack Aitken
+        # is a Williams test driver for 2020 and has `rounds: 16`, because he
+        # started the Sakhir Grand Prix in Russell's place. Franck Montagny
+        # is flagged the same for 2006 and raced rounds 5-11 for Super Aguri.
+        # A driver with rounds entered those rounds; a test driver with none
+        # never entered.
+        if not rounds:
             continue
         cons_years.setdefault(f1db_cons, set()).add(year)
     for f1db_id in T.F1DB_CONSTRUCTORS:
@@ -399,6 +469,121 @@ def build():
              ("https://en.wikipedia.org/wiki/" +
               sp["article"].replace(" ", "_")) if sp.get("article") else None,
              HV.F1DB_SOURCE))
+
+    # --- the lead image of each accepted car article, and its credit
+    #
+    # No image is stored. What is stored is which file an article leads with
+    # and who must be credited for it. The harvest applied these checks
+    # already; they run again here because a harvest file is an input like
+    # any other, and a check belongs where the row is admitted rather than
+    # only where it was written.
+    known_articles = {r[0] for r in cur.execute(
+        "SELECT DISTINCT article FROM chassis WHERE article IS NOT NULL")}
+    img_rows = img_skipped = 0
+    for im in HV.load_article_images():
+        article = im.get("article")
+        # An image for an article no chassis claims describes nothing this
+        # database holds. That is not an error in the file - the spec harvest
+        # may have accepted an article the chassis linkage later dropped -
+        # but it is not a row either.
+        if article not in known_articles:
+            img_skipped += 1
+            continue
+        # A local en.wikipedia.org upload is local BECAUSE it is non-free.
+        if im.get("repository") != "shared":
+            raise SystemExit(
+                f"article_images: {article} points at a file hosted "
+                f"{im.get('repository')!r}, not Wikimedia Commons. Only "
+                f"Commons files may be linked; rerun "
+                f"tools/wikimedia_images.py.")
+        if not im.get("licence"):
+            raise SystemExit(f"article_images: {article} states no licence.")
+        # CC BY and CC BY-SA attribution is not optional. A file with no one
+        # to attribute cannot be displayed, so it cannot be stored either.
+        if not (im.get("artist") or im.get("credit")):
+            raise SystemExit(
+                f"article_images: {article} names no author for "
+                f"{im.get('file_name')}. Rerun tools/wikimedia_images.py.")
+        cur.execute("""INSERT INTO article_images (article, file_name,
+            repository, licence, licence_url, artist, credit, description_url,
+            width, height, name_matches, confidence)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (article, im["file_name"], im["repository"], im["licence"],
+             im.get("licence_url"), im.get("artist"), im.get("credit"),
+             im["description_url"],
+             int(im["width"]) if im.get("width") else None,
+             int(im["height"]) if im.get("height") else None,
+             1 if im.get("name_matches") == "1" else 0,
+             "unverified"))
+        img_rows += 1
+    if img_rows:
+        named = cur.execute("SELECT COUNT(*) FROM article_images "
+                            "WHERE name_matches = 1").fetchone()[0]
+        print(f"  article images: {img_rows} rows, {img_skipped} for "
+              f"articles no chassis claims; {named} name the car in the "
+              f"file name and {img_rows - named} do not")
+
+    # --- circuit centrelines, re-measured before they are admitted
+    #
+    # The harvest compared its own measurement against the published length.
+    # This measures the stored geometry AGAIN, here, offline, from the
+    # coordinates actually being written. That is not belt and braces: the
+    # tool could have measured one thing and serialised another, and the
+    # failure this guards against - a naive member sum that puts Monaco 12%
+    # long - looks perfectly reasonable in isolation.
+    geom_tolerance = 0.02
+    geom_rows = 0
+    for g in HV.load_circuit_geometry():
+        cid = g["circuit_id"]
+        if not cur.execute("SELECT 1 FROM circuits WHERE id = ?",
+                           (cid,)).fetchone():
+            raise SystemExit(f"circuit_geometry: no circuit {cid!r}.")
+        key = g.get("layout_key") or None
+        if key and not cur.execute(
+                "SELECT 1 FROM circuit_layouts WHERE circuit_id = ? "
+                "AND layout_key = ?", (cid, key)).fetchone():
+            raise SystemExit(
+                f"circuit_geometry: {cid} names layout {key!r}, which is not "
+                f"in circuit_layouts.")
+
+        geo = json.loads(g["centreline"])
+        if geo.get("type") != "MultiLineString":
+            raise SystemExit(
+                f"circuit_geometry: {cid} centreline is "
+                f"{geo.get('type')!r}, expected MultiLineString.")
+        # GeoJSON is lon,lat. Reading it as lat,lon would measure the same
+        # length and put every circuit in the wrong place, so the order is
+        # asserted rather than assumed.
+        measured_m = 0.0
+        for line in geo["coordinates"]:
+            for a, b in zip(line, line[1:]):
+                measured_m += _haversine((a[1], a[0]), (b[1], b[0]))
+        measured = measured_m / 1000.0
+        published = float(g["published_km"])
+        delta = (measured - published) / published
+        if abs(delta) > geom_tolerance:
+            raise SystemExit(
+                f"circuit_geometry: {cid} measures {measured:.3f} km against "
+                f"a published {published:.3f} km ({delta * 100:+.1f}%), "
+                f"outside {geom_tolerance * 100:.0f}%. The trace and the "
+                f"length disagree; do not store it.")
+
+        cur.execute("""INSERT INTO circuit_geometry (circuit_id, layout_key,
+            wikidata_id, osm_relation, centreline, measured_km, published_km,
+            delta_pct, node_count, osm_timestamp, licence, confidence)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (cid, key, g["wikidata_id"], int(g["osm_relation"]),
+             g["centreline"], round(measured, 4), published,
+             round(delta * 100, 2),
+             int(g["node_count"]) if g.get("node_count") else None,
+             g.get("osm_timestamp"), "ODbL-1.0", "reference"))
+        geom_rows += 1
+    if geom_rows:
+        worst = cur.execute("SELECT MAX(ABS(delta_pct)) "
+                            "FROM circuit_geometry").fetchone()[0]
+        print(f"  circuit geometry: {geom_rows} centrelines, all within "
+              f"{geom_tolerance * 100:.0f}% of the published length "
+              f"(worst {worst:+.2f}%)")
 
     # --- a regulation figure is not a measurement, part one
     #
@@ -875,6 +1060,299 @@ def build():
     if applied:
         print(f"  podiums: {applied} rows from harvest/podiums.txt")
 
+    # --- the full classification, qualifying and standings, from F1DB
+    #
+    # This is the block that closed known_gaps #1. The facts are the same ones
+    # tools/ergast_load.py fetches from Jolpica, and the difference is the
+    # licence: F1DB is CC BY 4.0, attribution only, so these rows can live in
+    # the repository and ship in the built database. Jolpica's Ergast lineage
+    # is CC BY-NC-SA, and a non-commercial clause is why the distributed
+    # build held 2.1 rows per race for seven versions.
+    #
+    # Jolpica is not retired by this. It now loads on top and DISAGREES where
+    # it disagrees, which is worth more than a second copy of the same rows.
+    f1db_drivers, drv_collisions = HV.resolve_f1db_drivers(
+        {r[0]: r[1] for r in cur.execute("SELECT id, full_name FROM drivers")})
+    if drv_collisions:
+        raise SystemExit(
+            f"race results: {len(drv_collisions)} of our drivers are claimed "
+            f"by more than one F1DB id, e.g. {list(drv_collisions.items())[:2]}")
+
+    results_by_race = {}
+    for row in HV.load_race_results():
+        results_by_race.setdefault(
+            (int(row["year"]), int(row["round"])), []).append(row)
+
+    res_rows = res_skipped_driver = res_races = 0
+    unknown_drivers = set()
+    for (yr, rnd), rows in sorted(results_by_race.items()):
+        rid = race_key.get((yr, rnd))
+        if rid is None:
+            # F1DB reaches the current season before this database's own
+            # calendar does. A race we do not hold is not an error.
+            continue
+
+        # THE CHECK. The winner of this race is already established, from a
+        # different source, for all 1,161 races. If F1DB disagrees the race is
+        # refused whole - never partially accepted, never nudged into a match.
+        # A shared drive puts two drivers on position 1 and both are winners,
+        # so this compares SETS: taking "the" winner would have made the 1956
+        # Argentine and 1957 British Grands Prix look like disagreements when
+        # both sources say the same thing.
+        ours = {r[0] for r in cur.execute(
+            "SELECT driver_id FROM race_entries WHERE race_id=? "
+            "AND finish_position=1", (rid,))}
+        theirs = set()
+        for r in rows:
+            if r["position"] == "1":
+                did = f1db_drivers.get(r["driver_id"])
+                if did:
+                    theirs.add(did)
+        if ours and theirs and ours != theirs:
+            raise SystemExit(
+                f"race results: {yr} r{rnd} - this database has "
+                f"{sorted(ours)} as the winner, F1DB has {sorted(theirs)}. "
+                f"The race is refused; resolve the disagreement before "
+                f"loading it.")
+
+        res_races += 1
+        for r in rows:
+            did = f1db_drivers.get(r["driver_id"])
+            if not did:
+                res_skipped_driver += 1
+                unknown_drivers.add(r["driver_id"])
+                continue
+            cons = HV.constructor_for_f1db(r["constructor_id"], yr)
+            if cons and not cur.execute("SELECT 1 FROM constructors WHERE id=?",
+                                        (cons,)).fetchone():
+                cons = None
+            pos = int(r["position"]) if r["position"] else None
+            # Grid is taken from F1DB EXCEPT where it is 1, for the reason the
+            # podium loader gives above: a shared drive hands the car's grid
+            # slot to both drivers, and pole is a single established fact per
+            # race that the pole harvest already owns.
+            # Grid is taken from F1DB EXCEPT where it is 1, for the reason
+            # the podium loader gives above. "PL" is a pit-lane start and is
+            # not a number; it is kept as text rather than discarded.
+            grid_text = r["grid"] or None
+            grid = (int(r["grid"])
+                    if r["grid"] and r["grid"].isdigit() and r["grid"] != "1"
+                    else None)
+            cur.execute("""INSERT INTO race_entries (race_id, driver_id,
+                    constructor_id, entrant, grid, grid_text,
+                    finish_position, position_text, shared_drive, classified,
+                    status, laps_completed, points, confidence, source)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                ON CONFLICT (race_id, driver_id) DO UPDATE SET
+                    constructor_id  = COALESCE(constructor_id, excluded.constructor_id),
+                    grid            = COALESCE(grid, excluded.grid),
+                    grid_text       = COALESCE(grid_text, excluded.grid_text),
+                    -- The winner check above has already passed, so a
+                    -- position from here cannot contradict a stored one; it
+                    -- can only fill a gap or agree.
+                    finish_position = COALESCE(finish_position, excluded.finish_position),
+                    position_text   = COALESCE(position_text, excluded.position_text),
+                    shared_drive    = MAX(shared_drive, excluded.shared_drive),
+                    classified      = COALESCE(classified, excluded.classified),
+                    status          = COALESCE(status, excluded.status),
+                    laps_completed  = COALESCE(laps_completed, excluded.laps_completed),
+                    points          = COALESCE(points, excluded.points)""",
+                (rid, did, cons, None, grid, grid_text, pos,
+                 r["position_text"], 1 if r["shared_drive"] == "1" else 0,
+                 1 if pos is not None else 0,
+                 r["reason_retired"] or (r["position_text"]
+                                         if pos is None else None),
+                 int(r["laps"]) if r["laps"] else None,
+                 float(r["points"]) if r["points"] else None,
+                 HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
+            res_rows += 1
+
+    if res_rows:
+        print(f"  race results: {res_rows} entries over {res_races} races "
+              f"from F1DB; {res_skipped_driver} rows skipped for "
+              f"{len(unknown_drivers)} unresolvable drivers")
+
+    # --- qualifying, checked against the pole already established
+    qual_rows = qual_skipped = 0
+    pole_disagreements = []
+    quali_by_race = {}
+    for row in HV.load_qualifying():
+        quali_by_race.setdefault(
+            (int(row["year"]), int(row["round"])), []).append(row)
+
+    for (yr, rnd), rows in sorted(quali_by_race.items()):
+        rid = race_key.get((yr, rnd))
+        if rid is None:
+            continue
+        for r in rows:
+            did = f1db_drivers.get(r["driver_id"])
+            if not did:
+                qual_skipped += 1
+                continue
+            cons = HV.constructor_for_f1db(r["constructor_id"], yr)
+            if cons and not cur.execute("SELECT 1 FROM constructors WHERE id=?",
+                                        (cons,)).fetchone():
+                cons = None
+            pos = int(r["position"]) if r["position"] else None
+            cur.execute("""INSERT OR IGNORE INTO qualifying (race_id,
+                    driver_id, constructor_id, position, position_text,
+                    driver_number, time, q1, q2, q3, gap, interval, laps,
+                    confidence, source)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (rid, did, cons, pos, r["position_text"],
+                 int(r["driver_number"]) if r["driver_number"] else None,
+                 r["time"], r["q1"], r["q2"], r["q3"], r["gap"],
+                 r["interval"], int(r["laps"]) if r["laps"] else None,
+                 HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
+            qual_rows += cur.rowcount
+
+        # The cross-check this table brings with it. Pole is held for all
+        # 1,161 races from the Wikipedia harvest, independently of F1DB, and
+        # whoever qualified first must be that driver. Where they differ the
+        # disagreement is RECORDED rather than resolved: qualifying position
+        # and grid slot are not the same thing once a penalty is applied, and
+        # neither source is wrong about the thing it is describing.
+        stored_pole = cur.execute(
+            "SELECT driver_id FROM race_entries WHERE race_id=? AND grid=1",
+            (rid,)).fetchone()
+        qp1 = cur.execute("SELECT driver_id FROM qualifying WHERE race_id=? "
+                          "AND position=1", (rid,)).fetchone()
+        if stored_pole and qp1 and stored_pole[0] != qp1[0]:
+            pole_disagreements.append((yr, rnd, stored_pole[0], qp1[0]))
+
+    if qual_rows:
+        print(f"  qualifying: {qual_rows} rows over "
+              f"{len(quali_by_race)} races; {qual_skipped} skipped for an "
+              f"unresolvable driver; {len(pole_disagreements)} races where "
+              f"the fastest qualifier is not the stored pole-sitter")
+    for yr, rnd, ours_, theirs_ in pole_disagreements:
+        cur.execute("""INSERT INTO discrepancies (subject, field,
+            stored_value, derived_value, assessment, status)
+            VALUES (?,?,?,?,?,?)""",
+            (f"{yr} round {rnd}", "pole position", ours_, theirs_,
+             "The stored pole-sitter started from grid 1 (Wikipedia season "
+             "tables); F1DB records a different driver as fastest in "
+             "qualifying. BOTH CAN BE TRUE - a grid penalty moves a driver "
+             "back without changing who was quickest - so this is recorded "
+             "rather than resolved. See the qualifying table for the times.",
+             "open"))
+
+    # --- championship standings, after every round and at season end
+    #
+    # The hand-entered rows are loaded first and at 'verified' because they
+    # come from formula1.com. F1DB fills everything they do not cover, and
+    # where the two meet the F1DB row is not stored twice - it is CHECKED,
+    # which is what makes the overlap worth having.
+    std_rows = std_skipped = 0
+    std_checked = std_conflicts = 0
+    f1db_cons = {}
+    known_engines = {r[0] for r in cur.execute(
+        "SELECT id FROM engine_manufacturers")}
+    completed_seasons = {r[0] for r in cur.execute(
+        """SELECT year FROM races GROUP BY year
+           HAVING SUM(CASE WHEN status <> 'completed' THEN 1 ELSE 0 END) = 0""")}
+    for (yr, rnd, kind, pos, entity, engine, points) in (
+            (r["year"], r["round"], r["table_type"], r["position"],
+             r["entity_id"], r["engine_manufacturer_id"], r["points"])
+            for r in HV.load_standings()):
+        yr = int(yr)
+        after = int(rnd) if rnd else None
+        if kind == "drivers":
+            eid = f1db_drivers.get(entity)
+        else:
+            if entity not in f1db_cons:
+                f1db_cons[entity] = HV.constructor_for_f1db(entity, yr)
+            eid = f1db_cons[entity]
+            if eid and not cur.execute("SELECT 1 FROM constructors WHERE id=?",
+                                       (eid,)).fetchone():
+                eid = None
+        if not eid:
+            std_skipped += 1
+            continue
+        # The engine is part of the constructors' championship entry, not a
+        # decoration on it. It is resolved through the same map the engine
+        # register uses, and kept as F1DB's own id where we hold no
+        # manufacturer - losing it would merge two championship entries.
+        engine_id = None
+        if kind == "constructors" and engine:
+            mapped = HV.constructor_for_f1db(engine, yr)
+            engine_id = mapped if mapped in known_engines else engine
+        pts = float(points) if points not in (None, "") else None
+        # A season-level file for a season still being run is not a FINAL
+        # classification, it is the current one. Calling both 'final' put two
+        # rows on the same key for 2026 and doubled every points total.
+        if after:
+            as_of = f"round {after}"
+        else:
+            as_of = "final" if yr in completed_seasons else "current"
+
+        # The hand-entered rows predate this column and carry no engine, so
+        # the overlap check matches on entity alone and only for the single
+        # highest-placed entry - which is the one those rows describe.
+        existing = cur.execute("""SELECT points FROM standings
+            WHERE year=? AND table_type=? AND entity_id=?
+              AND after_round IS NULL AND as_of='final'
+              AND engine_id IS NULL""",
+            (yr, kind, eid)).fetchone() if after is None else None
+        if existing is not None:
+            std_checked += 1
+            if (existing[0] is not None and pts is not None
+                    and abs(existing[0] - pts) > 0.001):
+                std_conflicts += 1
+                cur.execute("""INSERT INTO discrepancies (subject, field,
+                    stored_value, derived_value, assessment, status)
+                    VALUES (?,?,?,?,?,?)""",
+                    (f"{yr} {kind} championship, {eid}", "points",
+                     str(existing[0]), str(pts),
+                     "formula1.com and F1DB give different final "
+                     "championship points for the same entity in the same "
+                     "season. The stored figure is 'verified' from the "
+                     "official archive and is not overwritten.", "open"))
+            continue
+
+        name = cur.execute(
+            "SELECT full_name FROM drivers WHERE id=?" if kind == "drivers"
+            else "SELECT name FROM constructors WHERE id=?", (eid,)).fetchone()
+        cur.execute("""INSERT OR IGNORE INTO standings (year, table_type,
+                position, position_text, entity, entity_id, engine_id, points,
+                after_round, as_of, confidence, source)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (yr, kind,
+             int(pos) if str(pos).isdigit() else None, str(pos) if pos else None,
+             name[0] if name else eid, eid, engine_id, pts, after, as_of,
+             HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
+        std_rows += cur.rowcount
+
+    if std_rows:
+        print(f"  standings: {std_rows} rows from F1DB; {std_checked} "
+              f"end-of-season rows already held and checked "
+              f"({std_conflicts} disagreed); {std_skipped} skipped for an "
+              f"unresolvable entity")
+
+    # --- pit stops from F1DB, under their own source
+    #
+    # The table is keyed on (race, source, driver, stop) precisely so that
+    # F1DB, Jolpica and FastF1 can hold the same stop side by side and be
+    # compared, rather than the last loader to run winning.
+    pit_rows = pit_skipped = 0
+    for r in HV.load_f1db_pit_stops():
+        rid = race_key.get((int(r["year"]), int(r["round"])))
+        did = f1db_drivers.get(r["driver_id"])
+        if rid is None or not did:
+            pit_skipped += 1
+            continue
+        millis = r["time_millis"]
+        cur.execute("""INSERT OR IGNORE INTO pit_stops (race_id, driver_id,
+                driver_key, stop_number, lap_number, pit_lane_seconds, source)
+            VALUES (?,?,?,?,?,?,'f1db')""",
+            (rid, did, did, int(r["stop"]) if r["stop"] else None,
+             int(r["lap"]) if r["lap"] else None,
+             round(int(millis) / 1000.0, 3) if millis else None))
+        pit_rows += cur.rowcount
+    if pit_rows:
+        print(f"  pit stops: {pit_rows} rows from F1DB "
+              f"({pit_skipped} skipped)")
+
     # --- notable team radio. A small curated set, each checked against a
     # written source. The bulk radio index for 2018- is loaded separately by
     # tools/fastf1_load.py and is flagged notable=0.
@@ -1113,7 +1591,14 @@ def build():
     per_round = {}
     for (year, entrant, f1db_cons, eng_man, f1db_driver, rounds,
          test) in HV.load_entrant_drivers():
-        if test or not rounds:
+        # `rounds` is the test, NOT the testDriver flag. F1DB's flag records
+        # the driver's ROLE in the team, not whether they raced: Jack Aitken
+        # is a Williams test driver for 2020 and has `rounds: 16`, because he
+        # started the Sakhir Grand Prix in Russell's place. Franck Montagny
+        # is flagged the same for 2006 and raced rounds 5-11 for Super Aguri.
+        # A driver with rounds entered those rounds; a test driver with none
+        # never entered.
+        if not rounds:
             continue                    # a test driver did not enter a race
         our_driver = drivers_by_f1db.get(f1db_driver)
         if our_driver is None:
@@ -1256,12 +1741,40 @@ def build():
           f"{len(CR.CAR_SEASONS)} CAR_SEASONS claims corroborated by the "
           f"entry lists")
 
-    bad = cur.execute("""SELECT e.id FROM race_entries e JOIN cars c ON c.id=e.car_id
-        JOIN races r ON r.id=e.race_id
-        WHERE r.year < c.from_year OR (c.to_year IS NOT NULL AND r.year > c.to_year)
-        LIMIT 1""").fetchone()
+    # A car's DESIGN life and its RACING life are different facts, and this
+    # check used to conflate them. cars.from_year/to_year describe the works
+    # car - the Ferrari 500 is 1952-1953, the two seasons it won everything.
+    # The chassis register, built from the entry lists, records that the same
+    # chassis was entered until 1957: Ecurie Francorchamps ran one in 1954,
+    # Scarlatti in 1956, de Tomaso in 1957. Privateers racing last year's car
+    # is not a data error, it is most of the 1950s and 1960s.
+    #
+    # So the hard check is against the CHASSIS register, which is the source
+    # that actually knows when a chassis raced, and the gap against the
+    # curated years is counted rather than fatal.
+    bad = cur.execute("""SELECT r.year, e.driver_id, e.chassis_id,
+            ch.first_year, ch.last_year
+        FROM race_entries e
+        JOIN chassis ch ON ch.id = e.chassis_id
+        JOIN races r ON r.id = e.race_id
+        WHERE ch.first_year IS NOT NULL
+          AND (r.year < ch.first_year
+               OR (ch.last_year IS NOT NULL AND r.year > ch.last_year))
+        LIMIT 3""").fetchall()
     if bad:
-        raise SystemExit("car season: an entry falls outside its car's years")
+        raise SystemExit(
+            "chassis linkage: an entry is dated outside the seasons the "
+            f"entry lists record that chassis as entered - {list(bad)}")
+
+    privateer = cur.execute("""SELECT COUNT(*) FROM race_entries e
+        JOIN cars c ON c.id = e.car_id
+        JOIN races r ON r.id = e.race_id
+        WHERE r.year < c.from_year
+           OR (c.to_year IS NOT NULL AND r.year > c.to_year)""").fetchone()[0]
+    if privateer:
+        print(f"  car linkage: {privateer} entries run a car after its "
+              f"curated years, inside the seasons the chassis register "
+              f"allows - privateers on last year's machinery")
 
 
     # A chassis may not be credited with a race run outside the seasons the
@@ -1321,6 +1834,11 @@ def build():
         SELECT COUNT(*) FROM race_entries e
         WHERE e.constructor_id = constructors.id AND e.grid = 1)""")
 
+    con.commit()
+    # The build writes and rewrites rows as sources layer on top of each
+    # other, which leaves free pages behind. The web app fetches this file
+    # whole, so reclaiming them is not housekeeping.
+    con.execute("VACUUM")
     con.commit()
     return con
 
