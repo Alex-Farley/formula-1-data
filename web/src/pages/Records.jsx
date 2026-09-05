@@ -1,0 +1,295 @@
+import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { Confidence, Note, Page, Section } from '../components/Page.jsx'
+import { Result } from '../components/States.jsx'
+import DataTable, { cell } from '../components/DataTable.jsx'
+import { Chips } from '../components/Filters.jsx'
+import Figure from '../charts/Figure.jsx'
+import BarChart from '../charts/BarChart.jsx'
+import LineChart from '../charts/LineChart.jsx'
+import { rows, useQueries } from '../data/useQuery.js'
+import { number, percent, span } from '../lib/format.js'
+
+const RECORDS = `SELECT * FROM records ORDER BY category, id`
+
+const DRIVER_WINS = `
+  SELECT e.driver_id, d.full_name, COUNT(*) AS wins,
+         MIN(r.year) AS first_win, MAX(r.year) AS last_win
+    FROM race_entries e
+    JOIN races r   ON r.id = e.race_id
+    JOIN drivers d ON d.id = e.driver_id
+   WHERE e.finish_position = 1
+   GROUP BY e.driver_id
+   ORDER BY wins DESC, d.full_name
+   LIMIT 40
+`
+
+const DRIVER_POLES = `
+  SELECT e.driver_id, d.full_name, COUNT(*) AS poles
+    FROM race_entries e
+    JOIN drivers d ON d.id = e.driver_id
+   WHERE e.grid = 1
+   GROUP BY e.driver_id
+   ORDER BY poles DESC, d.full_name
+   LIMIT 40
+`
+
+const CONSTRUCTOR_WINS = `
+  SELECT * FROM v_wins_by_constructor LIMIT 40
+`
+
+const TITLES = `SELECT * FROM v_title_count`
+
+const DECADES = `SELECT * FROM v_wins_by_decade`
+
+const POLE_TO_WIN = `SELECT * FROM v_pole_to_win ORDER BY year`
+
+const GRAND_SLAMS = `SELECT * FROM v_grand_slams ORDER BY year DESC, round DESC`
+
+export default function Records() {
+  const state = useQueries({
+    records: [RECORDS],
+    driverWins: [DRIVER_WINS],
+    driverPoles: [DRIVER_POLES],
+    constructorWins: [CONSTRUCTOR_WINS],
+    titles: [TITLES],
+    decades: [DECADES],
+    poleToWin: [POLE_TO_WIN],
+    grandSlams: [GRAND_SLAMS],
+  })
+
+  return (
+    <Page
+      title="Records"
+      lede="Two kinds of figure sit on this page and they are kept apart. The published records were entered by hand from official sources and carry a date they were true. The leaderboards under them are counted from the 27,460 race entries every time this page loads — nobody maintains them, and they cannot go stale."
+    >
+      <Result state={state}>{(data) => <Body data={data} />}</Result>
+    </Page>
+  )
+}
+
+function Body({ data }) {
+  const records = rows(data, 'records')
+  const driverWins = rows(data, 'driverWins')
+  const driverPoles = rows(data, 'driverPoles')
+  const constructorWins = rows(data, 'constructorWins')
+  const titles = rows(data, 'titles')
+  const decades = rows(data, 'decades')
+  const poleToWin = rows(data, 'poleToWin')
+  const grandSlams = rows(data, 'grandSlams')
+
+  const [category, setCategory] = useState('')
+  const categories = useMemo(
+    () => [...new Set(records.map((r) => r.category))].sort(),
+    [records],
+  )
+  const shownRecords = category ? records.filter((r) => r.category === category) : records
+
+  const [decade, setDecade] = useState(() => String(Math.max(...decades.map((d) => d.decade))))
+  const decadeRows = decades.filter((d) => String(d.decade) === decade).slice(0, 12)
+  const decadeOptions = [...new Set(decades.map((d) => d.decade))].sort((a, b) => b - a)
+
+  return (
+    <>
+      <Section title="Published records" count={`${records.length}`}>
+        <div className="filters">
+          <Chips
+            value={category}
+            onChange={setCategory}
+            options={[['', 'All'], ...categories.map((c) => [c, c])]}
+          />
+        </div>
+        <DataTable
+          rows={shownRecords}
+          rowKey={(row) => row.id}
+          sortable={false}
+          page={60}
+          columns={[
+            { key: 'record', label: 'Record' },
+            { key: 'holder', label: 'Holder', align: 'prose' },
+            { key: 'value', label: 'Value', align: 'num' },
+            { key: 'detail', label: 'Detail', align: 'prose' },
+            { key: 'as_of', label: 'True as of' },
+            { key: 'confidence', label: 'Confidence', render: (value) => <Confidence value={value} /> },
+          ]}
+        />
+        <p className="source-note">
+          These are hand-entered and carry the date they were checked. Where one disagrees with the
+          leaderboard below it, the leaderboard is the newer of the two — and the disagreement is
+          exactly the sort of thing this database exists to make visible rather than to hide.
+        </p>
+      </Section>
+
+      <Section title="Counted from the race records">
+        <div className="split">
+          <Figure
+            title="Most Grand Prix wins"
+            note="One win per driver classified first. A shared drive gives both drivers a win, which is why a set is the right way to compare winners between sources."
+            table={{
+              rows: driverWins,
+              columns: [
+                { key: 'full_name', label: 'Driver' },
+                { key: 'wins', label: 'Wins', align: 'num' },
+                { key: 'first_win', label: 'First', align: 'num' },
+                { key: 'last_win', label: 'Last', align: 'num' },
+              ],
+            }}
+          >
+            <BarChart
+              data={driverWins.slice(0, 15).map((d) => ({ key: d.driver_id, label: d.full_name, value: d.wins }))}
+              label="The fifteen drivers with the most Grand Prix wins"
+            />
+          </Figure>
+
+          <Figure
+            title="Most pole positions"
+            note="Counted as a grid position of 1 in the race records, which is how a pole is stored here — there is no separate pole table to drift from it."
+            table={{
+              rows: driverPoles,
+              columns: [
+                { key: 'full_name', label: 'Driver' },
+                { key: 'poles', label: 'Poles', align: 'num' },
+              ],
+            }}
+          >
+            <BarChart
+              data={driverPoles.slice(0, 15).map((d) => ({ key: d.driver_id, label: d.full_name, value: d.poles }))}
+              label="The fifteen drivers with the most pole positions"
+            />
+          </Figure>
+        </div>
+      </Section>
+
+      <Section title="Constructors">
+        <Figure
+          title="Most wins by constructor"
+          note="A constructor's win is the car's, not the driver's: the same race can appear once here and twice in a driver leaderboard when a drive was shared."
+          table={{
+            rows: constructorWins,
+            columns: [
+              { key: 'name', label: 'Constructor' },
+              { key: 'country', label: 'Country' },
+              { key: 'wins', label: 'Wins', align: 'num' },
+              { key: 'first_win', label: 'First', align: 'num' },
+              { key: 'last_win', label: 'Last', align: 'num' },
+              { key: 'constructors_titles', label: "Constructors' titles", align: 'num' },
+            ],
+          }}
+        >
+          <BarChart
+            data={constructorWins.slice(0, 15).map((c) => ({ key: c.name, label: c.name, value: c.wins }))}
+            label="The fifteen constructors with the most Grand Prix wins"
+          />
+        </Figure>
+      </Section>
+
+      <Section title="Champions" count={`${titles.length}`}>
+        <DataTable
+          rows={titles}
+          rowKey={(row) => row.full_name}
+          sort="titles"
+          direction="desc"
+          columns={[
+            { key: 'full_name', label: 'Driver' },
+            { key: 'nationality', label: 'Nationality' },
+            { key: 'titles', label: 'Titles', align: 'num' },
+            { key: 'title_years', label: 'Years', align: 'prose' },
+            { key: 'wins', label: 'Wins', align: 'num' },
+            { key: 'poles', label: 'Poles', align: 'num' },
+          ]}
+        />
+      </Section>
+
+      <Section title="Who won the decade" count={`${decadeOptions.length} decades`}>
+        <div className="filters">
+          <Chips
+            value={decade}
+            onChange={setDecade}
+            options={decadeOptions.map((d) => [String(d), `${d}s`])}
+          />
+        </div>
+        <Figure
+          title={`Most wins, the ${decade}s`}
+          note="A decade is the ten seasons whose year begins with it; the 2020s are still running."
+          table={{
+            rows: decadeRows,
+            columns: [
+              { key: 'full_name', label: 'Driver' },
+              { key: 'wins', label: 'Wins', align: 'num' },
+            ],
+          }}
+        >
+          <BarChart
+            data={decadeRows.map((d) => ({ key: d.full_name, label: d.full_name, value: d.wins }))}
+            label={`Drivers with the most wins in the ${decade}s`}
+          />
+        </Figure>
+      </Section>
+
+      <Section title="How often pole becomes a win">
+        <Figure
+          title="Pole positions converted to victory, by season"
+          note="The share of races each season won from the front row's first slot. It says as much about how hard a car was to pass as about who was quickest on Saturday."
+          table={{
+            rows: poleToWin.map((r) => ({
+              ...r,
+              share: percent(r.pole_converted, r.races),
+            })),
+            columns: [
+              { key: 'year', label: 'Season', align: 'num' },
+              { key: 'races', label: 'Races', align: 'num' },
+              { key: 'pole_converted', label: 'Won from pole', align: 'num' },
+              { key: 'share', label: 'Share', align: 'num' },
+            ],
+          }}
+        >
+          <LineChart
+            series={[
+              {
+                name: 'Won from pole',
+                points: poleToWin
+                  .filter((r) => r.races > 0)
+                  .map((r) => ({ x: r.year, y: Math.round((r.pole_converted / r.races) * 1000) / 10 })),
+              },
+            ]}
+            format={(v) => `${v}%`}
+            formatX={(v) => String(Math.round(v))}
+            height={230}
+            label="Percentage of races each season won from pole position, 1950 to 2026"
+          />
+        </Figure>
+      </Section>
+
+      <Section title="Grand slams" count={`${grandSlams.length}`}>
+        <Note>
+          Pole, win and fastest lap in the same Grand Prix. Leading every lap is the fourth part of
+          the usual definition and is not checked here, because lap-by-lap data is not held for most
+          of these races — so this is the three-part version, and says so rather than claiming the
+          stricter one.
+        </Note>
+        <DataTable
+          rows={grandSlams}
+          rowKey={(row) => `${row.year}-${row.round}`}
+          sort="year"
+          direction="desc"
+          page={60}
+          columns={[
+            {
+              key: 'year',
+              label: 'Season',
+              align: 'num',
+              render: (year) => <Link to={`/seasons/${year}`}>{year}</Link>,
+            },
+            {
+              key: 'gp_name',
+              label: 'Grand Prix',
+              render: (name, row) => <Link to={`/races/${row.year}/${row.round}`}>{name}</Link>,
+            },
+            { key: 'driver', label: 'Driver' },
+            { key: 'constructor', label: 'Constructor' },
+          ]}
+        />
+      </Section>
+    </>
+  )
+}

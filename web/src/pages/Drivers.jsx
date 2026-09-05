@@ -1,63 +1,125 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useQuery } from '../useQuery.js'
-import { Page } from '../components/Page.jsx'
-import { Result } from '../components/State.jsx'
-import DataTable from '../components/DataTable.jsx'
-import Filter, { matches } from '../components/Filter.jsx'
-import { span } from '../format.js'
+import { Page, Section } from '../components/Page.jsx'
+import { Result } from '../components/States.jsx'
+import DataTable, { cell } from '../components/DataTable.jsx'
+import { Chips, Filters, SearchField, Select } from '../components/Filters.jsx'
+import { useQuery } from '../data/useQuery.js'
+import { span } from '../lib/format.js'
 
-// wins, poles and fastest_laps on `drivers` are derived at build time from the
-// race records, so this leaderboard cannot disagree with the races behind it.
+/**
+ * The whole register in one query.
+ *
+ * Wins, poles, podiums and fastest laps here are the stored columns, which the
+ * build derives from the race records — the same 27,460 entries a driver's own
+ * page counts. Entries and starts are not yet derived, and the register says
+ * so rather than implying they are the same kind of number.
+ */
 const SQL = `
-SELECT id, full_name, nationality, titles, wins, poles, fastest_laps,
-       first_season, last_season
-FROM drivers
-ORDER BY wins DESC, poles DESC, fastest_laps DESC, full_name`
+  SELECT id, full_name, nationality, first_season, last_season,
+         entries, starts, wins, podiums, poles, fastest_laps, career_points,
+         titles, title_years, status, confidence
+    FROM drivers
+   ORDER BY full_name
+`
 
 export default function Drivers() {
   const state = useQuery(SQL)
-  const [term, setTerm] = useState('')
-
   return (
     <Page
       title="Drivers"
-      lede="Every driver who has won a championship race, taken a pole, set a fastest lap or stood on a podium, plus every World Champion and the current grid — 244 in all. Wins, poles and fastest laps are derived from the race records rather than stored."
+      lede="Every driver the championship has recorded an entry for, from 1950 to now. Nobody typed these 862 names: the register is a list of who exists, decided by a person, with the spelling and the dates supplied by the sources."
     >
-      <Result state={state} what="Loading the database">
-        {(data) => {
-          const rows = data.rows.filter((r) => matches(r, ['full_name', 'nationality'], term))
-          return (
-            <>
-              <Filter
-                value={term}
-                onChange={setTerm}
-                placeholder="Filter by name or nationality"
-                count={rows.length}
-                noun={rows.length === 1 ? 'driver' : 'drivers'}
-              />
-              <DataTable
-                data={{ ...data, rows }}
-                columns={[
-                  'full_name',
-                  'nationality',
-                  'titles',
-                  'wins',
-                  'poles',
-                  'fastest_laps',
-                  'seasons',
-                ]}
-                labels={{ full_name: 'Driver', fastest_laps: 'Fastest laps' }}
-                render={{
-                  full_name: (v, row) => <Link to={`/drivers/${row.id}`}>{v}</Link>,
-                  seasons: (_, row) => span(row.first_season, row.last_season),
-                }}
-                empty="No driver matches that."
-              />
-            </>
-          )
-        }}
-      </Result>
+      <Section>
+        <Result state={state} skeleton>
+          {(data) => <Register rows={data.rows} />}
+        </Result>
+      </Section>
     </Page>
+  )
+}
+
+function Register({ rows }) {
+  const [term, setTerm] = useState('')
+  const [nationality, setNationality] = useState('')
+  const [kind, setKind] = useState('')
+
+  const nationalities = useMemo(
+    () => [...new Set(rows.map((r) => r.nationality).filter(Boolean))].sort(),
+    [rows],
+  )
+
+  const filtered = useMemo(() => {
+    const needle = term.trim().toLowerCase()
+    return rows.filter((row) => {
+      if (nationality && row.nationality !== nationality) return false
+      if (kind === 'champions' && !row.titles) return false
+      if (kind === 'winners' && !row.wins) return false
+      if (kind === 'active' && row.last_season !== 2026) return false
+      if (!needle) return true
+      return row.full_name.toLowerCase().includes(needle)
+    })
+  }, [rows, term, nationality, kind])
+
+  return (
+    <>
+      <Filters showing={filtered.length} of={rows.length} noun="drivers">
+        <SearchField value={term} onChange={setTerm} label="Filter drivers" placeholder="A name…" />
+        <Select
+          value={nationality}
+          onChange={setNationality}
+          label="Nationality"
+          all="Every nationality"
+          options={nationalities}
+        />
+        <Chips
+          value={kind}
+          onChange={setKind}
+          options={[
+            ['', 'All'],
+            ['winners', 'Race winners'],
+            ['champions', 'Champions'],
+            ['active', 'On the 2026 grid'],
+          ]}
+        />
+      </Filters>
+
+      <DataTable
+        rows={filtered}
+        rowKey={(row) => row.id}
+        sort="full_name"
+        direction="asc"
+        page={150}
+        columns={[
+          {
+            key: 'full_name',
+            label: 'Driver',
+            render: (name, row) => <Link to={`/drivers/${row.id}`}>{name}</Link>,
+          },
+          { key: 'nationality', label: 'Nationality' },
+          {
+            key: 'first_season',
+            label: 'Seasons',
+            align: 'num',
+            render: (_, row) => span(row.first_season, row.last_season),
+            sort: (row) => row.first_season,
+          },
+          { key: 'entries', label: 'Entries', align: 'num' },
+          { key: 'starts', label: 'Starts', align: 'num' },
+          { key: 'wins', label: 'Wins', align: 'num' },
+          { key: 'podiums', label: 'Podiums', align: 'num' },
+          { key: 'poles', label: 'Poles', align: 'num' },
+          { key: 'fastest_laps', label: 'Fastest laps', align: 'num' },
+          {
+            key: 'titles',
+            label: 'Titles',
+            align: 'num',
+            render: (value, row) =>
+              value ? <span title={row.title_years ?? undefined}>{value}</span> : cell(value),
+          },
+        ]}
+        footer="A blank is a figure nobody has established, not a zero. Sort by any column; missing values stay at the bottom either way, because ordering by an unknown means nothing in either direction."
+      />
+    </>
   )
 }

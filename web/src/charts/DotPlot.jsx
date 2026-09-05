@@ -1,147 +1,87 @@
 import { useState } from 'react'
-import { linear, ticks, zeroAxis } from './scales.js'
-import { svgPoint } from './pointer.js'
-import { Tooltip, TipRow } from './Figure.jsx'
+import { linear, ticks } from './scales.js'
+import { seriesColour } from './palette.js'
+import { useMeasure } from './useMeasure.js'
 
-const M = { top: 16, right: 16, bottom: 30, left: 52 }
+const M = { top: 16, right: 14, bottom: 30, left: 40 }
 
 /**
- * Discrete observations against time.
+ * One mark per event: a season of results, round by round.
  *
- * Dots, not a line: these are separate cars, and a line between them would
- * claim a continuous quantity moving from one to the next. Only the extreme
- * is directly labelled — a number beside all 29 would be unreadable, and the
- * rest are in the crosshair and the table.
+ * Finishing position is drawn with 1 at the top, because that is where a
+ * classification puts it and an axis that runs the other way reads as a chart
+ * of how badly someone did. Rounds where a driver was entered but not
+ * classified have no y value at all and are not plotted — the point of this
+ * database is that a missing result is missing, not zero, and a dot on the
+ * floor would say "last".
  */
 export default function DotPlot({
-  width,
-  height = 260,
   data,
-  x,
-  y,
-  name,
-  formatX = String,
-  formatY = String,
+  height = 220,
+  yMax,
+  invert = true,
+  format = (v) => String(v),
+  formatX = (v) => String(v),
   label,
 }) {
-  const [active, setActive] = useState(null)
+  const [ref, width] = useMeasure()
+  const [hover, setHover] = useState(null)
+  const plotted = data.filter((d) => typeof d.y === 'number' && Number.isFinite(d.y))
+  if (plotted.length === 0) return null
 
-  // See LineChart: an empty result would reduce over nothing and throw.
-  if (data.length === 0) return <p className="muted">Nothing to plot.</p>
-
-  const plotW = Math.max(width - M.left - M.right, 10)
-  const plotH = height - M.top - M.bottom
-
-  const xs = data.map(x)
-  const sx = linear([Math.min(...xs), Math.max(...xs)], [M.left, M.left + plotW])
-  const yAxis = zeroAxis(data.map(y), 4)
-  const sy = linear(yAxis.domain, [M.top + plotH, M.top])
-
-  const xTicks = ticks(sx.domain[0], sx.domain[1], Math.max(2, Math.floor(plotW / 90)))
-
-  const peak = data.reduce((best, row) => (y(row) > y(best) ? row : best), data[0])
-
-  // Nearest-point rather than dead-centre: an 8px dot is a pinpoint, and these
-  // overlap where several cars share a decade.
-  function nearest(event) {
-    const { x: px, y: py } = svgPoint(event)
-    let best = 0
-    let bestD = Infinity
-    data.forEach((row, i) => {
-      const d = (sx(x(row)) - px) ** 2 + (sy(y(row)) - py) ** 2
-      if (d < bestD) {
-        bestD = d
-        best = i
-      }
-    })
-    return bestD < 60 ** 2 ? best : null
-  }
-
-  const point = active === null ? null : data[active]
+  const xs = data.map((d) => d.x)
+  const top = yMax ?? Math.max(...plotted.map((d) => d.y))
+  const x = linear([Math.min(...xs), Math.max(...xs)], [M.left, width - M.right])
+  const y = invert
+    ? linear([1, top], [M.top, height - M.bottom])
+    : linear([0, top], [height - M.bottom, M.top])
 
   return (
-    <div className="chart">
-      <svg
-        width={width}
-        height={height}
-        role="img"
-        aria-label={`${label}. ${data.length} points. Full values in the table below.`}
-      >
-        <g aria-hidden="true">
-          {yAxis.ticks.map((t) => (
-            <g key={t}>
-              <line className="grid" x1={M.left} x2={M.left + plotW} y1={sy(t)} y2={sy(t)} />
-              <text className="tick" x={M.left - 8} y={sy(t)} dy="0.32em" textAnchor="end">
-                {formatY(t)}
+    <div className="plot-holder" ref={ref}>
+      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={label}>
+        {ticks([1, top], 4, { integer: true })
+          .filter((v) => v >= 1)
+          .map((value) => (
+            <g key={value}>
+              <line className="grid-line" x1={M.left} x2={width - M.right} y1={y(value)} y2={y(value)} />
+              <text className="axis-text" x={M.left - 8} y={y(value)} textAnchor="end" dominantBaseline="middle">
+                {format(value)}
               </text>
             </g>
           ))}
-          {xTicks.map((t) => (
-            <text key={t} className="tick" x={sx(t)} y={height - 10} textAnchor="middle">
-              {formatX(t)}
-            </text>
-          ))}
-          <line
-            className="axis"
-            x1={M.left}
-            x2={M.left + plotW}
-            y1={sy(sy.domain[0])}
-            y2={sy(sy.domain[0])}
-          />
 
-          {data.map((row) => (
-            <g key={name(row)}>
-              {/* A 2px surface ring keeps overlapping points legible. */}
-              <circle className="dot-ring" cx={sx(x(row))} cy={sy(y(row))} r="6" />
-              <circle className="dot" cx={sx(x(row))} cy={sy(y(row))} r="4" />
-            </g>
-          ))}
-
-          {point && (
-            <circle className="dot-halo" cx={sx(x(point))} cy={sy(y(point))} r="9" />
-          )}
-
-          {/* The one direct label goes on the highest point. A label that
-              would sit above the plot is placed under its dot instead —
-              measured, not nudged, so it is never clipped by the frame. */}
-          <text
-            className="end-label"
-            x={sx(x(peak))}
-            y={sy(y(peak)) - M.top < 26 ? sy(y(peak)) + 20 : sy(y(peak)) - 12}
-            textAnchor={sx(x(peak)) > M.left + plotW - 80 ? 'end' : 'middle'}
-          >
-            {name(peak)}
+        {ticks(x.domain, Math.max(2, Math.floor(width / 90)), { integer: true }).map((value) => (
+          <text key={value} className="axis-text" x={x(value)} y={height - M.bottom + 15} textAnchor="middle">
+            {formatX(value)}
           </text>
-        </g>
+        ))}
 
-        <rect
-          className="hit"
-          x={M.left}
-          y={M.top}
-          width={plotW}
-          height={plotH}
-          tabIndex={0}
-          role="application"
-          aria-label={`${label}: use the left and right arrow keys to read each point`}
-          onPointerMove={(e) => setActive(nearest(e))}
-          onPointerLeave={() => setActive(null)}
-          onFocus={() => setActive((i) => i ?? 0)}
-          onBlur={() => setActive(null)}
-          onKeyDown={(e) => {
-            if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
-            e.preventDefault()
-            setActive((i) => {
-              const next = (i ?? 0) + (e.key === 'ArrowRight' ? 1 : -1)
-              return Math.max(0, Math.min(data.length - 1, next))
-            })
-          }}
-        />
+        {plotted.map((d) => (
+          <circle
+            key={`${d.x}-${d.y}-${d.label ?? ''}`}
+            className="mark-ring"
+            cx={x(d.x)}
+            cy={y(d.y)}
+            r={hover === d ? 6 : 4.5}
+            fill={seriesColour(0)}
+            onMouseEnter={() => setHover(d)}
+            onMouseLeave={() => setHover(null)}
+          />
+        ))}
       </svg>
 
-      {point && (
-        <Tooltip x={sx(x(point))} y={sy(y(point))} width={width}>
-          <TipRow label={`${name(point)} · ${formatX(x(point))}`} value={formatY(y(point))} />
-        </Tooltip>
+      {hover && (
+        <div
+          className="tooltip"
+          style={{ left: `${(x(hover.x) / width) * 100}%`, top: y(hover.y) }}
+          role="status"
+        >
+          <b>{hover.label ?? formatX(hover.x)}</b>
+          <span className="row">
+            <i style={{ background: seriesColour(0) }} aria-hidden="true" />
+            {hover.note ?? format(hover.y)}
+          </span>
+        </div>
       )}
     </div>
   )

@@ -1,0 +1,192 @@
+import { Note, Page, Section } from '../components/Page.jsx'
+import { Result } from '../components/States.jsx'
+import DataTable from '../components/DataTable.jsx'
+import SubNav from '../components/SubNav.jsx'
+import { rows, useQueries } from '../data/useQuery.js'
+import { host, number } from '../lib/format.js'
+
+const SPEC = {
+  sources: ['SELECT * FROM source_registry ORDER BY priority'],
+  licences: [
+    `SELECT licence, licence_url, COUNT(*) AS images
+       FROM article_images
+      WHERE licence IS NOT NULL
+      GROUP BY licence
+      ORDER BY images DESC`,
+  ],
+  geometry: ['SELECT COUNT(*) AS n, licence FROM circuit_geometry GROUP BY licence'],
+}
+
+/**
+ * The licences, as consequences rather than as a list of names.
+ *
+ * A licence is not a footnote here — it is the thing that decided what this
+ * database contains. The full classification of every race was available for
+ * seven versions and stayed out because the copy that could be got carried a
+ * non-commercial clause; it shipped when the same facts were found under CC BY.
+ */
+const CONSEQUENCES = [
+  [
+    'F1DB',
+    'CC BY 4.0',
+    'Attribution only, and no non-commercial clause — which is why the full classification of all 1,161 races ships in the committed database rather than being loaded locally. This is the licence that closed the largest gap this project had.',
+  ],
+  [
+    'Wikipedia',
+    'CC BY-SA 4.0',
+    'Share-alike, and it reaches any prose taken from it. Registers, notes and the era descriptions are downstream of this.',
+  ],
+  [
+    'Jolpica-F1 (Ergast)',
+    'CC BY-NC-SA',
+    'The non-commercial clause means these rows are loaded locally as a cross-check and never committed. They are what produces the 118 recorded finishing-position disagreements, and they are why those disagreements are recorded rather than resolved.',
+  ],
+  [
+    'Wikidata',
+    'CC0',
+    'No obligation at all. Used to resolve circuit identity to an OpenStreetMap relation.',
+  ],
+  [
+    'OpenStreetMap',
+    'ODbL 1.0',
+    'Share-alike plus a database right, so it is quarantined: it reaches circuit_geometry and nothing else, it is excluded from the JSON export, and dropping that one table drops the obligation with it.',
+  ],
+  [
+    'Wikimedia Commons',
+    'per file',
+    'Sixteen different licence strings across the photographs, so each row carries its own. No pixels are stored — only a reference, its licence, and its photographer, and the photographer is displayed with the picture because the licence requires it.',
+  ],
+]
+
+export default function Sources() {
+  const state = useQueries(SPEC)
+
+  return (
+    <Page
+      title="Sources and licences"
+      lede="Every source here is assessed on three things: what its licence permits, how often it is updated, and whether anything independent can check it. The third is the one that matters, and it is the reason a source with a great deal of data can still rank below one with less."
+    >
+      <SubNav />
+      <Result state={state}>
+        {(data) => {
+          const sources = rows(data, 'sources')
+          const licences = rows(data, 'licences')
+          const geometry = rows(data, 'geometry')
+
+          return (
+            <>
+              <Section
+                title="What a licence cost, or bought"
+                note="Licences are not a footnote in this project. They decided what is in the database and what is not."
+              >
+                <DataTable
+                  rows={CONSEQUENCES.map(([source, licence, consequence]) => ({
+                    source,
+                    licence,
+                    consequence,
+                  }))}
+                  rowKey={(row) => row.source}
+                  sortable={false}
+                  columns={[
+                    { key: 'source', label: 'Source' },
+                    { key: 'licence', label: 'Licence' },
+                    { key: 'consequence', label: 'Consequence', align: 'prose' },
+                  ]}
+                />
+              </Section>
+
+              <Note>
+                <strong>The ODbL obligation is confined to one table.</strong>{' '}
+                {geometry.map((row) => `${number(row.n)} traced centrelines under ${row.licence}`).join(', ')}
+                , held in <code>circuit_geometry</code> and nowhere else. Nothing derives from it,
+                and it is excluded from the JSON export. That containment is deliberate: an ODbL
+                share-alike that leaked into another table would reach everything joined to it.
+              </Note>
+
+              <Section title="The source registry" count={`${sources.length}`}>
+                <DataTable
+                  rows={sources}
+                  rowKey={(row) => row.id}
+                  sortable
+                  sort="priority"
+                  direction="asc"
+                  page={30}
+                  columns={[
+                    { key: 'priority', label: 'Rank', align: 'num' },
+                    {
+                      key: 'source',
+                      label: 'Source',
+                      render: (name, row) =>
+                        row.url ? (
+                          <a href={row.url} target="_blank" rel="noreferrer noopener">
+                            {name}
+                          </a>
+                        ) : (
+                          name
+                        ),
+                    },
+                    { key: 'authority', label: 'Authority' },
+                    { key: 'use', label: 'Used for', align: 'prose' },
+                    { key: 'licence', label: 'Licence', align: 'prose' },
+                    { key: 'cadence', label: 'Updated', align: 'prose' },
+                    { key: 'checkability', label: 'What can check it', align: 'prose' },
+                  ]}
+                  footer="Ranked by authority, not by volume. The last column is the one that decides where a source sits."
+                />
+              </Section>
+
+              <Section
+                title="Photograph licences"
+                count={`${licences.length} distinct`}
+                note="Each row of article_images carries its own licence string, because Commons files do not share one. Displaying a picture without the credit next to it would breach every one of these."
+              >
+                <DataTable
+                  rows={licences}
+                  rowKey={(row) => row.licence}
+                  sortable
+                  sort="images"
+                  direction="desc"
+                  columns={[
+                    {
+                      key: 'licence',
+                      label: 'Licence',
+                      render: (name, row) =>
+                        row.licence_url ? (
+                          <a href={row.licence_url} target="_blank" rel="noreferrer noopener">
+                            {name}
+                          </a>
+                        ) : (
+                          name
+                        ),
+                    },
+                    { key: 'images', label: 'Photographs', align: 'num' },
+                    {
+                      key: 'licence_url',
+                      label: 'Terms',
+                      render: (url) => (url ? host(url) : null),
+                    },
+                  ]}
+                />
+              </Section>
+
+              <Section title="Using this data">
+                <p className="measure">
+                  The database is a function of the sources listed above: a row no fresh build could
+                  reproduce does not belong in it. If you take data from here, carry the licence
+                  with it — attribute F1DB for the race records, keep share-alike on anything
+                  derived from Wikipedia prose, and if you take a traced centreline, that is
+                  OpenStreetMap under ODbL and the obligation travels with it.
+                </p>
+                <p className="measure faint">
+                  This site is unaffiliated with Formula One, the FIA, or any team. Formula One,
+                  F1 and Grand Prix are trademarks of their respective owners and are used here
+                  descriptively.
+                </p>
+              </Section>
+            </>
+          )
+        }}
+      </Result>
+    </Page>
+  )
+}

@@ -1,101 +1,111 @@
-import { useState } from 'react'
-import { linear, zeroAxis } from './scales.js'
-import { columnPath, thickness } from './marks.js'
-import { Tooltip, TipRow } from './Figure.jsx'
+import { useMemo, useState } from 'react'
+import { band, linear, niceDomain, ticks } from './scales.js'
+import { seriesColour } from './palette.js'
+import { useMeasure } from './useMeasure.js'
 
-const M = { top: 22, right: 12, bottom: 32, left: 46 }
+const M = { top: 16, right: 10, bottom: 30, left: 44 }
+const MAX_THICKNESS = 24
 
 /**
- * Magnitude across a handful of ordered categories.
+ * A magnitude per category, measured from a zero baseline.
  *
- * One series, one colour for every column: the height already encodes the
- * value, so shading it by size too would spend the only free channel on
- * information the chart is already showing.
+ * Columns are capped at 24px and the leftover in each slot is left as air —
+ * a bar that fills its slot has no gap to separate it from its neighbour, and
+ * the gap is what does the separating. Rounded at the data end only: the
+ * baseline end is square because that is where the measurement starts.
  */
 export default function ColumnChart({
-  width,
-  height = 250,
   data,
-  x,
-  y,
-  formatY = String,
-  formatValue = formatY,
+  height = 230,
+  format = (v) => v.toLocaleString('en-GB'),
+  labelEvery = 1,
+  labelPeak = true,
   label,
 }) {
-  const [active, setActive] = useState(null)
+  const [ref, width] = useMeasure()
+  const [hover, setHover] = useState(null)
 
-  // See LineChart: with no rows the band width divides by zero.
-  if (data.length === 0) return <p className="muted">Nothing to plot.</p>
+  const geometry = useMemo(() => {
+    const keys = data.map((d) => d.key)
+    const x = band(keys, [M.left, width - M.right], 0.28)
+    const y = linear(niceDomain(data.map((d) => d.value)), [height - M.bottom, M.top])
+    return { x, y, keys }
+  }, [data, width, height])
 
-  const plotW = Math.max(width - M.left - M.right, 10)
-  const plotH = height - M.top - M.bottom
-
-  const band = plotW / data.length
-  const w = thickness(band)
-  const yAxis = zeroAxis(data.map(y), 4)
-  const sy = linear(yAxis.domain, [M.top + plotH, M.top])
-
-  const baseline = sy(sy.domain[0])
+  if (data.length === 0) return null
+  const { x, y } = geometry
+  const thickness = Math.min(x.bandwidth, MAX_THICKNESS)
+  const peak = data.reduce((a, b) => (b.value > a.value ? b : a), data[0])
+  const radius = Math.min(4, thickness / 2)
 
   return (
-    <div className="chart">
-      <svg
-        width={width}
-        height={height}
-        role="img"
-        aria-label={`${label}. ${data.length} columns. Full values in the table below.`}
-      >
-        <g aria-hidden="true">
-          {yAxis.ticks.map((t) => (
-            <g key={t}>
-              <line className="grid" x1={M.left} x2={M.left + plotW} y1={sy(t)} y2={sy(t)} />
-              <text className="tick" x={M.left - 8} y={sy(t)} dy="0.32em" textAnchor="end">
-                {formatY(t)}
-              </text>
-            </g>
-          ))}
-          <line className="axis" x1={M.left} x2={M.left + plotW} y1={baseline} y2={baseline} />
-        </g>
+    <div className="plot-holder" ref={ref}>
+      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={label}>
+        {ticks(y.domain, 4).map((value) => (
+          <g key={value}>
+            <line className="grid-line" x1={M.left} x2={width - M.right} y1={y(value)} y2={y(value)} />
+            <text className="axis-text" x={M.left - 8} y={y(value)} textAnchor="end" dominantBaseline="middle">
+              {format(value)}
+            </text>
+          </g>
+        ))}
 
-        {data.map((row, i) => {
-          const cx = M.left + band * i + band / 2
-          const top = sy(y(row))
-          const h = baseline - top
+        {data.map((d, i) => {
+          const left = x.centre(d.key) - thickness / 2
+          const top = y(Math.max(0, d.value))
+          const bottom = y(0)
+          const tall = Math.abs(bottom - top)
+          const isPeak = labelPeak && d.key === peak.key
           return (
             <g
-              key={x(row)}
-              className={`mark${active === i ? ' is-active' : ''}`}
-              tabIndex={0}
-              role="img"
-              aria-label={`${x(row)}: ${formatValue(y(row))}`}
-              onPointerEnter={() => setActive(i)}
-              onPointerLeave={() => setActive(null)}
-              onFocus={() => setActive(i)}
-              onBlur={() => setActive(null)}
+              key={d.key}
+              onMouseEnter={() => setHover(d)}
+              onMouseLeave={() => setHover(null)}
             >
-              {/* The hit area is the whole band, not the painted column: a
-                  4px-wide target is one nobody lands on. */}
-              <rect className="hit" x={M.left + band * i} y={M.top} width={band} height={plotH} />
-              <path className="series-fill" d={columnPath(cx - w / 2, top, w, h)} />
-              <text className="cap-label" x={cx} y={top - 7} textAnchor="middle">
-                {formatValue(y(row))}
-              </text>
-              <text className="tick" x={cx} y={height - 10} textAnchor="middle">
-                {x(row)}
-              </text>
+              {/* A hit target the full slot wide: a 12px column is not something
+                  a pointer should have to land on exactly. */}
+              <rect
+                x={x(d.key)}
+                y={M.top}
+                width={x.bandwidth}
+                height={height - M.bottom - M.top}
+                fill="transparent"
+              />
+              <path
+                d={`M${left},${bottom} L${left},${top + radius} Q${left},${top} ${left + radius},${top}
+                    L${left + thickness - radius},${top} Q${left + thickness},${top} ${left + thickness},${top + radius}
+                    L${left + thickness},${bottom} Z`}
+                fill={seriesColour(0)}
+                opacity={hover && hover.key !== d.key ? 0.55 : 1}
+              />
+              {isPeak && tall > 14 && (
+                <text className="value-text" x={x.centre(d.key)} y={top - 6} textAnchor="middle">
+                  {format(d.value)}
+                </text>
+              )}
+              {i % labelEvery === 0 && (
+                <text className="axis-text" x={x.centre(d.key)} y={height - M.bottom + 15} textAnchor="middle">
+                  {d.label ?? d.key}
+                </text>
+              )}
             </g>
           )
         })}
       </svg>
 
-      {active !== null && (
-        <Tooltip
-          x={M.left + band * active + band / 2}
-          y={sy(y(data[active]))}
-          width={width}
+      {hover && (
+        <div
+          className="tooltip"
+          style={{ left: `${(x.centre(hover.key) / width) * 100}%`, top: y(hover.value) }}
+          role="status"
         >
-          <TipRow label={`${label} · ${x(data[active])}`} value={formatValue(y(data[active]))} />
-        </Tooltip>
+          <b>{hover.label ?? hover.key}</b>
+          <span className="row">
+            <i style={{ background: seriesColour(0) }} aria-hidden="true" />
+            {format(hover.value)}
+            {hover.note ? ` · ${hover.note}` : ''}
+          </span>
+        </div>
       )}
     </div>
   )

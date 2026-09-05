@@ -1,8 +1,9 @@
 # The web front end
 
 A React app that queries `f1.db` **in the browser**. SQLite is compiled to
-WebAssembly, the 1.6 MB database is fetched whole, and every page is real SQL
-against it — the same file `./f1` queries from the command line.
+WebAssembly and runs in a Web Worker; the database is fetched once, kept in
+IndexedDB, and every page is real SQL against it — the same file `./f1` queries
+from the command line.
 
 There is no server, no API and no build step on the data. That is the point:
 the database is already a single self-contained file, so the front end is a
@@ -14,86 +15,155 @@ npm install
 npm run dev            # http://localhost:5173
 npm run build          # → dist/, ready to upload
 npm run preview        # serve the built site locally
-npm test               # drive the built site in a real browser (~4s)
+npm test               # drive the built site in a real browser (~10 s)
 ```
 
-`npm run dev` is the loop — it starts in about 200 ms and hot-reloads. Reach
-for `build` + `preview` only to check the real thing before deploying.
+`npm run dev` is the loop — it starts in a couple of hundred milliseconds and
+hot-reloads. Reach for `build` + `preview` only to check the real thing before
+deploying.
 
-**If you rebuild the database, restart `npm run dev`.** The assets are copied
+**If you rebuild the database, restart `npm run dev`.** The assets are staged
 into `public/` when the dev server starts, so a `python3 build.py` while it is
 running leaves you looking at the previous data through a live UI.
 
-`npm run dev` and `npm run build` both run `scripts/copy-assets.js` first,
-which copies two files into `public/`:
+## The four files the site serves
 
-| File | From | Why it is not committed |
+`npm run dev` and `npm run build` both run `scripts/prepare-assets.js` first,
+which stages these into `public/`. None of them is committed: `f1.db` is a
+build artefact of `build.py` at the repository root, the wasm comes back with
+`npm install`, and a second copy of either in git is a copy that can drift.
+
+| File | What it is | Size |
 |---|---|---|
-| `f1.db` | the repository root | It is a build artefact of `build.py`. A second copy in git would drift from the first. |
-| `sql-wasm.wasm` | `node_modules/sql.js` | It belongs to sql.js and comes back with `npm install`. |
+| `f1.db.gz` | the database, gzipped — the normal path | ~4.5 MB |
+| `f1.db` | the database as built — the fallback path | 20 MB |
+| `sql-wasm.wasm` | the SQLite engine, from the installed sql.js | 643 KB |
+| `db-manifest.json` | a digest, the sizes, and the database's version | ~200 B |
 
-So the database the site serves is always the one the last `python3 build.py`
-produced. Rebuild the database, and the next `npm run build` picks it up.
+## How twenty megabytes gets to a reader
+
+This is the part of the front end most worth understanding, because it is the
+part that decides whether the site is usable at all.
+
+**The manifest is fetched first, and it is the cache key.** It carries a
+content digest of `f1.db`. The loader looks that digest up in IndexedDB: on a
+second visit the bytes come straight off disk and the database is open in a few
+hundred milliseconds with no network transfer at all. A rebuild changes the
+digest and evicts the old copy on the way past. A digest rather than an ETag or
+a `Last-Modified`, because those are the host's opinion of the file — they
+differ between hosts, and a rebuild that produces identical bytes should not
+throw away a warm cache.
+
+**The gzip is shipped as a file, not left to the host.** Static hosts do not
+agree about whether they will compress an unknown binary type and several will
+not, so `prepare-assets.js` gzips the database itself. That makes the 4.5 MB
+transfer a property of this repository rather than of whoever is serving it.
+
+**Whether it arrives compressed is not ours to decide.** Plenty of servers —
+Vite's own `preview` among them — serve a `.gz` with `Content-Encoding: gzip`,
+and the browser inflates it before this code ever sees it. Others hand over the
+raw member. Handing already-inflated bytes to `DecompressionStream` fails with
+a bare "Failed to fetch", which is a miserable thing to debug in a deployment
+you do not control. So the loader asks the bytes rather than the headers: a
+gzip member starts `1f 8b`. Then it checks the length against the manifest,
+because a truncated download otherwise shows up as a corrupt database several
+queries later, which reads as a broken site rather than a broken transfer.
+
+**All of it happens in a worker.** Decompressing 20 MB, instantiating the wasm
+and then running a query over 27,460 race entries is time the main thread
+cannot spend painting or responding to a keystroke. In a worker it is time the
+page spends drawing a progress bar.
+
+**Why not fetch only the pages a query needs?** Range-request VFSs exist and
+would make the first paint cheaper. They also need the host to honour byte
+ranges, and they turn the aggregate queries this site is mostly made of — a
+`GROUP BY` over every race entry — into hundreds of round trips. Fetching the
+file once and keeping it makes the *second* page free rather than the first
+page cheap, which for a reference work is the better trade.
 
 ## What is where
 
 ```
-src/db.js            opens the database, runs statements
-src/useQuery.js      the { loading, error, data } hook every page uses
-src/format.js        NULL rendering, spans, numeric and prose column detection
-src/components/      DataTable, page furniture, loading and error states
-src/charts/          the chart toolkit — scales, marks, four chart types
-src/pages/           one file per route
-test/smoke.mjs       drives the built site in a browser
+src/data/worker.js      SQLite, the loader, and the query protocol
+src/data/client.js      the main thread's side of the worker
+src/data/cache.js       IndexedDB, keyed on the database's digest
+src/data/useQuery.js    the { loading, error, data } hooks every page uses
+src/lib/                NULL rendering, Commons URLs, the map projection
+src/components/         the shell, DataTable, filters, states, the search palette
+src/charts/             scales, the figure frame, four chart types
+src/pages/              one file per route
+test/smoke.mjs          drives the built site in a browser
 ```
 
 `DataTable` renders any `{ columns, rows }` result, which is why the same
-component draws the season list and an arbitrary query typed into the SQL
-page. It decides alignment and wrapping from the values themselves — numbers
-go right in tabular figures, anything over 60 characters is treated as prose
-and allowed to wrap, everything else stays on one line.
+component draws the season list and an arbitrary query typed into the SQL page.
+Given a column spec it takes labels, alignment and a renderer — which is how an
+id becomes a link without the table knowing anything about routes. Given none
+it works both out from the values themselves.
+
+**Nulls sort last, in both directions.** SQLite sorts NULL first and this
+database uses NULL for "not established", so sorting the driver register by
+career points naively puts everyone nobody has a total for at the top.
+Ordering by a missing value means nothing either way, so they go to the bottom
+of both.
 
 ## The pages
 
 | Route | Shows |
 |---|---|
-| `/` | Every season, champion, margin and constructors' title |
-| `/seasons/:year` | One season: the context, then pole, winner and fastest lap per round |
-| `/drivers`, `/drivers/:id` | The register, and a driver's recorded entries |
-| `/constructors`, `/constructors/:id` | Records, lineage chains, and every win |
-| `/circuits`, `/circuits/:id` | The register, configurations raced, winners, races held |
-| `/cars`, `/cars/:id` | The 29 landmark chassis, full spec and design history |
-| `/trends` | Four charts over the race records |
-| `/console` | Arbitrary SQL, the same as `./f1 sql` |
-| `/gaps` | `known_gaps`, `discrepancies` and what is still unverified |
+| `/` | What the database holds, and the way in |
+| `/seasons`, `/seasons/:year` | Both championship tables, the title race round by round, the calendar, who entered |
+| `/races`, `/races/:year/:round` | Every round; the full classification, the qualifying sheet and the pit stops |
+| `/drivers`, `/drivers/:id` | The register, and a career counted from the race records |
+| `/constructors`, `/constructors/:id` | Records, lineage chains, every win, every car built |
+| `/circuits`, `/circuits/:id` | The register, traced centrelines, layouts as they changed |
+| `/cars`, `/cars/:id` | The chassis register, specifications and photographs |
+| `/records` | Published records, and leaderboards derived on every load |
+| `/reference/eras` | Eras, regulations, scoring systems, innovations, safety |
+| `/reference/quality` | The confidence ladder, the gaps, the disagreements, the coverage |
+| `/reference/sources` | Every source, and what each licence cost or bought |
+| `/reference/glossary` | Vocabulary and people |
+| `/reference/sql` | Arbitrary SQL, the same as `./f1 sql` |
+
+Press <kbd>/</kbd> or <kbd>⌘K</kbd> anywhere for a search across all 3,494
+drivers, constructors, circuits, chassis, seasons and races at once. A register
+of 862 drivers reached only by scrolling an alphabetical table is a register
+nobody reads.
 
 ## The charts
 
 Four figures, hand-drawn as SVG rather than pulled from a charting library —
-these are a line, a column, a dot plot and a bar, and writing them directly
-costs less than bending a library into the mark specs below.
+a line, a column, a bar and a dot plot. Writing them directly costs less than
+bending a library into the specs below.
 
-Every figure carries **a table of its own numbers**. That is not decoration:
-a value that can only be got at by hovering is a value a keyboard user and a
-screen reader cannot get at at all.
+Every figure carries **a table of its own numbers**. That is not decoration: a
+value that can only be got at by hovering is a value a keyboard user and a
+screen reader cannot get at at all, and it is also the value nobody can copy
+into anything else.
 
 A few rules the toolkit enforces, worth knowing before adding a fifth chart:
 
-- **Colour is validated, not chosen by eye.** The series hue is the blue from
-  the reference categorical palette, checked against this app's own light and
-  dark panel colours. The brand red was the obvious first choice and fails the
-  dark-mode lightness band (OKLCH L 0.739 against a 0.48–0.67 band). Keeping
-  the two apart also means a data mark never impersonates the red that says
-  "you can click this" everywhere else.
+- **Colour is validated, not chosen by eye.** The three series colours are
+  slots 1–3 of the reference categorical palette, run through the palette
+  validator against this app's own light and dark chart surfaces with every
+  pair in play. `src/charts/palette.js` records the numbers it returned. Three
+  is the cap: the fourth slot puts yellow beside orange and that pair fails the
+  all-pairs floors.
+- **The brand red is never a data mark.** It is the one interactive colour —
+  links, the focus ring, the current nav item — and a mark wearing it would be
+  a mark that looks clickable. It also fails the dark-mode lightness band.
 - **Text never wears the series colour.** Marks carry the colour; values,
   labels and ticks use ink tokens.
-- **Direct-label selectively.** The endpoint of a line, the peak of a scatter,
-  the cap of a column — never a number on every point.
-- **Axis ticks must be round.** A tick drawn at 0.25 and printed as "0.3" is
-  an axis that lies; `ticks()` in `scales.js` picks 1 / 2 / 2.5 / 5 steps, and
-  asking it for too many ticks is what pushes it off them.
-- **Bars are capped at 24px and rounded at the data end only,** square at the
-  baseline they are measured from, with a 2px gap to their neighbour.
+- **Direct-label selectively, and drop a label that would collide.** Lines
+  converge at the right-hand edge far more often than they separate — a
+  two-point championship is the whole reason to draw one — and nudging labels
+  apart detaches a number from its line. A colliding label is dropped; the
+  legend names the series and the crosshair gives every value.
+- **Axis ticks must be round, and whole where the values are.** A tick drawn at
+  0.25 and printed as "0.3" is an axis that lies, and a years axis asked for
+  more ticks than it has years prints 1985 twice.
+- **Bars are capped at 24 px and rounded at the data end only,** square at the
+  baseline they are measured from.
 
 ## Testing
 
@@ -102,20 +172,27 @@ npm run build && npm test
 ```
 
 `test/smoke.mjs` loads the built site in Chromium and checks what it renders
-**against `f1.db` itself** — the expected row counts are read from the same
-database the page is querying, so the test does not have to be edited every
-time the data grows, and it fails when the page is actually broken.
+**against `f1.db` itself** — every expected count is read from the same
+database the page is querying, so the test does not have to be edited when the
+data grows, and it fails when the page is actually broken.
 
 It is the only thing that checks the app works. `npm run build` proves the
-JavaScript compiles; it cannot tell you that SQLite loaded, that a query
-returned, or that a chart drew anything — all of which fail silently at build
-time and blankly in a browser.
+JavaScript compiles; it cannot tell you that the worker started, that 20 MB of
+gzip decompressed, that SQLite instantiated, that a query returned or that a
+chart drew anything — all of which fail silently at build time and blankly in a
+browser.
+
+Two of its assertions are there for specific reasons rather than for coverage:
+that a photograph renders **both its licence and its photographer**, because
+displaying a Commons image without its credit is a licence violation and not a
+style choice; and that a `DELETE` typed into the console is refused *and* the
+table it named is still there afterwards.
 
 Two details worth keeping if you edit it: the whole app is loaded **once** and
 then navigated through its own router (a `page.goto` per route would refetch
-the 1.6 MB database and re-instantiate the wasm every time), and the preview
-server is spawned detached and killed as a process group, so a cancelled run
-does not leak a server holding the port.
+the database and re-instantiate the wasm every time), and the preview server is
+spawned detached and killed as a process group, so a cancelled run does not
+leak a server holding the port.
 
 ```bash
 CHROME_PATH=/path/to/chrome npm test   # reuse a browser instead of downloading one
@@ -130,31 +207,53 @@ configuration. If you put this behind a server that can rewrite, switching to
 `BrowserRouter` is a two-line change.
 
 **`locateFile` ignores the filename it is given.** sql.js ships several glue
-builds that ask for different wasm filenames — a bundler resolves the
-`browser` condition, which wants `sql-wasm-browser.wasm`. The binaries are
-identical, so the copy script lands one at a single known name and `db.js`
-points every request there. Getting this wrong does not produce a 404: a dev
-server answers an unknown path with `index.html`, and you get
+builds that ask for different wasm filenames — a bundler resolves the `browser`
+condition, which wants `sql-wasm-browser.wasm`. The binaries are identical, so
+the staging script lands one at a single known name and the worker points every
+request there. Getting this wrong does not produce a 404: a dev server answers
+an unknown path with `index.html`, and you get
 `WebAssembly.instantiate(): expected magic word` instead.
 
+**`standings.after_round IS NULL` is the season as it finished,** not a missing
+round. `as_of` reads "final" on those rows, they are what the dropped-scores
+rule produced, and for the 2018 constructors' table they are not the same as
+the last round's. Reading `after_round` arithmetically turns those NULLs into
+round zero, which plots a champion's season total before the first race of the
+year — which is exactly what happened here before it was caught.
+
+**Never use `display: contents` on a wrapper you also style through.** The box
+tree looks right and CSS selectors match the DOM, so `.fields > dd` silently
+matches nothing: the rules, the hairlines and the wrapping all stop applying,
+and a provenance URL with no break opportunity pushes the whole page sideways
+on a phone. Use a keyed `Fragment`.
+
 **Derived beats stored, here as well.** `circuits.last_gp` is NULL for the 27
-venues still in use, so the circuit page reads its race counts and its first
-and last Grand Prix from `v_circuits`, which derives them from the races.
-The same rule the database follows for driver wins applies to what is
-displayed.
+venues still in use, so the circuit pages read their race counts and their
+first and last Grand Prix from `v_circuits`, which derives them from the races.
+Career wins, poles and podiums are counted from `race_entries` on every page
+load rather than read from a column.
 
 **A NULL is "not established", never zero,** and renders as an em dash
-everywhere. Do not coalesce it to 0.
+everywhere. Do not coalesce it to 0. Where a stored figure and a derived one
+disagree — a career points total that is net of dropped scores against one that
+is gross, a chassis credited six wins by its article and none by the entry
+lists — the page shows both and says why, because that disagreement is the
+interesting part and is what this database exists to keep.
 
-**The SQL page only runs reads.** That is a guard rail, not a security
-boundary — the database is a copy in the visitor's tab and a reload restores
-it. It exists so a mistyped `DELETE` gives a message rather than silently
-emptying the table you are looking at.
+**The SQL page only runs reads, and a rollback is what guarantees it.** A
+statement cannot be classified as a read by looking at its first word: SQLite
+accepts a `WITH` clause in front of `DELETE`, so `WITH t AS (SELECT 1) DELETE
+FROM drivers` begins with `WITH` and empties the table. Rather than chase that
+with a cleverer pattern — which then rejects an honest `WHERE note LIKE
+'%delete%'` — every statement runs inside a transaction that is always rolled
+back. The keyword check that remains is a courtesy, so a reader who types a
+write gets an explanation rather than an empty result.
 
 ## What it does not do
 
-No full finishing order, because the database does not hold one: only the
-winner, the pole and the fastest lap are recorded per race. A driver's page
-says so rather than implying the blanks are DNFs. When
-`tools/fastf1_load.py` fills 2018– results, those pages get richer with no
-change here.
+No lap-by-lap anything: `laps`, `stints`, `race_timing` and
+`race_control_messages` are empty in the committed database, and the pages that
+would use them do not exist rather than existing empty. `tools/ergast_load.py
+--from-dump --timing` and `tools/fastf1_load.py` fill some of that locally —
+those rows are non-commercial and are never committed — and when they are
+loaded the SQL console can reach them today.

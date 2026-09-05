@@ -4,20 +4,31 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light dark" />
-    <!-- Inline so the tab icon costs no request, and so a browser asking for
-         /favicon.ico does not get a 404 from a static host. -->
+    <!-- Inline so the tab icon costs no request, and so a browser asking a
+         static host for /favicon.ico does not get a 404. -->
     <link
       rel="icon"
-      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2316161a'/%3E%3Cpath d='M8 8h8v8H8zM16 16h8v8h-8z' fill='%23ffffff'/%3E%3Cpath d='M16 8h8v8h-8zM8 16h8v8H8z' fill='%23a4162c'/%3E%3C/svg%3E"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2317171a'/%3E%3Crect x='6' y='6' width='8' height='8' fill='%23ffffff'/%3E%3Crect x='18' y='18' width='8' height='8' fill='%23ffffff'/%3E%3Crect x='18' y='6' width='8' height='8' fill='%23b0182e'/%3E%3Crect x='6' y='18' width='8' height='8' fill='%23b0182e'/%3E%3C/svg%3E"
     />
-    <title>F1 Verified Facts Database</title>
+    <title>F1 Verified Facts — a Formula One database you can check</title>
     <meta
       name="description"
-      content="Every championship race, pole and fastest lap from 1950 to 2026, queried in the browser."
+      content="Every championship race, classification, qualifying sheet and pit stop from 1950 to 2026, queried in your browser. Every figure traceable to a source; every blank an unestablished fact rather than a zero."
     />
+    <!-- The database is content-addressed by db-manifest.json and cached in
+         IndexedDB, so warming the connection early is worth a few milliseconds
+         off a cold visit. -->
+    <link rel="preload" as="fetch" href="./db-manifest.json" crossorigin />
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      <p style="font: 15px/1.6 system-ui; padding: 24px; max-width: 60ch">
+        This site runs SQLite in your browser and queries a 20 MB database file directly, so it
+        needs JavaScript. The database itself is a plain SQLite file and can be downloaded and
+        queried with any SQLite client instead.
+      </p>
+    </noscript>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

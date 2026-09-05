@@ -1,25 +1,26 @@
 import { useEffect, useRef, useState } from 'react'
 
 /**
- * The rendered width of an element.
+ * The width a chart has to draw in.
  *
- * Charts are drawn at real pixel sizes rather than scaled with a viewBox: a
- * viewBox would scale the axis text along with the plot, so the same chart
- * would carry 9px labels on a phone and 20px labels on a monitor.
+ * SVG scales itself, but text inside one does not: a viewBox stretched to
+ * twice its intended width doubles the size of every axis label with it. So
+ * the chart is drawn at the width it will actually occupy, and redrawn when
+ * that changes.
  */
-export default function useMeasure() {
+export function useMeasure(fallback = 640) {
   const ref = useRef(null)
-  const [width, setWidth] = useState(0)
+  const [width, setWidth] = useState(fallback)
 
   useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    const ro = new ResizeObserver(([entry]) => {
-      setWidth(Math.round(entry.contentRect.width))
+    const element = ref.current
+    if (!element || typeof ResizeObserver === 'undefined') return undefined
+    const observer = new ResizeObserver(([entry]) => {
+      const next = Math.round(entry.contentRect.width)
+      if (next > 0) setWidth(next)
     })
-    ro.observe(el)
-    setWidth(Math.round(el.getBoundingClientRect().width))
-    return () => ro.disconnect()
+    observer.observe(element)
+    return () => observer.disconnect()
   }, [])
 
   return [ref, width]

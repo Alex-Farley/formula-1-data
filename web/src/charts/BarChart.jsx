@@ -1,101 +1,70 @@
 import { useState } from 'react'
-import { linear, zeroAxis } from './scales.js'
-import { barPath, thickness } from './marks.js'
-import { Tooltip, TipRow } from './Figure.jsx'
-
-const M = { top: 8, right: 52, bottom: 26, left: 8 }
-const ROW = 26
+import { linear, niceDomain } from './scales.js'
+import { seriesColour } from './palette.js'
+import { useMeasure } from './useMeasure.js'
 
 /**
- * Magnitude across named categories, ranked.
+ * A ranked list, drawn as lengths.
  *
- * Horizontal, because the categories are long names rather than short labels —
- * turning the page sideways beats turning the labels sideways. The height
- * comes from the row count so the axis band is always inside the figure.
+ * Horizontal because the categories are names — a driver, a constructor, a
+ * circuit — and a name reads along the row rather than rotated under a column.
+ * The value rides the tip of each bar, so no axis is needed at all.
  */
-export default function BarChart({
-  width,
-  data,
-  x,
-  y,
-  labelWidth = 190,
-  formatValue = String,
-  label,
-}) {
-  const [active, setActive] = useState(null)
+const ROW = 27
+const THICKNESS = 14
+const LABEL_WIDTH = 168
 
-  // See LineChart: with no rows the plot has no height and no scale.
-  if (data.length === 0) return <p className="muted">Nothing to plot.</p>
+export default function BarChart({ data, format = (v) => v.toLocaleString('en-GB'), label }) {
+  const [ref, width] = useMeasure()
+  const [hover, setHover] = useState(null)
+  if (data.length === 0) return null
 
-  const left = M.left + labelWidth
-  const plotW = Math.max(width - left - M.right, 10)
-  const plotH = data.length * ROW
-  const height = plotH + M.top + M.bottom
-
-  const xAxis = zeroAxis(data.map(y), Math.max(2, Math.floor(plotW / 150)))
-  const sx = linear(xAxis.domain, [left, left + plotW])
-  const h = thickness(ROW)
+  const height = data.length * ROW + 8
+  const valueRoom = 54
+  const x = linear(niceDomain(data.map((d) => d.value)), [LABEL_WIDTH, Math.max(LABEL_WIDTH + 40, width - valueRoom)])
+  const radius = 4
 
   return (
-    <div className="chart">
-      <svg
-        width={width}
-        height={height}
-        role="img"
-        aria-label={`${label}. ${data.length} bars. Full values in the table below.`}
-      >
-        <g aria-hidden="true">
-          {xAxis.ticks.map((t) => (
-            <g key={t}>
-              <line className="grid" x1={sx(t)} x2={sx(t)} y1={M.top} y2={M.top + plotH} />
-              <text className="tick" x={sx(t)} y={height - 8} textAnchor="middle">
-                {formatValue(t)}
-              </text>
-            </g>
-          ))}
-          <line className="axis" x1={left} x2={left} y1={M.top} y2={M.top + plotH} />
-        </g>
-
-        {data.map((row, i) => {
-          const top = M.top + i * ROW + (ROW - h) / 2
-          const w = sx(y(row)) - left
+    <div className="plot-holder" ref={ref}>
+      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={label}>
+        {data.map((d, i) => {
+          const y = 4 + i * ROW + (ROW - THICKNESS) / 2
+          const end = x(d.value)
+          const start = x(0)
+          const long = Math.max(end - start, 1)
           return (
-            <g
-              key={x(row)}
-              className={`mark${active === i ? ' is-active' : ''}`}
-              tabIndex={0}
-              role="img"
-              aria-label={`${x(row)}: ${formatValue(y(row))}`}
-              onPointerEnter={() => setActive(i)}
-              onPointerLeave={() => setActive(null)}
-              onFocus={() => setActive(i)}
-              onBlur={() => setActive(null)}
-            >
-              <rect className="hit" x={M.left} y={M.top + i * ROW} width={width - M.left} height={ROW} />
-              <text className="row-label" x={left - 10} y={M.top + i * ROW + ROW / 2} dy="0.32em" textAnchor="end">
-                {x(row)}
-              </text>
-              <path className="series-fill" d={barPath(left, top, w, h)} />
-              {/* Outside the bar end, never inside: a short bar cannot hold a
-                  label, and a clipped number is worse than none. */}
+            <g key={d.key} onMouseEnter={() => setHover(d)} onMouseLeave={() => setHover(null)}>
+              <rect x="0" y={4 + i * ROW} width={width} height={ROW} fill="transparent" />
               <text
-                className="cap-label"
-                x={sx(y(row)) + 8}
-                y={M.top + i * ROW + ROW / 2}
-                dy="0.32em"
+                className="axis-text"
+                x={LABEL_WIDTH - 10}
+                y={y + THICKNESS / 2}
+                textAnchor="end"
+                dominantBaseline="middle"
+                fill="var(--ink)"
+                style={{ fontSize: 12.5 }}
               >
-                {formatValue(y(row))}
+                {d.label ?? d.key}
+              </text>
+              <path
+                d={`M${start},${y} L${start + long - radius},${y} Q${start + long},${y} ${start + long},${y + radius}
+                    L${start + long},${y + THICKNESS - radius} Q${start + long},${y + THICKNESS} ${start + long - radius},${y + THICKNESS}
+                    L${start},${y + THICKNESS} Z`}
+                fill={seriesColour(0)}
+                opacity={hover && hover.key !== d.key ? 0.55 : 1}
+              />
+              <text
+                className="value-text"
+                x={start + long + 8}
+                y={y + THICKNESS / 2}
+                dominantBaseline="middle"
+              >
+                {format(d.value)}
               </text>
             </g>
           )
         })}
       </svg>
-
-      {active !== null && (
-        <Tooltip x={sx(y(data[active]))} y={M.top + active * ROW + ROW / 2} width={width}>
-          <TipRow label={x(data[active])} value={formatValue(y(data[active]))} />
-        </Tooltip>
-      )}
     </div>
   )
 }
