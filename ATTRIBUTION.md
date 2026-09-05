@@ -14,6 +14,8 @@ different positions, and the data has an obligation attached to it.
 | Chassis specifications | Wikipedia per-car articles, `{{Racing car}}` infobox | see `harvest/car_specs.txt` |
 | Chassis, engine and season-entrant register | [F1DB](https://github.com/f1db/f1db) | 1,153 chassis, 424 engines, 1,925 entrant rows |
 | Circuit register and layout timelines | Wikipedia per-circuit articles | 80 circuits, 49 layouts |
+| Car photographs (references and credits, not images) | [Wikimedia Commons](https://commons.wikimedia.org/) | 602 articles |
+| Circuit centrelines | [OpenStreetMap](https://www.openstreetmap.org/), ids via [Wikidata](https://www.wikidata.org/) | see `v_geometry_coverage` |
 | Notable team radio transcripts | Wikipedia per-race articles | 6 |
 | 2026 season, entry list, standings, calendar | formula1.com | current season |
 | Career totals (entries, starts, podiums, points) | formula1.com driver pages | 7 drivers at `verified` |
@@ -73,6 +75,52 @@ case for quotation — but they are quotations, not facts.
 
 *This is a description of the licences involved, not legal advice.*
 
+### Wikimedia Commons — sixteen different licences, one per file
+
+`article_images` records the lead photograph of each accepted car article.
+**No image is stored in this repository or in `f1.db`.** The row is a
+*reference and its credit*: which file the article leads with, who took it,
+and under what licence. The pixels are fetched from `upload.wikimedia.org` by
+whatever renders the page, under Wikimedia's terms.
+
+There is **no single licence** covering these files. Across 602 rows there are
+sixteen distinct licence strings — CC BY-SA at 1.0, 2.0, 2.5, 3.0 and 4.0,
+CC BY at 2.0, 2.5, 3.0 and 4.0, CC0, public domain, and national variants such
+as CC BY-SA 2.0 de and CC BY-SA 3.0 nl. So there is no blanket credit line you
+can write once. Each row carries its own `licence`, `licence_url` and `artist`,
+and **any display must show them**: attribution is a condition of CC BY and
+CC BY-SA, not a courtesy.
+
+Three things are enforced, at harvest time and again on every build:
+
+- the file must be on **Commons**, never a local en.wikipedia.org upload — a
+  file is uploaded locally *because* it is non-free, so linking one would be a
+  licence violation that looks like a working feature;
+- it must state a licence, checked against a list of what is actually free
+  (`CC BY-NC` and `CC BY-ND` both begin "CC BY" and neither qualifies);
+- it must name someone to attribute. Eight files were refused on the run that
+  produced the committed data: seven name no author, one states no licence.
+
+### OpenStreetMap — ODbL 1.0, and why it is confined to one table
+
+`circuit_geometry` holds circuit centrelines traced from OpenStreetMap, which
+is licensed
+[ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/). ODbL is
+**share-alike and carries a database right** — a different and stronger
+obligation than anything else here, and notably stronger than the CC BY that
+made F1DB attractive.
+
+It is therefore deliberately quarantined: **`circuit_geometry` is the only
+table derived from OpenStreetMap**, nothing else in the database depends on
+it, and dropping the table removes the obligation entirely. If you would
+rather not take ODbL on, do not run `tools/osm_geometry.py`; everything else
+builds and verifies without it.
+
+Any use of the geometry must credit **© OpenStreetMap contributors** and share
+derived geometry under ODbL. The relation ids come from
+[Wikidata](https://www.wikidata.org/), which is **CC0** and places no
+obligation on anything at all.
+
 ## Suggested arrangement
 
 Two licences, which is normal for a data project:
@@ -95,6 +143,11 @@ If you go with CC BY-SA, something like this in the README covers it:
 > The chassis, engine and season-entrant register is derived from
 > [F1DB](https://github.com/f1db/f1db), licensed
 > [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+> Circuit centrelines are © OpenStreetMap contributors, licensed
+> [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/); their relation
+> ids come from [Wikidata](https://www.wikidata.org/) (CC0). Car photographs
+> are hosted on Wikimedia Commons and each carries its own licence and
+> credit, recorded per file in `article_images`.
 > Current-season data is from formula1.com. Formula 1, F1 and Grand Prix are
 > trademarks of Formula One Licensing BV; this project is unaffiliated with
 > and unendorsed by Formula One or the FIA.

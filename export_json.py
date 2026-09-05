@@ -35,6 +35,11 @@ NOT_EXPORTED = {
     "stints": "as laps",
     "pit_stops": "as laps",
     "race_control_messages": "as laps",
+    # The centreline of one circuit is tens of thousands of coordinates. It is
+    # the only ODbL-licensed data here and it is confined to f1.db on purpose
+    # (see ATTRIBUTION.md), so exporting it would carry share-alike into a
+    # file whose whole point is being easy to reuse. Query it in SQLite.
+    "circuit_geometry": "ODbL geometry, deliberately confined to f1.db",
 }
 
 
@@ -87,6 +92,11 @@ def main():
         "car_seasons": dump(con, "car_seasons", "car_id, year"),
         "circuits": dump(con, "circuits", "country, name"),
         "circuit_layouts": dump(con, "circuit_layouts", "circuit_id, from_year"),
+        # References and credits, never images. Exporting them is the whole
+        # point: a consumer of the JSON needs the licence and the photographer
+        # as much as the file name, because showing one without the other is
+        # not allowed.
+        "article_images": dump(con, "article_images", "article"),
         "grands_prix": dump(con, "grands_prix", "first_held"),
         "eras": dump(con, "eras", "from_year"),
         "regulation_changes": dump(con, "regulation_changes", "year, category"),

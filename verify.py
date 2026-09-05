@@ -1138,11 +1138,133 @@ bad = con.execute("""SELECT COUNT(*) FROM drivers
     WHERE confidence NOT IN (SELECT confidence FROM provenance)""").fetchone()[0]
 check("all confidence values are in the provenance ladder", bad == 0)
 
+# ---------------------------------------------------------------------------
+print("\nILLUSTRATION AND GEOMETRY")
+# Two tables that hold pointers to things this repository does not contain:
+# a photograph on Wikimedia Commons, and a shape in OpenStreetMap. Neither
+# stores the thing itself, so what has to hold is that the pointer is legal
+# to follow and that the shape agrees with a number held independently.
+
+nimg = con.execute("SELECT COUNT(*) FROM article_images").fetchone()[0]
+ngeo = con.execute("SELECT COUNT(*) FROM circuit_geometry").fetchone()[0]
+print(f"  [info] {nimg} article images, {ngeo} circuit centrelines")
+
+if nimg:
+    # A file hosted locally on en.wikipedia.org is local BECAUSE it is
+    # non-free; that is what local upload is for. Linking one would be a
+    # licence violation that looks exactly like a working feature.
+    local = con.execute("SELECT COUNT(*) FROM article_images "
+                        "WHERE repository <> 'shared'").fetchone()[0]
+    check("every linked image is on Wikimedia Commons, not a local upload",
+          local == 0, f"{nimg} files")
+
+    # Attribution is a condition of CC BY and CC BY-SA, which is what almost
+    # all of these are. No author means no permission.
+    anon = con.execute("""SELECT COUNT(*) FROM article_images
+        WHERE COALESCE(NULLIF(TRIM(COALESCE(artist, '')), ''),
+                       NULLIF(TRIM(COALESCE(credit, '')), '')) IS NULL"""
+                       ).fetchone()[0]
+    check("every image names someone to attribute it to", anon == 0)
+
+    nolic = con.execute("SELECT COUNT(*) FROM article_images "
+                        "WHERE licence IS NULL OR TRIM(licence) = ''"
+                        ).fetchone()[0]
+    check("every image states its own licence", nolic == 0,
+          f"{con.execute('SELECT COUNT(DISTINCT licence) FROM article_images').fetchone()[0]} distinct licences in use")
+
+    # An image keyed on an article no chassis claims describes nothing here.
+    orphan = con.execute("""SELECT COUNT(*) FROM article_images i
+        WHERE NOT EXISTS (SELECT 1 FROM chassis c WHERE c.article = i.article)"""
+                         ).fetchone()[0]
+    check("every image belongs to an article a chassis claims", orphan == 0)
+
+    # These rows are 'unverified' because nothing in this database can
+    # confirm a photograph shows the car. If one ever climbs the ladder it
+    # will be because a person looked, and this is where that shows up.
+    promoted = con.execute("SELECT COUNT(*) FROM article_images "
+                           "WHERE confidence <> 'unverified'").fetchone()[0]
+    unnamed = con.execute("SELECT COUNT(*) FROM article_images "
+                          "WHERE name_matches = 0").fetchone()[0]
+    warn("no image has been promoted above 'unverified' without a person",
+         promoted == 0,
+         f"{unnamed} of {nimg} do not name the car in the file name; "
+         f"see v_images_to_check")
+
+if ngeo:
+    # The check that matters, re-run from the stored coordinates rather than
+    # from a column. A naive sum of a circuit relation's members includes the
+    # pit lane and puts Monaco 12% long; nothing about 3.745 km looks wrong
+    # on its own, and published_km is the only thing that says otherwise.
+    import json as _json
+    import math as _math
+
+    def _hav(a, b):
+        R = 6371008.8
+        p1, p2 = _math.radians(a[0]), _math.radians(b[0])
+        dp = p2 - p1
+        dl = _math.radians(b[1] - a[1])
+        h = (_math.sin(dp / 2) ** 2
+             + _math.cos(p1) * _math.cos(p2) * _math.sin(dl / 2) ** 2)
+        return 2 * R * _math.asin(_math.sqrt(h))
+
+    bad_len, unclosed, bad_layout, worst = [], [], [], 0.0
+    for r in con.execute("SELECT * FROM circuit_geometry"):
+        geo = _json.loads(r["centreline"])
+        metres = 0.0
+        for line in geo["coordinates"]:
+            for a, b in zip(line, line[1:]):
+                metres += _hav((a[1], a[0]), (b[1], b[0]))
+        km = metres / 1000.0
+        delta = abs(km - r["published_km"]) / r["published_km"]
+        worst = max(worst, delta)
+        if delta > 0.02:
+            bad_len.append(f"{r['circuit_id']} {km:.3f} vs "
+                           f"{r['published_km']:.3f} ({delta * 100:+.1f}%)")
+        # A circuit is a loop. Ends that do not meet mean the relation is
+        # missing a way, and the length can still come out plausible.
+        pts = [p for line in geo["coordinates"] for p in line]
+        if pts and _hav((pts[0][1], pts[0][0]),
+                        (pts[-1][1], pts[-1][0])) > 250:
+            unclosed.append(r["circuit_id"])
+        if r["layout_key"]:
+            ok = con.execute("""SELECT 1 FROM circuit_layouts
+                WHERE circuit_id = ? AND layout_key = ?""",
+                (r["circuit_id"], r["layout_key"])).fetchone()
+            if not ok:
+                bad_layout.append(f"{r['circuit_id']}/{r['layout_key']}")
+
+    check("every centreline re-measures to its published length",
+          not bad_len,
+          f"worst {worst * 100:.2f}% over {ngeo} circuits"
+          if not bad_len else "; ".join(bad_len[:3]))
+    warn("every centreline closes into a loop", not unclosed,
+         "; ".join(unclosed[:5]) if unclosed else "")
+    check("every geometry layout_key names a real layout", not bad_layout,
+          "; ".join(bad_layout[:3]))
+
+    # OSM maps what is on the ground. A trace cannot be of a configuration
+    # that no longer exists, so it may never be attached to a layout whose
+    # timeline has closed.
+    historic = con.execute("""SELECT COUNT(*) FROM circuit_geometry g
+        JOIN circuit_layouts l ON l.circuit_id = g.circuit_id
+                              AND l.layout_key = g.layout_key
+        WHERE l.to_year IS NOT NULL""").fetchone()[0]
+    check("no centreline claims to be a historic layout", historic == 0)
+
+
 print("\nVIEWS")
 for v in ("v_champions", "v_title_count", "v_constructor_titles",
           "v_current_grid", "v_season_timeline", "v_unverified"):
     n = con.execute(f"SELECT COUNT(*) FROM {v}").fetchone()[0]
     check(f"view {v} returns rows", n > 0, f"{n} rows")
+
+# These two are empty until their harvest has been run, so they are checked
+# for being WELL FORMED rather than for being populated. A view that only
+# works once someone has fetched half a gigabyte is a view nobody tests.
+for v in ("v_car_images", "v_images_to_check", "v_circuit_geometry",
+          "v_geometry_coverage"):
+    n = con.execute(f"SELECT COUNT(*) FROM {v}").fetchone()[0]
+    check(f"view {v} is queryable", True, f"{n} rows")
 
 print("\n" + "=" * 60)
 if fails:

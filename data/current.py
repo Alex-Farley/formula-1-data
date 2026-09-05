@@ -347,6 +347,56 @@ SOURCE_REGISTRY = [
      "Live during a session; nothing exists before 2018 and nothing will.",
      "Its finishing order is checked against the winner already stored, the "
      "same test the Jolpica loader applies."),
+
+    (15, "Wikimedia Commons (via the MediaWiki API)",
+     "https://commons.wikimedia.org/",
+     "The lead photograph of each accepted car article, and the attribution "
+     "needed to display it. Loaded by tools/wikimedia_images.py. NO IMAGE IS "
+     "STORED - article_images holds a reference and its credit, and the "
+     "pixels are fetched from upload.wikimedia.org by whatever renders the "
+     "page.", "reference",
+     "Per file, and they differ: sixteen distinct licence strings across 602 "
+     "rows - CC BY-SA at four versions, CC BY at four more, CC0, public "
+     "domain and national variants. There is no blanket credit line, so each "
+     "row carries its own and the build refuses a file that names no author.",
+     "Continuous, by anyone. The lead image of an article is whatever an "
+     "editor last put there, which is why the Commons-only and licence "
+     "checks run on every build rather than once at harvest.",
+     "Weak, and this is the one place in the database where that is true. "
+     "The ARTICLE is constrained - it already passed the three checks in "
+     "tools/wikispec_fetch.py for constructor, seasons and name - so the "
+     "claim recorded is 'the article proved to describe this chassis leads "
+     "with this file'. But nothing here constrains what a photograph SHOWS, "
+     "and there is no second source to disagree. Testing whether the file "
+     "name mentions the car finds only 265 of 602, because most correct "
+     "images are filed under the driver, so the test is recorded as "
+     "name_matches and enforced nowhere. The failure it half-detects is "
+     "real: the ATS D5 article leads with a photograph of officials and "
+     "police. These rows are 'unverified' because that is what they are."),
+
+    (16, "OpenStreetMap (via api.openstreetmap.org)",
+     "https://www.openstreetmap.org/",
+     "Circuit centrelines: the shape of each track as currently mapped, "
+     "stored as GeoJSON on circuit_geometry. Loaded by "
+     "tools/osm_geometry.py. Relation ids come from Wikidata (P402), which "
+     "is CC0 and brokers the identifier without constraining anything.",
+     "reference",
+     "ODbL 1.0 - share-alike AND a database right. That is a different "
+     "obligation from every other source here, and it is confined to one "
+     "table on purpose; see ATTRIBUTION.md. Nothing else derives from it.",
+     "Continuous, by anyone, and it maps only what is on the ground NOW. "
+     "There is no historic geometry to be had: Spa's 14.1 km road course and "
+     "Monza's banking are unmapped and unmappable, and Wikidata's own "
+     "layout entities carry length and dates but no coordinates.",
+     "Strong, and it fired immediately. A circuit relation is not an ordered "
+     "ring - its members include the pit lane - so a naive sum puts Monaco "
+     "at 3.745 km against a published 3.337, twelve per cent long, and "
+     "nothing about that number looks wrong on its own. What rejects it is "
+     "length_km, held here before OSM was consulted. Excluding the pit lane "
+     "by member role gives 3.388 km, and anything outside two per cent is "
+     "refused rather than stored with a caveat. The measurement is then "
+     "re-run in build.py from the stored coordinates, with its own copy of "
+     "the arithmetic, because sharing the tool's would check nothing."),
 ]
 
 PROVENANCE = [

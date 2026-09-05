@@ -342,6 +342,53 @@ if (await visit('/console', 'textarea.sql')) {
   }
 }
 
+console.log('\nattribution')
+// A photograph under CC BY or CC BY-SA may only be shown WITH its credit.
+// That makes the caption a licence condition, not a design choice, so it is
+// tested like one: if the image renders and the credit does not, the page is
+// not merely ugly, it is infringing.
+{
+  const img = db
+    .prepare(
+      `SELECT car_id, licence, COALESCE(artist, credit) AS author
+       FROM v_car_images WHERE COALESCE(artist, credit) IS NOT NULL LIMIT 1`,
+    )
+    .get()
+  if (!img) {
+    pass('no images in this build, nothing to attribute')
+  } else if (await visit(`/cars/${img.car_id}`, 'h1')) {
+    const shown = await page.locator('figure.commons img').count()
+    if (shown === 0) {
+      fail(`${img.car_id} has an image row but renders no image`)
+    } else {
+      const caption = (await page.locator('figure.commons figcaption').innerText()) || ''
+      const hasAuthor = caption.includes(img.author)
+      const hasLicence = caption.includes(img.licence)
+      hasAuthor && hasLicence
+        ? pass(`${img.car_id} credits "${img.author}" under ${img.licence}`)
+        : fail(
+            `${img.car_id} shows an image without its full credit ` +
+              `(author: ${hasAuthor}, licence: ${hasLicence})`,
+          )
+    }
+  }
+}
+
+// A track map is drawn straight from the stored coordinates. If the geometry
+// harvest has not been run there is nothing to draw, and that is not a
+// failure — the table is optional and the build works without it.
+{
+  const geo = db.prepare('SELECT circuit_id FROM circuit_geometry LIMIT 1').get()
+  if (!geo) {
+    pass('no circuit geometry in this build, nothing to draw')
+  } else if (await visit(`/circuits/${geo.circuit_id}`, 'h1')) {
+    const d = await page.locator('figure.trackmap path').first().getAttribute('d')
+    d && d.length > 40
+      ? pass(`${geo.circuit_id} draws a centreline (${d.length} chars of path)`)
+      : fail(`${geo.circuit_id} has geometry but drew no path`)
+  }
+}
+
 console.log('\ngaps')
 if (await visit('/gaps', 'table')) {
   const gaps = count('SELECT COUNT(*) n FROM known_gaps')

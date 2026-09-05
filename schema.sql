@@ -256,6 +256,42 @@ CREATE TABLE circuit_layouts (
     UNIQUE (circuit_id, layout_key)
 );
 
+-- The centreline of a circuit as OpenStreetMap maps it, checked against the
+-- length this database already held.
+--
+-- ODbL 1.0, which is share-alike AND carries a database right. That is a
+-- different obligation from anything else here and it is confined to this
+-- one table on purpose - see ATTRIBUTION.md. Nothing else in the database
+-- derives from OpenStreetMap.
+--
+-- The trace can only ever be the CURRENT layout: OSM maps what is on the
+-- ground. Historic configurations - Spa's 14.1 km road course, Monza's
+-- banking - have no geometry source anywhere, so they have no row here, and
+-- layout_key names the configuration a trace actually corresponds to rather
+-- than letting a modern shape stand in for a 1955 one.
+--
+-- measured_km, published_km and delta_pct are all stored so the check is
+-- visible in the data and not only in the loader. A naive sum of a circuit
+-- relation's member ways includes the pit lane and puts Monaco 12% long;
+-- what rejects that is published_km, which came from somewhere else.
+CREATE TABLE circuit_geometry (
+    circuit_id      TEXT NOT NULL REFERENCES circuits(id),
+    -- NULL where the circuit has no layout timeline at all. Never a historic
+    -- layout: a trace is of the shape that exists now.
+    layout_key      TEXT,
+    wikidata_id     TEXT NOT NULL,             -- Q171400; CC0, brokers the id
+    osm_relation    INTEGER NOT NULL,          -- 148194
+    centreline      TEXT NOT NULL,             -- GeoJSON MultiLineString, lon/lat
+    measured_km     REAL NOT NULL,             -- summed from centreline
+    published_km    REAL NOT NULL,             -- what it was checked against
+    delta_pct       REAL NOT NULL,             -- signed, and small by construction
+    node_count      INTEGER,
+    osm_timestamp   TEXT,                      -- the relation version measured
+    licence         TEXT NOT NULL DEFAULT 'ODbL-1.0',
+    confidence      TEXT NOT NULL DEFAULT 'reference' REFERENCES provenance(confidence),
+    UNIQUE (circuit_id, layout_key)
+);
+
 -- ------------------------------------------------------------------ cars
 -- One row per car model. A car is a chassis design, not a season: the Lotus
 -- 79 raced in 1978 and 1979 and is one row. Where a design was substantially
@@ -409,6 +445,43 @@ CREATE TABLE chassis (
 -- luck rather than by construction, and the moment poles could be attributed
 -- it showed: McLaren ran the M23 and M26 through 1976-77, and the blanket
 -- gave the M23 sixteen poles against a published career fourteen.
+-- The lead image of each car article, and the attribution needed to show it.
+--
+-- NO IMAGE IS STORED. This is a reference and its credit: which file an
+-- article leads with, who took it, under what licence. The pixels are fetched
+-- from upload.wikimedia.org by whatever renders the page, under Wikimedia's
+-- terms; this database redistributes nothing and f1.db does not grow.
+--
+-- The claim is checkable and it is deliberately narrow: "the article already
+-- proved to describe this chassis leads with this file". The article passed
+-- the three checks in tools/wikispec_fetch.py before it got here, so the row
+-- is not an image found by searching for a car's name.
+--
+-- What CANNOT be checked is whether the photograph shows the car. Nothing in
+-- this database constrains the content of an image and there is no second
+-- source to disagree. Testing whether the file name mentions the chassis
+-- finds under half the correct images - most are filed under the driver -
+-- so name_matches is RECORDED AND ENFORCED NOWHERE. These rows are
+-- 'unverified' because that is what they are.
+CREATE TABLE article_images (
+    article         TEXT PRIMARY KEY,          -- joins chassis.article
+    file_name       TEXT NOT NULL,             -- 'File:...' as Commons spells it
+    -- Must be 'shared'. A file hosted locally on en.wikipedia.org is local
+    -- BECAUSE it is non-free; linking one would be a licence violation.
+    repository      TEXT NOT NULL,
+    -- Every file carries its own. Sixteen distinct licence strings appear
+    -- across these rows, so there is no blanket credit line for them.
+    licence         TEXT NOT NULL,
+    licence_url     TEXT,
+    artist          TEXT,                      -- plain text; the API returns HTML
+    credit          TEXT,
+    description_url TEXT NOT NULL,             -- the Commons file page
+    width           INTEGER,
+    height          INTEGER,
+    name_matches    INTEGER NOT NULL DEFAULT 0,
+    confidence      TEXT NOT NULL DEFAULT 'unverified' REFERENCES provenance(confidence)
+);
+
 CREATE TABLE car_seasons (
     car_id          TEXT NOT NULL REFERENCES cars(id),
     year            INTEGER NOT NULL,
@@ -1118,6 +1191,52 @@ GROUP BY r.circuit_id, e.constructor_id
 ORDER BY r.circuit_id, wins DESC, constructor;
 
 -- Countries ranked by how much championship racing they have held.
+-- Circuits with a traced centreline, and how far the trace sits from the
+-- length that admitted it. Sorted worst-first: the interesting row is always
+-- the one closest to the tolerance, not the one that matched exactly.
+CREATE VIEW v_circuit_geometry AS
+SELECT g.circuit_id, c.name AS circuit, c.country,
+       COALESCE(g.layout_key, '-') AS layout,
+       g.measured_km, g.published_km, g.delta_pct,
+       g.node_count, g.osm_relation, g.osm_timestamp, g.licence
+FROM circuit_geometry g JOIN circuits c ON c.id = g.circuit_id
+ORDER BY ABS(g.delta_pct) DESC;
+
+-- What has a trace and what does not, by whether the circuit is still in use.
+-- The shape of this is the point: OSM maps the present, so a circuit that
+-- stopped hosting Grands Prix in 1976 is not missing its geometry, it has
+-- none to have.
+CREATE VIEW v_geometry_coverage AS
+SELECT CASE WHEN c.last_gp IS NULL THEN 'in use' ELSE 'former' END AS status,
+       COUNT(*) AS circuits,
+       SUM(CASE WHEN g.circuit_id IS NOT NULL THEN 1 ELSE 0 END) AS traced,
+       ROUND(100.0 * SUM(CASE WHEN g.circuit_id IS NOT NULL THEN 1 ELSE 0 END)
+             / COUNT(*), 1) AS pct
+FROM circuits c LEFT JOIN circuit_geometry g ON g.circuit_id = c.id
+GROUP BY status ORDER BY status;
+
+-- Every car that can be illustrated, with the credit that must appear beside
+-- it. A row here is a licence obligation, not a decoration: where
+-- attribution_required is 1 the artist line is not optional.
+CREATE VIEW v_car_images AS
+SELECT DISTINCT ch.car_id, c.full_name AS car, i.article,
+       i.file_name, i.licence, i.licence_url, i.artist, i.credit,
+       i.description_url, i.width, i.height, i.name_matches
+FROM article_images i
+JOIN chassis ch ON ch.article = i.article
+JOIN cars c ON c.id = ch.car_id
+WHERE ch.car_id IS NOT NULL;
+
+-- The images whose file name does not mention the car. NOT a list of wrong
+-- images - most are correct and simply filed under the driver - but it is
+-- where a wrong one will be, and it is the only handle there is.
+CREATE VIEW v_images_to_check AS
+SELECT i.article, i.file_name, i.licence, i.description_url,
+       (SELECT COUNT(*) FROM chassis ch WHERE ch.article = i.article) AS chassis
+FROM article_images i
+WHERE i.name_matches = 0
+ORDER BY chassis DESC, i.article;
+
 CREATE VIEW v_circuits_by_country AS
 SELECT c.country, COUNT(DISTINCT c.id) AS circuits, COUNT(r.id) AS races,
        MIN(r.year) AS first_gp, MAX(r.year) AS last_gp,

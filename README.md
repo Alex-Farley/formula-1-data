@@ -1,4 +1,4 @@
-# F1 Verified Facts Database — v2.13
+# F1 Verified Facts Database — v2.14
 
 An expansion of the original single-file JSON into a normalised, queryable
 SQLite database covering 1950–2026, with the JSON kept as a generated export.
@@ -12,6 +12,18 @@ harvested from Wikipedia's season tables under a new `reference` confidence tier
 replaces the per-race one, every Grand Prix now has a canonical id, and
 `audit.py` reports on the shape of the database rather than its contents.
 See *Structure* below.
+
+**v2.14** adds the two things the database could describe but never show: a
+**photograph** for 602 of the 645 car articles, and a **traced centreline**
+for the circuits OpenStreetMap maps. Neither stores a picture — `f1.db` holds
+a *reference and its credit*, and the pixels come from Wikimedia at render
+time. The geometry earns its place by being checkable: a naive read of
+Monaco's OSM relation measures **3.745 km against a published 3.337**, twelve
+per cent long, because a circuit relation includes the pit lane. `length_km`,
+held here long before OSM was consulted, rejects it. Images are the one place
+in this database with **no cross-check at all** — nothing here constrains what
+a photograph shows — so they sit at `unverified` and say so. See
+*Illustration* and the build notes.
 
 **v2.13** closes the **driver register**: 244 rows to 862. It was the binding
 constraint on the full classification — 5,490 rows were being skipped because
@@ -113,7 +125,7 @@ v2026.12.0.
 | `f1_compat.json` | JSON in the *original* v1 key layout, so anything already consuming that file keeps working. |
 | `schema.sql` | The schema, commented. |
 | `build.py` | Rebuilds `f1.db` from the data modules. Idempotent. |
-| `verify.py` | 150 integrity, cross-tabulation and sanity checks. Exit code 1 on failure. |
+| `verify.py` | 158 integrity, cross-tabulation and sanity checks. Exit code 1 on failure. |
 | `audit.py` | Structural health check: fill rates, coverage, keys, redundancy, readiness. |
 | `export_json.py` | Regenerates the JSON exports from the database. |
 | `data/*.py` | The source data, as readable Python literals. **Edit here, then rebuild.** |
@@ -547,6 +559,73 @@ not what they drove, so 655 of 1,161 pole entries carry no constructor.
 
 ---
 
+## Illustration
+
+Two tables hold pointers to things this repository does not contain.
+
+### Photographs — `article_images`
+
+**No image is stored.** A row records which file a car's article leads with,
+who took it, and under what licence; the pixels are fetched from
+`upload.wikimedia.org` by whatever renders the page. `f1.db` does not grow.
+
+The claim is deliberately narrow and it *is* checkable: the article already
+passed the constructor, seasons and name checks in `tools/wikispec_fetch.py`,
+so what is recorded is "the article proved to describe this chassis leads with
+this file". Rerunning the harvest re-establishes it.
+
+Three things are enforced at harvest and again on every build. The file must
+be on **Commons** — a file uploaded locally to en.wikipedia.org is local
+*because* it is non-free, so linking one would be a licence violation that
+looks like a working feature. It must state a **free licence**, matched
+against a list rather than a pattern, because `CC BY-NC` and `CC BY-ND` both
+begin "CC BY". And it must name **someone to attribute**: attribution is a
+condition of CC BY and CC BY-SA, not a courtesy. Eight files were refused on
+the committed run — seven name no author, one states no licence.
+
+There is no single licence covering these. Sixteen distinct strings appear
+across 602 rows, so every row carries its own and any display must show it.
+The web app's smoke test asserts this: if the image renders and the credit
+does not, the test fails, because that is not an ugly page, it is an
+infringing one.
+
+What **cannot** be checked is whether the photograph shows the car. Testing
+whether the file name mentions the chassis finds 265 of 602 — most correct
+images are filed under the driver, and
+`File:Jos_Verstappen_2000_Monza_(cropped).jpg` really is an Arrows A21 — so
+the test would discard half the good rows if it were a rule. It is stored as
+`name_matches` and enforced nowhere. The failure it half-detects is real: the
+ATS D5 article leads with a photograph of officials and police. Every row sits
+at `unverified`.
+
+### Centrelines — `circuit_geometry`
+
+A circuit's shape as OpenStreetMap maps it, stored as GeoJSON and drawn as
+inline SVG with no map library and no tiles. Relation ids come from Wikidata
+(CC0); the geometry is **ODbL 1.0**, which is share-alike and carries a
+database right, so it is confined to this one table and dropping the table
+drops the obligation. See `ATTRIBUTION.md`.
+
+The reason it belongs here rather than anywhere else is that this database can
+reject it. A circuit relation is not an ordered ring — its members include the
+pit lane — so summing them naively gives:
+
+    Monaco, OSM relation 148194
+      all 42 member ways                   3.745 km   +12.2%
+      excluding role=pit_lane (0.357 km)   3.388 km    +1.5%
+      published, already held here         3.337 km
+
+Nothing about 3.745 looks wrong on its own. `length_km` is what says
+otherwise. Anything outside 2% is refused rather than stored with a caveat,
+and the measurement is re-run in `build.py` from the stored coordinates using
+its own copy of the arithmetic — sharing the tool's would check nothing.
+
+Geometry attaches to a **layout**, never to a circuit alone, wherever a layout
+timeline exists. Monza 1955 is not Monza 2026 and `circuit_layouts` already
+keeps them apart. A trace can only ever be the current configuration, so it is
+never attached to a layout whose timeline has closed; `verify.py` fails the
+build if one is.
+
 ## Timing, telemetry and radio
 
 Being blunt about what exists, because most of what people imagine is
@@ -807,10 +886,16 @@ queried, not just read here. `./f1 gaps` prints them with the fix for each.
   scorers behind them. This is now much the largest remaining expansion, and it
   would also make podium counts checkable the same way wins, poles and fastest
   laps now are.
-- **The full driver register.** Roughly 780 people have started a championship
-  Grand Prix; 244 are here. Everyone who ever won a race, took a pole, set a
-  fastest lap or finished on a podium is now included, so what remains is the
-  tail who did none of those.
+- **What a photograph shows.** 602 cars carry a lead image from Wikimedia
+  Commons with its licence and photographer. The *article* is well
+  constrained; what the picture depicts is not, and there is no second source
+  to disagree with it. This is the only part of the database with no
+  cross-check available at all. `./f1 images` lists the 337 whose file name
+  does not even name the car.
+- **Historic circuit geometry.** Centrelines are traced from OpenStreetMap,
+  which maps what is on the ground. Spa's 14.1 km road course and Monza's
+  banking are unmapped and unmappable; Wikidata's own historic-layout
+  entities carry a length and a date range but no coordinates.
 - **Lap times, grid positions, retirements, qualifying.** Not held at all.
 - **Podiums and career points** remain hand-entered. Wins, poles and fastest laps
   are now derived and self-consistent; podiums are not.

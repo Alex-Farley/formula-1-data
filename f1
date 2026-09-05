@@ -43,6 +43,7 @@ f1 — query tool for the F1 Verified Facts Database.
   ./f1 events                    every Grand Prix, how often held and where
   ./f1 search senna              free-text search across every table
   ./f1 unverified                everything not yet officially verified
+  ./f1 images                    car photographs nothing here can verify
   ./f1 sql "SELECT ..."          arbitrary SQL
   ./f1 schema                    tables, columns and views
 """
@@ -290,6 +291,16 @@ def main():
                 print("\n  Events held here:")
                 for e in ev:
                     print(f"    {e['n']:>3}  {e['gp']}  ({e['f']}-{e['l']})")
+                geo = c.execute("""SELECT * FROM v_circuit_geometry
+                    WHERE circuit_id=?""", (t["id"],)).fetchone()
+                if geo:
+                    print(f"\n  Centreline traced from OpenStreetMap "
+                          f"(relation {geo['osm_relation']}):")
+                    print(f"    measured {geo['measured_km']:.3f} km against "
+                          f"a published {geo['published_km']:.3f} km "
+                          f"({geo['delta_pct']:+.2f}%), pit lane excluded")
+                    print(f"    ODbL 1.0, (c) OpenStreetMap contributors")
+
                 print("\n  Most successful drivers here:")
                 table(c.execute("""SELECT driver, wins, first_win, last_win
                     FROM v_circuit_winners WHERE circuit_id=? AND wins>1
@@ -715,6 +726,23 @@ def main():
                     print(f"    {yr}{label}")
                 found += len(rows)
         print(f"\n  {found} match(es)\n")
+
+    elif cmd == "images":
+        # Photographs cannot be verified from inside this database: nothing
+        # here constrains what an image shows. This lists the ones whose file
+        # name does not even name the car, which is the only handle there is.
+        rows = c.execute("""SELECT article, file_name, licence, chassis
+            FROM v_images_to_check LIMIT 40""").fetchall()
+        total = c.execute("SELECT COUNT(*) FROM article_images").fetchone()[0]
+        named = c.execute("SELECT COUNT(*) FROM article_images "
+                          "WHERE name_matches=1").fetchone()[0]
+        print(f"\n  {total} car articles carry a lead photograph. "
+              f"{named} name the car in the file name.")
+        print(f"  The other {total - named} may still be correct - most "
+              f"correct images are filed under the driver - but nothing")
+        print(f"  here can tell. All sit at 'unverified'. Worst first by how "
+              f"many chassis depend on the article:\n")
+        table(rows)
 
     elif cmd == "unverified":
         table(c.execute("SELECT * FROM v_unverified ORDER BY tbl, label"))

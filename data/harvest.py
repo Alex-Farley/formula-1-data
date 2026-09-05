@@ -542,6 +542,49 @@ KNOWN_GAPS = [
      "two laps behind the safety car, half points were awarded and no racing lap was "
      "completed. This is a true null, not missing data.", 1,
      "Nothing to fix - the absence is correct."),
+
+    ("centreline", "the shape of a circuit, for anything but the present day",
+     "circuit_geometry traces a circuit from OpenStreetMap and checks the "
+     "trace against the length this database already held. It can only ever "
+     "be the CURRENT configuration, because OSM maps what is on the ground: "
+     "Spa's 14.1 km Ardennes road course, Monza's banked sopraelevata and "
+     "the 1976 Kyalami are not mapped and cannot be. Wikidata does model "
+     "historic layouts as their own entities - 'Circuit de Monaco Grand "
+     "Prix Circuit (1929-1972)' is Q66712049 - but those entities carry a "
+     "length and a date range and NO coordinates, so there is no geometry "
+     "source for them anywhere. A trace is therefore attached to a layout "
+     "only where that layout is still current, and historic layouts have no "
+     "row rather than a modern shape standing in for them.",
+     0,
+     "Nothing available. A historic centreline would have to be traced from "
+     "period maps or aerial survey, which is a research project rather than "
+     "a harvest, and any such trace would have no independent length to be "
+     "checked against - the one thing that makes the current ones "
+     "trustworthy. Leaving them absent is the correct answer."),
+
+    ("article_images.name_matches", "whether a photograph shows the car",
+     "602 car articles carry a lead photograph from Wikimedia Commons, with "
+     "its licence and photographer. The ARTICLE is well constrained - it "
+     "passed the constructor, seasons and name checks in "
+     "tools/wikispec_fetch.py before it was accepted - so the recorded claim "
+     "is 'the article proved to describe this chassis leads with this file'. "
+     "What is NOT established is that the photograph shows the car. Nothing "
+     "in this database constrains the content of an image and there is no "
+     "second source to disagree with, which makes this the only part of the "
+     "database with no cross-check available at all. Testing whether the "
+     "file name mentions the chassis finds 265 of 602, because most correct "
+     "images are filed under the driver - "
+     "File:Jos_Verstappen_2000_Monza_(cropped).jpg really is an Arrows A21 - "
+     "so the test cannot be a rule without discarding half the good rows. "
+     "It is stored as name_matches and enforced nowhere. The failure it "
+     "half-detects is real: the ATS D5 article leads with a photograph of "
+     "officials and police.",
+     0,
+     "A person looking. v_images_to_check lists the 337 whose file name does "
+     "not name the car, worst first by how many chassis depend on the "
+     "article. Every row sits at 'unverified' until then, which is where "
+     "this database puts what it cannot prove."),
+
 ]
 
 # Differences between a hand-entered career figure and the figure derived
@@ -630,6 +673,8 @@ ENGINES_FILE = os.path.join(HERE, "..", "harvest", "engines.txt")
 F1DB_CONS_FILE = os.path.join(HERE, "..", "harvest", "f1db_constructors.txt")
 ENTRANTS_FILE = os.path.join(HERE, "..", "harvest", "entrants.txt")
 SPECS_FILE = os.path.join(HERE, "..", "harvest", "car_specs.txt")
+IMAGES_FILE = os.path.join(HERE, "..", "harvest", "article_images.txt")
+GEOMETRY_FILE = os.path.join(HERE, "..", "harvest", "circuit_geometry.txt")
 
 F1DB_SOURCE = "https://github.com/f1db/f1db"
 F1DB_CONFIDENCE = "reference"
@@ -856,12 +901,21 @@ def resolve_f1db_drivers(our_drivers):
     return out, collisions
 
 
-def load_car_specs():
-    """The Wikipedia infobox harvest. Returns a list of dicts keyed by the
-    column names in the file header, or [] if the harvest has not been run."""
-    path = os.path.abspath(SPECS_FILE)
+def _read_named(path, rerun):
+    """Read a generated file by its column HEADER, not by position.
+
+    Positional reads of a file another tool writes are a standing trap: adding
+    engine_manufacturer_id to entrants.txt once shifted every field the spec
+    harvest read, so every chassis looked never-entered and a seventy-minute
+    run returned nothing. Reading by name costs one line and cannot do that.
+
+    Returns [] when the harvest has not been run - these files are optional
+    and the build must work without them.
+    """
+    path = os.path.abspath(path)
     if not os.path.exists(path):
         return []
+    name = os.path.basename(path)
     cols, rows = None, []
     with open(path, encoding="utf-8") as f:
         for line in f:
@@ -875,8 +929,32 @@ def load_car_specs():
             parts = line.split("|")
             if cols is None or len(parts) != len(cols):
                 raise SystemExit(
-                    f"car_specs.txt: {len(parts)} fields, expected "
-                    f"{len(cols) if cols else '?'}. Rerun "
-                    f"tools/wikispec_fetch.py.")
+                    f"{name}: {len(parts)} fields, expected "
+                    f"{len(cols) if cols else '?'}. Rerun {rerun}.")
             rows.append({c: (v.strip() or None) for c, v in zip(cols, parts)})
     return rows
+
+
+def load_car_specs():
+    """The Wikipedia infobox harvest, keyed by the file's own column names."""
+    return _read_named(SPECS_FILE, "tools/wikispec_fetch.py")
+
+
+def load_article_images():
+    """The Commons lead-image references and their attribution.
+
+    Every row is a licence obligation, not a decoration: where a file's
+    licence requires attribution, the artist line travels with it or the row
+    was refused at harvest time.
+    """
+    return _read_named(IMAGES_FILE, "tools/wikimedia_images.py")
+
+
+def load_circuit_geometry():
+    """Circuit centrelines from OpenStreetMap, already length-checked.
+
+    The check is re-run in build.py against the length this database holds,
+    because a harvest file is an input like any other and the constraint
+    belongs where the row is admitted, not only where it was written.
+    """
+    return _read_named(GEOMETRY_FILE, "tools/osm_geometry.py")

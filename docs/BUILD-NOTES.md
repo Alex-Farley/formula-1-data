@@ -3,6 +3,105 @@
 A running record of what changed in each version, what it exposed, and what
 was deliberately not done. Newest first.
 
+## v2.14 (2026-09-05) — pictures, and the number that rejected one
+
+Two additions that both point at things this repository does not contain, for
+opposite reasons.
+
+### Photographs: the one place with no cross-check
+
+`article_images` records the lead image of 602 of the 645 accepted car
+articles — file, licence, photographer, description page. **No image is
+stored.** The pixels come from Wikimedia at render time and `f1.db` does not
+grow by a byte.
+
+I nearly did not do this, on the grounds that a photograph is not a fact with
+a source. That was too broad. *"The article proved to describe this chassis
+leads with this file, CC BY-SA 3.0 by Morio"* **is** a fact about Wikipedia,
+and rerunning the harvest re-establishes it. The article was already
+constrained — it passed the constructor, seasons and name checks in
+`wikispec_fetch.py` — so these are not images found by searching for a car's
+name, which is the inference that put an invented "Ferrari 125 F2" into the
+abandoned 1952 harvest.
+
+Three checks refuse a row, at harvest and again at build:
+
+- **Commons only.** All 610 files on the measured run were `shared`, which
+  makes the check look redundant. It is not: a file uploaded locally to
+  en.wikipedia.org is local *because* it is non-free, and the lead image of an
+  article is whatever an editor last put there.
+- **A free licence**, matched against a list of prefixes rather than a pattern
+  over "cc". `CC BY-NC` and `CC BY-ND` both start "CC BY" and neither is free
+  enough to display.
+- **An author to attribute.** Seven files name none and were refused; one more
+  states no licence at all.
+
+There is no blanket credit line. **Sixteen distinct licence strings** appear
+across 602 rows — CC BY-SA at five versions, CC BY at four, CC0, public
+domain, and national variants like `CC BY-SA 2.0 de`. Each row carries its
+own, and the web smoke test asserts the caption renders with both author and
+licence, because an image shown without its credit is not an ugly page, it is
+an infringing one.
+
+**What cannot be checked is whether the photograph shows the car.** Nothing
+here constrains the content of an image and there is no second source to
+disagree. Testing whether the file name mentions the chassis finds 265 of 602,
+because most correct images are filed under the driver —
+`File:Jos_Verstappen_2000_Monza_(cropped).jpg` really is an Arrows A21 — so as
+a rule it would throw away half the good rows. It is stored as `name_matches`
+and **enforced nowhere**. The failure it half-detects is real: the ATS D5
+article leads with
+
+    File:Grand_Prix_van_NL_op_circuit_van_Zandvoort_nr._10_,_11_officials_en_politie...
+
+which is a photograph of officials and police. Every row is `unverified`, and
+`./f1 images` lists the 337 for someone to look at.
+
+### Centrelines: the check fired on the first circuit tried
+
+`circuit_geometry` stores a circuit's shape as GeoJSON, traced from
+OpenStreetMap, drawn as inline SVG with no tiles and no map library.
+
+Overpass is unreachable from here — `overpass-api.de`, `overpass.kumi.systems`
+and `overpass.private.coffee` all fail the same way — so a circuit is
+addressed by **relation id** through the plain OSM API instead. That is the
+better shape anyway: a bounding box returns whatever is inside a rectangle, a
+relation id names one object. The ids come from Wikidata (P402), which is CC0.
+
+Then the point of doing it here at all. A circuit relation is not an ordered
+ring; its members include the pit lane:
+
+    Monaco, OSM relation 148194
+      all 42 member ways                   3.745 km   +12.2%
+      excluding role=pit_lane (0.357 km)   3.388 km    +1.5%
+      published, already in this database  3.337 km
+
+A naive implementation stores 3.745 and is wrong by 408 metres, and **nothing
+about that number looks wrong on its own**. `length_km` is the only thing that
+says otherwise, and this database held it long before OSM was consulted. Rows
+outside 2% are refused, not stored with a caveat. The measurement is then
+re-run in `build.py` from the stored coordinates with its own copy of the
+haversine — deliberately duplicated, because sharing the tool's arithmetic
+would check nothing.
+
+Two things stay absent on purpose. **Historic geometry does not exist
+anywhere**: OSM maps what is on the ground, and Wikidata's historic-layout
+entities — `Q66712049`, "Circuit de Monaco Grand Prix Circuit (1929-1972)" —
+carry a length and a date range but no coordinates. So Spa's 14.1 km Ardennes
+course and Monza's banking have no row rather than a modern shape standing in
+for them, and `verify.py` fails the build if a trace is ever attached to a
+layout whose timeline has closed. And **ODbL 1.0** — share-alike plus a
+database right, a stronger obligation than anything else here — is confined to
+this one table, so dropping it drops the obligation.
+
+### Also
+
+- `data/harvest.py` gains `_read_named()`, one header-driven reader shared by
+  three harvests. Positional reads of a generated file are the trap that cost
+  two full re-harvests in v2.9.
+- `verify.py` 150 → 158 checks, in a new *Illustration and geometry* section.
+- `./f1 images`, and a geometry line on `./f1 circuit`.
+
 ## v2.13 (2026-09-05) — the driver register, and a flag that means the wrong thing
 
 618 drivers who entered a championship Grand Prix had no row here. The

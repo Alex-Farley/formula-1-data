@@ -6,6 +6,8 @@ Build f1.db from schema.sql and the data modules.
 
 Idempotent: deletes and rebuilds the database each run.
 """
+import json
+import math
 import os
 import sqlite3
 import sys
@@ -27,7 +29,23 @@ from data import radio as RA       # noqa: E402
 from data import results as RS     # noqa: E402
 
 DB = os.path.join(HERE, "f1.db")
-VERSION = "2.13"
+VERSION = "2.14"
+
+
+def _haversine(a, b):
+    """Metres between two (lat, lon) pairs on the IUGG mean-radius sphere.
+
+    Deliberately duplicated from tools/osm_geometry.py rather than imported.
+    The point of re-measuring geometry at build time is to check the tool's
+    arithmetic; sharing the tool's arithmetic would check nothing.
+    """
+    R = 6371008.8
+    p1, p2 = math.radians(a[0]), math.radians(b[0])
+    dp = p2 - p1
+    dl = math.radians(b[1] - a[1])
+    h = (math.sin(dp / 2) ** 2
+         + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2)
+    return 2 * R * math.asin(math.sqrt(h))
 BUILT = "2026-09-05"
 
 
@@ -451,6 +469,121 @@ def build():
              ("https://en.wikipedia.org/wiki/" +
               sp["article"].replace(" ", "_")) if sp.get("article") else None,
              HV.F1DB_SOURCE))
+
+    # --- the lead image of each accepted car article, and its credit
+    #
+    # No image is stored. What is stored is which file an article leads with
+    # and who must be credited for it. The harvest applied these checks
+    # already; they run again here because a harvest file is an input like
+    # any other, and a check belongs where the row is admitted rather than
+    # only where it was written.
+    known_articles = {r[0] for r in cur.execute(
+        "SELECT DISTINCT article FROM chassis WHERE article IS NOT NULL")}
+    img_rows = img_skipped = 0
+    for im in HV.load_article_images():
+        article = im.get("article")
+        # An image for an article no chassis claims describes nothing this
+        # database holds. That is not an error in the file - the spec harvest
+        # may have accepted an article the chassis linkage later dropped -
+        # but it is not a row either.
+        if article not in known_articles:
+            img_skipped += 1
+            continue
+        # A local en.wikipedia.org upload is local BECAUSE it is non-free.
+        if im.get("repository") != "shared":
+            raise SystemExit(
+                f"article_images: {article} points at a file hosted "
+                f"{im.get('repository')!r}, not Wikimedia Commons. Only "
+                f"Commons files may be linked; rerun "
+                f"tools/wikimedia_images.py.")
+        if not im.get("licence"):
+            raise SystemExit(f"article_images: {article} states no licence.")
+        # CC BY and CC BY-SA attribution is not optional. A file with no one
+        # to attribute cannot be displayed, so it cannot be stored either.
+        if not (im.get("artist") or im.get("credit")):
+            raise SystemExit(
+                f"article_images: {article} names no author for "
+                f"{im.get('file_name')}. Rerun tools/wikimedia_images.py.")
+        cur.execute("""INSERT INTO article_images (article, file_name,
+            repository, licence, licence_url, artist, credit, description_url,
+            width, height, name_matches, confidence)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (article, im["file_name"], im["repository"], im["licence"],
+             im.get("licence_url"), im.get("artist"), im.get("credit"),
+             im["description_url"],
+             int(im["width"]) if im.get("width") else None,
+             int(im["height"]) if im.get("height") else None,
+             1 if im.get("name_matches") == "1" else 0,
+             "unverified"))
+        img_rows += 1
+    if img_rows:
+        named = cur.execute("SELECT COUNT(*) FROM article_images "
+                            "WHERE name_matches = 1").fetchone()[0]
+        print(f"  article images: {img_rows} rows, {img_skipped} for "
+              f"articles no chassis claims; {named} name the car in the "
+              f"file name and {img_rows - named} do not")
+
+    # --- circuit centrelines, re-measured before they are admitted
+    #
+    # The harvest compared its own measurement against the published length.
+    # This measures the stored geometry AGAIN, here, offline, from the
+    # coordinates actually being written. That is not belt and braces: the
+    # tool could have measured one thing and serialised another, and the
+    # failure this guards against - a naive member sum that puts Monaco 12%
+    # long - looks perfectly reasonable in isolation.
+    geom_tolerance = 0.02
+    geom_rows = 0
+    for g in HV.load_circuit_geometry():
+        cid = g["circuit_id"]
+        if not cur.execute("SELECT 1 FROM circuits WHERE id = ?",
+                           (cid,)).fetchone():
+            raise SystemExit(f"circuit_geometry: no circuit {cid!r}.")
+        key = g.get("layout_key") or None
+        if key and not cur.execute(
+                "SELECT 1 FROM circuit_layouts WHERE circuit_id = ? "
+                "AND layout_key = ?", (cid, key)).fetchone():
+            raise SystemExit(
+                f"circuit_geometry: {cid} names layout {key!r}, which is not "
+                f"in circuit_layouts.")
+
+        geo = json.loads(g["centreline"])
+        if geo.get("type") != "MultiLineString":
+            raise SystemExit(
+                f"circuit_geometry: {cid} centreline is "
+                f"{geo.get('type')!r}, expected MultiLineString.")
+        # GeoJSON is lon,lat. Reading it as lat,lon would measure the same
+        # length and put every circuit in the wrong place, so the order is
+        # asserted rather than assumed.
+        measured_m = 0.0
+        for line in geo["coordinates"]:
+            for a, b in zip(line, line[1:]):
+                measured_m += _haversine((a[1], a[0]), (b[1], b[0]))
+        measured = measured_m / 1000.0
+        published = float(g["published_km"])
+        delta = (measured - published) / published
+        if abs(delta) > geom_tolerance:
+            raise SystemExit(
+                f"circuit_geometry: {cid} measures {measured:.3f} km against "
+                f"a published {published:.3f} km ({delta * 100:+.1f}%), "
+                f"outside {geom_tolerance * 100:.0f}%. The trace and the "
+                f"length disagree; do not store it.")
+
+        cur.execute("""INSERT INTO circuit_geometry (circuit_id, layout_key,
+            wikidata_id, osm_relation, centreline, measured_km, published_km,
+            delta_pct, node_count, osm_timestamp, licence, confidence)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (cid, key, g["wikidata_id"], int(g["osm_relation"]),
+             g["centreline"], round(measured, 4), published,
+             round(delta * 100, 2),
+             int(g["node_count"]) if g.get("node_count") else None,
+             g.get("osm_timestamp"), "ODbL-1.0", "reference"))
+        geom_rows += 1
+    if geom_rows:
+        worst = cur.execute("SELECT MAX(ABS(delta_pct)) "
+                            "FROM circuit_geometry").fetchone()[0]
+        print(f"  circuit geometry: {geom_rows} centrelines, all within "
+              f"{geom_tolerance * 100:.0f}% of the published length "
+              f"(worst {worst:+.2f}%)")
 
     # --- a regulation figure is not a measurement, part one
     #
