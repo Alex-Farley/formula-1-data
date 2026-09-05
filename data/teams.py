@@ -71,9 +71,13 @@ CONSTRUCTORS = [
     ("brm", "BRM", "British Racing Motors", "United Kingdom", "Bourne, United Kingdom", 1951, 1977,
      17, 1, 1, "1962", "brm-chain", 0,
      "A national-effort project that took eleven years to win a championship. Built the extraordinary H16 engine.", "high"),
-    ("matra", "Matra", "Matra Sports", "France", "Velizy, France", 1967, 1972,
+    # 1966, not 1967. The German Grand Prix that year ran Formula Two cars
+    # alongside the Formula One field and classified them together: Matra
+    # entered four, and Beltoise finished eighth. The F1DB results load found
+    # the entries against a first_entry of 1967.
+    ("matra", "Matra", "Matra Sports", "France", "Velizy, France", 1966, 1972,
      9, 1, 1, "1969", "matra-chain", 0,
-     "An aerospace company that won the title at its third attempt, run in 1969 by Ken Tyrrell with Ford power.", "high"),
+     "An aerospace company that won the title at its third attempt, run in 1969 by Ken Tyrrell with Ford power. Its first championship entries were the Formula Two cars admitted to the 1966 German Grand Prix.", "high"),
     ("vanwall", "Vanwall", "Vandervell Products", "United Kingdom", "Acton, United Kingdom", 1954, 1960,
      9, 1, 0, "1958", "vanwall-chain", 0,
      "Tony Vandervell's team won the first Constructors' Championship in 1958 and withdrew almost immediately after Stuart Lewis-Evans's death.", "high"),

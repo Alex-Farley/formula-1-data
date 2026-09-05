@@ -206,14 +206,34 @@ CREATE TABLE standings (
     id              INTEGER PRIMARY KEY,
     year            INTEGER NOT NULL,
     table_type      TEXT NOT NULL,             -- drivers | constructors
-    position        INTEGER NOT NULL,
+    -- NULL where the entry has no championship position. That is not a gap:
+    -- Michael Schumacher scored 78 points in 1997 and was EXCLUDED from the
+    -- classification after Jerez, so he has points and no position. Storing
+    -- a 0 there put him first in every query that ordered by position.
+    position        INTEGER,
+    position_text   TEXT,                      -- "2", or DSQ / EX
     entity          TEXT NOT NULL,             -- driver or constructor display name
     entity_id       TEXT,
+    -- The constructors' championship is contested by a CHASSIS-ENGINE
+    -- combination, not by a chassis maker. Cooper-Climax won 1960 with 48
+    -- points; Cooper-Maserati and Cooper-Castellotti tied for fifth on 3.
+    -- Without this column those are one row and Cooper's total is whichever
+    -- happened to be written last. NULL on driver rows.
+    engine_id       TEXT,
     team            TEXT,
     points          REAL,
-    as_of           TEXT,                      -- 'final' or a date for in-progress
+    -- The round these standings stood after. NULL is the END-OF-SEASON
+    -- classification, which is not the same fact as "after the last round":
+    -- before 1991 the championship counted only a driver's best N results,
+    -- so the final table and the running total genuinely differ.
+    after_round     INTEGER,
+    as_of           TEXT,                      -- 'final' | 'round 7' | a date
     confidence      TEXT NOT NULL DEFAULT 'high' REFERENCES provenance(confidence),
-    source          TEXT
+    source          TEXT,
+    -- as_of is in the key so an official live snapshot and a derived
+    -- end-of-season row can coexist for the same season without one
+    -- silently overwriting the other.
+    UNIQUE (year, table_type, after_round, entity_id, engine_id, as_of)
 );
 
 -- ------------------------------------------------- circuits and events
@@ -619,7 +639,19 @@ CREATE TABLE race_entries (
     chassis_id      TEXT REFERENCES chassis(id),
     entrant         TEXT,                      -- chassis-engine as published
     grid            INTEGER,                   -- 1 = pole position
-    finish_position INTEGER,                   -- 1 = race win
+    -- The grid slot as the source states it. Almost always the same number
+    -- as `grid`, but 236 entries started from the PIT LANE, which is not a
+    -- grid slot at all. NULLing those would say "we do not know where they
+    -- started", which is the opposite of the truth.
+    grid_text       TEXT,
+    finish_position INTEGER,                   -- 1 = race win; NULL if unclassified
+    -- The result as the source states it, losslessly: "1", or one of NC,
+    -- DNF, DNQ, DNPQ, DNP, DNS, DSQ, EX. finish_position is an integer so it
+    -- can be ordered and counted; this keeps what actually happened, because
+    -- "did not qualify" and "retired on lap 3" are different facts and
+    -- collapsing them loses the late-1980s entirely - 1,041 failures to
+    -- qualify and 338 failures to PRE-qualify.
+    position_text   TEXT,
     shared_drive    INTEGER NOT NULL DEFAULT 0,
     fastest_lap     INTEGER NOT NULL DEFAULT 0,
     fastest_lap_shared INTEGER,                -- how many drivers shared it
@@ -660,6 +692,37 @@ CREATE INDEX idx_cars_constructor ON cars(constructor_id);
 CREATE INDEX idx_cars_years       ON cars(from_year, to_year);
 
 -- ------------------------------------------- rules, tech and safety
+-- Qualifying, which is a session and not a property of the race.
+--
+-- This is deliberately NOT a column on race_entries. race_entries.grid is the
+-- STARTING GRID, which penalties, engine changes and pit-lane starts move
+-- away from the qualifying order; F1DB publishes the two separately for the
+-- same reason. A driver can also qualify and never start, and 1,041 drivers
+-- failed to qualify at all - none of which fits on a row about a race.
+--
+-- Pre-1996 qualifying is a single time. The knockout era has three segments
+-- and no single time, so both shapes are stored and neither is back-filled
+-- from the other: q1/q2/q3 are NULL for 1950, and `time` is NULL for 2021.
+CREATE TABLE qualifying (
+    id              INTEGER PRIMARY KEY,
+    race_id         INTEGER NOT NULL REFERENCES races(id),
+    driver_id       TEXT NOT NULL REFERENCES drivers(id),
+    constructor_id  TEXT REFERENCES constructors(id),
+    position        INTEGER,                   -- NULL where not classified
+    position_text   TEXT,                      -- "1", DNQ, DNPQ, DNS ...
+    driver_number   INTEGER,
+    time            TEXT,                      -- as published: "1:50.800"
+    q1              TEXT,
+    q2              TEXT,
+    q3              TEXT,
+    gap             TEXT,
+    interval        TEXT,
+    laps            INTEGER,
+    confidence      TEXT NOT NULL DEFAULT 'reference' REFERENCES provenance(confidence),
+    source          TEXT,
+    UNIQUE (race_id, driver_id)
+);
+
 CREATE TABLE regulation_changes (
     id              INTEGER PRIMARY KEY,
     year            INTEGER NOT NULL,
@@ -1198,7 +1261,10 @@ CREATE VIEW v_circuit_geometry AS
 SELECT g.circuit_id, c.name AS circuit, c.country,
        COALESCE(g.layout_key, '-') AS layout,
        g.measured_km, g.published_km, g.delta_pct,
-       g.node_count, g.osm_relation, g.osm_timestamp, g.licence
+       g.node_count, g.osm_relation, g.osm_timestamp, g.licence,
+       -- The coordinates themselves. Without them this view describes a
+       -- centreline it cannot draw, which is what it did for one build.
+       g.centreline
 FROM circuit_geometry g JOIN circuits c ON c.id = g.circuit_id
 ORDER BY ABS(g.delta_pct) DESC;
 

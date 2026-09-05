@@ -12,6 +12,10 @@ different positions, and the data has an obligation attached to it.
 | Race venues 1950–2026 | Wikipedia season articles | 1,161 |
 | Car specifications and design histories | Wikipedia per-car articles | 29 curated cars |
 | Chassis specifications | Wikipedia per-car articles, `{{Racing car}}` infobox | see `harvest/car_specs.txt` |
+| **Full race classification 1950–2026** | [F1DB](https://github.com/f1db/f1db) | 27,555 entries, 1,161 races |
+| **Qualifying 1950–2026** | [F1DB](https://github.com/f1db/f1db) | 26,975 rows |
+| **Championship standings, every round** | [F1DB](https://github.com/f1db/f1db) | 34,495 rows |
+| Pit stops | [F1DB](https://github.com/f1db/f1db) | 22,472 |
 | Chassis, engine and season-entrant register | [F1DB](https://github.com/f1db/f1db) | 1,153 chassis, 424 engines, 1,925 entrant rows |
 | Circuit register and layout timelines | Wikipedia per-circuit articles | 80 circuits, 49 layouts |
 | Car photographs (references and credits, not images) | [Wikimedia Commons](https://commons.wikimedia.org/) | 602 articles |
@@ -40,8 +44,17 @@ how the rest of this database is licensed. It does require attribution, which
 is given here, in the header of every generated file, in `source_registry`,
 and in `tools/f1db_fetch.py`.
 
-This is the most permissive licence of any bulk source used here, and it is
-part of why F1DB was chosen.
+This is the most permissive licence of any bulk source used here, and since
+v2.15 it is the single most important fact about this repository's data.
+
+**The absence of a non-commercial clause is why the full classification
+ships.** `race_entries`, `qualifying`, `standings` and F1DB's `pit_stops` —
+111,497 rows between them — are built from `harvest/race_results.txt`,
+`harvest/qualifying.txt`, `harvest/standings.txt` and
+`harvest/f1db_pit_stops.txt`, all generated from F1DB. The same facts are
+available from Jolpica-F1 under CC BY-NC-SA and were loaded locally and never
+committed for seven versions on exactly that basis. Nothing about the data
+changed; the licence did.
 
 ### Wikipedia — CC BY-SA 4.0
 
@@ -168,11 +181,14 @@ days; it is explicitly **non-commercial**. Commercial use requires a
 supporter API key. Using a dump instead of the API changes the mechanics of
 the fetch and nothing about the licence.
 
-That is one of the reasons those 26,137 rows are loaded locally by you and are
-not committed: `race_entries` in the distributed build holds only what the
-Wikipedia harvest established. The other reason is the build rule — the
-database is a function of the sources in this repository, and a row no fresh
-build could reproduce does not belong in the committed artefact.
+Since v2.15 that restriction costs nothing. The classification itself comes
+from F1DB under CC BY, so `race_entries` ships complete; `tools/ergast_load.py`
+now runs as a **cross-check** rather than a source, recording where Jolpica
+reads a race differently and overwriting nothing. Its rows are still never
+committed — the build rule holds, and a row no fresh build could reproduce
+does not belong in the distributed artefact — but nothing is missing without
+them. What Jolpica still supplies uniquely is 628,454 lap times back to 1996,
+which F1DB does not carry.
 
 ## Live timing data
 

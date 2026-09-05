@@ -17,6 +17,7 @@ Every row is validated on load:
     declared below as a deliberate non-mapping
 """
 import os
+import re
 import unicodedata
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -439,24 +440,30 @@ POLE_ONLY_NOTE = ("Added to the register from the pole position and fastest lap 
 # area, description, races_affected, resolution
 # ---------------------------------------------------------------------
 KNOWN_GAPS = [
-    ("finish_position", "the full race classification",
-     "race_entries in the DISTRIBUTED build holds the winner, the "
-     "pole-sitter and the fastest-lap setter for every race - about 2.1 rows "
-     "per race against a real field of 15 to 22. That is a licensing "
-     "decision, not an unfinished harvest: the rows come from Jolpica-F1, "
-     "whose Ergast data is CC BY-NC-SA - non-commercial, the most "
-     "restrictive licence any source here carries - and this database is a "
-     "function of what is in its own repository. "
-     "Run tools/ergast_load.py locally and the gap closes on your copy: "
-     "25,995 rows across all 1,161 races, and the podium reconciliation "
-     "passes at 7 of 7 exact. The driver register was the binding "
-     "constraint until v2.13 and no longer is - it went from 244 to 862, "
-     "and the rows skipped for an unresolvable driver from 5,490 to 33.", 0,
-     "python3 tools/ergast_load.py --from-dump  (one hash-verified zip, a "
-     "few seconds). Then rerun verify.py. What remains skipped is 33 rows "
-     "for 14 drivers Jolpica records and F1DB does not hold at all, declared "
-     "in data/results.py DRIVER_NON_MAPPING - a source disagreement, not a "
-     "gap, and not something to close by inventing a driver."),
+    ("finish_position", "shared drives, and where two sources read a race "
+     "differently",
+     "CLOSED in v2.15, and by a licence rather than a harvest. The full "
+     "classification - 27,555 entries across all 1,161 races, 1950 to 2026 - "
+     "now ships in the committed database. It comes from F1DB, which is CC "
+     "BY 4.0: attribution only. The same facts via Jolpica-F1 carry Ergast's "
+     "CC BY-NC-SA, and that non-commercial clause is the whole reason this "
+     "gap stood for seven versions; nothing about the data was ever hard to "
+     "get. The winner of every one of the 1,161 races was already held here "
+     "from the Wikipedia harvest, and F1DB agreed with all of them. "
+     "What remains is not missing data. race_entries is ONE ROW PER DRIVER "
+     "PER RACE, so a driver who drove two cars in one Grand Prix - normal "
+     "before 1965, and the 1955 Argentine Grand Prix in particular - can "
+     "only keep one result. And the two sources genuinely differ on 118 of "
+     "26,082 entries when Jolpica is loaded on top: F1DB leaves a "
+     "disqualified driver's position VACANT while Jolpica promotes everyone "
+     "below, so the 1983 Brazilian Grand Prix has no second place in one "
+     "reading and Lauda second in the other. Neither is wrong.",
+     0,
+     "Nothing to fetch. Run tools/ergast_load.py --from-dump to put Jolpica "
+     "alongside: it no longer overwrites, it records every disagreement in "
+     "`discrepancies` and leaves the stored value alone. Reading those 118 "
+     "rows is the work, and it is a person's."),
+
     ("chassis_id", "the chassis each race was won in, where a season is ambiguous",
      "The winning chassis is known for 874 of 1,161 races. It comes from "
      "F1DB's entry lists, resolved through the driver and the round: F1DB "
@@ -542,6 +549,19 @@ KNOWN_GAPS = [
      "two laps behind the safety car, half points were awarded and no racing lap was "
      "completed. This is a true null, not missing data.", 1,
      "Nothing to fix - the absence is correct."),
+
+    ("qualifying.q1", "qualifying session detail before 1996, and sector times",
+     "Qualifying is held for all 1,161 races - 26,975 rows - but its SHAPE "
+     "changes. Before the knockout format a session is a single time, so q1, "
+     "q2 and q3 are NULL and there is nothing to put in them; from 1996 the "
+     "three segments are recorded and `time` is NULL instead. Neither is "
+     "back-filled from the other, and verify.py fails the build if a row "
+     "ever carries both. What is missing throughout is sector times, tyre "
+     "compound and the lap a time was set on, none of which was published "
+     "before the live timing era.",
+     0,
+     "From 2018, tools/fastf1_load.py has all of it at far greater "
+     "resolution. Before that it does not exist in any retrievable form."),
 
     ("centreline", "the shape of a circuit, for anything but the present day",
      "circuit_geometry traces a circuit from OpenStreetMap and checks the "
@@ -675,6 +695,10 @@ ENTRANTS_FILE = os.path.join(HERE, "..", "harvest", "entrants.txt")
 SPECS_FILE = os.path.join(HERE, "..", "harvest", "car_specs.txt")
 IMAGES_FILE = os.path.join(HERE, "..", "harvest", "article_images.txt")
 GEOMETRY_FILE = os.path.join(HERE, "..", "harvest", "circuit_geometry.txt")
+RESULTS_FILE = os.path.join(HERE, "..", "harvest", "race_results.txt")
+QUALIFYING_FILE = os.path.join(HERE, "..", "harvest", "qualifying.txt")
+STANDINGS_FILE = os.path.join(HERE, "..", "harvest", "standings.txt")
+F1DB_PITS_FILE = os.path.join(HERE, "..", "harvest", "f1db_pit_stops.txt")
 
 F1DB_SOURCE = "https://github.com/f1db/f1db"
 F1DB_CONFIDENCE = "reference"
@@ -922,7 +946,12 @@ def _read_named(path, rerun):
             line = line.rstrip("\n")
             if line.startswith("#"):
                 if "|" in line:
-                    cols = [c.strip() for c in line.lstrip("# ").split("|")]
+                    # The header may carry a trailing note after the last
+                    # column, separated by run of spaces - entrants.txt has
+                    # done so since v2.9. Positional readers never saw it;
+                    # this one would take the note as part of the name.
+                    cols = [re.split(r"\s{2,}", c.strip())[0]
+                            for c in line.lstrip("# ").split("|")]
                 continue
             if not line.strip():
                 continue
@@ -948,6 +977,34 @@ def load_article_images():
     was refused at harvest time.
     """
     return _read_named(IMAGES_FILE, "tools/wikimedia_images.py")
+
+
+def load_race_results():
+    """The full classification, 1950-2026, from F1DB.
+
+    CC BY 4.0 - attribution only. That is the whole reason these rows are in
+    the repository rather than only on a local copy: the same facts via
+    Jolpica are CC BY-NC-SA, and a non-commercial clause is why known_gaps #1
+    stood for seven versions.
+    """
+    return _read_named(RESULTS_FILE, "tools/f1db_fetch.py")
+
+
+def load_qualifying():
+    """Qualifying results, 1950-2026, from F1DB."""
+    return _read_named(QUALIFYING_FILE, "tools/f1db_fetch.py")
+
+
+def load_standings():
+    """Championship standings after every round, and at season end."""
+    return _read_named(STANDINGS_FILE, "tools/f1db_fetch.py")
+
+
+def load_f1db_pit_stops():
+    """Pit stops from F1DB. Distinct from the FastF1 and Jolpica loads, which
+    write the same table under their own `source`, so the three can be
+    compared rather than overwriting one another."""
+    return _read_named(F1DB_PITS_FILE, "tools/f1db_fetch.py")
 
 
 def load_circuit_geometry():

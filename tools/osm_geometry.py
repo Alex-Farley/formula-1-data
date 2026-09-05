@@ -75,6 +75,31 @@ UA = ("formula-1-data/2.14 (https://github.com/Alex-Farley/formula-1-data; "
 
 DELAY = 1.0
 
+# Wikidata labels a country the way its article is titled; this database uses
+# the short form the sport uses. Only cases actually seen in the candidate
+# sweep are listed - a general-purpose country table is not the job here.
+COUNTRY_ALIASES = {
+    "people's republic of china": "china",
+    "united states of america": "united states",
+    "kingdom of the netherlands": "netherlands",
+    "kingdom of spain": "spain",
+    "republic of korea": "south korea",
+    "south korea": "south korea",
+}
+
+# Half-width of the bounding box drawn round a circuit's coordinates when
+# Wikidata has no relation id. 0.03 degrees is about 3.3 km north-south and
+# less east-west; big enough to contain any Grand Prix circuit centred on its
+# own coordinates, small enough that the OSM map call stays a few megabytes.
+# The OSM map call refuses a box containing more than 50,000 nodes, and a
+# circuit inside a city hits that easily - Suzuka does. The box only has to
+# TOUCH the circuit for its relation to be listed (the geometry is fetched
+# separately by id), so shrinking is free and these are tried in order.
+BBOX_PADS = (0.03, 0.018, 0.010, 0.005, 0.002)
+
+OSM_MAP = ("https://api.openstreetmap.org/api/0.6/map.json"
+           "?bbox={w:.5f},{s:.5f},{e:.5f},{n:.5f}")
+
 # Wikidata units for P2043 (length). Anything else and the stated length
 # cannot be compared, so the candidate is refused rather than guessed at.
 UNITS = {"Q11573": 0.001,      # metre
@@ -100,27 +125,34 @@ GEOM_COLUMNS = ["circuit_id", "layout_key", "wikidata_id", "osm_relation",
 
 # ------------------------------------------------------------------ http
 
-def _get(url, delay=DELAY, timeout=60):
+def _get_status(url, delay=DELAY, timeout=60):
+    """(http status, body). The status matters: a 400 from the OSM map call
+    means the box was too big, which is a retry with a smaller one rather
+    than a failure."""
     req = urllib.request.Request(url, headers={"User-Agent": UA})
     for attempt in range(6):
         try:
             with urllib.request.urlopen(req, timeout=timeout) as r:
                 data = r.read()
             time.sleep(delay)
-            return data
+            return r.status, data
         except urllib.error.HTTPError as e:
-            if e.code == 404:
-                return None
+            if e.code in (400, 404):
+                return e.code, None
             if e.code in (429, 503) and attempt < 5:
                 time.sleep(5 * (attempt + 1))
                 continue
-            return None
+            return e.code, None
         except Exception:
             if attempt < 5:
                 time.sleep(5 * (attempt + 1))
                 continue
-            return None
-    return None
+            return 0, None
+    return 0, None
+
+
+def _get(url, delay=DELAY, timeout=60):
+    return _get_status(url, delay, timeout)[1]
 
 
 def wd(**params):
@@ -195,6 +227,50 @@ def relation_geometry(relation_id):
 
 # ------------------------------------------------------------- data side
 
+def same_country(a, b):
+    a = COUNTRY_ALIASES.get((a or "").strip().lower(), (a or "").strip().lower())
+    b = COUNTRY_ALIASES.get((b or "").strip().lower(), (b or "").strip().lower())
+    return bool(a) and a == b
+
+
+def circuit_relations_near(lat, lon):
+    """OSM relation ids tagged as a motor-racing circuit near a point.
+
+    Wikidata's P402 covers only 7 of the 80 circuits here, so for the rest the
+    relation has to be found some other way. A bounding box drawn round the
+    coordinates Wikidata DOES have returns every element inside it; the ones
+    that matter are relations tagged type=circuit, which is how OSM models a
+    track as a whole rather than as a set of roads.
+
+    Nothing here decides anything. Every candidate this returns still has to
+    measure to the length this database already holds, and that is what
+    settles which relation - if any - is the circuit.
+    """
+    for pad in BBOX_PADS:
+        url = OSM_MAP.format(w=lon - pad, s=lat - pad,
+                             e=lon + pad, n=lat + pad)
+        code, raw = _get_status(url, timeout=120)
+        if code == 400:
+            continue                      # too many nodes; try a smaller box
+        if raw is None:
+            return []
+        try:
+            doc = json.loads(raw.decode("utf-8"))
+        except Exception:
+            return []
+        out = []
+        for e in doc.get("elements", []):
+            if e.get("type") != "relation":
+                continue
+            tags = e.get("tags", {}) or {}
+            name = tags.get("name") or ""
+            if tags.get("type") == "circuit" or tags.get("sport") == "motor":
+                out.append((e["id"], name))
+        if out:
+            return out
+    return []
+
+
 def load_circuits():
     from data import circuits as C
     out = {}
@@ -229,103 +305,176 @@ def current_layout(circuit_id):
 # -------------------------------------------------------------- resolve
 
 def resolve():
-    """Find a Wikidata entity for each circuit and check it. Writes candidates."""
+    """Find a Wikidata entity and an OSM relation for each circuit, and MEASURE.
+
+    Identity is settled by the geometry, not by a label. A candidate is
+    admissible when it is in the right country and its traced centreline
+    measures to the length this database already holds. A stated length on
+    Wikidata is corroboration where it exists and is missing for a third of
+    these circuits; a measured one is the thing being stored, so it is the
+    thing that has to agree.
+
+    Nothing here is used until it is admitted by hand in data/circuits.py.
+    """
     circuits = load_circuits()
-    rows, log = [], []
+    rows = []
 
     for cid, c in sorted(circuits.items()):
-        terms = [t for t in (c["official"], c["name"]) if t]
-        seen, best = [], None
-        for term in terms:
+        seen = []
+        for term in [t for t in (c["official"], c["name"]) if t]:
             d = wd(action="wbsearchentities", search=term, language="en",
                    limit=5, type="item")
             for hit in d.get("search", []):
                 if hit["id"] not in seen:
                     seen.append(hit["id"])
         if not seen:
-            log.append(f"{cid}\tno Wikidata search hit")
+            print(f"  {cid}: no Wikidata hit", flush=True)
             continue
 
-        d = wd(action="wbgetentities", ids="|".join(seen[:10]),
+        d = wd(action="wbgetentities", ids="|".join(seen[:8]),
                props="claims|labels", languages="en")
-        countries = {}
         ents = d.get("entities", {})
-        # Resolve country items to labels in one batch rather than per entity.
-        cids = set()
-        for e in ents.values():
-            for cl in (e.get("claims", {}).get("P17") or []):
-                v = cl["mainsnak"].get("datavalue", {}).get("value", {})
-                if v.get("id"):
-                    cids.add(v["id"])
+
+        # Resolve every country item referenced, in one call.
+        cids = {cl["mainsnak"].get("datavalue", {}).get("value", {}).get("id")
+                for e in ents.values()
+                for cl in (e.get("claims", {}).get("P17") or [])}
+        cids.discard(None)
+        countries = {}
         if cids:
             cd = wd(action="wbgetentities", ids="|".join(sorted(cids)),
                     props="labels", languages="en")
             for q, e in cd.get("entities", {}).items():
                 countries[q] = e.get("labels", {}).get("en", {}).get("value")
 
-        for qid in seen[:10]:
+        # Only entities in the right country are worth measuring. That check
+        # is cheap and it keeps the OSM traffic down to circuits that could
+        # plausibly be this one.
+        candidates = []
+        for qid in seen[:8]:
             e = ents.get(qid)
             if not e:
                 continue
             claims = e.get("claims", {})
             label = e.get("labels", {}).get("en", {}).get("value")
 
-            rel = None
-            for cl in (claims.get("P402") or []):
-                rel = cl["mainsnak"].get("datavalue", {}).get("value")
+            country = None
+            for cl in (claims.get("P17") or []):
+                country = countries.get(
+                    cl["mainsnak"].get("datavalue", {}).get("value", {}).get("id"))
+                break
+            if not same_country(country, c["country"]):
+                continue
 
-            stated_km, unit_ok = None, False
+            stated_km = None
             for cl in (claims.get("P2043") or []):
                 v = cl["mainsnak"].get("datavalue", {}).get("value", {})
                 unit = (v.get("unit") or "").rsplit("/", 1)[-1]
                 if unit in UNITS:
                     stated_km = abs(float(v["amount"])) * UNITS[unit]
-                    unit_ok = True
                     break
 
-            country = None
-            for cl in (claims.get("P17") or []):
+            rels = []
+            for cl in (claims.get("P402") or []):
+                v = cl["mainsnak"].get("datavalue", {}).get("value")
+                if v:
+                    rels.append((int(v), "P402"))
+
+            coord = None
+            for cl in (claims.get("P625") or []):
                 v = cl["mainsnak"].get("datavalue", {}).get("value", {})
-                country = countries.get(v.get("id"))
-                break
+                if v.get("latitude") is not None:
+                    coord = (v["latitude"], v["longitude"])
+                    break
 
-            # The two identity checks. Both must pass.
-            len_ok = (unit_ok and stated_km and c["length_km"]
-                      and abs(stated_km - c["length_km"]) / c["length_km"]
-                      <= IDENT_TOLERANCE)
-            country_ok = (country or "").lower() == (c["country"] or "").lower()
+            candidates.append({"qid": qid, "label": label, "country": country,
+                               "stated_km": stated_km, "rels": rels,
+                               "coord": coord})
 
+        if not candidates:
+            print(f"  {cid}: no candidate in {c['country']}", flush=True)
+            continue
+
+        published = c["length_km"]
+        best = [None]
+
+        def measure(cand, rel, how):
+            """Trace one relation and record what it measured. Returns True
+            if it agrees with the length this database holds."""
+            geo, metres, nodes, ts = relation_geometry(rel)
+            if geo is None:
+                return False
+            measured = metres / 1000.0
+            delta = ((measured - published) / published) if published else None
+            ok = delta is not None and abs(delta) <= TOLERANCE
             rows.append({
-                "circuit_id": cid, "wikidata_id": qid, "label": label,
-                "osm_relation": rel or "", "stated_km": stated_km or "",
-                "our_km": c["length_km"], "country": country or "",
+                "circuit_id": cid, "wikidata_id": cand["qid"],
+                "label": cand["label"] or "", "osm_relation": rel,
+                "found_by": how,
+                "stated_km": round(cand["stated_km"], 3) if cand["stated_km"] else "",
+                "measured_km": round(measured, 3),
+                "our_km": published if published else "",
+                "delta_pct": round(delta * 100, 2) if delta is not None else "",
+                "country": cand["country"] or "",
                 "our_country": c["country"],
-                "length_ok": int(bool(len_ok)),
-                "country_ok": int(bool(country_ok)),
-                "admissible": int(bool(len_ok and country_ok and rel)),
+                "admissible": int(bool(ok)),
             })
-        print(f"  {cid}: {len(seen)} candidates", flush=True)
+            if ok and (best[0] is None or abs(delta) < best[0]):
+                best[0] = abs(delta)
+            return ok
+
+        # Phase one: whatever Wikidata names outright.
+        for cand in candidates:
+            for rel, how in cand["rels"]:
+                measure(cand, rel, how)
+
+        # Phase two: look near the coordinates.
+        #
+        # This runs whenever phase one produced nothing that measured, NOT
+        # merely when no P402 existed. Searching for "Suzuka International
+        # Racing Course" offers the CITY of Suzuka first, and a city has a
+        # P402 - its administrative boundary, 114 km round. Treating the
+        # presence of any relation id as success would have stopped there and
+        # left the circuit unfound. The length check caught the boundary; this
+        # is what then goes and finds the track.
+        if best[0] is None:
+            tried = 0
+            for cand in candidates:
+                if not cand["coord"] or tried >= 2:
+                    continue
+                tried += 1
+                for rel, name in circuit_relations_near(*cand["coord"])[:6]:
+                    if measure(cand, rel, f"bbox:{name[:40]}"):
+                        break
+        best = best[0]
+        if best is not None:
+            print(f"  {cid}: admissible, best {best * 100:+.2f}%", flush=True)
+        else:
+            print(f"  {cid}: no relation measured to "
+                  f"{published} km", flush=True)
 
     out = os.path.join(HARVEST, "circuit_wikidata.txt")
-    cols = ["circuit_id", "wikidata_id", "label", "osm_relation", "stated_km",
-            "our_km", "country", "our_country", "length_ok", "country_ok",
-            "admissible"]
+    cols = ["circuit_id", "wikidata_id", "label", "osm_relation", "found_by",
+            "stated_km", "measured_km", "our_km", "delta_pct", "country",
+            "our_country", "admissible"]
     with open(out, "w", encoding="utf-8") as f:
         f.write("# Generated by tools/osm_geometry.py --resolve on "
                 + time.strftime("%Y-%m-%d") + ". Do not edit by hand.\n")
-        f.write("# Source: Wikidata (CC0). CANDIDATES ONLY - an id is not "
-                "used until it is admitted in data/circuits.py.\n")
-        f.write("# admissible = the entity states a length matching ours, a "
-                "country matching ours, and an OSM relation.\n")
+        f.write("# Wikidata (CC0) for ids and coordinates; OpenStreetMap "
+                "(ODbL 1.0) for the geometry measured here.\n")
+        f.write("# CANDIDATES ONLY - nothing is used until it is admitted in "
+                "data/circuits.py WIKIDATA_CIRCUITS.\n")
+        f.write("# admissible = right country AND the traced centreline "
+                "measures to the length this database already holds.\n")
         f.write("# " + "|".join(cols) + "\n")
         for r in rows:
             f.write("|".join(str(r[c]) for c in cols) + "\n")
+
     ok = sum(r["admissible"] for r in rows)
-    print(f"\n{len(rows)} candidates, {ok} admissible, over "
-          f"{len(circuits)} circuits")
+    circuits_ok = len({r["circuit_id"] for r in rows if r["admissible"]})
+    print(f"\n{len(rows)} measured candidates, {ok} admissible, covering "
+          f"{circuits_ok} of {len(circuits)} circuits")
     print(f"wrote {out}")
-
-
 # --------------------------------------------------------------- harvest
 
 def harvest():
@@ -339,22 +488,16 @@ def harvest():
     circuits = load_circuits()
     rows, log = [], []
 
-    for cid, qid in sorted(admitted.items()):
+    for cid, admission in sorted(admitted.items()):
+        # The admitted entry names BOTH the entity and the relation, and the
+        # relation is not looked up again here. P402 covers only seven of
+        # these circuits; the rest were found by searching OpenStreetMap near
+        # the coordinates Wikidata holds, and re-deriving from P402 would
+        # silently drop two thirds of the register.
+        qid, rel = admission
         c = circuits.get(cid)
         if not c:
             log.append(f"{cid}\tREFUSED\tnot a circuit in this database")
-            continue
-
-        d = wd(action="wbgetentities", ids=qid, props="claims")
-        e = (d.get("entities") or {}).get(qid)
-        if not e:
-            log.append(f"{cid}\tREFUSED\tWikidata {qid} not found")
-            continue
-        rel = None
-        for cl in (e.get("claims", {}).get("P402") or []):
-            rel = cl["mainsnak"].get("datavalue", {}).get("value")
-        if not rel:
-            log.append(f"{cid}\tREFUSED\t{qid} states no OSM relation (P402)")
             continue
 
         geo, metres, nodes, ts = relation_geometry(rel)

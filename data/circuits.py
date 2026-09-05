@@ -472,3 +472,58 @@ GRANDS_PRIX = [
     ("las-vegas", "Las Vegas Grand Prix", "United States", 2023, None, "Las Vegas Strip Circuit", "", "high"),
     ("madrid", "Madrid Grand Prix", "Spain", 2026, None, "Madring", "New for 2026.", "verified"),
 ]
+
+
+# ---------------------------------------------------------------------
+# Wikidata entity and OpenStreetMap relation for each circuit whose shape
+# can be traced. Authored ids, generated geometry - the same split the
+# constructor and driver registers use: a person decides which entities
+# exist, the machine supplies the measurements.
+#
+# Admitted only where BOTH hold: the entity is in the country this database
+# already records for the circuit, AND the traced centreline measures to the
+# length this database already holds, within two per cent. The measurement
+# is the identity check. A stated length on Wikidata is corroboration where
+# it exists and is missing for a third of these, but a measured one is the
+# thing being stored, so it is the thing that has to agree.
+#
+# 25 of 80. That is not a shortfall to close - it is what exists.
+# OpenStreetMap maps what is on the ground, so Adelaide's street circuit,
+# AVUS, Ain-Diab and forty-odd other venues that stopped hosting Grands Prix
+# have no geometry anywhere. See known_gaps and tools/osm_geometry.py.
+#
+# Two thirds of these were found by searching OSM near the coordinates
+# Wikidata holds, not by its relation property: P402 covers only seven of
+# the eighty. Searching for "Suzuka International Racing Course" offers the
+# CITY of Suzuka first, whose P402 is its administrative boundary - 114 km
+# round. The length check refused it and the coordinate search then found
+# the track.
+#
+# circuit_id -> (wikidata entity, osm relation)
+WIKIDATA_CIRCUITS = {
+    "albert-park": ("Q171288", 280443),          # 5.308 km, +0.58%
+    "bahrain": ("Q171332", 284538),              # 5.420 km, +0.14%
+    "baku": ("Q17004958", 11266687),             # 6.003 km, +0.01%
+    "buddh": ("Q172906", 2532569),               # 5.136 km, +0.21%
+    "cota": ("Q59626", 6537729),                 # 5.502 km, -0.20%
+    "donington": ("Q173202", 51165),             # 3.995 km, -0.69%
+    "east-london": ("Q172865", 2579523),         # 3.900 km, -0.52%
+    "gilles-villeneuve": ("Q172860", 284595),    # 4.362 km, +0.03%
+    "interlagos": ("Q171387", 6781071),          # 4.308 km, -0.03%
+    "las-vegas": ("Q113112116", 16696508),       # 6.323 km, +1.96%
+    "long-beach": ("Q16739", 18052024),          # 3.258 km, +0.23%
+    "magny-cours": ("Q172876", 11249753),        # 4.458 km, +1.06%
+    "monaco": ("Q171400", 148194),               # 3.388 km, +1.54%
+    "montjuic": ("Q172892", 1147249),            # 3.767 km, -0.63%
+    "monza": ("Q171417", 284565),                # 5.794 km, +0.02%
+    "mugello": ("Q782455", 8487163),             # 5.245 km, -0.00%
+    "nurburgring-gp": ("Q152207", 38567),        # 5.116 km, -0.63%
+    "paul-ricard": ("Q171424", 10316343),        # 5.764 km, -1.33%
+    "portimao": ("Q789427", 7509968),            # 4.648 km, -0.12%
+    "rodriguez": ("Q173099", 16251935),          # 4.312 km, +0.18%
+    "sepang": ("Q172738", 284496),               # 5.554 km, +0.20%
+    "shanghai": ("Q171358", 2094941),            # 5.459 km, +0.15%
+    "spa": ("Q172851", 284560),                  # 6.995 km, -0.13%
+    "suzuka": ("Q174170", 284570),               # 5.807 km, -0.01%
+    "zandvoort": ("Q173083", 13545573),          # 4.253 km, -0.14%
+}

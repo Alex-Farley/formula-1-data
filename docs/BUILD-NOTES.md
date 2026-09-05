@@ -3,6 +3,101 @@
 A running record of what changed in each version, what it exposed, and what
 was deliberately not done. Newest first.
 
+## v2.15 (2026-09-05) — the gap that was a licence
+
+`race_entries` was 2,424 rows: the winner, the pole-sitter and the fastest-lap
+setter of each race, about 2.1 rows against a real field of 15 to 22. It is
+now **27,555 — every entry of every one of the 1,161 races**, in the
+committed database, with **26,975 qualifying rows**, **34,495 standings rows**
+and 22,472 pit stops beside it.
+
+    race_entries               2,424 -> 27,555
+    qualifying                     0 -> 26,975
+    standings                     65 -> 34,495
+    pit stops (committed)          0 -> 22,472
+    podium reconciliation    untestable -> 6 of 7 exact, in the shipped build
+
+`known_gaps` #1 called this a licensing decision for seven versions, and that
+was true but incomplete. The rows came from Jolpica-F1, whose Ergast lineage
+is CC BY-**NC**-SA, so they could be loaded onto your copy and never
+committed. F1DB has the same facts under **CC BY 4.0** — attribution only, no
+share-alike, no non-commercial clause — and F1DB was **already a source in
+this project**, supplying the chassis, engine and entrant registers since
+v2.9. Nothing had to be fetched from anywhere new. The gap was a reading of
+one licence that survived because nobody looked at the other.
+
+### What proves it
+
+Four checks, all held here independently before F1DB was read:
+
+1. **Every winner.** All 1,161 already stored from the Wikipedia harvest; a
+   race whose winner disagreed is refused whole. None was. The comparison is
+   on SETS — a shared drive puts two drivers on position 1 and both are
+   winners, and taking "the" winner made 1956 Argentina and 1957 Britain look
+   like disagreements when both sources said the same thing. That was my first
+   reported result and it was wrong.
+2. **76 seasons of champion and runner-up**, with both point totals, already
+   in `seasons`. The final standings reproduce all four every year.
+3. **Every pole-sitter.** Qualifying P1 is checked against it. 13 races differ
+   and every one is a grid penalty or a sprint weekend.
+4. **Jolpica, still loading.** `ergast_load.py` no longer writes over
+   anything: it compares and records. 118 disagreements in 26,082 entries.
+
+### Three things the model could not say
+
+Each found by a check failing, not by reading the schema.
+
+**A result is not always a number.** 8,769 DNFs, 1,041 DNQs, 338 DNPQs, 381
+DNSs, 161 DSQs, 200 NCs. `position_text` keeps the source's vocabulary and
+`finish_position` stays a clean integer. Collapsing them loses the late
+1980s, when failing to pre-qualify was most of a small team's season.
+
+**The constructors' championship is contested by a chassis-ENGINE pair.** The
+1960 table is seven entries for five constructors: Cooper-Climax 48,
+Cooper-Maserati 3, Cooper-Castellotti 3. Keying standings on the constructor
+alone made 22 seasons look like source disagreements — I reported them as
+such before checking, and every one was my own model collapsing two
+championship entries into one.
+
+**An entry can have points and no position.** Michael Schumacher scored 78 in
+1997 and was EXCLUDED from the classification after Jerez. Stored as position
+0 he sorted first, and the check comparing `seasons` to the standings duly
+reported him as that year's champion.
+
+### Two errors in the curated data
+
+Both caught by the new cross-checks, both in rows that had been there for
+versions:
+
+- **1963 runner-up.** Recorded as Ginther. He and Graham Hill both finished on
+  29 points; Hill takes it on countback and is the official runner-up.
+- **Matra's first entry.** Recorded as 1967. The 1966 German Grand Prix
+  classified Formula Two cars alongside the Formula One field, Matra entered
+  four, and Beltoise finished eighth.
+
+A third was a check that had been wrong rather than data: `no entry falls
+outside its car's years` conflated a car's DESIGN life with its RACING life.
+The Ferrari 500 is a 1952-53 works car that privateers entered until 1957.
+The check now runs against the chassis register, which is the source that
+knows when a chassis actually raced, and the 17 privateer entries are counted
+rather than fatal.
+
+### Also
+
+- `tools/ergast_load.py` is now a **checker**. Where Jolpica disagrees with
+  the stored value it writes a `discrepancies` row and leaves the data alone.
+  The pattern in the 118: F1DB leaves a disqualified driver's position vacant,
+  Jolpica promotes everyone below. The 1983 Brazilian Grand Prix has no second
+  place in one reading and Lauda second in the other.
+- `data/harvest.py: _read_named()` learned that a generated header can carry a
+  trailing note after its last column — `entrants.txt` has done so since v2.9,
+  and only positional readers had ever read it.
+- f1.db is 20 MB, from 3.2. `build.py` now VACUUMs; the web app fetches the
+  file whole and it gzips to about 5 MB. `f1_database.json` keeps
+  `race_entries` and the end-of-season standings; qualifying, pit stops and
+  the per-round standings are in f1.db and one query away.
+- `verify.py` 158 -> 170 checks, in a new *The full classification* section.
+
 ## v2.14 (2026-09-05) — pictures, and the number that rejected one
 
 Two additions that both point at things this repository does not contain, for

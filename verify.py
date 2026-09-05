@@ -120,37 +120,71 @@ check("no champion scored fewer points than the runner-up", not neg,
       "; ".join(str(r["year"]) for r in neg))
 
 print("\nSTANDINGS")
+# Every check here is scoped to ONE classification. The table now holds the
+# standings after every round of every season back to 1950 as well as the
+# official end-of-season rows, so an unscoped query mixes 77 seasons of
+# running totals together and every position looks like a 1.
+#
+# `as_of` names the classification: 'final' for an end-of-season table,
+# 'round N' for a running one, a date for an official live snapshot. The
+# hand-entered rows are the ones with no after_round and a source of
+# formula1.com, and those are what these checks are about.
+# Scoped by SOURCE, not by shape. These checks are about the classification
+# formula1.com publishes, and F1DB now holds its own end-of-season row for
+# the same season - a correct second opinion, not a duplicate to trip over.
+OFFICIAL = ("SELECT position, points, entity_id FROM standings "
+            "WHERE year=? AND table_type=? AND after_round IS NULL "
+            "AND source LIKE '%formula1.com%' ORDER BY position")
 for y in (2025, 2026):
     for t in ("drivers", "constructors"):
-        pos = [r[0] for r in con.execute("""SELECT position FROM standings
-            WHERE year=? AND table_type=? ORDER BY position""", (y, t))]
+        rows = con.execute(OFFICIAL, (y, t)).fetchall()
+        pos = [r[0] for r in rows]
         check(f"{y} {t} standings positions are 1..n with no gaps",
               pos == list(range(1, len(pos) + 1)), str(pos[:5]))
-        pts = [r[0] for r in con.execute("""SELECT points FROM standings
-            WHERE year=? AND table_type=? ORDER BY position""", (y, t))]
+        pts = [r[1] for r in rows]
         check(f"{y} {t} points are non-increasing down the order",
               all(pts[i] >= pts[i + 1] for i in range(len(pts) - 1)))
 
-d25 = con.execute("""SELECT SUM(points) FROM standings WHERE year=2025
-    AND table_type='drivers'""").fetchone()[0]
-c25 = con.execute("""SELECT SUM(points) FROM standings WHERE year=2025
-    AND table_type='constructors'""").fetchone()[0]
-check("2025 driver points total equals constructor points total", d25 == c25,
-      f"drivers {d25}, constructors {c25}")
-d26 = con.execute("""SELECT SUM(points) FROM standings WHERE year=2026
-    AND table_type='drivers'""").fetchone()[0]
-c26 = con.execute("""SELECT SUM(points) FROM standings WHERE year=2026
-    AND table_type='constructors'""").fetchone()[0]
-check("2026 driver points total equals constructor points total", d26 == c26,
-      f"drivers {d26}, constructors {c26}")
+for y in (2025, 2026):
+    d = con.execute("""SELECT SUM(points) FROM standings WHERE year=?
+        AND table_type='drivers' AND after_round IS NULL
+        AND source LIKE '%formula1.com%'""", (y,)).fetchone()[0]
+    c = con.execute("""SELECT SUM(points) FROM standings WHERE year=?
+        AND table_type='constructors' AND after_round IS NULL
+        AND source LIKE '%formula1.com%'""", (y,)).fetchone()[0]
+    check(f"{y} driver points total equals constructor points total", d == c,
+          f"drivers {d}, constructors {c}")
 
-champ25 = con.execute("""SELECT champion_points, runner_up_points FROM seasons
-    WHERE year=2025""").fetchone()
-top25 = con.execute("""SELECT points FROM standings WHERE year=2025
-    AND table_type='drivers' ORDER BY position LIMIT 2""").fetchall()
-check("2025 season row matches the 2025 standings",
-      champ25[0] == top25[0][0] and champ25[1] == top25[1][0],
-      f"season {tuple(champ25)} vs standings {(top25[0][0], top25[1][0])}")
+# The check the whole per-round load is worth having. `seasons` holds the
+# champion, the runner-up and both their point totals for 76 of 77 seasons,
+# entered independently of F1DB. The final standings table must reproduce
+# all four, every year - which is a far stronger test than one season's.
+season_rows = con.execute("""SELECT year, drivers_champion, champion_points,
+    runner_up, runner_up_points FROM seasons
+    WHERE drivers_champion IS NOT NULL AND champion_points IS NOT NULL
+    ORDER BY year""").fetchall()
+mismatch, compared = [], 0
+for sr in season_rows:
+    top = con.execute("""SELECT entity_id, points FROM standings
+        WHERE year=? AND table_type='drivers' AND after_round IS NULL
+          AND position IS NOT NULL
+        ORDER BY position LIMIT 2""", (sr["year"],)).fetchall()
+    if len(top) < 2:
+        continue
+    compared += 1
+    if (top[0]["entity_id"] != sr["drivers_champion"]
+            or abs((top[0]["points"] or -1) - sr["champion_points"]) > 0.001):
+        mismatch.append(f"{sr['year']} champion: seasons says "
+                        f"{sr['drivers_champion']} on {sr['champion_points']}, "
+                        f"standings says {top[0]['entity_id']} on "
+                        f"{top[0]['points']}")
+    elif (sr["runner_up"] and top[1]["entity_id"] != sr["runner_up"]):
+        mismatch.append(f"{sr['year']} runner-up: seasons says "
+                        f"{sr['runner_up']}, standings says "
+                        f"{top[1]['entity_id']}")
+check("every season's champion and runner-up match the final standings",
+      not mismatch, f"{compared} seasons compared"
+      if not mismatch else "; ".join(mismatch[:3]))
 
 print("\nRACE RESULTS")
 for y, n in ((2025, 24), (2026, 12)):
@@ -592,11 +626,20 @@ bad = con.execute("""SELECT COUNT(*) FROM race_entries e JOIN cars c ON c.id=e.c
     ).fetchone()[0]
 check("linked cars belong to the entry's constructor", bad == 0, f"{bad} wrong")
 
-bad = con.execute("""SELECT r.year, c.id, c.from_year, c.to_year
-    FROM race_entries e JOIN cars c ON c.id=e.car_id JOIN races r ON r.id=e.race_id
-    WHERE r.year < c.from_year OR (c.to_year IS NOT NULL AND r.year > c.to_year)
+# A car's DESIGN life is not its RACING life. cars.from_year/to_year describe
+# the works car; privateers ran the same chassis for years afterwards, and the
+# chassis register - built from the entry lists - is the source that knows it.
+# The Ferrari 500 is a 1952-53 car that was still entered in 1957.
+bad = con.execute("""SELECT r.year, e.driver_id, e.chassis_id,
+        ch.first_year, ch.last_year
+    FROM race_entries e
+    JOIN chassis ch ON ch.id = e.chassis_id
+    JOIN races r ON r.id = e.race_id
+    WHERE ch.first_year IS NOT NULL
+      AND (r.year < ch.first_year
+           OR (ch.last_year IS NOT NULL AND r.year > ch.last_year))
     LIMIT 5""").fetchall()
-check("no entry falls outside its car's years", not bad,
+check("no entry is dated outside the seasons its chassis was entered", not bad,
       "; ".join(f"{r[0]} {r[1]} ({r[2]}-{r[3]})" for r in bad))
 
 # The strongest car check. A car cannot have won more races than the number
@@ -1139,6 +1182,106 @@ bad = con.execute("""SELECT COUNT(*) FROM drivers
 check("all confidence values are in the provenance ladder", bad == 0)
 
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+print("\nTHE FULL CLASSIFICATION")
+# race_entries is no longer the winner, the pole-sitter and the fastest-lap
+# setter. It is every entry of every race, in the COMMITTED build, because
+# F1DB is CC BY and Jolpica is CC BY-NC-SA.
+ncls = con.execute("SELECT COUNT(*) FROM race_entries").fetchone()[0]
+nqual = con.execute("SELECT COUNT(*) FROM qualifying").fetchone()[0]
+nstand = con.execute("SELECT COUNT(*) FROM standings").fetchone()[0]
+print(f"  [info] {ncls} race entries, {nqual} qualifying rows, "
+      f"{nstand} standings rows")
+
+races_done = con.execute(
+    "SELECT COUNT(*) FROM races WHERE status='completed'").fetchone()[0]
+covered = con.execute("""SELECT COUNT(DISTINCT e.race_id) FROM race_entries e
+    JOIN races r ON r.id = e.race_id WHERE r.status='completed'
+      AND e.finish_position IS NOT NULL""").fetchone()[0]
+check("every completed race has a classified finisher",
+      covered == races_done, f"{covered} of {races_done}")
+
+# An integer result and a code are mutually exclusive by construction. If one
+# ever drifts from the other, every count of finishers is wrong.
+bad = con.execute("""SELECT COUNT(*) FROM race_entries
+    WHERE (finish_position IS NOT NULL
+           AND position_text IS NOT NULL
+           AND position_text <> CAST(finish_position AS TEXT))
+       OR (finish_position IS NULL AND position_text GLOB '[0-9]*')""").fetchone()[0]
+check("finish_position and position_text never contradict each other", bad == 0)
+
+# A position can only be held twice when the car was shared, and the schema
+# has no other way to say it.
+dup = con.execute("""SELECT r.year, r.round, e.finish_position, COUNT(*) n
+    FROM race_entries e JOIN races r ON r.id = e.race_id
+    WHERE e.finish_position IS NOT NULL
+    GROUP BY e.race_id, e.finish_position HAVING n > 1
+      AND SUM(e.shared_drive) < n""").fetchall()
+check("no two drivers hold one finishing position unless they shared the car",
+      not dup, "; ".join(f"{d[0]} r{d[1]} P{d[2]}" for d in dup[:3]))
+
+nshared = con.execute("SELECT COUNT(*) FROM race_entries "
+                      "WHERE shared_drive=1").fetchone()[0]
+late = con.execute("""SELECT COUNT(*) FROM race_entries e
+    JOIN races r ON r.id = e.race_id
+    WHERE e.shared_drive=1 AND r.year > 1964""").fetchone()[0]
+check("no shared drive is recorded after the practice ended in 1964",
+      late == 0, f"{nshared} shared entries, all 1950-1964")
+
+# The vocabulary is closed. A new code appearing means the source changed its
+# mind about how to say something, which is worth knowing before it is stored.
+codes = {r[0] for r in con.execute(
+    "SELECT DISTINCT position_text FROM race_entries "
+    "WHERE position_text IS NOT NULL AND position_text NOT GLOB '[0-9]*'")}
+check("every non-numeric result code is one this database knows",
+      codes <= {"NC", "DNF", "DNQ", "DNPQ", "DNP", "DNS", "DSQ", "EX"},
+      ", ".join(sorted(codes)))
+
+if nqual:
+    orphan = con.execute("""SELECT COUNT(*) FROM qualifying q
+        WHERE NOT EXISTS (SELECT 1 FROM race_entries e
+                          WHERE e.race_id = q.race_id
+                            AND e.driver_id = q.driver_id)""").fetchone()[0]
+    warn("every qualifying row has a matching race entry", orphan == 0,
+         f"{orphan} qualified for a race they have no entry in")
+
+    # Pre-knockout qualifying is one time; the knockout era is three segments
+    # and no single time. Neither is back-filled from the other, and a row
+    # carrying both would mean it had been.
+    both = con.execute("""SELECT COUNT(*) FROM qualifying
+        WHERE time IS NOT NULL AND q1 IS NOT NULL""").fetchone()[0]
+    check("no qualifying row invents a single time for a knockout session",
+          both == 0)
+
+if nstand:
+    # The championship is contested by a chassis-ENGINE combination, and
+    # 1960 is the case that proves it: Cooper-Climax won with 48 points while
+    # Cooper-Maserati and Cooper-Castellotti tied for fifth on 3.
+    multi = con.execute("""SELECT COUNT(*) FROM (
+        SELECT year, entity_id FROM standings
+        WHERE table_type='constructors' AND after_round IS NULL
+          AND engine_id IS NOT NULL
+        GROUP BY year, entity_id HAVING COUNT(DISTINCT engine_id) > 1)"""
+        ).fetchone()[0]
+    warn("constructors entered under more than one engine are kept apart",
+         True, f"{multi} constructor-seasons with several engine entries")
+
+    # A points total that rises as you go down the order is a sorting error,
+    # and it is the failure mode that hid an excluded champion.
+    bad_order = []
+    for yr, tt in con.execute("""SELECT DISTINCT year, table_type
+            FROM standings WHERE after_round IS NULL
+              AND source LIKE '%f1db%' ORDER BY year"""):
+        rows = con.execute("""SELECT points FROM standings
+            WHERE year=? AND table_type=? AND after_round IS NULL
+              AND position IS NOT NULL AND source LIKE '%f1db%'
+            ORDER BY position""", (yr, tt)).fetchall()
+        pts = [r[0] for r in rows if r[0] is not None]
+        if any(pts[i] < pts[i + 1] - 0.001 for i in range(len(pts) - 1)):
+            bad_order.append(f"{yr} {tt}")
+    check("every final standings table runs from most points to fewest",
+          not bad_order, "; ".join(bad_order[:3]))
+
 print("\nILLUSTRATION AND GEOMETRY")
 # Two tables that hold pointers to things this repository does not contain:
 # a photograph on Wikimedia Commons, and a shape in OpenStreetMap. Neither
@@ -1220,12 +1363,22 @@ if ngeo:
         if delta > 0.02:
             bad_len.append(f"{r['circuit_id']} {km:.3f} vs "
                            f"{r['published_km']:.3f} ({delta * 100:+.1f}%)")
-        # A circuit is a loop. Ends that do not meet mean the relation is
-        # missing a way, and the length can still come out plausible.
-        pts = [p for line in geo["coordinates"] for p in line]
-        if pts and _hav((pts[0][1], pts[0][0]),
-                        (pts[-1][1], pts[-1][0])) > 250:
-            unclosed.append(r["circuit_id"])
+        # A circuit is a loop, but an OSM relation's members are NOT ordered,
+        # so comparing the first coordinate to the last says nothing - it
+        # compares two arbitrary way ends and flagged five perfectly good
+        # street circuits. What a closed loop actually guarantees is that
+        # every way END meets another way's end. A dangling end is a missing
+        # member, and a trace can be short by one segment and still measure a
+        # plausible length.
+        ends = [line[0] for line in geo["coordinates"]] + \
+               [line[-1] for line in geo["coordinates"]]
+        dangling = 0
+        for i, a in enumerate(ends):
+            if not any(i != j and _hav((a[1], a[0]), (b[1], b[0])) <= 30
+                       for j, b in enumerate(ends)):
+                dangling += 1
+        if dangling:
+            unclosed.append(f"{r['circuit_id']} ({dangling} loose ends)")
         if r["layout_key"]:
             ok = con.execute("""SELECT 1 FROM circuit_layouts
                 WHERE circuit_id = ? AND layout_key = ?""",

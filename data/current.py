@@ -271,21 +271,35 @@ SOURCE_REGISTRY = [
      "Nothing. That is the reason for the ban, not the size of the data."),
 
     (10, "F1DB", "https://github.com/f1db/f1db",
-     "The chassis, engine, constructor and per-season entrant register: every "
-     "chassis that has raced, and which constructor entered which chassis in "
-     "which season. Loaded by tools/f1db_fetch.py. Its entrant mapping is the "
-     "second, constraining source the chassis-per-race harvest was missing.",
+     "Since v2.15 the primary source for RESULTS as well as registers: the "
+     "full classification for all 1,161 races (27,555 entries, 1950-2026), "
+     "qualifying (26,975), championship standings after every round (34,495) "
+     "and pit stops (22,472) - plus the chassis, engine, constructor and "
+     "per-season entrant register it already supplied. Loaded by "
+     "tools/f1db_fetch.py into diffable text, then built offline.",
      "reference",
-     "CC BY 4.0 - attribution only, no share-alike. The most permissive "
-     "licence of any bulk source used here.",
+     "CC BY 4.0 - attribution only, no share-alike, and NO NON-COMMERCIAL "
+     "CLAUSE. That last absence is not a footnote: it is the reason the full "
+     "classification ships in the committed database when the same facts "
+     "from Jolpica-F1 could only ever be loaded onto a local copy. The most "
+     "permissive licence of any bulk source used here, and now the most "
+     "consequential.",
      "Re-released after every race, versioned, with a public commit history "
      "and a changelog. Better maintained than anything else at this scale.",
-     "Its (constructor, season) -> chassis mapping is checked against the 41 "
-     "CAR_SEASONS assertions this database already held and had already "
-     "proved against published win totals. Its chassis register is checked "
-     "against the Wikipedia per-car articles for constructor and seasons. "
-     "It carries NO technical specifications at all, so nothing it says can "
-     "be mistaken for one."),
+     "Heavily, in four independent places, all of them held here before F1DB "
+     "was read. (1) The winner of every one of the 1,161 races came from the "
+     "Wikipedia harvest; a race whose winner disagreed is refused WHOLE, and "
+     "none was. The comparison is on sets, because a shared drive puts two "
+     "drivers on position 1 and both are winners. (2) The champion, the "
+     "runner-up and both their point totals for 76 seasons were already in "
+     "`seasons`; the final standings must reproduce all four and do. "
+     "(3) Qualifying position 1 is checked against the pole-sitter already "
+     "stored - 13 races differ, every one a grid penalty or a sprint "
+     "weekend, each recorded rather than resolved. (4) Its (constructor, "
+     "season) -> chassis mapping is checked against the 41 CAR_SEASONS "
+     "assertions already proved against published win totals. It carries NO "
+     "technical specifications at all, so nothing it says can be mistaken "
+     "for one."),
 
     (11, "Wikipedia per-car articles ({{Racing car}} infobox)",
      "https://en.wikipedia.org/wiki/Category:Formula_One_cars",
@@ -305,25 +319,30 @@ SOURCE_REGISTRY = [
 
     (12, "Jolpica-F1 (Ergast's maintained successor)",
      "https://api.jolpi.ca/ergast/f1/",
-     "The full race classification 1950-2026: every finisher and retirement "
-     "with position, grid, laps, cause and points. Loaded by "
-     "tools/ergast_load.py.", "reference",
-     "CC BY-NC-SA 4.0 on the Ergast data it continues: NON-COMMERCIAL. That "
-     "is the most restrictive licence of any source here and it is the "
-     "reason these rows are loaded locally rather than committed. The "
-     "database dumps carry the same terms on their free tier; commercial use "
-     "needs a supporter key.",
+     "A SECOND OPINION on the full classification, which F1DB now supplies "
+     "under a licence that permits committing it. tools/ergast_load.py no "
+     "longer overwrites: it compares, records every disagreement in "
+     "`discrepancies`, and leaves the stored value alone. It remains the "
+     "ONLY source here for 628,454 lap times back to 1996, which F1DB does "
+     "not carry.", "reference",
+     "CC BY-NC-SA 4.0 on the Ergast data it continues: NON-COMMERCIAL. The "
+     "most restrictive licence of any source here, and the reason these rows "
+     "are loaded locally rather than committed. That restriction now costs "
+     "nothing for results, because F1DB supplies the same facts under CC BY.",
      "Per event, community-run, and explicitly a volunteer continuation "
      "after Ergast's shutdown - the least certain future of any source here.",
-     "The winner it reports for a race must equal the winner already stored "
-     "from the Wikipedia harvest or the race is refused whole; and the "
-     "derived podium counts are reconciled against official career figures. "
-     "That reconciliation is what caught a hand-relayed fabrication in v2.7, "
-     "and it is what caught the loader's own resolver handing Wilson "
-     "Fittipaldi's Brabham results to his brother Emerson on its first live "
-     "run. The dump path is checked against the API path race by race "
-     "(--verify-dump), because a second fetch implementation is a second "
-     "place to be wrong."),
+     "Now cuts both ways. Its winner must still equal the one already "
+     "stored or the race is refused whole. Beyond that it CHECKS rather than "
+     "writes: on a full load it disagrees with F1DB on 118 of 26,082 "
+     "finishing positions, 0.45 per cent, and the pattern is a real "
+     "difference in reading rather than an error - F1DB leaves a "
+     "disqualified driver's position vacant while Jolpica promotes everyone "
+     "below, so the 1983 Brazilian Grand Prix has no second place in one "
+     "and Lauda second in the other. Its reconciliation caught a "
+     "hand-relayed fabrication in v2.7 and the loader's own resolver handing "
+     "Wilson Fittipaldi's Brabham results to his brother Emerson. The dump "
+     "path is checked against the API path race by race (--verify-dump), "
+     "because a second fetch implementation is a second place to be wrong."),
 
     (13, "OpenF1", "https://openf1.org",
      "Car telemetry from 2023: speed, throttle, brake, RPM, gear and "
