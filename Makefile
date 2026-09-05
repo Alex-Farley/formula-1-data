@@ -8,7 +8,7 @@ all: build verify export          ## rebuild, check and export (default)
 build:                            ## rebuild f1.db from data/*.py
 	$(PYTHON) build.py
 
-verify:                           ## 147 integrity and consistency checks
+verify:                           ## 150 integrity and consistency checks
 	$(PYTHON) verify.py
 
 audit:                            ## structural health report

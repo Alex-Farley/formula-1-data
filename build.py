@@ -27,7 +27,7 @@ from data import radio as RA       # noqa: E402
 from data import results as RS     # noqa: E402
 
 DB = os.path.join(HERE, "f1.db")
-VERSION = "2.12"
+VERSION = "2.13"
 BUILT = "2026-09-05"
 
 
@@ -122,6 +122,51 @@ def build():
              "Added to the register from the podium harvest: reached a podium "
              "without ever winning a race, taking pole or setting a fastest lap.",
              "reference", "https://api.jolpi.ca/ergast/f1/drivers/" + eid))
+
+    # --- drivers admitted from the F1DB register (data/drivers.py
+    # F1DB_DRIVERS). The ids are authored there; every attribute comes from
+    # the generated harvest files, so nobody types six hundred names and no
+    # driver appears without a reviewed line.
+    known_drv = {r[0] for r in cur.execute("SELECT id FROM drivers")}
+    f1db_drv = {r[0]: r for r in HV.load_f1db_drivers()}
+    f1db_ctry = {r[0]: (r[1], r[2]) for r in HV.load_f1db_countries()}
+    drv_years = {}
+    for year, _e, _c, _em, f1db_id, rounds, test in HV.load_entrant_drivers():
+        # `rounds` is the test, NOT the testDriver flag. F1DB's flag records
+        # the driver's ROLE in the team, not whether they raced: Jack Aitken
+        # is a Williams test driver for 2020 and has `rounds: 16`, because he
+        # started the Sakhir Grand Prix in Russell's place. Franck Montagny
+        # is flagged the same for 2006 and raced rounds 5-11 for Super Aguri.
+        # A driver with rounds entered those rounds; a test driver with none
+        # never entered.
+        if not rounds:
+            continue
+        drv_years.setdefault(f1db_id, set()).add(year)
+    for f1db_id in D.F1DB_DRIVERS:
+        if f1db_id in known_drv:
+            raise SystemExit(
+                f"F1DB_DRIVERS admits {f1db_id}, which the register already "
+                f"holds. Remove it from the list.")
+        meta = f1db_drv.get(f1db_id)
+        if meta is None:
+            raise SystemExit(f"F1DB_DRIVERS admits {f1db_id}, which is not in "
+                             f"harvest/f1db_drivers.txt. Rerun "
+                             f"tools/f1db_fetch.py.")
+        yrs = drv_years.get(f1db_id)
+        if not yrs:
+            raise SystemExit(f"F1DB_DRIVERS admits {f1db_id}, which the entry "
+                             f"lists show entering no championship race")
+        _id, name, _first, _last, born, died, abbr, nat_id = meta
+        nat, code = f1db_ctry.get(nat_id, (None, None))
+        cur.execute("""INSERT INTO drivers (id, full_name, nationality,
+            nationality_code, born, died, first_season, last_season, titles,
+            status, confidence, source)
+            VALUES (?,?,?,?,?,?,?,?,0,?,?,?)""",
+            (f1db_id, name, nat, code, born, died, min(yrs), max(yrs),
+             "deceased" if died else
+             ("active" if max(yrs) >= 2026 else "retired"),
+             HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
+        known_drv.add(f1db_id)
 
     # The wins / poles / fastest_laps just inserted are hand-entered from
     # reference records. Move them to the *_external columns now, before the
@@ -269,7 +314,14 @@ def build():
     f1db_country = {r[0]: r[1] for r in HV.load_f1db_countries()}
     cons_years = {}
     for year, _e, f1db_cons, _em, _d, rounds, test in HV.load_entrant_drivers():
-        if test or not rounds:
+        # `rounds` is the test, NOT the testDriver flag. F1DB's flag records
+        # the driver's ROLE in the team, not whether they raced: Jack Aitken
+        # is a Williams test driver for 2020 and has `rounds: 16`, because he
+        # started the Sakhir Grand Prix in Russell's place. Franck Montagny
+        # is flagged the same for 2006 and raced rounds 5-11 for Super Aguri.
+        # A driver with rounds entered those rounds; a test driver with none
+        # never entered.
+        if not rounds:
             continue
         cons_years.setdefault(f1db_cons, set()).add(year)
     for f1db_id in T.F1DB_CONSTRUCTORS:
@@ -1113,7 +1165,14 @@ def build():
     per_round = {}
     for (year, entrant, f1db_cons, eng_man, f1db_driver, rounds,
          test) in HV.load_entrant_drivers():
-        if test or not rounds:
+        # `rounds` is the test, NOT the testDriver flag. F1DB's flag records
+        # the driver's ROLE in the team, not whether they raced: Jack Aitken
+        # is a Williams test driver for 2020 and has `rounds: 16`, because he
+        # started the Sakhir Grand Prix in Russell's place. Franck Montagny
+        # is flagged the same for 2006 and raced rounds 5-11 for Super Aguri.
+        # A driver with rounds entered those rounds; a test driver with none
+        # never entered.
+        if not rounds:
             continue                    # a test driver did not enter a race
         our_driver = drivers_by_f1db.get(f1db_driver)
         if our_driver is None:

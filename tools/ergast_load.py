@@ -616,8 +616,9 @@ def main():
     unresolved = set()
 
     known_cons = {r[0] for r in cur.execute("SELECT id FROM constructors")}
-    totals = dict(rows=0, races=0, skipped_race=0, skipped_driver=0, refused=0)
-    missing_cons, declared_cons = set(), set()
+    totals = dict(rows=0, races=0, skipped_race=0, skipped_driver=0,
+                  skipped_declared=0, refused=0)
+    missing_cons, declared_cons, declared_drv = set(), set(), set()
 
     if a.verify_dump:
         sys.exit(compare_dump_to_api(a, lo, hi))
@@ -687,8 +688,12 @@ def main():
                     continue
                 did = resolve(e["driver"], e.get("driver_name"))
                 if did is None:
-                    unresolved.add(e["driver"])
-                    totals["skipped_driver"] += 1
+                    if e["driver"] in RS.DRIVER_NON_MAPPING:
+                        declared_drv.add(e["driver"])
+                        totals["skipped_declared"] += 1
+                    else:
+                        unresolved.add(e["driver"])
+                        totals["skipped_driver"] += 1
                     continue
                 cid = RS._resolve_constructor(e["constructor"], e["year"])
                 if cid and cid not in known_cons:
@@ -772,11 +777,17 @@ def main():
         print(f"  {totals['refused']} races REFUSED on a winner mismatch")
     if totals["skipped_race"]:
         print(f"  {totals['skipped_race']} races not in this database, skipped")
-    if totals["skipped_driver"]:
+    if unresolved:
         print(f"  {totals['skipped_driver']} rows skipped, driver not in the "
               f"register: {', '.join(sorted(unresolved)[:20])}")
         print(f"  Add them to PODIUM_ONLY_DRIVERS in data/results.py, rebuild, "
               f"and rerun.")
+    if declared_drv:
+        print(f"  {totals['skipped_declared']} row(s) skipped for "
+              f"{len(declared_drv)} driver(s) this register deliberately does "
+              f"not hold: {', '.join(sorted(declared_drv))} "
+              f"(see data/results.py DRIVER_NON_MAPPING). A declared "
+              f"disagreement, not a gap.")
     if declared_cons:
         print(f"  constructors deliberately not held, stored as NULL: "
               f"{', '.join(sorted(declared_cons))} "

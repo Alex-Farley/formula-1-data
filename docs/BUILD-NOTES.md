@@ -3,6 +3,104 @@
 A running record of what changed in each version, what it exposed, and what
 was deliberately not done. Newest first.
 
+## v2.13 (2026-09-05) — the driver register, and a flag that means the wrong thing
+
+618 drivers who entered a championship Grand Prix had no row here. The
+register held 244 of roughly 860, and that was the binding constraint on
+everything downstream: `ergast_load.py` skipped **5,490 classification rows**
+because the driver could not be resolved, and it refuses to invent one.
+Pierluigi Martini entered 124 Grands Prix, Philippe Alliot 116, Piercarlo
+Ghinzani 111. None of them existed in this database.
+
+    drivers                     244 -> 862
+    rows skipped, no driver   5,490 -> 33
+    race_entries on a load   20,555 -> 25,995
+    podium reconciliation    6 of 7 -> 7 of 7 exact
+
+The 7-of-7 is the part that matters. Russell derived one podium more than his
+official figure for two versions; the check tolerated it because he is an
+active driver whose published total is older. With the register complete the
+derived figure matches exactly, so the tolerance is no longer carrying
+anything.
+
+Same shape as the constructor register in v2.12: the ids are authored one per
+line in `data/drivers.py: F1DB_DRIVERS` with the seasons and entry count that
+justify each, and every attribute comes from the generated harvest files.
+Nobody typed six hundred names.
+
+### Why Indianapolis drivers are admitted when Indianapolis constructors are not
+
+73 of these entered nothing but the Indianapolis 500. The constructor
+register excludes the Indianapolis *chassis makers* because they were never
+Formula One constructors. Drivers are the opposite case and this project
+settled it in v2.1: the ten Indianapolis winners have been in the register
+since then, because the official record counts an Indianapolis start in
+1950-60 as a World Championship start. Johnnie Parsons never contested a
+European Grand Prix and is here. Excluding the other 73 would contradict
+that.
+
+### A flag that means the wrong thing
+
+The first admission list was 616, and it was wrong. The test skipped F1DB's
+`testDriver` flag - and **that flag records a driver's ROLE in the team, not
+whether they raced.** Jack Aitken is a Williams test driver for 2020 and
+carries `rounds: 16`, because he started the Sakhir Grand Prix in Russell's
+place. Franck Montagny is flagged the same for 2006 and raced rounds 5-11 for
+Super Aguri. The test is `rounds`, nothing else: a driver with rounds entered
+those rounds; a test driver with none never entered. The same wrong filter was
+in the per-round chassis resolution from v2.11 and is fixed there too.
+
+### What the winner cross-check caught
+
+Admitting 618 drivers **broke the classification loader**, and the winner
+cross-check refused a race rather than mis-attributing it. `moss` had always
+resolved on its surname because Stirling was the only Moss in the register.
+Admitting **Bill Moss** made the lookup ambiguous, the fallback gave up, and
+the 1955 British Grand Prix was refused - the source's winner resolved to
+nobody. Duncan Hamilton and the other Brabhams did the same to Lewis Hamilton
+and Jack Brabham.
+
+Nothing was corrupted. A race was declined whole, which is what that check is
+for. The fix is that the surname fallback now *narrows* by the name the
+source states rather than giving up: "Stirling Moss" is a subset of "Sir
+Stirling Moss" and not of "Bill Moss", so it resolves to one driver. It still
+refuses a namesake - "Wilson Fittipaldi" is a subset of neither Emerson nor
+anyone else.
+
+Wilson Fittipaldi now has his own row, which closes the v2.9 defect at the
+root rather than by refusing to resolve him.
+
+### Sources disagreeing, declared rather than resolved
+
+- **14 drivers** Jolpica records with championship entries that F1DB does not
+  hold at all - Prince Bira, Geoff Duke, Ken Miles, Gary Hocking and others,
+  33 rows between them. Declared in `DRIVER_NON_MAPPING`; the loader now
+  reports them as a decision rather than a gap, and no longer counts them as
+  an incomplete load.
+- **BMW.** Jolpica records BMW as a constructor for six 1952-53 entries. F1DB
+  holds a BMW constructor for 1969 only and records the 1952-53 cars as
+  Veritas and AFM chassis with BMW *engines*. Those entries keep a NULL
+  rather than being credited to a constructor seventeen years early. Handled
+  by a year-scoped refusal - a mapping target of None.
+- **Nine name-form disagreements** resolved by declared alias, each checked
+  against the seasons and entries the two sources agree on: Alessandro/Alex
+  Zanardi, Alessandro/Alejandro de Tomaso, Hernando/Hermano da Silva Ramos,
+  Geoff/Geoffrey Crossley and the rest. One is a plain Jolpica error - it
+  records Boy Hayje's forename against Brett Lunger's surname, as "Boy
+  Lunger".
+
+**Emilio de Villota** now has his own row. He entered fifteen Grands Prix and
+was previously kept out of the resolver entirely, because this register's
+`de-villota` is **Maria** de Villota - his daughter, who tested for Marussia
+and never entered a race. Two rows under two ids, and the resolver still
+refuses to join them.
+
+### New checks
+
+150 total. Every driver F1DB records entering a championship race must be in
+the register; no two F1DB drivers may normalise onto one register entry; and
+no two register rows may share a full name.
+
 ## v2.12 (2026-09-05) — the constructor register, and five teams that were two
 
 Eighty-five constructors that entered a championship Grand Prix had no row in

@@ -195,15 +195,20 @@ def country_rows(data, yaml):
 
 
 def driver_rows(data, yaml):
-    """The driver register, so a race entry can be resolved to an F1DB driver
-    id offline. Names only - this file never creates a driver."""
+    """The driver register: enough to resolve a race entry to an F1DB driver
+    offline, and enough to describe one the register admits.
+
+    This file never decides that a driver exists - data/drivers.py does that,
+    one authored line at a time. It only supplies the spelling, the dates and
+    the nationality for the ones already admitted."""
     import glob
     rows = []
     for p in sorted(glob.glob(os.path.join(data, "drivers", "*.yml"))):
         d = yaml.safe_load(open(p, encoding="utf-8"))
         rows.append("|".join(_clean(d.get(k)) for k in
                              ("id", "name", "firstName", "lastName",
-                              "dateOfBirth")))
+                              "dateOfBirth", "dateOfDeath", "abbreviation",
+                              "nationalityCountryId")))
     return sorted(rows)
 
 
@@ -306,7 +311,8 @@ def main():
                 "country_id|name|alpha3|demonym",
                 country_rows(data, yaml), version, commit, args.check)
     ok &= write("f1db_drivers.txt",
-                "driver_id|name|first_name|last_name|date_of_birth",
+                "driver_id|name|first_name|last_name|date_of_birth|"
+                "date_of_death|abbreviation|nationality_country_id",
                 driver_rows(data, yaml), version, commit, args.check)
     ok &= write("entrants.txt",
                 "year|entrant_id|constructor_id|engine_manufacturer_id|"

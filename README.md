@@ -1,4 +1,4 @@
-# F1 Verified Facts Database — v2.12
+# F1 Verified Facts Database — v2.13
 
 An expansion of the original single-file JSON into a normalised, queryable
 SQLite database covering 1950–2026, with the JSON kept as a generated export.
@@ -12,6 +12,14 @@ harvested from Wikipedia's season tables under a new `reference` confidence tier
 replaces the per-race one, every Grand Prix now has a canonical id, and
 `audit.py` reports on the shape of the database rather than its contents.
 See *Structure* below.
+
+**v2.13** closes the **driver register**: 244 rows to 862. It was the binding
+constraint on the full classification — 5,490 rows were being skipped because
+the driver could not be resolved, now 33. The podium reconciliation, the
+strongest check here, went from 6 of 7 exact to **7 of 7**. Admitting the
+drivers immediately broke the loader, and the winner cross-check caught it by
+refusing a race rather than mis-attributing it: Bill Moss made "Moss"
+ambiguous and the 1955 British Grand Prix stopped resolving.
 
 **v2.12** closes the **constructor register**: 65 rows to 150. Eighty-five
 teams that entered a championship Grand Prix had no row here — Ensign started
@@ -105,7 +113,7 @@ v2026.12.0.
 | `f1_compat.json` | JSON in the *original* v1 key layout, so anything already consuming that file keeps working. |
 | `schema.sql` | The schema, commented. |
 | `build.py` | Rebuilds `f1.db` from the data modules. Idempotent. |
-| `verify.py` | 147 integrity, cross-tabulation and sanity checks. Exit code 1 on failure. |
+| `verify.py` | 150 integrity, cross-tabulation and sanity checks. Exit code 1 on failure. |
 | `audit.py` | Structural health check: fill rates, coverage, keys, redundancy, readiness. |
 | `export_json.py` | Regenerates the JSON exports from the database. |
 | `data/*.py` | The source data, as readable Python literals. **Edit here, then rebuild.** |

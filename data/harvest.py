@@ -442,27 +442,21 @@ KNOWN_GAPS = [
     ("finish_position", "the full race classification",
      "race_entries in the DISTRIBUTED build holds the winner, the "
      "pole-sitter and the fastest-lap setter for every race - about 2.1 rows "
-     "per race against a real field of 15 to 22. Second place, retirements, "
-     "grid positions and per-race points are not in the committed file, and "
-     "that is deliberate rather than unfinished: the rows come from "
-     "Jolpica-F1, whose Ergast data is CC BY-NC-SA - non-commercial, the "
-     "most restrictive licence any source here carries - and this database "
-     "is a function of what is in its own repository. "
-     "tools/ergast_load.py has now been run against the live API and works: "
-     "21,017 rows across all 1,161 races, no race refused on a winner "
-     "mismatch, and the podium reconciliation passes. Run it locally and the "
-     "gap closes on your copy. "
-     "Its first live run also proved why the reconciliation exists: the "
-     "loader's driver resolver matched Jolpica's bare `fittipaldi` - Wilson - "
-     "onto this register's Emerson, moving eight wins from Team Lotus to "
-     "Brabham before the constructor win check caught it.", 0,
-     "python3 tools/ergast_load.py  (about 270 requests, a few minutes). "
-     "Then rerun verify.py. The binding constraint is now the driver "
-     "register, not the API: 577 drivers who have started a Grand Prix are "
-     "not in it, so 5,558 rows are skipped and the loader exits non-zero "
-     "naming them. "
-     "Do NOT transcribe these rows by hand - an attempt to do so during "
-     "v2.7 put fabricated results into four of five sampled 2008 rows."),
+     "per race against a real field of 15 to 22. That is a licensing "
+     "decision, not an unfinished harvest: the rows come from Jolpica-F1, "
+     "whose Ergast data is CC BY-NC-SA - non-commercial, the most "
+     "restrictive licence any source here carries - and this database is a "
+     "function of what is in its own repository. "
+     "Run tools/ergast_load.py locally and the gap closes on your copy: "
+     "25,995 rows across all 1,161 races, and the podium reconciliation "
+     "passes at 7 of 7 exact. The driver register was the binding "
+     "constraint until v2.13 and no longer is - it went from 244 to 862, "
+     "and the rows skipped for an unresolvable driver from 5,490 to 33.", 0,
+     "python3 tools/ergast_load.py --from-dump  (one hash-verified zip, a "
+     "few seconds). Then rerun verify.py. What remains skipped is 33 rows "
+     "for 14 drivers Jolpica records and F1DB does not hold at all, declared "
+     "in data/results.py DRIVER_NON_MAPPING - a source disagreement, not a "
+     "gap, and not something to close by inventing a driver."),
     ("chassis_id", "the chassis each race was won in, where a season is ambiguous",
      "The winning chassis is known for 874 of 1,161 races. It comes from "
      "F1DB's entry lists, resolved through the driver and the round: F1DB "
@@ -758,8 +752,9 @@ def load_f1db_countries():
 
 
 def load_f1db_drivers():
-    """driver_id, name, first_name, last_name, date_of_birth"""
-    return _read_pipe(F1DB_DRIVERS_FILE, 5)
+    """driver_id, name, first_name, last_name, date_of_birth, date_of_death,
+    abbreviation, nationality_country_id"""
+    return _read_pipe(F1DB_DRIVERS_FILE, 8)
 
 
 def load_entrant_drivers():
@@ -804,11 +799,12 @@ F1DB_DRIVER_ALIASES = {
 # that a later widening of the name match cannot quietly pick them up.
 F1DB_DRIVER_NON_MAPPING = {
     "emilio-de-villota":
-        "This register's `de-villota` is MARIA de Villota, who tested for "
-        "Marussia and never entered a Grand Prix. Emilio de Villota is a "
-        "different person - her father - who entered fifteen between 1976 and "
-        "1982. The names normalise to the same string and the two must not be "
-        "joined.",
+        "Kept out of the NAME-based resolver, not out of the register. This "
+        "register's `de-villota` is MARIA de Villota, who tested for Marussia "
+        "and never entered a Grand Prix. Emilio is a different person - her "
+        "father - who entered fifteen between 1976 and 1982, and he now has "
+        "his own row under his own F1DB id. The two must never be joined, "
+        "which is what this entry prevents.",
 }
 
 
@@ -825,6 +821,7 @@ def resolve_f1db_drivers(our_drivers):
     wins. And a register name that no F1DB driver matches is simply left
     unmapped; nothing is created from a bulk feed.
     """
+    ours_by_id = set(our_drivers)
     ours = {}
     for did, name in our_drivers.items():
         key = _norm(name)
@@ -832,7 +829,12 @@ def resolve_f1db_drivers(our_drivers):
     aliases = {_norm(k): v for k, v in DRIVER_ALIASES.items()}
 
     hits = {}
-    for f1db_id, name, first, last, _dob in load_f1db_drivers():
+    for f1db_id, name, first, last, _dob, _dod, _abbr, _nat in load_f1db_drivers():
+        if f1db_id in ours_by_id:
+            # Admitted under its own F1DB id, so it maps to itself and can
+            # never be pulled onto a namesake by the name match below.
+            hits.setdefault(f1db_id, set()).add(f1db_id)
+            continue
         if f1db_id in F1DB_DRIVER_NON_MAPPING:
             continue
         if f1db_id in F1DB_DRIVER_ALIASES:

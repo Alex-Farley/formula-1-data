@@ -660,16 +660,46 @@ tot = con.execute("SELECT COUNT(*) FROM race_entries").fetchone()[0]
 print(f"  [info] {linked} of {tot} race entries linked to a car "
       f"({100 * linked / tot:.0f}%)")
 
+print("\nTHE DRIVER REGISTER")
+from data import drivers as _D
+from data import results as _RS
+from data import harvest as _HV
+_drv_years = {}
+for _y, _e, _c, _em, _d, _rounds, _t in _HV.load_entrant_drivers():
+    if _rounds:
+        _drv_years.setdefault(_d, set()).add(_y)
+_ourd = {r[0] for r in con.execute("SELECT id FROM drivers")}
+_dmap, _dcoll = _HV.resolve_f1db_drivers(
+    dict(con.execute("SELECT id, full_name FROM drivers")))
+check("no two F1DB drivers normalise onto one register entry", not _dcoll,
+      "; ".join(f"{k} <- {v}" for k, v in list(_dcoll.items())[:4]))
+
+# Every driver F1DB records entering a championship race must be in the
+# register. Unlike constructors there is no Indianapolis exclusion: this
+# project has counted an Indianapolis start in 1950-60 as a World
+# Championship start since v2.1, when the ten Indianapolis winners were
+# added, and 73 of the drivers admitted here entered nothing else.
+_dgap = [d for d in _drv_years if d not in _dmap]
+check("every driver that entered a championship race is in the register",
+      not _dgap, "; ".join(sorted(_dgap)[:6]))
+_admitted_d = con.execute("""SELECT COUNT(*) FROM drivers
+    WHERE confidence = 'reference' AND source LIKE '%f1db%'""").fetchone()[0]
+print(f"  [info] {len(_ourd)} drivers, {_admitted_d} of them admitted from "
+      f"the F1DB register; {len(_RS.DRIVER_NON_MAPPING)} Jolpica drivers are "
+      f"declared as a source disagreement rather than created")
+_dupe = con.execute("""SELECT full_name, COUNT(*) n FROM drivers
+    GROUP BY LOWER(full_name) HAVING n > 1""").fetchall()
+check("no two register rows share a driver's full name", not _dupe,
+      "; ".join(f"{r[0]} x{r[1]}" for r in _dupe[:4]))
+
 print("\nTHE CONSTRUCTOR REGISTER")
 from data import teams as _T
-from data import harvest as _HV
 import collections as _coll
 _indy = {(y, r) for y, r in con.execute(
     "SELECT year, round FROM races WHERE gp_id='indianapolis-500'")}
 _ent = _coll.defaultdict(set)
 for _y, _e, _c, _em, _d, _rounds, _test in _HV.load_entrant_drivers():
-    if _test:
-        continue
+    # rounds, not the testDriver flag - see the note in build.py
     for _r in _rounds:
         _ent[_c].add((_y, _r))
 _ours = {r[0] for r in con.execute("SELECT id FROM constructors")}
