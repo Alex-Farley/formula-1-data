@@ -20,6 +20,7 @@ f1 — query tool for the F1 Verified Facts Database.
   ./f1 chassis lotus             one constructor's chassis
   ./f1 ambiguous                 seasons the entry lists cannot resolve
   ./f1 limits                    what each season's rules capped
+  ./f1 laps                      per-lap timing coverage, by season
   ./f1 evolution                 how the technology moved, car by car
   ./f1 telemetry                 what per-lap and radio data is loaded
   ./f1 rules 1994                regulation changes in a year
@@ -486,6 +487,23 @@ def main():
             print(f"  {r['from_year']}  {r['car']}")
             for line in textwrap.wrap(r["innovations"], W - 8):
                 print("        " + line)
+
+    elif cmd == "laps":
+        print("\n  Per-lap timing and pit stops, by season and source.")
+        print("  Empty in the distributed database: both loaders need the")
+        print("  network, and both sources are licensed for local use rather")
+        print("  than redistribution.\n")
+        rows = c.execute("""SELECT year, races, races_with_laps, laps,
+            races_with_stops, pit_stops, sources FROM v_lap_coverage
+            WHERE laps > 0 OR pit_stops > 0""").fetchall()
+        if not rows:
+            print("  No lap data loaded. To fill it:\n")
+            print("    python3 tools/ergast_load.py --from-dump --timing")
+            print("        1996- laps, 2011- pit stops, from Jolpica's dump\n")
+            print("    python3 tools/fastf1_load.py --years 2018-2026")
+            print("        2018- laps with sectors, tyre compound and stints\n")
+        else:
+            table(rows)
 
     elif cmd == "telemetry":
         n = {t: c.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0] for t in

@@ -791,7 +791,15 @@ CREATE TABLE laps (
     id              INTEGER PRIMARY KEY,
     race_id         INTEGER NOT NULL REFERENCES races(id),
     driver_id       TEXT REFERENCES drivers(id),
-    driver_code     TEXT,                      -- VER, HAM: FastF1's key
+    driver_code     TEXT,                      -- VER, HAM where the source has one
+    -- What the SOURCE keys this lap on, and the reason the two can coexist.
+    -- FastF1 identifies a driver by three-letter code and may not resolve a
+    -- register id; Jolpica resolves to a register id and mostly has no
+    -- abbreviation before the 2000s. Neither column is reliably present for
+    -- both, so each loader writes its own key here and the uniqueness is
+    -- (race, source, key, lap) - which lets both sources hold the same race
+    -- side by side, and verify.py compare them.
+    driver_key      TEXT NOT NULL,
     lap_number      INTEGER NOT NULL,
     position        INTEGER,
     lap_seconds     REAL,
@@ -807,8 +815,9 @@ CREATE TABLE laps (
     deleted         INTEGER,                   -- lap time deleted by the stewards
     deleted_reason  TEXT,
     track_status    TEXT,                      -- yellow, SC, VSC, red as flagged
+    is_fastest_lap  INTEGER,                   -- the driver's quickest of the race
     source          TEXT NOT NULL DEFAULT 'fastf1',
-    UNIQUE (race_id, driver_code, lap_number)
+    UNIQUE (race_id, source, driver_key, lap_number)
 );
 
 CREATE TABLE stints (
@@ -830,12 +839,17 @@ CREATE TABLE pit_stops (
     race_id         INTEGER NOT NULL REFERENCES races(id),
     driver_id       TEXT REFERENCES drivers(id),
     driver_code     TEXT,
+    driver_key      TEXT NOT NULL,             -- as laps.driver_key
     stop_number     INTEGER,
     lap_number      INTEGER,
-    stationary_seconds REAL,                   -- NULL: FastF1 gives pit lane
-    pit_lane_seconds REAL,                     -- time, not the stop itself
+    -- Both sources publish PIT LANE time - entry to exit, around 20-30 s -
+    -- not the two or three seconds the car is stationary. Storing the one we
+    -- have in the column that names it, and leaving the other NULL, is the
+    -- difference between a figure and a wrong figure.
+    stationary_seconds REAL,
+    pit_lane_seconds REAL,
     source          TEXT NOT NULL DEFAULT 'fastf1',
-    UNIQUE (race_id, driver_code, stop_number)
+    UNIQUE (race_id, source, driver_key, stop_number)
 );
 
 -- ------------------------------------------------------ radio and control
@@ -1187,13 +1201,21 @@ WITH RECURSIVE chain(root, id, full_name, from_year, depth) AS (
 SELECT root, id, full_name, from_year, depth FROM chain
 ORDER BY root, depth;
 
--- What per-lap data exists, by season. Empty until fastf1_load.py has run.
+-- What per-lap data exists, by season, and which source it came from.
+-- Empty in the distributed build: both loaders need network access, and both
+-- sources are licensed for local use rather than redistribution.
 CREATE VIEW v_lap_coverage AS
 SELECT r.year,
        COUNT(DISTINCT r.id) AS races,
        COUNT(DISTINCT CASE WHEN l.id IS NOT NULL THEN r.id END) AS races_with_laps,
-       COUNT(l.id) AS laps
-FROM races r LEFT JOIN laps l ON l.race_id = r.id
+       COUNT(l.id) AS laps,
+       COUNT(DISTINCT CASE WHEN p.id IS NOT NULL THEN r.id END) AS races_with_stops,
+       COUNT(DISTINCT p.id) AS pit_stops,
+       (SELECT GROUP_CONCAT(DISTINCT x.source) FROM laps x
+        WHERE x.race_id IN (SELECT id FROM races WHERE year = r.year)) AS sources
+FROM races r
+LEFT JOIN laps l ON l.race_id = r.id
+LEFT JOIN pit_stops p ON p.race_id = r.id
 GROUP BY r.year ORDER BY r.year;
 
 -- ------------------------------------------------ the chassis register

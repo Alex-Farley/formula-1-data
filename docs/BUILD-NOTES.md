@@ -3,6 +3,77 @@
 A running record of what changed in each version, what it exposed, and what
 was deliberately not done. Newest first.
 
+## v2.11 (2026-09-05) — lap times back to 1996
+
+`--timing` loads the dump's per-lap times and pit stops:
+**628,454 race laps covering 1996-2026** and **12,627 pit stops from 2011**.
+FastF1 starts at 2018, so this reaches twenty-two seasons further back than
+anything previously in the project's reach, and the whole load takes about
+fifteen seconds.
+
+Both tables stay empty in the distributed build. Same licence as the rest of
+the Jolpica data - CC BY-NC-SA, non-commercial - so they are loaded locally.
+
+### The two sources are allowed to disagree, so they can be compared
+
+`laps` was keyed `(race_id, driver_code, lap_number)`, which is FastF1's key:
+it identifies a driver by three-letter code. Jolpica resolves to a register
+id and mostly has no abbreviation before the 2000s, so that key would have
+collided on NULL and quietly duplicated rows on a rerun.
+
+Rather than overload one column with two meanings, each loader now writes
+what it keys on into `driver_key`, and uniqueness is
+`(race_id, source, driver_key, lap_number)`. Both sources can therefore hold
+the same race at once - and verify.py checks that where they do, they agree
+on each driver's lap count.
+
+### What the lap data proves
+
+The strongest check here re-derives a fact the database already holds, by a
+route sharing nothing with how it was established. `race_entries.fastest_lap`
+came from the Wikipedia pole and fastest-lap harvest; the laps came from
+Jolpica's dump. Take the quickest lap flagged as an entry's fastest, and the
+driver it names must be the driver already stored.
+
+**446 races, no disagreement.**
+
+That only works using the flag rather than the raw minimum, and the reason is
+a good one. At the 2021 Portuguese Grand Prix, Verstappen's 1:19.849 is the
+quickest time in the file and Bottas's 1:19.865 is the one flagged, because
+Verstappen's was struck for track limits. Ranking on time alone reports five
+disagreements - 2001 Japan, 2012 and 2015 Britain, 2021 Portugal, 2025 China
+- and every one is this. Jolpica does not mark the lap deleted; it declines
+to flag it as the entry's fastest, and that flag is the authoritative field.
+
+### A check that was too naive to survive real data
+
+`lap times are plausible` rejected anything over 900 seconds. The 2011
+Canadian Grand Prix, the longest race in the sport's history, has a lap 25 of
+**two hours and five minutes** - the red-flag suspension is recorded inside
+the lap it interrupted. 41 races contain such a lap and all 41 are genuine
+stoppages.
+
+Replaced with two checks that are actually true: a lap time must be positive,
+and no driver may have more long laps in one race than any race has had red
+flags. The observed maximum is three, at races stopped three times.
+
+`no lap data claims to predate live timing` had the same problem - it
+asserted 2018 because FastF1 was the only source. It is now per source:
+FastF1 laps may not predate 2018, Jolpica laps 1996, Jolpica pit stops 2011.
+
+### Two smaller things
+
+Pit stop `duration` is around 20-30 seconds, so it is **pit lane** time, not
+the two or three the car is stationary. It goes in `pit_lane_seconds` and
+`stationary_seconds` stays NULL, which is the difference between a figure and
+a wrong figure.
+
+`zhou` needed declaring in `DRIVER_ALIASES`. This register lists him family
+name first, as he is usually written, so the surname index holds "guanyu" and
+a source saying "Guanyu Zhou" found nothing. Declared rather than fixed by
+matching names order-insensitively, which would start joining genuinely
+different people.
+
 ## v2.10 (2026-09-05) — loading from the database dump
 
 `tools/ergast_load.py --from-dump` reads Jolpica's database dump instead of

@@ -54,6 +54,12 @@ DRIVER_ALIASES = {
     "villeneuve": "villeneuve-j",  # Jacques; Gilles is gilles_villeneuve
     "gilles_villeneuve": "villeneuve-g",
     "rathmann": "rathmann",        # Jim; Dick Rathmann is rathmann-d
+    # Name order, not ambiguity. This register lists him family name first,
+    # as he is usually written, so the surname index holds "guanyu" and a
+    # source saying "Guanyu Zhou" finds nothing. Declared rather than fixed
+    # by matching names order-insensitively, which would start joining
+    # genuinely different people.
+    "zhou": "zhou",
 }
 
 # ---------------------------------------------------------------------

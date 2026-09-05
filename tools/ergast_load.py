@@ -399,6 +399,155 @@ def compare_dump_to_api(a, lo, hi):
     return None
 
 
+def dump_timing(path, want_years):
+    """Race laps and pit stops from the dump.
+
+    Only the dump has these: the Ergast-compatible API this loader otherwise
+    uses does not expose per-lap timing at all. 628,454 race laps covering
+    1996-2026, and 12,627 pit stops covering 2011-2026 - which reaches
+    twenty-two seasons further back than FastF1's 2018 floor.
+
+    Returns (laps, stops) keyed by (year, round).
+    """
+    import csv
+    import io
+    import zipfile
+
+    z = zipfile.ZipFile(path)
+
+    def table(name, *cols):
+        want = f"formula_one_{name}.csv"
+        with z.open(want) as f:
+            r = csv.DictReader(io.TextIOWrapper(f, encoding="utf-8"))
+            missing = [c for c in cols if c not in (r.fieldnames or [])]
+            if missing:
+                sys.exit(f"{want} is missing column(s) {missing}; the dump's "
+                         f"layout has changed.")
+            for row in r:
+                yield row
+
+    def secs(t):
+        if not t:
+            return None
+        h, m, rest = t.split(":")
+        return int(h) * 3600 + int(m) * 60 + float(rest)
+
+    season = {r["id"]: int(r["year"]) for r in table("season", "id", "year")}
+    rounds = {}
+    for r in table("round", "id", "season_id", "number", "is_cancelled"):
+        if r["is_cancelled"] != "t" and r["number"]:
+            rounds[r["id"]] = (season[r["season_id"]], int(r["number"]))
+    sessions = {r["id"]: rounds[r["round_id"]]
+                for r in table("session", "id", "round_id", "type",
+                               "is_cancelled")
+                if r["type"] == "R" and r["is_cancelled"] != "t"
+                and r["round_id"] in rounds}
+    drivers = {r["id"]: (r["reference"], r["abbreviation"] or None,
+                         " ".join(x for x in (r["forename"], r["surname"]) if x))
+               for r in table("driver", "id", "reference", "abbreviation",
+                              "forename", "surname")}
+    team_driver = {r["id"]: r["driver_id"]
+                   for r in table("teamdriver", "id", "driver_id")}
+    round_entry = {r["id"]: r["team_driver_id"]
+                   for r in table("roundentry", "id", "team_driver_id")}
+    # session entry -> (year, round, driver reference, abbreviation, name)
+    entry = {}
+    for r in table("sessionentry", "id", "session_id", "round_entry_id"):
+        where = sessions.get(r["session_id"])
+        if where is None or where[0] not in want_years:
+            continue
+        d = drivers.get(team_driver.get(round_entry.get(r["round_entry_id"], ""), ""))
+        if d:
+            entry[r["id"]] = (where, d)
+
+    laps, stops, lap_row = {}, {}, {}
+    for r in table("lap", "id", "session_entry_id", "number", "position",
+                   "time", "is_deleted", "is_entry_fastest_lap"):
+        e = entry.get(r["session_entry_id"])
+        if e is None or not r["number"]:
+            continue
+        where, d = e
+        rec = {
+            "driver_ref": d[0], "code": d[1], "driver_name": d[2],
+            "lap": int(r["number"]),
+            "position": int(r["position"]) if r["position"] else None,
+            "seconds": secs(r["time"]),
+            "deleted": 1 if r["is_deleted"] == "t" else 0,
+            "fastest": 1 if r["is_entry_fastest_lap"] == "t" else 0,
+        }
+        laps.setdefault(where, []).append(rec)
+        lap_row[r["id"]] = (where, rec["lap"])
+
+    for r in table("pitstop", "session_entry_id", "lap_id", "number",
+                   "duration"):
+        e = entry.get(r["session_entry_id"])
+        if e is None:
+            continue
+        where, d = e
+        ln = lap_row.get(r["lap_id"])
+        stops.setdefault(where, []).append({
+            "driver_ref": d[0], "code": d[1], "driver_name": d[2],
+            "stop": int(r["number"]) if r["number"] else None,
+            "lap": ln[1] if ln else None,
+            # Around 20-30 seconds: this is pit LANE time, entry to exit, not
+            # the two or three the car is stationary. It goes in the column
+            # that says so.
+            "lane_seconds": secs(r["duration"]),
+        })
+    return laps, stops
+
+
+def load_timing(cur, path, lo, hi, resolve, dry_run):
+    """Write the dump's laps and pit stops, and report what could not be."""
+    want = set(range(lo, hi + 1))
+    laps, stops = dump_timing(path, want)
+    races = {(y, r): rid for rid, y, r in cur.execute(
+        "SELECT id, year, round FROM races")}
+    n_lap = n_stop = 0
+    skipped_race, skipped_driver = set(), set()
+    for where, rows in sorted(laps.items()):
+        rid = races.get(where)
+        if rid is None:
+            skipped_race.add(where)
+            continue
+        for r in rows:
+            did = resolve(r["driver_ref"], r["driver_name"])
+            if did is None:
+                skipped_driver.add(r["driver_ref"])
+                continue
+            if dry_run:
+                n_lap += 1
+                continue
+            cur.execute("""INSERT OR REPLACE INTO laps (race_id, driver_id,
+                driver_key, driver_code, lap_number, position, lap_seconds,
+                deleted, is_fastest_lap, source)
+                VALUES (?,?,?,?,?,?,?,?,?,'jolpica')""",
+                (rid, did, did, r["code"], r["lap"], r["position"],
+                 r["seconds"], r["deleted"], r["fastest"]))
+            n_lap += 1
+    for where, rows in sorted(stops.items()):
+        rid = races.get(where)
+        if rid is None:
+            skipped_race.add(where)
+            continue
+        for r in rows:
+            did = resolve(r["driver_ref"], r["driver_name"])
+            if did is None:
+                skipped_driver.add(r["driver_ref"])
+                continue
+            if dry_run:
+                n_stop += 1
+                continue
+            cur.execute("""INSERT OR REPLACE INTO pit_stops (race_id, driver_id,
+                driver_key, driver_code, stop_number, lap_number,
+                stationary_seconds, pit_lane_seconds, source)
+                VALUES (?,?,?,?,?,?,NULL,?,'jolpica')""",
+                (rid, did, did, r["code"], r["stop"], r["lap"],
+                 r["lane_seconds"]))
+            n_stop += 1
+    return n_lap, n_stop, skipped_race, skipped_driver
+
+
 def main():
     ap = argparse.ArgumentParser(
         description=__doc__,
@@ -425,6 +574,15 @@ def main():
                          "AND from the API and compare them row by row. The "
                          "API is the reference implementation - this is what "
                          "keeps the dump path honest as their schema moves.")
+    ap.add_argument("--timing", action="store_true",
+                    help="also load per-lap times and pit stops. Dump only - "
+                         "the Ergast-compatible API does not expose them. "
+                         "628k race laps from 1996 and 12.6k pit stops from "
+                         "2011, which reaches 22 seasons further back than "
+                         "FastF1. NOT committed: same non-commercial licence "
+                         "as the rest.")
+    ap.add_argument("--timing-only", action="store_true",
+                    help="load the laps and pit stops and nothing else")
     ap.add_argument("--dump-sha256",
                     help="require this exact dump. Pins a load to one "
                          "snapshot so it can be reproduced byte for byte.")
@@ -450,6 +608,9 @@ def main():
 
     if a.verify_dump:
         sys.exit(compare_dump_to_api(a, lo, hi))
+    if (a.timing or a.timing_only) and not a.from_dump:
+        sys.exit("--timing needs --from-dump: per-lap timing exists only in "
+                 "the database dump, not in the Ergast-compatible API.")
 
     from_dump = None
     source_note = f"{BASE}/{{year}}/results/"
@@ -460,6 +621,20 @@ def main():
                        f"{meta['file_hash'][:12]} ({meta['uploaded_at'][:10]})")
         print(f"  {sum(len(v) for v in from_dump.values())} race results "
               f"across {len(from_dump)} seasons in the dump")
+
+    if a.timing_only:
+        n_lap, n_stop, sk_race, sk_driver = load_timing(
+            cur, path, lo, hi, resolve, a.dry_run)
+        if not a.dry_run:
+            con.commit()
+        print(f"  {n_lap} laps and {n_stop} pit stops")
+        if sk_race:
+            print(f"  {len(sk_race)} race(s) in the dump are not in this "
+                  f"database: {sorted(sk_race)[:5]}")
+        if sk_driver:
+            print(f"  {len(sk_driver)} driver(s) not in the register, their "
+                  f"laps skipped")
+        return
 
     failed_years = []
     for year in range(lo, hi + 1):
@@ -626,6 +801,16 @@ def main():
     # register is authored with provenance per driver. The documented loop is
     # to add them to PODIUM_ONLY_DRIVERS, rebuild and rerun; a non-zero exit
     # is what makes that loop visible instead of optional.
+    if a.timing:
+        n_lap, n_stop, sk_race, sk_driver = load_timing(
+            cur, path, lo, hi, resolve, a.dry_run)
+        if not a.dry_run:
+            con.commit()
+        print(f"\n  timing: {n_lap} laps and {n_stop} pit stops")
+        if sk_driver:
+            print(f"  {len(sk_driver)} driver(s) not in the register, their "
+                  f"laps skipped")
+
     problems = []
     # A dump is a snapshot, and the free tier's is fourteen days old. Races
     # run since it was cut simply are not in it, and the load looks clean:

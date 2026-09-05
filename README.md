@@ -1,4 +1,4 @@
-# F1 Verified Facts Database — v2.10
+# F1 Verified Facts Database — v2.11
 
 An expansion of the original single-file JSON into a normalised, queryable
 SQLite database covering 1950–2026, with the JSON kept as a generated export.
@@ -12,6 +12,13 @@ harvested from Wikipedia's season tables under a new `reference` confidence tier
 replaces the per-race one, every Grand Prix now has a canonical id, and
 `audit.py` reports on the shape of the database rather than its contents.
 See *Structure* below.
+
+**v2.11** adds `--timing`, which loads **628,454 race laps back to 1996** and
+12,627 pit stops from 2011 out of the same dump — twenty-two seasons further
+back than FastF1 reaches. The two sources can now hold the same race side by
+side and be compared. The lap times re-derive each race's fastest lap, and it
+matches the setter already stored from the pole harvest on **all 446 races**
+where both exist. `./f1 laps` shows the coverage.
 
 **v2.10** adds `tools/ergast_load.py --from-dump`, which loads the full
 classification from Jolpica's hash-verified database dump rather than ~270
@@ -91,7 +98,7 @@ v2026.12.0.
 | `f1_compat.json` | JSON in the *original* v1 key layout, so anything already consuming that file keeps working. |
 | `schema.sql` | The schema, commented. |
 | `build.py` | Rebuilds `f1.db` from the data modules. Idempotent. |
-| `verify.py` | 138 integrity, cross-tabulation and sanity checks. Exit code 1 on failure. |
+| `verify.py` | 143 integrity, cross-tabulation and sanity checks. Exit code 1 on failure. |
 | `audit.py` | Structural health check: fill rates, coverage, keys, redundancy, readiness. |
 | `export_json.py` | Regenerates the JSON exports from the database. |
 | `data/*.py` | The source data, as readable Python literals. **Edit here, then rebuild.** |

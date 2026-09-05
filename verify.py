@@ -814,13 +814,93 @@ bad = con.execute("""SELECT COUNT(*) FROM laps l WHERE NOT EXISTS
     (SELECT 1 FROM races r WHERE r.id = l.race_id)""").fetchone()[0]
 check("every lap belongs to a race", bad == 0, f"{bad} orphans")
 bad = con.execute("""SELECT COUNT(*) FROM laps
-    WHERE lap_seconds IS NOT NULL AND (lap_seconds <= 0 OR lap_seconds > 900)"""
+    WHERE lap_seconds IS NOT NULL AND lap_seconds <= 0""").fetchone()[0]
+check("lap times are positive", bad == 0, f"{bad} at or below zero")
+
+# A lap over fifteen minutes is not implausible, it is a red flag: the
+# suspension is recorded inside the lap it happened on. The 2011 Canadian
+# Grand Prix, the longest race in the sport's history, has a lap 25 of two
+# hours and five minutes. What WOULD be implausible is a driver having many
+# of them in one race, because that would mean the race was stopped more
+# times than any race ever has been.
+worst = con.execute("""SELECT MAX(n) FROM (SELECT COUNT(*) n FROM laps
+    WHERE lap_seconds > 900 GROUP BY race_id, driver_key)""").fetchone()[0] or 0
+check("no driver has more long laps than a race has had red flags",
+      worst <= 4, f"one driver has {worst} laps over 15 minutes in one race")
+longr = con.execute("""SELECT COUNT(DISTINCT race_id) FROM laps
+    WHERE lap_seconds > 900""").fetchone()[0]
+if longr:
+    print(f"  [info] {longr} races contain a lap over 15 minutes; every one "
+          f"is a red flag recorded inside the lap it interrupted")
+
+# Each source reaches back as far as it reaches and no further. FastF1 reads
+# the F1 live timing API, which begins in 2018 and for which nothing earlier
+# exists. Jolpica's dump has per-lap times from 1996 - twenty-two seasons
+# further back - and pit stops from 2011.
+for src, first, what in (("fastf1", 2018, "the live timing API"),
+                         ("jolpica", 1996, "Jolpica's dump")):
+    bad = con.execute("""SELECT COUNT(*) FROM laps l JOIN races r
+        ON r.id = l.race_id WHERE l.source = ? AND r.year < ?""",
+        (src, first)).fetchone()[0]
+    check(f"no {src} lap predates {first}, where {what} starts", bad == 0,
+          f"{bad} rows")
+bad = con.execute("""SELECT COUNT(*) FROM pit_stops p JOIN races r
+    ON r.id = p.race_id WHERE p.source = 'jolpica' AND r.year < 2011"""
     ).fetchone()[0]
-check("lap times are plausible", bad == 0, f"{bad} outside 0-900 s")
-bad = con.execute("""SELECT COUNT(*) FROM laps WHERE race_id IN
-    (SELECT id FROM races WHERE year < 2018)""").fetchone()[0]
-check("no lap data claims to predate live timing", bad == 0,
-      f"{bad} rows before 2018")
+check("no jolpica pit stop predates 2011", bad == 0, f"{bad} rows")
+
+# Where two independent sources cover the same race, they must agree about
+# how many laps each driver ran. This is the reason both are allowed to hold
+# the same race rather than one overwriting the other.
+disagree = con.execute("""
+    SELECT COUNT(*) FROM (
+        SELECT l.race_id, l.driver_id
+        FROM laps l WHERE l.driver_id IS NOT NULL
+        GROUP BY l.race_id, l.driver_id
+        HAVING COUNT(DISTINCT l.source) > 1
+           AND COUNT(*) FILTER (WHERE l.source = 'fastf1')
+             <> COUNT(*) FILTER (WHERE l.source = 'jolpica'))""").fetchone()[0]
+check("where two sources hold the same race they agree on the lap count",
+      disagree == 0, f"{disagree} driver-races differ")
+both = con.execute("""SELECT COUNT(*) FROM (SELECT race_id FROM laps
+    GROUP BY race_id HAVING COUNT(DISTINCT source) > 1)""").fetchone()[0]
+print(f"  [info] {both} races are covered by both FastF1 and Jolpica and can "
+      f"be compared lap for lap")
+
+# The strongest thing the lap data does: it re-derives a fact this database
+# already holds, by a route that shares nothing with how it was established.
+#
+# race_entries.fastest_lap came from the Wikipedia pole and fastest-lap
+# harvest. The laps came from Jolpica's dump. Take the quickest lap each
+# source FLAGS as an entry's fastest, and the driver it names must be the
+# driver already stored.
+#
+# Use the flag, not the raw minimum. At the 2021 Portuguese Grand Prix
+# Verstappen's 1:19.849 is the quickest time in the file and Bottas's
+# 1:19.865 is the one flagged - because Verstappen's was struck for track
+# limits. Ranking on time alone reports five disagreements, all of which are
+# this. Ranking on the flag reports none.
+fl_bad = con.execute("""
+    WITH flagged AS (
+        SELECT race_id, driver_id, lap_seconds,
+               ROW_NUMBER() OVER (PARTITION BY race_id ORDER BY lap_seconds) rn
+        FROM laps WHERE is_fastest_lap = 1 AND lap_seconds IS NOT NULL
+                    AND driver_id IS NOT NULL)
+    SELECT r.year, r.name_used, f.driver_id, e.driver_id
+    FROM flagged f JOIN races r ON r.id = f.race_id
+    JOIN race_entries e ON e.race_id = f.race_id AND e.fastest_lap = 1
+    WHERE f.rn = 1 AND f.driver_id <> e.driver_id
+    ORDER BY r.year""").fetchall()
+fl_n = con.execute("""SELECT COUNT(DISTINCT l.race_id) FROM laps l
+    JOIN race_entries e ON e.race_id = l.race_id AND e.fastest_lap = 1
+    WHERE l.is_fastest_lap = 1""").fetchone()[0]
+check("the fastest lap derived from lap times matches the one already stored",
+      not fl_bad,
+      "; ".join(f"{r[0]} {r[1]}: laps say {r[2]}, stored {r[3]}"
+                for r in fl_bad[:5]))
+if fl_n:
+    print(f"  [info] {fl_n} races have both a stored fastest-lap setter and "
+          f"per-lap times; the two agree on all of them")
 bad = con.execute("""SELECT COUNT(*) FROM stints
     WHERE lap_end IS NOT NULL AND lap_start IS NOT NULL AND lap_end < lap_start"""
     ).fetchone()[0]

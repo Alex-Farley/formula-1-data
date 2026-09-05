@@ -1,6 +1,6 @@
 {
   "database_name": "F1 Verified Facts Project Memory Database",
-  "version": "2.10",
+  "version": "2.11",
   "verification_date": "2026-09-05",
   "verification_policy": {
     "confidence_ladder": [

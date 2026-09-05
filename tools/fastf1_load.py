@@ -156,12 +156,12 @@ def load_laps(cur, rid, session, dmap):
         num = val(lap.get("LapNumber"))
         if code is None or num is None:
             continue
-        cur.execute("""INSERT OR REPLACE INTO laps (race_id, driver_id, driver_code,
+        cur.execute("""INSERT OR REPLACE INTO laps (race_id, driver_id, driver_key, driver_code,
             lap_number, position, lap_seconds, sector1_seconds, sector2_seconds,
             sector3_seconds, speed_trap_kph, compound, tyre_life, fresh_tyre,
             stint, is_personal_best, deleted, deleted_reason, track_status, source)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'fastf1')""",
-            (rid, dmap.get(code), code, int(num), val(lap.get("Position")),
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'fastf1')""",
+            (rid, dmap.get(code), code, code, int(num), val(lap.get("Position")),
              secs(lap.get("LapTime")), secs(lap.get("Sector1Time")),
              secs(lap.get("Sector2Time")), secs(lap.get("Sector3Time")),
              val(lap.get("SpeedST")), val(lap.get("Compound")),
@@ -227,9 +227,9 @@ def load_pit_stops(cur, rid, session, dmap):
                 if out is not None and inn is not None and out > inn:
                     lane = out - inn
             cur.execute("""INSERT OR REPLACE INTO pit_stops (race_id, driver_id,
-                driver_code, stop_number, lap_number, stationary_seconds,
-                pit_lane_seconds, source) VALUES (?,?,?,?,?,NULL,?,'fastf1')""",
-                (rid, dmap.get(code), code, stop, ln, lane))
+                driver_key, driver_code, stop_number, lap_number, stationary_seconds,
+                pit_lane_seconds, source) VALUES (?,?,?,?,?,?,NULL,?,'fastf1')""",
+                (rid, dmap.get(code), code, code, stop, ln, lane))
             n += 1
     return n
 

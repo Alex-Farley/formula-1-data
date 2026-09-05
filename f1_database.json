@@ -1,6 +1,6 @@
 {
   "database_name": "F1 Verified Facts Project Memory Database",
-  "version": "2.10",
+  "version": "2.11",
   "built": "2026-09-05",
   "verification_policy": {
     "confidence_ladder": [
@@ -168032,9 +168032,9 @@
       "id": 5,
       "field": "laps",
       "area": "lap times, tyre stints, pit stops, radio and telemetry",
-      "description": "Formula 1 publishes per-lap timing only from 2018, through the live timing API. The laps, stints, pit_stops, race_control_messages and team_radio tables exist and are empty in the distributed database because this build environment has no network access to that API. tools/fastf1_load.py fills them - see ./f1 telemetry. Car telemetry itself (speed, throttle, brake, gear at about 4 Hz) is deliberately NOT stored here: it is hundreds of megabytes per weekend and the loader writes it to Parquet beside the database instead. There is no lap-by-lap data of any kind before 2018 and there is no prospect of any: it was never recorded in a retrievable form.",
+      "description": "The laps, stints, pit_stops, race_control_messages and team_radio tables are EMPTY in the distributed database, and that is a licensing and reproducibility decision rather than a missing harvest. Two sources fill them, and between them they reach further back than the 2018 floor this gap used to describe. Jolpica's database dump has 628,454 race laps from 1996 and 12,627 pit stops from 2011 - twenty-two seasons more than was previously thought available - but its Ergast lineage is CC BY-NC-SA, non-commercial, so the rows are loaded locally and never committed. FastF1 reads the F1 live timing API, which begins in 2018 and for which nothing earlier exists in any retrievable form; it adds sectors, tyre compound, stints and race control, none of which Jolpica has. Both may hold the same race at once - the schema keys a lap on (race, source, driver, lap) precisely so they can be compared rather than one overwriting the other. Car telemetry (speed, throttle, brake, gear at about 4 Hz) is deliberately NOT stored here at all: it is hundreds of megabytes per weekend and fastf1_load.py writes it to Parquet beside the database.",
       "races_affected": 0,
-      "resolution": "pip install fastf1, then python3 tools/fastf1_load.py --years 2018-2026 --results --radio. That also fills the full classified finishing order for those seasons, checked against the winner already stored."
+      "resolution": "python3 tools/ergast_load.py --from-dump --timing   (1996-, one hash-verified zip, about fifteen seconds), and/or pip install fastf1 && python3 tools/fastf1_load.py --years 2018-2026 --results --radio. Then ./f1 laps. verify.py re-derives each race's fastest lap from the lap times and checks it against the setter already stored from the pole harvest - 446 races, no disagreement."
     },
     {
       "id": 6,
