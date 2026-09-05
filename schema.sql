@@ -44,7 +44,13 @@ CREATE TABLE source_registry (
     source          TEXT NOT NULL,
     url             TEXT,
     use             TEXT,
-    authority       TEXT NOT NULL DEFAULT 'official'  -- official | reference | forbidden
+    authority       TEXT NOT NULL DEFAULT 'official',  -- official | reference | forbidden
+    -- A source is judged on these three, not on how much data it has. The
+    -- largest dataset in the sport is worth nothing here if its values
+    -- cannot be checked against something held independently.
+    licence         TEXT,     -- what you may actually do with the data
+    cadence         TEXT,     -- how often it is updated, and by whom
+    checkability    TEXT      -- what in this database can contradict it
 );
 
 -- ------------------------------------------------------------- people
@@ -321,6 +327,162 @@ CREATE TABLE cars (
     UNIQUE (constructor_id, designation)
 );
 
+-- ------------------------------------------------- the chassis register
+--
+-- `cars` above is a curated set: a design, its story and what it changed,
+-- researched one at a time. `chassis` is the opposite - every chassis that
+-- has raced, 1,153 of them, loaded from F1DB by tools/f1db_fetch.py without
+-- a person in the middle.
+--
+-- The two are different things and are deliberately not merged. A `cars` row
+-- is a design family (one row covers the Ferrari 312T through 312T5, because
+-- that is how Wikipedia, and the sport, treat it). A `chassis` row is one
+-- machine as entered. The link between them runs through `chassis.car_id`,
+-- and where both hold the same figure the build compares them instead of
+-- picking one: a specification derived twice by different routes is the
+-- strongest evidence this database has, and a disagreement goes to
+-- `discrepancies` rather than being resolved silently.
+CREATE TABLE chassis (
+    id              TEXT PRIMARY KEY,          -- f1db id: ferrari-312t2
+    constructor_id  TEXT REFERENCES constructors(id),  -- NULL where this
+                                               -- database has no constructor
+    f1db_constructor_id TEXT NOT NULL,         -- always present
+    name            TEXT NOT NULL,             -- "312T2"
+    full_name       TEXT NOT NULL,             -- "Ferrari 312T2"
+    car_id          TEXT REFERENCES cars(id),  -- the design family, if curated
+    first_year      INTEGER,                   -- first season entered
+    last_year       INTEGER,                   -- last season entered
+    seasons         INTEGER NOT NULL DEFAULT 0,
+    -- specifications harvested from the chassis's own Wikipedia article.
+    -- NULL is "not established" throughout, and is never a zero or a guess.
+    -- A figure that is only the season's regulation limit is NOT stored here
+    -- - it lives in regulation_limits, where a rule belongs.
+    article         TEXT,                      -- the article the specs came from
+    designers       TEXT,
+    chassis_type    TEXT,
+    susp_front      TEXT,
+    susp_rear       TEXT,
+    engine_name     TEXT,
+    engine_config   TEXT,
+    aspiration      TEXT,
+    engine_position TEXT,
+    gearbox         TEXT,
+    gears           TEXT,
+    brakes          TEXT,
+    fuel            TEXT,
+    tyres           TEXT,
+    capacity_cc     INTEGER,
+    power_bhp       INTEGER,
+    power_note      TEXT,
+    weight_kg       REAL,
+    wheelbase_mm    INTEGER,
+    track_front_mm  INTEGER,
+    track_rear_mm   INTEGER,
+    fuel_capacity_l INTEGER,
+    predecessor     TEXT,
+    successor       TEXT,
+    -- published career figures off the same article. Not specifications:
+    -- these are the numbers the database derives from its own race records,
+    -- and comparing the two is what proves a linkage rather than assuming it.
+    published_races INTEGER,
+    published_wins  INTEGER,
+    published_poles INTEGER,
+    -- derived at build time from race_entries, never stored by hand
+    races           INTEGER NOT NULL DEFAULT 0,
+    wins            INTEGER NOT NULL DEFAULT 0,
+    confidence      TEXT NOT NULL DEFAULT 'reference' REFERENCES provenance(confidence),
+    spec_source     TEXT,
+    source          TEXT NOT NULL
+);
+
+-- The record of which CAR_SEASONS claims the entry lists corroborate.
+--
+-- data/cars.py asserts, per (car, season), that every race the constructor
+-- won, took pole for or set fastest lap in that year was in this car. That is
+-- an authored claim, and this table is where it stops being trusted and
+-- starts being checked: `corroborated` is 1 only where the season's entry
+-- lists name no chassis outside the ones the car covers.
+--
+-- Where it is 0, `other_chassis` says what else the constructor ran, and the
+-- blanket link is NOT made - an entry that season gets a car only if the
+-- entry lists resolved its chassis outright. The claim was safe for wins by
+-- luck rather than by construction, and the moment poles could be attributed
+-- it showed: McLaren ran the M23 and M26 through 1976-77, and the blanket
+-- gave the M23 sixteen poles against a published career fourteen.
+CREATE TABLE car_seasons (
+    car_id          TEXT NOT NULL REFERENCES cars(id),
+    year            INTEGER NOT NULL,
+    corroborated    INTEGER NOT NULL,
+    other_chassis   TEXT,                      -- '+'-separated, when not
+    PRIMARY KEY (car_id, year)
+);
+
+-- Who entered what, per season: the mapping that lets a race be tied to a
+-- chassis at all. One row per (season, entrant, constructor).
+--
+-- The `+`-separated lists are the point of this table rather than an
+-- awkwardness in it. F1DB records which chassis a constructor ran in a
+-- season; it does NOT record which chassis ran in which round. Where a team
+-- ran two designs both are listed, and splitting them into separate rows
+-- would invent an attribution the source never made. `chassis_count` = 1 is
+-- exactly the case where the season constrains the chassis, and it is the
+-- only case build.py will link a race entry from.
+CREATE TABLE season_entrants (
+    id              INTEGER PRIMARY KEY,
+    year            INTEGER NOT NULL REFERENCES seasons(year),
+    entrant_id      TEXT NOT NULL,             -- f1db entrant id
+    f1db_constructor_id TEXT NOT NULL,
+    constructor_id  TEXT REFERENCES constructors(id),
+    -- part of the grain, not decoration: Team Lotus in 1966 is one entrant
+    -- with two constructor blocks, both Lotus, one on Climax and one on BRM.
+    engine_manufacturer_id TEXT,
+    chassis_ids     TEXT,                      -- '+'-separated
+    chassis_count   INTEGER NOT NULL DEFAULT 0,
+    engine_ids      TEXT,                      -- '+'-separated
+    tyre_ids        TEXT,                      -- '+'-separated
+    confidence      TEXT NOT NULL DEFAULT 'reference' REFERENCES provenance(confidence),
+    source          TEXT NOT NULL,
+    UNIQUE (year, entrant_id, f1db_constructor_id, engine_manufacturer_id)
+);
+
+-- Every engine that has raced, with the three specifications F1DB carries.
+CREATE TABLE engines (
+    id              TEXT PRIMARY KEY,
+    manufacturer_id TEXT REFERENCES engine_manufacturers(id),
+    f1db_manufacturer_id TEXT NOT NULL,
+    name            TEXT NOT NULL,
+    full_name       TEXT NOT NULL,
+    capacity_l      REAL,
+    configuration   TEXT,                      -- V10, F12, L6 ...
+    aspiration      TEXT,                      -- NATURALLY_ASPIRATED | TURBOCHARGED
+    confidence      TEXT NOT NULL DEFAULT 'reference' REFERENCES provenance(confidence),
+    source          TEXT NOT NULL
+);
+
+-- Numeric limits the regulations put on every car in a season.
+--
+-- Here rather than on a car because that is what they are. Most "weight"
+-- quoted for a modern car is the season's minimum, and the 2026 figures in
+-- circulation - 768 kg, 3,400 mm, 1,900 mm - are rules, not measurements of
+-- anything. A per-car field holding one of them would be inference presented
+-- as fact.
+--
+-- The series has holes on purpose: a row covers from_year..to_year, and
+-- to_year is set only where a source records the next change. Carrying a
+-- value across an unrecorded change would invent a limit.
+CREATE TABLE regulation_limits (
+    id              INTEGER PRIMARY KEY,
+    from_year       INTEGER NOT NULL,
+    to_year         INTEGER NOT NULL,
+    field           TEXT NOT NULL,             -- minimum_weight_kg, maximum_width_mm
+    value           REAL NOT NULL,
+    unit            TEXT NOT NULL,
+    note            TEXT,
+    confidence      TEXT NOT NULL REFERENCES provenance(confidence),
+    source          TEXT NOT NULL,
+    UNIQUE (from_year, field)
+);
+
 CREATE TABLE grands_prix (
     id              TEXT PRIMARY KEY,
     name            TEXT NOT NULL,
@@ -376,7 +538,12 @@ CREATE TABLE race_entries (
     race_id         INTEGER NOT NULL REFERENCES races(id),
     driver_id       TEXT NOT NULL REFERENCES drivers(id),
     constructor_id  TEXT REFERENCES constructors(id),
-    car_id          TEXT REFERENCES cars(id),  -- the specific chassis model
+    car_id          TEXT REFERENCES cars(id),  -- the curated design family
+    -- The chassis as entered. Filled only where the season's entry list
+    -- names exactly one chassis for the constructor, which is the only case
+    -- in which the season constrains it; NULL everywhere else, including
+    -- every season a team ran two designs.
+    chassis_id      TEXT REFERENCES chassis(id),
     entrant         TEXT,                      -- chassis-engine as published
     grid            INTEGER,                   -- 1 = pole position
     finish_position INTEGER,                   -- 1 = race win
@@ -411,6 +578,11 @@ CREATE INDEX idx_entries_race_grid ON race_entries(race_id, grid);
 CREATE INDEX idx_entries_race_fl   ON race_entries(race_id, fastest_lap);
 CREATE INDEX idx_entries_driver_pos ON race_entries(driver_id, finish_position);
 CREATE INDEX idx_entries_car     ON race_entries(car_id);
+CREATE INDEX idx_entries_chassis ON race_entries(chassis_id);
+CREATE INDEX idx_chassis_cons    ON chassis(constructor_id);
+CREATE INDEX idx_chassis_car     ON chassis(car_id);
+CREATE INDEX idx_chassis_years   ON chassis(first_year, last_year);
+CREATE INDEX idx_entrants_year   ON season_entrants(year, constructor_id);
 CREATE INDEX idx_cars_constructor ON cars(constructor_id);
 CREATE INDEX idx_cars_years       ON cars(from_year, to_year);
 
@@ -619,7 +791,15 @@ CREATE TABLE laps (
     id              INTEGER PRIMARY KEY,
     race_id         INTEGER NOT NULL REFERENCES races(id),
     driver_id       TEXT REFERENCES drivers(id),
-    driver_code     TEXT,                      -- VER, HAM: FastF1's key
+    driver_code     TEXT,                      -- VER, HAM where the source has one
+    -- What the SOURCE keys this lap on, and the reason the two can coexist.
+    -- FastF1 identifies a driver by three-letter code and may not resolve a
+    -- register id; Jolpica resolves to a register id and mostly has no
+    -- abbreviation before the 2000s. Neither column is reliably present for
+    -- both, so each loader writes its own key here and the uniqueness is
+    -- (race, source, key, lap) - which lets both sources hold the same race
+    -- side by side, and verify.py compare them.
+    driver_key      TEXT NOT NULL,
     lap_number      INTEGER NOT NULL,
     position        INTEGER,
     lap_seconds     REAL,
@@ -635,8 +815,9 @@ CREATE TABLE laps (
     deleted         INTEGER,                   -- lap time deleted by the stewards
     deleted_reason  TEXT,
     track_status    TEXT,                      -- yellow, SC, VSC, red as flagged
+    is_fastest_lap  INTEGER,                   -- the driver's quickest of the race
     source          TEXT NOT NULL DEFAULT 'fastf1',
-    UNIQUE (race_id, driver_code, lap_number)
+    UNIQUE (race_id, source, driver_key, lap_number)
 );
 
 CREATE TABLE stints (
@@ -658,12 +839,17 @@ CREATE TABLE pit_stops (
     race_id         INTEGER NOT NULL REFERENCES races(id),
     driver_id       TEXT REFERENCES drivers(id),
     driver_code     TEXT,
+    driver_key      TEXT NOT NULL,             -- as laps.driver_key
     stop_number     INTEGER,
     lap_number      INTEGER,
-    stationary_seconds REAL,                   -- NULL: FastF1 gives pit lane
-    pit_lane_seconds REAL,                     -- time, not the stop itself
+    -- Both sources publish PIT LANE time - entry to exit, around 20-30 s -
+    -- not the two or three seconds the car is stationary. Storing the one we
+    -- have in the column that names it, and leaving the other NULL, is the
+    -- difference between a figure and a wrong figure.
+    stationary_seconds REAL,
+    pit_lane_seconds REAL,
     source          TEXT NOT NULL DEFAULT 'fastf1',
-    UNIQUE (race_id, driver_code, stop_number)
+    UNIQUE (race_id, source, driver_key, stop_number)
 );
 
 -- ------------------------------------------------------ radio and control
@@ -1015,11 +1201,81 @@ WITH RECURSIVE chain(root, id, full_name, from_year, depth) AS (
 SELECT root, id, full_name, from_year, depth FROM chain
 ORDER BY root, depth;
 
--- What per-lap data exists, by season. Empty until fastf1_load.py has run.
+-- What per-lap data exists, by season, and which source it came from.
+-- Empty in the distributed build: both loaders need network access, and both
+-- sources are licensed for local use rather than redistribution.
 CREATE VIEW v_lap_coverage AS
+-- Counted in subqueries rather than by joining both tables to `races` at
+-- once. Joining laps AND pit_stops in one query multiplies them: ten laps
+-- and two stops in a race renders as twenty laps, because every lap row is
+-- paired with every stop row. COUNT(DISTINCT ...) hides it for the ids and
+-- not for anything else, which is worse than failing outright.
 SELECT r.year,
-       COUNT(DISTINCT r.id) AS races,
-       COUNT(DISTINCT CASE WHEN l.id IS NOT NULL THEN r.id END) AS races_with_laps,
-       COUNT(l.id) AS laps
-FROM races r LEFT JOIN laps l ON l.race_id = r.id
+       COUNT(*) AS races,
+       (SELECT COUNT(DISTINCT l.race_id) FROM laps l
+        JOIN races x ON x.id = l.race_id WHERE x.year = r.year)
+           AS races_with_laps,
+       (SELECT COUNT(*) FROM laps l
+        JOIN races x ON x.id = l.race_id WHERE x.year = r.year) AS laps,
+       (SELECT COUNT(DISTINCT p.race_id) FROM pit_stops p
+        JOIN races x ON x.id = p.race_id WHERE x.year = r.year)
+           AS races_with_stops,
+       (SELECT COUNT(*) FROM pit_stops p
+        JOIN races x ON x.id = p.race_id WHERE x.year = r.year) AS pit_stops,
+       (SELECT GROUP_CONCAT(DISTINCT l.source) FROM laps l
+        JOIN races x ON x.id = l.race_id WHERE x.year = r.year) AS sources
+FROM races r
 GROUP BY r.year ORDER BY r.year;
+
+-- ------------------------------------------------ the chassis register
+--
+-- Every chassis that has raced, with whatever specification has been
+-- established for it. `specs` says where that came from: 'harvested' where
+-- the car's own article was read and accepted, 'register only' where the
+-- chassis is known to exist and nothing more.
+CREATE VIEW v_chassis AS
+SELECT ch.id, ch.full_name AS chassis, COALESCE(t.name, ch.f1db_constructor_id)
+           AS constructor,
+       ch.first_year, ch.last_year, ch.seasons,
+       ch.races AS recorded_races, ch.wins, ch.published_wins,
+       ch.engine_name, ch.engine_config, ch.capacity_cc, ch.aspiration,
+       ch.power_bhp, ch.chassis_type, ch.weight_kg, ch.wheelbase_mm,
+       ch.car_id, ch.article,
+       CASE WHEN ch.article IS NULL THEN 'register only' ELSE 'harvested' END
+           AS specs
+FROM chassis ch LEFT JOIN constructors t ON t.id = ch.constructor_id
+ORDER BY ch.first_year, ch.full_name;
+
+-- What the chassis register actually covers, by decade. The shape of this is
+-- the finding, not an accident: a modern team runs one car all season and the
+-- entry list settles it, while a 1960s "constructor" was a name several
+-- privateers entered several different chassis under, and the season settles
+-- nothing.
+CREATE VIEW v_chassis_coverage AS
+SELECT (r.year / 10) * 10 AS decade,
+       COUNT(*) AS race_entries,
+       SUM(CASE WHEN e.chassis_id IS NOT NULL THEN 1 ELSE 0 END) AS with_chassis,
+       ROUND(100.0 * SUM(CASE WHEN e.chassis_id IS NOT NULL THEN 1 ELSE 0 END)
+             / COUNT(*), 1) AS pct
+FROM race_entries e JOIN races r ON r.id = e.race_id
+GROUP BY decade ORDER BY decade;
+
+-- Every constructor-season the entry lists cannot resolve to one chassis,
+-- with the chassis it was choosing between. This is the open half of
+-- known_gaps #1, listed rather than described.
+CREATE VIEW v_ambiguous_seasons AS
+SELECT se.year, COALESCE(t.name, se.f1db_constructor_id) AS constructor,
+       GROUP_CONCAT(DISTINCT se.chassis_ids) AS chassis,
+       (SELECT COUNT(*) FROM race_entries e JOIN races r ON r.id = e.race_id
+        WHERE r.year = se.year AND e.constructor_id = se.constructor_id)
+           AS unlinked_entries
+FROM season_entrants se LEFT JOIN constructors t ON t.id = se.constructor_id
+WHERE se.chassis_ids IS NOT NULL
+GROUP BY se.year, se.f1db_constructor_id
+HAVING COUNT(DISTINCT se.chassis_ids) > 1 OR MAX(se.chassis_count) > 1
+ORDER BY unlinked_entries DESC, se.year;
+
+-- What each season's rules capped or required, next to nothing else.
+CREATE VIEW v_regulation_limits AS
+SELECT field, from_year, to_year, value, unit, note, confidence, source
+FROM regulation_limits ORDER BY field, from_year;

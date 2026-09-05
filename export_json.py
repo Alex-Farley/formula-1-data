@@ -24,6 +24,36 @@ def dump(con, table, order=None):
     return [dict(r) for r in con.execute(q)]
 
 
+# Tables deliberately left out of the export, with the reason. Anything not
+# exported and not listed here fails the completeness check below, so a new
+# table cannot go missing quietly - which is exactly what happened to the
+# chassis register until someone counted.
+NOT_EXPORTED = {
+    "meta": "unwrapped into the top-level keys instead",
+    "provenance": "nested inside verification_policy",
+    "laps": "filled locally by tools/fastf1_load.py; FOM's data, never shipped",
+    "stints": "as laps",
+    "pit_stops": "as laps",
+    "race_control_messages": "as laps",
+}
+
+
+def check_complete(con, out):
+    """Every table is either exported or declared unexportable."""
+    tables = {r[0] for r in con.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' "
+        "AND name NOT LIKE 'sqlite_%'")}
+    missing = tables - set(out) - set(NOT_EXPORTED)
+    if missing:
+        sys.exit(f"export_json.py: {len(missing)} table(s) are neither "
+                 f"exported nor declared in NOT_EXPORTED: "
+                 f"{', '.join(sorted(missing))}")
+    stale = set(NOT_EXPORTED) - tables
+    if stale:
+        sys.exit(f"export_json.py: NOT_EXPORTED names table(s) that no longer "
+                 f"exist: {', '.join(sorted(stale))}")
+
+
 def main():
     con = sqlite3.connect(DB)
     con.row_factory = sqlite3.Row
@@ -50,6 +80,11 @@ def main():
         "engine_manufacturers": dump(con, "engine_manufacturers", "first_year"),
         "engine_eras": dump(con, "engine_eras", "from_year"),
         "cars": dump(con, "cars", "wins DESC, from_year"),
+        "chassis": dump(con, "chassis", "first_year, full_name"),
+        "engines": dump(con, "engines", "full_name"),
+        "season_entrants": dump(con, "season_entrants", "year, entrant_id"),
+        "regulation_limits": dump(con, "regulation_limits", "field, from_year"),
+        "car_seasons": dump(con, "car_seasons", "car_id, year"),
         "circuits": dump(con, "circuits", "country, name"),
         "circuit_layouts": dump(con, "circuit_layouts", "circuit_id, from_year"),
         "grands_prix": dump(con, "grands_prix", "first_held"),
@@ -82,6 +117,8 @@ def main():
     # exported: they are empty in the distributed build and, once
     # tools/fastf1_load.py has run, run to hundreds of thousands of rows.
     # Query them in SQLite, or export them yourself.
+
+    check_complete(con, out)
 
     path = os.path.join(HERE, "f1_database.json")
     with open(path, "w", encoding="utf-8") as f:

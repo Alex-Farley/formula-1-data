@@ -210,11 +210,26 @@ indy = con.execute("""SELECT COUNT(*) FROM race_entries e JOIN races r ON r.id=e
       AND r.gp_id='indianapolis-500'""").fetchone()[0]
 check("all constructor-less winners are Indianapolis 500s", indy == nocons)
 
-shared = con.execute("""SELECT r.year, r.name_used FROM races r
-    JOIN race_entries e ON e.race_id=r.id AND e.shared_drive=1
-    GROUP BY r.id ORDER BY r.year""").fetchall()
-check("shared drives are recorded with both drivers", len(shared) == 3,
-      "; ".join(f"{r[0]} {r[1]}" for r in shared))
+# Shared drives. This used to assert a count of exactly 3, which was the
+# number the winner harvest happened to record - a constant, not a property.
+# The full classification finds 42 races with a shared car, which is correct:
+# sharing was routine in the 1950s and only died out in the 1960s. So check
+# what is actually true of a shared drive instead of how many there are.
+shared_races = con.execute("""SELECT COUNT(DISTINCT race_id) FROM race_entries
+    WHERE shared_drive = 1""").fetchone()[0]
+late = con.execute("""SELECT r.year, r.name_used FROM races r
+    JOIN race_entries e ON e.race_id = r.id AND e.shared_drive = 1
+    WHERE r.year > 1964 GROUP BY r.id ORDER BY r.year""").fetchall()
+check("no shared drive after 1964, when the practice ended", not late,
+      "; ".join(f"{r[0]} {r[1]}" for r in late))
+noplace = con.execute("""SELECT COUNT(*) FROM race_entries
+    WHERE shared_drive = 1 AND finish_position IS NULL""").fetchone()[0]
+check("every shared drive is a classified finish", noplace == 0,
+      f"{noplace} with no position")
+print(f"  [info] {shared_races} races have a shared car. The two drivers are "
+      f"not always both present: this register holds a few hundred of the "
+      f"~780 who have started a Grand Prix, so a co-driver outside it is "
+      f"skipped rather than invented")
 
 print("\nWIN TALLIES: stored figures vs figures derived from race results")
 bad = []
@@ -529,6 +544,11 @@ print(f"  [info] {bad} drivers in the register have no race entry yet "
 
 print("\nCARS")
 from data import cars as _CR
+# The (car, year) pairs the season entry lists actually corroborate, which is
+# what decides whether a car's derived win count must EQUAL its published one
+# or merely not exceed it.
+_corroborated = {(r[0], r[1]) for r in con.execute(
+    "SELECT car_id, year FROM car_seasons WHERE corroborated = 1")}
 nc = con.execute("SELECT COUNT(*) FROM cars").fetchone()[0]
 lm = con.execute("SELECT COUNT(*) FROM cars WHERE landmark=1").fetchone()[0]
 print(f"  [info] {nc} cars in the register, {lm} with a full deep dive")
@@ -561,10 +581,15 @@ check("no entry falls outside its car's years", not bad,
       "; ".join(f"{r[0]} {r[1]} ({r[2]}-{r[3]})" for r in bad))
 
 # The strongest car check. A car cannot have won more races than the number
-# published on its own reference page; and where CAR_SEASONS covers every
-# year the car raced, the derived total must EQUAL the published one. Poles
-# are a lower bound only - see the note in data/cars.py.
-over, neq, checked = [], [], 0
+# published on its own reference page; and where every year it raced is
+# linked, the derived total must EQUAL the published one.
+#
+# Poles used to be a lower bound and nothing more. The pole harvest recorded
+# who took pole but not what they drove, so 1,260 entries carried no
+# constructor and could not reach a car at all. The season entry lists supply
+# that constructor now, and a fully linked car's pole count must match its
+# published figure exactly, on the same terms as its wins.
+over, neq, npeq, checked = [], [], [], 0
 for cid, (ew, ep) in _CR.EXPECTED.items():
     row = con.execute("""SELECT wins, poles, from_year, to_year FROM cars
                          WHERE id=?""", (cid,)).fetchone()
@@ -572,23 +597,41 @@ for cid, (ew, ep) in _CR.EXPECTED.items():
         over.append(f"{cid}: not in the register")
         continue
     w, p, fy, ty = row
-    complete = _CR.seasons_complete(cid, fy, ty)
+    complete = _CR.seasons_complete(cid, fy, ty, _corroborated)
     if ew is not None:
         checked += 1
         if w > ew:
             over.append(f"{cid}: derived {w} wins, published {ew}")
         elif complete and w != ew:
             neq.append(f"{cid}: all seasons linked but {w} wins, published {ew}")
-    if ep is not None and p > ep:
-        over.append(f"{cid}: derived {p} poles, published {ep}")
+    if ep is not None:
+        if p > ep:
+            over.append(f"{cid}: derived {p} poles, published {ep}")
+        elif complete and p != ep:
+            npeq.append(f"{cid}: all seasons linked but {p} poles, "
+                        f"published {ep}")
 check("no car has more wins or poles than its published total", not over,
       "; ".join(over))
 check("fully linked cars match their published win total exactly", not neq,
       "; ".join(neq))
+check("fully linked cars match their published pole total exactly", not npeq,
+      "; ".join(npeq))
+pmatch = sum(1 for cid, (_w, ep) in _CR.EXPECTED.items() if ep is not None
+             and (con.execute("SELECT poles FROM cars WHERE id=?",
+                              (cid,)).fetchone() or [None])[0] == ep)
+print(f"  [info] {pmatch} cars match their published pole total exactly; "
+      f"before the entry lists supplied the missing constructors, none could")
 ncomplete = sum(1 for cid in _CR.EXPECTED
-                if (lambda r: r and _CR.seasons_complete(cid, r[0], r[1]))(
+                if (lambda r: r and _CR.seasons_complete(
+                        cid, r[0], r[1], _corroborated))(
                     con.execute("SELECT from_year,to_year FROM cars WHERE id=?",
                                 (cid,)).fetchone()))
+uncorr = con.execute(
+    "SELECT COUNT(*) FROM car_seasons WHERE corroborated = 0").fetchone()[0]
+print(f"  [info] {uncorr} of "
+      f"{con.execute('SELECT COUNT(*) FROM car_seasons').fetchone()[0]} "
+      f"CAR_SEASONS claims are not corroborated by the entry lists, so the "
+      f"blanket link is withheld for those seasons")
 print(f"  [info] {checked} cars compared against published figures, "
       f"{ncomplete} of them fully linked")
 
@@ -597,6 +640,168 @@ linked = con.execute("SELECT COUNT(*) FROM race_entries WHERE car_id IS NOT NULL
 tot = con.execute("SELECT COUNT(*) FROM race_entries").fetchone()[0]
 print(f"  [info] {linked} of {tot} race entries linked to a car "
       f"({100 * linked / tot:.0f}%)")
+
+print("\nTHE CHASSIS REGISTER")
+from data import harvest as _HV
+nch = con.execute("SELECT COUNT(*) FROM chassis").fetchone()[0]
+neng = con.execute("SELECT COUNT(*) FROM engines").fetchone()[0]
+nent = con.execute("SELECT COUNT(*) FROM season_entrants").fetchone()[0]
+nspec = con.execute("SELECT COUNT(*) FROM chassis WHERE article IS NOT NULL").fetchone()[0]
+print(f"  [info] {nch} chassis, {neng} engines, {nent} season entrant rows; "
+      f"{nspec} chassis carry harvested specifications")
+
+# Every chassis id in CAR_CHASSIS must exist, belong to the car's constructor,
+# be claimed by only one car, and have raced inside the car's stated life.
+# A typo cannot survive all four.
+reg = {r["id"]: r for r in con.execute("SELECT * FROM chassis")}
+missing, wrongcons, outside, late, twice = [], [], [], [], []
+claimed = {}
+for car_id, ch_ids in _CR.CAR_CHASSIS.items():
+    car = con.execute("SELECT constructor_id, from_year, to_year FROM cars "
+                      "WHERE id=?", (car_id,)).fetchone()
+    for ch in ch_ids:
+        if ch not in reg:
+            missing.append(f"{car_id}:{ch}")
+            continue
+        if ch in claimed:
+            twice.append(f"{ch} ({claimed[ch]} and {car_id})")
+        claimed[ch] = car_id
+        if reg[ch]["constructor_id"] != car["constructor_id"]:
+            wrongcons.append(f"{ch} is {reg[ch]['constructor_id']}, "
+                             f"{car_id} is {car['constructor_id']}")
+        fy, ly = reg[ch]["first_year"], reg[ch]["last_year"]
+        if fy is not None and fy < car["from_year"]:
+            outside.append(f"{ch} was entered in {fy}, before {car_id} "
+                           f"existed ({car['from_year']})")
+        if ly is not None and ly > (car["to_year"] or car["from_year"]):
+            late.append(f"{ch} last entered {ly}, {car_id} lived "
+                        f"{car['from_year']}-{car['to_year']}")
+check("every chassis a car claims is in the register", not missing,
+      "; ".join(missing))
+check("a claimed chassis belongs to the car's constructor", not wrongcons,
+      "; ".join(wrongcons))
+check("no chassis is claimed by two cars", not twice, "; ".join(twice))
+check("no claimed chassis was entered before its car existed", not outside,
+      "; ".join(outside))
+# A chassis outliving the car's authored life is normal and not an error. The
+# two fields mean different things: `cars.to_year` is the works career, and
+# the entry lists record every entry including the privateers who bought the
+# thing afterwards. Ferrari 500s were still being entered in 1957, four years
+# after the works team moved on.
+warn("no claimed chassis outlives its car's authored life", not late,
+     "; ".join(late))
+print(f"  [info] the 29 curated cars cover {len(claimed)} register chassis")
+
+bad = con.execute("""SELECT COUNT(*) FROM chassis c WHERE c.car_id IS NOT NULL
+    AND NOT EXISTS (SELECT 1 FROM cars x WHERE x.id = c.car_id)""").fetchone()[0]
+check("chassis.car_id -> cars", bad == 0, f"{bad} orphans")
+bad = con.execute("""SELECT COUNT(*) FROM race_entries e WHERE e.chassis_id
+    IS NOT NULL AND NOT EXISTS
+    (SELECT 1 FROM chassis c WHERE c.id = e.chassis_id)""").fetchone()[0]
+check("race_entries.chassis_id -> chassis", bad == 0, f"{bad} orphans")
+bad = con.execute("""SELECT COUNT(*) FROM race_entries e
+    JOIN chassis c ON c.id = e.chassis_id
+    WHERE c.constructor_id IS NOT NULL
+      AND c.constructor_id <> e.constructor_id""").fetchone()[0]
+check("a linked chassis belongs to the entry's constructor", bad == 0,
+      f"{bad} wrong")
+bad = con.execute("""SELECT COUNT(*) FROM race_entries e
+    JOIN chassis c ON c.id = e.chassis_id JOIN races r ON r.id = e.race_id
+    WHERE r.year < c.first_year OR r.year > c.last_year""").fetchone()[0]
+check("a linked chassis was entered in that season", bad == 0,
+      f"{bad} outside")
+
+# Whichever rule made a link, the chassis must be one the entry lists
+# actually record for that constructor in that season. Rule one resolves a
+# constructor-season that names exactly one chassis; rule two resolves a
+# (season, round, driver) whose entrant names exactly one, which reaches into
+# seasons the first cannot. Neither may ever produce a chassis the source
+# does not put in that constructor's hands that year.
+# Where the entry names a constructor this register holds, the chassis must
+# be in THAT constructor's list. Where it does not - an Indianapolis chassis
+# maker, or one of the 67 F1 constructors this register still lacks - the
+# chassis must at least be in some entry list for that season, because the
+# entry that resolved it was matched on driver and round rather than on a
+# constructor id.
+stray = con.execute("""
+    SELECT COUNT(*) FROM race_entries e JOIN races r ON r.id = e.race_id
+    WHERE e.chassis_id IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM season_entrants se
+        WHERE se.year = r.year
+          AND (se.constructor_id = e.constructor_id
+               OR e.constructor_id IS NULL)
+          AND ('+' || se.chassis_ids || '+') LIKE ('%+' || e.chassis_id || '+%'))
+    """).fetchone()[0]
+check("every linked chassis is in an entry list for that season, and for "
+      "that constructor where one is known", stray == 0, f"{stray} entries")
+
+# Rule two fills constructor_id on entries the pole and fastest-lap harvests
+# left blank. It is trusted there only because it was checked where the
+# answer was already known: the constructor F1DB gives must equal the one
+# the Wikipedia race harvest established, on every entry that has one.
+# build.py fails outright on a disagreement; this counts the agreement.
+nocons = con.execute("""SELECT COUNT(*) FROM race_entries
+    WHERE constructor_id IS NULL""").fetchone()[0]
+print(f"  [info] {tot - nocons} of {tot} race entries carry a constructor; "
+      f"{nocons} still do not")
+
+# The reconciliation: derived from this database's race records, against the
+# figure published on the car's own article and read by a different route.
+over = con.execute("""SELECT full_name, wins, published_wins FROM chassis
+    WHERE published_wins IS NOT NULL AND wins > published_wins""").fetchall()
+check("no chassis has more derived wins than its article publishes", not over,
+      "; ".join(f"{r[0]} {r[1]}>{r[2]}" for r in over))
+cmp_ = con.execute("""SELECT COUNT(*) FROM chassis
+    WHERE published_wins IS NOT NULL AND wins > 0""").fetchone()[0]
+exact = con.execute("""SELECT COUNT(*) FROM chassis
+    WHERE published_wins IS NOT NULL AND wins > 0
+      AND wins = published_wins""").fetchone()[0]
+print(f"  [info] {cmp_} chassis have both a derived and a published win "
+      f"count; {exact} agree exactly")
+
+# A car and the chassis it covers hold some of the same figures, reached by
+# different routes. Where both are present they must agree.
+dis = con.execute("""SELECT c.full_name, ch.full_name, c.capacity_cc,
+        ch.capacity_cc FROM cars c JOIN chassis ch ON ch.car_id = c.id
+    WHERE c.capacity_cc IS NOT NULL AND ch.capacity_cc IS NOT NULL
+      AND ABS(c.capacity_cc - ch.capacity_cc) > 5""").fetchall()
+warn("the curated and harvested engine capacities agree", not dis,
+     "; ".join(f"{r[0]}: {r[2]} vs {r[1]} {r[3]}" for r in dis[:4]))
+
+lk = con.execute("SELECT COUNT(*) FROM race_entries WHERE chassis_id IS NOT NULL"
+                 ).fetchone()[0]
+wonk = con.execute("""SELECT COUNT(DISTINCT race_id) FROM race_entries
+    WHERE chassis_id IS NOT NULL AND finish_position = 1""").fetchone()[0]
+nrace = con.execute("SELECT COUNT(*) FROM races WHERE status='completed'"
+                    ).fetchone()[0]
+print(f"  [info] {lk} of {tot} race entries linked to a chassis "
+      f"({100 * lk / tot:.0f}%); the winning chassis is known for "
+      f"{wonk} of {nrace} races ({100 * wonk / nrace:.0f}%)")
+
+# A regulation limit may not be sitting in a per-car field pretending to be a
+# measurement. This is the check the 2026 rows exist to make possible.
+lim = {}
+for r in con.execute("SELECT from_year, to_year, field, value FROM regulation_limits"):
+    for y in range(r[0], r[1] + 1):
+        lim.setdefault(y, {})[r[2]] = r[3]
+leaked = []
+for tbl, wcol, bcol in (("cars", "weight_kg", "wheelbase_mm"),
+                        ("chassis", "weight_kg", "wheelbase_mm")):
+    yl = "from_year" if tbl == "cars" else "first_year"
+    yh = "to_year" if tbl == "cars" else "last_year"
+    for r in con.execute(f"""SELECT id, {yl}, {yh}, {wcol}, {bcol} FROM {tbl}
+            WHERE {yl} IS NOT NULL AND ({wcol} IS NOT NULL OR {bcol} IS NOT NULL)"""):
+        for y in range(r[1], (r[2] or r[1]) + 1):
+            if r[3] is not None and lim.get(y, {}).get("minimum_weight_kg") == r[3]:
+                leaked.append(f"{tbl}.{r[0]} weight {r[3]} = the {y} minimum")
+            if r[4] is not None and lim.get(y, {}).get("maximum_wheelbase_mm") == r[4]:
+                leaked.append(f"{tbl}.{r[0]} wheelbase {r[4]} = the {y} maximum")
+check("no regulation limit is stored as a car's own figure", not leaked,
+      "; ".join(leaked[:4]))
+nlim = con.execute("SELECT COUNT(*) FROM regulation_limits").fetchone()[0]
+print(f"  [info] {nlim} regulation limits recorded, covering "
+      + ", ".join(str(r[0]) for r in con.execute(
+          "SELECT DISTINCT field FROM regulation_limits ORDER BY field")))
 
 print("\nTIMING AND RADIO")
 for t in ("race_timing", "laps", "stints", "pit_stops",
@@ -609,13 +814,98 @@ bad = con.execute("""SELECT COUNT(*) FROM laps l WHERE NOT EXISTS
     (SELECT 1 FROM races r WHERE r.id = l.race_id)""").fetchone()[0]
 check("every lap belongs to a race", bad == 0, f"{bad} orphans")
 bad = con.execute("""SELECT COUNT(*) FROM laps
-    WHERE lap_seconds IS NOT NULL AND (lap_seconds <= 0 OR lap_seconds > 900)"""
+    WHERE lap_seconds IS NOT NULL AND lap_seconds <= 0""").fetchone()[0]
+check("lap times are positive", bad == 0, f"{bad} at or below zero")
+
+# A lap over fifteen minutes is not implausible, it is a red flag: the
+# suspension is recorded inside the lap it happened on. The 2011 Canadian
+# Grand Prix, the longest race in the sport's history, has a lap 25 of two
+# hours and five minutes. What WOULD be implausible is a driver having many
+# of them in one race, because that would mean the race was stopped more
+# times than any race ever has been.
+worst = con.execute("""SELECT MAX(n) FROM (SELECT COUNT(*) n FROM laps
+    WHERE lap_seconds > 900 GROUP BY race_id, driver_key)""").fetchone()[0] or 0
+check("no driver has more long laps than a race has had red flags",
+      worst <= 4, f"one driver has {worst} laps over 15 minutes in one race")
+longr = con.execute("""SELECT COUNT(DISTINCT race_id) FROM laps
+    WHERE lap_seconds > 900""").fetchone()[0]
+if longr:
+    print(f"  [info] {longr} races contain a lap over 15 minutes; every one "
+          f"is a red flag recorded inside the lap it interrupted")
+
+# Each source reaches back as far as it reaches and no further. FastF1 reads
+# the F1 live timing API, which begins in 2018 and for which nothing earlier
+# exists. Jolpica's dump has per-lap times from 1996 - twenty-two seasons
+# further back - and pit stops from 2011.
+for src, first, what in (("fastf1", 2018, "the live timing API"),
+                         ("jolpica", 1996, "Jolpica's dump")):
+    bad = con.execute("""SELECT COUNT(*) FROM laps l JOIN races r
+        ON r.id = l.race_id WHERE l.source = ? AND r.year < ?""",
+        (src, first)).fetchone()[0]
+    check(f"no {src} lap predates {first}, where {what} starts", bad == 0,
+          f"{bad} rows")
+bad = con.execute("""SELECT COUNT(*) FROM pit_stops p JOIN races r
+    ON r.id = p.race_id WHERE p.source = 'jolpica' AND r.year < 2011"""
     ).fetchone()[0]
-check("lap times are plausible", bad == 0, f"{bad} outside 0-900 s")
-bad = con.execute("""SELECT COUNT(*) FROM laps WHERE race_id IN
-    (SELECT id FROM races WHERE year < 2018)""").fetchone()[0]
-check("no lap data claims to predate live timing", bad == 0,
-      f"{bad} rows before 2018")
+check("no jolpica pit stop predates 2011", bad == 0, f"{bad} rows")
+
+# Where two independent sources cover the same race, they must agree about
+# how many laps each driver ran. This is the reason both are allowed to hold
+# the same race rather than one overwriting the other.
+disagree = con.execute("""
+    SELECT COUNT(*) FROM (
+        SELECT l.race_id, l.driver_id
+        FROM laps l WHERE l.driver_id IS NOT NULL
+        GROUP BY l.race_id, l.driver_id
+        HAVING COUNT(DISTINCT l.source) > 1
+           AND COUNT(*) FILTER (WHERE l.source = 'fastf1')
+             <> COUNT(*) FILTER (WHERE l.source = 'jolpica'))""").fetchone()[0]
+check("where two sources hold the same race they agree on the lap count",
+      disagree == 0, f"{disagree} driver-races differ")
+both = con.execute("""SELECT COUNT(*) FROM (SELECT race_id FROM laps
+    GROUP BY race_id HAVING COUNT(DISTINCT source) > 1)""").fetchone()[0]
+print(f"  [info] {both} races are covered by both FastF1 and Jolpica and can "
+      f"be compared lap for lap")
+
+# The strongest thing the lap data does: it re-derives a fact this database
+# already holds, by a route that shares nothing with how it was established.
+#
+# race_entries.fastest_lap came from the Wikipedia pole and fastest-lap
+# harvest. The laps came from Jolpica's dump. Take the quickest lap each
+# source FLAGS as an entry's fastest, and the driver it names must be the
+# driver already stored.
+#
+# Use the flag, not the raw minimum. At the 2021 Portuguese Grand Prix
+# Verstappen's 1:19.849 is the quickest time in the file and Bottas's
+# 1:19.865 is the one flagged - because Verstappen's was struck for track
+# limits. Ranking on time alone reports five disagreements, all of which are
+# this. Ranking on the flag reports none.
+fl_bad = con.execute("""
+    WITH flagged AS (
+        SELECT race_id, driver_id, lap_seconds,
+               ROW_NUMBER() OVER (PARTITION BY race_id ORDER BY lap_seconds) rn
+        FROM laps WHERE is_fastest_lap = 1 AND lap_seconds IS NOT NULL
+                    AND driver_id IS NOT NULL)
+    SELECT r.year, r.name_used, f.driver_id, e.driver_id
+    FROM flagged f JOIN races r ON r.id = f.race_id
+    JOIN race_entries e ON e.race_id = f.race_id AND e.fastest_lap = 1
+    WHERE f.rn = 1 AND f.driver_id <> e.driver_id
+    ORDER BY r.year""").fetchall()
+# Exactly the population the check above compares - same three conditions.
+# Counting a wider one would let the "they agree on all of them" line below
+# include races the check never looked at, and that line is quoted in the
+# README and the build notes.
+fl_n = con.execute("""SELECT COUNT(DISTINCT l.race_id) FROM laps l
+    JOIN race_entries e ON e.race_id = l.race_id AND e.fastest_lap = 1
+    WHERE l.is_fastest_lap = 1 AND l.lap_seconds IS NOT NULL
+      AND l.driver_id IS NOT NULL""").fetchone()[0]
+check("the fastest lap derived from lap times matches the one already stored",
+      not fl_bad,
+      "; ".join(f"{r[0]} {r[1]}: laps say {r[2]}, stored {r[3]}"
+                for r in fl_bad[:5]))
+if fl_n:
+    print(f"  [info] {fl_n} races have both a stored fastest-lap setter and "
+          f"per-lap times; the two agree on all of them")
 bad = con.execute("""SELECT COUNT(*) FROM stints
     WHERE lap_end IS NOT NULL AND lap_start IS NOT NULL AND lap_end < lap_start"""
     ).fetchone()[0]

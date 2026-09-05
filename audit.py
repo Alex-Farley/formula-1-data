@@ -159,6 +159,28 @@ filled = con.execute("""SELECT
     SUM(wheelbase_mm IS NOT NULL), SUM(story IS NOT NULL) FROM cars""").fetchone()
 print(f"  spec fill: power {filled[0]}/{nc}, weight {filled[1]}/{nc}, "
       f"wheelbase {filled[2]}/{nc}, design story {filled[3]}/{nc}")
+nch, spec = con.execute("""SELECT COUNT(*), SUM(article IS NOT NULL)
+    FROM chassis""").fetchone()
+clink, _ = con.execute("""SELECT SUM(chassis_id IS NOT NULL), COUNT(*)
+    FROM race_entries""").fetchone()
+print(f"  {nch} chassis in the register, {spec} with harvested specifications")
+print(f"  {clink} of {tot} race entries linked to a chassis "
+      f"({100*clink/tot:.0f}%)")
+cfill = con.execute("""SELECT
+    SUM(power_bhp IS NOT NULL), SUM(weight_kg IS NOT NULL),
+    SUM(wheelbase_mm IS NOT NULL), SUM(chassis_type IS NOT NULL)
+    FROM chassis WHERE article IS NOT NULL""").fetchone()
+if spec:
+    print(f"  of those {spec}: power {cfill[0]}, weight {cfill[1]}, "
+          f"wheelbase {cfill[2]}, chassis construction {cfill[3]}")
+print("\n  chassis linkage by decade (what the entry lists can settle):")
+for r in con.execute("SELECT * FROM v_chassis_coverage"):
+    bar = "#" * int(r["pct"] / 4)
+    print(f"    {r['decade']}s  {r['with_chassis']:>4}/{r['race_entries']:<4} "
+          f"{r['pct']:>5.1f}%  {bar}")
+amb = con.execute("SELECT COUNT(*) FROM v_ambiguous_seasons").fetchone()[0]
+print(f"\n  {amb} constructor-seasons ran more than one chassis and cannot be")
+print("  resolved from a season entry list. Those entries stay NULL.")
 print()
 for t, note in (("race_timing", "per-race pole/FL/race times"),
                 ("laps", "per-lap timing, 2018- only"),

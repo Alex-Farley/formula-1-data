@@ -54,6 +54,12 @@ DRIVER_ALIASES = {
     "villeneuve": "villeneuve-j",  # Jacques; Gilles is gilles_villeneuve
     "gilles_villeneuve": "villeneuve-g",
     "rathmann": "rathmann",        # Jim; Dick Rathmann is rathmann-d
+    # Name order, not ambiguity. This register lists him family name first,
+    # as he is usually written, so the surname index holds "guanyu" and a
+    # source saying "Guanyu Zhou" finds nothing. Declared rather than fixed
+    # by matching names order-insensitively, which would start joining
+    # genuinely different people.
+    "zhou": "zhou",
 }
 
 # ---------------------------------------------------------------------
@@ -286,15 +292,32 @@ def make_resolver(cur):
     Order, most specific first:
       1. DRIVER_ALIASES, for surnames this database holds more than one of
       2. PODIUM_ONLY_DRIVERS, the register entries v2.7 adds
-      3. exact full-name match on the id's tokens
-      4. unique surname match, hyphenated surnames included
+      3. exact full-name match on the NAME the source states for this result
+      4. exact full-name match on the id's own tokens
+      5. unique surname match - ONLY when the source gave no forename that
+         contradicts it
 
     Returns None rather than guessing. The caller reports and skips; it never
     invents a driver.
+
+    Rule 5 is the dangerous one, and the first live run of this loader proved
+    it. Jolpica gives Emerson Fittipaldi the id `emerson_fittipaldi` and his
+    brother Wilson the bare `fittipaldi`. Our register holds only Emerson, so
+    a surname match on `fittipaldi` resolved Wilson ONTO Emerson and
+    overwrote his 1972-73 Lotus entries with Wilson's Brabham - moving eight
+    wins from Team Lotus to Brabham and inventing two for the Fittipaldi
+    constructor. It is the same failure as `_norm()` stripping "jr" and
+    giving Piquet Jr his father's 23 wins, in a second resolver.
+
+    So a bare surname is now only accepted when the name the source supplies
+    alongside it agrees. `fittipaldi` arriving with "Wilson Fittipaldi"
+    resolves to nothing and the row is skipped, which is correct: Wilson is
+    not in this register.
     """
-    by_full, by_surname = {}, {}
+    by_full, by_surname, toks_by_id = {}, {}, {}
     for did, name in cur.execute("SELECT id, full_name FROM drivers"):
         toks = _norm_tokens(name)
+        toks_by_id[did] = set(toks)
         if not toks:
             continue
         by_full[toks] = did
@@ -305,25 +328,42 @@ def make_resolver(cur):
     extra = {e: l for l, e, *_ in PODIUM_ONLY_DRIVERS}
     cache = {}
 
-    def resolve(eid):
-        if eid in cache:
-            return cache[eid]
+    def resolve(eid, stated_name=None):
+        key = (eid, stated_name)
+        if key in cache:
+            return cache[key]
         did = None
         if eid in DRIVER_ALIASES:
             did = DRIVER_ALIASES[eid]
         elif eid in extra:
             did = extra[eid]
         else:
-            toks = _norm_tokens(eid.replace("_", " "))
-            if toks in by_full:
-                did = by_full[toks]
+            name_toks = _norm_tokens(stated_name or "")
+            id_toks = _norm_tokens(eid.replace("_", " "))
+            if name_toks and name_toks in by_full:
+                did = by_full[name_toks]
+            elif id_toks in by_full:
+                did = by_full[id_toks]
             else:
-                for key in (" ".join(toks), toks[-1] if toks else ""):
-                    cands = by_surname.get(key, [])
-                    if len(cands) == 1:
-                        did = cands[0]
-                        break
-        cache[eid] = did
+                # Surname fallback. Accept it only where the source has not
+                # told us a forename that the register entry does not share:
+                # a bare `fittipaldi` arriving as "Wilson Fittipaldi" must
+                # not become this register's Emerson.
+                for k in (" ".join(id_toks), id_toks[-1] if id_toks else ""):
+                    cands = by_surname.get(k, [])
+                    if len(cands) != 1:
+                        continue
+                    if name_toks:
+                        stated, ours = set(name_toks), toks_by_id[cands[0]]
+                        # One may be a fuller form of the other - this
+                        # register holds "Sir Lewis Hamilton" where the
+                        # source says "Lewis Hamilton" - but a forename
+                        # neither shares means a different person.
+                        if not (stated <= ours or ours <= stated):
+                            break
+                    did = cands[0]
+                    break
+        cache[key] = did
         return did
 
     return resolve

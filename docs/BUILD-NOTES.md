@@ -3,6 +3,403 @@
 A running record of what changed in each version, what it exposed, and what
 was deliberately not done. Newest first.
 
+## v2.11 (2026-09-05) — lap times back to 1996
+
+`--timing` loads the dump's per-lap times and pit stops:
+**628,454 race laps covering 1996-2026** and **12,627 pit stops from 2011**.
+FastF1 starts at 2018, so this reaches twenty-two seasons further back than
+anything previously in the project's reach, and the whole load takes about
+fifteen seconds.
+
+Both tables stay empty in the distributed build. Same licence as the rest of
+the Jolpica data - CC BY-NC-SA, non-commercial - so they are loaded locally.
+
+### The two sources are allowed to disagree, so they can be compared
+
+`laps` was keyed `(race_id, driver_code, lap_number)`, which is FastF1's key:
+it identifies a driver by three-letter code. Jolpica resolves to a register
+id and mostly has no abbreviation before the 2000s, so that key would have
+collided on NULL and quietly duplicated rows on a rerun.
+
+Rather than overload one column with two meanings, each loader now writes
+what it keys on into `driver_key`, and uniqueness is
+`(race_id, source, driver_key, lap_number)`. Both sources can therefore hold
+the same race at once - and verify.py checks that where they do, they agree
+on each driver's lap count.
+
+### What the lap data proves
+
+The strongest check here re-derives a fact the database already holds, by a
+route sharing nothing with how it was established. `race_entries.fastest_lap`
+came from the Wikipedia pole and fastest-lap harvest; the laps came from
+Jolpica's dump. Take the quickest lap flagged as an entry's fastest, and the
+driver it names must be the driver already stored.
+
+**446 races, no disagreement.**
+
+That only works using the flag rather than the raw minimum, and the reason is
+a good one. At the 2021 Portuguese Grand Prix, Verstappen's 1:19.849 is the
+quickest time in the file and Bottas's 1:19.865 is the one flagged, because
+Verstappen's was struck for track limits. Ranking on time alone reports five
+disagreements - 2001 Japan, 2012 and 2015 Britain, 2021 Portugal, 2025 China
+- and every one is this. Jolpica does not mark the lap deleted; it declines
+to flag it as the entry's fastest, and that flag is the authoritative field.
+
+### A check that was too naive to survive real data
+
+`lap times are plausible` rejected anything over 900 seconds. The 2011
+Canadian Grand Prix, the longest race in the sport's history, has a lap 25 of
+**two hours and five minutes** - the red-flag suspension is recorded inside
+the lap it interrupted. 41 races contain such a lap and all 41 are genuine
+stoppages.
+
+Replaced with two checks that are actually true: a lap time must be positive,
+and no driver may have more long laps in one race than any race has had red
+flags. The observed maximum is three, at races stopped three times.
+
+`no lap data claims to predate live timing` had the same problem - it
+asserted 2018 because FastF1 was the only source. It is now per source:
+FastF1 laps may not predate 2018, Jolpica laps 1996, Jolpica pit stops 2011.
+
+### Two smaller things
+
+Pit stop `duration` is around 20-30 seconds, so it is **pit lane** time, not
+the two or three the car is stationary. It goes in `pit_lane_seconds` and
+`stationary_seconds` stays NULL, which is the difference between a figure and
+a wrong figure.
+
+`zhou` needed declaring in `DRIVER_ALIASES`. This register lists him family
+name first, as he is usually written, so the surname index holds "guanyu" and
+a source saying "Guanyu Zhou" found nothing. Declared rather than fixed by
+matching names order-insensitively, which would start joining genuinely
+different people.
+
+## v2.10 (2026-09-05) — loading from the database dump
+
+`tools/ergast_load.py --from-dump` reads Jolpica's database dump instead of
+paging ~270 API requests. Both paths produce identical rows and share every
+downstream check.
+
+**The reason is not speed.** A dump is one consistent snapshot with a SHA256
+and an upload timestamp: a load can be pinned to an exact state and
+reproduced. Paging a live API for several minutes cannot promise that, and
+the seam between pages is precisely where v2.7's hand-relayed rows were
+fabricated. The `source` column now records the dump's hash and date, so a
+row names the snapshot it came from.
+
+`--verify-dump N` loads nothing and instead reads N seasons both ways and
+diffs them row by row. The API stays the reference implementation, because a
+second fetch is a second place to be wrong. 1955, 1976, 1983, 1999, 2003,
+2008, 2012, 2015 and 2023 all come back identical, position, grid, status,
+laps, points and shared-drive flag included.
+
+### One concern that turned out smaller than expected
+
+The worry about adopting dumps was the integer status enum, whose meaning
+lives only in Jolpica's model source. It is not a problem:
+`sessionentry.detail` carries the same human-readable text the API returns -
+"Finished", "+1 Lap", "Engine" - so nothing here decodes an enum to fill a
+column. The integer is read only to assert it agrees with the text, and the
+load fails if it stops doing so.
+
+### Two that turned out real
+
+**The free tier is fourteen days behind, and a stale dump loads clean.** The
+delayed dump was cut on 2026-08-21; round 12 was raced on the 23rd. Those
+rows simply are not in the file, and none of the existing checks can see
+that - the winner cross-check cannot fire on a row that never arrived. The
+loader now compares the completed races in range against the races that got
+rows, and reports any that got none, naming the dump's date. For 1950-2025
+the lag costs nothing.
+
+**Two columns needed care.** `round.number` is the round within its season;
+`race_number` is a global counter across all history, so the 1951 Swiss Grand
+Prix is round 1 and race 8. Using the wrong one would have put every row
+against the wrong race. And one round - the cancelled 2026 Saudi Arabian
+Grand Prix - has no number at all, so cancelled rounds and sessions are
+skipped rather than defaulted.
+
+Every column is addressed by name. Jolpica guarantees the names and
+explicitly does not guarantee their order, and reading a generated file by
+position has now cost this project two full re-harvests in one day.
+
+The licence is unchanged: the free dump tier is non-commercial, exactly like
+the API, so these rows are still never committed.
+
+## v2.9 (2026-09-05) — the round, and the first live run of both loaders
+
+Two things the previous release left on the table: F1DB's per-round driver
+data, which v2.8 fetched and then threw away, and running `ergast_load.py`
+against the live API for the first time. Both paid, and both exposed a defect
+that only a live run could find.
+
+### Rule two: resolve through the driver and the round
+
+v2.8 asked what a CONSTRUCTOR ran in a SEASON and gave up whenever the answer
+was more than one — which is most of the 1950s and 1960s. But the drivers
+inside an entrant block carry rounds, and that is a far sharper question:
+what did **this entrant** run for **this driver** in **this round**.
+
+Lotus in 1970 ran a 49C, a 72B and a 72C, so the constructor-season settles
+nothing. Garvey Team Lotus entered a 49C for Soler-Roig in round 2 and
+nothing else; Pete Lovely a 49B; Team Gunston a 49. All resolve. Only Rindt's
+own entries stay ambiguous — correctly, because he moved from the 49C to the
+72 mid-season.
+
+| | v2.8 | v2.9 |
+|---|---|---|
+| entries with a chassis | 821 (34%) | **1,849 (76%)** |
+| entries with a constructor | 1,164 (48%) | **2,395 (99%)** |
+| winning chassis known | 819 races | **874 races** |
+| 1960s entries with a chassis | 4% | **31%** |
+
+**The check first, as always.** 1,153 entries already carried a constructor
+established by a different route — the Wikipedia race harvest. F1DB agreed
+with every one of them. Only then were its answers taken on the 1,243 entries
+that had none, and the build refuses outright on a single disagreement.
+
+### What that unlocked, and the error it exposed
+
+The pole harvest recorded who took pole but not what they drove, so 1,260
+entries carried no constructor and could not reach a car at all. `cars.poles`
+has been a lower bound since v2.6 for exactly that reason. With the
+constructor supplied, poles can be attributed, and **nine cars now match their
+published career pole total exactly** — MP4/4 15, W05 18, W11 15, FW14 21,
+RB6 15, F2004 12, R25 7, BGP001 5, Cooper T51 6. Before this, none could be.
+
+The first thing that check did was fail. **The McLaren M23 derived 16 poles
+against a published 14.** `CAR_SEASONS` claims every race a constructor won,
+took pole for or set fastest lap in a season was in one named car — and
+McLaren ran the M23 and the M26 through 1976 and 1977, so the blanket claim
+handed the M23 every one of Hunt's poles. The claim was only ever safe for
+wins, by luck rather than by construction, and nothing could see it until
+poles could be attributed.
+
+Twelve of the forty-one `CAR_SEASONS` pairs turn out to cover a season the
+constructor also ran other chassis in. The claim is now **checked rather than
+trusted**: the new `car_seasons` table records which pairs the entry lists
+corroborate, the blanket link is applied only to those, and an entry in an
+uncorroborated season gets a car only where the chassis itself resolved.
+Ferrari's 312T consequently derives 21 wins against a published 27, because
+1975 is uncorroborated — Ferrari ran the 312B3-74 alongside it and F1DB does
+not say which race used which. That is the honest number.
+
+### The first live run of ergast_load.py, and what it fabricated
+
+21,017 entries across all 1,161 races, no race refused on a winner mismatch.
+The podium reconciliation — the strongest check in this project and one that
+has never actually run — now passes: no driver below the official figure, six
+of seven exact, Russell one over as an active driver whose published total is
+older.
+
+It also silently corrupted the database, and the reconciliation is what
+caught it. **Jolpica gives Emerson Fittipaldi the id `emerson_fittipaldi` and
+his brother Wilson the bare `fittipaldi`.** This register holds only Emerson,
+under the id `fittipaldi`. The resolver's surname fallback matched Wilson's
+id onto Emerson and overwrote his 1972-73 Lotus entries with Wilson's
+Brabham ones:
+
+```
+every constructor win total equals the number of races it won
+  Team Lotus: stored 79, derived 71      <- eight wins moved
+  Brabham:    stored 35, derived 43         from Lotus to Brabham
+  Fittipaldi: stored 0,  derived 2       <- a constructor that never won
+```
+
+This is the same failure as `_norm()` stripping "jr" and giving Piquet Jr his
+father's 23 wins — in a second resolver, written after that lesson, which had
+never been run against live data. Two independent checks caught it: the
+constructor win reconciliation, and the chassis linkage noticing that entries
+now claimed a Lotus 72 for a Brabham entry.
+
+The fix is that a bare surname is accepted only where the name the source
+supplies alongside it agrees. The API sends `givenName` and `familyName` on
+every result and the loader was discarding both. It now carries them, and
+`fittipaldi` arriving as "Wilson Fittipaldi" resolves to nothing and is
+skipped, which is correct — Wilson is not in this register. The subset test
+allows "Lewis Hamilton" to match "Sir Lewis Hamilton" while refusing
+"Wilson Fittipaldi" against "Emerson Fittipaldi".
+
+### A check that was a constant
+
+`shared drives are recorded with both drivers` asserted `len(shared) == 3`.
+Three was the number the winner harvest happened to record, not a property of
+anything. The full classification finds 42 races with a shared car, which is
+right: sharing was routine in the 1950s and died out in the 1960s. Replaced
+with what is actually true — no shared drive after 1964, and every shared
+drive is a classified finish.
+
+### Still open
+
+- **577 drivers are not in the register**, so 5,558 classification rows are
+  skipped. The loader exits non-zero and names them, which is the designed
+  behaviour, but the register tail is now the binding constraint on the full
+  classification rather than the API.
+- **67 F1 constructors are missing** — Ensign, Osella, De Tomaso, ATS,
+  Coloni, AGS, Zakspeed, Theodore, Marussia, Simtek, Pacific and the rest.
+  Both loaders report them independently. 593 entrant rows and 256 chassis
+  cannot join to a constructor because of it.
+- The classification itself is **not committed**: Ergast's data is
+  CC BY-NC-SA, and the build is a function of what is in this repository.
+  Run the loader locally.
+
+## v2.8 (2026-09-05) — the chassis register, and what a constraining check is
+
+Goal: technical data on the cars, working backwards. `cars` held 29 landmark
+chassis against 2,424 race records; the balance was wrong.
+
+### What is in
+
+- **`chassis`, 1,153 rows** — every chassis that has raced, from
+  [F1DB](https://github.com/f1db/f1db) (CC BY 4.0) via
+  `tools/f1db_fetch.py`. Plus **`engines` (424)**, **`season_entrants`
+  (1,925)** and the constructor names, all generated into `harvest/`, all
+  diffable, none touched by a person.
+- **`tools/wikispec_fetch.py`** — chassis specifications off the
+  `{{Racing car}}` infobox on each car's own article. There is no unified
+  Formula One car specification dataset anywhere; F1DB's register carries
+  **no technical data at all**, and this is where the numbers live.
+- **`regulation_limits`** — the numeric limits the rules put on a whole grid.
+- **819 of 1,161 races now have a known winning chassis**, up from a car
+  linkage that covered 267 of 2,424 entries. 779 chassis carry harvested
+  specifications; 132 of them publish a career win total, and the wins this
+  database derives independently from its own race records agree exactly for
+  97 and never exceed for any.
+
+### The gap that was closed, and the half that was not
+
+`known_gaps` #1 had stood since v2.6: the chassis-per-race harvest was
+abandoned because the winner cross-check does not constrain the chassis. A
+1952 trial returned "Ferrari 125 F2" for races Ascari won in a Ferrari 500 and
+every winner matched, because the winner tells you which race a row describes
+and nothing whatever about what he drove.
+
+F1DB's per-season entry lists are the second source that check was missing.
+They are also not a complete answer, and saying so is the point:
+
+> **F1DB records which chassis a constructor ran in a SEASON. It does not
+> record which chassis ran in which ROUND.**
+
+Where a team ran two designs the entry list names both with no round
+attribution. So a constructor-season constrains the chassis only when it names
+exactly one. Ferrari in 1952 names five — the 500, plus a 125, a 166, a 212
+and a 375S in privateers' hands — and gets no link at all. That is the correct
+answer for 1952 and it is the answer the abandoned harvest should have given.
+
+321 constructor-seasons are in that position; `v_ambiguous_seasons` lists
+them. Coverage therefore tracks how teams operated rather than spreading
+evenly: 4 per cent for the 1960s, 49 per cent for the 2020s.
+
+**The check ran against 41 assertions this database already held** —
+`CAR_SEASONS`, already proved against published win totals — and none
+disagreed.
+
+### Three checks before a specification page is read
+
+Guessing that "Ferrari 312T2" is the article for `ferrari-312t2` is inference,
+and inference is what produced the invented Ferrari 125. A title is only a
+candidate; a page is read only if it agrees with facts established elsewhere:
+the **constructor** its infobox names must be the one F1DB gives the chassis;
+the **years** it reports must fall inside the seasons F1DB records it entered;
+and the **title** must be a form of the chassis's own name.
+
+Refusals are logged with reasons in `harvest/car_specs.log`. The constructor
+check caught five real modelling disagreements — the Lola THL1 is a Haas
+(USA) car on Wikipedia, the Williams FW is an Iso-Marlboro, the Venturi LC92 a
+Fomet — none of which were resolved by force.
+
+### The finding that changed the plan, and the defect it exposed here
+
+**Modern cars are documented far more thinly than historic ones.** Current-era
+specifications are competitive secrets; most "weight" quoted for a recent car
+is that season's regulation minimum, and the 2026 figures in circulation —
+768 kg, 3,400 mm, 1,900 mm — are limits every car on the grid is built to.
+Storing one in a per-car field is inference presented as fact.
+
+Applying that test to the **existing hand-curated data** found four:
+
+```
+mclaren-m23    575 kg = the 1973 minimum
+lotus-88       585 kg = the 1981 minimum
+mclaren-mp4-4  540 kg = the 1988 minimum
+ferrari-f2004  605 kg = the 2004 minimum
+```
+
+All four are now NULL, with the reason recorded in `data/cars.py: WITHDRAWN`
+and in `discrepancies`. Six more curated weights are almost certainly the same
+thing — R25 605, RB6 620, W05 691, W11 746, RB19 798 — but this project does
+not withdraw a figure on a suspicion, and no *sourced* limit for those seasons
+exists yet. They stay, flagged, as open work.
+
+### A test the data does on itself
+
+`regulation_limits` only covers the years a source actually states a limit
+for; carrying a value across an unrecorded change would invent one, so the
+series has holes by design and whole eras are uncovered.
+
+The harvest closes them from the other direction. A figure that is genuinely a
+measurement of one car is that car's alone; **a figure that three or more
+different constructors all quote for cars racing in the same season is the
+rule they were built to.** Run in `build.py` over the harvested rows, that
+test recovered the whole modern minimum-weight series without being told any
+of it — 500, 505, 515, 540, 550, 580, 585, 595, 600, 605, 620, 640, 691, 702,
+733, 743, 770 kg — from the fact that whole grids share each figure. It took
+the chassis weight fill from 346 down to 199, which is the honest number.
+
+**It was wrong three times before it was right, and each correction is a rule
+worth keeping:**
+
+1. *Constructors, not cars.* The first version required three cars and
+   dropped the BRM P126, P133 and P138 wheelbase, because those three share
+   one — they are the same car evolved. Three cars from one constructor is
+   evidence of nothing.
+2. *Per season, not per group.* The second required one year common to every
+   car quoting the value. But a minimum stays in force for years, so the cars
+   need not overlap each other — 600 kg covers 1995 to 2003 — and the test
+   fired almost never. Counting per season also fixes the reverse error:
+   620 kg is quoted by fourteen constructors, thirteen of them in 2010 and
+   the fourteenth a 1955 Lancia, which keeps its figure because in 1955
+   nobody else shared it.
+3. *Weight only.* "A figure a whole grid shares is the rule" holds only where
+   a rule actually fixes that figure. Minimum weight has been fixed
+   continuously since 1961; **wheelbase has never been capped at all except
+   for 2026**. Run on wheelbase the test dropped 2,540 mm, 2,692 mm and
+   2,794 mm from fifteen cars — 100, 106 and 110 inches exactly. Designers of
+   that era worked in imperial and rounded to the same round numbers. Those
+   are real measurements, and they are kept.
+
+The sweep also moved out of the fetcher into the build, so the harvest file
+records what the page said and the database records what survived the checks.
+That move exposed a fourth defect: the fetcher applied the *sourced* limit
+drop per chassis, but a family article is one row covering several — the
+Ferrari F2004 and F2004M share a row spanning 2004-2005 — so whichever
+chassis happened to be read first decided which seasons were tested, and the
+F2004's 605 kg survived. The check now runs in the build against the span
+actually stored.
+
+### Sources, assessed
+
+`source_registry` gained `licence`, `cadence` and `checkability`, and every
+source used by this project is now judged on those three rather than on how
+much data it has. The last one matters most: a source nothing here can
+contradict is a source being trusted, not checked, and this project has twice
+paid for trusting one.
+
+That assessment is why F1DB was chosen — CC BY 4.0, attribution only, no
+share-alike, re-released after every race with a public commit history — and
+why Jolpica's rows are loaded locally rather than committed: the Ergast data
+it continues is CC BY-**NC**-SA, the most restrictive licence in use here.
+
+### Still open
+
+- The specification harvest's name check is too strict in one direction. It
+  refuses "Alfa Romeo 158/159 Alfetta" for `alfa-romeo-159` and "Alfa Romeo
+  Racing C38" for `alfa-romeo-c38`, both of which are the right article. The
+  fix is to allow the chassis name as a token subsequence of the title rather
+  than a strict prefix; the constructor and year checks would still gate it.
+- Six curated weights await a sourced limit for their season.
+- `tools/ergast_load.py` still has not completed a full live run.
+
 ## v2.7 (2026-09-04) — the register and loader for the full classification
 
 Goal: the full finishing order. Delivered: the register work, the id mapping

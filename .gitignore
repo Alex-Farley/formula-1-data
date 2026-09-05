@@ -33,3 +33,11 @@ web/dist/
 # Committing either would mean a second copy that can drift from the first.
 web/public/f1.db
 web/public/sql-wasm.wasm
+
+# tools/f1db_fetch.py clones F1DB here. Regenerable; the generated
+# harvest/*.txt files are the committed artefact, not the checkout.
+.f1dbcache/
+
+# tools/ergast_load.py --from-dump caches the Jolpica zip here. Regenerable,
+# ~14 MB, and CC BY-NC-SA: never commit it.
+.jolpicadump/

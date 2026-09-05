@@ -41,6 +41,21 @@ Or just `make all`.
 | `harvest/poles.txt` | `year\|round\|pole\|fastest_lap\|winner` |
 | `harvest/venues.txt` | `year\|round\|venue\|winner` |
 
+Four more harvest files are **generated, not written**. They carry a header
+saying so, and editing one by hand is the same mistake as editing `f1.db`:
+
+| File | Holds | Written by |
+|---|---|---|
+| `harvest/chassis.txt` | Every chassis that has raced | `tools/f1db_fetch.py` |
+| `harvest/engines.txt` | Every engine, with capacity/config/aspiration | `tools/f1db_fetch.py` |
+| `harvest/f1db_constructors.txt` | Constructor names, for the spec cross-check | `tools/f1db_fetch.py` |
+| `harvest/entrants.txt` | Season → entrant → constructor → chassis/engine/tyre | `tools/f1db_fetch.py` |
+| `harvest/car_specs.txt` | Chassis specifications off the per-car articles | `tools/wikispec_fetch.py` |
+| `harvest/car_specs.log` | Every chassis refused, and why | `tools/wikispec_fetch.py` |
+
+`python3 tools/f1db_fetch.py --check` regenerates in memory and tells you
+whether the committed files still match F1DB.
+
 Harvest files are plain pipe-delimited text on purpose: they diff cleanly, so
 a data correction shows up as one readable line in a pull request.
 `harvest/append.py` adds rows, checks the field count and flags duplicate
@@ -75,7 +90,22 @@ harvesting.** The winner constrains which race a row describes. It does not
 constrain the chassis: a trial harvest of 1952 returned "Ferrari 125 F2" for
 races Ascari won in a Ferrari 500, and every winner matched. Where your check
 does not constrain the value, find a second table that does, or do not store
-the value. This is why the chassis-per-race harvest is still an open gap.
+the value.
+
+That is what F1DB's per-season entry lists now provide for the chassis, and
+they show what a constraining check looks like in practice — including where
+it stops. They say which chassis a constructor ran in a *season*, never which
+it ran in a *round*, so they settle a constructor-season that used one design
+and settle nothing at all about one that used two. Ferrari in 1952 entered
+five different chassis and gets no link. **A check that constrains the value
+in some cases and not others must be applied case by case, not in aggregate**
+— the temptation to link 1952 anyway, because you happen to know Ascari drove
+a 500, is exactly the inference the rule exists to stop.
+
+The same rule kills a whole class of modern figure. A weight quoted for a
+2023 car is almost always the season's regulation minimum: it describes the
+rule, not the car, and no cross-check can turn it into a measurement. Those
+go in `regulation_limits`, and the car field stays NULL.
 
 ## Never move bulk data by hand
 
