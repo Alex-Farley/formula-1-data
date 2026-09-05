@@ -891,9 +891,14 @@ fl_bad = con.execute("""
     JOIN race_entries e ON e.race_id = f.race_id AND e.fastest_lap = 1
     WHERE f.rn = 1 AND f.driver_id <> e.driver_id
     ORDER BY r.year""").fetchall()
+# Exactly the population the check above compares - same three conditions.
+# Counting a wider one would let the "they agree on all of them" line below
+# include races the check never looked at, and that line is quoted in the
+# README and the build notes.
 fl_n = con.execute("""SELECT COUNT(DISTINCT l.race_id) FROM laps l
     JOIN race_entries e ON e.race_id = l.race_id AND e.fastest_lap = 1
-    WHERE l.is_fastest_lap = 1""").fetchone()[0]
+    WHERE l.is_fastest_lap = 1 AND l.lap_seconds IS NOT NULL
+      AND l.driver_id IS NOT NULL""").fetchone()[0]
 check("the fastest lap derived from lap times matches the one already stored",
       not fl_bad,
       "; ".join(f"{r[0]} {r[1]}: laps say {r[2]}, stored {r[3]}"

@@ -465,7 +465,14 @@ def main():
                 totals["skipped"] += 1
                 continue
             if not a.force:
-                have = cur.execute("SELECT COUNT(*) FROM laps WHERE race_id=?",
+                # Per source. Since v2.11 ergast_load.py --timing can hold
+                # the same race from Jolpica, and a bare race_id count would
+                # make this skip every 2018+ race after such a load - so the
+                # sectors, compounds, stints and race control that only
+                # FastF1 has would never arrive, and the cross-source checks
+                # would have nothing to compare.
+                have = cur.execute("""SELECT COUNT(*) FROM laps
+                    WHERE race_id=? AND source='fastf1'""",
                                    (rid,)).fetchone()[0]
                 if have:
                     print(f"{year} r{rnd}: already loaded ({have} laps)")

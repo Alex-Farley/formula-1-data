@@ -1205,17 +1205,26 @@ ORDER BY root, depth;
 -- Empty in the distributed build: both loaders need network access, and both
 -- sources are licensed for local use rather than redistribution.
 CREATE VIEW v_lap_coverage AS
+-- Counted in subqueries rather than by joining both tables to `races` at
+-- once. Joining laps AND pit_stops in one query multiplies them: ten laps
+-- and two stops in a race renders as twenty laps, because every lap row is
+-- paired with every stop row. COUNT(DISTINCT ...) hides it for the ids and
+-- not for anything else, which is worse than failing outright.
 SELECT r.year,
-       COUNT(DISTINCT r.id) AS races,
-       COUNT(DISTINCT CASE WHEN l.id IS NOT NULL THEN r.id END) AS races_with_laps,
-       COUNT(l.id) AS laps,
-       COUNT(DISTINCT CASE WHEN p.id IS NOT NULL THEN r.id END) AS races_with_stops,
-       COUNT(DISTINCT p.id) AS pit_stops,
-       (SELECT GROUP_CONCAT(DISTINCT x.source) FROM laps x
-        WHERE x.race_id IN (SELECT id FROM races WHERE year = r.year)) AS sources
+       COUNT(*) AS races,
+       (SELECT COUNT(DISTINCT l.race_id) FROM laps l
+        JOIN races x ON x.id = l.race_id WHERE x.year = r.year)
+           AS races_with_laps,
+       (SELECT COUNT(*) FROM laps l
+        JOIN races x ON x.id = l.race_id WHERE x.year = r.year) AS laps,
+       (SELECT COUNT(DISTINCT p.race_id) FROM pit_stops p
+        JOIN races x ON x.id = p.race_id WHERE x.year = r.year)
+           AS races_with_stops,
+       (SELECT COUNT(*) FROM pit_stops p
+        JOIN races x ON x.id = p.race_id WHERE x.year = r.year) AS pit_stops,
+       (SELECT GROUP_CONCAT(DISTINCT l.source) FROM laps l
+        JOIN races x ON x.id = l.race_id WHERE x.year = r.year) AS sources
 FROM races r
-LEFT JOIN laps l ON l.race_id = r.id
-LEFT JOIN pit_stops p ON p.race_id = r.id
 GROUP BY r.year ORDER BY r.year;
 
 -- ------------------------------------------------ the chassis register

@@ -249,6 +249,31 @@ def get_dump(tier, expect_hash=None):
     return path, meta
 
 
+def dump_table(z, name, *cols):
+    """Rows of one CSV in the dump, as dicts, checking the columns exist.
+
+    Shared by both readers so neither can drift into trusting a layout the
+    other checks. Columns are addressed by name throughout: Jolpica
+    guarantees the names and explicitly not their order.
+    """
+    import csv
+    import io
+
+    want = f"formula_one_{name}.csv"
+    if want not in z.namelist():
+        sys.exit(f"the dump has no {want}; its layout has changed")
+    with z.open(want) as f:
+        r = csv.DictReader(io.TextIOWrapper(f, encoding="utf-8"))
+        missing = [c for c in cols if c not in (r.fieldnames or [])]
+        if missing:
+            sys.exit(f"{want} is missing column(s) {missing}; the dump's "
+                     f"layout has changed. Columns are addressed by name on "
+                     f"purpose - Jolpica guarantees the names but explicitly "
+                     f"not their order.")
+        for row in r:
+            yield row
+
+
 def dump_results(path):
     """Every race result in the dump, as {year: [row, ...]}.
 
@@ -256,26 +281,12 @@ def dump_results(path):
     so everything downstream - the winner cross-check, the driver resolution,
     the insert - is shared between the two paths rather than written twice.
     """
-    import csv
-    import io
     import zipfile
 
     z = zipfile.ZipFile(path)
 
     def table(name, *cols):
-        want = f"formula_one_{name}.csv"
-        if want not in z.namelist():
-            sys.exit(f"the dump has no {want}; its layout has changed")
-        with z.open(want) as f:
-            r = csv.DictReader(io.TextIOWrapper(f, encoding="utf-8"))
-            missing = [c for c in cols if c not in (r.fieldnames or [])]
-            if missing:
-                sys.exit(f"{want} is missing column(s) {missing}; the dump's "
-                         f"layout has changed. Columns are addressed by name "
-                         f"on purpose - Jolpica guarantees the names but "
-                         f"explicitly not their order.")
-            for row in r:
-                yield row
+        return dump_table(z, name, *cols)
 
     season = {r["id"]: int(r["year"]) for r in table("season", "id", "year")}
     # `number` is the round within its season, which is what races.round
@@ -409,22 +420,12 @@ def dump_timing(path, want_years):
 
     Returns (laps, stops) keyed by (year, round).
     """
-    import csv
-    import io
     import zipfile
 
     z = zipfile.ZipFile(path)
 
     def table(name, *cols):
-        want = f"formula_one_{name}.csv"
-        with z.open(want) as f:
-            r = csv.DictReader(io.TextIOWrapper(f, encoding="utf-8"))
-            missing = [c for c in cols if c not in (r.fieldnames or [])]
-            if missing:
-                sys.exit(f"{want} is missing column(s) {missing}; the dump's "
-                         f"layout has changed.")
-            for row in r:
-                yield row
+        return dump_table(z, name, *cols)
 
     def secs(t):
         if not t:
@@ -460,7 +461,7 @@ def dump_timing(path, want_years):
         if d:
             entry[r["id"]] = (where, d)
 
-    laps, stops, lap_row = {}, {}, {}
+    laps, stops, lap_row, unnumbered = {}, {}, {}, []
     for r in table("lap", "id", "session_entry_id", "number", "position",
                    "time", "is_deleted", "is_entry_fastest_lap"):
         e = entry.get(r["session_entry_id"])
@@ -484,16 +485,28 @@ def dump_timing(path, want_years):
         if e is None:
             continue
         where, d = e
+        # A stop with no number cannot be keyed. pit_stops is unique on
+        # (race, source, driver, stop_number), and SQLite treats NULLs as
+        # distinct in a unique index - so a NULL stop_number would make
+        # INSERT OR REPLACE append instead of replace, and every rerun would
+        # add another copy. The dump has no such row today; skipping keeps
+        # the loader idempotent if that ever changes.
+        if not r["number"]:
+            unnumbered.append((where, d[0]))
+            continue
         ln = lap_row.get(r["lap_id"])
         stops.setdefault(where, []).append({
             "driver_ref": d[0], "code": d[1], "driver_name": d[2],
-            "stop": int(r["number"]) if r["number"] else None,
+            "stop": int(r["number"]),
             "lap": ln[1] if ln else None,
             # Around 20-30 seconds: this is pit LANE time, entry to exit, not
             # the two or three the car is stationary. It goes in the column
             # that says so.
             "lane_seconds": secs(r["duration"]),
         })
+    if unnumbered:
+        print(f"  {len(unnumbered)} pit stop(s) in the dump have no stop "
+              f"number and cannot be keyed; skipped", file=sys.stderr)
     return laps, stops
 
 
@@ -622,22 +635,8 @@ def main():
         print(f"  {sum(len(v) for v in from_dump.values())} race results "
               f"across {len(from_dump)} seasons in the dump")
 
-    if a.timing_only:
-        n_lap, n_stop, sk_race, sk_driver = load_timing(
-            cur, path, lo, hi, resolve, a.dry_run)
-        if not a.dry_run:
-            con.commit()
-        print(f"  {n_lap} laps and {n_stop} pit stops")
-        if sk_race:
-            print(f"  {len(sk_race)} race(s) in the dump are not in this "
-                  f"database: {sorted(sk_race)[:5]}")
-        if sk_driver:
-            print(f"  {len(sk_driver)} driver(s) not in the register, their "
-                  f"laps skipped")
-        return
-
     failed_years = []
-    for year in range(lo, hi + 1):
+    for year in ([] if a.timing_only else range(lo, hi + 1)):
         if from_dump is not None:
             rows = from_dump.get(year, [])
         else:
@@ -801,23 +800,33 @@ def main():
     # register is authored with provenance per driver. The documented loop is
     # to add them to PODIUM_ONLY_DRIVERS, rebuild and rerun; a non-zero exit
     # is what makes that loop visible instead of optional.
-    if a.timing:
+    timing_problems = []
+    if a.timing or a.timing_only:
         n_lap, n_stop, sk_race, sk_driver = load_timing(
             cur, path, lo, hi, resolve, a.dry_run)
         if not a.dry_run:
             con.commit()
         print(f"\n  timing: {n_lap} laps and {n_stop} pit stops")
+        if sk_race:
+            timing_problems.append(
+                f"{len(sk_race)} race(s) with timing in the dump are not in "
+                f"this database: "
+                + ", ".join(f"{y} r{r}" for y, r in sorted(sk_race)[:6])
+                + (" ..." if len(sk_race) > 6 else ""))
         if sk_driver:
-            print(f"  {len(sk_driver)} driver(s) not in the register, their "
-                  f"laps skipped")
+            timing_problems.append(
+                f"timing skipped for {len(sk_driver)} driver(s) not in the "
+                f"register")
 
-    problems = []
+    problems = list(timing_problems)
     # A dump is a snapshot, and the free tier's is fourteen days old. Races
     # run since it was cut simply are not in it, and the load looks clean:
     # the winner cross-check cannot fire on rows that never arrived. For
     # history that costs nothing - 1950-2025 does not change - but for the
     # current season it is a silent partial load, so name it.
-    if from_dump is not None and not a.dry_run:
+    # Not in --timing-only: that mode deliberately loads no classification
+    # rows, so every race would look empty and the warning would be noise.
+    if from_dump is not None and not a.dry_run and not a.timing_only:
         empty = cur.execute("""SELECT year, round FROM races
             WHERE status = 'completed' AND year BETWEEN ? AND ?
               AND NOT EXISTS (SELECT 1 FROM race_entries e
