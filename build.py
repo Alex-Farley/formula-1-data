@@ -27,7 +27,7 @@ from data import radio as RA       # noqa: E402
 from data import results as RS     # noqa: E402
 
 DB = os.path.join(HERE, "f1.db")
-VERSION = "2.8"
+VERSION = "2.9"
 BUILT = "2026-09-05"
 
 
@@ -977,29 +977,6 @@ def build():
                 (r[1], field, str(external), str(derived), assessment, status))
 
     # --- figures derivable from the race records
-    # --- link race entries to the car that scored them
-    for cid, yr in CR.CAR_SEASONS:
-        row = cur.execute("""SELECT constructor_id, from_year, to_year
-                             FROM cars WHERE id=?""", (cid,)).fetchone()
-        if row is None:
-            raise SystemExit(f"car season: unknown car {cid}")
-        cons, fy, ty = row
-        if (fy is not None and yr < fy) or (ty is not None and yr > ty):
-            raise SystemExit(
-                f"car season: {cid} asserted for {yr}, outside its {fy}-{ty} life")
-        # Zero entries is legitimate: a car can race a season without winning,
-        # taking pole or setting a fastest lap, and race_entries only holds
-        # those. Lotus scored none of the three in 1971.
-        cur.execute("""UPDATE race_entries SET car_id=? WHERE constructor_id=?
-            AND race_id IN (SELECT id FROM races WHERE year=?)""",
-            (cid, cons, yr))
-    bad = cur.execute("""SELECT e.id FROM race_entries e JOIN cars c ON c.id=e.car_id
-        JOIN races r ON r.id=e.race_id
-        WHERE r.year < c.from_year OR (c.to_year IS NOT NULL AND r.year > c.to_year)
-        LIMIT 1""").fetchone()
-    if bad:
-        raise SystemExit("car season: an entry falls outside its car's years")
-
     # --- link race entries to the CHASSIS that scored them
     #
     # known_gaps #1 has stood since v2.6: the chassis-per-race harvest was
@@ -1049,6 +1026,191 @@ def build():
         cur.execute("""UPDATE race_entries SET chassis_id=?
             WHERE constructor_id=? AND race_id IN
                   (SELECT id FROM races WHERE year=?)""", (ch_id, cons, yr))
+
+    # --- rule two: resolve through the driver and the round
+    #
+    # The rule above asks what a CONSTRUCTOR ran in a SEASON, and gives up
+    # whenever the answer is more than one. That is most of the 1950s and
+    # 1960s, where a "constructor" was a name several privateers entered
+    # several different chassis under.
+    #
+    # The drivers inside an entrant block carry rounds, though, and that is a
+    # far sharper question: what did THIS ENTRANT run for THIS DRIVER in THIS
+    # ROUND. Lotus in 1970 ran a 49C, a 72B and a 72C and settles nothing as a
+    # constructor - but Garvey Team Lotus entered a 49C for Soler-Roig in
+    # round 2 and nothing else, and that resolves. Only Rindt's entries stay
+    # ambiguous, correctly: he moved from the 49C to the 72 mid-season.
+    #
+    # This rule never contradicts the first - a constructor-season with one
+    # chassis has that chassis in every one of its entrant blocks - and the
+    # build asserts as much rather than assuming it.
+    drivers_by_f1db, collisions = HV.resolve_f1db_drivers(
+        dict(cur.execute("SELECT id, full_name FROM drivers")))
+    if collisions:
+        raise SystemExit(
+            "two F1DB drivers normalise onto one register entry: "
+            + "; ".join(f"{k} <- {v}" for k, v in collisions.items()))
+
+    # (year, entrant, constructor, engine manufacturer) -> its chassis list
+    block_chassis = {}
+    for year, entrant, f1db_cons, eng_man, ch_ids, _e, _t in entrants:
+        block_chassis[(year, entrant, f1db_cons, eng_man)] = ch_ids
+
+    # (year, round, our driver id) -> {chassis}, {our constructor id}
+    per_round = {}
+    for (year, entrant, f1db_cons, eng_man, f1db_driver, rounds,
+         test) in HV.load_entrant_drivers():
+        if test or not rounds:
+            continue                    # a test driver did not enter a race
+        our_driver = drivers_by_f1db.get(f1db_driver)
+        if our_driver is None:
+            continue                    # not in this register; never created
+        ch = block_chassis.get((year, entrant, f1db_cons, eng_man), [])
+        our_cons = HV.constructor_for_f1db(f1db_cons)
+        for rnd in rounds:
+            slot = per_round.setdefault((year, rnd, our_driver), (set(), set()))
+            slot[0].update(ch)
+            if our_cons in known_cons:
+                slot[1].add(our_cons)
+
+    # The check that has to pass before any of this is trusted.
+    #
+    # 1,164 race entries already carry a constructor, established by a
+    # different route entirely - the Wikipedia race harvest. For every one of
+    # them F1DB must agree. This is the constraining cross-check: it is the
+    # entrant lists' answer to a question this database already knows the
+    # answer to, on a thousand rows, before their answer is taken on the
+    # rows where it does not.
+    agreed = conflict = 0
+    conflicts = []
+    for eid_, year, rnd, did_, cons_ in cur.execute(
+            """SELECT e.id, r.year, r.round, e.driver_id, e.constructor_id
+               FROM race_entries e JOIN races r ON r.id = e.race_id
+               WHERE e.constructor_id IS NOT NULL""").fetchall():
+        found = per_round.get((year, rnd, did_))
+        if not found or not found[1]:
+            continue
+        if cons_ in found[1]:
+            agreed += 1
+        else:
+            conflict += 1
+            if len(conflicts) < 8:
+                conflicts.append(f"{year} r{rnd} {did_}: stored {cons_}, "
+                                 f"entry list {sorted(found[1])}")
+    if conflict:
+        raise SystemExit(
+            f"entrant lists disagree with the stored constructor on "
+            f"{conflict} of {agreed + conflict} checked entries:\n  "
+            + "\n  ".join(conflicts))
+    if agreed < 800:
+        raise SystemExit(
+            f"only {agreed} race entries could be checked against the entry "
+            f"lists; that is too few to trust the rest. Rerun "
+            f"tools/f1db_fetch.py.")
+
+    filled_cons = filled_chassis = 0
+    for eid_, year, rnd, did_, cons_, ch_ in cur.execute(
+            """SELECT e.id, r.year, r.round, e.driver_id, e.constructor_id,
+                      e.chassis_id
+               FROM race_entries e JOIN races r ON r.id = e.race_id""").fetchall():
+        found = per_round.get((year, rnd, did_))
+        if not found:
+            continue
+        chassis_set, cons_set = found
+        if cons_ is None and len(cons_set) == 1:
+            cur.execute("UPDATE race_entries SET constructor_id=? WHERE id=?",
+                        (next(iter(cons_set)), eid_))
+            filled_cons += 1
+        if len(chassis_set) == 1:
+            one = next(iter(chassis_set))
+            if ch_ is not None and ch_ != one:
+                raise SystemExit(
+                    f"the two chassis rules disagree for {year} round {rnd} "
+                    f"{did_}: season says {ch_}, entry list says {one}")
+            if ch_ is None:
+                cur.execute("UPDATE race_entries SET chassis_id=? WHERE id=?",
+                            (one, eid_))
+                filled_chassis += 1
+    print(f"  entry lists: {agreed} stored constructors confirmed, "
+          f"{filled_cons} filled, {filled_chassis} chassis resolved by round")
+
+    # --- link race entries to the curated car that scored them
+    #
+    # Two routes, and the precise one goes first.
+    #
+    # 1. Through the chassis. Where the entry lists resolved a chassis and
+    #    that chassis belongs to a curated car, the car follows with no
+    #    assumption at all.
+    #
+    # 2. CAR_SEASONS, the authored claim that every race a constructor won,
+    #    took pole for or set fastest lap in that season was in this car.
+    #    That claim is now CHECKED rather than trusted: it is applied only
+    #    where the season's entry lists name no chassis outside the ones the
+    #    car covers. Twelve of the forty-one pairs fail that test, and the
+    #    cost of having trusted them shows up the moment poles can be
+    #    attributed at all - McLaren ran the M23 and the M26 through 1976 and
+    #    1977, and the blanket claim handed every one of Hunt's sixteen poles
+    #    to the M23 against a published career fourteen.
+    #
+    # Where the claim is not corroborated and the chassis did not resolve,
+    # the entry keeps no car. "We do not know whether that pole was an M23 or
+    # an M26" is the true answer.
+    cur.execute("""UPDATE race_entries SET car_id = (
+        SELECT c.car_id FROM chassis c WHERE c.id = race_entries.chassis_id)
+        WHERE chassis_id IS NOT NULL""")
+
+    season_all = {}
+    for year, _entrant, f1db_cons, _eman, ch_ids, _e, _t in entrants:
+        our = HV.constructor_for_f1db(f1db_cons)
+        if our in known_cons:
+            season_all.setdefault((our, year), set()).update(ch_ids)
+
+    uncorroborated = []
+    for cid, yr in CR.CAR_SEASONS:
+        row = cur.execute("""SELECT constructor_id, from_year, to_year
+                             FROM cars WHERE id=?""", (cid,)).fetchone()
+        if row is None:
+            raise SystemExit(f"car season: unknown car {cid}")
+        cons, fy, ty = row
+        if (fy is not None and yr < fy) or (ty is not None and yr > ty):
+            raise SystemExit(
+                f"car season: {cid} asserted for {yr}, outside its {fy}-{ty} life")
+        others = sorted(season_all.get((cons, yr), set())
+                        - set(CR.CAR_CHASSIS.get(cid, ())))
+        cur.execute("""INSERT INTO car_seasons (car_id, year, corroborated,
+            other_chassis) VALUES (?,?,?,?)""",
+            (cid, yr, 0 if others else 1, "+".join(others) or None))
+        if others:
+            uncorroborated.append((cid, yr, others))
+            continue
+        # Zero entries is legitimate: a car can race a season without winning,
+        # taking pole or setting a fastest lap, and race_entries only holds
+        # those. Lotus scored none of the three in 1971.
+        cur.execute("""UPDATE race_entries SET car_id=? WHERE constructor_id=?
+            AND car_id IS NULL
+            AND race_id IN (SELECT id FROM races WHERE year=?)""",
+            (cid, cons, yr))
+    for cid, yr, others in uncorroborated:
+        cur.execute("""INSERT INTO discrepancies (subject, field, stored_value,
+            derived_value, assessment, status) VALUES (?,?,?,?,?,?)""",
+            (f"{cid} {yr}", "CAR_SEASONS", "one chassis", "+".join(others),
+             f"CAR_SEASONS claims every {yr} result for this constructor was "
+             f"in {cid}, but the season's entry lists also name "
+             f"{', '.join(others)}. The blanket link is not applied; entries "
+             f"that season get a car only where the entry lists resolved the "
+             f"chassis itself.", "resolved - claim not corroborated"))
+    print(f"  car linkage: {len(CR.CAR_SEASONS) - len(uncorroborated)} of "
+          f"{len(CR.CAR_SEASONS)} CAR_SEASONS claims corroborated by the "
+          f"entry lists")
+
+    bad = cur.execute("""SELECT e.id FROM race_entries e JOIN cars c ON c.id=e.car_id
+        JOIN races r ON r.id=e.race_id
+        WHERE r.year < c.from_year OR (c.to_year IS NOT NULL AND r.year > c.to_year)
+        LIMIT 1""").fetchone()
+    if bad:
+        raise SystemExit("car season: an entry falls outside its car's years")
+
+
     # A chassis may not be credited with a race run outside the seasons the
     # entry lists record it in. This cannot fail given how the links are
     # made; it is here so that it cannot start failing silently later.

@@ -395,6 +395,28 @@ CREATE TABLE chassis (
     source          TEXT NOT NULL
 );
 
+-- The record of which CAR_SEASONS claims the entry lists corroborate.
+--
+-- data/cars.py asserts, per (car, season), that every race the constructor
+-- won, took pole for or set fastest lap in that year was in this car. That is
+-- an authored claim, and this table is where it stops being trusted and
+-- starts being checked: `corroborated` is 1 only where the season's entry
+-- lists name no chassis outside the ones the car covers.
+--
+-- Where it is 0, `other_chassis` says what else the constructor ran, and the
+-- blanket link is NOT made - an entry that season gets a car only if the
+-- entry lists resolved its chassis outright. The claim was safe for wins by
+-- luck rather than by construction, and the moment poles could be attributed
+-- it showed: McLaren ran the M23 and M26 through 1976-77, and the blanket
+-- gave the M23 sixteen poles against a published career fourteen.
+CREATE TABLE car_seasons (
+    car_id          TEXT NOT NULL REFERENCES cars(id),
+    year            INTEGER NOT NULL,
+    corroborated    INTEGER NOT NULL,
+    other_chassis   TEXT,                      -- '+'-separated, when not
+    PRIMARY KEY (car_id, year)
+);
+
 -- Who entered what, per season: the mapping that lets a race be tied to a
 -- chassis at all. One row per (season, entrant, constructor).
 --

@@ -3,6 +3,123 @@
 A running record of what changed in each version, what it exposed, and what
 was deliberately not done. Newest first.
 
+## v2.9 (2026-09-05) — the round, and the first live run of both loaders
+
+Two things the previous release left on the table: F1DB's per-round driver
+data, which v2.8 fetched and then threw away, and running `ergast_load.py`
+against the live API for the first time. Both paid, and both exposed a defect
+that only a live run could find.
+
+### Rule two: resolve through the driver and the round
+
+v2.8 asked what a CONSTRUCTOR ran in a SEASON and gave up whenever the answer
+was more than one — which is most of the 1950s and 1960s. But the drivers
+inside an entrant block carry rounds, and that is a far sharper question:
+what did **this entrant** run for **this driver** in **this round**.
+
+Lotus in 1970 ran a 49C, a 72B and a 72C, so the constructor-season settles
+nothing. Garvey Team Lotus entered a 49C for Soler-Roig in round 2 and
+nothing else; Pete Lovely a 49B; Team Gunston a 49. All resolve. Only Rindt's
+own entries stay ambiguous — correctly, because he moved from the 49C to the
+72 mid-season.
+
+| | v2.8 | v2.9 |
+|---|---|---|
+| entries with a chassis | 821 (34%) | **1,849 (76%)** |
+| entries with a constructor | 1,164 (48%) | **2,395 (99%)** |
+| winning chassis known | 819 races | **874 races** |
+| 1960s entries with a chassis | 4% | **31%** |
+
+**The check first, as always.** 1,153 entries already carried a constructor
+established by a different route — the Wikipedia race harvest. F1DB agreed
+with every one of them. Only then were its answers taken on the 1,243 entries
+that had none, and the build refuses outright on a single disagreement.
+
+### What that unlocked, and the error it exposed
+
+The pole harvest recorded who took pole but not what they drove, so 1,260
+entries carried no constructor and could not reach a car at all. `cars.poles`
+has been a lower bound since v2.6 for exactly that reason. With the
+constructor supplied, poles can be attributed, and **nine cars now match their
+published career pole total exactly** — MP4/4 15, W05 18, W11 15, FW14 21,
+RB6 15, F2004 12, R25 7, BGP001 5, Cooper T51 6. Before this, none could be.
+
+The first thing that check did was fail. **The McLaren M23 derived 16 poles
+against a published 14.** `CAR_SEASONS` claims every race a constructor won,
+took pole for or set fastest lap in a season was in one named car — and
+McLaren ran the M23 and the M26 through 1976 and 1977, so the blanket claim
+handed the M23 every one of Hunt's poles. The claim was only ever safe for
+wins, by luck rather than by construction, and nothing could see it until
+poles could be attributed.
+
+Twelve of the forty-one `CAR_SEASONS` pairs turn out to cover a season the
+constructor also ran other chassis in. The claim is now **checked rather than
+trusted**: the new `car_seasons` table records which pairs the entry lists
+corroborate, the blanket link is applied only to those, and an entry in an
+uncorroborated season gets a car only where the chassis itself resolved.
+Ferrari's 312T consequently derives 21 wins against a published 27, because
+1975 is uncorroborated — Ferrari ran the 312B3-74 alongside it and F1DB does
+not say which race used which. That is the honest number.
+
+### The first live run of ergast_load.py, and what it fabricated
+
+21,017 entries across all 1,161 races, no race refused on a winner mismatch.
+The podium reconciliation — the strongest check in this project and one that
+has never actually run — now passes: no driver below the official figure, six
+of seven exact, Russell one over as an active driver whose published total is
+older.
+
+It also silently corrupted the database, and the reconciliation is what
+caught it. **Jolpica gives Emerson Fittipaldi the id `emerson_fittipaldi` and
+his brother Wilson the bare `fittipaldi`.** This register holds only Emerson,
+under the id `fittipaldi`. The resolver's surname fallback matched Wilson's
+id onto Emerson and overwrote his 1972-73 Lotus entries with Wilson's
+Brabham ones:
+
+```
+every constructor win total equals the number of races it won
+  Team Lotus: stored 79, derived 71      <- eight wins moved
+  Brabham:    stored 35, derived 43         from Lotus to Brabham
+  Fittipaldi: stored 0,  derived 2       <- a constructor that never won
+```
+
+This is the same failure as `_norm()` stripping "jr" and giving Piquet Jr his
+father's 23 wins — in a second resolver, written after that lesson, which had
+never been run against live data. Two independent checks caught it: the
+constructor win reconciliation, and the chassis linkage noticing that entries
+now claimed a Lotus 72 for a Brabham entry.
+
+The fix is that a bare surname is accepted only where the name the source
+supplies alongside it agrees. The API sends `givenName` and `familyName` on
+every result and the loader was discarding both. It now carries them, and
+`fittipaldi` arriving as "Wilson Fittipaldi" resolves to nothing and is
+skipped, which is correct — Wilson is not in this register. The subset test
+allows "Lewis Hamilton" to match "Sir Lewis Hamilton" while refusing
+"Wilson Fittipaldi" against "Emerson Fittipaldi".
+
+### A check that was a constant
+
+`shared drives are recorded with both drivers` asserted `len(shared) == 3`.
+Three was the number the winner harvest happened to record, not a property of
+anything. The full classification finds 42 races with a shared car, which is
+right: sharing was routine in the 1950s and died out in the 1960s. Replaced
+with what is actually true — no shared drive after 1964, and every shared
+drive is a classified finish.
+
+### Still open
+
+- **577 drivers are not in the register**, so 5,558 classification rows are
+  skipped. The loader exits non-zero and names them, which is the designed
+  behaviour, but the register tail is now the binding constraint on the full
+  classification rather than the API.
+- **67 F1 constructors are missing** — Ensign, Osella, De Tomaso, ATS,
+  Coloni, AGS, Zakspeed, Theodore, Marussia, Simtek, Pacific and the rest.
+  Both loaders report them independently. 593 entrant rows and 256 chassis
+  cannot join to a constructor because of it.
+- The classification itself is **not committed**: Ergast's data is
+  CC BY-NC-SA, and the build is a function of what is in this repository.
+  Run the loader locally.
+
 ## v2.8 (2026-09-05) — the chassis register, and what a constraining check is
 
 Goal: technical data on the cars, working backwards. `cars` held 29 landmark

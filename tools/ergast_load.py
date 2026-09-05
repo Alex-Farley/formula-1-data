@@ -103,6 +103,14 @@ def season_results(year, sleep):
                     "position": int(res["position"]),
                     "position_text": res["positionText"],
                     "driver": res["Driver"]["driverId"],
+                    # The id alone is not enough to identify a person. Jolpica
+                    # gives Emerson Fittipaldi the id `emerson_fittipaldi` and
+                    # his brother Wilson the bare `fittipaldi`, and a resolver
+                    # matching on surname hands Wilson's Brabham results to
+                    # Emerson. Carry the name the source actually states.
+                    "driver_name": " ".join(x for x in (
+                        res["Driver"].get("givenName"),
+                        res["Driver"].get("familyName")) if x),
                     "constructor": res["Constructor"]["constructorId"],
                     "grid": int(res.get("grid") or 0),
                     "laps": int(res.get("laps") or 0),
@@ -176,7 +184,8 @@ def main():
                 (rid,)).fetchone()
             theirs = [e for e in entries if e["position"] == 1]
             if stored and theirs:
-                got = {resolve(e["driver"]) for e in theirs}
+                got = {resolve(e["driver"], e.get("driver_name"))
+                       for e in theirs}
                 if stored[0] not in got:
                     print(f"  REFUSED {year} r{rnd}: winner mismatch - "
                           f"source says {sorted(x for x in got if x)}, "
@@ -192,7 +201,7 @@ def main():
             for e in entries:
                 if not (pmin <= e["position"] <= pmax):
                     continue
-                did = resolve(e["driver"])
+                did = resolve(e["driver"], e.get("driver_name"))
                 if did is None:
                     unresolved.add(e["driver"])
                     totals["skipped_driver"] += 1

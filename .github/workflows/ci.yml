@@ -11,7 +11,7 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
-    # The build and all 136 checks run in well under a minute. A cap this far
+    # The build and all 138 checks run in well under a minute. A cap this far
     # above that never trips on a slow runner, and turns a hang into a failure
     # in minutes rather than letting it hold a runner for the default six
     # hours.

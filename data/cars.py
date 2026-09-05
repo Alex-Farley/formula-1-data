@@ -623,12 +623,22 @@ WITHDRAWN = [
 ]
 
 
-def seasons_complete(car_id, from_year, to_year):
-    """True when CAR_SEASONS asserts every year of the car's life, so the
-    derived win count must equal the published one rather than merely not
-    exceed it."""
+def seasons_complete(car_id, from_year, to_year, corroborated=None):
+    """True when every year of the car's life is linked, so the derived win
+    count must EQUAL the published one rather than merely not exceed it.
+
+    `corroborated` is the set of (car, year) pairs the season entry lists
+    actually back up, from the `car_seasons` table. Pass it. Without it this
+    falls back to the authored CAR_SEASONS claim, which is what the linkage
+    used to trust and is not the same thing: twelve of the forty-one pairs
+    cover a season the constructor also ran other chassis in, so the blanket
+    link is withheld and the car's derived total is legitimately short of its
+    published one. Asserting equality there would fail on correct data."""
     if from_year is None:
         return False
-    have = {y for c, y in CAR_SEASONS if c == car_id}
+    if corroborated is None:
+        have = {y for c, y in CAR_SEASONS if c == car_id}
+    else:
+        have = {y for c, y in corroborated if c == car_id}
     want = set(range(from_year, (to_year or from_year) + 1))
     return bool(have) and want <= have

@@ -8,7 +8,8 @@ Fetch the chassis, engine and per-season entrant register from F1DB.
 
 Source:  https://github.com/f1db/f1db   (CC BY 4.0)
 Writes:  harvest/chassis.txt, harvest/engines.txt, harvest/entrants.txt,
-         harvest/f1db_constructors.txt
+         harvest/entrant_drivers.txt, harvest/f1db_constructors.txt,
+         harvest/f1db_drivers.txt
 
 Why a tool and not a person
 ---------------------------
@@ -180,6 +181,52 @@ def constructor_rows(data, yaml):
     return sorted(rows)
 
 
+def driver_rows(data, yaml):
+    """The driver register, so a race entry can be resolved to an F1DB driver
+    id offline. Names only - this file never creates a driver."""
+    import glob
+    rows = []
+    for p in sorted(glob.glob(os.path.join(data, "drivers", "*.yml"))):
+        d = yaml.safe_load(open(p, encoding="utf-8"))
+        rows.append("|".join(_clean(d.get(k)) for k in
+                             ("id", "name", "firstName", "lastName",
+                              "dateOfBirth")))
+    return sorted(rows)
+
+
+def entrant_driver_rows(data, yaml):
+    """One row per (season, entrant, constructor, engine manufacturer, driver).
+
+    `rounds` is copied verbatim - "1-10", "1,4-5", "3" - and parsed in
+    data/harvest.py, not here, so the file records exactly what the source
+    says. A driver with no rounds is a test driver who did not enter a race;
+    those rows are written with an empty rounds field and the build ignores
+    them rather than assuming they raced everything."""
+    import glob
+    rows = []
+    for p in sorted(glob.glob(os.path.join(data, "seasons", "*", "entrants.yml"))):
+        year = int(os.path.basename(os.path.dirname(p)))
+        for entrant in yaml.safe_load(open(p, encoding="utf-8")) or []:
+            eid = entrant["entrantId"]
+            for b in (entrant.get("constructors") or [entrant]):
+                if not b.get("constructorId"):
+                    continue
+                drivers = b.get("drivers")
+                if drivers is None and b.get("driverId"):
+                    drivers = [{"driverId": b["driverId"],
+                                "rounds": b.get("rounds")}]
+                for d in drivers or []:
+                    if not d.get("driverId"):
+                        continue
+                    rows.append("|".join([
+                        str(year), _clean(eid), _clean(b["constructorId"]),
+                        _clean(b.get("engineManufacturerId")),
+                        _clean(d["driverId"]), _clean(d.get("rounds")),
+                        "1" if d.get("testDriver") else "0",
+                    ]))
+    return rows
+
+
 def entrant_rows(data, yaml):
     """One row per (year, entrant, constructor, engine manufacturer).
 
@@ -242,11 +289,19 @@ def main():
     ok &= write("f1db_constructors.txt",
                 "constructor_id|name|full_name|country_id",
                 constructor_rows(data, yaml), version, commit, args.check)
+    ok &= write("f1db_drivers.txt",
+                "driver_id|name|first_name|last_name|date_of_birth",
+                driver_rows(data, yaml), version, commit, args.check)
     ok &= write("entrants.txt",
                 "year|entrant_id|constructor_id|engine_manufacturer_id|"
                 "chassis_ids|engine_ids|tyre_ids"
                 "   ('+' separates values the source does not disambiguate)",
                 entrant_rows(data, yaml), version, commit, args.check)
+    ok &= write("entrant_drivers.txt",
+                "year|entrant_id|constructor_id|engine_manufacturer_id|"
+                "driver_id|rounds|test_driver"
+                "   (rounds is verbatim: '1-10', '1,4-5'; empty = did not race)",
+                entrant_driver_rows(data, yaml), version, commit, args.check)
     if args.check and not ok:
         sys.exit("the committed harvest files are out of date with F1DB")
 

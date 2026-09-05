@@ -440,22 +440,29 @@ POLE_ONLY_NOTE = ("Added to the register from the pole position and fastest lap 
 # ---------------------------------------------------------------------
 KNOWN_GAPS = [
     ("finish_position", "the full race classification",
-     "race_entries holds the winner, the pole-sitter and the fastest-lap "
-     "setter for every race - about 2.1 rows per race against a real field "
-     "of 15 to 22. Second place, third place, retirements, grid positions "
-     "and per-race points are NOT in the distributed database. They are "
-     "available: 26,137 rows covering 1950-2026 sit behind the Jolpica-F1 "
-     "API, and tools/ergast_load.py fetches and loads them, self-validating "
-     "on the winner already stored. It is not part of the build because the "
-     "build is offline. Until it is run, drivers.podiums stays hand-entered "
-     "for the 7 drivers who have an official figure and is NULL for everyone "
-     "else, and 73 register entries have no race rows at all.", 0,
+     "race_entries in the DISTRIBUTED build holds the winner, the "
+     "pole-sitter and the fastest-lap setter for every race - about 2.1 rows "
+     "per race against a real field of 15 to 22. Second place, retirements, "
+     "grid positions and per-race points are not in the committed file, and "
+     "that is deliberate rather than unfinished: the rows come from "
+     "Jolpica-F1, whose Ergast data is CC BY-NC-SA - non-commercial, the "
+     "most restrictive licence any source here carries - and this database "
+     "is a function of what is in its own repository. "
+     "tools/ergast_load.py has now been run against the live API and works: "
+     "21,017 rows across all 1,161 races, no race refused on a winner "
+     "mismatch, and the podium reconciliation passes. Run it locally and the "
+     "gap closes on your copy. "
+     "Its first live run also proved why the reconciliation exists: the "
+     "loader's driver resolver matched Jolpica's bare `fittipaldi` - Wilson - "
+     "onto this register's Emerson, moving eight wins from Team Lotus to "
+     "Brabham before the constructor win check caught it.", 0,
      "python3 tools/ergast_load.py  (about 270 requests, a few minutes). "
-     "Then rerun verify.py: the podium reconciliation compares the derived "
-     "counts against the official figures and is what proves the load. "
+     "Then rerun verify.py. The binding constraint is now the driver "
+     "register, not the API: 577 drivers who have started a Grand Prix are "
+     "not in it, so 5,558 rows are skipped and the loader exits non-zero "
+     "naming them. "
      "Do NOT transcribe these rows by hand - an attempt to do so during "
-     "v2.7 put fabricated results into four of five sampled 2008 rows, and "
-     "only that reconciliation caught it."),
+     "v2.7 put fabricated results into four of five sampled 2008 rows."),
     ("chassis_id", "the chassis each race was won in, before 1980",
      "The winning chassis is now known for 819 of 1,161 races. It comes from "
      "F1DB's per-season entry lists, which record which chassis a constructor "
@@ -496,16 +503,21 @@ KNOWN_GAPS = [
      "exists - the figures are not published. A car field stays NULL until a "
      "measurement of that car, rather than of the rules it was built to, is "
      "established."),
-    ("cars.poles", "the car each pole was taken in",
-     "The pole and fastest-lap harvest recorded who set them but not what "
-     "they drove, so 655 of 1,161 pole entries carry no constructor and "
-     "cannot be linked to a car. A car's derived pole count is therefore a "
-     "lower bound, and verify.py only checks that it does not EXCEED the "
-     "published figure. Derived win counts have no such problem and match "
-     "the published totals exactly for all 11 fully linked cars.", 0,
-     "Harvest the constructor alongside the pole-sitter, or infer it from "
-     "the driver's entry that season once season_entries covers the "
-     "historical seasons."),
+    ("cars.poles", "the car each pole was taken in, where the season is ambiguous",
+     "This was the largest gap in the car data and is now mostly closed. The "
+     "pole and fastest-lap harvest recorded who set them but not what they "
+     "drove, so 1,260 of 2,424 entries carried no constructor at all and "
+     "could not reach a car. F1DB's per-round driver data supplies it: 99 "
+     "per cent of entries now name a constructor, and NINE cars match their "
+     "published career pole total exactly, where previously none could be "
+     "checked for more than not exceeding it. What is left is the seasons a "
+     "constructor ran more than one chassis, where attributing a pole to a "
+     "particular car would be a guess - McLaren ran the M23 and the M26 "
+     "through 1976 and 1977, and the blanket season claim gave the M23 "
+     "sixteen poles against a published fourteen before this was checked.", 0,
+     "Per-round chassis data, which no source in use here has. The remaining "
+     "seasons are listed in v_ambiguous_seasons and in car_seasons where "
+     "corroborated = 0."),
     ("laps", "lap times, tyre stints, pit stops, radio and telemetry",
      "Formula 1 publishes per-lap timing only from 2018, through the live "
      "timing API. The laps, stints, pit_stops, race_control_messages and "
@@ -610,11 +622,28 @@ CORRECTIONS = [
 # original mistake in a new form. **F1DB records which chassis a constructor
 # ran in a season. It does not record which chassis ran in which round.**
 # Where a team ran more than one design in a year the entrant block lists
-# them all with no round attribution, so the mapping constrains the chassis
-# only for a constructor-season that used exactly one. Those are linked; the
-# rest stay NULL and the ambiguity is stored, not dropped.
+# them all with no round attribution.
+#
+# The drivers inside those blocks DO carry rounds, though, and that is what
+# makes the mapping work. Resolving through (season, round, driver) picks out
+# one ENTRANT rather than a whole constructor, and an entrant is a far
+# smaller thing:
+#
+#   Lotus in 1970 ran a 49C, a 72B and a 72C, so the constructor-season
+#   settles nothing. But only Gold Leaf Team Lotus entered all three. Garvey
+#   Team Lotus entered a 49C for Soler-Roig in round 2, Pete Lovely a 49B,
+#   Team Gunston a 49 - every one of those resolves. Only Rindt's own entries
+#   stay ambiguous, correctly, because he moved from the 49C to the 72
+#   mid-season.
+#
+# So there are two rules, and the second is strictly sharper than the first:
+# a constructor-season naming exactly one chassis, and a (season, round,
+# driver) whose entrant names exactly one. Whatever neither settles stays
+# NULL and the ambiguity is stored, not dropped.
 # =====================================================================
 CHASSIS_FILE = os.path.join(HERE, "..", "harvest", "chassis.txt")
+F1DB_DRIVERS_FILE = os.path.join(HERE, "..", "harvest", "f1db_drivers.txt")
+ENTRANT_DRIVERS_FILE = os.path.join(HERE, "..", "harvest", "entrant_drivers.txt")
 ENGINES_FILE = os.path.join(HERE, "..", "harvest", "engines.txt")
 F1DB_CONS_FILE = os.path.join(HERE, "..", "harvest", "f1db_constructors.txt")
 ENTRANTS_FILE = os.path.join(HERE, "..", "harvest", "entrants.txt")
@@ -632,6 +661,9 @@ F1DB_CONSTRUCTORS = {
     "prost": "prost-gp",
     "stewart": "stewart-gp",
     "surtees": "surtees-team",
+    # F1DB splits the Faenza team's 2024 name from its 2025 one; this
+    # register holds the continuing team under a single id.
+    "rb": "racing-bulls",
 }
 
 # Constructors this database holds that F1DB has no constructor for, with the
@@ -704,6 +736,103 @@ def constructor_for_f1db(f1db_id):
     """This database's constructor id for an F1DB one, or None where there is
     deliberately no mapping."""
     return F1DB_CONSTRUCTORS.get(f1db_id, f1db_id)
+
+
+def load_f1db_drivers():
+    """driver_id, name, first_name, last_name, date_of_birth"""
+    return _read_pipe(F1DB_DRIVERS_FILE, 5)
+
+
+def load_entrant_drivers():
+    """year, entrant_id, constructor_id, engine_manufacturer_id, driver_id,
+    {rounds}, test_driver
+
+    `rounds` comes back as a set of integers. An empty set means the source
+    gave no rounds at all - a test driver who never entered a race - and the
+    caller must skip the row rather than read it as "every round"."""
+    out = []
+    for (year, entrant, cons, eng_man, driver, rounds,
+         test) in _read_pipe(ENTRANT_DRIVERS_FILE, 7):
+        out.append((int(year), entrant, cons, eng_man, driver,
+                    parse_rounds(rounds), test == "1"))
+    return out
+
+
+def parse_rounds(spec):
+    """'1-10' / '1,4-5' / '3' -> {1..10} / {1,4,5} / {3}. Empty -> set()."""
+    out = set()
+    for part in (spec or "").split(","):
+        part = part.strip()
+        if not part:
+            continue
+        if "-" in part:
+            lo, _, hi = part.partition("-")
+            out.update(range(int(lo), int(hi) + 1))
+        else:
+            out.add(int(part))
+    return out
+
+
+# F1DB driver id -> this database's driver id, where the names do not match
+# on their own. Three of them; written out and checked one at a time.
+F1DB_DRIVER_ALIASES = {
+    "jj-lehto": "jarvilehto",       # JJ Lehto raced as Jyrki Jarvilehto
+    "carlos-sainz-jr": "sainz",     # this register holds only the son
+    "guanyu-zhou": "zhou",          # given name first in one, family in the other
+}
+
+# F1DB drivers that look like a register entry and are NOT one. Declared, so
+# that a later widening of the name match cannot quietly pick them up.
+F1DB_DRIVER_NON_MAPPING = {
+    "emilio-de-villota":
+        "This register's `de-villota` is MARIA de Villota, who tested for "
+        "Marussia and never entered a Grand Prix. Emilio de Villota is a "
+        "different person - her father - who entered fifteen between 1976 and "
+        "1982. The names normalise to the same string and the two must not be "
+        "joined.",
+}
+
+
+def resolve_f1db_drivers(our_drivers):
+    """F1DB driver id -> this database's driver id, by normalised name.
+
+    `our_drivers` is {our_id: full_name}. Only names that match are returned;
+    F1DB holds 917 drivers and this register holds a few hundred, so most
+    have no counterpart and that is not an error.
+
+    Two safeguards, both learned the hard way. If two F1DB drivers normalise
+    onto the same register entry, NEITHER is mapped - that is the Piquet and
+    Piquet Jr failure, where stripping a suffix gave the son his father's 23
+    wins. And a register name that no F1DB driver matches is simply left
+    unmapped; nothing is created from a bulk feed.
+    """
+    ours = {}
+    for did, name in our_drivers.items():
+        key = _norm(name)
+        ours.setdefault(key, []).append(did)
+    aliases = {_norm(k): v for k, v in DRIVER_ALIASES.items()}
+
+    hits = {}
+    for f1db_id, name, first, last, _dob in load_f1db_drivers():
+        if f1db_id in F1DB_DRIVER_NON_MAPPING:
+            continue
+        if f1db_id in F1DB_DRIVER_ALIASES:
+            hits.setdefault(F1DB_DRIVER_ALIASES[f1db_id], set()).add(f1db_id)
+            continue
+        for candidate in (name, f"{first or ''} {last or ''}"):
+            key = _norm(candidate or "")
+            target = aliases.get(key) or (ours[key][0] if key in ours
+                                          and len(ours[key]) == 1 else None)
+            if target:
+                hits.setdefault(target, set()).add(f1db_id)
+                break
+    out, collisions = {}, {}
+    for our_id, f1db_ids in hits.items():
+        if len(f1db_ids) > 1:
+            collisions[our_id] = sorted(f1db_ids)
+            continue
+        out[f1db_ids.pop()] = our_id
+    return out, collisions
 
 
 def load_car_specs():

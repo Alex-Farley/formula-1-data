@@ -84,6 +84,7 @@ def main():
         "engines": dump(con, "engines", "full_name"),
         "season_entrants": dump(con, "season_entrants", "year, entrant_id"),
         "regulation_limits": dump(con, "regulation_limits", "field, from_year"),
+        "car_seasons": dump(con, "car_seasons", "car_id, year"),
         "circuits": dump(con, "circuits", "country, name"),
         "circuit_layouts": dump(con, "circuit_layouts", "circuit_id, from_year"),
         "grands_prix": dump(con, "grands_prix", "first_held"),
