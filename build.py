@@ -27,7 +27,7 @@ from data import radio as RA       # noqa: E402
 from data import results as RS     # noqa: E402
 
 DB = os.path.join(HERE, "f1.db")
-VERSION = "2.11"
+VERSION = "2.12"
 BUILT = "2026-09-05"
 
 
@@ -259,6 +259,46 @@ def build():
             SELECT full_name, ?, ?, 'NULL', ?, 'resolved - withdrawn'
             FROM cars WHERE id = ?""", (field, str(old), reason, car_id))
 
+    known_cons = {r[0] for r in cur.execute("SELECT id FROM constructors")}
+
+    # --- constructors admitted from the F1DB register (data/teams.py
+    # F1DB_CONSTRUCTORS). The ids are authored there; every attribute comes
+    # from the generated harvest files, so nobody types eighty-five team
+    # names and no team appears without a reviewed line.
+    f1db_names = {r[0]: (r[1], r[2], r[3]) for r in HV.load_f1db_constructors()}
+    f1db_country = {r[0]: r[1] for r in HV.load_f1db_countries()}
+    cons_years = {}
+    for year, _e, f1db_cons, _em, _d, rounds, test in HV.load_entrant_drivers():
+        if test or not rounds:
+            continue
+        cons_years.setdefault(f1db_cons, set()).add(year)
+    for f1db_id in T.F1DB_CONSTRUCTORS:
+        if f1db_id in known_cons:
+            raise SystemExit(
+                f"F1DB_CONSTRUCTORS admits {f1db_id}, which the register "
+                f"already holds. Remove it from the list or rename the id.")
+        if f1db_id in T.F1DB_CONSTRUCTOR_NON_MAPPING:
+            raise SystemExit(f"{f1db_id} is both admitted and declared "
+                             f"deliberately excluded")
+        meta = f1db_names.get(f1db_id)
+        if meta is None:
+            raise SystemExit(f"F1DB_CONSTRUCTORS admits {f1db_id}, which is "
+                             f"not in harvest/f1db_constructors.txt. Rerun "
+                             f"tools/f1db_fetch.py.")
+        yrs = cons_years.get(f1db_id)
+        if not yrs:
+            raise SystemExit(f"F1DB_CONSTRUCTORS admits {f1db_id}, which the "
+                             f"entry lists show entering no championship race")
+        name, full, country_id = meta
+        cur.execute("""INSERT INTO constructors (id, name, full_name, country,
+            first_entry, last_entry, wins, constructors_titles,
+            drivers_titles, active, confidence, source)
+            VALUES (?,?,?,?,?,?,NULL,0,0,?,?,?)""",
+            (f1db_id, name, full, f1db_country.get(country_id),
+             min(yrs), max(yrs), 1 if max(yrs) >= 2026 else 0,
+             HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
+        known_cons.add(f1db_id)
+
     # --- regulation limits. Loaded before the chassis register so the
     # register's weights can be measured against them.
     for i, (fy, ty, field, value, unit, note, conf, src) in \
@@ -270,7 +310,6 @@ def build():
 
     # --- the chassis, engine and entrant register (F1DB, via
     # tools/f1db_fetch.py). Bulk rows: no person has touched them.
-    known_cons = {r[0] for r in cur.execute("SELECT id FROM constructors")}
     known_eng = {r[0] for r in cur.execute("SELECT id FROM engine_manufacturers")}
 
     for eid, man, name, full, cap, cfg, asp in HV.load_engines():
@@ -316,8 +355,22 @@ def build():
         if ch_id in chassis_car and chassis_car[ch_id] not in seen_cars:
             raise SystemExit(f"CAR_CHASSIS names unknown car "
                              f"{chassis_car[ch_id]}")
-        our_cons = HV.constructor_for_f1db(f1db_cons)
         yrs = chassis_years.get(ch_id) or set()
+        # The season matters here too: the Alfa Romeo C42 and C43 are F1DB
+        # `alfa-romeo` chassis and Sauber cars.
+        #
+        # Every season the chassis raced must agree about which constructor
+        # it belongs to. Taking one of them - the first, say - would silently
+        # pick the wrong entity for a chassis that raced across a rename.
+        # None does today; the build refuses rather than wait for one.
+        _cands = {HV.constructor_for_f1db(f1db_cons, y) for y in yrs} or \
+                 {HV.constructor_for_f1db(f1db_cons)}
+        if len(_cands) > 1:
+            raise SystemExit(
+                f"chassis {ch_id} raced {min(yrs)}-{max(yrs)}, which spans a "
+                f"constructor rename: {sorted(_cands)}. Split the chassis or "
+                f"the mapping; do not let one season decide.")
+        our_cons = _cands.pop()
         sp = specs.get(ch_id, {})
         cur.execute("""INSERT INTO chassis (id, constructor_id,
             f1db_constructor_id, name, full_name, car_id, first_year,
@@ -455,7 +508,7 @@ def build():
         if year not in known_years:
             raise SystemExit(f"entrants.txt: season {year} is not in the "
                              f"season register")
-        our_cons = HV.constructor_for_f1db(f1db_cons)
+        our_cons = HV.constructor_for_f1db(f1db_cons, year)
         cur.execute("""INSERT INTO season_entrants (id, year, entrant_id,
             f1db_constructor_id, constructor_id, engine_manufacturer_id,
             chassis_ids, chassis_count, engine_ids, tyre_ids, confidence,
@@ -999,7 +1052,7 @@ def build():
     # should have given.
     season_chassis = {}
     for year, _entrant, f1db_cons, _eman, ch_ids, _eng, _tyres in entrants:
-        our = HV.constructor_for_f1db(f1db_cons)
+        our = HV.constructor_for_f1db(f1db_cons, year)
         if our in known_cons:
             season_chassis.setdefault((our, year), set()).update(ch_ids)
     unambiguous = {k: next(iter(v)) for k, v in season_chassis.items()
@@ -1066,7 +1119,7 @@ def build():
         if our_driver is None:
             continue                    # not in this register; never created
         ch = block_chassis.get((year, entrant, f1db_cons, eng_man), [])
-        our_cons = HV.constructor_for_f1db(f1db_cons)
+        our_cons = HV.constructor_for_f1db(f1db_cons, year)
         for rnd in rounds:
             slot = per_round.setdefault((year, rnd, our_driver), (set(), set()))
             slot[0].update(ch)
@@ -1161,7 +1214,7 @@ def build():
 
     season_all = {}
     for year, _entrant, f1db_cons, _eman, ch_ids, _e, _t in entrants:
-        our = HV.constructor_for_f1db(f1db_cons)
+        our = HV.constructor_for_f1db(f1db_cons, year)
         if our in known_cons:
             season_all.setdefault((our, year), set()).update(ch_ids)
 

@@ -250,6 +250,25 @@ for r in con.execute("""SELECT id, name, wins FROM constructors WHERE wins IS NO
 check("every constructor win total equals the number of races it won", not bad,
       "; ".join(bad))
 
+# A race entry's constructor must have been entering races that season. This
+# check did not exist until the constructor register was extended, and its
+# absence is why Zhou Guanyu's fastest laps at Suzuka 2022 and Bahrain 2023
+# sat against Alfa Romeo - a constructor whose last entry was 1985 - for as
+# long as they did. F1DB's `alfa-romeo` covers the 1950-51 works team, the
+# 1979-85 works return, and the name Sauber raced under from 2019; this
+# register's covers only the first two.
+era = con.execute("""SELECT r.year, c.name, c.first_entry, c.last_entry,
+        COUNT(*) n
+    FROM race_entries e JOIN races r ON r.id = e.race_id
+    JOIN constructors c ON c.id = e.constructor_id
+    WHERE c.first_entry IS NOT NULL
+      AND (r.year < c.first_entry
+           OR (c.last_entry IS NOT NULL AND r.year > c.last_entry))
+    GROUP BY r.year, c.id ORDER BY r.year""").fetchall()
+check("no entry is credited to a constructor that was not racing that season",
+      not era,
+      "; ".join(f"{r[0]}: {r[1]} ({r[2]}-{r[3]}) x{r[4]}" for r in era[:5]))
+
 total = con.execute("SELECT COUNT(*) FROM races WHERE status='completed'").fetchone()[0]
 credits = con.execute("""SELECT COUNT(*) FROM race_entries
     WHERE finish_position = 1""").fetchone()[0]
@@ -641,8 +660,63 @@ tot = con.execute("SELECT COUNT(*) FROM race_entries").fetchone()[0]
 print(f"  [info] {linked} of {tot} race entries linked to a car "
       f"({100 * linked / tot:.0f}%)")
 
-print("\nTHE CHASSIS REGISTER")
+print("\nTHE CONSTRUCTOR REGISTER")
+from data import teams as _T
 from data import harvest as _HV
+import collections as _coll
+_indy = {(y, r) for y, r in con.execute(
+    "SELECT year, round FROM races WHERE gp_id='indianapolis-500'")}
+_ent = _coll.defaultdict(set)
+for _y, _e, _c, _em, _d, _rounds, _test in _HV.load_entrant_drivers():
+    if _test:
+        continue
+    for _r in _rounds:
+        _ent[_c].add((_y, _r))
+_ours = {r[0] for r in con.execute("SELECT id FROM constructors")}
+
+# The admission test, asserted rather than assumed. Every constructor F1DB
+# records entering a championship race that was NOT the Indianapolis 500 must
+# be in this register, aliased to a team that is, or declared as a deliberate
+# exclusion. Nothing may simply be absent - which is how Ensign started 133
+# Grands Prix without a row here.
+# Every SEASON must resolve, not just one of them. An id whose meaning
+# changes part-way - `alfa-romeo` is the register's own constructor until
+# 1985 and Sauber's branding from 2019 - can have one season land in the
+# register while another lands nowhere. Testing only the last season would
+# pass on that.
+_gap = []
+for _c, _slots in _ent.items():
+    if not (_slots - _indy):
+        continue                       # Indianapolis-only, correctly excluded
+    if _c in _T.F1DB_CONSTRUCTOR_ALIASES or _c in _T.F1DB_CONSTRUCTOR_NON_MAPPING:
+        continue
+    _unresolved = sorted({_y for _y, _ in _slots
+                          if _HV.constructor_for_f1db(_c, _y) not in _ours})
+    if _unresolved:
+        _gap.append(f"{_c} ({len(_unresolved)} season(s): "
+                    f"{_unresolved[0]}-{_unresolved[-1]})")
+check("every constructor that entered a non-Indianapolis race is in the "
+      "register, aliased, or declared", not _gap, "; ".join(sorted(_gap)[:6]))
+
+_bad_alias = [k for k, v in _T.F1DB_CONSTRUCTOR_ALIASES.items() if v not in _ours]
+check("every constructor alias points at a team in the register",
+      not _bad_alias, "; ".join(_bad_alias))
+_both = set(_T.F1DB_CONSTRUCTORS) & set(_T.F1DB_CONSTRUCTOR_ALIASES)
+_both |= set(_T.F1DB_CONSTRUCTORS) & set(_T.F1DB_CONSTRUCTOR_NON_MAPPING)
+check("no constructor is both admitted and aliased or excluded", not _both,
+      "; ".join(sorted(_both)))
+_admitted = con.execute("""SELECT COUNT(*) FROM constructors
+    WHERE confidence = 'reference' AND source LIKE '%f1db%'""").fetchone()[0]
+print(f"  [info] {len(_ours)} constructors, {_admitted} of them admitted from "
+      f"the F1DB register; {len(_T.F1DB_CONSTRUCTOR_ALIASES)} aliases and "
+      f"{len(_T.F1DB_CONSTRUCTOR_NON_MAPPING)} declared exclusion(s)")
+_unmapped = con.execute("""SELECT COUNT(DISTINCT f1db_constructor_id)
+    FROM season_entrants WHERE constructor_id IS NULL""").fetchone()[0]
+print(f"  [info] {_unmapped} F1DB constructors remain unmapped; all but the "
+      f"declared exclusion are Indianapolis 500 chassis makers, which this "
+      f"project has never counted as Formula One constructors")
+
+print("\nTHE CHASSIS REGISTER")
 nch = con.execute("SELECT COUNT(*) FROM chassis").fetchone()[0]
 neng = con.execute("SELECT COUNT(*) FROM engines").fetchone()[0]
 nent = con.execute("SELECT COUNT(*) FROM season_entrants").fetchone()[0]

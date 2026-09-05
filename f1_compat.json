@@ -1,6 +1,6 @@
 {
   "database_name": "F1 Verified Facts Project Memory Database",
-  "version": "2.11",
+  "version": "2.12",
   "verification_date": "2026-09-05",
   "verification_policy": {
     "confidence_ladder": [
@@ -163,7 +163,7 @@
       "name": "Aston Martin",
       "full_name": "Aston Martin Aramco Formula One Team",
       "base": "Silverstone, United Kingdom",
-      "first_entry": 2021,
+      "first_entry": 1959,
       "position": 10,
       "points": 3.0,
       "drivers": [
