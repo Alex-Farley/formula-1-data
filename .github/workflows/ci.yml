@@ -84,24 +84,31 @@ jobs:
         working-directory: web
         run: npm run build
 
-      # copy-assets.js puts both of these in place; if either is missing the
-      # site loads and then fails at the first query, which is exactly the
-      # failure that is easy to ship.
+      # prepare-assets.js stages four files. If any is missing the site loads
+      # and then fails at the first query, which is exactly the failure that is
+      # easy to ship. The gzip is checked by decompressing it and comparing
+      # against the database it claims to be, because a stale or truncated .gz
+      # is the one that opens as a corrupt database rather than as a 404.
       - name: Check the site carries the database and the engine
         working-directory: web
         run: |
-          test -s dist/f1.db || { echo "::error::dist/f1.db is missing"; exit 1; }
-          test -s dist/sql-wasm.wasm || { echo "::error::dist/sql-wasm.wasm is missing"; exit 1; }
+          for f in f1.db f1.db.gz sql-wasm.wasm db-manifest.json; do
+            test -s "dist/$f" || { echo "::error::dist/$f is missing"; exit 1; }
+          done
           cmp ../f1.db dist/f1.db || { echo "::error::dist/f1.db is not the built database"; exit 1; }
+          gunzip -c dist/f1.db.gz | cmp - ../f1.db \
+            || { echo "::error::dist/f1.db.gz does not decompress to the built database"; exit 1; }
 
       - name: Install Chromium
         working-directory: web
         run: npx playwright install --with-deps chromium
 
-      # The build only proves the JavaScript compiles. This proves SQLite
-      # loaded, the queries returned, and the charts drew - and it checks the
-      # rendered counts against f1.db itself, so it stays honest as the data
-      # grows. Takes a few seconds.
+      # The build only proves the JavaScript compiles. This proves the worker
+      # started, the gzip decompressed, SQLite instantiated, the queries
+      # returned and the charts drew - and it checks the rendered counts
+      # against f1.db itself, so it stays honest as the data grows. It also
+      # asserts that a photograph renders its licence and its photographer,
+      # which is a licence obligation rather than a style preference.
       - name: Drive the built site in a browser
         working-directory: web
         run: npm test

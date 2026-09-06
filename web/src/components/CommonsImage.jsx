@@ -1,58 +1,56 @@
+import { fileTitle, thumbUrl } from '../lib/commons.js'
+
 /**
- * A Wikimedia Commons photograph, with the credit its licence requires.
+ * A photograph from Wikimedia Commons, with its credit.
  *
- * The database holds a REFERENCE, never an image: which file an article leads
- * with, who took it, and under what licence. The pixels come straight from
- * upload.wikimedia.org when this renders, so f1.db stays 1.6 MB and this
- * repository redistributes nothing.
+ * THE CREDIT IS NOT OPTIONAL. The database stores no pixels — 602 rows of
+ * file name, licence, photographer and description page, and sixteen
+ * different licence strings between them. Every one of those licences
+ * requires attribution, so the caption is built into this component rather
+ * than left to each caller to remember. The smoke test asserts that a
+ * rendered photograph carries both its licence and its photographer.
  *
- * The credit line is not decoration. Most of these files are CC BY or
- * CC BY-SA and attribution is a condition of using them at all, so the
- * component renders the photographer and the licence together with the image
- * or it does not render the image.
+ * `name_matches = 0` means the file name does not name the subject. Most such
+ * photographs are still right — filed under the driver rather than the car —
+ * but nothing in the database can say which are not, and one of them leads an
+ * article with a picture of police officers. They are all held at
+ * `unverified`, and this says so on the picture rather than in a footnote.
  */
-import { thumbUrl } from '../format.js'
-
-export default function CommonsImage({ row, width = 640, className = '' }) {
-  if (!row || !row.file_name) return null
-
-  // No author means no permission. The harvest refuses such a file and the
-  // build refuses it again; this is the third place that holds, because the
-  // one thing worse than a missing photograph is an uncredited one.
-  const author = row.artist || row.credit
-  if (!author) return null
+export default function CommonsImage({ image, width = 800, caption, showCheck = true }) {
+  if (!image?.file_name) return null
+  const src = thumbUrl(image.file_name, width)
+  const unchecked = showCheck && image.name_matches === 0
 
   return (
-    <figure className={`commons ${className}`.trim()}>
+    <figure className="photo">
       <img
-        src={thumbUrl(row.file_name, width)}
-        alt={row.car ? `${row.car}` : row.article}
-        width={row.width || undefined}
-        height={row.height || undefined}
+        src={src}
+        alt={caption ?? fileTitle(image.file_name)}
+        width={image.width || undefined}
+        height={image.height || undefined}
         loading="lazy"
+        decoding="async"
+        style={image.width && image.height ? { aspectRatio: `${image.width} / ${image.height}` } : undefined}
       />
       <figcaption>
-        <a href={row.description_url} target="_blank" rel="noreferrer noopener">
-          {row.file_name.replace(/^File:/, '')}
+        {caption && <div style={{ color: 'var(--ink-soft)', marginBottom: 3 }}>{caption}</div>}
+        <a href={image.description_url} target="_blank" rel="noreferrer noopener">
+          {fileTitle(image.file_name)}
         </a>
-        {' — '}
-        {author}
-        {', '}
-        {row.licence_url ? (
-          <a href={row.licence_url} target="_blank" rel="noreferrer noopener">
-            {row.licence}
+        {' · '}
+        {image.artist || 'photographer not recorded'}
+        {' · '}
+        {image.licence_url ? (
+          <a href={image.licence_url} target="_blank" rel="noreferrer noopener">
+            {image.licence}
           </a>
         ) : (
-          row.licence
+          image.licence || 'licence not recorded'
         )}
-        {' via Wikimedia Commons.'}
-        {!row.name_matches && (
+        {unchecked && (
           <>
-            {' '}
-            <span className="muted">
-              The file name does not mention this car, so nothing here confirms
-              the photograph shows it.
-            </span>
+            {' · '}
+            <span className="pill pill-unverified">unchecked</span>
           </>
         )}
       </figcaption>

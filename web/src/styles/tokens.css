@@ -1,0 +1,139 @@
+/*
+ * The palette, and where each colour is allowed to be used.
+ *
+ * Three families, kept apart on purpose:
+ *
+ *   --accent      one red, and it means "you can act on this". Links, the
+ *                 focus ring, the current nav item. Never a data mark.
+ *   --series-*    the chart colours. Slots 1-3 of the reference categorical
+ *                 palette, validated by script against these exact surfaces
+ *                 rather than chosen by eye — see charts/palette.js for the
+ *                 run and its numbers. Never text.
+ *   --status-*    good / warning, for the confidence ladder's two ends. Always
+ *                 shipped with their label, never colour alone.
+ *
+ * Dark is selected, not flipped: each value is its own step against the dark
+ * surface, and the categorical slots are the palette's own dark column.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* surfaces */
+  --bg: #fbfbf9;
+  --panel: #ffffff;
+  --panel-sunk: #f4f4f1;
+  --panel-raised: #ffffff;
+
+  /* ink */
+  --ink: #17171a;
+  --ink-soft: #55555e;
+  --ink-faint: #83838d;
+  --ink-invert: #ffffff;
+
+  /* structure */
+  --rule: #e7e6e2;
+  --rule-strong: #cfcec9;
+  --shadow-sm: 0 1px 2px rgb(20 20 25 / 0.05);
+  --shadow: 0 1px 2px rgb(20 20 25 / 0.04), 0 10px 30px rgb(20 20 25 / 0.06);
+
+  /* the one interactive colour */
+  --accent: #b0182e;
+  --accent-ink: #8d1325;
+  --accent-wash: #fbeef0;
+
+  /* chart series — reference palette slots 1-3, light column */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --grid: #e7e6e2;
+
+  /* status */
+  --good: #0a7d2b;
+  --good-wash: #e7f3ea;
+  --warn: #8a5a00;
+  --warn-wash: #fbf1dd;
+  --neutral-wash: #eeedea;
+
+  /* type */
+  --sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* rhythm */
+  --measure: 68ch;
+  --page: 1240px;
+  --radius: 10px;
+  --radius-sm: 6px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme='light'])) {
+    color-scheme: dark;
+
+    --bg: #111114;
+    --panel: #191920;
+    --panel-sunk: #16161c;
+    --panel-raised: #1f1f27;
+
+    --ink: #ededf2;
+    --ink-soft: #a5a5b1;
+    --ink-faint: #76767f;
+    --ink-invert: #111114;
+
+    --rule: #2a2a33;
+    --rule-strong: #3d3d47;
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 10px 30px rgb(0 0 0 / 0.35);
+
+    --accent: #ff8494;
+    --accent-ink: #ffa3af;
+    --accent-wash: #331a1f;
+
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --grid: #2a2a33;
+
+    --good: #6fc98f;
+    --good-wash: #16291d;
+    --warn: #e3b465;
+    --warn-wash: #2b2415;
+    --neutral-wash: #23232b;
+  }
+}
+
+/* The toggle wins in both directions: a light stamp beats OS dark above, and
+   a dark stamp beats OS light here. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #111114;
+  --panel: #191920;
+  --panel-sunk: #16161c;
+  --panel-raised: #1f1f27;
+
+  --ink: #ededf2;
+  --ink-soft: #a5a5b1;
+  --ink-faint: #76767f;
+  --ink-invert: #111114;
+
+  --rule: #2a2a33;
+  --rule-strong: #3d3d47;
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 10px 30px rgb(0 0 0 / 0.35);
+
+  --accent: #ff8494;
+  --accent-ink: #ffa3af;
+  --accent-wash: #331a1f;
+
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --grid: #2a2a33;
+
+  --good: #6fc98f;
+  --good-wash: #16291d;
+  --warn: #e3b465;
+  --warn-wash: #2b2415;
+  --neutral-wash: #23232b;
+}

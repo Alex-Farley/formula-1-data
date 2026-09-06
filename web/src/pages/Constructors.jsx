@@ -1,67 +1,112 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useQuery } from '../useQuery.js'
-import { Page } from '../components/Page.jsx'
-import { Result } from '../components/State.jsx'
-import DataTable from '../components/DataTable.jsx'
-import Filter, { matches } from '../components/Filter.jsx'
-import { span } from '../format.js'
+import { Page, Section } from '../components/Page.jsx'
+import { Result } from '../components/States.jsx'
+import DataTable, { cell } from '../components/DataTable.jsx'
+import { Chips, Filters, SearchField, Select } from '../components/Filters.jsx'
+import { useQuery } from '../data/useQuery.js'
+import { span } from '../lib/format.js'
 
 const SQL = `
-SELECT id, name, country, wins, constructors_titles, drivers_titles,
-       first_entry, last_entry, active, lineage_chain
-FROM constructors
-ORDER BY wins DESC, constructors_titles DESC, name`
+  SELECT k.id, k.name, k.country, k.base, k.first_entry, k.last_entry,
+         k.wins, k.poles, k.constructors_titles, k.drivers_titles, k.title_years,
+         k.lineage_chain, k.active,
+         (SELECT COUNT(*) FROM race_entries e WHERE e.constructor_id = k.id) AS entries,
+         (SELECT COUNT(DISTINCT ch.id) FROM chassis ch WHERE ch.constructor_id = k.id) AS designs
+    FROM constructors k
+   ORDER BY k.name
+`
 
 export default function Constructors() {
   const state = useQuery(SQL)
-  const [term, setTerm] = useState('')
-
   return (
     <Page
       title="Constructors"
-      lede="65 constructors, and the ten continuous racing operations that connect them across their name changes. Enstone is Toleman → Benetton → Renault → Lotus → Renault → Alpine; Brackley is Tyrrell → BAR → Honda → Brawn → Mercedes."
+      lede="A hundred and fifty constructors, most of which entered a handful of races and disappeared. Which entities exist here was decided by a person; the spelling, the countries and the dates came from the sources. Indianapolis chassis makers are deliberately not among them, though Indianapolis drivers are — a refusal on the record rather than a silent omission."
     >
-      <Result state={state} what="Loading the database">
-        {(data) => {
-          const rows = data.rows.filter((r) =>
-            matches(r, ['name', 'country', 'lineage_chain'], term),
-          )
-          return (
-            <>
-              <Filter
-                value={term}
-                onChange={setTerm}
-                placeholder="Filter by name, country or lineage"
-                count={rows.length}
-                noun={rows.length === 1 ? 'constructor' : 'constructors'}
-              />
-              <DataTable
-                data={{ ...data, rows }}
-                columns={[
-                  'name',
-                  'country',
-                  'wins',
-                  'constructors_titles',
-                  'drivers_titles',
-                  'entered',
-                  'lineage_chain',
-                ]}
-                labels={{
-                  constructors_titles: "Constructors'",
-                  drivers_titles: "Drivers'",
-                  lineage_chain: 'Lineage',
-                }}
-                render={{
-                  name: (v, row) => <Link to={`/constructors/${row.id}`}>{v}</Link>,
-                  entered: (_, row) => span(row.first_entry, row.last_entry),
-                }}
-                empty="No constructor matches that."
-              />
-            </>
-          )
-        }}
-      </Result>
+      <Section>
+        <Result state={state} skeleton>
+          {(data) => <Register rows={data.rows} />}
+        </Result>
+      </Section>
     </Page>
+  )
+}
+
+function Register({ rows }) {
+  const [term, setTerm] = useState('')
+  const [country, setCountry] = useState('')
+  const [kind, setKind] = useState('')
+
+  const countries = useMemo(
+    () => [...new Set(rows.map((r) => r.country).filter(Boolean))].sort(),
+    [rows],
+  )
+
+  const filtered = useMemo(() => {
+    const needle = term.trim().toLowerCase()
+    return rows.filter((row) => {
+      if (country && row.country !== country) return false
+      if (kind === 'winners' && !row.wins) return false
+      if (kind === 'champions' && !row.constructors_titles) return false
+      if (kind === 'active' && !row.active) return false
+      if (!needle) return true
+      return row.name.toLowerCase().includes(needle)
+    })
+  }, [rows, term, country, kind])
+
+  return (
+    <>
+      <Filters showing={filtered.length} of={rows.length} noun="constructors">
+        <SearchField value={term} onChange={setTerm} label="Filter constructors" placeholder="A name…" />
+        <Select value={country} onChange={setCountry} label="Country" all="Every country" options={countries} />
+        <Chips
+          value={kind}
+          onChange={setKind}
+          options={[
+            ['', 'All'],
+            ['winners', 'Race winners'],
+            ['champions', 'Champions'],
+            ['active', 'Active'],
+          ]}
+        />
+      </Filters>
+
+      <DataTable
+        rows={filtered}
+        rowKey={(row) => row.id}
+        sort="name"
+        direction="asc"
+        page={150}
+        columns={[
+          {
+            key: 'name',
+            label: 'Constructor',
+            render: (name, row) => <Link to={`/constructors/${row.id}`}>{name}</Link>,
+          },
+          { key: 'country', label: 'Country' },
+          {
+            key: 'first_entry',
+            label: 'Entered',
+            align: 'num',
+            render: (_, row) => span(row.first_entry, row.active ? null : row.last_entry),
+            sort: (row) => row.first_entry,
+          },
+          { key: 'entries', label: 'Race entries', align: 'num' },
+          { key: 'designs', label: 'Designs', align: 'num' },
+          { key: 'wins', label: 'Wins', align: 'num' },
+          { key: 'poles', label: 'Poles', align: 'num' },
+          { key: 'constructors_titles', label: "Constructors' titles", align: 'num' },
+          {
+            key: 'drivers_titles',
+            label: "Drivers' titles",
+            align: 'num',
+            render: (value, row) =>
+              value ? <span title={row.title_years ?? undefined}>{value}</span> : cell(value),
+          },
+        ]}
+        footer="“Race entries” counts one row per car per race, so a two-car team collects two for every Grand Prix it started."
+      />
+    </>
   )
 }

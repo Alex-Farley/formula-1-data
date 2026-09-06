@@ -1,66 +1,78 @@
-/** Linear scale: a domain onto a pixel range, plus its inverse. */
+/** Scales and ticks, hand-rolled because four chart types do not justify a library. */
+
+/** A continuous scale from a data domain onto a pixel range. */
 export function linear([d0, d1], [r0, r1]) {
   const span = d1 - d0 || 1
-  const fn = (v) => r0 + ((v - d0) / span) * (r1 - r0)
-  fn.invert = (p) => d0 + ((p - r0) / (r1 - r0 || 1)) * span
-  fn.domain = [d0, d1]
-  fn.range = [r0, r1]
-  return fn
+  const scale = (value) => r0 + ((value - d0) / span) * (r1 - r0)
+  scale.invert = (pixel) => d0 + ((pixel - r0) / (r1 - r0 || 1)) * span
+  scale.domain = [d0, d1]
+  scale.range = [r0, r1]
+  return scale
 }
 
-/** The round step nearest to dividing a span into `count` parts. */
-function stepFor(span, count) {
-  const raw = span / count
-  const mag = 10 ** Math.floor(Math.log10(raw))
-  return [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw) ?? 10 * mag
+/** Evenly spaced slots, one per category, with the mark centred in each. */
+export function band(values, [r0, r1], padding = 0.2) {
+  const n = Math.max(values.length, 1)
+  const step = (r1 - r0) / n
+  const width = step * (1 - padding)
+  const scale = (value) => {
+    const i = values.indexOf(value)
+    return r0 + (i < 0 ? 0 : i) * step + (step - width) / 2
+  }
+  scale.centre = (value) => scale(value) + width / 2
+  scale.bandwidth = width
+  scale.step = step
+  return scale
 }
 
 /**
- * Round tick values — 0 / 5 / 10, never 0 / 3.7 / 7.4. Axis ticks carry the
- * values that are not directly labelled, so they have to be readable numbers.
+ * Round tick values covering a domain.
+ *
+ * A tick drawn at 0.25 and printed as "0.3" is an axis that lies, so the step
+ * is always 1, 2, 2.5 or 5 times a power of ten. Asking for many ticks in a
+ * small range is what pushes a scale off those steps, so `count` is a target
+ * rather than a promise.
  */
-export function ticks(min, max, count = 5) {
-  if (min === max) return [min]
-  const step = stepFor(max - min, count)
+export function ticks([d0, d1], count = 5, { integer = false } = {}) {
+  const span = d1 - d0
+  if (!Number.isFinite(span) || span <= 0) return [d0]
+  const rough = span / Math.max(count, 2)
+  const magnitude = 10 ** Math.floor(Math.log10(rough))
+  const normalised = rough / magnitude
+  let step = (normalised >= 5 ? 5 : normalised >= 2.5 ? 2.5 : normalised >= 2 ? 2 : 1) * magnitude
+  // A years axis asked for more ticks than it has years lands on a step of 0.5
+  // and prints 1985 twice. Whole numbers are the only honest ticks on an axis
+  // whose values are whole.
+  if (integer) step = Math.max(1, Math.round(step))
+
   const out = []
-  for (let t = Math.ceil(min / step) * step; t <= max + step / 1000; t += step) {
-    // Floating point: 0.1 + 0.2 style drift shows up in axis labels.
-    out.push(Number(t.toPrecision(12)))
+  for (let value = Math.ceil(d0 / step) * step; value <= d1 + step / 1e6; value += step) {
+    // Floating point leaves 0.30000000000000004 lying around; the step's own
+    // precision is the right number of places to round to.
+    out.push(Number(value.toFixed(10)))
   }
   return out
 }
 
 /**
- * A zero-based axis: the domain, and the ticks that label it, from one
- * computation.
+ * A domain that includes zero and ends on a round number.
  *
- * They have to be derived together. Two earlier versions of this got it wrong
- * in two different ways, and both looked fine until measured:
- *
- *   - taking the domain as "the last tick, or the data max, whichever is
- *     larger" can never round up, because ticks() by construction never emits
- *     a value above max — so the domain was always the data max, and the peak
- *     sat above the top gridline, flush against the frame;
- *   - rounding the domain up using one tick count and then labelling it with
- *     another gave a domain of [0,25] carrying ticks at 0/10/20 — the top of
- *     the axis unlabelled, and the peak above the last gridline again.
- *
- * One function, one count, one step: the top of the domain is always a tick.
+ * Bars are read as lengths, so their baseline has to be zero or the picture
+ * exaggerates every difference on it.
  */
-export function zeroAxis(values, count = 4) {
-  const max = Math.max(...values, 0)
-  if (max <= 0) return { domain: [0, 1], ticks: [0, 1] }
-  const step = stepFor(max, count)
-  const top = Math.ceil(max / step) * step
-  const out = []
-  for (let t = 0; t <= top + step / 1000; t += step) out.push(Number(t.toPrecision(12)))
-  return { domain: [0, top], ticks: out }
-}
-
-export function fmt(n, digits = 0) {
-  if (n === null || n === undefined) return '—'
-  return n.toLocaleString('en-GB', {
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits,
-  })
+export function niceDomain(values, { zero = true, count = 5 } = {}) {
+  const clean = values.filter((v) => typeof v === 'number' && Number.isFinite(v))
+  if (clean.length === 0) return [0, 1]
+  let min = Math.min(...clean)
+  let max = Math.max(...clean)
+  if (zero) {
+    min = Math.min(0, min)
+    max = Math.max(0, max)
+  }
+  if (min === max) {
+    max = min + 1
+  }
+  const marks = ticks([min, max], count)
+  const step = marks.length > 1 ? marks[1] - marks[0] : (max - min) / count
+  return [Math.min(min, marks[0]), Math.max(max, Math.ceil(max / step) * step)]
 }

@@ -1,59 +1,46 @@
+import { trackPath } from '../lib/track.js'
+
 /**
- * A circuit centreline, drawn from the coordinates in the database.
+ * A circuit's traced centreline.
  *
- * Inline SVG from a GeoJSON MultiLineString — no tiles, no map library, no
- * network. The same file that answers every other query on the page answers
- * this one.
+ * The geometry is from OpenStreetMap and is the only ODbL-licensed table in
+ * this database, which is why the attribution is attached to the drawing
+ * itself: wherever the shape goes, the notice goes with it.
  *
- * The caption states what the shape IS, because the honest answer is narrower
- * than "this is the circuit": OpenStreetMap maps what is on the ground now, so
- * a trace is the current configuration and nothing else. Historic layouts have
- * no geometry anywhere and are not drawn as though they do.
+ * The measured length is shown beside the published one on purpose. Agreement
+ * within two per cent is what admitted the relation as this circuit in the
+ * first place — the geometry is how identity was settled, not decoration — and
+ * where the two disagree, that disagreement is the finding.
  */
-import { trackPath } from '../format.js'
+export default function TrackMap({ geometry, width = 640, height = 360 }) {
+  const drawn = trackPath(geometry?.centreline, width, height)
+  if (!drawn) return null
 
-const W = 640
-const H = 360
-
-export default function TrackMap({ row }) {
-  if (!row || !row.centreline) return null
-  const d = trackPath(row.centreline, W, H)
-  if (!d) return null
-
+  const delta = geometry.delta_pct
   return (
-    <figure className="trackmap">
+    <figure className="photo">
       <svg
-        viewBox={`0 0 ${W} ${H}`}
+        className="trackmap"
+        viewBox={`0 0 ${width} ${height}`}
         role="img"
-        aria-label={`Centreline of ${row.circuit ?? row.circuit_id}`}
-        preserveAspectRatio="xMidYMid meet"
+        aria-label={`Traced centreline of this circuit, ${geometry.measured_km} km over ${drawn.nodes} points`}
       >
-        <path
-          d={d}
-          fill="none"
-          strokeWidth="6"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="trackmap-line"
-        />
+        <path d={drawn.path} />
       </svg>
       <figcaption>
-        {row.layout && row.layout !== '-'
-          ? `The ${row.layout} layout, as OpenStreetMap maps it. `
-          : 'The current configuration, as OpenStreetMap maps it. '}
-        Measured {Number(row.measured_km).toFixed(3)} km against a published{' '}
-        {Number(row.published_km).toFixed(3)} km (
-        {row.delta_pct > 0 ? '+' : ''}
-        {Number(row.delta_pct).toFixed(2)}%). Pit lane excluded. Geometry ©
-        OpenStreetMap contributors,{' '}
+        Traced from OpenStreetMap relation{' '}
         <a
-          href="https://opendatacommons.org/licenses/odbl/1-0/"
+          href={`https://www.openstreetmap.org/relation/${geometry.osm_relation}`}
           target="_blank"
           rel="noreferrer noopener"
         >
-          ODbL 1.0
-        </a>
-        .
+          {geometry.osm_relation}
+        </a>{' '}
+        · {drawn.nodes.toLocaleString('en-GB')} points
+        {drawn.segments > 1 && ` in ${drawn.segments} segments`} · measures{' '}
+        {geometry.measured_km?.toFixed(3)} km against {geometry.published_km?.toFixed(3)} km published
+        {delta !== null && delta !== undefined && ` (${delta > 0 ? '+' : ''}${delta.toFixed(2)}%)`}
+        <br />© OpenStreetMap contributors, {geometry.licence || 'ODbL 1.0'}.
       </figcaption>
     </figure>
   )

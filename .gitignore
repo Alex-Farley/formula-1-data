@@ -28,11 +28,11 @@ f1.db-shm
 web/node_modules/
 web/dist/
 
-# Copied into place by web/scripts/copy-assets.js before every dev run and
-# build: f1.db from the repository root, the wasm from the installed sql.js.
-# Committing either would mean a second copy that can drift from the first.
-web/public/f1.db
-web/public/sql-wasm.wasm
+# Staged by web/scripts/prepare-assets.js before every dev run and build: the
+# database from the repository root, its gzip, a manifest describing both, and
+# the wasm from the installed sql.js. Committing any of them would mean a
+# second copy that can drift from the first.
+web/public/
 
 # tools/f1db_fetch.py clones F1DB here. Regenerable; the generated
 # harvest/*.txt files are the committed artefact, not the checkout.
