@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { query } from '../data/client.js'
 
 /**
@@ -147,12 +147,16 @@ export default function Search({ open, onClose }) {
         <ul id="palette-results">
           {results.map((entry, i) => (
             <li key={`${entry.kind}-${entry.key}`} data-active={i === active}>
-              <a
-                href={`#${ROUTE[entry.kind](entry.key)}`}
-                onClick={(event) => {
-                  event.preventDefault()
-                  go(entry)
-                }}
+              {/* A real Link, not an <a href={`#${...}`}>. The hash hrefs
+                  these used to carry were dead the moment the router stopped
+                  reading the hash — and even under the old router they were
+                  wrong for a middle-click, an open-in-new-tab or a copied
+                  link, because the only thing that actually navigated was the
+                  onClick beneath them. Link writes the href the router would
+                  honour, basename and all, and still closes the palette. */}
+              <Link
+                to={ROUTE[entry.kind](entry.key)}
+                onClick={() => onClose()}
                 onMouseEnter={() => setActive(i)}
               >
                 <span className="kind">{entry.kind}</span>
@@ -163,17 +167,17 @@ export default function Search({ open, onClose }) {
                     ? ` · ${entry.from_year}${entry.to_year && entry.to_year !== entry.from_year ? `–${entry.to_year}` : ''}`
                     : ''}
                 </span>
-              </a>
+              </Link>
             </li>
           ))}
           {term.trim().length >= 2 && results.length === 0 && (
             <li>
-              <a href="#/" onClick={(event) => event.preventDefault()}>
+              <span className="nohit">
                 <span className="kind">No match</span>
                 <span className="muted">
                   {index ? 'Nothing in the register answers to that.' : 'Building the index…'}
                 </span>
-              </a>
+              </span>
             </li>
           )}
         </ul>

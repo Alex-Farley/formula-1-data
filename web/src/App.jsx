@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { HashRouter, Link, NavLink, Route, Routes, useLocation } from 'react-router-dom'
+import { BrowserRouter, Link, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import Boot from './components/Boot.jsx'
 import Search from './components/Search.jsx'
 import ThemeToggle from './components/Theme.jsx'
@@ -192,18 +192,25 @@ function Chrome() {
 }
 
 export default function App() {
-  // HashRouter, not BrowserRouter: this builds to a static site with nothing in
-  // front of it to rewrite deep links back to index.html. A hash route works on
-  // GitHub Pages, in a subdirectory and behind any bucket, with no config.
+  // BrowserRouter, not HashRouter. A hash is never sent to a server, so under
+  // HashRouter every one of the 2,300 pages here shared one URL, one title and
+  // one entry in any index: the site could not be linked to a page, cited, or
+  // crawled. scripts/prerender.js now writes a real file at every one of these
+  // paths, which is what makes a deep link resolve without a rewrite rule --
+  // and it means no SPA fallback is needed, so a missing f1.db still 404s
+  // honestly rather than coming back as index.html with a 200.
+  //
+  // basename tracks vite's `base` through the same variable, so a build served
+  // from a subdirectory routes from there without a second thing to configure.
   //
   // Boot wraps the router rather than the other way round so that the database
   // is opened once, before any route can ask it a question, and so that the
   // wait has somewhere to be drawn.
   return (
-    <HashRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <Boot>
         <Chrome />
       </Boot>
-    </HashRouter>
+    </BrowserRouter>
   )
 }

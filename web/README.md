@@ -10,6 +10,10 @@ the database is already a single self-contained file, so the front end is a
 static site that can be dropped on GitHub Pages, Netlify, Vercel or an S3
 bucket and will work. Nothing you query leaves the tab.
 
+Every route is also written out as a real HTML file at build time, straight
+from the database, so each page has its own URL, title and content whether or
+not JavaScript runs. See *Prerendering* below.
+
 ```bash
 npm install
 npm run dev            # http://localhost:5173
@@ -117,6 +121,8 @@ src/lib/                NULL rendering, Commons URLs, the map projection
 src/components/         the shell, DataTable, filters, states, the search palette
 src/charts/             scales, the figure frame, four chart types
 src/pages/              one file per route
+scripts/prepare-assets.js  stages the database, its gzip, the wasm, a manifest
+scripts/prerender.js       writes a real HTML file for every route
 test/smoke.mjs          drives the built site in a browser
 ```
 
@@ -131,6 +137,54 @@ database uses NULL for "not established", so sorting the driver register by
 career points naively puts everyone nobody has a total for at the top.
 Ordering by a missing value means nothing either way, so they go to the bottom
 of both.
+
+## Prerendering, and why the router changed
+
+The site used to route on the hash. A fragment is never sent to a server, so
+`/#/drivers/hamilton` was not a URL anything could fetch: all 2,385 pages here
+shared one address, one title and one entry in any index. For a database whose
+whole claim is that each figure is traceable, being impossible to cite was the
+biggest thing wrong with it.
+
+`scripts/prerender.js` now runs after `vite build` and writes a real
+`index.html` for every route, straight out of `f1.db` — the page's facts as
+plain HTML, with its own `<title>`, description, canonical URL, Open Graph tags
+and JSON-LD. It also writes `sitemap.xml`, `robots.txt` and a `404.html`.
+`App.jsx` is a `BrowserRouter`, and deep links resolve because the file is
+really there, not because anything rewrites them.
+
+```bash
+npm run build                        # includes the prerender
+SITE_ORIGIN=https://example.com npm run build     # canonical URLs and sitemap
+SITE_BASE=/f1/ npm run build                      # served from a subdirectory
+```
+
+**The static block is not hydrated.** It lives in `#prerendered`, outside
+`#root`, so React never reconciles with it and there is no markup contract to
+keep: `main.jsx` removes it when the database is open. Two useful consequences
+fall out of that:
+
+- **First paint no longer waits for twenty megabytes.** A new reader used to
+  watch a progress bar for several seconds before seeing anything. Now they get
+  the page, and the app replaces it underneath when it is ready.
+- **A failed load degrades to the facts.** The block is removed on `ready` and
+  only on `ready`. If `f1.db` cannot be fetched at all, the reader keeps the
+  page rather than being left with an error panel and nothing else.
+
+Three things must agree on where the site lives, and they all read the same two
+variables so they cannot drift: vite's `base`, the router's `basename`, and the
+canonical URLs and sitemap prerender.js writes. `SITE_BASE` defaults to `/` and
+`SITE_ORIGIN` only affects canonical and `og:url`, so a wrong one costs a tag
+rather than a working site.
+
+**`appType: 'mpa'`, and no SPA fallback anywhere.** An SPA rewrite answers any
+unmatched path with `index.html` and a 200 — so a missing `f1.db` would arrive
+as HTML pretending to be a database, and the first sign of it would be the wasm
+compiler complaining about a magic word. Unmatched paths 404. `vite.config.js`
+carries a small preview middleware that resolves `/drivers/hamilton` to
+`dist/drivers/hamilton/index.html`, because that is what Cloudflare's static
+assets do by default and a preview that disagrees with the host hides exactly
+the bug nobody finds until they share a link.
 
 ## The pages
 

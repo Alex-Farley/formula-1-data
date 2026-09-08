@@ -158,7 +158,7 @@ try {
    */
   const settle = async () => {
     await page.waitForFunction(
-      () => !document.querySelector('main .state, main .skeleton-table'),
+      () => !document.querySelector('#root main .state, #root main .skeleton-table'),
       null,
       { timeout: 20000 },
     )
@@ -167,14 +167,23 @@ try {
     )
   }
 
-  /** Navigate through the app's own router and wait for the new page. */
+  /**
+   * Navigate through the app's own router and wait for the new page.
+   *
+   * pushState plus a popstate event, because the router is a BrowserRouter now
+   * and there is no hash to assign to. A page.goto would work too and would be
+   * closer to a real visit, but it would re-download the database and
+   * re-instantiate SQLite on every route, which is the whole reason this test
+   * navigates in-app instead.
+   */
   const go = async (route, heading) => {
     await page.evaluate((to) => {
-      window.location.hash = `#${to}`
+      window.history.pushState({}, '', to)
+      window.dispatchEvent(new PopStateEvent('popstate'))
     }, route)
     await page.waitForFunction(
       (expected) => {
-        const h2 = document.querySelector('main h2')
+        const h2 = document.querySelector('#root main h2')
         return h2 && (!expected || h2.textContent.includes(expected))
       },
       heading,
@@ -191,7 +200,7 @@ try {
    * skipped and the indexes below count the page's real tables.
    */
   const tableRows = () =>
-    page.$$eval('main .table-wrap', (nodes) =>
+    page.$$eval('#root main .table-wrap', (nodes) =>
       nodes.filter((node) => !node.closest('figure.figure')).map((node) => Number(node.dataset.rows)),
     )
 
@@ -201,19 +210,19 @@ try {
 
   console.log('Boot')
   const started = Date.now()
-  await page.goto(`${BASE}/#/`, { waitUntil: 'domcontentloaded' })
-  await page.waitForSelector('main h2', { timeout: 60000 })
+  await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' })
+  await page.waitForSelector('#root main h2', { timeout: 60000 })
   await settle()
   pass(`database opened and the first page rendered in ${Date.now() - started} ms`)
 
-  const version = await text('.sitefoot dd')
+  const version = await text('#root .sitefoot dd')
   is(version, `v${one('SELECT value FROM meta WHERE key = ?', 'version')}`, 'footer reports the database version')
 
   // ------------------------------------------------------------------ home
 
   console.log('\n/  (overview)')
   const racesRun = count("SELECT COUNT(*) FROM races WHERE status = 'completed'")
-  const homeStats = await page.$$eval('main .stats dd', (nodes) => nodes.map((n) => n.textContent))
+  const homeStats = await page.$$eval('#root main .stats dd', (nodes) => nodes.map((n) => n.textContent))
   truthy(
     homeStats.some((value) => value.includes(racesRun.toLocaleString('en-GB'))),
     `the overview leads with ${racesRun.toLocaleString('en-GB')} races run`,
@@ -238,9 +247,9 @@ try {
     ),
     "1976 final drivers' standings",
   )
-  atLeast(await page.$$eval('main .figure', (n) => n.length), 1, 'the title race is charted')
+  atLeast(await page.$$eval('#root main .figure', (n) => n.length), 1, 'the title race is charted')
   atLeast(
-    await page.$$eval('main .figure svg path', (n) => n.length),
+    await page.$$eval('#root main .figure svg path', (n) => n.length),
     2,
     'the championship chart drew its lines',
   )
@@ -314,7 +323,7 @@ try {
   )
   const sennaWins = count("SELECT COUNT(*) FROM race_entries WHERE driver_id = 'senna' AND finish_position = 1")
   truthy(
-    (await page.$$eval('main .stats dd', (n) => n.map((x) => x.textContent))).includes(String(sennaWins)),
+    (await page.$$eval('#root main .stats dd', (n) => n.map((x) => x.textContent))).includes(String(sennaWins)),
     `wins derived from the race records — ${sennaWins}`,
   )
 
@@ -350,12 +359,12 @@ try {
   console.log('\n/circuits/atlas')
   await go('/circuits/atlas', 'Track atlas')
   is(
-    await page.$$eval('main .atlas-cell', (n) => n.length),
+    await page.$$eval('#root main .atlas-cell', (n) => n.length),
     count('SELECT COUNT(*) FROM circuit_geometry'),
     'every traced circuit is on the wall',
   )
   atLeast(
-    await page.$$eval('main .atlas-stage path', (n) => n.length),
+    await page.$$eval('#root main .atlas-stage path', (n) => n.length),
     2,
     'the lap is drawn in turn-rate bands',
   )
@@ -367,7 +376,7 @@ try {
   await page.keyboard.press('End')
   await settle()
   // "6,995 m of 6,995" — the metres travelled is the part before " m ".
-  const readout = await text('main .atlas-scrub output')
+  const readout = await text('#root main .atlas-scrub output')
   is(
     Number(readout.split(' m ')[0].replace(/,/g, '')),
     Math.round(spaKm * 1000),
@@ -376,7 +385,7 @@ try {
   // A trace with a loose end has no lap to walk, and must say so.
   const broken = one('SELECT circuit_id FROM circuit_geometry WHERE closes = 0 ORDER BY loose_ends DESC LIMIT 1')
   await page.$$eval(
-    'main .atlas-cell',
+    '#root main .atlas-cell',
     (nodes, name) => nodes.find((n) => n.querySelector('b').textContent === name)?.click(),
     one('SELECT c.name FROM circuit_geometry g JOIN circuits c ON c.id = g.circuit_id WHERE g.circuit_id = ?', broken),
   )
@@ -455,7 +464,7 @@ try {
   console.log('\n/records')
   await go('/records', 'Records')
   is((await tableRows())[0], count('SELECT COUNT(*) FROM records'), 'published records')
-  atLeast(await page.$$eval('main .figure svg', (n) => n.length), 4, 'the leaderboards drew')
+  atLeast(await page.$$eval('#root main .figure svg', (n) => n.length), 4, 'the leaderboards drew')
 
   console.log('\n/reference/quality')
   await go('/reference/quality', 'Data quality')
@@ -488,13 +497,13 @@ try {
 
   console.log('\n/reference/sql')
   await go('/reference/sql', 'SQL console')
-  await page.waitForSelector('main .table-wrap', { timeout: 20000 })
+  await page.waitForSelector('#root main .table-wrap', { timeout: 20000 })
   atLeast((await tableRows())[0], 1, 'the opening query returned rows')
 
   await page.fill('textarea.sql', 'SELECT COUNT(*) AS n FROM race_entries')
   await page.click('button.button')
   await page.waitForFunction(
-    (expected) => document.querySelector('main tbody td')?.textContent.replace(/[^0-9]/g, '') === String(expected),
+    (expected) => document.querySelector('#root main tbody td')?.textContent.replace(/[^0-9]/g, '') === String(expected),
     count('SELECT COUNT(*) FROM race_entries'),
     { timeout: 20000 },
   )
@@ -503,13 +512,13 @@ try {
   // A write must be refused, and the table it names must survive.
   await page.fill('textarea.sql', 'DELETE FROM drivers')
   await page.click('button.button')
-  await page.waitForSelector('main .error', { timeout: 10000 })
+  await page.waitForSelector('#root main .error', { timeout: 10000 })
   pass('a write is refused rather than run')
 
   await page.fill('textarea.sql', 'WITH t AS (SELECT 1) SELECT COUNT(*) AS n FROM drivers')
   await page.click('button.button')
   await page.waitForFunction(
-    (expected) => document.querySelector('main tbody td')?.textContent.replace(/[^0-9]/g, '') === String(expected),
+    (expected) => document.querySelector('#root main tbody td')?.textContent.replace(/[^0-9]/g, '') === String(expected),
     count('SELECT COUNT(*) FROM drivers'),
     { timeout: 20000 },
   )
@@ -522,13 +531,13 @@ try {
   // on several screens of em dashes.
   console.log('\nSorting')
   await go('/drivers', 'Drivers')
-  await page.click('main th:nth-child(4) button')
-  const firstEntries = await page.$eval('main tbody tr td:nth-child(4)', (node) => node.textContent.trim())
+  await page.click('#root main th:nth-child(4) button')
+  const firstEntries = await page.$eval('#root main tbody tr td:nth-child(4)', (node) => node.textContent.trim())
   truthy(
     firstEntries !== '—' && firstEntries !== '',
     `descending sort leads with a value, not a blank — "${firstEntries}"`,
   )
-  const lastEntries = await page.$$eval('main tbody tr td:nth-child(4)', (nodes) =>
+  const lastEntries = await page.$$eval('#root main tbody tr td:nth-child(4)', (nodes) =>
     nodes[nodes.length - 1].textContent.trim(),
   )
   is(lastEntries, '—', 'and sinks the unestablished ones')
@@ -541,11 +550,11 @@ try {
   await page.fill('.palette input', 'rindt')
   // The index is one query on first open, so the list can show "no match" for a
   // frame before it lands. Wait for a real hit rather than for any row.
-  await page.waitForSelector('#palette-results li a[href^="#/drivers/"]', { timeout: 10000 })
+  await page.waitForSelector('#palette-results li a[href^="/drivers/"]', { timeout: 10000 })
   const first = await page.$eval('#palette-results li a', (node) => node.getAttribute('href'))
-  is(first, '#/drivers/rindt', 'search finds a driver by name')
+  is(first, '/drivers/rindt', 'search finds a driver by name')
   await page.click('#palette-results li a')
-  await page.waitForFunction(() => document.querySelector('main h2')?.textContent.includes('Rindt'), null, {
+  await page.waitForFunction(() => document.querySelector('#root main h2')?.textContent.includes('Rindt'), null, {
     timeout: 10000,
   })
   pass('and opens their page')
@@ -557,6 +566,72 @@ try {
   pass('an unknown driver is refused rather than rendered blank')
   await go('/nowhere', 'No such page')
   pass('an unknown route is refused')
+
+  // ------------------------------------------------------------ prerendering
+
+  /*
+   * The static pages are the whole reason this site has URLs a crawler can
+   * fetch, and they are written by a script that never runs in a browser. So
+   * they are checked the way a crawler would meet them: a fresh page load at a
+   * deep path, and the same path again with JavaScript turned off entirely.
+   *
+   * The counts are read out of f1.db so these stay honest as the data grows.
+   */
+  console.log('\nPrerendering')
+
+  const deep = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+  await deep.goto(`${BASE}/drivers/hamilton`, { waitUntil: 'domcontentloaded' })
+  is(await deep.title(), 'Sir Lewis Hamilton — F1 Verified Facts', 'a deep link has its own title')
+  is(
+    await deep.$eval('link[rel=canonical]', (node) => new URL(node.href).pathname),
+    '/drivers/hamilton',
+    'and its own canonical URL',
+  )
+  truthy(
+    JSON.parse(await deep.$eval('script[type="application/ld+json"]', (n) => n.textContent))['@type'] === 'Person',
+    'and describes itself to a search engine as a Person',
+  )
+  // The handover: the static block is what a reader sees first, and it must be
+  // gone once the app can answer for itself — otherwise the page renders twice.
+  await deep.waitForSelector('#root main h2', { timeout: 60000 })
+  await deep.waitForFunction(() => !document.getElementById('prerendered'), null, { timeout: 20000 })
+  pass('the static page is handed over to the app once the database is open')
+  await deep.close()
+
+  const noJs = await browser.newContext({ javaScriptEnabled: false })
+  const plain = await noJs.newPage()
+  await plain.goto(`${BASE}/races/2021/10`, { waitUntil: 'domcontentloaded' })
+  const body = await plain.$eval('#prerendered', (node) => node.textContent)
+  truthy(body.includes('British Grand Prix'), 'a race page names its Grand Prix without JavaScript')
+  truthy(
+    body.includes(one('SELECT winner FROM race_results WHERE year = 2021 AND round = 10')),
+    'and names the winner the database holds',
+  )
+  atLeast(
+    await plain.$$eval('#prerendered tbody tr', (n) => n.length),
+    20,
+    'and carries the full classification as real table rows',
+  )
+  atLeast(
+    await plain.$$eval('#prerendered a[href^="/"]', (n) => n.length),
+    20,
+    'and links onward, so a crawler has somewhere to go',
+  )
+  await noJs.close()
+
+  const sitemap = await fetch(`${BASE}/sitemap.xml`).then((r) => r.text())
+  const urls = (sitemap.match(/<loc>/g) ?? []).length
+  const expected =
+    1 + // home
+    1 + one('SELECT COUNT(*) AS n FROM seasons') + // index + one per season
+    1 + one('SELECT COUNT(*) FROM races') +
+    1 + one('SELECT COUNT(*) FROM drivers') +
+    1 + one('SELECT COUNT(*) FROM constructors') +
+    1 + one('SELECT COUNT(*) FROM circuits') +
+    1 + one('SELECT COUNT(*) FROM cars') +
+    8 // records, reference and its five children, the atlas
+  is(urls, expected, 'the sitemap lists every page the database implies')
+  truthy((await fetch(`${BASE}/robots.txt`).then((r) => r.text())).includes('Sitemap:'), 'robots.txt points at it')
 
   // ------------------------------------------------------- console cleanliness
 

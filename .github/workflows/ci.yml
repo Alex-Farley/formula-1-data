@@ -99,6 +99,29 @@ jobs:
           gunzip -c dist/f1.db.gz | cmp - ../f1.db \
             || { echo "::error::dist/f1.db.gz does not decompress to the built database"; exit 1; }
 
+      # The static pages are the site's only crawlable surface, and they are
+      # written by a script that never runs in a browser — so a failure here is
+      # silent everywhere else. Check that a deep route became a real file, that
+      # it carries its own title rather than the template's, and that the
+      # sitemap is not the stub you get when a query returns nothing.
+      - name: Check the site was prerendered
+        working-directory: web
+        run: |
+          for f in index.html 404.html sitemap.xml robots.txt \
+                   drivers/hamilton/index.html races/2021/10/index.html \
+                   seasons/1950/index.html constructors/ferrari/index.html \
+                   circuits/monza/index.html; do
+            test -s "dist/$f" || { echo "::error::dist/$f is missing"; exit 1; }
+          done
+          grep -q '<title>Sir Lewis Hamilton' dist/drivers/hamilton/index.html \
+            || { echo "::error::the prerendered driver page has no title of its own"; exit 1; }
+          grep -q 'Silverstone' dist/races/2021/10/index.html \
+            || { echo "::error::the prerendered race page carries no facts"; exit 1; }
+          urls=$(grep -c '<loc>' dist/sitemap.xml)
+          test "$urls" -gt 2000 \
+            || { echo "::error::sitemap.xml lists only $urls URLs"; exit 1; }
+          echo "prerendered, sitemap lists $urls URLs"
+
       - name: Install Chromium
         working-directory: web
         run: npx playwright install --with-deps chromium
