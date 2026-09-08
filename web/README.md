@@ -325,20 +325,37 @@ In the dashboard, under Settings → Build:
 | Setting | Value |
 | --- | --- |
 | Root directory | **blank** |
-| Build command | `cd web && npm ci && npm run build` |
+| Build command | `sh tools/cloudflare-build.sh` |
 | Deploy command | `npx wrangler deploy` |
 | Environment variable | `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD` = `1` |
 
+The build command is a script in the repository rather than a line in a
+dashboard field, so it can be read and changed like anything else here. It
+rebuilds `f1.db` from `data/*.py`, runs `verify.py`, and only then builds the
+front end — so a deployed site can never carry a database that failed its own
+checks. `verify.py` exits non-zero, `set -e` stops the script, and Cloudflare
+keeps serving the previous deployment rather than publishing a bad one.
+
+That gate is the reason to rebuild rather than use the committed `f1.db`. It
+costs a few seconds, and `build.py` is deterministic: a rebuild from unchanged
+sources produces the same digest, so a deploy that changes no data does not
+evict every reader's cached copy.
+
 **Root directory must be blank.** `wrangler.jsonc` is at the repository root,
-so `npx wrangler deploy` has to run there to find it; the build command does
-its own `cd web`. Setting it to `web` breaks the deploy, and setting it to
-anything that does not exist in the repository fails the clone with "root
+so `npx wrangler deploy` has to run there to find it, and the build script
+expects to start there too. Setting it to `web` breaks the deploy, and setting
+it to anything that is not in the repository fails the clone with "root
 directory not found" before a build even starts.
 
 The environment variable matters too. `playwright` is a devDependency of this
 front end and its install script downloads about 150 MB of browsers that only
 the test suite uses. Without it the build still succeeds, but every deploy
 pays for a download nothing uses.
+
+The build image needs a `python3` for the verification step. If it has not got
+one, the script says so and names the fix — `PYTHON_VERSION` in the build
+environment — rather than failing obscurely. Everything at the repository root
+is standard library only, so there is nothing to install.
 
 Two things resolve because Cloudflare clones the whole repository regardless:
 `prepare-assets.js` reads `../f1.db`, and `.node-version` pins Node 22. That
