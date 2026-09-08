@@ -117,6 +117,7 @@ of both.
 | `/drivers`, `/drivers/:id` | The register, and a career counted from the race records |
 | `/constructors`, `/constructors/:id` | Records, lineage chains, every win, every car built |
 | `/circuits`, `/circuits/:id` | The register, traced centrelines, layouts as they changed |
+| `/circuits/atlas` | All 25 traced circuits: walk a lap, colour it by turn rate, compare them at one scale |
 | `/cars`, `/cars/:id` | The chassis register, specifications and photographs |
 | `/records` | Published records, and leaderboards derived on every load |
 | `/reference/eras` | Eras, regulations, scoring systems, innovations, safety |
@@ -129,6 +130,48 @@ Press <kbd>/</kbd> or <kbd>⌘K</kbd> anywhere for a search across all 3,494
 drivers, constructors, circuits, chassis, seasons and races at once. A register
 of 862 drivers reached only by scrolling an alphabetical table is a register
 nobody reads.
+
+## The track atlas
+
+`circuit_geometry.centreline` is a GeoJSON MultiLineString: the ways of an
+OpenStreetMap relation, **in no particular order**. Drawing that needs nothing
+more — every way is a line — but measuring along it, or putting a marker a
+given distance round, needs the ways stitched end to end into one ordered ring
+first. `src/lib/lap.js` does that, and the atlas is what it buys.
+
+**The one-metre join is measured, not chosen.** Ways in a relation share their
+junction nodes exactly, so a real join is not "close", it is identical: 1,201
+of the 1,208 way ends here sit at 0.000 m from another end. The seven that do
+not are 5.4 m to 63.4 m away, and every one is a genuine hole in the trace. A
+metre is far above serialisation noise and far below the smallest real gap.
+A looser figure stops measuring the same thing — at the 30 m this project used
+until now, the Monaco and Montjuïc holes read as joins and only Las Vegas was
+ever reported.
+
+**Twenty-two of the twenty-five close.** `build.py` decides it when the row is
+admitted and stores the verdict in `closes`, `loose_ends` and `segment_count`;
+`verify.py` re-derives all three from the geometry on every build and fails if
+the stored answer has drifted. So the front end is not deciding anything — it
+reproduces a result the database guarantees, and can check its own stitch
+against `measured_km`. The three that do not close are still drawn, in amber,
+because an incomplete trace is the best shape anyone has for that circuit; the
+scrubber is simply disabled for them.
+
+**Turn rate is derived from the shape, and labelled as such wherever it
+appears.** The database holds no corner data at all — no numbers, no names, no
+apex positions, no sector boundaries. `turnRate()` measures how fast the
+bearing changes over a 50 m window, which is a property of the traced line and
+nothing more. The window is not decoration: OSM node spacing is irregular, so a
+per-node angle mostly measures how finely that stretch happened to be traced.
+The five colour bands are the quintiles of the real distribution over all 6,272
+points of the 22 closed laps, so each band is a fifth of the traced distance;
+bands picked by hand put 65% of every circuit in the bottom two and washed the
+picture out.
+
+Everything is projected to **metres east and south of each circuit's own
+centre**, which is what lets the wall switch between fitting each frame to its
+circuit and giving every frame the same extent. In the second state the sizes
+are honestly comparable: Long Beach really is under half of Spa.
 
 ## The charts
 

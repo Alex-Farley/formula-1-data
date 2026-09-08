@@ -306,6 +306,13 @@ CREATE TABLE circuit_geometry (
     published_km    REAL NOT NULL,             -- what it was checked against
     delta_pct       REAL NOT NULL,             -- signed, and small by construction
     node_count      INTEGER,
+    -- Topology, measured when the row is admitted. An OSM relation's members
+    -- are an unordered bag of ways; whether they form a lap is a separate
+    -- question from whether they measure the right length, and a trace can be
+    -- short by one way and still measure plausibly. See build.py.
+    segment_count   INTEGER,                   -- ways in the MultiLineString
+    loose_ends      INTEGER,                   -- way ends meeting nothing
+    closes          INTEGER,                   -- 1 = every way stitches into one closed ring
     osm_timestamp   TEXT,                      -- the relation version measured
     licence         TEXT NOT NULL DEFAULT 'ODbL-1.0',
     confidence      TEXT NOT NULL DEFAULT 'reference' REFERENCES provenance(confidence),

@@ -48,6 +48,16 @@
   --series-3: #1baf7a;
   --grid: #e7e6e2;
 
+  /* A sequential ramp, one hue, for a continuous quantity — the only such
+     encoding here is a circuit's turn rate. Light mode runs light to dark, so
+     "more" is darker; the pale end still has to read as a mark on the page, so
+     it starts at step 250 rather than at the ramp's lightest. */
+  --seq-1: #86b6ef;
+  --seq-2: #5598e7;
+  --seq-3: #2a78d6;
+  --seq-4: #184f95;
+  --seq-5: #0d366b;
+
   /* status */
   --good: #0a7d2b;
   --good-wash: #e7f3ea;
@@ -94,6 +104,15 @@
     --series-3: #199e70;
     --grid: #2a2a33;
 
+    /* Dark reverses the direction, it does not invert the light values: on a
+       dark ground "more" has to be lighter, or the strongest reading recedes
+       into the page. */
+    --seq-1: #1c5cab;
+    --seq-2: #256abf;
+    --seq-3: #3987e5;
+    --seq-4: #6da7ec;
+    --seq-5: #9ec5f4;
+
     --good: #6fc98f;
     --good-wash: #16291d;
     --warn: #e3b465;
@@ -130,6 +149,15 @@
   --series-2: #d95926;
   --series-3: #199e70;
   --grid: #2a2a33;
+
+  /* Dark reverses the direction, it does not invert the light values: on a
+     dark ground "more" has to be lighter, or the strongest reading recedes
+     into the page. */
+  --seq-1: #1c5cab;
+  --seq-2: #256abf;
+  --seq-3: #3987e5;
+  --seq-4: #6da7ec;
+  --seq-5: #9ec5f4;
 
   --good: #6fc98f;
   --good-wash: #16291d;

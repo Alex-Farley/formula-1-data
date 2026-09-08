@@ -110,6 +110,10 @@ function CircuitBody({ circuit, data }) {
           title="The shape of it"
           note="Traced from OpenStreetMap. This is the only ODbL-licensed table in the database: nothing else derives from it, it is excluded from the JSON export, and dropping the table would drop the obligation."
         >
+          <p className="note" style={{ marginTop: -4 }}>
+            <Link to="/circuits/atlas">Open it in the atlas</Link> to walk the lap and compare it
+            with the other traced circuits at one scale.
+          </p>
           <div className="map-grid">
             {geometry.map((row) => (
               <TrackMap key={`${row.circuit_id}-${row.layout_key}`} geometry={row} />

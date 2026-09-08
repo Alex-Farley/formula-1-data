@@ -346,7 +346,47 @@ try {
     'every race held at Silverstone',
   )
 
-  const traced = one('SELECT circuit_id FROM circuit_geometry ORDER BY node_count DESC LIMIT 1')
+  // The atlas walks a lap, which is only possible where build.py found one.
+  console.log('\n/circuits/atlas')
+  await go('/circuits/atlas', 'Track atlas')
+  is(
+    await page.$$eval('main .atlas-cell', (n) => n.length),
+    count('SELECT COUNT(*) FROM circuit_geometry'),
+    'every traced circuit is on the wall',
+  )
+  atLeast(
+    await page.$$eval('main .atlas-stage path', (n) => n.length),
+    2,
+    'the lap is drawn in turn-rate bands',
+  )
+  // Spa closes, so it can be walked; the readout must agree with the database.
+  const spaKm = one("SELECT measured_km FROM circuit_geometry WHERE circuit_id = 'spa'")
+  // Drive it as a person would. Assigning .value directly is invisible to
+  // React, which tracks the node's value and would swallow the event.
+  await page.focus('#atlas-at')
+  await page.keyboard.press('End')
+  await settle()
+  // "6,995 m of 6,995" — the metres travelled is the part before " m ".
+  const readout = await text('main .atlas-scrub output')
+  is(
+    Number(readout.split(' m ')[0].replace(/,/g, '')),
+    Math.round(spaKm * 1000),
+    'a full lap of Spa reads as its measured length',
+  )
+  // A trace with a loose end has no lap to walk, and must say so.
+  const broken = one('SELECT circuit_id FROM circuit_geometry WHERE closes = 0 ORDER BY loose_ends DESC LIMIT 1')
+  await page.$$eval(
+    'main .atlas-cell',
+    (nodes, name) => nodes.find((n) => n.querySelector('b').textContent === name)?.click(),
+    one('SELECT c.name FROM circuit_geometry g JOIN circuits c ON c.id = g.circuit_id WHERE g.circuit_id = ?', broken),
+  )
+  await settle()
+  truthy(
+    await page.$eval('#atlas-at', (el) => el.disabled),
+    `${broken} has no closed lap, so the scrubber is disabled`,
+  )
+
+  const traced = one('SELECT circuit_id FROM circuit_geometry WHERE closes = 1 ORDER BY node_count DESC LIMIT 1')
   console.log(`\n/circuits/${traced}  (traced geometry)`)
   await go(`/circuits/${traced}`)
   const path = await page.$eval('.trackmap path', (node) => node.getAttribute('d')).catch(() => null)
