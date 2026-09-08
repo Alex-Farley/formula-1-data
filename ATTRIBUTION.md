@@ -195,7 +195,21 @@ which F1DB does not carry.
 `tools/fastf1_load.py` reads the Formula 1 live timing API through
 [FastF1](https://github.com/theOehrly/Fast-F1) (MIT). That data is Formula One
 Management's. FastF1's own guidance is that it is for personal and
-non-commercial use, and this project neither redistributes it nor ships it:
-the `laps`, `stints`, `pit_stops`, `race_control_messages` and `team_radio`
-tables are empty in the committed database and are filled only when *you* run
-the loader. Do not commit them back.
+non-commercial use, and this project neither redistributes it nor ships it.
+`laps`, `stints`, `race_timing` and `race_control_messages` are empty in the
+committed database and are filled only when *you* run the loader.
+
+`pit_stops` and `team_radio` are **not** empty, and the difference matters.
+Both hold rows from elsewhere — 22,472 pit stops from F1DB under CC BY 4.0,
+and six radio exchanges quoted from Wikipedia race articles — so the rule for
+them is by SOURCE, not by emptiness: a `pit_stops` row from anything but
+`f1db`, or a `team_radio` row sourced `fastf1`, is FOM's and may not be
+committed.
+
+Do not commit any of them back. This is no longer only a request:
+`verify.py` has a REDISTRIBUTION section that fails on all six conditions,
+and CI runs it against the *committed* database before the rebuild, which is
+the only moment such a commit can be caught. If you have deliberately loaded
+timing onto a local copy, `F1_LOCAL_TIMING=1` downgrades those failures to
+warnings so the rest of the suite is still usable — the load is legitimate,
+the resulting file is simply not yours to publish.

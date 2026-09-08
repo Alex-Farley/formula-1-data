@@ -41,4 +41,6 @@ control messages and team radio from the Formula 1 live timing API via
 FastF1. That data belongs to Formula One Management and is not covered by
 this licence, is not redistributed, and is not committed to this repository
 — the relevant tables are empty in the committed database and are filled
-only locally when you run the loader yourself. See ATTRIBUTION.md.
+only locally when you run the loader yourself. `verify.py` enforces this
+rather than trusting it; see ATTRIBUTION.md for what is checked and for the
+two tables where the rule is by source rather than by emptiness.

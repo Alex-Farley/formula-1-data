@@ -130,23 +130,48 @@ def build():
              "https://en.wikipedia.org/wiki/List_of_Formula_One_polesitters"))
 
     # Drivers who reached a podium but never won, took pole or set a fastest
-    # lap. Names and dates come from the same API as the podium rows, so a
-    # result can never reference a driver this database had to invent.
+    # lap, so no earlier harvest had reason to add them.
+    #
+    # Their names and dates were first read from Jolpica. They are SOURCED to
+    # F1DB, which holds all sixty-two under CC BY 4.0 where Jolpica's Ergast
+    # lineage is CC BY-NC-SA, and the citation has to name where a
+    # redistributable fact actually comes from. The mapping is not taken on
+    # trust: F1DB must hold the driver and must give the same date of birth,
+    # or the build stops. See PODIUM_ONLY_F1DB in data/results.py.
+    f1db_drv = {r[0]: r for r in HV.load_f1db_drivers()}
     for lid, eid, name, nat, code, born in RS.PODIUM_ONLY_DRIVERS:
+        f1db_id = RS.PODIUM_ONLY_F1DB.get(lid)
+        if f1db_id is None:
+            raise SystemExit(
+                f"PODIUM_ONLY_DRIVERS holds {lid}, which PODIUM_ONLY_F1DB does "
+                f"not map to an F1DB driver. Every row in the committed "
+                f"database must cite a source that permits redistribution.")
+        meta = f1db_drv.get(f1db_id)
+        if meta is None:
+            raise SystemExit(
+                f"PODIUM_ONLY_F1DB maps {lid} to {f1db_id}, which is not in "
+                f"harvest/f1db_drivers.txt. Rerun tools/f1db_fetch.py.")
+        # The date of birth is what proves the two registers mean the same
+        # person. The name cannot do it: F1DB files Jyrki Jarvilehto under his
+        # racing name, and this register does not.
+        if (meta[4] or None) != (born or None):
+            raise SystemExit(
+                f"PODIUM_ONLY_F1DB maps {lid} to {f1db_id}, but this register "
+                f"has {born or 'no date'} and F1DB has {meta[4] or 'no date'}. "
+                f"One of them is the wrong person.")
         cur.execute("""INSERT INTO drivers (id, full_name, nationality,
             nationality_code, born, wins, titles, notes, confidence, source)
             VALUES (?,?,?,?,?,0,0,?,?,?)""",
             (lid, name, nat, code, born or None,
              "Added to the register from the podium harvest: reached a podium "
              "without ever winning a race, taking pole or setting a fastest lap.",
-             "reference", "https://api.jolpi.ca/ergast/f1/drivers/" + eid))
+             HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
 
     # --- drivers admitted from the F1DB register (data/drivers.py
     # F1DB_DRIVERS). The ids are authored there; every attribute comes from
     # the generated harvest files, so nobody types six hundred names and no
     # driver appears without a reviewed line.
     known_drv = {r[0] for r in cur.execute("SELECT id FROM drivers")}
-    f1db_drv = {r[0]: r for r in HV.load_f1db_drivers()}
     f1db_ctry = {r[0]: (r[1], r[2]) for r in HV.load_f1db_countries()}
     drv_years = {}
     for year, _e, _c, _em, f1db_id, rounds, test in HV.load_entrant_drivers():
@@ -207,13 +232,25 @@ def build():
 
     # Constructors that reached a podium but are not in the main register:
     # short-lived teams, and the pre-1961 marques that never won.
+    #
+    # Sourced to F1DB for the reason given against the podium-only drivers
+    # above: these ten marques cited Jolpica, and F1DB holds every one of them
+    # under a licence that permits redistribution. A marque has no date of
+    # birth, so the build can only check that F1DB holds the id at all.
+    f1db_cons = {r[0]: r for r in HV.load_f1db_constructors()}
     for cid, name, full, base, first, nat, notes, conf in RS.NEW_CONSTRUCTORS:
+        f1db_id = RS.PODIUM_ONLY_CONSTRUCTORS_F1DB.get(cid)
+        if f1db_id is None or f1db_id not in f1db_cons:
+            raise SystemExit(
+                f"NEW_CONSTRUCTORS holds {cid}, which PODIUM_ONLY_CONSTRUCTORS_F1DB "
+                f"does not map to a constructor in harvest/f1db_constructors.txt. "
+                f"Every row in the committed database must cite a source that "
+                f"permits redistribution.")
         cur.execute("""INSERT INTO constructors (id, name, full_name, country,
             base, first_entry, wins, constructors_titles, drivers_titles,
             active, notes, confidence, source)
             VALUES (?,?,?,?,?,?,0,0,0,0,?,?,?)""",
-            (cid, name, full, nat, base, first, notes, conf,
-             "https://api.jolpi.ca/ergast/f1/constructors/"))
+            (cid, name, full, nat, base, first, notes, conf, HV.F1DB_SOURCE))
 
     for i, (chain, cname, seq, ent, fy, ty, note) in enumerate(T.LINEAGE, 1):
         cur.execute("""INSERT INTO constructor_lineage

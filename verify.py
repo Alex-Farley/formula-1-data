@@ -8,6 +8,27 @@ import sys
 from collections import Counter
 
 DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "f1.db")
+
+# --db PATH checks a database other than the one beside this file. CI uses it
+# to check the COMMITTED f1.db before build.py overwrites it, which is the
+# only moment a database carrying non-redistributable rows can be caught.
+if "--db" in sys.argv:
+    i = sys.argv.index("--db") + 1
+    if i >= len(sys.argv):
+        sys.exit("--db needs a path to a database")
+    DB = sys.argv[i]
+
+# --redistribution-only runs the licence section and nothing else. It is a
+# second of work against any database, so it can run in places the full
+# suite would be too slow for.
+REDIST_ONLY = "--redistribution-only" in sys.argv
+
+# Set F1_LOCAL_TIMING=1 when you have deliberately loaded FOM-owned timing
+# onto a LOCAL copy. It downgrades the licence section from failure to
+# warning: the load is legitimate, the resulting file is simply not yours to
+# publish. Never set it in CI, and never commit a database built with it.
+LOCAL_TIMING = os.environ.get("F1_LOCAL_TIMING") == "1"
+
 con = sqlite3.connect(DB)
 con.row_factory = sqlite3.Row
 con.execute("PRAGMA foreign_keys=ON")
@@ -24,6 +45,75 @@ def warn(name, ok, detail=""):
     print(f"  [{'ok  ' if ok else 'WARN'}] {name}" + (f" — {detail}" if detail else ""))
     if not ok:
         warns.append(name)
+
+
+def summarise():
+    """Print the tally and exit 1 if anything failed."""
+    print("\n" + "=" * 60)
+    if fails:
+        print(f"{len(fails)} CHECK(S) FAILED:")
+        for f in fails:
+            print("   -", f)
+        sys.exit(1)
+    print(f"All checks passed. {len(warns)} warning(s).")
+
+
+# ---------------------------------------------------------------------------
+# REDISTRIBUTION
+#
+# Six tables can hold data this project is not permitted to publish. Per-lap
+# timing, stints, pit stops, race control and the team radio index come from
+# the Formula 1 live timing API via FastF1, whose guidance is personal and
+# non-commercial use, or from Jolpica, whose Ergast lineage is CC BY-NC-SA.
+# Both are loaded onto a LOCAL copy by tools/ and neither is committed. See
+# LICENSE-DATA and ATTRIBUTION.md.
+#
+# That policy has always been true and was never enforced. It lived in a
+# sentence in a licence file and in the habit of not running the loaders
+# before a commit, which is not a control - `git add f1.db` after an
+# afternoon with --timing is an ordinary mistake with a licence breach on the
+# other side of it. This section is the control.
+#
+# The empty tables are checked for being EMPTY. pit_stops and team_radio are
+# checked by SOURCE, because both legitimately hold rows from elsewhere:
+# 22,472 pit stops from F1DB under CC BY, and six radio exchanges quoted from
+# Wikipedia articles.
+# ---------------------------------------------------------------------------
+def redistribution():
+    print("\nREDISTRIBUTION")
+    verdict = warn if LOCAL_TIMING else check
+    if LOCAL_TIMING:
+        print("  [info] F1_LOCAL_TIMING=1 - this database may hold FOM-owned "
+              "timing. It is not publishable and must not be committed.")
+
+    for table, what in (
+            ("laps", "per-lap timing"),
+            ("stints", "tyre stints"),
+            ("race_timing", "race timing summaries"),
+            ("race_control_messages", "race control messages")):
+        n = con.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+        verdict(f"{table} holds no FOM-owned {what}", n == 0, f"{n} rows")
+
+    # 'f1db' is the only pit stop source that may be published. The loaders
+    # write 'jolpica' and 'fastf1', and both are barred.
+    bad = con.execute("""SELECT source, COUNT(*) n FROM pit_stops
+        WHERE source IS NOT NULL AND source <> 'f1db'
+        GROUP BY source""").fetchall()
+    verdict("every pit stop comes from F1DB", not bad,
+            "; ".join(f"{r['n']} from {r['source']}" for r in bad))
+
+    # The six committed exchanges are quoted from Wikipedia race articles.
+    # A radio row indexed from the live timing API is FOM's audio.
+    bad = con.execute("""SELECT COUNT(*) FROM team_radio
+        WHERE source = 'fastf1'""").fetchone()[0]
+    verdict("no team radio row was indexed from the live timing API",
+            bad == 0, f"{bad} rows")
+
+
+redistribution()
+if REDIST_ONLY:
+    summarise()      # exits 1 if anything failed
+    sys.exit(0)
 
 
 print("\nREFERENTIAL INTEGRITY")
@@ -1419,10 +1509,4 @@ for v in ("v_car_images", "v_images_to_check", "v_circuit_geometry",
     n = con.execute(f"SELECT COUNT(*) FROM {v}").fetchone()[0]
     check(f"view {v} is queryable", True, f"{n} rows")
 
-print("\n" + "=" * 60)
-if fails:
-    print(f"{len(fails)} CHECK(S) FAILED:")
-    for f in fails:
-        print("   -", f)
-    sys.exit(1)
-print(f"All checks passed. {len(warns)} warning(s).")
+summarise()

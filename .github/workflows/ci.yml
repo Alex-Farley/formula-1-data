@@ -26,6 +26,15 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      # BEFORE the rebuild, because build.py overwrites f1.db and would
+      # destroy the evidence. Six tables can hold timing data owned by
+      # Formula One Management, loaded onto a local copy by tools/ and never
+      # redistributable. This is the only moment a commit carrying them can
+      # be caught: after the next step the file is a fresh build and clean by
+      # construction. See LICENSE-DATA.
+      - name: Check the committed database carries nothing unpublishable
+        run: python3 verify.py --redistribution-only
+
       # No dependencies: everything but tools/fastf1_load.py is stdlib only.
       - name: Rebuild the database
         run: python3 build.py
