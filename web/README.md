@@ -298,6 +298,63 @@ leak a server holding the port.
 CHROME_PATH=/path/to/chrome npm test   # reuse a browser instead of downloading one
 ```
 
+## Deploying
+
+The build is a directory of static files that carries its own database, so it
+needs a static host and nothing else — no server, no API, no database to
+provision. `base: './'` and the `HashRouter` mean there is no deploy-time
+configuration and no rewrite rules to get wrong: the same `dist/` works at a
+domain root, in a subdirectory, or anywhere else.
+
+Three numbers decide which hosts are viable. The largest single file is
+`f1.db` at **19.99 MiB**, the whole `dist/` is about **26 MB**, and each
+first-time reader transfers **4.7 MB** before the database is in their
+IndexedDB and later visits cost nothing.
+
+### Cloudflare Pages
+
+Free, works with a private repository, and its 25 MiB per-file cap clears
+`f1.db` with room to spare. Connect the repository in the Cloudflare dashboard
+and set:
+
+| Setting | Value |
+| --- | --- |
+| Root directory | `web` |
+| Build command | `npm run build` |
+| Build output directory | `dist` |
+| Environment variable | `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD` = `1` |
+
+The environment variable matters. Cloudflare installs dependencies itself
+before running the build command, and `playwright` is a devDependency whose
+install script downloads about 150 MB of browsers that the build does not
+need. Without it the build still succeeds, but every deploy pays for a
+download nothing uses.
+
+`prepare-assets.js` reads `../f1.db`, which resolves because Cloudflare clones
+the whole repository regardless of the root directory. `web/.node-version`
+pins the Node version; the footer's database version comes from `node:sqlite`,
+which needs Node 22.
+
+### GitHub Pages
+
+`.github/workflows/pages.yml` does this, and additionally rebuilds the
+database and runs `verify.py` before it builds the site, so a deployed site
+can never carry a database that failed its own checks. It is manual-only
+because Pages needs the repository to be public or the account to be on Pro
+or Team; the workflow header records the details.
+
+### Anywhere else
+
+Netlify reads the same `_headers` file and needs the same three settings.
+Any host that serves a directory works — including `npm run preview` on your
+own machine, which serves the production build on `localhost:4173`.
+
+The `_headers` file is written by `prepare-assets.js` rather than committed,
+because `public/` is generated. It tells hosts that read it to cache the
+database, the wasm and the hashed assets forever, and never to cache
+`db-manifest.json` — a stale manifest is the one failure that leaves a reader
+on an old database indefinitely.
+
 ## Things worth knowing before changing it
 
 **Routing is hash-based.** `#/drivers/senna`, not `/drivers/senna`. A static
