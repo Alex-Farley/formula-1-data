@@ -7,6 +7,7 @@ import ColumnChart from '../charts/ColumnChart.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { missing, number, points as fmtPoints, span } from '../lib/format.js'
 import { finalStandings } from '../lib/standings.js'
+import { colourFor } from '../lib/racingColours.js'
 
 const CONSTRUCTOR = `SELECT * FROM constructors WHERE id = ?`
 
@@ -121,6 +122,7 @@ function ConstructorBody({ constructor, data }) {
 
   const winsBySeason = bySeason.filter((s) => s.wins > 0)
   const engineSplit = standings.some((s) => s.engine_id)
+  const colour = colourFor(constructor.country)
 
   return (
     <Page
@@ -128,6 +130,19 @@ function ConstructorBody({ constructor, data }) {
       title={constructor.name}
       back={{ to: '/constructors', label: 'The register' }}
       lede={constructor.notes}
+      aside={
+        colour && (
+          <p className="livery-band" style={{ marginTop: 14 }}>
+            <i style={{ background: colour.hex }} />
+            {colour.name}
+            <span style={{ textTransform: 'none', letterSpacing: 0 }}>
+              — the international racing colour of {constructor.country}, the convention that
+              painted a car for the country it was entered by until sponsor liveries took over
+              around 1968. Not this constructor's livery.
+            </span>
+          </p>
+        )
+      }
     >
       <Section>
         <Stats

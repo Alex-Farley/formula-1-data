@@ -6,6 +6,7 @@ import DataTable, { cell } from '../components/DataTable.jsx'
 import { Chips, Filters, SearchField, Select } from '../components/Filters.jsx'
 import { useQuery } from '../data/useQuery.js'
 import { span } from '../lib/format.js'
+import { colourFor } from '../lib/racingColours.js'
 
 const SQL = `
   SELECT k.id, k.name, k.country, k.base, k.first_entry, k.last_entry,
@@ -82,7 +83,19 @@ function Register({ rows }) {
           {
             key: 'name',
             label: 'Constructor',
-            render: (name, row) => <Link to={`/constructors/${row.id}`}>{name}</Link>,
+            render: (name, row) => {
+              const colour = colourFor(row.country)
+              return (
+                <>
+                  <i
+                    className="livery"
+                    style={colour ? { background: colour.hex } : undefined}
+                    title={colour ? `${colour.name} — the racing colour of ${row.country}` : 'no racing colour recorded'}
+                  />
+                  <Link to={`/constructors/${row.id}`}>{name}</Link>
+                </>
+              )
+            },
           },
           { key: 'country', label: 'Country' },
           {

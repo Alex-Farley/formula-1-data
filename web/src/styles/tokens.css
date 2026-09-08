@@ -1,57 +1,74 @@
 /*
- * The palette, and where each colour is allowed to be used.
+ * Pit Wall — the instrument-panel palette.
  *
  * Three families, kept apart on purpose:
  *
- *   --accent      one red, and it means "you can act on this". Links, the
- *                 focus ring, the current nav item. Never a data mark.
+ *   --accent      one red, and it means "you can act on this" or "this was
+ *                 fastest". Links, focus, the current nav item, P1. Never a
+ *                 data mark.
  *   --series-*    the chart colours. Slots 1-3 of the reference categorical
  *                 palette, validated by script against these exact surfaces
- *                 rather than chosen by eye — see charts/palette.js for the
- *                 run and its numbers. Never text.
- *   --status-*    good / warning, for the confidence ladder's two ends. Always
- *                 shipped with their label, never colour alone.
+ *                 rather than chosen by eye. Never text.
+ *   --seq-*       one hue, for a continuous quantity. Only a circuit's turn
+ *                 rate uses it.
  *
- * Dark is selected, not flipped: each value is its own step against the dark
- * surface, and the categorical slots are the palette's own dark column.
+ * Dark is not an inversion of light: it is a second instrument, stepped
+ * against its own ground. Light is paper under a pit-lane strip light; dark
+ * is the timing screen. Both were measured, not eyeballed —
+ *
+ *   light   ink 18.1:1 · soft 7.5:1 · faint 4.7:1 · accent 5.9:1 on panel
+ *   dark    ink 15.1:1 · soft 7.0:1 · faint 4.8:1 · accent 5.4:1 on panel
+ *
+ * One number decides a rule elsewhere: accent against body ink is 3.07:1 in
+ * light and 2.78:1 in dark. Only the first clears the 3:1 that lets colour
+ * mark a link on its own, so links keep an underline in both — the dark side
+ * needs it and one behaviour is better than two.
  */
 
 :root {
   color-scheme: light;
 
   /* surfaces */
-  --bg: #fbfbf9;
+  --bg: #f3f4f6;
   --panel: #ffffff;
-  --panel-sunk: #f4f4f1;
+  --panel-sunk: #eceef2;
   --panel-raised: #ffffff;
+  --stage: #f7f8fa;          /* where a circuit or chart is drawn */
 
   /* ink */
-  --ink: #17171a;
-  --ink-soft: #55555e;
-  --ink-faint: #83838d;
+  --ink: #14161b;
+  --ink-soft: #4f5561;
+  --ink-faint: #6d7480;
   --ink-invert: #ffffff;
 
   /* structure */
-  --rule: #e7e6e2;
-  --rule-strong: #cfcec9;
-  --shadow-sm: 0 1px 2px rgb(20 20 25 / 0.05);
-  --shadow: 0 1px 2px rgb(20 20 25 / 0.04), 0 10px 30px rgb(20 20 25 / 0.06);
+  --rule: #e3e5ea;
+  --rule-strong: #c9cdd6;
+  --shadow-sm: 0 1px 2px rgb(20 22 27 / 0.06);
+  --shadow: 0 1px 2px rgb(20 22 27 / 0.05), 0 10px 30px rgb(20 22 27 / 0.07);
 
   /* the one interactive colour */
-  --accent: #b0182e;
-  --accent-ink: #8d1325;
-  --accent-wash: #fbeef0;
+  --accent: #c81028;
+  --accent-ink: #a20d20;
+  --accent-wash: #fdeef0;
+
+  /* The result rail: podium, scored, classified, retired. Four states are
+     only four states if all four can be seen — the first draft put points at
+     1.95:1 and classified at 1.44:1 against the panel, which left the rail
+     encoding podium-versus-not. These measure 5.9 / 4.0 / 3.1 in light and
+     5.4 / 3.5 / 3.5 in dark. */
+  --rail-podium: #c81028;
+  --rail-points: #e2687c;
+  --rail-classified: #8b94a3;
 
   /* chart series — reference palette slots 1-3, light column */
   --series-1: #2a78d6;
   --series-2: #eb6834;
   --series-3: #1baf7a;
-  --grid: #e7e6e2;
+  --grid: #e3e5ea;
 
-  /* A sequential ramp, one hue, for a continuous quantity — the only such
-     encoding here is a circuit's turn rate. Light mode runs light to dark, so
-     "more" is darker; the pale end still has to read as a mark on the page, so
-     it starts at step 250 rather than at the ramp's lightest. */
+  /* sequential, one hue: light to dark, so "more" is darker. The pale end
+     still has to read as a mark, so it starts at step 250. */
   --seq-1: #86b6ef;
   --seq-2: #5598e7;
   --seq-3: #2a78d6;
@@ -60,53 +77,58 @@
 
   /* status */
   --good: #0a7d2b;
-  --good-wash: #e7f3ea;
+  --good-wash: #e6f3ea;
   --warn: #8a5a00;
   --warn-wash: #fbf1dd;
-  --neutral-wash: #eeedea;
+  --neutral-wash: #eceef2;
 
   /* type */
-  --sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  --disp: 'Saira Condensed', 'Arial Narrow', Arial, sans-serif;
+  --sans: 'Saira', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   /* rhythm */
   --measure: 68ch;
-  --page: 1240px;
-  --radius: 10px;
-  --radius-sm: 6px;
+  --page: 1280px;
+  --radius: 3px;
+  --radius-sm: 2px;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:where(:not([data-theme='light'])) {
     color-scheme: dark;
 
-    --bg: #111114;
-    --panel: #191920;
-    --panel-sunk: #16161c;
-    --panel-raised: #1f1f27;
+    --bg: #0c0d10;
+    --panel: #14161b;
+    --panel-sunk: #101216;
+    --panel-raised: #1b1e25;
+    --stage: #101216;
 
-    --ink: #ededf2;
-    --ink-soft: #a5a5b1;
-    --ink-faint: #76767f;
-    --ink-invert: #111114;
+    --ink: #e8eaf0;
+    --ink-soft: #9aa1ae;
+    --ink-faint: #7d848f;
+    --ink-invert: #0c0d10;
 
-    --rule: #2a2a33;
-    --rule-strong: #3d3d47;
-    --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
-    --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 10px 30px rgb(0 0 0 / 0.35);
+    --rule: #23262e;
+    --rule-strong: #333843;
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.5);
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.5), 0 10px 30px rgb(0 0 0 / 0.4);
 
-    --accent: #ff8494;
-    --accent-ink: #ffa3af;
-    --accent-wash: #331a1f;
+    --accent: #ff4757;
+    --accent-ink: #ff6b7a;
+    --accent-wash: #2a1418;
+
+    --rail-podium: #ff4757;
+    --rail-points: #c0394f;
+    --rail-classified: #646d7c;
 
     --series-1: #3987e5;
     --series-2: #d95926;
     --series-3: #199e70;
-    --grid: #2a2a33;
+    --grid: #23262e;
 
-    /* Dark reverses the direction, it does not invert the light values: on a
-       dark ground "more" has to be lighter, or the strongest reading recedes
-       into the page. */
+    /* Dark reverses the ramp's direction rather than inverting its values: on
+       a dark ground "more" has to be lighter. */
     --seq-1: #1c5cab;
     --seq-2: #256abf;
     --seq-3: #3987e5;
@@ -114,10 +136,10 @@
     --seq-5: #9ec5f4;
 
     --good: #6fc98f;
-    --good-wash: #16291d;
+    --good-wash: #14261b;
     --warn: #e3b465;
     --warn-wash: #2b2415;
-    --neutral-wash: #23232b;
+    --neutral-wash: #1b1e25;
   }
 }
 
@@ -126,33 +148,35 @@
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  --bg: #111114;
-  --panel: #191920;
-  --panel-sunk: #16161c;
-  --panel-raised: #1f1f27;
+  --bg: #0c0d10;
+  --panel: #14161b;
+  --panel-sunk: #101216;
+  --panel-raised: #1b1e25;
+  --stage: #101216;
 
-  --ink: #ededf2;
-  --ink-soft: #a5a5b1;
-  --ink-faint: #76767f;
-  --ink-invert: #111114;
+  --ink: #e8eaf0;
+  --ink-soft: #9aa1ae;
+  --ink-faint: #7d848f;
+  --ink-invert: #0c0d10;
 
-  --rule: #2a2a33;
-  --rule-strong: #3d3d47;
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
-  --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 10px 30px rgb(0 0 0 / 0.35);
+  --rule: #23262e;
+  --rule-strong: #333843;
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.5);
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.5), 0 10px 30px rgb(0 0 0 / 0.4);
 
-  --accent: #ff8494;
-  --accent-ink: #ffa3af;
-  --accent-wash: #331a1f;
+  --accent: #ff4757;
+  --accent-ink: #ff6b7a;
+  --accent-wash: #2a1418;
+
+  --rail-podium: #ff4757;
+  --rail-points: #c0394f;
+  --rail-classified: #646d7c;
 
   --series-1: #3987e5;
   --series-2: #d95926;
   --series-3: #199e70;
-  --grid: #2a2a33;
+  --grid: #23262e;
 
-  /* Dark reverses the direction, it does not invert the light values: on a
-     dark ground "more" has to be lighter, or the strongest reading recedes
-     into the page. */
   --seq-1: #1c5cab;
   --seq-2: #256abf;
   --seq-3: #3987e5;
@@ -160,8 +184,8 @@
   --seq-5: #9ec5f4;
 
   --good: #6fc98f;
-  --good-wash: #16291d;
+  --good-wash: #14261b;
   --warn: #e3b465;
   --warn-wash: #2b2415;
-  --neutral-wash: #23232b;
+  --neutral-wash: #1b1e25;
 }

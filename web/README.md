@@ -173,6 +173,63 @@ centre**, which is what lets the wall switch between fitting each frame to its
 circuit and giving every frame the same extent. In the second state the sizes
 are honestly comparable: Long Beach really is under half of Spa.
 
+## The look: Pit Wall
+
+The interface is an instrument panel, not a magazine. Condensed display type
+(Saira Condensed) carries names and figures, Saira carries the interface, and
+**every number that lines up in a column is set in JetBrains Mono** — in a
+database whose subject is numbers, the figures get the characterful face and
+the prose gets out of the way.
+
+**Dark is not an inversion of light.** Each is stepped against its own ground:
+light is paper under a pit-lane strip light, dark is the timing screen. Both
+were measured rather than eyeballed, and `tokens.css` records the numbers. One
+of them decides a rule elsewhere — accent against body ink is 3.07:1 in light
+and 2.78:1 in dark, and only the first clears the 3:1 that would let colour
+mark a link on its own, so links keep an underline in both.
+
+Two marks do most of the work:
+
+- **The result rail** down the left of a classification: podium, scored
+  points, classified, retired. It is read from `race_entries`, so it is data
+  rather than decoration, and it always sits beside the position text — the
+  colour never carries the meaning alone.
+- **A lit edge** on each stat tile, which is what separates an instrument
+  reading from a card. Border, fill and shadow are otherwise spent sparingly;
+  the radius is 3px, because a rounded card says "app" and this says "panel".
+
+## National racing colours, and why not team liveries
+
+A per-constructor livery colour **has no source this project can admit**, and
+the search is documented at the top of `src/lib/racingColours.js`: F1DB has no
+colour field, Wikidata's P465 is absent on every F1 constructor sampled
+(Ferrari, McLaren, Williams, Team Lotus, Vanwall, Brabham), the Wikipedia team
+infobox has no colour parameter, and formula1.com publishes the current season
+only under FOM copyright.
+
+The last point is the one that decides it. This project ranks a source on
+licence, cadence and **independent checkability**, and says the third is the
+one that matters — it is why fan sites are forbidden as authority. Nothing here
+can check a livery hex. A livery is also per-season and often mid-season, so
+one colour per constructor is a claim the sport does not support.
+
+So the interface uses the **international racing colours** instead: the
+AIACR/FIA convention under which a car was painted for the country it was
+entered by, in force until sponsor liveries displaced it around 1968. It is the
+reason Ferrari is red. It keys off `constructors.country`, which all 150 rows
+have, and covers 131 of them — the countries whose colour is unambiguous.
+The rest get nothing rather than a guess.
+
+It is never called a team colour in the interface, and **none of it is in
+`f1.db`**: it is presentation metadata, kept in the front end so no unsourced
+value can enter the database. If a licensed, checkable livery set turns up,
+replacing that one file is the whole job.
+
+One thing the module has to do on the way: the register spells countries
+inconsistently — five constructors are "British" where fifty-three are "United
+Kingdom", with three "French", one "Italian" and one "Brazilian" among the
+nouns, and a few carrying two countries. `canonicalCountry()` folds them.
+
 ## The charts
 
 Four figures, hand-drawn as SVG rather than pulled from a charting library —

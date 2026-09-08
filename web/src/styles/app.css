@@ -32,10 +32,11 @@ h1,
 h2,
 h3,
 h4 {
-  line-height: 1.25;
-  letter-spacing: -0.012em;
+  font-family: var(--disp);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.005em;
   margin: 0;
-  font-weight: 640;
 }
 
 p {
@@ -81,11 +82,26 @@ hr {
   margin: 28px 0;
 }
 
-/* Numbers line up or they are not worth setting. */
+/* Numbers are the subject of this database, so they get the instrument face
+   and always line up. */
 .num,
 .tabular {
+  font-family: var(--mono);
   font-variant-numeric: tabular-nums;
+  font-feature-settings: 'zero' 1;
 }
+
+/* The small uppercase label above a figure — the one piece of chrome that
+   repeats everywhere, from a stat tile to a column head. */
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
 
 .muted {
   color: var(--ink-soft);
@@ -152,15 +168,18 @@ hr {
 }
 
 .wordmark b {
-  font-size: 15px;
-  font-weight: 660;
-  letter-spacing: -0.015em;
+  font-family: var(--disp);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 
 .wordmark span {
   display: block;
-  font-size: 11px;
+  font-family: var(--mono);
+  font-size: 10.5px;
   color: var(--ink-faint);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.01em;
@@ -188,9 +207,10 @@ hr {
 }
 
 .masthead nav a.active {
-  color: var(--accent);
-  background: var(--accent-wash);
+  color: var(--ink);
   font-weight: 600;
+  box-shadow: inset 0 -2px 0 var(--accent);
+  border-radius: 0;
 }
 
 .search-trigger {
@@ -216,9 +236,10 @@ hr {
 
 .search-trigger kbd {
   border: 1px solid var(--rule-strong);
-  border-radius: 4px;
+  border-radius: 2px;
   padding: 1px 5px;
-  font-size: 11px;
+  font-family: var(--mono);
+  font-size: 10.5px;
   color: var(--ink-faint);
   background: var(--panel-sunk);
 }
@@ -334,17 +355,15 @@ main {
 }
 
 .page h2 {
-  font-size: clamp(22px, 3vw, 29px);
+  font-size: clamp(34px, 5.2vw, 62px);
+  text-transform: uppercase;
+  letter-spacing: -0.012em;
   margin: 0;
+  text-wrap: balance;
 }
 
 .page > header .eyebrow {
-  font-size: 12px;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--ink-faint);
-  font-weight: 600;
-  margin: 0 0 6px;
+  margin: 0 0 10px;
 }
 
 .lede {
@@ -359,7 +378,9 @@ main {
 }
 
 .section > h3 {
-  font-size: 17px;
+  font-size: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.035em;
   margin: 0 0 2px;
   display: flex;
   align-items: baseline;
@@ -368,8 +389,11 @@ main {
 }
 
 .section > h3 .count {
-  font-size: 13px;
+  font-family: var(--mono);
+  font-size: 11.5px;
   font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--ink-faint);
   font-variant-numeric: tabular-nums;
 }
@@ -434,24 +458,40 @@ main {
 
 .stats > div {
   background: var(--panel);
-  padding: 11px 14px 13px;
+  padding: 13px 15px 15px;
   min-width: 0;
+  position: relative;
+}
+
+/* A short lit edge on each tile — the same mark the mockups use to say
+   "this is an instrument reading", not a card. */
+.stats > div::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 22px;
+  height: 2px;
+  background: var(--accent);
 }
 
 .stats dt {
-  font-size: 11.5px;
-  letter-spacing: 0.03em;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--ink-faint);
-  font-weight: 600;
-  margin-bottom: 3px;
+  margin-bottom: 6px;
 }
 
 .stats dd {
   margin: 0;
-  font-size: 21px;
-  font-weight: 620;
-  letter-spacing: -0.02em;
+  font-family: var(--disp);
+  font-size: 25px;
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: -0.005em;
   /* Proportional figures: a standalone value at display size looks loose in
      tabular ones. Tabular is for columns that must align. */
   overflow-wrap: anywhere;
@@ -459,6 +499,7 @@ main {
 
 .stats dd small {
   display: block;
+  font-family: var(--sans);
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0;
@@ -543,12 +584,13 @@ thead th {
   z-index: 1;
   background: var(--panel);
   text-align: left;
-  font-weight: 600;
-  font-size: 11.5px;
-  letter-spacing: 0.045em;
+  font-family: var(--mono);
+  font-weight: 500;
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--ink-faint);
-  padding: 9px 14px;
+  padding: 10px 14px;
   border-bottom: 1px solid var(--rule-strong);
   white-space: nowrap;
 }
@@ -602,6 +644,7 @@ tbody tr:hover td {
 
 td.num {
   text-align: right;
+  font-family: var(--mono);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -623,9 +666,11 @@ td:not(.prose) {
  * A classification is forty links in a row. Painting all of them accent turns
  * the table into a wall of red and spends the one colour that is supposed to
  * mean "act on this". They take ink and a hairline underline instead — and the
- * underline is not decoration: accent against body ink measures 2.6:1 in light
- * and 2.0:1 in dark, well under the 3:1 that would let colour distinguish a
- * link on its own. Hover and focus bring the accent back.
+ * underline is not decoration: accent against body ink measures 3.07:1 in light
+ * and 2.78:1 in dark, and the 3:1 that would let colour distinguish a
+ * link on its own — only in light, where it is 3.07:1; dark measures 2.78:1.
+ * One behaviour beats two, so both keep the underline. Hover and focus bring
+ * the accent back.
  */
 td a,
 .stats dd a {
@@ -643,6 +688,43 @@ td a:focus-visible,
 
 tbody tr.is-highlight td {
   background: var(--accent-wash);
+}
+
+/*
+ * The result rail.
+ *
+ * A classification is the one table where the shape of the result should read
+ * before any of the numbers do. The rail encodes what the row achieved —
+ * podium, points, classified, retired — from race_entries, so it is data
+ * rather than decoration, and it is always paired with the position text
+ * beside it: the colour never carries the meaning alone.
+ */
+th.rail,
+td.rail {
+  /* The header inherits thead's 14px side padding unless it is told not to,
+     which silently turns a 4px rail into a 28px column. */
+  padding: 0;
+  width: 4px;
+}
+
+td.rail i {
+  display: block;
+  width: 4px;
+  height: 100%;
+  min-height: 34px;
+  background: var(--rail-none, transparent);
+}
+
+td.rail i.podium {
+  background: var(--rail-podium);
+}
+
+td.rail i.points {
+  background: var(--rail-points);
+}
+
+td.rail i.classified {
+  background: var(--rail-classified);
 }
 
 tbody td.strong {
@@ -748,16 +830,17 @@ tbody td.strong {
 
 .pill {
   display: inline-block;
-  font-size: 11px;
-  font-weight: 640;
-  letter-spacing: 0.03em;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  padding: 2px 7px;
-  border-radius: 999px;
+  padding: 3px 7px;
+  border-radius: 2px;
   white-space: nowrap;
-  background: var(--neutral-wash);
+  background: transparent;
   color: var(--ink-soft);
-  border: 1px solid transparent;
+  border: 1px solid var(--rule-strong);
   vertical-align: 1px;
 }
 
@@ -766,11 +849,13 @@ tbody td.strong {
 .pill-verified {
   background: var(--good-wash);
   color: var(--good);
+  border-color: transparent;
 }
 
 .pill-unverified {
   background: var(--warn-wash);
   color: var(--warn);
+  border-color: transparent;
 }
 
 .pill-high {
@@ -779,7 +864,9 @@ tbody td.strong {
 
 .tag {
   display: inline-block;
-  font-size: 11.5px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
   padding: 1px 7px;
   border-radius: 4px;
   background: var(--panel-sunk);
@@ -1478,7 +1565,7 @@ figure.figure > figcaption span {
 }
 
 .atlas-stage {
-  background: var(--panel);
+  background: var(--stage);
   border: 1px solid var(--rule);
   border-radius: var(--radius);
   padding: 14px 16px 16px;
@@ -1611,4 +1698,49 @@ input[type='range']:disabled::-webkit-slider-thumb {
   justify-content: space-between;
   font-size: 11px;
   color: var(--ink-faint);
+}
+
+/* --------------------------------------------------- national racing colour */
+
+/* A constructor's identity mark. Never alone: it always sits beside the name,
+   and its tooltip names the colour, because the colour is a historical
+   convention rather than a measurement. */
+.livery {
+  display: inline-block;
+  width: 3px;
+  height: 1.05em;
+  margin-right: 9px;
+  vertical-align: -2px;
+  background: var(--rule-strong);
+}
+
+.livery-band {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.livery-band i {
+  width: 26px;
+  height: 8px;
+  flex: none;
+}
+
+/* Announced but not shown: the result rail is a column with no text, and an
+   unnamed column header is a column a screen reader cannot introduce. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
