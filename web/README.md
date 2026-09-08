@@ -131,6 +131,29 @@ drivers, constructors, circuits, chassis, seasons and races at once. A register
 of 862 drivers reached only by scrolling an alphabetical table is a register
 nobody reads.
 
+## The voice, and where a page sends you next
+
+**Write for the reader, not for the schema.** A lede says what is on the page
+and what can be done with it; it does not defend a modelling decision. The
+methodology has two pages of its own — `/reference/quality` and
+`/reference/sources` — and everywhere else links to them rather than repeating
+them.
+
+A note beside a table survives only if a reader would **misread the table
+without it**: that a blank is an unestablished figure rather than a zero, that
+a repeated position is a shared drive rather than a duplicated row, that a
+margin before 1991 is net of dropped scores. "Why the column is stored this
+way" is not that, and belongs in a code comment, in `schema.sql`, or on the
+quality page.
+
+**Every page ends by naming two to four routes out of it.** `Onward` in
+`components/Page.jsx` renders that band; where the destination can be computed
+from the data on the page it is — a driver's last team and best season, the
+constructor's most successful design, the last race held at a circuit — because
+a specific link is taken far more often than a generic one. `Stepper` puts the
+neighbour on either side under the heading, which is how a reader walks a
+calendar or a run of seasons without going back to a list.
+
 ## The track atlas
 
 `circuit_geometry.centreline` is a GeoJSON MultiLineString: the ways of an
@@ -187,6 +210,13 @@ were measured rather than eyeballed, and `tokens.css` records the numbers. One
 of them decides a rule elsewhere — accent against body ink is 3.07:1 in light
 and 2.78:1 in dark, and only the first clears the 3:1 that would let colour
 mark a link on its own, so links keep an underline in both.
+
+**The mark is a chequered flag**, three squares by two, cropped square to its
+panel. Six cells rather than four: four read as an application grid, six read
+as a flag. The two accent cells sit on the bottom row so the mark still carries
+the brand at 20px, where a rule thin enough to fit would disappear. The same
+geometry is inlined as the favicon in `index.html`, on a dark panel because a
+tab has no theme.
 
 Two marks do most of the work:
 

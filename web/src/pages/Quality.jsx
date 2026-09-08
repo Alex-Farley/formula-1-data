@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Confidence, Note, Page, Section, Stats } from '../components/Page.jsx'
+import { Confidence, Note, Onward, Page, Section, Stats } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import SubNav from '../components/SubNav.jsx'
@@ -46,7 +46,7 @@ export default function Quality() {
   return (
     <Page
       title="Data quality"
-      lede="This is the page the rest of the site exists to make honest. A database that publishes only what it is sure of is easy to trust and useless; one that publishes everything and says nothing about which parts are solid is the opposite. So every row carries a confidence, the disagreements are kept as data, and what is missing is written down as a row rather than as an omission."
+      lede="How far to trust anything on this site. Every row carries a confidence level, every disagreement between sources is kept rather than quietly resolved, and everything known to be missing is listed here."
     >
       <SubNav />
       <Result state={state}>{(data) => <Body data={data} />}</Result>
@@ -104,18 +104,16 @@ function Body({ data }) {
           ]}
         />
         <p className="source-note">
-          Only an official source — the FIA or formula1.com — can carry a row to “verified”.
-          Wikipedia and F1DB reach “reference”, which is not a criticism of either: it is a
-          statement that something else would have to check them. Fan-maintained sites are
-          excluded as authorities, not because they are small but because nothing can contradict
-          them.
+          Only an official source — the FIA or formula1.com — carries a row to “verified”. Wikipedia
+          and F1DB reach “reference”, which is not a criticism of either: it means something else
+          would have to check them.
         </p>
       </Section>
 
       <Section title="How the database is distributed across it">
         <Figure
           title="Rows by confidence"
-          note="Across races, race entries, drivers, constructors, chassis, circuits and seasons. The bulk sits at “reference” because the bulk of it is the F1DB race record — a source with a licence that permits redistribution and a second source to check it against."
+          note="Across races, race entries, drivers, constructors, chassis, circuits and seasons. Most of it sits at “reference” because most of it is the F1DB race record, which a second source can check."
           table={{
             rows: ordered.map((row) => ({
               confidence: row.key,
@@ -140,7 +138,7 @@ function Body({ data }) {
       <Section
         title="Known gaps"
         count={`${gaps.length}`}
-        note="Written down as data, with what it would take to close each one. Several of these are not fetchable at all — they need a person to read something."
+        note="What is missing, and what it would take to close each one. Several need a person to read something rather than a script to fetch it."
       >
         <DataTable
           rows={gaps}
@@ -317,9 +315,17 @@ function Body({ data }) {
             { key: 'tbl', label: 'Table' },
             { key: 'n', label: 'Rows at medium or unverified', align: 'num' },
           ]}
-          footer="These are not errors. They are rows whose confidence has not been raised, which is a different and more useful statement than silence."
+          footer="These are not errors — they are rows nobody has yet been able to raise above medium confidence."
         />
       </Section>
+
+      <Onward
+        items={[
+          { to: '/reference/sources', label: 'Sources and licences', hint: 'Who says so, and what you may reuse.' },
+          { to: '/reference/sql', label: 'SQL console', hint: 'Interrogate any of this yourself.' },
+          { to: '/records', label: 'Records', hint: 'The figures these checks are protecting.' },
+        ]}
+      />
     </>
   )
 }

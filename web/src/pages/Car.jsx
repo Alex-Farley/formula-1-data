@@ -1,5 +1,5 @@
 import { Link, useParams } from 'react-router-dom'
-import { Confidence, Fields, Note, Page, Section, Stats } from '../components/Page.jsx'
+import { Confidence, Fields, Note, Onward, Page, Section, Stats } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import CommonsImage from '../components/CommonsImage.jsx'
@@ -83,6 +83,10 @@ export default function Car() {
           return (
             <Page title="No such car" back={{ to: '/cars', label: 'The register' }}>
               <p className="muted">Nothing in the chassis register has the id “{id}”.</p>
+              <p>
+                Press <kbd>/</kbd> to search by chassis name, or{' '}
+                <Link to="/cars">browse the register</Link>.
+              </p>
             </Page>
           )
         }
@@ -104,6 +108,9 @@ function CarBody({ chassis, variants, data }) {
   const ambiguous = seasons.filter((s) => !s.corroborated)
 
   const several = variants.length > 1
+  // Entries come back newest first, so the last winning row is the first win.
+  const firstWin = [...entries].reverse().find((entry) => entry.finish_position === 1) ?? null
+  const notableRace = firstWin ?? entries[entries.length - 1] ?? null
 
   // chassis.published_wins is the CAR's figure, taken from the article the
   // whole family shares, and it is repeated verbatim on every variant row —
@@ -143,7 +150,7 @@ function CarBody({ chassis, variants, data }) {
         <Section
           title="Photographs"
           count={`${images.length}`}
-          note="No pixels are stored here — each row is a Commons file name with its licence and its photographer, and the credit is shown with the image because the licence requires it."
+          note="From Wikimedia Commons, each shown with the photographer and licence its terms require."
         >
           <div className="photo-grid">
             {images.slice(0, 6).map((image) => (
@@ -153,9 +160,8 @@ function CarBody({ chassis, variants, data }) {
           {images.some((image) => image.name_matches === 0) && (
             <p className="source-note">
               A photograph marked <span className="pill pill-unverified">unchecked</span> has a file
-              name that does not name this car. Most such pictures are still right — filed under the
-              driver rather than the machine — but nothing in the database can tell which are not,
-              so all 337 of them sit at unverified until a person looks.
+              name that does not name this car. Most are still the right car, filed under the driver
+              rather than the machine — but nobody has confirmed these one by one.
             </p>
           )}
         </Section>
@@ -197,7 +203,7 @@ function CarBody({ chassis, variants, data }) {
         <Section
           title="Variants"
           count={`${variants.length}`}
-          note="No race entry is attributed to this car as a whole — every one names a variant. The figures above are those variants added together; each has a page of its own."
+          note="Every race entry names a variant rather than the car as a whole, so the figures above are these rows added together. Each variant has a page of its own."
         >
           <DataTable
             rows={variants}
@@ -224,7 +230,7 @@ function CarBody({ chassis, variants, data }) {
               { key: 'races', label: 'Races', align: 'num' },
               { key: 'wins', label: 'Wins', align: 'num' },
             ]}
-            footer="Races and wins here are what the race records attribute to that particular variant. The published total is the article's figure for the whole car and is shown once, below."
+            footer="Races and wins here belong to that particular variant. The published figure covers the whole car and is shown once, below."
           />
         </Section>
       )}
@@ -259,22 +265,22 @@ function CarBody({ chassis, variants, data }) {
           />
         </div>
         <p className="source-note">
-          A figure several different constructors quote in the same season is the regulation they
-          were all built to, not a measurement of any one car — those are held apart, in
-          regulation limits, and are the reason some weight figures here are blank where a
-          reference work would print one.
+          A blank is a figure nobody published for this car. Where several teams quote the same
+          number in a season it is usually the rule they were all built to rather than a
+          measurement, so it is kept with the{' '}
+          <Link to="/reference/eras">regulation limits</Link> instead of here.
         </p>
       </Section>
 
       {winsDiffer && (
         <Note>
           <strong>
-            This database attributes {number(wins)} wins to {several ? 'this car' : 'this chassis'};
-            its article publishes {number(publishedWins)}.
+            {number(wins)} wins can be traced to {several ? 'this car' : 'this chassis'}; its
+            article publishes {number(publishedWins)}.
           </strong>{' '}
-          Neither is wrong. A win is attributed to a chassis only when the entry list resolves which
-          car the driver was in that round, and a constructor that ran two designs in a season does
-          not always say. The unresolved seasons are listed below.
+          Neither is wrong. A win counts here only where the entry list says which car the driver
+          was in, and a team running two designs in a season does not always say. The unresolved
+          seasons are listed below.
         </Note>
       )}
 
@@ -293,7 +299,7 @@ function CarBody({ chassis, variants, data }) {
               },
               { key: 'other_chassis', label: 'Also entered by this constructor', align: 'prose' },
             ]}
-            footer="Attributing a result to one of these would be a guess, so it is left unattributed."
+            footer="In these seasons the team ran more than one design and no source says which car raced which round, so the results are left unattributed rather than guessed."
           />
         </Section>
       )}
@@ -382,6 +388,29 @@ function CarBody({ chassis, variants, data }) {
           ]}
         />
       </Section>
+
+      <Onward
+        items={[
+          chassis.constructor_id
+            ? {
+                to: `/constructors/${chassis.constructor_id}`,
+                label: chassis.constructor,
+                hint: 'The team that built it, and everything else it made.',
+              }
+            : null,
+          notableRace
+            ? {
+                to: `/races/${notableRace.year}/${notableRace.round}`,
+                label: `${notableRace.year} ${notableRace.name_used}`,
+                hint: firstWin ? 'Its first win, in full.' : 'A race it entered, in full.',
+              }
+            : null,
+          car?.supersedes_id
+            ? { to: `/cars/${car.supersedes_id}`, label: 'The car before it', hint: 'What this design replaced.' }
+            : null,
+          { to: '/cars', label: 'All cars', hint: '1,153 chassis, filterable by team and era.' },
+        ]}
+      />
     </Page>
   )
 }

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Page, Section } from '../components/Page.jsx'
+import { Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { Chips, Filters, SearchField, Select } from '../components/Filters.jsx'
@@ -25,17 +25,26 @@ export default function Circuits() {
   return (
     <Page
       title="Circuits"
-      lede="Eighty venues, from airfield perimeters to street courses laid out for a season. Where a circuit's shape has been traced from OpenStreetMap, the trace is on its page — and the trace is also how identity was settled: a candidate relation was admitted only if it measured, within two per cent, to the length already held."
+      lede="Eighty venues, from airfield perimeters to street courses laid out for a single season. Sorted by races held: open one for how its shape changed, who has won there most, and every Grand Prix it has staged."
     >
       <Section>
         <p className="note" style={{ marginTop: 0 }}>
-          The traced ones have an <Link to="/circuits/atlas">atlas of their own</Link>: every shape
-          at one scale, and a lap you can measure along.
+          Twenty-five of them are traced from OpenStreetMap.{' '}
+          <Link to="/circuits/atlas">Open the track atlas</Link> to compare their shapes at one
+          scale and walk a lap.
         </p>
         <Result state={state} skeleton>
           {(data) => <Register rows={data.rows} />}
         </Result>
       </Section>
+
+      <Onward
+        items={[
+          { to: '/circuits/atlas', label: 'Track atlas', hint: '25 traced laps, side by side and at true scale.' },
+          { to: '/races', label: 'Every race', hint: 'What was run at each of these venues.' },
+          { to: '/reference/eras', label: 'Eras and rules', hint: 'The safety work that redrew many of these circuits.' },
+        ]}
+      />
     </Page>
   )
 }
@@ -112,7 +121,7 @@ function Register({ rows }) {
             render: (value) => (value ? '●' : cell(null)),
           },
         ]}
-        footer="Length and turns describe the circuit's current layout. Only 13 of the 80 have a layout timeline, so a 1976 lap of a circuit rebuilt since is reported at the rebuilt length — that is a known gap, not a rounding."
+        footer="Length and turns describe the layout in use now. Only 13 of the 80 have a layout timeline, so a 1976 lap of a circuit rebuilt since is reported at today's length."
       />
     </>
   )

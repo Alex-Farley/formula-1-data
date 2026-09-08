@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Confidence, Fields, Note, Page, Section, Stats } from '../components/Page.jsx'
+import { Confidence, Fields, Note, Onward, Page, Section, Stats, Stepper } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
@@ -139,11 +139,10 @@ function RaceBody({ race, data, year, round }) {
       back={{ to: `/seasons/${year}`, label: `${year} season` }}
       lede={race.note}
       aside={
-        <p className="crumb plain" style={{ marginTop: 12 }}>
-          {neighbours.previous && <Link to={`/races/${neighbours.previous}`}>← Previous race</Link>}
-          {neighbours.previous && neighbours.next && <span className="faint"> · </span>}
-          {neighbours.next && <Link to={`/races/${neighbours.next}`}>Next race →</Link>}
-        </p>
+        <Stepper
+          previous={neighbours.previous ? { to: `/races/${neighbours.previous}`, label: 'Previous race' } : null}
+          next={neighbours.next ? { to: `/races/${neighbours.next}`, label: 'Next race' } : null}
+        />
       }
     >
       <Section>
@@ -175,15 +174,15 @@ function RaceBody({ race, data, year, round }) {
       {scheduled && (
         <Note>
           <strong>This race has not been run.</strong> It is on the {year} calendar and carries no
-          result. Nothing here fills that in with a prediction.
+          result yet.
         </Note>
       )}
 
       {shared && (
         <Note>
-          <strong>This race includes a shared drive.</strong> Two drivers took turns in one car, and
-          both are classified in the same position — so the classification below has a repeated
-          number in it, and that is correct, not a duplicate.
+          <strong>This race includes a shared drive.</strong> Two drivers took turns in one car and
+          both are classified in the same position, so a position below appears twice. That is
+          correct, not a duplicated row.
         </Note>
       )}
 
@@ -265,7 +264,7 @@ function RaceBody({ race, data, year, round }) {
                 render: (value) => (value === 1 ? '●' : ''),
               },
             ]}
-            footer="An empty “Out” column is a driver the source records no retirement reason for, not a driver who finished. A blank chassis is a constructor that ran more than one design that season and no source says which raced this round."
+            footer="An empty “Out” is a retirement nobody recorded a reason for, not a driver who finished. A blank chassis is a season the team ran more than one design and no source says which car raced here."
           />
         </Section>
       )}
@@ -302,7 +301,7 @@ function RaceBody({ race, data, year, round }) {
               { key: 'gap', label: 'Gap', align: 'num' },
               { key: 'interval', label: 'Interval', align: 'num' },
             ]}
-            footer="Before knock-out qualifying arrived in 2006 there is one time per driver; from 2006 there are three sessions and the fastest of each is shown."
+            footer="Before knock-out qualifying arrived in 2006 there is one time per driver; from 2006, the best lap of each of the three sessions."
           />
         </Section>
       )}
@@ -329,7 +328,7 @@ function RaceBody({ race, data, year, round }) {
               { key: 'pit_lane_seconds', label: 'Pit lane (s)', align: 'num' },
               { key: 'source', label: 'Source' },
             ]}
-            footer="Pit stops are keyed on the race, the source and the driver together, so more than one source can hold the same stop side by side and be compared rather than overwrite each other."
+            footer="Stationary time is the car standing still; pit-lane time is the whole detour. Where two sources record the same stop, both are kept so you can compare them."
           />
         </Section>
       )}
@@ -358,11 +357,34 @@ function RaceBody({ race, data, year, round }) {
         />
         {!race.layout_name && (
           <p className="source-note">
-            Only 13 of the 80 circuits have a layout timeline, so a race before a rebuild may have
-            no layout recorded against it rather than the wrong one.
+            No layout is recorded for this round: only 13 of the 80 circuits have a layout
+            timeline, and a blank here is better than the wrong shape.
           </p>
         )}
       </Section>
+
+      <Onward
+        items={[
+          race.circuit_id
+            ? {
+                to: `/circuits/${race.circuit_id}`,
+                label: race.circuit,
+                hint: 'The venue, its layouts and every race held there.',
+              }
+            : null,
+          { to: `/seasons/${year}`, label: `The ${year} season`, hint: 'Calendar, title race and final standings.' },
+          winners[0]?.driver_id
+            ? {
+                to: `/drivers/${winners[0].driver_id}`,
+                label: winners[0].driver ?? 'The winner',
+                hint: 'Their full career, race by race.',
+              }
+            : null,
+          neighbours.next
+            ? { to: `/races/${neighbours.next}`, label: 'The next race', hint: 'Where the championship went from here.' }
+            : null,
+        ]}
+      />
     </Page>
   )
 }

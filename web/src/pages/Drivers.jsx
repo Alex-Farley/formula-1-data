@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Page, Section } from '../components/Page.jsx'
+import { Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { Chips, Filters, SearchField, Select } from '../components/Filters.jsx'
@@ -28,13 +28,21 @@ export default function Drivers() {
   return (
     <Page
       title="Drivers"
-      lede="Every driver the championship has recorded an entry for, from 1950 to now. Nobody typed these 862 names: the register is a list of who exists, decided by a person, with the spelling and the dates supplied by the sources."
+      lede="Every driver the championship has recorded an entry for, from 1950 to now. Filter by nationality, narrow to champions or race winners, then open anyone for their full career, season by season."
     >
       <Section>
         <Result state={state} skeleton>
           {(data) => <Register rows={data.rows} />}
         </Result>
       </Section>
+
+      <Onward
+        items={[
+          { to: '/records', label: 'Records', hint: 'Most wins, most poles, every champion.' },
+          { to: '/constructors', label: 'Constructors', hint: 'The teams these drivers drove for.' },
+          { to: '/seasons', label: 'Seasons', hint: 'Championship tables year by year.' },
+        ]}
+      />
     </Page>
   )
 }
@@ -118,7 +126,7 @@ function Register({ rows }) {
               value ? <span title={row.title_years ?? undefined}>{value}</span> : cell(value),
           },
         ]}
-        footer="A blank is a figure nobody has established, not a zero. Sort by any column; missing values stay at the bottom either way, because ordering by an unknown means nothing in either direction."
+        footer="Sort by any column. A blank is a figure nobody has established, not a zero, and those rows sink to the bottom whichever way you sort."
       />
     </>
   )

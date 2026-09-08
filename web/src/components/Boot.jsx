@@ -60,8 +60,8 @@ export default function Boot({ children }) {
       <div className="boot-inner">
         <h1>{WORDS[state.phase] ?? WORDS.idle}</h1>
         <p>
-          Every page here is SQL against a single file, running in this tab. The file has to get
-          here first — once, then it is kept.
+          Seventy-seven seasons are arriving as one database file. It downloads once, then it stays
+          in your browser — later visits open straight away, and work offline.
         </p>
         <div className={`bar${determinate ? '' : ' indeterminate'}`} role="progressbar" aria-valuenow={determinate ? Math.round(share * 100) : undefined}>
           <i style={determinate ? { width: `${share * 100}%` } : undefined} />

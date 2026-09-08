@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Confidence, Page, Section } from '../components/Page.jsx'
+import { Confidence, Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable from '../components/DataTable.jsx'
 import SubNav from '../components/SubNav.jsx'
@@ -25,7 +25,7 @@ export default function Eras() {
   return (
     <Page
       title="Eras and regulations"
-      lede="Formula One is a rule set that keeps being rewritten, and most of what changed about the cars is downstream of that. These tables are the sport's own chronology: what the rules were, what someone invented to get round them, and what was banned afterwards."
+      lede="Formula One is a rule set that keeps being rewritten, and most of what changed about the cars follows from that. Here is the chronology: what the rules were, what someone invented to get round them, and what was banned afterwards."
     >
       <SubNav />
       <Result state={state}>{(data) => <Body data={data} />}</Result>
@@ -107,7 +107,7 @@ function Body({ data }) {
       <Section
         title="Scoring systems"
         count={`${points.length}`}
-        note="Why a points total from 1955 cannot be compared with one from 2025, and why a career total published at the time can be lower than the points actually scored: until 1990, only a driver's best few results counted."
+        note="Read this before comparing points across eras: until 1990 only a driver's best few results counted, so a published career total can be lower than the points actually scored."
       >
         <DataTable
           rows={points}
@@ -155,7 +155,7 @@ function Body({ data }) {
       <Section
         title="Regulation limits"
         count={`${limits.length}`}
-        note="These are the rules, held apart from the cars on purpose. A figure that several different constructors quote in the same season is the limit they were all built to, not a measurement of any one of their cars — storing it on a car would turn a rule into a spec."
+        note="The limits every car of a season was built to. They are kept here rather than on each car, because a rule several teams quote is not a measurement of any one of them."
       >
         <DataTable
           rows={limits}
@@ -250,6 +250,14 @@ function Body({ data }) {
           ]}
         />
       </Section>
+
+      <Onward
+        items={[
+          { to: '/cars', label: 'Cars', hint: 'The designs these rules produced.' },
+          { to: '/seasons', label: 'Seasons', hint: 'The championships they were raced under.' },
+          { to: '/reference/glossary', label: 'Glossary', hint: 'The vocabulary the rules are written in.' },
+        ]}
+      />
     </>
   )
 }

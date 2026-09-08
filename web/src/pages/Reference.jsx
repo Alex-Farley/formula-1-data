@@ -26,7 +26,7 @@ export default function Reference() {
   return (
     <Page
       title="Reference"
-      lede="The parts of this database that are about the sport rather than about a result, and the parts that are about the database itself — where every figure came from, how good it is, and what is missing."
+      lede="The context behind the results: how the rules changed, what the words mean, where every figure came from, and what is still missing. Plus a console for the question no page here answers."
     >
       <Result state={state}>
         {(data) => {
@@ -36,31 +36,31 @@ export default function Reference() {
               '/reference/eras',
               'Eras and regulations',
               `${number(c.eras + c.regulations + c.innovations + c.safety)} entries`,
-              'Ten eras, the rule changes that made them, the innovations that provoked the rules, and the safety work that followed the accidents.',
+              'Ten eras, the rule changes that made them, the inventions that provoked those rules, and the safety work that followed the accidents.',
             ],
             [
               '/reference/quality',
               'Data quality',
               `${number(c.gaps + c.discrepancies)} findings`,
-              'The confidence ladder, the known gaps, the disagreements between sources that were kept rather than resolved, and how much of each table is actually covered.',
+              'How far to trust each figure, what is missing, and where two sources disagree.',
             ],
             [
               '/reference/sources',
               'Sources and licences',
               `${number(c.sources)} sources`,
-              'Every source, judged on licence, update cadence and whether anything can check it — and what each licence costs, including the one table under a share-alike database right.',
+              'Every source behind the data, what it is good for, and how each one may be reused.',
             ],
             [
               '/reference/glossary',
               'Glossary and people',
               `${number(c.glossary + c.personnel)} entries`,
-              'The vocabulary, and the designers and administrators whose decisions shaped the rest of the database.',
+              'What the words on a classification mean, and the people whose decisions shaped the sport.',
             ],
             [
               '/reference/sql',
               'SQL console',
               `${number(c.tables)} tables · ${number(c.views)} views`,
-              'Ask the database something this front end does not have a page for. It runs in your tab and nothing is written.',
+              'Ask the database anything these pages do not answer. It runs in your tab, and nothing can be changed.',
             ],
           ]
           return (
