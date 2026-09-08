@@ -311,29 +311,45 @@ Three numbers decide which hosts are viable. The largest single file is
 first-time reader transfers **4.7 MB** before the database is in their
 IndexedDB and later visits cost nothing.
 
-### Cloudflare Pages
+### Cloudflare
 
 Free, works with a private repository, and its 25 MiB per-file cap clears
-`f1.db` with room to spare. Connect the repository in the Cloudflare dashboard
-and set:
+`f1.db` with room to spare. Connecting a repository in the current dashboard
+produces a **Worker**, not a Pages project, which is why `wrangler.jsonc` sits
+at the repository root: a Worker takes its configuration from the repository
+rather than from the dashboard. That file declares the site as static assets
+and has no Worker code, because there is none to have.
+
+In the dashboard, under Settings → Build:
 
 | Setting | Value |
 | --- | --- |
-| Root directory | `web` |
-| Build command | `npm run build` |
-| Build output directory | `dist` |
+| Root directory | **blank** |
+| Build command | `cd web && npm ci && npm run build` |
+| Deploy command | `npx wrangler deploy` |
 | Environment variable | `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD` = `1` |
 
-The environment variable matters. Cloudflare installs dependencies itself
-before running the build command, and `playwright` is a devDependency whose
-install script downloads about 150 MB of browsers that the build does not
-need. Without it the build still succeeds, but every deploy pays for a
-download nothing uses.
+**Root directory must be blank.** `wrangler.jsonc` is at the repository root,
+so `npx wrangler deploy` has to run there to find it; the build command does
+its own `cd web`. Setting it to `web` breaks the deploy, and setting it to
+anything that does not exist in the repository fails the clone with "root
+directory not found" before a build even starts.
 
-`prepare-assets.js` reads `../f1.db`, which resolves because Cloudflare clones
-the whole repository regardless of the root directory. `web/.node-version`
-pins the Node version; the footer's database version comes from `node:sqlite`,
-which needs Node 22.
+The environment variable matters too. `playwright` is a devDependency of this
+front end and its install script downloads about 150 MB of browsers that only
+the test suite uses. Without it the build still succeeds, but every deploy
+pays for a download nothing uses.
+
+Two things resolve because Cloudflare clones the whole repository regardless:
+`prepare-assets.js` reads `../f1.db`, and `.node-version` pins Node 22. That
+file is at the repository root rather than in `web/` **because the build root
+is the repository root** — Cloudflare looks for it there, and a Node older
+than 20.19 will not run Vite 8 at all. `NODE_VERSION=22` as an environment
+variable does the same job if you would rather not rely on the file.
+
+The build output is not configured anywhere in the dashboard: `wrangler.jsonc`
+points at `web/dist`. Check the config with `npx wrangler deploy --dry-run`,
+which reads it and lists the files it would upload without needing an account.
 
 ### GitHub Pages
 
