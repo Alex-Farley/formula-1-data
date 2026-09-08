@@ -4,13 +4,14 @@ name: deploy the site
 # can serve the whole thing: no server, no API, no database host. The build is
 # gated on verify.py, because a site that ships a database which failed its own
 # checks is worse than no site.
+#
+# NOT CURRENTLY LIVE. Pages needs the repository to be public, or the account
+# to be on Pro or Team; this repository is private on Free, so the deploy step
+# fails with "Resource not accessible by integration" — GITHUB_TOKEN cannot
+# create a Pages site, and there is nothing here to fix if it could. The
+# workflow is kept because it is correct and works the day either changes.
+# Until then it is manual-only, so it does not fail on every push.
 on:
-  push:
-    branches:
-      - main
-      # Deploys the front-end rebuild before it merges, so it can be clicked
-      # through at a real URL. Remove this line once the branch is merged.
-      - claude/front-end-rebuild-fv941h
   workflow_dispatch:
 
 # Pages needs to write a deployment and mint an OIDC token to prove the
@@ -82,9 +83,10 @@ jobs:
       - name: Disable Jekyll
         run: touch web/dist/.nojekyll
 
-      # enablement: true turns Pages on for the repository if it is off, so
-      # this workflow does not depend on someone having flipped a setting
-      # first.
+      # enablement asks GitHub to turn Pages on if it is off. GITHUB_TOKEN is
+      # not allowed to create a Pages site, so on a repository that has never
+      # had one this fails rather than fixing it; it succeeds once Pages has
+      # been enabled by hand under Settings, which is the case this is for.
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
