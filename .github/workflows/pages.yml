@@ -1,0 +1,100 @@
+name: deploy the site
+
+# The front end is a static build that carries f1.db with it, so GitHub Pages
+# can serve the whole thing: no server, no API, no database host. The build is
+# gated on verify.py, because a site that ships a database which failed its own
+# checks is worse than no site.
+on:
+  push:
+    branches:
+      - main
+      # Deploys the front-end rebuild before it merges, so it can be clicked
+      # through at a real URL. Remove this line once the branch is merged.
+      - claude/front-end-rebuild-fv941h
+  workflow_dispatch:
+
+# Pages needs to write a deployment and mint an OIDC token to prove the
+# artefact came from this workflow. Nothing here writes to the repository.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time, and let a newer push win: a queued deploy of an
+# older commit is never the one anybody wants.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # Rebuild from data/*.py rather than trusting the committed f1.db, and
+      # refuse to deploy if it does not pass. The site is only as good as the
+      # database it carries.
+      - name: Rebuild the database
+        run: python3 build.py
+
+      - name: Verify
+        run: python3 verify.py
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install
+        working-directory: web
+        run: npm ci
+
+      - name: Build
+        working-directory: web
+        run: npm run build
+
+      # The same check ci.yml makes: the site is useless without the database
+      # and the engine beside it, and a truncated .gz is the failure that opens
+      # as a corrupt database rather than as a 404.
+      - name: Check the site carries the database and the engine
+        working-directory: web
+        run: |
+          for f in f1.db f1.db.gz sql-wasm.wasm db-manifest.json; do
+            test -s "dist/$f" || { echo "::error::dist/$f is missing"; exit 1; }
+          done
+          cmp ../f1.db dist/f1.db || { echo "::error::dist/f1.db is not the built database"; exit 1; }
+          gunzip -c dist/f1.db.gz | cmp - ../f1.db \
+            || { echo "::error::dist/f1.db.gz does not decompress to the built database"; exit 1; }
+
+      # Jekyll would otherwise drop files and directories beginning with an
+      # underscore. Vite does not emit any today, but the failure is silent and
+      # the fix is one file.
+      - name: Disable Jekyll
+        run: touch web/dist/.nojekyll
+
+      # enablement: true turns Pages on for the repository if it is off, so
+      # this workflow does not depend on someone having flipped a setting
+      # first.
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist
+
+      - name: Deploy
+        id: deploy
+        uses: actions/deploy-pages@v4
