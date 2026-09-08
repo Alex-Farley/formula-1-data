@@ -28,6 +28,10 @@ export default function Circuits() {
       lede="Eighty venues, from airfield perimeters to street courses laid out for a season. Where a circuit's shape has been traced from OpenStreetMap, the trace is on its page — and the trace is also how identity was settled: a candidate relation was admitted only if it measured, within two per cent, to the length already held."
     >
       <Section>
+        <p className="note" style={{ marginTop: 0 }}>
+          The traced ones have an <Link to="/circuits/atlas">atlas of their own</Link>: every shape
+          at one scale, and a lap you can measure along.
+        </p>
         <Result state={state} skeleton>
           {(data) => <Register rows={data.rows} />}
         </Result>

@@ -1,0 +1,30 @@
+{
+  // Cloudflare Workers static assets.
+  //
+  // The front end is a directory of files that carries its own database, so
+  // this Worker has no code: `assets` is the whole of it. Cloudflare's newer
+  // dashboard creates a Worker rather than a Pages project for a connected
+  // repository, and a Worker takes its configuration from here rather than
+  // from the dashboard.
+  //
+  // Build command:   cd web && npm ci && npm run build
+  // Deploy command:  npx wrangler deploy
+  //
+  // The build needs PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 in the build
+  // environment. playwright is a devDependency of the front end and its
+  // install script fetches about 150 MB of browsers that only the test suite
+  // uses.
+  "name": "formula-1-data",
+  "compatibility_date": "2026-09-01",
+
+  "assets": {
+    "directory": "./web/dist",
+
+    // Not "single-page-application". The app routes on the hash, so "/" is
+    // the only HTML path it ever asks for and nothing here needs a rewrite —
+    // and rewriting would be actively harmful: a missing f1.db would come
+    // back as index.html with a 200, and the first sign of it would be the
+    // wasm compiler complaining about a magic word rather than an honest 404.
+    "not_found_handling": "none"
+  }
+}

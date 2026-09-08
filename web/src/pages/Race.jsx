@@ -57,6 +57,14 @@ const NEIGHBOURS = `
       ORDER BY year, round LIMIT 1) AS next
 `
 
+/** What a row achieved, for the rail beside it. */
+function railOf(entry) {
+  if (entry.finish_position >= 1 && entry.finish_position <= 3) return 'podium'
+  if (entry.points > 0) return 'points'
+  if (!missing(entry.finish_position)) return 'classified'
+  return ''
+}
+
 export default function Race() {
   const { year, round } = useParams()
   const args = [Number(year), Number(round)]
@@ -188,6 +196,16 @@ function RaceBody({ race, data, year, round }) {
             page={60}
             highlight={(row) => row.finish_position === 1}
             columns={[
+              {
+                // Data, not decoration: what the row achieved, read before any
+                // of the numbers do. Always paired with the position beside it,
+                // so the colour never carries the meaning on its own.
+                key: 'rail',
+                label: <span className="sr-only">Result</span>,
+                align: 'rail',
+                sortable: false,
+                render: (_, row) => <i className={railOf(row)} />,
+              },
               {
                 key: 'position_text',
                 label: 'Pos',

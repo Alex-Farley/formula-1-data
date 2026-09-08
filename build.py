@@ -49,6 +49,63 @@ def _haversine(a, b):
 BUILT = "2026-09-05"
 
 
+
+def _lap_topology(lines, join_m=1.0):
+    """Does this bag of ways form one closed lap?
+
+    An OSM relation's members are UNORDERED, so the question cannot be asked by
+    comparing the first coordinate to the last - that compares two arbitrary way
+    ends. What a lap actually guarantees is that every way END meets another
+    way's end, and that walking from any way returns to the start having used
+    all of them.
+
+    WHY ONE METRE. Ways in a relation share their junction nodes, so a real join
+    is not "close", it is identical: across the 25 traces held here, 1,201 of
+    1,208 way ends sit at exactly 0.000 m from another end. The seven that do
+    not are 5.4 m to 63.4 m away, and every one of them is a genuine hole in the
+    trace. A metre is far above serialisation noise and far below the smallest
+    real gap, so it separates the two cleanly. A looser figure does not measure
+    the same thing: at 30 m the Monaco and Montjuic holes read as joins.
+
+    Returns (closes, loose_ends, used, walked_m).
+    """
+    def near(a, b):
+        return _haversine((a[1], a[0]), (b[1], b[0])) <= join_m
+
+    # Index by POSITION IN THIS LIST, not by way: a circuit traced as one
+    # closed way is met by its own other end, and comparing way indices would
+    # exclude exactly that pair and call a perfectly good loop two loose ends.
+    ends = [l[0] for l in lines] + [l[-1] for l in lines]
+    loose = sum(1 for i, p in enumerate(ends)
+                if not any(j != i and near(p, q) for j, q in enumerate(ends)))
+
+    # Walk: from the tail of the chain, take any unused way that starts or ends
+    # there, reversing it if it is the far end that meets.
+    used = [False] * len(lines)
+    ring = list(lines[0])
+    used[0] = True
+    while True:
+        tail = ring[-1]
+        step = None
+        for i, line in enumerate(lines):
+            if used[i]:
+                continue
+            if near(tail, line[0]):
+                step = (i, line)
+                break
+            if near(tail, line[-1]):
+                step = (i, list(reversed(line)))
+                break
+        if step is None:
+            break
+        used[step[0]] = True
+        ring.extend(step[1][1:])
+
+    walked = sum(_haversine((a[1], a[0]), (b[1], b[0]))
+                 for a, b in zip(ring, ring[1:]))
+    closes = (loose == 0 and all(used) and near(ring[0], ring[-1]))
+    return closes, loose, sum(used), walked
+
 def build():
     if os.path.exists(DB):
         os.remove(DB)
@@ -533,6 +590,7 @@ def build():
     # long - looks perfectly reasonable in isolation.
     geom_tolerance = 0.02
     geom_rows = 0
+    unclosed = []
     for g in HV.load_circuit_geometry():
         cid = g["circuit_id"]
         if not cur.execute("SELECT 1 FROM circuits WHERE id = ?",
@@ -568,22 +626,43 @@ def build():
                 f"outside {geom_tolerance * 100:.0f}%. The trace and the "
                 f"length disagree; do not store it.")
 
+        # Whether the ways form a lap is a different question from whether
+        # they measure the right length, and the length cannot answer it: Las
+        # Vegas is missing a way and still measures within 2%. Ask it here,
+        # where the row is admitted, and store the answer - the front end
+        # offers to walk a lap only where one exists.
+        closes, loose, used, walked = _lap_topology(geo["coordinates"])
+        if not closes:
+            unclosed.append(
+                f"{cid} ({loose} loose end{'s' if loose != 1 else ''}, "
+                f"{used}/{len(geo['coordinates'])} ways walked, "
+                f"{(measured_m - walked) / 1000:.2f} km unaccounted)")
+
         cur.execute("""INSERT INTO circuit_geometry (circuit_id, layout_key,
             wikidata_id, osm_relation, centreline, measured_km, published_km,
-            delta_pct, node_count, osm_timestamp, licence, confidence)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+            delta_pct, node_count, segment_count, loose_ends, closes,
+            osm_timestamp, licence, confidence)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (cid, key, g["wikidata_id"], int(g["osm_relation"]),
              g["centreline"], round(measured, 4), published,
              round(delta * 100, 2),
              int(g["node_count"]) if g.get("node_count") else None,
+             len(geo["coordinates"]), loose, 1 if closes else 0,
              g.get("osm_timestamp"), "ODbL-1.0", "reference"))
         geom_rows += 1
     if geom_rows:
         worst = cur.execute("SELECT MAX(ABS(delta_pct)) "
                             "FROM circuit_geometry").fetchone()[0]
+        laps = cur.execute("SELECT COUNT(*) FROM circuit_geometry "
+                           "WHERE closes = 1").fetchone()[0]
         print(f"  circuit geometry: {geom_rows} centrelines, all within "
               f"{geom_tolerance * 100:.0f}% of the published length "
               f"(worst {worst:+.2f}%)")
+        print(f"    {laps} of {geom_rows} stitch into a closed lap")
+        for line in unclosed:
+            # Not fatal: an incomplete trace is still the best shape anyone
+            # has for that circuit, and it is drawn. It just cannot be walked.
+            print(f"    does not close: {line}")
 
     # --- a regulation figure is not a measurement, part one
     #

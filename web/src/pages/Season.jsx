@@ -7,6 +7,7 @@ import Figure from '../charts/Figure.jsx'
 import LineChart from '../charts/LineChart.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { points as fmtPoints, missing, number } from '../lib/format.js'
+import { finalStandings } from '../lib/standings.js'
 
 const SEASON = `
   SELECT s.*, d.full_name AS champion, t.name AS champion_team,
@@ -41,15 +42,16 @@ const CALENDAR = `
 `
 
 const STANDINGS = `
-  SELECT table_type, after_round, position, position_text, entity, entity_id, engine_id, points
+  SELECT id, year, table_type, after_round, position, position_text,
+         entity, entity_id, engine_id, team, points
     FROM standings
    WHERE year = ?
    ORDER BY after_round, table_type, position
 `
 
 const ENTRANTS = `
-  SELECT se.entrant_id, se.constructor_id, k.name AS constructor, se.chassis_ids, se.chassis_count,
-         se.engine_ids, se.tyre_ids
+  SELECT se.id, se.entrant_id, se.constructor_id, k.name AS constructor,
+         se.chassis_ids, se.chassis_count, se.engine_ids, se.tyre_ids
     FROM season_entrants se
     LEFT JOIN constructors k ON k.id = se.constructor_id
    WHERE se.year = ?
@@ -57,20 +59,16 @@ const ENTRANTS = `
 `
 
 /**
- * The final classification of a championship table.
+ * The final classification of one championship table.
  *
- * `standings` holds a running table after every round AND one row per entity
- * with after_round NULL, which is the season as it finished — `as_of` says
- * "final". That NULL row is the authoritative one: it is what the dropped-
- * scores rule produced, and for the 2018 constructors' table it is not the
- * same as the last round's. Reading after_round arithmetically turns those
- * NULLs into round zero, which is how a champion's season total ends up
- * plotted before the first race of the year.
+ * after_round IS NULL is the season as it finished — `as_of` reads "final" —
+ * and not a missing round. Reading after_round arithmetically turns those
+ * NULLs into round zero, which plots a champion's season total before the
+ * first race of the year. finalStandings then resolves the two reasons a
+ * season can hold more than one final row per entity; see lib/standings.js.
  */
 function finalTable(standings, type) {
-  return standings
-    .filter((row) => row.table_type === type && row.after_round === null)
-    .sort((a, b) => (missing(a.position) ? 1 : missing(b.position) ? -1 : a.position - b.position))
+  return finalStandings(standings.filter((row) => row.table_type === type && row.after_round === null))
 }
 
 export default function Season() {
@@ -307,7 +305,7 @@ function SeasonBody({ year, season, data }) {
       <Section title="Who entered" count={`${entrants.length} entrants`}>
         <DataTable
           rows={entrants}
-          rowKey={(row) => row.entrant_id}
+          rowKey={(row) => row.id}
           sortable
           sort="constructor"
           columns={[

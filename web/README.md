@@ -117,6 +117,7 @@ of both.
 | `/drivers`, `/drivers/:id` | The register, and a career counted from the race records |
 | `/constructors`, `/constructors/:id` | Records, lineage chains, every win, every car built |
 | `/circuits`, `/circuits/:id` | The register, traced centrelines, layouts as they changed |
+| `/circuits/atlas` | All 25 traced circuits: walk a lap, colour it by turn rate, compare them at one scale |
 | `/cars`, `/cars/:id` | The chassis register, specifications and photographs |
 | `/records` | Published records, and leaderboards derived on every load |
 | `/reference/eras` | Eras, regulations, scoring systems, innovations, safety |
@@ -129,6 +130,105 @@ Press <kbd>/</kbd> or <kbd>⌘K</kbd> anywhere for a search across all 3,494
 drivers, constructors, circuits, chassis, seasons and races at once. A register
 of 862 drivers reached only by scrolling an alphabetical table is a register
 nobody reads.
+
+## The track atlas
+
+`circuit_geometry.centreline` is a GeoJSON MultiLineString: the ways of an
+OpenStreetMap relation, **in no particular order**. Drawing that needs nothing
+more — every way is a line — but measuring along it, or putting a marker a
+given distance round, needs the ways stitched end to end into one ordered ring
+first. `src/lib/lap.js` does that, and the atlas is what it buys.
+
+**The one-metre join is measured, not chosen.** Ways in a relation share their
+junction nodes exactly, so a real join is not "close", it is identical: 1,201
+of the 1,208 way ends here sit at 0.000 m from another end. The seven that do
+not are 5.4 m to 63.4 m away, and every one is a genuine hole in the trace. A
+metre is far above serialisation noise and far below the smallest real gap.
+A looser figure stops measuring the same thing — at the 30 m this project used
+until now, the Monaco and Montjuïc holes read as joins and only Las Vegas was
+ever reported.
+
+**Twenty-two of the twenty-five close.** `build.py` decides it when the row is
+admitted and stores the verdict in `closes`, `loose_ends` and `segment_count`;
+`verify.py` re-derives all three from the geometry on every build and fails if
+the stored answer has drifted. So the front end is not deciding anything — it
+reproduces a result the database guarantees, and can check its own stitch
+against `measured_km`. The three that do not close are still drawn, in amber,
+because an incomplete trace is the best shape anyone has for that circuit; the
+scrubber is simply disabled for them.
+
+**Turn rate is derived from the shape, and labelled as such wherever it
+appears.** The database holds no corner data at all — no numbers, no names, no
+apex positions, no sector boundaries. `turnRate()` measures how fast the
+bearing changes over a 50 m window, which is a property of the traced line and
+nothing more. The window is not decoration: OSM node spacing is irregular, so a
+per-node angle mostly measures how finely that stretch happened to be traced.
+The five colour bands are the quintiles of the real distribution over all 6,272
+points of the 22 closed laps, so each band is a fifth of the traced distance;
+bands picked by hand put 65% of every circuit in the bottom two and washed the
+picture out.
+
+Everything is projected to **metres east and south of each circuit's own
+centre**, which is what lets the wall switch between fitting each frame to its
+circuit and giving every frame the same extent. In the second state the sizes
+are honestly comparable: Long Beach really is under half of Spa.
+
+## The look: Pit Wall
+
+The interface is an instrument panel, not a magazine. Condensed display type
+(Saira Condensed) carries names and figures, Saira carries the interface, and
+**every number that lines up in a column is set in JetBrains Mono** — in a
+database whose subject is numbers, the figures get the characterful face and
+the prose gets out of the way.
+
+**Dark is not an inversion of light.** Each is stepped against its own ground:
+light is paper under a pit-lane strip light, dark is the timing screen. Both
+were measured rather than eyeballed, and `tokens.css` records the numbers. One
+of them decides a rule elsewhere — accent against body ink is 3.07:1 in light
+and 2.78:1 in dark, and only the first clears the 3:1 that would let colour
+mark a link on its own, so links keep an underline in both.
+
+Two marks do most of the work:
+
+- **The result rail** down the left of a classification: podium, scored
+  points, classified, retired. It is read from `race_entries`, so it is data
+  rather than decoration, and it always sits beside the position text — the
+  colour never carries the meaning alone.
+- **A lit edge** on each stat tile, which is what separates an instrument
+  reading from a card. Border, fill and shadow are otherwise spent sparingly;
+  the radius is 3px, because a rounded card says "app" and this says "panel".
+
+## National racing colours, and why not team liveries
+
+A per-constructor livery colour **has no source this project can admit**, and
+the search is documented at the top of `src/lib/racingColours.js`: F1DB has no
+colour field, Wikidata's P465 is absent on every F1 constructor sampled
+(Ferrari, McLaren, Williams, Team Lotus, Vanwall, Brabham), the Wikipedia team
+infobox has no colour parameter, and formula1.com publishes the current season
+only under FOM copyright.
+
+The last point is the one that decides it. This project ranks a source on
+licence, cadence and **independent checkability**, and says the third is the
+one that matters — it is why fan sites are forbidden as authority. Nothing here
+can check a livery hex. A livery is also per-season and often mid-season, so
+one colour per constructor is a claim the sport does not support.
+
+So the interface uses the **international racing colours** instead: the
+AIACR/FIA convention under which a car was painted for the country it was
+entered by, in force until sponsor liveries displaced it around 1968. It is the
+reason Ferrari is red. It keys off `constructors.country`, which all 150 rows
+have, and covers 131 of them — the countries whose colour is unambiguous.
+The rest get nothing rather than a guess.
+
+It is never called a team colour in the interface, and **none of it is in
+`f1.db`**: it is presentation metadata, kept in the front end so no unsourced
+value can enter the database. If a licensed, checkable livery set turns up,
+replacing that one file is the whole job.
+
+One thing the module has to do on the way: the register spells countries
+inconsistently — five constructors are "British" where fifty-three are "United
+Kingdom", with three "French", one "Italian" and one "Brazilian" among the
+nouns, and a few carrying two countries. `canonicalCountry()` folds them.
 
 ## The charts
 
@@ -197,6 +297,63 @@ leak a server holding the port.
 ```bash
 CHROME_PATH=/path/to/chrome npm test   # reuse a browser instead of downloading one
 ```
+
+## Deploying
+
+The build is a directory of static files that carries its own database, so it
+needs a static host and nothing else — no server, no API, no database to
+provision. `base: './'` and the `HashRouter` mean there is no deploy-time
+configuration and no rewrite rules to get wrong: the same `dist/` works at a
+domain root, in a subdirectory, or anywhere else.
+
+Three numbers decide which hosts are viable. The largest single file is
+`f1.db` at **19.99 MiB**, the whole `dist/` is about **26 MB**, and each
+first-time reader transfers **4.7 MB** before the database is in their
+IndexedDB and later visits cost nothing.
+
+### Cloudflare Pages
+
+Free, works with a private repository, and its 25 MiB per-file cap clears
+`f1.db` with room to spare. Connect the repository in the Cloudflare dashboard
+and set:
+
+| Setting | Value |
+| --- | --- |
+| Root directory | `web` |
+| Build command | `npm run build` |
+| Build output directory | `dist` |
+| Environment variable | `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD` = `1` |
+
+The environment variable matters. Cloudflare installs dependencies itself
+before running the build command, and `playwright` is a devDependency whose
+install script downloads about 150 MB of browsers that the build does not
+need. Without it the build still succeeds, but every deploy pays for a
+download nothing uses.
+
+`prepare-assets.js` reads `../f1.db`, which resolves because Cloudflare clones
+the whole repository regardless of the root directory. `web/.node-version`
+pins the Node version; the footer's database version comes from `node:sqlite`,
+which needs Node 22.
+
+### GitHub Pages
+
+`.github/workflows/pages.yml` does this, and additionally rebuilds the
+database and runs `verify.py` before it builds the site, so a deployed site
+can never carry a database that failed its own checks. It is manual-only
+because Pages needs the repository to be public or the account to be on Pro
+or Team; the workflow header records the details.
+
+### Anywhere else
+
+Netlify reads the same `_headers` file and needs the same three settings.
+Any host that serves a directory works — including `npm run preview` on your
+own machine, which serves the production build on `localhost:4173`.
+
+The `_headers` file is written by `prepare-assets.js` rather than committed,
+because `public/` is generated. It tells hosts that read it to cache the
+database, the wasm and the hashed assets forever, and never to cache
+`db-manifest.json` — a stale manifest is the one failure that leaves a reader
+on an old database indefinitely.
 
 ## Things worth knowing before changing it
 

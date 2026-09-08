@@ -19,10 +19,8 @@ import { isNumericColumn, isProseColumn, label as humanise, missing, text } from
  */
 const PAGE = 250
 
+/** Order two values that are both present. Missing ones never reach here. */
 function compare(a, b) {
-  if (missing(a) && missing(b)) return 0
-  if (missing(a)) return 1
-  if (missing(b)) return -1
   if (typeof a === 'number' && typeof b === 'number') return a - b
   return String(a).localeCompare(String(b), 'en', { numeric: true, sensitivity: 'base' })
 }
@@ -71,7 +69,18 @@ export default function DataTable({
     const value = column?.sort ?? ((row) => row[sort])
     const sign = direction === 'desc' ? -1 : 1
     // A copy: the caller's array is a query result other components may hold.
-    return [...source].sort((a, b) => sign * compare(value(a), value(b)))
+    return [...source].sort((a, b) => {
+      const left = value(a)
+      const right = value(b)
+      // Sink missing values OUTSIDE the direction flip. Inside it, descending
+      // inverts the sinking and brings them to the top — which on the driver
+      // register means 824 em dashes above everyone who has a figure, because
+      // that is how many drivers have no stored entry count.
+      if (missing(left) && missing(right)) return 0
+      if (missing(left)) return 1
+      if (missing(right)) return -1
+      return sign * compare(left, right)
+    })
   }, [source, sort, direction, cols])
 
   if (cols.length === 0 || (source.length === 0 && !caption)) {

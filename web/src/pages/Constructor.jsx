@@ -6,6 +6,8 @@ import Figure from '../charts/Figure.jsx'
 import ColumnChart from '../charts/ColumnChart.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { missing, number, points as fmtPoints, span } from '../lib/format.js'
+import { finalStandings } from '../lib/standings.js'
+import { colourFor } from '../lib/racingColours.js'
 
 const CONSTRUCTOR = `SELECT * FROM constructors WHERE id = ?`
 
@@ -39,9 +41,14 @@ const BY_SEASON = `
    ORDER BY r.year
 `
 
-/** after_round IS NULL is the season's final table, not a missing round. */
+/**
+ * after_round IS NULL is the season's final table, not a missing round — and it
+ * can legitimately hold two rows for one constructor: Force India was excluded
+ * from 2018 with nothing and its successor scored 52 under the same id. Both
+ * survive finalStandings; the same-fact-from-two-sources rows do not.
+ */
 const STANDINGS = `
-  SELECT s.year, s.position, s.position_text, s.points, s.engine_id
+  SELECT s.id, s.year, s.entity_id, s.engine_id, s.position, s.position_text, s.points, s.team
     FROM standings s
    WHERE s.table_type = 'constructors' AND s.entity_id = ? AND s.after_round IS NULL
    ORDER BY s.year
@@ -108,13 +115,14 @@ export default function Constructor() {
 function ConstructorBody({ constructor, data }) {
   const derived = data.derived.rows[0] ?? {}
   const bySeason = rows(data, 'bySeason')
-  const standings = rows(data, 'standings')
+  const standings = finalStandings(rows(data, 'standings'))
   const wins = rows(data, 'wins')
   const designs = rows(data, 'designs')
   const lineage = rows(data, 'lineage')
 
   const winsBySeason = bySeason.filter((s) => s.wins > 0)
   const engineSplit = standings.some((s) => s.engine_id)
+  const colour = colourFor(constructor.country)
 
   return (
     <Page
@@ -122,6 +130,19 @@ function ConstructorBody({ constructor, data }) {
       title={constructor.name}
       back={{ to: '/constructors', label: 'The register' }}
       lede={constructor.notes}
+      aside={
+        colour && (
+          <p className="livery-band" style={{ marginTop: 14 }}>
+            <i style={{ background: colour.hex }} />
+            {colour.name}
+            <span style={{ textTransform: 'none', letterSpacing: 0 }}>
+              — the international racing colour of {constructor.country}, the convention that
+              painted a car for the country it was entered by until sponsor liveries took over
+              around 1968. Not this constructor's livery.
+            </span>
+          </p>
+        )
+      }
     >
       <Section>
         <Stats

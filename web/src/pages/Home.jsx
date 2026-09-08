@@ -82,6 +82,9 @@ export default function Home() {
     next: [NEXT],
   })
 
+  // The lede states how many checks verify.py runs. Keep 171 in step with
+  // `python3 verify.py | grep -c '\[PASS\]'` — the note lives out here
+  // because a JSX comment in the text would swallow a space beside it.
   return (
     <Page
       title="A Formula One database you can check"
@@ -90,7 +93,7 @@ export default function Home() {
           Seventy-seven seasons in a single SQLite file, running in this tab. It is not the largest
           such database and it is not trying to be: the point is that every figure can be traced to
           a source, that a fact nobody has established is left blank rather than guessed, and that
-          170 checks have to pass before any of it ships.
+          171 checks have to pass before any of it ships.
         </>
       }
     >

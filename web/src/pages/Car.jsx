@@ -6,14 +6,23 @@ import CommonsImage from '../components/CommonsImage.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { missing, number, span } from '../lib/format.js'
 
-/** The id may name a chassis or, for a landmark car, the car itself. */
-const CHASSIS = `
+/**
+ * Every chassis this page covers.
+ *
+ * An id usually names one chassis. Six of them name a CAR that no single
+ * chassis shares an id with — `lotus-72` is the 72B, 72C, 72D and 72E — and
+ * those pages have to cover the variants together, because no race entry is
+ * ever attributed to `lotus-72` itself. Matching `car_id` only when no chassis
+ * owns the id keeps every other page exactly as it was: `mclaren-mp4-4` names
+ * both a car and a chassis, and resolves to the chassis.
+ */
+const VARIANTS = `
   SELECT ch.*, k.name AS constructor
     FROM chassis ch
     LEFT JOIN constructors k ON k.id = ch.constructor_id
-   WHERE ch.id = ? OR ch.car_id = ?
-   ORDER BY ch.id = ? DESC
-   LIMIT 1
+   WHERE ch.id = ?1
+      OR (ch.car_id = ?1 AND NOT EXISTS (SELECT 1 FROM chassis x WHERE x.id = ?1))
+   ORDER BY ch.first_year, ch.id
 `
 
 const CAR = `
@@ -29,15 +38,22 @@ const IMAGES = `
    ORDER BY name_matches DESC
 `
 
+/** Entries for every chassis this page covers — the same set VARIANTS resolves. */
 const ENTRIES = `
   SELECT r.year, r.round, r.name_used, r.circuit_id, c.name AS circuit,
          e.driver_id, d.full_name AS driver, e.grid_text, e.grid,
+         e.chassis_id, ch.name AS chassis,
          e.position_text, e.finish_position, e.status, e.fastest_lap
     FROM race_entries e
     JOIN races r ON r.id = e.race_id
     LEFT JOIN circuits c ON c.id = r.circuit_id
     LEFT JOIN drivers d  ON d.id = e.driver_id
-   WHERE e.chassis_id = ?
+    LEFT JOIN chassis ch ON ch.id = e.chassis_id
+   WHERE e.chassis_id IN (
+           SELECT id FROM chassis
+            WHERE id = ?1
+               OR (car_id = ?1 AND NOT EXISTS (SELECT 1 FROM chassis x WHERE x.id = ?1))
+         )
    ORDER BY r.year DESC, r.round DESC
 `
 
@@ -51,7 +67,7 @@ const SEASONS = `
 export default function Car() {
   const { id } = useParams()
   const state = useQueries({
-    chassis: [CHASSIS, [id, id, id]],
+    variants: [VARIANTS, [id]],
     car: [CAR, [id, id]],
     images: [IMAGES, [id, id]],
     entries: [ENTRIES, [id]],
@@ -61,7 +77,8 @@ export default function Car() {
   return (
     <Result state={state} context="That car could not be read">
       {(data) => {
-        const chassis = data.chassis.rows[0]
+        const variants = data.variants.rows
+        const chassis = variants[0]
         if (!chassis) {
           return (
             <Page title="No such car" back={{ to: '/cars', label: 'The register' }}>
@@ -69,13 +86,13 @@ export default function Car() {
             </Page>
           )
         }
-        return <CarBody chassis={chassis} data={data} />
+        return <CarBody chassis={chassis} variants={variants} data={data} />
       }}
     </Result>
   )
 }
 
-function CarBody({ chassis, data }) {
+function CarBody({ chassis, variants, data }) {
   const car = data.car.rows[0]
   const images = rows(data, 'images')
   const entries = rows(data, 'entries')
@@ -85,20 +102,33 @@ function CarBody({ chassis, data }) {
   const poles = entries.filter((e) => e.grid === 1).length
   const fastest = entries.filter((e) => e.fastest_lap === 1).length
   const ambiguous = seasons.filter((s) => !s.corroborated)
-  const published = chassis.published_wins
-  const winsDiffer = !missing(published) && published !== wins
+
+  const several = variants.length > 1
+
+  // chassis.published_wins is the CAR's figure, taken from the article the
+  // whole family shares, and it is repeated verbatim on every variant row —
+  // all eleven multi-variant cars in the register carry one distinct value
+  // across their variants. So it is read once, never added up: summing the
+  // four Lotus 72 rows would claim the 72 won sixty Grands Prix.
+  const publishedWins = variants.map((row) => row.published_wins).find((value) => !missing(value)) ?? null
+  const winsDiffer = !missing(publishedWins) && publishedWins !== wins
+  const raced = [
+    Math.min(...variants.map((v) => v.first_year).filter((y) => !missing(y))),
+    Math.max(...variants.map((v) => v.last_year ?? v.first_year).filter((y) => !missing(y))),
+  ]
 
   return (
     <Page
       eyebrow={chassis.constructor ?? 'Chassis'}
-      title={chassis.full_name || chassis.name}
+      title={(several ? car?.full_name : null) || chassis.full_name || chassis.name}
       back={{ to: '/cars', label: 'The register' }}
       lede={car?.story}
     >
       <Section>
         <Stats
           items={[
-            { label: 'Raced', value: span(chassis.first_year, chassis.last_year) },
+            { label: 'Raced', value: span(raced[0], raced[1]) },
+            several ? { label: 'Variants', value: number(variants.length) } : null,
             { label: 'Recorded entries', value: number(entries.length) },
             { label: 'Wins', value: number(wins) },
             { label: 'Poles', value: number(poles) },
@@ -163,7 +193,43 @@ function CarBody({ chassis, data }) {
         </Section>
       )}
 
-      <Section title="Specification">
+      {several && (
+        <Section
+          title="Variants"
+          count={`${variants.length}`}
+          note="No race entry is attributed to this car as a whole — every one names a variant. The figures above are those variants added together; each has a page of its own."
+        >
+          <DataTable
+            rows={variants}
+            rowKey={(row) => row.id}
+            sortable
+            sort="first_year"
+            direction="asc"
+            columns={[
+              {
+                key: 'name',
+                label: 'Chassis',
+                render: (name, row) => <Link to={`/cars/${row.id}`}>{name}</Link>,
+              },
+              {
+                key: 'first_year',
+                label: 'Raced',
+                align: 'num',
+                render: (_, row) => span(row.first_year, row.last_year),
+                sort: (row) => row.first_year,
+              },
+              { key: 'engine_name', label: 'Engine', align: 'prose' },
+              { key: 'power_bhp', label: 'Power (bhp)', align: 'num' },
+              { key: 'wheelbase_mm', label: 'Wheelbase (mm)', align: 'num' },
+              { key: 'races', label: 'Races', align: 'num' },
+              { key: 'wins', label: 'Wins', align: 'num' },
+            ]}
+            footer="Races and wins here are what the race records attribute to that particular variant. The published total is the article's figure for the whole car and is shown once, below."
+          />
+        </Section>
+      )}
+
+      <Section title={several ? `Specification — ${chassis.name}` : 'Specification'}>
         <div className="split">
           <Fields
             items={[
@@ -203,8 +269,8 @@ function CarBody({ chassis, data }) {
       {winsDiffer && (
         <Note>
           <strong>
-            This database attributes {number(wins)} wins to this chassis; its article publishes{' '}
-            {number(published)}.
+            This database attributes {number(wins)} wins to {several ? 'this car' : 'this chassis'};
+            its article publishes {number(publishedWins)}.
           </strong>{' '}
           Neither is wrong. A win is attributed to a chassis only when the entry list resolves which
           car the driver was in that round, and a constructor that ran two designs in a season does
@@ -240,7 +306,7 @@ function CarBody({ chassis, data }) {
           sort="year"
           direction="desc"
           page={100}
-          empty="No race entry in this database resolves to this chassis. That is usually a constructor that ran several designs in a season, not a car that never raced."
+          empty="No race entry in this database resolves here. That is usually a constructor that ran several designs in a season and no source saying which raced when, not a car that never raced."
           columns={[
             {
               key: 'year',
@@ -259,6 +325,16 @@ function CarBody({ chassis, data }) {
               render: (name, row) =>
                 row.driver_id ? <Link to={`/drivers/${row.driver_id}`}>{name}</Link> : cell(name),
             },
+            ...(several
+              ? [
+                  {
+                    key: 'chassis',
+                    label: 'Chassis',
+                    render: (name, row) =>
+                      row.chassis_id ? <Link to={`/cars/${row.chassis_id}`}>{name}</Link> : cell(name),
+                  },
+                ]
+              : []),
             { key: 'grid_text', label: 'Grid', align: 'num', sort: (row) => row.grid },
             {
               key: 'position_text',
@@ -284,7 +360,7 @@ function CarBody({ chassis, data }) {
             { label: 'Predecessor', value: chassis.predecessor },
             { label: 'Successor', value: chassis.successor },
             { label: 'Races (published)', value: number(chassis.published_races) },
-            { label: 'Wins (published)', value: number(chassis.published_wins) },
+            { label: 'Wins (published)', value: number(publishedWins) },
             { label: 'Poles (published)', value: number(chassis.published_poles) },
             { label: 'Confidence', value: <Confidence value={chassis.confidence} /> },
             {

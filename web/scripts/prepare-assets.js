@@ -131,3 +131,40 @@ const wasm = ['sql-wasm-browser.wasm', 'sql-wasm.wasm']
 if (!wasm) die('sql.js not installed.\nInstall it first:  npm install')
 copyFileSync(wasm, join(publicDir, 'sql-wasm.wasm'))
 console.log(`  public/sql-wasm.wasm     (${kb(statSync(wasm).size)})`)
+
+// ---------------------------------------------------------------- cache rules
+
+/*
+ * Caching, for hosts that read _headers (Cloudflare Pages, Netlify).
+ *
+ * The manifest is the one file that must never be served stale: it carries the
+ * digest the loader compares against its cached copy, so a cached manifest
+ * means a reader keeps an old database forever. Everything it describes is
+ * safe to cache hard — the database only changes with its digest, and Vite's
+ * asset names already carry a content hash.
+ *
+ * A host that ignores this file is not broken by it. The loader also asks for
+ * the manifest with cache: 'no-cache' itself, so the rule is a belt to that
+ * brace rather than the only thing standing between a reader and stale data.
+ */
+writeFileSync(
+  join(publicDir, '_headers'),
+  [
+    '/db-manifest.json',
+    '  Cache-Control: no-cache',
+    '',
+    '/f1.db',
+    '  Cache-Control: public, max-age=31536000, immutable',
+    '',
+    '/f1.db.gz',
+    '  Cache-Control: public, max-age=31536000, immutable',
+    '',
+    '/sql-wasm.wasm',
+    '  Cache-Control: public, max-age=31536000, immutable',
+    '',
+    '/assets/*',
+    '  Cache-Control: public, max-age=31536000, immutable',
+    '',
+  ].join('\n'),
+)
+console.log('  public/_headers          (cache rules)')

@@ -11,8 +11,13 @@
  *                             conditional relax, not a pass: it obliges every
  *                             figure to carry visible labels or a table view.
  *                             Every figure here carries its own data table.
- *   dark  (surface #191920)   CVD ΔE 9.4 worst pair · normal-vision ΔE 20.9
+ *   dark  (surface #14161b)   CVD ΔE 9.4 worst pair · normal-vision ΔE 20.9
  *                             all three at or above 3:1
+ *
+ * Re-run when a surface moves. The Pit Wall restyle took the dark panel from
+ * #191920 to #14161b, which made this note false until it was checked again;
+ * a claim about a measurement is only worth having if it names the surface it
+ * was measured against.
  *
  * Three is the cap, and it is the reason charts here fold everything else into
  * a single "other" or split into small multiples rather than reaching for a
@@ -28,6 +33,8 @@ export const SERIES = ['var(--series-1)', 'var(--series-2)', 'var(--series-3)']
 
 export const seriesColour = (i) => SERIES[i % SERIES.length]
 
-/** Text never wears a series colour. Values, labels and ticks use ink tokens. */
-export const INK = 'var(--ink)'
-export const INK_FAINT = 'var(--ink-faint)'
+/**
+ * Text never wears a series colour. Values, labels and ticks take ink tokens
+ * from the stylesheet — `.figure .axis-text` and `.figure .value-text` — which
+ * is why there is nothing to export here for them.
+ */

@@ -1351,6 +1351,7 @@ if ngeo:
         return 2 * R * _math.asin(_math.sqrt(h))
 
     bad_len, unclosed, bad_layout, worst = [], [], [], 0.0
+    bad_topo = []
     for r in con.execute("SELECT * FROM circuit_geometry"):
         geo = _json.loads(r["centreline"])
         metres = 0.0
@@ -1370,15 +1371,35 @@ if ngeo:
         # every way END meets another way's end. A dangling end is a missing
         # member, and a trace can be short by one segment and still measure a
         # plausible length.
+        #
+        # THE TOLERANCE WAS 30 m AND THAT WAS TOO LOOSE. Ways in a relation
+        # share their junction nodes exactly: 1,201 of the 1,208 way ends here
+        # sit at 0.000 m from another end, and the seven that do not are 5.4 m
+        # to 63.4 m away - every one a real hole. At 30 m the Monaco and
+        # Montjuic holes read as joins and only Las Vegas was reported, so the
+        # check passed two broken traces for versions. One metre is above
+        # serialisation noise and below the smallest real gap.
         ends = [line[0] for line in geo["coordinates"]] + \
                [line[-1] for line in geo["coordinates"]]
         dangling = 0
         for i, a in enumerate(ends):
-            if not any(i != j and _hav((a[1], a[0]), (b[1], b[0])) <= 30
+            if not any(i != j and _hav((a[1], a[0]), (b[1], b[0])) <= 1.0
                        for j, b in enumerate(ends)):
                 dangling += 1
         if dangling:
             unclosed.append(f"{r['circuit_id']} ({dangling} loose ends)")
+        # The stored verdict is a build-time finding; recompute it here from
+        # the geometry rather than trusting the column.
+        if (r["loose_ends"] is None) or (r["loose_ends"] != dangling):
+            bad_topo.append(f"{r['circuit_id']} stores {r['loose_ends']} "
+                            f"loose ends, geometry has {dangling}")
+        if bool(r["closes"]) != (dangling == 0):
+            bad_topo.append(f"{r['circuit_id']} stores closes="
+                            f"{r['closes']} with {dangling} loose ends")
+        if r["segment_count"] != len(geo["coordinates"]):
+            bad_topo.append(f"{r['circuit_id']} stores "
+                            f"{r['segment_count']} segments, geometry has "
+                            f"{len(geo['coordinates'])}")
         if r["layout_key"]:
             ok = con.execute("""SELECT 1 FROM circuit_layouts
                 WHERE circuit_id = ? AND layout_key = ?""",
@@ -1392,6 +1413,12 @@ if ngeo:
           if not bad_len else "; ".join(bad_len[:3]))
     warn("every centreline closes into a loop", not unclosed,
          "; ".join(unclosed[:5]) if unclosed else "")
+    # The warning above is the finding; this is the guarantee the front end
+    # relies on when it offers to walk a lap.
+    check("the stored lap topology matches the geometry", not bad_topo,
+          "; ".join(bad_topo[:3]) if bad_topo else
+          f"{con.execute('SELECT COUNT(*) FROM circuit_geometry WHERE closes = 1').fetchone()[0]}"
+          f" of {ngeo} stitch into a closed lap")
     check("every geometry layout_key names a real layout", not bad_layout,
           "; ".join(bad_layout[:3]))
 
