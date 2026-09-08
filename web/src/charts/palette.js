@@ -28,6 +28,8 @@ export const SERIES = ['var(--series-1)', 'var(--series-2)', 'var(--series-3)']
 
 export const seriesColour = (i) => SERIES[i % SERIES.length]
 
-/** Text never wears a series colour. Values, labels and ticks use ink tokens. */
-export const INK = 'var(--ink)'
-export const INK_FAINT = 'var(--ink-faint)'
+/**
+ * Text never wears a series colour. Values, labels and ticks take ink tokens
+ * from the stylesheet — `.figure .axis-text` and `.figure .value-text` — which
+ * is why there is nothing to export here for them.
+ */

@@ -146,7 +146,28 @@ try {
   })
   page.on('pageerror', (error) => consoleErrors.push(String(error)))
 
-  /** Navigate through the app's own router and wait for the new page's title. */
+  /**
+   * Wait until the page has finished answering its queries.
+   *
+   * A page renders its heading BEFORE its data arrives — that is deliberate, so
+   * a reader gets the title immediately — which means `main h2` is not the
+   * signal that a page is ready. The placeholders are. Then two frames, because
+   * a component reused across a param change can satisfy both conditions on the
+   * render still showing the previous route's data, and the assertions read the
+   * DOM over a separate round trip.
+   */
+  const settle = async () => {
+    await page.waitForFunction(
+      () => !document.querySelector('main .state, main .skeleton-table'),
+      null,
+      { timeout: 20000 },
+    )
+    await page.evaluate(
+      () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+    )
+  }
+
+  /** Navigate through the app's own router and wait for the new page. */
   const go = async (route, heading) => {
     await page.evaluate((to) => {
       window.location.hash = `#${to}`
@@ -159,12 +180,7 @@ try {
       heading,
       { timeout: 20000 },
     )
-    // Queries resolve on a worker round trip; wait for every placeholder to go.
-    await page.waitForFunction(
-      () => !document.querySelector('main .state, main .skeleton-table'),
-      null,
-      { timeout: 20000 },
-    )
+    await settle()
   }
 
   /**
@@ -187,6 +203,7 @@ try {
   const started = Date.now()
   await page.goto(`${BASE}/#/`, { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('main h2', { timeout: 60000 })
+  await settle()
   pass(`database opened and the first page rendered in ${Date.now() - started} ms`)
 
   const version = await text('.sitefoot dd')
@@ -229,6 +246,33 @@ try {
   )
 
   // ---------------------------------------------------------------- a race
+
+  // 2026 carries two final standings rows per driver — formula1.com records the
+  // team, F1DB the position — so a page that does not collapse them lists every
+  // driver twice.
+  console.log('\n/seasons/2026  (the same fact from two sources)')
+  await go('/seasons/2026', '2026')
+  is(
+    (await tableRows())[1],
+    count(
+      `SELECT COUNT(DISTINCT entity_id) FROM standings
+        WHERE year = 2026 AND table_type = 'drivers' AND after_round IS NULL`,
+    ),
+    'each driver appears once in the final table',
+  )
+
+  // 2018 is the opposite case: Force India was excluded with nothing and its
+  // successor scored 52 under the same id. Both rows belong in that table.
+  console.log('\n/seasons/2018  (an entity that finished twice)')
+  await go('/seasons/2018', '2018')
+  is(
+    (await tableRows())[2],
+    count(
+      `SELECT COUNT(*) FROM standings
+        WHERE year = 2018 AND table_type = 'constructors' AND after_round IS NULL`,
+    ),
+    "the excluded constructor and its successor both stand",
+  )
 
   console.log('\n/races/1976/9  (the classification)')
   const raceId = one('SELECT id FROM races WHERE year = 1976 AND round = 9')
@@ -319,6 +363,24 @@ try {
   console.log('\n/cars')
   await go('/cars', 'Cars')
   is((await tableRows())[0], count('SELECT COUNT(*) FROM chassis'), 'the chassis register')
+
+  // Six ids name a car that no single chassis shares an id with. No race entry
+  // is ever attributed to `lotus-72` itself, so a page that queries only that
+  // id shows nothing and then reports a discrepancy it invented.
+  console.log('\n/cars/lotus-72  (a car, not a chassis)')
+  await go('/cars/lotus-72')
+  const variants = count("SELECT COUNT(*) FROM chassis WHERE car_id = 'lotus-72'")
+  atLeast(variants, 2, 'the car covers several chassis variants')
+  const lotus = await tableRows()
+  truthy(
+    lotus.includes(
+      count(
+        `SELECT COUNT(*) FROM race_entries
+          WHERE chassis_id IN (SELECT id FROM chassis WHERE car_id = 'lotus-72')`,
+      ),
+    ),
+    'its entries are the variants added together',
+  )
 
   console.log('\n/cars/mclaren-mp4-4')
   await go('/cars/mclaren-mp4-4', 'McLaren MP4/4')
@@ -412,6 +474,24 @@ try {
     { timeout: 20000 },
   )
   pass('the register is intact after a rejected write')
+
+  // ------------------------------------------------------------------ sorting
+
+  // NULL means "not established" here, and 824 of 862 drivers have no stored
+  // entry count. Sorting descending must still sink them, or the register opens
+  // on several screens of em dashes.
+  console.log('\nSorting')
+  await go('/drivers', 'Drivers')
+  await page.click('main th:nth-child(4) button')
+  const firstEntries = await page.$eval('main tbody tr td:nth-child(4)', (node) => node.textContent.trim())
+  truthy(
+    firstEntries !== '—' && firstEntries !== '',
+    `descending sort leads with a value, not a blank — "${firstEntries}"`,
+  )
+  const lastEntries = await page.$$eval('main tbody tr td:nth-child(4)', (nodes) =>
+    nodes[nodes.length - 1].textContent.trim(),
+  )
+  is(lastEntries, '—', 'and sinks the unestablished ones')
 
   // ---------------------------------------------------------------- search
 

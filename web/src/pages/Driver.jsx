@@ -7,6 +7,7 @@ import Figure from '../charts/Figure.jsx'
 import DotPlot from '../charts/DotPlot.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { missing, number, points as fmtPoints, result, span } from '../lib/format.js'
+import { finalStandings } from '../lib/standings.js'
 
 const DRIVER = `SELECT * FROM drivers WHERE id = ?`
 
@@ -53,14 +54,15 @@ const BY_SEASON = `
 `
 
 /**
- * One row per season, from the table as the season finished.
+ * The table as each season finished.
  *
  * after_round IS NULL is the final classification — `as_of` reads "final" —
- * rather than a missing round. Taking the highest after_round instead is right
- * in almost every season and wrong in the ones where it matters.
+ * rather than a missing round. It can hold more than one row per driver per
+ * season, so the rows go through finalStandings before they are used; 2026
+ * otherwise lists every driver twice.
  */
 const STANDINGS = `
-  SELECT s.year, s.position, s.position_text, s.points
+  SELECT s.id, s.year, s.entity_id, s.engine_id, s.position, s.position_text, s.points, s.team
     FROM standings s
    WHERE s.table_type = 'drivers' AND s.entity_id = ? AND s.after_round IS NULL
    ORDER BY s.year
@@ -111,7 +113,11 @@ export default function Driver() {
 function DriverBody({ driver, data }) {
   const derived = data.derived.rows[0] ?? {}
   const bySeason = rows(data, 'bySeason')
-  const standings = rows(data, 'standings')
+  // One row per season: see lib/standings.js for the two reasons there can be more.
+  const standings = useMemo(
+    () => finalStandings(rows(data, 'standings')).sort((a, b) => a.year - b.year),
+    [data],
+  )
   const results = rows(data, 'results')
 
   const standingByYear = useMemo(

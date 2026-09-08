@@ -14,6 +14,14 @@ import { query } from './client.js'
 const CAP = 240
 const cache = new Map()
 
+/**
+ * The promise for a query, and its result once it has one.
+ *
+ * The result is kept beside the promise because a promise cannot be inspected
+ * synchronously: without it there is no way to tell, while rendering, that an
+ * answer is already in hand — and every back-navigation would flash a skeleton
+ * before resolving on the next microtask.
+ */
 function cached(sql, params) {
   const key = JSON.stringify([sql, params])
   const hit = cache.get(key)
@@ -23,15 +31,27 @@ function cached(sql, params) {
     cache.set(key, hit)
     return hit
   }
-  const promise = query(sql, params).catch((error) => {
-    // A failure must not be remembered as a result; the next render should be
-    // allowed to try again.
-    cache.delete(key)
-    throw error
-  })
-  cache.set(key, promise)
+  const entry = { value: null }
+  entry.promise = query(sql, params).then(
+    (data) => {
+      entry.value = data
+      return data
+    },
+    (error) => {
+      // A failure must not be remembered as a result; the next render should be
+      // allowed to try again.
+      cache.delete(key)
+      throw error
+    },
+  )
+  cache.set(key, entry)
   if (cache.size > CAP) cache.delete(cache.keys().next().value)
-  return promise
+  return entry
+}
+
+/** Whatever is already known for this query, without waiting. */
+function settled(sql, params) {
+  return cache.get(JSON.stringify([sql, params]))?.value ?? null
 }
 
 const IDLE = { loading: true, error: null, data: null }
@@ -44,34 +64,32 @@ const IDLE = { loading: true, error: null, data: null }
  * use that when a later query depends on the row an earlier one returned.
  */
 export function useQuery(sql, params = []) {
-  const [state, setState] = useState(IDLE)
   // Queries are string literals and parameters are short arrays of scalars,
   // so serialising them is a cheaper and more reliable dependency than asking
   // every caller to memoise an array literal.
   const key = JSON.stringify([sql, params])
+  // Start from the cache rather than from loading: the answer to a query this
+  // session has already run is available now, and announcing a load first
+  // would flash a skeleton on every back-navigation.
+  const known = sql ? settled(sql, params) : null
+  const [state, setState] = useState(known ? { loading: false, error: null, data: known } : IDLE)
 
   useEffect(() => {
     if (!sql) {
       setState(IDLE)
       return undefined
     }
+    const ready = settled(sql, params)
+    if (ready) {
+      setState({ loading: false, error: null, data: ready })
+      return undefined
+    }
     let live = true
-    const promise = cached(sql, params)
-    // A cache hit still resolves on a microtask, so the loading state would
-    // flash for one frame on every back-navigation. Only announce loading if
-    // the answer has not arrived by the time this effect finishes.
-    let settled = false
-    promise.then(
-      (data) => {
-        settled = true
-        if (live) setState({ loading: false, error: null, data })
-      },
-      (error) => {
-        settled = true
-        if (live) setState({ loading: false, error, data: null })
-      },
+    setState(IDLE)
+    cached(sql, params).promise.then(
+      (data) => live && setState({ loading: false, error: null, data }),
+      (error) => live && setState({ loading: false, error, data: null }),
     )
-    if (!settled) setState(IDLE)
     return () => {
       live = false
     }
@@ -101,24 +119,22 @@ export function useQueries(spec) {
 
   useEffect(() => {
     const entries = Object.entries(held.current).filter(([, value]) => value && value[0])
+    const collect = (results) =>
+      Object.fromEntries(entries.map(([name], i) => [name, results[i]]))
+
+    // Every answer already in hand: settle without a loading state at all.
+    const ready = entries.map(([, [sql, params = []]]) => settled(sql, params))
+    if (ready.every(Boolean)) {
+      setState({ loading: false, error: null, data: collect(ready) })
+      return undefined
+    }
+
     let live = true
-    let settled = false
-    Promise.all(entries.map(([, [sql, params = []]]) => cached(sql, params))).then(
-      (results) => {
-        settled = true
-        if (!live) return
-        const data = {}
-        entries.forEach(([name], i) => {
-          data[name] = results[i]
-        })
-        setState({ loading: false, error: null, data })
-      },
-      (error) => {
-        settled = true
-        if (live) setState({ loading: false, error, data: null })
-      },
+    setState(IDLE)
+    Promise.all(entries.map(([, [sql, params = []]]) => cached(sql, params).promise)).then(
+      (results) => live && setState({ loading: false, error: null, data: collect(results) }),
+      (error) => live && setState({ loading: false, error, data: null }),
     )
-    if (!settled) setState(IDLE)
     return () => {
       live = false
     }

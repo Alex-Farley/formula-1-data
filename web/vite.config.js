@@ -8,10 +8,10 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   base: './',
   build: {
-    // f1.db and sql-wasm.wasm are copied into public/ by scripts/copy-assets.js
-    // and pass through untouched; they are the two large files here and Vite
-    // warns about neither, but the JS chunk limit is raised so a real warning
-    // is not lost in noise.
+    // The database, its gzip, the manifest and the wasm are staged into
+    // public/ by scripts/prepare-assets.js and pass through untouched. They are
+    // the large files here and Vite warns about none of them; the JS chunk
+    // limit is raised so that a real warning is not lost in noise.
     chunkSizeWarningLimit: 900,
   },
 })

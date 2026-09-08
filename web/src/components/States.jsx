@@ -39,10 +39,6 @@ export function ErrorBox({ error, context }) {
   )
 }
 
-export function Empty({ children = 'Nothing recorded.' }) {
-  return <p className="state">{children}</p>
-}
-
 /**
  * Render children only once a query has resolved.
  *

@@ -36,13 +36,6 @@ export function percent(part, whole, places = 1) {
   return `${((part / whole) * 100).toFixed(places)}%`
 }
 
-export function ordinal(n) {
-  if (missing(n) || typeof n !== 'number') return EMPTY
-  const rest = n % 100
-  if (rest >= 11 && rest <= 13) return `${n}th`
-  return `${n}${['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`
-}
-
 /** "1950–2026", "1950–", "1950". The dash is an en dash, as a span should be. */
 export function span(from, to) {
   if (missing(from) && missing(to)) return EMPTY
@@ -76,23 +69,6 @@ export function classificationOrder(entry) {
   if (!missing(entry.finish_position)) return entry.finish_position
   if (!missing(entry.laps_completed)) return 1000 - entry.laps_completed
   return 9999
-}
-
-/**
- * The confidence ladder, highest first. The database records how good every
- * fact is; a front end that hides that misrepresents the data it is showing.
- */
-export const CONFIDENCE = ['verified', 'high', 'reference', 'medium', 'unverified']
-
-export const confidenceRank = (value) => {
-  const at = CONFIDENCE.indexOf(String(value ?? '').toLowerCase())
-  return at === -1 ? CONFIDENCE.length : at
-}
-
-/** A whole-word count with its noun: "1 race", "75 races". */
-export function count(n, singular, plural = `${singular}s`) {
-  if (missing(n)) return EMPTY
-  return `${number(n)} ${n === 1 ? singular : plural}`
 }
 
 /** Sentence-case a snake_case column name, keeping the initialisms upright. */
