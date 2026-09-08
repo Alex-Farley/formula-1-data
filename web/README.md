@@ -54,6 +54,31 @@ a `Last-Modified`, because those are the host's opinion of the file — they
 differ between hosts, and a rebuild that produces identical bytes should not
 throw away a warm cache.
 
+**The digest travels in the asset URL, and that is not optional.** The three
+big files are served `immutable` for a year, which is what makes a second visit
+free — but they live at paths that never change, so the promise is only true if
+something makes the URL move when the bytes do. The loader appends
+`?v=<digest>` from the manifest to `f1.db.gz`, `f1.db` and `sql-wasm.wasm`.
+
+Without it the failure is specific and total. The manifest is fetched
+`no-cache`, so it is always this build's; the database beside it comes out of a
+cache that was told not to ask again until next year. The reader gets this
+build's manifest with last build's database, the length check catches the
+pairing, and the site will not open at all:
+
+```
+The database could not be opened
+the database arrived incomplete — 20,963,328 bytes of 21,123,072
+```
+
+That is not a hypothesis. Those are two real databases — the 20.0 MB one this
+front end was deployed with, and the 20.1 MB one that landed with the sprint-race
+data — and every returning reader saw that screen from the moment the second
+was deployed until the version went into the URL. A mismatch is now also
+retried once with `cache: 'reload'` before it is fatal, which is what rescues a
+reader whose cache was poisoned before this shipped, or one behind a proxy that
+keys on the path alone.
+
 **The gzip is shipped as a file, not left to the host.** Static hosts do not
 agree about whether they will compress an unknown binary type and several will
 not, so `prepare-assets.js` gzips the database itself. That makes the 4.5 MB
