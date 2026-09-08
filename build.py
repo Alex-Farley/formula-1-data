@@ -58,10 +58,26 @@ def build():
 
     # ---------------------------------------------------------- meta
     cur.executemany("INSERT INTO provenance VALUES (?,?,?,?)", N.PROVENANCE)
+    # Each registry entry carries its licence twice: as the prose in
+    # `licence`, written for a person, and as the machine-readable class in
+    # SOURCE_LICENCE, which is what lets verify.py answer "may this row be
+    # published?" without anyone reading a paragraph. An entry with no class
+    # is a source nobody has judged, and that is a build failure rather than
+    # a default, because the safe default is the one you never notice.
+    registry = []
+    for entry in N.SOURCE_REGISTRY:
+        priority = entry[0]
+        if priority not in N.SOURCE_LICENCE:
+            raise SystemExit(
+                f"source_registry entry {priority} ({entry[1]}) has no licence "
+                f"class in SOURCE_LICENCE. Classify it before the build can "
+                f"say what may be published.")
+        registry.append(tuple(entry) + N.SOURCE_LICENCE[priority])
     cur.executemany(
         "INSERT INTO source_registry (priority, source, url, use, authority,"
-        " licence, cadence, checkability) VALUES (?,?,?,?,?,?,?,?)",
-        N.SOURCE_REGISTRY)
+        " licence, cadence, checkability, redistributable, share_alike,"
+        " attribution_required, domains) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+        registry)
     cur.executemany("INSERT INTO meta VALUES (?,?)", [
         ("database_name", "F1 Verified Facts Project Memory Database"),
         ("version", VERSION),

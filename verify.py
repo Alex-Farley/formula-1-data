@@ -3,6 +3,7 @@
 Integrity and consistency checks. Exit code 1 if any FAIL.
 """
 import os
+import re
 import sqlite3
 import sys
 from collections import Counter
@@ -108,6 +109,82 @@ def redistribution():
         WHERE source = 'fastf1'""").fetchone()[0]
     verdict("no team radio row was indexed from the live timing API",
             bad == 0, f"{bad} rows")
+
+    # ---------------------------------------------------------------- classes
+    #
+    # The tables above are the ones a loader can fill by accident. This is the
+    # general rule underneath them: EVERY row that cites a source at all must
+    # cite one the registry says may be published.
+    #
+    # It is the rule that item 1 of the commercial-readiness pass applied by
+    # hand. Seventy-two rows cited Jolpica, whose Ergast lineage is
+    # CC BY-NC-SA, and nothing could see it - knowing the licence of a row
+    # meant reading a paragraph in source_registry and recognising which of
+    # sixteen sources a URL belonged to. Fixing the instances is worth little
+    # if the next one arrives the same way, so the class is now a column and
+    # this resolves every row against it.
+    #
+    # 'facts-only' passes. This database cites the official sources as the
+    # AUTHORITY for a fact - a race winner, a circuit length, a points total -
+    # and holds none of their prose. Facts are not copyrightable and restating
+    # them is not redistribution. What that class forbids is copying their
+    # expression, which no row here does; docs/COMMERCIAL-READINESS.md records
+    # the reading that established it.
+    registry = con.execute(
+        "SELECT priority, source, redistributable, share_alike, "
+        "attribution_required, domains FROM source_registry "
+        "WHERE domains IS NOT NULL").fetchall()
+
+    # Several entries may share a host - five of them are formula1.com, two
+    # are en.wikipedia.org. Where they do, they must agree, or the class a row
+    # resolves to would depend on which entry was read first.
+    seen, disagree = {}, []
+    for row in registry:
+        for domain in (d.strip() for d in row["domains"].split(",")):
+            if not domain:
+                continue
+            terms = (row["redistributable"], row["share_alike"],
+                     row["attribution_required"])
+            if seen.setdefault(domain, (terms, row["source"]))[0] != terms:
+                disagree.append(f"{domain}: {row['source']} vs {seen[domain][1]}")
+    check("registry entries sharing a host agree on what it permits",
+          not disagree, "; ".join(disagree))
+    classes = {domain: terms for domain, (terms, _) in seen.items()}
+
+    def resolve(value):
+        """The licence class a row's `source` falls under, or None."""
+        text = str(value).strip()
+        host = re.match(r"https?://([^/]+)", text)
+        key = host.group(1).lower() if host else text.lower()
+        if key in classes:
+            return classes[key]
+        # www.formula1.com -> formula1.com, api.openstreetmap.org -> ...
+        return next((terms for domain, terms in classes.items()
+                     if key.endswith("." + domain)), None)
+
+    unknown, forbidden = [], []
+    for (table,) in con.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' "
+            "AND name <> 'source_registry' ORDER BY name").fetchall():
+        columns = [c[1] for c in con.execute('PRAGMA table_info("%s")' % table)]
+        if "source" not in columns:
+            continue
+        rows = con.execute(
+            'SELECT source, COUNT(*) FROM "%s" WHERE source IS NOT NULL '
+            "AND TRIM(source) <> '' GROUP BY source" % table).fetchall()
+        for value, n in rows:
+            terms = resolve(value)
+            if terms is None:
+                unknown.append(f"{table}: {n} row(s) cite {value}")
+            elif terms[0] == "no":
+                forbidden.append(f"{table}: {n} row(s) cite {value}")
+
+    # An unrecognised source is not a pass. It is a row whose licence nobody
+    # has decided, which is the state every problem this pass fixed began in.
+    check("every cited source is one the registry classifies",
+          not unknown, "; ".join(unknown[:4]))
+    verdict("no row cites a source that may not be redistributed",
+            not forbidden, "; ".join(forbidden[:4]))
 
 
 redistribution()

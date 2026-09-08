@@ -3,6 +3,12 @@
 Read this before making the repository public. The code and the data are in
 different positions, and the data has an obligation attached to it.
 
+`docs/COMMERCIAL-READINESS.md` is the companion to this file: where this one
+records what each source requires, that one records which rows were read
+against those requirements, what they were found to hold, and which of those
+findings the build now enforces rather than trusting. `./f1 licences` prints
+the current position from the rows themselves.
+
 ## Where the data came from
 
 | Part | Source | Roughly how much |

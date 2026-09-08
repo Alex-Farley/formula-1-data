@@ -50,7 +50,34 @@ CREATE TABLE source_registry (
     -- cannot be checked against something held independently.
     licence         TEXT,     -- what you may actually do with the data
     cadence         TEXT,     -- how often it is updated, and by whom
-    checkability    TEXT      -- what in this database can contradict it
+    checkability    TEXT,     -- what in this database can contradict it
+
+    -- `licence` above is prose, written for a person. These four are the
+    -- same judgement in a form the BUILD can read, so that "may this row be
+    -- published?" is a query rather than a memory. Without them the licence
+    -- of a row is knowable only by reading a paragraph and recognising which
+    -- of sixteen sources a URL belongs to, which is how a CC BY-NC citation
+    -- survived seven versions in the committed database.
+    --
+    --   yes         may be redistributed, on the terms in the columns below
+    --   facts-only  the FACTS may be restated - they are not copyrightable -
+    --               but nothing of the source's own expression may be copied,
+    --               and no substantial extraction of its database made
+    --   no          may not be redistributed at all. A row citing one of
+    --               these must not be in the committed database, and
+    --               verify.py fails if one is.
+    redistributable TEXT NOT NULL DEFAULT 'facts-only'
+                    CHECK (redistributable IN ('yes', 'facts-only', 'no')),
+    share_alike     INTEGER NOT NULL DEFAULT 0,   -- reuse must carry the same licence
+    attribution_required INTEGER NOT NULL DEFAULT 1,
+
+    -- How a row's `source` is recognised as belonging to this entry: a
+    -- comma-separated list of hostnames and of the bare tokens the loaders
+    -- write ('f1db', 'fastf1', 'jolpica'). NULL where no row ever cites the
+    -- source - the fan-site entry exists to record that it is forbidden, not
+    -- to be pointed at. Several entries may share a host, and where they do
+    -- the build requires them to agree on the three columns above.
+    domains         TEXT
 );
 
 -- ------------------------------------------------------------- people
