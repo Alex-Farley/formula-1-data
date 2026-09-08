@@ -1251,6 +1251,89 @@ def build():
               f"from F1DB; {res_skipped_driver} rows skipped for "
               f"{len(unknown_drivers)} unresolvable drivers")
 
+    # --- the sprint races
+    #
+    # A sprint is a separate race on the weekend, not a session of the grand
+    # prix, so it lands in its own table rather than as columns on the entry.
+    # Its points count towards the championship, which is why the standings
+    # already reflected sprints while nothing here recorded that they had
+    # happened.
+    #
+    # The round is also FLAGGED here rather than being authored by hand. The
+    # calendar carried sprint=1 for 2026 alone, so every sprint from 2021 to
+    # 2025 was recorded as an ordinary weekend. Deriving the flag from the
+    # presence of a classification means it cannot drift again: a round has a
+    # sprint exactly when a sprint was run there.
+    sprint_by_race = {}
+    for row in HV.load_sprint_results():
+        sprint_by_race.setdefault(
+            (int(row["year"]), int(row["round"])), []).append(row)
+
+    spr_rows = spr_races = spr_skipped = 0
+    for (yr, rnd), rows in sorted(sprint_by_race.items()):
+        rid = race_key.get((yr, rnd))
+        if rid is None:
+            continue
+        spr_races += 1
+        cur.execute("UPDATE races SET sprint=1 WHERE id=?", (rid,))
+        for r in rows:
+            did = f1db_drivers.get(r["driver_id"])
+            if not did:
+                spr_skipped += 1
+                continue
+            cons = HV.constructor_for_f1db(r["constructor_id"], yr)
+            if cons and not cur.execute("SELECT 1 FROM constructors WHERE id=?",
+                                        (cons,)).fetchone():
+                cons = None
+            pos = int(r["position"]) if r["position"] else None
+            cur.execute("""INSERT INTO sprint_results (race_id, driver_id,
+                    constructor_id, grid, finish_position, position_text,
+                    status, laps_completed, time, gap, points, confidence,
+                    source)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+                ON CONFLICT (race_id, driver_id) DO NOTHING""",
+                (rid, did, cons,
+                 int(r["grid"]) if r["grid"] and r["grid"].isdigit() else None,
+                 pos, r["position_text"],
+                 r["reason_retired"] or (r["position_text"]
+                                         if pos is None else None),
+                 int(r["laps"]) if r["laps"] else None,
+                 r["time"] or None, r["gap"] or None,
+                 float(r["points"]) if r["points"] else None,
+                 HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
+            spr_rows += 1
+
+    if spr_rows:
+        flagged = cur.execute(
+            "SELECT COUNT(*) FROM races WHERE sprint=1").fetchone()[0]
+        print(f"  sprint races: {spr_rows} entries over {spr_races} sprints "
+              f"from F1DB ({flagged} rounds flagged); {spr_skipped} rows "
+              f"skipped for an unresolvable driver")
+
+    # --- a round that has a result has been run
+    #
+    # The calendar in data/current.py authors a status per round, which is
+    # right for a season that has not happened yet: "scheduled" is a claim
+    # about the future and nothing else can supply it. But it goes stale the
+    # moment a race is run, and a hand-edit is what stands between a result
+    # arriving in the harvest and the site admitting the race took place.
+    # That is a whole class of staleness the sources can settle themselves:
+    # a round with a classification has been run, whatever the calendar was
+    # authored to say.
+    #
+    # Only ever in that direction. A round with no result stays exactly as it
+    # was authored, because the absence of a result is not evidence that a
+    # race did not happen — it is far more often evidence that nobody has
+    # harvested it yet.
+    promoted = cur.execute("""UPDATE races SET status = 'completed'
+        WHERE status != 'completed'
+          AND EXISTS (SELECT 1 FROM race_entries e
+                      WHERE e.race_id = races.id
+                        AND e.finish_position IS NOT NULL)""").rowcount
+    if promoted:
+        print(f"  calendar: {promoted} round(s) promoted to completed "
+              f"because a classification arrived for them")
+
     # --- qualifying, checked against the pole already established
     qual_rows = qual_skipped = 0
     pole_disagreements = []

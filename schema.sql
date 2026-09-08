@@ -677,6 +677,46 @@ CREATE TABLE race_entries (
 CREATE INDEX idx_races_year      ON races(year, round);
 CREATE INDEX idx_races_gp        ON races(gp_id);
 CREATE INDEX idx_races_circuit   ON races(circuit_id);
+-- ---------------------------------------------------------------- sprints
+--
+-- A sprint is a SEPARATE RACE held on a grand prix weekend, with its own
+-- grid, its own classification and its own points — and those points count
+-- towards the championship. It is not a session of the grand prix, so it is
+-- not a column on race_entries: it is its own rows, keyed on the round that
+-- held it.
+--
+-- Sprints began at Silverstone in 2021. Before that this table is empty, and
+-- that emptiness is a fact rather than a gap: there were none.
+--
+-- No shared_drive column, unlike race_entries. Sharing a car mid-race ended
+-- in 1964 and no sprint has ever had one, so a column for it would only ever
+-- hold zero.
+CREATE TABLE sprint_results (
+    id              INTEGER PRIMARY KEY,
+    race_id         INTEGER NOT NULL REFERENCES races(id),
+    driver_id       TEXT NOT NULL REFERENCES drivers(id),
+    constructor_id  TEXT REFERENCES constructors(id),
+    grid            INTEGER,                   -- the sprint grid, not the GP grid
+    finish_position INTEGER,                   -- 1 = sprint win; NULL if unclassified
+    -- As race_entries.position_text: "1", or NC, DNF, DNS, DSQ. Kept because
+    -- "retired" and "did not start" are different facts.
+    position_text   TEXT,
+    status          TEXT,                      -- reason retired, where stated
+    laps_completed  INTEGER,
+    time            TEXT,                      -- winner's time; gap for the rest
+    gap             TEXT,
+    points          REAL,                      -- counts towards the championship
+    note            TEXT,
+    confidence      TEXT NOT NULL DEFAULT 'reference' REFERENCES provenance(confidence),
+    source          TEXT,
+    UNIQUE (race_id, driver_id)
+);
+
+CREATE INDEX idx_sprint_race    ON sprint_results(race_id);
+CREATE INDEX idx_sprint_driver  ON sprint_results(driver_id);
+CREATE INDEX idx_sprint_cons    ON sprint_results(constructor_id);
+CREATE INDEX idx_sprint_pos     ON sprint_results(race_id, finish_position);
+
 CREATE INDEX idx_entries_race    ON race_entries(race_id);
 CREATE INDEX idx_entries_driver  ON race_entries(driver_id);
 CREATE INDEX idx_entries_cons    ON race_entries(constructor_id);

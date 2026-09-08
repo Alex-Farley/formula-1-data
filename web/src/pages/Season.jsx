@@ -43,7 +43,7 @@ const CALENDAR = `
 
 const STANDINGS = `
   SELECT id, year, table_type, after_round, position, position_text,
-         entity, entity_id, engine_id, team, points
+         entity, entity_id, engine_id, team, points, source
     FROM standings
    WHERE year = ?
    ORDER BY after_round, table_type, position

@@ -979,6 +979,37 @@ recorded as one.
 
 ---
 
+## Staying current
+
+The results, qualifying, standings, pit stops and sprint classifications come
+from [F1DB](https://github.com/f1db/f1db), and `harvest/*.txt` is a **snapshot**
+of it rather than a live feed. Until the snapshot is refreshed the database
+still describes the world as it was when somebody last ran the fetch tool — a
+race that has been run keeps showing as scheduled.
+
+Refreshing it is one command:
+
+```bash
+pip install pyyaml                 # the fetch tool needs it; the build does not
+python3 tools/f1db_fetch.py        # rewrites harvest/ from the current F1DB
+python3 build.py && python3 verify.py
+```
+
+`.github/workflows/refresh.yml` does exactly that every Monday at 06:00 UTC,
+and commits the result **only if every check still passes**. A refresh that
+breaks a cross-check is thrown away rather than committed, so an unattended
+job can never replace a good database with a broken one. It can also be run
+by hand from the Actions tab for a race that lands out of step with the
+schedule.
+
+Two things do not arrive with a refresh. Pole position and fastest lap are
+separate harvests, so a race that has just been run appears with its full
+finishing order and neither of those until those harvests catch up; `verify.py`
+warns about the affected rounds by name rather than failing. And the calendar
+status is no longer hand-authored: `build.py` promotes a round to `completed`
+when a classification exists for it, in that direction only, because a missing
+result is far more often an un-harvested race than a race that did not happen.
+
 ## Verification
 
 `python3 verify.py` runs 80+ checks and currently passes all of them:

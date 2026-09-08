@@ -38,6 +38,15 @@ const QUALIFYING = `
    ORDER BY q.position IS NULL, q.position
 `
 
+const SPRINT = `
+  SELECT s.*, d.full_name AS driver, k.name AS constructor
+    FROM sprint_results s
+    JOIN races r         ON r.id = s.race_id
+    LEFT JOIN drivers d  ON d.id = s.driver_id
+    LEFT JOIN constructors k ON k.id = s.constructor_id
+   WHERE r.year = ? AND r.round = ?
+`
+
 const PITS = `
   SELECT p.*, d.full_name AS driver
     FROM pit_stops p
@@ -72,6 +81,7 @@ export default function Race() {
     race: [RACE, args],
     entries: [ENTRIES, args],
     qualifying: [QUALIFYING, args],
+    sprint: [SPRINT, args],
     pits: [PITS, args],
     neighbours: [NEIGHBOURS, args],
   })
@@ -99,6 +109,12 @@ function RaceBody({ race, data, year, round }) {
   const entries = rows(data, 'entries')
   const qualifying = rows(data, 'qualifying')
   const pits = rows(data, 'pits')
+  /* The sprint is a separate race on the same weekend, so it is ordered the
+     same way a race is: finishers by position, then everyone else. */
+  const sprint = useMemo(
+    () => [...rows(data, 'sprint')].sort((a, b) => classificationOrder(a) - classificationOrder(b)),
+    [data],
+  )
   const neighbours = data.neighbours.rows[0] ?? {}
 
   /**
@@ -303,6 +319,44 @@ function RaceBody({ race, data, year, round }) {
               { key: 'interval', label: 'Interval', align: 'num' },
             ]}
             footer="Before knock-out qualifying arrived in 2006 there is one time per driver; from 2006 there are three sessions and the fastest of each is shown."
+          />
+        </Section>
+      )}
+
+      {sprint.length > 0 && (
+        <Section title="Sprint" count={`${sprint.length} entries`}>
+          <DataTable
+            rows={sprint}
+            rowKey={(row) => row.id}
+            sortable={false}
+            page={40}
+            columns={[
+              {
+                key: 'rail',
+                label: <span className="sr-only">Result</span>,
+                className: 'rail',
+                render: (_value, row) => <span className={`rail-${railOf(row)}`} />,
+              },
+              { key: 'position_text', label: 'Pos', align: 'num' },
+              {
+                key: 'driver',
+                label: 'Driver',
+                render: (name, row) =>
+                  row.driver_id ? <Link to={`/drivers/${row.driver_id}`}>{name ?? row.driver_id}</Link> : cell(name),
+              },
+              {
+                key: 'constructor',
+                label: 'Constructor',
+                render: (name, row) =>
+                  row.constructor_id ? <Link to={`/constructors/${row.constructor_id}`}>{name}</Link> : cell(name),
+              },
+              { key: 'grid', label: 'Grid', align: 'num', render: (v) => cell(number(v)) },
+              { key: 'laps_completed', label: 'Laps', align: 'num', render: (v) => cell(number(v)) },
+              { key: 'status', label: 'Out', render: (v) => result(v) },
+              { key: 'gap', label: 'Gap', align: 'num' },
+              { key: 'points', label: 'Points', align: 'num', render: (v) => cell(fmtPoints(v)) },
+            ]}
+            footer="A sprint is a separate, shorter race held on the grand prix weekend, with its own grid and its own points — and those points count towards the championship. The grid column is the sprint grid, not the grand prix one."
           />
         </Section>
       )}
