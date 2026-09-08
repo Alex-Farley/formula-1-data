@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Confidence, Note, Page, Section } from '../components/Page.jsx'
+import { Confidence, Note, Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { Chips } from '../components/Filters.jsx'
@@ -61,7 +61,7 @@ export default function Records() {
   return (
     <Page
       title="Records"
-      lede="Two kinds of figure sit on this page and they are kept apart. The published records were entered by hand from official sources and carry a date they were true. The leaderboards under them are counted from the 27,460 race entries every time this page loads — nobody maintains them, and they cannot go stale."
+      lede="Who has the most of everything: wins, poles, titles, grand slams, and the decade each of them owned. The published records at the top carry the date they were checked; everything below is counted from the race records as this page loads, so it cannot go stale."
     >
       <Result state={state}>{(data) => <Body data={data} />}</Result>
     </Page>
@@ -114,9 +114,8 @@ function Body({ data }) {
           ]}
         />
         <p className="source-note">
-          These are hand-entered and carry the date they were checked. Where one disagrees with the
-          leaderboard below it, the leaderboard is the newer of the two — and the disagreement is
-          exactly the sort of thing this database exists to make visible rather than to hide.
+          Where one of these disagrees with a leaderboard below, the leaderboard is the newer of the
+          two.
         </p>
       </Section>
 
@@ -124,7 +123,7 @@ function Body({ data }) {
         <div className="split">
           <Figure
             title="Most Grand Prix wins"
-            note="One win per driver classified first. A shared drive gives both drivers a win, which is why a set is the right way to compare winners between sources."
+            note="One win per driver classified first, so a shared drive counts for both of them."
             table={{
               rows: driverWins,
               columns: [
@@ -143,7 +142,7 @@ function Body({ data }) {
 
           <Figure
             title="Most pole positions"
-            note="Counted as a grid position of 1 in the race records, which is how a pole is stored here — there is no separate pole table to drift from it."
+            note="Counted as a grid position of 1 in the race records."
             table={{
               rows: driverPoles,
               columns: [
@@ -163,7 +162,7 @@ function Body({ data }) {
       <Section title="Constructors">
         <Figure
           title="Most wins by constructor"
-          note="A constructor's win is the car's, not the driver's: the same race can appear once here and twice in a driver leaderboard when a drive was shared."
+          note="A constructor's win belongs to the car, so a shared drive counts once here and twice in the driver tables."
           table={{
             rows: constructorWins,
             columns: [
@@ -262,10 +261,9 @@ function Body({ data }) {
 
       <Section title="Grand slams" count={`${grandSlams.length}`}>
         <Note>
-          Pole, win and fastest lap in the same Grand Prix. Leading every lap is the fourth part of
-          the usual definition and is not checked here, because lap-by-lap data is not held for most
-          of these races — so this is the three-part version, and says so rather than claiming the
-          stricter one.
+          <strong>Pole, win and fastest lap in the same Grand Prix.</strong> The stricter definition
+          also asks for every lap led, which is not checked here — there is no lap-by-lap data for
+          most of these races — so this is the three-part version.
         </Note>
         <DataTable
           rows={grandSlams}
@@ -290,6 +288,24 @@ function Body({ data }) {
           ]}
         />
       </Section>
+
+      <Onward
+        items={[
+          driverWins[0]
+            ? {
+                to: `/drivers/${driverWins[0].driver_id}`,
+                label: driverWins[0].full_name,
+                hint: `${driverWins[0].wins} wins — the most of anyone.`,
+              }
+            : null,
+          { to: '/seasons', label: 'Seasons', hint: 'How each of those championships was actually won.' },
+          {
+            to: '/reference/sql',
+            label: 'Ask your own question',
+            hint: 'The SQL console, for the leaderboard that is not on this page.',
+          },
+        ]}
+      />
     </>
   )
 }

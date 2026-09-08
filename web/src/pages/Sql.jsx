@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Note, Page, Section } from '../components/Page.jsx'
+import { Note, Onward, Page, Section } from '../components/Page.jsx'
 import { ErrorBox, Loading } from '../components/States.jsx'
 import DataTable from '../components/DataTable.jsx'
 import SubNav from '../components/SubNav.jsx'
@@ -91,7 +91,7 @@ function complain(sql) {
     .trim()
   if (!stripped) return 'Nothing to run.'
   if (!/^(select|with|explain|pragma|values)\b/i.test(stripped)) {
-    return 'Only SELECT, WITH, VALUES, EXPLAIN and PRAGMA are run here. Anything that would change the database is rolled back anyway — the copy is in your browser and a reload restores it — but a write is not what you meant to type.'
+    return 'Reads only: start with SELECT, WITH, VALUES, EXPLAIN or PRAGMA. A write would be rolled back anyway, so nothing has changed.'
   }
   return null
 }
@@ -136,15 +136,14 @@ export default function Sql() {
   return (
     <Page
       title="SQL console"
-      lede="Every page on this site is a query against the same file; this one lets you write your own. It runs in your tab, against a copy of the database that was downloaded once — nothing is sent anywhere and nothing can be changed."
+      lede="Every page on this site is a query against one SQLite file. Here you write your own. Start from an example on the right, or open a table below to see its columns — then run it with ⌘/Ctrl + Enter."
     >
       <SubNav />
 
       <Note>
-        <strong>Reads only, and enforced by a rollback rather than by a keyword check.</strong> A
-        statement cannot be classified as a read by looking at its first word —{' '}
-        <code>WITH t AS (SELECT 1) DELETE FROM drivers</code> begins with <code>WITH</code> and
-        empties a table. So whatever you type runs inside a transaction that is always rolled back.
+        <strong>Nothing you type can break anything.</strong> The database is a copy in your own
+        browser, every statement runs inside a transaction that is rolled back, and a reload
+        restores it either way. Reads only.
       </Note>
 
       <div className="split" style={{ gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)' }}>
@@ -180,7 +179,7 @@ export default function Sql() {
                 empty="The statement ran and matched nothing."
                 footer={
                   state.data.rows.length >= 200
-                    ? 'Long results are trimmed to the first two hundred rows until you ask for the rest.'
+                    ? 'Showing the first two hundred rows — use the button above to see the rest.'
                     : undefined
                 }
               />
@@ -221,6 +220,14 @@ export default function Sql() {
           </Section>
         </div>
       </div>
+
+      <Onward
+        items={[
+          { to: '/reference/quality', label: 'Data quality', hint: 'What the confidence column means before you quote a row.' },
+          { to: '/reference/sources', label: 'Sources and licences', hint: 'What you may do with what you pull out.' },
+          { to: '/records', label: 'Records', hint: 'The leaderboards already written for you.' },
+        ]}
+      />
     </Page>
   )
 }

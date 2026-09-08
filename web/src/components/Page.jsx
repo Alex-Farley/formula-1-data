@@ -97,3 +97,55 @@ export function SourceNote({ children }) {
 export function Note({ children }) {
   return <div className="note-box">{children}</div>
 }
+
+/**
+ * Where to go next.
+ *
+ * Almost every page here is a junction — a driver leads to a team, a team to a
+ * car, a car to the race it won. A reader who has to go back to the nav to
+ * find that out mostly does not bother, so each page ends by naming the two to
+ * four routes out of it that are worth taking.
+ */
+export function Onward({ title = 'Keep going', items }) {
+  const shown = items.filter(Boolean)
+  if (shown.length === 0) return null
+  return (
+    <nav className="onward" aria-label={title}>
+      <h3>{title}</h3>
+      <div>
+        {shown.map(({ to, label, hint }) => (
+          <Link key={`${to}-${label}`} to={to}>
+            <b>{label}</b>
+            {hint && <span>{hint}</span>}
+          </Link>
+        ))}
+      </div>
+    </nav>
+  )
+}
+
+/** A row of buttons that start something, primary first. */
+export function Actions({ items }) {
+  const shown = items.filter(Boolean)
+  if (shown.length === 0) return null
+  return (
+    <p className="actions">
+      {shown.map(({ to, label, primary }) => (
+        <Link key={`${to}-${label}`} to={to} className={primary ? 'button' : 'button secondary'}>
+          {label}
+        </Link>
+      ))}
+    </p>
+  )
+}
+
+/** Step to the neighbour on either side — the previous season, the next race. */
+export function Stepper({ previous, next }) {
+  if (!previous && !next) return null
+  return (
+    <nav className="stepper" aria-label="Neighbouring pages">
+      {previous ? <Link to={previous.to}>← {previous.label}</Link> : <span />}
+      {next ? <Link to={next.to}>{next.label} →</Link> : <span />}
+    </nav>
+  )
+}

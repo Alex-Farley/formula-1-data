@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Page, Section } from '../components/Page.jsx'
+import { Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { Chips, Filters, SearchField, Select } from '../components/Filters.jsx'
@@ -25,13 +25,21 @@ export default function Races() {
   return (
     <Page
       title="Races"
-      lede="Every round of every championship, back to Silverstone in May 1950. The winner, the pole and the fastest lap are shown here; a race's own page has the full classification, the qualifying sheet and, from 1994, its pit stops."
+      lede="Every round of every championship, back to Silverstone in May 1950. Search for a Grand Prix, a circuit or a winner, or pick a decade — then open a race for its full classification, qualifying sheet and, from 1994, its pit stops."
     >
       <Section>
         <Result state={state} skeleton>
           {(data) => <RaceList rows={data.rows} {...{ term, setTerm, decade, setDecade, status, setStatus }} />}
         </Result>
       </Section>
+
+      <Onward
+        items={[
+          { to: '/seasons', label: 'Seasons', hint: 'The same races, grouped into championships.' },
+          { to: '/circuits', label: 'Circuits', hint: 'The venues these races were held at.' },
+          { to: '/records', label: 'Records', hint: 'Who won the most of them.' },
+        ]}
+      />
     </Page>
   )
 }
@@ -149,7 +157,7 @@ function RaceList({ rows, term, setTerm, decade, setDecade, status, setStatus })
               row.fastest_lap_id ? <Link to={`/drivers/${row.fastest_lap_id}`}>{name}</Link> : cell(name),
           },
         ]}
-        footer="“Shared” marks a race two drivers are both classified as winning — a normal thing before 1958, and the reason a winner should be compared as a set rather than as one name."
+        footer="“Shared” marks a race two drivers are both classified as winning, which was normal before 1958. A row tagged “not yet run” is a calendar entry with no result."
       />
     </>
   )

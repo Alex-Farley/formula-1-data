@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Page, Section } from '../components/Page.jsx'
+import { Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { Chips, Filters, SearchField, Select } from '../components/Filters.jsx'
@@ -23,13 +23,21 @@ export default function Constructors() {
   return (
     <Page
       title="Constructors"
-      lede="A hundred and fifty constructors, most of which entered a handful of races and disappeared. Which entities exist here was decided by a person; the spelling, the countries and the dates came from the sources. Indianapolis chassis makers are deliberately not among them, though Indianapolis drivers are — a refusal on the record rather than a silent omission."
+      lede="A hundred and fifty constructors, from the ones that defined an era to the ones that entered a handful of races and disappeared. Filter by country, or narrow to race winners and champions; each page carries the team’s record, the cars it built, and the names it raced under before and after."
     >
       <Section>
         <Result state={state} skeleton>
           {(data) => <Register rows={data.rows} />}
         </Result>
       </Section>
+
+      <Onward
+        items={[
+          { to: '/cars', label: 'Cars', hint: 'The chassis these teams built, with specifications.' },
+          { to: '/records', label: 'Records', hint: 'Most wins by constructor, and every title.' },
+          { to: '/drivers', label: 'Drivers', hint: 'Who drove for them.' },
+        ]}
+      />
     </Page>
   )
 }

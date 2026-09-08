@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Confidence, Fields, Note, Page, Section, Stats } from '../components/Page.jsx'
+import { Confidence, Fields, Note, Onward, Page, Section, Stats, Stepper } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import Figure from '../charts/Figure.jsx'
@@ -49,6 +49,11 @@ const STANDINGS = `
    ORDER BY after_round, table_type, position
 `
 
+const NEIGHBOURS = `
+  SELECT (SELECT MAX(year) FROM seasons WHERE year < ?1) AS previous,
+         (SELECT MIN(year) FROM seasons WHERE year > ?1) AS next
+`
+
 const ENTRANTS = `
   SELECT se.id, se.entrant_id, se.constructor_id, k.name AS constructor,
          se.chassis_ids, se.chassis_count, se.engine_ids, se.tyre_ids
@@ -78,6 +83,7 @@ export default function Season() {
     calendar: [CALENDAR, [Number(year)]],
     standings: [STANDINGS, [Number(year)]],
     entrants: [ENTRANTS, [Number(year)]],
+    neighbours: [NEIGHBOURS, [Number(year)]],
   })
 
   return (
@@ -101,6 +107,7 @@ function SeasonBody({ year, season, data }) {
   const calendar = rows(data, 'calendar')
   const standings = rows(data, 'standings')
   const entrants = rows(data, 'entrants')
+  const neighbours = data.neighbours.rows[0] ?? {}
 
   const driversFinal = useMemo(() => finalTable(standings, 'drivers'), [standings])
   const constructorsFinal = useMemo(() => finalTable(standings, 'constructors'), [standings])
@@ -138,6 +145,20 @@ function SeasonBody({ year, season, data }) {
       title={`${year}`}
       back={{ to: '/seasons', label: 'All seasons' }}
       lede={season.notes}
+      aside={
+        <Stepper
+          previous={
+            neighbours.previous
+              ? { to: `/seasons/${neighbours.previous}`, label: `${neighbours.previous} season` }
+              : null
+          }
+          next={
+            neighbours.next
+              ? { to: `/seasons/${neighbours.next}`, label: `${neighbours.next} season` }
+              : null
+          }
+        />
+      }
     >
       <Section>
         <Stats
@@ -179,7 +200,7 @@ function SeasonBody({ year, season, data }) {
         <Section title="How the title was decided">
           <Figure
             title={`Championship points after each round, ${year}`}
-            note="The three drivers who finished highest, tracked from the opening round. Before 1991 a season's total is what counted after the dropped-scores rule, so a line can rise by less than the points scored that weekend."
+            note="The three drivers who finished highest, tracked from the opening round. Before 1991 only a driver's best few results counted, so a line can rise by less than they scored that weekend."
             legend={progression.map((s) => s.name)}
             table={{
               rows: progression.flatMap((s) => s.points.map((p) => ({ driver: s.name, round: p.x, points: p.y }))),
@@ -242,7 +263,7 @@ function SeasonBody({ year, season, data }) {
             { key: 'pole', label: 'Pole' },
             { key: 'fastest', label: 'Fastest lap' },
           ]}
-          footer="Two names in one cell is a shared drive: both drivers are classified in that position, and both are winners."
+          footer="Two names in one cell is a shared drive: both drivers are classified in that position, and both are winners. Open any round for its full classification."
         />
       </Section>
 
@@ -263,7 +284,7 @@ function SeasonBody({ year, season, data }) {
               },
               { key: 'points', label: 'Points', align: 'num', render: (v) => (missing(v) ? cell(v) : fmtPoints(v)) },
             ]}
-            footer="A driver with points and no position was excluded from the classification — the points stand, the position does not."
+            footer="A driver with points and no position was excluded from the classification: the points stand, the position does not."
           />
         </Section>
 
@@ -294,7 +315,7 @@ function SeasonBody({ year, season, data }) {
               ]}
               footer={
                 ambiguous
-                  ? 'The championship is contested by a chassis–engine pair, not by a constructor: one name can appear more than once with different engines.'
+                  ? 'The championship is contested by a chassis–engine pair, so one name can appear more than once with different engines.'
                   : undefined
               }
             />
@@ -325,7 +346,7 @@ function SeasonBody({ year, season, data }) {
             { key: 'engine_ids', label: 'Engines' },
             { key: 'tyre_ids', label: 'Tyres' },
           ]}
-          footer="An entrant that ran more than one design is why some race results carry no chassis: which car raced which round is not recorded by any source in use here."
+          footer="Where an entrant ran more than one design, no source records which car raced which round — so those race results carry no chassis."
         />
       </Section>
 
@@ -349,6 +370,32 @@ function SeasonBody({ year, season, data }) {
           ]}
         />
       </Section>
+
+      <Onward
+        items={[
+          season.drivers_champion
+            ? {
+                to: `/drivers/${season.drivers_champion}`,
+                label: season.champion,
+                hint: `The champion's full career, ${year} and everything either side of it.`,
+              }
+            : null,
+          season.constructors_champion
+            ? {
+                to: `/constructors/${season.constructors_champion}`,
+                label: season.constructors_champion_name,
+                hint: 'The winning constructor, its cars and its record.',
+              }
+            : null,
+          neighbours.next
+            ? { to: `/seasons/${neighbours.next}`, label: `The ${neighbours.next} season`, hint: 'What happened next.' }
+            : null,
+          season.drivers_champion
+            ? null
+            : { to: '/races', label: 'Every race', hint: 'The rounds of this season beside all the others.' },
+          { to: '/seasons', label: 'All seasons', hint: 'Seventy-seven championships, compared in one table.' },
+        ]}
+      />
     </Page>
   )
 }

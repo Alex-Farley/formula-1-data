@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Page, Section } from '../components/Page.jsx'
+import { Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { useQuery } from '../data/useQuery.js'
@@ -34,7 +34,7 @@ export default function Seasons() {
   return (
     <Page
       title="Seasons"
-      lede="Seventy-seven championships. The margin is the gap in points between the champion and the runner-up as the season finished — a 1950s figure is net of the dropped scores that formula used, which is why some of them look smaller than the wins suggest."
+      lede="Seventy-seven championships, newest first. Pick a year for its calendar, the title race round by round, and the final tables — or sort this list by any column to find the closest finishes and the biggest walkovers."
     >
       <Section>
         <Result state={state} skeleton>
@@ -88,11 +88,19 @@ export default function Seasons() {
                     ),
                 },
               ]}
-              footer="A blank constructors' champion before 1958 is not a gap — the championship did not exist yet."
+              footer="Margin is the points gap between champion and runner-up at the end of the season; before 1991 that is net of dropped scores, so it can look small beside the wins. A blank constructors' champion before 1958 is not a gap — the championship did not exist yet."
             />
           )}
         </Result>
       </Section>
+
+      <Onward
+        items={[
+          { to: '/races', label: 'Every race', hint: 'All 1,000-plus rounds in one filterable list.' },
+          { to: '/records', label: 'Records', hint: 'Champions, most wins, most poles, grand slams.' },
+          { to: '/reference/eras', label: 'Eras and rules', hint: 'Why a 1955 points total cannot be compared with a 2025 one.' },
+        ]}
+      />
     </Page>
   )
 }
