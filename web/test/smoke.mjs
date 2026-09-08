@@ -28,7 +28,7 @@
 import { spawn } from 'node:child_process'
 import { DatabaseSync } from 'node:sqlite'
 import { dirname, join } from 'node:path'
-import { existsSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -96,6 +96,60 @@ async function serve() {
     }
   }
   throw new Error('the preview server never came up')
+}
+
+// --------------------------------------------------- attribution, structurally
+
+/**
+ * Nothing may render a Commons photograph except CommonsImage.
+ *
+ * Every one of the 602 files carries its own licence, and almost all of those
+ * licences make attribution a condition rather than a courtesy. The component
+ * puts the credit in the caption so no caller has to remember to — but that
+ * only holds while the component is the ONLY way an image reaches the page.
+ * One `<img src={thumbUrl(...)}>` somewhere else and the obligation is
+ * silently gone, on a page that looks fine.
+ *
+ * So this is checked in the source rather than in the browser: a rendered-page
+ * assertion can only see the pages it visits, and the bypass would be on the
+ * one it does not. It reads the files instead, and fails on a second <img> tag
+ * or a second thumbUrl() call anywhere in src/.
+ */
+function sourceFiles(dir) {
+  return readdirSync(dir).flatMap((entry) => {
+    const full = join(dir, entry)
+    if (statSync(full).isDirectory()) return sourceFiles(full)
+    return /\.jsx?$/.test(entry) ? [full] : []
+  })
+}
+
+console.log('\nAttribution')
+{
+  const RENDERER = join(web, 'src', 'components', 'CommonsImage.jsx')
+  const HELPER = join(web, 'src', 'lib', 'commons.js')
+  const offenders = []
+  for (const file of sourceFiles(join(web, 'src'))) {
+    if (file === RENDERER || file === HELPER) continue
+    const text = readFileSync(file, 'utf8')
+    const rel = file.slice(web.length + 1)
+    if (/<img[\s>]/.test(text)) offenders.push(`${rel} renders its own <img>`)
+    if (/\bthumbUrl\s*\(/.test(text)) offenders.push(`${rel} calls thumbUrl() directly`)
+  }
+  if (offenders.length === 0) {
+    pass('CommonsImage is the only thing that renders a Commons photograph')
+  } else {
+    offenders.forEach((what) => fail(`attribution can be bypassed: ${what}`))
+  }
+
+  // The renderer and the build must agree on what counts as attribution.
+  // verify.py accepts `artist` OR `credit`; if this component read only
+  // `artist` it would caption an admitted row as anonymous, which is exactly
+  // what it did for the 1958 Hawthorn photograph on Ferrari 246 F1.
+  const renderer = readFileSync(RENDERER, 'utf8')
+  truthy(
+    /image\.artist/.test(renderer) && /image\.credit/.test(renderer),
+    'the renderer falls back to `credit` where a file names no artist, as the build does',
+  )
 }
 
 // -------------------------------------------------------------- the browser
@@ -329,23 +383,36 @@ try {
   )
 
   // A licence violation is the failure mode here, so this is asserted rather
-  // than eyeballed: a Commons photograph must carry its licence and the person
-  // who took it.
-  const credits = await page.$$eval('figure.photo figcaption', (nodes) =>
-    nodes.map((node) => node.textContent),
+  // than eyeballed. EVERY photograph on the page has to carry its credit, not
+  // just one of them: an earlier version of this checked that SOME caption
+  // mentioned the licence, which a page showing six images and crediting one
+  // would have passed.
+  const shown = await page.$$eval('figure.photo', (figures) =>
+    figures.map((figure) => ({
+      file: figure.querySelector('figcaption a')?.textContent?.trim() ?? '',
+      caption: figure.querySelector('figcaption')?.textContent ?? '',
+    })),
   )
-  const image = db
-    .prepare("SELECT artist, licence FROM article_images WHERE article = 'McLaren MP4/4' LIMIT 1")
-    .get()
-  if (image) {
-    truthy(
-      credits.some((caption) => caption.includes(image.licence)),
-      `the photograph carries its licence (${image.licence})`,
-    )
-    truthy(
-      credits.some((caption) => caption.includes(image.artist)),
-      `the photograph carries its photographer (${image.artist})`,
-    )
+  atLeast(shown.length, 1, 'the car page shows at least one photograph')
+
+  const credited = db.prepare(
+    `SELECT file_name, licence,
+            COALESCE(NULLIF(TRIM(COALESCE(artist, '')), ''),
+                     NULLIF(TRIM(COALESCE(credit, '')), '')) AS credit
+       FROM article_images WHERE article = 'McLaren MP4/4'`,
+  ).all()
+  const byTitle = new Map(
+    credited.map((row) => [row.file_name.replace(/^File:/, '').replace(/_/g, ' '), row]),
+  )
+  const uncredited = shown.filter((figure) => {
+    const row = byTitle.get(figure.file)
+    if (!row) return false          // a photograph from elsewhere on the page
+    return !figure.caption.includes(row.licence) || !figure.caption.includes(row.credit)
+  })
+  if (uncredited.length === 0) {
+    pass(`all ${shown.length} photograph(s) carry their licence and their credit`)
+  } else {
+    uncredited.forEach((figure) => fail(`photograph shown without full credit: ${figure.file}`))
   }
 
   // ------------------------------------------------------------- reference
