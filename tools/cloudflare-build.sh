@@ -23,20 +23,42 @@
 # the repository root (which is also where wrangler.jsonc has to be found).
 set -e
 
-if ! command -v python3 >/dev/null 2>&1; then
-  echo "python3 not found on the build image." >&2
-  echo "Set PYTHON_VERSION in the Cloudflare build environment, or drop the" >&2
-  echo "two python3 lines below to build without verifying the database." >&2
+# ---------------------------------------------------------------- python
+#
+# Not just "python3". Cloudflare's build image puts an asdf-managed Python
+# first on PATH, and that one is compiled WITHOUT the sqlite3 extension:
+#
+#     File ".../python3.13/sqlite3/dbapi2.py", line 27, in <module>
+#         from _sqlite3 import *
+#     ModuleNotFoundError: No module named '_sqlite3'
+#
+# which is fatal here, because the database is a SQLite file. The system
+# Python beside it is a distribution build and has the module. So the test is
+# not "is there a python3" but "is there a python3 that can open a database" —
+# ask each candidate directly rather than inferring it from a version number.
+for candidate in python3 /usr/bin/python3 python3.13 python3.12 python3.11 python; do
+  if command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c 'import sqlite3' >/dev/null 2>&1; then
+    PYTHON=$(command -v "$candidate")
+    break
+  fi
+done
+
+if [ -z "$PYTHON" ]; then
+  echo "No python3 with the sqlite3 module on this build image." >&2
+  echo "Every candidate either was missing or could not 'import sqlite3'," >&2
+  echo "which a database build cannot do without. Either install one, or" >&2
+  echo "drop the two build/verify lines below to deploy the committed f1.db" >&2
+  echo "unverified." >&2
   exit 1
 fi
 
-echo "--- python $(python3 -c 'import sys; print(".".join(map(str, sys.version_info[:3])))')"
+echo "--- python $("$PYTHON" -c 'import sys; print(".".join(map(str, sys.version_info[:3])))') at $PYTHON"
 
 echo "--- rebuilding the database from data/*.py"
-python3 build.py
+"$PYTHON" build.py
 
 echo "--- verifying it"
-python3 verify.py
+"$PYTHON" verify.py
 
 echo "--- building the front end"
 cd web

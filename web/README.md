@@ -352,10 +352,22 @@ front end and its install script downloads about 150 MB of browsers that only
 the test suite uses. Without it the build still succeeds, but every deploy
 pays for a download nothing uses.
 
-The build image needs a `python3` for the verification step. If it has not got
-one, the script says so and names the fix — `PYTHON_VERSION` in the build
-environment — rather than failing obscurely. Everything at the repository root
-is standard library only, so there is nothing to install.
+The build script does not simply run `python3`. Cloudflare's image puts an
+asdf-managed Python first on PATH which is **compiled without the sqlite3
+extension** — `import sqlite3` raises `ModuleNotFoundError: No module named
+'_sqlite3'`, which a database build cannot survive. The system Python beside
+it is a distribution build and has the module, so the script asks each
+candidate whether it can import sqlite3 and takes the first that can. If none
+can, it says so rather than failing on a traceback thirty lines into a build
+log.
+
+Cloudflare also runs `pip install -r requirements.txt` before the build
+command, because a requirements.txt at the repository root looks like a
+Python project to it. Nothing in that file is needed to build the database or
+the site — it is there for `tools/fastf1_load.py` alone — so it costs about
+ninety seconds of fastf1, numpy, scipy and matplotlib per deploy. Setting
+`SKIP_DEPENDENCY_INSTALL` = `1` in the build environment skips it; the script
+installs what it actually needs itself.
 
 Two things resolve because Cloudflare clones the whole repository regardless:
 `prepare-assets.js` reads `../f1.db`, and `.node-version` pins Node 22. That
