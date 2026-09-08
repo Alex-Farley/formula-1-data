@@ -4,7 +4,7 @@ import { Confidence, Fields, Note, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import { useQuery } from '../data/useQuery.js'
 import { number } from '../lib/format.js'
-import { pathOf, pointAt, project, stitch, turnRate } from '../lib/lap.js'
+import { cornerRadius, pathOf, pointAt, project, stitch } from '../lib/lap.js'
 
 const SQL = `
   SELECT g.circuit_id, g.centreline, g.measured_km, g.published_km, g.delta_pct,
@@ -19,16 +19,32 @@ const SQL = `
 `
 
 /**
- * Where each band of turn rate begins, in degrees per metre.
+ * Where each band of corner radius ends, in metres.
  *
- * These are the quintiles of the actual distribution — measured over all 6,272
- * points of the 22 laps that close — so each band is a fifth of the traced
- * distance in the database rather than a round number chosen by eye. Picked by
- * hand, the bands put 65% of every circuit in the bottom two and the picture
- * washed out.
+ * These are the categories a corner falls into rather than quantiles of a
+ * distribution, because a radius means something on its own: 30 m is a
+ * hairpin whatever the rest of the lap looks like. They were checked against
+ * the geometry before being fixed here — measured over all 7,224 sample
+ * points of the 25 traced laps, the five bands take 14%, 17%, 25%, 20% and
+ * 24% of the traced distance, so naming them costs nothing in how well the
+ * picture reads.
+ *
+ *     < 50 m   hairpin
+ *   50-100 m   slow corner
+ *  100-200 m   medium
+ *  200-400 m   fast
+ *    > 400 m   straight or kink
+ *
+ * The ramp runs the other way from the bands: tightest gets the strongest
+ * colour, because the corners are the subject and the straights are the rest.
  */
-const BANDS = [0.08, 0.22, 0.39, 0.71]
-const band = (k) => `var(--seq-${BANDS.findIndex((edge) => k < edge) + 1 || 5})`
+const BANDS = [50, 100, 200, 400]
+const BAND_NAMES = ['hairpin', 'slow', 'medium', 'fast', 'straight']
+const bandIndex = (r) => {
+  const i = BANDS.findIndex((edge) => r < edge)
+  return i === -1 ? 4 : i
+}
+const band = (r) => `var(--seq-${5 - bandIndex(r)})`
 
 /** A square viewBox around a circuit's own extent. */
 function fitted(shape, pad = 40) {
@@ -84,7 +100,7 @@ function AtlasBody({ rows }) {
         path: pathOf(shape.x, shape.y),
         // Colouring is only meaningful along an ordered lap; on a trace that
         // does not close, the walk stops early and the rest is unvisited.
-        turn: walk.complete ? turnRate(walk.ring, shape.cum) : null,
+        radius: walk.complete ? cornerRadius(walk.ring, shape.cum) : null,
       })
     }
     return out
@@ -104,17 +120,17 @@ function AtlasBody({ rows }) {
   /**
    * One path per run of same-band points, so a 330-point lap draws as about
    * eighty paths rather than 330 — and the colour still changes exactly where
-   * the turn rate does.
+   * the radius crosses a band edge.
    */
   const runs = useMemo(() => {
     if (!lap) return []
-    if (!colour || !lap.turn) return [{ d: lap.path, stroke: 'var(--ink)' }]
+    if (!colour || !lap.radius) return [{ d: lap.path, stroke: 'var(--ink)' }]
     const { x, y } = lap.shape
     const out = []
     let start = 0
-    let current = band(lap.turn[0])
+    let current = band(lap.radius[0])
     for (let i = 1; i <= x.length; i += 1) {
-      const next = i < x.length ? band(lap.turn[i]) : null
+      const next = i < x.length ? band(lap.radius[i]) : null
       if (next !== current) {
         out.push({ d: pathOf(x, y, start, Math.min(i + 1, x.length)), stroke: current })
         start = i
@@ -205,9 +221,9 @@ function AtlasBody({ rows }) {
                 className="chip"
                 aria-pressed={colour}
                 onClick={() => setColour(!colour)}
-                disabled={!lap.turn}
+                disabled={!lap.radius}
               >
-                Colour by turn rate
+                Colour by corner radius
               </button>
               <button
                 type="button"
@@ -219,20 +235,29 @@ function AtlasBody({ rows }) {
               </button>
             </div>
 
-            {colour && lap.turn && (
+            {colour && lap.radius && (
               <div className="panel" style={{ marginBottom: 12 }}>
-                <div className="small muted">Turn rate</div>
-                <div className="ramp">
-                  <i style={{ background: 'var(--seq-1)' }} />
-                  <i style={{ background: 'var(--seq-2)' }} />
-                  <i style={{ background: 'var(--seq-3)' }} />
-                  <i style={{ background: 'var(--seq-4)' }} />
-                  <i style={{ background: 'var(--seq-5)' }} />
-                </div>
-                <div className="ramp-ends">
-                  <span>straight</span>
-                  <span>hairpin</span>
-                </div>
+                <div className="small muted">Corner radius</div>
+                <dl className="radius-key">
+                  {BAND_NAMES.map((name, i) => (
+                    <div key={name}>
+                      <dt>
+                        <i style={{ background: `var(--seq-${5 - i})` }} />
+                        {name}
+                      </dt>
+                      <dd className="num">
+                        {i === 0 && `under ${BANDS[0]} m`}
+                        {i > 0 && i < BANDS.length && `${BANDS[i - 1]}\u2013${BANDS[i]} m`}
+                        {i === BANDS.length && `over ${BANDS[BANDS.length - 1]} m`}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+                <p className="small muted" style={{ margin: '10px 0 0' }}>
+                  Radius, not g-force: lateral acceleration is v²/r and this database holds no
+                  speeds. A wing car&rsquo;s grip also rises with speed, so one g figure across a lap
+                  would flatter the hairpins and libel the fast curves.
+                </p>
               </div>
             )}
 

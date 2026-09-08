@@ -114,20 +114,35 @@ export function project(ring) {
 }
 
 /**
- * How fast the track is turning, in degrees per metre.
+ * The radius of the arc the track is following, in metres, at every point.
  *
- * DERIVED FROM THE SHAPE, and the only reason it exists: the database holds no
- * corner data at all — no numbers, no names, no apex positions, no sector
- * boundaries. This measures the change in bearing across a window either side
- * of each point, which is a property of the traced line and nothing more. It
- * is a reading of the geometry, not a fact about the circuit.
+ * WHY RADIUS AND NOT G-FORCE
+ *     Lateral acceleration is v² / r, and this database holds no v. The lap
+ *     tables are declared and empty: no telemetry, no speed trace, not even a
+ *     speed-trap figure. So a g figure here would be a number invented from a
+ *     speed nobody recorded, which is the one thing this project will not do.
  *
- * The window matters. OSM node spacing is irregular — dense through corners,
- * sparse down a straight — so a per-node angle is mostly a measure of how
- * finely that stretch happened to be traced. Fifty metres is wide enough to
- * average that out and short enough that a chicane still reads as a chicane.
+ *     Assuming a constant lateral limit would not rescue it either, and would
+ *     be wrong in an interesting way: a wing car makes downforce in proportion
+ *     to v², so its grip rises with speed and its sustainable g is not a
+ *     constant of the car at all. A single figure applied across a lap would
+ *     overstate the hairpins and understate the fast curves.
+ *
+ *     Radius is the honest half of that equation — the half the geometry
+ *     actually contains. It is what a corner IS, independent of who drives it
+ *     and what they drive, and it reads directly: 30 m is a hairpin, 500 m is
+ *     a bend you would not lift for.
+ *
+ * The turn is measured across a window either side of each point rather than
+ * between neighbouring nodes, because OSM node spacing is irregular and a
+ * two-node angle is mostly a measure of how finely somebody traced that
+ * stretch. `windowM` is the half-width in metres.
+ *
+ * A perfectly straight stretch has infinite radius; it is returned as
+ * Infinity rather than clamped, so a caller bands it rather than being handed
+ * a large number that looks measured.
  */
-export function turnRate(ring, cum, windowM = 25) {
+export function cornerRadius(ring, cum, windowM = 25) {
   const bearing = (a, b) => {
     const p1 = a[1] * RAD
     const p2 = b[1] * RAD
@@ -137,7 +152,7 @@ export function turnRate(ring, cum, windowM = 25) {
     return Math.atan2(y, x) / RAD
   }
 
-  const out = new Array(ring.length).fill(0)
+  const out = new Array(ring.length).fill(Infinity)
   let lo = 0
   let hi = 0
   for (let i = 0; i < ring.length; i += 1) {
@@ -146,7 +161,10 @@ export function turnRate(ring, cum, windowM = 25) {
     if (hi - lo < 2) continue
     const turn = (((bearing(ring[i], ring[hi]) - bearing(ring[lo], ring[i])) % 360) + 540) % 360 - 180
     const span = cum[hi] - cum[lo]
-    out[i] = span > 0 ? Math.abs(turn) / span : 0
+    // Degrees swept over the window, converted to the radius of the arc that
+    // would sweep them: r = s / θ, with θ in radians.
+    const radians = Math.abs(turn) * RAD
+    out[i] = span > 0 && radians > 1e-9 ? span / radians : Infinity
   }
   return out
 }
