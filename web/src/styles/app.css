@@ -1966,3 +1966,109 @@ input[type='range']:disabled::-webkit-slider-thumb {
   color: var(--ink-faint);
   margin-top: 3px;
 }
+
+/* --------------------------------------------------- onward routes and CTAs */
+
+/* The band at the foot of a page naming where to go next. Set apart from the
+   content above by a rule rather than a panel: it is signposting, and it
+   should not read as another block of data. */
+.onward {
+  margin: 40px 0 0;
+  border-top: 1px solid var(--rule);
+  padding-top: 18px;
+}
+
+.onward h3 {
+  margin: 0 0 12px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.onward > div {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+
+.onward a {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  background: var(--panel);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+}
+
+.onward a:hover {
+  border-color: var(--rule-strong);
+  box-shadow: var(--shadow-sm);
+}
+
+.onward a b {
+  display: block;
+  font-size: 14px;
+  font-weight: 640;
+  color: var(--accent);
+}
+
+/* The arrow belongs to the link, not to the label, so it never wraps onto a
+   line of its own. */
+.onward a b::after {
+  content: ' →';
+  color: var(--ink-faint);
+}
+
+.onward a span {
+  display: block;
+  margin-top: 3px;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin: 16px 0 0;
+}
+
+/* A Link is an anchor: it needs the box the button rule assumes and the
+   underline links otherwise carry. */
+a.button {
+  display: inline-block;
+  text-decoration: none;
+  line-height: 1.5;
+}
+
+a.button:hover {
+  color: #fff;
+}
+
+a.button.secondary:hover {
+  color: var(--ink);
+}
+
+/* Sits under a page heading, where a reader who wants the race before this
+   one is already looking. Both ends are always rendered, so the "next" link
+   does not slide across when the first item in a series is open. */
+.stepper {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 12px 0 0;
+  font-size: 13.5px;
+}
+
+.stepper a {
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.stepper a:hover {
+  text-decoration: underline;
+}

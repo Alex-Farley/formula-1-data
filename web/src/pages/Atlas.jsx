@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Confidence, Fields, Note, Page, Section } from '../components/Page.jsx'
+import { Confidence, Fields, Note, Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import { useQuery } from '../data/useQuery.js'
 import { number } from '../lib/format.js'
@@ -69,7 +69,7 @@ export default function Atlas() {
       eyebrow="Circuits"
       title="Track atlas"
       back={{ to: '/circuits', label: 'The register' }}
-      lede="Twenty-five circuits traced from OpenStreetMap. The ways of each relation stitch end to end into an ordered lap, so a line here can be measured and walked — the length shown is the sum of that walk, not a figure copied from anywhere."
+      lede="Twenty-five circuits traced from OpenStreetMap, every one an ordered lap you can walk. Drag the slider to travel round it, colour the line by how hard it turns, or switch to true scale to see how these places really compare."
     >
       <Result state={state}>{(data) => <AtlasBody rows={data.rows} />}</Result>
     </Page>
@@ -306,7 +306,7 @@ function AtlasBody({ rows }) {
         note={
           trueScale
             ? 'Every frame now covers the same ground, so these are comparable: Monaco really is half of Spa.'
-            : 'Each frame is fitted to its own circuit. Switch on true scale to compare their sizes.'
+            : 'Each frame is fitted to its own circuit. Switch on true scale to compare their sizes. Pick any one to open it above.'
         }
       >
         <div className="atlas-wall">
@@ -341,27 +341,30 @@ function AtlasBody({ rows }) {
 
       <Section title="What this is, and is not">
         <Note>
-          <strong>The turn-rate colouring is derived from the shape.</strong> It measures how fast
-          the bearing changes over fifty metres of traced line. The database holds no corner data at
-          all — no numbers, no names, no apex positions, no sector boundaries — so this is a reading
-          of the geometry, not a fact about the circuit. Node spacing is irregular, which is why it
-          is averaged over a window rather than taken per point.
+          <strong>The colour is read off the shape, not off a corner table.</strong> It measures how
+          fast the line changes direction over fifty metres. There is no corner data behind it — no
+          names, no apexes, no sector boundaries — so treat it as a description of the drawing
+          rather than a fact about the circuit.
         </Note>
         <p className="measure muted">
-          Three traces do not close: Las Vegas is missing a way, and Monaco and Montjuïc each have
-          holes of a few metres. They are still the best shape anyone has for those circuits, so
-          they are drawn — in amber above — but they cannot be walked, and the scrubber is disabled
-          for them. <code>build.py</code> decides this when the row is admitted and{' '}
-          <code>verify.py</code> re-derives it from the geometry on every build; this page only
-          reproduces a result the database already guarantees.
+          Three traces do not close: Las Vegas is missing a section, and Monaco and Montjuïc each
+          have holes a few metres wide. They are still the best shape anyone has, so they are drawn
+          in amber — but they cannot be walked, and the slider is switched off for them.
         </p>
         <p className="source-note">
           Geometry © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>,{' '}
-          {rows[0]?.licence ?? 'ODbL 1.0'}. This is the only ODbL table in the database: nothing else
-          derives from it and it is excluded from the JSON export, so dropping the table drops the
-          obligation. Only 25 of the 80 circuits have been traced.
+          {rows[0]?.licence ?? 'ODbL 1.0'} — the obligation travels with the shape if you take one.
+          Twenty-five of the eighty circuits have been traced so far.
         </p>
       </Section>
+
+      <Onward
+        items={[
+          { to: `/circuits/${row.circuit_id}`, label: row.name, hint: 'Its layouts, its winners and every race held there.' },
+          { to: '/circuits', label: 'All circuits', hint: 'The other fifty-five venues, traced or not.' },
+          { to: '/reference/quality', label: 'What is missing', hint: 'Why historic layouts have no shape at all.' },
+        ]}
+      />
     </>
   )
 }

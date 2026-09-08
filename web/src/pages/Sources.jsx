@@ -1,4 +1,4 @@
-import { Note, Page, Section } from '../components/Page.jsx'
+import { Note, Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable from '../components/DataTable.jsx'
 import SubNav from '../components/SubNav.jsx'
@@ -64,7 +64,7 @@ export default function Sources() {
   return (
     <Page
       title="Sources and licences"
-      lede="Every source here is assessed on three things: what its licence permits, how often it is updated, and whether anything independent can check it. The third is the one that matters, and it is the reason a source with a great deal of data can still rank below one with less."
+      lede="Where every figure on this site comes from, and what you may do with it if you take it. Sources are ranked on whether anything independent can check them, not on how much data they hold."
     >
       <SubNav />
       <Result state={state}>
@@ -77,7 +77,7 @@ export default function Sources() {
             <>
               <Section
                 title="What a licence cost, or bought"
-                note="Licences are not a footnote in this project. They decided what is in the database and what is not."
+                note="Licences decided what is in this database and what is not. If you reuse anything from here, this is the column that applies to you."
               >
                 <DataTable
                   rows={CONSEQUENCES.map(([source, licence, consequence]) => ({
@@ -138,7 +138,7 @@ export default function Sources() {
               <Section
                 title="Photograph licences"
                 count={`${licences.length} distinct`}
-                note="Each row of article_images carries its own licence string, because Commons files do not share one. Displaying a picture without the credit next to it would breach every one of these."
+                note="Commons files do not share one licence, so each photograph carries its own — which is why the credit always travels with the picture."
               >
                 <DataTable
                   rows={licences}
@@ -171,11 +171,10 @@ export default function Sources() {
 
               <Section title="Using this data">
                 <p className="measure">
-                  The database is a function of the sources listed above: a row no fresh build could
-                  reproduce does not belong in it. If you take data from here, carry the licence
-                  with it — attribute F1DB for the race records, keep share-alike on anything
-                  derived from Wikipedia prose, and if you take a traced centreline, that is
-                  OpenStreetMap under ODbL and the obligation travels with it.
+                  You are welcome to. Carry the licence with whatever you take: attribute F1DB for
+                  the race records, keep share-alike on anything derived from Wikipedia prose, and
+                  treat a traced centreline as OpenStreetMap under ODbL — that obligation travels
+                  with it.
                 </p>
                 <p className="measure faint">
                   This site is unaffiliated with Formula One, the FIA, or any team. Formula One,
@@ -183,6 +182,14 @@ export default function Sources() {
                   descriptively.
                 </p>
               </Section>
+
+              <Onward
+                items={[
+                  { to: '/reference/quality', label: 'Data quality', hint: 'How far to trust each figure, and what is missing.' },
+                  { to: '/reference/sql', label: 'SQL console', hint: 'Pull the rows you need straight out of the database.' },
+                  { to: '/reference', label: 'Reference', hint: 'Eras, glossary and everything else behind the results.' },
+                ]}
+              />
             </>
           )
         }}
