@@ -1,12 +1,13 @@
 import { useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Confidence, Fields, Note, Page, Section, Stats } from '../components/Page.jsx'
+import { Confidence, Fields, Note, Onward, Page, Section, Stats } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import Figure from '../charts/Figure.jsx'
 import DotPlot from '../charts/DotPlot.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { missing, number, points as fmtPoints, result, span } from '../lib/format.js'
+import { finalStandings } from '../lib/standings.js'
 
 const DRIVER = `SELECT * FROM drivers WHERE id = ?`
 
@@ -53,14 +54,15 @@ const BY_SEASON = `
 `
 
 /**
- * One row per season, from the table as the season finished.
+ * The table as each season finished.
  *
  * after_round IS NULL is the final classification — `as_of` reads "final" —
- * rather than a missing round. Taking the highest after_round instead is right
- * in almost every season and wrong in the ones where it matters.
+ * rather than a missing round. It can hold more than one row per driver per
+ * season, so the rows go through finalStandings before they are used; 2026
+ * otherwise lists every driver twice.
  */
 const STANDINGS = `
-  SELECT s.year, s.position, s.position_text, s.points
+  SELECT s.id, s.year, s.entity_id, s.engine_id, s.position, s.position_text, s.points, s.team
     FROM standings s
    WHERE s.table_type = 'drivers' AND s.entity_id = ? AND s.after_round IS NULL
    ORDER BY s.year
@@ -99,6 +101,10 @@ export default function Driver() {
           return (
             <Page title="No such driver" back={{ to: '/drivers', label: 'The register' }}>
               <p className="muted">Nothing in the register has the id “{id}”.</p>
+              <p>
+                Press <kbd>/</kbd> to search every driver by name, or{' '}
+                <Link to="/drivers">browse the register</Link>.
+              </p>
             </Page>
           )
         }
@@ -111,8 +117,23 @@ export default function Driver() {
 function DriverBody({ driver, data }) {
   const derived = data.derived.rows[0] ?? {}
   const bySeason = rows(data, 'bySeason')
-  const standings = rows(data, 'standings')
+  // One row per season: see lib/standings.js for the two reasons there can be more.
+  const standings = useMemo(
+    () => finalStandings(rows(data, 'standings')).sort((a, b) => a.year - b.year),
+    [data],
+  )
   const results = rows(data, 'results')
+
+  // The team a reader is most likely to want next is the one they drove for
+  // last, and the season worth offering is the one they won most in.
+  const lastTeam = results.find((row) => row.constructor_id)
+  const bestSeason = useMemo(
+    () =>
+      [...bySeason].sort(
+        (a, b) => (b.wins ?? 0) - (a.wins ?? 0) || (b.podiums ?? 0) - (a.podiums ?? 0) || b.year - a.year,
+      )[0] ?? null,
+    [bySeason],
+  )
 
   const standingByYear = useMemo(
     () => new Map(standings.map((s) => [s.year, s])),
@@ -166,7 +187,7 @@ function DriverBody({ driver, data }) {
         <Section title="Where each championship finished">
           <Figure
             title={`${driver.full_name} in the drivers' championship`}
-            note="Final classified position at the end of each season. A season with points and no position is a season the driver was excluded from the classification, and it is not plotted — there is no position to plot."
+            note="Final classified position at the end of each season. A season with points but no position is one the driver was excluded from, so there is nothing to plot."
             table={{
               rows: standings,
               columns: [
@@ -232,7 +253,7 @@ function DriverBody({ driver, data }) {
               render: (value) => fmtPoints(value),
             },
           ]}
-          footer="“Points scored” adds up every point in the race records. The championship column is the standing the season actually finished on, which before 1991 could be lower after the dropped-scores rule."
+          footer="“Points scored” adds up every point from the races. The championship column is where the season actually finished, which before 1991 could be lower once dropped scores were applied. Open a season for its full table."
         />
       </Section>
 
@@ -295,17 +316,15 @@ function DriverBody({ driver, data }) {
         />
       </Section>
 
-      <Section title="The register's own figures">
+      <Section title="On the record">
         {pointsDiffer && (
           <Note>
             <strong>
-              The register has {fmtPoints(driver.career_points)} career points; the race records add
-              up to {fmtPoints(derived.points)}.
+              Two career points totals: {fmtPoints(driver.career_points)} published,{' '}
+              {fmtPoints(derived.points)} scored.
             </strong>{' '}
-            Both are right. Every season up to 1990 counted only a driver's best few results, so a
-            career total published at the time is net of the points that were dropped. Deriving the
-            net figure means applying each season's scoring rules in turn, which this database does
-            not yet do — it is listed as open work rather than papered over.
+            Both are right. Up to 1990 only a driver's best few results counted towards the
+            championship, so the published total is net of the points that were dropped.
           </Note>
         )}
         <Fields
@@ -349,12 +368,35 @@ function DriverBody({ driver, data }) {
           ]}
         />
         <p className="source-note">
-          Entries and starts are stored figures, not derived ones: a start is not the same as an
-          entry, and telling them apart needs the reason each driver failed to start. Wins, poles
-          and fastest laps <em>are</em> derived, and are reconciled against the published totals on
-          every build — that reconciliation is what caught a wrong pole count in a published source.
+          Wins, poles and fastest laps are counted from the races above and checked against the
+          published totals on every build; where the two disagree, both are shown. Entries and
+          starts are the published figures — an entry is not a start, and telling them apart needs
+          a reason for each non-start that no source here supplies.
         </p>
       </Section>
+
+      <Onward
+        items={[
+          lastTeam
+            ? {
+                to: `/constructors/${lastTeam.constructor_id}`,
+                label: lastTeam.constructor,
+                hint: 'The team, its cars and everyone else who drove for it.',
+              }
+            : null,
+          bestSeason
+            ? {
+                to: `/seasons/${bestSeason.year}`,
+                label: `The ${bestSeason.year} season`,
+                hint: bestSeason.wins
+                  ? `Their best year here — ${bestSeason.wins} ${bestSeason.wins === 1 ? 'win' : 'wins'} from ${bestSeason.entries} entries.`
+                  : 'The championship they were part of, round by round.',
+              }
+            : null,
+          { to: '/records', label: 'Records', hint: 'Where this career sits against everyone else.' },
+          { to: '/drivers', label: 'All drivers', hint: 'Filter the register by nationality or era.' },
+        ]}
+      />
     </Page>
   )
 }

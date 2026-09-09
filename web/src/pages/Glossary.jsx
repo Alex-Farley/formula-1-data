@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Page, Section } from '../components/Page.jsx'
+import { Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable from '../components/DataTable.jsx'
 import SubNav from '../components/SubNav.jsx'
@@ -20,7 +20,7 @@ export default function Glossary() {
   return (
     <Page
       title="Glossary and people"
-      lede="The vocabulary a classification is written in, and the people whose decisions are upstream of most of what is in the rest of this database."
+      lede="What the words on a classification actually mean — and the designers, administrators and team principals whose decisions are behind most of the rest of this site."
     >
       <SubNav />
       <Result state={state}>
@@ -109,6 +109,14 @@ function Body({ glossary, personnel, term, setTerm, category, setCategory }) {
           ]}
         />
       </Section>
+
+      <Onward
+        items={[
+          { to: '/reference/eras', label: 'Eras and rules', hint: 'Where most of this vocabulary comes from.' },
+          { to: '/races', label: 'Races', hint: 'See the terms in use on a classification.' },
+          { to: '/reference/quality', label: 'Data quality', hint: 'What “verified” and “reference” mean here.' },
+        ]}
+      />
     </>
   )
 }

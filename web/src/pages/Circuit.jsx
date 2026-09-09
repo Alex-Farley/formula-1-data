@@ -1,5 +1,5 @@
 import { Link, useParams } from 'react-router-dom'
-import { Confidence, Fields, Note, Page, Section, Stats } from '../components/Page.jsx'
+import { Confidence, Fields, Note, Onward, Page, Section, Stats } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import TrackMap from '../components/TrackMap.jsx'
@@ -65,6 +65,10 @@ export default function Circuit() {
           return (
             <Page title="No such circuit" back={{ to: '/circuits', label: 'The register' }}>
               <p className="muted">Nothing in the register has the id “{id}”.</p>
+              <p>
+                Press <kbd>/</kbd> to search by name, or{' '}
+                <Link to="/circuits">browse all eighty venues</Link>.
+              </p>
             </Page>
           )
         }
@@ -80,6 +84,8 @@ function CircuitBody({ circuit, data }) {
   const races = rows(data, 'races')
   const winners = rows(data, 'winners')
   const teams = rows(data, 'teams')
+  // Races come back newest first, so the first completed one is the last held.
+  const latest = races.find((race) => race.status === 'completed') ?? null
 
   return (
     <Page
@@ -108,8 +114,12 @@ function CircuitBody({ circuit, data }) {
       {geometry.length > 0 && (
         <Section
           title="The shape of it"
-          note="Traced from OpenStreetMap, the only ODbL-licensed data in the project. ODbL reaches the whole database it lands in, so these rows are not in f1.db at all: they ship as f1-geometry.db and your browser merged the two to draw this."
+          note="Traced from OpenStreetMap, and measured against the published length. It ships as a separate file under ODbL, which your browser merged in to draw this."
         >
+          <p className="note" style={{ marginTop: -4 }}>
+            <Link to="/circuits/atlas">Open it in the atlas</Link> to walk the lap metre by metre
+            and compare it with the other traced circuits at one scale.
+          </p>
           <div className="map-grid">
             {geometry.map((row) => (
               <TrackMap key={`${row.circuit_id}-${row.layout_key}`} geometry={row} />
@@ -139,9 +149,9 @@ function CircuitBody({ circuit, data }) {
       {layouts.length === 0 && circuit.races > 1 && (
         <Note>
           <strong>No layout timeline for this circuit.</strong> Only thirteen of the eighty have
-          one, so a lap here in an early season is reported at the length the circuit is now.
-          Historic geometry has no source: OpenStreetMap maps what is on the ground, and Wikidata's
-          historic-layout entities carry a length and a date range but no coordinates.
+          one, so an early race here is reported at the length the circuit is today. Nothing maps
+          what a circuit used to look like — see the{' '}
+          <Link to="/reference/quality">known gaps</Link>.
         </Note>
       )}
 
@@ -261,6 +271,29 @@ function CircuitBody({ circuit, data }) {
           ]}
         />
       </Section>
+
+      <Onward
+        items={[
+          latest
+            ? {
+                to: `/races/${latest.year}/${latest.round}`,
+                label: `${latest.year} ${latest.name_used}`,
+                hint: 'The most recent race held here, in full.',
+              }
+            : null,
+          winners[0]
+            ? {
+                to: `/drivers/${winners[0].driver_id}`,
+                label: winners[0].driver,
+                hint: `Has won here ${winners[0].wins} ${winners[0].wins === 1 ? 'time' : 'times'} — more than anyone.`,
+              }
+            : null,
+          geometry.length > 0
+            ? { to: '/circuits/atlas', label: 'Track atlas', hint: 'This lap beside the other traced circuits.' }
+            : null,
+          { to: '/circuits', label: 'All circuits', hint: 'Eighty venues, by races held.' },
+        ]}
+      />
     </Page>
   )
 }

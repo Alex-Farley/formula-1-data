@@ -635,6 +635,30 @@ otherwise. Anything outside 2% is refused rather than stored with a caveat,
 and the measurement is re-run in `build.py` from the stored coordinates using
 its own copy of the arithmetic — sharing the tool's would check nothing.
 
+Measuring the right length does not make it a lap. The members are unordered,
+so whether they form one is a separate question, and the length cannot answer
+it: Las Vegas is missing a way and still measures inside 2%. `build.py` walks
+the ways end to end when the row is admitted and stores what it found —
+`segment_count`, `loose_ends`, `closes` — and `verify.py` re-derives all three
+from the geometry on every build.
+
+    22 of 25 stitch into a closed lap
+      las-vegas    1 loose end,  80/81 ways walked, 0.11 km unaccounted
+      monaco       4 loose ends, 29/41 ways walked, 1.07 km unaccounted
+      montjuic     2 loose ends, 20/31 ways walked, 0.97 km unaccounted
+
+A join is not "close", it is **identical**: ways in a relation share their
+junction nodes, and 1,201 of the 1,208 way ends here sit at 0.000 m from
+another end. The seven that do not are 5.4 m to 63.4 m away and every one is a
+real hole. The check used to allow 30 m, which is wide enough that the Monaco
+and Montjuïc holes read as joins — it reported only Las Vegas, and passed two
+broken traces for several versions. One metre is above serialisation noise and
+below the smallest real gap.
+
+This is what lets the front end offer to walk a lap: `web/src/lib/lap.js`
+reproduces the stitch in the browser and the atlas measures along it, but only
+where `closes` says there is something to measure.
+
 Geometry attaches to a **layout**, never to a circuit alone, wherever a layout
 timeline exists. Monza 1955 is not Monza 2026 and `circuit_layouts` already
 keeps them apart. A trace can only ever be the current configuration, so it is
@@ -957,6 +981,37 @@ has no fastest lap because none was set. That is a true null, and it is
 recorded as one.
 
 ---
+
+## Staying current
+
+The results, qualifying, standings, pit stops and sprint classifications come
+from [F1DB](https://github.com/f1db/f1db), and `harvest/*.txt` is a **snapshot**
+of it rather than a live feed. Until the snapshot is refreshed the database
+still describes the world as it was when somebody last ran the fetch tool — a
+race that has been run keeps showing as scheduled.
+
+Refreshing it is one command:
+
+```bash
+pip install pyyaml                 # the fetch tool needs it; the build does not
+python3 tools/f1db_fetch.py        # rewrites harvest/ from the current F1DB
+python3 build.py && python3 verify.py
+```
+
+`.github/workflows/refresh.yml` does exactly that every Monday at 06:00 UTC,
+and commits the result **only if every check still passes**. A refresh that
+breaks a cross-check is thrown away rather than committed, so an unattended
+job can never replace a good database with a broken one. It can also be run
+by hand from the Actions tab for a race that lands out of step with the
+schedule.
+
+Two things do not arrive with a refresh. Pole position and fastest lap are
+separate harvests, so a race that has just been run appears with its full
+finishing order and neither of those until those harvests catch up; `verify.py`
+warns about the affected rounds by name rather than failing. And the calendar
+status is no longer hand-authored: `build.py` promotes a round to `completed`
+when a classification exists for it, in that direction only, because a missing
+result is far more often an un-harvested race than a race that did not happen.
 
 ## Verification
 

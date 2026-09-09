@@ -388,13 +388,28 @@ check("every season's champion and runner-up match the final standings",
       if not mismatch else "; ".join(mismatch[:3]))
 
 print("\nRACE RESULTS")
-for y, n in ((2025, 24), (2026, 12)):
+# The last season in the database is the one still being run, and how many of
+# its rounds have happened is a fact that changes every other weekend. Asserting
+# a number here would mean a hand-edit stood between a harvest refresh and the
+# season moving on, so what is asserted instead is the SHAPE the season must
+# have whatever week it is: rounds are completed in order, from the first, and
+# never more of them than the calendar holds.
+CURRENT = con.execute("SELECT MAX(year) FROM races").fetchone()[0]
+for y in (CURRENT - 1, CURRENT):
     got = con.execute("""SELECT COUNT(*) FROM races
         WHERE year=? AND status='completed'""", (y,)).fetchone()[0]
-    check(f"{y} has {n} completed races", got == n, f"got {got}")
+    scheduled = con.execute("SELECT rounds FROM seasons WHERE year=?",
+                            (y,)).fetchone()[0]
+    if y == CURRENT:
+        check(f"{y} has run no more rounds than its calendar holds",
+              got <= scheduled, f"{got} completed of {scheduled}")
+    else:
+        check(f"{y} has {scheduled} completed races", got == scheduled,
+              f"got {got}")
     rounds = [r[0] for r in con.execute("""SELECT round FROM races
         WHERE year=? AND status='completed' ORDER BY round""", (y,))]
-    check(f"{y} rounds are 1..{n} with no gaps", rounds == list(range(1, n + 1)))
+    check(f"{y} completed rounds run 1..{got} with no gaps",
+          rounds == list(range(1, got + 1)))
 
 w25 = Counter(r[0] for r in con.execute("""SELECT e.driver_id FROM race_entries e
     JOIN races r ON r.id=e.race_id WHERE r.year=2025 AND e.finish_position=1"""))
@@ -417,7 +432,14 @@ bad = []
 for y, n in con.execute("""SELECT year, COUNT(*) FROM races
     WHERE status='completed' GROUP BY year"""):
     stored = con.execute("SELECT rounds FROM seasons WHERE year=?", (y,)).fetchone()[0]
-    expected = stored if y != 2026 else 12   # 2026 in progress
+    # A finished season must match the calendar it ran. The season in
+    # progress is checked against itself — it can be short of its calendar,
+    # never past it — because "how many rounds have been run by now" is not a
+    # constant and does not belong in a source file.
+    if y == con.execute("SELECT MAX(year) FROM races").fetchone()[0]:
+        expected = n if n <= stored else stored
+    else:
+        expected = stored
     if n != expected:
         bad.append(f"{y}: {n} completed vs {expected} rounds")
 check("completed race count per season matches the rounds recorded",
@@ -513,22 +535,53 @@ print(f"        {total} races, {credits} win credits, "
 
 print("\nPOLE POSITION AND FASTEST LAP")
 done = con.execute("SELECT COUNT(*) FROM races WHERE status='completed'").fetchone()[0]
-check("1161 completed races", done == 1161, f"{done}")
-np = con.execute("""SELECT COUNT(DISTINCT race_id) FROM race_entries
-    WHERE grid = 1""").fetchone()[0]
-check("pole recorded for every completed race", np == 1161, f"{np} of 1161")
+# Not a literal. Two independent definitions of "this race happened" — the
+# calendar's status, and the existence of a classification — have to agree,
+# which is a stronger statement than a number somebody remembered to update,
+# and it survives the season moving on.
+classified = con.execute("""SELECT COUNT(DISTINCT race_id) FROM race_entries
+    WHERE finish_position IS NOT NULL""").fetchone()[0]
+check("every completed race has a classification, and vice versa",
+      done == classified, f"{done} completed, {classified} with results")
+# Pole and fastest lap do NOT arrive with the classification. The result
+# harvest is F1DB; pole and fastest lap are their own harvests, so a race that
+# has just been run lands here with a full finishing order and neither of
+# those two facts until the next harvest catches up. That is a lag, not a
+# defect, and it is confined to the season in progress — so the assertion is
+# that every OLDER race has them, and the current season's stragglers are
+# named in a warning rather than failing a build.
+CURRENT_YEAR = con.execute("SELECT MAX(year) FROM races").fetchone()[0]
 
-nfl = con.execute("""SELECT COUNT(DISTINCT race_id) FROM race_entries
-    WHERE fastest_lap = 1""").fetchone()[0]
+def _missing(column):
+    return [(r[0], r[1]) for r in con.execute(f"""
+        SELECT r.year, r.round FROM races r WHERE r.status = 'completed'
+          AND NOT EXISTS (SELECT 1 FROM race_entries e
+                          WHERE e.race_id = r.id AND e.{column} = 1)
+        ORDER BY r.year, r.round""")]
+
+nopole = _missing("grid")
+settled = [x for x in nopole if x[0] != CURRENT_YEAR]
+check("pole recorded for every completed race before the current season",
+      not settled, "; ".join(f"{y} r{r}" for y, r in settled[:5]))
+warn(f"pole recorded for every {CURRENT_YEAR} race run so far",
+     not [x for x in nopole if x[0] == CURRENT_YEAR],
+     "; ".join(f"r{r}" for y, r in nopole if y == CURRENT_YEAR))
+
+# 2021 Belgium is the one settled race with no fastest lap: two laps behind
+# the safety car, no racing lap set, so there is nothing to record. It is
+# declared in known_gaps and that declaration is what this counts against.
+nofl = _missing("fastest_lap")
+settled_fl = [x for x in nofl if x[0] != CURRENT_YEAR]
 declared_gap = con.execute("""SELECT SUM(races_affected) FROM known_gaps
     WHERE field = 'fastest_lap'""").fetchone()[0]
 check("races without a fastest lap equal the declared gaps",
-      1161 - nfl == declared_gap, f"{1161 - nfl} missing, {declared_gap} declared")
-nofl = con.execute("""SELECT r.year, r.round FROM races r WHERE r.status='completed'
-    AND NOT EXISTS (SELECT 1 FROM race_entries e
-                    WHERE e.race_id = r.id AND e.fastest_lap = 1)""").fetchall()
-check("the only race without a fastest lap is 2021 Belgium, where none was set",
-      [tuple(r) for r in nofl] == [(2021, 12)], str([tuple(r) for r in nofl]))
+      len(settled_fl) == declared_gap,
+      f"{len(settled_fl)} missing, {declared_gap} declared")
+check("the only settled race without a fastest lap is 2021 Belgium",
+      settled_fl == [(2021, 12)], str(settled_fl))
+warn(f"fastest lap recorded for every {CURRENT_YEAR} race run so far",
+     not [x for x in nofl if x[0] == CURRENT_YEAR],
+     "; ".join(f"r{r}" for y, r in nofl if y == CURRENT_YEAR))
 
 orph = con.execute("""SELECT COUNT(*) FROM race_entries e
     WHERE NOT EXISTS (SELECT 1 FROM drivers d WHERE d.id = e.driver_id)""").fetchone()[0]
@@ -1565,6 +1618,7 @@ if ngeo:
         return 2 * R * _math.asin(_math.sqrt(h))
 
     bad_len, unclosed, bad_layout, worst = [], [], [], 0.0
+    bad_topo = []
     for r in con.execute(f"SELECT * FROM {GEO}"):
         geo = _json.loads(r["centreline"])
         metres = 0.0
@@ -1584,15 +1638,35 @@ if ngeo:
         # every way END meets another way's end. A dangling end is a missing
         # member, and a trace can be short by one segment and still measure a
         # plausible length.
+        #
+        # THE TOLERANCE WAS 30 m AND THAT WAS TOO LOOSE. Ways in a relation
+        # share their junction nodes exactly: 1,201 of the 1,208 way ends here
+        # sit at 0.000 m from another end, and the seven that do not are 5.4 m
+        # to 63.4 m away - every one a real hole. At 30 m the Monaco and
+        # Montjuic holes read as joins and only Las Vegas was reported, so the
+        # check passed two broken traces for versions. One metre is above
+        # serialisation noise and below the smallest real gap.
         ends = [line[0] for line in geo["coordinates"]] + \
                [line[-1] for line in geo["coordinates"]]
         dangling = 0
         for i, a in enumerate(ends):
-            if not any(i != j and _hav((a[1], a[0]), (b[1], b[0])) <= 30
+            if not any(i != j and _hav((a[1], a[0]), (b[1], b[0])) <= 1.0
                        for j, b in enumerate(ends)):
                 dangling += 1
         if dangling:
             unclosed.append(f"{r['circuit_id']} ({dangling} loose ends)")
+        # The stored verdict is a build-time finding; recompute it here from
+        # the geometry rather than trusting the column.
+        if (r["loose_ends"] is None) or (r["loose_ends"] != dangling):
+            bad_topo.append(f"{r['circuit_id']} stores {r['loose_ends']} "
+                            f"loose ends, geometry has {dangling}")
+        if bool(r["closes"]) != (dangling == 0):
+            bad_topo.append(f"{r['circuit_id']} stores closes="
+                            f"{r['closes']} with {dangling} loose ends")
+        if r["segment_count"] != len(geo["coordinates"]):
+            bad_topo.append(f"{r['circuit_id']} stores "
+                            f"{r['segment_count']} segments, geometry has "
+                            f"{len(geo['coordinates'])}")
         if r["layout_key"]:
             ok = con.execute("""SELECT 1 FROM circuit_layouts
                 WHERE circuit_id = ? AND layout_key = ?""",
@@ -1606,6 +1680,12 @@ if ngeo:
           if not bad_len else "; ".join(bad_len[:3]))
     warn("every centreline closes into a loop", not unclosed,
          "; ".join(unclosed[:5]) if unclosed else "")
+    # The warning above is the finding; this is the guarantee the front end
+    # relies on when it offers to walk a lap.
+    check("the stored lap topology matches the geometry", not bad_topo,
+          "; ".join(bad_topo[:3]) if bad_topo else
+          f"{con.execute('SELECT COUNT(*) FROM circuit_geometry WHERE closes = 1').fetchone()[0]}"
+          f" of {ngeo} stitch into a closed lap")
     check("every geometry layout_key names a real layout", not bad_layout,
           "; ".join(bad_layout[:3]))
 
@@ -1680,5 +1760,62 @@ for v in ("v_car_images", "v_images_to_check", "v_circuit_geometry",
           "v_geometry_coverage"):
     n = con.execute(f"SELECT COUNT(*) FROM {v}").fetchone()[0]
     check(f"view {v} is queryable", True, f"{n} rows")
+
+# ------------------------------------------------------------------ sprints
+#
+# A sprint is a separate race with its own grid, its own classification and
+# its own points. These checks are about the two ways that can go wrong: a
+# result attached to a round that does not claim to have held a sprint, and a
+# round flagged as holding one with nothing to show for it.
+
+spr_total = con.execute("SELECT COUNT(*) FROM sprint_results").fetchone()[0]
+spr_races = con.execute(
+    "SELECT COUNT(DISTINCT race_id) FROM sprint_results").fetchone()[0]
+check("sprint results are held", spr_total > 0,
+      f"{spr_total} entries over {spr_races} sprints")
+
+# The first sprint was at Silverstone in 2021. A row before that is not a
+# gap in the data, it is a row that cannot be true.
+early = con.execute("""SELECT COUNT(*) FROM sprint_results s
+    JOIN races r ON r.id = s.race_id WHERE r.year < 2021""").fetchone()[0]
+check("no sprint result before 2021", early == 0, f"{early} rows")
+
+# Every sprint result belongs to a round that says it held a sprint. build.py
+# derives the flag from these rows, so this is checking that the derivation
+# actually happened rather than trusting that it did.
+unflagged = [f"{r[0]} r{r[1]}" for r in con.execute("""
+    SELECT DISTINCT r.year, r.round FROM sprint_results s
+    JOIN races r ON r.id = s.race_id
+    WHERE COALESCE(r.sprint, 0) != 1 ORDER BY r.year, r.round""")]
+check("every sprint result sits on a round flagged as a sprint",
+      not unflagged, "; ".join(unflagged[:5]))
+
+# The other direction is a warning, not a failure: a round on a future
+# calendar is legitimately flagged before it has been run.
+empty = [f"{r[0]} r{r[1]} ({r[2]})" for r in con.execute("""
+    SELECT r.year, r.round, r.status FROM races r
+    WHERE r.sprint = 1
+      AND NOT EXISTS (SELECT 1 FROM sprint_results s WHERE s.race_id = r.id)
+    ORDER BY r.year, r.round""")]
+warn("every round flagged as a sprint has a classification", not empty,
+     "; ".join(empty[:5]))
+
+# One winner per sprint, and every sprint has one. A sprint with two firsts
+# would mean the loader has double-counted a round; one with none would mean
+# the classification arrived without its result.
+bad_winner = [f"{r[0]} r{r[1]}: {r[2]} winners" for r in con.execute("""
+    SELECT r.year, r.round, SUM(s.finish_position = 1)
+    FROM sprint_results s JOIN races r ON r.id = s.race_id
+    GROUP BY s.race_id HAVING SUM(s.finish_position = 1) != 1
+    ORDER BY r.year, r.round""")]
+check("every sprint has exactly one winner", not bad_winner,
+      "; ".join(bad_winner[:5]))
+
+# Sprint points are part of the championship, so they have to look like
+# championship points: never negative, and awarded only to a finisher.
+bad_points = con.execute("""SELECT COUNT(*) FROM sprint_results
+    WHERE points < 0 OR (points > 0 AND finish_position IS NULL)""").fetchone()[0]
+check("sprint points are non-negative and go to classified finishers",
+      bad_points == 0, f"{bad_points} rows")
 
 summarise()

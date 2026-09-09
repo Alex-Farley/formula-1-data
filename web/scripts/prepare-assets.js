@@ -134,18 +134,6 @@ if (existsSync(geoPath)) {
   console.log('  (no f1-geometry.db — track maps will be absent)')
 }
 
-const manifest = {
-  digest,
-  bytes: bytes.length,
-  gzipBytes,
-  version: meta.version ?? null,
-  built: meta.built ?? null,
-  staged: new Date().toISOString().slice(0, 10),
-  geometry,
-}
-writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`)
-console.log(`  public/db-manifest.json  (v${manifest.version ?? '?'}, digest ${digest})`)
-
 // ----------------------------------------------------------------- the wasm
 
 // A bundler resolves sql.js through its "browser" export condition, and that
@@ -154,10 +142,80 @@ console.log(`  public/db-manifest.json  (v${manifest.version ?? '?'}, digest ${d
 // name the loader points locateFile at. Getting this wrong does not produce a
 // 404 — a dev server answers an unknown path with index.html, and you get
 // "expected magic word" from the wasm compiler instead.
+//
+// It is staged before the manifest is written because the manifest carries its
+// digest too: the wasm is served immutable at a fixed path, so an upgrade to
+// sql.js would otherwise leave a returning reader running new glue against a
+// year-old binary. The loader puts this in the query string for the same
+// reason it does for the database.
 const wasm = ['sql-wasm-browser.wasm', 'sql-wasm.wasm']
   .map((name) => join(sqlJsDist, name))
   .find((path) => existsSync(path))
 
 if (!wasm) die('sql.js not installed.\nInstall it first:  npm install')
+const wasmBytes = readFileSync(wasm)
+const wasmDigest = createHash('sha256').update(wasmBytes).digest('hex').slice(0, 16)
 copyFileSync(wasm, join(publicDir, 'sql-wasm.wasm'))
-console.log(`  public/sql-wasm.wasm     (${kb(statSync(wasm).size)})`)
+console.log(`  public/sql-wasm.wasm     (${kb(wasmBytes.length)}, digest ${wasmDigest})`)
+
+// ------------------------------------------------------------- the manifest
+
+const manifest = {
+  digest,
+  bytes: bytes.length,
+  gzipBytes,
+  wasm: wasmDigest,
+  version: meta.version ?? null,
+  built: meta.built ?? null,
+  staged: new Date().toISOString().slice(0, 10),
+  geometry,
+}
+writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`)
+console.log(`  public/db-manifest.json  (v${manifest.version ?? '?'}, digest ${digest})`)
+
+// ---------------------------------------------------------------- cache rules
+
+/*
+ * Caching, for hosts that read _headers (Cloudflare Pages, Netlify).
+ *
+ * The manifest is the one file that must never be served stale: it carries the
+ * digest the loader compares against its cached copy, so a cached manifest
+ * means a reader keeps an old database forever.
+ *
+ * Everything it describes is safe to cache hard, but only because of what the
+ * loader does with these paths. f1.db, f1.db.gz and sql-wasm.wasm are served
+ * under names that never change, so "immutable" would be a lie on its own —
+ * and a deployment proved it, pairing a fresh manifest with a year-old
+ * database out of a reader's cache. The loader appends the manifest's digest
+ * to each of these as a query string, which is what makes the entry per build
+ * rather than per path and the promise below true. Vite's asset names already
+ * carry a content hash of their own.
+ *
+ * A host that ignores this file is not broken by it. The loader also asks for
+ * the manifest with cache: 'no-cache' itself, so the rule is a belt to that
+ * brace rather than the only thing standing between a reader and stale data.
+ */
+writeFileSync(
+  join(publicDir, '_headers'),
+  [
+    '/db-manifest.json',
+    '  Cache-Control: no-cache',
+    '',
+    '/f1.db',
+    '  Cache-Control: public, max-age=31536000, immutable',
+    '',
+    '/f1.db.gz',
+    '  Cache-Control: public, max-age=31536000, immutable',
+    '',
+    '/f1-geometry.db',
+    '  Cache-Control: public, max-age=31536000, immutable',
+    '',
+    '/sql-wasm.wasm',
+    '  Cache-Control: public, max-age=31536000, immutable',
+    '',
+    '/assets/*',
+    '  Cache-Control: public, max-age=31536000, immutable',
+    '',
+  ].join('\n'),
+)
+console.log('  public/_headers          (cache rules)')

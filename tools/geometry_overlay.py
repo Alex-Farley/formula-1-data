@@ -35,9 +35,20 @@ ROOT = os.path.dirname(HERE)
 DB = os.path.join(ROOT, "f1.db")
 GEO = os.path.join(ROOT, "f1-geometry.db")
 
-COLUMNS = ("circuit_id, layout_key, wikidata_id, osm_relation, centreline, "
-           "measured_km, published_km, delta_pct, node_count, osm_timestamp, "
-           "licence, confidence")
+
+def columns(con):
+    """The overlay's columns, read from it rather than restated here.
+
+    A hardcoded list silently drops whatever the schema gains next - which is
+    exactly what happened to `segment_count`, `loose_ends` and `closes`.
+    """
+    return [c[1] for c in con.execute("PRAGMA table_info(circuit_geometry)")]
+
+
+def _geo_columns(path):
+    """The overlay file's own columns."""
+    with sqlite3.connect(path) as con:
+        return [c[1] for c in con.execute("PRAGMA table_info(circuit_geometry)")]
 
 
 def counts(db, geo):
@@ -88,8 +99,11 @@ def main(argv=None):
                      f"centrelines. Use --remove first if you want them "
                      f"replaced.")
         con.execute("ATTACH DATABASE ? AS geo", (args.geometry,))
-        con.execute(f"INSERT INTO circuit_geometry ({COLUMNS}) "
-                    f"SELECT {COLUMNS} FROM geo.circuit_geometry")
+        shared = [c for c in columns(con)
+                  if c in set(_geo_columns(args.geometry))]
+        names = ", ".join(f'"{c}"' for c in shared)
+        con.execute(f"INSERT INTO circuit_geometry ({names}) "
+                    f"SELECT {names} FROM geo.circuit_geometry")
         n = con.execute("SELECT COUNT(*) FROM circuit_geometry").fetchone()[0]
         con.commit()
         con.close()

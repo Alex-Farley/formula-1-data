@@ -376,6 +376,39 @@ def result_rows(data, yaml):
     return rows
 
 
+def sprint_result_rows(data, yaml):
+    """The sprint race classification, for the rounds that had one.
+
+    A sprint is a separate race on the same weekend, with its own grid, its
+    own classification and its own points, and those points count towards the
+    championship. It is not a session of the grand prix, so it is not a column
+    on the grand prix result — it is its own set of rows, keyed on the round
+    that held it.
+
+    F1DB shapes sprint-race-results.yml exactly like race-results.yml, minus
+    the shared-drive problem: sprints began in 2021 and nobody has ever handed
+    a sprint car over mid-race, so there is no flag to derive here.
+
+    Sprint qualifying and the sprint grid are held separately by F1DB and are
+    not taken: the grid position each driver started the sprint from already
+    travels on these rows, which is the part the classification needs to make
+    sense.
+    """
+    rows = []
+    for year, rnd, path in _races(data, yaml):
+        for r in _load(os.path.join(path, "sprint-race-results.yml"), yaml):
+            pos, text = _pos(r.get("position"))
+            rows.append("|".join(_clean(v) for v in (
+                year, rnd, pos, text,
+                r.get("driverId"), r.get("constructorId"),
+                r.get("engineManufacturerId"), r.get("tyreManufacturerId"),
+                r.get("driverNumber"), r.get("laps"), r.get("time"),
+                r.get("timePenalty"), r.get("gap"), r.get("interval"),
+                r.get("reasonRetired"), r.get("points"),
+                r.get("gridPosition"))))
+    return rows
+
+
 def qualifying_rows(data, yaml):
     rows = []
     for year, rnd, path in _races(data, yaml):
@@ -495,6 +528,12 @@ def main():
                 "laps|time|time_penalty|gap|interval|reason_retired|points|"
                 "grid|shared_drive",
                 result_rows(data, yaml), version, commit, args.check)
+    ok &= write("sprint_results.txt",
+                "year|round|position|position_text|driver_id|constructor_id|"
+                "engine_manufacturer_id|tyre_manufacturer_id|driver_number|"
+                "laps|time|time_penalty|gap|interval|reason_retired|points|"
+                "grid",
+                sprint_result_rows(data, yaml), version, commit, args.check)
     ok &= write("qualifying.txt",
                 "year|round|position|position_text|driver_id|constructor_id|"
                 "driver_number|time|q1|q2|q3|gap|interval|laps",

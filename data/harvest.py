@@ -696,6 +696,7 @@ SPECS_FILE = os.path.join(HERE, "..", "harvest", "car_specs.txt")
 IMAGES_FILE = os.path.join(HERE, "..", "harvest", "article_images.txt")
 GEOMETRY_FILE = os.path.join(HERE, "..", "harvest", "circuit_geometry.txt")
 RESULTS_FILE = os.path.join(HERE, "..", "harvest", "race_results.txt")
+SPRINT_FILE = os.path.join(HERE, "..", "harvest", "sprint_results.txt")
 QUALIFYING_FILE = os.path.join(HERE, "..", "harvest", "qualifying.txt")
 STANDINGS_FILE = os.path.join(HERE, "..", "harvest", "standings.txt")
 F1DB_PITS_FILE = os.path.join(HERE, "..", "harvest", "f1db_pit_stops.txt")
@@ -988,6 +989,17 @@ def load_race_results():
     stood for seven versions.
     """
     return _read_named(RESULTS_FILE, "tools/f1db_fetch.py")
+
+
+def load_sprint_results():
+    """The sprint race classification, 2021-2026, from F1DB.
+
+    A sprint is a separate race on the grand prix weekend with its own grid,
+    its own classification and its own points, and those points count towards
+    the championship. Same licence and same source file tree as the grand
+    prix results beside it.
+    """
+    return _read_named(SPRINT_FILE, "tools/f1db_fetch.py")
 
 
 def load_qualifying():

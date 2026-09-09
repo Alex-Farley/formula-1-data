@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Page, Section, Stats } from '../components/Page.jsx'
+import { Onward, Page, Section, Stats } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import Figure from '../charts/Figure.jsx'
 import ColumnChart from '../charts/ColumnChart.jsx'
@@ -50,14 +50,14 @@ const NEXT = `
 
 function Board({ shape }) {
   const cards = [
-    ['/seasons', 'Seasons', shape.seasons, 'Championship tables round by round, the calendar, and who entered.'],
+    ['/seasons', 'Seasons', shape.seasons, 'Championship tables, calendars and entry lists, year by year.'],
     ['/races', 'Races', shape.races_run, 'Every classification: grid, finish, status, laps and points.'],
-    ['/drivers', 'Drivers', shape.drivers, 'The register, and every entry each of them made.'],
-    ['/constructors', 'Constructors', shape.constructors, 'Records, lineage chains, and the cars they ran.'],
-    ['/circuits', 'Circuits', shape.circuits, 'Layouts as they changed, and traced centrelines for 25.'],
-    ['/cars', 'Cars', shape.chassis, 'The chassis register, with specifications where they are published.'],
-    ['/records', 'Records', null, 'Leaderboards derived from the race records, not copied from anywhere.'],
-    ['/reference', 'Reference', null, 'Eras, regulations, sources, licences, what is missing, and SQL.'],
+    ['/drivers', 'Drivers', shape.drivers, 'Look up a career — every entry, season by season.'],
+    ['/constructors', 'Constructors', shape.constructors, 'Team records, the cars they built, and who they became.'],
+    ['/circuits', 'Circuits', shape.circuits, 'Venues, the layouts as they changed, and 25 traced laps.'],
+    ['/cars', 'Cars', shape.chassis, 'The chassis register, with specifications where they exist.'],
+    ['/records', 'Records', null, 'Leaderboards, champions, grand slams and who won each decade.'],
+    ['/reference', 'Reference', null, 'Eras and rules, sources, what is missing, and a SQL console.'],
   ]
   return (
     <div className="board">
@@ -84,13 +84,12 @@ export default function Home() {
 
   return (
     <Page
-      title="A Formula One database you can check"
+      title="Every Formula One race since 1950"
       lede={
         <>
-          Seventy-seven seasons in a single SQLite file, running in this tab. It is not the largest
-          such database and it is not trying to be: the point is that every figure can be traced to
-          a source, that a fact nobody has established is left blank rather than guessed, and that
-          170 checks have to pass before any of it ships.
+          Seventy-seven seasons of results, grids, championship tables and pit stops — from
+          Silverstone in May 1950 to the calendar still to be run. Search it, sort it, or write your
+          own SQL. It all runs in this tab, so it is quick and nothing you look at is sent anywhere.
         </>
       }
     >
@@ -116,16 +115,10 @@ export default function Home() {
                 />
               </Section>
 
-              <Section title="Where to start">
-                <Board shape={shape} />
-              </Section>
-
               <Section title="The season, at both ends">
                 <div className="split">
                   <div className="panel">
-                    <p className="eyebrow" style={{ margin: 0, fontSize: 12, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-faint)', fontWeight: 600 }}>
-                      Last race in the database
-                    </p>
+                    <p className="eyebrow" style={{ margin: 0 }}>Last race run</p>
                     {latest ? (
                       <>
                         <h3 style={{ margin: '6px 0 2px' }}>
@@ -145,13 +138,16 @@ export default function Home() {
                           )}
                           {latest.constructor ? ` for ${latest.constructor}` : ''}.
                         </p>
+                        <p style={{ margin: '10px 0 0' }}>
+                          <Link to={`/races/${latest.year}/${latest.round}`}>
+                            See the full classification →
+                          </Link>
+                        </p>
                       </>
                     ) : null}
                   </div>
                   <div className="panel">
-                    <p className="eyebrow" style={{ margin: 0, fontSize: 12, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-faint)', fontWeight: 600 }}>
-                      Next scheduled
-                    </p>
+                    <p className="eyebrow" style={{ margin: 0 }}>Next on the calendar</p>
                     {next ? (
                       <>
                         <h3 style={{ margin: '6px 0 2px' }}>
@@ -162,9 +158,12 @@ export default function Home() {
                         <p className="muted small" style={{ margin: 0 }}>
                           {next.dates} · round {next.round}
                         </p>
-                        <p style={{ margin: '10px 0 0' }} className="muted">
-                          {number(shape.races_scheduled)} races are on the calendar and have not been
-                          run. They carry no result, and nothing here invents one.
+                        <p className="muted" style={{ margin: '10px 0 0' }}>
+                          {number(shape.races_scheduled)} races on the calendar have not been run
+                          yet, so they carry no result.
+                        </p>
+                        <p style={{ margin: '10px 0 0' }}>
+                          <Link to={`/seasons/${next.year}`}>Open the {next.year} calendar →</Link>
                         </p>
                       </>
                     ) : (
@@ -174,10 +173,17 @@ export default function Home() {
                 </div>
               </Section>
 
+              <Section
+                title="Where to start"
+                note="Or press / from anywhere to jump straight to a driver, team, circuit, car, season or race."
+              >
+                <Board shape={shape} />
+              </Section>
+
               <Section title="The shape of the championship">
                 <Figure
                   title="Championship races per season"
-                  note="Seven rounds in 1950; twenty-four by 2025. The 2026 column counts a calendar rather than a set of results."
+                  note="Seven rounds in 1950; twenty-four by 2025. The 2026 column is a calendar, not a set of results."
                   table={{
                     rows: seasons,
                     columns: [
@@ -195,39 +201,55 @@ export default function Home() {
                 </Figure>
               </Section>
 
-              <Section title="What this database refuses to do">
+              <Section
+                title="Reading the numbers here"
+                note="Four things worth knowing before you quote anything off this site."
+              >
                 <div className="grid">
                   <div className="panel">
-                    <b>It does not fill a blank.</b>
+                    <b>A blank means unknown.</b>
                     <p className="muted small" style={{ margin: '6px 0 0' }}>
-                      NULL means "not established" — never zero, never a plausible guess. A missing
-                      figure stays missing, and shows here as an em dash.
+                      An em dash is a figure nobody has established — never a zero, never a
+                      plausible guess.
                     </p>
                   </div>
                   <div className="panel">
-                    <b>It does not pick a side quietly.</b>
+                    <b>Disagreements are shown, not settled.</b>
                     <p className="muted small" style={{ margin: '6px 0 0' }}>
-                      Where two sources disagree and neither can be checked officially, the
-                      disagreement is recorded. There are{' '}
-                      <Link to="/reference/quality">{number(shape.discrepancies)} of them</Link>.
+                      Where two sources conflict you see both. There are{' '}
+                      <Link to="/reference/quality">{number(shape.discrepancies)} on record</Link>.
                     </p>
                   </div>
                   <div className="panel">
-                    <b>It says how good each fact is.</b>
+                    <b>Every row says how solid it is.</b>
                     <p className="muted small" style={{ margin: '6px 0 0' }}>
-                      Every row carries a confidence: verified, high, reference, medium or
-                      unverified. Only an official source reaches the top of that ladder.
+                      Verified, high, reference, medium or unverified — only an official source
+                      reaches the top.
                     </p>
                   </div>
                   <div className="panel">
-                    <b>It publishes its own gaps.</b>
+                    <b>The gaps are published too.</b>
                     <p className="muted small" style={{ margin: '6px 0 0' }}>
-                      {number(shape.gaps)} known gaps are listed as data, not as an apology — what
-                      is missing, why, and what it would take to close it.
+                      <Link to="/reference/quality">{number(shape.gaps)} known gaps</Link> — what is
+                      missing, why, and what would close it.
                     </p>
                   </div>
                 </div>
               </Section>
+
+              <Onward
+                title="Popular ways in"
+                items={[
+                  {
+                    to: latest ? `/seasons/${latest.year}` : '/seasons',
+                    label: `The ${latest ? latest.year : 'latest'} season`,
+                    hint: 'Calendar, title race and final standings.',
+                  },
+                  { to: '/records', label: 'Records', hint: 'Most wins, most poles, champions, grand slams.' },
+                  { to: '/circuits/atlas', label: 'Track atlas', hint: '25 circuits traced, at one scale.' },
+                  { to: '/reference/sql', label: 'SQL console', hint: 'Ask the database your own question.' },
+                ]}
+              />
             </>
           )
         }}

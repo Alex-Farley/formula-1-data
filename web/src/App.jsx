@@ -15,6 +15,7 @@ import Driver from './pages/Driver.jsx'
 import Constructors from './pages/Constructors.jsx'
 import Constructor from './pages/Constructor.jsx'
 import Circuits from './pages/Circuits.jsx'
+import Atlas from './pages/Atlas.jsx'
 import Circuit from './pages/Circuit.jsx'
 import Cars from './pages/Cars.jsx'
 import Car from './pages/Car.jsx'
@@ -41,12 +42,18 @@ const NAV = [
 function Wordmark() {
   return (
     <Link to="/" className="wordmark">
+      {/* A chequered flag, three squares by two, cropped to the panel. Six
+          cells rather than four: four read as an application grid, six read as
+          a flag. The two accent cells sit on the bottom row so the mark still
+          carries the brand at 20px, where a thin rule would disappear. */}
       <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true">
         <rect width="32" height="32" rx="7" fill="currentColor" opacity="0.08" />
-        <rect x="6" y="6" width="8" height="8" fill="currentColor" />
-        <rect x="18" y="18" width="8" height="8" fill="currentColor" />
-        <rect x="18" y="6" width="8" height="8" fill="var(--accent)" />
-        <rect x="6" y="18" width="8" height="8" fill="var(--accent)" />
+        <rect x="6" y="9" width="6.7" height="6.7" fill="currentColor" />
+        <rect x="19.3" y="9" width="6.7" height="6.7" fill="currentColor" />
+        <rect x="12.65" y="9" width="6.7" height="6.7" fill="currentColor" opacity="0.18" />
+        <rect x="12.65" y="15.7" width="6.7" height="6.7" fill="currentColor" />
+        <rect x="6" y="15.7" width="6.7" height="6.7" fill="var(--accent)" />
+        <rect x="19.3" y="15.7" width="6.7" height="6.7" fill="var(--accent)" />
       </svg>
       <span>
         <b>F1 Verified Facts</b>
@@ -72,10 +79,12 @@ function Footer() {
       <div className="sitefoot-inner">
         <div>
           <p>
-            Every figure on every page is SQL against <code>f1.db</code>, running locally in this
-            tab. Nothing you look at or type is sent anywhere. Career totals are derived from the
-            race records rather than read from a stored column wherever the records can support
-            them, and a value that has not been established is an em dash, never a zero.
+            Every page here is a query against one SQLite file, running in this tab. Nothing you
+            look at or type is sent anywhere, and once it has loaded it works offline. Career
+            totals are counted from the race records wherever the records can support it, and an em
+            dash means nobody has established that figure — never zero.{' '}
+            <Link to="/reference/quality">How far to trust it</Link> ·{' '}
+            <Link to="/reference/sql">write your own query</Link>.
           </p>
           <p className="faint">
             Race data from <a href="https://github.com/f1db/f1db">F1DB</a> (CC BY 4.0), prose and
@@ -158,6 +167,10 @@ function Chrome() {
           <Route path="/constructors" element={<Constructors />} />
           <Route path="/constructors/:id" element={<Constructor />} />
           <Route path="/circuits" element={<Circuits />} />
+          {/* Router v6 ranks by specificity, so the static segment wins over
+              /circuits/:id wherever it is declared; it sits here to read in
+              the order a reader would expect, not because order decides it. */}
+          <Route path="/circuits/atlas" element={<Atlas />} />
           <Route path="/circuits/:id" element={<Circuit />} />
           <Route path="/cars" element={<Cars />} />
           <Route path="/cars/:id" element={<Car />} />

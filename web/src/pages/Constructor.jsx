@@ -1,11 +1,13 @@
 import { Link, useParams } from 'react-router-dom'
-import { Confidence, Fields, Note, Page, Section, Stats } from '../components/Page.jsx'
+import { Confidence, Fields, Note, Onward, Page, Section, Stats } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import Figure from '../charts/Figure.jsx'
 import ColumnChart from '../charts/ColumnChart.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { missing, number, points as fmtPoints, span } from '../lib/format.js'
+import { finalStandings } from '../lib/standings.js'
+import { colourFor } from '../lib/racingColours.js'
 
 const CONSTRUCTOR = `SELECT * FROM constructors WHERE id = ?`
 
@@ -39,9 +41,14 @@ const BY_SEASON = `
    ORDER BY r.year
 `
 
-/** after_round IS NULL is the season's final table, not a missing round. */
+/**
+ * after_round IS NULL is the season's final table, not a missing round — and it
+ * can legitimately hold two rows for one constructor: Force India was excluded
+ * from 2018 with nothing and its successor scored 52 under the same id. Both
+ * survive finalStandings; the same-fact-from-two-sources rows do not.
+ */
 const STANDINGS = `
-  SELECT s.year, s.position, s.position_text, s.points, s.engine_id
+  SELECT s.id, s.year, s.entity_id, s.engine_id, s.position, s.position_text, s.points, s.team
     FROM standings s
    WHERE s.table_type = 'constructors' AND s.entity_id = ? AND s.after_round IS NULL
    ORDER BY s.year
@@ -92,9 +99,12 @@ export default function Constructor() {
         if (!constructor) {
           return (
             <Page title="No such constructor" back={{ to: '/constructors', label: 'The register' }}>
-              <p className="muted">
-                Nothing in the register has the id “{id}”. Some names a source uses are deliberately
-                not held here — see the <Link to="/reference/quality">data quality page</Link>.
+              <p className="muted">Nothing in the register has the id “{id}”.</p>
+              <p>
+                Press <kbd>/</kbd> to search by name, or{' '}
+                <Link to="/constructors">browse the register</Link>. A few names used by other
+                sources are deliberately not held here — the{' '}
+                <Link to="/reference/quality">data quality page</Link> says which and why.
               </p>
             </Page>
           )
@@ -108,13 +118,18 @@ export default function Constructor() {
 function ConstructorBody({ constructor, data }) {
   const derived = data.derived.rows[0] ?? {}
   const bySeason = rows(data, 'bySeason')
-  const standings = rows(data, 'standings')
+  const standings = finalStandings(rows(data, 'standings'))
   const wins = rows(data, 'wins')
   const designs = rows(data, 'designs')
   const lineage = rows(data, 'lineage')
 
   const winsBySeason = bySeason.filter((s) => s.wins > 0)
+  // The two routes out of here a reader most often wants: the car that won the
+  // most, and the season they were last part of.
+  const bestCar = [...designs].sort((a, b) => (b.wins ?? 0) - (a.wins ?? 0) || (b.races ?? 0) - (a.races ?? 0))[0] ?? null
+  const lastSeason = bySeason[bySeason.length - 1] ?? null
   const engineSplit = standings.some((s) => s.engine_id)
+  const colour = colourFor(constructor.country)
 
   return (
     <Page
@@ -122,6 +137,19 @@ function ConstructorBody({ constructor, data }) {
       title={constructor.name}
       back={{ to: '/constructors', label: 'The register' }}
       lede={constructor.notes}
+      aside={
+        colour && (
+          <p className="livery-band" style={{ marginTop: 14 }}>
+            <i style={{ background: colour.hex }} />
+            {colour.name}
+            <span style={{ textTransform: 'none', letterSpacing: 0 }}>
+              — {constructor.country}'s international racing colour, under the convention that
+              painted a car for the country that entered it until sponsor liveries took over around
+              1968. Not this team's own livery.
+            </span>
+          </p>
+        )
+      }
     >
       <Section>
         <Stats
@@ -153,7 +181,7 @@ function ConstructorBody({ constructor, data }) {
       {lineage.length > 1 && (
         <Section
           title={lineage[0].chain_name}
-          note="One factory, several names. A constructor's record here belongs to the name, not to the building — the chain is what connects them."
+          note="One factory, several names. Each name keeps its own record here; the chain is what connects them."
         >
           <div className="timeline">
             {lineage.map((step) => (
@@ -174,7 +202,7 @@ function ConstructorBody({ constructor, data }) {
         <Section title="Wins by season">
           <Figure
             title={`${constructor.name} race wins`}
-            note="Only seasons with a win are drawn. Counted from the race records — one win per car that finished first, so a shared drive counts once for the car."
+            note="Only seasons with a win are drawn. A shared drive counts once, to the car."
             table={{
               rows: winsBySeason,
               columns: [
@@ -235,7 +263,7 @@ function ConstructorBody({ constructor, data }) {
           ]}
           footer={
             engineSplit
-              ? "The constructors' championship is contested by a chassis–engine pair, so a season can carry more than one entry for the same name; the standings page for that season shows both."
+              ? "The constructors' championship is contested by a chassis–engine pair, so a season can carry more than one entry for the same name. Open the season to see both."
               : undefined
           }
         />
@@ -280,7 +308,7 @@ function ConstructorBody({ constructor, data }) {
                   row.chassis_id ? <Link to={`/cars/${row.chassis_id}`}>{name ?? row.chassis_id}</Link> : cell(name),
               },
             ]}
-            footer="A blank chassis is a season this constructor ran more than one design and no source records which car raced which round."
+            footer="A blank chassis is a season this team ran more than one design and no source records which car raced which round."
           />
         </Section>
       )}
@@ -318,10 +346,9 @@ function ConstructorBody({ constructor, data }) {
       <Section title="On the record">
         {constructor.confidence === 'medium' && (
           <Note>
-            <strong>This constructor's own row sits at “medium”.</strong> The race records it is
-            joined to are stronger than the register entry itself: a career total derived from
-            27,460 entries is better evidence than a summary paragraph, and the two are shown apart
-            here for that reason.
+            <strong>Trust the tables above this one.</strong> The figures counted from the races
+            carry more weight than the summary values in this panel, which is why the two are kept
+            apart.
           </Note>
         )}
         <Fields
@@ -344,6 +371,29 @@ function ConstructorBody({ constructor, data }) {
           ]}
         />
       </Section>
+
+      <Onward
+        items={[
+          bestCar
+            ? {
+                to: `/cars/${bestCar.id}`,
+                label: bestCar.name,
+                hint: bestCar.wins
+                  ? `Their most successful design — ${bestCar.wins} ${bestCar.wins === 1 ? 'win' : 'wins'}.`
+                  : 'Specification, entries and results.',
+              }
+            : null,
+          lastSeason
+            ? {
+                to: `/seasons/${lastSeason.year}`,
+                label: `The ${lastSeason.year} season`,
+                hint: constructor.active ? 'The championship as it stands.' : 'Their last season in the championship.',
+              }
+            : null,
+          { to: '/records', label: 'Records', hint: 'Most wins by constructor, and every title.' },
+          { to: '/constructors', label: 'All constructors', hint: 'The other 149, filterable by country and era.' },
+        ]}
+      />
     </Page>
   )
 }

@@ -8,8 +8,34 @@
          static host for /favicon.ico does not get a 404. -->
     <link
       rel="icon"
-      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2317171a'/%3E%3Crect x='6' y='6' width='8' height='8' fill='%23ffffff'/%3E%3Crect x='18' y='18' width='8' height='8' fill='%23ffffff'/%3E%3Crect x='18' y='6' width='8' height='8' fill='%23b0182e'/%3E%3Crect x='6' y='18' width='8' height='8' fill='%23b0182e'/%3E%3C/svg%3E"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2317171a'/%3E%3Crect x='6' y='9' width='6.7' height='6.7' fill='%23ffffff'/%3E%3Crect x='19.3' y='9' width='6.7' height='6.7' fill='%23ffffff'/%3E%3Crect x='12.65' y='9' width='6.7' height='6.7' fill='%23ffffff' opacity='0.22'/%3E%3Crect x='12.65' y='15.7' width='6.7' height='6.7' fill='%23ffffff'/%3E%3Crect x='6' y='15.7' width='6.7' height='6.7' fill='%23b0182e'/%3E%3Crect x='19.3' y='15.7' width='6.7' height='6.7' fill='%23b0182e'/%3E%3C/svg%3E"
     />
+    <!-- Saira Condensed carries names and figures, Saira the interface, and
+         JetBrains Mono every number that has to line up in a column. Google
+         Fonts is the one font host worth a blocking request here; each face
+         declares a real fallback stack in tokens.css for the moment it is not. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Loaded without blocking the first paint. This app is built to be
+         served from any static host and to keep working with the database
+         cached offline, so a third-party stylesheet must never be able to hold
+         the page: the media/onload swap fetches it at low priority, and the
+         fallback stacks in tokens.css carry the design until it lands (or if
+         it never does). Saira is requested at 700 as well because the design
+         uses it and a browser told not to synthesise weight would otherwise
+         collapse every bold rule to 600. -->
+    <link
+      rel="stylesheet"
+      media="print"
+      onload="this.media='all'"
+      href="https://fonts.googleapis.com/css2?family=Saira:wght@400;500;600;700&family=Saira+Condensed:wght@600;700&family=JetBrains+Mono:wght@400;500;700&display=swap"
+    />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Saira:wght@400;500;600;700&family=Saira+Condensed:wght@600;700&family=JetBrains+Mono:wght@400;500;700&display=swap"
+      />
+    </noscript>
     <title>F1 Verified Facts — a Formula One database you can check</title>
     <meta
       name="description"

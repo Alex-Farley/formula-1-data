@@ -1,23 +1,4 @@
-import { fileTitle, thumbUrl } from '../lib/commons.js'
-
-/**
- * The person or source to credit for a photograph.
- *
- * This is the SAME RULE the build applies. verify.py refuses a file where
- * neither `artist` nor `credit` says anything —
- *
- *     COALESCE(NULLIF(TRIM(artist), ''), NULLIF(TRIM(credit), ''))
- *
- * — and if the renderer read only `artist` it would disagree with the check
- * that admitted the row. It did: one of the 602 files, the 1958 Hawthorn
- * photograph on Ferrari 246 F1, carries a source in `credit` and no artist at
- * all, and this component used to caption it "photographer not recorded".
- * The build said attributed, the page said anonymous, and the page was what
- * the reader saw. Two rules for one obligation is how an attribution goes
- * missing, so there is one rule and it lives here.
- */
-const attribution = (image) =>
-  (image.artist ?? '').trim() || (image.credit ?? '').trim() || null
+import { attribution, canShow, fileTitle, thumbUrl } from '../lib/commons.js'
 
 /**
  * A photograph from Wikimedia Commons, with its credit.
@@ -45,9 +26,9 @@ const attribution = (image) =>
 export default function CommonsImage({ image, width = 800, caption, showCheck = true }) {
   if (!image?.file_name) return null
 
+  if (!canShow(image)) return null
   const credit = attribution(image)
   const licence = (image.licence ?? '').trim()
-  if (!credit || !licence) return null
 
   const src = thumbUrl(image.file_name, width)
   const unchecked = showCheck && image.name_matches === 0

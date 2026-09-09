@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { Confidence, Fields, Note, Page, Section, Stats } from '../components/Page.jsx'
+import { Confidence, Fields, Note, Onward, Page, Section, Stats, Stepper } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
@@ -38,6 +38,15 @@ const QUALIFYING = `
    ORDER BY q.position IS NULL, q.position
 `
 
+const SPRINT = `
+  SELECT s.*, d.full_name AS driver, k.name AS constructor
+    FROM sprint_results s
+    JOIN races r         ON r.id = s.race_id
+    LEFT JOIN drivers d  ON d.id = s.driver_id
+    LEFT JOIN constructors k ON k.id = s.constructor_id
+   WHERE r.year = ? AND r.round = ?
+`
+
 const PITS = `
   SELECT p.*, d.full_name AS driver
     FROM pit_stops p
@@ -57,6 +66,14 @@ const NEIGHBOURS = `
       ORDER BY year, round LIMIT 1) AS next
 `
 
+/** What a row achieved, for the rail beside it. */
+function railOf(entry) {
+  if (entry.finish_position >= 1 && entry.finish_position <= 3) return 'podium'
+  if (entry.points > 0) return 'points'
+  if (!missing(entry.finish_position)) return 'classified'
+  return ''
+}
+
 export default function Race() {
   const { year, round } = useParams()
   const args = [Number(year), Number(round)]
@@ -64,6 +81,7 @@ export default function Race() {
     race: [RACE, args],
     entries: [ENTRIES, args],
     qualifying: [QUALIFYING, args],
+    sprint: [SPRINT, args],
     pits: [PITS, args],
     neighbours: [NEIGHBOURS, args],
   })
@@ -91,6 +109,12 @@ function RaceBody({ race, data, year, round }) {
   const entries = rows(data, 'entries')
   const qualifying = rows(data, 'qualifying')
   const pits = rows(data, 'pits')
+  /* The sprint is a separate race on the same weekend, so it is ordered the
+     same way a race is: finishers by position, then everyone else. */
+  const sprint = useMemo(
+    () => [...rows(data, 'sprint')].sort((a, b) => classificationOrder(a) - classificationOrder(b)),
+    [data],
+  )
   const neighbours = data.neighbours.rows[0] ?? {}
 
   /**
@@ -131,11 +155,10 @@ function RaceBody({ race, data, year, round }) {
       back={{ to: `/seasons/${year}`, label: `${year} season` }}
       lede={race.note}
       aside={
-        <p className="crumb plain" style={{ marginTop: 12 }}>
-          {neighbours.previous && <Link to={`/races/${neighbours.previous}`}>← Previous race</Link>}
-          {neighbours.previous && neighbours.next && <span className="faint"> · </span>}
-          {neighbours.next && <Link to={`/races/${neighbours.next}`}>Next race →</Link>}
-        </p>
+        <Stepper
+          previous={neighbours.previous ? { to: `/races/${neighbours.previous}`, label: 'Previous race' } : null}
+          next={neighbours.next ? { to: `/races/${neighbours.next}`, label: 'Next race' } : null}
+        />
       }
     >
       <Section>
@@ -167,15 +190,15 @@ function RaceBody({ race, data, year, round }) {
       {scheduled && (
         <Note>
           <strong>This race has not been run.</strong> It is on the {year} calendar and carries no
-          result. Nothing here fills that in with a prediction.
+          result yet.
         </Note>
       )}
 
       {shared && (
         <Note>
-          <strong>This race includes a shared drive.</strong> Two drivers took turns in one car, and
-          both are classified in the same position — so the classification below has a repeated
-          number in it, and that is correct, not a duplicate.
+          <strong>This race includes a shared drive.</strong> Two drivers took turns in one car and
+          both are classified in the same position, so a position below appears twice. That is
+          correct, not a duplicated row.
         </Note>
       )}
 
@@ -188,6 +211,16 @@ function RaceBody({ race, data, year, round }) {
             page={60}
             highlight={(row) => row.finish_position === 1}
             columns={[
+              {
+                // Data, not decoration: what the row achieved, read before any
+                // of the numbers do. Always paired with the position beside it,
+                // so the colour never carries the meaning on its own.
+                key: 'rail',
+                label: <span className="sr-only">Result</span>,
+                align: 'rail',
+                sortable: false,
+                render: (_, row) => <i className={railOf(row)} />,
+              },
               {
                 key: 'position_text',
                 label: 'Pos',
@@ -247,7 +280,7 @@ function RaceBody({ race, data, year, round }) {
                 render: (value) => (value === 1 ? '●' : ''),
               },
             ]}
-            footer="An empty “Out” column is a driver the source records no retirement reason for, not a driver who finished. A blank chassis is a constructor that ran more than one design that season and no source says which raced this round."
+            footer="An empty “Out” is a retirement nobody recorded a reason for, not a driver who finished. A blank chassis is a season the team ran more than one design and no source says which car raced here."
           />
         </Section>
       )}
@@ -284,7 +317,45 @@ function RaceBody({ race, data, year, round }) {
               { key: 'gap', label: 'Gap', align: 'num' },
               { key: 'interval', label: 'Interval', align: 'num' },
             ]}
-            footer="Before knock-out qualifying arrived in 2006 there is one time per driver; from 2006 there are three sessions and the fastest of each is shown."
+            footer="Before knock-out qualifying arrived in 2006 there is one time per driver; from 2006, the best lap of each of the three sessions."
+          />
+        </Section>
+      )}
+
+      {sprint.length > 0 && (
+        <Section title="Sprint" count={`${sprint.length} entries`}>
+          <DataTable
+            rows={sprint}
+            rowKey={(row) => row.id}
+            sortable={false}
+            page={40}
+            columns={[
+              {
+                key: 'rail',
+                label: <span className="sr-only">Result</span>,
+                className: 'rail',
+                render: (_value, row) => <span className={`rail-${railOf(row)}`} />,
+              },
+              { key: 'position_text', label: 'Pos', align: 'num' },
+              {
+                key: 'driver',
+                label: 'Driver',
+                render: (name, row) =>
+                  row.driver_id ? <Link to={`/drivers/${row.driver_id}`}>{name ?? row.driver_id}</Link> : cell(name),
+              },
+              {
+                key: 'constructor',
+                label: 'Constructor',
+                render: (name, row) =>
+                  row.constructor_id ? <Link to={`/constructors/${row.constructor_id}`}>{name}</Link> : cell(name),
+              },
+              { key: 'grid', label: 'Grid', align: 'num', render: (v) => cell(number(v)) },
+              { key: 'laps_completed', label: 'Laps', align: 'num', render: (v) => cell(number(v)) },
+              { key: 'status', label: 'Out', render: (v) => result(v) },
+              { key: 'gap', label: 'Gap', align: 'num' },
+              { key: 'points', label: 'Points', align: 'num', render: (v) => cell(fmtPoints(v)) },
+            ]}
+            footer="A sprint is a separate, shorter race held on the grand prix weekend, with its own grid and its own points — and those points count towards the championship. The grid column is the sprint grid, not the grand prix one."
           />
         </Section>
       )}
@@ -311,7 +382,7 @@ function RaceBody({ race, data, year, round }) {
               { key: 'pit_lane_seconds', label: 'Pit lane (s)', align: 'num' },
               { key: 'source', label: 'Source' },
             ]}
-            footer="Pit stops are keyed on the race, the source and the driver together, so more than one source can hold the same stop side by side and be compared rather than overwrite each other."
+            footer="Stationary time is the car standing still; pit-lane time is the whole detour. Where two sources record the same stop, both are kept so you can compare them."
           />
         </Section>
       )}
@@ -340,11 +411,34 @@ function RaceBody({ race, data, year, round }) {
         />
         {!race.layout_name && (
           <p className="source-note">
-            Only 13 of the 80 circuits have a layout timeline, so a race before a rebuild may have
-            no layout recorded against it rather than the wrong one.
+            No layout is recorded for this round: only 13 of the 80 circuits have a layout
+            timeline, and a blank here is better than the wrong shape.
           </p>
         )}
       </Section>
+
+      <Onward
+        items={[
+          race.circuit_id
+            ? {
+                to: `/circuits/${race.circuit_id}`,
+                label: race.circuit,
+                hint: 'The venue, its layouts and every race held there.',
+              }
+            : null,
+          { to: `/seasons/${year}`, label: `The ${year} season`, hint: 'Calendar, title race and final standings.' },
+          winners[0]?.driver_id
+            ? {
+                to: `/drivers/${winners[0].driver_id}`,
+                label: winners[0].driver ?? 'The winner',
+                hint: 'Their full career, race by race.',
+              }
+            : null,
+          neighbours.next
+            ? { to: `/races/${neighbours.next}`, label: 'The next race', hint: 'Where the championship went from here.' }
+            : null,
+        ]}
+      />
     </Page>
   )
 }

@@ -99,7 +99,10 @@ export default function ColumnChart({
           style={{ left: `${(x.centre(hover.key) / width) * 100}%`, top: y(hover.value) }}
           role="status"
         >
-          <b>{hover.label ?? hover.key}</b>
+          {/* `||`, not `??`: an empty label is how a caller suppresses an axis
+              tick it does not want drawn, and the tooltip still needs a
+              heading. On the home page that is nine columns in ten. */}
+          <b>{hover.label || hover.key}</b>
           <span className="row">
             <i style={{ background: seriesColour(0) }} aria-hidden="true" />
             {format(hover.value)}

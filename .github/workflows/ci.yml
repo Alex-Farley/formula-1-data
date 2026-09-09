@@ -11,7 +11,7 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
-    # The build and all 170 checks run in well under a minute. A cap this far
+    # The build and all 171 checks run in well under a minute. A cap this far
     # above that never trips on a slow runner, and turns a hang into a failure
     # in minutes rather than letting it hold a runner for the default six
     # hours.
@@ -58,12 +58,17 @@ jobs:
             git diff --stat -- f1_database.json f1_compat.json
             exit 1
           fi
-          # f1-geometry.db is the ODbL overlay (see LICENSE-DATA). It is
-          # byte-stable across rebuilds, so a difference here means the
-          # committed copy is stale rather than that the build is noisy.
-          if ! git diff --quiet -- f1-geometry.db; then
-            echo "::error::The committed f1-geometry.db does not match a fresh build."
+          # The two databases are byte-stable across rebuilds, so a difference
+          # here means the committed copy is stale rather than that the build
+          # is noisy. f1.db matters most during a multi-branch merge: git
+          # cannot merge a 20 MB binary, the resolution is always to rebuild,
+          # and without this a forgotten rebuild ships silently — every other
+          # step runs against the database CI just rebuilt, not the one in the
+          # commit.
+          if ! git diff --quiet -- f1.db f1-geometry.db; then
+            echo "::error::The committed databases do not match a fresh build."
             echo "Run 'python3 build.py' and commit the result."
+            git diff --stat -- f1.db f1-geometry.db
             exit 1
           fi
 

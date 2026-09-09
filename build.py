@@ -9,6 +9,7 @@ Idempotent: deletes and rebuilds the database each run.
 import json
 import math
 import os
+import re
 import sqlite3
 import sys
 
@@ -48,6 +49,63 @@ def _haversine(a, b):
     return 2 * R * math.asin(math.sqrt(h))
 BUILT = "2026-09-05"
 
+
+
+def _lap_topology(lines, join_m=1.0):
+    """Does this bag of ways form one closed lap?
+
+    An OSM relation's members are UNORDERED, so the question cannot be asked by
+    comparing the first coordinate to the last - that compares two arbitrary way
+    ends. What a lap actually guarantees is that every way END meets another
+    way's end, and that walking from any way returns to the start having used
+    all of them.
+
+    WHY ONE METRE. Ways in a relation share their junction nodes, so a real join
+    is not "close", it is identical: across the 25 traces held here, 1,201 of
+    1,208 way ends sit at exactly 0.000 m from another end. The seven that do
+    not are 5.4 m to 63.4 m away, and every one of them is a genuine hole in the
+    trace. A metre is far above serialisation noise and far below the smallest
+    real gap, so it separates the two cleanly. A looser figure does not measure
+    the same thing: at 30 m the Monaco and Montjuic holes read as joins.
+
+    Returns (closes, loose_ends, used, walked_m).
+    """
+    def near(a, b):
+        return _haversine((a[1], a[0]), (b[1], b[0])) <= join_m
+
+    # Index by POSITION IN THIS LIST, not by way: a circuit traced as one
+    # closed way is met by its own other end, and comparing way indices would
+    # exclude exactly that pair and call a perfectly good loop two loose ends.
+    ends = [l[0] for l in lines] + [l[-1] for l in lines]
+    loose = sum(1 for i, p in enumerate(ends)
+                if not any(j != i and near(p, q) for j, q in enumerate(ends)))
+
+    # Walk: from the tail of the chain, take any unused way that starts or ends
+    # there, reversing it if it is the far end that meets.
+    used = [False] * len(lines)
+    ring = list(lines[0])
+    used[0] = True
+    while True:
+        tail = ring[-1]
+        step = None
+        for i, line in enumerate(lines):
+            if used[i]:
+                continue
+            if near(tail, line[0]):
+                step = (i, line)
+                break
+            if near(tail, line[-1]):
+                step = (i, list(reversed(line)))
+                break
+        if step is None:
+            break
+        used[step[0]] = True
+        ring.extend(step[1][1:])
+
+    walked = sum(_haversine((a[1], a[0]), (b[1], b[0]))
+                 for a, b in zip(ring, ring[1:]))
+    closes = (loose == 0 and all(used) and near(ring[0], ring[-1]))
+    return closes, loose, sum(used), walked
 
 def build():
     if os.path.exists(DB):
@@ -586,6 +644,7 @@ def build():
     # long - looks perfectly reasonable in isolation.
     geom_tolerance = 0.02
     geom_rows = 0
+    unclosed = []
     for g in HV.load_circuit_geometry():
         cid = g["circuit_id"]
         if not cur.execute("SELECT 1 FROM circuits WHERE id = ?",
@@ -621,22 +680,43 @@ def build():
                 f"outside {geom_tolerance * 100:.0f}%. The trace and the "
                 f"length disagree; do not store it.")
 
+        # Whether the ways form a lap is a different question from whether
+        # they measure the right length, and the length cannot answer it: Las
+        # Vegas is missing a way and still measures within 2%. Ask it here,
+        # where the row is admitted, and store the answer - the front end
+        # offers to walk a lap only where one exists.
+        closes, loose, used, walked = _lap_topology(geo["coordinates"])
+        if not closes:
+            unclosed.append(
+                f"{cid} ({loose} loose end{'s' if loose != 1 else ''}, "
+                f"{used}/{len(geo['coordinates'])} ways walked, "
+                f"{(measured_m - walked) / 1000:.2f} km unaccounted)")
+
         cur.execute("""INSERT INTO circuit_geometry (circuit_id, layout_key,
             wikidata_id, osm_relation, centreline, measured_km, published_km,
-            delta_pct, node_count, osm_timestamp, licence, confidence)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+            delta_pct, node_count, segment_count, loose_ends, closes,
+            osm_timestamp, licence, confidence)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (cid, key, g["wikidata_id"], int(g["osm_relation"]),
              g["centreline"], round(measured, 4), published,
              round(delta * 100, 2),
              int(g["node_count"]) if g.get("node_count") else None,
+             len(geo["coordinates"]), loose, 1 if closes else 0,
              g.get("osm_timestamp"), "ODbL-1.0", "reference"))
         geom_rows += 1
     if geom_rows:
         worst = cur.execute("SELECT MAX(ABS(delta_pct)) "
                             "FROM circuit_geometry").fetchone()[0]
+        laps = cur.execute("SELECT COUNT(*) FROM circuit_geometry "
+                           "WHERE closes = 1").fetchone()[0]
         print(f"  circuit geometry: {geom_rows} centrelines, all within "
               f"{geom_tolerance * 100:.0f}% of the published length "
               f"(worst {worst:+.2f}%)")
+        print(f"    {laps} of {geom_rows} stitch into a closed lap")
+        for line in unclosed:
+            # Not fatal: an incomplete trace is still the best shape anyone
+            # has for that circuit, and it is drawn. It just cannot be walked.
+            print(f"    does not close: {line}")
 
     # --- a regulation figure is not a measurement, part one
     #
@@ -1224,6 +1304,89 @@ def build():
         print(f"  race results: {res_rows} entries over {res_races} races "
               f"from F1DB; {res_skipped_driver} rows skipped for "
               f"{len(unknown_drivers)} unresolvable drivers")
+
+    # --- the sprint races
+    #
+    # A sprint is a separate race on the weekend, not a session of the grand
+    # prix, so it lands in its own table rather than as columns on the entry.
+    # Its points count towards the championship, which is why the standings
+    # already reflected sprints while nothing here recorded that they had
+    # happened.
+    #
+    # The round is also FLAGGED here rather than being authored by hand. The
+    # calendar carried sprint=1 for 2026 alone, so every sprint from 2021 to
+    # 2025 was recorded as an ordinary weekend. Deriving the flag from the
+    # presence of a classification means it cannot drift again: a round has a
+    # sprint exactly when a sprint was run there.
+    sprint_by_race = {}
+    for row in HV.load_sprint_results():
+        sprint_by_race.setdefault(
+            (int(row["year"]), int(row["round"])), []).append(row)
+
+    spr_rows = spr_races = spr_skipped = 0
+    for (yr, rnd), rows in sorted(sprint_by_race.items()):
+        rid = race_key.get((yr, rnd))
+        if rid is None:
+            continue
+        spr_races += 1
+        cur.execute("UPDATE races SET sprint=1 WHERE id=?", (rid,))
+        for r in rows:
+            did = f1db_drivers.get(r["driver_id"])
+            if not did:
+                spr_skipped += 1
+                continue
+            cons = HV.constructor_for_f1db(r["constructor_id"], yr)
+            if cons and not cur.execute("SELECT 1 FROM constructors WHERE id=?",
+                                        (cons,)).fetchone():
+                cons = None
+            pos = int(r["position"]) if r["position"] else None
+            cur.execute("""INSERT INTO sprint_results (race_id, driver_id,
+                    constructor_id, grid, finish_position, position_text,
+                    status, laps_completed, time, gap, points, confidence,
+                    source)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+                ON CONFLICT (race_id, driver_id) DO NOTHING""",
+                (rid, did, cons,
+                 int(r["grid"]) if r["grid"] and r["grid"].isdigit() else None,
+                 pos, r["position_text"],
+                 r["reason_retired"] or (r["position_text"]
+                                         if pos is None else None),
+                 int(r["laps"]) if r["laps"] else None,
+                 r["time"] or None, r["gap"] or None,
+                 float(r["points"]) if r["points"] else None,
+                 HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
+            spr_rows += 1
+
+    if spr_rows:
+        flagged = cur.execute(
+            "SELECT COUNT(*) FROM races WHERE sprint=1").fetchone()[0]
+        print(f"  sprint races: {spr_rows} entries over {spr_races} sprints "
+              f"from F1DB ({flagged} rounds flagged); {spr_skipped} rows "
+              f"skipped for an unresolvable driver")
+
+    # --- a round that has a result has been run
+    #
+    # The calendar in data/current.py authors a status per round, which is
+    # right for a season that has not happened yet: "scheduled" is a claim
+    # about the future and nothing else can supply it. But it goes stale the
+    # moment a race is run, and a hand-edit is what stands between a result
+    # arriving in the harvest and the site admitting the race took place.
+    # That is a whole class of staleness the sources can settle themselves:
+    # a round with a classification has been run, whatever the calendar was
+    # authored to say.
+    #
+    # Only ever in that direction. A round with no result stays exactly as it
+    # was authored, because the absence of a result is not evidence that a
+    # race did not happen — it is far more often evidence that nobody has
+    # harvested it yet.
+    promoted = cur.execute("""UPDATE races SET status = 'completed'
+        WHERE status != 'completed'
+          AND EXISTS (SELECT 1 FROM race_entries e
+                      WHERE e.race_id = races.id
+                        AND e.finish_position IS NOT NULL)""").rowcount
+    if promoted:
+        print(f"  calendar: {promoted} round(s) promoted to completed "
+              f"because a classification arrived for them")
 
     # --- qualifying, checked against the pole already established
     qual_rows = qual_skipped = 0
@@ -2047,15 +2210,26 @@ def split_geometry(con):
         historic-layout refusal. Loading them, checking them and then moving
         them keeps every one of those checks exactly where it was.
     """
-    rows = con.execute("""SELECT circuit_id, layout_key, wikidata_id,
-        osm_relation, centreline, measured_km, published_km, delta_pct,
-        node_count, osm_timestamp, licence, confidence
-        FROM circuit_geometry ORDER BY circuit_id, layout_key""").fetchall()
+    columns = [c[1] for c in con.execute("PRAGMA table_info(circuit_geometry)")]
+    rows = con.execute("SELECT * FROM circuit_geometry "
+                       "ORDER BY circuit_id, layout_key").fetchall()
     if not rows:
         return 0
 
     if os.path.exists(GEOMETRY_DB):
         os.remove(GEOMETRY_DB)
+    # The overlay's table is DERIVED from this build's schema, never restated
+    # here. A hardcoded column list is a silent truncation waiting for the next
+    # column: `segment_count`, `loose_ends` and `closes` were added to
+    # circuit_geometry while this function had twelve columns written out, and
+    # a copy that drops a column looks exactly like a copy that worked.
+    #
+    # The REFERENCES clauses go, because the overlay stands alone - there is no
+    # circuits table beside it and no provenance ladder to point at.
+    ddl = con.execute("SELECT sql FROM sqlite_master WHERE type='table' "
+                      "AND name='circuit_geometry'").fetchone()[0]
+    ddl = re.sub(r"\s+REFERENCES\s+\w+\s*\([^)]*\)", "", ddl)
+
     geo = sqlite3.connect(GEOMETRY_DB)
     geo.executescript("""
         -- The circuit centrelines, traced from OpenStreetMap.
@@ -2072,24 +2246,10 @@ def split_geometry(con):
         -- circuit_id matches circuits.id in f1.db. There is deliberately no
         -- foreign key: this file must stand on its own.
         CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
-        CREATE TABLE circuit_geometry (
-            circuit_id      TEXT NOT NULL,
-            layout_key      TEXT,
-            wikidata_id     TEXT NOT NULL,
-            osm_relation    INTEGER NOT NULL,
-            centreline      TEXT NOT NULL,
-            measured_km     REAL NOT NULL,
-            published_km    REAL NOT NULL,
-            delta_pct       REAL NOT NULL,
-            node_count      INTEGER,
-            osm_timestamp   TEXT,
-            licence         TEXT NOT NULL DEFAULT 'ODbL-1.0',
-            confidence      TEXT NOT NULL DEFAULT 'reference',
-            UNIQUE (circuit_id, layout_key)
-        );
     """)
-    geo.executemany("INSERT INTO circuit_geometry VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-                    rows)
+    geo.execute(ddl)
+    placeholders = ",".join("?" * len(columns))
+    geo.executemany(f"INSERT INTO circuit_geometry VALUES ({placeholders})", rows)
     geo.executemany("INSERT INTO meta VALUES (?,?)", [
         ("database_name", "F1 circuit centrelines (OpenStreetMap overlay)"),
         ("version", VERSION),

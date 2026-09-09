@@ -1,0 +1,89 @@
+name: refresh the harvest
+
+# F1DB is the source for results, qualifying, standings, pit stops and the
+# sprint classification, and it updates within a day or two of a race. The
+# harvest files in this repository are a SNAPSHOT of it, so until somebody
+# reruns the fetch tool the site keeps showing a race that has been run as
+# still to come. That is the whole staleness problem, and it is a job for a
+# schedule rather than for remembering.
+#
+# Mondays at 06:00 UTC: after every grand prix weekend, before the week
+# starts. Also runnable by hand for a race that lands out of step.
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+# The workflow commits the refreshed harvest to the default branch when, and
+# only when, the rebuilt database passes every check.
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # PyYAML is needed by the fetch tool to read F1DB's source files. The
+      # build itself has no dependencies and does not get any here.
+      - name: Install the fetch tool's dependency
+        run: pip install --quiet pyyaml
+
+      - name: Fetch F1DB and rewrite the harvest
+        run: python3 tools/f1db_fetch.py
+
+      - name: Has anything changed?
+        id: diff
+        run: |
+          if git diff --quiet -- harvest/; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "The harvest already matches F1DB. Nothing to do."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            git diff --stat -- harvest/
+          fi
+
+      # THE GATE. A refresh is only worth having if it is still true. build.py
+      # rebuilds from the new harvest and verify.py runs every check against
+      # the result; a failure here stops the commit, so the repository keeps
+      # the last harvest that was known good rather than taking on a broken
+      # one unattended.
+      - name: Rebuild and verify
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          python3 build.py
+          python3 verify.py
+
+      - name: Regenerate the JSON exports
+        if: steps.diff.outputs.changed == 'true'
+        run: python3 export_json.py --compat
+
+      - name: Smoke-test the query tool
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          ./f1 champions 2020 2025
+          ./f1 gaps
+
+      # The commit message names the F1DB version it came from, which the
+      # harvest headers also carry, so the provenance of a row is answerable
+      # from the log as well as from the file.
+      - name: Commit
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          version=$(sed -n '2s/.*F1DB \(v[^ ]*\) (\([^)]*\)).*/\1 \2/p' harvest/race_results.txt)
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "harvest: refresh from F1DB ${version}" \
+                     -m "Rebuilt and verified before committing; every check passed."
+          git push

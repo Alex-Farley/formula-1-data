@@ -121,6 +121,10 @@ def main():
         "glossary": dump(con, "glossary", "term"),
         "races": dump(con, "races", "year, round"),
         "race_entries": dump(con, "race_entries", "race_id, id"),
+        # A separate race with its own grid, classification and points, not a
+        # session of the grand prix beside it — so its own array, ordered the
+        # way the grand prix entries are.
+        "sprint_results": dump(con, "sprint_results", "race_id, id"),
         "race_timing": dump(con, "race_timing", "race_id"),
         "team_radio": dump(con, "team_radio", "notable DESC, race_id"),
         "known_gaps": dump(con, "known_gaps", "id"),

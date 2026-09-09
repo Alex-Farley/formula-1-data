@@ -1,11 +1,32 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Note, Page, Section } from '../components/Page.jsx'
+import { Note, Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { Chips, Filters, SearchField, Select } from '../components/Filters.jsx'
-import { useQuery } from '../data/useQuery.js'
+import { rows as pick, useQueries } from '../data/useQuery.js'
+import { canShow, thumbUrl } from '../lib/commons.js'
+import CommonsCredit from '../components/CommonsCredit.jsx'
 import { span } from '../lib/format.js'
+
+/**
+ * The curated cars, with a photograph where one has been matched.
+ *
+ * These 29 are not a subset of the register below by size — they are the
+ * designs somebody wrote a page about, with a designer, a concept and a
+ * record. 24 of them have a Commons photograph, which is why this page can
+ * open with pictures at all; the 1,153-row register cannot, and pretending
+ * otherwise would be a grid of empty frames.
+ */
+const GALLERY = `
+  SELECT v.id, v.car, v.constructor, v.from_year, v.to_year, v.concept,
+         v.wins, v.drivers_titles, v.constructors_titles,
+         i.file_name, i.licence, i.licence_url, i.artist, i.credit,
+         i.description_url, i.width, i.height, i.name_matches
+    FROM v_cars v
+    LEFT JOIN v_car_images i ON i.car_id = v.id
+   ORDER BY v.from_year, v.car
+`
 
 const SQL = `
   SELECT ch.id, ch.name, ch.full_name, ch.constructor_id, k.name AS constructor,
@@ -21,18 +42,91 @@ const SQL = `
 `
 
 export default function Cars() {
-  const state = useQuery(SQL)
+  const state = useQueries({ gallery: [GALLERY], register: [SQL] })
   return (
     <Page
       title="Cars"
-      lede="Every chassis the championship has an entry for — 1,153 of them, most raced by a privateer for one weekend. Specifications come from the {{Racing car}} infobox of the car's own article where it has one, which is why some rows are a full spec sheet and most are a name and a year. A blank is a figure nobody published, not a car with no wheelbase."
+      lede="Twenty-nine designs with a page of their own, and behind them every chassis with a championship entry — 1,153 of them, most raced by a privateer for a single weekend. Filter the register to race winners, landmark designs, or the ones with a published specification. A blank is a figure nobody published, not a car with no wheelbase."
     >
-      <Section>
-        <Result state={state} skeleton>
-          {(data) => <Register rows={data.rows} />}
-        </Result>
-      </Section>
+      <Result state={state} skeleton>
+        {(data) => (
+          <>
+            <Section
+              title="The cars with a page of their own"
+              count={`${pick(data, 'gallery').length} designs, in order`}
+            >
+              <p className="note" style={{ marginTop: 0 }}>
+                Every one of these is flagged a landmark in the register, so the flag is not
+                drawn: it would sit on all twenty-nine and mean nothing. What each card carries
+                instead is the line the database holds on what the design was actually for.
+              </p>
+              <Gallery cars={pick(data, 'gallery')} />
+            </Section>
+            <Section title="The chassis register" count="1,153 chassis">
+              <Register rows={pick(data, 'register')} />
+            </Section>
+          </>
+        )}
+      </Result>
+
+      <Onward
+        items={[
+          { to: '/constructors', label: 'Constructors', hint: 'The teams that built and ran them.' },
+          { to: '/reference/eras', label: 'Eras and rules', hint: 'The regulations these cars were designed around.' },
+          { to: '/records', label: 'Records', hint: 'What the fastest of them actually won.' },
+        ]}
+      />
     </Page>
+  )
+}
+
+/**
+ * A card per curated car: the photograph, what it was for, what it won.
+ *
+ * The credit line is the licence obligation and is not optional, so it sits
+ * on the card rather than being collected into a footnote. A car with no
+ * matched photograph still gets a card — its concept line is the reason it is
+ * here — and the frame simply carries no picture rather than a placeholder
+ * pretending one is coming.
+ */
+function Gallery({ cars }) {
+  return (
+    <ul className="cardgrid">
+      {cars.map((car) => (
+        <li key={car.id} className="carcard">
+          <Link to={`/cars/${car.id}`} className="carcard-shot">
+            {canShow(car) ? (
+              <img
+                src={thumbUrl(car.file_name, 640)}
+                alt={car.car}
+                loading="lazy"
+                decoding="async"
+                width={car.width || undefined}
+                height={car.height || undefined}
+              />
+            ) : (
+              <span className="carcard-nophoto">no photograph matched</span>
+            )}
+          </Link>
+          <div className="carcard-body">
+            <h3>
+              <Link to={`/cars/${car.id}`}>{car.car}</Link>
+            </h3>
+            <p className="carcard-meta num">
+              {car.constructor} · {span(car.from_year, car.to_year)}
+            </p>
+            {car.concept && <p className="carcard-concept">{car.concept}</p>}
+            <p className="carcard-record num">
+              {cell(car.wins)} {car.wins === 1 ? 'win' : 'wins'}
+              {car.drivers_titles > 0 && ` · ${car.drivers_titles} drivers' title${car.drivers_titles > 1 ? 's' : ''}`}
+              {car.constructors_titles > 0 &&
+                ` · ${car.constructors_titles} constructors'`}
+            </p>
+          </div>
+          {canShow(car) && <CommonsCredit image={car} className="carcard-credit" />}
+        </li>
+      ))}
+    </ul>
   )
 }
 
@@ -68,11 +162,10 @@ function Register({ rows }) {
   return (
     <>
       <Note>
-        <strong>A car's design life is not its racing life.</strong> The years below are the years
-        the chassis is recorded as entering a championship race. A works team's own dates for a car
-        are usually shorter: privateers ran the Ferrari 500 until 1957, years after Ferrari had
-        moved on. Anything about when a car raced comes from the chassis register, never from a
-        design date.
+        <strong>“Raced” is not the same as a car's design life.</strong> These years are the
+        seasons the chassis actually entered a championship race, which usually runs longer than
+        the works team's own dates: privateers were still running the Ferrari 500 in 1957, years
+        after Ferrari had moved on.
       </Note>
 
       <Filters showing={filtered.length} of={rows.length} noun="chassis">
@@ -137,7 +230,7 @@ function Register({ rows }) {
             align: 'num',
           },
         ]}
-        footer="Where “wins” and “published wins” differ, the derived figure counts the races this database can attribute to this chassis and the published one is what the car's article claims — a difference is a season the constructor ran more than one design, not an error."
+        footer="“Wins” counts the races that can be attributed to this exact chassis; “published wins” is what the car's own article claims. A gap between them is usually a season the constructor ran two designs and no source says which car raced when."
       />
     </>
   )

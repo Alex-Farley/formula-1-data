@@ -21,7 +21,29 @@ let SQL = null
 /** Where f1.db.gz, f1.db, sql-wasm.wasm and db-manifest.json are served from. */
 let assetBase = null
 
-const asset = (name) => new URL(name, assetBase).href
+/**
+ * A URL for one of the four files this app serves.
+ *
+ * WHY THE VERSION
+ *     f1.db.gz, f1.db and sql-wasm.wasm are served immutable for a year,
+ *     because re-downloading twenty megabytes a reader already has is the
+ *     worst thing this front end can do to them. But their paths never
+ *     change, and "immutable" at a path that can change its contents is a
+ *     promise the deploy cannot keep: the manifest is fetched no-cache and so
+ *     is always this build's, while the database beside it may still be last
+ *     build's, held in a cache that was told not to ask again until next year.
+ *     That pairing is exactly what the length check in load() reports, and it
+ *     took a deployment to find.
+ *
+ *     So the digest travels in the query string. A build that changes the
+ *     bytes changes the URL, which makes the year-long entry per build rather
+ *     than per path — the caching stays, the staleness goes.
+ */
+const asset = (name, version) => {
+  const url = new URL(name, assetBase)
+  if (version) url.searchParams.set('v', version)
+  return url.href
+}
 
 /**
  * Fetch, and fail with a message that names the file.
@@ -31,8 +53,8 @@ const asset = (name) => new URL(name, assetBase).href
  * "the database is not deployed" and "the wasm is not deployed" is the whole
  * of the diagnosis, so it is worth the wrapper.
  */
-async function get(name, init) {
-  const url = asset(name)
+async function get(name, init, version) {
+  const url = asset(name, version)
   let response
   try {
     response = await fetch(url, init)
@@ -100,7 +122,7 @@ async function gunzip(bytes) {
   return new Uint8Array(await new Response(stream).arrayBuffer())
 }
 
-async function download(manifest) {
+async function download(manifest, init) {
   // The gzip is the normal path: 4.5 MB on the wire instead of 20 MB, shipped
   // as a file rather than left to whatever the host decides to compress.
   //
@@ -113,16 +135,19 @@ async function download(manifest) {
   // are asked, not the headers: a gzip member starts 1f 8b, and a SQLite file
   // starts "SQLite format 3".
   if (typeof DecompressionStream === 'function') {
-    const response = await get('f1.db.gz')
+    const response = await get('f1.db.gz', init, manifest.digest)
     const bytes = await drain(response, manifest.gzipBytes, manifest.bytes)
     if (!isGzip(bytes)) return bytes
     progress('decompressing')
     return gunzip(bytes)
   }
 
-  const response = await get('f1.db')
+  const response = await get('f1.db', init, manifest.digest)
   return drain(response, manifest.bytes, manifest.bytes)
 }
+
+/** Did the download come back a different size from the one promised? */
+const short = (bytes, manifest) => Boolean(manifest.bytes) && bytes.length !== manifest.bytes
 
 async function load() {
   progress('checking')
@@ -135,9 +160,21 @@ async function load() {
     // A truncated download opens as a corrupt database several queries later,
     // which reads as a broken site rather than a broken transfer. The manifest
     // knows how big the file is, so say so here instead.
-    if (manifest.bytes && bytes.length !== manifest.bytes) {
+    //
+    // The other thing that looks like this is a stale cache: a reader holding
+    // a previous build's database under this build's manifest. The version in
+    // the asset URL is what stops that happening, but it cannot help a cache
+    // that keys on the path alone, or one already poisoned before this code
+    // shipped. So the first mismatch is not fatal — ask again, refusing every
+    // cache on the way, and only then give up.
+    if (short(bytes, manifest)) {
+      bytes = await download(manifest, { cache: 'reload' })
+    }
+    if (short(bytes, manifest)) {
       throw new Error(
-        `the database arrived incomplete — ${bytes.length.toLocaleString('en-GB')} bytes of ${manifest.bytes.toLocaleString('en-GB')}`,
+        `the database arrived incomplete — ${bytes.length.toLocaleString('en-GB')} bytes of ` +
+          `${manifest.bytes.toLocaleString('en-GB')}. Something between here and the host is ` +
+          `serving an old copy; a hard reload usually clears it.`,
       )
     }
     // Storing is not on the critical path — the reader can have the database
@@ -149,8 +186,10 @@ async function load() {
   // locateFile ignores the name it is given, on purpose. sql.js ships several
   // glue builds asking for different wasm filenames; prepare-assets.js lands
   // one binary at a single known name and this points every request there.
-  SQL = await initSqlJs({ locateFile: () => asset('sql-wasm.wasm') }).catch((cause) => {
-    throw new Error(`SQLite would not start from ${asset('sql-wasm.wasm')} — ${cause?.message ?? cause}`)
+  SQL = await initSqlJs({ locateFile: () => asset('sql-wasm.wasm', manifest.wasm) }).catch((cause) => {
+    throw new Error(
+      `SQLite would not start from ${asset('sql-wasm.wasm', manifest.wasm)} — ${cause?.message ?? cause}`,
+    )
   })
   database = new SQL.Database(bytes)
   const geometry = await mergeGeometry(manifest)
@@ -183,26 +222,28 @@ async function load() {
 async function mergeGeometry(manifest) {
   if (!manifest.geometry?.file) return null
   try {
-    const response = await get(manifest.geometry.file)
+    const response = await get(manifest.geometry.file, undefined, manifest.geometry.digest)
     const overlay = new SQL.Database(new Uint8Array(await response.arrayBuffer()))
     try {
+      // The column list is read from the overlay, never written out here.
+      // A hardcoded one silently drops whatever the schema gains next, and a
+      // copy that drops a column looks exactly like a copy that worked —
+      // `segment_count`, `loose_ends` and `closes` arrived after this was
+      // first written, and the atlas needs all three.
+      const columns = overlay
+        .exec('SELECT name FROM pragma_table_info(\'circuit_geometry\')')[0]
+        .values.map(([name]) => name)
+      const names = columns.map((c) => `"${c}"`).join(', ')
       const statement = overlay.prepare('SELECT * FROM circuit_geometry')
       const insert = database.prepare(
-        `INSERT OR REPLACE INTO circuit_geometry
-           (circuit_id, layout_key, wikidata_id, osm_relation, centreline,
-            measured_km, published_km, delta_pct, node_count, osm_timestamp,
-            licence, confidence)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+        `INSERT OR REPLACE INTO circuit_geometry (${names})
+         VALUES (${columns.map(() => '?').join(', ')})`,
       )
       let merged = 0
       try {
         while (statement.step()) {
-          const r = statement.getAsObject()
-          insert.run([
-            r.circuit_id, r.layout_key, r.wikidata_id, r.osm_relation,
-            r.centreline, r.measured_km, r.published_km, r.delta_pct,
-            r.node_count, r.osm_timestamp, r.licence, r.confidence,
-          ])
+          const row = statement.getAsObject()
+          insert.run(columns.map((c) => row[c] ?? null))
           merged += 1
         }
       } finally {
