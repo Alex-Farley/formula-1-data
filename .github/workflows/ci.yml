@@ -8,6 +8,13 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Neither job writes anything back: they build the database, check it, and
+# build the site. The workflow never declared this, so it took whatever the
+# repository's default happened to be — which on a default of read-and-write
+# hands a write-capable token to every push build that has no use for one.
+permissions:
+  contents: read
+
 jobs:
   check:
     runs-on: ubuntu-latest
