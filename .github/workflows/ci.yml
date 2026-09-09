@@ -48,14 +48,21 @@ jobs:
 
       # A committed artefact that does not match its sources is a stale
       # artefact. Fail rather than let the two drift apart.
+      #
+      # f1_database.json is no longer committed — it is 21 MB, it does not
+      # delta-compress, and it regenerates in a second — so there is nothing
+      # there to go stale. f1_compat.json is 109 KB and is the v1 key layout
+      # other things were written against, so it stays, and being able to see
+      # it change in a diff is most of the reason why.
       - name: Check the committed artefacts are current
         run: |
-          if ! git diff --quiet -- f1_database.json f1_compat.json; then
-            echo "::error::The committed JSON exports do not match a fresh build."
+          if ! git diff --quiet -- f1_compat.json; then
+            echo "::error::The committed JSON export does not match a fresh build."
             echo "Run 'make all' and commit the result."
-            git diff --stat -- f1_database.json f1_compat.json
+            git diff --stat -- f1_compat.json
             exit 1
           fi
+          test -s f1_database.json || { echo "::error::the full export was not written"; exit 1; }
 
       - name: Smoke-test the query tool
         run: |

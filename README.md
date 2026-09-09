@@ -133,7 +133,7 @@ v2026.12.0.
 |---|---|
 | `f1.db` | The SQLite database. 39 tables, 34 views, ~8,400 rows. This is the artefact. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
-| `f1_database.json` | Full JSON export of every table. |
+| `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
 | `f1_compat.json` | JSON in the *original* v1 key layout, so anything already consuming that file keeps working. |
 | `schema.sql` | The schema, commented. |
 | `build.py` | Rebuilds `f1.db` from the data modules. Idempotent, and byte-for-byte reproducible. 34 named stages; `STAGES` is the schedule. |
