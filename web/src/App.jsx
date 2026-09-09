@@ -42,21 +42,25 @@ const NAV = [
 function Wordmark() {
   return (
     <Link to="/" className="wordmark">
-      {/* A chequered flag, three squares by two, cropped to the panel. Six
-          cells rather than four: four read as an application grid, six read as
-          a flag. The two accent cells sit on the bottom row so the mark still
-          carries the brand at 20px, where a thin rule would disappear. */}
+      {/* A chequered field, four by four, cropped to the panel with no
+          padding: the cells run to the edge so the mark reads as cloth
+          rather than as an icon in a box. One cell carries the accent —
+          the checked fact — and it never moves. Below 24px the field is
+          redrawn three by three with the centre cell marked, because 8px
+          cells fall under a device pixel and turn to mush. */}
       <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true">
-        <rect width="32" height="32" rx="7" fill="currentColor" opacity="0.08" />
-        <rect x="6" y="9" width="6.7" height="6.7" fill="currentColor" />
-        <rect x="19.3" y="9" width="6.7" height="6.7" fill="currentColor" />
-        <rect x="12.65" y="9" width="6.7" height="6.7" fill="currentColor" opacity="0.18" />
-        <rect x="12.65" y="15.7" width="6.7" height="6.7" fill="currentColor" />
-        <rect x="6" y="15.7" width="6.7" height="6.7" fill="var(--accent)" />
-        <rect x="19.3" y="15.7" width="6.7" height="6.7" fill="var(--accent)" />
+        <rect width="32" height="32" rx="3" fill="currentColor" />
+        <rect width="8" height="8" fill="var(--panel)" />
+        <rect x="16" width="8" height="8" fill="var(--panel)" />
+        <rect x="8" y="8" width="8" height="8" fill="var(--panel)" />
+        <rect x="24" y="8" width="8" height="8" fill="var(--panel)" />
+        <rect y="16" width="8" height="8" fill="var(--panel)" />
+        <rect x="16" y="16" width="8" height="8" fill="var(--accent)" />
+        <rect x="8" y="24" width="8" height="8" fill="var(--panel)" />
+        <rect x="24" y="24" width="8" height="8" fill="var(--panel)" />
       </svg>
       <span>
-        <b>F1 Verified Facts</b>
+        <b>Lap Ledger</b>
         <span>1950–2026 · every championship race</span>
       </span>
     </Link>
