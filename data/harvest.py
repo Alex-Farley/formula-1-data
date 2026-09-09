@@ -456,13 +456,15 @@ KNOWN_GAPS = [
      # being temporarily behind, which is a warning and not a hole in the
      # record.
      0,
-     "F1DB publishes the fastest lap per race in its own file, which "
-     "tools/f1db_fetch.py does not read - it takes race-results.yml and not "
-     "the fastest-lap results beside it. Adding that reader, a "
-     "harvest/fastest_laps.txt beside the others, and a loader that fills "
-     "race_entries.fastest_lap only where the harvest has not, closes this "
-     "the same way pole was closed. Until then verify.py warns for the "
-     "current season, which is the signal that the harvest is behind."),
+     "CLOSED in v2.18, the same way pole was closed. tools/f1db_fetch.py now "
+     "reads the fastest-lap results beside race-results.yml and writes "
+     "harvest/fastest_laps.txt (1,161 rows, 1950-2026); build.py fills "
+     "race_entries.fastest_lap ONLY where the pole harvest is silent, and "
+     "records a discrepancy rather than choosing where the two disagree - "
+     "two did, at 1960 round 5 and 1970 round 1, and both are open. The one "
+     "completed race still without a fastest lap is 2021 Belgium, where no "
+     "racing lap was ever set, which is the true null this gap always "
+     "excluded."),
     ("finish_position", "shared drives, and where two sources read a race "
      "differently",
      "CLOSED in v2.15, and by a licence rather than a harvest. The full "
@@ -731,6 +733,8 @@ SPRINT_FILE = os.path.join(HERE, "..", "harvest", "sprint_results.txt")
 QUALIFYING_FILE = os.path.join(HERE, "..", "harvest", "qualifying.txt")
 STANDINGS_FILE = os.path.join(HERE, "..", "harvest", "standings.txt")
 F1DB_PITS_FILE = os.path.join(HERE, "..", "harvest", "f1db_pit_stops.txt")
+RACE_DATES_FILE = os.path.join(HERE, "..", "harvest", "race_dates.txt")
+FASTEST_LAPS_FILE = os.path.join(HERE, "..", "harvest", "fastest_laps.txt")
 
 F1DB_SOURCE = "https://github.com/f1db/f1db"
 F1DB_CONFIDENCE = "reference"
@@ -1048,6 +1052,28 @@ def load_f1db_pit_stops():
     write the same table under their own `source`, so the three can be
     compared rather than overwriting one another."""
     return _read_named(F1DB_PITS_FILE, "tools/f1db_fetch.py")
+
+
+def load_race_dates():
+    """The day each race was held, 1950-2026, from F1DB.
+
+    1,149 of 1,172 races had no date before this: the value sits in the
+    round's own race.yml and the results loader only ever read
+    race-results.yml beside it. A race that has been run has a date, and
+    verify.py now says so.
+    """
+    return _read_named(RACE_DATES_FILE, "tools/f1db_fetch.py")
+
+
+def load_fastest_laps():
+    """The fastest lap of each race, 1950-2026, from F1DB.
+
+    A second source for a fact the hand-written pole harvest already carries,
+    and deliberately subordinate to it: build.py fills only where the harvest
+    is silent, which is the week after each Grand Prix, and records a
+    discrepancy rather than choosing where the two disagree.
+    """
+    return _read_named(FASTEST_LAPS_FILE, "tools/f1db_fetch.py")
 
 
 def load_circuit_geometry():

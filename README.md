@@ -1,4 +1,4 @@
-# F1 Verified Facts Database — v2.17
+# F1 Verified Facts Database — v2.18
 
 An expansion of the original single-file JSON into a normalised, queryable
 SQLite database covering 1950–2026, with the JSON kept as a generated export.
@@ -12,6 +12,28 @@ harvested from Wikipedia's season tables under a new `reference` confidence tier
 replaces the per-race one, every Grand Prix now has a canonical id, and
 `audit.py` reports on the shape of the database rather than its contents.
 See *Structure* below.
+
+**v2.18** gives every race a date. 1,149 of 1,172 had none, and the reason
+was structural rather than factual: F1DB publishes a date for every race back
+to Silverstone on 13 May 1950, but it lives in the round's own `race.yml`, and
+the results loader only ever opened `race-results.yml` beside it. The file was
+there the whole time and nothing read it. Every prerendered race page showed
+"Dates —", and the `SportsEvent` JSON-LD could not emit `startDate`, which is
+the one field a search engine most wants from an event. The 23 dates already
+held were entered by hand and are left alone, because some express a range a
+single ISO day cannot represent.
+
+The same pass closes the last **fastest lap** gap, the way pole was closed in
+v2.16. `race_entries.fastest_lap` came only from the hand-written pole
+harvest while everything else about a finished race refreshed from F1DB on a
+schedule, so for a week after each Grand Prix a completed race carried every
+other field and a blank fastest lap. F1DB now fills that vacancy and *only*
+that vacancy: where the harvest already names someone it keeps the slot, and
+a disagreement is recorded rather than resolved quietly. Two are — 1960 round
+5 and 1970 round 1 — and both are open for somebody to look at. The one
+completed race still without a fastest lap is 2021 Belgium, where no racing
+lap was ever set behind the safety car: the true null the gap always
+excluded.
 
 **v2.17** is the release the previous four branches earned, and it exists
 because the merge that brought them together left a gap none of them could

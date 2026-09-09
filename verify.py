@@ -680,6 +680,34 @@ def calendar():
         "SELECT COUNT(*) FROM races WHERE year=2026 AND circuit_id IS NULL").fetchone()[0]
     check("every 2026 round maps to a circuit", nocirc == 0, f"{nocirc} unmapped")
 
+    # A race that has been run happened on a day, and until v2.18 this
+    # database could not say which for 1,149 of them: F1DB publishes a date
+    # for every race back to 1950-05-13, but it lives in the round's own
+    # race.yml and the results loader only ever read race-results.yml beside
+    # it. Every race page showed "Dates -" and the SportsEvent JSON-LD could
+    # not emit startDate, which is the one field a search engine most wants
+    # from an event.
+    #
+    # Checked against having a WINNER rather than status='completed',
+    # because that is the same definition the fastest-lap check above uses
+    # and it cannot be satisfied by a status field alone.
+    undated = con.execute("""SELECT COUNT(*) FROM races r
+        WHERE (r.dates IS NULL OR TRIM(r.dates) = '')
+          AND EXISTS (SELECT 1 FROM race_entries e
+                      WHERE e.race_id = r.id AND e.finish_position = 1)""").fetchone()[0]
+    check("every completed race has a date", undated == 0,
+          f"{undated} completed races carry none")
+
+    # The dates that are filled from F1DB are ISO days. The 23 entered by
+    # hand may be a range ("2-4 March"), which is why they are left alone,
+    # so this checks the shape of what the loader wrote rather than of every
+    # value in the column.
+    badiso = con.execute("""SELECT COUNT(*) FROM races
+        WHERE dates IS NOT NULL AND dates GLOB '[0-9][0-9][0-9][0-9]-*'
+          AND dates NOT GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'""").fetchone()[0]
+    check("every ISO race date is a well-formed day", badiso == 0,
+          f"{badiso} malformed")
+
 
 @section('ENTRIES')
 def entries():
