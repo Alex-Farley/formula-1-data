@@ -28,6 +28,15 @@
     // arrive as HTML pretending to be a database, and the first sign of it
     // would be the wasm compiler complaining about a magic word.
     //
+    // prerender.js writes dist/<route>/index.html, and Cloudflare's default
+    // html_handling ("auto-trailing-slash") answers a directory-shaped path by
+    // REDIRECTING /drivers/hamilton to /drivers/hamilton/. Every canonical tag
+    // and every one of the 2,385 sitemap entries is written WITHOUT the slash,
+    // so the default turns each advertised URL into a 307 and points the
+    // canonical at a URL that does not serve directly. Dropping the slash
+    // instead serves those URLs as written and redirects the other way.
+    "html_handling": "drop-trailing-slash",
+
     // "404-page" serves dist/404.html — which prerender.js writes with the
     // site's own chrome — under an honest 404 status. The status is what
     // matters: worker.js checks response.ok before it reads a body, so a
