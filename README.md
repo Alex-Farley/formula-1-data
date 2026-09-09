@@ -1,4 +1,4 @@
-# F1 Verified Facts Database — v2.19
+# F1 Verified Facts Database — v2.20
 
 An expansion of the original single-file JSON into a normalised, queryable
 SQLite database covering 1950–2026, with the JSON kept as a generated export.
@@ -12,6 +12,30 @@ harvested from Wikipedia's season tables under a new `reference` confidence tier
 replaces the per-race one, every Grand Prix now has a canonical id, and
 `audit.py` reports on the shape of the database rather than its contents.
 See *Structure* below.
+
+**v2.20** changes no fact in the database and publishes it in a new shape.
+`tools/parquet_export.py` writes every table as Parquet — 41 files, 119,271
+rows, 1.5 MB against 20 MB of SQLite — and the release carries them as
+`f1-parquet.zip`. It includes `qualifying` and `pit_stops`, which the JSON
+export leaves out because they take that file from 12 MB to 44 MB: JSON is a
+convenience export where size is the problem, and Parquet is a bulk one where
+size is the point. The release body now also documents the
+`/releases/latest/download/` URLs, which stay valid as versions come and go.
+
+The exporter is a tool rather than part of the build, so `git clone && make
+all` still needs nothing but the standard library; pyarrow is installed only
+in the release job. It refuses outright to run on a database carrying
+FOM-owned timing or the ODbL centrelines, because Parquet exists to be handed
+to somebody and neither may be.
+
+The same release gives every page an **h1**. The app rendered its title as an
+h2 and its sections as h3, so no page had a top-level heading at all and
+somebody navigating by heading found no title for the document they were on —
+while the prerendered HTML, which had it right, disagreed with the app about
+the shape of the same page. Fixing that moved the floor under every heading
+below it, and a review caught four that had not moved with it: two pages were
+skipping a level. All eleven pages checked now carry exactly one h1 and skip
+nothing.
 
 **v2.19** splits the race date in two, because one column was answering two
 questions and doing one of them badly. `dates` is for a reader and may be a
