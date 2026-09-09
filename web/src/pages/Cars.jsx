@@ -57,12 +57,16 @@ export default function Cars() {
             >
               <p className="note" style={{ marginTop: 0 }}>
                 Every one of these is flagged a landmark in the register, so the flag is not
-                drawn: it would sit on all twenty-nine and mean nothing. What each card carries
-                instead is the line the database holds on what the design was actually for.
+                drawn: it would sit on all {pick(data, 'gallery').length} and mean nothing. What
+                each card carries instead is the line the database holds on what the design was
+                actually for.
               </p>
               <Gallery cars={pick(data, 'gallery')} />
             </Section>
-            <Section title="The chassis register" count="1,153 chassis">
+            <Section
+              title="The chassis register"
+              count={`${pick(data, 'register').length.toLocaleString('en-GB')} chassis`}
+            >
               <Register rows={pick(data, 'register')} />
             </Section>
           </>

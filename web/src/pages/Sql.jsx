@@ -84,6 +84,11 @@ const START = EXAMPLES[0][1]
  * that a reader who types DELETE gets an explanation rather than an empty
  * result and a false sense of what happened.
  */
+// Read-only, row-returning pragmas: they report on the schema and change no
+// setting, so nothing survives the statement to affect the next one.
+const INTROSPECTION =
+  /^pragma\s+(table_info|table_xinfo|table_list|index_list|index_info|index_xinfo|foreign_key_list|database_list|collation_list|compile_options|function_list|pragma_list|module_list)\b/i
+
 function complain(sql) {
   const stripped = sql
     .replace(/--[^\n]*/g, ' ')
@@ -92,6 +97,14 @@ function complain(sql) {
   if (!stripped) return 'Nothing to run.'
   if (!/^(select|with|explain|pragma|values)\b/i.test(stripped)) {
     return 'Reads only: start with SELECT, WITH, VALUES, EXPLAIN or PRAGMA. A write would be rolled back anyway, so nothing has changed.'
+  }
+  // The rollback does not cover pragmas. A PRAGMA is not transactional, so
+  // `PRAGMA case_sensitive_like = ON` survives the ROLLBACK and silently
+  // changes every later query in the tab — which is exactly the guarantee this
+  // page makes. The introspection pragmas below only read, so they keep
+  // working; anything else is refused rather than quietly breaking the promise.
+  if (/^pragma\b/i.test(stripped) && !INTROSPECTION.test(stripped)) {
+    return 'That pragma can change how later queries behave, and a pragma is not undone by the rollback. Introspection pragmas (table_info, index_list, foreign_key_list and the like) are fine.'
   }
   return null
 }
@@ -178,7 +191,7 @@ export default function Sql() {
                 page={200}
                 empty="The statement ran and matched nothing."
                 footer={
-                  state.data.rows.length >= 200
+                  state.data.rows.length > 200
                     ? 'Showing the first two hundred rows — use the button above to see the rest.'
                     : undefined
                 }

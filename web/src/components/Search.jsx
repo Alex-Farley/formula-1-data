@@ -51,9 +51,16 @@ let indexPromise = null
 
 function loadIndex() {
   if (!indexPromise) {
-    indexPromise = query(INDEX_SQL).then(({ rows }) =>
-      rows.map((row) => ({ ...row, needle: row.label.toLowerCase() })),
-    )
+    // Memoising the REJECTION too meant one transient failure — a worker still
+    // starting, a database fetch that lost the connection — left the palette
+    // reporting "0 entities indexed" for the rest of the session, with no way
+    // back but a reload. Forget a failed attempt so the next open retries.
+    indexPromise = query(INDEX_SQL)
+      .then(({ rows }) => rows.map((row) => ({ ...row, needle: row.label.toLowerCase() })))
+      .catch((error) => {
+        indexPromise = null
+        throw error
+      })
   }
   return indexPromise
 }

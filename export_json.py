@@ -33,10 +33,9 @@ NOT_EXPORTED = {
     "provenance": "nested inside verification_policy",
     "laps": "filled locally by tools/fastf1_load.py; FOM's data, never shipped",
     "stints": "as laps",
-    "pit_stops": "as laps",
     "race_control_messages": "as laps",
     # Session-grain tables. race_entries is exported because the finishing
-    # order IS the release; these three are the same data one level finer and
+    # order IS the release; these two are the same data one level finer and
     # they take the file from 12 MB to 44 MB, which stops being a convenient
     # export and starts being a download. They are in f1.db, which ships in
     # this repository, and one SQL query away.

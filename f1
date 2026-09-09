@@ -244,9 +244,18 @@ def main():
         print()
 
     elif cmd == "circuit":
+        # An exact id wins outright. Substring-matching the country as well
+        # means `circuit spa` matches Spain, and Barcelona came back ahead of
+        # Spa-Francorchamps because it sorts earlier; the same goes for `mon`
+        # and Monaco. Fall back to the broad search only when nothing is named
+        # exactly, and rank id and name matches above country ones.
         k = f"%{a[0]}%"
-        rows = c.execute("""SELECT * FROM circuits WHERE id LIKE ? OR name LIKE ?
-                            OR country LIKE ?""", (k, k, k)).fetchall()
+        rows = c.execute("SELECT * FROM circuits WHERE id = ?", (a[0].lower(),)).fetchall()
+        if not rows:
+            rows = c.execute("""SELECT * FROM circuits
+                                 WHERE id LIKE ? OR name LIKE ? OR country LIKE ?
+                                 ORDER BY (id LIKE ? OR name LIKE ?) DESC, id""",
+                             (k, k, k, k, k)).fetchall()
         if not rows:
             sys.exit("no match")
         for t in rows[:5]:

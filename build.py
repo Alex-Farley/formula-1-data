@@ -1606,6 +1606,18 @@ def _stage_22_the_sprint_races(b):
                  HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
             spr_rows += 1
 
+    # Deriving it means clearing it too. Setting the flag and never unsetting
+    # it leaves a hand-authored sprint=1 on a round that turns out not to have
+    # held one, which is the drift this is supposed to make impossible.
+    # Completed rounds only: a 2026 round flagged before it has been run is
+    # legitimately flagged and has no classification yet.
+    cleared = cur.execute("""UPDATE races SET sprint = 0
+        WHERE COALESCE(sprint, 0) = 1 AND status = 'completed'
+          AND id NOT IN (SELECT DISTINCT race_id FROM sprint_results)""").rowcount
+    if cleared:
+        print(f"  sprint flag: {cleared} completed round(s) cleared - no sprint "
+              f"classification exists for them")
+
     if spr_rows:
         flagged = cur.execute(
             "SELECT COUNT(*) FROM races WHERE sprint=1").fetchone()[0]

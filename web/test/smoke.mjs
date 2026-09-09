@@ -759,8 +759,13 @@ try {
        WHERE COALESCE(wins, 0) = 0 ORDER BY COALESCE(entries, 0) DESC LIMIT 1`],
     ['a circuit that held one grand prix',
      `SELECT '/circuits/' || id FROM circuits WHERE gp_count = 1 LIMIT 1`],
-    ['a circuit with a traced centreline',
-     `SELECT '/circuits/' || circuit_id FROM circuit_geometry LIMIT 1`],
+    // The centrelines moved to f1-geometry.db when the ODbL split landed, so
+    // main.circuit_geometry is empty by design. Without the overlay there is
+    // no traced circuit to visit and the shape is dropped rather than failed.
+    ...(hasGeometry
+      ? [['a circuit with a traced centreline',
+          `SELECT '/circuits/' || circuit_id FROM geo.circuit_geometry LIMIT 1`]]
+      : []),
     ['the car with the most wins',
      `SELECT '/cars/' || id FROM cars ORDER BY COALESCE(wins, 0) DESC LIMIT 1`],
     ['the first season',
