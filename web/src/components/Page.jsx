@@ -121,7 +121,7 @@ export function Onward({ title = 'Keep going', items }) {
   if (shown.length === 0) return null
   return (
     <nav className="onward" aria-label={title}>
-      <h3>{title}</h3>
+      <h2>{title}</h2>
       <div>
         {shown.map(({ to, label, hint }) => (
           <Link key={`${to}-${label}`} to={to}>

@@ -151,7 +151,7 @@ function AtlasBody({ rows }) {
         <div className="atlas">
           <div className="atlas-stage">
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 8 }}>
-              <h3 style={{ margin: 0, fontSize: 17 }}>{row.name}</h3>
+              <h2 style={{ margin: 0, fontSize: 17 }}>{row.name}</h2>
               <span className="faint small">
                 {[row.locality, row.country].filter(Boolean).join(', ')}
               </span>
