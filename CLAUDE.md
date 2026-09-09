@@ -8,6 +8,11 @@ dependencies.
 `make check` is build + verify + unit tests, and is what CI runs. The front
 end has its own: `cd web && npm test`.
 
+**Before committing, run `make all`, not `make check`.** `check` does not
+run `export`, so it leaves `f1_compat.json` stale — and CI compares the
+committed copy against a fresh one. Anything that changes `VERSION` or the
+data changes that file too.
+
 The conventions below are not style preferences. Each one exists because
 something went wrong without it, and most are enforced by the build or by
 `verify.py`. The pattern underneath all of them: **every deviation is
@@ -29,6 +34,10 @@ digest. Do not "fix" it.
 Three are committed: **`f1.db`**, **`f1-geometry.db`**, **`f1_compat.json`**.
 (`f1_database.json` is *not* — it is gitignored and published as a release
 asset instead. It is 21 MB and does not delta-compress.)
+
+`f1.db` and `f1-geometry.db` come from `build.py`; **`f1_compat.json` comes
+from `export_json.py --compat`**, which is why a rebuild alone does not
+refresh it.
 
 On any merge conflict in a committed artefact: **take either side, rebuild,
 commit the rebuild.** Never resolve one by hand. Both databases are
