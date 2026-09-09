@@ -30,7 +30,7 @@ from data import radio as RA       # noqa: E402
 from data import results as RS     # noqa: E402
 
 DB = os.path.join(HERE, "f1.db")
-VERSION = "2.18"
+VERSION = "2.19"
 
 # The build date, as a CONSTANT and deliberately not date.today().
 #
@@ -2666,11 +2666,21 @@ def _stage_28_race_dates_and_the_fastest_lap_where(b):
     # hand and some express a RANGE - a meeting run over several days - which
     # a single ISO day cannot represent. Overwriting them would trade a
     # richer fact for a uniform one.
+    # date_iso is set for EVERY race, dates only where it is empty. The two
+    # columns answer different questions and the split is deliberate: a
+    # Grand Prix is a weekend, so the 23 hand-written ranges ("27-29 Mar
+    # 2026") are the better fact for a reader and are kept, while date_iso
+    # gives every race a machine-readable day. Storing only `dates` left
+    # those 23 - all of them races still to come, which is exactly where a
+    # search engine wants a date - unable to emit startDate at all.
     dated = 0
+    iso = 0
     for h in HV.load_race_dates():
         rid = race_key.get((int(h["year"]), int(h["round"])))
         if rid is None:
             continue
+        cur.execute("UPDATE races SET date_iso=? WHERE id=?", (h["date"], rid))
+        iso += cur.rowcount
         cur.execute("""UPDATE races SET dates=? WHERE id=?
             AND (dates IS NULL OR TRIM(dates)='')""", (h["date"], rid))
         dated += cur.rowcount
@@ -2729,7 +2739,8 @@ def _stage_28_race_dates_and_the_fastest_lap_where(b):
              "because it is hand-checked and older; the other reading is "
              "recorded here so somebody can look at it.", "open"))
 
-    print(f"  race dates: {dated} filled from F1DB; fastest laps: "
+    print(f"  race dates: {iso} ISO days, {dated} display values filled "
+          f"from F1DB; fastest laps: "
           f"{fl_filled} filled, {len(fl_disagreements)} disagreements, "
           f"{fl_no_entry} with no matching entry")
 

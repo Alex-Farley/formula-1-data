@@ -1,4 +1,4 @@
-# F1 Verified Facts Database — v2.18
+# F1 Verified Facts Database — v2.19
 
 An expansion of the original single-file JSON into a normalised, queryable
 SQLite database covering 1950–2026, with the JSON kept as a generated export.
@@ -12,6 +12,20 @@ harvested from Wikipedia's season tables under a new `reference` confidence tier
 replaces the per-race one, every Grand Prix now has a canonical id, and
 `audit.py` reports on the shape of the database rather than its contents.
 See *Structure* below.
+
+**v2.19** splits the race date in two, because one column was answering two
+questions and doing one of them badly. `dates` is for a reader and may be a
+RANGE — "27-29 Mar 2026" — since a Grand Prix is a weekend, and for a race
+still to be run that is the more useful fact. `date_iso` is the day the race
+itself was held, always `YYYY-MM-DD`, for anything that has to compute.
+
+v2.18 filled only the empties, which left the 23 hand-written ranges without a
+machine-readable day — and those 23 are all races still to come, which is
+exactly where a search engine wants a date. `startDate` now comes from
+`date_iso` and reaches **all 1,172 races** rather than 1,149. The ranges are
+untouched: the site still shows the weekend, and the ISO day is the Sunday
+inside it. `verify.py` checks that where `dates` is itself an ISO day the two
+columns name the same day — they may differ in shape, never in fact.
 
 **v2.18** gives every race a date. 1,149 of 1,172 had none, and the reason
 was structural rather than factual: F1DB publishes a date for every race back
