@@ -27,3 +27,30 @@ export function thumbUrl(fileName, width = 800) {
 
 /** The file name without its "File:" prefix, for a caption. */
 export const fileTitle = (fileName) => String(fileName ?? '').replace(/^File:/, '').replace(/_/g, ' ')
+
+/**
+ * The person or source to credit for a photograph — the ONE rule.
+ *
+ * This is the same rule the build applies. verify.py refuses a file where
+ * neither `artist` nor `credit` says anything:
+ *
+ *     COALESCE(NULLIF(TRIM(artist), ''), NULLIF(TRIM(credit), ''))
+ *
+ * A renderer that reads only `artist` disagrees with the check that admitted
+ * the row, and captions an attributed photograph as anonymous — which is what
+ * happened to the 1958 Hawthorn photograph on Ferrari 246 F1. It lives here,
+ * exported, because it went wrong once by being written out twice.
+ */
+export const attribution = (image) =>
+  (image?.artist ?? '').trim() || (image?.credit ?? '').trim() || null
+
+/**
+ * Whether a photograph may be shown at all.
+ *
+ * Nobody to credit, or no licence to name, means it is not displayable:
+ * showing it is the licence breach, and omitting it costs a picture. The
+ * build already refuses such a file, so this should never be false — which is
+ * the point of asking.
+ */
+export const canShow = (image) =>
+  Boolean(image?.file_name && attribution(image) && (image?.licence ?? '').trim())

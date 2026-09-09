@@ -114,7 +114,7 @@ function CircuitBody({ circuit, data }) {
       {geometry.length > 0 && (
         <Section
           title="The shape of it"
-          note="Traced from OpenStreetMap, and measured against the published length."
+          note="Traced from OpenStreetMap, and measured against the published length. It ships as a separate file under ODbL, which your browser merged in to draw this."
         >
           <p className="note" style={{ marginTop: -4 }}>
             <Link to="/circuits/atlas">Open it in the atlas</Link> to walk the lap metre by metre

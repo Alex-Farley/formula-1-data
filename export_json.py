@@ -33,20 +33,23 @@ NOT_EXPORTED = {
     "provenance": "nested inside verification_policy",
     "laps": "filled locally by tools/fastf1_load.py; FOM's data, never shipped",
     "stints": "as laps",
-    "pit_stops": "as laps",
     "race_control_messages": "as laps",
     # Session-grain tables. race_entries is exported because the finishing
-    # order IS the release; these three are the same data one level finer and
+    # order IS the release; these two are the same data one level finer and
     # they take the file from 12 MB to 44 MB, which stops being a convenient
     # export and starts being a download. They are in f1.db, which ships in
     # this repository, and one SQL query away.
     "qualifying": "27k rows of session detail; query it in f1.db",
     "pit_stops": "22k rows; and FastF1 adds more locally",
-    # The centreline of one circuit is tens of thousands of coordinates. It is
-    # the only ODbL-licensed data here and it is confined to f1.db on purpose
-    # (see ATTRIBUTION.md), so exporting it would carry share-alike into a
-    # file whose whole point is being easy to reuse. Query it in SQLite.
-    "circuit_geometry": "ODbL geometry, deliberately confined to f1.db",
+    # The centreline of one circuit is tens of thousands of coordinates, and it
+    # is the only ODbL-licensed data in the project. ODbL carries share-alike
+    # AND a database right, so a database holding it is a Derivative Database
+    # and must itself be published under ODbL. Rather than let that reach a
+    # file whose whole point is being easy to reuse, the centrelines are not in
+    # f1.db either: build.py writes them to f1-geometry.db, and the two ship
+    # side by side as what ODbL calls a Collective Database. See ATTRIBUTION.md
+    # and tools/geometry_overlay.py.
+    "circuit_geometry": "ODbL geometry — ships as f1-geometry.db, not here",
 }
 
 
@@ -135,6 +138,11 @@ def main():
         "grands_prix_register": dump(con, "grands_prix", "first_held"),
         "season_entries": dump(con, "season_entries", "year, id"),
         "source_registry": dump(con, "source_registry", "priority"),
+        # How a row's free-text `source` resolves to one of those entries, and
+        # where a table with no `source` column gets its provenance from.
+        # Without these the registry names sources nothing can be traced to.
+        "source_patterns": dump(con, "source_patterns", "id"),
+        "table_provenance": dump(con, "table_provenance", "tbl"),
         "fia_regulation_issues_2026": {
             k.split("::", 1)[1]: v for k, v in meta.items() if k.startswith("fia_issue::")},
     }

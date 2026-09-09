@@ -158,7 +158,12 @@ export function cornerRadius(ring, cum, windowM = 25) {
   for (let i = 0; i < ring.length; i += 1) {
     while (lo < i && cum[i] - cum[lo] > windowM) lo += 1
     while (hi < ring.length - 1 && cum[hi] - cum[i] < windowM) hi += 1
-    if (hi - lo < 2) continue
+    // Near the end of the ring `hi` runs out of room and stops at i. bearing()
+    // of a point against itself is 0, so the turn became the track's absolute
+    // heading and every lap grew one fabricated hairpin at the start/finish.
+    // A curvature sample needs a point on BOTH sides; without one there is
+    // nothing to measure and Infinity (straight) is the honest answer.
+    if (hi <= i || lo >= i || hi - lo < 2) continue
     const turn = (((bearing(ring[i], ring[hi]) - bearing(ring[lo], ring[i])) % 360) + 540) % 360 - 180
     const span = cum[hi] - cum[lo]
     // Degrees swept over the window, converted to the radius of the arc that

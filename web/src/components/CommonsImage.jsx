@@ -1,14 +1,21 @@
-import { fileTitle, thumbUrl } from '../lib/commons.js'
+import { attribution, canShow, fileTitle, thumbUrl } from '../lib/commons.js'
 
 /**
  * A photograph from Wikimedia Commons, with its credit.
  *
  * THE CREDIT IS NOT OPTIONAL. The database stores no pixels — 602 rows of
  * file name, licence, photographer and description page, and sixteen
- * different licence strings between them. Every one of those licences
- * requires attribution, so the caption is built into this component rather
- * than left to each caller to remember. The smoke test asserts that a
- * rendered photograph carries both its licence and its photographer.
+ * different licence strings between them. Almost all of those licences
+ * require attribution, so the caption is built into this component rather
+ * than left to each caller to remember, and nothing else in the app is
+ * allowed to render a Commons file — the smoke test reads the source and
+ * fails if a second <img> or a second thumbUrl() call appears anywhere else.
+ *
+ * IT FAILS CLOSED. An image with nobody to credit, or with no licence to
+ * name, is not rendered at all. Displaying it would be the licence breach;
+ * omitting it costs a photograph. The build already refuses such a file, so
+ * this branch should be unreachable — which is the point. It is what keeps it
+ * unreachable if the build's rule ever loosens.
  *
  * `name_matches = 0` means the file name does not name the subject. Most such
  * photographs are still right — filed under the driver rather than the car —
@@ -18,6 +25,11 @@ import { fileTitle, thumbUrl } from '../lib/commons.js'
  */
 export default function CommonsImage({ image, width = 800, caption, showCheck = true }) {
   if (!image?.file_name) return null
+
+  if (!canShow(image)) return null
+  const credit = attribution(image)
+  const licence = (image.licence ?? '').trim()
+
   const src = thumbUrl(image.file_name, width)
   const unchecked = showCheck && image.name_matches === 0
 
@@ -38,14 +50,14 @@ export default function CommonsImage({ image, width = 800, caption, showCheck = 
           {fileTitle(image.file_name)}
         </a>
         {' · '}
-        {image.artist || 'photographer not recorded'}
+        {credit}
         {' · '}
         {image.licence_url ? (
           <a href={image.licence_url} target="_blank" rel="noreferrer noopener">
-            {image.licence}
+            {licence}
           </a>
         ) : (
-          image.licence || 'licence not recorded'
+          licence
         )}
         {unchecked && (
           <>

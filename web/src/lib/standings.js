@@ -56,10 +56,17 @@ export function finalStandings(rows) {
     }
   }
 
-  // Now merge across sources: same entity, same engine, different source.
+  // Now merge across sources: same entity, different source.
+  //
+  // The key deliberately does NOT include engine_id. One source records the
+  // engine and the other leaves it null, so keying on it puts the two rows in
+  // different buckets and every constructor comes back twice — Mercedes at 425
+  // points from one source and 468 from the other, both claiming position 1.
+  // Two rows from ONE source are still two entries; that is the check below,
+  // and it is the only thing this fold has to get right.
   const merged = new Map()
   for (const row of groups.values()) {
-    const key = `${row.year}|${row.entity_id}|${row.engine_id ?? ''}`
+    const key = `${row.year}|${row.entity_id}`
     const held = merged.get(key)
     if (!held) {
       merged.set(key, [row])
@@ -94,5 +101,6 @@ function fold(a, b) {
     // take whichever row actually has them rather than whichever won above.
     position: missing(current.position) ? other.position : current.position,
     team: missing(current.team) ? other.team : current.team,
+    engine_id: missing(current.engine_id) ? other.engine_id : current.engine_id,
   }
 }

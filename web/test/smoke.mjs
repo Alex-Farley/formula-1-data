@@ -28,7 +28,7 @@
 import { spawn } from 'node:child_process'
 import { DatabaseSync } from 'node:sqlite'
 import { dirname, join } from 'node:path'
-import { existsSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -42,6 +42,15 @@ if (!existsSync(join(web, 'dist', 'index.html'))) {
 }
 
 const db = new DatabaseSync(join(web, '..', 'f1.db'), { readOnly: true })
+
+// The ODbL centrelines are not in f1.db — OpenStreetMap's share-alike and
+// database right would reach the whole file, so build.py writes them to
+// f1-geometry.db and the two ship side by side as a Collective Database. The
+// app merges them in the browser; this attaches them so the test can ask the
+// same questions of the same rows. See tools/geometry_overlay.py.
+const geometryPath = join(web, '..', 'f1-geometry.db')
+const hasGeometry = existsSync(geometryPath)
+if (hasGeometry) db.exec(`ATTACH DATABASE '${geometryPath}' AS geo`)
 const one = (sql, ...args) => Object.values(db.prepare(sql).get(...args))[0]
 const count = (sql, ...args) => one(sql, ...args)
 
@@ -96,6 +105,89 @@ async function serve() {
     }
   }
   throw new Error('the preview server never came up')
+}
+
+// --------------------------------------------------- attribution, structurally
+
+/**
+ * Nothing may render a Commons photograph except CommonsImage.
+ *
+ * Every one of the 602 files carries its own licence, and almost all of those
+ * licences make attribution a condition rather than a courtesy. The component
+ * puts the credit in the caption so no caller has to remember to — but that
+ * only holds while the component is the ONLY way an image reaches the page.
+ * One `<img src={thumbUrl(...)}>` somewhere else and the obligation is
+ * silently gone, on a page that looks fine.
+ *
+ * So this is checked in the source rather than in the browser: a rendered-page
+ * assertion can only see the pages it visits, and the bypass would be on the
+ * one it does not. It reads the files instead, and fails on a second <img> tag
+ * or a second thumbUrl() call anywhere in src/.
+ */
+function sourceFiles(dir) {
+  return readdirSync(dir).flatMap((entry) => {
+    const full = join(dir, entry)
+    if (statSync(full).isDirectory()) return sourceFiles(full)
+    return /\.jsx?$/.test(entry) ? [full] : []
+  })
+}
+
+console.log('\nAttribution')
+{
+  // Anything that renders a Commons photograph must render its credit, and
+  // must get that credit from the one shared rule.
+  //
+  // The first version of this said only CommonsImage may render an <img>.
+  // That was too narrow, and merging main proved it: the cars gallery renders
+  // its own <img> because its card puts the picture inside a link and the
+  // credit below the body text, which a <figure> cannot express. The gallery
+  // was not wrong to exist — it was wrong to write out its own credit line,
+  // which it did WITHOUT the `credit` fallback, so an attributed photograph
+  // would have read "photographer not recorded". Two answers to one licence
+  // obligation is the actual defect, not two <img> tags.
+  //
+  // So the rule is: render a Commons file, import the shared credit. This is
+  // checked in the SOURCE because a rendered-page assertion only sees the
+  // pages it visits, and the bypass would be on the one it does not.
+  const SANCTIONED = [
+    join(web, 'src', 'components', 'CommonsImage.jsx'),
+    join(web, 'src', 'components', 'CommonsCredit.jsx'),
+    join(web, 'src', 'lib', 'commons.js'),
+  ]
+  const offenders = []
+  for (const file of sourceFiles(join(web, 'src'))) {
+    if (SANCTIONED.includes(file)) continue
+    const text = readFileSync(file, 'utf8')
+    const rel = file.slice(web.length + 1)
+    const showsCommons = /\bthumbUrl\s*\(/.test(text) || /\bCommonsImage\b/.test(text)
+    if (!showsCommons) {
+      // A file with no Commons file in it may still not invent a credit.
+      if (/photographer not recorded|licence not recorded/.test(text)) {
+        offenders.push(`${rel} writes its own credit line`)
+      }
+      continue
+    }
+    const credited = /\bCommonsImage\b/.test(text) || /\bCommonsCredit\b/.test(text)
+    if (!credited) offenders.push(`${rel} shows a Commons file with no shared credit`)
+    if (/\bcanShow\b/.test(text) === false && /\bthumbUrl\s*\(/.test(text)) {
+      offenders.push(`${rel} shows a Commons file without checking canShow()`)
+    }
+  }
+  if (offenders.length === 0) {
+    pass('every surface showing a Commons photograph carries the shared credit')
+  } else {
+    offenders.forEach((what) => fail(`attribution can be bypassed: ${what}`))
+  }
+
+  // The renderer and the build must agree on what counts as attribution.
+  // verify.py accepts `artist` OR `credit`; a surface reading only `artist`
+  // captions an admitted row as anonymous, which is what the 1958 Hawthorn
+  // photograph on Ferrari 246 F1 would have shown.
+  const rule = readFileSync(join(web, 'src', 'lib', 'commons.js'), 'utf8')
+  truthy(
+    /image\?\.artist/.test(rule) && /image\?\.credit/.test(rule),
+    'the shared rule falls back to `credit` where a file names no artist, as the build does',
+  )
 }
 
 // -------------------------------------------------------------- the browser
@@ -158,7 +250,11 @@ try {
    */
   const settle = async () => {
     await page.waitForFunction(
-      () => !document.querySelector('main .state, main .skeleton-table'),
+      // .is-empty is excluded deliberately: it means the query finished and
+      // returned nothing, which is a settled page. Waiting for it to go is
+      // waiting for something that never happens.
+      () =>
+        !document.querySelector('#root main .state:not(.is-empty), #root main .skeleton-table'),
       null,
       { timeout: 20000 },
     )
@@ -167,14 +263,51 @@ try {
     )
   }
 
-  /** Navigate through the app's own router and wait for the new page. */
+  /**
+   * Navigate through the app's own router and wait for the new page.
+   *
+   * pushState plus a popstate event, because the router is a BrowserRouter now
+   * and there is no hash to assign to. A page.goto would work too and would be
+   * closer to a real visit, but it would re-download the database and
+   * re-instantiate SQLite on every route, which is the whole reason this test
+   * navigates in-app instead.
+   */
   const go = async (route, heading) => {
+    // <main> is a stable node — only what Routes renders inside it changes — so
+    // "an h2 exists" is still true of the page being NAVIGATED AWAY FROM, and
+    // settle() then finds that old page perfectly settled. Callers that pass a
+    // heading discriminate old from new by its text; the shape loop passes none
+    // and had nothing to wait for, so an assertion could run against a DOM
+    // mid-transition and count zero blocks. It held locally and broke on CI,
+    // where a slower machine widens the window.
+    //
+    // Route elements are different component types, so React unmounts the old
+    // subtree rather than reusing it: the old h2 leaves the document. Waiting
+    // for that is a signal that needs no knowledge of the new page.
+    // Two routes onto the SAME component (/seasons/1950 -> /seasons/2026) keep
+    // the node and change its text; two onto different components replace it.
+    // Either is proof the new route rendered. Best-effort: a page that
+    // legitimately repeats the outgoing heading falls through to the waits
+    // below, which is exactly the old behaviour rather than a hang.
+    const outgoing = await page.$('#root main h2')
+    const was = outgoing ? await outgoing.textContent() : null
+    const samePage = await page.evaluate((to) => window.location.pathname === to, route)
     await page.evaluate((to) => {
-      window.location.hash = `#${to}`
+      window.history.pushState({}, '', to)
+      window.dispatchEvent(new PopStateEvent('popstate'))
     }, route)
+    if (outgoing && !samePage) {
+      await page
+        .waitForFunction(
+          ({ node, text }) => !node.isConnected || node.textContent !== text,
+          { node: outgoing, text: was },
+          { timeout: 10000 },
+        )
+        .catch(() => {})
+    }
     await page.waitForFunction(
       (expected) => {
-        const h2 = document.querySelector('main h2')
+        const h2 = document.querySelector('#root main h2')
         return h2 && (!expected || h2.textContent.includes(expected))
       },
       heading,
@@ -191,7 +324,7 @@ try {
    * skipped and the indexes below count the page's real tables.
    */
   const tableRows = () =>
-    page.$$eval('main .table-wrap', (nodes) =>
+    page.$$eval('#root main .table-wrap', (nodes) =>
       nodes.filter((node) => !node.closest('figure.figure')).map((node) => Number(node.dataset.rows)),
     )
 
@@ -201,19 +334,19 @@ try {
 
   console.log('Boot')
   const started = Date.now()
-  await page.goto(`${BASE}/#/`, { waitUntil: 'domcontentloaded' })
-  await page.waitForSelector('main h2', { timeout: 60000 })
+  await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' })
+  await page.waitForSelector('#root main h2', { timeout: 60000 })
   await settle()
   pass(`database opened and the first page rendered in ${Date.now() - started} ms`)
 
-  const version = await text('.sitefoot dd')
+  const version = await text('#root .sitefoot dd')
   is(version, `v${one('SELECT value FROM meta WHERE key = ?', 'version')}`, 'footer reports the database version')
 
   // ------------------------------------------------------------------ home
 
   console.log('\n/  (overview)')
   const racesRun = count("SELECT COUNT(*) FROM races WHERE status = 'completed'")
-  const homeStats = await page.$$eval('main .stats dd', (nodes) => nodes.map((n) => n.textContent))
+  const homeStats = await page.$$eval('#root main .stats dd', (nodes) => nodes.map((n) => n.textContent))
   truthy(
     homeStats.some((value) => value.includes(racesRun.toLocaleString('en-GB'))),
     `the overview leads with ${racesRun.toLocaleString('en-GB')} races run`,
@@ -238,9 +371,9 @@ try {
     ),
     "1976 final drivers' standings",
   )
-  atLeast(await page.$$eval('main .figure', (n) => n.length), 1, 'the title race is charted')
+  atLeast(await page.$$eval('#root main .figure', (n) => n.length), 1, 'the title race is charted')
   atLeast(
-    await page.$$eval('main .figure svg path', (n) => n.length),
+    await page.$$eval('#root main .figure svg path', (n) => n.length),
     2,
     'the championship chart drew its lines',
   )
@@ -294,6 +427,24 @@ try {
     'the page explains why a position repeats',
   )
 
+  /*
+   * A race where the driver on pole is not the driver who was quickest. The
+   * page holds race_results' pole -- whoever started at the front -- and a
+   * reader who knows the sport reads that as an error unless the page says
+   * why. There are thirteen such races and verify.py pins the count.
+   */
+  console.log('\n/races/2021/10  (pole is not the fastest qualifier)')
+  await go('/races/2021/10')
+  const front = await page.content()
+  truthy(front.includes('Fastest qualifier'), 'the page distinguishes pole from the fastest qualifier')
+  truthy(
+    front.includes(one(`SELECT d.full_name FROM qualifying q JOIN drivers d ON d.id = q.driver_id
+                         JOIN races r ON r.id = q.race_id
+                        WHERE r.year = 2021 AND r.round = 10 AND q.position = 1`)),
+    'and names the driver who actually set the time',
+  )
+  truthy(front.includes('set by the sprint'), 'and says the sprint set the grid')
+
   console.log('\n/races')
   await go('/races', 'Races')
   is((await tableRows())[0], count('SELECT COUNT(*) FROM races'), 'every race is listed')
@@ -314,7 +465,7 @@ try {
   )
   const sennaWins = count("SELECT COUNT(*) FROM race_entries WHERE driver_id = 'senna' AND finish_position = 1")
   truthy(
-    (await page.$$eval('main .stats dd', (n) => n.map((x) => x.textContent))).includes(String(sennaWins)),
+    (await page.$$eval('#root main .stats dd', (n) => n.map((x) => x.textContent))).includes(String(sennaWins)),
     `wins derived from the race records — ${sennaWins}`,
   )
 
@@ -346,57 +497,66 @@ try {
     'every race held at Silverstone',
   )
 
-  // The atlas walks a lap, which is only possible where build.py found one.
-  console.log('\n/circuits/atlas')
-  await go('/circuits/atlas', 'Track atlas')
-  is(
-    await page.$$eval('main .atlas-cell', (n) => n.length),
-    count('SELECT COUNT(*) FROM circuit_geometry'),
-    'every traced circuit is on the wall',
-  )
-  atLeast(
-    await page.$$eval('main .atlas-stage path', (n) => n.length),
-    2,
-    'the lap is drawn in turn-rate bands',
-  )
-  // Spa closes, so it can be walked; the readout must agree with the database.
-  const spaKm = one("SELECT measured_km FROM circuit_geometry WHERE circuit_id = 'spa'")
-  // Drive it as a person would. Assigning .value directly is invisible to
-  // React, which tracks the node's value and would swallow the event.
-  await page.focus('#atlas-at')
-  await page.keyboard.press('End')
-  await settle()
-  // "6,995 m of 6,995" — the metres travelled is the part before " m ".
-  const readout = await text('main .atlas-scrub output')
-  is(
-    Number(readout.split(' m ')[0].replace(/,/g, '')),
-    Math.round(spaKm * 1000),
-    'a full lap of Spa reads as its measured length',
-  )
-  // A trace with a loose end has no lap to walk, and must say so.
-  const broken = one('SELECT circuit_id FROM circuit_geometry WHERE closes = 0 ORDER BY loose_ends DESC LIMIT 1')
-  await page.$$eval(
-    'main .atlas-cell',
-    (nodes, name) => nodes.find((n) => n.querySelector('b').textContent === name)?.click(),
-    one('SELECT c.name FROM circuit_geometry g JOIN circuits c ON c.id = g.circuit_id WHERE g.circuit_id = ?', broken),
-  )
-  await settle()
-  truthy(
-    await page.$eval('#atlas-at', (el) => el.disabled),
-    `${broken} has no closed lap, so the scrubber is disabled`,
-  )
+  // Skipped rather than failed when the overlay is absent: a build without
+  // f1-geometry.db is a legitimate one, and the track maps are the only thing
+  // it costs. Everything inside needs the centrelines.
+  if (!hasGeometry) {
+    console.log('\n(no f1-geometry.db — skipping the atlas and traced-circuit checks)')
+  } else {
+    // The atlas walks a lap, which is only possible where build.py found one.
+    console.log('\n/circuits/atlas')
+    await go('/circuits/atlas', 'Track atlas')
+    is(
+      await page.$$eval('#root main .atlas-cell', (n) => n.length),
+      count('SELECT COUNT(*) FROM geo.circuit_geometry'),
+      'every traced circuit is on the wall',
+    )
+    atLeast(
+      await page.$$eval('#root main .atlas-stage path', (n) => n.length),
+      2,
+      'the lap is drawn in turn-rate bands',
+    )
+    // Spa closes, so it can be walked; the readout must agree with the database.
+    const spaKm = one("SELECT measured_km FROM geo.circuit_geometry WHERE circuit_id = 'spa'")
+    // Drive it as a person would. Assigning .value directly is invisible to
+    // React, which tracks the node's value and would swallow the event.
+    await page.focus('#atlas-at')
+    await page.keyboard.press('End')
+    await settle()
+    // "6,995 m of 6,995" — the metres travelled is the part before " m ".
+    const readout = await text('#root main .atlas-scrub output')
+    is(
+      Number(readout.split(' m ')[0].replace(/,/g, '')),
+      Math.round(spaKm * 1000),
+      'a full lap of Spa reads as its measured length',
+    )
+    // A trace with a loose end has no lap to walk, and must say so.
+    const broken = one('SELECT circuit_id FROM geo.circuit_geometry WHERE closes = 0 ORDER BY loose_ends DESC LIMIT 1')
+    await page.$$eval(
+      '#root main .atlas-cell',
+      (nodes, name) => nodes.find((n) => n.querySelector('b').textContent === name)?.click(),
+      one('SELECT c.name FROM geo.circuit_geometry g JOIN circuits c ON c.id = g.circuit_id WHERE g.circuit_id = ?', broken),
+    )
+    await settle()
+    truthy(
+      await page.$eval('#atlas-at', (el) => el.disabled),
+      `${broken} has no closed lap, so the scrubber is disabled`,
+    )
 
-  const traced = one('SELECT circuit_id FROM circuit_geometry WHERE closes = 1 ORDER BY node_count DESC LIMIT 1')
-  console.log(`\n/circuits/${traced}  (traced geometry)`)
-  await go(`/circuits/${traced}`)
-  const path = await page.$eval('.trackmap path', (node) => node.getAttribute('d')).catch(() => null)
-  atLeast(path?.length ?? 0, 200, 'the centreline drew a path')
-  truthy(
-    (await page.$$eval('figure.photo figcaption', (n) => n.map((x) => x.textContent).join(' '))).includes(
-      'OpenStreetMap',
-    ),
-    'the ODbL attribution travels with the geometry',
-  )
+    const traced = one('SELECT circuit_id FROM geo.circuit_geometry WHERE closes = 1 ORDER BY node_count DESC LIMIT 1')
+
+    console.log(`\n/circuits/${traced}  (traced geometry)`)
+    await go(`/circuits/${traced}`)
+    const path = await page.$eval('.trackmap path', (node) => node.getAttribute('d')).catch(() => null)
+    atLeast(path?.length ?? 0, 200, 'the centreline drew a path')
+    truthy(
+      (await page.$$eval('figure.photo figcaption', (n) => n.map((x) => x.textContent).join(' '))).includes(
+        'OpenStreetMap',
+      ),
+      'the ODbL attribution travels with the geometry',
+    )
+    pass(`the overlay merged in the browser — ${traced} drew from f1-geometry.db`)
+  }
 
   // ------------------------------------------------------------------ cars
 
@@ -431,23 +591,36 @@ try {
   )
 
   // A licence violation is the failure mode here, so this is asserted rather
-  // than eyeballed: a Commons photograph must carry its licence and the person
-  // who took it.
-  const credits = await page.$$eval('figure.photo figcaption', (nodes) =>
-    nodes.map((node) => node.textContent),
+  // than eyeballed. EVERY photograph on the page has to carry its credit, not
+  // just one of them: an earlier version of this checked that SOME caption
+  // mentioned the licence, which a page showing six images and crediting one
+  // would have passed.
+  const shown = await page.$$eval('figure.photo', (figures) =>
+    figures.map((figure) => ({
+      file: figure.querySelector('figcaption a')?.textContent?.trim() ?? '',
+      caption: figure.querySelector('figcaption')?.textContent ?? '',
+    })),
   )
-  const image = db
-    .prepare("SELECT artist, licence FROM article_images WHERE article = 'McLaren MP4/4' LIMIT 1")
-    .get()
-  if (image) {
-    truthy(
-      credits.some((caption) => caption.includes(image.licence)),
-      `the photograph carries its licence (${image.licence})`,
-    )
-    truthy(
-      credits.some((caption) => caption.includes(image.artist)),
-      `the photograph carries its photographer (${image.artist})`,
-    )
+  atLeast(shown.length, 1, 'the car page shows at least one photograph')
+
+  const credited = db.prepare(
+    `SELECT file_name, licence,
+            COALESCE(NULLIF(TRIM(COALESCE(artist, '')), ''),
+                     NULLIF(TRIM(COALESCE(credit, '')), '')) AS credit
+       FROM article_images WHERE article = 'McLaren MP4/4'`,
+  ).all()
+  const byTitle = new Map(
+    credited.map((row) => [row.file_name.replace(/^File:/, '').replace(/_/g, ' '), row]),
+  )
+  const uncredited = shown.filter((figure) => {
+    const row = byTitle.get(figure.file)
+    if (!row) return false          // a photograph from elsewhere on the page
+    return !figure.caption.includes(row.licence) || !figure.caption.includes(row.credit)
+  })
+  if (uncredited.length === 0) {
+    pass(`all ${shown.length} photograph(s) carry their licence and their credit`)
+  } else {
+    uncredited.forEach((figure) => fail(`photograph shown without full credit: ${figure.file}`))
   }
 
   // ------------------------------------------------------------- reference
@@ -455,7 +628,7 @@ try {
   console.log('\n/records')
   await go('/records', 'Records')
   is((await tableRows())[0], count('SELECT COUNT(*) FROM records'), 'published records')
-  atLeast(await page.$$eval('main .figure svg', (n) => n.length), 4, 'the leaderboards drew')
+  atLeast(await page.$$eval('#root main .figure svg', (n) => n.length), 4, 'the leaderboards drew')
 
   console.log('\n/reference/quality')
   await go('/reference/quality', 'Data quality')
@@ -488,13 +661,13 @@ try {
 
   console.log('\n/reference/sql')
   await go('/reference/sql', 'SQL console')
-  await page.waitForSelector('main .table-wrap', { timeout: 20000 })
+  await page.waitForSelector('#root main .table-wrap', { timeout: 20000 })
   atLeast((await tableRows())[0], 1, 'the opening query returned rows')
 
   await page.fill('textarea.sql', 'SELECT COUNT(*) AS n FROM race_entries')
   await page.click('button.button')
   await page.waitForFunction(
-    (expected) => document.querySelector('main tbody td')?.textContent.replace(/[^0-9]/g, '') === String(expected),
+    (expected) => document.querySelector('#root main tbody td')?.textContent.replace(/[^0-9]/g, '') === String(expected),
     count('SELECT COUNT(*) FROM race_entries'),
     { timeout: 20000 },
   )
@@ -503,13 +676,13 @@ try {
   // A write must be refused, and the table it names must survive.
   await page.fill('textarea.sql', 'DELETE FROM drivers')
   await page.click('button.button')
-  await page.waitForSelector('main .error', { timeout: 10000 })
+  await page.waitForSelector('#root main .error', { timeout: 10000 })
   pass('a write is refused rather than run')
 
   await page.fill('textarea.sql', 'WITH t AS (SELECT 1) SELECT COUNT(*) AS n FROM drivers')
   await page.click('button.button')
   await page.waitForFunction(
-    (expected) => document.querySelector('main tbody td')?.textContent.replace(/[^0-9]/g, '') === String(expected),
+    (expected) => document.querySelector('#root main tbody td')?.textContent.replace(/[^0-9]/g, '') === String(expected),
     count('SELECT COUNT(*) FROM drivers'),
     { timeout: 20000 },
   )
@@ -522,13 +695,13 @@ try {
   // on several screens of em dashes.
   console.log('\nSorting')
   await go('/drivers', 'Drivers')
-  await page.click('main th:nth-child(4) button')
-  const firstEntries = await page.$eval('main tbody tr td:nth-child(4)', (node) => node.textContent.trim())
+  await page.click('#root main th:nth-child(4) button')
+  const firstEntries = await page.$eval('#root main tbody tr td:nth-child(4)', (node) => node.textContent.trim())
   truthy(
     firstEntries !== '—' && firstEntries !== '',
     `descending sort leads with a value, not a blank — "${firstEntries}"`,
   )
-  const lastEntries = await page.$$eval('main tbody tr td:nth-child(4)', (nodes) =>
+  const lastEntries = await page.$$eval('#root main tbody tr td:nth-child(4)', (nodes) =>
     nodes[nodes.length - 1].textContent.trim(),
   )
   is(lastEntries, '—', 'and sinks the unestablished ones')
@@ -541,11 +714,11 @@ try {
   await page.fill('.palette input', 'rindt')
   // The index is one query on first open, so the list can show "no match" for a
   // frame before it lands. Wait for a real hit rather than for any row.
-  await page.waitForSelector('#palette-results li a[href^="#/drivers/"]', { timeout: 10000 })
+  await page.waitForSelector('#palette-results li a[href^="/drivers/"]', { timeout: 10000 })
   const first = await page.$eval('#palette-results li a', (node) => node.getAttribute('href'))
-  is(first, '#/drivers/rindt', 'search finds a driver by name')
+  is(first, '/drivers/rindt', 'search finds a driver by name')
   await page.click('#palette-results li a')
-  await page.waitForFunction(() => document.querySelector('main h2')?.textContent.includes('Rindt'), null, {
+  await page.waitForFunction(() => document.querySelector('#root main h2')?.textContent.includes('Rindt'), null, {
     timeout: 10000,
   })
   pass('and opens their page')
@@ -557,6 +730,183 @@ try {
   pass('an unknown driver is refused rather than rendered blank')
   await go('/nowhere', 'No such page')
   pass('an unknown route is refused')
+
+  // ----------------------------------------------------------------- shapes
+
+  /*
+   * One page of every SHAPE the data comes in.
+   *
+   * This section exists because of what happened without it. The sprint table
+   * on a race page had been broken since it was added -- it passed a string
+   * where DataTable calls a function, and it called result() on a bare status
+   * string -- and every sprint weekend since 2021 rendered a blank page.
+   * Thirty races. Nothing caught it, because the two races this test opened
+   * were a 1976 grand prix and a 1955 shared drive, and neither had a sprint.
+   *
+   * A page is not one page. It is a template over rows that vary in ways the
+   * developer did not have in front of them: a pit-lane start with no grid
+   * number, a field where half the entries did not qualify, a race that has
+   * not been run, a driver nobody has totals for. The routes below are chosen
+   * BY QUERY rather than written down, so the coverage follows the data rather
+   * than going stale beside it -- and each is asserted only to render and to
+   * log nothing, because the point is the shapes, not the numbers.
+   */
+  console.log('\nShapes')
+
+  const shapes = [
+    ['a sprint weekend',
+     `SELECT '/races/' || year || '/' || round FROM races
+       WHERE sprint = 1 AND status = 'completed' ORDER BY year DESC LIMIT 1`],
+    ['a race somebody started from the pit lane',
+     `SELECT '/races/' || r.year || '/' || r.round FROM races r
+        JOIN race_entries e ON e.race_id = r.id
+       WHERE e.grid_text = 'PL' LIMIT 1`],
+    ['a race most of the field failed to qualify for',
+     `SELECT '/races/' || r.year || '/' || r.round FROM races r
+        JOIN race_entries e ON e.race_id = r.id
+       WHERE e.position_text = 'DNQ'
+       GROUP BY r.id ORDER BY COUNT(*) DESC LIMIT 1`],
+    ['the Indianapolis 500, which shares nothing with the rest',
+     `SELECT '/races/' || year || '/' || round FROM races
+       WHERE name_used LIKE '%Indianapolis%' LIMIT 1`],
+    ['a race that has not been run',
+     `SELECT '/races/' || year || '/' || round FROM races
+       WHERE status = 'scheduled' ORDER BY round LIMIT 1`],
+    ['the race with the most pit stops held for it',
+     `SELECT '/races/' || r.year || '/' || r.round FROM races r
+        JOIN pit_stops p ON p.race_id = r.id
+       GROUP BY r.id ORDER BY COUNT(*) DESC LIMIT 1`],
+    ['a driver who never won',
+     `SELECT '/drivers/' || id FROM drivers
+       WHERE COALESCE(wins, 0) = 0 ORDER BY COALESCE(entries, 0) DESC LIMIT 1`],
+    ['a driver nobody has career totals for',
+     `SELECT '/drivers/' || id FROM drivers
+       WHERE starts IS NULL AND career_points IS NULL LIMIT 1`],
+    ['a constructor that never won',
+     `SELECT '/constructors/' || id FROM constructors
+       WHERE COALESCE(wins, 0) = 0 ORDER BY COALESCE(entries, 0) DESC LIMIT 1`],
+    ['a circuit that held one grand prix',
+     `SELECT '/circuits/' || id FROM circuits WHERE gp_count = 1 LIMIT 1`],
+    // The centrelines moved to f1-geometry.db when the ODbL split landed, so
+    // main.circuit_geometry is empty by design. Without the overlay there is
+    // no traced circuit to visit and the shape is dropped rather than failed.
+    ...(hasGeometry
+      ? [['a circuit with a traced centreline',
+          `SELECT '/circuits/' || circuit_id FROM geo.circuit_geometry LIMIT 1`]]
+      : []),
+    ['the car with the most wins',
+     `SELECT '/cars/' || id FROM cars ORDER BY COALESCE(wins, 0) DESC LIMIT 1`],
+    ['the first season',
+     `SELECT '/seasons/' || MIN(year) FROM seasons`],
+    ['the season in progress',
+     `SELECT '/seasons/' || MAX(year) FROM seasons`],
+  ]
+
+  /* A shape with no matching row is a gap in the coverage, not a pass — but it
+     must not take the runner down, which is what `one` does on an empty result. */
+  const maybe = (sql) => {
+    const row = db.prepare(sql).get()
+    return row ? Object.values(row)[0] : null
+  }
+
+  for (const [what, sql] of shapes) {
+    const route = maybe(sql)
+    if (!route) {
+      fail(`${what}: no row in the database matches, so the shape went untested`)
+      continue
+    }
+    const before = consoleErrors.length
+    try {
+      await go(route)
+      // A page that threw during render leaves the heading and nothing under
+      // it, so "did it render" is asked of the body rather than the title.
+      //
+      // Waited for rather than sampled. The question is whether the page ever
+      // renders, and reading the count at one instant asks whether it had
+      // rendered YET — which is the same thing only while nothing is slow.
+      // /drivers/moss came back with 0 blocks once on CI and never here, on
+      // this commit or under a loaded machine. A page that genuinely renders
+      // nothing still fails, three seconds later.
+      await page
+        .waitForFunction(
+          () => document.querySelectorAll('#root main section, #root main .stats').length > 0,
+          null,
+          { timeout: 3000 },
+        )
+        .catch(() => {})
+      const filled = await page.$$eval('#root main section, #root main .stats', (n) => n.length)
+      if (filled > 0 && consoleErrors.length === before) pass(`${what} — ${route}`)
+      else fail(`${what} — ${route}: ${filled} blocks, ${consoleErrors.length - before} new error(s)`)
+    } catch (error) {
+      fail(`${what} — ${route}: ${String(error.message).split('\n')[0]}`)
+    }
+  }
+
+  // ------------------------------------------------------------ prerendering
+
+  /*
+   * The static pages are the whole reason this site has URLs a crawler can
+   * fetch, and they are written by a script that never runs in a browser. So
+   * they are checked the way a crawler would meet them: a fresh page load at a
+   * deep path, and the same path again with JavaScript turned off entirely.
+   *
+   * The counts are read out of f1.db so these stay honest as the data grows.
+   */
+  console.log('\nPrerendering')
+
+  const deep = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+  await deep.goto(`${BASE}/drivers/hamilton`, { waitUntil: 'domcontentloaded' })
+  is(await deep.title(), 'Sir Lewis Hamilton — F1 Verified Facts', 'a deep link has its own title')
+  is(
+    await deep.$eval('link[rel=canonical]', (node) => new URL(node.href).pathname),
+    '/drivers/hamilton',
+    'and its own canonical URL',
+  )
+  truthy(
+    JSON.parse(await deep.$eval('script[type="application/ld+json"]', (n) => n.textContent))['@type'] === 'Person',
+    'and describes itself to a search engine as a Person',
+  )
+  // The handover: the static block is what a reader sees first, and it must be
+  // gone once the app can answer for itself — otherwise the page renders twice.
+  await deep.waitForSelector('#root main h2', { timeout: 60000 })
+  await deep.waitForFunction(() => !document.getElementById('prerendered'), null, { timeout: 20000 })
+  pass('the static page is handed over to the app once the database is open')
+  await deep.close()
+
+  const noJs = await browser.newContext({ javaScriptEnabled: false })
+  const plain = await noJs.newPage()
+  await plain.goto(`${BASE}/races/2021/10`, { waitUntil: 'domcontentloaded' })
+  const body = await plain.$eval('#prerendered', (node) => node.textContent)
+  truthy(body.includes('British Grand Prix'), 'a race page names its Grand Prix without JavaScript')
+  truthy(
+    body.includes(one('SELECT winner FROM race_results WHERE year = 2021 AND round = 10')),
+    'and names the winner the database holds',
+  )
+  atLeast(
+    await plain.$$eval('#prerendered tbody tr', (n) => n.length),
+    20,
+    'and carries the full classification as real table rows',
+  )
+  atLeast(
+    await plain.$$eval('#prerendered a[href^="/"]', (n) => n.length),
+    20,
+    'and links onward, so a crawler has somewhere to go',
+  )
+  await noJs.close()
+
+  const sitemap = await fetch(`${BASE}/sitemap.xml`).then((r) => r.text())
+  const urls = (sitemap.match(/<loc>/g) ?? []).length
+  const expected =
+    1 + // home
+    1 + one('SELECT COUNT(*) AS n FROM seasons') + // index + one per season
+    1 + one('SELECT COUNT(*) FROM races') +
+    1 + one('SELECT COUNT(*) FROM drivers') +
+    1 + one('SELECT COUNT(*) FROM constructors') +
+    1 + one('SELECT COUNT(*) FROM circuits') +
+    1 + one('SELECT COUNT(*) FROM cars') +
+    8 // records, reference and its five children, the atlas
+  is(urls, expected, 'the sitemap lists every page the database implies')
+  truthy((await fetch(`${BASE}/robots.txt`).then((r) => r.text())).includes('Sitemap:'), 'robots.txt points at it')
 
   // ------------------------------------------------------- console cleanliness
 

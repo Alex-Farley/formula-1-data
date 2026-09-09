@@ -205,6 +205,30 @@ NEW_CONSTRUCTORS = [
 ]
 
 
+# ---------------------------------------------------------------------
+# The same constructors in the F1DB register, for the reason given against
+# PODIUM_ONLY_F1DB below: these ten rows cited Jolpica, and the marques are
+# all in F1DB under CC BY 4.0. Checked on every build by name rather than by
+# date - a constructor has no date of birth - so the assertion is weaker than
+# the drivers' and is stated as what it is.
+#
+# The prose in NEW_CONSTRUCTORS was written for this project and is not
+# affected either way.
+# ---------------------------------------------------------------------
+PODIUM_ONLY_CONSTRUCTORS_F1DB = {
+    'lago': 'talbot-lago',
+    'gordini': 'gordini',
+    'connaught': 'connaught',
+    'lola': 'lola',
+    'fittipaldi': 'fittipaldi',
+    'larrousse': 'larrousse',
+    'leyton': 'leyton-house',
+    'onyx': 'onyx',
+    'dallara': 'dallara',
+    'footwork': 'footwork',
+}
+
+
 # Jolpica constructors this register deliberately does not hold, with the
 # reason. Declared so the loader's "not in the register" line stays a list of
 # real gaps rather than a list that is always noise.
@@ -351,6 +375,98 @@ PODIUM_ONLY_DRIVERS = [
     ('whitehead', 'whitehead', 'Peter Whitehead', 'United Kingdom', 'GBR', '1914-11-12'),
     ('wisell', 'wisell', 'Reine Wisell', 'Sweden', 'SWE', '1941-09-30'),
 ]
+
+
+# ---------------------------------------------------------------------
+# The same drivers in the F1DB register, which is the SOURCE OF RECORD for
+# their rows.
+#
+# WHY THIS MAPPING EXISTS
+#     The names and dates above were first read from Jolpica, whose Ergast
+#     lineage is CC BY-NC-SA. A non-commercial clause on the committed
+#     database is the one licence condition this project will not carry - it
+#     is what kept the full classification out of the build for seven
+#     versions, until v2.15 found the same facts in F1DB under CC BY 4.0.
+#     These sixty-two rows were the residue of that switch: the last rows in
+#     the committed database still citing an NC source.
+#
+#     Every one of them is in F1DB, and the build now cites it. That is a
+#     re-SOURCING, not a re-labelling: the mapping is proved on every build
+#     by comparing the date of birth, and a driver F1DB does not hold, or
+#     holds with a different date, stops the build.
+#
+#     What is NOT taken from F1DB is this register's own naming: `love` is
+#     Rhodesian here and Zimbabwean there, and the codes above are the
+#     sporting ones rather than ISO. Those are editorial choices this
+#     database already makes, and a licence fix is no reason to revisit them.
+#
+#     Jolpica remains the id mapping for the LOCAL cross-check loader below.
+#     Reading a source to check a fact is not redistributing it.
+# ---------------------------------------------------------------------
+PODIUM_ONLY_F1DB = {
+    'allison': 'cliff-allison',
+    'amick': 'george-amick',
+    'anderson': 'bob-anderson',
+    'arundell': 'peter-arundell',
+    'ayulo': 'manny-ayulo',
+    'bernard': 'eric-bernard',
+    'blundell': 'mark-blundell',
+    'bonetto': 'felice-bonetto',
+    'boyd': 'johnny-boyd',
+    'brundle': 'martin-brundle',
+    'capelli': 'ivan-capelli',
+    'carter': 'duane-carter',
+    'cheever': 'eddie-cheever',
+    'chiron': 'louis-chiron',
+    'courage': 'piers-courage',
+    'cross': 'art-cross',
+    'davies': 'jimmy-davies',
+    'de-portago': 'alfonso-de-portago',
+    'donohue': 'mark-donohue',
+    'fischer': 'rudi-fischer',
+    'flockhart': 'ron-flockhart',
+    'follmer': 'george-follmer',
+    'freeland': 'don-freeland',
+    'frere': 'paul-frere',
+    'gendebien': 'olivier-gendebien',
+    'goldsmith': 'paul-goldsmith',
+    'gregory': 'masten-gregory',
+    'holland': 'bill-holland',
+    'jarvilehto': 'jj-lehto',  # F1DB files him under his racing name
+    'johansson': 'stefan-johansson',
+    'larini': 'nicola-larini',
+    'love': 'john-love',
+    'maggs': 'tony-maggs',
+    'maglioli': 'umberto-maglioli',
+    'mairesse': 'willy-mairesse',
+    'manzon': 'robert-manzon',
+    'menditeguy': 'carlos-menditeguy',
+    'modena': 'stefano-modena',
+    'monteiro': 'tiago-monteiro',
+    'morbidelli': 'gianni-morbidelli',
+    'nazaruk': 'mike-nazaruk',
+    'parnell': 'reg-parnell',
+    'perdisa': 'cesare-perdisa',
+    'piquet-jr': 'nelson-piquet-jr',
+    'redman': 'brian-redman',
+    'rose': 'mauri-rose',
+    'rosier': 'louis-rosier',
+    'salo': 'mika-salo',
+    'salvadori': 'roy-salvadori',
+    'sato': 'takuma-sato',
+    'schell': 'harry-schell',
+    'schenken': 'tim-schenken',
+    'serafini': 'dorino-serafini',
+    'servoz-gavin': 'johnny-servoz-gavin',
+    'spence': 'mike-spence',
+    'stommelen': 'rolf-stommelen',
+    'streiff': 'philippe-streiff',
+    'stuck': 'hans-joachim-stuck',
+    'suzuki': 'aguri-suzuki',
+    'taylor': 'trevor-taylor',
+    'whitehead': 'peter-whitehead',
+    'wisell': 'reine-wisell',
+}
 
 
 def load():

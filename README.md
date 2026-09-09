@@ -1,4 +1,4 @@
-# F1 Verified Facts Database — v2.15
+# F1 Verified Facts Database — v2.16
 
 An expansion of the original single-file JSON into a normalised, queryable
 SQLite database covering 1950–2026, with the JSON kept as a generated export.
@@ -12,6 +12,23 @@ harvested from Wikipedia's season tables under a new `reference` confidence tier
 replaces the per-race one, every Grand Prix now has a canonical id, and
 `audit.py` reports on the shape of the database rather than its contents.
 See *Structure* below.
+
+**v2.16** makes the confidence tiers **traceable**, and demotes 333 rows in
+doing it. `source_patterns` resolves every row's `source` to a
+`source_registry` entry — 4,691 rows previously resolved to none, because a
+registry `url` is one example page and not a namespace — and the build now
+fails if one does not. `table_provenance` gives a source to the fifteen tables
+that carry `confidence` and no `source` column. Most of those turned out to be
+**authored**: written for this project from general knowledge, with no
+external source and no check in `verify.py` that constrains a value. They sat
+at `high`, which is `may_publish = 1` and promises a citable official record
+that does not exist; eight sat at `verified`, against this project's own rule
+that nothing reaches `verified` without an official source. `authored` is now
+a named authority and everything carrying it is capped at `medium` — the first
+confidence value here that is *derived* rather than declared. `records` is the
+sharpest case: nothing in `verify.py` reads that table at all, while the career
+records it duplicates are checked on `drivers`. See
+*docs/DERIVED-CONFIDENCE.md*.
 
 **v2.15** closes the largest gap in the project, and by a **licence** rather
 than a harvest. `race_entries` goes from **2,424 rows to 27,555** — every
@@ -133,11 +150,12 @@ v2026.12.0.
 |---|---|
 | `f1.db` | The SQLite database. 39 tables, 34 views, ~8,400 rows. This is the artefact. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
-| `f1_database.json` | Full JSON export of every table. |
+| `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
 | `f1_compat.json` | JSON in the *original* v1 key layout, so anything already consuming that file keeps working. |
 | `schema.sql` | The schema, commented. |
-| `build.py` | Rebuilds `f1.db` from the data modules. Idempotent. |
-| `verify.py` | 170 integrity, cross-tabulation and sanity checks. Exit code 1 on failure. |
+| `build.py` | Rebuilds `f1.db` from the data modules. Idempotent, and byte-for-byte reproducible. 34 named stages; `STAGES` is the schedule. |
+| `verify.py` | Integrity, cross-tabulation and sanity checks on the DATA. Exit code 1 on failure. |
+| `tests/` | Unit tests for the CODE — name matching, lap-closure arithmetic. `make test`, stdlib only. |
 | `audit.py` | Structural health check: fill rates, coverage, keys, redundancy, readiness. |
 | `export_json.py` | Regenerates the JSON exports from the database. |
 | `data/*.py` | The source data, as readable Python literals. **Edit here, then rebuild.** |
@@ -615,8 +633,11 @@ at `unverified`.
 A circuit's shape as OpenStreetMap maps it, stored as GeoJSON and drawn as
 inline SVG with no map library and no tiles. Relation ids come from Wikidata
 (CC0); the geometry is **ODbL 1.0**, which is share-alike and carries a
-database right, so it is confined to this one table and dropping the table
-drops the obligation. See `ATTRIBUTION.md`.
+database right that reaches the whole database its data lands in. So it is
+not in `f1.db`: it ships as **`f1-geometry.db`** beside it, which ODbL treats
+as a Collective Database rather than a derivative one.
+`tools/geometry_overlay.py --apply` merges it into a local copy, and the
+website merges it in your browser. See `ATTRIBUTION.md`.
 
 The reason it belongs here rather than anywhere else is that this database can
 reject it. A circuit relation is not an ordered ring — its members include the

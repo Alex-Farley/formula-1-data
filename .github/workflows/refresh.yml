@@ -58,11 +58,30 @@ jobs:
       # the result; a failure here stops the commit, so the repository keeps
       # the last harvest that was known good rather than taking on a broken
       # one unattended.
+      # BUILT is a constant in build.py rather than a clock, so that the same
+      # sources always rebuild to the same bytes — CI checks the committed
+      # artefacts against a fresh build, and a rebuild that changed nothing
+      # must not evict every reader's cached copy of a 20 MB file. The price is
+      # that it has to be moved by hand, and it went four days stale that way.
+      # This is the one moment the data genuinely changes, so this is where it
+      # gets moved.
+      - name: Date the build
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          today=$(date -u +%Y-%m-%d)
+          sed -i "s/^BUILT = \".*\"/BUILT = \"${today}\"/" build.py
+          grep -q "^BUILT = \"${today}\"$" build.py \
+            || { echo "::error::BUILT was not updated; has it moved or been renamed?"; exit 1; }
+
       - name: Rebuild and verify
         if: steps.diff.outputs.changed == 'true'
         run: |
           python3 build.py
           python3 verify.py
+
+      - name: Unit-test the loaders
+        if: steps.diff.outputs.changed == 'true'
+        run: python3 -m unittest discover -s tests
 
       - name: Regenerate the JSON exports
         if: steps.diff.outputs.changed == 'true'

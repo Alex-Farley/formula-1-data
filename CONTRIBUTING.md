@@ -17,7 +17,7 @@ data/*.py  +  harvest/*.txt          the sources you edit
         v  python3 verify.py         121 checks; exit 1 on failure
         v  python3 audit.py          structural health report
         v  python3 export_json.py --compat
-     f1_database.json, f1_compat.json
+     f1_compat.json
 ```
 
 Or just `make all`.
@@ -145,9 +145,10 @@ make all        # build, verify, export
 python3 audit.py
 ```
 
-`verify.py` must exit 0. Commit the regenerated `f1_database.json` and
-`f1_compat.json` — CI fails if the committed exports do not match a fresh
-build.
+`verify.py` must exit 0. Commit the regenerated `f1.db` and `f1_compat.json` —
+CI fails if the committed export does not match a fresh build. `f1_database.json`
+is **not** committed: it is 21 MB, it does not delta-compress, and it
+regenerates in about a second, so it goes out as a release asset instead.
 
 ## What not to commit
 

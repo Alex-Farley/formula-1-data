@@ -9,6 +9,7 @@ Idempotent: deletes and rebuilds the database each run.
 import json
 import math
 import os
+import re
 import sqlite3
 import sys
 
@@ -29,7 +30,23 @@ from data import radio as RA       # noqa: E402
 from data import results as RS     # noqa: E402
 
 DB = os.path.join(HERE, "f1.db")
-VERSION = "2.15"
+VERSION = "2.16"
+
+# The build date, as a CONSTANT and deliberately not date.today().
+#
+# f1.db is a pure function of these sources: the same inputs rebuild to the
+# same bytes, which is what lets CI check that the committed artefacts match a
+# fresh build, and what stops a rebuild that changed nothing from evicting
+# every reader's cached copy of a twenty-megabyte file. A clock in the build
+# would break all of that, and it would make the JSON exports differ every day.
+#
+# The cost is that somebody has to move it, and until this comment existed
+# nobody did: it sat stranded in the middle of the geometry helpers and went
+# four days stale, which the sitemap then published as lastmod on all 2,385
+# pages. So the refresh workflow now bumps it whenever it commits a new
+# harvest — the only time the data actually changes — and a hand edit to
+# data/*.py should bump it too.
+BUILT = "2026-09-09"
 
 
 def _haversine(a, b):
@@ -46,7 +63,6 @@ def _haversine(a, b):
     h = (math.sin(dp / 2) ** 2
          + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2)
     return 2 * R * math.asin(math.sqrt(h))
-BUILT = "2026-09-05"
 
 
 
@@ -106,19 +122,85 @@ def _lap_topology(lines, join_m=1.0):
     closes = (loose == 0 and all(used) and near(ring[0], ring[-1]))
     return closes, loose, sum(used), walked
 
-def build():
+class _Build:
+    """What passes from one stage of the build to the next.
+
+    build() was one function of about nineteen hundred lines. Everything in it
+    shared a single scope, so there were no seams: a stage could not be read on
+    its own, moved, or reasoned about without holding the whole thing in your
+    head, and the only way to learn what a stage depended on was to try taking
+    it out.
+
+    Splitting it needed one measurement — which names actually cross a stage
+    boundary — and the answer is much shorter than the size of the function
+    suggests. It is this list. Each stage pulls what it needs off this object
+    and puts back what later stages read, which is precisely what the flat
+    function did implicitly; the difference is that it is now written down and
+    a stage's inputs and outputs can be seen from its first and last lines.
+
+    The proof that the split changed nothing is that f1.db still builds to the
+    same bytes.
+    """
+
+    con = None
+    cur = None
+    race_key = None
+    known_cons = None
+    f1db_drivers = None
+    entrants = None
+    lookup = None
+    seen_cars = None
+    driver_id = None
+
+
+def _stage_00_open_the_database(b):
+    """open the database"""
+    con = b.con
+    cur = b.cur
+
     if os.path.exists(DB):
         os.remove(DB)
     con = sqlite3.connect(DB)
     con.executescript(open(os.path.join(HERE, "schema.sql"), encoding="utf-8").read())
     cur = con.cursor()
 
+    b.con = con
+    b.cur = cur
+
+
+def _stage_01_meta(b):
+    """meta"""
+    cur = b.cur
+
     # ---------------------------------------------------------- meta
     cur.executemany("INSERT INTO provenance VALUES (?,?,?,?)", N.PROVENANCE)
+    # Each registry entry carries its licence twice: as the prose in
+    # `licence`, written for a person, and as the machine-readable class in
+    # SOURCE_LICENCE, which is what lets verify.py answer "may this row be
+    # published?" without anyone reading a paragraph. An entry with no class
+    # is a source nobody has judged, and that is a build failure rather than
+    # a default, because the safe default is the one you never notice.
+    registry = []
+    for entry in N.SOURCE_REGISTRY:
+        priority = entry[0]
+        if priority not in N.SOURCE_LICENCE:
+            raise SystemExit(
+                f"source_registry entry {priority} ({entry[1]}) has no licence "
+                f"class in SOURCE_LICENCE. Classify it before the build can "
+                f"say what may be published.")
+        registry.append(tuple(entry) + N.SOURCE_LICENCE[priority])
     cur.executemany(
         "INSERT INTO source_registry (priority, source, url, use, authority,"
-        " licence, cadence, checkability) VALUES (?,?,?,?,?,?,?,?)",
-        N.SOURCE_REGISTRY)
+        " licence, cadence, checkability, redistributable, share_alike,"
+        " attribution_required, domains) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+        registry)
+    cur.executemany(
+        "INSERT INTO source_patterns (source_id, pattern, note) VALUES (?,?,?)",
+        N.SOURCE_PATTERNS)
+    cur.executemany(
+        "INSERT INTO table_provenance (tbl, source_id, unconstrained, note)"
+        " VALUES (?,?,?,?)",
+        N.TABLE_PROVENANCE)
     cur.executemany("INSERT INTO meta VALUES (?,?)", [
         ("database_name", "F1 Verified Facts Project Memory Database"),
         ("version", VERSION),
@@ -141,6 +223,11 @@ def build():
          "list names one chassis for the constructor and NULL where it names several. "
          "See the known_gaps table."),
     ])
+
+
+def _stage_02_drivers(b):
+    """drivers"""
+    cur = b.cur
 
     # ------------------------------------------------------- drivers
     for r in D.CHAMPIONS:
@@ -187,16 +274,47 @@ def build():
              "https://en.wikipedia.org/wiki/List_of_Formula_One_polesitters"))
 
     # Drivers who reached a podium but never won, took pole or set a fastest
-    # lap. Names and dates come from the same API as the podium rows, so a
-    # result can never reference a driver this database had to invent.
+    # lap, so no earlier harvest had reason to add them.
+    #
+    # Their names and dates were first read from Jolpica. They are SOURCED to
+    # F1DB, which holds all sixty-two under CC BY 4.0 where Jolpica's Ergast
+    # lineage is CC BY-NC-SA, and the citation has to name where a
+    # redistributable fact actually comes from. The mapping is not taken on
+    # trust: F1DB must hold the driver and must give the same date of birth,
+    # or the build stops. See PODIUM_ONLY_F1DB in data/results.py.
+    f1db_drv = {r[0]: r for r in HV.load_f1db_drivers()}
     for lid, eid, name, nat, code, born in RS.PODIUM_ONLY_DRIVERS:
+        f1db_id = RS.PODIUM_ONLY_F1DB.get(lid)
+        if f1db_id is None:
+            raise SystemExit(
+                f"PODIUM_ONLY_DRIVERS holds {lid}, which PODIUM_ONLY_F1DB does "
+                f"not map to an F1DB driver. Every row in the committed "
+                f"database must cite a source that permits redistribution.")
+        meta = f1db_drv.get(f1db_id)
+        if meta is None:
+            raise SystemExit(
+                f"PODIUM_ONLY_F1DB maps {lid} to {f1db_id}, which is not in "
+                f"harvest/f1db_drivers.txt. Rerun tools/f1db_fetch.py.")
+        # The date of birth is what proves the two registers mean the same
+        # person. The name cannot do it: F1DB files Jyrki Jarvilehto under his
+        # racing name, and this register does not.
+        if (meta[4] or None) != (born or None):
+            raise SystemExit(
+                f"PODIUM_ONLY_F1DB maps {lid} to {f1db_id}, but this register "
+                f"has {born or 'no date'} and F1DB has {meta[4] or 'no date'}. "
+                f"One of them is the wrong person.")
         cur.execute("""INSERT INTO drivers (id, full_name, nationality,
             nationality_code, born, wins, titles, notes, confidence, source)
             VALUES (?,?,?,?,?,0,0,?,?,?)""",
             (lid, name, nat, code, born or None,
              "Added to the register from the podium harvest: reached a podium "
              "without ever winning a race, taking pole or setting a fastest lap.",
-             "reference", "https://api.jolpi.ca/ergast/f1/drivers/" + eid))
+             HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
+
+
+def _stage_03_drivers_admitted_from_the_f1db_register(b):
+    """drivers admitted from the F1DB register (data/drivers.py"""
+    cur = b.cur
 
     # --- drivers admitted from the F1DB register (data/drivers.py
     # F1DB_DRIVERS). The ids are authored there; every attribute comes from
@@ -251,6 +369,11 @@ def build():
         fastest_laps_external = fastest_laps,
         external_source = 'hand-entered from reference records'""")
 
+
+def _stage_04_constructors(b):
+    """constructors"""
+    cur = b.cur
+
     # -------------------------------------------------- constructors
     for r in T.CONSTRUCTORS:
         (cid, name, full, country, base, first, last, wins, ct, dt, tyears,
@@ -264,13 +387,25 @@ def build():
 
     # Constructors that reached a podium but are not in the main register:
     # short-lived teams, and the pre-1961 marques that never won.
+    #
+    # Sourced to F1DB for the reason given against the podium-only drivers
+    # above: these ten marques cited Jolpica, and F1DB holds every one of them
+    # under a licence that permits redistribution. A marque has no date of
+    # birth, so the build can only check that F1DB holds the id at all.
+    f1db_cons = {r[0]: r for r in HV.load_f1db_constructors()}
     for cid, name, full, base, first, nat, notes, conf in RS.NEW_CONSTRUCTORS:
+        f1db_id = RS.PODIUM_ONLY_CONSTRUCTORS_F1DB.get(cid)
+        if f1db_id is None or f1db_id not in f1db_cons:
+            raise SystemExit(
+                f"NEW_CONSTRUCTORS holds {cid}, which PODIUM_ONLY_CONSTRUCTORS_F1DB "
+                f"does not map to a constructor in harvest/f1db_constructors.txt. "
+                f"Every row in the committed database must cite a source that "
+                f"permits redistribution.")
         cur.execute("""INSERT INTO constructors (id, name, full_name, country,
             base, first_entry, wins, constructors_titles, drivers_titles,
             active, notes, confidence, source)
             VALUES (?,?,?,?,?,?,0,0,0,0,?,?,?)""",
-            (cid, name, full, nat, base, first, notes, conf,
-             "https://api.jolpi.ca/ergast/f1/constructors/"))
+            (cid, name, full, nat, base, first, notes, conf, HV.F1DB_SOURCE))
 
     for i, (chain, cname, seq, ent, fy, ty, note) in enumerate(T.LINEAGE, 1):
         cur.execute("""INSERT INTO constructor_lineage
@@ -308,6 +443,11 @@ def build():
         active_from, active_to, associated_with, significance, confidence)
         VALUES (?,?,?,?,?,?,?,?,?)""", P.PERSONNEL)
 
+
+def _stage_05_seasons(b):
+    """seasons"""
+    cur = b.cur
+
     # ------------------------------------------------------- seasons
     for r in S.SEASONS:
         (yr, rounds, champ, team, cpts, cwins, ru, rupts, cc, ccpts,
@@ -319,6 +459,11 @@ def build():
             notes, confidence, source) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (yr, rounds, champ, team, cpts, cwins, ru, rupts, margin, cc, ccpts,
              formula, tyres, notes, conf, S.SEASON_NOTES_SOURCE))
+
+
+def _stage_06_circuits(b):
+    """circuits"""
+    cur = b.cur
 
     # ------------------------------------------------------ circuits
     for r in C.CIRCUITS:
@@ -336,6 +481,13 @@ def build():
             layout_name, from_year, to_year, by_year, length_km, turns,
             change_reason) VALUES (?,?,?,?,?,?,?,?,?,?)""",
             (i, cid, key, lname, fy, ty, byyear, length, turns, reason))
+
+
+def _stage_07_cars_inserted_in_file_order_so(b):
+    """cars. Inserted in file order so that a car can reference the one it"""
+    cur = b.cur
+    known_cons = b.known_cons
+    seen_cars = b.seen_cars
 
     # --- cars. Inserted in file order so that a car can reference the one it
     # supersedes, which is always listed before it.
@@ -380,6 +532,15 @@ def build():
             FROM cars WHERE id = ?""", (field, str(old), reason, car_id))
 
     known_cons = {r[0] for r in cur.execute("SELECT id FROM constructors")}
+
+    b.known_cons = known_cons
+    b.seen_cars = seen_cars
+
+
+def _stage_08_constructors_admitted_from_the_f1db_register(b):
+    """constructors admitted from the F1DB register (data/teams.py"""
+    cur = b.cur
+    known_cons = b.known_cons
 
     # --- constructors admitted from the F1DB register (data/teams.py
     # F1DB_CONSTRUCTORS). The ids are authored there; every attribute comes
@@ -426,6 +587,11 @@ def build():
              HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
         known_cons.add(f1db_id)
 
+
+def _stage_09_regulation_limits_loaded_before_the_chassis(b):
+    """regulation limits. Loaded before the chassis register so the"""
+    cur = b.cur
+
     # --- regulation limits. Loaded before the chassis register so the
     # register's weights can be measured against them.
     for i, (fy, ty, field, value, unit, note, conf, src) in \
@@ -434,6 +600,14 @@ def build():
             field, value, unit, note, confidence, source)
             VALUES (?,?,?,?,?,?,?,?,?)""",
             (i, fy, ty, field, value, unit, note, conf, src))
+
+
+def _stage_10_the_chassis_engine_and_entrant_register(b):
+    """the chassis, engine and entrant register (F1DB, via"""
+    cur = b.cur
+    known_cons = b.known_cons
+    entrants = b.entrants
+    seen_cars = b.seen_cars
 
     # --- the chassis, engine and entrant register (F1DB, via
     # tools/f1db_fetch.py). Bulk rows: no person has touched them.
@@ -527,6 +701,13 @@ def build():
               sp["article"].replace(" ", "_")) if sp.get("article") else None,
              HV.F1DB_SOURCE))
 
+    b.entrants = entrants
+
+
+def _stage_11_the_lead_image_of_each_accepted(b):
+    """the lead image of each accepted car article, and its credit"""
+    cur = b.cur
+
     # --- the lead image of each accepted car article, and its credit
     #
     # No image is stored. What is stored is which file an article leads with
@@ -579,6 +760,11 @@ def build():
         print(f"  article images: {img_rows} rows, {img_skipped} for "
               f"articles no chassis claims; {named} name the car in the "
               f"file name and {img_rows - named} do not")
+
+
+def _stage_12_circuit_centrelines_re_measured_before_they(b):
+    """circuit centrelines, re-measured before they are admitted"""
+    cur = b.cur
 
     # --- circuit centrelines, re-measured before they are admitted
     #
@@ -664,6 +850,11 @@ def build():
             # has for that circuit, and it is drawn. It just cannot be walked.
             print(f"    does not close: {line}")
 
+
+def _stage_13_a_regulation_figure_is_not_a(b):
+    """a regulation figure is not a measurement, part one"""
+    cur = b.cur
+
     # --- a regulation figure is not a measurement, part one
     #
     # Drop any harvested figure that exactly restates a limit this database
@@ -695,6 +886,13 @@ def build():
                      f"{val:g} is the {hit[0]} regulation {what}, which every "
                      f"car that season was built to. It describes the rules, "
                      f"not this car.", cid_))
+
+
+def _stage_14_a_regulation_figure_is_not_a(b):
+    """a regulation figure is not a measurement, part two"""
+    cur = b.cur
+    known_cons = b.known_cons
+    entrants = b.entrants
 
     # --- a regulation figure is not a measurement, part two
     #
@@ -788,6 +986,11 @@ def build():
             confidence) VALUES (?,?,?,?,?,?)""",
             (gid, name, country, ", ".join(aliases) or None, notes or None, "high"))
 
+
+def _stage_15_rules_tech_safety(b):
+    """rules / tech / safety"""
+    cur = b.cur
+
     # ------------------------------------------- rules / tech / safety
     for i, (yr, cat, title, detail, impact) in enumerate(X.REGULATIONS, 1):
         cur.execute("""INSERT INTO regulation_changes (id, year, category, title, detail,
@@ -831,6 +1034,14 @@ def build():
     for i, r in enumerate(X.GOVERNANCE, 1):
         cur.execute("""INSERT INTO governance (id, year, event, detail, significance)
             VALUES (?,?,?,?,?)""", (i,) + r)
+
+
+def _stage_16_current_season(b):
+    """current season"""
+    cur = b.cur
+    race_key = b.race_key
+    lookup = b.lookup
+    driver_id = b.driver_id
 
     # -------------------------------------------------- current season
     for i, (cid, did, car, pu, num, role) in enumerate(N.ENTRIES_2026, 1):
@@ -953,6 +1164,18 @@ def build():
              "verified", N.SOURCE_F1))
         race_key[(2026, c[0])] = rid
 
+    b.race_key = race_key
+    b.lookup = lookup
+    b.driver_id = driver_id
+
+
+def _stage_17_pole_position_and_fastest_lap_as(b):
+    """pole position and fastest lap, as attributes of an entry"""
+    cur = b.cur
+    race_key = b.race_key
+    lookup = b.lookup
+    driver_id = b.driver_id
+
     # --- pole position and fastest lap, as attributes of an entry
     # Each harvested row also carries the race winner, which must equal the
     # winner already recorded. A mismatch means the row describes a different
@@ -997,6 +1220,13 @@ def build():
     if applied != 1161:
         raise SystemExit(f"pole harvest: expected 1161 rows, applied {applied}")
 
+
+def _stage_18_race_venue_as_circuit_id_on(b):
+    """race venue, as circuit_id on the event"""
+    cur = b.cur
+    race_key = b.race_key
+    lookup = b.lookup
+
     # --- race venue, as circuit_id on the event
     # Harvested from the same season articles, again carrying the winner so
     # each row self-validates. Two further checks apply: where the Grand Prix
@@ -1040,6 +1270,11 @@ def build():
     if applied != 1161:
         raise SystemExit(f"venue harvest: expected 1161 rows, applied {applied}")
 
+
+def _stage_19_races_that_used_a_layout_other(b):
+    """races that used a layout other than the circuit's for that season"""
+    cur = b.cur
+
     # --- races that used a layout other than the circuit's for that season
     for cid, key, yr, rnd in C.RACE_LAYOUTS:
         if not cur.execute("""SELECT 1 FROM circuit_layouts
@@ -1050,6 +1285,12 @@ def build():
         if n != 1:
             raise SystemExit(
                 f"race layout override: no {cid} race at {yr} round {rnd}")
+
+
+def _stage_20_second_and_third_place_from_the(b):
+    """second and third place, from the Jolpica-F1 API"""
+    cur = b.cur
+    race_key = b.race_key
 
     # --- second and third place, from the Jolpica-F1 API
     # Checked three ways before anything is written:
@@ -1139,6 +1380,13 @@ def build():
     if applied:
         print(f"  podiums: {applied} rows from harvest/podiums.txt")
 
+
+def _stage_21_the_full_classification_qualifying_and_stand(b):
+    """the full classification, qualifying and standings, from F1DB"""
+    cur = b.cur
+    race_key = b.race_key
+    f1db_drivers = b.f1db_drivers
+
     # --- the full classification, qualifying and standings, from F1DB
     #
     # This is the block that closed known_gaps #1. The facts are the same ones
@@ -1163,6 +1411,7 @@ def build():
             (int(row["year"]), int(row["round"])), []).append(row)
 
     res_rows = res_skipped_driver = res_races = 0
+    grid_disagreements = []
     unknown_drivers = set()
     for (yr, rnd), rows in sorted(results_by_race.items()):
         rid = race_key.get((yr, rnd))
@@ -1206,17 +1455,46 @@ def build():
                                         (cons,)).fetchone():
                 cons = None
             pos = int(r["position"]) if r["position"] else None
-            # Grid is taken from F1DB EXCEPT where it is 1, for the reason the
-            # podium loader gives above: a shared drive hands the car's grid
-            # slot to both drivers, and pole is a single established fact per
-            # race that the pole harvest already owns.
-            # Grid is taken from F1DB EXCEPT where it is 1, for the reason
-            # the podium loader gives above. "PL" is a pit-lane start and is
-            # not a number; it is kept as text rather than discarded.
+            # "PL" is a pit-lane start and is not a number; it is kept as text
+            # rather than discarded.
+            #
+            # GRID 1 IS THE INTERESTING CASE. race_results.pole_id is a view
+            # over race_entries.grid = 1 -- pole here MEANS the driver who
+            # started from the front of the grid, not the fastest qualifier --
+            # so a second row claiming grid 1 would not merely be wrong, it
+            # would make the view emit the race twice.
+            #
+            # This used to refuse F1DB's grid 1 outright, on the grounds that
+            # pole is a single fact the pole harvest already owns. That is
+            # true right up until the harvest is behind, which it is for a
+            # week after every Grand Prix: harvest/poles.txt is hand-written
+            # and F1DB refreshes on a schedule. In that window the race had NO
+            # entry at grid 1 at all, so it had no pole, the site published a
+            # completed race with the field blank, and the pole cross-check
+            # below silently did not run for it -- it only compares where a
+            # stored pole exists. 2026 round 13 was sitting in exactly that
+            # state.
+            #
+            # So F1DB may now supply grid 1, but only into a vacancy: if any
+            # other entry in this race already holds it, the harvest (or an
+            # earlier F1DB row) wins and this one keeps its grid_text alone.
+            # verify.py asserts the invariant that makes the view safe.
             grid_text = r["grid"] or None
-            grid = (int(r["grid"])
-                    if r["grid"] and r["grid"].isdigit() and r["grid"] != "1"
-                    else None)
+            grid = int(r["grid"]) if r["grid"] and r["grid"].isdigit() else None
+            if grid == 1:
+                held = cur.execute(
+                    """SELECT driver_id FROM race_entries
+                        WHERE race_id=? AND grid=1 AND driver_id!=?""",
+                    (rid, did)).fetchone()
+                if held:
+                    # Two sources naming different drivers at the front of the
+                    # same grid is a disagreement, not a tie to be broken
+                    # quietly. The harvest keeps the slot -- it is the older
+                    # and hand-checked source, and the view depends on there
+                    # being exactly one -- and the other reading is recorded
+                    # so that somebody can look at it.
+                    grid = None
+                    grid_disagreements.append((yr, rnd, held[0], did))
             cur.execute("""INSERT INTO race_entries (race_id, driver_id,
                     constructor_id, entrant, grid, grid_text,
                     finish_position, position_text, shared_drive, classified,
@@ -1246,10 +1524,35 @@ def build():
                  HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
             res_rows += 1
 
+    for yr_, rnd_, ours_, theirs_ in grid_disagreements:
+        cur.execute("""INSERT INTO discrepancies (subject, field,
+            stored_value, derived_value, assessment, status)
+            VALUES (?,?,?,?,?,?)""",
+            (f"{yr_} round {rnd_}", "grid position 1", ours_, theirs_,
+             "The pole harvest and F1DB name different drivers at the front "
+             "of the grid, and unlike the qualifying disagreement they are "
+             "describing the SAME thing - so one of them is wrong. Every "
+             "other race where grid 1 is not the fastest qualifier is a "
+             "penalty or a sprint-set grid, and grid 1 still names whoever "
+             "started there. Here the harvest has recorded the fastest "
+             "qualifier instead, which is what 'pole' means from 2022 but not "
+             "what this column holds. The harvest keeps the slot because "
+             "race_results.pole_id is a view over grid = 1 and a second "
+             "claimant would emit the race twice.", "open"))
+
     if res_rows:
         print(f"  race results: {res_rows} entries over {res_races} races "
               f"from F1DB; {res_skipped_driver} rows skipped for "
               f"{len(unknown_drivers)} unresolvable drivers")
+
+    b.f1db_drivers = f1db_drivers
+
+
+def _stage_22_the_sprint_races(b):
+    """the sprint races"""
+    cur = b.cur
+    race_key = b.race_key
+    f1db_drivers = b.f1db_drivers
 
     # --- the sprint races
     #
@@ -1303,12 +1606,29 @@ def build():
                  HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
             spr_rows += 1
 
+    # Deriving it means clearing it too. Setting the flag and never unsetting
+    # it leaves a hand-authored sprint=1 on a round that turns out not to have
+    # held one, which is the drift this is supposed to make impossible.
+    # Completed rounds only: a 2026 round flagged before it has been run is
+    # legitimately flagged and has no classification yet.
+    cleared = cur.execute("""UPDATE races SET sprint = 0
+        WHERE COALESCE(sprint, 0) = 1 AND status = 'completed'
+          AND id NOT IN (SELECT DISTINCT race_id FROM sprint_results)""").rowcount
+    if cleared:
+        print(f"  sprint flag: {cleared} completed round(s) cleared - no sprint "
+              f"classification exists for them")
+
     if spr_rows:
         flagged = cur.execute(
             "SELECT COUNT(*) FROM races WHERE sprint=1").fetchone()[0]
         print(f"  sprint races: {spr_rows} entries over {spr_races} sprints "
               f"from F1DB ({flagged} rounds flagged); {spr_skipped} rows "
               f"skipped for an unresolvable driver")
+
+
+def _stage_23_a_round_that_has_a_result(b):
+    """a round that has a result has been run"""
+    cur = b.cur
 
     # --- a round that has a result has been run
     #
@@ -1333,6 +1653,13 @@ def build():
     if promoted:
         print(f"  calendar: {promoted} round(s) promoted to completed "
               f"because a classification arrived for them")
+
+
+def _stage_24_qualifying_checked_against_the_pole_already(b):
+    """qualifying, checked against the pole already established"""
+    cur = b.cur
+    race_key = b.race_key
+    f1db_drivers = b.f1db_drivers
 
     # --- qualifying, checked against the pole already established
     qual_rows = qual_skipped = 0
@@ -1398,6 +1725,12 @@ def build():
              "back without changing who was quickest - so this is recorded "
              "rather than resolved. See the qualifying table for the times.",
              "open"))
+
+
+def _stage_25_championship_standings_after_every_round_and(b):
+    """championship standings, after every round and at season end"""
+    cur = b.cur
+    f1db_drivers = b.f1db_drivers
 
     # --- championship standings, after every round and at season end
     #
@@ -1491,6 +1824,13 @@ def build():
               f"({std_conflicts} disagreed); {std_skipped} skipped for an "
               f"unresolvable entity")
 
+
+def _stage_26_pit_stops_from_f1db_under_their(b):
+    """pit stops from F1DB, under their own source"""
+    cur = b.cur
+    race_key = b.race_key
+    f1db_drivers = b.f1db_drivers
+
     # --- pit stops from F1DB, under their own source
     #
     # The table is keyed on (race, source, driver, stop) precisely so that
@@ -1515,6 +1855,12 @@ def build():
         print(f"  pit stops: {pit_rows} rows from F1DB "
               f"({pit_skipped} skipped)")
 
+
+def _stage_27_notable_team_radio_a_small_curated(b):
+    """notable team radio. A small curated set, each checked against a"""
+    cur = b.cur
+    race_key = b.race_key
+
     # --- notable team radio. A small curated set, each checked against a
     # written source. The bulk radio index for 2018- is loaded separately by
     # tools/fastf1_load.py and is flagged notable=0.
@@ -1529,6 +1875,11 @@ def build():
             transcript, context, notable, confidence, source)
             VALUES (?,?,?,?,?,1,?,?)""",
             (rid, did, f"{speaker} [{channel}]", text, ctx, conf, src))
+
+
+def _stage_28_career_figures_checked_against_the_official(b):
+    """career figures checked against the official driver pages."""
+    cur = b.cur
 
     # --- career figures checked against the official driver pages.
     # Entries, starts and points are not derivable from the race records this
@@ -1545,6 +1896,11 @@ def build():
              "formula1.com driver page, " + D.STATS_AS_OF, did)).rowcount
         if n != 1:
             raise SystemExit(f"VERIFIED_STATS: no driver row for {did!r}")
+
+
+def _stage_29_derived_win_totals(b):
+    """derived win totals"""
+    cur = b.cur
 
     # --- derived win totals
     # Fill constructor win counts that were previously unknown, and correct
@@ -1669,7 +2025,18 @@ def build():
                 VALUES (?,?,?,?,?,?)""",
                 (r[1], field, str(external), str(derived), assessment, status))
 
+
+def _stage_30_figures_derivable_from_the_race_records(b):
+    """figures derivable from the race records"""
     # --- figures derivable from the race records
+
+
+def _stage_31_link_race_entries_to_the_chassis(b):
+    """link race entries to the CHASSIS that scored them"""
+    cur = b.cur
+    known_cons = b.known_cons
+    entrants = b.entrants
+
     # --- link race entries to the CHASSIS that scored them
     #
     # known_gaps #1 has stood since v2.6: the chassis-per-race harvest was
@@ -1719,6 +2086,13 @@ def build():
         cur.execute("""UPDATE race_entries SET chassis_id=?
             WHERE constructor_id=? AND race_id IN
                   (SELECT id FROM races WHERE year=?)""", (ch_id, cons, yr))
+
+
+def _stage_32_rule_two_resolve_through_the_driver(b):
+    """rule two: resolve through the driver and the round"""
+    cur = b.cur
+    known_cons = b.known_cons
+    entrants = b.entrants
 
     # --- rule two: resolve through the driver and the round
     #
@@ -1833,6 +2207,15 @@ def build():
                 filled_chassis += 1
     print(f"  entry lists: {agreed} stored constructors confirmed, "
           f"{filled_cons} filled, {filled_chassis} chassis resolved by round")
+
+
+def _stage_33_link_race_entries_to_the_curated(b):
+    """link race entries to the curated car that scored them"""
+    con = b.con
+    cur = b.cur
+    known_cons = b.known_cons
+    entrants = b.entrants
+    driver_id = b.driver_id
 
     # --- link race entries to the curated car that scored them
     #
@@ -1996,7 +2379,46 @@ def build():
         SELECT COUNT(*) FROM race_entries e
         WHERE e.constructor_id = constructors.id AND e.grid = 1)""")
 
+    normalise_countries(cur)
+
+    # ------------------------------------------- the authored ceiling
+    #
+    # The first instalment of the rule in docs/DERIVED-CONFIDENCE.md, and the
+    # first place in this build where a confidence value is DERIVED rather
+    # than carried up from data/*.py.
+    #
+    # Content with authority 'authored' has no external source to be compared
+    # against and no check in verify.py that constrains a value, so it cannot
+    # honestly sit above 'medium' - the tier that says "correct in substance,
+    # confirm the figure before publication". Until v2.16 most of it sat at
+    # 'high', which is may_publish = 1 and promised a citable official record
+    # that does not exist. Two rows even sat at 'verified', against the
+    # standing rule that nothing reaches 'verified' without an official
+    # source.
+    #
+    # This runs last, after every loader, so it cannot be undone by one.
+    authored = [r[0] for r in cur.execute(
+        """SELECT tp.tbl FROM table_provenance tp
+           JOIN source_registry s ON s.id = tp.source_id
+           WHERE s.authority = 'authored'""")]
+    lowered = 0
+    for tbl in authored:
+        cur.execute(f"""UPDATE {tbl} SET confidence = 'medium'
+            WHERE confidence IN ('verified', 'high', 'reference')""")
+        lowered += cur.rowcount
+    print(f"  authored ceiling: {lowered} rows capped at 'medium' across "
+          f"{len(authored)} tables")
+
     con.commit()
+
+    # The ODbL centrelines leave f1.db here, before the VACUUM reclaims the
+    # pages they occupied. Everything that checks them has already run.
+    moved = split_geometry(con)
+    if moved:
+        print(f"  circuit geometry: {moved} centrelines moved to "
+              f"{os.path.basename(GEOMETRY_DB)} — f1.db carries no "
+              f"OpenStreetMap data")
+
     # The build writes and rewrites rows as sources layer on top of each
     # other, which leaves free pages behind. The web app fetches this file
     # whole, so reclaiming them is not housekeeping.
@@ -2005,9 +2427,261 @@ def build():
     return con
 
 
+GEOMETRY_DB = os.path.join(HERE, "f1-geometry.db")
+# --------------------------------------------------------------- countries
+#
+# Three tables name a country - drivers.nationality, constructors.country and
+# circuits.country - and until now they did not agree on how. The register
+# held 116 drivers from the "United States of America" and 42 from the
+# "United States", which are the same place; seven countries were coded twice
+# (Germany as GER and DEU, the Netherlands as NED and NLD); and ten
+# constructors had a DEMONYM where a country name belongs - "British",
+# "French", "Italian", "Brazilian".
+#
+# That was visible, not cosmetic. The drivers page builds its nationality
+# filter from the distinct values, so a reader got two United States to choose
+# between, showing 42 drivers and 116. Grouped, the United States is the
+# second-largest nationality in the sport at 158 - ahead of Italy - and the
+# split hid it in second AND sixth place.
+#
+# WHY THE F1DB REGISTRY DECIDES IT
+#     Either spelling would fix the split. What settles the direction is that
+#     only one of them can be CHECKED: harvest/f1db_countries.txt is a real
+#     registry of 249 countries under CC BY, so "is this a country?" has an
+#     answer the build can compute. The sporting codes - GER, SUI, NED - are
+#     what a broadcast uses and what a reader may expect, but they were typed
+#     by hand and trace to nothing, so nothing could ever tell you one was
+#     wrong. A vocabulary nothing can verify is how the split happened.
+#
+# Aliases are the values that MEAN a registry country and are spelled
+# otherwise. Every one is a rename, never a reinterpretation.
+COUNTRY_ALIASES = {
+    "United States": "United States of America",
+    # Demonyms found in constructors.country, where a country name belongs.
+    "British": "United Kingdom",
+    "French": "France",
+    "Italian": "Italy",
+    "Brazilian": "Brazil",
+}
+
+# Values that are NOT in the registry and must not be forced into it. Each is
+# a deliberate answer to a question the registry cannot express, and each says
+# why, so the next pass over this data does not quietly erase it.
+COUNTRY_EXCEPTIONS = {
+    "Rhodesia":
+        "John Love raced for Rhodesia, which no longer exists. F1DB records "
+        "him as Zimbabwean, which is the modern state and the wrong answer "
+        "for the era he raced in. Held deliberately since the podium-only "
+        "register was re-sourced to F1DB; see PODIUM_ONLY_F1DB.",
+    "Italy/UK":
+        "A constructor based in two countries at once. The registry names "
+        "one country per row and cannot say this.",
+    "United States/UK":
+        "As Italy/UK.",
+    "Germany/Switzerland":
+        "As Italy/UK.",
+}
+
+
+def normalise_countries(cur):
+    """Put every country name into the F1DB registry's vocabulary.
+
+    Renames the aliases, then sets each driver's nationality_code from the
+    registry rather than from whoever typed the row. A value that is neither
+    in the registry, an alias, nor a declared exception stops the build: it is
+    either a new spelling of a country already here, which is the defect this
+    function exists to prevent coming back, or a country nobody has looked at.
+    """
+    registry = {name: alpha3 for _cid, name, alpha3, _dem in HV.load_f1db_countries()}
+    renamed = coded = 0
+
+    for table, column in (("drivers", "nationality"),
+                          ("constructors", "country"),
+                          ("circuits", "country")):
+        for (value,) in cur.execute(
+                f'SELECT DISTINCT "{column}" FROM "{table}" '
+                f'WHERE "{column}" IS NOT NULL').fetchall():
+            if value in COUNTRY_EXCEPTIONS or value in registry:
+                continue
+            target = COUNTRY_ALIASES.get(value)
+            if target is None:
+                raise SystemExit(
+                    f"{table}.{column} holds {value!r}, which is not a country "
+                    f"in harvest/f1db_countries.txt, not an alias in "
+                    f"COUNTRY_ALIASES, and not a declared exception in "
+                    f"COUNTRY_EXCEPTIONS. Add it to one of them - a country "
+                    f"spelled a second way is how the register split before.")
+            if target not in registry:
+                raise SystemExit(
+                    f"COUNTRY_ALIASES maps {value!r} to {target!r}, which is "
+                    f"not in the registry either.")
+            cur.execute(f'UPDATE "{table}" SET "{column}" = ? '
+                        f'WHERE "{column}" = ?', (target, value))
+            renamed += cur.rowcount
+
+    # The code comes from the registry, so the same country cannot be coded
+    # two ways. Declared exceptions keep whatever they were given: the
+    # registry has no row for Rhodesia and RHO is the right code for it.
+    for (nationality,) in cur.execute(
+            "SELECT DISTINCT nationality FROM drivers "
+            "WHERE nationality IS NOT NULL").fetchall():
+        if nationality in COUNTRY_EXCEPTIONS:
+            continue
+        cur.execute("UPDATE drivers SET nationality_code = ? "
+                    "WHERE nationality = ? AND nationality_code IS NOT ?",
+                    (registry[nationality], nationality, registry[nationality]))
+        coded += cur.rowcount
+
+    print(f"  countries: {renamed} value(s) renamed into the registry's "
+          f"vocabulary, {coded} driver code(s) reset from it, "
+          f"{len(COUNTRY_EXCEPTIONS)} declared exception(s)")
+
+
+
+def split_geometry(con):
+    """Move the OpenStreetMap centrelines out of f1.db and into their own file.
+
+    WHY THEY DO NOT SHIP IN f1.db
+        OpenStreetMap is ODbL 1.0, which carries share-alike AND a database
+        right. That is a different obligation from every other source here:
+        CC BY (F1DB) asks only for credit, CC BY-SA (Wikipedia) reaches the
+        prose taken from it, and neither says anything about the shape of the
+        database around it. ODbL does. A database derived from an ODbL one is
+        a Derivative Database, and publishing it means publishing the whole
+        thing under ODbL.
+
+        Twenty-five centrelines would then set the licence of 117,000 rows
+        they have nothing to do with. So they are not in that database at all.
+
+        ODbL draws the line this build relies on: a Collective Database - two
+        independent databases distributed alongside each other - is NOT a
+        Derivative Database, and the share-alike does not reach across. f1.db
+        carries no OpenStreetMap data of any kind; f1-geometry.db carries
+        nothing else, and is offered under ODbL. Take one, take both, and the
+        obligation follows only the file it belongs to.
+
+    WHY THE ROWS ARE BUILT AND THEN MOVED, RATHER THAN NEVER LOADED
+        Everything that checks the geometry runs against the loaded rows -
+        the re-measurement that catches Monaco's relation reading 12% long
+        because it includes the pit lane, the layout_key resolution, the
+        historic-layout refusal. Loading them, checking them and then moving
+        them keeps every one of those checks exactly where it was.
+    """
+    columns = [c[1] for c in con.execute("PRAGMA table_info(circuit_geometry)")]
+    rows = con.execute("SELECT * FROM circuit_geometry "
+                       "ORDER BY circuit_id, layout_key").fetchall()
+    if not rows:
+        return 0
+
+    if os.path.exists(GEOMETRY_DB):
+        os.remove(GEOMETRY_DB)
+    # The overlay's table is DERIVED from this build's schema, never restated
+    # here. A hardcoded column list is a silent truncation waiting for the next
+    # column: `segment_count`, `loose_ends` and `closes` were added to
+    # circuit_geometry while this function had twelve columns written out, and
+    # a copy that drops a column looks exactly like a copy that worked.
+    #
+    # The REFERENCES clauses go, because the overlay stands alone - there is no
+    # circuits table beside it and no provenance ladder to point at.
+    ddl = con.execute("SELECT sql FROM sqlite_master WHERE type='table' "
+                      "AND name='circuit_geometry'").fetchone()[0]
+    ddl = re.sub(r"\s+REFERENCES\s+\w+\s*\([^)]*\)", "", ddl)
+
+    geo = sqlite3.connect(GEOMETRY_DB)
+    geo.executescript("""
+        -- The circuit centrelines, traced from OpenStreetMap.
+        --
+        -- ODbL 1.0: https://opendatacommons.org/licenses/odbl/1-0/
+        -- (c) OpenStreetMap contributors.
+        --
+        -- This file is a database in its own right, distributed ALONGSIDE
+        -- f1.db rather than inside it. f1.db contains no OpenStreetMap data,
+        -- so it is not a Derivative Database of this one and does not carry
+        -- ODbL. Merging the two - which tools/geometry_overlay.py will do to
+        -- a local copy - produces a database that does.
+        --
+        -- circuit_id matches circuits.id in f1.db. There is deliberately no
+        -- foreign key: this file must stand on its own.
+        CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
+    """)
+    geo.execute(ddl)
+    placeholders = ",".join("?" * len(columns))
+    geo.executemany(f"INSERT INTO circuit_geometry VALUES ({placeholders})", rows)
+    geo.executemany("INSERT INTO meta VALUES (?,?)", [
+        ("database_name", "F1 circuit centrelines (OpenStreetMap overlay)"),
+        ("version", VERSION),
+        ("built", BUILT),
+        ("licence", "ODbL 1.0"),
+        ("licence_url", "https://opendatacommons.org/licenses/odbl/1-0/"),
+        ("attribution", "(c) OpenStreetMap contributors"),
+        ("companion", "f1.db, which contains no OpenStreetMap data"),
+        ("apply", "python3 tools/geometry_overlay.py --apply"),
+    ])
+    geo.commit()
+    geo.execute("VACUUM")
+    geo.commit()
+    geo.close()
+
+    con.execute("DELETE FROM circuit_geometry")
+    con.commit()
+    return len(rows)
+
+
 def X_engine_eras():
     return T.ENGINE_ERAS
 
+
+def build():
+    """Rebuild f1.db from schema.sql and the data modules, one stage at a time.
+
+    STAGES is the build. Order matters throughout — a register has to exist
+    before anything can reference it, and a harvest that fills a gap has to run
+    after whatever might already have filled it — so the list is the schedule
+    and not merely a collection.
+    """
+    b = _Build()
+    for stage in STAGES:
+        stage(b)
+    return b.con
+
+
+# In order, because the build is a sequence.
+STAGES = [
+    _stage_00_open_the_database,
+    _stage_01_meta,
+    _stage_02_drivers,
+    _stage_03_drivers_admitted_from_the_f1db_register,
+    _stage_04_constructors,
+    _stage_05_seasons,
+    _stage_06_circuits,
+    _stage_07_cars_inserted_in_file_order_so,
+    _stage_08_constructors_admitted_from_the_f1db_register,
+    _stage_09_regulation_limits_loaded_before_the_chassis,
+    _stage_10_the_chassis_engine_and_entrant_register,
+    _stage_11_the_lead_image_of_each_accepted,
+    _stage_12_circuit_centrelines_re_measured_before_they,
+    _stage_13_a_regulation_figure_is_not_a,
+    _stage_14_a_regulation_figure_is_not_a,
+    _stage_15_rules_tech_safety,
+    _stage_16_current_season,
+    _stage_17_pole_position_and_fastest_lap_as,
+    _stage_18_race_venue_as_circuit_id_on,
+    _stage_19_races_that_used_a_layout_other,
+    _stage_20_second_and_third_place_from_the,
+    _stage_21_the_full_classification_qualifying_and_stand,
+    _stage_22_the_sprint_races,
+    _stage_23_a_round_that_has_a_result,
+    _stage_24_qualifying_checked_against_the_pole_already,
+    _stage_25_championship_standings_after_every_round_and,
+    _stage_26_pit_stops_from_f1db_under_their,
+    _stage_27_notable_team_radio_a_small_curated,
+    _stage_28_career_figures_checked_against_the_official,
+    _stage_29_derived_win_totals,
+    _stage_30_figures_derivable_from_the_race_records,
+    _stage_31_link_race_entries_to_the_chassis,
+    _stage_32_rule_two_resolve_through_the_driver,
+    _stage_33_link_race_entries_to_the_curated,
+]
 
 def report(con):
     cur = con.cursor()
@@ -2031,3 +2705,4 @@ if __name__ == "__main__":
     c = build()
     report(c)
     print(f"\nWrote {DB}")
+

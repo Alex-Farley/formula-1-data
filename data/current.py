@@ -416,7 +416,167 @@ SOURCE_REGISTRY = [
      "refused rather than stored with a caveat. The measurement is then "
      "re-run in build.py from the stored coordinates, with its own copy of "
      "the arithmetic, because sharing the tool's would check nothing."),
+
+    (17, "Wikipedia per-circuit articles", "https://en.wikipedia.org/wiki/Category:Formula_One_circuits",
+     "Circuit configuration timelines: which layout was raced in which years, "
+     "its length and turn count, and why it changed. Feeds circuit_layouts.",
+     "reference",
+     "CC BY-SA 4.0. The change_reason prose follows the article and carries "
+     "share-alike with it - see ATTRIBUTION.md.",
+     "Continuous, by anyone. A circuit that last changed shape in 1974 has an "
+     "article that may not have been edited in years, which cuts both ways.",
+     "Real but partial. A circuit's layout rows must form a complete, "
+     "non-overlapping timeline or the build fails, and where a layout is "
+     "still current its length is checked against the OSM trace. Neither "
+     "test reaches a historic layout's length, which nothing here can "
+     "contradict."),
+
+    (18, "Written for this project from general knowledge", None,
+     "The glossary, the era and engine-era periodisations, the governance and "
+     "safety timelines, the technical-innovation notes, the constructor "
+     "lineage chains, the points-system table, the tyre-supplier list, the "
+     "grand prix register, the personnel notes, the engine-manufacturer notes "
+     "and the headline records list. Thirteen tables.",
+     "authored",
+     "Original to this repository, and the only content here under no "
+     "external obligation at all.",
+     "Whenever somebody edits it. There is no upstream to track and no "
+     "version to pin.",
+     "NOTHING, and that is the entire point of giving it a name. It has no "
+     "external source to be compared against and no check in verify.py that "
+     "constrains a value - `records` is not tested at all, and what "
+     "constrains grands_prix, constructor_lineage and personnel is "
+     "referential and temporal only: ids resolve, years run forwards. Those "
+     "prove the shape and say nothing about the claim. So nothing here may "
+     "sit above 'medium', which is what that tier means: correct in "
+     "substance, confirm the figure before publishing. It sat at 'high' "
+     "until v2.16, which promised more than anything could deliver."),
 ]
+
+# How a free-text `source` resolves to a registry entry. Anchored at the
+# start of the string; a longest-prefix match on source_registry.url is tried
+# first, then these in order. See source_patterns in schema.sql for why this
+# is a table rather than one column.
+SOURCE_PATTERNS = [
+    (1,  r"^https://www\.fia\.com/", "any FIA page"),
+    (3,  r"^https://www\.formula1\.com/", "all of formula1.com; entries 4-7 are its sections"),
+    (8,  r"^https://en\.wikipedia\.org/wiki/\d{4}_Formula_One_World_Championship",
+     "season articles - the results, pole and venue harvests"),
+    (8,  r"^https://en\.wikipedia\.org/wiki/List_of_Formula_One", "the list articles"),
+    (8,  r"^https://en\.wikipedia\.org/wiki/\d{4}_.*Grand_Prix", "per-race articles - team radio"),
+    (10, r"^https://github\.com/f1db/f1db", None),
+    (12, r"^https://api\.jolpi\.ca/", None),
+    (15, r"^https://commons\.wikimedia\.org/", None),
+    (16, r"^https://www\.openstreetmap\.org/", None),
+    # Everything else on en.wikipedia is a topic or per-car article. Last, so
+    # the three specific Wikipedia patterns above win first.
+    (11, r"^https://en\.wikipedia\.org/wiki/", "per-car and per-topic articles"),
+]
+
+# Provenance for the tables that carry `confidence` and no `source` column.
+# (tbl, source_id, unconstrained, note)
+TABLE_PROVENANCE = [
+    ("glossary", 18, 0, None),
+    ("eras", 18, 0, None),
+    ("engine_eras", 18, 0, None),
+    ("governance", 18, 0, None),
+    ("safety_milestones", 18, 0, None),
+    ("technical_innovations", 18, 0, None),
+    ("points_systems", 18, 0, None),
+    ("tyre_suppliers", 18, 0, None),
+    ("constructor_lineage", 18, 0,
+     "The chains are an editorial reading. Nothing official says Toleman and "
+     "Alpine are one team."),
+    ("grands_prix", 18, 0,
+     "Only partly authored: editions, first_held, last_held and circuits_used "
+     "are DERIVED from `races` in build.py. The name, country, aliases and "
+     "notes are written here, and those are what the tier describes."),
+    ("personnel", 18, 0, "The `significance` field is a judgement, not a fact."),
+    ("engine_manufacturers", 18, 0, None),
+    ("records", 18, 0,
+     "Nothing in verify.py reads this table. The career records it duplicates "
+     "ARE checked, on `drivers`."),
+    # Sourced, and simply never given the column.
+    ("circuit_layouts", 17, 0, "Wikipedia per-circuit articles; see ATTRIBUTION.md."),
+    ("season_entries", 3, 0, "The 2026 entry list, from formula1.com."),
+    ("article_images", 15, 1,
+     "The article is well constrained - it passed the constructor, seasons "
+     "and name checks before being accepted. That the PHOTOGRAPH shows the "
+     "car is not established and nothing here can establish it. known_gaps #10."),
+    ("circuit_geometry", 16, 0, None),
+]
+
+
+# priority -> (redistributable, share_alike, attribution_required, domains)
+#
+# The prose in `licence` above is written for a person. This is the same
+# judgement written for the BUILD, and it exists because a licence nobody can
+# query is a licence nobody enforces: a CC BY-NC citation sat in the committed
+# database for seven versions because knowing it was there meant reading a
+# paragraph and recognising which of sixteen sources a URL belonged to.
+#
+#   yes         may be redistributed on the terms given
+#   facts-only  the FACTS may be restated - a race winner, a circuit length
+#               and a points total are not copyrightable - but none of the
+#               source's own expression may be copied and no substantial
+#               extraction of its database made. This is the correct class
+#               for the official sources: this database cites them as the
+#               AUTHORITY for a fact, and holds none of their prose.
+#   no          may not be redistributed at all. verify.py fails if any row
+#               in the committed database cites one.
+#
+# `domains` is how a row's `source` is recognised: hostnames, plus the bare
+# tokens the loaders write. NULL where no row ever cites the entry.
+SOURCE_LICENCE = {
+    # The official sources. Every row citing one holds a fact and nothing
+    # else - see docs/COMMERCIAL-READINESS.md, which classifies all 539.
+    1:  ("facts-only", 0, 0, "fia.com"),
+    2:  ("facts-only", 0, 0, "fia.com"),
+    3:  ("facts-only", 0, 0, "formula1.com"),
+    4:  ("facts-only", 0, 0, "formula1.com"),
+    5:  ("facts-only", 0, 0, "formula1.com"),
+    6:  ("facts-only", 0, 0, "formula1.com"),
+    7:  ("facts-only", 0, 0, "formula1.com"),
+
+    # Wikipedia. Share-alike reaches the prose taken from it, which is why
+    # the whole data release is CC BY-SA - see LICENSE-DATA.
+    8:  ("yes", 1, 1, "en.wikipedia.org"),
+    11: ("yes", 1, 1, "en.wikipedia.org"),
+    # 17 arrived on a branch that predates these columns, and the build's
+    # refusal to guess is what caught it at the merge. Same site, same licence
+    # as 8 and 11.
+    17: ("yes", 1, 1, "en.wikipedia.org"),
+
+    # Forbidden as authority, and pointed at by nothing.
+    9:  ("no", 0, 0, None),
+
+    # F1DB. Attribution only, no share-alike, no non-commercial clause - the
+    # most permissive licence here and the reason the full classification
+    # ships. `f1db` is the bare token pit_stops carries.
+    10: ("yes", 0, 1, "github.com,f1db"),
+
+    # Non-commercial or FOM-owned. Loaded onto a local copy by tools/ and
+    # never committed; the REDISTRIBUTION section in verify.py enforces it.
+    12: ("no", 1, 1, "api.jolpi.ca,jolpica"),
+    13: ("no", 0, 0, "openf1.org"),
+    14: ("no", 0, 0, "fastf1"),
+
+    # Sixteen distinct file licences, all free, all requiring attribution.
+    # share_alike is set because most of them are a CC BY-SA version and the
+    # conservative reading is the one to record here; the per-file licence on
+    # the row is what actually governs each image.
+    15: ("yes", 1, 1, "commons.wikimedia.org,upload.wikimedia.org"),
+
+    # ODbL: share-alike AND a database right, confined to circuit_geometry.
+    16: ("yes", 1, 1, "openstreetmap.org"),
+
+    # The project's own writing. It has no upstream to be licensed FROM and no
+    # domain to match a URL against, so it takes the licence the release itself
+    # carries. Nothing here may sit above 'medium' - see the authored ceiling
+    # in build.py and docs/DERIVED-CONFIDENCE.md - but that is a confidence
+    # question, not a redistribution one: it is ours to publish.
+    18: ("yes", 1, 1, None),
+}
 
 PROVENANCE = [
     ("verified", 1, "Checked directly against an official FIA or Formula 1 source during database construction. Safe to state as fact and to cite.", 1),

@@ -44,13 +44,82 @@ CREATE TABLE source_registry (
     source          TEXT NOT NULL,
     url             TEXT,
     use             TEXT,
-    authority       TEXT NOT NULL DEFAULT 'official',  -- official | reference | forbidden
+    -- official | reference | authored | forbidden
+    --
+    -- 'authored' was added in v2.16 and names what ATTRIBUTION.md already
+    -- said in prose: some of this database was written for the project from
+    -- general knowledge rather than taken from anywhere. That is a real
+    -- provenance and it deserves a word. It is NOT a lesser kind of
+    -- reference source - it has no external source at all - and nothing
+    -- carrying it may sit above 'medium'. See docs/DERIVED-CONFIDENCE.md.
+    authority       TEXT NOT NULL DEFAULT 'official',
     -- A source is judged on these three, not on how much data it has. The
     -- largest dataset in the sport is worth nothing here if its values
     -- cannot be checked against something held independently.
     licence         TEXT,     -- what you may actually do with the data
     cadence         TEXT,     -- how often it is updated, and by whom
-    checkability    TEXT      -- what in this database can contradict it
+    checkability    TEXT,     -- what in this database can contradict it
+
+    -- `licence` above is prose, written for a person. These four are the
+    -- same judgement in a form the BUILD can read, so that "may this row be
+    -- published?" is a query rather than a memory. Without them the licence
+    -- of a row is knowable only by reading a paragraph and recognising which
+    -- of sixteen sources a URL belongs to, which is how a CC BY-NC citation
+    -- survived seven versions in the committed database.
+    --
+    --   yes         may be redistributed, on the terms in the columns below
+    --   facts-only  the FACTS may be restated - they are not copyrightable -
+    --               but nothing of the source's own expression may be copied,
+    --               and no substantial extraction of its database made
+    --   no          may not be redistributed at all. A row citing one of
+    --               these must not be in the committed database, and
+    --               verify.py fails if one is.
+    redistributable TEXT NOT NULL DEFAULT 'facts-only'
+                    CHECK (redistributable IN ('yes', 'facts-only', 'no')),
+    share_alike     INTEGER NOT NULL DEFAULT 0,   -- reuse must carry the same licence
+    attribution_required INTEGER NOT NULL DEFAULT 1,
+
+    -- How a row's `source` is recognised as belonging to this entry: a
+    -- comma-separated list of hostnames and of the bare tokens the loaders
+    -- write ('f1db', 'fastf1', 'jolpica'). NULL where no row ever cites the
+    -- source - the fan-site entry exists to record that it is forbidden, not
+    -- to be pointed at. Several entries may share a host, and where they do
+    -- the build requires them to agree on the three columns above.
+    domains         TEXT
+);
+
+-- How a row's free-text `source` resolves to a registry entry.
+--
+-- source_registry.url is ONE EXAMPLE PAGE, not a namespace, which is why
+-- 4,691 rows - 4.9% - previously resolved to no registry entry at all:
+-- .../List_of_Formula_One_polesitters does not prefix-match
+-- .../2024_Formula_One_World_Championship though both are the same source.
+-- A source needs several patterns (Wikipedia needs three), so this is a
+-- child table rather than a column.
+CREATE TABLE source_patterns (
+    id              INTEGER PRIMARY KEY,
+    source_id       INTEGER NOT NULL REFERENCES source_registry(id),
+    pattern         TEXT NOT NULL,     -- Python re, anchored at the start
+    note            TEXT
+);
+
+-- Provenance for a table that has no `source` column of its own.
+--
+-- Fifteen tables carry `confidence` and no `source`. Thirteen of them are
+-- authored; two are sourced and simply never got the column. Either way the
+-- provenance existed only in ATTRIBUTION.md, where nothing could read it.
+-- A row here says, for the whole table, where its content came from.
+CREATE TABLE table_provenance (
+    tbl             TEXT PRIMARY KEY,
+    source_id       INTEGER NOT NULL REFERENCES source_registry(id),
+    -- 1 where nothing in this database can constrain the claim the table
+    -- makes, whatever the source's standing. A well-run source does not
+    -- make a row checkable: article_images comes from the MediaWiki API and
+    -- records which file an article leads with, and NOTHING here constrains
+    -- what the photograph shows. See known_gaps #10. Such a table is floored
+    -- at 'unverified' rather than taking its source's tier.
+    unconstrained   INTEGER NOT NULL DEFAULT 0,
+    note            TEXT
 );
 
 -- ------------------------------------------------------------- people
@@ -615,6 +684,18 @@ CREATE TABLE grands_prix (
 --   win          finish_position = 1
 --   fastest lap  fastest_lap = 1
 -- Adding the rest of the finishing order is then pure INSERT.
+--
+-- WHAT 'POLE' MEANS HERE. race_results.pole_id is a view over grid = 1, so it
+-- names the driver who STARTED FROM THE FRONT OF THE GRID. That is not always
+-- the driver credited with pole position: a grid penalty moves the fastest
+-- qualifier back, and through 2021 a sprint set the grid and pole went to the
+-- sprint winner. Thirteen races part company for exactly those reasons, all of
+-- them recorded in `discrepancies` and pinned by a check in verify.py; the
+-- fastest qualifier is always available beside them in `qualifying`.
+--
+-- The two are not interchangeable and neither is derived from the other. If
+-- you want "who was quickest", ask qualifying. If you want "who led them away",
+-- ask this.
 -- =====================================================================
 CREATE TABLE races (
     id              INTEGER PRIMARY KEY,

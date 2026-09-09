@@ -1,7 +1,7 @@
 {
   "database_name": "F1 Verified Facts Project Memory Database",
-  "version": "2.15",
-  "verification_date": "2026-09-05",
+  "version": "2.16",
+  "verification_date": "2026-09-09",
   "verification_policy": {
     "confidence_ladder": [
       {
@@ -2048,7 +2048,7 @@
       },
       {
         "name": "Charles Leclerc",
-        "nationality_code": "MON",
+        "nationality_code": "MCO",
         "number": 16,
         "team": "Ferrari"
       },
@@ -2072,7 +2072,7 @@
       },
       {
         "name": "Max Verstappen",
-        "nationality_code": "NED",
+        "nationality_code": "NLD",
         "number": 3,
         "team": "Red Bull Racing"
       },
@@ -2120,7 +2120,7 @@
       },
       {
         "name": "Nico Hulkenberg",
-        "nationality_code": "GER",
+        "nationality_code": "DEU",
         "number": 27,
         "team": "Audi"
       },
@@ -4427,7 +4427,11 @@
       "authority": "official",
       "licence": "FIA copyright; published for reference, not redistribution.",
       "cadence": "Reissued per season, amended in-season by WMSC decision.",
-      "checkability": "Nothing here outranks it. Its own numbers are checked against each other across seasons, and the limits it sets are stored in regulation_limits rather than on any car."
+      "checkability": "Nothing here outranks it. Its own numbers are checked against each other across seasons, and the limits it sets are stored in regulation_limits rather than on any car.",
+      "redistributable": "facts-only",
+      "share_alike": 0,
+      "attribution_required": 0,
+      "domains": "fia.com"
     },
     {
       "id": 2,
@@ -4438,7 +4442,11 @@
       "authority": "official",
       "licence": "FIA copyright.",
       "cadence": "Per event, during the season.",
-      "checkability": "The 2026 calendar it gives is checked against the stored race register on every build."
+      "checkability": "The 2026 calendar it gives is checked against the stored race register on every build.",
+      "redistributable": "facts-only",
+      "share_alike": 0,
+      "attribution_required": 0,
+      "domains": "fia.com"
     },
     {
       "id": 3,
@@ -4449,7 +4457,11 @@
       "authority": "official",
       "licence": "FOM copyright; no reuse licence.",
       "cadence": "Continuous during the season.",
-      "checkability": "Its career totals are reconciled against totals derived from the race records. That is what caught Russell's pole count and, before it, an internally inconsistent set of 2026 figures on the same pages."
+      "checkability": "Its career totals are reconciled against totals derived from the race records. That is what caught Russell's pole count and, before it, an internally inconsistent set of 2026 figures on the same pages.",
+      "redistributable": "facts-only",
+      "share_alike": 0,
+      "attribution_required": 0,
+      "domains": "formula1.com"
     },
     {
       "id": 4,
@@ -4460,7 +4472,11 @@
       "authority": "official",
       "licence": "Team copyright.",
       "cadence": "Around a launch, then rarely.",
-      "checkability": "Car names cross-check against the chassis register; nothing else here can contradict a team's own history page."
+      "checkability": "Car names cross-check against the chassis register; nothing else here can contradict a team's own history page.",
+      "redistributable": "facts-only",
+      "share_alike": 0,
+      "attribution_required": 0,
+      "domains": "formula1.com"
     },
     {
       "id": 5,
@@ -4471,7 +4487,11 @@
       "authority": "official",
       "licence": "Promoter copyright.",
       "cadence": "Around an event.",
-      "checkability": "Circuit length and turn counts are checked against the layout timelines, which must be complete and non-overlapping where present."
+      "checkability": "Circuit length and turn counts are checked against the layout timelines, which must be complete and non-overlapping where present.",
+      "redistributable": "facts-only",
+      "share_alike": 0,
+      "attribution_required": 0,
+      "domains": "formula1.com"
     },
     {
       "id": 6,
@@ -4482,7 +4502,11 @@
       "authority": "official",
       "licence": "FOM copyright.",
       "cadence": "Per event.",
-      "checkability": "Every career win, pole and fastest-lap total is recomputed from the race records and compared."
+      "checkability": "Every career win, pole and fastest-lap total is recomputed from the race records and compared.",
+      "redistributable": "facts-only",
+      "share_alike": 0,
+      "attribution_required": 0,
+      "domains": "formula1.com"
     },
     {
       "id": 7,
@@ -4493,7 +4517,11 @@
       "authority": "official",
       "licence": "FOM copyright.",
       "cadence": "Per event.",
-      "checkability": "The winner of every race is held independently from the Wikipedia harvest; the two must agree."
+      "checkability": "The winner of every race is held independently from the Wikipedia harvest; the two must agree.",
+      "redistributable": "facts-only",
+      "share_alike": 0,
+      "attribution_required": 0,
+      "domains": "formula1.com"
     },
     {
       "id": 8,
@@ -4504,7 +4532,11 @@
       "authority": "reference",
       "licence": "CC BY-SA 4.0. Share-alike reaches any prose taken from it - see ATTRIBUTION.md.",
       "cadence": "Continuous, by anyone.",
-      "checkability": "Race count per season, contiguous rounds, and every driver and constructor name resolving to the register. NOT sufficient on its own for standings grids: they left-pack their cells, a driver who missed a round shifts every later result a column, and the winner cross-check passes anyway because winners sit in the dense top rows. That route is closed."
+      "checkability": "Race count per season, contiguous rounds, and every driver and constructor name resolving to the register. NOT sufficient on its own for standings grids: they left-pack their cells, a driver who missed a round shifts every later result a column, and the winner cross-check passes anyway because winners sit in the dense top rows. That route is closed.",
+      "redistributable": "yes",
+      "share_alike": 1,
+      "attribution_required": 1,
+      "domains": "en.wikipedia.org"
     },
     {
       "id": 9,
@@ -4515,7 +4547,11 @@
       "authority": "forbidden",
       "licence": "Various and mostly unstated.",
       "cadence": "Various.",
-      "checkability": "Nothing. That is the reason for the ban, not the size of the data."
+      "checkability": "Nothing. That is the reason for the ban, not the size of the data.",
+      "redistributable": "no",
+      "share_alike": 0,
+      "attribution_required": 0,
+      "domains": null
     },
     {
       "id": 10,
@@ -4526,7 +4562,11 @@
       "authority": "reference",
       "licence": "CC BY 4.0 - attribution only, no share-alike, and NO NON-COMMERCIAL CLAUSE. That last absence is not a footnote: it is the reason the full classification ships in the committed database when the same facts from Jolpica-F1 could only ever be loaded onto a local copy. The most permissive licence of any bulk source used here, and now the most consequential.",
       "cadence": "Re-released after every race, versioned, with a public commit history and a changelog. Better maintained than anything else at this scale.",
-      "checkability": "Heavily, in four independent places, all of them held here before F1DB was read. (1) The winner of every one of the 1,161 races came from the Wikipedia harvest; a race whose winner disagreed is refused WHOLE, and none was. The comparison is on sets, because a shared drive puts two drivers on position 1 and both are winners. (2) The champion, the runner-up and both their point totals for 76 seasons were already in `seasons`; the final standings must reproduce all four and do. (3) Qualifying position 1 is checked against the pole-sitter already stored - 13 races differ, every one a grid penalty or a sprint weekend, each recorded rather than resolved. (4) Its (constructor, season) -> chassis mapping is checked against the 41 CAR_SEASONS assertions already proved against published win totals. It carries NO technical specifications at all, so nothing it says can be mistaken for one."
+      "checkability": "Heavily, in four independent places, all of them held here before F1DB was read. (1) The winner of every one of the 1,161 races came from the Wikipedia harvest; a race whose winner disagreed is refused WHOLE, and none was. The comparison is on sets, because a shared drive puts two drivers on position 1 and both are winners. (2) The champion, the runner-up and both their point totals for 76 seasons were already in `seasons`; the final standings must reproduce all four and do. (3) Qualifying position 1 is checked against the pole-sitter already stored - 13 races differ, every one a grid penalty or a sprint weekend, each recorded rather than resolved. (4) Its (constructor, season) -> chassis mapping is checked against the 41 CAR_SEASONS assertions already proved against published win totals. It carries NO technical specifications at all, so nothing it says can be mistaken for one.",
+      "redistributable": "yes",
+      "share_alike": 0,
+      "attribution_required": 1,
+      "domains": "github.com,f1db"
     },
     {
       "id": 11,
@@ -4537,7 +4577,11 @@
       "authority": "reference",
       "licence": "CC BY-SA 4.0.",
       "cadence": "Continuous, by anyone; a historic car's article may not change for years, which for a fixed specification is a feature.",
-      "checkability": "Three checks, all of which must pass before a page is read at all: the constructor the infobox names must be the one F1DB gives the chassis; the years it reports must fall inside the seasons F1DB records it entered; and the article title must be a form of the chassis's own name. Afterwards its published win total is reconciled against the wins derived from this database's race records."
+      "checkability": "Three checks, all of which must pass before a page is read at all: the constructor the infobox names must be the one F1DB gives the chassis; the years it reports must fall inside the seasons F1DB records it entered; and the article title must be a form of the chassis's own name. Afterwards its published win total is reconciled against the wins derived from this database's race records.",
+      "redistributable": "yes",
+      "share_alike": 1,
+      "attribution_required": 1,
+      "domains": "en.wikipedia.org"
     },
     {
       "id": 12,
@@ -4548,7 +4592,11 @@
       "authority": "reference",
       "licence": "CC BY-NC-SA 4.0 on the Ergast data it continues: NON-COMMERCIAL. The most restrictive licence of any source here, and the reason these rows are loaded locally rather than committed. That restriction now costs nothing for results, because F1DB supplies the same facts under CC BY.",
       "cadence": "Per event, community-run, and explicitly a volunteer continuation after Ergast's shutdown - the least certain future of any source here.",
-      "checkability": "Now cuts both ways. Its winner must still equal the one already stored or the race is refused whole. Beyond that it CHECKS rather than writes: on a full load it disagrees with F1DB on 118 of 26,082 finishing positions, 0.45 per cent, and the pattern is a real difference in reading rather than an error - F1DB leaves a disqualified driver's position vacant while Jolpica promotes everyone below, so the 1983 Brazilian Grand Prix has no second place in one and Lauda second in the other. Its reconciliation caught a hand-relayed fabrication in v2.7 and the loader's own resolver handing Wilson Fittipaldi's Brabham results to his brother Emerson. The dump path is checked against the API path race by race (--verify-dump), because a second fetch implementation is a second place to be wrong."
+      "checkability": "Now cuts both ways. Its winner must still equal the one already stored or the race is refused whole. Beyond that it CHECKS rather than writes: on a full load it disagrees with F1DB on 118 of 26,082 finishing positions, 0.45 per cent, and the pattern is a real difference in reading rather than an error - F1DB leaves a disqualified driver's position vacant while Jolpica promotes everyone below, so the 1983 Brazilian Grand Prix has no second place in one and Lauda second in the other. Its reconciliation caught a hand-relayed fabrication in v2.7 and the loader's own resolver handing Wilson Fittipaldi's Brabham results to his brother Emerson. The dump path is checked against the API path race by race (--verify-dump), because a second fetch implementation is a second place to be wrong.",
+      "redistributable": "no",
+      "share_alike": 1,
+      "attribution_required": 1,
+      "domains": "api.jolpi.ca,jolpica"
     },
     {
       "id": 13,
@@ -4559,7 +4607,11 @@
       "authority": "reference",
       "licence": "MIT for the code; the underlying data is Formula One Management's.",
       "cadence": "Real-time during a session.",
-      "checkability": "Its lap and stint data can be checked against FastF1's for the overlapping seasons, which is the only reason it would be worth adding. Nothing in this database constrains a telemetry sample."
+      "checkability": "Its lap and stint data can be checked against FastF1's for the overlapping seasons, which is the only reason it would be worth adding. Nothing in this database constrains a telemetry sample.",
+      "redistributable": "no",
+      "share_alike": 0,
+      "attribution_required": 0,
+      "domains": "openf1.org"
     },
     {
       "id": 14,
@@ -4570,7 +4622,11 @@
       "authority": "reference",
       "licence": "MIT for the library; the data is Formula One Management's and FastF1's guidance is personal, non-commercial use. Never committed here.",
       "cadence": "Live during a session; nothing exists before 2018 and nothing will.",
-      "checkability": "Its finishing order is checked against the winner already stored, the same test the Jolpica loader applies."
+      "checkability": "Its finishing order is checked against the winner already stored, the same test the Jolpica loader applies.",
+      "redistributable": "no",
+      "share_alike": 0,
+      "attribution_required": 0,
+      "domains": "fastf1"
     },
     {
       "id": 15,
@@ -4581,7 +4637,11 @@
       "authority": "reference",
       "licence": "Per file, and they differ: sixteen distinct licence strings across 602 rows - CC BY-SA at four versions, CC BY at four more, CC0, public domain and national variants. There is no blanket credit line, so each row carries its own and the build refuses a file that names no author.",
       "cadence": "Continuous, by anyone. The lead image of an article is whatever an editor last put there, which is why the Commons-only and licence checks run on every build rather than once at harvest.",
-      "checkability": "Weak, and this is the one place in the database where that is true. The ARTICLE is constrained - it already passed the three checks in tools/wikispec_fetch.py for constructor, seasons and name - so the claim recorded is 'the article proved to describe this chassis leads with this file'. But nothing here constrains what a photograph SHOWS, and there is no second source to disagree. Testing whether the file name mentions the car finds only 265 of 602, because most correct images are filed under the driver, so the test is recorded as name_matches and enforced nowhere. The failure it half-detects is real: the ATS D5 article leads with a photograph of officials and police. These rows are 'unverified' because that is what they are."
+      "checkability": "Weak, and this is the one place in the database where that is true. The ARTICLE is constrained - it already passed the three checks in tools/wikispec_fetch.py for constructor, seasons and name - so the claim recorded is 'the article proved to describe this chassis leads with this file'. But nothing here constrains what a photograph SHOWS, and there is no second source to disagree. Testing whether the file name mentions the car finds only 265 of 602, because most correct images are filed under the driver, so the test is recorded as name_matches and enforced nowhere. The failure it half-detects is real: the ATS D5 article leads with a photograph of officials and police. These rows are 'unverified' because that is what they are.",
+      "redistributable": "yes",
+      "share_alike": 1,
+      "attribution_required": 1,
+      "domains": "commons.wikimedia.org,upload.wikimedia.org"
     },
     {
       "id": 16,
@@ -4592,7 +4652,41 @@
       "authority": "reference",
       "licence": "ODbL 1.0 - share-alike AND a database right. That is a different obligation from every other source here, and it is confined to one table on purpose; see ATTRIBUTION.md. Nothing else derives from it.",
       "cadence": "Continuous, by anyone, and it maps only what is on the ground NOW. There is no historic geometry to be had: Spa's 14.1 km road course and Monza's banking are unmapped and unmappable, and Wikidata's own layout entities carry length and dates but no coordinates.",
-      "checkability": "Strong, and it fired immediately. A circuit relation is not an ordered ring - its members include the pit lane - so a naive sum puts Monaco at 3.745 km against a published 3.337, twelve per cent long, and nothing about that number looks wrong on its own. What rejects it is length_km, held here before OSM was consulted. Excluding the pit lane by member role gives 3.388 km, and anything outside two per cent is refused rather than stored with a caveat. The measurement is then re-run in build.py from the stored coordinates, with its own copy of the arithmetic, because sharing the tool's would check nothing."
+      "checkability": "Strong, and it fired immediately. A circuit relation is not an ordered ring - its members include the pit lane - so a naive sum puts Monaco at 3.745 km against a published 3.337, twelve per cent long, and nothing about that number looks wrong on its own. What rejects it is length_km, held here before OSM was consulted. Excluding the pit lane by member role gives 3.388 km, and anything outside two per cent is refused rather than stored with a caveat. The measurement is then re-run in build.py from the stored coordinates, with its own copy of the arithmetic, because sharing the tool's would check nothing.",
+      "redistributable": "yes",
+      "share_alike": 1,
+      "attribution_required": 1,
+      "domains": "openstreetmap.org"
+    },
+    {
+      "id": 17,
+      "priority": 17,
+      "source": "Wikipedia per-circuit articles",
+      "url": "https://en.wikipedia.org/wiki/Category:Formula_One_circuits",
+      "use": "Circuit configuration timelines: which layout was raced in which years, its length and turn count, and why it changed. Feeds circuit_layouts.",
+      "authority": "reference",
+      "licence": "CC BY-SA 4.0. The change_reason prose follows the article and carries share-alike with it - see ATTRIBUTION.md.",
+      "cadence": "Continuous, by anyone. A circuit that last changed shape in 1974 has an article that may not have been edited in years, which cuts both ways.",
+      "checkability": "Real but partial. A circuit's layout rows must form a complete, non-overlapping timeline or the build fails, and where a layout is still current its length is checked against the OSM trace. Neither test reaches a historic layout's length, which nothing here can contradict.",
+      "redistributable": "yes",
+      "share_alike": 1,
+      "attribution_required": 1,
+      "domains": "en.wikipedia.org"
+    },
+    {
+      "id": 18,
+      "priority": 18,
+      "source": "Written for this project from general knowledge",
+      "url": null,
+      "use": "The glossary, the era and engine-era periodisations, the governance and safety timelines, the technical-innovation notes, the constructor lineage chains, the points-system table, the tyre-supplier list, the grand prix register, the personnel notes, the engine-manufacturer notes and the headline records list. Thirteen tables.",
+      "authority": "authored",
+      "licence": "Original to this repository, and the only content here under no external obligation at all.",
+      "cadence": "Whenever somebody edits it. There is no upstream to track and no version to pin.",
+      "checkability": "NOTHING, and that is the entire point of giving it a name. It has no external source to be compared against and no check in verify.py that constrains a value - `records` is not tested at all, and what constrains grands_prix, constructor_lineage and personnel is referential and temporal only: ids resolve, years run forwards. Those prove the shape and say nothing about the claim. So nothing here may sit above 'medium', which is what that tier means: correct in substance, confirm the figure before publishing. It sat at 'high' until v2.16, which promised more than anything could deliver.",
+      "redistributable": "yes",
+      "share_alike": 1,
+      "attribution_required": 1,
+      "domains": null
     }
   ]
 }

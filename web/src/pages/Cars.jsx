@@ -5,7 +5,8 @@ import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { Chips, Filters, SearchField, Select } from '../components/Filters.jsx'
 import { rows as pick, useQueries } from '../data/useQuery.js'
-import { fileTitle, thumbUrl } from '../lib/commons.js'
+import { canShow, thumbUrl } from '../lib/commons.js'
+import CommonsCredit from '../components/CommonsCredit.jsx'
 import { span } from '../lib/format.js'
 
 /**
@@ -20,7 +21,7 @@ import { span } from '../lib/format.js'
 const GALLERY = `
   SELECT v.id, v.car, v.constructor, v.from_year, v.to_year, v.concept,
          v.wins, v.drivers_titles, v.constructors_titles,
-         i.file_name, i.licence, i.licence_url, i.artist,
+         i.file_name, i.licence, i.licence_url, i.artist, i.credit,
          i.description_url, i.width, i.height, i.name_matches
     FROM v_cars v
     LEFT JOIN v_car_images i ON i.car_id = v.id
@@ -56,12 +57,16 @@ export default function Cars() {
             >
               <p className="note" style={{ marginTop: 0 }}>
                 Every one of these is flagged a landmark in the register, so the flag is not
-                drawn: it would sit on all twenty-nine and mean nothing. What each card carries
-                instead is the line the database holds on what the design was actually for.
+                drawn: it would sit on all {pick(data, 'gallery').length} and mean nothing. What
+                each card carries instead is the line the database holds on what the design was
+                actually for.
               </p>
               <Gallery cars={pick(data, 'gallery')} />
             </Section>
-            <Section title="The chassis register" count="1,153 chassis">
+            <Section
+              title="The chassis register"
+              count={`${pick(data, 'register').length.toLocaleString('en-GB')} chassis`}
+            >
               <Register rows={pick(data, 'register')} />
             </Section>
           </>
@@ -94,7 +99,7 @@ function Gallery({ cars }) {
       {cars.map((car) => (
         <li key={car.id} className="carcard">
           <Link to={`/cars/${car.id}`} className="carcard-shot">
-            {car.file_name ? (
+            {canShow(car) ? (
               <img
                 src={thumbUrl(car.file_name, 640)}
                 alt={car.car}
@@ -122,24 +127,7 @@ function Gallery({ cars }) {
                 ` · ${car.constructors_titles} constructors'`}
             </p>
           </div>
-          {car.file_name && (
-            <p className="carcard-credit">
-              <a href={car.description_url} target="_blank" rel="noreferrer noopener">
-                {fileTitle(car.file_name)}
-              </a>
-              {' · '}
-              {car.artist || 'photographer not recorded'}
-              {' · '}
-              {car.licence_url ? (
-                <a href={car.licence_url} target="_blank" rel="noreferrer noopener">
-                  {car.licence}
-                </a>
-              ) : (
-                car.licence || 'licence not recorded'
-              )}
-              {car.name_matches === 0 && ' · unchecked'}
-            </p>
-          )}
+          {canShow(car) && <CommonsCredit image={car} className="carcard-credit" />}
         </li>
       ))}
     </ul>

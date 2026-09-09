@@ -34,6 +34,12 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
+    env:
+      # A project Pages site lives under /<repo>/. vite's `base`, the router's
+      # basename and the prerenderer's canonical URLs all read this one value,
+      # so there is a single thing to change if the deploy path ever moves.
+      SITE_BASE: /${{ github.event.repository.name }}/
+      SITE_ORIGIN: https://${{ github.repository_owner }}.github.io
     steps:
       - uses: actions/checkout@v4
 
@@ -76,6 +82,15 @@ jobs:
           cmp ../f1.db dist/f1.db || { echo "::error::dist/f1.db is not the built database"; exit 1; }
           gunzip -c dist/f1.db.gz | cmp - ../f1.db \
             || { echo "::error::dist/f1.db.gz does not decompress to the built database"; exit 1; }
+
+      # Pages serves this at https://<user>.github.io/<repo>/, not at a domain
+      # root, so the asset paths and the router's basename have to be told. Both
+      # read SITE_BASE; prerender.js reads it too, for the canonical URLs and
+      # the sitemap.
+      #
+      # This is why the step order matters: SITE_BASE has to be set for the
+      # build above, not here. It is set at the job level instead — see `env` at
+      # the top of this job.
 
       # Jekyll would otherwise drop files and directories beginning with an
       # underscore. Vite does not emit any today, but the failure is silent and

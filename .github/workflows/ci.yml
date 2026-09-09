@@ -8,6 +8,13 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Neither job writes anything back: they build the database, check it, and
+# build the site. The workflow never declared this, so it took whatever the
+# repository's default happened to be — which on a default of read-and-write
+# hands a write-capable token to every push build that has no use for one.
+permissions:
+  contents: read
+
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -26,9 +33,25 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      # BEFORE the rebuild, because build.py overwrites f1.db and would
+      # destroy the evidence. Six tables can hold timing data owned by
+      # Formula One Management, loaded onto a local copy by tools/ and never
+      # redistributable. This is the only moment a commit carrying them can
+      # be caught: after the next step the file is a fresh build and clean by
+      # construction. See LICENSE-DATA.
+      - name: Check the committed database carries nothing unpublishable
+        run: python3 verify.py --redistribution-only
+
       # No dependencies: everything but tools/fastf1_load.py is stdlib only.
       - name: Rebuild the database
         run: python3 build.py
+
+      # verify.py checks the DATABASE. These check the CODE — the name
+      # matching and the lap-closure arithmetic, whose mistakes have all been
+      # found downstream until now. stdlib unittest, so the build still has no
+      # dependencies.
+      - name: Unit-test the loaders
+        run: python3 -m unittest discover -s tests -v
 
       - name: Verify
         run: python3 verify.py
@@ -41,12 +64,33 @@ jobs:
 
       # A committed artefact that does not match its sources is a stale
       # artefact. Fail rather than let the two drift apart.
+      #
+      # f1_database.json is no longer committed — it is 21 MB, it does not
+      # delta-compress, and it regenerates in a second — so there is nothing
+      # there to go stale. f1_compat.json is 109 KB and is the v1 key layout
+      # other things were written against, so it stays, and being able to see
+      # it change in a diff is most of the reason why.
       - name: Check the committed artefacts are current
         run: |
-          if ! git diff --quiet -- f1_database.json f1_compat.json; then
-            echo "::error::The committed JSON exports do not match a fresh build."
+          if ! git diff --quiet -- f1_compat.json; then
+            echo "::error::The committed JSON export does not match a fresh build."
             echo "Run 'make all' and commit the result."
-            git diff --stat -- f1_database.json f1_compat.json
+            git diff --stat -- f1_compat.json
+            exit 1
+          fi
+          test -s f1_database.json || { echo "::error::the full export was not written"; exit 1; }
+
+          # The two databases are byte-stable across rebuilds, so a difference
+          # here means the committed copy is stale rather than that the build
+          # is noisy. f1.db matters most during a multi-branch merge: git
+          # cannot merge a 20 MB binary, the resolution is always to rebuild,
+          # and without this a forgotten rebuild ships silently — every other
+          # step runs against the database CI just rebuilt, not the one in the
+          # commit.
+          if ! git diff --quiet -- f1.db f1-geometry.db; then
+            echo "::error::The committed databases do not match a fresh build."
+            echo "Run 'python3 build.py' and commit the result."
+            git diff --stat -- f1.db f1-geometry.db
             exit 1
           fi
 
@@ -98,6 +142,35 @@ jobs:
           cmp ../f1.db dist/f1.db || { echo "::error::dist/f1.db is not the built database"; exit 1; }
           gunzip -c dist/f1.db.gz | cmp - ../f1.db \
             || { echo "::error::dist/f1.db.gz does not decompress to the built database"; exit 1; }
+
+      # The static pages are the site's only crawlable surface, and they are
+      # written by a script that never runs in a browser — so a failure here is
+      # silent everywhere else. Check that a deep route became a real file, that
+      # it carries its own title rather than the template's, and that the
+      # sitemap is not the stub you get when a query returns nothing.
+      - name: Check the site was prerendered
+        working-directory: web
+        run: |
+          for f in index.html 404.html sitemap.xml robots.txt \
+                   drivers/hamilton/index.html races/2021/10/index.html \
+                   seasons/1950/index.html constructors/ferrari/index.html \
+                   circuits/monza/index.html; do
+            test -s "dist/$f" || { echo "::error::dist/$f is missing"; exit 1; }
+          done
+          grep -q '<title>Sir Lewis Hamilton' dist/drivers/hamilton/index.html \
+            || { echo "::error::the prerendered driver page has no title of its own"; exit 1; }
+          grep -q 'Silverstone' dist/races/2021/10/index.html \
+            || { echo "::error::the prerendered race page carries no facts"; exit 1; }
+          urls=$(grep -c '<loc>' dist/sitemap.xml)
+          test "$urls" -gt 2000 \
+            || { echo "::error::sitemap.xml lists only $urls URLs"; exit 1; }
+          echo "prerendered, sitemap lists $urls URLs"
+
+      # The pure functions, before a browser is involved. node:test, so this
+      # adds no dependency either, and it runs in under a second.
+      - name: Unit-test the front end's pure functions
+        working-directory: web
+        run: npm run test:units
 
       - name: Install Chromium
         working-directory: web

@@ -45,7 +45,10 @@ function LapThumb({ trace }) {
     const walk = stitch(trace.centreline)
     if (!walk?.ring?.length) return null
     const flat = project(walk.ring)
-    return { d: pathOf(flat.x, flat.y, 0, flat.x.length - 1), bounds: flat.bounds }
+    // pathOf's `to` is exclusive and defaults to the full length. Passing
+    // length - 1 dropped the point that closes the ring, leaving a gap of up
+    // to 40 m on the thumbnail. The atlas draws the same rings closed.
+    return { d: pathOf(flat.x, flat.y), bounds: flat.bounds }
   }, [trace.centreline])
 
   if (!shape) return null
@@ -81,7 +84,7 @@ export default function Circuits() {
           <>
             <Section
               title="The traced laps"
-              count={`${pick(data, 'traces').length} of 80`}
+              count={`${pick(data, 'traces').length} of ${pick(data, 'register').length}`}
             >
               <p className="note" style={{ marginTop: 0 }}>
                 Drawn from the centreline each one was matched to, each at its own scale so the
@@ -103,7 +106,7 @@ export default function Circuits() {
                 ))}
               </ul>
             </Section>
-            <Section title="Every venue" count="80 circuits">
+            <Section title="Every venue" count={`${pick(data, 'register').length} circuits`}>
               <Register rows={pick(data, 'register')} />
             </Section>
           </>
