@@ -698,15 +698,30 @@ def calendar():
     check("every completed race has a date", undated == 0,
           f"{undated} completed races carry none")
 
-    # The dates that are filled from F1DB are ISO days. The 23 entered by
-    # hand may be a range ("2-4 March"), which is why they are left alone,
-    # so this checks the shape of what the loader wrote rather than of every
-    # value in the column.
+    # date_iso is the machine-readable half of the pair and is set for every
+    # race F1DB knows, run or not - which is the point of splitting it from
+    # `dates`. A scheduled race is exactly where a search engine wants a
+    # startDate, and those are the 23 whose display value is a weekend range
+    # that no parser can read.
+    noiso = con.execute(
+        "SELECT COUNT(*) FROM races WHERE date_iso IS NULL").fetchone()[0]
+    check("every race has an ISO date", noiso == 0, f"{noiso} carry none")
+
     badiso = con.execute("""SELECT COUNT(*) FROM races
-        WHERE dates IS NOT NULL AND dates GLOB '[0-9][0-9][0-9][0-9]-*'
-          AND dates NOT GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'""").fetchone()[0]
+        WHERE date_iso IS NOT NULL
+          AND date_iso NOT GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'""").fetchone()[0]
     check("every ISO race date is a well-formed day", badiso == 0,
           f"{badiso} malformed")
+
+    # The two columns may differ in SHAPE but never in FACT. Where `dates`
+    # is itself an ISO day, it is the same day date_iso holds; a divergence
+    # would mean the display and the structured data disagree about when a
+    # race happened, which is worse than either being absent.
+    disagree = con.execute("""SELECT COUNT(*) FROM races
+        WHERE dates GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'
+          AND dates <> date_iso""").fetchone()[0]
+    check("the display date and the ISO date never disagree", disagree == 0,
+          f"{disagree} disagree")
 
 
 @section('ENTRIES')

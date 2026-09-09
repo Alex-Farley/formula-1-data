@@ -705,7 +705,18 @@ CREATE TABLE races (
     name_used       TEXT NOT NULL,             -- the name carried that year
     circuit_id      TEXT REFERENCES circuits(id),
     layout_key      TEXT,                      -- overrides the year lookup
+    -- TWO COLUMNS, BECAUSE THEY ANSWER DIFFERENT QUESTIONS.
+    --   dates     is for a reader. It may be a RANGE - "27-29 Mar 2026" -
+    --             because a Grand Prix is a weekend, and for a race still to
+    --             be run that is the more useful fact.
+    --   date_iso  is the day the race itself was held, always YYYY-MM-DD,
+    --             for anything that has to compute: schema.org startDate,
+    --             sorting, date arithmetic.
+    -- Storing only one loses something either way. A single ISO day cannot
+    -- express a weekend; a range cannot be parsed. verify.py checks that
+    -- where `dates` IS an ISO day the two agree.
     dates           TEXT,
+    date_iso        TEXT,                      -- YYYY-MM-DD, the race day
     sprint          INTEGER NOT NULL DEFAULT 0,
     status          TEXT NOT NULL DEFAULT 'completed',
     note            TEXT,

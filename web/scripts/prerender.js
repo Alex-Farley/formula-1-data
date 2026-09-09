@@ -379,7 +379,7 @@ const titled = (headline) => `${headline} — ${SITE}`
   const team = (id, fallback) => (id ? link(`constructors/${id}`, teams[id] ?? id) : text(fallback))
 
   const races = all(
-    `SELECT r.id, r.year, r.round, r.name_used, r.dates, r.status, r.sprint, r.note,
+    `SELECT r.id, r.year, r.round, r.name_used, r.dates, r.date_iso, r.status, r.sprint, r.note,
             r.circuit_id, c.name AS circuit, c.locality, c.country, c.length_km, c.turns,
             rr.winner_id, rr.winner, rr.constructor_id, rr.constructor, rr.entrant,
             rr.pole, rr.pole_id, rr.fastest_lap, rr.fastest_lap_id, rr.confidence, rr.source,
@@ -454,12 +454,13 @@ const titled = (headline) => `${headline} — ${SITE}`
         ...(r.winner && !scheduled
           ? { winner: { '@type': 'Person', name: r.winner } }
           : {}),
-        // startDate is the single field a search engine most wants from an
-        // event, and until the F1DB race dates landed only 23 races could
-        // supply one. Emitted ONLY for a well-formed ISO day: the 23 dates
-        // entered by hand may express a range ("2-4 March"), and invalid
-        // structured data is worse than none.
-        ...(ISO_DAY.test(r.dates ?? '') ? { startDate: r.dates } : {}),
+        // startDate comes from date_iso, not from the display value. The
+        // two columns exist precisely so this can be emitted for every
+        // race: `dates` may be a weekend range no parser can read, and the
+        // races that carry one are the SCHEDULED ones - exactly where a
+        // search engine most wants a date. Still guarded on the shape,
+        // because invalid structured data is worse than none.
+        ...(ISO_DAY.test(r.date_iso ?? '') ? { startDate: r.date_iso } : {}),
       },
       body: `
         <h1>${esc(headline)}</h1>
