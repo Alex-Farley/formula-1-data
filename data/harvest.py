@@ -538,12 +538,20 @@ KNOWN_GAPS = [
      "Car telemetry (speed, throttle, brake, gear at about 4 Hz) is "
      "deliberately NOT stored here at all: it is hundreds of megabytes per "
      "weekend and fastf1_load.py writes it to Parquet beside the database.", 0,
+     "LOCALLY ONLY, and there is no version of this that ends in a shipped "
+     "table: no source has lap times under a licence that permits passing "
+     "them on. F1DB is the one source here that does permit it - which is "
+     "why 22,481 of its pit stops ARE committed - and it has no lap times. "
+     "So this is not an unfinished harvest, it is the correct state until "
+     "that changes. On your own machine: "
      "python3 tools/ergast_load.py --from-dump --timing   (1996-, one "
      "hash-verified zip, about fifteen seconds), and/or "
      "pip install fastf1 && python3 tools/fastf1_load.py --years 2018-2026 "
      "--results --radio. Then ./f1 laps. verify.py re-derives each race's "
      "fastest lap from the lap times and checks it against the setter "
-     "already stored from the pole harvest - 446 races, no disagreement."),
+     "already stored from the pole harvest - 446 races, no disagreement. "
+     "docs/TIMING-ARCHITECTURE.md has the measurements and the design this "
+     "would take if a redistributable source ever appears."),
     ("race_timing", "pole, fastest lap and race times per race",
      "The race_timing table is empty. These figures are published per race "
      "rather than per season, so filling them for 1950-2017 means reading "

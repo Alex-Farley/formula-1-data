@@ -586,6 +586,24 @@ with a cleverer pattern — which then rejects an honest `WHERE note LIKE
 back. The keyword check that remains is a courtesy, so a reader who types a
 write gets an explanation rather than an empty result.
 
+## The data layer is not going to be rebuilt
+
+The whole-download design — fetch `f1.db` once, keep it in IndexedDB, query it
+in a worker — has carried an unstated worry that lap timing would one day make
+the file too big and force a rewrite towards range requests or a server.
+
+It will not, and `docs/TIMING-ARCHITECTURE.md` is the measurement that settles
+it: **no source has lap times under a licence that permits redistributing
+them.** F1DB is the one source whose licence does allow it, which is why 22,481
+of its pit stops ship, and it has no lap times. The empty `laps` table is the
+correct state, not an unfinished one.
+
+Prerendering removed the other half of the argument — a first visit no longer
+waits on the download to show anything. So there is no ceiling approaching and
+no reason to trade a design that works offline for one that needs a live
+server. If someone proposes rebuilding this, the question is which of those two
+facts has changed.
+
 ## What it does not do
 
 No lap-by-lap anything: `laps`, `stints`, `race_timing` and
