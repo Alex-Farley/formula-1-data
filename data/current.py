@@ -416,6 +416,94 @@ SOURCE_REGISTRY = [
      "refused rather than stored with a caveat. The measurement is then "
      "re-run in build.py from the stored coordinates, with its own copy of "
      "the arithmetic, because sharing the tool's would check nothing."),
+
+    (17, "Wikipedia per-circuit articles", "https://en.wikipedia.org/wiki/Category:Formula_One_circuits",
+     "Circuit configuration timelines: which layout was raced in which years, "
+     "its length and turn count, and why it changed. Feeds circuit_layouts.",
+     "reference",
+     "CC BY-SA 4.0. The change_reason prose follows the article and carries "
+     "share-alike with it - see ATTRIBUTION.md.",
+     "Continuous, by anyone. A circuit that last changed shape in 1974 has an "
+     "article that may not have been edited in years, which cuts both ways.",
+     "Real but partial. A circuit's layout rows must form a complete, "
+     "non-overlapping timeline or the build fails, and where a layout is "
+     "still current its length is checked against the OSM trace. Neither "
+     "test reaches a historic layout's length, which nothing here can "
+     "contradict."),
+
+    (18, "Written for this project from general knowledge", None,
+     "The glossary, the era and engine-era periodisations, the governance and "
+     "safety timelines, the technical-innovation notes, the constructor "
+     "lineage chains, the points-system table, the tyre-supplier list, the "
+     "grand prix register, the personnel notes, the engine-manufacturer notes "
+     "and the headline records list. Thirteen tables.",
+     "authored",
+     "Original to this repository, and the only content here under no "
+     "external obligation at all.",
+     "Whenever somebody edits it. There is no upstream to track and no "
+     "version to pin.",
+     "NOTHING, and that is the entire point of giving it a name. It has no "
+     "external source to be compared against and no check in verify.py that "
+     "constrains a value - `records` is not tested at all, and what "
+     "constrains grands_prix, constructor_lineage and personnel is "
+     "referential and temporal only: ids resolve, years run forwards. Those "
+     "prove the shape and say nothing about the claim. So nothing here may "
+     "sit above 'medium', which is what that tier means: correct in "
+     "substance, confirm the figure before publishing. It sat at 'high' "
+     "until v2.16, which promised more than anything could deliver."),
+]
+
+# How a free-text `source` resolves to a registry entry. Anchored at the
+# start of the string; a longest-prefix match on source_registry.url is tried
+# first, then these in order. See source_patterns in schema.sql for why this
+# is a table rather than one column.
+SOURCE_PATTERNS = [
+    (1,  r"^https://www\.fia\.com/", "any FIA page"),
+    (3,  r"^https://www\.formula1\.com/", "all of formula1.com; entries 4-7 are its sections"),
+    (8,  r"^https://en\.wikipedia\.org/wiki/\d{4}_Formula_One_World_Championship",
+     "season articles - the results, pole and venue harvests"),
+    (8,  r"^https://en\.wikipedia\.org/wiki/List_of_Formula_One", "the list articles"),
+    (8,  r"^https://en\.wikipedia\.org/wiki/\d{4}_.*Grand_Prix", "per-race articles - team radio"),
+    (10, r"^https://github\.com/f1db/f1db", None),
+    (12, r"^https://api\.jolpi\.ca/", None),
+    (15, r"^https://commons\.wikimedia\.org/", None),
+    (16, r"^https://www\.openstreetmap\.org/", None),
+    # Everything else on en.wikipedia is a topic or per-car article. Last, so
+    # the three specific Wikipedia patterns above win first.
+    (11, r"^https://en\.wikipedia\.org/wiki/", "per-car and per-topic articles"),
+]
+
+# Provenance for the tables that carry `confidence` and no `source` column.
+# (tbl, source_id, unconstrained, note)
+TABLE_PROVENANCE = [
+    ("glossary", 18, 0, None),
+    ("eras", 18, 0, None),
+    ("engine_eras", 18, 0, None),
+    ("governance", 18, 0, None),
+    ("safety_milestones", 18, 0, None),
+    ("technical_innovations", 18, 0, None),
+    ("points_systems", 18, 0, None),
+    ("tyre_suppliers", 18, 0, None),
+    ("constructor_lineage", 18, 0,
+     "The chains are an editorial reading. Nothing official says Toleman and "
+     "Alpine are one team."),
+    ("grands_prix", 18, 0,
+     "Only partly authored: editions, first_held, last_held and circuits_used "
+     "are DERIVED from `races` in build.py. The name, country, aliases and "
+     "notes are written here, and those are what the tier describes."),
+    ("personnel", 18, 0, "The `significance` field is a judgement, not a fact."),
+    ("engine_manufacturers", 18, 0, None),
+    ("records", 18, 0,
+     "Nothing in verify.py reads this table. The career records it duplicates "
+     "ARE checked, on `drivers`."),
+    # Sourced, and simply never given the column.
+    ("circuit_layouts", 17, 0, "Wikipedia per-circuit articles; see ATTRIBUTION.md."),
+    ("season_entries", 3, 0, "The 2026 entry list, from formula1.com."),
+    ("article_images", 15, 1,
+     "The article is well constrained - it passed the constructor, seasons "
+     "and name checks before being accepted. That the PHOTOGRAPH shows the "
+     "car is not established and nothing here can establish it. known_gaps #10."),
+    ("circuit_geometry", 16, 0, None),
 ]
 
 PROVENANCE = [

@@ -1,4 +1,4 @@
-# F1 Verified Facts Database — v2.15
+# F1 Verified Facts Database — v2.16
 
 An expansion of the original single-file JSON into a normalised, queryable
 SQLite database covering 1950–2026, with the JSON kept as a generated export.
@@ -12,6 +12,23 @@ harvested from Wikipedia's season tables under a new `reference` confidence tier
 replaces the per-race one, every Grand Prix now has a canonical id, and
 `audit.py` reports on the shape of the database rather than its contents.
 See *Structure* below.
+
+**v2.16** makes the confidence tiers **traceable**, and demotes 333 rows in
+doing it. `source_patterns` resolves every row's `source` to a
+`source_registry` entry — 4,691 rows previously resolved to none, because a
+registry `url` is one example page and not a namespace — and the build now
+fails if one does not. `table_provenance` gives a source to the fifteen tables
+that carry `confidence` and no `source` column. Most of those turned out to be
+**authored**: written for this project from general knowledge, with no
+external source and no check in `verify.py` that constrains a value. They sat
+at `high`, which is `may_publish = 1` and promises a citable official record
+that does not exist; eight sat at `verified`, against this project's own rule
+that nothing reaches `verified` without an official source. `authored` is now
+a named authority and everything carrying it is capped at `medium` — the first
+confidence value here that is *derived* rather than declared. `records` is the
+sharpest case: nothing in `verify.py` reads that table at all, while the career
+records it duplicates are checked on `drivers`. See
+*docs/DERIVED-CONFIDENCE.md*.
 
 **v2.15** closes the largest gap in the project, and by a **licence** rather
 than a harvest. `race_entries` goes from **2,424 rows to 27,555** — every

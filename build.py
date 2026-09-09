@@ -29,7 +29,7 @@ from data import radio as RA       # noqa: E402
 from data import results as RS     # noqa: E402
 
 DB = os.path.join(HERE, "f1.db")
-VERSION = "2.15"
+VERSION = "2.16"
 
 
 def _haversine(a, b):
@@ -119,6 +119,13 @@ def build():
         "INSERT INTO source_registry (priority, source, url, use, authority,"
         " licence, cadence, checkability) VALUES (?,?,?,?,?,?,?,?)",
         N.SOURCE_REGISTRY)
+    cur.executemany(
+        "INSERT INTO source_patterns (source_id, pattern, note) VALUES (?,?,?)",
+        N.SOURCE_PATTERNS)
+    cur.executemany(
+        "INSERT INTO table_provenance (tbl, source_id, unconstrained, note)"
+        " VALUES (?,?,?,?)",
+        N.TABLE_PROVENANCE)
     cur.executemany("INSERT INTO meta VALUES (?,?)", [
         ("database_name", "F1 Verified Facts Project Memory Database"),
         ("version", VERSION),
@@ -1995,6 +2002,34 @@ def build():
     cur.execute("""UPDATE constructors SET poles = (
         SELECT COUNT(*) FROM race_entries e
         WHERE e.constructor_id = constructors.id AND e.grid = 1)""")
+
+    # ------------------------------------------- the authored ceiling
+    #
+    # The first instalment of the rule in docs/DERIVED-CONFIDENCE.md, and the
+    # first place in this build where a confidence value is DERIVED rather
+    # than carried up from data/*.py.
+    #
+    # Content with authority 'authored' has no external source to be compared
+    # against and no check in verify.py that constrains a value, so it cannot
+    # honestly sit above 'medium' - the tier that says "correct in substance,
+    # confirm the figure before publication". Until v2.16 most of it sat at
+    # 'high', which is may_publish = 1 and promised a citable official record
+    # that does not exist. Two rows even sat at 'verified', against the
+    # standing rule that nothing reaches 'verified' without an official
+    # source.
+    #
+    # This runs last, after every loader, so it cannot be undone by one.
+    authored = [r[0] for r in cur.execute(
+        """SELECT tp.tbl FROM table_provenance tp
+           JOIN source_registry s ON s.id = tp.source_id
+           WHERE s.authority = 'authored'""")]
+    lowered = 0
+    for tbl in authored:
+        cur.execute(f"""UPDATE {tbl} SET confidence = 'medium'
+            WHERE confidence IN ('verified', 'high', 'reference')""")
+        lowered += cur.rowcount
+    print(f"  authored ceiling: {lowered} rows capped at 'medium' across "
+          f"{len(authored)} tables")
 
     con.commit()
     # The build writes and rewrites rows as sources layer on top of each

@@ -1,6 +1,6 @@
 {
   "database_name": "F1 Verified Facts Project Memory Database",
-  "version": "2.15",
+  "version": "2.16",
   "verification_date": "2026-09-05",
   "verification_policy": {
     "confidence_ladder": [
@@ -4593,6 +4593,28 @@
       "licence": "ODbL 1.0 - share-alike AND a database right. That is a different obligation from every other source here, and it is confined to one table on purpose; see ATTRIBUTION.md. Nothing else derives from it.",
       "cadence": "Continuous, by anyone, and it maps only what is on the ground NOW. There is no historic geometry to be had: Spa's 14.1 km road course and Monza's banking are unmapped and unmappable, and Wikidata's own layout entities carry length and dates but no coordinates.",
       "checkability": "Strong, and it fired immediately. A circuit relation is not an ordered ring - its members include the pit lane - so a naive sum puts Monaco at 3.745 km against a published 3.337, twelve per cent long, and nothing about that number looks wrong on its own. What rejects it is length_km, held here before OSM was consulted. Excluding the pit lane by member role gives 3.388 km, and anything outside two per cent is refused rather than stored with a caveat. The measurement is then re-run in build.py from the stored coordinates, with its own copy of the arithmetic, because sharing the tool's would check nothing."
+    },
+    {
+      "id": 17,
+      "priority": 17,
+      "source": "Wikipedia per-circuit articles",
+      "url": "https://en.wikipedia.org/wiki/Category:Formula_One_circuits",
+      "use": "Circuit configuration timelines: which layout was raced in which years, its length and turn count, and why it changed. Feeds circuit_layouts.",
+      "authority": "reference",
+      "licence": "CC BY-SA 4.0. The change_reason prose follows the article and carries share-alike with it - see ATTRIBUTION.md.",
+      "cadence": "Continuous, by anyone. A circuit that last changed shape in 1974 has an article that may not have been edited in years, which cuts both ways.",
+      "checkability": "Real but partial. A circuit's layout rows must form a complete, non-overlapping timeline or the build fails, and where a layout is still current its length is checked against the OSM trace. Neither test reaches a historic layout's length, which nothing here can contradict."
+    },
+    {
+      "id": 18,
+      "priority": 18,
+      "source": "Written for this project from general knowledge",
+      "url": null,
+      "use": "The glossary, the era and engine-era periodisations, the governance and safety timelines, the technical-innovation notes, the constructor lineage chains, the points-system table, the tyre-supplier list, the grand prix register, the personnel notes, the engine-manufacturer notes and the headline records list. Thirteen tables.",
+      "authority": "authored",
+      "licence": "Original to this repository, and the only content here under no external obligation at all.",
+      "cadence": "Whenever somebody edits it. There is no upstream to track and no version to pin.",
+      "checkability": "NOTHING, and that is the entire point of giving it a name. It has no external source to be compared against and no check in verify.py that constrains a value - `records` is not tested at all, and what constrains grands_prix, constructor_lineage and personnel is referential and temporal only: ids resolve, years run forwards. Those prove the shape and say nothing about the claim. So nothing here may sit above 'medium', which is what that tier means: correct in substance, confirm the figure before publishing. It sat at 'high' until v2.16, which promised more than anything could deliver."
     }
   ]
 }

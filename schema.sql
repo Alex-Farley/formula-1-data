@@ -44,13 +44,55 @@ CREATE TABLE source_registry (
     source          TEXT NOT NULL,
     url             TEXT,
     use             TEXT,
-    authority       TEXT NOT NULL DEFAULT 'official',  -- official | reference | forbidden
+    -- official | reference | authored | forbidden
+    --
+    -- 'authored' was added in v2.16 and names what ATTRIBUTION.md already
+    -- said in prose: some of this database was written for the project from
+    -- general knowledge rather than taken from anywhere. That is a real
+    -- provenance and it deserves a word. It is NOT a lesser kind of
+    -- reference source - it has no external source at all - and nothing
+    -- carrying it may sit above 'medium'. See docs/DERIVED-CONFIDENCE.md.
+    authority       TEXT NOT NULL DEFAULT 'official',
     -- A source is judged on these three, not on how much data it has. The
     -- largest dataset in the sport is worth nothing here if its values
     -- cannot be checked against something held independently.
     licence         TEXT,     -- what you may actually do with the data
     cadence         TEXT,     -- how often it is updated, and by whom
     checkability    TEXT      -- what in this database can contradict it
+);
+
+-- How a row's free-text `source` resolves to a registry entry.
+--
+-- source_registry.url is ONE EXAMPLE PAGE, not a namespace, which is why
+-- 4,691 rows - 4.9% - previously resolved to no registry entry at all:
+-- .../List_of_Formula_One_polesitters does not prefix-match
+-- .../2024_Formula_One_World_Championship though both are the same source.
+-- A source needs several patterns (Wikipedia needs three), so this is a
+-- child table rather than a column.
+CREATE TABLE source_patterns (
+    id              INTEGER PRIMARY KEY,
+    source_id       INTEGER NOT NULL REFERENCES source_registry(id),
+    pattern         TEXT NOT NULL,     -- Python re, anchored at the start
+    note            TEXT
+);
+
+-- Provenance for a table that has no `source` column of its own.
+--
+-- Fifteen tables carry `confidence` and no `source`. Thirteen of them are
+-- authored; two are sourced and simply never got the column. Either way the
+-- provenance existed only in ATTRIBUTION.md, where nothing could read it.
+-- A row here says, for the whole table, where its content came from.
+CREATE TABLE table_provenance (
+    tbl             TEXT PRIMARY KEY,
+    source_id       INTEGER NOT NULL REFERENCES source_registry(id),
+    -- 1 where nothing in this database can constrain the claim the table
+    -- makes, whatever the source's standing. A well-run source does not
+    -- make a row checkable: article_images comes from the MediaWiki API and
+    -- records which file an article leads with, and NOTHING here constrains
+    -- what the photograph shows. See known_gaps #10. Such a table is floored
+    -- at 'unverified' rather than taking its source's tier.
+    unconstrained   INTEGER NOT NULL DEFAULT 0,
+    note            TEXT
 );
 
 -- ------------------------------------------------------------- people

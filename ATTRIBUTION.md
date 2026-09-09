@@ -23,11 +23,18 @@ different positions, and the data has an obligation attached to it.
 | Notable team radio transcripts | Wikipedia per-race articles | 6 |
 | 2026 season, entry list, standings, calendar | formula1.com | current season |
 | Career totals (entries, starts, podiums, points) | formula1.com driver pages | 7 drivers at `verified` |
-| Regulations, safety, technical, glossary, eras | Written for this project from general knowledge, at `medium`/`high` confidence | — |
+| Regulations, safety, technical, glossary, eras | Written for this project from general knowledge. Since v2.16 this is a named provenance — `authored`, `source_registry` entry 18 — and everything carrying it sits at `medium`, because nothing here can contradict it | 13 tables, 357 rows |
 
 Every row carries a `confidence` value and most carry a `source` URL. The
 `source_registry` table records which sources are treated as authoritative.
 `./f1 unverified` lists everything still sitting at `medium`.
+
+Since v2.16 the provenance is traceable rather than only described here.
+`source_patterns` resolves a row's `source` to a registry entry — the build
+fails if one does not resolve — and `table_provenance` gives a source to the
+fifteen tables that carry `confidence` and no `source` column of their own.
+So the table above is now checkable against the database rather than a claim
+about it. See `docs/DERIVED-CONFIDENCE.md`.
 
 ## The obligation
 

@@ -135,6 +135,11 @@ def main():
         "grands_prix_register": dump(con, "grands_prix", "first_held"),
         "season_entries": dump(con, "season_entries", "year, id"),
         "source_registry": dump(con, "source_registry", "priority"),
+        # How a row's free-text `source` resolves to one of those entries, and
+        # where a table with no `source` column gets its provenance from.
+        # Without these the registry names sources nothing can be traced to.
+        "source_patterns": dump(con, "source_patterns", "id"),
+        "table_provenance": dump(con, "table_provenance", "tbl"),
         "fia_regulation_issues_2026": {
             k.split("::", 1)[1]: v for k, v in meta.items() if k.startswith("fia_issue::")},
     }

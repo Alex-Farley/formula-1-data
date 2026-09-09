@@ -19,18 +19,15 @@ Internal consistency checks - referential, temporal, arithmetic, coverage -
 keep the database honest but cannot raise a tier, because a self-consistent
 database can be uniformly wrong. An open disagreement caps a row at 'medium'.
 
-Two of the three inputs do not exist yet, so this stands in for them:
+Since v2.16 AUTHORITY is real: it is read from source_registry, the
+source_patterns table that resolves a row's free-text `source` to an entry,
+and table_provenance for the tables that have no `source` column. Steps 1 and
+2 of the doc are done, so this tool no longer stands in for them.
 
-  * AUTHORITY is resolved by matching a row's `source` against
-    source_registry.url, plus the URL_PATTERNS below — which is the
-    `url_pattern` column the sketch proposes, prototyped in Python.
-  * CONSTRAINT comes from CONSTRAINED_BY, a hand-written seed naming the
-    checks in verify.py that demonstrably cover a table, and of what kind.
-    The real version is the `checks` table, where each check declares its
-    kind and the rows it covered.
-
-So treat the CONSTRAINT column as the sketch's weakest claim. It is seeded,
-not measured. That is the point of step 4 in the doc.
+CONSTRAINT is still seeded — CONSTRAINED_BY below is a hand-written map of
+which checks in verify.py cover which table, and of what kind. It is the
+sketch's weakest claim, and closing it is step 4: a `checks` table where each
+check declares its own kind and the rows it actually covered.
 """
 import os
 import re
@@ -38,20 +35,6 @@ import sqlite3
 import sys
 
 DB = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "f1.db")
-
-# What `source_registry.url_pattern` would hold. A registry url is one example
-# page; these are the namespaces those examples were drawn from.
-URL_PATTERNS = [
-    (r"^https://en\.wikipedia\.org/wiki/\d{4}_Formula_One_World_Championship", 8),
-    (r"^https://en\.wikipedia\.org/wiki/List_of_Formula_One", 8),
-    (r"^https://en\.wikipedia\.org/wiki/\d{4}_.*Grand_Prix", 8),
-    (r"^https://en\.wikipedia\.org/wiki/History_of_Formula_One", 8),
-    (r"^https://en\.wikipedia\.org/wiki/", 11),   # per-car and per-topic articles
-    (r"^https://www\.formula1\.com/", 3),
-    (r"^https://www\.fia\.com/", 1),
-    (r"^https://api\.jolpi\.ca/", 12),
-    (r"^https://github\.com/f1db/f1db", 10),
-]
 
 # Seed for the `checks` table. Which tables verify.py demonstrably constrains,
 # and the check names it prints while doing it.
@@ -106,36 +89,51 @@ CONSTRAINED_BY = {
 LADDER = ["verified", "high", "reference", "medium", "unverified"]
 
 
-def authority(con, source):
-    """A: official | reference | forbidden | None."""
-    if not source:
-        return None, None
-    reg = con.execute("SELECT id, url, authority FROM source_registry "
-                      "WHERE url IS NOT NULL").fetchall()
-    best = None
-    for sid, url, auth in reg:
-        u = url.rstrip("/")
-        if source.startswith(u) and (best is None or len(u) > best[0]):
-            best = (len(u), sid, auth)
-    if best:
-        return best[2], best[1]
-    for pattern, sid in URL_PATTERNS:
-        if re.match(pattern, source):
-            row = con.execute("SELECT authority FROM source_registry WHERE id=?",
-                              (sid,)).fetchone()
-            return row[0], sid
+def authority(con, source, tbl):
+    """A: official | reference | authored | forbidden | None.
+
+    A row's own `source` first, by longest matching registry url then by
+    source_patterns; failing that, the provenance declared for its table.
+    """
+    if source:
+        best = None
+        for sid, url, auth in con.execute(
+                "SELECT id, url, authority FROM source_registry WHERE url IS NOT NULL"):
+            u = url.rstrip("/")
+            if source.startswith(u) and (best is None or len(u) > best[0]):
+                best = (len(u), sid, auth)
+        if best:
+            return best[2], best[1]
+        for pattern, sid, auth in con.execute(
+                """SELECT p.pattern, p.source_id, s.authority FROM source_patterns p
+                   JOIN source_registry s ON s.id = p.source_id ORDER BY p.id"""):
+            if re.match(pattern, source):
+                return auth, sid
+    row = con.execute("""SELECT s.authority, s.id FROM table_provenance tp
+        JOIN source_registry s ON s.id = tp.source_id WHERE tp.tbl = ?""",
+        (tbl,)).fetchone()
+    if row:
+        return row[0], row[1]
     return None, None
 
 
-def derive(auth, kind, contested):
+def derive(auth, kind, contested, unconstrained=False):
     """The rule itself. `kind` is 'cross', 'internal' or None."""
     if auth == "forbidden":
         return "REJECT"
     if auth is None:
         return "unverified"
+    if unconstrained:
+        # Nothing here can contradict the claim, whatever the source's
+        # standing. A well-run API does not make a row checkable.
+        return "unverified"
     if contested:
         return "medium"
     cross = kind == "cross"
+    if auth == "authored":
+        # No external source at all, so nothing can ever corroborate it and
+        # the pair collapses to one tier. See source_registry id 18.
+        return "medium"
     if auth == "official":
         return "verified" if cross else "high"
     return "reference" if cross else "medium"
@@ -171,11 +169,14 @@ def main():
         if not rows:
             continue
         kind = CONSTRAINED_BY.get(t, (None, []))[0]
+        row = con.execute("SELECT unconstrained FROM table_provenance WHERE tbl=?",
+                          (t,)).fetchone()
+        unconstrained = bool(row and row[0])
         tiers, agree, differ = {}, 0, 0
         for r in rows:
             src = r["source"] if has_source else None
-            auth, _ = authority(con, src)
-            new = derive(auth, kind, False)
+            auth, _ = authority(con, src, t)
+            new = derive(auth, kind, False, unconstrained)
             old = r["confidence"]
             tiers[new] = tiers.get(new, 0) + 1
             if new == old:
@@ -191,7 +192,7 @@ def main():
         shown = ", ".join(f"{k}:{v}" for k, v in
                           sorted(tiers.items(), key=lambda kv: LADDER.index(kv[0])
                                  if kv[0] in LADDER else 9))
-        flag = "" if has_source else "  [no source column]"
+        flag = "" if has_source else "  [via table_provenance]"
         print(f"  {t:24} {len(rows):6}  {agree:6} {differ:6}   {shown}{flag}")
 
     print("  " + "-" * 76)
@@ -205,10 +206,12 @@ def main():
                                  and LADDER.index(new) > LADDER.index(old)) else "promote"
         print(f"  {n:6}  {t:22} {old:>10} -> {new:<10} {direction}")
 
-    print(f"\n  {unsourced_high} rows sit at 'high' (may_publish=1) with no source column")
-    print("  at all and no check that constrains them. See docs/DERIVED-CONFIDENCE.md,")
-    print("  'What the rule says today' — the honest fix is an `authored` authority,")
-    print("  not a blanket demotion.\n")
+    if unsourced_high:
+        print(f"\n  {unsourced_high} rows sit at 'high' (may_publish=1) with no source")
+        print("  column and no check that constrains them.\n")
+    else:
+        print("\n  No row sits at 'high' without a source behind it. The 333 that did")
+        print("  were re-rated in v2.16 when the `authored` authority was added.\n")
 
     print("CAVEAT: CONSTRAINT is seeded from CONSTRAINED_BY, not measured. Until")
     print("verify.py's checks declare their kind and the rows they cover, a table")

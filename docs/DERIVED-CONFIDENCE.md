@@ -1,8 +1,9 @@
 # Deriving confidence, rather than declaring it
 
-A sketch, against the schema as it stands at v2.15. Nothing here is
-implemented; `tools/confidence_rule.py` runs the rule read-only and reports
-what it would change.
+A sketch, first written against v2.15. **Steps 1 and 2 of the order of work
+are now implemented in v2.16** — see *What shipped* at the end. The rest is
+still a sketch; `tools/confidence_rule.py` runs the whole rule read-only and
+reports what it would change.
 
 ## The problem
 
@@ -292,6 +293,13 @@ There is no source to cite and no check to fail. `ATTRIBUTION.md` is already
 straight about what this content is: *"Regulations, safety, technical,
 glossary, eras — Written for this project from general knowledge."*
 
+`records` is the sharpest case, and it is worse than "no source": **nothing in
+`verify.py` reads that table at all**. The 30 headline records in it are
+unconstrained in every sense. The career records they duplicate *are* checked
+— on `drivers`, against the race records — which is exactly the trap: the
+database looks like it verifies its records, and the table called `records` is
+not the one it verifies.
+
 So the rule surfaces something real: **`high` is currently doing two jobs.**
 It means "a well-established official record" for `seasons` and `circuits`,
 and it means "authored here and believed" for `glossary` and `eras`. Those are
@@ -301,9 +309,15 @@ precisely because `may_publish = 1` invites them not to.
 The mechanical answer — demote all 325 to `unverified`, since they have no
 registry source — is correct in kind and too harsh in degree. The better fix
 is to make the second job explicit: a `source_registry` entry for authored
-content at a new authority `authored`, deriving to `medium` unconstrained and
-`high` where something does constrain it — as `records` genuinely is, against
-the race records. Then the ladder tells the truth in both directions.
+content at a new authority `authored`. It has no external source, so nothing
+can ever corroborate it and its pair collapses to a single tier: `medium`,
+which is precisely what that tier already says — *"correct in substance, an
+exact figure may have drifted, confirm before publication."* Then the ladder
+tells the truth in both directions.
+
+**This is what shipped in v2.16.** 333 rows moved: the 325 at `high`, plus 8
+that were sitting at `verified` in authored tables against the project's own
+standing rule that nothing reaches `verified` without an official source.
 
 ### What the prototype cannot yet say
 
@@ -322,21 +336,61 @@ declared by the check's author rather than inferred later.
 
 ## Order of work
 
-1. **`url_pattern` on `source_registry`**, so a source resolves to a registry
-   entry. Cheap, and it removes the 4.9% of rows that currently resolve to
-   nothing.
-2. **The `authored` authority**, and the honest re-rating of the 325 rows in
-   Group 3. No new data, and it fixes the one place where the ladder
-   overstates what is known.
-3. **`claims`**, back-filled from the five existing encodings. No new data
-   either — it moves what is already recorded into one shape.
+1. ~~**`url_pattern` on `source_registry`**~~ — **done in v2.16**, as a
+   `source_patterns` child table rather than a column: one source needs
+   several patterns (Wikipedia needs three).
+2. ~~**The `authored` authority**, and the honest re-rating~~ — **done in
+   v2.16**, together with `table_provenance` for the fifteen tables that
+   carry `confidence` and no `source`.
+3. **`claims`**, back-filled from the five existing encodings. No new data —
+   it moves what is already recorded into one shape, and it is what makes
+   corroboration a `GROUP BY` rather than a column somebody remembered.
 4. **`checks`**, with `kind` and `constrains`. The largest piece, and
-   mechanical: each of the 133 checks declares whether it compares against an
-   independent source, and which rows it covered.
-5. **Derivation in `build.py`**, `confidence_basis`, and check 134 — no stored
-   confidence differs from the derived one.
+   mechanical: each check declares whether it compares against an independent
+   source, and which rows it actually covered.
+5. **Derivation in `build.py`**, `confidence_basis`, and the check that says
+   no stored confidence differs from the derived one.
 
-Steps 1–3 are worth doing whether or not 4 and 5 ever happen. They retire five
-ad-hoc encodings of the same idea and make corroboration expressible at all,
-which is the precondition for a new source adding *constraint* rather than
-only rows — and that, rather than breadth, is the case for adding one.
+Steps 3–5 are still ahead. Step 3 is worth doing whether or not 4 and 5 ever
+happen: it retires five ad-hoc encodings of the same idea and makes
+corroboration expressible at all, which is the precondition for a new source
+adding *constraint* rather than only rows — and that, rather than breadth, is
+the case for adding one.
+
+## What shipped in v2.16
+
+**`source_patterns`** — a row's free-text `source` now resolves to a registry
+entry by longest-prefix match on `source_registry.url`, then by pattern. The
+4,691 rows that resolved to nothing now all resolve, and `verify.py` fails the
+build if one ever does not. That check is worth more than the tidying: it
+means a new loader cannot quietly introduce a source nobody assessed.
+
+**`table_provenance`** — the fifteen tables carrying `confidence` with no
+`source` column now say where their content came from. Thirteen are authored;
+`circuit_layouts` came from Wikipedia per-circuit articles (a source the
+registry had never named, now entry 17), `season_entries` from formula1.com,
+and `article_images` and `circuit_geometry` from registry entries that already
+existed. The provenance was previously only in `ATTRIBUTION.md`, where nothing
+could read it.
+
+**The `authored` authority** — registry entry 18, and the ceiling that follows
+from it. `build.py` now caps every authored table at `medium` as its last
+step, which is the first confidence value in this database that is *derived*
+rather than carried up from `data/*.py`. 333 rows moved.
+
+**`table_provenance.unconstrained`** — one flag, set for `article_images`,
+that floors a table at `unverified` regardless of its source's standing.
+Without it the rule *promoted* those 602 rows to `medium` on the strength of
+the MediaWiki API being well run, which is exactly the reasoning
+`known_gaps` #10 exists to refuse. A good source does not make a row
+checkable.
+
+**Four new checks** in `verify.py`: every source resolves to a registry entry;
+no row cites a `forbidden` source; every table carrying `confidence` declares
+a provenance; no authored row sits above `medium`.
+
+The rule now reproduces **96.5%** of stored tiers, up from 96.1%. The
+remaining 3,343 differences are the backlog steps 3–5 exist to work through,
+and `tools/confidence_rule.py` prints them ranked. The largest is still
+`season_entrants`: 1,925 rows at `reference`, single-source, and the table
+that *constrains* `race_entries` while nothing constrains it.

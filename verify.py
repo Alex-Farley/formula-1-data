@@ -1234,6 +1234,80 @@ bad = con.execute("""SELECT COUNT(*) FROM drivers
     WHERE confidence NOT IN (SELECT confidence FROM provenance)""").fetchone()[0]
 check("all confidence values are in the provenance ladder", bad == 0)
 
+# --------------------------------------------------- provenance resolves
+#
+# A tier is only worth anything if the database can say where the row came
+# from. These three checks are the v2.16 instalment of
+# docs/DERIVED-CONFIDENCE.md: every row must reach a registry entry, by its
+# own `source` or by its table's, and authored content must stay at or below
+# 'medium' because nothing can contradict it.
+import re as _re
+
+_reg = con.execute("SELECT id, url, authority FROM source_registry").fetchall()
+_pat = con.execute("""SELECT p.pattern, p.source_id, s.authority
+    FROM source_patterns p JOIN source_registry s ON s.id = p.source_id
+    ORDER BY p.id""").fetchall()
+
+
+def _resolve(url):
+    """The longest matching registry url wins, then the patterns in order."""
+    best = None
+    for r in _reg:
+        if r["url"] and url.startswith(r["url"].rstrip("/")):
+            if best is None or len(r["url"]) > len(best["url"]):
+                best = r
+    if best:
+        return best["id"], best["authority"]
+    for p in _pat:
+        if _re.match(p["pattern"], url):
+            return p["source_id"], p["authority"]
+    return None, None
+
+
+_conf_tables = []
+for (t,) in con.execute("""SELECT name FROM sqlite_master WHERE type='table'
+                           AND name <> 'provenance' ORDER BY name"""):
+    cols = [c[1] for c in con.execute(f'PRAGMA table_info("{t}")')]
+    if "confidence" in cols:
+        _conf_tables.append((t, "source" in cols))
+
+unresolved, seen_forbidden = [], []
+for t, has_source in _conf_tables:
+    if not has_source:
+        continue
+    for r in con.execute(f'SELECT DISTINCT source FROM "{t}" WHERE source IS NOT NULL'):
+        sid, auth = _resolve(r[0])
+        if sid is None:
+            unresolved.append(f"{t}: {r[0]}")
+        elif auth == "forbidden":
+            seen_forbidden.append(f"{t}: {r[0]}")
+check("every source resolves to a registry entry", not unresolved,
+      f"{len(unresolved)} unresolved, e.g. " + "; ".join(unresolved[:3]))
+check("no row cites a forbidden source", not seen_forbidden,
+      "; ".join(seen_forbidden[:3]))
+
+nosource = [t for t, has_source in _conf_tables if not has_source
+            and not con.execute("SELECT 1 FROM table_provenance WHERE tbl=?",
+                                (t,)).fetchone()]
+check("every table carrying confidence declares a provenance", not nosource,
+      "; ".join(nosource))
+
+over = []
+for (t,) in con.execute("""SELECT tp.tbl FROM table_provenance tp
+        JOIN source_registry s ON s.id = tp.source_id
+        WHERE s.authority = 'authored'"""):
+    n = con.execute(f"""SELECT COUNT(*) FROM "{t}" WHERE confidence IN
+        (SELECT confidence FROM provenance WHERE rank < 4)""").fetchone()[0]
+    if n:
+        over.append(f"{t}: {n}")
+check("no authored row sits above 'medium'", not over, "; ".join(over))
+
+_auth = con.execute("""SELECT s.authority, COUNT(*) n FROM table_provenance tp
+    JOIN source_registry s ON s.id = tp.source_id
+    GROUP BY 1 ORDER BY n DESC""").fetchall()
+print("        table provenance: " +
+      ", ".join(f"{r['authority']}={r['n']}" for r in _auth))
+
 # ---------------------------------------------------------------------------
 # ---------------------------------------------------------------------------
 print("\nTHE FULL CLASSIFICATION")
