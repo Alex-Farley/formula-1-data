@@ -9,7 +9,10 @@ import { useEffect, useState } from 'react'
  * goes on the root element, which is what the token file's [data-theme] rules
  * key off.
  */
-const KEY = 'f1-theme'
+// Renamed with the site. The old key is read once so a returning reader
+// keeps the theme they chose, then dropped.
+const KEY = 'lapledger-theme'
+const LEGACY_KEY = 'f1-theme'
 const NEXT = { system: 'light', light: 'dark', dark: 'system' }
 const LABEL = { system: 'System theme', light: 'Light theme', dark: 'Dark theme' }
 const GLYPH = { system: '◐', light: '☀', dark: '☾' }
@@ -26,7 +29,7 @@ export default function ThemeToggle() {
   useEffect(() => {
     let stored = null
     try {
-      stored = localStorage.getItem(KEY)
+      stored = localStorage.getItem(KEY) ?? localStorage.getItem(LEGACY_KEY)
     } catch {
       stored = null
     }
