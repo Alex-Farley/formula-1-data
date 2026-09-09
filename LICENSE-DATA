@@ -34,6 +34,16 @@ data is from formula1.com. Formula 1, F1 and Grand Prix are trademarks of
 Formula One Licensing BV; this project is unaffiliated with and unendorsed by
 Formula One or the FIA.
 
+## Circuit geometry
+
+The circuit centrelines traced from OpenStreetMap are **ODbL 1.0**, which is
+share-alike and carries a database right reaching the whole database its data
+lands in. They are therefore **not in `f1.db`** and not covered by this
+licence: they are published as `f1-geometry.db` alongside it, under ODbL, (c)
+OpenStreetMap contributors. Two databases distributed side by side are a
+Collective Database, which ODbL does not treat as derivative. See
+ATTRIBUTION.md and tools/geometry_overlay.py.
+
 ## Live timing data
 
 tools/fastf1_load.py optionally loads per-lap timing, stints, pit stops, race

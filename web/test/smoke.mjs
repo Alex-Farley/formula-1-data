@@ -42,6 +42,15 @@ if (!existsSync(join(web, 'dist', 'index.html'))) {
 }
 
 const db = new DatabaseSync(join(web, '..', 'f1.db'), { readOnly: true })
+
+// The ODbL centrelines are not in f1.db — OpenStreetMap's share-alike and
+// database right would reach the whole file, so build.py writes them to
+// f1-geometry.db and the two ship side by side as a Collective Database. The
+// app merges them in the browser; this attaches them so the test can ask the
+// same questions of the same rows. See tools/geometry_overlay.py.
+const geometryPath = join(web, '..', 'f1-geometry.db')
+const hasGeometry = existsSync(geometryPath)
+if (hasGeometry) db.exec(`ATTACH DATABASE '${geometryPath}' AS geo`)
 const one = (sql, ...args) => Object.values(db.prepare(sql).get(...args))[0]
 const count = (sql, ...args) => one(sql, ...args)
 
@@ -356,7 +365,14 @@ try {
     'every race held at Silverstone',
   )
 
-  const traced = one('SELECT circuit_id FROM circuit_geometry ORDER BY node_count DESC LIMIT 1')
+  // Skipped rather than failed when the overlay is absent: a build without
+  // it is a legitimate one, and the track maps are the only thing it costs.
+  const traced = hasGeometry
+    ? one('SELECT circuit_id FROM geo.circuit_geometry ORDER BY node_count DESC LIMIT 1')
+    : null
+  if (!traced) {
+    console.log('\n(no f1-geometry.db — skipping the traced-circuit checks)')
+  } else {
   console.log(`\n/circuits/${traced}  (traced geometry)`)
   await go(`/circuits/${traced}`)
   const path = await page.$eval('.trackmap path', (node) => node.getAttribute('d')).catch(() => null)
@@ -367,6 +383,8 @@ try {
     ),
     'the ODbL attribution travels with the geometry',
   )
+  pass(`the overlay merged in the browser — ${traced} drew from f1-geometry.db`)
+  }
 
   // ------------------------------------------------------------------ cars
 

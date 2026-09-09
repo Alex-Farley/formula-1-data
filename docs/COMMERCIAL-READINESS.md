@@ -90,6 +90,7 @@ The reading above is a snapshot. These are the parts that survive it.
 | No row cites a `no` source | `verify.py` | a CC BY-NC or FOM citation |
 | Four FOM tables are empty | `verify.py` | committed timing data |
 | Pit stops and radio are by source | `verify.py` | a `fastf1` or `jolpica` row |
+| `f1.db` carries no ODbL geometry | `verify.py` | a merged local copy published |
 | The committed database, before rebuild | CI | any of the above, committed |
 | Only one component renders an image | `web` smoke test | an `<img>` bypassing the credit |
 | Renderer and build agree on attribution | `web` smoke test | credit shown as anonymous |
@@ -105,6 +106,38 @@ the resulting file is not theirs to publish. Never set it in CI.
 
 ---
 
+## Decided: ODbL is a separate file
+
+**The centrelines are no longer in `f1.db`.**
+
+ODbL 1.0 is share-alike *and* carries a database right, and — unlike every
+other licence here — it reaches the **whole database** its data lands in. A
+database derived from an ODbL one is a *Derivative Database* and must itself
+be published under ODbL. Confining the rows to a single table was never
+enough, because the table is inside the database: twenty-five centrelines
+would have set the licence of 117,000 rows that have nothing to do with them.
+
+`build.py` now writes them to **`f1-geometry.db`**, published beside `f1.db`.
+ODbL draws exactly this line: two independent databases distributed alongside
+each other are a *Collective Database*, which it explicitly does not treat as
+derivative, so the obligation follows the file it belongs to and stops there.
+
+| | |
+|---|---|
+| `f1.db` | no OpenStreetMap data of any kind. CC BY-SA, as before |
+| `f1-geometry.db` | the 25 centrelines, ODbL 1.0, © OpenStreetMap contributors |
+| Want the maps locally? | `python3 tools/geometry_overlay.py --apply` |
+| The website | merges the two **in the reader's browser** |
+
+Nothing was weakened to achieve it. The re-measurement that catches Monaco's
+relation reading 12% long still runs on every build — `verify.py` attaches the
+overlay and checks it exactly as it did when the rows shipped inside `f1.db`.
+A copy with the overlay merged *is* a Derivative Database, which is a perfectly
+ordinary thing to hold and simply not the file to publish; `verify.py` says so
+if you try.
+
+---
+
 ## Still open
 
 **The prose pass.** 552 short fields — averaging barely a sentence — carry the
@@ -112,15 +145,6 @@ CC BY-SA obligation that comes from Wikipedia, not from FOM. Each needs
 marking as original, paraphrased, or close to source; only the third needs
 rewriting. This is about knowing what the licence statement must say, not
 about whether the data may ship. It may.
-
-**ODbL on `circuit_geometry`.** 25 rows, share-alike *and* a database right —
-a different obligation from every other source here, confined to one table on
-purpose. Commercial use is permitted, but ODbL's share-alike can attach to a
-derived database that includes those rows. Three options: keep it isolated and
-flagged (status quo), make it an optional overlay excluded from the primary
-artifact, or accept ODbL on the geometry-inclusive build. The second is the
-recommendation: it preserves the feature without letting one 25-row table set
-terms for 117,000.
 
 **`team_radio`.** Six exchanges quoted verbatim from Wikipedia race articles.
 Short, attributed and documentary, which is the ordinary case for quotation.

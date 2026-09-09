@@ -49,7 +49,7 @@ const CONSEQUENCES = [
   [
     'OpenStreetMap',
     'ODbL 1.0',
-    'Share-alike plus a database right, so it is quarantined: it reaches circuit_geometry and nothing else, it is excluded from the JSON export, and dropping that one table drops the obligation with it.',
+    'Share-alike plus a database right, so it is quarantined into a file of its own: the centrelines ship as f1-geometry.db, f1.db contains no OpenStreetMap data at all, and two databases side by side are a Collective Database rather than a derivative one. Your browser merges them to draw the maps.',
   ],
   [
     'Wikimedia Commons',
@@ -96,11 +96,14 @@ export default function Sources() {
               </Section>
 
               <Note>
-                <strong>The ODbL obligation is confined to one table.</strong>{' '}
+                <strong>The ODbL obligation is confined to a separate file.</strong>{' '}
                 {geometry.map((row) => `${number(row.n)} traced centrelines under ${row.licence}`).join(', ')}
-                , held in <code>circuit_geometry</code> and nowhere else. Nothing derives from it,
-                and it is excluded from the JSON export. That containment is deliberate: an ODbL
-                share-alike that leaked into another table would reach everything joined to it.
+                , published as <code>f1-geometry.db</code>. <code>f1.db</code> contains no
+                OpenStreetMap data of any kind, so it is not a Derivative Database and does not
+                carry ODbL; your browser merged the two to draw the maps on this site. That
+                containment is deliberate: ODbL reaches the whole database it lands in, so
+                twenty-five centrelines inside <code>f1.db</code> would set the licence of
+                117,000 rows that have nothing to do with them.
               </Note>
 
               <Section title="The source registry" count={`${sources.length}`}>

@@ -1888,12 +1888,116 @@ def build():
         WHERE e.constructor_id = constructors.id AND e.grid = 1)""")
 
     con.commit()
+
+    # The ODbL centrelines leave f1.db here, before the VACUUM reclaims the
+    # pages they occupied. Everything that checks them has already run.
+    moved = split_geometry(con)
+    if moved:
+        print(f"  circuit geometry: {moved} centrelines moved to "
+              f"{os.path.basename(GEOMETRY_DB)} — f1.db carries no "
+              f"OpenStreetMap data")
+
     # The build writes and rewrites rows as sources layer on top of each
     # other, which leaves free pages behind. The web app fetches this file
     # whole, so reclaiming them is not housekeeping.
     con.execute("VACUUM")
     con.commit()
     return con
+
+
+GEOMETRY_DB = os.path.join(HERE, "f1-geometry.db")
+
+
+def split_geometry(con):
+    """Move the OpenStreetMap centrelines out of f1.db and into their own file.
+
+    WHY THEY DO NOT SHIP IN f1.db
+        OpenStreetMap is ODbL 1.0, which carries share-alike AND a database
+        right. That is a different obligation from every other source here:
+        CC BY (F1DB) asks only for credit, CC BY-SA (Wikipedia) reaches the
+        prose taken from it, and neither says anything about the shape of the
+        database around it. ODbL does. A database derived from an ODbL one is
+        a Derivative Database, and publishing it means publishing the whole
+        thing under ODbL.
+
+        Twenty-five centrelines would then set the licence of 117,000 rows
+        they have nothing to do with. So they are not in that database at all.
+
+        ODbL draws the line this build relies on: a Collective Database - two
+        independent databases distributed alongside each other - is NOT a
+        Derivative Database, and the share-alike does not reach across. f1.db
+        carries no OpenStreetMap data of any kind; f1-geometry.db carries
+        nothing else, and is offered under ODbL. Take one, take both, and the
+        obligation follows only the file it belongs to.
+
+    WHY THE ROWS ARE BUILT AND THEN MOVED, RATHER THAN NEVER LOADED
+        Everything that checks the geometry runs against the loaded rows -
+        the re-measurement that catches Monaco's relation reading 12% long
+        because it includes the pit lane, the layout_key resolution, the
+        historic-layout refusal. Loading them, checking them and then moving
+        them keeps every one of those checks exactly where it was.
+    """
+    rows = con.execute("""SELECT circuit_id, layout_key, wikidata_id,
+        osm_relation, centreline, measured_km, published_km, delta_pct,
+        node_count, osm_timestamp, licence, confidence
+        FROM circuit_geometry ORDER BY circuit_id, layout_key""").fetchall()
+    if not rows:
+        return 0
+
+    if os.path.exists(GEOMETRY_DB):
+        os.remove(GEOMETRY_DB)
+    geo = sqlite3.connect(GEOMETRY_DB)
+    geo.executescript("""
+        -- The circuit centrelines, traced from OpenStreetMap.
+        --
+        -- ODbL 1.0: https://opendatacommons.org/licenses/odbl/1-0/
+        -- (c) OpenStreetMap contributors.
+        --
+        -- This file is a database in its own right, distributed ALONGSIDE
+        -- f1.db rather than inside it. f1.db contains no OpenStreetMap data,
+        -- so it is not a Derivative Database of this one and does not carry
+        -- ODbL. Merging the two - which tools/geometry_overlay.py will do to
+        -- a local copy - produces a database that does.
+        --
+        -- circuit_id matches circuits.id in f1.db. There is deliberately no
+        -- foreign key: this file must stand on its own.
+        CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
+        CREATE TABLE circuit_geometry (
+            circuit_id      TEXT NOT NULL,
+            layout_key      TEXT,
+            wikidata_id     TEXT NOT NULL,
+            osm_relation    INTEGER NOT NULL,
+            centreline      TEXT NOT NULL,
+            measured_km     REAL NOT NULL,
+            published_km    REAL NOT NULL,
+            delta_pct       REAL NOT NULL,
+            node_count      INTEGER,
+            osm_timestamp   TEXT,
+            licence         TEXT NOT NULL DEFAULT 'ODbL-1.0',
+            confidence      TEXT NOT NULL DEFAULT 'reference',
+            UNIQUE (circuit_id, layout_key)
+        );
+    """)
+    geo.executemany("INSERT INTO circuit_geometry VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                    rows)
+    geo.executemany("INSERT INTO meta VALUES (?,?)", [
+        ("database_name", "F1 circuit centrelines (OpenStreetMap overlay)"),
+        ("version", VERSION),
+        ("built", BUILT),
+        ("licence", "ODbL 1.0"),
+        ("licence_url", "https://opendatacommons.org/licenses/odbl/1-0/"),
+        ("attribution", "(c) OpenStreetMap contributors"),
+        ("companion", "f1.db, which contains no OpenStreetMap data"),
+        ("apply", "python3 tools/geometry_overlay.py --apply"),
+    ])
+    geo.commit()
+    geo.execute("VACUUM")
+    geo.commit()
+    geo.close()
+
+    con.execute("DELETE FROM circuit_geometry")
+    con.commit()
+    return len(rows)
 
 
 def X_engine_eras():

@@ -33,6 +33,25 @@ LOCAL_TIMING = os.environ.get("F1_LOCAL_TIMING") == "1"
 con = sqlite3.connect(DB)
 con.row_factory = sqlite3.Row
 con.execute("PRAGMA foreign_keys=ON")
+
+# The OpenStreetMap centrelines live in their own database beside this one -
+# ODbL carries share-alike and a database right, and keeping them out of
+# f1.db is what stops twenty-five rows setting the licence of 117,000. See
+# split_geometry() in build.py.
+#
+# They still have to be CHECKED, and the re-measurement that catches Monaco's
+# relation reading 12% long is one of the strongest checks here. So the
+# overlay is attached when it exists and the geometry section reads through
+# GEO, which is `geo.circuit_geometry` when it does and the (empty) local
+# table when it does not. A merged local copy - see tools/geometry_overlay.py
+# - is checked exactly as it always was.
+GEO_DB = os.path.join(os.path.dirname(os.path.abspath(DB)), "f1-geometry.db")
+GEO = "circuit_geometry"
+if os.path.exists(GEO_DB) and not con.execute(
+        "SELECT COUNT(*) FROM circuit_geometry").fetchone()[0]:
+    con.execute("ATTACH DATABASE ? AS geo", (GEO_DB,))
+    GEO = "geo.circuit_geometry"
+
 fails, warns = [], []
 
 
@@ -109,6 +128,21 @@ def redistribution():
         WHERE source = 'fastf1'""").fetchone()[0]
     verdict("no team radio row was indexed from the live timing API",
             bad == 0, f"{bad} rows")
+
+    # OpenStreetMap is ODbL: share-alike AND a database right. A database
+    # derived from it is a Derivative Database and must itself be published
+    # under ODbL, which would let twenty-five centrelines set the licence of
+    # 117,000 rows that have nothing to do with them. So f1.db carries none
+    # of it, and the centrelines ship as f1-geometry.db beside it - two
+    # independent databases, which ODbL calls a Collective Database and
+    # explicitly does not treat as derivative.
+    #
+    # A local copy with the overlay merged in (tools/geometry_overlay.py
+    # --apply) is a Derivative Database and is fine to hold; it is simply not
+    # the file to publish. F1_LOCAL_TIMING says this copy is one of those.
+    n = con.execute("SELECT COUNT(*) FROM main.circuit_geometry").fetchone()[0]
+    verdict("f1.db carries no ODbL geometry — it ships as f1-geometry.db",
+            n == 0, f"{n} rows")
 
     # ---------------------------------------------------------------- classes
     #
@@ -1456,8 +1490,21 @@ print("\nILLUSTRATION AND GEOMETRY")
 # to follow and that the shape agrees with a number held independently.
 
 nimg = con.execute("SELECT COUNT(*) FROM article_images").fetchone()[0]
-ngeo = con.execute("SELECT COUNT(*) FROM circuit_geometry").fetchone()[0]
+ngeo = con.execute(f"SELECT COUNT(*) FROM {GEO}").fetchone()[0]
 print(f"  [info] {nimg} article images, {ngeo} circuit centrelines")
+
+# Every centreline check below is inside `if ngeo:`, which is right — a build
+# without OpenStreetMap data is a legitimate one, and ATTRIBUTION.md tells you
+# how to make one. But since the overlay moved to its own file, "no geometry"
+# has a second cause: f1-geometry.db is missing. That would take the
+# re-measurement that catches Monaco with it, silently, which is the one way
+# this split could cost a check. Say so when the harvest says there should be
+# geometry and there is none.
+if not ngeo and os.path.exists(os.path.join(
+        os.path.dirname(os.path.abspath(DB)), "harvest", "circuit_geometry.txt")):
+    warn("the ODbL geometry overlay is loadable",
+         False, f"no centrelines — {os.path.basename(GEO_DB)} is missing, so "
+                f"none of the centreline checks ran")
 
 if nimg:
     # A file hosted locally on en.wikipedia.org is local BECAUSE it is
@@ -1518,7 +1565,7 @@ if ngeo:
         return 2 * R * _math.asin(_math.sqrt(h))
 
     bad_len, unclosed, bad_layout, worst = [], [], [], 0.0
-    for r in con.execute("SELECT * FROM circuit_geometry"):
+    for r in con.execute(f"SELECT * FROM {GEO}"):
         geo = _json.loads(r["centreline"])
         metres = 0.0
         for line in geo["coordinates"]:
@@ -1565,7 +1612,7 @@ if ngeo:
     # OSM maps what is on the ground. A trace cannot be of a configuration
     # that no longer exists, so it may never be attached to a layout whose
     # timeline has closed.
-    historic = con.execute("""SELECT COUNT(*) FROM circuit_geometry g
+    historic = con.execute(f"""SELECT COUNT(*) FROM {GEO} g
         JOIN circuit_layouts l ON l.circuit_id = g.circuit_id
                               AND l.layout_key = g.layout_key
         WHERE l.to_year IS NOT NULL""").fetchone()[0]

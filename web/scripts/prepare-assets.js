@@ -105,6 +105,35 @@ try {
   console.log(`  (could not read meta: ${error.message})`)
 }
 
+// ------------------------------------------------------- the ODbL overlay
+//
+// The circuit centrelines are NOT in f1.db. OpenStreetMap is ODbL, which
+// carries share-alike and a database right, so a database containing its data
+// is a Derivative Database and must itself be published under ODbL - letting
+// twenty-five centrelines set the licence of 117,000 rows. build.py writes
+// them to f1-geometry.db instead, and the two files distributed side by side
+// are a Collective Database, which ODbL does not treat as derivative.
+//
+// The worker fetches this and merges the rows into the database in memory, in
+// the reader's own browser. It is 212 KB, so it is staged raw: gzipping it
+// would save less than the extra request costs to reason about.
+const geoPath = join(repo, 'f1-geometry.db')
+let geometry = null
+if (existsSync(geoPath)) {
+  const geoBytes = readFileSync(geoPath)
+  copyFileSync(geoPath, join(publicDir, 'f1-geometry.db'))
+  geometry = {
+    file: 'f1-geometry.db',
+    bytes: geoBytes.length,
+    digest: createHash('sha256').update(geoBytes).digest('hex').slice(0, 16),
+    licence: 'ODbL-1.0',
+    attribution: '© OpenStreetMap contributors',
+  }
+  console.log(`  public/f1-geometry.db    (${kb(geoBytes.length)}, ODbL overlay)`)
+} else {
+  console.log('  (no f1-geometry.db — track maps will be absent)')
+}
+
 const manifest = {
   digest,
   bytes: bytes.length,
@@ -112,6 +141,7 @@ const manifest = {
   version: meta.version ?? null,
   built: meta.built ?? null,
   staged: new Date().toISOString().slice(0, 10),
+  geometry,
 }
 writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`)
 console.log(`  public/db-manifest.json  (v${manifest.version ?? '?'}, digest ${digest})`)

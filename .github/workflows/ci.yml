@@ -58,6 +58,14 @@ jobs:
             git diff --stat -- f1_database.json f1_compat.json
             exit 1
           fi
+          # f1-geometry.db is the ODbL overlay (see LICENSE-DATA). It is
+          # byte-stable across rebuilds, so a difference here means the
+          # committed copy is stale rather than that the build is noisy.
+          if ! git diff --quiet -- f1-geometry.db; then
+            echo "::error::The committed f1-geometry.db does not match a fresh build."
+            echo "Run 'python3 build.py' and commit the result."
+            exit 1
+          fi
 
       - name: Smoke-test the query tool
         run: |

@@ -16,6 +16,8 @@ import { read, write } from './cache.js'
 
 let database = null
 let opening = null
+/** The sql.js module, once started — the overlay needs it too. */
+let SQL = null
 /** Where f1.db.gz, f1.db, sql-wasm.wasm and db-manifest.json are served from. */
 let assetBase = null
 
@@ -147,12 +149,75 @@ async function load() {
   // locateFile ignores the name it is given, on purpose. sql.js ships several
   // glue builds asking for different wasm filenames; prepare-assets.js lands
   // one binary at a single known name and this points every request there.
-  const SQL = await initSqlJs({ locateFile: () => asset('sql-wasm.wasm') }).catch((cause) => {
+  SQL = await initSqlJs({ locateFile: () => asset('sql-wasm.wasm') }).catch((cause) => {
     throw new Error(`SQLite would not start from ${asset('sql-wasm.wasm')} — ${cause?.message ?? cause}`)
   })
   database = new SQL.Database(bytes)
+  const geometry = await mergeGeometry(manifest)
 
-  return { ...manifest, cached }
+  return { ...manifest, cached, geometry }
+}
+
+/**
+ * Merge the ODbL circuit centrelines into the database in memory.
+ *
+ * WHY THEY ARRIVE SEPARATELY
+ *     OpenStreetMap is ODbL 1.0, which carries share-alike AND a database
+ *     right. A database containing its data is a Derivative Database and must
+ *     itself be published under ODbL — which would let twenty-five
+ *     centrelines decide the licence of 117,000 rows they have nothing to do
+ *     with. So f1.db contains none of it, and the centrelines are published
+ *     as f1-geometry.db beside it. Two independent databases distributed side
+ *     by side are a Collective Database, which ODbL explicitly does not treat
+ *     as derivative.
+ *
+ *     Merging them here, in the reader's own browser, is what makes
+ *     `SELECT * FROM circuit_geometry` and the two views over it work exactly
+ *     as they did when the rows shipped inside f1.db. Nothing downstream of
+ *     this function knows the difference.
+ *
+ * IT IS NOT FATAL. A missing or unreachable overlay costs the track maps and
+ * nothing else: every other page queries a database that is already open. An
+ * ODbL file failing to arrive must not take the site down with it.
+ */
+async function mergeGeometry(manifest) {
+  if (!manifest.geometry?.file) return null
+  try {
+    const response = await get(manifest.geometry.file)
+    const overlay = new SQL.Database(new Uint8Array(await response.arrayBuffer()))
+    try {
+      const statement = overlay.prepare('SELECT * FROM circuit_geometry')
+      const insert = database.prepare(
+        `INSERT OR REPLACE INTO circuit_geometry
+           (circuit_id, layout_key, wikidata_id, osm_relation, centreline,
+            measured_km, published_km, delta_pct, node_count, osm_timestamp,
+            licence, confidence)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+      )
+      let merged = 0
+      try {
+        while (statement.step()) {
+          const r = statement.getAsObject()
+          insert.run([
+            r.circuit_id, r.layout_key, r.wikidata_id, r.osm_relation,
+            r.centreline, r.measured_km, r.published_km, r.delta_pct,
+            r.node_count, r.osm_timestamp, r.licence, r.confidence,
+          ])
+          merged += 1
+        }
+      } finally {
+        statement.free()
+        insert.free()
+      }
+      return { merged, licence: manifest.geometry.licence, attribution: manifest.geometry.attribution }
+    } finally {
+      overlay.close()
+    }
+  } catch (cause) {
+    // Reported, not thrown. The reader loses the track maps, not the site.
+    console.warn(`the circuit geometry overlay did not load — ${cause?.message ?? cause}`)
+    return null
+  }
 }
 
 // ------------------------------------------------------------------ querying

@@ -42,11 +42,15 @@ NOT_EXPORTED = {
     # this repository, and one SQL query away.
     "qualifying": "27k rows of session detail; query it in f1.db",
     "pit_stops": "22k rows; and FastF1 adds more locally",
-    # The centreline of one circuit is tens of thousands of coordinates. It is
-    # the only ODbL-licensed data here and it is confined to f1.db on purpose
-    # (see ATTRIBUTION.md), so exporting it would carry share-alike into a
-    # file whose whole point is being easy to reuse. Query it in SQLite.
-    "circuit_geometry": "ODbL geometry, deliberately confined to f1.db",
+    # The centreline of one circuit is tens of thousands of coordinates, and it
+    # is the only ODbL-licensed data in the project. ODbL carries share-alike
+    # AND a database right, so a database holding it is a Derivative Database
+    # and must itself be published under ODbL. Rather than let that reach a
+    # file whose whole point is being easy to reuse, the centrelines are not in
+    # f1.db either: build.py writes them to f1-geometry.db, and the two ship
+    # side by side as what ODbL calls a Collective Database. See ATTRIBUTION.md
+    # and tools/geometry_overlay.py.
+    "circuit_geometry": "ODbL geometry — ships as f1-geometry.db, not here",
 }
 
 

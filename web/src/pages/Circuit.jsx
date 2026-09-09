@@ -108,7 +108,7 @@ function CircuitBody({ circuit, data }) {
       {geometry.length > 0 && (
         <Section
           title="The shape of it"
-          note="Traced from OpenStreetMap. This is the only ODbL-licensed table in the database: nothing else derives from it, it is excluded from the JSON export, and dropping the table would drop the obligation."
+          note="Traced from OpenStreetMap, the only ODbL-licensed data in the project. ODbL reaches the whole database it lands in, so these rows are not in f1.db at all: they ship as f1-geometry.db and your browser merged the two to draw this."
         >
           <div className="map-grid">
             {geometry.map((row) => (

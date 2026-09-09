@@ -615,8 +615,11 @@ at `unverified`.
 A circuit's shape as OpenStreetMap maps it, stored as GeoJSON and drawn as
 inline SVG with no map library and no tiles. Relation ids come from Wikidata
 (CC0); the geometry is **ODbL 1.0**, which is share-alike and carries a
-database right, so it is confined to this one table and dropping the table
-drops the obligation. See `ATTRIBUTION.md`.
+database right that reaches the whole database its data lands in. So it is
+not in `f1.db`: it ships as **`f1-geometry.db`** beside it, which ODbL treats
+as a Collective Database rather than a derivative one.
+`tools/geometry_overlay.py --apply` merges it into a local copy, and the
+website merges it in your browser. See `ATTRIBUTION.md`.
 
 The reason it belongs here rather than anywhere else is that this database can
 reject it. A circuit relation is not an ordered ring — its members include the

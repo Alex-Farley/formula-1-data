@@ -120,7 +120,7 @@ Three things are enforced, at harvest time and again on every build:
 - it must name someone to attribute. Eight files were refused on the run that
   produced the committed data: seven name no author, one states no licence.
 
-### OpenStreetMap — ODbL 1.0, and why it is confined to one table
+### OpenStreetMap — ODbL 1.0, and why it ships in a file of its own
 
 `circuit_geometry` holds circuit centrelines traced from OpenStreetMap, which
 is licensed
@@ -129,11 +129,29 @@ is licensed
 obligation than anything else here, and notably stronger than the CC BY that
 made F1DB attractive.
 
-It is therefore deliberately quarantined: **`circuit_geometry` is the only
-table derived from OpenStreetMap**, nothing else in the database depends on
-it, and dropping the table removes the obligation entirely. If you would
-rather not take ODbL on, do not run `tools/osm_geometry.py`; everything else
-builds and verifies without it.
+Stronger in a specific way that matters: ODbL reaches the **whole database**
+its data lands in. A database derived from an ODbL one is a *Derivative
+Database* and must itself be published under ODbL. Confining the rows to one
+table is not enough, because the table is inside the database — twenty-five
+centrelines would set the licence of 117,000 rows that have nothing to do
+with them.
+
+So they are **not in `f1.db` at all**. `build.py` writes them to
+**`f1-geometry.db`**, and the two files are published side by side. ODbL
+draws exactly this line: two independent databases distributed alongside each
+other are a *Collective Database*, which it explicitly does not treat as
+derivative, so the obligation follows the file it belongs to and no further.
+
+- **Want the maps?** `python3 tools/geometry_overlay.py --apply` merges them
+  into your copy. That copy is then a Derivative Database under ODbL — fine
+  to hold, not the file to redistribute, and `verify.py` says so.
+- **Don't want ODbL at all?** Use `f1.db` and ignore the other file. Nothing
+  else in the project derives from OpenStreetMap.
+- The website merges the two **in your browser**, which is why the track maps
+  work without `f1.db` ever containing the data.
+
+The centrelines are still checked on every build — the re-measurement that
+catches Monaco's relation reading 12% long runs against the overlay.
 
 Any use of the geometry must credit **© OpenStreetMap contributors** and share
 derived geometry under ODbL. The relation ids come from
