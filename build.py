@@ -1887,6 +1887,8 @@ def build():
         SELECT COUNT(*) FROM race_entries e
         WHERE e.constructor_id = constructors.id AND e.grid = 1)""")
 
+    normalise_countries(cur)
+
     con.commit()
 
     # The ODbL centrelines leave f1.db here, before the VACUUM reclaims the
@@ -1906,6 +1908,114 @@ def build():
 
 
 GEOMETRY_DB = os.path.join(HERE, "f1-geometry.db")
+# --------------------------------------------------------------- countries
+#
+# Three tables name a country - drivers.nationality, constructors.country and
+# circuits.country - and until now they did not agree on how. The register
+# held 116 drivers from the "United States of America" and 42 from the
+# "United States", which are the same place; seven countries were coded twice
+# (Germany as GER and DEU, the Netherlands as NED and NLD); and ten
+# constructors had a DEMONYM where a country name belongs - "British",
+# "French", "Italian", "Brazilian".
+#
+# That was visible, not cosmetic. The drivers page builds its nationality
+# filter from the distinct values, so a reader got two United States to choose
+# between, showing 42 drivers and 116. Grouped, the United States is the
+# second-largest nationality in the sport at 158 - ahead of Italy - and the
+# split hid it in second AND sixth place.
+#
+# WHY THE F1DB REGISTRY DECIDES IT
+#     Either spelling would fix the split. What settles the direction is that
+#     only one of them can be CHECKED: harvest/f1db_countries.txt is a real
+#     registry of 249 countries under CC BY, so "is this a country?" has an
+#     answer the build can compute. The sporting codes - GER, SUI, NED - are
+#     what a broadcast uses and what a reader may expect, but they were typed
+#     by hand and trace to nothing, so nothing could ever tell you one was
+#     wrong. A vocabulary nothing can verify is how the split happened.
+#
+# Aliases are the values that MEAN a registry country and are spelled
+# otherwise. Every one is a rename, never a reinterpretation.
+COUNTRY_ALIASES = {
+    "United States": "United States of America",
+    # Demonyms found in constructors.country, where a country name belongs.
+    "British": "United Kingdom",
+    "French": "France",
+    "Italian": "Italy",
+    "Brazilian": "Brazil",
+}
+
+# Values that are NOT in the registry and must not be forced into it. Each is
+# a deliberate answer to a question the registry cannot express, and each says
+# why, so the next pass over this data does not quietly erase it.
+COUNTRY_EXCEPTIONS = {
+    "Rhodesia":
+        "John Love raced for Rhodesia, which no longer exists. F1DB records "
+        "him as Zimbabwean, which is the modern state and the wrong answer "
+        "for the era he raced in. Held deliberately since the podium-only "
+        "register was re-sourced to F1DB; see PODIUM_ONLY_F1DB.",
+    "Italy/UK":
+        "A constructor based in two countries at once. The registry names "
+        "one country per row and cannot say this.",
+    "United States/UK":
+        "As Italy/UK.",
+    "Germany/Switzerland":
+        "As Italy/UK.",
+}
+
+
+def normalise_countries(cur):
+    """Put every country name into the F1DB registry's vocabulary.
+
+    Renames the aliases, then sets each driver's nationality_code from the
+    registry rather than from whoever typed the row. A value that is neither
+    in the registry, an alias, nor a declared exception stops the build: it is
+    either a new spelling of a country already here, which is the defect this
+    function exists to prevent coming back, or a country nobody has looked at.
+    """
+    registry = {name: alpha3 for _cid, name, alpha3, _dem in HV.load_f1db_countries()}
+    renamed = coded = 0
+
+    for table, column in (("drivers", "nationality"),
+                          ("constructors", "country"),
+                          ("circuits", "country")):
+        for (value,) in cur.execute(
+                f'SELECT DISTINCT "{column}" FROM "{table}" '
+                f'WHERE "{column}" IS NOT NULL').fetchall():
+            if value in COUNTRY_EXCEPTIONS or value in registry:
+                continue
+            target = COUNTRY_ALIASES.get(value)
+            if target is None:
+                raise SystemExit(
+                    f"{table}.{column} holds {value!r}, which is not a country "
+                    f"in harvest/f1db_countries.txt, not an alias in "
+                    f"COUNTRY_ALIASES, and not a declared exception in "
+                    f"COUNTRY_EXCEPTIONS. Add it to one of them - a country "
+                    f"spelled a second way is how the register split before.")
+            if target not in registry:
+                raise SystemExit(
+                    f"COUNTRY_ALIASES maps {value!r} to {target!r}, which is "
+                    f"not in the registry either.")
+            cur.execute(f'UPDATE "{table}" SET "{column}" = ? '
+                        f'WHERE "{column}" = ?', (target, value))
+            renamed += cur.rowcount
+
+    # The code comes from the registry, so the same country cannot be coded
+    # two ways. Declared exceptions keep whatever they were given: the
+    # registry has no row for Rhodesia and RHO is the right code for it.
+    for (nationality,) in cur.execute(
+            "SELECT DISTINCT nationality FROM drivers "
+            "WHERE nationality IS NOT NULL").fetchall():
+        if nationality in COUNTRY_EXCEPTIONS:
+            continue
+        cur.execute("UPDATE drivers SET nationality_code = ? "
+                    "WHERE nationality = ? AND nationality_code IS NOT ?",
+                    (registry[nationality], nationality, registry[nationality]))
+        coded += cur.rowcount
+
+    print(f"  countries: {renamed} value(s) renamed into the registry's "
+          f"vocabulary, {coded} driver code(s) reset from it, "
+          f"{len(COUNTRY_EXCEPTIONS)} declared exception(s)")
+
 
 
 def split_geometry(con):

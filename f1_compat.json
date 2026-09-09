@@ -1916,7 +1916,7 @@
       },
       {
         "name": "Charles Leclerc",
-        "nationality_code": "MON",
+        "nationality_code": "MCO",
         "number": 16,
         "team": "Ferrari"
       },
@@ -1940,7 +1940,7 @@
       },
       {
         "name": "Max Verstappen",
-        "nationality_code": "NED",
+        "nationality_code": "NLD",
         "number": 3,
         "team": "Red Bull Racing"
       },
@@ -1988,7 +1988,7 @@
       },
       {
         "name": "Nico Hulkenberg",
-        "nationality_code": "GER",
+        "nationality_code": "DEU",
         "number": 27,
         "team": "Audi"
       },

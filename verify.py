@@ -1619,6 +1619,54 @@ if ngeo:
     check("no centreline claims to be a historic layout", historic == 0)
 
 
+# ---------------------------------------------------------------------------
+print("\nCOUNTRY VOCABULARY")
+# Three tables name a country, and they used to disagree about how. 116
+# drivers were from the "United States of America" and 42 from the "United
+# States"; Germany was coded GER on some rows and DEU on others; ten
+# constructors carried a demonym - "British", "French" - where a country name
+# belongs. The drivers page builds its nationality filter from the distinct
+# values, so a reader was offered two United States showing 42 and 116, and
+# the second-largest nationality in the sport sat in second AND sixth place.
+#
+# build.py now puts every value into the F1DB registry's vocabulary. These
+# checks are what stop it drifting back, and they are only possible in that
+# direction: harvest/f1db_countries.txt can answer "is this a country?", and
+# a hand-typed spelling cannot.
+import build as _B
+_registry = {name for _cid, name, _a3, _dem in _HV.load_f1db_countries()}
+_alpha3 = {name: a3 for _cid, name, a3, _dem in _HV.load_f1db_countries()}
+
+_off = []
+for _tbl, _col in (("drivers", "nationality"), ("constructors", "country"),
+                   ("circuits", "country")):
+    for _r in con.execute(f'SELECT "{_col}" v, COUNT(*) n FROM "{_tbl}" '
+                          f'WHERE "{_col}" IS NOT NULL GROUP BY 1'):
+        if _r["v"] not in _registry and _r["v"] not in _B.COUNTRY_EXCEPTIONS:
+            _off.append(f"{_tbl}.{_col}: {_r['n']} row(s) say {_r['v']!r}")
+check("every country is in the F1DB registry or a declared exception",
+      not _off, "; ".join(_off[:4]))
+
+# The code now comes from the registry, so one country cannot carry two.
+_split = con.execute("""SELECT nationality, GROUP_CONCAT(DISTINCT nationality_code) codes
+    FROM drivers WHERE nationality IS NOT NULL
+    GROUP BY nationality HAVING COUNT(DISTINCT nationality_code) > 1""").fetchall()
+check("no country is coded two different ways", not _split,
+      "; ".join(f"{r['nationality']} is {r['codes']}" for r in _split[:4]))
+
+# A declared exception that no longer appears is a note describing nothing.
+# Left as a warning rather than a failure: removing the last Rhodesian driver
+# is a legitimate edit, and this should prompt a tidy-up, not block a build.
+_unused = [v for v in _B.COUNTRY_EXCEPTIONS if not any(
+    con.execute(f'SELECT 1 FROM "{t}" WHERE "{c}" = ? LIMIT 1', (v,)).fetchone()
+    for t, c in (("drivers", "nationality"), ("constructors", "country"),
+                 ("circuits", "country")))]
+warn("every declared country exception is still in use", not _unused,
+     ", ".join(_unused))
+print(f"  [info] {len(_registry)} countries in the registry, "
+      f"{len(_B.COUNTRY_ALIASES)} alias(es), "
+      f"{len(_B.COUNTRY_EXCEPTIONS)} declared exception(s)")
+
 print("\nVIEWS")
 for v in ("v_champions", "v_title_count", "v_constructor_titles",
           "v_current_grid", "v_season_timeline", "v_unverified"):
