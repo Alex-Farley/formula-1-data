@@ -440,6 +440,29 @@ POLE_ONLY_NOTE = ("Added to the register from the pole position and fastest lap 
 # area, description, races_affected, resolution
 # ---------------------------------------------------------------------
 KNOWN_GAPS = [
+    ("fastest_lap", "the fastest lap of a race the pole harvest has not "
+     "reached yet",
+     "The fastest lap of every race comes from harvest/poles.txt, which is "
+     "written by hand. Everything else about a completed race - the "
+     "classification, the qualifying sheet, the standings, and since this "
+     "version the driver at the front of the grid - is refreshed from F1DB by "
+     "a scheduled job within a day or two of the flag. So for the week "
+     "between a Grand Prix and somebody editing that file, the site shows a "
+     "completed race with no fastest lap. Pole used to sit in the same hole "
+     "and no longer does: F1DB may now fill grid 1 where nothing else has.",
+     # 0, not 1: races_affected counts SETTLED races missing a fastest lap,
+     # and verify.py checks that total against the one real one (2021 Belgium,
+     # where no racing lap was ever set). This gap is about the current season
+     # being temporarily behind, which is a warning and not a hole in the
+     # record.
+     0,
+     "F1DB publishes the fastest lap per race in its own file, which "
+     "tools/f1db_fetch.py does not read - it takes race-results.yml and not "
+     "the fastest-lap results beside it. Adding that reader, a "
+     "harvest/fastest_laps.txt beside the others, and a loader that fills "
+     "race_entries.fastest_lap only where the harvest has not, closes this "
+     "the same way pole was closed. Until then verify.py warns for the "
+     "current season, which is the signal that the harvest is behind."),
     ("finish_position", "shared drives, and where two sources read a race "
      "differently",
      "CLOSED in v2.15, and by a licence rather than a harvest. The full "

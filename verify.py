@@ -403,6 +403,48 @@ multi = con.execute("""SELECT race_id, COUNT(*) n FROM race_entries
     WHERE grid = 1 GROUP BY race_id HAVING n > 1""").fetchall()
 check("no race has two cars on pole", not multi, f"{len(multi)} races")
 
+# race_results.pole_id is a VIEW over race_entries.grid = 1, so a completed
+# race with nothing at grid 1 has no pole at all -- it is not a blank waiting
+# to be filled, it is a race the site publishes with the field empty and every
+# pole cross-check silently skips. That was the state of 2026 round 13 for the
+# week between the race and this check existing: the pole harvest is written by
+# hand and F1DB, which refreshes on a schedule, was being refused grid 1 on the
+# grounds that the harvest owned it.
+nogrid = con.execute("""SELECT r.year, r.round FROM races r
+    WHERE r.status = 'completed'
+      AND NOT EXISTS (SELECT 1 FROM race_entries e
+                      WHERE e.race_id = r.id AND e.grid = 1)
+    ORDER BY r.year, r.round""").fetchall()
+check("every completed race has a car at the front of the grid",
+      not nogrid, "; ".join(f"{y} r{r}" for y, r in nogrid[:5]))
+
+# Where the two sources disagree about who STARTED first, one of them is
+# wrong -- this is not the pole/qualifying distinction, which is two different
+# questions. build.py records each such race in discrepancies; this pins the
+# count so a new one has to be looked at rather than joining a crowd.
+gridrow = con.execute("""SELECT COUNT(*) FROM discrepancies
+    WHERE field = 'grid position 1'""").fetchone()[0]
+check("the sources agree on the front row, bar the one known race",
+      gridrow == 1, f"{gridrow} races where the harvest and F1DB disagree")
+
+# The 13 races where the driver at grid 1 was not the fastest qualifier. Every
+# one is a penalty or a grid set by a sprint, and both readings are true of
+# what they describe; they are recorded rather than resolved. The count is
+# checked so that a fourteenth arrives as a question rather than as noise.
+split = con.execute("""SELECT COUNT(*) FROM (
+    SELECT r.id FROM races r
+     WHERE r.status = 'completed'
+       AND (SELECT e.driver_id FROM race_entries e
+             WHERE e.race_id = r.id AND e.grid = 1) IS NOT NULL
+       AND (SELECT q.driver_id FROM qualifying q
+             WHERE q.race_id = r.id AND q.position = 1) IS NOT NULL
+       AND (SELECT e.driver_id FROM race_entries e
+             WHERE e.race_id = r.id AND e.grid = 1)
+        != (SELECT q.driver_id FROM qualifying q
+             WHERE q.race_id = r.id AND q.position = 1))""").fetchone()[0]
+check("pole and the front of the grid part company only where they should",
+      split == 13, f"{split} races (13 known: penalties and sprint-set grids)")
+
 multi = con.execute("""SELECT race_id, COUNT(*) n FROM race_entries
     WHERE finish_position = 1 GROUP BY race_id HAVING n > 1""").fetchall()
 bad = [m for m in multi if con.execute("""SELECT COUNT(*) FROM race_entries

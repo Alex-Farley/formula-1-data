@@ -1163,6 +1163,7 @@ def build():
             (int(row["year"]), int(row["round"])), []).append(row)
 
     res_rows = res_skipped_driver = res_races = 0
+    grid_disagreements = []
     unknown_drivers = set()
     for (yr, rnd), rows in sorted(results_by_race.items()):
         rid = race_key.get((yr, rnd))
@@ -1206,17 +1207,46 @@ def build():
                                         (cons,)).fetchone():
                 cons = None
             pos = int(r["position"]) if r["position"] else None
-            # Grid is taken from F1DB EXCEPT where it is 1, for the reason the
-            # podium loader gives above: a shared drive hands the car's grid
-            # slot to both drivers, and pole is a single established fact per
-            # race that the pole harvest already owns.
-            # Grid is taken from F1DB EXCEPT where it is 1, for the reason
-            # the podium loader gives above. "PL" is a pit-lane start and is
-            # not a number; it is kept as text rather than discarded.
+            # "PL" is a pit-lane start and is not a number; it is kept as text
+            # rather than discarded.
+            #
+            # GRID 1 IS THE INTERESTING CASE. race_results.pole_id is a view
+            # over race_entries.grid = 1 -- pole here MEANS the driver who
+            # started from the front of the grid, not the fastest qualifier --
+            # so a second row claiming grid 1 would not merely be wrong, it
+            # would make the view emit the race twice.
+            #
+            # This used to refuse F1DB's grid 1 outright, on the grounds that
+            # pole is a single fact the pole harvest already owns. That is
+            # true right up until the harvest is behind, which it is for a
+            # week after every Grand Prix: harvest/poles.txt is hand-written
+            # and F1DB refreshes on a schedule. In that window the race had NO
+            # entry at grid 1 at all, so it had no pole, the site published a
+            # completed race with the field blank, and the pole cross-check
+            # below silently did not run for it -- it only compares where a
+            # stored pole exists. 2026 round 13 was sitting in exactly that
+            # state.
+            #
+            # So F1DB may now supply grid 1, but only into a vacancy: if any
+            # other entry in this race already holds it, the harvest (or an
+            # earlier F1DB row) wins and this one keeps its grid_text alone.
+            # verify.py asserts the invariant that makes the view safe.
             grid_text = r["grid"] or None
-            grid = (int(r["grid"])
-                    if r["grid"] and r["grid"].isdigit() and r["grid"] != "1"
-                    else None)
+            grid = int(r["grid"]) if r["grid"] and r["grid"].isdigit() else None
+            if grid == 1:
+                held = cur.execute(
+                    """SELECT driver_id FROM race_entries
+                        WHERE race_id=? AND grid=1 AND driver_id!=?""",
+                    (rid, did)).fetchone()
+                if held:
+                    # Two sources naming different drivers at the front of the
+                    # same grid is a disagreement, not a tie to be broken
+                    # quietly. The harvest keeps the slot -- it is the older
+                    # and hand-checked source, and the view depends on there
+                    # being exactly one -- and the other reading is recorded
+                    # so that somebody can look at it.
+                    grid = None
+                    grid_disagreements.append((yr, rnd, held[0], did))
             cur.execute("""INSERT INTO race_entries (race_id, driver_id,
                     constructor_id, entrant, grid, grid_text,
                     finish_position, position_text, shared_drive, classified,
@@ -1245,6 +1275,22 @@ def build():
                  float(r["points"]) if r["points"] else None,
                  HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
             res_rows += 1
+
+    for yr_, rnd_, ours_, theirs_ in grid_disagreements:
+        cur.execute("""INSERT INTO discrepancies (subject, field,
+            stored_value, derived_value, assessment, status)
+            VALUES (?,?,?,?,?,?)""",
+            (f"{yr_} round {rnd_}", "grid position 1", ours_, theirs_,
+             "The pole harvest and F1DB name different drivers at the front "
+             "of the grid, and unlike the qualifying disagreement they are "
+             "describing the SAME thing - so one of them is wrong. Every "
+             "other race where grid 1 is not the fastest qualifier is a "
+             "penalty or a sprint-set grid, and grid 1 still names whoever "
+             "started there. Here the harvest has recorded the fastest "
+             "qualifier instead, which is what 'pole' means from 2022 but not "
+             "what this column holds. The harvest keeps the slot because "
+             "race_results.pole_id is a view over grid = 1 and a second "
+             "claimant would emit the race twice.", "open"))
 
     if res_rows:
         print(f"  race results: {res_rows} entries over {res_races} races "

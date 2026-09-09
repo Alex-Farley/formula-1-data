@@ -303,6 +303,24 @@ try {
     'the page explains why a position repeats',
   )
 
+  /*
+   * A race where the driver on pole is not the driver who was quickest. The
+   * page holds race_results' pole -- whoever started at the front -- and a
+   * reader who knows the sport reads that as an error unless the page says
+   * why. There are thirteen such races and verify.py pins the count.
+   */
+  console.log('\n/races/2021/10  (pole is not the fastest qualifier)')
+  await go('/races/2021/10')
+  const front = await page.content()
+  truthy(front.includes('Fastest qualifier'), 'the page distinguishes pole from the fastest qualifier')
+  truthy(
+    front.includes(one(`SELECT d.full_name FROM qualifying q JOIN drivers d ON d.id = q.driver_id
+                         JOIN races r ON r.id = q.race_id
+                        WHERE r.year = 2021 AND r.round = 10 AND q.position = 1`)),
+    'and names the driver who actually set the time',
+  )
+  truthy(front.includes('set by the sprint'), 'and says the sprint set the grid')
+
   console.log('\n/races')
   await go('/races', 'Races')
   is((await tableRows())[0], count('SELECT COUNT(*) FROM races'), 'every race is listed')

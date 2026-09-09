@@ -380,7 +380,9 @@ const titled = (headline) => `${headline} — ${SITE}`
     `SELECT r.id, r.year, r.round, r.name_used, r.dates, r.status, r.sprint, r.note,
             r.circuit_id, c.name AS circuit, c.locality, c.country, c.length_km, c.turns,
             rr.winner_id, rr.winner, rr.constructor_id, rr.constructor, rr.entrant,
-            rr.pole, rr.pole_id, rr.fastest_lap, rr.fastest_lap_id, rr.confidence, rr.source
+            rr.pole, rr.pole_id, rr.fastest_lap, rr.fastest_lap_id, rr.confidence, rr.source,
+            (SELECT q.driver_id FROM qualifying q
+              WHERE q.race_id = r.id AND q.position = 1) AS quickest_id
        FROM races r
        LEFT JOIN circuits c ON c.id = r.circuit_id
        LEFT JOIN race_results rr ON rr.year = r.year AND rr.round = r.round
@@ -465,7 +467,24 @@ const titled = (headline) => `${headline} — ${SITE}`
                 ['Winner', driver(r.winner_id, r.winner)],
                 ['Constructor', team(r.constructor_id, r.constructor)],
                 ['Entrant', text(r.entrant)],
+                // "Pole position" here is whoever started at the front, which
+                // is what race_results holds. Where the fastest qualifier was
+                // someone else -- a grid penalty, or a sprint that set the
+                // grid -- saying so is the difference between a page that
+                // looks wrong and a page that explains itself.
                 ['Pole position', r.pole_id ? driver(r.pole_id, r.pole) : text(r.pole)],
+                ...(r.quickest_id && r.pole_id && r.quickest_id !== r.pole_id
+                  ? [[
+                      'Fastest qualifier',
+                      `${driver(r.quickest_id)} <span class="faint">— started ${text(
+                        one(
+                          'SELECT grid_text FROM race_entries WHERE race_id = ? AND driver_id = ?',
+                          r.id,
+                          r.quickest_id,
+                        )?.grid_text,
+                      )}${r.sprint ? ', the grid having been set by the sprint' : ', after a grid penalty'}</span>`,
+                    ]]
+                  : []),
                 ['Fastest lap', r.fastest_lap_id ? driver(r.fastest_lap_id, r.fastest_lap) : text(r.fastest_lap)],
                 ['Confidence', text(r.confidence)],
               ]),
