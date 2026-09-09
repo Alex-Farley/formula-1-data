@@ -30,7 +30,20 @@ from collections import Counter
 
 DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "f1.db")
 
+# Set F1_LOCAL_TIMING=1 when you have deliberately loaded FOM-owned timing onto
+# a LOCAL copy. It downgrades the licence section from failure to warning: the
+# load is legitimate, the resulting file is simply not yours to publish. Never
+# set it in CI, and never commit a database built with it.
+LOCAL_TIMING = os.environ.get("F1_LOCAL_TIMING") == "1"
+
 con = None
+
+# The OpenStreetMap centrelines live in their own database beside this one —
+# ODbL carries share-alike and a database right, and keeping them out of f1.db
+# is what stops twenty-five rows setting the licence of 117,000. See
+# split_geometry() in build.py. They still have to be CHECKED, so the overlay is
+# attached when it exists and the geometry section reads through GEO.
+GEO = "circuit_geometry"
 fails, warns = [], []
 
 # Four values used to be assigned in one section and read in a later one, so a
@@ -1571,6 +1584,149 @@ def the_full_classification():
               not bad_order, "; ".join(bad_order[:3]))
 
 
+# ---------------------------------------------------------------------------
+# REDISTRIBUTION
+#
+# Six tables can hold data this project is not permitted to publish. Per-lap
+# timing, stints, pit stops, race control and the team radio index come from
+# the Formula 1 live timing API via FastF1, whose guidance is personal and
+# non-commercial use, or from Jolpica, whose Ergast lineage is CC BY-NC-SA.
+# Both are loaded onto a LOCAL copy by tools/ and neither is committed. See
+# LICENSE-DATA and ATTRIBUTION.md.
+#
+# That policy has always been true and was never enforced. It lived in a
+# sentence in a licence file and in the habit of not running the loaders
+# before a commit, which is not a control - `git add f1.db` after an
+# afternoon with --timing is an ordinary mistake with a licence breach on the
+# other side of it. This section is the control.
+#
+# The empty tables are checked for being EMPTY. pit_stops and team_radio are
+# checked by SOURCE, because both legitimately hold rows from elsewhere:
+# 22,472 pit stops from F1DB under CC BY, and six radio exchanges quoted from
+# Wikipedia articles.
+# ---------------------------------------------------------------------------
+@section('REDISTRIBUTION')
+def redistribution():
+    verdict = warn if LOCAL_TIMING else check
+    if LOCAL_TIMING:
+        print("  [info] F1_LOCAL_TIMING=1 - this database may hold FOM-owned "
+              "timing. It is not publishable and must not be committed.")
+
+    for table, what in (
+            ("laps", "per-lap timing"),
+            ("stints", "tyre stints"),
+            ("race_timing", "race timing summaries"),
+            ("race_control_messages", "race control messages")):
+        n = con.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+        verdict(f"{table} holds no FOM-owned {what}", n == 0, f"{n} rows")
+
+    # 'f1db' is the only pit stop source that may be published. The loaders
+    # write 'jolpica' and 'fastf1', and both are barred.
+    bad = con.execute("""SELECT source, COUNT(*) n FROM pit_stops
+        WHERE source IS NOT NULL AND source <> 'f1db'
+        GROUP BY source""").fetchall()
+    verdict("every pit stop comes from F1DB", not bad,
+            "; ".join(f"{r['n']} from {r['source']}" for r in bad))
+
+    # The six committed exchanges are quoted from Wikipedia race articles.
+    # A radio row indexed from the live timing API is FOM's audio.
+    bad = con.execute("""SELECT COUNT(*) FROM team_radio
+        WHERE source = 'fastf1'""").fetchone()[0]
+    verdict("no team radio row was indexed from the live timing API",
+            bad == 0, f"{bad} rows")
+
+    # OpenStreetMap is ODbL: share-alike AND a database right. A database
+    # derived from it is a Derivative Database and must itself be published
+    # under ODbL, which would let twenty-five centrelines set the licence of
+    # 117,000 rows that have nothing to do with them. So f1.db carries none
+    # of it, and the centrelines ship as f1-geometry.db beside it - two
+    # independent databases, which ODbL calls a Collective Database and
+    # explicitly does not treat as derivative.
+    #
+    # A local copy with the overlay merged in (tools/geometry_overlay.py
+    # --apply) is a Derivative Database and is fine to hold; it is simply not
+    # the file to publish. F1_LOCAL_TIMING says this copy is one of those.
+    n = con.execute("SELECT COUNT(*) FROM main.circuit_geometry").fetchone()[0]
+    verdict("f1.db carries no ODbL geometry — it ships as f1-geometry.db",
+            n == 0, f"{n} rows")
+
+    # ---------------------------------------------------------------- classes
+    #
+    # The tables above are the ones a loader can fill by accident. This is the
+    # general rule underneath them: EVERY row that cites a source at all must
+    # cite one the registry says may be published.
+    #
+    # It is the rule that item 1 of the commercial-readiness pass applied by
+    # hand. Seventy-two rows cited Jolpica, whose Ergast lineage is
+    # CC BY-NC-SA, and nothing could see it - knowing the licence of a row
+    # meant reading a paragraph in source_registry and recognising which of
+    # sixteen sources a URL belonged to. Fixing the instances is worth little
+    # if the next one arrives the same way, so the class is now a column and
+    # this resolves every row against it.
+    #
+    # 'facts-only' passes. This database cites the official sources as the
+    # AUTHORITY for a fact - a race winner, a circuit length, a points total -
+    # and holds none of their prose. Facts are not copyrightable and restating
+    # them is not redistribution. What that class forbids is copying their
+    # expression, which no row here does; docs/COMMERCIAL-READINESS.md records
+    # the reading that established it.
+    registry = con.execute(
+        "SELECT priority, source, redistributable, share_alike, "
+        "attribution_required, domains FROM source_registry "
+        "WHERE domains IS NOT NULL").fetchall()
+
+    # Several entries may share a host - five of them are formula1.com, two
+    # are en.wikipedia.org. Where they do, they must agree, or the class a row
+    # resolves to would depend on which entry was read first.
+    seen, disagree = {}, []
+    for row in registry:
+        for domain in (d.strip() for d in row["domains"].split(",")):
+            if not domain:
+                continue
+            terms = (row["redistributable"], row["share_alike"],
+                     row["attribution_required"])
+            if seen.setdefault(domain, (terms, row["source"]))[0] != terms:
+                disagree.append(f"{domain}: {row['source']} vs {seen[domain][1]}")
+    check("registry entries sharing a host agree on what it permits",
+          not disagree, "; ".join(disagree))
+    classes = {domain: terms for domain, (terms, _) in seen.items()}
+
+    def resolve(value):
+        """The licence class a row's `source` falls under, or None."""
+        text = str(value).strip()
+        host = re.match(r"https?://([^/]+)", text)
+        key = host.group(1).lower() if host else text.lower()
+        if key in classes:
+            return classes[key]
+        # www.formula1.com -> formula1.com, api.openstreetmap.org -> ...
+        return next((terms for domain, terms in classes.items()
+                     if key.endswith("." + domain)), None)
+
+    unknown, forbidden = [], []
+    for (table,) in con.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' "
+            "AND name <> 'source_registry' ORDER BY name").fetchall():
+        columns = [c[1] for c in con.execute('PRAGMA table_info("%s")' % table)]
+        if "source" not in columns:
+            continue
+        rows = con.execute(
+            'SELECT source, COUNT(*) FROM "%s" WHERE source IS NOT NULL '
+            "AND TRIM(source) <> '' GROUP BY source" % table).fetchall()
+        for value, n in rows:
+            terms = resolve(value)
+            if terms is None:
+                unknown.append(f"{table}: {n} row(s) cite {value}")
+            elif terms[0] == "no":
+                forbidden.append(f"{table}: {n} row(s) cite {value}")
+
+    # An unrecognised source is not a pass. It is a row whose licence nobody
+    # has decided, which is the state every problem this pass fixed began in.
+    check("every cited source is one the registry classifies",
+          not unknown, "; ".join(unknown[:4]))
+    verdict("no row cites a source that may not be redistributed",
+            not forbidden, "; ".join(forbidden[:4]))
+
+
 @section('ILLUSTRATION AND GEOMETRY')
 def illustration_and_geometry():
     # Two tables that hold pointers to things this repository does not contain:
@@ -1579,7 +1735,7 @@ def illustration_and_geometry():
     # to follow and that the shape agrees with a number held independently.
 
     nimg = con.execute("SELECT COUNT(*) FROM article_images").fetchone()[0]
-    ngeo = con.execute("SELECT COUNT(*) FROM circuit_geometry").fetchone()[0]
+    ngeo = con.execute(f"SELECT COUNT(*) FROM {GEO}").fetchone()[0]
     print(f"  [info] {nimg} article images, {ngeo} circuit centrelines")
 
     if nimg:
@@ -1642,7 +1798,7 @@ def illustration_and_geometry():
 
         bad_len, unclosed, bad_layout, worst = [], [], [], 0.0
         bad_topo = []
-        for r in con.execute("SELECT * FROM circuit_geometry"):
+        for r in con.execute(f"SELECT * FROM {GEO}"):
             geo = _json.loads(r["centreline"])
             metres = 0.0
             for line in geo["coordinates"]:
@@ -1715,7 +1871,7 @@ def illustration_and_geometry():
         # OSM maps what is on the ground. A trace cannot be of a configuration
         # that no longer exists, so it may never be attached to a layout whose
         # timeline has closed.
-        historic = con.execute("""SELECT COUNT(*) FROM circuit_geometry g
+        historic = con.execute(f"""SELECT COUNT(*) FROM {GEO} g
             JOIN circuit_layouts l ON l.circuit_id = g.circuit_id
                                   AND l.layout_key = g.layout_key
             WHERE l.to_year IS NOT NULL""").fetchone()[0]
@@ -1796,14 +1952,30 @@ def views():
 
 
 def main(argv):
-    global con
+    global con, GEO, DB
+    # --db PATH checks a database other than the one beside this file. CI uses
+    # it to check the COMMITTED f1.db before build.py overwrites it, which is
+    # the only moment a database carrying non-redistributable rows can be
+    # caught.
+    if "--db" in argv:
+        i = argv.index("--db") + 1
+        if i >= len(argv):
+            print("--db needs a path to a database", file=sys.stderr)
+            return 2
+        DB = argv[i]
+
     if "--list" in argv:
         for name, (title, _) in SECTIONS.items():
             print(f"  {name:52} {title}")
         return 0
 
     wanted = None
-    if "--only" in argv:
+    # --redistribution-only runs the licence section and nothing else. It is a
+    # second of work against any database, so it can run in places the full
+    # suite would be too slow for.
+    if "--redistribution-only" in argv:
+        wanted = ["redistribution"]
+    elif "--only" in argv:
         terms = [a.lower() for a in argv[argv.index("--only") + 1:] if not a.startswith("-")]
         if not terms:
             print("--only needs a name, or a fragment of one.", file=sys.stderr)
@@ -1817,6 +1989,14 @@ def main(argv):
     con = sqlite3.connect(DB)
     con.row_factory = sqlite3.Row
     con.execute("PRAGMA foreign_keys=ON")
+
+    # A merged local copy (tools/geometry_overlay.py) is checked exactly as it
+    # always was; a split one reads the centrelines through the attachment.
+    geo_db = os.path.join(os.path.dirname(os.path.abspath(DB)), "f1-geometry.db")
+    if os.path.exists(geo_db) and not con.execute(
+            "SELECT COUNT(*) FROM circuit_geometry").fetchone()[0]:
+        con.execute("ATTACH DATABASE ? AS geo", (geo_db,))
+        GEO = "geo.circuit_geometry"
 
     for name, (title, fn) in SECTIONS.items():
         if wanted is not None and name not in wanted:

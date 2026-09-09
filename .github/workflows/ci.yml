@@ -26,6 +26,15 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      # BEFORE the rebuild, because build.py overwrites f1.db and would
+      # destroy the evidence. Six tables can hold timing data owned by
+      # Formula One Management, loaded onto a local copy by tools/ and never
+      # redistributable. This is the only moment a commit carrying them can
+      # be caught: after the next step the file is a fresh build and clean by
+      # construction. See LICENSE-DATA.
+      - name: Check the committed database carries nothing unpublishable
+        run: python3 verify.py --redistribution-only
+
       # No dependencies: everything but tools/fastf1_load.py is stdlib only.
       - name: Rebuild the database
         run: python3 build.py
@@ -63,6 +72,20 @@ jobs:
             exit 1
           fi
           test -s f1_database.json || { echo "::error::the full export was not written"; exit 1; }
+
+          # The two databases are byte-stable across rebuilds, so a difference
+          # here means the committed copy is stale rather than that the build
+          # is noisy. f1.db matters most during a multi-branch merge: git
+          # cannot merge a 20 MB binary, the resolution is always to rebuild,
+          # and without this a forgotten rebuild ships silently — every other
+          # step runs against the database CI just rebuilt, not the one in the
+          # commit.
+          if ! git diff --quiet -- f1.db f1-geometry.db; then
+            echo "::error::The committed databases do not match a fresh build."
+            echo "Run 'python3 build.py' and commit the result."
+            git diff --stat -- f1.db f1-geometry.db
+            exit 1
+          fi
 
       - name: Smoke-test the query tool
         run: |

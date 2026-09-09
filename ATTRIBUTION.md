@@ -3,6 +3,12 @@
 Read this before making the repository public. The code and the data are in
 different positions, and the data has an obligation attached to it.
 
+`docs/COMMERCIAL-READINESS.md` is the companion to this file: where this one
+records what each source requires, that one records which rows were read
+against those requirements, what they were found to hold, and which of those
+findings the build now enforces rather than trusting. `./f1 licences` prints
+the current position from the rows themselves.
+
 ## Where the data came from
 
 | Part | Source | Roughly how much |
@@ -91,7 +97,9 @@ In practice that means one of:
 
 The database also quotes six team radio exchanges verbatim. They are short,
 attributed, and used to document historical events, which is the ordinary
-case for quotation — but they are quotations, not facts.
+case for quotation — but they are quotations, not facts. Keeping them was a
+decision rather than an oversight; `docs/COMMERCIAL-READINESS.md` records what
+was weighed, and when it would be worth revisiting.
 
 *This is a description of the licences involved, not legal advice.*
 
@@ -121,7 +129,7 @@ Three things are enforced, at harvest time and again on every build:
 - it must name someone to attribute. Eight files were refused on the run that
   produced the committed data: seven name no author, one states no licence.
 
-### OpenStreetMap — ODbL 1.0, and why it is confined to one table
+### OpenStreetMap — ODbL 1.0, and why it ships in a file of its own
 
 `circuit_geometry` holds circuit centrelines traced from OpenStreetMap, which
 is licensed
@@ -130,11 +138,29 @@ is licensed
 obligation than anything else here, and notably stronger than the CC BY that
 made F1DB attractive.
 
-It is therefore deliberately quarantined: **`circuit_geometry` is the only
-table derived from OpenStreetMap**, nothing else in the database depends on
-it, and dropping the table removes the obligation entirely. If you would
-rather not take ODbL on, do not run `tools/osm_geometry.py`; everything else
-builds and verifies without it.
+Stronger in a specific way that matters: ODbL reaches the **whole database**
+its data lands in. A database derived from an ODbL one is a *Derivative
+Database* and must itself be published under ODbL. Confining the rows to one
+table is not enough, because the table is inside the database — twenty-five
+centrelines would set the licence of 117,000 rows that have nothing to do
+with them.
+
+So they are **not in `f1.db` at all**. `build.py` writes them to
+**`f1-geometry.db`**, and the two files are published side by side. ODbL
+draws exactly this line: two independent databases distributed alongside each
+other are a *Collective Database*, which it explicitly does not treat as
+derivative, so the obligation follows the file it belongs to and no further.
+
+- **Want the maps?** `python3 tools/geometry_overlay.py --apply` merges them
+  into your copy. That copy is then a Derivative Database under ODbL — fine
+  to hold, not the file to redistribute, and `verify.py` says so.
+- **Don't want ODbL at all?** Use `f1.db` and ignore the other file. Nothing
+  else in the project derives from OpenStreetMap.
+- The website merges the two **in your browser**, which is why the track maps
+  work without `f1.db` ever containing the data.
+
+The centrelines are still checked on every build — the re-measurement that
+catches Monaco's relation reading 12% long runs against the overlay.
 
 Any use of the geometry must credit **© OpenStreetMap contributors** and share
 derived geometry under ODbL. The relation ids come from
@@ -202,7 +228,21 @@ which F1DB does not carry.
 `tools/fastf1_load.py` reads the Formula 1 live timing API through
 [FastF1](https://github.com/theOehrly/Fast-F1) (MIT). That data is Formula One
 Management's. FastF1's own guidance is that it is for personal and
-non-commercial use, and this project neither redistributes it nor ships it:
-the `laps`, `stints`, `pit_stops`, `race_control_messages` and `team_radio`
-tables are empty in the committed database and are filled only when *you* run
-the loader. Do not commit them back.
+non-commercial use, and this project neither redistributes it nor ships it.
+`laps`, `stints`, `race_timing` and `race_control_messages` are empty in the
+committed database and are filled only when *you* run the loader.
+
+`pit_stops` and `team_radio` are **not** empty, and the difference matters.
+Both hold rows from elsewhere — 22,472 pit stops from F1DB under CC BY 4.0,
+and six radio exchanges quoted from Wikipedia race articles — so the rule for
+them is by SOURCE, not by emptiness: a `pit_stops` row from anything but
+`f1db`, or a `team_radio` row sourced `fastf1`, is FOM's and may not be
+committed.
+
+Do not commit any of them back. This is no longer only a request:
+`verify.py` has a REDISTRIBUTION section that fails on all six conditions,
+and CI runs it against the *committed* database before the rebuild, which is
+the only moment such a commit can be caught. If you have deliberately loaded
+timing onto a local copy, `F1_LOCAL_TIMING=1` downgrades those failures to
+warnings so the rest of the suite is still usable — the load is legitimate,
+the resulting file is simply not yours to publish.

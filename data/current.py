@@ -506,6 +506,78 @@ TABLE_PROVENANCE = [
     ("circuit_geometry", 16, 0, None),
 ]
 
+
+# priority -> (redistributable, share_alike, attribution_required, domains)
+#
+# The prose in `licence` above is written for a person. This is the same
+# judgement written for the BUILD, and it exists because a licence nobody can
+# query is a licence nobody enforces: a CC BY-NC citation sat in the committed
+# database for seven versions because knowing it was there meant reading a
+# paragraph and recognising which of sixteen sources a URL belonged to.
+#
+#   yes         may be redistributed on the terms given
+#   facts-only  the FACTS may be restated - a race winner, a circuit length
+#               and a points total are not copyrightable - but none of the
+#               source's own expression may be copied and no substantial
+#               extraction of its database made. This is the correct class
+#               for the official sources: this database cites them as the
+#               AUTHORITY for a fact, and holds none of their prose.
+#   no          may not be redistributed at all. verify.py fails if any row
+#               in the committed database cites one.
+#
+# `domains` is how a row's `source` is recognised: hostnames, plus the bare
+# tokens the loaders write. NULL where no row ever cites the entry.
+SOURCE_LICENCE = {
+    # The official sources. Every row citing one holds a fact and nothing
+    # else - see docs/COMMERCIAL-READINESS.md, which classifies all 539.
+    1:  ("facts-only", 0, 0, "fia.com"),
+    2:  ("facts-only", 0, 0, "fia.com"),
+    3:  ("facts-only", 0, 0, "formula1.com"),
+    4:  ("facts-only", 0, 0, "formula1.com"),
+    5:  ("facts-only", 0, 0, "formula1.com"),
+    6:  ("facts-only", 0, 0, "formula1.com"),
+    7:  ("facts-only", 0, 0, "formula1.com"),
+
+    # Wikipedia. Share-alike reaches the prose taken from it, which is why
+    # the whole data release is CC BY-SA - see LICENSE-DATA.
+    8:  ("yes", 1, 1, "en.wikipedia.org"),
+    11: ("yes", 1, 1, "en.wikipedia.org"),
+    # 17 arrived on a branch that predates these columns, and the build's
+    # refusal to guess is what caught it at the merge. Same site, same licence
+    # as 8 and 11.
+    17: ("yes", 1, 1, "en.wikipedia.org"),
+
+    # Forbidden as authority, and pointed at by nothing.
+    9:  ("no", 0, 0, None),
+
+    # F1DB. Attribution only, no share-alike, no non-commercial clause - the
+    # most permissive licence here and the reason the full classification
+    # ships. `f1db` is the bare token pit_stops carries.
+    10: ("yes", 0, 1, "github.com,f1db"),
+
+    # Non-commercial or FOM-owned. Loaded onto a local copy by tools/ and
+    # never committed; the REDISTRIBUTION section in verify.py enforces it.
+    12: ("no", 1, 1, "api.jolpi.ca,jolpica"),
+    13: ("no", 0, 0, "openf1.org"),
+    14: ("no", 0, 0, "fastf1"),
+
+    # Sixteen distinct file licences, all free, all requiring attribution.
+    # share_alike is set because most of them are a CC BY-SA version and the
+    # conservative reading is the one to record here; the per-file licence on
+    # the row is what actually governs each image.
+    15: ("yes", 1, 1, "commons.wikimedia.org,upload.wikimedia.org"),
+
+    # ODbL: share-alike AND a database right, confined to circuit_geometry.
+    16: ("yes", 1, 1, "openstreetmap.org"),
+
+    # The project's own writing. It has no upstream to be licensed FROM and no
+    # domain to match a URL against, so it takes the licence the release itself
+    # carries. Nothing here may sit above 'medium' - see the authored ceiling
+    # in build.py and docs/DERIVED-CONFIDENCE.md - but that is a confidence
+    # question, not a redistribution one: it is ours to publish.
+    18: ("yes", 1, 1, None),
+}
+
 PROVENANCE = [
     ("verified", 1, "Checked directly against an official FIA or Formula 1 source during database construction. Safe to state as fact and to cite.", 1),
     ("high", 2, "A well-established record, consistently published in official sources over many years. Safe to rely on; cite the official archive if publishing.", 1),

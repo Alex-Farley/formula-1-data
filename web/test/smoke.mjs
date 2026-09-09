@@ -28,7 +28,7 @@
 import { spawn } from 'node:child_process'
 import { DatabaseSync } from 'node:sqlite'
 import { dirname, join } from 'node:path'
-import { existsSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -42,6 +42,15 @@ if (!existsSync(join(web, 'dist', 'index.html'))) {
 }
 
 const db = new DatabaseSync(join(web, '..', 'f1.db'), { readOnly: true })
+
+// The ODbL centrelines are not in f1.db — OpenStreetMap's share-alike and
+// database right would reach the whole file, so build.py writes them to
+// f1-geometry.db and the two ship side by side as a Collective Database. The
+// app merges them in the browser; this attaches them so the test can ask the
+// same questions of the same rows. See tools/geometry_overlay.py.
+const geometryPath = join(web, '..', 'f1-geometry.db')
+const hasGeometry = existsSync(geometryPath)
+if (hasGeometry) db.exec(`ATTACH DATABASE '${geometryPath}' AS geo`)
 const one = (sql, ...args) => Object.values(db.prepare(sql).get(...args))[0]
 const count = (sql, ...args) => one(sql, ...args)
 
@@ -96,6 +105,89 @@ async function serve() {
     }
   }
   throw new Error('the preview server never came up')
+}
+
+// --------------------------------------------------- attribution, structurally
+
+/**
+ * Nothing may render a Commons photograph except CommonsImage.
+ *
+ * Every one of the 602 files carries its own licence, and almost all of those
+ * licences make attribution a condition rather than a courtesy. The component
+ * puts the credit in the caption so no caller has to remember to — but that
+ * only holds while the component is the ONLY way an image reaches the page.
+ * One `<img src={thumbUrl(...)}>` somewhere else and the obligation is
+ * silently gone, on a page that looks fine.
+ *
+ * So this is checked in the source rather than in the browser: a rendered-page
+ * assertion can only see the pages it visits, and the bypass would be on the
+ * one it does not. It reads the files instead, and fails on a second <img> tag
+ * or a second thumbUrl() call anywhere in src/.
+ */
+function sourceFiles(dir) {
+  return readdirSync(dir).flatMap((entry) => {
+    const full = join(dir, entry)
+    if (statSync(full).isDirectory()) return sourceFiles(full)
+    return /\.jsx?$/.test(entry) ? [full] : []
+  })
+}
+
+console.log('\nAttribution')
+{
+  // Anything that renders a Commons photograph must render its credit, and
+  // must get that credit from the one shared rule.
+  //
+  // The first version of this said only CommonsImage may render an <img>.
+  // That was too narrow, and merging main proved it: the cars gallery renders
+  // its own <img> because its card puts the picture inside a link and the
+  // credit below the body text, which a <figure> cannot express. The gallery
+  // was not wrong to exist — it was wrong to write out its own credit line,
+  // which it did WITHOUT the `credit` fallback, so an attributed photograph
+  // would have read "photographer not recorded". Two answers to one licence
+  // obligation is the actual defect, not two <img> tags.
+  //
+  // So the rule is: render a Commons file, import the shared credit. This is
+  // checked in the SOURCE because a rendered-page assertion only sees the
+  // pages it visits, and the bypass would be on the one it does not.
+  const SANCTIONED = [
+    join(web, 'src', 'components', 'CommonsImage.jsx'),
+    join(web, 'src', 'components', 'CommonsCredit.jsx'),
+    join(web, 'src', 'lib', 'commons.js'),
+  ]
+  const offenders = []
+  for (const file of sourceFiles(join(web, 'src'))) {
+    if (SANCTIONED.includes(file)) continue
+    const text = readFileSync(file, 'utf8')
+    const rel = file.slice(web.length + 1)
+    const showsCommons = /\bthumbUrl\s*\(/.test(text) || /\bCommonsImage\b/.test(text)
+    if (!showsCommons) {
+      // A file with no Commons file in it may still not invent a credit.
+      if (/photographer not recorded|licence not recorded/.test(text)) {
+        offenders.push(`${rel} writes its own credit line`)
+      }
+      continue
+    }
+    const credited = /\bCommonsImage\b/.test(text) || /\bCommonsCredit\b/.test(text)
+    if (!credited) offenders.push(`${rel} shows a Commons file with no shared credit`)
+    if (/\bcanShow\b/.test(text) === false && /\bthumbUrl\s*\(/.test(text)) {
+      offenders.push(`${rel} shows a Commons file without checking canShow()`)
+    }
+  }
+  if (offenders.length === 0) {
+    pass('every surface showing a Commons photograph carries the shared credit')
+  } else {
+    offenders.forEach((what) => fail(`attribution can be bypassed: ${what}`))
+  }
+
+  // The renderer and the build must agree on what counts as attribution.
+  // verify.py accepts `artist` OR `credit`; a surface reading only `artist`
+  // captions an admitted row as anonymous, which is what the 1958 Hawthorn
+  // photograph on Ferrari 246 F1 would have shown.
+  const rule = readFileSync(join(web, 'src', 'lib', 'commons.js'), 'utf8')
+  truthy(
+    /image\?\.artist/.test(rule) && /image\?\.credit/.test(rule),
+    'the shared rule falls back to `credit` where a file names no artist, as the build does',
+  )
 }
 
 // -------------------------------------------------------------- the browser
@@ -377,57 +469,66 @@ try {
     'every race held at Silverstone',
   )
 
-  // The atlas walks a lap, which is only possible where build.py found one.
-  console.log('\n/circuits/atlas')
-  await go('/circuits/atlas', 'Track atlas')
-  is(
-    await page.$$eval('#root main .atlas-cell', (n) => n.length),
-    count('SELECT COUNT(*) FROM circuit_geometry'),
-    'every traced circuit is on the wall',
-  )
-  atLeast(
-    await page.$$eval('#root main .atlas-stage path', (n) => n.length),
-    2,
-    'the lap is drawn in turn-rate bands',
-  )
-  // Spa closes, so it can be walked; the readout must agree with the database.
-  const spaKm = one("SELECT measured_km FROM circuit_geometry WHERE circuit_id = 'spa'")
-  // Drive it as a person would. Assigning .value directly is invisible to
-  // React, which tracks the node's value and would swallow the event.
-  await page.focus('#atlas-at')
-  await page.keyboard.press('End')
-  await settle()
-  // "6,995 m of 6,995" — the metres travelled is the part before " m ".
-  const readout = await text('#root main .atlas-scrub output')
-  is(
-    Number(readout.split(' m ')[0].replace(/,/g, '')),
-    Math.round(spaKm * 1000),
-    'a full lap of Spa reads as its measured length',
-  )
-  // A trace with a loose end has no lap to walk, and must say so.
-  const broken = one('SELECT circuit_id FROM circuit_geometry WHERE closes = 0 ORDER BY loose_ends DESC LIMIT 1')
-  await page.$$eval(
-    '#root main .atlas-cell',
-    (nodes, name) => nodes.find((n) => n.querySelector('b').textContent === name)?.click(),
-    one('SELECT c.name FROM circuit_geometry g JOIN circuits c ON c.id = g.circuit_id WHERE g.circuit_id = ?', broken),
-  )
-  await settle()
-  truthy(
-    await page.$eval('#atlas-at', (el) => el.disabled),
-    `${broken} has no closed lap, so the scrubber is disabled`,
-  )
+  // Skipped rather than failed when the overlay is absent: a build without
+  // f1-geometry.db is a legitimate one, and the track maps are the only thing
+  // it costs. Everything inside needs the centrelines.
+  if (!hasGeometry) {
+    console.log('\n(no f1-geometry.db — skipping the atlas and traced-circuit checks)')
+  } else {
+    // The atlas walks a lap, which is only possible where build.py found one.
+    console.log('\n/circuits/atlas')
+    await go('/circuits/atlas', 'Track atlas')
+    is(
+      await page.$$eval('#root main .atlas-cell', (n) => n.length),
+      count('SELECT COUNT(*) FROM geo.circuit_geometry'),
+      'every traced circuit is on the wall',
+    )
+    atLeast(
+      await page.$$eval('#root main .atlas-stage path', (n) => n.length),
+      2,
+      'the lap is drawn in turn-rate bands',
+    )
+    // Spa closes, so it can be walked; the readout must agree with the database.
+    const spaKm = one("SELECT measured_km FROM geo.circuit_geometry WHERE circuit_id = 'spa'")
+    // Drive it as a person would. Assigning .value directly is invisible to
+    // React, which tracks the node's value and would swallow the event.
+    await page.focus('#atlas-at')
+    await page.keyboard.press('End')
+    await settle()
+    // "6,995 m of 6,995" — the metres travelled is the part before " m ".
+    const readout = await text('#root main .atlas-scrub output')
+    is(
+      Number(readout.split(' m ')[0].replace(/,/g, '')),
+      Math.round(spaKm * 1000),
+      'a full lap of Spa reads as its measured length',
+    )
+    // A trace with a loose end has no lap to walk, and must say so.
+    const broken = one('SELECT circuit_id FROM geo.circuit_geometry WHERE closes = 0 ORDER BY loose_ends DESC LIMIT 1')
+    await page.$$eval(
+      '#root main .atlas-cell',
+      (nodes, name) => nodes.find((n) => n.querySelector('b').textContent === name)?.click(),
+      one('SELECT c.name FROM geo.circuit_geometry g JOIN circuits c ON c.id = g.circuit_id WHERE g.circuit_id = ?', broken),
+    )
+    await settle()
+    truthy(
+      await page.$eval('#atlas-at', (el) => el.disabled),
+      `${broken} has no closed lap, so the scrubber is disabled`,
+    )
 
-  const traced = one('SELECT circuit_id FROM circuit_geometry WHERE closes = 1 ORDER BY node_count DESC LIMIT 1')
-  console.log(`\n/circuits/${traced}  (traced geometry)`)
-  await go(`/circuits/${traced}`)
-  const path = await page.$eval('.trackmap path', (node) => node.getAttribute('d')).catch(() => null)
-  atLeast(path?.length ?? 0, 200, 'the centreline drew a path')
-  truthy(
-    (await page.$$eval('figure.photo figcaption', (n) => n.map((x) => x.textContent).join(' '))).includes(
-      'OpenStreetMap',
-    ),
-    'the ODbL attribution travels with the geometry',
-  )
+    const traced = one('SELECT circuit_id FROM geo.circuit_geometry WHERE closes = 1 ORDER BY node_count DESC LIMIT 1')
+
+    console.log(`\n/circuits/${traced}  (traced geometry)`)
+    await go(`/circuits/${traced}`)
+    const path = await page.$eval('.trackmap path', (node) => node.getAttribute('d')).catch(() => null)
+    atLeast(path?.length ?? 0, 200, 'the centreline drew a path')
+    truthy(
+      (await page.$$eval('figure.photo figcaption', (n) => n.map((x) => x.textContent).join(' '))).includes(
+        'OpenStreetMap',
+      ),
+      'the ODbL attribution travels with the geometry',
+    )
+    pass(`the overlay merged in the browser — ${traced} drew from f1-geometry.db`)
+  }
 
   // ------------------------------------------------------------------ cars
 
@@ -462,23 +563,36 @@ try {
   )
 
   // A licence violation is the failure mode here, so this is asserted rather
-  // than eyeballed: a Commons photograph must carry its licence and the person
-  // who took it.
-  const credits = await page.$$eval('figure.photo figcaption', (nodes) =>
-    nodes.map((node) => node.textContent),
+  // than eyeballed. EVERY photograph on the page has to carry its credit, not
+  // just one of them: an earlier version of this checked that SOME caption
+  // mentioned the licence, which a page showing six images and crediting one
+  // would have passed.
+  const shown = await page.$$eval('figure.photo', (figures) =>
+    figures.map((figure) => ({
+      file: figure.querySelector('figcaption a')?.textContent?.trim() ?? '',
+      caption: figure.querySelector('figcaption')?.textContent ?? '',
+    })),
   )
-  const image = db
-    .prepare("SELECT artist, licence FROM article_images WHERE article = 'McLaren MP4/4' LIMIT 1")
-    .get()
-  if (image) {
-    truthy(
-      credits.some((caption) => caption.includes(image.licence)),
-      `the photograph carries its licence (${image.licence})`,
-    )
-    truthy(
-      credits.some((caption) => caption.includes(image.artist)),
-      `the photograph carries its photographer (${image.artist})`,
-    )
+  atLeast(shown.length, 1, 'the car page shows at least one photograph')
+
+  const credited = db.prepare(
+    `SELECT file_name, licence,
+            COALESCE(NULLIF(TRIM(COALESCE(artist, '')), ''),
+                     NULLIF(TRIM(COALESCE(credit, '')), '')) AS credit
+       FROM article_images WHERE article = 'McLaren MP4/4'`,
+  ).all()
+  const byTitle = new Map(
+    credited.map((row) => [row.file_name.replace(/^File:/, '').replace(/_/g, ' '), row]),
+  )
+  const uncredited = shown.filter((figure) => {
+    const row = byTitle.get(figure.file)
+    if (!row) return false          // a photograph from elsewhere on the page
+    return !figure.caption.includes(row.licence) || !figure.caption.includes(row.credit)
+  })
+  if (uncredited.length === 0) {
+    pass(`all ${shown.length} photograph(s) carry their licence and their credit`)
+  } else {
+    uncredited.forEach((figure) => fail(`photograph shown without full credit: ${figure.file}`))
   }
 
   // ------------------------------------------------------------- reference

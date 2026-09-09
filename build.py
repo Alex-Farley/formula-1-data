@@ -9,6 +9,7 @@ Idempotent: deletes and rebuilds the database each run.
 import json
 import math
 import os
+import re
 import sqlite3
 import sys
 
@@ -173,10 +174,26 @@ def _stage_01_meta(b):
 
     # ---------------------------------------------------------- meta
     cur.executemany("INSERT INTO provenance VALUES (?,?,?,?)", N.PROVENANCE)
+    # Each registry entry carries its licence twice: as the prose in
+    # `licence`, written for a person, and as the machine-readable class in
+    # SOURCE_LICENCE, which is what lets verify.py answer "may this row be
+    # published?" without anyone reading a paragraph. An entry with no class
+    # is a source nobody has judged, and that is a build failure rather than
+    # a default, because the safe default is the one you never notice.
+    registry = []
+    for entry in N.SOURCE_REGISTRY:
+        priority = entry[0]
+        if priority not in N.SOURCE_LICENCE:
+            raise SystemExit(
+                f"source_registry entry {priority} ({entry[1]}) has no licence "
+                f"class in SOURCE_LICENCE. Classify it before the build can "
+                f"say what may be published.")
+        registry.append(tuple(entry) + N.SOURCE_LICENCE[priority])
     cur.executemany(
         "INSERT INTO source_registry (priority, source, url, use, authority,"
-        " licence, cadence, checkability) VALUES (?,?,?,?,?,?,?,?)",
-        N.SOURCE_REGISTRY)
+        " licence, cadence, checkability, redistributable, share_alike,"
+        " attribution_required, domains) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+        registry)
     cur.executemany(
         "INSERT INTO source_patterns (source_id, pattern, note) VALUES (?,?,?)",
         N.SOURCE_PATTERNS)
@@ -257,16 +274,42 @@ def _stage_02_drivers(b):
              "https://en.wikipedia.org/wiki/List_of_Formula_One_polesitters"))
 
     # Drivers who reached a podium but never won, took pole or set a fastest
-    # lap. Names and dates come from the same API as the podium rows, so a
-    # result can never reference a driver this database had to invent.
+    # lap, so no earlier harvest had reason to add them.
+    #
+    # Their names and dates were first read from Jolpica. They are SOURCED to
+    # F1DB, which holds all sixty-two under CC BY 4.0 where Jolpica's Ergast
+    # lineage is CC BY-NC-SA, and the citation has to name where a
+    # redistributable fact actually comes from. The mapping is not taken on
+    # trust: F1DB must hold the driver and must give the same date of birth,
+    # or the build stops. See PODIUM_ONLY_F1DB in data/results.py.
+    f1db_drv = {r[0]: r for r in HV.load_f1db_drivers()}
     for lid, eid, name, nat, code, born in RS.PODIUM_ONLY_DRIVERS:
+        f1db_id = RS.PODIUM_ONLY_F1DB.get(lid)
+        if f1db_id is None:
+            raise SystemExit(
+                f"PODIUM_ONLY_DRIVERS holds {lid}, which PODIUM_ONLY_F1DB does "
+                f"not map to an F1DB driver. Every row in the committed "
+                f"database must cite a source that permits redistribution.")
+        meta = f1db_drv.get(f1db_id)
+        if meta is None:
+            raise SystemExit(
+                f"PODIUM_ONLY_F1DB maps {lid} to {f1db_id}, which is not in "
+                f"harvest/f1db_drivers.txt. Rerun tools/f1db_fetch.py.")
+        # The date of birth is what proves the two registers mean the same
+        # person. The name cannot do it: F1DB files Jyrki Jarvilehto under his
+        # racing name, and this register does not.
+        if (meta[4] or None) != (born or None):
+            raise SystemExit(
+                f"PODIUM_ONLY_F1DB maps {lid} to {f1db_id}, but this register "
+                f"has {born or 'no date'} and F1DB has {meta[4] or 'no date'}. "
+                f"One of them is the wrong person.")
         cur.execute("""INSERT INTO drivers (id, full_name, nationality,
             nationality_code, born, wins, titles, notes, confidence, source)
             VALUES (?,?,?,?,?,0,0,?,?,?)""",
             (lid, name, nat, code, born or None,
              "Added to the register from the podium harvest: reached a podium "
              "without ever winning a race, taking pole or setting a fastest lap.",
-             "reference", "https://api.jolpi.ca/ergast/f1/drivers/" + eid))
+             HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
 
 
 def _stage_03_drivers_admitted_from_the_f1db_register(b):
@@ -344,13 +387,25 @@ def _stage_04_constructors(b):
 
     # Constructors that reached a podium but are not in the main register:
     # short-lived teams, and the pre-1961 marques that never won.
+    #
+    # Sourced to F1DB for the reason given against the podium-only drivers
+    # above: these ten marques cited Jolpica, and F1DB holds every one of them
+    # under a licence that permits redistribution. A marque has no date of
+    # birth, so the build can only check that F1DB holds the id at all.
+    f1db_cons = {r[0]: r for r in HV.load_f1db_constructors()}
     for cid, name, full, base, first, nat, notes, conf in RS.NEW_CONSTRUCTORS:
+        f1db_id = RS.PODIUM_ONLY_CONSTRUCTORS_F1DB.get(cid)
+        if f1db_id is None or f1db_id not in f1db_cons:
+            raise SystemExit(
+                f"NEW_CONSTRUCTORS holds {cid}, which PODIUM_ONLY_CONSTRUCTORS_F1DB "
+                f"does not map to a constructor in harvest/f1db_constructors.txt. "
+                f"Every row in the committed database must cite a source that "
+                f"permits redistribution.")
         cur.execute("""INSERT INTO constructors (id, name, full_name, country,
             base, first_entry, wins, constructors_titles, drivers_titles,
             active, notes, confidence, source)
             VALUES (?,?,?,?,?,?,0,0,0,0,?,?,?)""",
-            (cid, name, full, nat, base, first, notes, conf,
-             "https://api.jolpi.ca/ergast/f1/constructors/"))
+            (cid, name, full, nat, base, first, notes, conf, HV.F1DB_SOURCE))
 
     for i, (chain, cname, seq, ent, fy, ty, note) in enumerate(T.LINEAGE, 1):
         cur.execute("""INSERT INTO constructor_lineage
@@ -2312,6 +2367,8 @@ def _stage_33_link_race_entries_to_the_curated(b):
         SELECT COUNT(*) FROM race_entries e
         WHERE e.constructor_id = constructors.id AND e.grid = 1)""")
 
+    normalise_countries(cur)
+
     # ------------------------------------------- the authored ceiling
     #
     # The first instalment of the rule in docs/DERIVED-CONFIDENCE.md, and the
@@ -2341,12 +2398,221 @@ def _stage_33_link_race_entries_to_the_curated(b):
           f"{len(authored)} tables")
 
     con.commit()
+
+    # The ODbL centrelines leave f1.db here, before the VACUUM reclaims the
+    # pages they occupied. Everything that checks them has already run.
+    moved = split_geometry(con)
+    if moved:
+        print(f"  circuit geometry: {moved} centrelines moved to "
+              f"{os.path.basename(GEOMETRY_DB)} — f1.db carries no "
+              f"OpenStreetMap data")
+
     # The build writes and rewrites rows as sources layer on top of each
     # other, which leaves free pages behind. The web app fetches this file
     # whole, so reclaiming them is not housekeeping.
     con.execute("VACUUM")
     con.commit()
     return con
+
+
+GEOMETRY_DB = os.path.join(HERE, "f1-geometry.db")
+# --------------------------------------------------------------- countries
+#
+# Three tables name a country - drivers.nationality, constructors.country and
+# circuits.country - and until now they did not agree on how. The register
+# held 116 drivers from the "United States of America" and 42 from the
+# "United States", which are the same place; seven countries were coded twice
+# (Germany as GER and DEU, the Netherlands as NED and NLD); and ten
+# constructors had a DEMONYM where a country name belongs - "British",
+# "French", "Italian", "Brazilian".
+#
+# That was visible, not cosmetic. The drivers page builds its nationality
+# filter from the distinct values, so a reader got two United States to choose
+# between, showing 42 drivers and 116. Grouped, the United States is the
+# second-largest nationality in the sport at 158 - ahead of Italy - and the
+# split hid it in second AND sixth place.
+#
+# WHY THE F1DB REGISTRY DECIDES IT
+#     Either spelling would fix the split. What settles the direction is that
+#     only one of them can be CHECKED: harvest/f1db_countries.txt is a real
+#     registry of 249 countries under CC BY, so "is this a country?" has an
+#     answer the build can compute. The sporting codes - GER, SUI, NED - are
+#     what a broadcast uses and what a reader may expect, but they were typed
+#     by hand and trace to nothing, so nothing could ever tell you one was
+#     wrong. A vocabulary nothing can verify is how the split happened.
+#
+# Aliases are the values that MEAN a registry country and are spelled
+# otherwise. Every one is a rename, never a reinterpretation.
+COUNTRY_ALIASES = {
+    "United States": "United States of America",
+    # Demonyms found in constructors.country, where a country name belongs.
+    "British": "United Kingdom",
+    "French": "France",
+    "Italian": "Italy",
+    "Brazilian": "Brazil",
+}
+
+# Values that are NOT in the registry and must not be forced into it. Each is
+# a deliberate answer to a question the registry cannot express, and each says
+# why, so the next pass over this data does not quietly erase it.
+COUNTRY_EXCEPTIONS = {
+    "Rhodesia":
+        "John Love raced for Rhodesia, which no longer exists. F1DB records "
+        "him as Zimbabwean, which is the modern state and the wrong answer "
+        "for the era he raced in. Held deliberately since the podium-only "
+        "register was re-sourced to F1DB; see PODIUM_ONLY_F1DB.",
+    "Italy/UK":
+        "A constructor based in two countries at once. The registry names "
+        "one country per row and cannot say this.",
+    "United States/UK":
+        "As Italy/UK.",
+    "Germany/Switzerland":
+        "As Italy/UK.",
+}
+
+
+def normalise_countries(cur):
+    """Put every country name into the F1DB registry's vocabulary.
+
+    Renames the aliases, then sets each driver's nationality_code from the
+    registry rather than from whoever typed the row. A value that is neither
+    in the registry, an alias, nor a declared exception stops the build: it is
+    either a new spelling of a country already here, which is the defect this
+    function exists to prevent coming back, or a country nobody has looked at.
+    """
+    registry = {name: alpha3 for _cid, name, alpha3, _dem in HV.load_f1db_countries()}
+    renamed = coded = 0
+
+    for table, column in (("drivers", "nationality"),
+                          ("constructors", "country"),
+                          ("circuits", "country")):
+        for (value,) in cur.execute(
+                f'SELECT DISTINCT "{column}" FROM "{table}" '
+                f'WHERE "{column}" IS NOT NULL').fetchall():
+            if value in COUNTRY_EXCEPTIONS or value in registry:
+                continue
+            target = COUNTRY_ALIASES.get(value)
+            if target is None:
+                raise SystemExit(
+                    f"{table}.{column} holds {value!r}, which is not a country "
+                    f"in harvest/f1db_countries.txt, not an alias in "
+                    f"COUNTRY_ALIASES, and not a declared exception in "
+                    f"COUNTRY_EXCEPTIONS. Add it to one of them - a country "
+                    f"spelled a second way is how the register split before.")
+            if target not in registry:
+                raise SystemExit(
+                    f"COUNTRY_ALIASES maps {value!r} to {target!r}, which is "
+                    f"not in the registry either.")
+            cur.execute(f'UPDATE "{table}" SET "{column}" = ? '
+                        f'WHERE "{column}" = ?', (target, value))
+            renamed += cur.rowcount
+
+    # The code comes from the registry, so the same country cannot be coded
+    # two ways. Declared exceptions keep whatever they were given: the
+    # registry has no row for Rhodesia and RHO is the right code for it.
+    for (nationality,) in cur.execute(
+            "SELECT DISTINCT nationality FROM drivers "
+            "WHERE nationality IS NOT NULL").fetchall():
+        if nationality in COUNTRY_EXCEPTIONS:
+            continue
+        cur.execute("UPDATE drivers SET nationality_code = ? "
+                    "WHERE nationality = ? AND nationality_code IS NOT ?",
+                    (registry[nationality], nationality, registry[nationality]))
+        coded += cur.rowcount
+
+    print(f"  countries: {renamed} value(s) renamed into the registry's "
+          f"vocabulary, {coded} driver code(s) reset from it, "
+          f"{len(COUNTRY_EXCEPTIONS)} declared exception(s)")
+
+
+
+def split_geometry(con):
+    """Move the OpenStreetMap centrelines out of f1.db and into their own file.
+
+    WHY THEY DO NOT SHIP IN f1.db
+        OpenStreetMap is ODbL 1.0, which carries share-alike AND a database
+        right. That is a different obligation from every other source here:
+        CC BY (F1DB) asks only for credit, CC BY-SA (Wikipedia) reaches the
+        prose taken from it, and neither says anything about the shape of the
+        database around it. ODbL does. A database derived from an ODbL one is
+        a Derivative Database, and publishing it means publishing the whole
+        thing under ODbL.
+
+        Twenty-five centrelines would then set the licence of 117,000 rows
+        they have nothing to do with. So they are not in that database at all.
+
+        ODbL draws the line this build relies on: a Collective Database - two
+        independent databases distributed alongside each other - is NOT a
+        Derivative Database, and the share-alike does not reach across. f1.db
+        carries no OpenStreetMap data of any kind; f1-geometry.db carries
+        nothing else, and is offered under ODbL. Take one, take both, and the
+        obligation follows only the file it belongs to.
+
+    WHY THE ROWS ARE BUILT AND THEN MOVED, RATHER THAN NEVER LOADED
+        Everything that checks the geometry runs against the loaded rows -
+        the re-measurement that catches Monaco's relation reading 12% long
+        because it includes the pit lane, the layout_key resolution, the
+        historic-layout refusal. Loading them, checking them and then moving
+        them keeps every one of those checks exactly where it was.
+    """
+    columns = [c[1] for c in con.execute("PRAGMA table_info(circuit_geometry)")]
+    rows = con.execute("SELECT * FROM circuit_geometry "
+                       "ORDER BY circuit_id, layout_key").fetchall()
+    if not rows:
+        return 0
+
+    if os.path.exists(GEOMETRY_DB):
+        os.remove(GEOMETRY_DB)
+    # The overlay's table is DERIVED from this build's schema, never restated
+    # here. A hardcoded column list is a silent truncation waiting for the next
+    # column: `segment_count`, `loose_ends` and `closes` were added to
+    # circuit_geometry while this function had twelve columns written out, and
+    # a copy that drops a column looks exactly like a copy that worked.
+    #
+    # The REFERENCES clauses go, because the overlay stands alone - there is no
+    # circuits table beside it and no provenance ladder to point at.
+    ddl = con.execute("SELECT sql FROM sqlite_master WHERE type='table' "
+                      "AND name='circuit_geometry'").fetchone()[0]
+    ddl = re.sub(r"\s+REFERENCES\s+\w+\s*\([^)]*\)", "", ddl)
+
+    geo = sqlite3.connect(GEOMETRY_DB)
+    geo.executescript("""
+        -- The circuit centrelines, traced from OpenStreetMap.
+        --
+        -- ODbL 1.0: https://opendatacommons.org/licenses/odbl/1-0/
+        -- (c) OpenStreetMap contributors.
+        --
+        -- This file is a database in its own right, distributed ALONGSIDE
+        -- f1.db rather than inside it. f1.db contains no OpenStreetMap data,
+        -- so it is not a Derivative Database of this one and does not carry
+        -- ODbL. Merging the two - which tools/geometry_overlay.py will do to
+        -- a local copy - produces a database that does.
+        --
+        -- circuit_id matches circuits.id in f1.db. There is deliberately no
+        -- foreign key: this file must stand on its own.
+        CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
+    """)
+    geo.execute(ddl)
+    placeholders = ",".join("?" * len(columns))
+    geo.executemany(f"INSERT INTO circuit_geometry VALUES ({placeholders})", rows)
+    geo.executemany("INSERT INTO meta VALUES (?,?)", [
+        ("database_name", "F1 circuit centrelines (OpenStreetMap overlay)"),
+        ("version", VERSION),
+        ("built", BUILT),
+        ("licence", "ODbL 1.0"),
+        ("licence_url", "https://opendatacommons.org/licenses/odbl/1-0/"),
+        ("attribution", "(c) OpenStreetMap contributors"),
+        ("companion", "f1.db, which contains no OpenStreetMap data"),
+        ("apply", "python3 tools/geometry_overlay.py --apply"),
+    ])
+    geo.commit()
+    geo.execute("VACUUM")
+    geo.commit()
+    geo.close()
+
+    con.execute("DELETE FROM circuit_geometry")
+    con.commit()
+    return len(rows)
 
 
 def X_engine_eras():

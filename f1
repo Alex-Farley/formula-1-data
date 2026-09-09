@@ -43,6 +43,7 @@ f1 — query tool for the F1 Verified Facts Database.
   ./f1 events                    every Grand Prix, how often held and where
   ./f1 search senna              free-text search across every table
   ./f1 unverified                everything not yet officially verified
+  ./f1 licences                  what may be published, and under what terms
   ./f1 images                    car photographs nothing here can verify
   ./f1 sql "SELECT ..."          arbitrary SQL
   ./f1 schema                    tables, columns and views
@@ -696,6 +697,64 @@ def main():
             for line in textwrap.wrap(r["assessment"], W - 8):
                 print("        " + line)
             print()
+
+    elif cmd == "licences":
+        # What may be published, counted from the rows themselves rather than
+        # from anyone's memory of the licence files. Every source in the
+        # registry carries a machine-readable class; every row that cites a
+        # source resolves to one. See docs/COMMERCIAL-READINESS.md.
+        import re as _re
+        classes, labels = {}, {}
+        for r in c.execute("""SELECT source, redistributable, share_alike,
+                attribution_required, domains FROM source_registry
+                WHERE domains IS NOT NULL ORDER BY priority"""):
+            for d in (x.strip() for x in r["domains"].split(",")):
+                if d:
+                    classes[d] = r["redistributable"]
+                    labels.setdefault(d, r["source"])
+
+        def klass(value):
+            m = _re.match(r"https?://([^/]+)", str(value).strip())
+            key = (m.group(1) if m else str(value).strip()).lower()
+            if key in classes:
+                return key
+            return next((d for d in classes if key.endswith("." + d)), None)
+
+        tally = {}
+        for (t,) in c.execute("""SELECT name FROM sqlite_master WHERE type='table'
+                AND name <> 'source_registry' ORDER BY name"""):
+            if "source" not in [x[1] for x in c.execute('PRAGMA table_info("%s")' % t)]:
+                continue
+            for value, n in c.execute('SELECT source, COUNT(*) FROM "%s" WHERE '
+                                      "source IS NOT NULL AND TRIM(source) <> '' "
+                                      "GROUP BY source" % t).fetchall():
+                d = klass(value)
+                tally[d] = tally.get(d, 0) + n
+
+        total = sum(tally.values())
+        print("\n  WHAT MAY BE PUBLISHED — every sourced row, by the licence "
+              "of its source\n")
+        order = {"yes": 0, "facts-only": 1, "no": 2, None: 3}
+        for d in sorted(tally, key=lambda x: (order[classes.get(x)], -tally[x])):
+            cls = classes.get(d, "UNCLASSIFIED")
+            pct = 100.0 * tally[d] / total if total else 0
+            print(f"    {tally[d]:>7}  {pct:5.1f}%  {cls:<12} {d:<26} "
+                  f"{labels.get(d, '')[:30]}")
+        print(f"    {total:>7}  100.0%  total\n")
+        print("    yes         may be redistributed on the terms given")
+        print("    facts-only  the facts may be restated; none of the source's")
+        print("                own expression is held here")
+        print("    no          may not be redistributed - verify.py fails on one\n")
+        for r in c.execute("""SELECT source, licence, redistributable, share_alike,
+                attribution_required FROM source_registry ORDER BY priority"""):
+            flags = []
+            if r["share_alike"]:
+                flags.append("share-alike")
+            if r["attribution_required"]:
+                flags.append("attribution")
+            print(f"    {r['redistributable']:<12}{r['source'][:44]:<46}"
+                  f"{', '.join(flags)}")
+        print()
 
     elif cmd == "search":
         term = f"%{' '.join(a)}%"
