@@ -131,6 +131,18 @@ function RaceBody({ race, data, year, round }) {
 
   const winners = classified.filter((e) => e.finish_position === 1)
   const poles = entries.filter((e) => e.grid === 1)
+
+  /*
+   * "Pole" on this page is race_results' pole: the driver who started at the
+   * front of the grid. Thirteen races have someone else quickest in
+   * qualifying — a grid penalty, or a sprint that set the grid — and on those
+   * a reader who knows the sport reads the row as an error. Naming the fastest
+   * qualifier and where they actually started is the difference between a page
+   * that looks wrong and a page that explains itself.
+   */
+  const quickest = qualifying.find((q) => q.position === 1)
+  const outqualified =
+    quickest && poles.length === 1 && quickest.driver_id !== poles[0].driver_id ? quickest : null
   const fastest = entries.filter((e) => e.fastest_lap === 1)
   const finishers = entries.filter((e) => !missing(e.finish_position)).length
   const shared = entries.some((e) => e.shared_drive === 1)
@@ -177,6 +189,19 @@ function RaceBody({ race, data, year, round }) {
               ? { label: 'Status', value: 'Scheduled', note: race.dates ?? undefined }
               : { label: 'Winner', value: nameList(winners), note: winners[0]?.constructor ?? undefined },
             scheduled ? null : { label: 'Pole', value: nameList(poles) },
+            scheduled || !outqualified
+              ? null
+              : {
+                  label: 'Fastest qualifier',
+                  value: (
+                    <Link to={`/drivers/${outqualified.driver_id}`}>
+                      {outqualified.driver ?? outqualified.driver_id}
+                    </Link>
+                  ),
+                  note: `started ${
+                    entries.find((e) => e.driver_id === outqualified.driver_id)?.grid_text ?? '—'
+                  }${race.sprint ? ', the grid set by the sprint' : ', after a grid penalty'}`,
+                },
             scheduled ? null : { label: 'Fastest lap', value: nameList(fastest) },
             {
               label: 'Entries',
@@ -331,10 +356,18 @@ function RaceBody({ race, data, year, round }) {
             page={40}
             columns={[
               {
+                // Identical to the classification table's rail above, and it
+                // has to be: DataTable calls column.className as a FUNCTION of
+                // the row, so the string this used to pass threw on render and
+                // took the whole page down with it. Every sprint weekend since
+                // 2021 — thirty races — was a blank page, because no test
+                // opened one. The class names were wrong too: railOf already
+                // returns the class, and `rail-${...}` matched no rule.
                 key: 'rail',
                 label: <span className="sr-only">Result</span>,
-                className: 'rail',
-                render: (_value, row) => <span className={`rail-${railOf(row)}`} />,
+                align: 'rail',
+                sortable: false,
+                render: (_, row) => <i className={railOf(row)} />,
               },
               { key: 'position_text', label: 'Pos', align: 'num' },
               {
@@ -351,7 +384,17 @@ function RaceBody({ race, data, year, round }) {
               },
               { key: 'grid', label: 'Grid', align: 'num', render: (v) => cell(number(v)) },
               { key: 'laps_completed', label: 'Laps', align: 'num', render: (v) => cell(number(v)) },
-              { key: 'status', label: 'Out', render: (v) => result(v) },
+              // render is handed the VALUE, not the row — so this was calling
+              // result(entry) on a bare status string, and on the many rows
+              // where status is null it read position_text off null and threw.
+              // Rendered the way the classification table above renders the
+              // same column.
+              {
+                key: 'status',
+                label: 'Out',
+                render: (value) =>
+                  missing(value) ? cell(value) : <span className="tag">{value}</span>,
+              },
               { key: 'gap', label: 'Gap', align: 'num' },
               { key: 'points', label: 'Points', align: 'num', render: (v) => cell(fmtPoints(v)) },
             ]}

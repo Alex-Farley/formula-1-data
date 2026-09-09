@@ -440,6 +440,29 @@ POLE_ONLY_NOTE = ("Added to the register from the pole position and fastest lap 
 # area, description, races_affected, resolution
 # ---------------------------------------------------------------------
 KNOWN_GAPS = [
+    ("fastest_lap", "the fastest lap of a race the pole harvest has not "
+     "reached yet",
+     "The fastest lap of every race comes from harvest/poles.txt, which is "
+     "written by hand. Everything else about a completed race - the "
+     "classification, the qualifying sheet, the standings, and since this "
+     "version the driver at the front of the grid - is refreshed from F1DB by "
+     "a scheduled job within a day or two of the flag. So for the week "
+     "between a Grand Prix and somebody editing that file, the site shows a "
+     "completed race with no fastest lap. Pole used to sit in the same hole "
+     "and no longer does: F1DB may now fill grid 1 where nothing else has.",
+     # 0, not 1: races_affected counts SETTLED races missing a fastest lap,
+     # and verify.py checks that total against the one real one (2021 Belgium,
+     # where no racing lap was ever set). This gap is about the current season
+     # being temporarily behind, which is a warning and not a hole in the
+     # record.
+     0,
+     "F1DB publishes the fastest lap per race in its own file, which "
+     "tools/f1db_fetch.py does not read - it takes race-results.yml and not "
+     "the fastest-lap results beside it. Adding that reader, a "
+     "harvest/fastest_laps.txt beside the others, and a loader that fills "
+     "race_entries.fastest_lap only where the harvest has not, closes this "
+     "the same way pole was closed. Until then verify.py warns for the "
+     "current season, which is the signal that the harvest is behind."),
     ("finish_position", "shared drives, and where two sources read a race "
      "differently",
      "CLOSED in v2.15, and by a licence rather than a harvest. The full "
@@ -515,12 +538,20 @@ KNOWN_GAPS = [
      "Car telemetry (speed, throttle, brake, gear at about 4 Hz) is "
      "deliberately NOT stored here at all: it is hundreds of megabytes per "
      "weekend and fastf1_load.py writes it to Parquet beside the database.", 0,
+     "LOCALLY ONLY, and there is no version of this that ends in a shipped "
+     "table: no source has lap times under a licence that permits passing "
+     "them on. F1DB is the one source here that does permit it - which is "
+     "why 22,481 of its pit stops ARE committed - and it has no lap times. "
+     "So this is not an unfinished harvest, it is the correct state until "
+     "that changes. On your own machine: "
      "python3 tools/ergast_load.py --from-dump --timing   (1996-, one "
      "hash-verified zip, about fifteen seconds), and/or "
      "pip install fastf1 && python3 tools/fastf1_load.py --years 2018-2026 "
      "--results --radio. Then ./f1 laps. verify.py re-derives each race's "
      "fastest lap from the lap times and checks it against the setter "
-     "already stored from the pole harvest - 446 races, no disagreement."),
+     "already stored from the pole harvest - 446 races, no disagreement. "
+     "docs/TIMING-ARCHITECTURE.md has the measurements and the design this "
+     "would take if a redistributable source ever appears."),
     ("race_timing", "pole, fastest lap and race times per race",
      "The race_timing table is empty. These figures are published per race "
      "rather than per season, so filling them for 1950-2017 means reading "

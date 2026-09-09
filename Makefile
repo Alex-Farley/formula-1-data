@@ -1,15 +1,18 @@
 # The whole workflow. `make` rebuilds, checks and exports.
 PYTHON ?= python3
 
-.PHONY: all build verify audit export clean check help
+.PHONY: all build verify audit export test clean check help
 
 all: build verify export          ## rebuild, check and export (default)
 
 build:                            ## rebuild f1.db from data/*.py
 	$(PYTHON) build.py
 
-verify:                           ## 170 integrity and consistency checks
+verify:                           ## integrity and consistency checks on the data
 	$(PYTHON) verify.py
+
+test:                             ## unit tests for the code (not the data)
+	$(PYTHON) -m unittest discover -s tests -v
 
 audit:                            ## structural health report
 	$(PYTHON) audit.py
@@ -17,7 +20,7 @@ audit:                            ## structural health report
 export:                           ## regenerate the JSON exports
 	$(PYTHON) export_json.py --compat
 
-check: build verify               ## what CI runs
+check: build verify test          ## what CI runs
 
 clean:                            ## remove built artefacts (not the sources)
 	rm -f f1.db f1_database.json f1_compat.json

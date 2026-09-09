@@ -657,6 +657,18 @@ CREATE TABLE grands_prix (
 --   win          finish_position = 1
 --   fastest lap  fastest_lap = 1
 -- Adding the rest of the finishing order is then pure INSERT.
+--
+-- WHAT 'POLE' MEANS HERE. race_results.pole_id is a view over grid = 1, so it
+-- names the driver who STARTED FROM THE FRONT OF THE GRID. That is not always
+-- the driver credited with pole position: a grid penalty moves the fastest
+-- qualifier back, and through 2021 a sprint set the grid and pole went to the
+-- sprint winner. Thirteen races part company for exactly those reasons, all of
+-- them recorded in `discrepancies` and pinned by a check in verify.py; the
+-- fastest qualifier is always available beside them in `qualifying`.
+--
+-- The two are not interchangeable and neither is derived from the other. If
+-- you want "who was quickest", ask qualifying. If you want "who led them away",
+-- ask this.
 -- =====================================================================
 CREATE TABLE races (
     id              INTEGER PRIMARY KEY,

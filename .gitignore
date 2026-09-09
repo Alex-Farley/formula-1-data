@@ -41,3 +41,15 @@ web/public/
 # tools/ergast_load.py --from-dump caches the Jolpica zip here. Regenerable,
 # ~14 MB, and CC BY-NC-SA: never commit it.
 .jolpicadump/
+
+# The full JSON export. It is a pure function of f1.db and regenerates in about
+# a second (`make export`), and at 21 MB it does not delta-compress: every
+# refresh that changed a row wrote a whole new copy into history. Four commits
+# in one session took .git from 13 MB to 34 MB, almost all of it this file and
+# f1.db, and the harvest refreshes weekly.
+#
+# It is published as a release asset instead, so anything consuming it still
+# has a stable URL to fetch. f1_compat.json stays committed: it is the v1 key
+# layout other things were written against, it is 109 KB, and being able to
+# diff it is the point.
+f1_database.json

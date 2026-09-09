@@ -1,0 +1,90 @@
+name: release the artefacts
+
+# WHY THIS EXISTS
+#     f1_database.json is a 21 MB export of a 20 MB database, and neither
+#     delta-compresses: a refresh that changed one row used to write a whole
+#     new copy of both into git history. Four commits in a single session took
+#     .git from 13 MB to 34 MB, and the harvest refreshes every Monday.
+#
+#     So the full export is no longer committed. Anything consuming it still
+#     needs a stable place to fetch it from, and that is what a release is
+#     for — a tagged, dated, checksummed copy of exactly what that version of
+#     the sources builds, rather than a file whose every intermediate state is
+#     kept forever.
+#
+# Tag a version and push it, or run this by hand:
+#
+#     git tag v2.15 && git push origin v2.15
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to publish (created if it does not exist)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # Rebuilt from data/*.py rather than taken from the checkout, and gated
+      # on the checks: a release that carries a database which failed its own
+      # verification is worse than no release.
+      - name: Rebuild
+        run: python3 build.py
+
+      - name: Unit-test the loaders
+        run: python3 -m unittest discover -s tests
+
+      - name: Verify
+        run: python3 verify.py
+
+      - name: Export
+        run: python3 export_json.py --compat
+
+      # The database is reproducible from its sources, so a digest is a real
+      # identity for it rather than a timestamp. Anyone can rebuild and compare.
+      - name: Checksums
+        run: |
+          sha256sum f1.db f1_database.json f1_compat.json schema.sql > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Compress the export
+        run: gzip -9 -k f1_database.json
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          generate_release_notes: true
+          files: |
+            f1.db
+            f1_database.json.gz
+            f1_compat.json
+            schema.sql
+            SHA256SUMS
+          body: |
+            Built from the sources at this tag, and published only after
+            `verify.py` passed.
+
+            | File | What it is |
+            |---|---|
+            | `f1.db` | The SQLite database. Open it with any SQLite client. |
+            | `f1_database.json.gz` | Full JSON export of every table. Not kept in git — it is 21 MB and regenerates in about a second with `make export`. |
+            | `f1_compat.json` | JSON in the original v1 key layout. |
+            | `schema.sql` | The schema, commented. |
+            | `SHA256SUMS` | Digests. The build is reproducible, so you can check these by rebuilding. |
+
+            Data is CC BY-SA 4.0; circuit geometry is © OpenStreetMap
+            contributors under ODbL 1.0 and is excluded from the JSON export.
+            See `ATTRIBUTION.md`.

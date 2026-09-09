@@ -8,9 +8,12 @@
   "scripts": {
     "assets": "node scripts/prepare-assets.js",
     "dev": "npm run assets && vite",
-    "build": "npm run assets && vite build",
+    "build": "npm run assets && vite build && npm run prerender",
     "preview": "vite preview",
-    "test": "node test/smoke.mjs"
+    "test": "npm run test:units && node test/smoke.mjs",
+    "prerender": "node scripts/prerender.js",
+    "test:units": "node --test test/units.mjs",
+    "test:browser": "node test/smoke.mjs"
   },
   "dependencies": {
     "react": "^19.2.8",

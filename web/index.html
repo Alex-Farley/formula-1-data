@@ -47,14 +47,19 @@
     <link rel="preload" as="fetch" href="./db-manifest.json" crossorigin />
   </head>
   <body>
+    <!-- Filled at build time by scripts/prerender.js, one route at a time: the
+         page's facts as plain HTML, written straight from f1.db.
+
+         It sits OUTSIDE #root on purpose. React never reconciles with it, so
+         there is no hydration contract to keep and no mismatch to warn about;
+         main.jsx simply removes it once the database is open. Until then it is
+         what the reader looks at, which is a better first paint than a
+         progress bar — and if the database never arrives, it is what they keep
+         rather than being left with an error and nothing else.
+
+         In dev this is empty and the app renders as it always did. -->
+    <div id="prerendered"></div>
     <div id="root"></div>
-    <noscript>
-      <p style="font: 15px/1.6 system-ui; padding: 24px; max-width: 60ch">
-        This site runs SQLite in your browser and queries a 20 MB database file directly, so it
-        needs JavaScript. The database itself is a plain SQLite file and can be downloaded and
-        queried with any SQLite client instead.
-      </p>
-    </noscript>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

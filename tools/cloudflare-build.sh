@@ -60,6 +60,14 @@ echo "--- rebuilding the database from data/*.py"
 echo "--- verifying it"
 "$PYTHON" verify.py
 
+# SITE_ORIGIN is what scripts/prerender.js stamps into every canonical link,
+# og:url and sitemap entry. Cloudflare exposes the deployment's own URL, which
+# is right for a preview deploy and right for production once a custom domain
+# is bound; the fallback only matters when neither is set, and a wrong origin
+# costs a canonical tag rather than a working site.
+export SITE_ORIGIN="${SITE_ORIGIN:-${CF_PAGES_URL:-https://formula-1-data.pages.dev}}"
+echo "--- canonical origin $SITE_ORIGIN"
+
 echo "--- building the front end"
 cd web
 npm ci
