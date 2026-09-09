@@ -5,6 +5,13 @@
 # Car telemetry dumps from tools/fastf1_load.py --telemetry-parquet.
 # Hundreds of MB per race weekend. Never commit these.
 *.parquet
+
+# The Parquet bundle tools/parquet_export.py writes, and the directory it
+# writes into. Regenerable from f1.db in about a second, published as a
+# release asset, and 41 binary files that do not delta-compress - the same
+# reason f1_database.json is not kept here either.
+/parquet/
+f1-parquet.zip
 telemetry/
 out/
 
