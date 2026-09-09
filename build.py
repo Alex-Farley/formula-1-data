@@ -30,7 +30,7 @@ from data import radio as RA       # noqa: E402
 from data import results as RS     # noqa: E402
 
 DB = os.path.join(HERE, "f1.db")
-VERSION = "2.16"
+VERSION = "2.17"
 
 # The build date, as a CONSTANT and deliberately not date.today().
 #

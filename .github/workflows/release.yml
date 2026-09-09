@@ -38,6 +38,20 @@ jobs:
         with:
           python-version: '3.12'
 
+      # meta.version comes from VERSION in build.py, so a tag that disagrees
+      # with it publishes artefacts that misreport their own identity. There
+      # is nothing downstream to catch that, so catch it here, before the
+      # build burns twenty minutes.
+      - name: The tag must match VERSION
+        run: |
+          tag='${{ github.event.inputs.tag || github.ref_name }}'
+          version=$(python3 -c 'import build; print(build.VERSION)')
+          if [ "$tag" != "v$version" ]; then
+            echo "::error::tag $tag does not match VERSION $version (expected v$version)"
+            exit 1
+          fi
+          echo "tag $tag matches VERSION $version"
+
       # Rebuilt from data/*.py rather than taken from the checkout, and gated
       # on the checks: a release that carries a database which failed its own
       # verification is worse than no release.
@@ -53,15 +67,21 @@ jobs:
       - name: Export
         run: python3 export_json.py --compat
 
-      # The database is reproducible from its sources, so a digest is a real
-      # identity for it rather than a timestamp. Anyone can rebuild and compare.
-      - name: Checksums
-        run: |
-          sha256sum f1.db f1_database.json f1_compat.json schema.sql > SHA256SUMS
-          cat SHA256SUMS
-
       - name: Compress the export
         run: gzip -9 -k f1_database.json
+
+      # The database is reproducible from its sources, so a digest is a real
+      # identity for it rather than a timestamp. Anyone can rebuild and compare.
+      #
+      # Digest the files that are actually uploaded, which is why this runs
+      # after the compression: SHA256SUMS used to carry a digest for the
+      # uncompressed f1_database.json while the release shipped the .gz, so
+      # the one file a reader could not check was the one they received.
+      - name: Checksums
+        run: |
+          sha256sum f1.db f1-geometry.db f1_database.json.gz f1_compat.json \
+            schema.sql > SHA256SUMS
+          cat SHA256SUMS
 
       - uses: softprops/action-gh-release@v2
         with:
@@ -69,6 +89,7 @@ jobs:
           generate_release_notes: true
           files: |
             f1.db
+            f1-geometry.db
             f1_database.json.gz
             f1_compat.json
             schema.sql
@@ -80,11 +101,16 @@ jobs:
             | File | What it is |
             |---|---|
             | `f1.db` | The SQLite database. Open it with any SQLite client. |
+            | `f1-geometry.db` | Circuit centrelines, © OpenStreetMap contributors under ODbL 1.0. A separate file so its share-alike does not reach the rest — see below. `circuit_geometry` in `f1.db` is deliberately empty. |
             | `f1_database.json.gz` | Full JSON export of every table. Not kept in git — it is 21 MB and regenerates in about a second with `make export`. |
             | `f1_compat.json` | JSON in the original v1 key layout. |
             | `schema.sql` | The schema, commented. |
             | `SHA256SUMS` | Digests. The build is reproducible, so you can check these by rebuilding. |
 
-            Data is CC BY-SA 4.0; circuit geometry is © OpenStreetMap
-            contributors under ODbL 1.0 and is excluded from the JSON export.
+            Data is CC BY-SA 4.0. Circuit geometry is © OpenStreetMap
+            contributors under ODbL 1.0, and ships as its own file rather
+            than inside `f1.db` or the JSON export: two databases distributed
+            alongside each other are a Collective Database under ODbL, so the
+            share-alike follows `f1-geometry.db` alone. Take one, take both,
+            and the obligation follows the file it belongs to.
             See `ATTRIBUTION.md`.
