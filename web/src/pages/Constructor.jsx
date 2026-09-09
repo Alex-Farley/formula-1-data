@@ -186,11 +186,11 @@ function ConstructorBody({ constructor, data }) {
           <div className="timeline">
             {lineage.map((step) => (
               <article key={step.id}>
-                <h4>
+                <h3>
                   {step.entity_name}
                   <span className="years">{span(step.from_year, step.to_year)}</span>
                   {step.entity_name === constructor.name && <span className="pill">this page</span>}
-                </h4>
+                </h3>
                 {step.note && <p>{step.note}</p>}
               </article>
             ))}

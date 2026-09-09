@@ -242,7 +242,7 @@ try {
    * Wait until the page has finished answering its queries.
    *
    * A page renders its heading BEFORE its data arrives — that is deliberate, so
-   * a reader gets the title immediately — which means `main h2` is not the
+   * a reader gets the title immediately — which means `main h1` is not the
    * signal that a page is ready. The placeholders are. Then two frames, because
    * a component reused across a param change can satisfy both conditions on the
    * render still showing the previous route's data, and the assertions read the
@@ -289,7 +289,7 @@ try {
     // Either is proof the new route rendered. Best-effort: a page that
     // legitimately repeats the outgoing heading falls through to the waits
     // below, which is exactly the old behaviour rather than a hang.
-    const outgoing = await page.$('#root main h2')
+    const outgoing = await page.$('#root main h1')
     const was = outgoing ? await outgoing.textContent() : null
     const samePage = await page.evaluate((to) => window.location.pathname === to, route)
     await page.evaluate((to) => {
@@ -307,8 +307,8 @@ try {
     }
     await page.waitForFunction(
       (expected) => {
-        const h2 = document.querySelector('#root main h2')
-        return h2 && (!expected || h2.textContent.includes(expected))
+        const h1 = document.querySelector('#root main h1')
+        return h1 && (!expected || h1.textContent.includes(expected))
       },
       heading,
       { timeout: 20000 },
@@ -335,7 +335,7 @@ try {
   console.log('Boot')
   const started = Date.now()
   await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' })
-  await page.waitForSelector('#root main h2', { timeout: 60000 })
+  await page.waitForSelector('#root main h1', { timeout: 60000 })
   await settle()
   pass(`database opened and the first page rendered in ${Date.now() - started} ms`)
 
@@ -718,7 +718,7 @@ try {
   const first = await page.$eval('#palette-results li a', (node) => node.getAttribute('href'))
   is(first, '/drivers/rindt', 'search finds a driver by name')
   await page.click('#palette-results li a')
-  await page.waitForFunction(() => document.querySelector('#root main h2')?.textContent.includes('Rindt'), null, {
+  await page.waitForFunction(() => document.querySelector('#root main h1')?.textContent.includes('Rindt'), null, {
     timeout: 10000,
   })
   pass('and opens their page')
@@ -868,7 +868,7 @@ try {
   )
   // The handover: the static block is what a reader sees first, and it must be
   // gone once the app can answer for itself — otherwise the page renders twice.
-  await deep.waitForSelector('#root main h2', { timeout: 60000 })
+  await deep.waitForSelector('#root main h1', { timeout: 60000 })
   await deep.waitForFunction(() => !document.getElementById('prerendered'), null, { timeout: 20000 })
   pass('the static page is handed over to the app once the database is open')
   await deep.close()

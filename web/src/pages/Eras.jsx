@@ -57,11 +57,11 @@ function Body({ data }) {
         <div className="timeline">
           {eras.map((era) => (
             <article key={era.id}>
-              <h4>
+              <h3>
                 {era.era_name}
                 <span className="years">{span(era.from_year, era.to_year)}</span>
                 <Confidence value={era.confidence} />
-              </h4>
+              </h3>
               <p>{era.summary}</p>
               {era.dominant_teams && (
                 <p className="faint small">
@@ -200,10 +200,10 @@ function Body({ data }) {
         <div className="timeline">
           {safety.map((milestone) => (
             <article key={milestone.id}>
-              <h4>
+              <h3>
                 {milestone.milestone}
                 <span className="years">{milestone.year}</span>
-              </h4>
+              </h3>
               {milestone.trigger_event && (
                 <p className="faint small">
                   <strong>After:</strong> {milestone.trigger_event}

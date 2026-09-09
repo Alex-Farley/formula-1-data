@@ -133,12 +133,12 @@ function CircuitBody({ circuit, data }) {
           <div className="timeline">
             {layouts.map((layout) => (
               <article key={layout.id}>
-                <h4>
+                <h3>
                   {layout.layout_name}
                   <span className="years">{span(layout.from_year, layout.to_year)}</span>
                   {layout.length_km && <span className="years">{layout.length_km} km</span>}
                   <Confidence value={layout.confidence} />
-                </h4>
+                </h3>
                 {layout.change_reason && <p>{layout.change_reason}</p>}
               </article>
             ))}

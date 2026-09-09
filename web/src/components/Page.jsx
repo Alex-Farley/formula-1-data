@@ -2,7 +2,17 @@ import { Fragment } from 'react'
 import { Link } from 'react-router-dom'
 import { text } from '../lib/format.js'
 
-/** A page: an optional way back, a title, an optional standfirst. */
+/**
+ * A page: an optional way back, a title, an optional standfirst.
+ *
+ * The title is an h1 and a Section heading is an h2, so the outline runs
+ * h1 -> h2 -> h3 with nothing skipped. It used to start at h2, which left
+ * every page in the app with NO h1 at all - the only one in the build was
+ * the loading screen - so somebody navigating by heading found no title for
+ * the document they were on. The prerendered HTML had it right all along
+ * (#prerendered h1 in app.css), so the static page and the app disagreed
+ * about the shape of the same document.
+ */
 export function Page({ eyebrow, title, lede, back, aside, children }) {
   return (
     <article className="page">
@@ -13,7 +23,7 @@ export function Page({ eyebrow, title, lede, back, aside, children }) {
           </p>
         )}
         {eyebrow && <p className="eyebrow">{eyebrow}</p>}
-        <h2>{title}</h2>
+        <h1>{title}</h1>
         {lede && <p className="lede">{lede}</p>}
         {aside}
       </header>
@@ -26,10 +36,10 @@ export function Section({ title, count, note, children, id }) {
   return (
     <section className="section" id={id}>
       {title && (
-        <h3>
+        <h2>
           {title}
           {count !== undefined && count !== null && <span className="count">{count}</span>}
-        </h3>
+        </h2>
       )}
       {note && <p className="note">{note}</p>}
       {children}
@@ -111,7 +121,7 @@ export function Onward({ title = 'Keep going', items }) {
   if (shown.length === 0) return null
   return (
     <nav className="onward" aria-label={title}>
-      <h3>{title}</h3>
+      <h2>{title}</h2>
       <div>
         {shown.map(({ to, label, hint }) => (
           <Link key={`${to}-${label}`} to={to}>

@@ -70,6 +70,19 @@ jobs:
       - name: Compress the export
         run: gzip -9 -k f1_database.json
 
+      # The bulk export, for readers who want the data rather than a page of
+      # it. pyarrow is installed HERE and nowhere else: the build stays
+      # standard-library-only, so `git clone && make all` still needs nothing,
+      # and only the job that publishes needs a Parquet writer.
+      - name: Install the Parquet writer
+        run: pip install pyarrow
+
+      - name: Export to Parquet
+        run: |
+          python3 tools/parquet_export.py
+          zip -j -9 f1-parquet.zip parquet/*.parquet
+          unzip -l f1-parquet.zip | tail -1
+
       # The database is reproducible from its sources, so a digest is a real
       # identity for it rather than a timestamp. Anyone can rebuild and compare.
       #
@@ -80,7 +93,7 @@ jobs:
       - name: Checksums
         run: |
           sha256sum f1.db f1-geometry.db f1_database.json.gz f1_compat.json \
-            schema.sql > SHA256SUMS
+            f1-parquet.zip schema.sql > SHA256SUMS
           cat SHA256SUMS
 
       - uses: softprops/action-gh-release@v2
@@ -92,6 +105,7 @@ jobs:
             f1-geometry.db
             f1_database.json.gz
             f1_compat.json
+            f1-parquet.zip
             schema.sql
             SHA256SUMS
           body: |
@@ -104,6 +118,7 @@ jobs:
             | `f1-geometry.db` | Circuit centrelines, © OpenStreetMap contributors under ODbL 1.0. A separate file so its share-alike does not reach the rest — see below. `circuit_geometry` in `f1.db` is deliberately empty. |
             | `f1_database.json.gz` | Full JSON export of every table. Not kept in git — it is 21 MB and regenerates in about a second with `make export`. |
             | `f1_compat.json` | JSON in the original v1 key layout. |
+            | `f1-parquet.zip` | Every table as Parquet, one file each — including the two the JSON export omits for size. Columnar and compressed: pandas, polars and DuckDB read it directly. |
             | `schema.sql` | The schema, commented. |
             | `SHA256SUMS` | Digests. The build is reproducible, so you can check these by rebuilding. |
 
@@ -114,3 +129,14 @@ jobs:
             share-alike follows `f1-geometry.db` alone. Take one, take both,
             and the obligation follows the file it belongs to.
             See `ATTRIBUTION.md`.
+
+            **Stable links.** Every asset above is also reachable at a URL
+            that always points at the newest release, so a script does not
+            need updating each time:
+
+            ```
+            https://github.com/Alex-Farley/formula-1-data/releases/latest/download/f1.db
+            https://github.com/Alex-Farley/formula-1-data/releases/latest/download/f1-parquet.zip
+            ```
+
+            Swap `latest` for a tag (`v2.19`) to pin a version instead.
