@@ -84,7 +84,13 @@ export default function DataTable({
   }, [source, sort, direction, cols])
 
   if (cols.length === 0 || (source.length === 0 && !caption)) {
-    return <p className="state">{empty}</p>
+    // "state is-empty", not bare "state". A skeleton and a Loading share that
+    // class because they are both the page waiting; this is the page having
+    // finished and found nothing, which is a different thing and reads
+    // differently to anyone watching for the wait to end. The smoke test was
+    // watching for exactly that, and sat out a twenty-second timeout on every
+    // page carrying an empty section.
+    return <p className="state is-empty">{empty}</p>
   }
 
   const visible = showAll ? ordered : ordered.slice(0, page)

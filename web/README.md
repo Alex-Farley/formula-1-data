@@ -377,6 +377,32 @@ A few rules the toolkit enforces, worth knowing before adding a fifth chart:
 ## Testing
 
 ```bash
+npm run test:units     # the pure functions, in node:test  (~0.2 s)
+npm run test:browser   # the built site, in a real browser (~15 s)
+npm test               # both
+```
+
+**Two layers, because they fail differently.** `test/units.mjs` puts awkward
+values through `format.js`, `lap.js` and `standings.js` and looks at the
+answers — a blank that is not a zero, a hyphenated venue that is not two words,
+a three-metre hole that is not a join. `test/smoke.mjs` drives the built site
+and can only reach the values that happen to be in `f1.db` on the pages it
+happens to open.
+
+**The Shapes section is the one that earns its keep.** A page is not one page;
+it is a template over rows that vary in ways nobody had in front of them. The
+sprint table on the race page had been broken since it was added — a string
+where `DataTable` calls a function, and `result()` called on a bare status
+string — and every sprint weekend since 2021 rendered blank. Thirty races.
+Nothing caught it, because the only races the test opened were a 1976 grand
+prix and a 1955 shared drive. The shapes are now chosen **by query** — a
+pit-lane start, a field that mostly failed to qualify, a race not yet run, a
+driver nobody has totals for — so the coverage follows the data instead of
+going stale beside it.
+
+
+
+```bash
 npm run build && npm test
 ```
 

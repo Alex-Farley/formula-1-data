@@ -30,6 +30,13 @@ jobs:
       - name: Rebuild the database
         run: python3 build.py
 
+      # verify.py checks the DATABASE. These check the CODE — the name
+      # matching and the lap-closure arithmetic, whose mistakes have all been
+      # found downstream until now. stdlib unittest, so the build still has no
+      # dependencies.
+      - name: Unit-test the loaders
+        run: python3 -m unittest discover -s tests -v
+
       - name: Verify
         run: python3 verify.py
 
@@ -121,6 +128,12 @@ jobs:
           test "$urls" -gt 2000 \
             || { echo "::error::sitemap.xml lists only $urls URLs"; exit 1; }
           echo "prerendered, sitemap lists $urls URLs"
+
+      # The pure functions, before a browser is involved. node:test, so this
+      # adds no dependency either, and it runs in under a second.
+      - name: Unit-test the front end's pure functions
+        working-directory: web
+        run: npm run test:units
 
       - name: Install Chromium
         working-directory: web

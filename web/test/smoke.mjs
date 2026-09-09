@@ -158,7 +158,11 @@ try {
    */
   const settle = async () => {
     await page.waitForFunction(
-      () => !document.querySelector('#root main .state, #root main .skeleton-table'),
+      // .is-empty is excluded deliberately: it means the query finished and
+      // returned nothing, which is a settled page. Waiting for it to go is
+      // waiting for something that never happens.
+      () =>
+        !document.querySelector('#root main .state:not(.is-empty), #root main .skeleton-table'),
       null,
       { timeout: 20000 },
     )
@@ -584,6 +588,98 @@ try {
   pass('an unknown driver is refused rather than rendered blank')
   await go('/nowhere', 'No such page')
   pass('an unknown route is refused')
+
+  // ----------------------------------------------------------------- shapes
+
+  /*
+   * One page of every SHAPE the data comes in.
+   *
+   * This section exists because of what happened without it. The sprint table
+   * on a race page had been broken since it was added -- it passed a string
+   * where DataTable calls a function, and it called result() on a bare status
+   * string -- and every sprint weekend since 2021 rendered a blank page.
+   * Thirty races. Nothing caught it, because the two races this test opened
+   * were a 1976 grand prix and a 1955 shared drive, and neither had a sprint.
+   *
+   * A page is not one page. It is a template over rows that vary in ways the
+   * developer did not have in front of them: a pit-lane start with no grid
+   * number, a field where half the entries did not qualify, a race that has
+   * not been run, a driver nobody has totals for. The routes below are chosen
+   * BY QUERY rather than written down, so the coverage follows the data rather
+   * than going stale beside it -- and each is asserted only to render and to
+   * log nothing, because the point is the shapes, not the numbers.
+   */
+  console.log('\nShapes')
+
+  const shapes = [
+    ['a sprint weekend',
+     `SELECT '/races/' || year || '/' || round FROM races
+       WHERE sprint = 1 AND status = 'completed' ORDER BY year DESC LIMIT 1`],
+    ['a race somebody started from the pit lane',
+     `SELECT '/races/' || r.year || '/' || r.round FROM races r
+        JOIN race_entries e ON e.race_id = r.id
+       WHERE e.grid_text = 'PL' LIMIT 1`],
+    ['a race most of the field failed to qualify for',
+     `SELECT '/races/' || r.year || '/' || r.round FROM races r
+        JOIN race_entries e ON e.race_id = r.id
+       WHERE e.position_text = 'DNQ'
+       GROUP BY r.id ORDER BY COUNT(*) DESC LIMIT 1`],
+    ['the Indianapolis 500, which shares nothing with the rest',
+     `SELECT '/races/' || year || '/' || round FROM races
+       WHERE name_used LIKE '%Indianapolis%' LIMIT 1`],
+    ['a race that has not been run',
+     `SELECT '/races/' || year || '/' || round FROM races
+       WHERE status = 'scheduled' ORDER BY round LIMIT 1`],
+    ['the race with the most pit stops held for it',
+     `SELECT '/races/' || r.year || '/' || r.round FROM races r
+        JOIN pit_stops p ON p.race_id = r.id
+       GROUP BY r.id ORDER BY COUNT(*) DESC LIMIT 1`],
+    ['a driver who never won',
+     `SELECT '/drivers/' || id FROM drivers
+       WHERE COALESCE(wins, 0) = 0 ORDER BY COALESCE(entries, 0) DESC LIMIT 1`],
+    ['a driver nobody has career totals for',
+     `SELECT '/drivers/' || id FROM drivers
+       WHERE starts IS NULL AND career_points IS NULL LIMIT 1`],
+    ['a constructor that never won',
+     `SELECT '/constructors/' || id FROM constructors
+       WHERE COALESCE(wins, 0) = 0 ORDER BY COALESCE(entries, 0) DESC LIMIT 1`],
+    ['a circuit that held one grand prix',
+     `SELECT '/circuits/' || id FROM circuits WHERE gp_count = 1 LIMIT 1`],
+    ['a circuit with a traced centreline',
+     `SELECT '/circuits/' || circuit_id FROM circuit_geometry LIMIT 1`],
+    ['the car with the most wins',
+     `SELECT '/cars/' || id FROM cars ORDER BY COALESCE(wins, 0) DESC LIMIT 1`],
+    ['the first season',
+     `SELECT '/seasons/' || MIN(year) FROM seasons`],
+    ['the season in progress',
+     `SELECT '/seasons/' || MAX(year) FROM seasons`],
+  ]
+
+  /* A shape with no matching row is a gap in the coverage, not a pass — but it
+     must not take the runner down, which is what `one` does on an empty result. */
+  const maybe = (sql) => {
+    const row = db.prepare(sql).get()
+    return row ? Object.values(row)[0] : null
+  }
+
+  for (const [what, sql] of shapes) {
+    const route = maybe(sql)
+    if (!route) {
+      fail(`${what}: no row in the database matches, so the shape went untested`)
+      continue
+    }
+    const before = consoleErrors.length
+    try {
+      await go(route)
+      // A page that threw during render leaves the heading and nothing under
+      // it, so "did it render" is asked of the body rather than the title.
+      const filled = await page.$$eval('#root main section, #root main .stats', (n) => n.length)
+      if (filled > 0 && consoleErrors.length === before) pass(`${what} — ${route}`)
+      else fail(`${what} — ${route}: ${filled} blocks, ${consoleErrors.length - before} new error(s)`)
+    } catch (error) {
+      fail(`${what} — ${route}: ${String(error.message).split('\n')[0]}`)
+    }
+  }
 
   // ------------------------------------------------------------ prerendering
 

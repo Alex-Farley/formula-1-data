@@ -137,7 +137,8 @@ v2026.12.0.
 | `f1_compat.json` | JSON in the *original* v1 key layout, so anything already consuming that file keeps working. |
 | `schema.sql` | The schema, commented. |
 | `build.py` | Rebuilds `f1.db` from the data modules. Idempotent. |
-| `verify.py` | 170 integrity, cross-tabulation and sanity checks. Exit code 1 on failure. |
+| `verify.py` | Integrity, cross-tabulation and sanity checks on the DATA. Exit code 1 on failure. |
+| `tests/` | Unit tests for the CODE — name matching, lap-closure arithmetic. `make test`, stdlib only. |
 | `audit.py` | Structural health check: fill rates, coverage, keys, redundancy, readiness. |
 | `export_json.py` | Regenerates the JSON exports from the database. |
 | `data/*.py` | The source data, as readable Python literals. **Edit here, then rebuild.** |
