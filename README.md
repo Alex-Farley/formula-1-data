@@ -136,7 +136,7 @@ v2026.12.0.
 | `f1_database.json` | Full JSON export of every table. |
 | `f1_compat.json` | JSON in the *original* v1 key layout, so anything already consuming that file keeps working. |
 | `schema.sql` | The schema, commented. |
-| `build.py` | Rebuilds `f1.db` from the data modules. Idempotent. |
+| `build.py` | Rebuilds `f1.db` from the data modules. Idempotent, and byte-for-byte reproducible. 34 named stages; `STAGES` is the schedule. |
 | `verify.py` | Integrity, cross-tabulation and sanity checks on the DATA. Exit code 1 on failure. |
 | `tests/` | Unit tests for the CODE — name matching, lap-closure arithmetic. `make test`, stdlib only. |
 | `audit.py` | Structural health check: fill rates, coverage, keys, redundancy, readiness. |

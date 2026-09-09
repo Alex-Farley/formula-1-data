@@ -31,6 +31,22 @@ from data import results as RS     # noqa: E402
 DB = os.path.join(HERE, "f1.db")
 VERSION = "2.15"
 
+# The build date, as a CONSTANT and deliberately not date.today().
+#
+# f1.db is a pure function of these sources: the same inputs rebuild to the
+# same bytes, which is what lets CI check that the committed artefacts match a
+# fresh build, and what stops a rebuild that changed nothing from evicting
+# every reader's cached copy of a twenty-megabyte file. A clock in the build
+# would break all of that, and it would make the JSON exports differ every day.
+#
+# The cost is that somebody has to move it, and until this comment existed
+# nobody did: it sat stranded in the middle of the geometry helpers and went
+# four days stale, which the sitemap then published as lastmod on all 2,385
+# pages. So the refresh workflow now bumps it whenever it commits a new
+# harvest — the only time the data actually changes — and a hand edit to
+# data/*.py should bump it too.
+BUILT = "2026-09-09"
+
 
 def _haversine(a, b):
     """Metres between two (lat, lon) pairs on the IUGG mean-radius sphere.
@@ -46,7 +62,6 @@ def _haversine(a, b):
     h = (math.sin(dp / 2) ** 2
          + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2)
     return 2 * R * math.asin(math.sqrt(h))
-BUILT = "2026-09-05"
 
 
 
@@ -106,12 +121,55 @@ def _lap_topology(lines, join_m=1.0):
     closes = (loose == 0 and all(used) and near(ring[0], ring[-1]))
     return closes, loose, sum(used), walked
 
-def build():
+class _Build:
+    """What passes from one stage of the build to the next.
+
+    build() was one function of about nineteen hundred lines. Everything in it
+    shared a single scope, so there were no seams: a stage could not be read on
+    its own, moved, or reasoned about without holding the whole thing in your
+    head, and the only way to learn what a stage depended on was to try taking
+    it out.
+
+    Splitting it needed one measurement — which names actually cross a stage
+    boundary — and the answer is much shorter than the size of the function
+    suggests. It is this list. Each stage pulls what it needs off this object
+    and puts back what later stages read, which is precisely what the flat
+    function did implicitly; the difference is that it is now written down and
+    a stage's inputs and outputs can be seen from its first and last lines.
+
+    The proof that the split changed nothing is that f1.db still builds to the
+    same bytes.
+    """
+
+    con = None
+    cur = None
+    race_key = None
+    known_cons = None
+    f1db_drivers = None
+    entrants = None
+    lookup = None
+    seen_cars = None
+    driver_id = None
+
+
+def _stage_00_open_the_database(b):
+    """open the database"""
+    con = b.con
+    cur = b.cur
+
     if os.path.exists(DB):
         os.remove(DB)
     con = sqlite3.connect(DB)
     con.executescript(open(os.path.join(HERE, "schema.sql"), encoding="utf-8").read())
     cur = con.cursor()
+
+    b.con = con
+    b.cur = cur
+
+
+def _stage_01_meta(b):
+    """meta"""
+    cur = b.cur
 
     # ---------------------------------------------------------- meta
     cur.executemany("INSERT INTO provenance VALUES (?,?,?,?)", N.PROVENANCE)
@@ -141,6 +199,11 @@ def build():
          "list names one chassis for the constructor and NULL where it names several. "
          "See the known_gaps table."),
     ])
+
+
+def _stage_02_drivers(b):
+    """drivers"""
+    cur = b.cur
 
     # ------------------------------------------------------- drivers
     for r in D.CHAMPIONS:
@@ -198,6 +261,11 @@ def build():
              "without ever winning a race, taking pole or setting a fastest lap.",
              "reference", "https://api.jolpi.ca/ergast/f1/drivers/" + eid))
 
+
+def _stage_03_drivers_admitted_from_the_f1db_register(b):
+    """drivers admitted from the F1DB register (data/drivers.py"""
+    cur = b.cur
+
     # --- drivers admitted from the F1DB register (data/drivers.py
     # F1DB_DRIVERS). The ids are authored there; every attribute comes from
     # the generated harvest files, so nobody types six hundred names and no
@@ -250,6 +318,11 @@ def build():
         wins_external = wins, poles_external = poles,
         fastest_laps_external = fastest_laps,
         external_source = 'hand-entered from reference records'""")
+
+
+def _stage_04_constructors(b):
+    """constructors"""
+    cur = b.cur
 
     # -------------------------------------------------- constructors
     for r in T.CONSTRUCTORS:
@@ -308,6 +381,11 @@ def build():
         active_from, active_to, associated_with, significance, confidence)
         VALUES (?,?,?,?,?,?,?,?,?)""", P.PERSONNEL)
 
+
+def _stage_05_seasons(b):
+    """seasons"""
+    cur = b.cur
+
     # ------------------------------------------------------- seasons
     for r in S.SEASONS:
         (yr, rounds, champ, team, cpts, cwins, ru, rupts, cc, ccpts,
@@ -319,6 +397,11 @@ def build():
             notes, confidence, source) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (yr, rounds, champ, team, cpts, cwins, ru, rupts, margin, cc, ccpts,
              formula, tyres, notes, conf, S.SEASON_NOTES_SOURCE))
+
+
+def _stage_06_circuits(b):
+    """circuits"""
+    cur = b.cur
 
     # ------------------------------------------------------ circuits
     for r in C.CIRCUITS:
@@ -336,6 +419,13 @@ def build():
             layout_name, from_year, to_year, by_year, length_km, turns,
             change_reason) VALUES (?,?,?,?,?,?,?,?,?,?)""",
             (i, cid, key, lname, fy, ty, byyear, length, turns, reason))
+
+
+def _stage_07_cars_inserted_in_file_order_so(b):
+    """cars. Inserted in file order so that a car can reference the one it"""
+    cur = b.cur
+    known_cons = b.known_cons
+    seen_cars = b.seen_cars
 
     # --- cars. Inserted in file order so that a car can reference the one it
     # supersedes, which is always listed before it.
@@ -380,6 +470,15 @@ def build():
             FROM cars WHERE id = ?""", (field, str(old), reason, car_id))
 
     known_cons = {r[0] for r in cur.execute("SELECT id FROM constructors")}
+
+    b.known_cons = known_cons
+    b.seen_cars = seen_cars
+
+
+def _stage_08_constructors_admitted_from_the_f1db_register(b):
+    """constructors admitted from the F1DB register (data/teams.py"""
+    cur = b.cur
+    known_cons = b.known_cons
 
     # --- constructors admitted from the F1DB register (data/teams.py
     # F1DB_CONSTRUCTORS). The ids are authored there; every attribute comes
@@ -426,6 +525,11 @@ def build():
              HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
         known_cons.add(f1db_id)
 
+
+def _stage_09_regulation_limits_loaded_before_the_chassis(b):
+    """regulation limits. Loaded before the chassis register so the"""
+    cur = b.cur
+
     # --- regulation limits. Loaded before the chassis register so the
     # register's weights can be measured against them.
     for i, (fy, ty, field, value, unit, note, conf, src) in \
@@ -434,6 +538,14 @@ def build():
             field, value, unit, note, confidence, source)
             VALUES (?,?,?,?,?,?,?,?,?)""",
             (i, fy, ty, field, value, unit, note, conf, src))
+
+
+def _stage_10_the_chassis_engine_and_entrant_register(b):
+    """the chassis, engine and entrant register (F1DB, via"""
+    cur = b.cur
+    known_cons = b.known_cons
+    entrants = b.entrants
+    seen_cars = b.seen_cars
 
     # --- the chassis, engine and entrant register (F1DB, via
     # tools/f1db_fetch.py). Bulk rows: no person has touched them.
@@ -527,6 +639,13 @@ def build():
               sp["article"].replace(" ", "_")) if sp.get("article") else None,
              HV.F1DB_SOURCE))
 
+    b.entrants = entrants
+
+
+def _stage_11_the_lead_image_of_each_accepted(b):
+    """the lead image of each accepted car article, and its credit"""
+    cur = b.cur
+
     # --- the lead image of each accepted car article, and its credit
     #
     # No image is stored. What is stored is which file an article leads with
@@ -579,6 +698,11 @@ def build():
         print(f"  article images: {img_rows} rows, {img_skipped} for "
               f"articles no chassis claims; {named} name the car in the "
               f"file name and {img_rows - named} do not")
+
+
+def _stage_12_circuit_centrelines_re_measured_before_they(b):
+    """circuit centrelines, re-measured before they are admitted"""
+    cur = b.cur
 
     # --- circuit centrelines, re-measured before they are admitted
     #
@@ -664,6 +788,11 @@ def build():
             # has for that circuit, and it is drawn. It just cannot be walked.
             print(f"    does not close: {line}")
 
+
+def _stage_13_a_regulation_figure_is_not_a(b):
+    """a regulation figure is not a measurement, part one"""
+    cur = b.cur
+
     # --- a regulation figure is not a measurement, part one
     #
     # Drop any harvested figure that exactly restates a limit this database
@@ -695,6 +824,13 @@ def build():
                      f"{val:g} is the {hit[0]} regulation {what}, which every "
                      f"car that season was built to. It describes the rules, "
                      f"not this car.", cid_))
+
+
+def _stage_14_a_regulation_figure_is_not_a(b):
+    """a regulation figure is not a measurement, part two"""
+    cur = b.cur
+    known_cons = b.known_cons
+    entrants = b.entrants
 
     # --- a regulation figure is not a measurement, part two
     #
@@ -788,6 +924,11 @@ def build():
             confidence) VALUES (?,?,?,?,?,?)""",
             (gid, name, country, ", ".join(aliases) or None, notes or None, "high"))
 
+
+def _stage_15_rules_tech_safety(b):
+    """rules / tech / safety"""
+    cur = b.cur
+
     # ------------------------------------------- rules / tech / safety
     for i, (yr, cat, title, detail, impact) in enumerate(X.REGULATIONS, 1):
         cur.execute("""INSERT INTO regulation_changes (id, year, category, title, detail,
@@ -831,6 +972,14 @@ def build():
     for i, r in enumerate(X.GOVERNANCE, 1):
         cur.execute("""INSERT INTO governance (id, year, event, detail, significance)
             VALUES (?,?,?,?,?)""", (i,) + r)
+
+
+def _stage_16_current_season(b):
+    """current season"""
+    cur = b.cur
+    race_key = b.race_key
+    lookup = b.lookup
+    driver_id = b.driver_id
 
     # -------------------------------------------------- current season
     for i, (cid, did, car, pu, num, role) in enumerate(N.ENTRIES_2026, 1):
@@ -953,6 +1102,18 @@ def build():
              "verified", N.SOURCE_F1))
         race_key[(2026, c[0])] = rid
 
+    b.race_key = race_key
+    b.lookup = lookup
+    b.driver_id = driver_id
+
+
+def _stage_17_pole_position_and_fastest_lap_as(b):
+    """pole position and fastest lap, as attributes of an entry"""
+    cur = b.cur
+    race_key = b.race_key
+    lookup = b.lookup
+    driver_id = b.driver_id
+
     # --- pole position and fastest lap, as attributes of an entry
     # Each harvested row also carries the race winner, which must equal the
     # winner already recorded. A mismatch means the row describes a different
@@ -997,6 +1158,13 @@ def build():
     if applied != 1161:
         raise SystemExit(f"pole harvest: expected 1161 rows, applied {applied}")
 
+
+def _stage_18_race_venue_as_circuit_id_on(b):
+    """race venue, as circuit_id on the event"""
+    cur = b.cur
+    race_key = b.race_key
+    lookup = b.lookup
+
     # --- race venue, as circuit_id on the event
     # Harvested from the same season articles, again carrying the winner so
     # each row self-validates. Two further checks apply: where the Grand Prix
@@ -1040,6 +1208,11 @@ def build():
     if applied != 1161:
         raise SystemExit(f"venue harvest: expected 1161 rows, applied {applied}")
 
+
+def _stage_19_races_that_used_a_layout_other(b):
+    """races that used a layout other than the circuit's for that season"""
+    cur = b.cur
+
     # --- races that used a layout other than the circuit's for that season
     for cid, key, yr, rnd in C.RACE_LAYOUTS:
         if not cur.execute("""SELECT 1 FROM circuit_layouts
@@ -1050,6 +1223,12 @@ def build():
         if n != 1:
             raise SystemExit(
                 f"race layout override: no {cid} race at {yr} round {rnd}")
+
+
+def _stage_20_second_and_third_place_from_the(b):
+    """second and third place, from the Jolpica-F1 API"""
+    cur = b.cur
+    race_key = b.race_key
 
     # --- second and third place, from the Jolpica-F1 API
     # Checked three ways before anything is written:
@@ -1138,6 +1317,13 @@ def build():
     # loaded the same way, and so this loader's checks apply either way.
     if applied:
         print(f"  podiums: {applied} rows from harvest/podiums.txt")
+
+
+def _stage_21_the_full_classification_qualifying_and_stand(b):
+    """the full classification, qualifying and standings, from F1DB"""
+    cur = b.cur
+    race_key = b.race_key
+    f1db_drivers = b.f1db_drivers
 
     # --- the full classification, qualifying and standings, from F1DB
     #
@@ -1297,6 +1483,15 @@ def build():
               f"from F1DB; {res_skipped_driver} rows skipped for "
               f"{len(unknown_drivers)} unresolvable drivers")
 
+    b.f1db_drivers = f1db_drivers
+
+
+def _stage_22_the_sprint_races(b):
+    """the sprint races"""
+    cur = b.cur
+    race_key = b.race_key
+    f1db_drivers = b.f1db_drivers
+
     # --- the sprint races
     #
     # A sprint is a separate race on the weekend, not a session of the grand
@@ -1356,6 +1551,11 @@ def build():
               f"from F1DB ({flagged} rounds flagged); {spr_skipped} rows "
               f"skipped for an unresolvable driver")
 
+
+def _stage_23_a_round_that_has_a_result(b):
+    """a round that has a result has been run"""
+    cur = b.cur
+
     # --- a round that has a result has been run
     #
     # The calendar in data/current.py authors a status per round, which is
@@ -1379,6 +1579,13 @@ def build():
     if promoted:
         print(f"  calendar: {promoted} round(s) promoted to completed "
               f"because a classification arrived for them")
+
+
+def _stage_24_qualifying_checked_against_the_pole_already(b):
+    """qualifying, checked against the pole already established"""
+    cur = b.cur
+    race_key = b.race_key
+    f1db_drivers = b.f1db_drivers
 
     # --- qualifying, checked against the pole already established
     qual_rows = qual_skipped = 0
@@ -1444,6 +1651,12 @@ def build():
              "back without changing who was quickest - so this is recorded "
              "rather than resolved. See the qualifying table for the times.",
              "open"))
+
+
+def _stage_25_championship_standings_after_every_round_and(b):
+    """championship standings, after every round and at season end"""
+    cur = b.cur
+    f1db_drivers = b.f1db_drivers
 
     # --- championship standings, after every round and at season end
     #
@@ -1537,6 +1750,13 @@ def build():
               f"({std_conflicts} disagreed); {std_skipped} skipped for an "
               f"unresolvable entity")
 
+
+def _stage_26_pit_stops_from_f1db_under_their(b):
+    """pit stops from F1DB, under their own source"""
+    cur = b.cur
+    race_key = b.race_key
+    f1db_drivers = b.f1db_drivers
+
     # --- pit stops from F1DB, under their own source
     #
     # The table is keyed on (race, source, driver, stop) precisely so that
@@ -1561,6 +1781,12 @@ def build():
         print(f"  pit stops: {pit_rows} rows from F1DB "
               f"({pit_skipped} skipped)")
 
+
+def _stage_27_notable_team_radio_a_small_curated(b):
+    """notable team radio. A small curated set, each checked against a"""
+    cur = b.cur
+    race_key = b.race_key
+
     # --- notable team radio. A small curated set, each checked against a
     # written source. The bulk radio index for 2018- is loaded separately by
     # tools/fastf1_load.py and is flagged notable=0.
@@ -1575,6 +1801,11 @@ def build():
             transcript, context, notable, confidence, source)
             VALUES (?,?,?,?,?,1,?,?)""",
             (rid, did, f"{speaker} [{channel}]", text, ctx, conf, src))
+
+
+def _stage_28_career_figures_checked_against_the_official(b):
+    """career figures checked against the official driver pages."""
+    cur = b.cur
 
     # --- career figures checked against the official driver pages.
     # Entries, starts and points are not derivable from the race records this
@@ -1591,6 +1822,11 @@ def build():
              "formula1.com driver page, " + D.STATS_AS_OF, did)).rowcount
         if n != 1:
             raise SystemExit(f"VERIFIED_STATS: no driver row for {did!r}")
+
+
+def _stage_29_derived_win_totals(b):
+    """derived win totals"""
+    cur = b.cur
 
     # --- derived win totals
     # Fill constructor win counts that were previously unknown, and correct
@@ -1715,7 +1951,18 @@ def build():
                 VALUES (?,?,?,?,?,?)""",
                 (r[1], field, str(external), str(derived), assessment, status))
 
+
+def _stage_30_figures_derivable_from_the_race_records(b):
+    """figures derivable from the race records"""
     # --- figures derivable from the race records
+
+
+def _stage_31_link_race_entries_to_the_chassis(b):
+    """link race entries to the CHASSIS that scored them"""
+    cur = b.cur
+    known_cons = b.known_cons
+    entrants = b.entrants
+
     # --- link race entries to the CHASSIS that scored them
     #
     # known_gaps #1 has stood since v2.6: the chassis-per-race harvest was
@@ -1765,6 +2012,13 @@ def build():
         cur.execute("""UPDATE race_entries SET chassis_id=?
             WHERE constructor_id=? AND race_id IN
                   (SELECT id FROM races WHERE year=?)""", (ch_id, cons, yr))
+
+
+def _stage_32_rule_two_resolve_through_the_driver(b):
+    """rule two: resolve through the driver and the round"""
+    cur = b.cur
+    known_cons = b.known_cons
+    entrants = b.entrants
 
     # --- rule two: resolve through the driver and the round
     #
@@ -1879,6 +2133,15 @@ def build():
                 filled_chassis += 1
     print(f"  entry lists: {agreed} stored constructors confirmed, "
           f"{filled_cons} filled, {filled_chassis} chassis resolved by round")
+
+
+def _stage_33_link_race_entries_to_the_curated(b):
+    """link race entries to the curated car that scored them"""
+    con = b.con
+    cur = b.cur
+    known_cons = b.known_cons
+    entrants = b.entrants
+    driver_id = b.driver_id
 
     # --- link race entries to the curated car that scored them
     #
@@ -2055,6 +2318,58 @@ def X_engine_eras():
     return T.ENGINE_ERAS
 
 
+def build():
+    """Rebuild f1.db from schema.sql and the data modules, one stage at a time.
+
+    STAGES is the build. Order matters throughout — a register has to exist
+    before anything can reference it, and a harvest that fills a gap has to run
+    after whatever might already have filled it — so the list is the schedule
+    and not merely a collection.
+    """
+    b = _Build()
+    for stage in STAGES:
+        stage(b)
+    return b.con
+
+
+# In order, because the build is a sequence.
+STAGES = [
+    _stage_00_open_the_database,
+    _stage_01_meta,
+    _stage_02_drivers,
+    _stage_03_drivers_admitted_from_the_f1db_register,
+    _stage_04_constructors,
+    _stage_05_seasons,
+    _stage_06_circuits,
+    _stage_07_cars_inserted_in_file_order_so,
+    _stage_08_constructors_admitted_from_the_f1db_register,
+    _stage_09_regulation_limits_loaded_before_the_chassis,
+    _stage_10_the_chassis_engine_and_entrant_register,
+    _stage_11_the_lead_image_of_each_accepted,
+    _stage_12_circuit_centrelines_re_measured_before_they,
+    _stage_13_a_regulation_figure_is_not_a,
+    _stage_14_a_regulation_figure_is_not_a,
+    _stage_15_rules_tech_safety,
+    _stage_16_current_season,
+    _stage_17_pole_position_and_fastest_lap_as,
+    _stage_18_race_venue_as_circuit_id_on,
+    _stage_19_races_that_used_a_layout_other,
+    _stage_20_second_and_third_place_from_the,
+    _stage_21_the_full_classification_qualifying_and_stand,
+    _stage_22_the_sprint_races,
+    _stage_23_a_round_that_has_a_result,
+    _stage_24_qualifying_checked_against_the_pole_already,
+    _stage_25_championship_standings_after_every_round_and,
+    _stage_26_pit_stops_from_f1db_under_their,
+    _stage_27_notable_team_radio_a_small_curated,
+    _stage_28_career_figures_checked_against_the_official,
+    _stage_29_derived_win_totals,
+    _stage_30_figures_derivable_from_the_race_records,
+    _stage_31_link_race_entries_to_the_chassis,
+    _stage_32_rule_two_resolve_through_the_driver,
+    _stage_33_link_race_entries_to_the_curated,
+]
+
 def report(con):
     cur = con.cursor()
     tables = [r[0] for r in cur.execute(
@@ -2077,3 +2392,4 @@ if __name__ == "__main__":
     c = build()
     report(c)
     print(f"\nWrote {DB}")
+
