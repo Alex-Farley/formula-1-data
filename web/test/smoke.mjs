@@ -273,10 +273,38 @@ try {
    * navigates in-app instead.
    */
   const go = async (route, heading) => {
+    // <main> is a stable node — only what Routes renders inside it changes — so
+    // "an h2 exists" is still true of the page being NAVIGATED AWAY FROM, and
+    // settle() then finds that old page perfectly settled. Callers that pass a
+    // heading discriminate old from new by its text; the shape loop passes none
+    // and had nothing to wait for, so an assertion could run against a DOM
+    // mid-transition and count zero blocks. It held locally and broke on CI,
+    // where a slower machine widens the window.
+    //
+    // Route elements are different component types, so React unmounts the old
+    // subtree rather than reusing it: the old h2 leaves the document. Waiting
+    // for that is a signal that needs no knowledge of the new page.
+    // Two routes onto the SAME component (/seasons/1950 -> /seasons/2026) keep
+    // the node and change its text; two onto different components replace it.
+    // Either is proof the new route rendered. Best-effort: a page that
+    // legitimately repeats the outgoing heading falls through to the waits
+    // below, which is exactly the old behaviour rather than a hang.
+    const outgoing = await page.$('#root main h2')
+    const was = outgoing ? await outgoing.textContent() : null
+    const samePage = await page.evaluate((to) => window.location.pathname === to, route)
     await page.evaluate((to) => {
       window.history.pushState({}, '', to)
       window.dispatchEvent(new PopStateEvent('popstate'))
     }, route)
+    if (outgoing && !samePage) {
+      await page
+        .waitForFunction(
+          ({ node, text }) => !node.isConnected || node.textContent !== text,
+          { node: outgoing, text: was },
+          { timeout: 10000 },
+        )
+        .catch(() => {})
+    }
     await page.waitForFunction(
       (expected) => {
         const h2 = document.querySelector('#root main h2')
@@ -792,6 +820,20 @@ try {
       await go(route)
       // A page that threw during render leaves the heading and nothing under
       // it, so "did it render" is asked of the body rather than the title.
+      //
+      // Waited for rather than sampled. The question is whether the page ever
+      // renders, and reading the count at one instant asks whether it had
+      // rendered YET — which is the same thing only while nothing is slow.
+      // /drivers/moss came back with 0 blocks once on CI and never here, on
+      // this commit or under a loaded machine. A page that genuinely renders
+      // nothing still fails, three seconds later.
+      await page
+        .waitForFunction(
+          () => document.querySelectorAll('#root main section, #root main .stats').length > 0,
+          null,
+          { timeout: 3000 },
+        )
+        .catch(() => {})
       const filled = await page.$$eval('#root main section, #root main .stats', (n) => n.length)
       if (filled > 0 && consoleErrors.length === before) pass(`${what} — ${route}`)
       else fail(`${what} — ${route}: ${filled} blocks, ${consoleErrors.length - before} new error(s)`)
