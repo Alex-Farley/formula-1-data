@@ -138,6 +138,34 @@ if you try.
 
 ---
 
+## Decided: the six radio quotations stay
+
+`team_radio` holds six exchanges quoted verbatim. They were kept, deliberately
+and on the record.
+
+| | |
+|---|---|
+| How much | Six rows. The longest is 88 characters |
+| What they are | Utterances broadcast live on the world feed, quoted in Wikipedia race articles |
+| What they document | The team-orders ban and Massa at Hockenheim 2010, Multi-21 at Sepang 2013, "GP2 engine" at Suzuka 2015, and three exchanges from Abu Dhabi 2021 |
+| Attribution | Speaker, role, race and channel on every row |
+
+Two things make this the ordinary case rather than a close one. Spontaneous
+short utterances generally lack the originality to attract copyright in their
+own right; and quoting brief excerpts to document an event is what the
+quotation exceptions exist for. They are attributed, they are short, and each
+one is the subject of the historical claim around it rather than decoration.
+
+Against that: they are the most quotable-back item in a commercial product,
+and six rows would not be much to lose. That was weighed and the rows stay.
+Revisit it if the project is ever commercialised in a form that reproduces
+them prominently — a marketing surface is not a database row.
+
+The `context` prose beside each quotation is this project's own writing and
+belongs to the prose pass, not here.
+
+---
+
 ## Still open
 
 **The prose pass.** 552 short fields — averaging barely a sentence — carry the
@@ -145,11 +173,6 @@ CC BY-SA obligation that comes from Wikipedia, not from FOM. Each needs
 marking as original, paraphrased, or close to source; only the third needs
 rewriting. This is about knowing what the licence statement must say, not
 about whether the data may ship. It may.
-
-**`team_radio`.** Six exchanges quoted verbatim from Wikipedia race articles.
-Short, attributed and documentary, which is the ordinary case for quotation.
-Defensible; also the most quotable-back item in a commercial product, and six
-rows is not much to lose. A judgement call, not a compliance finding.
 
 **Trademark.** Not a data question and not addressed here. "Formula 1", "F1"
 and "Grand Prix" are Formula One Licensing BV's, this project is unaffiliated

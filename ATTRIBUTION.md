@@ -90,7 +90,9 @@ In practice that means one of:
 
 The database also quotes six team radio exchanges verbatim. They are short,
 attributed, and used to document historical events, which is the ordinary
-case for quotation — but they are quotations, not facts.
+case for quotation — but they are quotations, not facts. Keeping them was a
+decision rather than an oversight; `docs/COMMERCIAL-READINESS.md` records what
+was weighed, and when it would be worth revisiting.
 
 *This is a description of the licences involved, not legal advice.*
 
