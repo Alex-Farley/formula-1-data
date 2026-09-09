@@ -1,4 +1,4 @@
-# F1 Verified Facts Database — v2.16
+# F1 Verified Facts Database — v2.17
 
 An expansion of the original single-file JSON into a normalised, queryable
 SQLite database covering 1950–2026, with the JSON kept as a generated export.
@@ -12,6 +12,25 @@ harvested from Wikipedia's season tables under a new `reference` confidence tier
 replaces the per-race one, every Grand Prix now has a canonical id, and
 `audit.py` reports on the shape of the database rather than its contents.
 See *Structure* below.
+
+**v2.17** is the release the previous four branches earned, and it exists
+because the merge that brought them together left a gap none of them could
+see on its own. The ODbL split moved every centreline out of `f1.db` into
+`f1-geometry.db`; the release workflow was written on a branch that did not
+know the split had happened. Between them they would have published a
+database whose `circuit_geometry` is deliberately empty alongside no
+geometry file at all — twenty-five centrelines reachable only by cloning the
+repository. `SHA256SUMS` had the same shape of fault: it digested the
+uncompressed `f1_database.json` while the release shipped the `.gz`, so the
+one file a reader could not verify was the one they received. Both are fixed,
+and the workflow now refuses a tag that disagrees with `VERSION` — the check
+that would have caught a `v2.17` tag publishing artefacts reporting
+themselves as 2.16, silently, because nothing downstream reads that field.
+This release also carries the work of the merges themselves: 32 unit tests
+and 35 front-end ones, prerendered HTML for all 2,385 routes, machine-readable
+licence classes with build and verify guards, the FOM-owned tables held
+empty, and one attribution rule for Commons images. See *CLAUDE.md* for the
+conventions all of that depends on.
 
 **v2.16** makes the confidence tiers **traceable**, and demotes 333 rows in
 doing it. `source_patterns` resolves every row's `source` to a
