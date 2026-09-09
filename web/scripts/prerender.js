@@ -63,7 +63,7 @@ const die = (message) => {
  * SITE_BASE must match vite's `base`, because that is what decides whether
  * /assets/... resolves; the two read the same variable so they cannot drift.
  */
-const ORIGIN = (process.env.SITE_ORIGIN ?? 'https://f1-verified-facts.pages.dev').replace(/\/$/, '')
+const ORIGIN = (process.env.SITE_ORIGIN ?? 'https://lapledger.org').replace(/\/$/, '')
 const BASE = (process.env.SITE_BASE ?? '/').replace(/\/*$/, '/')
 
 const template = join(dist, 'index.html')

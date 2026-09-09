@@ -61,11 +61,22 @@ echo "--- verifying it"
 "$PYTHON" verify.py
 
 # SITE_ORIGIN is what scripts/prerender.js stamps into every canonical link,
-# og:url and sitemap entry. Cloudflare exposes the deployment's own URL, which
-# is right for a preview deploy and right for production once a custom domain
-# is bound; the fallback only matters when neither is set, and a wrong origin
-# costs a canonical tag rather than a working site.
-export SITE_ORIGIN="${SITE_ORIGIN:-${CF_PAGES_URL:-https://formula-1-data.pages.dev}}"
+# og:url and sitemap entry. The site is served from lapledger.org, so that is
+# the default here rather than in a dashboard field: the canonical host is a
+# fact about this project and belongs where it can be read and reviewed, like
+# the build command around it.
+#
+# CF_PAGES_URL USED TO SIT IN THIS CHAIN AND NO LONGER DOES. It is a Pages
+# variable and this is a Worker, so it was never set - the build fell through
+# to a .pages.dev literal, and every canonical tag on the live domain pointed
+# at a host that is not this one. Worse, where it IS set it names the
+# deployment's own URL, which makes a preview self-canonicalise: previews are
+# publicly reachable, so each one would invite indexing as a rival copy of all
+# 2,385 pages. A preview should say the production page is the real one.
+#
+# Override it deliberately if you ever need to (SITE_ORIGIN=... sh
+# tools/cloudflare-build.sh); nothing infers it any more.
+export SITE_ORIGIN="${SITE_ORIGIN:-https://lapledger.org}"
 echo "--- canonical origin $SITE_ORIGIN"
 
 echo "--- building the front end"
