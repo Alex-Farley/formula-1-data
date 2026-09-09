@@ -376,6 +376,58 @@ def result_rows(data, yaml):
     return rows
 
 
+def race_date_rows(data, yaml):
+    """The date each race was held.
+
+    F1DB carries a date for every one of its 1,172 races, back to Silverstone
+    on 1950-05-13. This database held 23, all of them in the 2020s, for a
+    structural reason rather than a factual one: the date lives in the round's
+    own race.yml, and result_rows() only ever opened race-results.yml beside
+    it. The file was there the whole time and nothing read it.
+
+    The gap was visible on every prerendered race page as "Dates -", and it
+    kept startDate out of the SportsEvent JSON-LD, which is the one field a
+    search engine most wants from an event.
+    """
+    rows = []
+    for year, rnd, path in _races(data, yaml):
+        race = _load(os.path.join(path, "race.yml"), yaml)
+        if not isinstance(race, dict) or not race.get("date"):
+            continue
+        rows.append("|".join(_clean(v) for v in (year, rnd, race["date"])))
+    return rows
+
+
+def fastest_lap_rows(data, yaml):
+    """Who set the fastest lap of each race, on which lap, and in what time.
+
+    race_entries.fastest_lap comes only from the hand-written
+    harvest/poles.txt, while everything else about a completed race refreshes
+    from F1DB on a schedule. So for a week after every Grand Prix the fastest
+    lap is blank on a race that is otherwise complete - exactly the hole that
+    grid 1 used to have, and no longer does.
+
+    F1DB shapes fastest-laps.yml as a classification, so the fastest lap of
+    the race is the row at position 1; the rest order the field behind it and
+    are not this database's concern. build.py fills only where the harvest is
+    silent, and records a discrepancy where the two disagree.
+
+    Eleven races have no such file, and all eleven are correct: 2021 Belgium,
+    where no racing lap was ever set and the null is declared in known_gaps,
+    and the ten 2026 rounds that have not been run.
+    """
+    rows = []
+    for year, rnd, path in _races(data, yaml):
+        for r in _load(os.path.join(path, "fastest-laps.yml"), yaml):
+            if r.get("position") != 1:
+                continue
+            rows.append("|".join(_clean(v) for v in (
+                year, rnd, r.get("driverId"), r.get("constructorId"),
+                r.get("lap"), r.get("time"))))
+            break
+    return rows
+
+
 def sprint_result_rows(data, yaml):
     """The sprint race classification, for the rounds that had one.
 
@@ -548,6 +600,13 @@ def main():
     ok &= write("f1db_pit_stops.txt",
                 "year|round|driver_id|stop|lap|time|time_millis",
                 pit_stop_rows(data, yaml), version, commit, args.check)
+    ok &= write("race_dates.txt",
+                "year|round|date   (ISO 8601, the day the race was held)",
+                race_date_rows(data, yaml), version, commit, args.check)
+    ok &= write("fastest_laps.txt",
+                "year|round|driver_id|constructor_id|lap|time"
+                "   (the fastest lap OF THE RACE, F1DB position 1)",
+                fastest_lap_rows(data, yaml), version, commit, args.check)
 
     if args.check and not ok:
         sys.exit("the committed harvest files are out of date with F1DB")

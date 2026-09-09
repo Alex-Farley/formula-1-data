@@ -79,6 +79,8 @@ const one = (sql, ...params) => db.prepare(sql).get(...params) ?? null
 // ------------------------------------------------------------------- html
 
 const ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/
+
 const esc = (value) =>
   value === null || value === undefined ? '' : String(value).replace(/[&<>"']/g, (c) => ESCAPES[c])
 
@@ -452,6 +454,12 @@ const titled = (headline) => `${headline} — ${SITE}`
         ...(r.winner && !scheduled
           ? { winner: { '@type': 'Person', name: r.winner } }
           : {}),
+        // startDate is the single field a search engine most wants from an
+        // event, and until the F1DB race dates landed only 23 races could
+        // supply one. Emitted ONLY for a well-formed ISO day: the 23 dates
+        // entered by hand may express a range ("2-4 March"), and invalid
+        // structured data is worse than none.
+        ...(ISO_DAY.test(r.dates ?? '') ? { startDate: r.dates } : {}),
       },
       body: `
         <h1>${esc(headline)}</h1>

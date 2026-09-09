@@ -30,7 +30,7 @@ from data import radio as RA       # noqa: E402
 from data import results as RS     # noqa: E402
 
 DB = os.path.join(HERE, "f1.db")
-VERSION = "2.17"
+VERSION = "2.18"
 
 # The build date, as a CONSTANT and deliberately not date.today().
 #
@@ -1877,7 +1877,7 @@ def _stage_27_notable_team_radio_a_small_curated(b):
             (rid, did, f"{speaker} [{channel}]", text, ctx, conf, src))
 
 
-def _stage_28_career_figures_checked_against_the_official(b):
+def _stage_29_career_figures_checked_against_the_official(b):
     """career figures checked against the official driver pages."""
     cur = b.cur
 
@@ -1898,7 +1898,7 @@ def _stage_28_career_figures_checked_against_the_official(b):
             raise SystemExit(f"VERIFIED_STATS: no driver row for {did!r}")
 
 
-def _stage_29_derived_win_totals(b):
+def _stage_30_derived_win_totals(b):
     """derived win totals"""
     cur = b.cur
 
@@ -2026,12 +2026,12 @@ def _stage_29_derived_win_totals(b):
                 (r[1], field, str(external), str(derived), assessment, status))
 
 
-def _stage_30_figures_derivable_from_the_race_records(b):
+def _stage_31_figures_derivable_from_the_race_records(b):
     """figures derivable from the race records"""
     # --- figures derivable from the race records
 
 
-def _stage_31_link_race_entries_to_the_chassis(b):
+def _stage_32_link_race_entries_to_the_chassis(b):
     """link race entries to the CHASSIS that scored them"""
     cur = b.cur
     known_cons = b.known_cons
@@ -2088,7 +2088,7 @@ def _stage_31_link_race_entries_to_the_chassis(b):
                   (SELECT id FROM races WHERE year=?)""", (ch_id, cons, yr))
 
 
-def _stage_32_rule_two_resolve_through_the_driver(b):
+def _stage_33_rule_two_resolve_through_the_driver(b):
     """rule two: resolve through the driver and the round"""
     cur = b.cur
     known_cons = b.known_cons
@@ -2209,7 +2209,7 @@ def _stage_32_rule_two_resolve_through_the_driver(b):
           f"{filled_cons} filled, {filled_chassis} chassis resolved by round")
 
 
-def _stage_33_link_race_entries_to_the_curated(b):
+def _stage_34_link_race_entries_to_the_curated(b):
     """link race entries to the curated car that scored them"""
     con = b.con
     cur = b.cur
@@ -2646,6 +2646,94 @@ def build():
 
 
 # In order, because the build is a sequence.
+def _stage_28_race_dates_and_the_fastest_lap_where(b):
+    """race dates, and the fastest lap where the harvest has none"""
+    cur = b.cur
+    race_key = b.race_key
+    f1db_drivers = b.f1db_drivers
+
+    # --- the date each race was held
+    #
+    # 1,149 of 1,172 races carried no date, and the reason was structural
+    # rather than factual: F1DB publishes one for every race back to
+    # 1950-05-13, but it lives in the round's own race.yml and the results
+    # loader only ever opened race-results.yml beside it. The file was there
+    # the whole time and nothing read it. Every prerendered race page showed
+    # "Dates -", and the SportsEvent JSON-LD could not emit startDate, which
+    # is the one field a search engine most wants from an event.
+    #
+    # ONLY A RACE WITH NO DATE IS FILLED. The 23 already held were written by
+    # hand and some express a RANGE - a meeting run over several days - which
+    # a single ISO day cannot represent. Overwriting them would trade a
+    # richer fact for a uniform one.
+    dated = 0
+    for h in HV.load_race_dates():
+        rid = race_key.get((int(h["year"]), int(h["round"])))
+        if rid is None:
+            continue
+        cur.execute("""UPDATE races SET dates=? WHERE id=?
+            AND (dates IS NULL OR TRIM(dates)='')""", (h["date"], rid))
+        dated += cur.rowcount
+
+    # --- the fastest lap, where the pole harvest has none
+    #
+    # Mirrors how grid 1 is handled above, and for the same reason.
+    # race_entries.fastest_lap comes only from hand-written harvest/poles.txt
+    # while the rest of a completed race refreshes from F1DB on a schedule,
+    # so for a week after every Grand Prix a finished race has every other
+    # field and a blank fastest lap. 2026 round 13 was sitting in exactly
+    # that state.
+    #
+    # F1DB fills the VACANCY only. Where the harvest already names someone,
+    # it keeps the slot - it is the older, hand-checked source - and a
+    # disagreement is recorded rather than resolved quietly.
+    fl_filled = 0
+    fl_no_entry = 0
+    fl_disagreements = []
+    for h in HV.load_fastest_laps():
+        rid = race_key.get((int(h["year"]), int(h["round"])))
+        if rid is None:
+            continue
+        did = f1db_drivers.get(h["driver_id"])
+        if not did:
+            continue
+        held = [r[0] for r in cur.execute(
+            "SELECT driver_id FROM race_entries WHERE race_id=? AND "
+            "fastest_lap=1", (rid,))]
+        if held:
+            if did not in held:
+                fl_disagreements.append(
+                    (h["year"], h["round"], held[0], did))
+            continue
+        row = cur.execute("SELECT id FROM race_entries WHERE race_id=? AND "
+                          "driver_id=?", (rid, did)).fetchone()
+        if row is None:
+            # F1DB names a driver this database has no entry for in that
+            # race. Inventing the entry to hang a fastest lap on it would be
+            # asserting a start nothing here supports, so it is counted and
+            # skipped.
+            fl_no_entry += 1
+            continue
+        cur.execute("UPDATE race_entries SET fastest_lap=1, "
+                    "fastest_lap_shared=1 WHERE id=?", (row[0],))
+        fl_filled += 1
+
+    for yr_, rnd_, ours_, theirs_ in fl_disagreements:
+        cur.execute("""INSERT INTO discrepancies (subject, field,
+            stored_value, derived_value, assessment, status)
+            VALUES (?,?,?,?,?,?)""",
+            (f"{yr_} round {rnd_}", "fastest lap", ours_, theirs_,
+             "The pole harvest and F1DB name different drivers as setting "
+             "the fastest lap of the race. Both are describing the same "
+             "thing, so one of them is wrong. The harvest keeps the slot "
+             "because it is hand-checked and older; the other reading is "
+             "recorded here so somebody can look at it.", "open"))
+
+    print(f"  race dates: {dated} filled from F1DB; fastest laps: "
+          f"{fl_filled} filled, {len(fl_disagreements)} disagreements, "
+          f"{fl_no_entry} with no matching entry")
+
+
 STAGES = [
     _stage_00_open_the_database,
     _stage_01_meta,
@@ -2675,12 +2763,13 @@ STAGES = [
     _stage_25_championship_standings_after_every_round_and,
     _stage_26_pit_stops_from_f1db_under_their,
     _stage_27_notable_team_radio_a_small_curated,
-    _stage_28_career_figures_checked_against_the_official,
-    _stage_29_derived_win_totals,
-    _stage_30_figures_derivable_from_the_race_records,
-    _stage_31_link_race_entries_to_the_chassis,
-    _stage_32_rule_two_resolve_through_the_driver,
-    _stage_33_link_race_entries_to_the_curated,
+    _stage_28_race_dates_and_the_fastest_lap_where,
+    _stage_29_career_figures_checked_against_the_official,
+    _stage_30_derived_win_totals,
+    _stage_31_figures_derivable_from_the_race_records,
+    _stage_32_link_race_entries_to_the_chassis,
+    _stage_33_rule_two_resolve_through_the_driver,
+    _stage_34_link_race_entries_to_the_curated,
 ]
 
 def report(con):
