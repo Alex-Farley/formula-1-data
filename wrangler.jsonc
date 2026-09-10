@@ -7,16 +7,24 @@
   // repository, and a Worker takes its configuration from here rather than
   // from the dashboard.
   //
-  // Build command:   sh tools/cloudflare-build.sh
-  // Deploy command:  npx wrangler deploy
+  // Build command:   cd web && npm ci && npm run build
+  // Deploy command:  npx wrangler versions upload
   //
-  // That build command is the one in the dashboard, confirmed against it.
-  // This comment used to read "cd web && npm ci && npm run build", which is
-  // what cloudflare-build.sh does LAST and not what Cloudflare invokes - a
-  // difference that matters, because the script also rebuilds the database
-  // and runs verify.py before any of it. Reading this file and believing it
-  // sent a debugging session after the wrong file entirely: if the two ever
-  // disagree again, the dashboard is the authority.
+  // Taken from a build log, which is the only authority worth trusting here:
+  //
+  //     Executing user build command: cd web && npm ci && npm run build
+  //
+  // NOTE THAT tools/cloudflare-build.sh IS NOT WIRED TO THIS DEPLOYMENT.
+  // Its header describes itself as what Cloudflare runs, and it is not: the
+  // dashboard invokes the npm build directly. So the database is NOT rebuilt
+  // and verify.py is NOT re-run at deploy time - the site serves the f1.db
+  // committed to main, which CI has checked on every push, rather than one
+  // checked again here. That is a weaker guarantee than the script claims,
+  // and worth knowing before relying on either.
+  //
+  // Anything that must happen on a deploy therefore belongs in the npm build
+  // chain (web/package.json -> scripts/prepare-assets.js, vite, prerender),
+  // because that chain demonstrably runs.
   //
   // The build needs PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 in the build
   // environment. playwright is a devDependency of the front end and its
