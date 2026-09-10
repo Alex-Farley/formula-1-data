@@ -1,4 +1,4 @@
-import { Fragment } from 'react'
+import { createContext, Fragment } from 'react'
 import { Link } from 'react-router-dom'
 import { text } from '../lib/format.js'
 
@@ -32,18 +32,32 @@ export function Page({ eyebrow, title, lede, back, aside, children }) {
   )
 }
 
+/**
+ * The heading of the Section a component is rendered inside, or null.
+ *
+ * It exists so a table can be NAMED by the section that introduces it. A
+ * <caption> is how a table tells assistive technology what it holds, and
+ * fifty call sites passed none - so entering any table on the site announced
+ * only "table". Taking the name from here rather than writing fifty captions
+ * means there is one string, the one already on screen, and it cannot drift
+ * out of step with the heading a reader can see.
+ */
+export const SectionTitle = createContext(null)
+
 export function Section({ title, count, note, children, id }) {
   return (
-    <section className="section" id={id}>
-      {title && (
-        <h2>
-          {title}
-          {count !== undefined && count !== null && <span className="count">{count}</span>}
-        </h2>
-      )}
-      {note && <p className="note">{note}</p>}
-      {children}
-    </section>
+    <SectionTitle.Provider value={typeof title === 'string' ? title : null}>
+      <section className="section" id={id}>
+        {title && (
+          <h2>
+            {title}
+            {count !== undefined && count !== null && <span className="count">{count}</span>}
+          </h2>
+        )}
+        {note && <p className="note">{note}</p>}
+        {children}
+      </section>
+    </SectionTitle.Provider>
   )
 }
 
