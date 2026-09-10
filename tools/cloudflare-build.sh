@@ -1,12 +1,20 @@
 #!/bin/sh
 #
-# What Cloudflare runs to build the site.
+# What Cloudflare is configured to run to build the site.
 #
 # It lives here rather than in the dashboard's build-command field so that it
 # can be read, reviewed and changed in the repository like anything else. The
-# dashboard holds one line:
+# dashboard's build-command field reads:
 #
 #     sh tools/cloudflare-build.sh
+#
+# WHETHER IT ACTUALLY RUNS IS, AS OF THIS WRITING, UNSETTLED. A build log of
+# 10 September 2026 announced "Executing user build command: cd web && npm ci
+# && npm run build" - a string that appears nowhere in this file, which runs
+# those three as separate lines - and none of the echoes below reached that
+# log. So the dashboard field and the build log disagree. See F1_DEPLOY_SCRIPT
+# at the foot of this file: it makes the deployed site answer the question
+# instead of leaving it to be read out of a log.
 #
 # WHY THE DATABASE IS REBUILT
 #     f1.db is committed, so the site would build without this. But the point
@@ -79,35 +87,27 @@ echo "--- verifying it"
 export SITE_ORIGIN="${SITE_ORIGIN:-https://lapledger.org}"
 echo "--- canonical origin $SITE_ORIGIN"
 
-# The Parquet bundle, served from this site's own domain rather than only
-# from a GitHub release. It is staged into web/public/, which is how f1.db
-# already reaches the deployed site, so vite copies it into dist like any
-# other asset.
+# THE PARQUET BUNDLE IS NOT BUILT HERE. It is built by
+# web/scripts/parquet-bundle.mjs, inside the npm build below.
 #
-# WHY IT IS SERVED HERE AT ALL, when the release already carries one: this
-# copy is built from the database this deploy just rebuilt, so it can never
-# be older than the site beside it. A release is pinned to a tag and goes
-# stale between them.
+# It was written here first, three times, and three times nothing appeared on
+# the deployed site - because the build that ran had never read this file.
+# Putting the step in the npm chain removed the dependency on which chain
+# Cloudflare invokes: `npm run build` runs either way, from here or directly.
+# That is the only reason it lives there rather than beside the rebuild it
+# logically belongs to, and it should stay there whatever F1_DEPLOY_SCRIPT
+# eventually reveals.
+
+# Whether this file ran at all is not a question the deployed site should
+# leave to inference. The dashboard's build-command field has disagreed with
+# the build log once already, and reading the difference out of eight seconds
+# of npm output is exactly the kind of guess that cost three deploys here.
 #
-# NON-FATAL ON PURPOSE. pyarrow is the one thing in this script that reaches
-# outside the repository, and a site that stops deploying because a download
-# could not be built is a worse outcome than a missing download. `set -e` is
-# suspended for the attempt and the failure is shouted rather than swallowed.
-# "$PYTHON" -m pip, NEVER a bare `pip`. The whole point of the search above
-# is that the python first on PATH is the WRONG one, so its pip installs
-# pyarrow somewhere "$PYTHON" cannot see it - which is how the first attempt
-# at this failed: the build went green, the warning scrolled past, and the
-# site deployed without the download. Ask the chosen interpreter to install
-# into itself.
-#
-# Errors are printed rather than suppressed. Non-fatal must not mean silent:
-# a step allowed to fail is exactly the step whose reason has to reach the
-# log, because nothing downstream will complain on its behalf.
-# The Parquet bundle is NOT built here. It is built by
-# web/scripts/parquet-bundle.mjs, inside the npm build below, because that is
-# the chain Cloudflare actually invokes - the dashboard runs the npm build
-# directly and never this file. Three attempts at putting the step here
-# produced nothing on the deployed site for exactly that reason.
+# scripts/parquet-bundle.mjs writes public/build-status.txt on every deploy
+# and reports this variable on a line of its own, so /build-status.txt says
+# outright which chain ran - and therefore whether the database served beside
+# it was rebuilt and re-verified here, or taken as committed.
+export F1_DEPLOY_SCRIPT="tools/cloudflare-build.sh"
 
 echo "--- building the front end"
 cd web

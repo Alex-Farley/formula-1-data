@@ -125,6 +125,16 @@ try {
   rmSync(zipPath, { force: true })
 }
 rmSync(outDir, { recursive: true, force: true })
+
+// Which chain invoked this. tools/cloudflare-build.sh exports the variable
+// before calling `npm run build`; nothing else sets it, so its absence means
+// the npm chain was invoked directly and build.py/verify.py did NOT run at
+// deploy time - the site is serving the f1.db committed to main.
+const via = process.env.F1_DEPLOY_SCRIPT
+say(via
+  ? `via      ${via} (database rebuilt and verified at deploy time)`
+  : 'via      npm build directly (committed f1.db, not rebuilt here)')
+
 writeFileSync(join(publicDir, 'build-status.txt'),
               `parquet bundle\nwhen     ${new Date().toISOString()}\n${lines.join('\n')}\n`)
 if (!ok) process.exitCode = 0   // never fail the build
