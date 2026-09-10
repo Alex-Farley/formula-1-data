@@ -18,6 +18,7 @@ f1-parquet.zip
 # Generated per deploy; never committed.
 parquet-build.log
 web/public/build-status.txt
+.pyarrow/
 telemetry/
 out/
 

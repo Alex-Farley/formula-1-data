@@ -35,15 +35,71 @@ const outDir = join(repo, 'parquet')
 const lines = []
 const say = (s) => { lines.push(s); console.log(`  ${s}`) }
 
+const CANDIDATES = ['python3', '/usr/bin/python3', 'python3.13', 'python3.12', 'python']
+
 /** A python that can open a SQLite file — the asdf one on PATH may not. */
 function python() {
-  for (const c of ['python3', '/usr/bin/python3', 'python3.13', 'python3.12', 'python']) {
+  for (const c of CANDIDATES) {
     try {
       execFileSync(c, ['-c', 'import sqlite3'], { stdio: 'ignore' })
       return c
     } catch { /* try the next */ }
   }
   return null
+}
+
+/** A python that can install things. Not necessarily the same one. */
+function pythonWithPip() {
+  for (const c of CANDIDATES) {
+    try {
+      execFileSync(c, ['-m', 'pip', '--version'], { stdio: 'ignore' })
+      return c
+    } catch { /* try the next */ }
+  }
+  return null
+}
+
+/**
+ * Get pyarrow importable by `py`, whatever this image is willing to allow.
+ *
+ * Cloudflare's build image has two pythons and NEITHER can do this alone:
+ * the asdf 3.13 first on PATH has pip but no sqlite3, and /usr/bin/python3
+ * 3.12 has sqlite3 but no pip ("No module named pip", which is what the
+ * deployed status file finally reported). The database needs sqlite3 and
+ * pyarrow needs installing, so the two have to be combined.
+ *
+ * In order: ask py's own pip; failing that bootstrap one with ensurepip;
+ * failing that borrow another python's pip and install FOR py's version into
+ * a directory, which is why --python-version and --only-binary matter -
+ * pyarrow is a compiled wheel and a cp313 build will not import into 3.12.
+ */
+function ensurePyarrow(py) {
+  try {
+    execFileSync(py, ['-c', 'import pyarrow'], { stdio: 'ignore' })
+    return { how: 'already present', env: {} }
+  } catch { /* not there yet */ }
+
+  try {
+    execFileSync(py, ['-m', 'pip', 'install', '--quiet', 'pyarrow'], { stdio: 'pipe' })
+    return { how: 'installed with its own pip', env: {} }
+  } catch { /* no pip, or it refused */ }
+
+  try {
+    execFileSync(py, ['-m', 'ensurepip', '--default-pip'], { stdio: 'pipe' })
+    execFileSync(py, ['-m', 'pip', 'install', '--quiet', 'pyarrow'], { stdio: 'pipe' })
+    return { how: 'installed after ensurepip', env: {} }
+  } catch { /* ensurepip absent too */ }
+
+  const pipPy = pythonWithPip()
+  if (!pipPy) throw new Error('no python on this image has pip, and ensurepip did not work')
+  const tag = execFileSync(py,
+    ['-c', 'import sys;print(f"{sys.version_info.major}.{sys.version_info.minor}")']).toString().trim()
+  const target = join(repo, '.pyarrow')
+  execFileSync(pipPy, ['-m', 'pip', 'install', '--quiet', '--target', target,
+                       '--python-version', tag, '--only-binary=:all:', 'pyarrow'],
+               { stdio: 'pipe' })
+  execFileSync(py, ['-c', 'import pyarrow'], { stdio: 'ignore', env: { ...process.env, PYTHONPATH: target } })
+  return { how: `installed for ${tag} using ${pipPy}'s pip`, env: { PYTHONPATH: target } }
 }
 
 mkdirSync(publicDir, { recursive: true })
@@ -54,15 +110,10 @@ let ok = false
 try {
   if (!py) throw new Error('no python3 that can import sqlite3')
   say(`python   ${execFileSync(py, ['-c', 'import sys;print(sys.executable, sys.version.split()[0])']).toString().trim()}`)
-  try {
-    execFileSync(py, ['-c', 'import pyarrow'], { stdio: 'ignore' })
-    say('pyarrow  already present')
-  } catch {
-    say('pyarrow  installing')
-    execFileSync(py, ['-m', 'pip', 'install', '--quiet', 'pyarrow'], { stdio: 'pipe' })
-  }
+  const { how, env } = ensurePyarrow(py)
+  say(`pyarrow  ${how}`)
   execFileSync(py, [join(repo, 'tools', 'parquet_export.py'), '--out', outDir, '--zip', zipPath],
-               { stdio: 'pipe', cwd: repo })
+               { stdio: 'pipe', cwd: repo, env: { ...process.env, ...env } })
   say(`result   ok, ${(statSync(zipPath).size / 1048576).toFixed(1)} MB`)
   ok = true
 } catch (error) {
