@@ -65,13 +65,18 @@ Ten items, but **six jobs**: `CD-01`/`IA-15`/`IA-04` are that one sitting,
 decision. Read it that way before concluding the section has stopped being a
 decision.
 
-Four of those jobs are also one defect wearing four faces: **an authored figure
-that drifted from the database.** The README's table counts (`PD-07`), the
-`records` leaderboards (`PD-03`), the prerenderer's totals (`PD-02`) and half
-the open `discrepancies` (`PM-05`) each state a number the data contradicts.
-The cure is the same every time — derive the figure, then add a `verify.py`
-check so it cannot drift again — so write that check pattern once and the
-fourth is nearly free.
+Three of those jobs are also one defect wearing three faces: **an authored
+figure that drifted from the database.** The README's table counts (`PD-07`),
+the `records` leaderboards (`PD-03`) and the prerenderer's totals (`PD-02`)
+each state a number a live query would supersede. The cure is the same every
+time — derive the figure, then add a `verify.py` check so it cannot drift
+again — so write that check pattern once and the third is nearly free.
+
+`PM-05` sits beside them and is **not** one of them. Its fourteen rows are not
+a figure that drifted: both sources are right about what they measure, and the
+schema conflates *started first* with *was quickest*. That is a modelling fix —
+one column split — and it **retires** a `verify.py` warning rather than adding
+one. Do not expect the derive-and-check pattern to carry it.
 
 *Re-checked against the committed `f1.db` on 2026-09-10 and all still true:*
 `PM-05`'s 18 open discrepancies and the 14 that are one question (13 `pole
