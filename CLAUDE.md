@@ -119,9 +119,12 @@ compressed export rather than the original.
 ## Declared deviations — do not quietly erase them
 
 Rhodesia, the three dual-country constructors, the six radio quotations, and
-the 14 open discrepancies are each a decision on the record, not an oversight
-a tidying pass should remove. `discrepancies` and `known_gaps` are where a
-fact that does not fit goes; adding a row there is a legitimate outcome.
+every open row in `discrepancies` are each a decision on the record, not an
+oversight a tidying pass should remove. The count is deliberately not written
+here: it said "14" for exactly one day before two `fastest lap` rows were
+filed, and nothing checks a number in this file. `verify.py` reports the live
+figure. `discrepancies` and `known_gaps` are where a fact that does not fit
+goes; adding a row there is a legitimate outcome.
 
 ## Deploy-time steps go in the npm chain
 

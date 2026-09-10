@@ -60,6 +60,32 @@ Short enough to be a decision rather than a list. The first three are one
 sitting between them, and each is a surface contradicting something this
 project states in its own words.
 
+Ten items, but **six jobs**: `CD-01`/`IA-15`/`IA-04` are that one sitting,
+`PM-05` and `PM-25` are one investigation, and `IA-02` and `PD-11` are one
+decision. Read it that way before concluding the section has stopped being a
+decision.
+
+Three of those jobs are also one defect wearing three faces: **an authored
+figure that drifted from the database.** The README's table counts (`PD-07`),
+the `records` leaderboards (`PD-03`) and the prerenderer's totals (`PD-02`)
+each state a number a live query would supersede. The cure is the same every
+time — derive the figure, then add a `verify.py` check so it cannot drift
+again — so write that check pattern once and the third is nearly free.
+
+`PM-05` sits beside them and is **not** one of them. Its fourteen rows are not
+a figure that drifted: both sources are right about what they measure, and the
+schema conflates *started first* with *was quickest*. That is a modelling fix —
+one column split — and it **retires** a `verify.py` warning rather than adding
+one. Do not expect the derive-and-check pattern to carry it.
+
+*Re-checked against the committed `f1.db` on 2026-09-10 and all still true:*
+`PM-05`'s 18 open discrepancies and the 14 that are one question (13 `pole
+position` + 1 `grid position 1`); `PD-07`'s 46 tables / 38 views against a
+README claiming 39 / 34, and 26,997 `qualifying` rows it calls absent;
+`PD-03`'s Hamilton on 105 in `records` against 106 in `drivers`, all 30 rows at
+`medium`, and no `verify.py` check reading the table. `PD-02`'s and the CD/IA
+findings' counts were not re-checked.
+
 - [ ] `CD-01` **The em dash lies in the column where it appears most.**
       `Race.jsx:312` footnotes the results table *"An empty 'Out' is a
       retirement nobody recorded a reason for, not a driver who finished"* —
@@ -99,7 +125,23 @@ project states in its own words.
       question wearing the other label, and is why the count was one short.) This moved up the list when `PD-04` landed — those
       rows now render to readers as "two sources disagree", which for a grid
       penalty is not a disagreement at all. Highest value-per-hour on this list.
-      — *project record · M*
+      **Do it in one sitting with `PM-25`,** which is the same investigation
+      seen from the other end: both turn on what `stored_value` and
+      `derived_value` mean per row, and together they close all eighteen and
+      retire a `verify.py` warning. — *project record · M*
+
+- [ ] `PM-25` **The four open `discrepancies` that `PM-05` does not close are two
+      races, and they do not reconcile.** 1960 round 5 and 1970 round 1 are both
+      credited to Brabham in the database; the external figures claim Phil Hill
+      6 career fastest laps against a derived 5, and Brabham 12 against a derived
+      11. Moving 1960 round 5 to Phil Hill would satisfy his total exactly — and
+      would take Brabham to 10, further from the claimed 12, not closer. So the
+      four rows cannot all be right, and the first question is not who set the
+      lap but what `stored_value` and `derived_value` mean in each row: the
+      per-race rows read database-then-source, the career rows read
+      source-then-database. Establish that before spending a person on the
+      sources. Cheap to answer, and it may turn four rows into one. —
+      *project record · S*
 
 - [ ] `PD-02` **Make the prerenderer call the page components' own queries.**
       Static and app emit different numbers under the same label — 14 of 38
@@ -110,7 +152,10 @@ project states in its own words.
       shipped. Two later findings have the same root cause and should ship
       with it rather than as separate passes: `CD-04` (the static half prints
       the numbers and deletes the rules for reading them) and `IA-03` (the app
-      has no breadcrumb, the static page has no onward band). —
+      has no breadcrumb, the static page has no onward band). A third,
+      `PD-06`, shares the *query* rather than the render: both turn on deriving
+      `entries` and `starts`, so the register's two empty columns and the
+      static/app mismatch are one fix seen from two ends. —
       *product critique · M*
 
 - [ ] `PD-07` **Stop the README lying.** It claims 39 tables, 34 views, ~8,400
@@ -118,7 +163,10 @@ project states in its own words.
       at all" when 26,997 rows are. Move the version log to `BUILD-NOTES.md`,
       then generate every count from the database and add a `verify.py` check
       that fails when a stated figure disagrees — the discipline
-      `f1_compat.json` already gets. — *product critique · M*
+      `f1_compat.json` already gets. **`PM-02`, `PM-03` and `PM-04` ride with
+      it:** the version log this moves into `BUILD-NOTES.md` is exactly what
+      `PM-02` needs folded and `PM-03` needs repointed, and `PM-04` is the same
+      front-door-is-wrong job one surface over. — *product critique · M*
 
 - [ ] `PD-03` **Derive `/records`, or stop shipping it.** All 30 rows are
       authored, sit at `medium`, and nothing in `verify.py` reads the table; the
@@ -207,12 +255,16 @@ Worth doing, not yet urgent.
       first thing a visitor reads and it is not in the repository, so nothing
       checks it. — *project record · S*
 
-- [ ] `PM-20` **Clear the three actionable `verify.py` warnings.** Three
-      centrelines do not close (Monaco 4 loose ends, Montjuïc 2, Las Vegas 1 —
-      genuine 5.4–63.4 m holes in the OSM trace); two qualifying rows have no
-      matching race entry; three chassis are claimed as entered after their car's
-      authored life ends (`ferrari-500`, `cooper-t51`, `lotus-25`). The other
-      three warnings are expected and should stay. — *project record · S*
+- [ ] `PM-20` **Clear the two actionable `verify.py` data warnings.** Two
+      qualifying rows have no matching race entry; three chassis are claimed as
+      entered after their car's authored life ends (`ferrari-500`,
+      `cooper-t51`, `lotus-25`). Both are genuinely small and can ride along
+      with any data sitting. The centreline warning that used to sit here is
+      now `PM-26`, because it is upstream data repair and was borrowing an S
+      from its two small siblings. Of the three warnings left after those two,
+      the 18-open-`discrepancies` one is not permanently expected either —
+      `PM-05` and `PM-25` retire it; only the Nürburgring Südschleife and the
+      unrun 2026 r17 sprint are. — *project record · S*
 
 - [ ] `PM-12` **Loosen the specification harvest's name check.** It refuses
       "Alfa Romeo 158/159 Alfetta" for `alfa-romeo-159`. Match the chassis name
@@ -257,19 +309,6 @@ Worth doing, not yet urgent.
       build log announced the npm chain; the field has since been corrected, so
       the symptom is gone, but *why it was ignored* was never established. Both
       are answerable from one build log. — *project record · S*
-
-- [ ] `PM-25` **The four open `discrepancies` that `PM-05` does not close are two
-      races, and they do not reconcile.** 1960 round 5 and 1970 round 1 are both
-      credited to Brabham in the database; the external figures claim Phil Hill
-      6 career fastest laps against a derived 5, and Brabham 12 against a derived
-      11. Moving 1960 round 5 to Phil Hill would satisfy his total exactly — and
-      would take Brabham to 10, further from the claimed 12, not closer. So the
-      four rows cannot all be right, and the first question is not who set the
-      lap but what `stored_value` and `derived_value` mean in each row: the
-      per-race rows read database-then-source, the career rows read
-      source-then-database. Establish that before spending a person on the
-      sources. Cheap to answer, and it may turn four rows into one. —
-      *project record · S*
 
 - [ ] `IA-01` **`grands_prix` has 53 rows, a view, and no page anywhere.**
       `Race.jsx:17` joins the table and `Race.jsx:440` prints the name as dead
@@ -405,6 +444,14 @@ Real, but not costed, or waiting on a decision.
       Brands Hatch, Buenos Aires. `verify.py` already enforces completeness and
       non-overlap once rows exist, so the guard rail is built. —
       *project record · L*
+
+- [ ] `PM-26` **Three centrelines do not close into a loop.** Monaco has 4
+      loose ends, Montjuïc 2, Las Vegas 1 — genuine 5.4–63.4 m holes in the OSM
+      trace, so this is upstream data repair rather than a check to satisfy.
+      Split out of `PM-20`, which was sized S on the strength of its two small
+      siblings and could not carry this. Sits beside `PM-08`: both are geometry
+      work the existing guard rails already constrain once rows exist. —
+      *project record · M*
 
 - [ ] `PM-09` **Per-round chassis harvest.** Closes `known_gaps` #3 (287 races
       with no known winning chassis) and #4 (car pole counts) in one pass. Only
