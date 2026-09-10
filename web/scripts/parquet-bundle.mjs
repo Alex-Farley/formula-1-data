@@ -3,15 +3,16 @@
  * Build the Parquet bundle into public/, so the site serves it from its own
  * domain at /f1-parquet.zip.
  *
- * WHY IT LIVES HERE AND NOT IN tools/cloudflare-build.sh
- *     Because that script is not what Cloudflare runs. The build log says so:
+ * WHY IT LIVES IN THE NPM CHAIN
+ *     It was written three times into a deploy script at tools/, and three
+ *     times produced nothing on the deployed site, because that script was
+ *     never executed - the dashboard's build-command field said it ran and
+ *     the build log said otherwise. That script is now gone. This chain -
+ *     npm run build - demonstrably runs, because it is what puts f1.db.gz
+ *     and db-manifest.json on the site.
  *
- *         Executing user build command: cd web && npm ci && npm run build
- *
- *     Three attempts at putting this step in that script produced nothing on
- *     the deployed site, for the simple reason that none of them ever
- *     executed. This chain - npm run build - demonstrably runs, because it is
- *     what puts f1.db.gz and db-manifest.json on the site.
+ *     A deploy step belongs where the evidence says the build goes, not
+ *     where it reads most tidily.
  *
  * WHY IT NEVER FAILS THE BUILD
  *     A missing download is worth less than a working site, so pyarrow being
@@ -125,15 +126,6 @@ try {
   rmSync(zipPath, { force: true })
 }
 rmSync(outDir, { recursive: true, force: true })
-
-// Which chain invoked this. tools/cloudflare-build.sh exports the variable
-// before calling `npm run build`; nothing else sets it, so its absence means
-// the npm chain was invoked directly and build.py/verify.py did NOT run at
-// deploy time - the site is serving the f1.db committed to main.
-const via = process.env.F1_DEPLOY_SCRIPT
-say(via
-  ? `via      ${via} (database rebuilt and verified at deploy time)`
-  : 'via      npm build directly (committed f1.db, not rebuilt here)')
 
 writeFileSync(join(publicDir, 'build-status.txt'),
               `parquet bundle\nwhen     ${new Date().toISOString()}\n${lines.join('\n')}\n`)
