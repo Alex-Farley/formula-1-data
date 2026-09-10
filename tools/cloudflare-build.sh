@@ -79,6 +79,31 @@ echo "--- verifying it"
 export SITE_ORIGIN="${SITE_ORIGIN:-https://lapledger.org}"
 echo "--- canonical origin $SITE_ORIGIN"
 
+# The Parquet bundle, served from this site's own domain rather than only
+# from a GitHub release. It is staged into web/public/, which is how f1.db
+# already reaches the deployed site, so vite copies it into dist like any
+# other asset.
+#
+# WHY IT IS SERVED HERE AT ALL, when the release already carries one: this
+# copy is built from the database this deploy just rebuilt, so it can never
+# be older than the site beside it. A release is pinned to a tag and goes
+# stale between them.
+#
+# NON-FATAL ON PURPOSE. pyarrow is the one thing in this script that reaches
+# outside the repository, and a site that stops deploying because a download
+# could not be built is a worse outcome than a missing download. `set -e` is
+# suspended for the attempt and the failure is shouted rather than swallowed.
+echo "--- building the Parquet bundle"
+if (set +e
+    pip install --quiet pyarrow >/dev/null 2>&1 \
+      && "$PYTHON" tools/parquet_export.py --out "$PWD/parquet" >/dev/null \
+      && (cd parquet && zip -j -9 -q ../web/public/f1-parquet.zip ./*.parquet)); then
+  echo "--- Parquet bundle $(du -h web/public/f1-parquet.zip | cut -f1)"
+else
+  echo "::warning::the Parquet bundle could not be built; deploying without it"
+  rm -f web/public/f1-parquet.zip
+fi
+
 echo "--- building the front end"
 cd web
 npm ci

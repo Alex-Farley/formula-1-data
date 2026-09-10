@@ -1139,7 +1139,7 @@ writeFileSync(
 
 writeFileSync(
   join(dist, 'robots.txt'),
-  `User-agent: *\nAllow: /\n\n# The database itself is 20 MB and is not a page. Crawling it helps nobody.\nDisallow: ${href('f1.db')}\nDisallow: ${href('f1.db.gz')}\n\nSitemap: ${ORIGIN}${href('sitemap.xml')}\n`,
+  `User-agent: *\nAllow: /\n\n# The database itself is 20 MB and is not a page. Crawling it helps nobody.\nDisallow: ${href('f1.db')}\nDisallow: ${href('f1.db.gz')}\nDisallow: ${href('f1-parquet.zip')}\n\nSitemap: ${ORIGIN}${href('sitemap.xml')}\n`,
 )
 
 db.close()

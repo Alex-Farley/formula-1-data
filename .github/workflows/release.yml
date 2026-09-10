@@ -140,3 +140,14 @@ jobs:
             ```
 
             Swap `latest` for a tag (`v2.19`) to pin a version instead.
+
+            The Parquet bundle is also served from the site itself:
+
+            ```
+            https://lapledger.org/f1-parquet.zip
+            ```
+
+            That copy is rebuilt on every deploy from the database the site
+            is serving, so it is never older than the pages beside it. The
+            release asset above is pinned to this tag; use whichever suits —
+            the newest data, or a version you can cite.
