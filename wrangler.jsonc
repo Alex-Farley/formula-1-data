@@ -7,8 +7,16 @@
   // repository, and a Worker takes its configuration from here rather than
   // from the dashboard.
   //
-  // Build command:   cd web && npm ci && npm run build
+  // Build command:   sh tools/cloudflare-build.sh
   // Deploy command:  npx wrangler deploy
+  //
+  // That build command is the one in the dashboard, confirmed against it.
+  // This comment used to read "cd web && npm ci && npm run build", which is
+  // what cloudflare-build.sh does LAST and not what Cloudflare invokes - a
+  // difference that matters, because the script also rebuilds the database
+  // and runs verify.py before any of it. Reading this file and believing it
+  // sent a debugging session after the wrong file entirely: if the two ever
+  // disagree again, the dashboard is the authority.
   //
   // The build needs PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 in the build
   // environment. playwright is a devDependency of the front end and its
