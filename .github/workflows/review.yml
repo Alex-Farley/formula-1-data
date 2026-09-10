@@ -66,6 +66,20 @@ jobs:
             echo "::notice::No ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN is set, so the review was skipped. Add one under Settings, Secrets and variables, Actions."
           fi
 
+      # THIS STEP CANNOT RUN ON THE PULL REQUEST THAT INTRODUCES IT, and will
+      # not run on one that edits this file either. The action refuses unless
+      # the workflow is byte-identical to the copy on the default branch —
+      # otherwise a pull request could rewrite the reviewer that judges it.
+      # It reports that as
+      #
+      #     Workflow validation failed. The workflow file must exist and have
+      #     identical content to the version on the repository's default branch.
+      #
+      # and then exits SUCCESS, so the check goes green having reviewed
+      # nothing and said nothing on the pull request. That is expected and
+      # correct, but it is indistinguishable from a working review that found
+      # no problems, so read the job log before concluding either. It starts
+      # working on the first pull request opened after this file reaches main.
       - name: Review
         if: steps.guard.outputs.enabled == 'true'
         uses: anthropics/claude-code-action@v1
