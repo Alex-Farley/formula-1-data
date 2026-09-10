@@ -7,8 +7,9 @@
   "license": "MIT",
   "scripts": {
     "assets": "node scripts/prepare-assets.js",
+    "parquet": "node scripts/parquet-bundle.mjs",
     "dev": "npm run assets && vite",
-    "build": "npm run assets && vite build && npm run prerender",
+    "build": "npm run assets && npm run parquet && vite build && npm run prerender",
     "preview": "vite preview",
     "test": "npm run test:units && node test/smoke.mjs",
     "prerender": "node scripts/prerender.js",

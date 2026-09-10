@@ -460,49 +460,71 @@ In the dashboard, under Settings → Build:
 | Setting | Value |
 | --- | --- |
 | Root directory | **blank** |
-| Build command | `sh tools/cloudflare-build.sh` |
+| Build command | `cd web && npm ci && npm run build` |
 | Deploy command | `npx wrangler deploy` |
 | Environment variable | `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD` = `1` |
+| Environment variable | `SKIP_DEPENDENCY_INSTALL` = `1` |
 
-The build command is a script in the repository rather than a line in a
-dashboard field, so it can be read and changed like anything else here. It
-rebuilds `f1.db` from `data/*.py`, runs `verify.py`, and only then builds the
-front end — so a deployed site can never carry a database that failed its own
-checks. `verify.py` exits non-zero, `set -e` stops the script, and Cloudflare
-keeps serving the previous deployment rather than publishing a bad one.
+**CI is the gate, not the deploy.** The deploy serves the `f1.db` committed to
+`main` rather than rebuilding it. That file cannot reach `main` unverified:
+`ci.yml` rebuilds the database from `data/*.py`, runs all 143 integrity
+checks, and compares the committed artefact byte-for-byte against a fresh
+build, on every push and every pull request. A database that fails its own
+checks fails the merge, which is a better place to stop it than a deploy.
 
-That gate is the reason to rebuild rather than use the committed `f1.db`. It
-costs a few seconds, and `build.py` is deterministic: a rebuild from unchanged
-sources produces the same digest, so a deploy that changes no data does not
-evict every reader's cached copy.
+A `tools/cloudflare-build.sh` used to do that rebuild at deploy time and was
+deleted. Three deploys were spent discovering that this dashboard field named
+the script while the build log announced `cd web && npm ci && npm run build`
+— and a build step whose execution cannot be established is worth less than
+no build step at all. Its other work had already moved into the npm chain,
+which demonstrably runs.
+
+**If you restore anything like it, put the step in `web/package.json` instead.**
+That chain runs whatever the dashboard field says, because it is what puts
+`f1.db.gz` and `db-manifest.json` on the site.
 
 **Root directory must be blank.** `wrangler.jsonc` is at the repository root,
-so `npx wrangler deploy` has to run there to find it, and the build script
-expects to start there too. Setting it to `web` breaks the deploy, and setting
-it to anything that is not in the repository fails the clone with "root
-directory not found" before a build even starts.
+so `npx wrangler deploy` has to run there to find it, and the build command
+`cd`s into `web/` from there. Setting it to `web` breaks the deploy, and
+setting it to anything that is not in the repository fails the clone with
+"root directory not found" before a build even starts.
 
 The environment variable matters too. `playwright` is a devDependency of this
 front end and its install script downloads about 150 MB of browsers that only
 the test suite uses. Without it the build still succeeds, but every deploy
 pays for a download nothing uses.
 
-The build script does not simply run `python3`. Cloudflare's image puts an
-asdf-managed Python first on PATH which is **compiled without the sqlite3
-extension** — `import sqlite3` raises `ModuleNotFoundError: No module named
-'_sqlite3'`, which a database build cannot survive. The system Python beside
-it is a distribution build and has the module, so the script asks each
-candidate whether it can import sqlite3 and takes the first that can. If none
-can, it says so rather than failing on a traceback thirty lines into a build
-log.
+**No step may simply run `python3`.** Cloudflare's image carries two
+interpreters and neither is sufficient alone:
+
+| Interpreter | `sqlite3` | `pip` |
+| --- | --- | --- |
+| asdf 3.13, first on PATH | no | yes |
+| `/usr/bin/python3` 3.12 | yes | no |
+
+The asdf build is compiled **without the sqlite3 extension** — `import
+sqlite3` raises `ModuleNotFoundError: No module named '_sqlite3'`, which
+anything touching the database cannot survive. So `scripts/parquet-bundle.mjs`
+asks each candidate whether it can import `sqlite3` and takes the first that
+can, then installs `pyarrow` for it — falling back, when that interpreter has
+no `pip` of its own and Debian has stripped `ensurepip`, to borrowing the
+other interpreter's `pip` with `--python-version` and `--only-binary=:all:`
+so the wheel matches the target ABI. On the current image that last path is
+the one that runs.
+
+Its outcome is written to `public/build-status.txt` and served at
+[`/build-status.txt`](https://lapledger.org/build-status.txt), on success as
+well as failure. A step allowed to fail without stopping the deploy is exactly
+the step whose reason has to reach somewhere readable, and build logs are off
+for this project.
 
 Cloudflare also runs `pip install -r requirements.txt` before the build
 command, because a requirements.txt at the repository root looks like a
 Python project to it. Nothing in that file is needed to build the database or
 the site — it is there for `tools/fastf1_load.py` alone — so it costs about
 ninety seconds of fastf1, numpy, scipy and matplotlib per deploy. Setting
-`SKIP_DEPENDENCY_INSTALL` = `1` in the build environment skips it; the script
-installs what it actually needs itself.
+`SKIP_DEPENDENCY_INSTALL` = `1` in the build environment skips it; the one
+step that needs a third-party package installs it itself.
 
 Two things resolve because Cloudflare clones the whole repository regardless:
 `prepare-assets.js` reads `../f1.db`, and `.node-version` pins Node 22. That

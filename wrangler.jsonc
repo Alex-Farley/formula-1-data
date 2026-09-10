@@ -10,6 +10,29 @@
   // Build command:   cd web && npm ci && npm run build
   // Deploy command:  npx wrangler deploy
   //
+  // Taken from a build log, which is the only authority worth trusting here:
+  //
+  //     Executing user build command: cd web && npm ci && npm run build
+  //
+  // THE DATABASE IS NOT REBUILT AT DEPLOY TIME, and verify.py is not re-run
+  // here. The site serves the f1.db committed to main. That file cannot reach
+  // main unverified - ci.yml rebuilds it, runs all 143 integrity checks, and
+  // compares the committed artefact against a fresh build on every push - so
+  // CI is the gate rather than the deploy.
+  //
+  // A tools/cloudflare-build.sh once did the rebuild here and was deleted in
+  // favour of that arrangement. It had stopped being worth its cost: three
+  // deploys were spent discovering that the dashboard's build-command field
+  // named it while the build log ran the npm chain instead, and a build step
+  // whose execution cannot be established is worse than no build step. Its
+  // other jobs had already moved - parquet-bundle.mjs does its own sqlite3
+  // interpreter search, and prerender.js defaults SITE_ORIGIN to the live
+  // origin.
+  //
+  // Anything that must happen on a deploy therefore belongs in the npm build
+  // chain (web/package.json -> scripts/prepare-assets.js, parquet-bundle.mjs,
+  // vite, prerender), because that chain demonstrably runs.
+  //
   // The build needs PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 in the build
   // environment. playwright is a devDependency of the front end and its
   // install script fetches about 150 MB of browsers that only the test suite

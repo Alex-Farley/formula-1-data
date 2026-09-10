@@ -123,6 +123,26 @@ the 14 open discrepancies are each a decision on the record, not an oversight
 a tidying pass should remove. `discrepancies` and `known_gaps` are where a
 fact that does not fit goes; adding a row there is a legitimate outcome.
 
+## Deploy-time steps go in the npm chain
+
+`web/package.json` -> `prepare-assets.js`, `parquet-bundle.mjs`, vite,
+prerender. That chain is what Cloudflare demonstrably runs; it is what puts
+`f1.db.gz` on the site.
+
+There was a `tools/cloudflare-build.sh` and it is gone. The dashboard's
+build-command field named it, the build log announced the npm chain, and three
+deploys were spent putting a step into a file that never executed. **A build
+step whose execution you cannot establish is worth less than no build step.**
+
+The deploy does **not** rebuild the database or re-run `verify.py`. `ci.yml`
+does both on every push and compares the committed artefact against a fresh
+build, so CI is the gate. Do not move that gate to the deploy.
+
+Anything non-fatal in that chain must report where it can be read: the Parquet
+step writes `public/build-status.txt`, served at `/build-status.txt`, on
+success as well as failure. Build logs are off for this project, so a silent
+failure is invisible — that is what hid this one for three rounds.
+
 ## Measured and rejected — do not re-propose
 
 - **Route-level code splitting** in the front end. The bundle is 398 KB raw /
