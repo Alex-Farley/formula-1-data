@@ -14,7 +14,10 @@ preferences*, and that is because those come from outside the project.
 ## What the thing is
 
 **Lap Ledger** (lapledger.org) publishes a SQLite database of Formula One,
-1950–2026 — about 119,000 rows across 41 tables — and a website that queries it.
+1950–2026 — 119,271 rows across 46 tables and 38 views, as of v2.20 — and a
+website that queries it. (Check those figures rather than trusting them; the
+first version of this brief said 41 tables, which is what the Parquet exporter
+writes, not what the database holds.)
 
 The website has no server and no API. It downloads the whole 20 MB database
 once (4.5 MB gzipped), keeps it in IndexedDB, and runs real SQL in a Web Worker.
@@ -45,11 +48,27 @@ sourcing a claim; and someone arriving from a search engine on a deep page.
 That last one matters more than the homepage. There are 2,385 prerendered pages
 and one front door.
 
+## What the author wants it to be
+
+Stated by the author, 2026-09-10, so you are not guessing:
+
+**A public reference that other people depend on.** Readers, citations and
+downstream users are wanted. Findings about discoverability, positioning,
+measurement and the bulk-data audience are therefore **in scope and should be
+pressed hard** — this is not a private craft object that happens to be online,
+and you should not soften a finding on the assumption that it is.
+
+**Time is bursty and unpredictable.** Judge cost accordingly: propose work in
+independently shippable pieces, and do not make a recommendation whose value only
+arrives if a longer programme is finished. A change that pays for itself the week
+it ships beats a better change that needs six consecutive weeks. Where you can,
+say roughly what a recommendation costs.
+
 ## Where to look
 
 | | |
 |---|---|
-| `README.md` | the database: what is in it, how it is checked, what it deliberately lacks. Also the version log. Parts of the *deliberately doesn't have* section are known to be stale — do not treat its numbers as current without checking the database |
+| `README.md` | the database: what is in it, how it is checked, what it deliberately lacks. Also the version log. **Broadly stale — treat no number in it as current.** Some figures are wrong by more than 10×. Read it for intent and check every count against `f1.db` |
 | `web/README.md` | the front end: the loading design, the pages, the voice, the Pit Wall look, the charts, the atlas, the testing |
 | `CLAUDE.md` | the conventions, and the *measured and rejected* list |
 | `docs/` | build notes by version, the commercial-readiness reading, the confidence model and its backlog, the timing architecture decision |
@@ -103,41 +122,76 @@ So:
   down. Where something is neither, say so — that is usually where the real
   problems are.
 - **Do not grade on a curve for a one-person side project.** Judge it as what it
-  presents itself as: a published reference source with a domain name.
+  presents itself as, and as what its author says he wants it to be: a published
+  reference source that other people depend on.
+- **Endorsing a closed decision is a valid and valuable output.** Examining
+  something contested and concluding it is right is a finding, and one the author
+  cannot get any other way. The instruction to be sceptical is not an instruction
+  to produce disagreement: a critique that manufactures a dispute to look
+  diligent is worse than one that finds little, because it costs the reader the
+  time to disprove it. Say what you examined and cleared, and why.
 
 ## Pressure points
 
-Places this project is most worth pressing, offered as starting points rather
-than conclusions. Ignore any that your discipline does not cover.
+Starting points, not conclusions. Each is tagged with the disciplines it is
+likely to reward — ignore the ones not addressed to you rather than chasing them
+to a dead end.
 
 - **The cold first visit.** 4.5 MB downloads before the app can answer anything;
   prerendered HTML paints first and is then replaced. Whoever built this has a
   warm cache and has never seen it. Throttle the network.
-- **Deep arrival.** 2,385 prerendered pages, one front door. Most readers will
-  land in the middle from a search engine.
-- **`/reference/*`** holds four unlike things: methodology, domain reference, and
-  a public SQL console. Is that a category or a drawer?
+  *(interaction, accessibility, product, service)*
+- **Deep arrival.** 2,385 prerendered pages, one front door. Most readers land in
+  the middle from a search engine, and the prerenderer is a second, independent
+  implementation of every page. *(all disciplines)*
+- **`/reference/*`** holds three unlike things: methodology, domain reference, and
+  a public SQL console. Category or drawer? *(IA, product, content)*
 - **Conventions a reader meets cold and will read as bugs.** A blank means *not
   established*, never zero, and renders as an em dash. A repeated finishing
   position is a shared drive. A margin before 1991 is net of dropped scores.
   Where a stored figure and a derived one disagree, both are shown deliberately.
-  Some rows are `unverified` on purpose.
-- **Five or more overlapping encodings of uncertainty**: a `confidence` tier, a
-  free-text `source`, `source_registry` + `source_patterns`, `table_provenance`,
+  Some rows are `unverified` on purpose. *(content, interaction, IA)*
+- **Overlapping encodings of uncertainty**: a `confidence` tier, a free-text
+  `source`, `source_registry` + `source_patterns`, `table_provenance`,
   `discrepancies`, `known_gaps`. `docs/DERIVED-CONFIDENCE.md` proposes
-  consolidating onto `claims` and `checks`.
+  consolidating onto `claims` and `checks`. *(data architecture only — the
+  reader-facing surface is fine, and a product or content critic will find
+  nothing here worth saying)*
 - **`race_entries` is one row per driver per race**, so a driver who drove two
   cars in one Grand Prix — normal before 1965 — can keep only one result.
+  *(data architecture)*
 - **The interactive surfaces**: a public SQL console, a track atlas with a lap
   scrubber, and four hand-drawn SVG charts that each carry a table of their own
-  numbers.
-- **Nobody has asked a user anything.**
+  numbers. *(interaction, visual, accessibility, product)*
+- **Nobody has asked a user anything, and nothing is measured.** *(product,
+  service, user research)*
+
+## What has already been critiqued
+
+`docs/critiques/` holds every previous critique, dated and named by discipline.
+**Read the ones relevant to yours before starting.**
+
+You are not there to rediscover them. A finding already recorded is worth raising
+again only if it has got worse, if it was recorded at the wrong severity, or if
+your discipline sees a cause the previous critic did not. Say which, and cite the
+file. Everything else in your report should be new.
+
+If `docs/critiques/` is empty, you are the first.
 
 ## Seeing the real thing
 
-Reading the source is the weakest available evidence and several disciplines
-here cannot be practised on it at all. Where your discipline needs the rendered
-site, drive it.
+**Evidence is not ranked the same way for every discipline.** Two different
+things get called "reading the repository":
+
+- **The project's prose** — README, `docs/`, `web/README.md`, release notes, the
+  comments in `schema.sql`. This is the product's account of itself, and for
+  product, content, service and IA critique it is *strong* evidence: the gap
+  between what it claims and what ships is often the finding. Read it early.
+- **The project's code** — components, scripts, queries. This tells you what was
+  intended, which is weak evidence for what a person experiences. For anything
+  about the rendered experience it is the last resort, not the first.
+
+Where your discipline needs the rendered site, drive it.
 
     ls web/dist/index.html            # already built? then skip the build
     cd web && npm ci && npm run build # ~minutes: vite, then 2,385 prerendered pages
@@ -159,8 +213,11 @@ Useful without a browser:
     ./f1 gaps                          # the declared gaps
     ./f1 licences                      # the source classification
     ./f1 sql "select …"                # arbitrary read-only SQL
-    sqlite3 f1.db .schema              # or read schema.sql
     python3 verify.py                  # ~170 checks, seconds
+
+**There is no `sqlite3` command-line tool here.** Use `./f1 sql`, or
+`python3 -c "import sqlite3; …"`, and read `schema.sql` directly rather than
+reaching for `.schema`.
 
 ## What to hand back
 
@@ -185,6 +242,18 @@ reason. So:
    and a critic who finds nothing good has usually not looked hard.
 6. **Name what you did not examine.** Coverage you did not have is not the same
    as an absence of problems.
+
+**Where a finding can carry a measurement, measure it.** A finding with a number
+attached is acted on; the same finding without one is discussed. "The static page
+is slow" is an opinion; "11.4 s on 4 Mbps, during which it shows a different
+figure from the app" is a work item.
+
+**On overlap with the other critics.** Nine disciplines against one product will
+find some of the same things. Where a finding is plainly another discipline's —
+you are a content critic looking at a schema, or a product critic looking at
+contrast ratios — leave it to them. Where it is genuinely shared, raise it, and
+say in one line which discipline you think owns the fix. Do not stay silent on a
+serious finding because you assume somebody else will catch it.
 
 Do not restate the project back to it. Assume the reader knows what they built
 and wants to know what is wrong with it.

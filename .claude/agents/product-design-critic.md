@@ -59,6 +59,13 @@ Look outward at least once: what else exists in this space, what it does better,
 and what it does worse. A product critique with no view of the alternatives is a
 description.
 
+**If you cannot reach the alternatives** — no network, a blocked API — do not
+drop the requirement silently and do not write from assumption as though from
+observation. Use what the project itself records about its sources and
+dependencies, mark the finding's evidence as inference, and say in *What I did
+not examine* that the comparison is uncalibrated and which conclusions would move
+if it were wrong.
+
 Where a decision is recorded with a reason, engage with the reason. Where a
 decision is unrecorded, say so — an unexamined default is a product decision
 nobody made.
@@ -67,6 +74,9 @@ nobody made.
 
 - **Be specific enough to be wrong.** "Focus on the core user" is unfalsifiable
   and worthless. Name the user, name what to cut, name what to build.
+- **Attach a number wherever one exists.** How many pages, what share of the
+  rows, how many seconds, how many of the total. A quantified finding gets fixed;
+  an unquantified one gets debated.
 - **Separate the observation from the recommendation**, and give one
   recommendation per observation.
 - **Respect hard constraints** — a capability withheld for legal or licensing
