@@ -1,0 +1,140 @@
+name: review
+
+# An independent read of every pull request, against the conventions this
+# repository enforces rather than against generic good practice.
+#
+# WHY THIS IS SEPARATE FROM ci.yml: `ci.yml` answers "does the build still
+# pass". Most of what goes wrong here passes the build — a source nobody
+# classified is caught, but a cross-check that does not constrain the value it
+# guards is not, and neither is a hand-resolved artefact conflict, a bare <img>
+# bypassing the Commons credit, or a tidying pass that erases a declared
+# deviation. Those need reading, so this reviews and comments; it never gates.
+#
+# It reviews with the three agents in .claude/agents/, which are the same
+# definitions used from a terminal. One place to change a rule, two places it
+# takes effect.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+# Read the code, write the review. Nothing here commits, so `contents` stays
+# read — the same reasoning ci.yml records for its own token.
+permissions:
+  contents: read
+  pull-requests: write
+  # anthropics/claude-code-action authenticates by exchanging a GitHub OIDC
+  # token, and a workflow cannot mint one without this. Without it the action
+  # retries three times and fails with "Could not fetch an OIDC token", which
+  # is what the first run of this file did.
+  id-token: write
+
+# A review of the commit before last is noise. Supersede it.
+concurrency:
+  group: review-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    # A draft is a work in progress and reviewing one is an interruption.
+    if: github.event.pull_request.draft == false
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The review needs the base branch to diff against, and the reasons
+          # in the history: several conventions here are only legible from the
+          # commit that introduced them.
+          fetch-depth: 0
+
+      # WITHOUT A KEY THIS SKIPS RATHER THAN FAILS. A review is an addition to
+      # the pull request, never a gate on it, so a fork, a Dependabot branch or
+      # a repository whose secret has not been set must still go green. The
+      # notice says why, because a step that goes quiet when unconfigured is
+      # one nobody trusts — the same lesson the Parquet build step taught.
+      - name: Is the review configured
+        id: guard
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          if [ -n "$ANTHROPIC_API_KEY" ] || [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN is set, so the review was skipped. Add one under Settings, Secrets and variables, Actions."
+          fi
+
+      # THIS STEP CANNOT RUN ON THE PULL REQUEST THAT INTRODUCES IT, and will
+      # not run on one that edits this file either. The action refuses unless
+      # the workflow is byte-identical to the copy on the default branch —
+      # otherwise a pull request could rewrite the reviewer that judges it.
+      # It reports that as
+      #
+      #     Workflow validation failed. The workflow file must exist and have
+      #     identical content to the version on the repository's default branch.
+      #
+      # and then exits SUCCESS, so the check goes green having reviewed
+      # nothing and said nothing on the pull request. That is expected and
+      # correct, but it is indistinguishable from a working review that found
+      # no problems, so read the job log before concluding either. It starts
+      # working on the first pull request opened after this file reaches main.
+      - name: Review
+        if: steps.guard.outputs.enabled == 'true'
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # One comment, rewritten each push, rather than a new one per commit.
+          use_sticky_comment: "true"
+          track_progress: "true"
+          # Read-only. A reviewer that can edit is a contributor, and this one
+          # has not been asked to contribute. `verify.py`, `audit.py` and the
+          # unit tests are allowed because a finding backed by a failing check
+          # is worth more than one backed by an argument, and all three are
+          # stdlib-only so this job installs nothing to get them. Two are
+          # deliberately absent: `build.py`, because it overwrites the committed
+          # database and the state of that file is itself evidence, and the
+          # front end's tests, because they need `npm ci` and a browser that
+          # this job does not have — `ci.yml` runs those.
+          claude_args: >-
+            --max-turns 40
+            --allowedTools "Read,Grep,Glob,Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(python3 verify.py:*),Bash(python3 audit.py:*),Bash(python3 -m unittest:*)"
+          prompt: |
+            Review this pull request against the conventions of THIS repository.
+            They are not style preferences: each one exists because something
+            went wrong without it, and a generic review will miss all of them
+            while proposing things that have already been measured and rejected.
+
+            Read CLAUDE.md first. Then delegate to the three project agents in
+            .claude/agents/, each of which carries its own checklist and its own
+            list of what not to propose:
+
+              - licence-reviewer        — whether the change could publish a row
+                                          this project has no right to pass on
+              - data-integrity-reviewer — the build's structural invariants
+              - frontend-reviewer       — anything under web/
+
+            Send each agent only the part of the diff it covers, and skip an
+            agent whose files the diff does not touch. If you cannot delegate to
+            an agent, read its file and apply its checklist yourself — the
+            checklists are the point, not the mechanism.
+
+            Then report:
+
+            - Post ONE review comment. Order findings by consequence, worst
+              first, each with the file, the line, the rule it breaks, and the
+              failure it would produce — concretely.
+            - Mark each finding as either something the project's own rules
+              forbid, or a judgement you would make differently. Do not blur
+              them; the second kind is advice and should read as advice.
+            - Do NOT restate what the diff does. The author knows.
+            - Do NOT propose anything on an agent's "what not to propose" list.
+              Those are decisions on the record, and re-proposing them is the
+              specific failure this review is written to avoid.
+            - If you find nothing, say so in one line. A review that always
+              finds something is one nobody reads.
+
+            You are reviewing. Do not edit files, do not push, do not resolve
+            threads.
