@@ -103,23 +103,45 @@ echo "--- canonical origin $SITE_ORIGIN"
 # Errors are printed rather than suppressed. Non-fatal must not mean silent:
 # a step allowed to fail is exactly the step whose reason has to reach the
 # log, because nothing downstream will complain on its behalf.
+# THE STEP REPORTS THROUGH THE SITE, because the build log is not always
+# readable - this deployment has logging switched off, and a step that is
+# allowed to fail without taking the site down is exactly the step whose
+# reason nobody ever sees. So everything it learns goes into a file the site
+# then serves, at /build-status.txt: which interpreter was chosen, whether
+# that interpreter has pip, whether zip exists, and the error itself if there
+# is one. A failure is then one fetch away from a diagnosis instead of
+# invisible.
+#
+# It is written on success too. "The bundle built" is worth being able to
+# check from outside, and a status file that only appears when things are
+# broken is a status file nobody trusts.
 echo "--- building the Parquet bundle"
-parquet_bundle() {
-  "$PYTHON" -m pip install --quiet pyarrow \
-    || "$PYTHON" -m pip install --quiet --user pyarrow \
-    || { echo "pyarrow would not install for $PYTHON" >&2; return 1; }
-  command -v zip >/dev/null 2>&1 \
-    || { echo "no zip on this build image" >&2; return 1; }
-  "$PYTHON" tools/parquet_export.py --out "$PWD/parquet" >/dev/null || return 1
-  (cd parquet && zip -j -9 -q ../web/public/f1-parquet.zip ./*.parquet) || return 1
-}
-rm -f web/public/f1-parquet.zip
-if (set +e; parquet_bundle); then
+rm -f web/public/f1-parquet.zip parquet-build.log
+{
+  echo "when     $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  echo "python   $PYTHON"
+  echo "version  $("$PYTHON" -c 'import sys; print(sys.version.split()[0])' 2>&1)"
+  echo "pip      $("$PYTHON" -m pip --version 2>&1 | head -1)"
+  echo "zip      $(command -v zip 2>/dev/null || echo 'NOT FOUND')"
+  echo "---"
+} > parquet-build.log 2>&1
+
+if (set +e
+    { "$PYTHON" -m pip install pyarrow \
+        || "$PYTHON" -m pip install --user pyarrow; } >> parquet-build.log 2>&1 \
+      && "$PYTHON" tools/parquet_export.py --out "$PWD/parquet" \
+           >> parquet-build.log 2>&1 \
+      && (cd parquet && zip -j -9 -q ../web/public/f1-parquet.zip ./*.parquet) \
+           >> parquet-build.log 2>&1); then
   echo "--- Parquet bundle $(du -h web/public/f1-parquet.zip | cut -f1)"
+  { echo "---"; echo "result   ok, $(du -h web/public/f1-parquet.zip | cut -f1)"; } \
+    >> parquet-build.log
 else
   echo "::warning::the Parquet bundle could not be built; deploying without it"
   rm -f web/public/f1-parquet.zip
+  { echo "---"; echo "result   FAILED"; } >> parquet-build.log
 fi
+cp parquet-build.log web/public/build-status.txt
 
 echo "--- building the front end"
 cd web

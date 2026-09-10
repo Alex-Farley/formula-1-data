@@ -12,6 +12,12 @@
 # reason f1_database.json is not kept here either.
 /parquet/
 f1-parquet.zip
+
+# What the Parquet step of tools/cloudflare-build.sh learned, written into
+# the site so a failure is diagnosable when the build log is not readable.
+# Generated per deploy; never committed.
+parquet-build.log
+web/public/build-status.txt
 telemetry/
 out/
 
