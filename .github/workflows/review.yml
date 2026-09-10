@@ -16,7 +16,24 @@ name: review
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-  workflow_dispatch:
+
+# NO workflow_dispatch, deliberately. It was here, and every manual run failed
+# in under a second:
+#
+#     track_progress is only supported for events: pull_request, issues,
+#     issue_comment, pull_request_review_comment, pull_request_review.
+#     Current event: workflow_dispatch
+#
+# Dropping `track_progress` below would not rescue it. A manual run has no
+# pull request — the job log shows PR_NUMBER empty — so `use_sticky_comment`
+# has nowhere to post and the prompt asks for a review of a diff that does not
+# exist. Nor does the draft guard stop it: on a dispatch
+# `github.event.pull_request.draft == false` reads `null == false`, which
+# GitHub coerces to `0 == 0` and runs the job anyway. There is no configuration
+# of this file under which a manual run produces a review, so the trigger only
+# ever produced a red check.
+#
+# To get a review again, push to the branch or reopen the pull request.
 
 # Read the code, write the review. Nothing here commits, so `contents` stays
 # read — the same reasoning ci.yml records for its own token.
@@ -66,6 +83,25 @@ jobs:
             echo "::notice::No ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN is set, so the review was skipped. Add one under Settings, Secrets and variables, Actions."
           fi
 
+      # WILL THE ACTION REFUSE — established before it is asked, rather than
+      # read back out of its log afterwards. It reviews only when this file is
+      # byte-identical to the copy on the default branch (the Review step below
+      # explains why), so running that same comparison here predicts the
+      # refusal exactly. That is what lets the summary at the end of this job
+      # name which outcome happened instead of leaving them indistinguishable.
+      - name: Will the review be refused
+        id: validation
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          git fetch --no-tags origin "+refs/heads/${DEFAULT_BRANCH}:refs/remotes/origin/${DEFAULT_BRANCH}"
+          if git diff --quiet "refs/remotes/origin/${DEFAULT_BRANCH}" -- .github/workflows/review.yml; then
+            echo "edited=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "edited=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::This pull request edits .github/workflows/review.yml, so the action will decline to review it. That is the rule stopping a pull request from rewriting the reviewer that judges it, and it is not a failure."
+          fi
+
       # THIS STEP CANNOT RUN ON THE PULL REQUEST THAT INTRODUCES IT, and will
       # not run on one that edits this file either. The action refuses unless
       # the workflow is byte-identical to the copy on the default branch —
@@ -77,10 +113,12 @@ jobs:
       #
       # and then exits SUCCESS, so the check goes green having reviewed
       # nothing and said nothing on the pull request. That is expected and
-      # correct, but it is indistinguishable from a working review that found
-      # no problems, so read the job log before concluding either. It starts
-      # working on the first pull request opened after this file reaches main.
+      # correct, but on its own it is indistinguishable from a working review
+      # that found no problems — which is why the last step of this job writes
+      # to the run summary which of the two it was. It starts working on the
+      # first pull request opened after this file reaches main.
       - name: Review
+        id: review
         if: steps.guard.outputs.enabled == 'true'
         uses: anthropics/claude-code-action@v1
         with:
@@ -138,3 +176,41 @@ jobs:
 
             You are reviewing. Do not edit files, do not push, do not resolve
             threads.
+
+      # A GREEN CHECK HERE MEANS ONE OF FOUR THINGS and they are not the same:
+      # reviewed and found nothing, not configured, declined because this pull
+      # request edits the workflow, or the step did not finish. The action
+      # exits SUCCESS for the middle two, so without this step the only way to
+      # tell them apart is to open the job log and know what to look for.
+      #
+      # CLAUDE.md states the rule this follows: anything non-fatal must report
+      # where it can be read, because a silent step is an invisible one — the
+      # lesson that cost the Parquet build three rounds. The run summary is
+      # that place here, and it is written on every outcome, not just the bad
+      # ones. `always()` because the unfinished case is the one most worth
+      # naming.
+      - name: Say which of the four happened
+        if: always()
+        env:
+          ENABLED: ${{ steps.guard.outputs.enabled }}
+          EDITED: ${{ steps.validation.outputs.edited }}
+          OUTCOME: ${{ steps.review.outcome }}
+        run: |
+          say() { printf '%s\n' "$1" >> "$GITHUB_STEP_SUMMARY"; }
+          if [ "$ENABLED" != "true" ]; then
+            say "### Not reviewed — no key is configured"
+            say ""
+            say "Set \`ANTHROPIC_API_KEY\` or \`CLAUDE_CODE_OAUTH_TOKEN\` under Settings, Secrets and variables, Actions."
+          elif [ "$EDITED" = "true" ]; then
+            say "### Not reviewed — this pull request edits \`review.yml\`"
+            say ""
+            say "The action reviews only when the workflow is byte-identical to the copy on the default branch, so that a pull request cannot rewrite the reviewer judging it. Nothing is wrong with this pull request; it simply reviewed nothing, and posted no comment. Read the diff yourself, and expect the review to resume on the next pull request that leaves this file alone."
+          elif [ "$OUTCOME" = "success" ]; then
+            say "### Reviewed"
+            say ""
+            say "The findings, or a line saying there were none, are in the sticky comment on the pull request."
+          else
+            say "### The review did not finish — \`$OUTCOME\`"
+            say ""
+            say "This is the one outcome above that is a real failure. The job log has the error."
+          fi
