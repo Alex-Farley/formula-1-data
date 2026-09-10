@@ -157,7 +157,7 @@ const chrome = (body, crumbs) => `
 <div class="app pre">
   <header class="masthead">
     <div class="masthead-inner">
-      <a class="wordmark" href="${esc(href(''))}"><span><b>F1 Verified Facts</b><span>1950–2026 · every championship race</span></span></a>
+      <a class="wordmark" href="${esc(href(''))}"><span><b>Lap Ledger</b><span>1950–2026 · every championship race</span></span></a>
       <nav>${NAV.map(([to, label]) => link(to, label)).join('')}</nav>
     </div>
   </header>
@@ -194,7 +194,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
   pages.push({ path, title, description, jsonld, html: chrome(body, trail ? crumbs(trail) : '') })
 }
 
-const SITE = 'F1 Verified Facts'
+const SITE = 'Lap Ledger'
 const titled = (headline) => `${headline} — ${SITE}`
 
 // ------------------------------------------------------------------- home
@@ -1139,7 +1139,7 @@ writeFileSync(
 
 writeFileSync(
   join(dist, 'robots.txt'),
-  `User-agent: *\nAllow: /\n\n# The database itself is 20 MB and is not a page. Crawling it helps nobody.\nDisallow: ${href('f1.db')}\nDisallow: ${href('f1.db.gz')}\n\nSitemap: ${ORIGIN}${href('sitemap.xml')}\n`,
+  `User-agent: *\nAllow: /\n\n# The database itself is 20 MB and is not a page. Crawling it helps nobody.\nDisallow: ${href('f1.db')}\nDisallow: ${href('f1.db.gz')}\nDisallow: ${href('f1-parquet.zip')}\n\nSitemap: ${ORIGIN}${href('sitemap.xml')}\n`,
 )
 
 db.close()

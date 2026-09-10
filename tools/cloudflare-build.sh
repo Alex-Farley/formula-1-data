@@ -79,6 +79,48 @@ echo "--- verifying it"
 export SITE_ORIGIN="${SITE_ORIGIN:-https://lapledger.org}"
 echo "--- canonical origin $SITE_ORIGIN"
 
+# The Parquet bundle, served from this site's own domain rather than only
+# from a GitHub release. It is staged into web/public/, which is how f1.db
+# already reaches the deployed site, so vite copies it into dist like any
+# other asset.
+#
+# WHY IT IS SERVED HERE AT ALL, when the release already carries one: this
+# copy is built from the database this deploy just rebuilt, so it can never
+# be older than the site beside it. A release is pinned to a tag and goes
+# stale between them.
+#
+# NON-FATAL ON PURPOSE. pyarrow is the one thing in this script that reaches
+# outside the repository, and a site that stops deploying because a download
+# could not be built is a worse outcome than a missing download. `set -e` is
+# suspended for the attempt and the failure is shouted rather than swallowed.
+# "$PYTHON" -m pip, NEVER a bare `pip`. The whole point of the search above
+# is that the python first on PATH is the WRONG one, so its pip installs
+# pyarrow somewhere "$PYTHON" cannot see it - which is how the first attempt
+# at this failed: the build went green, the warning scrolled past, and the
+# site deployed without the download. Ask the chosen interpreter to install
+# into itself.
+#
+# Errors are printed rather than suppressed. Non-fatal must not mean silent:
+# a step allowed to fail is exactly the step whose reason has to reach the
+# log, because nothing downstream will complain on its behalf.
+echo "--- building the Parquet bundle"
+parquet_bundle() {
+  "$PYTHON" -m pip install --quiet pyarrow \
+    || "$PYTHON" -m pip install --quiet --user pyarrow \
+    || { echo "pyarrow would not install for $PYTHON" >&2; return 1; }
+  command -v zip >/dev/null 2>&1 \
+    || { echo "no zip on this build image" >&2; return 1; }
+  "$PYTHON" tools/parquet_export.py --out "$PWD/parquet" >/dev/null || return 1
+  (cd parquet && zip -j -9 -q ../web/public/f1-parquet.zip ./*.parquet) || return 1
+}
+rm -f web/public/f1-parquet.zip
+if (set +e; parquet_bundle); then
+  echo "--- Parquet bundle $(du -h web/public/f1-parquet.zip | cut -f1)"
+else
+  echo "::warning::the Parquet bundle could not be built; deploying without it"
+  rm -f web/public/f1-parquet.zip
+fi
+
 echo "--- building the front end"
 cd web
 npm ci

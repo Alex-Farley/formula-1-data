@@ -856,7 +856,7 @@ try {
 
   const deep = await browser.newPage({ viewport: { width: 1280, height: 900 } })
   await deep.goto(`${BASE}/drivers/hamilton`, { waitUntil: 'domcontentloaded' })
-  is(await deep.title(), 'Sir Lewis Hamilton — F1 Verified Facts', 'a deep link has its own title')
+  is(await deep.title(), 'Sir Lewis Hamilton — Lap Ledger', 'a deep link has its own title')
   is(
     await deep.$eval('link[rel=canonical]', (node) => new URL(node.href).pathname),
     '/drivers/hamilton',

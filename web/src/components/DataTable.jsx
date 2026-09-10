@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useContext, useMemo, useState } from 'react'
 import { isNumericColumn, isProseColumn, label as humanise, missing, text } from '../lib/format.js'
+import { SectionTitle } from './Page.jsx'
 
 /**
  * One table component for everything, from the season list to whatever a
@@ -54,6 +55,8 @@ export default function DataTable({
   footer,
 }) {
   const source = given ?? data?.rows ?? []
+  // Read unconditionally: hooks may not sit behind the early return below.
+  const sectionTitle = useContext(SectionTitle)
   const [sort, setSort] = useState(initialSort)
   const [direction, setDirection] = useState(initialDirection)
   const [showAll, setShowAll] = useState(false)
@@ -112,7 +115,14 @@ export default function DataTable({
     <div className="table-wrap" data-rows={ordered.length} data-shown={visible.length}>
       <div className="table-scroll">
         <table>
-          {caption && <caption>{caption}</caption>}
+          {/* An explicit caption is shown; the one derived from the enclosing
+              Section is not, because the reader can already see that heading
+              directly above the table and a visible copy would only repeat
+              it. Hidden, it still gives the table a name when somebody
+              enters it with a screen reader, which is the whole point. */}
+          {caption
+            ? <caption>{caption}</caption>
+            : sectionTitle && <caption className="sr-only">{sectionTitle}</caption>}
           <thead>
             <tr>
               {cols.map((column) => {
