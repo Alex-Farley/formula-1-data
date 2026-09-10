@@ -23,6 +23,11 @@ on:
 permissions:
   contents: read
   pull-requests: write
+  # anthropics/claude-code-action authenticates by exchanging a GitHub OIDC
+  # token, and a workflow cannot mint one without this. Without it the action
+  # retries three times and fails with "Could not fetch an OIDC token", which
+  # is what the first run of this file did.
+  id-token: write
 
 # A review of the commit before last is noise. Supersede it.
 concurrency:
