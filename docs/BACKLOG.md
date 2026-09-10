@@ -56,7 +56,38 @@ full reasoning and the evidence; this file is the queue, not the argument.
 
 ## Now
 
-Short enough to be a decision rather than a list.
+Short enough to be a decision rather than a list. The first three are one
+sitting between them, and each is a surface contradicting something this
+project states in its own words.
+
+- [ ] `CD-01` **The em dash lies in the column where it appears most.**
+      `Race.jsx:312` footnotes the results table *"An empty 'Out' is a
+      retirement nobody recorded a reason for, not a driver who finished"* —
+      and 15,714 of 27,482 `race_entries` rows carry a null `status`, every
+      one of which has a finish position. All twenty finishers of the 2024
+      Bahrain Grand Prix render as em dashes under a caption asserting they
+      retired. 57% of entries, across 1,161 race pages and 862 driver pages.
+      Render `status IS NULL AND finish_position IS NOT NULL` as *Finished* at
+      the two render sites — not in `missing()`, which is right as it stands.
+      — *content critique · S*
+
+- [ ] `IA-15` **The one download instruction on the site names `f1.db` alone.**
+      `prerender.js:1218` tells a reader to "download `f1.db` and open it with
+      any SQLite client" and never mentions `f1-geometry.db`. `CLAUDE.md`'s
+      rule is binding: anything that publishes `f1.db` must publish
+      `f1-geometry.db` beside it, because omitting it ships zero centrelines
+      with no way to obtain them. It is also the only sentence on 3,515 pages
+      that says the artefact exists, and it does not link it. The sentence
+      moves to `/data` (`IA-02`) naming both files and why they are two. —
+      *IA critique · S*
+
+- [ ] `IA-04` **`document.title` and the canonical never update after first
+      paint.** No `document.title` or Helmet anywhere in `web/src/`;
+      `prerender.js` writes both correctly and `smoke.mjs:859` asserts a title
+      on cold load only. After any in-app navigation the tab, the bookmark, the
+      history entry and the screen-reader announcement all still name the page
+      the reader *landed* on. On a site whose dominant entry is a deep search
+      arrival, that is the share-and-cite path broken. — *IA critique · S*
 
 - [ ] `PM-05` **Split pole position from grid 1.** Fourteen of the eighteen open
       `discrepancies` are the same modelling question, not fourteen research
@@ -76,7 +107,11 @@ Short enough to be a decision rather than a list.
       other 824 show an em dash statically and a real figure in the app. Then
       make `smoke.mjs` assert the *static* output against the database as it
       already does the app's, which is what would have caught this on the day it
-      shipped. — *product critique · M*
+      shipped. Two later findings have the same root cause and should ship
+      with it rather than as separate passes: `CD-04` (the static half prints
+      the numbers and deletes the rules for reading them) and `IA-03` (the app
+      has no breadcrumb, the static page has no onward band). —
+      *product critique · M*
 
 - [ ] `PD-07` **Stop the README lying.** It claims 39 tables, 34 views, ~8,400
       rows against an actual 46 / 38 / 119,271, and says qualifying is "not held
@@ -89,7 +124,25 @@ Short enough to be a decision rather than a list.
       authored, sit at `medium`, and nothing in `verify.py` reads the table; the
       page says Hamilton has 105 wins while `drivers.wins` says 106. Derive the
       leaderboards; keep only what genuinely cannot be derived, in a block that
-      says so. — *product critique · M*
+      says so. `IA-16` examined the nav slot and endorsed keeping it — the page
+      is the only cut by question rather than by table — and adds one thing: if
+      the authored block survives as *Published, not derived*, it belongs
+      **below** the derived leaderboards, because the derived ones are the
+      demonstration and the authored ones are the caveat. —
+      *product critique · M*
+
+- [ ] `IA-02` **`Reference` leaves the masthead; `Data` takes the slot.**
+      `/reference` is two drawers with no reader in common: a *database* drawer
+      (`quality`, `sources`, `sql`) and a *sport* drawer (`eras`, `glossary`).
+      The first one **is** the `/data` page `PD-11` wants, so these are one
+      decision and the masthead stays at eight — Seasons · Races · Drivers ·
+      Constructors · Circuits · Cars · Records · Data. `quality` and `sources`
+      merge and move under it, `sql` moves under it; `eras` and `glossary` keep
+      their URLs and lose the slot, their problem being that they are terminal
+      rather than that they are drawered. Supersedes `PD-09`, which filed the
+      same problem as an L: the redirects are the work, and the naming decision
+      this costs at M is the one `PD-09` was waiting on. — *IA critique · M
+      (decision first)*
 
 - [ ] `PD-11` **Give the bulk data a front door, and a claim.** The Parquet
       bundle now builds and serves (`PM-01`) and is linked from nothing. A
@@ -100,7 +153,9 @@ Short enough to be a decision rather than a list.
       `f1.db`, `f1.db.gz` and `f1-parquet.zip`, which is right — a crawler
       pulling 20 MB helps nobody — but it means the `/data` page itself has to
       be the crawlable surface that carries the claim, since the files it links
-      never will be. — *product critique · M*
+      never will be. Do `IA-02` first — it settles where the page goes and
+      what it displaces — and take the claim from `CD-07`, which writes it. —
+      *product critique · M*
 
 ## Next
 
@@ -109,8 +164,12 @@ Worth doing, not yet urgent.
 - [ ] `PD-05` **Split `known_gaps` into open and closed.** Four of the eleven are
       closed or not gaps, and the homepage counts all eleven. Add a `state`
       column, filter the public page, and split each row into a reader sentence
-      and a maintainer note — it currently renders commit messages. —
-      *product critique · S*
+      and a maintainer note — it currently renders commit messages.
+      **`CD-06` makes it five, not four** — #1 and #2 are closed, #5 and #10 are
+      positions rather than gaps, #8 is a true null belonging on one race page —
+      so six genuine gaps remain and the homepage should read six. `CD-06` also
+      carries the reader sentences and the maintainer notes this entry asks for.
+      — *product critique · S*
 
 - [ ] `PD-06` **Fix the drivers register's first screen.** Opens on Adolf Brudes
       with two columns empty for 96% of rows. Drop `entries` and `starts`, add a
@@ -212,6 +271,121 @@ Worth doing, not yet urgent.
       sources. Cheap to answer, and it may turn four rows into one. —
       *project record · S*
 
+- [ ] `IA-01` **`grands_prix` has 53 rows, a view, and no page anywhere.**
+      `Race.jsx:17` joins the table and `Race.jsx:440` prints the name as dead
+      text, because there is nowhere to link it: no route, no prerendered page,
+      no sitemap entry, no search row. The circuit page is not a substitute —
+      **17 of the 53 Grands Prix used more than one circuit, covering 773 of
+      1,172 races (66%)**, so the French Grand Prix is spread across seven
+      circuit pages and reassembled nowhere. The clearest case on the site of
+      the structure following the storage model rather than the reader. Goes at
+      level two, reached from `/races`, the race page's Grand Prix field and the
+      circuit page — three ways in, not a ninth nav item. — *IA critique · M*
+
+- [ ] `CD-04` **The static half of the site prints the numbers and deletes the
+      rules for reading them.** Every convention lives in a `DataTable` footer
+      or a `Note`; `prerender.js` has neither construct. So the search arrival,
+      the no-JS reader and the first seconds of every cold visit get shared
+      drives with no note, em dashes with the explanation removed, and
+      `Confidence: reference` as a bare fact on 695 driver pages. Three strings,
+      one of which already exists at `App.jsx:88` and was simply not copied
+      across. Ship with `PD-02`. — *content critique · M*
+
+- [ ] `IA-03` **The app has no breadcrumb; the static page has no onward band.**
+      Each renderer holds half the wayfinding and neither holds the other half,
+      so orientation trades sideways the moment React takes over from the
+      prerendered HTML. Ship with `PD-02`. — *IA critique · S*
+
+- [ ] `CD-02` **111 driver ledes open with how the row got into the database.**
+      `drivers.notes`, 111 of 244 rows, consumed as the page lede
+      (`Driver.jsx:169`) and as the meta description (`prerender.js:645`):
+      *"Added to the register from the podium harvest…"*. Chris Amon's meta
+      description spends three sentences on provenance and truncates at 300
+      characters exactly on *"Widely held to be the fi…"*. A data edit, not a
+      code one — the good sentence usually already exists at the end of the
+      string, and the provenance clause belongs in the "Where this comes from"
+      section `Driver.jsx:373` already renders. — *content critique · S*
+
+- [ ] `CD-03` **1,172 race pages have no standfirst.** `races.note` is NULL on
+      every one of the 1,172 rows, so `lede={race.note}` is dead code and the
+      largest page type opens with no sentence — while `prerender.js:480-482`
+      already composes a serviceable one for the meta description and does not
+      put it on the page. Render it in both, from the same expression. —
+      *content critique · S*
+
+- [ ] `CD-05` **`PD-12` answered.** The lap-timing position is written, in three
+      lengths, with the four places each goes. Lands with `PD-12`; no research
+      left in it. — *content critique · S*
+
+- [ ] `CD-06` **`PD-05` answered, and the count corrected.** `PD-05` says four of
+      the eleven `known_gaps` are closed or not gaps; the content critique makes
+      it **five** (#1 and #2 closed, #5 and #10 are positions rather than gaps,
+      #8 is a true null belonging on one race page), leaving six genuine open
+      gaps — so the homepage's "11 known gaps" (`Home.jsx:233`) should read six.
+      Six reader sentences and eleven maintainer notes are written out. —
+      *content critique · S*
+
+- [ ] `CD-07` **`PD-11` answered: what `/data` claims.** One adversarial
+      sentence that survives the reader thinking *"I already have F1DB"* —
+      **The Formula One record, audited** — with the supporting block. Lands
+      with `PD-11`/`IA-02`. — *content critique · S*
+
+- [ ] `CD-08` **`PD-10` answered: the citation block, verbatim.** It belongs
+      inside the "Where this comes from" section that `Race.jsx:437` and
+      `Driver.jsx:334` already render, not as a new component at the foot of the
+      page. Lands with `PD-10`. — *content critique · S*
+
+- [ ] `CD-09` **The glossary defines the sport's vocabulary and not the
+      product's.** 44 terms — Apex, Bargeboard, Porpoising — all correct, none
+      of them the words a newcomer trips on *here*. DNQ, NC, FL and the
+      confidence tiers appear in table cells with no definition anywhere on the
+      site. — *content critique · M*
+
+- [ ] `CD-10` **The confidence pill is a bare word on 13 pages.**
+      `Page.jsx:110-115` renders `<span class="pill">{value}</span>` with no
+      `title`, no link, no explanation, while the ladder that defines it is one
+      nav item and two clicks away. Reach without a definition at the point of
+      use is how a reader learns that "medium" means the site is unsure of
+      itself rather than that an exact figure may have drifted. —
+      *content critique · S*
+
+- [ ] `CD-13` **The site states a cause the database does not hold.**
+      `Race.jsx:204` and `prerender.js:543` render *"started P4, after a grid
+      penalty"* wherever the fastest qualifier did not start first. The database
+      records that the two differ, not why. — *content critique · S*
+
+- [ ] `CD-15` **`./f1 gaps` prints "what the data does not yet cover", then
+      three entries beginning "CLOSED".** `CD-06`'s defect on the surface the
+      bulk-data audience actually touches; must filter on `PD-05`'s `state`
+      column when it lands. — *content critique · S*
+
+- [ ] `CD-16` **The README's first sentence defines the product by its own
+      history.** *"An expansion of the original single-file JSON into…"* — a
+      reader arriving at the repository does not know there was a single-file
+      JSON and does not care. `PD-07` already moves the version log out; this is
+      what should replace it, in `CD-07`'s claim in repository voice. —
+      *content critique · S*
+
+- [ ] `IA-05` **Search cannot find a car by the name anyone would type.**
+      `Search.jsx:29` indexes chassis on `chassis.name`, which is the bare model
+      number, so "Ferrari 312" returns nothing. Fix what it indexes; do not
+      build full-text. — *IA critique · S*
+
+- [ ] `IA-06` **Six of the most famous cars in F1 have two URLs each and are
+      absent from search.** Six `cars` ids that no chassis owns — `alfa-158`,
+      `brawn-bgp001`, `lotus-72`, `mercedes-w05`, `mercedes-w11` and one more —
+      reachable at two paths, indexed at neither. — *IA critique · S*
+
+- [ ] `IA-07` **The SQL console has no permalink.** `Sql.jsx` holds the query in
+      `useState` — no `useSearchParams`, no hash — so a query cannot be shared,
+      bookmarked or cited on a site whose stated ambition is to be cited. —
+      *IA critique · S*
+
+- [ ] `IA-12` **The glossary is terminal.** 44 terms, linked from three places
+      in `web/`, and the terms it should serve are undefined at the point they
+      appear. Content design owns the wording (`CD-09`); this is the placement
+      half. — *IA critique · S*
+
 ## Someday, or maybe never
 
 Real, but not costed, or waiting on a decision.
@@ -271,13 +445,65 @@ Real, but not costed, or waiting on a decision.
 
 - [ ] `PD-09` **Rework `/reference`.** It holds an audit, an encyclopedia and a
       developer tool behind one nav item. Promote the SQL console and a merged
-      provenance page to the masthead. Needs redirects and a naming decision. —
-      *product critique · L*
+      provenance page to the masthead. Needs redirects and a naming decision.
+      **Superseded by `IA-02`**, which makes the naming decision this was
+      waiting on and costs the rework at M. — *product critique · L*
 
 - [ ] `PD-08` **Decide what the atlas is for.** Genuinely excellent, covers 25 of
       80 circuits, has no named audience, and nothing measures whether anyone
       opens it. Not a task until there is a way to answer the question. —
       *product critique · ?*
+
+- [ ] `IA-08` **No filter or sort state is in any URL, anywhere.** Zero hits for
+      `useSearchParams`, `URLSearchParams` or `location.search` across
+      `web/src/`, so no register's filters, chips, sort column, direction or
+      page can be linked or restored. Sized M and worth doing after `IA-02`
+      settles the structure it would encode. — *IA critique · M*
+
+- [ ] `IA-09` **The eyebrow above every `h1` means four different things.** One
+      slot in one position on every page, carrying four unrelated kinds of
+      value. — *IA critique · S*
+
+- [ ] `IA-10` **One label for four destinations.** `back={{ label: 'The
+      register' }}` on drivers, constructors, circuits and cars — four
+      destinations, one string, none of them naming where it goes; and "Car" has
+      three referents. — *IA critique · S*
+
+- [ ] `IA-11` **The two longest registers are the two with no time axis.** —
+      *IA critique · S*
+
+- [ ] `IA-13` **`/reference/eras` renders nine tables under a two-word label.**
+      Eras, engine formulae, scoring systems, regulation changes and limits,
+      technical innovations and more. Falls out of `IA-02` if that is done
+      properly. — *IA critique · S*
+
+- [ ] `IA-14` **The masthead nav overflows silently on a phone, tail-first.**
+      `app.css:302-319` makes it a horizontally scrolling strip with the
+      scrollbar hidden below 720px, so the last items are reachable only by a
+      gesture with no affordance. The measurement is inference — confirm on a
+      device before sizing. — *IA critique · S*
+
+- [ ] `CD-11` **Meta descriptions at scale read as schema output.** Generated at
+      `prerender.js:645`: *"Adolf Brudes, Germany, Formula One 1952-1952. 0
+      wins, 0 poles."* — and "0 wins, 0 poles" on 618 pages, where the site's own
+      convention is that a blank is not a zero. — *content critique · S*
+
+- [ ] `CD-12` **One concept, several words.** Out/Status is the instance where
+      the two renderers actually disagree; the rest is consistency. —
+      *content critique · M*
+
+- [ ] `CD-14` **The homepage explains four conventions and there are seven.**
+      `Home.jsx:204-238` covers the em dash, disagreements, the ladder and the
+      gaps, and omits the three most often read as bugs: a repeated finishing
+      position, a pre-1991 margin, and a stored figure shown beside a derived
+      one. Not three more panels — six is a wall — but a change of framing so
+      the section is a door. — *content critique · S*
+
+- [ ] `CD-17` **Error and empty states: an inventory.** Written out in the
+      critique with a verdict each. Two worth acting on: the boot-failure copy
+      addresses the wrong audience, and `DataTable`'s default *"Nothing
+      recorded."* is a strong claim to make by default on a site where a blank
+      means *not established*. — *content critique · S each*
 
 - [ ] `PD-Ø` **Measure something.** No analytics of any kind, so progress cannot
       be told from motion. Deliberately unsized: what to measure is a decision
@@ -315,6 +541,16 @@ Real, but not costed, or waiting on a decision.
 
 Measured, decided, and on the record. Each may be re-raised — the reason is what
 a critique has to argue against.
+
+- **Moving `/records` out of the masthead.** The IA critique (`IA-16`) examined
+  the slot and endorsed it: seven of the eight current nav items map 1:1 to a
+  table, and Records is the only one cut by question rather than by storage, as
+  well as the highest-intent fan destination. `PD-03` is a content problem, as
+  filed. The escalation is recorded on `PD-03`, not here. — `IA` critique
+
+- **Building full-text or site-wide search.** It already exists. `Search.jsx` is
+  good work that is mislabelled and indexes the wrong column; `IA-05` and
+  `IA-06` are the fix. — `IA` critique
 
 - **Route-level code splitting in the front end.** The bundle is 398 KB raw /
   118 KB gzipped, irrelevant beside the database the browser downloads (4.4 MB
