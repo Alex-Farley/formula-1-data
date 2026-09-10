@@ -69,7 +69,8 @@ nothing. Combined with nobody having asked a user anything, the project cannot
 distinguish progress from motion, and the release notes read accordingly:
 v2.17–v2.20 are all supply-side (Parquet, h1 levels, SHA256SUMS, date columns).
 
-Separately, `tools/cloudflare-build.sh` builds a Parquet bundle and serves it from
+Separately, the deploy build (then `tools/cloudflare-build.sh`, since deleted —
+see `PM-01`) builds a Parquet bundle and serves it from
 lapledger.org, and **no HTML file among the 2,385 links to it, to the GitHub
 release, or to the repository at all**; `robots.txt` disallows it ✅. The
 bulk-data audience the README courts most cannot find the artefact from the

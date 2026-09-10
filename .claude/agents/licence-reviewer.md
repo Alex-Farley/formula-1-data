@@ -58,7 +58,7 @@ and nothing else.
 already gone wrong once: v2.17 exists because a release workflow written before
 the ODbL split would have published a database whose geometry table is empty
 alongside no geometry file at all. Check `release.yml`, `pages.yml`,
-`tools/cloudflare-build.sh` and any new publishing path for both files, and check
+the deploy build chain and any new publishing path for both files, and check
 that `SHA256SUMS` digests **the files actually uploaded**, including a compressed
 export rather than its original.
 
