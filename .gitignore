@@ -12,6 +12,15 @@
 # reason f1_database.json is not kept here either.
 /parquet/
 f1-parquet.zip
+
+# What the Parquet step of web/scripts/parquet-bundle.mjs learned, written
+# into the site so a failure is diagnosable when the build log is not
+# readable. Generated per deploy; never committed. .pyarrow/ is the target
+# directory used when pyarrow has to be installed for an interpreter whose
+# own pip is missing.
+parquet-build.log
+web/public/build-status.txt
+.pyarrow/
 telemetry/
 out/
 

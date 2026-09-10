@@ -44,6 +44,7 @@ import argparse
 import os
 import sqlite3
 import sys
+import zipfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -155,6 +156,10 @@ def main():
                     help="directory to write into (default: parquet/)")
     ap.add_argument("--check", action="store_true",
                     help="report what would be written, and write nothing")
+    ap.add_argument("--zip", metavar="PATH",
+                    help="also write the whole set as one zip at PATH. Uses "
+                         "the standard library rather than a zip binary, so "
+                         "it works on a build image that has no zip.")
     args = ap.parse_args()
 
     if not os.path.exists(DB):
@@ -184,6 +189,21 @@ def main():
         total_rows += at.num_rows
 
     check_complete(con, written)
+
+    # Bundled with zipfile, not a `zip` binary. Whether zip is installed is a
+    # property of whatever machine happens to be building, and one fewer
+    # thing that has to be true is one fewer way for this to fail somewhere
+    # nobody can read the log.
+    if args.zip and not args.check:
+        os.makedirs(os.path.dirname(os.path.abspath(args.zip)), exist_ok=True)
+        with zipfile.ZipFile(args.zip, "w", zipfile.ZIP_DEFLATED,
+                             compresslevel=9) as z:
+            for table in written:
+                z.write(os.path.join(args.out, f"{table}.parquet"),
+                        f"{table}.parquet")
+        print(f"  bundled {len(written)} files into {args.zip} "
+              f"({os.path.getsize(args.zip)/1048576:.1f} MB)")
+
     print(f"\n  {len(written)} tables, {total_rows:,} rows"
           + (f", {total_bytes/1048576:.1f} MB in {args.out}"
              if not args.check else " (nothing written)"))
