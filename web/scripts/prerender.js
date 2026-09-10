@@ -830,16 +830,52 @@ const titled = (headline) => `${headline} — ${SITE}`
 {
   const cars = all(`SELECT * FROM cars ORDER BY from_year, designation`)
 
+  // EVERY chassis, because the app links every one of them. Cars.jsx builds its
+  // register from `chassis` and links each row to /cars/<id>, so writing pages
+  // from `cars` alone left 1,130 routes that worked in the app and answered 404
+  // to anyone who followed a shared link — the static half of the site
+  // contradicting the half that replaces it.
+  //
+  // The set is the UNION rather than a swap. Car.jsx resolves /cars/:id against
+  // a chassis id OR, where no chassis owns the id, a car id: six ids name a car
+  // whose variants are separate chassis rows (`lotus-72` is the 72B, 72C, 72D
+  // and 72E, and no race entry is ever attributed to `lotus-72` itself).
+  // Iterating `chassis` alone would have generated 1,130 new pages and deleted
+  // those six.
+  const chassis = all(`
+    SELECT ch.*, k.name AS constructor
+      FROM chassis ch
+      LEFT JOIN constructors k ON k.id = ch.constructor_id
+     ORDER BY ch.first_year, ch.name
+  `)
+
+  // One pass, grouped in memory: 20,737 rows against 1,130 queries.
+  const raced = new Map()
+  for (const e of all(`
+    SELECT e.chassis_id, e.driver_id, r.year, r.round, r.name_used,
+           d.full_name AS driver, e.grid_text, e.position_text, e.status
+      FROM race_entries e
+      JOIN races r ON r.id = e.race_id
+      LEFT JOIN drivers d ON d.id = e.driver_id
+     WHERE e.chassis_id IS NOT NULL
+     ORDER BY r.year, r.round
+  `)) {
+    if (!raced.has(e.chassis_id)) raced.set(e.chassis_id, [])
+    raced.get(e.chassis_id).push(e)
+  }
+
   page({
     path: 'cars',
-    title: titled('Landmark cars'),
-    description: `${cars.length} landmark Formula One chassis with full technical specifications, design histories and the races they won.`,
+    title: titled('Cars'),
+    description: `${cars.length} landmark Formula One chassis specified in full, and the register of all ${chassis.length} chassis that have started a Grand Prix.`,
     trail: [['', 'Home'], ['cars', 'Cars']],
     body: `
       <h1>Cars</h1>
-      <p class="lede">${cars.length} landmark chassis, specified and sourced. The full chassis
-        register — every chassis that has raced — is in the database behind
-        ${link('reference/sql', 'the SQL console')}.</p>
+      <p class="lede">${cars.length} landmark chassis, specified and sourced, and behind them
+        every chassis with a championship entry — ${num(chassis.length)} of them, most raced by a
+        privateer for a single weekend. A blank is a figure nobody published, not a car
+        with no wheelbase.</p>
+      <h2>The cars with a page of their own</h2>
       ${table(
         ['Car', 'Constructor', 'Years', 'Engine', 'Races', 'Wins', 'Poles'],
         cars.map((c) => [
@@ -851,6 +887,22 @@ const titled = (headline) => `${headline} — ${SITE}`
           num(c.wins),
           num(c.poles),
         ]),
+        { caption: 'Landmark cars' },
+      )}
+      <h2>The chassis register</h2>
+      <p>Every chassis that has started a championship Grand Prix, whether or not anybody
+        has published a specification for it.</p>
+      ${table(
+        ['Chassis', 'Constructor', 'Years', 'Engine', 'Races', 'Wins'],
+        chassis.map((ch) => [
+          link(`cars/${ch.id}`, ch.full_name ?? ch.name),
+          ch.constructor_id ? link(`constructors/${ch.constructor_id}`, ch.constructor ?? ch.constructor_id) : '—',
+          ch.first_year === ch.last_year ? text(ch.first_year) : `${ch.first_year ?? '?'}–${ch.last_year ?? '?'}`,
+          text(ch.engine_name),
+          num(ch.races),
+          num(ch.wins),
+        ]),
+        { caption: 'Chassis register' },
       )}`,
   })
 
@@ -893,6 +945,80 @@ const titled = (headline) => `${headline} — ${SITE}`
         ${prose(c.innovations)}
         ${prose(c.story)}
         ${prose(c.outcome)}`,
+    })
+  }
+
+  // The rest of the register. `cars` ids are skipped because the loop above has
+  // already written those pages from the richer curated row.
+  //
+  // Facts are passed RAW rather than through text(), so facts() drops the ones
+  // nothing is known for. 376 of these chassis carry no specification at all,
+  // and a page of twenty em dashes claims twenty times over that nobody has
+  // established a figure — which is true, and is not worth saying twenty times.
+  const curated = new Set(cars.map((c) => c.id))
+
+  for (const ch of chassis) {
+    if (curated.has(ch.id)) continue
+
+    const name = ch.full_name ?? ch.name
+    const years = ch.first_year === ch.last_year
+      ? String(ch.first_year ?? '?')
+      : `${ch.first_year ?? '?'}–${ch.last_year ?? '?'}`
+    const entries = raced.get(ch.id) ?? []
+    const constructor = ch.constructor ?? ch.constructor_id
+
+    page({
+      path: `cars/${ch.id}`,
+      title: titled(name),
+      description: summarise(
+        `${name}, ${constructor ? `entered by ${constructor}, ` : ''}${years}. ` +
+          `${entries.length ? `${entries.length} championship ${entries.length === 1 ? 'entry' : 'entries'}` : 'No championship entry recorded'}` +
+          `${ch.wins ? `, ${ch.wins} ${ch.wins === 1 ? 'win' : 'wins'}` : ''}` +
+          `${ch.engine_name ? `. ${ch.engine_name} engine` : ''}.`,
+        300,
+      ),
+      trail: [['', 'Home'], ['cars', 'Cars'], [`cars/${ch.id}`, name]],
+      body: `
+        <h1>${esc(name)}</h1>
+        ${facts([
+          ['Constructor', ch.constructor_id ? link(`constructors/${ch.constructor_id}`, constructor) : null],
+          ['Years', years],
+          ['Designers', ch.designers],
+          ['Engine', ch.engine_name],
+          ['Configuration', list([ch.engine_config, ch.capacity_cc ? `${ch.capacity_cc} cc` : null, ch.aspiration]) || null],
+          ['Power', ch.power_bhp ? `${ch.power_bhp} bhp${ch.power_note ? ` (${ch.power_note})` : ''}` : null],
+          ['Chassis', ch.chassis_type],
+          ['Gearbox', ch.gearbox],
+          ['Brakes', ch.brakes],
+          ['Tyres', ch.tyres],
+          ['Weight', ch.weight_kg ? `${ch.weight_kg} kg` : null],
+          ['Wheelbase', ch.wheelbase_mm ? `${ch.wheelbase_mm} mm` : null],
+          ['Races', num(entries.length)],
+          ['Wins', num(ch.wins)],
+          ['Published wins', ch.published_wins === null ? null : num(ch.published_wins)],
+          ['Confidence', ch.confidence],
+        ])}
+        ${
+          ch.car_id && curated.has(ch.car_id)
+            ? `<p>One of the ${link(`cars/${ch.car_id}`, 'design family')} that has a specified page of its own.</p>`
+            : ''
+        }
+        ${
+          entries.length
+            ? `<h2>Every championship entry</h2>${table(
+                ['Year', 'Round', 'Grand Prix', 'Driver', 'Grid', 'Result'],
+                entries.map((e) => [
+                  link(`seasons/${e.year}`, e.year),
+                  num(e.round),
+                  link(`races/${e.year}/${e.round}`, e.name_used),
+                  e.driver_id ? link(`drivers/${e.driver_id}`, e.driver ?? e.driver_id) : '—',
+                  text(e.grid_text),
+                  text(e.position_text ?? e.status),
+                ]),
+                { caption: 'Championship entries' },
+              )}`
+            : '<p>No championship entry is recorded against this chassis.</p>'
+        }`,
     })
   }
 }

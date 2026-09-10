@@ -903,7 +903,14 @@ try {
     1 + one('SELECT COUNT(*) FROM drivers') +
     1 + one('SELECT COUNT(*) FROM constructors') +
     1 + one('SELECT COUNT(*) FROM circuits') +
-    1 + one('SELECT COUNT(*) FROM cars') +
+    // /cars/<id> is the UNION of the chassis register and the curated cars,
+    // because Car.jsx resolves that route against either: a chassis id, or a
+    // car id where no chassis owns it (six do, `lotus-72` among them). Counting
+    // `cars` alone is what let 1,130 routes work in the app and 404 to anybody
+    // who followed a shared link.
+    1 + one(`SELECT COUNT(*) FROM (
+               SELECT id FROM chassis UNION SELECT id FROM cars
+             )`) +
     8 // records, reference and its five children, the atlas
   is(urls, expected, 'the sitemap lists every page the database implies')
   truthy((await fetch(`${BASE}/robots.txt`).then((r) => r.text())).includes('Sitemap:'), 'robots.txt points at it')
