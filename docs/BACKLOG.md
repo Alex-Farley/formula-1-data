@@ -58,11 +58,14 @@ full reasoning and the evidence; this file is the queue, not the argument.
 
 Short enough to be a decision rather than a list.
 
-- [ ] `PM-05` **Split pole position from grid 1.** Thirteen of the eighteen open
-      `discrepancies` are the same modelling question, not thirteen research
+- [ ] `PM-05` **Split pole position from grid 1.** Fourteen of the eighteen open
+      `discrepancies` are the same modelling question, not fourteen research
       jobs: the harvest records who *started* at the front, F1DB records who was
       *quickest*, and both are true of what they describe. One column split
-      closes all thirteen. This moved up the list when `PD-04` landed — those
+      closes all fourteen. (Thirteen carry `field = 'pole position'`; the
+      fourteenth is 2022 round 21, filed under `grid position 1` —
+      Magnussen started ahead, Russell was quickest — which is the same
+      question wearing the other label, and is why the count was one short.) This moved up the list when `PD-04` landed — those
       rows now render to readers as "two sources disagree", which for a grid
       penalty is not a disagreement at all. Highest value-per-hour on this list.
       — *project record · M*
@@ -92,8 +95,12 @@ Short enough to be a decision rather than a list.
       bundle now builds and serves (`PM-01`) and is linked from nothing. A
       `/data` page in the masthead leading with the audited edition — 60 recorded
       disagreements, a confidence tier per row, a gap register, ~170
-      cross-checks — which is a claim the upstream does not make. —
-      *product critique · M*
+      cross-checks — which is a claim the upstream does not make.
+      One implementation note: `prerender.js` writes `Disallow:` lines for
+      `f1.db`, `f1.db.gz` and `f1-parquet.zip`, which is right — a crawler
+      pulling 20 MB helps nobody — but it means the `/data` page itself has to
+      be the crawlable surface that carries the claim, since the files it links
+      never will be. — *product critique · M*
 
 ## Next
 
@@ -166,6 +173,44 @@ Worth doing, not yet urgent.
       Memory Database".** Deliberately left out of the Lap Ledger rename because
       it reaches `f1_compat.json` and someone may be displaying it. Needs its own
       version bump and its own decision. — *project record · S*
+
+- [ ] `PM-23` **The Parquet bundle carries no plain-text notice.** Unzipping
+      `f1-parquet.zip` gives 41 binary files and nothing else — no licence, no
+      attribution, no version, no mention that the ODbL centrelines ship
+      separately as `f1-geometry.db`. *Engaging with the reason:* the terms are
+      not actually absent, because `source_registry.parquet` and `meta.parquet`
+      are both in the bundle, so a machine can read the licence of every row.
+      That is a real defence and it is why this is an S and not urgent. But the
+      release page states all of it in prose and a direct download from
+      lapledger.org states none of it, and this project's own rule elsewhere is
+      that attribution fails closed rather than requiring the reader to go
+      looking. A `README.txt` written by `parquet_export.py` from
+      `source_registry` — so it cannot drift from the data the way the README
+      did in `PD-07` — settles it. — *project record · S*
+
+- [ ] `PM-24` **Two Cloudflare build settings are unconfirmed, and one mismatch
+      was never explained.** `SKIP_DEPENDENCY_INSTALL=1` is recorded in
+      `web/README.md` as required but has never been observed in a build: the
+      image installs fastf1, numpy, scipy and matplotlib from
+      `requirements.txt` before every deploy, roughly ninety seconds, for a file
+      only `tools/fastf1_load.py` uses. Separately, the dashboard's build-command
+      field read `sh tools/cloudflare-build.sh` for an unknown period while every
+      build log announced the npm chain; the field has since been corrected, so
+      the symptom is gone, but *why it was ignored* was never established. Both
+      are answerable from one build log. — *project record · S*
+
+- [ ] `PM-25` **The four open `discrepancies` that `PM-05` does not close are two
+      races, and they do not reconcile.** 1960 round 5 and 1970 round 1 are both
+      credited to Brabham in the database; the external figures claim Phil Hill
+      6 career fastest laps against a derived 5, and Brabham 12 against a derived
+      11. Moving 1960 round 5 to Phil Hill would satisfy his total exactly — and
+      would take Brabham to 10, further from the claimed 12, not closer. So the
+      four rows cannot all be right, and the first question is not who set the
+      lap but what `stored_value` and `derived_value` mean in each row: the
+      per-race rows read database-then-source, the career rows read
+      source-then-database. Establish that before spending a person on the
+      sources. Cheap to answer, and it may turn four rows into one. —
+      *project record · S*
 
 ## Someday, or maybe never
 
