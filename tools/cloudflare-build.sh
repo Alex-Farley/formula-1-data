@@ -116,6 +116,14 @@ echo "--- canonical origin $SITE_ORIGIN"
 # check from outside, and a status file that only appears when things are
 # broken is a status file nobody trusts.
 echo "--- building the Parquet bundle"
+# web/public/ IS GITIGNORED IN FULL, so a fresh clone does not have it -
+# scripts/prepare-assets.js creates it, and that runs later, during
+# `npm run build`. Writing into it before then works on a machine that has
+# built before and fails on every clean checkout, which is exactly what a
+# deployment is. That is what was wrong: the zip and the status file were
+# both refused with "No such file or directory", the step was non-fatal, the
+# log was unreadable, and the site quietly shipped without either.
+mkdir -p web/public
 rm -f web/public/f1-parquet.zip parquet-build.log
 {
   echo "when     $(date -u +%Y-%m-%dT%H:%M:%SZ)"
