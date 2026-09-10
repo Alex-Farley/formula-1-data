@@ -16,7 +16,24 @@ name: review
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-  workflow_dispatch:
+
+# NO workflow_dispatch, deliberately. It was here, and every manual run failed
+# in under a second:
+#
+#     track_progress is only supported for events: pull_request, issues,
+#     issue_comment, pull_request_review_comment, pull_request_review.
+#     Current event: workflow_dispatch
+#
+# Dropping `track_progress` below would not rescue it. A manual run has no
+# pull request — the job log shows PR_NUMBER empty — so `use_sticky_comment`
+# has nowhere to post and the prompt asks for a review of a diff that does not
+# exist. Nor does the draft guard stop it: on a dispatch
+# `github.event.pull_request.draft == false` reads `null == false`, which
+# GitHub coerces to `0 == 0` and runs the job anyway. There is no configuration
+# of this file under which a manual run produces a review, so the trigger only
+# ever produced a red check.
+#
+# To get a review again, push to the branch or reopen the pull request.
 
 # Read the code, write the review. Nothing here commits, so `contents` stays
 # read — the same reasoning ci.yml records for its own token.
