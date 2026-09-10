@@ -166,17 +166,32 @@ to a dead end.
 - **Nobody has asked a user anything, and nothing is measured.** *(product,
   service, user research)*
 
-## What has already been critiqued
+## What has already been critiqued, and what is queued
 
-`docs/critiques/` holds every previous critique, dated and named by discipline.
-**Read the ones relevant to yours before starting.**
+Two files, and you must read both before starting:
 
-You are not there to rediscover them. A finding already recorded is worth raising
+- **`docs/critiques/`** — every previous critique, dated and named by discipline,
+  with the full reasoning and evidence.
+- **`docs/BACKLOG.md`** — what came out of them, ranked, plus the author's own
+  ideas. It carries what has **landed** and what was **declined, with the
+  reason**.
+
+You are not there to rediscover any of it. A recorded finding is worth raising
 again only if it has got worse, if it was recorded at the wrong severity, or if
-your discipline sees a cause the previous critic did not. Say which, and cite the
-file. Everything else in your report should be new.
+your discipline sees a cause the previous critic did not — say which, and cite
+the ID. A **declined** item may be re-raised, but the stated reason is what you
+have to argue against; ignoring it wastes the entry. A **landed** item is worth
+revisiting only to say the fix did not work, and then you must show how.
 
-If `docs/critiques/` is empty, you are the first.
+Everything else in your report should be new.
+
+**File your own findings as backlog IDs.** Use your discipline's prefix, keep
+your report's own numbering, and give each a size (S / M / L / ?). Sizes matter
+here more than usual: the author's time is bursty, so an L that cannot be broken
+into shippable pieces is a decision to be made rather than a task to start, and
+should be written as one.
+
+If both files are empty, you are the first.
 
 ## Seeing the real thing
 

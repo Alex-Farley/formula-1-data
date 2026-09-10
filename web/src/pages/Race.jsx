@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { Confidence, Fields, Note, Onward, Page, Section, Stats, Stepper } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
+import Disagreement, { RACE_DISAGREEMENTS } from '../components/Disagreement.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { classificationOrder, missing, number, points as fmtPoints, result } from '../lib/format.js'
 
@@ -84,6 +85,7 @@ export default function Race() {
     sprint: [SPRINT, args],
     pits: [PITS, args],
     neighbours: [NEIGHBOURS, args],
+    disagreements: [RACE_DISAGREEMENTS, args],
   })
 
   return (
@@ -218,6 +220,8 @@ function RaceBody({ race, data, year, round }) {
           result yet.
         </Note>
       )}
+
+      <Disagreement rows={rows(data, 'disagreements')} what="this race" />
 
       {shared && (
         <Note>

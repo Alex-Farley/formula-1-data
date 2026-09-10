@@ -132,6 +132,40 @@ const summarise = (value, limit = 160) => {
 
 const list = (values) => values.filter(Boolean).join(', ')
 
+/**
+ * A recorded source disagreement, rendered beside the fact it is about.
+ *
+ * `discrepancies` is one of the few tables this project originates rather than
+ * re-exports, and it is the reason to prefer this database over its upstream:
+ * where two sources differ and neither can be checked officially, both readings
+ * are kept. Aggregated on one methodology page it is a footnote; beside the
+ * fact it is a property of the product.
+ *
+ * Both values are shown because neither has been established as the right one.
+ * Naming one correct here would be exactly the silent pick the table exists to
+ * avoid. Markup and class names match components/Disagreement.jsx, so the static
+ * page and the app render the same thing.
+ */
+const disagree = (rows, what) => {
+  if (!rows.length) return ''
+  return `<aside class="disagreement" aria-label="Recorded source disagreement">
+    <h2>${
+      rows.length === 1
+        ? `Two sources disagree about ${esc(what)}`
+        : `Two sources disagree about ${esc(what)}, in ${rows.length} places`
+    }</h2>
+    <dl>${rows
+      .map(
+        (d) => `<div><dt>${esc(String(d.field ?? '').replace(/_/g, ' '))}</dt><dd>
+          <p class="disagreement-pair num"><span>${esc(d.stored_value)}</span><span class="disagreement-vs">against</span><span>${esc(d.derived_value)}</span></p>
+          <p class="disagreement-why">${esc(d.assessment)}</p>
+        </dd></div>`,
+      )
+      .join('')}</dl>
+    <p class="source-note">Recorded rather than resolved, and open for somebody to settle. Every one is listed on ${link('reference/quality', 'the quality page')}.</p>
+  </aside>`
+}
+
 // ------------------------------------------------------------------ chrome
 
 /**
@@ -413,6 +447,21 @@ const titled = (headline) => `${headline} — ${SITE}`
       )}`,
   })
 
+  // The same recorded disagreements the app shows beside the fact, in the half
+  // a crawler and the first second of a cold visit both see. Leaving this to
+  // the app only would put the static page and the app back to describing
+  // different documents, which is the fault the chassis pages were fixed for.
+  const disagreements = db.prepare(
+    `SELECT d.field, d.assessment,
+            COALESCE(s.full_name, d.stored_value)  AS stored_value,
+            COALESCE(v.full_name, d.derived_value) AS derived_value
+       FROM discrepancies d
+       LEFT JOIN drivers s ON s.id = d.stored_value
+       LEFT JOIN drivers v ON v.id = d.derived_value
+      WHERE d.subject = ? AND d.status LIKE 'open%'
+      ORDER BY d.id`,
+  )
+
   const classify = db.prepare(
     `SELECT e.finish_position, e.position_text, e.grid, e.grid_text, e.laps_completed,
             e.points, e.status, e.classified, e.fastest_lap, e.driver_id, e.constructor_id,
@@ -499,6 +548,7 @@ const titled = (headline) => `${headline} — ${SITE}`
               ]),
         ])}
         ${prose(r.note)}
+        ${disagree(disagreements.all(`${r.year} round ${r.round}`), 'this race')}
         ${
           entries.length
             ? `<h2>Classification</h2>${table(
@@ -525,6 +575,19 @@ const titled = (headline) => `${headline} — ${SITE}`
 
 {
   const drivers = all(`SELECT * FROM drivers ORDER BY titles DESC, wins DESC, full_name`)
+  // Joined on full_name, which is what discrepancies.subject holds for a career
+  // figure. verify.py refuses a subject shape that resolves to nothing, so a
+  // silent empty join cannot survive a build.
+  const careerDisagreements = db.prepare(
+    `SELECT d.field, d.assessment,
+            COALESCE(s.full_name, d.stored_value)  AS stored_value,
+            COALESCE(v.full_name, d.derived_value) AS derived_value
+       FROM discrepancies d
+       LEFT JOIN drivers s ON s.id = d.stored_value
+       LEFT JOIN drivers v ON v.id = d.derived_value
+      WHERE d.subject = ? AND d.status LIKE 'open%'
+      ORDER BY d.id`,
+  )
   const teams = Object.fromEntries(all('SELECT id, name FROM constructors').map((c) => [c.id, c.name]))
 
   page({
@@ -615,6 +678,7 @@ const titled = (headline) => `${headline} — ${SITE}`
           ['Confidence', text(d.confidence)],
         ])}
         ${prose(d.notes)}
+        ${disagree(careerDisagreements.all(d.full_name), 'this career')}
         ${
           wins.length
             ? `<h2>Wins</h2>${table(

@@ -632,6 +632,29 @@ def external_figures_vs_the_race_records():
     warn("no open discrepancies awaiting an official check", openn == 0,
          f"{openn} open - see the discrepancies table")
 
+    # `subject` is free text, and the front end joins on it: a race page asks for
+    # the subject 'YYYY round N' it builds from its own year and round, a driver
+    # page for the driver's full_name. Those queries fail SAFE - a subject whose
+    # shape changed yields no rows rather than wrong ones - and that is exactly
+    # the problem, because the disagreement would simply stop being shown and
+    # nothing would say so. This is the check that makes the quiet join safe to
+    # rely on: a subject that names no race, or no driver, is refused here.
+    unresolved = []
+    for did, subject in con.execute(
+            "SELECT id, subject FROM discrepancies WHERE status LIKE 'open%'"):
+        m = re.fullmatch(r"(\d{4}) round (\d+)", subject or "")
+        if m:
+            if not con.execute("SELECT 1 FROM races WHERE year=? AND round=?",
+                               (int(m.group(1)), int(m.group(2)))).fetchone():
+                unresolved.append(f"#{did} '{subject}' names no race")
+        elif con.execute("SELECT 1 FROM drivers WHERE full_name=?",
+                         (subject,)).fetchone():
+            pass
+        else:
+            unresolved.append(f"#{did} '{subject}' joins to nothing a reader can reach")
+    check("every open disagreement can be shown beside the fact it is about",
+          not unresolved, "; ".join(unresolved[:4]))
+
     # spot-check a sample of headline career records against the known official figures
     KNOWN = {"Sir Lewis Hamilton": (106, 104, 69), "Michael Schumacher": (91, 68, 77),
              "Ayrton Senna": (41, 65, 19), "Alain Prost": (51, 33, 41),

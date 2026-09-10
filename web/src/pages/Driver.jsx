@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { Confidence, Fields, Note, Onward, Page, Section, Stats } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
+import Disagreement, { DRIVER_DISAGREEMENTS } from '../components/Disagreement.jsx'
 import Figure from '../charts/Figure.jsx'
 import DotPlot from '../charts/DotPlot.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
@@ -91,6 +92,7 @@ export default function Driver() {
     bySeason: [BY_SEASON, [id]],
     standings: [STANDINGS, [id]],
     results: [RESULTS, [id]],
+    disagreements: [DRIVER_DISAGREEMENTS, [id]],
   })
 
   return (
@@ -315,6 +317,8 @@ function DriverBody({ driver, data }) {
           ]}
         />
       </Section>
+
+      <Disagreement rows={rows(data, 'disagreements')} what="this career" />
 
       <Section title="On the record">
         {pointsDiffer && (

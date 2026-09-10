@@ -13,8 +13,11 @@ written; all seven held. They are marked ✅ where re-checked. Everything else i
 the critic's own observation at its stated evidence level, and is not
 independently confirmed.
 
-Findings are the critic's. Nothing here has been acted on yet — this file is the
-record, not a plan.
+Findings are the critic's. **This file is the reasoning and the evidence; the
+queue is `docs/BACKLOG.md`,** where each finding below appears as `PD-nn` with a
+size, and is ticked, declined with a reason, or still waiting. Check there for
+current state — the numbering matches, and this file is not updated as items
+land.
 
 ---
 

@@ -903,6 +903,73 @@ tbody td.strong {
   color: var(--ink);
 }
 
+/*
+ * A recorded source disagreement, beside the fact it is about.
+ *
+ * Deliberately NOT a .note-box: a note explains how to read the table it sits
+ * beside, and this says the database does not know the answer. The rule is
+ * ink rather than accent because accent means "you can act on this" here, and
+ * nobody can act on this one - it is open for somebody to settle, which is a
+ * different thing from broken.
+ */
+.disagreement {
+  border: 1px solid var(--rule-strong);
+  border-left-width: 3px;
+  border-radius: 2px;
+  padding: 14px 16px;
+  margin: 0 0 18px;
+  max-width: var(--measure);
+}
+
+.disagreement h2 {
+  font-size: 14px;
+  margin: 0 0 10px;
+  letter-spacing: 0;
+}
+
+.disagreement dl {
+  margin: 0;
+}
+
+.disagreement dl > div + div {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--rule);
+}
+
+.disagreement dt {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.disagreement dd {
+  margin: 4px 0 0;
+}
+
+.disagreement-pair {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  font-size: 15px;
+}
+
+.disagreement-vs {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.disagreement-why {
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  margin: 6px 0 0;
+}
+
 .source-note {
   font-size: 12.5px;
   color: var(--ink-faint);
