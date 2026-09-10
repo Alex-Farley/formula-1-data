@@ -1,4 +1,4 @@
-# F1 Verified Facts Database — v2.20
+# Lap Ledger — v2.20
 
 An expansion of the original single-file JSON into a normalised, queryable
 SQLite database covering 1950–2026, with the JSON kept as a generated export.
