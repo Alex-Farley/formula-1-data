@@ -15,13 +15,24 @@ race_entries` returns **27,482**, which is the figure `CD-01` was filed with in
 Corrected rather than left standing because a file whose method line claims
 every count is a live query does not get to carry one that is not.
 
+**And five line citations in `CD-01`.** `Race.jsx:309` and `:313` are the "Out"
+header and its footer at **298** and **312**; `prerender.js:554` and `:566` are
+the static header row and the status cell at **555** and **563**; `missing()` is
+`format.js:11`, not `:12`. Each was checked against the tree and corrected. The
+other citations in this file were not audited line by line — the ones spot-
+checked (`prerender.js:1218`, `Search.jsx:29`, `Home.jsx:233`, `smoke.mjs:859`,
+`Race.jsx:440`) were all exact, so this looks like one cluster rather than
+drift throughout. A wrong location is worse than none: a reader who opens
+`Race.jsx:309`, finds a `render` callback, and concludes the finding is
+imaginary has been misled by the citation, not the finding.
+
 ---
 
 ## The three that matter
 
 ### 1. Twenty drivers who finished the 2024 Bahrain Grand Prix are labelled, in the site's own words, as retirements nobody recorded a reason for
 
-`Race.jsx:309` heads a column **"Out"**. `Race.jsx:313` footnotes it:
+`Race.jsx:298` heads a column **"Out"**. `Race.jsx:312` footnotes it:
 
 > "An empty “Out” is a retirement nobody recorded a reason for, not a driver who finished."
 
@@ -33,7 +44,7 @@ So on every completed race page, the majority of the table says *unestablished* 
               join races r on r.id=e.race_id where r.year=2024 and r.round=1"
     → 20 rows, positions 1–20, status NULL for all twenty
 
-The same column, unfootnoted, is on every driver page (`Driver.jsx:309`). The prerendered page has it too under a different header, "Status" (`prerender.js:554`).
+The same column, unfootnoted, is on every driver page (`Driver.jsx:309`). The prerendered page has it too under a different header, "Status" (`prerender.js:555`).
 
 **Ship instead:** render `status IS NULL AND finish_position IS NOT NULL` as **"Finished"**. Keep the em dash only where the driver has no finish position and no recorded reason. Then the footer becomes true and shorter:
 
@@ -76,7 +87,7 @@ This is not PD-02 again. PD-02 is about the static and the app printing *differe
 ### `CD-01` — The em dash lies in the one column where it appears most
 *Evidence: read the source, queried the database. **Defect.*** *Size: S.*
 
-Covered above. Locations: `web/src/pages/Race.jsx:309,313`, `web/src/pages/Driver.jsx:309`, `web/scripts/prerender.js:554,566`, `web/src/lib/format.js:12`.
+Covered above. Locations: `web/src/pages/Race.jsx:298,312`, `web/src/pages/Driver.jsx:309`, `web/scripts/prerender.js:555,563`, `web/src/lib/format.js:11`.
 
 Measurement: 15,714 of 27,482 entries (57.2%), on all 1,161 completed race pages and 862 driver pages.
 
@@ -267,7 +278,7 @@ Two words for one thing teaches a reader they are two things. The instances, wor
 
 | Concept | Words in use | Where |
 |---|---|---|
-| Why a car stopped | **Out** (app) / **Status** (static) | `Race.jsx:309` vs `prerender.js:554`. Defect: same table, two renderers, two headers. |
+| Why a car stopped | **Out** (app) / **Status** (static) | `Race.jsx:298` vs `prerender.js:555`. Defect: same table, two renderers, two headers. |
 | A row in `race_entries` | **Entries** / **Race entries** / **Starts** / **Races** / **Grands Prix** | `Home.jsx:109,113`, `Driver.jsx:175,234`, `Cars.jsx`, `Constructors.jsx`. `PD-06` is partly blocked on this. Pick two words — **entry** and **start** — define both in the glossary, and never use a third. |
 | Where a driver finished | **Pos** / **Result** / **Best** | `Race.jsx:253`, `Driver.jsx:296,240` |
 | Fastest lap | **Fastest laps** / **Fastest lap** / **FL** | `Driver.jsx:179,238`, `Quality.jsx:211` |

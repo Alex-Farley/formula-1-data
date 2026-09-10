@@ -61,7 +61,7 @@ sitting between them, and each is a surface contradicting something this
 project states in its own words.
 
 - [ ] `CD-01` **The em dash lies in the column where it appears most.**
-      `Race.jsx:313` footnotes the results table *"An empty 'Out' is a
+      `Race.jsx:312` footnotes the results table *"An empty 'Out' is a
       retirement nobody recorded a reason for, not a driver who finished"* —
       and 15,714 of 27,482 `race_entries` rows carry a null `status`, every
       one of which has a finish position. All twenty finishers of the 2024
