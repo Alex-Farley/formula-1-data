@@ -7,6 +7,14 @@
 
 Findings are `CD-nn`. Sizes are S / M / L / ?.
 
+**One correction after filing.** This critique as delivered gave the
+`race_entries` denominator as 27,555 in two places. `SELECT COUNT(*) FROM
+race_entries` returns **27,482**, which is the figure `CD-01` was filed with in
+`docs/BACKLOG.md`, and both occurrences here now read that. The numerator
+(15,714) and the finding are unaffected; the share moves from 57.0% to 57.2%.
+Corrected rather than left standing because a file whose method line claims
+every count is a live query does not get to carry one that is not.
+
 ---
 
 ## The three that matter
@@ -17,7 +25,7 @@ Findings are `CD-nn`. Sizes are S / M / L / ?.
 
 > "An empty “Out” is a retirement nobody recorded a reason for, not a driver who finished."
 
-15,714 of 27,555 `race_entries` rows have `status IS NULL`. **All 15,714 have a finish position.** They are the finishers. `missing()` in `lib/format.js` renders them as an em dash, and the em dash is the one convention this site puts on its homepage, in its footer, and in its meta description.
+15,714 of 27,482 `race_entries` rows have `status IS NULL`. **All 15,714 have a finish position.** They are the finishers. `missing()` in `lib/format.js` renders them as an em dash, and the em dash is the one convention this site puts on its homepage, in its footer, and in its meta description.
 
 So on every completed race page, the majority of the table says *unestablished* about a fact that is established, and a caption directly beneath asserts the wrong meaning. Verified by query:
 
@@ -70,7 +78,7 @@ This is not PD-02 again. PD-02 is about the static and the app printing *differe
 
 Covered above. Locations: `web/src/pages/Race.jsx:309,313`, `web/src/pages/Driver.jsx:309`, `web/scripts/prerender.js:554,566`, `web/src/lib/format.js:12`.
 
-Measurement: 15,714 of 27,555 entries (57.0%), on all 1,161 completed race pages and 862 driver pages.
+Measurement: 15,714 of 27,482 entries (57.2%), on all 1,161 completed race pages and 862 driver pages.
 
 One caution: do not fix this by changing `missing()`. The empty-string / NULL collapse is correct everywhere else. Fix it at the two render sites, where the domain knowledge lives.
 

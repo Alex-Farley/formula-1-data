@@ -164,8 +164,12 @@ Worth doing, not yet urgent.
 - [ ] `PD-05` **Split `known_gaps` into open and closed.** Four of the eleven are
       closed or not gaps, and the homepage counts all eleven. Add a `state`
       column, filter the public page, and split each row into a reader sentence
-      and a maintainer note — it currently renders commit messages. —
-      *product critique · S*
+      and a maintainer note — it currently renders commit messages.
+      **`CD-06` makes it five, not four** — #1 and #2 are closed, #5 and #10 are
+      positions rather than gaps, #8 is a true null belonging on one race page —
+      so six genuine gaps remain and the homepage should read six. `CD-06` also
+      carries the reader sentences and the maintainer notes this entry asks for.
+      — *product critique · S*
 
 - [ ] `PD-06` **Fix the drivers register's first screen.** Opens on Adolf Brudes
       with two columns empty for 96% of rows. Drop `entries` and `starts`, add a
