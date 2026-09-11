@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { SELF_DESCRIBING, TWO_FILES } from '../lib/site.js'
 import { Note, Onward, Page, Section } from '../components/Page.jsx'
 import { ErrorBox, Loading } from '../components/States.jsx'
 import DataTable from '../components/DataTable.jsx'
@@ -158,6 +159,15 @@ export default function Sql() {
         browser, every statement runs inside a transaction that is rolled back, and a reload
         restores it either way. Reads only.
       </Note>
+
+      <p className="measure">
+        The database is a plain SQLite file. If you would rather query it with your own tools,
+        download <a href={`${import.meta.env.BASE_URL}f1.db`}><code>f1.db</code></a> and open it
+        with any SQLite client. The circuit centrelines are not in it — <code>circuit_geometry</code>{' '}
+        there is deliberately empty — and ship beside it as{' '}
+        <a href={`${import.meta.env.BASE_URL}f1-geometry.db`}><code>f1-geometry.db</code></a>.{' '}
+        {TWO_FILES} {SELF_DESCRIBING}
+      </p>
 
       <div className="split" style={{ gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)' }}>
         <div>

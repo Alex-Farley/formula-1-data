@@ -576,8 +576,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 
 - [ ] `SD-08` **The documented channel is stale and the fresh one is undocumented.** Folded into `PD-11`. — *service critique · S*
 
-- [ ] `SD-09` **The artefacts document themselves and no public surface says so.** Three clauses after "open it with any SQLite client": `sqlite_master`, `meta`, `source_registry`. Highest value per word here; cannot go stale. — *service critique · S*
-
 - [ ] `SD-10` **The only public mention of the Parquet bundle is a `Disallow:` line.** Rides with `PD-11`; one comment line in `robots.txt` today. — *service critique · S*
 
 - [ ] `SD-11` **No `schema.org/Dataset` markup.** Every field is held. On `/data`. The one discovery surface built for the bulk audience. — *service critique · S*
@@ -839,7 +837,9 @@ Real, but not costed, or waiting on a decision.
       both, links both, and says why they are two: a collective database keeps
       the share-alike from reaching across, and merging them would pull 117,000
       unrelated rows under it. Stays on the SQL console — `IA-15` wants it on
-      `/data`, which is `IA-02` and does not exist yet. — *IA critique ·
+      `/data`, which is `IA-02` and does not exist yet. It reached the
+      static page only; the app's copy, and the sentence that the file
+      documents itself, landed with `SD-09` in #52. — *IA critique ·
       `8c26ccf`*
 
 - [x] `IA-04` **The document is renamed when the reader navigates.** No
@@ -1125,6 +1125,14 @@ Real, but not costed, or waiting on a decision.
       the F1DB version the harvest came from — on success and on failure —
       so a deploy that has been failing for a month is one fetch from a
       diagnosis. — *service critique · #50*
+
+- [x] `SD-09` **The download paragraph says the file documents itself.** Three
+      clauses — `sqlite_master` for the commented schema, `meta` for version,
+      build date and what is held, `source_registry` for the licence of every
+      row — shared with the static page through `lib/site.js`. Found in
+      passing: the app's SQL page never carried `IA-15`'s download paragraph
+      at all; it does now, and a smoke check holds both renderers to it. —
+      *service critique · #52*
 
 ## Declined
 

@@ -421,6 +421,17 @@ try {
     )
   }
 
+  // The app's SQL page carries the download paragraph the static one does,
+  // with both files named: the two renderers used to disagree about whether
+  // the file could be had at all.
+  console.log('\n/reference/sql  (the download paragraph, in the app)')
+  await go('/reference/sql', 'SQL console')
+  const sqlPage = await page.content()
+  truthy(
+    sqlPage.includes('f1-geometry.db') && sqlPage.includes('sqlite_master'),
+    'the app names both files and says the file documents itself',
+  )
+
   console.log('\n/seasons/2025  (the champion is P1, not an em dash)')
   await go('/seasons/2025', '2025')
   const championPos = await page.evaluate(() => {
