@@ -52,7 +52,8 @@ CREATE TABLE source_registry (
     -- provenance and it deserves a word. It is NOT a lesser kind of
     -- reference source - it has no external source at all - and nothing
     -- carrying it may sit above 'medium'. See docs/DERIVED-CONFIDENCE.md.
-    authority       TEXT NOT NULL DEFAULT 'official',
+    authority       TEXT NOT NULL DEFAULT 'official'
+                    CHECK (authority IN ('official', 'reference', 'authored', 'forbidden')),
     -- A source is judged on these three, not on how much data it has. The
     -- largest dataset in the sport is worth nothing here if its values
     -- cannot be checked against something held independently.
@@ -141,7 +142,7 @@ CREATE TABLE drivers (
     career_points   REAL,
     titles          INTEGER DEFAULT 0,
     title_years     TEXT,                      -- comma-separated
-    status          TEXT,                      -- active | retired | deceased
+    status          TEXT CHECK (status IN ('active', 'retired', 'deceased')),
     stats_as_of     TEXT,                      -- when the career figures were true
     -- wins / poles / fastest_laps / podiums above are DERIVED from the race
     -- records, which cover every championship race 1950-2026. Podiums became
@@ -274,7 +275,7 @@ CREATE TABLE season_entries (
 CREATE TABLE standings (
     id              INTEGER PRIMARY KEY,
     year            INTEGER NOT NULL,
-    table_type      TEXT NOT NULL,             -- drivers | constructors
+    table_type      TEXT NOT NULL CHECK (table_type IN ('drivers', 'constructors')),
     -- NULL where the entry has no championship position. That is not a gap:
     -- Michael Schumacher scored 78 points in 1997 and was EXCLUDED from the
     -- classification after Jerez, so he has points and no position. Storing
@@ -324,13 +325,16 @@ CREATE TABLE circuits (
     official_name   TEXT,
     locality        TEXT,
     country         TEXT,
-    circuit_type    TEXT,                      -- permanent | street | hybrid | oval | road
+    circuit_type    TEXT CHECK (circuit_type IN ('permanent', 'street', 'hybrid', 'oval', 'road')),
     first_gp        INTEGER,
     last_gp         INTEGER,
     gp_count        INTEGER,
     length_km       REAL,
     turns           INTEGER,
-    direction       TEXT,                      -- clockwise | anti-clockwise
+    -- One spelling. Jacarepagua carried 'anticlockwise' for nine releases and
+    -- a filter on direction missed it; the vocabulary rule that already
+    -- governs countries and confidence tiers now governs this.
+    direction       TEXT CHECK (direction IN ('clockwise', 'anti-clockwise')),
     characteristics TEXT,
     notes           TEXT,
     confidence      TEXT NOT NULL DEFAULT 'medium' REFERENCES provenance(confidence),
@@ -576,7 +580,7 @@ CREATE TABLE article_images (
     file_name       TEXT NOT NULL,             -- 'File:...' as Commons spells it
     -- Must be 'shared'. A file hosted locally on en.wikipedia.org is local
     -- BECAUSE it is non-free; linking one would be a licence violation.
-    repository      TEXT NOT NULL,
+    repository      TEXT NOT NULL CHECK (repository = 'shared'),
     -- Every file carries its own. Sixteen distinct licence strings appear
     -- across these rows, so there is no blanket credit line for them.
     licence         TEXT NOT NULL,
@@ -740,7 +744,11 @@ CREATE TABLE races (
     dates           TEXT,
     date_iso        TEXT,                      -- YYYY-MM-DD, the race day
     sprint          INTEGER NOT NULL DEFAULT 0,
-    status          TEXT NOT NULL DEFAULT 'completed',
+    -- completed | scheduled. A cancelled round has no row rather than a
+    -- third value: the calendar holds what was and will be run, and the
+    -- front end knows only these two. A third state fails loudly here first.
+    status          TEXT NOT NULL DEFAULT 'completed'
+                    CHECK (status IN ('completed', 'scheduled')),
     note            TEXT,
     confidence      TEXT NOT NULL DEFAULT 'reference' REFERENCES provenance(confidence),
     source          TEXT,
@@ -895,7 +903,8 @@ CREATE TABLE qualifying (
 CREATE TABLE regulation_changes (
     id              INTEGER PRIMARY KEY,
     year            INTEGER NOT NULL,
-    category        TEXT NOT NULL,             -- technical | sporting | safety | financial | format
+    category        TEXT NOT NULL
+                    CHECK (category IN ('technical', 'sporting', 'safety', 'financial', 'format')),
     title           TEXT NOT NULL,
     detail          TEXT,
     impact          TEXT,
