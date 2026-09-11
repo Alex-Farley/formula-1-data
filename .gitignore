@@ -39,6 +39,8 @@ f1.db-journal
 f1.db-wal
 f1.db-shm
 *.db.bak
+# build.py writes here and moves the file into place only on success.
+*.db.tmp
 
 # The web front end.
 web/node_modules/
