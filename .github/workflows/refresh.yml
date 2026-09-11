@@ -30,7 +30,9 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # ci.yml budgets 10 for the Python half and 20 for the web half; a cold
+    # npm ci alone has taken seven.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -119,6 +121,13 @@ jobs:
           npx playwright install --with-deps chromium
           npm run build
           npm test
+          # The two data-derived assertions ci.yml makes on the built site
+          # that the smoke test does not: the site carries the database it
+          # was built from, and the prerender is not the stub a failed query
+          # leaves behind.
+          cmp ../f1.db dist/f1.db || { echo "::error::dist/f1.db is not the built database"; exit 1; }
+          urls=$(grep -c '<loc>' dist/sitemap.xml)
+          test "$urls" -gt 2000 || { echo "::error::sitemap lists only $urls pages"; exit 1; }
 
       # The commit message names the F1DB version it came from, which the
       # harvest headers also carry, so the provenance of a row is answerable
