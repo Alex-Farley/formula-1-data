@@ -1737,6 +1737,29 @@ def the_full_classification():
     ncls = con.execute("SELECT COUNT(*) FROM race_entries").fetchone()[0]
     nqual = con.execute("SELECT COUNT(*) FROM qualifying").fetchone()[0]
     nstand = con.execute("SELECT COUNT(*) FROM standings").fetchone()[0]
+
+    # A FLOOR UNDER EVERY BULK TABLE. data/harvest.py's _read_named returns []
+    # for a missing generated file by design, from when those files were a
+    # local extra; they are now 93% of the rows, and the checks below are
+    # guarded on the table being non-empty, so a database built with
+    # standings.txt deleted - 34,498 rows gone - passed every gate. Each
+    # figure is the count at v2.22; raise one when a harvest legitimately adds
+    # rows, never lower it. A harvest that shrinks has to be looked at.
+    FLOORS = (
+        ("race_entries", 27482), ("qualifying", 26997), ("standings", 34563),
+        ("pit_stops", 22481), ("sprint_results", 590), ("season_entrants", 1925),
+        ("chassis", 1153), ("engines", 424),
+    )
+    for table, floor in FLOORS:
+        n = con.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+        check(f"{table} holds at least the {floor:,} rows of the last release",
+              n >= floor, f"{n:,} rows")
+    # Two bulk facts that live in columns rather than tables.
+    n = con.execute("SELECT COUNT(*) FROM race_entries WHERE fastest_lap = 1").fetchone()[0]
+    check("at least the 1,175 fastest-lap credits of the last release", n >= 1175, f"{n:,}")
+    n = con.execute("SELECT COUNT(*) FROM races WHERE date_iso IS NOT NULL").fetchone()[0]
+    check("every race carries an ISO date", n == con.execute(
+        "SELECT COUNT(*) FROM races").fetchone()[0], f"{n:,} dated")
     print(f"  [info] {ncls} race entries, {nqual} qualifying rows, "
           f"{nstand} standings rows")
 
