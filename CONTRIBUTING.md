@@ -168,8 +168,9 @@ source before it is made — official FIA, Formula 1, team, driver, power-unit
 manufacturer or circuit/promoter publications first, then the sources
 `SOURCE_LICENCE` already classifies. A source that is not classified is not
 used. A value nobody can establish stays NULL. Two sources that disagree are
-recorded in `discrepancies`, never chosen between silently; a fact nobody
-holds is recorded in `known_gaps`. Never invent one.
+declared in `DECLARED_DISCREPANCIES`, which lands in `discrepancies`, never
+chosen between silently; a fact nobody holds is recorded in `known_gaps`.
+Never invent one.
 
 **Artefacts.** `make all` — not `make check` — before any commit that touches
 `data/`, `harvest/`, `build.py`, `schema.sql`, `verify.py` or an exporter, so

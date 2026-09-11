@@ -162,10 +162,9 @@ rules above and these. The full process is in `CONTRIBUTING.md` under
   classified secondary sources. Never invent a missing value: NULL means
   *not established*, and a fact two sources disagree on goes in
   `discrepancies`, a fact nobody holds in `known_gaps`.
-- **`make all` before every commit** that touches `data/`, `harvest/`,
-  `build.py`, `schema.sql` or the exporters — never `make check`, which
-  leaves `f1_compat.json` stale. Generated artefacts are rebuilt, never
-  edited.
+- **`make all` before every commit**, as the top of this file already says
+  — never `make check`, which leaves `f1_compat.json` stale. Generated
+  artefacts are rebuilt, never edited.
 - **Every autonomous PR gets an independent review from a fresh context**
   before it merges, and returns an explicit `PASS — safe to merge` or
   `FAIL — changes required`. The agent that wrote the change is not its
@@ -183,8 +182,8 @@ rules above and these. The full process is in `CONTRIBUTING.md` under
 - **Skip an ordinary blocker; stop on a dangerous one.** A network failure,
   an unavailable service or a missing non-critical credential is recorded
   and worked around. Anything that could corrupt data, breach a licence,
-  weaken a safeguard, change production infrastructure or lose history
-  stops the loop.
+  weaken a safeguard, change production infrastructure — as distinct from
+  deploying through it by merging — or lose history stops the loop.
 - **Never weaken a control to keep going.** Not the checks, not the
   workflows, not branch protection, not repository visibility, not the
   licence classification, and not `review.yml`'s refusal to review a PR
