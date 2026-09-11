@@ -608,7 +608,7 @@ KNOWN_GAPS = [
      "Nothing to fix - the absence is correct."),
 
     ("qualifying.q1", "qualifying session detail before 1996, and sector times",
-     "Qualifying is held for all 1,161 races - 26,975 rows - but its SHAPE "
+     "Qualifying is held for every completed race - but its SHAPE "
      "changes. Before the knockout format a session is a single time, so q1, "
      "q2 and q3 are NULL and there is nothing to put in them; from 1996 the "
      "three segments are recorded and `time` is NULL instead. Neither is "

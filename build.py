@@ -2482,32 +2482,10 @@ def _stage_34_link_race_entries_to_the_curated(b):
                          "would silently keep whatever was typed")
 
     # The coverage note, from the counts, so it cannot say the database lacks
-    # what it holds (CR-08, PD-24). Prose stays where it is stable; every
-    # figure is read off the tables it describes.
-    def _n(sql):
-        return cur.execute(sql).fetchone()[0]
-    completed = _n("SELECT COUNT(*) FROM races WHERE status = 'completed'")
-    classified = _n("""SELECT COUNT(DISTINCT race_id) FROM race_entries
-                       WHERE finish_position IS NOT NULL""")
-    note = (
-        f"Held, {lo}-{hi}: {_n('SELECT COUNT(*) FROM races'):,} championship races "
-        f"({completed:,} run) with the winner, pole and fastest lap of each; the full "
-        f"classification of {classified:,} of them in {_n('SELECT COUNT(*) FROM race_entries'):,} "
-        f"race entries; {_n('SELECT COUNT(*) FROM qualifying'):,} qualifying rows; "
-        f"{_n('SELECT COUNT(*) FROM standings'):,} championship standings rows after every round; "
-        f"{_n('SELECT COUNT(*) FROM sprint_results'):,} sprint classifications; "
-        f"{_n('SELECT COUNT(*) FROM pit_stops'):,} pit stops (lap and order, no durations); "
-        f"{_n('SELECT COUNT(*) FROM drivers'):,} drivers, "
-        f"{_n('SELECT COUNT(*) FROM constructors'):,} constructors, "
-        f"{_n('SELECT COUNT(*) FROM chassis'):,} chassis, "
-        f"{_n('SELECT COUNT(*) FROM circuits'):,} circuits; the circuit of every race; "
-        f"constructor lineage, engine formulae, regulation changes, points systems. "
-        f"Not held: lap times, stints and race control messages - no source publishes "
-        f"them under a licence that permits passing them on, see known_gaps. "
-        f"Chassis specifications are thin for the modern era because teams do not "
-        f"publish them. Every disagreement between sources is in discrepancies."
-    )
-    cur.execute("UPDATE meta SET value = ? WHERE key = 'coverage_note'", (note,))
+    # what it holds (CR-08, PD-24). One function, so verify.py rebuilds the
+    # same string and compares it whole.
+    cur.execute("UPDATE meta SET value = ? WHERE key = 'coverage_note'",
+                (coverage_note(cur),))
     if cur.rowcount != 1:
         raise SystemExit("meta.coverage_note is missing")
     # Every loader's skipped rounds, in one place, so a round F1DB has and
@@ -2950,6 +2928,42 @@ def report(con):
 # committed copy has carried, for the same reason BUILT is a constant - the
 # database is a pure function of its sources, not of the machine.
 SQLITE_HEADER_VERSION = 3045001
+
+
+def coverage_note(cur):
+    """What the database holds, read off the tables it describes.
+
+    Prose only where nothing can drift; every figure is a count, including
+    the fastest laps - 2021 Belgium has none, by declaration in known_gaps,
+    and a note that said "of each" contradicted that two tables over.
+    """
+    def n(sql):
+        return cur.execute(sql).fetchone()[0]
+    lo, hi = cur.execute("SELECT MIN(year), MAX(year) FROM seasons").fetchone()
+    completed = n("SELECT COUNT(*) FROM races WHERE status = 'completed'")
+    classified = n("""SELECT COUNT(DISTINCT race_id) FROM race_entries
+                      WHERE finish_position IS NOT NULL""")
+    with_fl = n("""SELECT COUNT(DISTINCT race_id) FROM race_entries WHERE fastest_lap = 1""")
+    with_pole = n("""SELECT COUNT(DISTINCT race_id) FROM race_entries WHERE pole = 1""")
+    return (
+        f"Held, {lo}-{hi}: {n('SELECT COUNT(*) FROM races'):,} championship races "
+        f"({completed:,} run), with the winner of every run race, a pole for {with_pole:,} "
+        f"and a fastest lap for {with_fl:,} of them; the full classification of "
+        f"{classified:,} races in {n('SELECT COUNT(*) FROM race_entries'):,} race entries; "
+        f"{n('SELECT COUNT(*) FROM qualifying'):,} qualifying rows; "
+        f"{n('SELECT COUNT(*) FROM standings'):,} championship standings rows after every round; "
+        f"{n('SELECT COUNT(*) FROM sprint_results'):,} sprint classifications; "
+        f"{n('SELECT COUNT(*) FROM pit_stops'):,} pit stops (lap and order, no durations); "
+        f"{n('SELECT COUNT(*) FROM drivers'):,} drivers, "
+        f"{n('SELECT COUNT(*) FROM constructors'):,} constructors, "
+        f"{n('SELECT COUNT(*) FROM chassis'):,} chassis, "
+        f"{n('SELECT COUNT(*) FROM circuits'):,} circuits; the circuit of every race; "
+        f"constructor lineage, engine formulae, regulation changes, points systems. "
+        f"Not held: lap times, stints, race timing and race control messages - no source "
+        f"publishes them under a licence that permits passing them on, see known_gaps. "
+        f"Chassis specifications are thin for the modern era because teams do not "
+        f"publish them. Every disagreement between sources is in discrepancies."
+    )
 
 
 def pin_sqlite_header(path):

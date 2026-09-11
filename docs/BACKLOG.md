@@ -130,11 +130,9 @@ largest single fix and still has its riders.
       it:** the version log this moves into `BUILD-NOTES.md` is exactly what
       `PM-02` needs folded and `PM-03` needs repointed, and `PM-04` is the same
       front-door-is-wrong job one surface over. — *product critique · M*
-      **Escalated**: the same stale prose ships *inside the artefact* as
-      `meta.coverage_note` (`PD-24`, `CR-08`) — it tells a bulk-data consumer
-      the database holds no qualifying beside 26,997 qualifying rows — and the
-      check count is stated seven ways, none right (`CR-09`). The derive-and-
-      pin check written here must cover `meta` too.
+      **`PD-24`/`CR-08` landed in #45**: `meta.coverage_note` is now derived from
+      the counts and compared whole by `verify.py`; the README is the surface
+      left, and the check count is still stated seven ways (`CR-09`).
 
 - [ ] `PD-03` **Derive `/records`, or stop shipping it.** All 30 rows are
       authored, sit at `medium`, and nothing in `verify.py` reads the table; the
@@ -1088,6 +1086,9 @@ Real, but not costed, or waiting on a decision.
       it is now read off the table it describes, and a check holds it to the
       live qualifying count. `PD-24` is the same finding on the same surface
       and closes with it. — *code review, product critique · #45*
+
+- [x] `PD-24` **With `CR-08`**: the same stale prose on the same surface. —
+      *product critique · #45*
 
 - [x] `DA-07` **`known_gaps` #5 no longer calls `pit_stops` empty.** It holds
       22,481 F1DB stops (lap and order, no durations) and `team_radio` six

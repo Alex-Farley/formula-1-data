@@ -1749,22 +1749,32 @@ def the_full_classification():
     check("every race entry that is not a winner's cites F1DB", mixed == 0,
           f"{mixed} non-winner rows cite another source")
 
-    # known_gaps #5 names the tables that are EMPTY in the distributed
-    # database. It named pit_stops and team_radio while they held 22,481 and
-    # 6 rows; the register that exists to be honest about absence was wrong
-    # about presence. Every table named before the word EMPTY must be empty.
-    gap = con.execute("SELECT description FROM known_gaps WHERE field = 'laps'").fetchone()
+    # known_gaps names the tables that are EMPTY in the distributed database.
+    # #5 named pit_stops and team_radio while they held 22,481 and 6 rows; the
+    # register that exists to be honest about absence was wrong about
+    # presence. In every gap, every table named in a sentence carrying the
+    # word EMPTY must be empty.
     tables_ = {r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-    named = [t for t in re.findall(r"[a-z_]+", gap[0].split("EMPTY")[0]) if t in tables_] if gap else []
-    full = [t for t in named if con.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]]
+    named, full = set(), set()
+    for (desc,) in con.execute("SELECT description FROM known_gaps"):
+        for sentence in re.split(r"(?<=[.;])\s+", desc or ""):
+            if "EMPTY" not in sentence:
+                continue
+            for t in re.findall(r"[A-Za-z_]+", sentence):
+                if t in tables_:
+                    named.add(t)
+                    if con.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]:
+                        full.add(t)
     check("every table known_gaps calls empty is empty", bool(named) and not full,
-          f"{', '.join(named)} named; {', '.join(full) or 'none'} not empty")
+          f"{', '.join(sorted(named))} named; {', '.join(sorted(full)) or 'none'} not empty")
 
-    # meta.coverage_note is derived from the counts; this holds it to them.
+    # meta.coverage_note is the build's coverage_note() over the counts. It is
+    # rebuilt here and compared whole, so a note whose eleven other figures
+    # were wrong could not pass on the strength of one.
+    import build as _build
     note_ = con.execute("SELECT value FROM meta WHERE key = 'coverage_note'").fetchone()[0]
-    nq_ = con.execute("SELECT COUNT(*) FROM qualifying").fetchone()[0]
-    check("meta.coverage_note carries the live qualifying count",
-          f"{nq_:,} qualifying rows" in note_, note_[:80])
+    check("meta.coverage_note is what the counts say", note_ == _build.coverage_note(con.cursor()),
+          note_[:80])
 
     # A FLOOR UNDER EVERY BULK TABLE. data/harvest.py's _read_named returns []
     # for a missing generated file by design, from when those files were a
