@@ -458,8 +458,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 
 - [ ] `CR-09` **The check count is stated seven ways, none right.** 121, 133, 143, 158, 170, 171, ~170; runtime 209. Remove every number or print it from `verify.py`. — *code review · S*
 
-- [ ] `CR-10` **`export_json.py` hand-types three facts and exports `grands_prix` twice.** Derive the strings from `seasons`/`drivers`; check which key a v1 consumer reads before dropping one. — *code review · S*
-
 - [ ] `CR-13` **`npm run build` runs `pip install` on any machine, and CI never checks the Parquet result.** Gate the install behind `CI`/`CF_PAGES`; `cat dist/build-status.txt && test -s dist/f1-parquet.zip` in `ci.yml`. Answers half of `PM-24`. — *code review · S*
 
 - [ ] `CR-14` **No local command reproduces CI.** `make ci` doing what `ci.yml` does, diff included; point `CLAUDE.md` at it. — *code review · S*
@@ -1096,6 +1094,13 @@ Real, but not costed, or waiting on a decision.
       says both duration columns are NULL in the distributed database and
       why, and a check refuses a table the gap calls empty that is not. —
       *data architecture critique · #45*
+
+- [x] `CR-10` **The compat export's headline facts are derived.** "Lando
+      Norris — 2025", "Nino Farina (1950)" and "7 each" were string literals
+      in code that CI compared only against itself; they now come off
+      `seasons` and `drivers`, so the day the 2026 title is decided the file
+      says so. The duplicate `grands_prix`/`grands_prix_register` key is left:
+      a v1 consumer may read either. — *code review · #46*
 
 ## Declined
 

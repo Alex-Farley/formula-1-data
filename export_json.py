@@ -17,6 +17,30 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 DB = os.path.join(HERE, "f1.db")
 
 
+def history_baseline(con):
+    """The v1 layout's headline facts, read off seasons and drivers."""
+    first = con.execute("""SELECT s.year, d.full_name FROM seasons s
+        JOIN drivers d ON d.id = s.drivers_champion
+        WHERE s.drivers_champion IS NOT NULL ORDER BY s.year LIMIT 1""").fetchone()
+    latest = con.execute("""SELECT s.year, d.full_name FROM seasons s
+        JOIN drivers d ON d.id = s.drivers_champion
+        WHERE s.drivers_champion IS NOT NULL ORDER BY s.year DESC LIMIT 1""").fetchone()
+    top = con.execute("""SELECT full_name, titles FROM drivers
+        WHERE titles = (SELECT MAX(titles) FROM drivers) ORDER BY full_name""").fetchall()
+    constructors_from = con.execute(
+        "SELECT MIN(year) FROM standings WHERE table_type = 'constructors'").fetchone()[0]
+    return {
+        "championship_start": str(first[0]),
+        "first_world_champion": f"{first[1]} ({first[0]})",
+        f"drivers_champions_count_at_end_{latest[0]}": con.execute(
+            "SELECT COUNT(*) FROM drivers WHERE titles > 0").fetchone()[0],
+        "constructors_championship_started": constructors_from,
+        "most_driver_titles": " and ".join(r[0] for r in top) + f" — {top[0][1]} each"
+        if len(top) > 1 else f"{top[0][0]} — {top[0][1]}",
+        "most_recent_champion": f"{latest[1]} — {latest[0]}",
+    }
+
+
 def dump(con, table, order=None):
     q = f"SELECT * FROM {table}"
     if order:
@@ -198,15 +222,11 @@ def main():
             "calendar_2026_current": [dict(r) for r in con.execute("""
                 SELECT round, country, city, dates, circuit_name, circuit_id, sprint, status
                 FROM calendar WHERE year=2026 ORDER BY round""")],
-            "history_baseline": {
-                "championship_start": "1950",
-                "first_world_champion": "Nino Farina (1950)",
-                "drivers_champions_count_at_end_2025": con.execute(
-                    "SELECT COUNT(*) FROM drivers WHERE titles>0").fetchone()[0],
-                "constructors_championship_started": 1958,
-                "most_driver_titles": "Lewis Hamilton and Michael Schumacher — 7 each",
-                "most_recent_champion": "Lando Norris — 2025",
-            },
+            # Derived, every one. These were typed strings in a file whose CI
+            # check compares it only against a fresh build of the same code,
+            # so "most_recent_champion" would have read 2025 on the day the
+            # 2026 title was decided and nothing would have said so.
+            "history_baseline": history_baseline(con),
             "source_registry": out["source_registry"],
         }
         # A snapshot is one row per entity. This file shipped 333 rows for 23
