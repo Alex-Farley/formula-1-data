@@ -1789,6 +1789,15 @@ def the_full_classification():
           con.execute("""SELECT COUNT(*) FROM circuits WHERE direction IS NOT NULL
               AND direction NOT IN ('clockwise', 'anti-clockwise')""").fetchone()[0] == 0)
 
+    # constructors.last_entry: NULL means still competing, so no inactive
+    # constructor with a race entry may carry it, and no active one may not.
+    bad_last = con.execute("""SELECT COUNT(*) FROM constructors c
+        WHERE (c.active = 0 AND c.last_entry IS NULL
+               AND EXISTS (SELECT 1 FROM race_entries e WHERE e.constructor_id = c.id))
+           OR (c.active = 1 AND c.last_entry IS NOT NULL)""").fetchone()[0]
+    check("constructors.last_entry is NULL exactly for the still-competing", bad_last == 0,
+          f"{bad_last} constructors disagree with their active flag")
+
     # A FLOOR UNDER EVERY BULK TABLE. data/harvest.py's _read_named returns []
     # for a missing generated file by design, from when those files were a
     # local extra; they are now 93% of the rows, and the checks below are
