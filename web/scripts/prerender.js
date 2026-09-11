@@ -1219,7 +1219,13 @@ const titled = (headline) => `${headline} — ${SITE}`
       <p class="lede">The console needs JavaScript: it runs SQLite compiled to WebAssembly against
         the database file in your own browser. Nothing you type is sent anywhere.</p>
       <p>The database is a plain SQLite file. If you would rather query it with your own tools,
-        download <code>f1.db</code> and open it with any SQLite client.</p>`,
+        download <a href="${esc(href('f1.db'))}"><code>f1.db</code></a> and open it with any
+        SQLite client. The circuit centrelines are not in it — <code>circuit_geometry</code>
+        there is deliberately empty — and ship beside it as
+        <a href="${esc(href('f1-geometry.db'))}"><code>f1-geometry.db</code></a>. Two files
+        rather than one because distributing them together keeps them a collective database:
+        merging them would pull 117,000 unrelated rows under the centrelines' share-alike
+        licence. Take both, or you have no geometry and no way to get it.</p>`,
   })
 
   page({
