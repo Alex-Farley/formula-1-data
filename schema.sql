@@ -1370,6 +1370,11 @@ FROM races r GROUP BY r.year ORDER BY r.year;
 -- source where the kept row lacks them. Same columns as the table, so a
 -- consumer swaps the name and nothing else. For a finished season the sources
 -- agree and this is the identity.
+--
+-- Written for the two sources that exist: formula1.com and F1DB. The tie-break
+-- names one of them, and the fill takes the lowest-id row of "the other", so a
+-- third source would need this revisited - verify.py's checks on which row
+-- survives and what it was filled from are what would say so.
 CREATE VIEW v_standings_final AS
 WITH final AS (SELECT * FROM standings WHERE after_round IS NULL),
 ranked AS (

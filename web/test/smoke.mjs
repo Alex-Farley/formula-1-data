@@ -388,6 +388,23 @@ try {
     count(`SELECT COUNT(*) FROM v_standings_final WHERE year = 2026 AND table_type = 'drivers'`),
     "the 2026 drivers' table is one row per driver",
   )
+  // And the row that survived is the current one: the leader's points on the
+  // page equal the LARGER of the two sources' totals for them, straight from
+  // the table rather than the view, so a view that kept the stale row fails
+  // here even though the count above would still be right.
+  const leader = one(`SELECT entity_id FROM v_standings_final
+                       WHERE year = 2026 AND table_type = 'drivers' ORDER BY position LIMIT 1`)
+  const leaderPoints = await page.$$eval('#root main table', (tables) => {
+    const t = tables.find((el) => el.closest('section')?.querySelector('h2')?.textContent.includes("drivers' standings"))
+    const cells = [...(t?.querySelector('tbody tr')?.querySelectorAll('td') ?? [])].map((c) => c.textContent.trim())
+    return cells
+  })
+  const leaderExpected = String(one(`SELECT MAX(points) FROM standings
+                                WHERE year = 2026 AND table_type = 'drivers' AND after_round IS NULL AND entity_id = ?`, leader))
+  truthy(
+    leaderPoints.some((c) => c.replace(/,/g, '') === leaderExpected || c.replace(/,/g, '') === leaderExpected.replace(/\.0$/, '')),
+    `the leader's points are the current source's — ${leaderExpected}`,
+  )
 
   console.log('\n/seasons/2025  (the champion is P1, not an em dash)')
   await go('/seasons/2025', '2025')

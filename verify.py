@@ -303,6 +303,31 @@ def standings():
         check(f"{y} drivers' final table is one row per driver", n == d,
               f"{n} rows, {d} drivers")
 
+    # WHICH row survives, not just how many. Points only accumulate, so of two
+    # sources describing one entity the larger total is the one that has
+    # counted the most rounds; a view row outscored by another source's row
+    # for the same entity kept the stale figure. A front-end review flipped
+    # the view's ORDER BY on a copy and every count-based check still passed
+    # while Antonelli showed 242 instead of 267 - this is the check that fails.
+    stale = con.execute("""SELECT COUNT(*) FROM v_standings_final f
+        WHERE EXISTS (SELECT 1 FROM standings o
+                      WHERE o.after_round IS NULL AND o.year = f.year
+                        AND o.table_type = f.table_type AND o.entity_id = f.entity_id
+                        AND o.source <> f.source AND o.points > f.points)""").fetchone()[0]
+    check("v_standings_final keeps the source that has counted the most rounds",
+          stale == 0, f"{stale} rows outscored by the other source")
+    # And the fill: where either source has a position or a team, the view
+    # row has it. 2026 is the season with two sources, so it is the test.
+    unfilled = con.execute("""SELECT COUNT(*) FROM v_standings_final f
+        WHERE f.year = 2026 AND (f.position IS NULL OR f.team IS NULL)
+          AND EXISTS (SELECT 1 FROM standings o
+                      WHERE o.after_round IS NULL AND o.year = f.year
+                        AND o.table_type = f.table_type AND o.entity_id = f.entity_id
+                        AND ((f.position IS NULL AND o.position IS NOT NULL)
+                          OR (f.team IS NULL AND o.team IS NOT NULL)))""").fetchone()[0]
+    check("v_standings_final fills position and team from the other source",
+          unfilled == 0, f"{unfilled} rows left blank where a source had the value")
+
 
 @section('RACE RESULTS')
 def race_results():
