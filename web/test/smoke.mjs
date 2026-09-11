@@ -406,6 +406,21 @@ try {
    * is the one direction PD-02 had never been seen in. Read the expectation
    * from the database, as everything here does.
    */
+  // A constructor with an open disagreement shows it, in the app as the
+  // static page does. The subject join is by name, resolved from the id in
+  // SQL; a reworded query that stopped matching would return null silently,
+  // and this is what would say so.
+  const disputed = one(`SELECT c.id FROM constructors c JOIN discrepancies d ON d.subject = c.name
+                         WHERE d.status LIKE 'open%' LIMIT 1`)
+  if (disputed) {
+    console.log(`\n/constructors/${disputed}  (an open disagreement is shown)`)
+    await go(`/constructors/${disputed}`)
+    truthy(
+      (await page.$$('#root main aside.disagreement')).length > 0,
+      'the constructor page shows its open disagreement',
+    )
+  }
+
   console.log('\n/seasons/2025  (the champion is P1, not an em dash)')
   await go('/seasons/2025', '2025')
   const championPos = await page.evaluate(() => {

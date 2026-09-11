@@ -48,11 +48,6 @@ const BY_SEASON = `
  * survive v_standings_final; the same-fact-from-two-sources rows do not. The
  * rule and its reasons are on the view in schema.sql.
  */
-const CONSTRUCTOR_DISAGREEMENTS_BY_ID = CONSTRUCTOR_DISAGREEMENTS.replace(
-  'WHERE d.subject = ?',
-  'WHERE d.subject = (SELECT name FROM constructors WHERE id = ?)',
-)
-
 const STANDINGS = `
   SELECT s.id, s.year, s.entity_id, s.engine_id, s.position, s.position_text, s.points, s.team
     FROM v_standings_final s
@@ -93,7 +88,7 @@ export default function Constructor() {
     derived: [DERIVED, [id]],
     bySeason: [BY_SEASON, [id]],
     standings: [STANDINGS, [id]],
-    disagreements: [CONSTRUCTOR_DISAGREEMENTS_BY_ID, [id]],
+    disagreements: [CONSTRUCTOR_DISAGREEMENTS, [id]],
     wins: [WINS, [id]],
     designs: [DESIGNS, [id]],
     lineage: [LINEAGE, [id]],

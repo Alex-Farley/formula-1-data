@@ -360,9 +360,16 @@ def standings():
             WHERE year=? AND table_type=? AND entity_id=? AND after_round=?
               AND source LIKE '%f1db%'""", (yr_, kind_, eid_, rnd_)).fetchone()
         if f1db_ and f1db_[0] is not None and abs(f1db_[0] - snap_) > 0.001:
+            subj_ = con.execute(
+                "SELECT full_name FROM drivers WHERE id=?" if kind_ == "drivers"
+                else "SELECT name FROM constructors WHERE id=?", (eid_,)).fetchone()
+            # Open, and about this entity: a tidying pass that marked one
+            # resolved would take it off the page, and this is what says so.
             filed = con.execute("""SELECT 1 FROM discrepancies
-                WHERE field = ? AND stored_value = ? AND derived_value = ?""",
-                (f"{yr_} championship points, after round {rnd_}",
+                WHERE subject = ? AND field = ? AND stored_value = ?
+                  AND derived_value = ? AND status LIKE 'open%'""",
+                (subj_[0] if subj_ else eid_,
+                 f"{yr_} championship points, after round {rnd_}",
                  pts_text(snap_), pts_text(f1db_[0]))).fetchone()
             if not filed:
                 unfiled.append(f"{yr_} {kind_} {eid_} {snap_} v {f1db_[0]}")
@@ -387,9 +394,12 @@ def standings():
             WHERE year=? AND table_type=?""", (y, t)).fetchone()[0]
                   for t in ("drivers", "constructors"))
         warn(f"{y} published drivers' and constructors' totals agree",
-             d_ == c_, f"drivers {d_}, constructors {c_} - the sources disagree, see discrepancies")
+             d_ == c_, "" if d_ == c_ else
+             f"drivers {d_}, constructors {c_} - the sources disagree, see discrepancies")
     # The new unique index makes INSERT OR IGNORE able to drop a row silently;
     # a floor on the count is what would say so.
+    # 34,563 is the count at v2.22; raise it when a harvest legitimately adds
+    # rows, never lower it.
     nstd = con.execute("SELECT COUNT(*) FROM standings").fetchone()[0]
     check("the standings table holds at least as many rows as the last release",
           nstd >= 34563, f"{nstd} rows")
