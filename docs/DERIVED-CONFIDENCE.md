@@ -21,7 +21,7 @@ That has three consequences, and they get worse the more data arrives:
    than a *fact*. The 36 `race_entries` rows at `verified` and the 27,446 at
    `reference` differ by which loader wrote them, not by what is known about
    them.
-2. **It cannot be checked.** `verify.py` runs 133 checks and not one of them
+2. **It cannot be checked.** `verify.py` runs its checks and not one of them
    tests a confidence value, because there is nothing to test it against. A
    tier cannot be wrong if nothing derives it.
 3. **It hides its own soft spots.** See *What the rule says today* below: 335
@@ -86,7 +86,7 @@ about why.
 
 ### Internal consistency cannot raise a tier
 
-Of the 133 checks in `verify.py`, the great majority are *internal*: they test
+Of the checks in `verify.py`, the great majority are *internal*: they test
 the database against itself. Rounds are contiguous. A driver appears at most
 once per race. Nobody died before they were born. Careers run forwards. Every
 foreign key resolves.
@@ -171,7 +171,7 @@ all. Add `url_pattern` and match on it.
 
 ### 2. Checks become data
 
-`verify.py` has 133 checks. Each one is an English string printed to stdout:
+Each `verify.py` check is an English string printed to stdout:
 
 ```python
 check("every driver's wins, poles and fastest laps equal the race records", ...)

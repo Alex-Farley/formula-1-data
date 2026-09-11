@@ -19,8 +19,8 @@ No dependencies — Python 3.9 or newer is all you need.
 make all
 ```
 
-That rebuilds `f1.db` from `data/*.py`, runs 121 checks, and regenerates the
-JSON exports. It should end with `All checks passed. 2 warning(s).` and leave
+That rebuilds `f1.db` from `data/*.py`, runs the checks, and regenerates the
+JSON exports. It should end with `All checks passed.` followed by the live warning count and leave
 `git status` clean — the build is deterministic, so a fresh build reproduces
 the committed artefacts exactly.
 
@@ -84,7 +84,7 @@ commit is enough to keep them out.
 
 > A normalised, queryable SQLite database of Formula One 1950–2026 — every
 > race winner, pole and fastest lap, every circuit, 29 landmark cars — built
-> from readable source modules and checked by 121 integrity tests.
+> from readable source modules and checked by its integrity tests.
 
 Topics: `formula1`, `f1`, `motorsport`, `sqlite`, `dataset`, `open-data`,
 `sports-data`.
