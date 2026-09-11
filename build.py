@@ -1797,7 +1797,7 @@ def _stage_25_championship_standings_after_every_round_and(b):
             (r["year"], r["round"], r["table_type"], r["position"],
              r["entity_id"], r["engine_manufacturer_id"], r["points"])
             for r in HV.load_standings()):
-        if yr not in known_years:
+        if int(yr) not in known_years:
             raise SystemExit(
                 f"standings: {yr} is in the harvest but not in the season "
                 f"register. Add the season to data/ before loading it.")

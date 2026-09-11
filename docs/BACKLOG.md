@@ -80,21 +80,11 @@ you can audit the audit* to *cross-checked against independent sources, with
 every disagreement and every gap published in the data* — which the artefact
 supports on its own. `AF-02` carries the three follow-ons.
 
-**The false statements** the reviews found are down to one: the build silently
-discarding a season it does not know (`SD-02`). The corrupt 2026 standings
-snapshot (`CR-02`, root cause `DA-01`) landed in #39.
+**The false statements** the reviews found are all landed: `UR-01`, `UR-02`,
+`UR-10`, `UR-11` in #36, `CR-02`/`DA-01` in #39, `SD-02` in #40.
 `UR-01`, `UR-02`, `UR-10` and `UR-11` landed in #36; the cold first visit
 (`IX-01`, `IX-02`, `IX-03`, `IX-13`) landed in #37. `PD-02` is still the
 largest single fix and still has its riders.
-
-- [ ] `SD-02` **A season the calendar does not hold is discarded in silence.**
-      `build.py:1447-1451` skips a race whose `(year, round)` is unknown, with
-      a comment written for a round inside a known season. A synthetic 2027
-      result rebuilt green with zero 2027 rows; the Monday refresh would move
-      `BUILT` and deploy, so the footer advertises a fresh build over frozen
-      data. Refuse a year `seasons` lacks, and print skipped races beside
-      skipped drivers. Derive `meta.coverage_seasons` while there (`SD-12`). —
-      *service critique · S*
 
 - [ ] `CR-01` **Three bulk harvest files can vanish and every gate passes.**
       `_read_named` returns `[]` for a missing file by design; deleting
@@ -631,7 +621,7 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 
 - [ ] `SD-11` **No `schema.org/Dataset` markup.** Every field is held. On `/data`. The one discovery surface built for the bulk audience. — *service critique · S*
 
-- [ ] `SD-12` **"1950–2026" is typed 29 times across four channels.** Derive one string at build time into `meta.coverage_seasons`; read it in both renderers. Removes 12 of 29; the rest is `SD-15`'s runbook. — *service critique · M*
+- [ ] `SD-12` **"1950–2026" is typed 29 times across four channels.** Derive one string at build time into `meta.coverage_seasons`; read it in both renderers. Removes 12 of 29; the rest is `SD-15`'s runbook. The build half landed with `SD-02`: `meta.coverage_seasons` is read off the season register. — *service critique · M*
 
 - [ ] `SD-13` **The advisory review check has been red through four merges.** Known cause: the other account is out of tokens. `continue-on-error: true` so the plumbing is not the signal. — *service critique · S*
 
@@ -1061,6 +1051,15 @@ Real, but not costed, or waiting on a decision.
 - [x] `CR-18` **Both unfailable assertions can fail.** The views loop is
       real; the multi-engine warning is a check that the view keeps as many
       multi-engine constructor-seasons as the table. — *code review · #39*
+
+- [x] `SD-02` **A season the calendar does not hold is refused, not skipped.**
+      One `race_for()` on the build object replaces six silent `continue`s
+      in the F1DB loaders: a round inside a known season with no race yet is
+      skipped and counted (the summary line now says how many), a year the
+      season register lacks stops the build and names the fix. The
+      standings loader, keyed by year, refuses the same way. A copy with one
+      synthetic 2027 result refuses to build. `meta.coverage_seasons` is
+      derived from `seasons` rather than typed. — *service critique · #40*
 
 ## Declined
 
