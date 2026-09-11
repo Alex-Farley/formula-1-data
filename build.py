@@ -1231,9 +1231,9 @@ def _stage_17_pole_position_and_fastest_lap_as(b):
     # Each harvested row also carries the race winner, which must equal the
     # winner already recorded. A mismatch means the row describes a different
     # race and is rejected outright.
-    applied = 0
     restored = []
-    for h in HV.load_poles():
+    pole_rows = HV.load_poles()
+    for h in pole_rows:
         rid = race_key.get((h["year"], h["round"]))
         if rid is None:
             raise SystemExit(f"pole harvest: no race at {h['year']} r{h['round']}")
@@ -1275,8 +1275,7 @@ def _stage_17_pole_position_and_fastest_lap_as(b):
                    fastest_lap=1, fastest_lap_shared=len(fl_names))
         if h["shared_override"]:
             restored.append((h["year"], h["round"]))
-        applied += 1
-    harvest_covers_every_completed_race(cur, race_key, HV.load_poles(), "pole harvest")
+    harvest_covers_every_completed_race(cur, race_key, pole_rows, "pole harvest")
 
     # The shared fastest laps load_poles() restored are a change to what the
     # harvest said, so each goes on the record as a resolved disagreement:
@@ -1302,8 +1301,8 @@ def _stage_18_race_venue_as_circuit_id_on(b):
     # has only ever used one circuit the harvested venue must be that circuit,
     # and where a circuit is already stored from the verified 2026 calendar
     # the harvest must agree with it.
-    applied = 0
-    for h in HV.load_venues():
+    venue_rows = HV.load_venues()
+    for h in venue_rows:
         rid = race_key.get((h["year"], h["round"]))
         if rid is None:
             raise SystemExit(f"venue harvest: no race at {h['year']} r{h['round']}")
@@ -1335,8 +1334,7 @@ def _stage_18_race_venue_as_circuit_id_on(b):
         cur.execute("""UPDATE races SET circuit_id=?,
             source=COALESCE(source, ?) WHERE id=?""",
             (h["circuit_id"], h["source"], rid))
-        applied += 1
-    harvest_covers_every_completed_race(cur, race_key, HV.load_venues(), "venue harvest")
+    harvest_covers_every_completed_race(cur, race_key, venue_rows, "venue harvest")
 
 
 def _stage_19_races_that_used_a_layout_other(b):
@@ -2946,6 +2944,8 @@ def harvest_covers_every_completed_race(cur, race_key, rows, what):
     twice = sorted(k for k, n in seen.items() if n > 1)
     if twice:
         raise SystemExit(f"{what}: {len(twice)} race(s) appear twice, e.g. {twice[:3]}")
+    if not seen:
+        raise SystemExit(f"{what}: the harvest file is empty")
     last = max(seen)
     completed = {(y, r) for (y, r), rid in race_key.items()
                  if cur.execute("SELECT status FROM races WHERE id=?", (rid,)).fetchone()[0]
