@@ -2927,6 +2927,13 @@ if __name__ == "__main__":
     c.close()
     # Pin, then move into place: a build that raised anywhere above never
     # reaches this line and the committed files are as they were.
+    # Both or neither: CLAUDE.md's rule is that the two files ship together,
+    # and a geometry stage that produced nothing would otherwise leave a
+    # fresh f1.db beside the previous build's overlay.
+    for tmp in (BUILD_DB, BUILD_GEOMETRY_DB):
+        if not os.path.exists(tmp):
+            raise SystemExit(f"{os.path.basename(tmp)} was not written; "
+                             f"neither database has been replaced")
     for tmp, final in ((BUILD_DB, DB), (BUILD_GEOMETRY_DB, GEOMETRY_DB)):
         pin_sqlite_header(tmp)
         os.replace(tmp, final)
