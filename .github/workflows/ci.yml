@@ -166,6 +166,17 @@ jobs:
             || { echo "::error::sitemap.xml lists only $urls URLs"; exit 1; }
           echo "prerendered, sitemap lists $urls URLs"
 
+      # The Parquet step is non-fatal by design and reports to a file the
+      # site serves; that file is read here, so a regression is visible in
+      # CI and not only to somebody who fetches /build-status.txt.
+      - name: Read the build status the Parquet step wrote
+        working-directory: web
+        run: |
+          cat dist/build-status.txt
+          grep -q '^result   ok' dist/build-status.txt \
+            || { echo "::error::the Parquet bundle did not build; see build-status.txt above"; exit 1; }
+          test -s dist/f1-parquet.zip || { echo "::error::dist/f1-parquet.zip is missing"; exit 1; }
+
       # The pure functions, before a browser is involved. node:test, so this
       # adds no dependency either, and it runs in under a second.
       - name: Unit-test the front end's pure functions

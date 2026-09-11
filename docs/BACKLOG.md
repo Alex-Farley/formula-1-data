@@ -454,8 +454,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 
 - [ ] `CR-07` **The season is a magic number in nine files.** `2026` 158 times; no `CURRENT_SEASON`. S for the constant, then one file per sitting. `SD-12` is the service face. — *code review · M*
 
-- [ ] `CR-13` **`npm run build` runs `pip install` on any machine, and CI never checks the Parquet result.** Gate the install behind `CI`/`CF_PAGES`; `cat dist/build-status.txt && test -s dist/f1-parquet.zip` in `ci.yml`. Answers half of `PM-24`. — *code review · S*
-
 - [ ] `CR-14` **No local command reproduces CI.** `make ci` doing what `ci.yml` does, diff included; point `CLAUDE.md` at it. — *code review · S*
 
 **Product critique, second run**
@@ -573,8 +571,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 - [ ] `SD-01` **The data is published; everything that explains it is not.** The service face of `PD-14`. Its two S follow-ons — serve the licence files from the site; set `homepageUrl` and topics — stand whichever way the decision goes. — *service critique · S*
 
 - [ ] `SD-04` **There is no inbound channel.** No contact, no report link, zero issues ever. One footer line; then the 18 pages showing an open disagreement get the link specifically. — *service critique · S*
-
-- [ ] `SD-06` **Nothing distinguishes a current service from a frozen one.** Build logs off, last-good deploy kept, `build-status.txt` written by the build that failed to replace it, 3,515 identical `lastmod`s. Build date in the *static* footer; make `build-status.txt` a heartbeat. — *service critique · S*
 
 - [ ] `SD-07` **`meta.version` does not identify the data.** From the first refresh, `2.21` names three different databases. Bump the patch on refresh, or declare digest + `built` the identity and say so in the citation block. — *service critique · decision, S*
 
@@ -1116,6 +1112,19 @@ Real, but not costed, or waiting on a decision.
       second build step does. `web/.nvmrc` joins the root `.node-version`
       Cloudflare reads — two files because two tools read them. —
       *code review · #49*
+
+- [x] `CR-13` **The Parquet step installs nothing on a laptop, and CI reads
+      its result.** `pip install` runs only where `CI`, `CF_PAGES`,
+      `WORKERS_CI` or `LAPLEDGER_PARQUET` is set; elsewhere the step reports
+      that pyarrow is absent and how to allow the install. `ci.yml` prints
+      `build-status.txt` and fails if the bundle did not build. —
+      *code review · #50*
+
+- [x] `SD-06` **`/build-status.txt` is a heartbeat.** Deploy commit, database
+      version and build date, the round the data is complete through, and
+      the F1DB version the harvest came from — on success and on failure —
+      so a deploy that has been failing for a month is one fetch from a
+      diagnosis. — *service critique · #50*
 
 ## Declined
 
