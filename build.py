@@ -1562,7 +1562,20 @@ def _stage_21_the_full_classification_qualifying_and_stand(b):
                     classified      = COALESCE(classified, excluded.classified),
                     status          = COALESCE(status, excluded.status),
                     laps_completed  = COALESCE(laps_completed, excluded.laps_completed),
-                    points          = COALESCE(points, excluded.points)""",
+                    points          = COALESCE(points, excluded.points),
+                    -- `source` names the source of the CLASSIFICATION. The
+                    -- pole harvest ran first and created a bare row - pole
+                    -- or fastest-lap flag, nothing else - citing the season
+                    -- article; every other column then arrived from here,
+                    -- and 1,136 pole rows cited Wikipedia for F1DB's laps
+                    -- and points while the row beneath them cited F1DB. A
+                    -- row that had no classification takes this source; a
+                    -- row that already had one (the podium harvest's) keeps
+                    -- its own. The pole and fastest-lap credits' provenance
+                    -- is stated on their columns in schema.sql.
+                    source          = CASE WHEN finish_position IS NULL
+                                                AND laps_completed IS NULL
+                                           THEN excluded.source ELSE source END""",
                 (rid, did, cons, None, grid, grid_text, pos,
                  r["position_text"], 1 if r["shared_drive"] == "1" else 0,
                  1 if pos is not None else 0,

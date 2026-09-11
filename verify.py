@@ -1733,6 +1733,15 @@ def the_full_classification():
     nqual = con.execute("SELECT COUNT(*) FROM qualifying").fetchone()[0]
     nstand = con.execute("SELECT COUNT(*) FROM standings").fetchone()[0]
 
+    # `source` names the source of the classification, so a row carrying
+    # F1DB's laps and points must cite F1DB. 836 pole rows cited the season
+    # article for them until the upsert took the classification's source.
+    mixed = con.execute("""SELECT COUNT(*) FROM race_entries
+        WHERE laps_completed IS NOT NULL AND points IS NOT NULL
+          AND source NOT LIKE '%f1db%'""").fetchone()[0]
+    check("a row carrying F1DB's classification cites F1DB", mixed == 0,
+          f"{mixed} rows cite another source for F1DB's laps and points")
+
     # A FLOOR UNDER EVERY BULK TABLE. data/harvest.py's _read_named returns []
     # for a missing generated file by design, from when those files were a
     # local extra; they are now 93% of the rows, and the checks below are
