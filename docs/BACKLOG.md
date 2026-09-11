@@ -558,7 +558,7 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 
 - [ ] `DA-11` **`standings.engine_id` is F1DB's namespace under this project's column name.** 10% resolve against `engine_manufacturers` by coincidence. Rename to `f1db_engine_manufacturer_id` or add the curated id beside it. — *data architecture critique · S*
 
-- [ ] `DA-13` **One CHECK constraint in forty-six tables, and the vocabularies have drifted.** `anticlockwise` beside `anti-clockwise`; 18 `personnel.role` values for four documented; a licence guard on `article_images.repository` in prose only. Eight CHECKs and one data fix. — *data architecture critique · S*
+- [ ] `DA-13` **One CHECK constraint in forty-six tables, and the vocabularies have drifted.** `anticlockwise` beside `anti-clockwise`; 18 `personnel.role` values for four documented; a licence guard on `article_images.repository` in prose only. Eight CHECKs and one data fix. **Eight of the vocabularies landed as `CHECK` constraints in #47** — `authority`, `drivers.status`, `table_type`, `circuit_type`, `direction`, `article_images.repository`, `races.status`, `regulation_changes.category` — and Jacarepagua's `anticlockwise` is fixed. Left open: `aspiration` (four tables, two vocabularies), `personnel.role` and `team_radio.speaker` (multi-valued in the data), and the lookup-table question for `authority` and `circuit_type`. — *data architecture critique · S*
 
 - [ ] `DA-14` **The views reach 29% of the rows and ship in one of three formats.** No view over `standings`, `qualifying`, `sprint_results`, `pit_stops` or provenance; Parquet and JSON carry no views. `v_standings_final`, `v_race_classification`, `views.sql` in the zip, a which-download table on `/data`. — *data architecture critique · M*
 

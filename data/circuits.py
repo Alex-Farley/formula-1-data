@@ -332,7 +332,7 @@ CIRCUITS = [
      "The southern loop of the Nurburgring complex",
      "Never used for a World Championship round. Held in the register because the 1960 German Grand Prix ran here: that race was run to Formula Two regulations after safety concerns at AVUS and did not count towards the championship, so it is absent from the race table.", "high"),
     ("jacarepagua", "Jacarepagua", "Autodromo Internacional Nelson Piquet", "Rio de Janeiro", "Brazil", "permanent",
-     1978, 1989, 5.031, 11, "anticlockwise",
+     1978, 1989, 5.031, 11, "anti-clockwise",
      "Flat, hot and abrasive; a long pit straight and a longer back straight with grandstands giving a view of the whole lap",
      "Opened in 1978 and originally called the Autodromo Internacional do Rio de Janeiro; renamed for Nelson Piquet in 1988 after his third title. Hosted the Brazilian Grand Prix in 1978 and from 1981 to 1989, after which the race returned permanently to Interlagos. Demolished in 2012 for the 2016 Olympic park.", "high"),
 ]

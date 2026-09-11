@@ -1782,6 +1782,13 @@ def the_full_classification():
     check("every completed race has a qualifying classification", noqual == 0,
           f"{noqual} completed races without one")
 
+    # The controlled vocabularies are CHECK constraints in schema.sql since
+    # v2.22, so a drifted value is refused at insert; this only confirms the
+    # one that drifted is gone, because it had a filter miss a circuit.
+    check("every circuit's direction is one of the two spellings",
+          con.execute("""SELECT COUNT(*) FROM circuits WHERE direction IS NOT NULL
+              AND direction NOT IN ('clockwise', 'anti-clockwise')""").fetchone()[0] == 0)
+
     # A FLOOR UNDER EVERY BULK TABLE. data/harvest.py's _read_named returns []
     # for a missing generated file by design, from when those files were a
     # local extra; they are now 93% of the rows, and the checks below are
