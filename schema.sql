@@ -182,7 +182,9 @@ CREATE TABLE constructors (
     country         TEXT,
     base            TEXT,
     first_entry     INTEGER,
-    last_entry      INTEGER,                   -- NULL = still competing
+    -- NULL = still competing, and verify.py holds it to that: an inactive
+    -- constructor with none takes the last season it has a race entry in.
+    last_entry      INTEGER,
     entries         INTEGER,
     wins            INTEGER,
     poles           INTEGER,

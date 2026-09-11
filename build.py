@@ -2466,6 +2466,17 @@ def _stage_34_link_race_entries_to_the_curated(b):
         SELECT COUNT(*) FROM race_entries e
         WHERE e.constructor_id = constructors.id AND e.pole = 1)""")
 
+    # constructors.last_entry is documented as "NULL = still competing", and
+    # ten constructors that last raced between 1951 and 1997 carried NULL, so
+    # a consumer following the comment got Talbot-Lago as a current team. For
+    # a constructor the register marks inactive, the last season it has a race
+    # entry in is the figure; an active one keeps NULL, which is now true.
+    cur.execute("""UPDATE constructors SET last_entry = (
+            SELECT MAX(r.year) FROM race_entries e JOIN races r ON r.id = e.race_id
+             WHERE e.constructor_id = constructors.id)
+        WHERE last_entry IS NULL AND active = 0
+          AND EXISTS (SELECT 1 FROM race_entries e WHERE e.constructor_id = constructors.id)""")
+
     normalise_countries(cur)
 
     # The coverage claim inside the artefact is read off the season register,

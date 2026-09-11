@@ -564,7 +564,7 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 
 - [ ] `DA-19` **`records` cannot be joined, compared or checked.** 24 forms of `as_of` in 30 rows. Only after `PD-03`: `holder_id`, a numeric `value`, an ISO `as_of`. — *data architecture critique · S*
 
-- [ ] `DA-20` **`constructors.last_entry` says NULL means still competing; ten NULLs last raced 1951–1997.** Fill the ten or fix the comment. The seven spellings of a validity interval are the M and optional. — *data architecture critique · S*
+- [ ] `DA-20` **`constructors.last_entry` says NULL means still competing; ten NULLs last raced 1951–1997.** Fill the ten or fix the comment. The seven spellings of a validity interval are the M and optional. **The defect half landed in #51**: the ten inactive constructors with a NULL `last_entry` take the last season they have a race entry in, and a check holds NULL to the active flag. The seven-spellings convergence stays open as the M it is. — *data architecture critique · S*
 
 **Service design**
 
