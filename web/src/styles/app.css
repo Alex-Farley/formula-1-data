@@ -17,6 +17,10 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+  /* The masthead is sticky and 63px tall. Without this, Shift+Tab onto a link
+     near the top of the viewport scrolls it to y=0 - entirely behind the
+     masthead - which is WCAG 2.4.11 failed on every page. */
+  scroll-padding-top: 72px;
 }
 
 body {
@@ -121,6 +125,21 @@ hr {
 
 .empty {
   color: var(--ink-faint);
+}
+
+/* A true zero in a numeric column. On the drivers register 81% of the
+   first screen's numeric cells are 0 or an em dash, all in body ink, so the
+   two rows in twenty with a career vanish. Fainting the zeros lets them
+   surface without hiding anything - the convention that a blank is not a
+   zero is untouched, because the two still read differently. */
+.zero {
+  color: var(--ink-faint);
+}
+
+/* The h1 takes focus on in-app navigation so a screen reader announces the
+   new page (it is not a control, so no ring). */
+.page h1:focus {
+  outline: none;
 }
 
 /* ------------------------------------------------------------- app frame */
@@ -500,8 +519,9 @@ main {
   line-height: 1.12;
   letter-spacing: -0.005em;
   /* Proportional figures: a standalone value at display size looks loose in
-     tabular ones. Tabular is for columns that must align. */
-  overflow-wrap: anywhere;
+     tabular ones. Tabular is for columns that must align. No overflow-wrap:
+     anywhere here - it split "2017" into "201" and "7" in the titles tile.
+     The provenance-URL case that needs it is .fields, below. */
 }
 
 .stats dd small {

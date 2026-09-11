@@ -39,8 +39,12 @@ export default function DotPlot({
   return (
     <div className="plot-holder" ref={ref}>
       <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={label}>
-        {ticks([1, top], 4, { integer: true })
-          .filter((v) => v >= 1)
+        {/* P1 is the one value this chart exists to show, and a step of 2 from
+            1 ticked 2, 4, 6... so the title-winning seasons sat above the top
+            gridline with nothing naming their value. Force 1 in, and drop a 2
+            that would crowd it. */}
+        {[...new Set([1, ...ticks([1, top], 4, { integer: true }).filter((v) => v > 2), top])]
+          .filter((v) => v >= 1 && v <= top)
           .map((value) => (
             <g key={value}>
               <line className="grid-line" x1={M.left} x2={width - M.right} y1={y(value)} y2={y(value)} />

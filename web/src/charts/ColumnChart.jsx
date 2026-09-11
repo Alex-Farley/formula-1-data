@@ -21,6 +21,9 @@ export default function ColumnChart({
   labelEvery = 1,
   labelPeak = true,
   label,
+  // Whole-number ticks for a count; a wins axis ticked at 2.5 is an axis
+  // that lies (web/README.md says so, and scales.js already supports it).
+  integer = false,
 }) {
   const [ref, width] = useMeasure()
   const [hover, setHover] = useState(null)
@@ -41,7 +44,7 @@ export default function ColumnChart({
   return (
     <div className="plot-holder" ref={ref}>
       <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={label}>
-        {ticks(y.domain, 4).map((value) => (
+        {ticks(y.domain, 4, { integer }).map((value) => (
           <g key={value}>
             <line className="grid-line" x1={M.left} x2={width - M.right} y1={y(value)} y2={y(value)} />
             <text className="axis-text" x={M.left - 8} y={y(value)} textAnchor="end" dominantBaseline="middle">

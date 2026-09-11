@@ -176,7 +176,7 @@ export default function Sql() {
             <span className="faint small">or ⌘/Ctrl + Enter</span>
             <span className="spacer" />
             {state.status === 'done' && (
-              <span className="result-count">
+              <span className="result-count" role="status">
                 {number(state.data.rows.length)} rows in {state.elapsed.toFixed(0)} ms
               </span>
             )}
@@ -189,10 +189,11 @@ export default function Sql() {
               <DataTable
                 data={state.data}
                 page={200}
+                raw
                 empty="The statement ran and matched nothing."
                 footer={
                   state.data.rows.length > 200
-                    ? 'Showing the first two hundred rows — use the button above to see the rest.'
+                    ? 'Showing the first two hundred rows.'
                     : undefined
                 }
               />

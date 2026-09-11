@@ -275,7 +275,10 @@ function SeasonBody({ year, season, data }) {
             sortable={false}
             page={40}
             columns={[
-              { key: 'position_text', label: 'Pos', align: 'num' },
+              // position_text is the source's own spelling ("EX", "NC"); the
+              // hand-maintained 2025-26 rows carry only the number. Falling back to
+              // it is the difference between P1 and an em dash on the champion.
+              { key: 'position_text', label: 'Pos', align: 'num', render: (v, row) => cell(v ?? row.position) },
               {
                 key: 'entity',
                 label: 'Driver',
@@ -300,7 +303,7 @@ function SeasonBody({ year, season, data }) {
               sortable={false}
               page={40}
               columns={[
-                { key: 'position_text', label: 'Pos', align: 'num' },
+                { key: 'position_text', label: 'Pos', align: 'num', render: (v, row) => cell(v ?? row.position) },
                 {
                   key: 'entity',
                   label: 'Constructor',

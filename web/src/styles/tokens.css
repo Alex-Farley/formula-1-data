@@ -16,7 +16,11 @@
  * against its own ground. Light is paper under a pit-lane strip light; dark
  * is the timing screen. Both were measured, not eyeballed —
  *
- *   light   ink 18.1:1 · soft 7.5:1 · faint 4.7:1 · accent 5.9:1 on panel
+ *   light   ink 18.1:1 · soft 7.5:1 · faint 5.3:1 · accent 5.9:1 on panel
+ *           faint clears 4.5:1 on panel-sunk too, the darkest of the four
+ *           surfaces it sits on (4.56:1). It used to be #6d7480: 4.7:1 on
+ *           panel, 4.05:1 on panel-sunk - the comment recorded the surface it
+ *           passed on, and 158 nodes failed on the other three.
  *   dark    ink 15.1:1 · soft 7.0:1 · faint 4.8:1 · accent 5.4:1 on panel
  *
  * One number decides a rule elsewhere: accent against body ink is 3.07:1 in
@@ -38,7 +42,7 @@
   /* ink */
   --ink: #14161b;
   --ink-soft: #4f5561;
-  --ink-faint: #6d7480;
+  --ink-faint: #656c77;
   --ink-invert: #ffffff;
 
   /* structure */

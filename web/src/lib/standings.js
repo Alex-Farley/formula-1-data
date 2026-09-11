@@ -50,7 +50,7 @@ export function finalStandings(rows) {
       continue
     }
     if (missing(held.position) && !missing(row.position)) {
-      groups.set(key, { ...row, team: held.team ?? row.team })
+      groups.set(key, { ...row, team: held.team ?? row.team, position_text: row.position_text ?? held.position_text })
     } else if (missing(held.team) && !missing(row.team)) {
       held.team = row.team
     }
@@ -100,6 +100,7 @@ function fold(a, b) {
     // Position and team are each recorded by only one of the two sources, so
     // take whichever row actually has them rather than whichever won above.
     position: missing(current.position) ? other.position : current.position,
+    position_text: missing(current.position_text) ? other.position_text : current.position_text,
     team: missing(current.team) ? other.team : current.team,
     engine_id: missing(current.engine_id) ? other.engine_id : current.engine_id,
   }

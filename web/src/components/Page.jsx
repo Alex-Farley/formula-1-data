@@ -1,4 +1,4 @@
-import { createContext, Fragment, useEffect } from 'react'
+import { createContext, Fragment, useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { missing, text } from '../lib/format.js'
 import { SITE, titled } from '../lib/site.js'
@@ -57,6 +57,7 @@ function useDocumentName(headline) {
 
 export function Page({ eyebrow, title, lede, back, aside, children }) {
   useDocumentName(title)
+  const heading = useFocusOnNavigation()
   return (
     <article className="page">
       <header>
@@ -66,13 +67,37 @@ export function Page({ eyebrow, title, lede, back, aside, children }) {
           </p>
         )}
         {eyebrow && <p className="eyebrow">{eyebrow}</p>}
-        <h1>{title}</h1>
+        <h1 ref={heading} tabIndex={-1}>
+          {title}
+        </h1>
         {lede && <p className="lede">{lede}</p>}
         {aside}
       </header>
       {children}
     </article>
   )
+}
+
+/**
+ * After an in-app navigation the document's focus sat on <body>, so a
+ * screen reader said nothing and the next Tab started at the wordmark -
+ * eleven stops before the content, on every hop of a driver -> team -> car
+ * journey. Focusing the new page's h1 is what a page load would have done.
+ * Not on first mount: that is the handover from the prerendered page, and
+ * moving focus there is a separate decision (AX-01).
+ */
+function useFocusOnNavigation() {
+  const { pathname } = useLocation()
+  const ref = useRef(null)
+  const first = useRef(true)
+  useEffect(() => {
+    if (first.current) {
+      first.current = false
+      return
+    }
+    ref.current?.focus({ preventScroll: true })
+  }, [pathname])
+  return ref
 }
 
 /**

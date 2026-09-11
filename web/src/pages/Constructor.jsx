@@ -5,7 +5,7 @@ import DataTable, { cell } from '../components/DataTable.jsx'
 import Figure from '../charts/Figure.jsx'
 import ColumnChart from '../charts/ColumnChart.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
-import { missing, number, points as fmtPoints, span } from '../lib/format.js'
+import { missing, number, points as fmtPoints, span, yearList } from '../lib/format.js'
 import { finalStandings } from '../lib/standings.js'
 import { colourFor } from '../lib/racingColours.js'
 
@@ -28,9 +28,9 @@ const DERIVED = `
 const BY_SEASON = `
   SELECT r.year,
          COUNT(*)                    AS entries,
-         SUM(e.finish_position = 1)  AS wins,
-         SUM(e.finish_position <= 3) AS podiums,
-         SUM(e.pole = 1)             AS poles,
+         COALESCE(SUM(e.finish_position = 1), 0)  AS wins,
+         COALESCE(SUM(e.finish_position <= 3), 0) AS podiums,
+         COALESCE(SUM(e.pole = 1), 0)             AS poles,
          SUM(COALESCE(e.points, 0))  AS points,
          MIN(e.finish_position)      AS best,
          COUNT(DISTINCT e.driver_id) AS drivers
@@ -124,6 +124,10 @@ function ConstructorBody({ constructor, data }) {
   const lineage = rows(data, 'lineage')
 
   const winsBySeason = bySeason.filter((s) => s.wins > 0)
+  // The chart used to draw only these, on a band scale, so the pixels between
+  // 1990 and 1994 were as wide as those between 1996 and 1997 and a reader saw
+  // an unbroken run of wins. Every season entered goes on the axis now.
+  const seasonsAsc = [...bySeason].sort((a, b) => a.year - b.year)
   // The two routes out of here a reader most often wants: the car that won the
   // most, and the season they were last part of.
   const bestCar = [...designs].sort((a, b) => (b.wins ?? 0) - (a.wins ?? 0) || (b.races ?? 0) - (a.races ?? 0))[0] ?? null
@@ -168,7 +172,7 @@ function ConstructorBody({ constructor, data }) {
               ? {
                   label: "Constructors' titles",
                   value: number(constructor.constructors_titles),
-                  note: constructor.title_years ?? undefined,
+                  note: missing(constructor.title_years) ? undefined : yearList(constructor.title_years),
                 }
               : null,
             constructor.drivers_titles
@@ -202,9 +206,9 @@ function ConstructorBody({ constructor, data }) {
         <Section title="Wins by season">
           <Figure
             title={`${constructor.name} race wins`}
-            note="Only seasons with a win are drawn. A shared drive counts once, to the car."
+            note="Every season entered, winless ones included, so a drought is visible as a gap. A shared drive counts once, to the car."
             table={{
-              rows: winsBySeason,
+              rows: seasonsAsc,
               columns: [
                 { key: 'year', label: 'Season', align: 'num' },
                 { key: 'wins', label: 'Wins', align: 'num' },
@@ -213,8 +217,9 @@ function ConstructorBody({ constructor, data }) {
             }}
           >
             <ColumnChart
-              data={winsBySeason.map((s) => ({ key: s.year, value: s.wins, label: String(s.year) }))}
-              labelEvery={Math.max(1, Math.ceil(winsBySeason.length / 12))}
+              data={seasonsAsc.map((s) => ({ key: s.year, value: s.wins, label: String(s.year) }))}
+              labelEvery={Math.max(1, Math.ceil(seasonsAsc.length / 12))}
+              integer
               height={200}
               label={`Race wins per season for ${constructor.name}`}
             />
@@ -259,6 +264,7 @@ function ConstructorBody({ constructor, data }) {
               label: 'Championship',
               align: 'num',
               sort: (row) => row.championship,
+              render: (v, row) => cell(v ?? row.championship),
             },
           ]}
           footer={

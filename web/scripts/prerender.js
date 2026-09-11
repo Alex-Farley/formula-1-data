@@ -47,7 +47,7 @@ import { fileURLToPath } from 'node:url'
 // The one rule for the "Out"/"Status" column, shared with the app rather
 // than restated here: a copy of it would drift, which is how the twelve
 // hardcoded `circuit_geometry` columns went wrong.
-import { finished } from '../src/lib/format.js'
+import { finished, yearList } from '../src/lib/format.js'
 import { SITE, titled } from '../src/lib/site.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -706,7 +706,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
           ['Poles', num(d.poles)],
           ['Fastest laps', num(d.fastest_laps)],
           ['Career points', num(d.career_points)],
-          ['Titles', d.titles ? `${d.titles} (${text(d.title_years)})` : num(d.titles)],
+          ['Titles', d.titles ? `${d.titles} (${yearList(d.title_years)})` : num(d.titles)],
           ['Status', text(d.status)],
           ['Confidence', text(d.confidence)],
         ])}
@@ -805,7 +805,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
           ['Entries', num(c.entries)],
           ['Wins', num(c.wins)],
           ['Poles', num(c.poles)],
-          ["Constructors' titles", c.constructors_titles ? `${c.constructors_titles} (${text(c.title_years)})` : num(c.constructors_titles)],
+          ["Constructors' titles", c.constructors_titles ? `${c.constructors_titles} (${yearList(c.title_years)})` : num(c.constructors_titles)],
           ["Drivers' titles", num(c.drivers_titles)],
           ['Active', c.active === null ? null : c.active ? 'Yes' : 'No'],
           ['Confidence', text(c.confidence)],

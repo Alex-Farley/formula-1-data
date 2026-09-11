@@ -358,6 +358,56 @@ try {
   await go('/seasons', 'Seasons')
   is((await tableRows())[0], count('SELECT COUNT(*) FROM seasons'), 'every season is listed')
 
+  /*
+   * The reigning champion has a championship position. The 2025-26 rows are
+   * hand-maintained from formula1.com and carry `position` with no
+   * `position_text`; the tables rendered position_text alone, so every 2025
+   * driver and constructor read as an em dash - under a footer saying the dash
+   * means "excluded". The app was wrong and the static page was right, which
+   * is the one direction PD-02 had never been seen in. Read the expectation
+   * from the database, as everything here does.
+   */
+  console.log('\n/seasons/2025  (the champion is P1, not an em dash)')
+  await go('/seasons/2025', '2025')
+  const championPos = await page.evaluate(() => {
+    const h2 = [...document.querySelectorAll('#root main h2')].find((h) => h.textContent.startsWith('Final drivers'))
+    const section = h2?.closest('section') ?? h2?.parentElement
+    return section?.querySelector('tbody tr td')?.textContent.trim() ?? null
+  })
+  is(
+    championPos,
+    String(one(`SELECT position FROM standings WHERE year = 2025 AND table_type = 'drivers'
+                  AND after_round IS NULL ORDER BY points DESC LIMIT 1`)),
+    "the 2025 champion's position is rendered",
+  )
+
+  /*
+   * A season with no classified finish has zero wins, not an unestablished
+   * number of them. SUM over such a season is NULL in SQLite, which rendered
+   * as the em dash on 591 driver-seasons whose strip said WINS 0 forty pixels
+   * above. Gabbiani (1981, Osella, never classified) is the representative.
+   */
+  console.log('\n/drivers/beppe-gabbiani  (a winless season reads 0, not an em dash)')
+  await go('/drivers/beppe-gabbiani', 'Beppe Gabbiani')
+  const dashedWins = await page.evaluate(() => {
+    const h2 = [...document.querySelectorAll('#root main h2')].find((h) => h.textContent.startsWith('Season by season'))
+    const table = (h2?.closest('section') ?? h2?.parentElement)?.querySelector('table')
+    const heads = [...table.querySelectorAll('thead th')].map((th) => th.textContent.trim())
+    const col = heads.indexOf('Wins')
+    return [...table.querySelectorAll('tbody tr')].filter((tr) => tr.children[col]?.textContent.trim() === '—').length
+  })
+  is(dashedWins, 0, 'no season dashes a wins figure the page knows is zero')
+
+  /*
+   * A declared oddity reaches the reader. The 2026 calendar says "Bahrain
+   * (hosted at Sepang, Malaysia)" and the page showed a Bahrain Grand Prix at a
+   * Malaysian circuit with no note, because that field was the one nothing
+   * read. It is the race's note now, and the note is the lede.
+   */
+  console.log('\n/races/2026/16  (the Sepang note reaches the page)')
+  await go('/races/2026/16', 'Bahrain Grand Prix')
+  truthy(((await text('#root main .lede')) ?? '').includes('Sepang'), 'the calendar\'s explanation is the lede')
+
   console.log('\n/seasons/1976')
   await go('/seasons/1976', '1976')
   const s76 = await tableRows()
