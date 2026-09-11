@@ -48,6 +48,7 @@ import { fileURLToPath } from 'node:url'
 // than restated here: a copy of it would drift, which is how the twelve
 // hardcoded `circuit_geometry` columns went wrong.
 import { finished } from '../src/lib/format.js'
+import { SITE, titled } from '../src/lib/site.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const web = join(here, '..')
@@ -232,8 +233,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
   pages.push({ path, title, description, jsonld, html: chrome(body, trail ? crumbs(trail) : '') })
 }
 
-const SITE = 'Lap Ledger'
-const titled = (headline) => `${headline} — ${SITE}`
+
 
 // ------------------------------------------------------------------- home
 

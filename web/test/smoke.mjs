@@ -871,6 +871,40 @@ try {
   await deep.waitForSelector('#root main h1', { timeout: 60000 })
   await deep.waitForFunction(() => !document.getElementById('prerendered'), null, { timeout: 20000 })
   pass('the static page is handed over to the app once the database is open')
+
+  /*
+   * IA-04. prerender.js writes the title and the canonical on every page and
+   * nothing in the app used to write them again, so this assertion existed
+   * for the cold load alone and passed while every in-app navigation was
+   * wrong: the tab, the bookmark, the history entry and the screen reader all
+   * still named the page the reader LANDED on.
+   *
+   * Asserted as an invariant — the document is named whatever the h1 says —
+   * rather than against a driver's name, which is the hardcoded-figure habit
+   * PD-07 and PD-03 exist to undo.
+   */
+  await deep.evaluate(() => {
+    window.history.pushState({}, '', '/drivers/moss')
+    window.dispatchEvent(new PopStateEvent('popstate'))
+  })
+  await deep.waitForFunction(
+    () => {
+      // An absent h1 is the gap mid-transition, not the new page: `?.` makes
+      // the negation vacuously true and the wait returns before Moss renders.
+      const h1 = document.querySelector('#root main h1')
+      return Boolean(h1) && !h1.textContent.includes('Hamilton')
+    },
+    null,
+    { timeout: 20000 },
+  )
+  const renamed = await deep.$eval('#root main h1', (n) => n.textContent.trim())
+  is(await deep.title(), `${renamed} — Lap Ledger`, 'an in-app navigation renames the document')
+  is(
+    await deep.$eval('link[rel=canonical]', (node) => new URL(node.href).pathname),
+    '/drivers/moss',
+    'and repoints the canonical at the page actually being read',
+  )
+
   await deep.close()
 
   const noJs = await browser.newContext({ javaScriptEnabled: false })
