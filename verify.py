@@ -540,6 +540,34 @@ def pole_position_and_fastest_lap():
         ORDER BY r.year, r.round""")]
     check("the credited pole-sitter started elsewhere only in the one known race",
           apart == [(2022, 21)], "; ".join(f"{y} r{r}" for y, r in apart[:5]))
+    # `apart` skips a NULL grid, which is what lets those two through - so a
+    # pole-sitter with no grid at all, in a race where someone else holds
+    # grid 1, would slip both checks. Pinned to the same two races.
+    nullgrid = [tuple(r) for r in con.execute("""SELECT r.year, r.round FROM races r
+        JOIN race_entries e ON e.race_id = r.id AND e.pole = 1
+        WHERE e.grid IS NULL ORDER BY r.year, r.round""")]
+    check("the pole-sitter has no grid slot only where they did not start",
+          nullgrid == [(1996, 9), (2021, 5)],
+          "; ".join(f"{y} r{r}" for y, r in nullgrid[:5]))
+
+    # A pole the build credited from F1DB's grid 1 because the hand-written
+    # harvest had not reached the race yet. The entry carries F1DB's source
+    # where a harvested pole carries the season table's, so the two are
+    # distinguishable; the count is printed, and one outside the current
+    # season fails, so the harvest still has to catch up rather than the gap
+    # filling itself for good.
+    inferred = [tuple(r) for r in con.execute("""SELECT r.year, r.round FROM races r
+        JOIN race_entries e ON e.race_id = r.id AND e.pole = 1
+        WHERE e.source = ? ORDER BY r.year, r.round""",
+        (harvest_module().F1DB_SOURCE,))]
+    current = con.execute("SELECT MAX(year) FROM races").fetchone()[0]
+    settled_inferred = [x for x in inferred if x[0] != current]
+    check("a pole credited from grid 1 rather than the season record is only ever in the current season",
+          not settled_inferred, "; ".join(f"{y} r{r}" for y, r in settled_inferred[:5]))
+    warn("every pole comes from the season record",
+         not inferred,
+         f"{len(inferred)} credited from F1DB's grid 1 awaiting the harvest: "
+         + "; ".join(f"{y} r{r}" for y, r in inferred[:5]))
 
     # The 13 races where the credited pole-sitter was not the fastest qualifier.
     # Every one is a penalty or a grid set by a sprint, and both columns are

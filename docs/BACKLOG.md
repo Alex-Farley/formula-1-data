@@ -194,11 +194,12 @@ Worth doing, not yet urgent.
       `cooper-t51`, `lotus-25`). Both are genuinely small and can ride along
       with any data sitting. The centreline warning that used to sit here is
       now `PM-26`, because it is upstream data repair and was borrowing an S
-      from its two small siblings. The 18-open-`discrepancies` warning that
-      used to sit beside them was retired by `PM-05` and `PM-25`; of the
-      warnings left after these two, only the Nürburgring Südschleife, the
-      unrun 2026 r17 sprint and `PM-26`'s centrelines are expected. —
-      *project record · S*
+      from its two small siblings. The open-`discrepancies` warning that
+      used to sit beside them reads one row rather than eighteen since
+      `PM-05` and `PM-25` (1970 r1, a genuine source disagreement); of the
+      warnings left after these two, only that one, the Nürburgring
+      Südschleife, the unrun 2026 r17 sprint and `PM-26`'s centrelines are
+      expected. — *project record · S*
 
 - [ ] `PM-12` **Loosen the specification harvest's name check.** It refuses
       "Alfa Romeo 158/159 Alfetta" for `alfa-romeo-159`. Match the chassis name
@@ -583,9 +584,13 @@ Real, but not costed, or waiting on a decision.
       row ever changes. The 1970 South African row stays with Brabham alone:
       the article footnotes that some sources credit Surtees, but his
       reference total of 10 excludes it and was corrected to 10 once already
-      on that evidence. All three are resolved rows on the record, and the
-      prerenderer now lists every setter of a shared lap, as the app did. —
-      *project record · `621c49a`*
+      on that evidence — but the article records that sources differ, so
+      that row stays **open** with the reasoning attached rather than being
+      closed on the strength of another figure. The two shares are resolved
+      rows on the record; Ireland's 1 and Ickx's 14 are now held as reference
+      totals so all three restored names sit under the external cross-check;
+      and the prerenderer lists every setter of a shared lap, as the app did.
+      — *project record · `621c49a`*
 
 - [x] `PM-05` **Pole is its own flag.** `grid = 1` carried two meanings — the
       car that started from the front and the driver credited with pole — and
@@ -596,8 +601,12 @@ Real, but not costed, or waiting on a decision.
       by the season record, `grid` is F1DB's, and the fastest qualifier stays
       in `qualifying`. The thirteen pole-versus-fastest-qualifier rows are gone
       from `discrepancies`, because neither source was wrong about what it
-      describes; `verify.py` pins all three counts instead, and the
-      open-discrepancies warning is retired with zero open rows. The
+      describes; `verify.py` pins all three counts instead, and
+      `discrepancies` goes from eighteen open rows to one. A pole the build
+      credits from F1DB's grid 1 while the harvest catches up is now
+      distinguishable by its source and refused outside the current season.
+      `VERSION` is 2.21, because a new column and six changed views should
+      not ship under the released schema's number. The
       front-end review caught the car page selecting its columns by name and
       so rendering every car's poles as zero; the smoke test now asserts the
       MP4/4's fifteen and was confirmed to fail without the fix. —

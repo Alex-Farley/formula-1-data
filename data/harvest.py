@@ -175,6 +175,7 @@ POLES_FILE = os.path.join(HERE, "..", "harvest", "poles.txt")
 
 def load_poles():
     rows = []
+    applied = set()
     with open(os.path.abspath(POLES_FILE), encoding="utf-8") as f:
         for line in f:
             line = line.strip()
@@ -182,23 +183,34 @@ def load_poles():
                 continue
             year, rnd, pole, fl, winner = line.split("|")
             fl = None if fl.strip() in ("?", "") else fl.strip()
+            fl_source = SOURCE.format(year=int(year))
             shared = SHARED_FASTEST_LAPS.get((int(year), int(rnd)))
             if shared:
-                held, names, _, _ = shared
+                held, names, src, _ = shared
                 if fl != held:
                     raise SystemExit(
                         f"poles harvest: shared fastest lap override for "
                         f"{year} r{rnd} expects {held!r}, row holds {fl!r}; "
                         f"the harvest has changed, re-check the override")
-                fl = names
+                # The season table is the source for the one name it gives;
+                # the race article is the source for the share.
+                fl, fl_source = names, src
+                applied.add((int(year), int(rnd)))
             rows.append({
                 "year": int(year),
                 "round": int(rnd),
                 "pole": None if pole.strip() in ("?", "") else pole.strip(),
                 "fastest_lap": fl,
+                "fastest_lap_source": fl_source,
+                "shared_override": bool(shared),
                 "winner_check": winner.strip(),
                 "source": SOURCE.format(year=int(year)),
             })
+    missing = sorted(set(SHARED_FASTEST_LAPS) - applied)
+    if missing:
+        raise SystemExit(
+            f"poles harvest: shared fastest lap override(s) for {missing} "
+            f"name a race the harvest no longer has a row for")
     return rows
 
 
@@ -688,18 +700,32 @@ SHARED_FASTEST_LAPS = {
 # Races where F1DB names a different fastest-lap setter from the harvest and
 # the disagreement has been LOOKED AT. build.py records every such race in
 # `discrepancies`; an entry here replaces the generic open assessment with
-# what the check found. A race not listed here stays open.
+# what the check found, and says whether the row is still open. A race not
+# listed here stays open with the generic text.
 #   (year, round): (status, assessment)
 FASTEST_LAP_DISAGREEMENTS = {
     (1970, 1): (
-        "resolved - reference record checked",
+        "open - sources differ, reference record favours the stored value",
         "The harvest credits Brabham alone with the 1:20.8; F1DB credits "
         "Surtees. The race article credits Brabham and footnotes that some "
-        "sources credit both. Surtees's reference total is 10 on formula1.com "
-        "and in his career infobox, and the hand-entered 11 was already "
-        "corrected to 10 on that evidence (CORRECTIONS), so crediting him "
-        "here would reopen a settled figure. The single-name reading stands. "
+        "sources credit both, so this is a real disagreement between sources "
+        "and stays open. The single-name reading is kept because the reference "
+        "record sides with it: Surtees's total is 10 on formula1.com and in "
+        "his career infobox, and the hand-entered 11 was already corrected to "
+        "10 on that evidence (CORRECTIONS). That is a reason to prefer one "
+        "reading, not proof the other is wrong. "
         "Source: https://en.wikipedia.org/wiki/1970_South_African_Grand_Prix"),
+}
+
+# Reference fastest-lap totals for the two drivers a restored share above
+# also names and whose rows in data/drivers.py carry no career figures. With
+# these, all three names the shares credit sit under the same external
+# cross-check that pins Brabham and Phil Hill; without them Ireland's 1 and
+# Ickx's 14 were asserted in the reasoning and checked by nothing.
+#   driver_id: (fastest laps, source)
+EXTERNAL_FASTEST_LAPS = {
+    "ireland": (1, "https://en.wikipedia.org/wiki/Innes_Ireland"),
+    "ickx": (14, "https://en.wikipedia.org/wiki/Jacky_Ickx"),
 }
 
 # Differences between a hand-entered career figure and the figure derived

@@ -11,6 +11,7 @@ import math
 import os
 import re
 import sqlite3
+import struct
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -30,7 +31,7 @@ from data import radio as RA       # noqa: E402
 from data import results as RS     # noqa: E402
 
 DB = os.path.join(HERE, "f1.db")
-VERSION = "2.20"
+VERSION = "2.21"
 
 # The build date, as a CONSTANT and deliberately not date.today().
 #
@@ -368,6 +369,17 @@ def _stage_03_drivers_admitted_from_the_f1db_register(b):
         wins_external = wins, poles_external = poles,
         fastest_laps_external = fastest_laps,
         external_source = 'hand-entered from reference records'""")
+    # Fastest-lap totals for drivers whose hand-entered row carries none,
+    # declared with their source so the derived figure has something to be
+    # checked against. Fills a blank only.
+    for did_, (fl_, src_) in sorted(HV.EXTERNAL_FASTEST_LAPS.items()):
+        n = cur.execute("""UPDATE drivers SET fastest_laps_external = ?,
+            external_source = COALESCE(external_source || '; ', '')
+                              || 'fastest laps from ' || ?
+            WHERE id = ? AND fastest_laps_external IS NULL""",
+            (fl_, src_, did_)).rowcount
+        if n != 1:
+            raise SystemExit(f"external fastest laps: {did_} not applied")
 
 
 def _stage_04_constructors(b):
@@ -1181,6 +1193,7 @@ def _stage_17_pole_position_and_fastest_lap_as(b):
     # winner already recorded. A mismatch means the row describes a different
     # race and is rejected outright.
     applied = 0
+    restored = []
     for h in HV.load_poles():
         rid = race_key.get((h["year"], h["round"]))
         if rid is None:
@@ -1195,7 +1208,7 @@ def _stage_17_pole_position_and_fastest_lap_as(b):
                 f"harvest {h['winner_check']!r} vs stored "
                 f"{stored[0] if stored else None!r}")
 
-        def upsert(did, **fields):
+        def upsert(did, source=None, **fields):
             row = cur.execute("""SELECT id FROM race_entries
                 WHERE race_id=? AND driver_id=?""", (rid, did)).fetchone()
             if row:
@@ -1207,7 +1220,8 @@ def _stage_17_pole_position_and_fastest_lap_as(b):
                 qs = ",".join("?" * len(fields))
                 cur.execute(f"""INSERT INTO race_entries (race_id, driver_id,
                     confidence, source, {cols}) VALUES (?,?,?,?,{qs})""",
-                    (rid, did, "reference", h["source"], *fields.values()))
+                    (rid, did, "reference", source or h["source"],
+                     *fields.values()))
 
         pole_names = HV.split_names(h["pole"])
         fl_names = HV.split_names(h["fastest_lap"])
@@ -1218,7 +1232,10 @@ def _stage_17_pole_position_and_fastest_lap_as(b):
             upsert(driver_id(pole_names[0], f"pole {h['year']} r{h['round']}"), pole=1)
         for nm in fl_names:
             upsert(driver_id(nm, f"fastest lap {h['year']} r{h['round']}"),
+                   source=h["fastest_lap_source"],
                    fastest_lap=1, fastest_lap_shared=len(fl_names))
+        if h["shared_override"]:
+            restored.append((h["year"], h["round"]))
         applied += 1
     if applied != 1161:
         raise SystemExit(f"pole harvest: expected 1161 rows, applied {applied}")
@@ -1227,8 +1244,8 @@ def _stage_17_pole_position_and_fastest_lap_as(b):
     # harvest said, so each goes on the record as a resolved disagreement:
     # the single name the season table gave against the names the race
     # article gives, with the source.
-    for (yr_, rnd_), (held_, names_, src_, why_) in sorted(
-            HV.SHARED_FASTEST_LAPS.items()):
+    for yr_, rnd_ in sorted(restored):
+        held_, names_, src_, why_ = HV.SHARED_FASTEST_LAPS[(yr_, rnd_)]
         cur.execute("""INSERT INTO discrepancies (subject, field, stored_value,
             derived_value, assessment, status) VALUES (?,?,?,?,?,?)""",
             (f"{yr_} round {rnd_}", "fastest lap", held_, names_,
@@ -1630,9 +1647,13 @@ def _stage_23_a_round_that_has_a_result(b):
     # site would publish a finished race with the field blank while every
     # pole cross-check silently skipped it (2026 round 13 sat in that state).
     # Credit the car F1DB puts at grid 1, which is what the season record
-    # credits for every race since 1950 bar one. Only into a vacancy, only
-    # where exactly one car holds grid 1, and only here, after the promotion,
-    # because a race is not completed until this stage says so.
+    # credits for every race since 1950 bar one. Only into a vacancy, and
+    # only where exactly one car holds grid 1. It scans every completed race
+    # rather than the promoted one, and sits here because a race is not
+    # completed until this stage says so. A pole credited this way is
+    # distinguishable - the entry carries F1DB's source where a harvested
+    # pole carries the season table's - and verify.py refuses one in any
+    # season but the current, so the harvest still has to catch up.
     cur.execute("""UPDATE race_entries SET pole = 1
         WHERE grid = 1
           AND race_id IN (SELECT id FROM races WHERE status = 'completed')
@@ -2787,8 +2808,28 @@ def report(con):
     print("\nviews:", ", ".join(views))
 
 
+# The SQLite library that last wrote a database stamps its own version number
+# into the file header, at bytes 96-99. Nothing reads it back, but it makes
+# the artefact depend on which SQLite the builder happened to link: a copy
+# built on a Mac against 3.51 and one built in CI against 3.45 differ in
+# exactly those bytes and nothing else, and ci.yml compares the committed
+# copy against a fresh build byte for byte. Pinned to the value every
+# committed copy has carried, for the same reason BUILT is a constant - the
+# database is a pure function of its sources, not of the machine.
+SQLITE_HEADER_VERSION = 3045001
+
+
+def pin_sqlite_header(path):
+    with open(path, "r+b") as f:
+        f.seek(96)
+        f.write(struct.pack(">I", SQLITE_HEADER_VERSION))
+
+
 if __name__ == "__main__":
     c = build()
     report(c)
+    c.close()
+    for path in (DB, GEOMETRY_DB):
+        pin_sqlite_header(path)
     print(f"\nWrote {DB}")
 
