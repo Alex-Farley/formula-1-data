@@ -53,6 +53,12 @@ here.
 New critiques file their findings here as new IDs. `docs/critiques/` keeps the
 full reasoning and the evidence; this file is the queue, not the argument.
 
+This is also the **only** queue. An agent working unattended starts here,
+reassesses an item against the repository as it is now before touching it —
+items go stale, land under other IDs, or get superseded — and files anything it
+discovers back here under these conventions. The process around that is in
+`CONTRIBUTING.md` under *Working autonomously*.
+
 ---
 
 ## Now

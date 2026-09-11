@@ -146,6 +146,50 @@ step writes `public/build-status.txt`, served at `/build-status.txt`, on
 success as well as failure. Build logs are off for this project, so a silent
 failure is invisible — that is what hid this one for three rounds.
 
+## Working autonomously
+
+An agent working through the backlog without a person watching follows the
+rules above and these. The full process is in `CONTRIBUTING.md` under
+*Working autonomously*; this is the part that has to be in front of you.
+
+- **`docs/BACKLOG.md` is the queue.** Nothing else is. Before starting an
+  item, reread it against the code as it is now — an item can be stale,
+  already landed under another ID, or superseded by a later finding. Work
+  you discover goes back into the backlog under its ID, source and size
+  conventions, not into a note, a TODO or a second list.
+- **A fact needs a source before it needs a line of code.** Official FIA,
+  Formula 1, team, driver, power-unit or circuit sources first; then the
+  classified secondary sources. Never invent a missing value: NULL means
+  *not established*, and a fact two sources disagree on goes in
+  `discrepancies`, a fact nobody holds in `known_gaps`.
+- **`make all` before every commit** that touches `data/`, `harvest/`,
+  `build.py`, `schema.sql` or the exporters — never `make check`, which
+  leaves `f1_compat.json` stale. Generated artefacts are rebuilt, never
+  edited.
+- **Every autonomous PR gets an independent review from a fresh context**
+  before it merges, and returns an explicit `PASS — safe to merge` or
+  `FAIL — changes required`. The agent that wrote the change is not its
+  approver. The reviewer gets the task, the rules, the diff and the
+  validation results, and tries to disprove the work. A FAIL is fixed and
+  reviewed again, fresh. Silence, a rate limit or an unavailable review
+  account is not a PASS.
+- **`review.yml` failing is infrastructure, not a defect.** It runs on a
+  credential that is currently exhausted. Do not retry it, do not edit it
+  to make it pass, and do not treat its red check as a code failure or its
+  absence as approval — run the equivalent reviewer from
+  `.claude/agents/` yourself.
+- **Merging `main` deploys lapledger.org.** Cloudflare Workers Builds runs
+  on every push to `main`. A merge is a production change.
+- **Skip an ordinary blocker; stop on a dangerous one.** A network failure,
+  an unavailable service or a missing non-critical credential is recorded
+  and worked around. Anything that could corrupt data, breach a licence,
+  weaken a safeguard, change production infrastructure or lose history
+  stops the loop.
+- **Never weaken a control to keep going.** Not the checks, not the
+  workflows, not branch protection, not repository visibility, not the
+  licence classification, and not `review.yml`'s refusal to review a PR
+  that edits it.
+
 ## Measured and rejected — do not re-propose
 
 - **Route-level code splitting** in the front end. The bundle is 398 KB raw /
