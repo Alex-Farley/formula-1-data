@@ -1276,8 +1276,7 @@ def _stage_17_pole_position_and_fastest_lap_as(b):
         if h["shared_override"]:
             restored.append((h["year"], h["round"]))
         applied += 1
-    if applied != 1161:
-        raise SystemExit(f"pole harvest: expected 1161 rows, applied {applied}")
+    harvest_covers_every_completed_race(cur, race_key, HV.load_poles(), "pole harvest")
 
     # The shared fastest laps load_poles() restored are a change to what the
     # harvest said, so each goes on the record as a resolved disagreement:
@@ -1337,8 +1336,7 @@ def _stage_18_race_venue_as_circuit_id_on(b):
             source=COALESCE(source, ?) WHERE id=?""",
             (h["circuit_id"], h["source"], rid))
         applied += 1
-    if applied != 1161:
-        raise SystemExit(f"venue harvest: expected 1161 rows, applied {applied}")
+    harvest_covers_every_completed_race(cur, race_key, HV.load_venues(), "venue harvest")
 
 
 def _stage_19_races_that_used_a_layout_other(b):
@@ -2928,6 +2926,34 @@ def report(con):
 # committed copy has carried, for the same reason BUILT is a constant - the
 # database is a pure function of its sources, not of the machine.
 SQLITE_HEADER_VERSION = 3045001
+
+
+def harvest_covers_every_completed_race(cur, race_key, rows, what):
+    """A hand-written harvest must have one row for every completed race it has
+    reached, and no race twice.
+
+    This replaced `applied != 1161`: a literal that had to be bumped by hand
+    after every Grand Prix, in two places, or the build refused - and that
+    caught a truncated file only by accident of its being the right number.
+    The rule it was standing in for is the one stated here. A race after the
+    harvest's last row is the week it has not caught up yet; that is what the
+    vacancy fills in the F1DB loaders are for, and verify.py counts it.
+    """
+    seen = {}
+    for h in rows:
+        key = (int(h["year"]), int(h["round"]))
+        seen[key] = seen.get(key, 0) + 1
+    twice = sorted(k for k, n in seen.items() if n > 1)
+    if twice:
+        raise SystemExit(f"{what}: {len(twice)} race(s) appear twice, e.g. {twice[:3]}")
+    last = max(seen)
+    completed = {(y, r) for (y, r), rid in race_key.items()
+                 if cur.execute("SELECT status FROM races WHERE id=?", (rid,)).fetchone()[0]
+                 == "completed"}
+    missing = sorted(k for k in completed if k <= last and k not in seen)
+    if missing:
+        raise SystemExit(f"{what}: no row for {len(missing)} completed race(s) before "
+                         f"its last row {last}, e.g. {missing[:3]}")
 
 
 def coverage_note(cur):
