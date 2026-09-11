@@ -101,8 +101,8 @@ function Body({ data }) {
           leaderboard below, the leaderboard is the newer of the two.
           {tiers.length === 1 && (
             <>
-              {' '}All thirty carry the <Confidence value={tiers[0]} /> tier, so it is not repeated
-              on every row.
+              {' '}All {records.length} carry the <Confidence value={tiers[0]} /> tier, so it is not
+              repeated on every row.
             </>
           )}
         </p>
