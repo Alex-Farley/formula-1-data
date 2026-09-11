@@ -458,8 +458,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 
 - [ ] `CR-07` **The season is a magic number in nine files.** `2026` 158 times; no `CURRENT_SEASON`. S for the constant, then one file per sitting. `SD-12` is the service face. — *code review · M*
 
-- [ ] `CR-08` **`meta.coverage_note` is stale prose inside the artefact.** Rides with `PD-07`; `PD-24` is the same finding from the product side. `schema.sql:3` says 2.0; `:7` lists four tiers of five. — *code review · S*
-
 - [ ] `CR-09` **The check count is stated seven ways, none right.** 121, 133, 143, 158, 170, 171, ~170; runtime 209. Remove every number or print it from `verify.py`. — *code review · S*
 
 - [ ] `CR-10` **`export_json.py` hand-types three facts and exports `grands_prix` twice.** Derive the strings from `seasons`/`drivers`; check which key a v1 consumer reads before dropping one. — *code review · S*
@@ -487,8 +485,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 - [ ] `PD-22` **The atlas is the only page type with no prerendered content.** Prerender the 25 shapes as static SVG; the geometry is already read by `prerender.js`. `AX-09`'s banded-runs table answers 1.1.1 at the same time. — *product critique · S*
 
 - [ ] `PD-23` **Elevation as a fact, not a rendering.** Add `elevation_change_m` to `circuits` from the Wikipedia article each already cites, for the ~20 venues that state one. The Lap Ledger-shaped answer to the 3D instinct — see *Declined*. — *product critique · S*
-
-- [ ] `PD-24` **`PD-07`'s stale prose ships inside the artefact.** `meta.coverage_note` says qualifying is not held. Same fix as `CR-08`; rides with `PD-07`. — *product critique · S*
 
 - [ ] `PD-25` **The disagreements claim is now one open row, and that is the better claim.** 45 found, 44 resolved on the record, one open. Change `CD-07`'s wording before `/data` ships. — *product critique · S*
 
@@ -557,8 +553,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 - [ ] `DA-05` **The `reference` tier's published definition is wrong for 96% of its rows.** Says Wikipedia; 91,407 of 94,957 are F1DB. 0.16 bits of information in the column. Rewrite the definition; check named sources against cited ones. The primitive question is `PM-15`/`PM-16`, in that order after `DA-03`. — *data architecture critique · S*
 
 - [ ] `DA-06` **Two-thirds of the schema's prose does not ship.** SQLite keeps the text from `CREATE`; 298 of 448 comment lines — including this week's `WHAT 'POLE' MEANS HERE` — are above it and lost. Move each block inside the parentheses. Confirm byte-stability after. — *data architecture critique · S*
-
-- [ ] `DA-07` **`pit_stops` ships 22,481 rows with no durations, and `known_gaps` #5 says the table is empty.** Correct the gap and the column comment; add the check that a table the register calls empty has zero rows. Rides with `PD-05`. — *data architecture critique · S*
 
 - [ ] `DA-08` **Nothing scores zero, except in the one table where everything does.** 8,107 classified finishers with NULL `points`, zero rows with `points = 0`; `standings` has 3,489 zeros. A data decision: write `0` where the era's system paid nothing. `CD-01`'s defect one column over. — *data architecture critique · S, decision first*
 
@@ -1086,6 +1080,21 @@ Real, but not costed, or waiting on a decision.
       The web build and the smoke test — which reads its expectations out of
       the refreshed database — now run in the refresh itself, before the
       commit. — *service critique · #44*
+
+- [x] `CR-08` **`meta.coverage_note` is derived from the counts.** The typed
+      sentence told a bulk-data consumer the database held no qualifying
+      beside 26,997 qualifying rows, and "pole 1950-2024" beside poles to
+      2026, in `f1.db`, both exports and the Parquet bundle. Every figure in
+      it is now read off the table it describes, and a check holds it to the
+      live qualifying count. `PD-24` is the same finding on the same surface
+      and closes with it. — *code review, product critique · #45*
+
+- [x] `DA-07` **`known_gaps` #5 no longer calls `pit_stops` empty.** It holds
+      22,481 F1DB stops (lap and order, no durations) and `team_radio` six
+      quoted exchanges; the gap now says so, the `pit_stops` schema comment
+      says both duration columns are NULL in the distributed database and
+      why, and a check refuses a table the gap calls empty that is not. —
+      *data architecture critique · #45*
 
 ## Declined
 

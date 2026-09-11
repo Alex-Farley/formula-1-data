@@ -1749,6 +1749,23 @@ def the_full_classification():
     check("every race entry that is not a winner's cites F1DB", mixed == 0,
           f"{mixed} non-winner rows cite another source")
 
+    # known_gaps #5 names the tables that are EMPTY in the distributed
+    # database. It named pit_stops and team_radio while they held 22,481 and
+    # 6 rows; the register that exists to be honest about absence was wrong
+    # about presence. Every table named before the word EMPTY must be empty.
+    gap = con.execute("SELECT description FROM known_gaps WHERE field = 'laps'").fetchone()
+    tables_ = {r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    named = [t for t in re.findall(r"[a-z_]+", gap[0].split("EMPTY")[0]) if t in tables_] if gap else []
+    full = [t for t in named if con.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]]
+    check("every table known_gaps calls empty is empty", bool(named) and not full,
+          f"{', '.join(named)} named; {', '.join(full) or 'none'} not empty")
+
+    # meta.coverage_note is derived from the counts; this holds it to them.
+    note_ = con.execute("SELECT value FROM meta WHERE key = 'coverage_note'").fetchone()[0]
+    nq_ = con.execute("SELECT COUNT(*) FROM qualifying").fetchone()[0]
+    check("meta.coverage_note carries the live qualifying count",
+          f"{nq_:,} qualifying rows" in note_, note_[:80])
+
     # A FLOOR UNDER EVERY BULK TABLE. data/harvest.py's _read_named returns []
     # for a missing generated file by design, from when those files were a
     # local extra; they are now 93% of the rows, and the checks below are

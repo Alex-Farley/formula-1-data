@@ -1147,10 +1147,13 @@ CREATE TABLE pit_stops (
     driver_key      TEXT NOT NULL,             -- as laps.driver_key
     stop_number     INTEGER,
     lap_number      INTEGER,
-    -- Both sources publish PIT LANE time - entry to exit, around 20-30 s -
-    -- not the two or three seconds the car is stationary. Storing the one we
-    -- have in the column that names it, and leaving the other NULL, is the
-    -- difference between a figure and a wrong figure.
+    -- The timing sources publish PIT LANE time - entry to exit, around
+    -- 20-30 s - not the two or three seconds the car is stationary. Storing
+    -- the one we have in the column that names it, and leaving the other
+    -- NULL, is the difference between a figure and a wrong figure. In the
+    -- DISTRIBUTED database both are NULL on every row: the only source that
+    -- may be passed on, F1DB, publishes the lap and the stop order and no
+    -- duration at all. Strategy is derivable from it; duration is not.
     stationary_seconds REAL,
     pit_lane_seconds REAL,
     source          TEXT NOT NULL DEFAULT 'fastf1',

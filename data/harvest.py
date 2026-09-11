@@ -544,9 +544,11 @@ KNOWN_GAPS = [
      "seasons are listed in v_ambiguous_seasons and in car_seasons where "
      "corroborated = 0."),
     ("laps", "lap times, tyre stints, pit stops, radio and telemetry",
-     "The laps, stints, pit_stops, race_control_messages and team_radio "
-     "tables are EMPTY in the distributed database, and that is a licensing "
-     "and reproducibility decision rather than a missing harvest. Two "
+     "The laps, stints and race_control_messages tables are EMPTY in the "
+     "distributed database, and that is a licensing and reproducibility "
+     "decision rather than a missing harvest. (pit_stops holds F1DB's stops - "
+     "lap and order, no durations - and team_radio six exchanges quoted from "
+     "Wikipedia; both may be passed on.) Two "
      "sources fill them, and between them they reach further back than the "
      "2018 floor this gap used to describe. "
      "Jolpica's database dump has 628,454 race laps from 1996 and 12,627 pit "
