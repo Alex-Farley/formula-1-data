@@ -20,7 +20,7 @@ make all
 ```
 
 That rebuilds `f1.db` from `data/*.py`, runs the checks, and regenerates the
-JSON exports. It should end with `All checks passed. 2 warning(s).` and leave
+JSON exports. It should end with `All checks passed.` followed by the live warning count and leave
 `git status` clean — the build is deterministic, so a fresh build reproduces
 the committed artefacts exactly.
 
