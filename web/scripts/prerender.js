@@ -44,6 +44,10 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { DatabaseSync } from 'node:sqlite'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+// The one rule for the "Out"/"Status" column, shared with the app rather
+// than restated here: a copy of it would drift, which is how the twelve
+// hardcoded `circuit_geometry` columns went wrong.
+import { finished } from '../src/lib/format.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const web = join(here, '..')
@@ -560,7 +564,7 @@ const titled = (headline) => `${headline} — ${SITE}`
                   esc(e.grid_text ?? (e.grid ?? '—')),
                   num(e.laps_completed),
                   num(e.points),
-                  `${text(e.status)}${e.fastest_lap ? ' · fastest lap' : ''}`,
+                  `${finished(e.status, e.finish_position) ? 'Finished' : text(e.status)}${e.fastest_lap ? ' · fastest lap' : ''}`,
                 ]),
               )}`
             : scheduled

@@ -7,7 +7,7 @@ import Disagreement, { DRIVER_DISAGREEMENTS } from '../components/Disagreement.j
 import Figure from '../charts/Figure.jsx'
 import DotPlot from '../charts/DotPlot.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
-import { missing, number, points as fmtPoints, result, span } from '../lib/format.js'
+import { finished, missing, number, points as fmtPoints, result, span } from '../lib/format.js'
 import { finalStandings } from '../lib/standings.js'
 
 const DRIVER = `SELECT * FROM drivers WHERE id = ?`
@@ -306,7 +306,12 @@ function DriverBody({ driver, data }) {
                 )
               },
             },
-            { key: 'status', label: 'Out' },
+            {
+              key: 'status',
+              label: 'Out',
+              render: (value, row) =>
+                finished(value, row.finish_position) ? 'Finished' : cell(value),
+            },
             { key: 'laps_completed', label: 'Laps', align: 'num' },
             {
               key: 'points',

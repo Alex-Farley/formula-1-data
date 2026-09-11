@@ -10,6 +10,17 @@ export const EMPTY = '—'
 
 export const missing = (value) => value === null || value === undefined || value === ''
 
+/**
+ * A null `status` on a classified finisher is not a retirement whose reason
+ * nobody recorded — it is a driver who finished. 15,714 of 27,482
+ * `race_entries` rows carry a null status *and* a finish position, so the
+ * em dash was asserting the opposite of the truth on 57% of entries, under a
+ * caption saying exactly that. Every "Out" column reads this, so the rule
+ * lives here rather than at the four render sites.
+ */
+export const finished = (status, finishPosition) =>
+  missing(status) && !missing(finishPosition)
+
 export function text(value) {
   if (missing(value)) return EMPTY
   if (typeof value === 'number') return number(value)

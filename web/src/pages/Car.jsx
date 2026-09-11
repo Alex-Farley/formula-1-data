@@ -4,7 +4,7 @@ import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import CommonsImage from '../components/CommonsImage.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
-import { missing, number, span } from '../lib/format.js'
+import { finished, missing, number, span } from '../lib/format.js'
 
 /**
  * Every chassis this page covers.
@@ -354,7 +354,12 @@ function CarBody({ chassis, variants, data }) {
                   <b>{value}</b>
                 ),
             },
-            { key: 'status', label: 'Out' },
+            {
+              key: 'status',
+              label: 'Out',
+              render: (value, row) =>
+                finished(value, row.finish_position) ? 'Finished' : cell(value),
+            },
           ]}
         />
       </Section>
