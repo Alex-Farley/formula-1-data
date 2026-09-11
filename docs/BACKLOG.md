@@ -452,8 +452,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 
 - [ ] `CR-03` **Nothing tests the checks.** 184 assertion sites in `verify.py`, zero tests that any fires on bad data; `tests/` covers six pure functions. `tests/test_verify.py`: build once to a temp path, one mutation per test, assert the *named* check fails. Six tests cover the licence gate. — *code review · M*
 
-- [ ] `CR-06` **Two hand-bumped `1161` literals, and a per-race manual tax.** Pin "every completed race before the harvest's last round has one pole and one venue row" instead of the count. — *code review · S*
-
 - [ ] `CR-07` **The season is a magic number in nine files.** `2026` 158 times; no `CURRENT_SEASON`. S for the constant, then one file per sitting. `SD-12` is the service face. — *code review · M*
 
 - [ ] `CR-09` **The check count is stated seven ways, none right.** 121, 133, 143, 158, 170, 171, ~170; runtime 209. Remove every number or print it from `verify.py`. — *code review · S*
@@ -1101,6 +1099,15 @@ Real, but not costed, or waiting on a decision.
       `seasons` and `drivers`, so the day the 2026 title is decided the file
       says so. The duplicate `grands_prix`/`grands_prix_register` key is left:
       a v1 consumer may read either. — *code review · #46*
+
+- [x] `CR-06` **The pole and venue harvests are pinned to the calendar.**
+      `applied != 1161` in two places had to be bumped by hand after every
+      Grand Prix or the build refused, and caught a truncated file only by
+      being the right number. One function now asserts the rule it stood in
+      for: one row for every completed race up to the harvest's last, none
+      twice. A race after the last row is the week the harvest has not caught
+      up yet, which the F1DB vacancy fills cover and `verify.py` counts. —
+      *code review · #48*
 
 ## Declined
 
