@@ -32,7 +32,6 @@ import {
 } from '../src/lib/format.js'
 import { metresBetween, stitch } from '../src/lib/lap.js'
 import { trackPath } from '../src/lib/track.js'
-import { finalStandings } from '../src/lib/standings.js'
 
 // A square about 111 m on a side, as [lon, lat] — the order the geometry uses.
 const P0 = [0, 0]
@@ -249,60 +248,5 @@ describe('trackPath', () => {
     assert.equal(trackPath('not json'), null)
     assert.equal(trackPath(ring([])), null)
     assert.equal(trackPath(ring([[P0]])), null)
-  })
-})
-
-describe('finalStandings', () => {
-  const row = (over) => ({
-    year: 2026,
-    entity_id: 'norris',
-    engine_id: null,
-    position: 1,
-    team: 'McLaren',
-    points: 300,
-    source: 'a',
-    ...over,
-  })
-
-  it('folds two sources describing one driver into one row', () => {
-    // formula1.com records the team but no position; F1DB the position but no
-    // team. Rendered naively every driver appears twice.
-    const out = finalStandings([
-      row({ position: null, team: 'McLaren', source: 'formula1.com' }),
-      row({ position: 1, team: null, source: 'f1db' }),
-    ])
-    assert.equal(out.length, 1)
-    assert.equal(out[0].position, 1)
-    assert.equal(out[0].team, 'McLaren')
-  })
-
-  it('keeps two entries one source asserts separately', () => {
-    // Force India was excluded from the 2018 constructors' championship with 0
-    // points and its successor scored 52 under the same id. Both rows belong
-    // in that table; folding them would delete a fact.
-    const out = finalStandings([
-      row({ entity_id: 'force-india', points: 0, position: 10, source: 'f1db' }),
-      row({ entity_id: 'force-india', points: 52, position: 7, source: 'f1db' }),
-    ])
-    assert.equal(out.length, 2)
-  })
-
-  it('takes the larger total when two sources disagree mid-season', () => {
-    // Points only accumulate, so a source that has not recorded the most
-    // recent race is behind and never ahead.
-    const out = finalStandings([
-      row({ points: 280, source: 'formula1.com' }),
-      row({ points: 300, source: 'f1db' }),
-    ])
-    assert.equal(out.length, 1)
-    assert.equal(out[0].points, 300)
-  })
-
-  it('sinks an entity whose position nobody established', () => {
-    const out = finalStandings([
-      row({ entity_id: 'a', position: null, points: 900, source: 'f1db' }),
-      row({ entity_id: 'b', position: 5, points: 10, source: 'f1db' }),
-    ])
-    assert.equal(out[0].entity_id, 'b')
   })
 })

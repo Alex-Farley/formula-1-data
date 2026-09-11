@@ -258,9 +258,8 @@ def standings():
         ORDER BY year""").fetchall()
     mismatch, compared = [], 0
     for sr in season_rows:
-        top = con.execute("""SELECT entity_id, points FROM standings
-            WHERE year=? AND table_type='drivers' AND after_round IS NULL
-              AND position IS NOT NULL
+        top = con.execute("""SELECT entity_id, points FROM v_standings_final
+            WHERE year=? AND table_type='drivers' AND position IS NOT NULL
             ORDER BY position LIMIT 2""", (sr["year"],)).fetchall()
         if len(top) < 2:
             continue
@@ -278,6 +277,138 @@ def standings():
     check("every season's champion and runner-up match the final standings",
           not mismatch, f"{compared} seasons compared"
           if not mismatch else "; ".join(mismatch[:3]))
+
+    # v_standings_final is the answer to "who finished where" and is what the
+    # exports and the pages read. Its one job is to fold two sources' rows for
+    # one entity into one without folding one source's two entries; the first
+    # check is that fold, the second that nothing fell out of it.
+    two = con.execute("""SELECT COUNT(*) FROM (
+        SELECT year, table_type, entity_id FROM v_standings_final
+        GROUP BY 1, 2, 3 HAVING COUNT(DISTINCT source) > 1)""").fetchone()[0]
+    check("v_standings_final shows each entity from one source", two == 0,
+          f"{two} entity-seasons from two sources")
+    lost = con.execute("""SELECT COUNT(*) FROM (
+        SELECT DISTINCT year, table_type, entity_id FROM standings
+        WHERE after_round IS NULL
+        EXCEPT
+        SELECT DISTINCT year, table_type, entity_id FROM v_standings_final)"""
+        ).fetchone()[0]
+    check("v_standings_final keeps every entity the final table holds", lost == 0,
+          f"{lost} entity-seasons dropped")
+    for y in (2025, 2026):
+        n, d = con.execute("""SELECT COUNT(*), COUNT(DISTINCT entity_id)
+            FROM v_standings_final WHERE year=? AND table_type='drivers'""",
+            (y,)).fetchone()
+        check(f"{y} drivers' final table is one row per driver", n == d,
+              f"{n} rows, {d} drivers")
+
+    # WHICH row survives, not just how many. Points only accumulate, so of two
+    # sources describing one entity the larger total is the one that has
+    # counted the most rounds; a view row outscored by another source's row
+    # for the same entity kept the stale figure. A front-end review flipped
+    # the view's ORDER BY on a copy and every count-based check still passed
+    # while Antonelli showed 242 instead of 267 - this is the check that fails.
+    stale = con.execute("""SELECT COUNT(*) FROM v_standings_final f
+        WHERE EXISTS (SELECT 1 FROM standings o
+                      WHERE o.after_round IS NULL AND o.year = f.year
+                        AND o.table_type = f.table_type AND o.entity_id = f.entity_id
+                        AND o.source <> f.source AND o.points > f.points)""").fetchone()[0]
+    check("v_standings_final keeps the source that has counted the most rounds",
+          stale == 0, f"{stale} rows outscored by the other source")
+    # And the fill: where either source has a position or a team, the view
+    # row has it. 2026 is the season with two sources, so it is the test.
+    unfilled = con.execute("""SELECT COUNT(*) FROM v_standings_final f
+        WHERE f.year = 2026 AND (f.position IS NULL OR f.team IS NULL)
+          AND EXISTS (SELECT 1 FROM standings o
+                      WHERE o.after_round IS NULL AND o.year = f.year
+                        AND o.table_type = f.table_type AND o.entity_id = f.entity_id
+                        AND ((f.position IS NULL AND o.position IS NOT NULL)
+                          OR (f.team IS NULL AND o.team IS NOT NULL)))""").fetchone()[0]
+    check("v_standings_final fills position and team from the other source",
+          unfilled == 0, f"{unfilled} rows left blank where a source had the value")
+
+    # The other half of the contract. Folding two sources must not fold one
+    # source's two entries: for every entity-season the view holds exactly as
+    # many rows as the kept source holds in the table. A view rewritten to one
+    # row per entity passes every check above and silently erases 2018 Force
+    # India's excluded entry and two of Cooper's three 1960 engines; this is
+    # the check that refuses it, and the two are pinned by name as well.
+    folded = con.execute("""SELECT COUNT(*) FROM (
+        SELECT f.year, f.table_type, f.entity_id, COUNT(*) AS in_view,
+               (SELECT COUNT(*) FROM standings o
+                 WHERE o.after_round IS NULL AND o.year = f.year
+                   AND o.table_type = f.table_type AND o.entity_id = f.entity_id
+                   AND o.source = MIN(f.source)) AS in_source
+          FROM v_standings_final f
+         GROUP BY f.year, f.table_type, f.entity_id
+        HAVING in_view <> in_source)""").fetchone()[0]
+    check("v_standings_final keeps every entry the kept source asserts",
+          folded == 0, f"{folded} entity-seasons with a different row count")
+
+    # The check that constrains the VALUE and not the rule. "Larger total
+    # wins" assumes the sources agree at any one round; where the official
+    # snapshot and F1DB's table after the same round differ, that is a
+    # disagreement the build must have filed, or a new one has arrived.
+    unfiled = []
+    pts_text = lambda v: str(int(v)) if float(v).is_integer() else str(v)  # noqa: E731
+    for yr_, kind_, eid_, snap_, rnd_ in con.execute("""
+        SELECT s.year, s.table_type, s.entity_id, s.points,
+               CAST(SUBSTR(s.as_of, INSTR(s.as_of, 'after round ') + 12) AS INTEGER)
+          FROM standings s
+         WHERE s.after_round IS NULL AND s.as_of LIKE '%(after round %'"""):
+        f1db_ = con.execute("""SELECT points FROM standings
+            WHERE year=? AND table_type=? AND entity_id=? AND after_round=?
+              AND source LIKE '%f1db%'""", (yr_, kind_, eid_, rnd_)).fetchone()
+        if f1db_ and f1db_[0] is not None and abs(f1db_[0] - snap_) > 0.001:
+            subj_ = con.execute(
+                "SELECT full_name FROM drivers WHERE id=?" if kind_ == "drivers"
+                else "SELECT name FROM constructors WHERE id=?", (eid_,)).fetchone()
+            # Open, and about this entity: a tidying pass that marked one
+            # resolved would take it off the page, and this is what says so.
+            filed = con.execute("""SELECT 1 FROM discrepancies
+                WHERE subject = ? AND field = ? AND stored_value = ?
+                  AND derived_value = ? AND status LIKE 'open%'""",
+                (subj_[0] if subj_ else eid_,
+                 f"{yr_} championship points, after round {rnd_}",
+                 pts_text(snap_), pts_text(f1db_[0]))).fetchone()
+            if not filed:
+                unfiled.append(f"{yr_} {kind_} {eid_} {snap_} v {f1db_[0]}")
+    check("every points disagreement between the official snapshot and F1DB is filed",
+          not unfiled, "; ".join(unfiled[:3]))
+    # The view is a classification: positions 1..n, points non-increasing.
+    for y in (2025, 2026):
+        for t in ("drivers", "constructors"):
+            rows = con.execute("""SELECT position, points FROM v_standings_final
+                WHERE year=? AND table_type=? AND position IS NOT NULL
+                ORDER BY position""", (y, t)).fetchall()
+            pos = [r[0] for r in rows]
+            check(f"v_standings_final {y} {t} positions are 1..n with no gaps",
+                  pos == list(range(1, len(pos) + 1)), str(pos[:5]))
+            pts_ = [r[1] for r in rows]
+            check(f"v_standings_final {y} {t} points are non-increasing",
+                  all(pts_[i] >= pts_[i + 1] for i in range(len(pts_) - 1)))
+    # A season built from two sources need not balance where they disagree;
+    # it is worth knowing when it does not.
+    for y in (2025, 2026):
+        d_, c_ = (con.execute("""SELECT SUM(points) FROM v_standings_final
+            WHERE year=? AND table_type=?""", (y, t)).fetchone()[0]
+                  for t in ("drivers", "constructors"))
+        warn(f"{y} published drivers' and constructors' totals agree",
+             d_ == c_, "" if d_ == c_ else
+             f"drivers {d_}, constructors {c_} - the sources disagree, see discrepancies")
+    # The new unique index makes INSERT OR IGNORE able to drop a row silently;
+    # a floor on the count is what would say so.
+    # 34,563 is the count at v2.22; raise it when a harvest legitimately adds
+    # rows, never lower it.
+    nstd = con.execute("SELECT COUNT(*) FROM standings").fetchone()[0]
+    check("the standings table holds at least as many rows as the last release",
+          nstd >= 34563, f"{nstd} rows")
+    for yr_, eid_, want_ in ((2018, "force-india", 2), (1960, "cooper", 3)):
+        got_ = con.execute("""SELECT COUNT(*) FROM v_standings_final
+            WHERE year=? AND table_type='constructors' AND entity_id=?""",
+            (yr_, eid_)).fetchone()[0]
+        check(f"{yr_} {eid_} keeps its {want_} entries in the final table",
+              got_ == want_, f"{got_} rows")
 
 
 @section('RACE RESULTS')
@@ -694,6 +825,9 @@ def external_figures_vs_the_race_records():
                                (int(m.group(1)), int(m.group(2)))).fetchone():
                 unresolved.append(f"#{did} '{subject}' names no race")
         elif con.execute("SELECT 1 FROM drivers WHERE full_name=?",
+                         (subject,)).fetchone():
+            pass
+        elif con.execute("SELECT 1 FROM constructors WHERE name=?",
                          (subject,)).fetchone():
             pass
         else:
@@ -1676,8 +1810,14 @@ def the_full_classification():
               AND engine_id IS NOT NULL
             GROUP BY year, entity_id HAVING COUNT(DISTINCT engine_id) > 1)"""
             ).fetchone()[0]
-        warn("constructors entered under more than one engine are kept apart",
-             True, f"{multi} constructor-seasons with several engine entries")
+        multi_view = con.execute("""SELECT COUNT(*) FROM (
+            SELECT year, entity_id FROM v_standings_final
+            WHERE table_type='constructors' AND engine_id IS NOT NULL
+            GROUP BY year, entity_id HAVING COUNT(DISTINCT engine_id) > 1)"""
+            ).fetchone()[0]
+        check("constructors entered under more than one engine are kept apart",
+              multi > 0 and multi == multi_view,
+              f"{multi} constructor-seasons in the table, {multi_view} in the view")
 
         # A points total that rises as you go down the order is a sorting error,
         # and it is the failure mode that hid an excluded champion.
@@ -1993,17 +2133,24 @@ def illustration_and_geometry():
 @section('VIEWS')
 def views():
     for v in ("v_champions", "v_title_count", "v_constructor_titles",
-              "v_current_grid", "v_season_timeline", "v_unverified"):
+              "v_current_grid", "v_season_timeline", "v_unverified",
+              "v_standings_final"):
         n = con.execute(f"SELECT COUNT(*) FROM {v}").fetchone()[0]
         check(f"view {v} returns rows", n > 0, f"{n} rows")
 
-    # These two are empty until their harvest has been run, so they are checked
-    # for being WELL FORMED rather than for being populated. A view that only
-    # works once someone has fetched half a gigabyte is a view nobody tests.
-    for v in ("v_car_images", "v_images_to_check", "v_circuit_geometry",
-              "v_geometry_coverage"):
-        n = con.execute(f"SELECT COUNT(*) FROM {v}").fetchone()[0]
-        check(f"view {v} is queryable", True, f"{n} rows")
+    # SQLite accepts CREATE VIEW over a column that does not exist and only
+    # fails on SELECT, so a view nothing reads can be broken for a release
+    # without a check noticing. Every view is selected from here; the four that
+    # are empty until a harvest has run are exercised for being well formed
+    # rather than populated, which is the most a check can ask of them.
+    broken = []
+    for (v,) in con.execute(
+            "SELECT name FROM sqlite_master WHERE type='view' ORDER BY name"):
+        try:
+            con.execute(f"SELECT * FROM {v} LIMIT 1").fetchall()
+        except Exception as e:  # noqa: BLE001 - the message is the finding
+            broken.append(f"{v}: {e}")
+    check("every view can be selected from", not broken, "; ".join(broken[:3]))
 
     # ------------------------------------------------------------------ sprints
     #

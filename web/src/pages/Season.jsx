@@ -7,7 +7,6 @@ import Figure from '../charts/Figure.jsx'
 import LineChart from '../charts/LineChart.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { points as fmtPoints, missing, number } from '../lib/format.js'
-import { finalStandings } from '../lib/standings.js'
 
 const SEASON = `
   SELECT s.*, d.full_name AS champion, t.name AS champion_team,
@@ -45,8 +44,21 @@ const STANDINGS = `
   SELECT id, year, table_type, after_round, position, position_text,
          entity, entity_id, engine_id, team, points, source
     FROM standings
-   WHERE year = ?
+   WHERE year = ? AND after_round IS NOT NULL
    ORDER BY after_round, table_type, position
+`
+
+/**
+ * The season as it finished, one row per entity: v_standings_final folds the
+ * two-sources-one-season rows and keeps the one-source-two-entries rows, and
+ * says why in schema.sql. A position nobody established sorts last.
+ */
+const FINAL = `
+  SELECT id, year, table_type, position, position_text, entity, entity_id,
+         engine_id, team, points, source
+    FROM v_standings_final
+   WHERE year = ?
+   ORDER BY table_type, position IS NULL, position, points DESC
 `
 
 const NEIGHBOURS = `
@@ -63,25 +75,13 @@ const ENTRANTS = `
    ORDER BY COALESCE(k.name, se.entrant_id)
 `
 
-/**
- * The final classification of one championship table.
- *
- * after_round IS NULL is the season as it finished — `as_of` reads "final" —
- * and not a missing round. Reading after_round arithmetically turns those
- * NULLs into round zero, which plots a champion's season total before the
- * first race of the year. finalStandings then resolves the two reasons a
- * season can hold more than one final row per entity; see lib/standings.js.
- */
-function finalTable(standings, type) {
-  return finalStandings(standings.filter((row) => row.table_type === type && row.after_round === null))
-}
-
 export default function Season() {
   const { year } = useParams()
   const state = useQueries({
     season: [SEASON, [Number(year)]],
     calendar: [CALENDAR, [Number(year)]],
     standings: [STANDINGS, [Number(year)]],
+    final: [FINAL, [Number(year)]],
     entrants: [ENTRANTS, [Number(year)]],
     neighbours: [NEIGHBOURS, [Number(year)]],
   })
@@ -106,11 +106,12 @@ export default function Season() {
 function SeasonBody({ year, season, data }) {
   const calendar = rows(data, 'calendar')
   const standings = rows(data, 'standings')
+  const final = rows(data, 'final')
   const entrants = rows(data, 'entrants')
   const neighbours = data.neighbours.rows[0] ?? {}
 
-  const driversFinal = useMemo(() => finalTable(standings, 'drivers'), [standings])
-  const constructorsFinal = useMemo(() => finalTable(standings, 'constructors'), [standings])
+  const driversFinal = useMemo(() => final.filter((r) => r.table_type === 'drivers'), [final])
+  const constructorsFinal = useMemo(() => final.filter((r) => r.table_type === 'constructors'), [final])
 
   /**
    * The title race, as it actually ran.
@@ -124,13 +125,10 @@ function SeasonBody({ year, season, data }) {
     const contenders = driversFinal.slice(0, 3).filter((d) => d.entity_id)
     return contenders.map((driver) => ({
       name: driver.entity,
+      // STANDINGS holds the running table only; the season's end is FINAL,
+      // and drawing it here would put the final total at round zero.
       points: standings
-        // The NULL row is the season's end, not a round: including it would
-        // draw the final total at the left-hand edge of the chart.
-        .filter(
-          (r) =>
-            r.table_type === 'drivers' && r.entity_id === driver.entity_id && r.after_round !== null,
-        )
+        .filter((r) => r.table_type === 'drivers' && r.entity_id === driver.entity_id)
         .sort((a, b) => a.after_round - b.after_round)
         .map((r) => ({ x: r.after_round, y: r.points })),
     }))

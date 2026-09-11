@@ -132,7 +132,7 @@ def main():
         # total after all 1,161 rounds - that is 34,000 rows and 10 MB, and
         # it is a different question than "who won the championship".
         "standings": [dict(r) for r in con.execute(
-            """SELECT * FROM standings WHERE after_round IS NULL
+            """SELECT * FROM v_standings_final
                ORDER BY year DESC, table_type, position""")],
         "calendar": dump(con, "calendar", "year, round"),
         "grands_prix_register": dump(con, "grands_prix", "first_held"),
@@ -164,7 +164,7 @@ def main():
             SELECT c.name, c.full_name, c.base, c.first_entry,
                    s.position, s.points
             FROM constructors c
-            JOIN standings s ON s.entity_id=c.id AND s.year=2026
+            JOIN v_standings_final s ON s.entity_id=c.id AND s.year=2026
                             AND s.table_type='constructors'
             ORDER BY s.position""")]
         for t in teams:
@@ -193,7 +193,7 @@ def main():
                     WHERE e.year=2026 AND e.role!='race'""")],
             },
             "driver_standings_snapshot_2026": [dict(r) for r in con.execute("""
-                SELECT position, entity AS driver, team, points FROM standings
+                SELECT position, entity AS driver, team, points FROM v_standings_final
                 WHERE year=2026 AND table_type='drivers' ORDER BY position""")],
             "calendar_2026_current": [dict(r) for r in con.execute("""
                 SELECT round, country, city, dates, circuit_name, circuit_id, sprint, status
@@ -209,6 +209,18 @@ def main():
             },
             "source_registry": out["source_registry"],
         }
+        # A snapshot is one row per entity. This file shipped 333 rows for 23
+        # drivers in seven releases - the running table after every round,
+        # taken by a query with no after_round clause - and the CI check that
+        # compares the committed file against a fresh build certified it each
+        # time, because it checks reproducibility and not sense. This checks
+        # sense.
+        for key, rows_ in (("driver_standings_snapshot_2026",
+                            compat["driver_standings_snapshot_2026"]),
+                           ("teams_2026", teams)):
+            names = [r["driver"] if "driver" in r else r["name"] for r in rows_]
+            if len(names) != len(set(names)):
+                raise SystemExit(f"compat: {key} lists an entity twice")
         p2 = os.path.join(HERE, "f1_compat.json")
         with open(p2, "w", encoding="utf-8") as f:
             json.dump(compat, f, indent=2, ensure_ascii=False)

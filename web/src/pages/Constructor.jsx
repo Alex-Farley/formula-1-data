@@ -1,4 +1,5 @@
 import { Link, useParams } from 'react-router-dom'
+import Disagreement, { CONSTRUCTOR_DISAGREEMENTS } from '../components/Disagreement.jsx'
 import { Confidence, Fields, Note, Onward, Page, Section, Stats } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
@@ -6,7 +7,6 @@ import Figure from '../charts/Figure.jsx'
 import ColumnChart from '../charts/ColumnChart.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { missing, number, points as fmtPoints, span, yearList } from '../lib/format.js'
-import { finalStandings } from '../lib/standings.js'
 import { colourFor } from '../lib/racingColours.js'
 
 const CONSTRUCTOR = `SELECT * FROM constructors WHERE id = ?`
@@ -42,16 +42,17 @@ const BY_SEASON = `
 `
 
 /**
- * after_round IS NULL is the season's final table, not a missing round — and it
- * can legitimately hold two rows for one constructor: Force India was excluded
- * from 2018 with nothing and its successor scored 52 under the same id. Both
- * survive finalStandings; the same-fact-from-two-sources rows do not.
+ * The season's final table can legitimately hold two rows for one constructor:
+ * Force India was excluded from 2018 with nothing and its successor scored 52
+ * under the same id, and Cooper contested 1960 with three engines. Both
+ * survive v_standings_final; the same-fact-from-two-sources rows do not. The
+ * rule and its reasons are on the view in schema.sql.
  */
 const STANDINGS = `
   SELECT s.id, s.year, s.entity_id, s.engine_id, s.position, s.position_text, s.points, s.team
-    FROM standings s
-   WHERE s.table_type = 'constructors' AND s.entity_id = ? AND s.after_round IS NULL
-   ORDER BY s.year
+    FROM v_standings_final s
+   WHERE s.table_type = 'constructors' AND s.entity_id = ?
+   ORDER BY s.year, s.position IS NULL, s.position
 `
 
 const WINS = `
@@ -87,6 +88,7 @@ export default function Constructor() {
     derived: [DERIVED, [id]],
     bySeason: [BY_SEASON, [id]],
     standings: [STANDINGS, [id]],
+    disagreements: [CONSTRUCTOR_DISAGREEMENTS, [id]],
     wins: [WINS, [id]],
     designs: [DESIGNS, [id]],
     lineage: [LINEAGE, [id]],
@@ -118,7 +120,7 @@ export default function Constructor() {
 function ConstructorBody({ constructor, data }) {
   const derived = data.derived.rows[0] ?? {}
   const bySeason = rows(data, 'bySeason')
-  const standings = finalStandings(rows(data, 'standings'))
+  const standings = rows(data, 'standings')
   const wins = rows(data, 'wins')
   const designs = rows(data, 'designs')
   const lineage = rows(data, 'lineage')
@@ -226,6 +228,8 @@ function ConstructorBody({ constructor, data }) {
           </Figure>
         </Section>
       )}
+
+      <Disagreement rows={rows(data, 'disagreements')} what="this team" />
 
       <Section title="Season by season" count={`${bySeason.length} seasons`}>
         <DataTable

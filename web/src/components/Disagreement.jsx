@@ -56,6 +56,14 @@ export const DRIVER_DISAGREEMENTS = `
 /** `fastest_laps` is a column name. The reader is owed the words. */
 const label = (field) => String(field ?? '').replace(/_/g, ' ')
 
+/** Open disagreements about one constructor's figures. Args: [constructor id]. */
+export const CONSTRUCTOR_DISAGREEMENTS = `
+  ${RESOLVED}
+   WHERE d.subject = (SELECT name FROM constructors WHERE id = ?1)
+     AND d.status LIKE 'open%'
+   ORDER BY d.id
+`
+
 /**
  * A stored and a derived reading, side by side.
  *

@@ -365,6 +365,38 @@ try {
   await go('/seasons', 'Seasons')
   is((await tableRows())[0], count('SELECT COUNT(*) FROM seasons'), 'every season is listed')
 
+  // One row per driver. The end-of-season rows hold two sources' descriptions
+  // of 2026; the page reads v_standings_final, which folds them, and the
+  // count here is the view's own, so the assertion and the page cannot drift.
+  console.log('\n/seasons/2026  (one row per driver in the final table)')
+  await go('/seasons/2026', '2026')
+  const finalRows = await page.$$eval('#root main table', (tables) => {
+    const t = tables.find((el) => el.closest('section')?.querySelector('h2')?.textContent.includes("drivers' standings"))
+    return t ? t.querySelectorAll('tbody tr').length : -1
+  })
+  is(
+    finalRows,
+    count(`SELECT COUNT(*) FROM v_standings_final WHERE year = 2026 AND table_type = 'drivers'`),
+    "the 2026 drivers' table is one row per driver",
+  )
+  // And the row that survived is the current one: the leader's points on the
+  // page equal the LARGER of the two sources' totals for them, straight from
+  // the table rather than the view, so a view that kept the stale row fails
+  // here even though the count above would still be right.
+  const leader = one(`SELECT entity_id FROM v_standings_final
+                       WHERE year = 2026 AND table_type = 'drivers' ORDER BY position LIMIT 1`)
+  const leaderPoints = await page.$$eval('#root main table', (tables) => {
+    const t = tables.find((el) => el.closest('section')?.querySelector('h2')?.textContent.includes("drivers' standings"))
+    const cells = [...(t?.querySelector('tbody tr')?.querySelectorAll('td') ?? [])].map((c) => c.textContent.trim())
+    return cells
+  })
+  const leaderExpected = String(one(`SELECT MAX(points) FROM standings
+                                WHERE year = 2026 AND table_type = 'drivers' AND after_round IS NULL AND entity_id = ?`, leader))
+  truthy(
+    leaderPoints.some((c) => c.replace(/,/g, '') === leaderExpected || c.replace(/,/g, '') === leaderExpected.replace(/\.0$/, '')),
+    `the leader's points are the current source's — ${leaderExpected}`,
+  )
+
   /*
    * The reigning champion has a championship position. The 2025-26 rows are
    * hand-maintained from formula1.com and carry `position` with no
@@ -374,6 +406,21 @@ try {
    * is the one direction PD-02 had never been seen in. Read the expectation
    * from the database, as everything here does.
    */
+  // A constructor with an open disagreement shows it, in the app as the
+  // static page does. The subject join is by name, resolved from the id in
+  // SQL; a reworded query that stopped matching would return null silently,
+  // and this is what would say so.
+  const disputed = one(`SELECT c.id FROM constructors c JOIN discrepancies d ON d.subject = c.name
+                         WHERE d.status LIKE 'open%' LIMIT 1`)
+  if (disputed) {
+    console.log(`\n/constructors/${disputed}  (an open disagreement is shown)`)
+    await go(`/constructors/${disputed}`)
+    truthy(
+      (await page.$$('#root main aside.disagreement')).length > 0,
+      'the constructor page shows its open disagreement',
+    )
+  }
+
   console.log('\n/seasons/2025  (the champion is P1, not an em dash)')
   await go('/seasons/2025', '2025')
   const championPos = await page.evaluate(() => {

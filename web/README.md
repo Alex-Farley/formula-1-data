@@ -383,7 +383,7 @@ npm test               # both
 ```
 
 **Two layers, because they fail differently.** `test/units.mjs` puts awkward
-values through `format.js`, `lap.js` and `standings.js` and looks at the
+values through `format.js` and `lap.js` and looks at the
 answers — a blank that is not a zero, a hyphenated venue that is not two words,
 a three-metre hole that is not a join. `test/smoke.mjs` drives the built site
 and can only reach the values that happen to be in `f1.db` on the pages it
