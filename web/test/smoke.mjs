@@ -858,6 +858,21 @@ try {
   const first = await page.$eval('#palette-results li a', (node) => node.getAttribute('href'))
   is(first, '/drivers/rindt', 'search finds a driver by name')
   await page.click('#palette-results li a')
+
+  // The winningest driver of a shared surname comes first: "schumacher" used
+  // to offer Ralf, on six wins, above Michael on ninety-one, because the only
+  // tie-break was the length of the name.
+  console.log('\nSearch  (prominence)')
+  await page.keyboard.press('/')
+  await page.waitForSelector('.palette input', { timeout: 10000 })
+  await page.fill('.palette input', 'schumacher')
+  await page.waitForSelector('#palette-results li a[href^="/drivers/"]', { timeout: 10000 })
+  is(
+    await page.$eval('#palette-results li a', (node) => node.getAttribute('href')),
+    `/drivers/${one(`SELECT id FROM drivers WHERE lower(full_name) LIKE '%schumacher%' ORDER BY wins DESC LIMIT 1`)}`,
+    'the winningest Schumacher is first',
+  )
+  await page.keyboard.press('Escape')
   await page.waitForFunction(() => document.querySelector('#root main h1')?.textContent.includes('Rindt'), null, {
     timeout: 10000,
   })

@@ -31,6 +31,7 @@ import {
   yearList,
 } from '../src/lib/format.js'
 import { metresBetween, stitch } from '../src/lib/lap.js'
+import { fold, rank } from '../src/lib/search.js'
 import { trackPath } from '../src/lib/track.js'
 
 // A square about 111 m on a side, as [lon, lat] — the order the geometry uses.
@@ -114,6 +115,42 @@ describe('yearList', () => {
 
   it('is an em dash for nothing', () => {
     assert.equal(yearList(null), EMPTY)
+  })
+})
+
+describe('search', () => {
+  const entry = (label, weight = 0) => ({ label, needle: fold(label), weight })
+
+  it('folds letters that have no combining mark to strip', () => {
+    assert.equal(fold('Tom Belsø'), 'tom belso')
+    assert.equal(fold('Robert Kubica'), fold('robert kubica'))
+    assert.ok(rank(entry('Tom Belsø'), 'belso') >= 0)
+    assert.ok(rank(entry('Jo Siffert'), 'siffert') >= 0)
+  })
+
+  it('offers the winningest driver first among equal matches', () => {
+    const lewis = entry('Sir Lewis Hamilton', 106)
+    const duncan = entry('Duncan Hamilton', 0)
+    assert.ok(rank(lewis, 'hamilton') > rank(duncan, 'hamilton'))
+  })
+
+  it('finds an accented name from an unaccented search and the other way round', () => {
+    assert.ok(rank(entry('Kimi Räikkönen'), 'raikkonen') > 0)
+    assert.ok(rank(entry('Kimi Raikkonen'), 'Räikkönen') > 0)
+    assert.ok(rank(entry('Paul Frère'), 'frere') > 0)
+  })
+
+  it('takes the words in any order', () => {
+    assert.ok(rank(entry('1996 Monaco Grand Prix'), 'monaco 1996') > 0)
+    assert.ok(rank(entry('1996 Monaco Grand Prix'), 'british gp') === -1)
+  })
+
+  it('still puts a start-of-label match above a start-of-word one', () => {
+    assert.ok(rank(entry('Hill'), 'hill') > rank(entry('Damon Hill'), 'hill'))
+  })
+
+  it('finds a car by the name anyone types, once the index carries it', () => {
+    assert.ok(rank(entry('Ferrari 312/67'), 'ferrari 312') > 0)
   })
 })
 

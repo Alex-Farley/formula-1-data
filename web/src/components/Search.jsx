@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { fold, rank } from '../lib/search.js'
 import { Link, useNavigate } from 'react-router-dom'
 import { query } from '../data/client.js'
 
@@ -17,24 +18,30 @@ import { query } from '../data/client.js'
 const INDEX_SQL = `
   SELECT 'Driver' AS kind, id AS key, full_name AS label,
          COALESCE(nationality, '') AS meta,
-         first_season AS from_year, last_season AS to_year
+         first_season AS from_year, last_season AS to_year,
+         COALESCE(wins, 0) AS weight
     FROM drivers
   UNION ALL
-  SELECT 'Constructor', id, name, COALESCE(country, ''), first_entry, last_entry
+  SELECT 'Constructor', id, name, COALESCE(country, ''), first_entry, last_entry,
+         COALESCE(wins, 0)
     FROM constructors
   UNION ALL
-  SELECT 'Circuit', id, name, COALESCE(country, ''), first_gp, last_gp
+  SELECT 'Circuit', id, name, COALESCE(country, ''), first_gp, last_gp,
+         COALESCE(gp_count, 0)
     FROM circuits
   UNION ALL
-  SELECT 'Car', id, name, COALESCE(constructor_id, ''), first_year, last_year
+  -- The full name, so "Ferrari 312" finds the 312 and not nothing: the bare
+  -- model number is what the register stores, not what anyone types.
+  SELECT 'Car', id, COALESCE(full_name, name), COALESCE(constructor_id, ''), first_year, last_year,
+         COALESCE(wins, 0)
     FROM chassis
   UNION ALL
   SELECT 'Season', CAST(year AS TEXT), CAST(year AS TEXT) || ' season',
-         COALESCE(drivers_champion, ''), year, year
+         COALESCE(drivers_champion, ''), year, year, 0
     FROM seasons
   UNION ALL
   SELECT 'Race', year || '/' || round, year || ' ' || name_used,
-         COALESCE(circuit_id, ''), year, year
+         COALESCE(circuit_id, ''), year, year, 0
     FROM races
 `
 
@@ -56,29 +63,13 @@ function loadIndex() {
     // reporting "0 entities indexed" for the rest of the session, with no way
     // back but a reload. Forget a failed attempt so the next open retries.
     indexPromise = query(INDEX_SQL)
-      .then(({ rows }) => rows.map((row) => ({ ...row, needle: row.label.toLowerCase() })))
+      .then(({ rows }) => rows.map((row) => ({ ...row, needle: fold(row.label) })))
       .catch((error) => {
         indexPromise = null
         throw error
       })
   }
   return indexPromise
-}
-
-/**
- * Rank a match by where it starts.
- *
- * A search for "hill" should offer Damon Hill before Graham Hill's Brabham,
- * and both before anything that merely contains the letters. Start of the
- * label beats start of a word beats anywhere; ties break on the shorter
- * label, because that is usually the more specific entity.
- */
-function score(entry, needle) {
-  const at = entry.needle.indexOf(needle)
-  if (at === -1) return -1
-  if (at === 0) return 100 - entry.needle.length / 200
-  if (entry.needle[at - 1] === ' ' || entry.needle[at - 1] === '-') return 60 - entry.needle.length / 200
-  return 20 - entry.needle.length / 200
 }
 
 export default function Search({ open, onClose }) {
@@ -97,11 +88,11 @@ export default function Search({ open, onClose }) {
   }, [open])
 
   const results = useMemo(() => {
-    const needle = term.trim().toLowerCase()
+    const needle = term.trim()
     if (!index || needle.length < 2) return []
     const hits = []
     for (const entry of index) {
-      const value = score(entry, needle)
+      const value = rank(entry, needle)
       if (value > 0) hits.push([value, entry])
     }
     hits.sort((a, b) => b[0] - a[0])
