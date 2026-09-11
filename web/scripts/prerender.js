@@ -779,6 +779,19 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
       WHERE rr.constructor_id = ? ORDER BY rr.year, rr.round`,
   )
 
+  // A constructor's open disagreements, by its name - the driver page's
+  // careerDisagreements is scoped to that section, so this is the same
+  // statement for this one.
+  const teamDisagreements = db.prepare(
+    `SELECT d.field, d.assessment,
+            COALESCE(s.full_name, d.stored_value)  AS stored_value,
+            COALESCE(v.full_name, d.derived_value) AS derived_value
+       FROM discrepancies d
+       LEFT JOIN drivers s ON s.id = d.stored_value
+       LEFT JOIN drivers v ON v.id = d.derived_value
+      WHERE d.subject = ? AND d.status LIKE 'open%'
+      ORDER BY d.id`,
+  )
   for (const c of constructors) {
     const wins = winsOf.all(c.id)
     page({
@@ -815,7 +828,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
           ['Confidence', text(c.confidence)],
         ])}
         ${prose(c.notes)}
-        ${disagree(careerDisagreements.all(c.name), 'this team')}
+        ${disagree(teamDisagreements.all(c.name), 'this team')}
         ${
           wins.length
             ? `<h2>Wins</h2>${table(
