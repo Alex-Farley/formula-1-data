@@ -59,9 +59,8 @@ full reasoning and the evidence; this file is the queue, not the argument.
 Short enough to be a decision rather than a list. Each item is a surface
 contradicting something this project states in its own words.
 
-Seven items, but **five jobs**: `PM-05` and `PM-25` are one investigation, and
-`IA-02` and `PD-11` are one decision. Read it that way before concluding the
-section has stopped being a decision.
+Five items, but **four jobs**: `IA-02` and `PD-11` are one decision. Read it
+that way before concluding the section has stopped being a decision.
 
 Three of those jobs are also one defect wearing three faces: **an authored
 figure that drifted from the database.** The README's table counts (`PD-07`),
@@ -70,47 +69,12 @@ each state a number a live query would supersede. The cure is the same every
 time — derive the figure, then add a `verify.py` check so it cannot drift
 again — so write that check pattern once and the third is nearly free.
 
-`PM-05` sits beside them and is **not** one of them. Its fourteen rows are not
-a figure that drifted: both sources are right about what they measure, and the
-schema conflates *started first* with *was quickest*. That is a modelling fix —
-one column split — and it **retires** a `verify.py` warning rather than adding
-one. Do not expect the derive-and-check pattern to carry it.
-
 *Re-checked against the committed `f1.db` on 2026-09-10 and all still true:*
-`PM-05`'s 18 open discrepancies and the 14 that are one question (13 `pole
-position` + 1 `grid position 1`); `PD-07`'s 46 tables / 38 views against a
+`PD-07`'s 46 tables / 38 views against a
 README claiming 39 / 34, and 26,997 `qualifying` rows it calls absent;
 `PD-03`'s Hamilton on 105 in `records` against 106 in `drivers`, all 30 rows at
 `medium`, and no `verify.py` check reading the table. `PD-02`'s and the CD/IA
 findings' counts were not re-checked.
-
-- [ ] `PM-05` **Split pole position from grid 1.** Fourteen of the eighteen open
-      `discrepancies` are the same modelling question, not fourteen research
-      jobs: the harvest records who *started* at the front, F1DB records who was
-      *quickest*, and both are true of what they describe. One column split
-      closes all fourteen. (Thirteen carry `field = 'pole position'`; the
-      fourteenth is 2022 round 21, filed under `grid position 1` —
-      Magnussen started ahead, Russell was quickest — which is the same
-      question wearing the other label, and is why the count was one short.) This moved up the list when `PD-04` landed — those
-      rows now render to readers as "two sources disagree", which for a grid
-      penalty is not a disagreement at all. Highest value-per-hour on this list.
-      **Do it in one sitting with `PM-25`,** which is the same investigation
-      seen from the other end: both turn on what `stored_value` and
-      `derived_value` mean per row, and together they close all eighteen and
-      retire a `verify.py` warning. — *project record · M*
-
-- [ ] `PM-25` **The four open `discrepancies` that `PM-05` does not close are two
-      races, and they do not reconcile.** 1960 round 5 and 1970 round 1 are both
-      credited to Brabham in the database; the external figures claim Phil Hill
-      6 career fastest laps against a derived 5, and Brabham 12 against a derived
-      11. Moving 1960 round 5 to Phil Hill would satisfy his total exactly — and
-      would take Brabham to 10, further from the claimed 12, not closer. So the
-      four rows cannot all be right, and the first question is not who set the
-      lap but what `stored_value` and `derived_value` mean in each row: the
-      per-race rows read database-then-source, the career rows read
-      source-then-database. Establish that before spending a person on the
-      sources. Cheap to answer, and it may turn four rows into one. —
-      *project record · S*
 
 - [ ] `PD-02` **Make the prerenderer call the page components' own queries.**
       Static and app emit different numbers under the same label — 14 of 38
@@ -230,10 +194,11 @@ Worth doing, not yet urgent.
       `cooper-t51`, `lotus-25`). Both are genuinely small and can ride along
       with any data sitting. The centreline warning that used to sit here is
       now `PM-26`, because it is upstream data repair and was borrowing an S
-      from its two small siblings. Of the three warnings left after those two,
-      the 18-open-`discrepancies` one is not permanently expected either —
-      `PM-05` and `PM-25` retire it; only the Nürburgring Südschleife and the
-      unrun 2026 r17 sprint are. — *project record · S*
+      from its two small siblings. The 18-open-`discrepancies` warning that
+      used to sit beside them was retired by `PM-05` and `PM-25`; of the
+      warnings left after these two, only the Nürburgring Südschleife, the
+      unrun 2026 r17 sprint and `PM-26`'s centrelines are expected. —
+      *project record · S*
 
 - [ ] `PM-12` **Loosen the specification harvest's name check.** It refuses
       "Alfa Romeo 158/159 Alfetta" for `alfa-romeo-159`. Match the chassis name
@@ -356,11 +321,6 @@ Worth doing, not yet urgent.
       use is how a reader learns that "medium" means the site is unsure of
       itself rather than that an exact figure may have drifted. —
       *content critique · S*
-
-- [ ] `CD-13` **The site states a cause the database does not hold.**
-      `Race.jsx:204` and `prerender.js:543` render *"started P4, after a grid
-      penalty"* wherever the fastest qualifier did not start first. The database
-      records that the two differ, not why. — *content critique · S*
 
 - [ ] `CD-15` **`./f1 gaps` prints "what the data does not yet cover", then
       three entries beginning "CLOSED".** `CD-06`'s defect on the surface the
@@ -611,6 +571,42 @@ Real, but not costed, or waiting on a decision.
       one case the prerenderer always got right, which is why this shipped — and
       now navigates in-app too, confirmed to fail with the fix disabled. —
       *IA critique · `9f93566`*
+
+- [x] `PM-25` **The four fastest-lap rows were two shared fastest laps rendered
+      as one name.** The question was what `stored_value` and `derived_value`
+      meant per row, and answering it turned four rows into two facts. The
+      1960 Belgian Grand Prix article credits Brabham, Ireland and Phil Hill
+      jointly at 3:51.9, which is Hill's sixth; the 1969 Canadian Grand Prix
+      article credits Brabham with the 1:18.1 both harvests credit to Ickx,
+      which is Brabham's twelfth, and Ickx keeps his 14. `SHARED_FASTEST_LAPS`
+      in `data/harvest.py` restores both and refuses to apply if the harvest
+      row ever changes. The 1970 South African row stays with Brabham alone:
+      the article footnotes that some sources credit Surtees, but his
+      reference total of 10 excludes it and was corrected to 10 once already
+      on that evidence. All three are resolved rows on the record, and the
+      prerenderer now lists every setter of a shared lap, as the app did. —
+      *project record · `621c49a`*
+
+- [x] `PM-05` **Pole is its own flag.** `grid = 1` carried two meanings — the
+      car that started from the front and the driver credited with pole — and
+      they differ in three completed races: 1996 r9 and 2021 r5, where the
+      pole-sitter never started, and 2022 r21, where the sprint winner started
+      first and pole stayed with the fastest qualifier, which the old rule
+      recorded as a row with grid 1 and grid text 8. `race_entries.pole` is fed
+      by the season record, `grid` is F1DB's, and the fastest qualifier stays
+      in `qualifying`. The thirteen pole-versus-fastest-qualifier rows are gone
+      from `discrepancies`, because neither source was wrong about what it
+      describes; `verify.py` pins all three counts instead, and the
+      open-discrepancies warning is retired with zero open rows. The
+      front-end review caught the car page selecting its columns by name and
+      so rendering every car's poles as zero; the smoke test now asserts the
+      MP4/4's fifteen and was confirmed to fail without the fix. —
+      *project record · `621c49a`*
+
+- [x] `CD-13` **The race page no longer states a cause.** "Started P4, after a
+      grid penalty" is now "started P4"; where a sprint set the grid, which
+      `races.sprint` does hold, it still says so. Both renderers, one wording.
+      Rode with `PM-05`. — *content critique · `621c49a`*
 
 ## Declined
 
