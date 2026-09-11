@@ -80,37 +80,12 @@ you can audit the audit* to *cross-checked against independent sources, with
 every disagreement and every gap published in the data* — which the artefact
 supports on its own. `AF-02` carries the three follow-ons.
 
-**Then the false statements**, each an afternoon or less: the app tells a
-reader the reigning champion has no championship position (`UR-01`); dashes a
-figure it knows to be zero on 412 driver pages (`UR-02`); publishes a corrupt
-2026 standings snapshot in every `f1_compat.json` since v2.15 (`CR-02`, root
-cause `DA-01`); captions the poles leaderboard with the rule `PM-05` abolished
-(`UR-10`); and would advertise a fresh build date over frozen data the first
-Monday of 2027 (`SD-02`).
-
-**Then the cold first visit**, which five critics measured at 11–12 s on
-4 Mbps and found to be a page with no sign anything is loading, whose every
-link restarts the download (`IX-01`, `IX-02`; the accessibility and visual
-faces are `AX-01` and `VD-02`; `UR-03`/`UR-04` measured it on the deployed
-site). `PD-02` is still the largest single fix and now has seven riders.
-
-- [ ] `UR-01` **The app shows every 2025 and 2026 championship position as an
-      em dash.** 65 end-of-season `standings` rows — all formula1.com's, all
-      2025–26 — carry `position` and no `position_text`; `Season.jsx:278`,
-      `Driver.jsx:246` and `Constructor.jsx:232` render `position_text`, and
-      `lib/standings.js` `fold()` carries `position` across but not
-      `position_text`. Norris's page reads `TITLES 1 (2025)` above
-      `CHAMPIONSHIP —`, under a footer saying the dash means *excluded*. 38
-      pages; the static half is right. Render `position_text ?? position`,
-      and add the smoke assertion that the 2025 season's top row reads `1`. —
-      *user research · S*
-
-- [ ] `UR-02` **591 driver-seasons dash a figure the page knows is zero.**
-      `Driver.jsx:42` `SUM(e.finish_position = 1)` is NULL for a season with
-      no classified finish; the strip 40 px above says `WINS 0` via `?? 0`.
-      412 of 862 driver pages, overwhelmingly pre-1970. `COALESCE(…, 0)` in
-      `BY_SEASON`; leave the Best and Championship dashes, which are right. —
-      *user research · S*
+**The false statements** the reviews found are down to two: the corrupt 2026
+standings snapshot in every `f1_compat.json` since v2.15 (`CR-02`, root cause
+`DA-01`) and the build silently discarding a season it does not know (`SD-02`).
+`UR-01`, `UR-02`, `UR-10` and `UR-11` landed in #36; the cold first visit
+(`IX-01`, `IX-02`, `IX-03`, `IX-13`) landed in #37. `PD-02` is still the
+largest single fix and still has its riders.
 
 - [ ] `CR-02` **`f1_compat.json` has shipped a corrupt 2026 standings snapshot
       in seven releases.** The compat queries take `standings WHERE year=2026`
@@ -139,11 +114,6 @@ site). `PD-02` is still the largest single fix and now has seven riders.
       table, pinned to the last committed count, the way `1161` already is. —
       *code review · S*
 
-- [ ] `UR-10` **The poles leaderboard's caption states the rule `PM-05`
-      abolished.** `Records.jsx:145` `note="Counted as a grid position of 1"`
-      above a query reading `WHERE e.pole = 1`. One string, and a miss from
-      this week's own change. — *user research · S*
-
 - [ ] `DA-12` **The pole harvest overwrites `source` on 1,136 rows.** A pole
       row cites the Wikipedia season article while every other column on it —
       836 provably, via `laps_completed` and `points` — came from F1DB; the
@@ -153,24 +123,6 @@ site). `PD-02` is still the largest single fix and now has seven riders.
       Stopgap: let `source` name the row's majority source and record the
       pole credit's source once per race. Properly: `PM-14`. The split itself
       is endorsed — do not reopen it. — *data architecture critique · S*
-
-- [ ] `IX-01` **The boot progress panel renders below the fold on every cold
-      visit.** `Boot` mounts in `#root`, after `#prerendered`, at
-      `min-height: 100vh`: y = 1,391 on the homepage, 6,151 on Hamilton, 33,857
-      on `/drivers`. 5.1 / 11.7 / 28.0 s of silence at 10 / 4 / 1.6 Mbps. The
-      failed-boot message is in the same place, and never retries (`IX-13`).
-      Four critics found it (`VD-02`, `AX-01`, `UR-04`). While `#prerendered`
-      is in the document, render the boot state as a fixed strip under the
-      masthead, name the progressbar, and put the phase words in one
-      `role="status"`. — *interaction critique · S*
-
-- [ ] `IX-02` **Clicking during the wait restarts the 4.5 MB download from
-      zero.** The static links are real anchors; a click at 3 s abandoned the
-      in-flight `f1.db.gz` and re-requested it — 14.9 s instead of 11.9 s, 4.7
-      MB twice; `UR-03` reproduced it on lapledger.org at 14.1 s. Delegate
-      same-origin clicks on `#prerendered` to `pushState` while the database
-      is opening and let the router pick the route up at `ready`. —
-      *interaction critique, user research · M*
 
 - [ ] `IX-04` **One careless query in the SQL console kills the site for the
       session.** A three-way self-join occupies the single worker forever; no
@@ -584,21 +536,11 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 
 - [ ] `VD-01` **The static half is a different design.** 126 lines of `#prerendered` CSS, a second `h1` treatment, tiles versus a key/value table. Rides with `PD-02`: emit the components' shapes, not just their numbers. — *visual critique · M*
 
-- [ ] `VD-02` **The boot panel renders six screens below the fold.** The visual face of `IX-01`. — *visual critique · S*
-
 - [ ] `VD-03` **No type scale and no spacing scale in the token file.** Nineteen literal font sizes, twenty-seven spacing values. Add `--size-n`/`--space-n` and convert one file per sitting. — *visual critique · M*
-
-- [ ] `VD-04` **The registers spend full ink on absence.** 81% of `/drivers`' first-screen numeric cells are `0` or a dash in `--ink`. Render zero and unestablished at `--ink-faint` in `DataTable`. Nothing hidden. — *visual critique · S*
-
-- [ ] `VD-05` **The column chart ticks half-wins on an ordinal axis that omits the droughts.** Pass every season, zeros included, and `{ integer: true }` at `ColumnChart.jsx:44`. Contradicts `web/README.md`'s own axis rule. — *visual critique · S*
-
-- [ ] `VD-06` **The dot plot never labels P1.** Force the domain minimum into the ticks; accent at P1. — *visual critique · S*
 
 - [ ] `VD-07` **The result rail's middle two bands are the same lightness.** `--rail-points` vs `--rail-classified` 1.05:1 in light, 1.07:1 in dark — measured against the panel, never against each other. Separate by lightness. — *visual critique · S*
 
 - [ ] `VD-08` **The livery-band explanation is 10.5 px mono across 175 characters.** The sentence that carries the racing-colour decision, set smaller than a footnote. `--sans`, 13 px, under the swatch, within `--measure`. — *visual critique · S*
-
-- [ ] `VD-09` **`overflow-wrap: anywhere` breaks years mid-number.** "2008,2014,2015,201 / 7". Scope the rule off `.stats dd`; format the list with spaces and ranges. — *visual critique · S*
 
 - [ ] `VD-10` **Thirty identical `MEDIUM` badges on `/records`, ten on `/reference/eras`.** `/cars` already states the rule against this. Say the tier once in the note and drop the column. — *visual critique · S*
 
@@ -626,8 +568,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 
 **Interaction design**
 
-- [ ] `IX-03` **Handover throws the reader to the top of the page and drops focus.** Read `scrollY` before removing `#prerendered`, restore after first paint; skip `ScrollToTop`'s initial run. `AX-01` owns the announcement. — *interaction critique · S*
-
 - [ ] `IX-05` **Search ranks by name length, so 11 of the 25 winningest drivers are not the first hit for their surname.** Duncan over Lewis Hamilton, Ralf over Michael Schumacher; Enter opens the first. Add a prominence term (`wins`, `races`) before the length tie-break. — *interaction critique · S*
 
 - [ ] `IX-06` **Accented names are findable by one spelling only, in both directions.** "frere" finds nothing; "Räikkönen" finds nothing. Fold diacritics on both sides. Ship with `IX-05`/`IX-07`. — *interaction critique · S*
@@ -639,12 +579,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 - [ ] `IX-09` **Dragging the scrubber says nothing the page has not said.** Put the band at the marker into the `<output>` — "1,240 m · hairpin, 38 m" — from an array the component already holds. — *interaction critique · S*
 
 - [ ] `IX-11` **Clicking a worked example destroys the reader's query with no undo.** Write through `execCommand('insertText')` so ⌘Z works. — *interaction critique · S*
-
-- [ ] `IX-12` **"Use the button above" names a button ten pixels below it.** Delete the sentence. — *interaction critique · S*
-
-- [ ] `IX-13` **A failed boot never retries.** Network restored, panel still says the database could not be opened twenty seconds later. A "Try again" button; rides with `CD-17`. — *interaction critique · S*
-
-- [ ] `IX-14` **"Works offline" is not true.** Two claims on 3,515 pages; no service worker; offline reload is Chrome's error page. Say the true thing (a tab already open keeps working) or build the M. — *interaction critique · S*
 
 - [ ] `IX-15` **`IA-14` measured.** Four of eight nav items off-screen on an iPhone 13, five on an SE; keyboard reaches them, pointer has no affordance. Size `IA-14` as filed. — *interaction critique · S*
 
@@ -726,21 +660,11 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 
 **Accessibility** — each marked WCAG failure (criterion) or usability.
 
-- [ ] `AX-01` **The cold load and the handover are unannounced. 4.1.2, 4.1.3.** Two `h1`s for 10.9 of 11.5 s; an unnamed progressbar; zero live regions; focus on `<body>` at handover. Three S pieces; rides with `IX-01`. — *accessibility critique · M*
-
 - [ ] `AX-02` **The search palette is not modal and not a listbox. 4.1.2, 2.4.3.** Shift+Tab leaves it despite `aria-modal`; no `activedescendant`; Escape drops focus to `<body>`. Three S pieces. — *accessibility critique · M*
-
-- [ ] `AX-03` **Focus drops to `<body>` on every in-app navigation. 2.4.3.** `tabIndex={-1}` on the `h1` in `Page`, focused on `pathname` change. Escalates `IA-04`, which fixed the title and not the announcement. — *accessibility critique · S*
-
-- [ ] `AX-04` **Nothing the reader causes is announced except an error. 4.1.3.** `role="status"` on `.result-count` in `Filters.jsx:16` and `Sql.jsx:179` first. — *accessibility critique · M*
-
-- [ ] `AX-05` **`--ink-faint` fails 4.5:1 on three of four light surfaces. 1.4.3.** 4.05 / 4.28 / 4.43; the token comment measured the fourth. `#666d78`; record the surface in the comment. — *accessibility critique · S*
 
 - [ ] `AX-06` **White on `--accent` is 3.34:1 in dark — the Run button. 1.4.3.** Dark foreground on the fill. — *accessibility critique · S*
 
 - [ ] `AX-07` **The atlas ramp and one light chart series are under 3:1. 1.4.11.** `--seq-1` 1.99:1; no two bands 2:1 apart; `--series-3` 2.65:1. Same fix as `VD-17`. — *accessibility critique · S*
-
-- [ ] `AX-08` **Shift+Tab hides the focused link entirely behind the sticky masthead. 2.4.11.** `html { scroll-padding-top: 72px }`. — *accessibility critique · S*
 
 - [ ] `AX-09` **The atlas is the one graphic with no table of its numbers. 1.1.1.** A banded-runs table from `cornerRadius`/`stitch`; answers `PD-22` too. — *accessibility critique · M*
 
@@ -772,21 +696,11 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 
 **User research walkthrough** — simulated, and says so.
 
-- [ ] `UR-03` **Following a link during the first-load window restarts the download.** Measured on lapledger.org. The user-research face of `IX-02`. — *user research · M*
-
-- [ ] `UR-04` **The sentence explaining the wait is three screens below the fold.** The user-research face of `IX-01`; the slim pinned line is its S. — *user research · S*
-
 - [ ] `UR-05` **Nothing on 3,515 pages says who publishes this or how to tell them they are wrong.** No About, no contact, no corrections route; a Wikipedia editor cannot satisfy WP:RS. One page; `SD-15` is the same gap. — *user research · S*
-
-- [ ] `UR-06` **No prerendered page carries the version or build date.** The app footer has `v2.21 · Built 2026-09-09`; the static page has neither. The smallest piece of `PD-10`, from `meta`, today. — *user research · S*
 
 - [ ] `UR-07` **The obvious standings query returns 333 rows, and the console hides the comment that prevents it.** Show `sqlite_master` SQL in the schema browser; add a worked example for the current championship. `CR-02`'s reader face. — *user research · S*
 
-- [ ] `UR-08` **The SQL console renders years as "2,026".** A `raw` flag on `DataTable` for the console. — *user research · S*
-
 - [ ] `UR-09` **On `/records` the caveat sits 1,900 px below the figure.** Rides with `PD-03`; move the sentence above the table today. — *user research · S*
-
-- [ ] `UR-11` **"2026 Bahrain Grand Prix — Sepang, Malaysia", with the explanation held in a field no page shows.** `data/current.py:69`'s third field. Carry it as a note; check what else is discarded the same way. — *user research · S*
 
 - [ ] `UR-12` **Amon's page gives three answers to "how many races".** 96 (lede), 108 (strip), `—` (starts). Where `notes` states a figure the page computes, show them adjacent or drop the prose. Apply during `CD-02`. — *user research · S*
 
@@ -1048,6 +962,96 @@ Real, but not costed, or waiting on a decision.
       grid penalty" is now "started P4"; where a sprint set the grid, which
       `races.sprint` does hold, it still says so. Both renderers, one wording.
       Rode with `PM-05`. — *content critique · `621c49a`*
+
+- [x] `UR-01` **The 2025 and 2026 championship positions render.** 65
+      end-of-season rows carry `position` and no `position_text`; the tables
+      fall back to `position`, `fold()` carries both across sources, and the
+      driver chart's own table does the same — the review caught that one.
+      Smoke: the 2025 champion is P1. — *user research · `f632fd4`*
+
+- [x] `UR-02` **A winless season reads 0, not an em dash.** `COALESCE` in
+      both `BY_SEASON` queries; Best and Championship stay dashed because
+      those are genuinely not established. Smoke: a winless season reads 0.
+      — *user research · `f632fd4`*
+
+- [x] `UR-10` **The poles caption states the pole rule.** One string. —
+      *user research · `f632fd4`*
+
+- [x] `UR-11` **Bahrain at Sepang is explained on the page.** The authored
+      field is the race's note and its lede. Smoke asserts it. —
+      *user research · `f632fd4`*
+
+- [x] `UR-08` **The SQL console shows 1950, not 1,950.** `raw` on
+      `DataTable`. — *user research · `f632fd4`*
+
+- [x] `IX-12` **The footer sentence naming a button below it is gone.** —
+      *interaction critique · `f632fd4`*
+
+- [x] `AX-03` **The heading takes focus on in-app navigation.** `tabIndex={-1}`
+      in `Page`, on `pathname` change after the first render. —
+      *accessibility critique · `f632fd4`*
+
+- [x] `AX-04` **Result counts are announced.** `role="status"` on the SQL
+      console's count and on the registers' — the latter after typing
+      settles, because a live region per keystroke is worse than none. —
+      *accessibility critique · `f632fd4`*
+
+- [x] `AX-05` **`--ink-faint` clears 4.5:1 on all four light surfaces**
+      (5.30 / 4.81 / 4.56 / 4.98), and the token comment says which surface
+      each figure was measured on. — *accessibility critique · `f632fd4`*
+
+- [x] `AX-08` **`scroll-padding-top` under the sticky masthead.** —
+      *accessibility critique · `f632fd4`*
+
+- [x] `VD-04` **A true zero renders faint in the registers**, so careers
+      surface. — *visual critique · `f632fd4`*
+
+- [x] `VD-05` **The constructor wins chart plots every season on whole-number
+      ticks.** A drought is a gap; the subtitle that excused it is gone. —
+      *visual critique · `f632fd4`*
+
+- [x] `VD-06` **The dot plot labels P1.** — *visual critique · `f632fd4`*
+
+- [x] `VD-09` **Title years read "2008, 2014–15, 2017–20"** from one shared
+      rule in both renderers, and no longer break mid-number. Unit-tested;
+      the review caught two-year runs not collapsing. —
+      *visual critique · `f632fd4`*
+
+- [x] `IX-01` **The boot state is a strip pinned to the foot of the viewport**
+      while the static page is showing, named and bounded, with one live
+      region and one `h1`. Measured at 4 Mbps: on screen at 2 s. Closes the
+      same finding's other faces, `VD-02`, `UR-04` and `AX-01`. —
+      *interaction critique · `6a3269d`*
+
+- [x] `VD-02` **With `IX-01`.** — *visual critique · `6a3269d`*
+
+- [x] `UR-04` **With `IX-01`.** — *user research · `6a3269d`*
+
+- [x] `AX-01` **With `IX-01`**: progressbar named by the phase sentence,
+      `aria-valuemin/max/valuetext`, phase words in one `role="status"`, and
+      focus moved to the heading at handover. — *accessibility critique · `6a3269d`*
+
+- [x] `IX-02` **A click during the download is a route change, not a
+      restart.** Same-origin clicks on the static page go to `pushState`;
+      the strip says what is pending; the router picks the route up at
+      ready. Measured: one `f1.db.gz` request, ready at 12.6 s on the clicked
+      route, where it was two requests and 14.9 s. Closes `UR-03`. —
+      *interaction critique · `6a3269d`*
+
+- [x] `UR-03` **With `IX-02`.** — *user research · `6a3269d`*
+
+- [x] `IX-03` **Scroll position survives the handover and the heading takes
+      focus.** — *interaction critique · `6a3269d`*
+
+- [x] `IX-13` **A failed boot offers Try again.** `retryOpen()` drops the
+      cached promise and the dead worker. — *interaction critique · `6a3269d`*
+
+- [x] `IX-14` **"Works offline" now says what is true**: an open tab keeps
+      working without a network. — *interaction critique · `6a3269d`*
+
+- [x] `UR-06` **The static footer carries the version and build date** from
+      `meta`, so a search arrival's figures are dated. Smoke asserts it. —
+      *user research · `6a3269d`*
 
 ## Declined
 
