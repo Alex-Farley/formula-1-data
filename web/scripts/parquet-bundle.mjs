@@ -74,11 +74,23 @@ function pythonWithPip() {
  * a directory, which is why --python-version and --only-binary matter -
  * pyarrow is a compiled wheel and a cp313 build will not import into 3.12.
  */
+// Installing into somebody's Python is a deploy-image decision, not a
+// laptop one: a JavaScript build step that ran pip on whoever typed
+// `npm run build` was a surprise nobody asked for. The install branches run
+// where a deploy or CI runs, or where the person has said so.
+const MAY_INSTALL = Boolean(
+  process.env.CI || process.env.CF_PAGES || process.env.WORKERS_CI || process.env.LAPLEDGER_PARQUET,
+)
+
 function ensurePyarrow(py) {
   try {
     execFileSync(py, ['-c', 'import pyarrow'], { stdio: 'ignore' })
     return { how: 'already present', env: {} }
   } catch { /* not there yet */ }
+
+  if (!MAY_INSTALL) {
+    throw new Error('pyarrow is not installed and this is not a deploy; set LAPLEDGER_PARQUET=1 to let this step install it')
+  }
 
   try {
     execFileSync(py, ['-m', 'pip', 'install', '--quiet', 'pyarrow'], { stdio: 'pipe' })
@@ -127,6 +139,41 @@ try {
 }
 rmSync(outDir, { recursive: true, force: true })
 
+// The heartbeat. Build logs are off for this project and a failed deploy
+// leaves the previous one live, so every freshness signal the site had was
+// a lagging one. This names the deploy commit, the database it carries and
+// the round its data is complete through, on success as well as failure,
+// at /build-status.txt.
+function heartbeat() {
+  const out = []
+  const sha = process.env.WORKERS_CI_COMMIT_SHA || process.env.CF_PAGES_COMMIT_SHA
+    || (() => { try { return execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo }).toString().trim() } catch { return 'unknown' } })()
+  out.push(`commit   ${sha}`)
+  try {
+    const { DatabaseSync } = await_import_sqlite()
+    const db = new DatabaseSync(join(repo, 'f1.db'), { readOnly: true })
+    const meta = Object.fromEntries(db.prepare('SELECT key, value FROM meta').all().map((r) => [r.key, r.value]))
+    const last = db.prepare(`SELECT year, round, name_used FROM races WHERE status = 'completed'
+                             ORDER BY year DESC, round DESC LIMIT 1`).get()
+    db.close()
+    out.push(`database v${meta.version}, built ${meta.built}`)
+    if (last) out.push(`complete through ${last.year} round ${last.round}, ${last.name_used}`)
+  } catch (error) {
+    out.push(`database  could not be read: ${error?.message ?? error}`)
+  }
+  try {
+    const head = execFileSync('sed', ['-n', '2p', join(repo, 'harvest', 'race_results.txt')]).toString().trim()
+    const m = head.match(/F1DB (v\S+) \(([^)]+)\)/)
+    if (m) out.push(`f1db     ${m[1]} ${m[2]}`)
+  } catch { /* the harvest header is a nicety */ }
+  return out
+}
+
+function await_import_sqlite() {
+  // node:sqlite is what prepare-assets.js and the prerenderer already use.
+  return process.getBuiltinModule('node:sqlite')
+}
+
 writeFileSync(join(publicDir, 'build-status.txt'),
-              `parquet bundle\nwhen     ${new Date().toISOString()}\n${lines.join('\n')}\n`)
+              `lapledger build\nwhen     ${new Date().toISOString()}\n${heartbeat().join('\n')}\n\nparquet bundle\n${lines.join('\n')}\n`)
 if (!ok) process.exitCode = 0   // never fail the build
