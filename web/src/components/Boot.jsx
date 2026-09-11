@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { onProgress, openDatabase } from '../data/client.js'
+import { onProgress, openDatabase, retryOpen } from '../data/client.js'
+import { onPending } from '../data/pending.js'
 import { bytes as formatBytes } from '../lib/format.js'
 
 /**
@@ -10,6 +11,13 @@ import { bytes as formatBytes } from '../lib/format.js'
  * site is broken. This says which of four things is happening, how far through
  * it is, and — on a second visit, when the bytes come out of IndexedDB — it
  * is gone before it can be read.
+ *
+ * Two shapes. On a prerendered route the static page is already on screen
+ * and this stands in front of it as a strip pinned to the foot of the
+ * viewport; the full panel used to render BELOW the static page, at
+ * y = 1,391 on the homepage and y = 33,857 on /drivers, where four critics
+ * measured it and no reader ever saw it. Where there is no static page, the
+ * panel is the page.
  */
 const WORDS = {
   idle: 'Starting up',
@@ -21,25 +29,88 @@ const WORDS = {
   failed: 'The database could not be opened',
 }
 
+/** Whether the prerendered page is in the document — decided once, at mount. */
+const standingIn = () => typeof document !== 'undefined' && Boolean(document.getElementById('prerendered'))
+
 export default function Boot({ children }) {
   const [state, setState] = useState({ phase: 'idle' })
+  const [pending, setPending] = useState(null)
+  const [standing] = useState(standingIn)
 
   useEffect(() => {
     const stop = onProgress(setState)
     openDatabase().catch(() => {})
     return stop
   }, [])
+  useEffect(() => onPending(setPending), [])
 
   if (state.phase === 'ready') return children
 
-  if (state.phase === 'failed') {
+  const failed = state.phase === 'failed'
+  const determinate = state.phase === 'downloading' && state.total > 0
+  const share = determinate ? Math.min(1, state.loaded / state.total) : 0
+  const progress = determinate
+    ? `${formatBytes(state.loaded)} of ${formatBytes(state.total)}`
+    : state.phase === 'downloading' && state.loaded
+      ? formatBytes(state.loaded)
+      : ''
+  const phrase = failed ? WORDS.failed : WORDS[state.phase] ?? WORDS.idle
+  const retry = () => retryOpen().catch(() => {})
+
+  // Named by the phase sentence, bounded, and read out as bytes rather than a
+  // bare percentage: a progressbar whose value is "30" and whose name is
+  // nothing is a number with no referent.
+  const bar = (
+    <div
+      className={`bar${determinate ? '' : ' indeterminate'}`}
+      role="progressbar"
+      aria-labelledby="boot-phase"
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={determinate ? Math.round(share * 100) : undefined}
+      aria-valuetext={progress || phrase}
+    >
+      <i style={determinate ? { width: `${share * 100}%` } : undefined} />
+    </div>
+  )
+
+  if (standing) {
+    return (
+      <div className="boot-strip">
+        <div className="boot-strip-inner">
+          {/* One live region, present from the first render, so the first
+              phase is not missed; the byte count is deliberately outside it. */}
+          <p id="boot-phase" className="boot-phase" role="status">
+            {phrase}
+            {pending && !failed ? ` — opening ${pending} when it is ready` : ''}
+            {failed ? '. The figures on this page are from the last published build.' : ''}
+          </p>
+          {failed ? (
+            <button type="button" className="button" onClick={retry}>
+              Try again
+            </button>
+          ) : (
+            <span className="boot-bytes">{progress}</span>
+          )}
+          {failed ? null : bar}
+        </div>
+      </div>
+    )
+  }
+
+  if (failed) {
     return (
       <div className="boot">
         <div className="boot-inner">
-          <h1>{WORDS.failed}</h1>
+          <h1 id="boot-phase">{WORDS.failed}</h1>
           <div className="error" role="alert">
             <pre>{state.error}</pre>
           </div>
+          <p>
+            <button type="button" className="button" onClick={retry}>
+              Try again
+            </button>
+          </p>
           <p className="small">
             The site serves <code>f1.db.gz</code>, <code>f1.db</code>, <code>sql-wasm.wasm</code>{' '}
             and <code>db-manifest.json</code> from the same directory as the page. If you are
@@ -52,29 +123,21 @@ export default function Boot({ children }) {
     )
   }
 
-  const determinate = state.phase === 'downloading' && state.total > 0
-  const share = determinate ? Math.min(1, state.loaded / state.total) : 0
-
   return (
     <div className="boot">
       <div className="boot-inner">
-        <h1>{WORDS[state.phase] ?? WORDS.idle}</h1>
+        <h1 id="boot-phase">{phrase}</h1>
+        <p className="sr-only" role="status">
+          {phrase}
+        </p>
         <p>
           Seventy-seven seasons are arriving as one database file. It downloads once, then it stays
-          in your browser — later visits open straight away, and work offline.
+          in your browser, and later visits open straight away.
         </p>
-        <div className={`bar${determinate ? '' : ' indeterminate'}`} role="progressbar" aria-valuenow={determinate ? Math.round(share * 100) : undefined}>
-          <i style={determinate ? { width: `${share * 100}%` } : undefined} />
-        </div>
+        {bar}
         <div className="boot-detail">
-          <span>
-            {determinate
-              ? `${formatBytes(state.loaded)} of ${formatBytes(state.total)}`
-              : state.phase === 'downloading' && state.loaded
-                ? formatBytes(state.loaded)
-                : ' '}
-          </span>
-          <span>{determinate ? `${Math.round(share * 100)}%` : ' '}</span>
+          <span>{progress || ' '}</span>
+          <span>{determinate ? `${Math.round(share * 100)}%` : ' '}</span>
         </div>
       </div>
     </div>

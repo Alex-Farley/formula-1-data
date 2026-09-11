@@ -1048,7 +1048,8 @@ tbody td.strong {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .skeleton {
+  .skeleton,
+  .bar.indeterminate > i {
     animation: none;
   }
 }
@@ -1113,6 +1114,54 @@ tbody td.strong {
   font-size: 12px;
   color: var(--ink-faint);
   font-variant-numeric: tabular-nums;
+}
+
+/* The boot state as a strip, in front of the prerendered page. Pinned to the
+   foot of the viewport rather than under the masthead so it covers no
+   content; z-index below the palette (60) and above the masthead (30). */
+.boot-strip {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  background: var(--panel);
+  border-top: 1px solid var(--rule);
+  box-shadow: var(--shadow);
+  padding: 10px 16px;
+}
+
+.boot-strip-inner {
+  max-width: var(--page);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 16px;
+  align-items: center;
+  font-size: 13px;
+}
+
+.boot-strip .boot-phase {
+  margin: 0;
+  color: var(--ink);
+}
+
+.boot-strip .boot-bytes {
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  text-align: right;
+}
+
+.boot-strip .bar {
+  grid-column: 1 / -1;
+  margin: 0;
+  height: 4px;
+}
+
+.boot-strip .button {
+  padding: 4px 12px;
+  font-size: 12.5px;
 }
 
 /* ------------------------------------------------------------ the palette */

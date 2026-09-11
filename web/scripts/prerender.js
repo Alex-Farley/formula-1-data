@@ -80,6 +80,10 @@ if (!existsSync(dbPath)) die('f1.db not found at the repository root.\nBuild it 
 const db = new DatabaseSync(dbPath, { readOnly: true })
 const all = (sql, ...params) => db.prepare(sql).all(...params)
 const one = (sql, ...params) => db.prepare(sql).get(...params) ?? null
+// The version and build date, for the static footer: a search arrival's
+// figures used to be undated until the app took over, so the page Google
+// served carried numbers with no currency statement at all.
+const META = Object.fromEntries(all('SELECT key, value FROM meta').map((r) => [r.key, r.value]))
 
 // ------------------------------------------------------------------- html
 
@@ -207,7 +211,7 @@ const chrome = (body, crumbs) => `
   <footer class="sitefoot"><div class="sitefoot-inner"><div>
     <p>Every page here is a query against one SQLite file, running in your browser. ${link('reference/quality', 'How far to trust it')} · ${link('reference/sources', 'sources')} · ${link('reference/sql', 'write your own query')}.</p>
     <p class="faint">Race data from <a href="https://github.com/f1db/f1db">F1DB</a> (CC BY 4.0), prose and registers from Wikipedia (CC BY-SA 4.0), circuit geometry © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL 1.0). Unaffiliated with Formula One, the FIA or any team.</p>
-  </div></div></footer>
+  </div><dl><dt>Database</dt><dd>v${esc(META.version)}</dd><dt>Built</dt><dd>${esc(META.built)}</dd></dl></div></footer>
 </div>`
 
 const crumbs = (trail) =>

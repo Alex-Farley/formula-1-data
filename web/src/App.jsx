@@ -84,7 +84,8 @@ function Footer() {
         <div>
           <p>
             Every page here is a query against one SQLite file, running in this tab. Nothing you
-            look at or type is sent anywhere, and once it has loaded it works offline. Career
+            look at or type is sent anywhere, and once it has loaded, this tab keeps working
+            without a network. Career
             totals are counted from the race records wherever the records can support it, and an em
             dash means nobody has established that figure — never zero.{' '}
             <Link to="/reference/quality">How far to trust it</Link> ·{' '}
