@@ -23,7 +23,7 @@ export:                           ## regenerate the JSON exports
 check: build verify test          ## what CI runs
 
 clean:                            ## remove built artefacts (not the sources)
-	rm -f f1.db f1_database.json f1_compat.json
+	rm -f f1.db f1_database.json f1_compat.json *.db.tmp
 	find . -name __pycache__ -type d -exec rm -rf {} + 2>/dev/null || true
 
 help:

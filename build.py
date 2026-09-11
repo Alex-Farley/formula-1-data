@@ -31,6 +31,13 @@ from data import radio as RA       # noqa: E402
 from data import results as RS     # noqa: E402
 
 DB = os.path.join(HERE, "f1.db")
+# The build writes here and moves the file into place only when every stage
+# has run. It used to drop f1.db and build in place, so a stage that failed
+# left a 581 KB fragment with 46 tables and no drivers where the committed
+# 20 MB file had been - observed on 2026-09-11, and committed by a step that
+# should have been gated on the build. The fragment is what verify.py would
+# then check and what git status would then offer.
+BUILD_DB = DB + ".tmp"
 VERSION = "2.22"
 
 # The build date, as a CONSTANT and deliberately not date.today().
@@ -159,9 +166,9 @@ def _stage_00_open_the_database(b):
     con = b.con
     cur = b.cur
 
-    if os.path.exists(DB):
-        os.remove(DB)
-    con = sqlite3.connect(DB)
+    if os.path.exists(BUILD_DB):
+        os.remove(BUILD_DB)
+    con = sqlite3.connect(BUILD_DB)
     con.executescript(open(os.path.join(HERE, "schema.sql"), encoding="utf-8").read())
     cur = con.cursor()
 
@@ -2519,6 +2526,7 @@ def _stage_34_link_race_entries_to_the_curated(b):
 
 
 GEOMETRY_DB = os.path.join(HERE, "f1-geometry.db")
+BUILD_GEOMETRY_DB = GEOMETRY_DB + ".tmp"
 # --------------------------------------------------------------- countries
 #
 # Three tables name a country - drivers.nationality, constructors.country and
@@ -2664,8 +2672,8 @@ def split_geometry(con):
     if not rows:
         return 0
 
-    if os.path.exists(GEOMETRY_DB):
-        os.remove(GEOMETRY_DB)
+    if os.path.exists(BUILD_GEOMETRY_DB):
+        os.remove(BUILD_GEOMETRY_DB)
     # The overlay's table is DERIVED from this build's schema, never restated
     # here. A hardcoded column list is a silent truncation waiting for the next
     # column: `segment_count`, `loose_ends` and `closes` were added to
@@ -2678,7 +2686,7 @@ def split_geometry(con):
                       "AND name='circuit_geometry'").fetchone()[0]
     ddl = re.sub(r"\s+REFERENCES\s+\w+\s*\([^)]*\)", "", ddl)
 
-    geo = sqlite3.connect(GEOMETRY_DB)
+    geo = sqlite3.connect(BUILD_GEOMETRY_DB)
     geo.executescript("""
         -- The circuit centrelines, traced from OpenStreetMap.
         --
@@ -2917,7 +2925,17 @@ if __name__ == "__main__":
     c = build()
     report(c)
     c.close()
-    for path in (DB, GEOMETRY_DB):
-        pin_sqlite_header(path)
+    # Pin, then move into place: a build that raised anywhere above never
+    # reaches this line and the committed files are as they were.
+    # Both or neither: CLAUDE.md's rule is that the two files ship together,
+    # and a geometry stage that produced nothing would otherwise leave a
+    # fresh f1.db beside the previous build's overlay.
+    for tmp in (BUILD_DB, BUILD_GEOMETRY_DB):
+        if not os.path.exists(tmp):
+            raise SystemExit(f"{os.path.basename(tmp)} was not written; "
+                             f"neither database has been replaced")
+    for tmp, final in ((BUILD_DB, DB), (BUILD_GEOMETRY_DB, GEOMETRY_DB)):
+        pin_sqlite_header(tmp)
+        os.replace(tmp, final)
     print(f"\nWrote {DB}")
 

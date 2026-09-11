@@ -466,8 +466,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 
 - [ ] `CR-04` **`./f1 sql` can alter the committed database.** `f1:67` opens read-write; DDL, `VACUUM`, `ATTACH` persist. `mode=ro` URI. — *code review · S*
 
-- [ ] `CR-05` **A failed build leaves a partial `f1.db` in the working tree.** Build to `.tmp` and `os.replace` on success, both databases; pin the header after the rename. — *code review · S*
-
 - [ ] `CR-06` **Two hand-bumped `1161` literals, and a per-race manual tax.** Pin "every completed race before the harvest's last round has one pole and one venue row" instead of the count. — *code review · S*
 
 - [ ] `CR-07` **The season is a magic number in nine files.** `2026` 158 times; no `CURRENT_SEASON`. S for the constant, then one file per sitting. `SD-12` is the service face. — *code review · M*
@@ -1059,6 +1057,13 @@ Real, but not costed, or waiting on a decision.
       standings loader, keyed by year, refuses the same way. A copy with one
       synthetic 2027 result refuses to build. `meta.coverage_seasons` is
       derived from `seasons` rather than typed. — *service critique · #40*
+
+- [x] `CR-05` **A failed build leaves the committed databases untouched.**
+      `build.py` writes `f1.db.tmp` and `f1-geometry.db.tmp` and moves each
+      into place only after every stage ran and the header is pinned.
+      Observed the day it was fixed: #40's first commit carried a 581 KB
+      fragment. On a copy a refused build exits 1 with `f1.db` byte-identical.
+      — *code review · #41*
 
 ## Declined
 
