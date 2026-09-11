@@ -1047,8 +1047,12 @@ Real, but not costed, or waiting on a decision.
       listing an entity twice; `lib/standings.js` is gone. Two fresh reviews
       each failed once — count-only tests, and no check on the half of the
       fold that keeps entries — and both gaps are closed by value-level and
-      row-level checks that were confirmed to fail on a broken copy. Costs
-      1.5 MB in `f1.db`, 373 KB gzipped. — *code review · #39*
+      row-level checks that were confirmed to fail on a broken copy. The
+      second review also found the view's "larger total is newer" premise
+      false for nine 2026 entities where the sources disagree at the same
+      round; the build now files each as an open `discrepancies` row shown
+      on the driver's or constructor's page, and a check refuses an unfiled
+      one. Costs 1.5 MB in `f1.db`, 373 KB gzipped. — *code review · #39*
 
 - [x] `CR-11` **Every view is selected from in `verify.py`.** A view over a
       missing column now fails a check, not a reader's query. —

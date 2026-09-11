@@ -815,6 +815,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
           ['Confidence', text(c.confidence)],
         ])}
         ${prose(c.notes)}
+        ${disagree(careerDisagreements.all(c.name), 'this team')}
         ${
           wins.length
             ? `<h2>Wins</h2>${table(

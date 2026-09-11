@@ -344,6 +344,55 @@ def standings():
         HAVING in_view <> in_source)""").fetchone()[0]
     check("v_standings_final keeps every entry the kept source asserts",
           folded == 0, f"{folded} entity-seasons with a different row count")
+
+    # The check that constrains the VALUE and not the rule. "Larger total
+    # wins" assumes the sources agree at any one round; where the official
+    # snapshot and F1DB's table after the same round differ, that is a
+    # disagreement the build must have filed, or a new one has arrived.
+    unfiled = []
+    pts_text = lambda v: str(int(v)) if float(v).is_integer() else str(v)  # noqa: E731
+    for yr_, kind_, eid_, snap_, rnd_ in con.execute("""
+        SELECT s.year, s.table_type, s.entity_id, s.points,
+               CAST(SUBSTR(s.as_of, INSTR(s.as_of, 'after round ') + 12) AS INTEGER)
+          FROM standings s
+         WHERE s.after_round IS NULL AND s.as_of LIKE '%(after round %'"""):
+        f1db_ = con.execute("""SELECT points FROM standings
+            WHERE year=? AND table_type=? AND entity_id=? AND after_round=?
+              AND source LIKE '%f1db%'""", (yr_, kind_, eid_, rnd_)).fetchone()
+        if f1db_ and f1db_[0] is not None and abs(f1db_[0] - snap_) > 0.001:
+            filed = con.execute("""SELECT 1 FROM discrepancies
+                WHERE field = ? AND stored_value = ? AND derived_value = ?""",
+                (f"{yr_} championship points, after round {rnd_}",
+                 pts_text(snap_), pts_text(f1db_[0]))).fetchone()
+            if not filed:
+                unfiled.append(f"{yr_} {kind_} {eid_} {snap_} v {f1db_[0]}")
+    check("every points disagreement between the official snapshot and F1DB is filed",
+          not unfiled, "; ".join(unfiled[:3]))
+    # The view is a classification: positions 1..n, points non-increasing.
+    for y in (2025, 2026):
+        for t in ("drivers", "constructors"):
+            rows = con.execute("""SELECT position, points FROM v_standings_final
+                WHERE year=? AND table_type=? AND position IS NOT NULL
+                ORDER BY position""", (y, t)).fetchall()
+            pos = [r[0] for r in rows]
+            check(f"v_standings_final {y} {t} positions are 1..n with no gaps",
+                  pos == list(range(1, len(pos) + 1)), str(pos[:5]))
+            pts_ = [r[1] for r in rows]
+            check(f"v_standings_final {y} {t} points are non-increasing",
+                  all(pts_[i] >= pts_[i + 1] for i in range(len(pts_) - 1)))
+    # A season built from two sources need not balance where they disagree;
+    # it is worth knowing when it does not.
+    for y in (2025, 2026):
+        d_, c_ = (con.execute("""SELECT SUM(points) FROM v_standings_final
+            WHERE year=? AND table_type=?""", (y, t)).fetchone()[0]
+                  for t in ("drivers", "constructors"))
+        warn(f"{y} published drivers' and constructors' totals agree",
+             d_ == c_, f"drivers {d_}, constructors {c_} - the sources disagree, see discrepancies")
+    # The new unique index makes INSERT OR IGNORE able to drop a row silently;
+    # a floor on the count is what would say so.
+    nstd = con.execute("SELECT COUNT(*) FROM standings").fetchone()[0]
+    check("the standings table holds at least as many rows as the last release",
+          nstd >= 34563, f"{nstd} rows")
     for yr_, eid_, want_ in ((2018, "force-india", 2), (1960, "cooper", 3)):
         got_ = con.execute("""SELECT COUNT(*) FROM v_standings_final
             WHERE year=? AND table_type='constructors' AND entity_id=?""",
@@ -766,6 +815,9 @@ def external_figures_vs_the_race_records():
                                (int(m.group(1)), int(m.group(2)))).fetchone():
                 unresolved.append(f"#{did} '{subject}' names no race")
         elif con.execute("SELECT 1 FROM drivers WHERE full_name=?",
+                         (subject,)).fetchone():
+            pass
+        elif con.execute("SELECT 1 FROM constructors WHERE name=?",
                          (subject,)).fetchone():
             pass
         else:

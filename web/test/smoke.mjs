@@ -365,15 +365,6 @@ try {
   await go('/seasons', 'Seasons')
   is((await tableRows())[0], count('SELECT COUNT(*) FROM seasons'), 'every season is listed')
 
-  /*
-   * The reigning champion has a championship position. The 2025-26 rows are
-   * hand-maintained from formula1.com and carry `position` with no
-   * `position_text`; the tables rendered position_text alone, so every 2025
-   * driver and constructor read as an em dash - under a footer saying the dash
-   * means "excluded". The app was wrong and the static page was right, which
-   * is the one direction PD-02 had never been seen in. Read the expectation
-   * from the database, as everything here does.
-   */
   // One row per driver. The end-of-season rows hold two sources' descriptions
   // of 2026; the page reads v_standings_final, which folds them, and the
   // count here is the view's own, so the assertion and the page cannot drift.
@@ -406,6 +397,15 @@ try {
     `the leader's points are the current source's — ${leaderExpected}`,
   )
 
+  /*
+   * The reigning champion has a championship position. The 2025-26 rows are
+   * hand-maintained from formula1.com and carry `position` with no
+   * `position_text`; the tables rendered position_text alone, so every 2025
+   * driver and constructor read as an em dash - under a footer saying the dash
+   * means "excluded". The app was wrong and the static page was right, which
+   * is the one direction PD-02 had never been seen in. Read the expectation
+   * from the database, as everything here does.
+   */
   console.log('\n/seasons/2025  (the champion is P1, not an em dash)')
   await go('/seasons/2025', '2025')
   const championPos = await page.evaluate(() => {

@@ -63,6 +63,14 @@ const label = (field) => String(field ?? '').replace(/_/g, ' ')
  * is the whole claim. Naming one "correct" here would be the silent pick the
  * table exists to avoid.
  */
+/** Open disagreements about one constructor's figures. Args: [constructor name]. */
+export const CONSTRUCTOR_DISAGREEMENTS = `
+  ${RESOLVED}
+   WHERE d.subject = ?
+     AND d.status LIKE 'open%'
+   ORDER BY d.id
+`
+
 export default function Disagreement({ rows, what = 'this' }) {
   if (!rows || rows.length === 0) return null
 

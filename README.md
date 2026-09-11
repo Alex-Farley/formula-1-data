@@ -26,7 +26,11 @@ table after every round — and CI certified it seven times, because it checks
 reproducibility and not sense; the exporter now reads the view and refuses a
 snapshot that lists an entity twice. The site's pages and the CLI read the
 view too, and the ninety lines of JavaScript that reconstructed it at read
-time are gone. The index costs 1.5 MB in `f1.db` and 373 KB in the gzipped
+time are gone. Comparing the official round-12 snapshot with F1DB's table after
+the same round found nine entities the two sources score differently — Gasly
+44 against 35, McLaren 263 against 265 — and each is now an open row in
+`discrepancies`, shown on the driver's or team's page, rather than a choice the
+view made silently. The index costs 1.5 MB in `f1.db` and 373 KB in the gzipped
 download — a key has to live in the file to be enforced when a row is written.
 
 **v2.21** gives pole position its own column. `race_entries.grid = 1` had

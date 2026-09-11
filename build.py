@@ -1742,6 +1742,11 @@ def _stage_24_qualifying_checked_against_the_pole_already(b):
               f"the fastest qualifier is not the stored pole-sitter")
 
 
+def _points_text(v):
+    """A points figure as a discrepancy row shows it: 104, not 104.0."""
+    return str(int(v)) if float(v).is_integer() else str(v)
+
+
 def _stage_25_championship_standings_after_every_round_and(b):
     """championship standings, after every round and at season end"""
     cur = b.cur
@@ -1799,26 +1804,50 @@ def _stage_25_championship_standings_after_every_round_and(b):
         # The hand-entered rows predate this column and carry no engine, so
         # the overlap check matches on entity alone and only for the single
         # highest-placed entry - which is the one those rows describe.
-        existing = cur.execute("""SELECT points FROM standings
-            WHERE year=? AND table_type=? AND entity_id=?
-              AND after_round IS NULL AND as_of='final'
-              AND engine_id IS NULL""",
-            (yr, kind, eid)).fetchone() if after is None else None
+        # ...and a mid-season snapshot is compared with F1DB's running table
+        # AFTER THE SAME ROUND, which is the only like-for-like there is: the
+        # snapshot's as_of says which round it stood after. Points only
+        # accumulate, so a difference here is two sources disagreeing about
+        # one classification, and it is recorded rather than resolved - the
+        # view that publishes one row picks the larger figure, and the
+        # discrepancy is what makes that choice visible on the page.
+        existing = None
+        if after is None:
+            existing = cur.execute("""SELECT points FROM standings
+                WHERE year=? AND table_type=? AND entity_id=?
+                  AND after_round IS NULL AND as_of='final'
+                  AND engine_id IS NULL""", (yr, kind, eid)).fetchone()
+        else:
+            existing = cur.execute("""SELECT points FROM standings
+                WHERE year=? AND table_type=? AND entity_id=?
+                  AND after_round IS NULL AND engine_id IS NULL
+                  AND as_of LIKE ?""",
+                (yr, kind, eid, f"%(after round {after})")).fetchone()
         if existing is not None:
             std_checked += 1
             if (existing[0] is not None and pts is not None
                     and abs(existing[0] - pts) > 0.001):
                 std_conflicts += 1
+                # Subject is the display name, which is how a race page or a
+                # driver page finds its disagreements; a constructor's page
+                # does the same on constructors.name.
+                subj = cur.execute(
+                    "SELECT full_name FROM drivers WHERE id=?" if kind == "drivers"
+                    else "SELECT name FROM constructors WHERE id=?", (eid,)).fetchone()
+                stage = "final" if after is None else f"after round {after}"
                 cur.execute("""INSERT INTO discrepancies (subject, field,
                     stored_value, derived_value, assessment, status)
                     VALUES (?,?,?,?,?,?)""",
-                    (f"{yr} {kind} championship, {eid}", "points",
-                     str(existing[0]), str(pts),
-                     "formula1.com and F1DB give different final "
-                     "championship points for the same entity in the same "
-                     "season. The stored figure is 'verified' from the "
-                     "official archive and is not overwritten.", "open"))
-            continue
+                    (subj[0] if subj else eid, f"{yr} championship points, {stage}",
+                     _points_text(existing[0]), _points_text(pts),
+                     "formula1.com and F1DB give different championship points "
+                     "for the same entity at the same point in the season. The "
+                     "stored figure is 'verified' from the official archive and "
+                     "is not overwritten; where one row has to be published, "
+                     "v_standings_final takes the larger total, and this row is "
+                     "what makes that choice visible.", "open"))
+            if after is None:
+                continue
 
         name = cur.execute(
             "SELECT full_name FROM drivers WHERE id=?" if kind == "drivers"
