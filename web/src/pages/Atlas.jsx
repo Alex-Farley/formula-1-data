@@ -4,7 +4,7 @@ import { Confidence, Fields, Note, Onward, Page, Section } from '../components/P
 import { Result } from '../components/States.jsx'
 import { useQuery } from '../data/useQuery.js'
 import { number } from '../lib/format.js'
-import { cornerRadius, pathOf, pointAt, project, stitch } from '../lib/lap.js'
+import { cornerRadius, pathOf, pointAt, project, signedArea, stitch } from '../lib/lap.js'
 
 const SQL = `
   SELECT g.circuit_id, g.centreline, g.measured_km, g.published_km, g.delta_pct,
@@ -92,7 +92,19 @@ function AtlasBody({ rows }) {
     for (const row of rows) {
       const walk = stitch(row.centreline)
       if (!walk) continue
-      const shape = project(walk.ring)
+      let shape = project(walk.ring)
+      // Walk the lap the way the cars do. The stitched ring runs whichever
+      // way its first OpenStreetMap way was drawn; where that disagrees with
+      // the direction the register states, the ring is reversed. The origin
+      // stays arbitrary - no start/finish coordinate exists in either
+      // database - which is why the readout says "along the trace".
+      if (walk.complete && row.direction) {
+        const clockwise = signedArea(shape) > 0
+        if (clockwise !== (row.direction === 'clockwise')) {
+          walk.ring.reverse()
+          shape = project(walk.ring)
+        }
+      }
       out.set(row.circuit_id, {
         row,
         shape,
@@ -144,6 +156,16 @@ function AtlasBody({ rows }) {
   const { row, shape } = lap
   const marker = pointAt(shape, at)
   const walkable = lap.complete
+  // What is under the marker: the band the colour key asks the reader to
+  // match by eye, and the radius behind it. The page computed both for
+  // every point and showed neither.
+  const under = (() => {
+    if (!walkable || !lap.radius) return null
+    let i = 1
+    while (i < shape.cum.length - 1 && shape.cum[i] < marker.metres) i += 1
+    const r = lap.radius[i]
+    return { name: BAND_NAMES[bandIndex(r)], radius: Number.isFinite(r) ? Math.round(r) : null }
+  })()
 
   return (
     <>
@@ -208,7 +230,9 @@ function AtlasBody({ rows }) {
               />
               <output htmlFor="atlas-at">
                 {walkable
-                  ? `${number(Math.round(marker.metres))} m of ${number(Math.round(shape.length))}`
+                  ? `${number(Math.round(marker.metres))} m along the trace${
+                      under ? ` · ${under.name}${under.radius ? `, ${number(under.radius)} m` : ''}` : ''
+                    }`
                   : 'not a closed lap'}
               </output>
             </div>
