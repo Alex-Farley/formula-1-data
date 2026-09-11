@@ -10,12 +10,20 @@
  * happened to hold; and it required the reader's words in the label's order.
  */
 
-/** Lower-case, and strip diacritics both from the label and from what was typed. */
+/**
+ * Lower-case, and strip diacritics both from the label and from what was typed.
+ *
+ * NFD takes care of the marks - Räikkönen, Pérez, Hülkenberg - but a letter
+ * that is its own letter has no mark to strip: ø, ł, ß, ð, æ. Tom Belsø was
+ * the one driver "belso" could not find, and the review found him.
+ */
+const LETTERS = { ø: 'o', ł: 'l', ß: 'ss', ð: 'd', æ: 'ae', þ: 'th', đ: 'd', œ: 'oe' }
 export const fold = (s) =>
   String(s ?? '')
     .normalize('NFD')
     .replace(/\p{M}/gu, '')
     .toLowerCase()
+    .replace(/[øłßðæþđœ]/g, (c) => LETTERS[c])
 
 /**
  * A rank for `entry` against what was typed, or -1 for no match.

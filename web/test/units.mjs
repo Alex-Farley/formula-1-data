@@ -121,6 +121,13 @@ describe('yearList', () => {
 describe('search', () => {
   const entry = (label, weight = 0) => ({ label, needle: fold(label), weight })
 
+  it('folds letters that have no combining mark to strip', () => {
+    assert.equal(fold('Tom Belsø'), 'tom belso')
+    assert.equal(fold('Robert Kubica'), fold('robert kubica'))
+    assert.ok(rank(entry('Tom Belsø'), 'belso') >= 0)
+    assert.ok(rank(entry('Jo Siffert'), 'siffert') >= 0)
+  })
+
   it('offers the winningest driver first among equal matches', () => {
     const lewis = entry('Sir Lewis Hamilton', 106)
     const duncan = entry('Duncan Hamilton', 0)
