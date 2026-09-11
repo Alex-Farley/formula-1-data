@@ -394,6 +394,32 @@ Worth doing, not yet urgent.
       appear. Content design owns the wording (`CD-09`); this is the placement
       half. — *IA critique · S*
 
+- [ ] `AF-01` **Say when a race ends and whether it happened.** Search Console
+      (11 Sep 2026) reports seven non-critical *Events* issues against the
+      `SportsEvent` markup every race page emits at `prerender.js:499`, and
+      names five: `endDate`, `eventStatus`, `organizer`, `performer`, `offers`.
+      Two are facts the database already holds and should simply be emitted.
+      `endDate` is the same `date_iso` that already feeds `startDate` — a Grand
+      Prix is a one-day event, and the weekend range in `dates` is the display
+      value the comment there rightly refuses to parse. `eventStatus` is
+      `EventScheduled` on every row, because `races.status` only distinguishes
+      run from not-yet-run and neither is cancelled or postponed. `organizer`
+      is also true — the FIA sanctions every championship round — but is held
+      nowhere in the database, so if it goes in it is a documented constant,
+      not a string typed into the prerenderer. **Decline `performer` and
+      `offers`.** Nothing here sells a ticket, and an invented offer is false
+      structured data, which Google treats as a policy violation rather than a
+      warning; and naming the drivers as `performer` is a reading of the schema
+      no reader of a 1950 results page would recognise. Google's Event rich
+      result exists for upcoming ticketed events, so of 1,172 pages only the
+      ten scheduled 2026 rounds can ever earn one, and the warnings do not
+      affect ranking — which is why this is S and *Next*, not *Now*. Two things
+      to check while in there: Las Vegas 2026 carries `dates` "19–21 Nov" but
+      `date_iso` 2026-11-22, so the ISO date sits outside the display range on
+      the one page a ticket-holder would search; and `smoke.mjs:866` asserts
+      JSON-LD on a driver page only, so a race page's markup has no test. —
+      *Search Console report · S*
+
 ## Someday, or maybe never
 
 Real, but not costed, or waiting on a decision.
