@@ -588,11 +588,7 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 
 - [ ] `SD-01` **The data is published; everything that explains it is not.** The service face of `PD-14`. Its two S follow-ons — serve the licence files from the site; set `homepageUrl` and topics — stand whichever way the decision goes. — *service critique · S*
 
-- [ ] `SD-03` **The refresh cron is slower than the upstream it watches.** Weekly against a one-to-two-day upstream: a missed Monday means "not yet run" for 8 days 17 hours. `cron: '0 6 * * *'`; the job short-circuits when nothing changed. — *service critique · S*
-
 - [ ] `SD-04` **There is no inbound channel.** No contact, no report link, zero issues ever. One footer line; then the 18 pages showing an open disagreement get the link specifically. — *service critique · S*
-
-- [ ] `SD-05` **The weekly harvest commit skips CI and deploys unaided.** `GITHUB_TOKEN` pushes do not trigger `ci.yml`; Cloudflare deploys anyway. Add the `web` job's steps to `refresh.yml`, or open a PR. Confirmable Monday 15 September. — *service critique · S*
 
 - [ ] `SD-06` **Nothing distinguishes a current service from a frozen one.** Build logs off, last-good deploy kept, `build-status.txt` written by the build that failed to replace it, 3,515 identical `lastmod`s. Build date in the *static* footer; make `build-status.txt` a heartbeat. — *service critique · S*
 
@@ -1078,6 +1074,18 @@ Real, but not costed, or waiting on a decision.
       inferred-pole check now reads the harvest's coverage rather than the
       source column. The proper fix is still `PM-14`. — *data architecture
       critique · #43*
+
+- [x] `SD-03` **The refresh polls daily.** F1DB publishes within a day or two
+      of a race; a weekly poll that missed by four hours left a run race
+      shown as unrun for eight days. The job's diff step short-circuits a day
+      with nothing new. — *service critique · #44*
+
+- [x] `SD-05` **The refresh builds and tests the site before it commits.** Its
+      push is made with `GITHUB_TOKEN`, which starts no workflows, so `ci.yml`
+      never ran on the weekly harvest commit while Cloudflare deployed it.
+      The web build and the smoke test — which reads its expectations out of
+      the refreshed database — now run in the refresh itself, before the
+      commit. — *service critique · #44*
 
 ## Declined
 
