@@ -479,13 +479,9 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 
 - [ ] `VD-08` **The livery-band explanation is 10.5 px mono across 175 characters.** The sentence that carries the racing-colour decision, set smaller than a footnote. `--sans`, 13 px, under the swatch, within `--measure`. — *visual critique · S*
 
-- [ ] `VD-10` **Thirty identical `MEDIUM` badges on `/records`, ten on `/reference/eras`.** `/cars` already states the rule against this. Say the tier once in the note and drop the column. — *visual critique · S*
-
 - [ ] `VD-11` **The confidence ladder is drawn without rungs.** Three middle tiers pixel-identical. Step them on border weight, not hue. — *visual critique · S*
 
 - [ ] `VD-12` **The circuit page shows the flattest drawing of the best asset.** Render `/circuits/:id` with the atlas's renderer — radius bands, start marker, direction. One component, one call site; most of the "look nicer" the author wants, and every pixel a fact. Declines 3D (see *Declined*); an elevation *profile strip* under the plan map if `PD-23` ever yields a source. — *visual critique · M*
-
-- [ ] `VD-13` **`/records` right-aligns scalars and phrases in one column.** Split into numeric and qualifier, or left-align. After `PD-03`. — *visual critique · S*
 
 - [ ] `VD-14` **Wide tables clip at the container edge on a phone with no affordance.** Seven of nine `/drivers` columns invisible at 375 px. A right-edge fade on `.table-scroll` when scrollable. — *visual critique · S*
 
@@ -620,8 +616,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 - [ ] `UR-05` **Nothing on 3,515 pages says who publishes this or how to tell them they are wrong.** No About, no contact, no corrections route; a Wikipedia editor cannot satisfy WP:RS. One page; `SD-15` is the same gap. — *user research · S*
 
 - [ ] `UR-07` **The obvious standings query returns 333 rows, and the console hides the comment that prevents it.** Show `sqlite_master` SQL in the schema browser; add a worked example for the current championship. `CR-02`'s reader face. — *user research · S*
-
-- [ ] `UR-09` **On `/records` the caveat sits 1,900 px below the figure.** Rides with `PD-03`; move the sentence above the table today. — *user research · S*
 
 - [ ] `UR-12` **Amon's page gives three answers to "how many races".** 96 (lede), 108 (strip), `—` (starts). Where `notes` states a figure the page computes, show them adjacent or drop the prose. Apply during `CD-02`. — *user research · S*
 
@@ -1143,6 +1137,19 @@ Real, but not costed, or waiting on a decision.
 - [x] `IA-05` **A car is found by the name anyone types.** The index carries
       `chassis.full_name` — "Ferrari 312/67" — not the bare model number. —
       *IA critique · #54*
+
+- [x] `UR-09` **The records caveat sits above the figures it caveats**, not
+      1,900 px below them. `PD-03`'s derivation is still the fix; this is the
+      sentence that already existed, moved. — *user research · #55*
+
+- [x] `VD-10` **A badge that never varies is said once.** `/records`' thirty
+      identical `medium` badges and `/reference/eras`' ten are one sentence
+      each; the column and the per-row badge return only where tiers differ.
+      — *visual critique · #55*
+
+- [x] `VD-13` **`/records` no longer right-aligns phrases as if they were
+      figures.** Left-aligned; the split into a number and a qualifier waits
+      for `PD-03` to settle what the page is. — *visual critique · #55*
 
 ## Declined
 

@@ -50,17 +50,26 @@ function Body({ data }) {
     [regulations],
   )
   const shownRegulations = category ? regulations.filter((r) => r.category === category) : regulations
+  const eraTiers = [...new Set(eras.map((e) => e.confidence))]
 
   return (
     <>
-      <Section title="Ten eras" count={`${eras.length}`}>
+      <Section
+        title="Ten eras"
+        count={`${eras.length}`}
+        note={
+          eraTiers.length === 1
+            ? `Each era carries the ${eraTiers[0]} tier: the boundaries are the conventional ones, not a measurement.`
+            : undefined
+        }
+      >
         <div className="timeline">
           {eras.map((era) => (
             <article key={era.id}>
               <h3>
                 {era.era_name}
                 <span className="years">{span(era.from_year, era.to_year)}</span>
-                <Confidence value={era.confidence} />
+                {eraTiers.length > 1 && <Confidence value={era.confidence} />}
               </h3>
               <p>{era.summary}</p>
               {era.dominant_teams && (
