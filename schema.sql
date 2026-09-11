@@ -744,6 +744,9 @@ CREATE TABLE races (
     dates           TEXT,
     date_iso        TEXT,                      -- YYYY-MM-DD, the race day
     sprint          INTEGER NOT NULL DEFAULT 0,
+    -- completed | scheduled. A cancelled round has no row rather than a
+    -- third value: the calendar holds what was and will be run, and the
+    -- front end knows only these two. A third state fails loudly here first.
     status          TEXT NOT NULL DEFAULT 'completed'
                     CHECK (status IN ('completed', 'scheduled')),
     note            TEXT,
