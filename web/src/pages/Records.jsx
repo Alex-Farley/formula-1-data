@@ -84,6 +84,7 @@ function Body({ data }) {
     [records],
   )
   const shownRecords = category ? records.filter((r) => r.category === category) : records
+  const tiers = useMemo(() => [...new Set(records.map((r) => r.confidence))], [records])
 
   const [decade, setDecade] = useState(() => String(Math.max(...decades.map((d) => d.decade))))
   const decadeRows = decades.filter((d) => String(d.decade) === decade).slice(0, 12)
@@ -92,6 +93,19 @@ function Body({ data }) {
   return (
     <>
       <Section title="Published records" count={`${records.length}`}>
+        {/* The caveat goes ABOVE the figures it caveats. It sat 1,900 px below
+            them, so a reader on a phone sent "105 wins" before learning that
+            the leaderboard further down said 106 and was the newer figure. */}
+        <p className="note" style={{ marginTop: -4 }}>
+          Published figures, each true as of the date it carries. Where one disagrees with a
+          leaderboard below, the leaderboard is the newer of the two.
+          {tiers.length === 1 && (
+            <>
+              {' '}All thirty carry the <Confidence value={tiers[0]} /> tier, so it is not repeated
+              on every row.
+            </>
+          )}
+        </p>
         <div className="filters">
           <Chips
             value={category}
@@ -107,16 +121,19 @@ function Body({ data }) {
           columns={[
             { key: 'record', label: 'Record' },
             { key: 'holder', label: 'Holder', align: 'prose' },
-            { key: 'value', label: 'Value', align: 'num' },
+            // "21 from 22", "about 47%", "23 years, 134 days": phrases, not a
+            // column of figures, so they do not pretend to align as one.
+            { key: 'value', label: 'Value', align: 'prose' },
             { key: 'detail', label: 'Detail', align: 'prose' },
             { key: 'as_of', label: 'True as of' },
-            { key: 'confidence', label: 'Confidence', render: (value) => <Confidence value={value} /> },
+            // Thirty identical badges in a column mean nothing; the tier is
+            // said once above where they all share it, and per row only where
+            // they differ.
+            ...(tiers.length === 1
+              ? []
+              : [{ key: 'confidence', label: 'Confidence', render: (value) => <Confidence value={value} /> }]),
           ]}
         />
-        <p className="source-note">
-          Where one of these disagrees with a leaderboard below, the leaderboard is the newer of the
-          two.
-        </p>
       </Section>
 
       <Section title="Counted from the race records">
