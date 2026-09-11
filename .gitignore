@@ -69,3 +69,6 @@ web/public/
 # layout other things were written against, it is 109 KB, and being able to
 # diff it is the point.
 f1_database.json
+
+# Claude Code local settings (machine-specific, not shared)
+.claude/settings.local.json
