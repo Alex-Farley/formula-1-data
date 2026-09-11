@@ -20,7 +20,7 @@ const EXAMPLES = [
     `SELECT d.full_name, COUNT(*) AS pole_to_win
    FROM race_entries e
    JOIN drivers d ON d.id = e.driver_id
-  WHERE e.grid = 1 AND e.finish_position = 1
+  WHERE e.pole = 1 AND e.finish_position = 1
   GROUP BY e.driver_id
   ORDER BY pole_to_win DESC
   LIMIT 15`,

@@ -28,7 +28,7 @@ const DRIVER_POLES = `
   SELECT e.driver_id, d.full_name, COUNT(*) AS poles
     FROM race_entries e
     JOIN drivers d ON d.id = e.driver_id
-   WHERE e.grid = 1
+   WHERE e.pole = 1
    GROUP BY e.driver_id
    ORDER BY poles DESC, d.full_name
    LIMIT 40

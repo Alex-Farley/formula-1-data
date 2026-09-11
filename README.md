@@ -435,7 +435,8 @@ race_entries   one row per driver per race
 ```
 
 Every per-driver fact about a race is an attribute of an **entry**: pole is
-`grid = 1`, a win is `finish_position = 1`, a fastest lap is a flag. Wins,
+`pole = 1`, a start from the front of the grid is `grid = 1` (not always the
+same driver), a win is `finish_position = 1`, a fastest lap is a flag. Wins,
 poles and fastest laps per driver are derived from this at build time, so they
 cannot drift from the races they come from.
 

@@ -31,7 +31,7 @@ const CALENDAR = `
            WHERE e.race_id = r.id AND e.finish_position = 1 LIMIT 1) AS winning_team,
          (SELECT group_concat(d.full_name, ' / ') FROM race_entries e
             JOIN drivers d ON d.id = e.driver_id
-           WHERE e.race_id = r.id AND e.grid = 1)                 AS pole,
+           WHERE e.race_id = r.id AND e.pole = 1)                 AS pole,
          (SELECT group_concat(d.full_name, ' / ') FROM race_entries e
             JOIN drivers d ON d.id = e.driver_id
            WHERE e.race_id = r.id AND e.fastest_lap = 1)          AS fastest

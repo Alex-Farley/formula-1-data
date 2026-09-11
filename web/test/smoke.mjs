@@ -429,9 +429,10 @@ try {
 
   /*
    * A race where the driver on pole is not the driver who was quickest. The
-   * page holds race_results' pole -- whoever started at the front -- and a
-   * reader who knows the sport reads that as an error unless the page says
-   * why. There are thirteen such races and verify.py pins the count.
+   * page holds race_results' pole -- the driver the season record credits --
+   * and a reader who knows the sport reads that as an error unless the page
+   * names the quickest driver too. There are thirteen such races and
+   * verify.py pins the count.
    */
   console.log('\n/races/2021/10  (pole is not the fastest qualifier)')
   await go('/races/2021/10')
@@ -443,7 +444,18 @@ try {
                         WHERE r.year = 2021 AND r.round = 10 AND q.position = 1`)),
     'and names the driver who actually set the time',
   )
+
   truthy(front.includes('set by the sprint'), 'and says the sprint set the grid')
+
+  /*
+   * The one race where the credited pole-sitter did not start from the front:
+   * a 2022 sprint weekend, pole to the fastest qualifier, grid 1 to the sprint
+   * winner. Pole and grid 1 are two columns for this reason, and the page has
+   * to show both or the classification's grid column contradicts the summary.
+   */
+  console.log('\n/races/2022/21  (pole is not the car at grid 1)')
+  await go('/races/2022/21')
+  truthy((await page.content()).includes('Started first'), 'the page names the car that started from the front')
 
   console.log('\n/races')
   await go('/races', 'Races')
@@ -588,6 +600,19 @@ try {
   truthy(
     mp44.includes(count("SELECT COUNT(*) FROM race_entries WHERE chassis_id = 'mclaren-mp4-4'")),
     'every entry the MP4/4 made',
+  )
+  // The stat, not just the table. Car.jsx enumerates the columns it selects,
+  // and a figure derived from a column that query forgot renders as a
+  // confident zero -- which is what happened when pole became its own flag.
+  // The MP4/4 is the car for this: fifteen poles, every one linked.
+  const mp44Poles = await page.$$eval('#root main dt', (dts) => {
+    const dt = dts.find((d) => d.textContent.trim() === 'Poles')
+    return dt?.nextElementSibling?.textContent?.trim() ?? null
+  })
+  is(
+    Number(mp44Poles),
+    count("SELECT COUNT(*) FROM race_entries WHERE chassis_id = 'mclaren-mp4-4' AND pole = 1"),
+    'the poles stat is counted from the entries',
   )
 
   // A licence violation is the failure mode here, so this is asserted rather
