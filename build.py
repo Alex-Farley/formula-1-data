@@ -1176,6 +1176,18 @@ def _stage_16_current_season(b):
              "verified", N.SOURCE_F1))
         race_key[(2026, c[0])] = rid
 
+    # A calendar row whose country field carries a parenthesis is a declared
+    # oddity - "Bahrain (hosted at Sepang, Malaysia)" - and the page rendered
+    # a Bahrain Grand Prix at a Malaysian circuit with no explanation, because
+    # this was the one authored field nothing read. It becomes the race's note,
+    # which both renderers already show as the lede.
+    for c in N.CALENDAR_2026:
+        if "(" in c[2] and c[2].endswith(")"):
+            aside = c[2][c[2].index("(") + 1:-1]
+            cur.execute("""UPDATE races SET note = ? WHERE year = 2026 AND round = ?
+                           AND note IS NULL""",
+                        (f"The {c[1]} of 2026 is {aside}.", c[0]))
+
     b.race_key = race_key
     b.lookup = lookup
     b.driver_id = driver_id

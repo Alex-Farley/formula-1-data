@@ -142,7 +142,7 @@ function Body({ data }) {
 
           <Figure
             title="Most pole positions"
-            note="Counted as a grid position of 1 in the race records."
+            note="The driver the season record credits with pole. Not always the car at grid 1: a penalty or a sprint-set grid can part them, and each race page says so where they differ."
             table={{
               rows: driverPoles,
               columns: [

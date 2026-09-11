@@ -47,6 +47,31 @@ export function percent(part, whole, places = 1) {
   return `${((part / whole) * 100).toFixed(places)}%`
 }
 
+/**
+ * A comma-separated list of years as stored ("2008,2014,2015,2017,2018,2019,
+ * 2020") read as a career: "2008, 2014–15, 2017–20". Consecutive years - two
+ * or more - collapse to a range and the commas gain a space, so the list
+ * wraps at commas instead of mid-number; the titles tile used to read
+ * "2008,2014,2015,201 / 7".
+ */
+export function yearList(value) {
+  if (missing(value)) return EMPTY
+  const years = String(value)
+    .split(/[,\s]+/)
+    .map((y) => Number(y))
+    .filter((y) => Number.isInteger(y))
+  if (years.length === 0) return String(value)
+  const runs = []
+  for (const y of years) {
+    const last = runs[runs.length - 1]
+    if (last && y === last[1] + 1) last[1] = y
+    else runs.push([y, y])
+  }
+  return runs
+    .map(([a, b]) => (a === b ? String(a) : `${a}–${String(b).slice(-2)}`))
+    .join(', ')
+}
+
 /** "1950–2026", "1950–", "1950". The dash is an en dash, as a span should be. */
 export function span(from, to) {
   if (missing(from) && missing(to)) return EMPTY

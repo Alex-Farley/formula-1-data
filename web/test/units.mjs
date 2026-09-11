@@ -28,6 +28,7 @@ import {
   result,
   span,
   text,
+  yearList,
 } from '../src/lib/format.js'
 import { metresBetween, stitch } from '../src/lib/lap.js'
 import { trackPath } from '../src/lib/track.js'
@@ -96,6 +97,24 @@ describe('percent', () => {
   it('does not divide by zero', () => {
     // 0 of 0 races is not 0% and not NaN%; nobody has established it.
     assert.equal(percent(0, 0), EMPTY)
+  })
+})
+
+describe('yearList', () => {
+  it('collapses consecutive years to a range, two-year runs included', () => {
+    assert.equal(yearList('2008,2014,2015,2017,2018,2019,2020'), '2008, 2014–15, 2017–20')
+  })
+
+  it('spaces the commas so the list wraps between years, never inside one', () => {
+    assert.equal(yearList('1994,1995,2000,2001,2002,2003,2004'), '1994–95, 2000–04')
+  })
+
+  it('leaves a single year alone', () => {
+    assert.equal(yearList('1975'), '1975')
+  })
+
+  it('is an em dash for nothing', () => {
+    assert.equal(yearList(null), EMPTY)
   })
 })
 

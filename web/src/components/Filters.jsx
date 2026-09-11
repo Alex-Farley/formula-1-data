@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { number } from '../lib/format.js'
 
 /**
@@ -9,12 +10,24 @@ import { number } from '../lib/format.js'
  * the result flicker.
  */
 export function Filters({ children, showing, of, noun = 'rows' }) {
+  const count = showing === of ? `${number(of)} ${noun}` : `${number(showing)} of ${number(of)} ${noun}`
+  // The visible count updates per keystroke; the announced one waits until
+  // typing settles, because a live region that fires on every character is
+  // worse than no live region for the reader it exists for.
+  const [announced, setAnnounced] = useState(count)
+  useEffect(() => {
+    const timer = setTimeout(() => setAnnounced(count), 500)
+    return () => clearTimeout(timer)
+  }, [count])
   return (
     <div className="filters">
       {children}
       <span className="spacer" />
-      <span className="result-count">
-        {showing === of ? `${number(of)} ${noun}` : `${number(showing)} of ${number(of)} ${noun}`}
+      <span className="result-count" aria-hidden="true">
+        {count}
+      </span>
+      <span className="sr-only" role="status">
+        {announced}
       </span>
     </div>
   )

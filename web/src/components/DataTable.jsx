@@ -53,6 +53,8 @@ export default function DataTable({
   page = PAGE,
   sortable = true,
   footer,
+  // The SQL console shows data as data: 1950, not 1,950.
+  raw = false,
 }) {
   const source = given ?? data?.rows ?? []
   // Read unconditionally: hooks may not sit behind the early return below.
@@ -169,7 +171,7 @@ export default function DataTable({
                     key={column.key}
                     className={[column.align, column.className?.(row)].filter(Boolean).join(' ')}
                   >
-                    {column.render ? column.render(row[column.key], row) : cell(row[column.key])}
+                    {column.render ? column.render(row[column.key], row) : cell(row[column.key], { raw })}
                   </td>
                 ))}
               </tr>
@@ -191,8 +193,14 @@ export default function DataTable({
   )
 }
 
-/** A value, with NULL rendered as the em dash that means "not established". */
-export function cell(value) {
+/**
+ * A value, with NULL rendered as the em dash that means "not established"
+ * and a true zero set faint, so the two never read the same and neither
+ * competes with a figure. `raw` prints numbers unformatted.
+ */
+export function cell(value, { raw = false } = {}) {
   if (missing(value)) return <span className="empty">—</span>
+  if (value === 0) return <span className="zero">0</span>
+  if (raw && typeof value === 'number') return String(value)
   return text(value)
 }

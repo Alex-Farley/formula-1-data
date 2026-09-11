@@ -7,7 +7,7 @@ import Disagreement, { DRIVER_DISAGREEMENTS } from '../components/Disagreement.j
 import Figure from '../charts/Figure.jsx'
 import DotPlot from '../charts/DotPlot.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
-import { finished, missing, number, points as fmtPoints, result, span } from '../lib/format.js'
+import { finished, missing, number, points as fmtPoints, result, span, yearList } from '../lib/format.js'
 import { finalStandings } from '../lib/standings.js'
 
 const DRIVER = `SELECT * FROM drivers WHERE id = ?`
@@ -39,10 +39,14 @@ const DERIVED = `
 const BY_SEASON = `
   SELECT r.year,
          COUNT(*)                    AS entries,
-         SUM(e.finish_position = 1)  AS wins,
-         SUM(e.finish_position <= 3) AS podiums,
-         SUM(e.pole = 1)             AS poles,
-         SUM(e.fastest_lap = 1)      AS fastest_laps,
+         -- COALESCE, because SUM over a season with no classified finish is
+         -- NULL, which rendered as the em dash meaning "not established" on
+         -- 591 driver-seasons whose true figure is zero - beside a strip that
+         -- said WINS 0 forty pixels above.
+         COALESCE(SUM(e.finish_position = 1), 0)  AS wins,
+         COALESCE(SUM(e.finish_position <= 3), 0) AS podiums,
+         COALESCE(SUM(e.pole = 1), 0)             AS poles,
+         COALESCE(SUM(e.fastest_lap = 1), 0)      AS fastest_laps,
          SUM(COALESCE(e.points, 0))  AS points,
          MIN(e.finish_position)      AS best,
          group_concat(DISTINCT k.name) AS teams
@@ -178,7 +182,7 @@ function DriverBody({ driver, data }) {
             { label: 'Poles', value: number(derived.poles ?? 0) },
             { label: 'Fastest laps', value: number(derived.fastest_laps ?? 0) },
             driver.titles
-              ? { label: 'Titles', value: number(driver.titles), note: driver.title_years ?? undefined }
+              ? { label: 'Titles', value: number(driver.titles), note: missing(driver.title_years) ? undefined : yearList(driver.title_years) }
               : null,
             { label: 'Best finish', value: derived.best ? `P${derived.best}` : null },
           ].filter(Boolean)}
@@ -194,7 +198,9 @@ function DriverBody({ driver, data }) {
               rows: standings,
               columns: [
                 { key: 'year', label: 'Season', align: 'num' },
-                { key: 'position_text', label: 'Position', align: 'num' },
+                // The chart plots `position`; its table - the non-fallback source
+                // of the same numbers - must not dash a season the dot has placed.
+                { key: 'position_text', label: 'Position', align: 'num', render: (v, row) => cell(v ?? row.position) },
                 { key: 'points', label: 'Points', align: 'num' },
               ],
             }}
@@ -247,6 +253,7 @@ function DriverBody({ driver, data }) {
               label: 'Championship',
               align: 'num',
               sort: (row) => row.championship,
+              render: (v, row) => cell(v ?? row.championship),
             },
             {
               key: 'points',
