@@ -5,13 +5,17 @@ A SQLite database of Formula One, 1950–2026, built from Python literals in
 that queries `f1.db` in the browser via sql.js. The build has no third-party
 dependencies.
 
-`make check` is build + verify + unit tests, and is what CI runs. The front
-end has its own: `cd web && npm test`.
+`make ci` is what CI's Python job runs, in its order, on one interpreter
+(CI runs it on two): it includes the comparison of the committed artefacts
+against the fresh build, so run it after staging a rebuild, not before.
+`make check` is the quick subset — build, verify, unit tests. The front end
+has its own: `cd web && npm test`.
 
-**Before committing, run `make all`, not `make check`.** `check` does not
-run `export`, so it leaves `f1_compat.json` stale — and CI compares the
-committed copy against a fresh one. Anything that changes `VERSION` or the
-data changes that file too.
+**Before committing, run `make all`, never `make check`; `make ci` on the
+staged result is what CI will see.**
+`check` does not run `export`, so it leaves `f1_compat.json` stale — and CI
+compares the committed copy against a fresh one. Anything that changes
+`VERSION` or the data changes that file too.
 
 The conventions below are not style preferences. Each one exists because
 something went wrong without it, and most are enforced by the build or by

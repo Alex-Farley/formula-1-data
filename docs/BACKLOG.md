@@ -454,8 +454,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 
 - [ ] `CR-07` **The season is a magic number in nine files.** `2026` 158 times; no `CURRENT_SEASON`. S for the constant, then one file per sitting. `SD-12` is the service face. — *code review · M*
 
-- [ ] `CR-14` **No local command reproduces CI.** `make ci` doing what `ci.yml` does, diff included; point `CLAUDE.md` at it. — *code review · S*
-
 **Product critique, second run**
 
 - [ ] `PD-15` **The driver stat strip is designed for a champion and rendered for a privateer.** 625 of 862 pages show four zeros. Show Wins/Podiums/Poles/FL only where one is non-zero; fill from Best grid, Starts, Retirements, Laps, Constructors — all one `SELECT` away. One tile per sitting. — *product critique · M*
@@ -1133,6 +1131,11 @@ Real, but not costed, or waiting on a decision.
       passing: the app's SQL page never carried `IA-15`'s download paragraph
       at all; it does now, and a smoke check holds both renderers to it. —
       *service critique · #52*
+
+- [x] `CR-14` **`make ci` does what `ci.yml`'s Python job does**, in its
+      order, including the redistribution gate on the committed database and
+      the artefact comparison that neither `check` nor `all` ran. `CLAUDE.md`
+      points at it. — *code review · #53*
 
 ## Declined
 
