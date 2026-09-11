@@ -1083,8 +1083,8 @@ Real, but not costed, or waiting on a decision.
       sentence told a bulk-data consumer the database held no qualifying
       beside 26,997 qualifying rows, and "pole 1950-2024" beside poles to
       2026, in `f1.db`, both exports and the Parquet bundle. Every figure in
-      it is now read off the table it describes, and a check holds it to the
-      live qualifying count. `PD-24` is the same finding on the same surface
+      it is now read off the table it describes, and `verify.py` rebuilds the
+      same string and compares it whole. `PD-24` is the same finding on the same surface
       and closes with it. — *code review, product critique · #45*
 
 - [x] `PD-24` **With `CR-08`**: the same stale prose on the same surface. —

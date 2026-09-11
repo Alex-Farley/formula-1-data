@@ -1776,6 +1776,12 @@ def the_full_classification():
     check("meta.coverage_note is what the counts say", note_ == _build.coverage_note(con.cursor()),
           note_[:80])
 
+    # known_gaps says qualifying is held for every completed race; hold it.
+    noqual = con.execute("""SELECT COUNT(*) FROM races r WHERE r.status = 'completed'
+        AND NOT EXISTS (SELECT 1 FROM qualifying q WHERE q.race_id = r.id)""").fetchone()[0]
+    check("every completed race has a qualifying classification", noqual == 0,
+          f"{noqual} completed races without one")
+
     # A FLOOR UNDER EVERY BULK TABLE. data/harvest.py's _read_named returns []
     # for a missing generated file by design, from when those files were a
     # local extra; they are now 93% of the rows, and the checks below are
