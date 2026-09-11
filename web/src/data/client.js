@@ -92,6 +92,21 @@ export function openDatabase() {
   return opened
 }
 
+/**
+ * Try again after a failure. openDatabase() caches its promise so that every
+ * caller shares one open; a failed open was cached too, so a reader whose
+ * train came out of the tunnel had no way back but a reload nobody told them
+ * to attempt. A dead worker is dropped as well, since start() recreates it.
+ */
+export function retryOpen() {
+  if (currentProgress().phase !== 'failed') return openDatabase()
+  opened = null
+  worker?.terminate?.()
+  worker = null
+  announce({ phase: 'idle' })
+  return openDatabase()
+}
+
 /** Run one statement. Resolves to { columns, rows }, rows as plain objects. */
 export async function query(sql, params = []) {
   await openDatabase()

@@ -336,6 +336,13 @@ try {
   const started = Date.now()
   await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('#root main h1', { timeout: 60000 })
+  // The handover moves focus to the new page's heading, so a screen reader
+  // learns the document changed; it used to land on <body>.
+  const focused = await page
+    .waitForFunction(() => document.activeElement === document.querySelector('#root main h1'), null, { timeout: 5000 })
+    .then(() => true)
+    .catch(() => false)
+  truthy(focused, 'the heading takes focus at handover')
   await settle()
   pass(`database opened and the first page rendered in ${Date.now() - started} ms`)
 
@@ -1002,6 +1009,14 @@ try {
     'and links onward, so a crawler has somewhere to go',
   )
   await noJs.close()
+
+  // A search arrival reads the static page; its footer has to date the figures.
+  const staticFoot = readFileSync(join(web, 'dist', 'drivers', 'hamilton', 'index.html'), 'utf8')
+  truthy(
+    staticFoot.includes(`v${one(`SELECT value FROM meta WHERE key = 'version'`)}`) &&
+      staticFoot.includes(one(`SELECT value FROM meta WHERE key = 'built'`)),
+    'the static footer carries the version and build date',
+  )
 
   const sitemap = await fetch(`${BASE}/sitemap.xml`).then((r) => r.text())
   const urls = (sitemap.match(/<loc>/g) ?? []).length
