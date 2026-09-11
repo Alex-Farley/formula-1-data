@@ -258,9 +258,8 @@ def standings():
         ORDER BY year""").fetchall()
     mismatch, compared = [], 0
     for sr in season_rows:
-        top = con.execute("""SELECT entity_id, points FROM standings
-            WHERE year=? AND table_type='drivers' AND after_round IS NULL
-              AND position IS NOT NULL
+        top = con.execute("""SELECT entity_id, points FROM v_standings_final
+            WHERE year=? AND table_type='drivers' AND position IS NOT NULL
             ORDER BY position LIMIT 2""", (sr["year"],)).fetchall()
         if len(top) < 2:
             continue
@@ -327,6 +326,30 @@ def standings():
                           OR (f.team IS NULL AND o.team IS NOT NULL)))""").fetchone()[0]
     check("v_standings_final fills position and team from the other source",
           unfilled == 0, f"{unfilled} rows left blank where a source had the value")
+
+    # The other half of the contract. Folding two sources must not fold one
+    # source's two entries: for every entity-season the view holds exactly as
+    # many rows as the kept source holds in the table. A view rewritten to one
+    # row per entity passes every check above and silently erases 2018 Force
+    # India's excluded entry and two of Cooper's three 1960 engines; this is
+    # the check that refuses it, and the two are pinned by name as well.
+    folded = con.execute("""SELECT COUNT(*) FROM (
+        SELECT f.year, f.table_type, f.entity_id, COUNT(*) AS in_view,
+               (SELECT COUNT(*) FROM standings o
+                 WHERE o.after_round IS NULL AND o.year = f.year
+                   AND o.table_type = f.table_type AND o.entity_id = f.entity_id
+                   AND o.source = MIN(f.source)) AS in_source
+          FROM v_standings_final f
+         GROUP BY f.year, f.table_type, f.entity_id
+        HAVING in_view <> in_source)""").fetchone()[0]
+    check("v_standings_final keeps every entry the kept source asserts",
+          folded == 0, f"{folded} entity-seasons with a different row count")
+    for yr_, eid_, want_ in ((2018, "force-india", 2), (1960, "cooper", 3)):
+        got_ = con.execute("""SELECT COUNT(*) FROM v_standings_final
+            WHERE year=? AND table_type='constructors' AND entity_id=?""",
+            (yr_, eid_)).fetchone()[0]
+        check(f"{yr_} {eid_} keeps its {want_} entries in the final table",
+              got_ == want_, f"{got_} rows")
 
 
 @section('RACE RESULTS')
@@ -1725,8 +1748,14 @@ def the_full_classification():
               AND engine_id IS NOT NULL
             GROUP BY year, entity_id HAVING COUNT(DISTINCT engine_id) > 1)"""
             ).fetchone()[0]
-        warn("constructors entered under more than one engine are kept apart",
-             True, f"{multi} constructor-seasons with several engine entries")
+        multi_view = con.execute("""SELECT COUNT(*) FROM (
+            SELECT year, entity_id FROM v_standings_final
+            WHERE table_type='constructors' AND engine_id IS NOT NULL
+            GROUP BY year, entity_id HAVING COUNT(DISTINCT engine_id) > 1)"""
+            ).fetchone()[0]
+        check("constructors entered under more than one engine are kept apart",
+              multi > 0 and multi == multi_view,
+              f"{multi} constructor-seasons in the table, {multi_view} in the view")
 
         # A points total that rises as you go down the order is a sorting error,
         # and it is the failure mode that hid an excluded champion.

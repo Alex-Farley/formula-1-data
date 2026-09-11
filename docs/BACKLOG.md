@@ -80,23 +80,12 @@ you can audit the audit* to *cross-checked against independent sources, with
 every disagreement and every gap published in the data* — which the artefact
 supports on its own. `AF-02` carries the three follow-ons.
 
-**The false statements** the reviews found are down to two: the corrupt 2026
-standings snapshot in every `f1_compat.json` since v2.15 (`CR-02`, root cause
-`DA-01`) and the build silently discarding a season it does not know (`SD-02`).
+**The false statements** the reviews found are down to one: the build silently
+discarding a season it does not know (`SD-02`). The corrupt 2026 standings
+snapshot (`CR-02`, root cause `DA-01`) landed in #39.
 `UR-01`, `UR-02`, `UR-10` and `UR-11` landed in #36; the cold first visit
 (`IX-01`, `IX-02`, `IX-03`, `IX-13`) landed in #37. `PD-02` is still the
 largest single fix and still has its riders.
-
-- [ ] `CR-02` **`f1_compat.json` has shipped a corrupt 2026 standings snapshot
-      in seven releases.** The compat queries take `standings WHERE year=2026`
-      with no `after_round IS NULL`: 333 rows for 23 drivers, three different
-      P1s in the first three rows. CI compares the file against a fresh build
-      of the same code, so it certified the corruption seven times. Fix at the
-      root with `DA-01`'s first two rungs — a `v_standings_final` view (one
-      row per entity per season, what `lib/standings.js` `finalStandings`
-      already encodes) and an expression unique index that makes the table's
-      inert constraint real — then point the exporter at the view and assert
-      one row per entity. — *code review, data architecture critique · S + S*
 
 - [ ] `SD-02` **A season the calendar does not hold is discarded in silence.**
       `build.py:1447-1451` skips a race whose `(year, round)` is unknown, with
@@ -500,15 +489,11 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 
 - [ ] `CR-10` **`export_json.py` hand-types three facts and exports `grands_prix` twice.** Derive the strings from `seasons`/`drivers`; check which key a v1 consumer reads before dropping one. — *code review · S*
 
-- [ ] `CR-11` **28 of 38 views are never exercised by the checks.** One loop over `sqlite_master WHERE type='view'`; decide whether `v_car_lineage` is a product or a leftover. Fold `CR-18` in. — *code review · S*
-
 - [ ] `CR-13` **`npm run build` runs `pip install` on any machine, and CI never checks the Parquet result.** Gate the install behind `CI`/`CF_PAGES`; `cat dist/build-status.txt && test -s dist/f1-parquet.zip` in `ci.yml`. Answers half of `PM-24`. — *code review · S*
 
 - [ ] `CR-14` **No local command reproduces CI.** `make ci` doing what `ci.yml` does, diff included; point `CLAUDE.md` at it. — *code review · S*
 
 - [ ] `CR-16` **`node:sqlite` needs Node ≥ 22.5 and nothing says so.** `engines` in `web/package.json`, or `.nvmrc`. — *code review · S*
-
-- [ ] `CR-18` **Two assertions that cannot fail.** `verify.py:2003` and `:1685` pass `True`. Fold into `CR-11`; make the second a real assertion. — *code review · S*
 
 **Product critique, second run**
 
@@ -586,7 +571,7 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 
 **Data architecture**
 
-- [ ] `DA-01` **`standings` has no key and `as_of` carries four meanings.** Rungs one and two ship with `CR-02`. Rung three: a `basis` column (`running`/`final`) and `after_round` filled on every row. Rung four is a decision: retire `as_of`. — *data architecture critique · M, then a decision*
+- [ ] `DA-01` **`standings` has no key and `as_of` carries four meanings.** Rungs one and two ship with `CR-02`. Rung three: a `basis` column (`running`/`final`) and `after_round` filled on every row. Rung four is a decision: retire `as_of`. **Rungs one and two landed in #39** — the view and the expression index — with checks on both halves of the fold. Two things the review found for the rungs still open: the fill takes `MIN(id)` from the other source, so if a multi-source season ever holds a two-entry source (2018 Force India's shape, in 2026's situation) one entry would vanish — unreachable today, and the row-count check would refuse it; and on a points tie the view keeps formula1.com, so 2026's `as_of` column mixes `current` with the dated snapshot. — *data architecture critique · M, then a decision*
 
 - [ ] `DA-02` **Constructor lineage has no time dimension.** 283 entries land in chains whose timelines exclude them — Renault's 1977–85 turbo wins on Enstone. `constructor_id` on `constructor_lineage` (54 of 66 match by name), a `verify.py` interval check that fails today, then deprecate `constructors.lineage_chain`. — *data architecture critique · M*
 
@@ -1052,6 +1037,26 @@ Real, but not costed, or waiting on a decision.
 - [x] `UR-06` **The static footer carries the version and build date** from
       `meta`, so a search arrival's figures are dated. Smoke asserts it. —
       *user research · `6a3269d`*
+
+- [x] `CR-02` **`f1_compat.json`'s 2026 snapshot is 23 rows, not 333.** Root
+      cause fixed as `DA-01`'s first two rungs: `v_standings_final` (one row
+      per entity per season, same columns as the table) and
+      `ux_standings_identity` (the table's inert `UNIQUE` made real, with
+      `position_text` in the key). Both compat queries, the full export, the
+      CLI and the three pages read the view; the exporter refuses a snapshot
+      listing an entity twice; `lib/standings.js` is gone. Two fresh reviews
+      each failed once — count-only tests, and no check on the half of the
+      fold that keeps entries — and both gaps are closed by value-level and
+      row-level checks that were confirmed to fail on a broken copy. Costs
+      1.5 MB in `f1.db`, 373 KB gzipped. — *code review · #39*
+
+- [x] `CR-11` **Every view is selected from in `verify.py`.** A view over a
+      missing column now fails a check, not a reader's query. —
+      *code review · #39*
+
+- [x] `CR-18` **Both unfailable assertions can fail.** The views loop is
+      real; the multi-engine warning is a check that the view keeps as many
+      multi-engine constructor-seasons as the table. — *code review · #39*
 
 ## Declined
 
