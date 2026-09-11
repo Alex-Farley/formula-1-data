@@ -1713,9 +1713,9 @@ def _stage_23_a_round_that_has_a_result(b):
     # only where exactly one car holds grid 1. It scans every completed race
     # rather than the promoted one, and sits here because a race is not
     # completed until this stage says so. A pole credited this way is
-    # distinguishable - the entry carries F1DB's source where a harvested
-    # pole carries the season table's - and verify.py refuses one in any
-    # season but the current, so the harvest still has to catch up.
+    # distinguishable as a pole in a race harvest/poles.txt has no row for,
+    # and verify.py refuses one in any season but the current, so the
+    # harvest still has to catch up.
     cur.execute("""UPDATE race_entries SET pole = 1
         WHERE grid = 1
           AND race_id IN (SELECT id FROM races WHERE status = 'completed')

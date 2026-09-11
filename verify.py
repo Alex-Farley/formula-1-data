@@ -681,7 +681,10 @@ def pole_position_and_fastest_lap():
     # has no row for. The count is printed, and one outside the current
     # season fails, so the harvest still has to catch up rather than the gap
     # filling itself for good.
-    harvested = {(h["year"], h["round"]) for h in harvest_module().load_poles()}
+    # Races the harvest actually credits a pole for: a row with '?' in the
+    # pole field is in the file and credits nobody, and would otherwise hide
+    # an inferred pole in plain sight.
+    harvested = {(h["year"], h["round"]) for h in harvest_module().load_poles() if h["pole"]}
     inferred = [tuple(r) for r in con.execute("""SELECT r.year, r.round FROM races r
         JOIN race_entries e ON e.race_id = r.id AND e.pole = 1
         ORDER BY r.year, r.round""") if tuple(r) not in harvested]
@@ -1739,11 +1742,12 @@ def the_full_classification():
     # must cite F1DB. 1,136 pole rows cited the season article for F1DB's
     # whole classification until the upsert took the source with the
     # position. The pole and fastest-lap flags are the declared exception.
+    # Stated as the rule itself: the only rows not F1DB's are winners.
     mixed = con.execute("""SELECT COUNT(*) FROM race_entries
-        WHERE laps_completed IS NOT NULL AND source NOT LIKE '%f1db%'
-          AND finish_position IS NOT 1""").fetchone()[0]
-    check("a non-winner carrying F1DB's classification cites F1DB", mixed == 0,
-          f"{mixed} rows cite another source for F1DB's position and laps")
+        WHERE source <> ? AND finish_position IS NOT 1""",
+        (harvest_module().F1DB_SOURCE,)).fetchone()[0]
+    check("every race entry that is not a winner's cites F1DB", mixed == 0,
+          f"{mixed} non-winner rows cite another source")
 
     # A FLOOR UNDER EVERY BULK TABLE. data/harvest.py's _read_named returns []
     # for a missing generated file by design, from when those files were a
