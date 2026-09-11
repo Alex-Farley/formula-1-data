@@ -164,8 +164,8 @@ largest single fix and still has its riders.
 - [ ] `PD-11` **Give the bulk data a front door, and a claim.** The Parquet
       bundle now builds and serves (`PM-01`) and is linked from nothing. A
       `/data` page in the masthead leading with the audited edition — 60 recorded
-      disagreements, a confidence tier per row, a gap register, ~170
-      cross-checks — which is a claim the upstream does not make.
+      disagreements, a confidence tier per row, a gap register, the `verify.py`
+      checks — which is a claim the upstream does not make.
       One implementation note: `prerender.js` writes `Disallow:` lines for
       `f1.db`, `f1.db.gz` and `f1-parquet.zip`, which is right — a crawler
       pulling 20 MB helps nobody — but it means the `/data` page itself has to
@@ -1111,9 +1111,11 @@ Real, but not costed, or waiting on a decision.
       and stay. — *code review · #49*
 
 - [x] `CR-16` **The Node requirement is declared.** `prerender.js`,
-      `smoke.mjs` and `prepare-assets.js` import `node:sqlite`; `engines` in
-      `web/package.json` and a `.nvmrc` say so before the second build step
-      does. — *code review · #49*
+      `smoke.mjs` and `prepare-assets.js` import `node:sqlite` unflagged,
+      which is Node 22.13; `engines` in `web/package.json` says so before the
+      second build step does. `web/.nvmrc` joins the root `.node-version`
+      Cloudflare reads — two files because two tools read them. —
+      *code review · #49*
 
 ## Declined
 

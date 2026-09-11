@@ -6,7 +6,7 @@
   "description": "Browser front end for Lap Ledger. SQLite compiled to WebAssembly, in a worker, querying f1.db directly — no server, no API.",
   "license": "MIT",
   "engines": {
-    "node": ">=22.5"
+    "node": ">=22.13"
   },
   "scripts": {
     "assets": "node scripts/prepare-assets.js",

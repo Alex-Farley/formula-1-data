@@ -468,7 +468,7 @@ In the dashboard, under Settings → Build:
 **CI is the gate, not the deploy.** The deploy serves the `f1.db` committed to
 `main` rather than rebuilding it. That file cannot reach `main` unverified:
 `ci.yml` rebuilds the database from `data/*.py`, runs every integrity
-checks, and compares the committed artefact byte-for-byte against a fresh
+check, and compares the committed artefact byte-for-byte against a fresh
 build, on every push and every pull request. A database that fails its own
 checks fails the merge, which is a better place to stop it than a deploy.
 
