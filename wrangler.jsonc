@@ -16,7 +16,7 @@
   //
   // THE DATABASE IS NOT REBUILT AT DEPLOY TIME, and verify.py is not re-run
   // here. The site serves the f1.db committed to main. That file cannot reach
-  // main unverified - ci.yml rebuilds it, runs all 143 integrity checks, and
+  // main unverified - ci.yml rebuilds it, runs every integrity check, and
   // compares the committed artefact against a fresh build on every push - so
   // CI is the gate rather than the deploy.
   //

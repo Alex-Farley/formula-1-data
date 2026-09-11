@@ -228,7 +228,7 @@ Useful without a browser:
     ./f1 gaps                          # the declared gaps
     ./f1 licences                      # the source classification
     ./f1 sql "select …"                # arbitrary read-only SQL
-    python3 verify.py                  # ~170 checks, seconds
+    python3 verify.py                  # the checks, seconds
 
 **There is no `sqlite3` command-line tool here.** Use `./f1 sql`, or
 `python3 -c "import sqlite3; …"`, and read `schema.sql` directly rather than
