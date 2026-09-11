@@ -440,6 +440,13 @@ Worth doing, not yet urgent.
 
 Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09-11-*.md` under the same ID. Items already in *Now* are not repeated.
 
+- [ ] `CR-21` **Two harvest files fill columns and have no floor.** Deleting
+      `harvest/car_specs.txt` (649 lines) or `harvest/article_images.txt`
+      (607) builds and verifies clean. Found by the review of `CR-01`, which
+      floored the seven bulk tables. A floor on the count of non-NULL
+      `chassis.weight_kg` and of `article_images` rows would do. — *code
+      review of #42 · S*
+
 - [ ] `AF-02` **Keep the audit claim honest with a private repository.** Three
       S pieces. (1) Publish the checks' *results*, not the code: a served
       `checks.txt` or `/reference/checks` listing each `verify.py` check by its
@@ -1058,9 +1065,13 @@ Real, but not costed, or waiting on a decision.
 
 - [x] `CR-01` **Every bulk table has a floor.** Eight tables and two bulk
       columns are checked against their count at v2.22 in `verify.py`; a
-      database built with `standings.txt` deleted, which passed every gate,
-      now fails. Raise a floor when a harvest legitimately adds rows, never
-      lower it. — *code review · #42*
+      database built with `f1db_pit_stops.txt` or `fastest_laps.txt`
+      deleted, which passed every gate on `main`, now fails (the standings
+      floor from #39 already caught that one). Fastest laps are checked per
+      race rather than by count. Raise a floor when a harvest legitimately
+      adds rows, never lower it. `car_specs.txt` and `article_images.txt`
+      fill columns rather than tables and remain unfloored: `CR-21`. —
+      *code review · #42*
 
 - [x] `CR-04` **`./f1` opens the database read-only.** `./f1 sql "CREATE
       TABLE …"` used to persist into the committed file. — *code review · #42*

@@ -74,6 +74,18 @@ def con():
     return c
 
 
+def read_only_guard(fn):
+    """A write through the read-only connection exits with a sentence, not a traceback."""
+    def run(*a, **kw):
+        try:
+            return fn(*a, **kw)
+        except sqlite3.OperationalError as e:
+            if "readonly" in str(e):
+                sys.exit("read-only: ./f1 runs queries only; the database is built, never edited")
+            raise
+    return run
+
+
 def table(rows, cols=None, maxw=48):
     rows = list(rows)
     if not rows:
@@ -97,6 +109,7 @@ def para(label, text, indent=2):
         print(" " * indent + line)
 
 
+@read_only_guard
 def main():
     if len(sys.argv) < 2:
         print(__doc__)
