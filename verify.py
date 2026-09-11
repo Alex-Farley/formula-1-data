@@ -677,15 +677,14 @@ def pole_position_and_fastest_lap():
           "; ".join(f"{y} r{r}" for y, r in nullgrid[:5]))
 
     # A pole the build credited from F1DB's grid 1 because the hand-written
-    # harvest had not reached the race yet. The entry carries F1DB's source
-    # where a harvested pole carries the season table's, so the two are
-    # distinguishable; the count is printed, and one outside the current
+    # harvest had not reached the race yet: a pole in a race harvest/poles.txt
+    # has no row for. The count is printed, and one outside the current
     # season fails, so the harvest still has to catch up rather than the gap
     # filling itself for good.
+    harvested = {(h["year"], h["round"]) for h in harvest_module().load_poles()}
     inferred = [tuple(r) for r in con.execute("""SELECT r.year, r.round FROM races r
         JOIN race_entries e ON e.race_id = r.id AND e.pole = 1
-        WHERE e.source = ? ORDER BY r.year, r.round""",
-        (harvest_module().F1DB_SOURCE,))]
+        ORDER BY r.year, r.round""") if tuple(r) not in harvested]
     current = con.execute("SELECT MAX(year) FROM races").fetchone()[0]
     settled_inferred = [x for x in inferred if x[0] != current]
     check("a pole credited from grid 1 rather than the season record is only ever in the current season",
@@ -1733,14 +1732,18 @@ def the_full_classification():
     nqual = con.execute("SELECT COUNT(*) FROM qualifying").fetchone()[0]
     nstand = con.execute("SELECT COUNT(*) FROM standings").fetchone()[0]
 
-    # `source` names the source of the classification, so a row carrying
-    # F1DB's laps and points must cite F1DB. 836 pole rows cited the season
-    # article for them until the upsert took the classification's source.
+    # `source` names who established the FINISHING POSITION. The season
+    # harvest (and formula1.com for 2025-26) establishes race winners, and
+    # F1DB then fills their laps and points as a cross-checked detail; every
+    # other row's position is F1DB's, so a non-winner carrying F1DB's laps
+    # must cite F1DB. 1,136 pole rows cited the season article for F1DB's
+    # whole classification until the upsert took the source with the
+    # position. The pole and fastest-lap flags are the declared exception.
     mixed = con.execute("""SELECT COUNT(*) FROM race_entries
-        WHERE laps_completed IS NOT NULL AND points IS NOT NULL
-          AND source NOT LIKE '%f1db%'""").fetchone()[0]
-    check("a row carrying F1DB's classification cites F1DB", mixed == 0,
-          f"{mixed} rows cite another source for F1DB's laps and points")
+        WHERE laps_completed IS NOT NULL AND source NOT LIKE '%f1db%'
+          AND finish_position IS NOT 1""").fetchone()[0]
+    check("a non-winner carrying F1DB's classification cites F1DB", mixed == 0,
+          f"{mixed} rows cite another source for F1DB's position and laps")
 
     # A FLOOR UNDER EVERY BULK TABLE. data/harvest.py's _read_named returns []
     # for a missing generated file by design, from when those files were a
