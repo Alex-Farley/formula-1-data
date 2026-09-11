@@ -837,7 +837,9 @@ Real, but not costed, or waiting on a decision.
       both, links both, and says why they are two: a collective database keeps
       the share-alike from reaching across, and merging them would pull 117,000
       unrelated rows under it. Stays on the SQL console — `IA-15` wants it on
-      `/data`, which is `IA-02` and does not exist yet. — *IA critique ·
+      `/data`, which is `IA-02` and does not exist yet. It reached the
+      static page only; the app's copy, and the sentence that the file
+      documents itself, landed with `SD-09` in #52. — *IA critique ·
       `8c26ccf`*
 
 - [x] `IA-04` **The document is renamed when the reader navigates.** No
