@@ -1,4 +1,4 @@
-# Lap Ledger — v2.20
+# Lap Ledger — v2.21
 
 An expansion of the original single-file JSON into a normalised, queryable
 SQLite database covering 1950–2026, with the JSON kept as a generated export.
@@ -12,6 +12,36 @@ harvested from Wikipedia's season tables under a new `reference` confidence tier
 replaces the per-race one, every Grand Prix now has a canonical id, and
 `audit.py` reports on the shape of the database rather than its contents.
 See *Structure* below.
+
+**v2.21** gives pole position its own column. `race_entries.grid = 1` had
+carried two meanings — the car that started from the front of the grid and
+the driver credited with pole — and they are not the same fact: in 1996
+France and 2021 Monaco the pole-sitter never started and grid 1 stayed empty,
+and at the 2022 São Paulo Grand Prix the sprint winner started first while
+pole stayed with the fastest qualifier, which the old rule could only record
+as a row with `grid = 1` and `grid_text = '8'`. `pole` now says who the season
+record credits, `grid` says where every car started, and `qualifying` still
+says who was quickest. `race_results` and every derived pole total read
+`pole`; the thirteen races where the credited pole-sitter was not the
+fastest qualifier are pinned by `verify.py` as a convention rather than
+recorded as disagreements, because neither source was wrong about the thing
+it describes. The race page names the car that started first where it is not
+the pole-sitter, and no longer asserts "after a grid penalty" for a cause the
+database does not hold.
+
+The same release closes the fastest-lap disagreements. The four open rows
+were two shared fastest laps the season tables render as one name: the 1960
+Belgian Grand Prix article credits Brabham, Ireland and Phil Hill jointly at
+3:51.9, and the 1969 Canadian Grand Prix article credits Brabham alongside
+Ickx at 1:18.1. Restoring both takes Phil Hill to the 6 and Brabham to the 12
+of the reference record. The 1970 South African row stays open, because that
+article records that sources differ. `discrepancies` goes from eighteen open
+rows to one.
+
+The build now pins the SQLite version stamp in each database's header, so
+the committed artefacts no longer depend on which SQLite the builder linked:
+a copy built on a Mac and one built in CI differed in exactly those four
+bytes, and CI compares bytes.
 
 **v2.20** changes no fact in the database and publishes it in a new shape.
 `tools/parquet_export.py` writes every table as Parquet — 41 files, 119,271
