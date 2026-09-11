@@ -85,16 +85,6 @@ supports on its own. `AF-02` carries the three follow-ons.
 first visit (`IX-01`, `IX-02`, `IX-03`, `IX-13`) landed in #37. `PD-02` is still the
 largest single fix and still has its riders.
 
-- [ ] `DA-12` **The pole harvest overwrites `source` on 1,136 rows.** A pole
-      row cites the Wikipedia season article while every other column on it —
-      836 provably, via `laps_completed` and `points` — came from F1DB; the
-      row below it in the same race cites F1DB. `source` is row-grain and
-      sourcing is field-grain, which is the whole argument of
-      `DERIVED-CONFIDENCE.md`, observed. Exposed by `PM-05`, not created by it.
-      Stopgap: let `source` name the row's majority source and record the
-      pole credit's source once per race. Properly: `PM-14`. The split itself
-      is endorsed — do not reopen it. — *data architecture critique · S*
-
 - [ ] `IX-04` **One careless query in the SQL console kills the site for the
       session.** A three-way self-join occupies the single worker forever; no
       cancel, no timeout; navigate away and every register shows a skeleton
@@ -1075,6 +1065,19 @@ Real, but not costed, or waiting on a decision.
 
 - [x] `CR-04` **`./f1` opens the database read-only.** `./f1 sql "CREATE
       TABLE …"` used to persist into the committed file. — *code review · #42*
+
+- [x] `DA-12` **`race_entries.source` names who established the finishing
+      position.** The pole harvest ran first and created a bare row citing
+      the season article; F1DB's upsert then filled every other column and
+      left the citation, so 1,136 pole rows cited Wikipedia for F1DB's whole
+      classification. The upsert now takes F1DB's source with the position
+      where the row had none, and a season-harvest winner keeps its own. The
+      pole and fastest-lap credits' provenance — `harvest/poles.txt`, whatever
+      `source` says — is declared on the columns in `schema.sql`; a check
+      refuses a non-winner carrying F1DB's laps under another source; the
+      inferred-pole check now reads the harvest's coverage rather than the
+      source column. The proper fix is still `PM-14`. — *data architecture
+      critique · #43*
 
 ## Declined
 

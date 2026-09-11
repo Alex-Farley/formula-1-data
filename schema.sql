@@ -761,7 +761,12 @@ CREATE TABLE race_entries (
     entrant         TEXT,                      -- chassis-engine as published
     grid            INTEGER,                   -- the slot the car started from
     -- Credited with pole position. Distinct from grid = 1 on purpose: see
-    -- WHAT 'POLE' MEANS HERE, above.
+    -- WHAT 'POLE' MEANS HERE, above. Credited from harvest/poles.txt - the
+    -- Wikipedia season tables - whatever `source` says: `source` names who
+    -- established the row's FINISHING POSITION, and the pole and fastest-lap
+    -- flags are the one thing on a row that can come from elsewhere. Field-grain
+    -- sourcing is what `claims` would carry (docs/DERIVED-CONFIDENCE.md);
+    -- until then this is where the exception is declared.
     pole            INTEGER NOT NULL DEFAULT 0,
     -- The grid slot as the source states it. Almost always the same number
     -- as `grid`, but 236 entries started from the PIT LANE, which is not a
@@ -777,7 +782,7 @@ CREATE TABLE race_entries (
     -- qualify and 338 failures to PRE-qualify.
     position_text   TEXT,
     shared_drive    INTEGER NOT NULL DEFAULT 0,
-    fastest_lap     INTEGER NOT NULL DEFAULT 0,
+    fastest_lap     INTEGER NOT NULL DEFAULT 0,   -- credited as `pole` is, see above
     fastest_lap_shared INTEGER,                -- how many drivers shared it
     -- Reserved for the full finishing order. Declared now so that adding it
     -- is pure INSERT and no consumer of this schema has to change.

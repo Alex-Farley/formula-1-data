@@ -1562,7 +1562,22 @@ def _stage_21_the_full_classification_qualifying_and_stand(b):
                     classified      = COALESCE(classified, excluded.classified),
                     status          = COALESCE(status, excluded.status),
                     laps_completed  = COALESCE(laps_completed, excluded.laps_completed),
-                    points          = COALESCE(points, excluded.points)""",
+                    points          = COALESCE(points, excluded.points),
+                    -- `source` names who established the FINISHING
+                    -- POSITION. The pole harvest ran first and created a
+                    -- bare row - a pole or fastest-lap flag and nothing
+                    -- else - citing the season article; every other column
+                    -- then arrived from here, and 1,136 pole rows cited
+                    -- Wikipedia for F1DB's whole classification while the
+                    -- row beneath them cited F1DB. A row with no position
+                    -- yet takes this source with the position; a winner the
+                    -- season harvest established keeps its own, and F1DB's
+                    -- laps and points on it are the cross-checked detail.
+                    -- The pole and fastest-lap credits' provenance is
+                    -- stated on their columns in schema.sql.
+                    source          = CASE WHEN finish_position IS NULL
+                                                AND laps_completed IS NULL
+                                           THEN excluded.source ELSE source END""",
                 (rid, did, cons, None, grid, grid_text, pos,
                  r["position_text"], 1 if r["shared_drive"] == "1" else 0,
                  1 if pos is not None else 0,
@@ -1698,9 +1713,9 @@ def _stage_23_a_round_that_has_a_result(b):
     # only where exactly one car holds grid 1. It scans every completed race
     # rather than the promoted one, and sits here because a race is not
     # completed until this stage says so. A pole credited this way is
-    # distinguishable - the entry carries F1DB's source where a harvested
-    # pole carries the season table's - and verify.py refuses one in any
-    # season but the current, so the harvest still has to catch up.
+    # distinguishable as a pole in a race harvest/poles.txt has no row for,
+    # and verify.py refuses one in any season but the current, so the
+    # harvest still has to catch up.
     cur.execute("""UPDATE race_entries SET pole = 1
         WHERE grid = 1
           AND race_id IN (SELECT id FROM races WHERE status = 'completed')
