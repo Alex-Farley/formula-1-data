@@ -56,13 +56,6 @@ export const DRIVER_DISAGREEMENTS = `
 /** `fastest_laps` is a column name. The reader is owed the words. */
 const label = (field) => String(field ?? '').replace(/_/g, ' ')
 
-/**
- * A stored and a derived reading, side by side.
- *
- * Both are shown because neither has been established as the right one — that
- * is the whole claim. Naming one "correct" here would be the silent pick the
- * table exists to avoid.
- */
 /** Open disagreements about one constructor's figures. Args: [constructor name]. */
 export const CONSTRUCTOR_DISAGREEMENTS = `
   ${RESOLVED}
@@ -71,6 +64,13 @@ export const CONSTRUCTOR_DISAGREEMENTS = `
    ORDER BY d.id
 `
 
+/**
+ * A stored and a derived reading, side by side.
+ *
+ * Both are shown because neither has been established as the right one — that
+ * is the whole claim. Naming one "correct" here would be the silent pick the
+ * table exists to avoid.
+ */
 export default function Disagreement({ rows, what = 'this' }) {
   if (!rows || rows.length === 0) return null
 
