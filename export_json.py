@@ -17,6 +17,40 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 DB = os.path.join(HERE, "f1.db")
 
 
+def history_baseline(con):
+    """The v1 layout's headline facts, read off seasons and drivers."""
+    first = con.execute("""SELECT s.year, d.full_name FROM seasons s
+        JOIN drivers d ON d.id = s.drivers_champion
+        WHERE s.drivers_champion IS NOT NULL ORDER BY s.year LIMIT 1""").fetchone()
+    latest = con.execute("""SELECT s.year, d.full_name FROM seasons s
+        JOIN drivers d ON d.id = s.drivers_champion
+        WHERE s.drivers_champion IS NOT NULL ORDER BY s.year DESC LIMIT 1""").fetchone()
+    top = con.execute("""SELECT full_name, titles FROM drivers
+        WHERE titles = (SELECT MAX(titles) FROM drivers) ORDER BY full_name""").fetchall()
+    # From seasons, the column verify.py cross-checks against the
+    # constructors' title counts - not from standings, where one retrospective
+    # pre-1958 row would move a fact stated as "started in".
+    constructors_from = con.execute(
+        "SELECT MIN(year) FROM seasons WHERE constructors_champion IS NOT NULL").fetchone()[0]
+    # The v1 key names a year, so it keeps its name and its meaning - the
+    # count as it stood at the end of 2025, derived - and the moving figure
+    # gets keys of its own beside it.
+    at_2025 = con.execute("""SELECT COUNT(DISTINCT drivers_champion) FROM seasons
+        WHERE year <= 2025 AND drivers_champion IS NOT NULL""").fetchone()[0]
+    return {
+        "championship_start": str(first[0]),
+        "first_world_champion": f"{first[1]} ({first[0]})",
+        "drivers_champions_count_at_end_2025": at_2025,
+        "drivers_champions_count": con.execute(
+            "SELECT COUNT(*) FROM drivers WHERE titles > 0").fetchone()[0],
+        "champions_count_as_of_season": latest[0],
+        "constructors_championship_started": constructors_from,
+        "most_driver_titles": " and ".join(r[0] for r in top) + f" — {top[0][1]} each"
+        if len(top) > 1 else f"{top[0][0]} — {top[0][1]}",
+        "most_recent_champion": f"{latest[1]} — {latest[0]}",
+    }
+
+
 def dump(con, table, order=None):
     q = f"SELECT * FROM {table}"
     if order:
@@ -198,15 +232,11 @@ def main():
             "calendar_2026_current": [dict(r) for r in con.execute("""
                 SELECT round, country, city, dates, circuit_name, circuit_id, sprint, status
                 FROM calendar WHERE year=2026 ORDER BY round""")],
-            "history_baseline": {
-                "championship_start": "1950",
-                "first_world_champion": "Nino Farina (1950)",
-                "drivers_champions_count_at_end_2025": con.execute(
-                    "SELECT COUNT(*) FROM drivers WHERE titles>0").fetchone()[0],
-                "constructors_championship_started": 1958,
-                "most_driver_titles": "Lewis Hamilton and Michael Schumacher — 7 each",
-                "most_recent_champion": "Lando Norris — 2025",
-            },
+            # Derived, every one. These were typed strings in a file whose CI
+            # check compares it only against a fresh build of the same code,
+            # so "most_recent_champion" would have read 2025 on the day the
+            # 2026 title was decided and nothing would have said so.
+            "history_baseline": history_baseline(con),
             "source_registry": out["source_registry"],
         }
         # A snapshot is one row per entity. This file shipped 333 rows for 23
