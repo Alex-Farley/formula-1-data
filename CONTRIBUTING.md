@@ -14,7 +14,7 @@ data/*.py  +  harvest/*.txt          the sources you edit
         v  python3 build.py          drops and rebuilds f1.db
      f1.db
         |
-        v  python3 verify.py         121 checks; exit 1 on failure
+        v  python3 verify.py         the checks; exit 1 on failure
         v  python3 audit.py          structural health report
         v  python3 export_json.py --compat
      f1_compat.json
@@ -149,6 +149,73 @@ python3 audit.py
 CI fails if the committed export does not match a fresh build. `f1_database.json`
 is **not** committed: it is 21 MB, it does not delta-compress, and it
 regenerates in about a second, so it goes out as a release asset instead.
+
+## Working autonomously
+
+The same rules apply when an agent works through the backlog unattended.
+These are the ones that exist because the person is not there.
+
+**The queue.** `docs/BACKLOG.md` is the canonical list of work, and its own
+header says how an item is written, sized, landed and declined. Before
+starting one, reassess it against the repository as it is now: the code it
+names may have moved, the fix may have landed under a different ID, a later
+critique may have superseded it, or a smaller change may now do. Work
+discovered along the way is filed back into the backlog under the existing
+ID, source and size conventions. There is no second list.
+
+**Facts.** A factual or data change is verified against an authoritative
+source before it is made — official FIA, Formula 1, team, driver, power-unit
+manufacturer or circuit/promoter publications first, then the sources
+`SOURCE_LICENCE` already classifies. A source that is not classified is not
+used. A value nobody can establish stays NULL. Two sources that disagree are
+declared in `DECLARED_DISCREPANCIES`, which lands in `discrepancies`, never
+chosen between silently; a fact nobody holds is recorded in `known_gaps`.
+Never invent one.
+
+**Artefacts.** `make all` — not `make check` — before any commit that touches
+`data/`, `harvest/`, `build.py`, `schema.sql`, `verify.py` or an exporter, so
+`f1.db`, `f1-geometry.db` and `f1_compat.json` are regenerated together.
+Inspect the artefact diff before committing. Nothing generated is edited.
+
+**Review.** Every autonomous pull request receives an independent review
+from a fresh context before it merges, using the relevant definitions in
+`.claude/agents/` — `licence-reviewer`, `data-integrity-reviewer` and
+`frontend-reviewer` for a diff; the critics for a whole area. The reviewer is
+given the task, the rules that apply, the diff, the provenance of any fact,
+and the test and validation results, and is asked to disprove the work. It
+returns `PASS — safe to merge` or `FAIL — changes required`, with blocking
+findings named. The agent that made the change does not approve it. A FAIL
+is corrected, `make all` is run again, and a new fresh-context review is
+obtained; this repeats until PASS. Silence, an interrupted reviewer or an
+unavailable review account is not a PASS.
+
+`.github/workflows/review.yml` runs the same kind of review on GitHub, on a
+credential that is at present exhausted. Its red check is an infrastructure
+condition, not a defect in the pull request, and it is never retried, edited,
+weakened or bypassed to make the loop succeed. Its protection against
+reviewing a pull request that edits it stays.
+
+**Merging.** A pull request merges only when the change is complete, the
+tests pass, `make all` succeeded, the fresh-context review returned PASS and
+the required CI checks are green. Merging `main` deploys lapledger.org through
+Cloudflare Workers Builds, so a merge is a production change. Afterwards the
+backlog is updated the way its header says: landed items move to *Landed*
+with the commit, declined items to *Declined* with the reason, nothing is
+deleted.
+
+**Blockers.** An ordinary one — a network failure, a service outage, a
+missing non-critical credential, an environment-specific failure — is
+recorded, the repository is left in a safe state, and work moves to the next
+viable item rather than retrying the same operation. A dangerous one stops
+the loop: anything that could corrupt data, compromise security, breach a
+licence, make a destructive or irreversible production change, or lose
+repository history. A CI or test failure is distinguished from an
+environmental, credential or external-service failure before it is acted on.
+
+**What is never changed to make the loop succeed:** production
+infrastructure, Cloudflare DNS, credentials, branch protection, repository
+visibility, billing, licence controls, the source classification, the
+redistribution checks, or `review.yml`.
 
 ## What not to commit
 
