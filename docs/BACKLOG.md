@@ -81,9 +81,8 @@ every disagreement and every gap published in the data* — which the artefact
 supports on its own. `AF-02` carries the three follow-ons.
 
 **The false statements** the reviews found are all landed: `UR-01`, `UR-02`,
-`UR-10`, `UR-11` in #36, `CR-02`/`DA-01` in #39, `SD-02` in #40.
-`UR-01`, `UR-02`, `UR-10` and `UR-11` landed in #36; the cold first visit
-(`IX-01`, `IX-02`, `IX-03`, `IX-13`) landed in #37. `PD-02` is still the
+`UR-10`, `UR-11` in #36, `CR-02`/`DA-01` in #39, `SD-02` in #40; the cold
+first visit (`IX-01`, `IX-02`, `IX-03`, `IX-13`) landed in #37. `PD-02` is still the
 largest single fix and still has its riders.
 
 - [ ] `CR-01` **Three bulk harvest files can vanish and every gate passes.**

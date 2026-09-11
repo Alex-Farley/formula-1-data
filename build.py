@@ -1201,6 +1201,8 @@ def _stage_16_current_season(b):
     # frozen data - a synthetic 2027 result once rebuilt green with zero
     # 2027 rows. So that is refused, with the fix named.
     known_years = {r[0] for r in cur.execute("SELECT year FROM seasons")}
+    # loader name -> the set of (year, round) it skipped: a set, because
+    # three loaders look a round up once per row.
     skipped_rounds = {}
 
     def race_for(year, rnd, what):
@@ -1212,7 +1214,7 @@ def _stage_16_current_season(b):
                     f"{what}: {year} round {rnd} is in the harvest but {year} is "
                     f"not in the season register. Add the season to data/ "
                     f"(seasons, calendar) before loading its results.")
-            skipped_rounds[what] = skipped_rounds.get(what, 0) + 1
+            skipped_rounds.setdefault(what, set()).add((year, rnd))
         return rid
 
     b.race_for = race_for
@@ -1568,8 +1570,8 @@ def _stage_21_the_full_classification_qualifying_and_stand(b):
         print(f"  race results: {res_rows} entries over {res_races} races "
               f"from F1DB; {res_skipped_driver} rows skipped for "
               f"{len(unknown_drivers)} unresolvable drivers; "
-              f"{b.skipped_rounds.get('race results', 0)} rounds not yet on "
-              f"the calendar")
+              f"{len(b.skipped_rounds.get('race results', ()))} rounds not yet "
+              f"on the calendar")
 
     b.f1db_drivers = f1db_drivers
 
@@ -2461,6 +2463,14 @@ def _stage_34_link_race_entries_to_the_curated(b):
     lo, hi = cur.execute("SELECT MIN(year), MAX(year) FROM seasons").fetchone()
     cur.execute("UPDATE meta SET value = ? WHERE key = 'coverage_seasons'",
                 (f"{lo}-{hi}",))
+    if cur.rowcount != 1:
+        raise SystemExit("meta.coverage_seasons is missing; the coverage claim "
+                         "would silently keep whatever was typed")
+    # Every loader's skipped rounds, in one place, so a round F1DB has and
+    # the calendar does not is visible whichever loader met it first.
+    for what, rounds in sorted(b.skipped_rounds.items()):
+        print(f"  {what}: {len(rounds)} round(s) not yet on the calendar: "
+              + ", ".join(f"{y} r{r}" for y, r in sorted(rounds)))
 
     # ------------------------------------------- the authored ceiling
     #
