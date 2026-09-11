@@ -28,6 +28,7 @@ else is required.
 | `UR-n` | user research walkthrough |
 | `PM-n` | the project's own record — `known_gaps`, `discrepancies`, a *still open* in `docs/`, a `verify.py` warning |
 | `AF-n` | yours — an idea, a defect, a want |
+| `CR-n` | code review (whole-codebase engineering review) |
 
 A critique's own numbering carries straight over: finding 4 of the product
 critique is `PD-04`, and stays `PD-04` even if the list is reordered. A second
@@ -59,22 +60,127 @@ full reasoning and the evidence; this file is the queue, not the argument.
 Short enough to be a decision rather than a list. Each item is a surface
 contradicting something this project states in its own words.
 
-Five items, but **four jobs**: `IA-02` and `PD-11` are one decision. Read it
-that way before concluding the section has stopped being a decision.
+*Re-ranked 2026-09-11 after eight reviews in one day — code, product (second
+run), visual, interaction, data architecture, service, accessibility and a
+user-research walkthrough — filed in `docs/critiques/2026-09-11-*.md`, 142
+findings. Their agreement was unusual: every discipline that looked at the
+cold first visit found the same defect, every one that looked at 3D circuits
+declined it, and four of them independently found that the site states
+something false rather than merely something thin. Those come first.*
 
-Three of those jobs are also one defect wearing three faces: **an authored
-figure that drifted from the database.** The README's table counts (`PD-07`),
-the `records` leaderboards (`PD-03`) and the prerenderer's totals (`PD-02`)
-each state a number a live query would supersede. The cure is the same every
-time — derive the figure, then add a `verify.py` check so it cannot drift
-again — so write that check pattern once and the third is nearly free.
+**The one decision is made.** The repository stays private (`PD-14`, decided
+2026-09-11 — see *Declined*). The claim therefore changes from *audited, and
+you can audit the audit* to *cross-checked against independent sources, with
+every disagreement and every gap published in the data* — which the artefact
+supports on its own. `AF-02` carries the three follow-ons.
 
-*Re-checked against the committed `f1.db` on 2026-09-10 and all still true:*
-`PD-07`'s 46 tables / 38 views against a
-README claiming 39 / 34, and 26,997 `qualifying` rows it calls absent;
-`PD-03`'s Hamilton on 105 in `records` against 106 in `drivers`, all 30 rows at
-`medium`, and no `verify.py` check reading the table. `PD-02`'s and the CD/IA
-findings' counts were not re-checked.
+**Then the false statements**, each an afternoon or less: the app tells a
+reader the reigning champion has no championship position (`UR-01`); dashes a
+figure it knows to be zero on 412 driver pages (`UR-02`); publishes a corrupt
+2026 standings snapshot in every `f1_compat.json` since v2.15 (`CR-02`, root
+cause `DA-01`); captions the poles leaderboard with the rule `PM-05` abolished
+(`UR-10`); and would advertise a fresh build date over frozen data the first
+Monday of 2027 (`SD-02`).
+
+**Then the cold first visit**, which five critics measured at 11–12 s on
+4 Mbps and found to be a page with no sign anything is loading, whose every
+link restarts the download (`IX-01`, `IX-02`; the accessibility and visual
+faces are `AX-01` and `VD-02`; `UR-03`/`UR-04` measured it on the deployed
+site). `PD-02` is still the largest single fix and now has seven riders.
+
+- [ ] `UR-01` **The app shows every 2025 and 2026 championship position as an
+      em dash.** 65 end-of-season `standings` rows — all formula1.com's, all
+      2025–26 — carry `position` and no `position_text`; `Season.jsx:278`,
+      `Driver.jsx:246` and `Constructor.jsx:232` render `position_text`, and
+      `lib/standings.js` `fold()` carries `position` across but not
+      `position_text`. Norris's page reads `TITLES 1 (2025)` above
+      `CHAMPIONSHIP —`, under a footer saying the dash means *excluded*. 38
+      pages; the static half is right. Render `position_text ?? position`,
+      and add the smoke assertion that the 2025 season's top row reads `1`. —
+      *user research · S*
+
+- [ ] `UR-02` **591 driver-seasons dash a figure the page knows is zero.**
+      `Driver.jsx:42` `SUM(e.finish_position = 1)` is NULL for a season with
+      no classified finish; the strip 40 px above says `WINS 0` via `?? 0`.
+      412 of 862 driver pages, overwhelmingly pre-1970. `COALESCE(…, 0)` in
+      `BY_SEASON`; leave the Best and Championship dashes, which are right. —
+      *user research · S*
+
+- [ ] `CR-02` **`f1_compat.json` has shipped a corrupt 2026 standings snapshot
+      in seven releases.** The compat queries take `standings WHERE year=2026`
+      with no `after_round IS NULL`: 333 rows for 23 drivers, three different
+      P1s in the first three rows. CI compares the file against a fresh build
+      of the same code, so it certified the corruption seven times. Fix at the
+      root with `DA-01`'s first two rungs — a `v_standings_final` view (one
+      row per entity per season, what `lib/standings.js` `finalStandings`
+      already encodes) and an expression unique index that makes the table's
+      inert constraint real — then point the exporter at the view and assert
+      one row per entity. — *code review, data architecture critique · S + S*
+
+- [ ] `SD-02` **A season the calendar does not hold is discarded in silence.**
+      `build.py:1447-1451` skips a race whose `(year, round)` is unknown, with
+      a comment written for a round inside a known season. A synthetic 2027
+      result rebuilt green with zero 2027 rows; the Monday refresh would move
+      `BUILT` and deploy, so the footer advertises a fresh build over frozen
+      data. Refuse a year `seasons` lacks, and print skipped races beside
+      skipped drivers. Derive `meta.coverage_seasons` while there (`SD-12`). —
+      *service critique · S*
+
+- [ ] `CR-01` **Three bulk harvest files can vanish and every gate passes.**
+      `_read_named` returns `[]` for a missing file by design; deleting
+      `standings.txt` (34,498 rows), `f1db_pit_stops.txt` or
+      `fastest_laps.txt` builds and verifies clean. One floor check per bulk
+      table, pinned to the last committed count, the way `1161` already is. —
+      *code review · S*
+
+- [ ] `UR-10` **The poles leaderboard's caption states the rule `PM-05`
+      abolished.** `Records.jsx:145` `note="Counted as a grid position of 1"`
+      above a query reading `WHERE e.pole = 1`. One string, and a miss from
+      this week's own change. — *user research · S*
+
+- [ ] `DA-12` **The pole harvest overwrites `source` on 1,136 rows.** A pole
+      row cites the Wikipedia season article while every other column on it —
+      836 provably, via `laps_completed` and `points` — came from F1DB; the
+      row below it in the same race cites F1DB. `source` is row-grain and
+      sourcing is field-grain, which is the whole argument of
+      `DERIVED-CONFIDENCE.md`, observed. Exposed by `PM-05`, not created by it.
+      Stopgap: let `source` name the row's majority source and record the
+      pole credit's source once per race. Properly: `PM-14`. The split itself
+      is endorsed — do not reopen it. — *data architecture critique · S*
+
+- [ ] `IX-01` **The boot progress panel renders below the fold on every cold
+      visit.** `Boot` mounts in `#root`, after `#prerendered`, at
+      `min-height: 100vh`: y = 1,391 on the homepage, 6,151 on Hamilton, 33,857
+      on `/drivers`. 5.1 / 11.7 / 28.0 s of silence at 10 / 4 / 1.6 Mbps. The
+      failed-boot message is in the same place, and never retries (`IX-13`).
+      Four critics found it (`VD-02`, `AX-01`, `UR-04`). While `#prerendered`
+      is in the document, render the boot state as a fixed strip under the
+      masthead, name the progressbar, and put the phase words in one
+      `role="status"`. — *interaction critique · S*
+
+- [ ] `IX-02` **Clicking during the wait restarts the 4.5 MB download from
+      zero.** The static links are real anchors; a click at 3 s abandoned the
+      in-flight `f1.db.gz` and re-requested it — 14.9 s instead of 11.9 s, 4.7
+      MB twice; `UR-03` reproduced it on lapledger.org at 14.1 s. Delegate
+      same-origin clicks on `#prerendered` to `pushState` while the database
+      is opening and let the router pick the route up at `ready`. —
+      *interaction critique, user research · M*
+
+- [ ] `IX-04` **One careless query in the SQL console kills the site for the
+      session.** A three-way self-join occupies the single worker forever; no
+      cancel, no timeout; navigate away and every register shows a skeleton
+      that never fills, with no message. A Cancel button that terminates the
+      worker and reopens from IndexedDB (0.8 s measured). —
+      *interaction critique · M*
+
+- **Four accessibility fixes in under an hour** (`AX-08`, `AX-05`, `AX-03`,
+      `AX-04`), filed individually under *Next* and gathered here because they
+      are the cheapest AA failures on the site: `scroll-padding-top`, one line
+      (Shift+Tab hides the focused link behind the masthead); one token
+      (`--ink-faint` fails 4.5:1 on three of the four light surfaces it sits
+      on — the entire automated finding); focus the `h1` on navigation, one
+      line in `Page`; `role="status"` on the two result counts. —
+      *accessibility critique · S*
 
 - [ ] `PD-02` **Make the prerenderer call the page components' own queries.**
       Static and app emit different numbers under the same label — 14 of 38
@@ -90,6 +196,11 @@ findings' counts were not re-checked.
       `entries` and `starts`, so the register's two empty columns and the
       static/app mismatch are one fix seen from two ends. —
       *product critique · M*
+      **Now seven riders**, all the same defect on other faces: `VD-01` (the
+      static half is a *different design*, 126 lines of its own CSS), `UR-06`
+      (no prerendered page carries the version or build date), `UR-13` (the
+      2026 season's static page opens with five em dashes), `AX-17` (no static
+      table has a caption), plus `CD-04`, `IA-03` and `PD-06` as before.
 
 - [ ] `PD-07` **Stop the README lying.** It claims 39 tables, 34 views, ~8,400
       rows against an actual 46 / 38 / 119,271, and says qualifying is "not held
@@ -100,6 +211,11 @@ findings' counts were not re-checked.
       it:** the version log this moves into `BUILD-NOTES.md` is exactly what
       `PM-02` needs folded and `PM-03` needs repointed, and `PM-04` is the same
       front-door-is-wrong job one surface over. — *product critique · M*
+      **Escalated**: the same stale prose ships *inside the artefact* as
+      `meta.coverage_note` (`PD-24`, `CR-08`) — it tells a bulk-data consumer
+      the database holds no qualifying beside 26,997 qualifying rows — and the
+      check count is stated seven ways, none right (`CR-09`). The derive-and-
+      pin check written here must cover `meta` too.
 
 - [ ] `PD-03` **Derive `/records`, or stop shipping it.** All 30 rows are
       authored, sit at `medium`, and nothing in `verify.py` reads the table; the
@@ -111,6 +227,9 @@ findings' counts were not re-checked.
       **below** the derived leaderboards, because the derived ones are the
       demonstration and the authored ones are the caveat. —
       *product critique · M*
+      **`UR-09` adds the cheap half**: the caveat sentence sits 1,900 px below
+      the figure it caveats; move it above the published table today. `VD-10`
+      and `VD-13` are the same page's badge column and misaligned values.
 
 - [ ] `IA-02` **`Reference` leaves the masthead; `Data` takes the slot.**
       `/reference` is two drawers with no reader in common: a *database* drawer
@@ -137,6 +256,13 @@ findings' counts were not re-checked.
       never will be. Do `IA-02` first — it settles where the page goes and
       what it displaces — and take the claim from `CD-07`, which writes it. —
       *product critique · M*
+      **Now the canonical distribution surface** (`SD-08`): all four served
+      artefacts, sizes, digests from `db-manifest.json`, the build date, the
+      release body's which-copy-wins sentence, `schema.org/Dataset` markup
+      (`SD-11` — the one search surface built for this audience), and the
+      publisher block `UR-05`/`SD-15` ask for. The disagreements claim in
+      `CD-07` must change: 45 found, 44 resolved on the record, one open
+      (`PD-25`).
 
 ## Next
 
@@ -381,6 +507,285 @@ Worth doing, not yet urgent.
       JSON-LD on a driver page only, so a race page's markup has no test. —
       *Search Console report · S*
 
+### Filed 2026-09-11 — the eight reviews
+
+Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09-11-*.md` under the same ID. Items already in *Now* are not repeated.
+
+- [ ] `AF-02` **Keep the audit claim honest with a private repository.** Three
+      S pieces. (1) Publish the checks' *results*, not the code: a served
+      `checks.txt` or `/reference/checks` listing each `verify.py` check by its
+      sentence-length name and its PASS/WARN on the deployed build — the names
+      already read as claims. (2) Serve `schema.sql`, `ATTRIBUTION.md`,
+      `LICENSE-DATA` and `SHA256SUMS` from lapledger.org, since the release page
+      is unreachable and the artefacts are published from the site; the digest
+      still lets a reader confirm the file they hold is the one published, even
+      without a rebuild. (3) Reword: drop "anyone can rebuild and compare" from
+      the release body and README; say on `/data` that the data is CC BY-SA, the
+      build is not published, and here is what can be checked and how. `SD-01`'s
+      two follow-ons fold in here. — *yours · S each*
+
+**Code review**
+
+- [ ] `CR-03` **Nothing tests the checks.** 184 assertion sites in `verify.py`, zero tests that any fires on bad data; `tests/` covers six pure functions. `tests/test_verify.py`: build once to a temp path, one mutation per test, assert the *named* check fails. Six tests cover the licence gate. — *code review · M*
+
+- [ ] `CR-04` **`./f1 sql` can alter the committed database.** `f1:67` opens read-write; DDL, `VACUUM`, `ATTACH` persist. `mode=ro` URI. — *code review · S*
+
+- [ ] `CR-05` **A failed build leaves a partial `f1.db` in the working tree.** Build to `.tmp` and `os.replace` on success, both databases; pin the header after the rename. — *code review · S*
+
+- [ ] `CR-06` **Two hand-bumped `1161` literals, and a per-race manual tax.** Pin "every completed race before the harvest's last round has one pole and one venue row" instead of the count. — *code review · S*
+
+- [ ] `CR-07` **The season is a magic number in nine files.** `2026` 158 times; no `CURRENT_SEASON`. S for the constant, then one file per sitting. `SD-12` is the service face. — *code review · M*
+
+- [ ] `CR-08` **`meta.coverage_note` is stale prose inside the artefact.** Rides with `PD-07`; `PD-24` is the same finding from the product side. `schema.sql:3` says 2.0; `:7` lists four tiers of five. — *code review · S*
+
+- [ ] `CR-09` **The check count is stated seven ways, none right.** 121, 133, 143, 158, 170, 171, ~170; runtime 209. Remove every number or print it from `verify.py`. — *code review · S*
+
+- [ ] `CR-10` **`export_json.py` hand-types three facts and exports `grands_prix` twice.** Derive the strings from `seasons`/`drivers`; check which key a v1 consumer reads before dropping one. — *code review · S*
+
+- [ ] `CR-11` **28 of 38 views are never exercised by the checks.** One loop over `sqlite_master WHERE type='view'`; decide whether `v_car_lineage` is a product or a leftover. Fold `CR-18` in. — *code review · S*
+
+- [ ] `CR-13` **`npm run build` runs `pip install` on any machine, and CI never checks the Parquet result.** Gate the install behind `CI`/`CF_PAGES`; `cat dist/build-status.txt && test -s dist/f1-parquet.zip` in `ci.yml`. Answers half of `PM-24`. — *code review · S*
+
+- [ ] `CR-14` **No local command reproduces CI.** `make ci` doing what `ci.yml` does, diff included; point `CLAUDE.md` at it. — *code review · S*
+
+- [ ] `CR-16` **`node:sqlite` needs Node ≥ 22.5 and nothing says so.** `engines` in `web/package.json`, or `.nvmrc`. — *code review · S*
+
+- [ ] `CR-18` **Two assertions that cannot fail.** `verify.py:2003` and `:1685` pass `True`. Fold into `CR-11`; make the second a real assertion. — *code review · S*
+
+**Product critique, second run**
+
+- [ ] `PD-15` **The driver stat strip is designed for a champion and rendered for a privateer.** 625 of 862 pages show four zeros. Show Wins/Podiums/Poles/FL only where one is non-zero; fill from Best grid, Starts, Retirements, Laps, Constructors — all one `SELECT` away. One tile per sitting. — *product critique · M*
+
+- [ ] `PD-16` **618 driver pages have no opening sentence.** `notes` on 244 of 862. Generate a lede from the entry record in both renderers from one expression; keep `notes` as the override. The largest "look nicer" available and it is SQL. — *product critique · M*
+
+- [ ] `PD-17` **F1DB publishes six driver fields the harvest discards.** `placeOfBirth`, `abbreviation`, `permanentNumber`, `bestStartingGridPosition`, `totalRaceLaps`, `familyRelationships` — CC BY 4.0, already fetched in part. The last two arrive as cross-checks. — *product critique · S*
+
+- [ ] `PD-19` **731 chassis pages carry a photograph and no static page carries an `<img>`.** Emit the image from `prerender.js` with `CommonsCredit`'s fail-closed rule honoured, and extend `smoke.mjs`. `UR` found the app already places it second on the page; the static half has none. — *product critique · S*
+
+- [ ] `PD-20` **No `og:image` on any of 3,515 pages.** Every shared link renders as a grey box. Confirmed car photo where `name_matches = 1`; a generated SVG card elsewhere; `summary_large_image`. Four of six personas arrive this way (`UR`). — *product critique · S*
+
+- [ ] `PD-21` **`PD-08` answered: the atlas is a comparison surface, arranged as the opposite.** Three S pieces: address it (`/circuits/atlas/:id` — all 25 inbound links land on Spa today); invert the page so the true-scale wall leads, at a width where the cells can be read (`UR`: 29–97 px today); state the selection rule (Silverstone, 61 races, untraced; Donington, 1, traced). — *product critique · M*
+
+- [ ] `PD-22` **The atlas is the only page type with no prerendered content.** Prerender the 25 shapes as static SVG; the geometry is already read by `prerender.js`. `AX-09`'s banded-runs table answers 1.1.1 at the same time. — *product critique · S*
+
+- [ ] `PD-23` **Elevation as a fact, not a rendering.** Add `elevation_change_m` to `circuits` from the Wikipedia article each already cites, for the ~20 venues that state one. The Lap Ledger-shaped answer to the 3D instinct — see *Declined*. — *product critique · S*
+
+- [ ] `PD-24` **`PD-07`'s stale prose ships inside the artefact.** `meta.coverage_note` says qualifying is not held. Same fix as `CR-08`; rides with `PD-07`. — *product critique · S*
+
+- [ ] `PD-25` **The disagreements claim is now one open row, and that is the better claim.** 45 found, 44 resolved on the record, one open. Change `CD-07`'s wording before `/data` ships. — *product critique · S*
+
+**Visual design**
+
+- [ ] `VD-01` **The static half is a different design.** 126 lines of `#prerendered` CSS, a second `h1` treatment, tiles versus a key/value table. Rides with `PD-02`: emit the components' shapes, not just their numbers. — *visual critique · M*
+
+- [ ] `VD-02` **The boot panel renders six screens below the fold.** The visual face of `IX-01`. — *visual critique · S*
+
+- [ ] `VD-03` **No type scale and no spacing scale in the token file.** Nineteen literal font sizes, twenty-seven spacing values. Add `--size-n`/`--space-n` and convert one file per sitting. — *visual critique · M*
+
+- [ ] `VD-04` **The registers spend full ink on absence.** 81% of `/drivers`' first-screen numeric cells are `0` or a dash in `--ink`. Render zero and unestablished at `--ink-faint` in `DataTable`. Nothing hidden. — *visual critique · S*
+
+- [ ] `VD-05` **The column chart ticks half-wins on an ordinal axis that omits the droughts.** Pass every season, zeros included, and `{ integer: true }` at `ColumnChart.jsx:44`. Contradicts `web/README.md`'s own axis rule. — *visual critique · S*
+
+- [ ] `VD-06` **The dot plot never labels P1.** Force the domain minimum into the ticks; accent at P1. — *visual critique · S*
+
+- [ ] `VD-07` **The result rail's middle two bands are the same lightness.** `--rail-points` vs `--rail-classified` 1.05:1 in light, 1.07:1 in dark — measured against the panel, never against each other. Separate by lightness. — *visual critique · S*
+
+- [ ] `VD-08` **The livery-band explanation is 10.5 px mono across 175 characters.** The sentence that carries the racing-colour decision, set smaller than a footnote. `--sans`, 13 px, under the swatch, within `--measure`. — *visual critique · S*
+
+- [ ] `VD-09` **`overflow-wrap: anywhere` breaks years mid-number.** "2008,2014,2015,201 / 7". Scope the rule off `.stats dd`; format the list with spaces and ranges. — *visual critique · S*
+
+- [ ] `VD-10` **Thirty identical `MEDIUM` badges on `/records`, ten on `/reference/eras`.** `/cars` already states the rule against this. Say the tier once in the note and drop the column. — *visual critique · S*
+
+- [ ] `VD-11` **The confidence ladder is drawn without rungs.** Three middle tiers pixel-identical. Step them on border weight, not hue. — *visual critique · S*
+
+- [ ] `VD-12` **The circuit page shows the flattest drawing of the best asset.** Render `/circuits/:id` with the atlas's renderer — radius bands, start marker, direction. One component, one call site; most of the "look nicer" the author wants, and every pixel a fact. Declines 3D (see *Declined*); an elevation *profile strip* under the plan map if `PD-23` ever yields a source. — *visual critique · M*
+
+- [ ] `VD-13` **`/records` right-aligns scalars and phrases in one column.** Split into numeric and qualifier, or left-align. After `PD-03`. — *visual critique · S*
+
+- [ ] `VD-14` **Wide tables clip at the container edge on a phone with no affordance.** Seven of nine `/drivers` columns invisible at 375 px. A right-edge fade on `.table-scroll` when scrollable. — *visual critique · S*
+
+- [ ] `VD-15` **Column headers are 9.5 px.** Uppercase mono at 9.5 px carries the sort control. 10.5–11 px; pin it in `VD-03`'s scale. — *visual critique · S*
+
+- [ ] `VD-16` **Prose in table cells ignores the measure.** 128-character lines on `/reference/sources`. `max-width: 60ch` on prose cells. — *visual critique · S*
+
+- [ ] `VD-17` **The pale end of the sequential ramp is 1.99:1 against its stage.** Darken `--seq-1` in light; make the legend a continuous bar. `AX-07` is the same finding as a WCAG failure. — *visual critique · S*
+
+- [ ] `VD-18` **The fastest-lap mark ignores the accent's stated meaning.** `tokens.css` says accent means *this was fastest*; the FL bullet is body ink. `AX-12` owns the markup half. — *visual critique · S*
+
+- [ ] `VD-19` **The SQL console clips its own example query.** Size the textarea to the loaded query's lines. — *visual critique · S*
+
+- [ ] `VD-20` **A loading photograph and an absent one look the same.** And each thumbnail is three redirects. Distinguish the states; consider the resolved `upload.wikimedia.org` URL in the harvest. — *visual critique · S*
+
+- [ ] `VD-21` **`web/README.md` describes a mark the site does not ship.** 3×2 in the doc, 4×4 in `index.html`. Fix the paragraph. — *visual critique · S*
+
+**Interaction design**
+
+- [ ] `IX-03` **Handover throws the reader to the top of the page and drops focus.** Read `scrollY` before removing `#prerendered`, restore after first paint; skip `ScrollToTop`'s initial run. `AX-01` owns the announcement. — *interaction critique · S*
+
+- [ ] `IX-05` **Search ranks by name length, so 11 of the 25 winningest drivers are not the first hit for their surname.** Duncan over Lewis Hamilton, Ralf over Michael Schumacher; Enter opens the first. Add a prominence term (`wins`, `races`) before the length tie-break. — *interaction critique · S*
+
+- [ ] `IX-06` **Accented names are findable by one spelling only, in both directions.** "frere" finds nothing; "Räikkönen" finds nothing. Fold diacritics on both sides. Ship with `IX-05`/`IX-07`. — *interaction critique · S*
+
+- [ ] `IX-07` **Search wants the reader's words in the database's order.** "monaco 1996" finds nothing; "1996 monaco" works. Tokenise the needle. — *interaction critique · S*
+
+- [ ] `IX-08` **The atlas marker travels the wrong way round two circuits and starts nowhere.** Baku and Long Beach walk against `circuits.direction`; `0 m` is an arbitrary OSM way boundary. Reverse the ring on shoelace sign; say "along the trace", not a lap position. — *interaction critique · S*
+
+- [ ] `IX-09` **Dragging the scrubber says nothing the page has not said.** Put the band at the marker into the `<output>` — "1,240 m · hairpin, 38 m" — from an array the component already holds. — *interaction critique · S*
+
+- [ ] `IX-11` **Clicking a worked example destroys the reader's query with no undo.** Write through `execCommand('insertText')` so ⌘Z works. — *interaction critique · S*
+
+- [ ] `IX-12` **"Use the button above" names a button ten pixels below it.** Delete the sentence. — *interaction critique · S*
+
+- [ ] `IX-13` **A failed boot never retries.** Network restored, panel still says the database could not be opened twenty seconds later. A "Try again" button; rides with `CD-17`. — *interaction critique · S*
+
+- [ ] `IX-14` **"Works offline" is not true.** Two claims on 3,515 pages; no service worker; offline reload is Chrome's error page. Say the true thing (a tab already open keeps working) or build the M. — *interaction critique · S*
+
+- [ ] `IX-15` **`IA-14` measured.** Four of eight nav items off-screen on an iPhone 13, five on an SE; keyboard reaches them, pointer has no affordance. Size `IA-14` as filed. — *interaction critique · S*
+
+- [ ] `IX-16` **`IA-08` escalated: Back restores the scroll and not the filter.** France filter, sort by wins, scroll, open a driver, Back — same pixel, 862 unfiltered rows. Do `/drivers` first. — *interaction critique · M*
+
+**Data architecture**
+
+- [ ] `DA-01` **`standings` has no key and `as_of` carries four meanings.** Rungs one and two ship with `CR-02`. Rung three: a `basis` column (`running`/`final`) and `after_round` filled on every row. Rung four is a decision: retire `as_of`. — *data architecture critique · M, then a decision*
+
+- [ ] `DA-02` **Constructor lineage has no time dimension.** 283 entries land in chains whose timelines exclude them — Renault's 1977–85 turbo wins on Enstone. `constructor_id` on `constructor_lineage` (54 of 66 match by name), a `verify.py` interval check that fails today, then deprecate `constructors.lineage_chain`. — *data architecture critique · M*
+
+- [ ] `DA-03` **"May I publish this row?" is not a query.** No `source_id` on any fact table; resolution is Python regexes. Add `source_id` to the 22 tables with `source`, then `v_row_licence`. `PM-14`'s first column, worth shipping alone. — *data architecture critique · M, S first*
+
+- [ ] `DA-04` **Surrogate ids moved on 17% of `race_entries` between v2.20 and v2.21, and nothing declares which ids are stable.** A decision: publish the policy (natural keys stable, surrogates not) — S — or order inserts deterministically and check against the previous release — M. `known_gaps` needs a stable `key` either way. — *data architecture critique · decision*
+
+- [ ] `DA-05` **The `reference` tier's published definition is wrong for 96% of its rows.** Says Wikipedia; 91,407 of 94,957 are F1DB. 0.16 bits of information in the column. Rewrite the definition; check named sources against cited ones. The primitive question is `PM-15`/`PM-16`, in that order after `DA-03`. — *data architecture critique · S*
+
+- [ ] `DA-06` **Two-thirds of the schema's prose does not ship.** SQLite keeps the text from `CREATE`; 298 of 448 comment lines — including this week's `WHAT 'POLE' MEANS HERE` — are above it and lost. Move each block inside the parentheses. Confirm byte-stability after. — *data architecture critique · S*
+
+- [ ] `DA-07` **`pit_stops` ships 22,481 rows with no durations, and `known_gaps` #5 says the table is empty.** Correct the gap and the column comment; add the check that a table the register calls empty has zero rows. Rides with `PD-05`. — *data architecture critique · S*
+
+- [ ] `DA-08` **Nothing scores zero, except in the one table where everything does.** 8,107 classified finishers with NULL `points`, zero rows with `points = 0`; `standings` has 3,489 zeros. A data decision: write `0` where the era's system paid nothing. `CD-01`'s defect one column over. — *data architecture critique · S, decision first*
+
+- [ ] `DA-09` **`discrepancies` is the least-modelled table and the one the project originates.** Four subject formats, three field vocabularies, free-text status, the string `'NULL'` on 23 rows; 152 chassis published-vs-derived differences recorded nowhere. `(tbl, row_key, field)` and a constrained `status` — `PM-14` rehearsed on 45 rows. — *data architecture critique · S*
+
+- [ ] `DA-10` **`standings.entity_id` is a polymorphic key over two colliding namespaces.** Four ids exist in both `drivers` and `constructors`; the naive join returns 517 wrong rows; `entity` disagrees with `full_name` on five. Split into `driver_id`/`constructor_id` with a CHECK. Rides with `DA-01`. — *data architecture critique · S*
+
+- [ ] `DA-11` **`standings.engine_id` is F1DB's namespace under this project's column name.** 10% resolve against `engine_manufacturers` by coincidence. Rename to `f1db_engine_manufacturer_id` or add the curated id beside it. — *data architecture critique · S*
+
+- [ ] `DA-13` **One CHECK constraint in forty-six tables, and the vocabularies have drifted.** `anticlockwise` beside `anti-clockwise`; 18 `personnel.role` values for four documented; a licence guard on `article_images.repository` in prose only. Eight CHECKs and one data fix. — *data architecture critique · S*
+
+- [ ] `DA-14` **The views reach 29% of the rows and ship in one of three formats.** No view over `standings`, `qualifying`, `sprint_results`, `pit_stops` or provenance; Parquet and JSON carry no views. `v_standings_final`, `v_race_classification`, `views.sql` in the zip, a which-download table on `/data`. — *data architecture critique · M*
+
+- [ ] `DA-15` **`dates` is a display column for 2% of rows and a duplicate for 98%.** Replace with `date_from`/`date_to`; makes `AF-01`'s Las Vegas mismatch checkable. — *data architecture critique · S*
+
+- [ ] `DA-16` **Fourteen columns are NULL in every row, and `known_gaps.races_affected` is 0 on 10 of 11.** Drop or document the structural empties; mark derived columns in `drivers`; fill or delete `races_affected`. `PD-06` and `CD-03` ride. — *data architecture critique · S*
+
+- [ ] `DA-17` **A season's points live in two tables and nothing says so.** 40 driver-seasons disagree until `sprint_results` is added; Verstappen 2023 by 21. One view or one inline comment. — *data architecture critique · S*
+
+- [ ] `DA-18` **`points_systems` holds two grains under one interval.** Sprint rows distinguished by a `SPRINT:` prefix; `'None'` the string beside SQL NULL. A `session` column. — *data architecture critique · S*
+
+- [ ] `DA-19` **`records` cannot be joined, compared or checked.** 24 forms of `as_of` in 30 rows. Only after `PD-03`: `holder_id`, a numeric `value`, an ISO `as_of`. — *data architecture critique · S*
+
+- [ ] `DA-20` **`constructors.last_entry` says NULL means still competing; ten NULLs last raced 1951–1997.** Fill the ten or fix the comment. The seven spellings of a validity interval are the M and optional. — *data architecture critique · S*
+
+**Service design**
+
+- [ ] `SD-01` **The data is published; everything that explains it is not.** The service face of `PD-14`. Its two S follow-ons — serve the licence files from the site; set `homepageUrl` and topics — stand whichever way the decision goes. — *service critique · S*
+
+- [ ] `SD-03` **The refresh cron is slower than the upstream it watches.** Weekly against a one-to-two-day upstream: a missed Monday means "not yet run" for 8 days 17 hours. `cron: '0 6 * * *'`; the job short-circuits when nothing changed. — *service critique · S*
+
+- [ ] `SD-04` **There is no inbound channel.** No contact, no report link, zero issues ever. One footer line; then the 18 pages showing an open disagreement get the link specifically. — *service critique · S*
+
+- [ ] `SD-05` **The weekly harvest commit skips CI and deploys unaided.** `GITHUB_TOKEN` pushes do not trigger `ci.yml`; Cloudflare deploys anyway. Add the `web` job's steps to `refresh.yml`, or open a PR. Confirmable Monday 15 September. — *service critique · S*
+
+- [ ] `SD-06` **Nothing distinguishes a current service from a frozen one.** Build logs off, last-good deploy kept, `build-status.txt` written by the build that failed to replace it, 3,515 identical `lastmod`s. Build date in the *static* footer; make `build-status.txt` a heartbeat. — *service critique · S*
+
+- [ ] `SD-07` **`meta.version` does not identify the data.** From the first refresh, `2.21` names three different databases. Bump the patch on refresh, or declare digest + `built` the identity and say so in the citation block. — *service critique · decision, S*
+
+- [ ] `SD-08` **The documented channel is stale and the fresh one is undocumented.** Folded into `PD-11`. — *service critique · S*
+
+- [ ] `SD-09` **The artefacts document themselves and no public surface says so.** Three clauses after "open it with any SQLite client": `sqlite_master`, `meta`, `source_registry`. Highest value per word here; cannot go stale. — *service critique · S*
+
+- [ ] `SD-10` **The only public mention of the Parquet bundle is a `Disallow:` line.** Rides with `PD-11`; one comment line in `robots.txt` today. — *service critique · S*
+
+- [ ] `SD-11` **No `schema.org/Dataset` markup.** Every field is held. On `/data`. The one discovery surface built for the bulk audience. — *service critique · S*
+
+- [ ] `SD-12` **"1950–2026" is typed 29 times across four channels.** Derive one string at build time into `meta.coverage_seasons`; read it in both renderers. Removes 12 of 29; the rest is `SD-15`'s runbook. — *service critique · M*
+
+- [ ] `SD-13` **The advisory review check has been red through four merges.** Known cause: the other account is out of tokens. `continue-on-error: true` so the plumbing is not the signal. — *service critique · S*
+
+- [ ] `SD-14` **GitHub will disable the schedule in the winter break.** 60 days idle; the break is ~90. Season-start runbook, item one. — *service critique · S*
+
+- [ ] `SD-15` **No public surface says who runs this, how often, or what happens if he stops.** Four paragraphs; the fourth has an unusually good answer (pure function of public sources, `SHA256SUMS`). `PD-13`'s reader-facing half; `UR-05` is the same gap from use. — *service critique · S*
+
+- [ ] `SD-16` **The licence statement does not follow the file.** `LICENSE-DATA` omits the Parquet zip; `robots.txt` leaves the one ODbL file crawlable; `meta.apply` names an unreachable tool. Folds into `PM-23`. — *service critique · S*
+
+- [ ] `SD-17` **`docs/GITHUB-SETUP.md` documents a repository that no longer exists.** Delete, or reduce to the description and topics `SD-01` needs; add a six-line `docs/README.md`. — *service critique · S*
+
+**Accessibility** — each marked WCAG failure (criterion) or usability.
+
+- [ ] `AX-01` **The cold load and the handover are unannounced. 4.1.2, 4.1.3.** Two `h1`s for 10.9 of 11.5 s; an unnamed progressbar; zero live regions; focus on `<body>` at handover. Three S pieces; rides with `IX-01`. — *accessibility critique · M*
+
+- [ ] `AX-02` **The search palette is not modal and not a listbox. 4.1.2, 2.4.3.** Shift+Tab leaves it despite `aria-modal`; no `activedescendant`; Escape drops focus to `<body>`. Three S pieces. — *accessibility critique · M*
+
+- [ ] `AX-03` **Focus drops to `<body>` on every in-app navigation. 2.4.3.** `tabIndex={-1}` on the `h1` in `Page`, focused on `pathname` change. Escalates `IA-04`, which fixed the title and not the announcement. — *accessibility critique · S*
+
+- [ ] `AX-04` **Nothing the reader causes is announced except an error. 4.1.3.** `role="status"` on `.result-count` in `Filters.jsx:16` and `Sql.jsx:179` first. — *accessibility critique · M*
+
+- [ ] `AX-05` **`--ink-faint` fails 4.5:1 on three of four light surfaces. 1.4.3.** 4.05 / 4.28 / 4.43; the token comment measured the fourth. `#666d78`; record the surface in the comment. — *accessibility critique · S*
+
+- [ ] `AX-06` **White on `--accent` is 3.34:1 in dark — the Run button. 1.4.3.** Dark foreground on the fill. — *accessibility critique · S*
+
+- [ ] `AX-07` **The atlas ramp and one light chart series are under 3:1. 1.4.11.** `--seq-1` 1.99:1; no two bands 2:1 apart; `--series-3` 2.65:1. Same fix as `VD-17`. — *accessibility critique · S*
+
+- [ ] `AX-08` **Shift+Tab hides the focused link entirely behind the sticky masthead. 2.4.11.** `html { scroll-padding-top: 72px }`. — *accessibility critique · S*
+
+- [ ] `AX-09` **The atlas is the one graphic with no table of its numbers. 1.1.1.** A banded-runs table from `cornerRadius`/`stitch`; answers `PD-22` too. — *accessibility critique · M*
+
+- [ ] `AX-10` **Three routes scroll the body sideways at 320 px. 1.4.10.** Atlas 107 px, Spa's layouts table 41 px, SQL example 24 px. — *accessibility critique · S*
+
+- [ ] `AX-11` **Heading names concatenate without spaces. 2.4.6, 1.3.1.** "Original road circuit1950–197014.1 kmmedium". A space, or move the count out of the heading. — *accessibility critique · S*
+
+- [ ] `AX-12` **The FL column is a bullet with no alternative; the rail is an empty cell named "Result" on every row. 1.1.1.** `sr-only` text and an `<abbr>`; `aria-hidden` on the rail. — *accessibility critique · S*
+
+- [ ] `AX-13` **Photograph `alt` is the file name, ".jpg" included. 1.1.1.** `Cars.jsx` already does it right. — *accessibility critique · S*
+
+- [ ] `AX-14` **Chip filter groups have no name. 1.3.1, 4.1.2.** `role="group"` + `aria-label` on `Chips`. — *accessibility critique · S*
+
+- [ ] `AX-15` **`/` is a global single-key shortcut with no off switch. 2.1.4.** Drop it for ⌘/Ctrl+K, or add a toggle. — *accessibility critique · S*
+
+- [ ] `AX-16` **A dropped end label leaves one line identified by colour alone. 1.4.1.** Stroke-dash per series, echoed in the legend. — *accessibility critique · S*
+
+- [ ] `AX-17` **Five registers and the SQL console render their table with no caption; the static half has none anywhere.** A `caption` prop at six call sites and in `prerender.js`. — *accessibility critique · S*
+
+- [ ] `AX-18` **The sticky column headers do not stick.** `.table-scroll` never scrolls vertically. Make it work or delete the rule. — *accessibility critique · S*
+
+- [ ] `AX-19` **The scrubber announces "5" and has a 3 px pointer target.** `aria-valuetext`; 24 px hit area; `aria-disabled` instead of `disabled`. 2.5.8 passes. — *accessibility critique · S*
+
+- [ ] `AX-20` **No skip link; eleven tab stops before content on every page.** 2.4.1 passes via landmarks. Fifteen minutes. — *accessibility critique · S*
+
+- [ ] `AX-21` **No table has a row header.** A `rowHeader` flag on `DataTable`'s column spec. — *accessibility critique · S*
+
+- [ ] `AX-22` **Each car card is two adjacent links to one page.** `tabIndex={-1} aria-hidden` on the image link. — *accessibility critique · S*
+
+**User research walkthrough** — simulated, and says so.
+
+- [ ] `UR-03` **Following a link during the first-load window restarts the download.** Measured on lapledger.org. The user-research face of `IX-02`. — *user research · M*
+
+- [ ] `UR-04` **The sentence explaining the wait is three screens below the fold.** The user-research face of `IX-01`; the slim pinned line is its S. — *user research · S*
+
+- [ ] `UR-05` **Nothing on 3,515 pages says who publishes this or how to tell them they are wrong.** No About, no contact, no corrections route; a Wikipedia editor cannot satisfy WP:RS. One page; `SD-15` is the same gap. — *user research · S*
+
+- [ ] `UR-06` **No prerendered page carries the version or build date.** The app footer has `v2.21 · Built 2026-09-09`; the static page has neither. The smallest piece of `PD-10`, from `meta`, today. — *user research · S*
+
+- [ ] `UR-07` **The obvious standings query returns 333 rows, and the console hides the comment that prevents it.** Show `sqlite_master` SQL in the schema browser; add a worked example for the current championship. `CR-02`'s reader face. — *user research · S*
+
+- [ ] `UR-08` **The SQL console renders years as "2,026".** A `raw` flag on `DataTable` for the console. — *user research · S*
+
+- [ ] `UR-09` **On `/records` the caveat sits 1,900 px below the figure.** Rides with `PD-03`; move the sentence above the table today. — *user research · S*
+
+- [ ] `UR-11` **"2026 Bahrain Grand Prix — Sepang, Malaysia", with the explanation held in a field no page shows.** `data/current.py:69`'s third field. Carry it as a note; check what else is discarded the same way. — *user research · S*
+
+- [ ] `UR-12` **Amon's page gives three answers to "how many races".** 96 (lede), 108 (strip), `—` (starts). Where `notes` states a figure the page computes, show them adjacent or drop the prose. Apply during `CD-02`. — *user research · S*
+
+- [ ] `UR-13` **The 2026 season's static page opens with five em dashes.** `Runner-up — — —` on the most-searched page in September. Lead with who leads, by how much, after how many rounds. Rides with `PD-02`. — *user research · S*
+
 ## Someday, or maybe never
 
 Real, but not costed, or waiting on a decision.
@@ -452,11 +857,11 @@ Real, but not costed, or waiting on a decision.
       **Superseded by `IA-02`**, which makes the naming decision this was
       waiting on and costs the rework at M. — *product critique · L*
 
-- [ ] `PD-08` **Decide what the atlas is for.** Genuinely excellent, covers 25 of
-      80 circuits, has no named audience, and nothing measures whether anyone
-      opens it. Not a task until there is a way to answer the question. —
-      *product critique · ?*
-
+- [ ] `PD-08` **Decide what the atlas is for.** **Superseded by `PD-21`**,
+      which decides it: a comparison surface, and only that. Three critics and
+      the walkthrough agreed from structure and from use; the one number that
+      would end the residual argument (does anyone open it) is `PD-Ø`'s. —
+      *product critique · answered*
 - [ ] `IA-08` **No filter or sort state is in any URL, anywhere.** Zero hits for
       `useSearchParams`, `URLSearchParams` or `location.search` across
       `web/src/`, so no register's filters, chips, sort column, direction or
@@ -508,10 +913,31 @@ Real, but not costed, or waiting on a decision.
       recorded."* is a strong claim to make by default on a site where a blank
       means *not established*. — *content critique · S each*
 
-- [ ] `PD-Ø` **Measure something.** No analytics of any kind, so progress cannot
-      be told from motion. Deliberately unsized: what to measure is a decision
-      about what this is for, and the answer may be "nothing" — in which case say
-      so here and let critics stop raising it. — *product critique · ?*
+- [ ] `PD-Ø` **Measure something.** Re-raised 2026-09-11 at higher severity,
+      with two free partial answers: Cloudflare's own request counts for
+      lapledger.org and `/f1.db` (no tracker), and — once `PD-14` is settled —
+      GitHub's per-asset release download counts, which F1DB's most recent
+      release shows at ~1,800 across formats in five days. The user-research
+      walkthrough ranks this first among the things only real research can
+      settle, because every other ranking here assumes an arrival pattern
+      nobody has observed. One of three: read Cloudflare monthly; make the
+      repository public and read the download counts; or decide measurement is
+      not wanted and write that here. — *product critique, user research · ?*
+### Filed 2026-09-11
+
+- [ ] `CR-12` **The stage pipeline is the right shape and a mechanical split of it.** Truncated names, an empty `_stage_31`, a stage doing nine things, file order disagreeing with run order. Rename by what each does; a final `_stage_99_finish`. — *code review · M*
+
+- [ ] `CR-15` **A fact is a position in a 36-field tuple.** 831 rows across seven files; swapping two plausible numbers is invisible. `NamedTuple` per table, one regex — or a decision not to. — *code review · M or decision*
+
+- [ ] `CR-17` **70% of the 8.6 s build is one stage.** `executemany` with a pre-fetched constructor set would halve it. Nine seconds is fine; noted so nobody optimises the other 29. — *code review · S*
+
+- [ ] `CR-19` **`# noqa` and `eslint-disable` with no linter; Python 3.9 in the matrix.** Add ruff to CI or delete the markers; say why 3.9 stays. — *code review · S*
+
+- [ ] `CR-20` **The history the project leans on starts on 2026-09-04.** Everything before v2.6 is `BUILD-NOTES.md` and comments, which makes `PM-02` weightier than an S. — *code review · ?*
+
+- [ ] `PD-18` **Driver photographs: available for ~65%, fourth in the queue.** Sampled n=160: 55% pre-1970 to 98% modern, all on Commons. An *identification* portrait beside the `h1`, never a hero; the template must work without one (302 pages). Decide after `PD-16` and `PD-19` have shipped. `VD-22` sizes the data side L (a `drivers.article` equivalent, a name-match rule for people); `UR` found no persona blocked by its absence. — *product critique · decision*
+
+- [ ] `VD-22` **What the formula1.com ask should buy.** `PD-18`'s visual half: 96–120 px, tile rhythm, `CommonsCredit`. Circuits would serve a reader more than drivers if only one image programme is ever done. — *visual critique · M*
 
 ---
 
@@ -667,3 +1093,53 @@ a critique has to argue against.
   `data/*.py` and compares against the committed artefact on every push, which is
   a better place to stop a bad database than a deploy. — `CLAUDE.md`,
   [#25](https://github.com/Alex-Farley/formula-1-data/pull/25)
+
+- **Interactive 3D circuits with elevation.** Raised by the author on
+  2026-09-11; declined by four disciplines independently (`PD-23`, `VD-12`,
+  `IX-10`, `UR` Q3). The reasons that bind: it would be the only figure in the
+  database with no cross-check and no honest confidence tier; the free DEMs
+  are surface models that return rooftops on the seven street circuits; a
+  WebGL canvas cannot be prerendered, cannot carry `Figure.jsx`'s table of its
+  own numbers and cannot be read by a screen reader, on the one page type that
+  already has no static content; three.js would double the bundle the
+  code-splitting decision rests on; and a perspective view makes the one
+  comparison the shape supports *harder*. The Lap Ledger-shaped versions are
+  filed and small: `elevation_change_m` as a sourced column (`PD-23`), the
+  atlas renderer on the circuit page (`VD-12`), and a profile strip under the
+  plan map if a source is ever classified. Re-raise with a sampled SRTM
+  profile of Monaco that looks like Monaco. — `PD`, `VD`, `IX`, `UR`
+
+- **A formula1.com-style hero portrait on driver pages.** formula1.com's
+  pages are a marketing surface for ~20 licence-holder drivers; this register
+  has 862, and 302 of them would have no portrait, clustered in the pre-1970
+  half that is most this project's own. Across 22 simulated tasks no persona
+  was blocked by the absence of a photograph; five were blocked by a false
+  or missing figure. An *identification* portrait beside the heading remains
+  open as `PD-18`, after `PD-16` and `PD-19`. — `PD`, `VD`, `UR`
+
+- **Changing `race_entries`' grain to (race, driver, car).** The known loss
+  from one row per driver per race was measured: two positions in 27,482 rows
+  (1955 Argentina P3, 1956 Monaco P4) where a co-driver already has a row in
+  that race. Changing the grain would touch every view, both exporters,
+  `verify.py` and the front end to fix two rows. Record the two in
+  `discrepancies` with the arithmetic; move the grain statement into an
+  inline schema comment that ships (`DA-06`). — `DA` critique
+
+- **The whole-download architecture**, re-examined a third time on
+  2026-09-11 by the product, interaction and user-research critics with the
+  network available, and cleared again: the second visit is 0.8 s, and the
+  cold window is a content-and-signalling problem (`IX-01`, `IX-02`, `PD-02`,
+  `PD-22`), not an architecture one. — `PD`, `IX`, `UR`
+
+- **Making the repository public.** Decided 2026-09-11 by the author: it
+  stays private. Raised by `PD-14` and `SD-01`, which are right about the
+  consequence — the pipeline half of the "audited" claim (the ~200 checks,
+  the source literals, "rebuild and compare") is not readable by anyone, and
+  the release page's stable links are 404. What remains checkable from the
+  artefact alone is kept and is the claim now made: `discrepancies` (45
+  conflicts, 44 resolved on the record, 1 open), `known_gaps`, a source on
+  every row with its licence in `source_registry`, the schema's comments
+  inside the file, and stored-versus-derived figures shown side by side.
+  `AF-02` carries the three follow-ons that keep most of the ground. Re-raise
+  only with a reason the author has not weighed: the code is private by
+  choice, not by oversight. — the author
