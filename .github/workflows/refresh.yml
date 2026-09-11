@@ -7,11 +7,15 @@ name: refresh the harvest
 # still to come. That is the whole staleness problem, and it is a job for a
 # schedule rather than for remembering.
 #
-# Mondays at 06:00 UTC: after every grand prix weekend, before the week
-# starts. Also runnable by hand for a race that lands out of step.
+# Daily at 06:00 UTC. F1DB publishes within a day or two of a race, and a
+# weekly poll against that has a failure mode with no recovery inside the
+# period: miss it by four hours and the site says a race that has been run
+# has not been run for eight days. The job's first real step is a diff that
+# short-circuits everything after it, so a day with nothing new costs a
+# checkout and a fetch. Also runnable by hand.
 on:
   schedule:
-    - cron: '0 6 * * 1'
+    - cron: '0 6 * * *'
   workflow_dispatch:
 
 # The workflow commits the refreshed harvest to the default branch when, and
@@ -92,6 +96,29 @@ jobs:
         run: |
           ./f1 champions 2020 2025
           ./f1 gaps
+
+      # This commit reaches main without a pull request, and GitHub does not
+      # start workflows from a push made with GITHUB_TOKEN - so ci.yml never
+      # runs on it, while Cloudflare deploys it. The database half is
+      # covered above; this is the front end's half: the build that puts the
+      # database on the site, and the smoke test that reads its expectations
+      # out of that database. A data refresh is exactly the change that
+      # breaks a front-end assertion, and the only gate is here.
+      - uses: actions/setup-node@v4
+        if: steps.diff.outputs.changed == 'true'
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build and test the site against the refreshed database
+        if: steps.diff.outputs.changed == 'true'
+        working-directory: web
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npm run build
+          npm test
 
       # The commit message names the F1DB version it came from, which the
       # harvest headers also carry, so the provenance of a row is answerable
