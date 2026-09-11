@@ -1192,6 +1192,34 @@ def _stage_16_current_season(b):
     b.lookup = lookup
     b.driver_id = driver_id
 
+    # Every F1DB loader looks a harvest row's (year, round) up here. A round
+    # inside a season this database holds but has no race for is F1DB
+    # reaching the current season before the calendar does, and is skipped
+    # and counted. A YEAR the season register does not hold is a different
+    # thing: it is next season arriving, and skipping it silently is how the
+    # Monday refresh would move BUILT and deploy a fresh build date over
+    # frozen data - a synthetic 2027 result once rebuilt green with zero
+    # 2027 rows. So that is refused, with the fix named.
+    known_years = {r[0] for r in cur.execute("SELECT year FROM seasons")}
+    # loader name -> the set of (year, round) it skipped: a set, because
+    # three loaders look a round up once per row.
+    skipped_rounds = {}
+
+    def race_for(year, rnd, what):
+        year, rnd = int(year), int(rnd)
+        rid = race_key.get((year, rnd))
+        if rid is None:
+            if year not in known_years:
+                raise SystemExit(
+                    f"{what}: {year} round {rnd} is in the harvest but {year} is "
+                    f"not in the season register. Add the season to data/ "
+                    f"(seasons, calendar) before loading its results.")
+            skipped_rounds.setdefault(what, set()).add((year, rnd))
+        return rid
+
+    b.race_for = race_for
+    b.skipped_rounds = skipped_rounds
+
 
 def _stage_17_pole_position_and_fastest_lap_as(b):
     """pole position and fastest lap, as attributes of an entry"""
@@ -1456,10 +1484,8 @@ def _stage_21_the_full_classification_qualifying_and_stand(b):
     res_rows = res_skipped_driver = res_races = 0
     unknown_drivers = set()
     for (yr, rnd), rows in sorted(results_by_race.items()):
-        rid = race_key.get((yr, rnd))
+        rid = b.race_for(yr, rnd, "race results")
         if rid is None:
-            # F1DB reaches the current season before this database's own
-            # calendar does. A race we do not hold is not an error.
             continue
 
         # THE CHECK. The winner of this race is already established, from a
@@ -1543,7 +1569,9 @@ def _stage_21_the_full_classification_qualifying_and_stand(b):
     if res_rows:
         print(f"  race results: {res_rows} entries over {res_races} races "
               f"from F1DB; {res_skipped_driver} rows skipped for "
-              f"{len(unknown_drivers)} unresolvable drivers")
+              f"{len(unknown_drivers)} unresolvable drivers; "
+              f"{len(b.skipped_rounds.get('race results', ()))} rounds not yet "
+              f"on the calendar")
 
     b.f1db_drivers = f1db_drivers
 
@@ -1574,7 +1602,7 @@ def _stage_22_the_sprint_races(b):
 
     spr_rows = spr_races = spr_skipped = 0
     for (yr, rnd), rows in sorted(sprint_by_race.items()):
-        rid = race_key.get((yr, rnd))
+        rid = b.race_for(yr, rnd, "sprint results")
         if rid is None:
             continue
         spr_races += 1
@@ -1695,7 +1723,7 @@ def _stage_24_qualifying_checked_against_the_pole_already(b):
             (int(row["year"]), int(row["round"])), []).append(row)
 
     for (yr, rnd), rows in sorted(quali_by_race.items()):
-        rid = race_key.get((yr, rnd))
+        rid = b.race_for(yr, rnd, "qualifying")
         if rid is None:
             continue
         for r in rows:
@@ -1766,10 +1794,15 @@ def _stage_25_championship_standings_after_every_round_and(b):
     completed_seasons = {r[0] for r in cur.execute(
         """SELECT year FROM races GROUP BY year
            HAVING SUM(CASE WHEN status <> 'completed' THEN 1 ELSE 0 END) = 0""")}
+    known_years = {r[0] for r in cur.execute("SELECT year FROM seasons")}
     for (yr, rnd, kind, pos, entity, engine, points) in (
             (r["year"], r["round"], r["table_type"], r["position"],
              r["entity_id"], r["engine_manufacturer_id"], r["points"])
             for r in HV.load_standings()):
+        if int(yr) not in known_years:
+            raise SystemExit(
+                f"standings: {yr} is in the harvest but not in the season "
+                f"register. Add the season to data/ before loading it.")
         yr = int(yr)
         after = int(rnd) if rnd else None
         if kind == "drivers":
@@ -1882,7 +1915,7 @@ def _stage_26_pit_stops_from_f1db_under_their(b):
     # compared, rather than the last loader to run winning.
     pit_rows = pit_skipped = 0
     for r in HV.load_f1db_pit_stops():
-        rid = race_key.get((int(r["year"]), int(r["round"])))
+        rid = b.race_for(r["year"], r["round"], "pit stops")
         did = f1db_drivers.get(r["driver_id"])
         if rid is None or not did:
             pit_skipped += 1
@@ -2425,6 +2458,20 @@ def _stage_34_link_race_entries_to_the_curated(b):
 
     normalise_countries(cur)
 
+    # The coverage claim inside the artefact is read off the season register,
+    # so a new season cannot leave it saying last year's range (SD-12).
+    lo, hi = cur.execute("SELECT MIN(year), MAX(year) FROM seasons").fetchone()
+    cur.execute("UPDATE meta SET value = ? WHERE key = 'coverage_seasons'",
+                (f"{lo}-{hi}",))
+    if cur.rowcount != 1:
+        raise SystemExit("meta.coverage_seasons is missing; the coverage claim "
+                         "would silently keep whatever was typed")
+    # Every loader's skipped rounds, in one place, so a round F1DB has and
+    # the calendar does not is visible whichever loader met it first.
+    for what, rounds in sorted(b.skipped_rounds.items()):
+        print(f"  {what}: {len(rounds)} round(s) not yet on the calendar: "
+              + ", ".join(f"{y} r{r}" for y, r in sorted(rounds)))
+
     # ------------------------------------------- the authored ceiling
     #
     # The first instalment of the rule in docs/DERIVED-CONFIDENCE.md, and the
@@ -2720,7 +2767,7 @@ def _stage_28_race_dates_and_the_fastest_lap_where(b):
     dated = 0
     iso = 0
     for h in HV.load_race_dates():
-        rid = race_key.get((int(h["year"]), int(h["round"])))
+        rid = b.race_for(h["year"], h["round"], "race dates")
         if rid is None:
             continue
         cur.execute("UPDATE races SET date_iso=? WHERE id=?", (h["date"], rid))
@@ -2745,7 +2792,7 @@ def _stage_28_race_dates_and_the_fastest_lap_where(b):
     fl_no_entry = 0
     fl_disagreements = []
     for h in HV.load_fastest_laps():
-        rid = race_key.get((int(h["year"]), int(h["round"])))
+        rid = b.race_for(h["year"], h["round"], "fastest laps")
         if rid is None:
             continue
         did = f1db_drivers.get(h["driver_id"])
