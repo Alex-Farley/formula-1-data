@@ -5,7 +5,7 @@ import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import Disagreement, { RACE_DISAGREEMENTS } from '../components/Disagreement.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
-import { classificationOrder, missing, number, points as fmtPoints, result } from '../lib/format.js'
+import { classificationOrder, finished, missing, number, points as fmtPoints, result } from '../lib/format.js'
 
 const RACE = `
   SELECT r.*, c.name AS circuit, c.locality, c.country,
@@ -295,7 +295,18 @@ function RaceBody({ race, data, year, round }) {
               },
               { key: 'grid_text', label: 'Grid', align: 'num' },
               { key: 'laps_completed', label: 'Laps', align: 'num' },
-              { key: 'status', label: 'Out', render: (value) => (missing(value) ? cell(value) : <span className="tag">{value}</span>) },
+              {
+                key: 'status',
+                label: 'Out',
+                render: (value, row) =>
+                  finished(value, row.finish_position) ? (
+                    'Finished'
+                  ) : missing(value) ? (
+                    cell(value)
+                  ) : (
+                    <span className="tag">{value}</span>
+                  ),
+              },
               {
                 key: 'points',
                 label: 'Points',
@@ -396,8 +407,14 @@ function RaceBody({ race, data, year, round }) {
               {
                 key: 'status',
                 label: 'Out',
-                render: (value) =>
-                  missing(value) ? cell(value) : <span className="tag">{value}</span>,
+                render: (value, row) =>
+                  finished(value, row.finish_position) ? (
+                    'Finished'
+                  ) : missing(value) ? (
+                    cell(value)
+                  ) : (
+                    <span className="tag">{value}</span>
+                  ),
               },
               { key: 'gap', label: 'Gap', align: 'num' },
               { key: 'points', label: 'Points', align: 'num', render: (v) => cell(fmtPoints(v)) },

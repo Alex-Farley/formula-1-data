@@ -1,6 +1,7 @@
-import { createContext, Fragment } from 'react'
-import { Link } from 'react-router-dom'
-import { text } from '../lib/format.js'
+import { createContext, Fragment, useEffect } from 'react'
+import { Link, useLocation } from 'react-router-dom'
+import { missing, text } from '../lib/format.js'
+import { SITE, titled } from '../lib/site.js'
 
 /**
  * A page: an optional way back, a title, an optional standfirst.
@@ -13,7 +14,49 @@ import { text } from '../lib/format.js'
  * (#prerendered h1 in app.css), so the static page and the app disagreed
  * about the shape of the same document.
  */
+
+/**
+ * document.title and the canonical, kept current across in-app navigation.
+ *
+ * prerender.js writes both correctly on every one of the 3,515 pages, and
+ * nothing in the app has ever updated either. So after any client-side
+ * navigation the tab, the bookmark, the history entry and the screen
+ * reader's announcement all still name the page the reader LANDED on. On a
+ * site whose dominant entry is a deep search arrival, that is the
+ * share-and-cite path broken.
+ *
+ * It lives here because every page in the app renders a Page and hands it
+ * the same string it uses for the h1 — so the document name and the visible
+ * name cannot drift, and a page added later gets this for free.
+ */
+function useDocumentName(headline) {
+  const { pathname } = useLocation()
+
+  useEffect(() => {
+    // Result renders its children only once the query has resolved, and every
+    // data page wraps this one in it — so a page that reaches here without a
+    // name is not a page still loading, it is a page that has no name to
+    // give. It gets the site and nothing more. Writing `undefined — Lap
+    // Ledger` would put a non-answer in the tab, the bookmark, the history
+    // entry and the announcement, which is the em dash lying one surface over.
+    document.title = missing(headline) ? SITE : titled(headline)
+  }, [headline, pathname])
+
+  // The canonical is mechanical: one per document, created if the static
+  // HTML did not carry one, and always the path we are actually on.
+  useEffect(() => {
+    let tag = document.head.querySelector('link[rel="canonical"]')
+    if (!tag) {
+      tag = document.createElement('link')
+      tag.rel = 'canonical'
+      document.head.appendChild(tag)
+    }
+    tag.href = `${window.location.origin}${pathname}`
+  }, [pathname])
+}
+
 export function Page({ eyebrow, title, lede, back, aside, children }) {
+  useDocumentName(title)
   return (
     <article className="page">
       <header>

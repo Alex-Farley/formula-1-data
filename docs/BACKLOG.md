@@ -56,14 +56,12 @@ full reasoning and the evidence; this file is the queue, not the argument.
 
 ## Now
 
-Short enough to be a decision rather than a list. The first three are one
-sitting between them, and each is a surface contradicting something this
-project states in its own words.
+Short enough to be a decision rather than a list. Each item is a surface
+contradicting something this project states in its own words.
 
-Ten items, but **six jobs**: `CD-01`/`IA-15`/`IA-04` are that one sitting,
-`PM-05` and `PM-25` are one investigation, and `IA-02` and `PD-11` are one
-decision. Read it that way before concluding the section has stopped being a
-decision.
+Seven items, but **five jobs**: `PM-05` and `PM-25` are one investigation, and
+`IA-02` and `PD-11` are one decision. Read it that way before concluding the
+section has stopped being a decision.
 
 Three of those jobs are also one defect wearing three faces: **an authored
 figure that drifted from the database.** The README's table counts (`PD-07`),
@@ -85,35 +83,6 @@ README claiming 39 / 34, and 26,997 `qualifying` rows it calls absent;
 `PD-03`'s Hamilton on 105 in `records` against 106 in `drivers`, all 30 rows at
 `medium`, and no `verify.py` check reading the table. `PD-02`'s and the CD/IA
 findings' counts were not re-checked.
-
-- [ ] `CD-01` **The em dash lies in the column where it appears most.**
-      `Race.jsx:312` footnotes the results table *"An empty 'Out' is a
-      retirement nobody recorded a reason for, not a driver who finished"* —
-      and 15,714 of 27,482 `race_entries` rows carry a null `status`, every
-      one of which has a finish position. All twenty finishers of the 2024
-      Bahrain Grand Prix render as em dashes under a caption asserting they
-      retired. 57% of entries, across 1,161 race pages and 862 driver pages.
-      Render `status IS NULL AND finish_position IS NOT NULL` as *Finished* at
-      the two render sites — not in `missing()`, which is right as it stands.
-      — *content critique · S*
-
-- [ ] `IA-15` **The one download instruction on the site names `f1.db` alone.**
-      `prerender.js:1218` tells a reader to "download `f1.db` and open it with
-      any SQLite client" and never mentions `f1-geometry.db`. `CLAUDE.md`'s
-      rule is binding: anything that publishes `f1.db` must publish
-      `f1-geometry.db` beside it, because omitting it ships zero centrelines
-      with no way to obtain them. It is also the only sentence on 3,515 pages
-      that says the artefact exists, and it does not link it. The sentence
-      moves to `/data` (`IA-02`) naming both files and why they are two. —
-      *IA critique · S*
-
-- [ ] `IA-04` **`document.title` and the canonical never update after first
-      paint.** No `document.title` or Helmet anywhere in `web/src/`;
-      `prerender.js` writes both correctly and `smoke.mjs:859` asserts a title
-      on cold load only. After any in-app navigation the tab, the bookmark, the
-      history entry and the screen-reader announcement all still name the page
-      the reader *landed* on. On a site whose dominant entry is a deep search
-      arrival, that is the share-and-cite path broken. — *IA critique · S*
 
 - [ ] `PM-05` **Split pole position from grid 1.** Fourteen of the eighteen open
       `discrepancies` are the same modelling question, not fourteen research
@@ -583,6 +552,39 @@ Real, but not costed, or waiting on a decision.
       in the prerendered HTML, so both halves say the same thing. A `verify.py`
       check refuses a subject that joins to nothing, because the join fails
       silently by design. — *product critique · `7d1f444`*
+
+- [x] `CD-01` **A classified finisher reads *Finished*, not an em dash.** 15,714
+      of 27,482 `race_entries` rows carry a null `status` and a finish
+      position; every one rendered as the em dash meaning "not established",
+      under a footer asserting the opposite in as many words. All twenty
+      finishers of the 2024 Bahrain Grand Prix read that way. The finding named
+      two render sites; there were five — the sprint table, car pages and the
+      prerenderer had it too. One rule in `format.js`, imported by
+      `prerender.js` rather than restated, because a copy in the static half is
+      the `circuit_geometry` failure again. The footer was false and is now
+      true. — *content critique · `cb5364b`*
+
+- [x] `IA-15` **The download instruction names both database files.** The one
+      sentence on 3,515 pages that says the artefact exists named `f1.db` alone
+      and did not link it, against a binding `CLAUDE.md` rule. It now names
+      both, links both, and says why they are two: a collective database keeps
+      the share-alike from reaching across, and merging them would pull 117,000
+      unrelated rows under it. Stays on the SQL console — `IA-15` wants it on
+      `/data`, which is `IA-02` and does not exist yet. — *IA critique ·
+      `8c26ccf`*
+
+- [x] `IA-04` **The document is renamed when the reader navigates.** No
+      `document.title` existed anywhere in `web/src/`, so after any in-app
+      navigation the tab, the bookmark, the history entry and the screen
+      reader's announcement all still named the page the reader landed on. It
+      lives in `Page`, which every page already hands the string it uses for
+      the h1, so the document name and the visible name cannot drift. A page
+      with no name gets the site alone, never `undefined — Lap Ledger`. `SITE`
+      and `titled()` moved to `src/lib/site.js` so the two halves cannot name a
+      page differently. `smoke.mjs` asserted a title on cold load only — the
+      one case the prerenderer always got right, which is why this shipped — and
+      now navigates in-app too, confirmed to fail with the fix disabled. —
+      *IA critique · `9f93566`*
 
 ## Declined
 
