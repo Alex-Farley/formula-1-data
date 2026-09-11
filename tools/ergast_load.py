@@ -704,9 +704,10 @@ def main():
                     else:
                         declared_cons.add(e["constructor"])
                     cid = None
-                # Pole belongs to the pole harvest: this source hands the
-                # car's grid slot to every driver who shared it, so accepting
-                # grid 1 here invents poles for co-drivers.
+                # This source hands the car's grid slot to every driver who
+                # shared it, so accepting grid 1 here puts two cars at the
+                # front of the same grid. Pole is its own flag and belongs to
+                # the pole harvest.
                 grid = e["grid"] if e["grid"] > 1 else None
                 classified = 1 if e["position_text"].isdigit() else 0
                 shared = 1 if len(share[e["position"]]) > 1 else 0

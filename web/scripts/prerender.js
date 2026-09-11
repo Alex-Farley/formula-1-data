@@ -422,7 +422,9 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
             rr.winner_id, rr.winner, rr.constructor_id, rr.constructor, rr.entrant,
             rr.pole, rr.pole_id, rr.fastest_lap, rr.fastest_lap_id, rr.confidence, rr.source,
             (SELECT q.driver_id FROM qualifying q
-              WHERE q.race_id = r.id AND q.position = 1) AS quickest_id
+              WHERE q.race_id = r.id AND q.position = 1) AS quickest_id,
+            (SELECT e.driver_id FROM race_entries e
+              WHERE e.race_id = r.id AND e.grid = 1) AS front_id
        FROM races r
        LEFT JOIN circuits c ON c.id = r.circuit_id
        LEFT JOIN race_results rr ON rr.year = r.year AND rr.round = r.round
@@ -529,12 +531,25 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
                 ['Winner', driver(r.winner_id, r.winner)],
                 ['Constructor', team(r.constructor_id, r.constructor)],
                 ['Entrant', text(r.entrant)],
-                // "Pole position" here is whoever started at the front, which
-                // is what race_results holds. Where the fastest qualifier was
-                // someone else -- a grid penalty, or a sprint that set the
-                // grid -- saying so is the difference between a page that
-                // looks wrong and a page that explains itself.
+                // "Pole position" is the driver the season record credits,
+                // which is what race_results holds. Where the car at grid 1
+                // or the fastest qualifier was someone else, saying so is the
+                // difference between a page that looks wrong and a page that
+                // explains itself. The database records that they differ,
+                // not why, so no cause is stated (Race.jsx says the same).
                 ['Pole position', r.pole_id ? driver(r.pole_id, r.pole) : text(r.pole)],
+                ...(r.front_id && r.pole_id && r.front_id !== r.pole_id
+                  ? [[
+                      'Started first',
+                      `${driver(r.front_id)} <span class="faint">— the pole-sitter started ${text(
+                        one(
+                          'SELECT grid_text FROM race_entries WHERE race_id = ? AND driver_id = ?',
+                          r.id,
+                          r.pole_id,
+                        )?.grid_text,
+                      )}</span>`,
+                    ]]
+                  : []),
                 ...(r.quickest_id && r.pole_id && r.quickest_id !== r.pole_id
                   ? [[
                       'Fastest qualifier',
@@ -544,10 +559,24 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
                           r.id,
                           r.quickest_id,
                         )?.grid_text,
-                      )}${r.sprint ? ', the grid having been set by the sprint' : ', after a grid penalty'}</span>`,
+                      )}${r.sprint ? ', the grid set by the sprint' : ''}</span>`,
                     ]]
                   : []),
-                ['Fastest lap', r.fastest_lap_id ? driver(r.fastest_lap_id, r.fastest_lap) : text(r.fastest_lap)],
+                // Every setter, not race_results' one: eight races share the
+                // fastest lap between two or more drivers, and the app lists
+                // them all, so the static page has to as well.
+                [
+                  'Fastest lap',
+                  (() => {
+                    const setters = all(
+                      'SELECT driver_id FROM race_entries WHERE race_id = ? AND fastest_lap = 1 ORDER BY id',
+                      r.id,
+                    )
+                    return setters.length
+                      ? setters.map((e) => driver(e.driver_id)).join(' / ')
+                      : text(r.fastest_lap)
+                  })(),
+                ],
                 ['Confidence', text(r.confidence)],
               ]),
         ])}

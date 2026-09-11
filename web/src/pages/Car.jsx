@@ -43,7 +43,7 @@ const ENTRIES = `
   SELECT r.year, r.round, r.name_used, r.circuit_id, c.name AS circuit,
          e.driver_id, d.full_name AS driver, e.grid_text, e.grid,
          e.chassis_id, ch.name AS chassis,
-         e.position_text, e.finish_position, e.status, e.fastest_lap
+         e.position_text, e.finish_position, e.status, e.fastest_lap, e.pole
     FROM race_entries e
     JOIN races r ON r.id = e.race_id
     LEFT JOIN circuits c ON c.id = r.circuit_id
@@ -103,7 +103,7 @@ function CarBody({ chassis, variants, data }) {
   const seasons = rows(data, 'seasons')
 
   const wins = entries.filter((e) => e.finish_position === 1).length
-  const poles = entries.filter((e) => e.grid === 1).length
+  const poles = entries.filter((e) => e.pole === 1).length
   const fastest = entries.filter((e) => e.fastest_lap === 1).length
   const ambiguous = seasons.filter((s) => !s.corroborated)
 

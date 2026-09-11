@@ -17,7 +17,7 @@ const DERIVED = `
          COUNT(DISTINCT r.id)           AS races,
          SUM(e.finish_position = 1)     AS wins,
          SUM(e.finish_position <= 3)    AS podiums,
-         SUM(e.grid = 1)                AS poles,
+         SUM(e.pole = 1)                AS poles,
          SUM(e.fastest_lap = 1)         AS fastest_laps,
          COUNT(DISTINCT e.driver_id)    AS drivers
     FROM race_entries e
@@ -30,7 +30,7 @@ const BY_SEASON = `
          COUNT(*)                    AS entries,
          SUM(e.finish_position = 1)  AS wins,
          SUM(e.finish_position <= 3) AS podiums,
-         SUM(e.grid = 1)             AS poles,
+         SUM(e.pole = 1)             AS poles,
          SUM(COALESCE(e.points, 0))  AS points,
          MIN(e.finish_position)      AS best,
          COUNT(DISTINCT e.driver_id) AS drivers

@@ -132,19 +132,26 @@ function RaceBody({ race, data, year, round }) {
   )
 
   const winners = classified.filter((e) => e.finish_position === 1)
-  const poles = entries.filter((e) => e.grid === 1)
+  const poles = entries.filter((e) => e.pole === 1)
 
   /*
-   * "Pole" on this page is race_results' pole: the driver who started at the
-   * front of the grid. Thirteen races have someone else quickest in
-   * qualifying — a grid penalty, or a sprint that set the grid — and on those
-   * a reader who knows the sport reads the row as an error. Naming the fastest
-   * qualifier and where they actually started is the difference between a page
-   * that looks wrong and a page that explains itself.
+   * "Pole" on this page is the driver the season record credits with pole
+   * position. Two neighbouring facts are held separately and shown only
+   * where they name someone else: the fastest qualifier (thirteen races,
+   * where a penalty or a sprint-set grid moved the quickest driver back) and
+   * the car that actually started from grid 1 (one race, 2022 Brazil, where
+   * the sprint winner started first and pole stayed with the fastest
+   * qualifier). Naming them, and where each started, is the difference
+   * between a page that looks wrong and a page that explains itself. The
+   * database records that they differ, not why, so neither line states a
+   * cause.
    */
   const quickest = qualifying.find((q) => q.position === 1)
   const outqualified =
     quickest && poles.length === 1 && quickest.driver_id !== poles[0].driver_id ? quickest : null
+  const front = entries.filter((e) => e.grid === 1)
+  const startedFirst =
+    front.length === 1 && poles.length === 1 && front[0].driver_id !== poles[0].driver_id ? front[0] : null
   const fastest = entries.filter((e) => e.fastest_lap === 1)
   const finishers = entries.filter((e) => !missing(e.finish_position)).length
   const shared = entries.some((e) => e.shared_drive === 1)
@@ -191,6 +198,17 @@ function RaceBody({ race, data, year, round }) {
               ? { label: 'Status', value: 'Scheduled', note: race.dates ?? undefined }
               : { label: 'Winner', value: nameList(winners), note: winners[0]?.constructor ?? undefined },
             scheduled ? null : { label: 'Pole', value: nameList(poles) },
+            scheduled || !startedFirst
+              ? null
+              : {
+                  label: 'Started first',
+                  value: (
+                    <Link to={`/drivers/${startedFirst.driver_id}`}>
+                      {startedFirst.driver ?? startedFirst.driver_id}
+                    </Link>
+                  ),
+                  note: `the pole-sitter started ${poles[0].grid_text ?? '—'}`,
+                },
             scheduled || !outqualified
               ? null
               : {
@@ -202,7 +220,7 @@ function RaceBody({ race, data, year, round }) {
                   ),
                   note: `started ${
                     entries.find((e) => e.driver_id === outqualified.driver_id)?.grid_text ?? '—'
-                  }${race.sprint ? ', the grid set by the sprint' : ', after a grid penalty'}`,
+                  }${race.sprint ? ', the grid set by the sprint' : ''}`,
                 },
             scheduled ? null : { label: 'Fastest lap', value: nameList(fastest) },
             {

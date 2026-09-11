@@ -175,20 +175,42 @@ POLES_FILE = os.path.join(HERE, "..", "harvest", "poles.txt")
 
 def load_poles():
     rows = []
+    applied = set()
     with open(os.path.abspath(POLES_FILE), encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line or line.startswith("#"):
                 continue
             year, rnd, pole, fl, winner = line.split("|")
+            fl = None if fl.strip() in ("?", "") else fl.strip()
+            fl_source = SOURCE.format(year=int(year))
+            shared = SHARED_FASTEST_LAPS.get((int(year), int(rnd)))
+            if shared:
+                held, names, src, _ = shared
+                if fl != held:
+                    raise SystemExit(
+                        f"poles harvest: shared fastest lap override for "
+                        f"{year} r{rnd} expects {held!r}, row holds {fl!r}; "
+                        f"the harvest has changed, re-check the override")
+                # The season table is the source for the one name it gives;
+                # the race article is the source for the share.
+                fl, fl_source = names, src
+                applied.add((int(year), int(rnd)))
             rows.append({
                 "year": int(year),
                 "round": int(rnd),
                 "pole": None if pole.strip() in ("?", "") else pole.strip(),
-                "fastest_lap": None if fl.strip() in ("?", "") else fl.strip(),
+                "fastest_lap": fl,
+                "fastest_lap_source": fl_source,
+                "shared_override": bool(shared),
                 "winner_check": winner.strip(),
                 "source": SOURCE.format(year=int(year)),
             })
+    missing = sorted(set(SHARED_FASTEST_LAPS) - applied)
+    if missing:
+        raise SystemExit(
+            f"poles harvest: shared fastest lap override(s) for {missing} "
+            f"name a race the harvest no longer has a row for")
     return rows
 
 
@@ -640,20 +662,80 @@ KNOWN_GAPS = [
 
 ]
 
+# Shared fastest laps the season tables render as ONE name. harvest/poles.txt
+# is read from the season summary tables, and where two or three drivers set
+# the same time those tables can carry a single driver, so the other names
+# were lost before the row was written. Each entry names the single driver
+# the harvest holds - load_poles() refuses an override whose row has changed,
+# so a re-harvest that fixes the cell fails loudly and the entry is removed
+# rather than silently doubling - then the shared reading, the race article
+# that establishes it, and why.
+#
+# Found from the outside in. The reference record gave Brabham 12 fastest
+# laps against 11 in the race data and Phil Hill 6 against 5, and F1DB named
+# Hill at Spa 1960 where the harvest named Brabham. The 1960 Belgian Grand
+# Prix article credits Brabham, Ireland and Hill jointly at 3:51.9, which
+# closes Hill. The 1969 Canadian Grand Prix article credits Brabham with the
+# 1:18.1 that both harvests credit to Ickx: both are true of the same time,
+# and the share closes Brabham without moving Ickx off his reference 14.
+# build.py records each as a resolved row in `discrepancies`.
+#   (year, round): (name the harvest holds, shared names, source, why)
+SHARED_FASTEST_LAPS = {
+    (1960, 5): (
+        "Jack Brabham", "Jack Brabham / Innes Ireland / Phil Hill",
+        "https://en.wikipedia.org/wiki/1960_Belgian_Grand_Prix",
+        "Three drivers lapped in 3:51.9 and the race article credits all "
+        "three; the season table the harvest read carries Brabham alone. "
+        "Restoring the share takes Phil Hill to the 6 fastest laps of his "
+        "reference record and Innes Ireland to his 1. Brabham is unchanged."),
+    (1969, 9): (
+        "Jacky Ickx", "Jacky Ickx / Jack Brabham",
+        "https://en.wikipedia.org/wiki/1969_Canadian_Grand_Prix",
+        "Ickx on lap 30 and Brabham on lap 62 both lapped in 1:18.1. The "
+        "season table and F1DB credit Ickx; the race article credits Brabham. "
+        "The share takes Brabham to the 12 fastest laps of his reference "
+        "record and leaves Ickx on his 14."),
+}
+
+# Races where F1DB names a different fastest-lap setter from the harvest and
+# the disagreement has been LOOKED AT. build.py records every such race in
+# `discrepancies`; an entry here replaces the generic open assessment with
+# what the check found, and says whether the row is still open. A race not
+# listed here stays open with the generic text.
+#   (year, round): (status, assessment)
+FASTEST_LAP_DISAGREEMENTS = {
+    (1970, 1): (
+        "open - sources differ, reference record favours the stored value",
+        "The harvest credits Brabham alone with the 1:20.8; F1DB credits "
+        "Surtees. The race article credits Brabham and footnotes that some "
+        "sources credit both, so this is a real disagreement between sources "
+        "and stays open. The single-name reading is kept because the reference "
+        "record sides with it: Surtees's total is 10 on formula1.com and in "
+        "his career infobox, and the hand-entered 11 was already corrected to "
+        "10 on that evidence (CORRECTIONS). That is a reason to prefer one "
+        "reading, not proof the other is wrong. "
+        "Source: https://en.wikipedia.org/wiki/1970_South_African_Grand_Prix"),
+}
+
+# Reference fastest-lap totals for the two drivers a restored share above
+# also names and whose rows in data/drivers.py carry no career figures. With
+# these, all three names the shares credit sit under the same external
+# cross-check that pins Brabham and Phil Hill; without them Ireland's 1 and
+# Ickx's 14 were asserted in the reasoning and checked by nothing.
+#   driver_id: (fastest laps, source)
+EXTERNAL_FASTEST_LAPS = {
+    "ireland": (1, "https://en.wikipedia.org/wiki/Innes_Ireland"),
+    "ickx": (14, "https://en.wikipedia.org/wiki/Jacky_Ickx"),
+}
+
 # Differences between a hand-entered career figure and the figure derived
 # from the race records that are NOT explained by the gaps above. Declared
 # here so that verify.py can assert no NEW unexplained difference appears:
-# a regression fails the build, while these stay visible.
+# a regression fails the build, while these stay visible. Empty since the two
+# it held - Brabham 12 v 11 and Phil Hill 6 v 5 - turned out to be the two
+# shared fastest laps in SHARED_FASTEST_LAPS; the mechanism stays.
 #   driver_id, field, assessment
 DECLARED_DISCREPANCIES = [
-    ("brabham", "fastest_laps",
-     "Career total is 12 in the reference record; 11 are found in the race data. "
-     "Every race of his career (1955-1970) has a fastest lap recorded, so the missing "
-     "one must be a race where he shared the fastest lap with another driver and the "
-     "season table renders only one name. Needs a race-by-race check to locate."),
-    ("p-hill", "fastest_laps",
-     "Career total is 6 in the reference record; 5 are found in the race data. Same "
-     "cause as Brabham - an unflagged shared fastest lap. Needs a race-by-race check."),
 ]
 
 # Corrections made to hand-entered career figures after checking them against an

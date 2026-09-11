@@ -458,7 +458,7 @@ def pole_position_and_fastest_lap():
                               WHERE e.race_id = r.id AND e.{column} = 1)
             ORDER BY r.year, r.round""")]
 
-    nopole = _missing("grid")
+    nopole = _missing("pole")
     settled = [x for x in nopole if x[0] != CURRENT_YEAR]
     check("pole recorded for every completed race before the current season",
           not settled, "; ".join(f"{y} r{r}" for y, r in settled[:5]))
@@ -500,49 +500,92 @@ def pole_position_and_fastest_lap():
     check("a driver appears at most once per race", not dup, f"{len(dup)} duplicates")
 
     multi = con.execute("""SELECT race_id, COUNT(*) n FROM race_entries
+        WHERE pole = 1 GROUP BY race_id HAVING n > 1""").fetchall()
+    check("no race has two drivers on pole", not multi, f"{len(multi)} races")
+    front = con.execute("""SELECT race_id, COUNT(*) n FROM race_entries
         WHERE grid = 1 GROUP BY race_id HAVING n > 1""").fetchall()
-    check("no race has two cars on pole", not multi, f"{len(multi)} races")
+    check("no race has two cars at grid 1", not front, f"{len(front)} races")
 
-    # race_results.pole_id is a VIEW over race_entries.grid = 1, so a completed
-    # race with nothing at grid 1 has no pole at all -- it is not a blank waiting
-    # to be filled, it is a race the site publishes with the field empty and every
-    # pole cross-check silently skips. That was the state of 2026 round 13 for the
-    # week between the race and this check existing: the pole harvest is written by
-    # hand and F1DB, which refreshes on a schedule, was being refused grid 1 on the
-    # grounds that the harvest owned it.
-    nogrid = con.execute("""SELECT r.year, r.round FROM races r
+    # race_results.pole_id is a VIEW over race_entries.pole = 1, so a completed
+    # race with no credited pole has no pole at all -- not a blank waiting to be
+    # filled but a race the site publishes with the field empty, which every
+    # pole cross-check silently skips. The pole harvest is hand-written and lags
+    # F1DB by about a week after each Grand Prix; build.py credits F1DB's grid 1
+    # into that vacancy, and this is the check that it did.
+    nopole = con.execute("""SELECT r.year, r.round FROM races r
+        WHERE r.status = 'completed'
+          AND NOT EXISTS (SELECT 1 FROM race_entries e
+                          WHERE e.race_id = r.id AND e.pole = 1)
+        ORDER BY r.year, r.round""").fetchall()
+    check("every completed race has a credited pole-sitter",
+          not nopole, "; ".join(f"{y} r{r}" for y, r in nopole[:5]))
+
+    # Pole and grid 1 are two columns because they are two facts, and they name
+    # different drivers in exactly three completed races, each for a reason the
+    # schema states: 1996 r9 and 2021 r5, where the pole-sitter never started
+    # and grid 1 stayed empty; and 2022 r21, a sprint weekend where the season
+    # record credits the fastest qualifier while the sprint winner started
+    # first. Pinned so that a fourth arrives as a question.
+    nogrid = [tuple(r) for r in con.execute("""SELECT r.year, r.round FROM races r
         WHERE r.status = 'completed'
           AND NOT EXISTS (SELECT 1 FROM race_entries e
                           WHERE e.race_id = r.id AND e.grid = 1)
-        ORDER BY r.year, r.round""").fetchall()
-    check("every completed race has a car at the front of the grid",
-          not nogrid, "; ".join(f"{y} r{r}" for y, r in nogrid[:5]))
+        ORDER BY r.year, r.round""")]
+    check("grid 1 is empty only where the pole-sitter did not start",
+          nogrid == [(1996, 9), (2021, 5)],
+          "; ".join(f"{y} r{r}" for y, r in nogrid[:5]))
+    apart = [tuple(r) for r in con.execute("""SELECT r.year, r.round FROM races r
+        JOIN race_entries e ON e.race_id = r.id AND e.pole = 1
+        WHERE e.grid IS NOT NULL AND e.grid != 1
+        ORDER BY r.year, r.round""")]
+    check("the credited pole-sitter started elsewhere only in the one known race",
+          apart == [(2022, 21)], "; ".join(f"{y} r{r}" for y, r in apart[:5]))
+    # `apart` skips a NULL grid, which is what lets those two through - so a
+    # pole-sitter with no grid at all, in a race where someone else holds
+    # grid 1, would slip both checks. Pinned to the same two races.
+    nullgrid = [tuple(r) for r in con.execute("""SELECT r.year, r.round FROM races r
+        JOIN race_entries e ON e.race_id = r.id AND e.pole = 1
+        WHERE e.grid IS NULL ORDER BY r.year, r.round""")]
+    check("the pole-sitter has no grid slot only where they did not start",
+          nullgrid == [(1996, 9), (2021, 5)],
+          "; ".join(f"{y} r{r}" for y, r in nullgrid[:5]))
 
-    # Where the two sources disagree about who STARTED first, one of them is
-    # wrong -- this is not the pole/qualifying distinction, which is two different
-    # questions. build.py records each such race in discrepancies; this pins the
-    # count so a new one has to be looked at rather than joining a crowd.
-    gridrow = con.execute("""SELECT COUNT(*) FROM discrepancies
-        WHERE field = 'grid position 1'""").fetchone()[0]
-    check("the sources agree on the front row, bar the one known race",
-          gridrow == 1, f"{gridrow} races where the harvest and F1DB disagree")
+    # A pole the build credited from F1DB's grid 1 because the hand-written
+    # harvest had not reached the race yet. The entry carries F1DB's source
+    # where a harvested pole carries the season table's, so the two are
+    # distinguishable; the count is printed, and one outside the current
+    # season fails, so the harvest still has to catch up rather than the gap
+    # filling itself for good.
+    inferred = [tuple(r) for r in con.execute("""SELECT r.year, r.round FROM races r
+        JOIN race_entries e ON e.race_id = r.id AND e.pole = 1
+        WHERE e.source = ? ORDER BY r.year, r.round""",
+        (harvest_module().F1DB_SOURCE,))]
+    current = con.execute("SELECT MAX(year) FROM races").fetchone()[0]
+    settled_inferred = [x for x in inferred if x[0] != current]
+    check("a pole credited from grid 1 rather than the season record is only ever in the current season",
+          not settled_inferred, "; ".join(f"{y} r{r}" for y, r in settled_inferred[:5]))
+    warn("every pole comes from the season record",
+         not inferred,
+         f"{len(inferred)} credited from F1DB's grid 1 awaiting the harvest: "
+         + "; ".join(f"{y} r{r}" for y, r in inferred[:5]))
 
-    # The 13 races where the driver at grid 1 was not the fastest qualifier. Every
-    # one is a penalty or a grid set by a sprint, and both readings are true of
-    # what they describe; they are recorded rather than resolved. The count is
-    # checked so that a fourteenth arrives as a question rather than as noise.
+    # The 13 races where the credited pole-sitter was not the fastest qualifier.
+    # Every one is a penalty or a grid set by a sprint, and both columns are
+    # true of what they describe; the race page shows both. Not a disagreement
+    # between sources, so not in `discrepancies` -- the count is pinned here
+    # instead, so a fourteenth arrives as a question rather than as noise.
     split = con.execute("""SELECT COUNT(*) FROM (
         SELECT r.id FROM races r
          WHERE r.status = 'completed'
            AND (SELECT e.driver_id FROM race_entries e
-                 WHERE e.race_id = r.id AND e.grid = 1) IS NOT NULL
+                 WHERE e.race_id = r.id AND e.pole = 1) IS NOT NULL
            AND (SELECT q.driver_id FROM qualifying q
                  WHERE q.race_id = r.id AND q.position = 1) IS NOT NULL
            AND (SELECT e.driver_id FROM race_entries e
-                 WHERE e.race_id = r.id AND e.grid = 1)
+                 WHERE e.race_id = r.id AND e.pole = 1)
             != (SELECT q.driver_id FROM qualifying q
                  WHERE q.race_id = r.id AND q.position = 1))""").fetchone()[0]
-    check("pole and the front of the grid part company only where they should",
+    check("pole and the fastest qualifier part company only where they should",
           split == 13, f"{split} races (13 known: penalties and sprint-set grids)")
 
     multi = con.execute("""SELECT race_id, COUNT(*) n FROM race_entries
@@ -553,9 +596,12 @@ def pole_position_and_fastest_lap():
     check("a race has one winner, unless the drive was shared", not bad, f"{len(bad)} races")
     check("the shared drives are the three known ones", len(multi) == 3, f"{len(multi)}")
 
+    # Six from the season tables, and two the tables rendered as one name until
+    # the race articles were read: 1960 Belgium (three drivers) and 1969 Canada
+    # (two). See SHARED_FASTEST_LAPS in data/harvest.py.
     shared = con.execute("""SELECT COUNT(DISTINCT race_id) FROM race_entries
         WHERE fastest_lap = 1 AND fastest_lap_shared > 1""").fetchone()[0]
-    check("shared fastest laps are recorded as such", shared == 6, f"{shared} races")
+    check("shared fastest laps are recorded as such", shared == 8, f"{shared} races")
 
     # the name a race carried must be a known name for the event it points at
     bad = []
@@ -612,7 +658,7 @@ def external_figures_vs_the_race_records():
     derived = {r["driver_id"]: (r["w"], r["p"], r["f"]) for r in con.execute("""
         SELECT driver_id,
                SUM(CASE WHEN finish_position = 1 THEN 1 ELSE 0 END) AS w,
-               SUM(CASE WHEN grid = 1 THEN 1 ELSE 0 END) AS p,
+               SUM(CASE WHEN pole = 1 THEN 1 ELSE 0 END) AS p,
                SUM(fastest_lap) AS f
         FROM race_entries GROUP BY driver_id""")}
     bad = []

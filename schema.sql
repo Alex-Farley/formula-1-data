@@ -680,22 +680,32 @@ CREATE TABLE grands_prix (
 -- finishing order without changing shape again.
 --
 -- Deriving from entries:
---   pole         grid = 1
+--   pole         pole = 1
 --   win          finish_position = 1
 --   fastest lap  fastest_lap = 1
 -- Adding the rest of the finishing order is then pure INSERT.
 --
--- WHAT 'POLE' MEANS HERE. race_results.pole_id is a view over grid = 1, so it
--- names the driver who STARTED FROM THE FRONT OF THE GRID. That is not always
--- the driver credited with pole position: a grid penalty moves the fastest
--- qualifier back, and through 2021 a sprint set the grid and pole went to the
--- sprint winner. Thirteen races part company for exactly those reasons, all of
--- them recorded in `discrepancies` and pinned by a check in verify.py; the
--- fastest qualifier is always available beside them in `qualifying`.
+-- WHAT 'POLE' MEANS HERE. Three different facts sit near the front of a grid
+-- and this schema holds each in its own place:
 --
--- The two are not interchangeable and neither is derived from the other. If
--- you want "who was quickest", ask qualifying. If you want "who led them away",
--- ask this.
+--   pole = 1                the driver CREDITED with pole position, as the
+--                           season record credits it (the pole harvest)
+--   grid = 1                the car that STARTED from the front of the grid
+--                           (F1DB's grid)
+--   qualifying.position = 1 the driver who was QUICKEST in qualifying
+--
+-- They usually name one driver and sometimes do not. A grid penalty moves the
+-- fastest qualifier back and pole stays with whoever starts first; through
+-- 2021 a sprint set the grid and pole went to the sprint winner; from 2022 a
+-- sprint weekend credits the fastest qualifier even where the sprint winner
+-- starts first (2022 round 21: Magnussen has pole, Russell grid 1). And a
+-- pole-sitter who never starts leaves grid 1 empty (1996 round 9, 2021 round
+-- 5). None of these is a disagreement between sources - each column is true
+-- of the thing it describes - so none is recorded in `discrepancies`;
+-- verify.py pins the counts instead, so a new case arrives as a question.
+--
+-- Through v2.20 `grid = 1` carried both of the first two meanings, which made
+-- 2022 round 21 a row with grid = 1 and grid_text = '8'.
 -- =====================================================================
 CREATE TABLE races (
     id              INTEGER PRIMARY KEY,
@@ -737,7 +747,10 @@ CREATE TABLE race_entries (
     -- every season a team ran two designs.
     chassis_id      TEXT REFERENCES chassis(id),
     entrant         TEXT,                      -- chassis-engine as published
-    grid            INTEGER,                   -- 1 = pole position
+    grid            INTEGER,                   -- the slot the car started from
+    -- Credited with pole position. Distinct from grid = 1 on purpose: see
+    -- WHAT 'POLE' MEANS HERE, above.
+    pole            INTEGER NOT NULL DEFAULT 0,
     -- The grid slot as the source states it. Almost always the same number
     -- as `grid`, but 236 entries started from the PIT LANE, which is not a
     -- grid slot at all. NULLing those would say "we do not know where they
@@ -1233,7 +1246,7 @@ LEFT JOIN race_entries w  ON w.race_id = r.id AND w.finish_position = 1
                                      WHERE race_id = r.id AND finish_position = 1)
 LEFT JOIN race_entries cw ON cw.race_id = r.id AND cw.finish_position = 1
                          AND cw.id != w.id
-LEFT JOIN race_entries p  ON p.race_id = r.id AND p.grid = 1
+LEFT JOIN race_entries p  ON p.race_id = r.id AND p.pole = 1
 LEFT JOIN race_entries f  ON f.race_id = r.id AND f.fastest_lap = 1
                          AND f.id = (SELECT MIN(id) FROM race_entries
                                      WHERE race_id = r.id AND fastest_lap = 1)
@@ -1244,7 +1257,7 @@ LEFT JOIN constructors cn ON cn.id = w.constructor_id;
 
 CREATE VIEW race_credits AS
 SELECT r.year, r.round, 'pole' AS credit_type, e.driver_id, 1 AS shared_with
-FROM races r JOIN race_entries e ON e.race_id = r.id WHERE e.grid = 1
+FROM races r JOIN race_entries e ON e.race_id = r.id WHERE e.pole = 1
 UNION ALL
 SELECT r.year, r.round, 'fastest_lap', e.driver_id,
        COALESCE(e.fastest_lap_shared, 1)
@@ -1292,7 +1305,7 @@ CREATE VIEW v_poles_by_driver AS
 SELECT d.full_name, d.nationality, COUNT(*) AS poles,
        MIN(r.year) AS first_pole, MAX(r.year) AS last_pole
 FROM race_entries e JOIN races r ON r.id = e.race_id JOIN drivers d ON d.id = e.driver_id
-WHERE e.grid = 1
+WHERE e.pole = 1
 GROUP BY d.id ORDER BY poles DESC, first_pole;
 
 CREATE VIEW v_fastest_laps_by_driver AS
@@ -1310,13 +1323,13 @@ FROM races r
 JOIN race_entries e ON e.race_id = r.id
 JOIN drivers d ON d.id = e.driver_id
 LEFT JOIN constructors c ON c.id = e.constructor_id
-WHERE e.grid = 1 AND e.finish_position = 1 AND e.fastest_lap = 1
+WHERE e.pole = 1 AND e.finish_position = 1 AND e.fastest_lap = 1
 ORDER BY r.year, r.round;
 
 CREATE VIEW v_pole_to_win AS
 SELECT r.year, COUNT(*) AS races,
        SUM(CASE WHEN EXISTS (SELECT 1 FROM race_entries e
-                             WHERE e.race_id = r.id AND e.grid = 1
+                             WHERE e.race_id = r.id AND e.pole = 1
                                AND e.finish_position = 1) THEN 1 ELSE 0 END) AS pole_converted
 FROM races r GROUP BY r.year ORDER BY r.year;
 
@@ -1496,7 +1509,7 @@ CREATE VIEW v_car_races AS
 SELECT c.id AS car_id, c.full_name AS car, r.year, r.round,
        r.name_used AS gp_name, ci.name AS circuit, d.full_name AS driver,
        CASE WHEN e.finish_position = 1 THEN 1 ELSE 0 END AS won,
-       CASE WHEN e.grid = 1 THEN 1 ELSE 0 END AS pole,
+       e.pole,
        e.fastest_lap
 FROM race_entries e
 JOIN cars c     ON c.id = e.car_id

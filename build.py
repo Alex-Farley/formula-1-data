@@ -11,6 +11,7 @@ import math
 import os
 import re
 import sqlite3
+import struct
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -30,7 +31,7 @@ from data import radio as RA       # noqa: E402
 from data import results as RS     # noqa: E402
 
 DB = os.path.join(HERE, "f1.db")
-VERSION = "2.20"
+VERSION = "2.21"
 
 # The build date, as a CONSTANT and deliberately not date.today().
 #
@@ -368,6 +369,17 @@ def _stage_03_drivers_admitted_from_the_f1db_register(b):
         wins_external = wins, poles_external = poles,
         fastest_laps_external = fastest_laps,
         external_source = 'hand-entered from reference records'""")
+    # Fastest-lap totals for drivers whose hand-entered row carries none,
+    # declared with their source so the derived figure has something to be
+    # checked against. Fills a blank only.
+    for did_, (fl_, src_) in sorted(HV.EXTERNAL_FASTEST_LAPS.items()):
+        n = cur.execute("""UPDATE drivers SET fastest_laps_external = ?,
+            external_source = COALESCE(external_source || '; ', '')
+                              || 'fastest laps from ' || ?
+            WHERE id = ? AND fastest_laps_external IS NULL""",
+            (fl_, src_, did_)).rowcount
+        if n != 1:
+            raise SystemExit(f"external fastest laps: {did_} not applied")
 
 
 def _stage_04_constructors(b):
@@ -1181,6 +1193,7 @@ def _stage_17_pole_position_and_fastest_lap_as(b):
     # winner already recorded. A mismatch means the row describes a different
     # race and is rejected outright.
     applied = 0
+    restored = []
     for h in HV.load_poles():
         rid = race_key.get((h["year"], h["round"]))
         if rid is None:
@@ -1195,7 +1208,7 @@ def _stage_17_pole_position_and_fastest_lap_as(b):
                 f"harvest {h['winner_check']!r} vs stored "
                 f"{stored[0] if stored else None!r}")
 
-        def upsert(did, **fields):
+        def upsert(did, source=None, **fields):
             row = cur.execute("""SELECT id FROM race_entries
                 WHERE race_id=? AND driver_id=?""", (rid, did)).fetchone()
             if row:
@@ -1207,18 +1220,36 @@ def _stage_17_pole_position_and_fastest_lap_as(b):
                 qs = ",".join("?" * len(fields))
                 cur.execute(f"""INSERT INTO race_entries (race_id, driver_id,
                     confidence, source, {cols}) VALUES (?,?,?,?,{qs})""",
-                    (rid, did, "reference", h["source"], *fields.values()))
+                    (rid, did, "reference", source or h["source"],
+                     *fields.values()))
 
         pole_names = HV.split_names(h["pole"])
         fl_names = HV.split_names(h["fastest_lap"])
+        # `pole`, not `grid = 1`. The season record credits pole position;
+        # where the car started is F1DB's grid, loaded later, and the two are
+        # not the same fact (see WHAT 'POLE' MEANS HERE in schema.sql).
         if pole_names:
-            upsert(driver_id(pole_names[0], f"pole {h['year']} r{h['round']}"), grid=1)
+            upsert(driver_id(pole_names[0], f"pole {h['year']} r{h['round']}"), pole=1)
         for nm in fl_names:
             upsert(driver_id(nm, f"fastest lap {h['year']} r{h['round']}"),
+                   source=h["fastest_lap_source"],
                    fastest_lap=1, fastest_lap_shared=len(fl_names))
+        if h["shared_override"]:
+            restored.append((h["year"], h["round"]))
         applied += 1
     if applied != 1161:
         raise SystemExit(f"pole harvest: expected 1161 rows, applied {applied}")
+
+    # The shared fastest laps load_poles() restored are a change to what the
+    # harvest said, so each goes on the record as a resolved disagreement:
+    # the single name the season table gave against the names the race
+    # article gives, with the source.
+    for yr_, rnd_ in sorted(restored):
+        held_, names_, src_, why_ = HV.SHARED_FASTEST_LAPS[(yr_, rnd_)]
+        cur.execute("""INSERT INTO discrepancies (subject, field, stored_value,
+            derived_value, assessment, status) VALUES (?,?,?,?,?,?)""",
+            (f"{yr_} round {rnd_}", "fastest lap", held_, names_,
+             f"{why_} Source: {src_}", "resolved - shared fastest lap restored"))
 
 
 def _stage_18_race_venue_as_circuit_id_on(b):
@@ -1411,7 +1442,6 @@ def _stage_21_the_full_classification_qualifying_and_stand(b):
             (int(row["year"]), int(row["round"])), []).append(row)
 
     res_rows = res_skipped_driver = res_races = 0
-    grid_disagreements = []
     unknown_drivers = set()
     for (yr, rnd), rows in sorted(results_by_race.items()):
         rid = race_key.get((yr, rnd))
@@ -1458,43 +1488,17 @@ def _stage_21_the_full_classification_qualifying_and_stand(b):
             # "PL" is a pit-lane start and is not a number; it is kept as text
             # rather than discarded.
             #
-            # GRID 1 IS THE INTERESTING CASE. race_results.pole_id is a view
-            # over race_entries.grid = 1 -- pole here MEANS the driver who
-            # started from the front of the grid, not the fastest qualifier --
-            # so a second row claiming grid 1 would not merely be wrong, it
-            # would make the view emit the race twice.
-            #
-            # This used to refuse F1DB's grid 1 outright, on the grounds that
-            # pole is a single fact the pole harvest already owns. That is
-            # true right up until the harvest is behind, which it is for a
-            # week after every Grand Prix: harvest/poles.txt is hand-written
-            # and F1DB refreshes on a schedule. In that window the race had NO
-            # entry at grid 1 at all, so it had no pole, the site published a
-            # completed race with the field blank, and the pole cross-check
-            # below silently did not run for it -- it only compares where a
-            # stored pole exists. 2026 round 13 was sitting in exactly that
-            # state.
-            #
-            # So F1DB may now supply grid 1, but only into a vacancy: if any
-            # other entry in this race already holds it, the harvest (or an
-            # earlier F1DB row) wins and this one keeps its grid_text alone.
-            # verify.py asserts the invariant that makes the view safe.
+            # Grid 1 is taken as it comes. It used to be refused whenever the
+            # pole harvest had already put a driver there, because `grid = 1`
+            # then meant pole and a second claimant would have made
+            # race_results emit the race twice. Pole is its own flag now, so
+            # this column can say where every car started - including 2022
+            # round 21, where the credited pole-sitter started eighth and the
+            # sprint winner first, which the old rule recorded as a row with
+            # grid = 1 and grid_text = '8'. verify.py holds the invariant
+            # that at most one car starts from grid 1.
             grid_text = r["grid"] or None
             grid = int(r["grid"]) if r["grid"] and r["grid"].isdigit() else None
-            if grid == 1:
-                held = cur.execute(
-                    """SELECT driver_id FROM race_entries
-                        WHERE race_id=? AND grid=1 AND driver_id!=?""",
-                    (rid, did)).fetchone()
-                if held:
-                    # Two sources naming different drivers at the front of the
-                    # same grid is a disagreement, not a tie to be broken
-                    # quietly. The harvest keeps the slot -- it is the older
-                    # and hand-checked source, and the view depends on there
-                    # being exactly one -- and the other reading is recorded
-                    # so that somebody can look at it.
-                    grid = None
-                    grid_disagreements.append((yr, rnd, held[0], did))
             cur.execute("""INSERT INTO race_entries (race_id, driver_id,
                     constructor_id, entrant, grid, grid_text,
                     finish_position, position_text, shared_drive, classified,
@@ -1523,22 +1527,6 @@ def _stage_21_the_full_classification_qualifying_and_stand(b):
                  float(r["points"]) if r["points"] else None,
                  HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
             res_rows += 1
-
-    for yr_, rnd_, ours_, theirs_ in grid_disagreements:
-        cur.execute("""INSERT INTO discrepancies (subject, field,
-            stored_value, derived_value, assessment, status)
-            VALUES (?,?,?,?,?,?)""",
-            (f"{yr_} round {rnd_}", "grid position 1", ours_, theirs_,
-             "The pole harvest and F1DB name different drivers at the front "
-             "of the grid, and unlike the qualifying disagreement they are "
-             "describing the SAME thing - so one of them is wrong. Every "
-             "other race where grid 1 is not the fastest qualifier is a "
-             "penalty or a sprint-set grid, and grid 1 still names whoever "
-             "started there. Here the harvest has recorded the fastest "
-             "qualifier instead, which is what 'pole' means from 2022 but not "
-             "what this column holds. The harvest keeps the slot because "
-             "race_results.pole_id is a view over grid = 1 and a second "
-             "claimant would emit the race twice.", "open"))
 
     if res_rows:
         print(f"  race results: {res_rows} entries over {res_races} races "
@@ -1653,6 +1641,31 @@ def _stage_23_a_round_that_has_a_result(b):
     if promoted:
         print(f"  calendar: {promoted} round(s) promoted to completed "
               f"because a classification arrived for them")
+    # The round just promoted is also the round the pole harvest has not
+    # reached - harvest/poles.txt is hand-written and F1DB refreshes on a
+    # schedule - so it has a classification and no credited pole, and the
+    # site would publish a finished race with the field blank while every
+    # pole cross-check silently skipped it (2026 round 13 sat in that state).
+    # Credit the car F1DB puts at grid 1, which is what the season record
+    # credits for every race since 1950 bar one. Only into a vacancy, and
+    # only where exactly one car holds grid 1. It scans every completed race
+    # rather than the promoted one, and sits here because a race is not
+    # completed until this stage says so. A pole credited this way is
+    # distinguishable - the entry carries F1DB's source where a harvested
+    # pole carries the season table's - and verify.py refuses one in any
+    # season but the current, so the harvest still has to catch up.
+    cur.execute("""UPDATE race_entries SET pole = 1
+        WHERE grid = 1
+          AND race_id IN (SELECT id FROM races WHERE status = 'completed')
+          AND NOT EXISTS (SELECT 1 FROM race_entries p
+                          WHERE p.race_id = race_entries.race_id AND p.pole = 1)
+          AND (SELECT COUNT(*) FROM race_entries g
+               WHERE g.race_id = race_entries.race_id AND g.grid = 1) = 1""")
+    pole_filled = cur.rowcount
+    if pole_filled:
+        print(f"  calendar: {pole_filled} pole(s) credited from grid 1 where "
+              f"the harvest is silent")
+
 
 
 def _stage_24_qualifying_checked_against_the_pole_already(b):
@@ -1697,12 +1710,13 @@ def _stage_24_qualifying_checked_against_the_pole_already(b):
 
         # The cross-check this table brings with it. Pole is held for all
         # 1,161 races from the Wikipedia harvest, independently of F1DB, and
-        # whoever qualified first must be that driver. Where they differ the
-        # disagreement is RECORDED rather than resolved: qualifying position
-        # and grid slot are not the same thing once a penalty is applied, and
-        # neither source is wrong about the thing it is describing.
+        # the fastest qualifier is usually that driver. Where they differ
+        # nothing is recorded: a grid penalty or a sprint-set grid moves the
+        # quickest driver off pole without making either source wrong about
+        # the thing it describes, so this is a convention, not a
+        # disagreement. verify.py pins the count and the race page shows both.
         stored_pole = cur.execute(
-            "SELECT driver_id FROM race_entries WHERE race_id=? AND grid=1",
+            "SELECT driver_id FROM race_entries WHERE race_id=? AND pole=1",
             (rid,)).fetchone()
         qp1 = cur.execute("SELECT driver_id FROM qualifying WHERE race_id=? "
                           "AND position=1", (rid,)).fetchone()
@@ -1714,17 +1728,6 @@ def _stage_24_qualifying_checked_against_the_pole_already(b):
               f"{len(quali_by_race)} races; {qual_skipped} skipped for an "
               f"unresolvable driver; {len(pole_disagreements)} races where "
               f"the fastest qualifier is not the stored pole-sitter")
-    for yr, rnd, ours_, theirs_ in pole_disagreements:
-        cur.execute("""INSERT INTO discrepancies (subject, field,
-            stored_value, derived_value, assessment, status)
-            VALUES (?,?,?,?,?,?)""",
-            (f"{yr} round {rnd}", "pole position", ours_, theirs_,
-             "The stored pole-sitter started from grid 1 (Wikipedia season "
-             "tables); F1DB records a different driver as fastest in "
-             "qualifying. BOTH CAN BE TRUE - a grid penalty moves a driver "
-             "back without changing who was quickest - so this is recorded "
-             "rather than resolved. See the qualifying table for the times.",
-             "open"))
 
 
 def _stage_25_championship_standings_after_every_round_and(b):
@@ -1940,7 +1943,7 @@ def _stage_30_derived_win_totals(b):
 
     cur.execute("""UPDATE drivers SET poles = (
             SELECT COUNT(*) FROM race_entries e
-            WHERE e.driver_id = drivers.id AND e.grid = 1)""")
+            WHERE e.driver_id = drivers.id AND e.pole = 1)""")
     cur.execute("""UPDATE drivers SET fastest_laps = (
             SELECT COUNT(*) FROM race_entries e
             WHERE e.driver_id = drivers.id AND e.fastest_lap = 1)""")
@@ -2360,7 +2363,7 @@ def _stage_34_link_race_entries_to_the_curated(b):
         wins = (SELECT COUNT(DISTINCT e.race_id) FROM race_entries e
                 WHERE e.car_id = cars.id AND e.finish_position = 1),
         poles = (SELECT COUNT(DISTINCT e.race_id) FROM race_entries e
-                 WHERE e.car_id = cars.id AND e.grid = 1),
+                 WHERE e.car_id = cars.id AND e.pole = 1),
         fastest_laps = (SELECT COUNT(DISTINCT e.race_id) FROM race_entries e
                         WHERE e.car_id = cars.id AND e.fastest_lap = 1)""")
 
@@ -2377,7 +2380,7 @@ def _stage_34_link_race_entries_to_the_curated(b):
                          WHERE r.gp_id = grands_prix.id)""")
     cur.execute("""UPDATE constructors SET poles = (
         SELECT COUNT(*) FROM race_entries e
-        WHERE e.constructor_id = constructors.id AND e.grid = 1)""")
+        WHERE e.constructor_id = constructors.id AND e.pole = 1)""")
 
     normalise_countries(cur)
 
@@ -2729,15 +2732,19 @@ def _stage_28_race_dates_and_the_fastest_lap_where(b):
         fl_filled += 1
 
     for yr_, rnd_, ours_, theirs_ in fl_disagreements:
-        cur.execute("""INSERT INTO discrepancies (subject, field,
-            stored_value, derived_value, assessment, status)
-            VALUES (?,?,?,?,?,?)""",
-            (f"{yr_} round {rnd_}", "fastest lap", ours_, theirs_,
+        status_, assessment_ = HV.FASTEST_LAP_DISAGREEMENTS.get(
+            (int(yr_), int(rnd_)),
+            ("open",
              "The pole harvest and F1DB name different drivers as setting "
              "the fastest lap of the race. Both are describing the same "
              "thing, so one of them is wrong. The harvest keeps the slot "
              "because it is hand-checked and older; the other reading is "
-             "recorded here so somebody can look at it.", "open"))
+             "recorded here so somebody can look at it."))
+        cur.execute("""INSERT INTO discrepancies (subject, field,
+            stored_value, derived_value, assessment, status)
+            VALUES (?,?,?,?,?,?)""",
+            (f"{yr_} round {rnd_}", "fastest lap", ours_, theirs_,
+             assessment_, status_))
 
     print(f"  race dates: {iso} ISO days, {dated} display values filled "
           f"from F1DB; fastest laps: "
@@ -2801,8 +2808,28 @@ def report(con):
     print("\nviews:", ", ".join(views))
 
 
+# The SQLite library that last wrote a database stamps its own version number
+# into the file header, at bytes 96-99. Nothing reads it back, but it makes
+# the artefact depend on which SQLite the builder happened to link: a copy
+# built on a Mac against 3.51 and one built in CI against 3.45 differ in
+# exactly those bytes and nothing else, and ci.yml compares the committed
+# copy against a fresh build byte for byte. Pinned to the value every
+# committed copy has carried, for the same reason BUILT is a constant - the
+# database is a pure function of its sources, not of the machine.
+SQLITE_HEADER_VERSION = 3045001
+
+
+def pin_sqlite_header(path):
+    with open(path, "r+b") as f:
+        f.seek(96)
+        f.write(struct.pack(">I", SQLITE_HEADER_VERSION))
+
+
 if __name__ == "__main__":
     c = build()
     report(c)
+    c.close()
+    for path in (DB, GEOMETRY_DB):
+        pin_sqlite_header(path)
     print(f"\nWrote {DB}")
 
