@@ -9,6 +9,8 @@
 
 **Findings are filed as `PD-14` onward,** continuing the first run's numbering, which reached `PD-13` plus `PD-Ø`.
 
+**Decision recorded 2026-09-11, after this critique:** the repository stays private by the author's choice. `PD-14` is closed in the backlog's *Declined* section with the consequence stated; `AF-02` carries the follow-ons.
+
 **Status of the claims below.** The critic ran read-only and left the repository unmodified. Before this file was written the author re-checked its load-bearing figures against the committed `f1.db`, `f1-geometry.db`, the source and the prerendered HTML, and all held: the repository is private (`gh repo view`: `visibility: PRIVATE`, unauthenticated GET 404); 862 drivers, 618 with no `notes`, 625 with no podium, pole or fastest lap; 731 of 1,153 chassis join to a Commons image and 346 of those have `name_matches = 1`; one open row in `discrepancies`; 25 traced circuits covering 588 of 1,172 races, Silverstone (61 races) untraced; `Atlas.jsx:80` opens on `'spa'` and the circuit page's link carries no circuit; zero `og:image` and zero `<img>` in the prerendered Hamilton and MP4/4 pages. The Wikipedia lead-image sample (n=160) and the DEM characterisation were not re-checked and stand at the critic's stated evidence level.
 
 ---

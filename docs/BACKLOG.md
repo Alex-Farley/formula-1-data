@@ -68,11 +68,11 @@ cold first visit found the same defect, every one that looked at 3D circuits
 declined it, and four of them independently found that the site states
 something false rather than merely something thin. Those come first.*
 
-**One decision before any task.** The repository is private (`PD-14`). The
-site publishes `f1.db`, `f1-geometry.db` and `f1-parquet.zip` to anyone; the
-schema, the attribution file the release body points at, the ~200 checks that
-are the whole "audited" claim, and every "stable link" on the release page are
-404 to the public. Nothing else here changes what the product *is*; this does.
+**The one decision is made.** The repository stays private (`PD-14`, decided
+2026-09-11 — see *Declined*). The claim therefore changes from *audited, and
+you can audit the audit* to *cross-checked against independent sources, with
+every disagreement and every gap published in the data* — which the artefact
+supports on its own. `AF-02` carries the three follow-ons.
 
 **Then the false statements**, each an afternoon or less: the app tells a
 reader the reigning champion has no championship position (`UR-01`); dashes a
@@ -87,15 +87,6 @@ Monday of 2027 (`SD-02`).
 link restarts the download (`IX-01`, `IX-02`; the accessibility and visual
 faces are `AX-01` and `VD-02`; `UR-03`/`UR-04` measured it on the deployed
 site). `PD-02` is still the largest single fix and now has seven riders.
-
-- [ ] `PD-14` **Make the repository public, or say why not.** `visibility:
-      PRIVATE`; unauthenticated GET 404; `releases/latest/download/f1.db` 404;
-      `/schema.sql` 404 on the site. `ATTRIBUTION.md` still opens "Read this
-      before making the repository public". If it stays private, `PD-11`'s
-      claim changes from *audited* to *audited, take my word for it*. Whichever
-      way: serve `schema.sql`, `ATTRIBUTION.md` and `LICENSE-DATA` from
-      lapledger.org, because the artefacts are published from there (`SD-01`).
-      — *product critique, service critique · decision, then S*
 
 - [ ] `UR-01` **The app shows every 2025 and 2026 championship position as an
       em dash.** 65 end-of-season `standings` rows — all formula1.com's, all
@@ -519,6 +510,19 @@ Worth doing, not yet urgent.
 ### Filed 2026-09-11 — the eight reviews
 
 Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09-11-*.md` under the same ID. Items already in *Now* are not repeated.
+
+- [ ] `AF-02` **Keep the audit claim honest with a private repository.** Three
+      S pieces. (1) Publish the checks' *results*, not the code: a served
+      `checks.txt` or `/reference/checks` listing each `verify.py` check by its
+      sentence-length name and its PASS/WARN on the deployed build — the names
+      already read as claims. (2) Serve `schema.sql`, `ATTRIBUTION.md`,
+      `LICENSE-DATA` and `SHA256SUMS` from lapledger.org, since the release page
+      is unreachable and the artefacts are published from the site; the digest
+      still lets a reader confirm the file they hold is the one published, even
+      without a rebuild. (3) Reword: drop "anyone can rebuild and compare" from
+      the release body and README; say on `/data` that the data is CC BY-SA, the
+      build is not published, and here is what can be checked and how. `SD-01`'s
+      two follow-ons fold in here. — *yours · S each*
 
 **Code review**
 
@@ -1126,3 +1130,16 @@ a critique has to argue against.
   network available, and cleared again: the second visit is 0.8 s, and the
   cold window is a content-and-signalling problem (`IX-01`, `IX-02`, `PD-02`,
   `PD-22`), not an architecture one. — `PD`, `IX`, `UR`
+
+- **Making the repository public.** Decided 2026-09-11 by the author: it
+  stays private. Raised by `PD-14` and `SD-01`, which are right about the
+  consequence — the pipeline half of the "audited" claim (the ~200 checks,
+  the source literals, "rebuild and compare") is not readable by anyone, and
+  the release page's stable links are 404. What remains checkable from the
+  artefact alone is kept and is the claim now made: `discrepancies` (45
+  conflicts, 44 resolved on the record, 1 open), `known_gaps`, a source on
+  every row with its licence in `source_registry`, the schema's comments
+  inside the file, and stored-versus-derived figures shown side by side.
+  `AF-02` carries the three follow-ons that keep most of the ground. Re-raise
+  only with a reason the author has not weighed: the code is private by
+  choice, not by oversight. — the author
