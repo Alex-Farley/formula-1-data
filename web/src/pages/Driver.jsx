@@ -8,7 +8,6 @@ import Figure from '../charts/Figure.jsx'
 import DotPlot from '../charts/DotPlot.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { finished, missing, number, points as fmtPoints, result, span, yearList } from '../lib/format.js'
-import { finalStandings } from '../lib/standings.js'
 
 const DRIVER = `SELECT * FROM drivers WHERE id = ?`
 
@@ -59,17 +58,15 @@ const BY_SEASON = `
 `
 
 /**
- * The table as each season finished.
- *
- * after_round IS NULL is the final classification — `as_of` reads "final" —
- * rather than a missing round. It can hold more than one row per driver per
- * season, so the rows go through finalStandings before they are used; 2026
- * otherwise lists every driver twice.
+ * The table as each season finished, one row per season. v_standings_final
+ * folds the two sources that describe 2026 into one row and says why in
+ * schema.sql; a driver can still hold two rows in one season only where one
+ * source asserts two entries, which never happens for a driver.
  */
 const STANDINGS = `
   SELECT s.id, s.year, s.entity_id, s.engine_id, s.position, s.position_text, s.points, s.team
-    FROM standings s
-   WHERE s.table_type = 'drivers' AND s.entity_id = ? AND s.after_round IS NULL
+    FROM v_standings_final s
+   WHERE s.table_type = 'drivers' AND s.entity_id = ?
    ORDER BY s.year
 `
 
@@ -123,9 +120,8 @@ export default function Driver() {
 function DriverBody({ driver, data }) {
   const derived = data.derived.rows[0] ?? {}
   const bySeason = rows(data, 'bySeason')
-  // One row per season: see lib/standings.js for the two reasons there can be more.
   const standings = useMemo(
-    () => finalStandings(rows(data, 'standings')).sort((a, b) => a.year - b.year),
+    () => rows(data, 'standings'),
     [data],
   )
   const results = rows(data, 'results')

@@ -374,6 +374,21 @@ try {
    * is the one direction PD-02 had never been seen in. Read the expectation
    * from the database, as everything here does.
    */
+  // One row per driver. The end-of-season rows hold two sources' descriptions
+  // of 2026; the page reads v_standings_final, which folds them, and the
+  // count here is the view's own, so the assertion and the page cannot drift.
+  console.log('\n/seasons/2026  (one row per driver in the final table)')
+  await go('/seasons/2026', '2026')
+  const finalRows = await page.$$eval('#root main table', (tables) => {
+    const t = tables.find((el) => el.closest('section')?.querySelector('h2')?.textContent.includes("drivers' standings"))
+    return t ? t.querySelectorAll('tbody tr').length : -1
+  })
+  is(
+    finalRows,
+    count(`SELECT COUNT(*) FROM v_standings_final WHERE year = 2026 AND table_type = 'drivers'`),
+    "the 2026 drivers' table is one row per driver",
+  )
+
   console.log('\n/seasons/2025  (the champion is P1, not an em dash)')
   await go('/seasons/2025', '2025')
   const championPos = await page.evaluate(() => {

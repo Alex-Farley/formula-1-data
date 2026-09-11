@@ -305,6 +305,18 @@ CREATE TABLE standings (
     UNIQUE (year, table_type, after_round, entity_id, engine_id, as_of)
 );
 
+-- The UNIQUE above is inert for 69% of the rows. SQLite treats NULLs as
+-- distinct in a unique index, and after_round is NULL on every end-of-season
+-- row while engine_id is NULL on every driver row, so a byte-for-byte
+-- duplicate of a final driver row was accepted. This index says what the key
+-- actually is, with the NULLs pinned. position_text is in it on purpose: it
+-- is the column that tells the two 2018 Force India constructor rows apart -
+-- EX on 0 points and P7 on 52, one entrant excluded and its successor scoring
+-- under the same id - which are two facts and not a loader running twice.
+CREATE UNIQUE INDEX ux_standings_identity ON standings(
+    year, table_type, COALESCE(after_round, -1), entity_id,
+    COALESCE(engine_id, ''), as_of, COALESCE(position_text, ''));
+
 -- ------------------------------------------------- circuits and events
 CREATE TABLE circuits (
     id              TEXT PRIMARY KEY,
@@ -1332,6 +1344,54 @@ SELECT r.year, COUNT(*) AS races,
                              WHERE e.race_id = r.id AND e.pole = 1
                                AND e.finish_position = 1) THEN 1 ELSE 0 END) AS pole_converted
 FROM races r GROUP BY r.year ORDER BY r.year;
+
+-- One row per entity in a season's FINAL table - the question everyone asks
+-- of standings, and the one the raw table answers wrongly.
+--
+-- after_round IS NULL holds the end-of-season classification, but not one row
+-- per entity, for two different reasons and only one of them is a duplicate:
+--
+--   Two sources describing one season. 2026 carries a formula1.com row (team,
+--   no engine) and an F1DB row (engine, position, more recent points) for
+--   every driver and team. Rendered naively, everyone appears twice, and the
+--   compat export shipped exactly that for seven releases.
+--
+--   One source asserting two entries. Force India was excluded from the 2018
+--   constructors' championship on 0 points and its successor scored 52 under
+--   the same id; Cooper contested 1960 with three engines. Those rows all
+--   belong in the table, and collapsing them would delete a fact.
+--
+-- The source tells them apart, by construction: two rows from DIFFERENT
+-- sources are two descriptions of one thing, two rows from ONE source are two
+-- things. So per entity the view keeps every row from one source - the one
+-- with the higher points total, since points only accumulate and the larger
+-- figure is the source that has counted the most rounds; formula1.com on a
+-- tie - and fills position, position_text, engine_id and team from the other
+-- source where the kept row lacks them. Same columns as the table, so a
+-- consumer swaps the name and nothing else. For a finished season the sources
+-- agree and this is the identity.
+CREATE VIEW v_standings_final AS
+WITH final AS (SELECT * FROM standings WHERE after_round IS NULL),
+ranked AS (
+  SELECT year, table_type, entity_id, source,
+         ROW_NUMBER() OVER (
+           PARTITION BY year, table_type, entity_id
+           ORDER BY MAX(points) DESC,
+                    CASE WHEN source LIKE '%formula1.com%' THEN 0 ELSE 1 END) AS rank
+    FROM final GROUP BY year, table_type, entity_id, source)
+SELECT f.id, f.year, f.table_type,
+       COALESCE(f.position, o.position)           AS position,
+       COALESCE(f.position_text, o.position_text) AS position_text,
+       f.entity, f.entity_id,
+       COALESCE(f.engine_id, o.engine_id)         AS engine_id,
+       COALESCE(f.team, o.team)                   AS team,
+       f.points, f.after_round, f.as_of, f.confidence, f.source
+  FROM final f
+  JOIN ranked k ON k.year = f.year AND k.table_type = f.table_type
+               AND k.entity_id = f.entity_id AND k.source = f.source AND k.rank = 1
+  LEFT JOIN final o ON o.id = (SELECT MIN(x.id) FROM final x
+                                WHERE x.year = f.year AND x.table_type = f.table_type
+                                  AND x.entity_id = f.entity_id AND x.source <> f.source);
 
 CREATE VIEW v_stat_reconciliation AS
 SELECT d.full_name,

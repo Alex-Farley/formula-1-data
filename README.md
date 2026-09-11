@@ -1,4 +1,4 @@
-# Lap Ledger — v2.21
+# Lap Ledger — v2.22
 
 An expansion of the original single-file JSON into a normalised, queryable
 SQLite database covering 1950–2026, with the JSON kept as a generated export.
@@ -12,6 +12,21 @@ harvested from Wikipedia's season tables under a new `reference` confidence tier
 replaces the per-race one, every Grand Prix now has a canonical id, and
 `audit.py` reports on the shape of the database rather than its contents.
 See *Structure* below.
+
+**v2.22** gives the final championship table a key and a view. `standings`'
+`UNIQUE` constraint was inert for 69% of its rows — SQLite treats NULLs as
+distinct, and `after_round` is NULL on every end-of-season row — so a duplicate
+final row was accepted, and the end-of-season rows were never one per entity:
+2026 carries a formula1.com row and an F1DB row for every driver and team,
+while 2018 genuinely holds Force India twice. `v_standings_final` folds the
+first kind and keeps the second, with the same columns as the table, and an
+expression index pins the NULLs so the key means something. The compat export
+had shipped 333 rows for 23 drivers in every release since v2.15 — the running
+table after every round — and CI certified it seven times, because it checks
+reproducibility and not sense; the exporter now reads the view and refuses a
+snapshot that lists an entity twice. The site's pages and the CLI read the
+view too, and the ninety lines of JavaScript that reconstructed it at read
+time are gone.
 
 **v2.21** gives pole position its own column. `race_entries.grid = 1` had
 carried two meanings — the car that started from the front of the grid and

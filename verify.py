@@ -279,6 +279,30 @@ def standings():
           not mismatch, f"{compared} seasons compared"
           if not mismatch else "; ".join(mismatch[:3]))
 
+    # v_standings_final is the answer to "who finished where" and is what the
+    # exports and the pages read. Its one job is to fold two sources' rows for
+    # one entity into one without folding one source's two entries; the first
+    # check is that fold, the second that nothing fell out of it.
+    two = con.execute("""SELECT COUNT(*) FROM (
+        SELECT year, table_type, entity_id FROM v_standings_final
+        GROUP BY 1, 2, 3 HAVING COUNT(DISTINCT source) > 1)""").fetchone()[0]
+    check("v_standings_final shows each entity from one source", two == 0,
+          f"{two} entity-seasons from two sources")
+    lost = con.execute("""SELECT COUNT(*) FROM (
+        SELECT DISTINCT year, table_type, entity_id FROM standings
+        WHERE after_round IS NULL
+        EXCEPT
+        SELECT DISTINCT year, table_type, entity_id FROM v_standings_final)"""
+        ).fetchone()[0]
+    check("v_standings_final keeps every entity the final table holds", lost == 0,
+          f"{lost} entity-seasons dropped")
+    for y in (2025, 2026):
+        n, d = con.execute("""SELECT COUNT(*), COUNT(DISTINCT entity_id)
+            FROM v_standings_final WHERE year=? AND table_type='drivers'""",
+            (y,)).fetchone()
+        check(f"{y} drivers' final table is one row per driver", n == d,
+              f"{n} rows, {d} drivers")
+
 
 @section('RACE RESULTS')
 def race_results():
@@ -1993,17 +2017,24 @@ def illustration_and_geometry():
 @section('VIEWS')
 def views():
     for v in ("v_champions", "v_title_count", "v_constructor_titles",
-              "v_current_grid", "v_season_timeline", "v_unverified"):
+              "v_current_grid", "v_season_timeline", "v_unverified",
+              "v_standings_final"):
         n = con.execute(f"SELECT COUNT(*) FROM {v}").fetchone()[0]
         check(f"view {v} returns rows", n > 0, f"{n} rows")
 
-    # These two are empty until their harvest has been run, so they are checked
-    # for being WELL FORMED rather than for being populated. A view that only
-    # works once someone has fetched half a gigabyte is a view nobody tests.
-    for v in ("v_car_images", "v_images_to_check", "v_circuit_geometry",
-              "v_geometry_coverage"):
-        n = con.execute(f"SELECT COUNT(*) FROM {v}").fetchone()[0]
-        check(f"view {v} is queryable", True, f"{n} rows")
+    # SQLite accepts CREATE VIEW over a column that does not exist and only
+    # fails on SELECT, so a view nothing reads can be broken for a release
+    # without a check noticing. Every view is selected from here; the four that
+    # are empty until a harvest has run are exercised for being well formed
+    # rather than populated, which is the most a check can ask of them.
+    broken = []
+    for (v,) in con.execute(
+            "SELECT name FROM sqlite_master WHERE type='view' ORDER BY name"):
+        try:
+            con.execute(f"SELECT * FROM {v} LIMIT 1").fetchall()
+        except Exception as e:  # noqa: BLE001 - the message is the finding
+            broken.append(f"{v}: {e}")
+    check("every view can be selected from", not broken, "; ".join(broken[:3]))
 
     # ------------------------------------------------------------------ sprints
     #
