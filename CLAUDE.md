@@ -5,12 +5,14 @@ A SQLite database of Formula One, 1950–2026, built from Python literals in
 that queries `f1.db` in the browser via sql.js. The build has no third-party
 dependencies.
 
-`make ci` is exactly what CI's Python job runs, in its order, ending with the
-comparison of the committed artefacts against the fresh build. `make check`
-is the quick subset — build, verify, unit tests. The front end has its own:
-`cd web && npm test`.
+`make ci` is what CI's Python job runs, in its order, on one interpreter
+(CI runs it on two): it includes the comparison of the committed artefacts
+against the fresh build, so run it after staging a rebuild, not before.
+`make check` is the quick subset — build, verify, unit tests. The front end
+has its own: `cd web && npm test`.
 
-**Before committing, run `make all` (or `make ci`), never `make check`.**
+**Before committing, run `make all`, never `make check`; `make ci` on the
+staged result is what CI will see.**
 `check` does not run `export`, so it leaves `f1_compat.json` stale — and CI
 compares the committed copy against a fresh one. Anything that changes
 `VERSION` or the data changes that file too.

@@ -30,18 +30,19 @@ check: build verify test          ## build, verify, unit tests (not what CI runs
 ci:                               ## exactly what ci.yml's Python job runs
 	$(PYTHON) verify.py --redistribution-only
 	$(PYTHON) build.py
-	$(PYTHON) -m unittest discover -s tests
+	$(PYTHON) -m unittest discover -s tests -v
 	$(PYTHON) verify.py
 	$(PYTHON) audit.py
 	$(PYTHON) export_json.py --compat
+	@test -s f1_database.json || { echo "the full export was not written"; exit 1; }
 	@git diff --quiet -- f1.db f1-geometry.db f1_compat.json \
-	  || { echo "the committed artefacts do not match a fresh build:"; \
+	  || { echo "the committed artefacts do not match a fresh build - stage or commit the rebuild:"; \
 	       git diff --stat -- f1.db f1-geometry.db f1_compat.json; exit 1; }
-	./f1 champions 2020 2025 > /dev/null
-	./f1 car mp4/4 > /dev/null
-	./f1 circuit spa > /dev/null
-	./f1 gaps > /dev/null
-	@echo "ci: everything ci.yml's Python job runs passed, and the committed artefacts are current"
+	$(PYTHON) ./f1 champions 2020 2025
+	$(PYTHON) ./f1 car mp4/4
+	$(PYTHON) ./f1 circuit spa
+	$(PYTHON) ./f1 gaps
+	@echo "ci: everything ci.yml's Python job runs passed on this interpreter, and the committed artefacts are current"
 
 clean:                            ## remove built artefacts (not the sources)
 	rm -f f1.db f1_database.json f1_compat.json *.db.tmp
