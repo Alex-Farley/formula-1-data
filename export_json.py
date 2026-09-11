@@ -27,13 +27,23 @@ def history_baseline(con):
         WHERE s.drivers_champion IS NOT NULL ORDER BY s.year DESC LIMIT 1""").fetchone()
     top = con.execute("""SELECT full_name, titles FROM drivers
         WHERE titles = (SELECT MAX(titles) FROM drivers) ORDER BY full_name""").fetchall()
+    # From seasons, the column verify.py cross-checks against the
+    # constructors' title counts - not from standings, where one retrospective
+    # pre-1958 row would move a fact stated as "started in".
     constructors_from = con.execute(
-        "SELECT MIN(year) FROM standings WHERE table_type = 'constructors'").fetchone()[0]
+        "SELECT MIN(year) FROM seasons WHERE constructors_champion IS NOT NULL").fetchone()[0]
+    # The v1 key names a year, so it keeps its name and its meaning - the
+    # count as it stood at the end of 2025, derived - and the moving figure
+    # gets keys of its own beside it.
+    at_2025 = con.execute("""SELECT COUNT(DISTINCT drivers_champion) FROM seasons
+        WHERE year <= 2025 AND drivers_champion IS NOT NULL""").fetchone()[0]
     return {
         "championship_start": str(first[0]),
         "first_world_champion": f"{first[1]} ({first[0]})",
-        f"drivers_champions_count_at_end_{latest[0]}": con.execute(
+        "drivers_champions_count_at_end_2025": at_2025,
+        "drivers_champions_count": con.execute(
             "SELECT COUNT(*) FROM drivers WHERE titles > 0").fetchone()[0],
+        "champions_count_as_of_season": latest[0],
         "constructors_championship_started": constructors_from,
         "most_driver_titles": " and ".join(r[0] for r in top) + f" — {top[0][1]} each"
         if len(top) > 1 else f"{top[0][0]} — {top[0][1]}",
