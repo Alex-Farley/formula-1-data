@@ -79,7 +79,7 @@ function pythonWithPip() {
 // `npm run build` was a surprise nobody asked for. The install branches run
 // where a deploy or CI runs, or where the person has said so.
 const MAY_INSTALL = Boolean(
-  process.env.CI || process.env.CF_PAGES || process.env.WORKERS_CI || process.env.LAPLEDGER_PARQUET,
+  process.env.CI || process.env.WORKERS_CI || process.env.LAPLEDGER_PARQUET,
 )
 
 function ensurePyarrow(py) {
@@ -146,11 +146,12 @@ rmSync(outDir, { recursive: true, force: true })
 // at /build-status.txt.
 function heartbeat() {
   const out = []
-  const sha = process.env.WORKERS_CI_COMMIT_SHA || process.env.CF_PAGES_COMMIT_SHA
+  // Cloudflare Workers Builds sets this; the deploy is a Worker, not a Pages project.
+  const sha = process.env.WORKERS_CI_COMMIT_SHA
     || (() => { try { return execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo }).toString().trim() } catch { return 'unknown' } })()
   out.push(`commit   ${sha}`)
   try {
-    const { DatabaseSync } = await_import_sqlite()
+    const { DatabaseSync } = sqliteModule()
     const db = new DatabaseSync(join(repo, 'f1.db'), { readOnly: true })
     const meta = Object.fromEntries(db.prepare('SELECT key, value FROM meta').all().map((r) => [r.key, r.value]))
     const last = db.prepare(`SELECT year, round, name_used FROM races WHERE status = 'completed'
@@ -169,8 +170,10 @@ function heartbeat() {
   return out
 }
 
-function await_import_sqlite() {
-  // node:sqlite is what prepare-assets.js and the prerenderer already use.
+function sqliteModule() {
+  // node:sqlite, the module prepare-assets.js and the prerenderer already
+  // use; fetched synchronously so the heartbeat can run inside a plain
+  // function on the way to writing the status file.
   return process.getBuiltinModule('node:sqlite')
 }
 
