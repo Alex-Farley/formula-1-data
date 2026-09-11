@@ -64,9 +64,26 @@ W = 100
 def con():
     if not os.path.exists(DB):
         sys.exit("f1.db not found — run: python3 build.py")
-    c = sqlite3.connect(DB)
+    # Read-only. `./f1 sql` runs its argument verbatim, and a read-write
+    # connection let a CREATE TABLE or a VACUUM persist into the committed
+    # database - the file CLAUDE.md's first rule says is never edited by hand.
+    # The browser's worker gets this right with BEGIN/ROLLBACK; the CLI is
+    # simpler still.
+    c = sqlite3.connect(f"file:{DB}?mode=ro", uri=True)
     c.row_factory = sqlite3.Row
     return c
+
+
+def read_only_guard(fn):
+    """A write through the read-only connection exits with a sentence, not a traceback."""
+    def run(*a, **kw):
+        try:
+            return fn(*a, **kw)
+        except sqlite3.OperationalError as e:
+            if "readonly" in str(e):
+                sys.exit("read-only: ./f1 runs queries only; the database is built, never edited")
+            raise
+    return run
 
 
 def table(rows, cols=None, maxw=48):
@@ -92,6 +109,7 @@ def para(label, text, indent=2):
         print(" " * indent + line)
 
 
+@read_only_guard
 def main():
     if len(sys.argv) < 2:
         print(__doc__)

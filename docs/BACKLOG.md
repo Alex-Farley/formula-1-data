@@ -85,13 +85,6 @@ supports on its own. `AF-02` carries the three follow-ons.
 first visit (`IX-01`, `IX-02`, `IX-03`, `IX-13`) landed in #37. `PD-02` is still the
 largest single fix and still has its riders.
 
-- [ ] `CR-01` **Three bulk harvest files can vanish and every gate passes.**
-      `_read_named` returns `[]` for a missing file by design; deleting
-      `standings.txt` (34,498 rows), `f1db_pit_stops.txt` or
-      `fastest_laps.txt` builds and verifies clean. One floor check per bulk
-      table, pinned to the last committed count, the way `1161` already is. —
-      *code review · S*
-
 - [ ] `DA-12` **The pole harvest overwrites `source` on 1,136 rows.** A pole
       row cites the Wikipedia season article while every other column on it —
       836 provably, via `laps_completed` and `points` — came from F1DB; the
@@ -447,6 +440,13 @@ Worth doing, not yet urgent.
 
 Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09-11-*.md` under the same ID. Items already in *Now* are not repeated.
 
+- [ ] `CR-21` **Two harvest files fill columns and have no floor.** Deleting
+      `harvest/car_specs.txt` (649 lines) or `harvest/article_images.txt`
+      (607) builds and verifies clean. Found by the review of `CR-01`, which
+      floored the seven bulk tables. A floor on the count of non-NULL
+      `chassis.weight_kg` and of `article_images` rows would do. — *code
+      review of #42 · S*
+
 - [ ] `AF-02` **Keep the audit claim honest with a private repository.** Three
       S pieces. (1) Publish the checks' *results*, not the code: a served
       `checks.txt` or `/reference/checks` listing each `verify.py` check by its
@@ -463,8 +463,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 **Code review**
 
 - [ ] `CR-03` **Nothing tests the checks.** 184 assertion sites in `verify.py`, zero tests that any fires on bad data; `tests/` covers six pure functions. `tests/test_verify.py`: build once to a temp path, one mutation per test, assert the *named* check fails. Six tests cover the licence gate. — *code review · M*
-
-- [ ] `CR-04` **`./f1 sql` can alter the committed database.** `f1:67` opens read-write; DDL, `VACUUM`, `ATTACH` persist. `mode=ro` URI. — *code review · S*
 
 - [ ] `CR-06` **Two hand-bumped `1161` literals, and a per-race manual tax.** Pin "every completed race before the harvest's last round has one pole and one venue row" instead of the count. — *code review · S*
 
@@ -1064,6 +1062,19 @@ Real, but not costed, or waiting on a decision.
       Observed the day it was fixed: #40's first commit carried a 581 KB
       fragment. On a copy a refused build exits 1 with `f1.db` byte-identical.
       — *code review · #41*
+
+- [x] `CR-01` **Every bulk table has a floor.** Eight tables and two bulk
+      columns are checked against their count at v2.22 in `verify.py`; a
+      database built with `f1db_pit_stops.txt` or `fastest_laps.txt`
+      deleted, which passed every gate on `main`, now fails (the standings
+      floor from #39 already caught that one). Fastest laps are checked per
+      race rather than by count. Raise a floor when a harvest legitimately
+      adds rows, never lower it. `car_specs.txt` and `article_images.txt`
+      fill columns rather than tables and remain unfloored: `CR-21`. —
+      *code review · #42*
+
+- [x] `CR-04` **`./f1` opens the database read-only.** `./f1 sql "CREATE
+      TABLE …"` used to persist into the committed file. — *code review · #42*
 
 ## Declined
 

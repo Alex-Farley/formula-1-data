@@ -397,12 +397,7 @@ def standings():
              d_ == c_, "" if d_ == c_ else
              f"drivers {d_}, constructors {c_} - the sources disagree, see discrepancies")
     # The new unique index makes INSERT OR IGNORE able to drop a row silently;
-    # a floor on the count is what would say so.
-    # 34,563 is the count at v2.22; raise it when a harvest legitimately adds
-    # rows, never lower it.
-    nstd = con.execute("SELECT COUNT(*) FROM standings").fetchone()[0]
-    check("the standings table holds at least as many rows as the last release",
-          nstd >= 34563, f"{nstd} rows")
+    # the floor under standings in the_full_classification is what would say so.
     for yr_, eid_, want_ in ((2018, "force-india", 2), (1960, "cooper", 3)):
         got_ = con.execute("""SELECT COUNT(*) FROM v_standings_final
             WHERE year=? AND table_type='constructors' AND entity_id=?""",
@@ -1737,6 +1732,34 @@ def the_full_classification():
     ncls = con.execute("SELECT COUNT(*) FROM race_entries").fetchone()[0]
     nqual = con.execute("SELECT COUNT(*) FROM qualifying").fetchone()[0]
     nstand = con.execute("SELECT COUNT(*) FROM standings").fetchone()[0]
+
+    # A FLOOR UNDER EVERY BULK TABLE. data/harvest.py's _read_named returns []
+    # for a missing generated file by design, from when those files were a
+    # local extra; they are now 93% of the rows, and the checks below are
+    # guarded on the table being non-empty, so a database built with
+    # standings.txt deleted - 34,498 rows gone - passed every gate. Each
+    # figure is the count at v2.22; raise one when a harvest legitimately adds
+    # rows, never lower it. A harvest that shrinks has to be looked at.
+    FLOORS = (
+        ("race_entries", 27482), ("qualifying", 26997), ("standings", 34563),
+        ("pit_stops", 22481), ("sprint_results", 590), ("season_entrants", 1925),
+        ("chassis", 1153), ("engines", 424),
+    )
+    for table, floor in FLOORS:
+        n = con.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+        check(f"{table} holds at least the {floor:,} rows of the last release",
+              n >= floor, f"{n:,} rows")
+    # Fastest laps live in a column, and the F1DB file fills vacancies only,
+    # so a floor on the count is one row wide. Per race instead: every
+    # completed race carries a credit, bar the one known_gaps declares (2021
+    # Belgium, where no racing lap was run).
+    uncredited = [tuple(r) for r in con.execute("""SELECT r.year, r.round FROM races r
+        WHERE r.status = 'completed'
+          AND NOT EXISTS (SELECT 1 FROM race_entries e
+                          WHERE e.race_id = r.id AND e.fastest_lap = 1)
+        ORDER BY r.year, r.round""")]
+    check("every completed race carries a fastest-lap credit, bar 2021 Belgium",
+          uncredited == [(2021, 12)], "; ".join(f"{y} r{r}" for y, r in uncredited[:4]))
     print(f"  [info] {ncls} race entries, {nqual} qualifying rows, "
           f"{nstand} standings rows")
 
