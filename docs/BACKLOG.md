@@ -378,11 +378,6 @@ Worth doing, not yet urgent.
       what should replace it, in `CD-07`'s claim in repository voice. —
       *content critique · S*
 
-- [ ] `IA-05` **Search cannot find a car by the name anyone would type.**
-      `Search.jsx:29` indexes chassis on `chassis.name`, which is the bare model
-      number, so "Ferrari 312" returns nothing. Fix what it indexes; do not
-      build full-text. — *IA critique · S*
-
 - [ ] `IA-06` **Six of the most famous cars in F1 have two URLs each and are
       absent from search.** Six `cars` ids that no chassis owns — `alfa-158`,
       `brawn-bgp001`, `lotus-72`, `mercedes-w05`, `mercedes-w11` and one more —
@@ -509,12 +504,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 - [ ] `VD-21` **`web/README.md` describes a mark the site does not ship.** 3×2 in the doc, 4×4 in `index.html`. Fix the paragraph. — *visual critique · S*
 
 **Interaction design**
-
-- [ ] `IX-05` **Search ranks by name length, so 11 of the 25 winningest drivers are not the first hit for their surname.** Duncan over Lewis Hamilton, Ralf over Michael Schumacher; Enter opens the first. Add a prominence term (`wins`, `races`) before the length tie-break. — *interaction critique · S*
-
-- [ ] `IX-06` **Accented names are findable by one spelling only, in both directions.** "frere" finds nothing; "Räikkönen" finds nothing. Fold diacritics on both sides. Ship with `IX-05`/`IX-07`. — *interaction critique · S*
-
-- [ ] `IX-07` **Search wants the reader's words in the database's order.** "monaco 1996" finds nothing; "1996 monaco" works. Tokenise the needle. — *interaction critique · S*
 
 - [ ] `IX-08` **The atlas marker travels the wrong way round two circuits and starts nowhere.** Baku and Long Beach walk against `circuits.direction`; `0 m` is an arbitrary OSM way boundary. Reverse the ring on shoelace sign; say "along the trace", not a lap position. — *interaction critique · S*
 
@@ -1136,6 +1125,24 @@ Real, but not costed, or waiting on a decision.
       order, including the redistribution gate on the committed database and
       the artefact comparison that neither `check` nor `all` ran. `CLAUDE.md`
       points at it. — *code review · #53*
+
+- [x] `IX-05` **Search ranks equal matches by prominence.** The index carries
+      wins (or races, for a circuit); "hamilton" offers Sir Lewis before
+      Duncan, "schumacher" Michael before Ralf. The rule lives in
+      `lib/search.js`, unit-tested; a smoke check holds the palette to it. —
+      *interaction critique · #54*
+
+- [x] `IX-06` **Search folds diacritics both ways.** "raikkonen" finds
+      Räikkönen and "Räikkönen" finds Raikkonen, whichever spelling the
+      register holds. — *interaction critique · #54*
+
+- [x] `IX-07` **Search takes the words in any order.** "monaco 1996" finds
+      the 1996 Monaco Grand Prix; every word typed must appear, and the rank
+      is the best-placed one. — *interaction critique · #54*
+
+- [x] `IA-05` **A car is found by the name anyone types.** The index carries
+      `chassis.full_name` — "Ferrari 312/67" — not the bare model number. —
+      *IA critique · #54*
 
 ## Declined
 
