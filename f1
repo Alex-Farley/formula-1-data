@@ -706,12 +706,22 @@ def main():
                            ORDER BY editions DESC""", (k, k, k)), maxw=40)
 
     elif cmd == "gaps":
-        print("\n  KNOWN GAPS — what the data does not yet cover\n")
-        for r in c.execute("SELECT * FROM known_gaps ORDER BY races_affected DESC"):
-            print(f"    {r['area']}  ({r['races_affected']} races)")
-            for line in textwrap.wrap(r["description"], W - 8):
-                print("        " + line)
-            print(f"        -> {r['resolution']}\n")
+        # Three states, the way the quality page groups them: what is open,
+        # what is a decision, and what has closed and stays on the record.
+        for state, heading in (("open", "KNOWN GAPS — open, what the data does not yet cover"),
+                               ("position", "POSITIONS — absences by decision, not gaps"),
+                               ("closed", "CLOSED — filled since, and kept on the record")):
+            rows = c.execute("SELECT * FROM known_gaps WHERE state = ? "
+                             "ORDER BY races_affected DESC, id", (state,)).fetchall()
+            if not rows:
+                continue
+            print(f"\n  {heading}\n")
+            for r in rows:
+                affected = f"  ({r['races_affected']} races)" if r["races_affected"] else ""
+                print(f"    #{r['id']} {r['area']}{affected}")
+                for line in textwrap.wrap(r["reader"], W - 8):
+                    print("        " + line)
+                print(f"        -> {r['resolution']}\n")
         print("  CORRECTIONS — an external figure was checked and found wrong\n")
         for r in c.execute("SELECT * FROM discrepancies WHERE status LIKE 'resolved%'"):
             print(f"    {r['subject']} {r['field']}: {r['stored_value']} -> {r['derived_value']}")

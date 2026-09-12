@@ -1242,14 +1242,31 @@ CREATE INDEX idx_rcm_race         ON race_control_messages(race_id);
 CREATE INDEX idx_radio_race       ON team_radio(race_id);
 CREATE INDEX idx_radio_notable    ON team_radio(notable);
 
+-- What the database does not hold, on the record. A row is never deleted:
+-- a gap that closes is marked closed and its resolution says when and how,
+-- so the register keeps its history. `state` separates three things that
+-- used to share one list and one count -
+--   open      a fact nobody holds yet; these are the gaps the site counts
+--   closed    filled since, and kept so the closure is on record
+--   position  a deliberate absence (no lap timing, no historic centrelines,
+--             a race in which no lap was set) - the right state, not a gap
+-- `reader` is the one-paragraph version a reader of the site is shown;
+-- `description` and `resolution` are the maintainer's note, kept whole.
 CREATE TABLE known_gaps (
     id              INTEGER PRIMARY KEY,
     field           TEXT NOT NULL,             -- which column is incomplete
     area            TEXT NOT NULL,
-    description     TEXT NOT NULL,
+    state           TEXT NOT NULL CHECK (state IN ('open', 'closed', 'position')),
+    reader          TEXT NOT NULL,             -- what a reader is shown
+    description     TEXT NOT NULL,             -- the maintainer's note
     races_affected  INTEGER,
-    resolution      TEXT
+    resolution      TEXT                       -- what would close it, or what did
 );
+
+-- The gaps the site counts. The homepage, /data and the README figure all
+-- read this view, so they cannot disagree with each other or with the table.
+CREATE VIEW v_open_gaps AS
+SELECT * FROM known_gaps WHERE state = 'open' ORDER BY id;
 
 CREATE TABLE discrepancies (
     id              INTEGER PRIMARY KEY,
