@@ -201,7 +201,6 @@ Worth doing, not yet urgent.
       hosting scraped timing. — *product critique · S*
 
 
-
 - [ ] `PM-12` **Loosen the specification harvest's name check.** It refuses
       "Alfa Romeo 158/159 Alfetta" for `alfa-romeo-159`. Match the chassis name
       as a token subsequence rather than a strict prefix; the constructor and
@@ -694,6 +693,13 @@ Real, but not costed, or waiting on a decision.
       is the licence `SOURCE_LICENCE` classifies; the refresh then fails at
       the fetch and commits nothing. Found writing `docs/UPSTREAM.md`
       (`PD-13`). — *project record · S*
+
+- [ ] `PM-28` **Five code comments cite the Jolpica licence decision as
+      `known_gaps` #1.** It is #2 (`finish_position`); #1 is the fastest-lap
+      harvest. `tools/f1db_fetch.py` (twice, one of them in its licence
+      commentary), `build.py` (twice) and `data/harvest.py` (once); the
+      README's copy was fixed in #82. Comments only, no artefact changes.
+      Found by the review of #82. — *review of #82 · S*
 
 - [ ] `PM-09` **Per-round chassis harvest.** Closes `known_gaps` #3 (287 races
       with no known winning chassis) and #4 (car pole counts) in one pass. Only
@@ -1566,7 +1572,7 @@ Real, but not costed, or waiting on a decision.
       Schumacher at Interlagos 2001 was his third. — *review of #74 · #79*
 
 - [x] `PD-13` **The upstream dependency is written down.** `docs/UPSTREAM.md`:
-      what F1DB supplies (115,162 of 119,279 rows at v2.23, table by table),
+      what F1DB supplies (115,162 of 119,280 rows at v2.23, table by table),
       how it arrives (a committed snapshot, refreshed daily by `refresh.yml`
       and committed only on a full pass), the four cross-checks that refuse a
       bad load, what happens if it stops (staleness, not breakage; the
@@ -1578,6 +1584,7 @@ Real, but not costed, or waiting on a decision.
       F1DB in three places and mis-citing a gap and a licence section; the
       README's "known_gaps #1" for the Jolpica decision was the same
       mis-cite and is #2 now. — *product critique · #82*
+
 - [x] `CD-22` **Where the register's seasons are not the race records', the
       page says which is which.** The Seasons note on the driver strip, in
       both renderers, reads "1969–1973 in the race records, 1970–1973

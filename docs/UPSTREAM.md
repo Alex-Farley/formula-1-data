@@ -10,7 +10,7 @@ written while nothing was wrong.
 (CC BY 4.0) database of Formula One results and registers, re-released after
 every race with a public commit history. Since v2.15 it is this project's
 primary source for results as well as registers. At v2.23 it is the cited
-source of 115,162 of the database's 119,279 table rows — about 96 per cent —
+source of 115,162 of the database's 119,280 table rows — about 96 per cent —
 and the source, wholly or mostly, of these tables:
 
 | Table | Rows | What F1DB supplies |
@@ -36,8 +36,9 @@ What does **not** come from it, and stands on its own: the winner of every
 completed race (`harvest/races.txt`, hand-written from Wikipedia to the end
 of 2024; hand-entered rows citing formula1.com for 2025–26), the pole and
 fastest lap of every race the hand-written `harvest/poles.txt` has reached
-(F1DB fills in where that harvest is silent, and `verify.py` reports each
-such fill until the harvest catches up); the seasons table with every
+(F1DB fills in where that harvest is silent: `verify.py` names each pole so
+credited until the harvest catches up, and `build.py` prints the count of
+fastest laps it filled); the seasons table with every
 champion and runner-up; the circuits; the car specifications
 (`tools/wikispec_fetch.py`, from each chassis's own article); the regulation
 limits (FIA documents); the centrelines (OpenStreetMap, shipped separately);
@@ -75,12 +76,20 @@ load that disagrees with them fails the build rather than overwriting them:
 4. the (constructor, season) → chassis mapping against the `CAR_SEASONS`
    assertions proved against published win totals.
 
-A change in F1DB's shape — a renamed field, a moved file — stops the fetch
-tool, which reads fields by name; a change in its content that these four
-cannot see would land, which is why `discrepancies` exists and why the
-standings are compared with a hand-entered formula1.com snapshot wherever one
-overlaps a round (two rounds today, refreshed by hand — a spot check, not a
-process).
+A change in F1DB's shape does **not** stop the fetch tool, and this is worth
+knowing: it reads fields with `.get()`, so a renamed field yields an empty
+column, and a moved or renamed YAML file yields zero rows, silently. What
+stops a shape change is downstream. The fetch tool exits on a position code
+it does not know — "the vocabulary has changed; decide what it means before
+storing it" — and `verify.py` holds a **row floor** for every F1DB table at
+the count of the last release, added after a database built with
+`standings.txt` deleted, 34,498 rows gone, passed every gate. A shrunken or
+emptied table fails the build; an emptied column is caught only where a
+cross-check or a NOT NULL constraint reads it. A change in F1DB's content
+that the four cross-checks cannot see would land, which is why
+`discrepancies` exists and why the standings are compared with a
+hand-entered formula1.com snapshot wherever one overlaps a round (two rounds
+today, refreshed by hand — a spot check, not a process).
 
 ## If F1DB stops
 
