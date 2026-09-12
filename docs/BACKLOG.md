@@ -61,6 +61,27 @@ discovers back here under these conventions. The process around that is in
 
 ---
 
+## Decisions needed
+
+One place to look. Each is an open item elsewhere in this file; the ID is
+the link. An autonomous run does not take these; it works around them and
+adds to this list when it finds another. Struck through when decided, with
+the date, then removed at the next tidy.
+
+- `LV-01` **Live session data.** Practice timings are FOM's data, the line
+  the empty `laps` table already draws. Recommended: the weekend timetable
+  (a) and after-the-fact session classifications (b); decline a live feed
+  (c) unless a licence is obtained.
+- `PM-04` **The GitHub repository description.** Text proposed on the item;
+  apply it, or change it.
+- `PD-03` **`/records`.** Derive the thirty records from the database, or
+  stop shipping the page.
+- `IA-02` **The masthead's "Reference" slot** becomes "Data", or stays.
+- `WK-01` **The qualifying-format history.** Worth one FIA Sporting
+  Regulations issue per season, and yearbooks before 2009?
+- `AF-02` **The wording of the cross-checked claim** on the About and README
+  surfaces, now the repository stays private.
+
 ## Now
 
 Short enough to be a decision rather than a list. Each item is a surface
