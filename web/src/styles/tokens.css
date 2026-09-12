@@ -9,7 +9,9 @@
  *   --series-*    the chart colours. Slots 1-3 of the reference categorical
  *                 palette, validated by script against these exact surfaces
  *                 rather than chosen by eye. Never text.
- *   --seq-*       one hue, for a continuous quantity. Only a circuit's turn
+ *   --seq-*       one hue, for a continuous quantity; the pale end clears 3:1 on
+ *                 --stage (light 3.2:1), and the two middle rail bands clear 2:1
+ *                 against each other, not only against the panel. Only a circuit's turn
  *                 rate uses it.
  *
  * Dark is not an inversion of light: it is a second instrument, stepped
@@ -63,7 +65,7 @@
      5.4 / 3.5 / 3.5 in dark. */
   --rail-podium: #c81028;
   --rail-points: #e2687c;
-  --rail-classified: #8b94a3;
+  --rail-classified: #535b69;
 
   /* chart series — reference palette slots 1-3, light column */
   --series-1: #2a78d6;
@@ -73,9 +75,9 @@
 
   /* sequential, one hue: light to dark, so "more" is darker. The pale end
      still has to read as a mark, so it starts at step 250. */
-  --seq-1: #86b6ef;
-  --seq-2: #5598e7;
-  --seq-3: #2a78d6;
+  --seq-1: #4a8edd;
+  --seq-2: #2a78d6;
+  --seq-3: #1f61b3;
   --seq-4: #184f95;
   --seq-5: #0d366b;
 
@@ -124,7 +126,7 @@
 
     --rail-podium: #ff4757;
     --rail-points: #c0394f;
-    --rail-classified: #646d7c;
+    --rail-classified: #9aa4b3;
 
     --series-1: #3987e5;
     --series-2: #d95926;
@@ -174,7 +176,7 @@
 
   --rail-podium: #ff4757;
   --rail-points: #c0394f;
-  --rail-classified: #646d7c;
+  --rail-classified: #9aa4b3;
 
   --series-1: #3987e5;
   --series-2: #d95926;
