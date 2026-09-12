@@ -10,7 +10,7 @@ written while nothing was wrong.
 (CC BY 4.0) database of Formula One results and registers, re-released after
 every race with a public commit history. Since v2.15 it is this project's
 primary source for results as well as registers. At v2.23 it is the cited
-source of 115,162 of the database's 119,280 table rows — about 96 per cent —
+source of 115,161 of the database's 119,280 table rows — about 96 per cent —
 and the source, wholly or mostly, of these tables:
 
 | Table | Rows | What F1DB supplies |
@@ -67,8 +67,9 @@ load that disagrees with them fails the build rather than overwriting them:
 
 1. the winner of every completed race, from the hand-written harvest and the
    2025–26 rows — a race whose classification disagrees is refused whole;
-2. the champion, the runner-up and both point totals for every season in
-   `seasons`, which the final standings must reproduce;
+2. the champion, the runner-up and both point totals for 76 of the 77
+   seasons in `seasons` — the one in progress is not compared — which the
+   final standings must reproduce;
 3. qualifying position 1 against the pole-sitter already stored — the 13
    races that differ are grid penalties and sprint weekends, and the count is
    pinned in `verify.py` rather than filed in `discrepancies`, because two
@@ -81,15 +82,20 @@ knowing: it reads fields with `.get()`, so a renamed field yields an empty
 column, and a moved or renamed YAML file yields zero rows, silently. What
 stops a shape change is downstream. The fetch tool exits on a position code
 it does not know — "the vocabulary has changed; decide what it means before
-storing it" — and `verify.py` holds a **row floor** for every F1DB table at
-the count of the last release, added after a database built with
-`standings.txt` deleted, 34,498 rows gone, passed every gate. A shrunken or
-emptied table fails the build; an emptied column is caught only where a
-cross-check or a NOT NULL constraint reads it. A change in F1DB's content
-that the four cross-checks cannot see would land, which is why
-`discrepancies` exists and why the standings are compared with a
-hand-entered formula1.com snapshot wherever one overlaps a round (two rounds
-today, refreshed by hand — a spot check, not a process).
+storing it" — and `verify.py` holds a **row floor** for eight F1DB tables
+(`race_entries`, `qualifying`, `standings`, `pit_stops`, `sprint_results`,
+`season_entrants`, `chassis`, `engines`) at their counts as of v2.22, added
+after a database built with `standings.txt` deleted, 34,498 rows gone,
+passed every gate; `drivers` and `constructors` have no floor, and are held
+instead by `build.py`'s admission check, which refuses a driver the register
+names and the harvest no longer carries. A shrunken or emptied table fails
+the build; an emptied column is caught only where a cross-check or a NOT
+NULL constraint reads it. A change in F1DB's content that the four
+cross-checks cannot see would land, which is why `discrepancies` exists and
+why the end-of-season standings are compared with hand-entered formula1.com
+rows wherever one is held — two seasons today, 65 rows, nine of them
+disagreeing on 2026 points and recorded as such — a spot check refreshed by
+hand, not a process.
 
 ## If F1DB stops
 
@@ -110,9 +116,9 @@ The replacements, in order of how much they cost:
   fallback for a private build, not for the published one.
 - **formula1.com** is classified facts-only, and that classification
   (`SOURCE_LICENCE`, `data/current.py`) forbids a substantial extraction of
-  its database as well as any copying of its expression. The 539 rows citing
-  it today are a check, not a load, and that is the scale the classification
-  covers. A loader that pulled the full classification from it would be a
+  its database as well as any copying of its expression. The 478 rows citing
+  it today (`./f1 licences`) are a check, not a load, and that is the scale
+  the classification covers. A loader that pulled the full classification from it would be a
   different use, and whether the terms allow it is a question a person
   answers by reading them — not one this page or a fetch tool decides.
 - **The hand-written harvest** carries the winner of every completed race,
@@ -126,7 +132,9 @@ The licence a snapshot was received under does not change under it. The
 CC BY 4.0 grant is irrevocable (section 2(a)(1) of the legal code) and runs
 for the term of the copyright, ending only on the licensee's own breach
 (section 6(a)), so the committed harvest stays redistributable with
-attribution whatever a later release is licensed as. What must not happen is a *later* release
+attribution whatever a later release is licensed as. That is this project's
+reading of the legal code, not legal advice; before it is relied on
+commercially, someone qualified reads the sections. What must not happen is a *later* release
 being fetched under the old assumption: the fetch tool stamps every header
 "CC BY 4.0" from a constant, not from F1DB's licence file, so a relicensed
 release would be fetched, stamped with the old licence, rebuilt, and — if the

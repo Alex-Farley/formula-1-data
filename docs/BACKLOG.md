@@ -130,7 +130,6 @@ largest single fix and still has its riders.
       their queries and column lists with the prerenderer; the other pages
       follow.
 
-
 - [ ] `IA-02` **`Reference` leaves the masthead; `Data` takes the slot.**
       `/reference` is two drawers with no reader in common: a *database* drawer
       (`quality`, `sources`, `sql`) and a *sport* drawer (`eras`, `glossary`).
@@ -199,7 +198,6 @@ Worth doing, not yet urgent.
       redistribute Formula One lap timing, so this database contains none, and
       every figure here is one you may republish" is an advantage over anyone
       hosting scraped timing. — *product critique · S*
-
 
 - [ ] `PM-12` **Loosen the specification harvest's name check.** It refuses
       "Alfa Romeo 158/159 Alfetta" for `alfa-romeo-159`. Match the chassis name
@@ -694,12 +692,16 @@ Real, but not costed, or waiting on a decision.
       the fetch and commits nothing. Found writing `docs/UPSTREAM.md`
       (`PD-13`). — *project record · S*
 
-- [ ] `PM-28` **Five code comments cite the Jolpica licence decision as
-      `known_gaps` #1.** It is #2 (`finish_position`); #1 is the fastest-lap
-      harvest. `tools/f1db_fetch.py` (twice, one of them in its licence
-      commentary), `build.py` (twice) and `data/harvest.py` (once); the
-      README's copy was fixed in #82. Comments only, no artefact changes.
-      Found by the review of #82. — *review of #82 · S*
+- [ ] `PM-28` **Six code comments cite `known_gaps` #1 for a gap that is
+      not #1.** Three mean the Jolpica licence decision, which is #2
+      (`finish_position`): `build.py` (the results loader), `tools/
+      f1db_fetch.py` (its licence commentary) and `data/harvest.py` (the
+      results section). Three mean the abandoned chassis-per-race harvest,
+      which is #3 (`chassis_id`): `build.py`, `tools/f1db_fetch.py` and
+      `data/harvest.py` again. #1 is the fastest-lap harvest. Find them with
+      `grep -rn "known_gaps #1" --include="*.py"`; the README's copy was
+      fixed in #82. Comments only, no artefact change. Found by the reviews
+      of #82. — *review of #82 · S*
 
 - [ ] `PM-09` **Per-round chassis harvest.** Closes `known_gaps` #3 (287 races
       with no known winning chassis) and #4 (car pole counts) in one pass. Only
@@ -1572,7 +1574,7 @@ Real, but not costed, or waiting on a decision.
       Schumacher at Interlagos 2001 was his third. — *review of #74 · #79*
 
 - [x] `PD-13` **The upstream dependency is written down.** `docs/UPSTREAM.md`:
-      what F1DB supplies (115,162 of 119,280 rows at v2.23, table by table),
+      what F1DB supplies (115,161 of 119,280 rows at v2.23, table by table),
       how it arrives (a committed snapshot, refreshed daily by `refresh.yml`
       and committed only on a full pass), the four cross-checks that refuse a
       bad load, what happens if it stops (staleness, not breakage; the
