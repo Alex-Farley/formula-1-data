@@ -907,7 +907,7 @@ def external_figures_vs_the_race_records():
             pass
         else:
             unresolved.append(f"#{did} '{subject}' joins to nothing a reader can reach")
-    check("every open disagreement can be shown beside the fact it is about",
+    check("every recorded disagreement the site shows can be shown beside the fact it is about",
           not unresolved, "; ".join(unresolved[:4]))
 
     # spot-check a sample of headline career records against the known official figures

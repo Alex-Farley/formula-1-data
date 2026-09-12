@@ -927,8 +927,8 @@ EXPLAINED_SPANS = [
      "Grands Prix; he started neither, so the race records hold nothing for "
      "him until 2015, when he started five Grands Prix for the same team, by "
      "then Manor Marussia. His earlier seasons as a Caterham reserve carry no "
-     "round and count for neither reading. An entry is not a start, and this "
-     "database does not blur the two."),
+     "round and count for neither reading. An entry is not a start. "
+     "Source: https://github.com/f1db/f1db, seasons/2014/entrants.yml"),
 ]
 
 # Corrections made to hand-entered career figures after checking them against an

@@ -58,7 +58,6 @@ export const DRIVER_DISAGREEMENTS = `
    ORDER BY d.id
 `
 
-export { allExplained }
 
 /** `fastest_laps` is a column name. The reader is owed the words. */
 const label = (field) => String(field ?? '').replace(/_/g, ' ')

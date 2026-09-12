@@ -950,7 +950,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
   // careerDisagreements is scoped to that section, so this is the same
   // statement for this one.
   const teamDisagreements = db.prepare(
-    `SELECT d.field, d.assessment,
+    `SELECT d.field, d.status, d.assessment,
             COALESCE(s.full_name, d.stored_value)  AS stored_value,
             COALESCE(v.full_name, d.derived_value) AS derived_value
        FROM discrepancies d

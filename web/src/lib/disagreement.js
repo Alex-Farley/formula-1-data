@@ -7,5 +7,8 @@
  * open wording for both, which is the cautious side to fall on; no driver
  * has both today.
  */
+// The same prefix the queries select on, so a row of another explained kind
+// could never be introduced as this one.
+export const EXPLAINED_SPAN = 'explained - each side'
 export const allExplained = (rows) =>
-  rows.length > 0 && rows.every((r) => String(r.status ?? '').startsWith('explained'))
+  rows.length > 0 && rows.every((r) => String(r.status ?? '').startsWith(EXPLAINED_SPAN))

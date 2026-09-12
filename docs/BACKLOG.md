@@ -160,7 +160,7 @@ largest single fix and still has its riders.
       release body's which-copy-wins sentence, `schema.org/Dataset` markup
       (`SD-11` — the one search surface built for this audience), and the
       publisher block `UR-05`/`SD-15` ask for. The disagreements claim in
-      `CD-07` must change: 45 found, 44 resolved on the record, one open
+      `CD-07` must change to the live figures from `discrepancies`
       (`PD-25`).
 - [ ] `PD-03` **Derive `/records`, or stop shipping it.** All 30 rows are
       authored, sit at `medium`, and nothing in `verify.py` reads the table; the
@@ -511,8 +511,16 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       ends.** `seasonsNote()` returns early on a missing first season and the
       `verify.py` pin skips the row, where a NULL `last_season` suppresses
       only its own end; make the predicate symmetric in both, together (no
-      row needs it today). Split out of `CD-25`, which landed without it.
-      Found by the review of #81. — *review of #81 · S*
+      row needs it today). And the declaration mechanism recognises only
+      `first_season`: a `last_season` divergence could be cleared only by a
+      row labelled with the wrong field. Split out of `CD-25`, which landed
+      without them. Found by the reviews of #81 and #89. — *review of #81 ·
+      S*
+
+- [ ] `CD-27` **Three words for the register's figure on one screen.** The
+      Seasons note calls it "published", the aside beside it "the
+      register's", `/data/quality` heads the column "Stored". One word.
+      Found by the review of #89. — *review of #89 · S*
 
 **Interaction design**
 
@@ -1611,7 +1619,7 @@ Real, but not costed, or waiting on a decision.
 - [x] `CD-25` **The reason two spans differ sits beside the fact.**
       `EXPLAINED_SPANS` in `data/harvest.py` puts a `discrepancies` row for
       Cevert (a Formula 2 class at the 1969 German Grand Prix) and Rossi
-      (practice only in 2014), status "explained - each side is right about
+      (two 2014 entries, no start), status "explained - each side is right about
       something"; both renderers show it through the disagreement aside,
       introduced as two readings rather than a disagreement to settle, and
       `verify.py` derives the pair it pins from those rows, so the pin and
