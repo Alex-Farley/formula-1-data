@@ -342,7 +342,8 @@ function CircuitLap({ geometry, circuit }) {
         {' '}· measures {geometry.measured_km?.toFixed(3)} km against{' '}
         {geometry.published_km?.toFixed(3)} km published
         {delta !== null && delta !== undefined && ` (${delta > 0 ? '+' : ''}${delta.toFixed(2)}%)`}
-        {circuit.direction && ` · raced ${circuit.direction}; the arrow is the direction, not the start`}
+        {circuit.direction && ` · raced ${circuit.direction}`}
+        {lap.complete && circuit.direction && '; the arrow is the direction, not the start'}
         <br />© OpenStreetMap contributors, {geometry.licence || 'ODbL 1.0'}.
       </figcaption>
     </figure>

@@ -816,6 +816,15 @@ try {
   atLeast(await page.$$eval('svg.lapfigure path', (els) => els.length), 10, 'the lap is drawn in radius bands')
   truthy(await page.$('svg.lapfigure polygon'), 'the lap carries its direction arrow')
   truthy(await page.$('.lapfigure-card figcaption a[href*="openstreetmap.org/relation"]'), 'the drawing keeps its attribution')
+  // A trace that does not close draws no arrow and claims none.
+  const open = one("SELECT circuit_id FROM geo.circuit_geometry WHERE closes = 0 ORDER BY node_count DESC LIMIT 1")
+  await go(`/circuits/${open}`)
+  await page.waitForSelector('svg.lapfigure path', { timeout: 20000 })
+  truthy(
+    !(await page.$('svg.lapfigure polygon')) &&
+      !(await page.$eval('.lapfigure-card figcaption', (n) => n.textContent)).includes('the arrow is'),
+    `a trace that does not close (${open}) has no arrow and no caption about one`,
+  )
 
   // ----------------------------------------------------------------- SQL
 

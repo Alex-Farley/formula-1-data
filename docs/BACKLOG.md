@@ -1233,8 +1233,11 @@ Real, but not costed, or waiting on a decision.
       One component, `LapFigure`, called by the atlas and by `/circuits/:id`:
       corner-radius bands, the direction of travel as an arrow, the marker
       where a caller walks the lap. `TrackMap` and its second stitcher are
-      gone. No start marker — neither database holds that coordinate, and the
-      caption says the arrow is the direction, not the start. 3D stays
+      gone. No start marker — neither database holds that coordinate, and
+      where the trace closes the caption says the arrow is the direction, not
+      the start; where it does not close (Monaco, Las Vegas, Montjuïc) there
+      is no arrow and no claim of one — the first cut said it anyway, and the
+      review caught it. 3D stays
       declined; an elevation strip waits on `PD-23`. — *visual critique · #62*
 
 ## Declined
