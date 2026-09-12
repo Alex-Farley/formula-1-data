@@ -421,13 +421,6 @@ the source. `WK-` is this survey; nothing else uses the prefix.
       The year each changed is what remains. —
       *Wikipedia survey · S*
 
-- [ ] `WK-04` **The new-team entry fee is a press figure.** The page's US$450m
-      "up-front payment" is the anti-dilution fund under the 2026 Concorde
-      Agreement, a private contract; the 2021 figure of US$200m is likewise
-      reported, not published. Neither has a primary source. A `known_gaps`
-      row saying so is the correct outcome, not a `governance` row carrying a
-      newspaper's number. — *Wikipedia survey · S*
-
 - [ ] `WK-06` **Read the records list the same way.** *List of Formula One
       World Championship records* is the page with the tables this one lacks.
       Survey it against `records` — derived since `PD-03` landed in #68, 29
@@ -514,6 +507,14 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       to the number; the Bottas phrase #74 removed by hand is the shape it
       misses. Allow one or two words between, and re-run. Found by the review
       of #74. — *review of #74 · S*
+
+- [ ] `CD-22` **The static driver description and the facts list disagree on
+      the years.** The description derives first and last year from the
+      race entries; the facts list shows the stored `first_season` and
+      `last_season`. Cevert reads "across 1969–1973" beside "Seasons
+      1970–1973", Alexander Rossi "in 2015" beside "2014–2015". Derive both,
+      or say which is which. Found by the review of #75. — *review of #75 ·
+      S*
 
 **Interaction design**
 
@@ -1487,6 +1488,11 @@ Real, but not costed, or waiting on a decision.
       now the app's query and column list, from `web/src/queries/drivers.js`;
       the driver page's strip and its season table follow the same way.
       Found by the review of #69. — *review · #77*
+- [x] `WK-04` **The new-team entry fee is a press figure, and the database
+      says so.** A `known_gaps` row: the anti-dilution fund is a term of a
+      private contract, the US$200m and US$450m figures are reported, not
+      published, and no `governance` row carries them. Closes if the FIA or
+      Formula One publishes the figure. — *Wikipedia survey · #78*
 
 ## Declined
 

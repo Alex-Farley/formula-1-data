@@ -605,7 +605,9 @@ try {
       `${top.full_name}'s Entries is the race-record count`,
     )
     const html = await (await fetch(`${BASE}/drivers`)).text()
-    truthy(/<th scope="col">Entries<\/th>/.test(html) && !/<th scope="col">Races<\/th>/.test(html), 'the static register uses the same word')
+    // fromColumns() gives a numeric header its alignment class, so the tag
+    // carries attributes; the word is what is being checked.
+    truthy(/<th scope="col"[^>]*>Entries<\/th>/.test(html) && !/<th scope="col"[^>]*>Races<\/th>/.test(html), 'the static register uses the same word')
     const firstStatic = html.slice(html.indexOf('<tbody>'), html.indexOf('</tr>', html.indexOf('<tbody>')))
     truthy(firstStatic.includes(top.full_name), 'the static register opens on the same driver')
     // Row for row, not only the first: the tie-break must collate as SQLite

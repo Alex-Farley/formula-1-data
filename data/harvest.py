@@ -776,6 +776,27 @@ KNOWN_GAPS = [
      "of the five with a route. The others need race timing, which no source "
      "publishes under a licence that permits passing it on (known_gaps #5), "
      "or an attribute the project does not model."),
+    ("governance", "what a new team pays to enter",
+     "open",
+     "The sum a new team pays to join - the anti-dilution fund - is a term "
+     "of the Concorde Agreement, a private contract. The figures in print, "
+     "US$200 million under the 2021 agreement and US$450 million under the "
+     "2026 one, are reported by the press and confirmed by no published "
+     "document, so this database does not carry them.",
+     "The Wikipedia Formula One page states US$450 million as the up-front "
+     "payment a new team makes, describing it as a payment to the FIA; press "
+     "reports describe the same sum as the Concorde Agreement's anti-dilution "
+     "fund, compensating the existing teams - which is the point: the "
+     "recipient, like the figure, is reported rather than published. The "
+     "2021 agreement's US$200 million is likewise widely reported. Neither "
+     "the FIA nor Formula One has published the agreement or the figure, and "
+     "the project's rule is that a fact needs a source before it needs a row: "
+     "a governance row would carry a newspaper's number as if it were the "
+     "contract's. Filed from the survey of the Wikipedia page (WK-04).",
+     0,
+     "Closes if the FIA or Formula One publishes the figure, or if the "
+     "Concorde Agreement is published; the row would then go in governance "
+     "citing that document."),
 ]
 
 # Shared fastest laps the season tables render as ONE name. harvest/poles.txt

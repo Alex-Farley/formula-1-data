@@ -114,4 +114,4 @@ Practical notes for whoever builds it:
 3. That file published as a release asset, never committed.
 
 Until (1), the tables stay empty and the database says so, which is what
-`known_gaps` #4 records and what `./f1 gaps` prints.
+`known_gaps` #5 and #6 records and what `./f1 gaps` prints.
