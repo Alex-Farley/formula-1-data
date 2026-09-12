@@ -816,7 +816,8 @@ def pole_position_and_fastest_lap():
                 continue
             path = os.path.join(root, fn)
             try:
-                text = open(path, encoding="utf-8").read()
+                with open(path, encoding="utf-8") as fh:
+                    text = fh.read()
             except (UnicodeDecodeError, OSError):
                 continue
             for m in re.finditer(r"known_gaps\s*#(\d+)", text):
