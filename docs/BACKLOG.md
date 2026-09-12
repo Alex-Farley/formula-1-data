@@ -656,17 +656,6 @@ Real, but not costed, or waiting on a decision.
       2026 r13 pole awaiting the harvest, both of which the next refresh
       moves. — *project record · M*
 
-- [ ] `PM-28` **Six code comments cite `known_gaps` #1 for a gap that is
-      not #1.** Three mean the Jolpica licence decision, which is #2
-      (`finish_position`): `build.py` (the results loader), `tools/
-      f1db_fetch.py` (its licence commentary) and `data/harvest.py` (the
-      results section). Three mean the abandoned chassis-per-race harvest,
-      which is #3 (`chassis_id`): `build.py`, `tools/f1db_fetch.py` and
-      `data/harvest.py` again. #1 is the fastest-lap harvest. Find them with
-      `grep -rn "known_gaps #1" --include="*.py"`; the README's copy was
-      fixed in #82. Comments only, no artefact change. Found by the reviews
-      of #82. — *review of #82 · S*
-
 - [ ] `PM-09` **Per-round chassis harvest.** Closes `known_gaps` #3 (287 races
       with no known winning chassis) and #4 (car pole counts) in one pass. Only
       safe with the entry-list cross-check that now exists. — *project record · L*
@@ -1597,6 +1586,12 @@ Real, but not costed, or waiting on a decision.
       a landed entry — `CD-21` (#79), `CR-23` and `CR-24` (both #77) — the
       first two by a block edit the review of #85 caught as unrecorded. — *review
       of #79 · #85*
+
+- [x] `PM-28` **Six code comments cite the gap they mean.** Three that meant
+      the Jolpica licence decision now say `known_gaps` #2 and three that
+      meant the abandoned chassis-per-race harvest say #3; `#1`, the
+      fastest-lap harvest, is cited by none of them. Comments only. —
+      *review of #82 · #87*
 
 ## Declined
 

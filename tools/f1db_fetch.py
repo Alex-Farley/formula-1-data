@@ -38,7 +38,7 @@ The `engine` entity does carry capacity, configuration and aspiration.
 
 `seasons/<year>/entrants.yml` links season -> entrant -> constructor ->
 chassis/engine/tyre. That mapping is the second source the chassis-per-race
-harvest was missing (known_gaps #1). It has one hard limit, and it decides
+harvest was missing (known_gaps #3). It has one hard limit, and it decides
 how far the linkage can go:
 
     **F1DB records which chassis a constructor ran in a season. It does not
@@ -349,7 +349,7 @@ def entrant_rows(data, yaml):
 # qualifying, the starting grid, per-round standings and pit stops. It is
 # CC BY 4.0 - attribution only - which is what makes this different in kind
 # from the same data via Jolpica: those rows are CC BY-NC-SA and cannot be
-# committed, which is why known_gaps #1 existed for seven versions. These
+# committed, which is why known_gaps #2 existed for seven versions. These
 # can.
 #
 # The two sources are kept side by side rather than one replacing the other.
