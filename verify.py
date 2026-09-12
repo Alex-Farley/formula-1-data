@@ -1839,10 +1839,11 @@ def the_full_classification():
         check(f"{table} holds at least the {floor:,} rows of the last release",
               n >= floor, f"{n:,} rows")
     # Two harvests fill COLUMNS rather than tables, so a row floor does not
-    # see them: deleting harvest/car_specs.txt or harvest/article_images.txt
-    # built and verified clean. The review of CR-01 found it (CR-21). Same
-    # rule: the count at v2.22, raised when a harvest legitimately adds, never
-    # lowered.
+    # see them. When the review of CR-01 filed this (CR-21), deleting
+    # harvest/car_specs.txt or harvest/article_images.txt built and verified
+    # clean; since #60 the README's figure spans catch it indirectly, which
+    # invites "fixing" the README. A floor names the harvest. Same rule: the
+    # count at v2.22, raised when a harvest legitimately adds, never lowered.
     COLUMN_FLOORS = (
         ("chassis", "weight_kg", 197, "harvest/car_specs.txt"),
         ("chassis", "wheelbase_mm", 338, "harvest/car_specs.txt"),
