@@ -488,20 +488,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       not the row id — and leave shared records as text. Found by the review
       of #68. — *product critique · S*
 
-- [ ] `CD-21` **The lede check misses a figure with an adjective before the
-      noun.** "four runner-up finishes", "Ten career wins", "three straight
-      wins" pass `verify.py`'s check (#74) because it wants the noun adjacent
-      to the number; the Bottas phrase #74 removed by hand is the shape it
-      misses. Allow one or two words between, and re-run. Found by the review
-      of #74. — *review of #74 · S*
-- [ ] `CR-23` **The static `/records` table has a `Category` column the app
-      never shows.** Predates #68; the review of #68 measured it. Rides with
-      `CR-22`. — *review of #68 · S*
-
-- [ ] `CR-24` **The static drivers register is not the app's.** Eight
-      columns against nine, Poles before Podiums against Podiums before
-      Poles, no Fastest laps. Same defect as `CR-22`/`CR-23`; rides with
-      `PD-02`. Found by the review of #69. — *review of #69 · S*
 
 - [ ] `CD-19` **Eighteen driver ledes still spell a figure the strip
       derives** ("Ten wins", "Eight wins"); `verify.py`'s check (#70) stops
@@ -524,18 +510,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       its own; make the predicate symmetric in `seasonsNote()` and the
       `verify.py` pin together (no row needs it today). Found by the review
       of #81. — *review of #81 · S*
-
-- [ ] `CD-23` **The lede check's qualifier list is short, and its gap is
-      loose.** "Ten F1 wins", "Seven World titles", "Two World Championship
-      titles" and "two consecutive Drivers' titles" pass because a
-      capitalised word is read as a place-name subset; fold `F1`, `Formula
-      One`, `World`, `World Championship`, `Championship` and `Drivers'`
-      into the noun's qualifier group beside `GP`. The two-word gap swallows
-      "Four of his wins" (no total stated) and "Six Formula One wins" is
-      reported as "One wins"; tighten the gap to exclude `of|his|the` and
-      report the whole match. Give the pattern a unit test in `tests/` so
-      both interpreters prove it matches, not merely compiles. Found by the
-      review of #79. — *review of #79 · S*
 
 - [ ] `CD-24` **Subset figures in a driver note are counted by nobody.**
       Hill's five and Senna's six Monaco wins, Trintignant's two, and
@@ -1568,6 +1542,21 @@ Real, but not costed, or waiting on a decision.
       span — a driver still driving — makes no claim about its last year,
       which the first cut missed and the review caught on 23 current
       drivers. — *review of #75 · #81*
+
+- [x] `CD-23` **The lede check is one tested pattern.** `tools/lede_figures.py`
+      holds it, with its reasons; `tests/test_lede_figures.py` makes both
+      interpreters prove 18 catches and 12 leave-alones. Career qualifiers
+      (`F1`, `Formula One`, `World`, `World Championship`, `Championship`,
+      `Drivers'`, `career`) no longer hide a total; "of", "his", "the" and
+      kin no longer bridge the gap; "Six Formula One wins" is reported whole
+      and "Formula One wins" alone is not a figure; eleventh to nineteenth
+      join the ordinals, which had skipped them — the comment's own
+      Hülkenberg example never matched — and so does twenty-first and kin,
+      which the review of #85 found the same way. No note needed rewriting;
+      three stale open lines are gone from the queue, each a duplicate of
+      a landed entry — `CD-21` (#79), `CR-23` and `CR-24` (both #77) — the
+      first two by a block edit the review of #85 caught as unrecorded. — *review
+      of #79 · #85*
 
 ## Declined
 
