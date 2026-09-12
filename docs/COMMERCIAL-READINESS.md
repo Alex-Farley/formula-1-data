@@ -23,15 +23,15 @@ committed database may not be published.
 
 | Class | Rows | Share |
 |---|---:|---:|
-| `yes` — redistributable on the terms given | 118,727 | 99.4% |
-| `facts-only` — the facts, not the expression | 668 | 0.6% |
+| `yes` — redistributable on the terms given | 118,728 | 99.4% |
+| `facts-only` — the facts, not the expression | 667 | 0.6% |
 | `no` — not redistributable | 0 | 0% |
 
 ---
 
 ## What was read
 
-668 rows cite `formula1.com` (594) or `fia.com` (74), the two sources whose
+667 rows cite `formula1.com` (593) or `fia.com` (74), the two sources whose
 licences are "FOM copyright; no reuse licence" and "FIA copyright; published
 for reference, not redistribution". Every one was examined and classified as
 either
@@ -40,7 +40,7 @@ either
   copyrightable, and restating one is not redistribution; or
 - **(b) text following the source's expression** — rewrite.
 
-**All 668 are (a). None is (b).** The breakdown (figures as of v2.23 with the
+**All 667 are (a). None is (b).** The breakdown (figures as of v2.23 with the
 2026 timetable; nothing checks them, which `PM-31` files):
 
 | Table | Rows | Source | What the row holds | Prose |
