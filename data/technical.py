@@ -56,6 +56,7 @@ REGULATIONS = [
     (2022, "technical", "Ground effect returns", "Venturi tunnels reinstated with simplified over-body aerodynamics, 18-inch wheels and standardised parts.", "Intended to let cars follow closely. Porpoising — aerodynamic bouncing — dominated the first season and forced a mid-2022 technical directive on floor stiffness and a vertical-oscillation metric."),
     (2023, "sporting", "Floor edge and stiffness rules tightened", "Floor edges raised and diffuser throat height increased to curb porpoising.", ""),
     (2025, "sporting", "Fastest lap point removed", "The bonus point introduced in 2019 was dropped.", "Removed an incentive for late 'free' pit stops by out-of-contention cars."),
+    (2026, "financial", "Cost cap set at US$215 million", "US$215,000,000 for a reporting year of up to 24 Competitions, plus US$1,800,000 for each Competition above 24, in the 2026 Financial Regulations (Section D, issue 07); 2025 was US$135,000,000 at 21 Competitions.", "The first change to the headline figure since 2023. The schedule year by year is in regulation_limits."),
     (2026, "technical", "New chassis formula", "Wheelbase capped at 3,400 mm, width reduced to 1,900 mm, minimum weight 768 kg (722 kg car and driver plus 46 kg estimated tyre mass in the FIA overview).", "The first deliberate reduction in car size and weight in decades."),
     (2026, "technical", "Active aerodynamics replace DRS", "Driver-operable front and rear wing systems with distinct low-drag and high-downforce modes.", "Removes the DRS proximity mechanism in favour of a mode both cars can use."),
     (2026, "sporting", "Overtake Mode", "A driver within one second at the detection point receives additional energy deployment — the FIA/F1 overview describes an extra 0.5 MJ and a raised deployment profile.", "The successor mechanism to DRS's overtaking assistance."),
@@ -153,6 +154,19 @@ SAFETY = [
 _HFOR = "https://en.wikipedia.org/wiki/History_of_Formula_One_regulations"
 _FIA2026 = "https://www.fia.com/regulations/formula-1"
 
+# The FIA Financial Regulations, one issue per reporting year. Each states the
+# cap for its own year in Article 2 - "in the event that N Competitions take
+# place ... US Dollars X" - with the per-Competition adjustment beside it. The
+# figures below were read from these documents, not from a summary of them.
+_FIN = {
+    2021: "https://www.fia.com/sites/default/files/formula_1_-_financial_regulations_-_2021_-_iss_8_-_2021-10-15.pdf",
+    2022: "https://www.fia.com/sites/default/files/fia_formula_1_financial_regulations_iss.12.pdf",
+    2023: "https://www.fia.com/sites/default/files/fia_formula_1_financial_regulations_-_issue_18_-_2023-12-06.pdf",
+    2024: "https://www.fia.com/sites/default/files/fia_formula_1_financial_regulations_-_issue_22_-_2024-12-11.pdf",
+    2025: "https://www.fia.com/system/files/documents/2025_fia_formula_1_financial_regulations_-_issue_25_-_2025-07-31.pdf",
+    2026: "https://www.fia.com/system/files/documents/fia_2026_f1_regulations_-_section_d_financial_-_f1_teams_-_iss_07_-_2026-06-25.pdf",
+}
+
 REGULATION_LIMITS = [
     (1961, 1965, "minimum_weight_kg", 450.0, "kg",
      "The first minimum weight in Formula One; there was none before 1961.",
@@ -212,6 +226,32 @@ REGULATION_LIMITS = [
     (2026, 2026, "maximum_wheelbase_mm", 3400.0, "mm",
      "The first wheelbase cap in the modern rules. A 2026 car quoted at "
      "3,400 mm is being quoted the rule.", "reference", _FIA2026),
+
+    # The cost cap. The headline figure is for a reporting year with the
+    # stated number of Competitions; the second field is what each Competition
+    # above or below that number adds or removes. The 2026 figure is not
+    # comparable with 2025's on its face - the 2026 regulations were rewritten
+    # as Section D of a single rulebook - so the two are separate rows rather
+    # than one span with a note.
+    (2021, 2021, "cost_cap_usd", 145_000_000.0, "USD",
+     "For a 21-Competition reporting year (FIA Financial Regulations 2021, "
+     "issue 8).", "reference", _FIN[2021]),
+    (2022, 2022, "cost_cap_usd", 140_000_000.0, "USD",
+     "For a 21-Competition reporting year (issue 12).", "reference", _FIN[2022]),
+    (2023, 2025, "cost_cap_usd", 135_000_000.0, "USD",
+     "For a 21-Competition reporting year; issues 18, 22 and 25 each restate "
+     "it for their own year.", "reference", _FIN[2025]),
+    (2026, 2026, "cost_cap_usd", 215_000_000.0, "USD",
+     "For a reporting year of 24 Competitions or fewer, under the 2026 "
+     "Financial Regulations (Section D, issue 07).", "reference", _FIN[2026]),
+    (2021, 2022, "cost_cap_per_competition_usd", 1_200_000.0, "USD",
+     "Added or removed for each Competition above or below 21.", "reference",
+     _FIN[2022]),
+    (2023, 2025, "cost_cap_per_competition_usd", 1_800_000.0, "USD",
+     "Added or removed for each Competition above or below 21.", "reference",
+     _FIN[2025]),
+    (2026, 2026, "cost_cap_per_competition_usd", 1_800_000.0, "USD",
+     "Added for each Competition above 24.", "reference", _FIN[2026]),
 ]
 
 
