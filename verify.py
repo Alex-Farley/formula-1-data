@@ -1482,6 +1482,13 @@ def the_driver_register():
                         (SELECT MIN(r.year) FROM race_entries e JOIN races r ON r.id = e.race_id
                           WHERE e.driver_id = d.id) = ?) FROM drivers d WHERE d.id = ?""",
                      (int(sv), int(dv), d)).fetchone()[0]]
+    _top = con.execute("SELECT MAX(id) FROM discrepancies").fetchone()[0]
+    _exp_ids = sorted(r[0] for r in con.execute("""SELECT id FROM discrepancies
+        WHERE status = 'explained - each side is right about something'"""))
+    _n_exp = len(harvest_module().EXPLAINED_SPANS)
+    check("the explained span rows are the last discrepancies written, so adding one moves no id",
+          len(_exp_ids) == _n_exp and _exp_ids == list(range(_top - _n_exp + 1, _top + 1)),
+          f"ids {_exp_ids} of {_n_exp} declared, max {_top}")
     check("each explained span row carries the register's and the records' first season",
           not _bad_rows, "; ".join(_bad_rows))
     # The register's `active` against the grid the drivers page derives - an
