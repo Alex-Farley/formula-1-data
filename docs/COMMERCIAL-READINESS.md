@@ -23,9 +23,6 @@ committed database may not be published.
 
 | Class | Rows | Share |
 |---|---:|---:|
-| `yes` — redistributable on the terms given | 118,728 | 99.4% |
-| `facts-only` — the facts, not the expression | 667 | 0.6% |
-| `no` — not redistributable | 0 | 0% |
 | `yes` — redistributable on the terms given | <!-- fig:yes_rows -->117,529<!-- /fig --> | <!-- fig:yes_share -->99.4%<!-- /fig --> |
 | `facts-only` — the facts, not the expression | <!-- fig:facts_only_rows -->667<!-- /fig --> | <!-- fig:facts_only_share -->0.6%<!-- /fig --> |
 | `no` — not redistributable | <!-- fig:no_rows -->0<!-- /fig --> | <!-- fig:no_share -->0.0%<!-- /fig --> |
@@ -34,7 +31,6 @@ committed database may not be published.
 
 ## What was read
 
-667 rows cite `formula1.com` (593) or `fia.com` (74), the two sources whose
 <!-- fig:facts_only_rows -->667<!-- /fig --> rows cite `formula1.com` (<!-- fig:facts_only_formula1 -->593<!-- /fig -->) or `fia.com` (<!-- fig:facts_only_fia -->74<!-- /fig -->), the two sources whose
 licences are "FOM copyright; no reuse licence" and "FIA copyright; published
 for reference, not redistribution". Every one was examined and classified as
@@ -44,21 +40,6 @@ either
   copyrightable, and restating one is not redistribution; or
 - **(b) text following the source's expression** — rewrite.
 
-**All 667 are (a). None is (b).** The breakdown (figures as of v2.23 with the
-2026 timetable; nothing checks them, which `PM-31` files):
-
-| Table | Rows | Source | What the row holds | Prose |
-|---|---:|---|---|---|
-| `drivers` | 118 | formula1.com | names, dates, career totals | `notes` |
-| `circuits` | 80 | formula1.com | length, turns, GP count | `notes`, `characteristics` |
-| `seasons` | 77 | formula1.com | champion, points, rounds | `notes` |
-| `sessions` | 115 | formula1.com | 2026 session start times (UTC) and circuit zone | — |
-| `standings` | 65 | formula1.com | 2025 final, 2026 current | — |
-| `constructors` | 55 | formula1.com | register facts | `notes` |
-| `races` | 47 | formula1.com | 2025–26 calendar | — |
-| `race_entries` | 36 | formula1.com | 2025–26 race winners | — |
-| `regulation_changes` | 59 | fia.com | year, category | `detail`, `impact` |
-| `regulation_limits` | 15 | fia.com | numeric limits | `note` |
 **All <!-- fig:facts_only_rows -->667<!-- /fig --> are (a). None is (b).** The breakdown, across <!-- fig:facts_only_tables -->10<!-- /fig --> tables — every
 figure here is a span `tools/readme_figures.py` writes from the database and
 `verify.py` checks. Two guards hold the list to the database: the writer
