@@ -3,6 +3,187 @@
 A running record of what changed in each version, what it exposed, and what
 was deliberately not done. Newest first.
 
+## v2.22 (2026-09-11) — the final championship table gets a key and a view
+
+`standings`' `UNIQUE` constraint was inert for 69% of its rows — SQLite
+treats NULLs as distinct, and `after_round` is NULL on every end-of-season
+row — so a duplicate final row was accepted, and the end-of-season rows were
+never one per entity: 2026 carries a formula1.com row and an F1DB row for
+every driver and team, while 2018 genuinely holds Force India twice.
+`v_standings_final` folds the first kind and keeps the second, with the same
+columns as the table, and an expression index pins the NULLs so the key means
+something.
+
+The compat export had shipped 333 rows for 23 drivers in every release since
+v2.15 — the running table after every round — and CI certified it seven
+times, because it checks reproducibility and not sense; the exporter now
+reads the view and refuses a snapshot that lists an entity twice. The site's
+pages and the CLI read the view too, and the ninety lines of JavaScript that
+reconstructed it at read time are gone.
+
+Comparing the official round-12 snapshot with F1DB's table after the same
+round found nine entities the two sources score differently — Gasly 44
+against 35, McLaren 263 against 265 — and each is now an open row in
+`discrepancies`, shown on the driver's or team's page, rather than a choice
+the view made silently. The index costs 1.5 MB in `f1.db` and 373 KB in the
+gzipped download — a key has to live in the file to be enforced when a row is
+written.
+
+---
+
+## v2.21 (2026-09-11) — pole position gets its own column
+
+`race_entries.grid = 1` had carried two meanings — the car that started from
+the front of the grid and the driver credited with pole — and they are not the
+same fact: in 1996 France and 2021 Monaco the pole-sitter never started and
+grid 1 stayed empty, and at the 2022 São Paulo Grand Prix the sprint winner
+started first while pole stayed with the fastest qualifier, which the old rule
+could only record as a row with `grid = 1` and `grid_text = '8'`. `pole` now
+says who the season record credits, `grid` says where every car started, and
+`qualifying` still says who was quickest. `race_results` and every derived
+pole total read `pole`; the thirteen races where the credited pole-sitter was
+not the fastest qualifier are pinned by `verify.py` as a convention rather
+than recorded as disagreements, because neither source was wrong about the
+thing it describes. The race page names the car that started first where it
+is not the pole-sitter, and no longer asserts "after a grid penalty" for a
+cause the database does not hold.
+
+### The fastest-lap disagreements, closed
+
+The four open rows were two shared fastest laps the season tables render as
+one name: the 1960 Belgian Grand Prix article credits Brabham, Ireland and
+Phil Hill jointly at 3:51.9, and the 1969 Canadian Grand Prix article credits
+Brabham alongside Ickx at 1:18.1. Restoring both takes Phil Hill to the 6 and
+Brabham to the 12 of the reference record. The 1970 South African row stays
+open, because that article records that sources differ. `discrepancies` went
+from eighteen open rows to one.
+
+### Also
+
+The build now pins the SQLite version stamp in each database's header, so the
+committed artefacts no longer depend on which SQLite the builder linked: a
+copy built on a Mac and one built in CI differed in exactly those four bytes,
+and CI compares bytes.
+
+---
+
+## v2.20 (2026-09-09) — the Parquet export
+
+Changes no fact in the database and publishes it in a new shape.
+`tools/parquet_export.py` writes every table as Parquet — 41 files, 119,271
+rows, 1.5 MB against 20 MB of SQLite — and the release carries them as
+`f1-parquet.zip`. It includes `qualifying` and `pit_stops`, which the JSON
+export leaves out because they take that file from 12 MB to 44 MB: JSON is a
+convenience export where size is the problem, and Parquet is a bulk one where
+size is the point. The release body now also documents the
+`/releases/latest/download/` URLs, which stay valid as versions come and go.
+
+The exporter is a tool rather than part of the build, so `git clone && make
+all` still needs nothing but the standard library; pyarrow is installed only
+in the release job. It refuses outright to run on a database carrying
+FOM-owned timing or the ODbL centrelines, because Parquet exists to be handed
+to somebody and neither may be.
+
+### Every page gets an h1
+
+The app rendered its title as an h2 and its sections as h3, so no page had a
+top-level heading at all and somebody navigating by heading found no title
+for the document they were on — while the prerendered HTML, which had it
+right, disagreed with the app about the shape of the same page. Fixing that
+moved the floor under every heading below it, and a review caught four that
+had not moved with it: two pages were skipping a level. All eleven pages
+checked now carry exactly one h1 and skip nothing.
+
+---
+
+## v2.19 (2026-09-09) — the race date, split in two
+
+One column was answering two questions and doing one of them badly. `dates`
+is for a reader and may be a RANGE — "27-29 Mar 2026" — since a Grand Prix is
+a weekend, and for a race still to be run that is the more useful fact.
+`date_iso` is the day the race itself was held, always `YYYY-MM-DD`, for
+anything that has to compute.
+
+v2.18 filled only the empties, which left the 23 hand-written ranges without
+a machine-readable day — and those 23 are all races still to come, which is
+exactly where a search engine wants a date. `startDate` now comes from
+`date_iso` and reaches **all 1,172 races** rather than 1,149. The ranges are
+untouched: the site still shows the weekend, and the ISO day is the Sunday
+inside it. `verify.py` checks that where `dates` is itself an ISO day the two
+columns name the same day — they may differ in shape, never in fact.
+
+---
+
+## v2.18 (2026-09-09) — every race gets a date, and the last fastest-lap gap closes
+
+1,149 of 1,172 races had no date, and the reason was structural rather than
+factual: F1DB publishes a date for every race back to Silverstone on 13 May
+1950, but it lives in the round's own `race.yml`, and the results loader only
+ever opened `race-results.yml` beside it. The file was there the whole time
+and nothing read it. Every prerendered race page showed "Dates —", and the
+`SportsEvent` JSON-LD could not emit `startDate`, which is the one field a
+search engine most wants from an event. The 23 dates already held were
+entered by hand and are left alone, because some express a range a single ISO
+day cannot represent.
+
+### Fastest lap, closed the way pole was in v2.16
+
+`race_entries.fastest_lap` came only from the hand-written pole harvest while
+everything else about a finished race refreshed from F1DB on a schedule, so
+for a week after each Grand Prix a completed race carried every other field
+and a blank fastest lap. F1DB now fills that vacancy and *only* that vacancy:
+where the harvest already names someone it keeps the slot, and a disagreement
+is recorded rather than resolved quietly. Two are — 1960 round 5 and 1970
+round 1 — and both are open for somebody to look at. The one completed race
+still without a fastest lap is 2021 Belgium, where no racing lap was ever set
+behind the safety car: the true null the gap always excluded.
+
+---
+
+## v2.17 (2026-09-09) — release the geometry, and digest what is actually shipped
+
+The release the previous four branches earned, and it exists because the
+merge that brought them together left a gap none of them could see on its
+own. The ODbL split moved every centreline out of `f1.db` into
+`f1-geometry.db`; the release workflow was written on a branch that did not
+know the split had happened. Between them they would have published a
+database whose `circuit_geometry` is deliberately empty alongside no geometry
+file at all — twenty-five centrelines reachable only by cloning the
+repository. `SHA256SUMS` had the same shape of fault: it digested the
+uncompressed `f1_database.json` while the release shipped the `.gz`, so the
+one file a reader could not verify was the one they received. Both are fixed,
+and the workflow now refuses a tag that disagrees with `VERSION` — the check
+that would have caught a `v2.17` tag publishing artefacts reporting
+themselves as 2.16, silently, because nothing downstream reads that field.
+
+This release also carries the work of the merges themselves: 32 unit tests
+and 35 front-end ones, prerendered HTML for all 2,385 routes,
+machine-readable licence classes with build and verify guards, the FOM-owned
+tables held empty, and one attribution rule for Commons images. See
+`CLAUDE.md` for the conventions all of that depends on.
+
+---
+
+## v2.16 (2026-09-09) — the confidence tiers become traceable
+
+Demotes 333 rows in doing it. `source_patterns` resolves every row's `source`
+to a `source_registry` entry — 4,691 rows previously resolved to none,
+because a registry `url` is one example page and not a namespace — and the
+build now fails if one does not. `table_provenance` gives a source to the
+fifteen tables that carry `confidence` and no `source` column. Most of those
+turned out to be **authored**: written for this project from general
+knowledge, with no external source and no check in `verify.py` that
+constrains a value. They sat at `high`, which is `may_publish = 1` and
+promises a citable official record that does not exist; eight sat at
+`verified`, against this project's own rule that nothing reaches `verified`
+without an official source. `authored` is now a named authority and
+everything carrying it is capped at `medium` — the first confidence value
+here that is *derived* rather than declared. `records` is the sharpest case:
+nothing in `verify.py` reads that table at all, while the career records it
+duplicates are checked on `drivers`. See `docs/DERIVED-CONFIDENCE.md`.
+
+---
+
 ## v2.15 (2026-09-05) — the gap that was a licence
 
 `race_entries` was 2,424 rows: the winner, the pole-sitter and the fastest-lap
@@ -1013,7 +1194,8 @@ wrongly pinned to Monza (Imola hosted it in 1980); verify.py timing out at
 ## v2.3 - pole/FL complete 1950-2026; career stats derived
 1,161 poles, 1,160 fastest laps (2021 Belgium: a true null). 546 comparisons,
 7 differences, all accounted for. Corrections: Surtees FL 11->10, Russell poles
-12->11.
+12->11. Every headline record in the database matched the official figure
+exactly.
 
 ## v2.2 - pole and fastest lap 1950-2024
 Driver register 133->181. Found the 2012 Spanish GP (Maldonado inherited pole
@@ -1021,7 +1203,8 @@ after Hamilton's fuel exclusion) and the 2012 European GP (Vettel, not Alonso)
 by arithmetic across four career totals, then confirmed both.
 
 ## v2.1 - race harvest
-1,161 races. Found the 1982 Brazilian GP (Prost, not Piquet - Piquet and
+1,161 races, harvested from Wikipedia's season tables under a new `reference`
+confidence tier. Found the 1982 Brazilian GP (Prost, not Piquet - Piquet and
 Rosberg were disqualified), the 1951 French shared drive, and Vukovich's two
 Indy wins.
 
@@ -1048,23 +1231,14 @@ disagreement in `discrepancies` rather than picking one silently.
 
 ---
 
-## Next, in order
+## Next
 
-0. **Run `python3 tools/ergast_load.py`**, then `verify.py`. Fills the full
-   classification and turns on the podium reconciliation, which is the
-   strongest check this database has and is currently not running.
-1. **Run `tools/fastf1_load.py --years 2018-2026 --results --radio`** somewhere
-   with network access. Fills the 2018-2026 finishing order, laps, stints, pit
-   stops, race control and the radio index in one go. Untested against live
-   data.
-2. **Finishing order 1950-2017** - still manual; the schema is ready and
-   adding it is pure INSERT.
-3. **Chassis-per-race harvest** - only with the entry-list cross-check above.
-4. Historical standings and season entries (currently 2025-26 only).
-5. Configuration timelines for the remaining circuits (Kyalami, Zandvoort,
-   Suzuka, Imola, Jerez, Estoril, Paul Ricard, Zolder, Brands Hatch, Buenos
-   Aires).
-6. Constructor on pole/FL entries, which would let car pole counts become
-   exact rather than lower bounds.
-7. Sprint results (2021- ); driver register tail (182 of ~780 starters); two
-   open FL discrepancies (Brabham, Phil Hill).
+There is no list here any more. `docs/BACKLOG.md` is the only queue: every
+item from a critique, from this file's own *still open* notes, from a
+`verify.py` warning or from an idea has an ID, a source and a size there, and
+they are ranked against each other rather than by who raised them. The list
+that used to sit here had been overtaken twice — its first two items by
+v2.15's licence finding and the timing decision in
+`docs/TIMING-ARCHITECTURE.md` — and a second queue that can go stale is worse
+than none. What is still open from any entry above is filed there under
+`PM-n`.

@@ -1,263 +1,23 @@
-# Lap Ledger — v2.22
+# Lap Ledger — v<!-- fig:version -->2.22<!-- /fig -->
 
 An expansion of the original single-file JSON into a normalised, queryable
-SQLite database covering 1950–2026, with the JSON kept as a generated export.
+SQLite database covering <!-- fig:season_span -->1950–2026<!-- /fig -->, with
+the JSON kept as a generated export.
 
-**v2.1** added every championship race result from 1950 to 2026 — 1,161 races —
-harvested from Wikipedia's season tables under a new `reference` confidence tier.
+**The latest release, v<!-- fig:version -->2.22<!-- /fig -->,** gives the final
+championship table a key and a view. `standings`' `UNIQUE` constraint was
+inert for most of its rows — SQLite treats NULLs as distinct, and
+`after_round` is NULL on every end-of-season row — so duplicate final rows
+were accepted and the compat export had shipped the running table after every
+round, not the final one, in every release since v2.15. `v_standings_final`
+folds the duplicates, an expression index pins the NULLs so the key means
+something, the exporter refuses a snapshot that lists an entity twice, and
+the nine entities the official round-12 snapshot and F1DB score differently
+are open rows in `discrepancies` rather than a choice the view made silently.
 
-**v2.2** added pole position and fastest lap for every race from 1950 to 2024.
-
-**v2.4** is a structural release, not a data one. A per-entry race model
-replaces the per-race one, every Grand Prix now has a canonical id, and
-`audit.py` reports on the shape of the database rather than its contents.
-See *Structure* below.
-
-**v2.22** gives the final championship table a key and a view. `standings`'
-`UNIQUE` constraint was inert for 69% of its rows — SQLite treats NULLs as
-distinct, and `after_round` is NULL on every end-of-season row — so a duplicate
-final row was accepted, and the end-of-season rows were never one per entity:
-2026 carries a formula1.com row and an F1DB row for every driver and team,
-while 2018 genuinely holds Force India twice. `v_standings_final` folds the
-first kind and keeps the second, with the same columns as the table, and an
-expression index pins the NULLs so the key means something. The compat export
-had shipped 333 rows for 23 drivers in every release since v2.15 — the running
-table after every round — and CI certified it seven times, because it checks
-reproducibility and not sense; the exporter now reads the view and refuses a
-snapshot that lists an entity twice. The site's pages and the CLI read the
-view too, and the ninety lines of JavaScript that reconstructed it at read
-time are gone. Comparing the official round-12 snapshot with F1DB's table after
-the same round found nine entities the two sources score differently — Gasly
-44 against 35, McLaren 263 against 265 — and each is now an open row in
-`discrepancies`, shown on the driver's or team's page, rather than a choice the
-view made silently. The index costs 1.5 MB in `f1.db` and 373 KB in the gzipped
-download — a key has to live in the file to be enforced when a row is written.
-
-**v2.21** gives pole position its own column. `race_entries.grid = 1` had
-carried two meanings — the car that started from the front of the grid and
-the driver credited with pole — and they are not the same fact: in 1996
-France and 2021 Monaco the pole-sitter never started and grid 1 stayed empty,
-and at the 2022 São Paulo Grand Prix the sprint winner started first while
-pole stayed with the fastest qualifier, which the old rule could only record
-as a row with `grid = 1` and `grid_text = '8'`. `pole` now says who the season
-record credits, `grid` says where every car started, and `qualifying` still
-says who was quickest. `race_results` and every derived pole total read
-`pole`; the thirteen races where the credited pole-sitter was not the
-fastest qualifier are pinned by `verify.py` as a convention rather than
-recorded as disagreements, because neither source was wrong about the thing
-it describes. The race page names the car that started first where it is not
-the pole-sitter, and no longer asserts "after a grid penalty" for a cause the
-database does not hold.
-
-The same release closes the fastest-lap disagreements. The four open rows
-were two shared fastest laps the season tables render as one name: the 1960
-Belgian Grand Prix article credits Brabham, Ireland and Phil Hill jointly at
-3:51.9, and the 1969 Canadian Grand Prix article credits Brabham alongside
-Ickx at 1:18.1. Restoring both takes Phil Hill to the 6 and Brabham to the 12
-of the reference record. The 1970 South African row stays open, because that
-article records that sources differ. `discrepancies` goes from eighteen open
-rows to one.
-
-The build now pins the SQLite version stamp in each database's header, so
-the committed artefacts no longer depend on which SQLite the builder linked:
-a copy built on a Mac and one built in CI differed in exactly those four
-bytes, and CI compares bytes.
-
-**v2.20** changes no fact in the database and publishes it in a new shape.
-`tools/parquet_export.py` writes every table as Parquet — 41 files, 119,271
-rows, 1.5 MB against 20 MB of SQLite — and the release carries them as
-`f1-parquet.zip`. It includes `qualifying` and `pit_stops`, which the JSON
-export leaves out because they take that file from 12 MB to 44 MB: JSON is a
-convenience export where size is the problem, and Parquet is a bulk one where
-size is the point. The release body now also documents the
-`/releases/latest/download/` URLs, which stay valid as versions come and go.
-
-The exporter is a tool rather than part of the build, so `git clone && make
-all` still needs nothing but the standard library; pyarrow is installed only
-in the release job. It refuses outright to run on a database carrying
-FOM-owned timing or the ODbL centrelines, because Parquet exists to be handed
-to somebody and neither may be.
-
-The same release gives every page an **h1**. The app rendered its title as an
-h2 and its sections as h3, so no page had a top-level heading at all and
-somebody navigating by heading found no title for the document they were on —
-while the prerendered HTML, which had it right, disagreed with the app about
-the shape of the same page. Fixing that moved the floor under every heading
-below it, and a review caught four that had not moved with it: two pages were
-skipping a level. All eleven pages checked now carry exactly one h1 and skip
-nothing.
-
-**v2.19** splits the race date in two, because one column was answering two
-questions and doing one of them badly. `dates` is for a reader and may be a
-RANGE — "27-29 Mar 2026" — since a Grand Prix is a weekend, and for a race
-still to be run that is the more useful fact. `date_iso` is the day the race
-itself was held, always `YYYY-MM-DD`, for anything that has to compute.
-
-v2.18 filled only the empties, which left the 23 hand-written ranges without a
-machine-readable day — and those 23 are all races still to come, which is
-exactly where a search engine wants a date. `startDate` now comes from
-`date_iso` and reaches **all 1,172 races** rather than 1,149. The ranges are
-untouched: the site still shows the weekend, and the ISO day is the Sunday
-inside it. `verify.py` checks that where `dates` is itself an ISO day the two
-columns name the same day — they may differ in shape, never in fact.
-
-**v2.18** gives every race a date. 1,149 of 1,172 had none, and the reason
-was structural rather than factual: F1DB publishes a date for every race back
-to Silverstone on 13 May 1950, but it lives in the round's own `race.yml`, and
-the results loader only ever opened `race-results.yml` beside it. The file was
-there the whole time and nothing read it. Every prerendered race page showed
-"Dates —", and the `SportsEvent` JSON-LD could not emit `startDate`, which is
-the one field a search engine most wants from an event. The 23 dates already
-held were entered by hand and are left alone, because some express a range a
-single ISO day cannot represent.
-
-The same pass closes the last **fastest lap** gap, the way pole was closed in
-v2.16. `race_entries.fastest_lap` came only from the hand-written pole
-harvest while everything else about a finished race refreshed from F1DB on a
-schedule, so for a week after each Grand Prix a completed race carried every
-other field and a blank fastest lap. F1DB now fills that vacancy and *only*
-that vacancy: where the harvest already names someone it keeps the slot, and
-a disagreement is recorded rather than resolved quietly. Two are — 1960 round
-5 and 1970 round 1 — and both are open for somebody to look at. The one
-completed race still without a fastest lap is 2021 Belgium, where no racing
-lap was ever set behind the safety car: the true null the gap always
-excluded.
-
-**v2.17** is the release the previous four branches earned, and it exists
-because the merge that brought them together left a gap none of them could
-see on its own. The ODbL split moved every centreline out of `f1.db` into
-`f1-geometry.db`; the release workflow was written on a branch that did not
-know the split had happened. Between them they would have published a
-database whose `circuit_geometry` is deliberately empty alongside no
-geometry file at all — twenty-five centrelines reachable only by cloning the
-repository. `SHA256SUMS` had the same shape of fault: it digested the
-uncompressed `f1_database.json` while the release shipped the `.gz`, so the
-one file a reader could not verify was the one they received. Both are fixed,
-and the workflow now refuses a tag that disagrees with `VERSION` — the check
-that would have caught a `v2.17` tag publishing artefacts reporting
-themselves as 2.16, silently, because nothing downstream reads that field.
-This release also carries the work of the merges themselves: 32 unit tests
-and 35 front-end ones, prerendered HTML for all 2,385 routes, machine-readable
-licence classes with build and verify guards, the FOM-owned tables held
-empty, and one attribution rule for Commons images. See *CLAUDE.md* for the
-conventions all of that depends on.
-
-**v2.16** makes the confidence tiers **traceable**, and demotes 333 rows in
-doing it. `source_patterns` resolves every row's `source` to a
-`source_registry` entry — 4,691 rows previously resolved to none, because a
-registry `url` is one example page and not a namespace — and the build now
-fails if one does not. `table_provenance` gives a source to the fifteen tables
-that carry `confidence` and no `source` column. Most of those turned out to be
-**authored**: written for this project from general knowledge, with no
-external source and no check in `verify.py` that constrains a value. They sat
-at `high`, which is `may_publish = 1` and promises a citable official record
-that does not exist; eight sat at `verified`, against this project's own rule
-that nothing reaches `verified` without an official source. `authored` is now
-a named authority and everything carrying it is capped at `medium` — the first
-confidence value here that is *derived* rather than declared. `records` is the
-sharpest case: nothing in `verify.py` reads that table at all, while the career
-records it duplicates are checked on `drivers`. See
-*docs/DERIVED-CONFIDENCE.md*.
-
-**v2.15** closes the largest gap in the project, and by a **licence** rather
-than a harvest. `race_entries` goes from **2,424 rows to 27,555** — every
-entry of every one of the 1,161 races, 1950 to 2026 — plus **26,975
-qualifying** rows and **championship standings after every round** of all 77
-seasons. All of it in the *committed* database. Nothing about this data was
-ever hard to fetch: `known_gaps` #1 stood for seven versions because the rows
-came from Jolpica-F1, whose Ergast lineage is CC BY-**NC**-SA. F1DB has the
-same facts under **CC BY 4.0 — attribution only**, and it was already a
-source here. Every winner of all 1,161 races agreed with what was already
-stored, and the final standings reproduce the champion, runner-up and both
-point totals for **76 seasons**. See *The finishing order*.
-
-**v2.14** adds the two things the database could describe but never show: a
-**photograph** for 602 of the 645 car articles, and a **traced centreline**
-for the circuits OpenStreetMap maps. Neither stores a picture — `f1.db` holds
-a *reference and its credit*, and the pixels come from Wikimedia at render
-time. The geometry earns its place by being checkable: a naive read of
-Monaco's OSM relation measures **3.745 km against a published 3.337**, twelve
-per cent long, because a circuit relation includes the pit lane. `length_km`,
-held here long before OSM was consulted, rejects it. Images are the one place
-in this database with **no cross-check at all** — nothing here constrains what
-a photograph shows — so they sit at `unverified` and say so. See
-*Illustration* and the build notes.
-
-**v2.13** closes the **driver register**: 244 rows to 862. It was the binding
-constraint on the full classification — 5,490 rows were being skipped because
-the driver could not be resolved, now 33. The podium reconciliation, the
-strongest check here, went from 6 of 7 exact to **7 of 7**. Admitting the
-drivers immediately broke the loader, and the winner cross-check caught it by
-refusing a race rather than mis-attributing it: Bill Moss made "Moss"
-ambiguous and the 1955 British Grand Prix stopped resolving.
-
-**v2.12** closes the **constructor register**: 65 rows to 150. Eighty-five
-teams that entered a championship Grand Prix had no row here — Ensign started
-133 races, Osella 172. Adding them exposed a defect nothing could previously
-see, an entry credited to a constructor that was not racing that season, and
-the new check found five teams that were really two: Alfa Romeo, ATS,
-Williams, Wolf and Aston Martin. See *Cars and chassis* and the build notes.
-
-**v2.11** adds `--timing`, which loads **628,454 race laps back to 1996** and
-12,627 pit stops from 2011 out of the same dump — twenty-two seasons further
-back than FastF1 reaches. The two sources can now hold the same race side by
-side and be compared. The lap times re-derive each race's fastest lap, and it
-matches the setter already stored from the pole harvest on **all 446 races**
-where both exist. `./f1 laps` shows the coverage.
-
-**v2.10** adds `tools/ergast_load.py --from-dump`, which loads the full
-classification from Jolpica's hash-verified database dump rather than ~270
-paged API requests. Not for speed: a dump is one consistent snapshot that can
-be **pinned and reproduced**, and `--verify-dump` diffs it against the API
-race by race to keep it honest. Both paths produce identical rows.
-
-**v2.9** resolves the chassis **per round** rather than per season, using the
-driver round-ranges inside F1DB's entry lists: chassis coverage 34% to 76%,
-and the constructor — which the pole harvest never recorded — from 48% to
-99%. That last figure is what lets a pole be attributed to a car at all, and
-**nine cars now match their published career pole total exactly**, where
-before none could be checked for more than not exceeding it. The first check
-to run on it failed, correctly: McLaren ran the M23 and the M26 through
-1976-77, so the blanket season claim had been giving the M23 sixteen poles
-against a published fourteen. It also records the first live run of
-`tools/ergast_load.py`, which works — and which was writing Wilson
-Fittipaldi's Brabham results onto Emerson Fittipaldi until the constructor
-reconciliation caught it. See *The finishing order* and *Cars and chassis*.
-
-**v2.8** adds the **chassis register**: every chassis that has raced — 1,153
-of them — with the engines, the per-season entry lists, and whatever
-specification could be established from each car's own article. The entry
-lists are the second, constraining source the abandoned chassis harvest was
-missing, and the winning chassis is now known for 819 of 1,161 races. It also
-adds `regulation_limits`, because most "weight" published for a modern car is
-that season's regulation minimum and not a measurement of anything — a test
-that found four such figures already sitting in the curated data. See *Cars
-and chassis* below.
-
-**v2.7** adds the **register and the loader for the full race
-classification** — 62 podium-scoring drivers and 10 constructors that earlier
-harvests never saw, the id mapping to the Jolpica-F1 API, and
-`tools/ergast_load.py`, which fills every classified finisher, retirement
-cause and grid position for 1950–2026. See *The finishing order* below, and
-read it before touching that data by hand.
-
-**v2.6** adds the **cars**: a register of 29 landmark chassis with full
-technical specifications and design histories, linked to the races they won,
-plus the schema and loader for per-lap timing, tyre stints, pit stops, race
-control and team radio. See *Cars* and *Timing, telemetry and radio* below.
-
-**v2.5** gives **every race a circuit**. The venue of all 1,161 championship
-races was harvested from the same season tables and cross-checked three ways,
-taking circuit coverage from 31% to 100%. Circuit configuration history became
-a first-class, checked structure rather than a scattering of notes. See
-*Venues* below.
-
-**v2.3** closed pole and fastest lap to **every race, 1950 to 2026** — 1,161 poles and 1,160
-fastest laps, the single exception being a race where none was set. Career wins,
-poles and fastest laps are now **derived from the race records** rather than
-hand-entered, and the externally sourced figures are kept alongside them for
-comparison. Every headline record in the database now matches the official
-figure exactly.
+**What changed in every version**, what each one exposed, and what was
+deliberately not done, is in [`docs/BUILD-NOTES.md`](docs/BUILD-NOTES.md).
+The queue of work is [`docs/BACKLOG.md`](docs/BACKLOG.md).
 
 ```bash
 git clone <your-repo-url> && cd f1db
@@ -267,9 +27,17 @@ make all          # rebuild, verify, export — no dependencies
 ./f1 chassis lotus
 ```
 
-Built 2026-09-05. Current 2026 data verified against formula1.com on
-2026-09-04 (after round 12, Zandvoort). The chassis register is F1DB
-v2026.12.0.
+Built <!-- fig:built -->2026-09-09<!-- /fig -->; `meta.verification_date` is
+<!-- fig:verified_on -->2026-09-09<!-- /fig -->. The last race with a
+classification is the <!-- fig:last_race -->2026 Italian Grand Prix<!-- /fig -->.
+The chassis, engine, entrant and results registers are F1DB
+<!-- fig:f1db_version -->v2026.13.0<!-- /fig -->.
+
+Every figure in this file that describes the current database is generated
+from it — `tools/readme_figures.py` computes each one from `f1.db` (and
+`f1-geometry.db` for the centrelines), `make all` writes them in, and
+`verify.py` fails when the text and the database disagree. A number you read
+here is a number the build checked.
 
 ---
 
@@ -277,12 +45,13 @@ v2026.12.0.
 
 | File | What it is |
 |---|---|
-| `f1.db` | The SQLite database. 39 tables, 34 views, ~8,400 rows. This is the artefact. |
+| `f1.db` | The SQLite database. <!-- fig:tables -->46<!-- /fig --> tables, <!-- fig:views -->39<!-- /fig --> views, <!-- fig:rows -->119,265<!-- /fig --> rows. This is the artefact. |
+| `f1-geometry.db` | The OpenStreetMap circuit centrelines (ODbL), shipped beside `f1.db` and never merged into it. See *Illustration*. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
 | `f1_compat.json` | JSON in the *original* v1 key layout, so anything already consuming that file keeps working. |
 | `schema.sql` | The schema, commented. |
-| `build.py` | Rebuilds `f1.db` from the data modules. Idempotent, and byte-for-byte reproducible. 34 named stages; `STAGES` is the schedule. |
+| `build.py` | Rebuilds `f1.db` and `f1-geometry.db` from the data modules. Idempotent, and byte-for-byte reproducible. <!-- fig:stages -->35<!-- /fig --> named stages; `STAGES` is the schedule. |
 | `verify.py` | Integrity, cross-tabulation and sanity checks on the DATA. Exit code 1 on failure. |
 | `tests/` | Unit tests for the CODE — name matching, lap-closure arithmetic. `make test`, stdlib only. |
 | `audit.py` | Structural health check: fill rates, coverage, keys, redundancy, readiness. |
@@ -296,16 +65,23 @@ v2026.12.0.
 | `harvest/engines.txt` | Every engine, with capacity, configuration and aspiration. **Generated.** |
 | `harvest/entrants.txt` | Season → entrant → constructor → chassis/engine/tyre. **Generated.** |
 | `harvest/f1db_constructors.txt` | Constructor names, for the specification cross-check. **Generated.** |
+| `harvest/race_results.txt`, `qualifying.txt`, `standings.txt`, `sprint_results.txt`, `f1db_pit_stops.txt` | The full classification, qualifying, standings after every round, sprint classifications and pit stops. **Generated** by `tools/f1db_fetch.py`. |
 | `harvest/car_specs.txt` | Chassis specifications off the per-car articles. **Generated** by `tools/wikispec_fetch.py`. |
 | `harvest/car_specs.log` | Every chassis that was refused, and the reason. **Generated.** |
-| `tools/f1db_fetch.py` | Pulls the chassis, engine, constructor and entrant register from F1DB (CC BY 4.0) into the four generated harvest files. Needs network; not part of the build. |
+| `harvest/article_images.txt`, `.log` | The lead image of each car article and its licence; every article refused, and why. **Generated** by `tools/wikimedia_images.py`. |
+| `harvest/circuit_geometry.txt`, `.log` | The OSM centrelines and every relation refused. **Generated** by `tools/osm_geometry.py`. |
+| `tools/f1db_fetch.py` | Pulls the registers, the classification, qualifying, standings and pit stops from F1DB (CC BY 4.0) into the generated harvest files. Needs network; not part of the build. |
 | `tools/wikispec_fetch.py` | Harvests chassis specifications from the `{{Racing car}}` infobox on each car's article, refusing any page that disagrees with the register. Needs network; not part of the build. |
-| `tools/ergast_load.py` | Loads the full race classification — every finisher, retirement, grid position and per-race points, 1950–2026 — from the Jolpica-F1 API. Needs network; not part of the build. |
-| `tools/fastf1_load.py` | Loads per-lap timing, stints, pit stops, race control, radio and the 2018– finishing order from the F1 live timing API. Needs network; not part of the build. |
+| `tools/ergast_load.py` | Loads the Jolpica-F1 classification onto a local copy and records where it disagrees with what is stored. Needs network; not part of the build. |
+| `tools/fastf1_load.py` | Loads per-lap timing, stints, pit stops, race control and radio onto a **local** copy from the F1 live timing API. Needs network; never committed — see *Timing*. |
+| `tools/parquet_export.py` | Writes every table as Parquet for the release bundle. Refuses a database carrying FOM timing or ODbL geometry. |
+| `tools/geometry_overlay.py` | Merges `f1-geometry.db` into a local `f1.db` (`--apply`) or takes it out again (`--remove`). |
+| `tools/readme_figures.py` | Computes every figure this file states and rewrites it (`--write`) or checks it (`--check`). |
 | `docs/BUILD-NOTES.md` | What changed in each version, what it exposed, what was deliberately not done. |
+| `docs/BACKLOG.md` | The only queue of work. |
 | `CONTRIBUTING.md` | How to add data without breaking the checks. Read before editing. |
 | `ATTRIBUTION.md` | Where the data came from, and the licensing that follows from it. **Read before making this public.** |
-| `Makefile` | `make all` = build, verify, export. |
+| `Makefile` | `make all` = build, regenerate the README figures, verify, export. |
 | `requirements.txt` | Empty for the database itself; `fastf1` only for the loader. |
 
 Workflow for any change: edit `data/*.py` → `python3 build.py` → `python3 verify.py`
@@ -318,52 +94,79 @@ standard library.
 
 ## What's in it
 
-**Championship history** — all 77 seasons 1950–2026: champion, points, wins,
+**Championship history** — all <!-- fig:seasons -->77<!-- /fig --> seasons
+<!-- fig:season_span -->1950–2026<!-- /fig -->: champion, points, wins,
 runner-up, margin, constructors' champion, engine formula, tyre suppliers and a
-paragraph of context on each.
+paragraph of context on each, plus **<!-- fig:standings -->34,563<!-- /fig -->
+championship standings rows** — the table after every round of every season
+and the end-of-season classification for each.
 
-**Every race** — 1,161 championship Grands Prix from Silverstone 1950 to
-Zandvoort 2026, each with pole position, fastest lap, winner, constructor and
-entrant. The one race without a fastest lap is the 2021 Belgian Grand Prix,
-where none was set: two laps behind the safety car, half points, no racing lap
-completed. Shared drives carry both
-drivers. The eleven Indianapolis 500s that counted towards the championship
-(1950–60) are included and flagged, with no constructor attributed, because
-their chassis were never Formula One constructors.
+**Every race** — <!-- fig:races -->1,172<!-- /fig --> championship Grands
+Prix on the calendar, <!-- fig:races_run -->1,162<!-- /fig --> of them run,
+from the <!-- fig:first_race -->1950 British Grand Prix<!-- /fig --> to the
+<!-- fig:last_race -->2026 Italian Grand Prix<!-- /fig -->, each with its
+circuit, date, pole position, fastest lap, winner, constructor and entrant, and
+the **full classification of every run race** — <!-- fig:race_entries -->27,482<!-- /fig -->
+race entries with position, grid, laps, retirement cause and points, and
+<!-- fig:qualifying -->26,997<!-- /fig --> qualifying rows beside them. The
+<!-- fig:races_without_fastest_lap -->1<!-- /fig --> run race without a fastest
+lap is the 2021 Belgian Grand Prix, where none was set: two laps behind the
+safety car, half points, no racing lap completed. Shared drives carry both
+drivers. The <!-- fig:indy -->11<!-- /fig --> Indianapolis 500s that counted
+towards the championship (1950–60) are included and flagged, with no
+constructor attributed, because their chassis were never Formula One
+constructors. Sprint classifications are held for all
+<!-- fig:sprint_races -->29<!-- /fig --> sprints since 2021
+(<!-- fig:sprint_results -->590<!-- /fig --> rows), and
+<!-- fig:pit_stops -->22,481<!-- /fig --> pit stops — lap and order, no
+durations, because no source publishes those under a licence that permits
+passing them on.
 
-**Drivers** — 244 rows: **every driver ever to win a championship race, take a
-pole, set a fastest lap, or finish on a podium**, 1950 to 2026, plus every
-World Champion with full
-career figures and the complete 2026 entry list. Chris Amon, Nick Heidfeld and
-Andrea de Cesaris are here on their poles and fastest laps alone.
+**Drivers** — <!-- fig:drivers -->862<!-- /fig --> rows: every driver in the
+full classification, with the World Champions and the current grid carrying
+full career figures, and the complete
+<!-- fig:season_entries_year -->2026<!-- /fig --> entry list
+(<!-- fig:season_entries -->23<!-- /fig --> seats).
 
-Their wins, poles and fastest laps are **computed from the race records**, so
-they are internally consistent by construction and cannot drift. The figures
-that were hand-entered or checked against an external source are preserved in
-the `*_external` columns so the two can always be compared.
+Their wins, poles, fastest laps and podiums are **computed from the race
+records**, so they are internally consistent by construction and cannot drift.
+The figures that were hand-entered or checked against an external source are
+preserved in the `*_external` columns so the two can always be compared.
 
-**Constructors** — 55 rows, plus a `constructor_lineage` table that tracks the ten
-continuous racing operations through their name changes. Enstone is Toleman →
-Benetton → Renault → Lotus → Renault → Alpine; Brackley is Tyrrell → BAR → Honda →
-Brawn → Mercedes. This is the thing most F1 databases get wrong.
+**Constructors** — <!-- fig:constructors -->150<!-- /fig --> rows, plus a
+`constructor_lineage` table that tracks
+<!-- fig:lineage_chains -->36<!-- /fig --> continuous racing operations
+through their name changes. Enstone is Toleman → Benetton → Renault → Lotus →
+Renault → Alpine; Brackley is Tyrrell → BAR → Honda → Brawn → Mercedes. This
+is the thing most F1 databases get wrong.
 
-**Circuits** — 80 circuits, from Bremgarten and Pescara to the Madring. Every
-race is linked to one, and thirteen of them carry a complete, checked timeline
-of the configurations actually raced.
+**Circuits** — <!-- fig:circuits -->80<!-- /fig --> circuits, from Bremgarten
+and Pescara to the Madring. Every race is linked to one
+(<!-- fig:circuits_raced -->79<!-- /fig --> have held a championship race; the
+Nürburgring Südschleife is in the register and says why it has not), and
+<!-- fig:layout_circuits -->13<!-- /fig --> of them carry a complete, checked
+timeline of the configurations actually raced.
 
-**Cars** — 29 landmark chassis from the Alfetta to the RB19, each with engine,
-chassis, gearbox, suspension, weight and dimensions where published, plus what
-the car introduced and what it actually achieved. Linked to the races they won,
-so the win counts are derived rather than asserted.
+**Cars** — <!-- fig:cars -->29<!-- /fig --> landmark chassis from the Alfetta
+to the RB19, each with engine, chassis, gearbox, suspension, weight and
+dimensions where published, plus what the car introduced and what it actually
+achieved. Linked to the races they won, so the win counts are derived rather
+than asserted. Beneath them, **<!-- fig:chassis -->1,153<!-- /fig -->
+chassis** — every one that has raced — with engines and per-season entry
+lists. See *Cars and chassis*.
 
-**Technical and regulatory** — 58 regulation changes by year and category, 26
-landmark innovations (with the year each was banned, where it was), 11 engine
-eras, 26 safety milestones, tyre suppliers, every points system, and 10 defined
-eras of the sport.
+**Technical and regulatory** — <!-- fig:regulation_changes -->58<!-- /fig -->
+regulation changes by year and category,
+<!-- fig:innovations -->26<!-- /fig --> landmark innovations (with the year
+each was banned, where it was), <!-- fig:engine_eras -->11<!-- /fig --> engine
+eras, <!-- fig:safety_milestones -->26<!-- /fig --> safety milestones, tyre
+suppliers, <!-- fig:points_systems -->10<!-- /fig --> points systems, and
+<!-- fig:eras -->10<!-- /fig --> defined eras of the sport.
 
-**Also** — 32 non-driving figures (designers, principals, officials), 30 records,
-44 glossary terms, 18 governance milestones, race winners for 2025–26, and both
-seasons' standings.
+**Also** — <!-- fig:personnel -->32<!-- /fig --> non-driving figures
+(designers, principals, officials), <!-- fig:records -->30<!-- /fig -->
+records, <!-- fig:glossary -->44<!-- /fig --> glossary terms and
+<!-- fig:governance -->18<!-- /fig --> governance milestones.
 
 ---
 
@@ -382,6 +185,7 @@ seasons' standings.
 ./f1 car mp4/4              # a car: spec, design story, every race it won
 ./f1 cars                   # the register, ordered by wins
 ./f1 cars lotus             # one constructor's cars
+./f1 chassis lotus          # every Lotus chassis in the register
 ./f1 evolution              # how the technology moved, car by car
 ./f1 telemetry              # what per-lap and radio data is loaded
 ./f1 rules 1994             # regulation changes in a year
@@ -398,6 +202,7 @@ seasons' standings.
 ./f1 gaps                   # what the data is missing, and open discrepancies
 ./f1 events                 # every Grand Prix, how often held, and where
 ./f1 unverified             # everything not yet officially verified
+./f1 licences               # what may be published, and under what terms
 ./f1 sql "SELECT ..."       # arbitrary SQL
 ./f1 schema                 # tables, columns, row counts
 ```
@@ -469,8 +274,8 @@ FROM v_car_races WHERE car_id = 'lotus-79' AND won = 1;
 -- Design lineages: what descended from what
 SELECT * FROM v_car_lineage WHERE root = 'lotus-25';
 
--- Cars whose derived win count is a lower bound (seasons not fully linked)
-SELECT id, wins, from_year, to_year FROM cars WHERE races > 0;
+-- The final championship table, one row per entity
+SELECT * FROM v_standings_final WHERE year = 1960;
 ```
 
 ---
@@ -487,14 +292,15 @@ race_entries   one row per driver per race
 Every per-driver fact about a race is an attribute of an **entry**: pole is
 `pole = 1`, a start from the front of the grid is `grid = 1` (not always the
 same driver), a win is `finish_position = 1`, a fastest lap is a flag. Wins,
-poles and fastest laps per driver are derived from this at build time, so they
-cannot drift from the races they come from.
+poles, fastest laps and podiums per driver are derived from this at build
+time, so they cannot drift from the races they come from.
 
 Until v2.4 those three facts were columns on the *race* row plus a separate
 credits table. That meant a shared win and a shared fastest lap were modelled
 two different ways, and neither could extend to a full finishing order without
-changing shape again. The restructure was done before adding finishing order
-rather than after, so the harvest lands in a shape that does not have to move.
+changing shape again. The restructure was done before adding the finishing
+order rather than after, so the harvest landed in a shape that did not have to
+move — and when the full classification arrived in v2.15 it did not.
 
 `race_results`, `race_credits` and `calendar` still exist as **views** over the
 new tables, so anything written against the old schema keeps working.
@@ -505,9 +311,10 @@ Running the audit against v2.3 found real defects, not cosmetic ones:
 
 - **The same event existed twice.** `gp_name` was free text, so "Emilia Romagna
   Grand Prix" and "Emilia-Romagna Grand Prix" were different races. There is now
-  a canonical register of 53 Grands Prix; every race carries a `gp_id`, and the
-  name it raced under is kept separately for display. All 56 name strings in the
-  data resolve, and `verify.py` fails if one does not.
+  a canonical register of <!-- fig:grands_prix -->53<!-- /fig --> Grands Prix;
+  every race carries a `gp_id`, and the name it raced under is kept separately
+  for display. All <!-- fig:race_name_strings -->56<!-- /fig --> name strings
+  in the data resolve, and `verify.py` fails if one does not.
 - **Tyrrell's lineage pointed at `faenza-no`** — a placeholder that leaked in as
   a value. Tyrrell is in fact sequence 1 of the Brackley chain. Half the
   constructors pointed at chains that did not exist; every one now resolves.
@@ -525,10 +332,11 @@ Running the audit against v2.3 found real defects, not cosmetic ones:
 ### Readiness
 
 `audit.py` ends by checking whether the schema can absorb a full finishing
-order. `race_entries` already has the identity and position columns; the four
-that a full order needs — `classified`, `status`, `laps_completed`, `points` —
-are declared and empty. Adding the rest of the field is pure INSERT: no table,
-column, key or view has to change.
+order. When that check was written the four columns a full order needs —
+`classified`, `status`, `laps_completed`, `points` — were declared and empty;
+since v2.15 they are filled for every run race, and the check stays as the
+record that adding them was pure INSERT: no table, column, key or view had to
+change.
 
 ---
 
@@ -550,8 +358,8 @@ one already stored. On top of that, two structural checks ran on every row:
 - where a circuit was already stored from the verified 2026 calendar, the
   harvest must agree with it.
 
-All 1,161 rows passed all three. Eighty-six distinct venue strings resolved to
-80 circuits with none left over.
+Every row of that harvest passed all three, and its eighty-six distinct venue
+strings resolved to the circuit register with none left over.
 
 ### Configurations
 
@@ -560,10 +368,12 @@ against a 1976 race is wrong — Silverstone in 1976 was 4.719 km, not today's
 5.891 km. `circuit_layouts` holds the configurations, and where a circuit
 appears there at all, the rows now form a **complete, non-overlapping timeline**
 of what was actually raced. `verify.py` enforces both properties, so a layout
-cannot be added that leaves a season uncovered or claims one twice. Thirteen
-circuits have that timeline; 483 races (41%) therefore report the layout as
-raced, and `v_race_venues.figures` says of every row whether it is `as raced` or
-a fallback to `current layout`. The rest is a declared gap, not silence.
+cannot be added that leaves a season uncovered or claims one twice.
+<!-- fig:layout_circuits -->13<!-- /fig --> circuits have that timeline;
+<!-- fig:as_raced -->483<!-- /fig --> races
+(<!-- fig:as_raced_pct -->41%<!-- /fig -->) therefore report the layout as
+raced, and `v_race_venues.figures` says of every row whether it is `as raced`
+or a fallback to `current layout`. The rest is a declared gap, not silence.
 
 Filling this in exposed two errors and one modelling failure:
 
@@ -589,30 +399,36 @@ Filling this in exposed two errors and one modelling failure:
 
 There are two layers here and they are deliberately not merged.
 
-**`cars` is a curated set of 29.** A car in that table is a *design family*:
-the Lotus 79 raced in 1978 and 1979 and is one row; the Ferrari 312T through
-312T5 is one row, because that is how the results were published and how the
-reference pages treat it. Each carries engine, chassis construction, gearbox,
-suspension, brakes, weight and dimensions as published, plus three things a
-spec sheet does not — the **concept** in one line, what the car
-**introduced**, and what it actually **achieved**.
+**`cars` is a curated set of <!-- fig:cars -->29<!-- /fig -->.** A car in
+that table is a *design family*: the Lotus 79 raced in 1978 and 1979 and is
+one row; the Ferrari 312T through 312T5 is one row, because that is how the
+results were published and how the reference pages treat it. Each carries
+engine, chassis construction, gearbox, suspension, brakes, weight and
+dimensions as published, plus three things a spec sheet does not — the
+**concept** in one line, what the car **introduced**, and what it actually
+**achieved**.
 
-**`chassis` is the register: 1,153 rows, every chassis that has raced.** It is
-loaded from [F1DB](https://github.com/f1db/f1db) (CC BY 4.0) by
-`tools/f1db_fetch.py` — a scale at which nobody types anything — and 779 of
-them carry a specification `tools/wikispec_fetch.py` established off that
-chassis's own Wikipedia article. `chassis.car_id` joins the two.
+**`chassis` is the register: <!-- fig:chassis -->1,153<!-- /fig --> rows,
+every chassis that has raced.** It is loaded from
+[F1DB](https://github.com/f1db/f1db) (CC BY 4.0) by `tools/f1db_fetch.py` — a
+scale at which nobody types anything — and
+<!-- fig:chassis_with_spec -->779<!-- /fig --> of them carry a specification
+`tools/wikispec_fetch.py` established off that chassis's own Wikipedia
+article. `chassis.car_id` joins the two.
 
-132 of those articles publish a career win total. The wins this database
-derives independently, from its own race records through the linkage below,
-**agree exactly for 97 of them and exceed for none**.
+<!-- fig:chassis_published_wins -->759<!-- /fig --> chassis carry a published
+career win total. The wins this database derives independently, from its own
+race records through the linkage below, **agree exactly for
+<!-- fig:chassis_wins_match -->616<!-- /fig --> of them and exceed for
+<!-- fig:chassis_wins_exceed -->0<!-- /fig -->**; the rest are lower bounds
+where a season could not be linked.
 
 Where both layers hold the same figure the build **compares them instead of
 picking one**: a value derived twice by different routes is the strongest
 evidence this database has, and a disagreement goes to `discrepancies`.
 
 ```
-./f1 cars                # the 29 curated designs
+./f1 cars                # the curated designs
 ./f1 chassis lotus       # every Lotus chassis in the register
 ./f1 ambiguous           # the constructor-seasons that cannot be resolved
 ./f1 limits              # what each season's rules capped
@@ -666,21 +482,26 @@ are thin, and the database says so rather than padding them.
 `data/cars.py` has a `CAR_SEASONS` list. A `(car, year)` pair asserts that
 every race this constructor won, took pole for or set fastest lap in that
 season was in this car — a strong claim, so it is not made where a team ran
-two cars in one year.
+two cars in one year, and since v2.12 it is only honoured where F1DB's entry
+list for that season corroborates it.
 
 The claim is **checked rather than trusted**. `EXPECTED` holds each car's
 published career wins and poles; the build derives the same two figures from
 the race records, and `verify.py` fails if any car has *more* wins than its
 published total, or if a car whose seasons are all linked does not match
-*exactly*. Eleven cars are fully linked and all eleven match to the race —
-MP4/4 on 15, F2004 on 15, RB19 on 21, 312T on 27. That found a real error:
-Vanwall's figure had been entered as 6, the 1958 season total, not the career 9.
+*exactly*. <!-- fig:cars_checked -->19<!-- /fig --> cars carry a published
+total and <!-- fig:cars_fully_linked -->10<!-- /fig --> of them are fully
+linked, so for those ten the derived and the published figure must be equal,
+and are. That check found a real error when it was first written: Vanwall's
+figure had been entered as 6, the 1958 season total, not the career 9.
 
 Since v2.8 the same thing is done at chassis resolution, from a second source.
 F1DB's per-season entry lists record which chassis a constructor ran in a
 season — the constraint the abandoned chassis harvest was missing, because the
 race winner tells you which race a row describes and nothing whatever about
-what he drove. The winning chassis is now known for **819 of 1,161 races**.
+what he drove. The winning chassis is now known for
+**<!-- fig:races_with_winning_chassis -->875<!-- /fig --> of
+<!-- fig:races_run -->1,162<!-- /fig --> races**.
 
 The limit is hard and it decides the shape of the whole result:
 
@@ -699,23 +520,25 @@ teams actually operated:
 
 | Decade | Entries linked to a chassis |
 |---|---|
-| 1950s | 21% |
-| 1960s | 4% |
-| 1970s | 11% |
-| 1980s | 35% |
-| 1990s | 42% |
-| 2000s | 41% |
-| 2010s | 47% |
-| 2020s | 49% |
+| 1950s | <!-- fig:linked_1950s -->76%<!-- /fig --> |
+| 1960s | <!-- fig:linked_1960s -->51%<!-- /fig --> |
+| 1970s | <!-- fig:linked_1970s -->49%<!-- /fig --> |
+| 1980s | <!-- fig:linked_1980s -->64%<!-- /fig --> |
+| 1990s | <!-- fig:linked_1990s -->77%<!-- /fig --> |
+| 2000s | <!-- fig:linked_2000s -->83%<!-- /fig --> |
+| 2010s | <!-- fig:linked_2010s -->99%<!-- /fig --> |
+| 2020s | <!-- fig:linked_2020s -->100%<!-- /fig --> |
 
 A modern team runs one car all season and the entry list settles it. A 1960s
 "constructor" was a name several privateers entered several different chassis
-under, and the season settles nothing. `./f1 ambiguous` lists all 321
-unresolvable constructor-seasons; the remaining work is in `known_gaps`.
+under, and the season settles nothing. `./f1 ambiguous` lists all
+<!-- fig:ambiguous_seasons -->321<!-- /fig --> unresolvable
+constructor-seasons; the remaining work is in `known_gaps`.
 
-Poles are a lower bound by construction and are only checked for *not
-exceeding* the published figure: the pole harvest recorded who took pole but
-not what they drove, so 655 of 1,161 pole entries carry no constructor.
+Poles were once a lower bound by construction, because the pole harvest
+recorded who took pole but not what they drove. The entry lists now supply the
+constructor for almost all of them: <!-- fig:poles_without_constructor -->11<!-- /fig -->
+of <!-- fig:poles -->1,162<!-- /fig --> pole entries still carry none.
 
 ---
 
@@ -733,6 +556,8 @@ The claim is deliberately narrow and it *is* checkable: the article already
 passed the constructor, seasons and name checks in `tools/wikispec_fetch.py`,
 so what is recorded is "the article proved to describe this chassis leads with
 this file". Rerunning the harvest re-establishes it.
+<!-- fig:images -->602<!-- /fig --> of the
+<!-- fig:chassis_with_spec -->779<!-- /fig --> articles yield one.
 
 Three things are enforced at harvest and again on every build. The file must
 be on **Commons** — a file uploaded locally to en.wikipedia.org is local
@@ -740,23 +565,25 @@ be on **Commons** — a file uploaded locally to en.wikipedia.org is local
 looks like a working feature. It must state a **free licence**, matched
 against a list rather than a pattern, because `CC BY-NC` and `CC BY-ND` both
 begin "CC BY". And it must name **someone to attribute**: attribution is a
-condition of CC BY and CC BY-SA, not a courtesy. Eight files were refused on
-the committed run — seven name no author, one states no licence.
+condition of CC BY and CC BY-SA, not a courtesy. A file failing any of the
+three is refused and logged in `harvest/article_images.log` with the reason.
 
-There is no single licence covering these. Sixteen distinct strings appear
-across 602 rows, so every row carries its own and any display must show it.
-The web app's smoke test asserts this: if the image renders and the credit
-does not, the test fails, because that is not an ugly page, it is an
-infringing one.
+There is no single licence covering these.
+<!-- fig:image_licences -->16<!-- /fig --> distinct licence strings appear
+across the <!-- fig:images -->602<!-- /fig --> rows, so every row carries its
+own and any display must show it. The web app's smoke test asserts this: if
+the image renders and the credit does not, the test fails, because that is not
+an ugly page, it is an infringing one.
 
 What **cannot** be checked is whether the photograph shows the car. Testing
-whether the file name mentions the chassis finds 265 of 602 — most correct
-images are filed under the driver, and
-`File:Jos_Verstappen_2000_Monza_(cropped).jpg` really is an Arrows A21 — so
-the test would discard half the good rows if it were a rule. It is stored as
-`name_matches` and enforced nowhere. The failure it half-detects is real: the
-ATS D5 article leads with a photograph of officials and police. Every row sits
-at `unverified`.
+whether the file name mentions the chassis finds
+<!-- fig:images_named -->265<!-- /fig --> of
+<!-- fig:images -->602<!-- /fig --> — most correct images are filed under the
+driver, and `File:Jos_Verstappen_2000_Monza_(cropped).jpg` really is an
+Arrows A21 — so the test would discard half the good rows if it were a rule.
+It is stored as `name_matches` and enforced nowhere. The failure it
+half-detects is real: the ATS D5 article leads with a photograph of officials
+and police. Every row sits at `unverified`.
 
 ### Centrelines — `circuit_geometry`
 
@@ -771,7 +598,8 @@ website merges it in your browser. See `ATTRIBUTION.md`.
 
 The reason it belongs here rather than anywhere else is that this database can
 reject it. A circuit relation is not an ordered ring — its members include the
-pit lane — so summing them naively gives:
+pit lane — so summing them naively gives, for the first circuit the harvest
+tried:
 
     Monaco, OSM relation 148194
       all 42 member ways                   3.745 km   +12.2%
@@ -790,18 +618,25 @@ the ways end to end when the row is admitted and stores what it found —
 `segment_count`, `loose_ends`, `closes` — and `verify.py` re-derives all three
 from the geometry on every build.
 
-    22 of 25 stitch into a closed lap
-      las-vegas    1 loose end,  80/81 ways walked, 0.11 km unaccounted
-      monaco       4 loose ends, 29/41 ways walked, 1.07 km unaccounted
-      montjuic     2 loose ends, 20/31 ways walked, 0.97 km unaccounted
+<!-- fig:centrelines_closed -->22<!-- /fig --> of
+<!-- fig:centrelines -->25<!-- /fig --> stitch into a closed lap. The ones
+that do not:
+
+<!-- fig:open_centrelines -->
+| Circuit | Loose ends | Ways in the relation |
+|---|---|---|
+| `las-vegas` | 1 | 81 |
+| `monaco` | 4 | 41 |
+| `montjuic` | 2 | 31 |
+<!-- /fig -->
 
 A join is not "close", it is **identical**: ways in a relation share their
-junction nodes, and 1,201 of the 1,208 way ends here sit at 0.000 m from
-another end. The seven that do not are 5.4 m to 63.4 m away and every one is a
-real hole. The check used to allow 30 m, which is wide enough that the Monaco
-and Montjuïc holes read as joins — it reported only Las Vegas, and passed two
-broken traces for several versions. One metre is above serialisation noise and
-below the smallest real gap.
+junction nodes, so nearly every way end here sits at 0.000 m from another end,
+and the few that do not are metres apart and every one is a real hole. The
+check used to allow 30 m, which is wide enough that the Monaco and Montjuïc
+holes read as joins — it reported only Las Vegas, and passed two broken traces
+for several versions. One metre is above serialisation noise and below the
+smallest real gap.
 
 This is what lets the front end offer to walk a lap: `web/src/lib/lap.js`
 reproduces the stitch in the browser and the atlas measures along it, but only
@@ -816,7 +651,8 @@ build if one is.
 ## Timing, telemetry and radio
 
 Being blunt about what exists, because most of what people imagine is
-available is not.
+available is not — and about what this database may carry, because that is
+the tighter limit.
 
 **Formula 1 publishes per-lap data from 2018 and nothing before it.** Lap
 times, sector times, speed traps, tyre compound and age, stint boundaries, pit
@@ -829,40 +665,42 @@ transcripts. F1 puts the clips on the same API, also from 2018.
 
 **Car telemetry — speed, throttle, brake, gear, RPM, DRS — exists from 2018**,
 at about 4 Hz plus position at 10 Hz. It is hundreds of megabytes per race
-weekend. It does not belong in a 1.5 MB SQLite file and it is not in one.
+weekend. It does not belong in a SQLite file and it is not in one.
 
-So the split is:
+**None of it is redistributable.** The live timing API is Formula One
+Management's data; the one other source of lap times, Jolpica-F1, is CC
+BY-NC-SA, and this project publishes under terms that permit reuse. So the
+split is:
 
-| Table | Covers | Filled by |
+| Table | Covers | In the committed database |
 |---|---|---|
-| `race_timing` | pole / fastest lap / race time per race | empty — see `known_gaps` |
-| `laps` | per-lap timing, sectors, tyres, track status | `tools/fastf1_load.py`, 2018– |
-| `stints` | tyre stints | same |
-| `pit_stops` | pit lane times | same |
-| `race_control_messages` | flags, safety cars, penalties, deleted laps | same |
-| `team_radio` | clip index and optional transcripts | same, plus 6 curated |
+| `race_timing` | pole / fastest lap / race time per race | empty — a licence decision, see `known_gaps` |
+| `laps` | per-lap timing, sectors, tyres, track status | **empty, and `verify.py` fails if it is not** |
+| `stints` | tyre stints | empty, same |
+| `race_control_messages` | flags, safety cars, penalties, deleted laps | empty, same |
+| `pit_stops` | lap and order of every stop | <!-- fig:pit_stops -->22,481<!-- /fig --> rows from F1DB (CC BY 4.0); no durations, and only that source is permitted |
+| `team_radio` | clip index and optional transcripts | <!-- fig:notable_radio -->6<!-- /fig --> curated exchanges, quoted from a written source |
 
-`tools/fastf1_load.py` reads the live timing API through FastF1. It is a
-**separate script, not part of the build**, because the build is offline and
-this data is not. It is written against FastF1 3.8 and every column it reads
-was checked against that library's actual schema, but it has **not been run
-against live data from here** — this environment has no network access to that
-API. Treat the first run as the test.
+`docs/TIMING-ARCHITECTURE.md` is the decision in full. The empty tables are
+not an unfinished feature: they are the correct answer until a source
+publishes lap times under a licence that permits passing them on, and
+`ci.yml` checks the *committed* database for them before every rebuild
+because that is the only moment a bad commit is catchable.
+
+For **your own copy**, `tools/fastf1_load.py` reads the live timing API
+through FastF1 and fills all of it, 2018 onwards. It is a **separate script,
+not part of the build**, because the build is offline and this data is not;
+`--results` also fills the finishing order it reads and refuses any race whose
+winner is not the one already stored. Car telemetry can be dumped alongside
+with `--telemetry-parquet DIR`, which writes Parquet files next to the
+database rather than into it. `F1_LOCAL_TIMING=1` tells `verify.py` that the
+rows are there on purpose — the load is legitimate, the file is simply not
+yours to publish.
 
 ```bash
 pip install fastf1
 python3 tools/fastf1_load.py --years 2018-2026 --results --radio
 ```
-
-`--results` also fills the **full classified finishing order** for 2018–2026
-into `race_entries` — position, grid, status, laps, points — which is the
-largest outstanding gap in this database, for the seasons where it can be had
-automatically. It is self-validating in the same way as every other loader
-here: if the winner FastF1 reports is not the winner already stored, the race
-is refused rather than half-written.
-
-Car telemetry can be dumped alongside with `--telemetry-parquet DIR`, which
-writes Parquet files next to the database rather than into it.
 
 **`build.py` drops and rebuilds `f1.db` from scratch**, so anything the loader
 put there is destroyed by the next build. Keep the FastF1 cache — that is the
@@ -870,23 +708,26 @@ expensive part — and re-run the loader after a rebuild.
 
 ### Notable radio
 
-Six exchanges are held as text with `notable = 1`, transcribed from broadcast
-and each checked against a written source: Smedley's "Fernando is faster than
-you", Horner's "This is silly, Seb", Alonso's "GP2 engine", and the three-way
-Wolff / Horner / Masi exchange that decided the 2021 championship. The set is
-small deliberately — an exchange only belongs there if the exact words can be
-cited rather than remembered, and several famous ones are missing for exactly
-that reason.
+<!-- fig:notable_radio -->6<!-- /fig --> exchanges are held as text with
+`notable = 1`, transcribed from broadcast and each checked against a written
+source: Smedley's "Fernando is faster than you", Horner's "This is silly,
+Seb", Alonso's "GP2 engine", and the three-way Wolff / Horner / Masi exchange
+that decided the 2021 championship. The set is small deliberately — an
+exchange only belongs there if the exact words can be cited rather than
+remembered, and several famous ones are missing for exactly that reason.
 
 ---
 
 ## The finishing order
 
-`race_entries` holds **27,555 rows — every entry of every one of the 1,161
-races**, 1950 to 2026, in the committed database. Position, grid, laps,
-retirement cause and points. Alongside it sit **26,975 qualifying rows** and
-**34,495 championship standings rows**: the table after every round of every
-season, and the end-of-season classification for each.
+`race_entries` holds **<!-- fig:race_entries -->27,482<!-- /fig --> rows —
+every entry of every one of the <!-- fig:races_classified -->1,162<!-- /fig -->
+run races**, <!-- fig:season_span -->1950–2026<!-- /fig -->, in the committed
+database. Position, grid, laps, retirement cause and points. Alongside it sit
+**<!-- fig:qualifying -->26,997<!-- /fig --> qualifying rows** and
+**<!-- fig:standings -->34,563<!-- /fig --> championship standings rows**: the
+table after every round of every season, and the end-of-season classification
+for each, which `v_standings_final` returns one row per entity.
 
 ### It was a licence, not a harvest
 
@@ -906,21 +747,25 @@ licence, and it closed the moment someone looked at the other.
 
 Four things, all held independently before F1DB was consulted:
 
-1. **The winner of every race.** All 1,161 were already stored from the
-   Wikipedia harvest. A race whose winner disagreed is refused *whole* — never
-   partly accepted. None was refused. The comparison is on **sets**, because a
-   shared drive puts two drivers on position 1 and both are winners; taking
-   "the" winner made 1956 Argentina and 1957 Britain look like disagreements
-   when both sources said the same thing.
-2. **The champion and runner-up of 76 seasons**, with both point totals,
-   already in `seasons`. The final standings must reproduce all four, every
-   year. They do.
+1. **The winner of every race.** All were already stored from the Wikipedia
+   harvest. A race whose winner disagrees is refused *whole* — never partly
+   accepted. None was. The comparison is on **sets**, because a shared drive
+   puts two drivers on position 1 and both are winners; taking "the" winner
+   made 1956 Argentina and 1957 Britain look like disagreements when both
+   sources said the same thing.
+2. **The champion and runner-up of every completed season**, with both point
+   totals, already in `seasons`. The final standings must reproduce all four,
+   every year. They do.
 3. **The pole-sitter of every race.** Qualifying position 1 is checked against
-   it. Thirteen races differ — grid penalties and sprint weekends, where the
-   fastest qualifier and the driver on grid 1 are genuinely different people.
-   Each is recorded in `discrepancies`, not resolved.
+   it. The races where the credited pole-sitter was not the fastest qualifier
+   — grid penalties and sprint weekends — are, since v2.21, pinned by
+   `verify.py` as a convention rather than recorded as disagreements, because
+   neither source is wrong about the thing it describes: `pole` says who the
+   season record credits, `grid` says where every car started, `qualifying`
+   says who was quickest.
 4. **Jolpica, still.** `tools/ergast_load.py` no longer writes over anything.
-   It loads alongside and records every disagreement:
+   It loads alongside and records every disagreement. Its first run against
+   the committed classification, at v2.15, reported:
 
 ```bash
 python3 tools/ergast_load.py --from-dump
@@ -940,11 +785,13 @@ is wrong, so neither is overwritten.
 Three things the old two-column model could not say, each found by a check
 failing:
 
-- **A result is not always a number.** 8,769 retirements, 1,041 failures to
-  qualify, 338 failures to *pre*-qualify, 381 non-starts, 161 disqualifications.
-  `position_text` keeps the source's own vocabulary; `finish_position` stays a
-  clean integer, NULL where there is none. Collapsing them loses the late
-  1980s entirely.
+- **A result is not always a number.** <!-- fig:dnf -->8,715<!-- /fig -->
+  retirements, <!-- fig:dnq -->1,041<!-- /fig --> failures to qualify,
+  <!-- fig:dnpq -->337<!-- /fig --> failures to *pre*-qualify,
+  <!-- fig:dns -->378<!-- /fig --> non-starts,
+  <!-- fig:dsq -->160<!-- /fig --> disqualifications. `position_text` keeps
+  the source's own vocabulary; `finish_position` stays a clean integer, NULL
+  where there is none. Collapsing them loses the late 1980s entirely.
 - **The constructors' championship is contested by a chassis-ENGINE pair.**
   In 1960 that is seven entries for five constructors: Cooper-Climax won it
   with 48 points while Cooper-Maserati and Cooper-Castellotti tied for fifth
@@ -964,10 +811,11 @@ and **Matra entered four of them**, Beltoise finishing eighth.
 
 ### Career figures, now derived
 
-With the classification committed, podiums are derived rather than trusted:
-**6 of 7 drivers match their official podium count exactly**, and the seventh
-is Russell at a derived 30 against an official 29 whose `stats_as_of` predates
-his most recent one.
+With the classification committed, podiums are derived rather than trusted.
+<!-- fig:podiums_compared -->7<!-- /fig --> drivers hold an official podium
+count and <!-- fig:podiums_match -->5<!-- /fig --> match it exactly; the
+others have stood on the podium since their external figure's `stats_as_of`,
+and the pairs are in `v_stat_reconciliation`.
 
 `drivers.entries`, `starts` and `career_points` remain stored rather than
 derived — see *What it deliberately doesn't have*.
@@ -983,9 +831,16 @@ every fact table now carries a `confidence` column instead:
 |---|---|---|
 | `verified` | Checked against fia.com or formula1.com during construction | Yes, with citation |
 | `high` | Long-established record, consistently published officially for decades | Yes |
-| `reference` | Harvested from Wikipedia's season results tables, cross-checked on load | Yes, but cite the FIA/F1 archive |
+| `reference` | Harvested from Wikipedia's season results tables or F1DB, cross-checked on load | Yes, but cite the FIA/F1 archive |
 | `medium` | Correct in substance; an exact figure or date may have drifted or moves with the season | Confirm first |
 | `unverified` | Placeholder or disputed | No |
+
+Since v2.16 the tier is **traceable**: every row's `source` resolves through
+`source_patterns` to a `source_registry` entry, the tables without a `source`
+column are covered by `table_provenance`, and anything **authored** for this
+project from general knowledge is capped at `medium` because nothing outside
+the project constrains it. See `docs/DERIVED-CONFIDENCE.md`, and `./f1
+licences` for what each source permits.
 
 ### On admitting Wikipedia
 
@@ -1016,8 +871,8 @@ now recorded correctly with the lineage table carrying the connection.
 
 The v2.2 pole harvest was validated the same way, and harder: **every harvested
 row also carried the race winner, which had to equal the winner already stored.**
-All 1,125 matched, which is strong evidence that the pole and fastest-lap values
-in those same rows are sound. Reconciling the derived pole counts against the
+All matched, which is strong evidence that the pole and fastest-lap values in
+those same rows are sound. Reconciling the derived pole counts against the
 hand-entered career totals then found two more errors, both in 2012:
 
 - **2012 Spanish Grand Prix.** Recorded Hamilton on pole. Hamilton set the fastest
@@ -1028,8 +883,7 @@ hand-entered career totals then found two more errors, both in 2012:
 Neither was guesswork. Four independent career totals — Hamilton's 104, Vettel's
 57, Alonso's 22 and Maldonado's 1 — reconcile exactly under those two corrections
 and under no other combination. Both were then confirmed against the race
-articles before being applied. Poles now reconcile **exactly** for every retired
-driver in the database.
+articles before being applied.
 
 The v1 rule survives intact: **nothing is promoted to `verified` without an
 official source.** `./f1 unverified` lists the rows currently sitting at
@@ -1038,43 +892,37 @@ fetching the relevant official page and editing the source module.
 
 ### Derived figures, and what happens when sources disagree
 
-Because the race records now cover every championship race, career wins, poles
+Because the race records cover every championship race, career wins, poles
 and fastest laps are **computed from them**. That makes those three fields
 self-consistent by construction, always current, and impossible to drift. The
 previously hand-entered or externally checked values are kept in
 `wins_external`, `poles_external` and `fastest_laps_external`.
 
-The two are compared on every build. Across the **234 drivers that hold an
-official figure — 391 comparisons — there are 5 live differences**, and every
-one is accounted for. Two more were errors in the external figure, found the
-same way and since corrected, which is why they no longer appear as
-differences:
-
-- **2 were errors in the external figure, now corrected.** John Surtees's
-  fastest laps were entered as 11; the reference record says 10, matching the
-  race data. George Russell's poles came back as 12 from a formula1.com fetch
-  that also returned internally inconsistent 2026 figures; Wikipedia's infobox
-  independently gives 11 poles and 7 wins, both matching the derived counts.
-- **3 are staleness, not error.** Hamilton, Verstappen and Norris have added
-  fastest laps since their external figure's as-of date.
-- **2 remain genuinely open.** Jack Brabham and Phil Hill are each credited with
-  one more fastest lap than the race records contain. Every race of their careers
-  now has a fastest lap recorded, so the missing one must be a race they shared
-  and where the season table prints only one name. That is a hypothesis, not a
-  fact, so it is recorded as *open — needs official check* rather than resolved.
+The two are compared on every build. Across the
+**<!-- fig:drivers_with_external -->234<!-- /fig --> drivers that hold an
+official figure — <!-- fig:external_comparisons -->393<!-- /fig -->
+comparisons — there are <!-- fig:external_differences -->5<!-- /fig --> live
+differences**, and `verify.py` fails the build on any that is not declared in
+`discrepancies`. Two earlier differences were errors in the external figure,
+found the same way and since corrected, which is why they no longer appear:
+John Surtees's fastest laps were entered as 11 where the reference record
+says 10, matching the race data; George Russell's poles came back as 12 from
+a formula1.com fetch that also returned internally inconsistent 2026 figures,
+and Wikipedia's infobox independently gave 11, matching the derived count.
 
 **Where two sources disagree and neither can be checked against an official
-source, the disagreement is itself the fact worth storing.** `./f1 gaps` prints
-the corrections and the open items. `verify.py` fails the build on any
-difference that is not declared.
+source, the disagreement is itself the fact worth storing.** `discrepancies`
+holds <!-- fig:discrepancies -->54<!-- /fig --> rows:
+<!-- fig:discrepancies_open -->10<!-- /fig --> open,
+<!-- fig:discrepancies_explained -->5<!-- /fig --> explained as an external
+figure older than the race it lacks, and the rest resolved — corrected,
+withdrawn or not corroborated — with the outcome on the row. Each open one is
+shown on the page of the driver, team or race it is about. `./f1 gaps` prints
+them.
 
-As a further guard, `verify.py` asserts ten headline career records against their
-known official figures — Hamilton 106/104/69, Schumacher 91/68/77, Senna
-41/65/19, Fangio 24/29/23 and so on. All ten match.
-
-Current distribution: seasons 75 high / 2 verified; constructors 38 high /
-25 medium / 2 verified; race results 1,125 reference / 36 verified; 2,332 pole
-and fastest-lap credits, all reference.
+As a further guard, `verify.py` asserts a fixed set of headline career records
+against their known official figures — Hamilton 106/104/69, Schumacher
+91/68/77, Senna 41/65/19, Fangio 24/29/23 among them — and fails if one moves.
 
 ---
 
@@ -1087,46 +935,52 @@ These are also in the database, as the `known_gaps` table — so they can be
 queried, not just read here. `./f1 gaps` prints them with the fix for each.
 
 - **Entries, starts and career points per driver.** Wins, poles, fastest laps
-  and now podiums are derived from the race records and reconciled against the
+  and podiums are derived from the race records and reconciled against the
   official figures. These three are still stored: an "entry" is not the same
-  as a race_entries row once practice-only and withdrawn entries are counted,
-  and points need every season's scoring system applied, including the best-N
-  rules that ran until 1990.
-- **What a photograph shows.** 602 cars carry a lead image from Wikimedia
-  Commons with its licence and photographer. The *article* is well
-  constrained; what the picture depicts is not, and there is no second source
-  to disagree with it. This is the only part of the database with no
-  cross-check available at all. `./f1 images` lists the 337 whose file name
-  does not even name the car.
+  as a `race_entries` row once practice-only and withdrawn entries are
+  counted, and points need every season's scoring system applied, including
+  the best-N rules that ran until 1990.
+- **What a photograph shows.** <!-- fig:images -->602<!-- /fig --> cars carry
+  a lead image from Wikimedia Commons with its licence and photographer. The
+  *article* is well constrained; what the picture depicts is not, and there is
+  no second source to disagree with it. This is the only part of the database
+  with no cross-check available at all. `./f1 images` lists the
+  <!-- fig:images_unnamed -->337<!-- /fig --> whose file name does not even
+  name the car.
 - **Historic circuit geometry.** Centrelines are traced from OpenStreetMap,
   which maps what is on the ground. Spa's 14.1 km road course and Monza's
   banking are unmapped and unmappable; Wikidata's own historic-layout
   entities carry a length and a date range but no coordinates.
-- **Lap times, grid positions, retirements, qualifying.** Not held at all.
-- **Podiums and career points** remain hand-entered. Wins, poles and fastest laps
-  are now derived and self-consistent; podiums are not.
-- **Sprint results.** The sprint races from 2021 onwards are not held as results,
-  only as a format note on the calendar.
-- **Circuit configuration for most venues.** Thirteen circuits have a complete
+- **Lap times, sector times, tyre stints, race control messages.** Held empty
+  by licence, not by omission — see *Timing, telemetry and radio* and
+  `docs/TIMING-ARCHITECTURE.md`. Grid positions, retirements and qualifying,
+  which an earlier version of this list said were absent, have been held for
+  every run race since v2.15.
+- **Circuit configuration for most venues.**
+  <!-- fig:layout_circuits -->13<!-- /fig --> circuits have a complete
   configuration timeline. Everywhere else a race carries the circuit's current
-  length and corner count, which for Kyalami or Zandvoort is not what was raced.
-  `v_race_venues.figures` labels every row `as raced` or `current layout`, so the
-  fallback is visible rather than silently wrong.
-- **Historical standings and entry lists.** `standings` and `season_entries`
-  cover 2025–26 only. Champions and runners-up for every season are held on
-  `seasons`, but the full points table for, say, 1982 is not.
-
-- **Most cars.** The register holds 29 landmark chassis, not the several
-  hundred that have started a Grand Prix. 262 of 2,424 race entries carry a
-  car; the rest do not, and the schema is honest about it rather than guessing.
+  length and corner count, which for Kyalami or Zandvoort is not what was
+  raced. `v_race_venues.figures` labels every row `as raced` or `current
+  layout`, so the fallback is visible rather than silently wrong.
+- **Entry lists before the current season.** `season_entries` covers
+  <!-- fig:season_entries_year -->2026<!-- /fig --> only. The historical
+  equivalent is `season_entrants` — constructor, chassis, engine and tyre per
+  season from F1DB — and `standings` covers every season, so the full points
+  table for 1982 is there; the driver-by-seat list for it is not.
+- **Most cars, as designs.** `cars` holds <!-- fig:cars -->29<!-- /fig -->
+  landmark chassis, not the several hundred that have started a Grand Prix,
+  and <!-- fig:entries_with_car -->1,635<!-- /fig --> of
+  <!-- fig:race_entries -->27,482<!-- /fig --> race entries reach one. The
+  `chassis` register covers the rest at the level of the entry list, and the
+  schema says which entries are unlinked rather than guessing.
 - **Lap-by-lap anything before 2018.** Not a gap that can be filled — it was
   never recorded in a form anyone can retrieve. See *Timing, telemetry and
   radio* above.
 
-The `known_gaps` table holds six entries and `./f1 gaps` prints them with the
-fix for each. One is not a gap in the usual sense: the 2021 Belgian Grand Prix
-has no fastest lap because none was set. That is a true null, and it is
-recorded as one.
+The `known_gaps` table holds <!-- fig:known_gaps -->11<!-- /fig --> entries
+and `./f1 gaps` prints them with the fix for each. One is not a gap in the
+usual sense: the 2021 Belgian Grand Prix has no fastest lap because none was
+set. That is a true null, and it is recorded as one.
 
 ---
 
@@ -1146,7 +1000,7 @@ python3 tools/f1db_fetch.py        # rewrites harvest/ from the current F1DB
 python3 build.py && python3 verify.py
 ```
 
-`.github/workflows/refresh.yml` does exactly that every Monday at 06:00 UTC,
+`.github/workflows/refresh.yml` does exactly that every day at 06:00 UTC,
 and commits the result **only if every check still passes**. A refresh that
 breaks a cross-check is thrown away rather than committed, so an unattended
 job can never replace a good database with a broken one. It can also be run
@@ -1155,55 +1009,47 @@ schedule.
 
 Two things do not arrive with a refresh. Pole position and fastest lap are
 separate harvests, so a race that has just been run appears with its full
-finishing order and neither of those until those harvests catch up; `verify.py`
-warns about the affected rounds by name rather than failing. And the calendar
-status is no longer hand-authored: `build.py` promotes a round to `completed`
-when a classification exists for it, in that direction only, because a missing
+finishing order and neither of those until those harvests catch up; F1DB
+fills the vacancy and only the vacancy, and `verify.py` warns about any
+affected rounds by name rather than failing. And the calendar status is no
+longer hand-authored: `build.py` promotes a round to `completed` when a
+classification exists for it, in that direction only, because a missing
 result is far more often an un-harvested race than a race that did not happen.
 
 ## Verification
 
-`python3 verify.py` runs 80+ checks and currently passes all of them:
-referential integrity across ten foreign-key relationships; every season
-1950–2026 present with a champion; constructors' champions only from 1958;
-driver and constructor title counts cross-tabulated against the seasons table
-(and `title_years` strings checked year by year against it); margins recomputed;
+`python3 verify.py` runs every check and prints the live count; nothing else
+states one. What it checks, in outline: referential integrity across every
+foreign-key relationship; every season <!-- fig:season_span -->1950–2026<!-- /fig -->
+present with a champion; constructors' champions only from 1958; driver and
+constructor title counts cross-tabulated against the seasons table (and
+`title_years` strings checked year by year against it); margins recomputed;
 standings positions contiguous and points monotonic; driver and constructor
-points totals reconciled against each other for both 2025 and 2026; race-winner
-tallies summed against round counts; 2026 grid checked for 11 teams × 2 seats
-with unique car numbers; and timeline sanity — nobody dying before they were
-born, no career running backwards, nobody starting a Grand Prix aged 15.
+points totals reconciled against each other; race-winner tallies summed
+against round counts; the current grid checked for unique car numbers; and
+timeline sanity — nobody dying before they were born, no career running
+backwards, nobody starting a Grand Prix aged 15.
 
 The race harvest adds its own layer: race count per season reconciled against
-the independently recorded round count for all 77 seasons; rounds contiguous
-with no duplicates; every winner and constructor resolving to a known id; the
-only constructor-less races being the eleven Indianapolis 500s; and — the
-strongest check in the file — **every driver and constructor win total in the
-database equal to the number of races they are actually recorded as winning.**
-That check is what caught all three data errors listed above.
+the independently recorded round count for all
+<!-- fig:seasons -->77<!-- /fig --> seasons; rounds contiguous with no
+duplicates; every winner and constructor resolving to a known id; the only
+constructor-less races being the <!-- fig:indy -->11<!-- /fig --> Indianapolis
+500s; and — the strongest check in the file — **every driver and constructor
+win total in the database equal to the number of races they are actually
+recorded as winning.** That check is what caught all three data errors listed
+above.
 
-v2.2 and v2.3 add the same discipline to poles and fastest laps: a pole recorded
-for all 1,161 races; the only race without a fastest lap being the one where
-none was set; every credit resolving to both a driver and a race; no driver
-credited twice for the same race; the primary pole always among that race's pole
-credits; shared fastest laps recorded as shared; every driver's wins, poles and
-fastest laps equalling the race records exactly; no external-vs-derived
-difference that is not declared; and ten headline career records asserted
-against their known official figures.
+Poles and fastest laps get the same discipline: a pole recorded for every run
+race; the only race without a fastest lap being the one where none was set;
+every credit resolving to both a driver and a race; no driver credited twice
+for the same race; shared fastest laps recorded as shared; every driver's
+wins, poles and fastest laps equalling the race records exactly; no
+external-vs-derived difference that is not declared; and the headline career
+records asserted against their known official figures.
 
-The race harvest adds its own layer: race count per season reconciled against
-the independently recorded round count for all 77 seasons; rounds contiguous
-with no duplicates; every winner and constructor resolving to a known id; the
-only constructor-less races being the eleven Indianapolis 500s; and — the
-strongest check in the file — **every driver and constructor win total in the
-database equal to the number of races they are actually recorded as winning.**
-That check is what caught all three data errors listed above.
-
-v2.2 and v2.3 add the same discipline to poles and fastest laps: a pole recorded
-for all 1,161 races; the only race without a fastest lap being the one where
-none was set; every credit resolving to both a driver and a race; no driver
-credited twice for the same race; the primary pole always among that race's pole
-credits; shared fastest laps recorded as shared; every driver's wins, poles and
-fastest laps equalling the race records exactly; no external-vs-derived
-difference that is not declared; and ten headline career records asserted
-against their known official figures.
+The full classification, the registers, the chassis linkage, the images, the
+geometry and the licence position each have a section of their own;
+`python3 verify.py --list` names them, and `--only` runs one while you work on
+it. The last section checks this file: every figure above is recomputed from
+the database and the build fails if the text disagrees.
