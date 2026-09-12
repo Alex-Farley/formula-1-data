@@ -916,8 +916,9 @@ and Wikipedia's infobox independently gave 11, matching the derived count.
 source, the disagreement is itself the fact worth storing.** `discrepancies`
 holds <!-- fig:discrepancies -->56<!-- /fig --> rows:
 <!-- fig:discrepancies_open -->10<!-- /fig --> open,
-<!-- fig:discrepancies_explained -->7<!-- /fig --> explained as an external
-figure older than the race it lacks, and the rest resolved — corrected,
+<!-- fig:discrepancies_explained -->7<!-- /fig --> explained — an external
+figure older than the race it lacks, or two readings of a career span that
+are each right about something — and the rest resolved — corrected,
 withdrawn or not corroborated — with the outcome on the row. Each open one is
 shown on the page of the driver, team or race it is about. `./f1 gaps` prints
 them.

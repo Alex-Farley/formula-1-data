@@ -20,6 +20,7 @@
  * no race: the check is what makes the quiet join safe to rely on.
  */
 import { Link } from 'react-router-dom'
+import { allExplained } from '../lib/disagreement.js'
 
 /*
  * Both values are resolved through `drivers` on the way out. A discrepancy
@@ -57,8 +58,7 @@ export const DRIVER_DISAGREEMENTS = `
    ORDER BY d.id
 `
 
-/** Whether every row is an explained reading rather than an open disagreement. */
-export const allExplained = (rows) => rows.length > 0 && rows.every((r) => String(r.status).startsWith('explained'))
+export { allExplained }
 
 /** `fastest_laps` is a column name. The reader is owed the words. */
 const label = (field) => String(field ?? '').replace(/_/g, ' ')

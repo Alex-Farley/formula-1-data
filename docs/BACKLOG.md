@@ -450,7 +450,7 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 
 - [ ] `PD-23` **Elevation as a fact, not a rendering.** Add `elevation_change_m` to `circuits` from the Wikipedia article each already cites, for the ~20 venues that state one. The Lap Ledger-shaped answer to the 3D instinct — see *Declined*. — *product critique · S*
 
-- [ ] `PD-25` **The disagreements claim should be the live figures, not a typed sentence.** It read "45 found, 44 resolved, one open" when the table held 54 rows, 10 of them open — nine the 2026 points rows the next refresh moves, one the 1970 fastest lap — and two explained readings (#89). Take `CD-07`'s claim from `discrepancies` at build time, by status. The second `PD-25`, the `/records` holder links, is `PD-26` now. — *product critique · S*
+- [ ] `PD-25` **The disagreements claim should be the live figures, not a typed sentence.** It read "45 found, 44 resolved, one open" when the table held 54 rows, 10 of them open — nine the 2026 points rows the next refresh moves, one the 1970 fastest lap — and, after #89, 56 rows with seven explained: five an external figure older than the race, two a career span each side reads rightly. Take `CD-07`'s claim from `discrepancies` at build time, by status. The second `PD-25`, the `/records` holder links, is `PD-26` now. — *product critique · S*
 
 **Visual design**
 
@@ -506,6 +506,13 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       "<N> <Circuit> wins" phrase against the records, and declare the
       one no table can constrain. Found by the review of #79. — *review of
       #79 · S*
+
+- [ ] `CD-26` **A NULL `first_season` suppresses the span comparison at both
+      ends.** `seasonsNote()` returns early on a missing first season and the
+      `verify.py` pin skips the row, where a NULL `last_season` suppresses
+      only its own end; make the predicate symmetric in both, together (no
+      row needs it today). Split out of `CD-25`, which landed without it.
+      Found by the review of #81. — *review of #81 · S*
 
 **Interaction design**
 
@@ -680,15 +687,6 @@ Real, but not costed, or waiting on a decision.
       commercialised in a form that reproduces them prominently. Weighed and kept
       on the record; a marketing surface is not a database row. —
       *project record · ?*
-
-- [ ] `PM-30` **A `known_gaps #N` citation is a positional number nobody
-      checks.** Ids come from `enumerate(KNOWN_GAPS, 1)`, so filing a gap
-      mid-list renumbers every citation after it; `PM-28` corrected nine
-      that had drifted, two of them inside `f1.db`. Either cite gaps by
-      `field` in prose, or have `verify.py` read every `known_gaps #N`
-      across the tree beside the field it names and fail on a mismatch —
-      the project's usual answer to a number nothing checks. Found by the
-      review of #87. — *review of #87 · S*
 
 - [ ] `PD-08` **Decide what the atlas is for.** **Superseded by `PD-21`**,
       which decides it: a comparison surface, and only that. Three critics and
@@ -1617,7 +1615,18 @@ Real, but not costed, or waiting on a decision.
       something"; both renderers show it through the disagreement aside,
       introduced as two readings rather than a disagreement to settle, and
       `verify.py` derives the pair it pins from those rows, so the pin and
-      the explanation cannot drift apart. — *review of #81 · #89*
+      the explanation cannot drift apart. The review of #89 caught the first
+      Rossi wording claiming a practice-only 2014 when F1DB's entry lists
+      name him as entered for two rounds; the row now says what the data
+      says. The symmetric-predicate clause is `CD-26`. — *review of #81 ·
+      #89*
+- [x] `PM-30` **A gap's id is written, not counted.** Every `KNOWN_GAPS`
+      tuple carries its id, so filing a gap mid-list no longer renumbers the
+      citations after it; `verify.py` requires the ids to be 1..N with no
+      gap or repeat, and walks the tree for every `known_gaps #N` to fail
+      one that names a row that does not exist. Which existing row a
+      citation should name stays a reader's judgement, as `PM-28` was. —
+      *review of #87 · #90*
 
 ## Declined
 

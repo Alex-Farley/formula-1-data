@@ -798,6 +798,34 @@ def pole_position_and_fastest_lap():
     check("the closed gaps are closed in the data: fastest laps and entries cover every completed race",
           fl_missing == 0 and no_entries == 0 and closed_fields <= {"fastest_lap", "finish_position"},
           f"{fl_missing} races without a fastest lap, {no_entries} without entries; closed: {sorted(closed_fields)}")
+    # The ids are written in data/harvest.py, not counted from the list
+    # (PM-30): they must be 1..N with no gap or repeat, and every
+    # `known_gaps #N` written anywhere in the tree - code, schema, docs, the
+    # site - must name a row that exists. A citation that names the wrong
+    # existing row is still a human's to catch; a citation of a row that is
+    # not there is not.
+    _ids = [r[0] for r in con.execute("SELECT id FROM known_gaps ORDER BY id")]
+    check("known_gaps ids are 1..N, written and contiguous",
+          _ids == list(range(1, len(_ids) + 1)), ", ".join(map(str, _ids)))
+    _here = os.path.dirname(os.path.abspath(__file__))
+    _cited = {}
+    for root, dirs, files in os.walk(_here):
+        dirs[:] = [d for d in dirs if d not in ("node_modules", ".git", "dist", ".f1dbcache", "__pycache__")]
+        for fn in files:
+            if not fn.endswith((".py", ".sql", ".md", ".js", ".jsx", ".mjs", ".yml", ".txt")):
+                continue
+            path = os.path.join(root, fn)
+            try:
+                with open(path, encoding="utf-8") as fh:
+                    text = fh.read()
+            except (UnicodeDecodeError, OSError):
+                continue
+            for m in re.finditer(r"known_gaps\s*#(\d+)", text):
+                _cited.setdefault(int(m.group(1)), set()).add(os.path.relpath(path, _here))
+    _dangling = {n: files for n, files in _cited.items() if n not in set(_ids)}
+    check("every known_gaps #N cited in the tree names a row that exists",
+          not _dangling, "; ".join(f"#{n} in {', '.join(sorted(f))}" for n, f in sorted(_dangling.items())))
+    print(f"  [info] known_gaps cited by number in {sum(len(f) for f in _cited.values())} places across the tree")
     open_ = con.execute("SELECT COUNT(*) FROM v_open_gaps").fetchone()[0]
     print(f"  [info] known_gaps: {open_} open, "
           + ", ".join(f"{n} {s}" for s, n in con.execute(
@@ -864,7 +892,8 @@ def external_figures_vs_the_race_records():
     # rely on: a subject that names no race, or no driver, is refused here.
     unresolved = []
     for did, subject in con.execute(
-            "SELECT id, subject FROM discrepancies WHERE status LIKE 'open%'"):
+            "SELECT id, subject FROM discrepancies WHERE status LIKE 'open%' "
+            "OR status LIKE 'explained - each side%'"):
         m = re.fullmatch(r"(\d{4}) round (\d+)", subject or "")
         if m:
             if not con.execute("SELECT 1 FROM races WHERE year=? AND round=?",

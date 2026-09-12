@@ -60,6 +60,7 @@ import {
   TWO_FILES,
   titled,
 } from '../src/lib/site.js'
+import { allExplained } from '../src/lib/disagreement.js'
 // The pages' own queries and column lists (PD-02). A page and this script
 // read the same module, so the static table is the app's table by
 // construction; the rest of the pages follow these three.
@@ -278,7 +279,7 @@ const disagree = (rows, what) => {
   // The same two readings as the app's Disagreement component: explained
   // rows - a span the register and the records define differently (CD-25) -
   // are introduced as readings, open ones as a disagreement to settle.
-  const explained = rows.every((r) => String(r.status ?? '').startsWith('explained'))
+  const explained = allExplained(rows)
   return `<aside class="disagreement" aria-label="${explained ? 'Two readings, both recorded' : 'Recorded source disagreement'}">
     <h2>${
       explained
