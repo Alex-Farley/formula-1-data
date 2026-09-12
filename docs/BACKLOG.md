@@ -367,8 +367,11 @@ Worth doing, not yet urgent.
       the circuit's zone and UTC, from the FIA event timetable and F1's
       calendar (facts-only), in a `sessions` table keyed to `races`; shown
       on `/seasons/2026` and each race page with a "next session in …" line
-      computed in the browser. Decided 2026-09-12 from `LV-01`. — *request ·
-      M*
+      computed in the browser. Decided 2026-09-12 from `LV-01`. Sourcing,
+      checked 2026-09-12: the FIA's event pages carry the date only; session
+      times are in the FIA's per-event "Event & Timing Information"
+      documents and on formula1.com's race pages (both registered sources).
+      — *request · M*
 
 - [ ] `LV-03` **Session classifications after the fact.** FP1–FP3, sprint
       shootout and qualifying orders with best times as published in the
@@ -416,14 +419,6 @@ the source. `WK-` is this survey; nothing else uses the prefix.
       reported, not published. Neither has a primary source. A `known_gaps`
       row saying so is the correct outcome, not a `governance` row carrying a
       newspaper's number. — *Wikipedia survey · S*
-
-- [ ] `WK-05` **Cars, teams and engine makers per season are derivable and not
-      shown.** The page's infobox says 22 drivers, 11 constructors, five power
-      unit manufacturers. `season_entrants` holds the constructors and engine
-      makers for every year; the drivers who started come from `race_entries`.
-      A view `v_season_grid` (year, drivers, constructors, engine
-      manufacturers, tyre suppliers) and a line on each `/seasons/YYYY` page.
-      No new facts. — *Wikipedia survey · S*
 
 - [ ] `WK-06` **Read the records list the same way.** *List of Formula One
       World Championship records* is the page with the tables this one lacks.
@@ -1447,6 +1442,15 @@ Real, but not costed, or waiting on a decision.
       reader's own access date is left to the reader; the build date is what
       fixes the figures. — *product critique · #71*
 
+- [x] `WK-05` **The season's grid is counted.** `v_season_grid` — drivers
+      entered (from the race entries; a DNQ is an entry, and no source says
+      who started), constructors by their F1DB key so the Indianapolis
+      builders of 1950–1960 count, engine makers, races run — one row per
+      season, pinned by `verify.py` to direct counts for four seasons; a line
+      on every season page and a fact on the static one. The first cut
+      counted the curated constructor key (1950 read eight, not
+      twenty-three), said "started", and bounded the view by identities; the
+      review caught all three. — *Wikipedia survey · #73*
 - [x] `CD-19` **Driver ledes no longer spell a figure the strip derives.**
       `verify.py`'s check reads spelled cardinals (one to twenty, thirty to
       hundred, compounds), digit and spelled ordinals above "first" ("300th
