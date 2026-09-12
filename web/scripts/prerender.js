@@ -147,6 +147,62 @@ const summarise = (value, limit = 160) => {
 
 const list = (values) => values.filter(Boolean).join(', ')
 
+/** "Ferrari", "Ferrari and Matra", "Mercedes, McLaren and Ferrari", "Ferrari, Matra and 6 other constructors". */
+const constructorList = (names) => {
+  if (names.length <= 3) return names.length < 3 ? names.join(' and ') : `${names[0]}, ${names[1]} and ${names[2]}`
+  const rest = names.length - 2
+  return `${names[0]}, ${names[1]} and ${rest} other ${rest === 1 ? 'constructor' : 'constructors'}`
+}
+
+const ORDINALS = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth', 'eleventh', 'twelfth']
+const ordinal = (n) => {
+  if (n <= ORDINALS.length) return ORDINALS[n - 1]
+  const tail = n % 10 === 1 && n % 100 !== 11 ? 'st' : n % 10 === 2 && n % 100 !== 12 ? 'nd' : n % 10 === 3 && n % 100 !== 13 ? 'rd' : 'th'
+  return `${n}${tail}`
+}
+
+const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
+
+/**
+ * A driver's career as one sentence a search snippet can show, from the
+ * figures counted out of the race records - the ones the strip at the top of
+ * the page derives - and never from a stored column the page labels as
+ * published. For a winner: what they won. For everyone else: what is true.
+ *
+ *     Entered 88 championship Grands Prix across 1979–1986 for Arrows,
+ *     Brabham and 5 other constructors; best finish fourth.
+ *
+ * `finish_position` is NULL for a DNF, a DNQ and a DNS alike, so a career
+ * with no classified finish says exactly that rather than guessing why.
+ */
+const careerSentence = (derived, constructors, titles) => {
+  if (!derived || !derived.entries) return 'No championship race entry in the records.'
+  const when =
+    derived.first_year === derived.last_year
+      ? `in ${derived.first_year}`
+      : `across ${derived.first_year}–${derived.last_year}`
+  const who = constructors.length ? ` for ${constructorList(constructors)}` : ''
+  const entered = `Entered ${plural(derived.entries, 'championship Grand Prix', 'championship Grands Prix')} ${when}${who}`
+
+  const tally = [
+    titles ? plural(titles, 'world title') : null,
+    derived.wins ? plural(derived.wins, 'win') : null,
+    derived.podiums ? plural(derived.podiums, 'podium') : null,
+    derived.poles ? plural(derived.poles, 'pole') : null,
+  ].filter(Boolean)
+  const counted = tally.length > 1 ? `${tally.slice(0, -1).join(', ')} and ${tally.at(-1)}` : tally[0] ?? null
+
+  // A winner's best finish is the win; anyone else is described by their best
+  // result, or by the absence of one.
+  const best = derived.wins
+    ? null
+    : derived.best
+      ? `best finish ${ordinal(derived.best)}`
+      : 'no classified finish'
+
+  return `${entered}; ${[counted, best].filter(Boolean).join(', ')}.`
+}
+
 /**
  * A recorded source disagreement, rendered beside the fact it is about.
  *
@@ -690,9 +746,11 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
       <p class="lede">${drivers.length} drivers. Career totals are counted from the race records
         wherever the records support it; an em dash means nobody has established that figure.</p>
       ${table(
-        ['Driver', 'Nationality', 'Seasons', 'Races', 'Wins', 'Poles', 'Podiums', 'Titles'],
-        // Most wins first, as the app opens; Races counted from the race
-        // records, the stored `starts` being held for 31 drivers only. The
+        ['Driver', 'Nationality', 'Seasons', 'Entries', 'Wins', 'Poles', 'Podiums', 'Titles'],
+        // Most wins first, as the app opens; Entries counted from the race
+        // records — one row per race a driver was entered for, which is an
+        // entry and not a start — the stored `starts` being held for 31
+        // drivers only. The same word as the strip on the driver's page. The
         // tie-break compares names as SQLite does (BINARY), not with the
         // locale, so the static order is the app's order row for row.
         [...drivers]
@@ -723,7 +781,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
   )
   const seasonsOf = db.prepare(
     `SELECT r.year,
-            COUNT(*) AS starts,
+            COUNT(*) AS entries,
             SUM(COALESCE(e.points, 0)) AS points,
             GROUP_CONCAT(DISTINCT c.name) AS teams
        FROM race_entries e
@@ -731,26 +789,50 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
        LEFT JOIN constructors c ON c.id = e.constructor_id
       WHERE e.driver_id = ? GROUP BY r.year ORDER BY r.year`,
   )
+  // The career counted from the race records — the same query Driver.jsx
+  // runs for the strip at the top of the page, plus the first and last year
+  // with an entry. The description and the static facts are built from this,
+  // never from `entries`/`starts`/`wins` on the drivers row: the page itself
+  // labels those "(published)", and a description that quoted them read
+  // "0 wins, 0 poles" for 81 drivers whose lede had just moved to
+  // `provenance`.
+  const derivedOf = db.prepare(
+    `SELECT COUNT(*)                        AS entries,
+            COUNT(DISTINCT r.year)          AS seasons,
+            MIN(r.year)                     AS first_year,
+            MAX(r.year)                     AS last_year,
+            SUM(e.finish_position = 1)      AS wins,
+            SUM(e.finish_position <= 3)     AS podiums,
+            SUM(e.pole = 1)                 AS poles,
+            MIN(e.finish_position)          AS best
+       FROM race_entries e
+       JOIN races r ON r.id = e.race_id
+      WHERE e.driver_id = ?`,
+  )
+  // Constructors entered for, most often first; 377 entries name none.
+  const constructorsOf = db.prepare(
+    `SELECT c.name, COUNT(*) AS n
+       FROM race_entries e
+       JOIN constructors c ON c.id = e.constructor_id
+      WHERE e.driver_id = ?
+      GROUP BY c.id ORDER BY n DESC, c.name`,
+  )
 
   for (const d of drivers) {
     const wins = winsOf.all(d.id)
     const seasons = seasonsOf.all(d.id)
-    const summary = [
-      d.titles ? `${d.titles} world ${d.titles === 1 ? 'title' : 'titles'}` : null,
-      d.wins !== null ? `${d.wins} wins` : null,
-      d.poles !== null ? `${d.poles} poles` : null,
-      d.starts !== null ? `${d.starts} starts` : null,
-    ].filter(Boolean)
+    const derived = derivedOf.get(d.id)
+    const career = careerSentence(derived, constructorsOf.all(d.id).map((c) => c.name), d.titles)
+    // The lede follows the derived sentence where there is room for a whole
+    // sentence of it; a note that is one long sentence would otherwise be
+    // cut mid-thought with an ellipsis, and the career alone is complete.
+    const lead = `${d.full_name}${d.nationality ? `, ${d.nationality}` : ''}. ${career}`
+    const withNotes = summarise(`${lead} ${d.notes ?? ''}`, 300)
 
     page({
       path: `drivers/${d.id}`,
       title: titled(d.full_name),
-      description: summarise(
-        `${d.full_name}${d.nationality ? `, ${d.nationality}` : ''}${
-          d.first_season ? `, Formula One ${d.first_season}–${d.last_season ?? 'present'}` : ''
-        }. ${summary.join(', ')}${summary.length ? '. ' : ''}${d.notes ?? ''}`,
-        300,
-      ),
+      description: withNotes.endsWith('…') ? lead : withNotes,
       trail: [['', 'Home'], ['drivers', 'Drivers'], [`drivers/${d.id}`, d.full_name]],
       jsonld: {
         '@context': 'https://schema.org',
@@ -769,8 +851,13 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
           ['Born', text(d.born)],
           ['Died', d.died ? text(d.died) : null],
           ['Seasons', `${d.first_season ?? '?'}–${d.last_season ?? 'present'}`],
-          ['Entries', num(d.entries)],
-          ['Starts', num(d.starts)],
+          // Entries is the count from the race records, as the app's strip
+          // shows it; the two published figures follow, labelled as the app
+          // labels them, because an entry is not a start and the records
+          // cannot tell them apart.
+          ['Entries', num(derived.entries)],
+          ['Entries (published)', num(d.entries)],
+          ['Starts (published)', num(d.starts)],
           ['Wins', num(d.wins)],
           ['Podiums', num(d.podiums)],
           ['Poles', num(d.poles)],
@@ -798,10 +885,10 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
         ${
           seasons.length
             ? `<h2>Seasons</h2>${table(
-                ['Season', 'Starts', 'Points', 'Team'],
+                ['Season', 'Entries', 'Points', 'Team'],
                 seasons.map((s) => [
                   link(`seasons/${s.year}`, s.year),
-                  String(s.starts),
+                  String(s.entries),
                   num(s.points),
                   text(s.teams),
                 ]),

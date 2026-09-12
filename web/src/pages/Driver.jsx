@@ -349,8 +349,11 @@ function DriverBody({ driver, data }) {
             // `notes`, which is the lede above and the meta description; it is
             // shown only where it exists, so most rows get no em dash for it.
             driver.provenance ? { label: 'Provenance', value: driver.provenance } : null,
-            { label: 'Entries (stored)', value: number(driver.entries) },
-            { label: 'Starts (stored)', value: number(driver.starts) },
+            // Published figures, labelled as such: the strip above counts
+            // Entries from the race records, and the static page carries
+            // the same three labels in the same order.
+            { label: 'Entries (published)', value: number(driver.entries) },
+            { label: 'Starts (published)', value: number(driver.starts) },
             {
               label: 'Wins',
               value: `${number(driver.wins)} derived${
