@@ -117,7 +117,7 @@ CREATE TABLE table_provenance (
     -- makes, whatever the source's standing. A well-run source does not
     -- make a row checkable: article_images comes from the MediaWiki API and
     -- records which file an article leads with, and NOTHING here constrains
-    -- what the photograph shows. See known_gaps #10. Such a table is floored
+    -- what the photograph shows. See known_gaps #11. Such a table is floored
     -- at 'unverified' rather than taking its source's tier.
     unconstrained   INTEGER NOT NULL DEFAULT 0,
     note            TEXT
@@ -1744,7 +1744,7 @@ GROUP BY decade ORDER BY decade;
 
 -- Every constructor-season the entry lists cannot resolve to one chassis,
 -- with the chassis it was choosing between. This is the open half of
--- known_gaps #1, listed rather than described.
+-- known_gaps #3, listed rather than described.
 CREATE VIEW v_ambiguous_seasons AS
 SELECT se.year, COALESCE(t.name, se.f1db_constructor_id) AS constructor,
        GROUP_CONCAT(DISTINCT se.chassis_ids) AS chassis,

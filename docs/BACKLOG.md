@@ -693,6 +693,15 @@ Real, but not costed, or waiting on a decision.
       on the record; a marketing surface is not a database row. —
       *project record · ?*
 
+- [ ] `PM-30` **A `known_gaps #N` citation is a positional number nobody
+      checks.** Ids come from `enumerate(KNOWN_GAPS, 1)`, so filing a gap
+      mid-list renumbers every citation after it; `PM-28` corrected nine
+      that had drifted, two of them inside `f1.db`. Either cite gaps by
+      `field` in prose, or have `verify.py` read every `known_gaps #N`
+      across the tree beside the field it names and fail on a mismatch —
+      the project's usual answer to a number nothing checks. Found by the
+      review of #87. — *review of #87 · S*
+
 - [ ] `PD-08` **Decide what the atlas is for.** **Superseded by `PD-21`**,
       which decides it: a comparison surface, and only that. Three critics and
       the walkthrough agreed from structure and from use; the one number that
@@ -1587,11 +1596,14 @@ Real, but not costed, or waiting on a decision.
       first two by a block edit the review of #85 caught as unrecorded. — *review
       of #79 · #85*
 
-- [x] `PM-28` **Six code comments cite the gap they mean.** Three that meant
-      the Jolpica licence decision now say `known_gaps` #2 and three that
-      meant the abandoned chassis-per-race harvest say #3; `#1`, the
-      fastest-lap harvest, is cited by none of them. Comments only. —
-      *review of #82 · #87*
+- [x] `PM-28` **Nine gap citations name the gap they mean.** Three code
+      comments that meant the Jolpica licence decision now say `known_gaps`
+      #2 and four that meant the abandoned chassis-per-race harvest say #3
+      (one of them in `schema.sql`); the `article_images` provenance note
+      and the `table_provenance` schema comment said #10, the centrelines,
+      for #11, whether a photograph shows the car — and those two ship in
+      `f1.db`, so this is a rebuild, not a comment edit. The review of #87
+      found the three the `.py`-only grep missed. — *review of #82 · #87*
 
 ## Declined
 
