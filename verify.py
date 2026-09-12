@@ -1408,6 +1408,26 @@ def the_driver_register():
         if (_m := _figure.search(r[1]))]
     check("no driver note states a figure the page derives",
           not _typed, "; ".join(_typed[:6]))
+    # The register's first and last season against the race records'. They
+    # differ for two drivers, and each side is right about something: Cevert's
+    # first entry is the 1969 German Grand Prix, driven in a Formula 2 Tecno,
+    # and the register's 1970 is his Formula One debut; Rossi's 2014 was
+    # practice only, and the records' first entry is 2015. The driver page
+    # shows both where they differ (CD-22); a third case must be read the same
+    # way before it rides along. A NULL last_season is an open span - still
+    # driving - and makes no claim about the last year, the same predicate
+    # seasonsNote() applies in web/src/queries/driver.js.
+    _span = {r[0] for r in con.execute("""SELECT d.id FROM drivers d
+        JOIN (SELECT e.driver_id, MIN(r.year) fy, MAX(r.year) ly FROM race_entries e
+                JOIN races r ON r.id = e.race_id GROUP BY e.driver_id) x ON x.driver_id = d.id
+        WHERE d.first_season IS NOT NULL
+          AND (d.first_season != x.fy
+               OR (d.last_season IS NOT NULL AND d.last_season != x.ly))""")}
+    _declared = {"cevert", "alexander-rossi"}
+    check("the register's seasons differ from the race records' only for the declared two",
+          _span == _declared,
+          "undeclared: " + (", ".join(sorted(_span - _declared)) or "none")
+          + "; no longer differing: " + (", ".join(sorted(_declared - _span)) or "none"))
 
 
 @section('THE CONSTRUCTOR REGISTER')

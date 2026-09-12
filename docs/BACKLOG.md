@@ -527,15 +527,25 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       (stored)". One word, and the stored one labelled for what it is
       (published). Found by the review of #69. — *review of #69 · S*
 
-- [ ] `CD-22` **The static driver description and the facts list disagree on
-      the years.** The description derives first and last year from the
-      race entries; the facts list shows the stored `first_season` and
-      `last_season`. Cevert reads "across 1969–1973" beside "Seasons
-      1970–1973", Alexander Rossi "in 2015" beside "2014–2015". Derive both,
-      or say which is which. Found by the review of #75. — *review of #75 ·
-      S*
+- [ ] `CD-25` **The reason two drivers' spans differ is only in the code.**
+      Cevert's 1969 German Grand Prix in a Formula 2 Tecno and Rossi's
+      practice-only 2014 explain the two Seasons notes, and the explanation
+      sits in `driver.js` and `verify.py` comments where no reader meets it.
+      A `discrepancies` row each would put it beside the fact through the
+      existing `disagree()` aside. While there: a NULL `first_season` suppresses
+      the comparison at both ends where a NULL `last_season` suppresses only
+      its own; make the predicate symmetric in `seasonsNote()` and the
+      `verify.py` pin together (no row needs it today). Found by the review
+      of #81. — *review of #81 · S*
 
 **Interaction design**
+
+- [ ] `IX-17` **The Active filter on `/drivers` matches nobody.** `Drivers.jsx`
+      keeps a row when `last_season === 2026`, and no row has that: the 23
+      current drivers carry a NULL last season, the register's open span.
+      `status` is already in the shared `DRIVERS` query; filter on it, and
+      give the smoke test a case that expects more than zero rows. Found by
+      the review of #81. — *review of #81 · S*
 
 - [ ] `IX-16` **`IA-08` escalated: Back restores the scroll and not the filter.** France filter, sort by wins, scroll, open a driver, Back — same pixel, 862 unfiltered rows. Do `/drivers` first. — *interaction critique · M*
 
@@ -1522,6 +1532,16 @@ Real, but not costed, or waiting on a decision.
       than counted, Surtees's seven motorcycle titles are counted as times
       rather than titles, and Montoya's "fourth GP start" was wrong — the pass on
       Schumacher at Interlagos 2001 was his third. — *review of #74 · #79*
+
+- [x] `CD-22` **Where the register's seasons are not the race records', the
+      page says which is which.** The Seasons note on the driver strip, in
+      both renderers, reads "1969–1973 in the race records, 1970–1973
+      published" where the spans differ; two drivers do (Cevert's 1969
+      German Grand Prix in a Formula 2 car, Rossi's practice-only 2014), each
+      side right about something, and `verify.py` pins the pair. An open
+      span — a driver still driving — makes no claim about its last year,
+      which the first cut missed and the review caught on 23 current
+      drivers. — *review of #75 · #81*
 
 ## Declined
 
