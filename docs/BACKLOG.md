@@ -1562,11 +1562,15 @@ Real, but not costed, or waiting on a decision.
       which the first cut missed and the review caught on 23 current
       drivers. — *review of #75 · #81*
 
-- [x] `IX-17` **The Active filter keeps the grid.** It tested `last_season`
-      against 2026, a year the register's open span never holds, and matched
-      nobody; it filters on `status` now, `verify.py` pins the active set to
-      the drivers with an entry in the latest season (23 today, both ways),
-      and the smoke test expects more than zero rows. — *review of #81 · #84*
+- [x] `IX-17` **The grid filter keeps the grid, and derives it.** It tested
+      `last_season` against 2026, a year the register's open span never
+      holds, and matched nobody. The shared `DRIVERS` query now derives
+      `on_grid` — an entry in the latest completed season — and the season
+      itself, so the chip names the year from the data; `verify.py` fails an
+      active driver with no entry and reports a mid-season replacement (the
+      review of #84 found Doohan in 2025 would have failed a two-way pin);
+      the smoke test pins the exact count and that it is above zero. —
+      *review of #81 · #84*
 
 ## Declined
 
