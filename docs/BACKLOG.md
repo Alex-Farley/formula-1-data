@@ -525,18 +525,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       `verify.py` pin together (no row needs it today). Found by the review
       of #81. — *review of #81 · S*
 
-- [ ] `CD-23` **The lede check's qualifier list is short, and its gap is
-      loose.** "Ten F1 wins", "Seven World titles", "Two World Championship
-      titles" and "two consecutive Drivers' titles" pass because a
-      capitalised word is read as a place-name subset; fold `F1`, `Formula
-      One`, `World`, `World Championship`, `Championship` and `Drivers'`
-      into the noun's qualifier group beside `GP`. The two-word gap swallows
-      "Four of his wins" (no total stated) and "Six Formula One wins" is
-      reported as "One wins"; tighten the gap to exclude `of|his|the` and
-      report the whole match. Give the pattern a unit test in `tests/` so
-      both interpreters prove it matches, not merely compiles. Found by the
-      review of #79. — *review of #79 · S*
-
 - [ ] `CD-24` **Subset figures in a driver note are counted by nobody.**
       Hill's five and Senna's six Monaco wins, Trintignant's two, and
       Ickx's six Le Mans wins were verified by hand for #79 and nothing
@@ -1568,6 +1556,17 @@ Real, but not costed, or waiting on a decision.
       span — a driver still driving — makes no claim about its last year,
       which the first cut missed and the review caught on 23 current
       drivers. — *review of #75 · #81*
+
+- [x] `CD-23` **The lede check is one tested pattern.** `tools/lede_figures.py`
+      holds it, with its reasons; `tests/test_lede_figures.py` makes both
+      interpreters prove 17 catches and 12 leave-alones. Career qualifiers
+      (`F1`, `Formula One`, `World`, `World Championship`, `Championship`,
+      `Drivers'`, `career`) no longer hide a total; "of", "his", "the" and
+      kin no longer bridge the gap; "Six Formula One wins" is reported whole
+      and "Formula One wins" alone is not a figure; eleventh to nineteenth
+      join the ordinals, which had skipped them — the comment's own
+      Hülkenberg example never matched. No note needed rewriting. — *review
+      of #79 · #85*
 
 ## Declined
 
