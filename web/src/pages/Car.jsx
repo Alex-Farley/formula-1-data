@@ -81,7 +81,7 @@ export default function Car() {
         const chassis = variants[0]
         if (!chassis) {
           return (
-            <Page title="No such car" back={{ to: '/cars', label: 'The register' }}>
+            <Page title="No such car" cite={false} back={{ to: '/cars', label: 'The register' }}>
               <p className="muted">Nothing in the chassis register has the id “{id}”.</p>
               <p>
                 Press <kbd>/</kbd> to search by chassis name, or{' '}

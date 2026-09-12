@@ -94,7 +94,7 @@ export default function Race() {
         const race = data.race.rows[0]
         if (!race) {
           return (
-            <Page title="No such race" back={{ to: '/races', label: 'All races' }}>
+            <Page title="No such race" cite={false} back={{ to: '/races', label: 'All races' }}>
               <p className="muted">
                 There is no round {round} of {year} in the register.
               </p>

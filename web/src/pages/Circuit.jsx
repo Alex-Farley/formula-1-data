@@ -65,7 +65,7 @@ export default function Circuit() {
         const circuit = data.circuit.rows[0]
         if (!circuit) {
           return (
-            <Page title="No such circuit" back={{ to: '/circuits', label: 'The register' }}>
+            <Page title="No such circuit" cite={false} back={{ to: '/circuits', label: 'The register' }}>
               <p className="muted">Nothing in the register has the id “{id}”.</p>
               <p>
                 Press <kbd>/</kbd> to search by name, or{' '}

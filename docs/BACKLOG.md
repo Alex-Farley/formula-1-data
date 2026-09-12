@@ -1421,11 +1421,15 @@ Real, but not costed, or waiting on a decision.
       records. Also pins the front-end reviewer agent to Opus, as every other
       reviewer already was. — *product critique · #69*
 
-- [x] `PD-10` **A citation block on every page.** One sentence — the page's
-      title, the database version and build date, the permanent address —
-      rendered by `Page` in the app and by `chrome()` in the static page, so a
-      crawler sees it. The reader's own access date is left to the reader;
-      the build date is what fixes the figures. — *product critique · #71*
+- [x] `PD-10` **A citation block on every page.** One sentence — the
+      database version and build date and the page's permanent address —
+      from one function in `site.js`, rendered by `Page` in the app and by
+      `chrome()` in the static page, so a crawler sees it. The page is named
+      by its address, not its title: the two renderers title routes
+      differently, and the review caught the drift. Pages that do not exist
+      (the not-found route and the six "No such …" shells) offer none. The
+      reader's own access date is left to the reader; the build date is what
+      fixes the figures. — *product critique · #71*
 
 ## Declined
 

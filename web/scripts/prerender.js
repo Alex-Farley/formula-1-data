@@ -202,7 +202,7 @@ const NAV = [
   ['data', 'Data'],
 ]
 
-const chrome = (body, crumbs, cite) => `
+const chrome = (body, crumbs, citeUrl) => `
 <div class="app pre">
   <header class="masthead">
     <div class="masthead-inner">
@@ -214,11 +214,11 @@ const chrome = (body, crumbs, cite) => `
     ${crumbs ? `<nav class="crumbs" aria-label="Breadcrumb">${crumbs}</nav>` : ''}
     ${body}
     ${
-      cite
-        ? `<aside class="cite" aria-label="How to cite this page"><p>${citation(META.version, META.built, cite.url)
-            .split(cite.url)
+      citeUrl
+        ? `<aside class="cite" aria-label="How to cite this page"><p>${citation(META.version, META.built, citeUrl)
+            .split(citeUrl)
             .map(esc)
-            .join(`<span class="url">${esc(cite.url)}</span>`)}</p></aside>`
+            .join(`<span class="url">${esc(citeUrl)}</span>`)}</p></aside>`
         : ''
     }
   </main>
@@ -248,10 +248,8 @@ const pages = []
  * needs.
  */
 const page = ({ path, title, description, body, jsonld = null, trail = null }) => {
-  // The citation names the page by its title without the site suffix, and
-  // by the address the canonical carries.
-  const cite = { url: `${ORIGIN}${href(path)}` }
-  pages.push({ path, title, description, jsonld, html: chrome(body, trail ? crumbs(trail) : '', cite) })
+  // The citation names the page by the address the canonical carries.
+  pages.push({ path, title, description, jsonld, html: chrome(body, trail ? crumbs(trail) : '', `${ORIGIN}${href(path)}`) })
 }
 
 

@@ -100,7 +100,7 @@ export default function Constructor() {
         const constructor = data.constructor.rows[0]
         if (!constructor) {
           return (
-            <Page title="No such constructor" back={{ to: '/constructors', label: 'The register' }}>
+            <Page title="No such constructor" cite={false} back={{ to: '/constructors', label: 'The register' }}>
               <p className="muted">Nothing in the register has the id “{id}”.</p>
               <p>
                 Press <kbd>/</kbd> to search by name, or{' '}

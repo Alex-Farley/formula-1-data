@@ -75,7 +75,7 @@ export function Page({ eyebrow, title, lede, back, aside, children, cite = true 
         {aside}
       </header>
       {children}
-          {cite && <Cite />}
+      {cite && <Cite />}
     </article>
   )
 }

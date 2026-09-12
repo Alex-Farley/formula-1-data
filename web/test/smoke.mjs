@@ -962,6 +962,8 @@ try {
   }
   await go('/no-such-page-here')
   truthy(!(await page.$('#root .cite')), 'a page that does not exist offers no citation')
+  await go('/drivers/no-such-driver', 'No such driver')
+  truthy(!(await page.$('#root .cite')), 'an unknown driver offers no citation either')
 
   // ----------------------------------------------------------------- SQL
 
