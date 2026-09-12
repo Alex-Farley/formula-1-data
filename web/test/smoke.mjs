@@ -1005,6 +1005,21 @@ try {
   await go('/drivers/no-such-driver', 'No such driver')
   truthy(!(await page.$('#root .cite')), 'an unknown driver offers no citation either')
 
+  // Where a driver has a published entry count that differs from the derived
+  // one, both renderers show both and say why, in the same words.
+  {
+    const two = db
+      .prepare('SELECT d.id FROM drivers d WHERE d.entries IS NOT NULL AND d.entries != (SELECT COUNT(*) FROM race_entries e WHERE e.driver_id = d.id) LIMIT 1')
+      .get()
+    if (two) {
+      await go(`/drivers/${two.id}`)
+      const appNote = await page.waitForSelector('#root main .source-note', { timeout: 20000 }).then((n) => n.textContent())
+      truthy(appNote.includes('an entry is not a start'), `the app says why ${two.id} has two entry counts`)
+      const html = await (await fetch(`${BASE}/drivers/${two.id}`)).text()
+      truthy(html.includes('an entry is not a start') && html.includes('Entries (published)'), 'the static page says the same beside both figures')
+    }
+  }
+
   // ----------------------------------------------------------------- SQL
 
   console.log('\n/data/sql')

@@ -11,6 +11,18 @@ export const SITE = 'Lap Ledger'
 export const titled = (headline) => `${headline} — ${SITE}`
 
 /**
+ * Why a driver's page can show two entry counts. Said once, in both
+ * renderers: the review of #75 found fourteen pages printing 393 beside 392
+ * with nothing between them.
+ */
+export const ENTRIES_NOTE =
+  'Entries is counted here from the race records, one for every race a driver was entered for, and ' +
+  'wins, podiums and poles are counted the same way and checked against the published totals on every ' +
+  'build. The published entry and start figures are a different count, kept for the few drivers who ' +
+  'have one: an entry is not a start, and telling them apart needs a reason for each non-start that no ' +
+  'source here supplies. Where the two disagree, both are shown.'
+
+/**
  * How to cite a page. The page is named by its address, not its title: the
  * app and the static page have titled the same route differently since the
  * prerenderer was written, and a citation is the one place that difference

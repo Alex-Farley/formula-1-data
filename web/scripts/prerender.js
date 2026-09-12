@@ -48,7 +48,7 @@ import { fileURLToPath } from 'node:url'
 // than restated here: a copy of it would drift, which is how the twelve
 // hardcoded `circuit_geometry` columns went wrong.
 import { finished, yearList } from '../src/lib/format.js'
-import { CROSS_CHECKED, citation, NOT_HELD, SELF_DESCRIBING, SITE, TWO_FILES, titled } from '../src/lib/site.js'
+import { CROSS_CHECKED, ENTRIES_NOTE, citation, NOT_HELD, SELF_DESCRIBING, SITE, TWO_FILES, titled } from '../src/lib/site.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const web = join(here, '..')
@@ -154,9 +154,9 @@ const constructorList = (names) => {
   return `${names[0]}, ${names[1]} and ${rest} other ${rest === 1 ? 'constructor' : 'constructors'}`
 }
 
-const ORDINALS = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth', 'eleventh', 'twelfth']
+// Digits throughout: "best finish 4th" and "best finish 33rd" read as one
+// system, where words to twelfth and digits beyond did not.
 const ordinal = (n) => {
-  if (n <= ORDINALS.length) return ORDINALS[n - 1]
   const tail = n % 10 === 1 && n % 100 !== 11 ? 'st' : n % 10 === 2 && n % 100 !== 12 ? 'nd' : n % 10 === 3 && n % 100 !== 13 ? 'rd' : 'th'
   return `${n}${tail}`
 }
@@ -868,6 +868,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
           ['Provenance', d.provenance ? esc(d.provenance) : null],
           ['Confidence', d.confidence ? link('data/quality', d.confidence) : text(d.confidence)],
         ])}
+        <p class="source-note">${esc(ENTRIES_NOTE)}</p>
         ${prose(d.notes)}
         ${disagree(careerDisagreements.all(d.full_name), 'this career')}
         ${

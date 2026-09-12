@@ -1,3 +1,4 @@
+import { ENTRIES_NOTE } from '../lib/site.js'
 import { useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Confidence, Fields, Note, Onward, Page, Section, Stats } from '../components/Page.jsx'
@@ -386,12 +387,7 @@ function DriverBody({ driver, data }) {
             },
           ]}
         />
-        <p className="source-note">
-          Wins, poles and fastest laps are counted from the races above and checked against the
-          published totals on every build; where the two disagree, both are shown. Entries and
-          starts are the published figures — an entry is not a start, and telling them apart needs
-          a reason for each non-start that no source here supplies.
-        </p>
+        <p className="source-note">{ENTRIES_NOTE}</p>
       </Section>
 
       <Onward
