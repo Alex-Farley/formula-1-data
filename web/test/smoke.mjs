@@ -828,6 +828,32 @@ try {
   )
   pass('the register is intact after a rejected write')
 
+  // A runaway statement can be cancelled, and the site survives it. The
+  // three-way self-join would hold the worker for the rest of the session; the
+  // Cancel button replaces the worker, and the next query - and the next page -
+  // must work as if nothing happened.
+  await page.fill('textarea.sql', 'SELECT COUNT(*) AS n FROM race_entries a, race_entries b, race_entries c')
+  await page.click('button.button')
+  await page.waitForSelector('button.button.cancel', { timeout: 5000 })
+  await page.click('button.button.cancel')
+  await page.waitForFunction(
+    () => /^Cancelled after/.test(document.querySelector('#root main [role="status"]')?.textContent ?? ''),
+    null,
+    { timeout: 10000 },
+  )
+  pass('a runaway query is cancelled and says so')
+  await page.fill('textarea.sql', 'SELECT COUNT(*) AS n FROM drivers')
+  await page.click('button.button')
+  await page.waitForFunction(
+    (expected) => document.querySelector('#root main tbody td')?.textContent.replace(/[^0-9]/g, '') === String(expected),
+    count('SELECT COUNT(*) FROM drivers'),
+    { timeout: 20000 },
+  )
+  pass('the console works again after a cancel')
+  await go('/drivers', 'Drivers')
+  await page.waitForSelector('#root main tbody tr', { timeout: 20000 })
+  atLeast((await tableRows())[0], 100, 'a register fills after the console cancel')
+
   // ------------------------------------------------------------------ sorting
 
   // NULL means "not established" here, and 824 of 862 drivers have no stored

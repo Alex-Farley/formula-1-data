@@ -85,22 +85,6 @@ supports on its own. `AF-02` carries the three follow-ons.
 first visit (`IX-01`, `IX-02`, `IX-03`, `IX-13`) landed in #37. `PD-02` is still the
 largest single fix and still has its riders.
 
-- [ ] `IX-04` **One careless query in the SQL console kills the site for the
-      session.** A three-way self-join occupies the single worker forever; no
-      cancel, no timeout; navigate away and every register shows a skeleton
-      that never fills, with no message. A Cancel button that terminates the
-      worker and reopens from IndexedDB (0.8 s measured). —
-      *interaction critique · M*
-
-- **Four accessibility fixes in under an hour** (`AX-08`, `AX-05`, `AX-03`,
-      `AX-04`), filed individually under *Next* and gathered here because they
-      are the cheapest AA failures on the site: `scroll-padding-top`, one line
-      (Shift+Tab hides the focused link behind the masthead); one token
-      (`--ink-faint` fails 4.5:1 on three of the four light surfaces it sits
-      on — the entire automated finding); focus the `h1` on navigation, one
-      line in `Page`; `role="status"` on the two result counts. —
-      *accessibility critique · S*
-
 - [ ] `PD-02` **Make the prerenderer call the page components' own queries.**
       Static and app emit different numbers under the same label — 14 of 38
       drivers with a stored `entries` disagree with the derived count, and the
@@ -1166,6 +1150,14 @@ Real, but not costed, or waiting on a decision.
 - [x] `IX-09` **The scrubber says what is under the marker** — the corner
       band and its radius — so it teaches the colour key instead of counting
       up a distance the drawing already shows. — *interaction critique · #56*
+
+- [x] `IX-04` **A runaway console query can be cancelled.** sql.js has no
+      interrupt, so Cancel terminates the worker, reopens the database (from
+      IndexedDB on a return visit) and re-sends every other page's waiting
+      request; only the cancelled statement is rejected. The smoke suite runs
+      a three-way self-join, cancels it, and checks the console and a register
+      both work afterwards. No timeout: a slow honest query is the reader's
+      to wait for or stop. — *interaction critique · #58*
 
 ## Declined
 

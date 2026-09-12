@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { SELF_DESCRIBING, TWO_FILES } from '../lib/site.js'
 import { Note, Onward, Page, Section } from '../components/Page.jsx'
 import { ErrorBox, Loading } from '../components/States.jsx'
@@ -114,6 +114,7 @@ export default function Sql() {
   const [text, setText] = useState(START)
   const [state, setState] = useState({ status: 'idle' })
   const [schema, setSchema] = useState([])
+  const running = useRef(null)
 
   useEffect(() => {
     query(SCHEMA).then(({ rows }) => setSchema(rows), () => setSchema([]))
@@ -127,13 +128,26 @@ export default function Sql() {
     }
     setState({ status: 'running' })
     const started = performance.now()
+    const controller = new AbortController()
+    running.current = controller
     try {
-      const data = await queryReadOnly(statement)
+      const data = await queryReadOnly(statement, [], { signal: controller.signal })
       setState({ status: 'done', data, elapsed: performance.now() - started })
     } catch (error) {
-      setState({ status: 'error', error })
+      if (error?.name === 'AbortError') {
+        setState({ status: 'cancelled', elapsed: performance.now() - started })
+      } else {
+        setState({ status: 'error', error })
+      }
+    } finally {
+      if (running.current === controller) running.current = null
     }
   }
+
+  // The one way out of a statement that will not finish. Before this, a
+  // three-way self-join held the single worker every page shares for the
+  // rest of the session; navigating away showed skeletons that never filled.
+  const cancel = () => running.current?.abort()
 
   useEffect(() => {
     run(START)
@@ -183,7 +197,13 @@ export default function Sql() {
             <button type="button" className="button" onClick={() => run()} disabled={state.status === 'running'}>
               Run
             </button>
-            <span className="faint small">or ⌘/Ctrl + Enter</span>
+            {state.status === 'running' ? (
+              <button type="button" className="button cancel" onClick={cancel}>
+                Cancel
+              </button>
+            ) : (
+              <span className="faint small">or ⌘/Ctrl + Enter</span>
+            )}
             <span className="spacer" />
             {state.status === 'done' && (
               <span className="result-count" role="status">
@@ -195,6 +215,12 @@ export default function Sql() {
           <Section>
             {state.status === 'running' && <Loading label="Running" />}
             {state.status === 'error' && <ErrorBox error={state.error} context="SQLite refused that" />}
+            {state.status === 'cancelled' && (
+              <p className="note" role="status">
+                Cancelled after {(state.elapsed / 1000).toFixed(1)} s. The statement was stopped and
+                the connection reopened; the rest of the site was not affected.
+              </p>
+            )}
             {state.status === 'done' && (
               <DataTable
                 data={state.data}
