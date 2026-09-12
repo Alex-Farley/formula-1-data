@@ -193,12 +193,6 @@ Worth doing, not yet urgent.
       carries the reader sentences and the maintainer notes this entry asks for.
       — *product critique · S*
 
-- [ ] `PD-12` **State the lap-timing constraint as a position,** not a
-      schema-shaped apology inside a gaps table. "No one may lawfully
-      redistribute Formula One lap timing, so this database contains none, and
-      every figure here is one you may republish" is an advantage over anyone
-      hosting scraped timing. — *product critique · S*
-
 - [ ] `PM-12` **Loosen the specification harvest's name check.** It refuses
       "Alfa Romeo 158/159 Alfetta" for `alfa-romeo-159`. Match the chassis name
       as a token subsequence rather than a strict prefix; the constructor and
@@ -1635,6 +1629,13 @@ Real, but not costed, or waiting on a decision.
       one that names a row that does not exist. Which existing row a
       citation should name stays a reader's judgement, as `PM-28` was. —
       *review of #87 · #90*
+
+- [x] `PD-12` **The lap-timing constraint is a position.** The shared
+      `NOT_HELD` sentence on `/data`, in both renderers, opens with what the
+      absence means — no one may lawfully redistribute Formula One lap
+      timing, so this database holds none, and everything here may be passed
+      on — before it names the four empty tables. The gaps table keeps its
+      row; the front door states the advantage. — *product critique · #94*
 
 ## Declined
 
