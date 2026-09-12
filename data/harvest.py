@@ -911,7 +911,8 @@ DECLARED_DISCREPANCIES = [
 # rather than in a code comment no reader meets (CD-25). verify.py derives
 # the pair it pins from these rows, so a third driver whose spans differ
 # needs a row here before the build passes.
-#   driver_id, field, register value, race-records value, why
+#   driver_id, field ('first_season' or 'last_season'), register value,
+#   race-records value, why
 EXPLAINED_SPANS = [
     ("cevert", "first_season", 1970, 1969,
      "The register's 1970 is his Formula One debut, the Dutch Grand Prix in a "

@@ -1467,19 +1467,26 @@ def the_driver_register():
     _span = {r[0] for r in con.execute("""SELECT d.id FROM drivers d
         JOIN (SELECT e.driver_id, MIN(r.year) fy, MAX(r.year) ly FROM race_entries e
                 JOIN races r ON r.id = e.race_id GROUP BY e.driver_id) x ON x.driver_id = d.id
-        WHERE d.first_season IS NOT NULL
-          AND (d.first_season != x.fy
-               OR (d.last_season IS NOT NULL AND d.last_season != x.ly))""")}
+        WHERE (d.first_season IS NOT NULL AND d.first_season != x.fy)
+           OR (d.last_season IS NOT NULL AND d.last_season != x.ly)""")}
     # The declaration is the discrepancies row that explains it (CD-25), so
     # the pin and the reader's explanation cannot drift apart; the row's two
     # figures must also be the register's and the records'.
-    _explained = {r[0]: (r[1], r[2]) for r in con.execute("""SELECT d.id, x.stored_value, x.derived_value
+    # Either end of the span may be declared (CD-26): a row's field names
+    # the end, and its two figures must be that end's register value and
+    # the records' MIN or MAX year.
+    _explained = {}
+    for did, field, sv, dv in con.execute("""SELECT d.id, x.field, x.stored_value, x.derived_value
         FROM discrepancies x JOIN drivers d ON d.full_name = x.subject
-        WHERE x.field = 'first_season' AND x.status = 'explained - each side is right about something'""")}
+        WHERE x.field IN ('first_season', 'last_season')
+          AND x.status = 'explained - each side is right about something'"""):
+        _explained.setdefault(did, []).append((field, sv, dv))
     _declared = set(_explained)
-    _bad_rows = [f"{d}: row says {sv}/{dv}" for d, (sv, dv) in _explained.items()
-                 if con.execute("""SELECT NOT (d.first_season = ? AND
-                        (SELECT MIN(r.year) FROM race_entries e JOIN races r ON r.id = e.race_id
+    _agg = {"first_season": "MIN", "last_season": "MAX"}
+    _bad_rows = [f"{d} {field}: row says {sv}/{dv}" for d, rows_ in _explained.items()
+                 for field, sv, dv in rows_
+                 if con.execute(f"""SELECT NOT (d.{field} = ? AND
+                        (SELECT {_agg[field]}(r.year) FROM race_entries e JOIN races r ON r.id = e.race_id
                           WHERE e.driver_id = d.id) = ?) FROM drivers d WHERE d.id = ?""",
                      (int(sv), int(dv), d)).fetchone()[0]]
     _top = con.execute("SELECT MAX(id) FROM discrepancies").fetchone()[0]
@@ -1489,7 +1496,7 @@ def the_driver_register():
     check("the explained span rows are the last discrepancies written, so adding one moves no id",
           len(_exp_ids) == _n_exp and _exp_ids == list(range(_top - _n_exp + 1, _top + 1)),
           f"ids {_exp_ids} of {_n_exp} declared, max {_top}")
-    check("each explained span row carries the register's and the records' first season",
+    check("each explained span row carries the register's and the records' figure for its end",
           not _bad_rows, "; ".join(_bad_rows))
     # The register's `active` against the grid the drivers page derives - an
     # entry in the latest completed season (IX-17). In season, an active
@@ -2767,18 +2774,24 @@ def readme_figures():
     rf = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(rf)
 
-    with open(os.path.join(here, "README.md"), encoding="utf-8") as f:
-        text = f.read()
+    # Every document in rf.DOCUMENTS - the README and, since PM-31,
+    # docs/COMMERCIAL-READINESS.md, whose class table said 539 facts-only
+    # rows against 552 held while nothing read it.
+    text = ""
+    for path in rf.DOCUMENTS:
+        with open(path, encoding="utf-8") as f:
+            text += f.read() + "\n"
     try:
         said = rf.stated(text)
     except ValueError as e:
         check("no figure is stated twice with different values", False, str(e))
         return
-    check("no figure is stated twice with different values", True, f"{len(said)} spans")
+    check("no figure is stated twice with different values", True,
+          f"{len(said)} spans across {len(rf.DOCUMENTS)} documents")
 
     values = rf.compute(con, GEO)
     unknown = sorted(set(said) - set(values))
-    check("every figure the README states is one the tool computes", not unknown,
+    check("every figure a document states is one the tool computes", not unknown,
           ", ".join(unknown))
     unused = sorted(set(values) - set(said))
     check("every figure the tool computes is stated somewhere", not unused,
@@ -2787,8 +2800,9 @@ def readme_figures():
         if name in said:
             s, a = said[name], values[name]
             detail = a if "\n" not in a else "table"
-            check(f"README fig:{name} = {detail}", s == a,
-                  "" if s == a else f"README says {s!r}")
+            check(f"fig:{name} = {detail}", s == a,
+                  "" if s == a else f"the document says {s!r}")
+
 
 
 def main(argv):

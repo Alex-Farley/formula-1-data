@@ -506,16 +506,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       one no table can constrain. Found by the review of #79. — *review of
       #79 · S*
 
-- [ ] `CD-26` **A NULL `first_season` suppresses the span comparison at both
-      ends.** `seasonsNote()` returns early on a missing first season and the
-      `verify.py` pin skips the row, where a NULL `last_season` suppresses
-      only its own end; make the predicate symmetric in both, together (no
-      row needs it today). And the declaration mechanism recognises only
-      `first_season`: a `last_season` divergence could be cleared only by a
-      row labelled with the wrong field. Split out of `CD-25`, which landed
-      without them. Found by the reviews of #81 and #89. — *review of #81 ·
-      S*
-
 - [ ] `CD-27` **Three words for the register's figure on one screen.** The
       Seasons note calls it "published", the aside beside it "the
       register's", `/data/quality` heads the column "Stored". One word.
@@ -1645,6 +1635,24 @@ Real, but not costed, or waiting on a decision.
       a claim about the law rather than the licences and collided with the
       27,000 qualifying lap times F1DB publishes under CC BY; `known_gaps`
       #5 carries the same words. — *product critique · #94*
+- [x] `PM-31` **The commercial-readiness figures are spans the build writes.**
+      `tools/readme_figures.py` now writes every document in `DOCUMENTS` —
+      the README and `docs/COMMERCIAL-READINESS.md` — and counts the licence
+      position the way `./f1 licences` does: class shares, the two facts-only
+      domains, and each listed table's rows; `verify.py` checks them all.
+      The class table had said 539 against 552 held. The writer refuses a
+      facts-only row in a table the statement does not itemise, and every
+      listed table's figure must be stated or the build fails — the review
+      of #92 found the first cut's span would have rewritten itself around
+      an unread row, and a second cut's sum check that could not fail. —
+      *review of #91 · #92*
+- [x] `CD-26` **The span comparison is symmetric, and either end can be
+      declared.** A NULL at either end of the register's span is no claim
+      about that end and the other is still compared, in `seasonsNote()`
+      and the `verify.py` pin alike; an `EXPLAINED_SPANS` row may name
+      `last_season`, and its figures are checked against the records' MAX
+      year as a first-season row's are against MIN. No row needed it today.
+      — *review of #81 · #93*
 
 ## Declined
 

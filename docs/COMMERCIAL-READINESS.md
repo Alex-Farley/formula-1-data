@@ -16,22 +16,22 @@ by the build rather than by anyone's memory.
 
     ./f1 licences
 
-99.5% of the 117,391 sourced rows carry a licence that permits
-redistribution outright. The remaining 0.5% cite an official source as the
+<!-- fig:yes_share -->99.5%<!-- /fig --> of the <!-- fig:sourced_rows -->118,081<!-- /fig --> sourced rows carry a licence that permits
+redistribution outright. The remaining <!-- fig:facts_only_share -->0.5%<!-- /fig --> cite an official source as the
 **authority for a fact** and hold none of that source's prose. Nothing in the
 committed database may not be published.
 
 | Class | Rows | Share |
 |---|---:|---:|
-| `yes` — redistributable on the terms given | 116,852 | 99.5% |
-| `facts-only` — the facts, not the expression | 539 | 0.5% |
-| `no` — not redistributable | 0 | 0% |
+| `yes` — redistributable on the terms given | <!-- fig:yes_rows -->117,529<!-- /fig --> | <!-- fig:yes_share -->99.5%<!-- /fig --> |
+| `facts-only` — the facts, not the expression | <!-- fig:facts_only_rows -->552<!-- /fig --> | <!-- fig:facts_only_share -->0.5%<!-- /fig --> |
+| `no` — not redistributable | <!-- fig:no_rows -->0<!-- /fig --> | <!-- fig:no_share -->0.0%<!-- /fig --> |
 
 ---
 
 ## What was read
 
-539 rows cite `formula1.com` (478) or `fia.com` (61), the two sources whose
+<!-- fig:facts_only_rows -->552<!-- /fig --> rows cite `formula1.com` (<!-- fig:facts_only_formula1 -->478<!-- /fig -->) or `fia.com` (<!-- fig:facts_only_fia -->74<!-- /fig -->), the two sources whose
 licences are "FOM copyright; no reuse licence" and "FIA copyright; published
 for reference, not redistribution". Every one was examined and classified as
 either
@@ -40,19 +40,24 @@ either
   copyrightable, and restating one is not redistribution; or
 - **(b) text following the source's expression** — rewrite.
 
-**All 539 are (a). None is (b).** The breakdown:
+**All <!-- fig:facts_only_rows -->552<!-- /fig --> are (a). None is (b).** The breakdown, across <!-- fig:facts_only_tables -->9<!-- /fig --> tables — every
+figure here is a span `tools/readme_figures.py` writes from the database and
+`verify.py` checks. Two guards hold the list to the database: the writer
+refuses to run while a facts-only row sits in a table not listed here, and
+every listed table's figure must appear in this document or the build
+fails — so a row nobody has read cannot be counted as read:
 
 | Table | Rows | Source | What the row holds | Prose |
 |---|---:|---|---|---|
-| `drivers` | 118 | formula1.com | names, dates, career totals | `notes` |
-| `circuits` | 80 | formula1.com | length, turns, GP count | `notes`, `characteristics` |
-| `seasons` | 77 | formula1.com | champion, points, rounds | `notes` |
-| `standings` | 65 | formula1.com | 2025 final, 2026 current | — |
-| `constructors` | 55 | formula1.com | register facts | `notes` |
-| `races` | 47 | formula1.com | 2025–26 calendar | — |
-| `race_entries` | 36 | formula1.com | 2025–26 race winners | — |
-| `regulation_changes` | 58 | fia.com | year, category | `detail`, `impact` |
-| `regulation_limits` | 3 | fia.com | numeric limits | `note` |
+| `drivers` | <!-- fig:fo_drivers -->118<!-- /fig --> | formula1.com | names, dates, career totals | `notes` |
+| `circuits` | <!-- fig:fo_circuits -->80<!-- /fig --> | formula1.com | length, turns, GP count | `notes`, `characteristics` |
+| `seasons` | <!-- fig:fo_seasons -->77<!-- /fig --> | formula1.com | champion, points, rounds | `notes` |
+| `standings` | <!-- fig:fo_standings -->65<!-- /fig --> | formula1.com | 2025 final, 2026 current | — |
+| `constructors` | <!-- fig:fo_constructors -->55<!-- /fig --> | formula1.com | register facts | `notes` |
+| `races` | <!-- fig:fo_races -->47<!-- /fig --> | formula1.com | 2025–26 calendar | — |
+| `race_entries` | <!-- fig:fo_race_entries -->36<!-- /fig --> | formula1.com | 2025–26 race winners | — |
+| `regulation_changes` | <!-- fig:fo_regulation_changes -->59<!-- /fig --> | fia.com | year, category | `detail`, `impact` |
+| `regulation_limits` | <!-- fig:fo_regulation_limits -->15<!-- /fig --> | fia.com | numeric limits | `note` |
 
 The prose columns in the right-hand column are **written for this project**,
 not taken from FOM or the FIA — `ATTRIBUTION.md` records regulations, safety,
@@ -60,9 +65,9 @@ technical and glossary text as "written for this project from general
 knowledge". They carry a separate obligation, from Wikipedia and not from
 these sources, and are the subject of the prose pass rather than this one.
 
-### The 148 rows that look redundant and are not
+### The <!-- fig:fo_current_season_rows -->148<!-- /fig --> rows that look redundant and are not
 
-`races` (47), `race_entries` (36) and `standings` (65) cover 2025 and 2026,
+`races` (<!-- fig:fo_races -->47<!-- /fig -->), `race_entries` (<!-- fig:fo_race_entries -->36<!-- /fig -->) and `standings` (<!-- fig:fo_standings -->65<!-- /fig -->) cover 2025 and 2026,
 and F1DB covers both seasons under CC BY 4.0. It is tempting to read these as
 a redundant hand-maintained copy and delete them.
 
@@ -169,7 +174,9 @@ belongs to the prose pass, not here.
 ## Still open
 
 **The prose pass.** 552 short fields — averaging barely a sentence — carry the
-CC BY-SA obligation that comes from Wikipedia, not from FOM. Each needs
+CC BY-SA obligation that comes from Wikipedia, not from FOM. (That the count
+matched the facts-only row total when both were written is coincidence; this
+one is a count of prose fields, typed, and not a figure the build writes.) Each needs
 marking as original, paraphrased, or close to source; only the third needs
 rewriting. This is about knowing what the licence statement must say, not
 about whether the data may ship. It may.
