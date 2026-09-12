@@ -192,8 +192,11 @@ export function Fields({ items }) {
  * exact figure may have drifted. The tier is a link to that definition, and
  * carries it as a title for the reader who hovers.
  */
-export function Confidence({ value }) {
+export function Confidence({ value, plain = false }) {
   if (!value) return null
+  // `plain` is for the quality page itself, where a link to the page the
+  // reader is on would be a no-op dressed as a way forward.
+  if (plain) return <span className={`pill pill-${String(value).toLowerCase()}`}>{value}</span>
   return (
     <Link
       to="/reference/quality"

@@ -92,7 +92,7 @@ function Body({ data }) {
             {
               key: 'confidence',
               label: 'Level',
-              render: (value) => <Confidence value={value} />,
+              render: (value) => <Confidence value={value} plain />,
             },
             { key: 'definition', label: 'What it means', align: 'prose' },
             {
@@ -210,7 +210,7 @@ function Body({ data }) {
             { key: 'poles_external', label: 'Poles published', align: 'num' },
             { key: 'derived_fl', label: 'FL derived', align: 'num' },
             { key: 'fastest_laps_external', label: 'FL published', align: 'num' },
-            { key: 'confidence', label: 'Confidence', render: (v) => <Confidence value={v} /> },
+            { key: 'confidence', label: 'Confidence', render: (v) => <Confidence value={v} plain /> },
           ]}
         />
       </Section>
