@@ -2135,16 +2135,6 @@ def _stage_30_derived_win_totals(b):
                 VALUES (?,?,?,?,?,?)""",
                 (r[1], field, str(external), str(derived), assessment, status))
 
-    # The two register spans the race records read differently, with the
-    # reason beside the fact (CD-25). Not open: nothing is waiting to be
-    # settled, both readings stand. Appended after the rows above so no
-    # existing discrepancies id moves (the PM-30 lesson).
-    for did, field, stored, derived, why in HV.EXPLAINED_SPANS:
-        cur.execute("""INSERT INTO discrepancies (subject, field, stored_value,
-            derived_value, assessment, status)
-            SELECT full_name, ?, ?, ?, ?, 'explained - each side is right about something'
-            FROM drivers WHERE id = ?""", (field, str(stored), str(derived), why, did))
-
 
 def _stage_31_figures_derivable_from_the_race_records(b):
     """figures derivable from the race records"""
@@ -2930,6 +2920,16 @@ def _stage_28_race_dates_and_the_fastest_lap_where(b):
           f"from F1DB; fastest laps: "
           f"{fl_filled} filled, {len(fl_disagreements)} disagreements, "
           f"{fl_no_entry} with no matching entry")
+
+    # The two register spans the race records read differently, with the
+    # reason beside the fact (CD-25). Not open: nothing is waiting to be
+    # settled, both readings stand. Written after every other discrepancies
+    # row, so adding one here moves no existing id (the PM-30 lesson).
+    for did, field, stored, derived, why in HV.EXPLAINED_SPANS:
+        cur.execute("""INSERT INTO discrepancies (subject, field, stored_value,
+            derived_value, assessment, status)
+            SELECT full_name, ?, ?, ?, ?, 'explained - each side is right about something'
+            FROM drivers WHERE id = ?""", (field, str(stored), str(derived), why, did))
 
 
 STAGES = [
