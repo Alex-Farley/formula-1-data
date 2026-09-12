@@ -21,7 +21,7 @@ const SHAPE = `
     (SELECT COUNT(*) FROM seasons)        AS seasons,
     (SELECT COUNT(*) FROM article_images) AS images,
     (SELECT COUNT(*) FROM discrepancies)  AS discrepancies,
-    (SELECT COUNT(*) FROM known_gaps)     AS gaps,
+    (SELECT COUNT(*) FROM v_open_gaps)    AS gaps,
     (SELECT COUNT(*) FROM circuit_geometry) AS geometry,
     (SELECT MIN(year) FROM races)         AS from_year,
     (SELECT MAX(year) FROM races)         AS to_year
@@ -230,7 +230,7 @@ export default function Home() {
                   <div className="panel">
                     <b>The gaps are published too.</b>
                     <p className="muted small" style={{ margin: '6px 0 0' }}>
-                      <Link to="/data/quality">{number(shape.gaps)} known gaps</Link> — what is
+                      <Link to="/data/quality">{number(shape.gaps)} open gaps</Link> — what is
                       missing, why, and what would close it.
                     </p>
                   </div>

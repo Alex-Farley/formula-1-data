@@ -892,7 +892,17 @@ try {
   console.log('\n/data/quality')
   await go('/data/quality', 'Data quality')
   const quality = await tableRows()
-  truthy(quality.includes(count('SELECT COUNT(*) FROM known_gaps')), 'the known gaps are published')
+  // Each group's heading carries its count, so the three states are pinned
+  // by name rather than by a row count another table could match.
+  const gapHeadings = await page.$$eval('#root main h2', (hs) => hs.map((h) => h.textContent.replace(/\s+/g, ' ').trim()))
+  for (const [state, label] of [['open', 'Open gaps'], ['position', 'Positions, not gaps'], ['closed', 'Closed']]) {
+    const n = count("SELECT COUNT(*) FROM known_gaps WHERE state = ?", state)
+    truthy(
+      gapHeadings.some((h) => h.startsWith(label) && h.endsWith(String(n))),
+      `the ${label} heading carries the count from the register (${n})`,
+    )
+  }
+  truthy(quality.includes(count('SELECT COUNT(*) FROM v_open_gaps')), 'the open gaps are published')
   truthy(
     quality.includes(count('SELECT COUNT(*) FROM discrepancies')),
     'the recorded disagreements are published',
@@ -1018,6 +1028,24 @@ try {
       const html = await (await fetch(`${BASE}/drivers/${two.id}`)).text()
       truthy(html.includes('an entry is not a start') && html.includes('Entries (published)'), 'the static page says the same beside both figures')
     }
+  }
+
+  // The season's grid is counted, and the page says the count.
+  {
+    const g = db.prepare('SELECT * FROM v_season_grid WHERE year = 1994').get()
+    await go('/seasons/1994', '1994')
+    const note = await page
+      .waitForFunction(() => [...document.querySelectorAll('#root main .note')].some((n) => n.textContent.startsWith('The grid:')), null, { timeout: 20000 })
+      .then(() => page.$$eval('#root main .note', (ns) => ns.map((n) => n.textContent).find((t) => t.startsWith('The grid:'))))
+    truthy(
+      note.includes(`${g.drivers} drivers`) && note.includes(`${g.constructors} constructors`) && note.includes('entered'),
+      `1994's grid reads ${g.drivers} drivers, ${g.constructors} constructors, and says entered`,
+    )
+    const html = await (await fetch(`${BASE}/seasons/1994`)).text()
+    truthy(
+      html.includes(`${g.drivers} drivers, ${g.constructors} constructors`) && html.includes('whether or not they started'),
+      'the static season page states the same grid, with the same caveat',
+    )
   }
 
   // ----------------------------------------------------------------- SQL

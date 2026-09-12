@@ -54,6 +54,45 @@ export default function Quality() {
   )
 }
 
+/**
+ * One group of the register. The reader's sentence is the row; the
+ * maintainer's note - the description and resolution the row has always
+ * carried - is behind a disclosure, kept whole and never dropped. The
+ * homepage counts only the open group, through the same v_open_gaps view.
+ */
+function Gaps({ rows: list, title, note }) {
+  if (!list.length) return null
+  return (
+    <Section title={title} count={`${list.length}`} note={note}>
+      <DataTable
+        rows={list}
+        rowKey={(row) => row.id}
+        sortable={false}
+        page={20}
+        columns={[
+          { key: 'field', label: 'Field' },
+          { key: 'area', label: 'Area', align: 'prose' },
+          {
+            key: 'reader',
+            label: 'What is missing, and why',
+            align: 'prose',
+            render: (value, row) => (
+              <>
+                <p className="gap-reader">{value}</p>
+                <details className="gap-note">
+                  <summary>Maintainer’s note</summary>
+                  <p>{row.description}</p>
+                  {row.resolution && <p>{row.resolution}</p>}
+                </details>
+              </>
+            ),
+          },
+        ]}
+      />
+    </Section>
+  )
+}
+
 function Body({ data }) {
   const provenance = rows(data, 'provenance')
   const gaps = rows(data, 'gaps')
@@ -135,24 +174,23 @@ function Body({ data }) {
         </Figure>
       </Section>
 
-      <Section
-        title="Known gaps"
-        count={`${gaps.length}`}
+      <Gaps
+        rows={gaps.filter((row) => row.state === 'open')}
+        title="Open gaps"
         note="What is missing, and what it would take to close each one. Several need a person to read something rather than a script to fetch it."
-      >
-        <DataTable
-          rows={gaps}
-          rowKey={(row) => row.id}
-          sortable={false}
-          page={20}
-          columns={[
-            { key: 'field', label: 'Field' },
-            { key: 'area', label: 'Area', align: 'prose' },
-            { key: 'description', label: 'What is missing, and why', align: 'prose' },
-            { key: 'resolution', label: 'What would close it', align: 'prose' },
-          ]}
-        />
-      </Section>
+      />
+
+      <Gaps
+        rows={gaps.filter((row) => row.state === 'position')}
+        title="Positions, not gaps"
+        note="Deliberate absences. Each is the right state for this database, stated so it is not mistaken for something unfinished."
+      />
+
+      <Gaps
+        rows={gaps.filter((row) => row.state === 'closed')}
+        title="Closed"
+        note="Gaps that have since been filled, kept so the closure is on record."
+      />
 
       <Section
         title="Disagreements kept rather than resolved"

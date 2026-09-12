@@ -165,7 +165,7 @@ function Body({ data }) {
       <Section
         title="Regulation limits"
         count={`${limits.length}`}
-        note="The limits every car of a season was built to. They are kept here rather than on each car, because a rule several teams quote is not a measurement of any one of them."
+        note="The numeric limits the regulations set for a season — on the car, and on the weekend: tyre sets, classification, the 107% rule, the cost cap. They are kept here rather than on each car, because a rule several teams quote is not a measurement of any one of them."
       >
         <DataTable
           rows={limits}

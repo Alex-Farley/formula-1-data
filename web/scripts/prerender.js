@@ -435,6 +435,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
     // A season still running has no champion to lead with. It has a leader,
     // a gap and a number of rounds run, and those are what the page opens
     // with - not five em dashes under "Runner-up".
+    const grid = one('SELECT * FROM v_season_grid WHERE year = ?', s.year)
     const running = !s.drivers_champion && standings.length >= 2
     const [lead, second] = standings
     const gap = running ? lead.points - second.points : null
@@ -473,6 +474,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
                 ],
                 ['Engine formula', text(s.engine_formula)],
                 ['Tyres', text(s.tyre_suppliers)],
+                ['Entered', grid ? `${num(grid.drivers)} drivers, ${num(grid.constructors)} constructors, ${num(grid.engine_manufacturers)} engine makers — counted from the entries, whether or not they started` : '—'],
               ])
             : facts([
                 ["Drivers' champion", driver(s.drivers_champion)],
@@ -484,6 +486,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
                 ['Rounds', num(s.rounds)],
                 ['Engine formula', text(s.engine_formula)],
                 ['Tyres', text(s.tyre_suppliers)],
+                ['Entered', grid ? `${num(grid.drivers)} drivers, ${num(grid.constructors)} constructors, ${num(grid.engine_manufacturers)} engine makers — counted from the entries, whether or not they started` : '—'],
               ])
         }
         ${prose(s.notes)}
@@ -1393,7 +1396,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
              (SELECT COUNT(*) FROM source_registry)                    AS sources,
              (SELECT COUNT(*) FROM discrepancies)                      AS discrepancies,
              (SELECT COUNT(*) FROM discrepancies WHERE status LIKE 'open%') AS open_discrepancies,
-             (SELECT COUNT(*) FROM known_gaps)                         AS gaps,
+             (SELECT COUNT(*) FROM v_open_gaps)                        AS gaps,
              (SELECT COUNT(*) FROM races)                              AS races,
              (SELECT COUNT(*) FROM race_entries)                       AS entries`)
     const classes = Object.fromEntries(
@@ -1458,7 +1461,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
       <h2>How far to trust it</h2>
       ${facts([
         ['Disagreements on record', `${shape.discrepancies.toLocaleString()}, ${shape.open_discrepancies.toLocaleString()} still open`],
-        ['Known gaps', shape.gaps.toLocaleString()],
+        ['Open gaps', `${shape.gaps.toLocaleString()}, and what would close each`],
         ['Sources', `${shape.sources.toLocaleString()}, each with its licence`],
         ['The ladder', esc(ladder.join(' › '))],
       ])}
@@ -1483,7 +1486,20 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
     })
   }
 
+  // Three groups, the same three Quality.jsx renders: the reader's sentence
+  // first, the maintainer's note behind a disclosure. A closed gap is kept
+  // and shown as closed, never dropped from the page.
   const gaps = all(`SELECT * FROM known_gaps ORDER BY id`)
+  const gapGroup = (state, heading, intro) => {
+    const rows = gaps.filter((g) => g.state === state)
+    if (!rows.length) return ''
+    return `<h2>${esc(heading)}</h2><p>${esc(intro)}</p>${rows
+      .map(
+        (g) =>
+          `<section><h3>${esc(g.field)} — ${esc(g.area)}</h3>${prose(g.reader)}<details><summary>Maintainer’s note</summary>${prose(g.description)}${prose(g.resolution)}</details></section>`,
+      )
+      .join('')}`
+  }
   page({
     path: 'data/quality',
     title: titled('Data quality'),
@@ -1494,12 +1510,9 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
       <h1>Data quality</h1>
       <p class="lede">A blank in this database is an unestablished fact, never a zero. These are
         the gaps that are known and stated.</p>
-      <h2>Known gaps</h2>
-      ${gaps
-        .map(
-          (g) => `<section><h3>${esc(g.field)} — ${esc(g.area)}</h3>${prose(g.description)}${prose(g.resolution)}</section>`,
-        )
-        .join('')}`,
+      ${gapGroup('open', 'Open gaps', 'What is missing, and what it would take to close each one. Several need a person to read something rather than a script to fetch it.')}
+      ${gapGroup('position', 'Positions, not gaps', 'Deliberate absences. Each is the right state for this database, stated so it is not mistaken for something unfinished.')}
+      ${gapGroup('closed', 'Closed', 'Gaps that have since been filled, kept so the closure is on record.')}`,
   })
 
   page({

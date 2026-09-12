@@ -178,6 +178,9 @@ largest single fix and still has its riders.
 
 Worth doing, not yet urgent.
 
+- [ ] `PD-10` **A citation block.** Every ingredient exists — version, build
+      date, per-row source, permanent URL — and they are assembled nowhere. One
+      component, prerendered so a crawler sees it. — *product critique · S*
 - [ ] `PD-05` **Split `known_gaps` into open and closed.** Four of the eleven are
       closed or not gaps, and the homepage counts all eleven. Add a `state`
       column, filter the public page, and split each row into a reader sentence
@@ -293,14 +296,6 @@ Worth doing, not yet urgent.
       lengths, with the four places each goes. Lands with `PD-12`; no research
       left in it. — *content critique · S*
 
-- [ ] `CD-06` **`PD-05` answered, and the count corrected.** `PD-05` says four of
-      the eleven `known_gaps` are closed or not gaps; the content critique makes
-      it **five** (#1 and #2 closed, #5 and #10 are positions rather than gaps,
-      #8 is a true null belonging on one race page), leaving six genuine open
-      gaps — so the homepage's "11 known gaps" (`Home.jsx:233`) should read six.
-      Six reader sentences and eleven maintainer notes are written out. —
-      *content critique · S*
-
 - [ ] `CD-07` **`PD-11` answered: what `/data` claims.** One adversarial
       sentence that survives the reader thinking *"I already have F1DB"* —
       **The Formula One record, audited** — with the supporting block. Lands
@@ -372,8 +367,11 @@ Worth doing, not yet urgent.
       the circuit's zone and UTC, from the FIA event timetable and F1's
       calendar (facts-only), in a `sessions` table keyed to `races`; shown
       on `/seasons/2026` and each race page with a "next session in …" line
-      computed in the browser. Decided 2026-09-12 from `LV-01`. — *request ·
-      M*
+      computed in the browser. Decided 2026-09-12 from `LV-01`. Sourcing,
+      checked 2026-09-12: the FIA's event pages carry the date only; session
+      times are in the FIA's per-event "Event & Timing Information"
+      documents and on formula1.com's race pages (both registered sources).
+      — *request · M*
 
 - [ ] `LV-03` **Session classifications after the fact.** FP1–FP3, sprint
       shootout and qualifying orders with best times as published in the
@@ -413,7 +411,12 @@ the source. `WK-` is this survey; nothing else uses the prefix.
       and the 107% rule are sporting-regulation limits with years, the same
       shape as the three technical fields the table already holds. Source:
       the FIA Sporting Regulations, current issue first, then the year each
-      changed. — *Wikipedia survey · S*
+      changed. **2025 landed in #76**: five `regulation_limits` rows from the
+      2025 issue (tyre sets dry/intermediate/wet per Competition, the 90%
+      classification rule, the 107% rule), each citing Article 30.2(a), 61.2/62.2
+      or 39.4(b)(i); the review read the document and corrected two notes.
+      The year each changed is what remains. —
+      *Wikipedia survey · S*
 
 - [ ] `WK-04` **The new-team entry fee is a press figure.** The page's US$450m
       "up-front payment" is the anti-dilution fund under the 2026 Concorde
@@ -421,14 +424,6 @@ the source. `WK-` is this survey; nothing else uses the prefix.
       reported, not published. Neither has a primary source. A `known_gaps`
       row saying so is the correct outcome, not a `governance` row carrying a
       newspaper's number. — *Wikipedia survey · S*
-
-- [ ] `WK-05` **Cars, teams and engine makers per season are derivable and not
-      shown.** The page's infobox says 22 drivers, 11 constructors, five power
-      unit manufacturers. `season_entrants` holds the constructors and engine
-      makers for every year; the drivers who started come from `race_entries`.
-      A view `v_season_grid` (year, drivers, constructors, engine
-      manufacturers, tyre suppliers) and a line on each `/seasons/YYYY` page.
-      No new facts. — *Wikipedia survey · S*
 
 - [ ] `WK-06` **Read the records list the same way.** *List of Formula One
       World Championship records* is the page with the tables this one lacks.
@@ -531,6 +526,18 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       at digits. Extend it to spelled numbers before the derived nouns and
       rewrite the eighteen. Found by the review of #70. — *review of #70 ·
       S*
+- [ ] `CD-18` **"Races" on the register, "Entries (stored)" on the page.**
+      The same derived count is called Races in the register and Entries on
+      the driver's page, where the stored figure sits beside it as "Entries
+      (stored)". One word, and the stored one labelled for what it is
+      (published). Found by the review of #69. — *review of #69 · S*
+
+- [ ] `CD-21` **The lede check misses a figure with an adjective before the
+      noun.** "four runner-up finishes", "Ten career wins", "three straight
+      wins" pass `verify.py`'s check (#74) because it wants the noun adjacent
+      to the number; the Bottas phrase #74 removed by hand is the shape it
+      misses. Allow one or two words between, and re-run. Found by the review
+      of #74. — *review of #74 · S*
 
 **Interaction design**
 
@@ -1408,6 +1415,26 @@ Real, but not costed, or waiting on a decision.
       records. Also pins the front-end reviewer agent to Opus, as every other
       reviewer already was. — *product critique · #69*
 
+- [x] `PD-05` **`known_gaps` carries a state, and the site counts only the
+      open ones.** `state` is `open`, `closed` or `position`, and `reader` is
+      the one-paragraph version a reader is shown; the description and
+      resolution the rows always carried are the maintainer's note, kept
+      whole behind a disclosure. `/data/quality` and its prerendered page
+      show three groups — Open, Positions, Closed — and a closed gap is
+      recorded as closed, never deleted. The homepage, `/data` and the
+      README figure all count `v_open_gaps`; `verify.py` holds the view to
+      the table, requires a reader sentence on every row and a version or PR
+      in every closed row's resolution. — *product critique · #72*
+
+- [x] `CD-06` **The count is seven, not six, and the twelve rows are placed.**
+      #1 and #2 closed (the fastest-lap harvest, the full classification),
+      #5, #8 and #10 positions (no redistributable lap timing, a race in
+      which no lap was set, no historic centrelines), and #3, #4, #6, #7, #9,
+      #11 and #12 open — #12 arrived with `PD-03` in #68, after the critique
+      counted. The critique's six reader sentences are used where they still
+      fit the row; the others are written from the row's own text. The 2021
+      Belgium note stays in the register as a position rather than moving to
+      the race page. — *content critique · #72*
 - [x] `PD-10` **A citation block on every page.** One sentence — the
       database version and build date and the page's permanent address —
       from one function in `site.js`, rendered by `Page` in the app and by
@@ -1440,6 +1467,30 @@ Real, but not costed, or waiting on a decision.
       (published)", in the app and the static HTML alike; the static facts
       gain the derived Entries the app's strip already showed.
       — *review of #69 · #75*
+- [x] `WK-05` **The season's grid is counted.** `v_season_grid` — drivers
+      entered (from the race entries; a DNQ is an entry, and no source says
+      who started), constructors by their F1DB key so the Indianapolis
+      builders of 1950–1960 count, engine makers, races run — one row per
+      season, pinned by `verify.py` to direct counts for four seasons; a line
+      on every season page and a fact on the static one. The first cut
+      counted the curated constructor key (1950 read eight, not
+      twenty-three), said "started", and bounded the view by identities; the
+      review caught all three. — *Wikipedia survey · #73*
+- [x] `CD-19` **Driver ledes no longer spell a figure the strip derives.**
+      `verify.py`'s check reads spelled cardinals (one to twenty, thirty to
+      hundred, compounds), digit and spelled ordinals above "first" ("300th
+      start", "eighth start"), and "Grand Prix" between the number and the
+      noun, before starts, races, entries, wins, poles, podiums, points,
+      fastest laps or titles; a year before "title" and a margin ("by two
+      points") are not figures. It caught sixteen notes, and stripping the
+      figure exposed five that the race records contradict — Hulkenberg's
+      pole came on his eighteenth start, Bottas was runner-up twice not four
+      times, Ricciardo never won for Renault, Stroll's pole was Istanbul 2020
+      not Monza 2017, Rindt had three races left not four — and one false
+      record: 2025's top three were 13 points apart against 2007's one, so
+      "the closest top three ever" leaves Piastri's note and, though no
+      regex reached it, Norris's. Each note keeps what its string already
+      said; "Ten podiums." simply goes. — *review of #70 · #74*
 
 ## Declined
 

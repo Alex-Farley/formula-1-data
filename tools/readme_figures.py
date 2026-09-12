@@ -417,6 +417,10 @@ class Figures:
     def known_gaps(self):
         return n(self.count("known_gaps"))
 
+    def known_gaps_open(self):
+        # The same view the homepage and /data count, so the three agree.
+        return n(self.count("v_open_gaps"))
+
 
 # Public names, in definition order - which is README order, so the printout
 # reads like the document.

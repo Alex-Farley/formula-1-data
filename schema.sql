@@ -1242,14 +1242,31 @@ CREATE INDEX idx_rcm_race         ON race_control_messages(race_id);
 CREATE INDEX idx_radio_race       ON team_radio(race_id);
 CREATE INDEX idx_radio_notable    ON team_radio(notable);
 
+-- What the database does not hold, on the record. A row is never deleted:
+-- a gap that closes is marked closed and its resolution says when and how,
+-- so the register keeps its history. `state` separates three things that
+-- used to share one list and one count -
+--   open      a fact nobody holds yet; these are the gaps the site counts
+--   closed    filled since, and kept so the closure is on record
+--   position  a deliberate absence (no lap timing, no historic centrelines,
+--             a race in which no lap was set) - the right state, not a gap
+-- `reader` is the one-paragraph version a reader of the site is shown;
+-- `description` and `resolution` are the maintainer's note, kept whole.
 CREATE TABLE known_gaps (
     id              INTEGER PRIMARY KEY,
     field           TEXT NOT NULL,             -- which column is incomplete
     area            TEXT NOT NULL,
-    description     TEXT NOT NULL,
+    state           TEXT NOT NULL CHECK (state IN ('open', 'closed', 'position')),
+    reader          TEXT NOT NULL,             -- what a reader is shown
+    description     TEXT NOT NULL,             -- the maintainer's note
     races_affected  INTEGER,
-    resolution      TEXT
+    resolution      TEXT                       -- what would close it, or what did
 );
+
+-- The gaps the site counts. The homepage, /data and the README figure all
+-- read this view, so they cannot disagree with each other or with the table.
+CREATE VIEW v_open_gaps AS
+SELECT * FROM known_gaps WHERE state = 'open' ORDER BY id;
 
 CREATE TABLE discrepancies (
     id              INTEGER PRIMARY KEY,
@@ -1486,6 +1503,28 @@ SELECT c.id, c.name, c.country, c.locality, c.circuit_type,
        c.length_km, c.turns, c.direction
 FROM circuits c LEFT JOIN races r ON r.circuit_id = c.id
 GROUP BY c.id ORDER BY races DESC, c.name;
+
+-- ------------------------------------------------------------- seasons
+
+-- The grid of a season, counted rather than written: who was entered (from
+-- the race entries - entered, not started: a DNQ is an entry, and no source
+-- here says who started), which constructors entered, whose engines. The
+-- Wikipedia infobox states these three for the current season by hand; here
+-- they hold for every season. Constructors are counted by the F1DB key, which
+-- every entrant row carries: the curated constructor_id is NULL for the
+-- Indianapolis 500 builders of 1950-1960, and counting it read 1950 as eight
+-- constructors when twenty-three entered - the review of #73 caught it.
+CREATE VIEW v_season_grid AS
+SELECT s.year,
+       (SELECT COUNT(DISTINCT e.driver_id) FROM race_entries e
+          JOIN races r ON r.id = e.race_id WHERE r.year = s.year)        AS drivers,
+       (SELECT COUNT(DISTINCT se.f1db_constructor_id) FROM season_entrants se
+         WHERE se.year = s.year)                                          AS constructors,
+       (SELECT COUNT(DISTINCT se.engine_manufacturer_id) FROM season_entrants se
+         WHERE se.year = s.year AND se.engine_manufacturer_id IS NOT NULL) AS engine_manufacturers,
+       (SELECT COUNT(*) FROM races r WHERE r.year = s.year
+          AND r.status = 'completed')                                    AS races_run
+  FROM seasons s;
 
 -- Who has won most often at each circuit.
 CREATE VIEW v_circuit_winners AS

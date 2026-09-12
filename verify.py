@@ -742,8 +742,8 @@ def pole_position_and_fastest_lap():
     check("every race name resolves to the event it is linked to", not bad,
           "; ".join(bad[:5]))
 
-    # Every declared gap must still be a gap. A gap that has been filled should
-    # be removed from KNOWN_GAPS, not left standing with a stale count.
+    # Every declared gap's count must still be the count. A gap that has been
+    # filled is marked closed and kept on the record, never removed.
     stale = []
     for g in con.execute("SELECT field, area, races_affected FROM known_gaps"):
         if g["races_affected"] is None or g["races_affected"] == 0:
@@ -754,6 +754,48 @@ def pole_position_and_fastest_lap():
         if actual is not None and actual != g["races_affected"]:
             stale.append(f"{g['field']}: declared {g['races_affected']}, actual {actual}")
     check("declared gaps match the actual gaps", not stale, "; ".join(stale))
+
+    # The register carries three states and the site counts one of them. Every
+    # row must say which it is in and give a reader the one-paragraph version;
+    # a closed row must say when it closed - a version or a pull request - so
+    # the closure is on the record rather than the row quietly gone. The
+    # homepage, /data and the README's open-gaps figure all read v_open_gaps,
+    # so the view is checked against the table it filters, and the README span
+    # that states the figure is checked against the same count in
+    # readme_figures() below.
+    gaps_ = con.execute("SELECT id, state, reader, resolution FROM known_gaps").fetchall()
+    bad = [str(g["id"]) for g in gaps_ if not (g["reader"] or "").strip()]
+    check("every known gap has a reader sentence", not bad, ", ".join(f"#{b}" for b in bad))
+    bad = [str(g["id"]) for g in gaps_ if g["state"] == "closed"
+           and not re.search(r"\bv\d+\.\d+\b|#\d+", g["resolution"] or "")]
+    check("every closed gap's resolution says which version or PR closed it",
+          not bad, ", ".join(f"#{b}" for b in bad))
+    # The four tables the redistribution gate keeps empty cannot be open gaps:
+    # an absence by decision is a position. Pins the classification to the
+    # rule that makes it, rather than to a count.
+    fom = ("laps", "stints", "race_timing", "race_control_messages")
+    bad = [f"#{g['id']} {g['field']}" for g in con.execute(
+        "SELECT id, field, state FROM known_gaps") if g["field"] in fom and g["state"] != "position"]
+    check("a gap about a table kept empty by licence is filed as a position, not as open",
+          not bad, ", ".join(bad))
+    # The closed rows must be closed in the data too: the thing each says was
+    # missing is present. Two are closed today, and each has its own test.
+    fl_missing = con.execute("""SELECT COUNT(*) FROM races r WHERE r.status = 'completed'
+        AND NOT EXISTS (SELECT 1 FROM race_entries e WHERE e.race_id = r.id AND e.fastest_lap = 1)
+        AND NOT (r.year = 2021 AND r.round = 12)""").fetchone()[0]
+    no_entries = con.execute("""SELECT COUNT(*) FROM races r WHERE r.status = 'completed'
+        AND NOT EXISTS (SELECT 1 FROM race_entries e WHERE e.race_id = r.id)""").fetchone()[0]
+    # Pinned to the two fields tested above: a third row marked closed without
+    # a test of its own fails here, which is the point.
+    closed_fields = {r[0] for r in con.execute("SELECT field FROM known_gaps WHERE state = 'closed'")}
+    check("the closed gaps are closed in the data: fastest laps and entries cover every completed race",
+          fl_missing == 0 and no_entries == 0 and closed_fields <= {"fastest_lap", "finish_position"},
+          f"{fl_missing} races without a fastest lap, {no_entries} without entries; closed: {sorted(closed_fields)}")
+    open_ = con.execute("SELECT COUNT(*) FROM v_open_gaps").fetchone()[0]
+    print(f"  [info] known_gaps: {open_} open, "
+          + ", ".join(f"{n} {s}" for s, n in con.execute(
+              "SELECT state, COUNT(*) FROM known_gaps WHERE state != 'open' GROUP BY state"))
+          + f", {len(gaps_)} rows; the README's open figure is checked in readme_figures()")
 
 
 @section('STRUCTURE')
@@ -1327,10 +1369,34 @@ def the_driver_register():
         WHERE notes LIKE 'Added %' OR notes LIKE '% harvest%' ORDER BY id""")]
     check("no driver note opens with how the row entered the register",
           not _prov, "; ".join(_prov[:6]))
-    _figure = re.compile(r"\b\d+ (starts|races|wins|poles|podiums|points)\b")
-    _typed = [r[0] for r in con.execute(
+    # The figure may be in digits or spelled ("Ten wins", "Thirteen
+    # podiums"), or an ordinal that states a running count ("300th start").
+    # Digits stop at three so a year before "title" is not one. A cardinal
+    # must be followed by the plural noun - a count of one is written "a win"
+    # and "Formula 2 race" is not a figure - while an ordinal takes either.
+    # "first" is left out because a first win states no count; every ordinal
+    # above it does, and the race records can contradict it: Hulkenberg's
+    # pole came on his eighteenth start, and the note said eighth. A margin
+    # ("by two points") is not a total the strip shows and is left alone.
+    _units = ("one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|"
+              "thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen")
+    _tens = "twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred"
+    _cardinal = (rf"(?:\d{{1,3}}(?:,\d{{3}})*"
+                 rf"|(?:{_units}|{_tens})(?:[- ](?:{_units}|{_tens}))*)")
+    _ordinal = (r"(?:\d+(?:st|nd|rd|th)|(?:(?:" + _tens + r")-)?"
+                r"(?:second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|"
+                r"twentieth|thirtieth|fortieth|fiftieth|sixtieth|seventieth|"
+                r"eightieth|ninetieth|hundredth))")
+    _plural = (r"(?:Grands? Prix )?"
+               r"(?:starts|races|entries|wins|poles|podiums|points|fastest laps|titles)")
+    _either = (r"(?:Grands? Prix )?"
+               r"(?:starts?|races?|entries|entry|wins?|poles?|podiums?|points?|"
+               r"fastest laps?|titles?)")
+    _figure = re.compile(rf"(?<!\bby )\b(?:{_cardinal} {_plural}|{_ordinal} {_either})\b",
+                         re.IGNORECASE)
+    _typed = [f"{r[0]} ({_m.group(0)})" for r in con.execute(
         "SELECT id, notes FROM drivers WHERE notes IS NOT NULL ORDER BY id")
-        if _figure.search(r[1])]
+        if (_m := _figure.search(r[1]))]
     check("no driver note states a figure the page derives",
           not _typed, "; ".join(_typed[:6]))
 
@@ -1575,6 +1641,52 @@ def the_chassis_register():
           bool(prose) and cap26 and cap25 and per26
           and all(f"US${v:,.0f}" in prose[0] for v in (cap26, cap25, per26)),
           (prose or ("no row",))[0][:80])
+    # The season grid view: one row per season, and its figures pinned to
+    # direct counts the view could get wrong - a year offset, a dropped
+    # population - rather than to bounds it satisfies by construction. The
+    # review of #73 showed the first cut's bounds were identities.
+    nseasons = con.execute("SELECT COUNT(*) FROM seasons").fetchone()[0]
+    ngrid = con.execute("SELECT COUNT(*) FROM v_season_grid").fetchone()[0]
+    check("v_season_grid has one row per season", ngrid == nseasons, f"{ngrid} vs {nseasons}")
+    wrong = []
+    for year in (1950, 1959, 1994, 2026):
+        g = con.execute("SELECT * FROM v_season_grid WHERE year = ?", (year,)).fetchone()
+        direct = con.execute("""SELECT
+            (SELECT COUNT(DISTINCT e.driver_id) FROM race_entries e JOIN races r ON r.id = e.race_id
+              WHERE r.year = ?1),
+            (SELECT COUNT(DISTINCT f1db_constructor_id) FROM season_entrants WHERE year = ?1),
+            (SELECT COUNT(DISTINCT engine_manufacturer_id) FROM season_entrants
+              WHERE year = ?1 AND engine_manufacturer_id IS NOT NULL),
+            (SELECT COUNT(*) FROM races WHERE year = ?1 AND status = 'completed')""",
+            (year,)).fetchone()
+        got = (g["drivers"], g["constructors"], g["engine_manufacturers"], g["races_run"])
+        if got != tuple(direct):
+            wrong.append(f"{year}: view {got}, direct {tuple(direct)}")
+    check("v_season_grid agrees with direct counts for 1950, 1959, 1994 and 2026",
+          not wrong, "; ".join(wrong))
+    # And the one fact about the Indianapolis era the first cut got wrong: in
+    # 1950 more constructors entered than the curated register names.
+    g50 = con.execute("SELECT constructors FROM v_season_grid WHERE year = 1950").fetchone()[0]
+    check("1950's grid counts the Indianapolis builders among its constructors", g50 >= 20, f"{g50}")
+    bad = [f"{r[0]}: {r[1]} engine makers, {r[2]} constructors" for r in con.execute(
+        "SELECT year, engine_manufacturers, constructors FROM v_season_grid "
+        "WHERE engine_manufacturers > constructors * 2")]
+    check("no season shows more than twice as many engine makers as constructors", not bad, "; ".join(bad[:4]))
+    # One of the weekend limits the race records can test: no classified
+    # finisher in a season the rule covers completed less than 90% of the
+    # winner's laps. The rule is read from the table, so a wrong figure fails.
+    pct = con.execute("SELECT value, from_year, to_year FROM regulation_limits "
+                      "WHERE field = 'classification_min_distance_pct'").fetchall()
+    under = 0
+    for value, y0, y1 in pct:
+        under += con.execute("""SELECT COUNT(*) FROM race_entries e JOIN races r ON r.id = e.race_id
+            JOIN race_entries w ON w.race_id = r.id AND w.finish_position = 1
+            WHERE r.year BETWEEN ? AND ? AND e.finish_position IS NOT NULL
+              AND e.laps_completed IS NOT NULL AND w.laps_completed IS NOT NULL
+              AND e.laps_completed < CAST(w.laps_completed * ? / 100 AS INTEGER)""",
+            (y0, y1, value)).fetchone()[0]
+    check("no classified finisher fell below the season's classification threshold",
+          pct and under == 0, f"{under} classified below the threshold in {len(pct)} span(s)")
     nlim = con.execute("SELECT COUNT(*) FROM regulation_limits").fetchone()[0]
     print(f"  [info] {nlim} regulation limits recorded, covering "
           + ", ".join(str(r[0]) for r in con.execute(
