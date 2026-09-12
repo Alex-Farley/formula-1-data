@@ -45,7 +45,7 @@ here is a number the build checked.
 
 | File | What it is |
 |---|---|
-| `f1.db` | The SQLite database. <!-- fig:tables -->46<!-- /fig --> tables, <!-- fig:views -->39<!-- /fig --> views, <!-- fig:rows -->119,265<!-- /fig --> rows. This is the artefact. |
+| `f1.db` | The SQLite database. <!-- fig:tables -->46<!-- /fig --> tables, <!-- fig:views -->39<!-- /fig --> views, <!-- fig:rows -->119,273<!-- /fig --> rows. This is the artefact. |
 | `f1-geometry.db` | The OpenStreetMap circuit centrelines (ODbL), shipped beside `f1.db` and never merged into it. See *Illustration*. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
@@ -155,7 +155,7 @@ than asserted. Beneath them, **<!-- fig:chassis -->1,153<!-- /fig -->
 chassis** — every one that has raced — with engines and per-season entry
 lists. See *Cars and chassis*.
 
-**Technical and regulatory** — <!-- fig:regulation_changes -->58<!-- /fig -->
+**Technical and regulatory** — <!-- fig:regulation_changes -->59<!-- /fig -->
 regulation changes by year and category,
 <!-- fig:innovations -->26<!-- /fig --> landmark innovations (with the year
 each was banned, where it was), <!-- fig:engine_eras -->11<!-- /fig --> engine
