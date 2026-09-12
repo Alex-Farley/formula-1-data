@@ -8,12 +8,12 @@ import Figure from '../charts/Figure.jsx'
 import DotPlot from '../charts/DotPlot.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { EMPTY, missing, points as fmtPoints, result } from '../lib/format.js'
+import { ENTRIES_NOTE } from '../lib/site.js'
 import {
   BY_SEASON,
   DERIVED,
   DRIVER,
   ENTRY_COLUMNS,
-  RECORD_NOTE,
   RESULTS,
   SEASON_COLUMNS,
   SEASONS_FOOTER,
@@ -204,7 +204,7 @@ function DriverBody({ driver, data }) {
             },
           ]}
         />
-        <p className="source-note">{RECORD_NOTE}</p>
+        <p className="source-note">{ENTRIES_NOTE}</p>
       </Section>
 
       <Onward

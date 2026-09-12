@@ -50,7 +50,16 @@ import { fileURLToPath } from 'node:url'
 // app's own cell text — text() in lib/format.js — for the tables below
 // that are drawn from a page's column list.
 import { finished, text as formatted, yearList } from '../src/lib/format.js'
-import { CROSS_CHECKED, citation, NOT_HELD, SELF_DESCRIBING, SITE, TWO_FILES, titled } from '../src/lib/site.js'
+import {
+  CROSS_CHECKED,
+  ENTRIES_NOTE,
+  citation,
+  NOT_HELD,
+  SELF_DESCRIBING,
+  SITE,
+  TWO_FILES,
+  titled,
+} from '../src/lib/site.js'
 // The pages' own queries and column lists (PD-02). A page and this script
 // read the same module, so the static table is the app's table by
 // construction; the rest of the pages follow these three.
@@ -59,7 +68,6 @@ import {
   BY_SEASON,
   DERIVED,
   DRIVER,
-  RECORD_NOTE,
   SEASON_COLUMNS,
   SEASONS_FOOTER,
   STANDINGS,
@@ -194,6 +202,62 @@ const summarise = (value, limit = 160) => {
 }
 
 const list = (values) => values.filter(Boolean).join(', ')
+
+/** "Ferrari", "Ferrari and Matra", "Mercedes, McLaren and Ferrari", "Ferrari, Matra and 6 other constructors". */
+const constructorList = (names) => {
+  if (names.length <= 3) return names.length < 3 ? names.join(' and ') : `${names[0]}, ${names[1]} and ${names[2]}`
+  const rest = names.length - 2
+  return `${names[0]}, ${names[1]} and ${rest} other ${rest === 1 ? 'constructor' : 'constructors'}`
+}
+
+// Digits throughout: "best finish 4th" and "best finish 33rd" read as one
+// system, where words to twelfth and digits beyond did not.
+const ordinal = (n) => {
+  const tail = n % 10 === 1 && n % 100 !== 11 ? 'st' : n % 10 === 2 && n % 100 !== 12 ? 'nd' : n % 10 === 3 && n % 100 !== 13 ? 'rd' : 'th'
+  return `${n}${tail}`
+}
+
+const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
+
+/**
+ * A driver's career as one sentence a search snippet can show, from the
+ * figures counted out of the race records - the ones the strip at the top of
+ * the page derives - and never from a stored column the page labels as
+ * published. For a winner: what they won. For everyone else: what is true.
+ *
+ *     Entered 88 championship Grands Prix across 1979–1986 for Arrows,
+ *     Brabham and 5 other constructors; best finish 4th.
+ *
+ * `finish_position` is NULL for a DNF, a DNQ and a DNS alike, so a career
+ * with no classified finish says exactly that rather than guessing why.
+ */
+const careerSentence = (derived, constructors, titles) => {
+  if (!derived || !derived.entries) return 'No championship race entry in the records.'
+  const when =
+    derived.first_year === derived.last_year
+      ? `in ${derived.first_year}`
+      : `across ${derived.first_year}–${derived.last_year}`
+  const who = constructors.length ? ` for ${constructorList(constructors)}` : ''
+  const entered = `Entered ${plural(derived.entries, 'championship Grand Prix', 'championship Grands Prix')} ${when}${who}`
+
+  const tally = [
+    titles ? plural(titles, 'world title') : null,
+    derived.wins ? plural(derived.wins, 'win') : null,
+    derived.podiums ? plural(derived.podiums, 'podium') : null,
+    derived.poles ? plural(derived.poles, 'pole') : null,
+  ].filter(Boolean)
+  const counted = tally.length > 1 ? `${tally.slice(0, -1).join(', ')} and ${tally.at(-1)}` : tally[0] ?? null
+
+  // A winner's best finish is the win; anyone else is described by their best
+  // result, or by the absence of one.
+  const best = derived.wins
+    ? null
+    : derived.best
+      ? `best finish ${ordinal(derived.best)}`
+      : 'no classified finish'
+
+  return `${entered}; ${[counted, best].filter(Boolean).join(', ')}.`
+}
 
 /**
  * A recorded source disagreement, rendered beside the fact it is about.
@@ -748,6 +812,14 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
     `SELECT rr.year, rr.round, rr.gp_name, rr.constructor_id, rr.constructor
        FROM race_results rr WHERE rr.winner_id = ? ORDER BY rr.year, rr.round`,
   )
+  // Constructors entered for, most often first; 377 entries name none.
+  const constructorsOf = db.prepare(
+    `SELECT c.name, COUNT(*) AS n
+       FROM race_entries e
+       JOIN constructors c ON c.id = e.constructor_id
+      WHERE e.driver_id = ?
+      GROUP BY c.id ORDER BY n DESC, c.name`,
+  )
 
   for (const { id } of register) {
     const d = one(DRIVER, id)
@@ -755,25 +827,24 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
     // table lays them out - the same SQL and the same shaping as Driver.jsx,
     // so the strip and the table below are the app's, not a reading of the
     // stored columns that disagreed with it on 14 of 38 drivers (PD-02).
+    // The description is built from the same row (CD-20) and never from
+    // `entries`/`starts`/`wins` on the drivers row: the page itself labels
+    // those "(published)", and a description that quoted them read "0 wins,
+    // 0 poles" for 81 drivers whose lede had just moved to `provenance`.
     const derived = one(DERIVED, id) ?? {}
     const seasons = seasonRows(all(BY_SEASON, id), all(STANDINGS, id))
     const wins = winsOf.all(id)
-    const summary = [
-      d.titles ? `${d.titles} world ${d.titles === 1 ? 'title' : 'titles'}` : null,
-      d.wins !== null ? `${d.wins} wins` : null,
-      d.poles !== null ? `${d.poles} poles` : null,
-      d.starts !== null ? `${d.starts} starts` : null,
-    ].filter(Boolean)
+    const career = careerSentence(derived, constructorsOf.all(id).map((c) => c.name), d.titles)
+    // The lede follows the derived sentence where there is room for a whole
+    // sentence of it; a note that is one long sentence would otherwise be
+    // cut mid-thought with an ellipsis, and the career alone is complete.
+    const lead = `${d.full_name}${d.nationality ? `, ${d.nationality}` : ''}. ${career}`
+    const withNotes = summarise(`${lead} ${d.notes ?? ''}`, 300)
 
     page({
       path: `drivers/${d.id}`,
       title: titled(d.full_name),
-      description: summarise(
-        `${d.full_name}${d.nationality ? `, ${d.nationality}` : ''}${
-          d.first_season ? `, Formula One ${d.first_season}–${d.last_season ?? 'present'}` : ''
-        }. ${summary.join(', ')}${summary.length ? '. ' : ''}${d.notes ?? ''}`,
-        300,
-      ),
+      description: withNotes.endsWith('…') ? lead : withNotes,
       trail: [['', 'Home'], ['drivers', 'Drivers'], [`drivers/${d.id}`, d.full_name]],
       jsonld: {
         '@context': 'https://schema.org',
@@ -825,7 +896,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
           ['Confidence', d.confidence ? link('data/quality', d.confidence) : text(d.confidence)],
           ['Source', d.source ? `<a href="${esc(d.source)}">${esc(d.source)}</a>` : text(d.source)],
         ])}
-        <p class="source-note">${esc(RECORD_NOTE)}</p>`,
+        <p class="source-note">${esc(ENTRIES_NOTE)}</p>`,
     })
   }
 }

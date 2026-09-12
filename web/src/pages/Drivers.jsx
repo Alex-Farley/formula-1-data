@@ -99,7 +99,7 @@ function Register({ rows }) {
         direction="desc"
         page={150}
         columns={DRIVER_COLUMNS.map((column) => ({ ...column, ...APP[column.key] }))}
-        footer="Most wins first; sort by any column. Races is every race a driver was entered for, counted from the race records. A blank is a figure nobody has established, not a zero, and those rows sink to the bottom whichever way you sort."
+        footer="Most wins first; sort by any column. Entries is every race a driver was entered for, counted from the race records — an entry is not a start. A blank is a figure nobody has established, not a zero, and those rows sink to the bottom whichever way you sort."
       />
     </>
   )

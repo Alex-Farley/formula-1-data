@@ -24,10 +24,16 @@ export const DRIVER = `SELECT * FROM drivers WHERE id = ?`
  * differ the difference is the interesting part: career_points is a gross
  * total here and a net one in the register for every season that ran the
  * best-N-results rule, which is every season up to 1990.
+ *
+ * first_year and last_year are for the static page's meta description
+ * (CD-20), which is one sentence built from this row and never from a
+ * stored column the page labels as published; the strip does not show them.
  */
 export const DERIVED = `
   SELECT COUNT(*)                        AS entries,
          COUNT(DISTINCT r.year)          AS seasons,
+         MIN(r.year)                     AS first_year,
+         MAX(r.year)                     AS last_year,
          SUM(e.finish_position = 1)      AS wins,
          SUM(e.finish_position <= 3)     AS podiums,
          SUM(e.pole = 1)                 AS poles,
@@ -188,7 +194,8 @@ export const derivedAndPublished = (derived, published) =>
  * values are the strings both renderers print — a missing one is already the
  * em dash, so the static list keeps the row the app shows dashed. Confidence
  * and Source follow these in both renderers; they are a pill and a link
- * there, not strings, so each renderer appends its own.
+ * there, not strings, so each renderer appends its own. The sentence under
+ * the list is ENTRIES_NOTE in lib/site.js, shared the same way.
  */
 export function record(driver) {
   return [
@@ -196,23 +203,20 @@ export function record(driver) {
     ['Died', text(driver.died)],
     ['Nationality', text(driver.nationality)],
     ['Status', text(driver.status)],
-    // How a harvest put the row here, where one did. Shown only where it
-    // exists, so most rows get no em dash for it.
+    // How a harvest put the row here, where one did. It used to open
+    // `notes`, which is the lede above and the meta description; it is
+    // shown only where it exists, so most rows get no em dash for it.
     ...(driver.provenance ? [['Provenance', String(driver.provenance)]] : []),
-    ['Entries (stored)', number(driver.entries)],
-    ['Starts (stored)', number(driver.starts)],
+    // Published figures, labelled as such (CD-18): the strip above counts
+    // Entries from the race records, and an entry is not a start.
+    ['Entries (published)', number(driver.entries)],
+    ['Starts (published)', number(driver.starts)],
     ['Wins', derivedAndPublished(driver.wins, driver.wins_external)],
     ['Poles', derivedAndPublished(driver.poles, driver.poles_external)],
     ['Fastest laps', derivedAndPublished(driver.fastest_laps, driver.fastest_laps_external)],
     ['External source', text(driver.external_source)],
   ]
 }
-
-export const RECORD_NOTE =
-  'Wins, poles and fastest laps are counted from the races above and checked against the ' +
-  'published totals on every build; where the two disagree, both are shown. Entries and ' +
-  'starts are the published figures — an entry is not a start, and telling them apart needs ' +
-  'a reason for each non-start that no source here supplies.'
 
 /**
  * Whether the stored career total and the points scored differ beyond

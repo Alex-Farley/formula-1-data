@@ -594,14 +594,18 @@ try {
     const first = await page.$eval('#root main tbody tr', (tr) => tr.textContent)
     truthy(first.includes(top.full_name), `the register opens on the most successful driver, ${top.full_name}`)
     const heads = await page.$$eval('#root main thead th', (ths) => ths.map((th) => th.textContent.trim()))
-    truthy(heads.includes('Races') && !heads.includes('Entries') && !heads.includes('Starts'), 'Races is counted; Entries and Starts are gone')
-    const races = one('SELECT COUNT(*) FROM race_entries WHERE driver_id = (SELECT id FROM drivers ORDER BY wins DESC, podiums DESC LIMIT 1)')
+    // One word for the derived count, here and in the strip on the driver's
+    // page: a race_entries row is an entry, not a start, and the published
+    // `entries`/`starts` columns stay off the register.
+    truthy(heads.includes('Entries') && !heads.includes('Races') && !heads.includes('Starts'), 'Entries is counted from the race records; Races and Starts are gone')
+    const entries = one('SELECT COUNT(*) FROM race_entries WHERE driver_id = (SELECT id FROM drivers ORDER BY wins DESC, podiums DESC LIMIT 1)')
     is(
       await page.$eval('#root main tbody tr td:nth-child(4)', (td) => Number(td.textContent.replace(/[^0-9]/g, ''))),
-      races,
-      `${top.full_name}'s Races is the race-record count`,
+      entries,
+      `${top.full_name}'s Entries is the race-record count`,
     )
     const html = await (await fetch(`${BASE}/drivers`)).text()
+    truthy(/<th scope="col">Entries<\/th>/.test(html) && !/<th scope="col">Races<\/th>/.test(html), 'the static register uses the same word')
     const firstStatic = html.slice(html.indexOf('<tbody>'), html.indexOf('</tr>', html.indexOf('<tbody>')))
     truthy(firstStatic.includes(top.full_name), 'the static register opens on the same driver')
     // Row for row, not only the first: the tie-break must collate as SQLite
@@ -647,6 +651,42 @@ try {
     (await page.$$eval('#root main .stats dd', (n) => n.map((x) => x.textContent))).includes(String(sennaWins)),
     `wins derived from the race records — ${sennaWins}`,
   )
+
+  // A driver with no lede gets a description built from the race records —
+  // the entry count the strip derives — and never "0 wins, 0 poles" read off
+  // the published columns the page labels as such. The first NULL-notes
+  // driver by id, so the check survives any one note being written.
+  {
+    const quiet = db
+      .prepare(
+        `SELECT d.id, d.full_name FROM drivers d
+          WHERE d.notes IS NULL AND EXISTS (SELECT 1 FROM race_entries e WHERE e.driver_id = d.id)
+          ORDER BY d.id LIMIT 1`,
+      )
+      .get()
+    if (quiet) {
+      console.log(`\n/drivers/${quiet.id}  (a lede-less driver's description is derived)`)
+      const entries = count('SELECT COUNT(*) FROM race_entries WHERE driver_id = ?', quiet.id)
+      const html = await (await fetch(`${BASE}/drivers/${quiet.id}`)).text()
+      const description = (html.match(/<meta name="description" content="([^"]*)" \/>/)?.[1] ?? '')
+        .replace(/&#39;/g, "'")
+        .replace(/&quot;/g, '"')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&amp;/g, '&')
+      truthy(
+        description.startsWith(quiet.full_name) &&
+          description.includes(`Entered ${entries} championship Grand`),
+        `the description names the ${entries} entries the records hold — "${description}"`,
+      )
+      truthy(!/\b0 (wins|poles)\b/.test(description), 'and does not read "0 wins" or "0 poles" off a published column')
+      truthy(/\.$/.test(description), 'and ends at a sentence')
+      truthy(
+        html.includes('<dt>Entries (published)</dt>') && html.includes('<dt>Starts (published)</dt>'),
+        'the static facts label the published figures as the app does',
+      )
+    }
+  }
 
   console.log('\n/constructors')
   await go('/constructors', 'Constructors')
@@ -974,6 +1014,21 @@ try {
   truthy(!(await page.$('#root .cite')), 'a page that does not exist offers no citation')
   await go('/drivers/no-such-driver', 'No such driver')
   truthy(!(await page.$('#root .cite')), 'an unknown driver offers no citation either')
+
+  // Where a driver has a published entry count that differs from the derived
+  // one, both renderers show both and say why, in the same words.
+  {
+    const two = db
+      .prepare('SELECT d.id FROM drivers d WHERE d.entries IS NOT NULL AND d.entries != (SELECT COUNT(*) FROM race_entries e WHERE e.driver_id = d.id) LIMIT 1')
+      .get()
+    if (two) {
+      await go(`/drivers/${two.id}`)
+      const appNote = await page.waitForSelector('#root main .source-note', { timeout: 20000 }).then((n) => n.textContent())
+      truthy(appNote.includes('an entry is not a start'), `the app says why ${two.id} has two entry counts`)
+      const html = await (await fetch(`${BASE}/drivers/${two.id}`)).text()
+      truthy(html.includes('an entry is not a start') && html.includes('Entries (published)'), 'the static page says the same beside both figures')
+    }
+  }
 
   // The season's grid is counted, and the page says the count.
   {

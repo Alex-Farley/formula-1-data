@@ -364,9 +364,10 @@ describe('the queries a page and the prerenderer share', () => {
     assert.equal(some.find((i) => i.label === 'Best finish').value, 'P1')
   })
 
-  it('keeps the stored figures labelled as stored, and dashes what nobody published', () => {
+  it('labels the stored figures as published, and dashes what nobody published', () => {
     const pairs = Object.fromEntries(record({ wins: 8, wins_external: 8, poles: 5, poles_external: null, entries: null }))
-    assert.equal(pairs['Entries (stored)'], EMPTY)
+    assert.equal(pairs['Entries (published)'], EMPTY)
+    assert.equal('Entries (stored)' in pairs, false)
     assert.equal(pairs.Wins, '8 derived · 8 published')
     assert.equal(pairs.Poles, '5 derived')
     assert.equal('Provenance' in pairs, false)

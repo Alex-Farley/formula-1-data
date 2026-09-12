@@ -414,7 +414,12 @@ the source. `WK-` is this survey; nothing else uses the prefix.
       and the 107% rule are sporting-regulation limits with years, the same
       shape as the three technical fields the table already holds. Source:
       the FIA Sporting Regulations, current issue first, then the year each
-      changed. — *Wikipedia survey · S*
+      changed. **2025 landed in #76**: five `regulation_limits` rows from the
+      2025 issue (tyre sets dry/intermediate/wet per Competition, the 90%
+      classification rule, the 107% rule), each citing Article 30.2(a), 61.2/62.2
+      or 39.4(b)(i); the review read the document and corrected two notes.
+      The year each changed is what remains. —
+      *Wikipedia survey · S*
 
 - [ ] `WK-04` **The new-team entry fee is a press figure.** The page's US$450m
       "up-front payment" is the anti-dilution fund under the 2026 Concorde
@@ -495,13 +500,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       the stored URL still resolves. Split from `VD-20`. — *visual critique ·
       S*
 
-- [ ] `CD-20` **81 driver pages describe themselves in fifty characters.**
-      With the provenance sentence gone from `notes`, prerender's fallback
-      description is "Name, country. 0 wins, 0 poles." from the stored
-      columns. Build it from the derived figures — entries, seasons, best
-      finish, podiums — the way the strip does, and never from a stored
-      column the page itself labels as such. Found by the review of #70. —
-      *review of #70 · S*
 - [ ] `PD-25` **`/records` holders are names, not links.** The derived
       records carry `holder_id` and `holder_table` (#68) and the page renders
       the holder as text; the driver-wins and champions tables on the same
@@ -509,12 +507,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       drivers, constructors, circuits; a race holder needs `year`/`round`,
       not the row id — and leave shared records as text. Found by the review
       of #68. — *product critique · S*
-
-- [ ] `CD-18` **"Races" on the register, "Entries (stored)" on the page.**
-      The same derived count is called Races in the register and Entries on
-      the driver's page, where the stored figure sits beside it as "Entries
-      (stored)". One word, and the stored one labelled for what it is
-      (published). Found by the review of #69. — *review of #69 · S*
 
 - [ ] `CD-21` **The lede check misses a figure with an adjective before the
       noun.** "four runner-up finishes", "Ten career wins", "three straight
@@ -1429,6 +1421,28 @@ Real, but not costed, or waiting on a decision.
       reader's own access date is left to the reader; the build date is what
       fixes the figures. — *product critique · #71*
 
+- [x] `CD-20` **81 driver pages describe themselves in fifty characters.**
+      Every driver's meta description is now one sentence counted from the
+      race records — the entries, first and last year, constructors, wins,
+      podiums, poles and best finish the strip derives — and never a column
+      the page labels "(published)": "Entered 88 championship Grands Prix
+      across 1979–1986 for Arrows, Brabham and 3 other constructors; best
+      finish fourth." A career with no classified finish says so. The lede
+      follows where a whole sentence of it fits; where it would be cut
+      mid-thought the derived sentence stands alone, so all 862 end at a
+      sentence and none reads "0 wins". The smoke suite checks the first
+      lede-less driver's description against the entry count in `f1.db`.
+      — *review of #70 · #75*
+
+- [x] `CD-18` **"Races" on the register, "Entries (stored)" on the page.**
+      One word, "Entries", for the count of `race_entries` rows — a row is an
+      entry, not a start — on the register (app and static, column and
+      footer), in the strip and season table on the driver's page, and in
+      the static page's facts and seasons table. The published figures are
+      labelled for what they are, "Entries (published)" and "Starts
+      (published)", in the app and the static HTML alike; the static facts
+      gain the derived Entries the app's strip already showed.
+      — *review of #69 · #75*
 - [x] `WK-05` **The season's grid is counted.** `v_season_grid` — drivers
       entered (from the race entries; a DNQ is an entry, and no source says
       who started), constructors by their F1DB key so the Indianapolis
