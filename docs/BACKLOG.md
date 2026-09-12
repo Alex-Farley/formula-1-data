@@ -656,17 +656,6 @@ Real, but not costed, or waiting on a decision.
       2026 r13 pole awaiting the harvest, both of which the next refresh
       moves. — *project record · M*
 
-- [ ] `PM-28` **Six code comments cite `known_gaps` #1 for a gap that is
-      not #1.** Three mean the Jolpica licence decision, which is #2
-      (`finish_position`): `build.py` (the results loader), `tools/
-      f1db_fetch.py` (its licence commentary) and `data/harvest.py` (the
-      results section). Three mean the abandoned chassis-per-race harvest,
-      which is #3 (`chassis_id`): `build.py`, `tools/f1db_fetch.py` and
-      `data/harvest.py` again. #1 is the fastest-lap harvest. Find them with
-      `grep -rn "known_gaps #1" --include="*.py"`; the README's copy was
-      fixed in #82. Comments only, no artefact change. Found by the reviews
-      of #82. — *review of #82 · S*
-
 - [ ] `PM-09` **Per-round chassis harvest.** Closes `known_gaps` #3 (287 races
       with no known winning chassis) and #4 (car pole counts) in one pass. Only
       safe with the entry-list cross-check that now exists. — *project record · L*
@@ -703,6 +692,15 @@ Real, but not costed, or waiting on a decision.
       commercialised in a form that reproduces them prominently. Weighed and kept
       on the record; a marketing surface is not a database row. —
       *project record · ?*
+
+- [ ] `PM-30` **A `known_gaps #N` citation is a positional number nobody
+      checks.** Ids come from `enumerate(KNOWN_GAPS, 1)`, so filing a gap
+      mid-list renumbers every citation after it; `PM-28` corrected nine
+      that had drifted, two of them inside `f1.db`. Either cite gaps by
+      `field` in prose, or have `verify.py` read every `known_gaps #N`
+      across the tree beside the field it names and fail on a mismatch —
+      the project's usual answer to a number nothing checks. Found by the
+      review of #87. — *review of #87 · S*
 
 - [ ] `PD-08` **Decide what the atlas is for.** **Superseded by `PD-21`**,
       which decides it: a comparison surface, and only that. Three critics and
@@ -1597,6 +1595,15 @@ Real, but not costed, or waiting on a decision.
       a landed entry — `CD-21` (#79), `CR-23` and `CR-24` (both #77) — the
       first two by a block edit the review of #85 caught as unrecorded. — *review
       of #79 · #85*
+
+- [x] `PM-28` **Nine gap citations name the gap they mean.** Three code
+      comments that meant the Jolpica licence decision now say `known_gaps`
+      #2 and four that meant the abandoned chassis-per-race harvest say #3
+      (one of them in `schema.sql`); the `article_images` provenance note
+      and the `table_provenance` schema comment said #10, the centrelines,
+      for #11, whether a photograph shows the car — and those two ship in
+      `f1.db`, so this is a rebuild, not a comment edit. The review of #87
+      found the three the `.py`-only grep missed. — *review of #82 · #87*
 
 ## Declined
 

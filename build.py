@@ -1456,7 +1456,7 @@ def _stage_21_the_full_classification_qualifying_and_stand(b):
 
     # --- the full classification, qualifying and standings, from F1DB
     #
-    # This is the block that closed known_gaps #1. The facts are the same ones
+    # This is the block that closed known_gaps #2. The facts are the same ones
     # tools/ergast_load.py fetches from Jolpica, and the difference is the
     # licence: F1DB is CC BY 4.0, attribution only, so these rows can live in
     # the repository and ship in the built database. Jolpica's Ergast lineage
@@ -2156,7 +2156,7 @@ def _stage_32_link_race_entries_to_the_chassis(b):
 
     # --- link race entries to the CHASSIS that scored them
     #
-    # known_gaps #1 has stood since v2.6: the chassis-per-race harvest was
+    # known_gaps #3 has stood since v2.6: the chassis-per-race harvest was
     # abandoned because the winner cross-check does not constrain the
     # chassis. A 1952 trial returned "Ferrari 125 F2" for races Ascari won in
     # a Ferrari 500 and every winner still matched, because the winner says

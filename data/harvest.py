@@ -933,7 +933,7 @@ CORRECTIONS = [
 #
 # What the entrant data does and does not settle
 # ----------------------------------------------
-# known_gaps #1 records that the chassis-per-race harvest was abandoned
+# known_gaps #3 records that the chassis-per-race harvest was abandoned
 # because the winner cross-check does not constrain the chassis: a 1952 trial
 # returned "Ferrari 125 F2" for races Ascari won in a Ferrari 500, and every
 # winner still matched. F1DB's season -> constructor -> chassis mapping is the
@@ -1264,7 +1264,7 @@ def load_race_results():
 
     CC BY 4.0 - attribution only. That is the whole reason these rows are in
     the repository rather than only on a local copy: the same facts via
-    Jolpica are CC BY-NC-SA, and a non-commercial clause is why known_gaps #1
+    Jolpica are CC BY-NC-SA, and a non-commercial clause is why known_gaps #2
     stood for seven versions.
     """
     return _read_named(RESULTS_FILE, "tools/f1db_fetch.py")
