@@ -269,9 +269,14 @@ Worth doing, not yet urgent.
       put it on the page. Render it in both, from the same expression. —
       *content critique · S*
 
-- [ ] `CD-05` **`PD-12` answered.** The lap-timing position is written, in three
-      lengths, with the four places each goes. Lands with `PD-12`; no research
-      left in it. — *content critique · S*
+- [ ] `CD-05` **The timing position in three lengths.** #94 landed one
+      length in one place, the `NOT_HELD` sentence on `/data`, and aligned
+      `known_gaps` #5 with it. Still owed: the one-line and the paragraph
+      forms, and the places each goes — the README's licence section, the
+      release notes and `docs/TIMING-ARCHITECTURE.md`'s opening — all saying
+      what #94 says (licences on offer, not the law; race timing, since the
+      qualifying table holds lap times). No research left in it. — *content
+      critique · S*
 
 - [ ] `CD-07` **`PD-11` answered: what `/data` claims.** One adversarial
       sentence that survives the reader thinking *"I already have F1DB"* —
