@@ -140,9 +140,9 @@ being fetched under the old assumption: the fetch tool stamps every header
 release would be fetched, stamped with the old licence, rebuilt, and — if the
 four cross-checks passed — committed and deployed by the refresh workflow
 before anyone read it. That is the one path by which this project could
-publish something it may not, and it is filed (`PM-27`): the fetch tool
-should read F1DB's licence and stop when it is not the one classified in
-`SOURCE_LICENCE`.
+publish something it may not, and it is closed (`PM-27`, #83): the fetch
+tool reads F1DB's licence file and stops when it is not the deed classified
+in `SOURCE_LICENCE`, so the refresh fails at the fetch and commits nothing.
 
 ## Who to tell
 

@@ -481,7 +481,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       not the row id — and leave shared records as text. Found by the review
       of #68. — *product critique · S*
 
-
 - [ ] `CD-19` **Eighteen driver ledes still spell a figure the strip
       derives** ("Ten wins", "Eight wins"); `verify.py`'s check (#70) stops
       at digits. Extend it to spelled numbers before the derived nouns and
@@ -655,16 +654,6 @@ Real, but not costed, or waiting on a decision.
       r17 sprint; the 2026 drivers'/constructors' points disagreement and the
       2026 r13 pole awaiting the harvest, both of which the next refresh
       moves. — *project record · M*
-
-- [ ] `PM-27` **The fetch tool stamps F1DB's licence from a constant.**
-      `tools/f1db_fetch.py` writes "CC BY 4.0" into every harvest header
-      from `HEADER`, not from F1DB's licence file, so a relicensed release
-      would be fetched, stamped with the old licence and — passing the four
-      cross-checks — committed and deployed by `refresh.yml` before anyone
-      read it. Read the licence file in the clone and exit non-zero unless it
-      is the licence `SOURCE_LICENCE` classifies; the refresh then fails at
-      the fetch and commits nothing. Found writing `docs/UPSTREAM.md`
-      (`PD-13`). — *project record · S*
 
 - [ ] `PM-28` **Six code comments cite `known_gaps` #1 for a gap that is
       not #1.** Three mean the Jolpica licence decision, which is #2
@@ -1547,6 +1536,16 @@ Real, but not costed, or waiting on a decision.
       rather than titles, and Montoya's "fourth GP start" was wrong — the pass on
       Schumacher at Interlagos 2001 was his third. — *review of #74 · #79*
 
+- [x] `PM-27` **The fetch tool reads F1DB's licence before it writes a
+      row.** `licence_check()` in `tools/f1db_fetch.py` requires the deed in
+      the checkout to be titled Attribution 4.0 International and to name no
+      NonCommercial, ShareAlike or NoDerivatives element, and exits
+      otherwise — so `refresh.yml` fails at the fetch and commits nothing,
+      and reclassifying the source in `SOURCE_LICENCE` becomes a decision
+      someone makes rather than a header a constant stamped; the message
+      asks for the file to be read, since the check cannot tell a relicence
+      from a reformatted deed. Eight unit tests, offline; the live deed
+      passes. — *project record · #83*
 - [x] `PD-13` **The upstream dependency is written down.** `docs/UPSTREAM.md`:
       what F1DB supplies (115,161 of 119,280 rows at v2.23, table by table),
       how it arrives (a committed snapshot, refreshed daily by `refresh.yml`
