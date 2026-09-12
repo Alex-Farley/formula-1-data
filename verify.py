@@ -1407,6 +1407,30 @@ def the_chassis_register():
                     leaked.append(f"{tbl}.{r[0]} wheelbase {r[4]} = the {y} maximum")
     check("no regulation limit is stored as a car's own figure", not leaked,
           "; ".join(leaked[:4]))
+    overlaps = []
+    for field in [r[0] for r in con.execute("SELECT DISTINCT field FROM regulation_limits")]:
+        spans = con.execute("SELECT from_year, to_year FROM regulation_limits WHERE field = ? "
+                            "ORDER BY from_year", (field,)).fetchall()
+        for (a0, a1), (b0, b1) in zip(spans, spans[1:]):
+            if b0 <= a1:
+                overlaps.append(f"{field} {a0}-{a1} and {b0}-{b1}")
+    check("no two spans of one regulation limit overlap", not overlaps, "; ".join(overlaps[:4]))
+    latest = con.execute("SELECT MAX(year) FROM seasons").fetchone()[0]
+    capped = {y for y in lim if "cost_cap_usd" in lim[y]}
+    check("the cost cap has a figure for every year from 2021 to the current season",
+          capped == set(range(2021, latest + 1)),
+          f"missing {sorted(set(range(2021, latest + 1)) - capped)}")
+    # The one other place a cap figure is written is the 2026 regulation_changes
+    # row, in prose. It has to agree with the schedule, or one of them is wrong.
+    prose = con.execute("SELECT detail FROM regulation_changes WHERE year = 2026 "
+                        "AND category = 'financial'").fetchone()
+    cap26 = lim.get(2026, {}).get("cost_cap_usd")
+    cap25 = lim.get(2025, {}).get("cost_cap_usd")
+    per26 = lim.get(2026, {}).get("cost_cap_per_competition_usd")
+    check("the 2026 cost cap prose repeats the schedule's figures",
+          bool(prose) and cap26 and cap25 and per26
+          and all(f"US${v:,.0f}" in prose[0] for v in (cap26, cap25, per26)),
+          (prose or ("no row",))[0][:80])
     nlim = con.execute("SELECT COUNT(*) FROM regulation_limits").fetchone()[0]
     print(f"  [info] {nlim} regulation limits recorded, covering "
           + ", ".join(str(r[0]) for r in con.execute(

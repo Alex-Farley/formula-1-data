@@ -419,6 +419,62 @@ Worth doing, not yet urgent.
       (c) declined unless a licence is obtained. The decision is Alex's;
       until it is made the loop does not touch the timing tables. —
       *request · M*
+### Filed 2026-09-12 — the Wikipedia *Formula One* page, read for what it holds that this does not
+
+Asked for on 2026-09-12. The page is prose; its structured content was
+compared table by table against the schema. Almost all of it is already here
+and better: `points_systems` (ten systems, sprint scoring separately),
+`tyre_suppliers`, `engine_eras`, `regulation_changes` (58), `regulation_limits`,
+`safety_milestones` (26, to 2026), `governance` (18, Liberty Media and both
+Concorde milestones), `technical_innovations`, `sprint_results` (29 sprints),
+`seasons`. Champions, titles by driver and team, wins by season are derived.
+What the page states that the database cannot yet is below. Every figure
+needs an FIA document before it needs a row; Wikipedia is the pointer, not
+the source. `WK-` is this survey; nothing else uses the prefix.
+
+- [ ] `WK-01` **The qualifying format has no history here.** One row in
+      `regulation_changes` (2003, single-lap) stands for seventy-six years of
+      formats: aggregate and two-session grids to 1995, the one-hour twelve-lap
+      session 1996–2002, single-lap 2003–2005, knockout Q1/Q2/Q3 from 2006
+      with its session lengths changing, the 2016 elimination experiment
+      reversed after two rounds, the 107% rule 1996–2002 and again from 2011,
+      the sprint shootout from 2023. A `qualifying_formats` table
+      (`from_year`, `to_year`, `format`, `sessions`, `rule_107`, `note`,
+      `source`) shaped like `points_systems`. Source: the FIA Sporting
+      Regulations for each season — fia.com publishes 2009 onwards; earlier
+      formats from FIA yearbooks or Formula 1's own history pages, and where
+      no primary document is reachable the span goes to `known_gaps`, not to
+      a guess. — *Wikipedia survey · M*
+
+- [ ] `WK-03` **The weekend's limits are not in `regulation_limits`.** Tyre
+      sets per weekend (13 dry, 4 intermediate, 3 wet; 12 dry on a sprint
+      weekend), the classification threshold (90% of the winner's distance),
+      and the 107% rule are sporting-regulation limits with years, the same
+      shape as the three technical fields the table already holds. Source:
+      the FIA Sporting Regulations, current issue first, then the year each
+      changed. — *Wikipedia survey · S*
+
+- [ ] `WK-04` **The new-team entry fee is a press figure.** The page's US$450m
+      "up-front payment" is the anti-dilution fund under the 2026 Concorde
+      Agreement, a private contract; the 2021 figure of US$200m is likewise
+      reported, not published. Neither has a primary source. A `known_gaps`
+      row saying so is the correct outcome, not a `governance` row carrying a
+      newspaper's number. — *Wikipedia survey · S*
+
+- [ ] `WK-05` **Cars, teams and engine makers per season are derivable and not
+      shown.** The page's infobox says 22 drivers, 11 constructors, five power
+      unit manufacturers. `season_entrants` holds the constructors and engine
+      makers for every year; the drivers who started come from `race_entries`.
+      A view `v_season_grid` (year, drivers, constructors, engine
+      manufacturers, tyre suppliers) and a line on each `/seasons/YYYY` page.
+      No new facts. — *Wikipedia survey · S*
+
+- [ ] `WK-06` **Read the records list the same way.** *List of Formula One
+      World Championship records* is the page with the tables this one lacks.
+      Survey it against `records` and the derived leaderboards once `PD-03`
+      has settled what `/records` is; anything it holds that the database can
+      derive is a leaderboard, anything it holds that the database cannot is a
+      gap to file. — *Wikipedia survey · S*
 
 ### Filed 2026-09-11 — the eight reviews
 
@@ -1203,6 +1259,13 @@ Real, but not costed, or waiting on a decision.
 
 - [x] `VD-21` **`web/README.md` describes the mark that ships**: four by four,
       one accent cell. — *visual critique · #61*
+- [x] `WK-02` **The cost cap is a schedule.** Seven `regulation_limits`
+      rows — the headline figure for 2021, 2022, 2023–2025 and 2026, and the
+      per-Competition adjustment for each — every one read from the FIA
+      Financial Regulations issue for that year and citing it; a 2026
+      `regulation_changes` row for the US$215m figure. `verify.py` refuses
+      overlapping spans of one limit and a missing cap year. — *Wikipedia
+      survey · #59*
 
 ## Declined
 
