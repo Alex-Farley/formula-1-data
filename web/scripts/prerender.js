@@ -797,7 +797,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
   page({
     path: 'drivers',
     title: titled('Every driver, 1950–2026'),
-    description: `All ${register.length} drivers in the register, with entries, wins, podiums, poles, fastest laps and titles counted from the race records.`,
+    description: `All ${register.length} drivers in the register, with entries, wins, podiums, poles and fastest laps counted from the race records, and titles from the championship tables.`,
     trail: [['', 'Home'], ['drivers', 'Drivers']],
     body: `
       <h1>Drivers</h1>
