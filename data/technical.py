@@ -158,6 +158,11 @@ _FIA2026 = "https://www.fia.com/regulations/formula-1"
 # cap for its own year in Article 2 - "in the event that N Competitions take
 # place ... US Dollars X" - with the per-Competition adjustment beside it. The
 # figures below were read from these documents, not from a summary of them.
+# The FIA Sporting Regulations for 2025, issue 5 (30 April 2025), read for the
+# weekend's limits: Article 30.5 (tyre sets per driver per Competition),
+# 61.2 / 62.2 (classification) and the 107% rule in the qualifying articles.
+_SPORT2025 = "https://www.fia.com/system/files/documents/fia_2025_formula_1_sporting_regulations_-_issue_5_-_2025-04-30.pdf"
+
 _FIN = {
     2021: "https://www.fia.com/sites/default/files/formula_1_-_financial_regulations_-_2021_-_iss_8_-_2021-10-15.pdf",
     2022: "https://www.fia.com/sites/default/files/fia_formula_1_financial_regulations_iss.12.pdf",
@@ -253,6 +258,27 @@ REGULATION_LIMITS = [
      _FIN[2025]),
     (2026, 2026, "cost_cap_per_competition_usd", 1_800_000.0, "USD",
      "Added for each Competition above 24.", "reference", _FIN[2026]),
+
+    # The weekend's limits, from the 2025 Sporting Regulations. One season:
+    # the years each of these changed are not yet read from earlier issues,
+    # which is what WK-03 still holds open. A "Competition" is the FIA's
+    # word for a Grand Prix weekend.
+    (2025, 2025, "tyre_sets_dry_per_competition", 13.0, "sets",
+     "Per driver, at a Competition without a sprint; twelve where a sprint "
+     "is scheduled (Article 30.5).", "reference", _SPORT2025),
+    (2025, 2025, "tyre_sets_intermediate_per_competition", 5.0, "sets",
+     "Per driver per Competition (Article 30.5).", "reference", _SPORT2025),
+    (2025, 2025, "tyre_sets_wet_per_competition", 2.0, "sets",
+     "Per driver per Competition; three at Monaco (Article 30.5).",
+     "reference", _SPORT2025),
+    (2025, 2025, "classification_min_distance_pct", 90.0, "%",
+     "A car that has covered less than 90% of the winner's laps, rounded "
+     "down to whole laps, is not classified (Articles 61.2 and 62.2).",
+     "reference", _SPORT2025),
+    (2025, 2025, "qualifying_107_pct", 107.0, "%",
+     "A driver eliminated in Q1 or SQ1 whose best lap exceeded 107% of the "
+     "fastest in that session is unclassified unless the track was declared "
+     "wet or the stewards permit a start.", "reference", _SPORT2025),
 ]
 
 
