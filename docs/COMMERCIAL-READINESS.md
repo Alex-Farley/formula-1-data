@@ -25,7 +25,7 @@ committed database may not be published.
 |---|---:|---:|
 | `yes` — redistributable on the terms given | <!-- fig:yes_rows -->117,529<!-- /fig --> | <!-- fig:yes_share -->99.5%<!-- /fig --> |
 | `facts-only` — the facts, not the expression | <!-- fig:facts_only_rows -->552<!-- /fig --> | <!-- fig:facts_only_share -->0.5%<!-- /fig --> |
-| `no` — not redistributable | <!-- fig:no_rows -->0<!-- /fig --> | 0% |
+| `no` — not redistributable | <!-- fig:no_rows -->0<!-- /fig --> | <!-- fig:no_share -->0.0%<!-- /fig --> |
 
 ---
 
@@ -42,8 +42,9 @@ either
 
 **All <!-- fig:facts_only_rows -->552<!-- /fig --> are (a). None is (b).** The breakdown, across <!-- fig:facts_only_tables -->9<!-- /fig --> tables — every
 figure here is a span `tools/readme_figures.py` writes from the database and
-`verify.py` checks, so a facts-only row landing in a table not listed fails
-the build until its line is written:
+`verify.py` checks; the writer refuses a facts-only row in a table not
+listed, and `verify.py` holds the listed rows to the class total, so a row
+nobody has read cannot be counted as read:
 
 | Table | Rows | Source | What the row holds | Prose |
 |---|---:|---|---|---|
@@ -57,15 +58,18 @@ the build until its line is written:
 | `regulation_changes` | <!-- fig:fo_regulation_changes -->59<!-- /fig --> | fia.com | year, category | `detail`, `impact` |
 | `regulation_limits` | <!-- fig:fo_regulation_limits -->15<!-- /fig --> | fia.com | numeric limits | `note` |
 
+The lines sum to <!-- fig:facts_only_itemised -->552<!-- /fig -->, which
+`verify.py` holds equal to the class total above.
+
 The prose columns in the right-hand column are **written for this project**,
 not taken from FOM or the FIA — `ATTRIBUTION.md` records regulations, safety,
 technical and glossary text as "written for this project from general
 knowledge". They carry a separate obligation, from Wikipedia and not from
 these sources, and are the subject of the prose pass rather than this one.
 
-### The 148 rows that look redundant and are not
+### The <!-- fig:fo_current_season_rows -->148<!-- /fig --> rows that look redundant and are not
 
-`races` (47), `race_entries` (36) and `standings` (65) cover 2025 and 2026,
+`races` (<!-- fig:fo_races -->47<!-- /fig -->), `race_entries` (<!-- fig:fo_race_entries -->36<!-- /fig -->) and `standings` (<!-- fig:fo_standings -->65<!-- /fig -->) cover 2025 and 2026,
 and F1DB covers both seasons under CC BY 4.0. It is tempting to read these as
 a redundant hand-maintained copy and delete them.
 
@@ -172,7 +176,9 @@ belongs to the prose pass, not here.
 ## Still open
 
 **The prose pass.** 552 short fields — averaging barely a sentence — carry the
-CC BY-SA obligation that comes from Wikipedia, not from FOM. Each needs
+CC BY-SA obligation that comes from Wikipedia, not from FOM. (That the count
+matched the facts-only row total when both were written is coincidence; this
+one is a count of prose fields, typed, and not a figure the build writes.) Each needs
 marking as original, paraphrased, or close to source; only the third needs
 rewriting. This is about knowing what the licence statement must say, not
 about whether the data may ship. It may.

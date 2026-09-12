@@ -1,24 +1,28 @@
 #!/usr/bin/env python3
 """
-Every number the README states about the CURRENT database, computed from it.
+Every number the documents in DOCUMENTS state about the CURRENT database,
+computed from it: README.md, and docs/COMMERCIAL-READINESS.md, the licence
+statement (PM-31).
 
 The README said 39 tables, 34 views and about 8,400 rows against an actual
 46, 39 and 119,265, and that qualifying was "not held at all" while 26,997
 rows of it were. Nothing checked the prose, so it stayed wrong through seven
 releases while `meta.coverage_note` two files over was derived on every build
-and compared whole by verify.py. This gives the README the same discipline.
+and compared whole by verify.py. This gives the README the same discipline;
+the licence statement got it after its class table said 539 facts-only rows
+against 552 held.
 
-A figure is a name and one expression. The README marks where each one lands:
+A figure is a name and one expression. A document marks where each one lands:
 
     <!-- fig:tables -->46<!-- /fig -->
 
     python3 tools/readme_figures.py            print every figure and its value
-    python3 tools/readme_figures.py --check    exit 1 where the README disagrees
+    python3 tools/readme_figures.py --check    exit 1 where a document disagrees
     python3 tools/readme_figures.py --write    rewrite the spans in place
 
 `make all` runs --write after the build; verify.py runs the check on every
 run, so a data change that moves a count fails CI until the README is
-regenerated. A figure that is not in FIGURES is not in the README: prose that
+regenerated. A figure that is not in FIGURES is in no document: prose that
 cannot be derived from f1.db, f1-geometry.db or the code is deleted rather
 than left to drift.
 
@@ -37,7 +41,7 @@ GEOMETRY_DB = os.path.join(ROOT, "f1-geometry.db")
 README = os.path.join(ROOT, "README.md")
 # Every document whose figures are spans this tool writes and verify.py
 # checks. docs/COMMERCIAL-READINESS.md typed its class table and per-table
-# breakdown by hand and drifted 539 -> 667 unnoticed (PM-31).
+# breakdown by hand and drifted, 539 stated against 552 held (PM-31).
 DOCUMENTS = (README, os.path.join(ROOT, "docs", "COMMERCIAL-READINESS.md"))
 
 # <!-- fig:name -->value<!-- /fig -->. The value may run over a line break -
@@ -490,10 +494,36 @@ class Figures:
     def facts_only_fia(self):
         return n(self._licence_tally()[1].get("fia.com", 0))
 
+    # The tables the licence statement itemises, one fo_ figure each. The
+    # writer refuses a facts-only row in any other table: the statement
+    # claims every such row was read, and a figure that rewrote itself to
+    # cover an unread table would assert that on nobody's behalf.
+    ITEMISED = ("drivers", "circuits", "seasons", "standings", "constructors",
+                "races", "race_entries", "regulation_changes", "regulation_limits")
+
     def facts_only_tables(self):
-        # How many tables hold a facts-only row. The document lists each with
-        # what the row holds; a new table here is a row the document owes.
-        return n(len({t for t, _ in self._licence_tally()[2]}))
+        held = {t for t, _ in self._licence_tally()[2]}
+        extra = sorted(held - set(self.ITEMISED))
+        if extra:
+            raise SystemExit(
+                f"facts-only rows in {', '.join(extra)}, which "
+                f"docs/COMMERCIAL-READINESS.md does not itemise: read the rows, "
+                f"add a line to the breakdown and an fo_ figure to Figures.ITEMISED "
+                f"before writing the figures")
+        return n(len(held))
+
+    def facts_only_itemised(self):
+        # The itemised rows summed - verify.py holds it equal to facts_only_rows.
+        return n(sum(self._licence_tally()[2].values()))
+
+    def fo_current_season_rows(self):
+        # races + race_entries + standings for 2025-26, the rows that look
+        # redundant beside F1DB and are not.
+        return n(sum(int(self._fo(t).replace(",", "")) for t in ("races", "race_entries", "standings")))
+
+    def no_share(self):
+        by_class = self._licence_tally()[0]
+        return f"{100.0 * by_class.get('no', 0) / sum(by_class.values()):.1f}%"
 
     def _fo(self, table):
         return n(sum(k for (t, _), k in self._licence_tally()[2].items() if t == table))

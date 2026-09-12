@@ -1641,9 +1641,11 @@ Real, but not costed, or waiting on a decision.
       the README and `docs/COMMERCIAL-READINESS.md` — and counts the licence
       position the way `./f1 licences` does: class shares, the two facts-only
       domains, and each listed table's rows; `verify.py` checks them all.
-      The class table had said 539 against 552 held. A facts-only row
-      landing in an unlisted table now fails the build until its line is
-      written. — *review of #91 · #92*
+      The class table had said 539 against 552 held. The writer refuses a
+      facts-only row in a table the statement does not itemise, and
+      `verify.py` holds the itemised rows to the class total — the review of
+      #92 found the first cut's span would have rewritten itself around an
+      unread row. — *review of #91 · #92*
 
 ## Declined
 
