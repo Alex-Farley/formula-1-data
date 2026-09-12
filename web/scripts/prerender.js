@@ -1281,7 +1281,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
     page({
       path: 'data',
       title: titled('Data'),
-      description: `The whole site is one SQLite file, and you can have it. Formula One 1950–2026, v${META.version}, built ${META.built}: cross-checked against independent sources, with every disagreement and gap published in the data.`,
+      description: `The whole site is one SQLite file, and you can have it. Formula One 1950–2026, v${META.version}, built ${META.built}. ${CROSS_CHECKED}`,
       trail: [['', 'Home'], ['data', 'Data']],
       jsonld: {
         '@context': 'https://schema.org',
