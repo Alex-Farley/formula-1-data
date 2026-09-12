@@ -527,14 +527,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       (stored)". One word, and the stored one labelled for what it is
       (published). Found by the review of #69. — *review of #69 · S*
 
-- [ ] `CD-22` **The static driver description and the facts list disagree on
-      the years.** The description derives first and last year from the
-      race entries; the facts list shows the stored `first_season` and
-      `last_season`. Cevert reads "across 1969–1973" beside "Seasons
-      1970–1973", Alexander Rossi "in 2015" beside "2014–2015". Derive both,
-      or say which is which. Found by the review of #75. — *review of #75 ·
-      S*
-
 **Interaction design**
 
 - [ ] `IX-16` **`IA-08` escalated: Back restores the scroll and not the filter.** France filter, sort by wins, scroll, open a driver, Back — same pixel, 862 unfiltered rows. Do `/drivers` first. — *interaction critique · M*
@@ -1522,6 +1514,14 @@ Real, but not costed, or waiting on a decision.
       than counted, Surtees's seven motorcycle titles are counted as times
       rather than titles, and Montoya's "fourth GP start" was wrong — the pass on
       Schumacher at Interlagos 2001 was his third. — *review of #74 · #79*
+
+- [x] `CD-22` **Where the register's seasons are not the race records', the
+      page says which is which.** The Seasons note on the driver strip, in
+      both renderers, adds "1969–1973 in the race records" beside the
+      register's 1970–1973; two drivers differ (Cevert's 1969 German Grand
+      Prix in a Formula 2 car, Rossi's practice-only 2014), each side right
+      about something, and `verify.py` pins the pair. — *review of #75 ·
+      #81*
 
 ## Declined
 

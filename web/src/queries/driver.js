@@ -27,7 +27,8 @@ export const DRIVER = `SELECT * FROM drivers WHERE id = ?`
  *
  * first_year and last_year are for the static page's meta description
  * (CD-20), which is one sentence built from this row and never from a
- * stored column the page labels as published; the strip does not show them.
+ * stored column the page labels as published. The strip shows them only
+ * where they differ from the register's seasons (CD-22).
  */
 export const DERIVED = `
   SELECT COUNT(*)                        AS entries,
@@ -167,7 +168,7 @@ export function strip(driver, derived) {
     {
       label: 'Seasons',
       value: span(driver.first_season, driver.last_season),
-      note: `${derived.seasons ?? 0} with an entry`,
+      note: seasonsNote(driver, derived),
     },
     { label: 'Entries', value: number(derived.entries) },
     { label: 'Wins', value: number(derived.wins ?? 0) },
@@ -183,6 +184,23 @@ export function strip(driver, derived) {
       : null,
     { label: 'Best finish', value: derived.best ? `P${derived.best}` : null },
   ].filter(Boolean)
+}
+
+/**
+ * The Seasons note: how many seasons carry an entry, and, where the register's
+ * span is not the race records' span, the records' years - so the reader sees
+ * which is which. The description derives its years; the fact shows the
+ * register's; for two drivers they differ, and each side is right about
+ * something: Cevert's first entry was the 1969 German Grand Prix in a Formula
+ * 2 Tecno, and the register's 1970 is his Formula One debut; Rossi's 2014 was
+ * practice sessions only, and the records' 2015 is his first race entry.
+ * verify.py pins the pair (CD-22).
+ */
+export const seasonsNote = (driver, derived) => {
+  const n = `${derived.seasons ?? 0} with an entry`
+  if (missing(derived.first_year) || missing(driver.first_season)) return n
+  const same = derived.first_year === driver.first_season && derived.last_year === driver.last_season
+  return same ? n : `${n}, ${span(derived.first_year, derived.last_year)} in the race records`
 }
 
 /** "N derived · M published", or just the derived figure where nothing was published. */
