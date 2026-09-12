@@ -194,13 +194,20 @@ export function strip(driver, derived) {
  * something: Cevert's first entry was the 1969 German Grand Prix in a Formula
  * 2 Tecno, and the register's 1970 is his Formula One debut; Rossi's 2014 was
  * practice sessions only, and the records' 2015 is his first race entry.
- * verify.py pins the pair (CD-22).
+ * verify.py pins the pair (CD-22). A NULL last_season is the register's way
+ * of saying the driver is still driving, not a claim about the last year, so
+ * an open span never differs on its last year; the review of #81 found the
+ * note firing on the whole current grid for want of that clause. Both spans
+ * are labelled, the register's as published, in the site's own vocabulary.
  */
 export const seasonsNote = (driver, derived) => {
   const n = `${derived.seasons ?? 0} with an entry`
   if (missing(derived.first_year) || missing(driver.first_season)) return n
-  const same = derived.first_year === driver.first_season && derived.last_year === driver.last_season
-  return same ? n : `${n}, ${span(derived.first_year, derived.last_year)} in the race records`
+  const same =
+    derived.first_year === driver.first_season &&
+    (missing(driver.last_season) || derived.last_year === driver.last_season)
+  if (same) return n
+  return `${n}; ${span(derived.first_year, derived.last_year)} in the race records, ${span(driver.first_season, driver.last_season)} published`
 }
 
 /** "N derived · M published", or just the derived figure where nothing was published. */

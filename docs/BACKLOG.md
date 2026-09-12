@@ -1517,11 +1517,21 @@ Real, but not costed, or waiting on a decision.
 
 - [x] `CD-22` **Where the register's seasons are not the race records', the
       page says which is which.** The Seasons note on the driver strip, in
-      both renderers, adds "1969–1973 in the race records" beside the
-      register's 1970–1973; two drivers differ (Cevert's 1969 German Grand
-      Prix in a Formula 2 car, Rossi's practice-only 2014), each side right
-      about something, and `verify.py` pins the pair. — *review of #75 ·
-      #81*
+      both renderers, reads "1969–1973 in the race records, 1970–1973
+      published" where the spans differ; two drivers do (Cevert's 1969
+      German Grand Prix in a Formula 2 car, Rossi's practice-only 2014), each
+      side right about something, and `verify.py` pins the pair. An open
+      span — a driver still driving — makes no claim about its last year,
+      which the first cut missed and the review caught on 23 current
+      drivers. — *review of #75 · #81*
+
+- [ ] `CD-25` **The reason two drivers' spans differ is only in the code.**
+      Cevert's 1969 German Grand Prix in a Formula 2 Tecno and Rossi's
+      practice-only 2014 explain the two Seasons notes, and the explanation
+      sits in `driver.js` and `verify.py` comments where no reader meets it.
+      A `discrepancies` row each would put it beside the fact through the
+      existing `disagree()` aside. Found by the review of #81. — *review of
+      #81 · S*
 
 ## Declined
 

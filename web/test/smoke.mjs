@@ -1055,7 +1055,7 @@ try {
   {
     await go('/drivers/cevert', 'Francois Cevert')
     const app = await page.$eval('#root main', (m) => m.textContent)
-    truthy(app.includes('1969–1973 in the race records'), "the app's Seasons note gives the race records' years where they differ")
+    truthy(app.includes('1969–1973 in the race records, 1970–1973 published'), "the app's Seasons note gives both spans, labelled, where they differ")
     const html = await (await fetch(`${BASE}/drivers/cevert`)).text()
     truthy(html.includes('1969–1973 in the race records') && html.includes('across 1969–1973'), 'the static page says the same, beside a description that derives its years')
   }

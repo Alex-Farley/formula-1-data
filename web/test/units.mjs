@@ -361,9 +361,19 @@ describe('the queries a page and the prerenderer share', () => {
     assert.equal(none.find((i) => i.label === 'Seasons').note, '13 with an entry')
     // The register's span and the race records' agree for all but two drivers;
     // where they differ, the note says which years are the records'.
-    assert.equal(seasonsNote({ first_season: 1970, last_season: 1973 }, { seasons: 5, first_year: 1969, last_year: 1973 }), '5 with an entry, 1969–1973 in the race records')
+    assert.equal(
+      seasonsNote({ first_season: 1970, last_season: 1973 }, { seasons: 5, first_year: 1969, last_year: 1973 }),
+      '5 with an entry; 1969–1973 in the race records, 1970–1973 published',
+    )
     assert.equal(seasonsNote({ first_season: 1970, last_season: 1973 }, { seasons: 4, first_year: 1970, last_year: 1973 }), '4 with an entry')
     assert.equal(seasonsNote({ first_season: null, last_season: null }, { seasons: 1, first_year: 2015, last_year: 2015 }), '1 with an entry')
+    // An open span - a driver still driving - makes no claim about the last
+    // year, so it never differs on it.
+    assert.equal(seasonsNote({ first_season: 2007, last_season: null }, { seasons: 20, first_year: 2007, last_year: 2026 }), '20 with an entry')
+    assert.equal(
+      seasonsNote({ first_season: 2014, last_season: null }, { seasons: 1, first_year: 2015, last_year: 2015 }),
+      '1 with an entry; 2015 in the race records, 2014– published',
+    )
     const some = strip({ titles: 3, title_years: '1969,1971,1973' }, { best: 1, seasons: 1 })
     assert.deepEqual(some.find((i) => i.label === 'Titles'), { label: 'Titles', value: '3', note: '1969, 1971, 1973' })
     assert.equal(some.find((i) => i.label === 'Best finish').value, 'P1')
