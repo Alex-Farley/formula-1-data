@@ -1529,8 +1529,10 @@ Real, but not costed, or waiting on a decision.
       NonCommercial, ShareAlike or NoDerivatives element, and exits
       otherwise — so `refresh.yml` fails at the fetch and commits nothing,
       and reclassifying the source in `SOURCE_LICENCE` becomes a decision
-      someone makes rather than a header a constant stamped. Six unit tests,
-      offline. — *project record · #83*
+      someone makes rather than a header a constant stamped; the message
+      asks for the file to be read, since the check cannot tell a relicence
+      from a reformatted deed. Eight unit tests, offline; the live deed
+      passes. — *project record · #83*
 
 ## Declined
 

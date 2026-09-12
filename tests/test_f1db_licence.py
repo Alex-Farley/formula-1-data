@@ -47,15 +47,30 @@ class LicenceCheck(unittest.TestCase):
         nc = CC_BY.replace("Attribution 4.0 International", "Attribution-NonCommercial 4.0 International")
         with self.assertRaises(SystemExit) as cm:
             F.licence_check(self._tree("LICENSE", nc))
-        self.assertIn("licence has changed", str(cm.exception))
+        self.assertIn("confirm the licence or reclassify", str(cm.exception))
 
-    def test_an_element_hidden_in_the_body_refuses(self):
+    def test_the_title_alone_is_not_the_deed(self):
+        # The right first line over any other text - the review of #83 passed
+        # "not for commercial use without written permission" under it.
+        bespoke = "Attribution 4.0 International\n\nYou may not use this data commercially without written permission.\n"
+        with self.assertRaises(SystemExit) as cm:
+            F.licence_check(self._tree("LICENSE", bespoke))
+        self.assertIn("has the deed's title but not its text", str(cm.exception))
+
+    def test_an_element_hidden_in_the_body_refuses_in_any_case(self):
         # Right title, wrong body: the deed has been edited or is not the one
-        # its first line claims.
-        sa = CC_BY + "\nShareAlike. If You Share Adapted Material You produce...\n"
+        # its first line claims. Case does not hide it.
+        sa = CC_BY + "\nSHAREALIKE. If You Share Adapted Material You produce...\n"
         with self.assertRaises(SystemExit) as cm:
             F.licence_check(self._tree("LICENSE", sa))
-        self.assertIn("ShareAlike", str(cm.exception))
+        self.assertIn("sharealike", str(cm.exception))
+
+    def test_a_file_in_another_encoding_still_exits_cleanly(self):
+        d = tempfile.mkdtemp()
+        with open(os.path.join(d, "LICENSE"), "wb") as f:
+            f.write("Attribution 4.0 International\n\nCaf\xe9\n".encode("latin-1"))
+        with self.assertRaises(SystemExit):
+            F.licence_check(d)
 
     def test_the_header_states_the_licence_the_check_requires(self):
         self.assertIn("CC BY 4.0", F.HEADER)
