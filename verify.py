@@ -1425,22 +1425,26 @@ def the_driver_register():
                OR (d.last_season IS NOT NULL AND d.last_season != x.ly))""")}
     _declared = {"cevert", "alexander-rossi"}
     # The register's `active` against the grid the drivers page derives - an
-    # entry in the latest completed season (IX-17). The contract: the register
-    # does not call a driver active until they have entered that season. An
-    # active driver with no entry is a stale register row and fails - except
-    # in pre-season, when a driver signed for the coming year (first_season
-    # later than any completed race: Lindblad before the 2026 opener) has had
-    # no race to enter yet and is left out of the test rather than the test
-    # weakened. A driver who entered and is no longer active is a mid-season
-    # replacement (Doohan in 2025) and is only reported, because the data is
-    # right both ways.
+    # entry in the latest completed season (IX-17). In season, an active
+    # driver with no entry is a stale register row and fails. In pre-season -
+    # a later year on the calendar with nothing completed yet - the register
+    # describes a grid the race records cannot confirm (Bottas, Perez and
+    # Lindblad were signed for 2026 before its opener), so the same comparison
+    # is only reported; the rule is derived from the calendar, not from a list
+    # of names. A driver who entered and is no longer active is a mid-season
+    # replacement (Doohan in 2025) and is reported in either window, because
+    # the data is right both ways.
     _latest = con.execute("SELECT MAX(year) FROM races WHERE status = 'completed'").fetchone()[0]
-    _active = {r[0] for r in con.execute("""SELECT id FROM drivers WHERE status = 'active'
-        AND NOT (first_season IS NOT NULL AND first_season > ?)""", (_latest,))}
+    _calendar = con.execute("SELECT MAX(year) FROM races").fetchone()[0]
+    _active = {r[0] for r in con.execute("SELECT id FROM drivers WHERE status = 'active'")}
     _grid = {r[0] for r in con.execute("""SELECT DISTINCT e.driver_id FROM race_entries e
         JOIN races r ON r.id = e.race_id WHERE r.year = ?""", (_latest,))}
-    check(f"every active driver has an entry in {_latest}", _active <= _grid,
-          "active without an entry: " + (", ".join(sorted(_active - _grid)) or "none"))
+    _in_season = _calendar == _latest
+    (check if _in_season else warn)(
+        f"every active driver has an entry in {_latest}"
+        + ("" if _in_season else f" (pre-season: {_calendar} has no completed race yet)"),
+        _active <= _grid,
+        "active without an entry: " + (", ".join(sorted(_active - _grid)) or "none"))
     warn(f"every driver entered in {_latest} is still active", _grid <= _active,
          "entered, no longer active: " + (", ".join(sorted(_grid - _active)) or "none"))
     check("the register's seasons differ from the race records' only for the declared two",

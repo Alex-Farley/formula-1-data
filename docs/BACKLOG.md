@@ -1577,8 +1577,11 @@ Real, but not costed, or waiting on a decision.
       itself, so the chip names the year from the data; `verify.py` fails an
       active driver with no entry and reports a mid-season replacement (the
       review of #84 found Doohan in 2025 would have failed a two-way pin);
-      the smoke test pins the exact count, that it is above zero and that
-      it is at least the register's active set. — *review of #81 · #84*
+      the smoke test pins the exact count and that it is above zero. In
+      pre-season, when the calendar holds a year with nothing completed, the
+      register check is only reported — the second review found a
+      name-based exemption covered a debutant and not a returning signing. —
+      *review of #81 · #84*
 
 ## Declined
 

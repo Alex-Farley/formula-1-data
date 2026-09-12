@@ -606,10 +606,6 @@ try {
       latest,
     )
     truthy(gridCount > 0, `there is a ${latest} grid to keep`)
-    // The register's active set is at most the grid: a mid-season replacement
-    // entered and is no longer active, never the reverse (verify.py holds the
-    // same line).
-    truthy(gridCount >= count("SELECT COUNT(*) FROM drivers WHERE status = 'active'"), "and it is at least the register's active set")
     const rowsAre = (n) => page.waitForFunction((n) => document.querySelector('#root main .table-wrap')?.dataset.rows === String(n), n, { timeout: 10000 })
     await page.click(`[role="group"][aria-label="Filter drivers by kind"] button:has-text("On the ${latest} grid")`)
     await rowsAre(gridCount)
