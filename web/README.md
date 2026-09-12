@@ -118,6 +118,7 @@ src/data/client.js      the main thread's side of the worker
 src/data/cache.js       IndexedDB, keyed on the database's digest
 src/data/useQuery.js    the { loading, error, data } hooks every page uses
 src/lib/                NULL rendering, Commons URLs, the map projection
+src/queries/            a page's SQL and column lists, read by the page and by prerender.js
 src/components/         the shell, DataTable, filters, states, the search palette
 src/charts/             scales, the figure frame, four chart types
 src/pages/              one file per route

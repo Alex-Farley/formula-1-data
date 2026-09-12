@@ -7,83 +7,54 @@ import Disagreement, { DRIVER_DISAGREEMENTS } from '../components/Disagreement.j
 import Figure from '../charts/Figure.jsx'
 import DotPlot from '../charts/DotPlot.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
-import { finished, missing, number, points as fmtPoints, result, span, yearList } from '../lib/format.js'
-
-const DRIVER = `SELECT * FROM drivers WHERE id = ?`
-
-/**
- * The career, counted from the race records rather than read from a column.
- *
- * The stored figures are shown beside these on the page, because where they
- * differ the difference is the interesting part: career_points is a gross
- * total here and a net one in the register for every season that ran the
- * best-N-results rule, which is every season up to 1990.
- */
-const DERIVED = `
-  SELECT COUNT(*)                        AS entries,
-         COUNT(DISTINCT r.year)          AS seasons,
-         SUM(e.finish_position = 1)      AS wins,
-         SUM(e.finish_position <= 3)     AS podiums,
-         SUM(e.pole = 1)                 AS poles,
-         SUM(e.fastest_lap = 1)          AS fastest_laps,
-         SUM(COALESCE(e.points, 0))      AS points,
-         MIN(e.finish_position)          AS best,
-         SUM(e.finish_position IS NOT NULL) AS classified,
-         SUM(e.shared_drive = 1)         AS shared
-    FROM race_entries e
-    JOIN races r ON r.id = e.race_id
-   WHERE e.driver_id = ?
-`
-
-const BY_SEASON = `
-  SELECT r.year,
-         COUNT(*)                    AS entries,
-         -- COALESCE, because SUM over a season with no classified finish is
-         -- NULL, which rendered as the em dash meaning "not established" on
-         -- 591 driver-seasons whose true figure is zero - beside a strip that
-         -- said WINS 0 forty pixels above.
-         COALESCE(SUM(e.finish_position = 1), 0)  AS wins,
-         COALESCE(SUM(e.finish_position <= 3), 0) AS podiums,
-         COALESCE(SUM(e.pole = 1), 0)             AS poles,
-         COALESCE(SUM(e.fastest_lap = 1), 0)      AS fastest_laps,
-         SUM(COALESCE(e.points, 0))  AS points,
-         MIN(e.finish_position)      AS best,
-         group_concat(DISTINCT k.name) AS teams
-    FROM race_entries e
-    JOIN races r ON r.id = e.race_id
-    LEFT JOIN constructors k ON k.id = e.constructor_id
-   WHERE e.driver_id = ?
-   GROUP BY r.year
-   ORDER BY r.year
-`
+import { EMPTY, missing, points as fmtPoints, result } from '../lib/format.js'
+import {
+  BY_SEASON,
+  DERIVED,
+  DRIVER,
+  ENTRY_COLUMNS,
+  RECORD_NOTE,
+  RESULTS,
+  SEASON_COLUMNS,
+  SEASONS_FOOTER,
+  STANDINGS,
+  pointsDiffer,
+  pointsNote,
+  record,
+  seasonRows,
+  strip,
+} from '../queries/driver.js'
 
 /**
- * The table as each season finished, one row per season. v_standings_final
- * folds the two sources that describe 2026 into one row and says why in
- * schema.sql; a driver can still hold two rows in one season only where one
- * source asserts two entries, which never happens for a driver.
+ * What only the app adds to the shared column lists: links, the sort key
+ * behind a text column, and the markup a result wears. Everything a cell
+ * SAYS is in queries/driver.js, read by scripts/prerender.js too.
  */
-const STANDINGS = `
-  SELECT s.id, s.year, s.entity_id, s.engine_id, s.position, s.position_text, s.points, s.team
-    FROM v_standings_final s
-   WHERE s.table_type = 'drivers' AND s.entity_id = ?
-   ORDER BY s.year
-`
+const SEASON_APP = {
+  year: { render: (year) => <Link to={`/seasons/${year}`}>{year}</Link> },
+  championship_text: { sort: (row) => row.championship },
+}
 
-const RESULTS = `
-  SELECT r.year, r.round, r.name_used, r.circuit_id, c.name AS circuit,
-         e.grid_text, e.grid, e.position_text, e.finish_position, e.status,
-         e.points, e.fastest_lap, e.shared_drive, e.laps_completed,
-         k.id AS constructor_id, k.name AS constructor,
-         e.chassis_id, ch.name AS chassis
-    FROM race_entries e
-    JOIN races r ON r.id = e.race_id
-    LEFT JOIN circuits c ON c.id = r.circuit_id
-    LEFT JOIN constructors k ON k.id = e.constructor_id
-    LEFT JOIN chassis ch ON ch.id = e.chassis_id
-   WHERE e.driver_id = ?
-   ORDER BY r.year DESC, r.round DESC
-`
+const ENTRY_APP = {
+  year: { render: (year) => <Link to={`/seasons/${year}`}>{year}</Link> },
+  name_used: { render: (name, row) => <Link to={`/races/${row.year}/${row.round}`}>{name}</Link> },
+  constructor: {
+    render: (name, row) =>
+      row.constructor_id ? <Link to={`/constructors/${row.constructor_id}`}>{name}</Link> : cell(name),
+  },
+  chassis: {
+    render: (name, row) =>
+      row.chassis_id ? <Link to={`/cars/${row.chassis_id}`}>{name ?? row.chassis_id}</Link> : cell(name),
+  },
+  grid_text: { sort: (row) => row.grid },
+  position_text: {
+    sort: (row) => row.finish_position,
+    render: (_, row) => {
+      const value = result(row)
+      return missing(row.finish_position) ? <span className="tag tag-dnf">{value}</span> : <b>{value}</b>
+    },
+  },
+}
 
 export default function Driver() {
   const { id } = useParams()
@@ -137,29 +108,8 @@ function DriverBody({ driver, data }) {
     [bySeason],
   )
 
-  const standingByYear = useMemo(
-    () => new Map(standings.map((s) => [s.year, s])),
-    [standings],
-  )
-
-  const seasonRows = useMemo(
-    () =>
-      bySeason.map((season) => ({
-        ...season,
-        championship: standingByYear.get(season.year)?.position ?? null,
-        championship_text: standingByYear.get(season.year)?.position_text ?? null,
-        championship_points: standingByYear.get(season.year)?.points ?? null,
-      })),
-    [bySeason, standingByYear],
-  )
-
-  // The stored career total is net of dropped scores wherever the season's
-  // rules dropped any; the derived one adds up every point scored. Saying so
-  // is better than showing one and hiding the other.
-  const pointsDiffer =
-    !missing(driver.career_points) &&
-    !missing(derived.points) &&
-    Math.abs(driver.career_points - derived.points) > 0.01
+  const seasons = useMemo(() => seasonRows(bySeason, standings), [bySeason, standings])
+  const differ = pointsDiffer(driver, derived)
 
   return (
     <Page
@@ -169,20 +119,7 @@ function DriverBody({ driver, data }) {
       lede={driver.notes}
     >
       <Section>
-        <Stats
-          items={[
-            { label: 'Seasons', value: span(driver.first_season, driver.last_season), note: `${derived.seasons ?? 0} with an entry` },
-            { label: 'Entries', value: number(derived.entries) },
-            { label: 'Wins', value: number(derived.wins ?? 0) },
-            { label: 'Podiums', value: number(derived.podiums ?? 0) },
-            { label: 'Poles', value: number(derived.poles ?? 0) },
-            { label: 'Fastest laps', value: number(derived.fastest_laps ?? 0) },
-            driver.titles
-              ? { label: 'Titles', value: number(driver.titles), note: missing(driver.title_years) ? undefined : yearList(driver.title_years) }
-              : null,
-            { label: 'Best finish', value: derived.best ? `P${derived.best}` : null },
-          ].filter(Boolean)}
-        />
+        <Stats items={strip(driver, derived)} />
       </Section>
 
       {standings.length > 1 && (
@@ -218,47 +155,15 @@ function DriverBody({ driver, data }) {
         </Section>
       )}
 
-      <Section title="Season by season" count={`${seasonRows.length} seasons`}>
+      <Section title="Season by season" count={`${seasons.length} seasons`}>
         <DataTable
-          rows={seasonRows}
+          rows={seasons}
           rowKey={(row) => row.year}
           sortable
           sort="year"
           direction="desc"
-          columns={[
-            {
-              key: 'year',
-              label: 'Season',
-              align: 'num',
-              render: (year) => <Link to={`/seasons/${year}`}>{year}</Link>,
-            },
-            { key: 'teams', label: 'Constructor', align: 'prose' },
-            { key: 'entries', label: 'Entries', align: 'num' },
-            { key: 'wins', label: 'Wins', align: 'num' },
-            { key: 'podiums', label: 'Podiums', align: 'num' },
-            { key: 'poles', label: 'Poles', align: 'num' },
-            { key: 'fastest_laps', label: 'FL', align: 'num' },
-            {
-              key: 'best',
-              label: 'Best',
-              align: 'num',
-              render: (value) => (missing(value) ? cell(value) : `P${value}`),
-            },
-            {
-              key: 'championship_text',
-              label: 'Championship',
-              align: 'num',
-              sort: (row) => row.championship,
-              render: (v, row) => cell(v ?? row.championship),
-            },
-            {
-              key: 'points',
-              label: 'Points scored',
-              align: 'num',
-              render: (value) => fmtPoints(value),
-            },
-          ]}
-          footer="“Points scored” adds up every point from the races. The championship column is where the season actually finished, which before 1991 could be lower once dropped scores were applied. Open a season for its full table."
+          columns={SEASON_COLUMNS.map((column) => ({ ...column, ...SEASON_APP[column.key] }))}
+          footer={SEASONS_FOOTER}
         />
       </Section>
 
@@ -270,108 +175,24 @@ function DriverBody({ driver, data }) {
           sort="year"
           direction="desc"
           page={100}
-          columns={[
-            {
-              key: 'year',
-              label: 'Season',
-              align: 'num',
-              render: (year) => <Link to={`/seasons/${year}`}>{year}</Link>,
-            },
-            {
-              key: 'name_used',
-              label: 'Grand Prix',
-              render: (name, row) => <Link to={`/races/${row.year}/${row.round}`}>{name}</Link>,
-            },
-            {
-              key: 'constructor',
-              label: 'Constructor',
-              render: (name, row) =>
-                row.constructor_id ? <Link to={`/constructors/${row.constructor_id}`}>{name}</Link> : cell(name),
-            },
-            {
-              key: 'chassis',
-              label: 'Chassis',
-              render: (name, row) =>
-                row.chassis_id ? <Link to={`/cars/${row.chassis_id}`}>{name ?? row.chassis_id}</Link> : cell(name),
-            },
-            { key: 'grid_text', label: 'Grid', align: 'num', sort: (row) => row.grid },
-            {
-              key: 'position_text',
-              label: 'Result',
-              align: 'num',
-              sort: (row) => row.finish_position,
-              render: (_, row) => {
-                const value = result(row)
-                return missing(row.finish_position) ? (
-                  <span className="tag tag-dnf">{value}</span>
-                ) : (
-                  <b>{value}</b>
-                )
-              },
-            },
-            {
-              key: 'status',
-              label: 'Out',
-              render: (value, row) =>
-                finished(value, row.finish_position) ? 'Finished' : cell(value),
-            },
-            { key: 'laps_completed', label: 'Laps', align: 'num' },
-            {
-              key: 'points',
-              label: 'Points',
-              align: 'num',
-              render: (value) => (missing(value) ? cell(value) : fmtPoints(value)),
-            },
-          ]}
+          columns={ENTRY_COLUMNS.map((column) => ({ ...column, ...ENTRY_APP[column.key] }))}
         />
       </Section>
 
       <Disagreement rows={rows(data, 'disagreements')} what="this career" />
 
       <Section title="On the record">
-        {pointsDiffer && (
+        {differ && (
           <Note>
-            <strong>
-              Two career points totals: {fmtPoints(driver.career_points)} published,{' '}
-              {fmtPoints(derived.points)} scored.
-            </strong>{' '}
-            Both are right. Up to 1990 only a driver's best few results counted towards the
-            championship, so the published total is net of the points that were dropped.
+            <strong>{pointsNote(driver, derived).head}</strong> {pointsNote(driver, derived).body}
           </Note>
         )}
         <Fields
           items={[
-            { label: 'Born', value: driver.born },
-            { label: 'Died', value: driver.died },
-            { label: 'Nationality', value: driver.nationality },
-            { label: 'Status', value: driver.status },
-            // How a harvest put the row here, where one did. It used to open
-            // `notes`, which is the lede above and the meta description; it is
-            // shown only where it exists, so most rows get no em dash for it.
-            driver.provenance ? { label: 'Provenance', value: driver.provenance } : null,
-            { label: 'Entries (stored)', value: number(driver.entries) },
-            { label: 'Starts (stored)', value: number(driver.starts) },
-            {
-              label: 'Wins',
-              value: `${number(driver.wins)} derived${
-                missing(driver.wins_external) ? '' : ` · ${number(driver.wins_external)} published`
-              }`,
-            },
-            {
-              label: 'Poles',
-              value: `${number(driver.poles)} derived${
-                missing(driver.poles_external) ? '' : ` · ${number(driver.poles_external)} published`
-              }`,
-            },
-            {
-              label: 'Fastest laps',
-              value: `${number(driver.fastest_laps)} derived${
-                missing(driver.fastest_laps_external)
-                  ? ''
-                  : ` · ${number(driver.fastest_laps_external)} published`
-              }`,
-            },
-            { label: 'External source', value: driver.external_source },
+            // The strings both renderers print, from queries/driver.js. A
+            // dashed one goes back to null so Fields sets it faint like every
+            // other missing value.
+            ...record(driver).map(([label, value]) => ({ label, value: value === EMPTY ? null : value })),
             { label: 'Confidence', value: <Confidence value={driver.confidence} /> },
             {
               label: 'Source',
@@ -383,12 +204,7 @@ function DriverBody({ driver, data }) {
             },
           ]}
         />
-        <p className="source-note">
-          Wins, poles and fastest laps are counted from the races above and checked against the
-          published totals on every build; where the two disagree, both are shown. Entries and
-          starts are the published figures — an entry is not a start, and telling them apart needs
-          a reason for each non-start that no source here supplies.
-        </p>
+        <p className="source-note">{RECORD_NOTE}</p>
       </Section>
 
       <Onward

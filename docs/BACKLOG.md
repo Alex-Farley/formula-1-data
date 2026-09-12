@@ -126,6 +126,9 @@ largest single fix and still has its riders.
       (no prerendered page carries the version or build date), `UR-13` (the
       2026 season's static page opens with five em dashes), `AX-17` (no static
       table has a caption), plus `CD-04`, `IA-03` and `PD-06` as before.
+      **Rung one landed in #77**: drivers register, driver page, records share
+      their queries and column lists with the prerenderer; the other pages
+      follow.
 
 
 - [ ] `IA-02` **`Reference` leaves the masthead; `Data` takes the slot.**
@@ -432,13 +435,6 @@ the source. `WK-` is this survey; nothing else uses the prefix.
 
 Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09-11-*.md` under the same ID. Items already in *Now* are not repeated.
 
-- [ ] `CR-22` **The static `/records` page is not the app's `/records`.**
-      Narrowed by #68: both renderers now open with the same one-sentence
-      claim — derived from the same tables as the leaderboards on every
-      build — and the static table carries the derivation column. What
-      remains is the tier: the app says once that every row is `reference`,
-      the static page says nothing about the tier at all. — *review of #55 · S*
-
 - [ ] `AF-02` **Keep the audit claim honest with a private repository.** Three
       S pieces. (1) Publish the checks' *results*, not the code: a served
       `checks.txt` or `/reference/checks` listing each `verify.py` check by its
@@ -513,15 +509,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       drivers, constructors, circuits; a race holder needs `year`/`round`,
       not the row id — and leave shared records as text. Found by the review
       of #68. — *product critique · S*
-
-- [ ] `CR-23` **The static `/records` table has a `Category` column the app
-      never shows.** Predates #68; the review of #68 measured it. Rides with
-      `CR-22`. — *review of #68 · S*
-
-- [ ] `CR-24` **The static drivers register is not the app's.** Eight
-      columns against nine, Poles before Podiums against Podiums before
-      Poles, no Fastest laps. Same defect as `CR-22`/`CR-23`; rides with
-      `PD-02`. Found by the review of #69. — *review of #69 · S*
 
 - [ ] `CD-18` **"Races" on the register, "Entries (stored)" on the page.**
       The same derived count is called Races in the register and Entries on
@@ -1466,6 +1453,26 @@ Real, but not costed, or waiting on a decision.
       "the closest top three ever" leaves Piastri's note and, though no
       regex reached it, Norris's. Each note keeps what its string already
       said; "Ten podiums." simply goes. — *review of #70 · #74*
+
+- [x] `CR-22` **The static `/records` page is not the app's `/records`.**
+      Narrowed by #68: both renderers open with the same one-sentence claim
+      and the static table carries the derivation column. What remained was
+      the tier: the app said once that every row is `reference`, the static
+      page said nothing about it. The static page now says it in the app's
+      sentence, from the app's query, in `web/src/queries/records.js`. —
+      *review · #77*
+
+- [x] `CR-23` **The static `/records` table has a `Category` column the app
+      never shows.** Predates #68; the review of #68 measured it. The static
+      table is now drawn from the app's column list, so it cannot carry a
+      column the app does not. — *review · #77*
+
+- [x] `CR-24` **The static drivers register is not the app's.** Eight
+      columns against nine, Poles before Podiums against Podiums before
+      Poles, no Fastest laps. Same defect as `CR-22`/`CR-23`. The register is
+      now the app's query and column list, from `web/src/queries/drivers.js`;
+      the driver page's strip and its season table follow the same way.
+      Found by the review of #69. — *review · #77*
 
 ## Declined
 

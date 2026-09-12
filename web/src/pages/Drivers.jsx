@@ -5,29 +5,25 @@ import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { Chips, Filters, SearchField, Select } from '../components/Filters.jsx'
 import { useQuery } from '../data/useQuery.js'
-import { span } from '../lib/format.js'
+import { DRIVERS, DRIVER_COLUMNS } from '../queries/drivers.js'
 
 /**
- * The whole register in one query.
- *
- * Wins, poles, podiums and fastest laps are the stored columns the build
- * derives from the race records; Races is counted here from the same
- * records, one row per race a driver was entered for. The stored `entries`
- * and `starts` columns are published figures held for 38 and 31 of 862
- * drivers, so two columns opened on 96% em dashes; they are on the driver's
- * own page, labelled as stored, and not here.
+ * What only the app adds to the shared column list: the link on a name, the
+ * sort key behind the Seasons span, the title years behind a titles count.
+ * The query and the columns themselves are in queries/drivers.js, read by
+ * scripts/prerender.js too, so the static register is this one.
  */
-const SQL = `
-  SELECT d.id, d.full_name, d.nationality, d.first_season, d.last_season,
-         d.wins, d.podiums, d.poles, d.fastest_laps, d.career_points,
-         d.titles, d.title_years, d.status, d.confidence,
-         (SELECT COUNT(*) FROM race_entries e WHERE e.driver_id = d.id) AS races
-    FROM drivers d
-   ORDER BY d.wins DESC, d.podiums DESC, d.full_name
-`
+const APP = {
+  full_name: { render: (name, row) => <Link to={`/drivers/${row.id}`}>{name}</Link> },
+  first_season: { sort: (row) => row.first_season },
+  titles: {
+    render: (value, row) =>
+      value ? <span title={row.title_years ?? undefined}>{value}</span> : cell(value),
+  },
+}
 
 export default function Drivers() {
-  const state = useQuery(SQL)
+  const state = useQuery(DRIVERS)
   return (
     <Page
       title="Drivers"
@@ -102,33 +98,7 @@ function Register({ rows }) {
         sort="wins"
         direction="desc"
         page={150}
-        columns={[
-          {
-            key: 'full_name',
-            label: 'Driver',
-            render: (name, row) => <Link to={`/drivers/${row.id}`}>{name}</Link>,
-          },
-          { key: 'nationality', label: 'Nationality' },
-          {
-            key: 'first_season',
-            label: 'Seasons',
-            align: 'num',
-            render: (_, row) => span(row.first_season, row.last_season),
-            sort: (row) => row.first_season,
-          },
-          { key: 'races', label: 'Races', align: 'num' },
-          { key: 'wins', label: 'Wins', align: 'num' },
-          { key: 'podiums', label: 'Podiums', align: 'num' },
-          { key: 'poles', label: 'Poles', align: 'num' },
-          { key: 'fastest_laps', label: 'Fastest laps', align: 'num' },
-          {
-            key: 'titles',
-            label: 'Titles',
-            align: 'num',
-            render: (value, row) =>
-              value ? <span title={row.title_years ?? undefined}>{value}</span> : cell(value),
-          },
-        ]}
+        columns={DRIVER_COLUMNS.map((column) => ({ ...column, ...APP[column.key] }))}
         footer="Most wins first; sort by any column. Races is every race a driver was entered for, counted from the race records. A blank is a figure nobody has established, not a zero, and those rows sink to the bottom whichever way you sort."
       />
     </>

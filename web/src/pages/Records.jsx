@@ -8,43 +8,33 @@ import Figure from '../charts/Figure.jsx'
 import BarChart from '../charts/BarChart.jsx'
 import LineChart from '../charts/LineChart.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
-import { number, percent, span } from '../lib/format.js'
+import { percent } from '../lib/format.js'
+import {
+  CONSTRUCTOR_WINS,
+  DECADES,
+  DRIVER_POLES,
+  DRIVER_WINS,
+  GRAND_SLAM_COLUMNS,
+  GRAND_SLAMS,
+  POLE_TO_WIN,
+  RECORDS,
+  TIER_AFTER,
+  TITLE_COLUMNS,
+  TITLES,
+  recordColumns,
+  tierBefore,
+  tiersOf,
+} from '../queries/records.js'
 
-const RECORDS = `SELECT * FROM records ORDER BY category, id`
-
-const DRIVER_WINS = `
-  SELECT e.driver_id, d.full_name, COUNT(*) AS wins,
-         MIN(r.year) AS first_win, MAX(r.year) AS last_win
-    FROM race_entries e
-    JOIN races r   ON r.id = e.race_id
-    JOIN drivers d ON d.id = e.driver_id
-   WHERE e.finish_position = 1
-   GROUP BY e.driver_id
-   ORDER BY wins DESC, d.full_name
-   LIMIT 40
-`
-
-const DRIVER_POLES = `
-  SELECT e.driver_id, d.full_name, COUNT(*) AS poles
-    FROM race_entries e
-    JOIN drivers d ON d.id = e.driver_id
-   WHERE e.pole = 1
-   GROUP BY e.driver_id
-   ORDER BY poles DESC, d.full_name
-   LIMIT 40
-`
-
-const CONSTRUCTOR_WINS = `
-  SELECT * FROM v_wins_by_constructor LIMIT 40
-`
-
-const TITLES = `SELECT * FROM v_title_count`
-
-const DECADES = `SELECT * FROM v_wins_by_decade`
-
-const POLE_TO_WIN = `SELECT * FROM v_pole_to_win ORDER BY year`
-
-const GRAND_SLAMS = `SELECT * FROM v_grand_slams ORDER BY year DESC, round DESC`
+/**
+ * What only the app adds to the shared column lists: the links. The queries
+ * and the columns are in queries/records.js, read by scripts/prerender.js
+ * too, so the static records table is this one.
+ */
+const GRAND_SLAM_APP = {
+  year: { render: (year) => <Link to={`/seasons/${year}`}>{year}</Link> },
+  gp_name: { render: (name, row) => <Link to={`/races/${row.year}/${row.round}`}>{name}</Link> },
+}
 
 export default function Records() {
   const state = useQueries({
@@ -84,7 +74,7 @@ function Body({ data }) {
     [records],
   )
   const shownRecords = category ? records.filter((r) => r.category === category) : records
-  const tiers = useMemo(() => [...new Set(records.map((r) => r.confidence))], [records])
+  const tiers = useMemo(() => tiersOf(records), [records])
 
   const [decade, setDecade] = useState(() => String(Math.max(...decades.map((d) => d.decade))))
   const decadeRows = decades.filter((d) => String(d.decade) === decade).slice(0, 12)
@@ -102,8 +92,7 @@ function Body({ data }) {
           build, as of the last completed race the database holds, and each row says how.
           {tiers.length === 1 && (
             <>
-              {' '}All {records.length} carry the <Confidence value={tiers[0]} /> tier, so it is not
-              repeated on every row.
+              {' '}{tierBefore(records.length)}<Confidence value={tiers[0]} />{TIER_AFTER}
             </>
           )}
         </p>
@@ -120,22 +109,9 @@ function Body({ data }) {
           rowKey={(row) => row.id}
           sortable={false}
           page={60}
-          columns={[
-            { key: 'record', label: 'Record' },
-            { key: 'holder', label: 'Holder', align: 'prose' },
-            // "18 years, 228 days, 2016 Spanish Grand Prix": a phrase, not a
-            // column of figures, so it does not pretend to align as one. The
-            // comparable number is value_num, with its unit, for a query.
-            { key: 'value', label: 'Value', align: 'prose' },
-            { key: 'detail', label: 'How it is derived', align: 'prose' },
-            { key: 'as_of', label: 'As of' },
-            // Thirty identical badges in a column mean nothing; the tier is
-            // said once above where they all share it, and per row only where
-            // they differ.
-            ...(tiers.length === 1
-              ? []
-              : [{ key: 'confidence', label: 'Confidence', render: (value) => <Confidence value={value} /> }]),
-          ]}
+          columns={recordColumns(records).map((column) =>
+            column.key === 'confidence' ? { ...column, render: (value) => <Confidence value={value} /> } : column,
+          )}
         />
       </Section>
 
@@ -208,14 +184,7 @@ function Body({ data }) {
           rowKey={(row) => row.full_name}
           sort="titles"
           direction="desc"
-          columns={[
-            { key: 'full_name', label: 'Driver' },
-            { key: 'nationality', label: 'Nationality' },
-            { key: 'titles', label: 'Titles', align: 'num' },
-            { key: 'title_years', label: 'Years', align: 'prose' },
-            { key: 'wins', label: 'Wins', align: 'num' },
-            { key: 'poles', label: 'Poles', align: 'num' },
-          ]}
+          columns={TITLE_COLUMNS}
         />
       </Section>
 
@@ -292,21 +261,7 @@ function Body({ data }) {
           sort="year"
           direction="desc"
           page={60}
-          columns={[
-            {
-              key: 'year',
-              label: 'Season',
-              align: 'num',
-              render: (year) => <Link to={`/seasons/${year}`}>{year}</Link>,
-            },
-            {
-              key: 'gp_name',
-              label: 'Grand Prix',
-              render: (name, row) => <Link to={`/races/${row.year}/${row.round}`}>{name}</Link>,
-            },
-            { key: 'driver', label: 'Driver' },
-            { key: 'constructor', label: 'Constructor' },
-          ]}
+          columns={GRAND_SLAM_COLUMNS.map((column) => ({ ...column, ...GRAND_SLAM_APP[column.key] }))}
         />
       </Section>
 
