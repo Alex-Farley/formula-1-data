@@ -1643,9 +1643,11 @@ Real, but not costed, or waiting on a decision.
       sprint flag implies, in running order, with a valid zone, and holds
       each race's local day to the last day of the calendar's weekend — the
       test that proves the UTC reading and the zone together (Las Vegas
-      races on a Saturday evening that is Sunday in UTC). The FIA's
-      per-event timetable PDFs are not yet read by tool and are the check
-      to add. The page work stays open as `LV-02`. — *request · #91*
+      races on a Saturday evening that is Sunday in UTC). Starts carry a Z
+      so a browser reads them as UTC. The FIA's per-event timetable PDFs are
+      not yet read by tool; `known_gaps` #15 records that every start has
+      one source behind it until they are. The page work stays open as
+      `LV-02`. — *request · #91*
 
 ## Declined
 

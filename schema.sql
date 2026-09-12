@@ -778,7 +778,7 @@ CREATE TABLE sessions (
     kind            TEXT NOT NULL CHECK (kind IN ('fp1', 'fp2', 'fp3', 'sprint_qualifying',
                                                  'sprint', 'qualifying', 'race')),
     name            TEXT NOT NULL,             -- "Practice 1", "Sprint qualifying"
-    start_utc       TEXT NOT NULL,             -- YYYY-MM-DDTHH:MM, UTC
+    start_utc       TEXT NOT NULL,             -- YYYY-MM-DDTHH:MMZ; the Z is what makes a browser read it as UTC
     zone            TEXT NOT NULL,             -- IANA tz database name of the circuit
     confidence      TEXT NOT NULL DEFAULT 'verified' REFERENCES provenance(confidence),
     source          TEXT NOT NULL,

@@ -30,6 +30,7 @@ from data import events as EV      # noqa: E402
 from data import cars as CR        # noqa: E402
 from data import radio as RA       # noqa: E402
 from data import results as RS     # noqa: E402
+from data import sessions as SS    # noqa: E402
 
 DB = os.path.join(HERE, "f1.db")
 # The build writes here and moves the file into place only when every stage
@@ -1201,7 +1202,6 @@ def _stage_16_current_season(b):
     # The weekend timetable, keyed to the races just written (LV-02). Every
     # session names its round, and a round with no race row is a typo here,
     # not a session to store.
-    from data import sessions as SS
     for rnd, kind, start_utc, zone in SS.SESSIONS_2026:
         rid = race_key.get((2026, rnd))
         if rid is None:

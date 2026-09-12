@@ -47,7 +47,7 @@ here is a number the build checked.
 
 | File | What it is |
 |---|---|
-| `f1.db` | The SQLite database. <!-- fig:tables -->47<!-- /fig --> tables, <!-- fig:views -->41<!-- /fig --> views, <!-- fig:rows -->119,395<!-- /fig --> rows. This is the artefact. |
+| `f1.db` | The SQLite database. <!-- fig:tables -->47<!-- /fig --> tables, <!-- fig:views -->41<!-- /fig --> views, <!-- fig:rows -->119,396<!-- /fig --> rows. This is the artefact. |
 | `f1-geometry.db` | The OpenStreetMap circuit centrelines (ODbL), shipped beside `f1.db` and never merged into it. See *Illustration*. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
@@ -979,8 +979,8 @@ queried, not just read here. `./f1 gaps` prints them with the fix for each.
   never recorded in a form anyone can retrieve. See *Timing, telemetry and
   radio* above.
 
-The `known_gaps` table holds <!-- fig:known_gaps -->14<!-- /fig --> entries,
-of which <!-- fig:known_gaps_open -->8<!-- /fig --> are open gaps — the figure
+The `known_gaps` table holds <!-- fig:known_gaps -->15<!-- /fig --> entries,
+of which <!-- fig:known_gaps_open -->9<!-- /fig --> are open gaps — the figure
 the site's homepage and `/data` state, counted from the same `v_open_gaps`
 view. The rest are either closed, and kept so the closure is on record, or
 positions: a deliberate absence rather than a gap, such as the lap timing

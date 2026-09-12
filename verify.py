@@ -1504,6 +1504,11 @@ def the_weekend_timetable():
     """sessions: the current season's timetable against the calendar it hangs from."""
     import datetime as _dt
     import zoneinfo as _zi
+    stray = con.execute("""SELECT COUNT(*) FROM sessions
+        WHERE race_id NOT IN (SELECT id FROM races WHERE year = 2026)""").fetchone()[0]
+    check("sessions holds the season in progress and nothing else", stray == 0, f"{stray} rows outside 2026")
+    unz = con.execute("SELECT COUNT(*) FROM sessions WHERE start_utc NOT GLOB '????-??-??T??:??Z'").fetchone()[0]
+    check("every session start is YYYY-MM-DDTHH:MMZ, so a browser reads it as UTC", unz == 0, f"{unz} rows")
     rows = con.execute("""SELECT r.round, r.sprint, r.dates, s.kind, s.start_utc, s.zone
         FROM sessions s JOIN races r ON r.id = s.race_id WHERE r.year = 2026
         ORDER BY r.round, s.start_utc""").fetchall()
@@ -1540,8 +1545,10 @@ def the_weekend_timetable():
                 tz = _zi.ZoneInfo(zone)
             except Exception:
                 badzone.append(f"r{rnd} {zone}"); continue
-            local = _dt.datetime.fromisoformat(start).replace(tzinfo=_dt.timezone.utc).astimezone(tz)
-            m = re.search(r"(\d{1,2}) (\w{3}) (\d{4})$", dates)
+            local = _dt.datetime.fromisoformat(start.rstrip("Z")).replace(tzinfo=_dt.timezone.utc).astimezone(tz)
+            m = re.search(r"(\d{1,2}) (\w{3}) (\d{4})$", dates or "")
+            if not m:
+                wrong.append(f"r{rnd}: races.dates {dates!r} does not end in a day"); continue
             last = _dt.date(int(m.group(3)), _MON[m.group(2)], int(m.group(1)))
             if local.date() != last:
                 wrong.append(f"r{rnd}: race {start}Z is {local.date()} in {zone}, the weekend ends {last}")

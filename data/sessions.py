@@ -7,9 +7,11 @@ reader's zone; read from a UTC client, so the times here are UTC. The FIA's
 own timetable is a per-event "Event & Timing Information" PDF, which this
 project has not yet read by tool; when it is, this file is what it checks.
 A start time is a fact, and may be re-stated (SOURCE_LICENCE, facts-only);
-nothing else on those pages is copied.
+nothing else on those pages is copied. The pages also carry the same starts
+as schema.org subEvent startDate values in UTC, which is how the review of
+#91 reproduced all 115 by machine.
 
-One tuple per session: round, kind, start_utc (YYYY-MM-DDTHH:MM), zone (IANA
+One tuple per session: round, kind, start_utc (YYYY-MM-DDTHH:MMZ), zone (IANA
 tz database name, so a browser can show the circuit's local time with Intl).
 Kinds: fp1 fp2 fp3 sprint_qualifying sprint qualifying race. A sprint weekend
 has fp1, sprint_qualifying, sprint, qualifying, race; any other has fp1, fp2,
@@ -54,7 +56,9 @@ def _weekend(rnd, *starts):
              if rnd in SPRINT_ROUNDS_2026 else
              ("fp1", "fp2", "fp3", "qualifying", "race"))
     assert len(starts) == 5, rnd
-    return [(rnd, k, f"2026-{s}", WEEKENDS_2026[rnd][1]) for k, s in zip(kinds, starts)]
+    # The Z is load-bearing: JavaScript reads "2026-03-08T04:00" as the
+    # reader's local time and "2026-03-08T04:00Z" as the instant it is.
+    return [(rnd, k, f"2026-{s}Z", WEEKENDS_2026[rnd][1]) for k, s in zip(kinds, starts)]
 
 SPRINT_ROUNDS_2026 = {2, 4, 5, 9, 12, 17}
 
