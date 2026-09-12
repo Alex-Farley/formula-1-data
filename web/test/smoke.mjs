@@ -600,17 +600,20 @@ try {
     truthy(heads.includes('Entries') && !heads.includes('Races') && !heads.includes('Starts'), 'Entries is counted from the race records; Races and Starts are gone')
     // The Active filter keeps the current grid - it matched nobody for a
     // version, testing last_season against a year the open span never holds.
-    const activeCount = count("SELECT COUNT(*) FROM drivers WHERE status = 'active'")
     const latest = one("SELECT MAX(year) FROM races WHERE status = 'completed'")
     const gridCount = count(
       "SELECT COUNT(DISTINCT e.driver_id) FROM race_entries e JOIN races r ON r.id = e.race_id WHERE r.year = ?",
       latest,
     )
+    truthy(gridCount > 0, `there is a ${latest} grid to keep`)
+    // The register's active set is at most the grid: a mid-season replacement
+    // entered and is no longer active, never the reverse (verify.py holds the
+    // same line).
+    truthy(gridCount >= count("SELECT COUNT(*) FROM drivers WHERE status = 'active'"), 'and it is at least the register'"'"'s active set')
     const rowsAre = (n) => page.waitForFunction((n) => document.querySelector('#root main .table-wrap')?.dataset.rows === String(n), n, { timeout: 10000 })
     await page.click(`[role="group"][aria-label="Filter drivers by kind"] button:has-text("On the ${latest} grid")`)
     await rowsAre(gridCount)
     is((await tableRows())[0], gridCount, `the grid filter keeps the ${gridCount} drivers entered in ${latest}`)
-    truthy(gridCount > 0, 'and there is a grid to keep')
     await page.click('[role="group"][aria-label="Filter drivers by kind"] button:has-text("All")')
     await rowsAre(count('SELECT COUNT(*) FROM drivers'))
     const entries = one('SELECT COUNT(*) FROM race_entries WHERE driver_id = (SELECT id FROM drivers ORDER BY wins DESC, podiums DESC LIMIT 1)')

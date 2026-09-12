@@ -545,6 +545,14 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       one no table can constrain. Found by the review of #79. — *review of
       #79 · S*
 
+- [ ] `PM-29` **`build.py` hardcodes the rollover year for imported drivers'
+      status.** `("active" if max(yrs) >= 2026 else "retired")` decides
+      `status` for the 680 F1DB-admitted drivers; at the 2027 rollover every
+      2026-only driver becomes retired and the `verify.py` grid check from
+      #84 fails the build, loudly and without an explanation attached. Derive
+      the year from the latest completed season, as the drivers page now
+      does. Found by the review of #84. — *review of #84 · S*
+
 **Interaction design**
 
 - [ ] `IX-16` **`IA-08` escalated: Back restores the scroll and not the filter.** France filter, sort by wins, scroll, open a driver, Back — same pixel, 862 unfiltered rows. Do `/drivers` first. — *interaction critique · M*
@@ -1569,8 +1577,8 @@ Real, but not costed, or waiting on a decision.
       itself, so the chip names the year from the data; `verify.py` fails an
       active driver with no entry and reports a mid-season replacement (the
       review of #84 found Doohan in 2025 would have failed a two-way pin);
-      the smoke test pins the exact count and that it is above zero. —
-      *review of #81 · #84*
+      the smoke test pins the exact count, that it is above zero and that
+      it is at least the register's active set. — *review of #81 · #84*
 
 ## Declined
 

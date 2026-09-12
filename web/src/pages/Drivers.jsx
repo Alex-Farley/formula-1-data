@@ -50,6 +50,9 @@ function Register({ rows }) {
   const [term, setTerm] = useState('')
   const [nationality, setNationality] = useState('')
   const [kind, setKind] = useState('')
+  // The season the grid filter names, from the shared query; every row
+  // carries the same value.
+  const gridSeason = rows[0]?.grid_season
 
   const nationalities = useMemo(
     () => [...new Set(rows.map((r) => r.nationality).filter(Boolean))].sort(),
@@ -90,7 +93,7 @@ function Register({ rows }) {
             ['', 'All'],
             ['winners', 'Race winners'],
             ['champions', 'Champions'],
-            ['active', `On the ${rows[0]?.latest_season ?? ''} grid`.replace('  ', ' ')],
+            ['active', gridSeason ? `On the ${gridSeason} grid` : 'On the grid'],
           ]}
         />
       </Filters>

@@ -41,9 +41,10 @@ export const DRIVERS = `
          d.titles, d.title_years, d.status, d.confidence,
          (SELECT COUNT(*) FROM race_entries e WHERE e.driver_id = d.id) AS entries,
          -- The grid is derived, not read from status: an entry in the latest
-         -- completed season. The season itself rides along so the filter can
+         -- completed season. That season rides along as grid_season - global,
+         -- unlike the driver's own last_season beside it - so the filter can
          -- name it (IX-17).
-         (SELECT MAX(year) FROM races WHERE status = 'completed') AS latest_season,
+         (SELECT MAX(year) FROM races WHERE status = 'completed') AS grid_season,
          EXISTS (SELECT 1 FROM race_entries e JOIN races r ON r.id = e.race_id
                   WHERE e.driver_id = d.id
                     AND r.year = (SELECT MAX(year) FROM races WHERE status = 'completed')) AS on_grid
