@@ -74,6 +74,18 @@ the date, then removed at the next tidy.
   `LV-03` under *Next*.
 - ~~`PM-04` **The GitHub repository description.**~~ Decided and applied
   2026-09-12.
+- `LV-04` **Is a full season's timetable within facts-only?** #91 lifts every
+  session start of 2026 — 115 rows — from formula1.com's 23 race pages. A
+  start time is a fact, and formula1.com is an official source; but this is
+  the first facts-only use that takes the whole of one upstream dataset
+  rather than single facts each cross-checked elsewhere, and the class's own
+  definition forbids "substantial extraction of its database". The licence
+  review of #91 asked for a person's reading of the terms, for the practice
+  (a per-season refresh) as well as this commit. Options: (a) proceed as
+  facts-only, recording the reading in `docs/COMMERCIAL-READINESS.md`;
+  (b) read the FIA's per-event "Event & Timing Information" PDFs instead,
+  which the loop has not yet done by tool; (c) hold the timetable to the
+  next session only, not the season. #91 is a draft until decided.
 - ~~`PD-03` **`/records`.**~~ Decided 2026-09-12: derive the records; the
   item in *Now* is the work.
 - ~~`IA-02` **The masthead's "Reference" slot**~~ Decided 2026-09-12:
@@ -514,6 +526,13 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       "<N> <Circuit> wins" phrase against the records, and declare the
       one no table can constrain. Found by the review of #79. — *review of
       #79 · S*
+
+- [ ] `PM-31` **`docs/COMMERCIAL-READINESS.md` types figures nothing checks.**
+      Its class table and per-table breakdown said 539 facts-only rows when
+      the database held 552 before #91 and 667 with it; #91 corrected them by
+      query, once. Make them spans `tools/readme_figures.py` writes, as the
+      README's are, or generate the breakdown from `./f1 licences`. Found by
+      the licence review of #91. — *review of #91 · S*
 
 **Interaction design**
 

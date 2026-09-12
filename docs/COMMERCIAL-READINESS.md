@@ -23,15 +23,15 @@ committed database may not be published.
 
 | Class | Rows | Share |
 |---|---:|---:|
-| `yes` — redistributable on the terms given | 116,852 | 99.5% |
-| `facts-only` — the facts, not the expression | 539 | 0.5% |
+| `yes` — redistributable on the terms given | 118,727 | 99.4% |
+| `facts-only` — the facts, not the expression | 668 | 0.6% |
 | `no` — not redistributable | 0 | 0% |
 
 ---
 
 ## What was read
 
-539 rows cite `formula1.com` (478) or `fia.com` (61), the two sources whose
+668 rows cite `formula1.com` (594) or `fia.com` (74), the two sources whose
 licences are "FOM copyright; no reuse licence" and "FIA copyright; published
 for reference, not redistribution". Every one was examined and classified as
 either
@@ -40,19 +40,21 @@ either
   copyrightable, and restating one is not redistribution; or
 - **(b) text following the source's expression** — rewrite.
 
-**All 539 are (a). None is (b).** The breakdown:
+**All 668 are (a). None is (b).** The breakdown (figures as of v2.23 with the
+2026 timetable; nothing checks them, which `PM-31` files):
 
 | Table | Rows | Source | What the row holds | Prose |
 |---|---:|---|---|---|
 | `drivers` | 118 | formula1.com | names, dates, career totals | `notes` |
 | `circuits` | 80 | formula1.com | length, turns, GP count | `notes`, `characteristics` |
 | `seasons` | 77 | formula1.com | champion, points, rounds | `notes` |
+| `sessions` | 115 | formula1.com | 2026 session start times (UTC) and circuit zone | — |
 | `standings` | 65 | formula1.com | 2025 final, 2026 current | — |
 | `constructors` | 55 | formula1.com | register facts | `notes` |
 | `races` | 47 | formula1.com | 2025–26 calendar | — |
 | `race_entries` | 36 | formula1.com | 2025–26 race winners | — |
-| `regulation_changes` | 58 | fia.com | year, category | `detail`, `impact` |
-| `regulation_limits` | 3 | fia.com | numeric limits | `note` |
+| `regulation_changes` | 59 | fia.com | year, category | `detail`, `impact` |
+| `regulation_limits` | 15 | fia.com | numeric limits | `note` |
 
 The prose columns in the right-hand column are **written for this project**,
 not taken from FOM or the FIA — `ATTRIBUTION.md` records regulations, safety,
