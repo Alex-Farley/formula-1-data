@@ -1672,6 +1672,21 @@ def the_chassis_register():
         "SELECT year, engine_manufacturers, constructors FROM v_season_grid "
         "WHERE engine_manufacturers > constructors * 2")]
     check("no season shows more than twice as many engine makers as constructors", not bad, "; ".join(bad[:4]))
+    # One of the weekend limits the race records can test: no classified
+    # finisher in a season the rule covers completed less than 90% of the
+    # winner's laps. The rule is read from the table, so a wrong figure fails.
+    pct = con.execute("SELECT value, from_year, to_year FROM regulation_limits "
+                      "WHERE field = 'classification_min_distance_pct'").fetchall()
+    under = 0
+    for value, y0, y1 in pct:
+        under += con.execute("""SELECT COUNT(*) FROM race_entries e JOIN races r ON r.id = e.race_id
+            JOIN race_entries w ON w.race_id = r.id AND w.finish_position = 1
+            WHERE r.year BETWEEN ? AND ? AND e.finish_position IS NOT NULL
+              AND e.laps_completed IS NOT NULL AND w.laps_completed IS NOT NULL
+              AND e.laps_completed < CAST(w.laps_completed * ? / 100 AS INTEGER)""",
+            (y0, y1, value)).fetchone()[0]
+    check("no classified finisher fell below the season's classification threshold",
+          pct and under == 0, f"{under} classified below the threshold in {len(pct)} span(s)")
     nlim = con.execute("SELECT COUNT(*) FROM regulation_limits").fetchone()[0]
     print(f"  [info] {nlim} regulation limits recorded, covering "
           + ", ".join(str(r[0]) for r in con.execute(
