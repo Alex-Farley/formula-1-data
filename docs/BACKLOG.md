@@ -450,7 +450,7 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 
 - [ ] `PD-23` **Elevation as a fact, not a rendering.** Add `elevation_change_m` to `circuits` from the Wikipedia article each already cites, for the ~20 venues that state one. The Lap Ledger-shaped answer to the 3D instinct — see *Declined*. — *product critique · S*
 
-- [ ] `PD-25` **The disagreements claim is now one open row, and that is the better claim.** 45 found, 44 resolved on the record, one open. Change `CD-07`'s wording before `/data` ships. — *product critique · S*
+- [ ] `PD-25` **The disagreements claim should be the live figures, not a typed sentence.** It read "45 found, 44 resolved, one open" when the table held 54 rows, 10 of them open — nine the 2026 points rows the next refresh moves, one the 1970 fastest lap — and two explained readings (#89). Take `CD-07`'s claim from `discrepancies` at build time, by status. The second `PD-25`, the `/records` holder links, is `PD-26` now. — *product critique · S*
 
 **Visual design**
 
@@ -473,7 +473,7 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       the stored URL still resolves. Split from `VD-20`. — *visual critique ·
       S*
 
-- [ ] `PD-25` **`/records` holders are names, not links.** The derived
+- [ ] `PD-26` **`/records` holders are names, not links.** The derived
       records carry `holder_id` and `holder_table` (#68) and the page renders
       the holder as text; the driver-wins and champions tables on the same
       page do the same with `driver_id`. Link every holder that resolves —
@@ -491,17 +491,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       the driver's page, where the stored figure sits beside it as "Entries
       (stored)". One word, and the stored one labelled for what it is
       (published). Found by the review of #69. — *review of #69 · S*
-
-- [ ] `CD-25` **The reason two drivers' spans differ is only in the code.**
-      Cevert's 1969 German Grand Prix in a Formula 2 Tecno and Rossi's
-      practice-only 2014 explain the two Seasons notes, and the explanation
-      sits in `driver.js` and `verify.py` comments where no reader meets it.
-      A `discrepancies` row each would put it beside the fact through the
-      existing `disagree()` aside. While there: a NULL `first_season` suppresses
-      the comparison at both ends where a NULL `last_season` suppresses only
-      its own; make the predicate symmetric in `seasonsNote()` and the
-      `verify.py` pin together (no row needs it today). Found by the review
-      of #81. — *review of #81 · S*
 
 - [ ] `PM-29` **`build.py` hardcodes the rollover year for imported drivers'
       status.** `("active" if max(yrs) >= 2026 else "retired")` decides
@@ -1620,6 +1609,15 @@ Real, but not costed, or waiting on a decision.
       for #11, whether a photograph shows the car — and those two ship in
       `f1.db`, so this is a rebuild, not a comment edit. The review of #87
       found the three the `.py`-only grep missed. — *review of #82 · #87*
+
+- [x] `CD-25` **The reason two spans differ sits beside the fact.**
+      `EXPLAINED_SPANS` in `data/harvest.py` puts a `discrepancies` row for
+      Cevert (a Formula 2 class at the 1969 German Grand Prix) and Rossi
+      (practice only in 2014), status "explained - each side is right about
+      something"; both renderers show it through the disagreement aside,
+      introduced as two readings rather than a disagreement to settle, and
+      `verify.py` derives the pair it pins from those rows, so the pin and
+      the explanation cannot drift apart. — *review of #81 · #89*
 
 ## Declined
 
