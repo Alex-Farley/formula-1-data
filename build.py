@@ -160,6 +160,7 @@ class _Build:
     lookup = None
     seen_cars = None
     driver_id = None
+    current_season = None   # stage 03 -> stage 08: the latest year anybody entered
 
 
 def _stage_00_open_the_database(b):
@@ -339,12 +340,25 @@ def _stage_03_drivers_admitted_from_the_f1db_register(b):
             continue
         drv_years.setdefault(f1db_id, set()).add(year)
     # The season in progress is the latest one anybody entered, read from the
-    # entry lists rather than typed: a constant here said 2026, and at the
-    # rollover every 2026-only driver would have turned retired and the grid
-    # check in verify.py would have failed the build without saying why
-    # (PM-29, from the review of #84). Constructors read the same figure in
-    # stage 08.
+    # entry lists rather than typed. A constant here said 2026, and stood
+    # still: after the 2027 opener a driver whose last entry was 2026 would
+    # have stayed active - `max(yrs) >= 2026` - until someone edited the
+    # number, and verify.py's grid check would have named the stale rows
+    # without being able to name the cause (PM-29, from the review of #84).
+    # Constructors read the same figure in stage 08. It rests on F1DB writing
+    # `rounds` only for rounds actually run - a pre-season entry list carries
+    # none, so the filter above drops it - which keeps this equal to the
+    # latest completed season verify.py reads; the pin below fails the build
+    # the day that stops being true, rather than flipping a grid to retired
+    # in pre-season and letting verify.py's warn window pass it.
     b.current_season = max(y for ys in drv_years.values() for y in ys)
+    _raced = max(int(r["year"]) for r in HV.load_race_results())
+    if b.current_season > _raced:
+        raise SystemExit(
+            f"the entry lists reach {b.current_season} but the classification "
+            f"reaches {_raced}: F1DB has published rounds for a season with no "
+            f"race run, and the season in progress can no longer be read from "
+            f"the entry lists. Decide what it means before building.")
     for f1db_id in D.F1DB_DRIVERS:
         if f1db_id in known_drv:
             raise SystemExit(
@@ -562,6 +576,7 @@ def _stage_08_constructors_admitted_from_the_f1db_register(b):
     """constructors admitted from the F1DB register (data/teams.py"""
     cur = b.cur
     known_cons = b.known_cons
+    current_season = b.current_season
 
     # --- constructors admitted from the F1DB register (data/teams.py
     # F1DB_CONSTRUCTORS). The ids are authored there; every attribute comes
@@ -604,7 +619,7 @@ def _stage_08_constructors_admitted_from_the_f1db_register(b):
             drivers_titles, active, confidence, source)
             VALUES (?,?,?,?,?,?,NULL,0,0,?,?,?)""",
             (f1db_id, name, full, f1db_country.get(country_id),
-             min(yrs), max(yrs), 1 if max(yrs) >= b.current_season else 0,
+             min(yrs), max(yrs), 1 if max(yrs) >= current_season else 0,
              HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
         known_cons.add(f1db_id)
 
@@ -1463,7 +1478,7 @@ def _stage_21_the_full_classification_qualifying_and_stand(b):
 
     # --- the full classification, qualifying and standings, from F1DB
     #
-    # This is the block that closed known_gaps #1. The facts are the same ones
+    # This is the block that closed known_gaps #2. The facts are the same ones
     # tools/ergast_load.py fetches from Jolpica, and the difference is the
     # licence: F1DB is CC BY 4.0, attribution only, so these rows can live in
     # the repository and ship in the built database. Jolpica's Ergast lineage
@@ -2163,7 +2178,7 @@ def _stage_32_link_race_entries_to_the_chassis(b):
 
     # --- link race entries to the CHASSIS that scored them
     #
-    # known_gaps #1 has stood since v2.6: the chassis-per-race harvest was
+    # known_gaps #3 has stood since v2.6: the chassis-per-race harvest was
     # abandoned because the winner cross-check does not constrain the
     # chassis. A 1952 trial returned "Ferrari 125 F2" for races Ascari won in
     # a Ferrari 500 and every winner still matched, because the winner says

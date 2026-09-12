@@ -511,7 +511,7 @@ TABLE_PROVENANCE = [
     ("article_images", 15, 1,
      "The article is well constrained - it passed the constructor, seasons "
      "and name checks before being accepted. That the PHOTOGRAPH shows the "
-     "car is not established and nothing here can establish it. known_gaps #10."),
+     "car is not established and nothing here can establish it. known_gaps #11."),
     ("circuit_geometry", 16, 0, None),
 ]
 
