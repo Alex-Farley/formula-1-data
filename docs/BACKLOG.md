@@ -130,7 +130,6 @@ largest single fix and still has its riders.
       their queries and column lists with the prerenderer; the other pages
       follow.
 
-
 - [ ] `IA-02` **`Reference` leaves the masthead; `Data` takes the slot.**
       `/reference` is two drawers with no reader in common: a *database* drawer
       (`quality`, `sources`, `sql`) and a *sport* drawer (`eras`, `glossary`).
@@ -199,12 +198,6 @@ Worth doing, not yet urgent.
       redistribute Formula One lap timing, so this database contains none, and
       every figure here is one you may republish" is an advantage over anyone
       hosting scraped timing. — *product critique · S*
-
-- [ ] `PD-13` **Write down the upstream dependency.** 93.5% of rows come from one
-      source refreshed by one cron, and nothing records what happens if it
-      changes licence or stops. One page in `docs/`. — *product critique · S*
-
-
 
 - [ ] `PM-12` **Loosen the specification harvest's name check.** It refuses
       "Alfa Romeo 158/159 Alfetta" for `alfa-romeo-159`. Match the chassis name
@@ -488,21 +481,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       not the row id — and leave shared records as text. Found by the review
       of #68. — *product critique · S*
 
-- [ ] `CD-21` **The lede check misses a figure with an adjective before the
-      noun.** "four runner-up finishes", "Ten career wins", "three straight
-      wins" pass `verify.py`'s check (#74) because it wants the noun adjacent
-      to the number; the Bottas phrase #74 removed by hand is the shape it
-      misses. Allow one or two words between, and re-run. Found by the review
-      of #74. — *review of #74 · S*
-- [ ] `CR-23` **The static `/records` table has a `Category` column the app
-      never shows.** Predates #68; the review of #68 measured it. Rides with
-      `CR-22`. — *review of #68 · S*
-
-- [ ] `CR-24` **The static drivers register is not the app's.** Eight
-      columns against nine, Poles before Podiums against Podiums before
-      Poles, no Fastest laps. Same defect as `CR-22`/`CR-23`; rides with
-      `PD-02`. Found by the review of #69. — *review of #69 · S*
-
 - [ ] `CD-19` **Eighteen driver ledes still spell a figure the strip
       derives** ("Ten wins", "Eight wins"); `verify.py`'s check (#70) stops
       at digits. Extend it to spelled numbers before the derived nouns and
@@ -524,18 +502,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       its own; make the predicate symmetric in `seasonsNote()` and the
       `verify.py` pin together (no row needs it today). Found by the review
       of #81. — *review of #81 · S*
-
-- [ ] `CD-23` **The lede check's qualifier list is short, and its gap is
-      loose.** "Ten F1 wins", "Seven World titles", "Two World Championship
-      titles" and "two consecutive Drivers' titles" pass because a
-      capitalised word is read as a place-name subset; fold `F1`, `Formula
-      One`, `World`, `World Championship`, `Championship` and `Drivers'`
-      into the noun's qualifier group beside `GP`. The two-word gap swallows
-      "Four of his wins" (no total stated) and "Six Formula One wins" is
-      reported as "One wins"; tighten the gap to exclude `of|his|the` and
-      report the whole match. Give the pattern a unit test in `tests/` so
-      both interpreters prove it matches, not merely compiles. Found by the
-      review of #79. — *review of #79 · S*
 
 - [ ] `CD-24` **Subset figures in a driver note are counted by nobody.**
       Hill's five and Senna's six Monaco wins, Trintignant's two, and
@@ -689,6 +655,17 @@ Real, but not costed, or waiting on a decision.
       r17 sprint; the 2026 drivers'/constructors' points disagreement and the
       2026 r13 pole awaiting the harvest, both of which the next refresh
       moves. — *project record · M*
+
+- [ ] `PM-28` **Six code comments cite `known_gaps` #1 for a gap that is
+      not #1.** Three mean the Jolpica licence decision, which is #2
+      (`finish_position`): `build.py` (the results loader), `tools/
+      f1db_fetch.py` (its licence commentary) and `data/harvest.py` (the
+      results section). Three mean the abandoned chassis-per-race harvest,
+      which is #3 (`chassis_id`): `build.py`, `tools/f1db_fetch.py` and
+      `data/harvest.py` again. #1 is the fastest-lap harvest. Find them with
+      `grep -rn "known_gaps #1" --include="*.py"`; the README's copy was
+      fixed in #82. Comments only, no artefact change. Found by the reviews
+      of #82. — *review of #82 · S*
 
 - [ ] `PM-09` **Per-round chassis harvest.** Closes `known_gaps` #3 (287 races
       with no known winning chassis) and #4 (car pole counts) in one pass. Only
@@ -1560,6 +1537,30 @@ Real, but not costed, or waiting on a decision.
       rather than titles, and Montoya's "fourth GP start" was wrong — the pass on
       Schumacher at Interlagos 2001 was his third. — *review of #74 · #79*
 
+- [x] `PM-27` **The fetch tool reads F1DB's licence before it writes a
+      row.** `licence_check()` in `tools/f1db_fetch.py` requires the deed in
+      the checkout to be titled Attribution 4.0 International and to name no
+      NonCommercial, ShareAlike or NoDerivatives element, and exits
+      otherwise — so `refresh.yml` fails at the fetch and commits nothing,
+      and reclassifying the source in `SOURCE_LICENCE` becomes a decision
+      someone makes rather than a header a constant stamped; the message
+      asks for the file to be read, since the check cannot tell a relicence
+      from a reformatted deed. Eight unit tests, offline; the live deed
+      passes. — *project record · #83*
+- [x] `PD-13` **The upstream dependency is written down.** `docs/UPSTREAM.md`:
+      what F1DB supplies (115,161 of 119,280 rows at v2.23, table by table),
+      how it arrives (a committed snapshot, refreshed daily by `refresh.yml`
+      and committed only on a full pass), the four cross-checks that refuse a
+      bad load, what happens if it stops (staleness, not breakage; the
+      replacements in cost order, with formula1.com kept at the check scale
+      its facts-only classification covers) and if it relicenses (the grant
+      is irrevocable, section 2(a)(1); the one unsafe path is `PM-27`).
+      Linked from the README's Staying current section. The review of #82
+      caught the first draft overstating the project's independence from
+      F1DB in three places and mis-citing a gap and a licence section; the
+      README's "known_gaps #1" for the Jolpica decision was the same
+      mis-cite and is #2 now. — *product critique · #82*
+
 - [x] `CD-22` **Where the register's seasons are not the race records', the
       page says which is which.** The Seasons note on the driver strip, in
       both renderers, reads "1969–1973 in the race records, 1970–1973
@@ -1582,6 +1583,20 @@ Real, but not costed, or waiting on a decision.
       register check is only reported — the second review found a
       name-based exemption covered a debutant and not a returning signing. —
       *review of #81 · #84*
+- [x] `CD-23` **The lede check is one tested pattern.** `tools/lede_figures.py`
+      holds it, with its reasons; `tests/test_lede_figures.py` makes both
+      interpreters prove 18 catches and 12 leave-alones. Career qualifiers
+      (`F1`, `Formula One`, `World`, `World Championship`, `Championship`,
+      `Drivers'`, `career`) no longer hide a total; "of", "his", "the" and
+      kin no longer bridge the gap; "Six Formula One wins" is reported whole
+      and "Formula One wins" alone is not a figure; eleventh to nineteenth
+      join the ordinals, which had skipped them — the comment's own
+      Hülkenberg example never matched — and so does twenty-first and kin,
+      which the review of #85 found the same way. No note needed rewriting;
+      three stale open lines are gone from the queue, each a duplicate of
+      a landed entry — `CD-21` (#79), `CR-23` and `CR-24` (both #77) — the
+      first two by a block edit the review of #85 caught as unrecorded. — *review
+      of #79 · #85*
 
 ## Declined
 
