@@ -47,6 +47,9 @@ f1.db-shm
 
 # The web front end.
 web/node_modules/
+# and the path itself: a symlink left by a worktree was committed once (#62)
+# and, on merge, replaced the real directory on every checkout of main.
+web/node_modules
 web/dist/
 
 # Staged by web/scripts/prepare-assets.js before every dev run and build: the

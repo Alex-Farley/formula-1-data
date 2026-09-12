@@ -650,8 +650,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 
 - [ ] `UR-12` **Amon's page gives three answers to "how many races".** 96 (lede), 108 (strip), `—` (starts). Where `notes` states a figure the page computes, show them adjacent or drop the prose. Apply during `CD-02`. — *user research · S*
 
-- [ ] `UR-13` **The 2026 season's static page opens with five em dashes.** `Runner-up — — —` on the most-searched page in September. Lead with who leads, by how much, after how many rounds. Rides with `PD-02`. — *user research · S*
-
 ## Someday, or maybe never
 
 Real, but not costed, or waiting on a decision.
@@ -1302,6 +1300,14 @@ Real, but not costed, or waiting on a decision.
       per thumbnail, and whether to hold the resolved `upload.wikimedia.org`
       URL in the harvest — is a data change and stays open as `VD-23`. —
       *visual critique · #63*
+
+- [x] `UR-13` **A season still running opens with who leads, by how much,
+      after how many rounds** — in the app's stats and the static facts list,
+      and in the page description a search engine shows. Found on the way:
+      the static standings table read the raw `standings` table and listed
+      every 2026 driver twice (formula1.com and F1DB rows after the same
+      round); it now reads `v_standings_final`, as the app does. — *user
+      research · #64*
 
 ## Declined
 

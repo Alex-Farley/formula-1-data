@@ -342,15 +342,31 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
       `SELECT MAX(after_round) AS r FROM standings WHERE year = ? AND table_type = 'drivers'`,
       s.year,
     )?.r
+    // v_standings_final, not the raw table: 2026 carries a formula1.com row
+    // and an F1DB row for every driver after the same round, and the raw
+    // table listed each of them twice. The view folds them, and says how.
     const standings = finalRound
       ? all(
-          `SELECT position, entity, entity_id, team, points FROM standings
-            WHERE year = ? AND table_type = 'drivers' AND after_round = ?
-            ORDER BY position LIMIT 12`,
+          `SELECT position, entity, entity_id, team, points FROM v_standings_final
+            WHERE year = ? AND table_type = 'drivers'
+            ORDER BY position IS NULL, position LIMIT 12`,
           s.year,
-          finalRound,
         )
       : []
+    const teamsLeading = finalRound
+      ? all(
+          `SELECT position, entity, entity_id, points FROM v_standings_final
+            WHERE year = ? AND table_type = 'constructors'
+            ORDER BY position IS NULL, position LIMIT 2`,
+          s.year,
+        )
+      : []
+    // A season still running has no champion to lead with. It has a leader,
+    // a gap and a number of rounds run, and those are what the page opens
+    // with - not five em dashes under "Runner-up".
+    const running = !s.drivers_champion && standings.length >= 2
+    const [lead, second] = standings
+    const gap = running ? lead.points - second.points : null
 
     const champion = s.drivers_champion ? names[s.drivers_champion] ?? s.drivers_champion : null
     page({
@@ -358,7 +374,9 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
       title: titled(`${s.year} Formula One World Championship`),
       description: champion
         ? `${champion} won the ${s.year} Formula One World Championship for ${teams[s.champion_team] ?? '—'} with ${s.champion_points ?? '—'} points over ${s.rounds ?? '?'} rounds. Every race, winner, pole and fastest lap.`
-        : `The ${s.year} Formula One World Championship: ${s.rounds ?? '?'} rounds, with every race, winner, pole and fastest lap.`,
+        : running
+          ? `${lead.entity} leads the ${s.year} Formula One World Championship by ${num(gap)} points after ${finalRound} of ${s.rounds ?? '?'} rounds. Every race, winner, pole and fastest lap.`
+          : `The ${s.year} Formula One World Championship: ${s.rounds ?? '?'} rounds, with every race, winner, pole and fastest lap.`,
       trail: [['', 'Home'], ['seasons', 'Seasons'], [`seasons/${s.year}`, String(s.year)]],
       jsonld: {
         '@context': 'https://schema.org',
@@ -369,17 +387,34 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
       },
       body: `
         <h1>${s.year} FIA Formula One World Championship</h1>
-        ${facts([
-          ["Drivers' champion", driver(s.drivers_champion)],
-          ['Team', team(s.champion_team)],
-          ['Points', num(s.champion_points)],
-          ['Runner-up', `${driver(s.runner_up)} — ${num(s.runner_up_points)}`],
-          ['Margin', num(s.margin)],
-          ["Constructors' champion", team(s.constructors_champion)],
-          ['Rounds', num(s.rounds)],
-          ['Engine formula', text(s.engine_formula)],
-          ['Tyres', text(s.tyre_suppliers)],
-        ])}
+        ${
+          running
+            ? facts([
+                ['After', `${finalRound} of ${num(s.rounds)} rounds`],
+                ['Leads', `${lead.entity_id ? driver(lead.entity_id) : text(lead.entity)} — ${num(lead.points)}`],
+                ['Second', `${second.entity_id ? driver(second.entity_id) : text(second.entity)} — ${num(second.points)}`],
+                ['Gap', num(gap)],
+                [
+                  "Constructors' leader",
+                  teamsLeading.length
+                    ? `${teamsLeading[0].entity_id ? team(teamsLeading[0].entity_id) : text(teamsLeading[0].entity)} — ${num(teamsLeading[0].points)}`
+                    : '—',
+                ],
+                ['Engine formula', text(s.engine_formula)],
+                ['Tyres', text(s.tyre_suppliers)],
+              ])
+            : facts([
+                ["Drivers' champion", driver(s.drivers_champion)],
+                ['Team', team(s.champion_team)],
+                ['Points', num(s.champion_points)],
+                ['Runner-up', `${driver(s.runner_up)} — ${num(s.runner_up_points)}`],
+                ['Margin', num(s.margin)],
+                ["Constructors' champion", team(s.constructors_champion)],
+                ['Rounds', num(s.rounds)],
+                ['Engine formula', text(s.engine_formula)],
+                ['Tyres', text(s.tyre_suppliers)],
+              ])
+        }
         ${prose(s.notes)}
         <h2>Races</h2>
         ${table(

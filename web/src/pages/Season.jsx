@@ -112,6 +112,9 @@ function SeasonBody({ year, season, data }) {
 
   const driversFinal = useMemo(() => final.filter((r) => r.table_type === 'drivers'), [final])
   const constructorsFinal = useMemo(() => final.filter((r) => r.table_type === 'constructors'), [final])
+  const running = !season.drivers_champion && driversFinal.length >= 2
+  const [lead, second] = driversFinal
+  const teamLead = constructorsFinal[0] ?? null
 
   /**
    * The title race, as it actually ran.
@@ -159,6 +162,37 @@ function SeasonBody({ year, season, data }) {
       }
     >
       <Section>
+        {/* A season still running leads with who leads, by how much, after how
+            many rounds. The champion's slots would be a row of em dashes on
+            the most-searched page of the year. */}
+        {running ? (
+          <Stats
+            items={[
+              { label: 'Rounds', value: number(season.rounds), note: `${run} run` },
+              {
+                label: 'Leads',
+                value: lead.entity_id ? <Link to={`/drivers/${lead.entity_id}`}>{lead.entity}</Link> : lead.entity,
+                note: `${fmtPoints(lead.points)} points`,
+              },
+              {
+                label: 'Gap',
+                value: fmtPoints(lead.points - second.points),
+                note: `over ${second.entity}`,
+              },
+              {
+                label: "Constructors' leader",
+                value: teamLead ? (
+                  teamLead.entity_id ? (
+                    <Link to={`/constructors/${teamLead.entity_id}`}>{teamLead.entity}</Link>
+                  ) : (
+                    teamLead.entity
+                  )
+                ) : null,
+                note: teamLead ? `${fmtPoints(teamLead.points)} points` : undefined,
+              },
+            ]}
+          />
+        ) : (
         <Stats
           items={[
             { label: 'Rounds', value: number(season.rounds), note: run === season.rounds ? 'all run' : `${run} run` },
@@ -192,6 +226,7 @@ function SeasonBody({ year, season, data }) {
             },
           ]}
         />
+        )}
       </Section>
 
       {progression.length > 1 && (
