@@ -609,10 +609,16 @@ try {
     await page.click('#root main .table-foot button')
     await page.waitForFunction(() => document.querySelectorAll('#root main tbody tr').length > 150, null, { timeout: 20000 })
     const appOrder = await page.$$eval('#root main tbody tr td:first-child', (tds) => tds.map((td) => td.textContent.trim()))
-    const staticOrder = [...html.matchAll(/<tbody>[\s\S]*?<\/tbody>/g)][0][0]
-      .split('<tr')
-      .slice(1)
-      .map((tr) => tr.replace(/<[^>]+>/g, '|').split('|').map((x) => x.trim()).filter(Boolean)[0])
+    const staticOrder = ([...html.matchAll(/<tbody>[\s\S]*?<\/tbody>/g)][0][0].match(/<tr>[\s\S]*?<\/tr>/g) ?? []).map(
+      (tr) =>
+        tr
+          .match(/<td[^>]*>([\s\S]*?)<\/td>/)[1]
+          .replace(/<[^>]+>/g, '')
+          .replace(/&#39;/g, "'")
+          .replace(/&quot;/g, '"')
+          .replace(/&amp;/g, '&')
+          .trim(),
+    )
     is(
       appOrder.findIndex((name, k) => name !== staticOrder[k]),
       -1,
