@@ -202,7 +202,7 @@ const NAV = [
   ['data', 'Data'],
 ]
 
-const chrome = (body, crumbs) => `
+const chrome = (body, crumbs, cite) => `
 <div class="app pre">
   <header class="masthead">
     <div class="masthead-inner">
@@ -213,6 +213,11 @@ const chrome = (body, crumbs) => `
   <main>
     ${crumbs ? `<nav class="crumbs" aria-label="Breadcrumb">${crumbs}</nav>` : ''}
     ${body}
+    ${
+      cite
+        ? `<aside class="cite" aria-label="How to cite this page"><p><b>Cite this page as</b> Lap Ledger, &ldquo;${esc(cite.title)}&rdquo;, database v${esc(META.version)} built ${esc(META.built)}, <span class="url">${esc(cite.url)}</span>. Every figure names its source beside it; the version and build date fix which figures you saw.</p></aside>`
+        : ''
+    }
   </main>
   <footer class="sitefoot"><div class="sitefoot-inner"><div>
     <p>Every page here is a query against one SQLite file, running in your browser. ${link('data/quality', 'How far to trust it')} · ${link('data/sources', 'sources')} · ${link('data/sql', 'write your own query')}.</p>
@@ -240,7 +245,10 @@ const pages = []
  * needs.
  */
 const page = ({ path, title, description, body, jsonld = null, trail = null }) => {
-  pages.push({ path, title, description, jsonld, html: chrome(body, trail ? crumbs(trail) : '') })
+  // The citation names the page by its title without the site suffix, and
+  // by the address the canonical carries.
+  const cite = { title: String(title).replace(/ [—·] Lap Ledger$/, ''), url: `${ORIGIN}${href(path)}` }
+  pages.push({ path, title, description, jsonld, html: chrome(body, trail ? crumbs(trail) : '', cite) })
 }
 
 

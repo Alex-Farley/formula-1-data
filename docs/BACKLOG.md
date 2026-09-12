@@ -188,10 +188,6 @@ Worth doing, not yet urgent.
       carries the reader sentences and the maintainer notes this entry asks for.
       — *product critique · S*
 
-- [ ] `PD-10` **A citation block.** Every ingredient exists — version, build
-      date, per-row source, permanent URL — and they are assembled nowhere. One
-      component, prerendered so a crawler sees it. — *product critique · S*
-
 - [ ] `PD-12` **State the lap-timing constraint as a position,** not a
       schema-shaped apology inside a gaps table. "No one may lawfully
       redistribute Formula One lap timing, so this database contains none, and
@@ -531,6 +527,23 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 - [ ] `CR-23` **The static `/records` table has a `Category` column the app
       never shows.** Predates #68; the review of #68 measured it. Rides with
       `CR-22`. — *review of #68 · S*
+
+- [ ] `CR-24` **The static drivers register is not the app's.** Eight
+      columns against nine, Poles before Podiums against Podiums before
+      Poles, no Fastest laps. Same defect as `CR-22`/`CR-23`; rides with
+      `PD-02`. Found by the review of #69. — *review of #69 · S*
+
+- [ ] `CD-18` **"Races" on the register, "Entries (stored)" on the page.**
+      The same derived count is called Races in the register and Entries on
+      the driver's page, where the stored figure sits beside it as "Entries
+      (stored)". One word, and the stored one labelled for what it is
+      (published). Found by the review of #69. — *review of #69 · S*
+
+- [ ] `CD-19` **Eighteen driver ledes still spell a figure the strip
+      derives** ("Ten wins", "Eight wins"); `verify.py`'s check (#70) stops
+      at digits. Extend it to spelled numbers before the derived nouns and
+      rewrite the eighteen. Found by the review of #70. — *review of #70 ·
+      S*
 
 **Interaction design**
 
@@ -1407,6 +1420,12 @@ Real, but not costed, or waiting on a decision.
       driver's page labelled as stored; `Races` is counted from the race
       records. Also pins the front-end reviewer agent to Opus, as every other
       reviewer already was. — *product critique · #69*
+
+- [x] `PD-10` **A citation block on every page.** One sentence — the page's
+      title, the database version and build date, the permanent address —
+      rendered by `Page` in the app and by `chrome()` in the static page, so a
+      crawler sees it. The reader's own access date is left to the reader;
+      the build date is what fixes the figures. — *product critique · #71*
 
 ## Declined
 

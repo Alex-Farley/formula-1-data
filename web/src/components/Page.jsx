@@ -1,4 +1,5 @@
 import { createContext, Fragment, useEffect, useRef } from 'react'
+import { currentProgress } from '../data/client.js'
 import { Link, useLocation } from 'react-router-dom'
 import { missing, text } from '../lib/format.js'
 import { SITE, titled } from '../lib/site.js'
@@ -74,6 +75,7 @@ export function Page({ eyebrow, title, lede, back, aside, children }) {
         {aside}
       </header>
       {children}
+          <Cite title={title} />
     </article>
   )
 }
@@ -266,5 +268,32 @@ export function Stepper({ previous, next }) {
       {previous ? <Link to={previous.to}>← {previous.label}</Link> : <span />}
       {next ? <Link to={next.to}>{next.label} →</Link> : <span />}
     </nav>
+  )
+}
+
+/**
+ * How to cite the page. Every ingredient existed - the version and build
+ * date in the footer, the canonical address in the head, the source beside
+ * each figure - and nothing assembled them, on a site whose stated ambition
+ * is to be cited. One sentence, the same in the app and the static page,
+ * with the date the reader is looking at it left to the reader: the build
+ * date is the date that matters, because the figures are a function of it.
+ */
+export function Cite({ title }) {
+  const { pathname } = useLocation()
+  const manifest = currentProgress().manifest
+  if (!manifest) return null
+  // The deploy's own origin, so a preview and lapledger.org each cite
+  // themselves; the static page uses the canonical origin.
+  const url = `${window.location.origin}${pathname === '/' ? '' : pathname}`
+  const name = typeof title === 'string' ? title : document.title.replace(/ [—·] Lap Ledger$/, '')
+  return (
+    <aside className="cite" aria-label="How to cite this page">
+      <p>
+        <b>Cite this page as</b> Lap Ledger, &ldquo;{name}&rdquo;, database v{manifest.version} built{' '}
+        {manifest.built}, <span className="url">{url}</span>. Every figure names its source beside it; the
+        version and build date fix which figures you saw.
+      </p>
+    </aside>
   )
 }
