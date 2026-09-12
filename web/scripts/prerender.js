@@ -48,7 +48,7 @@ import { fileURLToPath } from 'node:url'
 // than restated here: a copy of it would drift, which is how the twelve
 // hardcoded `circuit_geometry` columns went wrong.
 import { finished, yearList } from '../src/lib/format.js'
-import { CROSS_CHECKED, NOT_HELD, SELF_DESCRIBING, SITE, TWO_FILES, titled } from '../src/lib/site.js'
+import { CROSS_CHECKED, citation, NOT_HELD, SELF_DESCRIBING, SITE, TWO_FILES, titled } from '../src/lib/site.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const web = join(here, '..')
@@ -215,7 +215,10 @@ const chrome = (body, crumbs, cite) => `
     ${body}
     ${
       cite
-        ? `<aside class="cite" aria-label="How to cite this page"><p><b>Cite this page as</b> Lap Ledger, &ldquo;${esc(cite.title)}&rdquo;, database v${esc(META.version)} built ${esc(META.built)}, <span class="url">${esc(cite.url)}</span>. Every figure names its source beside it; the version and build date fix which figures you saw.</p></aside>`
+        ? `<aside class="cite" aria-label="How to cite this page"><p>${citation(META.version, META.built, cite.url)
+            .split(cite.url)
+            .map(esc)
+            .join(`<span class="url">${esc(cite.url)}</span>`)}</p></aside>`
         : ''
     }
   </main>
@@ -247,7 +250,7 @@ const pages = []
 const page = ({ path, title, description, body, jsonld = null, trail = null }) => {
   // The citation names the page by its title without the site suffix, and
   // by the address the canonical carries.
-  const cite = { title: String(title).replace(/ [—·] Lap Ledger$/, ''), url: `${ORIGIN}${href(path)}` }
+  const cite = { url: `${ORIGIN}${href(path)}` }
   pages.push({ path, title, description, jsonld, html: chrome(body, trail ? crumbs(trail) : '', cite) })
 }
 

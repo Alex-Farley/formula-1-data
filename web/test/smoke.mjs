@@ -946,19 +946,22 @@ try {
     }
   }
 
-  // Every page can be cited: version, build date and address, the same
-  // sentence in the app and the static page.
-  console.log('\n/drivers/senna  (citation)')
-  await go('/drivers/senna', 'Ayrton Senna')
-  const cite = await page.waitForSelector('#root .cite', { timeout: 20000 }).then((n) => n.textContent())
-  const citedVersion = one('SELECT value FROM meta WHERE key = ?', 'version')
-  truthy(cite.includes(`database v${citedVersion}`) && cite.includes('/drivers/senna'), `the app's citation names v${citedVersion} and the address`)
-  const html = await (await fetch(`${BASE}/drivers/senna`)).text()
-  const staticCite = html.slice(html.indexOf('<aside class="cite"'), html.indexOf('</aside>', html.indexOf('<aside class="cite"')))
-  truthy(
-    staticCite.includes(`database v${citedVersion}`) && staticCite.includes('/drivers/senna') && staticCite.includes('Ayrton Senna'),
-    'the static page carries the same citation',
-  )
+  // Every page can be cited, and the app and the static page say the same
+  // sentence - checked on routes whose titles differ between the renderers,
+  // which is why the citation names the address and not the title.
+  console.log('\nCitation')
+  for (const [route, heading] of [['/seasons/2026', '2026'], ['/races/1988/13', 'Portuguese Grand Prix'], ['/drivers/senna', 'Ayrton Senna']]) {
+    await go(route, heading)
+    const appCite = await page.waitForSelector('#root .cite', { timeout: 20000 }).then((n) => n.textContent())
+    const html = await (await fetch(`${BASE}${route}`)).text()
+    const staticCite = html
+      .slice(html.indexOf('<aside class="cite"'), html.indexOf('</aside>', html.indexOf('<aside class="cite"')))
+      .replace(/<[^>]+>/g, '')
+      .replace(/&amp;/g, '&')
+    is(staticCite.replace('https://lapledger.org', BASE), appCite, `the citation on ${route} is one sentence in both renderers`)
+  }
+  await go('/no-such-page-here')
+  truthy(!(await page.$('#root .cite')), 'a page that does not exist offers no citation')
 
   // ----------------------------------------------------------------- SQL
 

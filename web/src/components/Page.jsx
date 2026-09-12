@@ -2,7 +2,7 @@ import { createContext, Fragment, useEffect, useRef } from 'react'
 import { currentProgress } from '../data/client.js'
 import { Link, useLocation } from 'react-router-dom'
 import { missing, text } from '../lib/format.js'
-import { SITE, titled } from '../lib/site.js'
+import { SITE, titled, citation } from '../lib/site.js'
 
 /**
  * A page: an optional way back, a title, an optional standfirst.
@@ -56,7 +56,7 @@ function useDocumentName(headline) {
   }, [pathname])
 }
 
-export function Page({ eyebrow, title, lede, back, aside, children }) {
+export function Page({ eyebrow, title, lede, back, aside, children, cite = true }) {
   useDocumentName(title)
   const heading = useFocusOnNavigation()
   return (
@@ -75,7 +75,7 @@ export function Page({ eyebrow, title, lede, back, aside, children }) {
         {aside}
       </header>
       {children}
-          <Cite title={title} />
+          {cite && <Cite />}
     </article>
   )
 }
@@ -279,20 +279,21 @@ export function Stepper({ previous, next }) {
  * with the date the reader is looking at it left to the reader: the build
  * date is the date that matters, because the figures are a function of it.
  */
-export function Cite({ title }) {
-  const { pathname } = useLocation()
+export function Cite() {
   const manifest = currentProgress().manifest
   if (!manifest) return null
-  // The deploy's own origin, so a preview and lapledger.org each cite
-  // themselves; the static page uses the canonical origin.
-  const url = `${window.location.origin}${pathname === '/' ? '' : pathname}`
-  const name = typeof title === 'string' ? title : document.title.replace(/ [—·] Lap Ledger$/, '')
+  // The address as the browser has it - origin and base included - so a
+  // preview cites itself and lapledger.org cites lapledger.org; the static
+  // page uses the canonical origin, which on the site is the same string.
+  const url = `${window.location.origin}${window.location.pathname}`
+  const text = citation(manifest.version, manifest.built, url)
+  const [before, after] = text.split(url)
   return (
     <aside className="cite" aria-label="How to cite this page">
       <p>
-        <b>Cite this page as</b> Lap Ledger, &ldquo;{name}&rdquo;, database v{manifest.version} built{' '}
-        {manifest.built}, <span className="url">{url}</span>. Every figure names its source beside it; the
-        version and build date fix which figures you saw.
+        {before}
+        <span className="url">{url}</span>
+        {after}
       </p>
     </aside>
   )
