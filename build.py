@@ -266,12 +266,14 @@ def _stage_02_drivers(b):
             (did, name, nat, code, year, year, None, 0, "deceased", HV.INDY_NOTE,
              "reference", HV.SOURCE.format(year=year)))
 
-    for did, name, nat, code, extra in HV.POLE_ONLY_DRIVERS:
-        note = HV.POLE_ONLY_NOTE + ((" " + extra) if extra else "")
+    # notes is the page's lede and its meta description, so it holds only what
+    # is said about the driver; how the row got here goes in provenance.
+    for did, name, nat, code, note in HV.POLE_ONLY_DRIVERS:
         cur.execute("""INSERT INTO drivers (id, full_name, nationality,
-            nationality_code, wins, titles, notes, confidence, source)
-            VALUES (?,?,?,?,?,?,?,?,?)""",
-            (did, name, nat, code, 0, 0, note, "medium",
+            nationality_code, wins, titles, notes, provenance, confidence, source)
+            VALUES (?,?,?,?,?,?,?,?,?,?)""",
+            (did, name, nat, code, 0, 0, note or None, HV.POLE_ONLY_PROVENANCE,
+             "medium",
              "https://en.wikipedia.org/wiki/List_of_Formula_One_polesitters"))
 
     # Drivers who reached a podium but never won, took pole or set a fastest
@@ -305,7 +307,7 @@ def _stage_02_drivers(b):
                 f"has {born or 'no date'} and F1DB has {meta[4] or 'no date'}. "
                 f"One of them is the wrong person.")
         cur.execute("""INSERT INTO drivers (id, full_name, nationality,
-            nationality_code, born, wins, titles, notes, confidence, source)
+            nationality_code, born, wins, titles, provenance, confidence, source)
             VALUES (?,?,?,?,?,0,0,?,?,?)""",
             (lid, name, nat, code, born or None,
              "Added to the register from the podium harvest: reached a podium "

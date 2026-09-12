@@ -157,7 +157,11 @@ CREATE TABLE drivers (
     fastest_laps_external   INTEGER,
     podiums_external        INTEGER,
     external_source         TEXT,
-    notes           TEXT,
+    notes           TEXT,                      -- about the driver; the page's lede
+    -- How the row entered the register, where that was a harvest rather than
+    -- the authored list. Kept apart from notes because notes is read as the
+    -- page lede and the meta description, and 111 of them opened with it.
+    provenance      TEXT,
     confidence      TEXT NOT NULL DEFAULT 'medium' REFERENCES provenance(confidence),
     source          TEXT
 );

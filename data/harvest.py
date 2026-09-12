@@ -383,25 +383,36 @@ def split_names(s):
 # harvested race rows and therefore checkable. The biographical detail
 # (nationality) is hand-entered and unverified, so these rows carry
 # confidence 'medium'.
-#   id, full_name, nationality, code, note_extra
+# The note is about the driver, not the row: how the row got here is
+# POLE_ONLY_PROVENANCE below, in drivers.provenance. It carries no figure
+# the page derives - starts, podiums, poles - because the strip beside the
+# lede shows the derived one and a typed one goes stale (Amon's said 96
+# starts beside a strip that counted 108).
+#   id, full_name, nationality, code, note
 # ---------------------------------------------------------------------
 POLE_ONLY_DRIVERS = [
     ("amon", "Chris Amon", "New Zealand", "NZL",
-     "Widely held to be the finest driver never to win a championship Grand Prix; five poles and eleven podiums across 96 starts."),
+     "Widely held to be the finest driver never to win a championship Grand Prix."),
     ("jarier", "Jean-Pierre Jarier", "France", "FRA",
      "Led races for Shadow and Lotus without ever converting one into a win."),
     ("fabi", "Teo Fabi", "Italy", "ITA", "Took pole at Indianapolis and in Formula One."),
     ("heidfeld", "Nick Heidfeld", "Germany", "GER",
-     "Thirteen podiums and 183 starts without a victory — for years the record for most starts without a win."),
+     # The register's own figure: 13 podiums and no win, ahead of Johansson's
+     # 12. The first rewrite said "most starts without a win", which the
+     # race records disprove - de Cesaris held that from 1990.
+     "Holds the record for most podium finishes without a win."),
     ("magnussen", "Kevin Magnussen", "Denmark", "DEN",
      "Scored a podium on debut in Australia in 2014."),
     ("lewis-evans", "Stuart Lewis-Evans", "United Kingdom", "GBR",
      "Vanwall driver who died of burns after the 1958 Moroccan Grand Prix, prompting the team's withdrawal."),
     ("de-cesaris", "Andrea de Cesaris", "Italy", "ITA",
-     "208 starts without a win, and pole at Long Beach in 1982."),
-    ("warwick", "Derek Warwick", "United Kingdom", "GBR", "Four podiums; later won Le Mans."),
+     # 214 entries and no win in the race records, the most of anyone until
+     # Hulkenberg passed it; the figure is the page's to show.
+     "Took pole at Long Beach in 1982, and held the record for most Grand "
+     "Prix entries without a win until Nico Hulkenberg passed it."),
+    ("warwick", "Derek Warwick", "United Kingdom", "GBR", "Later won Le Mans."),
     ("zhou", "Zhou Guanyu", "China", "CHN", "China's first full-time Formula One driver."),
-    ("parkes", "Mike Parkes", "United Kingdom", "GBR", "Ferrari engineer and driver; two podiums."),
+    ("parkes", "Mike Parkes", "United Kingdom", "GBR", "Ferrari engineer and driver."),
     ("attwood", "Richard Attwood", "United Kingdom", "GBR", "Won Le Mans for Porsche in 1970."),
     ("oliver", "Jackie Oliver", "United Kingdom", "GBR", "Later co-founded Arrows."),
     ("pescarolo", "Henri Pescarolo", "France", "FRA", "Four-time Le Mans winner."),
@@ -418,7 +429,7 @@ POLE_ONLY_DRIVERS = [
     ("gachot", "Bertrand Gachot", "Belgium", "BEL",
      "His imprisonment in 1991 freed the Jordan seat that gave Michael Schumacher his debut."),
     ("moreno", "Roberto Moreno", "Brazil", "BRA", None),
-    ("wurz", "Alexander Wurz", "Austria", "AUT", "Three podiums; twice a Le Mans winner."),
+    ("wurz", "Alexander Wurz", "Austria", "AUT", "Twice a Le Mans winner."),
     ("de-la-rosa", "Pedro de la Rosa", "Spain", "ESP", None),
     ("glock", "Timo Glock", "Germany", "GER",
      "His slide on dry tyres at Interlagos in 2008 handed Lewis Hamilton the championship."),
@@ -426,7 +437,7 @@ POLE_ONLY_DRIVERS = [
     ("petrov", "Vitaly Petrov", "Russia", "RUS", "Russia's first Formula One driver."),
     ("senna-b", "Bruno Senna", "Brazil", "BRA", "Nephew of Ayrton Senna."),
     ("gutierrez", "Esteban Gutierrez", "Mexico", "MEX", None),
-    ("kvyat", "Daniil Kvyat", "Russia", "RUS", "Three podiums; briefly Vettel's replacement at Red Bull."),
+    ("kvyat", "Daniil Kvyat", "Russia", "RUS", "Briefly Vettel's replacement at Red Bull."),
     ("behra", "Jean Behra", "France", "FRA",
      "Killed in a supporting sports-car race at AVUS in 1959."),
     ("castellotti", "Eugenio Castellotti", "Italy", "ITA", "Killed testing at Modena in 1957."),
@@ -452,9 +463,9 @@ POLE_ONLY_DRIVERS = [
      "A podium at Suzuka in 2012 in front of his home crowd; later won Le Mans with Toyota."),
 ]
 
-POLE_ONLY_NOTE = ("Added to the register from the pole position and fastest lap harvest. "
-                  "Never won a World Championship Grand Prix. Pole and fastest-lap counts "
-                  "are derived from the race records; other career figures are not held.")
+POLE_ONLY_PROVENANCE = ("Added to the register from the pole position and fastest lap harvest. "
+                        "Never won a World Championship Grand Prix. Pole and fastest-lap counts "
+                        "are derived from the race records; other career figures are not held.")
 
 
 # ---------------------------------------------------------------------

@@ -196,6 +196,7 @@ def main():
                     print(f"  {label:<16}{val}")
             print()
             para("  Notes", d["notes"], 4)
+            para("  Provenance", d["provenance"], 4)
             ent = c.execute("""SELECT year, car, power_unit, car_number, c.name AS team
                                FROM season_entries e LEFT JOIN constructors c
                                ON c.id=e.constructor_id WHERE driver_id=?""",

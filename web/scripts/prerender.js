@@ -136,6 +136,12 @@ const prose = (value) => (value ? `<p>${esc(value)}</p>` : '')
 const summarise = (value, limit = 160) => {
   const flat = String(value ?? '').replace(/\s+/g, ' ').trim()
   if (flat.length <= limit) return flat
+  // Cut at the last sentence end that fits, so a description never breaks
+  // off mid-thought - Chris Amon's used to end on "Widely held to be the fi…".
+  // A word boundary with an ellipsis is the fallback, for a single sentence
+  // longer than half the room.
+  const sentence = flat.lastIndexOf('. ', limit - 1)
+  if (sentence >= limit / 2) return flat.slice(0, sentence + 1)
   return `${flat.slice(0, flat.lastIndexOf(' ', limit - 1))}…`
 }
 
@@ -763,6 +769,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
           ['Career points', num(d.career_points)],
           ['Titles', d.titles ? `${d.titles} (${yearList(d.title_years)})` : num(d.titles)],
           ['Status', text(d.status)],
+          ['Provenance', d.provenance ? esc(d.provenance) : null],
           ['Confidence', d.confidence ? link('data/quality', d.confidence) : text(d.confidence)],
         ])}
         ${prose(d.notes)}

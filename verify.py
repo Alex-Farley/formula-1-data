@@ -1319,6 +1319,21 @@ def the_driver_register():
     check("no two register rows share a driver's full name", not _dupe,
           "; ".join(f"{r[0]} x{r[1]}" for r in _dupe[:4]))
 
+    # notes is read as the page's lede and its meta description. How the row
+    # entered the register belongs in provenance, and a figure the page
+    # derives belongs to the strip beside the lede, where it cannot go stale:
+    # Amon's note said 96 starts beside a strip that counted 108.
+    _prov = [r[0] for r in con.execute("""SELECT id FROM drivers
+        WHERE notes LIKE 'Added %' OR notes LIKE '% harvest%' ORDER BY id""")]
+    check("no driver note opens with how the row entered the register",
+          not _prov, "; ".join(_prov[:6]))
+    _figure = re.compile(r"\b\d+ (starts|races|wins|poles|podiums|points)\b")
+    _typed = [r[0] for r in con.execute(
+        "SELECT id, notes FROM drivers WHERE notes IS NOT NULL ORDER BY id")
+        if _figure.search(r[1])]
+    check("no driver note states a figure the page derives",
+          not _typed, "; ".join(_typed[:6]))
+
 
 @section('THE CONSTRUCTOR REGISTER')
 def the_constructor_register():
