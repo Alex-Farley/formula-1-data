@@ -926,6 +926,16 @@ try {
   await page.click('button.button')
   await page.waitForFunction(() => new URLSearchParams(location.search).get('q') === 'SELECT 8 AS n', null, { timeout: 10000 })
   pass('running a query writes it to the address')
+  // The note about the address tells the truth while the reader edits.
+  truthy(
+    (await page.$eval('#root main .permalink', (n) => n.textContent)).includes('is a link to this query'),
+    'after a run, the note says the address is a link to this query',
+  )
+  await page.fill('textarea.sql', 'SELECT 9 AS n')
+  truthy(
+    (await page.$eval('#root main .permalink', (n) => n.textContent)).includes('last run'),
+    'after an edit without a run, the note says the address holds the query last run',
+  )
   await page.click('button.example')
   await page.waitForSelector('button.linklike', { timeout: 10000 })
   await page.click('button.linklike')

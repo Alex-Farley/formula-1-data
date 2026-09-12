@@ -249,9 +249,11 @@ export default function Sql() {
           {(replaced || arrived) && (
             <p className="small faint" style={{ margin: '8px 0 0', display: 'flex', gap: 14, flexWrap: 'wrap' }}>
               {arrived && (
-                <a href={`?q=${encodeURIComponent(text)}`} onClick={(event) => event.preventDefault()} className="permalink">
-                  This page's address is a link to this query
-                </a>
+                <span className="permalink">
+                  {text === arrived
+                    ? 'The address of this page is a link to this query.'
+                    : 'The address links to the query last run, not to what you have typed; run it to update.'}
+                </span>
               )}
               {replaced && (
                 <button
