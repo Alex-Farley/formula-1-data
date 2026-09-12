@@ -397,13 +397,19 @@ POLE_ONLY_DRIVERS = [
      "Led races for Shadow and Lotus without ever converting one into a win."),
     ("fabi", "Teo Fabi", "Italy", "ITA", "Took pole at Indianapolis and in Formula One."),
     ("heidfeld", "Nick Heidfeld", "Germany", "GER",
-     "For years held the record for most starts without a win."),
+     # The register's own figure: 13 podiums and no win, ahead of Johansson's
+     # 12. The first rewrite said "most starts without a win", which the
+     # race records disprove - de Cesaris held that from 1990.
+     "Holds the record for most podium finishes without a win."),
     ("magnussen", "Kevin Magnussen", "Denmark", "DEN",
      "Scored a podium on debut in Australia in 2014."),
     ("lewis-evans", "Stuart Lewis-Evans", "United Kingdom", "GBR",
      "Vanwall driver who died of burns after the 1958 Moroccan Grand Prix, prompting the team's withdrawal."),
     ("de-cesaris", "Andrea de Cesaris", "Italy", "ITA",
-     "Took pole at Long Beach in 1982."),
+     # 214 entries and no win in the race records, the most of anyone until
+     # Hulkenberg passed it; the figure is the page's to show.
+     "Took pole at Long Beach in 1982, and held the record for most Grand "
+     "Prix entries without a win until Nico Hulkenberg passed it."),
     ("warwick", "Derek Warwick", "United Kingdom", "GBR", "Later won Le Mans."),
     ("zhou", "Zhou Guanyu", "China", "CHN", "China's first full-time Formula One driver."),
     ("parkes", "Mike Parkes", "United Kingdom", "GBR", "Ferrari engineer and driver."),
