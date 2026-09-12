@@ -511,14 +511,15 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       one no table can constrain. Found by the review of #79. — *review of
       #79 · S*
 
-**Interaction design**
+- [ ] `PM-29` **`build.py` hardcodes the rollover year for imported drivers'
+      status.** `("active" if max(yrs) >= 2026 else "retired")` decides
+      `status` for the 680 F1DB-admitted drivers; at the 2027 rollover every
+      2026-only driver becomes retired and the `verify.py` grid check from
+      #84 fails the build, loudly and without an explanation attached. Derive
+      the year from the latest completed season, as the drivers page now
+      does. Found by the review of #84. — *review of #84 · S*
 
-- [ ] `IX-17` **The Active filter on `/drivers` matches nobody.** `Drivers.jsx`
-      keeps a row when `last_season === 2026`, and no row has that: the 23
-      current drivers carry a NULL last season, the register's open span.
-      `status` is already in the shared `DRIVERS` query; filter on it, and
-      give the smoke test a case that expects more than zero rows. Found by
-      the review of #81. — *review of #81 · S*
+**Interaction design**
 
 - [ ] `IX-16` **`IA-08` escalated: Back restores the scroll and not the filter.** France filter, sort by wins, scroll, open a driver, Back — same pixel, 862 unfiltered rows. Do `/drivers` first. — *interaction critique · M*
 
@@ -1570,6 +1571,18 @@ Real, but not costed, or waiting on a decision.
       which the first cut missed and the review caught on 23 current
       drivers. — *review of #75 · #81*
 
+- [x] `IX-17` **The grid filter keeps the grid, and derives it.** It tested
+      `last_season` against 2026, a year the register's open span never
+      holds, and matched nobody. The shared `DRIVERS` query now derives
+      `on_grid` — an entry in the latest completed season — and the season
+      itself, so the chip names the year from the data; `verify.py` fails an
+      active driver with no entry and reports a mid-season replacement (the
+      review of #84 found Doohan in 2025 would have failed a two-way pin);
+      the smoke test pins the exact count and that it is above zero. In
+      pre-season, when the calendar holds a year with nothing completed, the
+      register check is only reported — the second review found a
+      name-based exemption covered a debutant and not a returning signing. —
+      *review of #81 · #84*
 - [x] `CD-23` **The lede check is one tested pattern.** `tools/lede_figures.py`
       holds it, with its reasons; `tests/test_lede_figures.py` makes both
       interpreters prove 18 catches and 12 leave-alones. Career qualifiers

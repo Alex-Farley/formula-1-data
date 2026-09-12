@@ -50,6 +50,9 @@ function Register({ rows }) {
   const [term, setTerm] = useState('')
   const [nationality, setNationality] = useState('')
   const [kind, setKind] = useState('')
+  // The season the grid filter names, from the shared query; every row
+  // carries the same value.
+  const gridSeason = rows[0]?.grid_season
 
   const nationalities = useMemo(
     () => [...new Set(rows.map((r) => r.nationality).filter(Boolean))].sort(),
@@ -62,7 +65,10 @@ function Register({ rows }) {
       if (nationality && row.nationality !== nationality) return false
       if (kind === 'champions' && !row.titles) return false
       if (kind === 'winners' && !row.wins) return false
-      if (kind === 'active' && row.last_season !== 2026) return false
+      // The grid is an entry in the latest completed season, derived in the
+      // shared query; the register's open span is a NULL last_season, so the
+      // year was never the test (IX-17).
+      if (kind === 'active' && !row.on_grid) return false
       if (!needle) return true
       return row.full_name.toLowerCase().includes(needle)
     })
@@ -87,7 +93,7 @@ function Register({ rows }) {
             ['', 'All'],
             ['winners', 'Race winners'],
             ['champions', 'Champions'],
-            ['active', 'On the 2026 grid'],
+            ['active', gridSeason ? `On the ${gridSeason} grid` : 'On the grid'],
           ]}
         />
       </Filters>
