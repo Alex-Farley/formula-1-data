@@ -413,7 +413,8 @@ dimensions as published, plus three things a spec sheet does not — the
 **`chassis` is the register: <!-- fig:chassis -->1,153<!-- /fig --> rows,
 every chassis that has raced.** It is loaded from
 [F1DB](https://github.com/f1db/f1db) (CC BY 4.0) by `tools/f1db_fetch.py` — a
-scale at which nobody types anything — and
+scale at which nobody types anything; `docs/UPSTREAM.md` is what depends on
+F1DB and what happens if it stops — and
 <!-- fig:chassis_with_spec -->779<!-- /fig --> of them carry a specification
 `tools/wikispec_fetch.py` established off that chassis's own Wikipedia
 article. `chassis.car_id` joins the two.

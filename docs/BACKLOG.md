@@ -200,10 +200,6 @@ Worth doing, not yet urgent.
       every figure here is one you may republish" is an advantage over anyone
       hosting scraped timing. — *product critique · S*
 
-- [ ] `PD-13` **Write down the upstream dependency.** 93.5% of rows come from one
-      source refreshed by one cron, and nothing records what happens if it
-      changes licence or stops. One page in `docs/`. — *product critique · S*
-
 
 
 - [ ] `PM-20` **Clear the two actionable `verify.py` data warnings.** Two
@@ -666,6 +662,16 @@ Real, but not costed, or waiting on a decision.
       siblings and could not carry this. Sits beside `PM-08`: both are geometry
       work the existing guard rails already constrain once rows exist. —
       *project record · M*
+
+- [ ] `PM-27` **The fetch tool stamps F1DB's licence from a constant.**
+      `tools/f1db_fetch.py` writes "CC BY 4.0" into every harvest header
+      from `HEADER`, not from F1DB's licence file, so a relicensed release
+      would be fetched, stamped with the old licence and — passing the four
+      cross-checks — committed and deployed by `refresh.yml` before anyone
+      read it. Read the licence file in the clone and exit non-zero unless it
+      is the licence `SOURCE_LICENCE` classifies; the refresh then fails at
+      the fetch and commits nothing. Found writing `docs/UPSTREAM.md`
+      (`PD-13`). — *project record · S*
 
 - [ ] `PM-09` **Per-round chassis harvest.** Closes `known_gaps` #3 (287 races
       with no known winning chassis) and #4 (car pole counts) in one pass. Only
@@ -1522,6 +1528,15 @@ Real, but not costed, or waiting on a decision.
       than counted, Surtees's seven motorcycle titles are counted as times
       rather than titles, and Montoya's "fourth GP start" was wrong — the pass on
       Schumacher at Interlagos 2001 was his third. — *review of #74 · #79*
+
+- [x] `PD-13` **The upstream dependency is written down.** `docs/UPSTREAM.md`:
+      what F1DB supplies (115,162 of 119,279 rows at v2.23, table by table),
+      how it arrives (a committed snapshot, refreshed daily by `refresh.yml`
+      and committed only on a full pass), the four cross-checks that refuse a
+      bad load, what happens if it stops (staleness, not breakage; the
+      replacements in cost order) and if it relicenses (a received snapshot
+      stays CC BY 4.0; the one unsafe path is filed as `PM-27`). Linked from
+      the README. — *product critique · #82*
 
 ## Declined
 
