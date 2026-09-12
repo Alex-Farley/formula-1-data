@@ -598,6 +598,15 @@ try {
     // page: a race_entries row is an entry, not a start, and the published
     // `entries`/`starts` columns stay off the register.
     truthy(heads.includes('Entries') && !heads.includes('Races') && !heads.includes('Starts'), 'Entries is counted from the race records; Races and Starts are gone')
+    // The Active filter keeps the current grid - it matched nobody for a
+    // version, testing last_season against a year the open span never holds.
+    const activeCount = count("SELECT COUNT(*) FROM drivers WHERE status = 'active'")
+    await page.click('[role="group"][aria-label="Filter drivers by kind"] button:has-text("On the 2026 grid")')
+    await page.waitForFunction((n) => document.querySelectorAll('#root main tbody tr').length === n, activeCount, { timeout: 10000 }).catch(() => {})
+    is((await tableRows())[0], activeCount, `the Active filter keeps the ${activeCount} drivers on the grid`)
+    truthy(activeCount > 0, 'and there is a grid to keep')
+    await page.click('[role="group"][aria-label="Filter drivers by kind"] button:has-text("All")')
+    await page.waitForFunction((n) => document.querySelectorAll('#root main tbody tr').length === n, count('SELECT COUNT(*) FROM drivers'), { timeout: 10000 }).catch(() => {})
     const entries = one('SELECT COUNT(*) FROM race_entries WHERE driver_id = (SELECT id FROM drivers ORDER BY wins DESC, podiums DESC LIMIT 1)')
     is(
       await page.$eval('#root main tbody tr td:nth-child(4)', (td) => Number(td.textContent.replace(/[^0-9]/g, ''))),

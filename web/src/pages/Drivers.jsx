@@ -62,7 +62,10 @@ function Register({ rows }) {
       if (nationality && row.nationality !== nationality) return false
       if (kind === 'champions' && !row.titles) return false
       if (kind === 'winners' && !row.wins) return false
-      if (kind === 'active' && row.last_season !== 2026) return false
+      // The register's open span is a NULL last_season, so the year is not the
+      // test; status is, and verify.py pins it to the drivers with an entry in
+      // the latest season (IX-17).
+      if (kind === 'active' && row.status !== 'active') return false
       if (!needle) return true
       return row.full_name.toLowerCase().includes(needle)
     })

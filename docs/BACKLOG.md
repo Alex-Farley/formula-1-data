@@ -547,13 +547,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 
 **Interaction design**
 
-- [ ] `IX-17` **The Active filter on `/drivers` matches nobody.** `Drivers.jsx`
-      keeps a row when `last_season === 2026`, and no row has that: the 23
-      current drivers carry a NULL last season, the register's open span.
-      `status` is already in the shared `DRIVERS` query; filter on it, and
-      give the smoke test a case that expects more than zero rows. Found by
-      the review of #81. — *review of #81 · S*
-
 - [ ] `IX-16` **`IA-08` escalated: Back restores the scroll and not the filter.** France filter, sort by wins, scroll, open a driver, Back — same pixel, 862 unfiltered rows. Do `/drivers` first. — *interaction critique · M*
 
 **Data architecture**
@@ -1568,6 +1561,12 @@ Real, but not costed, or waiting on a decision.
       span — a driver still driving — makes no claim about its last year,
       which the first cut missed and the review caught on 23 current
       drivers. — *review of #75 · #81*
+
+- [x] `IX-17` **The Active filter keeps the grid.** It tested `last_season`
+      against 2026, a year the register's open span never holds, and matched
+      nobody; it filters on `status` now, `verify.py` pins the active set to
+      the drivers with an entry in the latest season (23 today, both ways),
+      and the smoke test expects more than zero rows. — *review of #81 · #84*
 
 ## Declined
 

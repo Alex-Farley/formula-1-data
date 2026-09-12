@@ -1424,6 +1424,17 @@ def the_driver_register():
           AND (d.first_season != x.fy
                OR (d.last_season IS NOT NULL AND d.last_season != x.ly))""")}
     _declared = {"cevert", "alexander-rossi"}
+    # The register's `active` is the grid: every driver with an entry in the
+    # latest season, and nobody else. The drivers page filters on it (IX-17).
+    _latest = con.execute("""SELECT MAX(r.year) FROM race_entries e
+        JOIN races r ON r.id = e.race_id""").fetchone()[0]
+    _active = {r[0] for r in con.execute("SELECT id FROM drivers WHERE status = 'active'")}
+    _grid = {r[0] for r in con.execute("""SELECT DISTINCT e.driver_id FROM race_entries e
+        JOIN races r ON r.id = e.race_id WHERE r.year = ?""", (_latest,))}
+    check(f"the active drivers are exactly those with an entry in {_latest}",
+          _active == _grid,
+          "active without an entry: " + (", ".join(sorted(_active - _grid)) or "none")
+          + "; entered but not active: " + (", ".join(sorted(_grid - _active)) or "none"))
     check("the register's seasons differ from the race records' only for the declared two",
           _span == _declared,
           "undeclared: " + (", ".join(sorted(_span - _declared)) or "none")
