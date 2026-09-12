@@ -469,12 +469,23 @@ POLE_ONLY_PROVENANCE = ("Added to the register from the pole position and fastes
 
 
 # ---------------------------------------------------------------------
-# What the pole / fastest-lap harvest could not reach, and why.
-# area, description, races_affected, resolution
+# What the database does not hold, and why. One tuple per row of known_gaps:
+#   field, area, state, reader, description, races_affected, resolution
+# `state` is 'open' (a fact nobody holds yet - the gaps the site counts),
+# 'closed' (filled since; the row stays, and `resolution` says when and how)
+# or 'position' (a deliberate absence, which is the right state and not a
+# gap). `reader` is the paragraph a reader of the site is shown; the
+# description and resolution are the maintainer's note and are kept whole.
+# A row is never deleted: a closed gap is recorded as closed.
 # ---------------------------------------------------------------------
 KNOWN_GAPS = [
     ("fastest_lap", "the fastest lap of a race the pole harvest has not "
      "reached yet",
+     "closed",
+     "Closed: every completed race now carries a fastest lap, read from F1DB "
+     "wherever the hand-written harvest is silent. The one completed race "
+     "without one is the 2021 Belgian Grand Prix, in which no racing lap "
+     "was set.",
      "The fastest lap of every race comes from harvest/poles.txt, which is "
      "written by hand. Everything else about a completed race - the "
      "classification, the qualifying sheet, the standings, and since this "
@@ -500,6 +511,14 @@ KNOWN_GAPS = [
      "excluded."),
     ("finish_position", "shared drives, and where two sources read a race "
      "differently",
+     "closed",
+     "Closed: the full classification of every race ships in the database, "
+     "from F1DB under a licence that permits passing it on. Two things "
+     "remain by design rather than by omission - a driver who drove two "
+     "cars in one Grand Prix, normal before 1965, keeps one row and one "
+     "result; and where a second source reads 118 classifications "
+     "differently, the disagreement is recorded rather than one being "
+     "chosen.",
      "CLOSED in v2.15, and by a licence rather than a harvest. The full "
      "classification - 27,555 entries across all 1,161 races, 1950 to 2026 - "
      "now ships in the committed database. It comes from F1DB, which is CC "
@@ -517,12 +536,20 @@ KNOWN_GAPS = [
      "below, so the 1983 Brazilian Grand Prix has no second place in one "
      "reading and Lauda second in the other. Neither is wrong.",
      0,
+     "CLOSED in v2.15: the full classification comes from F1DB under CC BY "
+     "4.0, so the rows could be committed. "
      "Nothing to fetch. Run tools/ergast_load.py --from-dump to put Jolpica "
      "alongside: it no longer overwrites, it records every disagreement in "
      "`discrepancies` and leaves the stored value alone. Reading those 118 "
      "rows is the work, and it is a person's."),
 
     ("chassis_id", "the chassis each race was won in, where a season is ambiguous",
+     "open",
+     "We do not know which car won roughly one race in four. Where a team "
+     "ran more than one design in a season and no source in use here says "
+     "which raced which round, the winning chassis is left blank rather than "
+     "guessed. Closing it needs per-round entry lists, which no source in "
+     "use here publishes.",
      "The winning chassis is known for 874 of 1,161 races. It comes from "
      "F1DB's entry lists, resolved through the driver and the round: F1DB "
      "records which chassis a constructor ran in a SEASON and which driver "
@@ -540,6 +567,11 @@ KNOWN_GAPS = [
      "with the check that now exists: a harvested chassis must appear in "
      "that constructor's entry list for that season, or be refused."),
     ("cars.poles", "the car each pole was taken in, where the season is ambiguous",
+     "open",
+     "For a handful of seasons we cannot say which car took a pole. Almost "
+     "every pole entry now names a constructor, but where a team ran two "
+     "designs - McLaren's M23 and M26 through 1976 and 1977 - attributing "
+     "the pole to one of them would be a guess.",
      "This was the largest gap in the car data and is now mostly closed. The "
      "pole and fastest-lap harvest recorded who set them but not what they "
      "drove, so 1,260 of 2,424 entries carried no constructor at all and "
@@ -555,6 +587,13 @@ KNOWN_GAPS = [
      "seasons are listed in v_ambiguous_seasons and in car_seasons where "
      "corroborated = 0."),
     ("laps", "lap times, tyre stints, pit stops, radio and telemetry",
+     "position",
+     "No lap times, tyre stints, race control messages or telemetry. Nobody "
+     "publishes Formula One lap timing under a licence that permits passing "
+     "it on, so this database holds none: the tables exist and stay empty "
+     "by design. Pit stops - lap and order, from F1DB - and six radio "
+     "exchanges quoted from Wikipedia are the exceptions, and may be passed "
+     "on.",
      "The laps, stints and race_control_messages tables are EMPTY in the "
      "distributed database, and that is a licensing and reproducibility "
      "decision rather than a missing harvest. (pit_stops holds F1DB's stops - "
@@ -590,6 +629,15 @@ KNOWN_GAPS = [
      "docs/TIMING-ARCHITECTURE.md has the measurements and the design this "
      "would take if a redistributable source ever appears."),
     ("race_timing", "pole, fastest lap and race times per race",
+     # A position, not an open gap: the table is one of the four verify.py
+     # keeps empty, because per-race timing is FOM's data. The review of #72
+     # caught it filed as fillable. The pre-2018 race-report route is a
+     # separate question the maintainer note still records.
+     "position",
+     "No race times, by decision: per-race timing is Formula One's own data "
+     "and the table that would hold it is kept empty, as gap 5 says. The "
+     "winner's time and margin as printed in race reports are a different "
+     "source and have not been read.",
      "The race_timing table is empty. These figures are published per race "
      "rather than per season, so filling them for 1950-2017 means reading "
      "1,161 individual race articles, which was judged too expensive against "
@@ -598,6 +646,11 @@ KNOWN_GAPS = [
      "Either harvest race articles for the pre-2018 seasons, or accept that "
      "timing starts in 2018 and fill it with tools/fastf1_load.py."),
     ("layout_name", "circuit configuration as raced, for most circuits",
+     "open",
+     "For most circuits we hold one shape - the current one - so a 1976 "
+     "Kyalami lap is reported at the length of the 1992 rebuild. Thirteen "
+     "circuits have a full configuration timeline; elsewhere a race page "
+     "says 'current layout' where it cannot say 'as raced'.",
      "Thirteen circuits have a complete configuration timeline: Spa, Monza, "
      "Silverstone, Hockenheim, Interlagos, Indianapolis, Catalunya, Albert "
      "Park, the Spielberg site, the Mexico City site, Bahrain, Marina Bay and "
@@ -613,12 +666,22 @@ KNOWN_GAPS = [
      "and add the rows; verify.py already enforces that a circuit's layout "
      "rows, once present, form a complete non-overlapping timeline."),
     ("fastest_lap", "fastest lap, 2021 round 12 (Belgian Grand Prix)",
+     "position",
+     "The 2021 Belgian Grand Prix has no fastest lap because none was set: "
+     "the race was abandoned after two laps behind the safety car, half "
+     "points were awarded and no racing lap was completed. The blank is "
+     "correct.",
      "No fastest lap is recorded because none was set. The race was abandoned after "
      "two laps behind the safety car, half points were awarded and no racing lap was "
      "completed. This is a true null, not missing data.", 1,
      "Nothing to fix - the absence is correct."),
 
     ("qualifying.q1", "qualifying session detail before 1996, and sector times",
+     "open",
+     "No sector times, tyre compounds or qualifying session detail before "
+     "1996. A pre-1996 qualifying session was a single time, so there are "
+     "no Q1, Q2 or Q3 figures to hold; sector times were never published "
+     "before the live-timing era.",
      "Qualifying is held for every completed race - but its SHAPE "
      "changes. Before the knockout format a session is a single time, so q1, "
      "q2 and q3 are NULL and there is nothing to put in them; from 1996 the "
@@ -632,6 +695,11 @@ KNOWN_GAPS = [
      "resolution. Before that it does not exist in any retrievable form."),
 
     ("centreline", "the shape of a circuit, for anything but the present day",
+     "position",
+     "A traced circuit is always the circuit as it is today. OpenStreetMap "
+     "maps what is on the ground, and Spa's 14.1 km road course is not on "
+     "the ground any more, so a historic layout has no trace rather than a "
+     "modern shape standing in for it.",
      "circuit_geometry traces a circuit from OpenStreetMap and checks the "
      "trace against the length this database already held. It can only ever "
      "be the CURRENT configuration, because OSM maps what is on the ground: "
@@ -651,6 +719,11 @@ KNOWN_GAPS = [
      "trustworthy. Leaving them absent is the correct answer."),
 
     ("article_images.name_matches", "whether a photograph shows the car",
+     "open",
+     "We cannot confirm that 337 photographs show the car they are filed "
+     "under. The article is verified; the picture in it is not, and there "
+     "is no second source to check it against - one car article leads with "
+     "a photograph of police officers.",
      "602 car articles carry a lead photograph from Wikimedia Commons, with "
      "its licence and photographer. The ARTICLE is well constrained - it "
      "passed the constructor, seasons and name checks in "
@@ -674,6 +747,12 @@ KNOWN_GAPS = [
      "this database puts what it cannot prove."),
 
     ("records", "the records the database cannot derive",
+     "open",
+     "Five records the authored table used to carry are not published, "
+     "because the database cannot derive them: the youngest and oldest "
+     "champion need the round at which the title was clinched, the closest "
+     "finish and the longest race need race times it does not hold, and "
+     "'only woman to score points' needs an attribute no table models.",
      "records is derived from the race records on every build - every row is "
      "one query, with its rule in `detail` - and a record the tables cannot "
      "support is not shipped rather than typed in from memory, which is how "

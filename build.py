@@ -2064,10 +2064,10 @@ def _stage_30_derived_win_totals(b):
                 JOIN races r ON r.id=e.race_id WHERE e.driver_id=?)
             WHERE id = ?""", (did, did, did))
 
-    for i, (field, area, desc, n, res) in enumerate(HV.KNOWN_GAPS, 1):
-        cur.execute("""INSERT INTO known_gaps (id, field, area, description,
-            races_affected, resolution) VALUES (?,?,?,?,?,?)""",
-            (i, field, area, desc, n, res))
+    for i, (field, area, state, reader, desc, n, res) in enumerate(HV.KNOWN_GAPS, 1):
+        cur.execute("""INSERT INTO known_gaps (id, field, area, state, reader,
+            description, races_affected, resolution) VALUES (?,?,?,?,?,?,?,?)""",
+            (i, field, area, state, reader, desc, n, res))
     # the circuit gap is measured, not asserted
     cur.execute("""UPDATE known_gaps SET races_affected =
         (SELECT COUNT(*) FROM races WHERE circuit_id IS NULL)

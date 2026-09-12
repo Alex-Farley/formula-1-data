@@ -852,7 +852,17 @@ try {
   console.log('\n/data/quality')
   await go('/data/quality', 'Data quality')
   const quality = await tableRows()
-  truthy(quality.includes(count('SELECT COUNT(*) FROM known_gaps')), 'the known gaps are published')
+  // Each group's heading carries its count, so the three states are pinned
+  // by name rather than by a row count another table could match.
+  const gapHeadings = await page.$$eval('#root main h2', (hs) => hs.map((h) => h.textContent.replace(/\s+/g, ' ').trim()))
+  for (const [state, label] of [['open', 'Open gaps'], ['position', 'Positions, not gaps'], ['closed', 'Closed']]) {
+    const n = count("SELECT COUNT(*) FROM known_gaps WHERE state = ?", state)
+    truthy(
+      gapHeadings.some((h) => h.startsWith(label) && h.endsWith(String(n))),
+      `the ${label} heading carries the count from the register (${n})`,
+    )
+  }
+  truthy(quality.includes(count('SELECT COUNT(*) FROM v_open_gaps')), 'the open gaps are published')
   truthy(
     quality.includes(count('SELECT COUNT(*) FROM discrepancies')),
     'the recorded disagreements are published',
