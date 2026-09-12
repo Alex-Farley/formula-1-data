@@ -488,6 +488,14 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       the stored URL still resolves. Split from `VD-20`. — *visual critique ·
       S*
 
+- [ ] `CD-20` **81 driver pages describe themselves in fifty characters.**
+      With the provenance sentence gone from `notes`, prerender's fallback
+      description is "Name, country. 0 wins, 0 poles." from the stored
+      columns. Build it from the derived figures — entries, seasons, best
+      finish, podiums — the way the strip does, and never from a stored
+      column the page itself labels as such. Found by the review of #70. —
+      *review of #70 · S*
+
 **Interaction design**
 
 - [ ] `IX-16` **`IA-08` escalated: Back restores the scroll and not the filter.** France filter, sort by wins, scroll, open a driver, Back — same pixel, 862 unfiltered rows. Do `/drivers` first. — *interaction critique · M*
@@ -1321,7 +1329,7 @@ Real, but not costed, or waiting on a decision.
       page's "On the record" fields in the app and the prerendered HTML alike,
       and kept out of the meta description; `notes` keeps only what the string
       already said about the driver, so the 62 podium-harvest rows now have no
-      lede and their description is the derived figures alone. `verify.py`
+      lede and their description falls back to the stored wins and poles (a derived summary is `CD-20`). `verify.py`
       refuses a note that opens with "Added " or mentions a harvest.
       — *content critique · #70*
 
