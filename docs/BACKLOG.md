@@ -507,6 +507,25 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       to the number; the Bottas phrase #74 removed by hand is the shape it
       misses. Allow one or two words between, and re-run. Found by the review
       of #74. — *review of #74 · S*
+- [ ] `CR-23` **The static `/records` table has a `Category` column the app
+      never shows.** Predates #68; the review of #68 measured it. Rides with
+      `CR-22`. — *review of #68 · S*
+
+- [ ] `CR-24` **The static drivers register is not the app's.** Eight
+      columns against nine, Poles before Podiums against Podiums before
+      Poles, no Fastest laps. Same defect as `CR-22`/`CR-23`; rides with
+      `PD-02`. Found by the review of #69. — *review of #69 · S*
+
+- [ ] `CD-19` **Eighteen driver ledes still spell a figure the strip
+      derives** ("Ten wins", "Eight wins"); `verify.py`'s check (#70) stops
+      at digits. Extend it to spelled numbers before the derived nouns and
+      rewrite the eighteen. Found by the review of #70. — *review of #70 ·
+      S*
+- [ ] `CD-18` **"Races" on the register, "Entries (stored)" on the page.**
+      The same derived count is called Races in the register and Entries on
+      the driver's page, where the stored figure sits beside it as "Entries
+      (stored)". One word, and the stored one labelled for what it is
+      (published). Found by the review of #69. — *review of #69 · S*
 
 - [ ] `CD-22` **The static driver description and the facts list disagree on
       the years.** The description derives first and last year from the
@@ -1493,6 +1512,16 @@ Real, but not costed, or waiting on a decision.
       private contract, the US$200m and US$450m figures are reported, not
       published, and no `governance` row carries them. Closes if the FIA or
       Formula One publishes the figure. — *Wikipedia survey · #78*
+
+- [x] `CD-21` **The lede check allows an adjective before the noun.** Up to
+      two lower-case words may sit between the number and the noun ("three
+      straight wins"); a capitalised word names a subset the page never
+      totals ("Six Monaco wins", verified 6, and Hill's 5) and stays; "GP"
+      qualifies the noun like "Grand Prix". Re-run, it found five: Ascari's,
+      Vettel's and Schumacher's streaks were right and are now dated rather
+      than counted, Surtees's seven motorcycle titles are counted as times
+      rather than titles, and Montoya's "fourth GP start" was wrong — the pass on
+      Schumacher at Interlagos 2001 was his third. — *review of #74 · #79*
 
 ## Declined
 
