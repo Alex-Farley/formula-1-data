@@ -28,6 +28,13 @@ import sqlite3
 import sys
 from collections import Counter
 
+
+def _lede_figures():
+    """tools/lede_figures.py, imported from beside this file."""
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "tools"))
+    import lede_figures
+    return lede_figures
+
 DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "f1.db")
 
 # Set F1_LOCAL_TIMING=1 when you have deliberately loaded FOM-owned timing onto
@@ -1369,40 +1376,11 @@ def the_driver_register():
         WHERE notes LIKE 'Added %' OR notes LIKE '% harvest%' ORDER BY id""")]
     check("no driver note opens with how the row entered the register",
           not _prov, "; ".join(_prov[:6]))
-    # The figure may be in digits or spelled ("Ten wins", "Thirteen
-    # podiums"), or an ordinal that states a running count ("300th start").
-    # Digits stop at three so a year before "title" is not one. A cardinal
-    # must be followed by the plural noun - a count of one is written "a win"
-    # and "Formula 2 race" is not a figure - while an ordinal takes either.
-    # "first" is left out because a first win states no count; every ordinal
-    # above it does, and the race records can contradict it: Hulkenberg's
-    # pole came on his eighteenth start, and the note said eighth. A margin
-    # ("by two points") is not a total the strip shows and is left alone.
-    # Up to two lower-case words may sit between the number and the noun:
-    # "four runner-up finishes", "Ten career wins" and "three straight wins"
-    # are the same figure with an adjective in the way, and the first check
-    # wanted the noun adjacent (CD-21, found by the review of #74). A
-    # capitalised word between them names a subset the page never totals -
-    # "Six Monaco wins", "six Le Mans wins" - and those are left to the
-    # note; "GP" is the noun's own qualifier, like "Grand Prix".
-    _units = ("one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|"
-              "thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen")
-    _tens = "twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred"
-    _cardinal = (rf"(?:\d{{1,3}}(?:,\d{{3}})*"
-                 rf"|(?:{_units}|{_tens})(?:[- ](?:{_units}|{_tens}))*)")
-    _ordinal = (r"(?:\d+(?:st|nd|rd|th)|(?:(?:" + _tens + r")-)?"
-                r"(?:second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|"
-                r"twentieth|thirtieth|fortieth|fiftieth|sixtieth|seventieth|"
-                r"eightieth|ninetieth|hundredth))")
-    _plural = (r"(?:(?:Grands? Prix|GP) )?"
-               r"(?:starts|races|entries|wins|poles|podiums|points|fastest laps|titles|"
-               r"finishes|victories|championships)")
-    _either = (r"(?:(?:Grands? Prix|GP) )?"
-               r"(?:starts?|races?|entries|entry|wins?|poles?|podiums?|points?|"
-               r"fastest laps?|titles?)")
-    _between = r"(?-i:(?:[a-z][\w-]* ){0,2})"
-    _figure = re.compile(rf"(?<!\bby )\b(?:{_cardinal} {_between}{_plural}"
-                         rf"|{_ordinal} {_between}{_either})\b", re.IGNORECASE)
+    # The figure the note must not state - what it is, and why - is
+    # tools/lede_figures.py, one pattern with its own unit test, so both of
+    # CI's interpreters prove what it matches rather than merely that it
+    # compiles (CD-21, CD-23).
+    _figure = _lede_figures().FIGURE
     _typed = [f"{r[0]} ({_m.group(0)})" for r in con.execute(
         "SELECT id, notes FROM drivers WHERE notes IS NOT NULL ORDER BY id")
         if (_m := _figure.search(r[1]))]
