@@ -170,7 +170,7 @@ const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
  * published. For a winner: what they won. For everyone else: what is true.
  *
  *     Entered 88 championship Grands Prix across 1979–1986 for Arrows,
- *     Brabham and 5 other constructors; best finish fourth.
+ *     Brabham and 5 other constructors; best finish 4th.
  *
  * `finish_position` is NULL for a DNF, a DNQ and a DNS alike, so a career
  * with no classified finish says exactly that rather than guessing why.

@@ -20,7 +20,7 @@ export const ENTRIES_NOTE =
   'wins, podiums and poles are counted the same way and checked against the published totals on every ' +
   'build. The published entry and start figures are a different count, kept for the few drivers who ' +
   'have one: an entry is not a start, and telling them apart needs a reason for each non-start that no ' +
-  'source here supplies. Where the two disagree, both are shown.'
+  'source here supplies. Where the two entry counts disagree, both are shown.'
 
 /**
  * How to cite a page. The page is named by its address, not its title: the
