@@ -525,13 +525,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       (stored)". One word, and the stored one labelled for what it is
       (published). Found by the review of #69. — *review of #69 · S*
 
-- [ ] `CD-21` **The lede check misses a figure with an adjective before the
-      noun.** "four runner-up finishes", "Ten career wins", "three straight
-      wins" pass `verify.py`'s check (#74) because it wants the noun adjacent
-      to the number; the Bottas phrase #74 removed by hand is the shape it
-      misses. Allow one or two words between, and re-run. Found by the review
-      of #74. — *review of #74 · S*
-
 - [ ] `CD-22` **The static driver description and the facts list disagree on
       the years.** The description derives first and last year from the
       race entries; the facts list shows the stored `first_season` and
@@ -1498,6 +1491,16 @@ Real, but not costed, or waiting on a decision.
       private contract, the US$200m and US$450m figures are reported, not
       published, and no `governance` row carries them. Closes if the FIA or
       Formula One publishes the figure. — *Wikipedia survey · #78*
+
+- [x] `CD-21` **The lede check allows an adjective before the noun.** Up to
+      two lower-case words may sit between the number and the noun ("three
+      straight wins"); a capitalised word names a subset the page never
+      totals ("Six Monaco wins", verified 6, and Hill's 5) and stays; "GP"
+      qualifies the noun like "Grand Prix". Re-run, it found five: Ascari's,
+      Vettel's and Schumacher's streaks were right and are now dated rather
+      than counted, Surtees's seven motorcycle titles are counted as times
+      rather than titles, and Montoya's "fourth GP start" was wrong — the pass on
+      Schumacher at Interlagos 2001 was his third. — *review of #74 · #79*
 
 ## Declined
 
