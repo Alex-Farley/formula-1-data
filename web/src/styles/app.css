@@ -1401,8 +1401,12 @@ figure.photo figcaption a {
   max-width: var(--measure);
 }
 
-.cite p {
+/* #prerendered p would otherwise win on specificity and recolour the static
+   copy; the two renderers should look the same for the second both exist. */
+.cite p,
+#prerendered .cite p {
   margin: 0;
+  color: var(--ink-faint);
 }
 
 .cite .url {

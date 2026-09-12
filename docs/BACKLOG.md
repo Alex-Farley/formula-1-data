@@ -1427,7 +1427,7 @@ Real, but not costed, or waiting on a decision.
       `chrome()` in the static page, so a crawler sees it. The page is named
       by its address, not its title: the two renderers title routes
       differently, and the review caught the drift. Pages that do not exist
-      (the not-found route and the six "No such …" shells) offer none. The
+      (the not-found route and the six "No such …"/"No season" shells) offer none. The
       reader's own access date is left to the reader; the build date is what
       fixes the figures. — *product critique · #71*
 
