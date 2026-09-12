@@ -4,7 +4,8 @@ import { Confidence, Fields, Note, Onward, Page, Section } from '../components/P
 import { Result } from '../components/States.jsx'
 import { useQuery } from '../data/useQuery.js'
 import { number } from '../lib/format.js'
-import { cornerRadius, pathOf, pointAt, project, signedArea, stitch } from '../lib/lap.js'
+import { BANDS, BAND_NAMES, bandIndex, buildLap, fitted, pointAt, runsFor } from '../lib/lap.js'
+import LapFigure from '../components/LapFigure.jsx'
 
 const SQL = `
   SELECT g.circuit_id, g.centreline, g.measured_km, g.published_km, g.delta_pct,
@@ -18,42 +19,7 @@ const SQL = `
    ORDER BY c.name
 `
 
-/**
- * Where each band of corner radius ends, in metres.
- *
- * These are the categories a corner falls into rather than quantiles of a
- * distribution, because a radius means something on its own: 30 m is a
- * hairpin whatever the rest of the lap looks like. They were checked against
- * the geometry before being fixed here — measured over all 7,224 sample
- * points of the 25 traced laps, the five bands take 14%, 17%, 25%, 20% and
- * 24% of the traced distance, so naming them costs nothing in how well the
- * picture reads.
- *
- *     < 50 m   hairpin
- *   50-100 m   slow corner
- *  100-200 m   medium
- *  200-400 m   fast
- *    > 400 m   straight or kink
- *
- * The ramp runs the other way from the bands: tightest gets the strongest
- * colour, because the corners are the subject and the straights are the rest.
- */
-const BANDS = [50, 100, 200, 400]
-const BAND_NAMES = ['hairpin', 'slow', 'medium', 'fast', 'straight']
-const bandIndex = (r) => {
-  const i = BANDS.findIndex((edge) => r < edge)
-  return i === -1 ? 4 : i
-}
-const band = (r) => `var(--seq-${5 - bandIndex(r)})`
 
-/** A square viewBox around a circuit's own extent. */
-function fitted(shape, pad = 40) {
-  const { x0, x1, y0, y1 } = shape.bounds
-  const w = x1 - x0 + pad * 2
-  const h = y1 - y0 + pad * 2
-  const side = Math.max(w, h)
-  return `${x0 - pad - (side - w) / 2} ${y0 - pad - (side - h) / 2} ${side} ${side}`
-}
 
 /** The same square for every circuit, so their sizes can be compared. */
 function shared(shape, side) {
@@ -90,33 +56,12 @@ function AtlasBody({ rows }) {
   const laps = useMemo(() => {
     const out = new Map()
     for (const row of rows) {
-      const walk = stitch(row.centreline)
-      if (!walk) continue
-      let shape = project(walk.ring)
-      // Walk the lap the way the cars do. The stitched ring runs whichever
-      // way its first OpenStreetMap way was drawn; where that disagrees with
-      // the direction the register states, the ring is reversed. The origin
-      // stays arbitrary - no start/finish coordinate exists in either
-      // database - which is why the readout says "along the trace".
-      if (walk.complete && row.direction) {
-        const clockwise = signedArea(shape) > 0
-        if (clockwise !== (row.direction === 'clockwise')) {
-          walk.ring.reverse()
-          shape = project(walk.ring)
-        }
-      }
-      out.set(row.circuit_id, {
-        row,
-        shape,
-        complete: walk.complete,
-        path: pathOf(shape.x, shape.y),
-        // Colouring is only meaningful along an ordered lap; on a trace that
-        // does not close, the walk stops early and the rest is unvisited.
-        radius: walk.complete ? cornerRadius(walk.ring, shape.cum) : null,
-      })
+      const built = buildLap(row)
+      if (built) out.set(row.circuit_id, built)
     }
     return out
   }, [rows])
+
 
   /** One square that holds the largest circuit, for the true-scale wall. */
   const widest = useMemo(() => {
@@ -128,29 +73,8 @@ function AtlasBody({ rows }) {
   }, [laps])
 
   const lap = laps.get(id)
+  const runs = useMemo(() => runsFor(lap, colour), [lap, colour])
 
-  /**
-   * One path per run of same-band points, so a 330-point lap draws as about
-   * eighty paths rather than 330 — and the colour still changes exactly where
-   * the radius crosses a band edge.
-   */
-  const runs = useMemo(() => {
-    if (!lap) return []
-    if (!colour || !lap.radius) return [{ d: lap.path, stroke: 'var(--ink)' }]
-    const { x, y } = lap.shape
-    const out = []
-    let start = 0
-    let current = band(lap.radius[0])
-    for (let i = 1; i <= x.length; i += 1) {
-      const next = i < x.length ? band(lap.radius[i]) : null
-      if (next !== current) {
-        out.push({ d: pathOf(x, y, start, Math.min(i + 1, x.length)), stroke: current })
-        start = i
-        current = next
-      }
-    }
-    return out
-  }, [lap, colour])
 
   if (!lap) return null
   const { row, shape } = lap
@@ -181,39 +105,8 @@ function AtlasBody({ rows }) {
               {!walkable && <span className="pill pill-unverified">trace does not close</span>}
             </div>
 
-            <svg
-              viewBox={fitted(shape)}
-              role="img"
-              aria-label={`Traced centreline of ${row.name}, ${row.measured_km} km over ${number(row.node_count)} points`}
-              style={{ maxHeight: 460 }}
-            >
-              {runs.map((run, i) => (
-                <path
-                  key={i}
-                  d={run.d}
-                  fill="none"
-                  stroke={run.stroke}
-                  strokeWidth="26"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  vectorEffect="non-scaling-stroke"
-                  style={{ strokeWidth: 4 }}
-                />
-              ))}
-              {walkable && (
-                <>
-                  <circle cx={marker.x} cy={marker.y} r="70" fill="var(--accent)" opacity="0.16" />
-                  <circle
-                    cx={marker.x}
-                    cy={marker.y}
-                    r="30"
-                    fill="var(--accent)"
-                    stroke="var(--panel)"
-                    strokeWidth="9"
-                  />
-                </>
-              )}
-            </svg>
+
+            <LapFigure lap={lap} runs={runs} at={walkable ? at : null} style={{ maxHeight: 460 }} />
 
             <div className="atlas-scrub">
               <label className="faint small" htmlFor="atlas-at" style={{ whiteSpace: 'nowrap' }}>

@@ -213,3 +213,98 @@ export function pathOf(x, y, from = 0, to = x.length) {
   for (let i = from + 1; i < to; i += 1) d += `L${x[i].toFixed(1)},${y[i].toFixed(1)}`
   return d
 }
+
+/**
+ * Where each band of corner radius ends, in metres.
+ *
+ * These are the categories a corner falls into rather than quantiles of a
+ * distribution, because a radius means something on its own: 30 m is a
+ * hairpin whatever the rest of the lap looks like. They were checked against
+ * the geometry before being fixed here — measured over all 7,224 sample
+ * points of the 25 traced laps, the five bands take 14%, 17%, 25%, 20% and
+ * 24% of the traced distance, so naming them costs nothing in how well the
+ * picture reads.
+ *
+ *     < 50 m   hairpin
+ *   50-100 m   slow corner
+ *  100-200 m   medium
+ *  200-400 m   fast
+ *    > 400 m   straight or kink
+ *
+ * The ramp runs the other way from the bands: tightest gets the strongest
+ * colour, because the corners are the subject and the straights are the rest.
+ */
+export const BANDS = [50, 100, 200, 400]
+export const BAND_NAMES = ['hairpin', 'slow', 'medium', 'fast', 'straight']
+export const bandIndex = (r) => {
+  const i = BANDS.findIndex((edge) => r < edge)
+  return i === -1 ? 4 : i
+}
+export const bandVar = (r) => `var(--seq-${5 - bandIndex(r)})`
+
+/** A square viewBox around a circuit's own extent. */
+export function fitted(shape, pad = 40) {
+  const { x0, x1, y0, y1 } = shape.bounds
+  const w = x1 - x0 + pad * 2
+  const h = y1 - y0 + pad * 2
+  const side = Math.max(w, h)
+  return `${x0 - pad - (side - w) / 2} ${y0 - pad - (side - h) / 2} ${side} ${side}`
+}
+
+/**
+ * One traced circuit, ready to draw: the projected shape, its path, and the
+ * corner radius at every point where the trace closes.
+ *
+ * The stitched ring runs whichever way its first OpenStreetMap way was drawn;
+ * where that disagrees with the direction the register states, the ring is
+ * reversed so the walk runs the way the cars do. The origin stays arbitrary -
+ * no start/finish coordinate exists in either database.
+ *
+ * `row` is a circuit_geometry row joined to the circuit's `direction`; null
+ * where the centreline cannot be stitched at all.
+ */
+export function buildLap(row) {
+  const walk = stitch(row.centreline)
+  if (!walk) return null
+  let shape = project(walk.ring)
+  if (walk.complete && row.direction) {
+    const clockwise = signedArea(shape) > 0
+    if (clockwise !== (row.direction === 'clockwise')) {
+      walk.ring.reverse()
+      shape = project(walk.ring)
+    }
+  }
+  return {
+    row,
+    shape,
+    complete: walk.complete,
+    path: pathOf(shape.x, shape.y),
+    // Colouring is only meaningful along an ordered lap; on a trace that does
+    // not close, the walk stops early and the rest is unvisited.
+    radius: walk.complete ? cornerRadius(walk.ring, shape.cum) : null,
+  }
+}
+
+/**
+ * One path per run of same-band points, so a 330-point lap draws as about
+ * eighty paths rather than 330 - and the colour still changes exactly where
+ * the radius crosses a band edge. Uncoloured, or without a radius, the lap is
+ * one path in body ink.
+ */
+export function runsFor(lap, colour = true) {
+  if (!lap) return []
+  if (!colour || !lap.radius) return [{ d: lap.path, stroke: 'var(--ink)' }]
+  const { x, y } = lap.shape
+  const out = []
+  let start = 0
+  let current = bandVar(lap.radius[0])
+  for (let i = 1; i <= x.length; i += 1) {
+    const next = i < x.length ? bandVar(lap.radius[i]) : null
+    if (next !== current) {
+      out.push({ d: pathOf(x, y, start, Math.min(i + 1, x.length)), stroke: current })
+      start = i
+      current = next
+    }
+  }
+  return out
+}

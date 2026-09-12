@@ -525,6 +525,11 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 
 - [ ] `VD-03` **No type scale and no spacing scale in the token file.** Nineteen literal font sizes, twenty-seven spacing values. Add `--size-n`/`--space-n` and convert one file per sitting. — *visual critique · M*
 
+- [ ] `VD-07` **The result rail's middle two bands are the same lightness.** `--rail-points` vs `--rail-classified` 1.05:1 in light, 1.07:1 in dark — measured against the panel, never against each other. Separate by lightness. — *visual critique · S*
+
+- [ ] `VD-08` **The livery-band explanation is 10.5 px mono across 175 characters.** The sentence that carries the racing-colour decision, set smaller than a footnote. `--sans`, 13 px, under the swatch, within `--measure`. — *visual critique · S*
+
+- [ ] `VD-11` **The confidence ladder is drawn without rungs.** Three middle tiers pixel-identical. Step them on border weight, not hue. — *visual critique · S*
 - [ ] `VD-12` **The circuit page shows the flattest drawing of the best asset.** Render `/circuits/:id` with the atlas's renderer — radius bands, start marker, direction. One component, one call site; most of the "look nicer" the author wants, and every pixel a fact. Declines 3D (see *Declined*); an elevation *profile strip* under the plan map if `PD-23` ever yields a source. — *visual critique · M*
 
 - [ ] `VD-14` **Wide tables clip at the container edge on a phone with no affordance.** Seven of nine `/drivers` columns invisible at 375 px. A right-edge fade on `.table-scroll` when scrollable. — *visual critique · S*
@@ -1251,6 +1256,16 @@ Real, but not costed, or waiting on a decision.
       overlapping spans of one limit and a missing cap year. — *Wikipedia
       survey · #59*
 
+- [x] `VD-12` **The circuit page draws its lap with the atlas's renderer.**
+      One component, `LapFigure`, called by the atlas and by `/circuits/:id`:
+      corner-radius bands, the direction of travel as an arrow, the marker
+      where a caller walks the lap. `TrackMap` and its second stitcher are
+      gone. No start marker — neither database holds that coordinate, and
+      where the trace closes the caption says the arrow is the direction, not
+      the start; where it does not close (Monaco, Las Vegas, Montjuïc) there
+      is no arrow and no claim of one — the first cut said it anyway, and the
+      review caught it. 3D stays
+      declined; an elevation strip waits on `PD-23`. — *visual critique · #62*
 - [x] `PD-07` **The README states what the database holds.** Every figure it
       gives about the current database is a `<!-- fig:name -->` span that
       `tools/readme_figures.py` computes from `f1.db` (and `f1-geometry.db`

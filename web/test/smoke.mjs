@@ -682,8 +682,11 @@ try {
 
     console.log(`\n/circuits/${traced}  (traced geometry)`)
     await go(`/circuits/${traced}`)
-    const path = await page.$eval('.trackmap path', (node) => node.getAttribute('d')).catch(() => null)
-    atLeast(path?.length ?? 0, 200, 'the centreline drew a path')
+    await page.waitForSelector('svg.lapfigure path', { timeout: 20000 }).catch(() => null)
+    const drawn = await page
+      .$$eval('svg.lapfigure path', (nodes) => nodes.reduce((n, node) => n + (node.getAttribute('d')?.length ?? 0), 0))
+      .catch(() => 0)
+    atLeast(drawn, 200, 'the centreline drew a path')
     truthy(
       (await page.$$eval('figure.photo figcaption', (n) => n.map((x) => x.textContent).join(' '))).includes(
         'OpenStreetMap',
@@ -803,6 +806,24 @@ try {
   truthy(
     (await tableRows()).includes(count('SELECT COUNT(*) FROM regulation_changes')),
     'every regulation change is listed',
+  )
+
+  // The circuit page draws its lap with the atlas's renderer: several paths,
+  // one per run of corner-radius band, not one black line.
+  console.log('\n/circuits/spa  (the lap, coloured)')
+  await go('/circuits/spa', 'Circuit de Spa-Francorchamps')
+  await page.waitForSelector('svg.lapfigure path', { timeout: 20000 })
+  atLeast(await page.$$eval('svg.lapfigure path', (els) => els.length), 10, 'the lap is drawn in radius bands')
+  truthy(await page.$('svg.lapfigure polygon'), 'the lap carries its direction arrow')
+  truthy(await page.$('.lapfigure-card figcaption a[href*="openstreetmap.org/relation"]'), 'the drawing keeps its attribution')
+  // A trace that does not close draws no arrow and claims none.
+  const open = one("SELECT circuit_id FROM geo.circuit_geometry WHERE closes = 0 ORDER BY node_count DESC LIMIT 1")
+  await go(`/circuits/${open}`)
+  await page.waitForSelector('svg.lapfigure path', { timeout: 20000 })
+  truthy(
+    !(await page.$('svg.lapfigure polygon')) &&
+      !(await page.$eval('.lapfigure-card figcaption', (n) => n.textContent)).includes('the arrow is'),
+    `a trace that does not close (${open}) has no arrow and no caption about one`,
   )
 
   // ----------------------------------------------------------------- SQL
