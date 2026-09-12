@@ -33,6 +33,9 @@ import {
 import { BANDS, bandIndex, metresBetween, runsFor, signedArea, stitch } from '../src/lib/lap.js'
 import { fold, rank } from '../src/lib/search.js'
 import { trackPath } from '../src/lib/track.js'
+import { DRIVER_COLUMNS } from '../src/queries/drivers.js'
+import { SEASON_COLUMNS, derivedAndPublished, pointsDiffer, record, seasonRows, strip } from '../src/queries/driver.js'
+import { recordColumns, tiersOf } from '../src/queries/records.js'
 
 // A square about 111 m on a side, as [lon, lat] — the order the geometry uses.
 const P0 = [0, 0]
@@ -315,5 +318,76 @@ describe('trackPath', () => {
     assert.equal(trackPath('not json'), null)
     assert.equal(trackPath(ring([])), null)
     assert.equal(trackPath(ring([[P0]])), null)
+  })
+})
+
+describe('the queries a page and the prerenderer share', () => {
+  const by = (columns) => Object.fromEntries(columns.map((c) => [c.key, c]))
+
+  it('lays the seasons out latest first, with the championship joined on', () => {
+    const rows = seasonRows(
+      [{ year: 1988, entries: 16 }, { year: 1989, entries: 16 }],
+      [{ year: 1989, position: 2, position_text: '2', points: 60 }],
+    )
+    assert.deepEqual(rows.map((r) => r.year), [1989, 1988])
+    assert.equal(rows[0].championship, 2)
+    assert.equal(rows[0].championship_points, 60)
+    assert.equal(rows[1].championship, null)
+    assert.equal(rows[1].championship_text, null)
+  })
+
+  it('formats a cell the same string for both renderers', () => {
+    const season = by(SEASON_COLUMNS)
+    assert.equal(season.best.text(null), EMPTY)
+    assert.equal(season.best.text(3), 'P3')
+    assert.equal(season.championship_text.text(null, { championship: 4 }), '4')
+    assert.equal(season.championship_text.text('DSQ', { championship: null }), 'DSQ')
+    assert.equal(season.championship_text.text(null, { championship: null }), EMPTY)
+    assert.equal(season.points.text(25.5), '25.5')
+    assert.equal(season.points.text(null), EMPTY)
+    assert.equal(by(DRIVER_COLUMNS).first_season.text(null, { first_season: 1963, last_season: 1976 }), '1963–1976')
+    assert.equal(by(DRIVER_COLUMNS).first_season.text(null, { first_season: 2024, last_season: null }), '2024–')
+  })
+
+  it('shows Titles only where there is one, and Best finish only where a finish was classified', () => {
+    const none = strip({ first_season: 1963, last_season: 1976, titles: 0 }, { entries: 96, seasons: 13, best: null })
+    assert.deepEqual(
+      none.map((i) => i.label),
+      ['Seasons', 'Entries', 'Wins', 'Podiums', 'Poles', 'Fastest laps', 'Best finish'],
+    )
+    assert.equal(none.find((i) => i.label === 'Best finish').value, null)
+    // A driver with no classified finish has zero wins, not an unknown number.
+    assert.equal(none.find((i) => i.label === 'Wins').value, '0')
+    assert.equal(none.find((i) => i.label === 'Seasons').note, '13 with an entry')
+    const some = strip({ titles: 3, title_years: '1969,1971,1973' }, { best: 1, seasons: 1 })
+    assert.deepEqual(some.find((i) => i.label === 'Titles'), { label: 'Titles', value: '3', note: '1969, 1971, 1973' })
+    assert.equal(some.find((i) => i.label === 'Best finish').value, 'P1')
+  })
+
+  it('labels the stored figures as published, and dashes what nobody published', () => {
+    const pairs = Object.fromEntries(record({ wins: 8, wins_external: 8, poles: 5, poles_external: null, entries: null }))
+    assert.equal(pairs['Entries (published)'], EMPTY)
+    assert.equal('Entries (stored)' in pairs, false)
+    assert.equal(pairs.Wins, '8 derived · 8 published')
+    assert.equal(pairs.Poles, '5 derived')
+    assert.equal('Provenance' in pairs, false)
+    assert.equal(Object.fromEntries(record({ provenance: 'harvest' })).Provenance, 'harvest')
+    assert.equal(derivedAndPublished(null, 3), '— derived · 3 published')
+  })
+
+  it('does not call a rounding difference two totals', () => {
+    assert.equal(pointsDiffer({ career_points: 100 }, { points: 100.005 }), false)
+    assert.equal(pointsDiffer({ career_points: 100 }, { points: 101 }), true)
+    assert.equal(pointsDiffer({ career_points: null }, { points: 101 }), false)
+  })
+
+  it('adds a Confidence column only where the records differ on it', () => {
+    const shared = [{ confidence: 'reference' }, { confidence: 'reference' }]
+    assert.deepEqual(tiersOf(shared), ['reference'])
+    assert.deepEqual(
+      recordColumns(shared).map((c) => c.label),
+      ['Record', 'Holder', 'Value', 'How it is derived', 'As of'],
+    )
+    assert.equal(recordColumns([{ confidence: 'reference' }, { confidence: 'high' }]).at(-1).key, 'confidence')
   })
 })
