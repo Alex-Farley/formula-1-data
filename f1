@@ -500,15 +500,16 @@ def main():
             FROM v_ambiguous_seasons LIMIT 40""").fetchall(), maxw=52)
 
     elif cmd == "limits":
-        print("\n  Numeric limits the regulations put on every car in a")
-        print("  season. A modern car quoted at the minimum weight is being")
-        print("  quoted the rule, not measured - which is why these live")
-        print("  here and not in a car's own fields.\n")
+        print("\n  Numeric limits the regulations set for a season - on the")
+        print("  car, and on the weekend: tyre sets, classification, the 107%")
+        print("  rule, the cost cap. A car quoted at the minimum weight is")
+        print("  being quoted the rule, not measured - which is why these")
+        print("  live here and not in a car's own fields.\n")
         for r in c.execute("""SELECT field, from_year, to_year, value, unit,
                 note FROM v_regulation_limits"""):
             span = (str(r["from_year"]) if r["from_year"] == r["to_year"]
                     else f"{r['from_year']}-{r['to_year']}")
-            print(f"  {span:<10} {r['field']:<22} "
+            print(f"  {span:<10} {r['field']:<38} "
                   f"{r['value']:g} {r['unit']}")
             for line in textwrap.wrap(r["note"] or "", W - 8):
                 print("        " + line)
