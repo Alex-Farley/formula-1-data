@@ -797,6 +797,31 @@ KNOWN_GAPS = [
      "Closes if the FIA or Formula One publishes the figure, or if the "
      "Concorde Agreement is published; the row would then go in governance "
      "citing that document."),
+    ("race_entries", "the two 2011 Australian Grand Prix entries that failed "
+     "the 107 per cent rule",
+     "open",
+     "Two HRT cars, Vitantonio Liuzzi's and Narain Karthikeyan's, set "
+     "qualifying times at the 2011 Australian Grand Prix that lay outside 107 "
+     "per cent of the fastest first-segment time, and the stewards did not "
+     "allow them to start. The qualifying table holds both times; the race "
+     "classification has no entry for either car, because the source it comes "
+     "from omits them for this race, so the race shows 22 entries where 24 "
+     "cars took part in the weekend.",
+     "F1DB's qualifying rows for 2011 round 1 carry both HRT cars as not "
+     "classified, with times of 1:32.978 and 1:34.293 against a fastest Q1 "
+     "of 1:25.296 - 107 per cent of which is 1:31.267. Its race classification "
+     "for the same round omits them, while its 2012 round 1 classification "
+     "lists the same team's two cars as DNQ in the same circumstances. The "
+     "two rows are not added by hand: the classification is loaded whole from "
+     "harvest/race_results.txt, which tools/f1db_fetch.py rewrites, and there "
+     "is no curated path for a classification entry as there is for a winner, "
+     "a pole or a fastest lap. A hand-written row would be overwritten at the "
+     "next fetch. verify.py pins the pair by identity, so a third orphan "
+     "qualifying row fails the build.",
+     1,
+     "Closes when F1DB's classification for 2011 round 1 carries the two DNQ "
+     "rows, which the next fetch would pick up; or by a curated-entry "
+     "mechanism with its own source column, if a second case appears."),
 ]
 
 # Shared fastest laps the season tables render as ONE name. harvest/poles.txt

@@ -47,7 +47,7 @@ here is a number the build checked.
 
 | File | What it is |
 |---|---|
-| `f1.db` | The SQLite database. <!-- fig:tables -->46<!-- /fig --> tables, <!-- fig:views -->41<!-- /fig --> views, <!-- fig:rows -->119,279<!-- /fig --> rows. This is the artefact. |
+| `f1.db` | The SQLite database. <!-- fig:tables -->46<!-- /fig --> tables, <!-- fig:views -->41<!-- /fig --> views, <!-- fig:rows -->119,280<!-- /fig --> rows. This is the artefact. |
 | `f1-geometry.db` | The OpenStreetMap circuit centrelines (ODbL), shipped beside `f1.db` and never merged into it. See *Illustration*. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
@@ -413,8 +413,7 @@ dimensions as published, plus three things a spec sheet does not — the
 **`chassis` is the register: <!-- fig:chassis -->1,153<!-- /fig --> rows,
 every chassis that has raced.** It is loaded from
 [F1DB](https://github.com/f1db/f1db) (CC BY 4.0) by `tools/f1db_fetch.py` — a
-scale at which nobody types anything; `docs/UPSTREAM.md` is what depends on
-F1DB and what happens if it stops — and
+scale at which nobody types anything — and
 <!-- fig:chassis_with_spec -->779<!-- /fig --> of them carry a specification
 `tools/wikispec_fetch.py` established off that chassis's own Wikipedia
 article. `chassis.car_id` joins the two.
@@ -734,7 +733,7 @@ for each, which `v_standings_final` returns one row per entity.
 
 ### It was a licence, not a harvest
 
-This gap stood for seven versions and `known_gaps` #1 described it as a
+This gap stood for seven versions and `known_gaps` #2 described it as a
 licensing decision. That was accurate but incomplete. The rows came from
 [Jolpica-F1](https://api.jolpi.ca), whose Ergast lineage is CC BY-**NC**-SA —
 a non-commercial clause more restrictive than anything else here — so they
@@ -980,8 +979,8 @@ queried, not just read here. `./f1 gaps` prints them with the fix for each.
   never recorded in a form anyone can retrieve. See *Timing, telemetry and
   radio* above.
 
-The `known_gaps` table holds <!-- fig:known_gaps -->13<!-- /fig --> entries,
-of which <!-- fig:known_gaps_open -->7<!-- /fig --> are open gaps — the figure
+The `known_gaps` table holds <!-- fig:known_gaps -->14<!-- /fig --> entries,
+of which <!-- fig:known_gaps_open -->8<!-- /fig --> are open gaps — the figure
 the site's homepage and `/data` state, counted from the same `v_open_gaps`
 view. The rest are either closed, and kept so the closure is on record, or
 positions: a deliberate absence rather than a gap, such as the lap timing
@@ -1013,6 +1012,9 @@ breaks a cross-check is thrown away rather than committed, so an unattended
 job can never replace a good database with a broken one. It can also be run
 by hand from the Actions tab for a race that lands out of step with the
 schedule.
+
+`docs/UPSTREAM.md` records what depends on F1DB, table by table, and what
+happens if it stops, changes shape or changes licence.
 
 Two things do not arrive with a refresh. Pole position and fastest lap are
 separate harvests, so a race that has just been run appears with its full
