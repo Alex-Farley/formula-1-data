@@ -71,3 +71,42 @@ def figure(text):
     """The first figure stated in `text`, or None."""
     m = FIGURE.search(text)
     return m.group(0) if m else None
+
+
+# ---------------------------------------------------------------------
+# The figures the pattern above leaves alone on purpose - "Six Monaco wins",
+# "six Le Mans wins" - name a subset of a career, and the strip totals no
+# subset. They were verified by hand for #79 and nothing re-read them; a
+# note is the one place a number can sit unchecked (CD-24). subset_figures()
+# finds them so verify.py can count each against the race records where the
+# place is a Grand Prix, and require the rest to be declared.
+# ---------------------------------------------------------------------
+_WORDS = {w: i + 1 for i, w in enumerate(UNITS.split("|"))}
+_WORDS.update({w: (i + 2) * 10 for i, w in enumerate(TENS.split("|")[:-1])})
+_WORDS["hundred"] = 100
+# A place is one or more capitalised words with no sentence punctuation
+# inside: "24 Hours. Five Monaco wins" is two sentences, not a 24-count.
+_PLACE = r"(?-i:(?:[A-Z][A-Za-z'-]*(?: [A-Z][A-Za-z'-]*)*))"
+_SUBSET_NOUN = r"(?:wins|victories|poles|podiums)"
+SUBSET = re.compile(rf"\b(?P<n>{CARDINAL}) (?P<place>{_PLACE}) (?P<noun>{_SUBSET_NOUN})\b",
+                    re.IGNORECASE)
+
+
+def number(text):
+    """"Six", "twenty-three", "1,566" -> 6, 23, 1566."""
+    text = text.lower().replace(",", "")
+    if text.isdigit():
+        return int(text)
+    total = 0
+    for part in re.split(r"[- ]", text):
+        if part == "hundred":
+            total = (total or 1) * 100
+        else:
+            total += _WORDS[part]
+    return total
+
+
+def subset_figures(text):
+    """Every (count, place, noun) a note states for a named subset."""
+    return [(number(m.group("n")), m.group("place"), m.group("noun").lower())
+            for m in SUBSET.finditer(text)]

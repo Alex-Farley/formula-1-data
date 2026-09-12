@@ -503,6 +503,13 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       `verify.py` pin together (no row needs it today). Found by the review
       of #81. — *review of #81 · S*
 
+- [ ] `PM-29` **`build.py` hardcodes the rollover year for imported drivers'
+      status.** `("active" if max(yrs) >= 2026 else "retired")` decides
+      `status` for the 680 F1DB-admitted drivers; at the 2027 rollover every
+      2026-only driver becomes retired and the `verify.py` grid check from
+      #84 fails the build, loudly and without an explanation attached. Derive
+      the year from the latest completed season, as the drivers page now
+      does. Found by the review of #84. — *review of #84 · S*
 - [ ] `CD-24` **Subset figures in a driver note are counted by nobody.**
       Hill's five and Senna's six Monaco wins, Trintignant's two, and
       Ickx's six Le Mans wins were verified by hand for #79 and nothing
@@ -1588,6 +1595,14 @@ Real, but not costed, or waiting on a decision.
       first two by a block edit the review of #85 caught as unrecorded. — *review
       of #79 · #85*
 
+- [x] `CD-24` **Subset figures in a driver note are counted.**
+      `subset_figures()` in `tools/lede_figures.py` finds the "<N> <Place>
+      wins/victories/poles/podiums" form — and only that form; "six wins at
+      Monaco" is not read; `verify.py` counts each from `race_entries`, the
+      table the strip derives from, where the place is a Grand Prix (Senna
+      6, Hill 5, Trintignant 2 at Monaco) and requires the rest to be
+      declared — Ickx's six Le Mans wins are, and an undeclared place fails.
+      — *review of #79 · #88*
 - [x] `PM-29` **The build reads the season in progress from the entry
       lists.** `b.current_season` is the latest year anybody entered; the
       admitted drivers' `status` and the admitted constructors' `active`
