@@ -511,14 +511,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       one no table can constrain. Found by the review of #79. — *review of
       #79 · S*
 
-- [ ] `PM-29` **`build.py` hardcodes the rollover year for imported drivers'
-      status.** `("active" if max(yrs) >= 2026 else "retired")` decides
-      `status` for the 680 F1DB-admitted drivers; at the 2027 rollover every
-      2026-only driver becomes retired and the `verify.py` grid check from
-      #84 fails the build, loudly and without an explanation attached. Derive
-      the year from the latest completed season, as the drivers page now
-      does. Found by the review of #84. — *review of #84 · S*
-
 **Interaction design**
 
 - [ ] `IX-16` **`IA-08` escalated: Back restores the scroll and not the filter.** France filter, sort by wins, scroll, open a driver, Back — same pixel, 862 unfiltered rows. Do `/drivers` first. — *interaction critique · M*
@@ -1596,6 +1588,15 @@ Real, but not costed, or waiting on a decision.
       first two by a block edit the review of #85 caught as unrecorded. — *review
       of #79 · #85*
 
+- [x] `PM-29` **The build reads the season in progress from the entry
+      lists.** `b.current_season` is the latest year anybody entered; the
+      admitted drivers' `status` and the admitted constructors' `active`
+      flag compare against it instead of a typed 2026 that would have kept a
+      2026-only driver active after the rollover; the curated registers'
+      typed statuses are untouched. The build stops if the entry lists ever
+      reach a season the classification has not, which is the assumption
+      the derivation rests on. Byte-identical database today. — *review of
+      #84 · #86*
 - [x] `PM-28` **Nine gap citations name the gap they mean.** Three code
       comments that meant the Jolpica licence decision now say `known_gaps`
       #2 and four that meant the abandoned chassis-per-race harvest say #3
