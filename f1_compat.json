@@ -1,6 +1,6 @@
 {
   "database_name": "F1 Verified Facts Project Memory Database",
-  "version": "2.22",
+  "version": "2.23",
   "verification_date": "2026-09-09",
   "verification_policy": {
     "confidence_ladder": [
@@ -972,11 +972,11 @@
       "priority": 18,
       "source": "Written for this project from general knowledge",
       "url": null,
-      "use": "The glossary, the era and engine-era periodisations, the governance and safety timelines, the technical-innovation notes, the constructor lineage chains, the points-system table, the tyre-supplier list, the grand prix register, the personnel notes, the engine-manufacturer notes and the headline records list. Thirteen tables.",
+      "use": "The glossary, the era and engine-era periodisations, the governance and safety timelines, the technical-innovation notes, the constructor lineage chains, the points-system table, the tyre-supplier list, the grand prix register, the personnel notes and the engine-manufacturer notes. Twelve tables; the records list left it in v2.23, derived from the race records instead of written.",
       "authority": "authored",
       "licence": "Original to this repository, and the only content here under no external obligation at all.",
       "cadence": "Whenever somebody edits it. There is no upstream to track and no version to pin.",
-      "checkability": "NOTHING, and that is the entire point of giving it a name. It has no external source to be compared against and no check in verify.py that constrains a value - `records` is not tested at all, and what constrains grands_prix, constructor_lineage and personnel is referential and temporal only: ids resolve, years run forwards. Those prove the shape and say nothing about the claim. So nothing here may sit above 'medium', which is what that tier means: correct in substance, confirm the figure before publishing. It sat at 'high' until v2.16, which promised more than anything could deliver.",
+      "checkability": "NOTHING, and that is the entire point of giving it a name. It has no external source to be compared against and no check in verify.py that constrains a value - what constrains grands_prix, constructor_lineage and personnel is referential and temporal only: ids resolve, years run forwards. Those prove the shape and say nothing about the claim. So nothing here may sit above 'medium', which is what that tier means: correct in substance, confirm the figure before publishing. It sat at 'high' until v2.16, which promised more than anything could deliver.",
       "redistributable": "yes",
       "share_alike": 1,
       "attribution_required": 1,

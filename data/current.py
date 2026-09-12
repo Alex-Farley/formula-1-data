@@ -435,8 +435,9 @@ SOURCE_REGISTRY = [
      "The glossary, the era and engine-era periodisations, the governance and "
      "safety timelines, the technical-innovation notes, the constructor "
      "lineage chains, the points-system table, the tyre-supplier list, the "
-     "grand prix register, the personnel notes, the engine-manufacturer notes "
-     "and the headline records list. Thirteen tables.",
+     "grand prix register, the personnel notes and the engine-manufacturer "
+     "notes. Twelve tables; the records list left it in v2.23, derived from "
+     "the race records instead of written.",
      "authored",
      "Original to this repository, and the only content here under no "
      "external obligation at all.",
@@ -444,7 +445,7 @@ SOURCE_REGISTRY = [
      "version to pin.",
      "NOTHING, and that is the entire point of giving it a name. It has no "
      "external source to be compared against and no check in verify.py that "
-     "constrains a value - `records` is not tested at all, and what "
+     "constrains a value - what "
      "constrains grands_prix, constructor_lineage and personnel is "
      "referential and temporal only: ids resolve, years run forwards. Those "
      "prove the shape and say nothing about the claim. So nothing here may "
@@ -493,9 +494,17 @@ TABLE_PROVENANCE = [
      "notes are written here, and those are what the tier describes."),
     ("personnel", 18, 0, "The `significance` field is a judgement, not a fact."),
     ("engine_manufacturers", 18, 0, None),
-    ("records", 18, 0,
-     "Nothing in verify.py reads this table. The career records it duplicates "
-     "ARE checked, on `drivers`."),
+    # Derived, not authored: since v2.23 every row is a query in build.py
+    # (derive_records) over race_entries, races, seasons, drivers, circuits and
+    # the final standings. The classification those tables hold is F1DB's,
+    # which is why the table resolves here; the pole and fastest-lap credits
+    # come from the Wikipedia season tables (8) and the champions from
+    # `seasons`, and each row's `detail` names the tables it was read from.
+    # verify.py recomputes a sample by another route and holds as_of to the
+    # last completed race.
+    ("records", 10, 0,
+     "Derived in build.py from the race records; each row's detail names its "
+     "inputs and rule. verify.py recomputes a sample by a different query."),
     # Sourced, and simply never given the column.
     ("circuit_layouts", 17, 0, "Wikipedia per-circuit articles; see ATTRIBUTION.md."),
     ("season_entries", 3, 0, "The 2026 entry list, from formula1.com."),

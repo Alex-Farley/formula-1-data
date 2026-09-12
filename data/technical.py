@@ -302,39 +302,10 @@ ERAS = [
     (2026, None, "The new formula", "A smaller, lighter car, an even power split between combustion and electrical energy, sustainable fuel, and two new manufacturers.", "TBD — Mercedes leads the opening half of 2026", "Active aerodynamics, Overtake Mode, no MGU-H, 100% sustainable fuel, twelve teams"),
 ]
 
-# category, record, holder, value, detail, as_of
-RECORDS = [
-    ("drivers", "Most drivers' championships", "Lewis Hamilton, Michael Schumacher", "7 each", "Hamilton 2008, 2014-15, 2017-20; Schumacher 1994-95, 2000-04", "end of 2025"),
-    ("drivers", "Most Grand Prix wins", "Lewis Hamilton", "105", "Ahead of Schumacher on 91 and Verstappen on 71", "end of 2025"),
-    ("drivers", "Most pole positions", "Lewis Hamilton", "104", "Ahead of Schumacher on 68 and Senna on 65", "end of 2025"),
-    ("drivers", "Most race starts", "Fernando Alonso", "over 400", "Passed Raikkonen's 349 in 2024 and still competing", "2026 season, in progress"),
-    ("drivers", "Highest win percentage", "Juan Manuel Fangio", "about 47%", "24 wins from 51 starts", "career"),
-    ("drivers", "Most wins in a season", "Max Verstappen", "19", "From 22 races in 2023", "2023"),
-    ("drivers", "Most consecutive wins", "Max Verstappen", "10", "From Miami to Monza in 2023, beating Vettel's nine in 2013", "2023"),
-    ("drivers", "Youngest World Champion", "Sebastian Vettel", "23 years, 134 days", "2010 Abu Dhabi GP", "2010"),
-    ("drivers", "Oldest World Champion", "Juan Manuel Fangio", "46 years, 41 days", "1957", "1957"),
-    ("drivers", "Youngest race winner", "Max Verstappen", "18 years, 228 days", "2016 Spanish GP", "2016"),
-    ("drivers", "Youngest starter", "Max Verstappen", "17 years, 166 days", "2015 Australian GP; the FIA introduced a minimum age of 18 and a superlicence points system in response", "2015"),
-    ("drivers", "Oldest race winner", "Luigi Fagioli", "53 years, 22 days", "1951 French GP, shared with Fangio", "1951"),
-    ("drivers", "Only posthumous champion", "Jochen Rindt", "1970", "Killed in practice at Monza with four rounds remaining", "1970"),
-    ("drivers", "Only woman to score points", "Lella Lombardi", "0.5 points", "Sixth in the shortened 1975 Spanish GP at Montjuic", "1975"),
-    ("drivers", "Most races before a first win", "Sergio Perez / Nico Hulkenberg comparison", "varies", "Perez won at his 190th start; Hulkenberg has never won, holding the record for most starts without a win", "2026, in progress"),
-    ("constructors", "Most constructors' championships", "Ferrari", "16", "Last in 2008", "end of 2025"),
-    ("constructors", "Most consecutive constructors' championships", "Mercedes", "8", "2014-2021", "2021"),
-    ("constructors", "Most wins in a season by a team", "Red Bull Racing", "21 from 22", "2023", "2023"),
-    ("constructors", "Highest win rate in a season", "McLaren", "15 from 16 (93.75%)", "1988, with the MP4/4", "1988"),
-    ("constructors", "Most points in a season", "McLaren", "833", "2025, under the current points system", "2025"),
-    ("constructors", "Most starts without a win", "Arrows", "382", "1978-2002", "2002"),
-    ("constructors", "Won on championship debut", "Wolf (1977), Brawn GP (2009)", "2 teams", "Both won their first ever Grand Prix", "2009"),
-    ("races", "Closest championship margin", "Niki Lauda over Alain Prost", "0.5 points", "1984", "1984"),
-    ("races", "Closest finish", "Peter Gethin over Ronnie Peterson", "0.01 s", "1971 Italian GP at Monza, with the top five covered by 0.61 s", "1971"),
-    ("races", "Closest qualifying margin", "Ayrton Senna over Nigel Mansell", "0.014 s", "1986 Spanish GP at Jerez was the closest race finish; qualifying margins of this order recur at short circuits", "1986"),
-    ("races", "Longest circuit used", "Pescara", "25.579 km", "1957 Pescara Grand Prix", "1957"),
-    ("races", "Longest race", "2011 Canadian Grand Prix", "4 h 4 min", "Extensive rain suspension; led to the four-hour maximum event rule", "2011"),
-    ("races", "Lowest grid position for a winner", "John Watson", "22nd", "1983 United States GP West at Long Beach", "1983"),
-    ("races", "Fewest cars to finish a championship race", "1966 Monaco Grand Prix", "4 classified", "", "1966"),
-    ("races", "Fewest starters in the modern era", "2005 United States Grand Prix", "6", "Michelin-shod teams withdrew on safety grounds after tyre failures on the banking", "2005"),
-]
+# There is no RECORDS list here any more. The thirty rows it held were typed
+# from general knowledge and one of them (Hamilton, 105 wins) contradicted the
+# `drivers.wins` the same build computed. `records` is derived in build.py -
+# see derive_records() - from the tables the site's leaderboards read.
 
 GLOSSARY = [
     ("Apex", "driving", "The point at which a car is closest to the inside of a corner; the geometry of the apex determines corner entry and exit speed."),

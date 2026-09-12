@@ -3,6 +3,43 @@
 A running record of what changed in each version, what it exposed, and what
 was deliberately not done. Newest first.
 
+## v2.23 (2026-09-12) — the records are derived, not published
+
+`records` held thirty rows typed from general knowledge. They sat at
+`medium`, spelt `as_of` twenty-four ways, and nothing in `verify.py` read
+them — so the table called `records` was the one table of career records the
+database did not verify, and its "105 wins" for Hamilton stood beside a
+`drivers.wins` of 106 that the same build had computed. The `/records` page
+carried a sentence telling the reader which of the two to believe.
+
+Every row is now derived in `build.py` (`derive_records`), after the career
+columns it reads are filled: one SQL query, or a short walk over one, per
+record, over `drivers`, `seasons`, `race_entries`, `races`, `circuits` and
+`v_standings_final`. Each row states in `detail` which tables it read, the
+rule, what was excluded and why, and the runners-up; a tie holds every holder
+and names none as `holder_id`. The table gained `key`, `holder_table`,
+`holder_id`, `value_num` and `unit` (DA-19), keeps the display `value`, and
+carries one ISO `as_of` — the last completed race in `races`. The tier is
+`reference`, because that is what the race records carry and a derivation
+cannot outrank its inputs; `table_provenance` moves the table from *authored*
+to F1DB accordingly.
+
+Twenty-nine records ship. Five of the old thirty cannot be derived and are
+declared in `known_gaps` #12 rather than kept from memory: youngest and
+oldest champion need the clinching round, closest finish and longest race need
+race times the database does not hold, and "only woman to score points" needs
+an attribute no table has. The closest qualifying margin turned out to be
+derivable — `qualifying.gap` is held for 1,161 of 1,162 races — and is. Three
+derived figures differ from the authored rows they replace. Arrows' 382
+"starts without a win" merged the Footwork years; counted under one
+constructor name, as `constructors.wins` already is, Sauber's 547 Grands Prix
+stand. McLaren's 15 of 16 in 1988 is beaten outright by Red Bull's 21 of 22
+in 2023. And 833 was qualified "under the current points system", which the
+derivation does not apply, so Red Bull's 860 in 2023 stands as the nominal
+figure. `verify.py` recomputes nine records by a different route — the
+`race_results` view, `drivers.titles`, `seasons.margin`, a window query — and
+holds `as_of`, the tier and a floor of 29 rows.
+
 ## v2.22 (2026-09-11) — the final championship table gets a key and a view
 
 `standings`' `UNIQUE` constraint was inert for 69% of its rows — SQLite
