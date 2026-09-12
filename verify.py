@@ -1479,8 +1479,9 @@ def the_chassis_register():
           f"{nspec} chassis carry harvested specifications")
 
     # Every chassis id in CAR_CHASSIS must exist, belong to the car's constructor,
-    # be claimed by only one car, and have raced inside the car's stated life.
-    # A typo cannot survive all four.
+    # be claimed by only one car, not have raced before the car existed, and
+    # not have raced after it except in the declared privateer cases. A typo
+    # cannot survive all five.
     reg = {r["id"]: r for r in con.execute("SELECT * FROM chassis")}
     missing, wrongcons, outside, late, twice = [], [], [], [], []
     claimed = {}
@@ -1515,14 +1516,19 @@ def the_chassis_register():
     # two fields mean different things: `cars.to_year` is the works career, and
     # the entry lists record every entry including the privateers who bought the
     # thing afterwards. Ferrari 500s were still being entered in 1957, four years
-    # after the works team moved on. Reported, not warned: a warning is for
-    # something to act on, and this was read as one for three versions
-    # (PM-20) before the register rows were checked - de Tomaso's Ferrari 500 in
+    # after the works team moved on. This was a warning for three versions
+    # (PM-20) before the register rows were read: de Tomaso's Ferrari 500 in
     # 1957, Dochnal's and Blokdyk's Cooper T51s in 1963, Courage's and Irwin's
-    # Lotus 25s in 1967 are all real entries.
-    if late:
-        print(f"  [info] {len(late)} curated cars have chassis entered after the works "
-              f"career ended, by privateers: " + "; ".join(late))
+    # Lotus 25s in 1967 are all real entries. Pinned by identity, so a fourth
+    # case - a privateer, or a CAR_CHASSIS typo pointing at a chassis raced
+    # after the works career, which `outside` cannot see - is read before it
+    # rides along.
+    _late_cars = {entry.split(" last entered")[0] for entry in late}
+    _late_declared = {"ferrari-500", "cooper-t51", "lotus-25"}
+    check("the chassis entered after their car's works career are the three declared privateer cases",
+          _late_cars == _late_declared,
+          "undeclared: " + (", ".join(sorted(_late_cars - _late_declared)) or "none")
+          + "; no longer late: " + (", ".join(sorted(_late_declared - _late_cars)) or "none"))
     print(f"  [info] the 29 curated cars cover {len(claimed)} register chassis")
 
     bad = con.execute("""SELECT COUNT(*) FROM chassis c WHERE c.car_id IS NOT NULL
@@ -2195,13 +2201,22 @@ def the_full_classification():
                                WHERE e.race_id = q.race_id
                                  AND e.driver_id = q.driver_id)""")}
         declared = {(2011, 1, "vitantonio-liuzzi"), (2011, 1, "narain-karthikeyan")}
+        _fmt = lambda rows: ", ".join(f"{y} r{r} {d}" for y, r, d in sorted(rows)) or "none"
+        # The detail says which way it failed: a new orphan is a regression to
+        # read; the declared pair gaining entries is F1DB closing the gap, and
+        # the row's state, this set and the closed-gap test in known_gaps()
+        # then move together.
         check("every qualifying row without a race entry is the declared 2011 Melbourne pair",
               orphan == declared,
-              "; ".join(f"{y} r{r} {d}" for y, r, d in sorted(orphan ^ declared)))
+              f"unexpected: {_fmt(orphan - declared)}; no longer orphaned, close the gap: "
+              f"{_fmt(declared - orphan)}")
+        # Pinned to the row itself, not to a count: a second, unrelated open
+        # race_entries gap is not a failure, and a different row swapped in is.
         gap_declared = con.execute("""SELECT COUNT(*) FROM known_gaps
-            WHERE field = 'race_entries' AND state = 'open'""").fetchone()[0]
+            WHERE field = 'race_entries' AND state = 'open'
+              AND area LIKE '%2011 Australian Grand Prix%107 per cent%'""").fetchone()[0]
         check("the 2011 Melbourne pair is an open row in known_gaps", gap_declared == 1,
-              f"{gap_declared} open race_entries gaps")
+              f"{gap_declared} matching open rows")
 
         # Pre-knockout qualifying is one time; the knockout era is three segments
         # and no single time. Neither is back-filled from the other, and a row

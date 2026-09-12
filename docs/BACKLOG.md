@@ -671,8 +671,13 @@ Real, but not costed, or waiting on a decision.
       trace, so this is upstream data repair rather than a check to satisfy.
       Split out of `PM-20`, which was sized S on the strength of its two small
       siblings and could not carry this. Sits beside `PM-08`: both are geometry
-      work the existing guard rails already constrain once rows exist. —
-      *project record · M*
+      work the existing guard rails already constrain once rows exist. The
+      `verify.py` warnings expected today, for the record: this one; the open
+      `discrepancies` row (1970 r1 fastest lap, a genuine source
+      disagreement); the Nürburgring Südschleife with no race; the unrun 2026
+      r17 sprint; the 2026 drivers'/constructors' points disagreement and the
+      2026 r13 pole awaiting the harvest, both of which the next refresh
+      moves. — *project record · M*
 
 - [ ] `PM-09` **Per-round chassis harvest.** Closes `known_gaps` #3 (287 races
       with no known winning chassis) and #4 (car pole counts) in one pass. Only
@@ -1524,14 +1529,16 @@ Real, but not costed, or waiting on a decision.
       sit.** The two qualifying rows without a race entry are the HRTs that
       failed the 107 per cent rule at Melbourne in 2011: F1DB's qualifying
       holds them, its classification omits them (its 2012 classification
-      records the same case as DNQ). Not added by hand — `race_entries`
-      carries one source and the harvest is rewritten by the fetch — but
-      declared: an open `known_gaps` row, and the warning is now a check
-      pinned to the pair by identity. The three chassis entered after their
-      car's works career are real privateer entries (de Tomaso 1957, Dochnal
-      and Blokdyk 1963, Courage and Irwin 1967), which the warning's own
-      comment already said; it is an `[info]` line now. — *project record ·
-      #80*
+      records the same case as DNQ). Not added by hand — the classification
+      is loaded whole from a harvest file the fetch rewrites, and there is no
+      curated path for a classification entry — but declared: an open
+      `known_gaps` row, and the warning is now a check pinned to the pair by
+      identity, whose detail says which way it failed. The three chassis
+      entered after their car's works career are real privateer entries (de
+      Tomaso 1957, Dochnal and Blokdyk 1963, Courage and Irwin 1967), which
+      the warning's own comment already said; that check is pinned to the
+      three by identity too. — *project record · #80*
+
 - [x] `CD-21` **The lede check allows an adjective before the noun.** Up to
       two lower-case words may sit between the number and the noun ("three
       straight wins"); a capitalised word names a subset the page never

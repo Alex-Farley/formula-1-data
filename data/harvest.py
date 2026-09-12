@@ -812,11 +812,12 @@ KNOWN_GAPS = [
      "of 1:25.296 - 107 per cent of which is 1:31.267. Its race classification "
      "for the same round omits them, while its 2012 round 1 classification "
      "lists the same team's two cars as DNQ in the same circumstances. The "
-     "two rows are not added by hand: race_entries carries one source, "
-     "tools/f1db_fetch.py rewrites harvest/race_results.txt, and a "
-     "hand-written row would be overwritten or would have to be kept apart "
-     "under a second source. verify.py pins the pair by identity, so a third "
-     "orphan qualifying row fails the build.",
+     "two rows are not added by hand: the classification is loaded whole from "
+     "harvest/race_results.txt, which tools/f1db_fetch.py rewrites, and there "
+     "is no curated path for a classification entry as there is for a winner, "
+     "a pole or a fastest lap. A hand-written row would be overwritten at the "
+     "next fetch. verify.py pins the pair by identity, so a third orphan "
+     "qualifying row fails the build.",
      1,
      "Closes when F1DB's classification for 2011 round 1 carries the two DNQ "
      "rows, which the next fetch would pick up; or by a curated-entry "
