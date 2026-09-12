@@ -1,5 +1,5 @@
 import { useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { isNumericColumn, isProseColumn, label as humanise, missing, text } from '../lib/format.js'
+import { EMPTY, isNumericColumn, isProseColumn, label as humanise, missing, text } from '../lib/format.js'
 import { SectionTitle } from './Page.jsx'
 
 /**
@@ -7,10 +7,14 @@ import { SectionTitle } from './Page.jsx'
  * reader types into the SQL console.
  *
  * Columns can be given as strings (take the value, guess the alignment) or as
- * objects — { key, label, align, render, sort, className, width } — which is
- * how an id becomes a link without this component knowing anything about
+ * objects — { key, label, align, render, sort, className, width, text } — which
+ * is how an id becomes a link without this component knowing anything about
  * routes. Given neither, it renders the result's own shape, which is what the
  * console needs.
+ *
+ * `text` is a plain-string formatter from a page's queries module, shared
+ * with scripts/prerender.js so the static table prints the same cell; it is
+ * used where the page gives no `render`. See queries/drivers.js.
  *
  * NULLS SORT LAST, ALWAYS.
  *     SQLite sorts NULL first, and this database uses NULL for "not
@@ -199,7 +203,11 @@ export default function DataTable({
                     key={column.key}
                     className={[column.align, column.className?.(row)].filter(Boolean).join(' ')}
                   >
-                    {column.render ? column.render(row[column.key], row) : cell(row[column.key], { raw })}
+                    {column.render
+                      ? column.render(row[column.key], row)
+                      : column.text
+                        ? plain(column.text(row[column.key], row))
+                        : cell(row[column.key], { raw })}
                   </td>
                 ))}
               </tr>
@@ -231,4 +239,15 @@ export function cell(value, { raw = false } = {}) {
   if (value === 0) return <span className="zero">0</span>
   if (raw && typeof value === 'number') return String(value)
   return text(value)
+}
+
+/**
+ * A column's own `text` formatter as a cell: the string it returns, with the
+ * em dash it uses for a missing value set faint like every other. The static
+ * page prints the same string, which is the point of the formatter living in
+ * one place rather than here and in prerender.js.
+ */
+export function plain(value) {
+  if (value === EMPTY) return <span className="empty">{EMPTY}</span>
+  return value
 }

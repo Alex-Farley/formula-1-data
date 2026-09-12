@@ -605,7 +605,9 @@ try {
       `${top.full_name}'s Entries is the race-record count`,
     )
     const html = await (await fetch(`${BASE}/drivers`)).text()
-    truthy(/<th scope="col">Entries<\/th>/.test(html) && !/<th scope="col">Races<\/th>/.test(html), 'the static register uses the same word')
+    // fromColumns() gives a numeric header its alignment class, so the tag
+    // carries attributes; the word is what is being checked.
+    truthy(/<th scope="col"[^>]*>Entries<\/th>/.test(html) && !/<th scope="col"[^>]*>Races<\/th>/.test(html), 'the static register uses the same word')
     const firstStatic = html.slice(html.indexOf('<tbody>'), html.indexOf('</tr>', html.indexOf('<tbody>')))
     truthy(firstStatic.includes(top.full_name), 'the static register opens on the same driver')
     // Row for row, not only the first: the tie-break must collate as SQLite
@@ -1482,6 +1484,96 @@ try {
     'the sitemap lists the new addresses and none of the moved ones',
   )
   truthy((await fetch(`${BASE}/robots.txt`).then((r) => r.text())).includes('Sitemap:'), 'robots.txt points at it')
+
+  /*
+   * PD-02, rung one. The static table and the app's table on the same route
+   * came from different SQL and different header rows — eight columns to the
+   * app's nine on /drivers, a Category column on /records the app never
+   * shows, stored figures against derived ones on a driver page. Both now
+   * read web/src/queries/*, and this asks each pair for the same strings:
+   * the headers in order, then the first two rows cell for cell. The static
+   * half is read as a crawler reads it, from the served HTML; the app's from
+   * the DOM after navigating to the route in-app.
+   */
+  console.log('\nStatic tables are the app’s tables')
+  {
+    // esc() in prerender.js writes exactly these five entities, and the
+    // app's textContent has the characters themselves. &amp; last, so an
+    // escaped ampersand does not turn into a second round of decoding.
+    const decode = (html) =>
+      html
+        .replace(/<[^>]+>/g, '')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&amp;/g, '&')
+        .replace(/\s+/g, ' ')
+        .trim()
+
+    // The first table after the h2 given, or the page's first table: its
+    // headers, and its first two rows.
+    const staticTable = (html, heading) => {
+      const from = heading ? html.indexOf(`<h2>${heading}</h2>`) : 0
+      if (from < 0) return null
+      const start = html.indexOf('<table>', from)
+      const end = html.indexOf('</table>', start)
+      if (start < 0 || end < 0) return null
+      const markup = html.slice(start, end)
+      const cells = (row, tag) =>
+        [...row.matchAll(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`, 'g'))].map((m) => decode(m[1]))
+      const body = markup.slice(markup.indexOf('<tbody>'))
+      return {
+        heads: cells(markup.slice(0, markup.indexOf('</thead>')), 'th'),
+        rows: [...body.matchAll(/<tr>([\s\S]*?)<\/tr>/g)].slice(0, 2).map((m) => cells(m[1], 'td')),
+      }
+    }
+
+    // The app's table under the same heading, or its first table that is not
+    // a chart's own. The sort arrow is markup, not part of a header.
+    const appTable = (heading) =>
+      page.evaluate((heading) => {
+        const main = document.querySelector('#root main')
+        const clean = (node) => node.textContent.replace(/[▲▼]/g, '').replace(/\s+/g, ' ').trim()
+        let scope = main
+        if (heading) {
+          const h2 = [...main.querySelectorAll('h2')].find((h) => clean(h).startsWith(heading))
+          scope = h2?.closest('section') ?? h2?.parentElement ?? null
+        }
+        const wrap = [...(scope?.querySelectorAll('.table-wrap') ?? [])].find((n) => !n.closest('figure.figure'))
+        const table = wrap?.querySelector('table')
+        if (!table) return null
+        return {
+          heads: [...table.querySelectorAll('thead th')].map(clean),
+          rows: [...table.querySelectorAll('tbody tr')].slice(0, 2).map((tr) => [...tr.children].map(clean)),
+        }
+      }, heading ?? null)
+
+    const same = async (route, h1, heading) => {
+      const html = await (await fetch(`${BASE}${route}`)).text()
+      const served = staticTable(html, heading)
+      await go(route, h1)
+      const app = await appTable(heading)
+      const where = heading ? `${route} “${heading}”` : route
+      truthy(served && app, `${where}: both renderers carry the table`)
+      if (!served || !app) return
+      is(served.heads.join(' | '), app.heads.join(' | '), `${where}: the static headers are the app’s, in order`)
+      is(
+        served.rows.map((r) => r.join(' | ')).join(' / '),
+        app.rows.map((r) => r.join(' | ')).join(' / '),
+        `${where}: the first two rows read the same, cell for cell`,
+      )
+    }
+
+    await same('/drivers', 'Drivers')
+    // Hamilton, not a driver who split a season between two teams: the
+    // Amon's four two-team seasons put a group_concat in the constructor
+    // cell; sql.js and node:sqlite agree on its order today, and this is
+    // what notices if a SQLite bump makes them disagree.
+    await same('/drivers/hamilton', 'Hamilton', 'Season by season')
+    await same('/drivers/amon', 'Chris Amon', 'Season by season')
+    await same('/records', 'Records')
+  }
 
   // ------------------------------------------------------- console cleanliness
 

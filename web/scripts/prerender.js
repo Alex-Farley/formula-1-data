@@ -46,9 +46,38 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 // The one rule for the "Out"/"Status" column, shared with the app rather
 // than restated here: a copy of it would drift, which is how the twelve
-// hardcoded `circuit_geometry` columns went wrong.
-import { finished, yearList } from '../src/lib/format.js'
-import { CROSS_CHECKED, ENTRIES_NOTE, citation, NOT_HELD, SELF_DESCRIBING, SITE, TWO_FILES, titled } from '../src/lib/site.js'
+// hardcoded `circuit_geometry` columns went wrong. `formatted` is the
+// app's own cell text — text() in lib/format.js — for the tables below
+// that are drawn from a page's column list.
+import { finished, text as formatted, yearList } from '../src/lib/format.js'
+import {
+  CROSS_CHECKED,
+  ENTRIES_NOTE,
+  citation,
+  NOT_HELD,
+  SELF_DESCRIBING,
+  SITE,
+  TWO_FILES,
+  titled,
+} from '../src/lib/site.js'
+// The pages' own queries and column lists (PD-02). A page and this script
+// read the same module, so the static table is the app's table by
+// construction; the rest of the pages follow these three.
+import { DRIVERS, DRIVER_COLUMNS } from '../src/queries/drivers.js'
+import {
+  BY_SEASON,
+  DERIVED,
+  DRIVER,
+  SEASON_COLUMNS,
+  SEASONS_FOOTER,
+  STANDINGS,
+  pointsDiffer,
+  pointsNote,
+  record,
+  seasonRows,
+  strip,
+} from '../src/queries/driver.js'
+import { RECORDS, TIER_AFTER, recordColumns, tierBefore, tiersOf, RECORDS_LEDE } from '../src/queries/records.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const web = join(here, '..')
@@ -109,18 +138,45 @@ const text = (value) => (value === null || value === undefined || value === '' ?
 const href = (path) => `${BASE}${String(path).replace(/^\//, '')}`
 const link = (path, label) => `<a href="${esc(href(path))}">${esc(label)}</a>`
 
+// `aligns` is a class per column — 'num', 'prose' or nothing — the same
+// classes DataTable puts on its cells, so a column of figures lines up.
 const table = (headers, rows, options = {}) => {
   if (!rows.length) return ''
-  const { caption } = options
+  const { caption, aligns = [] } = options
+  const cls = (i) => (aligns[i] ? ` class="${esc(aligns[i])}"` : '')
   return [
     '<div class="tablewrap"><table>',
     caption ? `<caption>${esc(caption)}</caption>` : '',
-    `<thead><tr>${headers.map((h) => `<th scope="col">${esc(h)}</th>`).join('')}</tr></thead>`,
+    `<thead><tr>${headers.map((h, i) => `<th scope="col"${cls(i)}>${esc(h)}</th>`).join('')}</tr></thead>`,
     '<tbody>',
-    rows.map((cells) => `<tr>${cells.map((c) => `<td>${c}</td>`).join('')}</tr>`).join(''),
+    rows.map((cells) => `<tr>${cells.map((c, i) => `<td${cls(i)}>${c}</td>`).join('')}</tr>`).join(''),
     '</tbody></table></div>',
   ].join('')
 }
+
+/**
+ * A table from a page's own column list — web/src/queries/*, the list the
+ * app's DataTable renders — so the headers, their order and what each cell
+ * says are the app's by construction rather than by a second transcription
+ * (PD-02, CR-23, CR-24). `links` gives the HTML for a cell the app renders
+ * as a link, by column key; every other cell is the column's own `text`
+ * formatter or lib/format.js's text(), which is what DataTable prints too.
+ */
+// A column with a React-only `render` and no `text` falls back to the
+// formatted raw value here; a render that changes the text must come with a
+// matching `text`, or the two renderers part.
+const fromColumns = (columns, rows, links = {}, options = {}) =>
+  table(
+    columns.map((c) => c.label),
+    rows.map((row) =>
+      columns.map((c) => {
+        const value = row[c.key]
+        if (links[c.key]) return links[c.key](value, row)
+        return esc(c.text ? c.text(value, row) : formatted(value))
+      }),
+    ),
+    { ...options, aligns: columns.map((c) => c.align ?? '') },
+  )
 
 const facts = (pairs) => {
   const kept = pairs.filter(([, value]) => value !== null && value !== undefined && value !== '')
@@ -720,7 +776,9 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
 // ---------------------------------------------------------------- drivers
 
 {
-  const drivers = all(`SELECT * FROM drivers ORDER BY titles DESC, wins DESC, full_name`)
+  // The register is the app's query, from the module Drivers.jsx reads; each
+  // driver page then runs the app's per-driver queries from Driver.jsx's.
+  const register = all(DRIVERS)
   // Joined on full_name, which is what discrepancies.subject holds for a career
   // figure. verify.py refuses a subject shape that resolves to nothing, so a
   // silent empty join cannot survive a build.
@@ -736,81 +794,23 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
   )
   const teams = Object.fromEntries(all('SELECT id, name FROM constructors').map((c) => [c.id, c.name]))
 
-  const racesOf = Object.fromEntries(
-    all('SELECT driver_id, COUNT(*) AS n FROM race_entries GROUP BY driver_id').map((r) => [r.driver_id, r.n]),
-  )
   page({
     path: 'drivers',
     title: titled('Every driver, 1950–2026'),
-    description: `All ${drivers.length} drivers in the register, with titles, wins, poles, podiums and career points counted from the race records.`,
+    description: `All ${register.length} drivers in the register, with entries, wins, podiums, poles and fastest laps counted from the race records, and titles from the championship tables.`,
     trail: [['', 'Home'], ['drivers', 'Drivers']],
     body: `
       <h1>Drivers</h1>
-      <p class="lede">${drivers.length} drivers. Career totals are counted from the race records
+      <p class="lede">${register.length} drivers. Career totals are counted from the race records
         wherever the records support it; an em dash means nobody has established that figure.</p>
-      ${table(
-        ['Driver', 'Nationality', 'Seasons', 'Entries', 'Wins', 'Poles', 'Podiums', 'Titles'],
-        // Most wins first, as the app opens; Entries counted from the race
-        // records — one row per race a driver was entered for, which is an
-        // entry and not a start — the stored `starts` being held for 31
-        // drivers only. The same word as the strip on the driver's page. The
-        // tie-break compares names as SQLite does (BINARY), not with the
-        // locale, so the static order is the app's order row for row.
-        [...drivers]
-          .sort(
-            (a, b) =>
-              (b.wins ?? 0) - (a.wins ?? 0) ||
-              (b.podiums ?? 0) - (a.podiums ?? 0) ||
-              (a.full_name < b.full_name ? -1 : a.full_name > b.full_name ? 1 : 0),
-          )
-          .map((d) => [
-            link(`drivers/${d.id}`, d.full_name),
-            text(d.nationality),
-            `${d.first_season ?? '?'}–${d.last_season ?? 'present'}`,
-            // 0 is established here: a driver with no race_entries row (two
-            // of them) has been entered for no race the records hold.
-            num(racesOf[d.id] ?? 0),
-            num(d.wins),
-            num(d.poles),
-            num(d.podiums),
-            num(d.titles),
-          ]),
-      )}`,
+      ${fromColumns(DRIVER_COLUMNS, register, {
+        full_name: (name, d) => link(`drivers/${d.id}`, name),
+      })}`,
   })
 
   const winsOf = db.prepare(
     `SELECT rr.year, rr.round, rr.gp_name, rr.constructor_id, rr.constructor
        FROM race_results rr WHERE rr.winner_id = ? ORDER BY rr.year, rr.round`,
-  )
-  const seasonsOf = db.prepare(
-    `SELECT r.year,
-            COUNT(*) AS entries,
-            SUM(COALESCE(e.points, 0)) AS points,
-            GROUP_CONCAT(DISTINCT c.name) AS teams
-       FROM race_entries e
-       JOIN races r ON r.id = e.race_id
-       LEFT JOIN constructors c ON c.id = e.constructor_id
-      WHERE e.driver_id = ? GROUP BY r.year ORDER BY r.year`,
-  )
-  // The career counted from the race records — the same query Driver.jsx
-  // runs for the strip at the top of the page, plus the first and last year
-  // with an entry. The description and the static facts are built from this,
-  // never from `entries`/`starts`/`wins` on the drivers row: the page itself
-  // labels those "(published)", and a description that quoted them read
-  // "0 wins, 0 poles" for 81 drivers whose lede had just moved to
-  // `provenance`.
-  const derivedOf = db.prepare(
-    `SELECT COUNT(*)                        AS entries,
-            COUNT(DISTINCT r.year)          AS seasons,
-            MIN(r.year)                     AS first_year,
-            MAX(r.year)                     AS last_year,
-            SUM(e.finish_position = 1)      AS wins,
-            SUM(e.finish_position <= 3)     AS podiums,
-            SUM(e.pole = 1)                 AS poles,
-            MIN(e.finish_position)          AS best
-       FROM race_entries e
-       JOIN races r ON r.id = e.race_id
-      WHERE e.driver_id = ?`,
   )
   // Constructors entered for, most often first; 377 entries name none.
   const constructorsOf = db.prepare(
@@ -821,11 +821,20 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
       GROUP BY c.id ORDER BY n DESC, c.name`,
   )
 
-  for (const d of drivers) {
-    const wins = winsOf.all(d.id)
-    const seasons = seasonsOf.all(d.id)
-    const derived = derivedOf.get(d.id)
-    const career = careerSentence(derived, constructorsOf.all(d.id).map((c) => c.name), d.titles)
+  for (const { id } of register) {
+    const d = one(DRIVER, id)
+    // The career as the race records count it, and the seasons as the app's
+    // table lays them out - the same SQL and the same shaping as Driver.jsx,
+    // so the strip and the table below are the app's, not a reading of the
+    // stored columns that disagreed with it on 14 of 38 drivers (PD-02).
+    // The description is built from the same row (CD-20) and never from
+    // `entries`/`starts`/`wins` on the drivers row: the page itself labels
+    // those "(published)", and a description that quoted them read "0 wins,
+    // 0 poles" for 81 drivers whose lede had just moved to `provenance`.
+    const derived = one(DERIVED, id) ?? {}
+    const seasons = seasonRows(all(BY_SEASON, id), all(STANDINGS, id))
+    const wins = winsOf.all(id)
+    const career = careerSentence(derived, constructorsOf.all(id).map((c) => c.name), d.titles)
     // The lede follows the derived sentence where there is room for a whole
     // sentence of it; a note that is one long sentence would otherwise be
     // cut mid-thought with an ellipsis, and the career alone is complete.
@@ -849,29 +858,12 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
       },
       body: `
         <h1>${esc(d.full_name)}</h1>
-        ${facts([
-          ['Nationality', text(d.nationality)],
-          ['Born', text(d.born)],
-          ['Died', d.died ? text(d.died) : null],
-          ['Seasons', `${d.first_season ?? '?'}–${d.last_season ?? 'present'}`],
-          // Entries is the count from the race records, as the app's strip
-          // shows it; the two published figures follow, labelled as the app
-          // labels them, because an entry is not a start and the records
-          // cannot tell them apart.
-          ['Entries', num(derived.entries)],
-          ['Entries (published)', num(d.entries)],
-          ['Starts (published)', num(d.starts)],
-          ['Wins', num(d.wins)],
-          ['Podiums', num(d.podiums)],
-          ['Poles', num(d.poles)],
-          ['Fastest laps', num(d.fastest_laps)],
-          ['Career points', num(d.career_points)],
-          ['Titles', d.titles ? `${d.titles} (${yearList(d.title_years)})` : num(d.titles)],
-          ['Status', text(d.status)],
-          ['Provenance', d.provenance ? esc(d.provenance) : null],
-          ['Confidence', d.confidence ? link('data/quality', d.confidence) : text(d.confidence)],
-        ])}
-        <p class="source-note">${esc(ENTRIES_NOTE)}</p>
+        ${facts(
+          strip(d, derived).map(({ label, value, note }) => [
+            label,
+            value === null ? null : `${esc(value)}${note ? ` <small>${esc(note)}</small>` : ''}`,
+          ]),
+        )}
         ${prose(d.notes)}
         ${disagree(careerDisagreements.all(d.full_name), 'this career')}
         ${
@@ -888,17 +880,23 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
         }
         ${
           seasons.length
-            ? `<h2>Seasons</h2>${table(
-                ['Season', 'Entries', 'Points', 'Team'],
-                seasons.map((s) => [
-                  link(`seasons/${s.year}`, s.year),
-                  String(s.entries),
-                  num(s.points),
-                  text(s.teams),
-                ]),
-              )}`
+            ? `<h2>Season by season</h2>${fromColumns(SEASON_COLUMNS, seasons, {
+                year: (year) => link(`seasons/${year}`, year),
+              })}<p class="faint">${esc(SEASONS_FOOTER)}</p>`
             : ''
-        }`,
+        }
+        <h2>On the record</h2>
+        ${
+          pointsDiffer(d, derived)
+            ? `<p class="note"><strong>${esc(pointsNote(d, derived).head)}</strong> ${esc(pointsNote(d, derived).body)}</p>`
+            : ''
+        }
+        ${facts([
+          ...record(d).map(([label, value]) => [label, esc(value)]),
+          ['Confidence', d.confidence ? link('data/quality', d.confidence) : text(d.confidence)],
+          ['Source', d.source ? `<a href="${esc(d.source)}">${esc(d.source)}</a>` : text(d.source)],
+        ])}
+        <p class="source-note">${esc(ENTRIES_NOTE)}</p>`,
     })
   }
 }
@@ -1299,7 +1297,13 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
 // ------------------------------------------------- records, sport, data
 
 {
-  const records = all(`SELECT * FROM records ORDER BY category, record`)
+  // The app's query and the app's column list, from the module Records.jsx
+  // reads: the static table had a Category column the app never shows and
+  // sorted by a different key (CR-23), and said nothing about the tier the
+  // app states once above its table (CR-22). Where every record shares a
+  // tier that sentence is the app's, around a link to the ladder.
+  const records = all(RECORDS)
+  const tiers = tiersOf(records)
   page({
     path: 'records',
     title: titled('Records'),
@@ -1307,19 +1311,14 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
     trail: [['', 'Home'], ['records', 'Records']],
     body: `
       <h1>Records</h1>
-      <p class="lede">Every record here is derived from the same tables as the leaderboards on
-        every build, as of the last completed race the database holds.</p>
-      ${table(
-        ['Category', 'Record', 'Holder', 'Value', 'How it is derived', 'As of'],
-        records.map((r) => [
-          esc(r.category),
-          esc(r.record),
-          text(r.holder),
-          text(r.value),
-          text(r.detail),
-          text(r.as_of),
-        ]),
-      )}`,
+      <p class="lede">${esc(RECORDS_LEDE)}${
+          tiers.length === 1
+            ? ` ${esc(tierBefore(records.length))}${link('data/quality', tiers[0])}${esc(TIER_AFTER)}`
+            : ''
+        }</p>
+      ${fromColumns(recordColumns(records), records, {
+        confidence: (value) => (value ? link('data/quality', value) : text(value)),
+      })}`,
   })
 
   const eras = all(`SELECT * FROM eras ORDER BY from_year`)

@@ -126,6 +126,9 @@ largest single fix and still has its riders.
       (no prerendered page carries the version or build date), `UR-13` (the
       2026 season's static page opens with five em dashes), `AX-17` (no static
       table has a caption), plus `CD-04`, `IA-03` and `PD-06` as before.
+      **Rung one landed in #77**: drivers register, driver page, records share
+      their queries and column lists with the prerenderer; the other pages
+      follow.
 
 
 - [ ] `IA-02` **`Reference` leaves the masthead; `Data` takes the slot.**
@@ -417,13 +420,6 @@ the source. `WK-` is this survey; nothing else uses the prefix.
 
 Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09-11-*.md` under the same ID. Items already in *Now* are not repeated.
 
-- [ ] `CR-22` **The static `/records` page is not the app's `/records`.**
-      Narrowed by #68: both renderers now open with the same one-sentence
-      claim — derived from the same tables as the leaderboards on every
-      build — and the static table carries the derivation column. What
-      remains is the tier: the app says once that every row is `reference`,
-      the static page says nothing about the tier at all. — *review of #55 · S*
-
 - [ ] `AF-02` **Keep the audit claim honest with a private repository.** Three
       S pieces. (1) Publish the checks' *results*, not the code: a served
       `checks.txt` or `/reference/checks` listing each `verify.py` check by its
@@ -492,6 +488,12 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       not the row id — and leave shared records as text. Found by the review
       of #68. — *product critique · S*
 
+- [ ] `CD-21` **The lede check misses a figure with an adjective before the
+      noun.** "four runner-up finishes", "Ten career wins", "three straight
+      wins" pass `verify.py`'s check (#74) because it wants the noun adjacent
+      to the number; the Bottas phrase #74 removed by hand is the shape it
+      misses. Allow one or two words between, and re-run. Found by the review
+      of #74. — *review of #74 · S*
 - [ ] `CR-23` **The static `/records` table has a `Category` column the app
       never shows.** Predates #68; the review of #68 measured it. Rides with
       `CR-22`. — *review of #68 · S*
@@ -511,13 +513,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       the driver's page, where the stored figure sits beside it as "Entries
       (stored)". One word, and the stored one labelled for what it is
       (published). Found by the review of #69. — *review of #69 · S*
-
-- [ ] `CD-21` **The lede check misses a figure with an adjective before the
-      noun.** "four runner-up finishes", "Ten career wins", "three straight
-      wins" pass `verify.py`'s check (#74) because it wants the noun adjacent
-      to the number; the Bottas phrase #74 removed by hand is the shape it
-      misses. Allow one or two words between, and re-run. Found by the review
-      of #74. — *review of #74 · S*
 
 - [ ] `CD-22` **The static driver description and the facts list disagree on
       the years.** The description derives first and last year from the
@@ -1500,6 +1495,25 @@ Real, but not costed, or waiting on a decision.
       regex reached it, Norris's. Each note keeps what its string already
       said; "Ten podiums." simply goes. — *review of #70 · #74*
 
+- [x] `CR-22` **The static `/records` page is not the app's `/records`.**
+      Narrowed by #68: both renderers open with the same one-sentence claim
+      and the static table carries the derivation column. What remained was
+      the tier: the app said once that every row is `reference`, the static
+      page said nothing about it. The static page now says it in the app's
+      sentence, from the app's query, in `web/src/queries/records.js`. —
+      *review · #77*
+
+- [x] `CR-23` **The static `/records` table has a `Category` column the app
+      never shows.** Predates #68; the review of #68 measured it. The static
+      table is now drawn from the app's column list, so it cannot carry a
+      column the app does not. — *review · #77*
+
+- [x] `CR-24` **The static drivers register is not the app's.** Eight
+      columns against nine, Poles before Podiums against Podiums before
+      Poles, no Fastest laps. Same defect as `CR-22`/`CR-23`. The register is
+      now the app's query and column list, from `web/src/queries/drivers.js`;
+      the driver page's strip and its season table follow the same way.
+      Found by the review of #69. — *review · #77*
 - [x] `WK-04` **The new-team entry fee is a press figure, and the database
       says so.** A `known_gaps` row: the anti-dilution fund is a term of a
       private contract, the US$200m and US$450m figures are reported, not
@@ -1518,6 +1532,15 @@ Real, but not costed, or waiting on a decision.
       and Blokdyk 1963, Courage and Irwin 1967), which the warning's own
       comment already said; it is an `[info]` line now. — *project record ·
       #80*
+- [x] `CD-21` **The lede check allows an adjective before the noun.** Up to
+      two lower-case words may sit between the number and the noun ("three
+      straight wins"); a capitalised word names a subset the page never
+      totals ("Six Monaco wins", verified 6, and Hill's 5) and stays; "GP"
+      qualifies the noun like "Grand Prix". Re-run, it found five: Ascari's,
+      Vettel's and Schumacher's streaks were right and are now dated rather
+      than counted, Surtees's seven motorcycle titles are counted as times
+      rather than titles, and Montoya's "fourth GP start" was wrong — the pass on
+      Schumacher at Interlagos 2001 was his third. — *review of #74 · #79*
 
 ## Declined
 

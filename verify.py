@@ -1378,6 +1378,13 @@ def the_driver_register():
     # above it does, and the race records can contradict it: Hulkenberg's
     # pole came on his eighteenth start, and the note said eighth. A margin
     # ("by two points") is not a total the strip shows and is left alone.
+    # Up to two lower-case words may sit between the number and the noun:
+    # "four runner-up finishes", "Ten career wins" and "three straight wins"
+    # are the same figure with an adjective in the way, and the first check
+    # wanted the noun adjacent (CD-21, found by the review of #74). A
+    # capitalised word between them names a subset the page never totals -
+    # "Six Monaco wins", "six Le Mans wins" - and those are left to the
+    # note; "GP" is the noun's own qualifier, like "Grand Prix".
     _units = ("one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|"
               "thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen")
     _tens = "twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred"
@@ -1387,13 +1394,15 @@ def the_driver_register():
                 r"(?:second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|"
                 r"twentieth|thirtieth|fortieth|fiftieth|sixtieth|seventieth|"
                 r"eightieth|ninetieth|hundredth))")
-    _plural = (r"(?:Grands? Prix )?"
-               r"(?:starts|races|entries|wins|poles|podiums|points|fastest laps|titles)")
-    _either = (r"(?:Grands? Prix )?"
+    _plural = (r"(?:(?:Grands? Prix|GP) )?"
+               r"(?:starts|races|entries|wins|poles|podiums|points|fastest laps|titles|"
+               r"finishes|victories|championships)")
+    _either = (r"(?:(?:Grands? Prix|GP) )?"
                r"(?:starts?|races?|entries|entry|wins?|poles?|podiums?|points?|"
                r"fastest laps?|titles?)")
-    _figure = re.compile(rf"(?<!\bby )\b(?:{_cardinal} {_plural}|{_ordinal} {_either})\b",
-                         re.IGNORECASE)
+    _between = r"(?-i:(?:[a-z][\w-]* ){0,2})"
+    _figure = re.compile(rf"(?<!\bby )\b(?:{_cardinal} {_between}{_plural}"
+                         rf"|{_ordinal} {_between}{_either})\b", re.IGNORECASE)
     _typed = [f"{r[0]} ({_m.group(0)})" for r in con.execute(
         "SELECT id, notes FROM drivers WHERE notes IS NOT NULL ORDER BY id")
         if (_m := _figure.search(r[1]))]
