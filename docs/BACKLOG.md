@@ -1630,12 +1630,16 @@ Real, but not costed, or waiting on a decision.
       citation should name stays a reader's judgement, as `PM-28` was. —
       *review of #87 · #90*
 
-- [x] `PD-12` **The lap-timing constraint is a position.** The shared
-      `NOT_HELD` sentence on `/data`, in both renderers, opens with what the
-      absence means — no one may lawfully redistribute Formula One lap
-      timing, so this database holds none, and everything here may be passed
-      on — before it names the four empty tables. The gaps table keeps its
-      row; the front door states the advantage. — *product critique · #94*
+- [x] `PD-12` **The timing constraint is a position.** The shared `NOT_HELD`
+      sentence on `/data`, in both renderers, opens with what the absence
+      means — nobody publishes Formula One race timing under a licence that
+      permits passing it on, so this database holds none of it, and
+      everything here may be passed on under the licence shown beside it —
+      before it names the four empty tables. The first cut said "no one may
+      lawfully redistribute lap timing", which the review of #94 showed was
+      a claim about the law rather than the licences and collided with the
+      27,000 qualifying lap times F1DB publishes under CC BY; `known_gaps`
+      #5 carries the same words. — *product critique · #94*
 
 ## Declined
 
