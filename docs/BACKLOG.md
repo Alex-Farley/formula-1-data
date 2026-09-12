@@ -203,19 +203,6 @@ Worth doing, not yet urgent.
 
 
 
-- [ ] `PM-20` **Clear the two actionable `verify.py` data warnings.** Two
-      qualifying rows have no matching race entry; three chassis are claimed as
-      entered after their car's authored life ends (`ferrari-500`,
-      `cooper-t51`, `lotus-25`). Both are genuinely small and can ride along
-      with any data sitting. The centreline warning that used to sit here is
-      now `PM-26`, because it is upstream data repair and was borrowing an S
-      from its two small siblings. The open-`discrepancies` warning that
-      used to sit beside them reads one row rather than eighteen since
-      `PM-05` and `PM-25` (1970 r1, a genuine source disagreement); of the
-      warnings left after these two, only that one, the Nürburgring
-      Südschleife, the unrun 2026 r17 sprint and `PM-26`'s centrelines are
-      expected. — *project record · S*
-
 - [ ] `PM-12` **Loosen the specification harvest's name check.** It refuses
       "Alfa Romeo 158/159 Alfetta" for `alfa-romeo-159`. Match the chassis name
       as a token subsequence rather than a strict prefix; the constructor and
@@ -1498,6 +1485,19 @@ Real, but not costed, or waiting on a decision.
       private contract, the US$200m and US$450m figures are reported, not
       published, and no `governance` row carries them. Closes if the FIA or
       Formula One publishes the figure. — *Wikipedia survey · #78*
+
+- [x] `PM-20` **The two data warnings are read, and neither was data to
+      sit.** The two qualifying rows without a race entry are the HRTs that
+      failed the 107 per cent rule at Melbourne in 2011: F1DB's qualifying
+      holds them, its classification omits them (its 2012 classification
+      records the same case as DNQ). Not added by hand — `race_entries`
+      carries one source and the harvest is rewritten by the fetch — but
+      declared: an open `known_gaps` row, and the warning is now a check
+      pinned to the pair by identity. The three chassis entered after their
+      car's works career are real privateer entries (de Tomaso 1957, Dochnal
+      and Blokdyk 1963, Courage and Irwin 1967), which the warning's own
+      comment already said; it is an `[info]` line now. — *project record ·
+      #80*
 
 ## Declined
 

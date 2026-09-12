@@ -1506,9 +1506,14 @@ def the_chassis_register():
     # two fields mean different things: `cars.to_year` is the works career, and
     # the entry lists record every entry including the privateers who bought the
     # thing afterwards. Ferrari 500s were still being entered in 1957, four years
-    # after the works team moved on.
-    warn("no claimed chassis outlives its car's authored life", not late,
-         "; ".join(late))
+    # after the works team moved on. Reported, not warned: a warning is for
+    # something to act on, and this was read as one for three versions
+    # (PM-20) before the register rows were checked - de Tomaso's Ferrari 500 in
+    # 1957, Dochnal's and Blokdyk's Cooper T51s in 1963, Courage's and Irwin's
+    # Lotus 25s in 1967 are all real entries.
+    if late:
+        print(f"  [info] {len(late)} curated cars have chassis entered after the works "
+              f"career ended, by privateers: " + "; ".join(late))
     print(f"  [info] the 29 curated cars cover {len(claimed)} register chassis")
 
     bad = con.execute("""SELECT COUNT(*) FROM chassis c WHERE c.car_id IS NOT NULL
@@ -2168,12 +2173,26 @@ def the_full_classification():
           ", ".join(sorted(codes)))
 
     if nqual:
-        orphan = con.execute("""SELECT COUNT(*) FROM qualifying q
-            WHERE NOT EXISTS (SELECT 1 FROM race_entries e
-                              WHERE e.race_id = q.race_id
-                                AND e.driver_id = q.driver_id)""").fetchone()[0]
-        warn("every qualifying row has a matching race entry", orphan == 0,
-             f"{orphan} qualified for a race they have no entry in")
+        # A qualifying row with no race entry is a car that took part in the
+        # weekend and is missing from the classification. Two are declared:
+        # the HRTs that failed the 107 per cent rule at Melbourne in 2011,
+        # which F1DB's qualifying holds and its classification omits
+        # (known_gaps, race_entries). Pinned by identity, not by count, so a
+        # third such row fails rather than riding along.
+        orphan = {(r[0], r[1], r[2]) for r in con.execute("""
+            SELECT r.year, r.round, q.driver_id FROM qualifying q
+              JOIN races r ON r.id = q.race_id
+             WHERE NOT EXISTS (SELECT 1 FROM race_entries e
+                               WHERE e.race_id = q.race_id
+                                 AND e.driver_id = q.driver_id)""")}
+        declared = {(2011, 1, "vitantonio-liuzzi"), (2011, 1, "narain-karthikeyan")}
+        check("every qualifying row without a race entry is the declared 2011 Melbourne pair",
+              orphan == declared,
+              "; ".join(f"{y} r{r} {d}" for y, r, d in sorted(orphan ^ declared)))
+        gap_declared = con.execute("""SELECT COUNT(*) FROM known_gaps
+            WHERE field = 'race_entries' AND state = 'open'""").fetchone()[0]
+        check("the 2011 Melbourne pair is an open row in known_gaps", gap_declared == 1,
+              f"{gap_declared} open race_entries gaps")
 
         # Pre-knockout qualifying is one time; the knockout era is three segments
         # and no single time. Neither is back-filled from the other, and a row
