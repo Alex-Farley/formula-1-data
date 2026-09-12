@@ -79,15 +79,31 @@ function send(type, payload, signal) {
  * nobody was told to attempt. There is no interrupt: the only way to stop a
  * statement is to terminate the worker. So that is what this does - and then
  * opens a fresh one (from IndexedDB, well under a second on a second visit)
- * and re-sends every OTHER request that was waiting behind the runaway, so
- * the pages that were mid-query fill in as if nothing had happened. Only
- * the cancelled request is rejected, with an AbortError.
+ * and re-sends every PAGE QUERY that was waiting behind the runaway, so the
+ * pages that were mid-query fill in as if nothing had happened.
+ *
+ * Console statements are never re-sent - not even the ones that were not the
+ * victim. The review of the first cut found why: with two console statements
+ * in flight, cancelling the second replayed the first, and the first was the
+ * runaway. So every waiting readOnly request is rejected with the same
+ * AbortError, and the console runs one statement at a time.
  */
+const aborted = () => {
+  const error = new Error('Cancelled. The statement was stopped and the connection reopened.')
+  error.name = 'AbortError'
+  return error
+}
+
 function cancel(id) {
   const victim = requests.get(id)
   if (!victim) return
   requests.delete(id)
-  const survivors = [...requests].filter(([, r]) => r.type !== 'open')
+  const survivors = []
+  const dropped = []
+  for (const [rid, r] of requests) {
+    if (r.type === 'query') survivors.push([rid, r])
+    else if (r.type !== 'open') dropped.push(r)
+  }
   requests.clear()
   worker?.terminate?.()
   worker = null
@@ -99,9 +115,8 @@ function cancel(id) {
     requests.set(rid, r)
     worker.postMessage({ id: rid, type: r.type, payload: r.payload })
   }
-  const error = new Error('Cancelled. The statement was stopped and the connection reopened.')
-  error.name = 'AbortError'
-  victim.reject(error)
+  for (const r of dropped) r.reject(aborted())
+  victim.reject(aborted())
 }
 
 let opened = null

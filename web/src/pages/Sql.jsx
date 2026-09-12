@@ -121,6 +121,10 @@ export default function Sql() {
   }, [])
 
   const run = async (statement = text) => {
+    // One statement at a time. The Run button is disabled while one runs, but
+    // Ctrl+Enter and the example buttons were not, and a second statement
+    // behind a stuck one left Cancel aborting the wrong request.
+    if (running.current) return
     const complaint = complain(statement)
     if (complaint) {
       setState({ status: 'error', error: new Error(complaint) })
@@ -148,6 +152,11 @@ export default function Sql() {
   // three-way self-join held the single worker every page shares for the
   // rest of the session; navigating away showed skeletons that never filled.
   const cancel = () => running.current?.abort()
+
+  // Leaving the page stops the statement. Before this, a runaway typed here
+  // and abandoned held the worker every register shares, and the next page
+  // showed skeletons that never filled.
+  useEffect(() => () => running.current?.abort(), [])
 
   useEffect(() => {
     run(START)

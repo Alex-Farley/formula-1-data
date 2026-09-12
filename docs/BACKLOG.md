@@ -1153,11 +1153,16 @@ Real, but not costed, or waiting on a decision.
 
 - [x] `IX-04` **A runaway console query can be cancelled.** sql.js has no
       interrupt, so Cancel terminates the worker, reopens the database (from
-      IndexedDB on a return visit) and re-sends every other page's waiting
-      request; only the cancelled statement is rejected. The smoke suite runs
-      a three-way self-join, cancels it, and checks the console and a register
-      both work afterwards. No timeout: a slow honest query is the reader's
-      to wait for or stop. — *interaction critique · #58*
+      IndexedDB on a return visit) and re-sends every page query that was
+      waiting; console statements are never re-sent, and the console runs one
+      at a time — the first cut replayed the runaway itself, and the review
+      caught it. Leaving the page stops its statement. The smoke suite runs a
+      three-way self-join, refuses a second Run, cancels, and checks the
+      console and a register both work afterwards, then leaves the console
+      mid-runaway and checks the register fills. The re-send of a waiting
+      page query is covered by reading, not by the suite: nothing on the
+      console page queries while a statement runs. No timeout: a slow honest
+      query is the reader's to wait for or stop. — *interaction critique · #58*
 
 ## Declined
 

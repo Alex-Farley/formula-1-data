@@ -832,9 +832,20 @@ try {
   // three-way self-join would hold the worker for the rest of the session; the
   // Cancel button replaces the worker, and the next query - and the next page -
   // must work as if nothing happened.
-  await page.fill('textarea.sql', 'SELECT COUNT(*) AS n FROM race_entries a, race_entries b, race_entries c')
+  const RUNAWAY = 'SELECT COUNT(*) AS n FROM race_entries a, race_entries b, race_entries c'
+  await page.fill('textarea.sql', RUNAWAY)
   await page.click('button.button')
   await page.waitForSelector('button.button.cancel', { timeout: 5000 })
+  // A second statement while one is stuck is refused: otherwise Cancel aborted
+  // the newer request and replayed the runaway onto the fresh worker.
+  await page.focus('textarea.sql')
+  await page.keyboard.press('Control+Enter')
+  await page.waitForTimeout(500)
+  truthy(
+    (await page.$('button.button.cancel')) &&
+      !(await page.evaluate(() => /Cancelled after/.test(document.querySelector('#root main')?.textContent ?? ''))),
+    'a second run while one is stuck is refused',
+  )
   await page.click('button.button.cancel')
   await page.waitForFunction(
     () => /^Cancelled after/.test(document.querySelector('#root main [role="status"]')?.textContent ?? ''),
@@ -850,9 +861,14 @@ try {
     { timeout: 20000 },
   )
   pass('the console works again after a cancel')
+  // The critique's scenario verbatim: leave the console with a statement
+  // stuck, and the next register must fill rather than show skeletons.
+  await page.fill('textarea.sql', RUNAWAY)
+  await page.click('button.button')
+  await page.waitForSelector('button.button.cancel', { timeout: 5000 })
   await go('/drivers', 'Drivers')
   await page.waitForSelector('#root main tbody tr', { timeout: 20000 })
-  atLeast((await tableRows())[0], 100, 'a register fills after the console cancel')
+  atLeast((await tableRows())[0], 100, 'leaving the console stops its statement, and the register fills')
 
   // ------------------------------------------------------------------ sorting
 
