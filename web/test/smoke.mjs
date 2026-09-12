@@ -857,6 +857,31 @@ try {
   truthy(navBox.hidden === 0 && !navBox.scrollable, `every masthead item is on screen at 375 px (${navBox.rows} rows)`)
   await page.setViewportSize({ width: 1280, height: 900 })
 
+  // A season without a champion yet opens with its leader, in the app and in
+  // the static page, and the static standings table lists each driver once.
+  {
+    const open = db.prepare("SELECT year FROM seasons WHERE drivers_champion IS NULL ORDER BY year DESC LIMIT 1").get()
+    if (open) {
+      const lead = db
+        .prepare("SELECT entity, points FROM v_standings_final WHERE year = ? AND table_type = 'drivers' ORDER BY position LIMIT 1")
+        .get(open.year)
+      console.log(`\n/seasons/${open.year}  (a season still running)`)
+      await go(`/seasons/${open.year}`, String(open.year))
+      await page.waitForSelector('#root main .stats', { timeout: 20000 }).catch(() => null)
+      const stats = await page.$eval('#root main', (m) => m.textContent)
+      truthy(stats.includes('Leads') && stats.includes(lead.entity), `the app leads with ${lead.entity}`)
+      const html = await (await fetch(`${BASE}/seasons/${open.year}`)).text()
+      truthy(
+        html.includes(lead.entity) && !html.includes('Runner-up'),
+        'the static page leads with the leader rather than an empty champion',
+      )
+      const section = html.slice(html.indexOf('Championship standings after round'))
+      const listed = (section.match(/<tr[\s>]/g) ?? []).length - 1
+      const rows = one("SELECT COUNT(*) FROM v_standings_final WHERE year = ? AND table_type = 'drivers'", open.year)
+      is(listed, Math.min(rows, 12), 'the static standings table lists each driver once')
+    }
+  }
+
   // ----------------------------------------------------------------- SQL
 
   console.log('\n/reference/sql')
