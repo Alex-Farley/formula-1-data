@@ -23,7 +23,7 @@ import {
   TITLES,
   recordColumns,
   tierBefore,
-  tiersOf,, RECORDS_LEDE } from '../queries/records.js'
+  tiersOf, RECORDS_LEDE } from '../queries/records.js'
 
 /**
  * What only the app adds to the shared column lists: the links. The queries
