@@ -5,7 +5,7 @@
  * re-exports, and the whole reason to prefer this database over its upstream:
  * where two sources differ and neither can be checked officially, the
  * disagreement is recorded instead of one of them being picked silently. It
- * lived only on /reference/quality, aggregated, which is the one place a reader
+ * lived only on /data/quality, aggregated, which is the one place a reader
  * who cares about a particular race will never be looking.
  *
  * So it goes beside the fact instead. A reader on the 2021 Hungarian Grand Prix
@@ -98,7 +98,7 @@ export default function Disagreement({ rows, what = 'this' }) {
       </dl>
       <p className="source-note">
         Recorded rather than resolved, and open for somebody to settle. Every one is listed on{' '}
-        <Link to="/reference/quality">the quality page</Link>.
+        <Link to="/data/quality">the quality page</Link>.
       </p>
     </aside>
   )

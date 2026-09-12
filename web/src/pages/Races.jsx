@@ -38,6 +38,7 @@ export default function Races() {
           { to: '/seasons', label: 'Seasons', hint: 'The same races, grouped into championships.' },
           { to: '/circuits', label: 'Circuits', hint: 'The venues these races were held at.' },
           { to: '/records', label: 'Records', hint: 'Who won the most of them.' },
+          { to: '/reference/glossary', label: 'Glossary', hint: 'What the words on a classification mean.' },
         ]}
       />
     </Page>

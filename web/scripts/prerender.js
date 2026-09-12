@@ -48,7 +48,7 @@ import { fileURLToPath } from 'node:url'
 // than restated here: a copy of it would drift, which is how the twelve
 // hardcoded `circuit_geometry` columns went wrong.
 import { finished, yearList } from '../src/lib/format.js'
-import { SELF_DESCRIBING, SITE, TWO_FILES, titled } from '../src/lib/site.js'
+import { CROSS_CHECKED, NOT_HELD, SELF_DESCRIBING, SITE, TWO_FILES, titled } from '../src/lib/site.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const web = join(here, '..')
@@ -171,7 +171,7 @@ const disagree = (rows, what) => {
         </dd></div>`,
       )
       .join('')}</dl>
-    <p class="source-note">Recorded rather than resolved, and open for somebody to settle. Every one is listed on ${link('reference/quality', 'the quality page')}.</p>
+    <p class="source-note">Recorded rather than resolved, and open for somebody to settle. Every one is listed on ${link('data/quality', 'the quality page')}.</p>
   </aside>`
 }
 
@@ -193,7 +193,7 @@ const NAV = [
   ['circuits', 'Circuits'],
   ['cars', 'Cars'],
   ['records', 'Records'],
-  ['reference', 'Reference'],
+  ['data', 'Data'],
 ]
 
 const chrome = (body, crumbs) => `
@@ -209,7 +209,7 @@ const chrome = (body, crumbs) => `
     ${body}
   </main>
   <footer class="sitefoot"><div class="sitefoot-inner"><div>
-    <p>Every page here is a query against one SQLite file, running in your browser. ${link('reference/quality', 'How far to trust it')} · ${link('reference/sources', 'sources')} · ${link('reference/sql', 'write your own query')}.</p>
+    <p>Every page here is a query against one SQLite file, running in your browser. ${link('data/quality', 'How far to trust it')} · ${link('data/sources', 'sources')} · ${link('data/sql', 'write your own query')}.</p>
     <p class="faint">Race data from <a href="https://github.com/f1db/f1db">F1DB</a> (CC BY 4.0), prose and registers from Wikipedia (CC BY-SA 4.0), circuit geometry © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL 1.0). Unaffiliated with Formula One, the FIA or any team.</p>
   </div><dl><dt>Database</dt><dd>v${esc(META.version)}</dd><dt>Built</dt><dd>${esc(META.built)}</dd></dl></div></footer>
 </div>`
@@ -616,7 +616,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
                       : text(r.fastest_lap)
                   })(),
                 ],
-                ['Confidence', r.confidence ? link('reference/quality', r.confidence) : text(r.confidence)],
+                ['Confidence', r.confidence ? link('data/quality', r.confidence) : text(r.confidence)],
               ]),
         ])}
         ${prose(r.note)}
@@ -662,6 +662,9 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
   )
   const teams = Object.fromEntries(all('SELECT id, name FROM constructors').map((c) => [c.id, c.name]))
 
+  const racesOf = Object.fromEntries(
+    all('SELECT driver_id, COUNT(*) AS n FROM race_entries GROUP BY driver_id').map((r) => [r.driver_id, r.n]),
+  )
   page({
     path: 'drivers',
     title: titled('Every driver, 1950–2026'),
@@ -672,17 +675,30 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
       <p class="lede">${drivers.length} drivers. Career totals are counted from the race records
         wherever the records support it; an em dash means nobody has established that figure.</p>
       ${table(
-        ['Driver', 'Nationality', 'Seasons', 'Starts', 'Wins', 'Poles', 'Podiums', 'Titles'],
-        drivers.map((d) => [
-          link(`drivers/${d.id}`, d.full_name),
-          text(d.nationality),
-          `${d.first_season ?? '?'}–${d.last_season ?? 'present'}`,
-          num(d.starts),
-          num(d.wins),
-          num(d.poles),
-          num(d.podiums),
-          num(d.titles),
-        ]),
+        ['Driver', 'Nationality', 'Seasons', 'Races', 'Wins', 'Poles', 'Podiums', 'Titles'],
+        // Most wins first, as the app opens; Races counted from the race
+        // records, the stored `starts` being held for 31 drivers only. The
+        // tie-break compares names as SQLite does (BINARY), not with the
+        // locale, so the static order is the app's order row for row.
+        [...drivers]
+          .sort(
+            (a, b) =>
+              (b.wins ?? 0) - (a.wins ?? 0) ||
+              (b.podiums ?? 0) - (a.podiums ?? 0) ||
+              (a.full_name < b.full_name ? -1 : a.full_name > b.full_name ? 1 : 0),
+          )
+          .map((d) => [
+            link(`drivers/${d.id}`, d.full_name),
+            text(d.nationality),
+            `${d.first_season ?? '?'}–${d.last_season ?? 'present'}`,
+            // 0 is established here: a driver with no race_entries row (two
+            // of them) has been entered for no race the records hold.
+            num(racesOf[d.id] ?? 0),
+            num(d.wins),
+            num(d.poles),
+            num(d.podiums),
+            num(d.titles),
+          ]),
       )}`,
   })
 
@@ -747,7 +763,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
           ['Career points', num(d.career_points)],
           ['Titles', d.titles ? `${d.titles} (${yearList(d.title_years)})` : num(d.titles)],
           ['Status', text(d.status)],
-          ['Confidence', d.confidence ? link('reference/quality', d.confidence) : text(d.confidence)],
+          ['Confidence', d.confidence ? link('data/quality', d.confidence) : text(d.confidence)],
         ])}
         ${prose(d.notes)}
         ${disagree(careerDisagreements.all(d.full_name), 'this career')}
@@ -860,7 +876,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
           ["Constructors' titles", c.constructors_titles ? `${c.constructors_titles} (${yearList(c.title_years)})` : num(c.constructors_titles)],
           ["Drivers' titles", num(c.drivers_titles)],
           ['Active', c.active === null ? null : c.active ? 'Yes' : 'No'],
-          ['Confidence', c.confidence ? link('reference/quality', c.confidence) : text(c.confidence)],
+          ['Confidence', c.confidence ? link('data/quality', c.confidence) : text(c.confidence)],
         ])}
         ${prose(c.notes)}
         ${disagree(teamDisagreements.all(c.name), 'this team')}
@@ -954,7 +970,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
           ['Grands Prix', num(c.gp_count)],
           ['First', c.first_gp ? link(`seasons/${c.first_gp}`, c.first_gp) : '—'],
           ['Last', c.last_gp ? link(`seasons/${c.last_gp}`, c.last_gp) : '—'],
-          ['Confidence', c.confidence ? link('reference/quality', c.confidence) : text(c.confidence)],
+          ['Confidence', c.confidence ? link('data/quality', c.confidence) : text(c.confidence)],
         ])}
         ${prose(c.characteristics)}
         ${prose(c.notes)}
@@ -1146,7 +1162,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
           ['Races', num(entries.length)],
           ['Wins', num(ch.wins)],
           ['Published wins', ch.published_wins === null ? null : num(ch.published_wins)],
-          ['Confidence', ch.confidence ? link('reference/quality', ch.confidence) : text(ch.confidence)],
+          ['Confidence', ch.confidence ? link('data/quality', ch.confidence) : text(ch.confidence)],
         ])}
         ${
           ch.car_id && curated.has(ch.car_id)
@@ -1173,7 +1189,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
   }
 }
 
-// -------------------------------------------------------------- reference
+// ------------------------------------------------- records, sport, data
 
 {
   const records = all(`SELECT * FROM records ORDER BY category, record`)
@@ -1204,7 +1220,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
     path: 'reference/eras',
     title: titled('Eras'),
     description: 'Formula One divided into eras, with the dominant teams and defining features of each.',
-    trail: [['', 'Home'], ['reference', 'Reference'], ['reference/eras', 'Eras']],
+    trail: [['', 'Home'], ['reference/eras', 'Eras']],
     body: `
       <h1>Eras</h1>
       ${eras
@@ -1226,7 +1242,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
     path: 'reference/glossary',
     title: titled('Glossary'),
     description: `${glossary.length} Formula One terms defined — the vocabulary the rest of this database uses.`,
-    trail: [['', 'Home'], ['reference', 'Reference'], ['reference/glossary', 'Glossary']],
+    trail: [['', 'Home'], ['reference/glossary', 'Glossary']],
     body: `
       <h1>Glossary</h1>
       <dl class="glossary">${glossary
@@ -1236,11 +1252,11 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
 
   const sources = all(`SELECT * FROM source_registry ORDER BY id`)
   page({
-    path: 'reference/sources',
+    path: 'data/sources',
     title: titled('Sources'),
     description:
       'Every source this database draws on, what it is trusted for, its licence, and how its claims are cross-checked.',
-    trail: [['', 'Home'], ['reference', 'Reference'], ['reference/sources', 'Sources']],
+    trail: [['', 'Home'], ['data', 'Data'], ['data/sources', 'Sources']],
     body: `
       <h1>Sources</h1>
       <p class="lede">What each source is trusted for, under what licence, and what constrains it.</p>
@@ -1261,30 +1277,115 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
         .join('')}`,
   })
 
-  page({
-    path: 'reference',
-    title: titled('Reference'),
-    description:
-      'Eras, glossary, sources, data quality and a SQL console — the apparatus behind the figures.',
-    trail: [['', 'Home'], ['reference', 'Reference']],
-    body: `
-      <h1>Reference</h1>
+  // The database's front door — the one crawlable surface that can carry the
+  // claim, since robots.txt keeps crawlers off the files it links. The
+  // wording is site.js's, shared with Data.jsx, so the static page and the
+  // app cannot claim different things. The JSON-LD is a Dataset: the one
+  // search surface built for the reader this page is for.
+  {
+    const shape = one(`
+      SELECT (SELECT COUNT(*) FROM sqlite_master WHERE type = 'table') AS tables,
+             (SELECT COUNT(*) FROM sqlite_master WHERE type = 'view')  AS views,
+             (SELECT COUNT(*) FROM source_registry)                    AS sources,
+             (SELECT COUNT(*) FROM discrepancies)                      AS discrepancies,
+             (SELECT COUNT(*) FROM discrepancies WHERE status LIKE 'open%') AS open_discrepancies,
+             (SELECT COUNT(*) FROM known_gaps)                         AS gaps,
+             (SELECT COUNT(*) FROM races)                              AS races,
+             (SELECT COUNT(*) FROM race_entries)                       AS entries`)
+    const classes = Object.fromEntries(
+      all('SELECT redistributable, COUNT(*) AS n FROM source_registry GROUP BY redistributable').map((r) => [r.redistributable, r.n]),
+    )
+    const ladder = all('SELECT confidence FROM provenance ORDER BY rank').map((r) => r.confidence)
+    const download = (file, label) => ({
+      '@type': 'DataDownload',
+      name: label,
+      contentUrl: `${ORIGIN}${href(file)}`,
+    })
+    page({
+      path: 'data',
+      title: titled('Data'),
+      description: `The whole site is one SQLite file, and you can have it. Formula One 1950–2026, v${META.version}, built ${META.built}. ${CROSS_CHECKED}`,
+      trail: [['', 'Home'], ['data', 'Data']],
+      jsonld: {
+        '@context': 'https://schema.org',
+        '@type': 'Dataset',
+        name: `${SITE} — Formula One, 1950–2026`,
+        description: CROSS_CHECKED,
+        url: `${ORIGIN}${href('data')}`,
+        version: META.version,
+        dateModified: META.built,
+        temporalCoverage: String(META.coverage_seasons ?? '').replace('-', '/'),
+        license: 'https://creativecommons.org/licenses/by-sa/4.0/',
+        isAccessibleForFree: true,
+        creator: { '@type': 'Organization', name: SITE, url: `${ORIGIN}${BASE}` },
+        distribution: [
+          { ...download('f1.db', 'f1.db — the SQLite database'), encodingFormat: 'application/vnd.sqlite3' },
+          { ...download('f1.db.gz', 'f1.db.gz — the same, gzipped'), encodingFormat: 'application/gzip' },
+          {
+            ...download('f1-geometry.db', 'f1-geometry.db — circuit centrelines, © OpenStreetMap contributors, ODbL 1.0'),
+            encodingFormat: 'application/vnd.sqlite3',
+            license: 'https://opendatacommons.org/licenses/odbl/1-0/',
+          },
+          { ...download('f1-parquet.zip', 'f1-parquet.zip — every table as Parquet'), encodingFormat: 'application/zip' },
+        ],
+      },
+      body: `
+      <h1>Data</h1>
+      <p class="lede">The whole site is one SQLite file, and you can have it. What it is, the files
+        it comes as, how far to trust it, and what you may do with it.</p>
+      ${facts([
+        ['Database', `v${esc(META.version)}`],
+        ['Built', esc(META.built)],
+        ['Covers', esc(META.coverage_seasons)],
+        ['Tables', `${shape.tables.toLocaleString()}, and ${shape.views.toLocaleString()} views`],
+        ['Races', `${shape.races.toLocaleString()}, in ${shape.entries.toLocaleString()} race entries`],
+      ])}
+      <p>${esc(CROSS_CHECKED)}</p>
+      <h2>The files</h2>
       <ul class="cards">
-        <li>${link('reference/eras', 'Eras')} — Formula One divided into periods.</li>
-        <li>${link('reference/glossary', 'Glossary')} — the vocabulary.</li>
-        <li>${link('reference/sources', 'Sources')} — where every figure comes from.</li>
-        <li>${link('reference/quality', 'Data quality')} — what is verified, what is not, what is missing.</li>
-        <li>${link('reference/sql', 'SQL console')} — ask the database yourself.</li>
-      </ul>`,
-  })
+        <li><a href="${esc(href('f1.db'))}"><code>f1.db</code></a> — the database, as built. Open it with any SQLite client; <code>circuit_geometry</code> in it is deliberately empty.</li>
+        <li><a href="${esc(href('f1-geometry.db'))}"><code>f1-geometry.db</code></a> — the circuit centrelines, © OpenStreetMap contributors under ODbL 1.0, in a file of their own.</li>
+        <li><a href="${esc(href('f1-parquet.zip'))}"><code>f1-parquet.zip</code></a> — every table as Parquet, one file each; pandas, polars and DuckDB read it directly.</li>
+      </ul>
+      <p>${esc(TWO_FILES)} ${esc(SELF_DESCRIBING)}</p>
+      <p class="faint">Two JSON exports — <code>f1_database.json.gz</code>, every table, and
+        <code>f1_compat.json</code>, the original v1 key layout — are written by the same build
+        and travel with each release rather than being served from here.</p>
+      <h2>How far to trust it</h2>
+      ${facts([
+        ['Disagreements on record', `${shape.discrepancies.toLocaleString()}, ${shape.open_discrepancies.toLocaleString()} still open`],
+        ['Known gaps', shape.gaps.toLocaleString()],
+        ['Sources', `${shape.sources.toLocaleString()}, each with its licence`],
+        ['The ladder', esc(ladder.join(' › '))],
+      ])}
+      <p>Only an official source — the FIA or formula1.com — carries a row to the top. Where a
+        career total derived from the race records differs from a published one, both are shown.
+        ${link('data/quality', 'The full account')}: the ladder defined, every gap, every
+        disagreement, and the reconciliation that runs on each build.</p>
+      <h2>What you may do with it</h2>
+      ${facts([
+        ['Redistributable', `${(classes.yes ?? 0).toLocaleString()} sources — their rows may be passed on under the licence shown beside them.`],
+        ['Facts only', `${(classes['facts-only'] ?? 0).toLocaleString()} sources — the facts are used; nothing is copied.`],
+        ['Not redistributable', `${(classes.no ?? 0).toLocaleString()} sources — on the register so the position is on record; no row may cite one.`],
+      ])}
+      <p>${esc(NOT_HELD)}</p>
+      <p>Race data from F1DB is CC BY 4.0; prose and registers from Wikipedia are CC BY-SA 4.0 and
+        carry share-alike; the centrelines are ODbL and the obligation follows
+        <code>f1-geometry.db</code> alone. ${link('data/sources', 'Every source')}, what it is
+        trusted for, and what each licence cost or bought.</p>
+      <h2>Ask it something</h2>
+      <p>${link('data/sql', 'The SQL console')} runs any read against the whole database in your
+        browser. Nothing is sent anywhere, and a query&rsquo;s address is a link to it.</p>`,
+    })
+  }
 
   const gaps = all(`SELECT * FROM known_gaps ORDER BY id`)
   page({
-    path: 'reference/quality',
+    path: 'data/quality',
     title: titled('Data quality'),
     description:
       'The confidence model, the open discrepancies and every known gap — what this database does not know, stated rather than hidden.',
-    trail: [['', 'Home'], ['reference', 'Reference'], ['reference/quality', 'Data quality']],
+    trail: [['', 'Home'], ['data', 'Data'], ['data/quality', 'Data quality']],
     body: `
       <h1>Data quality</h1>
       <p class="lede">A blank in this database is an unestablished fact, never a zero. These are
@@ -1298,11 +1399,11 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
   })
 
   page({
-    path: 'reference/sql',
+    path: 'data/sql',
     title: titled('SQL console'),
     description:
       'Run your own SQL against the whole database in your browser. Nothing is sent anywhere; the query runs in this tab.',
-    trail: [['', 'Home'], ['reference', 'Reference'], ['reference/sql', 'SQL console']],
+    trail: [['', 'Home'], ['data', 'Data'], ['data/sql', 'SQL console']],
     body: `
       <h1>SQL console</h1>
       <p class="lede">The console needs JavaScript: it runs SQLite compiled to WebAssembly against
@@ -1392,6 +1493,54 @@ for (const p of pages) {
   bytes += Buffer.byteLength(html)
 }
 
+/**
+ * The addresses that moved, still answering.
+ *
+ * /reference held two drawers with no reader in common; the database drawer
+ * became /data and took the masthead slot. A cold arrival at an old address
+ * — a bookmark, a citation, a search result not yet recrawled — gets a page
+ * that says where the content went, sends the browser there at once, and
+ * tells a crawler the new address is the canonical one. The query string is
+ * carried across by script, because a meta refresh cannot: /reference/sql?q=
+ * is the console's permalink and the whole point of keeping it is that a
+ * cited query still runs.
+ *
+ * These are not in `pages`, so they are not in the sitemap: a sitemap lists
+ * the addresses to index, and these ask not to be. Eras and the glossary did
+ * not move.
+ */
+const MOVED = [
+  ['reference', 'data'],
+  ['reference/quality', 'data/quality'],
+  ['reference/sources', 'data/sources'],
+  ['reference/sql', 'data/sql'],
+]
+for (const [from, to] of MOVED) {
+  const target = href(to)
+  const url = `${ORIGIN}${target}`
+  const dir = join(dist, from)
+  mkdirSync(dir, { recursive: true })
+  writeFileSync(
+    join(dir, 'index.html'),
+    `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>${esc(titled('Moved'))}</title>
+    <meta name="robots" content="noindex" />
+    <link rel="canonical" href="${esc(url)}" />
+    <meta http-equiv="refresh" content="0; url=${esc(target)}" />
+    <script>location.replace(${JSON.stringify(target)} + location.search + location.hash)</script>
+  </head>
+  <body>
+    <p>This page has moved to <a href="${esc(target)}">${esc(url)}</a>.</p>
+  </body>
+</html>
+`,
+  )
+}
+
 // A 404 that is a real 404. wrangler.jsonc serves this file with a 404 status
 // for any path that is not one of the above, so a mistyped URL gets an honest
 // status and a page that can navigate, rather than a silent rewrite to the
@@ -1432,5 +1581,5 @@ writeFileSync(
 db.close()
 
 console.log(`  prerendered ${written.toLocaleString()} pages (${(bytes / 1024 / 1024).toFixed(1)} MB)`)
-console.log(`  dist/sitemap.xml, dist/robots.txt, dist/404.html`)
+console.log(`  dist/sitemap.xml, dist/robots.txt, dist/404.html, ${MOVED.length} redirecting pages`)
 console.log(`  origin ${ORIGIN}${BASE}`)

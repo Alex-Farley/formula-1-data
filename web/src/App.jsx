@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { BrowserRouter, Link, NavLink, Route, Routes, useLocation } from 'react-router-dom'
+import { BrowserRouter, Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import Boot from './components/Boot.jsx'
 import Search from './components/Search.jsx'
 import ThemeToggle from './components/Theme.jsx'
@@ -20,7 +20,7 @@ import Circuit from './pages/Circuit.jsx'
 import Cars from './pages/Cars.jsx'
 import Car from './pages/Car.jsx'
 import Records from './pages/Records.jsx'
-import Reference from './pages/Reference.jsx'
+import Data from './pages/Data.jsx'
 import Eras from './pages/Eras.jsx'
 import Quality from './pages/Quality.jsx'
 import Sources from './pages/Sources.jsx'
@@ -36,7 +36,7 @@ const NAV = [
   { to: '/circuits', label: 'Circuits' },
   { to: '/cars', label: 'Cars' },
   { to: '/records', label: 'Records' },
-  { to: '/reference', label: 'Reference' },
+  { to: '/data', label: 'Data' },
 ]
 
 function Wordmark() {
@@ -76,6 +76,18 @@ function ScrollToTop() {
   return null
 }
 
+/**
+ * An address that moved, still answering.
+ *
+ * The search and the hash travel with it: /reference/sql?q=… is the SQL
+ * console's permalink, and a site that asks to be cited cannot let a
+ * citation stop resolving because a section was renamed.
+ */
+function Moved({ to }) {
+  const { search, hash } = useLocation()
+  return <Navigate to={{ pathname: to, search, hash }} replace />
+}
+
 function Footer() {
   const manifest = currentProgress().manifest
   return (
@@ -88,15 +100,15 @@ function Footer() {
             without a network. Career
             totals are counted from the race records wherever the records can support it, and an em
             dash means nobody has established that figure — never zero.{' '}
-            <Link to="/reference/quality">How far to trust it</Link> ·{' '}
-            <Link to="/reference/sql">write your own query</Link>.
+            <Link to="/data/quality">How far to trust it</Link> ·{' '}
+            <Link to="/data/sql">write your own query</Link>.
           </p>
           <p className="faint">
             Race data from <a href="https://github.com/f1db/f1db">F1DB</a> (CC BY 4.0), prose and
             registers from Wikipedia (CC BY-SA 4.0), circuit geometry ©{' '}
             <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL
             1.0), photographs from Wikimedia Commons under the licence shown with each. Full
-            account on the <Link to="/reference/sources">sources page</Link>. Unaffiliated with
+            account on the <Link to="/data/sources">sources page</Link>. Unaffiliated with
             Formula One, the FIA or any team.
           </p>
         </div>
@@ -180,12 +192,22 @@ function Chrome() {
           <Route path="/cars" element={<Cars />} />
           <Route path="/cars/:id" element={<Car />} />
           <Route path="/records" element={<Records />} />
-          <Route path="/reference" element={<Reference />} />
+          {/* The database's own front door, and the three pages about it. */}
+          <Route path="/data" element={<Data />} />
+          <Route path="/data/quality" element={<Quality />} />
+          <Route path="/data/sources" element={<Sources />} />
+          <Route path="/data/sql" element={<Sql />} />
+          {/* About the sport rather than the database. These keep their
+              addresses and lost the masthead slot; Seasons, Cars, Circuits,
+              Races and the home page lead here. */}
           <Route path="/reference/eras" element={<Eras />} />
-          <Route path="/reference/quality" element={<Quality />} />
-          <Route path="/reference/sources" element={<Sources />} />
           <Route path="/reference/glossary" element={<Glossary />} />
-          <Route path="/reference/sql" element={<Sql />} />
+          {/* The old addresses. prerender.js writes a redirecting page at
+              each for a cold arrival; these answer the same way in-app. */}
+          <Route path="/reference" element={<Moved to="/data" />} />
+          <Route path="/reference/quality" element={<Moved to="/data/quality" />} />
+          <Route path="/reference/sources" element={<Moved to="/data/sources" />} />
+          <Route path="/reference/sql" element={<Moved to="/data/sql" />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>

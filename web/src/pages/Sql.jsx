@@ -328,8 +328,8 @@ export default function Sql() {
 
       <Onward
         items={[
-          { to: '/reference/quality', label: 'Data quality', hint: 'What the confidence column means before you quote a row.' },
-          { to: '/reference/sources', label: 'Sources and licences', hint: 'What you may do with what you pull out.' },
+          { to: '/data/quality', label: 'Data quality', hint: 'What the confidence column means before you quote a row.' },
+          { to: '/data/sources', label: 'Sources and licences', hint: 'What you may do with what you pull out.' },
           { to: '/records', label: 'Records', hint: 'The leaderboards already written for you.' },
         ]}
       />

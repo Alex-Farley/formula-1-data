@@ -250,7 +250,10 @@ async function mergeGeometry(manifest) {
         statement.free()
         insert.free()
       }
-      return { merged, licence: manifest.geometry.licence, attribution: manifest.geometry.attribution }
+      // The manifest's description of the file travels with the count: /data
+      // states the overlay's size and digest beside f1.db's, and read them
+      // from here rather than fetching the manifest a second time.
+      return { ...manifest.geometry, merged }
     } finally {
       overlay.close()
     }

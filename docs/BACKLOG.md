@@ -160,6 +160,19 @@ largest single fix and still has its riders.
       publisher block `UR-05`/`SD-15` ask for. The disagreements claim in
       `CD-07` must change: 45 found, 44 resolved on the record, one open
       (`PD-25`).
+- [ ] `PD-03` **Derive `/records`, or stop shipping it.** All 30 rows are
+      authored, sit at `medium`, and nothing in `verify.py` reads the table; the
+      page says Hamilton has 105 wins while `drivers.wins` says 106. Derive the
+      leaderboards; keep only what genuinely cannot be derived, in a block that
+      says so. `IA-16` examined the nav slot and endorsed keeping it — the page
+      is the only cut by question rather than by table — and adds one thing: if
+      the authored block survives as *Published, not derived*, it belongs
+      **below** the derived leaderboards, because the derived ones are the
+      demonstration and the authored ones are the caveat. —
+      *product critique · M*
+      **`UR-09` adds the cheap half**: the caveat sentence sits 1,900 px below
+      the figure it caveats; move it above the published table today. `VD-10`
+      and `VD-13` are the same page's badge column and misaligned values.
 
 ## Next
 
@@ -174,12 +187,6 @@ Worth doing, not yet urgent.
       so six genuine gaps remain and the homepage should read six. `CD-06` also
       carries the reader sentences and the maintainer notes this entry asks for.
       — *product critique · S*
-
-- [ ] `PD-06` **Fix the drivers register's first screen.** Opens on Adolf Brudes
-      with two columns empty for 96% of rows. Drop `entries` and `starts`, add a
-      derived `Races`, change the default sort to something that answers a
-      question. Supersedes the older note in `Drivers.jsx` that entries and
-      starts are "not yet derived". — *product critique · S*
 
 - [ ] `PD-10` **A citation block.** Every ingredient exists — version, build
       date, per-row source, permanent URL — and they are assembled nowhere. One
@@ -516,6 +523,18 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       the stored URL still resolves. Split from `VD-20`. — *visual critique ·
       S*
 
+- [ ] `PD-25` **`/records` holders are names, not links.** The derived
+      records carry `holder_id` and `holder_table` (#68) and the page renders
+      the holder as text; the driver-wins and champions tables on the same
+      page do the same with `driver_id`. Link every holder that resolves —
+      drivers, constructors, circuits; a race holder needs `year`/`round`,
+      not the row id — and leave shared records as text. Found by the review
+      of #68. — *product critique · S*
+
+- [ ] `CR-23` **The static `/records` table has a `Category` column the app
+      never shows.** Predates #68; the review of #68 measured it. Rides with
+      `CR-22`. — *review of #68 · S*
+
 **Interaction design**
 
 - [ ] `IX-16` **`IA-08` escalated: Back restores the scroll and not the filter.** France filter, sort by wins, scroll, open a driver, Back — same pixel, 862 unfiltered rows. Do `/drivers` first. — *interaction critique · M*
@@ -686,12 +705,6 @@ Real, but not costed, or waiting on a decision.
       commercialised in a form that reproduces them prominently. Weighed and kept
       on the record; a marketing surface is not a database row. —
       *project record · ?*
-
-- [ ] `PD-09` **Rework `/reference`.** It holds an audit, an encyclopedia and a
-      developer tool behind one nav item. Promote the SQL console and a merged
-      provenance page to the masthead. Needs redirects and a naming decision.
-      **Superseded by `IA-02`**, which makes the naming decision this was
-      waiting on and costs the rework at M. — *product critique · L*
 
 - [ ] `PD-08` **Decide what the atlas is for.** **Superseded by `PD-21`**,
       which decides it: a comparison surface, and only that. Three critics and
@@ -1331,6 +1344,55 @@ Real, but not costed, or waiting on a decision.
       `holder_table` + `holder_id` (NULL exactly when shared), `value_num` +
       `unit` beside the display `value`, one ISO `as_of` that `verify.py`
       holds to the coverage. — *data architecture critique · #68*
+- [x] `IA-02` **`Reference` leaves the masthead; `Data` takes the slot.** The
+      masthead stays at eight: Seasons · Races · Drivers · Constructors ·
+      Circuits · Cars · Records · Data. `/data` is the database's own front
+      door; `quality`, `sources` and `sql` sit under it at `/data/quality`,
+      `/data/sources` and `/data/sql`, summarised on the front door and kept
+      as the pages they were — merging two long pages was a rewrite, and this
+      was a move. `eras` and `glossary` keep `/reference/eras` and
+      `/reference/glossary`, lose the slot, and are reached from the pages
+      about the sport: Seasons, Cars and Circuits already led to the eras;
+      Races now leads to the glossary and the home page to the eras; the two
+      carry an "About the sport" nav of their own. The four old addresses
+      answer in the app with a `<Navigate replace>` that carries the search —
+      `/reference/sql?q=…` is #65's permalink and still runs — and in the
+      static output with a redirecting page each (meta refresh, canonical to
+      the new address, `noindex`, the query carried by script), written
+      outside the sitemap. The smoke test asserts the eight, the version on
+      `/data`, both redirects with the query intact, and the sitemap naming
+      the new addresses only. — *IA critique · #67*
+
+- [x] `PD-11` **Give the bulk data a front door, and a claim.** `/data`, in
+      the app and prerendered: the version and build date from `meta`, the
+      two database files with sizes and the manifest's digests, the Parquet
+      bundle — linked from a page for the first time — the two JSON exports
+      named as release assets rather than linked, since nothing serves them,
+      the confidence ladder, the counts of disagreements, open disagreements,
+      gaps and sources read live, the three licence classes with their
+      counts, the four empty tables stated as a licence decision, and the SQL
+      console. The claim is `PD-14`'s wording — *cross-checked against
+      independent sources, with every disagreement and every gap published in
+      the data* — in one string in `site.js` shared by `Data.jsx` and
+      `prerender.js`, so the app and the crawlable page cannot say different
+      things. The static page carries `schema.org/Dataset` markup with a
+      `DataDownload` per served file. `CD-07`'s adversarial sentence is still
+      open; the sizes and digests come from `db-manifest.json`, not yet the
+      release body's which-copy-wins sentence or the publisher block
+      (`UR-05`/`SD-15`). — *product critique · #67*
+
+- [x] `PD-09` **Rework `/reference`.** Landed as `IA-02` and `PD-11`, which
+      made the naming decision this was waiting on: the database drawer is
+      `/data` in the masthead, the sport drawer kept its addresses, and the
+      redirects were the work. — *product critique · #67*
+
+- [x] `PD-06` **The drivers register's first screen answers a question.**
+      Most wins first, in the app and the static page; `Entries` and
+      `Starts` — published figures held for 38 and 31 of 862 drivers, so two
+      columns of em dashes — are gone from the register and stay on the
+      driver's page labelled as stored; `Races` is counted from the race
+      records. Also pins the front-end reviewer agent to Opus, as every other
+      reviewer already was. — *product critique · #69*
 
 ## Declined
 

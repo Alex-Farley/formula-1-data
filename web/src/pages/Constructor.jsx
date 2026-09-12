@@ -106,7 +106,7 @@ export default function Constructor() {
                 Press <kbd>/</kbd> to search by name, or{' '}
                 <Link to="/constructors">browse the register</Link>. A few names used by other
                 sources are deliberately not held here — the{' '}
-                <Link to="/reference/quality">data quality page</Link> says which and why.
+                <Link to="/data/quality">data quality page</Link> says which and why.
               </p>
             </Page>
           )
