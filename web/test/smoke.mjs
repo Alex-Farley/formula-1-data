@@ -956,6 +956,25 @@ try {
     }
   }
 
+  // Every page can be cited, and the app and the static page say the same
+  // sentence - checked on routes whose titles differ between the renderers,
+  // which is why the citation names the address and not the title.
+  console.log('\nCitation')
+  for (const [route, heading] of [['/seasons/2026', '2026'], ['/races/1988/13', 'Portuguese Grand Prix'], ['/drivers/senna', 'Ayrton Senna']]) {
+    await go(route, heading)
+    const appCite = await page.waitForSelector('#root .cite', { timeout: 20000 }).then((n) => n.textContent())
+    const html = await (await fetch(`${BASE}${route}`)).text()
+    const staticCite = html
+      .slice(html.indexOf('<aside class="cite"'), html.indexOf('</aside>', html.indexOf('<aside class="cite"')))
+      .replace(/<[^>]+>/g, '')
+      .replace(/&amp;/g, '&')
+    is(staticCite.replace('https://lapledger.org', BASE), appCite, `the citation on ${route} is one sentence in both renderers`)
+  }
+  await go('/no-such-page-here')
+  truthy(!(await page.$('#root .cite')), 'a page that does not exist offers no citation')
+  await go('/drivers/no-such-driver', 'No such driver')
+  truthy(!(await page.$('#root .cite')), 'an unknown driver offers no citation either')
+
   // ----------------------------------------------------------------- SQL
 
   console.log('\n/data/sql')

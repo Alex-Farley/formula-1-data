@@ -181,6 +181,15 @@ Worth doing, not yet urgent.
 - [ ] `PD-10` **A citation block.** Every ingredient exists — version, build
       date, per-row source, permanent URL — and they are assembled nowhere. One
       component, prerendered so a crawler sees it. — *product critique · S*
+- [ ] `PD-05` **Split `known_gaps` into open and closed.** Four of the eleven are
+      closed or not gaps, and the homepage counts all eleven. Add a `state`
+      column, filter the public page, and split each row into a reader sentence
+      and a maintainer note — it currently renders commit messages.
+      **`CD-06` makes it five, not four** — #1 and #2 are closed, #5 and #10 are
+      positions rather than gaps, #8 is a true null belonging on one race page —
+      so six genuine gaps remain and the homepage should read six. `CD-06` also
+      carries the reader sentences and the maintainer notes this entry asks for.
+      — *product critique · S*
 
 - [ ] `PD-12` **State the lap-timing constraint as a position,** not a
       schema-shaped apology inside a gaps table. "No one may lawfully
@@ -513,6 +522,24 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 - [ ] `CR-23` **The static `/records` table has a `Category` column the app
       never shows.** Predates #68; the review of #68 measured it. Rides with
       `CR-22`. — *review of #68 · S*
+
+- [ ] `CR-24` **The static drivers register is not the app's.** Eight
+      columns against nine, Poles before Podiums against Podiums before
+      Poles, no Fastest laps. Same defect as `CR-22`/`CR-23`; rides with
+      `PD-02`. Found by the review of #69. — *review of #69 · S*
+
+- [ ] `CD-18` **"Races" on the register, "Entries (stored)" on the page.**
+      The same derived count is called Races in the register and Entries on
+      the driver's page, where the stored figure sits beside it as "Entries
+      (stored)". One word, and the stored one labelled for what it is
+      (published). Found by the review of #69. — *review of #69 · S*
+
+- [ ] `CD-21` **The lede check misses a figure with an adjective before the
+      noun.** "four runner-up finishes", "Ten career wins", "three straight
+      wins" pass `verify.py`'s check (#74) because it wants the noun adjacent
+      to the number; the Bottas phrase #74 removed by hand is the shape it
+      misses. Allow one or two words between, and re-run. Found by the review
+      of #74. — *review of #74 · S*
 
 **Interaction design**
 
@@ -1410,6 +1437,31 @@ Real, but not costed, or waiting on a decision.
       fit the row; the others are written from the row's own text. The 2021
       Belgium note stays in the register as a position rather than moving to
       the race page. — *content critique · #72*
+- [x] `PD-10` **A citation block on every page.** One sentence — the
+      database version and build date and the page's permanent address —
+      from one function in `site.js`, rendered by `Page` in the app and by
+      `chrome()` in the static page, so a crawler sees it. The page is named
+      by its address, not its title: the two renderers title routes
+      differently, and the review caught the drift. Pages that do not exist
+      (the not-found route and the six "No such …"/"No season" shells) offer none. The
+      reader's own access date is left to the reader; the build date is what
+      fixes the figures. — *product critique · #71*
+
+- [x] `CD-19` **Driver ledes no longer spell a figure the strip derives.**
+      `verify.py`'s check reads spelled cardinals (one to twenty, thirty to
+      hundred, compounds), digit and spelled ordinals above "first" ("300th
+      start", "eighth start"), and "Grand Prix" between the number and the
+      noun, before starts, races, entries, wins, poles, podiums, points,
+      fastest laps or titles; a year before "title" and a margin ("by two
+      points") are not figures. It caught sixteen notes, and stripping the
+      figure exposed five that the race records contradict — Hulkenberg's
+      pole came on his eighteenth start, Bottas was runner-up twice not four
+      times, Ricciardo never won for Renault, Stroll's pole was Istanbul 2020
+      not Monza 2017, Rindt had three races left not four — and one false
+      record: 2025's top three were 13 points apart against 2007's one, so
+      "the closest top three ever" leaves Piastri's note and, though no
+      regex reached it, Norris's. Each note keeps what its string already
+      said; "Ten podiums." simply goes. — *review of #70 · #74*
 
 ## Declined
 
