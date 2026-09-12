@@ -1436,7 +1436,7 @@ def the_driver_register():
     check(f"every active driver has an entry in {_latest}", _active <= _grid,
           "active without an entry: " + (", ".join(sorted(_active - _grid)) or "none"))
     warn(f"every driver entered in {_latest} is still active", _grid <= _active,
-         "entered, no longer active: " + ", ".join(sorted(_grid - _active)))
+         "entered, no longer active: " + (", ".join(sorted(_grid - _active)) or "none"))
     check("the register's seasons differ from the race records' only for the declared two",
           _span == _declared,
           "undeclared: " + (", ".join(sorted(_span - _declared)) or "none")
