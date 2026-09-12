@@ -84,6 +84,7 @@ export default function Season() {
     final: [FINAL, [Number(year)]],
     entrants: [ENTRANTS, [Number(year)]],
     neighbours: [NEIGHBOURS, [Number(year)]],
+    grid: ['SELECT * FROM v_season_grid WHERE year = ?', [Number(year)]],
   })
 
   return (
@@ -109,6 +110,7 @@ function SeasonBody({ year, season, data }) {
   const final = rows(data, 'final')
   const entrants = rows(data, 'entrants')
   const neighbours = data.neighbours.rows[0] ?? {}
+  const grid = data.grid.rows[0] ?? null
 
   const driversFinal = useMemo(() => final.filter((r) => r.table_type === 'drivers'), [final])
   const constructorsFinal = useMemo(() => final.filter((r) => r.table_type === 'constructors'), [final])
@@ -226,6 +228,13 @@ function SeasonBody({ year, season, data }) {
             },
           ]}
         />
+        )}
+        {grid && (
+          <p className="note" style={{ marginTop: 10 }}>
+            The grid: {number(grid.drivers)} drivers, {number(grid.constructors)} constructors and{' '}
+            {number(grid.engine_manufacturers)} engine makers, counted from the entries — a driver who
+            started one race counts once.
+          </p>
         )}
       </Section>
 

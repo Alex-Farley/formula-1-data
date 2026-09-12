@@ -1471,6 +1471,24 @@ ORDER BY r.year, r.round;
 
 -- ------------------------------------------------------------- circuits
 -- Every circuit with its championship record, in one row.
+-- The grid of a season, counted rather than written: who drove (from the
+-- race entries), who entered (from season_entrants), whose engines. The
+-- Wikipedia infobox states these three for the current season by hand;
+-- here they hold for every season, and the 1950 row shows why they are
+-- counted - eight constructors and twelve engine makers, with the Indianapolis
+-- 500 in the championship.
+CREATE VIEW v_season_grid AS
+SELECT s.year,
+       (SELECT COUNT(DISTINCT e.driver_id) FROM race_entries e
+          JOIN races r ON r.id = e.race_id WHERE r.year = s.year)        AS drivers,
+       (SELECT COUNT(DISTINCT se.constructor_id) FROM season_entrants se
+         WHERE se.year = s.year AND se.constructor_id IS NOT NULL)        AS constructors,
+       (SELECT COUNT(DISTINCT se.engine_manufacturer_id) FROM season_entrants se
+         WHERE se.year = s.year AND se.engine_manufacturer_id IS NOT NULL) AS engine_manufacturers,
+       (SELECT COUNT(*) FROM races r WHERE r.year = s.year
+          AND r.status = 'completed')                                    AS races_run
+  FROM seasons s;
+
 CREATE VIEW v_circuits AS
 SELECT c.id, c.name, c.country, c.locality, c.circuit_type,
        COUNT(CASE WHEN r.status='completed' THEN 1 END) AS races,

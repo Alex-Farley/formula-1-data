@@ -965,6 +965,16 @@ try {
   await go('/drivers/no-such-driver', 'No such driver')
   truthy(!(await page.$('#root .cite')), 'an unknown driver offers no citation either')
 
+  // The season's grid is counted, and the page says the count.
+  {
+    const g = db.prepare('SELECT * FROM v_season_grid WHERE year = 1994').get()
+    await go('/seasons/1994', '1994')
+    const note = await page.waitForSelector('#root main .note', { timeout: 20000 }).then(() => page.$eval('#root main', (m) => m.textContent))
+    truthy(note.includes(`${g.drivers} drivers`) && note.includes(`${g.constructors} constructors`), `1994's grid reads ${g.drivers} drivers, ${g.constructors} constructors`)
+    const html = await (await fetch(`${BASE}/seasons/1994`)).text()
+    truthy(html.includes(`${g.drivers} drivers, ${g.constructors} constructors`), 'the static season page states the same grid')
+  }
+
   // ----------------------------------------------------------------- SQL
 
   console.log('\n/data/sql')

@@ -379,6 +379,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
     // A season still running has no champion to lead with. It has a leader,
     // a gap and a number of rounds run, and those are what the page opens
     // with - not five em dashes under "Runner-up".
+    const grid = one('SELECT * FROM v_season_grid WHERE year = ?', s.year)
     const running = !s.drivers_champion && standings.length >= 2
     const [lead, second] = standings
     const gap = running ? lead.points - second.points : null
@@ -417,6 +418,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
                 ],
                 ['Engine formula', text(s.engine_formula)],
                 ['Tyres', text(s.tyre_suppliers)],
+                ['Grid', grid ? `${num(grid.drivers)} drivers, ${num(grid.constructors)} constructors, ${num(grid.engine_manufacturers)} engine makers` : '—'],
               ])
             : facts([
                 ["Drivers' champion", driver(s.drivers_champion)],
@@ -428,6 +430,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
                 ['Rounds', num(s.rounds)],
                 ['Engine formula', text(s.engine_formula)],
                 ['Tyres', text(s.tyre_suppliers)],
+                ['Grid', grid ? `${num(grid.drivers)} drivers, ${num(grid.constructors)} constructors, ${num(grid.engine_manufacturers)} engine makers` : '—'],
               ])
         }
         ${prose(s.notes)}

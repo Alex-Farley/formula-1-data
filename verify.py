@@ -1575,6 +1575,19 @@ def the_chassis_register():
           bool(prose) and cap26 and cap25 and per26
           and all(f"US${v:,.0f}" in prose[0] for v in (cap26, cap25, per26)),
           (prose or ("no row",))[0][:80])
+    # The season grid view: one row per season, and every count bounded by
+    # the table it counts - a driver count above the season's race entries, or
+    # a constructor count above the season's entrants, is a join gone wrong.
+    grid = con.execute("""SELECT g.year, g.drivers, g.constructors, g.engine_manufacturers,
+                                 (SELECT COUNT(*) FROM race_entries e JOIN races r ON r.id = e.race_id
+                                   WHERE r.year = g.year) AS entries,
+                                 (SELECT COUNT(*) FROM season_entrants se WHERE se.year = g.year) AS entrants
+                            FROM v_season_grid g""").fetchall()
+    nseasons = con.execute("SELECT COUNT(*) FROM seasons").fetchone()[0]
+    check("v_season_grid has one row per season", len(grid) == nseasons, f"{len(grid)} vs {nseasons}")
+    bad = [f"{y}: {d} drivers / {n} entries" for y, d, k, m, n, ne in grid if not (2 <= d <= n)]
+    bad += [f"{y}: {k} constructors / {ne} entrants" for y, d, k, m, n, ne in grid if ne and not (1 <= k <= ne)]
+    check("every season's grid counts lie within the tables they count", not bad, "; ".join(bad[:4]))
     nlim = con.execute("SELECT COUNT(*) FROM regulation_limits").fetchone()[0]
     print(f"  [info] {nlim} regulation limits recorded, covering "
           + ", ".join(str(r[0]) for r in con.execute(
