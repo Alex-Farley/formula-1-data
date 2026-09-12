@@ -1471,6 +1471,24 @@ ORDER BY r.year, r.round;
 
 -- ------------------------------------------------------------- circuits
 -- Every circuit with its championship record, in one row.
+CREATE VIEW v_circuits AS
+SELECT c.id, c.name, c.country, c.locality, c.circuit_type,
+       COUNT(CASE WHEN r.status='completed' THEN 1 END) AS races,
+       COUNT(CASE WHEN r.status!='completed' THEN 1 END) AS scheduled,
+       MIN(CASE WHEN r.status='completed' THEN r.year END) AS first_gp,
+       MAX(CASE WHEN r.status='completed' THEN r.year END) AS last_gp,
+       COUNT(DISTINCT CASE WHEN r.status='completed' THEN r.year END)
+                                 AS seasons_used,
+       COUNT(DISTINCT CASE WHEN r.status='completed' THEN r.gp_id END)
+                                 AS events_hosted,
+       (SELECT COUNT(*) FROM circuit_layouts l WHERE l.circuit_id = c.id)
+                                 AS layouts,
+       c.length_km, c.turns, c.direction
+FROM circuits c LEFT JOIN races r ON r.circuit_id = c.id
+GROUP BY c.id ORDER BY races DESC, c.name;
+
+-- ------------------------------------------------------------- seasons
+
 -- The grid of a season, counted rather than written: who was entered (from
 -- the race entries - entered, not started: a DNQ is an entry, and no source
 -- here says who started), which constructors entered, whose engines. The
@@ -1490,22 +1508,6 @@ SELECT s.year,
        (SELECT COUNT(*) FROM races r WHERE r.year = s.year
           AND r.status = 'completed')                                    AS races_run
   FROM seasons s;
-
-CREATE VIEW v_circuits AS
-SELECT c.id, c.name, c.country, c.locality, c.circuit_type,
-       COUNT(CASE WHEN r.status='completed' THEN 1 END) AS races,
-       COUNT(CASE WHEN r.status!='completed' THEN 1 END) AS scheduled,
-       MIN(CASE WHEN r.status='completed' THEN r.year END) AS first_gp,
-       MAX(CASE WHEN r.status='completed' THEN r.year END) AS last_gp,
-       COUNT(DISTINCT CASE WHEN r.status='completed' THEN r.year END)
-                                 AS seasons_used,
-       COUNT(DISTINCT CASE WHEN r.status='completed' THEN r.gp_id END)
-                                 AS events_hosted,
-       (SELECT COUNT(*) FROM circuit_layouts l WHERE l.circuit_id = c.id)
-                                 AS layouts,
-       c.length_km, c.turns, c.direction
-FROM circuits c LEFT JOIN races r ON r.circuit_id = c.id
-GROUP BY c.id ORDER BY races DESC, c.name;
 
 -- Who has won most often at each circuit.
 CREATE VIEW v_circuit_winners AS

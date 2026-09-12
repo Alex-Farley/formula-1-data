@@ -972,9 +972,15 @@ try {
     const note = await page
       .waitForFunction(() => [...document.querySelectorAll('#root main .note')].some((n) => n.textContent.startsWith('The grid:')), null, { timeout: 20000 })
       .then(() => page.$$eval('#root main .note', (ns) => ns.map((n) => n.textContent).find((t) => t.startsWith('The grid:'))))
-    truthy(note.includes(`${g.drivers} drivers`) && note.includes(`${g.constructors} constructors`), `1994's grid reads ${g.drivers} drivers, ${g.constructors} constructors`)
+    truthy(
+      note.includes(`${g.drivers} drivers`) && note.includes(`${g.constructors} constructors`) && note.includes('entered'),
+      `1994's grid reads ${g.drivers} drivers, ${g.constructors} constructors, and says entered`,
+    )
     const html = await (await fetch(`${BASE}/seasons/1994`)).text()
-    truthy(html.includes(`${g.drivers} drivers, ${g.constructors} constructors`), 'the static season page states the same grid')
+    truthy(
+      html.includes(`${g.drivers} drivers, ${g.constructors} constructors`) && html.includes('whether or not they started'),
+      'the static season page states the same grid, with the same caveat',
+    )
   }
 
   // ----------------------------------------------------------------- SQL

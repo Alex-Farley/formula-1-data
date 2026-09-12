@@ -418,7 +418,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
                 ],
                 ['Engine formula', text(s.engine_formula)],
                 ['Tyres', text(s.tyre_suppliers)],
-                ['Grid', grid ? `${num(grid.drivers)} drivers, ${num(grid.constructors)} constructors, ${num(grid.engine_manufacturers)} engine makers` : '—'],
+                ['Entered', grid ? `${num(grid.drivers)} drivers, ${num(grid.constructors)} constructors, ${num(grid.engine_manufacturers)} engine makers — counted from the entries, whether or not they started` : '—'],
               ])
             : facts([
                 ["Drivers' champion", driver(s.drivers_champion)],
@@ -430,7 +430,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
                 ['Rounds', num(s.rounds)],
                 ['Engine formula', text(s.engine_formula)],
                 ['Tyres', text(s.tyre_suppliers)],
-                ['Grid', grid ? `${num(grid.drivers)} drivers, ${num(grid.constructors)} constructors, ${num(grid.engine_manufacturers)} engine makers` : '—'],
+                ['Entered', grid ? `${num(grid.drivers)} drivers, ${num(grid.constructors)} constructors, ${num(grid.engine_manufacturers)} engine makers — counted from the entries, whether or not they started` : '—'],
               ])
         }
         ${prose(s.notes)}
