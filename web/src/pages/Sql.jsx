@@ -197,6 +197,7 @@ export default function Sql() {
           <textarea
             className="sql"
             value={text}
+            rows={Math.max(6, text.split('\n').length + 1)}
             spellCheck="false"
             onChange={(event) => setText(event.target.value)}
             onKeyDown={onKeyDown}
