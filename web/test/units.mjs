@@ -380,6 +380,12 @@ describe('the queries a page and the prerenderer share', () => {
     )
     assert.equal(seasonsNote({ first_season: 1970, last_season: 1973 }, { seasons: 4, first_year: 1970, last_year: 1973 }), '4 with an entry')
     assert.equal(seasonsNote({ first_season: null, last_season: null }, { seasons: 1, first_year: 2015, last_year: 2015 }), '1 with an entry')
+    // A NULL first season is no claim about the first year; the last is still compared (CD-26).
+    assert.equal(
+      seasonsNote({ first_season: null, last_season: 1973 }, { seasons: 5, first_year: 1969, last_year: 1975 }),
+      '5 with an entry; 1969–1975 in the race records, 1973 published',
+    )
+    assert.equal(seasonsNote({ first_season: null, last_season: 1975 }, { seasons: 5, first_year: 1969, last_year: 1975 }), '5 with an entry')
     // An open span - a driver still driving - makes no claim about the last
     // year, so it never differs on it.
     assert.equal(seasonsNote({ first_season: 2007, last_season: null }, { seasons: 20, first_year: 2007, last_year: 2026 }), '20 with an entry')

@@ -507,16 +507,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       one no table can constrain. Found by the review of #79. — *review of
       #79 · S*
 
-- [ ] `CD-26` **A NULL `first_season` suppresses the span comparison at both
-      ends.** `seasonsNote()` returns early on a missing first season and the
-      `verify.py` pin skips the row, where a NULL `last_season` suppresses
-      only its own end; make the predicate symmetric in both, together (no
-      row needs it today). And the declaration mechanism recognises only
-      `first_season`: a `last_season` divergence could be cleared only by a
-      row labelled with the wrong field. Split out of `CD-25`, which landed
-      without them. Found by the reviews of #81 and #89. — *review of #81 ·
-      S*
-
 - [ ] `CD-27` **Three words for the register's figure on one screen.** The
       Seasons note calls it "published", the aside beside it "the
       register's", `/data/quality` heads the column "Stored". One word.
@@ -1635,6 +1625,14 @@ Real, but not costed, or waiting on a decision.
       one that names a row that does not exist. Which existing row a
       citation should name stays a reader's judgement, as `PM-28` was. —
       *review of #87 · #90*
+
+- [x] `CD-26` **The span comparison is symmetric, and either end can be
+      declared.** A NULL at either end of the register's span is no claim
+      about that end and the other is still compared, in `seasonsNote()`
+      and the `verify.py` pin alike; an `EXPLAINED_SPANS` row may name
+      `last_season`, and its figures are checked against the records' MAX
+      year as a first-season row's are against MIN. No row needed it today.
+      — *review of #81 · #93*
 
 ## Declined
 
