@@ -1228,7 +1228,7 @@ Real, but not costed, or waiting on a decision.
       Financial Regulations issue for that year and citing it; a 2026
       `regulation_changes` row for the US$215m figure. `verify.py` refuses
       overlapping spans of one limit and a missing cap year. — *Wikipedia
-      survey · #60*
+      survey · #59*
 
 ## Declined
 
