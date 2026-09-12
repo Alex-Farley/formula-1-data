@@ -148,8 +148,8 @@ function ConstructorBody({ constructor, data }) {
           <p className="livery-band" style={{ marginTop: 14 }}>
             <i style={{ background: colour.hex }} />
             {colour.name}
-            <span style={{ textTransform: 'none', letterSpacing: 0 }}>
-              — {constructor.country}'s international racing colour, under the convention that
+            <span>
+              {constructor.country}'s international racing colour, under the convention that
               painted a car for the country that entered it until sponsor liveries took over around
               1968. Not this team's own livery.
             </span>

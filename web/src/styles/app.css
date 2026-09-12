@@ -613,8 +613,8 @@ thead th {
   text-align: left;
   font-family: var(--mono);
   font-weight: 500;
-  font-size: 9.5px;
-  letter-spacing: 0.16em;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--ink-faint);
   padding: 10px 14px;
@@ -678,7 +678,7 @@ td.num {
 
 td.prose {
   min-width: 18ch;
-  max-width: 62ch;
+  max-width: 60ch;
   white-space: normal;
   color: var(--ink-soft);
 }
@@ -886,8 +886,17 @@ tbody td.strong {
   border-color: transparent;
 }
 
+/* The three middle tiers step on border weight, not hue: high is the heavy
+   rung, reference the plain one, medium the broken one. Each still carries its
+   word. */
 .pill-high {
+  border-width: 2px;
   border-color: var(--rule-strong);
+  padding: 2px 6px;
+}
+
+.pill-medium {
+  border-style: dashed;
 }
 
 .tag {
@@ -1319,6 +1328,12 @@ figure.photo figcaption a {
 }
 
 /* ------------------------------------------------------------------ SQL */
+
+/* tokens.css: the accent means "this was fastest". This is the one cell where
+   that is literally what it marks. */
+.fl {
+  color: var(--accent);
+}
 
 textarea.sql {
   width: 100%;
@@ -1860,9 +1875,8 @@ input[type='range']:disabled::-webkit-slider-thumb {
 }
 
 .livery-band {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  display: block;
+  max-width: var(--measure);
   font-family: var(--mono);
   font-size: 10.5px;
   letter-spacing: 0.12em;
@@ -1871,9 +1885,24 @@ input[type='range']:disabled::-webkit-slider-thumb {
 }
 
 .livery-band i {
+  display: inline-block;
   width: 26px;
   height: 8px;
-  flex: none;
+  margin-right: 10px;
+  vertical-align: 1px;
+}
+
+/* The sentence that carries the racing-colour decision was 10.5 px mono across
+   175 characters, smaller than a footnote. It is prose. */
+.livery-band span {
+  display: block;
+  margin-top: 6px;
+  font-family: var(--sans);
+  font-size: 13px;
+  line-height: 1.5;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink-soft);
 }
 
 /* Announced but not shown: the result rail is a column with no text, and an

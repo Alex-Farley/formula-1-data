@@ -290,10 +290,11 @@ of them decides a rule elsewhere — accent against body ink is 3.07:1 in light
 and 2.78:1 in dark, and only the first clears the 3:1 that would let colour
 mark a link on its own, so links keep an underline in both.
 
-**The mark is a chequered flag**, three squares by two, cropped square to its
-panel. Six cells rather than four: four read as an application grid, six read
-as a flag. The two accent cells sit on the bottom row so the mark still carries
-the brand at 20px, where a rule thin enough to fit would disappear. The same
+**The mark is a chequered flag**, four squares by four on a rounded panel,
+the light cells on the panel's diagonal chequer and one cell in the lower half
+taken by the accent. Sixteen cells rather than six because at 32 px the coarser
+grid read as an application icon, and the one accent cell carries the brand at
+20 px, where a rule thin enough to fit would disappear. The same
 geometry is inlined as the favicon in `index.html`, on a dark panel because a
 tab has no theme.
 

@@ -105,18 +105,6 @@ largest single fix and still has its riders.
       2026 season's static page opens with five em dashes), `AX-17` (no static
       table has a caption), plus `CD-04`, `IA-03` and `PD-06` as before.
 
-- [ ] `PD-07` **Stop the README lying.** It claims 39 tables, 34 views, ~8,400
-      rows against an actual 46 / 38 / 119,271, and says qualifying is "not held
-      at all" when 26,997 rows are. Move the version log to `BUILD-NOTES.md`,
-      then generate every count from the database and add a `verify.py` check
-      that fails when a stated figure disagrees — the discipline
-      `f1_compat.json` already gets. **`PM-02`, `PM-03` and `PM-04` ride with
-      it:** the version log this moves into `BUILD-NOTES.md` is exactly what
-      `PM-02` needs folded and `PM-03` needs repointed, and `PM-04` is the same
-      front-door-is-wrong job one surface over. — *product critique · M*
-      **`PD-24`/`CR-08` landed in #45**: `meta.coverage_note` is now derived from
-      the counts and compared whole by `verify.py`; the README is the surface
-      left, and the check count is still stated seven ways (`CR-09`).
 
 - [ ] `PD-03` **Derive `/records`, or stop shipping it.** All 30 rows are
       authored, sit at `medium`, and nothing in `verify.py` reads the table; the
@@ -199,21 +187,17 @@ Worth doing, not yet urgent.
       source refreshed by one cron, and nothing records what happens if it
       changes licence or stops. One page in `docs/`. — *product critique · S*
 
-- [ ] `PM-02` **`BUILD-NOTES.md` stops at v2.15.** Five releases exist only as
-      README prose, and `CLAUDE.md` points at that file as *the* running record
-      of what changed and what was deliberately not done. Fold in v2.16–v2.20
-      while doing `PD-07`, which moves the version log there anyway. —
-      *project record · S*
 
-- [ ] `PM-03` **Rewrite `BUILD-NOTES.md`'s "Next, in order".** Its first two
-      items were overtaken by v2.15's licence finding and the timing decision.
-      This file is that list now, so the section should point here rather than
-      compete with it. — *project record · S*
 
 - [ ] `PM-04` **The GitHub repo description is stale.** Still "29 landmark cars …
       143 integrity tests", written before the full classification. It is the
       first thing a visitor reads and it is not in the repository, so nothing
       checks it. — *project record · S*
+      **Proposed text, from `PD-07` (#60), for whoever holds the repository
+      settings:** *Formula One, 1950–2026, as one SQLite database: every
+      championship race, entry, qualifying session and standings table,
+      cross-checked against independent sources on every build, with every
+      disagreement on the record. Browse it at lapledger.org.*
 
 - [ ] `PM-20` **Clear the two actionable `verify.py` data warnings.** Two
       qualifying rows have no matching race entry; three chassis are claimed as
@@ -350,7 +334,7 @@ Worth doing, not yet urgent.
 - [ ] `CD-16` **The README's first sentence defines the product by its own
       history.** *"An expansion of the original single-file JSON into…"* — a
       reader arriving at the repository does not know there was a single-file
-      JSON and does not care. `PD-07` already moves the version log out; this is
+      JSON and does not care. `PD-07` (#60) moved the version log out; this is
       what should replace it, in `CD-07`'s claim in repository voice. —
       *content critique · S*
 
@@ -395,6 +379,30 @@ Worth doing, not yet urgent.
       JSON-LD on a driver page only, so a race page's markup has no test. —
       *Search Console report · S*
 
+### Filed 2026-09-12 — live data, asked for and not yet decided
+
+- [ ] `LV-01` **"Live" session data for the current season — free practice
+      timings, as live as possible.** Asked for on 2026-09-12. **Needs a
+      decision before a line of code**, because it runs into the one licence
+      decision this project has already made: session timing is FOM's data.
+      `docs/TIMING-ARCHITECTURE.md` classifies FastF1, OpenF1 and the live
+      timing feed as `no`, `laps`/`stints`/`race_timing`/
+      `race_control_messages` are kept at zero rows for that reason, and CI
+      checks it on every push. Practice lap times are the same data, and
+      "live" means taking it from the feed while it is FOM's alone. What
+      *can* be done, in order of how live it is: (a) the weekend timetable —
+      every session's start time, from the FIA timetable and F1's calendar,
+      facts under `facts-only`, shown on `/seasons/2026` and the race page
+      with a "next session in …" line; (b) session *classifications* after
+      the fact — the FP1/FP2/FP3 order and best times as published in the
+      race report and reproduced on Wikipedia, `facts-only`, loaded by the
+      daily refresh the way race results already are, so a Friday session is
+      on the site by Saturday morning; (c) a live page that fetches from a
+      source at view time and stores nothing — still redistribution of FOM's
+      data under its terms, and the same `no`. Recommendation: (a) and (b);
+      (c) declined unless a licence is obtained. The decision is Alex's;
+      until it is made the loop does not touch the timing tables. —
+      *request · M*
 ### Filed 2026-09-12 — the Wikipedia *Formula One* page, read for what it holds that this does not
 
 Asked for on 2026-09-12. The page is prose; its structured content was
@@ -522,22 +530,11 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 - [ ] `VD-08` **The livery-band explanation is 10.5 px mono across 175 characters.** The sentence that carries the racing-colour decision, set smaller than a footnote. `--sans`, 13 px, under the swatch, within `--measure`. — *visual critique · S*
 
 - [ ] `VD-11` **The confidence ladder is drawn without rungs.** Three middle tiers pixel-identical. Step them on border weight, not hue. — *visual critique · S*
+- [ ] `VD-12` **The circuit page shows the flattest drawing of the best asset.** Render `/circuits/:id` with the atlas's renderer — radius bands, start marker, direction. One component, one call site; most of the "look nicer" the author wants, and every pixel a fact. Declines 3D (see *Declined*); an elevation *profile strip* under the plan map if `PD-23` ever yields a source. — *visual critique · M*
 
 - [ ] `VD-14` **Wide tables clip at the container edge on a phone with no affordance.** Seven of nine `/drivers` columns invisible at 375 px. A right-edge fade on `.table-scroll` when scrollable. — *visual critique · S*
 
-- [ ] `VD-15` **Column headers are 9.5 px.** Uppercase mono at 9.5 px carries the sort control. 10.5–11 px; pin it in `VD-03`'s scale. — *visual critique · S*
-
-- [ ] `VD-16` **Prose in table cells ignores the measure.** 128-character lines on `/reference/sources`. `max-width: 60ch` on prose cells. — *visual critique · S*
-
-- [ ] `VD-17` **The pale end of the sequential ramp is 1.99:1 against its stage.** Darken `--seq-1` in light; make the legend a continuous bar. `AX-07` is the same finding as a WCAG failure. — *visual critique · S*
-
-- [ ] `VD-18` **The fastest-lap mark ignores the accent's stated meaning.** `tokens.css` says accent means *this was fastest*; the FL bullet is body ink. `AX-12` owns the markup half. — *visual critique · S*
-
-- [ ] `VD-19` **The SQL console clips its own example query.** Size the textarea to the loaded query's lines. — *visual critique · S*
-
 - [ ] `VD-20` **A loading photograph and an absent one look the same.** And each thumbnail is three redirects. Distinguish the states; consider the resolved `upload.wikimedia.org` URL in the harvest. — *visual critique · S*
-
-- [ ] `VD-21` **`web/README.md` describes a mark the site does not ship.** 3×2 in the doc, 4×4 in `index.html`. Fix the paragraph. — *visual critique · S*
 
 **Interaction design**
 
@@ -800,7 +797,7 @@ Real, but not costed, or waiting on a decision.
 
 - [ ] `CR-19` **`# noqa` and `eslint-disable` with no linter; Python 3.9 in the matrix.** Add ruff to CI or delete the markers; say why 3.9 stays. — *code review · S*
 
-- [ ] `CR-20` **The history the project leans on starts on 2026-09-04.** Everything before v2.6 is `BUILD-NOTES.md` and comments, which makes `PM-02` weightier than an S. — *code review · ?*
+- [ ] `CR-20` **The history the project leans on starts on 2026-09-04.** Everything before v2.6 is `BUILD-NOTES.md` and comments, which makes `PM-02` weightier than an S. `PM-02` landed in #60 as far as v2.16–v2.22 go; what this asks about is the record *before* the git history starts, and that stays open. — *code review · ?*
 
 - [ ] `PD-18` **Driver photographs: available for ~65%, fourth in the queue.** Sampled n=160: 55% pre-1970 to 98% modern, all on Commons. An *identification* portrait beside the `h1`, never a hero; the template must work without one (302 pages). Decide after `PD-16` and `PD-19` have shipped. `VD-22` sizes the data side L (a `drivers.article` equivalent, a name-match rule for people); `UR` found no persona blocked by its absence. — *product critique · decision*
 
@@ -1221,6 +1218,36 @@ Real, but not costed, or waiting on a decision.
       console page queries while a statement runs. No timeout: a slow honest
       query is the reader's to wait for or stop. — *interaction critique · #58*
 
+- [x] `VD-07` **The rail's middle bands separate by lightness.**
+      `--rail-classified` darkened in light and lightened in dark; points
+      against classified is 2.1:1 in both themes, measured in the script
+      that made the change. — *visual critique · #61*
+
+- [x] `VD-08` **The racing-colour sentence is prose**: `--sans`, 13 px, under
+      the swatch, within the measure. — *visual critique · #61*
+
+- [x] `VD-11` **The confidence ladder has rungs.** High is a 2 px border,
+      reference 1 px, medium dashed; the ends keep their colour. — *visual
+      critique · #61*
+
+- [x] `VD-15` **Column headers are 10.5 px.** — *visual critique · #61*
+
+- [x] `VD-16` **Prose cells keep to 60ch.** — *visual critique · #61*
+
+- [x] `VD-17` **The pale end of the ramp clears 3:1 on the stage** (3.2:1 in
+      light; the ramp re-spaced so each step stays at least 1.3:1 from the
+      next). The continuous legend bar is not done; `AX-07`'s contrast half
+      is. — *visual critique · #61*
+
+- [x] `VD-18` **The fastest-lap mark is the accent**, the one cell where
+      "this was fastest" is literally what it marks. `AX-12` still owns the
+      markup half. — *visual critique · #61*
+
+- [x] `VD-19` **The console's textarea fits the query it was given.** —
+      *visual critique · #61*
+
+- [x] `VD-21` **`web/README.md` describes the mark that ships**: four by four,
+      one accent cell. — *visual critique · #61*
 - [x] `WK-02` **The cost cap is a schedule.** Seven `regulation_limits`
       rows — the headline figure for 2021, 2022, 2023–2025 and 2026, and the
       per-Competition adjustment for each — every one read from the FIA
@@ -1239,6 +1266,28 @@ Real, but not costed, or waiting on a decision.
       is no arrow and no claim of one — the first cut said it anyway, and the
       review caught it. 3D stays
       declined; an elevation strip waits on `PD-23`. — *visual critique · #62*
+- [x] `PD-07` **The README states what the database holds.** Every figure it
+      gives about the current database is a `<!-- fig:name -->` span that
+      `tools/readme_figures.py` computes from `f1.db` (and `f1-geometry.db`
+      for the centrelines) with one expression per name; `make all` rewrites
+      them, and a `verify.py` section recomputes each and fails the build
+      where the text disagrees. 39 tables / 34 views / ~8,400 rows became
+      46 / 39 / 119,265; "qualifying, not held at all" became 26,997 rows;
+      "standings cover 2025–26 only", "sprint results not held", "podiums
+      hand-entered" and "every Monday" were false and are fixed. Prose that
+      could not be derived — check counts, refusal tallies that live in harvest
+      logs, the way-end distances — was deleted rather than left to drift. The
+      version log moved to `docs/BUILD-NOTES.md`; `PM-04` stays open with the
+      proposed text on it. — *product critique · #60*
+
+- [x] `PM-02` **`BUILD-NOTES.md` runs to v2.22.** v2.16–v2.22 folded in from
+      the README's log, newest first, dated from the tags and the version-bump
+      commits, nothing dropped; the two facts the README's header carried that
+      the v2.1 and v2.3 entries did not are in them now. — *project record · #60*
+
+- [x] `PM-03` **"Next, in order" is gone.** `BUILD-NOTES.md` now says
+      `docs/BACKLOG.md` is the only queue, and why a second list that can go
+      stale is worse than none. — *project record · #60*
 
 ## Declined
 

@@ -335,7 +335,7 @@ function RaceBody({ race, data, year, round }) {
                 key: 'fastest_lap',
                 label: 'FL',
                 align: 'num',
-                render: (value) => (value === 1 ? '●' : ''),
+                render: (value) => (value === 1 ? <span className="fl">●</span> : ''),
               },
             ]}
             footer="An empty “Out” is a retirement nobody recorded a reason for, not a driver who finished. A blank chassis is a season the team ran more than one design and no source says which car raced here."
