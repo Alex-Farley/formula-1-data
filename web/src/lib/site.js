@@ -63,11 +63,19 @@ export const CROSS_CHECKED =
   'two sources differ, and a register of what nobody has established.'
 
 /**
- * Why four tables are empty. A licence decision, not a missing feature —
+ * Why four tables are empty, stated as the position it is rather than as an
+ * apology (PD-12). A licence decision, not a missing feature —
  * docs/TIMING-ARCHITECTURE.md — and the one thing a reader comparing this
- * with its upstream most needs told before they go looking.
+ * with its upstream most needs told before they go looking: the absence is
+ * what makes every figure here one they may republish. It is a claim about
+ * the licences on offer, not about what anyone may lawfully do - FOM and its
+ * licensees redistribute timing every weekend - and it names race timing,
+ * because the qualifying table holds 27,000 lap times F1DB publishes under
+ * CC BY (the review of #94).
  */
 export const NOT_HELD =
-  'Lap times, stints, race timing and race control messages are not held. No source publishes ' +
-  'them under a licence that permits passing them on, so those four tables ship empty on ' +
-  'purpose; the pit stops that are here come from F1DB, whose licence does.'
+  'Nobody publishes Formula One race timing under a licence that permits passing it on, so this ' +
+  'database holds none of it: lap times, stints, race timing and race control messages ship as ' +
+  'four empty tables, on purpose. Everything that is here may be passed on under the licence ' +
+  'shown beside it; the pit stops and the qualifying times come from F1DB, whose CC BY 4.0 ' +
+  'allows exactly that.'
