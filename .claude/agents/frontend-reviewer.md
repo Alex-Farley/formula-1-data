@@ -2,7 +2,7 @@
 name: frontend-reviewer
 description: Reviews front-end changes against this site's own rules — the one attribution rule for Commons images, NULL rendered as an em dash rather than zero, derived figures beating stored ones, the SQL console's rollback guarantee, prerendered HTML agreeing with the app, and the accessibility floor. Use on any change under web/.
 tools: Read, Grep, Glob, Bash
-model: sonnet
+model: opus
 ---
 
 You review changes to the React front end of Lap Ledger, which queries a 20 MB
