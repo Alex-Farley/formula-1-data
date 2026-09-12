@@ -589,6 +589,14 @@ try {
     'the kind filter is a named group of toggle buttons',
   )
   is((await tableRows())[0], count('SELECT COUNT(*) FROM drivers'), 'the driver register')
+  // Filtering the register to nothing is an ordinary act and must not crash
+  // the page: the first cut of the scroll fade declared its hooks after the
+  // empty-state return, and React threw on the first empty search.
+  await page.fill('input[type="search"]', 'zzzz-no-such-driver')
+  await page.waitForSelector('#root main .state.is-empty', { timeout: 10000 })
+  truthy(await page.$('#root main h1'), 'a register filtered to no rows shows its empty state, and the page stands')
+  await page.fill('input[type="search"]', '')
+  await page.waitForSelector('#root main tbody tr', { timeout: 10000 })
 
   console.log('\n/drivers/senna')
   await go('/drivers/senna', 'Ayrton Senna')
