@@ -488,10 +488,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       not the row id — and leave shared records as text. Found by the review
       of #68. — *product critique · S*
 
-- [ ] `CR-24` **The static drivers register is not the app's.** Eight
-      columns against nine, Poles before Podiums against Podiums before
-      Poles, no Fastest laps. Same defect as `CR-22`/`CR-23`; rides with
-      `PD-02`. Found by the review of #69. — *review of #69 · S*
 
 - [ ] `CD-19` **Eighteen driver ledes still spell a figure the strip
       derives** ("Ten wins", "Eight wins"); `verify.py`'s check (#70) stops
@@ -1557,7 +1553,9 @@ Real, but not costed, or waiting on a decision.
       join the ordinals, which had skipped them — the comment's own
       Hülkenberg example never matched — and so does twenty-first and kin,
       which the review of #85 found the same way. No note needed rewriting;
-      the stale duplicate open `CD-21` line is gone. — *review
+      three stale open lines are gone from the queue, each a duplicate of
+      a landed entry — `CD-21` (#79), `CR-23` and `CR-24` (both #77) — the
+      first two by a block edit the review of #85 caught as unrecorded. — *review
       of #79 · #85*
 
 ## Declined
