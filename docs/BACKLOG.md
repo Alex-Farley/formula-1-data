@@ -503,14 +503,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       `verify.py` pin together (no row needs it today). Found by the review
       of #81. — *review of #81 · S*
 
-- [ ] `CD-24` **Subset figures in a driver note are counted by nobody.**
-      Hill's five and Senna's six Monaco wins, Trintignant's two, and
-      Ickx's six Le Mans wins were verified by hand for #79 and nothing
-      re-checks them. Three are one query on `race_entries`: count a
-      "<N> <Circuit> wins" phrase against the records, and declare the
-      one no table can constrain. Found by the review of #79. — *review of
-      #79 · S*
-
 - [ ] `PM-29` **`build.py` hardcodes the rollover year for imported drivers'
       status.** `("active" if max(yrs) >= 2026 else "retired")` decides
       `status` for the 680 F1DB-admitted drivers; at the 2027 rollover every
@@ -1597,6 +1589,13 @@ Real, but not costed, or waiting on a decision.
       a landed entry — `CD-21` (#79), `CR-23` and `CR-24` (both #77) — the
       first two by a block edit the review of #85 caught as unrecorded. — *review
       of #79 · #85*
+
+- [x] `CD-24` **Subset figures in a driver note are counted.**
+      `subset_figures()` in `tools/lede_figures.py` finds "<N> <Place>
+      wins/poles/podiums"; `verify.py` counts each against the race records
+      where the place is a Grand Prix (Senna 6, Hill 5, Trintignant 2 at
+      Monaco) and requires the rest to be declared — Ickx's six Le Mans
+      wins are, and an undeclared place fails. — *review of #79 · #88*
 
 ## Declined
 

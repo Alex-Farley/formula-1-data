@@ -11,7 +11,7 @@ import sys
 import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "tools"))
-from lede_figures import figure  # noqa: E402
+from lede_figures import figure, number, subset_figures  # noqa: E402
 
 CAUGHT = {
     "Ten wins and thirteen podiums.": "Ten wins",
@@ -60,6 +60,20 @@ class LedeFigures(unittest.TestCase):
         for note in LEFT_ALONE:
             with self.subTest(note=note):
                 self.assertIsNone(figure(note))
+
+    def test_subset_figures_name_their_place(self):
+        self.assertEqual(subset_figures('Six Monaco wins including five straight.'), [(6, 'Monaco', 'wins')])
+        self.assertEqual(subset_figures('Twice champion; six Le Mans wins.'), [(6, 'Le Mans', 'wins')])
+        self.assertEqual(subset_figures('Two Monaco wins, eight years apart (1955 and 1958).'), [(2, 'Monaco', 'wins')])
+        self.assertEqual(subset_figures('Five Monaco poles and two San Marino podiums.'), [(5, 'Monaco', 'poles'), (2, 'San Marino', 'podiums')])
+        self.assertEqual(subset_figures('Ten wins and thirteen podiums.'), [])
+        self.assertEqual(subset_figures('Four of his wins came in the wet.'), [])
+        self.assertEqual(subset_figures('Le Mans 24 Hours. Five Monaco wins.'), [(5, 'Monaco', 'wins')])
+
+    def test_numbers_read_in_digits_and_words(self):
+        for text, value in (('Six', 6), ('twenty-three', 23), ('1,566', 1566), ('hundred', 100), ('ninety nine', 99)):
+            with self.subTest(text=text):
+                self.assertEqual(number(text), value)
 
     def test_case_does_not_hide_a_figure(self):
         self.assertEqual(figure("TEN WINS."), "TEN WINS")
