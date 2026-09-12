@@ -343,11 +343,6 @@ Worth doing, not yet urgent.
       `brawn-bgp001`, `lotus-72`, `mercedes-w05`, `mercedes-w11` and one more —
       reachable at two paths, indexed at neither. — *IA critique · S*
 
-- [ ] `IA-07` **The SQL console has no permalink.** `Sql.jsx` holds the query in
-      `useState` — no `useSearchParams`, no hash — so a query cannot be shared,
-      bookmarked or cited on a site whose stated ambition is to be cited. —
-      *IA critique · S*
-
 - [ ] `IA-12` **The glossary is terminal.** 44 terms, linked from three places
       in `web/`, and the terms it should serve are undefined at the point they
       appear. Content design owns the wording (`CD-09`); this is the placement
@@ -541,8 +536,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       S*
 
 **Interaction design**
-
-- [ ] `IX-11` **Clicking a worked example destroys the reader's query with no undo.** Write through `execCommand('insertText')` so ⌘Z works. — *interaction critique · S*
 
 - [ ] `IX-16` **`IA-08` escalated: Back restores the scroll and not the filter.** France filter, sort by wins, scroll, open a driver, Back — same pixel, 862 unfiltered rows. Do `/drivers` first. — *interaction critique · M*
 
@@ -1306,8 +1299,19 @@ Real, but not costed, or waiting on a decision.
       and in the page description a search engine shows. Found on the way:
       the static standings table read the raw `standings` table and listed
       every 2026 driver twice (formula1.com and F1DB rows after the same
-      round); it now reads `v_standings_final`, as the app does. — *user
+      round); it now reads `v_standings_final`, as the app does — for every
+      season, not only a running one: the review of #64 found 2025's static
+      table gained its team column, which the raw snapshot left blank. — *user
       research · #64*
+
+- [x] `IA-07` **The SQL console has a permalink.** `?q=` carries the
+      query: written on every run, read and run on arrival, so a query can
+      be shared, bookmarked or cited. — *IA critique · #65*
+
+- [x] `IX-11` **An example no longer destroys the reader's query.** Not
+      through `execCommand('insertText')` — a controlled textarea and the
+      browser's undo stack do not agree — but by keeping what was replaced
+      and offering it back in one click. — *interaction critique · #65*
 
 ## Declined
 

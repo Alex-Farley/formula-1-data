@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { SELF_DESCRIBING, TWO_FILES } from '../lib/site.js'
 import { Note, Onward, Page, Section } from '../components/Page.jsx'
 import { ErrorBox, Loading } from '../components/States.jsx'
@@ -111,8 +112,19 @@ function complain(sql) {
 }
 
 export default function Sql() {
-  const [text, setText] = useState(START)
+  // The query lives in the URL as well as in state: `?q=` is the permalink,
+  // written on every run, read on arrival. A site that asks to be cited
+  // had no way to cite a query.
+  const [params, setParams] = useSearchParams()
+  const arrived = params.get('q')
+  const [text, setText] = useState(arrived || START)
   const [state, setState] = useState({ status: 'idle' })
+  // One step back. An example replaced whatever the reader had typed, with
+  // no undo; the last thing replaced is kept and offered back.
+  const [replaced, setReplaced] = useState(null)
+  // The statement last run, so that the address changing to what was just
+  // run does not run it again, and a new address does.
+  const ran = useRef(null)
   const [schema, setSchema] = useState([])
   const running = useRef(null)
 
@@ -131,6 +143,8 @@ export default function Sql() {
       return
     }
     setState({ status: 'running' })
+    ran.current = statement
+    setParams(statement === START ? {} : { q: statement }, { replace: true })
     const started = performance.now()
     const controller = new AbortController()
     running.current = controller
@@ -158,10 +172,21 @@ export default function Sql() {
   // showed skeletons that never filled.
   useEffect(() => () => running.current?.abort(), [])
 
+  // On arrival, and again whenever the address brings a different query
+  // while the page stays mounted (a link to a query from within the site).
   useEffect(() => {
-    run(START)
+    const statement = arrived || START
+    if (statement === ran.current) return
+    if (arrived) setText(arrived)
+    run(statement)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [arrived])
+
+  const useExample = (statement) => {
+    if (text.trim() && text !== statement && text !== START) setReplaced(text)
+    setText(statement)
+    run(statement)
+  }
 
   const onKeyDown = (event) => {
     if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
@@ -221,6 +246,27 @@ export default function Sql() {
               </span>
             )}
           </div>
+          {(replaced || arrived) && (
+            <p className="small faint" style={{ margin: '8px 0 0', display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+              {arrived && (
+                <a href={`?q=${encodeURIComponent(text)}`} onClick={(event) => event.preventDefault()} className="permalink">
+                  This page's address is a link to this query
+                </a>
+              )}
+              {replaced && (
+                <button
+                  type="button"
+                  className="linklike"
+                  onClick={() => {
+                    setText(replaced)
+                    setReplaced(null)
+                  }}
+                >
+                  Restore what you had typed
+                </button>
+              )}
+            </p>
+          )}
 
           <Section>
             {state.status === 'running' && <Loading label="Running" />}
@@ -254,10 +300,7 @@ export default function Sql() {
                 key={label}
                 type="button"
                 className="example"
-                onClick={() => {
-                  setText(statement)
-                  run(statement)
-                }}
+                onClick={() => useExample(statement)}
               >
                 <b>{label}</b>
                 <span className="faint">{statement.split('\n')[0].slice(0, 46)}…</span>

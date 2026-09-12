@@ -1389,6 +1389,17 @@ figure.photo figcaption a {
   color: var(--accent);
 }
 
+/* A button that reads as a link, for an action inside a sentence. */
+.linklike {
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  color: var(--ink-soft);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 textarea.sql {
   width: 100%;
   min-height: 150px;
