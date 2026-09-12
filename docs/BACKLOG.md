@@ -142,39 +142,6 @@ largest single fix and still has its riders.
       the figure it caveats; move it above the published table today. `VD-10`
       and `VD-13` are the same page's badge column and misaligned values.
 
-- [ ] `IA-02` **`Reference` leaves the masthead; `Data` takes the slot.**
-      `/reference` is two drawers with no reader in common: a *database* drawer
-      (`quality`, `sources`, `sql`) and a *sport* drawer (`eras`, `glossary`).
-      The first one **is** the `/data` page `PD-11` wants, so these are one
-      decision and the masthead stays at eight — Seasons · Races · Drivers ·
-      Constructors · Circuits · Cars · Records · Data. `quality` and `sources`
-      merge and move under it, `sql` moves under it; `eras` and `glossary` keep
-      their URLs and lose the slot, their problem being that they are terminal
-      rather than that they are drawered. Supersedes `PD-09`, which filed the
-      same problem as an L: the redirects are the work, and the naming decision
-      this costs at M is the one `PD-09` was waiting on. — *IA critique · M
-      (decision first)*
-
-- [ ] `PD-11` **Give the bulk data a front door, and a claim.** The Parquet
-      bundle now builds and serves (`PM-01`) and is linked from nothing. A
-      `/data` page in the masthead leading with the audited edition — 60 recorded
-      disagreements, a confidence tier per row, a gap register, the `verify.py`
-      checks — which is a claim the upstream does not make.
-      One implementation note: `prerender.js` writes `Disallow:` lines for
-      `f1.db`, `f1.db.gz` and `f1-parquet.zip`, which is right — a crawler
-      pulling 20 MB helps nobody — but it means the `/data` page itself has to
-      be the crawlable surface that carries the claim, since the files it links
-      never will be. Do `IA-02` first — it settles where the page goes and
-      what it displaces — and take the claim from `CD-07`, which writes it. —
-      *product critique · M*
-      **Now the canonical distribution surface** (`SD-08`): all four served
-      artefacts, sizes, digests from `db-manifest.json`, the build date, the
-      release body's which-copy-wins sentence, `schema.org/Dataset` markup
-      (`SD-11` — the one search surface built for this audience), and the
-      publisher block `UR-05`/`SD-15` ask for. The disagreements claim in
-      `CD-07` must change: 45 found, 44 resolved on the record, one open
-      (`PD-25`).
-
 ## Next
 
 Worth doing, not yet urgent.
@@ -703,12 +670,6 @@ Real, but not costed, or waiting on a decision.
       commercialised in a form that reproduces them prominently. Weighed and kept
       on the record; a marketing surface is not a database row. —
       *project record · ?*
-
-- [ ] `PD-09` **Rework `/reference`.** It holds an audit, an encyclopedia and a
-      developer tool behind one nav item. Promote the SQL console and a merged
-      provenance page to the masthead. Needs redirects and a naming decision.
-      **Superseded by `IA-02`**, which makes the naming decision this was
-      waiting on and costs the rework at M. — *product critique · L*
 
 - [ ] `PD-08` **Decide what the atlas is for.** **Superseded by `PD-21`**,
       which decides it: a comparison surface, and only that. Three critics and
@@ -1322,6 +1283,48 @@ Real, but not costed, or waiting on a decision.
 - [x] `PM-04` **The GitHub repository description** now states what the
       database is and where to browse it. — *product management · applied
       2026-09-12*
+
+- [x] `IA-02` **`Reference` leaves the masthead; `Data` takes the slot.** The
+      masthead stays at eight: Seasons · Races · Drivers · Constructors ·
+      Circuits · Cars · Records · Data. `/data` is the database's own front
+      door; `quality`, `sources` and `sql` sit under it at `/data/quality`,
+      `/data/sources` and `/data/sql`, summarised on the front door and kept
+      as the pages they were — merging two long pages was a rewrite, and this
+      was a move. `eras` and `glossary` keep `/reference/eras` and
+      `/reference/glossary`, lose the slot, and are reached from the pages
+      about the sport: Seasons, Cars and Circuits already led to the eras;
+      Races now leads to the glossary and the home page to the eras; the two
+      carry an "About the sport" nav of their own. The four old addresses
+      answer in the app with a `<Navigate replace>` that carries the search —
+      `/reference/sql?q=…` is #65's permalink and still runs — and in the
+      static output with a redirecting page each (meta refresh, canonical to
+      the new address, `noindex`, the query carried by script), written
+      outside the sitemap. The smoke test asserts the eight, the version on
+      `/data`, both redirects with the query intact, and the sitemap naming
+      the new addresses only. — *IA critique · #67*
+
+- [x] `PD-11` **Give the bulk data a front door, and a claim.** `/data`, in
+      the app and prerendered: the version and build date from `meta`, the
+      two database files with sizes and the manifest's digests, the Parquet
+      bundle — linked from a page for the first time — the two JSON exports
+      named as release assets rather than linked, since nothing serves them,
+      the confidence ladder, the counts of disagreements, open disagreements,
+      gaps and sources read live, the three licence classes with their
+      counts, the four empty tables stated as a licence decision, and the SQL
+      console. The claim is `PD-14`'s wording — *cross-checked against
+      independent sources, with every disagreement and every gap published in
+      the data* — in one string in `site.js` shared by `Data.jsx` and
+      `prerender.js`, so the app and the crawlable page cannot say different
+      things. The static page carries `schema.org/Dataset` markup with a
+      `DataDownload` per served file. `CD-07`'s adversarial sentence is still
+      open; the sizes and digests come from `db-manifest.json`, not yet the
+      release body's which-copy-wins sentence or the publisher block
+      (`UR-05`/`SD-15`). — *product critique · #67*
+
+- [x] `PD-09` **Rework `/reference`.** Landed as `IA-02` and `PD-11`, which
+      made the naming decision this was waiting on: the database drawer is
+      `/data` in the masthead, the sport drawer kept its addresses, and the
+      redirects were the work. — *product critique · #67*
 
 ## Declined
 

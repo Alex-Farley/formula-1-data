@@ -319,7 +319,7 @@ function Body({ data }) {
             : null,
           { to: '/seasons', label: 'Seasons', hint: 'How each of those championships was actually won.' },
           {
-            to: '/reference/sql',
+            to: '/data/sql',
             label: 'Ask your own question',
             hint: 'The SQL console, for the leaderboard that is not on this page.',
           },

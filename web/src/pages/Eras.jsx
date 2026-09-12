@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Confidence, Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable from '../components/DataTable.jsx'
-import SubNav from '../components/SubNav.jsx'
+import { SportNav } from '../components/SubNav.jsx'
 import { Chips } from '../components/Filters.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { span } from '../lib/format.js'
@@ -27,7 +27,7 @@ export default function Eras() {
       title="Eras and regulations"
       lede="Formula One is a rule set that keeps being rewritten, and most of what changed about the cars follows from that. Here is the chronology: what the rules were, what someone invented to get round them, and what was banned afterwards."
     >
-      <SubNav />
+      <SportNav />
       <Result state={state}>{(data) => <Body data={data} />}</Result>
     </Page>
   )

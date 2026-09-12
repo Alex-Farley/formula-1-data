@@ -321,8 +321,8 @@ function Body({ data }) {
 
       <Onward
         items={[
-          { to: '/reference/sources', label: 'Sources and licences', hint: 'Who says so, and what you may reuse.' },
-          { to: '/reference/sql', label: 'SQL console', hint: 'Interrogate any of this yourself.' },
+          { to: '/data/sources', label: 'Sources and licences', hint: 'Who says so, and what you may reuse.' },
+          { to: '/data/sql', label: 'SQL console', hint: 'Interrogate any of this yourself.' },
           { to: '/records', label: 'Records', hint: 'The figures these checks are protecting.' },
         ]}
       />
