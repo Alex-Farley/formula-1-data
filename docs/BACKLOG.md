@@ -1523,6 +1523,15 @@ Real, but not costed, or waiting on a decision.
       rather than titles, and Montoya's "fourth GP start" was wrong — the pass on
       Schumacher at Interlagos 2001 was his third. — *review of #74 · #79*
 
+- [x] `PM-27` **The fetch tool reads F1DB's licence before it writes a
+      row.** `licence_check()` in `tools/f1db_fetch.py` requires the deed in
+      the checkout to be titled Attribution 4.0 International and to name no
+      NonCommercial, ShareAlike or NoDerivatives element, and exits
+      otherwise — so `refresh.yml` fails at the fetch and commits nothing,
+      and reclassifying the source in `SOURCE_LICENCE` becomes a decision
+      someone makes rather than a header a constant stamped. Six unit tests,
+      offline. — *project record · #83*
+
 ## Declined
 
 Measured, decided, and on the record. Each may be re-raised — the reason is what
