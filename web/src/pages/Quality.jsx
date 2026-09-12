@@ -206,7 +206,7 @@ function Body({ data }) {
           columns={[
             { key: 'subject', label: 'Subject' },
             { key: 'field', label: 'Field' },
-            { key: 'stored_value', label: 'Stored', align: 'num' },
+            { key: 'stored_value', label: 'Published', align: 'num' },
             { key: 'derived_value', label: 'Derived', align: 'num' },
             { key: 'assessment', label: 'Assessment', align: 'prose' },
             { key: 'status', label: 'Status' },

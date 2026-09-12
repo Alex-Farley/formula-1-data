@@ -515,11 +515,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       query, once. Make them spans `tools/readme_figures.py` writes, as the
       README's are, or generate the breakdown from `./f1 licences`. Found by
       the licence review of #91. — *review of #91 · S*
-- [ ] `CD-27` **Three words for the register's figure on one screen.** The
-      Seasons note calls it "published", the aside beside it "the
-      register's", `/data/quality` heads the column "Stored". One word.
-      Found by the review of #89. — *review of #89 · S*
-
 **Interaction design**
 
 - [ ] `IX-16` **`IA-08` escalated: Back restores the scroll and not the filter.** France filter, sort by wins, scroll, open a driver, Back — same pixel, 862 unfiltered rows. Do `/drivers` first. — *interaction critique · M*
@@ -1674,6 +1669,12 @@ Real, but not costed, or waiting on a decision.
       `last_season`, and its figures are checked against the records' MAX
       year as a first-season row's are against MIN. No row needed it today.
       — *review of #81 · #93*
+
+- [x] `CD-27` **One word for the register's figure: published.** The
+      explained aside says "the published span and the one the race records
+      give differ", from a footer string both renderers now share, and the
+      quality page's column is "Published", as the strip and the record list
+      already said. — *review of #89 · #97*
 
 ## Declined
 
