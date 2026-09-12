@@ -1602,6 +1602,33 @@ figure.figure > figcaption span {
   border-top: 1px solid var(--rule);
 }
 
+/* The known-gaps register: the reader's sentence is the cell, the
+   maintainer's note is behind a disclosure so it is kept without being the
+   thing a reader has to get past. */
+.gap-reader {
+  margin: 0;
+}
+
+.gap-note {
+  margin-top: 6px;
+}
+
+.gap-note > summary {
+  cursor: pointer;
+  font-size: 12.5px;
+  color: var(--ink-faint);
+}
+
+.gap-note > summary:hover {
+  color: var(--ink);
+}
+
+.gap-note p {
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  color: var(--ink-soft, var(--ink-faint));
+}
+
 .figure details > summary {
   cursor: pointer;
   padding: 9px 16px;

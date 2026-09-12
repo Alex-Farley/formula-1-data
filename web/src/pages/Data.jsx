@@ -31,7 +31,7 @@ const SPEC = {
        (SELECT COUNT(*) FROM source_registry)                    AS sources,
        (SELECT COUNT(*) FROM discrepancies)                      AS discrepancies,
        (SELECT COUNT(*) FROM discrepancies WHERE status LIKE 'open%') AS open_discrepancies,
-       (SELECT COUNT(*) FROM known_gaps)                         AS gaps,
+       (SELECT COUNT(*) FROM v_open_gaps)                        AS gaps,
        (SELECT COUNT(*) FROM races)                              AS races,
        (SELECT COUNT(*) FROM race_entries)                       AS entries,
        (SELECT COUNT(*) FROM laps) + (SELECT COUNT(*) FROM stints)
@@ -179,7 +179,7 @@ function Body({ data }) {
               value: number(shape.discrepancies),
               note: `${number(shape.open_discrepancies)} still open`,
             },
-            { label: 'Known gaps', value: number(shape.gaps), note: 'and what would close each' },
+            { label: 'Open gaps', value: number(shape.gaps), note: 'and what would close each' },
             { label: 'Sources', value: number(shape.sources), note: 'each with its licence' },
           ]}
         />

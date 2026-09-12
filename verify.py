@@ -755,6 +755,29 @@ def pole_position_and_fastest_lap():
             stale.append(f"{g['field']}: declared {g['races_affected']}, actual {actual}")
     check("declared gaps match the actual gaps", not stale, "; ".join(stale))
 
+    # The register carries three states and the site counts one of them. Every
+    # row must say which it is in and give a reader the one-paragraph version;
+    # a closed row must say when it closed - a version or a pull request - so
+    # the closure is on the record rather than the row quietly gone. The
+    # homepage, /data and the README's open-gaps figure all read v_open_gaps,
+    # so the view is checked against the table it filters, and the README span
+    # that states the figure is checked against the same count in
+    # readme_figures() below.
+    gaps_ = con.execute("SELECT id, state, reader, resolution FROM known_gaps").fetchall()
+    bad = [str(g["id"]) for g in gaps_ if not (g["reader"] or "").strip()]
+    check("every known gap has a reader sentence", not bad, ", ".join(f"#{b}" for b in bad))
+    bad = [str(g["id"]) for g in gaps_ if g["state"] == "closed"
+           and not re.search(r"\bv\d+\.\d+\b|#\d+", g["resolution"] or "")]
+    check("every closed gap's resolution says which version or PR closed it",
+          not bad, ", ".join(f"#{b}" for b in bad))
+    by_state = {s: n for s, n in con.execute(
+        "SELECT state, COUNT(*) FROM known_gaps GROUP BY state")}
+    open_ = con.execute("SELECT COUNT(*) FROM v_open_gaps").fetchone()[0]
+    check("v_open_gaps is the open rows of known_gaps and nothing else",
+          open_ == by_state.get("open", 0) and 0 < open_ < len(gaps_),
+          f"{open_} open, {by_state.get('closed', 0)} closed, "
+          f"{by_state.get('position', 0)} positions, {len(gaps_)} rows")
+
 
 @section('STRUCTURE')
 def structure():

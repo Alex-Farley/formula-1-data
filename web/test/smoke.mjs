@@ -852,7 +852,11 @@ try {
   console.log('\n/data/quality')
   await go('/data/quality', 'Data quality')
   const quality = await tableRows()
-  truthy(quality.includes(count('SELECT COUNT(*) FROM known_gaps')), 'the known gaps are published')
+  truthy(quality.includes(count('SELECT COUNT(*) FROM v_open_gaps')), 'the open gaps are published')
+  truthy(
+    quality.includes(count("SELECT COUNT(*) FROM known_gaps WHERE state = 'closed'")),
+    'and the closed ones are kept on the page',
+  )
   truthy(
     quality.includes(count('SELECT COUNT(*) FROM discrepancies')),
     'the recorded disagreements are published',
