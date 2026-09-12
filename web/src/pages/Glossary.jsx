@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable from '../components/DataTable.jsx'
-import SubNav from '../components/SubNav.jsx'
+import { SportNav } from '../components/SubNav.jsx'
 import { Chips, Filters, SearchField } from '../components/Filters.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { span } from '../lib/format.js'
@@ -22,7 +22,7 @@ export default function Glossary() {
       title="Glossary and people"
       lede="What the words on a classification actually mean — and the designers, administrators and team principals whose decisions are behind most of the rest of this site."
     >
-      <SubNav />
+      <SportNav />
       <Result state={state}>
         {(data) => {
           const glossary = rows(data, 'glossary')
@@ -115,7 +115,7 @@ function Body({ glossary, personnel, term, setTerm, category, setCategory }) {
         items={[
           { to: '/reference/eras', label: 'Eras and rules', hint: 'Where most of this vocabulary comes from.' },
           { to: '/races', label: 'Races', hint: 'See the terms in use on a classification.' },
-          { to: '/reference/quality', label: 'Data quality', hint: 'What “verified” and “reference” mean here.' },
+          { to: '/data/quality', label: 'Data quality', hint: 'What “verified” and “reference” mean here.' },
         ]}
       />
     </>

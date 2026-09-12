@@ -424,8 +424,8 @@ try {
   // The app's SQL page carries the download paragraph the static one does,
   // with both files named: the two renderers used to disagree about whether
   // the file could be had at all.
-  console.log('\n/reference/sql  (the download paragraph, in the app)')
-  await go('/reference/sql', 'SQL console')
+  console.log('\n/data/sql  (the download paragraph, in the app)')
+  await go('/data/sql', 'SQL console')
   const sqlPage = await page.content()
   truthy(
     sqlPage.includes('f1-geometry.db') && sqlPage.includes('sqlite_master'),
@@ -455,7 +455,7 @@ try {
   console.log('\n/drivers/beppe-gabbiani  (a winless season reads 0, not an em dash)')
   await go('/drivers/beppe-gabbiani', 'Beppe Gabbiani')
   truthy(
-    await page.waitForSelector('a.pill[href$="/reference/quality"]', { timeout: 20000 }).catch(() => null),
+    await page.waitForSelector('a.pill[href$="/data/quality"]', { timeout: 20000 }).catch(() => null),
     'the confidence pill is a link to the quality ladder',
   )
   const dashedWins = await page.evaluate(() => {
@@ -789,8 +789,32 @@ try {
   is((await tableRows())[0], count('SELECT COUNT(*) FROM records'), 'published records')
   atLeast(await page.$$eval('#root main .figure svg', (n) => n.length), 4, 'the leaderboards drew')
 
-  console.log('\n/reference/quality')
-  await go('/reference/quality', 'Data quality')
+  // The front door. The version and build date it states are read from the
+  // same meta table the file carries, so the page and the database cannot
+  // disagree about which edition this is.
+  console.log('\n/data  (the front door)')
+  await go('/data', 'Data')
+  const edition = one(`SELECT value FROM meta WHERE key = 'version'`)
+  const dataText = await page.$eval('#root main', (n) => n.textContent)
+  truthy(dataText.includes(`v${edition}`), `the data page states the database version — v${edition}`)
+  truthy(dataText.includes(one(`SELECT value FROM meta WHERE key = 'built'`)), 'and the build date')
+  atLeast(await page.$$eval('#root main a[href$="/f1.db"]', (n) => n.length), 1, 'it links the database')
+  atLeast(
+    await page.$$eval('#root main a[href$="/f1-geometry.db"]', (n) => n.length),
+    1,
+    'and the geometry file beside it',
+  )
+  atLeast(await page.$$eval('#root main a[href$="/f1-parquet.zip"]', (n) => n.length), 1, 'and the Parquet bundle')
+  // The masthead stays at eight, and the slot that read Reference reads Data.
+  const masthead = await page.$$eval('#root header.masthead nav a', (nodes) => nodes.map((n) => n.textContent.trim()))
+  is(masthead.length, 8, 'the masthead has eight items')
+  truthy(
+    masthead.includes('Data') && !masthead.includes('Reference'),
+    'and "Data" is one of them, where "Reference" was',
+  )
+
+  console.log('\n/data/quality')
+  await go('/data/quality', 'Data quality')
   const quality = await tableRows()
   truthy(quality.includes(count('SELECT COUNT(*) FROM known_gaps')), 'the known gaps are published')
   truthy(
@@ -798,8 +822,12 @@ try {
     'the recorded disagreements are published',
   )
 
-  console.log('\n/reference/sources')
-  await go('/reference/sources', 'Sources')
+  // The old section address, in-app: a link written before the move.
+  await go('/reference', 'Data')
+  is(await page.evaluate(() => location.pathname), '/data', 'the old /reference address lands on /data')
+
+  console.log('\n/data/sources')
+  await go('/data/sources', 'Sources')
   truthy(
     (await tableRows()).includes(count('SELECT COUNT(*) FROM source_registry')),
     'every source is listed with its licence',
@@ -884,8 +912,8 @@ try {
 
   // ----------------------------------------------------------------- SQL
 
-  console.log('\n/reference/sql')
-  await go('/reference/sql', 'SQL console')
+  console.log('\n/data/sql')
+  await go('/data/sql', 'SQL console')
   await page.waitForSelector('#root main .table-wrap', { timeout: 20000 })
   atLeast((await tableRows())[0], 1, 'the opening query returned rows')
 
@@ -915,7 +943,7 @@ try {
 
   // The permalink: a query in the address runs on arrival, and running a
   // query writes it back to the address. An example keeps what it replaced.
-  await go('/reference/sql?q=SELECT%207%20AS%20n', 'SQL console')
+  await go('/data/sql?q=SELECT%207%20AS%20n', 'SQL console')
   await page.waitForFunction(
     () => document.querySelector('#root main tbody td')?.textContent.trim() === '7',
     null,
@@ -988,6 +1016,21 @@ try {
   await go('/drivers', 'Drivers')
   await page.waitForSelector('#root main tbody tr', { timeout: 20000 })
   atLeast((await tableRows())[0], 100, 'leaving the console stops its statement, and the register fills')
+
+  // The permalink at its old address. /reference/sql?q= was the console's
+  // address before the move to /data; a query cited then must still run,
+  // with the query carried across rather than dropped at the redirect.
+  console.log('\n/reference/sql?q=…  (the old address still runs the query)')
+  await go('/reference/sql?q=SELECT%207%20AS%20n', 'SQL console')
+  await page.waitForFunction(
+    () =>
+      location.pathname === '/data/sql' &&
+      new URLSearchParams(location.search).get('q') === 'SELECT 7 AS n' &&
+      document.querySelector('#root main tbody td')?.textContent.trim() === '7',
+    null,
+    { timeout: 20000 },
+  )
+  pass('the old address lands on /data/sql with its query run')
 
   // ------------------------------------------------------------------ sorting
 
@@ -1223,6 +1266,26 @@ try {
 
   await deep.close()
 
+  // The old addresses, cold. prerender.js writes a redirecting page at each
+  // rather than leaving a 404 where a bookmark or a citation used to resolve;
+  // it names the new address canonical and carries the query across.
+  const movedStatic = readFileSync(join(web, 'dist', 'reference', 'quality', 'index.html'), 'utf8')
+  truthy(
+    /http-equiv="refresh"[^>]*url=\/data\/quality/.test(movedStatic) &&
+      /<link rel="canonical" href="[^"]*\/data\/quality"/.test(movedStatic),
+    'dist/reference/quality/index.html sends the reader to /data/quality and names it canonical',
+  )
+  truthy(movedStatic.includes('name="robots" content="noindex"'), 'and asks not to be indexed itself')
+  const moved = await browser.newPage()
+  await moved.goto(`${BASE}/reference/sql?q=SELECT%207%20AS%20n`, { waitUntil: 'domcontentloaded' })
+  await moved.waitForFunction(
+    () => location.pathname === '/data/sql' && new URLSearchParams(location.search).get('q') === 'SELECT 7 AS n',
+    null,
+    { timeout: 20000 },
+  )
+  pass('a cold arrival at /reference/sql?q=… is sent to /data/sql with its query')
+  await moved.close()
+
   const noJs = await browser.newContext({ javaScriptEnabled: false })
   const plain = await noJs.newPage()
   await plain.goto(`${BASE}/races/2021/10`, { waitUntil: 'domcontentloaded' })
@@ -1269,8 +1332,12 @@ try {
     1 + one(`SELECT COUNT(*) FROM (
                SELECT id FROM chassis UNION SELECT id FROM cars
              )`) +
-    8 // records, reference and its five children, the atlas
+    8 // records, data and its three children, eras, glossary, the atlas
   is(urls, expected, 'the sitemap lists every page the database implies')
+  truthy(
+    sitemap.includes('/data/quality</loc>') && !sitemap.includes('/reference/quality') && !sitemap.includes('/reference</loc>'),
+    'the sitemap lists the new addresses and none of the moved ones',
+  )
   truthy((await fetch(`${BASE}/robots.txt`).then((r) => r.text())).includes('Sitemap:'), 'robots.txt points at it')
 
   // ------------------------------------------------------- console cleanliness

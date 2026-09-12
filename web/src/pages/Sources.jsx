@@ -188,9 +188,9 @@ export default function Sources() {
 
               <Onward
                 items={[
-                  { to: '/reference/quality', label: 'Data quality', hint: 'How far to trust each figure, and what is missing.' },
-                  { to: '/reference/sql', label: 'SQL console', hint: 'Pull the rows you need straight out of the database.' },
-                  { to: '/reference', label: 'Reference', hint: 'Eras, glossary and everything else behind the results.' },
+                  { to: '/data/quality', label: 'Data quality', hint: 'How far to trust each figure, and what is missing.' },
+                  { to: '/data/sql', label: 'SQL console', hint: 'Pull the rows you need straight out of the database.' },
+                  { to: '/data', label: 'Data', hint: 'The database itself: the files, the version, and how far to trust it.' },
                 ]}
               />
             </>

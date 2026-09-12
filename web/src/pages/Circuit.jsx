@@ -153,7 +153,7 @@ function CircuitBody({ circuit, data }) {
           <strong>No layout timeline for this circuit.</strong> Only thirteen of the eighty have
           one, so an early race here is reported at the length the circuit is today. Nothing maps
           what a circuit used to look like — see the{' '}
-          <Link to="/reference/quality">known gaps</Link>.
+          <Link to="/data/quality">known gaps</Link>.
         </Note>
       )}
 

@@ -279,7 +279,7 @@ function AtlasBody({ rows }) {
         items={[
           { to: `/circuits/${row.circuit_id}`, label: row.name, hint: 'Its layouts, its winners and every race held there.' },
           { to: '/circuits', label: 'All circuits', hint: 'The other fifty-five venues, traced or not.' },
-          { to: '/reference/quality', label: 'What is missing', hint: 'Why historic layouts have no shape at all.' },
+          { to: '/data/quality', label: 'What is missing', hint: 'Why historic layouts have no shape at all.' },
         ]}
       />
     </>

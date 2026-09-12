@@ -57,7 +57,7 @@ function Board({ shape }) {
     ['/circuits', 'Circuits', shape.circuits, 'Venues, the layouts as they changed, and 25 traced laps.'],
     ['/cars', 'Cars', shape.chassis, 'The chassis register, with specifications where they exist.'],
     ['/records', 'Records', null, 'Leaderboards, champions, grand slams and who won each decade.'],
-    ['/reference', 'Reference', null, 'Eras and rules, sources, what is missing, and a SQL console.'],
+    ['/data', 'Data', null, 'The database itself: download it, query it, and see how far to trust it.'],
   ]
   return (
     <div className="board">
@@ -217,7 +217,7 @@ export default function Home() {
                     <b>Disagreements are shown, not settled.</b>
                     <p className="muted small" style={{ margin: '6px 0 0' }}>
                       Where two sources conflict you see both. There are{' '}
-                      <Link to="/reference/quality">{number(shape.discrepancies)} on record</Link>.
+                      <Link to="/data/quality">{number(shape.discrepancies)} on record</Link>.
                     </p>
                   </div>
                   <div className="panel">
@@ -230,7 +230,7 @@ export default function Home() {
                   <div className="panel">
                     <b>The gaps are published too.</b>
                     <p className="muted small" style={{ margin: '6px 0 0' }}>
-                      <Link to="/reference/quality">{number(shape.gaps)} known gaps</Link> — what is
+                      <Link to="/data/quality">{number(shape.gaps)} known gaps</Link> — what is
                       missing, why, and what would close it.
                     </p>
                   </div>
@@ -247,7 +247,8 @@ export default function Home() {
                   },
                   { to: '/records', label: 'Records', hint: 'Most wins, most poles, champions, grand slams.' },
                   { to: '/circuits/atlas', label: 'Track atlas', hint: '25 circuits traced, at one scale.' },
-                  { to: '/reference/sql', label: 'SQL console', hint: 'Ask the database your own question.' },
+                  { to: '/data/sql', label: 'SQL console', hint: 'Ask the database your own question.' },
+                  { to: '/reference/eras', label: 'Eras and rules', hint: 'How the rules changed, and the words they are written in.' },
                 ]}
               />
             </>

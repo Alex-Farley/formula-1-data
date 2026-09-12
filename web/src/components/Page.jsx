@@ -199,7 +199,7 @@ export function Confidence({ value, plain = false }) {
   if (plain) return <span className={`pill pill-${String(value).toLowerCase()}`}>{value}</span>
   return (
     <Link
-      to="/reference/quality"
+      to="/data/quality"
       className={`pill pill-${String(value).toLowerCase()}`}
       title={`Confidence tier "${value}" - what it means, on the quality page`}
     >

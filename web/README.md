@@ -199,11 +199,20 @@ the bug nobody finds until they share a link.
 | `/circuits/atlas` | All 25 traced circuits: walk a lap, colour it by turn rate, compare them at one scale |
 | `/cars`, `/cars/:id` | The chassis register, specifications and photographs |
 | `/records` | Published records, and leaderboards derived on every load |
+| `/data` | The database itself: the files, the version and build date, how far to trust it, the licence position |
+| `/data/quality` | The confidence ladder, the gaps, the disagreements, the coverage |
+| `/data/sources` | Every source, and what each licence cost or bought |
+| `/data/sql` | Arbitrary SQL, the same as `./f1 sql`; `?q=` is the permalink |
 | `/reference/eras` | Eras, regulations, scoring systems, innovations, safety |
-| `/reference/quality` | The confidence ladder, the gaps, the disagreements, the coverage |
-| `/reference/sources` | Every source, and what each licence cost or bought |
 | `/reference/glossary` | Vocabulary and people |
-| `/reference/sql` | Arbitrary SQL, the same as `./f1 sql` |
+
+`/reference`, `/reference/quality`, `/reference/sources` and `/reference/sql`
+are the old addresses of the `/data` pages. The app answers each with a
+`<Navigate replace>` that keeps the query string, and `prerender.js` writes a
+redirecting page at each path for a cold arrival, so a citation written before
+the move still resolves. Eras and the glossary are about the sport, not the
+database; they kept their addresses and are reached from Seasons, Cars,
+Circuits, Races and the home page rather than from the masthead.
 
 Press <kbd>/</kbd> or <kbd>⌘K</kbd> anywhere for a search across all 3,494
 drivers, constructors, circuits, chassis, seasons and races at once. A register
@@ -214,9 +223,8 @@ nobody reads.
 
 **Write for the reader, not for the schema.** A lede says what is on the page
 and what can be done with it; it does not defend a modelling decision. The
-methodology has two pages of its own — `/reference/quality` and
-`/reference/sources` — and everywhere else links to them rather than repeating
-them.
+methodology has two pages of its own — `/data/quality` and `/data/sources` —
+and everywhere else links to them rather than repeating them.
 
 A note beside a table survives only if a reader would **misread the table
 without it**: that a blank is an unestablished figure rather than a zero, that

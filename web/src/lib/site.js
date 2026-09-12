@@ -27,3 +27,26 @@ export const SELF_DESCRIBING =
   'Everything you need to read it is inside it: SELECT sql FROM sqlite_master for the ' +
   'commented schema, SELECT * FROM meta for the version, the build date and what is held, ' +
   'and SELECT * FROM source_registry for the licence of every row.'
+
+/**
+ * The claim `/data` makes, in the words the project settled on when the
+ * repository stayed private (BACKLOG: Declined, "Making the repository
+ * public"). Not "audited": the pipeline half of that word — the checks, the
+ * source literals, rebuild-and-compare — is not readable by anyone outside.
+ * What remains checkable from the artefact alone is what is claimed, and the
+ * app and the static page must claim the same thing.
+ */
+export const CROSS_CHECKED =
+  'Every figure is cross-checked against independent sources, with every disagreement and ' +
+  'every gap published in the data: a confidence tier on every row, both readings wherever ' +
+  'two sources differ, and a register of what nobody has established.'
+
+/**
+ * Why four tables are empty. A licence decision, not a missing feature —
+ * docs/TIMING-ARCHITECTURE.md — and the one thing a reader comparing this
+ * with its upstream most needs told before they go looking.
+ */
+export const NOT_HELD =
+  'Lap times, stints, race timing and race control messages are not held. No source publishes ' +
+  'them under a licence that permits passing them on, so those four tables ship empty on ' +
+  'purpose; the pit stops that are here come from F1DB, whose licence does.'
