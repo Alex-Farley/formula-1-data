@@ -1523,12 +1523,16 @@ def the_chassis_register():
     # case - a privateer, or a CAR_CHASSIS typo pointing at a chassis raced
     # after the works career, which `outside` cannot see - is read before it
     # rides along.
-    _late_cars = {entry.split(" last entered")[0] for entry in late}
-    _late_declared = {"ferrari-500", "cooper-t51", "lotus-25"}
+    # The year is pinned with the chassis: a register harvest that moved
+    # lotus-25's last entry to 1985 would otherwise pass unread.
+    _late_cars = {(m.group(1), int(m.group(2))) for m in
+                  (re.match(r"(\S+) last entered (\d{4})", entry) for entry in late) if m}
+    _late_declared = {("ferrari-500", 1957), ("cooper-t51", 1963), ("lotus-25", 1967)}
+    _fmt_late = lambda pairs: ", ".join(f"{c} {y}" for c, y in sorted(pairs)) or "none"
     check("the chassis entered after their car's works career are the three declared privateer cases",
           _late_cars == _late_declared,
-          "undeclared: " + (", ".join(sorted(_late_cars - _late_declared)) or "none")
-          + "; no longer late: " + (", ".join(sorted(_late_declared - _late_cars)) or "none"))
+          f"undeclared: {_fmt_late(_late_cars - _late_declared)}; "
+          f"no longer late: {_fmt_late(_late_declared - _late_cars)}")
     print(f"  [info] the 29 curated cars cover {len(claimed)} register chassis")
 
     bad = con.execute("""SELECT COUNT(*) FROM chassis c WHERE c.car_id IS NOT NULL
@@ -2216,7 +2220,7 @@ def the_full_classification():
             WHERE field = 'race_entries' AND state = 'open'
               AND area LIKE '%2011 Australian Grand Prix%107 per cent%'""").fetchone()[0]
         check("the 2011 Melbourne pair is an open row in known_gaps", gap_declared == 1,
-              f"{gap_declared} matching open rows")
+              f"{gap_declared} matching open row{'' if gap_declared == 1 else 's'}")
 
         # Pre-knockout qualifying is one time; the knockout era is three segments
         # and no single time. Neither is back-filled from the other, and a row
