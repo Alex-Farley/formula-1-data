@@ -99,7 +99,10 @@ def number(text):
         return int(text)
     total = 0
     for part in re.split(r"[- ]", text):
-        total += _WORDS[part]
+        if part == "hundred":
+            total = (total or 1) * 100
+        else:
+            total += _WORDS[part]
     return total
 
 

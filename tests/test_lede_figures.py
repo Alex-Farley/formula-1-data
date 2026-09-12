@@ -71,7 +71,7 @@ class LedeFigures(unittest.TestCase):
         self.assertEqual(subset_figures('Le Mans 24 Hours. Five Monaco wins.'), [(5, 'Monaco', 'wins')])
 
     def test_numbers_read_in_digits_and_words(self):
-        for text, value in (('Six', 6), ('twenty-three', 23), ('1,566', 1566), ('hundred', 100), ('ninety nine', 99)):
+        for text, value in (('Six', 6), ('twenty-three', 23), ('1,566', 1566), ('hundred', 100), ('one hundred', 100), ('two hundred', 200), ('ninety nine', 99)):
             with self.subTest(text=text):
                 self.assertEqual(number(text), value)
 

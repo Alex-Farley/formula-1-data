@@ -1591,11 +1591,13 @@ Real, but not costed, or waiting on a decision.
       of #79 · #85*
 
 - [x] `CD-24` **Subset figures in a driver note are counted.**
-      `subset_figures()` in `tools/lede_figures.py` finds "<N> <Place>
-      wins/poles/podiums"; `verify.py` counts each against the race records
-      where the place is a Grand Prix (Senna 6, Hill 5, Trintignant 2 at
-      Monaco) and requires the rest to be declared — Ickx's six Le Mans
-      wins are, and an undeclared place fails. — *review of #79 · #88*
+      `subset_figures()` in `tools/lede_figures.py` finds the "<N> <Place>
+      wins/victories/poles/podiums" form — and only that form; "six wins at
+      Monaco" is not read; `verify.py` counts each from `race_entries`, the
+      table the strip derives from, where the place is a Grand Prix (Senna
+      6, Hill 5, Trintignant 2 at Monaco) and requires the rest to be
+      declared — Ickx's six Le Mans wins are, and an undeclared place fails.
+      — *review of #79 · #88*
 
 ## Declined
 

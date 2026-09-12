@@ -1388,38 +1388,44 @@ def the_driver_register():
           not _typed, "; ".join(_typed[:6]))
     # The figures that check leaves alone on purpose - "Six Monaco wins" - name
     # a subset of a career, and nothing totalled them until now (CD-24). Where
-    # the place is a Grand Prix the race records count it; where it is not
-    # (Le Mans is not a championship race), the note declares it here, and an
-    # undeclared place fails rather than riding along.
+    # the place is a Grand Prix the race records count it, from race_entries,
+    # the table the strip beside the note derives from; where no Grand Prix
+    # carries the name (Le Mans is not a championship race; "three Imola wins"
+    # names a circuit, and is reworded to the Grand Prix instead), the note
+    # declares it here, and an undeclared place fails rather than riding
+    # along. The map is the Grand Prix name minus "Grand Prix", so a plain
+    # adjective - "European", "Pacific" - is read as that Grand Prix and
+    # nothing else.
     _gps = {}
     for gp_id, gp_name in con.execute("SELECT DISTINCT gp_id, gp_name FROM race_results"):
         _gps[gp_id.lower()] = gp_id
         _gps[re.sub(r"\s+grand prix$", "", gp_name.lower())] = gp_id
-    _outside_f1 = {("ickx", "Le Mans")}
-    _counts = {
-        "wins": "SELECT COUNT(*) FROM race_results WHERE gp_id = ? AND (winner_id = ? OR co_winner_id = ?)",
-        "victories": "SELECT COUNT(*) FROM race_results WHERE gp_id = ? AND (winner_id = ? OR co_winner_id = ?)",
-        "poles": "SELECT COUNT(*) FROM race_results WHERE gp_id = ? AND pole_id = ? AND pole_id = ?",
-        "podiums": """SELECT COUNT(*) FROM race_entries e JOIN races r ON r.id = e.race_id
-                      WHERE r.gp_id = ? AND e.driver_id = ? AND e.driver_id = ? AND e.finish_position <= 3""",
+    _no_grand_prix_counts_it = {("ickx", "Le Mans")}
+    _subset_count = {
+        "wins": "e.finish_position = 1", "victories": "e.finish_position = 1",
+        "poles": "e.pole = 1", "podiums": "e.finish_position <= 3",
     }
+    _lf = _lede_figures()
     _wrong, _undeclared, _seen = [], [], 0
     for did, note in con.execute("SELECT id, notes FROM drivers WHERE notes IS NOT NULL ORDER BY id"):
-        for n, place, noun in _lede_figures().subset_figures(note):
+        for n, place, noun in _lf.subset_figures(note):
             _seen += 1
             gp = _gps.get(re.sub(r"\s+(grand prix|gp)$", "", place.lower()))
             if gp is None:
-                if (did, place) not in _outside_f1:
+                if (did, place) not in _no_grand_prix_counts_it:
                     _undeclared.append(f"{did}: {n} {place} {noun}")
                 continue
-            got = con.execute(_counts[noun], (gp, did, did)).fetchone()[0]
+            got = con.execute(f"""SELECT COUNT(*) FROM race_entries e JOIN races r ON r.id = e.race_id
+                WHERE r.gp_id = :gp AND e.driver_id = :driver AND {_subset_count[noun]}""",
+                {"gp": gp, "driver": did}).fetchone()[0]
             if got != n:
                 _wrong.append(f"{did}: note says {n} {place} {noun}, the records count {got}")
     check("every subset figure in a driver note counts against the race records",
           not _wrong, "; ".join(_wrong[:4]))
-    check("every subset figure in a driver note is a Grand Prix or declared outside F1",
+    check("every subset figure in a driver note names a Grand Prix or is declared",
           not _undeclared, "; ".join(_undeclared[:4]))
-    print(f"  [info] {_seen} subset figures in driver notes, {len(_outside_f1)} declared outside F1")
+    print(f"  [info] {_seen} subset figures in driver notes, "
+          f"{len(_no_grand_prix_counts_it)} declared with no Grand Prix to count them")
     # The register's first and last season against the race records'. They
     # differ for two drivers, and each side is right about something: Cevert's
     # first entry is the 1969 German Grand Prix, driven in a Formula 2 Tecno,
