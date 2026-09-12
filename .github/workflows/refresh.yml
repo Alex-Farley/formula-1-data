@@ -83,6 +83,10 @@ jobs:
         if: steps.diff.outputs.changed == 'true'
         run: |
           python3 build.py
+          # The README's figures are spans written from the database and
+          # checked by verify.py; a refresh that moved the build date or a
+          # count without rewriting them would fail its own gate here.
+          python3 tools/readme_figures.py --write
           python3 verify.py
 
       - name: Unit-test the loaders

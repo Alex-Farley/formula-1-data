@@ -343,7 +343,7 @@ change.
 ## Venues
 
 Before v2.5 a race was linked to a circuit only when the event had used exactly
-one venue in its whole history — 365 of 1,172 races, 31%. Events that moved
+one venue in its whole history — 365 of the 1,161 races then held, 31%. Events that moved
 around, which are the interesting ones, had no circuit at all: you could not
 ask where the 1976 French Grand Prix was held, or how many races Watkins Glen
 hosted.
