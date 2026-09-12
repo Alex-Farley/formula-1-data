@@ -42,9 +42,10 @@ either
 
 **All <!-- fig:facts_only_rows -->552<!-- /fig --> are (a). None is (b).** The breakdown, across <!-- fig:facts_only_tables -->9<!-- /fig --> tables — every
 figure here is a span `tools/readme_figures.py` writes from the database and
-`verify.py` checks; the writer refuses a facts-only row in a table not
-listed, and `verify.py` holds the listed rows to the class total, so a row
-nobody has read cannot be counted as read:
+`verify.py` checks. Two guards hold the list to the database: the writer
+refuses to run while a facts-only row sits in a table not listed here, and
+every listed table's figure must appear in this document or the build
+fails — so a row nobody has read cannot be counted as read:
 
 | Table | Rows | Source | What the row holds | Prose |
 |---|---:|---|---|---|
@@ -57,9 +58,6 @@ nobody has read cannot be counted as read:
 | `race_entries` | <!-- fig:fo_race_entries -->36<!-- /fig --> | formula1.com | 2025–26 race winners | — |
 | `regulation_changes` | <!-- fig:fo_regulation_changes -->59<!-- /fig --> | fia.com | year, category | `detail`, `impact` |
 | `regulation_limits` | <!-- fig:fo_regulation_limits -->15<!-- /fig --> | fia.com | numeric limits | `note` |
-
-The lines sum to <!-- fig:facts_only_itemised -->552<!-- /fig -->, which
-`verify.py` holds equal to the class total above.
 
 The prose columns in the right-hand column are **written for this project**,
 not taken from FOM or the FIA — `ATTRIBUTION.md` records regulations, safety,

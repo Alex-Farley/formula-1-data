@@ -512,10 +512,6 @@ class Figures:
                 f"before writing the figures")
         return n(len(held))
 
-    def facts_only_itemised(self):
-        # The itemised rows summed - verify.py holds it equal to facts_only_rows.
-        return n(sum(self._licence_tally()[2].values()))
-
     def fo_current_season_rows(self):
         # races + race_entries + standings for 2025-26, the rows that look
         # redundant beside F1DB and are not.

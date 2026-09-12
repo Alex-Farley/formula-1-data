@@ -2795,12 +2795,7 @@ def readme_figures():
             detail = a if "\n" not in a else "table"
             check(f"fig:{name} = {detail}", s == a,
                   "" if s == a else f"the document says {s!r}")
-    # The licence statement's itemised rows must account for every facts-only
-    # row: the breakdown is the claim that each was read, and a total the
-    # lines do not reach is a row nobody has.
-    check("the licence statement's itemised facts-only rows sum to the class total",
-          values["facts_only_itemised"] == values["facts_only_rows"],
-          f"itemised {values['facts_only_itemised']}, class {values['facts_only_rows']}")
+
 
 
 def main(argv):
