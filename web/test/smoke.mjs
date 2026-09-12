@@ -1510,9 +1510,11 @@ try {
 
     await same('/drivers', 'Drivers')
     // Hamilton, not a driver who split a season between two teams: the
-    // Constructor cell is a group_concat, whose order SQLite does not
-    // promise, and two engines could concatenate it two ways.
+    // Amon's four two-team seasons put a group_concat in the constructor
+    // cell; sql.js and node:sqlite agree on its order today, and this is
+    // what notices if a SQLite bump makes them disagree.
     await same('/drivers/hamilton', 'Hamilton', 'Season by season')
+    await same('/drivers/amon', 'Chris Amon', 'Season by season')
     await same('/records', 'Records')
   }
 

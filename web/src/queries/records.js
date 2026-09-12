@@ -93,3 +93,7 @@ export const GRAND_SLAM_COLUMNS = [
   { key: 'driver', label: 'Driver' },
   { key: 'constructor', label: 'Constructor' },
 ]
+
+/** The sentence both renderers open the records with; CR-22's claim rests on it. */
+export const RECORDS_LEDE =
+  'Every record here is derived from the same tables as the leaderboards below on every build, as of the last completed race the database holds, and each row says how.'

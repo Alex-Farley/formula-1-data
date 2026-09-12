@@ -69,7 +69,7 @@ import {
   seasonRows,
   strip,
 } from '../src/queries/driver.js'
-import { RECORDS, TIER_AFTER, recordColumns, tierBefore, tiersOf } from '../src/queries/records.js'
+import { RECORDS, TIER_AFTER, recordColumns, tierBefore, tiersOf, RECORDS_LEDE } from '../src/queries/records.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const web = join(here, '..')
@@ -154,6 +154,9 @@ const table = (headers, rows, options = {}) => {
  * as a link, by column key; every other cell is the column's own `text`
  * formatter or lib/format.js's text(), which is what DataTable prints too.
  */
+// A column with a React-only `render` and no `text` falls back to the
+// formatted raw value here; a render that changes the text must come with a
+// matching `text`, or the two renderers part.
 const fromColumns = (columns, rows, links = {}, options = {}) =>
   table(
     columns.map((c) => c.label),
@@ -730,7 +733,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
   page({
     path: 'drivers',
     title: titled('Every driver, 1950–2026'),
-    description: `All ${register.length} drivers in the register, with titles, wins, poles, podiums and career points counted from the race records.`,
+    description: `All ${register.length} drivers in the register, with entries, wins, podiums, poles, fastest laps and titles counted from the race records.`,
     trail: [['', 'Home'], ['drivers', 'Drivers']],
     body: `
       <h1>Drivers</h1>
@@ -1237,8 +1240,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
     trail: [['', 'Home'], ['records', 'Records']],
     body: `
       <h1>Records</h1>
-      <p class="lede">Every record here is derived from the same tables as the leaderboards on
-        every build, as of the last completed race the database holds.${
+      <p class="lede">${esc(RECORDS_LEDE)}${
           tiers.length === 1
             ? ` ${esc(tierBefore(records.length))}${link('data/quality', tiers[0])}${esc(TIER_AFTER)}`
             : ''

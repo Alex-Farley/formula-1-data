@@ -23,8 +23,7 @@ import {
   TITLES,
   recordColumns,
   tierBefore,
-  tiersOf,
-} from '../queries/records.js'
+  tiersOf,, RECORDS_LEDE } from '../queries/records.js'
 
 /**
  * What only the app adds to the shared column lists: the links. The queries
@@ -88,8 +87,7 @@ function Body({ data }) {
             sat 1,900 px under them; the rows are now derived from the same
             tables, so the sentence says that instead. */}
         <p className="note" style={{ marginTop: -4 }}>
-          Every record here is derived from the same tables as the leaderboards below on every
-          build, as of the last completed race the database holds, and each row says how.
+          {RECORDS_LEDE}
           {tiers.length === 1 && (
             <>
               {' '}{tierBefore(records.length)}<Confidence value={tiers[0]} />{TIER_AFTER}
