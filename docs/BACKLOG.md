@@ -68,15 +68,16 @@ the link. An autonomous run does not take these; it works around them and
 adds to this list when it finds another. Struck through when decided, with
 the date, then removed at the next tidy.
 
-- `LV-01` **Live session data.** Practice timings are FOM's data, the line
-  the empty `laps` table already draws. Recommended: the weekend timetable
-  (a) and after-the-fact session classifications (b); decline a live feed
-  (c) unless a licence is obtained.
-- `PM-04` **The GitHub repository description.** Text proposed on the item;
-  apply it, or change it.
-- `PD-03` **`/records`.** Derive the thirty records from the database, or
-  stop shipping the page.
-- `IA-02` **The masthead's "Reference" slot** becomes "Data", or stays.
+- ~~`LV-01` **Live session data.**~~ Decided 2026-09-12: the weekend
+  timetable (a) and after-the-fact session classifications (b); a live feed
+  (c) declined unless a licence is obtained. Work continues as `LV-02` and
+  `LV-03` under *Next*.
+- ~~`PM-04` **The GitHub repository description.**~~ Decided and applied
+  2026-09-12.
+- ~~`PD-03` **`/records`.**~~ Decided 2026-09-12: derive the records; the
+  item in *Now* is the work.
+- ~~`IA-02` **The masthead's "Reference" slot**~~ Decided 2026-09-12:
+  becomes "Data"; the item in *Now* is the work.
 - `WK-01` **The qualifying-format history.** Worth one FIA Sporting
   Regulations issue per season, and yearbooks before 2009?
 - `AF-02` **The wording of the cross-checked claim** on the About and README
@@ -209,16 +210,6 @@ Worth doing, not yet urgent.
       changes licence or stops. One page in `docs/`. — *product critique · S*
 
 
-
-- [ ] `PM-04` **The GitHub repo description is stale.** Still "29 landmark cars …
-      143 integrity tests", written before the full classification. It is the
-      first thing a visitor reads and it is not in the repository, so nothing
-      checks it. — *project record · S*
-      **Proposed text, from `PD-07` (#60), for whoever holds the repository
-      settings:** *Formula One, 1950–2026, as one SQLite database: every
-      championship race, entry, qualifying session and standings table,
-      cross-checked against independent sources on every build, with every
-      disagreement on the record. Browse it at lapledger.org.*
 
 - [ ] `PM-20` **Clear the two actionable `verify.py` data warnings.** Two
       qualifying rows have no matching race entry; three chassis are claimed as
@@ -364,11 +355,6 @@ Worth doing, not yet urgent.
       `brawn-bgp001`, `lotus-72`, `mercedes-w05`, `mercedes-w11` and one more —
       reachable at two paths, indexed at neither. — *IA critique · S*
 
-- [ ] `IA-07` **The SQL console has no permalink.** `Sql.jsx` holds the query in
-      `useState` — no `useSearchParams`, no hash — so a query cannot be shared,
-      bookmarked or cited on a site whose stated ambition is to be cited. —
-      *IA critique · S*
-
 - [ ] `IA-12` **The glossary is terminal.** 44 terms, linked from three places
       in `web/`, and the terms it should serve are undefined at the point they
       appear. Content design owns the wording (`CD-09`); this is the placement
@@ -402,29 +388,20 @@ Worth doing, not yet urgent.
 
 ### Filed 2026-09-12 — live data, asked for and not yet decided
 
-- [ ] `LV-01` **"Live" session data for the current season — free practice
-      timings, as live as possible.** Asked for on 2026-09-12. **Needs a
-      decision before a line of code**, because it runs into the one licence
-      decision this project has already made: session timing is FOM's data.
-      `docs/TIMING-ARCHITECTURE.md` classifies FastF1, OpenF1 and the live
-      timing feed as `no`, `laps`/`stints`/`race_timing`/
-      `race_control_messages` are kept at zero rows for that reason, and CI
-      checks it on every push. Practice lap times are the same data, and
-      "live" means taking it from the feed while it is FOM's alone. What
-      *can* be done, in order of how live it is: (a) the weekend timetable —
-      every session's start time, from the FIA timetable and F1's calendar,
-      facts under `facts-only`, shown on `/seasons/2026` and the race page
-      with a "next session in …" line; (b) session *classifications* after
-      the fact — the FP1/FP2/FP3 order and best times as published in the
-      race report and reproduced on Wikipedia, `facts-only`, loaded by the
-      daily refresh the way race results already are, so a Friday session is
-      on the site by Saturday morning; (c) a live page that fetches from a
-      source at view time and stores nothing — still redistribution of FOM's
-      data under its terms, and the same `no`. Recommendation: (a) and (b);
-      (c) declined unless a licence is obtained. The decision is Alex's;
-      until it is made the loop does not touch the timing tables. —
-      *request · M*
-### Filed 2026-09-12 — the Wikipedia *Formula One* page, read for what it holds that this does not
+- [ ] `LV-02` **The weekend timetable.** Every session of the current
+      season — practice, qualifying, sprint, race — with its start time in
+      the circuit's zone and UTC, from the FIA event timetable and F1's
+      calendar (facts-only), in a `sessions` table keyed to `races`; shown
+      on `/seasons/2026` and each race page with a "next session in …" line
+      computed in the browser. Decided 2026-09-12 from `LV-01`. — *request ·
+      M*
+
+- [ ] `LV-03` **Session classifications after the fact.** FP1–FP3, sprint
+      shootout and qualifying orders with best times as published in the
+      race report and reproduced on Wikipedia (facts-only), loaded by the
+      daily refresh the way race results are, so a Friday session is on the
+      site by Saturday morning. Not lap-by-lap timing — that stays FOM's.
+      Decided 2026-09-12 from `LV-01`. — *request · M*
 
 Asked for on 2026-09-12. The page is prose; its structured content was
 compared table by table against the schema. Almost all of it is already here
@@ -555,8 +532,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       S*
 
 **Interaction design**
-
-- [ ] `IX-11` **Clicking a worked example destroys the reader's query with no undo.** Write through `execCommand('insertText')` so ⌘Z works. — *interaction critique · S*
 
 - [ ] `IX-16` **`IA-08` escalated: Back restores the scroll and not the filter.** France filter, sort by wins, scroll, open a driver, Back — same pixel, 862 unfiltered rows. Do `/drivers` first. — *interaction critique · M*
 
@@ -1320,14 +1295,33 @@ Real, but not costed, or waiting on a decision.
       and in the page description a search engine shows. Found on the way:
       the static standings table read the raw `standings` table and listed
       every 2026 driver twice (formula1.com and F1DB rows after the same
-      round); it now reads `v_standings_final`, as the app does. — *user
+      round); it now reads `v_standings_final`, as the app does — for every
+      season, not only a running one: the review of #64 found 2025's static
+      table gained its team column, which the raw snapshot left blank. — *user
       research · #64*
 
+- [x] `IA-07` **The SQL console has a permalink.** `?q=` carries the
+      query: written on every run, read and run on arrival, so a query can
+      be shared, bookmarked or cited. — *IA critique · #65*
+
+- [x] `IX-11` **An example no longer destroys the reader's query.** Not
+      through `execCommand('insertText')` — a controlled textarea and the
+      browser's undo stack do not agree — but by keeping what was replaced
+      and offering it back in one click. — *interaction critique · #65*
 - [x] `CR-21` **The two column-filling harvests have a floor.** `verify.py`
       requires `chassis.weight_kg` and `chassis.wheelbase_mm` to be filled at
       least as often as at v2.22 and `article_images` to hold at least its
       602 rows, so deleting `car_specs.txt` or `article_images.txt` no longer
       builds clean. — *code review of #42 · #66*
+
+- [x] `LV-01` **Live session data — decided.** The weekend timetable and
+      after-the-fact session classifications go ahead as `LV-02` and `LV-03`;
+      a live feed is declined unless a licence is obtained, because session
+      timing is FOM's data. — *request · decided 2026-09-12*
+
+- [x] `PM-04` **The GitHub repository description** now states what the
+      database is and where to browse it. — *product management · applied
+      2026-09-12*
 
 ## Declined
 

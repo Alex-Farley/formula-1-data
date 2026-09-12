@@ -913,6 +913,40 @@ try {
   )
   pass('the register is intact after a rejected write')
 
+  // The permalink: a query in the address runs on arrival, and running a
+  // query writes it back to the address. An example keeps what it replaced.
+  await go('/reference/sql?q=SELECT%207%20AS%20n', 'SQL console')
+  await page.waitForFunction(
+    () => document.querySelector('#root main tbody td')?.textContent.trim() === '7',
+    null,
+    { timeout: 20000 },
+  )
+  pass('a query in the address runs on arrival')
+  await page.fill('textarea.sql', 'SELECT 8 AS n')
+  await page.click('button.button')
+  await page.waitForFunction(() => new URLSearchParams(location.search).get('q') === 'SELECT 8 AS n', null, { timeout: 10000 })
+  pass('running a query writes it to the address')
+  // The note about the address tells the truth while the reader edits.
+  truthy(
+    await page
+      .waitForFunction(
+        () => document.querySelector('#root main .permalink')?.textContent.includes('is a link to this query'),
+        null,
+        { timeout: 10000 },
+      )
+      .catch(() => null),
+    'after a run, the note says the address is a link to this query',
+  )
+  await page.fill('textarea.sql', 'SELECT 9 AS n')
+  truthy(
+    (await page.$eval('#root main .permalink', (n) => n.textContent)).includes('last run'),
+    'after an edit without a run, the note says the address holds the query last run',
+  )
+  await page.click('button.example')
+  await page.waitForSelector('button.linklike', { timeout: 10000 })
+  await page.click('button.linklike')
+  is(await page.$eval('textarea.sql', (t) => t.value), 'SELECT 9 AS n', 'an example can be undone')
+
   // A runaway statement can be cancelled, and the site survives it. The
   // three-way self-join would hold the worker for the rest of the session; the
   // Cancel button replaces the worker, and the next query - and the next page -
