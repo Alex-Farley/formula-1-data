@@ -33,6 +33,13 @@ function start() {
   })
   worker.onmessage = ({ data }) => {
     if (data.type === 'progress') {
+      // Once the page is up, a loading phase cannot take it down again. The
+      // worker a cancel() replaces reports 'checking' and 'starting' as it
+      // opens, and Boot unmounts every route for anything but 'ready' - so
+      // the console remounted, re-ran its opening query and lost the reader's
+      // text, which is how the first cut of cancel failed its own test. Only
+      // 'failed' may follow 'ready'; retryOpen() resets the phase itself.
+      if (progress.phase === 'ready' && data.phase !== 'failed') return
       announce(data)
       return
     }
@@ -50,13 +57,66 @@ function start() {
   }
 }
 
-function send(type, payload) {
+function send(type, payload, signal) {
   if (!worker) start()
   const id = nextId++
   return new Promise((resolve, reject) => {
-    requests.set(id, { resolve, reject })
+    requests.set(id, { type, payload, resolve, reject })
     worker.postMessage({ id, type, payload })
+    if (signal) {
+      if (signal.aborted) cancel(id)
+      else signal.addEventListener('abort', () => cancel(id), { once: true })
+    }
   })
+}
+
+/**
+ * Abandon one request by replacing the worker it is stuck in.
+ *
+ * sql.js runs a statement to completion on the worker's only thread, so a
+ * three-way self-join typed into the console held the one connection every
+ * page shares, for the rest of the session, with no way out but a reload
+ * nobody was told to attempt. There is no interrupt: the only way to stop a
+ * statement is to terminate the worker. So that is what this does - and then
+ * opens a fresh one (from IndexedDB, well under a second on a second visit)
+ * and re-sends every PAGE QUERY that was waiting behind the runaway, so the
+ * pages that were mid-query fill in as if nothing had happened.
+ *
+ * Console statements are never re-sent - not even the ones that were not the
+ * victim. The review of the first cut found why: with two console statements
+ * in flight, cancelling the second replayed the first, and the first was the
+ * runaway. So every waiting readOnly request is rejected with the same
+ * AbortError, and the console runs one statement at a time.
+ */
+const aborted = () => {
+  const error = new Error('Cancelled. The statement was stopped and the connection reopened.')
+  error.name = 'AbortError'
+  return error
+}
+
+function cancel(id) {
+  const victim = requests.get(id)
+  if (!victim) return
+  requests.delete(id)
+  const survivors = []
+  const dropped = []
+  for (const [rid, r] of requests) {
+    if (r.type === 'query') survivors.push([rid, r])
+    else if (r.type !== 'open') dropped.push(r)
+  }
+  requests.clear()
+  worker?.terminate?.()
+  worker = null
+  opened = null
+  // openDatabase() starts the new worker and posts 'open' first, which the
+  // worker needs before anything else; the replays queue behind it.
+  openDatabase().catch(() => {})
+  for (const [rid, r] of survivors) {
+    requests.set(rid, r)
+    worker.postMessage({ id: rid, type: r.type, payload: r.payload })
+  }
+  for (const r of dropped) r.reject(aborted())
+  victim.reject(aborted())
 }
 
 let opened = null
@@ -119,8 +179,13 @@ export async function first(sql, params = []) {
   return rows[0] ?? null
 }
 
-/** Run a statement inside a transaction that is always rolled back. */
-export async function queryReadOnly(sql, params = []) {
+/**
+ * Run a statement inside a transaction that is always rolled back.
+ *
+ * An AbortSignal cancels it: see cancel() for what that costs and why it is
+ * the only way.
+ */
+export async function queryReadOnly(sql, params = [], { signal } = {}) {
   await openDatabase()
-  return send('readOnly', { sql, params })
+  return send('readOnly', { sql, params }, signal)
 }
