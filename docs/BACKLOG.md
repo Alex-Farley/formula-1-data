@@ -488,16 +488,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       not the row id — and leave shared records as text. Found by the review
       of #68. — *product critique · S*
 
-- [ ] `CD-21` **The lede check misses a figure with an adjective before the
-      noun.** "four runner-up finishes", "Ten career wins", "three straight
-      wins" pass `verify.py`'s check (#74) because it wants the noun adjacent
-      to the number; the Bottas phrase #74 removed by hand is the shape it
-      misses. Allow one or two words between, and re-run. Found by the review
-      of #74. — *review of #74 · S*
-- [ ] `CR-23` **The static `/records` table has a `Category` column the app
-      never shows.** Predates #68; the review of #68 measured it. Rides with
-      `CR-22`. — *review of #68 · S*
-
 - [ ] `CR-24` **The static drivers register is not the app's.** Eight
       columns against nine, Poles before Podiums against Podiums before
       Poles, no Fastest laps. Same defect as `CR-22`/`CR-23`; rides with
@@ -1559,13 +1549,15 @@ Real, but not costed, or waiting on a decision.
 
 - [x] `CD-23` **The lede check is one tested pattern.** `tools/lede_figures.py`
       holds it, with its reasons; `tests/test_lede_figures.py` makes both
-      interpreters prove 17 catches and 12 leave-alones. Career qualifiers
+      interpreters prove 18 catches and 12 leave-alones. Career qualifiers
       (`F1`, `Formula One`, `World`, `World Championship`, `Championship`,
       `Drivers'`, `career`) no longer hide a total; "of", "his", "the" and
       kin no longer bridge the gap; "Six Formula One wins" is reported whole
       and "Formula One wins" alone is not a figure; eleventh to nineteenth
       join the ordinals, which had skipped them — the comment's own
-      Hülkenberg example never matched. No note needed rewriting. — *review
+      Hülkenberg example never matched — and so does twenty-first and kin,
+      which the review of #85 found the same way. No note needed rewriting;
+      the stale duplicate open `CD-21` line is gone. — *review
       of #79 · #85*
 
 ## Declined

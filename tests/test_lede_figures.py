@@ -31,6 +31,7 @@ CAUGHT = {
     "Six Formula One wins.": "Six Formula One wins",
     "Nine consecutive championship races.": "Nine consecutive championship races",
     "Twenty-three podiums.": "Twenty-three podiums",
+    "Won on his twenty-first start.": "twenty-first start",
 }
 
 LEFT_ALONE = [

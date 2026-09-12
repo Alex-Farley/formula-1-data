@@ -37,7 +37,8 @@ UNITS = ("one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|"
 TENS = "twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred"
 CARDINAL = (rf"(?:\d{{1,3}}(?:,\d{{3}})*"
             rf"|(?:{UNITS}|{TENS})(?:[- ](?:{UNITS}|{TENS}))*)")
-ORDINAL = (r"(?:\d+(?:st|nd|rd|th)|(?:(?:" + TENS + r")-)?"
+# "first" alone states no count; "twenty-first" does, so the compound is in.
+ORDINAL = (r"(?:\d+(?:st|nd|rd|th)|(?:" + TENS + r")-first|(?:(?:" + TENS + r")-)?"
            r"(?:second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|"
            r"eleventh|twelfth|thirteenth|fourteenth|fifteenth|sixteenth|"
            r"seventeenth|eighteenth|nineteenth|"
