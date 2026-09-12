@@ -900,6 +900,27 @@ EXTERNAL_FASTEST_LAPS = {
 DECLARED_DISCREPANCIES = [
 ]
 
+# Where the register's seasons and the race records' differ and neither is
+# wrong: each side is right about something, the driver page shows both
+# (CD-22), and this puts the reason beside the fact, in `discrepancies`,
+# rather than in a code comment no reader meets (CD-25). verify.py derives
+# the pair it pins from these rows, so a third driver whose spans differ
+# needs a row here before the build passes.
+#   driver_id, field, register value, race-records value, why
+EXPLAINED_SPANS = [
+    ("cevert", "first_season", 1970, 1969,
+     "The register's 1970 is his Formula One debut, the Dutch Grand Prix in a "
+     "March. The race records hold a 1969 entry because that year's German "
+     "Grand Prix ran a Formula 2 class alongside, and he drove a Tecno in it; "
+     "it was a championship race and he was entered, so the records count it "
+     "and the register does not."),
+    ("alexander-rossi", "first_season", 2014, 2015,
+     "The register's 2014 is his first season with a team, as Marussia's "
+     "reserve, driving in practice. The race records hold no entry until 2015, "
+     "when he started five Grands Prix for Manor Marussia; a practice session "
+     "is not a race entry, so the records begin a year after the register."),
+]
+
 # Corrections made to hand-entered career figures after checking them against an
 # external reference. Kept as a record of what changed and why.
 #   driver_id, field, old_value, new_value, reason

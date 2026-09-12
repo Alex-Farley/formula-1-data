@@ -2104,6 +2104,15 @@ def _stage_30_derived_win_totals(b):
             SELECT full_name, ?, ?, ?, ?, 'resolved - corrected'
             FROM drivers WHERE id = ?""", (field, str(old), str(new), reason, did))
 
+    # The two register spans the race records read differently, with the
+    # reason beside the fact (CD-25). Not open: nothing is waiting to be
+    # settled, both readings stand.
+    for did, field, stored, derived, why in HV.EXPLAINED_SPANS:
+        cur.execute("""INSERT INTO discrepancies (subject, field, stored_value,
+            derived_value, assessment, status)
+            SELECT full_name, ?, ?, ?, ?, 'explained - each side is right about something'
+            FROM drivers WHERE id = ?""", (field, str(stored), str(derived), why, did))
+
     # Compare the externally sourced career figure against the figure derived
     # from the race records. Any difference must be declared; a new one fails
     # the build.
