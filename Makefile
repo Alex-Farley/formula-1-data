@@ -43,9 +43,9 @@ ci:                               ## exactly what ci.yml's Python job runs
 	$(PYTHON) audit.py
 	$(PYTHON) export_json.py --compat
 	@test -s f1_database.json || { echo "the full export was not written"; exit 1; }
-	@git diff --quiet -- f1.db f1-geometry.db f1_compat.json \
-	  || { echo "the committed artefacts do not match a fresh build - stage or commit the rebuild:"; \
-	       git diff --stat -- f1.db f1-geometry.db f1_compat.json; exit 1; }
+	@git diff --quiet -- f1.db f1-geometry.db f1_compat.json README.md \
+	  || { echo "the committed artefacts do not match a fresh build - stage or commit the rebuild (README.md's figures included):"; \
+	       git diff --stat -- f1.db f1-geometry.db f1_compat.json README.md; exit 1; }
 	$(PYTHON) ./f1 champions 2020 2025
 	$(PYTHON) ./f1 car mp4/4
 	$(PYTHON) ./f1 circuit spa
