@@ -1389,6 +1389,33 @@ figure.photo figcaption a {
   color: var(--accent);
 }
 
+/* The citation, last on every page: quiet, one sentence, the address in mono
+   so it can be selected as one run. */
+.cite {
+  margin-top: 36px;
+  padding-top: 14px;
+  border-top: 1px solid var(--rule);
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--ink-faint);
+  max-width: var(--measure);
+}
+
+/* #prerendered p would otherwise win on specificity and recolour the static
+   copy; the two renderers should look the same for the second both exist. */
+.cite p,
+#prerendered .cite p {
+  margin: 0;
+  color: var(--ink-faint);
+}
+
+.cite .url {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
 /* A button that reads as a link, for an action inside a sentence. */
 .linklike {
   border: 0;

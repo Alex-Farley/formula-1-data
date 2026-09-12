@@ -48,7 +48,7 @@ import { fileURLToPath } from 'node:url'
 // than restated here: a copy of it would drift, which is how the twelve
 // hardcoded `circuit_geometry` columns went wrong.
 import { finished, yearList } from '../src/lib/format.js'
-import { CROSS_CHECKED, NOT_HELD, SELF_DESCRIBING, SITE, TWO_FILES, titled } from '../src/lib/site.js'
+import { CROSS_CHECKED, citation, NOT_HELD, SELF_DESCRIBING, SITE, TWO_FILES, titled } from '../src/lib/site.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const web = join(here, '..')
@@ -202,7 +202,7 @@ const NAV = [
   ['data', 'Data'],
 ]
 
-const chrome = (body, crumbs) => `
+const chrome = (body, crumbs, citeUrl) => `
 <div class="app pre">
   <header class="masthead">
     <div class="masthead-inner">
@@ -213,6 +213,14 @@ const chrome = (body, crumbs) => `
   <main>
     ${crumbs ? `<nav class="crumbs" aria-label="Breadcrumb">${crumbs}</nav>` : ''}
     ${body}
+    ${
+      citeUrl
+        ? `<aside class="cite" aria-label="How to cite this page"><p>${citation(META.version, META.built, citeUrl)
+            .split(citeUrl)
+            .map(esc)
+            .join(`<span class="url">${esc(citeUrl)}</span>`)}</p></aside>`
+        : ''
+    }
   </main>
   <footer class="sitefoot"><div class="sitefoot-inner"><div>
     <p>Every page here is a query against one SQLite file, running in your browser. ${link('data/quality', 'How far to trust it')} · ${link('data/sources', 'sources')} · ${link('data/sql', 'write your own query')}.</p>
@@ -240,7 +248,8 @@ const pages = []
  * needs.
  */
 const page = ({ path, title, description, body, jsonld = null, trail = null }) => {
-  pages.push({ path, title, description, jsonld, html: chrome(body, trail ? crumbs(trail) : '') })
+  // The citation names the page by the address the canonical carries.
+  pages.push({ path, title, description, jsonld, html: chrome(body, trail ? crumbs(trail) : '', `${ORIGIN}${href(path)}`) })
 }
 
 

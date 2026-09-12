@@ -11,6 +11,15 @@ export const SITE = 'Lap Ledger'
 export const titled = (headline) => `${headline} — ${SITE}`
 
 /**
+ * How to cite a page. The page is named by its address, not its title: the
+ * app and the static page have titled the same route differently since the
+ * prerenderer was written, and a citation is the one place that difference
+ * must not show. The version and build date fix which figures were seen.
+ */
+export const citation = (version, built, url) =>
+  `Cite this page as Lap Ledger, database v${version} built ${built}, ${url}. The version and build date fix which figures you saw.`
+
+/**
  * The download paragraph's two sentences that must not drift between the
  * static SQL page and the app's. IA-15 landed the links on the prerendered
  * page and the app never carried them, so the two renderers disagreed about

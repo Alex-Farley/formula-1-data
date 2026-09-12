@@ -92,7 +92,7 @@ export default function Season() {
         const season = data.season.rows[0]
         if (!season) {
           return (
-            <Page title={`No season ${year}`} back={{ to: '/seasons', label: 'All seasons' }}>
+            <Page title={`No season ${year}`} cite={false} back={{ to: '/seasons', label: 'All seasons' }}>
               <p className="muted">The championship register runs from 1950 to 2026.</p>
             </Page>
           )

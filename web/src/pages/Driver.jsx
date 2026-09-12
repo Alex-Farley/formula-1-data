@@ -102,7 +102,7 @@ export default function Driver() {
         const driver = data.driver.rows[0]
         if (!driver) {
           return (
-            <Page title="No such driver" back={{ to: '/drivers', label: 'The register' }}>
+            <Page title="No such driver" cite={false} back={{ to: '/drivers', label: 'The register' }}>
               <p className="muted">Nothing in the register has the id “{id}”.</p>
               <p>
                 Press <kbd>/</kbd> to search every driver by name, or{' '}
