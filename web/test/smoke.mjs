@@ -928,7 +928,13 @@ try {
   pass('running a query writes it to the address')
   // The note about the address tells the truth while the reader edits.
   truthy(
-    (await page.$eval('#root main .permalink', (n) => n.textContent)).includes('is a link to this query'),
+    await page
+      .waitForFunction(
+        () => document.querySelector('#root main .permalink')?.textContent.includes('is a link to this query'),
+        null,
+        { timeout: 10000 },
+      )
+      .catch(() => null),
     'after a run, the note says the address is a link to this query',
   )
   await page.fill('textarea.sql', 'SELECT 9 AS n')
@@ -939,7 +945,7 @@ try {
   await page.click('button.example')
   await page.waitForSelector('button.linklike', { timeout: 10000 })
   await page.click('button.linklike')
-  is(await page.$eval('textarea.sql', (t) => t.value), 'SELECT 8 AS n', 'an example can be undone')
+  is(await page.$eval('textarea.sql', (t) => t.value), 'SELECT 9 AS n', 'an example can be undone')
 
   // A runaway statement can be cancelled, and the site survives it. The
   // three-way self-join would hold the worker for the rest of the session; the
