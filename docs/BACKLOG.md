@@ -475,14 +475,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       the stored URL still resolves. Split from `VD-20`. — *visual critique ·
       S*
 
-- [ ] `PD-26` **`/records` holders are names, not links.** The derived
-      records carry `holder_id` and `holder_table` (#68) and the page renders
-      the holder as text; the driver-wins and champions tables on the same
-      page do the same with `driver_id`. Link every holder that resolves —
-      drivers, constructors, circuits; a race holder needs `year`/`round`,
-      not the row id — and leave shared records as text. Found by the review
-      of #68. — *product critique · S*
-
 - [ ] `CD-19` **Eighteen driver ledes still spell a figure the strip
       derives** ("Ten wins", "Eight wins"); `verify.py`'s check (#70) stops
       at digits. Extend it to spelled numbers before the derived nouns and
@@ -1674,6 +1666,12 @@ Real, but not costed, or waiting on a decision.
       `last_season`, and its figures are checked against the records' MAX
       year as a first-season row's are against MIN. No row needed it today.
       — *review of #81 · #93*
+
+- [x] `PD-26` **`/records` holders are links.** `holderPath()` in the
+      shared records module resolves a driver, constructor, circuit or race
+      holder to its page — a race by year and round, which the query now
+      carries — and both renderers link it; a shared record, which names
+      two holders and carries no id, stays text. — *product critique · #96*
 
 ## Declined
 

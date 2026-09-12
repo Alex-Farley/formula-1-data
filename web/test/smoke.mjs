@@ -1076,6 +1076,19 @@ try {
     truthy(html.includes('each right about something') && html.includes('Formula 2'), 'and carries the same explained reading')
   }
 
+  // Record holders link to their pages (PD-26), in both renderers; a shared
+  // record stays text.
+  {
+    const held = db.prepare("SELECT holder, holder_id FROM records WHERE holder_table = 'drivers' AND holder_id IS NOT NULL LIMIT 1").get()
+    const shared = db.prepare("SELECT holder FROM records WHERE holder_id IS NULL LIMIT 1").get()
+    await go('/records', 'Records')
+    const links = await page.$$eval('#root main a[href^="/drivers/"]', (as) => as.map((a) => a.getAttribute('href')))
+    truthy(links.includes(`/drivers/${held.holder_id}`), `the app links ${held.holder} to /drivers/${held.holder_id}`)
+    const html = await (await fetch(`${BASE}/records`)).text()
+    truthy(html.includes(`href="/drivers/${held.holder_id}"`), 'the static page links the same holder')
+    truthy(shared && !html.includes(`>${shared.holder}</a>`), `a shared record (${shared?.holder}) is text, not a link`)
+  }
+
   // ----------------------------------------------------------------- SQL
 
   console.log('\n/data/sql')
