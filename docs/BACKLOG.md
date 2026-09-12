@@ -74,6 +74,12 @@ the date, then removed at the next tidy.
   `LV-03` under *Next*.
 - ~~`PM-04` **The GitHub repository description.**~~ Decided and applied
   2026-09-12.
+- ~~`LV-04` **Is a full season's timetable within facts-only?**~~ Decided
+  2026-09-12: option (a), proceed as facts-only, with the reading recorded in
+  `docs/COMMERCIAL-READINESS.md` (a public schedule the promoter and the FIA
+  both publish, not a compilation whose value is in the collecting; five
+  rows an event) and the FIA event timetable as the independent check still
+  owed (`known_gaps` #15). #91 leaves draft.
 - ~~`PD-03` **`/records`.**~~ Decided 2026-09-12: derive the records; the
   item in *Now* is the work.
 - ~~`IA-02` **The masthead's "Reference" slot**~~ Decided 2026-09-12:
@@ -344,16 +350,13 @@ Worth doing, not yet urgent.
 
 ### Filed 2026-09-12 — live data, asked for and not yet decided
 
-- [ ] `LV-02` **The weekend timetable.** Every session of the current
-      season — practice, qualifying, sprint, race — with its start time in
-      the circuit's zone and UTC, from the FIA event timetable and F1's
-      calendar (facts-only), in a `sessions` table keyed to `races`; shown
-      on `/seasons/2026` and each race page with a "next session in …" line
-      computed in the browser. Decided 2026-09-12 from `LV-01`. Sourcing,
-      checked 2026-09-12: the FIA's event pages carry the date only; session
-      times are in the FIA's per-event "Event & Timing Information"
-      documents and on formula1.com's race pages (both registered sources).
-      — *request · M*
+- [ ] `LV-02` **The weekend timetable, on the page.** The `sessions` table
+      landed in #91 (every 2026 session, start in UTC with the circuit's
+      zone). Show it on `/seasons/2026` and each race page with the
+      circuit's clock and the reader's, and a "next session in …" line
+      computed in the browser; both renderers, with the static page carrying
+      the UTC times and the app adding the reader's zone. Decided
+      2026-09-12 from `LV-01`. — *request · M*
 
 - [ ] `LV-03` **Session classifications after the fact.** FP1–FP3, sprint
       shootout and qualifying orders with best times as published in the
@@ -506,6 +509,12 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       one no table can constrain. Found by the review of #79. — *review of
       #79 · S*
 
+- [ ] `PM-31` **`docs/COMMERCIAL-READINESS.md` types figures nothing checks.**
+      Its class table and per-table breakdown said 539 facts-only rows when
+      the database held 552 before #91 and 667 with it; #91 corrected them by
+      query, once. Make them spans `tools/readme_figures.py` writes, as the
+      README's are, or generate the breakdown from `./f1 licences`. Found by
+      the licence review of #91. — *review of #91 · S*
 - [ ] `CD-27` **Three words for the register's figure on one screen.** The
       Seasons note calls it "published", the aside beside it "the
       register's", `/data/quality` heads the column "Stored". One word.
@@ -1625,6 +1634,18 @@ Real, but not costed, or waiting on a decision.
       citation should name stays a reader's judgement, as `PM-28` was. —
       *review of #87 · #90*
 
+- [x] `LV-02` **The weekend timetable, as data.** `sessions`: 115 rows, every
+      session of the 23 2026 weekends with its start in UTC and the
+      circuit's IANA zone, read from formula1.com's race pages (a start time
+      is a fact). `verify.py` holds each weekend to the five sessions its
+      sprint flag implies, in running order, with a valid zone, and holds
+      each race's local day to the last day of the calendar's weekend — the
+      test that proves the UTC reading and the zone together (Las Vegas
+      races on a Saturday evening that is Sunday in UTC). Starts carry a Z
+      so a browser reads them as UTC. The FIA's per-event timetable PDFs are
+      not yet read by tool; `known_gaps` #15 records that every start has
+      one source behind it until they are. The page work stays open as
+      `LV-02`. — *request · #91*
 - [x] `PD-12` **The timing constraint is a position.** The shared `NOT_HELD`
       sentence on `/data`, in both renderers, opens with what the absence
       means — nobody publishes Formula One race timing under a licence that

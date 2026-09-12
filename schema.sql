@@ -761,6 +761,30 @@ CREATE TABLE races (
     UNIQUE (year, round)
 );
 
+-- The weekend timetable of the current season (LV-02): one row per session,
+-- the start in UTC and the circuit's IANA zone beside it, so a page can show
+-- both the circuit's clock and the reader's, and count down to the next
+-- session in the browser. Rows exist only for the season in progress; the
+-- source is formula1.com's race page (a start time is a fact and may be
+-- re-stated), and the FIA's per-event timetable is what it will be checked
+-- against. A sprint weekend is fp1, sprint_qualifying, sprint, qualifying,
+-- race; any other is fp1, fp2, fp3, qualifying, race - verify.py holds each
+-- weekend to the set races.sprint implies, and holds the race's local day to
+-- the last day of races.dates. Las Vegas is why the zone travels with the
+-- row: its Saturday-evening race is Sunday in UTC.
+CREATE TABLE sessions (
+    id              INTEGER PRIMARY KEY,
+    race_id         INTEGER NOT NULL REFERENCES races(id),
+    kind            TEXT NOT NULL CHECK (kind IN ('fp1', 'fp2', 'fp3', 'sprint_qualifying',
+                                                 'sprint', 'qualifying', 'race')),
+    name            TEXT NOT NULL,             -- "Practice 1", "Sprint qualifying"
+    start_utc       TEXT NOT NULL,             -- YYYY-MM-DDTHH:MMZ; the Z is what makes a browser read it as UTC
+    zone            TEXT NOT NULL,             -- IANA tz database name of the circuit
+    confidence      TEXT NOT NULL DEFAULT 'verified' REFERENCES provenance(confidence),
+    source          TEXT NOT NULL,
+    UNIQUE (race_id, kind)
+);
+
 CREATE TABLE race_entries (
     id              INTEGER PRIMARY KEY,
     race_id         INTEGER NOT NULL REFERENCES races(id),

@@ -30,6 +30,7 @@ from data import events as EV      # noqa: E402
 from data import cars as CR        # noqa: E402
 from data import radio as RA       # noqa: E402
 from data import results as RS     # noqa: E402
+from data import sessions as SS    # noqa: E402
 
 DB = os.path.join(HERE, "f1.db")
 # The build writes here and moves the file into place only when every stage
@@ -1197,6 +1198,18 @@ def _stage_16_current_season(b):
             (rid, 2026, c[0], gid, c[1], c[4], c[5], c[6], c[7],
              "verified", N.SOURCE_F1))
         race_key[(2026, c[0])] = rid
+
+    # The weekend timetable, keyed to the races just written (LV-02). Every
+    # session names its round, and a round with no race row is a typo here,
+    # not a session to store.
+    for rnd, kind, start_utc, zone in SS.SESSIONS_2026:
+        rid = race_key.get((2026, rnd))
+        if rid is None:
+            raise SystemExit(f"sessions: 2026 round {rnd} has no race row")
+        cur.execute("""INSERT INTO sessions (race_id, kind, name, start_utc, zone,
+            confidence, source) VALUES (?,?,?,?,?,?,?)""",
+            (rid, kind, SS.SESSION_NAMES[kind], start_utc, zone, "verified",
+             SS.SESSIONS_SOURCE.format(slug=SS.WEEKENDS_2026[rnd][0])))
 
     # A calendar row whose country field carries a parenthesis is a declared
     # oddity - "Bahrain (hosted at Sepang, Malaysia)" - and the page rendered

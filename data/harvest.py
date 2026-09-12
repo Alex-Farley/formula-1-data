@@ -827,6 +827,25 @@ KNOWN_GAPS = [
      "Closes when F1DB's classification for 2011 round 1 carries the two DNQ "
      "rows, which the next fetch would pick up; or by a curated-entry "
      "mechanism with its own source column, if a second case appears."),
+    (15, "sessions", "the weekend timetable, checked against one source only",
+     "open",
+     "The start time of every 2026 session is held from formula1.com's race "
+     "pages and reproduced from them by machine. The FIA publishes the same "
+     "timetable for each event as a document, and this database has not yet "
+     "read those documents, so a start time here has one source behind it "
+     "where most figures have two.",
+     "sessions carries 115 rows read from formula1.com's per-event pages "
+     "(LV-02, #91), whose schema.org markup states each start in UTC; the "
+     "review of #91 reproduced all 115 from that markup. verify.py holds the "
+     "structure - the five sessions a sprint flag implies, their order, and "
+     "the race's local day against races.dates - but no non-race start is "
+     "constrained by anything independent of the source it came from. The "
+     "FIA's per-event 'Event & Timing Information' PDFs carry the same "
+     "timetable and are the independent source; the project has no tool "
+     "that reads them yet.",
+     23,
+     "Closes when a tool reads the FIA event timetable and verify.py compares "
+     "every start against it, with a disagreement filed in discrepancies."),
 ]
 
 # Shared fastest laps the season tables render as ONE name. harvest/poles.txt

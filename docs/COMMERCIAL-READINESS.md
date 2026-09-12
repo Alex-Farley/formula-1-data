@@ -16,22 +16,22 @@ by the build rather than by anyone's memory.
 
     ./f1 licences
 
-<!-- fig:yes_share -->99.5%<!-- /fig --> of the <!-- fig:sourced_rows -->118,081<!-- /fig --> sourced rows carry a licence that permits
-redistribution outright. The remaining <!-- fig:facts_only_share -->0.5%<!-- /fig --> cite an official source as the
+<!-- fig:yes_share -->99.4%<!-- /fig --> of the <!-- fig:sourced_rows -->118,196<!-- /fig --> sourced rows carry a licence that permits
+redistribution outright. The remaining <!-- fig:facts_only_share -->0.6%<!-- /fig --> cite an official source as the
 **authority for a fact** and hold none of that source's prose. Nothing in the
 committed database may not be published.
 
 | Class | Rows | Share |
 |---|---:|---:|
-| `yes` — redistributable on the terms given | <!-- fig:yes_rows -->117,529<!-- /fig --> | <!-- fig:yes_share -->99.5%<!-- /fig --> |
-| `facts-only` — the facts, not the expression | <!-- fig:facts_only_rows -->552<!-- /fig --> | <!-- fig:facts_only_share -->0.5%<!-- /fig --> |
+| `yes` — redistributable on the terms given | <!-- fig:yes_rows -->117,529<!-- /fig --> | <!-- fig:yes_share -->99.4%<!-- /fig --> |
+| `facts-only` — the facts, not the expression | <!-- fig:facts_only_rows -->667<!-- /fig --> | <!-- fig:facts_only_share -->0.6%<!-- /fig --> |
 | `no` — not redistributable | <!-- fig:no_rows -->0<!-- /fig --> | <!-- fig:no_share -->0.0%<!-- /fig --> |
 
 ---
 
 ## What was read
 
-<!-- fig:facts_only_rows -->552<!-- /fig --> rows cite `formula1.com` (<!-- fig:facts_only_formula1 -->478<!-- /fig -->) or `fia.com` (<!-- fig:facts_only_fia -->74<!-- /fig -->), the two sources whose
+<!-- fig:facts_only_rows -->667<!-- /fig --> rows cite `formula1.com` (<!-- fig:facts_only_formula1 -->593<!-- /fig -->) or `fia.com` (<!-- fig:facts_only_fia -->74<!-- /fig -->), the two sources whose
 licences are "FOM copyright; no reuse licence" and "FIA copyright; published
 for reference, not redistribution". Every one was examined and classified as
 either
@@ -40,7 +40,7 @@ either
   copyrightable, and restating one is not redistribution; or
 - **(b) text following the source's expression** — rewrite.
 
-**All <!-- fig:facts_only_rows -->552<!-- /fig --> are (a). None is (b).** The breakdown, across <!-- fig:facts_only_tables -->9<!-- /fig --> tables — every
+**All <!-- fig:facts_only_rows -->667<!-- /fig --> are (a). None is (b).** The breakdown, across <!-- fig:facts_only_tables -->10<!-- /fig --> tables — every
 figure here is a span `tools/readme_figures.py` writes from the database and
 `verify.py` checks. Two guards hold the list to the database: the writer
 refuses to run while a facts-only row sits in a table not listed here, and
@@ -58,12 +58,30 @@ fails — so a row nobody has read cannot be counted as read:
 | `race_entries` | <!-- fig:fo_race_entries -->36<!-- /fig --> | formula1.com | 2025–26 race winners | — |
 | `regulation_changes` | <!-- fig:fo_regulation_changes -->59<!-- /fig --> | fia.com | year, category | `detail`, `impact` |
 | `regulation_limits` | <!-- fig:fo_regulation_limits -->15<!-- /fig --> | fia.com | numeric limits | `note` |
+| `sessions` | <!-- fig:fo_sessions -->115<!-- /fig --> | formula1.com | 2026 session start times (UTC) and circuit zone | — |
 
 The prose columns in the right-hand column are **written for this project**,
 not taken from FOM or the FIA — `ATTRIBUTION.md` records regulations, safety,
 technical and glossary text as "written for this project from general
 knowledge". They carry a separate obligation, from Wikipedia and not from
 these sources, and are the subject of the prose pass rather than this one.
+
+### The timetable: a whole season from one source, read as facts-only
+
+`sessions` holds the start time of every 2026 session, read from
+formula1.com's 23 race pages (`LV-02`, #91). It is the first facts-only use
+that takes the whole of one upstream set rather than single facts each
+cross-checked elsewhere, and the class's own limit — no substantial
+extraction of the source's database — was read for it, by the maintainer on
+2026-09-12 (`LV-04`): a race weekend's session times are a public schedule
+that the sport's promoter and the FIA both publish for every event, not a
+compilation whose value lies in the collecting; each start is a single fact
+the FIA's own event timetable states in the same terms; and the per-season
+refresh reads the schedule as published, five rows an event, nothing else
+from the pages. On that reading the rows are facts restated, and the FIA
+timetable is the independent check still owed (`known_gaps` #15). If the
+reading is ever doubted, the fallback is the FIA's per-event documents, which
+carry the same figures.
 
 ### The <!-- fig:fo_current_season_rows -->148<!-- /fig --> rows that look redundant and are not
 
