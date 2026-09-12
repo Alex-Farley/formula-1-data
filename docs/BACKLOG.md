@@ -527,6 +527,26 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       or say which is which. Found by the review of #75. — *review of #75 ·
       S*
 
+- [ ] `CD-23` **The lede check's qualifier list is short, and its gap is
+      loose.** "Ten F1 wins", "Seven World titles", "Two World Championship
+      titles" and "two consecutive Drivers' titles" pass because a
+      capitalised word is read as a place-name subset; fold `F1`, `Formula
+      One`, `World`, `World Championship`, `Championship` and `Drivers'`
+      into the noun's qualifier group beside `GP`. The two-word gap swallows
+      "Four of his wins" (no total stated) and "Six Formula One wins" is
+      reported as "One wins"; tighten the gap to exclude `of|his|the` and
+      report the whole match. Give the pattern a unit test in `tests/` so
+      both interpreters prove it matches, not merely compiles. Found by the
+      review of #79. — *review of #79 · S*
+
+- [ ] `CD-24` **Subset figures in a driver note are counted by nobody.**
+      Hill's five and Senna's six Monaco wins, Trintignant's two, and
+      Ickx's six Le Mans wins were verified by hand for #79 and nothing
+      re-checks them. Three are one query on `race_entries`: count a
+      "<N> <Circuit> wins" phrase against the records, and declare the
+      one no table can constrain. Found by the review of #79. — *review of
+      #79 · S*
+
 **Interaction design**
 
 - [ ] `IX-16` **`IA-08` escalated: Back restores the scroll and not the filter.** France filter, sort by wins, scroll, open a driver, Back — same pixel, 862 unfiltered rows. Do `/drivers` first. — *interaction critique · M*
