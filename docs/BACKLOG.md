@@ -430,6 +430,15 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       `chassis.weight_kg` and of `article_images` rows would do. — *code
       review of #42 · S*
 
+- [ ] `CR-22` **The static `/records` page is not the app's `/records`.**
+      `prerender.js` writes its own lede ("derived from the race records and
+      checked against the published one" — the derivation `PD-03` has not
+      done), a five-column table without the confidence tier, and none of
+      the caveat `UR-09` moved above the figures. The two renderers must say
+      the same thing; when `PD-03` settles what the page is, the static half
+      follows it, and until then it carries the same caveat and no claim of
+      derivation. — *review of #55 · S*
+
 - [ ] `AF-02` **Keep the audit claim honest with a private repository.** Three
       S pieces. (1) Publish the checks' *results*, not the code: a served
       `checks.txt` or `/reference/checks` listing each `verify.py` check by its
@@ -500,10 +509,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 - [ ] `VD-21` **`web/README.md` describes a mark the site does not ship.** 3×2 in the doc, 4×4 in `index.html`. Fix the paragraph. — *visual critique · S*
 
 **Interaction design**
-
-- [ ] `IX-08` **The atlas marker travels the wrong way round two circuits and starts nowhere.** Baku and Long Beach walk against `circuits.direction`; `0 m` is an arbitrary OSM way boundary. Reverse the ring on shoelace sign; say "along the trace", not a lap position. — *interaction critique · S*
-
-- [ ] `IX-09` **Dragging the scrubber says nothing the page has not said.** Put the band at the marker into the `<output>` — "1,240 m · hairpin, 38 m" — from an array the component already holds. — *interaction critique · S*
 
 - [ ] `IX-11` **Clicking a worked example destroys the reader's query with no undo.** Write through `execCommand('insertText')` so ⌘Z works. — *interaction critique · S*
 
@@ -1150,6 +1155,17 @@ Real, but not costed, or waiting on a decision.
 - [x] `VD-13` **`/records` no longer right-aligns phrases as if they were
       figures.** Left-aligned; the split into a number and a qualifier waits
       for `PD-03` to settle what the page is. — *visual critique · #55*
+
+- [x] `IX-08` **The atlas marker travels the racing direction.** The stitched
+      ring is reversed where its signed area disagrees with
+      `circuits.direction`; Baku and Long Beach walked backwards against the
+      direction stated beside them. The origin stays arbitrary, so the
+      readout says "along the trace" rather than implying a lap position. —
+      *interaction critique · #56*
+
+- [x] `IX-09` **The scrubber says what is under the marker** — the corner
+      band and its radius — so it teaches the colour key instead of counting
+      up a distance the drawing already shows. — *interaction critique · #56*
 
 ## Declined
 

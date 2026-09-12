@@ -174,6 +174,25 @@ export function cornerRadius(ring, cum, windowM = 25) {
   return out
 }
 
+/**
+ * Twice the signed area of a projected ring, by the shoelace formula.
+ *
+ * SVG's y grows downward, so a ring walked clockwise on screen comes out
+ * POSITIVE here. That is the test for whether the stitched walk runs the way
+ * the cars do: stitch() begins at whichever OpenStreetMap way happened to
+ * come first and follows it in whichever direction that way was drawn, so
+ * two of twenty-two closed traces walked backwards against the direction the
+ * page stated beside them. The caller reverses the ring when the sign and
+ * `circuits.direction` disagree.
+ */
+export function signedArea(shape) {
+  let twice = 0
+  for (let i = 0; i < shape.x.length - 1; i += 1) {
+    twice += shape.x[i] * shape.y[i + 1] - shape.x[i + 1] * shape.y[i]
+  }
+  return twice
+}
+
 /** The point a given fraction of the way round, and the metres to reach it. */
 export function pointAt(shape, fraction) {
   const want = Math.max(0, Math.min(1, fraction)) * shape.length

@@ -30,7 +30,7 @@ import {
   text,
   yearList,
 } from '../src/lib/format.js'
-import { metresBetween, stitch } from '../src/lib/lap.js'
+import { metresBetween, signedArea, stitch } from '../src/lib/lap.js'
 import { fold, rank } from '../src/lib/search.js'
 import { trackPath } from '../src/lib/track.js'
 
@@ -115,6 +115,16 @@ describe('yearList', () => {
 
   it('is an em dash for nothing', () => {
     assert.equal(yearList(null), EMPTY)
+  })
+})
+
+describe('signedArea', () => {
+  it('is positive for a ring walked clockwise on screen, where y grows downward', () => {
+    // Top-left, top-right, bottom-right, bottom-left, back: clockwise as drawn.
+    const cw = { x: [0, 1, 1, 0, 0], y: [0, 0, 1, 1, 0] }
+    assert.ok(signedArea(cw) > 0)
+    const acw = { x: [0, 0, 1, 1, 0], y: [0, 1, 1, 0, 0] }
+    assert.ok(signedArea(acw) < 0)
   })
 })
 
