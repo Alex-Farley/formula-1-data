@@ -3211,7 +3211,9 @@ def derive_records(cur):
             streak[did] = (n + 1, start)
             if n + 1 > best:
                 best, holders = n + 1, []
-            if n + 1 == best:
+            # One entry per driver: a second record-length streak by the
+            # same driver would otherwise list the name twice.
+            if n + 1 == best and all(h[0] != did for h in holders):
                 holders.append((did, start, (year, name)))
     names = dict(q("SELECT id, full_name FROM drivers"))
     add("most-consecutive-wins", "drivers", "Most consecutive wins",
@@ -3314,7 +3316,7 @@ def derive_records(cur):
         # list is emptied the year any run passes it, so a run appears once.
         if n > best:
             best, holders = n, []
-        if n == best:
+        if n == best and all(h[0] != cid for h in holders):
             holders.append(run)
     add("most-consecutive-constructors-titles", "constructors",
         "Most consecutive constructors' championships",

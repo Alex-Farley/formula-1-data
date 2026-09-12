@@ -435,8 +435,9 @@ SOURCE_REGISTRY = [
      "The glossary, the era and engine-era periodisations, the governance and "
      "safety timelines, the technical-innovation notes, the constructor "
      "lineage chains, the points-system table, the tyre-supplier list, the "
-     "grand prix register, the personnel notes, the engine-manufacturer notes "
-     "and the headline records list. Thirteen tables.",
+     "grand prix register, the personnel notes and the engine-manufacturer "
+     "notes. Twelve tables; the records list left it in v2.23, derived from "
+     "the race records instead of written.",
      "authored",
      "Original to this repository, and the only content here under no "
      "external obligation at all.",
@@ -444,7 +445,7 @@ SOURCE_REGISTRY = [
      "version to pin.",
      "NOTHING, and that is the entire point of giving it a name. It has no "
      "external source to be compared against and no check in verify.py that "
-     "constrains a value - `records` is not tested at all, and what "
+     "constrains a value - what "
      "constrains grands_prix, constructor_lineage and personnel is "
      "referential and temporal only: ids resolve, years run forwards. Those "
      "prove the shape and say nothing about the claim. So nothing here may "
