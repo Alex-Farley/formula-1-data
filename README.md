@@ -733,7 +733,7 @@ for each, which `v_standings_final` returns one row per entity.
 
 ### It was a licence, not a harvest
 
-This gap stood for seven versions and `known_gaps` #1 described it as a
+This gap stood for seven versions and `known_gaps` #2 described it as a
 licensing decision. That was accurate but incomplete. The rows came from
 [Jolpica-F1](https://api.jolpi.ca), whose Ergast lineage is CC BY-**NC**-SA —
 a non-commercial clause more restrictive than anything else here — so they
@@ -1012,6 +1012,9 @@ breaks a cross-check is thrown away rather than committed, so an unattended
 job can never replace a good database with a broken one. It can also be run
 by hand from the Actions tab for a race that lands out of step with the
 schedule.
+
+`docs/UPSTREAM.md` records what depends on F1DB, table by table, and what
+happens if it stops, changes shape or changes licence.
 
 Two things do not arrive with a refresh. Pole position and fastest lap are
 separate harvests, so a race that has just been run appears with its full

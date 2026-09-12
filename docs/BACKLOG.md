@@ -130,7 +130,6 @@ largest single fix and still has its riders.
       their queries and column lists with the prerenderer; the other pages
       follow.
 
-
 - [ ] `IA-02` **`Reference` leaves the masthead; `Data` takes the slot.**
       `/reference` is two drawers with no reader in common: a *database* drawer
       (`quality`, `sources`, `sql`) and a *sport* drawer (`eras`, `glossary`).
@@ -199,12 +198,6 @@ Worth doing, not yet urgent.
       redistribute Formula One lap timing, so this database contains none, and
       every figure here is one you may republish" is an advantage over anyone
       hosting scraped timing. — *product critique · S*
-
-- [ ] `PD-13` **Write down the upstream dependency.** 93.5% of rows come from one
-      source refreshed by one cron, and nothing records what happens if it
-      changes licence or stops. One page in `docs/`. — *product critique · S*
-
-
 
 - [ ] `PM-12` **Loosen the specification harvest's name check.** It refuses
       "Alfa Romeo 158/159 Alfetta" for `alfa-romeo-159`. Match the chassis name
@@ -662,6 +655,27 @@ Real, but not costed, or waiting on a decision.
       r17 sprint; the 2026 drivers'/constructors' points disagreement and the
       2026 r13 pole awaiting the harvest, both of which the next refresh
       moves. — *project record · M*
+
+- [ ] `PM-27` **The fetch tool stamps F1DB's licence from a constant.**
+      `tools/f1db_fetch.py` writes "CC BY 4.0" into every harvest header
+      from `HEADER`, not from F1DB's licence file, so a relicensed release
+      would be fetched, stamped with the old licence and — passing the four
+      cross-checks — committed and deployed by `refresh.yml` before anyone
+      read it. Read the licence file in the clone and exit non-zero unless it
+      is the licence `SOURCE_LICENCE` classifies; the refresh then fails at
+      the fetch and commits nothing. Found writing `docs/UPSTREAM.md`
+      (`PD-13`). — *project record · S*
+
+- [ ] `PM-28` **Six code comments cite `known_gaps` #1 for a gap that is
+      not #1.** Three mean the Jolpica licence decision, which is #2
+      (`finish_position`): `build.py` (the results loader), `tools/
+      f1db_fetch.py` (its licence commentary) and `data/harvest.py` (the
+      results section). Three mean the abandoned chassis-per-race harvest,
+      which is #3 (`chassis_id`): `build.py`, `tools/f1db_fetch.py` and
+      `data/harvest.py` again. #1 is the fastest-lap harvest. Find them with
+      `grep -rn "known_gaps #1" --include="*.py"`; the README's copy was
+      fixed in #82. Comments only, no artefact change. Found by the reviews
+      of #82. — *review of #82 · S*
 
 - [ ] `PM-09` **Per-round chassis harvest.** Closes `known_gaps` #3 (287 races
       with no known winning chassis) and #4 (car pole counts) in one pass. Only
@@ -1532,6 +1546,20 @@ Real, but not costed, or waiting on a decision.
       than counted, Surtees's seven motorcycle titles are counted as times
       rather than titles, and Montoya's "fourth GP start" was wrong — the pass on
       Schumacher at Interlagos 2001 was his third. — *review of #74 · #79*
+
+- [x] `PD-13` **The upstream dependency is written down.** `docs/UPSTREAM.md`:
+      what F1DB supplies (115,161 of 119,280 rows at v2.23, table by table),
+      how it arrives (a committed snapshot, refreshed daily by `refresh.yml`
+      and committed only on a full pass), the four cross-checks that refuse a
+      bad load, what happens if it stops (staleness, not breakage; the
+      replacements in cost order, with formula1.com kept at the check scale
+      its facts-only classification covers) and if it relicenses (the grant
+      is irrevocable, section 2(a)(1); the one unsafe path is `PM-27`).
+      Linked from the README's Staying current section. The review of #82
+      caught the first draft overstating the project's independence from
+      F1DB in three places and mis-citing a gap and a licence section; the
+      README's "known_gaps #1" for the Jolpica decision was the same
+      mis-cite and is #2 now. — *product critique · #82*
 
 - [x] `CD-22` **Where the register's seasons are not the race records', the
       page says which is which.** The Seasons note on the driver strip, in
