@@ -464,13 +464,6 @@ the source. `WK-` is this survey; nothing else uses the prefix.
 
 Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09-11-*.md` under the same ID. Items already in *Now* are not repeated.
 
-- [ ] `CR-21` **Two harvest files fill columns and have no floor.** Deleting
-      `harvest/car_specs.txt` (649 lines) or `harvest/article_images.txt`
-      (607) builds and verifies clean. Found by the review of `CR-01`, which
-      floored the seven bulk tables. A floor on the count of non-NULL
-      `chassis.weight_kg` and of `article_images` rows would do. — *code
-      review of #42 · S*
-
 - [ ] `CR-22` **The static `/records` page is not the app's `/records`.**
       `prerender.js` writes its own lede ("derived from the race records and
       checked against the published one" — the derivation `PD-03` has not
@@ -1308,6 +1301,12 @@ Real, but not costed, or waiting on a decision.
       every 2026 driver twice (formula1.com and F1DB rows after the same
       round); it now reads `v_standings_final`, as the app does. — *user
       research · #64*
+
+- [x] `CR-21` **The two column-filling harvests have a floor.** `verify.py`
+      requires `chassis.weight_kg` and `chassis.wheelbase_mm` to be filled at
+      least as often as at v2.22 and `article_images` to hold at least its
+      602 rows, so deleting `car_specs.txt` or `article_images.txt` no longer
+      builds clean. — *code review of #42 · #66*
 
 ## Declined
 
