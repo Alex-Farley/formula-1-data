@@ -105,18 +105,6 @@ largest single fix and still has its riders.
       2026 season's static page opens with five em dashes), `AX-17` (no static
       table has a caption), plus `CD-04`, `IA-03` and `PD-06` as before.
 
-- [ ] `PD-07` **Stop the README lying.** It claims 39 tables, 34 views, ~8,400
-      rows against an actual 46 / 38 / 119,271, and says qualifying is "not held
-      at all" when 26,997 rows are. Move the version log to `BUILD-NOTES.md`,
-      then generate every count from the database and add a `verify.py` check
-      that fails when a stated figure disagrees — the discipline
-      `f1_compat.json` already gets. **`PM-02`, `PM-03` and `PM-04` ride with
-      it:** the version log this moves into `BUILD-NOTES.md` is exactly what
-      `PM-02` needs folded and `PM-03` needs repointed, and `PM-04` is the same
-      front-door-is-wrong job one surface over. — *product critique · M*
-      **`PD-24`/`CR-08` landed in #45**: `meta.coverage_note` is now derived from
-      the counts and compared whole by `verify.py`; the README is the surface
-      left, and the check count is still stated seven ways (`CR-09`).
 
 - [ ] `PD-03` **Derive `/records`, or stop shipping it.** All 30 rows are
       authored, sit at `medium`, and nothing in `verify.py` reads the table; the
@@ -199,21 +187,17 @@ Worth doing, not yet urgent.
       source refreshed by one cron, and nothing records what happens if it
       changes licence or stops. One page in `docs/`. — *product critique · S*
 
-- [ ] `PM-02` **`BUILD-NOTES.md` stops at v2.15.** Five releases exist only as
-      README prose, and `CLAUDE.md` points at that file as *the* running record
-      of what changed and what was deliberately not done. Fold in v2.16–v2.20
-      while doing `PD-07`, which moves the version log there anyway. —
-      *project record · S*
 
-- [ ] `PM-03` **Rewrite `BUILD-NOTES.md`'s "Next, in order".** Its first two
-      items were overtaken by v2.15's licence finding and the timing decision.
-      This file is that list now, so the section should point here rather than
-      compete with it. — *project record · S*
 
 - [ ] `PM-04` **The GitHub repo description is stale.** Still "29 landmark cars …
       143 integrity tests", written before the full classification. It is the
       first thing a visitor reads and it is not in the repository, so nothing
       checks it. — *project record · S*
+      **Proposed text, from `PD-07` (#60), for whoever holds the repository
+      settings:** *Formula One, 1950–2026, as one SQLite database: every
+      championship race, entry, qualifying session and standings table,
+      cross-checked against independent sources on every build, with every
+      disagreement on the record. Browse it at lapledger.org.*
 
 - [ ] `PM-20` **Clear the two actionable `verify.py` data warnings.** Two
       qualifying rows have no matching race entry; three chassis are claimed as
@@ -350,7 +334,7 @@ Worth doing, not yet urgent.
 - [ ] `CD-16` **The README's first sentence defines the product by its own
       history.** *"An expansion of the original single-file JSON into…"* — a
       reader arriving at the repository does not know there was a single-file
-      JSON and does not care. `PD-07` already moves the version log out; this is
+      JSON and does not care. `PD-07` (#60) moved the version log out; this is
       what should replace it, in `CD-07`'s claim in repository voice. —
       *content critique · S*
 
@@ -808,7 +792,7 @@ Real, but not costed, or waiting on a decision.
 
 - [ ] `CR-19` **`# noqa` and `eslint-disable` with no linter; Python 3.9 in the matrix.** Add ruff to CI or delete the markers; say why 3.9 stays. — *code review · S*
 
-- [ ] `CR-20` **The history the project leans on starts on 2026-09-04.** Everything before v2.6 is `BUILD-NOTES.md` and comments, which makes `PM-02` weightier than an S. — *code review · ?*
+- [ ] `CR-20` **The history the project leans on starts on 2026-09-04.** Everything before v2.6 is `BUILD-NOTES.md` and comments, which makes `PM-02` weightier than an S. `PM-02` landed in #60 as far as v2.16–v2.22 go; what this asks about is the record *before* the git history starts, and that stays open. — *code review · ?*
 
 - [ ] `PD-18` **Driver photographs: available for ~65%, fourth in the queue.** Sampled n=160: 55% pre-1970 to 98% modern, all on Commons. An *identification* portrait beside the `h1`, never a hero; the template must work without one (302 pages). Decide after `PD-16` and `PD-19` have shipped. `VD-22` sizes the data side L (a `drivers.article` equivalent, a name-match rule for people); `UR` found no persona blocked by its absence. — *product critique · decision*
 
@@ -1266,6 +1250,29 @@ Real, but not costed, or waiting on a decision.
       `regulation_changes` row for the US$215m figure. `verify.py` refuses
       overlapping spans of one limit and a missing cap year. — *Wikipedia
       survey · #59*
+
+- [x] `PD-07` **The README states what the database holds.** Every figure it
+      gives about the current database is a `<!-- fig:name -->` span that
+      `tools/readme_figures.py` computes from `f1.db` (and `f1-geometry.db`
+      for the centrelines) with one expression per name; `make all` rewrites
+      them, and a `verify.py` section recomputes each and fails the build
+      where the text disagrees. 39 tables / 34 views / ~8,400 rows became
+      46 / 39 / 119,265; "qualifying, not held at all" became 26,997 rows;
+      "standings cover 2025–26 only", "sprint results not held", "podiums
+      hand-entered" and "every Monday" were false and are fixed. Prose that
+      could not be derived — check counts, refusal tallies that live in harvest
+      logs, the way-end distances — was deleted rather than left to drift. The
+      version log moved to `docs/BUILD-NOTES.md`; `PM-04` stays open with the
+      proposed text on it. — *product critique · #60*
+
+- [x] `PM-02` **`BUILD-NOTES.md` runs to v2.22.** v2.16–v2.22 folded in from
+      the README's log, newest first, dated from the tags and the version-bump
+      commits, nothing dropped; the two facts the README's header carried that
+      the v2.1 and v2.3 entries did not are in them now. — *project record · #60*
+
+- [x] `PM-03` **"Next, in order" is gone.** `BUILD-NOTES.md` now says
+      `docs/BACKLOG.md` is the only queue, and why a second list that can go
+      stale is worse than none. — *project record · #60*
 
 ## Declined
 

@@ -2322,6 +2322,47 @@ def views():
           bad_points == 0, f"{bad_points} rows")
 
 
+@section('THE README STATES WHAT THE DATABASE HOLDS')
+def readme_figures():
+    # The README claimed 39 tables, 34 views and ~8,400 rows against 46, 39 and
+    # 119,265, and said qualifying was "not held at all" over 26,997 rows of
+    # it, because nothing read the prose. meta.coverage_note is derived and
+    # compared whole; this gives the README the same treatment. Every figure
+    # it states is a span - <!-- fig:name -->value<!-- /fig --> - and
+    # tools/readme_figures.py computes each name from this database with one
+    # expression. `make all` rewrites them; here they are recomputed and the
+    # text has to agree. A stale README is a failed build, not a footnote.
+    import importlib.util
+    here = os.path.dirname(os.path.abspath(__file__))
+    spec = importlib.util.spec_from_file_location(
+        "readme_figures", os.path.join(here, "tools", "readme_figures.py"))
+    rf = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(rf)
+
+    with open(os.path.join(here, "README.md"), encoding="utf-8") as f:
+        text = f.read()
+    try:
+        said = rf.stated(text)
+    except ValueError as e:
+        check("no figure is stated twice with different values", False, str(e))
+        return
+    check("no figure is stated twice with different values", True, f"{len(said)} spans")
+
+    values = rf.compute(con, GEO)
+    unknown = sorted(set(said) - set(values))
+    check("every figure the README states is one the tool computes", not unknown,
+          ", ".join(unknown))
+    unused = sorted(set(values) - set(said))
+    check("every figure the tool computes is stated somewhere", not unused,
+          ", ".join(unused))
+    for name in rf.NAMES:
+        if name in said:
+            s, a = said[name], values[name]
+            detail = a if "\n" not in a else "table"
+            check(f"README fig:{name} = {detail}", s == a,
+                  "" if s == a else f"README says {s!r}")
+
+
 def main(argv):
     global con, GEO, DB
     # --db PATH checks a database other than the one beside this file. CI uses

@@ -39,6 +39,12 @@ Three are committed: **`f1.db`**, **`f1-geometry.db`**, **`f1_compat.json`**.
 (`f1_database.json` is *not* — it is gitignored and published as a release
 asset instead. It is 21 MB and does not delta-compress.)
 
+A fourth is half-generated: every count **`README.md`** states about the
+database is a marked span that `tools/readme_figures.py --write` rewrites
+from `f1.db` (`make all` runs it) and `verify.py` checks. Edit the prose,
+never a figure inside a span; a figure that disagrees with the database fails
+the build, which is the point.
+
 `f1.db` and `f1-geometry.db` come from `build.py`; **`f1_compat.json` comes
 from `export_json.py --compat`**, which is why a rebuild alone does not
 refresh it.
