@@ -439,10 +439,11 @@ the source. `WK-` is this survey; nothing else uses the prefix.
 
 - [ ] `WK-05` **Cars, teams and engine makers per season are derivable and not
       shown.** The page's infobox says 22 drivers, 11 constructors, five power
-      unit manufacturers; `season_entrants` holds every one of them for every
-      year. A view `v_season_grid` (year, entrants, constructors,
-      engine manufacturers, tyre suppliers) and a line on each `/seasons/YYYY`
-      page. No new facts. — *Wikipedia survey · S*
+      unit manufacturers. `season_entrants` holds the constructors and engine
+      makers for every year; the drivers who started come from `race_entries`.
+      A view `v_season_grid` (year, drivers, constructors, engine
+      manufacturers, tyre suppliers) and a line on each `/seasons/YYYY` page.
+      No new facts. — *Wikipedia survey · S*
 
 - [ ] `WK-06` **Read the records list the same way.** *List of Formula One
       World Championship records* is the page with the tables this one lacks.

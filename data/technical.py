@@ -239,14 +239,15 @@ REGULATION_LIMITS = [
     (2022, 2022, "cost_cap_usd", 140_000_000.0, "USD",
      "For a 21-Competition reporting year (issue 12).", "reference", _FIN[2022]),
     (2023, 2025, "cost_cap_usd", 135_000_000.0, "USD",
-     "For a 21-Competition reporting year; issues 18, 22 and 25 each restate "
-     "it for their own year.", "reference", _FIN[2025]),
+     "For a 21-Competition reporting year. Issue 18 sets it for 2023 'and "
+     "each subsequent' year; issues 22 and 25 restate it for 2024 and 2025.",
+     "reference", _FIN[2023]),
     (2026, 2026, "cost_cap_usd", 215_000_000.0, "USD",
      "For a reporting year of 24 Competitions or fewer, under the 2026 "
      "Financial Regulations (Section D, issue 07).", "reference", _FIN[2026]),
     (2021, 2022, "cost_cap_per_competition_usd", 1_200_000.0, "USD",
-     "Added or removed for each Competition above or below 21.", "reference",
-     _FIN[2022]),
+     "Added or removed for each Competition above or below 21 (issue 8 "
+     "states it for 2021 and 2022).", "reference", _FIN[2021]),
     (2023, 2025, "cost_cap_per_competition_usd", 1_800_000.0, "USD",
      "Added or removed for each Competition above or below 21.", "reference",
      _FIN[2025]),
