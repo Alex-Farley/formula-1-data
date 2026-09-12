@@ -1076,6 +1076,29 @@ try {
     truthy(html.includes('each right about something') && html.includes('Formula 2'), 'and carries the same explained reading')
   }
 
+  // The weekend timetable (LV-02): a race page carries every session with
+  // the circuit's clock and UTC, in the app and the static page, from the
+  // same rows.
+  {
+    const sprintRound = one("SELECT MIN(r.round) FROM races r WHERE r.year = 2026 AND r.sprint = 1 AND EXISTS (SELECT 1 FROM sessions s WHERE s.race_id = r.id)")
+    const n = count('SELECT COUNT(*) FROM sessions s JOIN races r ON r.id = s.race_id WHERE r.year = 2026 AND r.round = ?', sprintRound)
+    console.log(`\n/races/2026/${sprintRound}  (timetable)`)
+    await go(`/races/2026/${sprintRound}`, 'Grand Prix')
+    await page.waitForSelector('#root main h2:has-text("Timetable")', { timeout: 20000 })
+    const app = await page.$eval('#root main', (m) => m.textContent)
+    truthy(app.includes('Sprint qualifying') && app.includes('At the circuit') && app.includes('UTC'), `the app lists the ${n} sessions with the circuit clock and UTC`)
+    const html = await (await fetch(`${BASE}/races/2026/${sprintRound}`)).text()
+    truthy(html.includes('<h2>Timetable</h2>') && html.includes('Sprint qualifying') && html.includes('At the circuit'), 'the static page carries the same timetable')
+    // The next-session line depends on the clock: asserted only while the
+    // season has a session still to come.
+    const future = count("SELECT COUNT(*) FROM sessions WHERE start_utc > strftime('%Y-%m-%dT%H:%MZ', 'now')")
+    if (future > 0) {
+      await go('/seasons/2026', '2026')
+      const season = await page.$eval('#root main', (m) => m.textContent)
+      truthy(season.includes('Next session:') && season.includes('at the circuit'), 'the season page names the next session, computed in the browser')
+    }
+  }
+
   // ----------------------------------------------------------------- SQL
 
   console.log('\n/data/sql')

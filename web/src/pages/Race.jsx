@@ -4,6 +4,7 @@ import { Confidence, Fields, Note, Onward, Page, Section, Stats, Stepper } from 
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import Disagreement, { RACE_DISAGREEMENTS } from '../components/Disagreement.jsx'
+import { RACE_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE, clock, nextSession, readerZone, until } from '../queries/sessions.js'
 import { rows, useQueries } from '../data/useQuery.js'
 import { classificationOrder, finished, missing, number, points as fmtPoints, result } from '../lib/format.js'
 
@@ -86,6 +87,7 @@ export default function Race() {
     pits: [PITS, args],
     neighbours: [NEIGHBOURS, args],
     disagreements: [RACE_DISAGREEMENTS, args],
+    sessions: [RACE_SESSIONS, args],
   })
 
   return (
@@ -118,6 +120,9 @@ function RaceBody({ race, data, year, round }) {
     [data],
   )
   const neighbours = data.neighbours.rows[0] ?? {}
+  const sessions = rows(data, 'sessions')
+  const zone = readerZone()
+  const upcoming = nextSession(sessions)
 
   /**
    * The classification, in the order a classification is printed: finishers by
@@ -237,6 +242,28 @@ function RaceBody({ race, data, year, round }) {
           <strong>This race has not been run.</strong> It is on the {year} calendar and carries no
           result yet.
         </Note>
+      )}
+
+      {sessions.length > 0 && (
+        <Section title="Timetable" count={`${sessions.length} sessions`}>
+          <DataTable
+            rows={sessions}
+            rowKey={(row) => row.kind}
+            sortable={false}
+            columns={[
+              ...SESSION_COLUMNS,
+              ...(zone
+                ? [{ key: 'your_time', label: `Your time (${zone})`, text: (_, row) => clock(row.start_utc, zone) }]
+                : []),
+            ]}
+            footer={TIMETABLE_NOTE}
+          />
+          <p className="note" style={{ marginTop: 10 }}>
+            {upcoming
+              ? `Next: ${upcoming.name}, ${clock(upcoming.start_utc, upcoming.zone)} at the circuit — ${until(upcoming.start_utc)}.`
+              : 'Every session of this weekend has started.'}
+          </p>
+        </Section>
       )}
 
       <Disagreement rows={rows(data, 'disagreements')} what="this race" />

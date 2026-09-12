@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { SEASON_SESSIONS, clock, nextSession, until, utc } from '../queries/sessions.js'
 import { Link, useParams } from 'react-router-dom'
 import { Confidence, Fields, Note, Onward, Page, Section, Stats, Stepper } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
@@ -85,6 +86,7 @@ export default function Season() {
     entrants: [ENTRANTS, [Number(year)]],
     neighbours: [NEIGHBOURS, [Number(year)]],
     grid: ['SELECT * FROM v_season_grid WHERE year = ?', [Number(year)]],
+    sessions: [SEASON_SESSIONS, [Number(year)]],
   })
 
   return (
@@ -111,6 +113,7 @@ function SeasonBody({ year, season, data }) {
   const entrants = rows(data, 'entrants')
   const neighbours = data.neighbours.rows[0] ?? {}
   const grid = data.grid.rows[0] ?? null
+  const upcoming = nextSession(data.sessions.rows)
 
   const driversFinal = useMemo(() => final.filter((r) => r.table_type === 'drivers'), [final])
   const constructorsFinal = useMemo(() => final.filter((r) => r.table_type === 'constructors'), [final])
@@ -228,6 +231,14 @@ function SeasonBody({ year, season, data }) {
             },
           ]}
         />
+        )}
+        {upcoming && (
+          <p className="note" style={{ marginTop: 10 }}>
+            Next session: {upcoming.name} for the{' '}
+            <Link to={`/races/${year}/${upcoming.round}`}>{upcoming.name_used}</Link>,{' '}
+            {clock(upcoming.start_utc, upcoming.zone)} at the circuit ({utc(upcoming.start_utc)} UTC) —{' '}
+            {until(upcoming.start_utc)}.
+          </p>
         )}
         {grid && (
           <p className="note" style={{ marginTop: 10 }}>
