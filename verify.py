@@ -1838,6 +1838,21 @@ def the_full_classification():
         n = con.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
         check(f"{table} holds at least the {floor:,} rows of the last release",
               n >= floor, f"{n:,} rows")
+    # Two harvests fill COLUMNS rather than tables, so a row floor does not
+    # see them. When the review of CR-01 filed this (CR-21), deleting
+    # harvest/car_specs.txt or harvest/article_images.txt built and verified
+    # clean; since #60 the README's figure spans catch it indirectly, which
+    # invites "fixing" the README. A floor names the harvest. Same rule: the
+    # count at v2.22, raised when a harvest legitimately adds, never lowered.
+    COLUMN_FLOORS = (
+        ("chassis", "weight_kg", 197, "harvest/car_specs.txt"),
+        ("chassis", "wheelbase_mm", 338, "harvest/car_specs.txt"),
+        ("article_images", "file_name", 602, "harvest/article_images.txt"),
+    )
+    for table, column, floor, source in COLUMN_FLOORS:
+        n = con.execute(f"SELECT COUNT({column}) FROM {table}").fetchone()[0]
+        check(f"{table}.{column} is filled at least {floor:,} times, as {source} fills it",
+              n >= floor, f"{n:,} filled")
     # Fastest laps live in a column, and the F1DB file fills vacancies only,
     # so a floor on the count is one row wide. Per race instead: every
     # completed race carries a credit, bar the one known_gaps declares (2021

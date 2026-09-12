@@ -61,6 +61,27 @@ discovers back here under these conventions. The process around that is in
 
 ---
 
+## Decisions needed
+
+One place to look. Each is an open item elsewhere in this file; the ID is
+the link. An autonomous run does not take these; it works around them and
+adds to this list when it finds another. Struck through when decided, with
+the date, then removed at the next tidy.
+
+- `LV-01` **Live session data.** Practice timings are FOM's data, the line
+  the empty `laps` table already draws. Recommended: the weekend timetable
+  (a) and after-the-fact session classifications (b); decline a live feed
+  (c) unless a licence is obtained.
+- `PM-04` **The GitHub repository description.** Text proposed on the item;
+  apply it, or change it.
+- `PD-03` **`/records`.** Derive the thirty records from the database, or
+  stop shipping the page.
+- `IA-02` **The masthead's "Reference" slot** becomes "Data", or stays.
+- `WK-01` **The qualifying-format history.** Worth one FIA Sporting
+  Regulations issue per season, and yearbooks before 2009?
+- `AF-02` **The wording of the cross-checked claim** on the About and README
+  surfaces, now the repository stays private.
+
 ## Now
 
 Short enough to be a decision rather than a list. Each item is a surface
@@ -463,13 +484,6 @@ the source. `WK-` is this survey; nothing else uses the prefix.
 ### Filed 2026-09-11 — the eight reviews
 
 Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09-11-*.md` under the same ID. Items already in *Now* are not repeated.
-
-- [ ] `CR-21` **Two harvest files fill columns and have no floor.** Deleting
-      `harvest/car_specs.txt` (649 lines) or `harvest/article_images.txt`
-      (607) builds and verifies clean. Found by the review of `CR-01`, which
-      floored the seven bulk tables. A floor on the count of non-NULL
-      `chassis.weight_kg` and of `article_images` rows would do. — *code
-      review of #42 · S*
 
 - [ ] `CR-22` **The static `/records` page is not the app's `/records`.**
       `prerender.js` writes its own lede ("derived from the race records and
@@ -1308,6 +1322,12 @@ Real, but not costed, or waiting on a decision.
       every 2026 driver twice (formula1.com and F1DB rows after the same
       round); it now reads `v_standings_final`, as the app does. — *user
       research · #64*
+
+- [x] `CR-21` **The two column-filling harvests have a floor.** `verify.py`
+      requires `chassis.weight_kg` and `chassis.wheelbase_mm` to be filled at
+      least as often as at v2.22 and `article_images` to hold at least its
+      602 rows, so deleting `car_specs.txt` or `article_images.txt` no longer
+      builds clean. — *code review of #42 · #66*
 
 ## Declined
 
