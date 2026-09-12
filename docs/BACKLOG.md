@@ -1626,6 +1626,17 @@ Real, but not costed, or waiting on a decision.
       citation should name stays a reader's judgement, as `PM-28` was. —
       *review of #87 · #90*
 
+- [x] `PM-31` **The commercial-readiness figures are spans the build writes.**
+      `tools/readme_figures.py` now writes every document in `DOCUMENTS` —
+      the README and `docs/COMMERCIAL-READINESS.md` — and counts the licence
+      position the way `./f1 licences` does: class shares, the two facts-only
+      domains, and each listed table's rows; `verify.py` checks them all.
+      The class table had said 539 against 552 held. The writer refuses a
+      facts-only row in a table the statement does not itemise, and every
+      listed table's figure must be stated or the build fails — the review
+      of #92 found the first cut's span would have rewritten itself around
+      an unread row, and a second cut's sum check that could not fail. —
+      *review of #91 · #92*
 - [x] `CD-26` **The span comparison is symmetric, and either end can be
       declared.** A NULL at either end of the register's span is no claim
       about that end and the other is still compared, in `seasonsNote()`

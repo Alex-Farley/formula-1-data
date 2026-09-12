@@ -2774,18 +2774,24 @@ def readme_figures():
     rf = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(rf)
 
-    with open(os.path.join(here, "README.md"), encoding="utf-8") as f:
-        text = f.read()
+    # Every document in rf.DOCUMENTS - the README and, since PM-31,
+    # docs/COMMERCIAL-READINESS.md, whose class table said 539 facts-only
+    # rows against 552 held while nothing read it.
+    text = ""
+    for path in rf.DOCUMENTS:
+        with open(path, encoding="utf-8") as f:
+            text += f.read() + "\n"
     try:
         said = rf.stated(text)
     except ValueError as e:
         check("no figure is stated twice with different values", False, str(e))
         return
-    check("no figure is stated twice with different values", True, f"{len(said)} spans")
+    check("no figure is stated twice with different values", True,
+          f"{len(said)} spans across {len(rf.DOCUMENTS)} documents")
 
     values = rf.compute(con, GEO)
     unknown = sorted(set(said) - set(values))
-    check("every figure the README states is one the tool computes", not unknown,
+    check("every figure a document states is one the tool computes", not unknown,
           ", ".join(unknown))
     unused = sorted(set(values) - set(said))
     check("every figure the tool computes is stated somewhere", not unused,
@@ -2794,8 +2800,9 @@ def readme_figures():
         if name in said:
             s, a = said[name], values[name]
             detail = a if "\n" not in a else "table"
-            check(f"README fig:{name} = {detail}", s == a,
-                  "" if s == a else f"README says {s!r}")
+            check(f"fig:{name} = {detail}", s == a,
+                  "" if s == a else f"the document says {s!r}")
+
 
 
 def main(argv):
