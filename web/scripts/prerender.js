@@ -662,6 +662,9 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
   )
   const teams = Object.fromEntries(all('SELECT id, name FROM constructors').map((c) => [c.id, c.name]))
 
+  const racesOf = Object.fromEntries(
+    all('SELECT driver_id, COUNT(*) AS n FROM race_entries GROUP BY driver_id').map((r) => [r.driver_id, r.n]),
+  )
   page({
     path: 'drivers',
     title: titled('Every driver, 1950–2026'),
@@ -672,17 +675,21 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
       <p class="lede">${drivers.length} drivers. Career totals are counted from the race records
         wherever the records support it; an em dash means nobody has established that figure.</p>
       ${table(
-        ['Driver', 'Nationality', 'Seasons', 'Starts', 'Wins', 'Poles', 'Podiums', 'Titles'],
-        drivers.map((d) => [
-          link(`drivers/${d.id}`, d.full_name),
-          text(d.nationality),
-          `${d.first_season ?? '?'}–${d.last_season ?? 'present'}`,
-          num(d.starts),
-          num(d.wins),
-          num(d.poles),
-          num(d.podiums),
-          num(d.titles),
-        ]),
+        ['Driver', 'Nationality', 'Seasons', 'Races', 'Wins', 'Poles', 'Podiums', 'Titles'],
+        // Most wins first, as the app opens; Races counted from the race
+        // records, the stored `starts` being held for 31 drivers only.
+        [...drivers]
+          .sort((a, b) => (b.wins ?? 0) - (a.wins ?? 0) || (b.podiums ?? 0) - (a.podiums ?? 0) || a.full_name.localeCompare(b.full_name))
+          .map((d) => [
+            link(`drivers/${d.id}`, d.full_name),
+            text(d.nationality),
+            `${d.first_season ?? '?'}–${d.last_season ?? 'present'}`,
+            num(racesOf[d.id] ?? 0),
+            num(d.wins),
+            num(d.poles),
+            num(d.podiums),
+            num(d.titles),
+          ]),
       )}`,
   })
 

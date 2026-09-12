@@ -156,12 +156,6 @@ Worth doing, not yet urgent.
       carries the reader sentences and the maintainer notes this entry asks for.
       — *product critique · S*
 
-- [ ] `PD-06` **Fix the drivers register's first screen.** Opens on Adolf Brudes
-      with two columns empty for 96% of rows. Drop `entries` and `starts`, add a
-      derived `Races`, change the default sort to something that answers a
-      question. Supersedes the older note in `Drivers.jsx` that entries and
-      starts are "not yet derived". — *product critique · S*
-
 - [ ] `PD-10` **A citation block.** Every ingredient exists — version, build
       date, per-row source, permanent URL — and they are assembled nowhere. One
       component, prerendered so a crawler sees it. — *product critique · S*
@@ -497,6 +491,18 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       `article_images` would make it one. A harvest change with a check that
       the stored URL still resolves. Split from `VD-20`. — *visual critique ·
       S*
+
+- [ ] `PD-25` **`/records` holders are names, not links.** The derived
+      records carry `holder_id` and `holder_table` (#68) and the page renders
+      the holder as text; the driver-wins and champions tables on the same
+      page do the same with `driver_id`. Link every holder that resolves —
+      drivers, constructors, circuits; a race holder needs `year`/`round`,
+      not the row id — and leave shared records as text. Found by the review
+      of #68. — *product critique · S*
+
+- [ ] `CR-23` **The static `/records` table has a `Category` column the app
+      never shows.** Predates #68; the review of #68 measured it. Rides with
+      `CR-22`. — *review of #68 · S*
 
 **Interaction design**
 
@@ -1325,6 +1331,14 @@ Real, but not costed, or waiting on a decision.
       made the naming decision this was waiting on: the database drawer is
       `/data` in the masthead, the sport drawer kept its addresses, and the
       redirects were the work. — *product critique · #67*
+
+- [x] `PD-06` **The drivers register's first screen answers a question.**
+      Most wins first, in the app and the static page; `Entries` and
+      `Starts` — published figures held for 38 and 31 of 862 drivers, so two
+      columns of em dashes — are gone from the register and stay on the
+      driver's page labelled as stored; `Races` is counted from the race
+      records. Also pins the front-end reviewer agent to Opus, as every other
+      reviewer already was. — *product critique · #69*
 
 ## Declined
 

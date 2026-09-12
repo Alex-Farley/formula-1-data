@@ -589,6 +589,18 @@ try {
     'the kind filter is a named group of toggle buttons',
   )
   is((await tableRows())[0], count('SELECT COUNT(*) FROM drivers'), 'the driver register')
+  {
+    const top = db.prepare('SELECT full_name, wins FROM drivers ORDER BY wins DESC, podiums DESC LIMIT 1').get()
+    const first = await page.$eval('#root main tbody tr', (tr) => tr.textContent)
+    truthy(first.includes(top.full_name), `the register opens on the most successful driver, ${top.full_name}`)
+    const heads = await page.$$eval('#root main thead th', (ths) => ths.map((th) => th.textContent.trim()))
+    truthy(heads.includes('Races') && !heads.includes('Entries') && !heads.includes('Starts'), 'Races is counted; Entries and Starts are gone')
+    const races = one('SELECT COUNT(*) FROM race_entries WHERE driver_id = (SELECT id FROM drivers ORDER BY wins DESC, podiums DESC LIMIT 1)')
+    truthy(first.includes(String(races)), `${top.full_name}'s Races is the race-record count, ${races}`)
+    const html = await (await fetch(`${BASE}/drivers`)).text()
+    const firstStatic = html.slice(html.indexOf('<tbody>'), html.indexOf('</tr>', html.indexOf('<tbody>')))
+    truthy(firstStatic.includes(top.full_name), 'the static register opens on the same driver')
+  }
   // Filtering the register to nothing is an ordinary act and must not crash
   // the page: the first cut of the scroll fade declared its hooks after the
   // empty-state return, and React threw on the first empty search.
@@ -1034,18 +1046,23 @@ try {
 
   // ------------------------------------------------------------------ sorting
 
-  // NULL means "not established" here, and 824 of 862 drivers have no stored
-  // entry count. Sorting descending must still sink them, or the register opens
-  // on several screens of em dashes.
+  // NULL means "not established" here, and 64 of 862 drivers have no first
+  // season. Sorting descending must still sink them, or the register opens on
+  // screens of em dashes. (This used the stored entry count until PD-06 took
+  // that column off the register.)
   console.log('\nSorting')
   await go('/drivers', 'Drivers')
-  await page.click('#root main th:nth-child(4) button')
-  const firstEntries = await page.$eval('#root main tbody tr td:nth-child(4)', (node) => node.textContent.trim())
+  await page.click('#root main th:nth-child(3) button')
+  await page.click('#root main th:nth-child(3) button')
+  const firstEntries = await page.$eval('#root main tbody tr td:nth-child(3)', (node) => node.textContent.trim())
   truthy(
     firstEntries !== '—' && firstEntries !== '',
     `descending sort leads with a value, not a blank — "${firstEntries}"`,
   )
-  const lastEntries = await page.$$eval('#root main tbody tr td:nth-child(4)', (nodes) =>
+  // The register pages at 150 rows; the unestablished ones are beyond that.
+  await page.click('#root main .table-foot button')
+  await page.waitForFunction(() => document.querySelectorAll('#root main tbody tr').length > 150, null, { timeout: 20000 })
+  const lastEntries = await page.$$eval('#root main tbody tr td:nth-child(3)', (nodes) =>
     nodes[nodes.length - 1].textContent.trim(),
   )
   is(lastEntries, '—', 'and sinks the unestablished ones')
