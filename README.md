@@ -47,7 +47,7 @@ here is a number the build checked.
 
 | File | What it is |
 |---|---|
-| `f1.db` | The SQLite database. <!-- fig:tables -->46<!-- /fig --> tables, <!-- fig:views -->41<!-- /fig --> views, <!-- fig:rows -->119,280<!-- /fig --> rows. This is the artefact. |
+| `f1.db` | The SQLite database. <!-- fig:tables -->46<!-- /fig --> tables, <!-- fig:views -->41<!-- /fig --> views, <!-- fig:rows -->119,282<!-- /fig --> rows. This is the artefact. |
 | `f1-geometry.db` | The OpenStreetMap circuit centrelines (ODbL), shipped beside `f1.db` and never merged into it. See *Illustration*. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
@@ -914,10 +914,11 @@ and Wikipedia's infobox independently gave 11, matching the derived count.
 
 **Where two sources disagree and neither can be checked against an official
 source, the disagreement is itself the fact worth storing.** `discrepancies`
-holds <!-- fig:discrepancies -->54<!-- /fig --> rows:
+holds <!-- fig:discrepancies -->56<!-- /fig --> rows:
 <!-- fig:discrepancies_open -->10<!-- /fig --> open,
-<!-- fig:discrepancies_explained -->5<!-- /fig --> explained as an external
-figure older than the race it lacks, and the rest resolved — corrected,
+<!-- fig:discrepancies_explained -->7<!-- /fig --> explained — an external
+figure older than the race it lacks, or two readings of a career span that
+are each right about something — and the rest resolved — corrected,
 withdrawn or not corroborated — with the outcome on the row. Each open one is
 shown on the page of the driver, team or race it is about. `./f1 gaps` prints
 them.

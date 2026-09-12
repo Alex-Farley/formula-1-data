@@ -892,7 +892,8 @@ def external_figures_vs_the_race_records():
     # rely on: a subject that names no race, or no driver, is refused here.
     unresolved = []
     for did, subject in con.execute(
-            "SELECT id, subject FROM discrepancies WHERE status LIKE 'open%'"):
+            "SELECT id, subject FROM discrepancies WHERE status LIKE 'open%' "
+            "OR status LIKE 'explained - each side%'"):
         m = re.fullmatch(r"(\d{4}) round (\d+)", subject or "")
         if m:
             if not con.execute("SELECT 1 FROM races WHERE year=? AND round=?",
@@ -906,7 +907,7 @@ def external_figures_vs_the_race_records():
             pass
         else:
             unresolved.append(f"#{did} '{subject}' joins to nothing a reader can reach")
-    check("every open disagreement can be shown beside the fact it is about",
+    check("every recorded disagreement the site shows can be shown beside the fact it is about",
           not unresolved, "; ".join(unresolved[:4]))
 
     # spot-check a sample of headline career records against the known official figures
@@ -1469,7 +1470,27 @@ def the_driver_register():
         WHERE d.first_season IS NOT NULL
           AND (d.first_season != x.fy
                OR (d.last_season IS NOT NULL AND d.last_season != x.ly))""")}
-    _declared = {"cevert", "alexander-rossi"}
+    # The declaration is the discrepancies row that explains it (CD-25), so
+    # the pin and the reader's explanation cannot drift apart; the row's two
+    # figures must also be the register's and the records'.
+    _explained = {r[0]: (r[1], r[2]) for r in con.execute("""SELECT d.id, x.stored_value, x.derived_value
+        FROM discrepancies x JOIN drivers d ON d.full_name = x.subject
+        WHERE x.field = 'first_season' AND x.status = 'explained - each side is right about something'""")}
+    _declared = set(_explained)
+    _bad_rows = [f"{d}: row says {sv}/{dv}" for d, (sv, dv) in _explained.items()
+                 if con.execute("""SELECT NOT (d.first_season = ? AND
+                        (SELECT MIN(r.year) FROM race_entries e JOIN races r ON r.id = e.race_id
+                          WHERE e.driver_id = d.id) = ?) FROM drivers d WHERE d.id = ?""",
+                     (int(sv), int(dv), d)).fetchone()[0]]
+    _top = con.execute("SELECT MAX(id) FROM discrepancies").fetchone()[0]
+    _exp_ids = sorted(r[0] for r in con.execute("""SELECT id FROM discrepancies
+        WHERE status = 'explained - each side is right about something'"""))
+    _n_exp = len(harvest_module().EXPLAINED_SPANS)
+    check("the explained span rows are the last discrepancies written, so adding one moves no id",
+          len(_exp_ids) == _n_exp and _exp_ids == list(range(_top - _n_exp + 1, _top + 1)),
+          f"ids {_exp_ids} of {_n_exp} declared, max {_top}")
+    check("each explained span row carries the register's and the records' first season",
+          not _bad_rows, "; ".join(_bad_rows))
     # The register's `active` against the grid the drivers page derives - an
     # entry in the latest completed season (IX-17). In season, an active
     # driver with no entry is a stale register row and fails. In pre-season -
@@ -1493,7 +1514,7 @@ def the_driver_register():
         "active without an entry: " + (", ".join(sorted(_active - _grid)) or "none"))
     warn(f"every driver entered in {_latest} is still active", _grid <= _active,
          "entered, no longer active: " + (", ".join(sorted(_grid - _active)) or "none"))
-    check("the register's seasons differ from the race records' only for the declared two",
+    check("the register's seasons differ from the race records' only for the drivers with an explained row",
           _span == _declared,
           "undeclared: " + (", ".join(sorted(_span - _declared)) or "none")
           + "; no longer differing: " + (", ".join(sorted(_declared - _span)) or "none"))

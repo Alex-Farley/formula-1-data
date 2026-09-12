@@ -34,6 +34,7 @@ import { BANDS, bandIndex, metresBetween, runsFor, signedArea, stitch } from '..
 import { fold, rank } from '../src/lib/search.js'
 import { trackPath } from '../src/lib/track.js'
 import { DRIVER_COLUMNS } from '../src/queries/drivers.js'
+import { allExplained } from '../src/lib/disagreement.js'
 import { SEASON_COLUMNS, derivedAndPublished, pointsDiffer, record, seasonRows, seasonsNote, strip } from '../src/queries/driver.js'
 import { recordColumns, tiersOf } from '../src/queries/records.js'
 
@@ -318,6 +319,18 @@ describe('trackPath', () => {
     assert.equal(trackPath('not json'), null)
     assert.equal(trackPath(ring([])), null)
     assert.equal(trackPath(ring([[P0]])), null)
+  })
+})
+
+describe('the disagreement aside', () => {
+  it('introduces a set of explained rows as readings, and anything else as a disagreement', () => {
+    const explained = { status: 'explained - each side is right about something' }
+    const open = { status: 'open - needs official check' }
+    assert.equal(allExplained([explained]), true)
+    assert.equal(allExplained([explained, explained]), true)
+    assert.equal(allExplained([open]), false)
+    assert.equal(allExplained([explained, open]), false)
+    assert.equal(allExplained([]), false)
   })
 })
 

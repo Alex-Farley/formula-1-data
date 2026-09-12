@@ -2421,6 +2421,17 @@ def _stage_34_link_race_entries_to_the_curated(b):
              f"{', '.join(others)}. The blanket link is not applied; entries "
              f"that season get a car only where the entry lists resolved the "
              f"chassis itself.", "resolved - claim not corroborated"))
+
+    # The two register spans the race records read differently, with the
+    # reason beside the fact (CD-25). Not open: nothing is waiting to be
+    # settled, both readings stand. This is the last discrepancies write in
+    # STAGES - verify.py holds that - so a row added here appends and moves
+    # no existing id (the PM-30 lesson).
+    for did, field, stored, derived, why in HV.EXPLAINED_SPANS:
+        cur.execute("""INSERT INTO discrepancies (subject, field, stored_value,
+            derived_value, assessment, status)
+            SELECT full_name, ?, ?, ?, ?, 'explained - each side is right about something'
+            FROM drivers WHERE id = ?""", (field, str(stored), str(derived), why, did))
     print(f"  car linkage: {len(CR.CAR_SEASONS) - len(uncorroborated)} of "
           f"{len(CR.CAR_SEASONS)} CAR_SEASONS claims corroborated by the "
           f"entry lists")
@@ -2920,6 +2931,7 @@ def _stage_28_race_dates_and_the_fastest_lap_where(b):
           f"from F1DB; fastest laps: "
           f"{fl_filled} filled, {len(fl_disagreements)} disagreements, "
           f"{fl_no_entry} with no matching entry")
+
 
 
 STAGES = [
