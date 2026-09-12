@@ -1301,20 +1301,21 @@ figure.photo figcaption a {
   grid-template-columns: repeat(auto-fit, minmax(300px, 460px));
 }
 
-.trackmap {
+.lapfigure {
   display: block;
   width: 100%;
   height: auto;
-  background: var(--panel-sunk);
-  border-radius: var(--radius);
 }
 
-.trackmap path {
-  fill: none;
-  stroke: var(--ink);
-  stroke-width: 2.5;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+.lapfigure-card .lapfigure {
+  background: var(--stage);
+  border-radius: var(--radius);
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+.lapfigure-card .legend {
+  padding: 10px 4px 0;
 }
 
 /* ------------------------------------------------------------------ SQL */

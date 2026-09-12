@@ -682,8 +682,11 @@ try {
 
     console.log(`\n/circuits/${traced}  (traced geometry)`)
     await go(`/circuits/${traced}`)
-    const path = await page.$eval('.trackmap path', (node) => node.getAttribute('d')).catch(() => null)
-    atLeast(path?.length ?? 0, 200, 'the centreline drew a path')
+    await page.waitForSelector('svg.lapfigure path', { timeout: 20000 }).catch(() => null)
+    const drawn = await page
+      .$$eval('svg.lapfigure path', (nodes) => nodes.reduce((n, node) => n + (node.getAttribute('d')?.length ?? 0), 0))
+      .catch(() => 0)
+    atLeast(drawn, 200, 'the centreline drew a path')
     truthy(
       (await page.$$eval('figure.photo figcaption', (n) => n.map((x) => x.textContent).join(' '))).includes(
         'OpenStreetMap',
@@ -804,6 +807,15 @@ try {
     (await tableRows()).includes(count('SELECT COUNT(*) FROM regulation_changes')),
     'every regulation change is listed',
   )
+
+  // The circuit page draws its lap with the atlas's renderer: several paths,
+  // one per run of corner-radius band, not one black line.
+  console.log('\n/circuits/spa  (the lap, coloured)')
+  await go('/circuits/spa', 'Circuit de Spa-Francorchamps')
+  await page.waitForSelector('svg.lapfigure path', { timeout: 20000 })
+  atLeast(await page.$$eval('svg.lapfigure path', (els) => els.length), 10, 'the lap is drawn in radius bands')
+  truthy(await page.$('svg.lapfigure polygon'), 'the lap carries its direction arrow')
+  truthy(await page.$('.lapfigure-card figcaption a[href*="openstreetmap.org/relation"]'), 'the drawing keeps its attribution')
 
   // ----------------------------------------------------------------- SQL
 

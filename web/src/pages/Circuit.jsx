@@ -1,8 +1,10 @@
+import { useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Confidence, Fields, Note, Onward, Page, Section, Stats } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
-import TrackMap from '../components/TrackMap.jsx'
+import LapFigure from '../components/LapFigure.jsx'
+import { BANDS, BAND_NAMES, buildLap } from '../lib/lap.js'
 import { rows, useQueries } from '../data/useQuery.js'
 import { number, span } from '../lib/format.js'
 
@@ -122,7 +124,7 @@ function CircuitBody({ circuit, data }) {
           </p>
           <div className="map-grid">
             {geometry.map((row) => (
-              <TrackMap key={`${row.circuit_id}-${row.layout_key}`} geometry={row} />
+              <CircuitLap key={`${row.circuit_id}-${row.layout_key}`} geometry={row} circuit={circuit} />
             ))}
           </div>
         </Section>
@@ -295,5 +297,54 @@ function CircuitBody({ circuit, data }) {
         ]}
       />
     </Page>
+  )
+}
+
+/**
+ * The atlas's drawing, on the circuit's own page. The trace is coloured by
+ * corner radius and carries the direction of travel; the attribution stays
+ * attached to the drawing because the geometry is the one ODbL table.
+ */
+function CircuitLap({ geometry, circuit }) {
+  const lap = useMemo(
+    () => buildLap({ ...geometry, name: circuit.name, direction: circuit.direction }),
+    [geometry, circuit.name, circuit.direction],
+  )
+  if (!lap) return null
+  const delta = geometry.delta_pct
+  return (
+    <figure className="photo lapfigure-card">
+      <LapFigure lap={lap} />
+      {lap.radius && (
+        <div className="legend" aria-label="Corner radius">
+          {BAND_NAMES.map((name, i) => (
+            <span key={name}>
+              <i style={{ background: `var(--seq-${5 - i})` }} />
+              {name}
+              {i === 0 && ` <${BANDS[0]} m`}
+              {i > 0 && i < BANDS.length && ` ${BANDS[i - 1]}\u2013${BANDS[i]} m`}
+              {i === BANDS.length && ` >${BANDS[BANDS.length - 1]} m`}
+            </span>
+          ))}
+        </div>
+      )}
+      <figcaption>
+        Traced from OpenStreetMap relation{' '}
+        <a
+          href={`https://www.openstreetmap.org/relation/${geometry.osm_relation}`}
+          target="_blank"
+          rel="noreferrer noopener"
+        >
+          {geometry.osm_relation}
+        </a>{' '}
+        · {number(geometry.node_count)} points
+        {!lap.complete && ' · the trace does not close, so it is not coloured'}
+        {' '}· measures {geometry.measured_km?.toFixed(3)} km against{' '}
+        {geometry.published_km?.toFixed(3)} km published
+        {delta !== null && delta !== undefined && ` (${delta > 0 ? '+' : ''}${delta.toFixed(2)}%)`}
+        {circuit.direction && ` · raced ${circuit.direction}; the arrow is the direction, not the start`}
+        <br />© OpenStreetMap contributors, {geometry.licence || 'ODbL 1.0'}.
+      </figcaption>
+    </figure>
   )
 }

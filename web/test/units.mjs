@@ -30,7 +30,7 @@ import {
   text,
   yearList,
 } from '../src/lib/format.js'
-import { metresBetween, signedArea, stitch } from '../src/lib/lap.js'
+import { BANDS, bandIndex, metresBetween, runsFor, signedArea, stitch } from '../src/lib/lap.js'
 import { fold, rank } from '../src/lib/search.js'
 import { trackPath } from '../src/lib/track.js'
 
@@ -115,6 +115,26 @@ describe('yearList', () => {
 
   it('is an em dash for nothing', () => {
     assert.equal(yearList(null), EMPTY)
+  })
+})
+
+describe('corner bands', () => {
+  it('puts a radius in the band its edges say, straights last', () => {
+    assert.equal(bandIndex(30), 0)
+    assert.equal(bandIndex(BANDS[0]), 1)
+    assert.equal(bandIndex(150), 2)
+    assert.equal(bandIndex(399), 3)
+    assert.equal(bandIndex(Infinity), BANDS.length)
+  })
+  it('splits a lap into one path per run of the same band', () => {
+    const lap = {
+      path: 'M0 0',
+      shape: { x: [0, 1, 2, 3, 4, 5], y: [0, 0, 0, 0, 0, 0] },
+      radius: [30, 30, 500, 500, 30, 30],
+    }
+    assert.equal(runsFor(lap, true).length, 3)
+    assert.equal(runsFor(lap, false).length, 1)
+    assert.equal(runsFor({ ...lap, radius: null }, true).length, 1)
   })
 })
 
