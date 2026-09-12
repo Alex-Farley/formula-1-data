@@ -955,15 +955,33 @@ CREATE TABLE points_systems (
     confidence      TEXT NOT NULL DEFAULT 'high' REFERENCES provenance(confidence)
 );
 
+-- DERIVED, not authored. Until v2.23 this held thirty rows typed from general
+-- knowledge, with twenty-four spellings of `as_of` and a Hamilton win count
+-- one behind the `drivers.wins` the same database computed. Every row is now
+-- one query in build.py (derive_records) over the tables the site's
+-- leaderboards read, so the two cannot disagree, and verify.py recomputes a
+-- sample by a different route. `detail` says how each was derived: which
+-- tables, the rule, what was excluded and why. A tie holds every holder in
+-- `holder`, comma-separated, with `holder_id` NULL - one is never picked.
 CREATE TABLE records (
     id              INTEGER PRIMARY KEY,
-    category        TEXT NOT NULL,
+    key             TEXT NOT NULL UNIQUE,      -- stable slug, e.g. 'most-wins'
+    category        TEXT NOT NULL,             -- drivers | constructors | races
     record          TEXT NOT NULL,
-    holder          TEXT,
-    value           TEXT,
-    detail          TEXT,
-    as_of           TEXT,
-    confidence      TEXT NOT NULL DEFAULT 'high' REFERENCES provenance(confidence)
+    holder          TEXT NOT NULL,             -- name(s), for display
+    -- The row `holder_id` joins to. `records` is the one place a holder can
+    -- be a driver, a team, a race or a circuit, so the table has to be said.
+    holder_table    TEXT NOT NULL
+                    CHECK (holder_table IN ('drivers', 'constructors', 'races', 'circuits')),
+    holder_id       TEXT,                      -- NULL when the record is shared
+    value           TEXT NOT NULL,             -- for display: '18 years, 228 days, ...'
+    value_num       REAL NOT NULL,             -- the figure, comparable: 6802
+    unit            TEXT NOT NULL,             -- what value_num counts: 'days'
+    detail          TEXT NOT NULL,
+    as_of           TEXT NOT NULL,             -- ISO date of the last completed race
+    -- 'reference' because that is what the race records the figures are
+    -- computed from carry; a derivation cannot outrank its inputs.
+    confidence      TEXT NOT NULL DEFAULT 'reference' REFERENCES provenance(confidence)
 );
 
 CREATE TABLE eras (

@@ -1,19 +1,21 @@
-# Lap Ledger — v<!-- fig:version -->2.22<!-- /fig -->
+# Lap Ledger — v<!-- fig:version -->2.23<!-- /fig -->
 
 An expansion of the original single-file JSON into a normalised, queryable
 SQLite database covering <!-- fig:season_span -->1950–2026<!-- /fig -->, with
 the JSON kept as a generated export.
 
-**The latest release, v<!-- fig:version -->2.22<!-- /fig -->,** gives the final
-championship table a key and a view. `standings`' `UNIQUE` constraint was
-inert for most of its rows — SQLite treats NULLs as distinct, and
-`after_round` is NULL on every end-of-season row — so duplicate final rows
-were accepted and the compat export had shipped the running table after every
-round, not the final one, in every release since v2.15. `v_standings_final`
-folds the duplicates, an expression index pins the NULLs so the key means
-something, the exporter refuses a snapshot that lists an entity twice, and
-the nine entities the official round-12 snapshot and F1DB score differently
-are open rows in `discrepancies` rather than a choice the view made silently.
+**The latest release, v<!-- fig:version -->2.23<!-- /fig -->,** derives the
+`records` table instead of publishing it. Thirty rows had been typed from
+general knowledge, at `medium`, with nothing in `verify.py` reading them —
+one said Hamilton had 105 wins beside a `drivers.wins` of 106 the same build
+had computed. Every row is now one query over the tables the leaderboards
+read, with its rule, exclusions and every holder of a tie in `detail`, a
+machine key for the holder, a numeric value with its unit, and one ISO
+`as_of` read off the last completed race; `verify.py` recomputes a sample by
+a different route. The five records the database cannot derive are declared
+in `known_gaps` rather than kept. v2.22 gave the final championship table a
+key and a view (`v_standings_final`), after the compat export had shipped the
+running table rather than the final one in every release since v2.15.
 
 **What changed in every version**, what each one exposed, and what was
 deliberately not done, is in [`docs/BUILD-NOTES.md`](docs/BUILD-NOTES.md).
@@ -164,7 +166,7 @@ suppliers, <!-- fig:points_systems -->10<!-- /fig --> points systems, and
 <!-- fig:eras -->10<!-- /fig --> defined eras of the sport.
 
 **Also** — <!-- fig:personnel -->32<!-- /fig --> non-driving figures
-(designers, principals, officials), <!-- fig:records -->30<!-- /fig -->
+(designers, principals, officials), <!-- fig:records -->29<!-- /fig -->
 records, <!-- fig:glossary -->44<!-- /fig --> glossary terms and
 <!-- fig:governance -->18<!-- /fig --> governance milestones.
 
@@ -977,7 +979,7 @@ queried, not just read here. `./f1 gaps` prints them with the fix for each.
   never recorded in a form anyone can retrieve. See *Timing, telemetry and
   radio* above.
 
-The `known_gaps` table holds <!-- fig:known_gaps -->11<!-- /fig --> entries
+The `known_gaps` table holds <!-- fig:known_gaps -->12<!-- /fig --> entries
 and `./f1 gaps` prints them with the fix for each. One is not a gap in the
 usual sense: the 2021 Belgian Grand Prix has no fastest lap because none was
 set. That is a true null, and it is recorded as one.

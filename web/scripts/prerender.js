@@ -1196,15 +1196,22 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
   page({
     path: 'records',
     title: titled('Records'),
-    description: `${records.length} Formula One records, each with the figure this database derives and the source it is checked against.`,
+    description: `${records.length} Formula One records, each derived from the database's own race records and stating how.`,
     trail: [['', 'Home'], ['records', 'Records']],
     body: `
       <h1>Records</h1>
-      <p class="lede">Each figure here is derived from the race records and checked against the
-        published one.</p>
+      <p class="lede">Every record here is derived from the same tables as the leaderboards on
+        every build, as of the last completed race the database holds.</p>
       ${table(
-        ['Category', 'Record', 'Holder', 'Value', 'As of'],
-        records.map((r) => [esc(r.category), esc(r.record), text(r.holder), num(r.value), text(r.as_of)]),
+        ['Category', 'Record', 'Holder', 'Value', 'How it is derived', 'As of'],
+        records.map((r) => [
+          esc(r.category),
+          esc(r.record),
+          text(r.holder),
+          text(r.value),
+          text(r.detail),
+          text(r.as_of),
+        ]),
       )}`,
   })
 

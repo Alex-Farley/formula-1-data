@@ -61,7 +61,7 @@ export default function Records() {
   return (
     <Page
       title="Records"
-      lede="Who has the most of everything: wins, poles, titles, grand slams, and the decade each of them owned. The published records at the top carry the date they were checked; everything below is counted from the race records as this page loads, so it cannot go stale."
+      lede="Who has the most of everything: wins, poles, titles, grand slams, and the decade each of them owned. The records at the top are derived from the same tables as the leaderboards below on every build; the leaderboards are counted from the race records as this page loads."
     >
       <Result state={state}>{(data) => <Body data={data} />}</Result>
     </Page>
@@ -92,13 +92,14 @@ function Body({ data }) {
 
   return (
     <>
-      <Section title="Published records" count={`${records.length}`}>
-        {/* The caveat goes ABOVE the figures it caveats. It sat 1,900 px below
-            them, so a reader on a phone sent "105 wins" before learning that
-            the leaderboard further down said 106 and was the newer figure. */}
+      <Section title="Records" count={`${records.length}`}>
+        {/* This sentence stays ABOVE the figures. Its predecessor caveated
+            authored rows that could disagree with the leaderboards below, and
+            sat 1,900 px under them; the rows are now derived from the same
+            tables, so the sentence says that instead. */}
         <p className="note" style={{ marginTop: -4 }}>
-          Published figures, each true as of the date it carries. Where one disagrees with a
-          leaderboard below, the leaderboard is the newer of the two.
+          Every record here is derived from the same tables as the leaderboards below on every
+          build, as of the last completed race the database holds, and each row says how.
           {tiers.length === 1 && (
             <>
               {' '}All {records.length} carry the <Confidence value={tiers[0]} /> tier, so it is not
@@ -122,11 +123,12 @@ function Body({ data }) {
           columns={[
             { key: 'record', label: 'Record' },
             { key: 'holder', label: 'Holder', align: 'prose' },
-            // "21 from 22", "about 47%", "23 years, 134 days": phrases, not a
-            // column of figures, so they do not pretend to align as one.
+            // "18 years, 228 days, 2016 Spanish Grand Prix": a phrase, not a
+            // column of figures, so it does not pretend to align as one. The
+            // comparable number is value_num, with its unit, for a query.
             { key: 'value', label: 'Value', align: 'prose' },
-            { key: 'detail', label: 'Detail', align: 'prose' },
-            { key: 'as_of', label: 'True as of' },
+            { key: 'detail', label: 'How it is derived', align: 'prose' },
+            { key: 'as_of', label: 'As of' },
             // Thirty identical badges in a column mean nothing; the tier is
             // said once above where they all share it, and per row only where
             // they differ.

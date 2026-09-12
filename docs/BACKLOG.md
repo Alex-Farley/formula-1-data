@@ -78,10 +78,10 @@ the date, then removed at the next tidy.
   item in *Now* is the work.
 - ~~`IA-02` **The masthead's "Reference" slot**~~ Decided 2026-09-12:
   becomes "Data"; the item in *Now* is the work.
-- `WK-01` **The qualifying-format history.** Worth one FIA Sporting
-  Regulations issue per season, and yearbooks before 2009?
-- `AF-02` **The wording of the cross-checked claim** on the About and README
-  surfaces, now the repository stays private.
+- ~~`WK-01` **The qualifying-format history.**~~ Decided 2026-09-12: go
+  ahead, FIA-sourced; the item in *Next* is the work.
+- ~~`AF-02` **The wording of the cross-checked claim.**~~ Decided 2026-09-12:
+  the cross-checked wording stands; the three follow-ons in *Next* remain.
 
 ## Now
 
@@ -128,6 +128,38 @@ largest single fix and still has its riders.
       table has a caption), plus `CD-04`, `IA-03` and `PD-06` as before.
 
 
+- [ ] `IA-02` **`Reference` leaves the masthead; `Data` takes the slot.**
+      `/reference` is two drawers with no reader in common: a *database* drawer
+      (`quality`, `sources`, `sql`) and a *sport* drawer (`eras`, `glossary`).
+      The first one **is** the `/data` page `PD-11` wants, so these are one
+      decision and the masthead stays at eight — Seasons · Races · Drivers ·
+      Constructors · Circuits · Cars · Records · Data. `quality` and `sources`
+      merge and move under it, `sql` moves under it; `eras` and `glossary` keep
+      their URLs and lose the slot, their problem being that they are terminal
+      rather than that they are drawered. Supersedes `PD-09`, which filed the
+      same problem as an L: the redirects are the work, and the naming decision
+      this costs at M is the one `PD-09` was waiting on. — *IA critique · M
+      (decision first)*
+
+- [ ] `PD-11` **Give the bulk data a front door, and a claim.** The Parquet
+      bundle now builds and serves (`PM-01`) and is linked from nothing. A
+      `/data` page in the masthead leading with the audited edition — 60 recorded
+      disagreements, a confidence tier per row, a gap register, the `verify.py`
+      checks — which is a claim the upstream does not make.
+      One implementation note: `prerender.js` writes `Disallow:` lines for
+      `f1.db`, `f1.db.gz` and `f1-parquet.zip`, which is right — a crawler
+      pulling 20 MB helps nobody — but it means the `/data` page itself has to
+      be the crawlable surface that carries the claim, since the files it links
+      never will be. Do `IA-02` first — it settles where the page goes and
+      what it displaces — and take the claim from `CD-07`, which writes it. —
+      *product critique · M*
+      **Now the canonical distribution surface** (`SD-08`): all four served
+      artefacts, sizes, digests from `db-manifest.json`, the build date, the
+      release body's which-copy-wins sentence, `schema.org/Dataset` markup
+      (`SD-11` — the one search surface built for this audience), and the
+      publisher block `UR-05`/`SD-15` ask for. The disagreements claim in
+      `CD-07` must change: 45 found, 44 resolved on the record, one open
+      (`PD-25`).
 - [ ] `PD-03` **Derive `/records`, or stop shipping it.** All 30 rows are
       authored, sit at `medium`, and nothing in `verify.py` reads the table; the
       page says Hamilton has 105 wins while `drivers.wins` says 106. Derive the
@@ -414,23 +446,22 @@ the source. `WK-` is this survey; nothing else uses the prefix.
 
 - [ ] `WK-06` **Read the records list the same way.** *List of Formula One
       World Championship records* is the page with the tables this one lacks.
-      Survey it against `records` and the derived leaderboards once `PD-03`
-      has settled what `/records` is; anything it holds that the database can
-      derive is a leaderboard, anything it holds that the database cannot is a
-      gap to file. — *Wikipedia survey · S*
+      Survey it against `records` — derived since `PD-03` landed in #68, 29
+      rows each with its rule in `detail` — and the leaderboards; anything it
+      holds that the database can derive is a new row in `derive_records()`,
+      anything it holds that the database cannot joins `known_gaps` #12. —
+      *Wikipedia survey · S*
 
 ### Filed 2026-09-11 — the eight reviews
 
 Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09-11-*.md` under the same ID. Items already in *Now* are not repeated.
 
 - [ ] `CR-22` **The static `/records` page is not the app's `/records`.**
-      `prerender.js` writes its own lede ("derived from the race records and
-      checked against the published one" — the derivation `PD-03` has not
-      done), a five-column table without the confidence tier, and none of
-      the caveat `UR-09` moved above the figures. The two renderers must say
-      the same thing; when `PD-03` settles what the page is, the static half
-      follows it, and until then it carries the same caveat and no claim of
-      derivation. — *review of #55 · S*
+      Narrowed by #68: both renderers now open with the same one-sentence
+      claim — derived from the same tables as the leaderboards on every
+      build — and the static table carries the derivation column. What
+      remains is the tier: the app says once that every row is `reference`,
+      the static page says nothing about the tier at all. — *review of #55 · S*
 
 - [ ] `AF-02` **Keep the audit claim honest with a private repository.** Three
       S pieces. (1) Publish the checks' *results*, not the code: a served
@@ -541,8 +572,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 - [ ] `DA-17` **A season's points live in two tables and nothing says so.** 40 driver-seasons disagree until `sprint_results` is added; Verstappen 2023 by 21. One view or one inline comment. — *data architecture critique · S*
 
 - [ ] `DA-18` **`points_systems` holds two grains under one interval.** Sprint rows distinguished by a `SPRINT:` prefix; `'None'` the string beside SQL NULL. A `session` column. — *data architecture critique · S*
-
-- [ ] `DA-19` **`records` cannot be joined, compared or checked.** 24 forms of `as_of` in 30 rows. Only after `PD-03`: `holder_id`, a numeric `value`, an ISO `as_of`. — *data architecture critique · S*
 
 - [ ] `DA-20` **Seven spellings of a validity interval.** Fill the ten or fix the comment. The seven spellings of a validity interval are the M and optional. **The defect half landed in #51**: the ten inactive constructors with a NULL `last_entry` take the last season they have a race entry in, and a check holds NULL to the active flag. The seven-spellings convergence — `from_year`/`to_year`, `first_year`/`last_year`, `first_entry`/`last_entry`, `first_gp`/`last_gp`, `first_season`/`last_season`, `first_held`/`last_held`, `active_from`/`active_to` — is what remains, an M. One class the fill and the check both exempt: an inactive constructor with no race entry at all (today only `rob-walker`, which is authored); an entrant-only constructor added later would carry NULL and read as still competing. — *data architecture critique · S*
 
@@ -1118,8 +1147,9 @@ Real, but not costed, or waiting on a decision.
       *IA critique · #54*
 
 - [x] `UR-09` **The records caveat sits above the figures it caveats**, not
-      1,900 px below them. `PD-03`'s derivation is still the fix; this is the
-      sentence that already existed, moved. — *user research · #55*
+      1,900 px below them. This was the sentence that already existed, moved;
+      `PD-03`'s derivation (#68) then replaced it with the sentence that no
+      longer needs to caveat anything. — *user research · #55*
 
 - [x] `VD-10` **A badge that never varies is said once.** `/records`' thirty
       identical `medium` badges and `/reference/eras`' ten are one sentence
@@ -1127,8 +1157,9 @@ Real, but not costed, or waiting on a decision.
       — *visual critique · #55*
 
 - [x] `VD-13` **`/records` no longer right-aligns phrases as if they were
-      figures.** Left-aligned; the split into a number and a qualifier waits
-      for `PD-03` to settle what the page is. — *visual critique · #55*
+      figures.** Left-aligned; the split into a number and a qualifier came
+      with `PD-03` (#68) as `value_num` and `unit` beside the display
+      `value`. — *visual critique · #55*
 
 - [x] `IX-08` **The atlas marker travels the racing direction.** The stitched
       ring is reversed where its signed area disagrees with
@@ -1290,6 +1321,29 @@ Real, but not costed, or waiting on a decision.
       database is and where to browse it. — *product management · applied
       2026-09-12*
 
+- [x] `PD-03` **`/records` is derived, not published.** The thirty authored
+      rows — at `medium`, twenty-four spellings of `as_of`, nothing in
+      `verify.py` reading them, Hamilton on 105 wins beside a `drivers.wins`
+      of 106 — are gone. `build.py` derives 29 records in `derive_records()`,
+      each one query over the tables the leaderboards read, with its rule,
+      exclusions and runners-up in `detail`, every holder of a tie, and
+      `as_of` read off the last completed race. Five the old table carried
+      cannot be derived and are declared in `known_gaps` #12 rather than
+      typed: youngest and oldest champion (the clinching round), closest
+      finish and longest race (no race times), the only woman to score
+      points (no gender attribute). Three derived figures differ from the
+      authored rows they replace (`data/technical.py` before #68): Arrows'
+      382 merged the Footwork years, and counting under one constructor name
+      as `constructors.wins` does gives Sauber 547; McLaren's 15 of 16 in 1988
+      is beaten outright by Red Bull's 21 of 22 in 2023; and 833 was
+      qualified "under the current points system", a qualifier the derivation
+      does not apply, so 860 (2023) stands. `verify.py` recomputes nine of
+      them by a different route. — *product critique · #68*
+
+- [x] `DA-19` **`records` can be joined, compared and checked.** `key`,
+      `holder_table` + `holder_id` (NULL exactly when shared), `value_num` +
+      `unit` beside the display `value`, one ISO `as_of` that `verify.py`
+      holds to the coverage. — *data architecture critique · #68*
 - [x] `IA-02` **`Reference` leaves the masthead; `Data` takes the slot.** The
       masthead stays at eight: Seasons · Races · Drivers · Constructors ·
       Circuits · Cars · Records · Data. `/data` is the database's own front
