@@ -11,17 +11,18 @@ import { span } from '../lib/format.js'
  * The whole register in one query.
  *
  * Wins, poles, podiums and fastest laps are the stored columns the build
- * derives from the race records; Races is counted here from the same
- * records, one row per race a driver was entered for. The stored `entries`
- * and `starts` columns are published figures held for 38 and 31 of 862
- * drivers, so two columns opened on 96% em dashes; they are on the driver's
- * own page, labelled as stored, and not here.
+ * derives from the race records; Entries is counted here from the same
+ * records, one row per race a driver was entered for — an entry, not a
+ * start, so it carries the word the driver's own page uses for the same
+ * count. The stored `entries` and `starts` columns are published figures
+ * held for 38 and 31 of 862 drivers, so two columns opened on 96% em dashes;
+ * they are on the driver's own page, labelled as published, and not here.
  */
 const SQL = `
   SELECT d.id, d.full_name, d.nationality, d.first_season, d.last_season,
          d.wins, d.podiums, d.poles, d.fastest_laps, d.career_points,
          d.titles, d.title_years, d.status, d.confidence,
-         (SELECT COUNT(*) FROM race_entries e WHERE e.driver_id = d.id) AS races
+         (SELECT COUNT(*) FROM race_entries e WHERE e.driver_id = d.id) AS entries
     FROM drivers d
    ORDER BY d.wins DESC, d.podiums DESC, d.full_name
 `
@@ -116,7 +117,7 @@ function Register({ rows }) {
             render: (_, row) => span(row.first_season, row.last_season),
             sort: (row) => row.first_season,
           },
-          { key: 'races', label: 'Races', align: 'num' },
+          { key: 'entries', label: 'Entries', align: 'num' },
           { key: 'wins', label: 'Wins', align: 'num' },
           { key: 'podiums', label: 'Podiums', align: 'num' },
           { key: 'poles', label: 'Poles', align: 'num' },
@@ -129,7 +130,7 @@ function Register({ rows }) {
               value ? <span title={row.title_years ?? undefined}>{value}</span> : cell(value),
           },
         ]}
-        footer="Most wins first; sort by any column. Races is every race a driver was entered for, counted from the race records. A blank is a figure nobody has established, not a zero, and those rows sink to the bottom whichever way you sort."
+        footer="Most wins first; sort by any column. Entries is every race a driver was entered for, counted from the race records — an entry is not a start. A blank is a figure nobody has established, not a zero, and those rows sink to the bottom whichever way you sort."
       />
     </>
   )

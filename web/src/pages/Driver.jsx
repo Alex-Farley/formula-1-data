@@ -1,3 +1,4 @@
+import { ENTRIES_NOTE } from '../lib/site.js'
 import { useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Confidence, Fields, Note, Onward, Page, Section, Stats } from '../components/Page.jsx'
@@ -349,8 +350,11 @@ function DriverBody({ driver, data }) {
             // `notes`, which is the lede above and the meta description; it is
             // shown only where it exists, so most rows get no em dash for it.
             driver.provenance ? { label: 'Provenance', value: driver.provenance } : null,
-            { label: 'Entries (stored)', value: number(driver.entries) },
-            { label: 'Starts (stored)', value: number(driver.starts) },
+            // Published figures, labelled as such: the strip above counts
+            // Entries from the race records, and the static page carries
+            // the same three labels in the same order.
+            { label: 'Entries (published)', value: number(driver.entries) },
+            { label: 'Starts (published)', value: number(driver.starts) },
             {
               label: 'Wins',
               value: `${number(driver.wins)} derived${
@@ -383,12 +387,7 @@ function DriverBody({ driver, data }) {
             },
           ]}
         />
-        <p className="source-note">
-          Wins, poles and fastest laps are counted from the races above and checked against the
-          published totals on every build; where the two disagree, both are shown. Entries and
-          starts are the published figures — an entry is not a start, and telling them apart needs
-          a reason for each non-start that no source here supplies.
-        </p>
+        <p className="source-note">{ENTRIES_NOTE}</p>
       </Section>
 
       <Onward
