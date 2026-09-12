@@ -206,19 +206,6 @@ Worth doing, not yet urgent.
 
 
 
-- [ ] `PM-20` **Clear the two actionable `verify.py` data warnings.** Two
-      qualifying rows have no matching race entry; three chassis are claimed as
-      entered after their car's authored life ends (`ferrari-500`,
-      `cooper-t51`, `lotus-25`). Both are genuinely small and can ride along
-      with any data sitting. The centreline warning that used to sit here is
-      now `PM-26`, because it is upstream data repair and was borrowing an S
-      from its two small siblings. The open-`discrepancies` warning that
-      used to sit beside them reads one row rather than eighteen since
-      `PM-05` and `PM-25` (1970 r1, a genuine source disagreement); of the
-      warnings left after these two, only that one, the Nürburgring
-      Südschleife, the unrun 2026 r17 sprint and `PM-26`'s centrelines are
-      expected. — *project record · S*
-
 - [ ] `PM-12` **Loosen the specification harvest's name check.** It refuses
       "Alfa Romeo 158/159 Alfetta" for `alfa-romeo-159`. Match the chassis name
       as a token subsequence rather than a strict prefix; the constructor and
@@ -527,15 +514,45 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       (stored)". One word, and the stored one labelled for what it is
       (published). Found by the review of #69. — *review of #69 · S*
 
-- [ ] `CD-22` **The static driver description and the facts list disagree on
-      the years.** The description derives first and last year from the
-      race entries; the facts list shows the stored `first_season` and
-      `last_season`. Cevert reads "across 1969–1973" beside "Seasons
-      1970–1973", Alexander Rossi "in 2015" beside "2014–2015". Derive both,
-      or say which is which. Found by the review of #75. — *review of #75 ·
-      S*
+- [ ] `CD-25` **The reason two drivers' spans differ is only in the code.**
+      Cevert's 1969 German Grand Prix in a Formula 2 Tecno and Rossi's
+      practice-only 2014 explain the two Seasons notes, and the explanation
+      sits in `driver.js` and `verify.py` comments where no reader meets it.
+      A `discrepancies` row each would put it beside the fact through the
+      existing `disagree()` aside. While there: a NULL `first_season` suppresses
+      the comparison at both ends where a NULL `last_season` suppresses only
+      its own; make the predicate symmetric in `seasonsNote()` and the
+      `verify.py` pin together (no row needs it today). Found by the review
+      of #81. — *review of #81 · S*
+
+- [ ] `CD-23` **The lede check's qualifier list is short, and its gap is
+      loose.** "Ten F1 wins", "Seven World titles", "Two World Championship
+      titles" and "two consecutive Drivers' titles" pass because a
+      capitalised word is read as a place-name subset; fold `F1`, `Formula
+      One`, `World`, `World Championship`, `Championship` and `Drivers'`
+      into the noun's qualifier group beside `GP`. The two-word gap swallows
+      "Four of his wins" (no total stated) and "Six Formula One wins" is
+      reported as "One wins"; tighten the gap to exclude `of|his|the` and
+      report the whole match. Give the pattern a unit test in `tests/` so
+      both interpreters prove it matches, not merely compiles. Found by the
+      review of #79. — *review of #79 · S*
+
+- [ ] `CD-24` **Subset figures in a driver note are counted by nobody.**
+      Hill's five and Senna's six Monaco wins, Trintignant's two, and
+      Ickx's six Le Mans wins were verified by hand for #79 and nothing
+      re-checks them. Three are one query on `race_entries`: count a
+      "<N> <Circuit> wins" phrase against the records, and declare the
+      one no table can constrain. Found by the review of #79. — *review of
+      #79 · S*
 
 **Interaction design**
+
+- [ ] `IX-17` **The Active filter on `/drivers` matches nobody.** `Drivers.jsx`
+      keeps a row when `last_season === 2026`, and no row has that: the 23
+      current drivers carry a NULL last season, the register's open span.
+      `status` is already in the shared `DRIVERS` query; filter on it, and
+      give the smoke test a case that expects more than zero rows. Found by
+      the review of #81. — *review of #81 · S*
 
 - [ ] `IX-16` **`IA-08` escalated: Back restores the scroll and not the filter.** France filter, sort by wins, scroll, open a driver, Back — same pixel, 862 unfiltered rows. Do `/drivers` first. — *interaction critique · M*
 
@@ -664,8 +681,13 @@ Real, but not costed, or waiting on a decision.
       trace, so this is upstream data repair rather than a check to satisfy.
       Split out of `PM-20`, which was sized S on the strength of its two small
       siblings and could not carry this. Sits beside `PM-08`: both are geometry
-      work the existing guard rails already constrain once rows exist. —
-      *project record · M*
+      work the existing guard rails already constrain once rows exist. The
+      `verify.py` warnings expected today, for the record: this one; the open
+      `discrepancies` row (1970 r1 fastest lap, a genuine source
+      disagreement); the Nürburgring Südschleife with no race; the unrun 2026
+      r17 sprint; the 2026 drivers'/constructors' points disagreement and the
+      2026 r13 pole awaiting the harvest, both of which the next refresh
+      moves. — *project record · M*
 
 - [ ] `PM-09` **Per-round chassis harvest.** Closes `known_gaps` #3 (287 races
       with no known winning chassis) and #4 (car pole counts) in one pass. Only
@@ -1513,6 +1535,20 @@ Real, but not costed, or waiting on a decision.
       published, and no `governance` row carries them. Closes if the FIA or
       Formula One publishes the figure. — *Wikipedia survey · #78*
 
+- [x] `PM-20` **The two data warnings are read, and neither was data to
+      sit.** The two qualifying rows without a race entry are the HRTs that
+      failed the 107 per cent rule at Melbourne in 2011: F1DB's qualifying
+      holds them, its classification omits them (its 2012 classification
+      records the same case as DNQ). Not added by hand — the classification
+      is loaded whole from a harvest file the fetch rewrites, and there is no
+      curated path for a classification entry — but declared: an open
+      `known_gaps` row, and the warning is now a check pinned to the pair by
+      identity, whose detail says which way it failed. The three chassis
+      entered after their car's works career are real privateer entries (de
+      Tomaso 1957, Dochnal and Blokdyk 1963, Courage and Irwin 1967), which
+      the warning's own comment already said; that check is pinned to the
+      three by identity too. — *project record · #80*
+
 - [x] `CD-21` **The lede check allows an adjective before the noun.** Up to
       two lower-case words may sit between the number and the noun ("three
       straight wins"); a capitalised word names a subset the page never
@@ -1533,6 +1569,15 @@ Real, but not costed, or waiting on a decision.
       asks for the file to be read, since the check cannot tell a relicence
       from a reformatted deed. Eight unit tests, offline; the live deed
       passes. — *project record · #83*
+- [x] `CD-22` **Where the register's seasons are not the race records', the
+      page says which is which.** The Seasons note on the driver strip, in
+      both renderers, reads "1969–1973 in the race records, 1970–1973
+      published" where the spans differ; two drivers do (Cevert's 1969
+      German Grand Prix in a Formula 2 car, Rossi's practice-only 2014), each
+      side right about something, and `verify.py` pins the pair. An open
+      span — a driver still driving — makes no claim about its last year,
+      which the first cut missed and the review caught on 23 current
+      drivers. — *review of #75 · #81*
 
 ## Declined
 

@@ -1408,6 +1408,26 @@ def the_driver_register():
         if (_m := _figure.search(r[1]))]
     check("no driver note states a figure the page derives",
           not _typed, "; ".join(_typed[:6]))
+    # The register's first and last season against the race records'. They
+    # differ for two drivers, and each side is right about something: Cevert's
+    # first entry is the 1969 German Grand Prix, driven in a Formula 2 Tecno,
+    # and the register's 1970 is his Formula One debut; Rossi's 2014 was
+    # practice only, and the records' first entry is 2015. The driver page
+    # shows both where they differ (CD-22); a third case must be read the same
+    # way before it rides along. A NULL last_season is an open span - still
+    # driving - and makes no claim about the last year, the same predicate
+    # seasonsNote() applies in web/src/queries/driver.js.
+    _span = {r[0] for r in con.execute("""SELECT d.id FROM drivers d
+        JOIN (SELECT e.driver_id, MIN(r.year) fy, MAX(r.year) ly FROM race_entries e
+                JOIN races r ON r.id = e.race_id GROUP BY e.driver_id) x ON x.driver_id = d.id
+        WHERE d.first_season IS NOT NULL
+          AND (d.first_season != x.fy
+               OR (d.last_season IS NOT NULL AND d.last_season != x.ly))""")}
+    _declared = {"cevert", "alexander-rossi"}
+    check("the register's seasons differ from the race records' only for the declared two",
+          _span == _declared,
+          "undeclared: " + (", ".join(sorted(_span - _declared)) or "none")
+          + "; no longer differing: " + (", ".join(sorted(_declared - _span)) or "none"))
 
 
 @section('THE CONSTRUCTOR REGISTER')
@@ -1479,8 +1499,9 @@ def the_chassis_register():
           f"{nspec} chassis carry harvested specifications")
 
     # Every chassis id in CAR_CHASSIS must exist, belong to the car's constructor,
-    # be claimed by only one car, and have raced inside the car's stated life.
-    # A typo cannot survive all four.
+    # be claimed by only one car, not have raced before the car existed, and
+    # not have raced after it except in the declared privateer cases. A typo
+    # cannot survive all five.
     reg = {r["id"]: r for r in con.execute("SELECT * FROM chassis")}
     missing, wrongcons, outside, late, twice = [], [], [], [], []
     claimed = {}
@@ -1515,9 +1536,23 @@ def the_chassis_register():
     # two fields mean different things: `cars.to_year` is the works career, and
     # the entry lists record every entry including the privateers who bought the
     # thing afterwards. Ferrari 500s were still being entered in 1957, four years
-    # after the works team moved on.
-    warn("no claimed chassis outlives its car's authored life", not late,
-         "; ".join(late))
+    # after the works team moved on. This was a warning for three versions
+    # (PM-20) before the register rows were read: de Tomaso's Ferrari 500 in
+    # 1957, Dochnal's and Blokdyk's Cooper T51s in 1963, Courage's and Irwin's
+    # Lotus 25s in 1967 are all real entries. Pinned by identity, so a fourth
+    # case - a privateer, or a CAR_CHASSIS typo pointing at a chassis raced
+    # after the works career, which `outside` cannot see - is read before it
+    # rides along.
+    # The year is pinned with the chassis: a register harvest that moved
+    # lotus-25's last entry to 1985 would otherwise pass unread.
+    _late_cars = {(m.group(1), int(m.group(2))) for m in
+                  (re.match(r"(\S+) last entered (\d{4})", entry) for entry in late) if m}
+    _late_declared = {("ferrari-500", 1957), ("cooper-t51", 1963), ("lotus-25", 1967)}
+    _fmt_late = lambda pairs: ", ".join(f"{c} {y}" for c, y in sorted(pairs)) or "none"
+    check("the chassis entered after their car's works career are the three declared privateer cases",
+          _late_cars == _late_declared,
+          f"undeclared: {_fmt_late(_late_cars - _late_declared)}; "
+          f"no longer late: {_fmt_late(_late_declared - _late_cars)}")
     print(f"  [info] the 29 curated cars cover {len(claimed)} register chassis")
 
     bad = con.execute("""SELECT COUNT(*) FROM chassis c WHERE c.car_id IS NOT NULL
@@ -2177,12 +2212,35 @@ def the_full_classification():
           ", ".join(sorted(codes)))
 
     if nqual:
-        orphan = con.execute("""SELECT COUNT(*) FROM qualifying q
-            WHERE NOT EXISTS (SELECT 1 FROM race_entries e
-                              WHERE e.race_id = q.race_id
-                                AND e.driver_id = q.driver_id)""").fetchone()[0]
-        warn("every qualifying row has a matching race entry", orphan == 0,
-             f"{orphan} qualified for a race they have no entry in")
+        # A qualifying row with no race entry is a car that took part in the
+        # weekend and is missing from the classification. Two are declared:
+        # the HRTs that failed the 107 per cent rule at Melbourne in 2011,
+        # which F1DB's qualifying holds and its classification omits
+        # (known_gaps, race_entries). Pinned by identity, not by count, so a
+        # third such row fails rather than riding along.
+        orphan = {(r[0], r[1], r[2]) for r in con.execute("""
+            SELECT r.year, r.round, q.driver_id FROM qualifying q
+              JOIN races r ON r.id = q.race_id
+             WHERE NOT EXISTS (SELECT 1 FROM race_entries e
+                               WHERE e.race_id = q.race_id
+                                 AND e.driver_id = q.driver_id)""")}
+        declared = {(2011, 1, "vitantonio-liuzzi"), (2011, 1, "narain-karthikeyan")}
+        _fmt = lambda rows: ", ".join(f"{y} r{r} {d}" for y, r, d in sorted(rows)) or "none"
+        # The detail says which way it failed: a new orphan is a regression to
+        # read; the declared pair gaining entries is F1DB closing the gap, and
+        # the row's state, this set and the closed-gap test in known_gaps()
+        # then move together.
+        check("every qualifying row without a race entry is the declared 2011 Melbourne pair",
+              orphan == declared,
+              f"unexpected: {_fmt(orphan - declared)}; no longer orphaned, close the gap: "
+              f"{_fmt(declared - orphan)}")
+        # Pinned to the row itself, not to a count: a second, unrelated open
+        # race_entries gap is not a failure, and a different row swapped in is.
+        gap_declared = con.execute("""SELECT COUNT(*) FROM known_gaps
+            WHERE field = 'race_entries' AND state = 'open'
+              AND area LIKE '%2011 Australian Grand Prix%107 per cent%'""").fetchone()[0]
+        check("the 2011 Melbourne pair is an open row in known_gaps", gap_declared == 1,
+              f"{gap_declared} matching open row{'' if gap_declared == 1 else 's'}")
 
         # Pre-knockout qualifying is one time; the knockout era is three segments
         # and no single time. Neither is back-filled from the other, and a row
