@@ -325,16 +325,15 @@ main {
   .masthead-inner {
     flex-wrap: wrap;
   }
+  /* Two rows rather than a strip: the strip hid its scrollbar, and four of
+     the eight items were off-screen on an iPhone 13 with nothing to say so.
+     Wrapping costs a line of height and shows every destination. */
   .masthead nav {
     order: 3;
     width: 100%;
     margin-left: 0;
-    overflow-x: auto;
-    flex-wrap: nowrap;
-    scrollbar-width: none;
-  }
-  .masthead nav::-webkit-scrollbar {
-    display: none;
+    flex-wrap: wrap;
+    row-gap: 0;
   }
 }
 
@@ -580,6 +579,7 @@ main {
 
 .table-wrap,
 .skeleton-table {
+  position: relative;
   border: 1px solid var(--rule);
   border-radius: var(--radius);
   background: var(--panel);
@@ -589,6 +589,25 @@ main {
 .table-scroll {
   overflow-x: auto;
   max-width: 100%;
+}
+
+.table-scroll:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* The affordance for a table wider than its box: a fade at the right edge
+   while there is more to the right, set by DataTable, which watches the
+   scroll position. Pointer events pass through it to the table. */
+.table-wrap[data-clipped]::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 44px;
+  background: linear-gradient(90deg, transparent, var(--panel));
+  pointer-events: none;
 }
 
 table {
@@ -1279,6 +1298,41 @@ figure.photo img {
   display: block;
   width: 100%;
   height: auto;
+  background: var(--panel-sunk);
+}
+
+/* Three states. Loading: the sunk box breathes, so it reads as "arriving" and
+   not as an empty frame. Failed: the image collapses and a sentence takes its
+   place, with the way to the file. Ready: nothing extra. */
+figure.photo[data-state='loading'] img {
+  animation: photo-breathe 1.6s ease-in-out infinite;
+}
+
+@keyframes photo-breathe {
+  0%,
+  100% {
+    background: var(--panel-sunk);
+  }
+  50% {
+    background: var(--panel);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  figure.photo[data-state='loading'] img {
+    animation: none;
+  }
+}
+
+figure.photo[data-state='failed'] img {
+  display: none;
+}
+
+.photo-failed {
+  margin: 0;
+  padding: 18px 12px;
+  font-size: 12.5px;
+  color: var(--ink-soft);
   background: var(--panel-sunk);
 }
 

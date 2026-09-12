@@ -826,6 +826,29 @@ try {
     `a trace that does not close (${open}) has no arrow and no caption about one`,
   )
 
+  // At a phone width the register is wider than the screen and says so; the
+  // masthead shows every destination rather than a strip with a hidden
+  // scrollbar.
+  console.log('\n/drivers  (at 375 px)')
+  await page.setViewportSize({ width: 375, height: 812 })
+  await go('/drivers', 'Drivers')
+  await page.waitForSelector('#root main tbody tr', { timeout: 20000 })
+  truthy(
+    await page.waitForSelector('.table-wrap[data-clipped]', { timeout: 10000 }).catch(() => null),
+    'a table wider than the screen shows a fade at its right edge',
+  )
+  const navBox = await page.$eval('.masthead nav', (nav) => {
+    const box = nav.getBoundingClientRect()
+    const links = [...nav.querySelectorAll('a')].map((a) => a.getBoundingClientRect())
+    return {
+      hidden: links.filter((r) => r.right > box.right + 1 || r.left < box.left - 1).length,
+      rows: new Set(links.map((r) => Math.round(r.top))).size,
+      scrollable: nav.scrollWidth > nav.clientWidth + 1,
+    }
+  })
+  truthy(navBox.hidden === 0 && !navBox.scrollable, `every masthead item is on screen at 375 px (${navBox.rows} rows)`)
+  await page.setViewportSize({ width: 1280, height: 900 })
+
   // ----------------------------------------------------------------- SQL
 
   console.log('\n/reference/sql')

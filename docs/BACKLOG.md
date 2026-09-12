@@ -532,15 +532,17 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 - [ ] `VD-11` **The confidence ladder is drawn without rungs.** Three middle tiers pixel-identical. Step them on border weight, not hue. — *visual critique · S*
 - [ ] `VD-12` **The circuit page shows the flattest drawing of the best asset.** Render `/circuits/:id` with the atlas's renderer — radius bands, start marker, direction. One component, one call site; most of the "look nicer" the author wants, and every pixel a fact. Declines 3D (see *Declined*); an elevation *profile strip* under the plan map if `PD-23` ever yields a source. — *visual critique · M*
 
-- [ ] `VD-14` **Wide tables clip at the container edge on a phone with no affordance.** Seven of nine `/drivers` columns invisible at 375 px. A right-edge fade on `.table-scroll` when scrollable. — *visual critique · S*
-
-- [ ] `VD-20` **A loading photograph and an absent one look the same.** And each thumbnail is three redirects. Distinguish the states; consider the resolved `upload.wikimedia.org` URL in the harvest. — *visual critique · S*
+- [ ] `VD-23` **Each thumbnail is three redirects.** `thumbUrl()` asks
+      `Special:FilePath`, which redirects — the visual critique counted three
+      hops — before `upload.wikimedia.org` answers; holding the resolved URL
+      (or the file's SHA-1 path) in
+      `article_images` would make it one. A harvest change with a check that
+      the stored URL still resolves. Split from `VD-20`. — *visual critique ·
+      S*
 
 **Interaction design**
 
 - [ ] `IX-11` **Clicking a worked example destroys the reader's query with no undo.** Write through `execCommand('insertText')` so ⌘Z works. — *interaction critique · S*
-
-- [ ] `IX-15` **`IA-14` measured.** Four of eight nav items off-screen on an iPhone 13, five on an SE; keyboard reaches them, pointer has no affordance. Size `IA-14` as filed. — *interaction critique · S*
 
 - [ ] `IX-16` **`IA-08` escalated: Back restores the scroll and not the filter.** France filter, sort by wins, scroll, open a driver, Back — same pixel, 862 unfiltered rows. Do `/drivers` first. — *interaction critique · M*
 
@@ -748,12 +750,6 @@ Real, but not costed, or waiting on a decision.
       Eras, engine formulae, scoring systems, regulation changes and limits,
       technical innovations and more. Falls out of `IA-02` if that is done
       properly. — *IA critique · S*
-
-- [ ] `IA-14` **The masthead nav overflows silently on a phone, tail-first.**
-      `app.css:302-319` makes it a horizontally scrolling strip with the
-      scrollbar hidden below 720px, so the last items are reachable only by a
-      gesture with no affordance. The measurement is inference — confirm on a
-      device before sizing. — *IA critique · S*
 
 - [ ] `CD-11` **Meta descriptions at scale read as schema output.** Generated at
       `prerender.js:645`: *"Adolf Brudes, Germany, Formula One 1952-1952. 0
@@ -1288,6 +1284,24 @@ Real, but not costed, or waiting on a decision.
 - [x] `PM-03` **"Next, in order" is gone.** `BUILD-NOTES.md` now says
       `docs/BACKLOG.md` is the only queue, and why a second list that can go
       stale is worse than none. — *project record · #60*
+
+- [x] `VD-14` **A table wider than its box says so.** A fade at the right
+      edge while there is more table to the right, set by `DataTable` from
+      the scroll position, and the scroll region takes a tab stop only then.
+      Smoke checks the driver register at 375 px. — *visual critique · #63*
+
+- [x] `IA-14` / `IX-15` **The masthead wraps on a phone.** Two rows rather
+      than a strip with a hidden scrollbar; smoke checks every item is on
+      screen at 375 px. — *IA and interaction critiques · #63*
+
+- [x] `VD-20` **A loading photograph, a failed one and an arrived one look
+      different.** `CommonsImage` tracks the three states: the sunk box
+      breathes while the thumbnail is on its way (still under
+      `prefers-reduced-motion`), and a failed load collapses to a sentence
+      with the link to the file page. The other half — the three redirects
+      per thumbnail, and whether to hold the resolved `upload.wikimedia.org`
+      URL in the harvest — is a data change and stays open as `VD-23`. —
+      *visual critique · #63*
 
 ## Declined
 

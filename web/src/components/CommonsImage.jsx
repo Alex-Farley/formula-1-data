@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { attribution, canShow, fileTitle, thumbUrl } from '../lib/commons.js'
 
 /**
@@ -24,6 +25,11 @@ import { attribution, canShow, fileTitle, thumbUrl } from '../lib/commons.js'
  * `unverified`, and this says so on the picture rather than in a footnote.
  */
 export default function CommonsImage({ image, width = 800, caption, showCheck = true }) {
+  // Loading, arrived, or failed: three states that used to look the same -
+  // a sunk grey box - for the seconds a Commons thumbnail takes to arrive
+  // through its redirects, and for ever when it does not. The box now says
+  // which it is.
+  const [state, setState] = useState('loading')
   if (!image?.file_name) return null
 
   if (!canShow(image)) return null
@@ -34,7 +40,7 @@ export default function CommonsImage({ image, width = 800, caption, showCheck = 
   const unchecked = showCheck && image.name_matches === 0
 
   return (
-    <figure className="photo">
+    <figure className="photo" data-state={state}>
       <img
         src={src}
         alt={caption ?? fileTitle(image.file_name)}
@@ -42,8 +48,19 @@ export default function CommonsImage({ image, width = 800, caption, showCheck = 
         height={image.height || undefined}
         loading="lazy"
         decoding="async"
+        onLoad={() => setState('ready')}
+        onError={() => setState('failed')}
         style={image.width && image.height ? { aspectRatio: `${image.width} / ${image.height}` } : undefined}
       />
+      {state === 'failed' && (
+        <p className="photo-failed" role="status">
+          The photograph did not arrive from Wikimedia Commons. It is still there:{' '}
+          <a href={image.description_url} target="_blank" rel="noreferrer noopener">
+            open the file page
+          </a>
+          .
+        </p>
+      )}
       <figcaption>
         {caption && <div style={{ color: 'var(--ink-soft)', marginBottom: 3 }}>{caption}</div>}
         <a href={image.description_url} target="_blank" rel="noreferrer noopener">
