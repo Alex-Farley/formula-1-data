@@ -202,11 +202,13 @@ export function strip(driver, derived) {
  */
 export const seasonsNote = (driver, derived) => {
   const n = `${derived.seasons ?? 0} with an entry`
-  if (missing(derived.first_year) || missing(driver.first_season)) return n
-  const same =
-    derived.first_year === driver.first_season &&
-    (missing(driver.last_season) || derived.last_year === driver.last_season)
-  if (same) return n
+  if (missing(derived.first_year)) return n
+  // Symmetric: a NULL at either end of the register's span is no claim about
+  // that end, and the other end is still compared (CD-26).
+  const differs =
+    (!missing(driver.first_season) && derived.first_year !== driver.first_season) ||
+    (!missing(driver.last_season) && derived.last_year !== driver.last_season)
+  if (!differs) return n
   return `${n}; ${span(derived.first_year, derived.last_year)} in the race records, ${span(driver.first_season, driver.last_season)} published`
 }
 

@@ -20,6 +20,7 @@
  * no race: the check is what makes the quiet join safe to rely on.
  */
 import { Link } from 'react-router-dom'
+import { allExplained } from '../lib/disagreement.js'
 
 /*
  * Both values are resolved through `drivers` on the way out. A discrepancy
@@ -45,13 +46,18 @@ export const RACE_DISAGREEMENTS = `
    ORDER BY d.id
 `
 
-/** Open disagreements about one driver's career figures. Args: [driver id]. */
+/**
+ * Open disagreements about one driver's career figures, and the explained
+ * ones - where the register and the race records read a span differently and
+ * each is right about something (CD-25). Args: [driver id].
+ */
 export const DRIVER_DISAGREEMENTS = `
   ${RESOLVED}
    WHERE d.subject = (SELECT full_name FROM drivers WHERE id = ?1)
-     AND d.status LIKE 'open%'
+     AND (d.status LIKE 'open%' OR d.status LIKE 'explained - each side%')
    ORDER BY d.id
 `
+
 
 /** `fastest_laps` is a column name. The reader is owed the words. */
 const label = (field) => String(field ?? '').replace(/_/g, ' ')
@@ -73,13 +79,16 @@ export const CONSTRUCTOR_DISAGREEMENTS = `
  */
 export default function Disagreement({ rows, what = 'this' }) {
   if (!rows || rows.length === 0) return null
+  const explained = allExplained(rows)
 
   return (
-    <aside className="disagreement" aria-label="Recorded source disagreement">
+    <aside className="disagreement" aria-label={explained ? 'Two readings, both recorded' : 'Recorded source disagreement'}>
       <h2>
-        {rows.length === 1
-          ? 'Two sources disagree about ' + what
-          : `Two sources disagree about ${what}, in ${rows.length} places`}
+        {explained
+          ? `Two readings of ${what}, each right about something`
+          : rows.length === 1
+            ? 'Two sources disagree about ' + what
+            : `Two sources disagree about ${what}, in ${rows.length} places`}
       </h2>
       <dl>
         {rows.map((row) => (
@@ -97,7 +106,9 @@ export default function Disagreement({ rows, what = 'this' }) {
         ))}
       </dl>
       <p className="source-note">
-        Recorded rather than resolved, and open for somebody to settle. Every one is listed on{' '}
+        {explained
+          ? 'Recorded and explained rather than resolved: the register and the race records define the span differently, and the page shows both. Every recorded reading is listed on '
+          : 'Recorded rather than resolved, and open for somebody to settle. Every one is listed on '}
         <Link to="/data/quality">the quality page</Link>.
       </p>
     </aside>

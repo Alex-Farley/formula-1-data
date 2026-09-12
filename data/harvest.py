@@ -924,6 +924,33 @@ EXTERNAL_FASTEST_LAPS = {
 DECLARED_DISCREPANCIES = [
 ]
 
+# Where the register's seasons and the race records' differ and neither is
+# wrong: each side is right about something, the driver page shows both
+# (CD-22), and this puts the reason beside the fact, in `discrepancies`,
+# rather than in a code comment no reader meets (CD-25). verify.py derives
+# the pair it pins from these rows, so a third driver whose spans differ
+# needs a row here before the build passes.
+#   driver_id, field ('first_season' or 'last_season'), register value,
+#   race-records value, why
+EXPLAINED_SPANS = [
+    ("cevert", "first_season", 1970, 1969,
+     "The register's 1970 is his Formula One debut, the Dutch Grand Prix in a "
+     "March run by Tyrrell. The race records hold a 1969 entry: that year's "
+     "German Grand Prix admitted Formula 2 cars alongside the Formula One "
+     "field, and he drove a Tecno TF69, one of them, retiring with a gearbox "
+     "failure. It was a championship race and he was entered, so the records "
+     "count it and the register does not. "
+     "Source: https://en.wikipedia.org/wiki/1969_German_Grand_Prix"),
+    ("alexander-rossi", "first_season", 2014, 2015,
+     "The register's 2014 comes from F1DB's entry lists, which name him as "
+     "entered for two rounds that year for Marussia, the Belgian and Russian "
+     "Grands Prix; he started neither, so the race records hold nothing for "
+     "him until 2015, when he started five Grands Prix for the same team, by "
+     "then Manor Marussia. His earlier seasons as a Caterham reserve carry no "
+     "round and count for neither reading. An entry is not a start. "
+     "Source: https://github.com/f1db/f1db, seasons/2014/entrants.yml"),
+]
+
 # Corrections made to hand-entered career figures after checking them against an
 # external reference. Kept as a record of what changed and why.
 #   driver_id, field, old_value, new_value, reason

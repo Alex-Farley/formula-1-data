@@ -60,6 +60,7 @@ import {
   TWO_FILES,
   titled,
 } from '../src/lib/site.js'
+import { allExplained } from '../src/lib/disagreement.js'
 // The pages' own queries and column lists (PD-02). A page and this script
 // read the same module, so the static table is the app's table by
 // construction; the rest of the pages follow these three.
@@ -275,11 +276,17 @@ const careerSentence = (derived, constructors, titles) => {
  */
 const disagree = (rows, what) => {
   if (!rows.length) return ''
-  return `<aside class="disagreement" aria-label="Recorded source disagreement">
+  // The same two readings as the app's Disagreement component: explained
+  // rows - a span the register and the records define differently (CD-25) -
+  // are introduced as readings, open ones as a disagreement to settle.
+  const explained = allExplained(rows)
+  return `<aside class="disagreement" aria-label="${explained ? 'Two readings, both recorded' : 'Recorded source disagreement'}">
     <h2>${
-      rows.length === 1
-        ? `Two sources disagree about ${esc(what)}`
-        : `Two sources disagree about ${esc(what)}, in ${rows.length} places`
+      explained
+        ? `Two readings of ${esc(what)}, each right about something`
+        : rows.length === 1
+          ? `Two sources disagree about ${esc(what)}`
+          : `Two sources disagree about ${esc(what)}, in ${rows.length} places`
     }</h2>
     <dl>${rows
       .map(
@@ -289,7 +296,11 @@ const disagree = (rows, what) => {
         </dd></div>`,
       )
       .join('')}</dl>
-    <p class="source-note">Recorded rather than resolved, and open for somebody to settle. Every one is listed on ${link('data/quality', 'the quality page')}.</p>
+    <p class="source-note">${
+      explained
+        ? 'Recorded and explained rather than resolved: the register and the race records define the span differently, and the page shows both. Every recorded reading is listed on '
+        : 'Recorded rather than resolved, and open for somebody to settle. Every one is listed on '
+    }${link('data/quality', 'the quality page')}.</p>
   </aside>`
 }
 
@@ -783,13 +794,13 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
   // figure. verify.py refuses a subject shape that resolves to nothing, so a
   // silent empty join cannot survive a build.
   const careerDisagreements = db.prepare(
-    `SELECT d.field, d.assessment,
+    `SELECT d.field, d.status, d.assessment,
             COALESCE(s.full_name, d.stored_value)  AS stored_value,
             COALESCE(v.full_name, d.derived_value) AS derived_value
        FROM discrepancies d
        LEFT JOIN drivers s ON s.id = d.stored_value
        LEFT JOIN drivers v ON v.id = d.derived_value
-      WHERE d.subject = ? AND d.status LIKE 'open%'
+      WHERE d.subject = ? AND (d.status LIKE 'open%' OR d.status LIKE 'explained - each side%')
       ORDER BY d.id`,
   )
   const teams = Object.fromEntries(all('SELECT id, name FROM constructors').map((c) => [c.id, c.name]))
@@ -939,7 +950,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
   // careerDisagreements is scoped to that section, so this is the same
   // statement for this one.
   const teamDisagreements = db.prepare(
-    `SELECT d.field, d.assessment,
+    `SELECT d.field, d.status, d.assessment,
             COALESCE(s.full_name, d.stored_value)  AS stored_value,
             COALESCE(v.full_name, d.derived_value) AS derived_value
        FROM discrepancies d
