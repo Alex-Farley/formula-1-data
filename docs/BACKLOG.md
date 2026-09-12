@@ -193,12 +193,6 @@ Worth doing, not yet urgent.
       carries the reader sentences and the maintainer notes this entry asks for.
       — *product critique · S*
 
-- [ ] `PD-12` **State the lap-timing constraint as a position,** not a
-      schema-shaped apology inside a gaps table. "No one may lawfully
-      redistribute Formula One lap timing, so this database contains none, and
-      every figure here is one you may republish" is an advantage over anyone
-      hosting scraped timing. — *product critique · S*
-
 - [ ] `PM-12` **Loosen the specification harvest's name check.** It refuses
       "Alfa Romeo 158/159 Alfetta" for `alfa-romeo-159`. Match the chassis name
       as a token subsequence rather than a strict prefix; the constructor and
@@ -275,9 +269,14 @@ Worth doing, not yet urgent.
       put it on the page. Render it in both, from the same expression. —
       *content critique · S*
 
-- [ ] `CD-05` **`PD-12` answered.** The lap-timing position is written, in three
-      lengths, with the four places each goes. Lands with `PD-12`; no research
-      left in it. — *content critique · S*
+- [ ] `CD-05` **The timing position in three lengths.** #94 landed one
+      length in one place, the `NOT_HELD` sentence on `/data`, and aligned
+      `known_gaps` #5 with it. Still owed: the one-line and the paragraph
+      forms, and the places each goes — the README's licence section, the
+      release notes and `docs/TIMING-ARCHITECTURE.md`'s opening — all saying
+      what #94 says (licences on offer, not the law; race timing, since the
+      qualifying table holds lap times). No research left in it. — *content
+      critique · S*
 
 - [ ] `CD-07` **`PD-11` answered: what `/data` claims.** One adversarial
       sentence that survives the reader thinking *"I already have F1DB"* —
@@ -1626,6 +1625,16 @@ Real, but not costed, or waiting on a decision.
       citation should name stays a reader's judgement, as `PM-28` was. —
       *review of #87 · #90*
 
+- [x] `PD-12` **The timing constraint is a position.** The shared `NOT_HELD`
+      sentence on `/data`, in both renderers, opens with what the absence
+      means — nobody publishes Formula One race timing under a licence that
+      permits passing it on, so this database holds none of it, and
+      everything here may be passed on under the licence shown beside it —
+      before it names the four empty tables. The first cut said "no one may
+      lawfully redistribute lap timing", which the review of #94 showed was
+      a claim about the law rather than the licences and collided with the
+      27,000 qualifying lap times F1DB publishes under CC BY; `known_gaps`
+      #5 carries the same words. — *product critique · #94*
 - [x] `PM-31` **The commercial-readiness figures are spans the build writes.**
       `tools/readme_figures.py` now writes every document in `DOCUMENTS` —
       the README and `docs/COMMERCIAL-READINESS.md` — and counts the licence

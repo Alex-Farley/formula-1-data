@@ -215,10 +215,10 @@ function Body({ data }) {
           }))}
         />
         <Note>
-          <strong>Four tables are empty on purpose.</strong> {NOT_HELD}{' '}
+          <strong>What is not here.</strong> {NOT_HELD}{' '}
           {shape.timing_rows === 0
-            ? 'This copy holds none of it, as the build requires.'
-            : `This copy holds ${number(shape.timing_rows)} such rows and should not be redistributed.`}
+            ? 'This copy has all four empty, as the build requires.'
+            : `This copy holds ${number(shape.timing_rows)} rows in those tables, loaded locally, and is not the file to publish.`}
         </Note>
         <p className="measure">
           Race data from F1DB is CC BY 4.0; prose and registers from Wikipedia are CC BY-SA 4.0

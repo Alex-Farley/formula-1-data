@@ -594,7 +594,7 @@ KNOWN_GAPS = [
     (5, "laps", "lap times, tyre stints, pit stops, radio and telemetry",
      "position",
      "No lap times, tyre stints, race control messages or telemetry. Nobody "
-     "publishes Formula One lap timing under a licence that permits passing "
+     "publishes Formula One race timing under a licence that permits passing "
      "it on, so this database holds none: the tables exist and stay empty "
      "by design. Pit stops - lap and order, from F1DB - and six radio "
      "exchanges quoted from Wikipedia are the exceptions, and may be passed "
