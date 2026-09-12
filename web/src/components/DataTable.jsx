@@ -1,4 +1,4 @@
-import { useContext, useMemo, useState } from 'react'
+import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { isNumericColumn, isProseColumn, label as humanise, missing, text } from '../lib/format.js'
 import { SectionTitle } from './Page.jsx'
 
@@ -88,6 +88,27 @@ export default function DataTable({
     })
   }, [source, sort, direction, cols])
 
+  // Hooks before the empty-state return below: a register filtered to no
+  // rows must call the same hooks as one with rows, or React throws.
+  // Seven of nine columns of the driver register were off-screen at 375 px
+  // with nothing to say so. The fade at the right edge appears only while
+  // there is more table to the right, and goes as the reader reaches it.
+  const scroller = useRef(null)
+  const [clipped, setClipped] = useState(false)
+  useEffect(() => {
+    const el = scroller.current
+    if (!el) return undefined
+    const check = () => setClipped(el.scrollWidth - el.clientWidth - el.scrollLeft > 1)
+    check()
+    el.addEventListener('scroll', check, { passive: true })
+    const watch = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(check)
+    watch?.observe(el)
+    return () => {
+      el.removeEventListener('scroll', check)
+      watch?.disconnect()
+    }
+  }, [ordered.length, showAll])
+
   if (cols.length === 0 || (source.length === 0 && !caption)) {
     // "state is-empty", not bare "state". A skeleton and a Loading share that
     // class because they are both the page waiting; this is the page having
@@ -114,8 +135,15 @@ export default function DataTable({
     // data-rows is the total the table holds, not the number currently on
     // screen. The smoke suite reads it to compare what a page shows against
     // what the database says it should, without having to page through.
-    <div className="table-wrap" data-rows={ordered.length} data-shown={visible.length}>
-      <div className="table-scroll">
+    <div
+      className="table-wrap"
+      data-rows={ordered.length}
+      data-shown={visible.length}
+      data-clipped={clipped || undefined}
+    >
+      {/* A scrollable region is keyboard-reachable only while it has something
+          to scroll to; a tab stop on every table would be noise. */}
+      <div className="table-scroll" ref={scroller} tabIndex={clipped ? 0 : undefined}>
         <table>
           {/* An explicit caption is shown; the one derived from the enclosing
               Section is not, because the reader can already see that heading

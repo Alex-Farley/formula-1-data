@@ -589,6 +589,14 @@ try {
     'the kind filter is a named group of toggle buttons',
   )
   is((await tableRows())[0], count('SELECT COUNT(*) FROM drivers'), 'the driver register')
+  // Filtering the register to nothing is an ordinary act and must not crash
+  // the page: the first cut of the scroll fade declared its hooks after the
+  // empty-state return, and React threw on the first empty search.
+  await page.fill('input[type="search"]', 'zzzz-no-such-driver')
+  await page.waitForSelector('#root main .state.is-empty', { timeout: 10000 })
+  truthy(await page.$('#root main h1'), 'a register filtered to no rows shows its empty state, and the page stands')
+  await page.fill('input[type="search"]', '')
+  await page.waitForSelector('#root main tbody tr', { timeout: 10000 })
 
   console.log('\n/drivers/senna')
   await go('/drivers/senna', 'Ayrton Senna')
@@ -825,6 +833,29 @@ try {
       !(await page.$eval('.lapfigure-card figcaption', (n) => n.textContent)).includes('the arrow is'),
     `a trace that does not close (${open}) has no arrow and no caption about one`,
   )
+
+  // At a phone width the register is wider than the screen and says so; the
+  // masthead shows every destination rather than a strip with a hidden
+  // scrollbar.
+  console.log('\n/drivers  (at 375 px)')
+  await page.setViewportSize({ width: 375, height: 812 })
+  await go('/drivers', 'Drivers')
+  await page.waitForSelector('#root main tbody tr', { timeout: 20000 })
+  truthy(
+    await page.waitForSelector('.table-wrap[data-clipped]', { timeout: 10000 }).catch(() => null),
+    'a table wider than the screen shows a fade at its right edge',
+  )
+  const navBox = await page.$eval('.masthead nav', (nav) => {
+    const box = nav.getBoundingClientRect()
+    const links = [...nav.querySelectorAll('a')].map((a) => a.getBoundingClientRect())
+    return {
+      hidden: links.filter((r) => r.right > box.right + 1 || r.left < box.left - 1).length,
+      rows: new Set(links.map((r) => Math.round(r.top))).size,
+      scrollable: nav.scrollWidth > nav.clientWidth + 1,
+    }
+  })
+  truthy(navBox.hidden === 0 && !navBox.scrollable, `every masthead item is on screen at 375 px (${navBox.rows} rows)`)
+  await page.setViewportSize({ width: 1280, height: 900 })
 
   // ----------------------------------------------------------------- SQL
 
