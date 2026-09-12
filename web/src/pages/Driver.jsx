@@ -345,6 +345,10 @@ function DriverBody({ driver, data }) {
             { label: 'Died', value: driver.died },
             { label: 'Nationality', value: driver.nationality },
             { label: 'Status', value: driver.status },
+            // How a harvest put the row here, where one did. It used to open
+            // `notes`, which is the lede above and the meta description; it is
+            // shown only where it exists, so most rows get no em dash for it.
+            driver.provenance ? { label: 'Provenance', value: driver.provenance } : null,
             { label: 'Entries (stored)', value: number(driver.entries) },
             { label: 'Starts (stored)', value: number(driver.starts) },
             {

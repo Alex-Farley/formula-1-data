@@ -260,16 +260,6 @@ Worth doing, not yet urgent.
       so orientation trades sideways the moment React takes over from the
       prerendered HTML. Ship with `PD-02`. — *IA critique · S*
 
-- [ ] `CD-02` **111 driver ledes open with how the row got into the database.**
-      `drivers.notes`, 111 of 244 rows, consumed as the page lede
-      (`Driver.jsx:169`) and as the meta description (`prerender.js:645`):
-      *"Added to the register from the podium harvest…"*. Chris Amon's meta
-      description spends three sentences on provenance and truncates at 300
-      characters exactly on *"Widely held to be the fi…"*. A data edit, not a
-      code one — the good sentence usually already exists at the end of the
-      string, and the provenance clause belongs in the "Where this comes from"
-      section `Driver.jsx:373` already renders. — *content critique · S*
-
 - [ ] `CD-03` **1,172 race pages have no standfirst.** `races.note` is NULL on
       every one of the 1,172 rows, so `lede={race.note}` is dead code and the
       largest page type opens with no sentence — while `prerender.js:480-482`
@@ -603,8 +593,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 - [ ] `UR-05` **Nothing on 3,515 pages says who publishes this or how to tell them they are wrong.** No About, no contact, no corrections route; a Wikipedia editor cannot satisfy WP:RS. One page; `SD-15` is the same gap. — *user research · S*
 
 - [ ] `UR-07` **The obvious standings query returns 333 rows, and the console hides the comment that prevents it.** Show `sqlite_master` SQL in the schema browser; add a worked example for the current championship. `CR-02`'s reader face. — *user research · S*
-
-- [ ] `UR-12` **Amon's page gives three answers to "how many races".** 96 (lede), 108 (strip), `—` (starts). Where `notes` states a figure the page computes, show them adjacent or drop the prose. Apply during `CD-02`. — *user research · S*
 
 ## Someday, or maybe never
 
@@ -1325,6 +1313,26 @@ Real, but not costed, or waiting on a decision.
       made the naming decision this was waiting on: the database drawer is
       `/data` in the masthead, the sport drawer kept its addresses, and the
       redirects were the work. — *product critique · #67*
+
+- [x] `CD-02` **111 driver ledes open with how the row got into the database.**
+      `drivers.notes` was doing two jobs — the page lede and meta description,
+      and the record of how a harvest put the row there. Split: the provenance
+      sentence moves to a new `drivers.provenance` column, shown in the driver
+      page's "On the record" fields in the app and the prerendered HTML alike,
+      and kept out of the meta description; `notes` keeps only what the string
+      already said about the driver, so the 62 podium-harvest rows now have no
+      lede and their description is the derived figures alone. `verify.py`
+      refuses a note that opens with "Added " or mentions a harvest.
+      — *content critique · #70*
+
+- [x] `UR-12` **Amon's page gives three answers to "how many races".** The prose
+      no longer states a figure the strip derives: "96 starts" and "eleven
+      podiums" leave Amon's note, and the same rule takes the typed starts,
+      races and podiums out of twelve more — Heidfeld's 183, de Cesaris's 208,
+      Barrichello's 322 among them. Amon's 96 cited no source, so it leaves
+      rather than becoming a `discrepancies` row. `verify.py` refuses a bare
+      integer before starts, races, wins, poles, podiums or points in any
+      driver note. — *user research · #70*
 
 ## Declined
 
