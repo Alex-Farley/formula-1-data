@@ -81,6 +81,7 @@ function Register({ rows }) {
           options={nationalities}
         />
         <Chips
+          label="Filter drivers by kind"
           value={kind}
           onChange={setKind}
           options={[

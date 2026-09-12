@@ -62,9 +62,11 @@ export function Select({ value, onChange, options, label, all = 'All' }) {
 }
 
 /** Mutually exclusive chips, for two or three choices that deserve to be visible. */
-export function Chips({ value, onChange, options }) {
+export function Chips({ value, onChange, options, label = 'Filter' }) {
+  // A group, with a name: six toggle buttons arriving as "hybrid, toggle
+  // button, not pressed" said nothing about what they filtered.
   return (
-    <span className="chips">
+    <span className="chips" role="group" aria-label={label}>
       {options.map(([key, text]) => (
         <button
           key={key}

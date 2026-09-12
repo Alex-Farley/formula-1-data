@@ -454,6 +454,10 @@ try {
    */
   console.log('\n/drivers/beppe-gabbiani  (a winless season reads 0, not an em dash)')
   await go('/drivers/beppe-gabbiani', 'Beppe Gabbiani')
+  truthy(
+    await page.waitForSelector('a.pill[href$="/reference/quality"]', { timeout: 20000 }).catch(() => null),
+    'the confidence pill is a link to the quality ladder',
+  )
   const dashedWins = await page.evaluate(() => {
     const h2 = [...document.querySelectorAll('#root main h2')].find((h) => h.textContent.startsWith('Season by season'))
     const table = (h2?.closest('section') ?? h2?.parentElement)?.querySelector('table')
@@ -580,6 +584,10 @@ try {
 
   console.log('\n/drivers')
   await go('/drivers', 'Drivers')
+  truthy(
+    await page.waitForSelector('[role="group"][aria-label="Filter drivers by kind"] button', { timeout: 20000 }).catch(() => null),
+    'the kind filter is a named group of toggle buttons',
+  )
   is((await tableRows())[0], count('SELECT COUNT(*) FROM drivers'), 'the driver register')
 
   console.log('\n/drivers/senna')

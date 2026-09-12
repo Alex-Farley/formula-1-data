@@ -119,7 +119,15 @@ export function Section({ title, count, note, children, id }) {
         {title && (
           <h2>
             {title}
-            {count !== undefined && count !== null && <span className="count">{count}</span>}
+            {/* A text-node space: the visible gap is CSS, but the accessible
+                name is the text, and "Classification20 entries" is what a
+                heading-by-heading reader was given. */}
+            {count !== undefined && count !== null && (
+              <>
+                {' '}
+                <span className="count">{count}</span>
+              </>
+            )}
           </h2>
         )}
         {note && <p className="note">{note}</p>}
@@ -176,9 +184,28 @@ export function Fields({ items }) {
  * two ends take a colour, and both always carry the word: the colour supports
  * the label, it never replaces it.
  */
-export function Confidence({ value }) {
+/**
+ * The confidence tier, as a pill that goes to the ladder that defines it.
+ *
+ * A bare word - "medium" - on thirteen pages taught a reader that the site
+ * was unsure of itself, when the ladder two clicks away says it means an
+ * exact figure may have drifted. The tier is a link to that definition, and
+ * carries it as a title for the reader who hovers.
+ */
+export function Confidence({ value, plain = false }) {
   if (!value) return null
-  return <span className={`pill pill-${String(value).toLowerCase()}`}>{value}</span>
+  // `plain` is for the quality page itself, where a link to the page the
+  // reader is on would be a no-op dressed as a way forward.
+  if (plain) return <span className={`pill pill-${String(value).toLowerCase()}`}>{value}</span>
+  return (
+    <Link
+      to="/reference/quality"
+      className={`pill pill-${String(value).toLowerCase()}`}
+      title={`Confidence tier "${value}" - what it means, on the quality page`}
+    >
+      {value}
+    </Link>
+  )
 }
 
 /** Where a row came from, set small and out of the way. */

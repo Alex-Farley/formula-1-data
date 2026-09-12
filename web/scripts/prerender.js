@@ -581,7 +581,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
                       : text(r.fastest_lap)
                   })(),
                 ],
-                ['Confidence', text(r.confidence)],
+                ['Confidence', r.confidence ? link('reference/quality', r.confidence) : text(r.confidence)],
               ]),
         ])}
         ${prose(r.note)}
@@ -712,7 +712,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
           ['Career points', num(d.career_points)],
           ['Titles', d.titles ? `${d.titles} (${yearList(d.title_years)})` : num(d.titles)],
           ['Status', text(d.status)],
-          ['Confidence', text(d.confidence)],
+          ['Confidence', d.confidence ? link('reference/quality', d.confidence) : text(d.confidence)],
         ])}
         ${prose(d.notes)}
         ${disagree(careerDisagreements.all(d.full_name), 'this career')}
@@ -825,7 +825,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
           ["Constructors' titles", c.constructors_titles ? `${c.constructors_titles} (${yearList(c.title_years)})` : num(c.constructors_titles)],
           ["Drivers' titles", num(c.drivers_titles)],
           ['Active', c.active === null ? null : c.active ? 'Yes' : 'No'],
-          ['Confidence', text(c.confidence)],
+          ['Confidence', c.confidence ? link('reference/quality', c.confidence) : text(c.confidence)],
         ])}
         ${prose(c.notes)}
         ${disagree(teamDisagreements.all(c.name), 'this team')}
@@ -919,7 +919,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
           ['Grands Prix', num(c.gp_count)],
           ['First', c.first_gp ? link(`seasons/${c.first_gp}`, c.first_gp) : '—'],
           ['Last', c.last_gp ? link(`seasons/${c.last_gp}`, c.last_gp) : '—'],
-          ['Confidence', text(c.confidence)],
+          ['Confidence', c.confidence ? link('reference/quality', c.confidence) : text(c.confidence)],
         ])}
         ${prose(c.characteristics)}
         ${prose(c.notes)}
@@ -1111,7 +1111,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
           ['Races', num(entries.length)],
           ['Wins', num(ch.wins)],
           ['Published wins', ch.published_wins === null ? null : num(ch.published_wins)],
-          ['Confidence', ch.confidence],
+          ['Confidence', ch.confidence ? link('reference/quality', ch.confidence) : text(ch.confidence)],
         ])}
         ${
           ch.car_id && curated.has(ch.car_id)

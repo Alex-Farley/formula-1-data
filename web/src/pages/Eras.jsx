@@ -140,6 +140,7 @@ function Body({ data }) {
       <Section title="Regulation changes" count={`${regulations.length}`}>
         <div className="filters">
           <Chips
+            label="Filter regulation changes by category"
             value={category}
             onChange={setCategory}
             options={[['', 'All'], ...categories.map((c) => [c, c])]}
