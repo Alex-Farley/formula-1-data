@@ -300,6 +300,11 @@ unconstrained in every sense. The career records they duplicate *are* checked
 database looks like it verifies its records, and the table called `records` is
 not the one it verifies.
 
+*(Overtaken in v2.23: `records` is now derived in `build.py` from the race
+records, every row states its rule, and `verify.py` recomputes a sample by a
+different route. The paragraph above describes the table as it was, and why
+the derivation was the fix.)*
+
 So the rule surfaces something real: **`high` is currently doing two jobs.**
 It means "a well-established official record" for `seasons` and `circuits`,
 and it means "authored here and believed" for `glossary` and `eras`. Those are

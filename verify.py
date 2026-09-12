@@ -851,6 +851,135 @@ def external_figures_vs_the_race_records():
     check("grand slams (pole + win + fastest lap) found", slams > 100, f"{slams}")
 
 
+@section('RECORDS ARE DERIVED, AND RECOMPUTED HERE BY ANOTHER ROUTE')
+def records_are_derived():
+    # Thirty authored rows sat here at 'medium' with nothing reading them, and
+    # one said Hamilton had 105 wins beside a drivers.wins of 106. Every row is
+    # now derived in build.py; this section is what makes that claim checkable.
+    # Each recomputation below deliberately takes a DIFFERENT route from the
+    # build's - the race_results view instead of race_entries, the stored
+    # drivers.titles column instead of a count over seasons, seasons.margin
+    # instead of the standings - because re-running the same query would only
+    # prove SQLite is deterministic.
+    rows = {r["key"]: r for r in con.execute("SELECT * FROM records")}
+    FLOOR = 29   # the number shipped at v2.23; a derivation that silently drops one fails here
+    check(f"the records table holds at least {FLOOR} derived rows", len(rows) >= FLOOR,
+          f"{len(rows)}")
+
+    as_of = con.execute(
+        "SELECT MAX(date_iso) FROM races WHERE status = 'completed'").fetchone()[0]
+    stale = [k for k, r in rows.items() if r["as_of"] != as_of]
+    check("every record is as of the last completed race the database holds",
+          not stale, f"coverage ends {as_of}; " + ", ".join(stale[:4]))
+
+    off_ladder = con.execute("""SELECT COUNT(*) FROM records
+        WHERE confidence NOT IN (SELECT confidence FROM provenance)""").fetchone()[0]
+    check("no record carries a confidence outside the ladder", off_ladder == 0)
+    above = con.execute("""SELECT COUNT(*) FROM records r JOIN provenance p ON p.confidence = r.confidence
+        WHERE p.rank < (SELECT rank FROM provenance WHERE confidence = 'reference')""").fetchone()[0]
+    check("no record outranks the race records it is computed from", above == 0,
+          f"{above} above 'reference'")
+
+    # A tie holds every holder and names none as THE holder; a single holder is
+    # always keyed. holder_id must be a row in the table it says it is.
+    mis = [k for k, r in rows.items()
+           if (r["holder_id"] is None) != (", " in r["holder"])]
+    check("holder_id is NULL exactly when the record is shared", not mis, ", ".join(mis))
+    dangling = []
+    for k, r in rows.items():
+        if r["holder_id"] is not None and not con.execute(
+                f'SELECT 1 FROM "{r["holder_table"]}" WHERE id = ?', (r["holder_id"],)).fetchone():
+            dangling.append(f"{k} -> {r['holder_table']}.{r['holder_id']}")
+    check("every holder_id is a row in its holder_table", not dangling, "; ".join(dangling))
+
+    def same(key, derived_value, derived_holder=None, what=""):
+        r = rows.get(key)
+        if r is None:
+            check(f"records.{key} is present", False, "no such key")
+            return
+        ok = abs(r["value_num"] - derived_value) < 1e-9
+        detail = f"stored {r['value_num']:g}, recomputed {derived_value:g}"
+        if derived_holder is not None:
+            ok = ok and r["holder_id"] == derived_holder
+            detail += f"; holder {r['holder_id']} vs {derived_holder}"
+        check(f"records.{key} agrees with {what}", ok, detail)
+
+    # 1. Most wins, via the race_results view (winner and co-winner columns).
+    w = con.execute("""SELECT d, COUNT(*) n FROM (
+            SELECT winner_id d FROM race_results WHERE winner_id IS NOT NULL
+            UNION ALL SELECT co_winner_id FROM race_results WHERE co_winner_id IS NOT NULL)
+        GROUP BY d ORDER BY n DESC LIMIT 1""").fetchone()
+    same("most-wins", w["n"], w["d"], "the race_results view")
+
+    # 2/3. Most titles, via the stored per-driver and per-constructor columns.
+    t = con.execute("SELECT MAX(titles) m FROM drivers").fetchone()["m"]
+    holders = sorted(r[0] for r in con.execute(
+        "SELECT full_name FROM drivers WHERE titles = ?", (t,)))
+    r = rows.get("most-drivers-titles")
+    check("records.most-drivers-titles agrees with drivers.titles",
+          r is not None and r["value_num"] == t
+          and sorted(r["holder"].split(", ")) == holders,
+          f"{t}: {', '.join(holders)}")
+    ct = con.execute("""SELECT id, constructors_titles FROM constructors
+        ORDER BY constructors_titles DESC LIMIT 1""").fetchone()
+    same("most-constructors-titles", ct["constructors_titles"], ct["id"],
+         "constructors.constructors_titles")
+
+    # 4. Most wins in a season, via race_results grouped by year.
+    sw = con.execute("""SELECT winner_id, year, COUNT(*) n FROM race_results
+        GROUP BY year, winner_id ORDER BY n DESC LIMIT 1""").fetchone()
+    same("most-wins-in-a-season", sw["n"], sw["winner_id"], "race_results by season")
+
+    # 5. Closest title margin, via the stored seasons.margin column.
+    m = con.execute("""SELECT year, margin, drivers_champion FROM seasons
+        WHERE margin IS NOT NULL ORDER BY margin LIMIT 1""").fetchone()
+    same("closest-championship-margin", m["margin"], m["drivers_champion"], "seasons.margin")
+
+    # 6. Consecutive constructors' titles, as a gaps-and-islands query.
+    run = con.execute("""SELECT constructors_champion c, COUNT(*) n FROM (
+            SELECT year, constructors_champion,
+                   year - ROW_NUMBER() OVER (PARTITION BY constructors_champion ORDER BY year) grp
+              FROM seasons WHERE constructors_champion IS NOT NULL)
+        GROUP BY c, grp ORDER BY n DESC LIMIT 1""").fetchone()
+    same("most-consecutive-constructors-titles", run["n"], run["c"], "a window query over seasons")
+
+    # 7. Fewest classified, counting numeric position_text rather than the flag.
+    fc = con.execute("""SELECT race_id, SUM(position_text GLOB '[0-9]*') n FROM race_entries
+        GROUP BY race_id ORDER BY n LIMIT 1""").fetchone()
+    same("fewest-classified-finishers", fc["n"], str(fc["race_id"]), "position_text")
+
+    # 8. Lowest grid for a winner, through race_results.winner_id.
+    g = con.execute("""SELECT rr.winner_id, e.grid FROM race_results rr
+        JOIN races r ON r.year = rr.year AND r.round = rr.round
+        JOIN race_entries e ON e.race_id = r.id AND e.driver_id = rr.winner_id
+        WHERE e.grid IS NOT NULL ORDER BY e.grid DESC LIMIT 1""").fetchone()
+    same("lowest-grid-position-for-a-winner", g["grid"], g["winner_id"], "race_results and the grid")
+
+    # 9. Longest circuit, from circuits alone (the build also reads the layouts).
+    c = con.execute("""SELECT id, length_km FROM circuits WHERE gp_count > 0
+        ORDER BY length_km DESC LIMIT 1""").fetchone()
+    same("longest-circuit", c["length_km"], c["id"], "circuits.length_km")
+
+    # 10. The win-rate floor the detail states is the one that was applied.
+    r = rows.get("highest-win-rate")
+    if r:
+        m_ = re.search(r"at least (\d+) entries", r["detail"])
+        floor = int(m_.group(1)) if m_ else None
+        best = con.execute("""SELECT d.id, ROUND(100.0 * d.wins / COUNT(*), 2) pct
+            FROM race_entries e JOIN drivers d ON d.id = e.driver_id
+            GROUP BY d.id HAVING COUNT(*) >= ? ORDER BY pct DESC LIMIT 1""",
+            (floor or 0,)).fetchone()
+        check("records.highest-win-rate applies the floor its detail states",
+              floor is not None and best["id"] == r["holder_id"]
+              and abs(best["pct"] - r["value_num"]) < 1e-9,
+              f"floor {floor}, {best['id']} at {best['pct']}")
+
+    dist = con.execute("""SELECT category, COUNT(*) n FROM records
+        GROUP BY category ORDER BY category""").fetchall()
+    print("        " + ", ".join(f"{d['category']}={d['n']}" for d in dist)
+          + f"; as of {as_of}")
+
+
 @section('CALENDAR')
 def calendar():
     w26 = winners_in(2026)

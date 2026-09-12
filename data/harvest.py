@@ -662,6 +662,30 @@ KNOWN_GAPS = [
      "article. Every row sits at 'unverified' until then, which is where "
      "this database puts what it cannot prove."),
 
+    ("records", "the records the database cannot derive",
+     "records is derived from the race records on every build - every row is "
+     "one query, with its rule in `detail` - and a record the tables cannot "
+     "support is not shipped rather than typed in from memory, which is how "
+     "the table came to say Hamilton had 105 wins beside a drivers.wins of "
+     "106. Five that the authored table carried are not derivable here. The "
+     "youngest and oldest World Champion need the round at which the title "
+     "was clinched, which would have to be computed from the points still "
+     "available under each season's scoring system; the database holds the "
+     "standings after every round but not that calculation. The closest race "
+     "finish needs the winning margin, and race_entries holds no race times "
+     "or gaps. The race_timing table, which would hold them, is EMPTY; see "
+     "gap #6. The longest race by duration needs the race time, which the "
+     "same absence covers. "
+     "'Only woman to score points' needs a gender attribute, which no table "
+     "holds and no source in use publishes as data. The closest qualifying "
+     "margin IS derived - qualifying.gap holds a parseable gap for second "
+     "place in all but one completed race - and stands as a record.",
+     0,
+     "The clinching round is computable from `standings` and `points_systems` "
+     "once the per-season maximum-points rule is written down; that is the one "
+     "of the five with a route. The others need race timing, which no source "
+     "publishes under a licence that permits passing it on (known_gaps #5), "
+     "or an attribute the project does not model."),
 ]
 
 # Shared fastest laps the season tables render as ONE name. harvest/poles.txt

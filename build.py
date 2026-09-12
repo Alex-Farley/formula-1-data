@@ -13,6 +13,7 @@ import re
 import sqlite3
 import struct
 import sys
+from datetime import date
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -38,7 +39,7 @@ DB = os.path.join(HERE, "f1.db")
 # should have been gated on the build. The fragment is what verify.py would
 # then check and what git status would then offer.
 BUILD_DB = DB + ".tmp"
-VERSION = "2.22"
+VERSION = "2.23"
 
 # The build date, as a CONSTANT and deliberately not date.today().
 #
@@ -1030,10 +1031,8 @@ def _stage_15_rules_tech_safety(b):
             fastest_lap, dropped_scores, notes) VALUES (?,?,?,?,?,?,?)""",
             (i, fy, ty, "SPRINT: " + scoring, None, None, note))
 
-    for i, r in enumerate(X.RECORDS, 1):
-        cat, rec, holder, val, detail, asof = r
-        cur.execute("""INSERT INTO records (id, category, record, holder, value, detail,
-            as_of) VALUES (?,?,?,?,?,?,?)""", (i, cat, rec, holder, val, detail, asof))
+    # `records` is no longer loaded here: it is DERIVED in stage 31, after the
+    # career figures it is computed from exist. See derive_records().
 
     for i, r in enumerate(X.ERAS, 1):
         cur.execute("""INSERT INTO eras (id, from_year, to_year, era_name, summary,
@@ -2115,7 +2114,36 @@ def _stage_30_derived_win_totals(b):
 
 def _stage_31_figures_derivable_from_the_race_records(b):
     """figures derivable from the race records"""
-    # --- figures derivable from the race records
+    cur = b.cur
+
+    # --- the records table, derived (PD-03, DA-19)
+    # Thirty rows were authored here from general knowledge, at 'medium',
+    # with twenty-four spellings of as_of, and nothing in verify.py read them.
+    # The page said Hamilton had 105 wins while drivers.wins, two tables over,
+    # said 106. Each row is now a query over the tables the site's leaderboards
+    # read - drivers.wins, seasons, race_entries, v_standings_final - and runs
+    # here, after stage 30 has filled the derived career columns. as_of is the
+    # last completed race the database holds, read off `races`, so a typed date
+    # can never go stale; every row carries the tier of the race records it is
+    # computed from, because a derivation cannot outrank its inputs.
+    as_of = cur.execute(
+        "SELECT MAX(date_iso) FROM races WHERE status = 'completed'").fetchone()[0]
+    if not as_of:
+        raise SystemExit("records: no completed race has a date; as_of cannot be derived")
+    rows = derive_records(cur)
+    for i, r in enumerate(rows, 1):
+        cur.execute("""INSERT INTO records (id, key, category, record, holder,
+            holder_table, holder_id, value, value_num, unit, detail, as_of, confidence)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'reference')""",
+            (i, r["key"], r["category"], r["record"], r["holder"], r["holder_table"],
+             r["holder_id"], r["value"], r["value_num"], r["unit"], r["detail"], as_of))
+    # Every holder_id must be a row in the table it names, now, not in verify -
+    # a record that points at nothing is a build defect, not a data finding.
+    for r in cur.execute("""SELECT key, holder_table, holder_id FROM records
+                            WHERE holder_id IS NOT NULL""").fetchall():
+        if not cur.execute(f"SELECT 1 FROM {r[1]} WHERE id = ?", (r[2],)).fetchone():
+            raise SystemExit(f"records: {r[0]} names {r[1]}.{r[2]}, which does not exist")
+    print(f"  records: {len(rows)} derived, as of {as_of}")
 
 
 def _stage_32_link_race_entries_to_the_chassis(b):
@@ -3001,6 +3029,505 @@ def coverage_note(cur):
         f"Chassis specifications are thin for the modern era because teams do not "
         f"publish them. Every disagreement between sources is in discrepancies."
     )
+
+
+# An entry counts as a start unless the source's result says it never did.
+STARTED = ("COALESCE(e.position_text, '') NOT IN ('DNQ', 'DNPQ', 'DNS', 'DNP', 'EX')")
+STARTED_RULE = ("An entry counts as a start unless its result is DNQ, DNPQ, DNS, DNP "
+                "or EX - did not qualify, pre-qualify, start or practise, or excluded "
+                "before the start - so a pit-lane start counts and so does a "
+                "retirement on the first lap.")
+
+
+def _age(born, on):
+    """Whole years and remaining days between two ISO dates, by the calendar."""
+    b, d = date.fromisoformat(born), date.fromisoformat(on)
+    years = d.year - b.year - ((d.month, d.day) < (b.month, b.day))
+    try:
+        anniversary = b.replace(year=b.year + years)
+    except ValueError:            # born on 29 February
+        anniversary = b.replace(year=b.year + years, day=28)
+    return years, (d - anniversary).days
+
+
+def _age_text(born, on):
+    y, d = _age(born, on)
+    return f"{y} years, {d} day{'s' if d != 1 else ''}"
+
+
+def _ordinal(n):
+    return f"{n}{'th' if 10 <= n % 100 <= 20 else {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')}"
+
+
+def _plural(n, word):
+    return f"{n} {word}{'' if n == 1 else 's'}"
+
+
+def _num(x):
+    """A figure for display: 860.0 -> '860', 71.5 -> '71.5', 25.579 -> '25.579'."""
+    if isinstance(x, float) and x.is_integer():
+        x = int(x)
+    return f"{x:,}" if isinstance(x, int) else f"{x:g}"
+
+
+def _leaders(rows, biggest=True):
+    """Every row sharing the best value; rows are (value, ...) tuples."""
+    if not rows:
+        return []
+    best = max(r[0] for r in rows) if biggest else min(r[0] for r in rows)
+    return [r for r in rows if r[0] == best]
+
+
+def _rest(rows, leaders, limit=3):
+    """The rows after the leaders, for the detail's 'Next:'."""
+    return [r for r in rows if r not in leaders][:limit]
+
+
+def _also(rows, leaders, name_index, limit=3):
+    """'Next: X on 91, Y on 71' - the rows after the leaders, for the detail."""
+    seen = {r[name_index] for r in leaders}
+    rest = [r for r in rows if r[name_index] not in seen][:limit]
+    return ", ".join(f"{r[name_index]} on {_num(r[0])}" for r in rest)
+
+
+def derive_records(cur):
+    """The rows of `records`, each one a query over the tables the site's
+    leaderboards read, so the two cannot disagree.
+
+    Every record here is one SQL query, or a short walk over one, with a stable
+    `key`. The rule for each is in its `detail`, including what was excluded
+    and why, so a reader can dispute the definition rather than the arithmetic.
+    A tie holds every holder; one is never picked. What the database CANNOT
+    derive - the youngest champion needs the clinching round, the closest
+    finish needs race times it does not hold - is not here, and is declared in
+    known_gaps rather than typed in from memory.
+
+    Returns the rows in the order they are numbered, as dicts."""
+    q = lambda sql, *a: cur.execute(sql, a).fetchall()   # noqa: E731
+    out = []
+
+    def add(key, category, record, holders, table, value_num, unit, value, detail):
+        # holders: [(name, id)], every holder of a tie, never one picked
+        names = ", ".join(h[0] for h in holders)
+        out.append(dict(key=key, category=category, record=record, holder=names,
+                        holder_table=table,
+                        holder_id=str(holders[0][1]) if len(holders) == 1 else None,
+                        value_num=value_num, unit=unit, value=value, detail=detail))
+
+    lo, hi = q("SELECT MIN(year), MAX(year) FROM seasons")[0]
+    completed = q("SELECT COUNT(*) FROM races WHERE status = 'completed'")[0][0]
+    decided = q("SELECT COUNT(*) FROM seasons WHERE drivers_champion IS NOT NULL")[0][0]
+    race_name = lambda year, name: f"{year} {name}"                       # noqa: E731
+
+    # ------------------------------------------------------------ drivers
+    rows = q("""SELECT COUNT(*) n, d.full_name, d.id,
+                       GROUP_CONCAT(s.year, ', ') yrs
+                  FROM seasons s JOIN drivers d ON d.id = s.drivers_champion
+                 GROUP BY d.id ORDER BY n DESC, d.full_name""")
+    lead = _leaders(rows)
+    add("most-drivers-titles", "drivers", "Most drivers' championships",
+        [(r[1], r[2]) for r in lead], "drivers", lead[0][0], "titles",
+        _num(lead[0][0]) + (" each" if len(lead) > 1 else ""),
+        f"seasons.drivers_champion counted per driver over the {decided} decided "
+        f"championships, {lo}-{q('SELECT MAX(year) FROM seasons WHERE drivers_champion IS NOT NULL')[0][0]}. "
+        + "; ".join(f"{r[1]}: {r[3]}" for r in lead)
+        + (f". Next: {_also(rows, lead, 1)}." if _also(rows, lead, 1) else "."))
+
+    for key, col, record, unit, rule in (
+        ("most-wins", "wins", "Most Grand Prix wins", "wins",
+         "drivers.wins, which the build counts as the driver's race_entries rows with "
+         "finish_position = 1, so a shared drive counts for both drivers"),
+        ("most-poles", "poles", "Most pole positions", "poles",
+         "drivers.poles, the count of race_entries rows with pole = 1: the driver the "
+         "season record credits with pole, not always the car at grid 1"),
+        ("most-podiums", "podiums", "Most podium finishes", "podiums",
+         "drivers.podiums, the count of distinct races in which the driver was "
+         "classified first, second or third"),
+        ("most-fastest-laps", "fastest_laps", "Most fastest laps", "fastest laps",
+         "drivers.fastest_laps, the count of race_entries rows with fastest_lap = 1; "
+         "a fastest lap shared between drivers counts for each of them"),
+    ):
+        rows = q(f"SELECT {col}, full_name, id FROM drivers WHERE {col} IS NOT NULL "
+                 f"ORDER BY {col} DESC, full_name")
+        lead = _leaders(rows)
+        add(key, "drivers", record, [(r[1], r[2]) for r in lead], "drivers",
+            lead[0][0], unit, _num(lead[0][0]) + (" each" if len(lead) > 1 else ""),
+            f"{rule}. verify.py holds the column equal to the race records for every "
+            f"driver. Next: {_also(rows, lead, 1)}.")
+
+    rows = q("""SELECT COUNT(*) n, d.full_name, d.id
+                  FROM race_entries e JOIN drivers d ON d.id = e.driver_id
+                 GROUP BY d.id ORDER BY n DESC, d.full_name""")
+    lead = _leaders(rows)
+    add("most-race-entries", "drivers", "Most championship race entries",
+        [(r[1], r[2]) for r in lead], "drivers", lead[0][0], "entries",
+        _num(lead[0][0]) + (" each" if len(lead) > 1 else ""),
+        "One row per driver per championship race in race_entries, including entries "
+        "that did not qualify, pre-qualify or start. Entries, not starts: drivers.starts "
+        "is held only where formula1.com published it and is not derived here. "
+        f"Next: {_also(rows, lead, 1)}.")
+
+    FLOOR = 30
+    rows = q("""SELECT ROUND(100.0 * d.wins / COUNT(*), 2) pct, d.full_name, d.id,
+                       d.wins, COUNT(*) n
+                  FROM race_entries e JOIN drivers d ON d.id = e.driver_id
+                 GROUP BY d.id HAVING n >= ? ORDER BY pct DESC, d.full_name""", FLOOR)
+    lead = _leaders(rows)
+    add("highest-win-rate", "drivers", "Highest win rate", [(r[1], r[2]) for r in lead],
+        "drivers", lead[0][0], "per cent",
+        f"{lead[0][0]:.2f}% ({_num(lead[0][3])} wins from {_num(lead[0][4])} entries)",
+        f"drivers.wins over the driver's race_entries rows, for drivers with at least "
+        f"{FLOOR} entries. The floor is a choice, stated so it can be argued with: below "
+        f"it a handful of races decides the figure. Next: {_also(rows, lead, 1)}.")
+
+    races_in = dict(q("SELECT year, COUNT(*) FROM races WHERE status = 'completed' GROUP BY year"))
+    rows = q("""SELECT COUNT(*) n, d.full_name, d.id, r.year
+                  FROM race_entries e JOIN races r ON r.id = e.race_id
+                  JOIN drivers d ON d.id = e.driver_id
+                 WHERE e.finish_position = 1
+                 GROUP BY r.year, d.id ORDER BY n DESC, r.year, d.full_name""")
+    lead = _leaders(rows)
+    add("most-wins-in-a-season", "drivers", "Most wins in a season",
+        [(r[1], r[2]) for r in lead], "drivers", lead[0][0], "wins",
+        (f"{_num(lead[0][0])} of the {races_in[lead[0][3]]} races in {lead[0][3]}"
+         if len(lead) == 1 else f"{_num(lead[0][0])} each"),
+        "race_entries rows with finish_position = 1 per driver per season. "
+        + "; ".join(f"{r[1]}, {r[3]}: {r[0]} of {races_in[r[3]]}" for r in lead)
+        + f". Next: " + ", ".join(f"{r[1]} {r[0]} ({r[3]})" for r in _rest(rows, lead)) + ".")
+
+    # consecutive wins: every completed race in date order
+    winners = {}
+    for rid, did in q("SELECT race_id, driver_id FROM race_entries WHERE finish_position = 1"):
+        winners.setdefault(rid, set()).add(did)
+    streak, best, holders = {}, 0, []
+    for rid, year, name in q("""SELECT id, year, name_used FROM races WHERE status = 'completed'
+                                ORDER BY date_iso, year, round"""):
+        won = winners.get(rid, set())
+        for did in list(streak):
+            if did not in won:
+                del streak[did]
+        for did in won:
+            n, start = streak.get(did, (0, (year, name)))
+            streak[did] = (n + 1, start)
+            if n + 1 > best:
+                best, holders = n + 1, []
+            if n + 1 == best:
+                holders.append((did, start, (year, name)))
+    names = dict(q("SELECT id, full_name FROM drivers"))
+    add("most-consecutive-wins", "drivers", "Most consecutive wins",
+        [(names[h[0]], h[0]) for h in holders], "drivers", best, "wins",
+        (f"{best}, {race_name(*holders[0][1])} to {race_name(*holders[0][2])}"
+         if len(holders) == 1 else f"{best} each"),
+        "Every completed championship race in date order (races.date_iso, then round), "
+        f"the Indianapolis 500 of 1950-60 included. A streak carries over a winter and "
+        f"ends at the first race the driver did not win, whether or not they entered it. "
+        + "; ".join(f"{names[h[0]]}: {race_name(*h[1])} to {race_name(*h[2])}" for h in holders)
+        + ".")
+
+    rows = q("""WITH first_win AS (
+                  SELECT e.driver_id, MIN(r.date_iso) d
+                    FROM race_entries e JOIN races r ON r.id = e.race_id
+                   WHERE e.finish_position = 1 GROUP BY e.driver_id)
+                SELECT (SELECT COUNT(*) FROM race_entries e2 JOIN races r2 ON r2.id = e2.race_id
+                         WHERE e2.driver_id = f.driver_id AND r2.date_iso < f.d) n,
+                       d.full_name, d.id, r.year, r.name_used
+                  FROM first_win f JOIN drivers d ON d.id = f.driver_id
+                  JOIN races r ON r.date_iso = f.d
+                  JOIN race_entries w ON w.race_id = r.id AND w.driver_id = f.driver_id
+                                     AND w.finish_position = 1
+                 ORDER BY n DESC, d.full_name""")
+    lead = _leaders(rows)
+    add("most-entries-before-first-win", "drivers", "Most race entries before a first win",
+        [(r[1], r[2]) for r in lead], "drivers", lead[0][0], "entries",
+        (f"{_num(lead[0][0])}, before the {race_name(lead[0][3], lead[0][4])}"
+         if len(lead) == 1 else f"{_num(lead[0][0])} each"),
+        "For every driver with a win: the race_entries rows dated before the driver's "
+        "first finish_position = 1, failures to qualify or start included. "
+        f"Next: {_also(rows, lead, 1)}.")
+
+    no_born = q("SELECT COUNT(*) FROM drivers WHERE born IS NULL")[0][0]
+    for key, record, where, biggest, verb in (
+        ("youngest-winner", "Youngest race winner", "e.finish_position = 1", False, "won"),
+        ("oldest-winner", "Oldest race winner", "e.finish_position = 1", True, "won"),
+        ("youngest-starter", "Youngest driver to start a race", STARTED, False, "started"),
+        ("oldest-starter", "Oldest driver to start a race", STARTED, True, "started"),
+    ):
+        rows = q(f"""SELECT CAST(julianday(r.date_iso) - julianday(d.born) AS INTEGER) days,
+                            d.full_name, d.id, r.year, r.name_used, d.born, r.date_iso
+                       FROM race_entries e JOIN races r ON r.id = e.race_id
+                       JOIN drivers d ON d.id = e.driver_id
+                      WHERE {where} AND d.born IS NOT NULL AND r.date_iso IS NOT NULL
+                      ORDER BY days {'DESC' if biggest else 'ASC'}, d.full_name""")
+        lead = _leaders(rows, biggest)
+        excluded = q(f"""SELECT COUNT(DISTINCT e.driver_id) FROM race_entries e
+                          JOIN drivers d ON d.id = e.driver_id
+                         WHERE {where} AND d.born IS NULL""")[0][0]
+        add(key, "drivers", record, [(r[1], r[2]) for r in lead], "drivers",
+            lead[0][0], "days",
+            (f"{_age_text(lead[0][5], lead[0][6])}, {race_name(lead[0][3], lead[0][4])}"
+             if len(lead) == 1 else f"{_num(lead[0][0])} days each"),
+            f"drivers.born against races.date_iso for every entry that {verb}. "
+            + (STARTED_RULE + " " if where == STARTED else "")
+            + f"value_num is the age in days. {_plural(excluded, 'such driver')} "
+              f"{'has' if excluded == 1 else 'have'} no birth date held and cannot be placed. "
+            + "; ".join(f"{r[1]}: born {r[5]}, {verb} {r[6]}" for r in lead) + ".")
+
+    rows = q("""SELECT s.year, d.full_name, d.id, d.died,
+                       (SELECT MAX(date_iso) FROM races r
+                         WHERE r.year = s.year AND r.status = 'completed') last_race
+                  FROM seasons s JOIN drivers d ON d.id = s.drivers_champion
+                 WHERE d.died IS NOT NULL
+                   AND d.died < (SELECT MAX(date_iso) FROM races r
+                                  WHERE r.year = s.year AND r.status = 'completed')
+                 ORDER BY s.year""")
+    add("posthumous-champion", "drivers",
+        "Champion crowned posthumously" + ("s" if len(rows) > 1 else ""),
+        [(r[1], r[2]) for r in rows], "drivers", len(rows), "champions",
+        f"{len(rows)} ({', '.join(str(r[0]) for r in rows)})",
+        "seasons.drivers_champion whose drivers.died falls before the date of the last "
+        f"completed race of the title season. {len(rows)} in {decided} championships: "
+        + "; ".join(f"{r[1]} died {r[3]}, the {r[0]} season ended {r[4]}" for r in rows) + ".")
+
+    # ------------------------------------------------------- constructors
+    rows = q("""SELECT COUNT(*) n, c.name, c.id, GROUP_CONCAT(s.year, ', ') yrs
+                  FROM seasons s JOIN constructors c ON c.id = s.constructors_champion
+                 GROUP BY c.id ORDER BY n DESC, c.name""")
+    lead = _leaders(rows)
+    first_cc = q("SELECT MIN(year) FROM seasons WHERE constructors_champion IS NOT NULL")[0][0]
+    add("most-constructors-titles", "constructors", "Most constructors' championships",
+        [(r[1], r[2]) for r in lead], "constructors", lead[0][0], "titles",
+        _num(lead[0][0]) + (" each" if len(lead) > 1 else ""),
+        f"seasons.constructors_champion counted per constructor since the title began "
+        f"in {first_cc}. " + "; ".join(f"{r[1]}: {r[3]}" for r in lead)
+        + f". Next: {_also(rows, lead, 1)}.")
+
+    run, best, holders = None, 0, []
+    for year, cid, name in q("""SELECT s.year, c.id, c.name FROM seasons s
+                                JOIN constructors c ON c.id = s.constructors_champion
+                                ORDER BY s.year"""):
+        if run and run[0] == cid and run[2] == year - 1:
+            run = (cid, run[1], year, name)
+        else:
+            run = (cid, year, year, name)
+        n = run[2] - run[1] + 1
+        # A run is appended the year it reaches the record length, and the
+        # list is emptied the year any run passes it, so a run appears once.
+        if n > best:
+            best, holders = n, []
+        if n == best:
+            holders.append(run)
+    add("most-consecutive-constructors-titles", "constructors",
+        "Most consecutive constructors' championships",
+        [(h[3], h[0]) for h in holders], "constructors", best, "titles",
+        (f"{best}, {holders[0][1]}-{holders[0][2]}" if len(holders) == 1 else f"{best} each"),
+        "seasons.constructors_champion in year order; a run is unbroken while the same "
+        "constructor id wins in consecutive seasons. "
+        + "; ".join(f"{h[3]}: {h[1]}-{h[2]}" for h in holders) + ".")
+
+    rows = q("SELECT wins, name, id FROM constructors WHERE wins IS NOT NULL ORDER BY wins DESC, name")
+    lead = _leaders(rows)
+    add("most-constructor-wins", "constructors", "Most Grand Prix wins by a constructor",
+        [(r[1], r[2]) for r in lead], "constructors", lead[0][0], "wins",
+        _num(lead[0][0]) + (" each" if len(lead) > 1 else ""),
+        "constructors.wins: distinct races with a finish_position = 1 entry under the "
+        "constructor name raced under. Lineage is not merged, so a team's wins under an "
+        f"earlier name stay with that name. Next: {_also(rows, lead, 1)}.")
+
+    rows = q("""SELECT COUNT(DISTINCT e.race_id) n, c.name, c.id, r.year
+                  FROM race_entries e JOIN races r ON r.id = e.race_id
+                  JOIN constructors c ON c.id = e.constructor_id
+                 WHERE e.finish_position = 1
+                 GROUP BY r.year, c.id ORDER BY n DESC, r.year, c.name""")
+    lead = _leaders(rows)
+    add("most-constructor-wins-in-a-season", "constructors", "Most wins in a season by a constructor",
+        [(r[1], r[2]) for r in lead], "constructors", lead[0][0], "wins",
+        (f"{_num(lead[0][0])} of the {races_in[lead[0][3]]} races in {lead[0][3]}"
+         if len(lead) == 1 else f"{_num(lead[0][0])} each"),
+        "Distinct races with a finish_position = 1 entry per constructor per season, so a "
+        "one-two counts once. "
+        + "; ".join(f"{r[1]}, {r[3]}: {r[0]} of {races_in[r[3]]}" for r in lead)
+        + ". Next: " + ", ".join(f"{r[1]} {r[0]} ({r[3]})" for r in _rest(rows, lead)) + ".")
+
+    rows = q("""SELECT ROUND(100.0 * COUNT(DISTINCT e.race_id) /
+                             (SELECT COUNT(*) FROM races x WHERE x.year = r.year
+                                 AND x.status = 'completed'), 2) pct,
+                       c.name, c.id, r.year, COUNT(DISTINCT e.race_id) w
+                  FROM race_entries e JOIN races r ON r.id = e.race_id
+                  JOIN constructors c ON c.id = e.constructor_id
+                  JOIN seasons s ON s.year = r.year
+                 WHERE e.finish_position = 1 AND s.drivers_champion IS NOT NULL
+                 GROUP BY r.year, c.id ORDER BY pct DESC, r.year, c.name""")
+    lead = _leaders(rows)
+    add("highest-season-win-share-constructor", "constructors",
+        "Highest share of a season's races won by a constructor",
+        [(r[1], r[2]) for r in lead], "constructors", lead[0][0], "per cent",
+        (f"{lead[0][0]:.2f}% ({lead[0][4]} of {races_in[lead[0][3]]}, {lead[0][3]})"
+         if len(lead) == 1 else f"{lead[0][0]:.2f}% each"),
+        "Distinct races won by the constructor over the completed races of the season, "
+        "the Indianapolis 500 of 1950-60 counted as a race; seasons still in progress are "
+        "excluded. Next: "
+        + ", ".join(f"{r[1]} {r[0]:.2f}% ({r[4]} of {races_in[r[3]]}, {r[3]})"
+                    for r in _rest(rows, lead)) + ".")
+
+    rows = q("""SELECT MAX(points) pts, entity, entity_id, year FROM v_standings_final
+                 WHERE table_type = 'constructors' AND points IS NOT NULL
+                 GROUP BY year, entity_id ORDER BY pts DESC, year""")
+    lead = _leaders(rows)
+    add("most-constructor-points-in-a-season", "constructors",
+        "Most points in a season by a constructor",
+        [(r[1], r[2]) for r in lead], "constructors", lead[0][0], "points",
+        (f"{_num(lead[0][0])}, {lead[0][3]}" if len(lead) == 1 else f"{_num(lead[0][0])} each"),
+        "The final constructors' table of every season (v_standings_final). Points systems "
+        "differ across the years, so this is the nominal figure the official table "
+        f"shows, not a like-for-like measure. Next: "
+        + ", ".join(f"{r[1]} {_num(r[0])} ({r[3]})" for r in _rest(rows, lead)) + ".")
+
+    rows = q("""SELECT COUNT(DISTINCT e.race_id) n, c.name, c.id,
+                       MIN(r.year) fy, MAX(r.year) ly
+                  FROM race_entries e JOIN races r ON r.id = e.race_id
+                  JOIN constructors c ON c.id = e.constructor_id
+                 GROUP BY c.id
+                HAVING SUM(CASE WHEN e.finish_position = 1 THEN 1 ELSE 0 END) = 0
+                 ORDER BY n DESC, c.name""")
+    lead = _leaders(rows)
+    add("most-races-without-a-win-constructor", "constructors",
+        "Most Grands Prix entered without a win by a constructor",
+        [(r[1], r[2]) for r in lead], "constructors", lead[0][0], "races",
+        (f"{_num(lead[0][0])}, {lead[0][3]}-{lead[0][4]}" if len(lead) == 1
+         else f"{_num(lead[0][0])} each"),
+        "Distinct races with a race_entries row under the constructor id and no "
+        "finish_position = 1 under it. Counted under the constructor name raced under, as "
+        "constructors.wins is: a name change starts a new count, and a win under an "
+        f"earlier or later name of the same team does not end this one. Next: "
+        + ", ".join(f"{r[1]} {r[0]} ({r[3]}-{r[4]})" for r in _rest(rows, lead)) + ".")
+
+    rows = q("""WITH debut AS (
+                  SELECT e.constructor_id, MIN(r.date_iso) d
+                    FROM race_entries e JOIN races r ON r.id = e.race_id
+                   WHERE e.constructor_id IS NOT NULL GROUP BY e.constructor_id)
+                SELECT r.year, c.name, c.id, r.name_used
+                  FROM debut f JOIN races r ON r.date_iso = f.d
+                  JOIN race_entries e ON e.race_id = r.id AND e.constructor_id = f.constructor_id
+                                     AND e.finish_position = 1
+                  JOIN constructors c ON c.id = f.constructor_id
+                 GROUP BY c.id ORDER BY r.date_iso""")
+    first_race = q("SELECT MIN(date_iso) FROM races WHERE status = 'completed'")[0][0]
+    no_cons = q("SELECT COUNT(*) FROM race_entries WHERE constructor_id IS NULL")[0][0]
+    add("won-on-debut-constructor", "constructors", "Won on championship debut",
+        [(r[1], r[2]) for r in rows], "constructors", len(rows), "constructors",
+        f"{len(rows)} constructors",
+        "A constructor id whose earliest race_entries row, by races.date_iso, is in a race "
+        "it won. " + "; ".join(f"{r[1]}: {race_name(r[0], r[3])}" for r in rows)
+        + f". The {race_name(*q('SELECT year, name_used FROM races WHERE date_iso = ?', first_race)[0])} "
+          f"was the championship's first race, at which every constructor debuted. "
+          f"{no_cons:,} entries carry no constructor id, most of them Indianapolis 500 "
+          f"cars, and cannot count.")
+
+    # -------------------------------------------------------------- races
+    rows = q("""SELECT a.points - b.points m, a.entity, a.entity_id, a.year,
+                       a.points, b.entity, b.points
+                  FROM v_standings_final a
+                  JOIN v_standings_final b ON b.year = a.year AND b.table_type = 'drivers'
+                                          AND b.position = 2
+                  JOIN seasons s ON s.year = a.year
+                 WHERE a.table_type = 'drivers' AND a.position = 1
+                   AND s.drivers_champion IS NOT NULL
+                 ORDER BY m, a.year""")
+    lead = _leaders(rows, biggest=False)
+    add("closest-championship-margin", "races", "Closest drivers' championship margin",
+        [(r[1], r[2]) for r in lead], "drivers", lead[0][0], "points",
+        (f"{_num(lead[0][0])} point{'s' if lead[0][0] != 1 else ''}, {lead[0][3]}"
+         if len(lead) == 1 else f"{_num(lead[0][0])} points each"),
+        "First minus second in the final drivers' table of every decided season "
+        "(v_standings_final), with dropped scores as the official table applied them. "
+        + "; ".join(f"{r[3]}: {r[1]} {_num(r[4])}, {r[5]} {_num(r[6])}" for r in lead)
+        + ". Next: " + ", ".join(f"{r[3]} ({_num(r[0])}: {r[1]} over {r[5]})"
+                                  for r in _rest(rows, lead)) + ".")
+
+    rows = q("""SELECT CAST(SUBSTR(q.gap, 2) AS REAL) g, r.year || ' ' || r.name_used, r.id,
+                       (SELECT d.full_name FROM qualifying p JOIN drivers d ON d.id = p.driver_id
+                         WHERE p.race_id = r.id AND p.position = 1) p1,
+                       d2.full_name p2, r.year, r.name_used
+                  FROM qualifying q JOIN races r ON r.id = q.race_id
+                  JOIN drivers d2 ON d2.id = q.driver_id
+                 WHERE q.position = 2 AND q.gap GLOB '+[0-9]*.[0-9]*'
+                   AND CAST(SUBSTR(q.gap, 2) AS REAL) > 0
+                 ORDER BY g, r.date_iso""")
+    lead = _leaders(rows, biggest=False)
+    held = q("SELECT COUNT(*) FROM qualifying WHERE position = 2 AND gap GLOB '+[0-9]*.[0-9]*'")[0][0]
+    ties = q("""SELECT COUNT(*) FROM qualifying WHERE position = 2
+                  AND gap GLOB '+[0-9]*.[0-9]*' AND CAST(SUBSTR(gap, 2) AS REAL) = 0""")[0][0]
+    add("closest-pole-margin", "races", "Closest pole position margin",
+        [(r[1], r[2]) for r in lead], "races", lead[0][0], "seconds",
+        f"{lead[0][0]:.3f} s" + (" each" if len(lead) > 1 else ""),
+        f"The gap recorded against second place on the qualifying sheet (qualifying.gap), "
+        f"held for {held:,} of the {completed:,} completed races and compared at the "
+        f"precision the sheet published. {ties} sheets record an identical time for first "
+        f"and second - a margin of zero at that precision - and are set aside as ties. "
+        + "; ".join(f"{race_name(r[5], r[6])}: {r[3]} over {r[4]}" for r in lead) + ".")
+
+    rows = q("""SELECT MAX(u.len) km, u.name, u.id FROM (
+                  SELECT c.length_km len, c.name, c.id FROM circuits c
+                  UNION ALL
+                  SELECT l.length_km, c.name, c.id FROM circuit_layouts l
+                    JOIN circuits c ON c.id = l.circuit_id) u
+                 WHERE u.len IS NOT NULL
+                   AND EXISTS (SELECT 1 FROM races r WHERE r.circuit_id = u.id
+                                  AND r.status = 'completed')
+                 GROUP BY u.id ORDER BY km DESC, u.name""")
+    lead = _leaders(rows)
+    add("longest-circuit", "races", "Longest circuit used for a championship race",
+        [(r[1], r[2]) for r in lead], "circuits", lead[0][0], "km",
+        f"{_num(lead[0][0])} km" + (" each" if len(lead) > 1 else ""),
+        "The greatest length_km held for a circuit that has staged a completed championship "
+        "race, over circuits (the current figures) and circuit_layouts (historic "
+        f"configurations, where held). Next: {_also(rows, lead, 1)}.")
+
+    rows = q("""SELECT e.grid, d.full_name, d.id, r.year, r.name_used
+                  FROM race_entries e JOIN races r ON r.id = e.race_id
+                  JOIN drivers d ON d.id = e.driver_id
+                 WHERE e.finish_position = 1 AND e.grid IS NOT NULL
+                 ORDER BY e.grid DESC, r.date_iso""")
+    lead = _leaders(rows)
+    pl = q("""SELECT COUNT(*) FROM race_entries WHERE finish_position = 1
+                AND grid IS NULL AND grid_text = 'PL'""")[0][0]
+    nogrid = q("SELECT COUNT(*) FROM race_entries WHERE finish_position = 1 AND grid IS NULL")[0][0]
+    add("lowest-grid-position-for-a-winner", "races", "Lowest grid position for a race winner",
+        [(r[1], r[2]) for r in lead], "drivers", lead[0][0], "grid position",
+        (f"{_ordinal(lead[0][0])}, {race_name(lead[0][3], lead[0][4])}" if len(lead) == 1
+         else f"{_ordinal(lead[0][0])} each"),
+        "race_entries.grid of every finish_position = 1 entry. A pit-lane start "
+        "(grid_text 'PL') has no grid slot and could not place; "
+        + ("every winning entry has a grid slot held. " if nogrid == 0 else
+           f"{_plural(pl, 'winner')} started from the pit lane and "
+           f"{nogrid} winning {'entry lacks' if nogrid == 1 else 'entries lack'} a grid "
+           f"slot, so cannot place. ")
+        + "; ".join(f"{r[1]}: {race_name(r[3], r[4])}" for r in lead) + ".")
+
+    rows = q("""SELECT SUM(e.classified = 1) n, r.year || ' ' || r.name_used, r.id
+                  FROM race_entries e JOIN races r ON r.id = e.race_id
+                 WHERE r.status = 'completed'
+                 GROUP BY r.id ORDER BY n, r.date_iso""")
+    lead = _leaders(rows, biggest=False)
+    add("fewest-classified-finishers", "races", "Fewest classified finishers in a race",
+        [(r[1], r[2]) for r in lead], "races", lead[0][0], "cars",
+        f"{lead[0][0]} classified" + (" each" if len(lead) > 1 else ""),
+        "race_entries.classified = 1 counted per completed race. A car still running at "
+        "the flag but too far behind to be classified (NC) is not counted. "
+        f"Next: {_also(rows, lead, 1)}.")
+
+    rows = q(f"""SELECT SUM({STARTED}) n, r.year || ' ' || r.name_used, r.id
+                   FROM race_entries e JOIN races r ON r.id = e.race_id
+                  WHERE r.status = 'completed'
+                  GROUP BY r.id ORDER BY n, r.date_iso""")
+    lead = _leaders(rows, biggest=False)
+    add("fewest-starters", "races", "Fewest starters in a race",
+        [(r[1], r[2]) for r in lead], "races", lead[0][0], "cars",
+        f"{lead[0][0]} starters" + (" each" if len(lead) > 1 else ""),
+        f"{STARTED_RULE} Counted per completed race, {lo}-{hi}, not only the modern era. "
+        f"Next: {_also(rows, lead, 1)}.")
+
+    return out
 
 
 def pin_sqlite_header(path):

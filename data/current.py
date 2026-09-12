@@ -493,9 +493,17 @@ TABLE_PROVENANCE = [
      "notes are written here, and those are what the tier describes."),
     ("personnel", 18, 0, "The `significance` field is a judgement, not a fact."),
     ("engine_manufacturers", 18, 0, None),
-    ("records", 18, 0,
-     "Nothing in verify.py reads this table. The career records it duplicates "
-     "ARE checked, on `drivers`."),
+    # Derived, not authored: since v2.23 every row is a query in build.py
+    # (derive_records) over race_entries, races, seasons, drivers, circuits and
+    # the final standings. The classification those tables hold is F1DB's,
+    # which is why the table resolves here; the pole and fastest-lap credits
+    # come from the Wikipedia season tables (8) and the champions from
+    # `seasons`, and each row's `detail` names the tables it was read from.
+    # verify.py recomputes a sample by another route and holds as_of to the
+    # last completed race.
+    ("records", 10, 0,
+     "Derived in build.py from the race records; each row's detail names its "
+     "inputs and rule. verify.py recomputes a sample by a different query."),
     # Sourced, and simply never given the column.
     ("circuit_layouts", 17, 0, "Wikipedia per-circuit articles; see ATTRIBUTION.md."),
     ("season_entries", 3, 0, "The 2026 entry list, from formula1.com."),
