@@ -4,7 +4,7 @@ import { Confidence, Fields, Note, Onward, Page, Section, Stats, Stepper } from 
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import Disagreement, { RACE_DISAGREEMENTS } from '../components/Disagreement.jsx'
-import { RACE_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE, clock, nextSession, readerZone, until } from '../queries/sessions.js'
+import { RACE_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE, clock, nextSession, readerZone, until, yourTimeColumn } from '../queries/sessions.js'
 import { rows, useQueries } from '../data/useQuery.js'
 import { classificationOrder, finished, missing, number, points as fmtPoints, result } from '../lib/format.js'
 
@@ -122,7 +122,9 @@ function RaceBody({ race, data, year, round }) {
   const neighbours = data.neighbours.rows[0] ?? {}
   const sessions = rows(data, 'sessions')
   const zone = readerZone()
-  const upcoming = nextSession(sessions)
+  // One reading of the clock for both the choice of session and the countdown.
+  const now = Date.now()
+  const upcoming = nextSession(sessions, now)
 
   /**
    * The classification, in the order a classification is printed: finishers by
@@ -250,19 +252,14 @@ function RaceBody({ race, data, year, round }) {
             rows={sessions}
             rowKey={(row) => row.kind}
             sortable={false}
-            columns={[
-              ...SESSION_COLUMNS,
-              ...(zone
-                ? [{ key: 'your_time', label: `Your time (${zone})`, text: (_, row) => clock(row.start_utc, zone) }]
-                : []),
-            ]}
+            columns={[...SESSION_COLUMNS, ...(zone ? [yourTimeColumn(zone)] : [])]}
             footer={TIMETABLE_NOTE}
           />
-          <p className="note" style={{ marginTop: 10 }}>
-            {upcoming
-              ? `Next: ${upcoming.name}, ${clock(upcoming.start_utc, upcoming.zone)} at the circuit — ${until(upcoming.start_utc)}.`
-              : 'Every session of this weekend has started.'}
-          </p>
+          {upcoming && (
+            <p className="note" style={{ marginTop: 10 }}>
+              Next: {upcoming.name}, {clock(upcoming.start_utc, upcoming.zone)} at the circuit — {until(upcoming.start_utc, now)}.
+            </p>
+          )}
         </Section>
       )}
 

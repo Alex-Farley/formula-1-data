@@ -343,6 +343,9 @@ describe('the weekend timetable', () => {
     assert.equal(until('2026-11-19T12:40Z', before), 'in 40 minutes')
     assert.equal(until('2026-11-22T04:00Z', Date.parse('2026-09-12T12:00Z')), 'in 71 days')
     assert.equal(until('2026-11-19T11:00Z', before), null)
+    assert.equal(until('2026-11-19T12:00:20Z', before), 'in under a minute')
+    assert.equal(until('2026-11-19T13:29:45Z', before), 'in 90 minutes')
+    assert.equal(until('2026-11-19T13:31:00Z', before), 'in 2 hours')
   })
 })
 

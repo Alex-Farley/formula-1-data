@@ -1086,7 +1086,8 @@ try {
     await go(`/races/2026/${sprintRound}`, 'Grand Prix')
     await page.waitForSelector('#root main h2:has-text("Timetable")', { timeout: 20000 })
     const app = await page.$eval('#root main', (m) => m.textContent)
-    truthy(app.includes('Sprint qualifying') && app.includes('At the circuit') && app.includes('UTC'), `the app lists the ${n} sessions with the circuit clock and UTC`)
+    const shown = await page.$$eval('#root main .table-wrap', (nodes) => nodes.map((n) => Number(n.dataset.rows)))
+    truthy(shown.includes(n) && app.includes('Sprint qualifying') && app.includes('At the circuit') && app.includes('UTC'), `the app lists the ${n} sessions with the circuit clock and UTC`)
     const html = await (await fetch(`${BASE}/races/2026/${sprintRound}`)).text()
     truthy(html.includes('<h2>Timetable</h2>') && html.includes('Sprint qualifying') && html.includes('At the circuit'), 'the static page carries the same timetable')
     // The next-session line depends on the clock: asserted only while the

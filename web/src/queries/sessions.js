@@ -54,15 +54,24 @@ export const readerZone = () => {
 export const nextSession = (rows, now = Date.now()) =>
   rows.find((r) => new Date(r.start_utc).getTime() > now) ?? null
 
-/** "in 11 days", "in 3 hours", "in 40 minutes"; null once the start has passed. */
+/**
+ * "in 11 days", "in 3 hours", "in 40 minutes", "in under a minute"; null once
+ * the start has passed. Each unit is chosen before it is rounded, so the
+ * string never reads "in 0 minutes" or "in 1 hours".
+ */
 export const until = (startUtc, now = Date.now()) => {
   const ms = new Date(startUtc).getTime() - now
   if (ms <= 0) return null
-  const minutes = Math.round(ms / 60000)
-  if (minutes < 90) return `in ${minutes} minute${minutes === 1 ? '' : 's'}`
-  const hours = Math.round(ms / 3600000)
-  if (hours < 48) return `in ${hours} hours`
-  const days = Math.round(ms / 86400000)
+  if (ms < 60000) return 'in under a minute'
+  if (ms < 90 * 60000) {
+    const minutes = Math.round(ms / 60000)
+    return `in ${minutes} minute${minutes === 1 ? '' : 's'}`
+  }
+  if (ms < 48 * 3600000) {
+    const hours = Math.max(2, Math.round(ms / 3600000))
+    return `in ${hours} hours`
+  }
+  const days = Math.max(2, Math.round(ms / 86400000))
   return `in ${days} days`
 }
 
@@ -74,4 +83,11 @@ export const SESSION_COLUMNS = [
 ]
 
 export const TIMETABLE_NOTE =
-  "Start times as published on formula1.com's race page, shown on the circuit's clock and in UTC; a session's length and any change on the day are not held here."
+  "Start times on the circuit's clock and in UTC; a session's length and any change on the day are not held here."
+
+/** The reader's own clock, as a fourth column beside the shared three; the zone reads as words. */
+export const yourTimeColumn = (zone) => ({
+  key: 'your_time',
+  label: `Your time (${zone.replace(/_/g, ' ')})`,
+  text: (_, row) => clock(row.start_utc, zone),
+})

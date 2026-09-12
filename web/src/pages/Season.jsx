@@ -113,7 +113,8 @@ function SeasonBody({ year, season, data }) {
   const entrants = rows(data, 'entrants')
   const neighbours = data.neighbours.rows[0] ?? {}
   const grid = data.grid.rows[0] ?? null
-  const upcoming = nextSession(data.sessions.rows)
+  const now = Date.now()
+  const upcoming = nextSession(data.sessions.rows, now)
 
   const driversFinal = useMemo(() => final.filter((r) => r.table_type === 'drivers'), [final])
   const constructorsFinal = useMemo(() => final.filter((r) => r.table_type === 'constructors'), [final])
@@ -237,7 +238,7 @@ function SeasonBody({ year, season, data }) {
             Next session: {upcoming.name} for the{' '}
             <Link to={`/races/${year}/${upcoming.round}`}>{upcoming.name_used}</Link>,{' '}
             {clock(upcoming.start_utc, upcoming.zone)} at the circuit ({utc(upcoming.start_utc)} UTC) —{' '}
-            {until(upcoming.start_utc)}.
+            {until(upcoming.start_utc, now)}.
           </p>
         )}
         {grid && (
