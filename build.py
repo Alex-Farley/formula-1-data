@@ -1198,6 +1198,19 @@ def _stage_16_current_season(b):
              "verified", N.SOURCE_F1))
         race_key[(2026, c[0])] = rid
 
+    # The weekend timetable, keyed to the races just written (LV-02). Every
+    # session names its round, and a round with no race row is a typo here,
+    # not a session to store.
+    from data import sessions as SS
+    for rnd, kind, start_utc, zone in SS.SESSIONS_2026:
+        rid = race_key.get((2026, rnd))
+        if rid is None:
+            raise SystemExit(f"sessions: 2026 round {rnd} has no race row")
+        cur.execute("""INSERT INTO sessions (race_id, kind, name, start_utc, zone,
+            confidence, source) VALUES (?,?,?,?,?,?,?)""",
+            (rid, kind, SS.SESSION_NAMES[kind], start_utc, zone, "verified",
+             SS.SESSIONS_SOURCE.format(slug=SS.WEEKENDS_2026[rnd][0])))
+
     # A calendar row whose country field carries a parenthesis is a declared
     # oddity - "Bahrain (hosted at Sepang, Malaysia)" - and the page rendered
     # a Bahrain Grand Prix at a Malaysian circuit with no explanation, because

@@ -153,6 +153,9 @@ def main():
         "records": dump(con, "records", "category"),
         "glossary": dump(con, "glossary", "term"),
         "races": dump(con, "races", "year, round"),
+        # The current season's timetable (LV-02): starts in UTC with the
+        # circuit's zone, keyed to races by race_id.
+        "sessions": dump(con, "sessions", "race_id, start_utc"),
         "race_entries": dump(con, "race_entries", "race_id, id"),
         # A separate race with its own grid, classification and points, not a
         # session of the grand prix beside it — so its own array, ordered the

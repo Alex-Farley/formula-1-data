@@ -1499,6 +1499,57 @@ def the_driver_register():
           + "; no longer differing: " + (", ".join(sorted(_declared - _span)) or "none"))
 
 
+@section('THE WEEKEND TIMETABLE')
+def the_weekend_timetable():
+    """sessions: the current season's timetable against the calendar it hangs from."""
+    import datetime as _dt
+    import zoneinfo as _zi
+    rows = con.execute("""SELECT r.round, r.sprint, r.dates, s.kind, s.start_utc, s.zone
+        FROM sessions s JOIN races r ON r.id = s.race_id WHERE r.year = 2026
+        ORDER BY r.round, s.start_utc""").fetchall()
+    by_round = {}
+    for rnd, sprint, dates, kind, start, zone in rows:
+        by_round.setdefault(rnd, []).append((sprint, dates, kind, start, zone))
+    rounds = {r[0] for r in con.execute("SELECT round FROM races WHERE year = 2026")}
+    check("every 2026 round has a timetable", set(by_round) == rounds,
+          "missing: " + (", ".join(map(str, sorted(rounds - set(by_round)))) or "none"))
+    # The set of sessions is what the sprint flag says it is: a weekend that
+    # says sprint and has three practices, or the reverse, is a flag or a
+    # timetable copied from the wrong page.
+    SPRINT = {"fp1", "sprint_qualifying", "sprint", "qualifying", "race"}
+    PLAIN = {"fp1", "fp2", "fp3", "qualifying", "race"}
+    bad = [f"r{rnd}" for rnd, ss in by_round.items()
+           if {k for _, _, k, _, _ in ss} != (SPRINT if ss[0][0] else PLAIN)]
+    check("each weekend's sessions are the five its sprint flag implies", not bad, ", ".join(bad))
+    # In running order, and every start parses.
+    order = [f"r{rnd}" for rnd, ss in by_round.items()
+             if [k for _, _, k, _, _ in ss] != (["fp1", "sprint_qualifying", "sprint", "qualifying", "race"]
+                                                 if ss[0][0] else ["fp1", "fp2", "fp3", "qualifying", "race"])]
+    check("each weekend's sessions run in the order they are named", not order, ", ".join(order))
+    # The race's local day is the last day of the weekend the calendar states,
+    # which is what proves the UTC reading and the zone together: Las Vegas
+    # races on a Saturday evening that is Sunday in UTC.
+    _MON = {m: i for i, m in enumerate(
+        ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"), 1)}
+    wrong, badzone = [], []
+    for rnd, ss in by_round.items():
+        for sprint, dates, kind, start, zone in ss:
+            if kind != "race":
+                continue
+            try:
+                tz = _zi.ZoneInfo(zone)
+            except Exception:
+                badzone.append(f"r{rnd} {zone}"); continue
+            local = _dt.datetime.fromisoformat(start).replace(tzinfo=_dt.timezone.utc).astimezone(tz)
+            m = re.search(r"(\d{1,2}) (\w{3}) (\d{4})$", dates)
+            last = _dt.date(int(m.group(3)), _MON[m.group(2)], int(m.group(1)))
+            if local.date() != last:
+                wrong.append(f"r{rnd}: race {start}Z is {local.date()} in {zone}, the weekend ends {last}")
+    check("every zone is an IANA tz database name", not badzone, ", ".join(badzone))
+    check("each race's local day is the last day of its weekend", not wrong, "; ".join(wrong[:4]))
+    print(f"  [info] {len(rows)} sessions across {len(by_round)} weekends")
+
+
 @section('THE CONSTRUCTOR REGISTER')
 def the_constructor_register():
     _HV = harvest_module()

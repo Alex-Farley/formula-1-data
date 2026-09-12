@@ -345,16 +345,13 @@ Worth doing, not yet urgent.
 
 ### Filed 2026-09-12 — live data, asked for and not yet decided
 
-- [ ] `LV-02` **The weekend timetable.** Every session of the current
-      season — practice, qualifying, sprint, race — with its start time in
-      the circuit's zone and UTC, from the FIA event timetable and F1's
-      calendar (facts-only), in a `sessions` table keyed to `races`; shown
-      on `/seasons/2026` and each race page with a "next session in …" line
-      computed in the browser. Decided 2026-09-12 from `LV-01`. Sourcing,
-      checked 2026-09-12: the FIA's event pages carry the date only; session
-      times are in the FIA's per-event "Event & Timing Information"
-      documents and on formula1.com's race pages (both registered sources).
-      — *request · M*
+- [ ] `LV-02` **The weekend timetable, on the page.** The `sessions` table
+      landed in #91 (every 2026 session, start in UTC with the circuit's
+      zone). Show it on `/seasons/2026` and each race page with the
+      circuit's clock and the reader's, and a "next session in …" line
+      computed in the browser; both renderers, with the static page carrying
+      the UTC times and the app adding the reader's zone. Decided
+      2026-09-12 from `LV-01`. — *request · M*
 
 - [ ] `LV-03` **Session classifications after the fact.** FP1–FP3, sprint
       shootout and qualifying orders with best times as published in the
@@ -1619,6 +1616,17 @@ Real, but not costed, or waiting on a decision.
       one that names a row that does not exist. Which existing row a
       citation should name stays a reader's judgement, as `PM-28` was. —
       *review of #87 · #90*
+
+- [x] `LV-02` **The weekend timetable, as data.** `sessions`: 115 rows, every
+      session of the 23 2026 weekends with its start in UTC and the
+      circuit's IANA zone, read from formula1.com's race pages (a start time
+      is a fact). `verify.py` holds each weekend to the five sessions its
+      sprint flag implies, in running order, with a valid zone, and holds
+      each race's local day to the last day of the calendar's weekend — the
+      test that proves the UTC reading and the zone together (Las Vegas
+      races on a Saturday evening that is Sunday in UTC). The FIA's
+      per-event timetable PDFs are not yet read by tool and are the check
+      to add. The page work stays open as `LV-02`. — *request · #91*
 
 ## Declined
 
