@@ -411,7 +411,7 @@ the source. `WK-` is this survey; nothing else uses the prefix.
       and the 107% rule are sporting-regulation limits with years, the same
       shape as the three technical fields the table already holds. Source:
       the FIA Sporting Regulations, current issue first, then the year each
-      changed. **2025 landed in #77**: five `regulation_limits` rows from the
+      changed. **2025 landed in #76**: five `regulation_limits` rows from the
       2025 issue (tyre sets dry/intermediate/wet per Competition, the 90%
       classification rule, the 107% rule), each citing Article 30.5, 61.2/62.2
       or the qualifying articles; the year each changed is what remains. —
