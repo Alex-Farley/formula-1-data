@@ -338,6 +338,13 @@ def _stage_03_drivers_admitted_from_the_f1db_register(b):
         if not rounds:
             continue
         drv_years.setdefault(f1db_id, set()).add(year)
+    # The season in progress is the latest one anybody entered, read from the
+    # entry lists rather than typed: a constant here said 2026, and at the
+    # rollover every 2026-only driver would have turned retired and the grid
+    # check in verify.py would have failed the build without saying why
+    # (PM-29, from the review of #84). Constructors read the same figure in
+    # stage 08.
+    b.current_season = max(y for ys in drv_years.values() for y in ys)
     for f1db_id in D.F1DB_DRIVERS:
         if f1db_id in known_drv:
             raise SystemExit(
@@ -360,7 +367,7 @@ def _stage_03_drivers_admitted_from_the_f1db_register(b):
             VALUES (?,?,?,?,?,?,?,?,0,?,?,?)""",
             (f1db_id, name, nat, code, born, died, min(yrs), max(yrs),
              "deceased" if died else
-             ("active" if max(yrs) >= 2026 else "retired"),
+             ("active" if max(yrs) >= b.current_season else "retired"),
              HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
         known_drv.add(f1db_id)
 
@@ -597,7 +604,7 @@ def _stage_08_constructors_admitted_from_the_f1db_register(b):
             drivers_titles, active, confidence, source)
             VALUES (?,?,?,?,?,?,NULL,0,0,?,?,?)""",
             (f1db_id, name, full, f1db_country.get(country_id),
-             min(yrs), max(yrs), 1 if max(yrs) >= 2026 else 0,
+             min(yrs), max(yrs), 1 if max(yrs) >= b.current_season else 0,
              HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
         known_cons.add(f1db_id)
 
