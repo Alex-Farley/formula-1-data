@@ -539,12 +539,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       (stored)". One word, and the stored one labelled for what it is
       (published). Found by the review of #69. — *review of #69 · S*
 
-- [ ] `CD-19` **Eighteen driver ledes still spell a figure the strip
-      derives** ("Ten wins", "Eight wins"); `verify.py`'s check (#70) stops
-      at digits. Extend it to spelled numbers before the derived nouns and
-      rewrite the eighteen. Found by the review of #70. — *review of #70 ·
-      S*
-
 **Interaction design**
 
 - [ ] `IX-16` **`IA-08` escalated: Back restores the scroll and not the filter.** France filter, sort by wins, scroll, open a driver, Back — same pixel, 862 unfiltered rows. Do `/drivers` first. — *interaction critique · M*
@@ -1430,6 +1424,22 @@ Real, but not costed, or waiting on a decision.
       (the not-found route and the six "No such …"/"No season" shells) offer none. The
       reader's own access date is left to the reader; the build date is what
       fixes the figures. — *product critique · #71*
+
+- [x] `CD-19` **Driver ledes no longer spell a figure the strip derives.**
+      `verify.py`'s check reads spelled cardinals (one to twenty, thirty to
+      hundred, compounds), digit and spelled ordinals above "first" ("300th
+      start", "eighth start"), and "Grand Prix" between the number and the
+      noun, before starts, races, entries, wins, poles, podiums, points,
+      fastest laps or titles; a year before "title" and a margin ("by two
+      points") are not figures. It caught sixteen notes, and stripping the
+      figure exposed five that the race records contradict — Hulkenberg's
+      pole came on his eighteenth start, Bottas was runner-up twice not four
+      times, Ricciardo never won for Renault, Stroll's pole was Istanbul 2020
+      not Monza 2017, Rindt had three races left not four — and one false
+      record: 2025's top three were 13 points apart against 2007's one, so
+      "the closest top three ever" leaves Piastri's note and, though no
+      regex reached it, Norris's. Each note keeps what its string already
+      said; "Ten podiums." simply goes. — *review of #70 · #74*
 
 ## Declined
 
