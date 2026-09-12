@@ -413,8 +413,9 @@ the source. `WK-` is this survey; nothing else uses the prefix.
       the FIA Sporting Regulations, current issue first, then the year each
       changed. **2025 landed in #76**: five `regulation_limits` rows from the
       2025 issue (tyre sets dry/intermediate/wet per Competition, the 90%
-      classification rule, the 107% rule), each citing Article 30.5, 61.2/62.2
-      or the qualifying articles; the year each changed is what remains. —
+      classification rule, the 107% rule), each citing Article 30.2(a), 61.2/62.2
+      or 39.4(b)(i); the review read the document and corrected two notes.
+      The year each changed is what remains. —
       *Wikipedia survey · S*
 
 - [ ] `WK-04` **The new-team entry fee is a press figure.** The page's US$450m

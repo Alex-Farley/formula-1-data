@@ -159,8 +159,10 @@ _FIA2026 = "https://www.fia.com/regulations/formula-1"
 # place ... US Dollars X" - with the per-Competition adjustment beside it. The
 # figures below were read from these documents, not from a summary of them.
 # The FIA Sporting Regulations for 2025, issue 5 (30 April 2025), read for the
-# weekend's limits: Article 30.5 (tyre sets per driver per Competition),
-# 61.2 / 62.2 (classification) and the 107% rule in the qualifying articles.
+# weekend's limits: Article 30.2(a) (tyre sets per driver per Competition),
+# 61.2 / 62.2 (classification) and Article 39.4(b)(i) (the 107% rule). The
+# first cut cited 30.5 and merged the stewards' separate power into the 107%
+# rule; the review read the document and caught both.
 _SPORT2025 = "https://www.fia.com/system/files/documents/fia_2025_formula_1_sporting_regulations_-_issue_5_-_2025-04-30.pdf"
 
 _FIN = {
@@ -264,12 +266,14 @@ REGULATION_LIMITS = [
     # which is what WK-03 still holds open. A "Competition" is the FIA's
     # word for a Grand Prix weekend.
     (2025, 2025, "tyre_sets_dry_per_competition", 13.0, "sets",
-     "Per driver, at a Competition without a sprint; twelve where a sprint "
-     "is scheduled (Article 30.5).", "reference", _SPORT2025),
+     "Per driver, at a Competition without a sprint and without additional "
+     "tyres made available under Article 30.1(a)(iii); twelve where a sprint "
+     "is scheduled, and twelve where additional tyres are made available "
+     "(Article 30.2(a)).", "reference", _SPORT2025),
     (2025, 2025, "tyre_sets_intermediate_per_competition", 5.0, "sets",
-     "Per driver per Competition (Article 30.5).", "reference", _SPORT2025),
+     "Per driver per Competition (Article 30.2(a)).", "reference", _SPORT2025),
     (2025, 2025, "tyre_sets_wet_per_competition", 2.0, "sets",
-     "Per driver per Competition; three at Monaco (Article 30.5).",
+     "Per driver per Competition; three at Monaco (Article 30.2(a)).",
      "reference", _SPORT2025),
     (2025, 2025, "classification_min_distance_pct", 90.0, "%",
      "A car that has covered less than 90% of the winner's laps, rounded "
@@ -277,8 +281,10 @@ REGULATION_LIMITS = [
      "reference", _SPORT2025),
     (2025, 2025, "qualifying_107_pct", 107.0, "%",
      "A driver eliminated in Q1 or SQ1 whose best lap exceeded 107% of the "
-     "fastest in that session is unclassified unless the track was declared "
-     "wet or the stewards permit a start.", "reference", _SPORT2025),
+     "fastest time set in that session is unclassified, unless the track was "
+     "declared wet by the Race Director (Article 39.4(b)(i)). Whether an "
+     "unclassified driver takes part in the rest of the Competition is a "
+     "separate decision for the stewards.", "reference", _SPORT2025),
 ]
 
 
