@@ -596,10 +596,28 @@ try {
     const heads = await page.$$eval('#root main thead th', (ths) => ths.map((th) => th.textContent.trim()))
     truthy(heads.includes('Races') && !heads.includes('Entries') && !heads.includes('Starts'), 'Races is counted; Entries and Starts are gone')
     const races = one('SELECT COUNT(*) FROM race_entries WHERE driver_id = (SELECT id FROM drivers ORDER BY wins DESC, podiums DESC LIMIT 1)')
-    truthy(first.includes(String(races)), `${top.full_name}'s Races is the race-record count, ${races}`)
+    is(
+      await page.$eval('#root main tbody tr td:nth-child(4)', (td) => Number(td.textContent.replace(/[^0-9]/g, ''))),
+      races,
+      `${top.full_name}'s Races is the race-record count`,
+    )
     const html = await (await fetch(`${BASE}/drivers`)).text()
     const firstStatic = html.slice(html.indexOf('<tbody>'), html.indexOf('</tr>', html.indexOf('<tbody>')))
     truthy(firstStatic.includes(top.full_name), 'the static register opens on the same driver')
+    // Row for row, not only the first: the tie-break must collate as SQLite
+    // does, or 518 of 862 positions differ while the first row agrees.
+    await page.click('#root main .table-foot button')
+    await page.waitForFunction(() => document.querySelectorAll('#root main tbody tr').length > 150, null, { timeout: 20000 })
+    const appOrder = await page.$$eval('#root main tbody tr td:first-child', (tds) => tds.map((td) => td.textContent.trim()))
+    const staticOrder = [...html.matchAll(/<tbody>[\s\S]*?<\/tbody>/g)][0][0]
+      .split('<tr')
+      .slice(1)
+      .map((tr) => tr.replace(/<[^>]+>/g, '|').split('|').map((x) => x.trim()).filter(Boolean)[0])
+    is(
+      appOrder.findIndex((name, k) => name !== staticOrder[k]),
+      -1,
+      `the static register is in the app's order for all ${appOrder.length} rows (first difference at)`,
+    )
   }
   // Filtering the register to nothing is an ordinary act and must not crash
   // the page: the first cut of the scroll fade declared its hooks after the
@@ -1052,7 +1070,7 @@ try {
   // that column off the register.)
   console.log('\nSorting')
   await go('/drivers', 'Drivers')
-  await page.click('#root main th:nth-child(3) button')
+  // One click: a numeric column opens descending.
   await page.click('#root main th:nth-child(3) button')
   const firstEntries = await page.$eval('#root main tbody tr td:nth-child(3)', (node) => node.textContent.trim())
   truthy(
