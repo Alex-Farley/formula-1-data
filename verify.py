@@ -1575,19 +1575,37 @@ def the_chassis_register():
           bool(prose) and cap26 and cap25 and per26
           and all(f"US${v:,.0f}" in prose[0] for v in (cap26, cap25, per26)),
           (prose or ("no row",))[0][:80])
-    # The season grid view: one row per season, and every count bounded by
-    # the table it counts - a driver count above the season's race entries, or
-    # a constructor count above the season's entrants, is a join gone wrong.
-    grid = con.execute("""SELECT g.year, g.drivers, g.constructors, g.engine_manufacturers,
-                                 (SELECT COUNT(*) FROM race_entries e JOIN races r ON r.id = e.race_id
-                                   WHERE r.year = g.year) AS entries,
-                                 (SELECT COUNT(*) FROM season_entrants se WHERE se.year = g.year) AS entrants
-                            FROM v_season_grid g""").fetchall()
+    # The season grid view: one row per season, and its figures pinned to
+    # direct counts the view could get wrong - a year offset, a dropped
+    # population - rather than to bounds it satisfies by construction. The
+    # review of #73 showed the first cut's bounds were identities.
     nseasons = con.execute("SELECT COUNT(*) FROM seasons").fetchone()[0]
-    check("v_season_grid has one row per season", len(grid) == nseasons, f"{len(grid)} vs {nseasons}")
-    bad = [f"{y}: {d} drivers / {n} entries" for y, d, k, m, n, ne in grid if not (2 <= d <= n)]
-    bad += [f"{y}: {k} constructors / {ne} entrants" for y, d, k, m, n, ne in grid if ne and not (1 <= k <= ne)]
-    check("every season's grid counts lie within the tables they count", not bad, "; ".join(bad[:4]))
+    ngrid = con.execute("SELECT COUNT(*) FROM v_season_grid").fetchone()[0]
+    check("v_season_grid has one row per season", ngrid == nseasons, f"{ngrid} vs {nseasons}")
+    wrong = []
+    for year in (1950, 1959, 1994, 2026):
+        g = con.execute("SELECT * FROM v_season_grid WHERE year = ?", (year,)).fetchone()
+        direct = con.execute("""SELECT
+            (SELECT COUNT(DISTINCT e.driver_id) FROM race_entries e JOIN races r ON r.id = e.race_id
+              WHERE r.year = ?1),
+            (SELECT COUNT(DISTINCT f1db_constructor_id) FROM season_entrants WHERE year = ?1),
+            (SELECT COUNT(DISTINCT engine_manufacturer_id) FROM season_entrants
+              WHERE year = ?1 AND engine_manufacturer_id IS NOT NULL),
+            (SELECT COUNT(*) FROM races WHERE year = ?1 AND status = 'completed')""",
+            (year,)).fetchone()
+        got = (g["drivers"], g["constructors"], g["engine_manufacturers"], g["races_run"])
+        if got != tuple(direct):
+            wrong.append(f"{year}: view {got}, direct {tuple(direct)}")
+    check("v_season_grid agrees with direct counts for 1950, 1959, 1994 and 2026",
+          not wrong, "; ".join(wrong))
+    # And the one fact about the Indianapolis era the first cut got wrong: in
+    # 1950 more constructors entered than the curated register names.
+    g50 = con.execute("SELECT constructors FROM v_season_grid WHERE year = 1950").fetchone()[0]
+    check("1950's grid counts the Indianapolis builders among its constructors", g50 >= 20, f"{g50}")
+    bad = [f"{r[0]}: {r[1]} engine makers, {r[2]} constructors" for r in con.execute(
+        "SELECT year, engine_manufacturers, constructors FROM v_season_grid "
+        "WHERE engine_manufacturers > constructors * 2")]
+    check("no season shows more than twice as many engine makers as constructors", not bad, "; ".join(bad[:4]))
     nlim = con.execute("SELECT COUNT(*) FROM regulation_limits").fetchone()[0]
     print(f"  [info] {nlim} regulation limits recorded, covering "
           + ", ".join(str(r[0]) for r in con.execute(

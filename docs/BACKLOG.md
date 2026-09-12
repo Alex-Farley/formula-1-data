@@ -1427,10 +1427,14 @@ Real, but not costed, or waiting on a decision.
       fixes the figures. — *product critique · #71*
 
 - [x] `WK-05` **The season's grid is counted.** `v_season_grid` — drivers
-      from the race entries, constructors and engine makers from the
-      entrants, races run — one row per season, bounded by `verify.py`
-      against the tables it counts; a line on every season page and a fact
-      on the static one. — *Wikipedia survey · #73*
+      entered (from the race entries; a DNQ is an entry, and no source says
+      who started), constructors by their F1DB key so the Indianapolis
+      builders of 1950–1960 count, engine makers, races run — one row per
+      season, pinned by `verify.py` to direct counts for four seasons; a line
+      on every season page and a fact on the static one. The first cut
+      counted the curated constructor key (1950 read eight, not
+      twenty-three), said "started", and bounded the view by identities; the
+      review caught all three. — *Wikipedia survey · #73*
 
 ## Declined
 

@@ -232,8 +232,8 @@ function SeasonBody({ year, season, data }) {
         {grid && (
           <p className="note" style={{ marginTop: 10 }}>
             The grid: {number(grid.drivers)} drivers, {number(grid.constructors)} constructors and{' '}
-            {number(grid.engine_manufacturers)} engine makers, counted from the entries — a driver who
-            started one race counts once.
+            {number(grid.engine_manufacturers)} engine makers, counted from the entries — a driver
+            entered for one race counts once, whether or not they started.
           </p>
         )}
       </Section>

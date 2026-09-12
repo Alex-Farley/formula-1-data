@@ -969,7 +969,9 @@ try {
   {
     const g = db.prepare('SELECT * FROM v_season_grid WHERE year = 1994').get()
     await go('/seasons/1994', '1994')
-    const note = await page.waitForSelector('#root main .note', { timeout: 20000 }).then(() => page.$eval('#root main', (m) => m.textContent))
+    const note = await page
+      .waitForFunction(() => [...document.querySelectorAll('#root main .note')].some((n) => n.textContent.startsWith('The grid:')), null, { timeout: 20000 })
+      .then(() => page.$$eval('#root main .note', (ns) => ns.map((n) => n.textContent).find((t) => t.startsWith('The grid:'))))
     truthy(note.includes(`${g.drivers} drivers`) && note.includes(`${g.constructors} constructors`), `1994's grid reads ${g.drivers} drivers, ${g.constructors} constructors`)
     const html = await (await fetch(`${BASE}/seasons/1994`)).text()
     truthy(html.includes(`${g.drivers} drivers, ${g.constructors} constructors`), 'the static season page states the same grid')

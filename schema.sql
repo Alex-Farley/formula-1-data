@@ -1471,18 +1471,20 @@ ORDER BY r.year, r.round;
 
 -- ------------------------------------------------------------- circuits
 -- Every circuit with its championship record, in one row.
--- The grid of a season, counted rather than written: who drove (from the
--- race entries), who entered (from season_entrants), whose engines. The
--- Wikipedia infobox states these three for the current season by hand;
--- here they hold for every season, and the 1950 row shows why they are
--- counted - eight constructors and twelve engine makers, with the Indianapolis
--- 500 in the championship.
+-- The grid of a season, counted rather than written: who was entered (from
+-- the race entries - entered, not started: a DNQ is an entry, and no source
+-- here says who started), which constructors entered, whose engines. The
+-- Wikipedia infobox states these three for the current season by hand; here
+-- they hold for every season. Constructors are counted by the F1DB key, which
+-- every entrant row carries: the curated constructor_id is NULL for the
+-- Indianapolis 500 builders of 1950-1960, and counting it read 1950 as eight
+-- constructors when twenty-three entered - the review of #73 caught it.
 CREATE VIEW v_season_grid AS
 SELECT s.year,
        (SELECT COUNT(DISTINCT e.driver_id) FROM race_entries e
           JOIN races r ON r.id = e.race_id WHERE r.year = s.year)        AS drivers,
-       (SELECT COUNT(DISTINCT se.constructor_id) FROM season_entrants se
-         WHERE se.year = s.year AND se.constructor_id IS NOT NULL)        AS constructors,
+       (SELECT COUNT(DISTINCT se.f1db_constructor_id) FROM season_entrants se
+         WHERE se.year = s.year)                                          AS constructors,
        (SELECT COUNT(DISTINCT se.engine_manufacturer_id) FROM season_entrants se
          WHERE se.year = s.year AND se.engine_manufacturer_id IS NOT NULL) AS engine_manufacturers,
        (SELECT COUNT(*) FROM races r WHERE r.year = s.year
