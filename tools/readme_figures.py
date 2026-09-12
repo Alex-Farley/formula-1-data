@@ -35,6 +35,10 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB = os.path.join(ROOT, "f1.db")
 GEOMETRY_DB = os.path.join(ROOT, "f1-geometry.db")
 README = os.path.join(ROOT, "README.md")
+# Every document whose figures are spans this tool writes and verify.py
+# checks. docs/COMMERCIAL-READINESS.md typed its class table and per-table
+# breakdown by hand and drifted 539 -> 667 unnoticed (PM-31).
+DOCUMENTS = (README, os.path.join(ROOT, "docs", "COMMERCIAL-READINESS.md"))
 
 # <!-- fig:name -->value<!-- /fig -->. The value may run over a line break -
 # the centreline table is one figure - so DOTALL, and non-greedy so two spans
@@ -421,6 +425,89 @@ class Figures:
         # The same view the homepage and /data count, so the three agree.
         return n(self.count("v_open_gaps"))
 
+    # -- docs/COMMERCIAL-READINESS.md: the licence position, counted -------
+    def _licence_tally(self):
+        """(class -> rows, domain -> rows, (table, domain) -> rows) over every
+        sourced row, resolving each source URL to a registry domain the way
+        `./f1 licences` does; source_registry's own rows are not citations."""
+        if hasattr(self, "_tally"):
+            return self._tally
+        classes = {}
+        for domains, cls in self.con.execute("""SELECT domains, redistributable
+                FROM source_registry WHERE domains IS NOT NULL ORDER BY priority"""):
+            for d in (x.strip() for x in domains.split(",")):
+                if d:
+                    classes.setdefault(d, cls)
+
+        def klass(value):
+            m = re.match(r"https?://([^/]+)", str(value).strip())
+            key = (m.group(1) if m else str(value).strip()).lower()
+            if key in classes:
+                return key
+            return next((d for d in classes if key.endswith("." + d)), None)
+
+        by_class, by_domain, by_table = {}, {}, {}
+        for (t,) in self.con.execute("""SELECT name FROM sqlite_master WHERE type='table'
+                AND name <> 'source_registry' ORDER BY name"""):
+            cols = [x[1] for x in self.con.execute(f'PRAGMA table_info("{t}")')]
+            if "source" not in cols:
+                continue
+            for value, k in self.con.execute(f'SELECT source, COUNT(*) FROM "{t}" WHERE '
+                                             "source IS NOT NULL AND TRIM(source) <> '' "
+                                             "GROUP BY source"):
+                d = klass(value)
+                cls = classes.get(d, "UNCLASSIFIED")
+                by_class[cls] = by_class.get(cls, 0) + k
+                by_domain[d] = by_domain.get(d, 0) + k
+                if cls == "facts-only":
+                    by_table[(t, d)] = by_table.get((t, d), 0) + k
+        self._tally = (by_class, by_domain, by_table)
+        return self._tally
+
+    def sourced_rows(self):
+        return n(sum(self._licence_tally()[0].values()))
+
+    def yes_rows(self):
+        return n(self._licence_tally()[0].get("yes", 0))
+
+    def yes_share(self):
+        by_class = self._licence_tally()[0]
+        return f"{100.0 * by_class.get('yes', 0) / sum(by_class.values()):.1f}%"
+
+    def facts_only_rows(self):
+        return n(self._licence_tally()[0].get("facts-only", 0))
+
+    def facts_only_share(self):
+        by_class = self._licence_tally()[0]
+        return f"{100.0 * by_class.get('facts-only', 0) / sum(by_class.values()):.1f}%"
+
+    def no_rows(self):
+        return n(self._licence_tally()[0].get("no", 0))
+
+    def facts_only_formula1(self):
+        return n(self._licence_tally()[1].get("formula1.com", 0))
+
+    def facts_only_fia(self):
+        return n(self._licence_tally()[1].get("fia.com", 0))
+
+    def facts_only_tables(self):
+        # How many tables hold a facts-only row. The document lists each with
+        # what the row holds; a new table here is a row the document owes.
+        return n(len({t for t, _ in self._licence_tally()[2]}))
+
+    def _fo(self, table):
+        return n(sum(k for (t, _), k in self._licence_tally()[2].items() if t == table))
+
+    def fo_drivers(self):            return self._fo("drivers")
+    def fo_circuits(self):           return self._fo("circuits")
+    def fo_seasons(self):            return self._fo("seasons")
+    def fo_standings(self):          return self._fo("standings")
+    def fo_constructors(self):       return self._fo("constructors")
+    def fo_races(self):              return self._fo("races")
+    def fo_race_entries(self):       return self._fo("race_entries")
+    def fo_regulation_changes(self): return self._fo("regulation_changes")
+    def fo_regulation_limits(self):  return self._fo("regulation_limits")
+
 
 # Public names, in definition order - which is README order, so the printout
 # reads like the document.
@@ -480,36 +567,46 @@ def connect(db=DB):
 def main(argv):
     con, geo = connect()
     values = compute(con, geo)
-    with open(README, encoding="utf-8") as f:
-        text = f.read()
+    texts = {}
+    for path in DOCUMENTS:
+        with open(path, encoding="utf-8") as f:
+            texts[path] = f.read()
+    label = lambda path: os.path.relpath(path, ROOT)
 
     if "--write" in argv:
-        unknown, _unused, _wrong = compare(text, values)
-        if unknown:
-            print(f"README.md names figures this tool does not compute: {', '.join(unknown)}",
-                  file=sys.stderr)
-            return 1
-        new = render(text, values)
-        if new != text:
-            with open(README, "w", encoding="utf-8") as f:
-                f.write(new)
-            print(f"README.md: rewrote {len(SPAN.findall(new))} figure spans")
-        else:
-            print(f"README.md: {len(SPAN.findall(new))} figure spans already current")
+        for path, text in texts.items():
+            unknown, _unused, _wrong = compare(text, values)
+            if unknown:
+                print(f"{label(path)} names figures this tool does not compute: {', '.join(unknown)}",
+                      file=sys.stderr)
+                return 1
+            new = render(text, values)
+            if new != text:
+                with open(path, "w", encoding="utf-8") as f:
+                    f.write(new)
+                print(f"{label(path)}: rewrote {len(SPAN.findall(new))} figure spans")
+            else:
+                print(f"{label(path)}: {len(SPAN.findall(new))} figure spans already current")
         return 0
 
     if "--check" in argv:
-        unknown, unused, wrong = compare(text, values)
-        for k in unknown:
-            print(f"  fig:{k} is in README.md and not computed here")
+        bad = False
+        said_all = {}
+        for path, text in texts.items():
+            unknown, _unused, wrong = compare(text, values)
+            for k in unknown:
+                print(f"  fig:{k} is in {label(path)} and not computed here")
+            for k, (st, a) in wrong.items():
+                print(f"  fig:{k}: {label(path)} says {st!r}, database says {a!r}")
+            bad = bad or bool(unknown or wrong)
+            said_all.update(stated(text))
+        unused = sorted(set(values) - set(said_all))
         for k in unused:
-            print(f"  fig:{k} is computed here and not in README.md")
-        for k, (s, a) in wrong.items():
-            print(f"  fig:{k}: README says {s!r}, database says {a!r}")
-        if unknown or unused or wrong:
-            print("README.md disagrees with the database - run tools/readme_figures.py --write")
+            print(f"  fig:{k} is computed here and stated in no document")
+        if bad or unused:
+            print("a document disagrees with the database - run tools/readme_figures.py --write")
             return 1
-        print(f"README.md: all {len(values)} figures agree with the database")
+        print(f"all {len(values)} figures agree with the database across {len(texts)} documents")
         return 0
 
     width = max(len(k) for k in values)
