@@ -66,6 +66,7 @@ function Body({ glossary, personnel, term, setTerm, category, setCategory }) {
         <Filters showing={filtered.length} of={glossary.length} noun="terms">
           <SearchField value={term} onChange={setTerm} label="Filter terms" placeholder="A term…" />
           <Chips
+            label="Filter terms by category"
             value={category}
             onChange={setCategory}
             options={[['', 'All'], ...categories.map((c) => [c, c])]}

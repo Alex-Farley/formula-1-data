@@ -182,6 +182,7 @@ function Register({ rows }) {
           options={constructors}
         />
         <Chips
+          label="Filter cars by kind"
           value={kind}
           onChange={setKind}
           options={[

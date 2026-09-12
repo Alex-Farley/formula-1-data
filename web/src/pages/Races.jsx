@@ -80,6 +80,7 @@ function RaceList({ rows, term, setTerm, decade, setDecade, status, setStatus })
           options={decades.map((d) => [String(d), `${d}s`])}
         />
         <Chips
+          label="Filter races by status"
           value={status}
           onChange={setStatus}
           options={[

@@ -70,6 +70,7 @@ function Register({ rows }) {
         <SearchField value={term} onChange={setTerm} label="Filter constructors" placeholder="A name…" />
         <Select value={country} onChange={setCountry} label="Country" all="Every country" options={countries} />
         <Chips
+          label="Filter constructors by kind"
           value={kind}
           onChange={setKind}
           options={[

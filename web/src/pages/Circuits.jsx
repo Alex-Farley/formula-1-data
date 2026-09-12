@@ -157,6 +157,7 @@ function Register({ rows }) {
         <SearchField value={term} onChange={setTerm} label="Filter circuits" placeholder="A circuit or a place…" />
         <Select value={country} onChange={setCountry} label="Country" all="Every country" options={countries} />
         <Chips
+          label="Filter circuits by type"
           value={kind}
           onChange={setKind}
           options={[['', 'All'], ...types.map((t) => [t, t]), ['traced', 'Traced']]}

@@ -358,14 +358,6 @@ Worth doing, not yet urgent.
       confidence tiers appear in table cells with no definition anywhere on the
       site. — *content critique · M*
 
-- [ ] `CD-10` **The confidence pill is a bare word on 13 pages.**
-      `Page.jsx:110-115` renders `<span class="pill">{value}</span>` with no
-      `title`, no link, no explanation, while the ladder that defines it is one
-      nav item and two clicks away. Reach without a definition at the point of
-      use is how a reader learns that "medium" means the site is unsure of
-      itself rather than that an exact figure may have drifted. —
-      *content critique · S*
-
 - [ ] `CD-15` **`./f1 gaps` prints "what the data does not yet cover", then
       three entries beginning "CLOSED".** `CD-06`'s defect on the surface the
       bulk-data audience actually touches; must filter on `PD-05`'s `state`
@@ -592,13 +584,9 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 
 - [ ] `AX-10` **Three routes scroll the body sideways at 320 px. 1.4.10.** Atlas 107 px, Spa's layouts table 41 px, SQL example 24 px. — *accessibility critique · S*
 
-- [ ] `AX-11` **Heading names concatenate without spaces. 2.4.6, 1.3.1.** "Original road circuit1950–197014.1 kmmedium". A space, or move the count out of the heading. — *accessibility critique · S*
-
 - [ ] `AX-12` **The FL column is a bullet with no alternative; the rail is an empty cell named "Result" on every row. 1.1.1.** `sr-only` text and an `<abbr>`; `aria-hidden` on the rail. — *accessibility critique · S*
 
 - [ ] `AX-13` **Photograph `alt` is the file name, ".jpg" included. 1.1.1.** `Cars.jsx` already does it right. — *accessibility critique · S*
-
-- [ ] `AX-14` **Chip filter groups have no name. 1.3.1, 4.1.2.** `role="group"` + `aria-label` on `Chips`. — *accessibility critique · S*
 
 - [ ] `AX-15` **`/` is a global single-key shortcut with no off switch. 2.1.4.** Drop it for ⌘/Ctrl+K, or add a toggle. — *accessibility critique · S*
 
@@ -1166,6 +1154,20 @@ Real, but not costed, or waiting on a decision.
 - [x] `IX-09` **The scrubber says what is under the marker** — the corner
       band and its radius — so it teaches the colour key instead of counting
       up a distance the drawing already shows. — *interaction critique · #56*
+- [x] `CD-10` **The confidence pill goes to the ladder.** A link to
+      `/reference/quality` with the tier in its title, in the app and in the
+      static facts lists, so "medium" is a word with a definition one click
+      away rather than a bare word. — *content critique · #57*
+
+- [x] `AX-11` **Section headings have a space before their count**, in the
+      accessible name and not only in the CSS: "Classification 20 entries",
+      not "Classification20 entries". The Spa layout headings and the error
+      box are the same defect on other components and stay open under
+      `AX-11`'s reasoning. — *accessibility critique · #57*
+
+- [x] `AX-14` **Chip filter groups have a name.** `role="group"` and a label
+      saying what the chips filter, at all nine call sites. —
+      *accessibility critique · #57*
 
 ## Declined
 

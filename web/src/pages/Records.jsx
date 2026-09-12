@@ -108,6 +108,7 @@ function Body({ data }) {
         </p>
         <div className="filters">
           <Chips
+            label="Filter records by category"
             value={category}
             onChange={setCategory}
             options={[['', 'All'], ...categories.map((c) => [c, c])]}
@@ -219,6 +220,7 @@ function Body({ data }) {
       <Section title="Who won the decade" count={`${decadeOptions.length} decades`}>
         <div className="filters">
           <Chips
+            label="Choose a decade"
             value={decade}
             onChange={setDecade}
             options={decadeOptions.map((d) => [String(d), `${d}s`])}
