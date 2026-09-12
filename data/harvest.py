@@ -629,11 +629,15 @@ KNOWN_GAPS = [
      "docs/TIMING-ARCHITECTURE.md has the measurements and the design this "
      "would take if a redistributable source ever appears."),
     ("race_timing", "pole, fastest lap and race times per race",
-     "open",
-     "No race times. The winner's time, the fastest lap time and the margin "
-     "are published race by race rather than season by season, so filling "
-     "them for 1950-2017 means reading every individual race report. That "
-     "has not been done.",
+     # A position, not an open gap: the table is one of the four verify.py
+     # keeps empty, because per-race timing is FOM's data. The review of #72
+     # caught it filed as fillable. The pre-2018 race-report route is a
+     # separate question the maintainer note still records.
+     "position",
+     "No race times, by decision: per-race timing is Formula One's own data "
+     "and the table that would hold it is kept empty, as gap 5 says. The "
+     "winner's time and margin as printed in race reports are a different "
+     "source and have not been read.",
      "The race_timing table is empty. These figures are published per race "
      "rather than per season, so filling them for 1950-2017 means reading "
      "1,161 individual race articles, which was judged too expensive against "

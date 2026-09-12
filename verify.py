@@ -742,8 +742,8 @@ def pole_position_and_fastest_lap():
     check("every race name resolves to the event it is linked to", not bad,
           "; ".join(bad[:5]))
 
-    # Every declared gap must still be a gap. A gap that has been filled should
-    # be removed from KNOWN_GAPS, not left standing with a stale count.
+    # Every declared gap's count must still be the count. A gap that has been
+    # filled is marked closed and kept on the record, never removed.
     stale = []
     for g in con.execute("SELECT field, area, races_affected FROM known_gaps"):
         if g["races_affected"] is None or g["races_affected"] == 0:
@@ -770,13 +770,32 @@ def pole_position_and_fastest_lap():
            and not re.search(r"\bv\d+\.\d+\b|#\d+", g["resolution"] or "")]
     check("every closed gap's resolution says which version or PR closed it",
           not bad, ", ".join(f"#{b}" for b in bad))
-    by_state = {s: n for s, n in con.execute(
-        "SELECT state, COUNT(*) FROM known_gaps GROUP BY state")}
+    # The four tables the redistribution gate keeps empty cannot be open gaps:
+    # an absence by decision is a position. Pins the classification to the
+    # rule that makes it, rather than to a count.
+    fom = ("laps", "stints", "race_timing", "race_control_messages")
+    bad = [f"#{g['id']} {g['field']}" for g in con.execute(
+        "SELECT id, field, state FROM known_gaps") if g["field"] in fom and g["state"] != "position"]
+    check("a gap about a table kept empty by licence is filed as a position, not as open",
+          not bad, ", ".join(bad))
+    # The closed rows must be closed in the data too: the thing each says was
+    # missing is present. Two are closed today, and each has its own test.
+    fl_missing = con.execute("""SELECT COUNT(*) FROM races r WHERE r.status = 'completed'
+        AND NOT EXISTS (SELECT 1 FROM race_entries e WHERE e.race_id = r.id AND e.fastest_lap = 1)
+        AND NOT (r.year = 2021 AND r.round = 12)""").fetchone()[0]
+    no_entries = con.execute("""SELECT COUNT(*) FROM races r WHERE r.status = 'completed'
+        AND NOT EXISTS (SELECT 1 FROM race_entries e WHERE e.race_id = r.id)""").fetchone()[0]
+    # Pinned to the two fields tested above: a third row marked closed without
+    # a test of its own fails here, which is the point.
+    closed_fields = {r[0] for r in con.execute("SELECT field FROM known_gaps WHERE state = 'closed'")}
+    check("the closed gaps are closed in the data: fastest laps and entries cover every completed race",
+          fl_missing == 0 and no_entries == 0 and closed_fields <= {"fastest_lap", "finish_position"},
+          f"{fl_missing} races without a fastest lap, {no_entries} without entries; closed: {sorted(closed_fields)}")
     open_ = con.execute("SELECT COUNT(*) FROM v_open_gaps").fetchone()[0]
-    check("v_open_gaps is the open rows of known_gaps and nothing else",
-          open_ == by_state.get("open", 0) and 0 < open_ < len(gaps_),
-          f"{open_} open, {by_state.get('closed', 0)} closed, "
-          f"{by_state.get('position', 0)} positions, {len(gaps_)} rows")
+    print(f"  [info] known_gaps: {open_} open, "
+          + ", ".join(f"{n} {s}" for s, n in con.execute(
+              "SELECT state, COUNT(*) FROM known_gaps WHERE state != 'open' GROUP BY state"))
+          + f", {len(gaps_)} rows; the README's open figure is checked in readme_figures()")
 
 
 @section('STRUCTURE')

@@ -980,7 +980,7 @@ queried, not just read here. `./f1 gaps` prints them with the fix for each.
   radio* above.
 
 The `known_gaps` table holds <!-- fig:known_gaps -->12<!-- /fig --> entries,
-of which <!-- fig:known_gaps_open -->7<!-- /fig --> are open gaps — the figure
+of which <!-- fig:known_gaps_open -->6<!-- /fig --> are open gaps — the figure
 the site's homepage and `/data` state, counted from the same `v_open_gaps`
 view. The rest are either closed, and kept so the closure is on record, or
 positions: a deliberate absence rather than a gap, such as the lap timing
