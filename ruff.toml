@@ -55,8 +55,11 @@ ignore = [
   # Reassigning a loop variable inside its loop (`row = clean(row)`) is a
   # deliberate idiom in the harvest loaders.
   "PLW2901",
-  # `global` statements: three module-level caches in the tools, each
-  # documented where it is declared.
+  # `global` statements: verify.py's `main()` rebinds the module-level
+  # connection, geometry table name and database path (`con`, `GEO`, `DB`)
+  # so every section reads the same handle, and `check()` counts its passes
+  # in a module-level counter. Four sites, all in verify.py, all read by
+  # code that runs after them in the same process.
   "PLW0603",
 ]
 

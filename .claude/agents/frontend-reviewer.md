@@ -102,16 +102,27 @@ every `npm test` and in CI's `web` job:
 - **Item 2**, every `?? 0` and `|| 0` under `web/src` and `web/scripts` is a
   declared count or weight — the file lists them with their reasons, and a new
   one fails until declared.
-- **Item 6**, the old wordmark appears nowhere under `web/`.
+- **Item 6**, the wordmark half only: the old name appears nowhere under
+  `web/`. Structural parity of the static tables with the app's is the smoke
+  test's *Static tables* section (header, row count, every shown row on the
+  routes it names); a new page structure, title or meta tag is still yours.
 - **Item 8**, no `display: contents` in a stylesheet or a component.
-- **Item 10**, `App.jsx` mounts a `BrowserRouter` and no `HashRouter`.
+- **Item 10**, the router half only: `App.jsx` mounts a `BrowserRouter` and
+  no `HashRouter`. Whether a NEW route in `App.jsx` is known to
+  `scripts/prerender.js` is checked by nothing — the sitemap assertion computes
+  its expectation from the database, not from the route table — so that half
+  is still yours on any diff that adds a route.
 
 **Item 7**, the accessibility floor, is checked as rendered: the smoke test's
-*Accessibility* section runs axe-core's WCAG 2.0/2.1/2.2 A and AA rules on one
-page of each kind. What is left of these items for you is judgement — a NULL
-turned into a number by a formatter rather than a fallback, a heading that
-reads wrong to a person though it passes axe, a credit that is present but
-misleading.
+*Accessibility* section runs axe-core's WCAG 2.0/2.1/2.2 A and AA rules on ten
+pages, one of each kind, at 1280 px with JavaScript on. axe reads the
+accessibility tree; it does not decide keyboard operability — an `onClick` on
+a `div` or an SVG `rect` with no key handler passes axe and fails WCAG 2.1.1 —
+and it does not see the no-JS `#prerendered` half, the search palette or the
+375 px layout (`CR-30`). Those are yours. So is the rest of the judgement — a
+NULL turned into a number by a formatter rather than a fallback, a heading
+that reads wrong to a person though it passes axe, a credit that is present
+but misleading.
 
 ## Useful commands
 

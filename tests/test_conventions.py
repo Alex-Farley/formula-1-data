@@ -27,17 +27,24 @@ def read(rel):
         return f.read()
 
 
-def code(text):
-    """The text with # comments removed, line by line. Crude — a # inside a
-    string goes too — but it only ever removes, so a rule that passes on this
-    passes on the code, and a rule that fails on this fails on the code."""
+HASH_COMMENTED = (".py", ".yml", ".yaml", ".sh", "Makefile", "f1")
+
+
+def code(text, path=""):
+    """The text with # comments removed, line by line, for the languages where
+    # is a comment. Crude — a # inside a string goes too. Used only where a
+    rule wants to ignore what a comment says (a comment may name the thing
+    it forbids); a JavaScript or JSON file is returned whole, because there
+    # is not a comment and stripping would hide an occurrence."""
+    if path and not path.endswith(HASH_COMMENTED):
+        return text
     return "\n".join(re.sub(r"(^|\s)#.*$", "", line) for line in text.splitlines())
 
 
 def files_under(rel, suffixes):
     out = []
     for dirpath, dirnames, filenames in os.walk(os.path.join(ROOT, rel)):
-        dirnames[:] = [d for d in dirnames if d not in ("node_modules", "dist", "__pycache__")]
+        dirnames[:] = [d for d in dirnames if d not in ("node_modules", "dist", "__pycache__", ".git", ".f1dbcache", "venv", ".venv")]
         for name in filenames:
             if name.endswith(suffixes):
                 out.append(os.path.relpath(os.path.join(dirpath, name), ROOT))
@@ -54,7 +61,7 @@ class TheBuildIsReproducible(unittest.TestCase):
                                 "compares the committed artefact against a fresh build")
 
     def test_build_reads_no_clock(self):
-        src = code(read("build.py"))
+        src = code(read("build.py"), "build.py")
         for call in ("date.today(", "datetime.now(", "datetime.utcnow(", "time.time("):
             self.assertNotIn(call, src, f"build.py calls {call}) — a rebuild would differ from the "
                                         "committed database for no change in the sources")
@@ -71,9 +78,14 @@ class TheLocalTimingSwitchNeverReachesCI(unittest.TestCase):
         scanned = (files_under(".github", (".yml", ".yaml", ".sh"))
                    + files_under("tools", (".py", ".sh"))
                    + files_under("web/scripts", (".js", ".mjs", ".sh"))
-                   + ["Makefile", "build.py", "export_json.py", "audit.py", "f1"])
-        scanned += [f for f in files_under(".claude/skills", (".sh", ".py")) if os.path.exists(os.path.join(ROOT, f))]
-        offenders = [f for f in scanned if "F1_LOCAL_TIMING" in code(read(f))]
+                   + files_under(".claude/skills", (".sh", ".py"))
+                   + ["Makefile", "build.py", "export_json.py", "audit.py", "f1",
+                      # The npm chain is the deploy's only executed steps, and
+                      # wrangler.jsonc is what Cloudflare reads.
+                      "web/package.json", "wrangler.jsonc"])
+        # A committed environment file anywhere, which item 4 names.
+        scanned += [f for f in files_under(".", ("",)) if os.path.basename(f).startswith(".env")]
+        offenders = [f for f in sorted(set(scanned)) if "F1_LOCAL_TIMING" in code(read(f), f)]
         self.assertEqual(offenders, [], "F1_LOCAL_TIMING appears in code that runs in CI or a "
                                         "build: it belongs in verify.py and the docs only")
 
@@ -85,19 +97,29 @@ class GeometryColumnsAreDerived(unittest.TestCase):
     its column list from PRAGMA table_info, so an INSERT names its columns
     through an interpolated variable, never as a literal list.
 
-    Declared exceptions: schema.sql (CREATE TABLE is the definition) and the
-    loader stage in build.py, which writes the table from the harvest rows
-    and is the one place the column list originates."""
+    Declared exceptions: schema.sql (CREATE TABLE is the definition) and ONE
+    site in build.py, the loader stage that writes the table from the harvest
+    rows and is the place the column list originates. build.py is scanned
+    like everything else; a second literal list there fails."""
+
+    # file -> the number of literal column lists it is allowed to carry
+    DECLARED = {"build.py": 1}
 
     def test_no_literal_column_list_outside_the_loader(self):
         scanned = (files_under("tools", (".py",)) + files_under("web", (".js", ".mjs", ".jsx"))
-                   + ["export_json.py", "verify.py", "audit.py", "f1"])
+                   + ["build.py", "export_json.py", "verify.py", "audit.py", "f1"])
+        # `\s*` spans a newline, so a list that opens on the next line is
+        # matched too; the match is run over the whole file, not per line.
         literal = re.compile(r"circuit_geometry\s*\(\s*[A-Za-z_]")
         offenders = []
         for f in scanned:
-            for n, line in enumerate(read(f).splitlines(), 1):
-                if literal.search(line) and "load_circuit_geometry" not in line and "def " not in line:
-                    offenders.append(f"{f}:{n}: {line.strip()[:80]}")
+            text = read(f)
+            hits = [m for m in literal.finditer(text)
+                    if "load_circuit_geometry" not in text[m.start():m.end() + 24]]
+            allowed = self.DECLARED.get(f, 0)
+            if len(hits) > allowed:
+                where = ", ".join(str(text.count("\n", 0, m.start()) + 1) for m in hits)
+                offenders.append(f"{f}: {len(hits)} literal column list(s) at line(s) {where}, {allowed} declared")
         self.assertEqual(offenders, [], "a literal column list against circuit_geometry; derive it "
                                         "from PRAGMA table_info the way tools/geometry_overlay.py does")
 

@@ -57,6 +57,10 @@ const BASE = `http://localhost:${PORT}`
 const argv = process.argv.slice(2)
 const QUIET = argv.includes('--quiet') || argv.includes('-q')
 const ONLY = argv.flatMap((a, i) => (a === '--only' && argv[i + 1] ? [argv[i + 1].toLowerCase()] : []))
+if (argv.includes('--only') && ONLY.length === 0) {
+  console.error('--only needs a pattern: a substring of a section heading. `--list` prints them.')
+  process.exit(2)
+}
 if (argv.includes('--list')) {
   // The headings are string literals, so the file can list its own without
   // starting a server or a browser.
@@ -86,6 +90,7 @@ const count = (sql, ...args) => one(sql, ...args)
 const failures = []
 let passed = 0
 let skipped = 0
+let matched = 0
 let current = ''
 const fail = (message) => {
   failures.push(`${current}: ${message}`)
@@ -116,6 +121,7 @@ const section = async (label, run) => {
     skipped += 1
     return
   }
+  if (!ALWAYS.has(label)) matched += 1
   current = label
   if (!QUIET) console.log(label === 'Boot' ? label : `\n${label}`)
   try {
@@ -153,7 +159,7 @@ async function listening() {
 
 async function serve() {
   if (await listening()) {
-    console.log(`Reusing the server already on ${BASE}\n`)
+    if (!QUIET) console.log(`Reusing the server already on ${BASE}\n`)
     return null
   }
   const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], {
@@ -164,7 +170,7 @@ async function serve() {
   for (let attempt = 0; attempt < 60; attempt += 1) {
     await new Promise((resolve) => setTimeout(resolve, 250))
     if (await listening()) {
-      console.log(`Preview server on ${BASE}\n`)
+      if (!QUIET) console.log(`Preview server on ${BASE}\n`)
       return server
     }
   }
@@ -439,8 +445,8 @@ try {
     await go('/seasons/2025', '2025')
     const championPos = await page.evaluate(() => {
       const h2 = [...document.querySelectorAll('#root main h2')].find((h) => h.textContent.startsWith('Final drivers'))
-      const section = h2?.closest('section') ?? h2?.parentElement
-      return section?.querySelector('tbody tr td')?.textContent.trim() ?? null
+      const block = h2?.closest('section') ?? h2?.parentElement
+      return block?.querySelector('tbody tr td')?.textContent.trim() ?? null
     })
     is(
       championPos,
@@ -1066,8 +1072,8 @@ try {
         const heading = standingsHeading("Drivers'", true, after)
         const from = html.indexOf(`<h2>${heading.replace(/'/g, '&#39;')}</h2>`)
         truthy(from > 0, `the static page heads the table “${heading}”`)
-        const section = html.slice(from, html.indexOf('</table>', from))
-        const listed = (section.match(/<tr[\s>]/g) ?? []).length - 1
+        const tableHtml = html.slice(from, html.indexOf('</table>', from))
+        const listed = (tableHtml.match(/<tr[\s>]/g) ?? []).length - 1
         const rows = one("SELECT COUNT(*) FROM v_standings_final WHERE year = ? AND table_type = 'drivers'", open.year)
         is(listed, rows, 'the static standings table lists each driver once')
         // IA-17: a season with rounds still to run is not headed as concluded,
@@ -1120,11 +1126,11 @@ try {
     {
       const g = db.prepare('SELECT * FROM v_season_grid WHERE year = 1994').get()
       await go('/seasons/1994', '1994')
-      const note = await page
+      const gridNote = await page
         .waitForFunction(() => [...document.querySelectorAll('#root main .note')].some((n) => n.textContent.startsWith('The grid:')), null, { timeout: 20000 })
         .then(() => page.$$eval('#root main .note', (ns) => ns.map((n) => n.textContent).find((t) => t.startsWith('The grid:'))))
       truthy(
-        note.includes(`${g.drivers} drivers`) && note.includes(`${g.constructors} constructors`) && note.includes('entered'),
+        gridNote.includes(`${g.drivers} drivers`) && gridNote.includes(`${g.constructors} constructors`) && gridNote.includes('entered'),
         `1994's grid reads ${g.drivers} drivers, ${g.constructors} constructors, and says entered`,
       )
       const html = await (await fetch(`${BASE}/seasons/1994`)).text()
@@ -1903,7 +1909,12 @@ try {
 }
 
 // A subset that passes is not a site that passes; the summary says so
-// rather than reading like a clean bill of health.
+// rather than reading like a clean bill of health. A pattern that matched
+// nothing ran Boot and Console only, which is not a subset of anything the
+// caller asked for: a mistyped route must read red, not green.
+if (ONLY.length && matched === 0) {
+  fail(`--only ${ONLY.join(' ')} matched no section heading; \`--list\` prints them`)
+}
 const scope = skipped ? ` — ${skipped} section${skipped === 1 ? '' : 's'} skipped by --only` : ''
 console.log(
   failures.length === 0

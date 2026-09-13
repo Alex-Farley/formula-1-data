@@ -55,12 +55,15 @@
       "a11y": {
         // Chart bars, dots and the search results carry onClick on a div or
         // an SVG rect without a role or a key handler; Filters.jsx builds a
-        // listbox out of a div; Circuit.jsx puts aria-selected on a role
-        // that does not take it. These are accessibility defects, not lint
-        // noise, and the frontend-reviewer agent's checklist covers them.
-        // Filed under CR-29 so they are cleared together, with the AX-
-        // items they overlap. Demoted, not disabled: the count must not
-        // grow.
+        // listbox out of a div; Circuit.jsx puts aria-label on the corner
+        // legend's plain div (line 273), which has no role to name. These
+        // are accessibility defects, not lint noise — the first four are
+        // keyboard operability, WCAG 2.1.1, which the smoke test's axe
+        // section does NOT decide (axe reads the accessibility tree, not
+        // whether a handler is reachable) — and the frontend-reviewer
+        // checklist covers them. Filed under CR-29 so they are cleared
+        // together, with the AX- items they overlap. Demoted, not disabled:
+        // the count must not grow.
         "noStaticElementInteractions": "warn",
         "useSemanticElements": "warn",
         "useAriaPropsSupportedByRole": "warn"
