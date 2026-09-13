@@ -41,6 +41,9 @@ import { SEASON_COLUMNS, derivedAndPublished, pointsDiffer, record, seasonRows, 
 import { latestRound, roundName, roundWinner, standingsHeading, stillRunning, titleHeading } from '../src/queries/season.js'
 import { SEASONS_COLUMNS, soFar } from '../src/queries/seasons.js'
 import { raceWinner } from '../src/queries/races.js'
+import { entered } from '../src/queries/constructors.js'
+import { traced } from '../src/queries/circuits.js'
+import { chassisName } from '../src/queries/cars.js'
 import { NOT_YET_RUN } from '../src/lib/site.js'
 import { recordColumns, tiersOf } from '../src/queries/records.js'
 
@@ -486,6 +489,17 @@ describe('the queries a page and the prerenderer share', () => {
     assert.equal(soFar(null, { undecided: 1 }), EMPTY)
     assert.equal(by(SEASONS_COLUMNS).rounds.text(23, { undecided: 1, run: 13 }), '13 of 23')
     assert.equal(by(SEASONS_COLUMNS).rounds.text(24, { undecided: 0, run: 24 }), '24')
+  })
+
+  it('formats the registers the same string for both renderers', () => {
+    assert.equal(entered(null, { first_entry: 1950, last_entry: 2026, active: 1 }), '1950–')
+    assert.equal(entered(null, { first_entry: 1952, last_entry: 1953, active: 0 }), '1952–1953')
+    assert.equal(entered(null, { first_entry: null, last_entry: null, active: 0 }), EMPTY)
+    assert.equal(traced(1), '●traced')
+    assert.equal(traced(0), EMPTY)
+    assert.equal(chassisName('158', { landmark: 'Alfa Romeo 158' }), '158 landmark')
+    assert.equal(chassisName('125', { landmark: null }), '125')
+    assert.equal(chassisName(null, { landmark: null }), EMPTY)
   })
 
   it('adds a Confidence column only where the records differ on it', () => {

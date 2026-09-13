@@ -16,9 +16,11 @@ import { EMPTY, span } from '../lib/format.js'
 
 /**
  * Most races first, then by name — the order the app's table opens in.
- * `traced` counts the OpenStreetMap centrelines the browser overlays from
- * f1-geometry.db; in f1.db alone, which is what the prerenderer reads, it is
- * 0 for every circuit, and the static column says so honestly.
+ * `traced` counts the OpenStreetMap centrelines, which are not in f1.db: the
+ * browser overlays them from f1-geometry.db before this runs, and the
+ * prerenderer, which reads f1.db alone, answers the column from that sibling
+ * file itself (a set of circuit ids, no centreline) and refuses to build
+ * without it.
  */
 export const CIRCUITS = `
   SELECT v.*,
@@ -26,6 +28,14 @@ export const CIRCUITS = `
     FROM v_circuits v
    ORDER BY v.races DESC, v.name
 `
+
+/**
+ * "●" with the word "traced" for a screen reader, or the em dash. Both
+ * renderers set the glyph aria-hidden and the word visually hidden, so the
+ * cell reads "●traced" to the smoke test's textContent in each.
+ */
+export const TRACED = 'traced'
+export const traced = (value) => (value ? `●${TRACED}` : EMPTY)
 
 export const CIRCUIT_COLUMNS = [
   { key: 'name', label: 'Circuit' },
@@ -37,7 +47,7 @@ export const CIRCUIT_COLUMNS = [
   { key: 'layouts', label: 'Layouts', align: 'num' },
   { key: 'length_km', label: 'Length (km)', align: 'num' },
   { key: 'turns', label: 'Turns', align: 'num' },
-  { key: 'traced', label: 'Traced', align: 'num', text: (value) => (value ? '●' : EMPTY) },
+  { key: 'traced', label: 'Traced', align: 'num', text: traced },
 ]
 
 export const CIRCUITS_FOOTER =

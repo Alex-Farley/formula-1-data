@@ -10,7 +10,7 @@
  *
  * See queries/drivers.js for what a column's `text` is.
  */
-import { span, text } from '../lib/format.js'
+import { span } from '../lib/format.js'
 
 /**
  * Alphabetical, case-insensitively, and the app's table opens in this order
@@ -40,7 +40,7 @@ export const CONSTRUCTOR_COLUMNS = [
   { key: 'wins', label: 'Wins', align: 'num' },
   { key: 'poles', label: 'Poles', align: 'num' },
   { key: 'constructors_titles', label: "Constructors' titles", align: 'num' },
-  { key: 'drivers_titles', label: "Drivers' titles", align: 'num', text: (value) => text(value) },
+  { key: 'drivers_titles', label: "Drivers' titles", align: 'num' },
 ]
 
 export const CONSTRUCTORS_FOOTER =

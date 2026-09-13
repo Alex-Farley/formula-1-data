@@ -6,7 +6,7 @@ import DataTable, { cell } from '../components/DataTable.jsx'
 import { Chips, Filters, SearchField, Select } from '../components/Filters.jsx'
 import { rows as pick, useQueries } from '../data/useQuery.js'
 import { pathOf, project, stitch } from '../lib/lap.js'
-import { CIRCUITS, CIRCUIT_COLUMNS, CIRCUITS_FOOTER } from '../queries/circuits.js'
+import { CIRCUITS, CIRCUIT_COLUMNS, CIRCUITS_FOOTER, TRACED } from '../queries/circuits.js'
 
 /**
  * Race counts and first/last Grand Prix come from v_circuits, which derives
@@ -23,6 +23,17 @@ import { CIRCUITS, CIRCUIT_COLUMNS, CIRCUITS_FOOTER } from '../queries/circuits.
 const APP = {
   name: { render: (name, row) => <Link to={`/circuits/${row.id}`}>{name}</Link> },
   first_gp: { sort: (row) => row.first_gp },
+  traced: {
+    render: (value) =>
+      value ? (
+        <>
+          <span aria-hidden="true">●</span>
+          <span className="sr-only">{TRACED}</span>
+        </>
+      ) : (
+        cell(null)
+      ),
+  },
 }
 
 /**

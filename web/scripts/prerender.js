@@ -94,7 +94,7 @@ import {
 } from '../src/queries/season.js'
 import { RACES, RACE_COLUMNS, RACES_FOOTER } from '../src/queries/races.js'
 import { CONSTRUCTORS, CONSTRUCTOR_COLUMNS, CONSTRUCTORS_FOOTER } from '../src/queries/constructors.js'
-import { CIRCUITS, CIRCUIT_COLUMNS, CIRCUITS_FOOTER } from '../src/queries/circuits.js'
+import { CIRCUITS, CIRCUIT_COLUMNS, CIRCUITS_FOOTER, TRACED } from '../src/queries/circuits.js'
 import { CHASSIS, CHASSIS_COLUMNS, CHASSIS_FOOTER, GALLERY, GALLERY_COLUMNS } from '../src/queries/cars.js'
 import {
   BY_SEASON,
@@ -1047,16 +1047,18 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
   // overlays f1-geometry.db at runtime - so this database answers 0 for every
   // circuit. Whether a trace exists is a fact about this project's own file,
   // not a centreline copied out of it, so the column is answered from the
-  // sibling database where it sits beside f1.db, and stays a dash where it
-  // does not.
+  // sibling database. Anything that publishes f1.db must publish
+  // f1-geometry.db beside it (CLAUDE.md), so its absence is a broken build,
+  // not eighty dashes nobody would notice.
   const register = all(CIRCUITS)
   const geoPath = join(repo, 'f1-geometry.db')
-  if (existsSync(geoPath)) {
-    const geo = new DatabaseSync(geoPath, { readOnly: true })
-    const traced = new Set(geo.prepare('SELECT DISTINCT circuit_id FROM circuit_geometry').all().map((r) => r.circuit_id))
-    geo.close()
-    for (const row of register) row.traced = traced.has(row.id) ? 1 : 0
+  if (!existsSync(geoPath)) {
+    die(`${geoPath} is missing. The circuits register's Traced column is answered from it, and\nanything that publishes f1.db must publish f1-geometry.db beside it.`)
   }
+  const geo = new DatabaseSync(geoPath, { readOnly: true })
+  const traced = new Set(geo.prepare('SELECT DISTINCT circuit_id FROM circuit_geometry').all().map((r) => r.circuit_id))
+  geo.close()
+  for (const row of register) row.traced = traced.has(row.id) ? 1 : 0
 
   page({
     path: 'circuits',
@@ -1069,6 +1071,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
       <h2>Every venue</h2>
       ${fromColumns(CIRCUIT_COLUMNS, register, {
         name: (name, row) => link(`circuits/${row.id}`, name),
+        traced: (value) => (value ? `<span aria-hidden="true">●</span><span class="sr-only">${esc(TRACED)}</span>` : '—'),
       })}
       ${note(CIRCUITS_FOOTER)}`,
   })

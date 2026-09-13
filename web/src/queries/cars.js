@@ -54,7 +54,7 @@ export const CHASSIS = `
          (SELECT landmark FROM cars WHERE cars.id = ch.car_id) AS landmark
     FROM chassis ch
     LEFT JOIN constructors k ON k.id = ch.constructor_id
-   ORDER BY ch.first_year, ch.name
+   ORDER BY ch.first_year, ch.name, ch.id
 `
 
 /** "Lotus 72D landmark" where the chassis is one of the curated designs. */
