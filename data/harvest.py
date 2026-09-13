@@ -1051,8 +1051,9 @@ def svg_path_segments(d):
     Implicit repeats are expanded - "M1 2 3 4" is an M and an L, "m1 2 3 4"
     an m and an l - and an arc's two flags are read as the single digits the
     grammar makes them, so "a1 1 0 011 1" is not misread as one number.
-    Raises ValueError on anything the grammar does not allow: the fetch, the
-    build and verify.py all treat that as a path that will not be stored.
+    Raises ValueError on anything the grammar does not allow: the fetch
+    refuses such a path and verify.py reports it as outside its box (the
+    build applies only SVG_PATH_DATA).
     """
     pos, n, cmd = 0, len(d), None
     while pos < n:
