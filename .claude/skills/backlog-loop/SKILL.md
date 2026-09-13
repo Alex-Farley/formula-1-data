@@ -59,16 +59,22 @@ Two words, either order, both optional.
      hits two unrelated items is the environment, not the items.
    - `STOP: <reason>`: a stop condition or a person's decision. Stop; print
      the stock-take.
-   - `LIMIT: resets <time>`: a usage or session limit ended the fork.
-     Schedule a wake-up for one minute after the reset (a one-shot
-     `CronCreate`, or `ScheduleWakeup` inside a `/loop`) that reinvokes this
-     skill with the same arguments, then stop. The fork is relaunched fresh,
-     never resumed. A PR it left open is picked up by the next fork, which
-     checks `gh pr list` and `git worktree list` before starting.
-   - Anything else - no contract line, an empty result, an error - is not a
-     merge and not a PASS. Run `gh pr list --state open` and
-     `git worktree list`, report what is open in two lines, and stop. Never
-     merge from this skill.
+   - `LIMIT: resets <time>`, **or the Skill tool returning an error that
+     names a usage or session limit** (`You've hit your session limit ·
+     resets 1:30pm (Europe/London)` was the wording on 2026-09-13; a fork
+     the limit kills writes no contract line, so this error is the usual
+     form and the `LIMIT:` line the rarer one, written by a fork that saw a
+     reviewer it launched die on the limit). Take the reset time from
+     whichever arrived. Schedule a wake-up for one minute after it (a
+     one-shot `CronCreate`, or `ScheduleWakeup` inside a `/loop`) that
+     reinvokes this skill with the same arguments, then stop. The fork is
+     relaunched fresh, never resumed. A PR or worktree it left open is
+     picked up by the next fork, which checks `gh pr list` and
+     `git worktree list` before starting.
+   - Anything else - no contract line, an empty result, an error that names
+     no limit - is not a merge and not a PASS. Run `gh pr list --state open`
+     and `git worktree list`, report what is open in two lines, and stop.
+     Never merge from this skill.
 4. Between items, nothing else: no summary of the fork's work, no reviewer
    report pasted back, one line per item. The PR comment is the record.
 
