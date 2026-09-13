@@ -186,9 +186,11 @@ until-paused`, with its procedure and the scripts it uses in
   validation results, and tries to disprove the work. A FAIL is fixed and
   reviewed again, fresh. Silence, a rate limit or an unavailable review
   account is not a PASS. Which reviewer and which model - Opus for a first
-  pass, Sonnet to confirm a fix or review wording - and when a
-  documentation-only fix may merge without a further pass, is set in
-  `.claude/skills/backlog-loop/SKILL.md` (decided 2026-09-13).
+  pass, Sonnet to confirm a fix that must land before merge or to review
+  wording - that a PASS merges as reviewed with non-blocking code findings
+  carried into the next PR, which fixes merge without a further pass, and
+  that the rungs of one item are one PR, is set in
+  `.claude/skills/backlog-loop/SKILL.md` (decided 2026-09-13, twice).
 - **`review.yml` failing is infrastructure, not a defect.** It runs on a
   credential that is currently exhausted. Do not retry it, do not edit it
   to make it pass, and do not treat its red check as a code failure or its

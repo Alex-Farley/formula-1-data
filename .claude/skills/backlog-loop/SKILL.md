@@ -118,7 +118,8 @@ The agent returns exactly `PASS — safe to merge` or `FAIL — changes required
   passes and three confirmations on four rungs of `PD-02` whose diffs a
   single pass would have read for the price of one (decided 2026-09-13).
 - Do not ask a reviewer to prove what the suite proves. `smoke.mjs` compares
-  every static table with the app's, header and every shown row; the brief
+  every static table on the routes it visits with the app's, header, row count
+  and every shown row - name the routes in the brief; the brief
   says so and asks the reviewer to check the SQL, the rendering and the
   cases the suite cannot reach, not to rebuild the comparison.
 - Keep your own messages short and do not paste reviewer reports back into
