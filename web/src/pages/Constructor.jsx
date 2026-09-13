@@ -54,7 +54,8 @@ const DESIGN_APP = {
   name: { render: (name, row) => <Link to={`/cars/${row.id}`}>{name}</Link> },
   first_year: { sort: (row) => row.first_year },
 }
-const withRenders = (columns, renders) => columns.map((column) => ({ ...column, ...renders[column.key] }))
+const withRenders = (columns, renders) =>
+  columns.map((column) => ({ ...column, ...(Object.hasOwn(renders, column.key) ? renders[column.key] : {}) }))
 
 export default function Constructor() {
   const { id } = useParams()

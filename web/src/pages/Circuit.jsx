@@ -51,7 +51,8 @@ const RACE_APP = {
       ),
   },
 }
-const withRenders = (columns, renders) => columns.map((column) => ({ ...column, ...renders[column.key] }))
+const withRenders = (columns, renders) =>
+  columns.map((column) => ({ ...column, ...(Object.hasOwn(renders, column.key) ? renders[column.key] : {}) }))
 
 export default function Circuit() {
   const { id } = useParams()

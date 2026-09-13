@@ -78,7 +78,7 @@ export const DESIGNS = `
          ch.power_bhp, ch.races, ch.wins, ch.confidence
     FROM chassis ch
    WHERE ch.constructor_id = ?
-   ORDER BY ch.first_year, ch.name, ch.id
+   ORDER BY ch.first_year IS NULL, ch.first_year, ch.name, ch.id
 `
 
 export const LINEAGE = `

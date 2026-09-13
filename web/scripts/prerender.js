@@ -126,6 +126,7 @@ import {
   constructorSeasons,
 } from '../src/queries/constructor.js'
 import {
+  CIRCUIT as CIRCUIT_ROW,
   RACES as CIRCUIT_RACES,
   RACE_COLUMNS as CIRCUIT_RACE_COLUMNS,
   TEAMS as TEAMS_HERE,
@@ -247,7 +248,9 @@ const fromColumns = (columns, rows, links = {}, options = {}) =>
     rows.map((row) =>
       columns.map((c) => {
         const value = row[c.key]
-        if (links[c.key]) return links[c.key](value, row)
+        // Own properties only: a column keyed `constructor` would otherwise
+        // find Object.prototype.constructor and print "[object Object]".
+        if (Object.hasOwn(links, c.key)) return links[c.key](value, row)
         return esc(c.text ? c.text(value, row) : formatted(value))
       }),
     ),
@@ -1086,12 +1089,13 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
         ])}
         ${prose(c.notes)}
         ${disagree(teamDisagreements.all(c.name), 'this team')}
+        <h2>Season by season</h2>
         ${
           seasons.length
-            ? `<h2>Season by season</h2>${fromColumns(TEAM_SEASON_COLUMNS, seasons, {
+            ? `${fromColumns(TEAM_SEASON_COLUMNS, seasons, {
                 year: (year) => link(`seasons/${year}`, year),
               })}${engineSplit ? note(ENGINE_SPLIT_FOOTER) : ''}`
-            : ''
+            : '<p>Nothing recorded.</p>'
         }
         ${
           wins.length
@@ -1157,6 +1161,9 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
     // The three tables read web/src/queries/circuit.js, the app's own
     // queries and column lists (PD-02, rung five).
     const racesHere = all(CIRCUIT_RACES, c.id)
+    // The derived figures the app's strip shows: the stored last_gp is NULL
+    // for every venue still in use, and the stored count is not the races.
+    const cv = one(CIRCUIT_ROW, c.id) ?? {}
     const winnersHere = all(WINNERS_HERE, c.id)
     const teamsHere = all(TEAMS_HERE, c.id)
     page({
@@ -1195,9 +1202,9 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
           ['Length', c.length_km === null ? '—' : `${c.length_km} km`],
           ['Turns', num(c.turns)],
           ['Direction', text(c.direction)],
-          ['Grands Prix', num(c.gp_count)],
-          ['First', c.first_gp ? link(`seasons/${c.first_gp}`, c.first_gp) : '—'],
-          ['Last', c.last_gp ? link(`seasons/${c.last_gp}`, c.last_gp) : '—'],
+          ['Championship races', num(cv.races)],
+          ['First', cv.derived_first ? link(`seasons/${cv.derived_first}`, cv.derived_first) : '—'],
+          ['Last', cv.derived_last ? link(`seasons/${cv.derived_last}`, cv.derived_last) : '—'],
           ['Confidence', c.confidence ? link('data/quality', c.confidence) : text(c.confidence)],
         ])}
         ${prose(c.characteristics)}
@@ -1216,9 +1223,10 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
               })}`
             : ''
         }
+        <h2>Every race held here</h2>
         ${
           racesHere.length
-            ? `<h2>Every race held here</h2>${fromColumns(CIRCUIT_RACE_COLUMNS, racesHere, {
+            ? `${fromColumns(CIRCUIT_RACE_COLUMNS, racesHere, {
                 year: (year) => link(`seasons/${year}`, year),
                 name_used: (name, row) => link(`races/${row.year}/${row.round}`, name),
                 winner: (name, row) =>
@@ -1228,7 +1236,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
                       ? link(`drivers/${row.winner_id}`, name)
                       : text(name),
               })}`
-            : ''
+            : '<p>Nothing recorded.</p>'
         }`,
     })
   }
