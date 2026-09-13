@@ -307,15 +307,19 @@ grid read as an application icon, and the one accent cell carries the brand at
 geometry is inlined as the favicon in `index.html`, on a dark panel because a
 tab has no theme.
 
-Two marks do most of the work:
+One mark does most of the work:
 
 - **The result rail** down the left of a classification: podium, scored
   points, classified, retired. It is read from `race_entries`, so it is data
   rather than decoration, and it always sits beside the position text — the
   colour never carries the meaning alone.
-- **A lit edge** on each stat tile, which is what separates an instrument
-  reading from a card. Border, fill and shadow are otherwise spent sparingly;
-  the radius is 3px, because a rounded card says "app" and this says "panel".
+
+A stat tile has no lit edge. The mockups drew a short accent bar on each one
+to separate an instrument reading from a card; it spent the accent on a mark
+that carries no action, and on a Ferrari page it measured 1.002:1 against
+rosso corsa in light (`VD-26`). The hairline grid and the mono label do that
+work now. Border, fill and shadow are otherwise spent sparingly; the radius
+is 3px, because a rounded card says "app" and this says "panel".
 
 ## National racing colours, and why not team liveries
 

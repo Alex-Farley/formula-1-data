@@ -480,24 +480,17 @@ main {
   overflow: hidden;
 }
 
+/* No lit edge on the tile. The mockups drew a 22x2 accent bar on each one to
+   say "instrument reading, not a card", and it broke the rule tokens.css sets
+   for the accent: eight red marks on a driver page where the mark carries no
+   action, and on a Ferrari page indistinguishable from rosso corsa (1.002:1
+   in light; 1.76:1 in dark). The hairline grid and the mono label already say
+   what the bar said (VD-26). */
 .stats > div {
   flex: 1 1 150px;
   background: var(--panel);
   padding: 13px 15px 15px;
   min-width: 0;
-  position: relative;
-}
-
-/* A short lit edge on each tile — the same mark the mockups use to say
-   "this is an instrument reading", not a card. */
-.stats > div::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 22px;
-  height: 2px;
-  background: var(--accent);
 }
 
 .stats dt {
