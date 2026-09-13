@@ -107,10 +107,15 @@ The agent returns exactly `PASS — safe to merge` or `FAIL — changes required
 
 - FAIL: fix, run the precheck again, then confirm with a fresh Sonnet agent by
   commit range.
-- PASS with findings: take the cheap ones; a fix that is only documentation
-  wording, a blank line or a comment is merged without a further pass, named
-  in the PR comment (decided 2026-09-13). Anything that changes code, data or
-  a check is confirmed.
+- PASS with findings: **merge the reviewed head as it is.** Non-blocking
+  findings that change code are carried into the next PR, named in the PR
+  comment, where the next first pass covers them at no extra cost; they are
+  not fixed and re-confirmed on the PR that passed (decided 2026-09-13, after
+  a run in which four confirmations bought nothing a later pass would not
+  have). A fix that is only documentation wording, a blank line, a comment,
+  a test or the removal of dead code may merge without a further pass, named
+  in the PR comment. Anything else that changes code, data or a check before
+  merge is confirmed.
 - Silence, a rate limit or an unavailable account is not a PASS. If the agent
   dies on a session limit, relaunch after the reset.
 - Record the verdict as a PR comment (reviewer and model, verdict, the FAIL
@@ -125,7 +130,15 @@ The agent returns exactly `PASS — safe to merge` or `FAIL — changes required
 - One PR open at a time. Several open PRs each merge conflicts the others,
   which costs a re-merge, a rebuild, a CI run and a confirmation every time.
 - Batch small items on one theme into one PR where the diff stays readable;
-  a reviewer pays a fixed cost to orient itself on every PR.
+  a reviewer pays a fixed cost to orient itself on every PR. **The rungs of
+  one M item are one PR**, not one each: the 2026-09-13 run spent four first
+  passes and three confirmations on four rungs of `PD-02` whose diffs a
+  single pass would have read for the price of one (decided 2026-09-13).
+- Do not ask a reviewer to prove what the suite proves. `smoke.mjs` compares
+  every static table on the routes it visits with the app's, header, row count
+  and every shown row - name the routes in the brief; the brief
+  says so and asks the reviewer to check the SQL, the rendering and the
+  cases the suite cannot reach, not to rebuild the comparison.
 - Keep your own messages short and do not paste reviewer reports back into
   the conversation; the PR comment is the record.
 

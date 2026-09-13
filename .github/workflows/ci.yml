@@ -48,7 +48,7 @@ jobs:
           version: "2.5.13"
 
       # Errors fail the job. Warnings — the rules web/biome.jsonc demotes,
-      # filed as CR-25 — are printed and annotated but do not; the config
+      # filed as CR-29 — are printed and annotated but do not; the config
       # says why each one is a warning and how it goes back to being an
       # error.
       - name: Lint the front end

@@ -3,60 +3,45 @@ import { Result } from '../components/States.jsx'
 import DataTable from '../components/DataTable.jsx'
 import SubNav from '../components/SubNav.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
-import { host, number } from '../lib/format.js'
+import { number } from '../lib/format.js'
+import {
+  CONSEQUENCES,
+  CONSEQUENCES_NOTE,
+  CONSEQUENCE_COLUMNS,
+  GEOMETRY_LICENCE,
+  LICENCES,
+  LICENCES_NOTE,
+  LICENCE_COLUMNS,
+  SOURCES,
+  SOURCES_FOOTER,
+  SOURCE_COLUMNS,
+} from '../queries/sources.js'
 
 const SPEC = {
-  sources: ['SELECT * FROM source_registry ORDER BY priority'],
-  licences: [
-    `SELECT licence, licence_url, COUNT(*) AS images
-       FROM article_images
-      WHERE licence IS NOT NULL
-      GROUP BY licence
-      ORDER BY images DESC`,
-  ],
-  geometry: ['SELECT COUNT(*) AS n, licence FROM circuit_geometry GROUP BY licence'],
+  sources: [SOURCES],
+  licences: [LICENCES],
+  geometry: [GEOMETRY_LICENCE],
 }
 
-/**
- * The licences, as consequences rather than as a list of names.
- *
- * A licence is not a footnote here — it is the thing that decided what this
- * database contains. The full classification of every race was available for
- * seven versions and stayed out because the copy that could be got carried a
- * non-commercial clause; it shipped when the same facts were found under CC BY.
+/*
+ * The React renders for the two linked columns queries/sources.js defines.
+ * The words each cell carries are the column's own `text`, which
+ * scripts/prerender.js prints too, so the static tables are these.
  */
-const CONSEQUENCES = [
-  [
-    'F1DB',
-    'CC BY 4.0',
-    'Attribution only, and no non-commercial clause — which is why the full classification of all 1,161 races ships in the committed database rather than being loaded locally. This is the licence that closed the largest gap this project had.',
-  ],
-  [
-    'Wikipedia',
-    'CC BY-SA 4.0',
-    'Share-alike, and it reaches any prose taken from it. Registers, notes and the era descriptions are downstream of this.',
-  ],
-  [
-    'Jolpica-F1 (Ergast)',
-    'CC BY-NC-SA',
-    'The non-commercial clause means these rows are loaded locally as a cross-check and never committed. They are what produces the 118 recorded finishing-position disagreements, and they are why those disagreements are recorded rather than resolved.',
-  ],
-  [
-    'Wikidata',
-    'CC0',
-    'No obligation at all. Used to resolve circuit identity to an OpenStreetMap relation.',
-  ],
-  [
-    'OpenStreetMap',
-    'ODbL 1.0',
-    'Share-alike plus a database right, so it is quarantined into a file of its own: the centrelines ship as f1-geometry.db, f1.db contains no OpenStreetMap data at all, and two databases side by side are a Collective Database rather than a derivative one. Your browser merges them to draw the maps.',
-  ],
-  [
-    'Wikimedia Commons',
-    'per file',
-    'Sixteen different licence strings across the photographs, so each row carries its own. No pixels are stored — only a reference, its licence, and its photographer, and the photographer is displayed with the picture because the licence requires it.',
-  ],
-]
+const external = (urlKey) => ({
+  render: (name, row) =>
+    row[urlKey] ? (
+      <a href={row[urlKey]} target="_blank" rel="noreferrer noopener">
+        {name}
+      </a>
+    ) : (
+      name
+    ),
+})
+const SOURCE_APP = { source: external('url') }
+const LICENCE_APP = { licence: external('licence_url') }
+const withRenders = (columns, renders) =>
+  columns.map((column) => ({ ...column, ...(Object.hasOwn(renders, column.key) ? renders[column.key] : {}) }))
 
 export default function Sources() {
   const state = useQueries(SPEC)
@@ -77,22 +62,9 @@ export default function Sources() {
             <>
               <Section
                 title="What a licence cost, or bought"
-                note="Licences decided what is in this database and what is not. If you reuse anything from here, this is the column that applies to you."
+                note={CONSEQUENCES_NOTE}
               >
-                <DataTable
-                  rows={CONSEQUENCES.map(([source, licence, consequence]) => ({
-                    source,
-                    licence,
-                    consequence,
-                  }))}
-                  rowKey={(row) => row.source}
-                  sortable={false}
-                  columns={[
-                    { key: 'source', label: 'Source' },
-                    { key: 'licence', label: 'Licence' },
-                    { key: 'consequence', label: 'Consequence', align: 'prose' },
-                  ]}
-                />
+                <DataTable rows={CONSEQUENCES} rowKey={(row) => row.source} sortable={false} columns={CONSEQUENCE_COLUMNS} />
               </Section>
 
               <Note>
@@ -114,34 +86,15 @@ export default function Sources() {
                   sort="priority"
                   direction="asc"
                   page={30}
-                  columns={[
-                    { key: 'priority', label: 'Rank', align: 'num' },
-                    {
-                      key: 'source',
-                      label: 'Source',
-                      render: (name, row) =>
-                        row.url ? (
-                          <a href={row.url} target="_blank" rel="noreferrer noopener">
-                            {name}
-                          </a>
-                        ) : (
-                          name
-                        ),
-                    },
-                    { key: 'authority', label: 'Authority' },
-                    { key: 'use', label: 'Used for', align: 'prose' },
-                    { key: 'licence', label: 'Licence', align: 'prose' },
-                    { key: 'cadence', label: 'Updated', align: 'prose' },
-                    { key: 'checkability', label: 'What can check it', align: 'prose' },
-                  ]}
-                  footer="Ranked by authority, not by volume. The last column is the one that decides where a source sits."
+                  columns={withRenders(SOURCE_COLUMNS, SOURCE_APP)}
+                  footer={SOURCES_FOOTER}
                 />
               </Section>
 
               <Section
                 title="Photograph licences"
                 count={`${licences.length} distinct`}
-                note="Commons files do not share one licence, so each photograph carries its own — which is why the credit always travels with the picture."
+                note={LICENCES_NOTE}
               >
                 <DataTable
                   rows={licences}
@@ -149,26 +102,7 @@ export default function Sources() {
                   sortable
                   sort="images"
                   direction="desc"
-                  columns={[
-                    {
-                      key: 'licence',
-                      label: 'Licence',
-                      render: (name, row) =>
-                        row.licence_url ? (
-                          <a href={row.licence_url} target="_blank" rel="noreferrer noopener">
-                            {name}
-                          </a>
-                        ) : (
-                          name
-                        ),
-                    },
-                    { key: 'images', label: 'Photographs', align: 'num' },
-                    {
-                      key: 'licence_url',
-                      label: 'Terms',
-                      render: (url) => (url ? host(url) : null),
-                    },
-                  ]}
+                  columns={withRenders(LICENCE_COLUMNS, LICENCE_APP)}
                 />
               </Section>
 

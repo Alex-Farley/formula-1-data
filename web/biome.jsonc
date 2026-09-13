@@ -7,7 +7,7 @@
 // the code is laid out by hand and a reflow would bury every real diff.
 //
 // Every rule below that is demoted from the recommended `error` to `warn`
-// fired on 2026-09-13, the day the gate landed, and each is filed as CR-25
+// fired on 2026-09-13, the day the gate landed, and each is filed as CR-29
 // in docs/BACKLOG.md. A warning still prints in the job log and as an
 // annotation on the pull request; it does not fail the job. Clearing one
 // means fixing its sites and deleting its line here, so the rule goes back
@@ -31,11 +31,11 @@
         // incomplete: App.jsx, DataTable.jsx, Page.jsx (two), Sql.jsx and
         // useQuery.js (four). Each needs reading, not auto-fixing — a
         // dependency added blindly to a query hook can re-run the query on
-        // every render. CR-25.
+        // every render. CR-29.
         "useExhaustiveDependencies": "warn",
         // One site, Sql.jsx: `useExample(statement)` inside an onClick.
         // It is not a hook — it loads an example statement into the editor
-        // — and the fix is a name that does not start with `use`. CR-25.
+        // — and the fix is a name that does not start with `use`. CR-29.
         "useHookAtTopLevel": "warn"
       },
       "suspicious": {
@@ -43,13 +43,13 @@
         // Cars.jsx, and one in prerender.js. Apt for this domain and
         // harmless as a `const`, but it is Object.prototype.constructor
         // that the review of #105 found a column key colliding with, so the
-        // rule stays on. CR-25.
+        // rule stays on. CR-29.
         "noShadowRestrictedNames": "warn",
         // LapFigure.jsx and States.jsx key list items by index. Both lists
-        // are static once rendered, so nothing reorders under React. CR-25.
+        // are static once rendered, so nothing reorders under React. CR-29.
         "noArrayIndexKey": "warn",
         // smoke.mjs uses `forEach(m => fail(m))` where fail returns a
-        // value. Two sites, cosmetic. CR-25.
+        // value. Two sites, cosmetic. CR-29.
         "useIterableCallbackReturn": "warn"
       },
       "a11y": {
@@ -58,7 +58,7 @@
         // listbox out of a div; Circuit.jsx puts aria-selected on a role
         // that does not take it. These are accessibility defects, not lint
         // noise, and the frontend-reviewer agent's checklist covers them.
-        // Filed under CR-25 so they are cleared together, with the AX-
+        // Filed under CR-29 so they are cleared together, with the AX-
         // items they overlap. Demoted, not disabled: the count must not
         // grow.
         "noStaticElementInteractions": "warn",

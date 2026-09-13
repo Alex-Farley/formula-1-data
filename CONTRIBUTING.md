@@ -194,12 +194,14 @@ findings named. The agent that made the change does not approve it. A FAIL
 is corrected, `make all` is run again, and a fresh-context review of the
 fix is obtained; this repeats until PASS. Silence, an interrupted reviewer
 or an unavailable review account is not a PASS. Which model reviews what,
-and the one case in which a post-PASS fix merges without a further pass -
-a fix that is only documentation wording, a blank line or a comment, named
-in the PR comment - were decided by the maintainer on 2026-09-13 to control
-review cost and are set in `.claude/skills/backlog-loop/SKILL.md`: Opus for
-a first pass, a fresh Sonnet context to confirm a fix or review a
-wording-only change.
+what happens to a PASS with non-blocking findings - the reviewed head merges
+as it is and the findings are carried into the next PR - and which post-PASS
+fixes merge without a further pass - documentation wording, a blank line, a
+comment, a test, the removal of dead code, named in the PR comment - were
+decided by the maintainer on 2026-09-13 to control review cost and are set
+in `.claude/skills/backlog-loop/SKILL.md`: Opus for a first pass, a fresh
+Sonnet context to confirm a fix that must land before merge or to review a
+wording-only change, and the rungs of one item in one PR.
 
 `.github/workflows/review.yml` runs the same kind of review on GitHub, on a
 credential that is at present exhausted. Its red check is an infrastructure

@@ -49,7 +49,7 @@ import { fileURLToPath } from 'node:url'
 // hardcoded `circuit_geometry` columns went wrong. `formatted` is the
 // app's own cell text — text() in lib/format.js — for the tables below
 // that are drawn from a page's column list.
-import { finished, missing, result, text as formatted, yearList } from '../src/lib/format.js'
+import { finished, missing, result, span, text as formatted, yearList } from '../src/lib/format.js'
 import {
   CROSS_CHECKED,
   ENTRIES_NOTE,
@@ -134,6 +134,69 @@ import {
   WINNERS as WINNERS_HERE,
   WINNER_COLUMNS,
 } from '../src/queries/circuit.js'
+import {
+  AMBIGUOUS_COLUMNS as CAR_AMBIGUOUS_COLUMNS,
+  AMBIGUOUS_FOOTER as CAR_AMBIGUOUS_FOOTER,
+  ENTRIES as CAR_ENTRIES,
+  NO_ENTRIES,
+  SEASONS as CAR_SEASONS,
+  VARIANTS,
+  VARIANTS_FOOTER,
+  VARIANT_COLUMNS,
+  entryColumns,
+  entryResult,
+} from '../src/queries/car.js'
+import {
+  ENGINES,
+  ENGINE_COLUMNS,
+  ERAS,
+  GOVERNANCE,
+  GOVERNANCE_COLUMNS,
+  INNOVATIONS,
+  INNOVATION_COLUMNS,
+  LIMITS,
+  LIMITS_NOTE,
+  LIMIT_COLUMNS,
+  POINTS,
+  POINTS_COLUMNS,
+  POINTS_NOTE,
+  REGULATIONS,
+  REGULATION_COLUMNS,
+  TYRES,
+  TYRE_COLUMNS,
+} from '../src/queries/eras.js'
+import { GLOSSARY, GLOSSARY_COLUMNS, PERSONNEL, PERSONNEL_COLUMNS } from '../src/queries/glossary.js'
+import {
+  CONSEQUENCES,
+  CONSEQUENCES_NOTE,
+  CONSEQUENCE_COLUMNS,
+  LICENCES,
+  LICENCES_NOTE,
+  LICENCE_COLUMNS,
+  SOURCES,
+  SOURCES_FOOTER,
+  SOURCE_COLUMNS,
+} from '../src/queries/sources.js'
+import {
+  AMBIGUOUS as UNATTRIBUTED,
+  AMBIGUOUS_COLUMNS as UNATTRIBUTED_COLUMNS,
+  AMBIGUOUS_NOTE as UNATTRIBUTED_NOTE,
+  DISCREPANCIES,
+  DISCREPANCIES_NOTE,
+  DISCREPANCY_COLUMNS,
+  GAPS,
+  GEOMETRY_COLUMNS,
+  GEOMETRY_FOOTER,
+  LADDER_NOTE,
+  PROVENANCE,
+  PROVENANCE_COLUMNS,
+  RECONCILIATION,
+  RECONCILIATION_COLUMNS,
+  RECONCILIATION_NOTE,
+  UNVERIFIED,
+  UNVERIFIED_COLUMNS,
+  UNVERIFIED_FOOTER,
+} from '../src/queries/quality.js'
 import {
   BY_SEASON,
   DERIVED,
@@ -1281,6 +1344,44 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
     raced.get(e.chassis_id).push(e)
   }
 
+  // The car page's tables read web/src/queries/car.js (PD-02, rung six):
+  // the variants of a multi-chassis design, the seasons whose results cannot
+  // be attributed, and every entry. A page for one chassis covers that
+  // chassis; a page for a car no chassis shares an id with covers them all,
+  // which is what VARIANTS resolves either way.
+  const carTables = (id) => {
+    const variants = all(VARIANTS, id)
+    const several = variants.length > 1
+    const entries = all(CAR_ENTRIES, id)
+    const ambiguous = all(CAR_SEASONS, id, id).filter((s) => !s.corroborated)
+    return `${
+      several
+        ? `<h2>Variants</h2>${fromColumns(VARIANT_COLUMNS, variants, {
+            name: (name, row) => link(`cars/${row.id}`, name),
+          })}${note(VARIANTS_FOOTER)}`
+        : ''
+    }${
+      ambiguous.length
+        ? `<h2>Seasons that cannot be attributed</h2>${fromColumns(CAR_AMBIGUOUS_COLUMNS, ambiguous, {
+            year: (year) => link(`seasons/${year}`, year),
+          })}${note(CAR_AMBIGUOUS_FOOTER)}`
+        : ''
+    }<h2>Every entry</h2>${
+      entries.length
+        ? fromColumns(entryColumns(several), entries, {
+            year: (year) => link(`seasons/${year}`, year),
+            name_used: (name, row) => link(`races/${row.year}/${row.round}`, name),
+            driver: (name, row) => (row.driver_id ? link(`drivers/${row.driver_id}`, name) : text(name)),
+            chassis: (name, row) => (row.chassis_id ? link(`cars/${row.chassis_id}`, name) : text(name)),
+            position_text: (value, row) =>
+              missing(row.finish_position)
+                ? `<span class="tag tag-dnf">${esc(entryResult(value, row))}</span>`
+                : `<b>${esc(entryResult(value, row))}</b>`,
+          })
+        : `<p>${esc(NO_ENTRIES)}</p>`
+    }`
+  }
+
   page({
     path: 'cars',
     title: titled('Cars'),
@@ -1347,7 +1448,8 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
         ${prose(c.concept)}
         ${prose(c.innovations)}
         ${prose(c.story)}
-        ${prose(c.outcome)}`,
+        ${prose(c.outcome)}
+        ${carTables(c.id)}`,
     })
   }
 
@@ -1406,22 +1508,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
             ? `<p>One of the ${link(`cars/${ch.car_id}`, 'design family')} that has a specified page of its own.</p>`
             : ''
         }
-        ${
-          entries.length
-            ? `<h2>Every championship entry</h2>${table(
-                ['Year', 'Round', 'Grand Prix', 'Driver', 'Grid', 'Result'],
-                entries.map((e) => [
-                  link(`seasons/${e.year}`, e.year),
-                  num(e.round),
-                  link(`races/${e.year}/${e.round}`, e.name_used),
-                  e.driver_id ? link(`drivers/${e.driver_id}`, e.driver ?? e.driver_id) : '—',
-                  text(e.grid_text),
-                  text(e.position_text ?? e.status),
-                ]),
-                { caption: 'Championship entries' },
-              )}`
-            : '<p>No championship entry is recorded against this chassis.</p>'
-        }`,
+        ${carTables(ch.id)}`,
     })
   }
 }
@@ -1457,7 +1544,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
       })}`,
   })
 
-  const eras = all(`SELECT * FROM eras ORDER BY from_year`)
+  const eras = all(ERAS)
   page({
     path: 'reference/eras',
     title: titled('Eras'),
@@ -1476,10 +1563,29 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
             ])}
           </section>`,
         )
-        .join('')}`,
+        .join('')}
+      <h2>Engine formulae</h2>
+      ${fromColumns(ENGINE_COLUMNS, all(ENGINES), {
+        era_name: (name, row) =>
+          `<b>${esc(name)}</b> <br><span class="faint small">${esc(span(row.from_year, row.to_year))}</span>`,
+      })}
+      <h2>Scoring systems</h2>
+      <p>${esc(POINTS_NOTE)}</p>
+      ${fromColumns(POINTS_COLUMNS, all(POINTS))}
+      <h2>Regulation changes</h2>
+      ${fromColumns(REGULATION_COLUMNS, all(REGULATIONS))}
+      <h2>Regulation limits</h2>
+      <p>${esc(LIMITS_NOTE)}</p>
+      ${fromColumns(LIMIT_COLUMNS, all(LIMITS))}
+      <h2>Technical innovations</h2>
+      ${fromColumns(INNOVATION_COLUMNS, all(INNOVATIONS))}
+      <h2>Governance</h2>
+      ${fromColumns(GOVERNANCE_COLUMNS, all(GOVERNANCE))}
+      <h2>Tyre suppliers</h2>
+      ${fromColumns(TYRE_COLUMNS, all(TYRES))}`,
   })
 
-  const glossary = all(`SELECT * FROM glossary ORDER BY term`)
+  const glossary = all(GLOSSARY)
   page({
     path: 'reference/glossary',
     title: titled('Glossary'),
@@ -1487,12 +1593,13 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
     trail: [['', 'Home'], ['reference/glossary', 'Glossary']],
     body: `
       <h1>Glossary</h1>
-      <dl class="glossary">${glossary
-        .map((g) => `<dt>${esc(g.term)}</dt><dd>${esc(g.definition)}</dd>`)
-        .join('')}</dl>`,
+      <h2>Glossary</h2>
+      ${fromColumns(GLOSSARY_COLUMNS, glossary)}
+      <h2>People</h2>
+      ${fromColumns(PERSONNEL_COLUMNS, all(PERSONNEL))}`,
   })
 
-  const sources = all(`SELECT * FROM source_registry ORDER BY id`)
+  const sources = all(SOURCES)
   page({
     path: 'data/sources',
     title: titled('Sources'),
@@ -1502,21 +1609,19 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
     body: `
       <h1>Sources</h1>
       <p class="lede">What each source is trusted for, under what licence, and what constrains it.</p>
-      ${sources
-        .map(
-          (s) => `<section>
-            <h2>${esc(s.source)}</h2>
-            ${facts([
-              ['Authority', text(s.authority)],
-              ['Licence', text(s.licence)],
-              ['Updated', text(s.cadence)],
-              ['Cross-checked by', text(s.checkability)],
-              ['URL', s.url && s.url !== 'None' ? `<a href="${esc(s.url)}">${esc(s.url)}</a>` : null],
-            ])}
-            ${prose(s.use)}
-          </section>`,
-        )
-        .join('')}`,
+      <h2>What a licence cost, or bought</h2>
+      <p>${esc(CONSEQUENCES_NOTE)}</p>
+      ${fromColumns(CONSEQUENCE_COLUMNS, CONSEQUENCES)}
+      <h2>The source registry</h2>
+      ${fromColumns(SOURCE_COLUMNS, sources, {
+        source: (name, row) => (row.url && row.url !== 'None' ? `<a href="${esc(row.url)}">${esc(name)}</a>` : text(name)),
+      })}
+      ${note(SOURCES_FOOTER)}
+      <h2>Photograph licences</h2>
+      <p>${esc(LICENCES_NOTE)}</p>
+      ${fromColumns(LICENCE_COLUMNS, all(LICENCES), {
+        licence: (name, row) => (row.licence_url ? `<a href="${esc(row.licence_url)}">${esc(name)}</a>` : text(name)),
+      })}`,
   })
 
   // The database's front door — the one crawlable surface that can carry the
@@ -1624,7 +1729,19 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
   // Three groups, the same three Quality.jsx renders: the reader's sentence
   // first, the maintainer's note behind a disclosure. A closed gap is kept
   // and shown as closed, never dropped from the page.
-  const gaps = all(`SELECT * FROM known_gaps ORDER BY id`)
+  const gaps = all(GAPS)
+  // The geometry coverage counts centrelines, which are not in f1.db (see
+  // the circuits register above): the view's own SQL is run against the
+  // sibling file, attached for the one query, so the figure is the view's and
+  // not a second statement of it.
+  const geoFile = join(repo, 'f1-geometry.db')
+  db.exec(`ATTACH DATABASE '${geoFile.replace(/'/g, "''")}' AS geo`)
+  const coverage = all(
+    one("SELECT sql FROM sqlite_master WHERE name = 'v_geometry_coverage'")
+      .sql.replace(/^CREATE VIEW \w+ AS\s*/i, '')
+      .replace('LEFT JOIN circuit_geometry g', 'LEFT JOIN geo.circuit_geometry g'),
+  )
+  db.exec('DETACH DATABASE geo')
   const gapGroup = (state, heading, intro) => {
     const rows = gaps.filter((g) => g.state === state)
     if (!rows.length) return ''
@@ -1647,7 +1764,25 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
         the gaps that are known and stated.</p>
       ${gapGroup('open', 'Open gaps', 'What is missing, and what it would take to close each one. Several need a person to read something rather than a script to fetch it.')}
       ${gapGroup('position', 'Positions, not gaps', 'Deliberate absences. Each is the right state for this database, stated so it is not mistaken for something unfinished.')}
-      ${gapGroup('closed', 'Closed', 'Gaps that have since been filled, kept so the closure is on record.')}`,
+      ${gapGroup('closed', 'Closed', 'Gaps that have since been filled, kept so the closure is on record.')}
+      <h2>The confidence ladder</h2>
+      ${fromColumns(PROVENANCE_COLUMNS, all(PROVENANCE))}
+      <p class="source-note">${esc(LADDER_NOTE)}</p>
+      <h2>Disagreements kept rather than resolved</h2>
+      <p>${esc(DISCREPANCIES_NOTE)}</p>
+      ${fromColumns(DISCREPANCY_COLUMNS, all(DISCREPANCIES))}
+      <h2>Career totals against published ones</h2>
+      <p>${esc(RECONCILIATION_NOTE)}</p>
+      ${fromColumns(RECONCILIATION_COLUMNS, all(RECONCILIATION))}
+      <h2>Circuit geometry</h2>
+      ${fromColumns(GEOMETRY_COLUMNS, coverage)}
+      ${note(GEOMETRY_FOOTER)}
+      <h2>Where a result cannot be attributed to a car</h2>
+      <p>${esc(UNATTRIBUTED_NOTE)}</p>
+      ${fromColumns(UNATTRIBUTED_COLUMNS, all(UNATTRIBUTED), { year: (year) => link(`seasons/${year}`, year) })}
+      <h2>Rows nobody has checked</h2>
+      ${fromColumns(UNVERIFIED_COLUMNS, all(UNVERIFIED))}
+      ${note(UNVERIFIED_FOOTER)}`,
   })
 
   page({

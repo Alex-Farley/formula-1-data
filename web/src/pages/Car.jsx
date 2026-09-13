@@ -4,65 +4,55 @@ import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import CommonsImage from '../components/CommonsImage.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
-import { finished, missing, number, span } from '../lib/format.js'
+import { missing, number, span } from '../lib/format.js'
+import {
+  AMBIGUOUS_COLUMNS,
+  AMBIGUOUS_FOOTER,
+  CAR,
+  ENTRIES,
+  IMAGES,
+  NO_ENTRIES,
+  SEASONS,
+  VARIANTS,
+  VARIANTS_FOOTER,
+  VARIANT_COLUMNS,
+  entryColumns,
+  entryResult,
+} from '../queries/car.js'
 
-/**
- * Every chassis this page covers.
- *
- * An id usually names one chassis. Six of them name a CAR that no single
- * chassis shares an id with — `lotus-72` is the 72B, 72C, 72D and 72E — and
- * those pages have to cover the variants together, because no race entry is
- * ever attributed to `lotus-72` itself. Matching `car_id` only when no chassis
- * owns the id keeps every other page exactly as it was: `mclaren-mp4-4` names
- * both a car and a chassis, and resolves to the chassis.
+/*
+ * The React renders for the columns queries/car.js defines — the links and
+ * the result's styling; the router is the reason they live here. The words
+ * each cell carries are the column's own `text`, which scripts/prerender.js
+ * prints too, so the static tables are these.
  */
-const VARIANTS = `
-  SELECT ch.*, k.name AS constructor
-    FROM chassis ch
-    LEFT JOIN constructors k ON k.id = ch.constructor_id
-   WHERE ch.id = ?1
-      OR (ch.car_id = ?1 AND NOT EXISTS (SELECT 1 FROM chassis x WHERE x.id = ?1))
-   ORDER BY ch.first_year, ch.id
-`
-
-const CAR = `
-  SELECT c.* FROM cars c
-   WHERE c.id = (SELECT car_id FROM chassis WHERE id = ?) OR c.id = ?
-   LIMIT 1
-`
-
-const IMAGES = `
-  SELECT * FROM article_images
-   WHERE article = (SELECT article FROM chassis WHERE id = ?)
-      OR article = (SELECT article FROM chassis WHERE car_id = ? LIMIT 1)
-   ORDER BY name_matches DESC
-`
-
-/** Entries for every chassis this page covers — the same set VARIANTS resolves. */
-const ENTRIES = `
-  SELECT r.year, r.round, r.name_used, r.circuit_id, c.name AS circuit,
-         e.driver_id, d.full_name AS driver, e.grid_text, e.grid,
-         e.chassis_id, ch.name AS chassis,
-         e.position_text, e.finish_position, e.status, e.fastest_lap, e.pole
-    FROM race_entries e
-    JOIN races r ON r.id = e.race_id
-    LEFT JOIN circuits c ON c.id = r.circuit_id
-    LEFT JOIN drivers d  ON d.id = e.driver_id
-    LEFT JOIN chassis ch ON ch.id = e.chassis_id
-   WHERE e.chassis_id IN (
-           SELECT id FROM chassis
-            WHERE id = ?1
-               OR (car_id = ?1 AND NOT EXISTS (SELECT 1 FROM chassis x WHERE x.id = ?1))
-         )
-   ORDER BY r.year DESC, r.round DESC
-`
-
-const SEASONS = `
-  SELECT cs.year, cs.corroborated, cs.other_chassis
-    FROM car_seasons cs
-   WHERE cs.car_id = (SELECT car_id FROM chassis WHERE id = ?) OR cs.car_id = ?
-   ORDER BY cs.year
-`
+const VARIANT_APP = {
+  name: { render: (name, row) => <Link to={`/cars/${row.id}`}>{name}</Link> },
+  first_year: { sort: (row) => row.first_year },
+}
+const AMBIGUOUS_APP = { year: { render: (year) => <Link to={`/seasons/${year}`}>{year}</Link> } }
+const ENTRY_APP = {
+  year: { render: (year) => <Link to={`/seasons/${year}`}>{year}</Link> },
+  name_used: { render: (name, row) => <Link to={`/races/${row.year}/${row.round}`}>{name}</Link> },
+  driver: {
+    render: (name, row) => (row.driver_id ? <Link to={`/drivers/${row.driver_id}`}>{name}</Link> : cell(name)),
+  },
+  chassis: {
+    render: (name, row) => (row.chassis_id ? <Link to={`/cars/${row.chassis_id}`}>{name}</Link> : cell(name)),
+  },
+  grid_text: { sort: (row) => row.grid },
+  position_text: {
+    sort: (row) => row.finish_position,
+    render: (value, row) =>
+      missing(row.finish_position) ? (
+        <span className="tag tag-dnf">{entryResult(value, row)}</span>
+      ) : (
+        <b>{entryResult(value, row)}</b>
+      ),
+  },
+}
+const withRenders = (columns, renders) =>
+  columns.map((column) => ({ ...column, ...(Object.hasOwn(renders, column.key) ? renders[column.key] : {}) }))
 
 export default function Car() {
   const { id } = useParams()
@@ -211,26 +201,8 @@ function CarBody({ chassis, variants, data }) {
             sortable
             sort="first_year"
             direction="asc"
-            columns={[
-              {
-                key: 'name',
-                label: 'Chassis',
-                render: (name, row) => <Link to={`/cars/${row.id}`}>{name}</Link>,
-              },
-              {
-                key: 'first_year',
-                label: 'Raced',
-                align: 'num',
-                render: (_, row) => span(row.first_year, row.last_year),
-                sort: (row) => row.first_year,
-              },
-              { key: 'engine_name', label: 'Engine', align: 'prose' },
-              { key: 'power_bhp', label: 'Power (bhp)', align: 'num' },
-              { key: 'wheelbase_mm', label: 'Wheelbase (mm)', align: 'num' },
-              { key: 'races', label: 'Races', align: 'num' },
-              { key: 'wins', label: 'Wins', align: 'num' },
-            ]}
-            footer="Races and wins here belong to that particular variant. The published figure covers the whole car and is shown once, below."
+            columns={withRenders(VARIANT_COLUMNS, VARIANT_APP)}
+            footer={VARIANTS_FOOTER}
           />
         </Section>
       )}
@@ -290,16 +262,8 @@ function CarBody({ chassis, variants, data }) {
             rows={ambiguous}
             rowKey={(row) => row.year}
             sortable={false}
-            columns={[
-              {
-                key: 'year',
-                label: 'Season',
-                align: 'num',
-                render: (year) => <Link to={`/seasons/${year}`}>{year}</Link>,
-              },
-              { key: 'other_chassis', label: 'Also entered by this constructor', align: 'prose' },
-            ]}
-            footer="In these seasons the team ran more than one design and no source says which car raced which round, so the results are left unattributed rather than guessed."
+            columns={withRenders(AMBIGUOUS_COLUMNS, AMBIGUOUS_APP)}
+            footer={AMBIGUOUS_FOOTER}
           />
         </Section>
       )}
@@ -312,55 +276,8 @@ function CarBody({ chassis, variants, data }) {
           sort="year"
           direction="desc"
           page={100}
-          empty="No race entry in this database resolves here. That is usually a constructor that ran several designs in a season and no source saying which raced when, not a car that never raced."
-          columns={[
-            {
-              key: 'year',
-              label: 'Season',
-              align: 'num',
-              render: (year) => <Link to={`/seasons/${year}`}>{year}</Link>,
-            },
-            {
-              key: 'name_used',
-              label: 'Grand Prix',
-              render: (name, row) => <Link to={`/races/${row.year}/${row.round}`}>{name}</Link>,
-            },
-            {
-              key: 'driver',
-              label: 'Driver',
-              render: (name, row) =>
-                row.driver_id ? <Link to={`/drivers/${row.driver_id}`}>{name}</Link> : cell(name),
-            },
-            ...(several
-              ? [
-                  {
-                    key: 'chassis',
-                    label: 'Chassis',
-                    render: (name, row) =>
-                      row.chassis_id ? <Link to={`/cars/${row.chassis_id}`}>{name}</Link> : cell(name),
-                  },
-                ]
-              : []),
-            { key: 'grid_text', label: 'Grid', align: 'num', sort: (row) => row.grid },
-            {
-              key: 'position_text',
-              label: 'Result',
-              align: 'num',
-              sort: (row) => row.finish_position,
-              render: (value, row) =>
-                missing(row.finish_position) ? (
-                  <span className="tag tag-dnf">{value ?? '—'}</span>
-                ) : (
-                  <b>{value}</b>
-                ),
-            },
-            {
-              key: 'status',
-              label: 'Out',
-              render: (value, row) =>
-                finished(value, row.finish_position) ? 'Finished' : cell(value),
-            },
-          ]}
+          empty={NO_ENTRIES}
+          columns={withRenders(entryColumns(several), ENTRY_APP)}
         />
       </Section>
 
