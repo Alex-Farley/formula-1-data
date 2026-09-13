@@ -26,7 +26,9 @@ The rules are in `CLAUDE.md` under *Working autonomously* and in
 `CONTRIBUTING.md`; the per-item procedure, the pace table and what never
 slides are in `.claude/skills/backlog-item/SKILL.md`; the scripts the fork
 uses are in this folder: `next.py` (reads the queue), `file.py` (writes to
-it), `precheck.sh`, `ci-wait.sh`, `merge-main.py`, `review-prompt.md`.
+it), `precheck.sh`, `ci-wait.sh`, `merge-main.py`, `review-prompt.md`, and
+`progress.sh`, which the fork calls at each stage to append one line to
+`.claude/loop/progress.log` - the only view of the fork a person has.
 
 ## Arguments
 
@@ -41,7 +43,14 @@ Two words, either order, both optional.
 
 ## Procedure
 
-1. Write one line: `Loop: <target> at <pace>.` Nothing else before the fork.
+1. Write one line: `Loop: <target> at <pace>.` Then make the fork
+   watchable: if the desktop app's `show_pane` tool is available, open
+   `.claude/loop/progress.log` in the Files pane (create it empty first if
+   it does not exist); either way add one line saying that this session
+   will show no activity until the fork returns, and that the fork's
+   stages appear in that file - `tail -f .claude/loop/progress.log` from
+   a terminal. Nothing else before the fork. (2026-09-13: three forks were
+   killed by interrupts from a person who took the quiet for a stall.)
 2. Invoke the Skill tool: skill `backlog-item`, args `<pace> <target>`
    where target is `next` or the item id, followed by `--skip <ids>` when
    this run has skipped any. Do not do any of the fork's work
@@ -72,9 +81,13 @@ Two words, either order, both optional.
      picked up by the next fork, which checks `gh pr list` and
      `git worktree list` before starting.
    - Anything else - no contract line, an empty result, an error that names
-     no limit - is not a merge and not a PASS. Run `gh pr list --state open`
-     and `git worktree list`, report what is open in two lines, and stop.
-     Never merge from this skill.
+     no limit, a fork that says it is waiting for a reviewer or for CI - is
+     not a merge and not a PASS. Run `gh pr list --state open` and
+     `git worktree list`, report what is open in two lines, and stop.
+     Never merge from this skill. A reviewer verdict that arrives here as a
+     background-task notification came from a fork that has already
+     returned: record it on the PR as a comment so the next fork finds it,
+     and never act on it here.
 4. Between items, nothing else: no summary of the fork's work, no reviewer
    report pasted back, one line per item. The PR comment is the record.
 
