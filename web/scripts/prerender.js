@@ -1331,7 +1331,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
         confidence: (value) => (value ? link('data/quality', value) : text(value)),
         holder: (value, row) => {
           const path = holderPath(row)
-          return path ? link(path, value) : esc(text(value))
+          return path ? link(path, value) : text(value)
         },
       })}`,
   })

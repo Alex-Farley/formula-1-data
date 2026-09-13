@@ -454,6 +454,13 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 
 - [ ] `PD-25` **The disagreements claim should be the live figures, not a typed sentence.** It read "45 found, 44 resolved, one open" when the table held 54 rows, 10 of them open — nine the 2026 points rows the next refresh moves, one the 1970 fastest lap — and, after #89, 56 rows with seven explained: five an external figure older than the race, two a career span each side reads rightly. Take `CD-07`'s claim from `discrepancies` at build time, by status. The second `PD-25`, the `/records` holder links, is `PD-26` now. — *product critique · S*
 
+- [ ] `PD-27` **The champions, decade and constructor leaderboards on
+      `/records` are names, not links.** `v_title_count`, `v_wins_by_decade`
+      and `v_wins_by_constructor` carry `full_name`/`name` and no id; add the
+      id to each view (a schema change, so a rebuild) and link the name the
+      way the wins and poles tables do since #96. Split from `PD-26`. —
+      *review of #96 · S*
+
 **Visual design**
 
 - [ ] `VD-01` **The static half is a different design.** 126 lines of `#prerendered` CSS, a second `h1` treatment, tiles versus a key/value table. Rides with `PD-02`: emit the components' shapes, not just their numbers. — *visual critique · M*
@@ -1671,7 +1678,10 @@ Real, but not costed, or waiting on a decision.
       shared records module resolves a driver, constructor, circuit or race
       holder to its page — a race by year and round, which the query now
       carries — and both renderers link it; a shared record, which names
-      two holders and carries no id, stays text. — *product critique · #96*
+      two holders and carries no id, stays text. The wins and poles
+      leaderboards link their drivers as well; the champions, decade and
+      constructor tables are `PD-27`, because their views carry no id. —
+      *product critique · #96*
 
 ## Declined
 

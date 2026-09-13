@@ -132,7 +132,7 @@ function Body({ data }) {
             table={{
               rows: driverWins,
               columns: [
-                { key: 'full_name', label: 'Driver' },
+                { key: 'full_name', label: 'Driver', render: (name, row) => <Link to={`/drivers/${row.driver_id}`}>{name}</Link> },
                 { key: 'wins', label: 'Wins', align: 'num' },
                 { key: 'first_win', label: 'First', align: 'num' },
                 { key: 'last_win', label: 'Last', align: 'num' },
@@ -151,7 +151,7 @@ function Body({ data }) {
             table={{
               rows: driverPoles,
               columns: [
-                { key: 'full_name', label: 'Driver' },
+                { key: 'full_name', label: 'Driver', render: (name, row) => <Link to={`/drivers/${row.driver_id}`}>{name}</Link> },
                 { key: 'poles', label: 'Poles', align: 'num' },
               ],
             }}
