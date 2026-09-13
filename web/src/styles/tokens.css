@@ -82,11 +82,12 @@
   --seq-5: #0d366b;
 
   /* national racing colours (lib/racingColours.js names them). One hex served
-     two themes and six of the eight fell under 3:1 in one of them - US blue
-     1.78:1 and British racing green 2.07:1 on the dark panel, Belgian yellow
-     2.38:1 and silver 2.64:1 on the light one - on a 3 px band that is a
-     register row's only identity mark. Each is now stepped against its own
-     ground: light is measured on --panel / --panel-sunk, dark on --panel /
+     two themes and six of the eight fell under 3:1 against the panel in one of
+     them - US blue 1.78:1 and British racing green 2.07:1 on the dark panel,
+     Belgian yellow 2.38:1 and silver 2.64:1 on the light one - on a 3 px band
+     that is a register row's only identity mark; against the sunk and raised
+     surfaces below, all eight did. Each is now stepped against its own ground:
+     light is measured on --panel / --panel-sunk, dark on --panel /
      --panel-raised, and the lowest of the sixteen figures is 3.32:1. */
   --racing-uk: #00563f;     /* 8.74 / 7.52 */
   --racing-it: #c8102e;     /* 5.88 / 5.06 */

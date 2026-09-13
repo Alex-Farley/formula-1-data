@@ -195,6 +195,9 @@ describe('a racing colour is a pair, one per theme (VD-27)', () => {
 
   it('every token racingColours.js names is defined in all three blocks, and the two dark blocks agree', () => {
     const named = Object.values(COLOURS).map((c) => c.token).sort()
+    // Eight countries have an unambiguous colour; an emptied map and deleted
+    // tokens would otherwise agree with each other and pass the rest of this.
+    assert.ok(named.length >= 8, `racingColours.js names ${named.length} tokens, expected the eight`)
     assert.equal(new Set(named).size, named.length, 'two countries share a token')
     for (const [label, block] of Object.entries(blocks)) {
       assert.deepEqual(racing(block).map(([name]) => name).sort(), named, `${label} block`)
