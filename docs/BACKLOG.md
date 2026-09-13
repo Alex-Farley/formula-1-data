@@ -68,6 +68,16 @@ the link. An autonomous run does not take these; it works around them and
 adds to this list when it finds another. Struck through when decided, with
 the date, then removed at the next tidy.
 
+- `AF-04` **Which eras get a livery palette, and what a hex must cite.**
+  Proposed 2026-09-13: 2026 first, back to 2010, each value sourced to the
+  team's own brand material and carried as a light/dark pair, never in
+  `f1.db`; 1950–67 stays the national convention; 1968–2009 a declared gap.
+  The maintainer to confirm the era range and the source rule.
+- `IA-20` **Rung three: may a search question leave the tab?** Generated SQL
+  needs a model in the browser (tens of MB) or a server call (ends *nothing
+  you look at is sent anywhere*). Take after rungs one and two have shipped;
+  if yes, as an explicit opt-in that sends only the question and the schema.
+
 - ~~`LV-01` **Live session data.**~~ Decided 2026-09-12: the weekend
   timetable (a) and after-the-fact session classifications (b); a live feed
   (c) declined unless a licence is obtained. Work continues as `LV-02` and
@@ -103,27 +113,22 @@ the date, then removed at the next tidy.
 
 ## Now
 
-Short enough to be a decision rather than a list. Each item is a surface
-contradicting something this project states in its own words.
+*Re-ranked 2026-09-13 by the maintainer, after a design review of the seven
+asks he put to it — a more exciting design language, better track
+visualisation, a current-season area, correct constructor colours, better
+tables, natural-language search, and what an expert would add — with four
+independent critics run the same day; filed in
+`docs/critiques/2026-09-13-*.md`, the synthesis in
+`2026-09-13-design-review.md`. His direction: **Now and Next concentrate on
+the visual elements.** The non-visual queue is unchanged and sits under
+*Carried over* below Next. The 2026-09-11 re-ranking note that stood here is
+in that day's critiques; its false statements are all landed and three of its
+four *Now* items had landed too, still listed open (`PM-34`, cleared with this
+re-rank).*
 
-*Re-ranked 2026-09-11 after eight reviews in one day — code, product (second
-run), visual, interaction, data architecture, service, accessibility and a
-user-research walkthrough — filed in `docs/critiques/2026-09-11-*.md`, 142
-findings. Their agreement was unusual: every discipline that looked at the
-cold first visit found the same defect, every one that looked at 3D circuits
-declined it, and four of them independently found that the site states
-something false rather than merely something thin. Those come first.*
-
-**The one decision is made.** The repository stays private (`PD-14`, decided
-2026-09-11 — see *Declined*). The claim therefore changes from *audited, and
-you can audit the audit* to *cross-checked against independent sources, with
-every disagreement and every gap published in the data* — which the artefact
-supports on its own. `AF-02` carries the three follow-ons.
-
-**The false statements** the reviews found are all landed: `UR-01`, `UR-02`,
-`UR-10`, `UR-11` in #36, `CR-02`/`DA-01` in #39, `SD-02` in #40; the cold
-first visit (`IX-01`, `IX-02`, `IX-03`, `IX-13`) landed in #37. `PD-02` is still the
-largest single fix and still has its riders.
+Each item here is a visual surface contradicting something the project
+states in its own words, or the one M with the largest visual return. Every S
+is independent.
 
 - [ ] `PD-02` **Make the prerenderer call the page components' own queries.**
       Static and app emit different numbers under the same label — 14 of 38
@@ -148,68 +153,395 @@ largest single fix and still has its riders.
       their queries and column lists with the prerenderer; the other pages
       follow.
 
-- [ ] `IA-02` **`Reference` leaves the masthead; `Data` takes the slot.**
-      `/reference` is two drawers with no reader in common: a *database* drawer
-      (`quality`, `sources`, `sql`) and a *sport* drawer (`eras`, `glossary`).
-      The first one **is** the `/data` page `PD-11` wants, so these are one
-      decision and the masthead stays at eight — Seasons · Races · Drivers ·
-      Constructors · Circuits · Cars · Records · Data. `quality` and `sources`
-      merge and move under it, `sql` moves under it; `eras` and `glossary` keep
-      their URLs and lose the slot, their problem being that they are terminal
-      rather than that they are drawered. Supersedes `PD-09`, which filed the
-      same problem as an L: the redirects are the work, and the naming decision
-      this costs at M is the one `PD-09` was waiting on. — *IA critique · M
-      (decision first)*
+- [ ] `AF-03` **Draw every layout the championship has raced on, from F1DB.**
+      F1DB (source 10, CC BY 4.0) ships an SVG outline for each of its 160
+      circuit layouts across 78 circuits — four styles, 500×500, ~1.7 KB, in
+      `src/assets/circuits/`, not in the release zip — and every F1DB race
+      carries `circuitLayoutId`. Aliased over ten ids, that is all 80 venues,
+      all 23 rounds of 2026 including Madring, and the historic layouts OSM
+      structurally cannot hold: seven Monzas, eight Silverstones. Not
+      geo-referenced, not scaled, no direction — so the 25 measured traces stay
+      for true scale, corner radius and walking the lap, and the rule is
+      printed where a shape appears: *the outline is F1DB's, for every layout;
+      the trace is OpenStreetMap's, where it exists.* Three S pieces: (1)
+      `tools/f1db_fetch.py` writes the path data and the layout register to
+      `harvest/` as text, the F1DB layout id lands on each race, and this
+      project's finer `circuit_layouts` keeps its splits with a column naming
+      the F1DB layout each draws with — the paths are CC BY, so unlike the
+      traces they may live in `f1.db`; (2) the outline on every race page,
+      where today the circuit is a text link (`VD-32`), and beside the trace on
+      every circuit page; (3) the season calendar as a strip of outlines with
+      run / next / to-come states (`PD-28`'s calendar). One credit line —
+      *Circuit outlines from F1DB (CC BY 4.0), drawn by Jules Roy* — in the
+      footer and on `/data/sources`. Pointed out by the maintainer,
+      2026-09-13. — *yours · M, in three S*
 
-- [ ] `PD-11` **Give the bulk data a front door, and a claim.** The Parquet
-      bundle now builds and serves (`PM-01`) and is linked from nothing. A
-      `/data` page in the masthead leading with the audited edition — 60 recorded
-      disagreements, a confidence tier per row, a gap register, the `verify.py`
-      checks — which is a claim the upstream does not make.
-      One implementation note: `prerender.js` writes `Disallow:` lines for
-      `f1.db`, `f1.db.gz` and `f1-parquet.zip`, which is right — a crawler
-      pulling 20 MB helps nobody — but it means the `/data` page itself has to
-      be the crawlable surface that carries the claim, since the files it links
-      never will be. Do `IA-02` first — it settles where the page goes and
-      what it displaces — and take the claim from `CD-07`, which writes it. —
-      *product critique · M*
-      **Now the canonical distribution surface** (`SD-08`): all four served
-      artefacts, sizes, digests from `db-manifest.json`, the build date, the
-      release body's which-copy-wins sentence, `schema.org/Dataset` markup
-      (`SD-11` — the one search surface built for this audience), and the
-      publisher block `UR-05`/`SD-15` ask for. The disagreements claim in
-      `CD-07` must change to the live figures from `discrepancies`
-      (`PD-25`).
-- [ ] `PD-03` **Derive `/records`, or stop shipping it.** All 30 rows are
-      authored, sit at `medium`, and nothing in `verify.py` reads the table; the
-      page says Hamilton has 105 wins while `drivers.wins` says 106. Derive the
-      leaderboards; keep only what genuinely cannot be derived, in a block that
-      says so. `IA-16` examined the nav slot and endorsed keeping it — the page
-      is the only cut by question rather than by table — and adds one thing: if
-      the authored block survives as *Published, not derived*, it belongs
-      **below** the derived leaderboards, because the derived ones are the
-      demonstration and the authored ones are the caveat. —
-      *product critique · M*
-      **`UR-09` adds the cheap half**: the caveat sentence sits 1,900 px below
-      the figure it caveats; move it above the published table today. `VD-10`
-      and `VD-13` are the same page's badge column and misaligned values.
+- [ ] `IA-17` **The season in progress is labelled as concluded.**
+      `/seasons/2026`, 13 of 23 rounds run: *How the title was decided*,
+      *Final drivers' standings*, *Final constructors' standings*
+      (`Season.jsx:254`, `:325`, `:348`), directly under a stat strip that
+      says *Leads · Antonelli · 267* and gets it right. On `/seasons` the 2026
+      row is seven em dashes, so the live season renders as a data gap on a
+      site whose footer says it never blurs *unknown* with *not yet*; on
+      `/races` the default order puts ten unrun races above the last one run;
+      the one hourly-changing sentence — *Next session … in 9 hours* — is an
+      unstyled paragraph below the tiles. Branch the three headings on whether
+      any round is still `scheduled` (*The title race*, *Drivers' standings
+      after round 13*); give the live row on `/seasons` leader, points and
+      rounds run with a *so far* mark; sort `/races` run-first; set the next
+      session as a tile. Found by three critics independently (`IA`, `VD`
+      finding 1, `PD-28`'s defect half). — *IA critique · S*
+      **2026-09-13 re-rank:** `UR-13` — the 2026 season's *static* page opens with five em dashes, a rider of `PD-02` — is the same defect in the other renderer; fix both from one expression.
+
+- [ ] `VD-26` **The accent is not reserved, and the racing colour collides
+      with it.** `tokens.css` says one red means *you can act on this* and is
+      never a data mark; `app.css` paints a 22×2 px `--accent` bar on every
+      stat tile — eight on a driver page, eight on Ferrari's. Italy's rosso
+      corsa `#c8102e` against `--accent` `#c81028` measures **1.002:1**, so on
+      `/constructors/ferrari` nine red marks in one screen carry three
+      meanings. Remove the bar; the accent keeps links, focus and the current
+      nav item. Prerequisite for `AF-04`. — *visual critique · S*
+
+- [ ] `VD-27` **The eight racing-colour swatches are one hex for two themes.**
+      Against the panel in dark: US blue 1.78:1, British racing green 2.07:1,
+      bleu de France 2.67:1, Swiss red 2.74:1; in light: Belgian yellow 2.38:1,
+      silver 2.64:1. Six of eight fail 3:1 in one theme or the other, and on
+      `/constructors` in dark the 3×16 px band is the row's only identity
+      mark. Give each entry a `{light, dark}` pair keyed the way `--seq-*`
+      already is; the same shape `AF-04` will use. The reasoning in
+      `racingColours.js` is sound; the rendering is the defect. — *visual
+      critique · S*
+
+- [ ] `VD-25` **The corner-radius encoding — the best idea in the product —
+      is invisible.** `/circuits/atlas` in dark: adjacent bands of the
+      sequential ramp measure 1.23 : 1.48 : 1.45 : 1.40 against each other and
+      `--seq-1` is 2.83:1 on `--stage`; Spa is one flat blue from La Source to
+      Kemmel and the five legend swatches cannot be told apart.
+      `Atlas.jsx:246` fixes `strokeWidth="1.6"`, so colour is the sole channel.
+      `VD-17`/`AX-07` fixed the pale end against the stage and left band-to-band
+      separation untouched. Re-step the ramp so every adjacent pair clears 2:1
+      in both themes, and vary stroke width by band so colour is not alone.
+      Closes `AX-07`, which rides. — *visual critique · S*
+
+- [ ] `AX-07` **The atlas ramp and one light chart series are under 3:1. 1.4.11.** `--seq-1` 1.99:1; no two bands 2:1 apart; `--series-3` 2.65:1. Same fix as `VD-17`. — *accessibility critique · S*
+
+- [ ] `VD-28` **The stat tile is the site's signature and it does not rank.**
+      Verstappen's eight — `2015–`, `246`, `71`, `132`, `48`, `37`, `4`, `P1` —
+      at one size, one weight, one colour; a reader came for 71 and 4.
+      `/races/2026/13` sets three of five tiles as underlined names in 22 px
+      display type, the underline through the descenders; on
+      `/constructors/ferrari` the seventh tile's label wraps and drops its
+      figure 22 px below the row's baseline. Two ranks: one or two lead
+      figures at display size, the rest at ~60%; names in `--sans`; a label
+      never wraps. `PD-15` decides *which* figures lead a driver's strip; this
+      is the shape. — *visual critique · S*
+
+- [ ] `PD-19` **731 chassis pages carry a photograph and no static page carries an `<img>`.** Emit the image from `prerender.js` with `CommonsCredit`'s fail-closed rule honoured, and extend `smoke.mjs`. `UR` found the app already places it second on the page; the static half has none. — *product critique · S*
+
+- [ ] `PD-20` **No `og:image` on any of 3,515 pages.** Every shared link renders as a grey box. Confirmed car photo where `name_matches = 1`; a generated SVG card elsewhere; `summary_large_image`. Four of six personas arrive this way (`UR`). — *product critique · S*
 
 ## Next
 
-Worth doing, not yet urgent.
+Worth doing, not yet urgent. **The visual work first, in the order the
+review sequenced it**; then the review's other asks; then everything carried
+over unchanged.
 
-- [ ] `PD-10` **A citation block.** Every ingredient exists — version, build
-      date, per-row source, permanent URL — and they are assembled nowhere. One
-      component, prerendered so a crawler sees it. — *product critique · S*
-- [ ] `PD-05` **Split `known_gaps` into open and closed.** Four of the eleven are
-      closed or not gaps, and the homepage counts all eleven. Add a `state`
-      column, filter the public page, and split each row into a reader sentence
-      and a maintainer note — it currently renders commit messages.
-      **`CD-06` makes it five, not four** — #1 and #2 are closed, #5 and #10 are
-      positions rather than gaps, #8 is a true null belonging on one race page —
-      so six genuine gaps remain and the homepage should read six. `CD-06` also
-      carries the reader sentences and the maintainer notes this entry asks for.
-      — *product critique · S*
+### The visual work
+
+- [ ] `PD-17` **F1DB publishes six driver fields the harvest discards.** `placeOfBirth`, `abbreviation`, `permanentNumber`, `bestStartingGridPosition`, `totalRaceLaps`, `familyRelationships` — CC BY 4.0, already fetched in part. The last two arrive as cross-checks. — *product critique · S*
+      **2026-09-13 re-rank:** **moved up.** `permanentNumber` and `abbreviation` are the car number and three-letter code `PD-28`'s grid and standings want; the harvest change is the same S it was.
+
+- [ ] `CR-07` **The season is a magic number in nine files.** `2026` 158 times; no `CURRENT_SEASON`. S for the constant, then one file per sitting. `SD-12` is the service face. — *code review · M*
+      **2026-09-13 re-rank:** **a prerequisite, moved up.** `IA-19`'s chip label *On the 2026 grid* on four registers, `IA-18`'s `/now` and `PD-28`'s *after round 13* all read the season; each must read the constant or they add to the 158. The S half (the constant) ships before them.
+
+- [ ] `PD-28` **A season page that knows it is September.** The one ask
+      that changes who the site is for. No ninth masthead item (`IA-18`): the
+      season page branches on status and `/now` redirects to it. It leads
+      with the lead — leader, gap, rounds run of total, and the next session
+      with local and UTC time, the one fact that changes hourly; standings
+      that admit they are running, with gap and wins columns; the calendar as
+      `AF-03`'s strip of outlines in three states, winner where run; the
+      weekend timetable from `sessions` (115 rows for 2026, no page); the grid
+      from `v_current_grid` — eleven teams, two drivers, car and power unit —
+      in `AF-04`'s colour; driver pages led by the season (a finish-per-round
+      dot strip, the team-mate head to head) with the career below; car pages
+      for this year's chassis led by the photograph; the next venue's outline,
+      trace, past winners and sessions. And **title permutations** — who can
+      still win, from `points_systems` and rounds remaining — pure SQL, the
+      most-asked question every September, a claim the broadcaster does not
+      make. Print *as of round 13* and the build date on it: the dependency is
+      harvest cadence (`SD-14`), not code. Rides: `IA-18`, `IA-19`. — *product
+      critique · M, in S pieces*
+
+- [ ] `IA-18` **No stable address for the current season.** Add `/now` as a
+      `Moved`-style redirect to `MAX(year)` — `App.jsx:207` has the pattern —
+      guessable, shareable, the one URL a returning fan types. Not a masthead
+      item. — *IA critique · S*
+
+- [ ] `IA-19` **One concept, two labels, and two registers have neither.**
+      `/drivers` offers *On the 2026 grid*; `/constructors` calls the same
+      idea *Active* (`Constructors.jsx:78`); `/cars` and `/circuits` have no
+      path to this year's chassis or calendar at all. One chip, one label —
+      *On the 2026 grid* / *On the 2026 calendar* — on all four registers.
+      Four small diffs, and the highest-value structural change on the site.
+      — *IA critique · S*
+
+- [ ] `AF-04` **A livery palette, keyed by constructor and season, in the
+      front end.** `racingColours.js` is right that no livery may enter
+      `f1.db` — no F1DB field, Wikidata P465 empty for every constructor
+      sampled, formula1.com's values FOM copyright and uncheckable here — and
+      right that it already holds a presentation palette whose map can be
+      swapped. This is a second map beside the first: 2026's eleven first,
+      then back to 2010 (about 180 constructor-seasons); every hex with its
+      source in the file (the team's press kit, brand guideline or launch
+      release — facts-only is fine because nothing enters the database);
+      every entry a `{light, dark}` pair clearing 3:1 on the panel (`VD-27`'s
+      shape); the colour named as the team names it — papaya, rosso corsa —
+      so the interface can say what it shows. 1950–67 keeps the national
+      convention, the era this record most owns; 1968–2009 is a declared gap
+      in the neutral series palette until filled. Used on the standings rail
+      and season chart, the grid cards, a stripe on the driver header for the
+      current team, the calendar strip's winner mark. Needs `VD-26` first. The
+      product critic's `PD-31` argued for declining liveries permanently; the
+      maintainer overruled it for the front end and upheld it for the
+      database (see *Declined*). — *yours · M; scope is a decision, see
+      above*
+
+- [ ] `VD-34` **Let the entity own its page's colour.** Ferrari's wins chart
+      is drawn in generic `--series-1`; Verstappen's four title years are four
+      more blue dots; the 2026 leader's line does not lead the season chart.
+      Charts and rails on driver, constructor and season pages take the
+      constructor's colour from `AF-04`, falling back to the national colour,
+      then to the series palette; title years are marked, not plotted; the
+      leader's line owns the chart. The excitement is in the data, not the
+      chrome — this is where it is spent. — *visual critique · S*
+
+- [ ] `PD-30` **Draw the three lap-referenced things the licence permits.**
+      (a) Grid position against finish position, retirements falling out at
+      the lap they stopped, every race since 1950 — the one that gives a race
+      page motion and needs nothing new; (b) stint windows from
+      `pit_stops.lap_number` + `race_entries.laps_completed`, 610 of 614 races
+      since 1994, with an empty state before 1994 that says so; (c) gap to
+      pole from 26,756 qualifying rows with Q1/Q2/Q3 where held. All three in
+      `Figure.jsx`'s convention with a table of their numbers, prerendered as
+      static SVG, at the top of the race page beside `AF-03`'s outline. Not a
+      replay, and `PD-29` says why. — *product critique · M*
+
+- [ ] `VD-32` **No map on the page where a map would mean most.**
+      `/races/2026/13` draws nothing though the browser has merged the
+      geometry; on `/circuits/monza` the trace sits in a 640 px box on a 1440
+      page with 55% of the row empty. `AF-03` puts an outline on every race
+      page including the 55 untraced circuits; this is the rest — `LapFigure`
+      at tile-row height on the 25 traced ones, and the circuit page's map at
+      the full measure. — *visual critique · S*
+
+- [ ] `VD-33` **602 photographs are advertised on the home page and shown on
+      two.** `CommonsImage`/`CommonsCredit` are imported by `Car.jsx` and
+      `Cars.jsx` only. Circuits are the highest-yield next surface — 80
+      venues, the fewest name-matching problems — and answer *more imagery*
+      without `PD-18`'s driver-name data work. Fail-closed as today; static
+      with the credit as `PD-19`. `VD-23` (three redirects a thumbnail) rides.
+      — *visual critique · S*
+
+- [ ] `VD-23` **Each thumbnail is three redirects.** `thumbUrl()` asks
+      `Special:FilePath`, which redirects — the visual critique counted three
+      hops — before `upload.wikimedia.org` answers; holding the resolved URL
+      (or the file's SHA-1 path) in
+      `article_images` would make it one. A harvest change with a check that
+      the stored URL still resolves. Split from `VD-20`. — *visual critique ·
+      S*
+
+- [ ] `AX-13` **Photograph `alt` is the file name, ".jpg" included. 1.1.1.** `Cars.jsx` already does it right. — *accessibility critique · S*
+      **2026-09-13 re-rank:** **moved up**, beside `VD-33`: every new photograph surface multiplies this until the `alt` is derived from the article name everywhere.
+
+- [ ] `VD-29` **Tables carry columns that hold no information, and lack the
+      ones that vary.** Monza's 76 races: *Grand Prix* is "Italian Grand Prix"
+      76 times and *Layout* an em dash 76 times, two of five columns;
+      Verstappen's 246 entries: *Constructor* is "Red Bull Racing" 246 times.
+      The 2026 standings are position, driver, points, with 500 px of void
+      and no gap, wins or change-since-last-round. A `DataTable` rule: a
+      column whose values are all equal collapses to a line above the table;
+      and add the columns that vary. — *visual critique · S*
+
+- [ ] `VD-30` **`/constructors` opens on its emptiest rows.** Alphabetical
+      by default: AFM, AGS, Alfa Special, Amon, Andrea Moda; roughly sixty of
+      the seventy-eight figures on the first screen are zero. Default sort by
+      entries descending on every register, alphabetical one click away. —
+      *visual critique · S*
+
+- [ ] `AX-06` **White on `--accent` is 3.34:1 in dark — the Run button. 1.4.3.** Dark foreground on the fill. — *accessibility critique · S*
+      **2026-09-13 re-rank:** **moved up**: a contrast defect on the one button the console has, and `VD-26`/`VD-27` are in the same file.
+
+- [ ] `IA-08` **No filter or sort state is in any URL, anywhere.** Zero hits for
+      `useSearchParams`, `URLSearchParams` or `location.search` across
+      `web/src/`, so no register's filters, chips, sort column, direction or
+      page can be linked or restored. Sized M and worth doing after `IA-02`
+      settles the structure it would encode. — *IA critique · M*
+
+- [ ] `IA-23` **User-selectable columns, after `IA-08`.** `DataTable.jsx:32`
+      already normalises columns to objects, so a `visible` flag and a small
+      popover is a contained change, as `?cols=`; each register declares a
+      default set and a full set, and `prerender.js` emits the default. It
+      must come after `IA-08`, or a column set nobody can link to is a third
+      divergence between what a reader sees and what they can cite. `PD-33`
+      argued for declining pickers in favour of the console; the maintainer
+      wants them, and `IX-27` shows where they pay first. — *IA critique · M*
+
+- [ ] `IX-27` **On a phone, 632 px of every register row is off screen.** At
+      390 px the `/drivers` wrapper is 344 px against a 976 px table; Wins,
+      poles and titles — the reason the page exists — are past the edge with
+      only a fade to say so, and the column the list is sorted by is hidden
+      (`VD-31`, folded in: pin the active sort column second at narrow
+      widths). The phone half of `IA-23`: a *Columns* control with a phone
+      default of three, in the query string. — *interaction critique · M*
+
+- [ ] `IX-18` **Sticky table headers have never stuck.** `thead th { position:
+      sticky }` under `.table-scroll { overflow-x: auto }`, which forces
+      `overflow-y: auto` and makes the scroller the sticky container — a box
+      that never scrolls vertically. Forty rows into `/drivers` the header is
+      1,193 px above the viewport and a reader sees `210 10 48 12 21 0` with no
+      labels. `overflow-y: clip` on `.table-scroll`. One line. Supersedes
+      `AX-18`, which filed the symptom. — *interaction critique · S*
+
+- [ ] `IX-20` **Sortable and dead headers look the same.** On `/seasons/1976`
+      four of five tables do not sort and nothing marks the difference at
+      rest; the race classification and the standings — the two a reader most
+      wants to sort — are dead to the click after `/drivers` has taught that
+      every column sorts. A dimmed sort glyph on every sortable header; make
+      classification and standings sortable. — *interaction critique · S*
+
+- [ ] `IX-26` **Nothing can be taken away.** No copy or download on any
+      table or SQL result; `/data/sql` exposes Run. One *Copy as TSV* in
+      `.table-foot`, which every table already renders. — *interaction
+      critique · S*
+
+- [ ] `IX-28` **The filtered empty state says two words.** `zzzz` + Brazil +
+      Champions → *Nothing recorded.*, header row gone, nothing naming which
+      of three filters did it, no clear-all. *No driver matches "zzzz" among
+      Brazilian champions* and a Clear filters button. `CD-17`'s second
+      verdict, placed. — *interaction critique · S*
+
+- [ ] `IX-19` **The handover deletes rows under the reader.** Static
+      `/drivers` is 862 rows; at ~13 s on 4 Mbps the app replaces it with 150.
+      A reader scrolled to row 700 lands at the top with that driver gone and
+      nothing said. Seed `DataTable`'s visible count from the prerendered
+      table's `data-rows`; collapse only afterwards. — *interaction critique ·
+      M*
+
+- [ ] `IX-24` **The atlas has no address.** Selecting Monaco and true scale
+      leaves the URL at `/circuits/atlas`; Back leaves the site. Nothing about
+      the atlas is linkable, so no animated version of it could be shared
+      either. `replaceState` to `?c=monaco&scale=1&at=1240` on every control
+      change, read on mount. `PD-21` (make the wall the page) and `PD-22`
+      (prerender the 25 shapes) ride. — *interaction critique · M*
+
+- [ ] `PD-21` **`PD-08` answered: the atlas is a comparison surface, arranged as the opposite.** Three S pieces: address it (`/circuits/atlas/:id` — all 25 inbound links land on Spa today); invert the page so the true-scale wall leads, at a width where the cells can be read (`UR`: 29–97 px today); state the selection rule (Silverstone, 61 races, untraced; Donington, 1, traced). — *product critique · M*
+      **2026-09-13 re-rank:** the *state the rule* piece is now two sentences, printed where a shape appears — *the outline is F1DB's, for every layout; the trace is OpenStreetMap's, where it exists* (`AF-03`). The true-scale wall stays traces-only: F1DB's outlines carry no scale, so they cannot join it.
+
+- [ ] `PD-22` **The atlas is the only page type with no prerendered content.** Prerender the 25 shapes as static SVG; the geometry is already read by `prerender.js`. `AX-09`'s banded-runs table answers 1.1.1 at the same time. — *product critique · S*
+
+- [ ] `IX-16` **`IA-08` escalated: Back restores the scroll and not the filter.** France filter, sort by wins, scroll, open a driver, Back — same pixel, 862 unfiltered rows. Do `/drivers` first. — *interaction critique · M*
+
+- [ ] `PD-15` **The driver stat strip is designed for a champion and rendered for a privateer.** 625 of 862 pages show four zeros. Show Wins/Podiums/Poles/FL only where one is non-zero; fill from Best grid, Starts, Retirements, Laps, Constructors — all one `SELECT` away. One tile per sitting. — *product critique · M*
+
+- [ ] `PD-16` **618 driver pages have no opening sentence.** `notes` on 244 of 862. Generate a lede from the entry record in both renderers from one expression; keep `notes` as the override. The largest "look nicer" available and it is SQL. — *product critique · M*
+
+- [ ] `VD-01` **The static half is a different design.** 126 lines of `#prerendered` CSS, a second `h1` treatment, tiles versus a key/value table. Rides with `PD-02`: emit the components' shapes, not just their numbers. — *visual critique · M*
+
+- [ ] `VD-03` **No type scale and no spacing scale in the token file.**
+      Recounted 2026-09-13: nineteen literal font sizes, twenty-eight spacing
+      values. Add `--size-n`/`--space-n` and convert one file per sitting —
+      before the components above multiply the literals. — *visual critique ·
+      M*
+
+### The review's other asks
+
+- [ ] `IA-20` **The search index cannot represent a question.** Six of ten
+      realistic queries return nothing — *ferrari 2026*, *most wins*, *who won
+      the 2026 italian grand prix* — because `rank()` requires every typed
+      word in one entity's label; a cross-entity query is structurally
+      unrepresentable, not badly ranked. Three rungs, each shippable alone:
+      (1) widen the needle to `label || ' ' || meta` — one line per UNION
+      branch, S; (2) an intent grammar over a closed vocabulary — wins, poles,
+      champions, standings, grid — plus an entity, routed to a page or a
+      parameterised `/data/sql?q=`, and the console's six example questions
+      grown to forty and indexed into the palette, so *pole to win* returns a
+      runnable answer — deterministic, testable, no model, no server, M; (3)
+      generated SQL, which is a **decision** (see above): a model in the
+      browser is tens of MB beside a 4.5 MB payload, and a server call means
+      the question leaves the tab, ending *nothing you look at is sent
+      anywhere*. If wanted, an explicit opt-in *Ask* that sends only the
+      question and the schema and runs the returned SQL locally. `PD-32`
+      (the cookbook) folds into rung 2; `IA-21`, `IX-22`, `IX-23` ride. — *IA
+      critique · M, decision on rung 3*
+
+- [ ] `IA-21` **The no-match state is a dead end.** *Nothing in the register
+      answers to that.* and nothing else, at the exact moment a reader has
+      said what they want. The console with the term pre-filled, and
+      `/records`. — *IA critique · S*
+
+- [ ] `IX-22` **One wrong letter is a flat refusal.** *verstapen*,
+      *schumaker*, *redbull* return nothing while *silverston* and *hakkinen*
+      resolve, so the rule is unlearnable. On zero hits only, retry within
+      edit distance 2 and head it *Did you mean*. — *interaction critique ·
+      S*
+
+- [ ] `IX-23` **`<entity> <year>` is an existing page and returns nothing.**
+      *ferrari 1979*, *hamilton 2008* — entity pages anchored at a season row.
+      Handle the pattern; do not build a parser. Rides `IA-20` rung 2. —
+      *interaction critique · M*
+
+- [ ] `PD-29` **Write the telemetry refusal where a reader meets it.** One
+      sentence on `/data`, the race page and the season page: *No lap-by-lap
+      timing. No source publishes it under a licence that permits passing it
+      on.* An empty section reads as unfinished; a stated constraint reads as
+      a position. Correct `docs/TIMING-ARCHITECTURE.md`'s OpenF1 row to CC
+      BY-NC-SA 4.0, which openf1.org now declares. `CD-05` carries the three
+      lengths. — *product critique · S*
+
+- [ ] `PD-32` **The cookbook.** Twelve worked questions on `/data`, one click
+      into the console. Folded into `IA-20` rung 2. — *product critique · S*
+
+- [ ] `PD-33` **Linkability before column pickers.** `IA-08` is the real
+      gap; folded into `IA-23`'s sequencing. — *product critique · S*
+
+- [ ] `PD-35` **What an expert would add, cheapest first.** Grid penalties
+      as a column on the race page — `race_entries.grid` against
+      `qualifying.position`, the reason a sourced fact; tyre-compound
+      allocation per weekend (Pirelli/FIA selections, facts-only; `WK-03` has
+      the limits); the team-mate head to head on every driver page, derived;
+      title permutations (`PD-28`); the qualifying-format history (`WK-01`).
+      F1DB's practice results, fastest laps and driver of the day are `LV-03`,
+      decided. And say on the circuit page that a lap record is the one fact
+      this project cannot hold. — *product critique · S each*
+
+- [ ] `IA-22` **The breadcrumb and the URL describe different hierarchies.**
+      Static `/races/2026/13` carries *Home / Seasons / 2026 / Italian Grand
+      Prix*; the URL says `/races/`; the app carries neither trail. `/races`
+      is unreachable from a race page by any trail in either renderer. Make
+      both *Home / Races / 2026 / Italian Grand Prix* and emit the onward band
+      statically. `IA-03` re-measured; ships with `PD-02`. — *IA critique · S*
+
+- [ ] `IX-21` **During the cold wait the strip names a destination the reader
+      has backed out of.** Click Drivers, then Circuits, Back twice: the URL
+      reads `/`, the strip reads *opening Circuits when it is ready* for 25 s,
+      and `document.title` stays the homepage's while the URL says `/drivers`.
+      Derive the label from `location.pathname` on each render. — *interaction
+      critique · S*
+
+- [ ] `IX-25` **A typo in SELECT is answered with a lecture about writes.**
+      `SELEC 1` returns the read-only warning. Within edit distance 2 of a
+      permitted keyword, *Did you mean SELECT?* — *interaction critique · S*
+
+### Carried over — not visual, unchanged
+
+Everything below stood in *Next* or *Someday* before the 2026-09-13 re-rank
+and is unchanged except for: the fourteen stale open lines `PM-34` named,
+removed; `CR-07`, `PD-17`, `AX-06` and `AX-13`, moved up into *The visual
+work* as prerequisites or same-file fixes; and a dated **re-rank** note on
+the items the new direction touches — `PM-08` re-sized, `PD-21`, `PD-18`,
+`VD-22`, `AX-16`, `PM-07`, `CD-14`, `PM-10`, `IA-11`. Every other item was
+read against the direction and found not to conflict.
 
 - [ ] `PM-12` **Loosen the specification harvest's name check.** It refuses
       "Alfa Romeo 158/159 Alfetta" for `alfa-romeo-159`. Match the chassis name
@@ -436,23 +768,7 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 
 - [ ] `CR-03` **Nothing tests the checks.** 184 assertion sites in `verify.py`, zero tests that any fires on bad data; `tests/` covers six pure functions. `tests/test_verify.py`: build once to a temp path, one mutation per test, assert the *named* check fails. Six tests cover the licence gate. — *code review · M*
 
-- [ ] `CR-07` **The season is a magic number in nine files.** `2026` 158 times; no `CURRENT_SEASON`. S for the constant, then one file per sitting. `SD-12` is the service face. — *code review · M*
-
 **Product critique, second run**
-
-- [ ] `PD-15` **The driver stat strip is designed for a champion and rendered for a privateer.** 625 of 862 pages show four zeros. Show Wins/Podiums/Poles/FL only where one is non-zero; fill from Best grid, Starts, Retirements, Laps, Constructors — all one `SELECT` away. One tile per sitting. — *product critique · M*
-
-- [ ] `PD-16` **618 driver pages have no opening sentence.** `notes` on 244 of 862. Generate a lede from the entry record in both renderers from one expression; keep `notes` as the override. The largest "look nicer" available and it is SQL. — *product critique · M*
-
-- [ ] `PD-17` **F1DB publishes six driver fields the harvest discards.** `placeOfBirth`, `abbreviation`, `permanentNumber`, `bestStartingGridPosition`, `totalRaceLaps`, `familyRelationships` — CC BY 4.0, already fetched in part. The last two arrive as cross-checks. — *product critique · S*
-
-- [ ] `PD-19` **731 chassis pages carry a photograph and no static page carries an `<img>`.** Emit the image from `prerender.js` with `CommonsCredit`'s fail-closed rule honoured, and extend `smoke.mjs`. `UR` found the app already places it second on the page; the static half has none. — *product critique · S*
-
-- [ ] `PD-20` **No `og:image` on any of 3,515 pages.** Every shared link renders as a grey box. Confirmed car photo where `name_matches = 1`; a generated SVG card elsewhere; `summary_large_image`. Four of six personas arrive this way (`UR`). — *product critique · S*
-
-- [ ] `PD-21` **`PD-08` answered: the atlas is a comparison surface, arranged as the opposite.** Three S pieces: address it (`/circuits/atlas/:id` — all 25 inbound links land on Spa today); invert the page so the true-scale wall leads, at a width where the cells can be read (`UR`: 29–97 px today); state the selection rule (Silverstone, 61 races, untraced; Donington, 1, traced). — *product critique · M*
-
-- [ ] `PD-22` **The atlas is the only page type with no prerendered content.** Prerender the 25 shapes as static SVG; the geometry is already read by `prerender.js`. `AX-09`'s banded-runs table answers 1.1.1 at the same time. — *product critique · S*
 
 - [ ] `PD-23` **Elevation as a fact, not a rendering.** Add `elevation_change_m` to `circuits` from the Wikipedia article each already cites, for the ~20 venues that state one. The Lap Ledger-shaped answer to the 3D instinct — see *Declined*. — *product critique · S*
 
@@ -464,74 +780,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       id to each view (a schema change, so a rebuild) and link the name the
       way the wins and poles tables do since #96. Split from `PD-26`. —
       *review of #96 · S*
-
-**Visual design**
-
-- [ ] `VD-01` **The static half is a different design.** 126 lines of `#prerendered` CSS, a second `h1` treatment, tiles versus a key/value table. Rides with `PD-02`: emit the components' shapes, not just their numbers. — *visual critique · M*
-
-- [ ] `VD-03` **No type scale and no spacing scale in the token file.** Nineteen literal font sizes, twenty-seven spacing values. Add `--size-n`/`--space-n` and convert one file per sitting. — *visual critique · M*
-
-- [ ] `VD-07` **The result rail's middle two bands are the same lightness.** `--rail-points` vs `--rail-classified` 1.05:1 in light, 1.07:1 in dark — measured against the panel, never against each other. Separate by lightness. — *visual critique · S*
-
-- [ ] `VD-08` **The livery-band explanation is 10.5 px mono across 175 characters.** The sentence that carries the racing-colour decision, set smaller than a footnote. `--sans`, 13 px, under the swatch, within `--measure`. — *visual critique · S*
-
-- [ ] `VD-11` **The confidence ladder is drawn without rungs.** Three middle tiers pixel-identical. Step them on border weight, not hue. — *visual critique · S*
-- [ ] `VD-12` **The circuit page shows the flattest drawing of the best asset.** Render `/circuits/:id` with the atlas's renderer — radius bands, start marker, direction. One component, one call site; most of the "look nicer" the author wants, and every pixel a fact. Declines 3D (see *Declined*); an elevation *profile strip* under the plan map if `PD-23` ever yields a source. — *visual critique · M*
-
-- [ ] `VD-23` **Each thumbnail is three redirects.** `thumbUrl()` asks
-      `Special:FilePath`, which redirects — the visual critique counted three
-      hops — before `upload.wikimedia.org` answers; holding the resolved URL
-      (or the file's SHA-1 path) in
-      `article_images` would make it one. A harvest change with a check that
-      the stored URL still resolves. Split from `VD-20`. — *visual critique ·
-      S*
-
-- [ ] `CD-19` **Eighteen driver ledes still spell a figure the strip
-      derives** ("Ten wins", "Eight wins"); `verify.py`'s check (#70) stops
-      at digits. Extend it to spelled numbers before the derived nouns and
-      rewrite the eighteen. Found by the review of #70. — *review of #70 ·
-      S*
-- [ ] `CD-18` **"Races" on the register, "Entries (stored)" on the page.**
-      The same derived count is called Races in the register and Entries on
-      the driver's page, where the stored figure sits beside it as "Entries
-      (stored)". One word, and the stored one labelled for what it is
-      (published). Found by the review of #69. — *review of #69 · S*
-
-- [ ] `PM-29` **`build.py` hardcodes the rollover year for imported drivers'
-      status.** `("active" if max(yrs) >= 2026 else "retired")` decides
-      `status` for the 680 F1DB-admitted drivers; at the 2027 rollover every
-      2026-only driver becomes retired and the `verify.py` grid check from
-      #84 fails the build, loudly and without an explanation attached. Derive
-      the year from the latest completed season, as the drivers page now
-      does. Found by the review of #84. — *review of #84 · S*
-- [ ] `CD-24` **Subset figures in a driver note are counted by nobody.**
-      Hill's five and Senna's six Monaco wins, Trintignant's two, and
-      Ickx's six Le Mans wins were verified by hand for #79 and nothing
-      re-checks them. Three are one query on `race_entries`: count a
-      "<N> <Circuit> wins" phrase against the records, and declare the
-      one no table can constrain. Found by the review of #79. — *review of
-      #79 · S*
-
-- [ ] `PM-31` **`docs/COMMERCIAL-READINESS.md` types figures nothing checks.**
-      Its class table and per-table breakdown said 539 facts-only rows when
-      the database held 552 before #91 and 667 with it; #91 corrected them by
-      query, once. Make them spans `tools/readme_figures.py` writes, as the
-      README's are, or generate the breakdown from `./f1 licences`. Found by
-      the licence review of #91. — *review of #91 · S*
-
-- [ ] `PM-34` **14 ids are open and landed at once in this file.** The
-      merge helper's duplicate check (`_open_and_landed()` in
-      `merge-main.py`, which is how this list was made) finds each of
-      `CD-18`, `CD-19`, `CD-24`, `IA-02`, `PD-03`, `PD-05`, `PD-10`, `PD-11`, `PM-29`, `PM-31`, `VD-07`, `VD-08`, `VD-11`, `VD-12` listed both `- [ ]` and `- [x]`: stale
-      open lines left when the items landed. Remove each open line after
-      confirming the landed entry covers it, as `CD-21`, `CR-23` and
-      `CR-24` were in #85; the helper prints the survivors after every
-      merge until they are gone. Found by the reviews of #98. — *review of
-      #98 · S*
-
-**Interaction design**
-
-- [ ] `IX-16` **`IA-08` escalated: Back restores the scroll and not the filter.** France filter, sort by wins, scroll, open a driver, Back — same pixel, 862 unfiltered rows. Do `/drivers` first. — *interaction critique · M*
 
 **Data architecture**
 
@@ -599,25 +847,21 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 
 - [ ] `AX-02` **The search palette is not modal and not a listbox. 4.1.2, 2.4.3.** Shift+Tab leaves it despite `aria-modal`; no `activedescendant`; Escape drops focus to `<body>`. Three S pieces. — *accessibility critique · M*
 
-- [ ] `AX-06` **White on `--accent` is 3.34:1 in dark — the Run button. 1.4.3.** Dark foreground on the fill. — *accessibility critique · S*
-
-- [ ] `AX-07` **The atlas ramp and one light chart series are under 3:1. 1.4.11.** `--seq-1` 1.99:1; no two bands 2:1 apart; `--series-3` 2.65:1. Same fix as `VD-17`. — *accessibility critique · S*
-
 - [ ] `AX-09` **The atlas is the one graphic with no table of its numbers. 1.1.1.** A banded-runs table from `cornerRadius`/`stitch`; answers `PD-22` too. — *accessibility critique · M*
 
 - [ ] `AX-10` **Three routes scroll the body sideways at 320 px. 1.4.10.** Atlas 107 px, Spa's layouts table 41 px, SQL example 24 px. — *accessibility critique · S*
 
 - [ ] `AX-12` **The FL column is a bullet with no alternative; the rail is an empty cell named "Result" on every row. 1.1.1.** `sr-only` text and an `<abbr>`; `aria-hidden` on the rail. — *accessibility critique · S*
 
-- [ ] `AX-13` **Photograph `alt` is the file name, ".jpg" included. 1.1.1.** `Cars.jsx` already does it right. — *accessibility critique · S*
-
 - [ ] `AX-15` **`/` is a global single-key shortcut with no off switch. 2.1.4.** Drop it for ⌘/Ctrl+K, or add a toggle. — *accessibility critique · S*
 
 - [ ] `AX-16` **A dropped end label leaves one line identified by colour alone. 1.4.1.** Stroke-dash per series, echoed in the legend. — *accessibility critique · S*
+      **2026-09-13 re-rank:** `VD-34` colours chart series by constructor and must keep the per-series dash and the legend echo — colour becomes more meaningful, not the only channel.
 
 - [ ] `AX-17` **Five registers and the SQL console render their table with no caption; the static half has none anywhere.** A `caption` prop at six call sites and in `prerender.js`. — *accessibility critique · S*
 
 - [ ] `AX-18` **The sticky column headers do not stick.** `.table-scroll` never scrolls vertically. Make it work or delete the rule. — *accessibility critique · S*
+      **Superseded by `IX-18`**, which found the cause (2026-09-13); lands with it.
 
 - [ ] `AX-19` **The scrubber announces "5" and has a 3 px pointer target.** `aria-valuetext`; 24 px hit area; `aria-disabled` instead of `disabled`. 2.5.8 passes. — *accessibility critique · S*
 
@@ -646,12 +890,14 @@ Real, but not costed, or waiting on a decision.
       `v_images_to_check` ranks them worst-first. The ATS D5 article leads with a
       photograph of officials and police, so the failure is real. The only part
       of the database with no cross-check available at all. — *project record · L*
+      **2026-09-13 re-rank:** `VD-33` puts photographs on circuit pages; the same name-match rule (`name_matches`, `v_images_to_check`) applies there before any circuit image is shown, fail-closed.
 
 - [ ] `PM-08` **Circuit configuration timelines for the remaining ten venues** —
       Kyalami, Zandvoort, Suzuka, Imola, Jerez, Estoril, Paul Ricard, Zolder,
       Brands Hatch, Buenos Aires. `verify.py` already enforces completeness and
       non-overlap once rows exist, so the guard rail is built. —
       *project record · L*
+      **2026-09-13 re-rank:** **re-sized L → S, after `AF-03`.** F1DB's layout register carries a layout for every one of the 78 circuits and every F1DB race names its `circuitLayoutId`, so the ten timelines are a derivation from the harvest, not a hand-authored L; `verify.py`'s completeness and non-overlap checks already gate the rows. Authoring stays only where this project's split is finer than F1DB's, as Monza's nine to seven.
 
 - [ ] `PM-26` **Three centrelines do not close into a loop.** Monaco has 4
       loose ends, Montjuïc 2, Las Vegas 1 — genuine 5.4–63.4 m holes in the OSM
@@ -672,6 +918,7 @@ Real, but not costed, or waiting on a decision.
 
 - [ ] `PM-10` **Historical season entry lists.** `season_entries` is 23 rows,
       2026 only. — *project record · M*
+      **2026-09-13 re-rank:** a past season rendered in `PD-28`'s shape, and `AF-04`'s per-season colours on it, both want a season's grid; `season_entrants` has the constructor–chassis–engine link back to 1950 already, so the gap is drivers per entrant, not the register.
 
 - [ ] `PM-11` **Constructor on pole and fastest-lap entries,** which turns car
       pole counts from lower bounds into exact figures. — *project record · M*
@@ -708,11 +955,6 @@ Real, but not costed, or waiting on a decision.
       the walkthrough agreed from structure and from use; the one number that
       would end the residual argument (does anyone open it) is `PD-Ø`'s. —
       *product critique · answered*
-- [ ] `IA-08` **No filter or sort state is in any URL, anywhere.** Zero hits for
-      `useSearchParams`, `URLSearchParams` or `location.search` across
-      `web/src/`, so no register's filters, chips, sort column, direction or
-      page can be linked or restored. Sized M and worth doing after `IA-02`
-      settles the structure it would encode. — *IA critique · M*
 
 - [ ] `IA-09` **The eyebrow above every `h1` means four different things.** One
       slot in one position on every page, carrying four unrelated kinds of
@@ -725,6 +967,7 @@ Real, but not costed, or waiting on a decision.
 
 - [ ] `IA-11` **The two longest registers are the two with no time axis.** —
       *IA critique · S*
+      **2026-09-13 re-rank:** `IA-19`'s chip and `VD-30`'s default sort are the cheap half; a real time axis on `/drivers` and `/constructors` remains.
 
 - [ ] `IA-13` **`/reference/eras` renders nine tables under a two-word label.**
       Eras, engine formulae, scoring systems, regulation changes and limits,
@@ -746,6 +989,7 @@ Real, but not costed, or waiting on a decision.
       position, a pre-1991 margin, and a stored figure shown beside a derived
       one. Not three more panels — six is a wall — but a change of framing so
       the section is a door. — *content critique · S*
+      **2026-09-13 re-rank:** the home page changes shape when `PD-28` lands — the season leads and *Where to start* stops repeating the masthead. Do this reframing in the same change.
 
 - [ ] `CD-17` **Error and empty states: an inventory.** Written out in the
       critique with a verdict each. Two worth acting on: the boot-failure copy
@@ -763,6 +1007,7 @@ Real, but not costed, or waiting on a decision.
       nobody has observed. One of three: read Cloudflare monthly; make the
       repository public and read the download counts; or decide measurement is
       not wanted and write that here. — *product critique, user research · ?*
+
 ### Filed 2026-09-11
 
 - [ ] `CR-12` **The stage pipeline is the right shape and a mechanical split of it.** Truncated names, an empty `_stage_31`, a stage doing nine things, file order disagreeing with run order. Rename by what each does; a final `_stage_99_finish`. — *code review · M*
@@ -776,8 +1021,10 @@ Real, but not costed, or waiting on a decision.
 - [ ] `CR-20` **The history the project leans on starts on 2026-09-04.** Everything before v2.6 is `BUILD-NOTES.md` and comments, which makes `PM-02` weightier than an S. `PM-02` landed in #60 as far as v2.16–v2.22 go; what this asks about is the record *before* the git history starts, and that stays open. — *code review · ?*
 
 - [ ] `PD-18` **Driver photographs: available for ~65%, fourth in the queue.** Sampled n=160: 55% pre-1970 to 98% modern, all on Commons. An *identification* portrait beside the `h1`, never a hero; the template must work without one (302 pages). Decide after `PD-16` and `PD-19` have shipped. `VD-22` sizes the data side L (a `drivers.article` equivalent, a name-match rule for people); `UR` found no persona blocked by its absence. — *product critique · decision*
+      **2026-09-13 re-rank:** `PD-28`'s season page adds no portrait and keeps to the *Declined* position on hero portraits. If the decision is ever yes, the 23 drivers on the 2026 grid are the pilot: 98% have a Commons portrait and one season page shows them all.
 
 - [ ] `VD-22` **What the formula1.com ask should buy.** `PD-18`'s visual half: 96–120 px, tile rhythm, `CommonsCredit`. Circuits would serve a reader more than drivers if only one image programme is ever done. — *visual critique · M*
+      **2026-09-13 re-rank:** the circuits half is `VD-33`, in *Next*; the driver half stays with `PD-18`'s decision.
 
 ---
 
@@ -1748,6 +1995,13 @@ Real, but not costed, or waiting on a decision.
       say "the register's" or "the stored figure"; every surface on a driver
       page now uses the one word. — *review of #97 · #99*
 
+- [x] `PM-34` **The fourteen stale open lines are gone.** `CD-18`, `CD-19`,
+      `CD-24`, `IA-02`, `PD-03`, `PD-05`, `PD-10`, `PD-11`, `PM-29`, `PM-31`,
+      `VD-07`, `VD-08`, `VD-11`, `VD-12` — each confirmed against its *Landed*
+      entry and its open line removed in the 2026-09-13 re-rank; the merge
+      helper's duplicate check is the guard from here. — *review of #98 ·
+      2026-09-13 re-rank*
+
 ## Declined
 
 Measured, decided, and on the record. Each may be re-raised — the reason is what
@@ -1762,6 +2016,10 @@ a critique has to argue against.
 - **Building full-text or site-wide search.** It already exists. `Search.jsx` is
   good work that is mislabelled and indexes the wrong column; `IA-05` and
   `IA-06` are the fix. — `IA` critique
+  **Re-raised 2026-09-13 as natural-language search.** The position holds for
+  full-text: the fix for a question is not indexing more text. What is filed
+  instead is `IA-20` — a wider needle, an intent grammar and a question
+  library, no model — with generated SQL held as a decision.
 
 - **Route-level code splitting in the front end.** The bundle is 398 KB raw /
   118 KB gzipped, irrelevant beside the database the browser downloads (4.4 MB
@@ -1821,6 +2079,8 @@ a critique has to argue against.
   was blocked by the absence of a photograph; five were blocked by a false
   or missing figure. An *identification* portrait beside the heading remains
   open as `PD-18`, after `PD-16` and `PD-19`. — `PD`, `VD`, `UR`
+  **Checked 2026-09-13:** `PD-28`'s season page keeps to this — no portrait,
+  the season's figures lead.
 
 - **Changing `race_entries`' grain to (race, driver, car).** The known loss
   from one row per driver per race was measured: two positions in 27,482 rows
@@ -1848,3 +2108,30 @@ a critique has to argue against.
   `AF-02` carries the three follow-ons that keep most of the ground. Re-raise
   only with a reason the author has not weighed: the code is private by
   choice, not by oversight. — the author
+
+- **Telemetry replays.** Re-raised by the maintainer on 2026-09-13 and
+  declined again, on the licences alone: Jolpica-F1 and OpenF1 are CC
+  BY-NC-SA 4.0 (OpenF1 now declares it on its own site — `PD-29` corrects the
+  stale *FOM's data* cell), FastF1 is FOM live-timing data, F1DB has no lap
+  times. What may be drawn is drawn: `PD-30`'s grid-to-flag, stint windows and
+  gap-to-pole from CC BY 4.0 tables. Re-raise only with a source that both has
+  the data and permits passing it on. — `PD` critique, the design review
+
+- **A ninth masthead item for the current season.** The taxonomy is eight cuts
+  by entity plus `Data`; the season is the one cut by time and already has a
+  slot at `/seasons/:year`. `IA-18`'s `/now` redirect and `PD-28`'s page that
+  knows it is in progress do the job; the nav already overflows at 720 px
+  (`IA-14`). — `IA` critique
+
+- **A new visual identity.** The Pit Wall system is measured and coherent;
+  the flatness is density and what the accent is spent on (`VD-26`, `VD-28`,
+  `VD-34`, `PD-34`). A repaint would change none of the pages whose problem is
+  what is on them. Keep the tokens; spend them differently. — `PD`, `VD`
+  critiques
+
+- **Livery colours inside `f1.db`.** `PD-31` is upheld for the database: no
+  F1DB field, no Wikidata value, nothing here can check a hex, and a livery is
+  per-season and often mid-season. The front-end palette `AF-04` is the form
+  the maintainer chose instead, on 2026-09-13, over the critic's
+  recommendation to decline liveries everywhere. — `PD` critique, the
+  maintainer
