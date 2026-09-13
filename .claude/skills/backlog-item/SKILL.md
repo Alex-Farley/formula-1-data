@@ -15,7 +15,11 @@ in `CONTRIBUTING.md` under *The queue*. The rules are in `CLAUDE.md` under *Work
 and in `CONTRIBUTING.md`; read both rule sections before touching anything.
 The scripts are in `.claude/skills/backlog-loop/`. Your result is read by
 the driver, which sees only its first line and a five-line stock-take, so
-end exactly as *The result* says below.
+end exactly as *The result* says below. **Ending your turn is returning:**
+your context is discarded the moment you stop, so nothing you launched and
+did not wait for - a reviewer, a CI wait - ever reports back to you. Its
+result lands in the driver, which may not act on it. Never end a turn to
+wait for something.
 
 Arguments: a pace - `fast`, `balanced` or `thorough`, default `balanced` -
 and a target - `next` or an item id, default `next` - optionally followed by
@@ -26,7 +30,10 @@ session to pick up from its description. If you were not invoked by the
 `STOP: not invoked by the loop` and do nothing. Before starting, run
 `gh pr list --state open` and `git worktree list`: an open `claude/` PR or
 a leftover worktree from a fork the limit ended is finished first, from
-where it stopped.
+where it stopped. Read the PR's comments before anything else: a recorded
+`FAIL` nobody has fixed is fixed, never reviewed again on the same head.
+(2026-09-13: a fork that inherited PR #273 with three unrecorded FAILs
+launched three more reviewers on the unchanged commit.)
 
 ## Before an item
 
@@ -79,7 +86,7 @@ licence-reviewer triggers; the stop conditions; Opus for any change under
 | Routes named in the brief for the reviewer to spot-check | 3 | 10, chosen for edge cases: a NULL, a tie, a shared drive, a season not yet run | every route the change touches |
 | Confirming a fix that must land before merge | fresh Sonnet | fresh Sonnet | fresh Opus |
 | Items per PR | S items on one theme, up to four, where the diff stays readable | one M (all its rungs), or two S on a theme | one |
-| Pipelining | start item N+1 in its own worktree while N is under review; hold its PR until N merges, then `merge-main.py` | none | none |
+| Pipelining | none (PM-39: the review and the CI wait are foreground, so a fork holds one item at a time; batching is the `fast` saving) | none | none |
 
 The reviewers' effort and turn caps are frontmatter in `.claude/agents/`:
 the standard reviewers run at effort high with a cap of 90 turns, the quick
@@ -87,6 +94,29 @@ variant at effort high with 50. The caps are runaway stops, not budgets - a
 reviewer that hits one returns without a verdict line, and that is not a
 PASS. The Agent tool overrides a model per call and not an effort, which is
 why a pace picks an agent rather than a setting.
+
+## What the person sees
+
+Your context is invisible to the person who started the loop, on purpose:
+keeping it out of the driver is what made the loop affordable. From the
+driver your whole run is one tool call that sits there for many minutes
+showing no token use, and on 2026-09-13 the maintainer interrupted it three
+times believing it had stalled, killing the fork each time. The replacement
+for the visibility the fork took away is one line per stage:
+
+    bash .claude/skills/backlog-loop/progress.sh <ITEM-ID> "<stage>"
+
+appends `HH:MM:SS ITEM stage` to `.claude/loop/progress.log` beside the
+main checkout, which the driver created and pointed the person at before
+invoking you. It exits 1 if the line could not be written; say so in your
+result's stock-take and carry on.
+Write one at each of these, in a few words each and never as a report: the
+item chosen (`next.py` gave #n); worktree open; `make all` green; web tests
+green; PR opened (#N); reviewer launched (which agent, which model);
+verdict (PASS or FAIL, one clause); fix pushed; confirmation launched; CI
+wait entered (the longest silence, up to twenty minutes); CI green; merged; and any skip or stop with its reason. Before the item is
+known, use the target you were given as the id. A stage costs a few
+tokens; a fork killed as stalled costs the item.
 
 ## Doing the item
 
@@ -143,7 +173,13 @@ to confirm one of these; the brief stays on judgement.
 ## Review
 
 One fresh agent from `.claude/agents/`, pointed at the worktree path, using
-`.claude/skills/backlog-loop/review-prompt.md` as the brief. Which one:
+`.claude/skills/backlog-loop/review-prompt.md` as the brief. **Launch it
+with `run_in_background: false` and wait for it**: the Agent tool runs in
+the background by default, and a fork that launches a reviewer in the
+background and ends its turn has returned - its context is gone, the
+verdict lands in the driver, and the driver's contract forbids acting on
+it. Two reviewers on one PR are launched in one message, both foreground.
+Which one:
 
 - `frontend-reviewer` for anything under `web/` - thoroughly, with a design
   eye: it drives the built pages and compares app and static output. At
@@ -187,10 +223,14 @@ The agent returns exactly `PASS — safe to merge` or `FAIL — changes required
   merge is confirmed.
 - Silence, a rate limit, a reviewer that hit its turn cap, a quick-variant
   verdict without its `Applied:` line, or an unavailable account is not a
-  PASS. If the agent dies on a session limit, relaunch
-  after the reset.
-- Record the verdict as a PR comment (reviewer and model, verdict, the FAIL
-  rounds in one line each), then `gh pr merge N --merge` only with the PASS
+  PASS. If the agent dies on a session limit, return `LIMIT: resets
+  <time>` at once; the driver schedules the wake-up and a fresh fork
+  picks the PR up. You cannot outlive the reset.
+- **Record the verdict as a PR comment the moment it arrives**, before the
+  fix, the confirmation or anything else: reviewer and model, verdict, the
+  blocking findings in one line each. A fork can die between the verdict
+  and the merge - a limit, an interrupt - and the comment is what the next
+  fork reads to fix rather than re-review. Then `gh pr merge N --merge` only with the PASS
   and `check (3.9)`, `check (3.12)` and `web` green. **Merging deploys
   lapledger.org**: Cloudflare builds every push to `main`, so a merge is a
   production change. The `review` check fails on an exhausted credential;
@@ -222,7 +262,9 @@ The agent returns exactly `PASS — safe to merge` or `FAIL — changes required
   `PR N core checks: pass,pass,pass` and exits 0; exits 2 on a failed check,
   1 on a twenty-minute timeout, and 3 at once when the PR is CONFLICTING
   (no check registers, so CI never started - merge main first). Run it in
-  the background and read its file; empty output from `gh` is pending.
+  the foreground with the Bash tool's maximum timeout (600000 ms) and run it
+  again if the tool times out first; never in the background, for the
+  reason the review section gives. Empty output from `gh` is pending.
 - Main moved under a branch: `python3 .claude/skills/backlog-loop/merge-main.py`
   from the worktree. It resolves only what it can safely: main's copy of
   the generated artefacts with a rebuild, and a README or licence-statement
@@ -257,4 +299,5 @@ exactly one of:
 followed by a stock-take of at most five lines: what merged, what is open,
 issues filed, decisions filed, what `next.py` now prints as next. No
 reviewer report, no build output, no narrative of the work - the PR, its
-comment and the issues hold those.
+comment and the issues hold those. A result that says it is waiting for
+anything is not a result: nothing waits for a fork that has returned.

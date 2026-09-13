@@ -3,7 +3,10 @@
 # none is pending - exit 0 when all three pass, 2 when any failed - or
 # "PR N timeout: ..." with exit 1 after ~20 minutes. Empty output from gh
 # (API hiccup, checks not yet registered) counts as pending.
-#   bash ci-wait.sh 123 > scratchpad/ci123.txt 2>&1 &
+#   bash ci-wait.sh 123
+# In the foreground, with the Bash tool's maximum timeout, run again if the
+# tool times out first (PM-39): a fork that backgrounds this and ends its
+# turn has returned, and the result lands where nothing acts on it.
 set -u
 n="${1:?pr number}"
 for _ in $(seq 1 40); do

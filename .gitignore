@@ -80,3 +80,8 @@ f1_database.json
 
 # Claude Code local settings (machine-specific, not shared)
 .claude/settings.local.json
+
+# The backlog loop's progress log, one line per stage from the fork, written
+# by .claude/skills/backlog-loop/progress.sh so a person can watch a fork
+# whose context they cannot see. Per machine, per run; never committed.
+.claude/loop/
