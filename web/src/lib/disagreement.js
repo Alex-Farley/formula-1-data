@@ -21,4 +21,4 @@ export const allExplained = (rows) =>
  */
 export const EXPLAINED_FOOTER =
   'Recorded and explained rather than resolved: the published span and the one the race records give differ, and the page shows both. Every recorded reading is listed on '
-export const OPEN_FOOTER = 'Recorded rather than resolved, and open for somebody to settle. Every one is listed on ' 
+export const OPEN_FOOTER = 'Recorded rather than resolved, and open for somebody to settle. Every one is listed on '

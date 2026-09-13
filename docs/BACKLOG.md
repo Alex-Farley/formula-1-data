@@ -515,6 +515,13 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       query, once. Make them spans `tools/readme_figures.py` writes, as the
       README's are, or generate the breakdown from `./f1 licences`. Found by
       the licence review of #91. — *review of #91 · S*
+
+- [ ] `CD-28` **The assessments in `discrepancies` say "the register's" and
+      "the stored figure" beside an aside that says "published".** The
+      Cevert and Rossi rows (`EXPLAINED_SPANS`) and the external-figure rows
+      built in `build.py`; one word, in the data. Split from `CD-27`. —
+      *review of #97 · S*
+
 **Interaction design**
 
 - [ ] `IX-16` **`IA-08` escalated: Back restores the scroll and not the filter.** France filter, sort by wins, scroll, open a driver, Back — same pixel, 862 unfiltered rows. Do `/drivers` first. — *interaction critique · M*
@@ -1670,11 +1677,14 @@ Real, but not costed, or waiting on a decision.
       year as a first-season row's are against MIN. No row needed it today.
       — *review of #81 · #93*
 
-- [x] `CD-27` **One word for the register's figure: published.** The
-      explained aside says "the published span and the one the race records
-      give differ", from a footer string both renderers now share, and the
-      quality page's column is "Published", as the strip and the record list
-      already said. — *review of #89 · #97*
+- [x] `CD-27` **The aside and the strip agree: the register's figure is
+      "published".** The explained aside says "the published span and the
+      one the race records give differ", from a footer string both renderers
+      share and a unit test pins. The quality page's column is "Recorded",
+      not "Published" — the review of #97 found thirteen of its rows hold
+      this project's own authored claim, which nobody published. The
+      assessments inside `f1.db` still say "the register's" and "the stored
+      figure"; that is database prose, `CD-28`. — *review of #89 · #97*
 
 ## Declined
 
