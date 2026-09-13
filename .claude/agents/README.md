@@ -12,6 +12,16 @@ on a change, in a terminal or by `.github/workflows/review.yml`.
 
 They are project-specific by design, and will not transplant.
 
+Each carries `effort: high` and `maxTurns: 90` in its frontmatter. The cap is a
+runaway stop, not a budget: a reviewer that hits it returns without a verdict
+line, and the backlog loop treats that as no review. `frontend-reviewer-quick`
+is the same checklist, read from `frontend-reviewer.md` so the rules stay in one
+file, on Sonnet with a fifty-turn cap; the loop uses it only at pace `fast` for a
+small front-end change that does not touch the prerenderer. Which agent a pace
+may use is set in `.claude/skills/backlog-item/SKILL.md`, and
+`tests/test_conventions.py` checks every agent's and skill's frontmatter parses
+and carries only keys Claude Code documents.
+
 ## Critics
 
 `accessibility-critic`, `interaction-design-critic`, `visual-design-critic`,

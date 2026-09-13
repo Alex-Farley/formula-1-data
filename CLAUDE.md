@@ -163,8 +163,12 @@ rules above and these. The full process is in `CONTRIBUTING.md` under
 *Working autonomously*; this is the part that has to be in front of you.
 The loop itself is a skill, invoked on purpose rather than run by default:
 `/backlog-loop next`, `/backlog-loop <ITEM-ID>` or `/backlog-loop
-until-paused`, with its procedure and the scripts it uses in
-`.claude/skills/backlog-loop/`.
+until-paused`, each with an optional pace - `fast`, `balanced` (the
+default) or `thorough`. The driver and its scripts are in
+`.claude/skills/backlog-loop/`; every item runs in a forked context
+through `.claude/skills/backlog-item/`, so the session driving the loop
+stays small. Measured 2026-09-13: that session, not the reviewers, was
+75-85 % of the loop's tokens.
 
 - **`docs/BACKLOG.md` is the queue.** Nothing else is. Before starting an
   item, reread it against the code as it is now — an item can be stale,
@@ -189,8 +193,9 @@ until-paused`, with its procedure and the scripts it uses in
   pass, Sonnet to confirm a fix that must land before merge or to review
   wording - that a PASS merges as reviewed with non-blocking code findings
   carried into the next PR, which fixes merge without a further pass, and
-  that the rungs of one item are one PR, is set in
-  `.claude/skills/backlog-loop/SKILL.md` (decided 2026-09-13, twice).
+  that the rungs of one item are one PR, and what each pace may relax and
+  what no pace may, is set in `.claude/skills/backlog-item/SKILL.md`
+  (decided 2026-09-13, three times).
 - **`review.yml` failing is infrastructure, not a defect.** It runs on a
   credential that is currently exhausted. Do not retry it, do not edit it
   to make it pass, and do not treat its red check as a code failure or its

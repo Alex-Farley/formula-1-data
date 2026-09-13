@@ -1,6 +1,8 @@
 # Reviewer brief
 
-Fill in and pass to a fresh `.claude/agents/<reviewer>` with `model: "opus"`.
+Fill in and pass to a fresh `.claude/agents/<reviewer>` with `model: "opus"`,
+or to `frontend-reviewer-quick` where the pace table in
+`.claude/skills/backlog-item/SKILL.md` allows it.
 
     Independent review of PR #<N> on Alex-Farley/formula-1-data, branch
     `<branch>` at <sha>, checked out as a git worktree at <path> (node_modules
@@ -14,6 +16,8 @@ Fill in and pass to a fresh `.claude/agents/<reviewer>` with `model: "opus"`.
     and f1.db. Node is at ~/.local/node/bin. `make ci` green.
 
     Task <ID>: <what the item asked for, in one or two sentences>.
+    Routes to spot-check: <the routes the pace allows - three at fast, ten
+    chosen for edge cases at balanced, every touched route at thorough>.
     Change: <what was done, file by file, in plain terms; name every claim
     the change makes that a reviewer could check>.
 

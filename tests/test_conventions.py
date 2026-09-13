@@ -163,3 +163,103 @@ class WorkflowsDeclareTheirPermissions(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+AGENT_KEYS = {
+    # .claude/agents/*.md, as Claude Code documents them (code.claude.com/docs/en/sub-agents)
+    "name", "description", "tools", "disallowedTools", "model", "permissionMode", "maxTurns",
+    "skills", "mcpServers", "hooks", "memory", "background", "effort", "isolation", "color",
+    "initialPrompt", "experimental",
+}
+SKILL_KEYS = {
+    # .claude/skills/*/SKILL.md (code.claude.com/docs/en/skills)
+    "name", "description", "when_to_use", "argument-hint", "arguments", "disable-model-invocation",
+    "user-invocable", "allowed-tools", "disallowed-tools", "model", "effort", "context", "agent",
+    "background", "hooks", "paths", "shell", "metadata", "license", "compatibility",
+}
+MODELS = {"opus", "sonnet", "haiku", "fable", "inherit"}
+EFFORTS = {"low", "medium", "high", "xhigh", "max"}
+# The reviewers the backlog loop launches. Each carries a turn cap so a
+# reviewer that loses its way returns rather than runs until the session
+# limit ends it; .claude/skills/backlog-item/SKILL.md says a return without
+# a verdict line is not a PASS.
+LOOP_REVIEWERS = ("frontend-reviewer", "frontend-reviewer-quick", "data-integrity-reviewer", "licence-reviewer")
+
+
+def frontmatter(rel):
+    """The leading --- block as {key: value}, values as the strings written.
+    Deliberately not YAML: the build has no dependencies, and the keys these
+    files use are all `key: scalar`."""
+    text = read(rel)
+    m = re.match(r"---\n(.*?)\n---\n", text, re.S)
+    if not m:
+        return None
+    out = {}
+    for line in m.group(1).splitlines():
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        key, sep, value = line.partition(":")
+        if not sep or key != key.strip() or " " in key.strip():
+            return {"__malformed__": line}
+        out[key] = value.strip().strip("\"'")
+    return out
+
+
+class AgentAndSkillFrontmatterIsWellFormed(unittest.TestCase):
+    """A misspelt key in an agent's frontmatter is ignored silently: `effort:`
+    written as `efort:` leaves the reviewer at the default and nothing says
+    so. These are the settings the backlog loop's cost decisions rest on
+    (PM-33, PM-35, PM-36), so a typo here is a cost regression nobody sees."""
+
+    def agents(self):
+        return files_under(".claude/agents", (".md",))
+
+    def skills(self):
+        return [f for f in files_under(".claude/skills", (".md",)) if f.endswith("/SKILL.md")]
+
+    def check(self, rel, allowed):
+        fm = frontmatter(rel)
+        self.assertIsNotNone(fm, f"{rel} has no --- frontmatter block")
+        self.assertNotIn("__malformed__", fm, f"{rel}: frontmatter line is not `key: value`: {fm.get('__malformed__')}")
+        unknown = sorted(set(fm) - allowed)
+        self.assertEqual(unknown, [], f"{rel} uses frontmatter keys Claude Code does not document: {unknown}")
+        for key in ("name", "description"):
+            self.assertTrue(fm.get(key), f"{rel} has no {key}")
+        if "model" in fm:
+            self.assertTrue(fm["model"] in MODELS or fm["model"].startswith("claude-"),
+                            f"{rel}: model {fm['model']!r} is not an alias or a full model id")
+        if "effort" in fm:
+            self.assertIn(fm["effort"], EFFORTS, f"{rel}: effort {fm['effort']!r}")
+        if "maxTurns" in fm:
+            self.assertTrue(fm["maxTurns"].isdigit() and int(fm["maxTurns"]) > 0, f"{rel}: maxTurns {fm['maxTurns']!r}")
+        if "context" in fm:
+            self.assertEqual(fm["context"], "fork", f"{rel}: context {fm['context']!r}")
+        return fm
+
+    def test_every_agent_parses_and_is_named_for_its_file(self):
+        for rel in self.agents():
+            if rel.endswith("README.md"):
+                continue
+            fm = self.check(rel, AGENT_KEYS)
+            stem = os.path.basename(rel)[:-3]
+            self.assertEqual(fm["name"], stem, f"{rel}: name {fm['name']!r} is not the file name")
+
+    def test_every_skill_parses_and_is_named_for_its_folder(self):
+        for rel in self.skills():
+            fm = self.check(rel, SKILL_KEYS)
+            folder = os.path.basename(os.path.dirname(rel))
+            self.assertEqual(fm["name"], folder, f"{rel}: name {fm['name']!r} is not the folder name")
+
+    def test_the_loop_reviewers_carry_a_turn_cap_and_an_effort(self):
+        for name in LOOP_REVIEWERS:
+            fm = frontmatter(f".claude/agents/{name}.md")
+            self.assertIsNotNone(fm, f"{name} is named by the loop and does not exist")
+            self.assertIn("maxTurns", fm, f"{name}: the loop's reviewers carry maxTurns")
+            self.assertIn("effort", fm, f"{name}: the loop's reviewers carry effort")
+
+    def test_no_command_shadows_a_skill(self):
+        # Skills win over a command of the same name, so the command is dead
+        # text that still reads as if it ran; /backlog-loop had one until PM-36.
+        skills = {os.path.basename(os.path.dirname(f)) for f in self.skills()}
+        commands = {os.path.basename(f)[:-3] for f in files_under(".claude/commands", (".md",))}
+        self.assertEqual(sorted(skills & commands), [], "a .claude/commands file shadows a skill of the same name")

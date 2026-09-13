@@ -68,62 +68,33 @@ the link. An autonomous run does not take these; it works around them and
 adds to this list when it finds another. Struck through when decided, with
 the date, then removed at the next tidy.
 
-- ~~`AF-04` **Which eras get a livery palette, and what a hex must cite.**~~
-  Decided 2026-09-13 by the maintainer: **2010 onwards**, 2026 first, each
-  value sourced to the team's own brand material (press kit, brand guideline
-  or launch release; no fan colour-code sites) and carried as a light/dark
-  pair, never in `f1.db`; 1950–67 stays the national convention; 1968–2009
-  is a declared gap drawn in the neutral series palette. The item in *Next*
-  is the work.
-- ~~`IA-20` **Rung three: may a search question leave the tab?**~~ Decided
-  2026-09-13 by the maintainer: **deferred** until rungs one and two have
-  shipped and the question library's coverage can be seen. Not to be taken
-  by an autonomous run; re-raise here with that evidence. If it is then yes,
-  as an explicit opt-in that sends only the question and the schema and runs
-  the returned SQL locally.
-- ~~`PM-35` **Review cost, second pass: a PASS merges as reviewed, and the
-  rungs of one item are one PR.**~~ Decided 2026-09-13 by the maintainer,
-  after the `PD-02` run spent four Opus passes and three Sonnet
-  confirmations on four rungs whose diffs one pass would have read: the
-  reviewed head merges on PASS as it is and non-blocking code findings are
-  carried into the next PR, named in the PR comment; a fix that is only
-  documentation, a comment, a test or dead-code removal merges without a
-  further pass; the rungs of one M item ship as one PR; `smoke.mjs` proves
-  static-against-app parity for every shown row so the brief no longer asks
-  a reviewer to rebuild it. Set in `.claude/skills/backlog-loop/SKILL.md`
-  and `review-prompt.md`; `CONTRIBUTING.md` says so (#106).
-- ~~`LV-01` **Live session data.**~~ Decided 2026-09-12: the weekend
-  timetable (a) and after-the-fact session classifications (b); a live feed
-  (c) declined unless a licence is obtained. Work continues as `LV-02` and
-  `LV-03` under *Next*.
-- ~~`PM-04` **The GitHub repository description.**~~ Decided and applied
-  2026-09-12.
-- ~~`PM-33` **Review cost: which model, and when a fix needs no further
-  pass.**~~ Decided 2026-09-13 by the maintainer, after the 2026-09-12 run
-  spent 40,000-130,000 tokens a reviewer pass over two or three passes a PR:
-  Opus for a first pass on data and front-end alike (the front end reviewed
-  thoroughly, with a design eye); a fresh Sonnet context to confirm a fix or
-  to review a docs-, backlog- or wording-only change; one reviewer, with the
-  licence reviewer added only when a source is added or reclassified, a
-  workflow, export or publishing path is touched, or a whole dataset is
-  taken from one source; a post-PASS fix that is only documentation wording,
-  a blank line or a comment merges without a further pass, named in the PR
-  comment. Set in `.claude/skills/backlog-loop/SKILL.md`; `CLAUDE.md` and
-  `CONTRIBUTING.md` point at it (#98).
-- ~~`LV-04` **Is a full season's timetable within facts-only?**~~ Decided
-  2026-09-12: option (a), proceed as facts-only, with the reading recorded in
-  `docs/COMMERCIAL-READINESS.md` (a public schedule the promoter and the FIA
-  both publish, not a compilation whose value is in the collecting; five
-  rows an event) and the FIA event timetable as the independent check still
-  owed (`known_gaps` #15). #91 leaves draft.
-- ~~`PD-03` **`/records`.**~~ Decided 2026-09-12: derive the records; the
-  item in *Now* is the work.
-- ~~`IA-02` **The masthead's "Reference" slot**~~ Decided 2026-09-12:
-  becomes "Data"; the item in *Now* is the work.
-- ~~`WK-01` **The qualifying-format history.**~~ Decided 2026-09-12: go
-  ahead, FIA-sourced; the item in *Next* is the work.
-- ~~`AF-02` **The wording of the cross-checked claim.**~~ Decided 2026-09-12:
-  the cross-checked wording stands; the three follow-ons in *Next* remain.
+*Tidied 2026-09-13 (#111): the eleven decisions taken on 2026-09-12 and
+2026-09-13 were removed from this list. Each is recorded where its rule now
+lives and in the *Landed* entry that applied it; the struck text is in this
+file's history at `b084e30`.*
+
+- `PM-37` **Do Landed and Declined leave this file?** Half of its 145 KB is
+  history. The loop no longer reads the file whole (`next.py`, `PM-36`), so
+  the pressure is off; the question is whether a reader of the queue is
+  better served by one file or two. Moving them touches the header above,
+  `precheck.sh` and `merge-main.py`, which all assume one file. The item in
+  *Next* is the work if the answer is yes.
+- ~~`PM-36` **The loop's pace, and where its tokens go.**~~ Decided
+  2026-09-13 by the maintainer, after a measurement from the session
+  transcripts put the session driving the loop at 75-85 % of its tokens
+  (190-440 turns at a median context of 230,000-356,000 tokens a turn) and
+  the reviewers at 15-25 %: (1) a pace argument, `fast`, `balanced` or
+  `thorough`, defaulting to `balanced`, that may relax the first-pass
+  reviewer's model on a small front-end change, the routes the brief names,
+  batching and pipelining, and never the review itself, `make all`, the
+  precheck, green CI, the licence triggers or the stop conditions; (2)
+  `fast` may put a Sonnet first pass on an S item under `web/` that does not
+  touch the prerenderer, revising `PM-33`'s "Opus for a first pass on data
+  and front-end alike" for that case only; (3) `fast` may run one item
+  ahead, implementing N+1 while N is under review with its PR held until N
+  merges, revising the one-PR-open rule for that pace only. Each item runs
+  in a forked context; `next.py` prints the one item to work on. Set in
+  `.claude/skills/backlog-item/SKILL.md` (#111).
 
 ## Now
 
@@ -776,6 +747,19 @@ back.
       a red build, not a warning. Found by the reviews of #107. — *review
       · M*
 
+### Filed 2026-09-13 — the loop's own cost
+
+The 2026-09-13 measurement (`PM-36`) found where the loop's tokens go and
+fixed the largest share; this is what it left open.
+
+- [ ] `PM-37` **Move Landed and Declined out of this file.** Only if the
+      decision under *Decisions needed* says so. One file `docs/LANDED.md`
+      holding both sections, in the same entry format; the header of this
+      file, `precheck.sh` (the open-and-landed check and the single
+      `## Declined` heading) and `merge-main.py` (the both-hunks resolution)
+      follow the split. Nothing is deleted or reworded in the move. —
+      *project record · S*
+
 ### Filed 2026-09-11 — the eight reviews
 
 Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09-11-*.md` under the same ID. Items already in *Now* are not repeated.
@@ -1058,6 +1042,23 @@ Real, but not costed, or waiting on a decision.
 ---
 
 ## Landed
+
+- [x] `PM-36` **The loop runs each item in a forked context, at a chosen
+      pace.** Measured from the session transcripts: the session driving the
+      loop was 75-85 % of its tokens, the reviewers 15-25 %, because 190-440
+      turns each carried a median 230,000-356,000 tokens of backlog slices,
+      build logs and reviewer reports. `/backlog-loop` is now a thin driver
+      that invokes `backlog-item`, a forked skill holding the per-item
+      procedure, and reads back one contract line; `next.py` prints the one
+      item to work on instead of the 145 KB queue; a pace argument (`fast`,
+      `balanced`, `thorough`) sets what the table in `backlog-item/SKILL.md`
+      allows and nothing else; the three reviewers carry `effort: high` and a
+      90-turn runaway cap, and `frontend-reviewer-quick` is the fast pace's
+      Sonnet variant with 50; `tests/test_conventions.py` checks every agent's
+      and skill's frontmatter; the duplicate `.claude/commands/backlog-loop.md`
+      is gone (skills win over commands of the same name). Decisions 1-3 under
+      *Decisions needed* taken the same day; `PM-37` filed. —
+      *project record · [#111](https://github.com/Alex-Farley/formula-1-data/pull/111)*
 
 - [x] `PM-01` **Serve the Parquet bundle from lapledger.org.** `/f1-parquet.zip`
       returned 404: the build step lived in a script Cloudflare never ran, and
