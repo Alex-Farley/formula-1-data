@@ -17,6 +17,7 @@ export const NOT_YET_RUN = 'not yet run'
 export const SPRINT = 'sprint'
 export const SHARED = 'shared'
 export const SO_FAR = 'so far'
+export const LANDMARK = 'landmark'
 
 export const titled = (headline) => `${headline} — ${SITE}`
 

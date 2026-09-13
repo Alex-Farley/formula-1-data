@@ -8,41 +8,38 @@ import { rows as pick, useQueries } from '../data/useQuery.js'
 import { canShow, thumbUrl } from '../lib/commons.js'
 import CommonsCredit from '../components/CommonsCredit.jsx'
 import { span } from '../lib/format.js'
+import { LANDMARK } from '../lib/site.js'
+import { CHASSIS, CHASSIS_COLUMNS, CHASSIS_FOOTER, GALLERY } from '../queries/cars.js'
 
 /**
- * The curated cars, with a photograph where one has been matched.
+ * The gallery: 24 of the 29 curated cars have a Commons photograph, which is
+ * why this page can open with pictures at all; the 1,153-row register cannot,
+ * and pretending otherwise would be a grid of empty frames.
  *
- * These 29 are not a subset of the register below by size — they are the
- * designs somebody wrote a page about, with a designer, a concept and a
- * record. 24 of them have a Commons photograph, which is why this page can
- * open with pictures at all; the 1,153-row register cannot, and pretending
- * otherwise would be a grid of empty frames.
+ * The React renders for the register's columns (queries/cars.js) — the links
+ * and the landmark tag; the router is the reason they live here. The words
+ * each cell carries are the column's own `text`, which scripts/prerender.js
+ * prints too, so the static register is this one.
  */
-const GALLERY = `
-  SELECT v.id, v.car, v.constructor, v.from_year, v.to_year, v.concept,
-         v.wins, v.drivers_titles, v.constructors_titles,
-         i.file_name, i.licence, i.licence_url, i.artist, i.credit,
-         i.description_url, i.width, i.height, i.name_matches
-    FROM v_cars v
-    LEFT JOIN v_car_images i ON i.car_id = v.id
-   ORDER BY v.from_year, v.car
-`
-
-const SQL = `
-  SELECT ch.id, ch.name, ch.full_name, ch.constructor_id, k.name AS constructor,
-         ch.first_year, ch.last_year, ch.engine_name, ch.chassis_type,
-         ch.power_bhp, ch.wheelbase_mm, ch.weight_kg,
-         ch.races, ch.wins, ch.published_wins, ch.car_id, ch.article, ch.confidence,
-         CASE WHEN ch.chassis_type IS NULL AND ch.engine_name IS NULL
-              THEN 0 ELSE 1 END AS has_spec,
-         (SELECT landmark FROM cars WHERE cars.id = ch.car_id) AS landmark
-    FROM chassis ch
-    LEFT JOIN constructors k ON k.id = ch.constructor_id
-   ORDER BY ch.first_year, ch.name
-`
+const APP = {
+  name: {
+    render: (name, row) => (
+      <>
+        <Link to={`/cars/${row.id}`}>{name}</Link>
+        {row.landmark ? ' ' : ''}
+        {row.landmark ? <span className="tag">{LANDMARK}</span> : null}
+      </>
+    ),
+  },
+  constructor: {
+    render: (name, row) =>
+      row.constructor_id ? <Link to={`/constructors/${row.constructor_id}`}>{name}</Link> : cell(name),
+  },
+  first_year: { sort: (row) => row.first_year },
+}
 
 export default function Cars() {
-  const state = useQueries({ gallery: [GALLERY], register: [SQL] })
+  const state = useQueries({ gallery: [GALLERY], register: [CHASSIS] })
   return (
     <Page
       title="Cars"
@@ -200,42 +197,8 @@ function Register({ rows }) {
         sort="first_year"
         direction="asc"
         page={150}
-        columns={[
-          {
-            key: 'name',
-            label: 'Chassis',
-            render: (name, row) => (
-              <>
-                <Link to={`/cars/${row.id}`}>{name}</Link>
-                {row.landmark ? <span className="tag" style={{ marginLeft: 6 }}>landmark</span> : null}
-              </>
-            ),
-          },
-          {
-            key: 'constructor',
-            label: 'Constructor',
-            render: (name, row) =>
-              row.constructor_id ? <Link to={`/constructors/${row.constructor_id}`}>{name}</Link> : cell(name),
-          },
-          {
-            key: 'first_year',
-            label: 'Raced',
-            align: 'num',
-            render: (_, row) => span(row.first_year, row.last_year),
-            sort: (row) => row.first_year,
-          },
-          { key: 'engine_name', label: 'Engine', align: 'prose' },
-          { key: 'power_bhp', label: 'Power (bhp)', align: 'num' },
-          { key: 'wheelbase_mm', label: 'Wheelbase (mm)', align: 'num' },
-          { key: 'races', label: 'Races', align: 'num' },
-          { key: 'wins', label: 'Wins', align: 'num' },
-          {
-            key: 'published_wins',
-            label: 'Published wins',
-            align: 'num',
-          },
-        ]}
-        footer="“Wins” counts the races that can be attributed to this exact chassis; “published wins” is what the car's own article claims. A gap between them is usually a season the constructor ran two designs and no source says which car raced when."
+        columns={CHASSIS_COLUMNS.map((column) => ({ ...column, ...APP[column.key] }))}
+        footer={CHASSIS_FOOTER}
       />
     </>
   )

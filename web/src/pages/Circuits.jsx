@@ -6,7 +6,7 @@ import DataTable, { cell } from '../components/DataTable.jsx'
 import { Chips, Filters, SearchField, Select } from '../components/Filters.jsx'
 import { rows as pick, useQueries } from '../data/useQuery.js'
 import { pathOf, project, stitch } from '../lib/lap.js'
-import { span } from '../lib/format.js'
+import { CIRCUITS, CIRCUIT_COLUMNS, CIRCUITS_FOOTER, TRACED } from '../queries/circuits.js'
 
 /**
  * Race counts and first/last Grand Prix come from v_circuits, which derives
@@ -14,12 +14,27 @@ import { span } from '../lib/format.js'
  * still in use, and reading it would report every current circuit as never
  * having held its most recent race.
  */
-const SQL = `
-  SELECT v.*, 
-         (SELECT COUNT(*) FROM circuit_geometry g WHERE g.circuit_id = v.id) AS traced
-    FROM v_circuits v
-   ORDER BY v.races DESC, v.name
-`
+/**
+ * The React renders for the columns queries/circuits.js defines — the link
+ * and a sort key; the router is the reason they live here. The words each
+ * cell carries are the column's own `text`, which scripts/prerender.js prints
+ * too, so the static register is this one.
+ */
+const APP = {
+  name: { render: (name, row) => <Link to={`/circuits/${row.id}`}>{name}</Link> },
+  first_gp: { sort: (row) => row.first_gp },
+  traced: {
+    render: (value) =>
+      value ? (
+        <>
+          <span aria-hidden="true">●</span>
+          <span className="sr-only">{TRACED}</span>
+        </>
+      ) : (
+        cell(null)
+      ),
+  },
+}
 
 /**
  * The traced laps, for the strip at the top of the page.
@@ -73,7 +88,7 @@ function LapThumb({ trace }) {
 }
 
 export default function Circuits() {
-  const state = useQueries({ register: [SQL], traces: [TRACES] })
+  const state = useQueries({ register: [CIRCUITS], traces: [TRACES] })
   return (
     <Page
       title="Circuits"
@@ -170,34 +185,8 @@ function Register({ rows }) {
         sort="races"
         direction="desc"
         page={100}
-        columns={[
-          {
-            key: 'name',
-            label: 'Circuit',
-            render: (name, row) => <Link to={`/circuits/${row.id}`}>{name}</Link>,
-          },
-          { key: 'locality', label: 'Locality' },
-          { key: 'country', label: 'Country' },
-          { key: 'circuit_type', label: 'Type' },
-          { key: 'races', label: 'Races', align: 'num' },
-          {
-            key: 'first_gp',
-            label: 'Grands Prix',
-            align: 'num',
-            render: (_, row) => span(row.first_gp, row.last_gp),
-            sort: (row) => row.first_gp,
-          },
-          { key: 'layouts', label: 'Layouts', align: 'num' },
-          { key: 'length_km', label: 'Length (km)', align: 'num' },
-          { key: 'turns', label: 'Turns', align: 'num' },
-          {
-            key: 'traced',
-            label: 'Traced',
-            align: 'num',
-            render: (value) => (value ? '●' : cell(null)),
-          },
-        ]}
-        footer="Length and turns describe the layout in use now. Only 13 of the 80 have a layout timeline, so a 1976 lap of a circuit rebuilt since is reported at today's length."
+        columns={CIRCUIT_COLUMNS.map((column) => ({ ...column, ...APP[column.key] }))}
+        footer={CIRCUITS_FOOTER}
       />
     </>
   )

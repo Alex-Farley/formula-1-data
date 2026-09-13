@@ -5,21 +5,40 @@ import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { Chips, Filters, SearchField, Select } from '../components/Filters.jsx'
 import { useQuery } from '../data/useQuery.js'
-import { span } from '../lib/format.js'
 import { colourFor } from '../lib/racingColours.js'
+import { CONSTRUCTORS, CONSTRUCTOR_COLUMNS, CONSTRUCTORS_FOOTER } from '../queries/constructors.js'
 
-const SQL = `
-  SELECT k.id, k.name, k.country, k.base, k.first_entry, k.last_entry,
-         k.wins, k.poles, k.constructors_titles, k.drivers_titles, k.title_years,
-         k.lineage_chain, k.active,
-         (SELECT COUNT(*) FROM race_entries e WHERE e.constructor_id = k.id) AS entries,
-         (SELECT COUNT(DISTINCT ch.id) FROM chassis ch WHERE ch.constructor_id = k.id) AS designs
-    FROM constructors k
-   ORDER BY k.name
-`
+/**
+ * The React renders for the columns queries/constructors.js defines — the
+ * racing-colour swatch, the links, a title attribute; the router is the
+ * reason they live here. The words each cell carries are the column's own
+ * `text`, which scripts/prerender.js prints too, so the static register is
+ * this one.
+ */
+const APP = {
+  name: {
+    render: (name, row) => {
+      const colour = colourFor(row.country)
+      return (
+        <>
+          <i
+            className="livery"
+            style={colour ? { background: colour.hex } : undefined}
+            title={colour ? `${colour.name} — the racing colour of ${row.country}` : 'no racing colour recorded'}
+          />
+          <Link to={`/constructors/${row.id}`}>{name}</Link>
+        </>
+      )
+    },
+  },
+  first_entry: { sort: (row) => row.first_entry },
+  drivers_titles: {
+    render: (value, row) => (value ? <span title={row.title_years ?? undefined}>{value}</span> : cell(value)),
+  },
+}
 
 export default function Constructors() {
-  const state = useQuery(SQL)
+  const state = useQuery(CONSTRUCTORS)
   return (
     <Page
       title="Constructors"
@@ -82,52 +101,14 @@ function Register({ rows }) {
         />
       </Filters>
 
+      {/* No opening sort: the query's ORDER BY is the alphabetical order the
+          table opens in, and the static page prints the rows as they come. */}
       <DataTable
         rows={filtered}
         rowKey={(row) => row.id}
-        sort="name"
-        direction="asc"
         page={150}
-        columns={[
-          {
-            key: 'name',
-            label: 'Constructor',
-            render: (name, row) => {
-              const colour = colourFor(row.country)
-              return (
-                <>
-                  <i
-                    className="livery"
-                    style={colour ? { background: colour.hex } : undefined}
-                    title={colour ? `${colour.name} — the racing colour of ${row.country}` : 'no racing colour recorded'}
-                  />
-                  <Link to={`/constructors/${row.id}`}>{name}</Link>
-                </>
-              )
-            },
-          },
-          { key: 'country', label: 'Country' },
-          {
-            key: 'first_entry',
-            label: 'Entered',
-            align: 'num',
-            render: (_, row) => span(row.first_entry, row.active ? null : row.last_entry),
-            sort: (row) => row.first_entry,
-          },
-          { key: 'entries', label: 'Race entries', align: 'num' },
-          { key: 'designs', label: 'Designs', align: 'num' },
-          { key: 'wins', label: 'Wins', align: 'num' },
-          { key: 'poles', label: 'Poles', align: 'num' },
-          { key: 'constructors_titles', label: "Constructors' titles", align: 'num' },
-          {
-            key: 'drivers_titles',
-            label: "Drivers' titles",
-            align: 'num',
-            render: (value, row) =>
-              value ? <span title={row.title_years ?? undefined}>{value}</span> : cell(value),
-          },
-        ]}
-        footer="“Race entries” counts one row per car per race, so a two-car team collects two for every Grand Prix it started."
+        columns={CONSTRUCTOR_COLUMNS.map((column) => ({ ...column, ...APP[column.key] }))}
+        footer={CONSTRUCTORS_FOOTER}
       />
     </>
   )
