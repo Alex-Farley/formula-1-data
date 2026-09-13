@@ -29,7 +29,7 @@ Keep the "try to disprove" list inside the diff. Ask for an isolated rebuild
 only when an artefact changed. Do not ask for a site-wide enumeration or a
 live fetch unless the item is about one.
 
-Then, after a fix (a fresh Sonnet agent, or the same agent by SendMessage):
+Then, after a fix, to a fresh Sonnet agent (never the agent that already reviewed):
 
     PR #<N> follow-up: <what changed and why> in commit <sha> on `<branch>`
     (same worktree). Please inspect `git diff <old>..<new>` and return one

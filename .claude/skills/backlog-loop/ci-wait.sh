@@ -13,6 +13,13 @@ d = json.load(sys.stdin)
 c = {x["name"]: x["bucket"] for x in d}
 print(",".join(c.get(k, "?") for k in ["check (3.9)", "check (3.12)", "web"]))' 2>/dev/null)
   case "$out" in
+    '?,?,?')
+      # No check registered: usually the PR is CONFLICTING and CI never
+      # started. Say so at once rather than after twenty minutes.
+      if [ "$(gh pr view "$n" --json mergeable -q .mergeable 2>/dev/null)" = "CONFLICTING" ]; then
+        echo "PR $n is CONFLICTING - merge main into the branch first"; exit 3
+      fi
+      sleep 30 ;;
     ""|*pending*|*'?'*) sleep 30 ;;
     pass,pass,pass) echo "PR $n core checks: $out"; exit 0 ;;
     *) echo "PR $n core checks: $out"; exit 2 ;;

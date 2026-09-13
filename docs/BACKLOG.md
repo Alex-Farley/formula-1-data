@@ -79,8 +79,10 @@ the date, then removed at the next tidy.
   spent 40,000-130,000 tokens a reviewer pass over two or three passes a PR:
   Opus for a first pass on data and front-end alike (the front end reviewed
   thoroughly, with a design eye); a fresh Sonnet context to confirm a fix or
-  to review a docs-, backlog- or wording-only change; one reviewer unless a
-  source is reclassified; a post-PASS fix that is only documentation wording,
+  to review a docs-, backlog- or wording-only change; one reviewer, with the
+  licence reviewer added only when a source is added or reclassified, a
+  workflow, export or publishing path is touched, or a whole dataset is
+  taken from one source; a post-PASS fix that is only documentation wording,
   a blank line or a comment merges without a further pass, named in the PR
   comment. Set in `.claude/skills/backlog-loop/SKILL.md`; `CLAUDE.md` and
   `CONTRIBUTING.md` point at it (#98).
@@ -1722,9 +1724,9 @@ Real, but not costed, or waiting on a decision.
       empty output as pending, the merge helper that resolves only the
       backlog's predictable conflict and a moved figure span, rebuilding the
       artefacts rather than hand-merging them and stopping on any source
-      conflict, and the reviewer brief. Three review rounds in the 2026-09-12 run
-      were lost to retyping these by hand, and a `precheck.sh` that refuses
-      the slips a reviewer used to find. Model policy decided 2026-09-13:
+      conflict, the reviewer brief, and a `precheck.sh` that refuses the slips
+      a reviewer used to find. Three review rounds in the 2026-09-12 run were
+      lost to retyping these by hand. Model policy decided 2026-09-13:
       Opus for a first pass, Sonnet to confirm a fix or review wording, one
       reviewer unless a source is reclassified, and a documentation-only fix
       merges without a further pass (`PM-33`). Invoked with `/backlog-loop`

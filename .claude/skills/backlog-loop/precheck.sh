@@ -8,8 +8,8 @@ item="${1:-}"
 fail=0
 say() { printf '  %-4s %s\n' "$1" "$2"; }
 # 1. no conflict markers anywhere tracked
-if git grep -nE '^(<<<<<<< |=======$|>>>>>>> )' -- . ':!*.db' >/dev/null 2>&1; then
-  say FAIL "conflict markers survive:"; git grep -nE '^(<<<<<<< |>>>>>>> )' -- . ':!*.db' | head -5; fail=1
+if git grep -nE '^(<<<<<<< |=======$|\|\|\|\|\|\|\| |>>>>>>> )' -- . ':!*.db' >/dev/null 2>&1; then
+  say FAIL "conflict markers survive:"; git grep -nE '^(<<<<<<< |\|\|\|\|\|\|\| |>>>>>>> )' -- . ':!*.db' | head -5; fail=1
 else say ok "no conflict markers"; fi
 # 2. every changed script parses
 for f in $(git diff --name-only origin/main...HEAD -- '*.js' '*.mjs' 2>/dev/null); do

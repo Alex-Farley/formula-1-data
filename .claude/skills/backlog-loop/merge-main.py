@@ -22,8 +22,9 @@ named. Concatenating two versions of a source file produces a file that
 often still builds (two VERSION lines; two JSX blocks that both render), and
 the review of #98 showed the build and verify.py passing on both.
 
-The script exits non-zero whenever a merge did not complete, and never
-commits: run the web tests, then `git add -A && make ci`, then commit.
+The script exits non-zero whenever a merge did not complete. A merge with
+no conflicts is committed by git itself; a resolved one is left staged and
+uncommitted: run the web tests, then `git add -A && make ci`, then commit.
 """
 import re
 import subprocess
@@ -32,7 +33,11 @@ import sys
 GENERATED = {"f1.db", "f1-geometry.db", "f1_compat.json"}
 HALF = {"README.md", "docs/COMMERCIAL-READINESS.md"}
 QUEUE = "docs/BACKLOG.md"
-MARK = re.compile(r"<<<<<<< [^\n]*\n(.*?)=======\n(.*?)>>>>>>> [^\n]*\n", re.S)
+# Ours, an optional diff3/zdiff3 base section, theirs. The base is dropped.
+MARK = re.compile(r"^<<<<<<< [^\n]*\n(.*?)(?:^\|\|\|\|\|\|\|[^\n]*\n.*?)?^=======\n(.*?)^>>>>>>> [^\n]*\n",
+                  re.S | re.M)
+LEFTOVER = re.compile(r"^(<<<<<<< |=======$|\|\|\|\|\|\|\| |>>>>>>> )", re.M)
+ITEM = re.compile(r"^- \[([ x])\] `([A-Z]{2}-\d+)`", re.M)
 SPAN = re.compile(r"(<!-- fig:[a-z0-9_]+ -->)(.*?)(<!-- /fig -->)", re.S)
 
 
@@ -40,17 +45,31 @@ def sh(cmd, check=True):
     return subprocess.run(cmd, shell=True, capture_output=True, text=True, check=check)
 
 
+def _paragraphs(region):
+    """Entries and bold subsection headings are paragraphs: one blank line
+    between them, never none and never two - applied to the resolved region
+    only, so a merge commit touches nothing the merge did not."""
+    region = re.sub(r"\n\n\n+", "\n\n", region)
+    region = re.sub(r"([^\n])\n(- \[[ x]\] `)", r"\1\n\n\2", region)
+    region = re.sub(r"([^\n])\n(\*\*[^*\n]+\*\*\n)", r"\1\n\n\2", region)
+    return region
+
+
 def resolve_backlog(text):
-    text = MARK.sub(lambda m: m.group(1) + m.group(2), text)
-    if "<<<<<<<" in text or ">>>>>>>" in text:
+    text = MARK.sub(lambda m: _paragraphs(m.group(1) + m.group(2)), text)
+    if LEFTOVER.search(text):
         return None, "conflict markers survive"
-    # Entries and bold subsection headings are paragraphs: one blank line
-    # between them, never none and never two.
-    text = re.sub(r"\n\n\n+", "\n\n", text)
-    text = re.sub(r"([^\n])\n(- \[[ x]\] `)", r"\1\n\n\2", text)
-    text = re.sub(r"([^\n])\n(\*\*[A-Z][^*\n]*\*\*\n)", r"\1\n\n\2", text)
     if text.count("\n## Declined\n") != 1:
         return None, f"{text.count(chr(10) + '## Declined' + chr(10))} '## Declined' headings"
+    # Keeping both sides is right only when both sides appended. When main
+    # landed an item the branch still lists as open (or reworded), the id is
+    # now open and landed at once, and that is a person's to resolve.
+    state = {}
+    for box, ident in ITEM.findall(text):
+        state.setdefault(ident, set()).add(box)
+    both = sorted(i for i, boxes in state.items() if boxes == {" ", "x"})
+    if both:
+        return None, f"open and landed at once after the merge: {', '.join(both)}"
     return text, None
 
 
