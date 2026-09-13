@@ -79,8 +79,11 @@ def main(argv):
         if name not in sections:
             sys.exit(f"no section '## {name}' in {QUEUE}")
         for ident, para in items(sections[name]):
-            title = re.search(r"\*\*(.+?)\*\*", para)
-            print(f"{ident}  {title.group(1) if title else para.splitlines()[0]}")
+            # The bold title often wraps onto a second line; join before matching,
+            # or a later **figure** in the body is taken for the title.
+            flat = " ".join(line.strip() for line in para.splitlines())
+            title = re.search(r"\*\*(.+?)\*\*", flat)
+            print(f"{ident}  {title.group(1) if title else flat[:90]}")
         return
 
     wanted = argv[0] if argv else None
