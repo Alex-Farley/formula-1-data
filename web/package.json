@@ -16,7 +16,8 @@
     "preview": "vite preview",
     "test": "npm run test:units && node test/smoke.mjs",
     "prerender": "node scripts/prerender.js",
-    "test:units": "node --test test/units.mjs",
+    "test:units": "node --test test/units.mjs test/conventions.mjs",
+    "test:page": "node test/smoke.mjs --quiet --only",
     "test:browser": "node test/smoke.mjs"
   },
   "dependencies": {
@@ -26,6 +27,7 @@
     "sql.js": "^1.14.2"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@vitejs/plugin-react": "^6.1.1",
     "playwright": "^1.62.1",
     "vite": "^8.2.2"

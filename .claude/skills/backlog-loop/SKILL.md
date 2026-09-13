@@ -38,11 +38,20 @@ as `next`. The section order is a person's ranking and is not overridden.
   exactly once. Never write a shell-quoting sequence inside a quoted heredoc;
   apostrophes in JS strings go in double-quoted strings.
 - Gate each step on the previous one's exit status, never on the output of a
-  `| grep`. Order: `make all` -> `cd web && npm run build && npm test` (one
-  smoke run at a time; kill any listener on 4179 first and check the log does
-  not say "Reusing the server") -> `git add -A && make ci` -> commit -> push
-  -> `gh pr create`. Commit and PR text end with the attribution lines the
-  session was given.
+  `| grep`. Order: `make all QUIET=1` -> `cd web && npm run build && npm test
+  -- --quiet` (one smoke run at a time; kill any listener on 4179 first and
+  check the log does not say "Reusing the server") -> `git add -A && make ci
+  QUIET=1` -> commit -> push -> `gh pr create`. Commit and PR text end with
+  the attribution lines the session was given.
+- **Quiet forms, always.** `QUIET=1` and `--quiet` run every check and keep
+  every exit code; they print failures, warnings and a count of what passed
+  instead of one line per check. The verbose run is thirteen hundred lines
+  for `make ci` and five hundred for the smoke test — about 25,000 tokens
+  read back per iteration, which was the most expensive thing in the loop.
+  While iterating on one page, `npm run test:page -- /drivers` runs only the
+  smoke sections whose heading names it (two seconds; `node test/smoke.mjs
+  --list` shows the headings), then the full `npm test -- --quiet` before
+  the commit — a passing subset is not a passing site.
 - Backlog: move the item to *Landed* with its id, source and the PR number;
   file anything discovered as a new item under the conventions. Never leave
   discovered work in a note or a comment.
@@ -56,6 +65,14 @@ broken subsection heading, and warns about an artefact that moved without a
 source change or a commit that does not name the item. Half the FAIL
 rounds of the 2026-09-12 run were one of these; a reviewer pass costs
 40,000-130,000 tokens and this costs a few hundred.
+
+The reviewer checklists' mechanical items are tests now, not review:
+`tests/test_conventions.py` (the build constant, the timing switch, geometry
+column lists, both databases in every publishing path, workflow permissions)
+runs in `make ci`, and `web/test/conventions.mjs` (the attribution rule,
+declared zero fallbacks, the wordmark, `display: contents`, the router) runs
+in `npm test`. Each agent's file names the items it no longer reads for. Do
+not ask a reviewer to confirm one of these; the brief stays on judgement.
 
 ## Review
 

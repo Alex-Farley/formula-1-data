@@ -77,6 +77,21 @@ unestablished figure into 0, in the build or the export.
 `tools/parquet_export.py` both refuse to finish if a table is neither exported nor
 declared unexportable. A diff adding a table needs to satisfy both.
 
+## Already enforced — do not spend the review on these
+
+`tests/test_conventions.py` decides these by pattern on every `make test` and in
+CI's `check` job:
+
+- **Item 2**, `BUILT` a quoted date literal and no clock read anywhere in
+  `build.py` (`TheBuildIsReproducible`).
+- **Item 4**, no literal column list against `circuit_geometry` outside the
+  loader stage and `schema.sql` (`GeometryColumnsAreDerived`).
+
+Item 3's artefact-freshness half is CI's own comparison of the committed
+files against a fresh build. What is left of those items for you is the
+judgement: a new source of non-determinism the pattern does not name, or a
+copy of geometry rows through a path the test does not scan.
+
 ## Useful commands
 
 Read-only, and fast enough to run during a review:

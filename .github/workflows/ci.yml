@@ -96,8 +96,10 @@ jobs:
 
       # verify.py checks the DATABASE. These check the CODE — the name
       # matching and the lap-closure arithmetic, whose mistakes have all been
-      # found downstream until now. stdlib unittest, so the build still has no
-      # dependencies.
+      # found downstream until now — and, in tests/test_conventions.py, the
+      # reviewer checklists' mechanical items: the build constant, the timing
+      # switch, geometry column lists, both databases in every publishing
+      # path. stdlib unittest, so the build still has no dependencies.
       - name: Unit-test the loaders
         run: python3 -m unittest discover -s tests -v
 
@@ -225,8 +227,10 @@ jobs:
             || { echo "::error::the Parquet bundle did not build; see build-status.txt above"; exit 1; }
           test -s dist/f1-parquet.zip || { echo "::error::dist/f1-parquet.zip is missing"; exit 1; }
 
-      # The pure functions, before a browser is involved. node:test, so this
-      # adds no dependency either, and it runs in under a second.
+      # The pure functions and the front end's conventions (the attribution
+      # rule, declared zero fallbacks, the router), before a browser is
+      # involved. node:test, so this adds no dependency either, and it runs in
+      # under a second.
       - name: Unit-test the front end's pure functions
         working-directory: web
         run: npm run test:units

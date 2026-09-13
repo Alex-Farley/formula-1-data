@@ -49,7 +49,7 @@
         // are static once rendered, so nothing reorders under React. CR-25.
         "noArrayIndexKey": "warn",
         // smoke.mjs uses `forEach(m => fail(m))` where fail returns a
-        // value. Three sites, cosmetic. CR-25.
+        // value. Two sites, cosmetic. CR-25.
         "useIterableCallbackReturn": "warn"
       },
       "a11y": {

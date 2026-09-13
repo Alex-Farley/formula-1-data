@@ -769,7 +769,7 @@ back.
       the warning), one `useHookAtTopLevel` (`Sql.jsx`'s `useExample` is not
       a hook; rename it), four `noShadowRestrictedNames` (`constructor` as a
       local in `Constructor.jsx`, `Cars.jsx`, `prerender.js`), two
-      `noArrayIndexKey`, three `useIterableCallbackReturn` in `smoke.mjs`,
+      `noArrayIndexKey`, two `useIterableCallbackReturn` in `smoke.mjs`,
       and six a11y findings — `noStaticElementInteractions` on the chart
       marks and search results, a div listbox in `Filters.jsx`,
       `aria-selected` on the wrong role in `Circuit.jsx` — which overlap the

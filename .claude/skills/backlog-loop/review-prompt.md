@@ -6,10 +6,12 @@ Fill in and pass to a fresh `.claude/agents/<reviewer>` with `model: "opus"`.
     `<branch>` at <sha>, checked out as a git worktree at <path> (node_modules
     installed; web/dist built from this head). Compare with
     `git diff origin/main...HEAD`. Read CLAUDE.md and
-    `.claude/agents/<reviewer>.md`. Do NOT run `npm test` (the smoke port is
-    shared; units and smoke passed on this head); you may run
-    `node --test web/test/units.mjs`, sqlite3 and node scripts against
-    web/dist and f1.db. Node is at ~/.local/node/bin. `make ci` green.
+    `.claude/agents/<reviewer>.md`, including its "Already enforced" list —
+    those items are tests that passed on this head; do not re-check them.
+    Do NOT run `npm test` (the smoke port is shared; units, conventions and
+    smoke passed on this head); you may run `npm run test:units` in web/,
+    `python3 verify.py --quiet`, sqlite3 and node scripts against web/dist
+    and f1.db. Node is at ~/.local/node/bin. `make ci` green.
 
     Task <ID>: <what the item asked for, in one or two sentences>.
     Change: <what was done, file by file, in plain terms; name every claim

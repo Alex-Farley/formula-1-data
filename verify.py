@@ -22,6 +22,8 @@ the scope and CI runs the lot.
 For tests of the CODE — the name matching, the lap arithmetic — see tests/.
 This file checks what came out; those check what does the work.
 """
+import contextlib
+import io
 import os
 import re
 import sqlite3
@@ -52,6 +54,7 @@ con = None
 # attached when it exists and the geometry section reads through GEO.
 GEO = "circuit_geometry"
 fails, warns = [], []
+passes = 0
 
 # Four values used to be assigned in one section and read in a later one, so a
 # section could only run after the ones above it. That was invisible while this
@@ -102,8 +105,11 @@ def section(title):
 
 
 def check(name, ok, detail=""):
+    global passes
     print(f"  [{'PASS' if ok else 'FAIL'}] {name}" + (f" — {detail}" if detail else ""))
-    if not ok:
+    if ok:
+        passes += 1
+    else:
         fails.append(name)
 
 
@@ -2880,6 +2886,15 @@ def main(argv):
             print(f"  {name:52} {title}")
         return 0
 
+    # --quiet prints a section only if something in it failed or warned, and
+    # then only those lines, plus a summary with the count of what passed.
+    # The full run prints one line per check — about 400 PASS lines — which
+    # is the right record for CI's log and the wrong thing to hand an agent
+    # that runs this after every edit and reads the output back: at roughly
+    # twenty thousand tokens a run it cost more than the change it checked.
+    # The exit code is identical either way; nothing is skipped.
+    quiet = "--quiet" in argv or "-q" in argv
+
     wanted = None
     # --redistribution-only runs the licence section and nothing else. It is a
     # second of work against any database, so it can run in places the full
@@ -2912,8 +2927,22 @@ def main(argv):
     for name, (title, fn) in SECTIONS.items():
         if wanted is not None and name not in wanted:
             continue
-        print(f"\n{title}")
-        fn()
+        if not quiet:
+            print(f"\n{title}")
+            fn()
+            continue
+        # Run the section against a buffer; show it only if it said FAIL or
+        # WARN, and then only those lines. The [info] lines and the passes
+        # are in the buffer and are dropped with it.
+        before = (len(fails), len(warns))
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            fn()
+        if (len(fails), len(warns)) != before:
+            print(f"\n{title}")
+            for line in buf.getvalue().splitlines():
+                if "[FAIL]" in line or "[WARN]" in line:
+                    print(line)
 
     print("\n" + "=" * 60)
     if fails:
@@ -2924,7 +2953,8 @@ def main(argv):
     # A subset that passes is not a database that passes; the summary says so
     # rather than reading like a clean bill of health.
     scope = "" if wanted is None else f" ({len(wanted)} of {len(SECTIONS)} sections)"
-    print(f"All checks passed{scope}. {len(warns)} warning(s).")
+    ran = f" {passes} checks passed," if quiet else ""
+    print(f"All checks passed{scope}.{ran} {len(warns)} warning(s).")
     return 0
 
 
