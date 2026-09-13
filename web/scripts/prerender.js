@@ -55,8 +55,12 @@ import {
   ENTRIES_NOTE,
   citation,
   NOT_HELD,
+  NOT_YET_RUN,
   SELF_DESCRIBING,
+  SHARED,
   SITE,
+  SO_FAR,
+  SPRINT,
   TWO_FILES,
   titled,
 } from '../src/lib/site.js'
@@ -64,8 +68,30 @@ import { EXPLAINED_FOOTER, OPEN_FOOTER, allExplained } from '../src/lib/disagree
 import { RACE_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE } from '../src/queries/sessions.js'
 // The pages' own queries and column lists (PD-02). A page and this script
 // read the same module, so the static table is the app's table by
-// construction; the rest of the pages follow these three.
+// construction; the rest of the pages follow these.
 import { DRIVERS, DRIVER_COLUMNS } from '../src/queries/drivers.js'
+import { SEASONS, SEASONS_COLUMNS, SEASON_LIST_FOOTER } from '../src/queries/seasons.js'
+import {
+  CALENDAR,
+  CALENDAR_COLUMNS,
+  CALENDAR_FOOTER,
+  CONSTRUCTORS_FINAL_COLUMNS,
+  CONSTRUCTORS_PAIR_FOOTER,
+  DRIVERS_FINAL_COLUMNS,
+  DRIVERS_FINAL_FOOTER,
+  ENTRANTS,
+  ENTRANT_COLUMNS,
+  ENTRANTS_FOOTER,
+  FINAL,
+  GRID,
+  NO_CONSTRUCTORS_TITLE,
+  SEASON,
+  STANDINGS as SEASON_STANDINGS,
+  latestRound,
+  standingsHeading,
+  stillRunning,
+} from '../src/queries/season.js'
+import { RACES, RACE_COLUMNS, RACES_FOOTER } from '../src/queries/races.js'
 import {
   BY_SEASON,
   DERIVED,
@@ -139,6 +165,11 @@ const text = (value) => (value === null || value === undefined || value === '' ?
 
 const href = (path) => `${BASE}${String(path).replace(/^\//, '')}`
 const link = (path, label) => `<a href="${esc(href(path))}">${esc(label)}</a>`
+// The marks the app sets as tags beside a name - "sprint", "not yet run",
+// "so far" - in the same words (lib/site.js), so the two renderers' cells
+// read the same. A table's footer is the app's footer, printed under it.
+const tag = (word) => `<span class="tag">${esc(word)}</span>`
+const note = (value) => (value ? `<p class="faint">${esc(value)}</p>` : '')
 
 // `aligns` is a class per column — 'num', 'prose' or nothing — the same
 // classes DataTable puts on its cells, so a column of figures lines up.
@@ -437,11 +468,19 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
 // ---------------------------------------------------------------- seasons
 
 {
-  const seasons = all(`SELECT * FROM seasons ORDER BY year DESC`)
+  // The list and each season's page read web/src/queries/seasons.js and
+  // season.js - the app's own queries, column lists and heading rule (PD-02,
+  // rung two; IA-17) - so the two renderers cannot disagree about a row, a
+  // column or whether the season is over.
+  const seasons = all(SEASONS)
   const names = Object.fromEntries(all('SELECT id, full_name FROM drivers').map((d) => [d.id, d.full_name]))
   const teams = Object.fromEntries(all('SELECT id, name FROM constructors').map((c) => [c.id, c.name]))
   const driver = (id) => (id ? link(`drivers/${id}`, names[id] ?? id) : '—')
   const team = (id) => (id ? link(`constructors/${id}`, teams[id] ?? id) : '—')
+  // A name as the app renders it: a link where it has an id, and after it
+  // the undecided season's "so far" tag - the row is a leader, not a champion.
+  const marked = (path, idKey) => (name, row) =>
+    `${row[idKey] ? link(`${path}/${row[idKey]}`, name) : text(name)}${row.undecided && name ? ` ${tag(SO_FAR)}` : ''}`
 
   page({
     path: 'seasons',
@@ -451,96 +490,70 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
     body: `
       <h1>Seasons</h1>
       <p class="lede">Every FIA Formula One World Championship season from 1950.</p>
-      ${table(
-        ['Season', 'Rounds', "Drivers' champion", 'Team', 'Points', 'Runner-up', "Constructors' champion"],
-        seasons.map((s) => [
-          link(`seasons/${s.year}`, s.year),
-          num(s.rounds),
-          driver(s.drivers_champion),
-          team(s.champion_team),
-          num(s.champion_points),
-          driver(s.runner_up),
-          team(s.constructors_champion),
-        ]),
-      )}`,
+      ${fromColumns(SEASONS_COLUMNS, seasons, {
+        year: (year) => link(`seasons/${year}`, year),
+        champion: marked('drivers', 'champion_id'),
+        champion_team: (name, row) => (row.champion_team_id ? link(`constructors/${row.champion_team_id}`, name) : text(name)),
+        runner_up: (name, row) => (row.runner_up_id ? link(`drivers/${row.runner_up_id}`, name) : text(name)),
+        constructors_champion: marked('constructors', 'constructors_champion_id'),
+      })}
+      ${note(SEASON_LIST_FOOTER)}`,
   })
 
-  for (const s of seasons) {
-    const races = all(
-      `SELECT r.round, r.name_used, r.dates, r.status, r.circuit_id, c.name AS circuit,
-              rr.winner_id, rr.winner, rr.constructor_id, rr.constructor, rr.pole, rr.fastest_lap
-         FROM races r
-         LEFT JOIN circuits c ON c.id = r.circuit_id
-         LEFT JOIN race_results rr ON rr.year = r.year AND rr.round = r.round
-        WHERE r.year = ? ORDER BY r.round`,
-      s.year,
-    )
-    const finalRound = one(
-      `SELECT MAX(after_round) AS r FROM standings WHERE year = ? AND table_type = 'drivers'`,
-      s.year,
-    )?.r
-    // v_standings_final, not the raw table: 2026 carries a formula1.com row
-    // and an F1DB row for every driver after the same round, and the raw
-    // table listed each of them twice. The view folds them, and says how.
-    const standings = finalRound
-      ? all(
-          `SELECT position, entity, entity_id, team, points FROM v_standings_final
-            WHERE year = ? AND table_type = 'drivers'
-            ORDER BY position IS NULL, position LIMIT 12`,
-          s.year,
-        )
-      : []
-    const teamsLeading = finalRound
-      ? all(
-          `SELECT position, entity, entity_id, points FROM v_standings_final
-            WHERE year = ? AND table_type = 'constructors'
-            ORDER BY position IS NULL, position LIMIT 2`,
-          s.year,
-        )
-      : []
-    // A season still running has no champion to lead with. It has a leader,
-    // a gap and a number of rounds run, and those are what the page opens
-    // with - not five em dashes under "Runner-up".
-    const grid = one('SELECT * FROM v_season_grid WHERE year = ?', s.year)
-    const running = !s.drivers_champion && standings.length >= 2
-    const [lead, second] = standings
+  for (const { year } of all('SELECT year FROM seasons ORDER BY year DESC')) {
+    const s = one(SEASON, year)
+    const calendar = all(CALENDAR, year)
+    const final = all(FINAL, year)
+    const driversFinal = final.filter((r) => r.table_type === 'drivers')
+    const constructorsFinal = final.filter((r) => r.table_type === 'constructors')
+    const entrants = all(ENTRANTS, year)
+    const grid = one(GRID, year)
+    // Two different questions, as on the app's page. `running`: is there a
+    // champion yet? `live`: is there a round still to run? The first decides
+    // what the page opens with; the second whether its headings say final.
+    const running = !s.drivers_champion && driversFinal.length >= 2
+    const live = stillRunning(calendar)
+    const after = latestRound(all(SEASON_STANDINGS, year))
+    const run = calendar.filter((r) => r.status === 'completed').length
+    const [lead, second] = driversFinal
+    const teamLead = constructorsFinal[0] ?? null
     const gap = running ? lead.points - second.points : null
+    const entered = grid
+      ? `${num(grid.drivers)} drivers, ${num(grid.constructors)} constructors, ${num(grid.engine_manufacturers)} engine makers — counted from the entries, whether or not they started`
+      : '—'
 
-    const champion = s.drivers_champion ? names[s.drivers_champion] ?? s.drivers_champion : null
     page({
-      path: `seasons/${s.year}`,
-      title: titled(`${s.year} Formula One World Championship`),
-      description: champion
-        ? `${champion} won the ${s.year} Formula One World Championship for ${teams[s.champion_team] ?? '—'} with ${s.champion_points ?? '—'} points over ${s.rounds ?? '?'} rounds. Every race, winner, pole and fastest lap.`
+      path: `seasons/${year}`,
+      title: titled(`${year} Formula One World Championship`),
+      description: s.champion
+        ? `${s.champion} won the ${year} Formula One World Championship for ${s.champion_team_name ?? '—'} with ${s.champion_points ?? '—'} points over ${s.rounds ?? '?'} rounds. Every race, winner, pole and fastest lap.`
         : running
-          ? `${lead.entity} leads the ${s.year} Formula One World Championship by ${num(gap)} points after ${finalRound} of ${s.rounds ?? '?'} rounds. Every race, winner, pole and fastest lap.`
-          : `The ${s.year} Formula One World Championship: ${s.rounds ?? '?'} rounds, with every race, winner, pole and fastest lap.`,
-      trail: [['', 'Home'], ['seasons', 'Seasons'], [`seasons/${s.year}`, String(s.year)]],
+          ? `${lead.entity} leads the ${year} Formula One World Championship by ${num(gap)} points after ${after ?? run} of ${s.rounds ?? '?'} rounds. Every race, winner, pole and fastest lap.`
+          : `The ${year} Formula One World Championship: ${s.rounds ?? '?'} rounds, with every race, winner, pole and fastest lap.`,
+      trail: [['', 'Home'], ['seasons', 'Seasons'], [`seasons/${year}`, String(year)]],
       jsonld: {
         '@context': 'https://schema.org',
         '@type': 'SportsSeason',
-        name: `${s.year} FIA Formula One World Championship`,
-        startDate: String(s.year),
-        url: `${ORIGIN}${href(`seasons/${s.year}`)}`,
+        name: `${year} FIA Formula One World Championship`,
+        startDate: String(year),
+        url: `${ORIGIN}${href(`seasons/${year}`)}`,
       },
       body: `
-        <h1>${s.year} FIA Formula One World Championship</h1>
+        <h1>${year} FIA Formula One World Championship</h1>
         ${
           running
             ? facts([
-                ['After', `${finalRound} of ${num(s.rounds)} rounds`],
+                ['After', `${run} of ${num(s.rounds)} rounds`],
                 ['Leads', `${lead.entity_id ? driver(lead.entity_id) : text(lead.entity)} — ${num(lead.points)}`],
                 ['Second', `${second.entity_id ? driver(second.entity_id) : text(second.entity)} — ${num(second.points)}`],
                 ['Gap', num(gap)],
                 [
                   "Constructors' leader",
-                  teamsLeading.length
-                    ? `${teamsLeading[0].entity_id ? team(teamsLeading[0].entity_id) : text(teamsLeading[0].entity)} — ${num(teamsLeading[0].points)}`
-                    : '—',
+                  teamLead ? `${teamLead.entity_id ? team(teamLead.entity_id) : text(teamLead.entity)} — ${num(teamLead.points)}` : '—',
                 ],
                 ['Engine formula', text(s.engine_formula)],
                 ['Tyres', text(s.tyre_suppliers)],
-                ['Entered', grid ? `${num(grid.drivers)} drivers, ${num(grid.constructors)} constructors, ${num(grid.engine_manufacturers)} engine makers — counted from the entries, whether or not they started` : '—'],
+                ['Entered', entered],
               ])
             : facts([
                 ["Drivers' champion", driver(s.drivers_champion)],
@@ -548,39 +561,47 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
                 ['Points', num(s.champion_points)],
                 ['Runner-up', `${driver(s.runner_up)} — ${num(s.runner_up_points)}`],
                 ['Margin', num(s.margin)],
-                ["Constructors' champion", team(s.constructors_champion)],
+                ["Constructors' champion", s.constructors_champion ? team(s.constructors_champion) : year < 1958 ? 'not contested' : '—'],
                 ['Rounds', num(s.rounds)],
                 ['Engine formula', text(s.engine_formula)],
                 ['Tyres', text(s.tyre_suppliers)],
-                ['Entered', grid ? `${num(grid.drivers)} drivers, ${num(grid.constructors)} constructors, ${num(grid.engine_manufacturers)} engine makers — counted from the entries, whether or not they started` : '—'],
+                ['Entered', entered],
               ])
         }
         ${prose(s.notes)}
-        <h2>Races</h2>
-        ${table(
-          ['Rd', 'Grand Prix', 'Circuit', 'Dates', 'Winner', 'Constructor', 'Pole', 'Fastest lap'],
-          races.map((r) => [
-            String(r.round),
-            link(`races/${s.year}/${r.round}`, r.name_used),
-            r.circuit_id ? link(`circuits/${r.circuit_id}`, r.circuit ?? r.circuit_id) : '—',
-            text(r.dates),
-            r.winner_id ? driver(r.winner_id) : r.status === 'scheduled' ? '<span class="faint">to come</span>' : '—',
-            r.constructor_id ? team(r.constructor_id) : '—',
-            text(r.pole),
-            text(r.fastest_lap),
-          ]),
-        )}
+        <h2>The calendar</h2>
+        ${fromColumns(CALENDAR_COLUMNS, calendar, {
+          name_used: (name, row) => `${link(`races/${year}/${row.round}`, name)}${row.sprint ? ` ${tag(SPRINT)}` : ''}`,
+          circuit: (name, row) => (row.circuit_id ? link(`circuits/${row.circuit_id}`, name ?? row.circuit_id) : text(name)),
+          winner: (name, row) =>
+            row.status !== 'completed'
+              ? tag(NOT_YET_RUN)
+              : row.winner_id && !String(name ?? '').includes(' / ')
+                ? link(`drivers/${row.winner_id}`, name)
+                : text(name),
+          winning_team: (name, row) => (row.winning_team_id ? link(`constructors/${row.winning_team_id}`, name) : text(name)),
+        })}
+        ${note(CALENDAR_FOOTER)}
+        <h2>${esc(standingsHeading("Drivers'", live, after))}</h2>
+        ${fromColumns(DRIVERS_FINAL_COLUMNS, driversFinal, {
+          entity: (name, row) => (row.entity_id ? link(`drivers/${row.entity_id}`, name) : text(name)),
+        })}
+        ${driversFinal.length ? note(DRIVERS_FINAL_FOOTER) : ''}
+        <h2>${esc(standingsHeading("Constructors'", live, after))}</h2>
         ${
-          standings.length
-            ? `<h2>Championship standings after round ${finalRound}</h2>${table(
-                ['Pos', 'Driver', 'Team', 'Points'],
-                standings.map((row) => [
-                  String(row.position),
-                  row.entity_id ? driver(row.entity_id) : text(row.entity),
-                  text(row.team),
-                  num(row.points),
-                ]),
-              )}`
+          constructorsFinal.length
+            ? fromColumns(CONSTRUCTORS_FINAL_COLUMNS, constructorsFinal, {
+                entity: (name, row) =>
+                  `${row.entity_id ? link(`constructors/${row.entity_id}`, name) : text(name)}${row.engine_id ? ` ${tag(row.engine_id)}` : ''}`,
+              }) + (constructorsFinal.some((r) => r.engine_id) ? note(CONSTRUCTORS_PAIR_FOOTER) : '')
+            : `<p><strong>No constructors' championship.</strong> ${esc(NO_CONSTRUCTORS_TITLE)}</p>`
+        }
+        ${
+          entrants.length
+            ? `<h2>Who entered</h2>${fromColumns(ENTRANT_COLUMNS, entrants, {
+                constructor: (name, row) =>
+                  row.constructor_id ? link(`constructors/${row.constructor_id}`, name ?? row.constructor_id) : text(name ?? row.entrant_id),
+              })}${note(ENTRANTS_FOOTER)}`
             : ''
         }`,
     })
@@ -617,19 +638,23 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
     trail: [['', 'Home'], ['races', 'Races']],
     body: `
       <h1>Races</h1>
-      <p class="lede">${races.length.toLocaleString()} championship Grands Prix. The 200 most recent
+      <p class="lede">${races.length.toLocaleString()} championship Grands Prix. The 200 most recently run
         are listed here; every one of them is reachable from ${link('seasons', 'its season')}.</p>
-      ${table(
-        ['Season', 'Rd', 'Grand Prix', 'Circuit', 'Winner', 'Constructor'],
-        races.slice(0, 200).map((r) => [
-          link(`seasons/${r.year}`, r.year),
-          String(r.round),
-          link(`races/${r.year}/${r.round}`, r.name_used),
-          r.circuit_id ? link(`circuits/${r.circuit_id}`, r.circuit ?? r.circuit_id) : '—',
-          driver(r.winner_id, r.winner),
-          team(r.constructor_id, r.constructor),
-        ]),
-      )}`,
+      ${fromColumns(RACE_COLUMNS, all(RACES).slice(0, 200), {
+        year: (year) => link(`seasons/${year}`, year),
+        gp_name: (name, row) => `${link(`races/${row.year}/${row.round}`, name)}${row.sprint ? ` ${tag(SPRINT)}` : ''}`,
+        circuit: (name, row) => (row.circuit_id ? link(`circuits/${row.circuit_id}`, name ?? row.circuit_id) : text(name)),
+        winner: (name, row) =>
+          row.status !== 'completed'
+            ? tag(NOT_YET_RUN)
+            : row.winner_id
+              ? `${link(`drivers/${row.winner_id}`, name)}${row.co_winner_id ? ` ${tag(SHARED)}` : ''}`
+              : text(name),
+        constructor: (name, row) => (row.constructor_id ? link(`constructors/${row.constructor_id}`, name) : text(name)),
+        pole: (name, row) => (row.pole_id ? link(`drivers/${row.pole_id}`, name) : text(name)),
+        fastest_lap: (name, row) => (row.fastest_lap_id ? link(`drivers/${row.fastest_lap_id}`, name) : text(name)),
+      })}
+      ${note(RACES_FOOTER)}`,
   })
 
   // The same recorded disagreements the app shows beside the fact, in the half

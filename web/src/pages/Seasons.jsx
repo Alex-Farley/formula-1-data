@@ -3,33 +3,42 @@ import { Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { useQuery } from '../data/useQuery.js'
-import { points } from '../lib/format.js'
+import { SO_FAR } from '../lib/site.js'
+import { SEASONS, SEASONS_COLUMNS, SEASON_LIST_FOOTER } from '../queries/seasons.js'
 
-const SQL = `
-  SELECT s.year, s.rounds,
-         s.drivers_champion       AS champion_id,
-         d.full_name              AS champion,
-         d.nationality            AS nationality,
-         s.champion_team          AS champion_team_id,
-         t.name                   AS champion_team,
-         s.champion_points        AS champion_points,
-         s.champion_wins          AS champion_wins,
-         s.runner_up              AS runner_up_id,
-         ru.full_name             AS runner_up,
-         s.margin                 AS margin,
-         s.constructors_champion  AS constructors_champion_id,
-         cc.name                  AS constructors_champion,
-         s.engine_formula
-    FROM seasons s
-    LEFT JOIN drivers d       ON d.id  = s.drivers_champion
-    LEFT JOIN drivers ru      ON ru.id = s.runner_up
-    LEFT JOIN constructors t  ON t.id  = s.champion_team
-    LEFT JOIN constructors cc ON cc.id = s.constructors_champion
-   ORDER BY s.year DESC
-`
+/** A name as a link where it has an id, with the undecided season's "so far" mark. */
+const named = (path) => (name, row) => {
+  const id = row[`${path === 'drivers' ? 'champion' : 'constructors_champion'}_id`]
+  return (
+    <>
+      {id ? <Link to={`/${path}/${id}`}>{name}</Link> : cell(name)}
+      {row.undecided && name ? ' ' : ''}
+      {row.undecided && name ? <span className="tag">{SO_FAR}</span> : null}
+    </>
+  )
+}
+
+/**
+ * The React renders for the columns queries/seasons.js defines — the links
+ * and the tag; the router is the reason they live here. The words each cell
+ * carries are the column's own `text`, which scripts/prerender.js prints too,
+ * so the static list is this one.
+ */
+const APP = {
+  year: { render: (year) => <Link to={`/seasons/${year}`}>{year}</Link> },
+  champion: { render: named('drivers') },
+  champion_team: {
+    render: (name, row) =>
+      row.champion_team_id ? <Link to={`/constructors/${row.champion_team_id}`}>{name}</Link> : cell(name),
+  },
+  runner_up: {
+    render: (name, row) => (row.runner_up_id ? <Link to={`/drivers/${row.runner_up_id}`}>{name}</Link> : cell(name)),
+  },
+  constructors_champion: { render: named('constructors') },
+}
 
 export default function Seasons() {
-  const state = useQuery(SQL)
+  const state = useQuery(SEASONS)
 
   return (
     <Page
@@ -44,51 +53,8 @@ export default function Seasons() {
               rowKey={(row) => row.year}
               sort="year"
               direction="desc"
-              columns={[
-                {
-                  key: 'year',
-                  label: 'Season',
-                  align: 'num',
-                  render: (year) => <Link to={`/seasons/${year}`}>{year}</Link>,
-                },
-                { key: 'rounds', label: 'Rounds', align: 'num' },
-                {
-                  key: 'champion',
-                  label: "Drivers' champion",
-                  render: (name, row) =>
-                    row.champion_id ? <Link to={`/drivers/${row.champion_id}`}>{name}</Link> : cell(name),
-                },
-                {
-                  key: 'champion_team',
-                  label: 'Driving for',
-                  render: (name, row) =>
-                    row.champion_team_id ? (
-                      <Link to={`/constructors/${row.champion_team_id}`}>{name}</Link>
-                    ) : (
-                      cell(name)
-                    ),
-                },
-                { key: 'champion_points', label: 'Points', align: 'num', render: (v) => (v === null ? cell(v) : points(v)) },
-                { key: 'champion_wins', label: 'Wins', align: 'num' },
-                {
-                  key: 'runner_up',
-                  label: 'Runner-up',
-                  render: (name, row) =>
-                    row.runner_up_id ? <Link to={`/drivers/${row.runner_up_id}`}>{name}</Link> : cell(name),
-                },
-                { key: 'margin', label: 'Margin', align: 'num', render: (v) => (v === null ? cell(v) : points(v)) },
-                {
-                  key: 'constructors_champion',
-                  label: "Constructors' champion",
-                  render: (name, row) =>
-                    row.constructors_champion_id ? (
-                      <Link to={`/constructors/${row.constructors_champion_id}`}>{name}</Link>
-                    ) : (
-                      cell(name)
-                    ),
-                },
-              ]}
-              footer="Margin is the points gap between champion and runner-up at the end of the season; before 1991 that is net of dropped scores, so it can look small beside the wins. A blank constructors' champion before 1958 is not a gap — the championship did not exist yet."
+              columns={SEASONS_COLUMNS.map((column) => ({ ...column, ...APP[column.key] }))}
+              footer={SEASON_LIST_FOOTER}
             />
           )}
         </Result>

@@ -38,6 +38,10 @@ import { holderPath } from '../src/queries/records.js'
 import { EXPLAINED_FOOTER, OPEN_FOOTER, allExplained } from '../src/lib/disagreement.js'
 import { clock, nextSession, until, utc } from '../src/queries/sessions.js'
 import { SEASON_COLUMNS, derivedAndPublished, pointsDiffer, record, seasonRows, seasonsNote, strip } from '../src/queries/driver.js'
+import { latestRound, roundName, roundWinner, standingsHeading, stillRunning, titleHeading } from '../src/queries/season.js'
+import { SEASONS_COLUMNS, soFar } from '../src/queries/seasons.js'
+import { raceWinner } from '../src/queries/races.js'
+import { NOT_YET_RUN } from '../src/lib/site.js'
 import { recordColumns, tiersOf } from '../src/queries/records.js'
 
 // A square about 111 m on a side, as [lon, lat] — the order the geometry uses.
@@ -459,6 +463,29 @@ describe('the queries a page and the prerenderer share', () => {
     assert.equal(pointsDiffer({ career_points: 100 }, { points: 100.005 }), false)
     assert.equal(pointsDiffer({ career_points: 100 }, { points: 101 }), true)
     assert.equal(pointsDiffer({ career_points: null }, { points: 101 }), false)
+  })
+
+  it('heads a season by whether a round is still to run, and marks the season in progress', () => {
+    assert.equal(stillRunning([{ status: 'completed' }, { status: 'scheduled' }]), true)
+    assert.equal(stillRunning([{ status: 'completed' }]), false)
+    assert.equal(latestRound([{ after_round: 3 }, { after_round: 13 }, { after_round: 7 }]), 13)
+    assert.equal(latestRound([]), null)
+    assert.equal(titleHeading(true), 'The title race')
+    assert.equal(titleHeading(false), 'How the title was decided')
+    assert.equal(standingsHeading("Drivers'", true, 13), "Drivers' standings after round 13")
+    assert.equal(standingsHeading("Drivers'", true, null), "Drivers' standings")
+    assert.equal(standingsHeading("Constructors'", false, 23), "Final constructors' standings")
+    assert.equal(roundWinner('Lando Norris', { status: 'completed' }), 'Lando Norris')
+    assert.equal(roundWinner(null, { status: 'completed' }), EMPTY)
+    assert.equal(roundWinner(null, { status: 'scheduled' }), NOT_YET_RUN)
+    assert.equal(roundName('Chinese Grand Prix', { sprint: 1 }), 'Chinese Grand Prix sprint')
+    assert.equal(raceWinner('A', { status: 'completed', co_winner_id: 'b' }), 'A shared')
+    assert.equal(raceWinner('A', { status: 'scheduled', co_winner_id: null }), NOT_YET_RUN)
+    assert.equal(soFar('Antonelli', { undecided: 1 }), 'Antonelli so far')
+    assert.equal(soFar('Norris', { undecided: 0 }), 'Norris')
+    assert.equal(soFar(null, { undecided: 1 }), EMPTY)
+    assert.equal(by(SEASONS_COLUMNS).rounds.text(23, { undecided: 1, run: 13 }), '13 of 23')
+    assert.equal(by(SEASONS_COLUMNS).rounds.text(24, { undecided: 0, run: 24 }), '24')
   })
 
   it('adds a Confidence column only where the records differ on it', () => {
