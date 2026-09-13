@@ -2000,7 +2000,7 @@ Real, but not costed, or waiting on a decision.
       `VD-07`, `VD-08`, `VD-11`, `VD-12` — each confirmed against its *Landed*
       entry and its open line removed in the 2026-09-13 re-rank; the merge
       helper's duplicate check is the guard from here. — *review of #98 ·
-      2026-09-13 re-rank*
+      [#100](https://github.com/Alex-Farley/formula-1-data/pull/100)*
 
 ## Declined
 
