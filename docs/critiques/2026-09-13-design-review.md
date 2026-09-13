@@ -110,12 +110,13 @@ tiles so rosso corsa and the interactive red stop measuring 1.002:1 (`VD-26`).
 
 ## Sequence
 
-**Now** — defects, each S, plus the one M with the largest visual return:
-`IA-17`, `AF-03`, `VD-26`, `VD-27`, `VD-25`, `VD-28`, `PD-19`+`PD-20`, with
-`PD-02` kept.
-**Next, visual** — `PD-28`, `AF-04`, `VD-34`, `PD-30`, `VD-32`, `VD-33`,
-`VD-29`, `VD-30`, `IA-08`→`IA-23`+`IX-27`, `IX-18`, `IX-20`, `IX-26`, `IX-28`,
-`IX-19`, `IX-24`+`PD-21`+`PD-22`, `PD-15`, `PD-16`, `VD-01`, `VD-03`.
+**Now** — defects, each S, plus the one M with the largest visual return, in
+the backlog's order: `PD-02` kept, `AF-03`, `IA-17`, `VD-26`, `VD-27`,
+`VD-25`+`AX-07`, `VD-28`, `PD-19`, `PD-20`.
+**Next, visual** — `PD-17` and `CR-07` as prerequisites, `PD-28`, `IA-18`,
+`IA-19`, `AF-04`, `VD-34`, `PD-30`, `VD-32`, `VD-33`+`VD-23`+`AX-13`, `VD-29`,
+`VD-30`, `AX-06`, `IA-08`→`IA-23`+`IX-27`, `IX-18`, `IX-20`, `IX-26`, `IX-28`,
+`IX-19`, `IX-24`+`PD-21`+`PD-22`, `IX-16`, `PD-15`, `PD-16`, `VD-01`, `VD-03`.
 **Next, the other asks** — `IA-20` (+`IA-21`, `IX-22`, `IX-23`), `PD-29`,
 `PD-35`, `IA-22`, `IX-21`, `IX-25`.
 **Declined** — telemetry replays; a ninth masthead item; a new visual identity;

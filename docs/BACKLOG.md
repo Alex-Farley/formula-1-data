@@ -539,9 +539,10 @@ Everything below stood in *Next* or *Someday* before the 2026-09-13 re-rank
 and is unchanged except for: the fourteen stale open lines `PM-34` named,
 removed; `CR-07`, `PD-17`, `AX-06` and `AX-13`, moved up into *The visual
 work* as prerequisites or same-file fixes; and a dated **re-rank** note on
-the items the new direction touches — `PM-08` re-sized, `PD-21`, `PD-18`,
-`VD-22`, `AX-16`, `PM-07`, `CD-14`, `PM-10`, `IA-11`. Every other item was
-read against the direction and found not to conflict.
+the items the new direction touches — `PM-08` re-sized, `PD-18`, `VD-22`,
+`AX-16`, `PM-07`, `CD-14`, `PM-10`, `IA-11` here, and `PD-21` where it
+already sits in *The visual work*. Every other item was read against the
+direction and found not to conflict.
 
 - [ ] `PM-12` **Loosen the specification harvest's name check.** It refuses
       "Alfa Romeo 158/159 Alfetta" for `alfa-romeo-159`. Match the chassis name
