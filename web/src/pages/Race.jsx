@@ -6,7 +6,7 @@ import DataTable, { cell } from '../components/DataTable.jsx'
 import Disagreement, { RACE_DISAGREEMENTS } from '../components/Disagreement.jsx'
 import { RACE_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE, clock, nextSession, readerZone, until, yourTimeColumn } from '../queries/sessions.js'
 import { rows, useQueries } from '../data/useQuery.js'
-import { finished, missing, number, points as fmtPoints, result } from '../lib/format.js'
+import { finished, missing, number, result } from '../lib/format.js'
 import { SHARED } from '../lib/site.js'
 import {
   CLASSIFICATION_COLUMNS,
@@ -60,16 +60,15 @@ const CLASSIFICATION_APP = {
     },
   },
   driver: {
-    render: (name, row) =>
-      row.driver_id ? (
-        <>
-          <Link to={`/drivers/${row.driver_id}`}>{name ?? row.driver_id}</Link>
-          {row.shared_drive === 1 ? ' ' : ''}
-          {row.shared_drive === 1 ? <span className="tag">{SHARED}</span> : null}
-        </>
-      ) : (
-        cell(name)
-      ),
+    // The mark follows the row, not the link: driverName() in queries/race.js
+    // is what this cell says, with or without a driver id.
+    render: (name, row) => (
+      <>
+        {row.driver_id ? <Link to={`/drivers/${row.driver_id}`}>{name ?? row.driver_id}</Link> : cell(name)}
+        {row.shared_drive === 1 ? ' ' : ''}
+        {row.shared_drive === 1 ? <span className="tag">{SHARED}</span> : null}
+      </>
+    ),
   },
   constructor: {
     render: (name, row) =>

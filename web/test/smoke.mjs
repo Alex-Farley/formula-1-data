@@ -1698,9 +1698,11 @@ try {
     // the shared drive whose "shared" mark both renderers must carry.
     const gp = (year, round) => one('SELECT name_used FROM races WHERE year = ? AND round = ?', year, round)
     const sprintRound = one("SELECT MIN(r.round) FROM races r WHERE r.year = 2026 AND r.sprint = 1 AND r.status = 'completed'")
-    for (const heading of ['Classification', 'Qualifying', 'Sprint', 'Pit stops']) {
-      await same(`/races/2026/${sprintRound}`, gp(2026, sprintRound), heading)
-    }
+    if (sprintRound) {
+      for (const heading of ['Classification', 'Qualifying', 'Sprint', 'Pit stops']) {
+        await same(`/races/2026/${sprintRound}`, gp(2026, sprintRound), heading)
+      }
+    } else fail('no completed 2026 sprint weekend to compare the race tables on')
     await same('/races/1976/9', gp(1976, 9), 'Qualifying')
     await same('/races/1955/1', gp(1955, 1), 'Classification')
     {
