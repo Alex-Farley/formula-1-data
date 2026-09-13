@@ -1697,7 +1697,11 @@ Real, but not costed, or waiting on a decision.
       empty output as pending, the merge helper that resolves the backlog's
       predictable conflict and rebuilds the artefacts rather than hand-merging
       them, and the reviewer brief. Three review rounds in the 2026-09-12 run
-      were lost to retyping these by hand. Invoked with `/backlog-loop`;
+      were lost to retyping these by hand, and a `precheck.sh` that refuses
+      the slips a reviewer used to find. Model policy decided 2026-09-13:
+      Opus for a first pass, Sonnet to confirm a fix or review wording, one
+      reviewer unless a source is reclassified, and a documentation-only fix
+      merges without a further pass. Invoked with `/backlog-loop`;
       `CLAUDE.md` says so. — *project record · #98*
 
 ## Declined

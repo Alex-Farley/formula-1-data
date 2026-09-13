@@ -21,9 +21,15 @@ Fill in and pass to a fresh `.claude/agents/<reviewer>` with `model: "opus"`.
     backlog entry's accuracy and PR number>.
 
     Return exactly one verdict line first: `PASS — safe to merge` or
-    `FAIL — changes required`, then findings with file:line.
+    `FAIL — changes required`, then findings with file:line, worst first,
+    one or two sentences each. Do not narrate what you verified; if
+    everything held, say so in one line.
 
-Then, after a fix:
+Keep the "try to disprove" list inside the diff. Ask for an isolated rebuild
+only when an artefact changed. Do not ask for a site-wide enumeration or a
+live fetch unless the item is about one.
+
+Then, after a fix (a fresh Sonnet agent, or the same agent by SendMessage):
 
     PR #<N> follow-up: <what changed and why> in commit <sha> on `<branch>`
     (same worktree). Please inspect `git diff <old>..<new>` and return one

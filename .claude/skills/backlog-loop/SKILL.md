@@ -45,25 +45,66 @@ argument, behave as `next`.
   file anything discovered as a new item under the conventions. Never leave
   discovered work in a note or a comment.
 
+## Before asking for review
+
+Run `bash .claude/skills/backlog-loop/precheck.sh <ITEM-ID>` from the
+worktree root. It refuses conflict markers, scripts that do not parse,
+duplicated imports, a backlog entry that is open and landed at once, a broken
+subsection heading, and artefacts that moved without a reason. Half the FAIL
+rounds of the 2026-09-12 run were one of these; a reviewer pass costs
+40,000-130,000 tokens and this costs a few hundred.
+
 ## Review
 
-Launch a fresh agent from `.claude/agents/` - `frontend-reviewer` for
-`web/`, `data-integrity-reviewer` for `build.py`, `verify.py`, `data/`,
-`harvest/`, `tools/`, `licence-reviewer` for anything touching sources,
-licences, workflows or publishing paths; two agents when a change spans them
-- always with `model: "opus"`, pointed at the worktree path, using
-`review-prompt.md` in this folder as the brief. It returns exactly
-`PASS — safe to merge` or `FAIL — changes required`.
+One fresh agent from `.claude/agents/`, pointed at the worktree path, using
+`review-prompt.md` in this folder as the brief. Which one:
 
-- FAIL: fix, then ask the same agent (SendMessage) to confirm the delta by
-  commit range. A substantive rewrite gets a new fresh agent.
-- PASS with findings: take the cheap ones, confirm the delta the same way.
+- `frontend-reviewer` for anything under `web/` - thoroughly, with a design
+  eye: it drives the built pages and compares app and static output.
+- `data-integrity-reviewer` for `build.py`, `verify.py`, `schema.sql`,
+  `data/`, `harvest/`, `tools/`, `export_json.py`. It covers the licence
+  rules well enough for ordinary changes.
+- `licence-reviewer` only when a change adds or reclassifies a source, touches
+  a workflow, an export or a publishing path, or takes a whole dataset from
+  one source. Two reviewers are the exception, not the rule.
+
+Model, decided 2026-09-13 to control cost:
+- **First pass: Opus** (`model: "opus"`), for front-end and data alike.
+- **Confirming a fix, or reviewing a docs-only, backlog-only or wording-only
+  change: Sonnet** (`model: "sonnet"`), as a fresh agent. A fresh Sonnet
+  context satisfies the independent-review rule.
+- A substantive rewrite after a FAIL gets a new fresh Opus agent, not a
+  confirmation.
+
+The brief stays inside the diff: name the specific ways the change could be
+wrong; ask for one isolated rebuild only when an artefact changed; do not ask
+for site-wide enumerations or live fetches unless the item is about them.
+Ask for the verdict line and findings with file:line, nothing else - no
+narrative of what was verified.
+
+The agent returns exactly `PASS — safe to merge` or `FAIL — changes required`.
+
+- FAIL: fix, run the precheck again, then confirm with a fresh Sonnet agent by
+  commit range.
+- PASS with findings: take the cheap ones; a fix that is only documentation
+  wording, a blank line or a comment is merged without a further pass, named
+  in the PR comment (decided 2026-09-13). Anything that changes code, data or
+  a check is confirmed.
 - Silence, a rate limit or an unavailable account is not a PASS. If the agent
   dies on a session limit, relaunch after the reset.
-- Record the verdict as a PR comment (which reviewer, what it verified, what
-  the FAIL rounds were), then `gh pr merge N --merge` only with the PASS and
-  `check (3.9)`, `check (3.12)` and `web` green. The `review` check fails on
-  an exhausted credential; ignore it, never edit it.
+- Record the verdict as a PR comment (reviewer and model, verdict, the FAIL
+  rounds in one line each), then `gh pr merge N --merge` only with the PASS
+  and `check (3.9)`, `check (3.12)` and `web` green. The `review` check fails
+  on an exhausted credential; ignore it, never edit it.
+
+## Keeping the cost down
+
+- One PR open at a time. Several open PRs each merge conflicts the others,
+  which costs a re-merge, a rebuild, a CI run and a confirmation every time.
+- Batch small items on one theme into one PR where the diff stays readable;
+  a reviewer pays a fixed cost to orient itself on every PR.
+- Keep your own messages short and do not paste reviewer reports back into
+  the conversation; the PR comment is the record.
 
 ## Waiting and merging
 
