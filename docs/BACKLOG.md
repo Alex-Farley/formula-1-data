@@ -158,8 +158,13 @@ is independent.
       tables, who entered) and the races list read `queries/seasons.js`,
       `season.js` and `races.js`; the static tables carry the app's footers;
       `smoke.mjs` asserts static against app on six more tables and for the
-      season in progress asks for the heading the shared rule computes. Still
-      to follow: the race, constructor, circuit, car and data pages.
+      season in progress asks for the heading the shared rule computes.
+      **Rung three landed in #103**: the constructors, circuits and cars
+      registers read `queries/constructors.js`, `circuits.js` and `cars.js`
+      — the static circuits register derives its race counts from the races
+      as the app does instead of reading the stored `gp_count`, and answers
+      its Traced column from `f1-geometry.db` beside the database. Still to
+      follow: the race, constructor, circuit, car and data pages.
 
 - [ ] `AF-03` **Draw every layout the championship has raced on, from F1DB.**
       F1DB (source 10, CC BY 4.0) ships an SVG outline for each of its 160

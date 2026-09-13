@@ -1689,6 +1689,10 @@ try {
     await same(`/seasons/${done}`, String(done), standingsHeading("Drivers'", false))
     await same(`/seasons/${done}`, String(done), 'Who entered')
     await same('/races', 'Races')
+    // Rung three: the three remaining registers.
+    await same('/constructors', 'Constructors')
+    await same('/circuits', 'Circuits', 'Every venue')
+    await same('/cars', 'Cars', 'The chassis register')
     {
       // Run first: the list opens on the last race run, not the next one scheduled.
       const first = (await appTable(null))?.rows[0]?.join(' | ') ?? ''

@@ -54,6 +54,7 @@ import {
   CROSS_CHECKED,
   ENTRIES_NOTE,
   citation,
+  LANDMARK,
   NOT_HELD,
   NOT_YET_RUN,
   SELF_DESCRIBING,
@@ -92,6 +93,9 @@ import {
   stillRunning,
 } from '../src/queries/season.js'
 import { RACES, RACE_COLUMNS, RACES_FOOTER } from '../src/queries/races.js'
+import { CONSTRUCTORS, CONSTRUCTOR_COLUMNS, CONSTRUCTORS_FOOTER } from '../src/queries/constructors.js'
+import { CIRCUITS, CIRCUIT_COLUMNS, CIRCUITS_FOOTER } from '../src/queries/circuits.js'
+import { CHASSIS, CHASSIS_COLUMNS, CHASSIS_FOOTER, GALLERY, GALLERY_COLUMNS } from '../src/queries/cars.js'
 import {
   BY_SEASON,
   DERIVED,
@@ -957,18 +961,10 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
     body: `
       <h1>Constructors</h1>
       <p class="lede">${constructors.length} constructors that have entered a championship Grand Prix.</p>
-      ${table(
-        ['Constructor', 'Country', 'Entered', 'Entries', 'Wins', 'Poles', "Constructors' titles"],
-        constructors.map((c) => [
-          link(`constructors/${c.id}`, c.name),
-          text(c.country),
-          `${c.first_entry ?? '?'}–${c.last_entry ?? 'present'}`,
-          num(c.entries),
-          num(c.wins),
-          num(c.poles),
-          num(c.constructors_titles),
-        ]),
-      )}`,
+      ${fromColumns(CONSTRUCTOR_COLUMNS, all(CONSTRUCTORS), {
+        name: (name, row) => link(`constructors/${row.id}`, name),
+      })}
+      ${note(CONSTRUCTORS_FOOTER)}`,
   })
 
   const winsOf = db.prepare(
@@ -1046,6 +1042,21 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
 
 {
   const circuits = all(`SELECT * FROM circuits ORDER BY gp_count DESC, name`)
+  // The register is the app's (queries/circuits.js). Its Traced column counts
+  // the OpenStreetMap centrelines, which are not in f1.db - the browser
+  // overlays f1-geometry.db at runtime - so this database answers 0 for every
+  // circuit. Whether a trace exists is a fact about this project's own file,
+  // not a centreline copied out of it, so the column is answered from the
+  // sibling database where it sits beside f1.db, and stays a dash where it
+  // does not.
+  const register = all(CIRCUITS)
+  const geoPath = join(repo, 'f1-geometry.db')
+  if (existsSync(geoPath)) {
+    const geo = new DatabaseSync(geoPath, { readOnly: true })
+    const traced = new Set(geo.prepare('SELECT DISTINCT circuit_id FROM circuit_geometry').all().map((r) => r.circuit_id))
+    geo.close()
+    for (const row of register) row.traced = traced.has(row.id) ? 1 : 0
+  }
 
   page({
     path: 'circuits',
@@ -1055,18 +1066,11 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
     body: `
       <h1>Circuits</h1>
       <p class="lede">${circuits.length} circuits that have held a championship Grand Prix.</p>
-      ${table(
-        ['Circuit', 'Location', 'Country', 'Type', 'Length', 'Turns', 'Grands Prix'],
-        circuits.map((c) => [
-          link(`circuits/${c.id}`, c.name),
-          text(c.locality),
-          text(c.country),
-          text(c.circuit_type),
-          c.length_km === null ? '—' : `${c.length_km} km`,
-          num(c.turns),
-          num(c.gp_count),
-        ]),
-      )}`,
+      <h2>Every venue</h2>
+      ${fromColumns(CIRCUIT_COLUMNS, register, {
+        name: (name, row) => link(`circuits/${row.id}`, name),
+      })}
+      ${note(CIRCUITS_FOOTER)}`,
   })
 
   const racesAt = db.prepare(
@@ -1188,34 +1192,20 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
         privateer for a single weekend. A blank is a figure nobody published, not a car
         with no wheelbase.</p>
       <h2>The cars with a page of their own</h2>
-      ${table(
-        ['Car', 'Constructor', 'Years', 'Engine', 'Races', 'Wins', 'Poles'],
-        cars.map((c) => [
-          link(`cars/${c.id}`, c.full_name ?? c.designation),
-          c.constructor_id ? link(`constructors/${c.constructor_id}`, c.constructor_id) : '—',
-          `${c.from_year ?? '?'}–${c.to_year ?? '?'}`,
-          text(c.engine_name),
-          num(c.races),
-          num(c.wins),
-          num(c.poles),
-        ]),
-        { caption: 'Landmark cars' },
-      )}
+      ${fromColumns(GALLERY_COLUMNS, all(GALLERY), { car: (name, row) => link(`cars/${row.id}`, name) }, { caption: 'Landmark cars' })}
       <h2>The chassis register</h2>
       <p>Every chassis that has started a championship Grand Prix, whether or not anybody
         has published a specification for it.</p>
-      ${table(
-        ['Chassis', 'Constructor', 'Years', 'Engine', 'Races', 'Wins'],
-        chassis.map((ch) => [
-          link(`cars/${ch.id}`, ch.full_name ?? ch.name),
-          ch.constructor_id ? link(`constructors/${ch.constructor_id}`, ch.constructor ?? ch.constructor_id) : '—',
-          ch.first_year === ch.last_year ? text(ch.first_year) : `${ch.first_year ?? '?'}–${ch.last_year ?? '?'}`,
-          text(ch.engine_name),
-          num(ch.races),
-          num(ch.wins),
-        ]),
+      ${fromColumns(
+        CHASSIS_COLUMNS,
+        all(CHASSIS),
+        {
+          name: (name, row) => `${link(`cars/${row.id}`, name)}${row.landmark ? ` ${tag(LANDMARK)}` : ''}`,
+          constructor: (name, row) => (row.constructor_id ? link(`constructors/${row.constructor_id}`, name ?? row.constructor_id) : text(name)),
+        },
         { caption: 'Chassis register' },
-      )}`,
+      )}
+      ${note(CHASSIS_FOOTER)}`,
   })
 
   for (const c of cars) {
