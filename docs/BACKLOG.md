@@ -94,8 +94,12 @@ this file's history at `b084e30`.*
   and front-end alike" for that case only; (3) `fast` may run one item
   ahead, implementing N+1 while N is under review with its PR held until N
   merges, revising the one-PR-open rule for that pace only. Each item runs
-  in a forked context; `next.py` prints the one item to work on. Set in
-  `.claude/skills/backlog-item/SKILL.md` (#111).
+  in a forked context; `next.py` prints the one item to work on, in the
+  file's order - the older within-section tiebreak (correctness before
+  integrity and licensing, functional, security, architecture,
+  accessibility, UX, throughput) stands for a section a person has not
+  ranked, applied by the fork from `next.py --list`, not by the script.
+  Set in `.claude/skills/backlog-item/SKILL.md` (#111).
 
 ## Now
 
@@ -1093,9 +1097,9 @@ Real, but not costed, or waiting on a decision.
       in `docs/COMMERCIAL-READINESS.md` (a public schedule the promoter and
       the FIA both publish, not a compilation whose value is in the
       collecting; five rows an event) and the FIA event timetable as the
-      independent check still owed (`known_gaps` #15). The work landed as
-      `LV-02`. —
-      *project record · [#95](https://github.com/Alex-Farley/formula-1-data/pull/95)*
+      independent check still owed (`known_gaps` #15). The reading landed
+      in #91 with the timetable rows; the page followed as `LV-02` in #95. —
+      *project record · [#91](https://github.com/Alex-Farley/formula-1-data/pull/91)*
 
 - [x] `PM-01` **Serve the Parquet bundle from lapledger.org.** `/f1-parquet.zip`
       returned 404: the build step lived in a script Cloudflare never ran, and
