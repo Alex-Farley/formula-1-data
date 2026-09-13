@@ -39,6 +39,12 @@
  * front end so that no unsourced value can ever enter the database. If a
  * licensed, checkable livery set turns up, replacing this file is the whole
  * job: swap the map, keep `colourFor`.
+ *
+ * WHERE THE HEX LIVES. Not here. Each entry names a `--racing-*` token in
+ * styles/tokens.css, which carries a light and a dark value the way `--seq-*`
+ * does, because one hex cannot clear 3:1 on both a white panel and a
+ * near-black one - six of the eight did not (VD-27). test/conventions.mjs
+ * measures every pair against the surfaces it sits on.
  */
 
 /**
@@ -71,22 +77,28 @@ export function canonicalCountry(country) {
  *
  * Each entry names the colour as the convention names it, so the interface can
  * say "rosso corsa" rather than "#d4001a" and a reader can tell this is a
- * historical claim rather than a sampled pixel.
+ * historical claim rather than a sampled pixel. `token` is the `--racing-*`
+ * custom property in styles/tokens.css that holds the two hexes.
  */
-const COLOURS = {
-  'United Kingdom': { hex: '#00563f', name: 'British racing green' },
-  Italy: { hex: '#c8102e', name: 'Rosso corsa' },
-  France: { hex: '#0b5bab', name: 'Bleu de France' },
-  Germany: { hex: '#9aa0a6', name: 'Silver' },
-  Belgium: { hex: '#d4a017', name: 'Belgian yellow' },
-  Netherlands: { hex: '#e06c1f', name: 'Dutch orange' },
-  Switzerland: { hex: '#b02733', name: 'Swiss red' },
+export const COLOURS = {
+  'United Kingdom': { token: 'racing-uk', name: 'British racing green' },
+  Italy: { token: 'racing-it', name: 'Rosso corsa' },
+  France: { token: 'racing-fr', name: 'Bleu de France' },
+  Germany: { token: 'racing-de', name: 'Silver' },
+  Belgium: { token: 'racing-be', name: 'Belgian yellow' },
+  Netherlands: { token: 'racing-nl', name: 'Dutch orange' },
+  Switzerland: { token: 'racing-ch', name: 'Swiss red' },
   // White with blue stripes in the convention; a single swatch can only carry
   // the blue, so it is named for what it shows.
-  'United States': { hex: '#1f3c88', name: 'American blue' },
+  'United States': { token: 'racing-us', name: 'American blue' },
 }
 
-/** The racing colour for a constructor's country, or null. */
+/**
+ * The racing colour for a constructor's country, or null: its name and a
+ * `css` value - `var(--racing-xx)` - that resolves to the light or the dark
+ * hex with the theme, so a swatch never carries a hex of its own.
+ */
 export function colourFor(country) {
-  return COLOURS[canonicalCountry(country)] ?? null
+  const entry = COLOURS[canonicalCountry(country)]
+  return entry ? { name: entry.name, css: `var(--${entry.token})` } : null
 }
