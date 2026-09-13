@@ -507,10 +507,12 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       query, once. Make them spans `tools/readme_figures.py` writes, as the
       README's are, or generate the breakdown from `./f1 licences`. Found by
       the licence review of #91. — *review of #91 · S*
-- [ ] `CD-27` **Three words for the register's figure on one screen.** The
-      Seasons note calls it "published", the aside beside it "the
-      register's", `/data/quality` heads the column "Stored". One word.
-      Found by the review of #89. — *review of #89 · S*
+
+- [ ] `CD-28` **The assessments in `discrepancies` say "the register's" and
+      "the stored figure" beside an aside that says "published".** The
+      Cevert and Rossi rows (`EXPLAINED_SPANS`) and the external-figure rows
+      built in `build.py`; one word, in the data. Split from `CD-27`. —
+      *review of #97 · S*
 
 **Interaction design**
 
@@ -1667,6 +1669,14 @@ Real, but not costed, or waiting on a decision.
       year as a first-season row's are against MIN. No row needed it today.
       — *review of #81 · #93*
 
+- [x] `CD-27` **The aside and the strip agree: the register's figure is
+      "published".** The explained aside says "the published span and the
+      one the race records give differ", from a footer string both renderers
+      share and a unit test pins. The quality page's column is "Recorded",
+      not "Published" — the review of #97 found thirteen of its rows hold
+      this project's own authored claim, which nobody published. The
+      assessments inside `f1.db` still say "the register's" and "the stored
+      figure"; that is database prose, `CD-28`. — *review of #89 · #97*
 - [x] `LV-02` **The weekend timetable, on the page.** Every race page carries
       a Timetable — each session on the circuit's clock and in UTC, both
       derived through Intl from one stored instant and zone — in the app and

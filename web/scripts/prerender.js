@@ -60,7 +60,7 @@ import {
   TWO_FILES,
   titled,
 } from '../src/lib/site.js'
-import { allExplained } from '../src/lib/disagreement.js'
+import { EXPLAINED_FOOTER, OPEN_FOOTER, allExplained } from '../src/lib/disagreement.js'
 import { RACE_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE } from '../src/queries/sessions.js'
 // The pages' own queries and column lists (PD-02). A page and this script
 // read the same module, so the static table is the app's table by
@@ -298,9 +298,7 @@ const disagree = (rows, what) => {
       )
       .join('')}</dl>
     <p class="source-note">${
-      explained
-        ? 'Recorded and explained rather than resolved: the register and the race records define the span differently, and the page shows both. Every recorded reading is listed on '
-        : 'Recorded rather than resolved, and open for somebody to settle. Every one is listed on '
+      explained ? EXPLAINED_FOOTER : OPEN_FOOTER
     }${link('data/quality', 'the quality page')}.</p>
   </aside>`
 }
