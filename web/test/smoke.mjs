@@ -1693,6 +1693,16 @@ try {
     await same('/constructors', 'Constructors')
     await same('/circuits', 'Circuits', 'Every venue')
     await same('/cars', 'Cars', 'The chassis register')
+    // Rung four: a race page's four tables - a sprint weekend with pit stops
+    // and knock-out qualifying, a pre-2006 race with one time per driver, and
+    // the shared drive whose "shared" mark both renderers must carry.
+    const gp = (year, round) => one('SELECT name_used FROM races WHERE year = ? AND round = ?', year, round)
+    const sprintRound = one("SELECT MIN(r.round) FROM races r WHERE r.year = 2026 AND r.sprint = 1 AND r.status = 'completed'")
+    for (const heading of ['Classification', 'Qualifying', 'Sprint', 'Pit stops']) {
+      await same(`/races/2026/${sprintRound}`, gp(2026, sprintRound), heading)
+    }
+    await same('/races/1976/9', gp(1976, 9), 'Qualifying')
+    await same('/races/1955/1', gp(1955, 1), 'Classification')
     {
       // Run first: the list opens on the last race run, not the next one scheduled.
       const first = (await appTable(null))?.rows[0]?.join(' | ') ?? ''

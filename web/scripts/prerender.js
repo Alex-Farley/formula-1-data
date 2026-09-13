@@ -49,7 +49,7 @@ import { fileURLToPath } from 'node:url'
 // hardcoded `circuit_geometry` columns went wrong. `formatted` is the
 // app's own cell text — text() in lib/format.js — for the tables below
 // that are drawn from a page's column list.
-import { finished, text as formatted, yearList } from '../src/lib/format.js'
+import { finished, missing, result, text as formatted, yearList } from '../src/lib/format.js'
 import {
   CROSS_CHECKED,
   ENTRIES_NOTE,
@@ -96,6 +96,23 @@ import { RACES, RACE_COLUMNS, RACES_FOOTER } from '../src/queries/races.js'
 import { CONSTRUCTORS, CONSTRUCTOR_COLUMNS, CONSTRUCTORS_FOOTER } from '../src/queries/constructors.js'
 import { CIRCUITS, CIRCUIT_COLUMNS, CIRCUITS_FOOTER, TRACED } from '../src/queries/circuits.js'
 import { CHASSIS, CHASSIS_COLUMNS, CHASSIS_FOOTER, GALLERY, GALLERY_COLUMNS } from '../src/queries/cars.js'
+import {
+  CLASSIFICATION_COLUMNS,
+  CLASSIFICATION_FOOTER,
+  ENTRIES,
+  FASTEST_LAP,
+  PITS,
+  PITS_FOOTER,
+  PIT_COLUMNS,
+  QUALIFYING,
+  QUALIFYING_FOOTER,
+  SPRINT as SPRINT_RESULTS,
+  SPRINT_COLUMNS,
+  SPRINT_FOOTER,
+  inClassificationOrder,
+  qualifyingColumns,
+  railOf,
+} from '../src/queries/race.js'
 import {
   BY_SEASON,
   DERIVED,
@@ -184,7 +201,7 @@ const table = (headers, rows, options = {}) => {
   return [
     '<div class="tablewrap"><table>',
     caption ? `<caption>${esc(caption)}</caption>` : '',
-    `<thead><tr>${headers.map((h, i) => `<th scope="col"${cls(i)}>${esc(h)}</th>`).join('')}</tr></thead>`,
+    `<thead><tr>${headers.map((h, i) => `<th scope="col"${cls(i)}>${typeof h === 'string' ? esc(h) : h.html}</th>`).join('')}</tr></thead>`,
     '<tbody>',
     rows.map((cells) => `<tr>${cells.map((c, i) => `<td${cls(i)}>${c}</td>`).join('')}</tr>`).join(''),
     '</tbody></table></div>',
@@ -204,7 +221,9 @@ const table = (headers, rows, options = {}) => {
 // matching `text`, or the two renderers part.
 const fromColumns = (columns, rows, links = {}, options = {}) =>
   table(
-    columns.map((c) => c.label),
+    // A column marked srOnly names itself to a screen reader only, as the
+    // app's does: the classification's rail has a header and no visible word.
+    columns.map((c) => (c.srOnly ? { html: `<span class="sr-only">${esc(c.label)}</span>` } : c.label)),
     rows.map((row) =>
       columns.map((c) => {
         const value = row[c.key]
@@ -676,19 +695,19 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
       ORDER BY d.id`,
   )
 
-  const classify = db.prepare(
-    `SELECT e.finish_position, e.position_text, e.grid, e.grid_text, e.laps_completed,
-            e.points, e.status, e.classified, e.fastest_lap, e.driver_id, e.constructor_id,
-            d.full_name AS driver, c.name AS team
-       FROM race_entries e
-       LEFT JOIN drivers d ON d.id = e.driver_id
-       LEFT JOIN constructors c ON c.id = e.constructor_id
-      WHERE e.race_id = ?
-      ORDER BY (e.finish_position IS NULL), e.finish_position, e.grid`,
-  )
+  // The four tables read web/src/queries/race.js, the app's own queries and
+  // column lists (PD-02, rung four), and the classification is put in the
+  // order the app prints it by the same function.
+  const rail = (_, row) => `<i class="${esc(railOf(row))}"></i>`
+  const driverCell = (name, row) => (row.driver_id ? link(`drivers/${row.driver_id}`, name ?? row.driver_id) : text(name))
+  const constructorCell = (name, row) => (row.constructor_id ? link(`constructors/${row.constructor_id}`, name) : text(name))
+  const outCell = (value, row) => (finished(value, row.finish_position) ? 'Finished' : missing(value) ? '—' : tag(value))
 
   for (const r of races) {
-    const entries = classify.all(r.id)
+    const entries = inClassificationOrder(all(ENTRIES, r.year, r.round))
+    const qualifying = all(QUALIFYING, r.year, r.round)
+    const sprintResults = inClassificationOrder(all(SPRINT_RESULTS, r.year, r.round))
+    const pits = all(PITS, r.year, r.round)
     const scheduled = r.status === 'scheduled'
     const sessions = all(RACE_SESSIONS, r.year, r.round)
     const headline = `${r.year} ${r.name_used}`
@@ -798,21 +817,45 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
         ${disagree(disagreements.all(`${r.year} round ${r.round}`), 'this race')}
         ${
           entries.length
-            ? `<h2>Classification</h2>${table(
-                ['Pos', 'Driver', 'Constructor', 'Grid', 'Laps', 'Points', 'Status'],
-                entries.map((e) => [
-                  esc(e.position_text ?? (e.finish_position ?? '—')),
-                  driver(e.driver_id, e.driver),
-                  team(e.constructor_id, e.team),
-                  esc(e.grid_text ?? (e.grid ?? '—')),
-                  num(e.laps_completed),
-                  num(e.points),
-                  `${finished(e.status, e.finish_position) ? 'Finished' : text(e.status)}${e.fastest_lap ? ' · fastest lap' : ''}`,
-                ]),
-              )}`
+            ? `<h2>Classification</h2>${fromColumns(CLASSIFICATION_COLUMNS, entries, {
+                rail,
+                position_text: (_, row) =>
+                  missing(row.finish_position) ? `<span class="tag tag-dnf">${esc(result(row))}</span>` : `<b>${esc(result(row))}</b>`,
+                driver: (name, row) => `${driverCell(name, row)}${row.shared_drive === 1 ? ` ${tag(SHARED)}` : ''}`,
+                constructor: (name, row) => (row.constructor_id ? link(`constructors/${row.constructor_id}`, name) : text(row.entrant ?? name)),
+                chassis: (name, row) => (row.chassis_id ? link(`cars/${row.chassis_id}`, name ?? row.chassis_id) : text(name)),
+                status: outCell,
+                fastest_lap: (value) =>
+                  value === 1 ? `<span class="fl" aria-hidden="true">●</span><span class="sr-only">${esc(FASTEST_LAP)}</span>` : '',
+              })}${note(CLASSIFICATION_FOOTER)}`
             : scheduled
               ? '<p>This race has not been run. The classification will appear here once it has.</p>'
               : ''
+        }
+        ${
+          qualifying.length
+            ? `<h2>Qualifying</h2>${fromColumns(qualifyingColumns(qualifying), qualifying, {
+                driver: driverCell,
+                constructor: constructorCell,
+              })}${note(QUALIFYING_FOOTER)}`
+            : ''
+        }
+        ${
+          sprintResults.length
+            ? `<h2>Sprint</h2>${fromColumns(SPRINT_COLUMNS, sprintResults, {
+                rail,
+                driver: driverCell,
+                constructor: constructorCell,
+                status: outCell,
+              })}${note(SPRINT_FOOTER)}`
+            : ''
+        }
+        ${
+          pits.length
+            ? `<h2>Pit stops</h2>${fromColumns(PIT_COLUMNS, pits, {
+                driver: (name, row) => (row.driver_id ? link(`drivers/${row.driver_id}`, name ?? row.driver_id) : text(name ?? row.driver_key)),
+              })}${note(PITS_FOOTER)}`
+            : ''
         }`,
     })
   }
