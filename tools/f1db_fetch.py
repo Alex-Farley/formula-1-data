@@ -76,7 +76,8 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, ROOT)
-from data.harvest import SVG_PATH_DATA  # noqa: E402  (the one rule for what an outline may hold)
+from data.harvest import (  # noqa: E402  (the one rule for what an outline may hold)
+    SVG_PATH_DATA, svg_path_in_box, svg_path_translate)
 HARVEST = os.path.join(ROOT, "harvest")
 CACHE = os.path.join(ROOT, ".f1dbcache")
 REPO = "https://github.com/f1db/f1db.git"
@@ -486,6 +487,13 @@ def circuit_outline_rows(root, data, yaml):
     shape of F1DB's assets has changed and somebody should look before it is
     stored. The path is written into an attribute on every page that draws
     it, which is why the syntax check is here and again in build.py.
+
+    The path is stored bare, so a transform on the <path> element has to be
+    applied to it or the drawing is lost: ain-diab-1.svg alone of the 160
+    positions its path with translate(-1074.322 -900.61), and stored as
+    written it rendered as an empty figure (PR #273's review). A translate is
+    applied here; any other transform stops the fetch. Then every outline
+    must lie inside the 500-unit box, which is what the translate was for.
     """
     circuits = os.path.join(data, "circuits")
     assets = os.path.join(root, "src", "assets", "circuits", "black")
@@ -502,14 +510,29 @@ def circuit_outline_rows(root, data, yaml):
                          f"{svg_path}; the assets have moved or the layout is new")
             with open(svg_path, encoding="utf-8") as f:
                 svg = f.read()
-            paths = re.findall(r'<path\b[^>]*\sd="([^"]+)"', svg)
-            if len(paths) != 1:
-                sys.exit(f"{svg_path} has {len(paths)} <path> elements, not one; the "
+            elements = re.findall(r'<path\b[^>]*>', svg)
+            if len(elements) != 1:
+                sys.exit(f"{svg_path} has {len(elements)} <path> elements, not one; the "
                          f"shape of F1DB's circuit assets has changed")
-            path_d = " ".join(paths[0].split())
+            d = re.search(r'\sd="([^"]+)"', elements[0])
+            if not d:
+                sys.exit(f"{svg_path}: the <path> has no d attribute")
+            path_d = " ".join(d.group(1).split())
+            transform = re.search(r'\stransform="([^"]*)"', elements[0])
+            if transform:
+                t = re.fullmatch(r"\s*translate\(\s*(-?[\d.]+)[\s,]+(-?[\d.]+)\s*\)\s*",
+                                 transform.group(1))
+                if not t:
+                    sys.exit(f"{svg_path}: the <path> carries transform="
+                             f"\"{transform.group(1)}\", which is not a translate; "
+                             f"look at the asset before it is stored")
+                path_d = svg_path_translate(path_d, float(t.group(1)), float(t.group(2)))
             if not re.fullmatch(SVG_PATH_DATA, path_d):
                 sys.exit(f"{svg_path}: the path data holds a character outside SVG "
                          f"path syntax and will not be stored")
+            if not svg_path_in_box(path_d):
+                sys.exit(f"{svg_path}: the path lies outside the 500-unit box and would "
+                         f"draw an empty figure; look at the asset before it is stored")
             rows.append("|".join(_clean(v) for v in (
                 layout["id"], circuit["id"], layout.get("length"), layout.get("turns"),
                 path_d)))
@@ -742,7 +765,8 @@ def main():
     ok &= write("circuit_outlines.txt",
                 "layout_id|circuit_id|length_km|turns|path"
                 "   (F1DB's ids and figures; path is SVG path data in a 500x500 "
-                "box, drawn by Jules Roy)",
+                "box, drawn by Jules Roy; a translate() on the asset's <path> is "
+                "applied to the path, and nothing else is changed)",
                 circuit_outline_rows(path, data, yaml), version, commit, args.check)
     ok &= write("race_layouts.txt",
                 "year|round|layout_id   (the F1DB circuit layout the race ran)",

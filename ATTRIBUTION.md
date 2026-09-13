@@ -66,6 +66,13 @@ under the same CC BY 4.0. The site gives that credit in its footer and on
 Roy*. An outline is a drawing, not a measurement; the traced centrelines
 below are OpenStreetMap's and carry a different obligation.
 
+Two changes are made to the drawings, stated here as CC BY 4.0 asks. One
+asset (`ain-diab-1.svg`) positions its path with a `translate()` on the
+element; `tools/f1db_fetch.py` applies that to the path data so every
+outline is stored bare in the same 500-unit box, and stops on any other
+transform. The site then draws every outline in its own ink at a constant
+stroke width, with nothing added; F1DB's black 20-unit stroke is not kept.
+
 This is the most permissive licence of any bulk source used here, and since
 v2.15 it is the single most important fact about this repository's data.
 

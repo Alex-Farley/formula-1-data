@@ -8,7 +8,7 @@ import { OutlineCard } from '../components/Outline.jsx'
 import { BANDS, BAND_NAMES, buildLap } from '../lib/lap.js'
 import { rows, useQueries } from '../data/useQuery.js'
 import { number, span } from '../lib/format.js'
-import { OUTLINE_RULE, outlineCaption } from '../lib/outline.js'
+import { OUTLINE_FIGURES_NOTE, OUTLINE_RULE, outlineCaption } from '../lib/outline.js'
 
 import { NOT_YET_RUN } from '../lib/site.js'
 import {
@@ -161,7 +161,7 @@ function CircuitBody({ circuit, data }) {
       )}
 
       {layouts.length > 0 && (
-        <Section title="How it changed" count={`${layouts.length} layouts`}>
+        <Section title="How it changed" count={`${layouts.length} layouts`} note={outlines.length > 0 ? OUTLINE_FIGURES_NOTE : undefined}>
           <div className="timeline">
             {layouts.map((layout) => (
               <article key={layout.id}>

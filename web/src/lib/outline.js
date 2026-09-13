@@ -28,8 +28,15 @@ export const OUTLINE_BY = 'F1DB, CC BY 4.0 · drawn by Jules Roy'
 /** Printed wherever a shape appears. */
 export const OUTLINE_RULE = 'The outline is F1DB’s, for every layout; the trace is OpenStreetMap’s, where it exists.'
 
-/** The sources page's paragraph: the credit, and what it obliges. */
-export const OUTLINES_NOTE = `${OUTLINE_CREDIT}. Carry that credit with any outline you take. ${OUTLINE_RULE}`
+/** The sources page's paragraph: the credit, what it obliges, and what was changed. */
+export const OUTLINES_NOTE = `${OUTLINE_CREDIT}. Carry that credit with any outline you take. Shown here in the site’s own ink at a constant stroke, otherwise as drawn. ${OUTLINE_RULE}`
+
+/**
+ * Under a circuit's timeline, where the register's length sits a few lines
+ * below F1DB's for the same layout and nine circuits disagree (Silverstone's
+ * 1950 layout 4.649 v 4.711 km; Spa 19 v 21 turns).
+ */
+export const OUTLINE_FIGURES_NOTE = 'Lengths here are this register’s, from its own sources; the figures under each outline above are F1DB’s, and at some circuits the two disagree.'
 
 /** The accessible name of one outline: what it is, and which F1DB layout. */
 export const outlineLabel = (circuit, layoutId) => `Outline of ${circuit ?? 'the circuit'}, F1DB layout ${layoutId}`
@@ -37,7 +44,7 @@ export const outlineLabel = (circuit, layoutId) => `Outline of ${circuit ?? 'the
 /**
  * F1DB's figures for the layout — "5.793 km · 11 turns" — or nothing where it
  * gives none. They are F1DB's, not this register's: circuit_layouts holds the
- * lengths this project sourced, and a caption says whose figure it prints.
+ * lengths this project sourced, and outlineCaption says whose figure it prints.
  */
 export const outlineFigures = (row) =>
   [
@@ -47,23 +54,31 @@ export const outlineFigures = (row) =>
     .filter(Boolean)
     .join(' · ')
 
-/** "5 rounds", "1 round": how many races ran a layout, scheduled ones included. */
+/** "5 rounds", "1 round": how many completed races ran a layout. */
 export const roundsOn = (n) => `${n} ${n === 1 ? 'round' : 'rounds'}`
 
+/** "1 round to come": races on the calendar that name the layout and have not run. */
+export const roundsToCome = (n) => `${roundsOn(n)} to come`
+
 /**
- * The caption under one outline: F1DB's id, its figures, and — where the row
- * carries them — the years it ran and the rounds run on it. A race page's
- * card has no years to give; a circuit page's has.
+ * The caption under one outline: F1DB's id, its figures marked as F1DB's —
+ * the register's own length may sit beside the card and differ — and, where
+ * the row carries them, the years it ran, the rounds run on it and the
+ * rounds still to come. A race page's card has no years to give; a circuit
+ * page's has.
  */
-export const outlineCaption = (row) =>
-  [
+export const outlineCaption = (row) => {
+  const figures = outlineFigures(row)
+  return [
     `F1DB layout ${row.f1db_layout_id}`,
-    outlineFigures(row) || null,
+    figures ? `${figures}, F1DB’s figures` : null,
     row.first_year === null || row.first_year === undefined ? null : span(row.first_year, row.last_year),
     row.rounds ? roundsOn(row.rounds) : null,
+    row.scheduled ? roundsToCome(row.scheduled) : null,
   ]
     .filter(Boolean)
     .join(' · ')
+}
 
 /**
  * The state of each round for the season strip: `run`, `next` for the first

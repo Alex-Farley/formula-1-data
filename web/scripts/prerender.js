@@ -1328,7 +1328,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
         ${prose(c.notes)}
         ${
           outlinesHere.length
-            ? `<h2>Every layout raced here</h2><p>${esc(OUTLINE_RULE)}</p><div class="outline-grid">${outlinesHere
+            ? `<h2>Every layout raced here</h2>${note(OUTLINE_RULE)}<div class="outline-grid">${outlinesHere
                 .map((row) => outlineCard(row.path, c.name, row.f1db_layout_id, outlineCaption(row)))
                 .join('')}</div>`
             : ''

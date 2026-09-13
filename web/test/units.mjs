@@ -646,17 +646,22 @@ describe('the circuit outlines (AF-03)', () => {
     assert.equal(outlineFigures({ length_km: null, turns: 1 }), '1 turn')
     assert.equal(outlineFigures({ length_km: null, turns: null }), '')
   })
-  it('captions a layout with what the row knows, and no more', () => {
+  it('captions a layout with what the row knows, and says whose figures they are', () => {
     assert.equal(
-      outlineCaption({ f1db_layout_id: 'monza-7', length_km: 5.793, turns: 11, first_year: 2000, last_year: 2026, rounds: 27 }),
-      'F1DB layout monza-7 · 5.793 km · 11 turns · 2000–2026 · 27 rounds',
+      outlineCaption({ f1db_layout_id: 'monza-7', length_km: 5.793, turns: 11, first_year: 2000, last_year: 2025, rounds: 26, scheduled: 1 }),
+      'F1DB layout monza-7 · 5.793 km · 11 turns, F1DB’s figures · 2000–2025 · 26 rounds · 1 round to come',
     )
     assert.equal(
-      outlineCaption({ f1db_layout_id: 'monza-4', length_km: 5.775, turns: 7, first_year: 1972, last_year: 1972, rounds: 1 }),
-      'F1DB layout monza-4 · 5.775 km · 7 turns · 1972 · 1 round',
+      outlineCaption({ f1db_layout_id: 'monza-4', length_km: 5.775, turns: 7, first_year: 1972, last_year: 1972, rounds: 1, scheduled: 0 }),
+      'F1DB layout monza-4 · 5.775 km · 7 turns, F1DB’s figures · 1972 · 1 round',
+    )
+    // A venue that has never held a round: no years, no rounds run, only the one to come.
+    assert.equal(
+      outlineCaption({ f1db_layout_id: 'madring-1', length_km: 5.47, turns: 22, first_year: null, last_year: null, rounds: 0, scheduled: 1 }),
+      'F1DB layout madring-1 · 5.47 km · 22 turns, F1DB’s figures · 1 round to come',
     )
     // A race page's card: no years, no rounds.
-    assert.equal(outlineCaption({ f1db_layout_id: 'sepang-1', length_km: 5.543, turns: 15 }), 'F1DB layout sepang-1 · 5.543 km · 15 turns')
+    assert.equal(outlineCaption({ f1db_layout_id: 'sepang-1', length_km: 5.543, turns: 15 }), 'F1DB layout sepang-1 · 5.543 km · 15 turns, F1DB’s figures')
     assert.equal(outlineCaption({ f1db_layout_id: 'x-1', length_km: null, turns: null }), 'F1DB layout x-1')
   })
 })

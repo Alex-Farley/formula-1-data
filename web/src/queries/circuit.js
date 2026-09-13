@@ -36,17 +36,23 @@ export const LAYOUTS = `
 
 /**
  * F1DB's outline of every layout raced here (AF-03), with the years and
- * the rounds run on each, counted from the races that name it. A drawing,
- * not a measurement: lib/outline.js says how it differs from GEOMETRY.
+ * the rounds run on each, counted from the completed races that name it —
+ * the same split v_circuits makes for the stats above, so a layout on the
+ * calendar and not yet raced is "1 round to come", not a round run at a
+ * venue that has never held one. A drawing, not a measurement:
+ * lib/outline.js says how it differs from GEOMETRY.
  */
 export const OUTLINES = `
   SELECT o.f1db_layout_id, o.length_km, o.turns, o.path,
-         MIN(r.year) AS first_year, MAX(r.year) AS last_year, COUNT(r.id) AS rounds
+         MIN(CASE WHEN r.status = 'completed' THEN r.year END) AS first_year,
+         MAX(CASE WHEN r.status = 'completed' THEN r.year END) AS last_year,
+         COUNT(CASE WHEN r.status = 'completed' THEN 1 END) AS rounds,
+         COUNT(CASE WHEN r.status != 'completed' THEN 1 END) AS scheduled
     FROM circuit_outlines o
     LEFT JOIN races r ON r.f1db_layout_id = o.f1db_layout_id
    WHERE o.circuit_id = ?
    GROUP BY o.f1db_layout_id
-   ORDER BY first_year, o.f1db_layout_id
+   ORDER BY first_year IS NULL, first_year, o.f1db_layout_id
 `
 
 /** Newest first: the order the app's table opens in. */
