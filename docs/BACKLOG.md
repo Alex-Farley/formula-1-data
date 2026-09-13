@@ -74,6 +74,16 @@ the date, then removed at the next tidy.
   `LV-03` under *Next*.
 - ~~`PM-04` **The GitHub repository description.**~~ Decided and applied
   2026-09-12.
+- ~~`PM-33` **Review cost: which model, and when a fix needs no further
+  pass.**~~ Decided 2026-09-13 by the maintainer, after the 2026-09-12 run
+  spent 40,000-130,000 tokens a reviewer pass over two or three passes a PR:
+  Opus for a first pass on data and front-end alike (the front end reviewed
+  thoroughly, with a design eye); a fresh Sonnet context to confirm a fix or
+  to review a docs-, backlog- or wording-only change; one reviewer unless a
+  source is reclassified; a post-PASS fix that is only documentation wording,
+  a blank line or a comment merges without a further pass, named in the PR
+  comment. Set in `.claude/skills/backlog-loop/SKILL.md`; `CLAUDE.md` and
+  `CONTRIBUTING.md` point at it (#98).
 - ~~`LV-04` **Is a full season's timetable within facts-only?**~~ Decided
   2026-09-12: option (a), proceed as facts-only, with the reading recorded in
   `docs/COMMERCIAL-READINESS.md` (a public schedule the promoter and the FIA
@@ -1146,6 +1156,7 @@ Real, but not costed, or waiting on a decision.
 - [x] `IX-09` **The scrubber says what is under the marker** — the corner
       band and its radius — so it teaches the colour key instead of counting
       up a distance the drawing already shows. — *interaction critique · #56*
+
 - [x] `CD-10` **The confidence pill goes to the ladder.** A link to
       `/reference/quality` with the tier in its title, in the app and in the
       static facts lists, so "medium" is a word with a definition one click
@@ -1204,6 +1215,7 @@ Real, but not costed, or waiting on a decision.
 
 - [x] `VD-21` **`web/README.md` describes the mark that ships**: four by four,
       one accent cell. — *visual critique · #61*
+
 - [x] `WK-02` **The cost cap is a schedule.** Seven `regulation_limits`
       rows — the headline figure for 2021, 2022, 2023–2025 and 2026, and the
       per-Competition adjustment for each — every one read from the FIA
@@ -1222,6 +1234,7 @@ Real, but not costed, or waiting on a decision.
       is no arrow and no claim of one — the first cut said it anyway, and the
       review caught it. 3D stays
       declined; an elevation strip waits on `PD-23`. — *visual critique · #62*
+
 - [x] `PD-07` **The README states what the database holds.** Every figure it
       gives about the current database is a `<!-- fig:name -->` span that
       `tools/readme_figures.py` computes from `f1.db` (and `f1-geometry.db`
@@ -1281,6 +1294,7 @@ Real, but not costed, or waiting on a decision.
       through `execCommand('insertText')` — a controlled textarea and the
       browser's undo stack do not agree — but by keeping what was replaced
       and offering it back in one click. — *interaction critique · #65*
+
 - [x] `CR-21` **The two column-filling harvests have a floor.** `verify.py`
       requires `chassis.weight_kg` and `chassis.wheelbase_mm` to be filled at
       least as often as at v2.22 and `article_images` to hold at least its
@@ -1319,6 +1333,7 @@ Real, but not costed, or waiting on a decision.
       `holder_table` + `holder_id` (NULL exactly when shared), `value_num` +
       `unit` beside the display `value`, one ISO `as_of` that `verify.py`
       holds to the coverage. — *data architecture critique · #68*
+
 - [x] `IA-02` **`Reference` leaves the masthead; `Data` takes the slot.** The
       masthead stays at eight: Seasons · Races · Drivers · Constructors ·
       Circuits · Cars · Records · Data. `/data` is the database's own front
@@ -1380,6 +1395,7 @@ Real, but not costed, or waiting on a decision.
       rather than becoming a `discrepancies` row. `verify.py` refuses a bare
       integer before starts, races, wins, poles, podiums or points in any
       driver note. — *user research · #70*
+
 - [x] `PD-06` **The drivers register's first screen answers a question.**
       Most wins first, in the app and the static page; `Entries` and
       `Starts` — published figures held for 38 and 31 of 862 drivers, so two
@@ -1408,6 +1424,7 @@ Real, but not costed, or waiting on a decision.
       fit the row; the others are written from the row's own text. The 2021
       Belgium note stays in the register as a position rather than moving to
       the race page. — *content critique · #72*
+
 - [x] `PD-10` **A citation block on every page.** One sentence — the
       database version and build date and the page's permanent address —
       from one function in `site.js`, rendered by `Page` in the app and by
@@ -1440,6 +1457,7 @@ Real, but not costed, or waiting on a decision.
       (published)", in the app and the static HTML alike; the static facts
       gain the derived Entries the app's strip already showed.
       — *review of #69 · #75*
+
 - [x] `WK-05` **The season's grid is counted.** `v_season_grid` — drivers
       entered (from the race entries; a DNQ is an entry, and no source says
       who started), constructors by their F1DB key so the Indianapolis
@@ -1449,6 +1467,7 @@ Real, but not costed, or waiting on a decision.
       counted the curated constructor key (1950 read eight, not
       twenty-three), said "started", and bounded the view by identities; the
       review caught all three. — *Wikipedia survey · #73*
+
 - [x] `CD-19` **Driver ledes no longer spell a figure the strip derives.**
       `verify.py`'s check reads spelled cardinals (one to twenty, thirty to
       hundred, compounds), digit and spelled ordinals above "first" ("300th
@@ -1484,6 +1503,7 @@ Real, but not costed, or waiting on a decision.
       now the app's query and column list, from `web/src/queries/drivers.js`;
       the driver page's strip and its season table follow the same way.
       Found by the review of #69. — *review · #77*
+
 - [x] `WK-04` **The new-team entry fee is a press figure, and the database
       says so.** A `known_gaps` row: the anti-dilution fund is a term of a
       private contract, the US$200m and US$450m figures are reported, not
@@ -1524,6 +1544,7 @@ Real, but not costed, or waiting on a decision.
       asks for the file to be read, since the check cannot tell a relicence
       from a reformatted deed. Eight unit tests, offline; the live deed
       passes. — *project record · #83*
+
 - [x] `PD-13` **The upstream dependency is written down.** `docs/UPSTREAM.md`:
       what F1DB supplies (115,161 of 119,280 rows at v2.23, table by table),
       how it arrives (a committed snapshot, refreshed daily by `refresh.yml`
@@ -1560,6 +1581,7 @@ Real, but not costed, or waiting on a decision.
       register check is only reported — the second review found a
       name-based exemption covered a debutant and not a returning signing. —
       *review of #81 · #84*
+
 - [x] `CD-23` **The lede check is one tested pattern.** `tools/lede_figures.py`
       holds it, with its reasons; `tests/test_lede_figures.py` makes both
       interpreters prove 18 catches and 12 leave-alones. Career qualifiers
@@ -1583,6 +1605,7 @@ Real, but not costed, or waiting on a decision.
       6, Hill 5, Trintignant 2 at Monaco) and requires the rest to be
       declared — Ickx's six Le Mans wins are, and an undeclared place fails.
       — *review of #79 · #88*
+
 - [x] `PM-29` **The build reads the season in progress from the entry
       lists.** `b.current_season` is the latest year anybody entered; the
       admitted drivers' `status` and the admitted constructors' `active`
@@ -1592,6 +1615,7 @@ Real, but not costed, or waiting on a decision.
       reach a season the classification has not, which is the assumption
       the derivation rests on. Byte-identical database today. — *review of
       #84 · #86*
+
 - [x] `PM-28` **Nine gap citations name the gap they mean.** Three code
       comments that meant the Jolpica licence decision now say `known_gaps`
       #2 and four that meant the abandoned chassis-per-race harvest say #3
@@ -1613,6 +1637,7 @@ Real, but not costed, or waiting on a decision.
       name him as entered for two rounds; the row now says what the data
       says. The symmetric-predicate clause is `CD-26`. — *review of #81 ·
       #89*
+
 - [x] `PM-30` **A gap's id is written, not counted.** Every `KNOWN_GAPS`
       tuple carries its id, so filing a gap mid-list no longer renumbers the
       citations after it; `verify.py` requires the ids to be 1..N with no
@@ -1633,6 +1658,7 @@ Real, but not costed, or waiting on a decision.
       not yet read by tool; `known_gaps` #15 records that every start has
       one source behind it until they are. The page work stays open as
       `LV-02`. — *request · #91*
+
 - [x] `PD-12` **The timing constraint is a position.** The shared `NOT_HELD`
       sentence on `/data`, in both renderers, opens with what the absence
       means — nobody publishes Formula One race timing under a licence that
@@ -1643,6 +1669,7 @@ Real, but not costed, or waiting on a decision.
       a claim about the law rather than the licences and collided with the
       27,000 qualifying lap times F1DB publishes under CC BY; `known_gaps`
       #5 carries the same words. — *product critique · #94*
+
 - [x] `PM-31` **The commercial-readiness figures are spans the build writes.**
       `tools/readme_figures.py` now writes every document in `DOCUMENTS` —
       the README and `docs/COMMERCIAL-READINESS.md` — and counts the licence
@@ -1654,6 +1681,7 @@ Real, but not costed, or waiting on a decision.
       of #92 found the first cut's span would have rewritten itself around
       an unread row, and a second cut's sum check that could not fail. —
       *review of #91 · #92*
+
 - [x] `CD-26` **The span comparison is symmetric, and either end can be
       declared.** A NULL at either end of the register's span is no claim
       about that end and the other is still compared, in `seasonsNote()`
@@ -1670,6 +1698,7 @@ Real, but not costed, or waiting on a decision.
       leaderboards link their drivers as well; the champions, decade and
       constructor tables are `PD-27`, because their views carry no id. —
       *product critique · #96*
+
 - [x] `CD-27` **The aside and the strip agree: the register's figure is
       "published".** The explained aside says "the published span and the
       one the race records give differ", from a footer string both renderers
@@ -1678,6 +1707,7 @@ Real, but not costed, or waiting on a decision.
       this project's own authored claim, which nobody published. The
       assessments inside `f1.db` still say "the register's" and "the stored
       figure"; that is database prose, `CD-28`. — *review of #89 · #97*
+
 - [x] `LV-02` **The weekend timetable, on the page.** Every race page carries
       a Timetable — each session on the circuit's clock and in UTC, both
       derived through Intl from one stored instant and zone — in the app and
@@ -1686,17 +1716,21 @@ Real, but not costed, or waiting on a decision.
       page names the next session with a link to its race, computed in the
       browser, which is the only place "now" exists. — *request · #95*
 
-- [x] `PM-32` **The loop is a skill, not the default.** `.claude/skills/
-      backlog-loop/`: the procedure (`SKILL.md`), the CI waiter that treats
-      empty output as pending, the merge helper that resolves the backlog's
-      predictable conflict and rebuilds the artefacts rather than hand-merging
-      them, and the reviewer brief. Three review rounds in the 2026-09-12 run
+- [x] `PM-32` **The loop is a skill, not the default.**
+      `.claude/skills/backlog-loop/`: the procedure (`SKILL.md`), the CI
+      waiter that treats
+      empty output as pending, the merge helper that resolves only the
+      backlog's predictable conflict and a moved figure span, rebuilding the
+      artefacts rather than hand-merging them and stopping on any source
+      conflict, and the reviewer brief. Three review rounds in the 2026-09-12 run
       were lost to retyping these by hand, and a `precheck.sh` that refuses
       the slips a reviewer used to find. Model policy decided 2026-09-13:
       Opus for a first pass, Sonnet to confirm a fix or review wording, one
       reviewer unless a source is reclassified, and a documentation-only fix
-      merges without a further pass. Invoked with `/backlog-loop`;
-      `CLAUDE.md` says so. — *project record · #98*
+      merges without a further pass (`PM-33`). Invoked with `/backlog-loop`
+      through `.claude/commands/backlog-loop.md`; `CLAUDE.md` says so. —
+      *project record · #98*
+
 - [x] `CD-28` **The assessments say "published" too.** The two explained
       span rows and the nine 2026 points rows in `discrepancies` no longer
       say "the register's" or "the stored figure"; every surface on a driver

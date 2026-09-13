@@ -10,11 +10,13 @@ description: Run the autonomous development loop through docs/BACKLOG.md - one i
 is the procedure, with the scripts that were retyped by hand until they went
 wrong. Read both rule sections before the first item.
 
-Argument: `$ARGUMENTS`. `next` takes the highest-priority open item
-(correctness > integrity and licensing > functional > security > architecture
-> accessibility > UX > throughput); an item id takes that item; `until-paused`
-repeats `next` until told to stop or a stop condition below fires. With no
-argument, behave as `next`.
+Argument (passed through from `.claude/commands/backlog-loop.md`): `next`
+takes the first open item by the queue's own order - everything under *Now*
+before *Next* before *Someday*, and within a section correctness before
+integrity and licensing, functional, security, architecture, accessibility,
+UX, throughput; an item id takes that item; `until-paused` repeats `next`
+until told to stop or a stop condition below fires. With no argument, behave
+as `next`. The section order is a person's ranking and is not overridden.
 
 ## Before an item
 
@@ -62,8 +64,9 @@ One fresh agent from `.claude/agents/`, pointed at the worktree path, using
 - `frontend-reviewer` for anything under `web/` - thoroughly, with a design
   eye: it drives the built pages and compares app and static output.
 - `data-integrity-reviewer` for `build.py`, `verify.py`, `schema.sql`,
-  `data/`, `harvest/`, `tools/`, `export_json.py`. It covers the licence
-  rules well enough for ordinary changes.
+  `data/`, `harvest/`, `tools/`, `export_json.py`. The build itself refuses
+  an unclassified source and verify.py fails on a forbidden one, which is
+  why an ordinary data change does not also need the licence reviewer.
 - `licence-reviewer` only when a change adds or reclassifies a source, touches
   a workflow, an export or a publishing path, or takes a whole dataset from
   one source. Two reviewers are the exception, not the rule.
@@ -94,8 +97,10 @@ The agent returns exactly `PASS — safe to merge` or `FAIL — changes required
   dies on a session limit, relaunch after the reset.
 - Record the verdict as a PR comment (reviewer and model, verdict, the FAIL
   rounds in one line each), then `gh pr merge N --merge` only with the PASS
-  and `check (3.9)`, `check (3.12)` and `web` green. The `review` check fails
-  on an exhausted credential; ignore it, never edit it.
+  and `check (3.9)`, `check (3.12)` and `web` green. **Merging deploys
+  lapledger.org**: Cloudflare builds every push to `main`, so a merge is a
+  production change. The `review` check fails on an exhausted credential;
+  ignore it, never edit it.
 
 ## Keeping the cost down
 
@@ -113,11 +118,12 @@ The agent returns exactly `PASS — safe to merge` or `FAIL — changes required
   and read its file; empty output from `gh` is pending. `?,?,?` means the PR
   is CONFLICTING and CI never started.
 - Main moved under a branch: `python3 .claude/skills/backlog-loop/merge-main.py`
-  from the worktree. It merges `origin/main`, concatenates both sides of
-  `docs/BACKLOG.md`, takes main's copy of every generated artefact and
-  rebuilds, dedupes import lines, and runs `node --check` on every touched
-  script. Then rerun the web tests before pushing. Merge PRs one at a time;
-  each merge conflicts the others.
+  from the worktree. It resolves only what it can safely: both sides of
+  `docs/BACKLOG.md`, main's copy of the generated artefacts with a rebuild,
+  and a README or licence-statement conflict that is only figure spans
+  moving. A conflict in any source file, or in prose, stops it with the file
+  named, and a person resolves that one. Then rerun the web tests before
+  pushing. Merge PRs one at a time; each merge conflicts the others.
 - After the merge: remove the worktree, delete the branch, `git pull`.
 
 ## Stop conditions

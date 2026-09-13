@@ -185,9 +185,15 @@ given the task, the rules that apply, the diff, the provenance of any fact,
 and the test and validation results, and is asked to disprove the work. It
 returns `PASS — safe to merge` or `FAIL — changes required`, with blocking
 findings named. The agent that made the change does not approve it. A FAIL
-is corrected, `make all` is run again, and a new fresh-context review is
-obtained; this repeats until PASS. Silence, an interrupted reviewer or an
-unavailable review account is not a PASS.
+is corrected, `make all` is run again, and a fresh-context review of the
+fix is obtained; this repeats until PASS. Silence, an interrupted reviewer
+or an unavailable review account is not a PASS. Which model reviews what,
+and the one case in which a post-PASS fix merges without a further pass -
+a fix that is only documentation wording, a blank line or a comment, named
+in the PR comment - were decided by the maintainer on 2026-09-13 to control
+review cost and are set in `.claude/skills/backlog-loop/SKILL.md`: Opus for
+a first pass, a fresh Sonnet context to confirm a fix or review a
+wording-only change.
 
 `.github/workflows/review.yml` runs the same kind of review on GitHub, on a
 credential that is at present exhausted. Its red check is an infrastructure
