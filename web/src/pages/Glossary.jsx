@@ -5,12 +5,17 @@ import DataTable from '../components/DataTable.jsx'
 import { SportNav } from '../components/SubNav.jsx'
 import { Chips, Filters, SearchField } from '../components/Filters.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
-import { span } from '../lib/format.js'
+import { GLOSSARY, GLOSSARY_COLUMNS, PERSONNEL, PERSONNEL_COLUMNS } from '../queries/glossary.js'
 
 const SPEC = {
-  glossary: ['SELECT * FROM glossary ORDER BY term'],
-  personnel: ['SELECT * FROM personnel ORDER BY full_name'],
+  glossary: [GLOSSARY],
+  personnel: [PERSONNEL],
 }
+
+// The sort key for the one column whose cell is a span of two values.
+const PERSONNEL_APP = { active_from: { sort: (row) => row.active_from } }
+const withRenders = (columns, renders) =>
+  columns.map((column) => ({ ...column, ...(Object.hasOwn(renders, column.key) ? renders[column.key] : {}) }))
 
 export default function Glossary() {
   const state = useQueries(SPEC)
@@ -72,18 +77,9 @@ function Body({ glossary, personnel, term, setTerm, category, setCategory }) {
             options={[['', 'All'], ...categories.map((c) => [c, c])]}
           />
         </Filters>
-        <DataTable
-          rows={filtered}
-          rowKey={(row) => row.term}
-          sortable
-          sort="term"
-          page={80}
-          columns={[
-            { key: 'term', label: 'Term', width: '18%' },
-            { key: 'category', label: 'Category' },
-            { key: 'definition', label: 'Definition', align: 'prose' },
-          ]}
-        />
+        {/* No opening sort: the query's case-insensitive ORDER BY is the order
+            the table opens in, and the static page prints the rows as they come. */}
+        <DataTable rows={filtered} rowKey={(row) => row.term} sortable page={80} columns={GLOSSARY_COLUMNS} />
       </Section>
 
       <Section title="People" count={`${personnel.length}`}>
@@ -94,20 +90,7 @@ function Body({ glossary, personnel, term, setTerm, category, setCategory }) {
           sort="active_from"
           direction="asc"
           page={60}
-          columns={[
-            { key: 'full_name', label: 'Name' },
-            { key: 'role', label: 'Role' },
-            { key: 'associated_with', label: 'With' },
-            {
-              key: 'active_from',
-              label: 'Active',
-              align: 'num',
-              render: (_, row) => span(row.active_from, row.active_to),
-              sort: (row) => row.active_from,
-            },
-            { key: 'nationality', label: 'Nationality' },
-            { key: 'significance', label: 'Why they are here', align: 'prose' },
-          ]}
+          columns={withRenders(PERSONNEL_COLUMNS, PERSONNEL_APP)}
         />
       </Section>
 

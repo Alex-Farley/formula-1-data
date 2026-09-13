@@ -8,37 +8,57 @@ import ColumnChart from '../charts/ColumnChart.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { number, percent } from '../lib/format.js'
 
+import {
+  AMBIGUOUS,
+  AMBIGUOUS_COLUMNS,
+  AMBIGUOUS_NOTE,
+  CHASSIS_COVERAGE,
+  CONFIDENCE_MIX,
+  DISCREPANCIES,
+  DISCREPANCIES_NOTE,
+  DISCREPANCY_COLUMNS,
+  GAPS,
+  GEOMETRY_COLUMNS,
+  GEOMETRY_COVERAGE,
+  GEOMETRY_FOOTER,
+  IMAGES,
+  LADDER,
+  LADDER_NOTE,
+  PROVENANCE,
+  PROVENANCE_COLUMNS,
+  RECONCILIATION,
+  RECONCILIATION_COLUMNS,
+  RECONCILIATION_NOTE,
+  UNVERIFIED,
+  UNVERIFIED_COLUMNS,
+  UNVERIFIED_FOOTER,
+  disagrees,
+} from '../queries/quality.js'
+
 const SPEC = {
-  provenance: ['SELECT * FROM provenance ORDER BY rank'],
-  gaps: ['SELECT * FROM known_gaps ORDER BY id'],
-  discrepancies: ['SELECT * FROM discrepancies ORDER BY id'],
-  reconciliation: ['SELECT * FROM v_stat_reconciliation'],
-  unverified: ['SELECT tbl, COUNT(*) AS n FROM v_unverified GROUP BY tbl ORDER BY n DESC'],
-  ambiguous: ['SELECT * FROM v_ambiguous_seasons ORDER BY unlinked_entries DESC'],
-  chassisCoverage: ['SELECT * FROM v_chassis_coverage ORDER BY decade'],
-  geometryCoverage: ['SELECT * FROM v_geometry_coverage'],
-  images: [
-    `SELECT COUNT(*) AS total,
-            SUM(name_matches = 1) AS named,
-            SUM(name_matches = 0) AS unnamed,
-            COUNT(DISTINCT licence) AS licences
-       FROM article_images`,
-  ],
-  confidenceMix: [
-    `SELECT confidence, COUNT(*) AS n FROM (
-        SELECT confidence FROM races
-        UNION ALL SELECT confidence FROM race_entries
-        UNION ALL SELECT confidence FROM drivers
-        UNION ALL SELECT confidence FROM constructors
-        UNION ALL SELECT confidence FROM chassis
-        UNION ALL SELECT confidence FROM circuits
-        UNION ALL SELECT confidence FROM seasons
-     ) WHERE confidence IS NOT NULL
-     GROUP BY confidence`,
-  ],
+  provenance: [PROVENANCE],
+  gaps: [GAPS],
+  discrepancies: [DISCREPANCIES],
+  reconciliation: [RECONCILIATION],
+  unverified: [UNVERIFIED],
+  ambiguous: [AMBIGUOUS],
+  chassisCoverage: [CHASSIS_COVERAGE],
+  geometryCoverage: [GEOMETRY_COVERAGE],
+  images: [IMAGES],
+  confidenceMix: [CONFIDENCE_MIX],
 }
 
-const LADDER = ['verified', 'high', 'reference', 'medium', 'unverified']
+/*
+ * The React renders for the columns queries/quality.js defines — the
+ * confidence pill and the season link. The words each cell carries are the
+ * column's own `text`, which scripts/prerender.js prints too.
+ */
+const pill = { render: (value) => <Confidence value={value} plain /> }
+const PROVENANCE_APP = { confidence: pill }
+const RECONCILIATION_APP = { confidence: pill }
+const AMBIGUOUS_APP = { year: { render: (year) => <Link to={`/seasons/${year}`}>{year}</Link> } }
+const withRenders = (columns, renders) =>
+  columns.map((column) => ({ ...column, ...(Object.hasOwn(renders, column.key) ? renders[column.key] : {}) }))
 
 export default function Quality() {
   const state = useQueries(SPEC)
@@ -112,12 +132,7 @@ function Body({ data }) {
     label: name,
   }))
 
-  const disagreeing = reconciliation.filter(
-    (row) =>
-      (row.wins_external !== null && row.derived_wins !== row.wins_external) ||
-      (row.poles_external !== null && row.derived_poles !== row.poles_external) ||
-      (row.fastest_laps_external !== null && row.derived_fl !== row.fastest_laps_external),
-  )
+  const disagreeing = reconciliation.filter(disagrees)
 
   return (
     <>
@@ -126,27 +141,9 @@ function Body({ data }) {
           rows={provenance}
           rowKey={(row) => row.confidence}
           sortable={false}
-          columns={[
-            { key: 'rank', label: 'Rank', align: 'num' },
-            {
-              key: 'confidence',
-              label: 'Level',
-              render: (value) => <Confidence value={value} plain />,
-            },
-            { key: 'definition', label: 'What it means', align: 'prose' },
-            {
-              key: 'may_publish',
-              label: 'Safe to quote',
-              align: 'num',
-              render: (value) => (value ? 'yes' : 'not without checking'),
-            },
-          ]}
+          columns={withRenders(PROVENANCE_COLUMNS, PROVENANCE_APP)}
         />
-        <p className="source-note">
-          Only an official source — the FIA or formula1.com — carries a row to “verified”. Wikipedia
-          and F1DB reach “reference”, which is not a criticism of either: it means something else
-          would have to check them.
-        </p>
+        <p className="source-note">{LADDER_NOTE}</p>
       </Section>
 
       <Section title="How the database is distributed across it">
@@ -195,29 +192,17 @@ function Body({ data }) {
       <Section
         title="Disagreements kept rather than resolved"
         count={`${discrepancies.length}`}
-        note="Where two sources differ and neither can be checked officially, the difference is recorded instead of one being picked quietly. Several of these are a regulation minimum masquerading as a car's measured weight — the check that caught them is why those figures are now blank rather than wrong."
+        note={DISCREPANCIES_NOTE}
       >
-        <DataTable
-          rows={discrepancies}
-          rowKey={(row) => row.id}
-          sortable
-          sort="subject"
-          page={60}
-          columns={[
-            { key: 'subject', label: 'Subject' },
-            { key: 'field', label: 'Field' },
-            { key: 'stored_value', label: 'Recorded', align: 'num' },
-            { key: 'derived_value', label: 'Derived', align: 'num' },
-            { key: 'assessment', label: 'Assessment', align: 'prose' },
-            { key: 'status', label: 'Status' },
-          ]}
-        />
+        {/* No opening sort: the query orders by subject, case-insensitively,
+            and the static page prints the rows as they come. */}
+        <DataTable rows={discrepancies} rowKey={(row) => row.id} sortable page={60} columns={DISCREPANCY_COLUMNS} />
       </Section>
 
       <Section
         title="Career totals against published ones"
         count={`${reconciliation.length} drivers`}
-        note="Wins, poles and fastest laps are derived from the race records and then compared with the figures published elsewhere. This comparison is what caught a wrong pole count in an official source; it runs on every build."
+        note={RECONCILIATION_NOTE}
       >
         {disagreeing.length > 0 && (
           <Note>
@@ -235,21 +220,8 @@ function Body({ data }) {
           sort="derived_wins"
           direction="desc"
           page={60}
-          highlight={(row) =>
-            (row.wins_external !== null && row.derived_wins !== row.wins_external) ||
-            (row.poles_external !== null && row.derived_poles !== row.poles_external) ||
-            (row.fastest_laps_external !== null && row.derived_fl !== row.fastest_laps_external)
-          }
-          columns={[
-            { key: 'full_name', label: 'Driver' },
-            { key: 'derived_wins', label: 'Wins derived', align: 'num' },
-            { key: 'wins_external', label: 'Wins published', align: 'num' },
-            { key: 'derived_poles', label: 'Poles derived', align: 'num' },
-            { key: 'poles_external', label: 'Poles published', align: 'num' },
-            { key: 'derived_fl', label: 'FL derived', align: 'num' },
-            { key: 'fastest_laps_external', label: 'FL published', align: 'num' },
-            { key: 'confidence', label: 'Confidence', render: (v) => <Confidence value={v} plain /> },
-          ]}
+          highlight={disagrees}
+          columns={withRenders(RECONCILIATION_COLUMNS, RECONCILIATION_APP)}
         />
       </Section>
 
@@ -286,13 +258,8 @@ function Body({ data }) {
                 rows={geometryCoverage}
                 rowKey={(row) => row.status}
                 sortable={false}
-                columns={[
-                  { key: 'status', label: 'Status' },
-                  { key: 'circuits', label: 'Circuits', align: 'num' },
-                  { key: 'traced', label: 'Traced', align: 'num' },
-                  { key: 'pct', label: '%', align: 'num' },
-                ]}
-                footer="Historic geometry has no source at all: OpenStreetMap maps what is on the ground, and Spa's 14.1 km road course is not on the ground any more."
+                columns={GEOMETRY_COLUMNS}
+                footer={GEOMETRY_FOOTER}
               />
             </Section>
 
@@ -319,7 +286,7 @@ function Body({ data }) {
       <Section
         title="Where a result cannot be attributed to a car"
         count={`${ambiguous.length} constructor-seasons`}
-        note="A constructor that ran more than one design in a season, where no source in use here says which car raced which round. Attributing a win to one of them would be a guess, so the chassis is left blank."
+        note={AMBIGUOUS_NOTE}
       >
         <DataTable
           rows={ambiguous}
@@ -328,17 +295,7 @@ function Body({ data }) {
           sort="unlinked_entries"
           direction="desc"
           page={40}
-          columns={[
-            {
-              key: 'year',
-              label: 'Season',
-              align: 'num',
-              render: (year) => <Link to={`/seasons/${year}`}>{year}</Link>,
-            },
-            { key: 'constructor', label: 'Constructor' },
-            { key: 'chassis', label: 'Designs entered', align: 'prose' },
-            { key: 'unlinked_entries', label: 'Entries left unattributed', align: 'num' },
-          ]}
+          columns={withRenders(AMBIGUOUS_COLUMNS, AMBIGUOUS_APP)}
         />
       </Section>
 
@@ -349,11 +306,8 @@ function Body({ data }) {
           sortable
           sort="n"
           direction="desc"
-          columns={[
-            { key: 'tbl', label: 'Table' },
-            { key: 'n', label: 'Rows at medium or unverified', align: 'num' },
-          ]}
-          footer="These are not errors — they are rows nobody has yet been able to raise above medium confidence."
+          columns={UNVERIFIED_COLUMNS}
+          footer={UNVERIFIED_FOOTER}
         />
       </Section>
 
