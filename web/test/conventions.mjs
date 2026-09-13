@@ -26,6 +26,8 @@ import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { COLOURS } from '../src/lib/racingColours.js'
+
 const here = dirname(fileURLToPath(import.meta.url))
 const web = join(here, '..')
 
@@ -162,5 +164,70 @@ describe('routing is path-based and prerendered (frontend-reviewer, item 10)', (
     const app = read(join(web, 'src', 'App.jsx'))
     assert.ok(/<BrowserRouter\b/.test(app), 'App.jsx does not mount a BrowserRouter')
     assert.ok(!/<HashRouter\b|createHashRouter/.test(app), 'App.jsx mounts a HashRouter')
+  })
+})
+
+describe('a racing colour is a pair, one per theme (VD-27)', () => {
+  // The eight national racing colours were one hex each, and six of the eight
+  // fell under 3:1 against the panel in one theme or the other - US blue at
+  // 1.78:1 in dark, Belgian yellow at 2.38:1 in light - on the 3 px band that
+  // is a register row's only identity mark. Each is now a --racing-* token in
+  // tokens.css with a light and a dark value, keyed the way --seq-* is. This
+  // measures every one against the surfaces the swatch sits on, in both
+  // themes, so a retuned palette cannot quietly fail one of them again.
+  const css = read(join(web, 'src', 'styles', 'tokens.css'))
+  const blocks = {
+    light: css.slice(0, css.indexOf('@media (prefers-color-scheme: dark)')),
+    osDark: css.slice(css.indexOf('@media (prefers-color-scheme: dark)'), css.indexOf(":root[data-theme='dark']")),
+    stampedDark: css.slice(css.indexOf(":root[data-theme='dark']")),
+  }
+  const tokens = (block) => Object.fromEntries([...block.matchAll(/--([a-z0-9-]+):\s*(#[0-9a-f]{6})\b/g)].map((m) => [m[1], m[2]]))
+  const luminance = (hex) => {
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+    const lin = (c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
+    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+  }
+  const contrast = (a, b) => {
+    const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x)
+    return (hi + 0.05) / (lo + 0.05)
+  }
+  const racing = (block) => Object.entries(tokens(block)).filter(([name]) => name.startsWith('racing-'))
+
+  it('every token racingColours.js names is defined in all three blocks, and the two dark blocks agree', () => {
+    const named = Object.values(COLOURS).map((c) => c.token).sort()
+    // Eight countries have an unambiguous colour; an emptied map and deleted
+    // tokens would otherwise agree with each other and pass the rest of this.
+    assert.ok(named.length >= 8, `racingColours.js names ${named.length} tokens, expected the eight`)
+    assert.equal(new Set(named).size, named.length, 'two countries share a token')
+    for (const [label, block] of Object.entries(blocks)) {
+      assert.deepEqual(racing(block).map(([name]) => name).sort(), named, `${label} block`)
+    }
+    assert.deepEqual(racing(blocks.osDark), racing(blocks.stampedDark))
+  })
+
+  it('each light value clears 3:1 on --panel and --panel-sunk, each dark value on --panel and --panel-raised', () => {
+    const failing = []
+    const light = tokens(blocks.light)
+    for (const [name, hex] of racing(blocks.light)) {
+      for (const surface of ['panel', 'panel-sunk']) {
+        const ratio = contrast(hex, light[surface])
+        if (ratio < 3) failing.push(`light ${name} ${hex} on --${surface}: ${ratio.toFixed(2)}:1`)
+      }
+    }
+    const dark = tokens(blocks.stampedDark)
+    for (const [name, hex] of racing(blocks.stampedDark)) {
+      for (const surface of ['panel', 'panel-raised']) {
+        const ratio = contrast(hex, dark[surface])
+        if (ratio < 3) failing.push(`dark ${name} ${hex} on --${surface}: ${ratio.toFixed(2)}:1`)
+      }
+    }
+    assert.deepEqual(failing, [])
+  })
+
+  it('no swatch carries a hex of its own', () => {
+    const offenders = sourceFiles(join(web, 'src'), /\.jsx?$/)
+      .filter((file) => /colour\.hex\b/.test(read(file)))
+      .map(rel)
+    assert.deepEqual(offenders, [])
   })
 })

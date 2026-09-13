@@ -81,6 +81,23 @@
   --seq-4: #184f95;
   --seq-5: #0d366b;
 
+  /* national racing colours (lib/racingColours.js names them). One hex served
+     two themes and six of the eight fell under 3:1 against the panel in one of
+     them - US blue 1.78:1 and British racing green 2.07:1 on the dark panel,
+     Belgian yellow 2.38:1 and silver 2.64:1 on the light one - on a 3 px band
+     that is a register row's only identity mark; against the sunk and raised
+     surfaces below, all eight did. Each is now stepped against its own ground:
+     light is measured on --panel / --panel-sunk, dark on --panel /
+     --panel-raised, and the lowest of the sixteen figures is 3.32:1. */
+  --racing-uk: #00563f;     /* 8.74 / 7.52 */
+  --racing-it: #c8102e;     /* 5.88 / 5.06 */
+  --racing-fr: #0b5bab;     /* 6.78 / 5.83 */
+  --racing-de: #737a82;     /* 4.34 / 3.74 - was #9aa0a6 at 2.64 */
+  --racing-be: #a37900;     /* 3.97 / 3.42 - was #d4a017 at 2.38 */
+  --racing-nl: #d3600f;     /* 3.85 / 3.32 - was #e06c1f at 2.85 on sunk */
+  --racing-ch: #b02733;     /* 6.60 / 5.68 */
+  --racing-us: #1f3c88;     /* 10.19 / 8.78 */
+
   /* status */
   --good: #0a7d2b;
   --good-wash: #e6f3ea;
@@ -141,6 +158,18 @@
     --seq-4: #6da7ec;
     --seq-5: #9ec5f4;
 
+    /* the racing colours, lifted for the dark panel; the greys and yellows
+       that failed in light are the ones that hold here. American blue leans
+       indigo so it stays apart from bleu de France at this lightness. */
+    --racing-uk: #1e8a5a;   /* 4.17 / 3.84 - was #00563f at 2.07 */
+    --racing-it: #e0233f;   /* 3.86 / 3.56 - was #c8102e at 2.84 on raised */
+    --racing-fr: #4a8fe3;   /* 5.45 / 5.03 - was #0b5bab at 2.67 */
+    --racing-de: #9aa0a6;   /* 6.85 / 6.32 */
+    --racing-be: #d4a017;   /* 7.62 / 7.02 */
+    --racing-nl: #e06c1f;   /* 5.46 / 5.03 */
+    --racing-ch: #d94a58;   /* 4.37 / 4.03 - was #b02733 at 2.74 */
+    --racing-us: #6274d4;   /* 4.28 / 3.95 - was #1f3c88 at 1.78 */
+
     --good: #6fc98f;
     --good-wash: #14261b;
     --warn: #e3b465;
@@ -188,6 +217,15 @@
   --seq-3: #3987e5;
   --seq-4: #6da7ec;
   --seq-5: #9ec5f4;
+
+  --racing-uk: #1e8a5a;
+  --racing-it: #e0233f;
+  --racing-fr: #4a8fe3;
+  --racing-de: #9aa0a6;
+  --racing-be: #d4a017;
+  --racing-nl: #e06c1f;
+  --racing-ch: #d94a58;
+  --racing-us: #6274d4;
 
   --good: #6fc98f;
   --good-wash: #14261b;
