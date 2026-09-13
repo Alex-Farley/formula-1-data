@@ -1921,8 +1921,8 @@ def _stage_25_championship_standings_after_every_round_and(b):
                      _points_text(existing[0]), _points_text(pts),
                      "formula1.com and F1DB give different championship points "
                      "for the same entity at the same point in the season. The "
-                     "stored figure is 'verified' from the official archive and "
-                     "is not overwritten; where one row has to be published, "
+                     "published figure is 'verified' from the official archive and "
+                     "is not overwritten; where one row has to be shown, "
                      "v_standings_final takes the larger total, and this row is "
                      "what makes that choice visible.", "open"))
             if after is None:
