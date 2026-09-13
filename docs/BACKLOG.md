@@ -519,6 +519,13 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       README's are, or generate the breakdown from `./f1 licences`. Found by
       the licence review of #91. — *review of #91 · S*
 
+- [ ] `PM-34` **Four ids are open and landed at once in this file.** The
+      merge helper's new duplicate check found `CD-18`, `CD-19`, `CD-24` and
+      an `IA-` item listed both `- [ ]` and `- [x]`: stale open lines left
+      when the items landed. Remove each open line after confirming the
+      landed entry covers it, as `CD-21`, `CR-23` and `CR-24` were in #85.
+      Found by the review of #98. — *review of #98 · S*
+
 **Interaction design**
 
 - [ ] `IX-16` **`IA-08` escalated: Back restores the scroll and not the filter.** France filter, sort by wins, scroll, open a driver, Back — same pixel, 862 unfiltered rows. Do `/drivers` first. — *interaction critique · M*

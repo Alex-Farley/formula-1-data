@@ -33,9 +33,9 @@ import sys
 GENERATED = {"f1.db", "f1-geometry.db", "f1_compat.json"}
 HALF = {"README.md", "docs/COMMERCIAL-READINESS.md"}
 QUEUE = "docs/BACKLOG.md"
-# Ours, an optional diff3/zdiff3 base section, theirs. The base is dropped.
-MARK = re.compile(r"^<<<<<<< [^\n]*\n(.*?)(?:^\|\|\|\|\|\|\|[^\n]*\n.*?)?^=======\n(.*?)^>>>>>>> [^\n]*\n",
-                  re.S | re.M)
+# A diff3/zdiff3 base section, dropped before the markers are read.
+BASE = re.compile(r"^\|\|\|\|\|\|\|[^\n]*\n.*?(?=^=======\n)", re.S | re.M)
+MARK = re.compile(r"^<<<<<<< [^\n]*\n(.*?)^=======\n(.*?)^>>>>>>> [^\n]*\n", re.S | re.M)
 LEFTOVER = re.compile(r"^(<<<<<<< |=======$|\|\|\|\|\|\|\| |>>>>>>> )", re.M)
 ITEM = re.compile(r"^- \[([ x])\] `([A-Z]{2}-\d+)`", re.M)
 SPAN = re.compile(r"(<!-- fig:[a-z0-9_]+ -->)(.*?)(<!-- /fig -->)", re.S)
@@ -55,21 +55,30 @@ def _paragraphs(region):
     return region
 
 
-def resolve_backlog(text):
-    text = MARK.sub(lambda m: _paragraphs(m.group(1) + m.group(2)), text)
+def _open_and_landed(text):
+    state = {}
+    for box, ident in ITEM.findall(text):
+        state.setdefault(ident, set()).add(box)
+    return {i for i, boxes in state.items() if boxes == {" ", "x"}}
+
+
+def resolve_backlog(text, ours, theirs):
+    text = MARK.sub(lambda m: _paragraphs(m.group(1) + m.group(2)), BASE.sub("", text))
     if LEFTOVER.search(text):
         return None, "conflict markers survive"
     if text.count("\n## Declined\n") != 1:
         return None, f"{text.count(chr(10) + '## Declined' + chr(10))} '## Declined' headings"
     # Keeping both sides is right only when both sides appended. When main
     # landed an item the branch still lists as open (or reworded), the id is
-    # now open and landed at once, and that is a person's to resolve.
-    state = {}
-    for box, ident in ITEM.findall(text):
-        state.setdefault(ident, set()).add(box)
-    both = sorted(i for i, boxes in state.items() if boxes == {" ", "x"})
-    if both:
-        return None, f"open and landed at once after the merge: {', '.join(both)}"
+    # now open and landed at once, and that is a person's to resolve. An id
+    # that was already in that state on either side is pre-existing debt,
+    # not this merge's doing, and is reported rather than blocking.
+    new = _open_and_landed(text) - _open_and_landed(ours) - _open_and_landed(theirs)
+    if new:
+        return None, f"open and landed at once after the merge: {', '.join(sorted(new))}"
+    old = _open_and_landed(text)
+    if old:
+        print(f"  note: already open and landed at once before this merge: {', '.join(sorted(old))}")
     return text, None
 
 
@@ -109,7 +118,9 @@ def main():
             else:
                 stop.append(f"{path}: the conflict is in the prose, not only in figure spans")
         elif path == QUEUE:
-            text, why = resolve_backlog(open(path, encoding="utf-8").read())
+            ours = sh(f"git show HEAD:{path}").stdout
+            theirs = sh(f"git show origin/main:{path}").stdout
+            text, why = resolve_backlog(open(path, encoding="utf-8").read(), ours, theirs)
             if text is None:
                 stop.append(f"{path}: {why}")
             else:
