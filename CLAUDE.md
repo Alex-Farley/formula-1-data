@@ -161,6 +161,10 @@ failure is invisible — that is what hid this one for three rounds.
 An agent working through the backlog without a person watching follows the
 rules above and these. The full process is in `CONTRIBUTING.md` under
 *Working autonomously*; this is the part that has to be in front of you.
+The loop itself is a skill, invoked on purpose rather than run by default:
+`/backlog-loop next`, `/backlog-loop <ITEM-ID>` or `/backlog-loop
+until-paused`, with its procedure and the scripts it uses in
+`.claude/skills/backlog-loop/`.
 
 - **`docs/BACKLOG.md` is the queue.** Nothing else is. Before starting an
   item, reread it against the code as it is now — an item can be stale,
@@ -181,7 +185,10 @@ rules above and these. The full process is in `CONTRIBUTING.md` under
   approver. The reviewer gets the task, the rules, the diff and the
   validation results, and tries to disprove the work. A FAIL is fixed and
   reviewed again, fresh. Silence, a rate limit or an unavailable review
-  account is not a PASS.
+  account is not a PASS. Which reviewer and which model - Opus for a first
+  pass, Sonnet to confirm a fix or review wording - and when a
+  documentation-only fix may merge without a further pass, is set in
+  `.claude/skills/backlog-loop/SKILL.md` (decided 2026-09-13).
 - **`review.yml` failing is infrastructure, not a defect.** It runs on a
   credential that is currently exhausted. Do not retry it, do not edit it
   to make it pass, and do not treat its red check as a code failure or its
