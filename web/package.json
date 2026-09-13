@@ -21,8 +21,8 @@
     "test:browser": "node test/smoke.mjs"
   },
   "dependencies": {
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
     "react-router-dom": "^7.18.3",
     "sql.js": "^1.14.2"
   },
