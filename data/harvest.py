@@ -934,20 +934,20 @@ DECLARED_DISCREPANCIES = [
 #   race-records value, why
 EXPLAINED_SPANS = [
     ("cevert", "first_season", 1970, 1969,
-     "The register's 1970 is his Formula One debut, the Dutch Grand Prix in a "
+     "The published 1970 is his Formula One debut, the Dutch Grand Prix in a "
      "March run by Tyrrell. The race records hold a 1969 entry: that year's "
      "German Grand Prix admitted Formula 2 cars alongside the Formula One "
      "field, and he drove a Tecno TF69, one of them, retiring with a gearbox "
      "failure. It was a championship race and he was entered, so the records "
-     "count it and the register does not. "
+     "count it and the published span does not. "
      "Source: https://en.wikipedia.org/wiki/1969_German_Grand_Prix"),
     ("alexander-rossi", "first_season", 2014, 2015,
-     "The register's 2014 comes from F1DB's entry lists, which name him as "
+     "The published 2014 comes from F1DB's entry lists, which name him as "
      "entered for two rounds that year for Marussia, the Belgian and Russian "
      "Grands Prix; he started neither, so the race records hold nothing for "
      "him until 2015, when he started five Grands Prix for the same team, by "
      "then Manor Marussia. His earlier seasons as a Caterham reserve carry no "
-     "round and count for neither reading. An entry is not a start. "
+     "round and count for neither span. An entry is not a start. "
      "Source: https://github.com/f1db/f1db, seasons/2014/entrants.yml"),
 ]
 

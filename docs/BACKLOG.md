@@ -507,12 +507,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       README's are, or generate the breakdown from `./f1 licences`. Found by
       the licence review of #91. — *review of #91 · S*
 
-- [ ] `CD-28` **The assessments in `discrepancies` say "the register's" and
-      "the stored figure" beside an aside that says "published".** The
-      Cevert and Rossi rows (`EXPLAINED_SPANS`) and the external-figure rows
-      built in `build.py`; one word, in the data. Split from `CD-27`. —
-      *review of #97 · S*
-
 **Interaction design**
 
 - [ ] `IX-16` **`IA-08` escalated: Back restores the scroll and not the filter.** France filter, sort by wins, scroll, open a driver, Back — same pixel, 862 unfiltered rows. Do `/drivers` first. — *interaction critique · M*
@@ -1703,6 +1697,10 @@ Real, but not costed, or waiting on a decision.
       reviewer unless a source is reclassified, and a documentation-only fix
       merges without a further pass. Invoked with `/backlog-loop`;
       `CLAUDE.md` says so. — *project record · #98*
+- [x] `CD-28` **The assessments say "published" too.** The two explained
+      span rows and the nine 2026 points rows in `discrepancies` no longer
+      say "the register's" or "the stored figure"; every surface on a driver
+      page now uses the one word. — *review of #97 · #99*
 
 ## Declined
 
