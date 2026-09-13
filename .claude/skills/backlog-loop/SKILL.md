@@ -115,9 +115,10 @@ The agent returns exactly `PASS — safe to merge` or `FAIL — changes required
 ## Waiting and merging
 
 - CI: `bash .claude/skills/backlog-loop/ci-wait.sh <PR>` prints
-  `PR N core checks: pass,pass,pass` or a timeout. Run it in the background
-  and read its file; empty output from `gh` is pending. `?,?,?` means the PR
-  is CONFLICTING and CI never started.
+  `PR N core checks: pass,pass,pass` and exits 0; exits 2 on a failed check,
+  1 on a twenty-minute timeout, and 3 at once when the PR is CONFLICTING
+  (no check registers, so CI never started - merge main first). Run it in
+  the background and read its file; empty output from `gh` is pending.
 - Main moved under a branch: `python3 .claude/skills/backlog-loop/merge-main.py`
   from the worktree. It resolves only what it can safely: both sides of
   `docs/BACKLOG.md`, main's copy of the generated artefacts with a rebuild,

@@ -519,12 +519,15 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       README's are, or generate the breakdown from `./f1 licences`. Found by
       the licence review of #91. — *review of #91 · S*
 
-- [ ] `PM-34` **Four ids are open and landed at once in this file.** The
-      merge helper's new duplicate check found `CD-18`, `CD-19`, `CD-24` and
-      an `IA-` item listed both `- [ ]` and `- [x]`: stale open lines left
-      when the items landed. Remove each open line after confirming the
-      landed entry covers it, as `CD-21`, `CR-23` and `CR-24` were in #85.
-      Found by the review of #98. — *review of #98 · S*
+- [ ] `PM-34` **14 ids are open and landed at once in this file.** The
+      merge helper's duplicate check (`_open_and_landed()` in
+      `merge-main.py`, which is how this list was made) finds each of
+      `CD-18`, `CD-19`, `CD-24`, `IA-02`, `PD-03`, `PD-05`, `PD-10`, `PD-11`, `PM-29`, `PM-31`, `VD-07`, `VD-08`, `VD-11`, `VD-12` listed both `- [ ]` and `- [x]`: stale
+      open lines left when the items landed. Remove each open line after
+      confirming the landed entry covers it, as `CD-21`, `CR-23` and
+      `CR-24` were in #85; the helper prints the survivors after every
+      merge until they are gone. Found by the reviews of #98. — *review of
+      #98 · S*
 
 **Interaction design**
 
