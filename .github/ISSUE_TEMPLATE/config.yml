@@ -1,0 +1,11 @@
+# Every issue is an item of the queue, so a blank issue is not offered: the
+# form below asks for the three things an item needs. CONTRIBUTING.md, *The
+# queue*, is the rule; the board is the ranking.
+blank_issues_enabled: false
+contact_links:
+  - name: How the queue works
+    url: https://github.com/Alex-Farley/formula-1-data/blob/main/CONTRIBUTING.md#the-queue
+    about: Ids, prefixes, sizes, status, how an item lands or is declined.
+  - name: The board
+    url: https://github.com/users/Alex-Farley/projects/1
+    about: Now, Next, Someday — drag to rank.

@@ -1,0 +1,66 @@
+# One item of the queue, filed by hand. The loop and the critics file with
+# .claude/skills/backlog-loop/file.py, which numbers, labels and places an
+# item in one go; this form is the same shape for a person in the browser.
+#
+# A form cannot pick a label from a dropdown, so the two labels are added
+# after filing (the form says so) and the id's number comes from
+# `next.py --next-id <prefix>`. The board auto-adds the issue with no
+# Status; `next.py` lists it as unplaced until someone drags it into a column.
+name: Queue item
+description: A finding, a defect, an idea — one item of work, with an id, a source and a size.
+title: "XX-nn: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Title:** replace `XX-nn` with the prefix for the source and the next free number
+        (`python3 .claude/skills/backlog-loop/next.py --next-id PD` prints it; ids are never reused),
+        then one sentence that says what is wrong or wanted. After filing, add the two labels
+        (`source: …`, `size: …`) and drag the card into *Now*, *Next* or *Someday* on the board.
+  - type: dropdown
+    id: source
+    attributes:
+      label: Source
+      description: Sets the id prefix and the `source:` label.
+      options:
+        - "PD — product design critique"
+        - "AX — accessibility critique"
+        - "IX — interaction design critique"
+        - "VD — visual design critique"
+        - "CD — content design critique"
+        - "IA — information architecture critique"
+        - "DA — data architecture critique"
+        - "SD — service design critique"
+        - "UR — user research walkthrough"
+        - "PM — the project's own record (known_gaps, discrepancies, a still-open note, a verify.py warning)"
+        - "AF — the maintainer's own: an idea, a defect, a want"
+        - "CR — code review"
+        - "LV — live and current-season data"
+        - "WK — the Wikipedia survey"
+    validations:
+      required: true
+  - type: dropdown
+    id: size
+    attributes:
+      label: Size
+      description: What it costs, not how much it matters.
+      options:
+        - "S — one sitting: a component, a query, a copy change"
+        - "M — a few sittings, shippable in pieces"
+        - "L — needs a plan first, and probably a decision that is not obvious"
+        - "? — not costed yet"
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What is wrong, where, and what would fix it
+      description: File and line, route, table or column. A figure is cited, not guessed. A critique's full reasoning goes in docs/critiques/; this is the queue, not the argument.
+    validations:
+      required: true
+  - type: checkboxes
+    id: kind
+    attributes:
+      label: Is this a person's decision?
+      options:
+        - label: Yes — a licence reading, a scope change, a trade the item does not settle. Add the `decision` label; the loop works around it and never takes it.
