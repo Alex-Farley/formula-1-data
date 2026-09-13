@@ -86,7 +86,7 @@ licence-reviewer triggers; the stop conditions; Opus for any change under
 | Routes named in the brief for the reviewer to spot-check | 3 | 10, chosen for edge cases: a NULL, a tie, a shared drive, a season not yet run | every route the change touches |
 | Confirming a fix that must land before merge | fresh Sonnet | fresh Sonnet | fresh Opus |
 | Items per PR | S items on one theme, up to four, where the diff stays readable | one M (all its rungs), or two S on a theme | one |
-| Pipelining | start item N+1 in its own worktree while N is under review; hold its PR until N merges, then `merge-main.py` | none | none |
+| Pipelining | none (PM-39: the review and the CI wait are foreground, so a fork holds one item at a time; batching is the `fast` saving) | none | none |
 
 The reviewers' effort and turn caps are frontmatter in `.claude/agents/`:
 the standard reviewers run at effort high with a cap of 90 turns, the quick
@@ -107,12 +107,14 @@ for the visibility the fork took away is one line per stage:
     bash .claude/skills/backlog-loop/progress.sh <ITEM-ID> "<stage>"
 
 appends `HH:MM:SS ITEM stage` to `.claude/loop/progress.log` beside the
-main checkout, which the driver opened for the person before invoking you.
+main checkout, which the driver created and pointed the person at before
+invoking you. It exits 1 if the line could not be written; say so in your
+result's stock-take and carry on.
 Write one at each of these, in a few words each and never as a report: the
 item chosen (`next.py` gave #n); worktree open; `make all` green; web tests
 green; PR opened (#N); reviewer launched (which agent, which model);
 verdict (PASS or FAIL, one clause); fix pushed; confirmation launched; CI
-green; merged; and any skip or stop with its reason. Before the item is
+wait entered (the longest silence, up to twenty minutes); CI green; merged; and any skip or stop with its reason. Before the item is
 known, use the target you were given as the id. A stage costs a few
 tokens; a fork killed as stalled costs the item.
 
@@ -221,8 +223,9 @@ The agent returns exactly `PASS — safe to merge` or `FAIL — changes required
   merge is confirmed.
 - Silence, a rate limit, a reviewer that hit its turn cap, a quick-variant
   verdict without its `Applied:` line, or an unavailable account is not a
-  PASS. If the agent dies on a session limit, relaunch
-  after the reset.
+  PASS. If the agent dies on a session limit, return `LIMIT: resets
+  <time>` at once; the driver schedules the wake-up and a fresh fork
+  picks the PR up. You cannot outlive the reset.
 - **Record the verdict as a PR comment the moment it arrives**, before the
   fix, the confirmation or anything else: reviewer and model, verdict, the
   blocking findings in one line each. A fork can die between the verdict

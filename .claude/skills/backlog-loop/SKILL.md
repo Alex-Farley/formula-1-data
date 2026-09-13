@@ -44,12 +44,13 @@ Two words, either order, both optional.
 ## Procedure
 
 1. Write one line: `Loop: <target> at <pace>.` Then make the fork
-   watchable: if the desktop app's `show_pane` tool is available, open
-   `.claude/loop/progress.log` in the Files pane (create it empty first if
-   it does not exist); either way add one line saying that this session
-   will show no activity until the fork returns, and that the fork's
-   stages appear in that file - `tail -f .claude/loop/progress.log` from
-   a terminal. Nothing else before the fork. (2026-09-13: three forks were
+   watchable: `mkdir -p .claude/loop && touch .claude/loop/progress.log`,
+   so the file exists before anyone tails it; if the desktop app's
+   `show_pane` tool is available, open it in the Files pane; either way
+   add one line saying that this session will show no activity until the
+   fork returns, and that the fork's stages appear in that file -
+   `tail -f .claude/loop/progress.log` from a terminal. Nothing else
+   before the fork. (2026-09-13: three forks were
    killed by interrupts from a person who took the quiet for a stall.)
 2. Invoke the Skill tool: skill `backlog-item`, args `<pace> <target>`
    where target is `next` or the item id, followed by `--skip <ids>` when
