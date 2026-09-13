@@ -1584,9 +1584,11 @@ try {
    * app's nine on /drivers, a Category column on /records the app never
    * shows, stored figures against derived ones on a driver page. Both now
    * read web/src/queries/*, and this asks each pair for the same strings:
-   * the headers in order, then the first two rows cell for cell. The static
-   * half is read as a crawler reads it, from the served HTML; the app's from
-   * the DOM after navigating to the route in-app.
+   * the headers in order, the row count, then every row the app shows, cell
+   * for cell (the app pages a long table; the static half prints it whole).
+   * The static half is read as a crawler reads it, from the served HTML; the
+   * app's from the DOM after navigating to the route in-app. A reviewer need
+   * not rebuild this comparison; it is what this block is for.
    */
   console.log('\nStatic tables are the app’s tables')
   {
@@ -1605,7 +1607,7 @@ try {
         .trim()
 
     // The first table after the h2 given, or the page's first table: its
-    // headers, and its first two rows.
+    // headers, and every row.
     const staticTable = (html, heading) => {
       // prerender.js escapes the apostrophe in "Drivers' standings".
       const from = heading ? html.indexOf(`<h2>${heading.replace(/&/g, '&amp;').replace(/'/g, '&#39;')}</h2>`) : 0
@@ -1619,7 +1621,7 @@ try {
       const body = markup.slice(markup.indexOf('<tbody>'))
       return {
         heads: cells(markup.slice(0, markup.indexOf('</thead>')), 'th'),
-        rows: [...body.matchAll(/<tr>([\s\S]*?)<\/tr>/g)].slice(0, 2).map((m) => cells(m[1], 'td')),
+        rows: [...body.matchAll(/<tr>([\s\S]*?)<\/tr>/g)].map((m) => cells(m[1], 'td')),
       }
     }
 
@@ -1639,11 +1641,16 @@ try {
         if (!table) return null
         return {
           heads: [...table.querySelectorAll('thead th')].map(clean),
-          rows: [...table.querySelectorAll('tbody tr')].slice(0, 2).map((tr) => [...tr.children].map(clean)),
+          rows: [...table.querySelectorAll('tbody tr')].map((tr) => [...tr.children].map(clean)),
+          // The whole table's count, shown or paged away.
+          total: Number(wrap.dataset.rows),
         }
       }, heading ?? null)
 
-    const same = async (route, h1, heading) => {
+    // `prefix`: the static table is a declared leading slice of the app's,
+    // as /races says in its lede ("the 200 most recently run"); every other
+    // static table holds every row.
+    const same = async (route, h1, heading, { prefix = false } = {}) => {
       const html = await (await fetch(`${BASE}${route}`)).text()
       const served = staticTable(html, heading)
       await go(route, h1)
@@ -1652,11 +1659,19 @@ try {
       truthy(served && app, `${where}: both renderers carry the table`)
       if (!served || !app) return
       is(served.heads.join(' | '), app.heads.join(' | '), `${where}: the static headers are the app’s, in order`)
-      is(
-        served.rows.map((r) => r.join(' | ')).join(' / '),
-        app.rows.map((r) => r.join(' | ')).join(' / '),
-        `${where}: the first two rows read the same, cell for cell`,
-      )
+      if (prefix) {
+        truthy(
+          served.rows.length > 0 && served.rows.length <= app.total,
+          `${where}: the static table is a leading slice of the app’s ${app.total} rows — ${served.rows.length}`,
+        )
+      } else is(served.rows.length, app.total, `${where}: the static table holds every row the app’s does`)
+      const shown = Math.min(app.rows.length, served.rows.length)
+      const differ = app.rows.slice(0, shown).findIndex((r, k) => r.join(' | ') !== served.rows[k].join(' | '))
+      if (differ < 0) pass(`${where}: all ${shown} shown rows read the same, cell for cell`)
+      else
+        fail(
+          `${where}: row ${differ + 1} differs — app “${app.rows[differ].join(' | ')}”, static “${served.rows[differ].join(' | ')}”`,
+        )
     }
 
     await same('/drivers', 'Drivers')
@@ -1688,7 +1703,7 @@ try {
     await same(`/seasons/${done}`, String(done), 'The calendar')
     await same(`/seasons/${done}`, String(done), standingsHeading("Drivers'", false))
     await same(`/seasons/${done}`, String(done), 'Who entered')
-    await same('/races', 'Races')
+    await same('/races', 'Races', null, { prefix: true })
     {
       // Run first: the list opens on the last race run, not the next one scheduled.
       const first = (await appTable(null))?.rows[0]?.join(' | ') ?? ''
@@ -1720,6 +1735,36 @@ try {
     // Object.prototype.constructor and printed "[object Object]".
     const pending = db.prepare("SELECT c.id, c.name FROM circuits c JOIN races r ON r.circuit_id = c.id WHERE r.status = 'scheduled' ORDER BY r.round LIMIT 1").get()
     if (pending) await same(`/circuits/${pending.id}`, pending.name, 'Every race held here')
+    // Rung six: the car page - a car whose variants are separate chassis, and
+    // a chassis with a page of its own - and the reference and data pages.
+    await same('/cars/lotus-72', 'Lotus', 'Variants')
+    await same('/cars/lotus-72', 'Lotus', 'Every entry')
+    await same('/cars/mclaren-mp4-4', 'McLaren MP4/4', 'Every entry')
+    for (const heading of [
+      'Engine formulae',
+      'Scoring systems',
+      'Regulation changes',
+      'Regulation limits',
+      'Technical innovations',
+      'Governance',
+      'Tyre suppliers',
+    ]) {
+      await same('/reference/eras', 'Eras', heading)
+    }
+    for (const heading of ['Glossary', 'People']) await same('/reference/glossary', 'Glossary', heading)
+    for (const heading of ['What a licence cost, or bought', 'The source registry', 'Photograph licences']) {
+      await same('/data/sources', 'Sources', heading)
+    }
+    for (const heading of [
+      'The confidence ladder',
+      'Disagreements kept rather than resolved',
+      'Career totals against published ones',
+      'Circuit geometry',
+      'Where a result cannot be attributed to a car',
+      'Rows nobody has checked',
+    ]) {
+      await same('/data/quality', 'Data quality', heading)
+    }
   }
 
   // ------------------------------------------------------- console cleanliness

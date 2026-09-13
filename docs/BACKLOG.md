@@ -81,7 +81,17 @@ the date, then removed at the next tidy.
   by an autonomous run; re-raise here with that evidence. If it is then yes,
   as an explicit opt-in that sends only the question and the schema and runs
   the returned SQL locally.
-
+- ~~`PM-35` **Review cost, second pass: a PASS merges as reviewed, and the
+  rungs of one item are one PR.**~~ Decided 2026-09-13 by the maintainer,
+  after the `PD-02` run spent four Opus passes and three Sonnet
+  confirmations on four rungs whose diffs one pass would have read: the
+  reviewed head merges on PASS as it is and non-blocking code findings are
+  carried into the next PR, named in the PR comment; a fix that is only
+  documentation, a comment, a test or dead-code removal merges without a
+  further pass; the rungs of one M item ship as one PR; `smoke.mjs` proves
+  static-against-app parity for every shown row so the brief no longer asks
+  a reviewer to rebuild it. Set in `.claude/skills/backlog-loop/SKILL.md`
+  and `review-prompt.md`; `CONTRIBUTING.md` says so (#106).
 - ~~`LV-01` **Live session data.**~~ Decided 2026-09-12: the weekend
   timetable (a) and after-the-fact session classifications (b); a live feed
   (c) declined unless a licence is obtained. Work continues as `LV-02` and
@@ -133,48 +143,6 @@ re-rank).*
 Each item here is a visual surface contradicting something the project
 states in its own words, or the one M with the largest visual return. Every S
 is independent.
-
-- [ ] `PD-02` **Make the prerenderer call the page components' own queries.**
-      Static and app emit different numbers under the same label — 14 of 38
-      drivers with a stored `entries` disagree with the derived count, and the
-      other 824 show an em dash statically and a real figure in the app. Then
-      make `smoke.mjs` assert the *static* output against the database as it
-      already does the app's, which is what would have caught this on the day it
-      shipped. Two later findings have the same root cause and should ship
-      with it rather than as separate passes: `CD-04` (the static half prints
-      the numbers and deletes the rules for reading them) and `IA-03` (the app
-      has no breadcrumb, the static page has no onward band). A third,
-      `PD-06`, shares the *query* rather than the render: both turn on deriving
-      `entries` and `starts`, so the register's two empty columns and the
-      static/app mismatch are one fix seen from two ends. —
-      *product critique · M*
-      **Four riders remain**, all the same defect on other faces: `VD-01`
-      (the static half is a *different design*, 126 lines of its own CSS),
-      `AX-17` (no static table has a caption), `CD-04` and `IA-03`. `UR-06`,
-      `UR-13` and `PD-06` were riders and have landed (`6a3269d`, #64, #69).
-      **Rung one landed in #77**: drivers register, driver page, records share
-      their queries and column lists with the prerenderer. **Rung two landed
-      in #102**: the seasons list, the season page (calendar, both standings
-      tables, who entered) and the races list read `queries/seasons.js`,
-      `season.js` and `races.js`; the static tables carry the app's footers;
-      `smoke.mjs` asserts static against app on six more tables and for the
-      season in progress asks for the heading the shared rule computes.
-      **Rung three landed in #103**: the constructors, circuits and cars
-      registers read `queries/constructors.js`, `circuits.js` and `cars.js`
-      — the static circuits register derives its race counts from the races
-      as the app does instead of reading the stored `gp_count`, and answers
-      its Traced column from `f1-geometry.db` beside the database. **Rung
-      four landed in #104**: the race page's classification, qualifying,
-      sprint and pit-stop tables read `queries/race.js` — the static page
-      gains the last three, which it never had, its classification gains the
-      chassis and fastest-lap columns and the app's order, and the rail, the
-      "shared" mark and the fastest-lap glyph carry the same words for a
-      screen reader in both renderers. **Rung five landed in #105**: the
-      constructor page's season-by-season, every-win and cars-built tables
-      and the circuit page's most-wins, constructors and every-race tables
-      read `queries/constructor.js` and `circuit.js` — the static pages had
-      one table each, from `race_results` in year order, and gain the other
-      two. Still to follow: the car and data pages.
 
 - [ ] `AF-03` **Draw every layout the championship has raced on, from F1DB.**
       F1DB (source 10, CC BY 4.0) ships an SVG outline for each of its 160
@@ -452,7 +420,7 @@ over unchanged.
 
 - [ ] `PD-16` **618 driver pages have no opening sentence.** `notes` on 244 of 862. Generate a lede from the entry record in both renderers from one expression; keep `notes` as the override. The largest "look nicer" available and it is SQL. — *product critique · M*
 
-- [ ] `VD-01` **The static half is a different design.** 126 lines of `#prerendered` CSS, a second `h1` treatment, tiles versus a key/value table. Rides with `PD-02`: emit the components' shapes, not just their numbers. — *visual critique · M*
+- [ ] `VD-01` **The static half is a different design.** 126 lines of `#prerendered` CSS, a second `h1` treatment, tiles versus a key/value table. `PD-02` landed (#77–#106) and shared the tables; this stands alone: emit the components' shapes, not just their numbers. The review of #106 measured what the static half still lacks: the eras page's Safety timeline, the quality page's chassis-coverage figure and photograph stats, and the car pages' entries caption (`AX-17`). — *visual critique · M*
 
 - [ ] `VD-03` **No type scale and no spacing scale in the token file.**
       Recounted 2026-09-13: nineteen literal font sizes, twenty-eight spacing
@@ -527,7 +495,7 @@ over unchanged.
       Prix*; the URL says `/races/`; the app carries neither trail. `/races`
       is unreachable from a race page by any trail in either renderer. Make
       both *Home / Races / 2026 / Italian Grand Prix* and emit the onward band
-      statically. `IA-03` re-measured; ships with `PD-02`. — *IA critique · S*
+      statically. `IA-03` re-measured; stands alone now `PD-02` has landed. — *IA critique · S*
 
 - [ ] `IX-21` **During the cold wait the strip names a destination the reader
       has backed out of.** Click Drivers, then Circuits, Back twice: the URL
@@ -613,12 +581,20 @@ direction and found not to conflict.
       drives with no note, em dashes with the explanation removed, and
       `Confidence: reference` as a bare fact on 695 driver pages. Three strings,
       one of which already exists at `App.jsx:88` and was simply not copied
-      across. Ship with `PD-02`. — *content critique · M*
+      across. Stands alone now `PD-02` has landed (#77–#106). — *content critique · M*
 
 - [ ] `IA-03` **The app has no breadcrumb; the static page has no onward band.**
       Each renderer holds half the wayfinding and neither holds the other half,
       so orientation trades sideways the moment React takes over from the
-      prerendered HTML. Ship with `PD-02`. — *IA critique · S*
+      prerendered HTML. Stands alone now `PD-02` has landed (#77–#106). — *IA critique · S*
+
+- [ ] `CR-25` **A NULL confidence prints an em dash statically and nothing in the app.** `Confidence` in `Page.jsx` returns null for a falsy value; the shared `text` for the quality page's two confidence columns prints `—`. No such row exists today; one rule, one home. Found by the review of #106. — *review · S*
+
+- [ ] `CR-26` **`entryResult` in `queries/car.js` re-implements `result()` from `lib/format.js`.** They differ only where `position_text` is `''`; keep one, and give `entryResult`, `entryOut`, `eraCell`, `safeToQuote` and `disagrees` the unit tests every earlier rung's helper has. Found by the review of #106. — *review · S*
+
+- [ ] `CR-27` **The static geometry-coverage figure rests on an unasserted string substitution.** `prerender.js` rewrites `v_geometry_coverage`'s SQL to read `geo.circuit_geometry`; if the view's text changes shape the replacement no-ops and the static page says 0 traced. Assert the substitution bit, and `die()` with a message where `one(...)` finds no view. Found by the review of #106. — *review · S*
+
+- [ ] `CR-28` **Two tables open with no sort signal.** `Glossary.jsx` and the quality page's disagreements table now open in the query's order with no `aria-sort` and no arrow on any header, so the order a reader sees is unexplained. Show the opening order as the sorted column without re-sorting client-side. Found by the review of #106. — *review · S*
 
 - [ ] `CD-03` **1,172 race pages have no standfirst.** `races.note` is NULL on
       every one of the 1,172 rows, so `lede={race.note}` is dead code and the
@@ -866,7 +842,7 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 - [ ] `AX-16` **A dropped end label leaves one line identified by colour alone. 1.4.1.** Stroke-dash per series, echoed in the legend. — *accessibility critique · S*
       **2026-09-13 re-rank:** `VD-34` colours chart series by constructor and must keep the per-series dash and the legend echo — colour becomes more meaningful, not the only channel.
 
-- [ ] `AX-17` **Five registers and the SQL console render their table with no caption; the static half has none anywhere.** A `caption` prop at six call sites and in `prerender.js`. — *accessibility critique · S*
+- [ ] `AX-17` **Five registers and the SQL console render their table with no caption; the static half has none anywhere.** A `caption` prop at six call sites and in `prerender.js`. The car pages' static entries table carried one ("Championship entries") until #106 and now carries none; `fromColumns` takes a caption option nothing passes. — *accessibility critique · S*
 
 - [ ] `AX-18` **The sticky column headers do not stick.** `.table-scroll` never scrolls vertically. Make it work or delete the rule. — *accessibility critique · S*
       **Superseded by `IX-18`**, which found the cause (2026-09-13); lands with it.
@@ -2024,6 +2000,25 @@ Real, but not costed, or waiting on a decision.
       only in the app, since only a browser knows how long until it. Rung two
       of `PD-02` shipped with it, because the fix and the sharing were one
       edit. — *IA critique · #102*
+
+- [x] `PD-02` **The prerenderer calls the page components' own queries.**
+      Every table the app draws is defined once, in `web/src/queries/*.js`
+      — SQL, column list, footers and any heading rule — and read by the
+      page and by `scripts/prerender.js`, so the static half prints the
+      app's tables by construction: drivers, driver and records (#77);
+      seasons, season and races, with `IA-17` (#102); the constructors,
+      circuits and cars registers (#103); the race page (#104); the
+      constructor and circuit pages (#105); the car page and the eras,
+      glossary, sources and quality pages (#106). `smoke.mjs` compares the
+      tables on the routes it visits — 28 comparisons — static against app:
+      header, row count and every shown row. Not tables, so not shared and
+      still the static half's own shapes: the known-gaps sections, the eras,
+      lineage and layout timelines, the circuit atlas; and the static half
+      has no eras Safety timeline, chassis-coverage figure or photograph
+      stats at all (`VD-01`). The riders stand as
+      their own items: `VD-01` (the static half's design), `AX-17`
+      (captions), `CD-04` (the rules for reading the numbers), `IA-03`
+      (breadcrumb and onward band). — *product critique · #77, #102–#106*
 
 ## Declined
 
