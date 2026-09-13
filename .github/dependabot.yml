@@ -1,0 +1,35 @@
+# Dependabot: version bumps as pull requests, monthly, grouped.
+#
+# Two ecosystems. The actions these workflows `use` sit on floating major
+# tags (`@v4`, `@v5`) that nothing watched until now; and web/package.json,
+# whose devDependencies include the bundler and the browser driver the site
+# is built and tested with. Not pip: requirements.txt is one optional range
+# (`fastf1>=3.8`) for a tool that never runs in CI, and there is nothing
+# there to pin.
+#
+# Every pull request this opens runs ci.yml — the build, the artefact
+# comparison, the site build and the browser test — so a bump that breaks
+# the deploy chain is red before it is merged. review.yml skips on these:
+# Dependabot's token cannot read the repository's secrets, and the guard
+# in that file says so in the run summary rather than failing.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: npm
+    directory: /web
+    schedule:
+      interval: monthly
+    # One pull request for the toolchain, one for the runtime, so a Vite
+    # major and a React patch are not the same decision.
+    groups:
+      build-and-test:
+        dependency-type: development
+      runtime:
+        dependency-type: production

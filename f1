@@ -328,7 +328,7 @@ def main():
                     print(f"    measured {geo['measured_km']:.3f} km against "
                           f"a published {geo['published_km']:.3f} km "
                           f"({geo['delta_pct']:+.2f}%), pit lane excluded")
-                    print(f"    ODbL 1.0, (c) OpenStreetMap contributors")
+                    print("    ODbL 1.0, (c) OpenStreetMap contributors")
 
                 print("\n  Most successful drivers here:")
                 table(c.execute("""SELECT driver, wins, first_win, last_win
@@ -838,8 +838,8 @@ def main():
               f"{named} name the car in the file name.")
         print(f"  The other {total - named} may still be correct - most "
               f"correct images are filed under the driver - but nothing")
-        print(f"  here can tell. All sit at 'unverified'. Worst first by how "
-              f"many chassis depend on the article:\n")
+        print("  here can tell. All sit at 'unverified'. Worst first by how "
+              "many chassis depend on the article:\n")
         table(rows)
 
     elif cmd == "unverified":

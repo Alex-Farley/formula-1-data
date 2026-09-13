@@ -143,7 +143,13 @@ resolution in `CORRECTIONS` with the reasoning. `./f1 gaps` prints both.
 ```bash
 make all        # build, verify, export
 python3 audit.py
+make lint       # Ruff, Biome, actionlint — what CI's lint job runs; see ruff.toml
 ```
+
+Add `QUIET=1` to any make target — `make ci QUIET=1` — for failures, warnings
+and a count instead of one line per check; the front end's equivalents are
+`npm test -- --quiet` and, for one page's smoke sections, `npm run test:page
+-- /drivers`. Same checks, same exit codes, a fortieth of the output.
 
 `verify.py` must exit 0. Commit the regenerated `f1.db` and `f1_compat.json` —
 CI fails if the committed export does not match a fresh build. `f1_database.json`

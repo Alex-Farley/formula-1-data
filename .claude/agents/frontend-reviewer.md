@@ -76,15 +76,61 @@ known name and the worker points every request there. Getting it wrong does not
 `web/scripts/prepare-assets.js` or the worker's `locateFile` that reintroduce
 filename-dependence.
 
-**10. Routing is hash-based** (`#/drivers/senna`), because a static host has
-nothing to rewrite deep links with. Flag a `BrowserRouter` or an absolute `base`
-arriving without the server change that would make it work.
+**10. Routing is path-based, and every path is prerendered.** `App.jsx` mounts
+a `BrowserRouter` — deliberately, and the comment above it says why: under a
+`HashRouter` all 2,300 pages shared one URL, one title and one index entry, so
+the site could not be linked to a page, cited or crawled. What makes a deep
+link resolve on a static host with no rewrite rule is `scripts/prerender.js`
+writing a real file at every route. So the rule is the pairing: a new route in
+`App.jsx` needs the prerenderer to know it, or the deep link 404s honestly and
+the crawler never sees the page. Flag a route without its prerender, and flag a
+`HashRouter` coming back. (This item said the opposite until 2026-09-13; the
+code had moved and the checklist had not.)
+
+## Already enforced — do not spend the review on these
+
+`web/test/conventions.mjs` decides these by pattern in `npm run test:units`, on
+every `npm test` and in CI's `web` job:
+
+- **Item 1**, every surface showing a Commons file imports the shared credit
+  and checks `canShow()`, and no file writes its own credit line. (This check
+  lived in `smoke.mjs` until 2026-09-13; same code, no browser.) And the two
+  functions themselves — `attribution()` falling back to `credit`, returning
+  null and never an empty string; `canShow()` failing closed on a blank
+  licence, nobody to credit, or no file name — have direct cases in
+  `web/test/units.mjs`.
+- **Item 2**, every `?? 0` and `|| 0` under `web/src` and `web/scripts` is a
+  declared count or weight — the file lists them with their reasons, and a new
+  one fails until declared.
+- **Item 6**, the wordmark half only: the old name appears nowhere under
+  `web/`. Structural parity of the static tables with the app's is the smoke
+  test's *Static tables* section (header, row count, every shown row on the
+  routes it names); a new page structure, title or meta tag is still yours.
+- **Item 8**, no `display: contents` in a stylesheet or a component.
+- **Item 10**, the router half only: `App.jsx` mounts a `BrowserRouter` and
+  no `HashRouter`. Whether a NEW route in `App.jsx` is known to
+  `scripts/prerender.js` is checked by nothing — the sitemap assertion computes
+  its expectation from the database, not from the route table — so that half
+  is still yours on any diff that adds a route.
+
+**Item 7**, the accessibility floor, is checked as rendered: the smoke test's
+*Accessibility* section runs axe-core's WCAG 2.0/2.1/2.2 A and AA rules on ten
+pages, one of each kind, at 1280 px with JavaScript on. axe reads the
+accessibility tree; it does not decide keyboard operability — an `onClick` on
+a `div` or an SVG `rect` with no key handler passes axe and fails WCAG 2.1.1 —
+and it does not see the no-JS `#prerendered` half, the search palette or the
+375 px layout (`CR-30`). Those are yours. So is the rest of the judgement — a
+NULL turned into a number by a formatter rather than a fallback, a heading
+that reads wrong to a person though it passes axe, a credit that is present
+but misleading.
 
 ## Useful commands
 
-    cd web && npm run test:units    # pure functions, node:test, ~1s
-    cd web && npm test              # units + the browser smoke test
-    cd web && npm run build         # includes prerender
+    cd web && npm run test:units          # pure functions and conventions, ~1s
+    cd web && npm test -- --quiet         # units + the browser smoke test, failures only
+    cd web && npm run test:page -- /races # the smoke sections for one page, ~2s
+    cd web && node test/smoke.mjs --list  # the section headings
+    cd web && npm run build               # includes prerender
 
 The smoke test drives the built site in Chromium and checks rendered counts
 against `f1.db` itself, so it stays honest as the data grows.

@@ -1076,7 +1076,6 @@ def _stage_16_current_season(b):
     cur = b.cur
     race_key = b.race_key
     lookup = b.lookup
-    driver_id = b.driver_id
 
     # -------------------------------------------------- current season
     for i, (cid, did, car, pu, num, role) in enumerate(N.ENTRIES_2026, 1):
@@ -1486,7 +1485,6 @@ def _stage_20_second_and_third_place_from_the(b):
 def _stage_21_the_full_classification_qualifying_and_stand(b):
     """the full classification, qualifying and standings, from F1DB"""
     cur = b.cur
-    race_key = b.race_key
     f1db_drivers = b.f1db_drivers
 
     # --- the full classification, qualifying and standings, from F1DB
@@ -1625,7 +1623,6 @@ def _stage_21_the_full_classification_qualifying_and_stand(b):
 def _stage_22_the_sprint_races(b):
     """the sprint races"""
     cur = b.cur
-    race_key = b.race_key
     f1db_drivers = b.f1db_drivers
 
     # --- the sprint races
@@ -1757,7 +1754,6 @@ def _stage_23_a_round_that_has_a_result(b):
 def _stage_24_qualifying_checked_against_the_pole_already(b):
     """qualifying, checked against the pole already established"""
     cur = b.cur
-    race_key = b.race_key
     f1db_drivers = b.f1db_drivers
 
     # --- qualifying, checked against the pole already established
@@ -1951,7 +1947,6 @@ def _stage_25_championship_standings_after_every_round_and(b):
 def _stage_26_pit_stops_from_f1db_under_their(b):
     """pit stops from F1DB, under their own source"""
     cur = b.cur
-    race_key = b.race_key
     f1db_drivers = b.f1db_drivers
 
     # --- pit stops from F1DB, under their own source
@@ -2367,7 +2362,6 @@ def _stage_34_link_race_entries_to_the_curated(b):
     cur = b.cur
     known_cons = b.known_cons
     entrants = b.entrants
-    driver_id = b.driver_id
 
     # --- link race entries to the curated car that scored them
     #
@@ -2846,7 +2840,6 @@ def build():
 def _stage_28_race_dates_and_the_fastest_lap_where(b):
     """race dates, and the fastest lap where the harvest has none"""
     cur = b.cur
-    race_key = b.race_key
     f1db_drivers = b.f1db_drivers
 
     # --- the date each race was held
@@ -3242,7 +3235,7 @@ def derive_records(cur):
          if len(lead) == 1 else f"{_num(lead[0][0])} each"),
         "race_entries rows with finish_position = 1 per driver per season. "
         + "; ".join(f"{r[1]}, {r[3]}: {r[0]} of {races_in[r[3]]}" for r in lead)
-        + f". Next: " + ", ".join(f"{r[1]} {r[0]} ({r[3]})" for r in _rest(rows, lead)) + ".")
+        + ". Next: " + ", ".join(f"{r[1]} {r[0]} ({r[3]})" for r in _rest(rows, lead)) + ".")
 
     # consecutive wins: every completed race in date order
     winners = {}
@@ -3270,8 +3263,8 @@ def derive_records(cur):
         (f"{best}, {race_name(*holders[0][1])} to {race_name(*holders[0][2])}"
          if len(holders) == 1 else f"{best} each"),
         "Every completed championship race in date order (races.date_iso, then round), "
-        f"the Indianapolis 500 of 1950-60 included. A streak carries over a winter and "
-        f"ends at the first race the driver did not win, whether or not they entered it. "
+        "the Indianapolis 500 of 1950-60 included. A streak carries over a winter and "
+        "ends at the first race the driver did not win, whether or not they entered it. "
         + "; ".join(f"{names[h[0]]}: {race_name(*h[1])} to {race_name(*h[2])}" for h in holders)
         + ".")
 
@@ -3296,7 +3289,6 @@ def derive_records(cur):
         "first finish_position = 1, failures to qualify or start included. "
         f"Next: {_also(rows, lead, 1)}.")
 
-    no_born = q("SELECT COUNT(*) FROM drivers WHERE born IS NULL")[0][0]
     for key, record, where, biggest, verb in (
         ("youngest-winner", "Youngest race winner", "e.finish_position = 1", False, "won"),
         ("oldest-winner", "Oldest race winner", "e.finish_position = 1", True, "won"),
@@ -3430,7 +3422,7 @@ def derive_records(cur):
         (f"{_num(lead[0][0])}, {lead[0][3]}" if len(lead) == 1 else f"{_num(lead[0][0])} each"),
         "The final constructors' table of every season (v_standings_final). Points systems "
         "differ across the years, so this is the nominal figure the official table "
-        f"shows, not a like-for-like measure. Next: "
+        "shows, not a like-for-like measure. Next: "
         + ", ".join(f"{r[1]} {_num(r[0])} ({r[3]})" for r in _rest(rows, lead)) + ".")
 
     rows = q("""SELECT COUNT(DISTINCT e.race_id) n, c.name, c.id,
@@ -3449,7 +3441,7 @@ def derive_records(cur):
         "Distinct races with a race_entries row under the constructor id and no "
         "finish_position = 1 under it. Counted under the constructor name raced under, as "
         "constructors.wins is: a name change starts a new count, and a win under an "
-        f"earlier or later name of the same team does not end this one. Next: "
+        "earlier or later name of the same team does not end this one. Next: "
         + ", ".join(f"{r[1]} {r[0]} ({r[3]}-{r[4]})" for r in _rest(rows, lead)) + ".")
 
     rows = q("""WITH debut AS (

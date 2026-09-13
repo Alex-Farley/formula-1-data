@@ -1,0 +1,82 @@
+// Biome, the JavaScript linter CI's `lint` job runs on the front end
+// (.github/workflows/ci.yml). A CI tool, not a dependency: it is not in
+// package.json, so `npm ci` on Cloudflare installs nothing for it and the
+// deploy chain is untouched. Locally: `npx @biomejs/biome@2 lint` from web/.
+//
+// The formatter is off for the same reason Ruff's is (see ../ruff.toml):
+// the code is laid out by hand and a reflow would bury every real diff.
+//
+// Every rule below that is demoted from the recommended `error` to `warn`
+// fired on 2026-09-13, the day the gate landed, and each is filed as CR-29
+// in docs/BACKLOG.md. A warning still prints in the job log and as an
+// annotation on the pull request; it does not fail the job. Clearing one
+// means fixing its sites and deleting its line here, so the rule goes back
+// to gating — never adding to this list to keep a run green.
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.13/schema.json",
+  "files": {
+    // Source, the build scripts, the tests and the Vite config. Not dist/
+    // (generated) and not public/ (sql-wasm and static assets copied in by
+    // prepare-assets.js, none of it written here).
+    "includes": ["src/**", "scripts/**", "test/**", "vite.config.js"]
+  },
+  "formatter": { "enabled": false },
+  "assist": { "enabled": false },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "correctness": {
+        // Nine effects and memos whose dependency arrays Biome reads as
+        // incomplete: App.jsx, DataTable.jsx, Page.jsx (two), Sql.jsx and
+        // useQuery.js (four). Each needs reading, not auto-fixing — a
+        // dependency added blindly to a query hook can re-run the query on
+        // every render. CR-29.
+        "useExhaustiveDependencies": "warn",
+        // One site, Sql.jsx: `useExample(statement)` inside an onClick.
+        // It is not a hook — it loads an example statement into the editor
+        // — and the fix is a name that does not start with `use`. CR-29.
+        "useHookAtTopLevel": "warn"
+      },
+      "suspicious": {
+        // `constructor` as a local name in Constructor.jsx (two) and
+        // Cars.jsx, and one in prerender.js. Apt for this domain and
+        // harmless as a `const`, but it is Object.prototype.constructor
+        // that the review of #105 found a column key colliding with, so the
+        // rule stays on. CR-29.
+        "noShadowRestrictedNames": "warn",
+        // LapFigure.jsx and States.jsx key list items by index. Both lists
+        // are static once rendered, so nothing reorders under React. CR-29.
+        "noArrayIndexKey": "warn",
+        // smoke.mjs uses `forEach(m => fail(m))` where fail returns a
+        // value. Two sites, cosmetic. CR-29.
+        "useIterableCallbackReturn": "warn"
+      },
+      "a11y": {
+        // Chart bars, dots and the search results carry onClick on a div or
+        // an SVG rect without a role or a key handler; Filters.jsx builds a
+        // listbox out of a div; Circuit.jsx puts aria-label on the corner
+        // legend's plain div (line 273), which has no role to name. These
+        // are accessibility defects, not lint noise — the first four are
+        // keyboard operability, WCAG 2.1.1, which the smoke test's axe
+        // section does NOT decide (axe reads the accessibility tree, not
+        // whether a handler is reachable) — and the frontend-reviewer
+        // checklist covers them. Filed under CR-29 so they are cleared
+        // together, with the AX- items they overlap. Demoted, not disabled:
+        // the count must not grow.
+        "noStaticElementInteractions": "warn",
+        "useSemanticElements": "warn",
+        "useAriaPropsSupportedByRole": "warn"
+      },
+      "style": {
+        // 47 warnings in app.css, all one rule: a selector that is less
+        // specific than one above it targeting the same element. The
+        // stylesheet is ordered by page section, not by specificity, and
+        // reordering it for this rule would make it harder to read for no
+        // change in what renders. Off, not demoted — it would drown the
+        // warnings above.
+        "noDescendingSpecificity": "off"
+      }
+    }
+  }
+}

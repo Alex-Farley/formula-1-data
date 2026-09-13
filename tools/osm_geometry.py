@@ -291,7 +291,7 @@ def current_layout(circuit_id):
     from data import circuits as C
     best = None
     for row in C.LAYOUTS:
-        cid, key, name, frm, to = row[0], row[1], row[2], row[3], row[4]
+        cid, key, _name, frm, to = row[0], row[1], row[2], row[3], row[4]
         by_year = row[5] if len(row) > 5 else 1
         if cid != circuit_id or not by_year:
             continue

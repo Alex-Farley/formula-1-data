@@ -159,7 +159,7 @@ def checkout(source):
 
 
 def run(cmd):
-    p = subprocess.run(cmd, capture_output=True, text=True)
+    p = subprocess.run(cmd, capture_output=True, text=True, check=False)
     if p.returncode:
         sys.exit(f"{' '.join(cmd)} failed:\n{p.stderr}")
     return p.stdout

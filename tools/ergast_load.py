@@ -829,8 +829,8 @@ def main():
     if unresolved:
         print(f"  {totals['skipped_driver']} rows skipped, driver not in the "
               f"register: {', '.join(sorted(unresolved)[:20])}")
-        print(f"  Add them to PODIUM_ONLY_DRIVERS in data/results.py, rebuild, "
-              f"and rerun.")
+        print("  Add them to PODIUM_ONLY_DRIVERS in data/results.py, rebuild, "
+              "and rerun.")
     if declared_drv:
         print(f"  {totals['skipped_declared']} row(s) skipped for "
               f"{len(declared_drv)} driver(s) this register deliberately does "

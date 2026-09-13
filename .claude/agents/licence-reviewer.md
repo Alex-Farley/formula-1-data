@@ -67,6 +67,29 @@ dead on FOM-owned timing or merged ODbL geometry, naming the table, the reason
 and the command that undoes it. If the diff adds an export path, it needs the
 same refusal — an export exists to be given to somebody.
 
+## Already enforced — do not spend the review on these
+
+`tests/test_conventions.py` decides these by pattern on every `make test` and in
+CI's `check` job, so a pull request that breaks one is red before it reaches you:
+
+- **Item 4**, `F1_LOCAL_TIMING` in a workflow, a make target, a tool or a build
+  script (`TheLocalTimingSwitchNeverReachesCI`).
+- **Item 6**, `release.yml` uploading and digesting both databases, and
+  `prepare-assets.js` staging both (`PublishingPathsCarryBothDatabases`).
+
+And the gate itself is tested: `tests/test_verify_refuses.py` plants one row
+of each kind the redistribution section must refuse — a lap, a stint, a
+timing summary, a race control message, a pit stop from a timing source, a
+radio row from the live API, a centreline inside f1.db, a row citing a
+forbidden source, a row citing an unclassified one — into a copy of the
+database and asserts that `verify.py --redistribution-only` exits 1 naming
+the check, and that `F1_LOCAL_TIMING=1` downgrades the FOM checks and not
+the unclassified-source check. A diff to that section that let one through
+is red before it reaches you.
+
+Read those items only where the diff adds a publishing path the test does not
+name — a new workflow that uploads, a new staging script — and say so.
+
 ## What not to raise
 
 These are decisions on the record in `docs/COMMERCIAL-READINESS.md` and

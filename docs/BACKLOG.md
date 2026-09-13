@@ -731,6 +731,51 @@ the source. `WK-` is this survey; nothing else uses the prefix.
       anything it holds that the database cannot joins `known_gaps` #12. —
       *Wikipedia survey · S*
 
+### Filed 2026-09-13 — the lint gate
+
+The `lint` job in `ci.yml` landed with Ruff clean and Biome passing on
+warnings. Eight Biome rules are demoted from error to warning in
+`web/biome.jsonc`, each with its reason; this is the item that puts them
+back.
+
+- [ ] `CR-29` **Clear the 24 Biome findings demoted to warnings, rule by
+      rule.** Nine `useExhaustiveDependencies` (`App.jsx`, `DataTable.jsx`,
+      `Page.jsx` ×2, `Sql.jsx`, `useQuery.js` ×4 — read each before adding a
+      dependency; a query hook that re-runs on every render is worse than
+      the warning), one `useHookAtTopLevel` (`Sql.jsx`'s `useExample` is not
+      a hook; rename it), four `noShadowRestrictedNames` (`constructor` as a
+      local in `Constructor.jsx`, `Cars.jsx`, `prerender.js`), two
+      `noArrayIndexKey`, two `useIterableCallbackReturn` in `smoke.mjs`,
+      and six a11y findings — `noStaticElementInteractions` on the chart
+      marks and search results, a div listbox in `Filters.jsx`,
+      `aria-label` on the corner legend's plain div in `Circuit.jsx` — which
+      overlap the `AX-` items and should be cleared with them. A rule is done when its
+      sites are fixed and its line is deleted from `biome.jsonc`, so it
+      gates again. — *lint gate · M*
+
+- [ ] `CR-30` **What the review of #107 found and #107 did not fix.** Three
+      reviewers passed the PR and left these, none blocking, each a code
+      change the loop's rule carries forward rather than confirms on the PR
+      that passed. (a) `verify.py --quiet` drops the `[info]
+      F1_LOCAL_TIMING=1 … must not be committed` banner, so the mode an
+      agent runs loses the one line that explains the consequence; keep
+      `[info]` lines from a section that warned. (b) The smoke test's axe
+      section scans ten routes at 1280 px with JavaScript on: add the
+      no-JS `#prerendered` half (the Prerendering section already opens
+      that context), the search palette, `/circuits/atlas` and the 375 px
+      layout where `target-size` (2.5.8) is most likely to fail. (c)
+      'Search (prominence)' cannot run alone under `--only` — it asserts
+      the page the preceding 'Search' section left — so either fold it into
+      'Search' or make it navigate first. (d) `web/test/conventions.mjs`'s
+      zero-fallback guard is a per-file ceiling over `?? 0`, which also
+      counts `?? 0.5` and lets a removed site pay for a new one; declare
+      sites by line content instead. (e) `prepare-assets.js` is asserted to
+      *mention* `f1-geometry.db`; ci.yml's and pages.yml's dist checks list
+      only `f1.db`, `f1.db.gz`, `sql-wasm.wasm` and `db-manifest.json` —
+      add the geometry file to both loops so a missing centreline file is
+      a red build, not a warning. Found by the reviews of #107. — *review
+      · M*
+
 ### Filed 2026-09-11 — the eight reviews
 
 Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09-11-*.md` under the same ID. Items already in *Now* are not repeated.
