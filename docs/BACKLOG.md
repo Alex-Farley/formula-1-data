@@ -163,8 +163,14 @@ is independent.
       registers read `queries/constructors.js`, `circuits.js` and `cars.js`
       — the static circuits register derives its race counts from the races
       as the app does instead of reading the stored `gp_count`, and answers
-      its Traced column from `f1-geometry.db` beside the database. Still to
-      follow: the race, constructor, circuit, car and data pages.
+      its Traced column from `f1-geometry.db` beside the database. **Rung
+      four landed in #104**: the race page's classification, qualifying,
+      sprint and pit-stop tables read `queries/race.js` — the static page
+      gains the last three, which it never had, its classification gains the
+      chassis and fastest-lap columns and the app's order, and the rail, the
+      "shared" mark and the fastest-lap glyph carry the same words for a
+      screen reader in both renderers. Still to follow: the constructor,
+      circuit, car and data pages.
 
 - [ ] `AF-03` **Draw every layout the championship has raced on, from F1DB.**
       F1DB (source 10, CC BY 4.0) ships an SVG outline for each of its 160

@@ -44,6 +44,7 @@ import { raceWinner } from '../src/queries/races.js'
 import { entered } from '../src/queries/constructors.js'
 import { traced } from '../src/queries/circuits.js'
 import { chassisName } from '../src/queries/cars.js'
+import { driverName, fastestLapMark, inClassificationOrder, outcome, position, railOf } from '../src/queries/race.js'
 import { NOT_YET_RUN } from '../src/lib/site.js'
 import { recordColumns, tiersOf } from '../src/queries/records.js'
 
@@ -500,6 +501,34 @@ describe('the queries a page and the prerenderer share', () => {
     assert.equal(chassisName('158', { landmark: 'Alfa Romeo 158' }), '158 landmark')
     assert.equal(chassisName('125', { landmark: null }), '125')
     assert.equal(chassisName(null, { landmark: null }), EMPTY)
+  })
+
+  it('prints a classification cell the same string in both renderers, and in the same order', () => {
+    assert.equal(position(null, { position_text: 'NC', finish_position: null }), 'NC')
+    assert.equal(position(null, { position_text: null, finish_position: 4 }), '4')
+    assert.equal(position(null, { position_text: null, finish_position: null }), EMPTY)
+    assert.equal(outcome(null, { finish_position: 3 }), 'Finished')
+    assert.equal(outcome('Engine', { finish_position: null }), 'Engine')
+    assert.equal(outcome(null, { finish_position: null }), EMPTY)
+    assert.equal(driverName('A', { driver_id: 'a', shared_drive: 1 }), 'A shared')
+    assert.equal(driverName(null, { driver_id: 'a', shared_drive: 0 }), 'a')
+    assert.equal(driverName(null, { driver_id: null, shared_drive: 1 }), `${EMPTY} shared`)
+    assert.equal(fastestLapMark(1), '●fastest lap')
+    assert.equal(fastestLapMark(0), '')
+    assert.equal(railOf({ finish_position: 2, points: 18 }), 'podium')
+    assert.equal(railOf({ finish_position: 7, points: 6 }), 'points')
+    assert.equal(railOf({ finish_position: 14, points: 0 }), 'classified')
+    assert.equal(railOf({ finish_position: null, points: null }), '')
+    // Finishers by position, then retirements by how far they got, then the rest.
+    const rows = [
+      { id: 'dnf-late', finish_position: null, laps_completed: 50 },
+      { id: 'p2', finish_position: 2, laps_completed: 56 },
+      { id: 'dns', finish_position: null, laps_completed: null },
+      { id: 'p1', finish_position: 1, laps_completed: 56 },
+      { id: 'dnf-early', finish_position: null, laps_completed: 3 },
+    ]
+    assert.deepEqual(inClassificationOrder(rows).map((r) => r.id), ['p1', 'p2', 'dnf-late', 'dnf-early', 'dns'])
+    assert.equal(rows[0].id, 'dnf-late', 'the caller’s array is not sorted in place')
   })
 
   it('adds a Confidence column only where the records differ on it', () => {
