@@ -69,9 +69,10 @@ adds to this list when it finds another. Struck through when decided, with
 the date, then removed at the next tidy.
 
 *Tidied 2026-09-13 (#111): the eleven decisions taken on 2026-09-12 and
-2026-09-13 were removed from this list. Each is recorded where its rule now
-lives and in the *Landed* entry that applied it; the struck text is in this
-file's history at `b084e30`.*
+2026-09-13 were removed from this list. Eight have the open or landed item
+the decision produced; the three whose only record was here - `PM-33`,
+`PM-35`, `LV-04` - moved to *Landed* with their text. The struck list is in
+this file's history at `b084e30`.*
 
 - `PM-37` **Do Landed and Declined leave this file?** Half of its 145 KB is
   history. The loop no longer reads the file whole (`next.py`, `PM-36`), so
@@ -1059,6 +1060,42 @@ Real, but not costed, or waiting on a decision.
       is gone (skills win over commands of the same name). Decisions 1-3 under
       *Decisions needed* taken the same day; `PM-37` filed. —
       *project record · [#111](https://github.com/Alex-Farley/formula-1-data/pull/111)*
+
+- [x] `PM-35` **Review cost, second pass: a PASS merges as reviewed, and the
+      rungs of one item are one PR.** Decided 2026-09-13 by the maintainer,
+      after the `PD-02` run spent four Opus passes and three Sonnet
+      confirmations on four rungs whose diffs one pass would have read: the
+      reviewed head merges on PASS as it is and non-blocking code findings are
+      carried into the next PR, named in the PR comment; a fix that is only
+      documentation, a comment, a test or dead-code removal merges without a
+      further pass; the rungs of one M item ship as one PR; `smoke.mjs` proves
+      static-against-app parity for every shown row so the brief no longer asks
+      a reviewer to rebuild it. Set in the loop's skill and `review-prompt.md`;
+      `CONTRIBUTING.md` says so. —
+      *project record · [#106](https://github.com/Alex-Farley/formula-1-data/pull/106)*
+
+- [x] `PM-33` **Review cost: which model, and when a fix needs no further
+      pass.** Decided 2026-09-13 by the maintainer, after the 2026-09-12 run
+      spent 40,000-130,000 tokens a reviewer pass over two or three passes a
+      PR: Opus for a first pass on data and front-end alike (the front end
+      reviewed thoroughly, with a design eye); a fresh Sonnet context to
+      confirm a fix or to review a docs-, backlog- or wording-only change; one
+      reviewer, with the licence reviewer added only when a source is added or
+      reclassified, a workflow, export or publishing path is touched, or a
+      whole dataset is taken from one source; a post-PASS fix that is only
+      documentation wording, a blank line or a comment merges without a
+      further pass, named in the PR comment. Revised by `PM-35` and, for the
+      `fast` pace only, by `PM-36`. —
+      *project record · [#98](https://github.com/Alex-Farley/formula-1-data/pull/98)*
+
+- [x] `LV-04` **Is a full season's timetable within facts-only?** Decided
+      2026-09-12: option (a), proceed as facts-only, with the reading recorded
+      in `docs/COMMERCIAL-READINESS.md` (a public schedule the promoter and
+      the FIA both publish, not a compilation whose value is in the
+      collecting; five rows an event) and the FIA event timetable as the
+      independent check still owed (`known_gaps` #15). The work landed as
+      `LV-02`. —
+      *project record · [#95](https://github.com/Alex-Farley/formula-1-data/pull/95)*
 
 - [x] `PM-01` **Serve the Parquet bundle from lapledger.org.** `/f1-parquet.zip`
       returned 404: the build step lived in a script Cloudflare never ran, and
