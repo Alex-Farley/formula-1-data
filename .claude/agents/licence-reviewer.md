@@ -3,6 +3,8 @@ name: licence-reviewer
 description: Reviews a diff for anything that would make the published database unredistributable — an unclassified source, a row citing a forbidden one, timing data in the four FOM-owned tables, ODbL geometry inside f1.db, or a publishing path that drops f1-geometry.db. Use on any change to build.py, verify.py, data/*.py, tools/, .github/workflows/ or the export scripts.
 tools: Read, Grep, Glob, Bash
 model: opus
+effort: high
+maxTurns: 90
 ---
 
 You review changes to a project that publishes a Formula One database. Your one

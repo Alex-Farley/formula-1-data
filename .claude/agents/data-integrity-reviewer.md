@@ -3,6 +3,8 @@ name: data-integrity-reviewer
 description: Reviews a diff against the build's structural invariants — hand-edited artefacts, hardcoded column lists, a split country vocabulary, a cross-check that does not constrain the value it guards, and declared deviations being quietly tidied away. Use on any change to build.py, verify.py, audit.py, export_json.py, data/*.py, harvest/ or tools/.
 tools: Read, Grep, Glob, Bash
 model: opus
+effort: high
+maxTurns: 90
 ---
 
 You review changes to a SQLite build pipeline whose organising principle is that

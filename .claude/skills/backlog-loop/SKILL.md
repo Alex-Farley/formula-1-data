@@ -1,168 +1,92 @@
 ---
 name: backlog-loop
-description: Run the autonomous development loop through docs/BACKLOG.md - one item, a fresh independent review, merge on PASS and green CI, next item. Invoke as /backlog-loop next, /backlog-loop <ITEM-ID>, or /backlog-loop until-paused.
+description: Drive the autonomous development loop through docs/BACKLOG.md - one item per forked context, a fresh independent review, merge on PASS and green CI, next item. Invoke as /backlog-loop next, /backlog-loop <ITEM-ID> or /backlog-loop until-paused, with an optional pace - fast, balanced (the default) or thorough.
+argument-hint: "[next | <ITEM-ID> | until-paused] [fast | balanced | thorough]"
+disable-model-invocation: true
 ---
 
-# The backlog loop
+# The backlog loop: the driver
 
-`docs/BACKLOG.md` is the queue and nothing else is. The rules are in
-`CLAUDE.md` under *Working autonomously* and in `CONTRIBUTING.md`; this skill
-is the procedure, with the scripts that were retyped by hand until they went
-wrong. Read both rule sections before the first item.
+This skill stays in the session a person started and stays small. It does
+not read the backlog, open a file, run the build or launch a reviewer. Every
+item runs in **`backlog-item`**, a forked skill in
+`.claude/skills/backlog-item/`, whose context is discarded when the item is
+merged, skipped or stopped. What comes back here is one contract line and a
+stock-take of at most five lines.
 
-Argument (passed through from `.claude/commands/backlog-loop.md`): `next`
-takes the first open item by the queue's own order - everything under *Now*
-before *Next* before *Someday*, and within a section correctness before
-integrity and licensing, functional, security, architecture, accessibility,
-UX, throughput; an item id takes that item; `until-paused` repeats `next`
-until told to stop or a stop condition below fires. With no argument, behave
-as `next`. The section order is a person's ranking and is not overridden.
+Why, measured 2026-09-13 from the session transcripts: the session driving
+the loop was 75-85 % of the loop's tokens, not the reviewers. It ran 190-440
+turns per session at a median context of 230,000-356,000 tokens a turn,
+peaking at 612,000, because every slice of the backlog, every build log and
+every reviewer report it had ever read stayed in context for the rest of the
+run. The reviewers ran at 46,000-67,000. A fork per item is what makes the
+driving context stop growing.
 
-## Before an item
+The rules are in `CLAUDE.md` under *Working autonomously* and in
+`CONTRIBUTING.md`; the per-item procedure, the pace table and what never
+slides are in `.claude/skills/backlog-item/SKILL.md`; the scripts the fork
+uses are in this folder: `next.py`, `precheck.sh`, `ci-wait.sh`,
+`merge-main.py`, `review-prompt.md`.
 
-1. Reread the item against the code as it is now. It may be stale, landed
-   under another id, or superseded. If so, correct the backlog and move on.
-2. A fact needs a source before a line of code: official FIA, Formula 1, team,
-   power-unit or circuit sources first, then the classified secondary ones.
-   Never invent a value - NULL, a `discrepancies` row or a `known_gaps` row.
-3. Anything that is a person's decision - a licence reading, a scope change,
-   a trade the item does not settle - goes under *Decisions needed* at the top
-   of the backlog, and the work continues around it. Do not take it.
+## Arguments
 
-## Doing the item
+Two words, either order, both optional.
 
-- Worktree: `git worktree add -b claude/<slug> <scratchpad>/wt-<slug> origin/main`.
-  For web work, `npm ci` inside it (never symlink `node_modules`). Node is
-  at `~/.local/node/bin`.
-- Edit through a Python script whose every replacement asserts it matched
-  exactly once. Never write a shell-quoting sequence inside a quoted heredoc;
-  apostrophes in JS strings go in double-quoted strings.
-- Gate each step on the previous one's exit status, never on the output of a
-  `| grep`. Order: `make all QUIET=1` -> `cd web && npm run build && npm test
-  -- --quiet` (one smoke run at a time; kill any listener on 4179 first and
-  check the log does not say "Reusing the server") -> `git add -A && make ci
-  QUIET=1` -> commit -> push -> `gh pr create`. Commit and PR text end with
-  the attribution lines the session was given.
-- **Quiet forms, always.** `QUIET=1` and `--quiet` run every check and keep
-  every exit code; they print failures, warnings and a count of what passed
-  instead of one line per check. The verbose run is thirteen hundred lines
-  for `make ci` and five hundred for the smoke test — about 25,000 tokens
-  read back per iteration, which was the most expensive thing in the loop.
-  While iterating on one page, `npm run test:page -- /drivers` runs only the
-  smoke sections whose heading names it (two seconds; `node test/smoke.mjs
-  --list` shows the headings), then the full `npm test -- --quiet` before
-  the commit — a passing subset is not a passing site.
-- Backlog: move the item to *Landed* with its id, source and the PR number;
-  file anything discovered as a new item under the conventions. Never leave
-  discovered work in a note or a comment.
+- **Target**: `next` takes the first open item in the queue's own order;
+  an item id takes that item; `until-paused` repeats `next` until told to
+  stop or the fork reports a stop condition. Default `next`.
+- **Pace**: `fast`, `balanced` or `thorough`. Default `balanced`. The pace
+  is passed to the fork unchanged; the table there says what each position
+  may relax. Nothing in this file changes with the pace.
 
-## Before asking for review
+## Procedure
 
-Run `bash .claude/skills/backlog-loop/precheck.sh <ITEM-ID>` from the
-worktree root. It refuses conflict markers, scripts that do not parse,
-duplicated imports, a backlog entry that is open and landed at once and a
-broken subsection heading, and warns about an artefact that moved without a
-source change or a commit that does not name the item. Half the FAIL
-rounds of the 2026-09-12 run were one of these; a reviewer pass costs
-40,000-130,000 tokens and this costs a few hundred.
+1. Write one line: `Loop: <target> at <pace>.` Nothing else before the fork.
+2. Invoke the Skill tool: skill `backlog-item`, args `<pace> <target>`
+   where target is `next` or the item id, followed by `--skip <ids>` when
+   this run has skipped any. Do not do any of the fork's work
+   here, and do not read the backlog to "check" first - `next.py` inside
+   the fork does that for a few hundred tokens.
+3. Read the **first line** of the result and act on it:
+   - `MERGED #<N> <ID>`: with `until-paused`, go to step 2 with `next`;
+     otherwise stop and print the stock-take the fork returned.
+   - `SKIPPED <ID>: <reason>`: the fork recorded an ordinary blocker in the
+     backlog and left the repository clean. Add the id to this run's skip
+     list; with `until-paused`, go to step 2 with `next --skip <the list>`,
+     so the next fork passes over it rather than meeting it again. Two
+     consecutive skips of different items stop the loop: a blocker that
+     hits two unrelated items is the environment, not the items.
+   - `STOP: <reason>`: a stop condition or a person's decision. Stop; print
+     the stock-take.
+   - `LIMIT: resets <time>`: a usage or session limit ended the fork.
+     Schedule a wake-up for one minute after the reset (a one-shot
+     `CronCreate`, or `ScheduleWakeup` inside a `/loop`) that reinvokes this
+     skill with the same arguments, then stop. The fork is relaunched fresh,
+     never resumed. A PR it left open is picked up by the next fork, which
+     checks `gh pr list` and `git worktree list` before starting.
+   - Anything else - no contract line, an empty result, an error - is not a
+     merge and not a PASS. Run `gh pr list --state open` and
+     `git worktree list`, report what is open in two lines, and stop. Never
+     merge from this skill.
+4. Between items, nothing else: no summary of the fork's work, no reviewer
+   report pasted back, one line per item. The PR comment is the record.
 
-The reviewer checklists' mechanical items are tests now, not review:
-`tests/test_conventions.py` (the build constant, the timing switch, geometry
-column lists, both databases in every publishing path, workflow permissions)
-runs in `make ci`, and `web/test/conventions.mjs` (the attribution rule,
-declared zero fallbacks, the wordmark, `display: contents`, the router) runs
-in `npm test`. Each agent's file names the items it no longer reads for. Do
-not ask a reviewer to confirm one of these; the brief stays on judgement.
+## When the loop stops
 
-## Review
+End with the stock-take, once, in at most five lines: merged this run, open
+PRs, decisions needed, what `next.py` says is next. Then stop.
 
-One fresh agent from `.claude/agents/`, pointed at the worktree path, using
-`review-prompt.md` in this folder as the brief. Which one:
+## Running it cheaply
 
-- `frontend-reviewer` for anything under `web/` - thoroughly, with a design
-  eye: it drives the built pages and compares app and static output.
-- `data-integrity-reviewer` for `build.py`, `verify.py`, `schema.sql`,
-  `data/`, `harvest/`, `tools/`, `export_json.py`. The build itself refuses
-  an unclassified source and verify.py fails on a forbidden one, which is
-  why an ordinary data change does not also need the licence reviewer.
-- `licence-reviewer` only when a change adds or reclassifies a source, touches
-  a workflow, an export or a publishing path, or takes a whole dataset from
-  one source. Two reviewers are the exception, not the rule.
-
-Model, decided 2026-09-13 to control cost:
-- **First pass: Opus** (`model: "opus"`), for front-end and data alike.
-- **Confirming a fix, or reviewing a docs-only, backlog-only or wording-only
-  change: Sonnet** (`model: "sonnet"`), as a fresh agent. A fresh Sonnet
-  context satisfies the independent-review rule.
-- A substantive rewrite after a FAIL gets a new fresh Opus agent, not a
-  confirmation.
-
-The brief stays inside the diff: name the specific ways the change could be
-wrong; ask for one isolated rebuild only when an artefact changed; do not ask
-for site-wide enumerations or live fetches unless the item is about them.
-Ask for the verdict line and findings with file:line, nothing else - no
-narrative of what was verified.
-
-The agent returns exactly `PASS — safe to merge` or `FAIL — changes required`.
-
-- FAIL: fix, run the precheck again, then confirm with a fresh Sonnet agent by
-  commit range.
-- PASS with findings: **merge the reviewed head as it is.** Non-blocking
-  findings that change code are carried into the next PR, named in the PR
-  comment, where the next first pass covers them at no extra cost; they are
-  not fixed and re-confirmed on the PR that passed (decided 2026-09-13, after
-  a run in which four confirmations bought nothing a later pass would not
-  have). A fix that is only documentation wording, a blank line, a comment,
-  a test or the removal of dead code may merge without a further pass, named
-  in the PR comment. Anything else that changes code, data or a check before
-  merge is confirmed.
-- Silence, a rate limit or an unavailable account is not a PASS. If the agent
-  dies on a session limit, relaunch after the reset.
-- Record the verdict as a PR comment (reviewer and model, verdict, the FAIL
-  rounds in one line each), then `gh pr merge N --merge` only with the PASS
-  and `check (3.9)`, `check (3.12)` and `web` green. **Merging deploys
-  lapledger.org**: Cloudflare builds every push to `main`, so a merge is a
-  production change. The `review` check fails on an exhausted credential;
-  ignore it, never edit it.
-
-## Keeping the cost down
-
-- One PR open at a time. Several open PRs each merge conflicts the others,
-  which costs a re-merge, a rebuild, a CI run and a confirmation every time.
-- Batch small items on one theme into one PR where the diff stays readable;
-  a reviewer pays a fixed cost to orient itself on every PR. **The rungs of
-  one M item are one PR**, not one each: the 2026-09-13 run spent four first
-  passes and three confirmations on four rungs of `PD-02` whose diffs a
-  single pass would have read for the price of one (decided 2026-09-13).
-- Do not ask a reviewer to prove what the suite proves. `smoke.mjs` compares
-  every static table on the routes it visits with the app's, header, row count
-  and every shown row - name the routes in the brief; the brief
-  says so and asks the reviewer to check the SQL, the rendering and the
-  cases the suite cannot reach, not to rebuild the comparison.
-- Keep your own messages short and do not paste reviewer reports back into
-  the conversation; the PR comment is the record.
-
-## Waiting and merging
-
-- CI: `bash .claude/skills/backlog-loop/ci-wait.sh <PR>` prints
-  `PR N core checks: pass,pass,pass` and exits 0; exits 2 on a failed check,
-  1 on a twenty-minute timeout, and 3 at once when the PR is CONFLICTING
-  (no check registers, so CI never started - merge main first). Run it in
-  the background and read its file; empty output from `gh` is pending.
-- Main moved under a branch: `python3 .claude/skills/backlog-loop/merge-main.py`
-  from the worktree. It resolves only what it can safely: both sides of
-  `docs/BACKLOG.md`, main's copy of the generated artefacts with a rebuild,
-  and a README or licence-statement conflict that is only figure spans
-  moving. A conflict in any source file, or in prose, stops it with the file
-  named, and a person resolves that one. Then rerun the web tests before
-  pushing. Merge PRs one at a time; each merge conflicts the others.
-- After the merge: remove the worktree, delete the branch, `git pull`.
-
-## Stop conditions
-
-Stop the loop and say why when: a change could corrupt data, breach a licence,
-weaken a check or workflow, change production infrastructure other than by
-merging, or lose history; when a decision is a person's; when the user asks
-to pause. Skip and record an ordinary blocker (network, a service, a missing
-non-critical credential). When you stop, end with a stock-take: merged, open,
-decisions needed, what is next.
+- Start the loop in a session with the connectors off. Every MCP server's
+  tool schemas sit in the fixed prefix of every turn - about 74,000 tokens
+  before any work in the measured sessions - and the loop uses none of them.
+- The implementer's effort is the session's: set `CLAUDE_CODE_EFFORT_LEVEL`
+  or `effortLevel` before starting, not during a run, because a change of
+  effort mid-session breaks the prompt cache. The pace does not set it; the
+  Agent tool overrides a model per call but not an effort, so a pace picks
+  reviewer *agents*, whose effort and turn cap are in their frontmatter.
+- `fast` is for a run of small, well-specified items while a person is
+  around to look at the result; `thorough` for a data change or anything
+  that touches a publishing path. `balanced` is the default because it is
+  what the 2026-09-13 review-cost decisions describe.

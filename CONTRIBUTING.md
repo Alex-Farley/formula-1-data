@@ -199,9 +199,15 @@ as it is and the findings are carried into the next PR - and which post-PASS
 fixes merge without a further pass - documentation wording, a blank line, a
 comment, a test, the removal of dead code, named in the PR comment - were
 decided by the maintainer on 2026-09-13 to control review cost and are set
-in `.claude/skills/backlog-loop/SKILL.md`: Opus for a first pass, a fresh
+in `.claude/skills/backlog-item/SKILL.md`: Opus for a first pass, a fresh
 Sonnet context to confirm a fix that must land before merge or to review a
-wording-only change, and the rungs of one item in one PR.
+wording-only change, and the rungs of one item in one PR. A third decision
+the same day (`PM-36`) added a pace - `fast`, `balanced`, `thorough` - that
+may relax the first-pass model on a small front-end change, the routes the
+brief names, batching and pipelining, and never the review itself, `make
+all`, the precheck, green CI, the licence triggers or the stop conditions;
+and moved each item into a forked context, because the session driving the
+loop, not the reviewers, was measured at 75-85 % of its tokens.
 
 `.github/workflows/review.yml` runs the same kind of review on GitHub, on a
 credential that is at present exhausted. Its red check is an infrastructure
