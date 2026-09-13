@@ -55,7 +55,7 @@ here is a number the build checked.
 | `schema.sql` | The schema, commented. |
 | `build.py` | Rebuilds `f1.db` and `f1-geometry.db` from the data modules. Idempotent, and byte-for-byte reproducible. <!-- fig:stages -->35<!-- /fig --> named stages; `STAGES` is the schedule. |
 | `verify.py` | Integrity, cross-tabulation and sanity checks on the DATA. Exit code 1 on failure. |
-| `tests/` | Unit tests for the CODE — name matching, lap-closure arithmetic — and `test_conventions.py`, the reviewer checklists' mechanical items as tests. `make test`, stdlib only. |
+| `tests/` | Unit tests for the CODE — name matching, lap-closure arithmetic — plus `test_conventions.py`, the reviewer checklists' mechanical items as tests, and `test_verify_refuses.py`, the licence gate shown refusing each thing it exists to refuse. `make test`, stdlib only. |
 | `ruff.toml`, `web/biome.jsonc` | The linters CI runs on the Python and the front end, and every rule left out with its reason. `make lint`. Neither is a dependency of the build. |
 | `audit.py` | Structural health check: fill rates, coverage, keys, redundancy, readiness. |
 | `export_json.py` | Regenerates the JSON exports from the database. |

@@ -94,7 +94,11 @@ every `npm test` and in CI's `web` job:
 
 - **Item 1**, every surface showing a Commons file imports the shared credit
   and checks `canShow()`, and no file writes its own credit line. (This check
-  lived in `smoke.mjs` until 2026-09-13; same code, no browser.)
+  lived in `smoke.mjs` until 2026-09-13; same code, no browser.) And the two
+  functions themselves — `attribution()` falling back to `credit`, returning
+  null and never an empty string; `canShow()` failing closed on a blank
+  licence, nobody to credit, or no file name — have direct cases in
+  `web/test/units.mjs`.
 - **Item 2**, every `?? 0` and `|| 0` under `web/src` and `web/scripts` is a
   declared count or weight — the file lists them with their reasons, and a new
   one fails until declared.

@@ -48,6 +48,7 @@ import { driverName, fastestLapMark, inClassificationOrder, outcome, position, r
 import { raceWinnerHere } from '../src/queries/circuit.js'
 import { constructorSeasons } from '../src/queries/constructor.js'
 import { NOT_YET_RUN } from '../src/lib/site.js'
+import { attribution, canShow, fileTitle, thumbUrl } from '../src/lib/commons.js'
 import { recordColumns, tiersOf } from '../src/queries/records.js'
 
 // A square about 111 m on a side, as [lon, lat] — the order the geometry uses.
@@ -554,5 +555,71 @@ describe('the queries a page and the prerenderer share', () => {
       ['Record', 'Holder', 'Value', 'How it is derived', 'As of'],
     )
     assert.equal(recordColumns([{ confidence: 'reference' }, { confidence: 'high' }]).at(-1).key, 'confidence')
+  })
+})
+
+// ------------------------------------------------------------ attribution
+
+describe('attribution: the one rule, with the values the database actually holds', () => {
+  // The same rule verify.py applies when it admits a row:
+  //   COALESCE(NULLIF(TRIM(artist), ''), NULLIF(TRIM(credit), ''))
+  // A renderer that disagreed with it captioned the 1958 Hawthorn photograph
+  // as anonymous. These are the shapes of row that admitted it.
+  it('credits the artist when there is one', () => {
+    assert.equal(attribution({ artist: 'Lothar Spurzem', credit: 'Own work' }), 'Lothar Spurzem')
+  })
+  it('falls back to credit when artist is missing, empty or only whitespace', () => {
+    assert.equal(attribution({ credit: 'Bundesarchiv, Bild 183' }), 'Bundesarchiv, Bild 183')
+    assert.equal(attribution({ artist: '', credit: 'Bundesarchiv, Bild 183' }), 'Bundesarchiv, Bild 183')
+    assert.equal(attribution({ artist: '   ', credit: ' Bundesarchiv ' }), 'Bundesarchiv')
+  })
+  it('is null, never an empty string, when nobody can be credited', () => {
+    assert.equal(attribution({ artist: '', credit: '  ' }), null)
+    assert.equal(attribution({}), null)
+    assert.equal(attribution(null), null)
+    assert.equal(attribution(undefined), null)
+  })
+})
+
+describe('canShow: no credit or no licence means no picture', () => {
+  const ok = { file_name: 'File:Senna 1988.jpg', artist: 'Someone', licence: 'CC BY-SA 3.0' }
+  it('shows a file with a name, someone to credit and a licence', () => {
+    assert.equal(canShow(ok), true)
+  })
+  it('accepts a credit in place of an artist, as the build does', () => {
+    assert.equal(canShow({ ...ok, artist: '', credit: 'Bundesarchiv' }), true)
+  })
+  it('fails closed on a blank or whitespace licence', () => {
+    assert.equal(canShow({ ...ok, licence: '' }), false)
+    assert.equal(canShow({ ...ok, licence: '   ' }), false)
+    assert.equal(canShow({ ...ok, licence: null }), false)
+  })
+  it('fails closed with nobody to credit', () => {
+    assert.equal(canShow({ ...ok, artist: '', credit: '' }), false)
+    assert.equal(canShow({ ...ok, artist: undefined }), false)
+  })
+  it('fails closed without a file name, and on no row at all', () => {
+    assert.equal(canShow({ ...ok, file_name: '' }), false)
+    assert.equal(canShow(null), false)
+    assert.equal(canShow(undefined), false)
+  })
+})
+
+describe('thumbUrl and fileTitle: the file name is the only thing stored', () => {
+  it('strips the File: prefix, underscores the spaces and encodes the rest', () => {
+    assert.equal(
+      thumbUrl('File:Ayrton Senna 1988 (Canada).jpg', 640),
+      'https://commons.wikimedia.org/wiki/Special:FilePath/Ayrton_Senna_1988_(Canada).jpg?width=640',
+    )
+    assert.equal(thumbUrl('Nürburgring.jpg').includes('N%C3%BCrburgring.jpg?width=800'), true)
+  })
+  it('is null for no file name rather than a URL to nothing', () => {
+    assert.equal(thumbUrl(''), null)
+    assert.equal(thumbUrl(null), null)
+    assert.equal(thumbUrl('File:'), null)
+  })
+  it('captions with the name a person would read', () => {
+    assert.equal(fileTitle('File:Ayrton_Senna_1988.jpg'), 'Ayrton Senna 1988.jpg')
+    assert.equal(fileTitle(undefined), '')
   })
 })
