@@ -29,15 +29,18 @@ for f in $(git diff --name-only origin/main...HEAD -- '*.js' '*.mjs' '*.jsx' 2>/
   d=$(grep -E "^import |^\} from " "$f" | grep -vE '^import \{$' | sort | uniq -d)
   [ -n "$d" ] && { say FAIL "$f repeats an import: $d"; fail=1; }
 done
-# 4. the backlog: the item is landed once, open nowhere, one Declined heading
+# 4. the queue: the item is one open issue, and the PR (once it exists) closes it
 if [ -n "$item" ]; then
-  o=$(grep -c "^- \[ \] \`$item\`" docs/BACKLOG.md); l=$(grep -c "^- \[x\] \`$item\`" docs/BACKLOG.md)
-  if [ "$o" = 0 ] && [ "$l" = 1 ]; then say ok "$item landed once, open nowhere"; else say FAIL "$item: $o open, $l landed"; fail=1; fi
+  n=$(gh issue list --state open --search "\"$item:\" in:title" --json number,title --jq "[.[] | select(.title | startswith(\"$item: \"))] | .[0].number" 2>/dev/null)
+  if [ -z "$n" ] || [ "$n" = null ]; then say FAIL "$item is not an open issue (landed, declined, or never filed - next.py $item)"; fail=1
+  else
+    say ok "$item is issue #$n"
+    body=$(gh pr view --json body --jq .body 2>/dev/null)
+    if [ -z "$body" ]; then say WARN "no PR yet for this branch - its body must carry 'Closes #$n' on its own line"
+    elif printf '%s\n' "$body" | grep -qiE "^(closes|fixes|resolves) #$n\b"; then say ok "the PR closes #$n"
+    else say FAIL "the PR body does not close #$n ('Closes #$n' on its own line)"; fail=1; fi
+  fi
 fi
-d=$(grep -c '^## Declined' docs/BACKLOG.md); [ "$d" = 1 ] && say ok "one Declined heading" || { say FAIL "$d Declined headings"; fail=1; }
-# a bold subsection heading (a line that is only **...**) must follow a blank line
-bad=$(awk 'prev != "" && /^\*\*[^*]+\*\*$/ {print NR": "$0} {prev=$0}' docs/BACKLOG.md)
-[ -n "$bad" ] && { say FAIL "a bold subsection heading in BACKLOG follows a non-blank line: $bad"; fail=1; } || say ok "backlog headings are paragraphs"
 # 5. generated artefacts moved only if the change touches what generates them
 arts=$(git diff --name-only origin/main...HEAD -- f1.db f1-geometry.db f1_compat.json README.md docs/COMMERCIAL-READINESS.md | tr '\n' ' ')
 src=$(git diff --name-only origin/main...HEAD -- build.py schema.sql data harvest tools export_json.py verify.py | wc -l | tr -d ' ')

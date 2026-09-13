@@ -257,6 +257,16 @@ class AgentAndSkillFrontmatterIsWellFormed(unittest.TestCase):
             self.assertIn("maxTurns", fm, f"{name}: the loop's reviewers carry maxTurns")
             self.assertIn("effort", fm, f"{name}: the loop's reviewers carry effort")
 
+    def test_the_queue_is_issues_and_nothing_in_the_tree(self):
+        # The queue moved from docs/BACKLOG.md to GitHub Issues on 2026-09-13
+        # (PM-37, and the maintainer's decision the same day). A backlog file
+        # reappearing, or the rules and the loop's skills naming one, is a
+        # second queue, which the rules forbid. docs/LANDED.md is the archive
+        # and the scripts' docstrings may say where the queue used to be.
+        self.assertFalse(os.path.exists("docs/BACKLOG.md"), "docs/BACKLOG.md is back: the queue is GitHub Issues")
+        for rel in ["CLAUDE.md", ".claude/skills/backlog-loop/precheck.sh"] + self.skills():
+            self.assertNotIn("BACKLOG.md", read(rel), f"{rel} names a backlog file; the queue is GitHub Issues")
+
     def test_no_command_shadows_a_skill(self):
         # Skills win over a command of the same name, so the command is dead
         # text that still reads as if it ran; /backlog-loop had one until PM-36.
