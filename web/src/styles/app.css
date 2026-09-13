@@ -482,9 +482,10 @@ main {
 
 /* No lit edge on the tile. The mockups drew a 22x2 accent bar on each one to
    say "instrument reading, not a card", and it broke the rule tokens.css sets
-   for the accent: eight red marks on a page carrying no action, and on a
-   Ferrari page indistinguishable from rosso corsa (1.002:1). The hairline grid
-   and the mono label already say what the bar said (VD-26). */
+   for the accent: eight red marks on a driver page where the mark carries no
+   action, and on a Ferrari page indistinguishable from rosso corsa (1.002:1
+   in light; 1.76:1 in dark). The hairline grid and the mono label already say
+   what the bar said (VD-26). */
 .stats > div {
   flex: 1 1 150px;
   background: var(--panel);
