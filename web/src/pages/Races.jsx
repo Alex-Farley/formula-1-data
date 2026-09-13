@@ -5,19 +5,58 @@ import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { Chips, Filters, SearchField, Select } from '../components/Filters.jsx'
 import { useQuery } from '../data/useQuery.js'
+import { NOT_YET_RUN, SHARED, SPRINT } from '../lib/site.js'
+import { RACES, RACE_COLUMNS, RACES_FOOTER } from '../queries/races.js'
 
-const SQL = `
-  SELECT rr.year, rr.round, rr.gp_name, rr.gp_id, rr.circuit_id, c.name AS circuit, c.country,
-         rr.winner, rr.winner_id, rr.co_winner_id, rr.constructor, rr.constructor_id,
-         rr.pole, rr.pole_id, rr.fastest_lap, rr.fastest_lap_id, r.status, r.sprint
-    FROM race_results rr
-    JOIN races r ON r.id = rr.id
-    LEFT JOIN circuits c ON c.id = rr.circuit_id
-   ORDER BY rr.year DESC, rr.round DESC
-`
+/**
+ * The React renders for the columns queries/races.js defines — the links
+ * and the tags; the router is the reason they live here. The words each cell
+ * carries are the column's own `text`, which scripts/prerender.js prints too,
+ * so the static list is this one.
+ */
+const APP = {
+  year: { render: (year) => <Link to={`/seasons/${year}`}>{year}</Link> },
+  gp_name: {
+    render: (name, row) => (
+      <>
+        <Link to={`/races/${row.year}/${row.round}`}>{name}</Link>
+        {row.sprint ? ' ' : ''}
+        {row.sprint ? <span className="tag">{SPRINT}</span> : null}
+      </>
+    ),
+  },
+  circuit: {
+    render: (name, row) => (row.circuit_id ? <Link to={`/circuits/${row.circuit_id}`}>{name}</Link> : cell(name)),
+  },
+  winner: {
+    render: (name, row) =>
+      row.status !== 'completed' ? (
+        <span className="tag">{NOT_YET_RUN}</span>
+      ) : row.winner_id ? (
+        <>
+          <Link to={`/drivers/${row.winner_id}`}>{name}</Link>
+          {row.co_winner_id ? ' ' : ''}
+          {row.co_winner_id ? <span className="tag">{SHARED}</span> : null}
+        </>
+      ) : (
+        cell(name)
+      ),
+  },
+  constructor: {
+    render: (name, row) =>
+      row.constructor_id ? <Link to={`/constructors/${row.constructor_id}`}>{name}</Link> : cell(name),
+  },
+  pole: {
+    render: (name, row) => (row.pole_id ? <Link to={`/drivers/${row.pole_id}`}>{name}</Link> : cell(name)),
+  },
+  fastest_lap: {
+    render: (name, row) =>
+      row.fastest_lap_id ? <Link to={`/drivers/${row.fastest_lap_id}`}>{name}</Link> : cell(name),
+  },
+}
 
 export default function Races() {
-  const state = useQuery(SQL)
+  const state = useQuery(RACES)
   const [term, setTerm] = useState('')
   const [decade, setDecade] = useState('')
   const [status, setStatus] = useState('')
@@ -92,74 +131,15 @@ function RaceList({ rows, term, setTerm, decade, setDecade, status, setStatus })
         />
       </Filters>
 
+      {/* The rows come in the query's order — run first, newest first, then
+          the rounds still to come — and the table keeps it. */}
       <DataTable
         rows={filtered}
         rowKey={(row) => `${row.year}-${row.round}`}
         sortable={false}
         page={120}
-        columns={[
-          {
-            key: 'year',
-            label: 'Season',
-            align: 'num',
-            render: (year) => <Link to={`/seasons/${year}`}>{year}</Link>,
-          },
-          { key: 'round', label: 'R', align: 'num' },
-          {
-            key: 'gp_name',
-            label: 'Grand Prix',
-            render: (name, row) => (
-              <>
-                <Link to={`/races/${row.year}/${row.round}`}>{name}</Link>
-                {row.sprint ? <span className="tag" style={{ marginLeft: 6 }}>sprint</span> : null}
-              </>
-            ),
-          },
-          {
-            key: 'circuit',
-            label: 'Circuit',
-            render: (name, row) =>
-              row.circuit_id ? <Link to={`/circuits/${row.circuit_id}`}>{name}</Link> : cell(name),
-          },
-          {
-            key: 'winner',
-            label: 'Winner',
-            render: (name, row) =>
-              row.status !== 'completed' ? (
-                <span className="tag">not yet run</span>
-              ) : row.winner_id ? (
-                <>
-                  <Link to={`/drivers/${row.winner_id}`}>{name}</Link>
-                  {row.co_winner_id ? <span className="tag" style={{ marginLeft: 6 }}>shared</span> : null}
-                </>
-              ) : (
-                cell(name)
-              ),
-          },
-          {
-            key: 'constructor',
-            label: 'Car',
-            render: (name, row) =>
-              row.constructor_id ? (
-                <Link to={`/constructors/${row.constructor_id}`}>{name}</Link>
-              ) : (
-                cell(name)
-              ),
-          },
-          {
-            key: 'pole',
-            label: 'Pole',
-            render: (name, row) =>
-              row.pole_id ? <Link to={`/drivers/${row.pole_id}`}>{name}</Link> : cell(name),
-          },
-          {
-            key: 'fastest_lap',
-            label: 'Fastest lap',
-            render: (name, row) =>
-              row.fastest_lap_id ? <Link to={`/drivers/${row.fastest_lap_id}`}>{name}</Link> : cell(name),
-          },
-        ]}
-        footer="“Shared” marks a race two drivers are both classified as winning, which was normal before 1958. A row tagged “not yet run” is a calendar entry with no result."
+        columns={RACE_COLUMNS.map((column) => ({ ...column, ...APP[column.key] }))}
+        footer={RACES_FOOTER}
       />
     </>
   )

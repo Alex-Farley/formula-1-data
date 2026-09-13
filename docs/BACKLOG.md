@@ -148,14 +148,18 @@ is independent.
       `entries` and `starts`, so the register's two empty columns and the
       static/app mismatch are one fix seen from two ends. —
       *product critique · M*
-      **Now seven riders**, all the same defect on other faces: `VD-01` (the
-      static half is a *different design*, 126 lines of its own CSS), `UR-06`
-      (no prerendered page carries the version or build date), `UR-13` (the
-      2026 season's static page opens with five em dashes), `AX-17` (no static
-      table has a caption), plus `CD-04`, `IA-03` and `PD-06` as before.
+      **Four riders remain**, all the same defect on other faces: `VD-01`
+      (the static half is a *different design*, 126 lines of its own CSS),
+      `AX-17` (no static table has a caption), `CD-04` and `IA-03`. `UR-06`,
+      `UR-13` and `PD-06` were riders and have landed (#64, #69, `6a3269d`).
       **Rung one landed in #77**: drivers register, driver page, records share
-      their queries and column lists with the prerenderer; the other pages
-      follow.
+      their queries and column lists with the prerenderer. **Rung two landed
+      in #102**: the seasons list, the season page (calendar, both standings
+      tables, who entered) and the races list read `queries/seasons.js`,
+      `season.js` and `races.js`; the static tables carry the app's footers;
+      `smoke.mjs` asserts static against app on seven more tables and for the
+      season in progress asks for the heading the shared rule computes. Still
+      to follow: the race, constructor, circuit, car and data pages.
 
 - [ ] `AF-03` **Draw every layout the championship has raced on, from F1DB.**
       F1DB (source 10, CC BY 4.0) ships an SVG outline for each of its 160
@@ -179,23 +183,6 @@ is independent.
       *Circuit outlines from F1DB (CC BY 4.0), drawn by Jules Roy* — in the
       footer and on `/data/sources`. Pointed out by the maintainer,
       2026-09-13. — *yours · M, in three S*
-
-- [ ] `IA-17` **The season in progress is labelled as concluded.**
-      `/seasons/2026`, 13 of 23 rounds run: *How the title was decided*,
-      *Final drivers' standings*, *Final constructors' standings*
-      (`Season.jsx:254`, `:325`, `:348`), directly under a stat strip that
-      says *Leads · Antonelli · 267* and gets it right. On `/seasons` the 2026
-      row is seven em dashes, so the live season renders as a data gap on a
-      site whose footer says it never blurs *unknown* with *not yet*; on
-      `/races` the default order puts ten unrun races above the last one run;
-      the one hourly-changing sentence — *Next session … in 9 hours* — is an
-      unstyled paragraph below the tiles. Branch the three headings on whether
-      any round is still `scheduled` (*The title race*, *Drivers' standings
-      after round 13*); give the live row on `/seasons` leader, points and
-      rounds run with a *so far* mark; sort `/races` run-first; set the next
-      session as a tile. Found by three critics independently (`IA`, `VD`
-      finding 1, `PD-28`'s defect half). — *IA critique · S*
-      **2026-09-13 re-rank:** `UR-13` — the 2026 season's *static* page opens with five em dashes, a rider of `PD-02` — is the same defect in the other renderer; fix both from one expression.
 
 - [ ] `VD-26` **The accent is not reserved, and the racing colour collides
       with it.** `tokens.css` says one red means *you can act on this* and is
@@ -2007,6 +1994,21 @@ Real, but not costed, or waiting on a decision.
       entry and its open line removed in the 2026-09-13 re-rank; the merge
       helper's duplicate check is the guard from here. — *review of #98 ·
       [#100](https://github.com/Alex-Farley/formula-1-data/pull/100)*
+
+- [x] `IA-17` **The season in progress is labelled as concluded.** The
+      headings turn on whether a round is still scheduled — *The title race*
+      and *Drivers' standings after round 13* while one is, *How the title
+      was decided* and *Final drivers' standings* once none is — from one
+      rule in `queries/season.js` that the app, the prerenderer and the smoke
+      test all read, so the static page fixed itself in the same change
+      (`UR-13`'s other renderer). On `/seasons` the live row carries its
+      leader, the leader's points and wins so far, the driver second, the gap
+      and *13 of 23* rounds, each marked *so far*, from `queries/seasons.js`;
+      `/races` opens on the last race run, the rounds to come following every
+      race that has been; the next session is a tile among the others, and
+      only in the app, since only a browser knows how long until it. Rung two
+      of `PD-02` shipped with it, because the fix and the sharing were one
+      edit. — *IA critique · #102*
 
 ## Declined
 

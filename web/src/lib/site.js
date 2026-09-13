@@ -8,6 +8,16 @@
  */
 export const SITE = 'Lap Ledger'
 
+/**
+ * The marks a table cell carries beside a name, in the words both renderers
+ * use. The app sets each as a tag; the static page prints the same word, so
+ * a crawler and a reader are told the same thing (PD-02, IA-17).
+ */
+export const NOT_YET_RUN = 'not yet run'
+export const SPRINT = 'sprint'
+export const SHARED = 'shared'
+export const SO_FAR = 'so far'
+
 export const titled = (headline) => `${headline} — ${SITE}`
 
 /**

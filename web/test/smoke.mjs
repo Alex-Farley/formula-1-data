@@ -30,6 +30,10 @@ import { DatabaseSync } from 'node:sqlite'
 import { dirname, join } from 'node:path'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+// The heading rule and the cell marks both renderers share, so the checks
+// below ask for the strings the pages compute rather than copies of them.
+import { standingsHeading, titleHeading } from '../src/queries/season.js'
+import { NOT_YET_RUN, SO_FAR } from '../src/lib/site.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const web = join(here, '..')
@@ -371,7 +375,7 @@ try {
   console.log('\n/seasons/2026  (one row per driver in the final table)')
   await go('/seasons/2026', '2026')
   const finalRows = await page.$$eval('#root main table', (tables) => {
-    const t = tables.find((el) => el.closest('section')?.querySelector('h2')?.textContent.includes("drivers' standings"))
+    const t = tables.find((el) => el.closest('section')?.querySelector('h2')?.textContent.toLowerCase().includes("drivers' standings"))
     return t ? t.querySelectorAll('tbody tr').length : -1
   })
   is(
@@ -386,7 +390,7 @@ try {
   const leader = one(`SELECT entity_id FROM v_standings_final
                        WHERE year = 2026 AND table_type = 'drivers' ORDER BY position LIMIT 1`)
   const leaderPoints = await page.$$eval('#root main table', (tables) => {
-    const t = tables.find((el) => el.closest('section')?.querySelector('h2')?.textContent.includes("drivers' standings"))
+    const t = tables.find((el) => el.closest('section')?.querySelector('h2')?.textContent.toLowerCase().includes("drivers' standings"))
     const cells = [...(t?.querySelector('tbody tr')?.querySelectorAll('td') ?? [])].map((c) => c.textContent.trim())
     return cells
   })
@@ -1005,10 +1009,21 @@ try {
         html.includes(lead.entity) && !html.includes('Runner-up'),
         'the static page leads with the leader rather than an empty champion',
       )
-      const section = html.slice(html.indexOf('Championship standings after round'))
+      const after = one("SELECT MAX(after_round) FROM standings WHERE year = ? AND table_type = 'drivers'", open.year)
+      const heading = standingsHeading("Drivers'", true, after)
+      const from = html.indexOf(`<h2>${heading.replace(/'/g, '&#39;')}</h2>`)
+      truthy(from > 0, `the static page heads the table “${heading}”`)
+      const section = html.slice(from, html.indexOf('</table>', from))
       const listed = (section.match(/<tr[\s>]/g) ?? []).length - 1
       const rows = one("SELECT COUNT(*) FROM v_standings_final WHERE year = ? AND table_type = 'drivers'", open.year)
-      is(listed, Math.min(rows, 12), 'the static standings table lists each driver once')
+      is(listed, rows, 'the static standings table lists each driver once')
+      // IA-17: a season with rounds still to run is not headed as concluded,
+      // in either renderer - the strip above said "Leads" and got it right.
+      truthy(
+        stats.includes(titleHeading(true)) && !stats.includes('Final drivers') && !stats.includes(titleHeading(false)),
+        'the app heads the season in progress as a title race still running',
+      )
+      truthy(!html.includes(titleHeading(false)) && !html.includes('Final drivers'), 'so does the static page')
     }
   }
 
@@ -1119,7 +1134,12 @@ try {
     if (future > 0) {
       await go('/seasons/2026', '2026')
       const season = await page.$eval('#root main', (m) => m.textContent)
-      truthy(season.includes('Next session:') && season.includes('at the circuit'), 'the season page names the next session, computed in the browser')
+      // A tile among the others (IA-17): the session, and how long until it.
+      const tile = season.match(/Next session.{0,80}/)?.[0] ?? 'no tile'
+      truthy(
+        season.includes('Next session') && /\bin (under a minute|\d+ (minutes?|hours|days))/.test(tile),
+        `the season page sets the next session as a tile, computed in the browser — ${tile}`,
+      )
     }
   }
 
@@ -1587,7 +1607,8 @@ try {
     // The first table after the h2 given, or the page's first table: its
     // headers, and its first two rows.
     const staticTable = (html, heading) => {
-      const from = heading ? html.indexOf(`<h2>${heading}</h2>`) : 0
+      // prerender.js escapes the apostrophe in "Drivers' standings".
+      const from = heading ? html.indexOf(`<h2>${heading.replace(/&/g, '&amp;').replace(/'/g, '&#39;')}</h2>`) : 0
       if (from < 0) return null
       const start = html.indexOf('<table>', from)
       const end = html.indexOf('</table>', start)
@@ -1646,6 +1667,33 @@ try {
     await same('/drivers/hamilton', 'Hamilton', 'Season by season')
     await same('/drivers/amon', 'Chris Amon', 'Season by season')
     await same('/records', 'Records')
+
+    // Rung two: the seasons list, a season's calendar and its two standings
+    // tables - headed by the shared rule, so the check asks for the heading
+    // the season in progress actually gets - and the races list.
+    const open = db.prepare('SELECT year FROM seasons WHERE drivers_champion IS NULL ORDER BY year DESC LIMIT 1').get()
+    await same('/seasons', 'Seasons')
+    if (open) {
+      const first = (await appTable(null))?.rows[0]?.join(' | ') ?? ''
+      truthy(
+        first.startsWith(String(open.year)) && first.includes(SO_FAR),
+        `the season in progress opens /seasons with its leader, marked “${SO_FAR}”`,
+      )
+      const after = one("SELECT MAX(after_round) FROM standings WHERE year = ? AND table_type = 'drivers'", open.year)
+      await same(`/seasons/${open.year}`, String(open.year), 'The calendar')
+      await same(`/seasons/${open.year}`, String(open.year), standingsHeading("Drivers'", true, after))
+      await same(`/seasons/${open.year}`, String(open.year), standingsHeading("Constructors'", true, after))
+    }
+    const done = one('SELECT MAX(year) FROM seasons WHERE drivers_champion IS NOT NULL')
+    await same(`/seasons/${done}`, String(done), 'The calendar')
+    await same(`/seasons/${done}`, String(done), standingsHeading("Drivers'", false))
+    await same(`/seasons/${done}`, String(done), 'Who entered')
+    await same('/races', 'Races')
+    {
+      // Run first: the list opens on the last race run, not the next one scheduled.
+      const first = (await appTable(null))?.rows[0]?.join(' | ') ?? ''
+      truthy(first && !first.includes(NOT_YET_RUN), 'the races list opens on the last race run')
+    }
   }
 
   // ------------------------------------------------------- console cleanliness
