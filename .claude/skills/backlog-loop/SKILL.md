@@ -43,15 +43,18 @@ Two words, either order, both optional.
 
 1. Write one line: `Loop: <target> at <pace>.` Nothing else before the fork.
 2. Invoke the Skill tool: skill `backlog-item`, args `<pace> <target>`
-   where target is `next` or the item id. Do not do any of the fork's work
+   where target is `next` or the item id, followed by `--skip <ids>` when
+   this run has skipped any. Do not do any of the fork's work
    here, and do not read the backlog to "check" first - `next.py` inside
    the fork does that for a few hundred tokens.
 3. Read the **first line** of the result and act on it:
    - `MERGED #<N> <ID>`: with `until-paused`, go to step 2 with `next`;
      otherwise stop and print the stock-take the fork returned.
    - `SKIPPED <ID>: <reason>`: the fork recorded an ordinary blocker in the
-     backlog and left the repository clean. With `until-paused`, go to
-     step 2 with `next`. Two consecutive skips stop the loop: a blocker that
+     backlog and left the repository clean. Add the id to this run's skip
+     list; with `until-paused`, go to step 2 with `next --skip <the list>`,
+     so the next fork passes over it rather than meeting it again. Two
+     consecutive skips of different items stop the loop: a blocker that
      hits two unrelated items is the environment, not the items.
    - `STOP: <reason>`: a stop condition or a person's decision. Stop; print
      the stock-take.

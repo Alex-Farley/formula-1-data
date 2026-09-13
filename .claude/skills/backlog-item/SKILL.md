@@ -16,7 +16,12 @@ the driver, which sees only its first line and a five-line stock-take, so
 end exactly as *The result* says below.
 
 Arguments: a pace - `fast`, `balanced` or `thorough`, default `balanced` -
-and a target - `next` or an item id, default `next`. Before starting, run
+and a target - `next` or an item id, default `next` - optionally followed by
+`--skip A,B`, the ids this run has already skipped. This skill is
+model-invocable because the driver has to invoke it; it is not for a
+session to pick up from its description. If you were not invoked by the
+`backlog-loop` driver or by a person typing `/backlog-item`, return
+`STOP: not invoked by the loop` and do nothing. Before starting, run
 `gh pr list --state open` and `git worktree list`: an open `claude/` PR or
 a leftover worktree from a fork the limit ended is finished first, from
 where it stopped.
@@ -26,7 +31,15 @@ where it stopped.
 1. `python3 .claude/skills/backlog-loop/next.py` prints the first open item
    in the queue's own order, with its section and the open decisions to
    work around; `next.py <ID>` prints one item; `next.py --list Now` prints
-   one line per open item in a section, for batching. **Never read the
+   one line per open item in a section, for batching; `--skip A,B` passes
+   over ids the driver names. The order is the file's: *Now* before *Next*
+   before *Someday*, top to bottom. Within a section a person has ranked by
+   hand (*Now* and *Next*, since #100) that is the whole rule. In a
+   section nobody has ranked - a subsection filed straight from a critique
+   - the tiebreak stands: correctness before integrity and licensing,
+   functional, security, architecture, accessibility, UX, throughput; read
+   `--list` for that section, choose, and say in the PR why that item came
+   first. **Never read the
    backlog file itself** to find an item: it is 145 KB, half of it history,
    and reading it in slices is what filled the driving context before this
    skill existed. Open the file only to edit it.
@@ -156,8 +169,9 @@ The agent returns exactly `PASS — safe to merge` or `FAIL — changes required
   a test or the removal of dead code may merge without a further pass, named
   in the PR comment. Anything else that changes code, data or a check before
   merge is confirmed.
-- Silence, a rate limit, a reviewer that hit its turn cap or an unavailable
-  account is not a PASS. If the agent dies on a session limit, relaunch
+- Silence, a rate limit, a reviewer that hit its turn cap, a quick-variant
+  verdict without its `Applied:` line, or an unavailable account is not a
+  PASS. If the agent dies on a session limit, relaunch
   after the reset.
 - Record the verdict as a PR comment (reviewer and model, verdict, the FAIL
   rounds in one line each), then `gh pr merge N --merge` only with the PASS
@@ -217,7 +231,7 @@ The last thing you write is the result the driver reads. Its first line is
 exactly one of:
 
     MERGED #<N> <ID>
-    SKIPPED <ID>: <reason in one clause>
+    SKIPPED <ID>: <reason in one clause>      (the driver passes the id to the next fork's --skip)
     STOP: <reason in one clause>
     LIMIT: resets <time as the limit message gave it>
 
