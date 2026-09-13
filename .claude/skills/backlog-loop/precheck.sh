@@ -32,7 +32,9 @@ if [ -n "$item" ]; then
   if [ "$o" = 0 ] && [ "$l" = 1 ]; then say ok "$item landed once, open nowhere"; else say FAIL "$item: $o open, $l landed"; fail=1; fi
 fi
 d=$(grep -c '^## Declined' docs/BACKLOG.md); [ "$d" = 1 ] && say ok "one Declined heading" || { say FAIL "$d Declined headings"; fail=1; }
-grep -nB1 '^\*\*[A-Z][a-z ]*\*\*$' docs/BACKLOG.md | grep -E '^[0-9]+-\s*\S' | grep -v '^\S*-$' >/dev/null && { say FAIL "a bold subsection heading in BACKLOG follows a non-blank line"; fail=1; } || say ok "backlog headings are paragraphs"
+# a bold subsection heading (a line that is only **...**) must follow a blank line
+bad=$(awk 'prev != "" && /^\*\*[^*]+\*\*$/ {print NR": "$0} {prev=$0}' docs/BACKLOG.md)
+[ -n "$bad" ] && { say FAIL "a bold subsection heading in BACKLOG follows a non-blank line: $bad"; fail=1; } || say ok "backlog headings are paragraphs"
 # 5. generated artefacts moved only if the change touches what generates them
 arts=$(git diff --name-only origin/main...HEAD -- f1.db f1-geometry.db f1_compat.json README.md docs/COMMERCIAL-READINESS.md | tr '\n' ' ')
 src=$(git diff --name-only origin/main...HEAD -- build.py schema.sql data harvest tools export_json.py verify.py | wc -l | tr -d ' ')

@@ -51,8 +51,9 @@ as `next`. The section order is a person's ranking and is not overridden.
 
 Run `bash .claude/skills/backlog-loop/precheck.sh <ITEM-ID>` from the
 worktree root. It refuses conflict markers, scripts that do not parse,
-duplicated imports, a backlog entry that is open and landed at once, a broken
-subsection heading, and artefacts that moved without a reason. Half the FAIL
+duplicated imports, a backlog entry that is open and landed at once and a
+broken subsection heading, and warns about an artefact that moved without a
+source change or a commit that does not name the item. Half the FAIL
 rounds of the 2026-09-12 run were one of these; a reviewer pass costs
 40,000-130,000 tokens and this costs a few hundred.
 
