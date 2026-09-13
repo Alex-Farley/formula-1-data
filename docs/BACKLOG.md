@@ -446,6 +446,13 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
 
 - [ ] `PD-25` **The disagreements claim should be the live figures, not a typed sentence.** It read "45 found, 44 resolved, one open" when the table held 54 rows, 10 of them open — nine the 2026 points rows the next refresh moves, one the 1970 fastest lap — and, after #89, 56 rows with seven explained: five an external figure older than the race, two a career span each side reads rightly. Take `CD-07`'s claim from `discrepancies` at build time, by status. The second `PD-25`, the `/records` holder links, is `PD-26` now. — *product critique · S*
 
+- [ ] `PD-27` **The champions, decade and constructor leaderboards on
+      `/records` are names, not links.** `v_title_count`, `v_wins_by_decade`
+      and `v_wins_by_constructor` carry `full_name`/`name` and no id; add the
+      id to each view (a schema change, so a rebuild) and link the name the
+      way the wins and poles tables do since #96. Split from `PD-26`. —
+      *review of #96 · S*
+
 **Visual design**
 
 - [ ] `VD-01` **The static half is a different design.** 126 lines of `#prerendered` CSS, a second `h1` treatment, tiles versus a key/value table. Rides with `PD-02`: emit the components' shapes, not just their numbers. — *visual critique · M*
@@ -466,14 +473,6 @@ Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09
       `article_images` would make it one. A harvest change with a check that
       the stored URL still resolves. Split from `VD-20`. — *visual critique ·
       S*
-
-- [ ] `PD-26` **`/records` holders are names, not links.** The derived
-      records carry `holder_id` and `holder_table` (#68) and the page renders
-      the holder as text; the driver-wins and champions tables on the same
-      page do the same with `driver_id`. Link every holder that resolves —
-      drivers, constructors, circuits; a race holder needs `year`/`round`,
-      not the row id — and leave shared records as text. Found by the review
-      of #68. — *product critique · S*
 
 - [ ] `CD-19` **Eighteen driver ledes still spell a figure the strip
       derives** ("Ten wins", "Eight wins"); `verify.py`'s check (#70) stops
@@ -1669,6 +1668,14 @@ Real, but not costed, or waiting on a decision.
       year as a first-season row's are against MIN. No row needed it today.
       — *review of #81 · #93*
 
+- [x] `PD-26` **`/records` holders are links.** `holderPath()` in the
+      shared records module resolves a driver, constructor, circuit or race
+      holder to its page — a race by year and round, which the query now
+      carries — and both renderers link it; a shared record, which names
+      two holders and carries no id, stays text. The wins and poles
+      leaderboards link their drivers as well; the champions, decade and
+      constructor tables are `PD-27`, because their views carry no id. —
+      *product critique · #96*
 - [x] `CD-27` **The aside and the strip agree: the register's figure is
       "published".** The explained aside says "the published span and the
       one the race records give differ", from a footer string both renderers

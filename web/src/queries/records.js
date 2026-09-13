@@ -11,7 +11,36 @@
  * See queries/drivers.js for what a column's `text` is.
  */
 
-export const RECORDS = `SELECT * FROM records ORDER BY category, id`
+// A race holder is stored by races.id; the page needs year and round to
+// link it, so they ride along (NULL for every other holder).
+export const RECORDS = `
+  SELECT rec.*, ra.year AS race_year, ra.round AS race_round
+    FROM records rec
+    LEFT JOIN races ra ON rec.holder_table = 'races' AND ra.id = CAST(rec.holder_id AS INTEGER)
+   ORDER BY rec.category, rec.id
+`
+
+/**
+ * Where a record's holder has a page: the path without its leading slash,
+ * or null for a holder the page cannot resolve - a shared record names two
+ * or more holders and carries no holder_id, and stays text (PD-26). The
+ * app prefixes the slash for its router; the prerenderer's link() adds it.
+ */
+export function holderPath(row) {
+  if (!row.holder_id) return null
+  switch (row.holder_table) {
+    case 'drivers':
+      return `drivers/${row.holder_id}`
+    case 'constructors':
+      return `constructors/${row.holder_id}`
+    case 'circuits':
+      return `circuits/${row.holder_id}`
+    case 'races':
+      return row.race_year && row.race_round ? `races/${row.race_year}/${row.race_round}` : null
+    default:
+      return null
+  }
+}
 
 export const DRIVER_WINS = `
   SELECT e.driver_id, d.full_name, COUNT(*) AS wins,

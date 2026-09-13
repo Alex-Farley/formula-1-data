@@ -1076,6 +1076,29 @@ try {
     truthy(html.includes('each right about something') && html.includes('Formula 2'), 'and carries the same explained reading')
   }
 
+  // Record holders link to their pages (PD-26), in both renderers; a shared
+  // record stays text.
+  {
+    const held = db.prepare("SELECT holder, holder_id FROM records WHERE holder_table = 'drivers' AND holder_id IS NOT NULL LIMIT 1").get()
+    const shared = db.prepare("SELECT holder FROM records WHERE holder_id IS NULL LIMIT 1").get()
+    await go('/records', 'Records')
+    const links = await page.$$eval('#root main a[href^="/drivers/"]', (as) => as.map((a) => a.getAttribute('href')))
+    truthy(links.includes(`/drivers/${held.holder_id}`), `the app links ${held.holder} to /drivers/${held.holder_id}`)
+    const html = await (await fetch(`${BASE}/records`)).text()
+    truthy(html.includes(`href="/drivers/${held.holder_id}"`), 'the static page links the same holder')
+    // A positive test: the shared holder's text is in a plain cell, not inside a link.
+    const esc = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+    truthy(shared && html.includes(`<td class="prose">${esc(shared.holder)}</td>`), `a shared record (${shared?.holder}) is text in its own cell, not a link`)
+    // A driver on the wins leaderboard who holds no record: his only link on
+    // the page is the leaderboard's.
+    const leader = db
+      .prepare(
+        'SELECT e.driver_id FROM race_entries e WHERE e.finish_position = 1 AND e.driver_id NOT IN (SELECT holder_id FROM records WHERE holder_id IS NOT NULL) GROUP BY e.driver_id ORDER BY COUNT(*) DESC LIMIT 1',
+      )
+      .get()
+    truthy(links.includes(`/drivers/${leader.driver_id}`), `the wins leaderboard links ${leader.driver_id}, who holds no record`)
+  }
+
   // The weekend timetable (LV-02): a race page carries every session with
   // the circuit's clock and UTC, in the app and the static page, from the
   // same rows.

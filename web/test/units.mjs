@@ -34,6 +34,7 @@ import { BANDS, bandIndex, metresBetween, runsFor, signedArea, stitch } from '..
 import { fold, rank } from '../src/lib/search.js'
 import { trackPath } from '../src/lib/track.js'
 import { DRIVER_COLUMNS } from '../src/queries/drivers.js'
+import { holderPath } from '../src/queries/records.js'
 import { EXPLAINED_FOOTER, OPEN_FOOTER, allExplained } from '../src/lib/disagreement.js'
 import { clock, nextSession, until, utc } from '../src/queries/sessions.js'
 import { SEASON_COLUMNS, derivedAndPublished, pointsDiffer, record, seasonRows, seasonsNote, strip } from '../src/queries/driver.js'
@@ -320,6 +321,17 @@ describe('trackPath', () => {
     assert.equal(trackPath('not json'), null)
     assert.equal(trackPath(ring([])), null)
     assert.equal(trackPath(ring([[P0]])), null)
+  })
+})
+
+describe('record holders', () => {
+  it('links every holder that resolves, and leaves a shared record as text', () => {
+    assert.equal(holderPath({ holder_table: 'drivers', holder_id: 'senna' }), 'drivers/senna')
+    assert.equal(holderPath({ holder_table: 'constructors', holder_id: 'ferrari' }), 'constructors/ferrari')
+    assert.equal(holderPath({ holder_table: 'circuits', holder_id: 'monza' }), 'circuits/monza')
+    assert.equal(holderPath({ holder_table: 'races', holder_id: '142', race_year: 1966, race_round: 1 }), 'races/1966/1')
+    assert.equal(holderPath({ holder_table: 'races', holder_id: '142', race_year: null, race_round: null }), null)
+    assert.equal(holderPath({ holder_table: 'drivers', holder_id: null, holder: 'Michael Schumacher, Sir Lewis Hamilton' }), null)
   })
 })
 

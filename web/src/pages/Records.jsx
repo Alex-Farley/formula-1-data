@@ -22,6 +22,7 @@ import {
   TITLE_COLUMNS,
   TITLES,
   recordColumns,
+  holderPath,
   tierBefore,
   tiersOf, RECORDS_LEDE } from '../queries/records.js'
 
@@ -108,7 +109,17 @@ function Body({ data }) {
           sortable={false}
           page={60}
           columns={recordColumns(records).map((column) =>
-            column.key === 'confidence' ? { ...column, render: (value) => <Confidence value={value} /> } : column,
+            column.key === 'confidence'
+              ? { ...column, render: (value) => <Confidence value={value} /> }
+              : column.key === 'holder'
+                ? {
+                    ...column,
+                    render: (value, row) => {
+                      const path = holderPath(row)
+                      return path ? <Link to={`/${path}`}>{value}</Link> : cell(value)
+                    },
+                  }
+                : column,
           )}
         />
       </Section>
@@ -121,7 +132,7 @@ function Body({ data }) {
             table={{
               rows: driverWins,
               columns: [
-                { key: 'full_name', label: 'Driver' },
+                { key: 'full_name', label: 'Driver', render: (name, row) => <Link to={`/drivers/${row.driver_id}`}>{name}</Link> },
                 { key: 'wins', label: 'Wins', align: 'num' },
                 { key: 'first_win', label: 'First', align: 'num' },
                 { key: 'last_win', label: 'Last', align: 'num' },
@@ -140,7 +151,7 @@ function Body({ data }) {
             table={{
               rows: driverPoles,
               columns: [
-                { key: 'full_name', label: 'Driver' },
+                { key: 'full_name', label: 'Driver', render: (name, row) => <Link to={`/drivers/${row.driver_id}`}>{name}</Link> },
                 { key: 'poles', label: 'Poles', align: 'num' },
               ],
             }}

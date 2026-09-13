@@ -79,7 +79,7 @@ import {
   seasonRows,
   strip,
 } from '../src/queries/driver.js'
-import { RECORDS, TIER_AFTER, recordColumns, tierBefore, tiersOf, RECORDS_LEDE } from '../src/queries/records.js'
+import { RECORDS, TIER_AFTER, holderPath, recordColumns, tierBefore, tiersOf, RECORDS_LEDE } from '../src/queries/records.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const web = join(here, '..')
@@ -1334,6 +1334,10 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
         }</p>
       ${fromColumns(recordColumns(records), records, {
         confidence: (value) => (value ? link('data/quality', value) : text(value)),
+        holder: (value, row) => {
+          const path = holderPath(row)
+          return path ? link(path, value) : text(value)
+        },
       })}`,
   })
 
