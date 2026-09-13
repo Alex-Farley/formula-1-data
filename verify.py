@@ -2095,6 +2095,43 @@ def circuits_and_venues():
     warn("every layout hosted at least one championship race", bad == 0,
          f"{bad} unused layouts")
 
+    # --- the F1DB outlines (AF-03). A drawing of every layout, keyed by
+    # F1DB's id, with circuit_id derived in build.py from the races that ran
+    # it. The trace in circuit_geometry is a different fact and is not
+    # compared with it. The path goes into an attribute on every page that
+    # draws it, so its syntax is checked here as well as at the fetch.
+    completed, undrawn = con.execute("""SELECT COUNT(*), SUM(f1db_layout_id IS NULL)
+        FROM races WHERE status = 'completed'""").fetchone()
+    check("every completed race names the F1DB layout it ran", not undrawn,
+          f"{undrawn} of {completed} without one")
+    sched, sched_undrawn = con.execute("""SELECT COUNT(*), SUM(f1db_layout_id IS NULL)
+        FROM races WHERE status != 'completed'""").fetchone()
+    warn("every scheduled race names the F1DB layout it will run", not sched_undrawn,
+         f"{sched_undrawn} of {sched} without one; F1DB publishes a round's layout "
+         f"with its calendar, so this closes on a refresh")
+    bad = con.execute("""SELECT COUNT(*) FROM races r JOIN circuit_outlines o
+        ON o.f1db_layout_id = r.f1db_layout_id WHERE o.circuit_id <> r.circuit_id""").fetchone()[0]
+    check("no race is drawn with another circuit's outline", bad == 0, f"{bad} races")
+    bad = con.execute("""SELECT COUNT(*) FROM circuit_layouts l JOIN circuit_outlines o
+        ON o.f1db_layout_id = l.f1db_layout_id WHERE o.circuit_id <> l.circuit_id""").fetchone()[0]
+    check("no layout is drawn with another circuit's outline", bad == 0, f"{bad} layouts")
+    bad = [r[0] for r in con.execute("SELECT f1db_layout_id, path FROM circuit_outlines")
+           if not re.fullmatch(harvest_module().SVG_PATH_DATA, r[1] or "")]
+    check("every outline is SVG path data and nothing else", not bad, ", ".join(bad[:5]))
+    bad = con.execute("""SELECT COUNT(*) FROM circuits c WHERE EXISTS
+        (SELECT 1 FROM races r WHERE r.circuit_id = c.id) AND NOT EXISTS
+        (SELECT 1 FROM circuit_outlines o WHERE o.circuit_id = c.id)""").fetchone()[0]
+    check("every circuit that has hosted a race has an outline", bad == 0,
+          f"{bad} circuits without one")
+    bad = con.execute("""SELECT COUNT(*) FROM circuit_outlines o WHERE NOT EXISTS
+        (SELECT 1 FROM races r WHERE r.f1db_layout_id = o.f1db_layout_id)""").fetchone()[0]
+    check("every outline was run by a race here", bad == 0, f"{bad} outlines")
+    outlines, drawn, split = con.execute("""SELECT
+        (SELECT COUNT(*) FROM circuit_outlines),
+        SUM(f1db_layout_id IS NOT NULL), SUM(f1db_layout_id IS NULL) FROM circuit_layouts""").fetchone()
+    print(f"  [info] {outlines} F1DB outlines; {drawn} of this register's {drawn + split} "
+          f"layouts are drawn by one, {split} span several F1DB layouts")
+
     # A Grand Prix that has only ever run at one circuit must not have picked up
     # a second one; the register in data/events.py depends on that staying true.
     bad = con.execute("""SELECT gp_id, COUNT(DISTINCT circuit_id) n,

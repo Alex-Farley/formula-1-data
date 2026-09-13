@@ -1030,6 +1030,13 @@ STANDINGS_FILE = os.path.join(HERE, "..", "harvest", "standings.txt")
 F1DB_PITS_FILE = os.path.join(HERE, "..", "harvest", "f1db_pit_stops.txt")
 RACE_DATES_FILE = os.path.join(HERE, "..", "harvest", "race_dates.txt")
 FASTEST_LAPS_FILE = os.path.join(HERE, "..", "harvest", "fastest_laps.txt")
+OUTLINES_FILE = os.path.join(HERE, "..", "harvest", "circuit_outlines.txt")
+RACE_LAYOUTS_FILE = os.path.join(HERE, "..", "harvest", "race_layouts.txt")
+
+# What an outline may hold: SVG path commands, numbers, separators. The path
+# is written into a `d` attribute on every page that draws it, so anything
+# else is refused at the fetch, at the build and in verify.py.
+SVG_PATH_DATA = r"[MmZzLlHhVvCcSsQqTtAa0-9eE.,\- ]+"
 
 F1DB_SOURCE = "https://github.com/f1db/f1db"
 F1DB_CONFIDENCE = "reference"
@@ -1369,6 +1376,24 @@ def load_fastest_laps():
     discrepancy rather than choosing where the two disagree.
     """
     return _read_named(FASTEST_LAPS_FILE, "tools/f1db_fetch.py")
+
+
+def load_circuit_outlines():
+    """F1DB's drawing of every circuit layout: one SVG path per layout id.
+
+    A drawing, not a measurement - no scale, no position, no direction - and
+    a different fact from the OpenStreetMap trace load_circuit_geometry()
+    returns. CC BY 4.0, so unlike the trace it may live in f1.db. The circuit
+    id on each row is F1DB's, which differs from this register's for ten
+    venues; build.py derives the register's from the races that ran the
+    layout and never reads it from here.
+    """
+    return _read_named(OUTLINES_FILE, "tools/f1db_fetch.py")
+
+
+def load_race_layouts():
+    """The F1DB layout id each race ran, keyed by year and round."""
+    return _read_named(RACE_LAYOUTS_FILE, "tools/f1db_fetch.py")
 
 
 def load_circuit_geometry():

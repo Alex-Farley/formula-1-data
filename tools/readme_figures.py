@@ -168,6 +168,12 @@ class Figures:
     def layout_circuits(self):
         return n(self.one("SELECT COUNT(DISTINCT circuit_id) FROM circuit_layouts WHERE by_year = 1"))
 
+    def circuit_outlines(self):
+        return n(self.count("circuit_outlines"))
+
+    def outline_circuits(self):
+        return n(self.one("SELECT COUNT(DISTINCT circuit_id) FROM circuit_outlines"))
+
     def cars(self):
         return n(self.count("cars"))
 

@@ -2356,7 +2356,7 @@ def _stage_33_rule_two_resolve_through_the_driver(b):
           f"{filled_cons} filled, {filled_chassis} chassis resolved by round")
 
 
-def _stage_34_link_race_entries_to_the_curated(b):
+def _stage_35_link_race_entries_to_the_curated(b):
     """link race entries to the curated car that scored them"""
     con = b.con
     cur = b.cur
@@ -2940,6 +2940,107 @@ def _stage_28_race_dates_and_the_fastest_lap_where(b):
 
 
 
+def _stage_34_circuit_outlines_from_f1db(b):
+    """circuit outlines: F1DB's drawing of every layout, and the layout each race ran"""
+    cur = b.cur
+
+    # --- the layout each race ran, and the outline of every layout
+    #
+    # Two files from the same fetch. race_layouts.txt names the F1DB layout
+    # each race ran; circuit_outlines.txt carries one SVG path per layout.
+    # F1DB's circuit ids are not this register's - ten venues are spelt
+    # differently and its one `nurburgring` is three circuits here - so an
+    # outline's circuit_id is never read from F1DB. It is derived from the
+    # races that ran the layout, which already carry the register's
+    # circuit_id from the venue harvest, and a layout whose races sit at two
+    # circuits here is refused rather than guessed.
+    #
+    # The outline is a drawing and the trace in circuit_geometry is a
+    # measurement: different facts, different tables, and nothing here checks
+    # one against the other.
+    race_layouts = HV.load_race_layouts()
+    outlines = HV.load_circuit_outlines()
+    if not race_layouts or not outlines:
+        print("  circuit outlines: harvest absent, nothing loaded")
+        return
+
+    ran = {}        # layout id -> the register's circuit ids of the races that ran it
+    race_ids = {}   # layout id -> the ids of those races
+    for h in race_layouts:
+        rid = b.race_for(h["year"], h["round"], "race layouts")
+        if rid is None:
+            continue
+        cid = cur.execute("SELECT circuit_id FROM races WHERE id=?", (rid,)).fetchone()[0]
+        ran.setdefault(h["layout_id"], set()).add(cid)
+        race_ids.setdefault(h["layout_id"], []).append(rid)
+
+    inserted, unplaced = 0, []
+    for o in outlines:
+        lid = o["layout_id"]
+        # The path is written into a `d` attribute on every page that draws
+        # it. The fetch refused anything outside path syntax; so does this.
+        if not re.fullmatch(HV.SVG_PATH_DATA, o["path"] or ""):
+            raise SystemExit(
+                f"circuit outline {lid}: the path holds a character outside SVG "
+                f"path data and will not be stored")
+        circuits = ran.get(lid, set()) - {None}
+        if len(circuits) > 1:
+            raise SystemExit(
+                f"circuit outline {lid} (F1DB circuit {o['circuit_id']}) was run by "
+                f"races at {', '.join(sorted(circuits))}: one F1DB layout, two "
+                f"circuits here. Decide which before it is stored.")
+        if not circuits:
+            # Only races this register does not hold have run it.
+            unplaced.append(lid)
+            continue
+        cur.execute("""INSERT INTO circuit_outlines (f1db_layout_id, circuit_id,
+            f1db_circuit_id, length_km, turns, path, confidence, source)
+            VALUES (?,?,?,?,?,?,?,?)""",
+            (lid, circuits.pop(), o["circuit_id"],
+             float(o["length_km"]) if o["length_km"] else None,
+             int(o["turns"]) if o["turns"] else None,
+             o["path"], HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
+        inserted += 1
+        cur.executemany("UPDATE races SET f1db_layout_id=? WHERE id=?",
+                        [(lid, rid) for rid in race_ids[lid]])
+    tagged = cur.execute(
+        "SELECT COUNT(*) FROM races WHERE f1db_layout_id IS NOT NULL").fetchone()[0]
+
+    # --- which outline draws each of this register's layouts
+    #
+    # circuit_layouts is finer than F1DB's list in places (three Monza road
+    # courses where F1DB has one) and coarser in others (one chicane era where
+    # F1DB has two). Where every race in a row's span ran one F1DB layout, that
+    # outline draws it. Where the span crosses two, nothing is chosen and the
+    # column stays NULL - a race page draws the outline its own row names, so
+    # the NULL costs a reader nothing. A one-off row (by_year = 0) is matched
+    # through the races that name it; a timeline row through its years, less
+    # any race that names a one-off, or Bahrain's 2010 endurance loop would
+    # sit inside the Grand Prix circuit's span.
+    drawn, split = 0, []
+    for lid_, cid, key, fy, ty, by_year in cur.execute("""SELECT id, circuit_id,
+            layout_key, from_year, to_year, by_year FROM circuit_layouts""").fetchall():
+        if by_year:
+            ids = cur.execute("""SELECT DISTINCT f1db_layout_id FROM races
+                WHERE circuit_id=? AND layout_key IS NULL AND f1db_layout_id IS NOT NULL
+                  AND year >= ? AND year <= COALESCE(?, 9999)""", (cid, fy, ty)).fetchall()
+        else:
+            ids = cur.execute("""SELECT DISTINCT f1db_layout_id FROM races
+                WHERE circuit_id=? AND layout_key=? AND f1db_layout_id IS NOT NULL""",
+                (cid, key)).fetchall()
+        if len(ids) == 1:
+            cur.execute("UPDATE circuit_layouts SET f1db_layout_id=? WHERE id=?",
+                        (ids[0][0], lid_))
+            drawn += 1
+        elif len(ids) > 1:
+            split.append(f"{cid}:{key}")
+    print(f"  circuit outlines: {inserted} layouts from F1DB, {tagged} races name theirs, "
+          f"{drawn} of this register's layouts drawn by one outline"
+          + (f", {len(split)} span several ({', '.join(split)})" if split else "")
+          + (f"; {len(unplaced)} outlines no race here ran, skipped: "
+             f"{', '.join(unplaced)}" if unplaced else ""))
+
+
 STAGES = [
     _stage_00_open_the_database,
     _stage_01_meta,
@@ -2975,7 +3076,11 @@ STAGES = [
     _stage_31_figures_derivable_from_the_race_records,
     _stage_32_link_race_entries_to_the_chassis,
     _stage_33_rule_two_resolve_through_the_driver,
-    _stage_34_link_race_entries_to_the_curated,
+    _stage_34_circuit_outlines_from_f1db,
+    # Last on purpose: it closes the build - the authored ceiling, the
+    # geometry split and the VACUUM live at its end - so a loader after it
+    # would write into a connection nothing commits.
+    _stage_35_link_race_entries_to_the_curated,
 ]
 
 def report(con):

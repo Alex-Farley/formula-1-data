@@ -35,6 +35,7 @@ export const SEASON = `
  */
 export const CALENDAR = `
   SELECT r.round, r.name_used, r.dates, r.status, r.sprint, r.circuit_id, c.name AS circuit,
+         r.f1db_layout_id, o.path AS outline,
          (SELECT group_concat(d.full_name, ' / ') FROM race_entries e
             JOIN drivers d ON d.id = e.driver_id
            WHERE e.race_id = r.id AND e.finish_position = 1)      AS winner,
@@ -52,6 +53,7 @@ export const CALENDAR = `
            WHERE e.race_id = r.id AND e.fastest_lap = 1)          AS fastest
     FROM races r
     LEFT JOIN circuits c ON c.id = r.circuit_id
+    LEFT JOIN circuit_outlines o ON o.f1db_layout_id = r.f1db_layout_id
    WHERE r.year = ?
    ORDER BY r.round
 `

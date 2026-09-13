@@ -489,7 +489,45 @@ try {
   await section('/races/2026/16  (the Sepang note reaches the page)', async () => {
     await go('/races/2026/16', 'Bahrain Grand Prix')
     truthy(((await text('#root main .lede')) ?? '').includes('Sepang'), 'the calendar\'s explanation is the lede')
+    // AF-03: the race page draws the F1DB layout the round runs, named in
+    // the drawing's accessible name, and the static page carries the same.
+    const layout = one('SELECT f1db_layout_id FROM races WHERE year = 2026 AND round = 16')
+    if (layout) {
+      await page.waitForSelector('#root main svg.outline[role="img"]', { timeout: 20000 })
+      truthy(
+        (await page.$eval('#root main svg.outline[role="img"]', (n) => n.getAttribute('aria-label'))).includes(layout),
+        `the race page draws F1DB layout ${layout}`,
+      )
+      const staticRace = await (await fetch(`${BASE}/races/2026/16`)).text()
+      truthy(staticRace.includes(`F1DB layout ${layout}`) && staticRace.includes('Jules Roy'), 'the static race page draws and credits it')
+    }
 
+  })
+
+  // AF-03: the season's calendar as a strip of outlines, one per round, in
+  // the state the database gives it - run, next, to come - with exactly one
+  // round marked next while any is still to run, in the app and the static
+  // page alike.
+  await section('/seasons/2026  (the calendar as outlines)', async () => {
+    const year = one('SELECT MAX(year) FROM seasons')
+    const rounds = count('SELECT COUNT(*) FROM races WHERE year = ?', year)
+    const toRun = count("SELECT COUNT(*) FROM races WHERE year = ? AND status != 'completed'", year)
+    await go(`/seasons/${year}`, String(year))
+    await page.waitForSelector('#root main .outline-strip li', { timeout: 20000 })
+    is(await page.$$eval('#root main .outline-strip li', (n) => n.length), rounds, `one outline per round of ${year}`)
+    is(
+      await page.$$eval('#root main .outline-strip li[data-state="next"]', (n) => n.length),
+      toRun > 0 ? 1 : 0,
+      toRun > 0 ? 'exactly one round is marked next' : 'a finished season marks no round next',
+    )
+    is(
+      await page.$$eval('#root main .outline-strip li[data-state="run"]', (n) => n.length),
+      rounds - toRun,
+      'every completed round is marked run',
+    )
+    const staticSeason = await (await fetch(`${BASE}/seasons/${year}`)).text()
+    is((staticSeason.match(/<li data-state="/g) ?? []).length, rounds, 'the static page carries the same strip')
+    is((staticSeason.match(/<li data-state="next"/g) ?? []).length, toRun > 0 ? 1 : 0, 'and marks the same round next')
   })
 
   await section('/seasons/1976', async () => {
@@ -771,6 +809,22 @@ try {
     truthy(
       silverstone.includes(count("SELECT COUNT(*) FROM races WHERE circuit_id = 'silverstone'")),
       'every race held at Silverstone',
+    )
+    // AF-03: F1DB's outline of every layout raced here - eight at
+    // Silverstone, which no trace could hold - each with its credit, in the
+    // app and in the static page alike.
+    const outlinesHere = count("SELECT COUNT(*) FROM circuit_outlines WHERE circuit_id = 'silverstone'")
+    await page.waitForSelector('#root main .outline-card svg.outline path', { timeout: 20000 })
+    is(await page.$$eval('#root main .outline-card', (n) => n.length), outlinesHere, 'every F1DB layout of Silverstone is drawn')
+    truthy(
+      await page.$$eval('#root main .outline-card figcaption', (n) => n.length > 0 && n.every((c) => c.textContent.includes('Jules Roy'))),
+      'every outline carries its credit',
+    )
+    const staticCircuit = await (await fetch(`${BASE}/circuits/silverstone`)).text()
+    is(
+      (staticCircuit.match(/<figure class="outline-card">/g) ?? []).length,
+      outlinesHere,
+      'the static page draws the same outlines',
     )
 
     // Skipped rather than failed when the overlay is absent: a build without

@@ -364,7 +364,42 @@ CREATE TABLE circuit_layouts (
     turns           INTEGER,
     change_reason   TEXT,
     confidence      TEXT NOT NULL DEFAULT 'medium' REFERENCES provenance(confidence),
+    -- The F1DB outline that draws this row, DERIVED in build.py: set where
+    -- every race in the row's span ran one F1DB layout, NULL where the span
+    -- crosses two (F1DB splits Monza's chicane era where this timeline does
+    -- not) or no race here ran it. A race page never needs it - races carry
+    -- their own f1db_layout_id - so a NULL loses a reader nothing.
+    f1db_layout_id  TEXT REFERENCES circuit_outlines(f1db_layout_id),
     UNIQUE (circuit_id, layout_key)
+);
+
+-- The outline of every layout the championship has raced on, from F1DB.
+--
+-- A DRAWING, not a measurement, and a different fact from a row in
+-- circuit_geometry. The trace there is OpenStreetMap's: geo-referenced,
+-- measured against the published length, and possible only for a layout
+-- that is on the ground today, which caps it at 25 circuits. The outline is
+-- F1DB's, drawn by Jules Roy in a 500x500 box with no scale, no position and
+-- no direction of travel, and exists for all 160 layouts of every circuit -
+-- seven Monzas and eight Silverstones among them. The rule the site prints
+-- wherever a shape appears: the outline is F1DB's, for every layout; the
+-- trace is OpenStreetMap's, where it exists. Nothing checks one against the
+-- other, because they do not claim the same thing.
+--
+-- CC BY 4.0 like the rest of F1DB, so unlike the ODbL trace it may live in
+-- this file. The key is F1DB's own layout id. circuit_id is DERIVED in
+-- build.py from the races that ran the layout, never read from F1DB: its
+-- circuit ids differ from this register's for ten venues, and its one
+-- `nurburgring` is three circuits here. f1db_circuit_id keeps what it said.
+CREATE TABLE circuit_outlines (
+    f1db_layout_id  TEXT PRIMARY KEY,          -- F1DB's id: monza-7
+    circuit_id      TEXT NOT NULL REFERENCES circuits(id),
+    f1db_circuit_id TEXT NOT NULL,
+    length_km       REAL,                      -- F1DB's figures for the layout, not this register's
+    turns           INTEGER,
+    path            TEXT NOT NULL,             -- SVG path data; viewBox 0 0 500 500
+    confidence      TEXT NOT NULL DEFAULT 'reference' REFERENCES provenance(confidence),
+    source          TEXT
 );
 
 -- The centreline of a circuit as OpenStreetMap maps it, checked against the
@@ -737,6 +772,10 @@ CREATE TABLE races (
     name_used       TEXT NOT NULL,             -- the name carried that year
     circuit_id      TEXT REFERENCES circuits(id),
     layout_key      TEXT,                      -- overrides the year lookup
+    -- The F1DB layout this race ran, from the round's own race.yml: the key
+    -- into circuit_outlines, so every race can be drawn whether or not its
+    -- circuit has a layout timeline here.
+    f1db_layout_id  TEXT REFERENCES circuit_outlines(f1db_layout_id),
     -- TWO COLUMNS, BECAUSE THEY ANSWER DIFFERENT QUESTIONS.
     --   dates     is for a reader. It may be a RANGE - "27-29 Mar 2026" -
     --             because a Grand Prix is a weekend, and for a race still to

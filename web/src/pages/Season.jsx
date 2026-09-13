@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router-dom'
 import { Confidence, Fields, Note, Onward, Page, Section, Stats, Stepper } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
+import { OutlineStrip } from '../components/Outline.jsx'
 import Figure from '../charts/Figure.jsx'
 import LineChart from '../charts/LineChart.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
@@ -313,6 +314,9 @@ function SeasonBody({ year, season, data }) {
       )}
 
       <Section title="The calendar" count={`${calendar.length} rounds`}>
+        {/* The season as a strip of outlines — run, next, to come — above
+            the table that carries the facts (AF-03, PD-28). */}
+        <OutlineStrip year={year} calendar={calendar} />
         <DataTable
           rows={calendar}
           rowKey={(row) => row.round}

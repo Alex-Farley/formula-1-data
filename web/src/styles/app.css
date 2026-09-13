@@ -1381,6 +1381,149 @@ figure.photo figcaption a {
   padding: 10px 4px 0;
 }
 
+/* ------------------------------------------------------- circuit outlines */
+
+/* F1DB's drawing of a layout (lib/outline.js): the current ink at a constant
+   stroke whatever the size, on the stage the traces sit on. It borrows none
+   of the trace's colours because it carries none of the trace's facts. */
+.outline {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  color: var(--ink);
+  background: var(--stage);
+  border-radius: var(--radius);
+  padding: 10px;
+  box-sizing: border-box;
+}
+
+.outline path {
+  stroke-width: 2.25;
+}
+
+.outline-card {
+  margin: 0;
+}
+
+.outline-card figcaption {
+  padding: 8px 2px 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+.outline-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+}
+
+/* The race page: the figures with the outline beside them; below them on a
+   phone, where it is capped rather than left to fill the width. */
+.with-outline {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: minmax(0, 1fr) 200px;
+  align-items: start;
+}
+
+@media (max-width: 720px) {
+  .with-outline {
+    grid-template-columns: 1fr;
+  }
+
+  .with-outline .outline-card {
+    max-width: 220px;
+  }
+}
+
+/* The season as a strip: run in full ink, to come faint and dashed, the
+   next marked by its border and its word. Ink, not accent: the accent is
+   for links, focus and the current nav item (tokens.css), and every tile
+   here is a link already - its name carries the underline. */
+.outline-strip-wrap {
+  margin-bottom: 16px;
+}
+
+.outline-strip {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+}
+
+.outline-strip li a {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--radius);
+  padding: 6px;
+}
+
+.outline-strip li a:hover,
+.outline-strip li a:focus-visible {
+  background: var(--panel-sunk);
+}
+
+.outline-strip .outline {
+  padding: 6px;
+  border-radius: var(--radius-sm);
+}
+
+.outline-strip .outline-none {
+  display: block;
+  aspect-ratio: 1;
+}
+
+.outline-strip b {
+  display: block;
+  margin-top: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+}
+
+.outline-strip span {
+  display: block;
+  font-size: 12.5px;
+  line-height: 1.3;
+  text-decoration: underline;
+  text-decoration-color: var(--rule-strong);
+}
+
+.outline-strip small {
+  display: block;
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+
+.outline-strip li[data-state='to-come'] .outline {
+  color: var(--ink-faint);
+}
+
+.outline-strip li[data-state='to-come'] .outline path {
+  stroke-dasharray: 4 3;
+}
+
+.outline-strip li[data-state='next'] .outline {
+  box-shadow: inset 0 0 0 2px var(--ink);
+}
+
+.outline-strip li[data-state='next'] small {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.outline-strip-note {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+}
+
 /* ------------------------------------------------------------------ SQL */
 
 /* tokens.css: the accent means "this was fastest". This is the one cell where

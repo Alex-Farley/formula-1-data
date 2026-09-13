@@ -4,10 +4,12 @@ import { Confidence, Fields, Note, Onward, Page, Section, Stats, Stepper } from 
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import Disagreement, { RACE_DISAGREEMENTS } from '../components/Disagreement.jsx'
+import { OutlineCard } from '../components/Outline.jsx'
 import { RACE_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE, clock, nextSession, readerZone, until, yourTimeColumn } from '../queries/sessions.js'
 import { rows, useQueries } from '../data/useQuery.js'
 import { finished, missing, number, result } from '../lib/format.js'
 import { SHARED } from '../lib/site.js'
+import { outlineCaption } from '../lib/outline.js'
 import {
   CLASSIFICATION_COLUMNS,
   CLASSIFICATION_FOOTER,
@@ -207,53 +209,71 @@ function RaceBody({ race, data, year, round }) {
       }
     >
       <Section>
-        <Stats
-          items={[
-            {
-              label: 'Circuit',
-              value: race.circuit_id ? (
-                <Link to={`/circuits/${race.circuit_id}`} style={{ fontSize: 17 }}>
-                  {race.circuit}
-                </Link>
-              ) : null,
-              note: [race.locality, race.country].filter(Boolean).join(', ') || undefined,
-            },
-            scheduled
-              ? { label: 'Status', value: 'Scheduled', note: race.dates ?? undefined }
-              : { label: 'Winner', value: nameList(winners), note: winners[0]?.constructor ?? undefined },
-            scheduled ? null : { label: 'Pole', value: nameList(poles) },
-            scheduled || !startedFirst
-              ? null
-              : {
-                  label: 'Started first',
-                  value: (
-                    <Link to={`/drivers/${startedFirst.driver_id}`}>
-                      {startedFirst.driver ?? startedFirst.driver_id}
-                    </Link>
-                  ),
-                  note: `the pole-sitter started ${poles[0].grid_text ?? '—'}`,
-                },
-            scheduled || !outqualified
-              ? null
-              : {
-                  label: 'Fastest qualifier',
-                  value: (
-                    <Link to={`/drivers/${outqualified.driver_id}`}>
-                      {outqualified.driver ?? outqualified.driver_id}
-                    </Link>
-                  ),
-                  note: `started ${
-                    entries.find((e) => e.driver_id === outqualified.driver_id)?.grid_text ?? '—'
-                  }${race.sprint ? ', the grid set by the sprint' : ''}`,
-                },
-            scheduled ? null : { label: 'Fastest lap', value: nameList(fastest) },
-            {
-              label: 'Entries',
-              value: number(entries.length),
-              note: scheduled ? undefined : `${finishers} classified`,
-            },
-          ].filter(Boolean)}
-        />
+        {/* The outline beside the figures, where the circuit used to be a
+            text link alone (VD-32). F1DB's drawing of the layout this race
+            ran, credited on the card; the caption says whose figures. */}
+        <div className={race.outline ? 'with-outline' : undefined}>
+          <Stats
+            items={[
+              {
+                label: 'Circuit',
+                value: race.circuit_id ? (
+                  <Link to={`/circuits/${race.circuit_id}`} style={{ fontSize: 17 }}>
+                    {race.circuit}
+                  </Link>
+                ) : null,
+                note: [race.locality, race.country].filter(Boolean).join(', ') || undefined,
+              },
+              scheduled
+                ? { label: 'Status', value: 'Scheduled', note: race.dates ?? undefined }
+                : { label: 'Winner', value: nameList(winners), note: winners[0]?.constructor ?? undefined },
+              scheduled ? null : { label: 'Pole', value: nameList(poles) },
+              scheduled || !startedFirst
+                ? null
+                : {
+                    label: 'Started first',
+                    value: (
+                      <Link to={`/drivers/${startedFirst.driver_id}`}>
+                        {startedFirst.driver ?? startedFirst.driver_id}
+                      </Link>
+                    ),
+                    note: `the pole-sitter started ${poles[0].grid_text ?? '—'}`,
+                  },
+              scheduled || !outqualified
+                ? null
+                : {
+                    label: 'Fastest qualifier',
+                    value: (
+                      <Link to={`/drivers/${outqualified.driver_id}`}>
+                        {outqualified.driver ?? outqualified.driver_id}
+                      </Link>
+                    ),
+                    note: `started ${
+                      entries.find((e) => e.driver_id === outqualified.driver_id)?.grid_text ?? '—'
+                    }${race.sprint ? ', the grid set by the sprint' : ''}`,
+                  },
+              scheduled ? null : { label: 'Fastest lap', value: nameList(fastest) },
+              {
+                label: 'Entries',
+                value: number(entries.length),
+                note: scheduled ? undefined : `${finishers} classified`,
+              },
+            ].filter(Boolean)}
+          />
+          {race.outline && (
+            <OutlineCard
+              path={race.outline}
+              circuit={race.circuit}
+              layoutId={race.f1db_layout_id}
+              caption={outlineCaption({
+                f1db_layout_id: race.f1db_layout_id,
+                length_km: race.outline_km,
+                turns: race.outline_turns,
+              })}
+              rule
+            />
+          )}
+        </div>
       </Section>
 
       {scheduled && (

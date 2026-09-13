@@ -19,11 +19,13 @@ import { SHARED } from '../lib/site.js'
 export const RACE = `
   SELECT r.*, c.name AS circuit, c.locality, c.country,
          cl.layout_name, cl.length_km AS layout_km, cl.turns AS layout_turns,
-         g.name AS gp_full
+         g.name AS gp_full,
+         o.path AS outline, o.length_km AS outline_km, o.turns AS outline_turns
     FROM races r
     LEFT JOIN circuits c        ON c.id = r.circuit_id
     LEFT JOIN circuit_layouts cl ON cl.circuit_id = r.circuit_id AND cl.layout_key = r.layout_key
     LEFT JOIN grands_prix g     ON g.id = r.gp_id
+    LEFT JOIN circuit_outlines o ON o.f1db_layout_id = r.f1db_layout_id
    WHERE r.year = ? AND r.round = ?
 `
 

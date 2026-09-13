@@ -275,7 +275,9 @@ SOURCE_REGISTRY = [
      "full classification for all 1,161 races (27,555 entries, 1950-2026), "
      "qualifying (26,975), championship standings after every round (34,495) "
      "and pit stops (22,472) - plus the chassis, engine, constructor and "
-     "per-season entrant register it already supplied. Loaded by "
+     "per-season entrant register it already supplied, and since 2026-09-13 "
+     "the outline of every one of its 160 circuit layouts (SVG assets drawn "
+     "by Jules Roy) with the layout each race ran. Loaded by "
      "tools/f1db_fetch.py into diffable text, then built offline.",
      "reference",
      "CC BY 4.0 - attribution only, no share-alike, and NO NON-COMMERCIAL "

@@ -48,6 +48,7 @@ import { driverName, fastestLapMark, inClassificationOrder, outcome, position, r
 import { raceWinnerHere } from '../src/queries/circuit.js'
 import { constructorSeasons } from '../src/queries/constructor.js'
 import { NOT_YET_RUN } from '../src/lib/site.js'
+import { NEXT, RUN, TO_COME, outlineCaption, outlineFigures, roundShortName, roundStates } from '../src/lib/outline.js'
 import { attribution, canShow, fileTitle, thumbUrl } from '../src/lib/commons.js'
 import { recordColumns, tiersOf } from '../src/queries/records.js'
 
@@ -621,5 +622,41 @@ describe('thumbUrl and fileTitle: the file name is the only thing stored', () =>
   it('captions with the name a person would read', () => {
     assert.equal(fileTitle('File:Ayrton_Senna_1988.jpg'), 'Ayrton Senna 1988.jpg')
     assert.equal(fileTitle(undefined), '')
+  })
+})
+
+describe('the circuit outlines (AF-03)', () => {
+  it('states each round from the record, not the clock: run, one next, the rest to come', () => {
+    const c = (...statuses) => statuses.map((status) => ({ status }))
+    assert.deepEqual(roundStates(c('completed', 'completed', 'scheduled', 'scheduled')), [RUN, RUN, NEXT, TO_COME])
+    assert.deepEqual(roundStates(c('completed', 'completed')), [RUN, RUN])
+    assert.deepEqual(roundStates(c('scheduled', 'scheduled')), [NEXT, TO_COME])
+    assert.deepEqual(roundStates([]), [])
+  })
+  it('shortens a round to its place and leaves a name that is not a Grand Prix alone', () => {
+    assert.equal(roundShortName('Australian Grand Prix'), 'Australian')
+    assert.equal(roundShortName('Grand Prix of Europe'), 'Europe')
+    assert.equal(roundShortName('Sao Paulo Grand Prix'), 'Sao Paulo')
+    assert.equal(roundShortName('Indianapolis 500'), 'Indianapolis 500')
+    assert.equal(roundShortName(null), '')
+  })
+  it("prints F1DB's figures only where F1DB gives them", () => {
+    assert.equal(outlineFigures({ length_km: 5.793, turns: 11 }), '5.793 km · 11 turns')
+    assert.equal(outlineFigures({ length_km: 5.793, turns: null }), '5.793 km')
+    assert.equal(outlineFigures({ length_km: null, turns: 1 }), '1 turn')
+    assert.equal(outlineFigures({ length_km: null, turns: null }), '')
+  })
+  it('captions a layout with what the row knows, and no more', () => {
+    assert.equal(
+      outlineCaption({ f1db_layout_id: 'monza-7', length_km: 5.793, turns: 11, first_year: 2000, last_year: 2026, rounds: 27 }),
+      'F1DB layout monza-7 · 5.793 km · 11 turns · 2000–2026 · 27 rounds',
+    )
+    assert.equal(
+      outlineCaption({ f1db_layout_id: 'monza-4', length_km: 5.775, turns: 7, first_year: 1972, last_year: 1972, rounds: 1 }),
+      'F1DB layout monza-4 · 5.775 km · 7 turns · 1972 · 1 round',
+    )
+    // A race page's card: no years, no rounds.
+    assert.equal(outlineCaption({ f1db_layout_id: 'sepang-1', length_km: 5.543, turns: 15 }), 'F1DB layout sepang-1 · 5.543 km · 15 turns')
+    assert.equal(outlineCaption({ f1db_layout_id: 'x-1', length_km: null, turns: null }), 'F1DB layout x-1')
   })
 })

@@ -23,6 +23,7 @@ and the source, wholly or mostly, of these tables:
 | `chassis` | 1,153 | every chassis that has raced |
 | `sprint_results` | 590 | every sprint classification |
 | `engines` | 424 | the engine register |
+| `circuit_outlines` | 160 | the outline of every circuit layout, drawn by Jules Roy, and through `races.f1db_layout_id` the layout each race ran |
 | `drivers` | 680 of 862 | rows admitted to the register from F1DB's |
 | `constructors` | 95 of 150 | likewise |
 

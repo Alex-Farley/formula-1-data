@@ -4,6 +4,7 @@ import DataTable from '../components/DataTable.jsx'
 import SubNav from '../components/SubNav.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { number } from '../lib/format.js'
+import { OUTLINES_NOTE } from '../lib/outline.js'
 import {
   CONSEQUENCES,
   CONSEQUENCES_NOTE,
@@ -113,6 +114,7 @@ export default function Sources() {
                   treat a traced centreline as OpenStreetMap under ODbL — that obligation travels
                   with it.
                 </p>
+                <p className="measure">{OUTLINES_NOTE}</p>
                 <p className="measure faint">
                   This site is unaffiliated with Formula One, the FIA, or any team. Formula One,
                   F1 and Grand Prix are trademarks of their respective owners and are used here

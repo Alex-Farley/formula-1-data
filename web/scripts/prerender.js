@@ -131,6 +131,7 @@ import {
   RACE_COLUMNS as CIRCUIT_RACE_COLUMNS,
   TEAMS as TEAMS_HERE,
   TEAM_COLUMNS,
+  OUTLINES as CIRCUIT_OUTLINES,
   WINNERS as WINNERS_HERE,
   WINNER_COLUMNS,
 } from '../src/queries/circuit.js'
@@ -166,6 +167,19 @@ import {
   TYRE_COLUMNS,
 } from '../src/queries/eras.js'
 import { GLOSSARY, GLOSSARY_COLUMNS, PERSONNEL, PERSONNEL_COLUMNS } from '../src/queries/glossary.js'
+import {
+  OUTLINE_BY,
+  OUTLINE_CREDIT,
+  OUTLINE_RULE,
+  OUTLINE_VIEWBOX,
+  OUTLINES_NOTE,
+  STATE_WORDS,
+  outlineCaption,
+  outlineLabel,
+  roundShortName,
+  roundStates,
+  stripLabel,
+} from '../src/lib/outline.js'
 import {
   CONSEQUENCES,
   CONSEQUENCES_NOTE,
@@ -330,6 +344,35 @@ const facts = (pairs) => {
 
 const prose = (value) => (value ? `<p>${esc(value)}</p>` : '')
 
+// The circuit outlines (AF-03), as components/Outline.jsx draws them: F1DB's
+// path in its 500-unit box, the current ink, a constant stroke. The path is
+// SVG path data and nothing else - build.py and verify.py both refuse any
+// other character - and is escaped here all the same.
+const outlineSvg = (path, label) =>
+  path
+    ? `<svg class="outline" viewBox="${OUTLINE_VIEWBOX}"${
+        label ? ` role="img" aria-label="${esc(label)}"` : ' aria-hidden="true"'
+      }><path d="${esc(path)}" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg>`
+    : ''
+const outlineCard = (path, circuit, layoutId, caption, rule = false) =>
+  path
+    ? `<figure class="outline-card">${outlineSvg(path, outlineLabel(circuit, layoutId))}<figcaption>${esc(caption)}<br><span class="faint">${esc(OUTLINE_BY)}</span>${
+        rule ? `<br><span class="faint">${esc(OUTLINE_RULE)}</span>` : ''
+      }</figcaption></figure>`
+    : ''
+const outlineStrip = (year, calendar) => {
+  if (!calendar.some((round) => round.outline)) return ''
+  const states = roundStates(calendar)
+  return `<div class="outline-strip-wrap"><ol class="outline-strip" aria-label="${esc(stripLabel(year))}">${calendar
+    .map(
+      (round, i) =>
+        `<li data-state="${states[i]}"><a href="${esc(href(`races/${year}/${round.round}`))}">${
+          round.outline ? outlineSvg(round.outline, null) : '<span class="outline outline-none" aria-hidden="true"></span>'
+        }<b>R${round.round}</b><span>${esc(roundShortName(round.name_used))}</span><small>${esc(STATE_WORDS[states[i]])}</small></a></li>`,
+    )
+    .join('')}</ol><p class="faint outline-strip-note">${esc(OUTLINE_RULE)} ${esc(OUTLINE_BY)}.</p></div>`
+}
+
 /** A sentence trimmed to something a search result will not cut mid-word. */
 const summarise = (value, limit = 160) => {
   const flat = String(value ?? '').replace(/\s+/g, ' ').trim()
@@ -486,7 +529,7 @@ const chrome = (body, crumbs, citeUrl) => `
   </main>
   <footer class="sitefoot"><div class="sitefoot-inner"><div>
     <p>Every page here is a query against one SQLite file, running in your browser. ${link('data/quality', 'How far to trust it')} · ${link('data/sources', 'sources')} · ${link('data/sql', 'write your own query')}.</p>
-    <p class="faint">Race data from <a href="https://github.com/f1db/f1db">F1DB</a> (CC BY 4.0), prose and registers from Wikipedia (CC BY-SA 4.0), circuit geometry © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL 1.0). Unaffiliated with Formula One, the FIA or any team.</p>
+    <p class="faint">Race data from <a href="https://github.com/f1db/f1db">F1DB</a> (CC BY 4.0), prose and registers from Wikipedia (CC BY-SA 4.0), circuit geometry © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL 1.0). ${esc(OUTLINE_CREDIT)}. Unaffiliated with Formula One, the FIA or any team.</p>
   </div><dl><dt>Database</dt><dd>v${esc(META.version)}</dd><dt>Built</dt><dd>${esc(META.built)}</dd></dl></div></footer>
 </div>`
 
@@ -679,6 +722,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
         }
         ${prose(s.notes)}
         <h2>The calendar</h2>
+        ${outlineStrip(year, calendar)}
         ${fromColumns(CALENDAR_COLUMNS, calendar, {
           name_used: (name, row) => `${link(`races/${year}/${row.round}`, name)}${row.sprint ? ` ${tag(SPRINT)}` : ''}`,
           circuit: (name, row) => (row.circuit_id ? link(`circuits/${row.circuit_id}`, name ?? row.circuit_id) : text(name)),
@@ -730,6 +774,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
             r.circuit_id, c.name AS circuit, c.locality, c.country, c.length_km, c.turns,
             rr.winner_id, rr.winner, rr.constructor_id, rr.constructor, rr.entrant,
             rr.pole, rr.pole_id, rr.fastest_lap, rr.fastest_lap_id, rr.confidence, rr.source,
+            r.f1db_layout_id, o.path AS outline, o.length_km AS outline_km, o.turns AS outline_turns,
             (SELECT q.driver_id FROM qualifying q
               WHERE q.race_id = r.id AND q.position = 1) AS quickest_id,
             (SELECT e.driver_id FROM race_entries e
@@ -737,6 +782,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
        FROM races r
        LEFT JOIN circuits c ON c.id = r.circuit_id
        LEFT JOIN race_results rr ON rr.year = r.year AND rr.round = r.round
+       LEFT JOIN circuit_outlines o ON o.f1db_layout_id = r.f1db_layout_id
       ORDER BY r.year DESC, r.round DESC`,
   )
 
@@ -894,6 +940,13 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
                 ['Confidence', r.confidence ? link('data/quality', r.confidence) : text(r.confidence)],
               ]),
         ])}
+        ${outlineCard(
+          r.outline,
+          r.circuit,
+          r.f1db_layout_id,
+          outlineCaption({ f1db_layout_id: r.f1db_layout_id, length_km: r.outline_km, turns: r.outline_turns }),
+          true,
+        )}
         ${
           sessions.length
             ? `<h2>Timetable</h2>${fromColumns(SESSION_COLUMNS, sessions)}<p class="source-note">${esc(TIMETABLE_NOTE)}</p>`
@@ -1229,6 +1282,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
     const cv = one(CIRCUIT_ROW, c.id) ?? {}
     const winnersHere = all(WINNERS_HERE, c.id)
     const teamsHere = all(TEAMS_HERE, c.id)
+    const outlinesHere = all(CIRCUIT_OUTLINES, c.id)
     page({
       path: `circuits/${c.id}`,
       title: titled(c.name),
@@ -1272,6 +1326,13 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
         ])}
         ${prose(c.characteristics)}
         ${prose(c.notes)}
+        ${
+          outlinesHere.length
+            ? `<h2>Every layout raced here</h2><p>${esc(OUTLINE_RULE)}</p><div class="outline-grid">${outlinesHere
+                .map((row) => outlineCard(row.path, c.name, row.f1db_layout_id, outlineCaption(row)))
+                .join('')}</div>`
+            : ''
+        }
         ${
           winnersHere.length
             ? `<h2>Most wins here</h2>${fromColumns(WINNER_COLUMNS, winnersHere, {
@@ -1617,6 +1678,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
         source: (name, row) => (row.url && row.url !== 'None' ? `<a href="${esc(row.url)}">${esc(name)}</a>` : text(name)),
       })}
       ${note(SOURCES_FOOTER)}
+      <p>${esc(OUTLINES_NOTE)}</p>
       <h2>Photograph licences</h2>
       <p>${esc(LICENCES_NOTE)}</p>
       ${fromColumns(LICENCE_COLUMNS, all(LICENCES), {
