@@ -9,7 +9,9 @@ Fetch the chassis, engine and per-season entrant register from F1DB.
 Source:  https://github.com/f1db/f1db   (CC BY 4.0)
 Writes:  harvest/chassis.txt, harvest/engines.txt, harvest/entrants.txt,
          harvest/entrant_drivers.txt, harvest/f1db_constructors.txt,
-         harvest/f1db_drivers.txt
+         harvest/f1db_drivers.txt, and the results, qualifying, standings,
+         pit stop, race date, fastest lap, circuit outline and race layout
+         files main() lists
 
 Why a tool and not a person
 ---------------------------
@@ -50,14 +52,32 @@ So the mapping constrains the chassis only for constructor-seasons that used
 exactly one. Those are stored; the rest stay NULL. Multi-chassis seasons are
 written out too, with every chassis on the row, so the ambiguity is recorded
 rather than dropped - build.py refuses to link them.
+
+The circuit outlines
+--------------------
+Each F1DB circuit file lists its `layouts:` - id, length, turns - and every
+race.yml names the layout it ran as `circuitLayoutId`. Since v2026.0.1 F1DB
+also ships an SVG of every layout in src/assets/circuits/, drawn by Jules Roy
+and credited to him in F1DB's README: four styles, one <path> each, in a
+500x500 box, under the same CC BY 4.0 as the data. The styles differ only in
+stroke and fill, so the path is read once, from the `black` set, and the site
+styles it. An outline is a drawing, not a measurement - no scale, no position,
+no direction of travel - which is what separates it from the OpenStreetMap
+trace in harvest/circuit_geometry.txt, and why build.py keeps the two in
+different tables. The trace exists for 25 current layouts; the outline for
+every layout the championship has raced on.
 """
 import argparse
 import os
+import re
 import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
+sys.path.insert(0, ROOT)
+from data.harvest import (  # noqa: E402  (the one rule for what an outline may hold)
+    SVG_PATH_DATA, svg_path_in_box, svg_path_translate)
 HARVEST = os.path.join(ROOT, "harvest")
 CACHE = os.path.join(ROOT, ".f1dbcache")
 REPO = "https://github.com/f1db/f1db.git"
@@ -459,6 +479,77 @@ def race_date_rows(data, yaml):
     return rows
 
 
+def circuit_outline_rows(root, data, yaml):
+    """One row per F1DB circuit layout, carrying the drawing of it.
+
+    A layout without an SVG, or an SVG with anything but one <path>, or path
+    data holding a character outside SVG path syntax, stops the fetch: the
+    shape of F1DB's assets has changed and somebody should look before it is
+    stored. The path is written into an attribute on every page that draws
+    it, which is why the syntax check is here and again in build.py.
+
+    The path is stored bare, so a transform on the <path> element has to be
+    applied to it or the drawing is lost: ain-diab-1.svg alone of the 160
+    positions its path with translate(-1074.322 -900.61), and stored as
+    written it rendered as an empty figure (PR #273's review). A translate is
+    applied here; any other transform stops the fetch. Then every outline
+    must lie inside the 500-unit box, which is what the translate was for.
+    """
+    circuits = os.path.join(data, "circuits")
+    assets = os.path.join(root, "src", "assets", "circuits", "black")
+    rows = []
+    for name in sorted(os.listdir(circuits)):
+        if not name.endswith(".yml"):
+            continue
+        with open(os.path.join(circuits, name), encoding="utf-8") as f:
+            circuit = yaml.safe_load(f)
+        for layout in circuit.get("layouts") or []:
+            svg_path = os.path.join(assets, f"{layout['id']}.svg")
+            if not os.path.isfile(svg_path):
+                sys.exit(f"F1DB layout {layout['id']} ({circuit['id']}) has no SVG at "
+                         f"{svg_path}; the assets have moved or the layout is new")
+            with open(svg_path, encoding="utf-8") as f:
+                svg = f.read()
+            elements = re.findall(r'<path\b[^>]*>', svg)
+            if len(elements) != 1:
+                sys.exit(f"{svg_path} has {len(elements)} <path> elements, not one; the "
+                         f"shape of F1DB's circuit assets has changed")
+            d = re.search(r'\sd="([^"]+)"', elements[0])
+            if not d:
+                sys.exit(f"{svg_path}: the <path> has no d attribute")
+            path_d = " ".join(d.group(1).split())
+            transform = re.search(r'\stransform="([^"]*)"', elements[0])
+            if transform:
+                t = re.fullmatch(r"\s*translate\(\s*(-?[\d.]+)[\s,]+(-?[\d.]+)\s*\)\s*",
+                                 transform.group(1))
+                if not t:
+                    sys.exit(f"{svg_path}: the <path> carries transform="
+                             f"\"{transform.group(1)}\", which is not a translate; "
+                             f"look at the asset before it is stored")
+                path_d = svg_path_translate(path_d, float(t.group(1)), float(t.group(2)))
+            if not re.fullmatch(SVG_PATH_DATA, path_d):
+                sys.exit(f"{svg_path}: the path data holds a character outside SVG "
+                         f"path syntax and will not be stored")
+            if not svg_path_in_box(path_d):
+                sys.exit(f"{svg_path}: the path lies outside the 500-unit box and would "
+                         f"draw an empty figure; look at the asset before it is stored")
+            rows.append("|".join(_clean(v) for v in (
+                layout["id"], circuit["id"], layout.get("length"), layout.get("turns"),
+                path_d)))
+    return rows
+
+
+def race_layout_rows(data, yaml):
+    """The F1DB layout each race ran: `circuitLayoutId` in the round's race.yml."""
+    rows = []
+    for year, rnd, path in _races(data, yaml):
+        race = _load(os.path.join(path, "race.yml"), yaml)
+        if not isinstance(race, dict) or not race.get("circuitLayoutId"):
+            continue
+        rows.append("|".join(_clean(v) for v in (year, rnd, race["circuitLayoutId"])))
+    return rows
+
+
 def fastest_lap_rows(data, yaml):
     """Who set the fastest lap of each race, on which lap, and in what time.
 
@@ -669,6 +760,17 @@ def main():
                 "year|round|driver_id|constructor_id|lap|time"
                 "   (the fastest lap OF THE RACE, F1DB position 1)",
                 fastest_lap_rows(data, yaml), version, commit, args.check)
+    # The drawing of every layout, and the layout each race ran. CC BY 4.0
+    # like the rest, so the paths live in f1.db - unlike the ODbL traces.
+    ok &= write("circuit_outlines.txt",
+                "layout_id|circuit_id|length_km|turns|path"
+                "   (F1DB's ids and figures; path is SVG path data in a 500x500 "
+                "box, drawn by Jules Roy; a translate() on the asset's <path> is "
+                "applied to the path, and nothing else is changed)",
+                circuit_outline_rows(path, data, yaml), version, commit, args.check)
+    ok &= write("race_layouts.txt",
+                "year|round|layout_id   (the F1DB circuit layout the race ran)",
+                race_layout_rows(data, yaml), version, commit, args.check)
 
     if args.check and not ok:
         sys.exit("the committed harvest files are out of date with F1DB")

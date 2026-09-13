@@ -4,6 +4,7 @@ import Boot from './components/Boot.jsx'
 import Search from './components/Search.jsx'
 import ThemeToggle from './components/Theme.jsx'
 import { currentProgress } from './data/client.js'
+import { OUTLINE_CREDIT } from './lib/outline.js'
 
 import Home from './pages/Home.jsx'
 import Seasons from './pages/Seasons.jsx'
@@ -107,8 +108,9 @@ function Footer() {
             Race data from <a href="https://github.com/f1db/f1db">F1DB</a> (CC BY 4.0), prose and
             registers from Wikipedia (CC BY-SA 4.0), circuit geometry ©{' '}
             <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL
-            1.0), photographs from Wikimedia Commons under the licence shown with each. Full
-            account on the <Link to="/data/sources">sources page</Link>. Unaffiliated with
+            1.0), photographs from Wikimedia Commons under the licence shown with each.{' '}
+            {OUTLINE_CREDIT}. Full account on the{' '}
+            <Link to="/data/sources">sources page</Link>. Unaffiliated with
             Formula One, the FIA or any team.
           </p>
         </div>

@@ -23,6 +23,7 @@ the current position from the rows themselves.
 | **Championship standings, every round** | [F1DB](https://github.com/f1db/f1db) | 34,495 rows |
 | Pit stops | [F1DB](https://github.com/f1db/f1db) | 22,472 |
 | Chassis, engine and season-entrant register | [F1DB](https://github.com/f1db/f1db) | 1,153 chassis, 424 engines, 1,925 entrant rows |
+| Circuit outlines, and the layout each race ran | [F1DB](https://github.com/f1db/f1db), SVG assets drawn by [Jules Roy](https://github.com/julesr0y) | 160 layouts, 1,172 races |
 | Circuit register and layout timelines | Wikipedia per-circuit articles | 80 circuits, 49 layouts |
 | Car photographs (references and credits, not images) | [Wikimedia Commons](https://commons.wikimedia.org/) | 602 articles |
 | Circuit centrelines | [OpenStreetMap](https://www.openstreetmap.org/), ids via [Wikidata](https://www.wikidata.org/) | see `v_geometry_coverage` |
@@ -56,6 +57,21 @@ and `harvest/entrants.txt` are generated from
 how the rest of this database is licensed. It does require attribution, which
 is given here, in the header of every generated file, in `source_registry`,
 and in `tools/f1db_fetch.py`.
+
+`harvest/circuit_outlines.txt`, and the `circuit_outlines` table built from it,
+hold F1DB's SVG outline of every circuit layout — drawn by
+[Jules Roy](https://github.com/julesr0y) and credited to him in F1DB's README,
+under the same CC BY 4.0. The site gives that credit in its footer and on
+`/data/sources` as *Circuit outlines from F1DB (CC BY 4.0), drawn by Jules
+Roy*. An outline is a drawing, not a measurement; the traced centrelines
+below are OpenStreetMap's and carry a different obligation.
+
+Two changes are made to the drawings, stated here as CC BY 4.0 asks. One
+asset (`ain-diab-1.svg`) positions its path with a `translate()` on the
+element; `tools/f1db_fetch.py` applies that to the path data so every
+outline is stored bare in the same 500-unit box, and stops on any other
+transform. The site then draws every outline in its own ink at a constant
+stroke width, with nothing added; F1DB's black 20-unit stroke is not kept.
 
 This is the most permissive licence of any bulk source used here, and since
 v2.15 it is the single most important fact about this repository's data.

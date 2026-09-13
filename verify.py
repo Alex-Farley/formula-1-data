@@ -2095,6 +2095,71 @@ def circuits_and_venues():
     warn("every layout hosted at least one championship race", bad == 0,
          f"{bad} unused layouts")
 
+    # --- the F1DB outlines (AF-03). A drawing of every layout, keyed by
+    # F1DB's id, with circuit_id derived in build.py from the races that ran
+    # it. The trace in circuit_geometry is a different fact and is not
+    # compared with it; F1DB's length for the layout is compared with the
+    # register's, below, because that is what catches the wrong layout. The
+    # path goes into an attribute on every page that draws it, so its syntax
+    # is checked here as well as at the fetch.
+    completed, undrawn = con.execute("""SELECT COUNT(*), SUM(f1db_layout_id IS NULL)
+        FROM races WHERE status = 'completed'""").fetchone()
+    check("every completed race names the F1DB layout it ran", not undrawn,
+          f"{undrawn} of {completed} without one")
+    sched, sched_undrawn = con.execute("""SELECT COUNT(*), SUM(f1db_layout_id IS NULL)
+        FROM races WHERE status != 'completed'""").fetchone()
+    warn("every scheduled race names the F1DB layout it will run", not sched_undrawn,
+         f"{sched_undrawn} of {sched} without one; F1DB publishes a round's layout "
+         f"with its calendar, so this closes on a refresh")
+    bad = con.execute("""SELECT COUNT(*) FROM races r JOIN circuit_outlines o
+        ON o.f1db_layout_id = r.f1db_layout_id WHERE o.circuit_id <> r.circuit_id""").fetchone()[0]
+    check("no race is drawn with another circuit's outline", bad == 0, f"{bad} races")
+    bad = con.execute("""SELECT COUNT(*) FROM circuit_layouts l JOIN circuit_outlines o
+        ON o.f1db_layout_id = l.f1db_layout_id WHERE o.circuit_id <> l.circuit_id""").fetchone()[0]
+    check("no layout is drawn with another circuit's outline", bad == 0, f"{bad} layouts")
+    paths = con.execute("SELECT f1db_layout_id, path FROM circuit_outlines").fetchall()
+    bad = [lid for lid, d in paths if not re.fullmatch(harvest_module().SVG_PATH_DATA, d or "")]
+    check("every outline is SVG path data and nothing else", not bad, ", ".join(bad[:5]))
+    # A path is stored bare, and one F1DB asset positioned its path with a
+    # transform on the element: stored as written it drew an empty, credited
+    # figure on two pages, and no check saw it (PR #273). The fetch applies
+    # the translate; this is where a drawing that landed outside its box
+    # would show.
+    bad = [lid for lid, d in paths if not harvest_module().svg_path_in_box(d or "")]
+    check("every outline lies inside its 500-unit box", not bad, ", ".join(bad[:5]))
+    bad = con.execute("""SELECT COUNT(*) FROM circuits c WHERE EXISTS
+        (SELECT 1 FROM races r WHERE r.circuit_id = c.id) AND NOT EXISTS
+        (SELECT 1 FROM circuit_outlines o WHERE o.circuit_id = c.id)""").fetchone()[0]
+    check("every circuit that has hosted a race has an outline", bad == 0,
+          f"{bad} circuits without one")
+    bad = con.execute("""SELECT COUNT(*) FROM circuit_outlines o WHERE NOT EXISTS
+        (SELECT 1 FROM races r WHERE r.f1db_layout_id = o.f1db_layout_id)""").fetchone()[0]
+    check("every outline was run by a race here", bad == 0, f"{bad} outlines")
+    # The wrong layout of the right circuit passes everything above: one
+    # race_layouts.txt row moved from spa-francorchamps-1 to -4 built clean
+    # and drew the 7 km Spa for 1955 (PR #273's review). Where the register
+    # knows the length actually raced - v_race_venues, figures = 'as raced' -
+    # F1DB's figure for the layout the race names must agree with it. 483
+    # races today, the worst 0.087 km apart (Interlagos 7.960 v 7.873), so
+    # 0.15 km lets two measurements of one circuit through and stops a
+    # layout of another length. It constrains no more than that: the 689
+    # races reported at the current layout are not reached, and two F1DB
+    # layouts of one circuit at the same length (montreal-1 and -2) swap
+    # unseen. The id itself is F1DB's own circuitLayoutId, refreshed with
+    # the calendar.
+    bad = con.execute("""SELECT r.year, r.round, r.f1db_layout_id, v.length_km, o.length_km
+        FROM races r JOIN v_race_venues v ON v.race_id = r.id
+        JOIN circuit_outlines o ON o.f1db_layout_id = r.f1db_layout_id
+        WHERE v.figures = 'as raced' AND v.length_km IS NOT NULL AND o.length_km IS NOT NULL
+          AND ABS(v.length_km - o.length_km) > 0.15""").fetchall()
+    check("every race's F1DB layout is the length the register says it raced, within 0.15 km",
+          not bad, "; ".join(f"{y} r{rd} {lid}: {a} v {b} km" for y, rd, lid, a, b in bad[:4]))
+    outlines, drawn, split = con.execute("""SELECT
+        (SELECT COUNT(*) FROM circuit_outlines),
+        SUM(f1db_layout_id IS NOT NULL), SUM(f1db_layout_id IS NULL) FROM circuit_layouts""").fetchone()
+    print(f"  [info] {outlines} F1DB outlines; {drawn} of this register's {drawn + split} "
+          f"layouts are drawn by one, {split} span several F1DB layouts")
+
     # A Grand Prix that has only ever run at one circuit must not have picked up
     # a second one; the register in data/events.py depends on that staying true.
     bad = con.execute("""SELECT gp_id, COUNT(DISTINCT circuit_id) n,

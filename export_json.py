@@ -136,6 +136,7 @@ def main():
         "car_seasons": dump(con, "car_seasons", "car_id, year"),
         "circuits": dump(con, "circuits", "country, name"),
         "circuit_layouts": dump(con, "circuit_layouts", "circuit_id, from_year"),
+        "circuit_outlines": dump(con, "circuit_outlines", "circuit_id, f1db_layout_id"),
         # References and credits, never images. Exporting them is the whole
         # point: a consumer of the JSON needs the licence and the photographer
         # as much as the file name, because showing one without the other is

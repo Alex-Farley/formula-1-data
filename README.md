@@ -50,13 +50,13 @@ here is a number the build checked.
 
 | File | What it is |
 |---|---|
-| `f1.db` | The SQLite database. <!-- fig:tables -->47<!-- /fig --> tables, <!-- fig:views -->41<!-- /fig --> views, <!-- fig:rows -->119,398<!-- /fig --> rows. This is the artefact. |
+| `f1.db` | The SQLite database. <!-- fig:tables -->48<!-- /fig --> tables, <!-- fig:views -->41<!-- /fig --> views, <!-- fig:rows -->119,558<!-- /fig --> rows. This is the artefact. |
 | `f1-geometry.db` | The OpenStreetMap circuit centrelines (ODbL), shipped beside `f1.db` and never merged into it. See *Illustration*. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
 | `f1_compat.json` | JSON in the *original* v1 key layout, so anything already consuming that file keeps working. |
 | `schema.sql` | The schema, commented. |
-| `build.py` | Rebuilds `f1.db` and `f1-geometry.db` from the data modules. Idempotent, and byte-for-byte reproducible. <!-- fig:stages -->35<!-- /fig --> named stages; `STAGES` is the schedule. |
+| `build.py` | Rebuilds `f1.db` and `f1-geometry.db` from the data modules. Idempotent, and byte-for-byte reproducible. <!-- fig:stages -->36<!-- /fig --> named stages; `STAGES` is the schedule. |
 | `verify.py` | Integrity, cross-tabulation and sanity checks on the DATA. Exit code 1 on failure. |
 | `tests/` | Unit tests for the CODE — name matching, lap-closure arithmetic — plus `test_conventions.py`, the reviewer checklists' mechanical items as tests, and `test_verify_refuses.py`, the licence gate shown refusing each thing it exists to refuse. `make test`, stdlib only. |
 | `ruff.toml`, `web/biome.jsonc` | The linters CI runs on the Python and the front end, and every rule left out with its reason. `make lint`. Neither is a dependency of the build. |
@@ -72,6 +72,7 @@ here is a number the build checked.
 | `harvest/entrants.txt` | Season → entrant → constructor → chassis/engine/tyre. **Generated.** |
 | `harvest/f1db_constructors.txt` | Constructor names, for the specification cross-check. **Generated.** |
 | `harvest/race_results.txt`, `qualifying.txt`, `standings.txt`, `sprint_results.txt`, `f1db_pit_stops.txt` | The full classification, qualifying, standings after every round, sprint classifications and pit stops. **Generated** by `tools/f1db_fetch.py`. |
+| `harvest/circuit_outlines.txt`, `race_layouts.txt` | The SVG outline of every F1DB circuit layout (drawn by Jules Roy, CC BY 4.0) and the layout each race ran. **Generated** by `tools/f1db_fetch.py`. |
 | `harvest/car_specs.txt` | Chassis specifications off the per-car articles. **Generated** by `tools/wikispec_fetch.py`. |
 | `harvest/car_specs.log` | Every chassis that was refused, and the reason. **Generated.** |
 | `harvest/article_images.txt`, `.log` | The lead image of each car article and its licence; every article refused, and why. **Generated** by `tools/wikimedia_images.py`. |
@@ -380,6 +381,21 @@ cannot be added that leaves a season uncovered or claims one twice.
 (<!-- fig:as_raced_pct -->41%<!-- /fig -->) therefore report the layout as
 raced, and `v_race_venues.figures` says of every row whether it is `as raced`
 or a fallback to `current layout`. The rest is a declared gap, not silence.
+
+Every layout also has a **drawing**. F1DB ships an outline of each of its
+<!-- fig:circuit_outlines -->160<!-- /fig --> circuit layouts across
+<!-- fig:outline_circuits -->79<!-- /fig --> of the circuits here — SVG assets
+drawn by Jules Roy, CC BY 4.0 like the rest of F1DB — and names the layout
+every race ran. `circuit_outlines` holds the path data, keyed by F1DB's layout
+id, with the circuit derived from the races that ran it; `races.f1db_layout_id`
+names the layout each race ran, so every race can be drawn whether or not its
+circuit has a timeline here; and `circuit_layouts.f1db_layout_id` names the
+outline that draws a timeline row wherever its span ran exactly one. An
+outline is a drawing, not a measurement — no scale, no position, no direction
+of travel. The traced centrelines under *Illustration* have all three and
+exist only for layouts on the ground today. The rule the site prints wherever
+a shape appears: *the outline is F1DB's, for every layout; the trace is
+OpenStreetMap's, where it exists.*
 
 Filling this in exposed two errors and one modelling failure:
 

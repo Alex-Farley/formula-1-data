@@ -1030,6 +1030,199 @@ STANDINGS_FILE = os.path.join(HERE, "..", "harvest", "standings.txt")
 F1DB_PITS_FILE = os.path.join(HERE, "..", "harvest", "f1db_pit_stops.txt")
 RACE_DATES_FILE = os.path.join(HERE, "..", "harvest", "race_dates.txt")
 FASTEST_LAPS_FILE = os.path.join(HERE, "..", "harvest", "fastest_laps.txt")
+OUTLINES_FILE = os.path.join(HERE, "..", "harvest", "circuit_outlines.txt")
+RACE_LAYOUTS_FILE = os.path.join(HERE, "..", "harvest", "race_layouts.txt")
+
+# What an outline may hold: SVG path commands, numbers, separators. The path
+# is written into a `d` attribute on every page that draws it, so anything
+# else is refused at the fetch, at the build and in verify.py.
+SVG_PATH_DATA = r"[MmZzLlHhVvCcSsQqTtAa0-9eE.,\- ]+"
+
+# Every F1DB asset draws in the same box: <svg width="500" height="500">.
+OUTLINE_BOX = 500.0
+
+_SVG_NUMBER = re.compile(r"[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?")
+_SVG_ARGS = {"M": 2, "L": 2, "T": 2, "H": 1, "V": 1, "C": 6, "S": 4, "Q": 4, "A": 7, "Z": 0}
+
+
+def svg_path_segments(d):
+    """Yield (command, arguments) for every segment of SVG path data.
+
+    Implicit repeats are expanded - "M1 2 3 4" is an M and an L, "m1 2 3 4"
+    an m and an l - and an arc's two flags are read as the single digits the
+    grammar makes them, so "a1 1 0 011 1" is not misread as one number.
+    Raises ValueError on anything the grammar does not allow: the fetch
+    refuses such a path and verify.py reports it as outside its box (the
+    build applies only SVG_PATH_DATA).
+    """
+    pos, n, cmd = 0, len(d), None
+    while pos < n:
+        ch = d[pos]
+        if ch in " ,\t\n\r":
+            pos += 1
+            continue
+        if ch.isalpha():
+            if ch.upper() not in _SVG_ARGS:
+                raise ValueError(f"unknown path command {ch!r} at {pos}")
+            cmd, pos = ch, pos + 1
+            if cmd.upper() == "Z":
+                yield cmd, []
+                continue
+        elif cmd is None or cmd.upper() == "Z":
+            raise ValueError(f"number without a command at {pos}")
+        args = []
+        for i in range(_SVG_ARGS[cmd.upper()]):
+            while pos < n and d[pos] in " ,\t\n\r":
+                pos += 1
+            if cmd.upper() == "A" and i in (3, 4):
+                if pos >= n or d[pos] not in "01":
+                    raise ValueError(f"arc flag expected at {pos}")
+                args.append(float(d[pos]))
+                pos += 1
+                continue
+            m = _SVG_NUMBER.match(d, pos)
+            if not m:
+                raise ValueError(f"number expected at {pos}")
+            args.append(float(m.group()))
+            pos = m.end()
+        yield cmd, args
+        if cmd == "M":
+            cmd = "L"
+        elif cmd == "m":
+            cmd = "l"
+
+
+def _svg_number(v):
+    return f"{v:.3f}".rstrip("0").rstrip(".") or "0"
+
+
+def svg_path_translate(d, dx, dy):
+    """Return `d` moved by (dx, dy): a translate() applied to the path itself.
+
+    Only absolute coordinates move - a relative command is a displacement and
+    a translate leaves it alone. The first `m` of a path is absolute by the
+    grammar and moves with the rest. Arc radii, rotation and flags are not
+    coordinates. The result is re-serialised at three decimals, which is what
+    F1DB's assets carry.
+    """
+    out, first = [], True
+    for cmd, args in svg_path_segments(d):
+        moved = list(args)
+        upper = cmd.upper()
+        absolute = cmd.isupper() or (first and cmd == "m")
+        if absolute and upper in ("M", "L", "T", "C", "S", "Q"):
+            moved = [v + (dx if i % 2 == 0 else dy) for i, v in enumerate(args)]
+        elif absolute and upper == "H":
+            moved = [args[0] + dx]
+        elif absolute and upper == "V":
+            moved = [args[0] + dy]
+        elif absolute and upper == "A":
+            moved = args[:5] + [args[5] + dx, args[6] + dy]
+        first = False
+        out.append(cmd + " ".join(_svg_number(v) for v in moved))
+    return " ".join(out)
+
+
+def svg_path_extent(d):
+    """(min_x, min_y, max_x, max_y) over every point the path names.
+
+    Control points bound a Bezier curve, so this is an outer bound of the
+    drawn shape; an arc is traced through its centre (SVG 1.1, F.6.5) and
+    sampled, because F1DB's near-straight arcs carry radii in the tens of
+    thousands and their endpoints plus radii would bound nothing. Where a
+    stored outline lies is the one geometric fact the build can check - the
+    box every F1DB asset draws in is OUTLINE_BOX square, and a path outside it
+    renders as an empty figure.
+    """
+    x = y = sx = sy = 0.0
+    xs, ys = [], []
+    first = True
+    for cmd, args in svg_path_segments(d):
+        upper = cmd.upper()
+        rel = cmd.islower() and not (first and cmd == "m")
+        ox, oy = (x, y) if rel else (0.0, 0.0)
+        first = False
+        if upper == "Z":
+            x, y = sx, sy
+            continue
+        if upper == "H":
+            x = ox + args[0]
+            xs.append(x)
+            continue
+        if upper == "V":
+            y = oy + args[0]
+            ys.append(y)
+            continue
+        if upper == "A":
+            ex, ey = ox + args[5], oy + args[6]
+            for px, py in _svg_arc_points(x, y, ex, ey, *args[:5]):
+                xs.append(px)
+                ys.append(py)
+            x, y = ex, ey
+            continue
+        pts = [(ox + args[i], oy + args[i + 1]) for i in range(0, len(args), 2)]
+        xs += [p[0] for p in pts]
+        ys += [p[1] for p in pts]
+        x, y = pts[-1]
+        if upper == "M":
+            sx, sy = x, y
+    if not xs or not ys:
+        raise ValueError("a path with no coordinates")
+    return min(xs), min(ys), max(xs), max(ys)
+
+
+def _svg_arc_points(x1, y1, x2, y2, rx, ry, phi, large, sweep, samples=64):
+    """Points along an elliptical arc, endpoints included.
+
+    The endpoint-to-centre conversion of SVG 1.1 appendix F.6.5, radii scaled
+    up where they cannot span the chord as the same appendix says a renderer
+    must. Zero radius is a straight line, per F.6.2.
+    """
+    import math
+    rx, ry = abs(rx), abs(ry)
+    if rx == 0 or ry == 0 or (x1, y1) == (x2, y2):
+        return [(x1, y1), (x2, y2)]
+    p = math.radians(phi)
+    cp, sp = math.cos(p), math.sin(p)
+    dx, dy = (x1 - x2) / 2, (y1 - y2) / 2
+    x1p, y1p = cp * dx + sp * dy, -sp * dx + cp * dy
+    lam = x1p ** 2 / rx ** 2 + y1p ** 2 / ry ** 2
+    if lam > 1:
+        rx, ry = rx * math.sqrt(lam), ry * math.sqrt(lam)
+    num = rx ** 2 * ry ** 2 - rx ** 2 * y1p ** 2 - ry ** 2 * x1p ** 2
+    den = rx ** 2 * y1p ** 2 + ry ** 2 * x1p ** 2
+    coef = (-1 if large == sweep else 1) * math.sqrt(max(0.0, num / den)) if den else 0.0
+    cxp, cyp = coef * rx * y1p / ry, -coef * ry * x1p / rx
+    cx = cp * cxp - sp * cyp + (x1 + x2) / 2
+    cy = sp * cxp + cp * cyp + (y1 + y2) / 2
+    t1 = math.atan2((y1p - cyp) / ry, (x1p - cxp) / rx)
+    t2 = math.atan2((-y1p - cyp) / ry, (-x1p - cxp) / rx)
+    dt = t2 - t1
+    if sweep and dt < 0:
+        dt += 2 * math.pi
+    elif not sweep and dt > 0:
+        dt -= 2 * math.pi
+    pts = []
+    for i in range(samples + 1):
+        t = t1 + dt * i / samples
+        pts.append((cx + rx * cp * math.cos(t) - ry * sp * math.sin(t),
+                    cy + rx * sp * math.cos(t) + ry * cp * math.sin(t)))
+    return pts
+
+
+def svg_path_in_box(d, box=OUTLINE_BOX, margin=5.0):
+    """True when the path lies inside [0, box] on both axes, give or take `margin`.
+
+    The extent is an outer bound - a control point may sit outside the curve
+    it shapes - and F1DB draws to within two units of the edge (buenos-aires-1,
+    kyalami-1), so a few units are allowed. A path drawn elsewhere entirely,
+    which is what a transform left unapplied produces, is hundreds out.
+    """
+    try:
+        x0, y0, x1, y1 = svg_path_extent(d)
+    except ValueError:
+        return False
+    return x0 >= -margin and y0 >= -margin and x1 <= box + margin and y1 <= box + margin
 
 F1DB_SOURCE = "https://github.com/f1db/f1db"
 F1DB_CONFIDENCE = "reference"
@@ -1369,6 +1562,24 @@ def load_fastest_laps():
     discrepancy rather than choosing where the two disagree.
     """
     return _read_named(FASTEST_LAPS_FILE, "tools/f1db_fetch.py")
+
+
+def load_circuit_outlines():
+    """F1DB's drawing of every circuit layout: one SVG path per layout id.
+
+    A drawing, not a measurement - no scale, no position, no direction - and
+    a different fact from the OpenStreetMap trace load_circuit_geometry()
+    returns. CC BY 4.0, so unlike the trace it may live in f1.db. The circuit
+    id on each row is F1DB's, which differs from this register's for ten
+    venues; build.py derives the register's from the races that ran the
+    layout and never reads it from here.
+    """
+    return _read_named(OUTLINES_FILE, "tools/f1db_fetch.py")
+
+
+def load_race_layouts():
+    """The F1DB layout id each race ran, keyed by year and round."""
+    return _read_named(RACE_LAYOUTS_FILE, "tools/f1db_fetch.py")
 
 
 def load_circuit_geometry():

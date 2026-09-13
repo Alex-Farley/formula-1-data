@@ -4,15 +4,18 @@ import { Confidence, Fields, Note, Onward, Page, Section, Stats } from '../compo
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import LapFigure from '../components/LapFigure.jsx'
+import { OutlineCard } from '../components/Outline.jsx'
 import { BANDS, BAND_NAMES, buildLap } from '../lib/lap.js'
 import { rows, useQueries } from '../data/useQuery.js'
 import { number, span } from '../lib/format.js'
+import { OUTLINE_FIGURES_NOTE, OUTLINE_RULE, outlineCaption } from '../lib/outline.js'
 
 import { NOT_YET_RUN } from '../lib/site.js'
 import {
   CIRCUIT,
   GEOMETRY,
   LAYOUTS,
+  OUTLINES,
   RACES,
   RACE_COLUMNS,
   TEAMS,
@@ -60,6 +63,7 @@ export default function Circuit() {
     circuit: [CIRCUIT, [id]],
     geometry: [GEOMETRY, [id]],
     layouts: [LAYOUTS, [id]],
+    outlines: [OUTLINES, [id]],
     races: [RACES, [id]],
     winners: [WINNERS, [id]],
     teams: [TEAMS, [id]],
@@ -89,6 +93,7 @@ export default function Circuit() {
 function CircuitBody({ circuit, data }) {
   const geometry = rows(data, 'geometry')
   const layouts = rows(data, 'layouts')
+  const outlines = rows(data, 'outlines')
   const races = rows(data, 'races')
   const winners = rows(data, 'winners')
   const teams = rows(data, 'teams')
@@ -136,8 +141,27 @@ function CircuitBody({ circuit, data }) {
         </Section>
       )}
 
+      {/* Beside the trace, every layout the championship has raced here as
+          F1DB draws it (AF-03) — the historic ones no trace can hold. The
+          rule is the section's note, once, rather than under each card. */}
+      {outlines.length > 0 && (
+        <Section title="Every layout raced here" count={`${outlines.length}`} note={OUTLINE_RULE}>
+          <div className="outline-grid">
+            {outlines.map((row) => (
+              <OutlineCard
+                key={row.f1db_layout_id}
+                path={row.path}
+                circuit={circuit.name}
+                layoutId={row.f1db_layout_id}
+                caption={outlineCaption(row)}
+              />
+            ))}
+          </div>
+        </Section>
+      )}
+
       {layouts.length > 0 && (
-        <Section title="How it changed" count={`${layouts.length} layouts`}>
+        <Section title="How it changed" count={`${layouts.length} layouts`} note={outlines.length > 0 ? OUTLINE_FIGURES_NOTE : undefined}>
           <div className="timeline">
             {layouts.map((layout) => (
               <article key={layout.id}>
@@ -145,6 +169,7 @@ function CircuitBody({ circuit, data }) {
                   {layout.layout_name}
                   <span className="years">{span(layout.from_year, layout.to_year)}</span>
                   {layout.length_km && <span className="years">{layout.length_km} km</span>}
+                  {layout.f1db_layout_id && <span className="years">drawn as {layout.f1db_layout_id}</span>}
                   <Confidence value={layout.confidence} />
                 </h3>
                 {layout.change_reason && <p>{layout.change_reason}</p>}
@@ -157,9 +182,9 @@ function CircuitBody({ circuit, data }) {
       {layouts.length === 0 && circuit.races > 1 && (
         <Note>
           <strong>No layout timeline for this circuit.</strong> Only thirteen of the eighty have
-          one, so an early race here is reported at the length the circuit is today. Nothing maps
-          what a circuit used to look like — see the{' '}
-          <Link to="/data/quality">known gaps</Link>.
+          one, so an early race here is reported at the length the circuit is today. The outlines
+          above are the shapes F1DB distinguishes; nothing here dates a change or says why — see
+          the <Link to="/data/quality">known gaps</Link>.
         </Note>
       )}
 
