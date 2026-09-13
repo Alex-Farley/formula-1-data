@@ -1692,6 +1692,14 @@ Real, but not costed, or waiting on a decision.
       page names the next session with a link to its race, computed in the
       browser, which is the only place "now" exists. — *request · #95*
 
+- [x] `PM-32` **The loop is a skill, not the default.** `.claude/skills/
+      backlog-loop/`: the procedure (`SKILL.md`), the CI waiter that treats
+      empty output as pending, the merge helper that resolves the backlog's
+      predictable conflict and rebuilds the artefacts rather than hand-merging
+      them, and the reviewer brief. Three review rounds in the 2026-09-12 run
+      were lost to retyping these by hand. Invoked with `/backlog-loop`;
+      `CLAUDE.md` says so. — *project record · #98*
+
 ## Declined
 
 Measured, decided, and on the record. Each may be re-raised — the reason is what

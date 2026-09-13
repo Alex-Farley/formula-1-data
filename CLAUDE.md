@@ -161,6 +161,10 @@ failure is invisible — that is what hid this one for three rounds.
 An agent working through the backlog without a person watching follows the
 rules above and these. The full process is in `CONTRIBUTING.md` under
 *Working autonomously*; this is the part that has to be in front of you.
+The loop itself is a skill, invoked on purpose rather than run by default:
+`/backlog-loop next`, `/backlog-loop <ITEM-ID>` or `/backlog-loop
+until-paused`, with its procedure and the scripts it uses in
+`.claude/skills/backlog-loop/`.
 
 - **`docs/BACKLOG.md` is the queue.** Nothing else is. Before starting an
   item, reread it against the code as it is now — an item can be stale,
