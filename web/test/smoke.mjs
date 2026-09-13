@@ -1689,6 +1689,11 @@ try {
     await same(`/seasons/${done}`, String(done), standingsHeading("Drivers'", false))
     await same(`/seasons/${done}`, String(done), 'Who entered')
     await same('/races', 'Races')
+    {
+      // Run first: the list opens on the last race run, not the next one scheduled.
+      const first = (await appTable(null))?.rows[0]?.join(' | ') ?? ''
+      truthy(first && !first.includes(NOT_YET_RUN), 'the races list opens on the last race run')
+    }
     // Rung three: the three remaining registers.
     await same('/constructors', 'Constructors')
     await same('/circuits', 'Circuits', 'Every venue')
@@ -1705,11 +1710,16 @@ try {
     } else fail('no completed 2026 sprint weekend to compare the race tables on')
     await same('/races/1976/9', gp(1976, 9), 'Qualifying')
     await same('/races/1955/1', gp(1955, 1), 'Classification')
-    {
-      // Run first: the list opens on the last race run, not the next one scheduled.
-      const first = (await appTable(null))?.rows[0]?.join(' | ') ?? ''
-      truthy(first && !first.includes(NOT_YET_RUN), 'the races list opens on the last race run')
+    // Rung five: a constructor's and a circuit's three tables each.
+    for (const heading of ['Season by season', 'Every win', 'Cars built']) await same('/constructors/ferrari', 'Ferrari', heading)
+    for (const heading of ['Most wins here', 'Constructors here', 'Every race held here']) {
+      await same('/circuits/silverstone', 'Silverstone', heading)
     }
+    // A venue with a race still to run: its row has a "not yet run" mark and
+    // no winning car, which is where a column keyed "constructor" once found
+    // Object.prototype.constructor and printed "[object Object]".
+    const pending = db.prepare("SELECT c.id, c.name FROM circuits c JOIN races r ON r.circuit_id = c.id WHERE r.status = 'scheduled' ORDER BY r.round LIMIT 1").get()
+    if (pending) await same(`/circuits/${pending.id}`, pending.name, 'Every race held here')
   }
 
   // ------------------------------------------------------- console cleanliness

@@ -8,45 +8,51 @@ import { BANDS, BAND_NAMES, buildLap } from '../lib/lap.js'
 import { rows, useQueries } from '../data/useQuery.js'
 import { number, span } from '../lib/format.js'
 
-const CIRCUIT = `
-  SELECT c.*, v.races, v.first_gp AS derived_first, v.last_gp AS derived_last,
-         v.seasons_used, v.events_hosted, v.layouts
-    FROM circuits c
-    LEFT JOIN v_circuits v ON v.id = c.id
-   WHERE c.id = ?
-`
+import { NOT_YET_RUN } from '../lib/site.js'
+import {
+  CIRCUIT,
+  GEOMETRY,
+  LAYOUTS,
+  RACES,
+  RACE_COLUMNS,
+  TEAMS,
+  TEAM_COLUMNS,
+  WINNERS,
+  WINNER_COLUMNS,
+} from '../queries/circuit.js'
 
-/** The centreline is a few hundred kilobytes of coordinates; it is only ever
- *  fetched for the one circuit being looked at. */
-const GEOMETRY = `SELECT * FROM circuit_geometry WHERE circuit_id = ?`
-
-const LAYOUTS = `
-  SELECT * FROM circuit_layouts WHERE circuit_id = ? ORDER BY from_year
-`
-
-const RACES = `
-  SELECT r.year, r.round, r.name_used, r.status, r.layout_key,
-         (SELECT group_concat(d.full_name, ' / ') FROM race_entries e
-            JOIN drivers d ON d.id = e.driver_id
-           WHERE e.race_id = r.id AND e.finish_position = 1) AS winner,
-         (SELECT e.driver_id FROM race_entries e
-           WHERE e.race_id = r.id AND e.finish_position = 1 LIMIT 1) AS winner_id,
-         (SELECT k.name FROM race_entries e JOIN constructors k ON k.id = e.constructor_id
-           WHERE e.race_id = r.id AND e.finish_position = 1 LIMIT 1) AS constructor
-    FROM races r
-   WHERE r.circuit_id = ?
-   ORDER BY r.year DESC, r.round DESC
-`
-
-const WINNERS = `
-  SELECT driver_id, driver, wins, first_win, last_win
-    FROM v_circuit_winners WHERE circuit_id = ?
-   ORDER BY wins DESC, driver
-`
-
-const TEAMS = `
-  SELECT * FROM v_circuit_constructors WHERE circuit_id = ? ORDER BY wins DESC
-`
+/*
+ * The React renders for the columns queries/circuit.js defines — the links,
+ * the tag and the sort keys; the router is the reason they live here. The
+ * words each cell carries are the column's own `text`, which
+ * scripts/prerender.js prints too, so the static tables are these.
+ */
+const WINNER_APP = {
+  driver: { render: (name, row) => <Link to={`/drivers/${row.driver_id}`}>{name}</Link> },
+  first_win: { sort: (row) => row.first_win },
+}
+const TEAM_APP = {
+  constructor: {
+    render: (name, row) =>
+      row.constructor_id ? <Link to={`/constructors/${row.constructor_id}`}>{name}</Link> : cell(name),
+  },
+}
+const RACE_APP = {
+  year: { render: (year) => <Link to={`/seasons/${year}`}>{year}</Link> },
+  name_used: { render: (name, row) => <Link to={`/races/${row.year}/${row.round}`}>{name}</Link> },
+  winner: {
+    render: (name, row) =>
+      row.status !== 'completed' ? (
+        <span className="tag">{NOT_YET_RUN}</span>
+      ) : row.winner_id && !String(name ?? '').includes(' / ') ? (
+        <Link to={`/drivers/${row.winner_id}`}>{name}</Link>
+      ) : (
+        cell(name)
+      ),
+  },
+}
+const withRenders = (columns, renders) =>
+  columns.map((column) => ({ ...column, ...(Object.hasOwn(renders, column.key) ? renders[column.key] : {}) }))
 
 export default function Circuit() {
   const { id } = useParams()
@@ -167,21 +173,7 @@ function CircuitBody({ circuit, data }) {
               sort="wins"
               direction="desc"
               page={25}
-              columns={[
-                {
-                  key: 'driver',
-                  label: 'Driver',
-                  render: (name, row) => <Link to={`/drivers/${row.driver_id}`}>{name}</Link>,
-                },
-                { key: 'wins', label: 'Wins', align: 'num' },
-                {
-                  key: 'first_win',
-                  label: 'Span',
-                  align: 'num',
-                  render: (_, row) => span(row.first_win, row.last_win),
-                  sort: (row) => row.first_win,
-                },
-              ]}
+              columns={withRenders(WINNER_COLUMNS, WINNER_APP)}
             />
           </Section>
         )}
@@ -195,19 +187,7 @@ function CircuitBody({ circuit, data }) {
               sort="wins"
               direction="desc"
               page={25}
-              columns={[
-                {
-                  key: 'constructor',
-                  label: 'Constructor',
-                  render: (name, row) =>
-                    row.constructor_id ? (
-                      <Link to={`/constructors/${row.constructor_id}`}>{name}</Link>
-                    ) : (
-                      cell(name)
-                    ),
-                },
-                { key: 'wins', label: 'Wins', align: 'num' },
-              ]}
+              columns={withRenders(TEAM_COLUMNS, TEAM_APP)}
             />
           </Section>
         )}
@@ -221,33 +201,7 @@ function CircuitBody({ circuit, data }) {
           sort="year"
           direction="desc"
           page={100}
-          columns={[
-            {
-              key: 'year',
-              label: 'Season',
-              align: 'num',
-              render: (year) => <Link to={`/seasons/${year}`}>{year}</Link>,
-            },
-            {
-              key: 'name_used',
-              label: 'Grand Prix',
-              render: (name, row) => <Link to={`/races/${row.year}/${row.round}`}>{name}</Link>,
-            },
-            { key: 'layout_key', label: 'Layout' },
-            {
-              key: 'winner',
-              label: 'Winner',
-              render: (name, row) =>
-                row.status !== 'completed' ? (
-                  <span className="tag">not yet run</span>
-                ) : row.winner_id && !String(name ?? '').includes(' / ') ? (
-                  <Link to={`/drivers/${row.winner_id}`}>{name}</Link>
-                ) : (
-                  cell(name)
-                ),
-            },
-            { key: 'constructor', label: 'Car' },
-          ]}
+          columns={withRenders(RACE_COLUMNS, RACE_APP)}
         />
       </Section>
 

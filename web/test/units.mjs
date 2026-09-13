@@ -45,6 +45,8 @@ import { entered } from '../src/queries/constructors.js'
 import { traced } from '../src/queries/circuits.js'
 import { chassisName } from '../src/queries/cars.js'
 import { driverName, fastestLapMark, inClassificationOrder, outcome, position, railOf } from '../src/queries/race.js'
+import { raceWinnerHere } from '../src/queries/circuit.js'
+import { constructorSeasons } from '../src/queries/constructor.js'
 import { NOT_YET_RUN } from '../src/lib/site.js'
 import { recordColumns, tiersOf } from '../src/queries/records.js'
 
@@ -529,6 +531,19 @@ describe('the queries a page and the prerenderer share', () => {
     ]
     assert.deepEqual(inClassificationOrder(rows).map((r) => r.id), ['p1', 'p2', 'dnf-late', 'dnf-early', 'dns'])
     assert.equal(rows[0].id, 'dnf-late', 'the caller’s array is not sorted in place')
+  })
+
+  it('joins a constructor’s seasons to their championship position, newest first', () => {
+    const joined = constructorSeasons(
+      [{ year: 1960, wins: 1 }, { year: 1961, wins: 0 }],
+      [{ year: 1960, position: 1, position_text: '1' }, { year: 1960, position: 5, position_text: '5' }],
+    )
+    assert.deepEqual(joined.map((r) => r.year), [1961, 1960])
+    assert.equal(joined[1].championship, 1, 'the first standings row for the year is the one shown')
+    assert.equal(joined[0].championship, null)
+    assert.equal(raceWinnerHere('A / B', { status: 'completed' }), 'A / B')
+    assert.equal(raceWinnerHere(null, { status: 'scheduled' }), NOT_YET_RUN)
+    assert.equal(raceWinnerHere(null, { status: 'completed' }), EMPTY)
   })
 
   it('adds a Confidence column only where the records differ on it', () => {
