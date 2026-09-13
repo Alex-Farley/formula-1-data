@@ -34,9 +34,9 @@ jobs:
     # npm ci alone has taken seven.
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
 
@@ -110,7 +110,7 @@ jobs:
       # database on the site, and the smoke test that reads its expectations
       # out of that database. A data refresh is exactly the change that
       # breaks a front-end assertion, and the only gate is here.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         if: steps.diff.outputs.changed == 'true'
         with:
           node-version: '22'

@@ -58,7 +58,7 @@ jobs:
     if: github.event.pull_request.draft == false
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # The review needs the base branch to diff against, and the reasons
           # in the history: several conventions here are only legible from the
