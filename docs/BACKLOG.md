@@ -68,15 +68,19 @@ the link. An autonomous run does not take these; it works around them and
 adds to this list when it finds another. Struck through when decided, with
 the date, then removed at the next tidy.
 
-- `AF-04` **Which eras get a livery palette, and what a hex must cite.**
-  Proposed 2026-09-13: 2026 first, back to 2010, each value sourced to the
-  team's own brand material and carried as a light/dark pair, never in
-  `f1.db`; 1950–67 stays the national convention; 1968–2009 a declared gap.
-  The maintainer to confirm the era range and the source rule.
-- `IA-20` **Rung three: may a search question leave the tab?** Generated SQL
-  needs a model in the browser (tens of MB) or a server call (ends *nothing
-  you look at is sent anywhere*). Take after rungs one and two have shipped;
-  if yes, as an explicit opt-in that sends only the question and the schema.
+- ~~`AF-04` **Which eras get a livery palette, and what a hex must cite.**~~
+  Decided 2026-09-13 by the maintainer: **2010 onwards**, 2026 first, each
+  value sourced to the team's own brand material (press kit, brand guideline
+  or launch release; no fan colour-code sites) and carried as a light/dark
+  pair, never in `f1.db`; 1950–67 stays the national convention; 1968–2009
+  is a declared gap drawn in the neutral series palette. The item in *Next*
+  is the work.
+- ~~`IA-20` **Rung three: may a search question leave the tab?**~~ Decided
+  2026-09-13 by the maintainer: **deferred** until rungs one and two have
+  shipped and the question library's coverage can be seen. Not to be taken
+  by an autonomous run; re-raise here with that evidence. If it is then yes,
+  as an explicit opt-in that sends only the question and the schema and runs
+  the returned SQL locally.
 
 - ~~`LV-01` **Live session data.**~~ Decided 2026-09-12: the weekend
   timetable (a) and after-the-fact session classifications (b); a live feed
@@ -304,8 +308,8 @@ over unchanged.
       current team, the calendar strip's winner mark. Needs `VD-26` first. The
       product critic's `PD-31` argued for declining liveries permanently; the
       maintainer overruled it for the front end and upheld it for the
-      database (see *Declined*). — *yours · M; scope is a decision, see
-      above*
+      database (see *Declined*). Scope decided 2026-09-13: 2010 onwards. —
+      *yours · M*
 
 - [ ] `VD-34` **Let the entity own its page's colour.** Ferrari's wins chart
       is drawn in generic `--series-1`; Verstappen's four title years are four
@@ -472,8 +476,9 @@ over unchanged.
       the question leaves the tab, ending *nothing you look at is sent
       anywhere*. If wanted, an explicit opt-in *Ask* that sends only the
       question and the schema and runs the returned SQL locally. `PD-32`
-      (the cookbook) folds into rung 2; `IA-21`, `IX-22`, `IX-23` ride. — *IA
-      critique · M, decision on rung 3*
+      (the cookbook) folds into rung 2; `IA-21`, `IX-22`, `IX-23` ride. Rung
+      3 deferred 2026-09-13 until rungs 1 and 2 have shipped. — *IA critique ·
+      M*
 
 - [ ] `IA-21` **The no-match state is a dead end.** *Nothing in the register
       answers to that.* and nothing else, at the exact moment a reader has
