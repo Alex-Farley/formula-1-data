@@ -20,7 +20,7 @@
  * no race: the check is what makes the quiet join safe to rely on.
  */
 import { Link } from 'react-router-dom'
-import { allExplained } from '../lib/disagreement.js'
+import { EXPLAINED_FOOTER, OPEN_FOOTER, allExplained } from '../lib/disagreement.js'
 
 /*
  * Both values are resolved through `drivers` on the way out. A discrepancy
@@ -106,9 +106,7 @@ export default function Disagreement({ rows, what = 'this' }) {
         ))}
       </dl>
       <p className="source-note">
-        {explained
-          ? 'Recorded and explained rather than resolved: the register and the race records define the span differently, and the page shows both. Every recorded reading is listed on '
-          : 'Recorded rather than resolved, and open for somebody to settle. Every one is listed on '}
+        {explained ? EXPLAINED_FOOTER : OPEN_FOOTER}
         <Link to="/data/quality">the quality page</Link>.
       </p>
     </aside>

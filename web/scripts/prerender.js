@@ -60,7 +60,8 @@ import {
   TWO_FILES,
   titled,
 } from '../src/lib/site.js'
-import { allExplained } from '../src/lib/disagreement.js'
+import { EXPLAINED_FOOTER, OPEN_FOOTER, allExplained } from '../src/lib/disagreement.js'
+import { RACE_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE } from '../src/queries/sessions.js'
 // The pages' own queries and column lists (PD-02). A page and this script
 // read the same module, so the static table is the app's table by
 // construction; the rest of the pages follow these three.
@@ -297,9 +298,7 @@ const disagree = (rows, what) => {
       )
       .join('')}</dl>
     <p class="source-note">${
-      explained
-        ? 'Recorded and explained rather than resolved: the register and the race records define the span differently, and the page shows both. Every recorded reading is listed on '
-        : 'Recorded rather than resolved, and open for somebody to settle. Every one is listed on '
+      explained ? EXPLAINED_FOOTER : OPEN_FOOTER
     }${link('data/quality', 'the quality page')}.</p>
   </aside>`
 }
@@ -662,6 +661,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
   for (const r of races) {
     const entries = classify.all(r.id)
     const scheduled = r.status === 'scheduled'
+    const sessions = all(RACE_SESSIONS, r.year, r.round)
     const headline = `${r.year} ${r.name_used}`
     const description = scheduled
       ? `${headline}: round ${r.round}${r.circuit ? ` at ${r.circuit}` : ''}${r.dates ? `, ${r.dates}` : ''}. Scheduled — no classification yet.`
@@ -760,6 +760,11 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
                 ['Confidence', r.confidence ? link('data/quality', r.confidence) : text(r.confidence)],
               ]),
         ])}
+        ${
+          sessions.length
+            ? `<h2>Timetable</h2>${fromColumns(SESSION_COLUMNS, sessions)}<p class="source-note">${esc(TIMETABLE_NOTE)}</p>`
+            : ''
+        }
         ${prose(r.note)}
         ${disagree(disagreements.all(`${r.year} round ${r.round}`), 'this race')}
         ${

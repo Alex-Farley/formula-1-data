@@ -34,8 +34,9 @@ import { BANDS, bandIndex, metresBetween, runsFor, signedArea, stitch } from '..
 import { fold, rank } from '../src/lib/search.js'
 import { trackPath } from '../src/lib/track.js'
 import { DRIVER_COLUMNS } from '../src/queries/drivers.js'
-import { allExplained } from '../src/lib/disagreement.js'
 import { holderPath } from '../src/queries/records.js'
+import { EXPLAINED_FOOTER, OPEN_FOOTER, allExplained } from '../src/lib/disagreement.js'
+import { clock, nextSession, until, utc } from '../src/queries/sessions.js'
 import { SEASON_COLUMNS, derivedAndPublished, pointsDiffer, record, seasonRows, seasonsNote, strip } from '../src/queries/driver.js'
 import { recordColumns, tiersOf } from '../src/queries/records.js'
 
@@ -334,7 +335,40 @@ describe('record holders', () => {
   })
 })
 
+describe('the weekend timetable', () => {
+  const rows = [
+    { kind: 'fp1', name: 'Practice 1', start_utc: '2026-11-20T00:30Z', zone: 'America/Los_Angeles' },
+    { kind: 'race', name: 'Race', start_utc: '2026-11-22T04:00Z', zone: 'America/Los_Angeles' },
+  ]
+  it("shows a start on the circuit's clock and in UTC, derived from one instant", () => {
+    // Las Vegas races on a Saturday evening that is Sunday in UTC.
+    assert.equal(clock('2026-11-22T04:00Z', 'America/Los_Angeles'), 'Sat 21 Nov 20:00')
+    assert.equal(utc('2026-11-22T04:00Z'), 'Sun 22 Nov 04:00')
+    assert.equal(clock('2026-03-08T04:00Z', 'Australia/Melbourne'), 'Sun 8 Mar 15:00')
+  })
+  it('finds the next session from now, and says how long', () => {
+    const before = Date.parse('2026-11-19T12:00Z')
+    assert.equal(nextSession(rows, before).kind, 'fp1')
+    assert.equal(nextSession(rows, Date.parse('2026-11-21T00:00Z')).kind, 'race')
+    assert.equal(nextSession(rows, Date.parse('2026-11-23T00:00Z')), null)
+    assert.equal(until('2026-11-20T00:30Z', before), 'in 13 hours')
+    assert.equal(until('2026-11-19T12:40Z', before), 'in 40 minutes')
+    assert.equal(until('2026-11-22T04:00Z', Date.parse('2026-09-12T12:00Z')), 'in 71 days')
+    assert.equal(until('2026-11-19T11:00Z', before), null)
+    assert.equal(until('2026-11-19T12:00:20Z', before), 'in under a minute')
+    assert.equal(until('2026-11-19T13:29:45Z', before), 'in 90 minutes')
+    assert.equal(until('2026-11-19T13:31:00Z', before), 'in 2 hours')
+  })
+})
+
 describe('the disagreement aside', () => {
+  it('closes with one of two shared sentences, each ending where the quality-page link begins', () => {
+    for (const footer of [EXPLAINED_FOOTER, OPEN_FOOTER]) {
+      assert.ok(footer.startsWith('Recorded'))
+      assert.ok(footer.endsWith(' listed on '))
+    }
+    assert.ok(EXPLAINED_FOOTER.includes('the published span'))
+  })
   it('introduces a set of explained rows as readings, and anything else as a disagreement', () => {
     const explained = { status: 'explained - each side is right about something' }
     const open = { status: 'open - needs official check' }
