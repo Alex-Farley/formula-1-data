@@ -62,7 +62,7 @@ export const SELF_DESCRIBING =
 
 /**
  * The claim `/data` makes, in the words the project settled on when the
- * repository stayed private (BACKLOG: Declined, "Making the repository
+ * repository stayed private (docs/LANDED.md, Declined: "Making the repository
  * public"). Not "audited": the pipeline half of that word — the checks, the
  * source literals, rebuild-and-compare — is not readable by anyone outside.
  * What remains checkable from the artefact alone is what is claimed, and the

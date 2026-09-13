@@ -168,13 +168,19 @@ to a dead end.
 
 ## What has already been critiqued, and what is queued
 
-Two files, and you must read both before starting:
+Three places, and you must read all of them before starting:
 
 - **`docs/critiques/`** — every previous critique, dated and named by discipline,
   with the full reasoning and evidence.
-- **`docs/BACKLOG.md`** — what came out of them, ranked, plus the author's own
-  ideas. It carries what has **landed** and what was **declined, with the
-  reason**.
+- **The issue queue** — what came out of them, ranked, plus the author's own
+  ideas: `gh issue list --state all --limit 1000 --json number,title,labels,state`
+  lists every item, open and closed, by its ID; `python3
+  .claude/skills/backlog-loop/next.py --list Now` (or `Next`, `Someday`)
+  prints a status in the board's order. A closed issue **landed** if a pull
+  request closed it and was **declined, with the reason** in its last comment,
+  if it was closed as not planned.
+- **`docs/LANDED.md`** — what landed and what was declined before 2026-09-13,
+  when the queue was a file, with the reason on each declined entry.
 
 You are not there to rediscover any of it. A recorded finding is worth raising
 again only if it has got worse, if it was recorded at the wrong severity, or if
@@ -185,13 +191,17 @@ revisiting only to say the fix did not work, and then you must show how.
 
 Everything else in your report should be new.
 
-**File your own findings as backlog IDs.** Use your discipline's prefix, keep
-your report's own numbering, and give each a size (S / M / L / ?). Sizes matter
+**File your own findings as issues.** Use your discipline's prefix, continue
+its sequence (`next.py --next-id PD` prints the next free number, and
+`python3 .claude/skills/backlog-loop/file.py new PD "<title>" --size S
+--body-file <note>` files one, labelled and on the board under *Next*), keep
+your report's own numbering in the report, and give each a size (S / M / L /
+?). Sizes matter
 here more than usual: the author's time is bursty, so an L that cannot be broken
 into shippable pieces is a decision to be made rather than a task to start, and
 should be written as one.
 
-If both files are empty, you are the first.
+If all three are empty, you are the first.
 
 ## Seeing the real thing
 

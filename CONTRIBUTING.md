@@ -156,18 +156,96 @@ CI fails if the committed export does not match a fresh build. `f1_database.json
 is **not** committed: it is 21 MB, it does not delta-compress, and it
 regenerates in about a second, so it goes out as a release asset instead.
 
+## The queue
+
+Open work is [GitHub Issues](https://github.com/Alex-Farley/formula-1-data/issues),
+one issue per item, ranked on the
+[Lap Ledger project](https://github.com/users/Alex-Farley/projects/1). It is
+the **only** queue: a finding from a critique, an item the project has carried
+in its own documents for versions, an idea you had in the car — they compete
+for the same time, so they belong in one place and are ranked against each
+other rather than by who raised them. Until 2026-09-13 that place was
+`docs/BACKLOG.md`; what landed and what was declined before then is
+`docs/LANDED.md`, unchanged, and a later critique still argues against a
+*Declined* entry there before re-raising it.
+
+Every item has an **ID** in its title, a **source** label and a **size**
+label. Nothing else is required.
+
+    VD-26: The accent is not reserved, and the racing colour collides with it.
+    labels: source: visual design · size: S
+
+**IDs** are a prefix and a number, and they never get reused:
+
+| Prefix | Label | Source |
+|---|---|---|
+| `PD-n` | `source: product design` | product design critique |
+| `AX-n` | `source: accessibility` | accessibility critique |
+| `IX-n` | `source: interaction design` | interaction design critique |
+| `VD-n` | `source: visual design` | visual design critique |
+| `CD-n` | `source: content design` | content design critique |
+| `IA-n` | `source: information architecture` | information architecture critique |
+| `DA-n` | `source: data architecture` | data architecture critique |
+| `SD-n` | `source: service design` | service design critique |
+| `UR-n` | `source: user research` | user research walkthrough |
+| `PM-n` | `source: project record` | the project's own record — `known_gaps`, `discrepancies`, a *still open* in `docs/`, a `verify.py` warning |
+| `AF-n` | `source: maintainer` | the maintainer's own — an idea, a defect, a want |
+| `CR-n` | `source: code review` | code review (whole-codebase engineering review) |
+| `LV-n` | `source: live data` | live and current-season data |
+| `WK-n` | `source: Wikipedia survey` | what Wikipedia tabulates and the database cannot yet |
+
+A critique's own numbering carries straight over: finding 4 of the product
+critique is `PD-04`, and stays `PD-04` however the board is ordered. A second
+product critique continues the sequence rather than restarting it;
+`python3 .claude/skills/backlog-loop/next.py --next-id PD` prints the next
+free number, counting closed issues and `docs/LANDED.md` too.
+
+**Size** is what it costs, not how much it matters:
+
+- `size: S` — one sitting. A component, a query, a copy change.
+- `size: M` — a few sittings, shippable in pieces.
+- `size: L` — needs a plan first, and probably a decision that is not obvious.
+- `size: ?` — not costed yet. An honest state, and better than a guessed size.
+
+Time here is bursty and unpredictable, so **an L that cannot be broken into
+shippable pieces should be a decision to make, not a task to start.**
+
+**Status**, on the project board, is the ranking: *Now*, *Next*, *Someday*,
+top to bottom within each, and a person drags an item to rank it. *In
+progress* means a worktree is open on it. The loop takes the first item under
+*Now*, then *Next*, then *Someday*, and passes over two labels: `decision` —
+a person's call, put on an issue with what must be decided, worked around
+and never taken by an autonomous run — and `blocked` — an ordinary blocker a
+run met, with a comment saying what.
+
+**Landing.** The pull request body carries `Closes #n` on its own line, so
+the merge closes the issue and the board moves it to *Done*. The PR is the
+record of what was done; the issue is not edited to say so. **Declining** is
+a normal outcome: the issue is closed as *not planned* with one comment
+saying why, because what was declined and why is what a later critique has
+to argue against. Nothing is deleted.
+
+**Filing.** `python3 .claude/skills/backlog-loop/file.py new <prefix>
+"<title>" --size <S|M|L|?> --body "<what is wrong, where, and what would fix
+it>"` numbers the item, labels it and puts it on the board (under *Next*,
+unless `--status` says otherwise; `--decision` for a question). Filing by
+hand works too — the title, the two labels and the board status are all
+there is — and the critique's full reasoning stays in `docs/critiques/`; the
+issue is the queue, not the argument.
+
 ## Working autonomously
 
 The same rules apply when an agent works through the backlog unattended.
 These are the ones that exist because the person is not there.
 
-**The queue.** `docs/BACKLOG.md` is the canonical list of work, and its own
-header says how an item is written, sized, landed and declined. Before
-starting one, reassess it against the repository as it is now: the code it
-names may have moved, the fix may have landed under a different ID, a later
-critique may have superseded it, or a smaller change may now do. Work
-discovered along the way is filed back into the backlog under the existing
-ID, source and size conventions. There is no second list.
+**The queue.** GitHub Issues, ranked on the project board, is the canonical
+list of work, and *The queue* above says how an item is written, sized,
+landed and declined; `next.py` prints the next one and `file.py` files one.
+Before starting one, reassess it against the repository as it is now: the
+code it names may have moved, the fix may have landed under a different ID,
+a later critique may have superseded it, or a smaller change may now do.
+Work discovered along the way is filed as an issue under the existing ID,
+source and size conventions. There is no second list.
 
 **Facts.** A factual or data change is verified against an authoritative
 source before it is made — official FIA, Formula 1, team, driver, power-unit
@@ -218,10 +296,10 @@ reviewing a pull request that edits it stays.
 **Merging.** A pull request merges only when the change is complete, the
 tests pass, `make all` succeeded, the fresh-context review returned PASS and
 the required CI checks are green. Merging `main` deploys lapledger.org through
-Cloudflare Workers Builds, so a merge is a production change. Afterwards the
-backlog is updated the way its header says: landed items move to *Landed*
-with the commit, declined items to *Declined* with the reason, nothing is
-deleted.
+Cloudflare Workers Builds, so a merge is a production change. The pull
+request body carries `Closes #n`, so the merge closes the item's issue and
+the board moves it to *Done*; a declined item is closed as *not planned*
+with the reason as a comment; nothing is deleted.
 
 **Blockers.** An ordinary one — a network failure, a service outage, a
 missing non-critical credential, an environment-specific failure — is

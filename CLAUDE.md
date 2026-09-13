@@ -170,11 +170,16 @@ through `.claude/skills/backlog-item/`, so the session driving the loop
 stays small. Measured 2026-09-13: that session, not the reviewers, was
 75-85 % of the loop's tokens.
 
-- **`docs/BACKLOG.md` is the queue.** Nothing else is. Before starting an
-  item, reread it against the code as it is now — an item can be stale,
-  already landed under another ID, or superseded by a later finding. Work
-  you discover goes back into the backlog under its ID, source and size
-  conventions, not into a note, a TODO or a second list.
+- **GitHub Issues is the queue**, ranked on the Lap Ledger project board.
+  Nothing else is; `docs/LANDED.md` is the record of what landed and what
+  was declined before the queue moved there on 2026-09-13, and there is no
+  backlog file. `next.py` in `.claude/skills/backlog-loop/` prints the next
+  item; `file.py` files one. Before starting an item, reread it against the
+  code as it is now — an item can be stale, already landed under another
+  ID, or superseded by a later finding. Work you discover is filed as an
+  issue under the ID, source and size conventions in `CONTRIBUTING.md`
+  (*The queue*), not into a note, a TODO or a second list. A PR lands an
+  item with `Closes #n` in its body; nothing else closes one.
 - **A fact needs a source before it needs a line of code.** Official FIA,
   Formula 1, team, driver, power-unit or circuit sources first; then the
   classified secondary sources. Never invent a missing value: NULL means

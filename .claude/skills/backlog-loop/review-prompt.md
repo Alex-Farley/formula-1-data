@@ -23,8 +23,8 @@ or to `frontend-reviewer-quick` where the pace table in
 
     Try to disprove: <numbered list of the specific ways this could be wrong -
     NULL handling, a check that cannot fail, a source or licence claim, a
-    figure copied rather than computed, the backlog entry's accuracy and PR
-    number>. Static-against-app parity of every table on the routes named,
+    figure copied rather than computed, the PR body's `Closes #n` naming the
+    right issue>. Static-against-app parity of every table on the routes named,
     header and every shown row, is proven by `npm test` on this head; do not
     rebuild that comparison - name a row or a route the suite does not reach
     if you believe one exists.

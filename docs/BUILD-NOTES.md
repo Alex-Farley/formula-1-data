@@ -1270,10 +1270,12 @@ disagreement in `discrepancies` rather than picking one silently.
 
 ## Next
 
-There is no list here any more. `docs/BACKLOG.md` is the only queue: every
+There is no list here any more. GitHub Issues is the only queue: every
 item from a critique, from this file's own *still open* notes, from a
 `verify.py` warning or from an idea has an ID, a source and a size there, and
-they are ranked against each other rather than by who raised them. The list
+they are ranked against each other on the project board rather than by who
+raised them (`docs/BACKLOG.md` held that queue until 2026-09-13; what landed
+and what was declined is in `docs/LANDED.md`). The list
 that used to sit here had been overtaken twice — its first two items by
 v2.15's licence finding and the timing decision in
 `docs/TIMING-ARCHITECTURE.md` — and a second queue that can go stale is worse

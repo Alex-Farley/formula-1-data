@@ -1,6 +1,6 @@
 ---
 name: backlog-item
-description: One backlog item from docs/BACKLOG.md, start to merge, in a forked context - the per-item procedure of /backlog-loop. Arguments are <pace> and <next | ITEM-ID>. Invoked by the backlog-loop skill; a person may also run it directly for one item.
+description: One item from the queue (GitHub Issues, ranked on the Lap Ledger project), start to merge, in a forked context - the per-item procedure of /backlog-loop. Arguments are <pace> and <next | ITEM-ID>. Invoked by the backlog-loop skill; a person may also run it directly for one item.
 argument-hint: "<fast | balanced | thorough> <next | ITEM-ID>"
 context: fork
 effort: high
@@ -8,8 +8,10 @@ effort: high
 
 # One backlog item
 
-You are the forked context for one item. `docs/BACKLOG.md` is the queue and
-nothing else is. The rules are in `CLAUDE.md` under *Working autonomously*
+You are the forked context for one item. GitHub Issues, ranked on the Lap
+Ledger project board, is the queue and nothing else is; the conventions -
+id, source, size, status, how an item lands, is declined or is blocked - are
+in `CONTRIBUTING.md` under *The queue*. The rules are in `CLAUDE.md` under *Working autonomously*
 and in `CONTRIBUTING.md`; read both rule sections before touching anything.
 The scripts are in `.claude/skills/backlog-loop/`. Your result is read by
 the driver, which sees only its first line and a five-line stock-take, so
@@ -29,28 +31,36 @@ where it stopped.
 ## Before an item
 
 1. `python3 .claude/skills/backlog-loop/next.py` prints the first open item
-   in the queue's own order, with its section and the open decisions to
-   work around; `next.py <ID>` prints one item; `next.py --list Now` prints
-   one line per open item in a section, for batching; `--skip A,B` passes
-   over ids the driver names. The order is the file's: *Now* before *Next*
-   before *Someday*, top to bottom. Within a section a person has ranked by
-   hand (*Now* and *Next*, since #100) that is the whole rule. In a
-   section nobody has ranked - a subsection filed straight from a critique
-   - the tiebreak stands: correctness before integrity and licensing,
-   functional, security, architecture, accessibility, UX, throughput; read
-   `--list` for that section, choose, and say in the PR why that item came
-   first. **Never read the
-   backlog file itself** to find an item: it is 145 KB, half of it history,
-   and reading it in slices is what filled the driving context before this
-   skill existed. Open the file only to edit it.
+   in the queue's own order - its issue number, title, labels and body, with
+   the open decisions to work around; `next.py <ID>` prints one item;
+   `next.py --list Now` prints one line per open item in a status, for
+   batching; `--skip A,B` passes over ids the driver names, and an issue
+   labelled `blocked` or `decision`, or with status *In progress*, is
+   passed over on its own. The order is the board's: status *Now* before
+   *Next* before *Someday*, top to bottom within a status, which is what a
+   person drags. Where a person has ranked by hand (*Now* and *Next*, since
+   #100) that is the whole rule. Where nobody has - a batch filed straight
+   from a critique lands at the foot of *Next* in filing order - the
+   tiebreak stands: correctness before integrity and licensing, functional,
+   security, architecture, accessibility, UX, throughput; read `--list` for
+   that status, choose, and say in the PR why that item came first. **Never
+   page through the issue list or the board** to find an item: `next.py`
+   does it for a few hundred tokens, which is the point of it. Open an
+   issue only to work on it.
 2. Reread the item against the code as it is now. It may be stale, landed
-   under another id, or superseded. If so, correct the backlog and move on.
+   under another id, or superseded. If so, close it with the reason -
+   `python3 .claude/skills/backlog-loop/file.py decline <n> "<landed in
+   #m>"` or `"<superseded by ID>"` - and move on.
 3. A fact needs a source before a line of code: official FIA, Formula 1, team,
    power-unit or circuit sources first, then the classified secondary ones.
    Never invent a value - NULL, a `discrepancies` row or a `known_gaps` row.
 4. Anything that is a person's decision - a licence reading, a scope change,
-   a trade the item does not settle - goes under *Decisions needed* at the top
-   of the backlog, and the work continues around it. Do not take it.
+   a trade the item does not settle - is put on the item with
+   `file.py decision <n> "<what must be decided>"`, or filed as its own
+   issue with `file.py new <prefix> "<title>" --size ? --decision --body
+   "..."` when it is a new question, and the work continues around it. Do
+   not take it. `next.py` lists the open decisions under every item it
+   prints.
 
 ## The pace
 
@@ -101,17 +111,23 @@ why a pace picks an agent rather than a setting.
   names it (two seconds; `node test/smoke.mjs --list` shows the headings),
   then the full `npm test -- --quiet` before the commit — a passing subset
   is not a passing site.
-- Backlog: move the item to *Landed* with its id, source and the PR number;
-  file anything discovered as a new item under the conventions. Never leave
-  discovered work in a note or a comment.
+- The issue: when the worktree opens, `file.py status <n> "In progress"`,
+  so a second fork or a person sees it is taken. The PR body carries
+  `Closes #<n>` on its own line, so the merge closes the issue and the board
+  moves it to *Done*; the PR body says what was done and what was left, and
+  is the record. Anything discovered is filed as its own issue -
+  `file.py new <prefix> "<title>" --size <S|M|L|?> --body "<what is wrong,
+  where, and what would fix it>"` - under the conventions in
+  `CONTRIBUTING.md`; the prefix continues its critique's sequence on its
+  own. Never leave discovered work in a note, a PR comment or a TODO.
 
 ## Before asking for review
 
 Run `bash .claude/skills/backlog-loop/precheck.sh <ITEM-ID>` from the
 worktree root. It refuses conflict markers, scripts that do not parse,
-duplicated imports, a backlog entry that is open and landed at once and a
-broken subsection heading, and warns about an artefact that moved without a
-source change or a commit that does not name the item. Half the FAIL
+duplicated imports and, once the PR exists, a PR body that does not close
+the item's issue with `Closes #n`, and warns about an artefact that moved
+without a source change or a commit that does not name the item. Half the FAIL
 rounds of the 2026-09-12 run were one of these; a reviewer pass costs
 40,000-130,000 tokens and this costs a few hundred.
 
@@ -144,7 +160,7 @@ One fresh agent from `.claude/agents/`, pointed at the worktree path, using
 Model, decided 2026-09-13 to control cost:
 - **First pass: Opus** (`model: "opus"`), for front-end and data alike,
   except where the pace table names the quick variant.
-- **Confirming a fix, or reviewing a docs-only, backlog-only or wording-only
+- **Confirming a fix, or reviewing a docs-only or wording-only
   change: Sonnet** (`model: "sonnet"`), as a fresh agent. A fresh Sonnet
   context satisfies the independent-review rule.
 - A substantive rewrite after a FAIL gets a new fresh Opus agent, not a
@@ -208,13 +224,14 @@ The agent returns exactly `PASS — safe to merge` or `FAIL — changes required
   (no check registers, so CI never started - merge main first). Run it in
   the background and read its file; empty output from `gh` is pending.
 - Main moved under a branch: `python3 .claude/skills/backlog-loop/merge-main.py`
-  from the worktree. It resolves only what it can safely: both sides of
-  `docs/BACKLOG.md`, main's copy of the generated artefacts with a rebuild,
-  and a README or licence-statement conflict that is only figure spans
-  moving. A conflict in any source file, or in prose, stops it with the file
+  from the worktree. It resolves only what it can safely: main's copy of
+  the generated artefacts with a rebuild, and a README or licence-statement
+  conflict that is only figure spans moving. A conflict in any source file, or in prose, stops it with the file
   named, and a person resolves that one. Then rerun the web tests before
   pushing. Merge PRs one at a time; each merge conflicts the others.
-- After the merge: remove the worktree, delete the branch, `git pull`.
+- After the merge: `file.py status <n> Done` (the board's *Item closed*
+  workflow does the same when it is switched on; the issue itself is closed
+  by `Closes #n`), remove the worktree, delete the branch, `git pull`.
 
 ## Stop conditions
 
@@ -222,8 +239,10 @@ Stop and say why when: a change could corrupt data, breach a licence,
 weaken a check or workflow, change production infrastructure other than by
 merging, or lose history; when a decision is a person's; when the user asks
 to pause. Skip and record an ordinary blocker (network, a service, a missing
-non-critical credential) as a backlog note on the item, and leave the
-repository clean: no worktree, no open PR, no half-edited file.
+non-critical credential) on the item - `file.py blocked <n> "<what>"`
+labels it so `next.py` passes over it and the comment says why - set its
+status back from *In progress*, and leave the repository clean: no
+worktree, no open PR, no half-edited file.
 
 ## The result
 
@@ -236,5 +255,6 @@ exactly one of:
     LIMIT: resets <time as the limit message gave it>
 
 followed by a stock-take of at most five lines: what merged, what is open,
-decisions filed, what `next.py` now prints as next. No reviewer report, no
-build output, no narrative of the work - the PR and its comment hold those.
+issues filed, decisions filed, what `next.py` now prints as next. No
+reviewer report, no build output, no narrative of the work - the PR, its
+comment and the issues hold those.

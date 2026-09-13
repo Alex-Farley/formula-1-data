@@ -19,7 +19,10 @@ running table rather than the final one in every release since v2.15.
 
 **What changed in every version**, what each one exposed, and what was
 deliberately not done, is in [`docs/BUILD-NOTES.md`](docs/BUILD-NOTES.md).
-The queue of work is [`docs/BACKLOG.md`](docs/BACKLOG.md).
+The queue of work is [GitHub Issues](https://github.com/Alex-Farley/formula-1-data/issues),
+ranked on the [Lap Ledger project](https://github.com/users/Alex-Farley/projects/1);
+what has landed and what was declined, with the reason, is in
+[`docs/LANDED.md`](docs/LANDED.md).
 
 ```bash
 git clone <your-repo-url> && cd f1db
@@ -81,7 +84,7 @@ here is a number the build checked.
 | `tools/geometry_overlay.py` | Merges `f1-geometry.db` into a local `f1.db` (`--apply`) or takes it out again (`--remove`). |
 | `tools/readme_figures.py` | Computes every figure this file states and rewrites it (`--write`) or checks it (`--check`). |
 | `docs/BUILD-NOTES.md` | What changed in each version, what it exposed, what was deliberately not done. |
-| `docs/BACKLOG.md` | The only queue of work. |
+| `docs/LANDED.md` | What has landed and what was declined, with the reason. The open queue is GitHub Issues. |
 | `CONTRIBUTING.md` | How to add data without breaking the checks. Read before editing. |
 | `ATTRIBUTION.md` | Where the data came from, and the licensing that follows from it. **Read before making this public.** |
 | `Makefile` | `make all` = build, regenerate the README figures, verify, export. |

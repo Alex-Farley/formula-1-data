@@ -1,6 +1,6 @@
 ---
 name: backlog-loop
-description: Drive the autonomous development loop through docs/BACKLOG.md - one item per forked context, a fresh independent review, merge on PASS and green CI, next item. Invoke as /backlog-loop next, /backlog-loop <ITEM-ID> or /backlog-loop until-paused, with an optional pace - fast, balanced (the default) or thorough.
+description: Drive the autonomous development loop through the issue queue - one item per forked context, a fresh independent review, merge on PASS and green CI, next item. Invoke as /backlog-loop next, /backlog-loop <ITEM-ID> or /backlog-loop until-paused, with an optional pace - fast, balanced (the default) or thorough.
 argument-hint: "[next | <ITEM-ID> | until-paused] [fast | balanced | thorough]"
 disable-model-invocation: true
 ---
@@ -8,7 +8,7 @@ disable-model-invocation: true
 # The backlog loop: the driver
 
 This skill stays in the session a person started and stays small. It does
-not read the backlog, open a file, run the build or launch a reviewer. Every
+not read the queue, open an issue, run the build or launch a reviewer. Every
 item runs in **`backlog-item`**, a forked skill in
 `.claude/skills/backlog-item/`, whose context is discarded when the item is
 merged, skipped or stopped. What comes back here is one contract line and a
@@ -25,8 +25,8 @@ driving context stop growing.
 The rules are in `CLAUDE.md` under *Working autonomously* and in
 `CONTRIBUTING.md`; the per-item procedure, the pace table and what never
 slides are in `.claude/skills/backlog-item/SKILL.md`; the scripts the fork
-uses are in this folder: `next.py`, `precheck.sh`, `ci-wait.sh`,
-`merge-main.py`, `review-prompt.md`.
+uses are in this folder: `next.py` (reads the queue), `file.py` (writes to
+it), `precheck.sh`, `ci-wait.sh`, `merge-main.py`, `review-prompt.md`.
 
 ## Arguments
 
@@ -45,13 +45,14 @@ Two words, either order, both optional.
 2. Invoke the Skill tool: skill `backlog-item`, args `<pace> <target>`
    where target is `next` or the item id, followed by `--skip <ids>` when
    this run has skipped any. Do not do any of the fork's work
-   here, and do not read the backlog to "check" first - `next.py` inside
-   the fork does that for a few hundred tokens.
+   here, and do not read the board or the issue list to "check" first -
+   `next.py` inside the fork does that for a few hundred tokens.
 3. Read the **first line** of the result and act on it:
    - `MERGED #<N> <ID>`: with `until-paused`, go to step 2 with `next`;
      otherwise stop and print the stock-take the fork returned.
-   - `SKIPPED <ID>: <reason>`: the fork recorded an ordinary blocker in the
-     backlog and left the repository clean. Add the id to this run's skip
+   - `SKIPPED <ID>: <reason>`: the fork recorded an ordinary blocker on the
+     issue (label `blocked`, a comment saying what) and left the repository
+     clean. Add the id to this run's skip
      list; with `until-paused`, go to step 2 with `next --skip <the list>`,
      so the next fork passes over it rather than meeting it again. Two
      consecutive skips of different items stop the loop: a blocker that

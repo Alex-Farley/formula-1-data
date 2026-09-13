@@ -8,7 +8,7 @@
 //
 // Every rule below that is demoted from the recommended `error` to `warn`
 // fired on 2026-09-13, the day the gate landed, and each is filed as CR-29
-// in docs/BACKLOG.md. A warning still prints in the job log and as an
+// in the issue queue. A warning still prints in the job log and as an
 // annotation on the pull request; it does not fail the job. Clearing one
 // means fixing its sites and deleting its line here, so the rule goes back
 // to gating — never adding to this list to keep a run green.
