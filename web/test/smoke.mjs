@@ -1705,6 +1705,11 @@ try {
     } else fail('no completed 2026 sprint weekend to compare the race tables on')
     await same('/races/1976/9', gp(1976, 9), 'Qualifying')
     await same('/races/1955/1', gp(1955, 1), 'Classification')
+    // Rung five: a constructor's and a circuit's three tables each.
+    for (const heading of ['Season by season', 'Every win', 'Cars built']) await same('/constructors/ferrari', 'Ferrari', heading)
+    for (const heading of ['Most wins here', 'Constructors here', 'Every race held here']) {
+      await same('/circuits/silverstone', 'Silverstone', heading)
+    }
     {
       // Run first: the list opens on the last race run, not the next one scheduled.
       const first = (await appTable(null))?.rows[0]?.join(' | ') ?? ''

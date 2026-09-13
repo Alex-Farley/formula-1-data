@@ -169,8 +169,12 @@ is independent.
       gains the last three, which it never had, its classification gains the
       chassis and fastest-lap columns and the app's order, and the rail, the
       "shared" mark and the fastest-lap glyph carry the same words for a
-      screen reader in both renderers. Still to follow: the constructor,
-      circuit, car and data pages.
+      screen reader in both renderers. **Rung five landed in #105**: the
+      constructor page's season-by-season, every-win and cars-built tables
+      and the circuit page's most-wins, constructors and every-race tables
+      read `queries/constructor.js` and `circuit.js` — the static pages had
+      one table each, from `race_results` in year order, and gain the other
+      two. Still to follow: the car and data pages.
 
 - [ ] `AF-03` **Draw every layout the championship has raced on, from F1DB.**
       F1DB (source 10, CC BY 4.0) ships an SVG outline for each of its 160

@@ -114,6 +114,26 @@ import {
   railOf,
 } from '../src/queries/race.js'
 import {
+  BY_SEASON as TEAM_BY_SEASON,
+  DESIGNS,
+  DESIGN_COLUMNS,
+  ENGINE_SPLIT_FOOTER,
+  SEASON_COLUMNS as TEAM_SEASON_COLUMNS,
+  STANDINGS as TEAM_STANDINGS,
+  WINS as TEAM_WINS,
+  WINS_FOOTER as TEAM_WINS_FOOTER,
+  WIN_COLUMNS,
+  constructorSeasons,
+} from '../src/queries/constructor.js'
+import {
+  RACES as CIRCUIT_RACES,
+  RACE_COLUMNS as CIRCUIT_RACE_COLUMNS,
+  TEAMS as TEAMS_HERE,
+  TEAM_COLUMNS,
+  WINNERS as WINNERS_HERE,
+  WINNER_COLUMNS,
+} from '../src/queries/circuit.js'
+import {
   BY_SEASON,
   DERIVED,
   DRIVER,
@@ -1010,11 +1030,6 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
       ${note(CONSTRUCTORS_FOOTER)}`,
   })
 
-  const winsOf = db.prepare(
-    `SELECT rr.year, rr.round, rr.gp_name, rr.winner_id, rr.winner FROM race_results rr
-      WHERE rr.constructor_id = ? ORDER BY rr.year, rr.round`,
-  )
-
   // A constructor's open disagreements, by its name - the driver page's
   // careerDisagreements is scoped to that section, so this is the same
   // statement for this one.
@@ -1029,7 +1044,13 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
       ORDER BY d.id`,
   )
   for (const c of constructors) {
-    const wins = winsOf.all(c.id)
+    // The three tables read web/src/queries/constructor.js, the app's own
+    // queries and column lists (PD-02, rung five).
+    const teamStandings = all(TEAM_STANDINGS, c.id)
+    const seasons = constructorSeasons(all(TEAM_BY_SEASON, c.id), teamStandings)
+    const engineSplit = teamStandings.some((s) => s.engine_id)
+    const wins = all(TEAM_WINS, c.id)
+    const designs = all(DESIGNS, c.id)
     page({
       path: `constructors/${c.id}`,
       title: titled(c.name),
@@ -1066,15 +1087,28 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
         ${prose(c.notes)}
         ${disagree(teamDisagreements.all(c.name), 'this team')}
         ${
+          seasons.length
+            ? `<h2>Season by season</h2>${fromColumns(TEAM_SEASON_COLUMNS, seasons, {
+                year: (year) => link(`seasons/${year}`, year),
+              })}${engineSplit ? note(ENGINE_SPLIT_FOOTER) : ''}`
+            : ''
+        }
+        ${
           wins.length
-            ? `<h2>Wins</h2>${table(
-                ['Season', 'Grand Prix', 'Driver'],
-                wins.map((w) => [
-                  link(`seasons/${w.year}`, w.year),
-                  link(`races/${w.year}/${w.round}`, w.gp_name),
-                  w.winner_id ? link(`drivers/${w.winner_id}`, w.winner) : text(w.winner),
-                ]),
-              )}`
+            ? `<h2>Every win</h2>${fromColumns(WIN_COLUMNS, wins, {
+                year: (year) => link(`seasons/${year}`, year),
+                name_used: (name, row) => link(`races/${row.year}/${row.round}`, name),
+                circuit: (name, row) => (row.circuit_id ? link(`circuits/${row.circuit_id}`, name) : text(name)),
+                driver: (name, row) => (row.driver_id ? link(`drivers/${row.driver_id}`, name) : text(name)),
+                chassis: (name, row) => (row.chassis_id ? link(`cars/${row.chassis_id}`, name ?? row.chassis_id) : text(name)),
+              })}${note(TEAM_WINS_FOOTER)}`
+            : ''
+        }
+        ${
+          designs.length
+            ? `<h2>Cars built</h2>${fromColumns(DESIGN_COLUMNS, designs, {
+                name: (name, row) => link(`cars/${row.id}`, name),
+              })}`
             : ''
         }`,
     })
@@ -1119,14 +1153,12 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
       ${note(CIRCUITS_FOOTER)}`,
   })
 
-  const racesAt = db.prepare(
-    `SELECT r.year, r.round, r.name_used, rr.winner_id, rr.winner, rr.constructor_id, rr.constructor
-       FROM races r LEFT JOIN race_results rr ON rr.year = r.year AND rr.round = r.round
-      WHERE r.circuit_id = ? ORDER BY r.year, r.round`,
-  )
-
   for (const c of circuits) {
-    const races = racesAt.all(c.id)
+    // The three tables read web/src/queries/circuit.js, the app's own
+    // queries and column lists (PD-02, rung five).
+    const racesHere = all(CIRCUIT_RACES, c.id)
+    const winnersHere = all(WINNERS_HERE, c.id)
+    const teamsHere = all(TEAMS_HERE, c.id)
     page({
       path: `circuits/${c.id}`,
       title: titled(c.name),
@@ -1171,16 +1203,31 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
         ${prose(c.characteristics)}
         ${prose(c.notes)}
         ${
-          races.length
-            ? `<h2>Grands Prix held here</h2>${table(
-                ['Season', 'Grand Prix', 'Winner', 'Constructor'],
-                races.map((r) => [
-                  link(`seasons/${r.year}`, r.year),
-                  link(`races/${r.year}/${r.round}`, r.name_used),
-                  r.winner_id ? link(`drivers/${r.winner_id}`, r.winner) : text(r.winner),
-                  r.constructor_id ? link(`constructors/${r.constructor_id}`, r.constructor) : text(r.constructor),
-                ]),
-              )}`
+          winnersHere.length
+            ? `<h2>Most wins here</h2>${fromColumns(WINNER_COLUMNS, winnersHere, {
+                driver: (name, row) => link(`drivers/${row.driver_id}`, name),
+              })}`
+            : ''
+        }
+        ${
+          teamsHere.length
+            ? `<h2>Constructors here</h2>${fromColumns(TEAM_COLUMNS, teamsHere, {
+                constructor: (name, row) => (row.constructor_id ? link(`constructors/${row.constructor_id}`, name) : text(name)),
+              })}`
+            : ''
+        }
+        ${
+          racesHere.length
+            ? `<h2>Every race held here</h2>${fromColumns(CIRCUIT_RACE_COLUMNS, racesHere, {
+                year: (year) => link(`seasons/${year}`, year),
+                name_used: (name, row) => link(`races/${row.year}/${row.round}`, name),
+                winner: (name, row) =>
+                  row.status !== 'completed'
+                    ? tag(NOT_YET_RUN)
+                    : row.winner_id && !String(name ?? '').includes(' / ')
+                      ? link(`drivers/${row.winner_id}`, name)
+                      : text(name),
+              })}`
             : ''
         }`,
     })

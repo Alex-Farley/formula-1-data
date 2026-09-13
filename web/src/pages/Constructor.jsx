@@ -6,80 +6,55 @@ import DataTable, { cell } from '../components/DataTable.jsx'
 import Figure from '../charts/Figure.jsx'
 import ColumnChart from '../charts/ColumnChart.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
-import { missing, number, points as fmtPoints, span, yearList } from '../lib/format.js'
+import { missing, number, span, yearList } from '../lib/format.js'
 import { colourFor } from '../lib/racingColours.js'
 
-const CONSTRUCTOR = `SELECT * FROM constructors WHERE id = ?`
+import {
+  BY_SEASON,
+  CONSTRUCTOR,
+  DERIVED,
+  DESIGNS,
+  DESIGN_COLUMNS,
+  ENGINE_SPLIT_FOOTER,
+  LINEAGE,
+  SEASON_COLUMNS,
+  STANDINGS,
+  WINS,
+  WINS_FOOTER,
+  WIN_COLUMNS,
+  constructorSeasons,
+} from '../queries/constructor.js'
 
-const DERIVED = `
-  SELECT COUNT(*)                       AS entries,
-         COUNT(DISTINCT r.year)         AS seasons,
-         COUNT(DISTINCT r.id)           AS races,
-         SUM(e.finish_position = 1)     AS wins,
-         SUM(e.finish_position <= 3)    AS podiums,
-         SUM(e.pole = 1)                AS poles,
-         SUM(e.fastest_lap = 1)         AS fastest_laps,
-         COUNT(DISTINCT e.driver_id)    AS drivers
-    FROM race_entries e
-    JOIN races r ON r.id = e.race_id
-   WHERE e.constructor_id = ?
-`
-
-const BY_SEASON = `
-  SELECT r.year,
-         COUNT(*)                    AS entries,
-         COALESCE(SUM(e.finish_position = 1), 0)  AS wins,
-         COALESCE(SUM(e.finish_position <= 3), 0) AS podiums,
-         COALESCE(SUM(e.pole = 1), 0)             AS poles,
-         SUM(COALESCE(e.points, 0))  AS points,
-         MIN(e.finish_position)      AS best,
-         COUNT(DISTINCT e.driver_id) AS drivers
-    FROM race_entries e
-    JOIN races r ON r.id = e.race_id
-   WHERE e.constructor_id = ?
-   GROUP BY r.year
-   ORDER BY r.year
-`
-
-/**
- * The season's final table can legitimately hold two rows for one constructor:
- * Force India was excluded from 2018 with nothing and its successor scored 52
- * under the same id, and Cooper contested 1960 with three engines. Both
- * survive v_standings_final; the same-fact-from-two-sources rows do not. The
- * rule and its reasons are on the view in schema.sql.
+/*
+ * The React renders for the columns queries/constructor.js defines — the
+ * links and the sort keys; the router is the reason they live here. The words
+ * each cell carries are the column's own `text`, which scripts/prerender.js
+ * prints too, so the static tables are these.
  */
-const STANDINGS = `
-  SELECT s.id, s.year, s.entity_id, s.engine_id, s.position, s.position_text, s.points, s.team
-    FROM v_standings_final s
-   WHERE s.table_type = 'constructors' AND s.entity_id = ?
-   ORDER BY s.year, s.position IS NULL, s.position
-`
-
-const WINS = `
-  SELECT r.year, r.round, r.name_used, r.circuit_id, c.name AS circuit,
-         e.driver_id, d.full_name AS driver, e.chassis_id, ch.name AS chassis
-    FROM race_entries e
-    JOIN races r ON r.id = e.race_id
-    LEFT JOIN circuits c  ON c.id = r.circuit_id
-    LEFT JOIN drivers d   ON d.id = e.driver_id
-    LEFT JOIN chassis ch  ON ch.id = e.chassis_id
-   WHERE e.constructor_id = ? AND e.finish_position = 1
-   ORDER BY r.year DESC, r.round DESC
-`
-
-const DESIGNS = `
-  SELECT ch.id, ch.name, ch.first_year, ch.last_year, ch.engine_name, ch.chassis_type,
-         ch.power_bhp, ch.races, ch.wins, ch.confidence
-    FROM chassis ch
-   WHERE ch.constructor_id = ?
-   ORDER BY ch.first_year, ch.name
-`
-
-const LINEAGE = `
-  SELECT l.* FROM constructor_lineage l
-   WHERE l.chain_id = (SELECT lineage_chain FROM constructors WHERE id = ?)
-   ORDER BY l.sequence
-`
+const seasonLink = { render: (year) => <Link to={`/seasons/${year}`}>{year}</Link> }
+const SEASON_APP = {
+  year: seasonLink,
+  championship_text: { sort: (row) => row.championship },
+}
+const WIN_APP = {
+  year: seasonLink,
+  name_used: { render: (name, row) => <Link to={`/races/${row.year}/${row.round}`}>{name}</Link> },
+  circuit: {
+    render: (name, row) => (row.circuit_id ? <Link to={`/circuits/${row.circuit_id}`}>{name}</Link> : cell(name)),
+  },
+  driver: {
+    render: (name, row) => (row.driver_id ? <Link to={`/drivers/${row.driver_id}`}>{name}</Link> : cell(name)),
+  },
+  chassis: {
+    render: (name, row) =>
+      row.chassis_id ? <Link to={`/cars/${row.chassis_id}`}>{name ?? row.chassis_id}</Link> : cell(name),
+  },
+}
+const DESIGN_APP = {
+  name: { render: (name, row) => <Link to={`/cars/${row.id}`}>{name}</Link> },
+  first_year: { sort: (row) => row.first_year },
+}
+const withRenders = (columns, renders) => columns.map((column) => ({ ...column, ...renders[column.key] }))
 
 export default function Constructor() {
   const { id } = useParams()
@@ -233,49 +208,12 @@ function ConstructorBody({ constructor, data }) {
 
       <Section title="Season by season" count={`${bySeason.length} seasons`}>
         <DataTable
-          rows={bySeason.map((season) => {
-            const standing = standings.find((s) => s.year === season.year)
-            return {
-              ...season,
-              championship: standing?.position ?? null,
-              championship_text: standing?.position_text ?? null,
-            }
-          })}
+          rows={constructorSeasons(bySeason, standings)}
           rowKey={(row) => row.year}
           sort="year"
           direction="desc"
-          columns={[
-            {
-              key: 'year',
-              label: 'Season',
-              align: 'num',
-              render: (year) => <Link to={`/seasons/${year}`}>{year}</Link>,
-            },
-            { key: 'entries', label: 'Entries', align: 'num' },
-            { key: 'drivers', label: 'Drivers', align: 'num' },
-            { key: 'wins', label: 'Wins', align: 'num' },
-            { key: 'podiums', label: 'Podiums', align: 'num' },
-            { key: 'poles', label: 'Poles', align: 'num' },
-            {
-              key: 'best',
-              label: 'Best',
-              align: 'num',
-              render: (value) => (missing(value) ? cell(value) : `P${value}`),
-            },
-            { key: 'points', label: 'Points scored', align: 'num', render: (v) => fmtPoints(v) },
-            {
-              key: 'championship_text',
-              label: 'Championship',
-              align: 'num',
-              sort: (row) => row.championship,
-              render: (v, row) => cell(v ?? row.championship),
-            },
-          ]}
-          footer={
-            engineSplit
-              ? "The constructors' championship is contested by a chassis–engine pair, so a season can carry more than one entry for the same name. Open the season to see both."
-              : undefined
-          }
+          columns={withRenders(SEASON_COLUMNS, SEASON_APP)}
+          footer={engineSplit ? ENGINE_SPLIT_FOOTER : undefined}
         />
       </Section>
 
@@ -287,38 +225,8 @@ function ConstructorBody({ constructor, data }) {
             sort="year"
             direction="desc"
             page={100}
-            columns={[
-              {
-                key: 'year',
-                label: 'Season',
-                align: 'num',
-                render: (year) => <Link to={`/seasons/${year}`}>{year}</Link>,
-              },
-              {
-                key: 'name_used',
-                label: 'Grand Prix',
-                render: (name, row) => <Link to={`/races/${row.year}/${row.round}`}>{name}</Link>,
-              },
-              {
-                key: 'circuit',
-                label: 'Circuit',
-                render: (name, row) =>
-                  row.circuit_id ? <Link to={`/circuits/${row.circuit_id}`}>{name}</Link> : cell(name),
-              },
-              {
-                key: 'driver',
-                label: 'Driver',
-                render: (name, row) =>
-                  row.driver_id ? <Link to={`/drivers/${row.driver_id}`}>{name}</Link> : cell(name),
-              },
-              {
-                key: 'chassis',
-                label: 'Chassis',
-                render: (name, row) =>
-                  row.chassis_id ? <Link to={`/cars/${row.chassis_id}`}>{name ?? row.chassis_id}</Link> : cell(name),
-              },
-            ]}
-            footer="A blank chassis is a season this team ran more than one design and no source records which car raced which round."
+            columns={withRenders(WIN_COLUMNS, WIN_APP)}
+            footer={WINS_FOOTER}
           />
         </Section>
       )}
@@ -331,24 +239,7 @@ function ConstructorBody({ constructor, data }) {
             sort="first_year"
             direction="asc"
             page={80}
-            columns={[
-              {
-                key: 'name',
-                label: 'Chassis',
-                render: (name, row) => <Link to={`/cars/${row.id}`}>{name}</Link>,
-              },
-              {
-                key: 'first_year',
-                label: 'Years',
-                align: 'num',
-                render: (_, row) => span(row.first_year, row.last_year),
-                sort: (row) => row.first_year,
-              },
-              { key: 'engine_name', label: 'Engine' },
-              { key: 'power_bhp', label: 'Power (bhp)', align: 'num' },
-              { key: 'races', label: 'Races', align: 'num' },
-              { key: 'wins', label: 'Wins', align: 'num' },
-            ]}
+            columns={withRenders(DESIGN_COLUMNS, DESIGN_APP)}
           />
         </Section>
       )}
