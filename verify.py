@@ -1367,7 +1367,6 @@ def cars():
 @section('THE DRIVER REGISTER')
 def the_driver_register():
     _HV = harvest_module()
-    from data import drivers as _D
     from data import results as _RS
     _drv_years = {}
     for _y, _e, _c, _em, _d, _rounds, _t in _HV.load_entrant_drivers():

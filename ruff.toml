@@ -1,0 +1,67 @@
+# Ruff, the Python linter CI's `lint` job runs (.github/workflows/ci.yml).
+# It is a CI tool, not a dependency: nothing in the build imports it, and
+# `make all` does not need it. Locally: `pip install ruff` (or `brew install
+# ruff`), then `make lint` or `ruff check`.
+#
+# The rule set is deliberately narrow. This lints for defects — an undefined
+# name, an import that is not there, a variable assigned and never read, a
+# `subprocess.run` whose failure would pass unnoticed — and not for style.
+# E501 and the formatter are off: the code is laid out for the reader, with
+# aligned comments and long f-strings, and reflowing it would bury every
+# real diff under whitespace. Every category left out below says why, the
+# way `verify.py` declares its deviations. Adding a rule means clearing what
+# it finds or declaring why not; a gate that is red on the day it lands is
+# one nobody trusts.
+
+# `f1` is a Python script with no extension. Without this Ruff would walk
+# past it, and it is 43 KB of the code readers actually run.
+include = ["*.py", "f1"]
+
+# The front end is JavaScript, linted by Biome (web/biome.jsonc).
+# `.f1dbcache/`, `venv/` and `__pycache__/` are gitignored and Ruff honours
+# .gitignore by default.
+extend-exclude = ["web"]
+
+# What setup-python's matrix in ci.yml runs the build on, at the low end.
+# `zip(strict=)` and `match` are 3.10; a rule that proposes them is wrong
+# here.
+target-version = "py39"
+
+[lint]
+# F      pyflakes: undefined and unused names, redefinitions, bad f-strings
+# E9     syntax and I/O errors — the only part of pycodestyle that is not
+#        style
+# B      flake8-bugbear: the mistakes that run without error
+# PLE    pylint errors
+# PLW    pylint warnings
+# PLR0124 `x != x` — see the two declared NaN checks in tools/fastf1_load.py
+select = ["F", "E9", "B", "PLE", "PLW", "PLR0124"]
+
+ignore = [
+  # A closure that reads its loop variable. Every site it fires on here was
+  # read on 2026-09-13 — build.py's `upsert` in the pole-harvest stage,
+  # `measure` in tools/osm_geometry.py, `get` in tools/wikimedia_images.py —
+  # and each is defined and called inside the same iteration, then dropped.
+  # The bug this rule exists for is a closure that outlives its iteration;
+  # none of these does. Fourteen `# noqa` comments would say the same thing
+  # fourteen times.
+  "B023",
+  # `zip(strict=True)` is Python 3.10. The build runs on 3.9.
+  "B905",
+  # An unused loop variable (`for i, row in ...` where `i` is not read) is
+  # a naming matter, not a defect; the convention here is to keep the
+  # destructuring readable rather than to rename to `_`.
+  "B007",
+  # Reassigning a loop variable inside its loop (`row = clean(row)`) is a
+  # deliberate idiom in the harvest loaders.
+  "PLW2901",
+  # `global` statements: three module-level caches in the tools, each
+  # documented where it is declared.
+  "PLW0603",
+]
+
+[lint.per-file-ignores]
+# The data modules are Python literals — tables written as tuples and dicts.
+# Nothing here runs; there is nothing for bugbear to catch and a long row is
+# a long row.
+"data/*.py" = ["B"]

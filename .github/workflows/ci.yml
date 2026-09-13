@@ -16,6 +16,54 @@ permissions:
   contents: read
 
 jobs:
+  # Three linters, none of them a dependency of anything: Ruff for the
+  # Python, Biome for the front end, actionlint (with ShellCheck, which the
+  # runner image carries) for these workflow files. Each is installed here
+  # and nowhere else — not in requirements.txt, not in web/package.json — so
+  # the build stays stdlib-only and `npm ci` on Cloudflare installs nothing
+  # for them. The rule sets and every rule left out are in ruff.toml and
+  # web/biome.jsonc, each with its reason.
+  #
+  # A separate job so it runs beside `check` and `web` rather than in front
+  # of them: it finishes in well under a minute and a lint failure should not
+  # hide whether the build passed. Versions are pinned so a new release
+  # cannot turn a pull request red on its own.
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      # `f1` has no .py extension; ruff.toml's `include` names it, so a bare
+      # `ruff check` finds it. The GitHub output format puts each finding on
+      # the pull request as an annotation.
+      - name: Lint the Python
+        uses: astral-sh/ruff-action@v3
+        with:
+          version: "0.16.7"
+          args: check --output-format github
+
+      - uses: biomejs/setup-biome@v2
+        with:
+          version: "2.5.13"
+
+      # Errors fail the job. Warnings — the rules web/biome.jsonc demotes,
+      # filed as CR-25 — are printed and annotated but do not; the config
+      # says why each one is a warning and how it goes back to being an
+      # error.
+      - name: Lint the front end
+        working-directory: web
+        run: biome lint --reporter=github
+
+      # actionlint's own documented install: the pinned release binary,
+      # fetched by its download script. It picks up the runner's shellcheck
+      # and runs it over every `run:` block, which is most of the shell this
+      # repository has.
+      - name: Lint the workflows
+        run: |
+          bash <(curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash) 1.7.12
+          ./actionlint -color
+
   check:
     runs-on: ubuntu-latest
     # The build and every check run in well under a minute. A cap this far
@@ -183,9 +231,34 @@ jobs:
         working-directory: web
         run: npm run test:units
 
+      # The browser download is the slowest step in this job on a warm npm
+      # cache — Chromium is 150 MB and Playwright fetches it every run. Key
+      # the cache on the Playwright version the lockfile actually installed,
+      # so a bump in package-lock.json misses and downloads, and nothing
+      # else does. The system libraries still come from apt each run:
+      # `install-deps` is the half of `install --with-deps` that a cache
+      # cannot carry.
+      - name: Read the Playwright version npm installed
+        id: playwright
+        working-directory: web
+        run: echo "version=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
       - name: Install Chromium
         working-directory: web
-        run: npx playwright install --with-deps chromium
+        env:
+          CACHE_HIT: ${{ steps.playwright-cache.outputs.cache-hit }}
+        run: |
+          if [ "$CACHE_HIT" = "true" ]; then
+            npx playwright install-deps chromium
+          else
+            npx playwright install --with-deps chromium
+          fi
 
       # The build only proves the JavaScript compiles. This proves the worker
       # started, the gzip decompressed, SQLite instantiated, the queries

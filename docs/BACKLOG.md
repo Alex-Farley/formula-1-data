@@ -755,6 +755,28 @@ the source. `WK-` is this survey; nothing else uses the prefix.
       anything it holds that the database cannot joins `known_gaps` #12. —
       *Wikipedia survey · S*
 
+### Filed 2026-09-13 — the lint gate
+
+The `lint` job in `ci.yml` landed with Ruff clean and Biome passing on
+warnings. Eight Biome rules are demoted from error to warning in
+`web/biome.jsonc`, each with its reason; this is the item that puts them
+back.
+
+- [ ] `CR-25` **Clear the 25 Biome findings demoted to warnings, rule by
+      rule.** Nine `useExhaustiveDependencies` (`App.jsx`, `DataTable.jsx`,
+      `Page.jsx` ×2, `Sql.jsx`, `useQuery.js` ×4 — read each before adding a
+      dependency; a query hook that re-runs on every render is worse than
+      the warning), one `useHookAtTopLevel` (`Sql.jsx`'s `useExample` is not
+      a hook; rename it), four `noShadowRestrictedNames` (`constructor` as a
+      local in `Constructor.jsx`, `Cars.jsx`, `prerender.js`), two
+      `noArrayIndexKey`, three `useIterableCallbackReturn` in `smoke.mjs`,
+      and six a11y findings — `noStaticElementInteractions` on the chart
+      marks and search results, a div listbox in `Filters.jsx`,
+      `aria-selected` on the wrong role in `Circuit.jsx` — which overlap the
+      `AX-` items and should be cleared with them. A rule is done when its
+      sites are fixed and its line is deleted from `biome.jsonc`, so it
+      gates again. — *lint gate · M*
+
 ### Filed 2026-09-11 — the eight reviews
 
 Compact by design: the reasoning and the evidence are in `docs/critiques/2026-09-11-*.md` under the same ID. Items already in *Now* are not repeated.

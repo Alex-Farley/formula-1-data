@@ -65,7 +65,6 @@ import html
 import json
 import os
 import re
-import sys
 import time
 import unicodedata
 import urllib.error

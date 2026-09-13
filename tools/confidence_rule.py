@@ -151,10 +151,6 @@ def main():
         if "confidence" in cols and t != "provenance":
             fact_tables.append((t, "source" in cols))
 
-    # Rows already flagged as contested.
-    contested = {r[0] for r in con.execute(
-        "SELECT DISTINCT subject FROM discrepancies WHERE status='open'")}
-
     print(f"\nDERIVED-CONFIDENCE SKETCH — {os.path.basename(DB)}")
     print("Read-only. Nothing is written.\n")
     print(f"  {'table':24} {'rows':>6}  {'agree':>6} {'differ':>6}   derived tiers")

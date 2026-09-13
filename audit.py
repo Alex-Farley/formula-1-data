@@ -139,8 +139,8 @@ lay, cov = con.execute("""SELECT COUNT(DISTINCT circuit_id),
     FROM circuit_layouts""").fetchone()
 print(f"  {lay} circuits have a researched configuration timeline")
 print(f"  {cov} of {n} races ({100 * cov / n:.0f}%) report the layout actually raced;")
-print(f"  the rest fall back to the circuit's current figures "
-      f"(v_race_venues.figures says which)")
+print("  the rest fall back to the circuit's current figures "
+      "(v_race_venues.figures says which)")
 print()
 print("  most-used venues:")
 for r in con.execute("""SELECT name, country, races, first_gp, last_gp

@@ -1,7 +1,7 @@
 # The whole workflow. `make` rebuilds, checks and exports.
 PYTHON ?= python3
 
-.PHONY: all build readme verify audit export test clean check ci help
+.PHONY: all build readme verify audit export test lint clean check ci help
 
 all: build readme verify export   ## rebuild, regenerate the README figures, check and export (default)
 
@@ -21,6 +21,15 @@ verify:                           ## integrity and consistency checks on the dat
 
 test:                             ## unit tests for the code (not the data)
 	$(PYTHON) -m unittest discover -s tests -v
+
+# What ci.yml's lint job runs. None of the three is a dependency of the
+# build; install them yourself: `pip install ruff` (or brew), `brew install
+# actionlint`, and Biome comes down through npx. The rule sets, and every
+# rule left out, are in ruff.toml and web/biome.jsonc with their reasons.
+lint:                             ## Ruff, Biome and actionlint, as CI runs them
+	ruff check
+	cd web && npx -y @biomejs/biome@2.5.13 lint
+	actionlint
 
 audit:                            ## structural health report
 	$(PYTHON) audit.py

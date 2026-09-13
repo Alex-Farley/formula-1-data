@@ -178,7 +178,7 @@ def strip(value):
     s = re.sub(r"</?(sup|sub|span|div|small|b|i)[^>]*>", "", s, flags=re.I)
     s = s.replace("'''", "").replace("''", "")
     s = re.sub(r"[|]", "/", s)          # the output file is pipe-delimited
-    s = re.sub(r"\s+", " ", s).strip(" ;,\t ")
+    s = re.sub(r"\s+", " ", s).strip(" ;,\t")
     return s or None
 
 
@@ -453,7 +453,7 @@ def main():
             continue
         lo, hi = min(entered), max(entered)
 
-        tried, title, text, box = [], None, None, None
+        tried, title, box = [], None, None
         for cand in candidates(full) + search(full):
             if cand in tried:
                 continue
@@ -471,7 +471,7 @@ def main():
             if b2 is None:
                 log.append(f"{cid}|no racing-car infobox|{t}")
                 continue
-            title, text, box = t, body, b2
+            title, box = t, b2
             break
         if box is None:
             if not any(l.startswith(cid + "|") for l in log):

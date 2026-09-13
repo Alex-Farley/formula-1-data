@@ -63,7 +63,7 @@ def secs(v):
     if v is None:
         return None
     try:
-        if v != v:                     # NaT / NaN
+        if v != v:                     # noqa: PLR0124 - NaT / NaN, the only self-inequal values
             return None
     except TypeError:
         pass
@@ -81,7 +81,7 @@ def val(v):
     if v is None:
         return None
     try:
-        if v != v:
+        if v != v:                     # noqa: PLR0124 - NaT / NaN
             return None
     except TypeError:
         pass
@@ -385,7 +385,7 @@ def load_radio(cur, rid, session, dmap, nmap, transcribe=False):
 
 def dump_telemetry(session, outdir, year, rnd):
     """Car telemetry to Parquet, beside the database rather than in it."""
-    import pandas as pd                                          # noqa: F401
+    import pandas as pd
     os.makedirs(outdir, exist_ok=True)
     frames = []
     for code in session.laps["Driver"].dropna().unique():
@@ -399,7 +399,6 @@ def dump_telemetry(session, outdir, year, rnd):
         frames.append(t)
     if not frames:
         return None
-    import pandas as pd
     df = pd.concat(frames, ignore_index=True)
     path = os.path.join(outdir, f"telemetry_{year}_{rnd:02d}.parquet")
     df.to_parquet(path, index=False)
