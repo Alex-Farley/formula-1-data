@@ -23,8 +23,9 @@ the `size:` label, and puts it on the board under the status given
 (`Next` by default) at the foot of that status. `--decision` adds the label
 that keeps the loop off it.
 
-`decline` closes the issue as *not planned* with the reason as a comment;
-`blocked` and `decision` add the label and a comment, so the record of why
+`decline` closes an open issue as *not planned* with the reason as a comment
+and refuses a closed one, so a landed record cannot be turned into a
+declined one by a wrong number; `blocked` and `decision` add the label and a comment, so the record of why
 is on the item, not in a fork's context that is about to be discarded.
 """
 import argparse
@@ -103,6 +104,13 @@ def mark(a, label, comment_prefix):
 
 
 def decline(a):
+    # Only an open issue is declined. A closed one is a record already - a
+    # landed item or an earlier decline - and one wrong digit here would
+    # rewrite it; that is a person's to undo, not this script's to make.
+    issue = gh("issue", "view", str(a.number), "--repo", REPO, "--json", "state,stateReason,title", as_json=True)
+    if issue["state"] != "OPEN":
+        sys.exit(f"#{a.number} is already closed ({issue.get('stateReason') or issue['state']}): "
+                 f"{issue['title']} - not declining a closed item")
     gh("issue", "close", str(a.number), "--repo", REPO, "--reason", "not planned",
        "--comment", f"**Declined:** {a.reason}")
     print(f"#{a.number} declined")

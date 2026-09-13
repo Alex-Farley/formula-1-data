@@ -263,7 +263,7 @@ class AgentAndSkillFrontmatterIsWellFormed(unittest.TestCase):
         # reappearing, or the rules and the loop's skills naming one, is a
         # second queue, which the rules forbid. docs/LANDED.md is the archive
         # and the scripts' docstrings may say where the queue used to be.
-        self.assertFalse(os.path.exists("docs/BACKLOG.md"), "docs/BACKLOG.md is back: the queue is GitHub Issues")
+        self.assertFalse(os.path.exists(os.path.join(ROOT, "docs/BACKLOG.md")), "docs/BACKLOG.md is back: the queue is GitHub Issues")
         for rel in ["CLAUDE.md", ".claude/skills/backlog-loop/precheck.sh"] + self.skills():
             self.assertNotIn("BACKLOG.md", read(rel), f"{rel} names a backlog file; the queue is GitHub Issues")
 

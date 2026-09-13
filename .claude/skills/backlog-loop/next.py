@@ -20,7 +20,10 @@ it was docs/BACKLOG.md, and this script read that file. What it reads now:
   never returned as next; `blocked` is an ordinary blocker a fork recorded
   (the comment says what) and is passed over, as `--skip` passes over ids
   the driver names.
-- open issues only. A closed issue stays on the board as *Done*.
+- open issues only. A closed issue stays on the board as *Done*. An open
+  issue with no Status (filed in the web UI and auto-added) or with *Done*
+  while still open is not lost: it is listed under every item as
+  *unplaced*, `--list unplaced` prints them, and `next.py <ID>` finds it.
 
 Why a script and not `gh issue list`: the ranking lives on the board, not in
 the issue list, and reading it is two `gh` calls and a join. The output is
@@ -35,6 +38,7 @@ Exit 0 with the item on stdout; 1 when there is no open item (or the named
 one is not open), with the reason on stderr; 2 when `gh` fails.
 """
 import json
+import os
 import re
 import subprocess
 import sys
@@ -71,11 +75,16 @@ def load():
                          title=issue["title"], labels=sorted(lb["name"] for lb in issue["labels"]),
                          body=issue["body"] or "", url=issue["url"]))
     ranked = [r for s in QUEUE for r in rows if r["status"] == s]
-    return ranked, [r for r in rows if r["status"] not in QUEUE and r["status"] != "Done"]
+    in_progress = [r for r in rows if r["status"] == "In progress"]
+    # Open, on the board, and in no queue status: no Status at all, or Done
+    # while still open. Never silently dropped - the loop's rule is that an
+    # item goes missing only by a person's hand.
+    unplaced = [r for r in rows if r["status"] not in QUEUE + ("In progress",)]
+    return ranked, in_progress, unplaced
 
 
-def show(row, decisions, in_progress):
-    print(f"## {row['status']}  #{row['number']}  {row['url']}\n")
+def show(row, decisions, in_progress, unplaced):
+    print(f"## {row['status'] or 'no status'}  #{row['number']}  {row['url']}\n")
     print(row["title"])
     print("Labels: " + (", ".join(row["labels"]) or "none") + "\n")
     print(row["body"].rstrip() + "\n")
@@ -87,6 +96,10 @@ def show(row, decisions, in_progress):
         print("In progress elsewhere — an open worktree or PR; finish or reset it, do not start it again:")
         for d in in_progress:
             print(f"  #{d['number']}  {d['title']}")
+    if unplaced:
+        print("Unplaced — open, on the board, no queue status; give each one with `file.py status <n> <Now|Next|Someday>`:")
+        for d in unplaced:
+            print(f"  #{d['number']}  {d['title']}  (status: {d['status'] or 'none'})")
 
 
 def next_id(prefix):
@@ -96,10 +109,13 @@ def next_id(prefix):
     titles = [i["title"] for i in gh("issue", "list", "--repo", REPO, "--state", "all",
                                      "--limit", "1000", "--json", "title")]
     used = [int(m.group(1)) for t in titles for m in [re.match(rf"^{prefix}-(\d+): ", t)] if m]
+    # Resolved from this file, not the cwd: a miss here would hand out a
+    # landed id again, so a missing archive stops rather than falls back.
+    archive_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "docs", "LANDED.md")
     try:
-        archive = open("docs/LANDED.md", encoding="utf-8").read()
+        archive = open(archive_path, encoding="utf-8").read()
     except FileNotFoundError:
-        archive = ""
+        sys.exit(f"{os.path.normpath(archive_path)} not found; the archive is needed to avoid reusing an id")
     used += [int(n) for n in re.findall(rf"^- \[[ x]\] `{prefix}-(\d+)`", archive, re.M)]
     return f"{prefix}-{(max(used) + 1 if used else 1):02d}"
 
@@ -118,32 +134,38 @@ def main(argv):
         print(next_id(argv[1]))
         return
 
-    ranked, other = load()
+    ranked, in_progress, unplaced = load()
     decisions = [r for r in ranked if "decision" in r["labels"]]
-    in_progress = [r for r in other if r["status"] == "In progress"]
+    everything = ranked + in_progress + unplaced
 
     if argv[:1] == ["--list"]:
         name = " ".join(argv[1:]) or "Now"
-        if name not in QUEUE + ("In progress",):
-            sys.exit(f"no status '{name}'; one of {', '.join(QUEUE)}, In progress")
-        for r in (ranked + in_progress):
-            if r["status"] == name:
-                flags = "".join(f" [{f}]" for f in ("decision", "blocked") if f in r["labels"])
-                size = next((lb[6:] for lb in r["labels"] if lb.startswith("size: ")), "-")
-                print(f"#{r['number']:<4} {r['ident']:<6} {size:<2} {r['title'][len(r['ident']) + 2:]}{flags}")
+        if name not in QUEUE + ("In progress", "unplaced"):
+            sys.exit(f"no status '{name}'; one of {', '.join(QUEUE)}, In progress, unplaced")
+        rows = unplaced if name == "unplaced" else [r for r in everything if r["status"] == name]
+        for r in rows:
+            flags = "".join(f" [{f}]" for f in ("decision", "blocked") if f in r["labels"])
+            if name == "unplaced":
+                flags += f" (status: {r['status'] or 'none'})"
+            size = next((lb[6:] for lb in r["labels"] if lb.startswith("size: ")), "-")
+            title = r["title"][len(r["ident"]) + 2:] if r["title"].startswith(r["ident"] + ": ") else r["title"]
+            print(f"#{r['number']:<4} {r['ident']:<6} {size:<2} {title}{flags}")
         return
 
     wanted = argv[0] if argv else None
-    for r in ranked + in_progress:
-        if wanted is None and (r["ident"] in skip or "decision" in r["labels"] or "blocked" in r["labels"]
-                               or r["status"] == "In progress"):
-            continue
-        if wanted is None or r["ident"] == wanted or f"#{r['number']}" == wanted:
-            show(r, decisions, in_progress)
+    if wanted is None:
+        for r in ranked:
+            if r["ident"] in skip or "decision" in r["labels"] or "blocked" in r["labels"]:
+                continue
+            show(r, decisions, in_progress, unplaced)
             return
-    if wanted:
-        sys.exit(f"{wanted} is not an open item on the board (landed, declined, or never filed)")
-    sys.exit(f"no open item under {', '.join(QUEUE)} that is not a decision, blocked or in progress")
+        sys.exit(f"no open item under {', '.join(QUEUE)} that is not a decision, blocked or in progress"
+                 + (f"; {len(unplaced)} unplaced (--list unplaced)" if unplaced else ""))
+    for r in everything:
+        if r["ident"] == wanted or f"#{r['number']}" == wanted:
+            show(r, decisions, in_progress, unplaced)
+            return
+    sys.exit(f"{wanted} is not an open issue on the board (landed, declined, never filed, or not yet auto-added)")
 
 
 if __name__ == "__main__":

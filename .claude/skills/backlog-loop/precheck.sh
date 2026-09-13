@@ -31,8 +31,10 @@ for f in $(git diff --name-only origin/main...HEAD -- '*.js' '*.mjs' '*.jsx' 2>/
 done
 # 4. the queue: the item is one open issue, and the PR (once it exists) closes it
 if [ -n "$item" ]; then
-  n=$(gh issue list --state open --search "\"$item:\" in:title" --json number,title --jq "[.[] | select(.title | startswith(\"$item: \"))] | .[0].number" 2>/dev/null)
-  if [ -z "$n" ] || [ "$n" = null ]; then say FAIL "$item is not an open issue (landed, declined, or never filed - next.py $item)"; fail=1
+  ns=$(gh issue list --state open --search "\"$item:\" in:title" --json number,title --jq "[.[] | select(.title | startswith(\"$item: \")) | .number] | join(\" \")" 2>/dev/null)
+  n=${ns%% *}
+  if [ -z "$n" ]; then say FAIL "$item is not an open issue (landed, declined, or never filed - next.py $item)"; fail=1
+  elif [ "$ns" != "$n" ]; then say FAIL "$item is more than one open issue (#${ns// /, #}); ids are never reused - close the duplicate"; fail=1
   else
     say ok "$item is issue #$n"
     body=$(gh pr view --json body --jq .body 2>/dev/null)
