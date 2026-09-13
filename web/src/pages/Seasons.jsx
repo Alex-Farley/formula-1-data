@@ -6,14 +6,14 @@ import { useQuery } from '../data/useQuery.js'
 import { SO_FAR } from '../lib/site.js'
 import { SEASONS, SEASONS_COLUMNS, SEASON_LIST_FOOTER } from '../queries/seasons.js'
 
-/** A name as a link where it has an id, with the live season's "so far" mark. */
+/** A name as a link where it has an id, with the undecided season's "so far" mark. */
 const named = (path) => (name, row) => {
   const id = row[`${path === 'drivers' ? 'champion' : 'constructors_champion'}_id`]
   return (
     <>
       {id ? <Link to={`/${path}/${id}`}>{name}</Link> : cell(name)}
-      {row.live && name ? ' ' : ''}
-      {row.live && name ? <span className="tag">{SO_FAR}</span> : null}
+      {row.undecided && name ? ' ' : ''}
+      {row.undecided && name ? <span className="tag">{SO_FAR}</span> : null}
     </>
   )
 }

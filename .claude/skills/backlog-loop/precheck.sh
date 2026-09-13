@@ -25,7 +25,8 @@ for f in $(git diff --name-only origin/main...HEAD -- '*.js' '*.mjs' '*.jsx' 2>/
   [ -f "$f" ] || continue
   # The bare opener of a multi-line import is not a repeated import; a file
   # with two of those (prerender.js has three) would fail here on every change.
-  d=$(grep -E '^import ' "$f" | grep -vE '^import \{$' | sort | uniq -d)
+  # Its closing "} from '...'" line is, so a repeated block is still caught.
+  d=$(grep -E "^import |^\} from " "$f" | grep -vE '^import \{$' | sort | uniq -d)
   [ -n "$d" ] && { say FAIL "$f repeats an import: $d"; fail=1; }
 done
 # 4. the backlog: the item is landed once, open nowhere, one Declined heading

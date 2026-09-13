@@ -151,13 +151,13 @@ is independent.
       **Four riders remain**, all the same defect on other faces: `VD-01`
       (the static half is a *different design*, 126 lines of its own CSS),
       `AX-17` (no static table has a caption), `CD-04` and `IA-03`. `UR-06`,
-      `UR-13` and `PD-06` were riders and have landed (#64, #69, `6a3269d`).
+      `UR-13` and `PD-06` were riders and have landed (`6a3269d`, #64, #69).
       **Rung one landed in #77**: drivers register, driver page, records share
       their queries and column lists with the prerenderer. **Rung two landed
       in #102**: the seasons list, the season page (calendar, both standings
       tables, who entered) and the races list read `queries/seasons.js`,
       `season.js` and `races.js`; the static tables carry the app's footers;
-      `smoke.mjs` asserts static against app on seven more tables and for the
+      `smoke.mjs` asserts static against app on six more tables and for the
       season in progress asks for the heading the shared rule computes. Still
       to follow: the race, constructor, circuit, car and data pages.
 

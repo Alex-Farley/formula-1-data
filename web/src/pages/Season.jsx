@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { SEASON_SESSIONS, nextSession, until } from '../queries/sessions.js'
+import { SEASON_SESSIONS, clock, nextSession, until } from '../queries/sessions.js'
 import { Link, useParams } from 'react-router-dom'
 import { Confidence, Fields, Note, Onward, Page, Section, Stats, Stepper } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
@@ -184,7 +184,7 @@ function SeasonBody({ year, season, data }) {
     ? {
         label: 'Next session',
         value: <Link to={`/races/${year}/${upcoming.round}`}>{upcoming.name}</Link>,
-        note: `${upcoming.name_used}, ${until(upcoming.start_utc, now)}`,
+        note: `${upcoming.name_used}, ${clock(upcoming.start_utc, upcoming.zone)} at the circuit, ${until(upcoming.start_utc, now)}`,
       }
     : null
 
@@ -323,7 +323,7 @@ function SeasonBody({ year, season, data }) {
       </Section>
 
       <div className="split" style={{ marginTop: 34 }}>
-        <Section title={standingsHeading("Drivers'", live, after)} count={`${driversFinal.length}`}>
+        <Section title={standingsHeading("Drivers'", live, after)} count={`${driversFinal.length} drivers`}>
           <DataTable
             rows={driversFinal}
             rowKey={(row) => row.entity_id ?? row.entity}
@@ -334,7 +334,7 @@ function SeasonBody({ year, season, data }) {
           />
         </Section>
 
-        <Section title={standingsHeading("Constructors'", live, after)} count={`${constructorsFinal.length}`}>
+        <Section title={standingsHeading("Constructors'", live, after)} count={`${constructorsFinal.length} constructors`}>
           {constructorsFinal.length === 0 ? (
             <Note>
               <strong>No constructors' championship.</strong> {NO_CONSTRUCTORS_TITLE}

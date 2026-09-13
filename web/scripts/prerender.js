@@ -478,9 +478,9 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
   const driver = (id) => (id ? link(`drivers/${id}`, names[id] ?? id) : '—')
   const team = (id) => (id ? link(`constructors/${id}`, teams[id] ?? id) : '—')
   // A name as the app renders it: a link where it has an id, and after it
-  // the live season's "so far" tag - the row is the leader, not a champion.
+  // the undecided season's "so far" tag - the row is a leader, not a champion.
   const marked = (path, idKey) => (name, row) =>
-    `${row[idKey] ? link(`${path}/${row[idKey]}`, name) : text(name)}${row.live && name ? ` ${tag(SO_FAR)}` : ''}`
+    `${row[idKey] ? link(`${path}/${row[idKey]}`, name) : text(name)}${row.undecided && name ? ` ${tag(SO_FAR)}` : ''}`
 
   page({
     path: 'seasons',
@@ -561,7 +561,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
                 ['Points', num(s.champion_points)],
                 ['Runner-up', `${driver(s.runner_up)} — ${num(s.runner_up_points)}`],
                 ['Margin', num(s.margin)],
-                ["Constructors' champion", team(s.constructors_champion)],
+                ["Constructors' champion", s.constructors_champion ? team(s.constructors_champion) : year < 1958 ? 'not contested' : '—'],
                 ['Rounds', num(s.rounds)],
                 ['Engine formula', text(s.engine_formula)],
                 ['Tyres', text(s.tyre_suppliers)],
