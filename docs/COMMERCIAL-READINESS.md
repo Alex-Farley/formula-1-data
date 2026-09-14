@@ -234,10 +234,10 @@ By the reasoning two sections above, each of those ten files is a Derivative
 Database, and `LICENSE-DATA` offers them as ODbL 1.0, © OpenStreetMap
 contributors, **in addition to** CC BY-SA rather than instead of it — the
 share-alike on the Wikipedia-derived rows in the same file is not this
-project's to drop. They stay: rewriting 475 commits to lift 25 rows would
-spend the history to buy very little, and the record of a project getting a
-licence question right is worth more than the appearance of never having had
-to ask.
+project's to drop. They stay: rewriting every commit since 2026-09-05 to lift
+25 rows would spend the history to buy very little, and the record of a
+project getting a licence question right is worth more than the appearance of
+never having had to ask.
 
 What is published is the current file, and the current file's table is empty.
 

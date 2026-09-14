@@ -1,6 +1,7 @@
-# Four early commits were authored from a work address on what is a personal
+# Two commits — 33682c6 and d587a32, both 2026-09-14, the AF-16 livery work —
+# were authored and committed from a work address on what is a personal
 # project. The identity is the same person; this is the address that belongs
-# on it. Git shows the mapped name in log, blame and shortlog; the raw commit
-# objects keep what they were written with, which is not worth rewriting 475
-# commits to change.
+# on it. Git shows the mapped name and address in log, blame and shortlog;
+# the raw commit objects keep what they were written with, which is not worth
+# rewriting the history since to change.
 Alex Farley <37551336+Alex-Farley@users.noreply.github.com> <alex.farley@dxw.com>
