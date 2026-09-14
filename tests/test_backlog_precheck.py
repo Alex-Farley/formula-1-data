@@ -189,9 +189,10 @@ class Precheck(unittest.TestCase):
         self.assertEqual(code, 0, out)
 
     def test_a_file_the_change_deleted_is_not_handed_to_ruff(self):
-        # `git diff --name-only` lists both sides of a rename, and
-        # `ruff --quiet` exits 0 on a path it cannot read - so the vanished
-        # side was reported clean without ever being linted.
+        # `git diff --name-only` lists both sides of a rename and ruff exits
+        # 1 with E902 on a path it cannot read, so without the filter every
+        # rename of a Python file fails the precheck for a file that is meant
+        # to be gone. WANTS_REAL fails on a missing path the way ruff does.
         repo = self.repo(base=("x.py", "old.py"), changed=("x.py",), removed=("old.py",))
         code, out = self.run_in(repo, WORKING, "AF-12", ruff=WANTS_REAL)
         self.assertNotIn("no such file", out)

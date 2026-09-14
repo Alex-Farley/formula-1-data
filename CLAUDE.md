@@ -12,7 +12,9 @@ against the fresh build, so run it after staging a rebuild, not before.
 has its own: `cd web && npm test`.
 
 **Before committing, run `make all`, never `make check`; `make ci` on the
-staged result is what CI will see.**
+staged result is what CI will see.** `make ci` is CI's *Python* job only -
+`make lint` (Ruff, Biome, actionlint) is a separate job, and a lint failure
+reached CI on `AF-12` because nothing local ran it.
 `check` does not run `export`, so it leaves `f1_compat.json` stale — and CI
 compares the committed copy against a fresh one. Anything that changes
 `VERSION` or the data changes that file too.
