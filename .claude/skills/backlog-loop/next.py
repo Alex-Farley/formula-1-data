@@ -74,19 +74,26 @@ ID = re.compile(r"^([A-Z]{2}-[0-9Ø]+): ")
 # A path or a route is a claim about where the work lands; a cross-reference
 # is one item's author saying the two belong together. Nothing else scores
 # enough to list a candidate on its own.
-PATH = re.compile(r"(?:[\w.-]+/)*[\w.-]+\.(?:py|js|mjs|jsx|ts|tsx|css|json|sql|md|sh|yml|yaml|html|db)\b")
+# The extensions this project keeps as files. A "/name.ext" is a filename
+# when ext is one of these and a served path when it is not: /f1.db is the
+# database, /build-status.txt is an address CLAUDE.md tells a reader to open.
+SOURCE_EXT = "py|js|mjs|jsx|ts|tsx|css|json|sql|md|sh|yml|yaml|html|db"
+PATH = re.compile(rf"(?:[\w.-]+/)*[\w.-]+\.(?:{SOURCE_EXT})\b")
 # The lookbehind keeps the tail of a path out - the "/drivers" inside
 # web/src/pages/drivers.jsx is preceded by a word character - and must not
 # exclude a backtick: every route in this queue is written `/drivers`, and
 # excluding it made the whole route signal dead text (found in review). The
-# lookbehind's "." and the trailing group catch a filename wearing a route's
-# clothes, one each: "./f1 gaps" is stopped by the lookbehind and "/f1.db" by
-# the group. Both yielded "/f1", which would have let the queue's noisiest
-# token back in under a spelling the noise counter cannot see. A match that
-# fills the group is dropped, rather than trimmed, so a route at the end of a
-# sentence - "shown on /drivers." - still reads as a route. The cost is a
-# served path with an extension: /build-status.txt does not read as a route.
-ROUTE = re.compile(r"(?<![\w/.])/[a-z][a-z0-9-]*(?:/[a-z0-9:<>-]+)*(\.[a-z0-9]{1,4}\b)?")
+# lookbehind's "." stops "./f1 gaps". Any extension is matched rather than
+# excluded, so the route is captured whole and `signals` decides by what the
+# extension is: "/f1.db" is a filename and goes, "/build-status.txt" is an
+# address and stays. Dropping every extension lost the second (found in
+# review); trimming instead of dropping would have turned "/f1.db" into the
+# pseudo-route "/f1", walking the queue's noisiest token past a noise counter
+# that cannot see it under that spelling. A route at the end of a sentence -
+# "shown on /drivers." - keeps no full stop, because an extension needs a
+# character after the dot.
+ROUTE = re.compile(r"(?<![\w/.])/[a-z][a-z0-9-]*(?:/[a-z0-9:<>-]+)*(?:\.[a-z0-9]{1,4}\b)?")
+IS_FILE = re.compile(rf"\.(?:{SOURCE_EXT})$")
 IDREF = re.compile(r"\b[A-Z]{2}-[0-9]+\b")
 COMPANIONS = 6       # candidates listed; the pace caps how many may be taken
 THRESHOLD = 3        # below this a candidate is not worth a fork's attention
@@ -185,7 +192,7 @@ def signals(row):
     """(paths, routes, ids) named anywhere in the item's title or body."""
     text = row["title"] + "\n" + row["body"]
     paths = {m.lower().lstrip("./") for m in PATH.findall(text)}
-    routes = {m.group(0) for m in ROUTE.finditer(text) if not m.group(1)}
+    routes = {m for m in ROUTE.findall(text) if not IS_FILE.search(m)}
     return paths, routes, set(IDREF.findall(text)) - {row["ident"]}
 
 

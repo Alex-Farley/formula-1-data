@@ -206,6 +206,9 @@ class GroupingProposals(unittest.TestCase):
         def routes(text):
             return next_py.signals({"title": "ZZ-01: t", "body": text, "ident": "ZZ-01"})[1]
         self.assertEqual(routes("`f1.db` and `/f1.db` and `./f1 gaps`"), set())
+        # A served path is decided by what its extension is, not by having
+        # one: CLAUDE.md gives /build-status.txt as an address to open.
+        self.assertEqual(routes("served at `/build-status.txt`"), {"/build-status.txt"})
         self.assertEqual(routes(f"`{CARS}` renders it"), set())
         self.assertEqual(routes("shown on /drivers."), {"/drivers"})
         self.assertEqual(routes("`/races/2026/13`"), {"/races/2026/13"})

@@ -8,6 +8,11 @@
 # and silently leaves the rest open on the board.
 set -u
 fail=0
+# gh's stderr, so a call that failed can be told from one that found nothing.
+# An empty answer from a working gh means the item is not filed, which is a
+# FAIL; an empty answer from a gh that could not run means nothing at all.
+errf=$(mktemp)
+trap 'rm -f "$errf"' EXIT
 say() { printf '  %-4s %s\n' "$1" "$2"; }
 # 1. no conflict markers anywhere tracked
 if git grep -nE '^(<<<<<<< |=======$|\|\|\|\|\|\|\| |>>>>>>> )' -- . ':!*.db' >/dev/null 2>&1; then
@@ -33,12 +38,18 @@ for f in $(git diff --name-only origin/main...HEAD -- '*.js' '*.mjs' '*.jsx' 2>/
 done
 # 4. the queue: each item is one open issue, and the PR (once it exists) closes each
 if [ $# -gt 0 ]; then
-  body=$(gh pr view --json body --jq .body 2>/dev/null)
-  [ -z "$body" ] && say WARN "no PR yet for this branch - its body must carry a 'Closes #n' line for every item"
+  body=$(gh pr view --json body --jq .body 2>"$errf"); prrc=$?
+  if [ $prrc -ne 0 ]; then say WARN "could not read this branch's PR: $(head -1 "$errf" | cut -c1-72)"
+  elif [ -z "$body" ]; then say WARN "no PR yet for this branch - its body must carry a 'Closes #n' line for every item"; fi
   for item in "$@"; do
-    ns=$(gh issue list --state open --search "\"$item:\" in:title" --json number,title --jq "[.[] | select(.title | startswith(\"$item: \")) | .number] | join(\" \")" 2>/dev/null)
+    [ -n "$item" ] || continue
+    ns=$(gh issue list --state open --search "\"$item:\" in:title" --json number,title --jq "[.[] | select(.title | startswith(\"$item: \")) | .number] | join(\" \")" 2>"$errf"); rc=$?
     n=${ns%% *}
-    if [ -z "$n" ]; then say FAIL "$item is not an open issue (landed, declined, or never filed - next.py $item)"; fail=1
+    if [ $rc -ne 0 ]; then
+      # Not a missing issue. Saying so sends a fork to file one that exists,
+      # and a group multiplies that by its own size.
+      say WARN "$item unchecked, gh failed: $(head -1 "$errf" | cut -c1-72)"
+    elif [ -z "$n" ]; then say FAIL "$item is not an open issue (landed, declined, or never filed - next.py $item)"; fail=1
     elif [ "$ns" != "$n" ]; then say FAIL "$item is more than one open issue (#${ns// /, #}); ids are never reused - close the duplicate"; fail=1
     else
       say ok "$item is issue #$n"
@@ -58,6 +69,7 @@ if [ -n "$arts" ] && [ "$src" = 0 ]; then say WARN "artefacts changed ($arts) wi
 if [ $# -gt 0 ]; then
   log=$(git log origin/main..HEAD --format=%B)
   for item in "$@"; do
+    [ -n "$item" ] || continue
     printf '%s\n' "$log" | grep -q "$item" && say ok "a commit names $item" || say WARN "no commit message names $item"
   done
 fi

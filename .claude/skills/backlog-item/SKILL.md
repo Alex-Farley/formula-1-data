@@ -294,15 +294,27 @@ The agent returns exactly `PASS — safe to merge` or `FAIL — changes required
   fires and the post-merge `Done` covers only what the PR closed. Then
   confirm the smaller change. A group never holds the rest of itself
   hostage to its worst member.
-- PASS with findings: **merge the reviewed head as it is.** Non-blocking
-  findings that change code are carried into the next PR, named in the PR
-  comment, where the next first pass covers them at no extra cost; they are
-  not fixed and re-confirmed on the PR that passed (decided 2026-09-13, after
-  a run in which four confirmations bought nothing a later pass would not
-  have). A fix that is only documentation wording, a blank line, a comment,
-  a test or the removal of dead code may merge without a further pass, named
-  in the PR comment. Anything else that changes code, data or a check before
-  merge is confirmed.
+- PASS with findings: **fix what belongs to this diff, then merge.** A
+  finding is fixed on the PR that found it when it is in a file this PR
+  already changes and the diff still reads as one change; all of them go in
+  one batch with **one** confirmation. What 2026-09-13 measured and rejected
+  was four confirmations buying nothing a later pass would not have - one
+  confirmation covering four fixes is not that, and it is cheaper than the
+  orientation a later reviewer pays to read the same code again (revised
+  2026-09-14 by the maintainer, on the count below).
+  Carry a finding only when it needs a decision this item does not settle,
+  when it touches code this PR does not, or when fixing it would make the
+  diff unreadable - then name it in the PR comment and file it. A fix that is
+  only documentation wording, a blank line, a comment, a test or the removal
+  of dead code needs no further pass at all.
+- **A review finding is not discovered work, and only one of them is an
+  issue.** A fact the item turned up, a question for a person, a defect
+  somewhere else in the codebase - those are issues, and filing them is the
+  queue doing its job. A defect in the diff under review is not: filing it
+  converts a fix into a backlog item, and the item that found it is the
+  cheapest place it will ever be fixed. On 2026-09-14 three items landed and
+  filed seven issues between them; four were discovered work and three were
+  findings against the diff in hand.
 - Silence, a rate limit, a reviewer that hit its turn cap, a quick-variant
   verdict without its `Applied:` line, or an unavailable account is not a
   PASS. If the agent dies on a session limit, return `LIMIT: resets
