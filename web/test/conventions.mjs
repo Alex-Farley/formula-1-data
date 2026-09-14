@@ -406,8 +406,10 @@ describe('a chart series clears 3:1 on the surface figures draw on (AX-07)', () 
   // table its relief. The table gets a reader the value; it does not make
   // the line perceivable, which is what 1.4.11 asks. figure.figure paints
   // --panel, so that is the surface measured here, for all three slots in
-  // both themes, and the rule in app.css is read rather than assumed so a
-  // figure moved onto another surface fails this instead of passing it.
+  // both themes. The first figure.figure rule in app.css is read rather than
+  // assumed; a later override, a .figure-body background or a backdrop
+  // <rect> in a chart would move the marks without failing this, so the
+  // check pins the declared surface and no more.
   const css = read(join(web, 'src', 'styles', 'tokens.css'))
   const app = read(join(web, 'src', 'styles', 'app.css'))
   const blocks = {
@@ -443,6 +445,9 @@ describe('a chart series clears 3:1 on the surface figures draw on (AX-07)', () 
   for (const [label, block] of [['light', blocks.light], ['dark', blocks.stampedDark]]) {
     it(`${label}: every series clears 3:1 on --panel`, () => {
       const t = tokens(block)
+      // an unmatched --panel (three-digit hex, uppercase, color-mix()) would
+      // make every ratio NaN, and NaN < 3 is false
+      assert.ok(t.panel, `${label} block has no six-digit --panel`)
       const failing = series(block)
         .map((hex, i) => [`--series-${i + 1}`, hex, contrast(hex, t.panel)])
         .filter(([, , ratio]) => ratio < 3)

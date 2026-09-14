@@ -6,16 +6,27 @@
  * surface — white in light, #191920 in dark — with every pair in play, and
  * these are the numbers it returned.
  *
- *   light (surface #ffffff)   CVD ΔE 9.3 worst pair · normal-vision ΔE 27.2
- *                             all three at or above 3:1. The reference green,
- *                             #1baf7a, sat at 2.82:1, which the validator
- *                             calls a conditional relax - legal only because
- *                             every figure carries a table. AX-07 held that
- *                             the table gets a reader the value and does not
- *                             make the line perceivable, which is what 1.4.11
- *                             asks, so slot 3 is stepped down to #15a174
- *                             (3.29:1) instead; web/test/conventions.mjs
- *                             measures all three against --panel.
+ *   light (surface #ffffff)   CVD ΔE 9.3 worst pair (green-orange, protan) ·
+ *                             normal-vision ΔE 21.7 (green-blue) · all three
+ *                             at or above 3:1. The reference green, #1baf7a,
+ *                             sat at 2.82:1, which the validator calls a
+ *                             conditional relax - legal only because every
+ *                             figure carries a table. AX-07 held that the
+ *                             table gets a reader the value and does not make
+ *                             the line perceivable, which is what 1.4.11 asks,
+ *                             so slot 3 is stepped down to #15a174 (3.29:1).
+ *                             The cost: with the old green the validator gave
+ *                             CVD 9.2 (deutan), normal-vision 24.0 and a
+ *                             tritan worst pair of 9.6; the new one is 9.3,
+ *                             21.7 and 6.2. web/test/conventions.mjs measures
+ *                             all three against --panel.
+ *
+ *   The tool is the dataviz skill's scripts/validate_palette.js: OKLab ΔE
+ *   x100 under a Viénot protan/deutan simulation, worst pair over all pairs
+ *   (--pairs all), target 8, floor 6; normal-vision floor 15 unsimulated;
+ *   WCAG 2 contrast against the named surface. Another metric gives another
+ *   number - a ΔE2000 reading of the same pair moves the other way - so a
+ *   figure here means nothing without this paragraph.
  *   dark  (surface #14161b)   CVD ΔE 9.4 worst pair · normal-vision ΔE 20.9
  *                             all three at or above 3:1
  *
