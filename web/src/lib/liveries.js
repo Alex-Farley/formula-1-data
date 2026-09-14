@@ -35,11 +35,12 @@
  * carries the information alone and WCAG 1.4.11's 3:1 does not reach it.
  * What replaces the shift is an edge rather than a move - styles/app.css
  * rings `.livery` in a colour mixed from the fill and the theme's ink, so
- * the ring is a darker edge of the fill's own hue on a papaya bar and the
- * outline of a white one on a white panel. It reads as an outlined bar
- * either way; what it never does is change the colour inside it. The eight
- * national colours keep VD-27's treatment: those are theme-switching
- * tokens, not values this file holds.
+ * the ring is the fill carried towards that ink - darker than a papaya bar
+ * in light and lighter than it in dark, the fill being one value and the
+ * ink two - and the outline of a white bar on a white panel. It reads as
+ * an outlined bar in either theme; what it never does is change the colour
+ * inside it. The eight national colours keep VD-27's treatment: those are
+ * theme-switching tokens, not values this file holds.
  *
  * `light` and `dark` survive for the one surface where the shift is still
  * owed - a chart series, where a line is told from its neighbour by colour
