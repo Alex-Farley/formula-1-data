@@ -67,9 +67,11 @@ def gh(*args, as_json=False):
     except FileNotFoundError:
         sys.exit(gh_preflight.note(gh_preflight.MISSING))
     if r.returncode:
+        said = r.stderr.strip() or f"gh {' '.join(args)} failed"
+        # gh's own message first, always - see next.py's gh() for why.
         if gh_preflight.unauthenticated():
-            sys.exit(gh_preflight.note(gh_preflight.UNAUTH))
-        sys.exit(r.stderr.strip() or f"gh {' '.join(args)} failed")
+            sys.exit(f"{said}\n{gh_preflight.note(gh_preflight.UNAUTH)}")
+        sys.exit(said)
     return json.loads(r.stdout) if as_json else r.stdout.strip()
 
 

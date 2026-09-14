@@ -131,10 +131,12 @@ def gh(*args):
         sys.stderr.write(gh_preflight.note(gh_preflight.MISSING))
         sys.exit(2)
     if r.returncode:
+        # gh's own message first, always: `unauthenticated()` cannot tell a
+        # rejected token from an API it could not reach, so a secondary rate
+        # limit would otherwise be answered with "go and fetch a new PAT".
+        sys.stderr.write(r.stderr)
         if gh_preflight.unauthenticated():
             sys.stderr.write(gh_preflight.note(gh_preflight.UNAUTH))
-            sys.exit(2)
-        sys.stderr.write(r.stderr)
         sys.exit(2)
     return json.loads(r.stdout)
 

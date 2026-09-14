@@ -254,21 +254,34 @@ Work discovered along the way is filed as an issue under the existing ID,
 source and size conventions. There is no second list.
 
 **What the queue scripts need.** All four shell out to `gh`, and it has to
-be both current and authenticated. The credential is for the board alone:
-ranking the queue is a ProjectsV2 read, which is GraphQL, and GraphQL
-refuses an unauthenticated call even though this repository is public —
-issues, pull requests and check runs all read without one. A Claude Code
-web session has neither: no `gh` on PATH, and the `GH_TOKEN` its container
-sets is not a credential GitHub accepts. The loop does not run there until
-both are supplied — a current `gh` from GitHub's own apt repository or a
-release tarball (the Ubuntu package is 2.45 and has no `--json` on
-`pr checks`, which `ci-wait.sh` reads), and a classic PAT with `repo` and
-`project` scope. `project` is the scope the board read needs; `repo` alone
-returns an empty board, which is indistinguishable from an empty queue.
-`gh_preflight.py` says which of the three is wrong at the first failed
-call, in place of the traceback `next.py` used to raise and the twenty
-minutes `ci-wait.sh` used to spend sleeping on an answer that was never
-coming.
+be both current and authenticated. The credential is for everything they
+do, not only the board: these scripts reach GitHub only through `gh`, and
+`gh` refuses every call without one — `gh issue list` against this public
+repository answers "please run: gh auth login" and makes no request at all.
+The REST API does serve public reads anonymously; gh does not use it that
+way, so the repository being public buys the loop nothing. The board needs
+it twice over, ranking being a ProjectsV2 read and so GraphQL, which
+refuses an unauthenticated call whatever the repository's visibility.
+
+The container a Claude Code web session ran in on 2026-09-14 had neither:
+no `gh` on PATH, and a `GH_TOKEN` that GitHub rejects. **A session like
+that cannot run the loop at any price**, because the agent proxy refuses
+GraphQL outright — *"GitHub GraphQL is not available from Claude Code
+sessions; use the REST API"* — and ProjectsV2 has no REST equivalent. That
+refusal came back on a request carrying no credential, so it is a blanket
+block rather than an authentication failure, and a PAT does not lift it.
+Do not spend one expecting otherwise. REST is untouched, so issues, pull
+requests and check runs are reachable there with a credential; the ranking
+the queue turns on is not.
+
+Where GraphQL is reachable, the loop needs both — a current `gh` from
+GitHub's own apt repository or a release tarball (the distribution package
+was 2.45 on that image and has no `--json` on `pr checks`, which
+`ci-wait.sh` reads), and a classic PAT with `repo` and `project` scope,
+`project` being what the board read needs. `gh_preflight.py` says which of the three is wrong at the first
+failed call, alongside gh's own message rather than in place of it, and in
+place of the traceback `next.py` used to raise and the twenty minutes
+`ci-wait.sh` used to spend sleeping on an answer that was never coming.
 
 Nothing falls back to cover that gap, and this is deliberate. `file.py`
 moves an item to *In progress*, which is a board write, so a loop that
