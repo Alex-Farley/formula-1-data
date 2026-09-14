@@ -47,13 +47,14 @@
  * missing figure. test/conventions.mjs holds the two lists to the database:
  * every 2010+ constructor-season is in exactly one of them.
  *
- * The list is currently empty (AF-09). AF-04 left twelve spans in it -
- * Virgin, Marussia and Manor Marussia 2010-2015, Sauber 2010-2011 and 2014,
- * Force India 2016, Williams 2012-2013 - because no car article states
- * those colours, and they are filled from the article that tabulates a main
- * colour per season instead. Empty is a result, not the absence of the
- * rule: the check below still refuses a season in neither list, so the next
- * constructor-season nobody can source is declared here rather than guessed.
+ * The list is currently empty (AF-09). AF-04 left five spans in it, twelve
+ * constructor-seasons - Virgin, Marussia and Manor Marussia 2010-2015,
+ * Sauber 2010-2011 and 2014, Force India 2016, Williams 2012-2013 - because
+ * no car article states those colours, and they are filled from the article
+ * that tabulates a main colour per season instead. Empty is a result, not
+ * the absence of the rule: the check below still refuses a season in
+ * neither list, so the next constructor-season nobody can source is
+ * declared here rather than guessed.
  *
  * THE ERAS. colourForEntry() is the one call the pages make, and it routes:
  *   1950-1967   the national racing colour of the constructor's country
@@ -280,14 +281,25 @@ export const LIVERIES = [
     says: 'The VJM02 article records a white base with green and orange for the Indian flag; the VJM03 article says that livery was retained with new graphics; the VJM07 article records orange, white and green with black replacing much of the white in 2014.',
   },
   {
-    constructor: 'force-india', from: 2015, to: 2016, name: 'Silver', named: false,
+    constructor: 'force-india', from: 2015, to: 2015, name: 'Silver', named: false,
     base: '#b5b9be', light: '#818891', dark: '#b5b9be', // 3.08 / 8.46
     source: [
       'https://www.formula1.com/en/latest/headlines/2015/1/force-india-unveil-sleek-new-team-livery.html',
       'https://en.wikipedia.org/wiki/Force_India_VJM08',
+    ],
+    says: 'formula1.com reports the 2015 livery bringing in silver for the first time; the VJM08 article records the white removed and black, silver, orange and green retained.',
+  },
+  {
+    // 2015 is named for the silver its launch coverage says arrived that
+    // year. 2016 has no launch source of its own, only the article's
+    // main-colour cell, which lists black first - so black is the
+    // principal colour here, as first-listed is throughout this map.
+    constructor: 'force-india', from: 2016, to: 2016, name: 'Black and silver', named: false,
+    base: '#111214', light: '#111214', dark: '#636974', // 16.13 / 3.02
+    source: [
       'https://en.wikipedia.org/wiki/Formula_One_sponsorship_liveries',
     ],
-    says: 'formula1.com reports the 2015 livery bringing in silver for the first time; the VJM08 article records the white removed and black, silver, orange and green retained; the sponsorship liveries article gives 2015 and 2016 one row of main colours, black and silver, with orange and green beside them.',
+    says: 'The sponsorship liveries article gives Force India one row of main colours for 2015 and 2016, black and silver, with orange and green beside them.',
   },
   {
     constructor: 'force-india', from: 2017, to: 2018, name: 'BWT pink', named: false,
@@ -438,7 +450,7 @@ export const LIVERIES = [
     source: [
       'https://en.wikipedia.org/wiki/Formula_One_sponsorship_liveries',
     ],
-    says: 'The sponsorship liveries article gives Marussia red and black as its main colours in 2013 and 2014, red first because the MR02 carried more red than black, with white beside them.',
+    says: 'The sponsorship liveries article gives Marussia red and black as its main colours in 2013 and 2014, red listed before black, with white beside them.',
   },
   {
     constructor: 'virgin', from: 2015, to: 2015, name: 'Red and white', named: false,
@@ -594,13 +606,12 @@ export const LIVERIES = [
 /**
  * Constructor-seasons from 2010 with race entries and no livery above. Each
  * is a fact nobody here holds yet; filling one means finding the source and
- * moving the span into LIVERIES, and test/units.mjs fails a span that is in
- * both or in neither.
- */
-/**
- * Empty since AF-09 sourced the last twelve spans. The list and its check
- * stay: a constructor-season in neither list fails test/conventions.mjs,
- * so the next one nobody can source is declared here rather than guessed.
+ * moving the span into LIVERIES, and test/conventions.mjs fails a span that
+ * is in both lists or in neither.
+ *
+ * Empty since AF-09 sourced the last five spans AF-04 left. The list and
+ * its check stay: the next constructor-season nobody can source is declared
+ * here rather than guessed.
  */
 export const LIVERY_GAPS = []
 
