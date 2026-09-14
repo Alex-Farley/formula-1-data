@@ -128,14 +128,23 @@ bodies - `next.py <head> <candidate> <candidate>` - before taking any.
   request closes both and says they were one finding. That is a good
   outcome, not a bookkeeping problem.
 - **Drop, never grow.** If the diff stops reading as one change, drop the
-  last companion added; it stays ranked where it was and nothing is lost.
-  A group is an economy, not a target.
+  last companion added and **put its status back** - `file.py status <n>
+  Next`, or whichever status it came from. Only then does it stay ranked
+  where it was; a companion dropped while still marked *In progress* has
+  left the queue. A group is an economy, not a target.
 - **A companion that does not survive the reread** - stale, landed under
   another id, superseded - is declined like any other item
   (`file.py decline <n> "<why>"`) and does not join.
 - **A companion that turns into a blocker** is dropped from the group and
   recorded on its own issue (`file.py blocked`), with its status set back;
   the head carries on. Only the head being blocked is a `SKIPPED`.
+
+**Every issue set to *In progress* leaves that status by exactly one of
+four routes**, and a group has to account for each of its own: merged
+(`Done`), blocked (`file.py blocked`, status back), stopped or skipped
+(status back), or dropped from the group (status back). An issue left at
+*In progress* is one `next.py` never returns as next, so it is out of the
+queue until a person moves it by hand.
 
 Every issue in the group gets `file.py status <n> "In progress"` when the
 worktree opens and a `Closes #<n>` line of its own in the pull request body.
@@ -271,9 +280,12 @@ The agent returns exactly `PASS — safe to merge` or `FAIL — changes required
 - FAIL: fix, run the precheck again, then confirm with a fresh agent by
   commit range - Sonnet, or Opus at `thorough`.
 - FAIL against one item of a group: fix it as usual if the fix is small. If
-  it is not, drop that item from the PR - its commits, its `Closes` line and
-  its section - leave it in the queue where it was, and confirm the smaller
-  change. A group never holds the rest of itself hostage to its worst member.
+  it is not, drop that item from the PR - its commits, its `Closes` line,
+  its section, **and its *In progress* status**, which nothing else on this
+  path puts back: the run ends in a merge, so the stop-and-skip rule never
+  fires and the post-merge `Done` covers only what the PR closed. Then
+  confirm the smaller change. A group never holds the rest of itself
+  hostage to its worst member.
 - PASS with findings: **merge the reviewed head as it is.** Non-blocking
   findings that change code are carried into the next PR, named in the PR
   comment, where the next first pass covers them at no extra cost; they are

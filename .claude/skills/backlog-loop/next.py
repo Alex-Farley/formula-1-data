@@ -72,8 +72,13 @@ PATH = re.compile(r"(?:[\w.-]+/)*[\w.-]+\.(?:py|js|mjs|jsx|ts|tsx|css|json|sql|m
 # The lookbehind keeps the tail of a path out - the "/drivers" inside
 # web/src/pages/drivers.jsx is preceded by a word character - and must not
 # exclude a backtick: every route in this queue is written `/drivers`, and
-# excluding it made the whole route signal dead text (found in review).
-ROUTE = re.compile(r"(?<![\w/])/[a-z][a-z0-9-]*(?:/[a-z0-9:<>-]+)*")
+# excluding it made the whole route signal dead text (found in review). The
+# trailing group catches a filename wearing a route's clothes: "/f1.db" and
+# "./f1 gaps" both yield "/f1", which would have let the queue's noisiest
+# token back in under a spelling the noise counter cannot see. A match that
+# fills that group is dropped, rather than trimmed, so a route at the end of
+# a sentence - "shown on /drivers." - still reads as a route.
+ROUTE = re.compile(r"(?<![\w/.])/[a-z][a-z0-9-]*(?:/[a-z0-9:<>-]+)*(\.[a-z0-9]{1,4}\b)?")
 IDREF = re.compile(r"\b[A-Z]{2}-[0-9]+\b")
 COMPANIONS = 6       # candidates listed; the pace caps how many may be taken
 THRESHOLD = 3        # below this a candidate is not worth a fork's attention
@@ -162,7 +167,7 @@ def signals(row):
     """(paths, routes, ids) named anywhere in the item's title or body."""
     text = row["title"] + "\n" + row["body"]
     paths = {m.lower().lstrip("./") for m in PATH.findall(text)}
-    routes = {m.rstrip("/.,);:") for m in ROUTE.findall(text)}
+    routes = {m.group(0) for m in ROUTE.finditer(text) if not m.group(1)}
     return paths, routes, set(IDREF.findall(text)) - {row["ident"]}
 
 
