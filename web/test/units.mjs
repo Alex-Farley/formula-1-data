@@ -49,6 +49,7 @@ import { raceWinnerHere } from '../src/queries/circuit.js'
 import { constructorSeasons } from '../src/queries/constructor.js'
 import { NOT_YET_RUN } from '../src/lib/site.js'
 import {
+  LIVERIES,
   LIVERY_ERA,
   SPONSOR_ERA,
   colourForEntry,
@@ -759,16 +760,27 @@ describe('colourForEntry routes a constructor-season by era (AF-04)', () => {
     assert.equal(haas.dark, liveryPrimary(haas).base)
   })
   it('a colour no cited page states is marked as this project\'s choice, and cannot also be the team\'s own word (AF-15)', () => {
-    // Red Bull is navy, red and yellow to a reader; no page cited for the
-    // 2016-2025 span names the red or the yellow, so both say so.
-    const rb = liveryFor('red-bull', 2020)
-    assert.equal(liveryPrimary(rb).sourced, true)
+    // Toro Rosso is navy, red and silver to a reader; the pages cited for
+    // the 2010-2016 span name only the navy, so the other two say so. The
+    // 2017-2019 entry is the control: the same two colours, both stated by
+    // its own sources, both sourced.
+    const str = liveryFor('toro-rosso', 2014)
+    assert.equal(liveryPrimary(str).sourced, true)
     assert.deepEqual(
-      liveryAccents(rb).map((c) => [c.name, c.sourced, c.named]),
+      liveryAccents(str).map((c) => [c.name, c.sourced, c.named]),
       [
         ['Red', false, false],
-        ['Yellow', false, false],
+        ['Silver', false, false],
       ],
+    )
+    assert.equal(
+      liveryAccents(liveryFor('toro-rosso', 2018)).every((c) => c.sourced),
+      true,
+    )
+    // Nothing else in the map is unsourced; a new one is a deliberate act.
+    assert.deepEqual(
+      LIVERIES.flatMap((l) => l.scheme.filter((c) => !c.sourced).map((c) => `${l.constructor} ${l.from} ${c.name}`)),
+      ['toro-rosso 2010 Red', 'toro-rosso 2010 Silver'],
     )
     // Audi names both of its own colours, so both are sourced.
     const audi = liveryFor('audi', 2026)

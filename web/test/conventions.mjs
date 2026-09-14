@@ -312,7 +312,13 @@ describe('a livery is a sourced scheme with a pair per theme, and every 2010+ co
     assert.deepEqual(clashes, [])
   })
 
-  it('no two constructors on the same grid wear the same scheme: the mark has to tell them apart (AF-15)', () => {
+  it('no two constructors on the same grid wear the same scheme (AF-15)', () => {
+    // The defect AF-15 names, stated so it cannot come back: Haas and
+    // Racing Bulls were one colour each and the same one. This compares
+    // schemes, which is all this file decides - two teams whose schemes
+    // differ can still draw the same mark today, because the mark is the
+    // primary's pair alone. Making the mark carry the difference is AF-16
+    // and AF-17; until then this check guards the data, not the pixels.
     const byYear = new Map()
     const clashes = []
     for (const l of LIVERIES) {

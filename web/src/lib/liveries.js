@@ -42,9 +42,13 @@
  * the one a fan pictures: Haas and Racing Bulls were the same `#f4f4f4`,
  * so the mark told them apart in neither theme. An entry now carries a
  * `scheme` - a primary and one or two accents, in that order - and the
- * primary is the colour the old entry held, unchanged, so nothing the page
- * draws today has moved. Making the accents visible is AF-17; rendering a
- * colour as itself rather than contrast-shifted is AF-16.
+ * primary is the colour the old entry held. One moved: Mercedes 2026's
+ * black, from #16171a to the #111214 every other black here renders,
+ * because one palette renders one name once - and it is drawn, on the nine
+ * rounds Mercedes won in 2026. Every other primary, and so every other mark
+ * on every page, is byte for byte what it was. Making the accents visible
+ * is AF-17; rendering a colour as itself rather than contrast-shifted is
+ * AF-16.
  *
  * `name` stays the entry's headline - what a caption calls the livery, and
  * usually the primary's own name - and the scheme, not the name, is where
@@ -58,9 +62,10 @@
  *              Titanium, Audi Red - rather than this file's description.
  *   `sourced`  the entry's cited pages state this colour. False marks a
  *              colour this project added because the team is recognised by
- *              it and no cited page names it: the red and yellow of the
- *              Red Bull marque, and Toro Rosso's red and silver before its
- *              2017 relaunch. The maintainer's decision of 2026-09-14 is
+ *              it and no cited page names it - at present two, the red and
+ *              silver Toro Rosso ran before its 2017 relaunch, which no page
+ *              cited for that span names. The maintainer's decision of
+ *              2026-09-14 is
  *              that recognisability wins here - nothing in this file enters
  *              f1.db, so these are presentation values and not database
  *              facts - and that no surface may present one as the team's
@@ -205,7 +210,7 @@ export const LIVERIES = [
     constructor: 'mercedes', from: 2010, to: 2019, name: 'Silver',
     scheme: [
       { name: 'Silver', base: '#b5b9be', named: false, sourced: true },
-      { name: 'Petronas green', base: '#00a19c', named: false, sourced: true },
+      { name: 'Petronas green', base: '#0f9c94', named: false, sourced: true },
       { name: 'Black', base: '#111214', named: false, sourced: true },
     ],
     light: '#818891', dark: '#b5b9be', // 3.08 / 8.46
@@ -214,13 +219,13 @@ export const LIVERIES = [
       'https://en.wikipedia.org/wiki/Mercedes-AMG_F1_W11_EQ_Performance',
       'https://en.wikipedia.org/wiki/Formula_One_sponsorship_liveries',
     ],
-    says: 'The W01 article records the silver livery unveiled at the Mercedes-Benz Museum in January 2010; the W11 article says black replaced the traditional silver of its predecessors in 2020; the sponsorship liveries article gives Mercedes black and green for 2010, green for 2011 and green and black for 2013.',
+    says: 'The W01 article records the silver livery unveiled at the Mercedes-Benz Museum in January 2010; the W11 article says black replaced the traditional silver of its predecessors in 2020; the sponsorship liveries article carries Mercedes silver as its main colour across these seasons, with black and green beside it in 2010, green in 2011 and green and black in 2013.',
   },
   {
     constructor: 'mercedes', from: 2020, to: 2021, name: 'Black',
     scheme: [
       { name: 'Black', base: '#111214', named: false, sourced: true },
-      { name: 'Petronas green', base: '#00a19c', named: false, sourced: true },
+      { name: 'Petronas green', base: '#0f9c94', named: false, sourced: true },
       { name: 'Red', base: '#d1262f', named: false, sourced: true },
     ],
     light: '#111214', dark: '#636974', // 16.13 / 3.02
@@ -235,7 +240,7 @@ export const LIVERIES = [
     constructor: 'mercedes', from: 2022, to: 2022, name: 'Silver',
     scheme: [
       { name: 'Silver', base: '#b5b9be', named: false, sourced: true },
-      { name: 'Petronas green', base: '#00a19c', named: false, sourced: true },
+      { name: 'Petronas green', base: '#0f9c94', named: false, sourced: true },
       { name: 'Black', base: '#111214', named: false, sourced: true },
     ],
     light: '#818891', dark: '#b5b9be', // 3.08 / 8.46
@@ -250,7 +255,7 @@ export const LIVERIES = [
     scheme: [
       { name: 'Black', base: '#111214', named: false, sourced: true },
       { name: 'Silver', base: '#b5b9be', named: false, sourced: true },
-      { name: 'Petronas green', base: '#00a19c', named: false, sourced: true },
+      { name: 'Petronas green', base: '#0f9c94', named: false, sourced: true },
     ],
     light: '#111214', dark: '#636974', // 16.13 / 3.02
     source: [
@@ -266,7 +271,7 @@ export const LIVERIES = [
     scheme: [
       { name: 'Black', base: '#111214', named: false, sourced: true },
       { name: 'Silver', base: '#b5b9be', named: false, sourced: true },
-      { name: 'Petronas green', base: '#00a19c', named: false, sourced: true },
+      { name: 'Petronas green', base: '#0f9c94', named: false, sourced: true },
     ],
     light: '#111214', dark: '#636974', // 16.13 / 3.02
     source: [
@@ -279,8 +284,8 @@ export const LIVERIES = [
     constructor: 'red-bull', from: 2010, to: 2015, name: 'Dark blue',
     scheme: [
       { name: 'Dark blue', base: '#1b2a5e', named: false, sourced: true },
-      { name: 'Red', base: '#d1262f', named: false, sourced: false },
-      { name: 'Yellow', base: '#f5c400', named: false, sourced: false },
+      { name: 'Red', base: '#d1262f', named: false, sourced: true },
+      { name: 'Yellow', base: '#f5c400', named: false, sourced: true },
     ],
     light: '#1b2a5e', dark: '#4462c9', // 11.74 / 3.05
     source: [
@@ -288,14 +293,14 @@ export const LIVERIES = [
       'https://en.wikipedia.org/wiki/Red_Bull_RB12',
       'https://en.wikipedia.org/wiki/Formula_One_sponsorship_liveries',
     ],
-    says: 'Red Bull Racing describes the RB9 in dark blue and purple; the RB12 article records the change from a glossy to a dark matte blue in 2016; the sponsorship liveries article gives Red Bull dark blue and purple for 2013.',
+    says: 'Red Bull Racing describes the RB9 in dark blue and purple; the RB12 article records the change from a glossy to a dark matte blue in 2016; the sponsorship liveries article carries Red Bull dark blue as its main colour to 2012 and dark blue and purple from 2013, with red and yellow beside them in every season from 2007.',
   },
   {
     constructor: 'red-bull', from: 2016, to: 2025, name: 'Matte navy',
     scheme: [
       { name: 'Matte navy', base: '#1c2648', named: false, sourced: true },
-      { name: 'Red', base: '#d1262f', named: false, sourced: false },
-      { name: 'Yellow', base: '#f5c400', named: false, sourced: false },
+      { name: 'Red', base: '#d1262f', named: false, sourced: true },
+      { name: 'Yellow', base: '#f5c400', named: false, sourced: true },
     ],
     light: '#1c2648', dark: '#4d66ba', // 12.73 / 3.12
     source: [
@@ -303,7 +308,7 @@ export const LIVERIES = [
       'https://www.redbullracing.com/int-en/races/season-launch-2026/season-launch-2026-recap',
       'https://en.wikipedia.org/wiki/Formula_One_sponsorship_liveries',
     ],
-    says: 'The RB12 article records the change to a dark matte blue for 2016; the 2026 launch recap describes that year as a return to the gloss finish of 2005; the sponsorship liveries article gives Red Bull navy blue for 2016.',
+    says: 'The RB12 article records the change to a dark matte blue for 2016; the 2026 launch recap describes that year as a return to the gloss finish of 2005; the sponsorship liveries article carries Red Bull navy blue as its main colour from 2016, with red and yellow beside it.',
   },
   {
     constructor: 'red-bull', from: 2026, to: 2026, name: 'Heritage white',
@@ -430,8 +435,9 @@ export const LIVERIES = [
     light: '#898989', dark: '#f4f4f4', // 3.01 / 15.17
     source: [
       'https://en.wikipedia.org/wiki/HRT_F112',
+      'https://en.wikipedia.org/wiki/Formula_One_sponsorship_liveries',
     ],
-    says: 'The F112 article records a white, gold and red launch livery, the third change in three seasons, based on Force India 2008.',
+    says: 'The F112 article records a white, gold and red launch livery, the third change in three seasons, based on Force India 2008; the sponsorship liveries article carries HRT white as its main colour for 2011 and 2012, with red and gold beside it in 2012.',
   },
   {
     constructor: 'force-india', from: 2010, to: 2014, name: 'White, orange and green',
