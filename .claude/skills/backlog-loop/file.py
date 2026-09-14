@@ -96,7 +96,8 @@ def item_ids(fresh=False):
     times."""
     if not fresh:
         hit = loop_cache.read("items", ITEMS_TTL)
-        if isinstance(hit, dict):
+        if isinstance(hit, dict) and all(
+                str(n).isdigit() and isinstance(i, str) for n, i in hit.items()):
             return {int(n): i for n, i in hit.items()}
     items = gh("project", "item-list", PROJECT, "--owner", OWNER, "--format", "json", "--limit", "1000",
                as_json=True)["items"]
@@ -126,6 +127,10 @@ def set_status(number, status):
         ok, err = gh_try("project", "item-edit", "--project-id", proj_id, "--id", item,
                          "--field-id", field_id, "--single-select-option-id", options[status])
         if ok:
+            # The queue cache holds the status this call just changed, and the
+            # *In progress elsewhere* footer an inheriting fork reads is built
+            # from it.
+            loop_cache.drop("queue")
             return
         # Only staleness is worth a second attempt. A rate limit is the
         # failure this cache exists to avoid, and retrying extends it, so it

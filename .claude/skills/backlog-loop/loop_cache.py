@@ -27,8 +27,11 @@ WHAT IS CACHED, AND WHY STALENESS CANNOT COST ANYTHING
 
     A cache that cannot be read or written is a slower run, never a failure.
 
-The files sit in `.claude/loop/` beside `progress.log`, which is gitignored,
-and a worktree keeps its own: this is within-run reuse, not shared state.
+The files sit in `.claude/loop/` beside `progress.log`, which is gitignored.
+A worktree keeps its own, so a fork shares nothing with the main checkout;
+two processes in one checkout do share these files, and every race between
+them costs a refetch rather than a wrong write - which is the whole reason
+nothing that chooses an item is allowed to read them.
 """
 import json
 import os

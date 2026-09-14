@@ -164,13 +164,40 @@ class SettingAStatus(CacheIsolated):
 
     def test_a_payload_of_the_wrong_shape_is_a_miss_not_a_traceback(self):
         # .claude/loop survives a branch switch, so a payload written by
-        # another version of these scripts must not crash them for a whole TTL.
-        loop_cache.write("board", {"unexpected": True})
-        loop_cache.write("items", ["not", "a", "map"])
+        # another version of these scripts must not crash them for a whole
+        # TTL - and every `file.py status` failing for fifteen minutes is how
+        # a group's issues end up stuck at In progress.
+        for items in (["not", "a", "map"],                       # not a dict
+                      {"project": "PVT_1", "options": {}},       # the board's payload
+                      {"291": {"id": "I_291"}}):                 # right keys, wrong values
+            loop_cache.write("board", {"unexpected": True})
+            loop_cache.write("items", items)
+            fake = FakeGh(items=(291,))
+            self.use(fake)
+            file_py.set_status(291, "Done")
+            self.assertEqual(fake.edited, "I_291", items)
+
+    def test_a_status_change_drops_the_queue_the_next_read_would_have_reused(self):
+        # next.py's cache holds the status this call just changed, and the
+        # *In progress elsewhere* footer an inheriting fork reads is built
+        # from it.
+        loop_cache.write("queue", {"ranked": [], "in_progress": [], "unplaced": []})
         fake = FakeGh(items=(291,))
         self.use(fake)
-        file_py.set_status(291, "Done")
-        self.assertEqual(fake.edited, "I_291")
+        file_py.set_status(291, "In progress")
+        self.assertIsNone(loop_cache.read("queue", 3600))
+
+    def test_a_board_a_run_suspected_and_could_not_recheck_is_not_inherited(self):
+        # The other half of the drop pair: the edit failed, so the ids are
+        # suspect, and the refetch died at its first call.
+        loop_cache.write("board", {"project": "PVT_1", "field": "F_status",
+                                   "options": {n: f"O_{n}" for n in file_py.STATUSES}})
+        loop_cache.write("items", {"291": "I_stale"})
+        fake = FakeGh(items=(291,), reject=("I_stale",), die_on=("view", 1))
+        self.use(fake)
+        with self.assertRaises(SystemExit):
+            file_py.set_status(291, "Done")
+        self.assertIsNone(loop_cache.read("board", file_py.BOARD_TTL))
 
     def test_an_issue_not_on_the_board_is_added_and_the_map_dropped(self):
         fake = FakeGh(items=(291,))
@@ -271,9 +298,14 @@ class TheWiring(CacheIsolated):
         return self.calls.count("project")
 
     def test_a_bare_call_and_group_choose_an_item_so_never_cache(self):
+        # Both arms of the decision, each against a cache the previous call
+        # populated - a bare call that reused it would hand a fork an item
+        # another fork took inside the TTL.
+        self.run_main([])
         self.run_main([])
         self.run_main(["--group"])
-        self.assertEqual(self.reads(), 2)
+        self.run_main(["--group"])
+        self.assertEqual(self.reads(), 4)
 
     def test_listing_a_status_is_not_cached_either(self):
         self.run_main([])
