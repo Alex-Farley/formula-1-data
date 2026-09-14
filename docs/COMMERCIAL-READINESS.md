@@ -189,17 +189,58 @@ belongs to the prose pass, not here.
 
 ---
 
-## Still open
+## Still open: the prose pass
 
-**The prose pass.** 552 short fields — averaging barely a sentence — carry the
-CC BY-SA obligation that comes from Wikipedia, not from FOM. (That the count
-matched the facts-only row total when both were written is coincidence; this
-one is a count of prose fields, typed, and not a figure the build writes.) Each needs
-marking as original, paraphrased, or close to source; only the third needs
-rewriting. This is about knowing what the licence statement must say, not
-about whether the data may ship. It may.
+552 short fields — averaging barely a sentence — carry a CC BY-SA obligation
+that comes from Wikipedia rather than from FOM. **The obligation is met.** The
+database ships under CC BY-SA, which is what that licence asks for, and every
+row's source is on the row. (The count matched the facts-only row total when
+both were written; that is coincidence. This one counts prose fields, is
+typed, and is not a figure the build writes.)
 
-**Trademark.** Not a data question and not addressed here. "Formula 1", "F1"
-and "Grand Prix" are Formula One Licensing BV's, this project is unaffiliated
-and says so, and the exposure rises the moment money appears. If it ever
-does, that is a question for a solicitor rather than for a build check.
+What is unfinished is finer than whether the data may ship. Each field needs
+marking original, paraphrased, or close to source, so the licence statement
+can say which parts of the prose the share-alike actually reaches rather than
+covering the lot to be safe. Only the third class needs rewriting, and the
+pass is `PM-17`, #249.
+
+| | |
+|---|---|
+| May the data ship? | Yes, and it does |
+| What the pass changes | How exactly the statement can be put, not the permission |
+| What it would find | Fields close enough to source to be worth rewriting |
+
+---
+
+## Decided: the pre-split history stands
+
+Ten commits between 2026-09-05 and 2026-09-09 carry the 25 centrelines inside
+`f1.db`, because they predate `5a70558`, where the split was made. That is the
+whole of it: all 69 committed revisions of the file have been read, no commit
+after the split carries a centreline, and the four FOM-owned tables are empty
+in every revision without exception.
+
+By the reasoning two sections above, each of those ten files is a Derivative
+Database. They stay. Rewriting 497 commits to lift 25 rows would spend the
+history to buy very little, and the record of a project getting a licence
+question right is worth more than the appearance of never having had to ask.
+What that costs is one line rather than a rewrite: anyone taking one of those
+ten historical files has an ODbL 1.0 database, © OpenStreetMap contributors,
+and `LICENSE-DATA` says so.
+
+What is published is the current file, and the current file's table is empty.
+
+---
+
+## Trademark: the position, and where it ends
+
+Not a data question, and no build check reaches it. "Formula 1", "F1" and
+"Grand Prix" are Formula One Licensing BV's. This project is unaffiliated,
+says so on every page, and uses the names to identify which races these are —
+which is what the names are for, and the only way to state the facts at all.
+
+That position holds for what this is: free, non-commercial, and about the
+record rather than the brand. It is not a position about some other project
+built on the same data. If money ever appears the question changes, and it is
+a solicitor's question rather than a build check — asking it then is the plan,
+not an omission now.

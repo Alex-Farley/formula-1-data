@@ -44,6 +44,13 @@ OpenStreetMap contributors. Two databases distributed side by side are a
 Collective Database, which ODbL does not treat as derivative. See
 ATTRIBUTION.md and tools/geometry_overlay.py.
 
+Ten commits between 2026-09-05 and 2026-09-09 predate that split and carry the
+twenty-five centrelines inside `f1.db` itself. Those historical files are
+Derivative Databases and are offered as such: **ODbL 1.0, (c) OpenStreetMap
+contributors**, in place of the licence above. They are kept rather than
+rewritten out, because the history of a licence decision is part of the
+record. No commit after the split carries a centreline in `f1.db`.
+
 ## Live timing data
 
 tools/fastf1_load.py optionally loads per-lap timing, stints, pit stops, race
