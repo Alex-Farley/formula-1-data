@@ -333,6 +333,20 @@ The agent returns exactly `PASS — safe to merge` or `FAIL — changes required
   and every shown row - name the routes in the brief; the brief
   says so and asks the reviewer to check the SQL, the rendering and the
   cases the suite cannot reach, not to rebuild the comparison.
+- **GitHub is a budget too.** `next.py` reads the board and every open issue
+  on each run - a ProjectsV2 query is the expensive kind - and every issue of
+  a group needs a status on the way in and another on the way out. The
+  scripts cache what is safe to cache, so `next.py --group` followed by
+  `next.py <head> <companion>` costs one board read and not two; calling
+  `next.py` repeatedly to browse still costs one each time, so do not.
+- **A rate limit is an ordinary blocker, and retrying extends it.** GitHub's
+  secondary limiter is not one of the buckets `gh api rate_limit` reports -
+  on 2026-09-14 every one of those read full while it refused every GraphQL
+  call - so a `gh` failure saying a limit is exceeded while the buckets look
+  untouched is that limiter, not a defect and not your quota. Record it, stop
+  calling, and come back; a poll every 45 seconds keeps it closed. A
+  `precheck.sh` FAIL saying an item "is not an open issue" while the API is
+  refusing calls is this, not a missing issue: check before you file it again.
 - Keep your own messages short and do not paste reviewer reports into your
   context twice; the PR comment is the record. Read build and test output
   in its quiet form and never `cat` a log you have already checked the exit

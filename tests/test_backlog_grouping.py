@@ -25,6 +25,7 @@ WHY THIS FILE EXISTS
 """
 import importlib.util
 import os
+import tempfile
 import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -107,6 +108,14 @@ class GroupingProposals(unittest.TestCase):
     def setUp(self):
         self.real_gh, next_py.gh = next_py.gh, fake_gh
         self.addCleanup(setattr, next_py, "gh", self.real_gh)
+        # load() writes the queue cache. Without this the fixture's twelve
+        # invented items land in the checkout's own .claude/loop, where the
+        # next real `next.py VD-33` would read them back as the queue.
+        cache = next_py.loop_cache
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.addCleanup(setattr, cache, "DIR", cache.DIR)
+        cache.DIR = self.tmp.name
         self.ranked, _, _ = next_py.load()
 
     def item(self, ident):

@@ -59,10 +59,16 @@ import subprocess
 import sys
 from collections import Counter
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import loop_cache  # noqa: E402  (a sibling script, not an installed package)
+
 REPO = "Alex-Farley/formula-1-data"
 OWNER = "Alex-Farley"
 PROJECT = "1"
 QUEUE = ("Now", "Next", "Someday")
+# How stale the queue may be for a call that already names its items. Picking
+# the next item never reads the cache - see loop_cache's docstring.
+CACHE_TTL = 120
 ID = re.compile(r"^([A-Z]{2}-[0-9Ø]+): ")
 # The three signals a group is proposed on, read out of a title and body.
 # A path or a route is a claim about where the work lands; a cross-reference
@@ -104,8 +110,17 @@ def gh(*args):
     return json.loads(r.stdout)
 
 
-def load():
-    """Open issues in board order: [(status, number, ident, title, labels, body, url)]."""
+def load(allow_cache=False):
+    """Open issues in board order: [(status, number, ident, title, labels, body, url)].
+
+    Two GraphQL reads, both `--limit 1000`, the first of them a ProjectsV2
+    query - the expensive kind, and what tripped GitHub's secondary rate
+    limiter on 2026-09-14. `allow_cache` is passed only by a call that names
+    the items it wants, never by one choosing the next item."""
+    if allow_cache:
+        hit = loop_cache.read("queue", CACHE_TTL)
+        if hit is not None:
+            return hit["ranked"], hit["in_progress"], hit["unplaced"]
     board = gh("project", "item-list", PROJECT, "--owner", OWNER, "--format", "json", "--limit", "1000")["items"]
     open_issues = {i["number"]: i for i in gh("issue", "list", "--repo", REPO, "--state", "open",
                                               "--limit", "1000", "--json", "number,title,labels,body,url")}
@@ -126,6 +141,7 @@ def load():
     # while still open. Never silently dropped - the loop's rule is that an
     # item goes missing only by a person's hand.
     unplaced = [r for r in rows if r["status"] not in QUEUE + ("In progress",)]
+    loop_cache.write("queue", {"ranked": ranked, "in_progress": in_progress, "unplaced": unplaced})
     return ranked, in_progress, unplaced
 
 
@@ -300,7 +316,10 @@ def main(argv):
         print(next_id(argv[1]))
         return
 
-    ranked, in_progress, unplaced = load()
+    # A call that names its items is reading bodies it has already chosen, so
+    # it may use the cache the previous call wrote; `next.py` and
+    # `next.py --group`, which choose, always read GitHub.
+    ranked, in_progress, unplaced = load(allow_cache=bool(argv) and argv[0] != "--list")
     decisions = [r for r in ranked if "decision" in r["labels"]]
     everything = ranked + in_progress + unplaced
 
