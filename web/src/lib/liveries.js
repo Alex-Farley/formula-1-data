@@ -15,7 +15,9 @@
  * review caught 41 of them, so test/conventions.mjs now refuses a `says`
  * with a quotation mark in it). The team's own launch release or brand page
  * comes first, then formula1.com's launch coverage (source 3-7, facts-only)
- * and the Wikipedia car article (source 8/11/17). `named` is true only
+ * and the Wikipedia car article - or, for a season no car article
+ * describes, the per-season main-colour tables of Wikipedia's Formula One
+ * sponsorship liveries article (source 8/11/17 either way). `named` is true only
  * where the cited page shows the name is the team's own term - papaya,
  * Tarocco orange, Rosso Scuderia, Aston Martin Racing Green, heritage
  * white, Titanium; everywhere else `name` is this file's description of
@@ -42,8 +44,17 @@
  * 2010 that has race entries and no entry here, with the reason - in every
  * case, no classified source found that states the colour. A gap gets no
  * mark rather than a guess, which is the rule the database applies to a
- * missing figure. test/units.mjs holds the two lists to the database: every
- * 2010+ constructor-season is in exactly one of them.
+ * missing figure. test/conventions.mjs holds the two lists to the database:
+ * every 2010+ constructor-season is in exactly one of them.
+ *
+ * The list is currently empty (AF-09). AF-04 left five spans in it, twelve
+ * constructor-seasons - Virgin, Marussia and Manor Marussia 2010-2015,
+ * Sauber 2010-2011 and 2014, Force India 2016, Williams 2012-2013 - because
+ * no car article states those colours, and they are filled from the article
+ * that tabulates a main colour per season instead. Empty is a result, not
+ * the absence of the rule: the check below still refuses a season in
+ * neither list, so the next constructor-season nobody can source is
+ * declared here rather than guessed.
  *
  * THE ERAS. colourForEntry() is the one call the pages make, and it routes:
  *   1950-1967   the national racing colour of the constructor's country
@@ -279,6 +290,18 @@ export const LIVERIES = [
     says: 'formula1.com reports the 2015 livery bringing in silver for the first time; the VJM08 article records the white removed and black, silver, orange and green retained.',
   },
   {
+    // 2015 is named for the silver its launch coverage says arrived that
+    // year. 2016 has no launch source of its own, only the article's
+    // main-colour cell, which lists black first - so black is the
+    // principal colour here, as first-listed is throughout this map.
+    constructor: 'force-india', from: 2016, to: 2016, name: 'Black and silver', named: false,
+    base: '#111214', light: '#111214', dark: '#636974', // 16.13 / 3.02
+    source: [
+      'https://en.wikipedia.org/wiki/Formula_One_sponsorship_liveries',
+    ],
+    says: 'The sponsorship liveries article gives Force India one row of main colours for 2015 and 2016, black and silver, with orange and green beside them.',
+  },
+  {
     constructor: 'force-india', from: 2017, to: 2018, name: 'BWT pink', named: false,
     base: '#f7a1cf', light: '#ef439f', dark: '#f7a1cf', // 3.03 / 8.70
     source: [
@@ -307,21 +330,23 @@ export const LIVERIES = [
     says: 'The team names its colour Aston Martin Racing Green in a feature tracing it to British racing green and its return to Formula One in 2021; a 2022 announcement applies the 2021 Aston Martin Racing Green livery to the AMR22; the 2026 F1 Academy livery release says that car carries the signature Aston Martin Racing Green and mirrors the AMR26 livery.',
   },
   {
-    constructor: 'sauber', from: 2012, to: 2012, name: 'White', named: false,
+    constructor: 'sauber', from: 2010, to: 2012, name: 'White', named: false,
     base: '#f4f4f4', light: '#898989', dark: '#f4f4f4', // 3.01 / 15.17
     source: [
       'https://en.wikipedia.org/wiki/Sauber_C32',
+      'https://en.wikipedia.org/wiki/Formula_One_sponsorship_liveries',
     ],
-    says: 'The C32 article records that the 2013 car switched from a white base to grey, which places the 2012 base as white.',
+    says: 'The C32 article records that the 2013 car switched from a white base to grey, which places the 2012 base as white; the sponsorship liveries article gives Sauber the same main colours - white and dark grey, with red beside them - in 2010, 2011 and 2012.',
   },
   {
-    constructor: 'sauber', from: 2013, to: 2013, name: 'Grey', named: false,
+    constructor: 'sauber', from: 2013, to: 2014, name: 'Grey', named: false,
     base: '#6f747b', light: '#6f747b', dark: '#6f747b', // 4.05 / 3.54
     source: [
       'https://en.wikipedia.org/wiki/Sauber_C32',
       'https://en.wikipedia.org/wiki/Sauber_Motorsport',
+      'https://en.wikipedia.org/wiki/Formula_One_sponsorship_liveries',
     ],
-    says: 'The C32 article records the change from a white base to a grey scheme with black, red and white on the sides; the Sauber Motorsport article calls 2013 grey like the early-1990s cars.',
+    says: 'The C32 article records the change from a white base to a grey scheme with black, red and white on the sides; the Sauber Motorsport article calls 2013 grey like the early-1990s cars; the sponsorship liveries article gives 2013 and 2014 the same main colours, dark grey and white, with red and silver beside them.',
   },
   {
     constructor: 'sauber', from: 2015, to: 2016, name: 'Blue and yellow', named: false,
@@ -412,6 +437,30 @@ export const LIVERIES = [
     says: 'The team describes the 2026 car as keeping the all-white look of 2025, sharpened, with blue accents through the chassis for Ford.',
   },
   {
+    constructor: 'virgin', from: 2010, to: 2012, name: 'Black and red', named: false,
+    base: '#111214', light: '#111214', dark: '#636974', // 16.13 / 3.02
+    source: [
+      'https://en.wikipedia.org/wiki/Formula_One_sponsorship_liveries',
+    ],
+    says: 'The sponsorship liveries article gives Virgin Racing black and red as its main colours in 2010 and 2011, with white beside them, and the same black and red for Marussia in 2012.',
+  },
+  {
+    constructor: 'virgin', from: 2013, to: 2014, name: 'Red and black', named: false,
+    base: '#d1262f', light: '#d1262f', dark: '#d1262f', // 4.49 / 3.20
+    source: [
+      'https://en.wikipedia.org/wiki/Formula_One_sponsorship_liveries',
+    ],
+    says: 'The sponsorship liveries article gives Marussia red and black as its main colours in 2013 and 2014, red listed before black, with white beside them.',
+  },
+  {
+    constructor: 'virgin', from: 2015, to: 2015, name: 'Red and white', named: false,
+    base: '#d1262f', light: '#d1262f', dark: '#d1262f', // 4.49 / 3.20
+    source: [
+      'https://en.wikipedia.org/wiki/Formula_One_sponsorship_liveries',
+    ],
+    says: 'The sponsorship liveries article gives Manor Marussia red and white as its main colours in 2015, with black and blue beside them.',
+  },
+  {
     constructor: 'virgin', from: 2016, to: 2016, name: 'Red, white and blue', named: false,
     base: '#d1262f', light: '#d1262f', dark: '#d1262f', // 4.49 / 3.20
     source: [
@@ -421,12 +470,13 @@ export const LIVERIES = [
     says: 'The MRT05 article records Manor Racing in a predominantly red and blue livery with flashes of white after the rebrand under Stephen Fitzpatrick.',
   },
   {
-    constructor: 'williams', from: 2010, to: 2011, name: 'Dark blue', named: false,
+    constructor: 'williams', from: 2010, to: 2013, name: 'Dark blue', named: false,
     base: '#0a1f5c', light: '#0a1f5c', dark: '#2b5ce8', // 13.26 / 3.02
     source: [
       'https://en.wikipedia.org/wiki/Williams_FW33',
+      'https://en.wikipedia.org/wiki/Formula_One_sponsorship_liveries',
     ],
-    says: 'The FW33 article records the 2011 livery adding white, silver and red to the existing dark blue, in a design inspired by the Rothmans cars.',
+    says: 'The FW33 article records the 2011 livery adding white, silver and red to the existing dark blue, in a design inspired by the Rothmans cars; the sponsorship liveries article gives Williams blue in 2010, blue and white in 2011, and dark blue in 2012 and 2013 with white and red beside it.',
   },
   {
     constructor: 'williams', from: 2014, to: 2018, name: 'Martini white', named: false,
@@ -556,16 +606,14 @@ export const LIVERIES = [
 /**
  * Constructor-seasons from 2010 with race entries and no livery above. Each
  * is a fact nobody here holds yet; filling one means finding the source and
- * moving the span into LIVERIES, and test/units.mjs fails a span that is in
- * both or in neither.
+ * moving the span into LIVERIES, and test/conventions.mjs fails a span that
+ * is in both lists or in neither.
+ *
+ * Empty since AF-09 sourced the last five spans AF-04 left. The list and
+ * its check stay: the next constructor-season nobody can source is declared
+ * here rather than guessed.
  */
-export const LIVERY_GAPS = [
-  { constructor: 'virgin', from: 2010, to: 2015, why: 'Virgin Racing, Marussia and Manor Marussia: no classified source states the livery colours.' },
-  { constructor: 'sauber', from: 2010, to: 2011, why: 'The C29 ran a near-blank livery; no classified source states the colours of the C29 or C30.' },
-  { constructor: 'sauber', from: 2014, to: 2014, why: 'No classified source states the C33\'s colours; the C32\'s grey is not shown to have carried over.' },
-  { constructor: 'force-india', from: 2016, to: 2016, why: 'No classified source states the VJM09\'s colours; the VJM08\'s silver is not shown to have carried over.' },
-  { constructor: 'williams', from: 2012, to: 2013, why: 'The FW34 and FW35 articles name sponsors and a Rothmans inspiration but not the colours.' },
-]
+export const LIVERY_GAPS = []
 
 /**
  * True in a season some row of which could carry a colour - before 1968 or
