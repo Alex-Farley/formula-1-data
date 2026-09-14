@@ -7,8 +7,8 @@ import Figure from '../charts/Figure.jsx'
 import ColumnChart from '../charts/ColumnChart.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { missing, number, span, yearList } from '../lib/format.js'
-import { colourFor } from '../lib/racingColours.js'
-import { LIVERY_ERA, liveryClaim, liveryFor, liveryStyle, sourceHost } from '../lib/liveries.js'
+import LiveryScheme from '../components/LiveryScheme.jsx'
+import { LIVERY_ERA, colourForEntry, liveryFor, nationalEntry, sourceHost } from '../lib/liveries.js'
 
 import {
   BY_SEASON,
@@ -112,12 +112,23 @@ function ConstructorBody({ constructor, data }) {
   const bestCar = [...designs].sort((a, b) => (b.wins ?? 0) - (a.wins ?? 0) || (b.races ?? 0) - (a.races ?? 0))[0] ?? null
   const lastSeason = bySeason[bySeason.length - 1] ?? null
   const engineSplit = standings.some((s) => s.engine_id)
-  const colour = colourFor(constructor.country)
   // The team's own colour where the record has it: the livery of the last
   // season it raced, 2010 onwards (lib/liveries.js). The national convention
   // stays the aside for everyone else - including a 2010+ season this map
   // has no source for, where the sentence says which convention it shows.
+  //
+  // Both arrive in one shape (AF-17), so the band, its names and the chart
+  // below read the same object and a team without a livery is not a special
+  // case three times over.
   const livery = lastSeason && lastSeason.year >= LIVERY_ERA ? liveryFor(constructor.id, lastSeason.year) : null
+  const identity = livery
+    ? colourForEntry({
+        constructorId: constructor.id,
+        country: constructor.country,
+        year: lastSeason.year,
+        team: constructor.name,
+      })
+    : nationalEntry(constructor.country)
 
   return (
     <Page
@@ -126,29 +137,24 @@ function ConstructorBody({ constructor, data }) {
       back={{ to: '/constructors', label: 'The register' }}
       lede={constructor.notes}
       aside={
-        livery ? (
-          <p className="livery-band" style={{ marginTop: 14 }}>
-            <i className="livery" style={liveryStyle(livery)} />
-            {livery.name}
-            <span>
-              The colour {constructor.name} raced in {lastSeason.year}, {liveryClaim(livery)}. Read
-              from {[...new Set(livery.source.map(sourceHost))].join(' and ')}; the shade here is
-              this site's rendering of it, not a measurement.
-            </span>
-          </p>
-        ) : (
-          colour && (
-            <p className="livery-band" style={{ marginTop: 14 }}>
-              <i className="livery" style={{ '--livery': colour.css }} />
-              {colour.name}
-              <span>
+        <LiveryScheme
+          colour={identity}
+          note={
+            livery ? (
+              <>
+                The colour {constructor.name} raced in {lastSeason.year}, {identity.claim}. Read from{' '}
+                {[...new Set(livery.source.map(sourceHost))].join(' and ')}; the shades here are this
+                site's rendering of them, not a measurement.
+              </>
+            ) : (
+              <>
                 {constructor.country}'s international racing colour, under the convention that
                 painted a car for the country that entered it until sponsor liveries took over around
                 1968. Not this team's own livery.
-              </span>
-            </p>
-          )
-        )
+              </>
+            )
+          }
+        />
       }
     >
       <Section>
@@ -212,11 +218,16 @@ function ConstructorBody({ constructor, data }) {
               ],
             }}
           >
+            {/* VD-34: the team's own colour, falling back to the national
+                convention and then to the series palette. The pair, not the
+                base - a single-hue chart is read by colour against the panel,
+                which is the one surface AF-16 left the moved pair on. */}
             <ColumnChart
               data={seasonsAsc.map((s) => ({ key: s.year, value: s.wins, label: String(s.year) }))}
               labelEvery={Math.max(1, Math.ceil(seasonsAsc.length / 12))}
               integer
               height={200}
+              colour={identity}
               label={`Race wins per season for ${constructor.name}`}
             />
           </Figure>
