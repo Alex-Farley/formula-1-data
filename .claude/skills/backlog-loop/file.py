@@ -31,8 +31,12 @@ is on the item, not in a fork's context that is about to be discarded.
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))  # behind the stdlib
+import loop_cache  # noqa: E402  (a sibling script, not an installed package)
 
 REPO = "Alex-Farley/formula-1-data"
 OWNER = "Alex-Farley"
@@ -46,6 +50,14 @@ SOURCE = {
 }
 STATUSES = ("Now", "Next", "Someday", "In progress", "Done")
 HERE = os.path.dirname(os.path.abspath(__file__))
+# The board's ids change only when a person edits the project; an item's id is
+# stable while it is on the board. Both are re-read the moment they disagree
+# with GitHub, so the only cost of a stale one is a wasted call.
+BOARD_TTL = 3600
+ITEMS_TTL = 900
+# A failure that is not a stale id: retrying it wastes calls, and against the
+# secondary limiter it extends the block.
+REFUSED = re.compile(r"rate limit|secondary|abuse detection|forbidden|not authoriz", re.I)
 
 
 def gh(*args, as_json=False):
@@ -55,26 +67,78 @@ def gh(*args, as_json=False):
     return json.loads(r.stdout) if as_json else r.stdout.strip()
 
 
-def board():
+def gh_try(*args):
+    """(succeeded, stderr), for the one call allowed to fail: an `item-edit`
+    against a cached id GitHub may no longer recognise. The caller decides,
+    because most failures are not staleness and must not be retried."""
+    r = subprocess.run(["gh", *args], capture_output=True, text=True, check=False)
+    return r.returncode == 0, r.stderr.strip()
+
+
+def board(fresh=False):
+    """(project id, Status field id, {status name: option id})."""
+    if not fresh:
+        hit = loop_cache.read("board", BOARD_TTL)
+        if isinstance(hit, dict) and {"project", "field", "options"} <= hit.keys():
+            return hit["project"], hit["field"], hit["options"]
     proj = gh("project", "view", PROJECT, "--owner", OWNER, "--format", "json", as_json=True)
     fields = gh("project", "field-list", PROJECT, "--owner", OWNER, "--format", "json", as_json=True)["fields"]
     status = next(f for f in fields if f["name"] == "Status")
-    return proj["id"], status["id"], {o["name"]: o["id"] for o in status["options"]}
+    options = {o["name"]: o["id"] for o in status["options"]}
+    loop_cache.write("board", {"project": proj["id"], "field": status["id"], "options": options})
+    return proj["id"], status["id"], options
+
+
+def item_ids(fresh=False):
+    """{issue number: project item id} for everything on the board. This is
+    the expensive read - a ProjectsV2 item-list of up to 1000 items - and it
+    used to run once per status change, so a group of four paid it eight
+    times."""
+    if not fresh:
+        hit = loop_cache.read("items", ITEMS_TTL)
+        if isinstance(hit, dict) and all(
+                str(n).isdigit() and isinstance(i, str) for n, i in hit.items()):
+            return {int(n): i for n, i in hit.items()}
+    items = gh("project", "item-list", PROJECT, "--owner", OWNER, "--format", "json", "--limit", "1000",
+               as_json=True)["items"]
+    ids = {c["number"]: i["id"] for i in items for c in [i.get("content") or {}] if c.get("number")}
+    loop_cache.write("items", {str(n): i for n, i in ids.items()})
+    return ids
 
 
 def set_status(number, status):
     if status not in STATUSES:
         sys.exit(f"status must be one of {', '.join(STATUSES)}")
-    proj_id, field_id, options = board()
-    url = f"https://github.com/{REPO}/issues/{number}"
-    items = gh("project", "item-list", PROJECT, "--owner", OWNER, "--format", "json", "--limit", "1000",
-               as_json=True)["items"]
-    item = next((i["id"] for i in items if (i.get("content") or {}).get("number") == number), None)
-    if item is None:
-        item = gh("project", "item-add", PROJECT, "--owner", OWNER, "--url", url, "--format", "json",
-                  as_json=True)["id"]
-    gh("project", "item-edit", "--project-id", proj_id, "--id", item, "--field-id", field_id,
-       "--single-select-option-id", options[status])
+    # Two attempts. The first may answer from the cache; the second reads
+    # GitHub for everything, so a stale id costs one wasted call and can
+    # never write the wrong field or the wrong item.
+    for fresh in (False, True):
+        proj_id, field_id, options = board(fresh)
+        if status not in options:
+            if fresh:
+                sys.exit(f"the board has no status {status!r}; it has {', '.join(sorted(options))}")
+            continue
+        item = item_ids(fresh).get(number)
+        if item is None:
+            url = f"https://github.com/{REPO}/issues/{number}"
+            item = gh("project", "item-add", PROJECT, "--owner", OWNER, "--url", url, "--format", "json",
+                      as_json=True)["id"]
+            loop_cache.drop("items")
+        ok, err = gh_try("project", "item-edit", "--project-id", proj_id, "--id", item,
+                         "--field-id", field_id, "--single-select-option-id", options[status])
+        if ok:
+            # The queue cache holds the status this call just changed, and the
+            # *In progress elsewhere* footer an inheriting fork reads is built
+            # from it.
+            loop_cache.drop("queue")
+            return
+        # Only staleness is worth a second attempt. A rate limit is the
+        # failure this cache exists to avoid, and retrying extends it, so it
+        # ends the run at the first refusal the way the uncached code did.
+        if fresh or REFUSED.search(err):
+            sys.exit(err or "gh project item-edit failed")
+        loop_cache.drop("board")
+        loop_cache.drop("items")
 
 
 def new(a):

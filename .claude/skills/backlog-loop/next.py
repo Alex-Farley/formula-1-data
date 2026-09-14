@@ -4,6 +4,9 @@ Print the next item of the queue, or one named item, and nothing else.
 
     python3 .claude/skills/backlog-loop/next.py               # first open item, queue order
     python3 .claude/skills/backlog-loop/next.py PD-02         # that item, wherever it sits
+    python3 .claude/skills/backlog-loop/next.py PD-02 VD-26   # several items in full, for a group
+    python3 .claude/skills/backlog-loop/next.py --group       # the next item, and what could ride with it
+    python3 .claude/skills/backlog-loop/next.py --group AF-09 # a named item, and what could ride with it
     python3 .claude/skills/backlog-loop/next.py --list Now    # one line per open item in a status
     python3 .claude/skills/backlog-loop/next.py --next-id PD  # the next unused number for a prefix
     python3 .claude/skills/backlog-loop/next.py --skip AF-03,VD-26   # the next item after those
@@ -25,6 +28,18 @@ it was docs/BACKLOG.md, and this script read that file. What it reads now:
   while still open is not lost: it is listed under every item as
   *unplaced*, `--list unplaced` prints them, and `next.py <ID>` finds it.
 
+`--group` prints a second block under the item: the `size: S` items, in the
+item's own status or the next one down, that share a file path, a route or a
+cross-reference with it, best score first. It **proposes; it never groups.**
+A companion earns its place only by being cheaper because it rides with the
+head - the same file, the same query, the same component, the same test -
+and the pull request says why each one is there. Two items that share
+nothing but a `source:` label are not a theme, and the score cannot reach the
+threshold on that alone. How many may be taken is the pace, in
+`.claude/skills/backlog-item/SKILL.md`. A path or route that occurs in more
+than a few open items is dropped as noise before scoring, so `f1.db` and
+`/drivers` never group anything by themselves.
+
 Why a script and not `gh issue list`: the ranking lives on the board, not in
 the issue list, and reading it is two `gh` calls and a join. The output is
 one item - title, labels, body, the open decisions - for a few hundred
@@ -42,12 +57,63 @@ import os
 import re
 import subprocess
 import sys
+from collections import Counter
+
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))  # behind the stdlib
+import loop_cache  # noqa: E402  (a sibling script, not an installed package)
 
 REPO = "Alex-Farley/formula-1-data"
 OWNER = "Alex-Farley"
 PROJECT = "1"
 QUEUE = ("Now", "Next", "Someday")
+# How stale the queue may be for a call that already names its items. Picking
+# the next item never reads the cache - see loop_cache's docstring.
+CACHE_TTL = 120
 ID = re.compile(r"^([A-Z]{2}-[0-9Ø]+): ")
+# The three signals a group is proposed on, read out of a title and body.
+# A path or a route is a claim about where the work lands; a cross-reference
+# is one item's author saying the two belong together. Nothing else scores
+# enough to list a candidate on its own.
+# The extensions this project keeps as files. A "/name.ext" is a filename
+# when ext is one of these and a served path when it is not: /f1.db is the
+# database, /build-status.txt is an address CLAUDE.md tells a reader to open.
+SOURCE_EXT = "py|js|mjs|jsx|ts|tsx|css|json|sql|md|sh|yml|yaml|html|db"
+PATH = re.compile(rf"(?:[\w.-]+/)*[\w.-]+\.(?:{SOURCE_EXT})\b")
+# The lookbehind keeps the tail of a path out - the "/drivers" inside
+# web/src/pages/drivers.jsx is preceded by a word character - and must not
+# exclude a backtick: every route in this queue is written `/drivers`, and
+# excluding it made the whole route signal dead text (found in review). The
+# lookbehind's "." stops "./f1 gaps". Any extension is matched rather than
+# excluded, so the route is captured whole and `signals` decides by what the
+# extension is: "/f1.db" is a filename and goes, "/build-status.txt" is an
+# address and stays. Dropping every extension lost the second (found in
+# review); trimming instead of dropping would have turned "/f1.db" into the
+# pseudo-route "/f1", walking the queue's noisiest token past a noise counter
+# that cannot see it under that spelling. A route at the end of a sentence -
+# "shown on /drivers." - keeps no full stop, because an extension needs a
+# character after the dot.
+# The extension is matched case-insensitively and up to eight characters so
+# that "/f1.DB" and "/f1.database" are captured whole. Matching only four
+# lowercase characters left both of them yielding the pseudo-route "/f1".
+# This narrows that class rather than closing it: the group is optional, so
+# "/f1.databases" and a bare "/f1." still fall back to "/f1". Those are
+# affinity noise in a proposal rather than a wrong answer, and the spellings
+# that actually occur are covered.
+ROUTE = re.compile(r"(?<![\w/.])/[a-z][a-z0-9-]*(?:/[a-z0-9:<>-]+)*(?:\.(?i:[a-z0-9]{1,8})\b)?")
+IS_FILE = re.compile(rf"\.(?:{SOURCE_EXT})$", re.I)
+IDREF = re.compile(r"\b[A-Z]{2}-[0-9]+\b")
+COMPANIONS = 6       # candidates listed; the pace caps how many may be taken
+THRESHOLD = 3        # below this a candidate is not worth a fork's attention
+NOISE = 4            # see below
+# A signal more items than this name is noise, dropped before scoring.
+# Measured over the 157 open items on 2026-09-14, the queue is bimodal: 149
+# bodies name docs/backlog.md and contributing.md (a footer every issue
+# carries), prerender.js names 10 and verify.py 8 - big files a dozen
+# unrelated items each touch for their own reason - and every signal that
+# means anything names two or three: cars.jsx, liveries.js, datatable.jsx,
+# race.jsx, smoke.mjs. It is a constant and not a fraction of the queue
+# because a file is named by the few items about it however long the queue
+# grows. Five prerender.js items were proposed as one group before this.
 
 
 def gh(*args):
@@ -58,8 +124,17 @@ def gh(*args):
     return json.loads(r.stdout)
 
 
-def load():
-    """Open issues in board order: [(status, number, ident, title, labels, body, url)]."""
+def load(allow_cache=False):
+    """Open issues in board order: [(status, number, ident, title, labels, body, url)].
+
+    Two GraphQL reads, both `--limit 1000`, the first of them a ProjectsV2
+    query - the expensive kind, and what tripped GitHub's secondary rate
+    limiter on 2026-09-14. `allow_cache` is passed only by a call that names
+    the items it wants, never by one choosing the next item."""
+    if allow_cache:
+        hit = loop_cache.read("queue", CACHE_TTL)
+        if isinstance(hit, dict) and {"ranked", "in_progress", "unplaced"} <= hit.keys():
+            return hit["ranked"], hit["in_progress"], hit["unplaced"]
     board = gh("project", "item-list", PROJECT, "--owner", OWNER, "--format", "json", "--limit", "1000")["items"]
     open_issues = {i["number"]: i for i in gh("issue", "list", "--repo", REPO, "--state", "open",
                                               "--limit", "1000", "--json", "number,title,labels,body,url")}
@@ -80,14 +155,18 @@ def load():
     # while still open. Never silently dropped - the loop's rule is that an
     # item goes missing only by a person's hand.
     unplaced = [r for r in rows if r["status"] not in QUEUE + ("In progress",)]
+    loop_cache.write("queue", {"ranked": ranked, "in_progress": in_progress, "unplaced": unplaced})
     return ranked, in_progress, unplaced
 
 
-def show(row, decisions, in_progress, unplaced):
+def show(row):
     print(f"## {row['status'] or 'no status'}  #{row['number']}  {row['url']}\n")
     print(row["title"])
     print("Labels: " + (", ".join(row["labels"]) or "none") + "\n")
     print(row["body"].rstrip() + "\n")
+
+
+def footers(decisions, in_progress, unplaced):
     if decisions:
         print("Decisions needed, still open — work around them, never take them:")
         for d in decisions:
@@ -100,6 +179,120 @@ def show(row, decisions, in_progress, unplaced):
         print("Unplaced — open, on the board, no queue status; give each one with `file.py status <n> <Now|Next|Someday>`:")
         for d in unplaced:
             print(f"  #{d['number']}  {d['title']}  (status: {d['status'] or 'none'})")
+
+
+def size_of(row):
+    return next((lb[6:] for lb in row["labels"] if lb.startswith("size: ")), "?")
+
+
+def eligible(row, skip):
+    return (row["ident"] not in skip
+            and "decision" not in row["labels"] and "blocked" not in row["labels"])
+
+
+def first_eligible(ranked, skip):
+    """The queue's own next item. `ranked` already excludes In progress."""
+    return next((r for r in ranked if eligible(r, skip)), None)
+
+
+def signals(row):
+    """(paths, routes, ids) named anywhere in the item's title or body."""
+    text = row["title"] + "\n" + row["body"]
+    paths = {m.lower().lstrip("./") for m in PATH.findall(text)}
+    routes = {m for m in ROUTE.findall(text) if not IS_FILE.search(m)}
+    return paths, routes, set(IDREF.findall(text)) - {row["ident"]}
+
+
+def bands(head):
+    """The statuses a companion may be drawn from: the head's and the one
+    below it. A head named by hand can be In progress or unplaced, and the
+    search starts at the top of the queue for it."""
+    i = QUEUE.index(head["status"]) if head["status"] in QUEUE else 0
+    return QUEUE[i:i + 2]
+
+
+def companions(head, ranked, skip, taken):
+    """Score every S item that could ride with the head; best first.
+
+    The head's own status band or the one below it: a companion from lower
+    down is being promoted past everything between, which only a shared file
+    pays for, and the fork has to say so in the pull request. A signal shared
+    with more than a few open items says nothing about these two, so it is
+    dropped before anything is scored."""
+    allowed = bands(head)
+    tok = {r["number"]: signals(r) for r in ranked}
+    tok.setdefault(head["number"], signals(head))
+    df_path, df_route = Counter(), Counter()
+    for paths, routes, _ in tok.values():
+        df_path.update(paths)
+        df_route.update(routes)
+    common = NOISE
+    hp, hr, hi = tok[head["number"]]
+    rank = {r["number"]: i for i, r in enumerate(ranked)}
+    head_rank = rank.get(head["number"])
+    out = []
+    for row in ranked:
+        if row["number"] == head["number"] or row["number"] in taken or not eligible(row, skip):
+            continue
+        if size_of(row) != "S" or row["status"] not in allowed:
+            continue
+        cp, cr, ci = tok[row["number"]]
+        score, why = 0, []
+        if head["ident"] in ci:
+            score += 4
+            why.append(f"names {head['ident']}")
+        elif row["ident"] in hi:
+            score += 4
+            why.append(f"named by {head['ident']}")
+        shared_paths = sorted(p for p in hp & cp if df_path[p] <= common)
+        shared_routes = sorted(t for t in hr & cr if df_route[t] <= common)
+        if shared_paths:
+            # A shared prose file is where two items would each add a
+            # paragraph, not where the work is: on the first live run it
+            # proposed a Cloudflare settings item as a companion to a livery
+            # one because both name web/README.md. One is worth a third of a
+            # source file, so a single shared prose file cannot reach the
+            # threshold alone; three of them can, and two items that edit the
+            # same three documents are a theme.
+            score += min(6, sum(1 if p.endswith(".md") else 3 for p in shared_paths))
+            why.append("shares " + ", ".join(shared_paths[:3]))
+        if shared_routes:
+            score += min(4, 2 * len(shared_routes))
+            why.append("both on " + ", ".join(shared_routes[:3]))
+        if row["ident"].split("-")[0] == head["ident"].split("-")[0]:
+            score += 1
+            why.append("same source")
+        if head_rank is not None and abs(rank[row["number"]] - head_rank) <= 3:
+            score += 1
+            why.append("ranked beside it")
+        if score >= THRESHOLD:
+            out.append((score, row, why))
+    out.sort(key=lambda t: (-t[0], rank[t[1]["number"]]))
+    return out[:COMPANIONS]
+
+
+def show_companions(head, ranked, skip, taken):
+    print(f"## Companions for {head['ident']} — proposals, not a group\n")
+    if size_of(head) != "S":
+        print(f"None: {head['ident']} is size {size_of(head)}. The rungs of one M item are already one"
+              "\nPR, and grouping is for S items - the pace table in"
+              "\n.claude/skills/backlog-item/SKILL.md says so.\n")
+        return
+    rows = companions(head, ranked, skip, taken)
+    if not rows:
+        print(f"None: no open S item under {' or '.join(bands(head))} shares a file, a route or a"
+              f"\ncross-reference with {head['ident']}. One item, one PR.\n")
+        return
+    for score, row, why in rows:
+        title = row["title"][len(row["ident"]) + 2:] if row["title"].startswith(row["ident"] + ": ") else row["title"]
+        print(f"  #{row['number']:<4} {row['ident']:<6} {row['status']:<7} {score:>2}  "
+              f"{'; '.join(why)}\n        {title[:76]}")
+    print("\nA score is a hint. A companion joins only if it is cheaper because it rides"
+          "\nwith the head - the same file, the same query, the same component - and the PR"
+          "\nsays why each one is there; a shared source label is not a theme. The pace caps"
+          "\nhow many. Full bodies before you decide:"
+          f"\n  python3 .claude/skills/backlog-loop/next.py {head['ident']} "
+          + " ".join(r["ident"] for _, r, _ in rows[:3]) + "\n")
 
 
 def next_id(prefix):
@@ -128,13 +321,22 @@ def main(argv):
             sys.exit("--skip needs a comma-separated list of ids")
         skip = {s.strip() for s in argv[at + 1].split(",") if s.strip()}
         argv = argv[:at] + argv[at + 2:]
+    group = "--group" in argv
+    if group:
+        argv = [a for a in argv if a != "--group"]
     if argv[:1] == ["--next-id"]:
         if len(argv) != 2 or not re.fullmatch(r"[A-Z]{2}", argv[1]):
             sys.exit("--next-id needs a two-letter prefix, e.g. PD")
         print(next_id(argv[1]))
         return
 
-    ranked, in_progress, unplaced = load()
+    # A call that names its items is reading bodies it has already chosen, so
+    # it may use the cache the previous call wrote. Anything that chooses
+    # reads GitHub: `next.py`, and `--group` in both its forms - `--group` is
+    # stripped from argv above, so without the `not group` clause
+    # `next.py --group AF-09` would score every candidate against a snapshot.
+    ranked, in_progress, unplaced = load(
+        allow_cache=bool(argv) and not group and argv[0] != "--list")
     decisions = [r for r in ranked if "decision" in r["labels"]]
     everything = ranked + in_progress + unplaced
 
@@ -152,20 +354,26 @@ def main(argv):
             print(f"#{r['number']:<4} {r['ident']:<6} {size:<2} {title}{flags}")
         return
 
-    wanted = argv[0] if argv else None
-    if wanted is None:
-        for r in ranked:
-            if r["ident"] in skip or "decision" in r["labels"] or "blocked" in r["labels"]:
-                continue
-            show(r, decisions, in_progress, unplaced)
-            return
-        sys.exit(f"no open item under {', '.join(QUEUE)} that is not a decision, blocked or in progress"
-                 + (f"; {len(unplaced)} unplaced (--list unplaced)" if unplaced else ""))
-    for r in everything:
-        if r["ident"] == wanted or f"#{r['number']}" == wanted:
-            show(r, decisions, in_progress, unplaced)
-            return
-    sys.exit(f"{wanted} is not an open issue on the board (landed, declined, never filed, or not yet auto-added)")
+    if argv:
+        heads = []
+        for wanted in argv:
+            row = next((r for r in everything if r["ident"] == wanted or f"#{r['number']}" == wanted), None)
+            if row is None:
+                sys.exit(f"{wanted} is not an open issue on the board "
+                         "(landed, declined, never filed, or not yet auto-added)")
+            heads.append(row)
+    else:
+        head = first_eligible(ranked, skip)
+        if head is None:
+            sys.exit(f"no open item under {', '.join(QUEUE)} that is not a decision, blocked or in progress"
+                     + (f"; {len(unplaced)} unplaced (--list unplaced)" if unplaced else ""))
+        heads = [head]
+
+    for row in heads:
+        show(row)
+    if group:
+        show_companions(heads[0], ranked, skip, {r["number"] for r in heads})
+    footers(decisions, in_progress, unplaced)
 
 
 if __name__ == "__main__":

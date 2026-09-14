@@ -12,7 +12,9 @@ against the fresh build, so run it after staging a rebuild, not before.
 has its own: `cd web && npm test`.
 
 **Before committing, run `make all`, never `make check`; `make ci` on the
-staged result is what CI will see.**
+staged result is what CI will see.** `make ci` is CI's *Python* job only -
+`make lint` (Ruff, Biome, actionlint) is a separate job, and a lint failure
+reached CI on `AF-12` because nothing local ran it.
 `check` does not run `export`, so it leaves `f1_compat.json` stale — and CI
 compares the committed copy against a fresh one. Anything that changes
 `VERSION` or the data changes that file too.
@@ -196,8 +198,11 @@ stays small. Measured 2026-09-13: that session, not the reviewers, was
   reviewed again, fresh. Silence, a rate limit or an unavailable review
   account is not a PASS. Which reviewer and which model - Opus for a first
   pass, Sonnet to confirm a fix that must land before merge or to review
-  wording - that a PASS merges as reviewed with non-blocking code findings
-  carried into the next PR, which fixes merge without a further pass, and
+  wording - that a PASS fixes the findings belonging to its own diff before
+  it merges, in one batch with one confirmation, and carries only what needs
+  a decision, touches other code or would make the diff unreadable (revised
+  2026-09-14; a review finding is not discovered work, and filing one turns a
+  fix into a backlog item), which fixes merge without a further pass, and
   that the rungs of one item are one PR, and what each pace may relax and
   what no pace may, is set in `.claude/skills/backlog-item/SKILL.md`
   (decided 2026-09-13, three times).

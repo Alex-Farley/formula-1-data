@@ -37,11 +37,16 @@ launched three more reviewers on the unchanged commit.)
 
 ## Before an item
 
-1. `python3 .claude/skills/backlog-loop/next.py` prints the first open item
-   in the queue's own order - its issue number, title, labels and body, with
-   the open decisions to work around; `next.py <ID>` prints one item;
-   `next.py --list Now` prints one line per open item in a status, for
-   batching; `--skip A,B` passes over ids the driver names, and an issue
+1. `python3 .claude/skills/backlog-loop/next.py --group` prints the first
+   open item in the queue's own order - its issue number, title, labels and
+   body, with the open decisions to work around - and under it the `size: S`
+   items that could ride with it in one pull request. Use `--group` at every
+   pace but `thorough`, which takes one item and never groups; *Grouping*
+   below is how a proposal becomes a group. `next.py <ID>` prints one item
+   and `next.py <ID> <ID> <ID>` several in full, which is how a proposed
+   group is read before it is taken; `next.py --list Now` prints one line
+   per open item in a status; `--skip A,B` passes over ids the driver
+   names, and an issue
    labelled `blocked` or `decision`, or with status *In progress*, is
    passed over on its own. The order is the board's: status *Now* before
    *Next* before *Someday*, top to bottom within a status, which is what a
@@ -75,7 +80,9 @@ Decided 2026-09-13 by the maintainer (`PM-36`). The pace changes how much
 review depth and batching an item gets. It changes nothing in the next list.
 
 **Never slides, at any pace:** a fresh independent review before merge;
-`make all`; the precheck; `check (3.9)`, `check (3.12)` and `web` green; the
+`make all`; the precheck; `check (3.9)`, `check (3.12)`, `web` **and `lint`**
+green - `lint` is on this list because `AF-12` proved nothing run locally
+sees it, and a machine without ruff gets only a warning from the precheck; the
 licence-reviewer triggers; the stop conditions; Opus for any change under
 `data/`, `harvest/`, `build.py`, `verify.py`, `schema.sql`, the exporters,
 `web/scripts/prerender.js` or a workflow.
@@ -85,8 +92,75 @@ licence-reviewer triggers; the stop conditions; Opus for any change under
 | First-pass reviewer | `frontend-reviewer-quick` (Sonnet, 50 turns) for an S item under `web/` that does not touch `scripts/prerender.js`; the Opus reviewer for the area otherwise | the Opus reviewer for the area | the Opus reviewer for the area |
 | Routes named in the brief for the reviewer to spot-check | 3 | 10, chosen for edge cases: a NULL, a tie, a shared drive, a season not yet run | every route the change touches |
 | Confirming a fix that must land before merge | fresh Sonnet | fresh Sonnet | fresh Opus |
-| Items per PR | S items on one theme, up to four, where the diff stays readable | one M (all its rungs), or two S on a theme | one |
+| Items per PR (*Grouping*) | S items on one theme, up to four, where the diff stays readable | one M (all its rungs), or two S on a theme | one |
 | Pipelining | none (PM-39: the review and the CI wait are foreground, so a fork holds one item at a time; batching is the `fast` saving) | none | none |
+
+## Grouping
+
+A reviewer pays a fixed cost on every pull request - the rules, the
+surroundings of the diff, the build - before it reads a line of the change.
+Two items that touch the same file pay it twice for nothing. Grouping is how
+that is avoided; `python3 .claude/skills/backlog-loop/next.py --group` is how
+a group is found.
+
+**The head is the queue's next item, always.** Grouping decides what rides
+with it, never which item comes first. A person's ranking is not
+renegotiated by a script's score.
+
+**What a companion has to earn:** it is cheaper *because* it rides with the
+head - the same file, the same query, the same component, the same test - so
+that one reading of the surrounding code serves both. Two items that share a
+`source:` label, or a subject, are not a theme. If you cannot write the one
+sentence saying why these are one change, they are not one change, and the
+sentence goes in the pull request.
+
+`--group` lists candidates with the signal each was proposed on and a score.
+The score is a hint and no more: it reads titles and bodies, not code, and
+the same path in two bodies can be two unrelated functions. Read the full
+bodies - `next.py <head> <candidate> <candidate>` - before taking any.
+
+- **How many** is the pace's *Items per PR* row: up to four S at `fast`, two
+  S at `balanced`, none at `thorough`. An M or L item is never grouped - the
+  rungs of one M are already one PR.
+- **A companion from the status below the head** is being promoted past
+  everything between, which only a shared file pays for. Say in the pull
+  request why it came up.
+- **Two items that are the same defect** turn up - two critiques found it
+  from different angles (`IX-18` and `AX-18`, both sticky headers). One pull
+  request closes both and says they were one finding. That is a good
+  outcome, not a bookkeeping problem.
+- **Drop, never grow.** If the diff stops reading as one change, drop the
+  last companion added and **put its status back** - `file.py status <n>
+  Next`, or whichever status it came from. Only then does it stay ranked
+  where it was; a companion dropped while still marked *In progress* has
+  left the queue. A group is an economy, not a target.
+- **A companion that does not survive the reread** - stale, landed under
+  another id, superseded - is declined like any other item
+  (`file.py decline <n> "<why>"`) and does not join.
+- **A companion that turns into a blocker** is dropped from the group and
+  recorded on its own issue (`file.py blocked`), with its status set back;
+  the head carries on. Only the head being blocked is a `SKIPPED`.
+
+**Every issue set to *In progress* leaves that status by exactly one of
+four routes**, and a group has to account for each of its own: merged
+(`Done`), blocked (`file.py blocked`, status back), stopped or skipped
+(status back), or dropped from the group (status back). An issue left at
+*In progress* is one `next.py` never returns as next, so it is out of the
+queue until a person moves it by hand.
+
+The one exception is a usage limit: a `LIMIT:` return leaves every issue of
+the group *at* *In progress* on purpose, because the next fork picks the
+work up from the open PR and worktree and needs to see it is taken. A limit
+is not a stop. Until that PR exists, the only record of which issues are in
+the group is the board itself - the branch is named for the head alone - so
+a fork inheriting a worktree reads `next.py`'s *In progress elsewhere*
+footer, which lists every one of them, before it decides what it inherited.
+
+Every issue in the group gets `file.py status <n> "In progress"` when the
+worktree opens and a `Closes #<n>` line of its own in the pull request body.
+The branch is named for the head (`claude/vd-33-photographs`); the progress
+lines and the result line name the group (`VD-33+AX-13`). The pull request
+body has a short section per item saying what was done for it.
 
 The reviewers' effort and turn caps are frontmatter in `.claude/agents/`:
 the standard reviewers run at effort high with a cap of 90 turns, the quick
@@ -111,11 +185,12 @@ main checkout, which the driver created and pointed the person at before
 invoking you. It exits 1 if the line could not be written; say so in your
 result's stock-take and carry on.
 Write one at each of these, in a few words each and never as a report: the
-item chosen (`next.py` gave #n); worktree open; `make all` green; web tests
-green; PR opened (#N); reviewer launched (which agent, which model);
-verdict (PASS or FAIL, one clause); fix pushed; confirmation launched; CI
-wait entered (the longest silence, up to twenty minutes); CI green; merged; and any skip or stop with its reason. Before the item is
-known, use the target you were given as the id. A stage costs a few
+item chosen (`next.py` gave #n); group formed (the ids, or none); worktree
+open; `make all` green; web tests green; PR opened (#N); reviewer launched
+(which agent, which model); verdict (PASS or FAIL, one clause); fix pushed;
+confirmation launched; CI wait entered (the longest silence, up to twenty
+minutes); CI green; merged; and any skip or stop with its reason. Before
+the item is known, use the target you were given as the id. A stage costs a few
 tokens; a fork killed as stalled costs the item.
 
 ## Doing the item
@@ -127,7 +202,12 @@ tokens; a fork killed as stalled costs the item.
   exactly once. Never write a shell-quoting sequence inside a quoted heredoc;
   apostrophes in JS strings go in double-quoted strings.
 - Gate each step on the previous one's exit status, never on the output of a
-  `| grep`. Order: `make all QUIET=1` -> `cd web && npm run build && npm test
+  `| grep`. **`make ci` is ci.yml's *Python* job, not all of CI**: `lint`
+  (ruff, Biome, actionlint) is a separate job that nothing else here runs, so
+  `make lint` belongs in the order too - a ruff finding reached CI on `AF-12`
+  because it did not. `precheck.sh` runs ruff over the changed Python now and
+  warns when ruff is not installed.
+  Order: `make all QUIET=1` -> `make lint` -> `cd web && npm run build && npm test
   -- --quiet` (one smoke run at a time; kill any listener on 4179 first and
   check the log does not say "Reusing the server") -> `git add -A && make ci
   QUIET=1` -> commit -> push -> `gh pr create`. Commit and PR text end with
@@ -141,11 +221,12 @@ tokens; a fork killed as stalled costs the item.
   names it (two seconds; `node test/smoke.mjs --list` shows the headings),
   then the full `npm test -- --quiet` before the commit — a passing subset
   is not a passing site.
-- The issue: when the worktree opens, `file.py status <n> "In progress"`,
-  so a second fork or a person sees it is taken. The PR body carries
-  `Closes #<n>` on its own line, so the merge closes the issue and the board
-  moves it to *Done*; the PR body says what was done and what was left, and
-  is the record. Anything discovered is filed as its own issue -
+- The issue: when the worktree opens, `file.py status <n> "In progress"` for
+  every issue in the group, so a second fork or a person sees they are taken.
+  The PR body carries `Closes #<n>` on its own line for each of them, so the
+  merge closes them and the board moves them to *Done*; the PR body says
+  what was done and what was left, and is the record. Anything discovered
+  is filed as its own issue -
   `file.py new <prefix> "<title>" --size <S|M|L|?> --body "<what is wrong,
   where, and what would fix it>"` - under the conventions in
   `CONTRIBUTING.md`; the prefix continues its critique's sequence on its
@@ -153,11 +234,12 @@ tokens; a fork killed as stalled costs the item.
 
 ## Before asking for review
 
-Run `bash .claude/skills/backlog-loop/precheck.sh <ITEM-ID>` from the
-worktree root. It refuses conflict markers, scripts that do not parse,
-duplicated imports and, once the PR exists, a PR body that does not close
-the item's issue with `Closes #n`, and warns about an artefact that moved
-without a source change or a commit that does not name the item. Half the FAIL
+Run `bash .claude/skills/backlog-loop/precheck.sh <ITEM-ID> [<ITEM-ID>...]`
+from the worktree root, naming every id in the group. It refuses conflict
+markers, scripts that do not parse, duplicated imports and, once the PR
+exists, a PR body that does not close every item's issue with `Closes #n`,
+and warns about an artefact that moved without a source change or a commit
+that does not name the item. Half the FAIL
 rounds of the 2026-09-12 run were one of these; a reviewer pass costs
 40,000-130,000 tokens and this costs a few hundred.
 
@@ -212,15 +294,34 @@ The agent returns exactly `PASS — safe to merge` or `FAIL — changes required
 
 - FAIL: fix, run the precheck again, then confirm with a fresh agent by
   commit range - Sonnet, or Opus at `thorough`.
-- PASS with findings: **merge the reviewed head as it is.** Non-blocking
-  findings that change code are carried into the next PR, named in the PR
-  comment, where the next first pass covers them at no extra cost; they are
-  not fixed and re-confirmed on the PR that passed (decided 2026-09-13, after
-  a run in which four confirmations bought nothing a later pass would not
-  have). A fix that is only documentation wording, a blank line, a comment,
-  a test or the removal of dead code may merge without a further pass, named
-  in the PR comment. Anything else that changes code, data or a check before
-  merge is confirmed.
+- FAIL against one item of a group: fix it as usual if the fix is small. If
+  it is not, drop that item from the PR - its commits, its `Closes` line,
+  its section, **and its *In progress* status**, which nothing else on this
+  path puts back: the run ends in a merge, so the stop-and-skip rule never
+  fires and the post-merge `Done` covers only what the PR closed. Then
+  confirm the smaller change. A group never holds the rest of itself
+  hostage to its worst member.
+- PASS with findings: **fix what belongs to this diff, then merge.** A
+  finding is fixed on the PR that found it when it is in a file this PR
+  already changes and the diff still reads as one change; all of them go in
+  one batch with **one** confirmation. What 2026-09-13 measured and rejected
+  was four confirmations buying nothing a later pass would not have - one
+  confirmation covering four fixes is not that, and it is cheaper than the
+  orientation a later reviewer pays to read the same code again (revised
+  2026-09-14 by the maintainer, on the count below).
+  Carry a finding only when it needs a decision this item does not settle,
+  when it touches code this PR does not, or when fixing it would make the
+  diff unreadable - then name it in the PR comment and file it. A fix that is
+  only documentation wording, a blank line, a comment, a test or the removal
+  of dead code needs no further pass at all.
+- **A review finding is not discovered work, and only one of them is an
+  issue.** A fact the item turned up, a question for a person, a defect
+  somewhere else in the codebase - those are issues, and filing them is the
+  queue doing its job. A defect in the diff under review is not: filing it
+  converts a fix into a backlog item, and the item that found it is the
+  cheapest place it will ever be fixed. On 2026-09-14 three items landed and
+  filed seven issues between them; four were discovered work and three were
+  findings against the diff in hand.
 - Silence, a rate limit, a reviewer that hit its turn cap, a quick-variant
   verdict without its `Applied:` line, or an unavailable account is not a
   PASS. If the agent dies on a session limit, return `LIMIT: resets
@@ -241,7 +342,7 @@ The agent returns exactly `PASS — safe to merge` or `FAIL — changes required
 - One PR open at a time, except the one item of pipelining `fast` allows.
   Several open PRs each merge conflicts the others, which costs a re-merge,
   a rebuild, a CI run and a confirmation every time.
-- Batch small items on one theme into one PR where the diff stays readable;
+- Group small items that share a file into one PR, as *Grouping* says;
   a reviewer pays a fixed cost to orient itself on every PR. **The rungs of
   one M item are one PR**, not one each: the 2026-09-13 run spent four first
   passes and three confirmations on four rungs of `PD-02` whose diffs a
@@ -251,6 +352,22 @@ The agent returns exactly `PASS — safe to merge` or `FAIL — changes required
   and every shown row - name the routes in the brief; the brief
   says so and asks the reviewer to check the SQL, the rendering and the
   cases the suite cannot reach, not to rebuild the comparison.
+- **GitHub is a budget too.** `next.py` reads the board and every open issue
+  on each run - a ProjectsV2 query is the expensive kind - and every issue of
+  a group needs a status on the way in and another on the way out. The
+  scripts cache what is safe to cache, so `next.py --group` followed by
+  `next.py <head> <companion>` costs one board read and not two; calling
+  `next.py` repeatedly to browse still costs one each time, so do not.
+- **A rate limit is an ordinary blocker, and retrying extends it.** GitHub's
+  secondary limiter is not one of the buckets `gh api rate_limit` reports -
+  on 2026-09-14 every one of those read full while it refused every GraphQL
+  call - so a `gh` failure saying a limit is exceeded while the buckets look
+  untouched is that limiter, not a defect and not your quota. Record it, stop
+  calling, and come back; a poll every 45 seconds keeps it closed.
+  `precheck.sh` tells the two apart for you since `AF-14`: a call that failed
+  is a WARN naming the API, and the FAIL saying an item "is not an open
+  issue" now only happens when `gh` answered and found nothing. Trust that
+  FAIL; it means the item really is not filed.
 - Keep your own messages short and do not paste reviewer reports into your
   context twice; the PR comment is the record. Read build and test output
   in its quiet form and never `cat` a log you have already checked the exit
@@ -271,7 +388,8 @@ The agent returns exactly `PASS — safe to merge` or `FAIL — changes required
   conflict that is only figure spans moving. A conflict in any source file, or in prose, stops it with the file
   named, and a person resolves that one. Then rerun the web tests before
   pushing. Merge PRs one at a time; each merge conflicts the others.
-- After the merge: `file.py status <n> Done` (the board's *Item closed*
+- After the merge: `file.py status <n> Done` for every issue in the group
+  (the board's *Item closed*
   workflow does the same when it is switched on; the issue itself is closed
   by `Closes #n`), remove the worktree, delete the branch, `git pull`.
 
@@ -282,16 +400,21 @@ weaken a check or workflow, change production infrastructure other than by
 merging, or lose history; when a decision is a person's; when the user asks
 to pause. Skip and record an ordinary blocker (network, a service, a missing
 non-critical credential) on the item - `file.py blocked <n> "<what>"`
-labels it so `next.py` passes over it and the comment says why - set its
-status back from *In progress*, and leave the repository clean: no
-worktree, no open PR, no half-edited file.
+labels it so `next.py` passes over it and the comment says why - and leave
+the repository clean: no worktree, no open PR, no half-edited file.
+
+**Put every issue's status back before you stop or skip**, the head and each
+companion: an item left at *In progress* is one `next.py` never returns as
+next, so it leaves the queue until a person moves it by hand. That is the
+one way this loop loses work, and grouping multiplied it by the size of the
+group.
 
 ## The result
 
 The last thing you write is the result the driver reads. Its first line is
 exactly one of:
 
-    MERGED #<N> <ID>
+    MERGED #<N> <ID>                          (a group is one PR: VD-33+AX-13)
     SKIPPED <ID>: <reason in one clause>      (the driver passes the id to the next fork's --skip)
     STOP: <reason in one clause>
     LIMIT: resets <time as the limit message gave it>
