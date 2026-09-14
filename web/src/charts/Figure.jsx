@@ -12,8 +12,9 @@ import { seriesColour } from './palette.js'
  * THE TABLE IS NOT A FALLBACK. A value that can only be got at by hovering is
  * a value a keyboard user and a screen reader cannot get at at all, and it is
  * also the value nobody can copy into anything else. It is collapsed rather
- * than absent, and it is the relief the light-mode palette's sub-3:1 aqua
- * requires.
+ * than absent. It also used to be the relief the light palette's sub-3:1
+ * green leaned on; that green clears 3:1 now (AX-07) and the table stays,
+ * for the reason above.
  */
 export default function Figure({ title, note, legend, table, children }) {
   return (

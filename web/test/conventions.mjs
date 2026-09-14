@@ -399,3 +399,55 @@ describe('the corner-radius ramp is stepped, in both themes (VD-25)', () => {
     })
   }
 })
+
+describe('a chart series clears 3:1 on the surface figures draw on (AX-07)', () => {
+  // The light green was reference-palette slot 3 as published, #1baf7a, at
+  // 2.82:1 on --panel, and charts/palette.js called every figure's data
+  // table its relief. The table gets a reader the value; it does not make
+  // the line perceivable, which is what 1.4.11 asks. figure.figure paints
+  // --panel, so that is the surface measured here, for all three slots in
+  // both themes, and the rule in app.css is read rather than assumed so a
+  // figure moved onto another surface fails this instead of passing it.
+  const css = read(join(web, 'src', 'styles', 'tokens.css'))
+  const app = read(join(web, 'src', 'styles', 'app.css'))
+  const blocks = {
+    light: css.slice(0, css.indexOf('@media (prefers-color-scheme: dark)')),
+    osDark: css.slice(css.indexOf('@media (prefers-color-scheme: dark)'), css.indexOf(":root[data-theme='dark']")),
+    stampedDark: css.slice(css.indexOf(":root[data-theme='dark']")),
+  }
+  const tokens = (block) => Object.fromEntries([...block.matchAll(/--([a-z0-9-]+):\s*(#[0-9a-f]{6})\b/g)].map((m) => [m[1], m[2]]))
+  const luminance = (hex) => {
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+    const lin = (c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
+    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+  }
+  const contrast = (a, b) => {
+    const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x)
+    return (hi + 0.05) / (lo + 0.05)
+  }
+  const series = (block) => [1, 2, 3].map((i) => tokens(block)[`series-${i}`])
+
+  it('the figure draws on --panel', () => {
+    const rule = app.match(/figure\.figure \{[^}]*\}/)
+    assert.ok(rule, 'app.css has no figure.figure rule')
+    assert.match(rule[0], /background:\s*var\(--panel\)/, rule[0])
+  })
+
+  it('all three slots are defined in every block, and the two dark blocks agree', () => {
+    for (const [label, block] of Object.entries(blocks)) {
+      assert.ok(series(block).every((hex) => hex), `${label} block: ${JSON.stringify(series(block))}`)
+    }
+    assert.deepEqual(series(blocks.osDark), series(blocks.stampedDark))
+  })
+
+  for (const [label, block] of [['light', blocks.light], ['dark', blocks.stampedDark]]) {
+    it(`${label}: every series clears 3:1 on --panel`, () => {
+      const t = tokens(block)
+      const failing = series(block)
+        .map((hex, i) => [`--series-${i + 1}`, hex, contrast(hex, t.panel)])
+        .filter(([, , ratio]) => ratio < 3)
+        .map(([name, hex, ratio]) => `${name} ${hex} on --panel: ${ratio.toFixed(2)}:1`)
+      assert.deepEqual(failing, [])
+    })
+  }
+})
