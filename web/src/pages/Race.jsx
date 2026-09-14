@@ -58,6 +58,7 @@ const constructorLink = (year) => ({
     <>
       <LiveryMark
         colour={colourForEntry({ constructorId: row.constructor_id, country: row.constructor_country, year, team: name })}
+        year={year}
       />
       {row.constructor_id ? <Link to={`/constructors/${row.constructor_id}`}>{name}</Link> : cell(name)}
     </>
@@ -92,6 +93,7 @@ const classificationRenders = (year) => ({
       <>
         <LiveryMark
           colour={colourForEntry({ constructorId: row.constructor_id, country: row.constructor_country, year, team: name })}
+          year={year}
         />
         {row.constructor_id ? <Link to={`/constructors/${row.constructor_id}`}>{name}</Link> : cell(row.entrant ?? name)}
       </>

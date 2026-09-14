@@ -8,7 +8,7 @@ import ColumnChart from '../charts/ColumnChart.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { missing, number, span, yearList } from '../lib/format.js'
 import { colourFor } from '../lib/racingColours.js'
-import { LIVERY_ERA, liveryFor, liveryStyle, sourceHost } from '../lib/liveries.js'
+import { LIVERY_ERA, liveryClaim, liveryFor, liveryStyle, sourceHost } from '../lib/liveries.js'
 
 import {
   BY_SEASON,
@@ -131,7 +131,7 @@ function ConstructorBody({ constructor, data }) {
             <i className="livery" style={liveryStyle(livery)} />
             {livery.name}
             <span>
-              The colour {constructor.name} raced in {lastSeason.year}, as the team names it. Read
+              The colour {constructor.name} raced in {lastSeason.year}, {liveryClaim(livery)}. Read
               from {[...new Set(livery.source.map(sourceHost))].join(' and ')}; the shade here is
               this site's rendering of it, not a measurement.
             </span>

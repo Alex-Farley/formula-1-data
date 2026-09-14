@@ -48,7 +48,7 @@ import { driverName, fastestLapMark, inClassificationOrder, outcome, position, r
 import { raceWinnerHere } from '../src/queries/circuit.js'
 import { constructorSeasons } from '../src/queries/constructor.js'
 import { NOT_YET_RUN } from '../src/lib/site.js'
-import { LIVERY_ERA, SPONSOR_ERA, colourForEntry, liveryFor, winnerColour } from '../src/lib/liveries.js'
+import { LIVERY_ERA, SPONSOR_ERA, colourForEntry, inColourEra, liveryFor, winnerColour } from '../src/lib/liveries.js'
 import { teamsByDriver } from '../src/queries/season.js'
 import { NEXT, RUN, TO_COME, outlineCaption, outlineFigures, roundShortName, roundStates } from '../src/lib/outline.js'
 import { attribution, canShow, fileTitle, thumbUrl } from '../src/lib/commons.js'
@@ -720,7 +720,11 @@ describe('colourForEntry routes a constructor-season by era (AF-04)', () => {
     assert.equal(c.kind, 'livery')
     assert.equal(c.name, 'Papaya')
     assert.match(c.light, /^#[0-9a-f]{6}$/)
-    assert.match(c.title, /McLaren raced in 2026/)
+    assert.match(c.title, /McLaren raced in 2026, as the team names it/)
+    assert.equal(c.named, true)
+    const w = colourForEntry({ constructorId: 'haas', country: 'United States', year: 2026, team: 'Haas F1 Team' })
+    assert.equal(w.named, false)
+    assert.match(w.title, /as its sources describe it/)
     assert.equal(liveryFor('mclaren', 2017).name, 'Tarocco orange')
     assert.equal(liveryFor('mclaren', 2014).name, 'Chrome')
     assert.equal(liveryFor('red-bull', 2026).name, 'Heritage white')
@@ -731,6 +735,14 @@ describe('colourForEntry routes a constructor-season by era (AF-04)', () => {
     assert.equal(liveryFor('virgin', 2012), null)
     assert.equal(liveryFor('nobody', 2020), null)
     assert.equal(liveryFor('ferrari', Number.NaN), null)
+  })
+  it('a spacer is drawn only in a season some row of which could carry a colour', () => {
+    assert.equal(inColourEra(1955), true)
+    assert.equal(inColourEra(1967), true)
+    assert.equal(inColourEra(1968), false)
+    assert.equal(inColourEra(2009), false)
+    assert.equal(inColourEra(2010), true)
+    assert.equal(inColourEra(undefined), false)
   })
   it('the strip marks a run round with a recorded winner and nothing else', () => {
     const run = { status: 'completed', winning_team_id: 'ferrari', winning_team_country: 'Italy', winning_team: 'Ferrari' }

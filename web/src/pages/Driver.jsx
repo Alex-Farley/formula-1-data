@@ -10,6 +10,7 @@ import { rows, useQueries } from '../data/useQuery.js'
 import { EMPTY, missing, points as fmtPoints, result } from '../lib/format.js'
 import { ENTRIES_NOTE } from '../lib/site.js'
 import { colourForEntry } from '../lib/liveries.js'
+import { canonicalCountry } from '../lib/racingColours.js'
 import {
   BY_SEASON,
   DERIVED,
@@ -137,8 +138,8 @@ function DriverBody({ driver, data }) {
             {teamColour.name}
             <span>
               {teamColour.kind === 'livery'
-                ? `The colour ${lastTeam.constructor} raced in ${lastTeam.year}, as the team names it - the last team on this record.`
-                : `${lastTeam.constructor}'s international racing colour in ${lastTeam.year}, under the convention that painted a car for the country that entered it. Not the team's own livery.`}
+                ? `The colour ${lastTeam.constructor} raced in ${lastTeam.year}, ${teamColour.claim} - the last team on this record.`
+                : `${canonicalCountry(lastTeam.constructor_country)}'s international racing colour, under the convention that painted a car for the country that entered it, as it stood when ${lastTeam.constructor} raced in ${lastTeam.year}. Not the team's own livery.`}
             </span>
           </p>
         )

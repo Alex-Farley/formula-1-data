@@ -1,8 +1,13 @@
 /**
- * National racing colours — and why these, and not team liveries.
+ * National racing colours — the first of two presentation colour maps.
  *
- * WHAT I LOOKED FOR AND DID NOT FIND. A per-constructor livery colour has no
- * source this project can admit:
+ * The second is lib/liveries.js (AF-04, 2026-09-13): the colour each team
+ * raced in from 2010, read from the team's own launch material, formula1.com
+ * and the Wikipedia car article, with the hex declared as a rendering rather
+ * than a measurement. colourForEntry() there routes by era and this file is
+ * the branch it takes before 1968. What follows is the search that decided
+ * no livery *hex* has a source this project can admit - still true, and the
+ * reason liveries.js sources a named colour and renders it:
  *
  *   F1DB (CC BY 4.0, already a source here)  constructors carry id, name,
  *       fullName and countryId. There is no colour field at all.
@@ -36,9 +41,8 @@
  * which is the same rule the database applies to a missing figure.
  *
  * NONE OF THIS IS IN f1.db. It is presentation metadata, and it stays in the
- * front end so that no unsourced value can ever enter the database. If a
- * licensed, checkable livery set turns up, replacing this file is the whole
- * job: swap the map, keep `colourFor`.
+ * front end so that no unsourced value can ever enter the database - the
+ * same rule liveries.js keeps for the sponsor era.
  *
  * WHERE THE HEX LIVES. Not here. Each entry names a `--racing-*` token in
  * styles/tokens.css, which carries a light and a dark value the way `--seq-*`

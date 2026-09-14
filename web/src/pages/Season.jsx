@@ -90,7 +90,7 @@ const driversRenders = (year, teams) => ({
       const also = raced.length > 1 ? ` (earlier in the season: ${raced.slice(1).map((t) => t.constructor).join(', ')})` : ''
       return (
         <>
-          <LiveryMark colour={colour} title={colour ? `${colour.title}${also}` : undefined} />
+          <LiveryMark colour={colour} title={colour ? `${colour.title}${also}` : undefined} year={year} />
           {row.entity_id ? <Link to={`/drivers/${row.entity_id}`}>{name}</Link> : cell(name)}
         </>
       )
@@ -104,7 +104,7 @@ const constructorsRenders = (year) => ({
       const colour = colourForEntry({ constructorId: row.entity_id, country: row.constructor_country, year, team: name })
       return (
         <>
-          <LiveryMark colour={colour} />
+          <LiveryMark colour={colour} year={year} />
           {row.entity_id ? <Link to={`/constructors/${row.entity_id}`}>{name}</Link> : cell(name)}
           {row.engine_id ? ' ' : ''}
           {row.engine_id ? <span className="tag">{row.engine_id}</span> : null}

@@ -262,7 +262,7 @@ describe('a livery is a sourced pair, one per theme, and every 2010+ constructor
   }
   const HEX = /^#[0-9a-f]{6}$/
 
-  it('every entry carries a constructor, a span from 2010, a name, a base and a pair, at least one https source and what it said', () => {
+  it('every entry carries a constructor, a span from 2010, a name, a base and a pair, at least one https source, a paraphrase of what it states and whether the name is the team\'s own', () => {
     assert.ok(LIVERIES.length >= 50, `${LIVERIES.length} liveries; the map covered 168 constructor-seasons when it landed`)
     for (const l of LIVERIES) {
       const where = `${l.constructor} ${l.from}-${l.to}`
@@ -273,6 +273,10 @@ describe('a livery is a sourced pair, one per theme, and every 2010+ constructor
       assert.ok(Array.isArray(l.source) && l.source.length >= 1, `${where}: source`)
       for (const s of l.source) assert.match(s, /^https:\/\//, `${where}: source ${s}`)
       assert.ok(typeof l.says === 'string' && l.says.length > 20, `${where}: says`)
+      // A paraphrase, never a quotation: the first draft put quotation marks
+      // round wording the cited pages did not contain, and review found 41.
+      assert.ok(!/["\u201c\u201d]/.test(l.says), `${where}: says carries a quotation mark - it is a paraphrase, not a quote`)
+      assert.equal(typeof l.named, 'boolean', `${where}: named`)
     }
   })
 
