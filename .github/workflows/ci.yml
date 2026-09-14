@@ -18,20 +18,37 @@ permissions:
 # One run per pull request, and the newest wins. Without this every push to
 # an open pull request started four fresh jobs while the four it superseded
 # ran to completion — and the backlog loop pushes review-fix commits onto an
-# open pull request as a matter of course. Measured over the 24 hours before
-# 2026-09-14: 55 runs of this workflow at about five billable minutes each,
-# which with `review.yml` came to roughly 320 minutes a day against the 2,000
-# a month a Free private repository is allowed. That is what exhausted the
-# allowance and stopped the loop mid-item. `review.yml` has had a group since
-# it was written; this file did not.
+# open pull request as a matter of course.
+#
+# WHY IT IS HERE NOW that the repository is public and the minutes are free:
+# wall-clock on every pull request, runners held for work whose answer is
+# already stale, and a cost that returns on a private fork or a change of
+# plan. The measurement that prompted it is history rather than the standing
+# reason — over the 24 hours before 2026-09-14, 55 runs of this workflow at
+# about five billable minutes each, which with `review.yml` came to roughly
+# 320 a day against the 2,000 a month a Free PRIVATE repository is allowed,
+# and that is what exhausted the Actions allowance. (`review.yml`'s own
+# failures are a Claude credential, a different allowance entirely; nothing
+# here touches them.) `review.yml` has had a group since it was written;
+# this file did not.
 #
 # CANCELLATION IS FOR PULL REQUESTS ONLY. A run on `main` is the gate: it
 # rebuilds the database, compares the committed artefact against a fresh
 # build, and `main` is what deploys to lapledger.org. Cancelling one would
 # leave a deployed commit unverified, so `main` QUEUES instead — the group
 # key falls back to `github.ref`, and `cancel-in-progress` is false for
-# anything that is not a pull request. Two pushes to `main` in quick
-# succession therefore both run, in order.
+# anything that is not a pull request.
+#
+# Queueing is not the same as running everything, and the difference is the
+# one place this narrows coverage. GitHub holds at most ONE pending run per
+# group: a third push arriving while one runs and one waits cancels the
+# waiting one. Two pushes to `main` in quick succession both run; the middle
+# of three would not, and that commit deploys without ever being verified.
+# Reaching it takes three merges inside a single run, which `enforce_admins`
+# and the strict up-to-date rule between them do not leave a normal path to
+# — every merge invalidates the other open pull requests and forces a full
+# cycle before the next can land. It is written down because it is the cost,
+# not because it is likely.
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
