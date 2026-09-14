@@ -118,9 +118,9 @@ export const LIVERIES = [
     base: '#ff8000', light: '#d66c00', dark: '#ff8000', // 3.01 / 6.62
     source: [
       'https://www.mclaren.com/racing/formula-1/2018/car-launch/mclaren-and-papaya-2174925/',
-      'https://www.mclaren.com/racing/formula-1/2026/mcl40-launch/',
+      'https://www.mclaren.com/racing/formula-1/2026/mclaren-racing-reveal-livery-for-the-mclaren-mastercard-formula-1-teams-2026-challenger/',
     ],
-    says: 'McLaren describes the MCL33 as reviving its original papaya orange and dark blue, fifty years after papaya first appeared on the works cars, and the 2026 MCL40 as continuing the papaya palette with anthracite.',
+    says: 'McLaren calls papaya orange the team traditional colour, first on the works cars in 1968 and returned to for 2018 on the fiftieth anniversary of that; its 2026 livery release describes the iconic papaya colour palette alongside anthracite and small hints of teal.',
   },
   {
     constructor: 'mercedes', from: 2010, to: 2019, name: 'Silver', named: false,
@@ -301,9 +301,10 @@ export const LIVERIES = [
     base: '#00665e', light: '#00665e', dark: '#007a71', // 5.90 / 3.19
     source: [
       'https://www.astonmartinf1.com/en-GB/news/feature/aston-martin-racing-green-more-than-just-a-colour',
-      'https://www.astonmartinf1.com/en-GB/news/announcement/aston-martin-aramco-launches-season-with-livery-reveal',
+      'https://www.astonmartinf1.com/en-GB/news/announcement/revealed-2022-f1-car-in-aston-martin-racing-green',
+      'https://www.astonmartinf1.com/en-GB/news/announcement/aston-martin-aramco-unveils-livery-for-2026-f1-academy-car',
     ],
-    says: 'The team names its colour Aston Martin Racing Green, introduced with the AMR21 and traced to British racing green; the 2026 launch describes the signature Aston Martin Racing Green on the AMR26.',
+    says: 'The team names its colour Aston Martin Racing Green in a feature tracing it to British racing green and its return to Formula One in 2021; a 2022 announcement applies the 2021 Aston Martin Racing Green livery to the AMR22; the 2026 F1 Academy livery release says that car carries the signature Aston Martin Racing Green and mirrors the AMR26 livery.',
   },
   {
     constructor: 'sauber', from: 2012, to: 2012, name: 'White', named: false,
@@ -539,7 +540,7 @@ export const LIVERIES = [
     source: [
       'https://www.audi-mediacenter.com/en/press-releases/premiere-in-berlin-audi-revolut-f1-team-officially-unveiled-16997',
     ],
-    says: 'Audi names the palette Titanium, Carbon Black and Audi Red, and says Titanium references its motorsport tradition.',
+    says: 'Audi names Titanium and the newly introduced Audi Red as the colours of the livery, and says Titanium references its motorsport tradition.',
   },
   {
     constructor: 'cadillac', from: 2026, to: 2026, name: 'Black and white', named: false,
