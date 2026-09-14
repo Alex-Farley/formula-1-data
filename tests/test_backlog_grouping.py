@@ -9,10 +9,11 @@ WHY THIS FILE EXISTS
     cannot be that, because it changes under the test and its API rate-limits.
 
     Every case here is a rule the loop's skills state in prose: the head is
-    the queue's next item, a companion is size S in the head's status band or
-    the one below, `blocked` and `decision` are never swept in, a shared
-    prose file or a shared `source:` label is not a theme, and a signal
-    common to the whole queue says nothing about any two items.
+    the queue's next item, a companion is any open item in the head's status
+    band or the one below - size is a cost the fork weighs and not a gate at
+    either end, since 2026-09-14 - `blocked` and `decision` are never swept
+    in, a shared prose file or a shared `source:` label is not a theme, and a
+    signal common to the whole queue says nothing about any two items.
 
     Two review rounds found the same defect in two places: a signal that
     was never scored, and a test that read as if it covered one. The route
@@ -23,7 +24,9 @@ WHY THIS FILE EXISTS
     the way the queue writes, and make every signal carry an item over the
     threshold *on its own* somewhere in here, or it is not tested.
 """
+import contextlib
 import importlib.util
+import io
 import os
 import tempfile
 import unittest
@@ -47,6 +50,7 @@ PHOTO = "web/src/lib/photo.js"
 #   `web/README.md`     VD-33 PM-24 PM-25                    3   a signal, prose
 #   `docs/METHOD.md`    VD-33 PM-25                          2   a signal, prose
 #   `docs/SOURCES.md`   VD-33 PM-25                          2   a signal, prose
+#   `build.py`          CR-07 CR-08                          2   a signal
 #   `f1.db`             VD-33 CR-07 PM-24 CD-50 CD-51        5   noise
 #   `/drivers`          VD-33 AX-13 PM-24 CD-50 CD-51        5   noise
 #
@@ -90,6 +94,8 @@ QUEUE = [
      "`build.py` and eight others hardcode it, and `f1.db` carries it."),
     (15, "Someday", "IA-99: A photograph caption has no source.", "S", [],
      "`VD-33` again, one status too far down to ride with it."),
+    (17, "Now", "CR-08: The season constant is spelt three ways.", "S", [],
+     "`build.py` holds it, and `CR-07` is moving it."),
 ]
 
 
@@ -134,8 +140,11 @@ class GroupingProposals(unittest.TestCase):
 
     def test_a_shared_file_and_a_cross_reference_are_what_propose_a_companion(self):
         idents, why = self.propose("VD-33")
+        # Seven, which is also the cap test: candidates used to be cut at six,
+        # and the cut is gone because the group is what is linked to the head
+        # - a cap would hide exactly the item it exists to take.
         self.assertEqual(idents,
-                         ["AX-13", "VD-42", "IX-71", "CD-52", "AX-14", "PM-25"])
+                         ["AX-13", "VD-42", "IX-71", "CD-52", "IX-70", "AX-14", "PM-25"])
         self.assertEqual(why["AX-13"],
                          ["named by VD-33", f"shares {CARS}", "ranked beside it"])
 
@@ -229,17 +238,40 @@ class GroupingProposals(unittest.TestCase):
 
     def test_the_drivers_skip_list_reaches_the_companions(self):
         self.assertEqual(self.propose("VD-33", skip={"AX-13"})[0],
-                         ["VD-42", "IX-71", "CD-52", "AX-14", "PM-25"])
+                         ["VD-42", "IX-71", "CD-52", "IX-70", "AX-14", "PM-25"])
 
-    def test_an_m_item_is_never_a_companion(self):
-        # IX-70 names the head, which is the strongest signal there is, and
-        # is size M: the rungs of one M item are already one PR.
+    def test_a_companion_of_any_size_rides_when_it_is_linked(self):
+        # IX-70 names the head, which is the strongest signal there is, and is
+        # size M. Until 2026-09-14 that size alone dropped it: the head opened
+        # cars.jsx, the reviewer read its surroundings, and IX-70 came back to
+        # the same file as its own PR a week later. Size is a cost the fork
+        # weighs against a readable diff now, not a filter here.
         self.assertEqual(next_py.size_of(self.item("IX-70")), "M")
-        self.assertNotIn("IX-70", self.propose("VD-33")[0])
+        idents, why = self.propose("VD-33")
+        self.assertIn("IX-70", idents)
+        self.assertEqual(why["IX-70"], ["names VD-33"])
+
+    def test_a_head_of_any_size_is_offered_companions(self):
+        # CR-07 is size M and the head of its own run; CR-08 names it and
+        # shares build.py. show_companions used to refuse any head that was
+        # not S before it scored anything, so this drives the printer.
+        head = self.item("CR-07")
+        self.assertEqual(next_py.size_of(head), "M")
+        self.assertEqual([r["ident"] for _, r, _ in
+                          next_py.companions(head, self.ranked, set(), {head["number"]})],
+                         ["CR-08"])
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            next_py.show_companions(head, self.ranked, set(), {head["number"]})
+        self.assertIn("CR-08", out.getvalue())
+        self.assertNotIn("None:", out.getvalue())
+        # The size of each candidate is printed, because it is now the thing
+        # the fork has to weigh rather than something the filter settled.
+        self.assertRegex(out.getvalue(), r"CR-08\s+S\s+Now")
 
     def test_the_bands_are_the_heads_status_and_the_one_below(self):
-        # An M head never reaches bands() - show_companions returns first -
-        # so this is about a Now head's reach, not about M.
+        # The one filter size no longer shares: how far down the queue a
+        # companion may be promoted from is still two status bands.
         self.assertEqual(next_py.bands(self.item("VD-33")), ("Now", "Next"))
         self.assertEqual(next_py.bands(self.item("IA-99")), ("Someday",))
 

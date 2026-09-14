@@ -92,16 +92,17 @@ licence-reviewer triggers; the stop conditions; Opus for any change under
 | First-pass reviewer | `frontend-reviewer-quick` (Sonnet, 50 turns) for an S item under `web/` that does not touch `scripts/prerender.js`; the Opus reviewer for the area otherwise | the Opus reviewer for the area | the Opus reviewer for the area |
 | Routes named in the brief for the reviewer to spot-check | 3 | 10, chosen for edge cases: a NULL, a tie, a shared drive, a season not yet run | every route the change touches |
 | Confirming a fix that must land before merge | fresh Sonnet | fresh Sonnet | fresh Opus |
-| Items per PR (*Grouping*) | S items on one theme, up to four, where the diff stays readable | one M (all its rungs), or two S on a theme | one |
-| Pipelining | none (PM-39: the review and the CI wait are foreground, so a fork holds one item at a time; batching is the `fast` saving) | none | none |
+| Items per PR (*Grouping*) | the head and every item linked to it, at any size | the same — grouping stopped being a pace setting on 2026-09-14 | the same |
+| Pipelining | none (PM-39: the review and the CI wait are foreground, so a fork holds one item at a time; a group is how one pass covers more than one item) | none | none |
 
 ## Grouping
 
 A reviewer pays a fixed cost on every pull request - the rules, the
 surroundings of the diff, the build - before it reads a line of the change.
-Two items that touch the same file pay it twice for nothing. Grouping is how
-that is avoided; `python3 .claude/skills/backlog-loop/next.py --group` is how
-a group is found.
+Two items that touch the same file pay it twice for nothing, and the second
+one waits in the queue while it does. Grouping is how that is avoided;
+`python3 .claude/skills/backlog-loop/next.py --group` is how a group is
+found.
 
 **The head is the queue's next item, always.** Grouping decides what rides
 with it, never which item comes first. A person's ranking is not
@@ -119,9 +120,21 @@ The score is a hint and no more: it reads titles and bodies, not code, and
 the same path in two bodies can be two unrelated functions. Read the full
 bodies - `next.py <head> <candidate> <candidate>` - before taking any.
 
-- **How many** is the pace's *Items per PR* row: up to four S at `fast`, two
-  S at `balanced`, none at `thorough`. An M or L item is never grouped - the
-  rungs of one M are already one PR.
+- **How many is whatever is linked to the head** - at any size, at every
+  pace (decided 2026-09-14 by the maintainer, replacing an S-only rule and a
+  per-pace count of four, two and none). An item held back because it was
+  sized M comes back to the same file as its own pull request with the whole
+  fixed cost paid again, which is the outcome grouping exists to prevent and
+  the reason the queue was not reducing. The bound is the diff, not a
+  number: see *Drop, never grow*.
+- **Size is a cost to weigh, not a gate.** `--group` prints it beside every
+  candidate for that reason. An `M` companion is a few sittings of work
+  riding on one reading of the file, which is worth having and is also most
+  of a pull request; an `L` is the one to look at twice, because
+  `CONTRIBUTING.md` sizes it as needing a plan first, and if that plan is
+  not the head's it is a head of its own rather than a passenger. **The rungs of one M item are still
+  one PR** - that was always about rungs, never about what may ride with
+  them.
 - **A companion from the status below the head** is being promoted past
   everything between, which only a shared file pays for. Say in the pull
   request why it came up.
@@ -342,9 +355,9 @@ The agent returns exactly `PASS — safe to merge` or `FAIL — changes required
 - One PR open at a time, except the one item of pipelining `fast` allows.
   Several open PRs each merge conflicts the others, which costs a re-merge,
   a rebuild, a CI run and a confirmation every time.
-- Group small items that share a file into one PR, as *Grouping* says;
-  a reviewer pays a fixed cost to orient itself on every PR. **The rungs of
-  one M item are one PR**, not one each: the 2026-09-13 run spent four first
+- Group items that share a file into one PR, whatever their size, as
+  *Grouping* says; a reviewer pays a fixed cost to orient itself on every
+  PR. **The rungs of one M item are one PR**, not one each: the 2026-09-13 run spent four first
   passes and three confirmations on four rungs of `PD-02` whose diffs a
   single pass would have read for the price of one (decided 2026-09-13).
 - Do not ask a reviewer to prove what the suite proves. `smoke.mjs` compares
