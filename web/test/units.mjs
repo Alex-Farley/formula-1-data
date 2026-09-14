@@ -48,7 +48,16 @@ import { driverName, fastestLapMark, inClassificationOrder, outcome, position, r
 import { raceWinnerHere } from '../src/queries/circuit.js'
 import { constructorSeasons } from '../src/queries/constructor.js'
 import { NOT_YET_RUN } from '../src/lib/site.js'
-import { LIVERY_ERA, SPONSOR_ERA, colourForEntry, inColourEra, liveryFor, winnerColour } from '../src/lib/liveries.js'
+import {
+  LIVERY_ERA,
+  SPONSOR_ERA,
+  colourForEntry,
+  inColourEra,
+  liveryAccents,
+  liveryFor,
+  liveryPrimary,
+  winnerColour,
+} from '../src/lib/liveries.js'
 import { teamsByDriver } from '../src/queries/season.js'
 import { NEXT, RUN, TO_COME, outlineCaption, outlineFigures, roundShortName, roundStates } from '../src/lib/outline.js'
 import { attribution, canShow, fileTitle, thumbUrl } from '../src/lib/commons.js'
@@ -730,6 +739,54 @@ describe('colourForEntry routes a constructor-season by era (AF-04)', () => {
     assert.equal(liveryFor('mclaren', 2014).name, 'Chrome')
     assert.equal(liveryFor('red-bull', 2026).name, 'Heritage white')
     assert.equal(liveryFor('red-bull', 2025).name, 'Matte navy')
+  })
+  it('a livery is a primary and its accents, and the pair still renders the primary alone (AF-15)', () => {
+    // The defect AF-15 names: Haas and Racing Bulls both raced white in
+    // 2025 and the mark drew the same grey for both. The primaries are
+    // still the same white - AF-16 is what stops rendering it as grey -
+    // but the schemes now differ, which is what tells the two apart.
+    const haas = liveryFor('haas', 2025)
+    const rb = liveryFor('racing-bulls', 2025)
+    assert.equal(liveryPrimary(haas).name, 'White')
+    assert.equal(liveryPrimary(rb).name, 'White')
+    assert.equal(liveryPrimary(haas).base, liveryPrimary(rb).base)
+    assert.notDeepEqual(
+      liveryAccents(haas).map((c) => c.name),
+      liveryAccents(rb).map((c) => c.name),
+    )
+    // The pair is the primary's rendering, untouched by the accents.
+    assert.equal(haas.light, '#898989')
+    assert.equal(haas.dark, liveryPrimary(haas).base)
+  })
+  it('a colour no cited page states is marked as this project\'s choice, and cannot also be the team\'s own word (AF-15)', () => {
+    // Red Bull is navy, red and yellow to a reader; no page cited for the
+    // 2016-2025 span names the red or the yellow, so both say so.
+    const rb = liveryFor('red-bull', 2020)
+    assert.equal(liveryPrimary(rb).sourced, true)
+    assert.deepEqual(
+      liveryAccents(rb).map((c) => [c.name, c.sourced, c.named]),
+      [
+        ['Red', false, false],
+        ['Yellow', false, false],
+      ],
+    )
+    // Audi names both of its own colours, so both are sourced.
+    const audi = liveryFor('audi', 2026)
+    assert.deepEqual(
+      audi.scheme.filter((c) => c.named).map((c) => c.name),
+      ['Titanium', 'Audi Red'],
+    )
+    assert.equal(audi.scheme.every((c) => !c.named || c.sourced), true)
+  })
+  it('colourForEntry carries the scheme through, and a national colour is a scheme of one (AF-15)', () => {
+    const merc = colourForEntry({ constructorId: 'mercedes', country: 'Germany', year: 2024, team: 'Mercedes' })
+    assert.deepEqual(
+      merc.scheme.map((c) => c.name),
+      ['Black', 'Silver', 'Petronas green'],
+    )
+    const national = colourForEntry({ constructorId: 'ferrari', country: 'Italy', year: 1955, team: 'Ferrari' })
+    assert.equal(national.scheme.length, 1)
+    assert.equal(national.scheme[0].base, 'var(--racing-it)')
   })
   it('a 2010+ constructor the map does not carry is nothing, not the national colour', () => {
     // This used to prove the fallback with Virgin 2012, a declared gap.
