@@ -1172,18 +1172,26 @@ a critique has to argue against.
   cold window is a content-and-signalling problem (`IX-01`, `IX-02`, `PD-02`,
   `PD-22`), not an architecture one. — `PD`, `IX`, `UR`
 
-- **Making the repository public.** Decided 2026-09-11 by the author: it
-  stays private. Raised by `PD-14` and `SD-01`, which are right about the
+- **Making the repository public.** Declined 2026-09-11, **reversed
+  2026-09-14**. `PD-14` and `SD-01` raised it and were right about the
   consequence — the pipeline half of the "audited" claim (the ~200 checks,
-  the source literals, "rebuild and compare") is not readable by anyone, and
-  the release page's stable links are 404. What remains checkable from the
-  artefact alone is kept and is the claim now made: `discrepancies` (45
-  conflicts, 44 resolved on the record, 1 open), `known_gaps`, a source on
-  every row with its licence in `source_registry`, the schema's comments
-  inside the file, and stored-versus-derived figures shown side by side.
-  `AF-02` carries the three follow-ons that keep most of the ground. Re-raise
-  only with a reason the author has not weighed: the code is private by
-  choice, not by oversight. — the author
+  the source literals, "rebuild and compare") was readable by nobody, and the
+  release page's stable links were 404. They were declined anyway, on the
+  author's preference rather than on a fault in the argument. What reversed it
+  was not that argument but a cost: Actions on a Free private repository
+  allows 2,000 minutes a month, a day of the backlog loop bills about 320, and
+  on 2026-09-14 every job stopped starting mid-item. Public repositories are
+  unmetered, so the choice was between rationing the loop and publishing the
+  code the critiques wanted published. The reason they gave is what made the
+  second one easy.
+
+  What the reversal buys: the claim `PD-14` asked for becomes true and
+  `AF-02`'s three follow-ons stop being workarounds; the release page's links
+  resolve; `pages.yml` becomes usable; and branch protection, which a Free
+  private repository cannot have, can finally enforce the three green checks
+  that until now were convention. What it costs is read before it was done —
+  `COMMERCIAL-READINESS.md` under *Still open* and *Decided: the pre-split
+  history stands*, and `LICENSE-DATA` under *Circuit geometry*. — the author
 
 - **Telemetry replays.** Re-raised by the maintainer on 2026-09-13 and
   declined again, on the licences alone: Jolpica-F1 and OpenF1 are CC
