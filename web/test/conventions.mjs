@@ -234,13 +234,14 @@ describe('a racing colour is a pair, one per theme (VD-27)', () => {
   })
 })
 
-describe('a livery is a sourced scheme with a pair per theme, and every 2010+ constructor-season is placed (AF-04, AF-15)', () => {
+describe('a livery is a sourced scheme drawn as itself, and every 2010+ constructor-season is placed (AF-04, AF-15, AF-16)', () => {
   // lib/liveries.js is the second colour map: a team's own colour for each
   // season from 2010, beside the national convention. Its header says what
   // is a fact (the named colour, read from a source) and what is not (the
-  // hex, this palette's rendering, tuned to 3:1). This holds the file to
-  // both halves: every entry names its source and what it said, every pair
-  // clears the same surfaces the national colours do, no two spans overlap,
+  // hex, this palette's rendering). This holds the file to both halves:
+  // every entry names its source and what it said, every mark's edge stays
+  // perceivable where its fill is not, the pair a chart series wears still
+  // clears the surfaces the national colours do, no two spans overlap,
   // every colour of a scheme declares whose choice it is (AF-15), and no two
   // teams on the same grid wear the same scheme,
   // and - against f1.db itself - every constructor-season with race entries
@@ -286,7 +287,9 @@ describe('a livery is a sourced scheme with a pair per theme, and every 2010+ co
       }
       // The pair renders the PRIMARY, not an accent: the base survives
       // untouched in whichever theme already clears 3:1, and only the other
-      // is moved. A pair that matches neither is a pair for some other colour.
+      // is moved. A pair that matches neither is a pair for some other
+      // colour. Since AF-16 only a chart series wears it; the mark wears
+      // the base, and the check below is what guards the mark.
       assert.ok(
         l.scheme[0].base === l.light || l.scheme[0].base === l.dark,
         `${where}: the pair ${l.light}/${l.dark} renders neither the primary ${l.scheme[0].base} nor anything derived from it`,
@@ -345,7 +348,9 @@ describe('a livery is a sourced scheme with a pair per theme, and every 2010+ co
       for (let y = g.from; y <= g.to; y++) assert.ok(!seen.has(`${g.constructor} ${y}`), `${g.constructor} ${y} is both a gap and ${seen.get(`${g.constructor} ${y}`)}`)
   })
 
-  it('each light value clears 3:1 on --panel and --panel-sunk, each dark value on --panel and --panel-raised', () => {
+  it('the pair a chart series wears still clears 3:1: light on --panel and --panel-sunk, dark on --panel and --panel-raised', () => {
+    // AF-16 took the moved pair off the mark and left it here, on the one
+    // surface where a colour is told from its neighbour by colour alone.
     const light = tokens(blocks.light)
     const dark = tokens(blocks.stampedDark)
     const failing = []
@@ -358,6 +363,53 @@ describe('a livery is a sourced scheme with a pair per theme, and every 2010+ co
         const ratio = contrast(l.dark, dark[surface])
         if (ratio < 3) failing.push(`${l.constructor} ${l.from} dark ${l.dark} on --${surface}: ${ratio.toFixed(2)}:1`)
       }
+    }
+    assert.deepEqual(failing, [])
+  })
+
+  it('the mark draws the primary unmoved, and its derived edge clears 2:1 on every surface it sits on (AF-16)', () => {
+    // What replaced the lightness shift. The fill is now the primary's base,
+    // whatever it measures against the panel, because the mark sits beside
+    // the name it never replaces. The shape is carried by a ring app.css
+    // mixes from the fill and the theme's ink - so it vanishes into a mid
+    // colour and outlines one the panel has swallowed. This is the check the
+    // fill's 3:1 became: the same mix, measured against the same four
+    // surfaces, at the floor a hairline needs to be seen at all.
+    const app = read(join(web, 'src', 'styles', 'app.css'))
+    const rule = app.slice(app.indexOf('\n.livery {'), app.indexOf('\n.livery-none {'))
+    assert.ok(rule.length > 0, '.livery rule not found in app.css')
+    assert.ok(
+      /background:\s*var\(--livery,/.test(rule),
+      '.livery no longer paints --livery: the mark must draw the colour it is given',
+    )
+    assert.ok(
+      !/--livery:\s*var\(--livery-light\)/.test(rule),
+      '.livery maps --livery to the moved pair again: AF-16 is that the mark draws the colour itself',
+    )
+    const mix = rule.match(/box-shadow:[^;]*color-mix\(in srgb, var\(--livery[^;]*?(\d+)%, var\(--ink\)\)/)
+    assert.ok(mix, '.livery carries no edge mixed from --livery and --ink; a white fill on a white panel would have no shape')
+    const share = Number(mix[1]) / 100
+    const blend = (a, b) =>
+      `#${[1, 3, 5]
+        .map((i) => Math.round(parseInt(a.slice(i, i + 2), 16) * share + parseInt(b.slice(i, i + 2), 16) * (1 - share)).toString(16).padStart(2, '0'))
+        .join('')}`
+    const light = tokens(blocks.light)
+    const dark = tokens(blocks.stampedDark)
+    // Every surface a mark actually sits on, which is more than the fill's
+    // 3:1 used to measure: the constructor page's band is on --bg, and a
+    // mark under a calendar round is on --stage.
+    const themes = [
+      ['light', light.ink, ['bg', 'stage', 'panel', 'panel-sunk'], light],
+      ['dark', dark.ink, ['bg', 'stage', 'panel', 'panel-raised'], dark],
+    ]
+    const failing = []
+    for (const l of LIVERIES) {
+      const base = l.scheme[0].base
+      for (const [theme, ink, surfaces, t] of themes)
+        for (const surface of surfaces) {
+          const ratio = contrast(blend(base, ink), t[surface])
+          if (ratio < 2) failing.push(`${l.constructor} ${l.from} ${theme} edge of ${base} on --${surface}: ${ratio.toFixed(2)}:1`)
+        }
     }
     assert.deepEqual(failing, [])
   })
@@ -386,10 +438,10 @@ describe('a livery is a sourced scheme with a pair per theme, and every 2010+ co
     for (const l of [...LIVERIES, ...LIVERY_GAPS]) assert.ok(ids.has(l.constructor), `${l.constructor} is not a constructor id`)
   })
 
-  it('no page carries a livery hex of its own: every pair reaches an element through lib/liveries.js', () => {
+  it('no page carries a livery hex of its own: every colour reaches an element through lib/liveries.js', () => {
     const offenders = sourceFiles(join(web, 'src'), /\.jsx?$/)
       .filter((file) => !/lib\/liveries\.js$/.test(file))
-      .filter((file) => /--livery-(?:light|dark)['"]?\s*:\s*['"]#[0-9a-f]{6}/i.test(read(file)))
+      .filter((file) => /--livery(?:-(?:light|dark))?['"]?\s*:\s*['"]#[0-9a-f]{6}/i.test(read(file)))
       .map(rel)
     assert.deepEqual(offenders, [])
   })

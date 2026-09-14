@@ -2120,40 +2120,51 @@ input[type='range']:disabled::-webkit-slider-thumb {
 /* A constructor's identity mark. Never alone: it always sits beside the name,
    and its tooltip names the colour and the claim - a national convention
    before 1968, the team's own livery from 2010 (lib/liveries.js) - because
-   neither is a measurement. The element carries a {light, dark} pair as two
-   custom properties and these rules pick one per theme, the way tokens.css
-   does for --racing-*: no element wears one hex for both. With neither set,
-   the register's placeholder grey; `.livery-none` is the same width and
-   transparent, for a table column where a missing colour must keep the
-   names aligned without pretending to be one. */
+   neither is a measurement. The element carries the colour itself in
+   --livery, one value for both themes: the mark is decorative beside a name
+   it never replaces, so it draws papaya rather than a papaya moved until it
+   cleared a ratio (AF-16, on the maintainer's decision of 2026-09-14).
+
+   What a moved fill used to buy - a white livery still being a shape on a
+   white panel, a black one on the dark theme's - the ring buys instead. It
+   is mixed from the fill and the theme's ink, so it disappears into a mid
+   colour and is the outline of a fill the panel has swallowed; being derived,
+   it needs no second value per team and cannot fall out of step with one.
+   test/conventions.mjs measures the mix against every primary here.
+
+   With --livery unset, the register's placeholder grey; `.livery-none` is the
+   same width, transparent and unringed, for a table column where a missing
+   colour must keep the names aligned without pretending to be one. */
 .livery {
   display: inline-block;
   width: 3px;
   height: 1.05em;
   margin-right: 9px;
   vertical-align: -2px;
-  --livery: var(--livery-light);
   background: var(--livery, var(--rule-strong));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--livery, var(--rule-strong)) 60%, var(--ink));
 }
 
 .livery-none {
   background: transparent;
+  box-shadow: none;
 }
 
-/* A chart series in a livery: the <g> carries the pair, the strokes and
-   fills inside read --livery. */
+/* A chart series in a livery: the <g> carries the {light, dark} pair, the
+   strokes and fills inside read --livery. This is the one surface that keeps
+   the moved pair, and the reason AF-16 did not delete it: a line is told from
+   its neighbour by colour, with the legend as the only key, so here the colour
+   really is carrying the information and 1.4.11's 3:1 applies. */
 .livery-series {
   --livery: var(--livery-light);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:where(:not([data-theme='light'])) .livery,
   :root:where(:not([data-theme='light'])) .livery-series {
     --livery: var(--livery-dark);
   }
 }
 
-:root[data-theme='dark'] .livery,
 :root[data-theme='dark'] .livery-series {
   --livery: var(--livery-dark);
 }
