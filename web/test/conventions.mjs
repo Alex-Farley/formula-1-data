@@ -234,13 +234,15 @@ describe('a racing colour is a pair, one per theme (VD-27)', () => {
   })
 })
 
-describe('a livery is a sourced pair, one per theme, and every 2010+ constructor-season is placed (AF-04)', () => {
+describe('a livery is a sourced scheme with a pair per theme, and every 2010+ constructor-season is placed (AF-04, AF-15)', () => {
   // lib/liveries.js is the second colour map: a team's own colour for each
   // season from 2010, beside the national convention. Its header says what
   // is a fact (the named colour, read from a source) and what is not (the
   // hex, this palette's rendering, tuned to 3:1). This holds the file to
   // both halves: every entry names its source and what it said, every pair
   // clears the same surfaces the national colours do, no two spans overlap,
+  // every colour of a scheme declares whose choice it is (AF-15), and no two
+  // teams on the same grid wear the same scheme,
   // and - against f1.db itself - every constructor-season with race entries
   // from 2010 is either coloured or declared a gap, never both, never
   // neither. A span that quietly covers a season nobody sourced, or a gap
@@ -262,22 +264,73 @@ describe('a livery is a sourced pair, one per theme, and every 2010+ constructor
   }
   const HEX = /^#[0-9a-f]{6}$/
 
-  it('every entry carries a constructor, a span from 2010, a name, a base and a pair, at least one https source, a paraphrase of what it states and whether the name is the team\'s own', () => {
+  it('every entry carries a constructor, a span from 2010, a name, a scheme and a pair, at least one https source, a paraphrase of what it states and whether each colour is the team\'s own word and its sources\' (AF-15)', () => {
     assert.ok(LIVERIES.length >= 50, `${LIVERIES.length} liveries; the map covered 168 constructor-seasons when it landed`)
     for (const l of LIVERIES) {
       const where = `${l.constructor} ${l.from}-${l.to}`
       assert.match(l.constructor, /^[a-z0-9-]+$/, where)
       assert.ok(Number.isInteger(l.from) && Number.isInteger(l.to) && l.from >= LIVERY_ERA && l.to >= l.from, `${where}: span`)
       assert.ok(typeof l.name === 'string' && l.name.trim().length > 1, `${where}: name`)
-      for (const key of ['base', 'light', 'dark']) assert.match(l[key], HEX, `${where}: ${key}`)
+      for (const key of ['light', 'dark']) assert.match(l[key], HEX, `${where}: ${key}`)
+      // A scheme is a primary and one or two accents, in that order. Each
+      // colour says whose word its name is (`named`) and whether a cited
+      // page states it at all (`sourced`); a colour the team itself names
+      // cannot be one this project chose, so named implies sourced.
+      assert.ok(Array.isArray(l.scheme) && l.scheme.length >= 1 && l.scheme.length <= 3, `${where}: scheme is a primary and up to two accents`)
+      for (const c of l.scheme) {
+        assert.ok(typeof c.name === 'string' && c.name.trim().length > 1, `${where}: scheme colour name`)
+        assert.match(c.base, HEX, `${where}: ${c.name} base`)
+        assert.equal(typeof c.named, 'boolean', `${where}: ${c.name} named`)
+        assert.equal(typeof c.sourced, 'boolean', `${where}: ${c.name} sourced`)
+        assert.ok(!(c.named && !c.sourced), `${where}: ${c.name} is the team's own word and unsourced`)
+      }
+      // The pair renders the PRIMARY, not an accent: the base survives
+      // untouched in whichever theme already clears 3:1, and only the other
+      // is moved. A pair that matches neither is a pair for some other colour.
+      assert.ok(
+        l.scheme[0].base === l.light || l.scheme[0].base === l.dark,
+        `${where}: the pair ${l.light}/${l.dark} renders neither the primary ${l.scheme[0].base} nor anything derived from it`,
+      )
       assert.ok(Array.isArray(l.source) && l.source.length >= 1, `${where}: source`)
       for (const s of l.source) assert.match(s, /^https:\/\//, `${where}: source ${s}`)
       assert.ok(typeof l.says === 'string' && l.says.length > 20, `${where}: says`)
       // A paraphrase, never a quotation: the first draft put quotation marks
       // round wording the cited pages did not contain, and review found 41.
       assert.ok(!/["\u201c\u201d]/.test(l.says), `${where}: says carries a quotation mark - it is a paraphrase, not a quote`)
-      assert.equal(typeof l.named, 'boolean', `${where}: named`)
     }
+  })
+
+  it('a colour name renders one hex within a constructor: the palette renders a name, so one team cannot have two greys called Grey (AF-15)', () => {
+    const seen = new Map()
+    const clashes = []
+    for (const l of LIVERIES)
+      for (const c of l.scheme) {
+        const key = `${l.constructor} ${c.name}`
+        if (seen.has(key) && seen.get(key) !== c.base) clashes.push(`${key}: ${seen.get(key)} and ${c.base}`)
+        seen.set(key, c.base)
+      }
+    assert.deepEqual(clashes, [])
+  })
+
+  it('no two constructors on the same grid wear the same scheme (AF-15)', () => {
+    // The defect AF-15 names, stated so it cannot come back: Haas and
+    // Racing Bulls were one colour each and the same one. This compares
+    // schemes, which is all this file decides - two teams whose schemes
+    // differ can still draw the same mark today, because the mark is the
+    // primary's pair alone. Making the mark carry the difference is AF-16
+    // and AF-17; until then this check guards the data, not the pixels.
+    const byYear = new Map()
+    const clashes = []
+    for (const l of LIVERIES) {
+      const sig = l.scheme.map((c) => `${c.name} ${c.base}`).join(' / ')
+      for (let y = l.from; y <= l.to; y++) {
+        const grid = byYear.get(y) ?? new Map()
+        if (grid.has(sig)) clashes.push(`${y}: ${grid.get(sig)} and ${l.constructor} are both ${sig}`)
+        grid.set(sig, l.constructor)
+        byYear.set(y, grid)
+      }
+    }
+    assert.deepEqual(clashes, [])
   })
 
   it('no constructor has two entries for one season, and no gap overlaps an entry', () => {

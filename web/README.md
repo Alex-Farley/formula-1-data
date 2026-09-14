@@ -330,11 +330,28 @@ the team called it — papaya, Aston Martin Racing Green, rosso corsa — and th
 is the fact each entry carries, with the page it was read from and the words it
 was read in: the team's own launch release or brand page first, then
 formula1.com's launch coverage and the Wikipedia car article — or, for a season
-no car article describes, the per-season main-colour tables of Wikipedia's
-*Formula One sponsorship liveries* article. The hex is this
+no car article describes, the per-season main and secondary colour tables of
+Wikipedia's *Formula One sponsorship liveries* article. The hex is this
 palette's rendering of the named colour, not a measurement, and each entry is a
 `{light, dark}` pair tuned to clear 3:1 on the surfaces it sits on, the way
-`VD-27` tuned the eight national colours. All 180 constructor-seasons from 2010
+`VD-27` tuned the eight national colours.
+
+An entry carries a **`scheme`** — a primary and one or two accents, in that
+order — rather than one colour (`AF-15`, decided 2026-09-14: a single principal
+colour cannot express silver-and-teal or white-red-black, and Haas and Racing
+Bulls were the same white). The pair still renders the primary alone; the
+accents carry no pair, because rendering a colour as itself rather than
+contrast-shifted is `AF-16` and putting the accents on a page is `AF-17`.
+Every colour of a scheme says whose choice it is: **`named`** where the word is
+the team's own — papaya, Rosso Scuderia, Titanium — and **`sourced`**, which is
+the one place the "nothing unsourced" promise is qualified. `sourced: false`
+marks a colour this project added because the team is recognised by it and no
+cited page names it, and the maintainer's decision is that recognisability wins
+here — nothing in this file enters `f1.db`, so these are presentation values,
+not database facts — provided no surface presents such a colour as the team's
+official one. Two colours are marked so today, Toro Rosso's red and silver
+before its 2017 relaunch; a colour cannot be the team's own word and unsourced
+at once, and `test/conventions.mjs` refuses one that is. All 180 constructor-seasons from 2010
 to 2026 are coloured: `AF-04` left twelve with no source found, and `AF-09`
 filled them from the livery article above. `LIVERY_GAPS` is empty and stays
 checked — `test/conventions.mjs` holds both lists to `f1.db` so every
