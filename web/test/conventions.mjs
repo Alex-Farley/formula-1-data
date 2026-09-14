@@ -446,7 +446,7 @@ describe('a chart series clears 3:1 on the surface figures draw on (AX-07)', () 
     it(`${label}: every series clears 3:1 on --panel`, () => {
       const t = tokens(block)
       // an unmatched --panel (three-digit hex, uppercase, color-mix()) would
-      // make every ratio NaN, and NaN < 3 is false
+      // make luminance() throw on undefined - a failure, but a cryptic one
       assert.ok(t.panel, `${label} block has no six-digit --panel`)
       const failing = series(block)
         .map((hex, i) => [`--series-${i + 1}`, hex, contrast(hex, t.panel)])
