@@ -27,7 +27,17 @@ import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { COLOURS } from '../src/lib/racingColours.js'
-import { colourForEntry, LIVERIES, LIVERY_ERA, LIVERY_GAPS, liveryPrimary, liveryStyle } from '../src/lib/liveries.js'
+import {
+  accentsBySource,
+  colourForEntry,
+  LIVERIES,
+  LIVERY_ERA,
+  LIVERY_GAPS,
+  liveryPrimary,
+  liveryStyle,
+  markStyleAttr,
+  schemeGradient,
+} from '../src/lib/liveries.js'
 import { DatabaseSync } from 'node:sqlite'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -318,10 +328,9 @@ describe('a livery is a sourced scheme drawn as itself, and every 2010+ construc
   it('no two constructors on the same grid wear the same scheme (AF-15)', () => {
     // The defect AF-15 names, stated so it cannot come back: Haas and
     // Racing Bulls were one colour each and the same one. This compares
-    // schemes, which is all this file decides - two teams whose schemes
-    // differ can still draw the same mark today, because the mark is the
-    // primary's pair alone. Making the mark carry the difference is AF-16
-    // and AF-17; until then this check guards the data, not the pixels.
+    // schemes, which is what this file decides; the check below it now
+    // compares the MARKS, because AF-17 made the mark draw the whole scheme
+    // and two teams whose schemes differ no longer draw the same bar.
     const byYear = new Map()
     const clashes = []
     for (const l of LIVERIES) {
@@ -334,6 +343,149 @@ describe('a livery is a sourced scheme drawn as itself, and every 2010+ construc
       }
     }
     assert.deepEqual(clashes, [])
+  })
+
+  it('no two constructors on the same grid draw the same mark (AF-17)', () => {
+    // What the check above became reachable as. The mark used to be the
+    // primary alone, so two teams could differ in the file and be identical
+    // on screen; it draws the scheme now, and this measures the style the app
+    // and the prerenderer both write, so a mark that stops carrying the
+    // accents fails here rather than going quietly grey-on-grey.
+    //
+    // Not every surface, and the difference matters: `.outline-strip .livery`
+    // drops the gradient because a three-pixel bar has no room for bands, so
+    // two winning constructors sharing a primary would still draw alike
+    // there. None do today. This checks what is HANDED to a mark, which is
+    // the thing this file can decide; what each surface then does with it is
+    // the stylesheet's, and the strip's exception is declared in it.
+    const byYear = new Map()
+    const clashes = []
+    for (const l of LIVERIES) {
+      const mark = markStyleAttr({ style: liveryStyle(l) })
+      for (let y = l.from; y <= l.to; y++) {
+        const grid = byYear.get(y) ?? new Map()
+        if (grid.has(mark)) clashes.push(`${y}: ${grid.get(mark)} and ${l.constructor} draw ${mark}`)
+        grid.set(mark, l.constructor)
+        byYear.set(y, grid)
+      }
+    }
+    assert.deepEqual(clashes, [])
+  })
+
+  it('a scheme of more than one colour draws every one of them, and a scheme of one draws no gradient (AF-17)', () => {
+    // The stops are hard and name the bases unchanged: a blended stop would
+    // put a colour on screen that no source states, which is the objection
+    // this file's header raises about hexes in the first place.
+    const failing = []
+    for (const l of LIVERIES) {
+      const gradient = schemeGradient(l.scheme)
+      if (l.scheme.length === 1) {
+        if (gradient !== null) failing.push(`${l.constructor} ${l.from}: a scheme of one drew ${gradient}`)
+        continue
+      }
+      if (!gradient) {
+        failing.push(`${l.constructor} ${l.from}: ${l.scheme.length} colours and no gradient`)
+        continue
+      }
+      for (const c of l.scheme)
+        if (!gradient.includes(c.base)) failing.push(`${l.constructor} ${l.from}: ${c.name} ${c.base} is not drawn`)
+      // The primary leads: a reader recognises a team by its main colour, and
+      // an accent taking the top of the mark would be the wrong claim drawn
+      // at the wrong size.
+      if (!gradient.startsWith(`linear-gradient(to bottom, ${liveryPrimary(l).base} 0 `))
+        failing.push(`${l.constructor} ${l.from}: the primary does not lead the mark`)
+      if (!gradient.endsWith('100.00%)')) failing.push(`${l.constructor} ${l.from}: the last stop stops short of the edge`)
+    }
+    assert.deepEqual(failing, [])
+  })
+
+  it('a national colour is a scheme of one, and its mark carries no gradient (AF-17)', () => {
+    // The convention painted a car one colour. An accent invented for it
+    // would be a fact this project made up, which is the one thing the
+    // database's own rules forbid everywhere else.
+    const entry = colourForEntry({ constructorId: 'ferrari', country: 'Italy', year: 1955, team: 'Ferrari' })
+    assert.equal(entry.kind, 'national')
+    assert.equal(entry.scheme.length, 1)
+    assert.deepEqual(Object.keys(entry.style), ['--livery'])
+  })
+
+  it('.livery paints the scheme over the primary, and the primary is still what the edge is mixed from (AF-17)', () => {
+    const app = read(join(web, 'src', 'styles', 'app.css'))
+    const rule = app.slice(app.indexOf('\n.livery {'), app.indexOf('\n.livery-none {'))
+    assert.match(
+      rule,
+      /background-image:\s*var\(--livery-scheme,\s*none\)/,
+      '.livery does not draw --livery-scheme: the mark is back to the primary alone',
+    )
+    // Order matters and a stylesheet will not say so: `background:` is a
+    // shorthand and resets background-image, so the image must come after it.
+    // The presence check first, because indexOf returns -1 for a shorthand
+    // that is GONE and every index is greater than that - which would pass
+    // this while a scheme-of-one mark painted nothing at all.
+    assert.notEqual(rule.indexOf('background:'), -1, '.livery no longer sets the background shorthand')
+    assert.ok(
+      rule.indexOf('background-image:') > rule.indexOf('background:'),
+      '.livery sets background-image before the background shorthand, which resets it',
+    )
+  })
+
+  it('the prerenderer writes the mark from the same function the app does (AF-17)', () => {
+    // The static strip spelled out `--livery:` itself, so a second property
+    // reached the app alone. Both go through markStyleAttr now.
+    const pre = read(join(web, 'scripts', 'prerender.js'))
+    assert.ok(/markStyleAttr/.test(pre), 'prerender.js no longer uses markStyleAttr')
+    assert.ok(
+      !/style="--livery:/.test(pre),
+      'prerender.js writes a livery property out by hand again; it will drift from the app',
+    )
+  })
+
+  it('accentsBySource splits every accent by whether a page states it, and loses none (AF-15, AF-17)', () => {
+    // The header's promise made mechanical: `sourced: false` marks a colour
+    // this project added for recognition, and no surface may present one as
+    // the team's own. A surface that names accents has to tell them apart,
+    // and this is the split it has to use.
+    const failing = []
+    for (const l of LIVERIES) {
+      const { sourced, chosen } = accentsBySource(l.scheme)
+      const where = `${l.constructor} ${l.from}`
+      if (sourced.length + chosen.length !== l.scheme.length - 1) failing.push(`${where}: an accent was dropped`)
+      for (const c of sourced) if (!c.sourced) failing.push(`${where}: ${c.name} is unsourced and was called sourced`)
+      for (const c of chosen) if (c.sourced) failing.push(`${where}: ${c.name} is sourced and was called this site's`)
+      // The primary is never an accent: it is the colour the scheme is named
+      // after and the one `claim` speaks for.
+      for (const c of [...sourced, ...chosen])
+        if (c === l.scheme[0]) failing.push(`${where}: the primary was listed as an accent`)
+    }
+    assert.deepEqual(failing, [])
+    // It is not vacuously true: at least one entry has a colour this project
+    // chose, or the check below has nothing to be about.
+    assert.ok(
+      LIVERIES.some((l) => accentsBySource(l.scheme).chosen.length > 0),
+      'no livery has an unsourced accent, so nothing exercises the split',
+    )
+  })
+
+  it('the one surface that names accents reads the split, and nothing else slices a scheme (AF-17)', () => {
+    // AF-17 was the first surface ever to print an accent name, and its first
+    // draft printed a colour this project chose under a sentence saying the
+    // sources describe it. The bypass is slicing the scheme directly, so this
+    // refuses that outside liveries.js itself.
+    const band = read(join(web, 'src', 'components', 'LiveryScheme.jsx'))
+    assert.ok(/accentsBySource/.test(band), 'LiveryScheme no longer reads accentsBySource')
+    assert.ok(
+      /no page cited here states/.test(band),
+      'LiveryScheme names a colour this site chose without the clause saying so',
+    )
+    // Both ways round: slicing the scheme, and liveryAccents(), which returns
+    // the same list unsplit. It is the right export for a test reading the
+    // raw data - test/units.mjs does - and the wrong one for a surface that
+    // prints names, because it hands back the sourced and the chosen alike.
+    const slicers = sourceFiles(join(web, 'src'), /\.jsx?$/)
+      .filter((file) => rel(file) !== 'src/lib/liveries.js')
+      .filter((file) => /\.scheme\.slice\(|\bliveryAccents\(/.test(read(file)))
+      .map(rel)
+    assert.deepEqual(slicers, [], 'a surface takes a scheme apart itself instead of going through accentsBySource')
   })
 
   it('no constructor has two entries for one season, and no gap overlaps an entry', () => {
@@ -418,25 +570,51 @@ describe('a livery is a sourced scheme drawn as itself, and every 2010+ construc
     assert.deepEqual(failing, [])
   })
 
-  it('liveryStyle hands a mark the primary\'s base and nothing else, and only a chart series is given the pair (AF-16)', () => {
+  it('a mark is given the primary unmoved, and only a chart surface is given the pair (AF-16, AF-17)', () => {
     // The other half of AF-16, and the half the stylesheet cannot guard: a
     // liveryStyle() that handed back l.light would put the contrast-shifted
     // value on every mark again - papaya as #d66c00 - with the CSS above
     // still passing, because the CSS only says what it does with what it is
-    // given. Both directions are checked: the mark gets the base, and nobody
-    // outside the two chart surfaces writes the pair onto an element at all.
+    // given.
+    //
+    // AF-17 added a second property, so this can no longer be an equality
+    // against one key. What it asserts instead is the thing AF-16 decided:
+    // --livery is the primary's base exactly, and the MOVED value - whichever
+    // of the pair is not the base - appears nowhere in what a mark is handed,
+    // the gradient's stops included.
     for (const l of LIVERIES) {
       const where = `${l.constructor} ${l.from}-${l.to}`
-      assert.deepEqual(liveryStyle(l), { '--livery': liveryPrimary(l).base }, `${where}: liveryStyle`)
+      const base = liveryPrimary(l).base
       const colour = colourForEntry({ constructorId: l.constructor, country: null, year: l.from, team: l.constructor })
-      assert.equal(colour.base, liveryPrimary(l).base, `${where}: colourForEntry base`)
-      assert.deepEqual(colour.style, { '--livery': liveryPrimary(l).base }, `${where}: colourForEntry style`)
+      assert.equal(colour.base, base, `${where}: colourForEntry base`)
+      for (const [what, style] of [
+        ['liveryStyle', liveryStyle(l)],
+        ['colourForEntry style', colour.style],
+      ]) {
+        assert.equal(style['--livery'], base, `${where}: ${what} does not hand the mark the primary's base`)
+        assert.deepEqual(
+          Object.keys(style).filter((k) => k !== '--livery' && k !== '--livery-scheme'),
+          [],
+          `${where}: ${what} carries a property a mark has no rule for`,
+        )
+        const written = Object.values(style).join(' ')
+        for (const moved of [l.light, l.dark])
+          if (moved !== base)
+            assert.ok(!written.includes(moved), `${where}: ${what} writes the moved ${moved} onto a mark`)
+      }
     }
+    // Nobody outside the chart surfaces writes the pair onto an element at
+    // all. own.js is the third: it is where VD-34 put the single-series
+    // colour, and the pair is exactly what a chart owes 3:1 on.
     const writers = [...sourceFiles(join(web, 'src'), /\.jsx?$/), join(web, 'scripts', 'prerender.js')]
       .filter((file) => /--livery-(?:light|dark)\s*['"]?\s*:/.test(read(file)))
       .map(rel)
       .sort()
-    assert.deepEqual(writers, ['src/charts/Figure.jsx', 'src/charts/LineChart.jsx'], 'the moved pair is written outside the two chart surfaces that owe 3:1')
+    assert.deepEqual(
+      writers,
+      ['src/charts/Figure.jsx', 'src/charts/LineChart.jsx', 'src/charts/own.js'],
+      'the moved pair is written outside the chart surfaces that owe 3:1',
+    )
   })
 
   it('against f1.db, every constructor-season with race entries from 2010 is exactly one of: coloured, a declared gap', () => {

@@ -66,7 +66,7 @@ import {
   titled,
 } from '../src/lib/site.js'
 import { EXPLAINED_FOOTER, OPEN_FOOTER, allExplained } from '../src/lib/disagreement.js'
-import { winnerColour } from '../src/lib/liveries.js'
+import { markStyleAttr, winnerColour } from '../src/lib/liveries.js'
 import { RACE_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE } from '../src/queries/sessions.js'
 // The pages' own queries and column lists (PD-02). A page and this script
 // read the same module, so the static table is the app's table by
@@ -362,13 +362,17 @@ const outlineCard = (path, circuit, layoutId, caption, rule = false) =>
       }</figcaption></figure>`
     : ''
 // The winner's colour bar under a run round, as components/Outline.jsx draws
-// it: the same --livery on the same element, so the static strip and the
+// it: the same properties on the same element, so the static strip and the
 // app's agree (AF-04). One value, both themes, since AF-16 stopped moving a
 // livery hex with the theme; app.css derives the mark's edge from it.
+//
+// The properties come from markStyleAttr, not from a `--livery:` written out
+// here: AF-17 added a second one, and a spelled-out attribute would have
+// given the app the scheme and the static page the primary.
 const winnerMark = (round, year) => {
   const colour = winnerColour(round, year)
   return colour
-    ? `<i class="livery" style="--livery:${esc(colour.base)}" title="${esc(colour.title)}" aria-hidden="true"></i>`
+    ? `<i class="livery" style="${esc(markStyleAttr(colour))}" title="${esc(colour.title)}" aria-hidden="true"></i>`
     : ''
 }
 const outlineStrip = (year, calendar) => {

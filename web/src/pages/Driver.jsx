@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import LiveryScheme from '../components/LiveryScheme.jsx'
 import { Confidence, Fields, Note, Onward, Page, Section, Stats } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
@@ -132,17 +133,14 @@ function DriverBody({ driver, data }) {
       back={{ to: '/drivers', label: 'The register' }}
       lede={driver.notes}
       aside={
-        teamColour && (
-          <p className="livery-band" style={{ marginTop: 14 }}>
-            <i className="livery" style={teamColour.style} />
-            {teamColour.name}
-            <span>
-              {teamColour.kind === 'livery'
-                ? `The colour ${lastTeam.constructor} raced in ${lastTeam.year}, ${teamColour.claim} - the last team on this record.`
-                : `${canonicalCountry(lastTeam.constructor_country)}'s international racing colour, under the convention that painted a car for the country that entered it, as it stood when ${lastTeam.constructor} raced in ${lastTeam.year}. Not the team's own livery.`}
-            </span>
-          </p>
-        )
+        <LiveryScheme
+          colour={teamColour}
+          note={
+            teamColour?.kind === 'livery'
+              ? `The colour ${lastTeam.constructor} raced in ${lastTeam.year}, ${teamColour.claim} - the last team on this record.`
+              : `${canonicalCountry(lastTeam?.constructor_country)}'s international racing colour, under the convention that painted a car for the country that entered it, as it stood when ${lastTeam?.constructor} raced in ${lastTeam?.year}. Not the team's own livery.`
+          }
+        />
       }
     >
       <Section>
@@ -153,7 +151,7 @@ function DriverBody({ driver, data }) {
         <Section title="Where each championship finished">
           <Figure
             title={`${driver.full_name} in the drivers' championship`}
-            note="Final classified position at the end of each season. A season with points but no position is one the driver was excluded from, so there is nothing to plot."
+            note="Final classified position at the end of each season. A season with points but no position is one the driver was excluded from, so there is nothing to plot. A season finished first is ringed; the colour is the team named above, which is the last one on this record and not necessarily the one driven in the season under a dot."
             table={{
               rows: standings,
               columns: [
@@ -166,10 +164,14 @@ function DriverBody({ driver, data }) {
             }}
           >
             <DotPlot
+              colour={teamColour}
               data={standings.map((s) => ({
                 x: s.year,
                 y: s.position,
                 label: `${s.year}`,
+                // The halo says nothing the dot does not: position 1 is what
+                // is already plotted at the top of the axis.
+                mark: s.position === 1,
                 note: s.position ? `P${s.position} · ${fmtPoints(s.points)} points` : 'no classified position',
               }))}
               yMax={Math.max(10, ...standings.map((s) => s.position ?? 0))}
