@@ -39,10 +39,9 @@ launched three more reviewers on the unchanged commit.)
 
 1. `python3 .claude/skills/backlog-loop/next.py --group` prints the first
    open item in the queue's own order - its issue number, title, labels and
-   body, with the open decisions to work around - and under it the `size: S`
-   items that could ride with it in one pull request. Use `--group` at every
-   pace but `thorough`, which takes one item and never groups; *Grouping*
-   below is how a proposal becomes a group. `next.py <ID>` prints one item
+   body, with the open decisions to work around - and under it the items,
+   of any size, that could ride with it in one pull request. Use `--group`
+   at every pace; *Grouping* below is how a proposal becomes a group. `next.py <ID>` prints one item
    and `next.py <ID> <ID> <ID>` several in full, which is how a proposed
    group is read before it is taken; `next.py --list Now` prints one line
    per open item in a status; `--skip A,B` passes over ids the driver
@@ -89,7 +88,7 @@ licence-reviewer triggers; the stop conditions; Opus for any change under
 
 | | `fast` | `balanced` | `thorough` |
 |---|---|---|---|
-| First-pass reviewer | `frontend-reviewer-quick` (Sonnet, 50 turns) for an S item under `web/` that does not touch `scripts/prerender.js`; the Opus reviewer for the area otherwise | the Opus reviewer for the area | the Opus reviewer for the area |
+| First-pass reviewer | `frontend-reviewer-quick` (Sonnet, 50 turns) for an S item under `web/` that does not touch `scripts/prerender.js` — in a group the largest item decides, so one M companion puts the whole PR on the Opus reviewer; the Opus reviewer for the area otherwise | the Opus reviewer for the area | the Opus reviewer for the area |
 | Routes named in the brief for the reviewer to spot-check | 3 | 10, chosen for edge cases: a NULL, a tie, a shared drive, a season not yet run | every route the change touches |
 | Confirming a fix that must land before merge | fresh Sonnet | fresh Sonnet | fresh Opus |
 | Items per PR (*Grouping*) | the head and every item linked to it, at any size | the same — grouping stopped being a pace setting on 2026-09-14 | the same |
@@ -132,9 +131,11 @@ bodies - `next.py <head> <candidate> <candidate>` - before taking any.
   riding on one reading of the file, which is worth having and is also most
   of a pull request; an `L` is the one to look at twice, because
   `CONTRIBUTING.md` sizes it as needing a plan first, and if that plan is
-  not the head's it is a head of its own rather than a passenger. **The rungs of one M item are still
-  one PR** - that was always about rungs, never about what may ride with
-  them.
+  not the head's it is a head of its own rather than a passenger. A `?`
+  companion is uncosted, so the reread is what sizes it: if it turns out to
+  be an `L` in disguise, treat it as one, and label it on the way past.
+  **The rungs of one M item are still one PR** - that was always about
+  rungs, never about what may ride with them.
 - **A companion from the status below the head** is being promoted past
   everything between, which only a shared file pays for. Say in the pull
   request why it came up.

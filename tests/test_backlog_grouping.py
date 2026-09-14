@@ -94,7 +94,10 @@ QUEUE = [
      "`build.py` and eight others hardcode it, and `f1.db` carries it."),
     (15, "Someday", "IA-99: A photograph caption has no source.", "S", [],
      "`VD-33` again, one status too far down to ride with it."),
-    (17, "Now", "CR-08: The season constant is spelt three ways.", "S", [],
+    # Last, and one band below CR-07: an item inserted into Now would shift
+    # every Next item's rank by one and cost PM-24 the adjacency bonus its
+    # own case is measured with.
+    (17, "Next", "CR-08: The season constant is spelt three ways.", "S", [],
      "`build.py` holds it, and `CR-07` is moving it."),
 ]
 
@@ -252,9 +255,10 @@ class GroupingProposals(unittest.TestCase):
         self.assertEqual(why["IX-70"], ["names VD-33"])
 
     def test_a_head_of_any_size_is_offered_companions(self):
-        # CR-07 is size M and the head of its own run; CR-08 names it and
-        # shares build.py. show_companions used to refuse any head that was
-        # not S before it scored anything, so this drives the printer.
+        # CR-07 is size M and the head of its own run; CR-08 names it,
+        # shares build.py and sits in the band below. show_companions used to
+        # refuse any head that was not S before it scored anything, so this
+        # drives the printer as well as the scorer.
         head = self.item("CR-07")
         self.assertEqual(next_py.size_of(head), "M")
         self.assertEqual([r["ident"] for _, r, _ in
@@ -267,7 +271,7 @@ class GroupingProposals(unittest.TestCase):
         self.assertNotIn("None:", out.getvalue())
         # The size of each candidate is printed, because it is now the thing
         # the fork has to weigh rather than something the filter settled.
-        self.assertRegex(out.getvalue(), r"CR-08\s+S\s+Now")
+        self.assertRegex(out.getvalue(), r"CR-08\s+S\s+Next")
 
     def test_the_bands_are_the_heads_status_and_the_one_below(self):
         # The one filter size no longer shares: how far down the queue a
