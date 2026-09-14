@@ -333,7 +333,8 @@ The agent returns exactly `PASS — safe to merge` or `FAIL — changes required
   conflict that is only figure spans moving. A conflict in any source file, or in prose, stops it with the file
   named, and a person resolves that one. Then rerun the web tests before
   pushing. Merge PRs one at a time; each merge conflicts the others.
-- After the merge: `file.py status <n> Done` (the board's *Item closed*
+- After the merge: `file.py status <n> Done` for every issue in the group
+  (the board's *Item closed*
   workflow does the same when it is switched on; the issue itself is closed
   by `Closes #n`), remove the worktree, delete the branch, `git pull`.
 
@@ -344,9 +345,14 @@ weaken a check or workflow, change production infrastructure other than by
 merging, or lose history; when a decision is a person's; when the user asks
 to pause. Skip and record an ordinary blocker (network, a service, a missing
 non-critical credential) on the item - `file.py blocked <n> "<what>"`
-labels it so `next.py` passes over it and the comment says why - set its
-status back from *In progress*, and leave the repository clean: no
-worktree, no open PR, no half-edited file.
+labels it so `next.py` passes over it and the comment says why - and leave
+the repository clean: no worktree, no open PR, no half-edited file.
+
+**Put every issue's status back before you stop or skip**, the head and each
+companion: an item left at *In progress* is one `next.py` never returns as
+next, so it leaves the queue until a person moves it by hand. That is the
+one way this loop loses work, and grouping multiplied it by the size of the
+group.
 
 ## The result
 

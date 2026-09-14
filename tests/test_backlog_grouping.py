@@ -13,6 +13,13 @@ WHY THIS FILE EXISTS
     the one below, `blocked` and `decision` are never swept in, a shared
     prose file is not a theme, and a signal common to the whole queue says
     nothing about any two items.
+
+    Write the fixture the way the queue writes: paths and routes in
+    backticks. The first version of this file backticked its routes while
+    the regex excluded a preceding backtick, so the route signal matched
+    nothing anywhere and these tests passed on the path signal alone —
+    caught in review, and `test_a_route_is_a_signal_of_its_own` is why it
+    cannot happen again.
 """
 import importlib.util
 import os
@@ -25,29 +32,45 @@ next_py = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(next_py)
 
 CARS = "web/src/pages/cars.jsx"
-# One row per item: (number, status, title, size, extra labels, body).
+# One row per item: (number, status, title, size, extra labels, body). The
+# board order within a status is this order, which is what a person drags.
+#
+#   signal            named by                              df   verdict
+#   `cars.jsx`        VD-33 AX-13 VD-40 VD-42                4   a signal
+#   `/constructors`   VD-33 IX-71 VD-42                      3   a signal
+#   `web/README.md`   VD-33 PM-24                            2   a signal, prose
+#   `f1.db`           VD-33 CR-07 PM-24 CD-50 CD-51          5   noise
+#   `/drivers`        VD-33 AX-13 PM-24 CD-50 CD-51          5   noise
 QUEUE = [
     (1, "Now", "VD-33: 602 photographs are advertised and shown on two.", "S", [],
-     f"`{CARS}` renders them, and `/constructors` advertises them. `AX-13` is the same page.\n"
-     "The count comes from `f1.db`; `web/README.md` describes the build that makes it."),
-    (2, "Next", "AX-13: Photograph `alt` is the file name.", "S", [],
-     f"`{CARS}` writes the file name into `alt`."),
-    (3, "Now", "CR-07: The season is a magic number in nine files.", "M", [],
-     "`build.py` and eight others hardcode it, and `f1.db` carries it."),
+     f"`{CARS}` renders them, and `/constructors` advertises them. `AX-13` is the\n"
+     "same page. `/drivers` shows none. The count comes from `f1.db`, and\n"
+     "`web/README.md` describes the build that makes it."),
+    (2, "Next", "IX-71: The constructor register opens on its emptiest rows.", "S", [],
+     "`/constructors` sorts by a column that is empty for most of it."),
+    (3, "Next", "AX-13: Photograph `alt` is the file name.", "S", [],
+     f"`{CARS}` writes the file name into `alt`, and `/drivers` does the same."),
     (4, "Next", "PM-24: Two Cloudflare build settings are unconfirmed.", "S", [],
-     "`web/README.md` states one of them, and `f1.db` is what the deploy serves."),
+     "`web/README.md` states one of them. `f1.db` is what the deploy serves to\n"
+     "`/drivers` and every other page."),
     (5, "Next", "VD-40: A photograph item nobody can start.", "S", ["blocked"],
      f"`{CARS}`, and the service it needs is down."),
     (6, "Next", "VD-41: A photograph question for a person.", "S", ["decision"],
-     "`VD-33` asked it and it is not an agent's to answer."),
+     "`VD-33` asked it, and it is not an agent's to answer."),
     (7, "Next", "VD-42: Thumbnails are three redirects.", "S", [],
      f"`{CARS}` serves them, on `/constructors`."),
-    (8, "Next", "CD-50: Prose about the database.", "S", [], "`f1.db`, and nothing else shared."),
-    (9, "Next", "CD-51: More prose about the database.", "S", [], "`f1.db` once more."),
-    (10, "Someday", "IA-99: A photograph caption has no source.", "S", [],
-     "`VD-33` again, one status too far down to ride with it."),
-    (11, "Next", "IX-70: The photograph strip needs a plan.", "M", [],
+    (8, "Next", "CD-50: Prose about the database.", "S", [],
+     "`f1.db` on `/drivers`, and nothing else shared."),
+    (9, "Next", "CD-51: More prose about the database.", "S", [],
+     "`f1.db` on `/drivers` once more."),
+    (13, "Next", "CD-52: The caption under the photograph says nothing.", "S", [],
+     "`VD-33` is the same page; this is the line beneath it."),
+    (10, "Next", "IX-70: The photograph strip needs a plan.", "M", [],
      "`VD-33` names the page; this one is a few sittings."),
+    (11, "Now", "CR-07: The season is a magic number in nine files.", "M", [],
+     "`build.py` and eight others hardcode it, and `f1.db` carries it."),
+    (12, "Someday", "IA-99: A photograph caption has no source.", "S", [],
+     "`VD-33` again, one status too far down to ride with it."),
 ]
 
 
@@ -76,27 +99,48 @@ class GroupingProposals(unittest.TestCase):
         rows = next_py.companions(head, self.ranked, set(skip), {head["number"]})
         return [r["ident"] for _, r, _ in rows], {r["ident"]: why for _, r, why in rows}
 
+    def reasons(self, ident):
+        return " ".join(w for ws in self.propose(ident)[1].values() for w in ws)
+
     def test_the_head_is_the_queues_next_item_not_the_best_scoring_one(self):
         self.assertEqual(next_py.first_eligible(self.ranked, set())["ident"], "VD-33")
 
     def test_a_shared_file_and_a_cross_reference_are_what_propose_a_companion(self):
         idents, why = self.propose("VD-33")
-        self.assertEqual(idents, ["AX-13", "VD-42"])
+        self.assertEqual(idents, ["AX-13", "VD-42", "CD-52", "IX-71"])
         self.assertIn("named by VD-33", why["AX-13"])
         self.assertIn(f"shares {CARS}", why["AX-13"])
 
+    def test_an_item_that_names_the_head_is_proposed_on_that_alone(self):
+        # The other direction: AX-13 is named *by* the head, CD-52 names it.
+        # Every other item naming the head here is excluded for some other
+        # reason, so without CD-52 this branch is never scored.
+        idents, why = self.propose("VD-33")
+        self.assertIn("CD-52", idents)
+        self.assertEqual(why["CD-52"], ["names VD-33"])
+
+    def test_a_route_is_a_signal_of_its_own(self):
+        # IX-71 shares one route with the head and nothing else. The regex
+        # must see a route written the way the queue writes it, in backticks.
+        idents, why = self.propose("VD-33")
+        self.assertIn("IX-71", idents)
+        self.assertIn("both on /constructors", why["IX-71"])
+        self.assertIn("both on /constructors", why["VD-42"])
+
     def test_a_shared_prose_file_alone_is_not_a_theme(self):
         # PM-24 shares only web/README.md with the head - where each would add
-        # a paragraph, not where either one's work lands.
+        # a paragraph, not where either one's work lands. It also shares the
+        # noise route, so this fails too if route noise stops being dropped.
         self.assertNotIn("PM-24", self.propose("VD-33")[0])
 
     def test_a_signal_the_whole_queue_carries_proposes_nothing(self):
-        # Five of the ten name f1.db. CD-50 and CD-51 share it with the head
-        # and with each other, and none of them is grouped on it.
+        # Five items name f1.db and five name /drivers. CD-50 and CD-51 share
+        # both with the head and with each other, and are grouped on neither.
         for ident in ("VD-33", "CD-50"):
-            idents, why = self.propose(ident)
+            idents = self.propose(ident)[0]
             self.assertNotIn("CD-51" if ident == "CD-50" else "CD-50", idents)
-            self.assertFalse([w for ws in why.values() for w in ws if "f1.db" in w])
+        self.assertNotIn("f1.db", self.reasons("VD-33"))
+        self.assertNotIn("/drivers", self.reasons("VD-33"))
 
     def test_a_companion_two_statuses_down_is_never_swept_up(self):
         self.assertNotIn("IA-99", self.propose("VD-33")[0])
@@ -107,7 +151,8 @@ class GroupingProposals(unittest.TestCase):
         self.assertNotIn("VD-41", idents)
 
     def test_the_drivers_skip_list_reaches_the_companions(self):
-        self.assertEqual(self.propose("VD-33", skip={"AX-13"})[0], ["VD-42"])
+        self.assertEqual(self.propose("VD-33", skip={"AX-13"})[0],
+                         ["VD-42", "CD-52", "IX-71"])
 
     def test_an_m_item_is_never_a_companion(self):
         # IX-70 names the head, which is the strongest signal there is, and

@@ -69,7 +69,11 @@ ID = re.compile(r"^([A-Z]{2}-[0-9Ø]+): ")
 # is one item's author saying the two belong together. Nothing else scores
 # enough to list a candidate on its own.
 PATH = re.compile(r"(?:[\w.-]+/)*[\w.-]+\.(?:py|js|mjs|jsx|ts|tsx|css|json|sql|md|sh|yml|yaml|html|db)\b")
-ROUTE = re.compile(r"(?<![\w`/])/[a-z][a-z0-9-]*(?:/[a-z0-9:<>-]+)*")
+# The lookbehind keeps the tail of a path out - the "/drivers" inside
+# web/src/pages/drivers.jsx is preceded by a word character - and must not
+# exclude a backtick: every route in this queue is written `/drivers`, and
+# excluding it made the whole route signal dead text (found in review).
+ROUTE = re.compile(r"(?<![\w/])/[a-z][a-z0-9-]*(?:/[a-z0-9:<>-]+)*")
 IDREF = re.compile(r"\b[A-Z]{2}-[0-9]+\b")
 COMPANIONS = 6       # candidates listed; the pace caps how many may be taken
 THRESHOLD = 3        # below this a candidate is not worth a fork's attention
@@ -209,8 +213,10 @@ def companions(head, ranked, skip, taken):
             # A shared prose file is where two items would each add a
             # paragraph, not where the work is: on the first live run it
             # proposed a Cloudflare settings item as a companion to a livery
-            # one because both name web/README.md. It scores, and cannot
-            # reach the threshold alone.
+            # one because both name web/README.md. One is worth a third of a
+            # source file, so a single shared prose file cannot reach the
+            # threshold alone; three of them can, and two items that edit the
+            # same three documents are a theme.
             score += min(6, sum(1 if p.endswith(".md") else 3 for p in shared_paths))
             why.append("shares " + ", ".join(shared_paths[:3]))
         if shared_routes:
