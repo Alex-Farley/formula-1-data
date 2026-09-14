@@ -329,13 +329,17 @@ What a source *can* establish is which colour a team raced in a season and what
 the team called it — papaya, Aston Martin Racing Green, rosso corsa — and that
 is the fact each entry carries, with the page it was read from and the words it
 was read in: the team's own launch release or brand page first, then
-formula1.com's launch coverage and the Wikipedia car article. The hex is this
+formula1.com's launch coverage and the Wikipedia car article — or, for a season
+no car article describes, the per-season main-colour tables of Wikipedia's
+*Formula One sponsorship liveries* article. The hex is this
 palette's rendering of the named colour, not a measurement, and each entry is a
 `{light, dark}` pair tuned to clear 3:1 on the surfaces it sits on, the way
-`VD-27` tuned the eight national colours. 168 of the 180 constructor-seasons
-from 2010 to 2026 are coloured; the twelve with no source found are declared
-in `LIVERY_GAPS`, and `test/conventions.mjs` holds both lists to `f1.db` so
-every constructor-season is in exactly one. `colourForEntry()` routes by era —
+`VD-27` tuned the eight national colours. All 180 constructor-seasons from 2010
+to 2026 are coloured: `AF-04` left twelve with no source found, and `AF-09`
+filled them from the livery article above. `LIVERY_GAPS` is empty and stays
+checked — `test/conventions.mjs` holds both lists to `f1.db` so every
+constructor-season is in exactly one, and the next one nobody can source is
+declared there rather than guessed. `colourForEntry()` routes by era —
 the national convention to 1967, nothing for 1968–2009 (a declared gap, drawn
 in the neutral palette), the livery from 2010 — and paints the standings and
 classification tables, the title-race chart, the calendar strip's winner bar,

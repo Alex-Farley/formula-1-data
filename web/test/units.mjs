@@ -693,8 +693,9 @@ describe('the circuit outlines (AF-03)', () => {
 describe('colourForEntry routes a constructor-season by era (AF-04)', () => {
   // Three eras, one call. Before 1968 the national convention; 1968-2009 a
   // declared gap that returns nothing rather than a guess; from 2010 the
-  // livery map, or nothing where LIVERY_GAPS says so. Each branch is a claim
-  // the tooltip has to name, so the kind and the title are checked too.
+  // livery map, or nothing for a constructor-season it does not carry. Each
+  // branch is a claim the tooltip has to name, so the kind and the title are
+  // checked too.
   it('names the constants the header describes', () => {
     assert.equal(SPONSOR_ERA, 1968)
     assert.equal(LIVERY_ERA, 2010)
@@ -730,11 +731,15 @@ describe('colourForEntry routes a constructor-season by era (AF-04)', () => {
     assert.equal(liveryFor('red-bull', 2026).name, 'Heritage white')
     assert.equal(liveryFor('red-bull', 2025).name, 'Matte navy')
   })
-  it('a 2010+ season with no source is nothing, not the national colour', () => {
-    assert.equal(colourForEntry({ constructorId: 'virgin', country: 'United Kingdom', year: 2012 }), null)
-    assert.equal(liveryFor('virgin', 2012), null)
+  it('a 2010+ constructor the map does not carry is nothing, not the national colour', () => {
+    // This used to prove the fallback with Virgin 2012, a declared gap.
+    // AF-09 sourced that season and emptied LIVERY_GAPS, so the unsourced
+    // case is now a constructor with no entry at all - and Virgin 2012 is
+    // asserted coloured here, so refilling the gap would fail this test.
+    assert.equal(colourForEntry({ constructorId: 'nobody', country: 'United Kingdom', year: 2012 }), null)
     assert.equal(liveryFor('nobody', 2020), null)
     assert.equal(liveryFor('ferrari', Number.NaN), null)
+    assert.equal(liveryFor('virgin', 2012).name, 'Black and red')
   })
   it('a spacer is drawn only in a season some row of which could carry a colour', () => {
     assert.equal(inColourEra(1955), true)
