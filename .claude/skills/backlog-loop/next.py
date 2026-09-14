@@ -28,17 +28,20 @@ it was docs/BACKLOG.md, and this script read that file. What it reads now:
   while still open is not lost: it is listed under every item as
   *unplaced*, `--list unplaced` prints them, and `next.py <ID>` finds it.
 
-`--group` prints a second block under the item: the `size: S` items, in the
-item's own status or the next one down, that share a file path, a route or a
-cross-reference with it, best score first. It **proposes; it never groups.**
-A companion earns its place only by being cheaper because it rides with the
-head - the same file, the same query, the same component, the same test -
-and the pull request says why each one is there. Two items that share
-nothing but a `source:` label are not a theme, and the score cannot reach the
-threshold on that alone. How many may be taken is the pace, in
-`.claude/skills/backlog-item/SKILL.md`. A path or route that occurs in more
-than a few open items is dropped as noise before scoring, so `f1.db` and
-`/drivers` never group anything by themselves.
+`--group` prints a second block under the item: the open items, **of any
+size**, in the item's own status or the next one down, that share a file
+path, a route or a cross-reference with it, best score first. It **proposes;
+it never groups.** A companion earns its place only by being cheaper because
+it rides with the head - the same file, the same query, the same component,
+the same test - and the pull request says why each one is there. Two items
+that share nothing but a `source:` label are not a theme, and the score
+cannot reach the threshold on that alone. Size is printed beside each
+candidate and gates nothing: what is linked to the head rides with it
+whatever it is sized, so the file gets opened once and the queue reduces
+instead of returning to it item by item (decided 2026-09-14 by the
+maintainer, replacing an S-only rule and a per-pace count). A path or route
+that occurs in more than a few open items is dropped as noise before
+scoring, so `f1.db` and `/drivers` never group anything by themselves.
 
 Why a script and not `gh issue list`: the ranking lives on the board, not in
 the issue list, and reading it is two `gh` calls and a join. The output is
@@ -102,7 +105,9 @@ PATH = re.compile(rf"(?:[\w.-]+/)*[\w.-]+\.(?:{SOURCE_EXT})\b")
 ROUTE = re.compile(r"(?<![\w/.])/[a-z][a-z0-9-]*(?:/[a-z0-9:<>-]+)*(?:\.(?i:[a-z0-9]{1,8})\b)?")
 IS_FILE = re.compile(rf"\.(?:{SOURCE_EXT})$", re.I)
 IDREF = re.compile(r"\b[A-Z]{2}-[0-9]+\b")
-COMPANIONS = 6       # candidates listed; the pace caps how many may be taken
+# There is no cap on how many candidates are listed. The group is what is
+# linked to the head, so a cap would hide exactly the item it exists to
+# take; the noise counter below is what stops a hot file proposing a crowd.
 THRESHOLD = 3        # below this a candidate is not worth a fork's attention
 NOISE = 4            # see below
 # A signal more items than this name is noise, dropped before scoring.
@@ -212,13 +217,16 @@ def bands(head):
 
 
 def companions(head, ranked, skip, taken):
-    """Score every S item that could ride with the head; best first.
+    """Score every open item that could ride with the head; best first.
 
-    The head's own status band or the one below it: a companion from lower
-    down is being promoted past everything between, which only a shared file
-    pays for, and the fork has to say so in the pull request. A signal shared
-    with more than a few open items says nothing about these two, so it is
-    dropped before anything is scored."""
+    Size is not a filter, at either end: a head of any size may carry
+    companions, and a companion of any size may ride, because what makes one
+    cheap is the reading it shares with the head and not how big it is. What
+    still filters is the head's own status band or the one below it - a
+    companion from lower down is being promoted past everything between,
+    which only a shared file pays for, and the fork has to say so in the pull
+    request. A signal shared with more than a few open items says nothing
+    about these two, so it is dropped before anything is scored."""
     allowed = bands(head)
     tok = {r["number"]: signals(r) for r in ranked}
     tok.setdefault(head["number"], signals(head))
@@ -234,7 +242,7 @@ def companions(head, ranked, skip, taken):
     for row in ranked:
         if row["number"] == head["number"] or row["number"] in taken or not eligible(row, skip):
             continue
-        if size_of(row) != "S" or row["status"] not in allowed:
+        if row["status"] not in allowed:
             continue
         cp, cr, ci = tok[row["number"]]
         score, why = 0, []
@@ -268,31 +276,27 @@ def companions(head, ranked, skip, taken):
         if score >= THRESHOLD:
             out.append((score, row, why))
     out.sort(key=lambda t: (-t[0], rank[t[1]["number"]]))
-    return out[:COMPANIONS]
+    return out
 
 
 def show_companions(head, ranked, skip, taken):
-    print(f"## Companions for {head['ident']} — proposals, not a group\n")
-    if size_of(head) != "S":
-        print(f"None: {head['ident']} is size {size_of(head)}. The rungs of one M item are already one"
-              "\nPR, and grouping is for S items - the pace table in"
-              "\n.claude/skills/backlog-item/SKILL.md says so.\n")
-        return
+    print(f"## Companions for {head['ident']} (size {size_of(head)}) — proposals, not a group\n")
     rows = companions(head, ranked, skip, taken)
     if not rows:
-        print(f"None: no open S item under {' or '.join(bands(head))} shares a file, a route or a"
+        print(f"None: no open item under {' or '.join(bands(head))} shares a file, a route or a"
               f"\ncross-reference with {head['ident']}. One item, one PR.\n")
         return
     for score, row, why in rows:
         title = row["title"][len(row["ident"]) + 2:] if row["title"].startswith(row["ident"] + ": ") else row["title"]
-        print(f"  #{row['number']:<4} {row['ident']:<6} {row['status']:<7} {score:>2}  "
+        print(f"  #{row['number']:<4} {row['ident']:<6} {size_of(row):<2} {row['status']:<7} {score:>2}  "
               f"{'; '.join(why)}\n        {title[:76]}")
     print("\nA score is a hint. A companion joins only if it is cheaper because it rides"
           "\nwith the head - the same file, the same query, the same component - and the PR"
-          "\nsays why each one is there; a shared source label is not a theme. The pace caps"
-          "\nhow many. Full bodies before you decide:"
+          "\nsays why each one is there; a shared source label is not a theme. Size is shown"
+          "\nbecause it is a cost to weigh, not a gate: take what is linked, and drop the last"
+          "\none added if the diff stops reading as one change. Full bodies before you decide:"
           f"\n  python3 .claude/skills/backlog-loop/next.py {head['ident']} "
-          + " ".join(r["ident"] for _, r, _ in rows[:3]) + "\n")
+          + " ".join(r["ident"] for _, r, _ in rows) + "\n")
 
 
 def next_id(prefix):

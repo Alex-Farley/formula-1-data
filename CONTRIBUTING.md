@@ -235,9 +235,9 @@ issue is the queue, not the argument.
 
 **Naming another item's ID in a body is how the two get proposed together.**
 `next.py --group` reads those cross-references, and the file paths and routes
-a body names, to suggest which `size: S` items could land in one pull request
-instead of one each; the body that says where the work lands is the one that
-gets grouped well.
+a body names, to suggest which items — of any size — could land in one pull
+request instead of one each; the body that says where the work lands is the
+one that gets grouped well.
 
 ## Working autonomously
 
@@ -289,13 +289,15 @@ comment, a test, the removal of dead code, named in the PR comment - were
 decided by the maintainer on 2026-09-13 to control review cost and are set
 in `.claude/skills/backlog-item/SKILL.md`: Opus for a first pass, a fresh
 Sonnet context to confirm a fix that must land before merge or to review a
-wording-only change, and the rungs of one item in one PR. Small items that
+wording-only change, and the rungs of one item in one PR. Items that
 share a file are grouped into one pull request rather than reviewed one at a
-time - `next.py --group` proposes the candidates, the pace caps how many, and
-each item keeps its own `Closes #n` so the merge closes all of them.
+time, whatever their size - `next.py --group` proposes the candidates, what
+is linked to the head decides which of them ride (2026-09-14, replacing an
+S-only rule and a per-pace count), and each item keeps its own `Closes #n`
+so the merge closes all of them.
 A third decision the same day (`PM-36`) added a pace - `fast`, `balanced`, `thorough` - that
 may relax the first-pass model on a small front-end change, the routes the
-brief names, batching and pipelining, and never the review itself, `make
+brief names and pipelining, and never grouping, the review itself, `make
 all`, the precheck, green CI, the licence triggers or the stop conditions;
 and moved each item into a forked context, because the session driving the
 loop, not the reviewers, was measured at 75-85 % of its tokens.

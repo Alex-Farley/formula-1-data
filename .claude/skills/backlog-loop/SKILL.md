@@ -111,8 +111,10 @@ PRs, decisions needed, what `next.py` says is next. Then stop.
   Agent tool overrides a model per call but not an effort, so a pace picks
   reviewer *agents*, whose effort and turn cap are in their frontmatter.
 - `fast` is for a run of small, well-specified items while a person is
-  around to look at the result, and it is where grouping pays most - up to
-  four S items on one theme in a single PR, against two at `balanced` and
-  none at `thorough`, which is for a data change or anything that touches a
-  publishing path. `balanced` is the default because it is
+  around to look at the result: it relaxes the first-pass reviewer for a
+  small front-end change and how many routes the brief names. Grouping is
+  not one of the things a pace changes any more (2026-09-14): what rides
+  with the head is what is linked to it, at any size and at every pace.
+  `thorough` is for a data change or anything that touches a publishing
+  path. `balanced` is the default because it is
   what the 2026-09-13 review-cost decisions describe.
