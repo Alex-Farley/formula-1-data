@@ -120,11 +120,13 @@
  *               oversight (AF-04, scope decided 2026-09-13: 2010 onwards).
  *   2010-       this map, or nothing where LIVERY_GAPS says so.
  *
- * HOW A COLOUR REACHES THE PAGE. liveryStyle() returns one custom property,
- * --livery, carrying the primary's base for an element's inline style; the
- * `.livery` rules in styles/app.css paint it and derive the mark's edge
- * from it. One value serves both themes because the colour no longer moves
- * with the theme. A chart series is the exception: charts/LineChart.jsx and
+ * HOW A COLOUR REACHES THE PAGE. liveryStyle() returns two custom
+ * properties for an element's inline style: --livery, the primary's base,
+ * and --livery-scheme, the rest of the scheme as hard gradient stops
+ * (AF-17), absent for a scheme of one. The `.livery` rules in
+ * styles/app.css paint the first, draw the second over it and derive the
+ * mark's edge from the first. One value each serves both themes because
+ * the colour no longer moves with the theme. A chart series is the exception: charts/LineChart.jsx and
  * charts/Figure.jsx set --livery-light and --livery-dark from the pair and
  * `.livery-series` picks one per theme, exactly as tokens.css does for
  * --racing-*. No component ever chooses a hex.
@@ -1015,6 +1017,31 @@ export const liveryPrimary = (livery) => livery.scheme[0]
 /** A livery's accents: the rest of its scheme, in order. Often empty. */
 export const liveryAccents = (livery) => livery.scheme.slice(1)
 
+/**
+ * A scheme's accents split by whether a cited page states them.
+ *
+ * The header's promise, made reachable by a surface. `sourced: false` marks
+ * a colour this project added because a team is recognised by it and no
+ * cited page for that span names it - at present the red and silver Toro
+ * Rosso ran before its 2017 relaunch - and the maintainer's decision of
+ * 2026-09-14 is that no surface may present one as the team's own. A
+ * surface that prints accent names has to tell them apart to keep that, so
+ * the split lives here rather than in each surface's own filter: AF-17 was
+ * the first surface ever to print an accent name at all, and it printed
+ * both kinds under a sentence saying the sources describe them.
+ *
+ * `chosen` is still DRAWN - the mark carries every colour of the scheme,
+ * which is the recognition the decision bought - it is only never NAMED
+ * without the clause that says whose reading it is.
+ */
+export function accentsBySource(scheme) {
+  const accents = Array.isArray(scheme) ? scheme.slice(1) : []
+  return {
+    sourced: accents.filter((colour) => colour.sourced),
+    chosen: accents.filter((colour) => !colour.sourced),
+  }
+}
+
 /** The livery entry for a constructor in a season, or null. */
 export function liveryFor(constructorId, year) {
   if (!constructorId || !Number.isFinite(year)) return null
@@ -1027,11 +1054,12 @@ export const isDeclaredGap = (constructorId, year) =>
 
 /**
  * The inline style that carries a colour to an element the `.livery` rules
- * paint: one custom property, --livery, holding the primary's base. One
- * value serves both themes - the mark draws the colour itself (AF-16) - and
- * app.css derives the mark's edge from it, so a white livery on a white
- * panel is outlined rather than moved. A national colour is already a
- * theme-switching token and passes through as one.
+ * paint: --livery, holding the primary's base, and --livery-scheme, the
+ * whole scheme beneath it where there is more than one colour (AF-17). One
+ * value each serves both themes - the mark draws the colour itself (AF-16)
+ * - and app.css derives the mark's edge from the primary, so a white livery
+ * on a white panel is outlined rather than moved. A national colour is
+ * already a theme-switching token and passes through as one.
  */
 export const liveryStyle = (livery) => (livery ? markStyle(liveryPrimary(livery).base, livery.scheme) : undefined)
 

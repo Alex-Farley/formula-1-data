@@ -1,13 +1,18 @@
 import { inColourEra } from '../lib/liveries.js'
 
 /**
- * The 3 px identity bar beside a constructor's or driver's name in a table
- * (AF-04). `colour` is what lib/liveries.js colourForEntry() returns: the
+ * The 7 px identity bar beside a constructor's or driver's name in a table
+ * (AF-04, widened by AF-17 so the bands of a scheme are bands). `colour` is
+ * what lib/liveries.js colourForEntry() returns: the
  * team's livery from 2010, its national racing colour before 1968, or null.
- * With a colour the element carries that colour itself in --livery and
- * `.livery` in styles/app.css paints it and rings it (AF-16: the mark sits
- * beside the name, so it draws the colour rather than a legible substitute
- * for it); the tooltip names the claim being made.
+ * With a colour the element carries that colour itself in --livery, and its
+ * accents in --livery-scheme (AF-17); `.livery` in styles/app.css paints and
+ * rings the first and draws the second over it (AF-16: the mark sits beside
+ * the name, so it draws the colour rather than a legible substitute for it).
+ * The tooltip names the claim being made, and names it about the PRIMARY -
+ * "the colour X raced in Y" is the one the scheme is called after. An accent
+ * this project chose is drawn here and named only on the page band, where
+ * the clause that says whose reading it is fits beside it.
  * Without one it is a transparent spacer of the same width, so the names in
  * a column stay aligned and nothing grey pretends to be a colour - the
  * database's rule for a missing figure, applied to a mark. In a season no

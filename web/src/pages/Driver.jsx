@@ -151,7 +151,7 @@ function DriverBody({ driver, data }) {
         <Section title="Where each championship finished">
           <Figure
             title={`${driver.full_name} in the drivers' championship`}
-            note="Final classified position at the end of each season. A season with points but no position is one the driver was excluded from, so there is nothing to plot. A season finished first is ringed."
+            note="Final classified position at the end of each season. A season with points but no position is one the driver was excluded from, so there is nothing to plot. A season finished first is ringed; the colour is the team named above, which is the last one on this record and not necessarily the one driven in the season under a dot."
             table={{
               rows: standings,
               columns: [

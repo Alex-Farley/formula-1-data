@@ -1,3 +1,5 @@
+import { accentsBySource } from '../lib/liveries.js'
+
 /**
  * The identity band at the top of a constructor's or a driver's page: the
  * scheme drawn across the measure, its colours named, and the page's own
@@ -13,16 +15,32 @@
  * is the page's own prose, because a constructor's last season and a driver's
  * last team are different claims about the same colour.
  *
- * THE ACCENTS ARE NAMED WITHOUT THE CLAIM CLAUSE. `colour.claim` reads the
- * PRIMARY's `named` - whether the team's own word for it is what a cited page
- * shows - and liveries.js says `name` is this file's description everywhere
- * else. Appending the primary's clause to an accent would say a team calls a
- * colour something no source has it calling anything, which is the defect
- * AF-15's review found 41 of.
+ * WHOSE WORD EACH NAME IS. Two provenance flags, two different obligations,
+ * and this is the first surface that ever printed an accent name at all:
+ *
+ *   `named`   is about the primary and is carried by `colour.claim`, the
+ *             clause the page's own sentence already appends. An accent is
+ *             never given that clause: it reads the PRIMARY's `named`, so
+ *             borrowing it would say a team calls a colour something no
+ *             cited page shows - the defect AF-15's review found 41 of.
+ *   `sourced` is about every colour, and false marks one this project added
+ *             because the team is recognised by it while no cited page for
+ *             the span names it. The maintainer's decision of 2026-09-14 is
+ *             that no surface may present one as the team's own. So the two
+ *             kinds are printed in different places: a sourced accent joins
+ *             the names beside the primary, and a chosen one is named in the
+ *             prose, in a sentence that says whose reading it is. Both are
+ *             DRAWN - the mark carries the whole scheme either way, which is
+ *             the recognition that decision bought.
+ *
+ * At present that is one entry, Toro Rosso 2010-2016, whose red and silver
+ * no page cited for those seasons names. It is one entry because somebody
+ * checked; the split is by the flag, not by the team.
  */
 export default function LiveryScheme({ colour, note }) {
   if (!colour) return null
-  const accents = colour.scheme.slice(1)
+  const { sourced, chosen } = accentsBySource(colour.scheme)
+  const them = chosen.length === 1 ? 'it' : 'them'
   return (
     <p className="livery-band" style={{ marginTop: 14 }}>
       {/* aria-hidden: the band repeats the names beside it, and the sentence
@@ -30,8 +48,21 @@ export default function LiveryScheme({ colour, note }) {
           noise, not information. */}
       <i className="livery" style={colour.style} aria-hidden="true" />
       {colour.name}
-      {accents.length > 0 && <em>{accents.map((c) => c.name).join(' · ')}</em>}
-      <span>{note}</span>
+      {sourced.length > 0 && <em>{sourced.map((c) => c.name).join(' · ')}</em>}
+      <span>
+        {note}
+        {chosen.length > 0 &&
+          ` The mark also carries ${names(chosen)}, which no page cited here states: this site` +
+            ` added ${them} because the car is recognised by ${them}, not because a source names` +
+            ' the colour.'}
+      </span>
     </p>
   )
+}
+
+/** "red", or "red and silver", or "red, silver and white". */
+function names(colours) {
+  const all = colours.map((c) => c.name.toLowerCase())
+  if (all.length === 1) return all[0]
+  return `${all.slice(0, -1).join(', ')} and ${all[all.length - 1]}`
 }

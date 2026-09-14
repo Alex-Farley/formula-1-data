@@ -28,6 +28,7 @@ import { fileURLToPath } from 'node:url'
 
 import { COLOURS } from '../src/lib/racingColours.js'
 import {
+  accentsBySource,
   colourForEntry,
   LIVERIES,
   LIVERY_ERA,
@@ -347,10 +348,16 @@ describe('a livery is a sourced scheme drawn as itself, and every 2010+ construc
   it('no two constructors on the same grid draw the same mark (AF-17)', () => {
     // What the check above became reachable as. The mark used to be the
     // primary alone, so two teams could differ in the file and be identical
-    // on screen; it draws the scheme now, and this measures the thing a
-    // reader actually sees rather than the data behind it. Derived from the
-    // same style the app and the prerenderer both write, so a mark that stops
-    // carrying the accents fails here rather than going quietly grey-on-grey.
+    // on screen; it draws the scheme now, and this measures the style the app
+    // and the prerenderer both write, so a mark that stops carrying the
+    // accents fails here rather than going quietly grey-on-grey.
+    //
+    // Not every surface, and the difference matters: `.outline-strip .livery`
+    // drops the gradient because a three-pixel bar has no room for bands, so
+    // two winning constructors sharing a primary would still draw alike
+    // there. None do today. This checks what is HANDED to a mark, which is
+    // the thing this file can decide; what each surface then does with it is
+    // the stylesheet's, and the strip's exception is declared in it.
     const byYear = new Map()
     const clashes = []
     for (const l of LIVERIES) {
@@ -412,6 +419,10 @@ describe('a livery is a sourced scheme drawn as itself, and every 2010+ construc
     )
     // Order matters and a stylesheet will not say so: `background:` is a
     // shorthand and resets background-image, so the image must come after it.
+    // The presence check first, because indexOf returns -1 for a shorthand
+    // that is GONE and every index is greater than that - which would pass
+    // this while a scheme-of-one mark painted nothing at all.
+    assert.notEqual(rule.indexOf('background:'), -1, '.livery no longer sets the background shorthand')
     assert.ok(
       rule.indexOf('background-image:') > rule.indexOf('background:'),
       '.livery sets background-image before the background shorthand, which resets it',
@@ -427,6 +438,50 @@ describe('a livery is a sourced scheme drawn as itself, and every 2010+ construc
       !/style="--livery:/.test(pre),
       'prerender.js writes a livery property out by hand again; it will drift from the app',
     )
+  })
+
+  it('accentsBySource splits every accent by whether a page states it, and loses none (AF-15, AF-17)', () => {
+    // The header's promise made mechanical: `sourced: false` marks a colour
+    // this project added for recognition, and no surface may present one as
+    // the team's own. A surface that names accents has to tell them apart,
+    // and this is the split it has to use.
+    const failing = []
+    for (const l of LIVERIES) {
+      const { sourced, chosen } = accentsBySource(l.scheme)
+      const where = `${l.constructor} ${l.from}`
+      if (sourced.length + chosen.length !== l.scheme.length - 1) failing.push(`${where}: an accent was dropped`)
+      for (const c of sourced) if (!c.sourced) failing.push(`${where}: ${c.name} is unsourced and was called sourced`)
+      for (const c of chosen) if (c.sourced) failing.push(`${where}: ${c.name} is sourced and was called this site's`)
+      // The primary is never an accent: it is the colour the scheme is named
+      // after and the one `claim` speaks for.
+      for (const c of [...sourced, ...chosen])
+        if (c === l.scheme[0]) failing.push(`${where}: the primary was listed as an accent`)
+    }
+    assert.deepEqual(failing, [])
+    // It is not vacuously true: at least one entry has a colour this project
+    // chose, or the check below has nothing to be about.
+    assert.ok(
+      LIVERIES.some((l) => accentsBySource(l.scheme).chosen.length > 0),
+      'no livery has an unsourced accent, so nothing exercises the split',
+    )
+  })
+
+  it('the one surface that names accents reads the split, and nothing else slices a scheme (AF-17)', () => {
+    // AF-17 was the first surface ever to print an accent name, and its first
+    // draft printed a colour this project chose under a sentence saying the
+    // sources describe it. The bypass is slicing the scheme directly, so this
+    // refuses that outside liveries.js itself.
+    const band = read(join(web, 'src', 'components', 'LiveryScheme.jsx'))
+    assert.ok(/accentsBySource/.test(band), 'LiveryScheme no longer reads accentsBySource')
+    assert.ok(
+      /no page cited here states/.test(band),
+      'LiveryScheme names a colour this site chose without the clause saying so',
+    )
+    const slicers = sourceFiles(join(web, 'src'), /\.jsx?$/)
+      .filter((file) => rel(file) !== 'src/lib/liveries.js')
+      .filter((file) => /\.scheme\.slice\(/.test(read(file)))
+      .map(rel)
+    assert.deepEqual(slicers, [], 'a surface takes a scheme apart itself instead of going through accentsBySource')
   })
 
   it('no constructor has two entries for one season, and no gap overlaps an entry', () => {
