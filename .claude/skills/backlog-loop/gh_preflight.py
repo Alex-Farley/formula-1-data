@@ -112,8 +112,8 @@ def unauthenticated():
 
     Costs one `gh auth status`, a network call. Every caller is already on
     a failing path bar one: `ci-wait.sh` spends it once per run when no
-    check has registered yet, against the forty-one calls that run makes
-    anyway."""
+    check has registered yet, beside the forty `pr checks` calls that run
+    can make anyway."""
     try:
         r = subprocess.run(["gh", "auth", "status"],
                            capture_output=True, text=True, check=False)
@@ -128,10 +128,10 @@ def unauthenticated():
 
 
 def require():
-    """Exit 2 with the note if `gh` is not even on PATH. This is the free
-    half of the diagnosis; the credential and the version cost a call each
-    and are asked separately - see `too_old` and `unauthenticated`, which
-    `--diagnose` runs in that order."""
+    """Exit 2 with the note if `gh` is not even on PATH. The version and the
+    credential are asked separately - see `too_old`, which is local, and
+    `unauthenticated`, which spends a network call, in the order
+    `--diagnose` runs them."""
     if shutil.which("gh") is None:
         sys.stderr.write(note(MISSING))
         sys.exit(2)
