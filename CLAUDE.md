@@ -182,9 +182,10 @@ stays small. Measured 2026-09-13: that session, not the reviewers, was
   issue under the ID, source and size conventions in `CONTRIBUTING.md`
   (*The queue*), not into a note, a TODO or a second list. A PR lands an
   item with `Closes #n` in its body; nothing else closes one. A trap that
-  cost a session time and that the code gives no warning of goes in
-  `docs/AGENT-NOTES.md` — in the repository precisely so it reaches every
-  machine and account rather than one session's local notes.
+  cost a session time and that the code gives no warning of *also* goes in
+  `docs/AGENT-NOTES.md` — in addition to the issue, never instead of it —
+  because a trap recorded in one session's local notes is met again by every
+  other machine and account.
 - **A fact needs a source before it needs a line of code.** Official FIA,
   Formula 1, team, driver, power-unit or circuit sources first; then the
   classified secondary sources. Never invent a missing value: NULL means

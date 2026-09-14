@@ -9,16 +9,17 @@ It is in the repository rather than in one machine's notes because a trap
 recorded where a single session can read it will be met again by every other
 session, on every other machine and account.
 
-## The queue is GitHub Issues, and nothing else
+## Where the rules are, and why they are not here
 
-There is no backlog file. `docs/LANDED.md` records what landed and what was
-declined *before* the queue moved to Issues on 2026-09-13, and stops there.
-`next.py` in `.claude/skills/backlog-loop/` prints the next item; `file.py`
-files one. The reasoning behind a decision is the comment on its issue, so a
-fresh session reads the issue rather than looking for a document about it.
+The queue, what closes an item, what a source must be: `CLAUDE.md` under
+*Working autonomously*, and `CONTRIBUTING.md` under *The queue*. They are not
+repeated here. That rule has already moved once — `docs/BACKLOG.md` to
+`docs/LANDED.md` to GitHub Issues on 2026-09-13 — and a third copy is the one
+a fourth move would leave behind.
 
-An item can be stale, already landed under another ID, or superseded. Reread
-one against the code as it is now before starting it.
+One thing worth knowing that is not a rule: the reasoning behind a decision is
+the comment on its issue, so read the issue rather than looking for a document
+about it.
 
 ## `git rev-list <ref> -- <path>` counts versions, not commits
 
