@@ -321,7 +321,7 @@ rosso corsa in light (`VD-26`). The hairline grid and the mono label do that
 work now. Border, fill and shadow are otherwise spent sparingly; the radius
 is 3px, because a rounded card says "app" and this says "panel".
 
-## National racing colours, and why not team liveries
+## National racing colours, and team liveries from 2010
 
 A per-constructor livery colour **has no source this project can admit**, and
 the search is documented at the top of `src/lib/racingColours.js`: F1DB has no
@@ -345,8 +345,25 @@ The rest get nothing rather than a guess.
 
 It is never called a team colour in the interface, and **none of it is in
 `f1.db`**: it is presentation metadata, kept in the front end so no unsourced
-value can enter the database. If a licensed, checkable livery set turns up,
-replacing that one file is the whole job.
+value can enter the database.
+
+**From 2010 there is a second map beside it**, `src/lib/liveries.js` (`AF-04`,
+decided 2026-09-13: the front end may carry liveries, the database never).
+What a source *can* establish is which colour a team raced in a season and what
+the team called it — papaya, Aston Martin Racing Green, rosso corsa — and that
+is the fact each entry carries, with the page it was read from and the words it
+was read in: the team's own launch release or brand page first, then
+formula1.com's launch coverage and the Wikipedia car article. The hex is this
+palette's rendering of the named colour, not a measurement, and each entry is a
+`{light, dark}` pair tuned to clear 3:1 on the surfaces it sits on, the way
+`VD-27` tuned the eight national colours. 168 of the 180 constructor-seasons
+from 2010 to 2026 are coloured; the twelve with no source found are declared
+in `LIVERY_GAPS`, and `test/conventions.mjs` holds both lists to `f1.db` so
+every constructor-season is in exactly one. `colourForEntry()` routes by era —
+the national convention to 1967, nothing for 1968–2009 (a declared gap, drawn
+in the neutral palette), the livery from 2010 — and paints the standings and
+classification tables, the title-race chart, the calendar strip's winner bar,
+and the band on a driver's and a constructor's page.
 
 One thing the module has to do on the way: the register spells countries
 inconsistently — five constructors are "British" where fifty-three are "United

@@ -31,7 +31,7 @@ export const RACE = `
 
 export const ENTRIES = `
   SELECT e.*, d.full_name AS driver, d.nationality, k.name AS constructor,
-         ch.name AS chassis
+         k.country AS constructor_country, ch.name AS chassis
     FROM race_entries e
     JOIN races r         ON r.id = e.race_id
     LEFT JOIN drivers d  ON d.id = e.driver_id
@@ -41,7 +41,7 @@ export const ENTRIES = `
 `
 
 export const QUALIFYING = `
-  SELECT q.*, d.full_name AS driver, k.name AS constructor
+  SELECT q.*, d.full_name AS driver, k.name AS constructor, k.country AS constructor_country
     FROM qualifying q
     JOIN races r         ON r.id = q.race_id
     LEFT JOIN drivers d  ON d.id = q.driver_id
@@ -51,7 +51,7 @@ export const QUALIFYING = `
 `
 
 export const SPRINT = `
-  SELECT s.*, d.full_name AS driver, k.name AS constructor
+  SELECT s.*, d.full_name AS driver, k.name AS constructor, k.country AS constructor_country
     FROM sprint_results s
     JOIN races r         ON r.id = s.race_id
     LEFT JOIN drivers d  ON d.id = s.driver_id

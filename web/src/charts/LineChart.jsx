@@ -13,7 +13,15 @@ const M = { top: 14, right: 58, bottom: 26, left: 44 }
  * right edge the labels would collide, so past three series this chart is the
  * wrong picture and the caller should facet instead: three is the cap the
  * palette validates to anyway.
+ *
+ * A series may carry `colour` - a {light, dark} pair from lib/liveries.js -
+ * and `dash`. With a colour the <g> wears the pair as custom properties and
+ * the strokes read --livery, which styles/app.css resolves per theme; without
+ * one the series takes its slot in the neutral palette. `dash` is the second
+ * driver of one team: the same colour, a dashed stroke.
  */
+const seriesStyle = (s) => (s.colour ? { '--livery-light': s.colour.light, '--livery-dark': s.colour.dark } : undefined)
+const seriesPaint = (s, i) => (s.colour ? 'var(--livery)' : seriesColour(i))
 export default function LineChart({
   series,
   height = 240,
@@ -118,18 +126,19 @@ export default function LineChart({
           const points = [...s.points].sort((a, b) => a.x - b.x)
           const last = points[points.length - 1]
           return (
-            <g key={s.name}>
+            <g key={s.name} className={s.colour ? 'livery-series' : undefined} style={seriesStyle(s)}>
               <path
                 d={points.map((p, j) => `${j === 0 ? 'M' : 'L'}${x(p.x).toFixed(1)},${y(p.y).toFixed(1)}`).join(' ')}
                 fill="none"
-                stroke={seriesColour(i)}
+                stroke={seriesPaint(s, i)}
                 strokeWidth="2"
+                strokeDasharray={s.dash ? '6 4' : undefined}
                 strokeLinejoin="round"
                 strokeLinecap="round"
               />
               {last && (
                 <>
-                  <circle className="mark-ring" cx={x(last.x)} cy={y(last.y)} r="4" fill={seriesColour(i)} />
+                  <circle className="mark-ring" cx={x(last.x)} cy={y(last.y)} r="4" fill={seriesPaint(s, i)} />
                   {labelled.has(i) && (
                     <text className="value-text" x={x(last.x) + 9} y={y(last.y)} dominantBaseline="middle">
                       {format(last.y)}
@@ -147,7 +156,7 @@ export default function LineChart({
                       cx={x(p.x)}
                       cy={y(p.y)}
                       r="4.5"
-                      fill={seriesColour(i)}
+                      fill={seriesPaint(s, i)}
                     />
                   ))}
             </g>
@@ -167,7 +176,11 @@ export default function LineChart({
             if (!point) return null
             return (
               <span className="row" key={s.name}>
-                <i style={{ background: seriesColour(i) }} aria-hidden="true" />
+                <i
+                  className={s.colour ? `livery-series${s.dash ? ' dashed' : ''}` : undefined}
+                  style={s.colour ? { ...seriesStyle(s), background: s.dash ? 'transparent' : 'var(--livery)', boxShadow: s.dash ? 'inset 0 0 0 2px var(--livery)' : undefined } : { background: seriesColour(i) }}
+                  aria-hidden="true"
+                />
                 {series.length > 1 && `${s.name} `}
                 <b style={{ display: 'inline', color: 'var(--ink)' }}>{format(point.y)}</b>
               </span>

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { winnerColour } from '../lib/liveries.js'
 import {
   OUTLINE_BY,
   OUTLINE_RULE,
@@ -92,6 +93,7 @@ export function OutlineStrip({ year, calendar }) {
           <li key={round.round} data-state={states[i]}>
             <Link to={`/races/${year}/${round.round}`}>
               {round.outline ? <Outline path={round.outline} decorative /> : <span className="outline outline-none" aria-hidden="true" />}
+              <WinnerMark round={round} year={year} />
               <b>R{round.round}</b>
               <span>{roundShortName(round.name_used)}</span>
               <small>{STATE_WORDS[states[i]]}</small>
@@ -104,4 +106,16 @@ export function OutlineStrip({ year, calendar }) {
       </p>
     </div>
   )
+}
+
+/**
+ * The winner's colour under a run round: the winning constructor's livery
+ * from 2010, its national racing colour before 1968, nothing between and
+ * nothing where the round is unrun or the colour unknown (AF-04). Decorative:
+ * the table beneath names the winner and the car, and the tooltip names the
+ * claim. scripts/prerender.js prints the same bar.
+ */
+export function WinnerMark({ round, year }) {
+  const colour = winnerColour(round, year)
+  return colour ? <i className="livery" style={colour.style} title={colour.title} aria-hidden="true" /> : null
 }

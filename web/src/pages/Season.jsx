@@ -9,6 +9,8 @@ import Figure from '../charts/Figure.jsx'
 import LineChart from '../charts/LineChart.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { points as fmtPoints, number } from '../lib/format.js'
+import { colourForEntry } from '../lib/liveries.js'
+import LiveryMark from '../components/LiveryMark.jsx'
 import { NOT_YET_RUN, SPRINT } from '../lib/site.js'
 import {
   CALENDAR,
@@ -18,6 +20,7 @@ import {
   CONSTRUCTORS_PAIR_FOOTER,
   DRIVERS_FINAL_COLUMNS,
   DRIVERS_FINAL_FOOTER,
+  DRIVER_TEAMS,
   ENTRANTS,
   ENTRANT_COLUMNS,
   ENTRANTS_FOOTER,
@@ -31,6 +34,7 @@ import {
   progressionNote,
   standingsHeading,
   stillRunning,
+  teamsByDriver,
   titleHeading,
 } from '../queries/season.js'
 
@@ -69,23 +73,46 @@ const calendarRenders = (year) => ({
   },
 })
 
-const DRIVERS_APP = {
+/*
+ * The colour mark beside a name in the two standings tables: the team's
+ * livery from 2010, the national racing colour before 1968, nothing between
+ * (lib/liveries.js). A driver's mark is their last team of the season, from
+ * DRIVER_TEAMS; the tooltip names every team where there was more than one.
+ */
+const driversRenders = (year, teams) => ({
   entity: {
-    render: (name, row) => (row.entity_id ? <Link to={`/drivers/${row.entity_id}`}>{name}</Link> : cell(name)),
+    render: (name, row) => {
+      const raced = teams.get(row.entity_id) ?? []
+      const last = raced[0]
+      const colour = last
+        ? colourForEntry({ constructorId: last.constructor_id, country: last.country, year, team: last.constructor })
+        : null
+      const also = raced.length > 1 ? ` (earlier in the season: ${raced.slice(1).map((t) => t.constructor).join(', ')})` : ''
+      return (
+        <>
+          <LiveryMark colour={colour} title={colour ? `${colour.title}${also}` : undefined} />
+          {row.entity_id ? <Link to={`/drivers/${row.entity_id}`}>{name}</Link> : cell(name)}
+        </>
+      )
+    },
   },
-}
+})
 
-const CONSTRUCTORS_APP = {
+const constructorsRenders = (year) => ({
   entity: {
-    render: (name, row) => (
-      <>
-        {row.entity_id ? <Link to={`/constructors/${row.entity_id}`}>{name}</Link> : cell(name)}
-        {row.engine_id ? ' ' : ''}
-        {row.engine_id ? <span className="tag">{row.engine_id}</span> : null}
-      </>
-    ),
+    render: (name, row) => {
+      const colour = colourForEntry({ constructorId: row.entity_id, country: row.constructor_country, year, team: name })
+      return (
+        <>
+          <LiveryMark colour={colour} />
+          {row.entity_id ? <Link to={`/constructors/${row.entity_id}`}>{name}</Link> : cell(name)}
+          {row.engine_id ? ' ' : ''}
+          {row.engine_id ? <span className="tag">{row.engine_id}</span> : null}
+        </>
+      )
+    },
   },
-}
+})
 
 const ENTRANTS_APP = {
   constructor: {
@@ -111,6 +138,7 @@ export default function Season() {
     neighbours: [NEIGHBOURS, [Number(year)]],
     grid: [GRID, [Number(year)]],
     sessions: [SEASON_SESSIONS, [Number(year)]],
+    teams: [DRIVER_TEAMS, [Number(year)]],
   })
 
   return (
@@ -137,6 +165,7 @@ function SeasonBody({ year, season, data }) {
   const entrants = rows(data, 'entrants')
   const neighbours = data.neighbours.rows[0] ?? {}
   const grid = data.grid.rows[0] ?? null
+  const teams = useMemo(() => teamsByDriver(rows(data, 'teams')), [data])
   const now = Date.now()
   const upcoming = nextSession(data.sessions.rows, now)
 
@@ -163,16 +192,37 @@ function SeasonBody({ year, season, data }) {
    */
   const progression = useMemo(() => {
     const contenders = driversFinal.slice(0, 3).filter((d) => d.entity_id)
-    return contenders.map((driver) => ({
-      name: driver.entity,
-      // STANDINGS holds the running table only; the season's end is FINAL,
-      // and drawing it here would put the final total at round zero.
-      points: standings
-        .filter((r) => r.table_type === 'drivers' && r.entity_id === driver.entity_id)
-        .sort((a, b) => a.after_round - b.after_round)
-        .map((r) => ({ x: r.after_round, y: r.points })),
-    }))
-  }, [driversFinal, standings])
+    // Each line in its driver's team colour where the season has one (AF-04):
+    // the livery from 2010, the national colour before 1968, the neutral
+    // series palette between and wherever a colour is missing. Two drivers
+    // of one team share the colour and the second is dashed. A driver who
+    // changed teams wears the one they finished with.
+    const seen = new Set()
+    return contenders.map((driver) => {
+      const last = (teams.get(driver.entity_id) ?? [])[0]
+      const colour = last
+        ? colourForEntry({ constructorId: last.constructor_id, country: last.country, year, team: last.constructor })
+        : null
+      const key = colour ? `${last.constructor_id}` : null
+      const dash = key !== null && seen.has(key)
+      if (key !== null) seen.add(key)
+      return {
+        name: driver.entity,
+        colour,
+        dash,
+        // STANDINGS holds the running table only; the season's end is FINAL,
+        // and drawing it here would put the final total at round zero.
+        points: standings
+          .filter((r) => r.table_type === 'drivers' && r.entity_id === driver.entity_id)
+          .sort((a, b) => a.after_round - b.after_round)
+          .map((r) => ({ x: r.after_round, y: r.points })),
+      }
+    })
+  }, [driversFinal, standings, teams, year])
+  // The chart wears liveries only when every contender has one: a mix of
+  // one papaya line and two neutral blues would read as a claim about the
+  // blues.
+  const inColour = progression.length > 0 && progression.every((s) => s.colour)
 
   const run = calendar.filter((r) => r.status === 'completed').length
   const ambiguous = constructorsFinal.some((r) => r.engine_id)
@@ -292,7 +342,7 @@ function SeasonBody({ year, season, data }) {
           <Figure
             title={`Championship points after each round, ${year}`}
             note={progressionNote(live)}
-            legend={progression.map((s) => s.name)}
+            legend={progression.map((s) => ({ name: s.name, colour: inColour ? s.colour : null, dash: inColour && s.dash }))}
             table={{
               rows: progression.flatMap((s) => s.points.map((p) => ({ driver: s.name, round: p.x, points: p.y }))),
               columns: [
@@ -303,7 +353,12 @@ function SeasonBody({ year, season, data }) {
             }}
           >
             <LineChart
-              series={progression.map((s) => ({ name: s.name, points: s.points }))}
+              series={progression.map((s) => ({
+                name: s.name,
+                points: s.points,
+                colour: inColour ? s.colour : null,
+                dash: inColour && s.dash,
+              }))}
               format={(v) => fmtPoints(v)}
               formatX={(v) => `R${Math.round(v)}`}
               height={250}
@@ -333,7 +388,7 @@ function SeasonBody({ year, season, data }) {
             rowKey={(row) => row.entity_id ?? row.entity}
             sortable={false}
             page={40}
-            columns={withRenders(DRIVERS_FINAL_COLUMNS, DRIVERS_APP)}
+            columns={withRenders(DRIVERS_FINAL_COLUMNS, driversRenders(year, teams))}
             footer={DRIVERS_FINAL_FOOTER}
           />
         </Section>
@@ -349,7 +404,7 @@ function SeasonBody({ year, season, data }) {
               rowKey={(row) => `${row.entity_id}-${row.engine_id ?? ''}`}
               sortable={false}
               page={40}
-              columns={withRenders(CONSTRUCTORS_FINAL_COLUMNS, CONSTRUCTORS_APP)}
+              columns={withRenders(CONSTRUCTORS_FINAL_COLUMNS, constructorsRenders(year))}
               footer={ambiguous ? CONSTRUCTORS_PAIR_FOOTER : undefined}
             />
           )}

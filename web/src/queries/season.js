@@ -45,6 +45,8 @@ export const CALENDAR = `
            WHERE e.race_id = r.id AND e.finish_position = 1 LIMIT 1) AS winning_team,
          (SELECT e.constructor_id FROM race_entries e
            WHERE e.race_id = r.id AND e.finish_position = 1 LIMIT 1) AS winning_team_id,
+         (SELECT k.country FROM race_entries e JOIN constructors k ON k.id = e.constructor_id
+           WHERE e.race_id = r.id AND e.finish_position = 1 LIMIT 1) AS winning_team_country,
          (SELECT group_concat(d.full_name, ' / ') FROM race_entries e
             JOIN drivers d ON d.id = e.driver_id
            WHERE e.race_id = r.id AND e.pole = 1)                 AS pole,
@@ -73,12 +75,42 @@ export const STANDINGS = `
  * says why in schema.sql. A position nobody established sorts last.
  */
 export const FINAL = `
-  SELECT id, year, table_type, position, position_text, entity, entity_id,
-         engine_id, team, points, source
-    FROM v_standings_final
-   WHERE year = ?
-   ORDER BY table_type, position IS NULL, position, points DESC
+  SELECT f.id, f.year, f.table_type, f.position, f.position_text, f.entity, f.entity_id,
+         f.engine_id, f.team, f.points, f.source,
+         k.country AS constructor_country
+    FROM v_standings_final f
+    LEFT JOIN constructors k ON f.table_type = 'constructors' AND k.id = f.entity_id
+   WHERE f.year = ?
+   ORDER BY f.table_type, f.position IS NULL, f.position, f.points DESC
 `
+
+/**
+ * Who each driver raced for that season, latest team first, for the colour
+ * mark beside a name in the drivers' table (AF-04). A standings row names a
+ * `team` as text; the constructor id it needs is in the race entries. A
+ * driver who changed teams has two rows here and the mark takes the first -
+ * the team they finished the season with - and its tooltip names both.
+ */
+export const DRIVER_TEAMS = `
+  SELECT e.driver_id, e.constructor_id, k.name AS constructor, k.country,
+         MAX(r.round) AS last_round, COUNT(*) AS entries
+    FROM race_entries e
+    JOIN races r ON r.id = e.race_id
+    LEFT JOIN constructors k ON k.id = e.constructor_id
+   WHERE r.year = ? AND e.driver_id IS NOT NULL AND e.constructor_id IS NOT NULL
+   GROUP BY e.driver_id, e.constructor_id
+   ORDER BY e.driver_id, last_round DESC
+`
+
+/** DRIVER_TEAMS rows grouped by driver, in the query's order (latest team first). */
+export function teamsByDriver(rows) {
+  const map = new Map()
+  for (const row of rows) {
+    if (!map.has(row.driver_id)) map.set(row.driver_id, [])
+    map.get(row.driver_id).push(row)
+  }
+  return map
+}
 
 export const NEIGHBOURS = `
   SELECT (SELECT MAX(year) FROM seasons WHERE year < ?1) AS previous,
