@@ -2115,18 +2115,65 @@ input[type='range']:disabled::-webkit-slider-thumb {
   color: var(--ink-faint);
 }
 
-/* --------------------------------------------------- national racing colour */
+/* ------------------------------------------- racing colours and liveries */
 
 /* A constructor's identity mark. Never alone: it always sits beside the name,
-   and its tooltip names the colour, because the colour is a historical
-   convention rather than a measurement. */
+   and its tooltip names the colour and the claim - a national convention
+   before 1968, the team's own livery from 2010 (lib/liveries.js) - because
+   neither is a measurement. The element carries a {light, dark} pair as two
+   custom properties and these rules pick one per theme, the way tokens.css
+   does for --racing-*: no element wears one hex for both. With neither set,
+   the register's placeholder grey; `.livery-none` is the same width and
+   transparent, for a table column where a missing colour must keep the
+   names aligned without pretending to be one. */
 .livery {
   display: inline-block;
   width: 3px;
   height: 1.05em;
   margin-right: 9px;
   vertical-align: -2px;
-  background: var(--rule-strong);
+  --livery: var(--livery-light);
+  background: var(--livery, var(--rule-strong));
+}
+
+.livery-none {
+  background: transparent;
+}
+
+/* A chart series in a livery: the <g> carries the pair, the strokes and
+   fills inside read --livery. */
+.livery-series {
+  --livery: var(--livery-light);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme='light'])) .livery,
+  :root:where(:not([data-theme='light'])) .livery-series {
+    --livery: var(--livery-dark);
+  }
+}
+
+:root[data-theme='dark'] .livery,
+:root[data-theme='dark'] .livery-series {
+  --livery: var(--livery-dark);
+}
+
+/* The second driver of one team on the title-race chart: the same colour,
+   dashed, and the legend square outlined rather than filled, so two lines
+   in papaya are still two lines. */
+.legend i.dashed {
+  background: transparent !important;
+  box-shadow: inset 0 0 0 2px var(--livery, var(--ink-faint));
+}
+
+/* The winner's colour under a round in the calendar strip: a short bar
+   between the outline and the round number, in the constructor's livery or
+   national colour; nothing where the round is unrun or the colour unknown. */
+.outline-strip .livery {
+  display: block;
+  width: 26px;
+  height: 3px;
+  margin: 6px 0 0;
 }
 
 .livery-band {

@@ -87,7 +87,7 @@ export const RESULTS = `
   SELECT r.year, r.round, r.name_used, r.circuit_id, c.name AS circuit,
          e.grid_text, e.grid, e.position_text, e.finish_position, e.status,
          e.points, e.fastest_lap, e.shared_drive, e.laps_completed,
-         k.id AS constructor_id, k.name AS constructor,
+         k.id AS constructor_id, k.name AS constructor, k.country AS constructor_country,
          e.chassis_id, ch.name AS chassis
     FROM race_entries e
     JOIN races r ON r.id = e.race_id

@@ -8,6 +8,7 @@ import ColumnChart from '../charts/ColumnChart.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { missing, number, span, yearList } from '../lib/format.js'
 import { colourFor } from '../lib/racingColours.js'
+import { LIVERY_ERA, liveryClaim, liveryFor, liveryStyle, sourceHost } from '../lib/liveries.js'
 
 import {
   BY_SEASON,
@@ -112,6 +113,11 @@ function ConstructorBody({ constructor, data }) {
   const lastSeason = bySeason[bySeason.length - 1] ?? null
   const engineSplit = standings.some((s) => s.engine_id)
   const colour = colourFor(constructor.country)
+  // The team's own colour where the record has it: the livery of the last
+  // season it raced, 2010 onwards (lib/liveries.js). The national convention
+  // stays the aside for everyone else - including a 2010+ season this map
+  // has no source for, where the sentence says which convention it shows.
+  const livery = lastSeason && lastSeason.year >= LIVERY_ERA ? liveryFor(constructor.id, lastSeason.year) : null
 
   return (
     <Page
@@ -120,16 +126,28 @@ function ConstructorBody({ constructor, data }) {
       back={{ to: '/constructors', label: 'The register' }}
       lede={constructor.notes}
       aside={
-        colour && (
+        livery ? (
           <p className="livery-band" style={{ marginTop: 14 }}>
-            <i style={{ background: colour.css }} />
-            {colour.name}
+            <i className="livery" style={liveryStyle(livery)} />
+            {livery.name}
             <span>
-              {constructor.country}'s international racing colour, under the convention that
-              painted a car for the country that entered it until sponsor liveries took over around
-              1968. Not this team's own livery.
+              The colour {constructor.name} raced in {lastSeason.year}, {liveryClaim(livery)}. Read
+              from {[...new Set(livery.source.map(sourceHost))].join(' and ')}; the shade here is
+              this site's rendering of it, not a measurement.
             </span>
           </p>
+        ) : (
+          colour && (
+            <p className="livery-band" style={{ marginTop: 14 }}>
+              <i className="livery" style={{ '--livery-light': colour.css, '--livery-dark': colour.css }} />
+              {colour.name}
+              <span>
+                {constructor.country}'s international racing colour, under the convention that
+                painted a car for the country that entered it until sponsor liveries took over around
+                1968. Not this team's own livery.
+              </span>
+            </p>
+          )
         )
       }
     >

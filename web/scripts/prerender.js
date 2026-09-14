@@ -66,6 +66,7 @@ import {
   titled,
 } from '../src/lib/site.js'
 import { EXPLAINED_FOOTER, OPEN_FOOTER, allExplained } from '../src/lib/disagreement.js'
+import { winnerColour } from '../src/lib/liveries.js'
 import { RACE_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE } from '../src/queries/sessions.js'
 // The pages' own queries and column lists (PD-02). A page and this script
 // read the same module, so the static table is the app's table by
@@ -360,6 +361,15 @@ const outlineCard = (path, circuit, layoutId, caption, rule = false) =>
         rule ? `<br><span class="faint">${esc(OUTLINE_RULE)}</span>` : ''
       }</figcaption></figure>`
     : ''
+// The winner's colour bar under a run round, as components/Outline.jsx draws
+// it: the same {light, dark} pair on the same element, so the static strip
+// and the app's agree (AF-04).
+const winnerMark = (round, year) => {
+  const colour = winnerColour(round, year)
+  return colour
+    ? `<i class="livery" style="--livery-light:${esc(colour.light)};--livery-dark:${esc(colour.dark)}" title="${esc(colour.title)}" aria-hidden="true"></i>`
+    : ''
+}
 const outlineStrip = (year, calendar) => {
   if (!calendar.some((round) => round.outline)) return ''
   const states = roundStates(calendar)
@@ -368,7 +378,7 @@ const outlineStrip = (year, calendar) => {
       (round, i) =>
         `<li data-state="${states[i]}"><a href="${esc(href(`races/${year}/${round.round}`))}">${
           round.outline ? outlineSvg(round.outline, null) : '<span class="outline outline-none" aria-hidden="true"></span>'
-        }<b>R${round.round}</b><span>${esc(roundShortName(round.name_used))}</span><small>${esc(STATE_WORDS[states[i]])}</small></a></li>`,
+        }${winnerMark(round, year)}<b>R${round.round}</b><span>${esc(roundShortName(round.name_used))}</span><small>${esc(STATE_WORDS[states[i]])}</small></a></li>`,
     )
     .join('')}</ol><p class="faint outline-strip-note">${esc(OUTLINE_RULE)} ${esc(OUTLINE_BY)}.</p></div>`
 }

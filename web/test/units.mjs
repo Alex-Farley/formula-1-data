@@ -48,6 +48,8 @@ import { driverName, fastestLapMark, inClassificationOrder, outcome, position, r
 import { raceWinnerHere } from '../src/queries/circuit.js'
 import { constructorSeasons } from '../src/queries/constructor.js'
 import { NOT_YET_RUN } from '../src/lib/site.js'
+import { LIVERY_ERA, SPONSOR_ERA, colourForEntry, inColourEra, liveryFor, winnerColour } from '../src/lib/liveries.js'
+import { teamsByDriver } from '../src/queries/season.js'
 import { NEXT, RUN, TO_COME, outlineCaption, outlineFigures, roundShortName, roundStates } from '../src/lib/outline.js'
 import { attribution, canShow, fileTitle, thumbUrl } from '../src/lib/commons.js'
 import { recordColumns, tiersOf } from '../src/queries/records.js'
@@ -684,5 +686,80 @@ describe('the circuit outlines (AF-03)', () => {
     // A race page's card: no years, no rounds.
     assert.equal(outlineCaption({ f1db_layout_id: 'sepang-1', length_km: 5.543, turns: 15 }), 'F1DB layout sepang-1 · 5.543 km · 15 turns, F1DB’s figures')
     assert.equal(outlineCaption({ f1db_layout_id: 'x-1', length_km: null, turns: null }), 'F1DB layout x-1')
+  })
+})
+
+
+describe('colourForEntry routes a constructor-season by era (AF-04)', () => {
+  // Three eras, one call. Before 1968 the national convention; 1968-2009 a
+  // declared gap that returns nothing rather than a guess; from 2010 the
+  // livery map, or nothing where LIVERY_GAPS says so. Each branch is a claim
+  // the tooltip has to name, so the kind and the title are checked too.
+  it('names the constants the header describes', () => {
+    assert.equal(SPONSOR_ERA, 1968)
+    assert.equal(LIVERY_ERA, 2010)
+  })
+  it('a 1955 Ferrari wears rosso corsa as a national colour, through the --racing-* token', () => {
+    const c = colourForEntry({ constructorId: 'ferrari', country: 'Italy', year: 1955, team: 'Ferrari' })
+    assert.equal(c.kind, 'national')
+    assert.equal(c.name, 'Rosso corsa')
+    assert.equal(c.light, 'var(--racing-it)')
+    assert.equal(c.style['--livery-dark'], 'var(--racing-it)')
+    assert.match(c.title, /racing colour of Italy/)
+  })
+  it('a 1955 constructor from a country without a convention gets nothing', () => {
+    assert.equal(colourForEntry({ constructorId: 'x', country: 'Argentina', year: 1955 }), null)
+  })
+  it('1968-2009 is nothing, whatever the country or constructor', () => {
+    assert.equal(colourForEntry({ constructorId: 'ferrari', country: 'Italy', year: 1968 }), null)
+    assert.equal(colourForEntry({ constructorId: 'mclaren', country: 'United Kingdom', year: 1988 }), null)
+    assert.equal(colourForEntry({ constructorId: 'ferrari', country: 'Italy', year: 2009 }), null)
+  })
+  it('from 2010 the livery, by constructor and season, named as the team names it', () => {
+    const c = colourForEntry({ constructorId: 'mclaren', country: 'United Kingdom', year: 2026, team: 'McLaren' })
+    assert.equal(c.kind, 'livery')
+    assert.equal(c.name, 'Papaya')
+    assert.match(c.light, /^#[0-9a-f]{6}$/)
+    assert.match(c.title, /McLaren raced in 2026, as the team names it/)
+    assert.equal(c.named, true)
+    const w = colourForEntry({ constructorId: 'haas', country: 'United States', year: 2026, team: 'Haas F1 Team' })
+    assert.equal(w.named, false)
+    assert.match(w.title, /as its sources describe it/)
+    assert.equal(liveryFor('mclaren', 2017).name, 'Tarocco orange')
+    assert.equal(liveryFor('mclaren', 2014).name, 'Chrome')
+    assert.equal(liveryFor('red-bull', 2026).name, 'Heritage white')
+    assert.equal(liveryFor('red-bull', 2025).name, 'Matte navy')
+  })
+  it('a 2010+ season with no source is nothing, not the national colour', () => {
+    assert.equal(colourForEntry({ constructorId: 'virgin', country: 'United Kingdom', year: 2012 }), null)
+    assert.equal(liveryFor('virgin', 2012), null)
+    assert.equal(liveryFor('nobody', 2020), null)
+    assert.equal(liveryFor('ferrari', Number.NaN), null)
+  })
+  it('a spacer is drawn only in a season some row of which could carry a colour', () => {
+    assert.equal(inColourEra(1955), true)
+    assert.equal(inColourEra(1967), true)
+    assert.equal(inColourEra(1968), false)
+    assert.equal(inColourEra(2009), false)
+    assert.equal(inColourEra(2010), true)
+    assert.equal(inColourEra(undefined), false)
+  })
+  it('the strip marks a run round with a recorded winner and nothing else', () => {
+    const run = { status: 'completed', winning_team_id: 'ferrari', winning_team_country: 'Italy', winning_team: 'Ferrari' }
+    assert.equal(winnerColour(run, 2025).name, 'Rosso corsa')
+    assert.equal(winnerColour(run, 1955).kind, 'national')
+    assert.equal(winnerColour(run, 1990), null)
+    assert.equal(winnerColour({ ...run, status: 'scheduled' }, 2025), null)
+    assert.equal(winnerColour({ ...run, winning_team_id: null }, 2025), null)
+  })
+  it('teamsByDriver keeps the query order: the team a driver finished the season with comes first', () => {
+    const map = teamsByDriver([
+      { driver_id: 'a', constructor_id: 'red-bull', last_round: 24 },
+      { driver_id: 'a', constructor_id: 'racing-bulls', last_round: 2 },
+      { driver_id: 'b', constructor_id: 'ferrari', last_round: 24 },
+    ])
+    assert.deepEqual(map.get('a').map((t) => t.constructor_id), ['red-bull', 'racing-bulls'])
+    assert.deepEqual(map.get('b').map((t) => t.constructor_id), ['ferrari'])
+    assert.equal(map.get('c'), undefined)
   })
 })

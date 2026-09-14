@@ -29,6 +29,8 @@ import {
   qualifyingColumns,
   railOf,
 } from '../queries/race.js'
+import { colourForEntry } from '../lib/liveries.js'
+import LiveryMark from '../components/LiveryMark.jsx'
 
 /*
  * The React renders for the columns queries/race.js defines — the links, the
@@ -44,16 +46,30 @@ const driverLink = {
   render: (name, row) =>
     row.driver_id ? <Link to={`/drivers/${row.driver_id}`}>{name ?? row.driver_id}</Link> : cell(name),
 }
-const constructorLink = {
-  render: (name, row) =>
-    row.constructor_id ? <Link to={`/constructors/${row.constructor_id}`}>{name}</Link> : cell(name),
-}
+/*
+ * The constructor's colour mark beside its name (AF-04): the livery from
+ * 2010, the national racing colour before 1968, a transparent spacer between
+ * and wherever the colour is unknown - so the names stay aligned and a grey
+ * bar never reads as a colour. The year is the race's, which is why these
+ * renders are built per page rather than once.
+ */
+const constructorLink = (year) => ({
+  render: (name, row) => (
+    <>
+      <LiveryMark
+        colour={colourForEntry({ constructorId: row.constructor_id, country: row.constructor_country, year, team: name })}
+        year={year}
+      />
+      {row.constructor_id ? <Link to={`/constructors/${row.constructor_id}`}>{name}</Link> : cell(name)}
+    </>
+  ),
+})
 const outTag = {
   render: (value, row) =>
     finished(value, row.finish_position) ? 'Finished' : missing(value) ? cell(value) : <span className="tag">{value}</span>,
 }
 
-const CLASSIFICATION_APP = {
+const classificationRenders = (year) => ({
   rail: RAIL,
   position_text: {
     render: (_, row) => {
@@ -73,8 +89,15 @@ const CLASSIFICATION_APP = {
     ),
   },
   constructor: {
-    render: (name, row) =>
-      row.constructor_id ? <Link to={`/constructors/${row.constructor_id}`}>{name}</Link> : cell(row.entrant ?? name),
+    render: (name, row) => (
+      <>
+        <LiveryMark
+          colour={colourForEntry({ constructorId: row.constructor_id, country: row.constructor_country, year, team: name })}
+          year={year}
+        />
+        {row.constructor_id ? <Link to={`/constructors/${row.constructor_id}`}>{name}</Link> : cell(row.entrant ?? name)}
+      </>
+    ),
   },
   chassis: {
     render: (name, row) =>
@@ -92,11 +115,11 @@ const CLASSIFICATION_APP = {
         ''
       ),
   },
-}
+})
 
-const QUALIFYING_APP = { driver: driverLink, constructor: constructorLink }
+const qualifyingRenders = (year) => ({ driver: driverLink, constructor: constructorLink(year) })
 
-const SPRINT_APP = { rail: RAIL, driver: driverLink, constructor: constructorLink, status: outTag }
+const sprintRenders = (year) => ({ rail: RAIL, driver: driverLink, constructor: constructorLink(year), status: outTag })
 
 const PITS_APP = {
   driver: {
@@ -318,7 +341,7 @@ function RaceBody({ race, data, year, round }) {
             sortable={false}
             page={60}
             highlight={(row) => row.finish_position === 1}
-            columns={withRenders(CLASSIFICATION_COLUMNS, CLASSIFICATION_APP)}
+            columns={withRenders(CLASSIFICATION_COLUMNS, classificationRenders(year))}
             footer={CLASSIFICATION_FOOTER}
           />
         </Section>
@@ -331,7 +354,7 @@ function RaceBody({ race, data, year, round }) {
             rowKey={(row) => row.id}
             sortable={false}
             page={60}
-            columns={withRenders(qualifyingColumns(qualifying), QUALIFYING_APP)}
+            columns={withRenders(qualifyingColumns(qualifying), qualifyingRenders(year))}
             footer={QUALIFYING_FOOTER}
           />
         </Section>
@@ -344,7 +367,7 @@ function RaceBody({ race, data, year, round }) {
             rowKey={(row) => row.id}
             sortable={false}
             page={40}
-            columns={withRenders(SPRINT_COLUMNS, SPRINT_APP)}
+            columns={withRenders(SPRINT_COLUMNS, sprintRenders(year))}
             footer={SPRINT_FOOTER}
           />
         </Section>

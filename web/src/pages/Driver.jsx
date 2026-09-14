@@ -9,6 +9,8 @@ import DotPlot from '../charts/DotPlot.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { EMPTY, missing, points as fmtPoints, result } from '../lib/format.js'
 import { ENTRIES_NOTE } from '../lib/site.js'
+import { colourForEntry } from '../lib/liveries.js'
+import { canonicalCountry } from '../lib/racingColours.js'
 import {
   BY_SEASON,
   DERIVED,
@@ -100,6 +102,18 @@ function DriverBody({ driver, data }) {
   // The team a reader is most likely to want next is the one they drove for
   // last, and the season worth offering is the one they won most in.
   const lastTeam = results.find((row) => row.constructor_id)
+  // The stripe in the header: the colour of the team the driver raced for
+  // last, in the season they last raced for it - the livery from 2010, the
+  // national convention before 1968, nothing between (AF-04). RESULTS is
+  // newest first, so the first row with a constructor is that team.
+  const teamColour = lastTeam
+    ? colourForEntry({
+        constructorId: lastTeam.constructor_id,
+        country: lastTeam.constructor_country,
+        year: lastTeam.year,
+        team: lastTeam.constructor,
+      })
+    : null
   const bestSeason = useMemo(
     () =>
       [...bySeason].sort(
@@ -117,6 +131,19 @@ function DriverBody({ driver, data }) {
       title={driver.full_name}
       back={{ to: '/drivers', label: 'The register' }}
       lede={driver.notes}
+      aside={
+        teamColour && (
+          <p className="livery-band" style={{ marginTop: 14 }}>
+            <i className="livery" style={teamColour.style} />
+            {teamColour.name}
+            <span>
+              {teamColour.kind === 'livery'
+                ? `The colour ${lastTeam.constructor} raced in ${lastTeam.year}, ${teamColour.claim} - the last team on this record.`
+                : `${canonicalCountry(lastTeam.constructor_country)}'s international racing colour, under the convention that painted a car for the country that entered it, as it stood when ${lastTeam.constructor} raced in ${lastTeam.year}. Not the team's own livery.`}
+            </span>
+          </p>
+        )
+      }
     >
       <Section>
         <Stats items={strip(driver, derived)} />

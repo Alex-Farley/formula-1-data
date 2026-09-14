@@ -27,6 +27,8 @@ import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { COLOURS } from '../src/lib/racingColours.js'
+import { LIVERIES, LIVERY_ERA, LIVERY_GAPS } from '../src/lib/liveries.js'
+import { DatabaseSync } from 'node:sqlite'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const web = join(here, '..')
@@ -227,6 +229,114 @@ describe('a racing colour is a pair, one per theme (VD-27)', () => {
   it('no swatch carries a hex of its own', () => {
     const offenders = sourceFiles(join(web, 'src'), /\.jsx?$/)
       .filter((file) => /colour\.hex\b/.test(read(file)))
+      .map(rel)
+    assert.deepEqual(offenders, [])
+  })
+})
+
+describe('a livery is a sourced pair, one per theme, and every 2010+ constructor-season is placed (AF-04)', () => {
+  // lib/liveries.js is the second colour map: a team's own colour for each
+  // season from 2010, beside the national convention. Its header says what
+  // is a fact (the named colour, read from a source) and what is not (the
+  // hex, this palette's rendering, tuned to 3:1). This holds the file to
+  // both halves: every entry names its source and what it said, every pair
+  // clears the same surfaces the national colours do, no two spans overlap,
+  // and - against f1.db itself - every constructor-season with race entries
+  // from 2010 is either coloured or declared a gap, never both, never
+  // neither. A span that quietly covers a season nobody sourced, or a gap
+  // that stays declared after someone fills it, fails here.
+  const css = read(join(web, 'src', 'styles', 'tokens.css'))
+  const blocks = {
+    light: css.slice(0, css.indexOf('@media (prefers-color-scheme: dark)')),
+    stampedDark: css.slice(css.indexOf(":root[data-theme='dark']")),
+  }
+  const tokens = (block) => Object.fromEntries([...block.matchAll(/--([a-z0-9-]+):\s*(#[0-9a-f]{6})\b/g)].map((m) => [m[1], m[2]]))
+  const luminance = (hex) => {
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+    const lin = (c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
+    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+  }
+  const contrast = (a, b) => {
+    const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x)
+    return (hi + 0.05) / (lo + 0.05)
+  }
+  const HEX = /^#[0-9a-f]{6}$/
+
+  it('every entry carries a constructor, a span from 2010, a name, a base and a pair, at least one https source, a paraphrase of what it states and whether the name is the team\'s own', () => {
+    assert.ok(LIVERIES.length >= 50, `${LIVERIES.length} liveries; the map covered 168 constructor-seasons when it landed`)
+    for (const l of LIVERIES) {
+      const where = `${l.constructor} ${l.from}-${l.to}`
+      assert.match(l.constructor, /^[a-z0-9-]+$/, where)
+      assert.ok(Number.isInteger(l.from) && Number.isInteger(l.to) && l.from >= LIVERY_ERA && l.to >= l.from, `${where}: span`)
+      assert.ok(typeof l.name === 'string' && l.name.trim().length > 1, `${where}: name`)
+      for (const key of ['base', 'light', 'dark']) assert.match(l[key], HEX, `${where}: ${key}`)
+      assert.ok(Array.isArray(l.source) && l.source.length >= 1, `${where}: source`)
+      for (const s of l.source) assert.match(s, /^https:\/\//, `${where}: source ${s}`)
+      assert.ok(typeof l.says === 'string' && l.says.length > 20, `${where}: says`)
+      // A paraphrase, never a quotation: the first draft put quotation marks
+      // round wording the cited pages did not contain, and review found 41.
+      assert.ok(!/["\u201c\u201d]/.test(l.says), `${where}: says carries a quotation mark - it is a paraphrase, not a quote`)
+      assert.equal(typeof l.named, 'boolean', `${where}: named`)
+    }
+  })
+
+  it('no constructor has two entries for one season, and no gap overlaps an entry', () => {
+    const seen = new Map()
+    for (const l of LIVERIES)
+      for (let y = l.from; y <= l.to; y++) {
+        const key = `${l.constructor} ${y}`
+        assert.ok(!seen.has(key), `${key} is in two entries: ${seen.get(key)} and ${l.name}`)
+        seen.set(key, l.name)
+      }
+    for (const g of LIVERY_GAPS)
+      for (let y = g.from; y <= g.to; y++) assert.ok(!seen.has(`${g.constructor} ${y}`), `${g.constructor} ${y} is both a gap and ${seen.get(`${g.constructor} ${y}`)}`)
+  })
+
+  it('each light value clears 3:1 on --panel and --panel-sunk, each dark value on --panel and --panel-raised', () => {
+    const light = tokens(blocks.light)
+    const dark = tokens(blocks.stampedDark)
+    const failing = []
+    for (const l of LIVERIES) {
+      for (const surface of ['panel', 'panel-sunk']) {
+        const ratio = contrast(l.light, light[surface])
+        if (ratio < 3) failing.push(`${l.constructor} ${l.from} light ${l.light} on --${surface}: ${ratio.toFixed(2)}:1`)
+      }
+      for (const surface of ['panel', 'panel-raised']) {
+        const ratio = contrast(l.dark, dark[surface])
+        if (ratio < 3) failing.push(`${l.constructor} ${l.from} dark ${l.dark} on --${surface}: ${ratio.toFixed(2)}:1`)
+      }
+    }
+    assert.deepEqual(failing, [])
+  })
+
+  it('against f1.db, every constructor-season with race entries from 2010 is exactly one of: coloured, a declared gap', () => {
+    const db = new DatabaseSync(join(web, '..', 'f1.db'), { readOnly: true })
+    const rows = db
+      .prepare(
+        `SELECT DISTINCT r.year, e.constructor_id FROM race_entries e JOIN races r ON r.id = e.race_id
+          WHERE r.year >= ? AND e.constructor_id IS NOT NULL ORDER BY e.constructor_id, r.year`,
+      )
+      .all(LIVERY_ERA)
+    const ids = new Set(db.prepare('SELECT id FROM constructors').all().map((r) => r.id))
+    db.close()
+    assert.ok(rows.length >= 170, `${rows.length} constructor-seasons from ${LIVERY_ERA}; expected the 180 of 2010-2026`)
+    const covered = (list, id, y) => list.some((l) => l.constructor === id && y >= l.from && y <= l.to)
+    const unplaced = rows.filter((r) => !covered(LIVERIES, r.constructor_id, r.year) && !covered(LIVERY_GAPS, r.constructor_id, r.year))
+    assert.deepEqual(unplaced.map((r) => `${r.constructor_id} ${r.year}`), [], 'constructor-seasons in neither list')
+    // A span may not reach a season the constructor did not race: that is a
+    // colour claimed for a car that never ran.
+    const raced = new Set(rows.map((r) => `${r.constructor_id} ${r.year}`))
+    const phantom = []
+    for (const l of [...LIVERIES, ...LIVERY_GAPS])
+      for (let y = l.from; y <= l.to; y++) if (!raced.has(`${l.constructor} ${y}`)) phantom.push(`${l.constructor} ${y}`)
+    assert.deepEqual(phantom, [], 'spans covering a season with no race entries')
+    for (const l of [...LIVERIES, ...LIVERY_GAPS]) assert.ok(ids.has(l.constructor), `${l.constructor} is not a constructor id`)
+  })
+
+  it('no page carries a livery hex of its own: every pair reaches an element through lib/liveries.js', () => {
+    const offenders = sourceFiles(join(web, 'src'), /\.jsx?$/)
+      .filter((file) => !/lib\/liveries\.js$/.test(file))
+      .filter((file) => /--livery-(?:light|dark)['"]?\s*:\s*['"]#[0-9a-f]{6}/i.test(read(file)))
       .map(rel)
     assert.deepEqual(offenders, [])
   })
