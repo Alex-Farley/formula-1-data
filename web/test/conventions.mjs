@@ -477,9 +477,13 @@ describe('a livery is a sourced scheme drawn as itself, and every 2010+ construc
       /no page cited here states/.test(band),
       'LiveryScheme names a colour this site chose without the clause saying so',
     )
+    // Both ways round: slicing the scheme, and liveryAccents(), which returns
+    // the same list unsplit. It is the right export for a test reading the
+    // raw data - test/units.mjs does - and the wrong one for a surface that
+    // prints names, because it hands back the sourced and the chosen alike.
     const slicers = sourceFiles(join(web, 'src'), /\.jsx?$/)
       .filter((file) => rel(file) !== 'src/lib/liveries.js')
-      .filter((file) => /\.scheme\.slice\(/.test(read(file)))
+      .filter((file) => /\.scheme\.slice\(|\bliveryAccents\(/.test(read(file)))
       .map(rel)
     assert.deepEqual(slicers, [], 'a surface takes a scheme apart itself instead of going through accentsBySource')
   })
