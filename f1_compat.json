@@ -1,7 +1,7 @@
 {
   "database_name": "F1 Verified Facts Project Memory Database",
   "version": "2.23",
-  "verification_date": "2026-09-09",
+  "verification_date": "2026-09-14",
   "verification_policy": {
     "confidence_ladder": [
       {
@@ -334,13 +334,13 @@
       "position": 1,
       "driver": "Andrea Kimi Antonelli",
       "team": "Mercedes",
-      "points": 267.0
+      "points": 292.0
     },
     {
       "position": 2,
       "driver": "George Russell",
       "team": "Mercedes",
-      "points": 201.0
+      "points": 211.0
     },
     {
       "position": 3,
@@ -352,25 +352,25 @@
       "position": 4,
       "driver": "Lando Norris",
       "team": "McLaren",
-      "points": 171.0
+      "points": 186.0
     },
     {
       "position": 5,
       "driver": "Charles Leclerc",
       "team": "Ferrari",
-      "points": 155.0
+      "points": 167.0
     },
     {
       "position": 6,
       "driver": "Max Verstappen",
       "team": "Red Bull Racing",
-      "points": 127.0
+      "points": 145.0
     },
     {
       "position": 7,
       "driver": "Oscar Piastri",
       "team": "McLaren",
-      "points": 116.0
+      "points": 120.0
     },
     {
       "position": 8,
@@ -382,7 +382,7 @@
       "position": 9,
       "driver": "Liam Lawson",
       "team": "Racing Bulls",
-      "points": 51.0
+      "points": 59.0
     },
     {
       "position": 10,
@@ -394,13 +394,13 @@
       "position": 11,
       "driver": "Arvid Lindblad",
       "team": "Racing Bulls",
-      "points": 29.0
+      "points": 31.0
     },
     {
       "position": 12,
       "driver": "Franco Colapinto",
       "team": "Alpine",
-      "points": 21.0
+      "points": 27.0
     },
     {
       "position": 13,
@@ -418,7 +418,7 @@
       "position": 15,
       "driver": "Nico Hulkenberg",
       "team": "Audi",
-      "points": 6.0
+      "points": 7.0
     },
     {
       "position": 16,
@@ -608,7 +608,7 @@
       "circuit_name": "Madrid IFEMA",
       "circuit_id": "madring",
       "sprint": 0,
-      "status": "scheduled"
+      "status": "completed"
     },
     {
       "round": 15,
