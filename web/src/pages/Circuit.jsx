@@ -5,7 +5,7 @@ import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import LapFigure from '../components/LapFigure.jsx'
 import { OutlineCard } from '../components/Outline.jsx'
-import { BANDS, BAND_NAMES, buildLap } from '../lib/lap.js'
+import { BANDS, BAND_NAMES, BAND_WIDTHS, buildLap } from '../lib/lap.js'
 import { rows, useQueries } from '../data/useQuery.js'
 import { number, span } from '../lib/format.js'
 import { OUTLINE_FIGURES_NOTE, OUTLINE_RULE, outlineCaption } from '../lib/outline.js'
@@ -298,7 +298,14 @@ function CircuitLap({ geometry, circuit }) {
         <div className="legend" aria-label="Corner radius">
           {BAND_NAMES.map((name, i) => (
             <span key={name}>
-              <i style={{ background: `var(--seq-${5 - i})` }} />
+              <i
+                style={{
+                  background: `var(--seq-${5 - i})`,
+                  width: 14,
+                  height: BAND_WIDTHS[i],
+                  borderRadius: 1,
+                }}
+              />
               {name}
               {i === 0 && ` <${BANDS[0]} m`}
               {i > 0 && i < BANDS.length && ` ${BANDS[i - 1]}\u2013${BANDS[i]} m`}

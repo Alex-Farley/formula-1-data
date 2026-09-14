@@ -233,14 +233,22 @@ export function pathOf(x, y, from = 0, to = x.length) {
  *
  * The ramp runs the other way from the bands: tightest gets the strongest
  * colour, because the corners are the subject and the straights are the rest.
+ *
+ * Colour is not the only channel. A five-step single-hue ramp cannot put 2:1
+ * between every neighbour and still clear 3:1 at its pale end (the ratios
+ * multiply past what black on white gives), so each band also has a stroke
+ * width, in screen pixels: the hairpin is drawn three times as heavy as the
+ * straight, and the key repeats the widths beside the colours (VD-25).
  */
 export const BANDS = [50, 100, 200, 400]
 export const BAND_NAMES = ['hairpin', 'slow', 'medium', 'fast', 'straight']
+export const BAND_WIDTHS = [6, 5, 4, 3, 2]
 export const bandIndex = (r) => {
   const i = BANDS.findIndex((edge) => r < edge)
   return i === -1 ? 4 : i
 }
 export const bandVar = (r) => `var(--seq-${5 - bandIndex(r)})`
+export const bandWidth = (r) => BAND_WIDTHS[bandIndex(r)]
 
 /** A square viewBox around a circuit's own extent. */
 export function fitted(shape, pad = 40) {
@@ -293,15 +301,19 @@ export function buildLap(row) {
  */
 export function runsFor(lap, colour = true) {
   if (!lap) return []
-  if (!colour || !lap.radius) return [{ d: lap.path, stroke: 'var(--ink)' }]
+  if (!colour || !lap.radius) return [{ d: lap.path, stroke: 'var(--ink)', width: BAND_WIDTHS[2] }]
   const { x, y } = lap.shape
   const out = []
   let start = 0
-  let current = bandVar(lap.radius[0])
+  let current = bandIndex(lap.radius[0])
   for (let i = 1; i <= x.length; i += 1) {
-    const next = i < x.length ? bandVar(lap.radius[i]) : null
+    const next = i < x.length ? bandIndex(lap.radius[i]) : null
     if (next !== current) {
-      out.push({ d: pathOf(x, y, start, Math.min(i + 1, x.length)), stroke: current })
+      out.push({
+        d: pathOf(x, y, start, Math.min(i + 1, x.length)),
+        stroke: `var(--seq-${5 - current})`,
+        width: BAND_WIDTHS[current],
+      })
       start = i
       current = next
     }

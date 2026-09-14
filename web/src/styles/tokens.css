@@ -10,8 +10,12 @@
  *                 palette, validated by script against these exact surfaces
  *                 rather than chosen by eye. Never text.
  *   --seq-*       one hue, for a continuous quantity; the pale end clears 3:1 on
- *                 --stage (light 3.2:1), and the two middle rail bands clear 2:1
- *                 against each other, not only against the panel. Only a circuit's turn
+ *                 --stage and --panel in both themes, and every adjacent pair
+ *                 is stepped evenly at 1.44-1.50:1. That is the ceiling, not a
+ *                 choice: ratios multiply, so four steps at 2:1 would span 16:1
+ *                 and, over a 3:1 floor, need 48:1 where black on white gives
+ *                 21:1. Colour is therefore never the only channel - lib/lap.js
+ *                 gives each band a stroke width too. Only a circuit's turn
  *                 rate uses it.
  *
  * Dark is not an inversion of light: it is a second instrument, stepped
@@ -74,12 +78,14 @@
   --grid: #e3e5ea;
 
   /* sequential, one hue: light to dark, so "more" is darker. The pale end
-     still has to read as a mark, so it starts at step 250. */
-  --seq-1: #4a8edd;
-  --seq-2: #2a78d6;
-  --seq-3: #1f61b3;
-  --seq-4: #184f95;
-  --seq-5: #0d366b;
+     still has to read as a mark, so it starts at 3.11:1 on --stage, and the
+     five step evenly to 15.3:1 - 1.48-1.50:1 between neighbours (VD-25; the
+     old ramp stepped 1.30-1.47 and its pale end sat at 3.19). */
+  --seq-1: #5190db;
+  --seq-2: #2970c8;
+  --seq-3: #1f569a;
+  --seq-4: #163d6c;
+  --seq-5: #0c213a;
 
   /* national racing colours (lib/racingColours.js names them). One hex served
      two themes and six of the eight fell under 3:1 against the panel in one of
@@ -151,12 +157,14 @@
     --grid: #23262e;
 
     /* Dark reverses the ramp's direction rather than inverting its values: on
-       a dark ground "more" has to be lighter. */
-    --seq-1: #1c5cab;
-    --seq-2: #256abf;
-    --seq-3: #3987e5;
-    --seq-4: #6da7ec;
-    --seq-5: #9ec5f4;
+       a dark ground "more" has to be lighter. The pale end is 3.14:1 on the
+       panel (was 2.73, under the floor) and the steps are 1.44-1.47:1 (were
+       1.23-1.48). */
+    --seq-1: #1664c3;
+    --seq-2: #297ee7;
+    --seq-3: #5f9fed;
+    --seq-4: #97c0f3;
+    --seq-5: #d2e4fa;
 
     /* the racing colours, lifted for the dark panel; the greys and yellows
        that failed in light are the ones that hold here. American blue leans
@@ -212,11 +220,11 @@
   --series-3: #199e70;
   --grid: #23262e;
 
-  --seq-1: #1c5cab;
-  --seq-2: #256abf;
-  --seq-3: #3987e5;
-  --seq-4: #6da7ec;
-  --seq-5: #9ec5f4;
+  --seq-1: #1664c3;
+  --seq-2: #297ee7;
+  --seq-3: #5f9fed;
+  --seq-4: #97c0f3;
+  --seq-5: #d2e4fa;
 
   --racing-uk: #1e8a5a;
   --racing-it: #e0233f;

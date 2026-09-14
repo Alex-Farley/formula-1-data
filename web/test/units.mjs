@@ -30,7 +30,7 @@ import {
   text,
   yearList,
 } from '../src/lib/format.js'
-import { BANDS, bandIndex, metresBetween, runsFor, signedArea, stitch } from '../src/lib/lap.js'
+import { BANDS, BAND_NAMES, BAND_WIDTHS, bandIndex, bandWidth, metresBetween, runsFor, signedArea, stitch } from '../src/lib/lap.js'
 import { fold, rank } from '../src/lib/search.js'
 import { trackPath } from '../src/lib/track.js'
 import { DRIVER_COLUMNS } from '../src/queries/drivers.js'
@@ -153,6 +153,27 @@ describe('corner bands', () => {
     assert.equal(runsFor(lap, true).length, 3)
     assert.equal(runsFor(lap, false).length, 1)
     assert.equal(runsFor({ ...lap, radius: null }, true).length, 1)
+  })
+  it('every band has a stroke width, and the tighter the corner the heavier the line (VD-25)', () => {
+    // Colour is the ramp's one channel unless width is the other: a
+    // five-step single-hue ramp cannot put 2:1 between neighbours over a 3:1
+    // floor, so a flat width table would leave Spa one blue from La Source
+    // to Kemmel again.
+    const lap = {
+      path: 'M0 0',
+      shape: { x: [0, 1, 2, 3, 4, 5], y: [0, 0, 0, 0, 0, 0] },
+      radius: [30, 30, 500, 500, 30, 30],
+    }
+    assert.equal(BAND_WIDTHS.length, BAND_NAMES.length)
+    for (let i = 1; i < BAND_WIDTHS.length; i += 1) assert.ok(BAND_WIDTHS[i] < BAND_WIDTHS[i - 1], `band ${i}`)
+    assert.ok(BAND_WIDTHS[0] >= 2 * BAND_WIDTHS[BAND_WIDTHS.length - 1], 'hairpin is not twice the straight')
+    assert.equal(bandWidth(30), BAND_WIDTHS[0])
+    assert.equal(bandWidth(Infinity), BAND_WIDTHS[BAND_WIDTHS.length - 1])
+    for (const run of runsFor(lap, true)) {
+      assert.ok(Number.isFinite(run.width) && run.width > 0, 'a run without a width')
+      assert.match(run.stroke, /^var\(--seq-[1-5]\)$/)
+    }
+    assert.ok(runsFor(lap, false)[0].width > 0)
   })
 })
 

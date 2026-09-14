@@ -4,7 +4,7 @@ import { Confidence, Fields, Note, Onward, Page, Section } from '../components/P
 import { Result } from '../components/States.jsx'
 import { useQuery } from '../data/useQuery.js'
 import { number } from '../lib/format.js'
-import { BANDS, BAND_NAMES, bandIndex, buildLap, fitted, pointAt, runsFor } from '../lib/lap.js'
+import { BANDS, BAND_NAMES, BAND_WIDTHS, bandIndex, buildLap, fitted, pointAt, runsFor } from '../lib/lap.js'
 import LapFigure from '../components/LapFigure.jsx'
 
 const SQL = `
@@ -159,7 +159,7 @@ function AtlasBody({ rows }) {
                   {BAND_NAMES.map((name, i) => (
                     <div key={name}>
                       <dt>
-                        <i style={{ background: `var(--seq-${5 - i})` }} />
+                        <i style={{ background: `var(--seq-${5 - i})`, height: BAND_WIDTHS[i] }} />
                         {name}
                       </dt>
                       <dd className="num">
