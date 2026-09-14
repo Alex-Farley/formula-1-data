@@ -59,7 +59,7 @@ import subprocess
 import sys
 from collections import Counter
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))  # behind the stdlib
 import loop_cache  # noqa: E402  (a sibling script, not an installed package)
 
 REPO = "Alex-Farley/formula-1-data"
@@ -119,7 +119,7 @@ def load(allow_cache=False):
     the items it wants, never by one choosing the next item."""
     if allow_cache:
         hit = loop_cache.read("queue", CACHE_TTL)
-        if hit is not None:
+        if isinstance(hit, dict) and {"ranked", "in_progress", "unplaced"} <= hit.keys():
             return hit["ranked"], hit["in_progress"], hit["unplaced"]
     board = gh("project", "item-list", PROJECT, "--owner", OWNER, "--format", "json", "--limit", "1000")["items"]
     open_issues = {i["number"]: i for i in gh("issue", "list", "--repo", REPO, "--state", "open",
@@ -317,9 +317,12 @@ def main(argv):
         return
 
     # A call that names its items is reading bodies it has already chosen, so
-    # it may use the cache the previous call wrote; `next.py` and
-    # `next.py --group`, which choose, always read GitHub.
-    ranked, in_progress, unplaced = load(allow_cache=bool(argv) and argv[0] != "--list")
+    # it may use the cache the previous call wrote. Anything that chooses
+    # reads GitHub: `next.py`, and `--group` in both its forms - `--group` is
+    # stripped from argv above, so without the `not group` clause
+    # `next.py --group AF-09` would score every candidate against a snapshot.
+    ranked, in_progress, unplaced = load(
+        allow_cache=bool(argv) and not group and argv[0] != "--list")
     decisions = [r for r in ranked if "decision" in r["labels"]]
     everything = ranked + in_progress + unplaced
 

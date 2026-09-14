@@ -44,15 +44,29 @@ FIELDS = {"fields": [{"name": "Status", "id": "F_status",
 class FakeGh:
     """`gh` as file.py calls it, counting what it was asked for."""
 
-    def __init__(self, items=(291, 292), reject=()):
+    def __init__(self, items=(291, 292), reject=(), error="could not resolve to a node",
+                 die_on=None):
         self.items = {n: f"I_{n}" for n in items}
         self.reject = set(reject)      # item ids item-edit refuses, as a stale id would be
+        self.error = error
+        self.die_on = die_on           # (verb, nth): that call ends the run, as gh() does
         self.calls = []
         self.fields = FIELDS
 
-    def __call__(self, *args, as_json=False, must=True):
+    def try_(self, *args):
+        """`gh_try`: (succeeded, stderr)."""
+        self.calls.append(args[:2])
+        item = args[args.index("--id") + 1]
+        if item in self.reject:
+            return False, self.error
+        self.edited = item
+        return True, ""
+
+    def __call__(self, *args, as_json=False):
         self.calls.append(args[:2])
         head = args[:2]
+        if self.die_on and head[1] == self.die_on[0] and self.count(head[1]) == self.die_on[1]:
+            raise SystemExit(f"gh {head[1]}: refused")
         if head == ("project", "view"):
             return BOARD
         if head == ("project", "field-list"):
@@ -63,14 +77,6 @@ class FakeGh:
             number = int(args[args.index("--url") + 1].rsplit("/", 1)[1])
             self.items[number] = f"I_{number}"
             return {"id": self.items[number]}
-        if head == ("project", "item-edit"):
-            item = args[args.index("--id") + 1]
-            if item in self.reject:
-                if not must:
-                    return None
-                raise SystemExit("gh: could not resolve item")
-            self.edited = item
-            return ""
         raise AssertionError(f"unexpected gh call {args}")
 
     def count(self, verb):
@@ -88,7 +94,9 @@ class CacheIsolated(unittest.TestCase):
 class SettingAStatus(CacheIsolated):
     def use(self, fake):
         self.addCleanup(setattr, file_py, "gh", file_py.gh)
+        self.addCleanup(setattr, file_py, "gh_try", file_py.gh_try)
         file_py.gh = fake
+        file_py.gh_try = fake.try_
 
     def test_the_expensive_reads_happen_once_not_once_per_status(self):
         # A group of four costs eight status changes. Before the cache each
@@ -125,11 +133,44 @@ class SettingAStatus(CacheIsolated):
         self.assertEqual(fake.edited, "I_291")
         self.assertEqual(fake.count("view"), 1)
 
-    def test_a_failure_that_is_not_staleness_still_ends_the_run(self):
+    def test_a_failure_that_survives_a_refetch_ends_the_run(self):
         fake = FakeGh(items=(291,), reject=("I_291",))
         self.use(fake)
         with self.assertRaises(SystemExit):
             file_py.set_status(291, "Done")
+        self.assertEqual(fake.count("item-edit"), 2)      # it tried against fresh ids
+
+    def test_ids_a_run_suspected_and_could_not_recheck_are_not_inherited(self):
+        # The one thing the drop between attempts buys: the edit failed, so
+        # the ids are suspect, and the refetch that would have confirmed them
+        # died too. The next process must start from GitHub, not from these.
+        loop_cache.write("items", {"291": "I_stale"})
+        fake = FakeGh(items=(291,), reject=("I_stale",), die_on=("item-list", 1))
+        self.use(fake)
+        with self.assertRaises(SystemExit):
+            file_py.set_status(291, "Done")
+        self.assertIsNone(loop_cache.read("items", file_py.ITEMS_TTL))
+
+    def test_a_rate_limit_stops_at_once_instead_of_replaying_every_call(self):
+        # The failure the cache exists to avoid. Retrying extends it, and the
+        # uncached code stopped at the first refusal.
+        fake = FakeGh(items=(291,), reject=("I_291",),
+                      error="GraphQL: API rate limit already exceeded for user ID 37551336.")
+        self.use(fake)
+        with self.assertRaises(SystemExit):
+            file_py.set_status(291, "Done")
+        self.assertEqual(fake.count("item-edit"), 1)
+        self.assertEqual(fake.count("item-list"), 1)
+
+    def test_a_payload_of_the_wrong_shape_is_a_miss_not_a_traceback(self):
+        # .claude/loop survives a branch switch, so a payload written by
+        # another version of these scripts must not crash them for a whole TTL.
+        loop_cache.write("board", {"unexpected": True})
+        loop_cache.write("items", ["not", "a", "map"])
+        fake = FakeGh(items=(291,))
+        self.use(fake)
+        file_py.set_status(291, "Done")
+        self.assertEqual(fake.edited, "I_291")
 
     def test_an_issue_not_on_the_board_is_added_and_the_map_dropped(self):
         fake = FakeGh(items=(291,))
@@ -171,6 +212,15 @@ class ReadingTheQueue(CacheIsolated):
         self.use(calls)
         next_py.load()                       # `next.py --group` populates it
         next_py.load(allow_cache=True)       # `next.py VD-33 AX-13` reads bodies
+        self.assertEqual(calls.count("project"), 1)
+
+    def test_a_queue_payload_of_the_wrong_shape_is_a_miss_not_a_traceback(self):
+        # .claude/loop survives a branch switch, so a payload written by an
+        # older version of these scripts must not crash the next one.
+        calls = []
+        self.use(calls)
+        loop_cache.write("queue", {"rows": []})
+        next_py.load(allow_cache=True)
         self.assertEqual(calls.count("project"), 1)
 
     def test_a_cache_older_than_the_ttl_is_a_miss(self):
@@ -234,6 +284,15 @@ class TheWiring(CacheIsolated):
         self.run_main(["--group"])
         self.run_main(["AF-01", "AF-02"])
         self.assertEqual(self.reads(), 1)
+
+    def test_group_with_an_id_still_chooses_so_still_reads_github(self):
+        # `--group` is stripped from argv before the cache decision, so the id
+        # form looks like "a call that names its items" and is not: it scores
+        # every candidate on the board, and a two-minute-old board can hand a
+        # fork an item another fork set In progress inside that window.
+        self.run_main(["--group"])
+        self.run_main(["--group", "AF-01"])
+        self.assertEqual(self.reads(), 2)
 
 
 class TheCacheItself(CacheIsolated):

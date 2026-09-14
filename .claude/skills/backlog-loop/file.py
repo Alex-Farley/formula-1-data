@@ -31,10 +31,11 @@ is on the item, not in a fork's context that is about to be discarded.
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))  # behind the stdlib
 import loop_cache  # noqa: E402  (a sibling script, not an installed package)
 
 REPO = "Alex-Farley/formula-1-data"
@@ -54,25 +55,31 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # with GitHub, so the only cost of a stale one is a wasted call.
 BOARD_TTL = 3600
 ITEMS_TTL = 900
+# A failure that is not a stale id: retrying it wastes calls, and against the
+# secondary limiter it extends the block.
+REFUSED = re.compile(r"rate limit|secondary|abuse detection|forbidden|not authoriz", re.I)
 
 
-def gh(*args, as_json=False, must=True):
-    """`must=False` returns None on a failure instead of ending the run, for
-    the one call that is allowed to fail: an `item-edit` against a cached id
-    that GitHub no longer recognises."""
+def gh(*args, as_json=False):
     r = subprocess.run(["gh", *args], capture_output=True, text=True, check=False)
     if r.returncode:
-        if not must:
-            return None
         sys.exit(r.stderr.strip() or f"gh {' '.join(args)} failed")
     return json.loads(r.stdout) if as_json else r.stdout.strip()
+
+
+def gh_try(*args):
+    """(succeeded, stderr), for the one call allowed to fail: an `item-edit`
+    against a cached id GitHub may no longer recognise. The caller decides,
+    because most failures are not staleness and must not be retried."""
+    r = subprocess.run(["gh", *args], capture_output=True, text=True, check=False)
+    return r.returncode == 0, r.stderr.strip()
 
 
 def board(fresh=False):
     """(project id, Status field id, {status name: option id})."""
     if not fresh:
         hit = loop_cache.read("board", BOARD_TTL)
-        if hit:
+        if isinstance(hit, dict) and {"project", "field", "options"} <= hit.keys():
             return hit["project"], hit["field"], hit["options"]
     proj = gh("project", "view", PROJECT, "--owner", OWNER, "--format", "json", as_json=True)
     fields = gh("project", "field-list", PROJECT, "--owner", OWNER, "--format", "json", as_json=True)["fields"]
@@ -89,7 +96,7 @@ def item_ids(fresh=False):
     times."""
     if not fresh:
         hit = loop_cache.read("items", ITEMS_TTL)
-        if hit:
+        if isinstance(hit, dict):
             return {int(n): i for n, i in hit.items()}
     items = gh("project", "item-list", PROJECT, "--owner", OWNER, "--format", "json", "--limit", "1000",
                as_json=True)["items"]
@@ -116,9 +123,15 @@ def set_status(number, status):
             item = gh("project", "item-add", PROJECT, "--owner", OWNER, "--url", url, "--format", "json",
                       as_json=True)["id"]
             loop_cache.drop("items")
-        if gh("project", "item-edit", "--project-id", proj_id, "--id", item, "--field-id", field_id,
-              "--single-select-option-id", options[status], must=fresh) is not None:
+        ok, err = gh_try("project", "item-edit", "--project-id", proj_id, "--id", item,
+                         "--field-id", field_id, "--single-select-option-id", options[status])
+        if ok:
             return
+        # Only staleness is worth a second attempt. A rate limit is the
+        # failure this cache exists to avoid, and retrying extends it, so it
+        # ends the run at the first refusal the way the uncached code did.
+        if fresh or REFUSED.search(err):
+            sys.exit(err or "gh project item-edit failed")
         loop_cache.drop("board")
         loop_cache.drop("items")
 
