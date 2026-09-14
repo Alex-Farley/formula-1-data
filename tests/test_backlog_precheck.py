@@ -13,8 +13,16 @@ WHY THIS FILE EXISTS
     it by its own size. The rule these tests hold: an empty answer from a
     working `gh` is a FAIL, and an answer from a `gh` that could not run is a
     WARN naming the API. The control must not weaken in the first case.
+
+    Each test builds its own repository. The first version ran the script
+    against this checkout and asserted on its exit code, which passed here and
+    failed on CI: a runner clones at depth 1, so there is no `origin/main`,
+    every diff-based check compared nothing, and the assertions about them
+    were about a diff that did not exist. A control's tests cannot depend on
+    where they are run from.
 """
 import os
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -29,70 +37,79 @@ case "$1 $2" in
 esac
 exit 0
 '''
-FOUND_NOTHING = '''#!/bin/sh
-case "$1 $2" in
-  "issue list") echo '' ;;
-  "pr view")    printf 'Body.\\n\\nCloses #291\\n' ;;
-esac
-exit 0
-'''
+FOUND_NOTHING = WORKING.replace("echo '291'", "echo ''")
 REFUSING = '''#!/bin/sh
 echo "GraphQL: API rate limit already exceeded for user ID 37551336." >&2
 exit 1
 '''
-# The API refuses the item lookup but the PR reads fine - the outage the gate
-# was written for, and the one where it fell silent.
+# The API refuses the item lookup but the PR reads fine - the outage the
+# fallback was written for, and the one where the gate fell silent.
 REFUSING_ISSUES_ONLY = '''#!/bin/sh
 case "$1 $2" in
-  "pr view") printf 'Body.\n\nCloses #291\n'; exit 0 ;;
+  "pr view") printf 'Body.\\n\\nCloses #291\\n'; exit 0 ;;
 esac
 echo "GraphQL: API rate limit already exceeded." >&2
 exit 1
 '''
-CLOSES_NOTHING = '''#!/bin/sh
-case "$1 $2" in
-  "pr view") printf 'Body with no closing line.\n'; exit 0 ;;
-esac
-echo "GraphQL: API rate limit already exceeded." >&2
-exit 1
-'''
-EMPTY_BODY = '''#!/bin/sh
-case "$1 $2" in
-  "issue list") echo '291' ;;
-  "pr view")    printf '' ;;
-esac
-exit 0
-'''
+CLOSES_NOTHING = REFUSING_ISSUES_ONLY.replace("Closes #291\\n", "nothing here\\n")
+EMPTY_BODY = WORKING.replace("printf 'Body.\\n\\nCloses #291\\n'", "printf ''")
+
+CLEAN_RUFF = '#!/bin/sh\nexit 0\n'
+ANGRY_RUFF = '#!/bin/sh\necho "x.py:1:1: F821 undefined name"\nexit 1\n'
+
+
+def git(repo, *args):
+    subprocess.run(["git", "-C", repo, *args], check=True,
+                   capture_output=True, text=True)
 
 
 class Precheck(unittest.TestCase):
-    def run_with(self, stub, *items, ruff=None):
-        with tempfile.TemporaryDirectory() as bin_dir:
-            gh = os.path.join(bin_dir, "gh")
-            with open(gh, "w", encoding="utf-8") as f:
-                f.write(stub)
-            os.chmod(gh, 0o755)
-            if ruff is not None:
-                path = os.path.join(bin_dir, "ruff")
-                with open(path, "w", encoding="utf-8") as f:
-                    f.write(ruff)
-                os.chmod(path, 0o755)
-            env = dict(os.environ, PATH=f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
-            r = subprocess.run(["bash", PRECHECK, *items], cwd=ROOT, env=env,
-                               capture_output=True, text=True, check=False)
+    def repo(self, message="AF-12: a change", changed="x.py"):
+        """A repository with one commit on origin/main and one after it."""
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        git(d, "init", "-q")
+        git(d, "config", "user.email", "t@example.invalid")
+        git(d, "config", "user.name", "T")
+        with open(os.path.join(d, "x.py"), "w", encoding="utf-8") as f:
+            f.write("VALUE = 1\n")
+        git(d, "add", "-A")
+        git(d, "commit", "-q", "-m", "base")
+        git(d, "update-ref", "refs/remotes/origin/main", "HEAD")
+        with open(os.path.join(d, changed), "w", encoding="utf-8") as f:
+            f.write("VALUE = 2\n")
+        git(d, "add", "-A")
+        git(d, "commit", "-q", "-m", message)
+        return d
+
+    def run_in(self, repo, stub, *items, ruff=CLEAN_RUFF):
+        """precheck.sh in `repo`, with a stub gh (and ruff) ahead of PATH.
+        `ruff=None` means ruff is not installed: PATH is cut to the system
+        directories, where a pip or brew install never lands."""
+        bin_dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, bin_dir, ignore_errors=True)
+        for name, body in (("gh", stub), ("ruff", ruff)):
+            if body is None:
+                continue
+            path = os.path.join(bin_dir, name)
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(body)
+            os.chmod(path, 0o755)
+        rest = os.environ["PATH"] if ruff is not None else "/usr/bin:/bin"
+        env = dict(os.environ, PATH=f"{bin_dir}{os.pathsep}{rest}")
+        r = subprocess.run(["bash", PRECHECK, *items], cwd=repo, env=env,
+                           capture_output=True, text=True, check=False)
         return r.returncode, r.stdout
 
-    def assertNoFail(self, out):
-        # The exit code also reflects checks unrelated to the queue - a
-        # changed .js file is run through `node --check`, and node is not on
-        # this environment's shell PATH - so assert on what this file is about.
-        self.assertNotIn("FAIL", out)
+    def run_with(self, stub, *items, **kw):
+        return self.run_in(self.repo(), stub, *items, **kw)
 
     def test_an_issue_gh_can_see_passes(self):
-        _, out = self.run_with(WORKING, "AF-12")
+        code, out = self.run_with(WORKING, "AF-12")
         self.assertIn("AF-12 is issue #291", out)
         self.assertIn("the PR closes #291", out)
-        self.assertNoFail(out)
+        self.assertIn("a commit names AF-12", out)
+        self.assertEqual(code, 0, out)
 
     def test_an_issue_that_really_is_not_filed_still_fails(self):
         # The control. A working gh that finds nothing means what it says.
@@ -102,19 +119,19 @@ class Precheck(unittest.TestCase):
 
     def test_a_gh_that_cannot_run_is_a_warning_about_the_api(self):
         # Not "never filed": that sends a fork to file an issue that exists.
-        _, out = self.run_with(REFUSING, "AF-12")
+        code, out = self.run_with(REFUSING, "AF-12")
         self.assertIn("AF-12 unchecked, gh failed", out)
         self.assertIn("rate limit", out)
         self.assertNotIn("is not an open issue", out)
-        self.assertNoFail(out)
+        self.assertEqual(code, 0, out)
 
     def test_an_unverifiable_item_still_needs_the_pr_to_close_something(self):
-        # The gate must not fall silent in the outage it exists for.
-        _, out = self.run_with(REFUSING_ISSUES_ONLY, "AF-12")
+        code, out = self.run_with(REFUSING_ISSUES_ONLY, "AF-12")
         self.assertIn("went unverified", out)
-        self.assertNoFail(out)
+        self.assertEqual(code, 0, out)
 
     def test_a_body_that_closes_nothing_fails_even_when_the_ids_are_unknown(self):
+        # The gate must not fall silent in the outage it exists for.
         code, out = self.run_with(CLOSES_NOTHING, "AF-12")
         self.assertIn("closes no issue at all", out)
         self.assertEqual(code, 1, out)
@@ -125,32 +142,49 @@ class Precheck(unittest.TestCase):
         self.assertNotIn("no PR read", out)
         self.assertEqual(code, 1, out)
 
-    def test_every_id_of_a_group_is_checked(self):
-        _, out = self.run_with(WORKING, "AF-12", "AF-13", "AF-14")
-        for item in ("AF-12", "AF-13", "AF-14"):
-            self.assertIn(f"{item} is issue #291", out)
-        self.assertNoFail(out)
-
     def test_a_ruff_finding_fails_the_precheck(self):
         # CI's lint job is separate from `make ci`, so this is the only local
         # gate that sees it. PLW1510 reached CI on AF-12 because there was none.
-        _, out = self.run_with(WORKING, "AF-12",
-                               ruff='#!/bin/sh\necho "x.py:1:1: F821 undefined name"\nexit 1\n')
+        code, out = self.run_with(WORKING, "AF-12", ruff=ANGRY_RUFF)
         self.assertIn("ruff finds what CI's lint job will fail on", out)
-        self.assertIn("FAIL", out)
+        self.assertEqual(code, 1, out)
 
-    def test_a_clean_ruff_passes_and_a_missing_one_only_warns(self):
-        _, out = self.run_with(WORKING, "AF-12", ruff='#!/bin/sh\nexit 0\n')
+    def test_a_clean_ruff_passes(self):
+        code, out = self.run_with(WORKING, "AF-12", ruff=CLEAN_RUFF)
         self.assertIn("ruff clean on the changed Python", out)
-        self.assertNoFail(out)
-        _, out = self.run_with(WORKING, "AF-12")      # no ruff on PATH
+        self.assertEqual(code, 0, out)
+
+    def test_a_missing_ruff_only_warns(self):
+        # It is a CI tool, not a dependency, so it may genuinely be absent.
+        code, out = self.run_with(WORKING, "AF-12", ruff=None)
         self.assertIn("ruff not installed", out)
-        self.assertNoFail(out)
+        self.assertEqual(code, 0, out)
+
+    def test_a_checkout_without_origin_main_says_so(self):
+        # A runner clones at depth 1. Every diff-based check then compares
+        # nothing, and a green precheck would mean nothing was checked.
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        git(d, "init", "-q")
+        git(d, "config", "user.email", "t@example.invalid")
+        git(d, "config", "user.name", "T")
+        with open(os.path.join(d, "x.py"), "w", encoding="utf-8") as f:
+            f.write("VALUE = 1\n")
+        git(d, "add", "-A")
+        git(d, "commit", "-q", "-m", "only commit")
+        _, out = self.run_in(d, WORKING, "AF-12")
+        self.assertIn("no origin/main here", out)
+
+    def test_every_id_of_a_group_is_checked(self):
+        code, out = self.run_with(WORKING, "AF-12", "AF-13", "AF-14")
+        for item in ("AF-12", "AF-13", "AF-14"):
+            self.assertIn(f"{item} is issue #291", out)
+        self.assertEqual(code, 0, out)
 
     def test_an_empty_argument_is_skipped_not_searched(self):
-        _, out = self.run_with(WORKING, "")
+        code, out = self.run_with(WORKING, "")
         self.assertNotIn("is issue", out)
-        self.assertNoFail(out)
+        self.assertEqual(code, 0, out)
 
 
 if __name__ == "__main__":

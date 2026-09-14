@@ -8,6 +8,12 @@
 # and silently leaves the rest open on the board.
 set -u
 fail=0
+# Every diff-based check below is against origin/main. Without that ref they
+# all compare nothing and pass in silence - which is what a CI checkout at
+# fetch-depth 1 looks like, and how a green precheck could mean "checked
+# nothing at all".
+git rev-parse --verify -q origin/main >/dev/null 2>&1 || \
+  echo "  WARN no origin/main here, so every diff-based check below sees nothing"
 # gh's stderr, so a call that failed can be told from one that found nothing.
 # An empty answer from a working gh means the item is not filed, which is a
 # FAIL; an empty answer from a gh that could not run means nothing at all.
