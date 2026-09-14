@@ -1,6 +1,6 @@
 # Four early commits were authored from a work address on what is a personal
 # project. The identity is the same person; this is the address that belongs
 # on it. Git shows the mapped name in log, blame and shortlog; the raw commit
-# objects keep what they were written with, which is not worth rewriting 497
+# objects keep what they were written with, which is not worth rewriting 475
 # commits to change.
 Alex Farley <37551336+Alex-Farley@users.noreply.github.com> <alex.farley@dxw.com>

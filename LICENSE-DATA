@@ -44,12 +44,25 @@ OpenStreetMap contributors. Two databases distributed side by side are a
 Collective Database, which ODbL does not treat as derivative. See
 ATTRIBUTION.md and tools/geometry_overlay.py.
 
-Ten commits between 2026-09-05 and 2026-09-09 predate that split and carry the
-twenty-five centrelines inside `f1.db` itself. Those historical files are
-Derivative Databases and are offered as such: **ODbL 1.0, (c) OpenStreetMap
-contributors**, in place of the licence above. They are kept rather than
-rewritten out, because the history of a licence decision is part of the
-record. No commit after the split carries a centreline in `f1.db`.
+Part of the history predates that split. **Every commit whose `f1.db` has rows
+in `circuit_geometry`** — thirty-five of them, in ten distinct versions of the
+file, dated 2026-09-05 to 2026-09-09 and all ancestors of `6610b6da` ("Merge
+the licence enforcement and the ODbL split") — carries the twenty-five
+centrelines inside `f1.db` itself, which makes each of those files a
+Derivative Database.
+
+They are offered as such: **ODbL 1.0, (c) OpenStreetMap contributors**, **in
+addition to** the terms above rather than in place of them. Share-alike runs
+with the Wikipedia-derived rows and this project's own prose in the same file
+whatever else that file acquires, so both obligations apply together and
+neither displaces the other.
+
+The boundary is that merge and not the split commit `5a70558`, which was
+parallel work: eight of the thirty-five are later than it by the clock and
+reached the trunk only when it was merged. No commit from `6610b6da` onward
+has a row in `circuit_geometry` in `f1.db`. The historical files are kept
+rather than rewritten out, because the history of a licence decision is part
+of the record.
 
 ## Live timing data
 

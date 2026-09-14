@@ -192,11 +192,11 @@ belongs to the prose pass, not here.
 ## Still open: the prose pass
 
 552 short fields — averaging barely a sentence — carry a CC BY-SA obligation
-that comes from Wikipedia rather than from FOM. **The obligation is met.** The
-database ships under CC BY-SA, which is what that licence asks for, and every
-row's source is on the row. (The count matched the facts-only row total when
-both were written; that is coincidence. This one counts prose fields, is
-typed, and is not a figure the build writes.)
+that comes from Wikipedia rather than from FOM. **They may ship, and they do.**
+The database is released under CC BY-SA and every row carries its source; what
+those fields need is not permission but a closer description. (The count
+matched the facts-only row total when both were written; that is coincidence.
+This one counts prose fields, is typed, and is not a figure the build writes.)
 
 What is unfinished is finer than whether the data may ship. Each field needs
 marking original, paraphrased, or close to source, so the licence statement
@@ -212,21 +212,32 @@ pass is `PM-17`, #249.
 
 ---
 
-## Decided: the pre-split history stands
+## Decided: the history before the split stands
 
-Ten commits between 2026-09-05 and 2026-09-09 carry the 25 centrelines inside
-`f1.db`, because they predate `5a70558`, where the split was made. That is the
-whole of it: all 69 committed revisions of the file have been read, no commit
-after the split carries a centreline, and the four FOM-owned tables are empty
-in every revision without exception.
+Thirty-five commits carry the 25 centrelines inside `f1.db`, in ten distinct
+versions of the file, dated 2026-09-05 to 2026-09-09. The boundary is the
+merge `6610b6da`, not the split commit `5a70558`: the split was parallel work,
+eight of the thirty-five are later than it by the clock, and it reached the
+trunk only when it was merged. Every one of the thirty-five is an ancestor of
+that merge, and no commit from the merge onward has a row in
+`circuit_geometry` in `f1.db`.
+
+Read all of it before deciding, across every ref rather than the first-parent
+view: **76 distinct versions of `f1.db`, of which ten hold geometry, and the
+four FOM-owned tables hold zero rows in all 76 without exception.** Counting
+by `git rev-list <ref> -- f1.db` gives 69 and ten, which is the count of
+versions and not of commits — history simplification hides every commit that
+carries a file forward without changing it. That undercount was made here
+first and is why the rule below is written by content rather than by number.
 
 By the reasoning two sections above, each of those ten files is a Derivative
-Database. They stay. Rewriting 497 commits to lift 25 rows would spend the
-history to buy very little, and the record of a project getting a licence
-question right is worth more than the appearance of never having had to ask.
-What that costs is one line rather than a rewrite: anyone taking one of those
-ten historical files has an ODbL 1.0 database, © OpenStreetMap contributors,
-and `LICENSE-DATA` says so.
+Database, and `LICENSE-DATA` offers them as ODbL 1.0, © OpenStreetMap
+contributors, **in addition to** CC BY-SA rather than instead of it — the
+share-alike on the Wikipedia-derived rows in the same file is not this
+project's to drop. They stay: rewriting 475 commits to lift 25 rows would
+spend the history to buy very little, and the record of a project getting a
+licence question right is worth more than the appearance of never having had
+to ask.
 
 What is published is the current file, and the current file's table is empty.
 
@@ -234,13 +245,13 @@ What is published is the current file, and the current file's table is empty.
 
 ## Trademark: the position, and where it ends
 
-Not a data question, and no build check reaches it. "Formula 1", "F1" and
-"Grand Prix" are Formula One Licensing BV's. This project is unaffiliated,
-says so on every page, and uses the names to identify which races these are —
-which is what the names are for, and the only way to state the facts at all.
+Not a data question, not addressed here, and no build check reaches it.
+"Formula 1", "F1" and "Grand Prix" are Formula One Licensing BV's. This
+project is unaffiliated, says so on every page, and uses the names to say
+which races these are.
 
-That position holds for what this is: free, non-commercial, and about the
-record rather than the brand. It is not a position about some other project
-built on the same data. If money ever appears the question changes, and it is
-a solicitor's question rather than a build check — asking it then is the plan,
-not an omission now.
+What has been decided is the scope, not the law: this stays free and
+non-commercial, and no argument about trademark is advanced here because that
+is not this document's business. If money ever appears the question changes,
+and it is a solicitor's question rather than a build check. Asking it then is
+the plan rather than an omission now.
