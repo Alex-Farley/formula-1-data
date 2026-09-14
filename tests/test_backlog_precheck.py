@@ -40,6 +40,29 @@ REFUSING = '''#!/bin/sh
 echo "GraphQL: API rate limit already exceeded for user ID 37551336." >&2
 exit 1
 '''
+# The API refuses the item lookup but the PR reads fine - the outage the gate
+# was written for, and the one where it fell silent.
+REFUSING_ISSUES_ONLY = '''#!/bin/sh
+case "$1 $2" in
+  "pr view") printf 'Body.\n\nCloses #291\n'; exit 0 ;;
+esac
+echo "GraphQL: API rate limit already exceeded." >&2
+exit 1
+'''
+CLOSES_NOTHING = '''#!/bin/sh
+case "$1 $2" in
+  "pr view") printf 'Body with no closing line.\n'; exit 0 ;;
+esac
+echo "GraphQL: API rate limit already exceeded." >&2
+exit 1
+'''
+EMPTY_BODY = '''#!/bin/sh
+case "$1 $2" in
+  "issue list") echo '291' ;;
+  "pr view")    printf '' ;;
+esac
+exit 0
+'''
 
 
 class Precheck(unittest.TestCase):
@@ -54,11 +77,17 @@ class Precheck(unittest.TestCase):
                                capture_output=True, text=True)
         return r.returncode, r.stdout
 
+    def assertNoFail(self, out):
+        # The exit code also reflects checks unrelated to the queue - a
+        # changed .js file is run through `node --check`, and node is not on
+        # this environment's shell PATH - so assert on what this file is about.
+        self.assertNotIn("FAIL", out)
+
     def test_an_issue_gh_can_see_passes(self):
-        code, out = self.run_with(WORKING, "AF-12")
+        _, out = self.run_with(WORKING, "AF-12")
         self.assertIn("AF-12 is issue #291", out)
         self.assertIn("the PR closes #291", out)
-        self.assertEqual(code, 0, out)
+        self.assertNoFail(out)
 
     def test_an_issue_that_really_is_not_filed_still_fails(self):
         # The control. A working gh that finds nothing means what it says.
@@ -68,22 +97,39 @@ class Precheck(unittest.TestCase):
 
     def test_a_gh_that_cannot_run_is_a_warning_about_the_api(self):
         # Not "never filed": that sends a fork to file an issue that exists.
-        code, out = self.run_with(REFUSING, "AF-12")
+        _, out = self.run_with(REFUSING, "AF-12")
         self.assertIn("AF-12 unchecked, gh failed", out)
         self.assertIn("rate limit", out)
         self.assertNotIn("is not an open issue", out)
-        self.assertEqual(code, 0, out)
+        self.assertNoFail(out)
+
+    def test_an_unverifiable_item_still_needs_the_pr_to_close_something(self):
+        # The gate must not fall silent in the outage it exists for.
+        _, out = self.run_with(REFUSING_ISSUES_ONLY, "AF-12")
+        self.assertIn("went unverified", out)
+        self.assertNoFail(out)
+
+    def test_a_body_that_closes_nothing_fails_even_when_the_ids_are_unknown(self):
+        code, out = self.run_with(CLOSES_NOTHING, "AF-12")
+        self.assertIn("closes no issue at all", out)
+        self.assertEqual(code, 1, out)
+
+    def test_a_pr_that_exists_with_an_empty_body_is_not_called_absent(self):
+        code, out = self.run_with(EMPTY_BODY, "AF-12")
+        self.assertIn("empty body", out)
+        self.assertNotIn("no PR read", out)
+        self.assertEqual(code, 1, out)
 
     def test_every_id_of_a_group_is_checked(self):
-        code, out = self.run_with(WORKING, "AF-12", "AF-13", "AF-14")
+        _, out = self.run_with(WORKING, "AF-12", "AF-13", "AF-14")
         for item in ("AF-12", "AF-13", "AF-14"):
             self.assertIn(f"{item} is issue #291", out)
-        self.assertEqual(code, 0, out)
+        self.assertNoFail(out)
 
     def test_an_empty_argument_is_skipped_not_searched(self):
-        code, out = self.run_with(WORKING, "")
+        _, out = self.run_with(WORKING, "")
         self.assertNotIn("is issue", out)
-        self.assertEqual(code, 0, out)
+        self.assertNoFail(out)
 
 
 if __name__ == "__main__":

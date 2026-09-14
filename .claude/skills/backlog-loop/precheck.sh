@@ -39,8 +39,12 @@ done
 # 4. the queue: each item is one open issue, and the PR (once it exists) closes each
 if [ $# -gt 0 ]; then
   body=$(gh pr view --json body --jq .body 2>"$errf"); prrc=$?
-  if [ $prrc -ne 0 ]; then say WARN "could not read this branch's PR: $(head -1 "$errf" | cut -c1-72)"
-  elif [ -z "$body" ]; then say WARN "no PR yet for this branch - its body must carry a 'Closes #n' line for every item"; fi
+  # `gh pr view` exits non-zero when the branch has no PR at all, so that is
+  # the "not yet" case; a zero exit with an empty body is a PR someone opened
+  # with nothing in it, which is a different thing to say.
+  if [ $prrc -ne 0 ]; then say WARN "no PR read for this branch (none yet, or gh failed: $(head -1 "$errf" | cut -c1-56)) - its body must carry a 'Closes #n' line for every item"
+  elif [ -z "$body" ]; then say FAIL "this branch's PR has an empty body; it must carry a 'Closes #n' line for every item"; fail=1; fi
+  unresolved=0
   for item in "$@"; do
     [ -n "$item" ] || continue
     ns=$(gh issue list --state open --search "\"$item:\" in:title" --json number,title --jq "[.[] | select(.title | startswith(\"$item: \")) | .number] | join(\" \")" 2>"$errf"); rc=$?
@@ -49,6 +53,7 @@ if [ $# -gt 0 ]; then
       # Not a missing issue. Saying so sends a fork to file one that exists,
       # and a group multiplies that by its own size.
       say WARN "$item unchecked, gh failed: $(head -1 "$errf" | cut -c1-72)"
+      unresolved=1
     elif [ -z "$n" ]; then say FAIL "$item is not an open issue (landed, declined, or never filed - next.py $item)"; fail=1
     elif [ "$ns" != "$n" ]; then say FAIL "$item is more than one open issue (#${ns// /, #}); ids are never reused - close the duplicate"; fail=1
     else
@@ -59,6 +64,14 @@ if [ $# -gt 0 ]; then
       fi
     fi
   done
+  # An item whose number `gh` would not tell us still has to be closed by
+  # something. Without this the gate falls silent in exactly the outage it
+  # was written for: a body closing nothing passed while the API was down.
+  if [ "$unresolved" = 1 ] && [ $prrc -eq 0 ] && [ -n "$body" ]; then
+    if printf '%s\n' "$body" | grep -qiE "^(closes|fixes|resolves) #[0-9]+\b"; then
+      say WARN "the PR closes an issue, but which items those are went unverified"
+    else say FAIL "the PR body closes no issue at all, and the ids could not be checked"; fail=1; fi
+  fi
 fi
 # 5. generated artefacts moved only if the change touches what generates them
 arts=$(git diff --name-only origin/main...HEAD -- f1.db f1-geometry.db f1_compat.json README.md docs/COMMERCIAL-READINESS.md | tr '\n' ' ')

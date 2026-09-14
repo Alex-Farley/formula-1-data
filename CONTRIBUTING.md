@@ -278,8 +278,12 @@ findings named. The agent that made the change does not approve it. A FAIL
 is corrected, `make all` is run again, and a fresh-context review of the
 fix is obtained; this repeats until PASS. Silence, an interrupted reviewer
 or an unavailable review account is not a PASS. Which model reviews what,
-what happens to a PASS with non-blocking findings - the reviewed head merges
-as it is and the findings are carried into the next PR - and which post-PASS
+what happens to a PASS with non-blocking findings - the findings that belong
+to the diff under review are fixed on it, in one batch with one confirmation,
+and only what needs a decision the item does not settle, touches code the PR
+does not, or would make the diff unreadable is carried and filed (revised
+2026-09-14, after three items landed in a day and filed seven issues, three of
+them against their own diffs) - and which post-PASS
 fixes merge without a further pass - documentation wording, a blank line, a
 comment, a test, the removal of dead code, named in the PR comment - were
 decided by the maintainer on 2026-09-13 to control review cost and are set

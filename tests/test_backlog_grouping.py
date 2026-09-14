@@ -209,6 +209,12 @@ class GroupingProposals(unittest.TestCase):
         # A served path is decided by what its extension is, not by having
         # one: CLAUDE.md gives /build-status.txt as an address to open.
         self.assertEqual(routes("served at `/build-status.txt`"), {"/build-status.txt"})
+        # Whatever else happens, the pseudo-route /f1 must not come back -
+        # not through case, and not through an extension too long to match.
+        self.assertEqual(routes("`/f1.DB`"), set())
+        self.assertEqual(routes("`/f1.database`"), {"/f1.database"})
+        # IS_FILE anchors at the end, so .dbx is not .db.
+        self.assertEqual(routes("`/f1.dbx`"), {"/f1.dbx"})
         self.assertEqual(routes(f"`{CARS}` renders it"), set())
         self.assertEqual(routes("shown on /drivers."), {"/drivers"})
         self.assertEqual(routes("`/races/2026/13`"), {"/races/2026/13"})

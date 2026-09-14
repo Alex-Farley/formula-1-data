@@ -196,8 +196,11 @@ stays small. Measured 2026-09-13: that session, not the reviewers, was
   reviewed again, fresh. Silence, a rate limit or an unavailable review
   account is not a PASS. Which reviewer and which model - Opus for a first
   pass, Sonnet to confirm a fix that must land before merge or to review
-  wording - that a PASS merges as reviewed with non-blocking code findings
-  carried into the next PR, which fixes merge without a further pass, and
+  wording - that a PASS fixes the findings belonging to its own diff before
+  it merges, in one batch with one confirmation, and carries only what needs
+  a decision, touches other code or would make the diff unreadable (revised
+  2026-09-14; a review finding is not discovered work, and filing one turns a
+  fix into a backlog item), which fixes merge without a further pass, and
   that the rungs of one item are one PR, and what each pace may relax and
   what no pace may, is set in `.claude/skills/backlog-item/SKILL.md`
   (decided 2026-09-13, three times).

@@ -356,9 +356,11 @@ The agent returns exactly `PASS — safe to merge` or `FAIL — changes required
   on 2026-09-14 every one of those read full while it refused every GraphQL
   call - so a `gh` failure saying a limit is exceeded while the buckets look
   untouched is that limiter, not a defect and not your quota. Record it, stop
-  calling, and come back; a poll every 45 seconds keeps it closed. A
-  `precheck.sh` FAIL saying an item "is not an open issue" while the API is
-  refusing calls is this, not a missing issue: check before you file it again.
+  calling, and come back; a poll every 45 seconds keeps it closed.
+  `precheck.sh` tells the two apart for you since `AF-14`: a call that failed
+  is a WARN naming the API, and the FAIL saying an item "is not an open
+  issue" now only happens when `gh` answered and found nothing. Trust that
+  FAIL; it means the item really is not filed.
 - Keep your own messages short and do not paste reviewer reports into your
   context twice; the PR comment is the record. Read build and test output
   in its quiet form and never `cat` a log you have already checked the exit

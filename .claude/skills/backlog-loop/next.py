@@ -92,8 +92,12 @@ PATH = re.compile(rf"(?:[\w.-]+/)*[\w.-]+\.(?:{SOURCE_EXT})\b")
 # that cannot see it under that spelling. A route at the end of a sentence -
 # "shown on /drivers." - keeps no full stop, because an extension needs a
 # character after the dot.
-ROUTE = re.compile(r"(?<![\w/.])/[a-z][a-z0-9-]*(?:/[a-z0-9:<>-]+)*(?:\.[a-z0-9]{1,4}\b)?")
-IS_FILE = re.compile(rf"\.(?:{SOURCE_EXT})$")
+# The extension is matched case-insensitively and up to eight characters so
+# that "/f1.DB" and "/f1.database" are captured whole. Matching only four
+# lowercase characters left both of them yielding the pseudo-route "/f1",
+# which is the thing this is here to stop.
+ROUTE = re.compile(r"(?<![\w/.])/[a-z][a-z0-9-]*(?:/[a-z0-9:<>-]+)*(?:\.(?i:[a-z0-9]{1,8})\b)?")
+IS_FILE = re.compile(rf"\.(?:{SOURCE_EXT})$", re.I)
 IDREF = re.compile(r"\b[A-Z]{2}-[0-9]+\b")
 COMPANIONS = 6       # candidates listed; the pace caps how many may be taken
 THRESHOLD = 3        # below this a candidate is not worth a fork's attention
