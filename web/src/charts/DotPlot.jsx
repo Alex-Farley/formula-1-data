@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { linear, ticks } from './scales.js'
+import { ownColour } from './own.js'
 import { seriesColour } from './palette.js'
 import { useMeasure } from './useMeasure.js'
 
@@ -23,9 +24,12 @@ export default function DotPlot({
   format = (v) => String(v),
   formatX = (v) => String(v),
   label,
+  // The entity whose chart this is (VD-34); see ColumnChart for the rule.
+  colour = null,
 }) {
   const [ref, width] = useMeasure()
   const [hover, setHover] = useState(null)
+  const own = ownColour(colour)
   const plotted = data.filter((d) => typeof d.y === 'number' && Number.isFinite(d.y))
   if (plotted.length === 0) return null
 
@@ -36,8 +40,10 @@ export default function DotPlot({
     ? linear([1, top], [M.top, height - M.bottom])
     : linear([0, top], [height - M.bottom, M.top])
 
+  const paint = own.paint ?? seriesColour(0)
+
   return (
-    <div className="plot-holder" ref={ref}>
+    <div className={`plot-holder${own.className ? ` ${own.className}` : ''}`} style={own.style} ref={ref}>
       <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={label}>
         {/* P1 is the one value this chart exists to show, and a step of 2 from
             1 ticked 2, 4, 6... so the title-winning seasons sat above the top
@@ -60,6 +66,26 @@ export default function DotPlot({
           </text>
         ))}
 
+        {/* A dot the caller has flagged gets a halo: on a driver's page the
+            title-winning seasons were four more dots in a line of dots, told
+            apart only by being at the top of an axis a reader has to read to
+            know that (VD-34). The halo adds no claim the plot does not
+            already make - it is drawn from `mark`, which the caller sets from
+            the position it is plotting - and the figure's own table and note
+            say what is ringed, so nothing here is carried by colour alone. */}
+        {plotted
+          .filter((d) => d.mark)
+          .map((d) => (
+            <circle
+              key={`halo-${d.x}-${d.y}`}
+              className="mark-halo"
+              cx={x(d.x)}
+              cy={y(d.y)}
+              r={hover === d ? 10 : 8.5}
+              fill="none"
+              stroke={paint}
+            />
+          ))}
         {plotted.map((d) => (
           <circle
             key={`${d.x}-${d.y}-${d.label ?? ''}`}
@@ -67,7 +93,7 @@ export default function DotPlot({
             cx={x(d.x)}
             cy={y(d.y)}
             r={hover === d ? 6 : 4.5}
-            fill={seriesColour(0)}
+            fill={paint}
             onMouseEnter={() => setHover(d)}
             onMouseLeave={() => setHover(null)}
           />
@@ -82,7 +108,7 @@ export default function DotPlot({
         >
           <b>{hover.label ?? formatX(hover.x)}</b>
           <span className="row">
-            <i style={{ background: seriesColour(0) }} aria-hidden="true" />
+            <i style={{ background: paint }} aria-hidden="true" />
             {hover.note ?? format(hover.y)}
           </span>
         </div>

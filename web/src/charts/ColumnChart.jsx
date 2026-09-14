@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { band, linear, niceDomain, ticks } from './scales.js'
+import { ownColour } from './own.js'
 import { seriesColour } from './palette.js'
 import { useMeasure } from './useMeasure.js'
 
@@ -21,12 +22,19 @@ export default function ColumnChart({
   labelEvery = 1,
   labelPeak = true,
   label,
+  // The entity whose chart this is, where there is one: its colourForEntry()
+  // result, so a constructor's wins are drawn in the constructor's colour
+  // rather than in slot one of the shared palette (VD-34). Null on every
+  // chart that belongs to no single entity - the home page's, the quality
+  // page's - which keep the palette.
+  colour = null,
   // Whole-number ticks for a count; a wins axis ticked at 2.5 is an axis
   // that lies (web/README.md says so, and scales.js already supports it).
   integer = false,
 }) {
   const [ref, width] = useMeasure()
   const [hover, setHover] = useState(null)
+  const own = ownColour(colour)
 
   const geometry = useMemo(() => {
     const keys = data.map((d) => d.key)
@@ -41,8 +49,13 @@ export default function ColumnChart({
   const peak = data.reduce((a, b) => (b.value > a.value ? b : a), data[0])
   const radius = Math.min(4, thickness / 2)
 
+  const paint = own.paint ?? seriesColour(0)
+
   return (
-    <div className="plot-holder" ref={ref}>
+    // The class and the properties go on the HOLDER, not the <svg>: the
+    // tooltip is a sibling of the drawing, and a swatch in one colour beside
+    // columns in another is a tooltip about some other chart.
+    <div className={`plot-holder${own.className ? ` ${own.className}` : ''}`} style={own.style} ref={ref}>
       <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={label}>
         {ticks(y.domain, 4, { integer }).map((value) => (
           <g key={value}>
@@ -78,7 +91,7 @@ export default function ColumnChart({
                 d={`M${left},${bottom} L${left},${top + radius} Q${left},${top} ${left + radius},${top}
                     L${left + thickness - radius},${top} Q${left + thickness},${top} ${left + thickness},${top + radius}
                     L${left + thickness},${bottom} Z`}
-                fill={seriesColour(0)}
+                fill={paint}
                 opacity={hover && hover.key !== d.key ? 0.55 : 1}
               />
               {isPeak && tall > 14 && (
@@ -107,7 +120,7 @@ export default function ColumnChart({
               heading. On the home page that is nine columns in ten. */}
           <b>{hover.label || hover.key}</b>
           <span className="row">
-            <i style={{ background: seriesColour(0) }} aria-hidden="true" />
+            <i style={{ background: paint }} aria-hidden="true" />
             {format(hover.value)}
             {hover.note ? ` · ${hover.note}` : ''}
           </span>

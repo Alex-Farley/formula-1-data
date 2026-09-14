@@ -1739,6 +1739,15 @@ figure.figure > figcaption span {
   stroke-width: 2;
 }
 
+/* The ring round a dot the caller flagged - a season finished first, on a
+   driver's page (VD-34). Set below the mark's own weight so it reads as a
+   surround rather than a second mark, and drawn in the series' own colour,
+   which the element carries as a stroke. */
+.figure .mark-halo {
+  stroke-width: 1.5;
+  opacity: 0.5;
+}
+
 .legend {
   display: flex;
   gap: 14px;
@@ -2132,6 +2141,16 @@ input[type='range']:disabled::-webkit-slider-thumb {
    it needs no second value per team and cannot fall out of step with one.
    test/conventions.mjs measures the mix against every primary here.
 
+   AF-17: the mark draws the whole SCHEME, not the primary alone. AF-15
+   sourced a primary and up to two accents for every team from 2010 and only
+   the first was ever shown, so two teams whose schemes differ drew the same
+   3 px bar - which is a register of the most visually identifiable sport
+   there is spending its colour on a hairline. The stops are hard and come
+   from lib/liveries.js schemeGradient(); the width went 3 px to 7 px because
+   three bands in three pixels are not three bands. The primary is still the
+   background COLOUR, so --livery-edge is mixed from the same value it always
+   was and every surface below is untouched.
+
    Nothing without a colour is ringed, and the mechanism is the mix itself:
    with --livery unset there is nothing to mix, --livery-edge is invalid, and
    box-shadow falls back to none. So the register's placeholder grey stays the
@@ -2141,12 +2160,17 @@ input[type='range']:disabled::-webkit-slider-thumb {
    to be one - needs no exemption of its own. */
 .livery {
   display: inline-block;
-  width: 3px;
+  width: 7px;
   height: 1.05em;
   margin-right: 9px;
   vertical-align: -2px;
   --livery-edge: color-mix(in srgb, var(--livery) 60%, var(--ink));
   background: var(--livery, var(--rule-strong));
+  /* AFTER the shorthand, which would reset it. The primary is the background
+     colour and stays the thing the edge is mixed from; the scheme is an image
+     painted over it, so a scheme of one sets no property, falls back to none,
+     and draws exactly the flat fill AF-16 left. */
+  background-image: var(--livery-scheme, none);
   box-shadow: 0 0 0 1px var(--livery-edge);
 }
 
@@ -2184,11 +2208,16 @@ input[type='range']:disabled::-webkit-slider-thumb {
 /* The winner's colour under a round in the calendar strip: a short bar
    between the outline and the round number, in the constructor's livery or
    national colour; nothing where the round is unrun or the colour unknown. */
+/* The winner's bar under a round is three pixels tall, and three bands in
+   three pixels is mush rather than an identity. Below about ten pixels on the
+   axis the stops run along, the mark draws the primary alone - the rule the
+   band on a constructor's page is sized by, from the other end. */
 .outline-strip .livery {
   display: block;
   width: 26px;
   height: 3px;
   margin: 6px 0 0;
+  background-image: none;
 }
 
 .livery-band {
@@ -2201,12 +2230,29 @@ input[type='range']:disabled::-webkit-slider-thumb {
   color: var(--ink-faint);
 }
 
+/* A 26x8 chip beside a name was the whole of a team's identity on its own
+   page. It is a band across the measure now, tall enough for the accents to
+   be bands rather than hairlines (AF-17). */
 .livery-band i {
-  display: inline-block;
-  width: 26px;
-  height: 8px;
-  margin-right: 10px;
-  vertical-align: 1px;
+  display: block;
+  width: 100%;
+  height: 22px;
+  margin: 0 0 9px;
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px var(--livery-edge);
+}
+
+/* The rest of the scheme, named. AF-15 established what each colour is called
+   and whose word the name is; the sentence below carries the claim for the
+   primary, and these are listed without it - an accent this project described
+   must not borrow "as the team names it" from the colour above it. */
+.livery-band em {
+  font-style: normal;
+  color: var(--ink-faint);
+}
+
+.livery-band em::before {
+  content: ' · ';
 }
 
 /* The sentence that carries the racing-colour decision was 10.5 px mono across

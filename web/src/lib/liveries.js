@@ -1033,7 +1033,75 @@ export const isDeclaredGap = (constructorId, year) =>
  * panel is outlined rather than moved. A national colour is already a
  * theme-switching token and passes through as one.
  */
-export const liveryStyle = (livery) => (livery ? { '--livery': liveryPrimary(livery).base } : undefined)
+export const liveryStyle = (livery) => (livery ? markStyle(liveryPrimary(livery).base, livery.scheme) : undefined)
+
+/**
+ * How much of a mark the primary takes. A livery is its main colour with the
+ * rest beside it, not equal thirds: Ferrari in three equal bands is a third
+ * red, and the thing a reader recognises at a glance is the red.
+ */
+const PRIMARY_SHARE = 0.58
+
+/**
+ * A scheme as hard gradient stops, or null for a scheme of one.
+ *
+ * AF-15 sourced a primary and up to two accents for every team and only the
+ * primary was ever drawn, so two teams whose schemes differ drew the same
+ * mark - which is what test/conventions.mjs said in as many words, pointing
+ * at this item. The stops are hard, never blended: a blend would invent a
+ * colour no source states, which is the whole objection this file's header
+ * raises about hexes.
+ *
+ * One direction, `to bottom`, for every surface that draws it - the mark
+ * beside a name is tall and thin, the band on a constructor's page is wide
+ * and short, and one value has to serve both or the property would have to
+ * be computed per surface and could fall out of step with itself.
+ *
+ * A scheme of one - every national colour, and a livery nobody sourced an
+ * accent for - returns null, so `.livery` falls back to `none` and the mark
+ * stays the flat fill AF-16 left it as.
+ */
+export function schemeGradient(scheme) {
+  if (!Array.isArray(scheme) || scheme.length < 2) return null
+  const accents = scheme.slice(1)
+  const share = (1 - PRIMARY_SHARE) / accents.length
+  const pc = (n) => `${(n * 100).toFixed(2)}%`
+  let at = PRIMARY_SHARE
+  const stops = [`${scheme[0].base} 0 ${pc(at)}`]
+  for (const colour of accents) {
+    // The last stop is pinned to 100% rather than to the accumulated share,
+    // so a rounded percentage cannot leave a hairline of the element's own
+    // background showing along the bottom edge.
+    const next = colour === accents[accents.length - 1] ? 1 : at + share
+    stops.push(`${colour.base} ${pc(at)} ${pc(next)}`)
+    at = next
+  }
+  return `linear-gradient(to bottom, ${stops.join(', ')})`
+}
+
+/**
+ * The custom properties a mark reads: --livery, the colour itself, which is
+ * what AF-16 decided a mark draws and what app.css mixes the edge from; and
+ * --livery-scheme, the rest of the scheme beneath it, absent for a scheme of
+ * one. Every surface takes this one object - the marks in the tables, the
+ * band on a constructor's page, the winner's bar in the season strip, and
+ * (through markStyleAttr) the static copy the prerenderer writes.
+ */
+export function markStyle(base, scheme) {
+  const gradient = schemeGradient(scheme)
+  return gradient ? { '--livery': base, '--livery-scheme': gradient } : { '--livery': base }
+}
+
+/**
+ * The same properties as a style attribute, for scripts/prerender.js. The
+ * static mark and the app's are one function's output rather than two
+ * writings of it: the prerenderer used to spell out `--livery:` itself, and
+ * a second property added here would have reached the app alone.
+ */
+export const markStyleAttr = (colour) =>
+  Object.entries(colour.style)
+    .map(([property, value]) => `${property}:${value}`)
+    .join(';')
 
 /**
  * The colour a constructor raced in a season, routed by era (see the
@@ -1048,6 +1116,8 @@ export const liveryStyle = (livery) => (livery ? { '--livery': liveryPrimary(liv
  *           its neighbour by colour alone. A mark takes `style`, never these
  *   scheme  the primary and its accents, each { name, base, named, sourced };
  *           a national colour is a scheme of one
+ *   style   the custom properties a mark draws: the primary itself, and the
+ *           scheme beneath it where there is more than one colour (AF-17)
  *   claim   "as the team names it" or "as its sources describe it" - the
  *           clause every surface appends, so no surface says the first
  *           where only the second is true
@@ -1056,24 +1126,7 @@ export const liveryStyle = (livery) => (livery ? { '--livery': liveryPrimary(liv
 export function colourForEntry({ constructorId, country, year, team }) {
   const y = Number(year)
   if (!Number.isFinite(y)) return null
-  if (y < SPONSOR_ERA) {
-    const entry = COLOURS[canonicalCountry(country)]
-    if (!entry) return null
-    const css = `var(--${entry.token})`
-    return {
-      kind: 'national',
-      name: entry.name,
-      named: false,
-      scheme: [{ name: entry.name, base: css, named: false, sourced: true }],
-      base: css,
-      light: css,
-      dark: css,
-      source: null,
-      style: { '--livery': css },
-      claim: 'the convention, not the team\'s own livery',
-      title: `${entry.name} — the racing colour of ${canonicalCountry(country)}, the convention that painted a car for the country that entered it`,
-    }
-  }
+  if (y < SPONSOR_ERA) return nationalEntry(country)
   if (y < LIVERY_ERA) return null
   const livery = liveryFor(constructorId, y)
   if (!livery) return null
@@ -1091,6 +1144,40 @@ export function colourForEntry({ constructorId, country, year, team }) {
     style: liveryStyle(livery),
     claim,
     title: `${livery.name} — the colour ${who} raced in ${y}, ${claim}`,
+  }
+}
+
+/**
+ * The national convention as a colour entry, in the same shape colourForEntry
+ * returns.
+ *
+ * It is the pre-1968 branch of that function, lifted out because the
+ * CONSTRUCTOR page names a team's country colour whatever season the team
+ * last raced - it is the aside for everyone the livery map has no row for,
+ * and the sentence beside it says which convention it is showing. One
+ * construction, so the two surfaces cannot describe the same colour
+ * differently.
+ *
+ * A scheme of one: the convention painted a car one colour, and inventing an
+ * accent for it would be inventing a fact.
+ */
+export function nationalEntry(country) {
+  const canonical = canonicalCountry(country)
+  const entry = COLOURS[canonical]
+  if (!entry) return null
+  const css = `var(--${entry.token})`
+  return {
+    kind: 'national',
+    name: entry.name,
+    named: false,
+    scheme: [{ name: entry.name, base: css, named: false, sourced: true }],
+    base: css,
+    light: css,
+    dark: css,
+    source: null,
+    style: { '--livery': css },
+    claim: 'the convention, not the team\'s own livery',
+    title: `${entry.name} — the racing colour of ${canonical}, the convention that painted a car for the country that entered it`,
   }
 }
 
