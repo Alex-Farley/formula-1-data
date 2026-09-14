@@ -181,7 +181,10 @@ stays small. Measured 2026-09-13: that session, not the reviewers, was
   ID, or superseded by a later finding. Work you discover is filed as an
   issue under the ID, source and size conventions in `CONTRIBUTING.md`
   (*The queue*), not into a note, a TODO or a second list. A PR lands an
-  item with `Closes #n` in its body; nothing else closes one.
+  item with `Closes #n` in its body; nothing else closes one. A trap that
+  cost a session time and that the code gives no warning of goes in
+  `docs/AGENT-NOTES.md` — in the repository precisely so it reaches every
+  machine and account rather than one session's local notes.
 - **A fact needs a source before it needs a line of code.** Official FIA,
   Formula 1, team, driver, power-unit or circuit sources first; then the
   classified secondary sources. Never invent a missing value: NULL means
