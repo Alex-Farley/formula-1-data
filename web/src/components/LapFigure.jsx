@@ -44,11 +44,11 @@ export default function LapFigure({ lap, runs: given, at = null, colour = true, 
           d={run.d}
           fill="none"
           stroke={run.stroke}
-          strokeWidth="26"
+          strokeWidth={run.width}
           strokeLinecap="round"
           strokeLinejoin="round"
           vectorEffect="non-scaling-stroke"
-          style={{ strokeWidth: 4 }}
+          style={{ strokeWidth: run.width }}
         />
       ))}
       {arrow && (
