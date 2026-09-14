@@ -362,12 +362,13 @@ const outlineCard = (path, circuit, layoutId, caption, rule = false) =>
       }</figcaption></figure>`
     : ''
 // The winner's colour bar under a run round, as components/Outline.jsx draws
-// it: the same {light, dark} pair on the same element, so the static strip
-// and the app's agree (AF-04).
+// it: the same --livery on the same element, so the static strip and the
+// app's agree (AF-04). One value, both themes, since AF-16 stopped moving a
+// livery hex with the theme; app.css derives the mark's edge from it.
 const winnerMark = (round, year) => {
   const colour = winnerColour(round, year)
   return colour
-    ? `<i class="livery" style="--livery-light:${esc(colour.light)};--livery-dark:${esc(colour.dark)}" title="${esc(colour.title)}" aria-hidden="true"></i>`
+    ? `<i class="livery" style="--livery:${esc(colour.base)}" title="${esc(colour.title)}" aria-hidden="true"></i>`
     : ''
 }
 const outlineStrip = (year, calendar) => {

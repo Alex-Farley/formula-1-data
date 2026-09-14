@@ -332,16 +332,30 @@ was read in: the team's own launch release or brand page first, then
 formula1.com's launch coverage and the Wikipedia car article — or, for a season
 no car article describes, the per-season main and secondary colour tables of
 Wikipedia's *Formula One sponsorship liveries* article. The hex is this
-palette's rendering of the named colour, not a measurement, and each entry is a
-`{light, dark}` pair tuned to clear 3:1 on the surfaces it sits on, the way
-`VD-27` tuned the eight national colours.
+palette's rendering of the named colour, not a measurement, and **a mark draws
+it unchanged** — papaya is `#ff8000` on every surface and in both themes
+(`AF-16`, decided 2026-09-14). It used to be moved in lightness until it
+cleared 3:1, the way `VD-27` moved the eight national colours, which is what
+turned papaya into `#d66c00` and Mercedes' black into a mid grey. The mark is
+decorative: the team's name is always beside it, so the colour never carries
+the information alone. What replaces the shift is an edge — `app.css` rings
+`.livery` in a colour mixed from the fill and the theme's ink, so the ring is
+the fill carried towards that ink — a papaya bar's edge is darker than the bar
+in light and lighter than it in dark, the fill being one value and the ink two
+— and the outline of a white bar on a white panel. Every mark reads as an
+outlined bar in either theme; what the ring never does is change the colour
+inside it. The `{light,
+dark}` pair survives for the one surface that still owes 3:1, a **chart
+series**, where a line is told from its neighbour by colour with the legend as
+the only key.
 
 An entry carries a **`scheme`** — a primary and one or two accents, in that
 order — rather than one colour (`AF-15`, decided 2026-09-14: a single principal
 colour cannot express silver-and-teal or white-red-black, and Haas and Racing
-Bulls were the same white). The pair still renders the primary alone; the
-accents carry no pair, because rendering a colour as itself rather than
-contrast-shifted is `AF-16` and putting the accents on a page is `AF-17`.
+Bulls were the same white). A mark still draws the primary alone, and the
+accents carry no pair — putting them on a page is `AF-17`, which is also
+where Haas and Racing Bulls stop being one white bar: both race white in
+2026, so the primary alone cannot tell them apart.
 Every colour of a scheme says whose choice it is: **`named`** where the word is
 the team's own — papaya, Rosso Scuderia, Titanium — and **`sourced`**, which is
 the one place the "nothing unsourced" promise is qualified. `sourced: false`

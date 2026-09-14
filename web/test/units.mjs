@@ -714,8 +714,9 @@ describe('colourForEntry routes a constructor-season by era (AF-04)', () => {
     const c = colourForEntry({ constructorId: 'ferrari', country: 'Italy', year: 1955, team: 'Ferrari' })
     assert.equal(c.kind, 'national')
     assert.equal(c.name, 'Rosso corsa')
+    assert.equal(c.base, 'var(--racing-it)')
     assert.equal(c.light, 'var(--racing-it)')
-    assert.equal(c.style['--livery-dark'], 'var(--racing-it)')
+    assert.equal(c.style['--livery'], 'var(--racing-it)')
     assert.match(c.title, /racing colour of Italy/)
   })
   it('a 1955 constructor from a country without a convention gets nothing', () => {

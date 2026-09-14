@@ -23,7 +23,7 @@ const APP = {
         <>
           <i
             className="livery"
-            style={colour ? { '--livery-light': colour.css, '--livery-dark': colour.css } : undefined}
+            style={colour ? { '--livery': colour.css } : undefined}
             title={colour ? `${colour.name} — the racing colour of ${row.country}` : 'no racing colour recorded'}
           />
           <Link to={`/constructors/${row.id}`}>{name}</Link>

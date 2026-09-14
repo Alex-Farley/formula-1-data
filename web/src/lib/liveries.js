@@ -25,16 +25,32 @@
  * the team said it. Nothing in this file enters f1.db.
  *
  * The hex is this palette's rendering of that named colour, not a
- * measurement. Each colour of a scheme carries its own `base`; `light` and
- * `dark` are the PRIMARY's base moved in lightness until each clears 3:1
- * against the surfaces it sits on -
- * --panel and --panel-sunk in light, --panel and --panel-raised in dark -
- * which is why a white livery is a mid grey on a white panel and a black one
- * a pale grey on the timing screen. VD-27 did the same to the eight national
- * colours, and test/conventions.mjs measures every pair here the same way.
- * The two ratios in the comment after each pair are the measured minimums.
- * That shift is the rendering AF-16 replaces; the accents below never had
- * it and never get it, which is why only the primary carries a pair.
+ * measurement. Each colour of a scheme carries its own `base`, and the
+ * PRIMARY's base is what a mark draws - papaya is #ff8000 on every surface
+ * and in both themes (AF-16). It used to be a value moved in lightness
+ * until it cleared 3:1 on the surfaces it sits on, which is what turned
+ * papaya into #d66c00, matte navy into a mid blue and Mercedes' black into
+ * a grey. The maintainer's decision of 2026-09-14 is that the mark is
+ * decorative: the team's name is always beside it, so the colour never
+ * carries the information alone and WCAG 1.4.11's 3:1 does not reach it.
+ * What replaces the shift is an edge rather than a move - styles/app.css
+ * rings `.livery` in a colour mixed from the fill and the theme's ink, so
+ * the ring is the fill carried towards that ink - darker than a papaya bar
+ * in light and lighter than it in dark, the fill being one value and the
+ * ink two - and the outline of a white bar on a white panel. It reads as
+ * an outlined bar in either theme; what it never does is change the colour
+ * inside it. The eight national colours keep VD-27's treatment: those are
+ * theme-switching tokens, not values this file holds.
+ *
+ * `light` and `dark` survive for the one surface where the shift is still
+ * owed - a chart series, where a line is told from its neighbour by colour
+ * and the legend is the only key, so the colour is doing the work alone.
+ * They are the primary's base moved in lightness until each clears 3:1
+ * against --panel and --panel-sunk in light, --panel and --panel-raised in
+ * dark, and the two ratios in the comment after each pair are the measured
+ * minimums; test/conventions.mjs still measures every one of them. Nothing
+ * but a chart series may wear the pair - a mark takes the base, through
+ * liveryStyle() - and the accents never had a pair and never get one.
  *
  * A SCHEME PER SEASON (AF-15). Until 2026-09-14 an entry carried one
  * colour, and the file said so. A single principal colour cannot express
@@ -104,11 +120,14 @@
  *               oversight (AF-04, scope decided 2026-09-13: 2010 onwards).
  *   2010-       this map, or nothing where LIVERY_GAPS says so.
  *
- * HOW A PAIR REACHES THE PAGE. liveryStyle() returns two custom properties,
- * --livery-light and --livery-dark, for an element's inline style; the
- * `.livery` rules in styles/app.css pick one per theme, exactly as
- * tokens.css does for --racing-*. No component ever chooses a hex, and no
- * element carries one hex for both themes.
+ * HOW A COLOUR REACHES THE PAGE. liveryStyle() returns one custom property,
+ * --livery, carrying the primary's base for an element's inline style; the
+ * `.livery` rules in styles/app.css paint it and derive the mark's edge
+ * from it. One value serves both themes because the colour no longer moves
+ * with the theme. A chart series is the exception: charts/LineChart.jsx and
+ * charts/Figure.jsx set --livery-light and --livery-dark from the pair and
+ * `.livery-series` picks one per theme, exactly as tokens.css does for
+ * --racing-*. No component ever chooses a hex.
  */
 import { COLOURS, canonicalCountry } from './racingColours.js'
 
@@ -1007,20 +1026,26 @@ export const isDeclaredGap = (constructorId, year) =>
   LIVERY_GAPS.some((g) => g.constructor === constructorId && year >= g.from && year <= g.to)
 
 /**
- * The inline style that carries a {light, dark} pair to an element the
- * `.livery` rules paint. A national colour is already a theme-switching
- * token, so both properties point at it.
+ * The inline style that carries a colour to an element the `.livery` rules
+ * paint: one custom property, --livery, holding the primary's base. One
+ * value serves both themes - the mark draws the colour itself (AF-16) - and
+ * app.css derives the mark's edge from it, so a white livery on a white
+ * panel is outlined rather than moved. A national colour is already a
+ * theme-switching token and passes through as one.
  */
-export const liveryStyle = (colour) =>
-  colour ? { '--livery-light': colour.light, '--livery-dark': colour.dark } : undefined
+export const liveryStyle = (livery) => (livery ? { '--livery': liveryPrimary(livery).base } : undefined)
 
 /**
  * The colour a constructor raced in a season, routed by era (see the
- * header), as { kind, name, named, light, dark, source, style, title, claim }
- * or null.
+ * header), as { kind, name, named, base, light, dark, source, style, title,
+ * claim } or null.
  *   team    the constructor's name, for the title; the id stands in without it
  *   kind    'livery' or 'national'
  *   named   true where `name` is the team's own term (see the header)
+ *   base    the colour itself, which is what a mark draws (AF-16)
+ *   light   the pair a CHART SERIES wears, and nothing else: the base moved
+ *   dark    until it clears 3:1 in that theme, because a series is told from
+ *           its neighbour by colour alone. A mark takes `style`, never these
  *   scheme  the primary and its accents, each { name, base, named, sourced };
  *           a national colour is a scheme of one
  *   claim   "as the team names it" or "as its sources describe it" - the
@@ -1040,10 +1065,11 @@ export function colourForEntry({ constructorId, country, year, team }) {
       name: entry.name,
       named: false,
       scheme: [{ name: entry.name, base: css, named: false, sourced: true }],
+      base: css,
       light: css,
       dark: css,
       source: null,
-      style: { '--livery-light': css, '--livery-dark': css },
+      style: { '--livery': css },
       claim: 'the convention, not the team\'s own livery',
       title: `${entry.name} — the racing colour of ${canonicalCountry(country)}, the convention that painted a car for the country that entered it`,
     }
@@ -1058,6 +1084,7 @@ export function colourForEntry({ constructorId, country, year, team }) {
     name: livery.name,
     named: liveryPrimary(livery).named === true,
     scheme: livery.scheme,
+    base: liveryPrimary(livery).base,
     light: livery.light,
     dark: livery.dark,
     source: livery.source,

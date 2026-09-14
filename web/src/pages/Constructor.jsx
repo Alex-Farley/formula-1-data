@@ -139,7 +139,7 @@ function ConstructorBody({ constructor, data }) {
         ) : (
           colour && (
             <p className="livery-band" style={{ marginTop: 14 }}>
-              <i className="livery" style={{ '--livery-light': colour.css, '--livery-dark': colour.css }} />
+              <i className="livery" style={{ '--livery': colour.css }} />
               {colour.name}
               <span>
                 {constructor.country}'s international racing colour, under the convention that
