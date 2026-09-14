@@ -8,7 +8,9 @@
  *                 data mark.
  *   --series-*    the chart colours. Slots 1-3 of the reference categorical
  *                 palette, validated by script against these exact surfaces
- *                 rather than chosen by eye. Never text.
+ *                 rather than chosen by eye, and each clears 3:1 on --panel,
+ *                 the surface every figure draws on, in both themes. Never
+ *                 text.
  *   --seq-*       one hue, for a continuous quantity; the pale end clears 3:1 on
  *                 --stage and --panel in both themes, and every adjacent pair
  *                 is stepped evenly at 1.44-1.50:1. That is the ceiling, not a
@@ -71,10 +73,17 @@
   --rail-points: #e2687c;
   --rail-classified: #535b69;
 
-  /* chart series — reference palette slots 1-3, light column */
+  /* chart series — reference palette slots 1-3, light column. Slot 3 is
+     stepped down from the reference #1baf7a, which sat at 2.82:1 on the
+     panel (AX-07): #15a174 is OKLCH L 0.63 C 0.13 h 164 against the old
+     L 0.67 C 0.14 h 162 - lightness does the work, hue and chroma barely
+     move - and lands close to the dark slot's #199e70 (L 0.62 h 163), which
+     is where the two themes' green converge. 3.29:1 on --panel, 3.10:1 on
+     --stage. charts/palette.js records the validator run, tool and metric
+     named: worst CVD pair 9.3, was 9.2; normal-vision 21.7, was 24.0. */
   --series-1: #2a78d6;
   --series-2: #eb6834;
-  --series-3: #1baf7a;
+  --series-3: #15a174;
   --grid: #e3e5ea;
 
   /* sequential, one hue: light to dark, so "more" is darker. The pale end
