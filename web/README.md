@@ -339,8 +339,10 @@ cleared 3:1, the way `VD-27` moved the eight national colours, which is what
 turned papaya into `#d66c00` and Mercedes' black into a mid grey. The mark is
 decorative: the team's name is always beside it, so the colour never carries
 the information alone. What replaces the shift is an edge — `app.css` rings
-`.livery` in a colour mixed from the fill and the theme's ink, invisible on a
-papaya bar and the outline of a white one on a white panel. The `{light,
+`.livery` in a colour mixed from the fill and the theme's ink: a darker edge of
+papaya on a papaya bar, the outline of a white one on a white panel. Every mark
+reads as an outlined bar; what the ring never does is change the colour inside
+it. The `{light,
 dark}` pair survives for the one surface that still owes 3:1, a **chart
 series**, where a line is told from its neighbour by colour with the legend as
 the only key.

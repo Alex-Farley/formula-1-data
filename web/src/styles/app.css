@@ -2132,22 +2132,26 @@ input[type='range']:disabled::-webkit-slider-thumb {
    it needs no second value per team and cannot fall out of step with one.
    test/conventions.mjs measures the mix against every primary here.
 
-   With --livery unset, the register's placeholder grey; `.livery-none` is the
-   same width, transparent and unringed, for a table column where a missing
-   colour must keep the names aligned without pretending to be one. */
+   Nothing without a colour is ringed, and the mechanism is the mix itself:
+   with --livery unset there is nothing to mix, --livery-edge is invalid, and
+   box-shadow falls back to none. So the register's placeholder grey stays the
+   flat placeholder it was rather than becoming a crisper mark than the colours
+   beside it, and `.livery-none` - the same width, transparent, for a table
+   column where a missing colour must keep the names aligned without pretending
+   to be one - needs no exemption of its own. */
 .livery {
   display: inline-block;
   width: 3px;
   height: 1.05em;
   margin-right: 9px;
   vertical-align: -2px;
+  --livery-edge: color-mix(in srgb, var(--livery) 60%, var(--ink));
   background: var(--livery, var(--rule-strong));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--livery, var(--rule-strong)) 60%, var(--ink));
+  box-shadow: 0 0 0 1px var(--livery-edge);
 }
 
 .livery-none {
   background: transparent;
-  box-shadow: none;
 }
 
 /* A chart series in a livery: the <g> carries the {light, dark} pair, the

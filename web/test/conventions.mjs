@@ -27,7 +27,7 @@ import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { COLOURS } from '../src/lib/racingColours.js'
-import { LIVERIES, LIVERY_ERA, LIVERY_GAPS } from '../src/lib/liveries.js'
+import { colourForEntry, LIVERIES, LIVERY_ERA, LIVERY_GAPS, liveryPrimary, liveryStyle } from '../src/lib/liveries.js'
 import { DatabaseSync } from 'node:sqlite'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -386,8 +386,12 @@ describe('a livery is a sourced scheme drawn as itself, and every 2010+ construc
       !/--livery:\s*var\(--livery-light\)/.test(rule),
       '.livery maps --livery to the moved pair again: AF-16 is that the mark draws the colour itself',
     )
-    const mix = rule.match(/box-shadow:[^;]*color-mix\(in srgb, var\(--livery[^;]*?(\d+)%, var\(--ink\)\)/)
-    assert.ok(mix, '.livery carries no edge mixed from --livery and --ink; a white fill on a white panel would have no shape')
+    // The mix takes var(--livery) with NO fallback on purpose: with no colour
+    // there is nothing to mix, --livery-edge is invalid and box-shadow falls
+    // back to none, so the register's placeholder grey is not ringed.
+    const mix = rule.match(/--livery-edge:\s*color-mix\(in srgb, var\(--livery\)\s*(\d+)%, var\(--ink\)\);/)
+    assert.ok(mix, '.livery carries no --livery-edge mixed from a fallback-free var(--livery) and --ink; a white fill on a white panel would have no shape, or a placeholder would gain one')
+    assert.match(rule, /box-shadow:[^;]*var\(--livery-edge\)/, '.livery does not draw --livery-edge')
     const share = Number(mix[1]) / 100
     const blend = (a, b) =>
       `#${[1, 3, 5]
@@ -412,6 +416,27 @@ describe('a livery is a sourced scheme drawn as itself, and every 2010+ construc
         }
     }
     assert.deepEqual(failing, [])
+  })
+
+  it('liveryStyle hands a mark the primary\'s base and nothing else, and only a chart series is given the pair (AF-16)', () => {
+    // The other half of AF-16, and the half the stylesheet cannot guard: a
+    // liveryStyle() that handed back l.light would put the contrast-shifted
+    // value on every mark again - papaya as #d66c00 - with the CSS above
+    // still passing, because the CSS only says what it does with what it is
+    // given. Both directions are checked: the mark gets the base, and nobody
+    // outside the two chart surfaces writes the pair onto an element at all.
+    for (const l of LIVERIES) {
+      const where = `${l.constructor} ${l.from}-${l.to}`
+      assert.deepEqual(liveryStyle(l), { '--livery': liveryPrimary(l).base }, `${where}: liveryStyle`)
+      const colour = colourForEntry({ constructorId: l.constructor, country: null, year: l.from, team: l.constructor })
+      assert.equal(colour.base, liveryPrimary(l).base, `${where}: colourForEntry base`)
+      assert.deepEqual(colour.style, { '--livery': liveryPrimary(l).base }, `${where}: colourForEntry style`)
+    }
+    const writers = [...sourceFiles(join(web, 'src'), /\.jsx?$/), join(web, 'scripts', 'prerender.js')]
+      .filter((file) => /--livery-(?:light|dark)\s*['"]?\s*:/.test(read(file)))
+      .map(rel)
+      .sort()
+    assert.deepEqual(writers, ['src/charts/Figure.jsx', 'src/charts/LineChart.jsx'], 'the moved pair is written outside the two chart surfaces that owe 3:1')
   })
 
   it('against f1.db, every constructor-season with race entries from 2010 is exactly one of: coloured, a declared gap', () => {
