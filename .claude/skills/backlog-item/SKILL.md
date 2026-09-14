@@ -200,7 +200,12 @@ tokens; a fork killed as stalled costs the item.
   exactly once. Never write a shell-quoting sequence inside a quoted heredoc;
   apostrophes in JS strings go in double-quoted strings.
 - Gate each step on the previous one's exit status, never on the output of a
-  `| grep`. Order: `make all QUIET=1` -> `cd web && npm run build && npm test
+  `| grep`. **`make ci` is ci.yml's *Python* job, not all of CI**: `lint`
+  (ruff, Biome, actionlint) is a separate job that nothing else here runs, so
+  `make lint` belongs in the order too - a ruff finding reached CI on `AF-12`
+  because it did not. `precheck.sh` runs ruff over the changed Python now and
+  warns when ruff is not installed.
+  Order: `make all QUIET=1` -> `make lint` -> `cd web && npm run build && npm test
   -- --quiet` (one smoke run at a time; kill any listener on 4179 first and
   check the log does not say "Reusing the server") -> `git add -A && make ci
   QUIET=1` -> commit -> push -> `gh pr create`. Commit and PR text end with

@@ -66,15 +66,20 @@ exit 0
 
 
 class Precheck(unittest.TestCase):
-    def run_with(self, stub, *items):
+    def run_with(self, stub, *items, ruff=None):
         with tempfile.TemporaryDirectory() as bin_dir:
             gh = os.path.join(bin_dir, "gh")
             with open(gh, "w", encoding="utf-8") as f:
                 f.write(stub)
             os.chmod(gh, 0o755)
+            if ruff is not None:
+                path = os.path.join(bin_dir, "ruff")
+                with open(path, "w", encoding="utf-8") as f:
+                    f.write(ruff)
+                os.chmod(path, 0o755)
             env = dict(os.environ, PATH=f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
             r = subprocess.run(["bash", PRECHECK, *items], cwd=ROOT, env=env,
-                               capture_output=True, text=True)
+                               capture_output=True, text=True, check=False)
         return r.returncode, r.stdout
 
     def assertNoFail(self, out):
@@ -124,6 +129,22 @@ class Precheck(unittest.TestCase):
         _, out = self.run_with(WORKING, "AF-12", "AF-13", "AF-14")
         for item in ("AF-12", "AF-13", "AF-14"):
             self.assertIn(f"{item} is issue #291", out)
+        self.assertNoFail(out)
+
+    def test_a_ruff_finding_fails_the_precheck(self):
+        # CI's lint job is separate from `make ci`, so this is the only local
+        # gate that sees it. PLW1510 reached CI on AF-12 because there was none.
+        _, out = self.run_with(WORKING, "AF-12",
+                               ruff='#!/bin/sh\necho "x.py:1:1: F821 undefined name"\nexit 1\n')
+        self.assertIn("ruff finds what CI's lint job will fail on", out)
+        self.assertIn("FAIL", out)
+
+    def test_a_clean_ruff_passes_and_a_missing_one_only_warns(self):
+        _, out = self.run_with(WORKING, "AF-12", ruff='#!/bin/sh\nexit 0\n')
+        self.assertIn("ruff clean on the changed Python", out)
+        self.assertNoFail(out)
+        _, out = self.run_with(WORKING, "AF-12")      # no ruff on PATH
+        self.assertIn("ruff not installed", out)
         self.assertNoFail(out)
 
     def test_an_empty_argument_is_skipped_not_searched(self):

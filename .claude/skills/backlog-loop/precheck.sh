@@ -36,6 +36,20 @@ for f in $(git diff --name-only origin/main...HEAD -- '*.js' '*.mjs' '*.jsx' 2>/
   d=$(grep -E "^import |^\} from " "$f" | grep -vE '^import \{$' | sort | uniq -d)
   [ -n "$d" ] && { say FAIL "$f repeats an import: $d"; fail=1; }
 done
+# 3b. the changed Python passes the linter. `make ci` is ci.yml's *Python*
+# job; `lint` is a separate job, so nothing the fork runs locally sees a lint
+# failure. That is how PLW1510 reached CI on this very branch.
+pyfiles=$(git diff --name-only origin/main...HEAD -- '*.py' f1 2>/dev/null)
+if [ -n "$pyfiles" ]; then
+  if command -v ruff >/dev/null 2>&1; then
+    if ruff check --quiet $pyfiles >/dev/null 2>&1; then say ok "ruff clean on the changed Python"
+    else
+      say FAIL "ruff finds what CI's lint job will fail on:"
+      ruff check --output-format concise $pyfiles 2>&1 | head -5
+      fail=1
+    fi
+  else say WARN "ruff not installed, so CI's lint job is unchecked here (pip install ruff)"; fi
+fi
 # 4. the queue: each item is one open issue, and the PR (once it exists) closes each
 if [ $# -gt 0 ]; then
   body=$(gh pr view --json body --jq .body 2>"$errf"); prrc=$?
