@@ -391,8 +391,11 @@ The agent returns exactly `PASS — safe to merge` or `FAIL — changes required
 
 - CI: `bash .claude/skills/backlog-loop/ci-wait.sh <PR>` prints
   `PR N core checks: pass,pass,pass` and exits 0; exits 2 on a failed check,
-  1 on a twenty-minute timeout, and 3 at once when the PR is CONFLICTING
-  (no check registers, so CI never started - merge main first). Run it in
+  1 on a twenty-minute timeout, 3 at once when the PR is CONFLICTING
+  (no check registers, so CI never started - merge main first), and 4 at
+  once when `gh` itself cannot answer - absent, unauthenticated, or too old
+  for `pr checks --json`. A 4 is never a defect in the diff: fix the
+  environment, do not go looking through the change. Run it in
   the foreground with the Bash tool's maximum timeout (600000 ms) and run it
   again if the tool times out first; never in the background, for the
   reason the review section gives. Empty output from `gh` is pending.
