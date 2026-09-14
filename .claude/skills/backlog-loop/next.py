@@ -94,8 +94,11 @@ PATH = re.compile(rf"(?:[\w.-]+/)*[\w.-]+\.(?:{SOURCE_EXT})\b")
 # character after the dot.
 # The extension is matched case-insensitively and up to eight characters so
 # that "/f1.DB" and "/f1.database" are captured whole. Matching only four
-# lowercase characters left both of them yielding the pseudo-route "/f1",
-# which is the thing this is here to stop.
+# lowercase characters left both of them yielding the pseudo-route "/f1".
+# This narrows that class rather than closing it: the group is optional, so
+# "/f1.databases" and a bare "/f1." still fall back to "/f1". Those are
+# affinity noise in a proposal rather than a wrong answer, and the spellings
+# that actually occur are covered.
 ROUTE = re.compile(r"(?<![\w/.])/[a-z][a-z0-9-]*(?:/[a-z0-9:<>-]+)*(?:\.(?i:[a-z0-9]{1,8})\b)?")
 IS_FILE = re.compile(rf"\.(?:{SOURCE_EXT})$", re.I)
 IDREF = re.compile(r"\b[A-Z]{2}-[0-9]+\b")

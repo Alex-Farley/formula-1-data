@@ -80,7 +80,9 @@ Decided 2026-09-13 by the maintainer (`PM-36`). The pace changes how much
 review depth and batching an item gets. It changes nothing in the next list.
 
 **Never slides, at any pace:** a fresh independent review before merge;
-`make all`; the precheck; `check (3.9)`, `check (3.12)` and `web` green; the
+`make all`; the precheck; `check (3.9)`, `check (3.12)`, `web` **and `lint`**
+green - `lint` is on this list because `AF-12` proved nothing run locally
+sees it, and a machine without ruff gets only a warning from the precheck; the
 licence-reviewer triggers; the stop conditions; Opus for any change under
 `data/`, `harvest/`, `build.py`, `verify.py`, `schema.sql`, the exporters,
 `web/scripts/prerender.js` or a workflow.

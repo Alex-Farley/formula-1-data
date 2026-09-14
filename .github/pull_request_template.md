@@ -5,5 +5,7 @@ Closes #
 <!-- What was done, file by file, in plain terms; every claim a reviewer
      could check; what was left and where it is filed. The PR is the record. -->
 
-<!-- Before asking for review: make all, cd web && npm run build && npm test
-     -- --quiet, make ci, bash .claude/skills/backlog-loop/precheck.sh <ID>. -->
+<!-- Before asking for review: make all, make lint (a separate CI job from
+     make ci, which is ci.yml's Python job only), cd web && npm run build &&
+     npm test -- --quiet, make ci, then
+     bash .claude/skills/backlog-loop/precheck.sh <ID> [<ID>...]. -->

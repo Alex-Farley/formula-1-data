@@ -56,6 +56,19 @@ EMPTY_BODY = WORKING.replace("printf 'Body.\\n\\nCloses #291\\n'", "printf ''")
 
 CLEAN_RUFF = '#!/bin/sh\nexit 0\n'
 ANGRY_RUFF = '#!/bin/sh\necho "x.py:1:1: F821 undefined name"\nexit 1\n'
+# Complains unless `f1` is among the paths it was handed. ruff.toml includes
+# `f1` by name because it is 43 KB of extensionless Python a bare walk skips.
+WANTS_F1 = ('#!/bin/sh\nfor a in "$@"; do [ "$a" = "f1" ] && exit 0; done\n'
+            'echo "f1 was never linted"; exit 1\n')
+# Complains unless it was handed at least two separate paths, which an
+# over-quoted "$pyfiles" would collapse into one.
+WANTS_BOTH = ('#!/bin/sh\nn=0\nfor a in "$@"; do\n'
+              '  case "$a" in check|-*) continue ;; esac\n  n=$((n+1))\ndone\n'
+              '[ $n -ge 2 ] && exit 0\necho "got $n path(s), expected 2"; exit 1\n')
+# Complains about any path it cannot read - the vanished side of a rename.
+WANTS_REAL = ('#!/bin/sh\nfor a in "$@"; do\n'
+              '  case "$a" in check|-*) continue ;; esac\n'
+              '  [ -f "$a" ] || { echo "no such file: $a"; exit 1; }\ndone\nexit 0\n')
 
 
 def git(repo, *args):
@@ -64,20 +77,25 @@ def git(repo, *args):
 
 
 class Precheck(unittest.TestCase):
-    def repo(self, message="AF-12: a change", changed="x.py"):
+    def repo(self, message="AF-12: a change", base=("x.py",), changed=("x.py",),
+             removed=()):
         """A repository with one commit on origin/main and one after it."""
         d = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, d, ignore_errors=True)
         git(d, "init", "-q")
         git(d, "config", "user.email", "t@example.invalid")
         git(d, "config", "user.name", "T")
-        with open(os.path.join(d, "x.py"), "w", encoding="utf-8") as f:
-            f.write("VALUE = 1\n")
+        for name in base:
+            with open(os.path.join(d, name), "w", encoding="utf-8") as f:
+                f.write("VALUE = 1\n")
         git(d, "add", "-A")
         git(d, "commit", "-q", "-m", "base")
         git(d, "update-ref", "refs/remotes/origin/main", "HEAD")
-        with open(os.path.join(d, changed), "w", encoding="utf-8") as f:
-            f.write("VALUE = 2\n")
+        for name in changed:
+            with open(os.path.join(d, name), "w", encoding="utf-8") as f:
+                f.write("VALUE = 2\n")
+        for name in removed:
+            os.remove(os.path.join(d, name))
         git(d, "add", "-A")
         git(d, "commit", "-q", "-m", message)
         return d
@@ -151,6 +169,32 @@ class Precheck(unittest.TestCase):
 
     def test_a_clean_ruff_passes(self):
         code, out = self.run_with(WORKING, "AF-12", ruff=CLEAN_RUFF)
+        self.assertIn("ruff clean on the changed Python", out)
+        self.assertEqual(code, 0, out)
+
+    def test_the_extensionless_f1_script_is_linted_too(self):
+        # ruff.toml includes it by name; the precheck's pathspec has to as well.
+        repo = self.repo(base=("x.py", "f1"), changed=("f1",))
+        code, out = self.run_in(repo, WORKING, "AF-12", ruff=WANTS_F1)
+        self.assertNotIn("f1 was never linted", out)
+        # Without asserting the section ran, dropping `f1` from the pathspec
+        # leaves nothing changed, skips ruff entirely, and passes vacuously.
+        self.assertIn("ruff clean on the changed Python", out)
+        self.assertEqual(code, 0, out)
+
+    def test_several_changed_files_are_passed_as_several_paths(self):
+        repo = self.repo(base=("x.py", "y.py"), changed=("x.py", "y.py"))
+        code, out = self.run_in(repo, WORKING, "AF-12", ruff=WANTS_BOTH)
+        self.assertNotIn("expected 2", out)
+        self.assertEqual(code, 0, out)
+
+    def test_a_file_the_change_deleted_is_not_handed_to_ruff(self):
+        # `git diff --name-only` lists both sides of a rename, and
+        # `ruff --quiet` exits 0 on a path it cannot read - so the vanished
+        # side was reported clean without ever being linted.
+        repo = self.repo(base=("x.py", "old.py"), changed=("x.py",), removed=("old.py",))
+        code, out = self.run_in(repo, WORKING, "AF-12", ruff=WANTS_REAL)
+        self.assertNotIn("no such file", out)
         self.assertIn("ruff clean on the changed Python", out)
         self.assertEqual(code, 0, out)
 

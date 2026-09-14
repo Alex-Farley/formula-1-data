@@ -45,7 +45,13 @@ done
 # 3b. the changed Python passes the linter. `make ci` is ci.yml's *Python*
 # job; `lint` is a separate job, so nothing the fork runs locally sees a lint
 # failure. That is how PLW1510 reached CI on this very branch.
-pyfiles=$(git diff --name-only origin/main...HEAD -- '*.py' f1 2>/dev/null)
+# Only files that still exist: `git diff --name-only` lists both sides of a
+# rename, and `ruff --quiet` exits 0 on a path it cannot read, so the vanished
+# side would have been reported clean without ever being linted.
+pyfiles=""
+for f in $(git diff --name-only origin/main...HEAD -- '*.py' f1 2>/dev/null); do
+  [ -f "$f" ] && pyfiles="$pyfiles $f"
+done
 if [ -n "$pyfiles" ]; then
   if command -v ruff >/dev/null 2>&1; then
     if ruff check --quiet $pyfiles >/dev/null 2>&1; then say ok "ruff clean on the changed Python"
