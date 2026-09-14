@@ -146,6 +146,14 @@ four routes**, and a group has to account for each of its own: merged
 *In progress* is one `next.py` never returns as next, so it is out of the
 queue until a person moves it by hand.
 
+The one exception is a usage limit: a `LIMIT:` return leaves every issue of
+the group *at* *In progress* on purpose, because the next fork picks the
+work up from the open PR and worktree and needs to see it is taken. A limit
+is not a stop. Until that PR exists, the only record of which issues are in
+the group is the board itself - the branch is named for the head alone - so
+a fork inheriting a worktree reads `next.py`'s *In progress elsewhere*
+footer, which lists every one of them, before it decides what it inherited.
+
 Every issue in the group gets `file.py status <n> "In progress"` when the
 worktree opens and a `Closes #<n>` line of its own in the pull request body.
 The branch is named for the head (`claude/vd-33-photographs`); the progress

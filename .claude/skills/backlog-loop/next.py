@@ -73,11 +73,13 @@ PATH = re.compile(r"(?:[\w.-]+/)*[\w.-]+\.(?:py|js|mjs|jsx|ts|tsx|css|json|sql|m
 # web/src/pages/drivers.jsx is preceded by a word character - and must not
 # exclude a backtick: every route in this queue is written `/drivers`, and
 # excluding it made the whole route signal dead text (found in review). The
-# trailing group catches a filename wearing a route's clothes: "/f1.db" and
-# "./f1 gaps" both yield "/f1", which would have let the queue's noisiest
+# lookbehind's "." and the trailing group catch a filename wearing a route's
+# clothes, one each: "./f1 gaps" is stopped by the lookbehind and "/f1.db" by
+# the group. Both yielded "/f1", which would have let the queue's noisiest
 # token back in under a spelling the noise counter cannot see. A match that
-# fills that group is dropped, rather than trimmed, so a route at the end of
-# a sentence - "shown on /drivers." - still reads as a route.
+# fills the group is dropped, rather than trimmed, so a route at the end of a
+# sentence - "shown on /drivers." - still reads as a route. The cost is a
+# served path with an extension: /build-status.txt does not read as a route.
 ROUTE = re.compile(r"(?<![\w/.])/[a-z][a-z0-9-]*(?:/[a-z0-9:<>-]+)*(\.[a-z0-9]{1,4}\b)?")
 IDREF = re.compile(r"\b[A-Z]{2}-[0-9]+\b")
 COMPANIONS = 6       # candidates listed; the pace caps how many may be taken

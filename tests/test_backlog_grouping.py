@@ -43,7 +43,9 @@ PHOTO = "web/src/lib/photo.js"
 #   `/constructors`     VD-33 IX-71 VD-42                    3   a signal
 #   `/records`          VD-33 IX-71                          2   a signal
 #   `photo.js`          VD-33 AX-14 (AX-14's in its title)   2   a signal
-#   `web/README.md`     VD-33 PM-24                          2   a signal, prose
+#   `web/README.md`     VD-33 PM-24 PM-25                    3   a signal, prose
+#   `docs/METHOD.md`    VD-33 PM-25                          2   a signal, prose
+#   `docs/SOURCES.md`   VD-33 PM-25                          2   a signal, prose
 #   `f1.db`             VD-33 CR-07 PM-24 CD-50 CD-51        5   noise
 #   `/drivers`          VD-33 AX-13 PM-24 CD-50 CD-51        5   noise
 #
@@ -53,8 +55,8 @@ QUEUE = [
     (1, "Now", "VD-33: 602 photographs are advertised and shown on two.", "S", [],
      f"`{CARS}` renders them and `{PHOTO}` picks them. `/constructors` and\n"
      "`/records` advertise them; `/drivers` shows none. `AX-13` is the same\n"
-     "page. The count comes from `f1.db`, and `web/README.md` describes the\n"
-     "build that makes it."),
+     "page. The count comes from `f1.db`; `web/README.md`, `docs/METHOD.md`\n"
+     "and `docs/SOURCES.md` all describe the build that makes it."),
     (2, "Next", "AX-13: Photograph `alt` is the file name.", "S", [],
      f"`{CARS}` writes the file name into `alt`, and `/drivers` does the same."),
     (3, "Next", "PM-24: Two Cloudflare build settings are unconfirmed.", "S", [],
@@ -78,6 +80,9 @@ QUEUE = [
      "The same critique raised it and it touches nothing this one touches."),
     (12, "Next", f"AX-14: `{PHOTO}` returns no dimensions, so the page reflows.", "S", [],
      "Nothing in this body names anything the head names."),
+    (16, "Next", "PM-25: Three documents describe the build differently.", "S", [],
+     "`web/README.md`, `docs/METHOD.md` and `docs/SOURCES.md` disagree, and\n"
+     "nothing else here is shared."),
     (13, "Next", "IX-70: The photograph strip needs a plan.", "M", [],
      "`VD-33` names the page; this one is a few sittings."),
     (14, "Now", "CR-07: The season is a magic number in nine files.", "M", [],
@@ -120,7 +125,8 @@ class GroupingProposals(unittest.TestCase):
 
     def test_a_shared_file_and_a_cross_reference_are_what_propose_a_companion(self):
         idents, why = self.propose("VD-33")
-        self.assertEqual(idents, ["AX-13", "VD-42", "IX-71", "CD-52", "AX-14"])
+        self.assertEqual(idents,
+                         ["AX-13", "VD-42", "IX-71", "CD-52", "AX-14", "PM-25"])
         self.assertEqual(why["AX-13"],
                          ["named by VD-33", f"shares {CARS}", "ranked beside it"])
 
@@ -150,6 +156,23 @@ class GroupingProposals(unittest.TestCase):
         # one rule `next.py`'s docstring and the skill both state outright.
         self.assertEqual(next_py.size_of(self.item("VD-43")), "S")
         self.assertNotIn("VD-43", self.propose("VD-33")[0])
+
+    def test_three_shared_prose_files_are_a_theme_and_one_is_not(self):
+        # The weighting's own claim: a prose file is worth a third of a source
+        # file, so one cannot reach the threshold and three exactly can. PM-25
+        # shares the head's three documents and nothing else.
+        idents, why = self.propose("VD-33")
+        self.assertIn("PM-25", idents)
+        self.assertEqual(why["PM-25"],
+                         ["shares docs/method.md, docs/sources.md, web/readme.md"])
+
+    def test_the_ids_a_caller_already_named_are_never_proposed_back(self):
+        # `next.py --group VD-33 AX-13` reads a group already chosen; AX-13 is
+        # a head, not a candidate to ride with itself.
+        head = self.item("VD-33")
+        taken = {head["number"], self.item("AX-13")["number"]}
+        rows = next_py.companions(head, self.ranked, set(), taken)
+        self.assertNotIn("AX-13", [r["ident"] for _, r, _ in rows])
 
     def test_a_shared_prose_file_alone_is_not_a_theme(self):
         # PM-24 shares only web/README.md with the head - where each would add
@@ -188,7 +211,7 @@ class GroupingProposals(unittest.TestCase):
 
     def test_the_drivers_skip_list_reaches_the_companions(self):
         self.assertEqual(self.propose("VD-33", skip={"AX-13"})[0],
-                         ["VD-42", "IX-71", "CD-52", "AX-14"])
+                         ["VD-42", "IX-71", "CD-52", "AX-14", "PM-25"])
 
     def test_an_m_item_is_never_a_companion(self):
         # IX-70 names the head, which is the strongest signal there is, and
@@ -196,8 +219,11 @@ class GroupingProposals(unittest.TestCase):
         self.assertEqual(next_py.size_of(self.item("IX-70")), "M")
         self.assertNotIn("IX-70", self.propose("VD-33")[0])
 
-    def test_an_m_head_searches_its_own_band_and_the_one_below(self):
-        self.assertEqual(next_py.bands(self.item("CR-07")), ("Now", "Next"))
+    def test_the_bands_are_the_heads_status_and_the_one_below(self):
+        # An M head never reaches bands() - show_companions returns first -
+        # so this is about a Now head's reach, not about M.
+        self.assertEqual(next_py.bands(self.item("VD-33")), ("Now", "Next"))
+        self.assertEqual(next_py.bands(self.item("IA-99")), ("Someday",))
 
     def test_a_head_the_board_has_not_ranked_still_scores(self):
         # `next.py --group <ID>` for an In progress or unplaced item: it is
