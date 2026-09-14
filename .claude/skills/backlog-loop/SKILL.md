@@ -58,8 +58,11 @@ Two words, either order, both optional.
    here, and do not read the board or the issue list to "check" first -
    `next.py` inside the fork does that for a few hundred tokens.
 3. Read the **first line** of the result and act on it:
-   - `MERGED #<N> <ID>`: with `until-paused`, go to step 2 with `next`;
-     otherwise stop and print the stock-take the fork returned.
+   - `MERGED #<N> <ID>`, or `MERGED #<N> <ID>+<ID>` when the fork grouped
+     items that shared a file into one pull request (*Grouping* in the item
+     skill; one fork is still one PR and one line back): with
+     `until-paused`, go to step 2 with `next`; otherwise stop and print the
+     stock-take the fork returned.
    - `SKIPPED <ID>: <reason>`: the fork recorded an ordinary blocker on the
      issue (label `blocked`, a comment saying what) and left the repository
      clean. Add the id to this run's skip
@@ -108,6 +111,8 @@ PRs, decisions needed, what `next.py` says is next. Then stop.
   Agent tool overrides a model per call but not an effort, so a pace picks
   reviewer *agents*, whose effort and turn cap are in their frontmatter.
 - `fast` is for a run of small, well-specified items while a person is
-  around to look at the result; `thorough` for a data change or anything
-  that touches a publishing path. `balanced` is the default because it is
+  around to look at the result, and it is where grouping pays most - up to
+  four S items on one theme in a single PR, against two at `balanced` and
+  none at `thorough`, which is for a data change or anything that touches a
+  publishing path. `balanced` is the default because it is
   what the 2026-09-13 review-cost decisions describe.

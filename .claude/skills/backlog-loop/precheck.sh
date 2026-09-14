@@ -2,9 +2,11 @@
 # The self-check a change passes before it costs a reviewer anything. Run
 # from the worktree root after `make ci`. Every check here is one a reviewer
 # has failed a PR on in the 2026-09-12 run, at 40,000-130,000 tokens a pass.
-#   bash .claude/skills/backlog-loop/precheck.sh [ITEM-ID]
+#   bash .claude/skills/backlog-loop/precheck.sh [ITEM-ID...]
+# Several ids are a group landing in one PR: each must be one open issue and
+# each must have its own `Closes #n` line, or the merge closes some of them
+# and silently leaves the rest open on the board.
 set -u
-item="${1:-}"
 fail=0
 say() { printf '  %-4s %s\n' "$1" "$2"; }
 # 1. no conflict markers anywhere tracked
@@ -29,19 +31,23 @@ for f in $(git diff --name-only origin/main...HEAD -- '*.js' '*.mjs' '*.jsx' 2>/
   d=$(grep -E "^import |^\} from " "$f" | grep -vE '^import \{$' | sort | uniq -d)
   [ -n "$d" ] && { say FAIL "$f repeats an import: $d"; fail=1; }
 done
-# 4. the queue: the item is one open issue, and the PR (once it exists) closes it
-if [ -n "$item" ]; then
-  ns=$(gh issue list --state open --search "\"$item:\" in:title" --json number,title --jq "[.[] | select(.title | startswith(\"$item: \")) | .number] | join(\" \")" 2>/dev/null)
-  n=${ns%% *}
-  if [ -z "$n" ]; then say FAIL "$item is not an open issue (landed, declined, or never filed - next.py $item)"; fail=1
-  elif [ "$ns" != "$n" ]; then say FAIL "$item is more than one open issue (#${ns// /, #}); ids are never reused - close the duplicate"; fail=1
-  else
-    say ok "$item is issue #$n"
-    body=$(gh pr view --json body --jq .body 2>/dev/null)
-    if [ -z "$body" ]; then say WARN "no PR yet for this branch - its body must carry 'Closes #$n' on its own line"
-    elif printf '%s\n' "$body" | grep -qiE "^(closes|fixes|resolves) #$n\b"; then say ok "the PR closes #$n"
-    else say FAIL "the PR body does not close #$n ('Closes #$n' on its own line)"; fail=1; fi
-  fi
+# 4. the queue: each item is one open issue, and the PR (once it exists) closes each
+if [ $# -gt 0 ]; then
+  body=$(gh pr view --json body --jq .body 2>/dev/null)
+  [ -z "$body" ] && say WARN "no PR yet for this branch - its body must carry a 'Closes #n' line for every item"
+  for item in "$@"; do
+    ns=$(gh issue list --state open --search "\"$item:\" in:title" --json number,title --jq "[.[] | select(.title | startswith(\"$item: \")) | .number] | join(\" \")" 2>/dev/null)
+    n=${ns%% *}
+    if [ -z "$n" ]; then say FAIL "$item is not an open issue (landed, declined, or never filed - next.py $item)"; fail=1
+    elif [ "$ns" != "$n" ]; then say FAIL "$item is more than one open issue (#${ns// /, #}); ids are never reused - close the duplicate"; fail=1
+    else
+      say ok "$item is issue #$n"
+      if [ -n "$body" ]; then
+        if printf '%s\n' "$body" | grep -qiE "^(closes|fixes|resolves) #$n\b"; then say ok "the PR closes #$n"
+        else say FAIL "the PR body does not close #$n ('Closes #$n' on its own line)"; fail=1; fi
+      fi
+    fi
+  done
 fi
 # 5. generated artefacts moved only if the change touches what generates them
 arts=$(git diff --name-only origin/main...HEAD -- f1.db f1-geometry.db f1_compat.json README.md docs/COMMERCIAL-READINESS.md | tr '\n' ' ')
@@ -49,5 +55,10 @@ src=$(git diff --name-only origin/main...HEAD -- build.py schema.sql data harves
 if [ -n "$arts" ] && [ "$src" = 0 ]; then say WARN "artefacts changed ($arts) with no change under build.py/schema/data/harvest/tools - expected only after merging main"; fi
 [ -z "$arts" ] && say ok "no artefact moved" || say ok "artefacts moved: $arts"
 # 6. a commit message that does not mention the work
-[ -n "$item" ] && { git log origin/main..HEAD --format=%B | grep -q "$item" && say ok "a commit names $item" || { say WARN "no commit message names $item"; }; }
+if [ $# -gt 0 ]; then
+  log=$(git log origin/main..HEAD --format=%B)
+  for item in "$@"; do
+    printf '%s\n' "$log" | grep -q "$item" && say ok "a commit names $item" || say WARN "no commit message names $item"
+  done
+fi
 if [ $fail = 0 ]; then echo "precheck: ready for review"; else echo "precheck: fix before asking a reviewer"; exit 1; fi

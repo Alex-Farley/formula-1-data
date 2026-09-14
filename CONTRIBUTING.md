@@ -233,6 +233,12 @@ hand works too — the title, the two labels and the board status are all
 there is — and the critique's full reasoning stays in `docs/critiques/`; the
 issue is the queue, not the argument.
 
+**Naming another item's ID in a body is how the two get proposed together.**
+`next.py --group` reads those cross-references, and the file paths and routes
+a body names, to suggest which `size: S` items could land in one pull request
+instead of one each; the body that says where the work lands is the one that
+gets grouped well.
+
 ## Working autonomously
 
 The same rules apply when an agent works through the backlog unattended.
@@ -279,8 +285,11 @@ comment, a test, the removal of dead code, named in the PR comment - were
 decided by the maintainer on 2026-09-13 to control review cost and are set
 in `.claude/skills/backlog-item/SKILL.md`: Opus for a first pass, a fresh
 Sonnet context to confirm a fix that must land before merge or to review a
-wording-only change, and the rungs of one item in one PR. A third decision
-the same day (`PM-36`) added a pace - `fast`, `balanced`, `thorough` - that
+wording-only change, and the rungs of one item in one PR. Small items that
+share a file are grouped into one pull request rather than reviewed one at a
+time - `next.py --group` proposes the candidates, the pace caps how many, and
+each item keeps its own `Closes #n` so the merge closes all of them.
+A third decision the same day (`PM-36`) added a pace - `fast`, `balanced`, `thorough` - that
 may relax the first-pass model on a small front-end change, the routes the
 brief names, batching and pipelining, and never the review itself, `make
 all`, the precheck, green CI, the licence triggers or the stop conditions;
