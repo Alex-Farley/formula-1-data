@@ -253,6 +253,31 @@ a later critique may have superseded it, or a smaller change may now do.
 Work discovered along the way is filed as an issue under the existing ID,
 source and size conventions. There is no second list.
 
+**What the queue scripts need.** All four shell out to `gh`, and it has to
+be both current and authenticated. The credential is for the board alone:
+ranking the queue is a ProjectsV2 read, which is GraphQL, and GraphQL
+refuses an unauthenticated call even though this repository is public —
+issues, pull requests and check runs all read without one. A Claude Code
+web session has neither: no `gh` on PATH, and the `GH_TOKEN` its container
+sets is not a credential GitHub accepts. The loop does not run there until
+both are supplied — a current `gh` from GitHub's own apt repository or a
+release tarball (the Ubuntu package is 2.45 and has no `--json` on
+`pr checks`, which `ci-wait.sh` reads), and a classic PAT with `repo` and
+`project` scope. `project` is the scope the board read needs; `repo` alone
+returns an empty board, which is indistinguishable from an empty queue.
+`gh_preflight.py` says which of the three is wrong at the first failed
+call, in place of the traceback `next.py` used to raise and the twenty
+minutes `ci-wait.sh` used to spend sleeping on an answer that was never
+coming.
+
+Nothing falls back to cover that gap, and this is deliberate. `file.py`
+moves an item to *In progress*, which is a board write, so a loop that
+cannot reach the board cannot claim an item and two sessions could take the
+same one — the collision that status exists to prevent. A queue with no
+ranking also looks exactly like a correctly ranked one in the output. Read
+and work a named item without a board if you like; do not let the loop
+choose one.
+
 **Facts.** A factual or data change is verified against an authoritative
 source before it is made — official FIA, Formula 1, team, driver, power-unit
 manufacturer or circuit/promoter publications first, then the sources

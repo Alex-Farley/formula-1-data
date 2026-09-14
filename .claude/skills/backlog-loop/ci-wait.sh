@@ -9,12 +9,26 @@
 # turn has returned, and the result lands where nothing acts on it.
 set -u
 n="${1:?pr number}"
-for _ in $(seq 1 40); do
+here=$(dirname "$0")
+# An unusable gh is twenty minutes of silence here, not an error: its empty
+# answer reads as '?,?,?', which the loop below treats as "no check has
+# registered yet" and sleeps on forty times. Stop on the first call instead.
+python3 "$here/gh_preflight.py" || exit 2
+for i in $(seq 1 40); do
   out=$(gh pr checks "$n" --json name,bucket 2>/dev/null | python3 -c '
 import json, sys
 d = json.load(sys.stdin)
 c = {x["name"]: x["bucket"] for x in d}
 print(",".join(c.get(k, "?") for k in ["check (3.9)", "check (3.12)", "web"]))' 2>/dev/null)
+  # An empty or all-unknown first answer is either a gh that cannot do this
+  # job - absent, unauthenticated, or too old for `pr checks --json` - or a
+  # PR whose checks have not registered. Only the second is worth waiting
+  # twenty minutes for, and until 2026-09-14 both waited.
+  if [ "$i" = 1 ]; then
+    case "$out" in
+      ""|'?,?,?') python3 "$here/gh_preflight.py" --diagnose || exit 2 ;;
+    esac
+  fi
   case "$out" in
     '?,?,?')
       # No check registered: usually the PR is CONFLICTING and CI never
