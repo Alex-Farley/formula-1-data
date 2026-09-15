@@ -50,11 +50,12 @@ each one time to finish. The reason is `sudo`: when it stops to ask for
 your password, anything you have already pasted is sitting in the terminal
 waiting, and `sudo` takes the next line of it as the password. That fails
 as *sudo: Authentication failure*, which reads like a wrong password rather
-than a paste problem. Step 3's `gh` install is the one block to paste
-whole — it is a single command spread over nine lines, so there is nothing
-queued behind it — and it says so where it appears. And **the password is
-invisible as you type it**: no dots, no stars, the cursor does not move at
-all. That is normal. Type it and press Enter.
+than a paste problem. Where a block is safe to paste whole it says so, and
+gives its reason: step 3's `gh` install is a single command spread over
+nine lines, so nothing is queued behind it, and step 9's check has no
+`sudo` in it to queue anything into. And **the password is invisible as you
+type it**: no dots, no stars, the cursor does not move at all. That is
+normal. Type it and press Enter.
 
 ### 0. If you are on Windows
 
@@ -140,8 +141,9 @@ instruction, copied as it is published: it adds GitHub's package repository
 and installs `gh` from it.
 
 **Paste the whole block.** Every line ends in `\` or starts with `&&`,
-which makes the nine of them one command — the exception the top of *Step
-by step* mentions. Splitting it up is not safer here, it is less safe: the
+which makes the nine of them one command — this is one of the two blocks
+the top of *Step by step* says to paste whole. Splitting it up is not safer
+here, it is less safe: the
 `&&`s are what stop it halfway if a download fails, rather than leaving an
 empty key file behind and a signing error that no amount of retrying will
 clear.
@@ -402,9 +404,10 @@ only for terminals opened afterwards.
 
 ### 9. Check it all works
 
-Paste all three lines. The second names any tool that is missing; the
-third runs the whole build, the unit tests, all three linters and one last
-check, stopping at the first thing that fails.
+Paste all three lines — none of them asks for your password, so there is
+nothing here to swallow the next one. The second names any tool that is
+missing; the third runs the whole build, the unit tests, all three linters
+and one last check, stopping at the first thing that fails.
 
 ```bash
 cd ~/formula-1-data
