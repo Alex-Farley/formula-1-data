@@ -45,12 +45,14 @@ cloning it is the whole transfer.
 
 ## Step by step
 
-Two things trip people up in almost every step below. **Run one command at
-a time.** Several of them ask for your password, and a second command
-pasted in behind the first is swallowed as the password and fails with
-*sudo: Authentication failure*. And **the password is invisible as you type
-it** — no dots, no stars, the cursor does not move at all. That is normal.
-Type it and press Enter.
+Two things trip people up below. **Where a step gives its commands as
+separate blocks, run them one at a time**: several ask for your password,
+and a second command pasted in behind the first is swallowed as the
+password and fails with *sudo: Authentication failure*. A single block is
+pasted whole, however many lines it has — step 3's `gh` install and step
+9's check are each one block on purpose. And **the password is invisible as
+you type it**: no dots, no stars, the cursor does not move at all. That is
+normal. Type it and press Enter.
 
 ### 0. If you are on Windows
 
@@ -131,41 +133,42 @@ installed, and then the first time the loop waits for CI it stops with
 `gh is on PATH but too old for these scripts`. Before that check existed it
 slept silently for twenty minutes instead, which is why this step is here.
 
-Install a current one instead. These are GitHub's own Debian and Ubuntu
-instructions, unrolled into one command per line — they add GitHub's
-package repository and install `gh` from it. Run them in order, and let
-each finish before starting the next:
+Install a current one instead. This is GitHub's own Debian and Ubuntu
+instruction, copied as it is published: it adds GitHub's package repository
+and installs `gh` from it.
+
+**Paste the whole block.** Every line ends in `\` or starts with `&&`,
+which makes the nine of them one command — the exception the top of *Step
+by step* mentions. Splitting it up is not safer here, it is less safe: the
+`&&`s are what stop it halfway if a download fails, rather than leaving an
+empty key file behind and a signing error that no amount of retrying will
+clear.
 
 ```bash
-sudo apt install -y wget
-```
-```bash
-sudo mkdir -p -m 755 /etc/apt/keyrings
-```
-```bash
-sudo wget -nv -O /etc/apt/keyrings/githubcli-archive-keyring.gpg https://cli.github.com/packages/githubcli-archive-keyring.gpg
-```
-```bash
-sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
-```
-```bash
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
-```
-```bash
-sudo apt update
-```
-```bash
-sudo apt install -y gh
+(type -p wget >/dev/null || (sudo apt update && sudo apt install wget -y)) \
+	&& sudo mkdir -p -m 755 /etc/apt/keyrings \
+	&& out=$(mktemp) && wget -nv -O$out https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+	&& cat $out | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null \
+	&& sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
+	&& sudo mkdir -p -m 755 /etc/apt/sources.list.d \
+	&& echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+	&& sudo apt update \
+	&& sudo apt install gh -y
 ```
 
-The middle four print nothing at all on success. `sudo apt update` should
-name `cli.github.com` among the servers it reached; if it says
-`Temporary failure resolving` instead, see *If something goes wrong*.
+It asks for your password once, partway through, and that is safe here for
+the same reason: the shell is reading one command, so nothing you pasted is
+waiting to be mistaken for the password.
 
-Those lines are kept up to date at
+Most of it is quiet. You should see `wget` report the key it fetched, then
+`apt` listing servers — `cli.github.com` among them — then `gh` installing.
+If `apt` says `Temporary failure resolving` instead, see *If something goes
+wrong*; run the whole block again once the network is back.
+
+That block is kept up to date at
 <https://github.com/cli/cli/blob/trunk/docs/install_linux.md>, under
-*Recommended (Official)*. On a Mac, `brew install gh` and none of this
-applies.
+*Recommended (Official)*, and is worth checking against if it ever fails.
+On a Mac, `brew install gh` and none of this applies.
 
 Then check you got one new enough, by asking `gh` whether it has the
 feature rather than by reading its version number:
@@ -255,8 +258,11 @@ is untested rather than unsupported — 3.14.4 has been through this whole
 guide once and reached `SETUP OK` — but it is worth knowing which side of
 the line you are on. If `make all` in step 9 stops with an import or syntax
 error, rather than reporting a file that came out different, your
-interpreter is the first thing to suspect and a 3.12 installed alongside it
-is the fix.
+interpreter is the first thing to suspect. Installing a 3.12 alongside it
+is not the whole fix, though: the build runs whatever `python3` is, so you
+have to point it at the new one. `Makefile` takes a `PYTHON` setting for
+exactly this — `make all PYTHON=python3.12`, and the same on `make test`.
+(`make lint` has no Python in it; it runs ruff, Biome and actionlint.)
 
 ### 6. Node, for the website
 
@@ -326,11 +332,16 @@ pipx ensurepath
 The pin is the point: CI runs ruff 0.16.7, and an unpinned newer one can
 flag things CI never would — an afternoon spent on a finding that was never
 going to fail. `pipx install --force ruff==0.16.7` corrects an unpinned one
-already installed. On macOS the same pinned line works; `brew install ruff`
-tracks the latest instead.
+already installed.
+
+On macOS the first line is `brew install shellcheck`, and ruff comes from
+`brew install ruff`, which tracks the latest rather than CI's version. To
+pin it there, `brew install pipx` first and then the same
+`pipx install ruff==0.16.7` — this guide only ever installs pipx through
+`apt`, so a Mac has to ask for it.
 
 `pipx ensurepath` adds pipx's folder to your `PATH`; **close the terminal,
-open a new one, and `cd formula-1-data` again** — a new terminal starts in
+open a new one, and `cd ~/formula-1-data` again** — a new terminal starts in
 your home folder, and without both the `ensurepath` and the restart `ruff`
 will still look missing. On a fresh Ubuntu there may be no `pip` at all, so
 pipx is the answer either way.
