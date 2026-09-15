@@ -283,11 +283,10 @@ what GitHub requires before it will accept a push that changes anything
 under `.github/workflows/`, which some items do. `gh_preflight.py` says
 which of the three is wrong at the first failed call, alongside gh's own
 message rather than in place of it, and in place of the traceback
-`next.py` used to
-raise and the twenty minutes `ci-wait.sh` used to spend sleeping on an
-answer that was never coming. `docs/LOCAL-SETUP.md` is the step-by-step for
-setting such a machine up from nothing, written for someone who has not
-done it before.
+`next.py` used to raise and the twenty minutes `ci-wait.sh` used to spend
+sleeping on an answer that was never coming. `docs/LOCAL-SETUP.md` is the
+step-by-step for setting such a machine up from nothing, written for
+someone who has not done it before.
 
 Nothing falls back to cover that gap, and this is deliberate. `file.py`
 moves an item to *In progress*, which is a board write, so a loop that
