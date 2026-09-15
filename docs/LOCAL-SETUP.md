@@ -45,6 +45,13 @@ cloning it is the whole transfer.
 
 ## Step by step
 
+Two things trip people up in almost every step below. **Run one command at
+a time.** Several of them ask for your password, and a second command
+pasted in behind the first is swallowed as the password and fails with
+*sudo: Authentication failure*. And **the password is invisible as you type
+it** — no dots, no stars, the cursor does not move at all. That is normal.
+Type it and press Enter.
+
 ### 0. If you are on Windows
 
 Skip this if you are on macOS or Linux.
@@ -67,6 +74,14 @@ and password — they are new, and separate from your Windows login. When it
 finishes you have a Linux prompt, and that prompt is where everything else
 in this guide happens.
 
+That first window opens by itself. **To get back to the Ubuntu prompt any
+time after that**, either open **Ubuntu** from the Start menu or type `wsl`
+in a Command Prompt or PowerShell window. The two do not land you in the
+same place: the Start-menu app starts in your Linux home folder, while
+`wsl` keeps you wherever Windows was, which is usually somewhere under
+`/mnt/c/`. If your prompt shows `/mnt/c/...`, type `cd ~` before carrying
+on.
+
 Worked if: typing `uname` at that prompt prints `Linux`.
 
 **Do the rest of this guide inside WSL, and clone fresh there** — do not
@@ -81,6 +96,8 @@ Your Windows copy does no harm. Leave it, or delete it once WSL works.
 
 ```bash
 sudo apt update
+```
+```bash
 sudo apt install -y git make curl
 ```
 
@@ -114,12 +131,41 @@ installed, and then the first time the loop waits for CI it stops with
 `gh is on PATH but too old for these scripts`. Before that check existed it
 slept silently for twenty minutes instead, which is why this step is here.
 
-Install a current one instead. On Ubuntu or WSL, follow GitHub's own
-instructions at
-<https://github.com/cli/cli/blob/trunk/docs/install_linux.md> — the first
-command block on that page, under *Recommended (Official)* and headed
-*Debian* (it covers Ubuntu too). It adds GitHub's package repository and
-installs `gh` from it. On a Mac, `brew install gh`.
+Install a current one instead. These are GitHub's own Debian and Ubuntu
+instructions, unrolled into one command per line — they add GitHub's
+package repository and install `gh` from it. Run them in order, and let
+each finish before starting the next:
+
+```bash
+sudo apt install -y wget
+```
+```bash
+sudo mkdir -p -m 755 /etc/apt/keyrings
+```
+```bash
+sudo wget -nv -O /etc/apt/keyrings/githubcli-archive-keyring.gpg https://cli.github.com/packages/githubcli-archive-keyring.gpg
+```
+```bash
+sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
+```
+```bash
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+```
+```bash
+sudo apt update
+```
+```bash
+sudo apt install -y gh
+```
+
+The middle four print nothing at all on success. `sudo apt update` should
+name `cli.github.com` among the servers it reached; if it says
+`Temporary failure resolving` instead, see *If something goes wrong*.
+
+Those lines are kept up to date at
+<https://github.com/cli/cli/blob/trunk/docs/install_linux.md>, under
+*Recommended (Official)*. On a Mac, `brew install gh` and none of this
+applies.
 
 Then check you got one new enough, by asking `gh` whether it has the
 feature rather than by reading its version number:
@@ -204,13 +250,29 @@ Worked if: 3.9 or newer. If it is not there at all,
 `sudo apt install -y python3`. (`requirements.txt` lists `fastf1`, but that
 is only for the timing loaders, which are not part of this.)
 
+**CI runs this build on 3.9 and 3.12, and on nothing else.** Anything newer
+is untested rather than unsupported — 3.14.4 has been through this whole
+guide once and reached `SETUP OK` — but it is worth knowing which side of
+the line you are on. If `make all` in step 9 stops with an import or syntax
+error, rather than reporting a file that came out different, your
+interpreter is the first thing to suspect and a 3.12 installed alongside it
+is the fix.
+
 ### 6. Node, for the website
 
 Ubuntu does not come with Node, and its own `nodejs` package is older than
-this project needs. Install nvm by following
-<https://github.com/nvm-sh/nvm#installing-and-updating>, then **close the
-terminal, open a new one, and `cd formula-1-data` again** — nvm only exists
-in a terminal opened after it was installed. Then:
+this project needs. Install nvm:
+
+```bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.7/install.sh | bash
+```
+
+That is the line from <https://github.com/nvm-sh/nvm#installing-and-updating>,
+which is where to check whether the version in the URL has moved on.
+
+Then **close the terminal, open a new one, and `cd ~/formula-1-data`** —
+nvm only exists in a terminal opened after it was installed, and `exec
+bash` does the same thing without closing the window. Then:
 
 ```bash
 nvm install 22
@@ -253,14 +315,19 @@ not the same as `npm install`, and the loop expects this one.
 
 ```bash
 sudo apt install -y pipx shellcheck
-pipx install ruff
+```
+```bash
+pipx install ruff==0.16.7
+```
+```bash
 pipx ensurepath
 ```
 
-CI pins ruff 0.16.7. If a newer one ever flags something CI does not,
-`pipx install --force ruff==0.16.7` matches it. On macOS,
-`brew install ruff` tracks the latest; pin with `pipx` if you ever need to
-match CI exactly.
+The pin is the point: CI runs ruff 0.16.7, and an unpinned newer one can
+flag things CI never would — an afternoon spent on a finding that was never
+going to fail. `pipx install --force ruff==0.16.7` corrects an unpinned one
+already installed. On macOS the same pinned line works; `brew install ruff`
+tracks the latest instead.
 
 `pipx ensurepath` adds pipx's folder to your `PATH`; **close the terminal,
 open a new one, and `cd formula-1-data` again** — a new terminal starts in
@@ -434,6 +501,15 @@ the tree clean.
 **`Executable doesn't exist at …/ms-playwright/…`** — step 6's browser
 install:
 `cd ~/formula-1-data/web && npx playwright install --with-deps chromium`.
+
+**`Temporary failure resolving 'archive.ubuntu.com'`** — or any other host,
+during `sudo apt update`. WSL's DNS has dropped out, which is intermittent
+and nothing you did. **Run `sudo apt update` again**; that clears it more
+often than not. If it does not, close the Ubuntu window, run `wsl
+--shutdown` in PowerShell, wait ten seconds and start Ubuntu again. If it
+still fails and you are on a VPN, disconnect it and retry. A failed
+`apt update` leaves nothing half-installed — it fetches a list of packages
+and gives up.
 
 **`make: command not found`** — step 1. A fresh Ubuntu does not have it.
 
