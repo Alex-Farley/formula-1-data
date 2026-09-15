@@ -94,12 +94,21 @@ look installed and then hang for twenty minutes.
 Install a current one instead — from GitHub's own apt repository, from a
 release tarball, or on a Mac with `brew install gh`.
 
+Then check you got one new enough, by asking `gh` whether it has the
+feature rather than by reading its version number:
+
 ```bash
-gh --version
+gh pr checks --help | grep -- --json
 ```
 
-Worked if: the version is **2.47 or higher**. If it says 2.45, you have the
-wrong one; the newer install needs to come earlier in your `PATH`.
+Worked if: it prints a line describing `--json`. **Nothing at all means
+your `gh` is too old**, whatever number `gh --version` reports.
+
+This is the same test the loop itself runs, and it tests for the feature on
+purpose: the release that introduced it is easy to get wrong, and a version
+number you half-remember is not evidence. If you have just installed a
+newer `gh` and still get nothing, the old one is earlier in your `PATH` —
+`which -a gh` will show you both.
 
 ### 3. Sign `gh` in
 
