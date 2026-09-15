@@ -13,7 +13,7 @@ or to `frontend-reviewer-quick` where the pace table in
     Do NOT run `npm test` (the smoke port is shared; units, conventions and
     smoke passed on this head); you may run `npm run test:units` in web/,
     `python3 verify.py --quiet`, sqlite3 and node scripts against web/dist
-    and f1.db. Node is at ~/.local/node/bin. `make ci` green.
+    and f1.db. Node is whatever `which node` reports. `make ci` green.
 
     Task <ID>: <what the item asked for, in one or two sentences>. <For a
     group, one such line per item, and one sentence saying what makes them
