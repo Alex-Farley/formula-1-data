@@ -86,6 +86,7 @@ here is a number the build checked.
 | `tools/readme_figures.py` | Computes every figure this file states and rewrites it (`--write`) or checks it (`--check`). |
 | `docs/BUILD-NOTES.md` | What changed in each version, what it exposed, what was deliberately not done. |
 | `docs/LANDED.md` | What has landed and what was declined, with the reason. The open queue is GitHub Issues. |
+| `docs/LOCAL-SETUP.md` | Getting `/backlog-loop` running on your own machine, from nothing. |
 | `CONTRIBUTING.md` | How to add data without breaking the checks. Read before editing. |
 | `ATTRIBUTION.md` | Where the data came from, and the licensing that follows from it. **Read before making this public.** |
 | `Makefile` | `make all` = build, regenerate the README figures, verify, export. |
