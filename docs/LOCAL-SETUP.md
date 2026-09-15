@@ -242,8 +242,9 @@ On macOS there are no system libraries to add — run
 
 Worked if: node reports **22.13 or newer** (`.node-version` says 22, and
 `web/package.json` asks for at least 22.13), `npm ci` finishes without
-errors, and `ls ~/.cache/ms-playwright` lists a `chromium-` folder — that
-last one is the browser, and it is where the tests will look for it.
+errors, and `ls ~/.cache/ms-playwright` (on macOS,
+`~/Library/Caches/ms-playwright`) lists a `chromium-` folder — that last
+one is the browser, and it is where the tests will look for it.
 
 `npm ci` downloads the website's dependencies exactly as recorded — it is
 not the same as `npm install`, and the loop expects this one.
