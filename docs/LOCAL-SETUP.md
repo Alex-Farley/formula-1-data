@@ -16,9 +16,9 @@ in this guide.
 A Claude Code session running in the cloud reaches GitHub through a proxy,
 and that proxy refuses one particular kind of request — GraphQL. GitHub
 serves its project boards *only* over GraphQL, and the Lap Ledger board is
-where the queue's running order lives. So a cloud session can read issues,
-open pull requests and watch CI perfectly well, and still cannot ask "what
-is next?" or move a card to *In progress*.
+where the queue's running order lives. So a cloud session with a valid
+token can read issues, open pull requests and watch CI perfectly well, and
+still cannot ask "what is next?" or move a card to *In progress*.
 
 No credential changes this. The refusal comes back even on a request that
 carries no credential at all, so it is a blanket block rather than a
@@ -29,6 +29,7 @@ is no proxy in the way, and everything works.
 
 | What you need | Why |
 |---|---|
+| **A GitHub account with push access** to `Alex-Farley/formula-1-data`, and access to the *Lap Ledger* board | the loop pushes branches, merges its own pull requests and moves cards; read access alone is not enough |
 | **WSL** — Windows only | gives you the Linux shell the scripts need; see step 0 |
 | **git**, **make**, **curl** | fetch the code, run the checks; a fresh Ubuntu has none of them |
 | **`gh`** (GitHub's command-line tool) | how the queue scripts talk to GitHub — **must be a current version**, see step 3 |
@@ -108,9 +109,10 @@ slept silently for twenty minutes instead, which is why this step is here.
 
 Install a current one instead. On Ubuntu or WSL, follow GitHub's own
 instructions at
-<https://github.com/cli/cli/blob/trunk/docs/install_linux.md> — the few
-lines under *Debian, Ubuntu Linux* add GitHub's package repository and
-install from it. On a Mac, `brew install gh`.
+<https://github.com/cli/cli/blob/trunk/docs/install_linux.md> — the first
+command block on that page, under *Recommended (Official)* and headed
+*Debian* (it covers Ubuntu too). It adds GitHub's package repository and
+installs `gh` from it. On a Mac, `brew install gh`.
 
 Then check you got one new enough, by asking `gh` whether it has the
 feature rather than by reading its version number:
@@ -160,6 +162,21 @@ are signed in from a `GH_TOKEN` environment variable rather than a browser
 login. Unset it and run `gh auth login` again, or add the `project` scope
 to that token where you created it.
 
+**Then tell git who you are.** The loop commits on your behalf, and a fresh
+Ubuntu has no name or address on record — the first commit it tries would
+stop with *Author identity unknown*. `gh auth login` does not set this; it
+sets how you authenticate, not who you are.
+
+```bash
+git config --global user.name "Your Name"
+git config --global user.email "you@example.com"
+```
+
+Use the address on your GitHub account, so the commits are attributed to
+you.
+
+Worked if: `git config --global user.email` prints it back.
+
 ### 5. Python
 
 Nothing to install. The database build uses only what comes with Python
@@ -169,20 +186,26 @@ itself:
 python3 --version
 ```
 
-Worked if: 3.9 or newer. (`requirements.txt` lists `fastf1`, but that is
-only for the timing loaders, which are not part of this.)
+Worked if: 3.9 or newer. If it is not there at all,
+`sudo apt install -y python3`. (`requirements.txt` lists `fastf1`, but that
+is only for the timing loaders, which are not part of this.)
 
 ### 6. Node, for the website
 
 Ubuntu does not come with Node, and its own `nodejs` package is older than
-this project needs. Install nvm —
-<https://github.com/nvm-sh/nvm#installing-and-updating> — then:
+this project needs. Install nvm by following
+<https://github.com/nvm-sh/nvm#installing-and-updating>, then **close the
+terminal, open a new one, and `cd formula-1-data` again** — nvm only exists
+in a terminal opened after it was installed. Then:
 
 ```bash
 nvm install 22
 node --version
 cd web && npm ci && cd ..
 ```
+
+If `nvm install` says `nvm: command not found`, the new terminal is the
+step you skipped.
 
 On macOS, `brew install node@22` instead of nvm.
 
@@ -199,15 +222,24 @@ pipx install ruff
 pipx ensurepath
 ```
 
-`pipx ensurepath` adds pipx's folder to your `PATH`; **close the terminal
-and open a new one** afterwards, or `ruff` will still look missing. On a
+`pipx ensurepath` adds pipx's folder to your `PATH`; **close the terminal,
+open a new one, and `cd formula-1-data` again** — a new terminal starts in
+your home folder, and without the `ensurepath` and the restart `ruff` will
+still look missing. On a
 fresh Ubuntu there may be no `pip` at all, so pipx is the answer either
 way. On macOS, `brew install ruff`.
 
-`actionlint` is not in Ubuntu's package list. Download the binary for your
-system from <https://github.com/rhysd/actionlint/releases> and put it
-somewhere on your `PATH`, such as `/usr/local/bin`. On macOS,
-`brew install actionlint` does it in one step.
+`actionlint` is not in Ubuntu's package list. Its own installer fetches the
+right binary for your machine, and this is what CI runs too:
+
+```bash
+curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash | bash -s 1.7.12
+sudo mv actionlint /usr/local/bin/
+```
+
+It downloads into whatever folder you are in, so the second line moves it
+somewhere every terminal will find. On macOS, `brew install actionlint`
+does both.
 
 The third linter, Biome, downloads itself when needed. Nothing to do.
 
@@ -229,31 +261,46 @@ Worked if: `claude --version` prints a version number.
 
 ### 9. Check it all works
 
+Worked if: run all of it as one line —
+
 ```bash
-make all
-make lint
+cd ~/formula-1-data
+make all && make lint && git status --short && echo "SETUP OK"
 ```
 
-Worked if: `make all` prints a line starting `All checks passed.` and then
-a couple of `wrote …` lines, and neither command stops with an error.
+— and the last thing printed is `SETUP OK`, with no files listed above it.
+The `&&` means any failure stops the chain, so `SETUP OK` appearing is the
+whole test; `git status --short` printing nothing proves the build is
+reproducible on your machine, which is the point of it.
 
-**Both are noisier than you expect, and that is fine.** `All checks
-passed.` is followed by a warning count — six today, because the repository
-has six things on the record it has not resolved. Then ruff says `All
-checks passed!`, and Biome ends with something like `Found 30 warnings`.
-None of those is a failure. What matters is that each command runs to the
-end and gives you the prompt back. This takes a couple of minutes the first
-time.
+**Both commands are noisier than you expect, and that is fine.** `make all`
+prints `All checks passed.` followed by a warning count — six today,
+because the repository has six things on the record it has not resolved —
+and then two `wrote …` lines. Ruff says `All checks passed!`, and Biome
+ends with something like `Found 30 warnings`. None of that is a failure.
 
-If `make lint` stops saying `actionlint` is missing, step 7 did not finish
-— that is the usual culprit, and it is the only tool the lint step will not
-run without.
+`make all` takes seconds. `make lint` takes about a minute the first time,
+while it downloads Biome; after that it is quick too.
+
+If `make lint` stops with `make: actionlint: No such file or directory`,
+the actionlint half of step 7 did not finish. The same message with `ruff`
+in it means the pipx half did not — and that one stops the command before
+anything else runs, because ruff goes first. Biome is the only one of the
+three that fetches itself.
 
 ## Your first run
 
 ```bash
+cd ~/formula-1-data
 claude
 ```
+
+**Before you type the next line: the loop merges by itself, and merging
+publishes the site.** When the review passes and CI is green it merges its
+own pull request into `main`, and every push to `main` builds and deploys
+lapledger.org. Your first run is a production change. If that is not what
+you want yet, stop here and read *Two things to know before you merge
+anything*, below.
 
 Then, inside Claude Code:
 
@@ -265,18 +312,15 @@ It will pick the top item off the board, work it in a separate context, get
 an independent review, and merge when CI is green. The session itself shows
 nothing at all while that happens.
 
-**It merges by itself, and merging publishes the site.** When the review
-passes and CI is green, the loop merges its pull request into `main`, and
-every push to `main` builds and deploys lapledger.org. Your first run is a
-production change. Read *Two things to know before you merge anything*,
-below, before you type this.
-
 To watch what it is doing, open a second terminal, `cd` to the folder you
 cloned, and run:
 
 ```bash
 tail -f .claude/loop/progress.log
 ```
+
+If it says the file does not exist, the loop has not reached its first
+stage yet — wait a moment and run it again.
 
 That file is the only view you get of a running item, and it stays empty
 until the first stage finishes. **Quiet is normal.** Three runs have been
@@ -304,14 +348,16 @@ ensurepath`, and then a new terminal.
 **`npm ci` complains about the Node version** — step 6. You need 22.13 or
 newer, and Ubuntu's own package is older.
 
-The queue scripts check themselves before doing anything, and say which of
-three things is wrong. If you see:
+The queue scripts check `gh` before they trust it, and name which of three
+things is wrong. If you see:
 
 **`gh is not on PATH`** — step 3 did not happen, or the terminal cannot
 find it. Try `gh --version`.
 
-**`gh is on PATH but too old for these scripts`** — step 3's trap. You have
-2.45. Install a current one and make sure it is found first.
+**`gh is on PATH but too old for these scripts`** — step 3's trap: your
+`gh` has no `--json` on `pr checks`. Ubuntu's own package (2.45) is the
+usual culprit. Install a current one and make sure it is the one found
+first (`which -a gh`).
 
 **`gh ran but could not confirm a working credential`** — step 4. Run
 `gh auth status`. Note that this message can also appear when GitHub is
