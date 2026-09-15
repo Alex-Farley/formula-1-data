@@ -353,7 +353,7 @@ package the deploy installs and you do not, nothing else depends on it, and
 the build carries on.
 
 Worked if: it ends with a summary line and no failures. If it says
-*Executable doesn't exist* and names a path under `.cache/ms-playwright`,
+*Executable doesn't exist* and names a path ending in `ms-playwright`,
 or that the host is missing dependencies to run browsers, the
 `playwright install` half of step 6 did not happen.
 

@@ -277,9 +277,12 @@ the queue turns on is not.
 Where GraphQL is reachable, the loop needs both — a current `gh` from
 GitHub's own apt repository or a release tarball (the distribution package
 was 2.45 on that image and has no `--json` on `pr checks`, which
-`ci-wait.sh` reads), and a classic PAT with `repo` and `project` scope,
-`project` being what the board read needs. `gh_preflight.py` says which of
-the three is wrong at the first failed call, alongside gh's own message
+`ci-wait.sh` reads), and a classic PAT with `repo`, `project` and
+`workflow` scope — `project` is what the board read needs, and `workflow`
+what GitHub requires before it will accept a push that changes anything
+under `.github/workflows/`, which some items do. `gh_preflight.py` says
+which of the three is wrong at the first failed call, alongside gh's own
+message
 rather than in place of it, and in place of the traceback `next.py` used to
 raise and the twenty minutes `ci-wait.sh` used to spend sleeping on an
 answer that was never coming. `docs/LOCAL-SETUP.md` is the step-by-step for
