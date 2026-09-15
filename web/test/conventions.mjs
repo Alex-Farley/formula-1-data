@@ -184,7 +184,7 @@ describe('a racing colour is a pair, one per theme (VD-27)', () => {
   // fell under 3:1 against the panel in one theme or the other - US blue at
   // 1.78:1 in dark, Belgian yellow at 2.38:1 in light - on the 3 px band that
   // is a register row's only identity mark. Each is now a --racing-* token in
-  // tokens.css with a light and a dark value, keyed the way --seq-* is. This
+  // tokens.css with a light and a dark value, one per theme block. This
   // measures every one against the surfaces the swatch sits on, in both
   // themes, so a retuned palette cannot quietly fail one of them again.
   const css = read(join(web, 'src', 'styles', 'tokens.css'))
@@ -648,64 +648,6 @@ describe('a livery is a sourced scheme drawn as itself, and every 2010+ construc
       .map(rel)
     assert.deepEqual(offenders, [])
   })
-})
-
-describe('the corner-radius ramp is stepped, in both themes (VD-25)', () => {
-  // Five bands of one hue. The pale end has to read as a mark against the
-  // stage it is drawn on and the panel its key sits on; every neighbouring
-  // pair has to be told apart. The dark ramp's pale end was 2.73:1 on the
-  // panel and its steps ran 1.23-1.48:1, so Spa was one blue from La Source
-  // to Kemmel. Ratios multiply, so 2:1 steps over a 3:1 floor would need
-  // 48:1 at the far end - more than black on white - which is why the floor
-  // here is 1.4:1 and lib/lap.js gives each band a stroke width as well.
-  const css = read(join(web, 'src', 'styles', 'tokens.css'))
-  const blocks = {
-    light: css.slice(0, css.indexOf('@media (prefers-color-scheme: dark)')),
-    osDark: css.slice(css.indexOf('@media (prefers-color-scheme: dark)'), css.indexOf(":root[data-theme='dark']")),
-    stampedDark: css.slice(css.indexOf(":root[data-theme='dark']")),
-  }
-  const tokens = (block) => Object.fromEntries([...block.matchAll(/--([a-z0-9-]+):\s*(#[0-9a-f]{6})\b/g)].map((m) => [m[1], m[2]]))
-  const luminance = (hex) => {
-    const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
-    const lin = (c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
-    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
-  }
-  const contrast = (a, b) => {
-    const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x)
-    return (hi + 0.05) / (lo + 0.05)
-  }
-  const ramp = (block) => [1, 2, 3, 4, 5].map((i) => tokens(block)[`seq-${i}`])
-
-  it('all five steps are defined in every block, and the two dark blocks agree', () => {
-    for (const [label, block] of Object.entries(blocks)) {
-      assert.ok(ramp(block).every((hex) => hex), `${label} block: ${JSON.stringify(ramp(block))}`)
-    }
-    assert.deepEqual(ramp(blocks.osDark), ramp(blocks.stampedDark))
-  })
-
-  for (const [label, block] of [['light', blocks.light], ['dark', blocks.stampedDark]]) {
-    it(`${label}: the pale end clears 3:1 on --stage and --panel, neighbours 1.4:1, and luminance runs one way`, () => {
-      const t = tokens(block)
-      const steps = ramp(block)
-      const failing = []
-      for (const surface of ['stage', 'panel']) {
-        const ratio = contrast(steps[0], t[surface])
-        if (ratio < 3) failing.push(`--seq-1 ${steps[0]} on --${surface}: ${ratio.toFixed(2)}:1`)
-      }
-      for (let i = 1; i < steps.length; i += 1) {
-        const ratio = contrast(steps[i - 1], steps[i])
-        if (ratio < 1.4) failing.push(`--seq-${i} against --seq-${i + 1}: ${ratio.toFixed(2)}:1`)
-      }
-      // "More" is darker in light and lighter in dark; a ramp that doubled
-      // back would pass the pairwise check and still confuse two bands.
-      const lums = steps.map(luminance)
-      const sign = label === 'light' ? -1 : 1
-      for (let i = 1; i < lums.length; i += 1) {
-        if (Math.sign(lums[i] - lums[i - 1]) !== sign) failing.push(`--seq-${i + 1} does not continue the ramp`)
-      }
-      assert.deepEqual(failing, [])
-    })
-  }
 })
 
 describe('a chart series clears 3:1 on the surface figures draw on (AX-07)', () => {

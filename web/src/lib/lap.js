@@ -1,11 +1,10 @@
 /**
- * A traced circuit, turned into a lap you can walk.
+ * A traced circuit, turned into a lap that can be drawn and measured.
  *
  * `circuit_geometry.centreline` is a GeoJSON MultiLineString: the ways of an
  * OpenStreetMap relation, in no particular order. Drawing it needs nothing
- * more than that — every segment is a line — but measuring along it, or
- * putting a marker a given distance round, needs the ways stitched end to end
- * into one ordered ring first.
+ * more than that — every segment is a line — but measuring along it needs the
+ * ways stitched end to end into one ordered ring first.
  *
  * build.py does the same analysis when the row is admitted and stores the
  * verdict (`closes`, `loose_ends`, `segment_count`); verify.py re-derives it
@@ -114,67 +113,6 @@ export function project(ring) {
 }
 
 /**
- * The radius of the arc the track is following, in metres, at every point.
- *
- * WHY RADIUS AND NOT G-FORCE
- *     Lateral acceleration is v² / r, and this database holds no v. The lap
- *     tables are declared and empty: no telemetry, no speed trace, not even a
- *     speed-trap figure. So a g figure here would be a number invented from a
- *     speed nobody recorded, which is the one thing this project will not do.
- *
- *     Assuming a constant lateral limit would not rescue it either, and would
- *     be wrong in an interesting way: a wing car makes downforce in proportion
- *     to v², so its grip rises with speed and its sustainable g is not a
- *     constant of the car at all. A single figure applied across a lap would
- *     overstate the hairpins and understate the fast curves.
- *
- *     Radius is the honest half of that equation — the half the geometry
- *     actually contains. It is what a corner IS, independent of who drives it
- *     and what they drive, and it reads directly: 30 m is a hairpin, 500 m is
- *     a bend you would not lift for.
- *
- * The turn is measured across a window either side of each point rather than
- * between neighbouring nodes, because OSM node spacing is irregular and a
- * two-node angle is mostly a measure of how finely somebody traced that
- * stretch. `windowM` is the half-width in metres.
- *
- * A perfectly straight stretch has infinite radius; it is returned as
- * Infinity rather than clamped, so a caller bands it rather than being handed
- * a large number that looks measured.
- */
-export function cornerRadius(ring, cum, windowM = 25) {
-  const bearing = (a, b) => {
-    const p1 = a[1] * RAD
-    const p2 = b[1] * RAD
-    const dl = (b[0] - a[0]) * RAD
-    const y = Math.sin(dl) * Math.cos(p2)
-    const x = Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dl)
-    return Math.atan2(y, x) / RAD
-  }
-
-  const out = new Array(ring.length).fill(Infinity)
-  let lo = 0
-  let hi = 0
-  for (let i = 0; i < ring.length; i += 1) {
-    while (lo < i && cum[i] - cum[lo] > windowM) lo += 1
-    while (hi < ring.length - 1 && cum[hi] - cum[i] < windowM) hi += 1
-    // Near the end of the ring `hi` runs out of room and stops at i. bearing()
-    // of a point against itself is 0, so the turn became the track's absolute
-    // heading and every lap grew one fabricated hairpin at the start/finish.
-    // A curvature sample needs a point on BOTH sides; without one there is
-    // nothing to measure and Infinity (straight) is the honest answer.
-    if (hi <= i || lo >= i || hi - lo < 2) continue
-    const turn = (((bearing(ring[i], ring[hi]) - bearing(ring[lo], ring[i])) % 360) + 540) % 360 - 180
-    const span = cum[hi] - cum[lo]
-    // Degrees swept over the window, converted to the radius of the arc that
-    // would sweep them: r = s / θ, with θ in radians.
-    const radians = Math.abs(turn) * RAD
-    out[i] = span > 0 && radians > 1e-9 ? span / radians : Infinity
-  }
-  return out
-}
-
-/**
  * Twice the signed area of a projected ring, by the shoelace formula.
  *
  * SVG's y grows downward, so a ring walked clockwise on screen comes out
@@ -214,41 +152,8 @@ export function pathOf(x, y, from = 0, to = x.length) {
   return d
 }
 
-/**
- * Where each band of corner radius ends, in metres.
- *
- * These are the categories a corner falls into rather than quantiles of a
- * distribution, because a radius means something on its own: 30 m is a
- * hairpin whatever the rest of the lap looks like. They were checked against
- * the geometry before being fixed here — measured over all 7,224 sample
- * points of the 25 traced laps, the five bands take 14%, 17%, 25%, 20% and
- * 24% of the traced distance, so naming them costs nothing in how well the
- * picture reads.
- *
- *     < 50 m   hairpin
- *   50-100 m   slow corner
- *  100-200 m   medium
- *  200-400 m   fast
- *    > 400 m   straight or kink
- *
- * The ramp runs the other way from the bands: tightest gets the strongest
- * colour, because the corners are the subject and the straights are the rest.
- *
- * Colour is not the only channel. A five-step single-hue ramp cannot put 2:1
- * between every neighbour and still clear 3:1 at its pale end (the ratios
- * multiply past what black on white gives), so each band also has a stroke
- * width, in screen pixels: the hairpin is drawn three times as heavy as the
- * straight, and the key repeats the widths beside the colours (VD-25).
- */
-export const BANDS = [50, 100, 200, 400]
-export const BAND_NAMES = ['hairpin', 'slow', 'medium', 'fast', 'straight']
-export const BAND_WIDTHS = [6, 5, 4, 3, 2]
-export const bandIndex = (r) => {
-  const i = BANDS.findIndex((edge) => r < edge)
-  return i === -1 ? 4 : i
-}
-export const bandVar = (r) => `var(--seq-${5 - bandIndex(r)})`
-export const bandWidth = (r) => BAND_WIDTHS[bandIndex(r)]
+/** The width, in screen pixels, a traced lap is drawn at — one line, one colour. */
+export const LINE_WIDTH = 4
 
 /** A square viewBox around a circuit's own extent. */
 export function fitted(shape, pad = 40) {
@@ -260,13 +165,12 @@ export function fitted(shape, pad = 40) {
 }
 
 /**
- * One traced circuit, ready to draw: the projected shape, its path, and the
- * corner radius at every point where the trace closes.
+ * One traced circuit, ready to draw: the projected shape and its path.
  *
  * The stitched ring runs whichever way its first OpenStreetMap way was drawn;
  * where that disagrees with the direction the register states, the ring is
- * reversed so the walk runs the way the cars do. The origin stays arbitrary -
- * no start/finish coordinate exists in either database.
+ * reversed so the drawing runs the way the cars do. The origin stays
+ * arbitrary - no start/finish coordinate exists in either database.
  *
  * `row` is a circuit_geometry row joined to the circuit's `direction`; null
  * where the centreline cannot be stitched at all.
@@ -287,36 +191,11 @@ export function buildLap(row) {
     shape,
     complete: walk.complete,
     path: pathOf(shape.x, shape.y),
-    // Colouring is only meaningful along an ordered lap; on a trace that does
-    // not close, the walk stops early and the rest is unvisited.
-    radius: walk.complete ? cornerRadius(walk.ring, shape.cum) : null,
   }
 }
 
-/**
- * One path per run of same-band points, so a 330-point lap draws as about
- * eighty paths rather than 330 - and the colour still changes exactly where
- * the radius crosses a band edge. Uncoloured, or without a radius, the lap is
- * one path in body ink.
- */
-export function runsFor(lap, colour = true) {
+/** The lap, as one path in body ink. Kept as an array for LapFigure to map over. */
+export function runsFor(lap) {
   if (!lap) return []
-  if (!colour || !lap.radius) return [{ d: lap.path, stroke: 'var(--ink)', width: BAND_WIDTHS[2] }]
-  const { x, y } = lap.shape
-  const out = []
-  let start = 0
-  let current = bandIndex(lap.radius[0])
-  for (let i = 1; i <= x.length; i += 1) {
-    const next = i < x.length ? bandIndex(lap.radius[i]) : null
-    if (next !== current) {
-      out.push({
-        d: pathOf(x, y, start, Math.min(i + 1, x.length)),
-        stroke: `var(--seq-${5 - current})`,
-        width: BAND_WIDTHS[current],
-      })
-      start = i
-      current = next
-    }
-  }
-  return out
+  return [{ d: lap.path, stroke: 'var(--ink)', width: LINE_WIDTH }]
 }

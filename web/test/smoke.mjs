@@ -831,48 +831,8 @@ try {
     // f1-geometry.db is a legitimate one, and the track maps are the only thing
     // it costs. Everything inside needs the centrelines.
     if (!hasGeometry) {
-      note('\n(no f1-geometry.db — skipping the atlas and traced-circuit checks)')
+      note('\n(no f1-geometry.db — skipping the traced-circuit checks)')
     } else {
-      // The atlas walks a lap, which is only possible where build.py found one.
-      note('\n/circuits/atlas')
-      await go('/circuits/atlas', 'Track atlas')
-      is(
-        await page.$$eval('#root main .atlas-cell', (n) => n.length),
-        count('SELECT COUNT(*) FROM geo.circuit_geometry'),
-        'every traced circuit is on the wall',
-      )
-      atLeast(
-        await page.$$eval('#root main .atlas-stage path', (n) => n.length),
-        2,
-        'the lap is drawn in turn-rate bands',
-      )
-      // Spa closes, so it can be walked; the readout must agree with the database.
-      const spaKm = one("SELECT measured_km FROM geo.circuit_geometry WHERE circuit_id = 'spa'")
-      // Drive it as a person would. Assigning .value directly is invisible to
-      // React, which tracks the node's value and would swallow the event.
-      await page.focus('#atlas-at')
-      await page.keyboard.press('End')
-      await settle()
-      // "6,995 m of 6,995" — the metres travelled is the part before " m ".
-      const readout = await text('#root main .atlas-scrub output')
-      is(
-        Number(readout.split(' m ')[0].replace(/,/g, '')),
-        Math.round(spaKm * 1000),
-        'a full lap of Spa reads as its measured length',
-      )
-      // A trace with a loose end has no lap to walk, and must say so.
-      const broken = one('SELECT circuit_id FROM geo.circuit_geometry WHERE closes = 0 ORDER BY loose_ends DESC LIMIT 1')
-      await page.$$eval(
-        '#root main .atlas-cell',
-        (nodes, name) => nodes.find((n) => n.querySelector('b').textContent === name)?.click(),
-        one('SELECT c.name FROM geo.circuit_geometry g JOIN circuits c ON c.id = g.circuit_id WHERE g.circuit_id = ?', broken),
-      )
-      await settle()
-      truthy(
-        await page.$eval('#atlas-at', (el) => el.disabled),
-        `${broken} has no closed lap, so the scrubber is disabled`,
-      )
-
       const traced = one('SELECT circuit_id FROM geo.circuit_geometry WHERE closes = 1 ORDER BY node_count DESC LIMIT 1')
 
       note(`\n/circuits/${traced}  (traced geometry)`)
@@ -1061,12 +1021,13 @@ try {
 
   })
 
-  // The circuit page draws its lap with the atlas's renderer: several paths,
-  // one per run of corner-radius band, not one black line.
-  await section('/circuits/spa  (the lap, coloured)', async () => {
+  // The circuit page draws its lap with LapFigure: one black line, not
+  // several coloured by corner-radius band (AF-21 cut the atlas and its
+  // colour ramp).
+  await section('/circuits/spa  (the lap)', async () => {
     await go('/circuits/spa', 'Circuit de Spa-Francorchamps')
     await page.waitForSelector('svg.lapfigure path', { timeout: 20000 })
-    atLeast(await page.$$eval('svg.lapfigure path', (els) => els.length), 10, 'the lap is drawn in radius bands')
+    is(await page.$$eval('svg.lapfigure path', (els) => els.length), 1, 'the lap is drawn as one path, one colour')
     truthy(await page.$('svg.lapfigure polygon'), 'the lap carries its direction arrow')
     truthy(await page.$('.lapfigure-card figcaption a[href*="openstreetmap.org/relation"]'), 'the drawing keeps its attribution')
     // A trace that does not close draws no arrow and claims none.
@@ -1701,7 +1662,7 @@ try {
       1 + one(`SELECT COUNT(*) FROM (
                SELECT id FROM chassis UNION SELECT id FROM cars
              )`) +
-      8 // records, data and its three children, eras, glossary, the atlas
+      7 // records, data and its three children, eras, glossary
     is(urls, expected, 'the sitemap lists every page the database implies')
     truthy(
       sitemap.includes('/data/quality</loc>') && !sitemap.includes('/reference/quality') && !sitemap.includes('/reference</loc>'),

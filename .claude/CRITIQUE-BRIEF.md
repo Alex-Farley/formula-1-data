@@ -69,11 +69,11 @@ say roughly what a recommendation costs.
 | | |
 |---|---|
 | `README.md` | the database: what is in it, how it is checked, what it deliberately lacks. Also the version log. **Broadly stale — treat no number in it as current.** Some figures are wrong by more than 10×. Read it for intent and check every count against `f1.db` |
-| `web/README.md` | the front end: the loading design, the pages, the voice, the Pit Wall look, the charts, the atlas, the testing |
+| `web/README.md` | the front end: the loading design, the pages, the voice, the Pit Wall look, the charts, traced circuit geometry, the testing |
 | `CLAUDE.md` | the conventions, and the *measured and rejected* list |
 | `docs/` | build notes by version, the commercial-readiness reading, the confidence model and its backlog, the timing architecture decision |
 | `schema.sql` | 41 tables, with comments |
-| `web/src/pages/` | 22 page components |
+| `web/src/pages/` | 21 page components |
 | `f1.db` | the actual data. `./f1 sql "…"` or `sqlite3` will answer most questions faster than reading code |
 
 ## Three constraints that are not preferences
@@ -160,9 +160,12 @@ to a dead end.
 - **`race_entries` is one row per driver per race**, so a driver who drove two
   cars in one Grand Prix — normal before 1965 — can keep only one result.
   *(data architecture)*
-- **The interactive surfaces**: a public SQL console, a track atlas with a lap
-  scrubber, and four hand-drawn SVG charts that each carry a table of their own
-  numbers. *(interaction, visual, accessibility, product)*
+- **The interactive surfaces**: a public SQL console, and four hand-drawn SVG
+  charts that each carry a table of their own numbers. The track atlas (a
+  walkable, turn-rate-coloured lap) was cut in `AF-20`/`AF-21`
+  (2026-09-14) — do not re-propose it; see `CLAUDE.md`'s *measured and
+  rejected* conventions for how that list works. *(interaction, visual,
+  accessibility, product)*
 - **Nobody has asked a user anything, and nothing is measured.** *(product,
   service, user research)*
 
