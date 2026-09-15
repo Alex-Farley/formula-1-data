@@ -45,6 +45,18 @@ cloning it is the whole transfer.
 
 ## Step by step
 
+Two things trip people up below. **Run one command at a time**, and give
+each one time to finish. The reason is `sudo`: when it stops to ask for
+your password, anything you have already pasted is sitting in the terminal
+waiting, and `sudo` takes the next line of it as the password. That fails
+as *sudo: Authentication failure*, which reads like a wrong password rather
+than a paste problem. Where a block is safe to paste whole it says so, and
+gives its reason: step 3's `gh` install is a single command spread over
+nine lines, so nothing is queued behind it, and step 9's check has no
+`sudo` in it to queue anything into. And **the password is invisible as you
+type it**: no dots, no stars, the cursor does not move at all. That is
+normal. Type it and press Enter.
+
 ### 0. If you are on Windows
 
 Skip this if you are on macOS or Linux.
@@ -67,6 +79,14 @@ and password — they are new, and separate from your Windows login. When it
 finishes you have a Linux prompt, and that prompt is where everything else
 in this guide happens.
 
+That first window opens by itself. **To get back to the Ubuntu prompt any
+time after that**, either open **Ubuntu** from the Start menu or type `wsl`
+in a Command Prompt or PowerShell window. The two do not land you in the
+same place: the Start-menu app starts in your Linux home folder, while
+`wsl` keeps you wherever Windows was, which is usually somewhere under
+`/mnt/c/`. If your prompt shows `/mnt/c/...`, type `cd ~` before carrying
+on.
+
 Worked if: typing `uname` at that prompt prints `Linux`.
 
 **Do the rest of this guide inside WSL, and clone fresh there** — do not
@@ -81,6 +101,8 @@ Your Windows copy does no harm. Leave it, or delete it once WSL works.
 
 ```bash
 sudo apt update
+```
+```bash
 sudo apt install -y git make curl
 ```
 
@@ -114,12 +136,43 @@ installed, and then the first time the loop waits for CI it stops with
 `gh is on PATH but too old for these scripts`. Before that check existed it
 slept silently for twenty minutes instead, which is why this step is here.
 
-Install a current one instead. On Ubuntu or WSL, follow GitHub's own
-instructions at
-<https://github.com/cli/cli/blob/trunk/docs/install_linux.md> — the first
-command block on that page, under *Recommended (Official)* and headed
-*Debian* (it covers Ubuntu too). It adds GitHub's package repository and
-installs `gh` from it. On a Mac, `brew install gh`.
+Install a current one instead. This is GitHub's own Debian and Ubuntu
+instruction, copied as it is published: it adds GitHub's package repository
+and installs `gh` from it.
+
+**Paste the whole block.** Every line ends in `\` or starts with `&&`,
+which makes the nine of them one command — this is one of the two blocks
+the top of *Step by step* says to paste whole. Splitting it up is not safer
+here, it is less safe: the
+`&&`s are what stop it halfway if a download fails, rather than leaving an
+empty key file behind and a signing error that no amount of retrying will
+clear.
+
+```bash
+(type -p wget >/dev/null || (sudo apt update && sudo apt install wget -y)) \
+	&& sudo mkdir -p -m 755 /etc/apt/keyrings \
+	&& out=$(mktemp) && wget -nv -O$out https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+	&& cat $out | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null \
+	&& sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
+	&& sudo mkdir -p -m 755 /etc/apt/sources.list.d \
+	&& echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+	&& sudo apt update \
+	&& sudo apt install gh -y
+```
+
+It asks for your password once, partway through, and that is safe here for
+the same reason: the shell is reading one command, so nothing you pasted is
+waiting to be mistaken for the password.
+
+Most of it is quiet. You should see `wget` report the key it fetched, then
+`apt` listing servers — `cli.github.com` among them — then `gh` installing.
+If `apt` says `Temporary failure resolving` instead, see *If something goes
+wrong*; run the whole block again once the network is back.
+
+That block is kept up to date at
+<https://github.com/cli/cli/blob/trunk/docs/install_linux.md>, under
+*Recommended (Official)*, and is worth checking against if it ever fails.
+On a Mac, `brew install gh` and none of this applies.
 
 Then check you got one new enough, by asking `gh` whether it has the
 feature rather than by reading its version number:
@@ -204,13 +257,32 @@ Worked if: 3.9 or newer. If it is not there at all,
 `sudo apt install -y python3`. (`requirements.txt` lists `fastf1`, but that
 is only for the timing loaders, which are not part of this.)
 
+**CI runs this build on 3.9 and 3.12, and on nothing else.** Anything newer
+is untested rather than unsupported — 3.14.4 has been through this whole
+guide once and reached `SETUP OK` — but it is worth knowing which side of
+the line you are on. If `make all` in step 9 stops with an import or syntax
+error, rather than reporting a file that came out different, your
+interpreter is the first thing to suspect. Installing a 3.12 alongside it
+is not the whole fix, though: the build runs whatever `python3` is, so you
+have to point it at the new one. `Makefile` takes a `PYTHON` setting for
+exactly this — `make all PYTHON=python3.12`, and the same on `make test`.
+(`make lint` has no Python in it; it runs ruff, Biome and actionlint.)
+
 ### 6. Node, for the website
 
 Ubuntu does not come with Node, and its own `nodejs` package is older than
-this project needs. Install nvm by following
-<https://github.com/nvm-sh/nvm#installing-and-updating>, then **close the
-terminal, open a new one, and `cd formula-1-data` again** — nvm only exists
-in a terminal opened after it was installed. Then:
+this project needs. Install nvm:
+
+```bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.7/install.sh | bash
+```
+
+That is the line from <https://github.com/nvm-sh/nvm#installing-and-updating>,
+which is where to check whether the version in the URL has moved on.
+
+Then **close the terminal, open a new one, and `cd ~/formula-1-data`** —
+nvm only exists in a terminal opened after it was installed, and `exec
+bash` does the same thing without closing the window. Then:
 
 ```bash
 nvm install 22
@@ -253,17 +325,27 @@ not the same as `npm install`, and the loop expects this one.
 
 ```bash
 sudo apt install -y pipx shellcheck
-pipx install ruff
+```
+```bash
+pipx install ruff==0.16.7
+```
+```bash
 pipx ensurepath
 ```
 
-CI pins ruff 0.16.7. If a newer one ever flags something CI does not,
-`pipx install --force ruff==0.16.7` matches it. On macOS,
-`brew install ruff` tracks the latest; pin with `pipx` if you ever need to
-match CI exactly.
+The pin is the point: CI runs ruff 0.16.7, and an unpinned newer one can
+flag things CI never would — an afternoon spent on a finding that was never
+going to fail. `pipx install --force ruff==0.16.7` corrects an unpinned one
+already installed.
+
+On macOS the first line is `brew install shellcheck`, and ruff comes from
+`brew install ruff`, which tracks the latest rather than CI's version. To
+pin it there, `brew install pipx` first and then the same
+`pipx install ruff==0.16.7` — this guide only ever installs pipx through
+`apt`, so a Mac has to ask for it.
 
 `pipx ensurepath` adds pipx's folder to your `PATH`; **close the terminal,
-open a new one, and `cd formula-1-data` again** — a new terminal starts in
+open a new one, and `cd ~/formula-1-data` again** — a new terminal starts in
 your home folder, and without both the `ensurepath` and the restart `ruff`
 will still look missing. On a fresh Ubuntu there may be no `pip` at all, so
 pipx is the answer either way.
@@ -273,13 +355,23 @@ right binary for your machine, and this is what CI runs too:
 
 ```bash
 cd ~
+```
+```bash
 curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash | bash -s 1.7.12
+```
+```bash
 sudo mv actionlint /usr/local/bin/
+```
+```bash
 cd ~/formula-1-data
 ```
 
+Separate blocks, and the third asks for your password — this is the one
+place in the guide where pasting the lot at once costs you the *sudo:
+Authentication failure* the top of *Step by step* describes.
+
 It downloads into whatever folder you are in, which is why this starts at
-home rather than inside the clone, and the third line moves it somewhere
+home rather than inside the clone, and the third command moves it somewhere
 every terminal will find. On macOS, `brew install actionlint` does both.
 
 The third linter, Biome, downloads itself when needed. Nothing to do.
@@ -312,9 +404,10 @@ only for terminals opened afterwards.
 
 ### 9. Check it all works
 
-Paste all three lines. The second names any tool that is missing; the
-third runs the whole build, the unit tests, all three linters and one last
-check, stopping at the first thing that fails.
+Paste all three lines — none of them asks for your password, so there is
+nothing here to swallow the next one. The second names any tool that is
+missing; the third runs the whole build, the unit tests, all three linters
+and one last check, stopping at the first thing that fails.
 
 ```bash
 cd ~/formula-1-data
@@ -434,6 +527,15 @@ the tree clean.
 **`Executable doesn't exist at …/ms-playwright/…`** — step 6's browser
 install:
 `cd ~/formula-1-data/web && npx playwright install --with-deps chromium`.
+
+**`Temporary failure resolving 'archive.ubuntu.com'`** — or any other host,
+during `sudo apt update`. WSL's DNS has dropped out, which is intermittent
+and nothing you did. **Run `sudo apt update` again**; that clears it more
+often than not. If it does not, close the Ubuntu window, run `wsl
+--shutdown` in PowerShell, wait ten seconds and start Ubuntu again. If it
+still fails and you are on a VPN, disconnect it and retry. A failed
+`apt update` leaves nothing half-installed — it fetches a list of packages
+and gives up.
 
 **`make: command not found`** — step 1. A fresh Ubuntu does not have it.
 

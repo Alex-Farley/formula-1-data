@@ -211,7 +211,9 @@ tokens; a fork killed as stalled costs the item.
 
 - Worktree: `git worktree add -b claude/<slug> <scratchpad>/wt-<slug> origin/main`.
   For web work, `npm ci` inside it (never symlink `node_modules`). Node is
-  at `~/.local/node/bin`.
+  whatever is on `PATH`; `which node` gives the path if you need it. It is
+  not in the same place on every machine — a container, nvm and Homebrew
+  each put it somewhere different.
 - Edit through a Python script whose every replacement asserts it matched
   exactly once. Never write a shell-quoting sequence inside a quoted heredoc;
   apostrophes in JS strings go in double-quoted strings.
