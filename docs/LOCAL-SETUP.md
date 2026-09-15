@@ -8,6 +8,9 @@ worked.
 If you only want to *read* the database or browse the site, you do not need
 any of this. Start at `README.md` instead.
 
+**On Windows, read step 0 before anything else** — it changes every command
+in this guide.
+
 ## Why it has to be your own machine
 
 A Claude Code session running in the cloud reaches GitHub through a proxy,
@@ -26,6 +29,7 @@ is no proxy in the way, and everything works.
 
 | | Why |
 |---|---|
+| **WSL** — Windows only | gives you the Linux shell the scripts need; see step 0 |
 | **Claude Code** | runs the loop |
 | **git** | fetches the code and pushes your branches |
 | **`gh`** (GitHub's command-line tool) | how the queue scripts talk to GitHub — **must be a current version**, see step 2 |
@@ -38,6 +42,38 @@ script, agent and rule the loop uses is committed to this repository, so
 cloning it is the whole transfer.
 
 ## Step by step
+
+### 0. If you are on Windows
+
+Skip this if you are on macOS or Linux.
+
+The loop cannot run on Windows as it comes. Three of its own scripts are
+bash (`precheck.sh`, `ci-wait.sh`, `progress.sh`), the checks run through
+`make`, and neither exists in Command Prompt or PowerShell. There are no
+Windows versions of them in this repository.
+
+The fix is **WSL**, Windows Subsystem for Linux: a real Ubuntu running
+inside Windows. With it, every command in this guide works exactly as
+written. In a PowerShell window opened **as Administrator**:
+
+```powershell
+wsl --install
+```
+
+Restart when it asks. Ubuntu then starts and asks you to choose a username
+and password — they are new, and separate from your Windows login. When it
+finishes you have a Linux prompt, and that prompt is where everything else
+in this guide happens, including installing Claude Code.
+
+Worked if: typing `uname` at that prompt prints `Linux`.
+
+**Do the rest of this guide inside WSL, and clone fresh there** — do not
+reuse a folder you already cloned in Windows. Two things go wrong if you
+do. Windows git can save files with different line endings, and it does not
+keep the mark that says a script is runnable; bash then refuses to run
+those three scripts. A clone made inside WSL has neither problem.
+
+Your Windows copy does no harm. Leave it, or delete it once WSL works.
 
 ### 1. Get the code
 
@@ -117,10 +153,25 @@ expects this one.
 
 ```bash
 pip install ruff
-brew install actionlint     # or your platform's equivalent
 ```
 
+If pip refuses with *externally-managed-environment* — recent Ubuntu, and
+so most WSL installs, do this — use `pipx` instead, which keeps the tool in
+its own place:
+
+```bash
+sudo apt install pipx
+pipx install ruff
+```
+
+`actionlint` is not in Ubuntu's package list. Download the binary for your
+system from <https://github.com/rhysd/actionlint/releases> and put it
+somewhere on your `PATH`, such as `/usr/local/bin`. On macOS,
+`brew install actionlint` does it in one step.
+
 The third linter, Biome, downloads itself when needed. Nothing to do.
+
+Worked if: `ruff --version` and `actionlint --version` both answer.
 
 ### 7. Check the whole thing works
 
