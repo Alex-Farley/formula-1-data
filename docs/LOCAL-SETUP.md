@@ -36,7 +36,7 @@ is no proxy in the way, and everything works.
 | **`gh`** (GitHub's command-line tool) | how the queue scripts talk to GitHub — **must be a current version**, see step 3 |
 | **Python 3.9 or newer** | builds and checks the database |
 | **Node 22.13 or newer** | builds and tests the website |
-| **ruff** and **actionlint** | two of the three linters CI runs |
+| **ruff**, **actionlint** and **shellcheck** | two of the three linters CI runs, and the checker actionlint hands workflow shell to |
 | **Claude Code** | runs the loop |
 
 You do **not** need to copy anything from another computer. Every skill,
@@ -86,7 +86,8 @@ sudo apt install -y git make curl
 
 A fresh Ubuntu — including the one WSL has just installed — has Python but
 not `make`, and without `make` step 9 stops with `make: command not found`.
-On macOS these arrive with `xcode-select --install`.
+On macOS these arrive with `xcode-select --install`; then install Homebrew
+from <https://brew.sh>, which steps 3 and 7 both use.
 
 Worked if: `git --version` and `make --version` both answer.
 
@@ -128,7 +129,9 @@ gh pr checks --help | grep -- --json
 ```
 
 Worked if: it prints a line describing `--json`. **Nothing at all means
-your `gh` is too old**, whatever number `gh --version` reports.
+your `gh` is too old — or is not installed at all**, whatever number
+`gh --version` reports. If the shell answered `gh: command not found`, the
+install above did not finish; start it again.
 
 This is the same test the loop itself runs, and it tests for the feature on
 purpose: the release that introduced it is easy to get wrong, and a version
@@ -222,17 +225,20 @@ On macOS, nvm works the same way — install it from the same page and run
 the same `nvm install 22`. (`brew install node@22` looks equivalent and is
 not: Homebrew does not put a versioned Node on your `PATH`.)
 
-`npm ci` also downloads the browser the website's tests drive — about
-150 MB, and the reason this step is the slow one. On a fresh Ubuntu that
-browser will not start until the system libraries it needs are present, and
-`npm ci` does not install those:
+`npm ci` installs the site's dependencies. It does **not** install the
+browser the tests drive — Playwright's package stopped doing that on
+install — so the browser is its own step, the same one CI runs:
 
 ```bash
-cd web && npx playwright install-deps && cd ..
+cd web && npx playwright install --with-deps chromium && cd ..
 ```
 
-It installs them with `apt` and asks for your password. Nothing to do on
-macOS.
+This is the slow part: Chromium is about 150 MB. `--with-deps` also
+installs, with `apt`, the system libraries the browser needs to start on a
+fresh Ubuntu, so it asks for your password.
+
+On macOS there are no system libraries to add — run
+`cd web && npx playwright install chromium && cd ..` instead.
 
 Worked if: node reports **22.13 or newer** (`.node-version` says 22, and
 `web/package.json` asks for at least 22.13), and `npm ci` finishes without
@@ -242,13 +248,15 @@ it is not the same as `npm install`, and the loop expects this one.
 ### 7. The two linters
 
 ```bash
-sudo apt install -y pipx
+sudo apt install -y pipx shellcheck
 pipx install ruff
 pipx ensurepath
 ```
 
 CI pins ruff 0.16.7. If a newer one ever flags something CI does not,
-`pipx install --force ruff==0.16.7` matches it.
+`pipx install --force ruff==0.16.7` matches it. On macOS,
+`brew install ruff` tracks the latest; pin with `pipx` if you ever need to
+match CI exactly.
 
 `pipx ensurepath` adds pipx's folder to your `PATH`; **close the terminal,
 open a new one, and `cd formula-1-data` again** — a new terminal starts in
@@ -273,7 +281,14 @@ every terminal will find. On macOS, `brew install actionlint` does both.
 
 The third linter, Biome, downloads itself when needed. Nothing to do.
 
-Worked if: `ruff --version` and `actionlint --version` both answer.
+`shellcheck` is not a fourth linter. actionlint hands every workflow's
+`run:` block to it when it finds one on your `PATH`, and quietly skips
+those checks when it does not — so without it `make lint` can be green on a
+workflow change that turns CI red. CI's runner always has it. On macOS,
+`brew install shellcheck`.
+
+Worked if: `ruff --version`, `actionlint --version` and
+`shellcheck --version` all answer.
 
 ### 8. Claude Code itself
 
@@ -294,12 +309,12 @@ only for terminals opened afterwards.
 
 ### 9. Check it all works
 
-Paste both lines. The second runs the whole build, all three linters and
-one last check, stopping at the first thing that fails.
+Paste both lines. The second runs the whole build, the unit tests, all
+three linters and one last check, stopping at the first thing that fails.
 
 ```bash
 cd ~/formula-1-data
-make all && make lint && git status --short && [ -z "$(git status --porcelain)" ] && echo "SETUP OK"
+make all && make test && make lint && git status --short && [ -z "$(git status --porcelain)" ] && echo "SETUP OK"
 ```
 
 Worked if: the last line is `SETUP OK`. Nothing above it has to be read.
@@ -307,12 +322,12 @@ Each `&&` stops the chain at the first failure, and the final test is that
 the build came out identical to the copy in the repository — if it did not,
 the files that differ are listed and `SETUP OK` does not appear.
 
-**Both commands are noisier than you expect, and that is fine.** `make all`
-prints `All checks passed.` and then a count of warnings — the repository
-has a handful of things on the record it has not resolved, and they are not
-failures — followed by two `wrote …` lines. Ruff says `All checks passed!`.
-Biome ends with a few lines about diagnostics it did not print, then
-`Found 30 warnings` and `Found 3 infos`. None of that is a failure.
+**`make all` and `make lint` are both noisier than you expect, and that is
+fine.** `make all` prints `All checks passed.` and then a count of warnings
+— the repository has a handful of things on the record it has not resolved,
+and they are not failures — followed by two `wrote …` lines. Ruff says
+`All checks passed!`. Biome ends with a few lines about diagnostics it did
+not print, then counts of warnings and infos. None of that is a failure.
 
 `make all` takes seconds. `make lint` takes about a minute the first time,
 while it downloads Biome; after that it is quick too.
@@ -324,9 +339,10 @@ only ones that touch the site. It takes a couple of minutes the first time:
 cd ~/formula-1-data/web && npm run build && npm test -- --quiet && cd ..
 ```
 
-Worked if: it ends with a summary line and no failures. If it says the host
-is missing dependencies to run browsers, the `install-deps` half of step 6
-did not happen.
+Worked if: it ends with a summary line and no failures. If it says
+*Executable doesn't exist* and names a path under `.cache/ms-playwright`,
+or that the host is missing dependencies to run browsers, the
+`playwright install` half of step 6 did not happen.
 
 If `make lint` stops with `make: actionlint: No such file or directory`
 (older `make`, including macOS's, says `Command not found` instead),
@@ -388,6 +404,16 @@ Other ways to start it:
 
 ## If something goes wrong
 
+**`SETUP OK` did not appear, and the line above it listed `f1.db` or
+`f1_compat.json`** — the build on your machine did not reproduce the
+committed files. Check `python3 --version` is 3.9 or newer and that you
+have not edited anything under `data/`; on a fresh clone `make all` leaves
+the tree clean.
+
+**`Executable doesn't exist at …/ms-playwright/…`** — step 6's browser
+install:
+`cd ~/formula-1-data/web && npx playwright install --with-deps chromium`.
+
 **`make: command not found`** — step 1. A fresh Ubuntu does not have it.
 
 **`claude: command not found`** — step 8, or you installed it in PowerShell
@@ -418,17 +444,12 @@ rate-limiting you rather than refusing your login, so read the line printed
 If you see a raw Python traceback instead of one of these, something
 genuinely unexpected happened — that is worth filing as an issue.
 
-## Two things to know before you merge anything
+## A red `review` check is not your fault
 
-**Merging `main` publishes the site.** Cloudflare builds and deploys
-lapledger.org on every push to `main`, so merging a pull request is a
-production change, not just a repository one.
-
-**A red `review` check is not your fault.** That workflow runs on a
-credential that is currently exhausted. It is infrastructure, not a defect
-in your change — do not retry it, do not edit it to make it pass, and do not
-read its absence as approval. The loop runs its own reviewer from
-`.claude/agents/` instead.
+That workflow runs on a credential that is currently exhausted. It is
+infrastructure, not a defect in your change — do not retry it, do not edit
+it to make it pass, and do not read its absence as approval. The loop runs
+its own reviewer from `.claude/agents/` instead.
 
 ## Where the rules live
 
