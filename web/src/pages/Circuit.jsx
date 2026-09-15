@@ -5,7 +5,7 @@ import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import LapFigure from '../components/LapFigure.jsx'
 import { OutlineCard } from '../components/Outline.jsx'
-import { BANDS, BAND_NAMES, BAND_WIDTHS, buildLap } from '../lib/lap.js'
+import { buildLap } from '../lib/lap.js'
 import { rows, useQueries } from '../data/useQuery.js'
 import { number, span } from '../lib/format.js'
 import { OUTLINE_FIGURES_NOTE, OUTLINE_RULE, outlineCaption } from '../lib/outline.js'
@@ -129,10 +129,6 @@ function CircuitBody({ circuit, data }) {
           title="The shape of it"
           note="Traced from OpenStreetMap, and measured against the published length. It ships as a separate file under ODbL, which your browser merged in to draw this."
         >
-          <p className="note" style={{ marginTop: -4 }}>
-            <Link to="/circuits/atlas">Open it in the atlas</Link> to walk the lap metre by metre
-            and compare it with the other traced circuits at one scale.
-          </p>
           <div className="map-grid">
             {geometry.map((row) => (
               <CircuitLap key={`${row.circuit_id}-${row.layout_key}`} geometry={row} circuit={circuit} />
@@ -269,9 +265,6 @@ function CircuitBody({ circuit, data }) {
                 hint: `Has won here ${winners[0].wins} ${winners[0].wins === 1 ? 'time' : 'times'} — more than anyone.`,
               }
             : null,
-          geometry.length > 0
-            ? { to: '/circuits/atlas', label: 'Track atlas', hint: 'This lap beside the other traced circuits.' }
-            : null,
           { to: '/circuits', label: 'All circuits', hint: 'Eighty venues, by races held.' },
         ]}
       />
@@ -280,9 +273,10 @@ function CircuitBody({ circuit, data }) {
 }
 
 /**
- * The atlas's drawing, on the circuit's own page. The trace is coloured by
- * corner radius and carries the direction of travel; the attribution stays
- * attached to the drawing because the geometry is the one ODbL table.
+ * The traced centreline, on the circuit's own page: one line, one colour,
+ * with the direction of travel where the register states one. The
+ * attribution stays attached to the drawing because the geometry is the one
+ * ODbL table.
  */
 function CircuitLap({ geometry, circuit }) {
   const lap = useMemo(
@@ -294,26 +288,6 @@ function CircuitLap({ geometry, circuit }) {
   return (
     <figure className="photo lapfigure-card">
       <LapFigure lap={lap} />
-      {lap.radius && (
-        <div className="legend" aria-label="Corner radius">
-          {BAND_NAMES.map((name, i) => (
-            <span key={name}>
-              <i
-                style={{
-                  background: `var(--seq-${5 - i})`,
-                  width: 14,
-                  height: BAND_WIDTHS[i],
-                  borderRadius: 1,
-                }}
-              />
-              {name}
-              {i === 0 && ` <${BANDS[0]} m`}
-              {i > 0 && i < BANDS.length && ` ${BANDS[i - 1]}\u2013${BANDS[i]} m`}
-              {i === BANDS.length && ` >${BANDS[BANDS.length - 1]} m`}
-            </span>
-          ))}
-        </div>
-      )}
       <figcaption>
         Traced from OpenStreetMap relation{' '}
         <a
@@ -324,7 +298,7 @@ function CircuitLap({ geometry, circuit }) {
           {geometry.osm_relation}
         </a>{' '}
         · {number(geometry.node_count)} points
-        {!lap.complete && ' · the trace does not close, so it is not coloured'}
+        {!lap.complete && ' · the trace does not close'}
         {' '}· measures {geometry.measured_km?.toFixed(3)} km against{' '}
         {geometry.published_km?.toFixed(3)} km published
         {delta !== null && delta !== undefined && ` (${delta > 0 ? '+' : ''}${delta.toFixed(2)}%)`}

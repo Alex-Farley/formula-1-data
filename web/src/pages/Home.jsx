@@ -246,7 +246,6 @@ export default function Home() {
                     hint: 'Calendar, title race and final standings.',
                   },
                   { to: '/records', label: 'Records', hint: 'Most wins, most poles, champions, grand slams.' },
-                  { to: '/circuits/atlas', label: 'Track atlas', hint: '25 circuits traced, at one scale.' },
                   { to: '/data/sql', label: 'SQL console', hint: 'Ask the database your own question.' },
                   { to: '/reference/eras', label: 'Eras and rules', hint: 'How the rules changed, and the words they are written in.' },
                 ]}

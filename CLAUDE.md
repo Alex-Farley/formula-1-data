@@ -232,3 +232,12 @@ stays small. Measured 2026-09-13: that session, not the reviewers, was
   under a redistributable licence, and prerendering already took the download
   off the first-paint path.
 - **`BUILT` as a real timestamp.** See above.
+- **The track atlas** (`/circuits/atlas`): a walkable, turn-rate-coloured lap
+  compared across all 25 traced circuits. Decided by the maintainer,
+  2026-09-14 (`AF-20`/`AF-21`, #302/#304): the walk never worked (no play, no
+  keyboard repeat, disabled on the three traces that do not close), the
+  colour read nothing the traced shape did not already show, and no usage
+  number justified keeping either — none was obtainable, and it was cut
+  without one, on the design argument, rather than left standing on an
+  unanswered question. `/circuits/:id` still draws the traced centreline,
+  one line, one colour, through the same `LapFigure`.

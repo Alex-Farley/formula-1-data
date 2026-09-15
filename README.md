@@ -661,9 +661,10 @@ holes read as joins — it reported only Las Vegas, and passed two broken traces
 for several versions. One metre is above serialisation noise and below the
 smallest real gap.
 
-This is what lets the front end offer to walk a lap: `web/src/lib/lap.js`
-reproduces the stitch in the browser and the atlas measures along it, but only
-where `closes` says there is something to measure.
+This is what lets the front end draw a circuit's traced centreline:
+`web/src/lib/lap.js` reproduces the stitch in the browser and measures the
+projected shape against it, but only where `closes` says there is something
+to measure.
 
 Geometry attaches to a **layout**, never to a circuit alone, wherever a layout
 timeline exists. Monza 1955 is not Monza 2026 and `circuit_layouts` already
