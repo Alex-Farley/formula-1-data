@@ -45,14 +45,16 @@ cloning it is the whole transfer.
 
 ## Step by step
 
-Two things trip people up below. **Where a step gives its commands as
-separate blocks, run them one at a time**: several ask for your password,
-and a second command pasted in behind the first is swallowed as the
-password and fails with *sudo: Authentication failure*. A single block is
-pasted whole, however many lines it has — step 3's `gh` install and step
-9's check are each one block on purpose. And **the password is invisible as
-you type it**: no dots, no stars, the cursor does not move at all. That is
-normal. Type it and press Enter.
+Two things trip people up below. **Run one command at a time**, and give
+each one time to finish. The reason is `sudo`: when it stops to ask for
+your password, anything you have already pasted is sitting in the terminal
+waiting, and `sudo` takes the next line of it as the password. That fails
+as *sudo: Authentication failure*, which reads like a wrong password rather
+than a paste problem. Step 3's `gh` install is the one block to paste
+whole — it is a single command spread over nine lines, so there is nothing
+queued behind it — and it says so where it appears. And **the password is
+invisible as you type it**: no dots, no stars, the cursor does not move at
+all. That is normal. Type it and press Enter.
 
 ### 0. If you are on Windows
 
@@ -351,13 +353,23 @@ right binary for your machine, and this is what CI runs too:
 
 ```bash
 cd ~
+```
+```bash
 curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash | bash -s 1.7.12
+```
+```bash
 sudo mv actionlint /usr/local/bin/
+```
+```bash
 cd ~/formula-1-data
 ```
 
+Separate blocks, and the third asks for your password — this is the one
+place in the guide where pasting the lot at once costs you the *sudo:
+Authentication failure* the top of *Step by step* describes.
+
 It downloads into whatever folder you are in, which is why this starts at
-home rather than inside the clone, and the third line moves it somewhere
+home rather than inside the clone, and the third command moves it somewhere
 every terminal will find. On macOS, `brew install actionlint` does both.
 
 The third linter, Biome, downloads itself when needed. Nothing to do.
