@@ -29,9 +29,10 @@ is no proxy in the way, and everything works.
 
 | What you need | Why |
 |---|---|
+| **Homebrew** — macOS only | where the Mac versions of these come from; install it from <https://brew.sh> before step 3 |
 | **A GitHub account with push access** to `Alex-Farley/formula-1-data`, and access to the *Lap Ledger* board | the loop pushes branches, merges its own pull requests and moves cards; read access alone is not enough |
 | **WSL** — Windows only | gives you the Linux shell the scripts need; see step 0 |
-| **git**, **make**, **curl** | fetch the code, run the checks; a fresh Ubuntu has none of them |
+| **git**, **make**, **curl** | fetch the code, run the checks; a fresh Ubuntu may have none of them |
 | **`gh`** (GitHub's command-line tool) | how the queue scripts talk to GitHub — **must be a current version**, see step 3 |
 | **Python 3.9 or newer** | builds and checks the database |
 | **Node 22.13 or newer** | builds and tests the website |
@@ -92,9 +93,14 @@ Worked if: `git --version` and `make --version` both answer.
 ### 2. Get the code
 
 ```bash
+cd ~
 git clone https://github.com/Alex-Farley/formula-1-data
 cd formula-1-data
 ```
+
+The first line matters: clone it into your home folder. Everything after
+this writes `~/formula-1-data`, and two steps send you to a new terminal
+and back again.
 
 Worked if: `ls` shows `build.py`, `f1.db` and a `web` folder.
 
@@ -139,28 +145,33 @@ gh auth login
 Choose GitHub.com, then HTTPS, then say **Yes** when it offers to use your
 GitHub login for git as well — that is what lets you push branches without
 being asked for a password. Then log in through the browser when it offers.
+It shows an eight-character code first — copy it. If the browser does not
+open by itself, which happens inside WSL, `gh` prints the address: open it
+in Windows and paste the code there.
 
-Then add one extra permission the board needs:
+Then add the two extra permissions the loop needs:
 
 ```bash
-gh auth refresh -s project
+gh auth refresh -s project,workflow
 ```
 
-A *scope* is a permission label on your login — `project` is the one that
-lets the board be read. Without it the loop can see issues but not their
-running order.
+A *scope* is a permission label on your login, and the loop needs two that
+a plain sign-in does not grant. `project` is what lets the board be read
+and a card moved. `workflow` is what lets you push a branch that changes
+anything under `.github/workflows/` — GitHub refuses such a push without
+it, and some items make exactly that change.
 
 ```bash
 gh auth status
 ```
 
-Worked if: it names your account and lists `project` among the scopes, with
-no mention of an invalid token.
+Worked if: it names your account and lists both `project` and `workflow`
+among the scopes, with no mention of an invalid token.
 
 If `gh auth refresh` answers that it cannot refresh this kind of login, you
 are signed in from a `GH_TOKEN` environment variable rather than a browser
-login. Unset it and run `gh auth login` again, or add the `project` scope
-to that token where you created it.
+login. Unset it and run `gh auth login` again, or add the `project` and
+`workflow` scopes to that token where you created it.
 
 **Then tell git who you are.** The loop commits on your behalf, and a fresh
 Ubuntu has no name or address on record — the first commit it tries would
@@ -207,7 +218,21 @@ cd web && npm ci && cd ..
 If `nvm install` says `nvm: command not found`, the new terminal is the
 step you skipped.
 
-On macOS, `brew install node@22` instead of nvm.
+On macOS, nvm works the same way — install it from the same page and run
+the same `nvm install 22`. (`brew install node@22` looks equivalent and is
+not: Homebrew does not put a versioned Node on your `PATH`.)
+
+`npm ci` also downloads the browser the website's tests drive — about
+150 MB, and the reason this step is the slow one. On a fresh Ubuntu that
+browser will not start until the system libraries it needs are present, and
+`npm ci` does not install those:
+
+```bash
+cd web && npx playwright install-deps && cd ..
+```
+
+It installs them with `apt` and asks for your password. Nothing to do on
+macOS.
 
 Worked if: node reports **22.13 or newer** (`.node-version` says 22, and
 `web/package.json` asks for at least 22.13), and `npm ci` finishes without
@@ -217,10 +242,13 @@ it is not the same as `npm install`, and the loop expects this one.
 ### 7. The two linters
 
 ```bash
-sudo apt install pipx
+sudo apt install -y pipx
 pipx install ruff
 pipx ensurepath
 ```
+
+CI pins ruff 0.16.7. If a newer one ever flags something CI does not,
+`pipx install --force ruff==0.16.7` matches it.
 
 `pipx ensurepath` adds pipx's folder to your `PATH`; **close the terminal,
 open a new one, and `cd formula-1-data` again** — a new terminal starts in
@@ -233,13 +261,15 @@ way. On macOS, `brew install ruff`.
 right binary for your machine, and this is what CI runs too:
 
 ```bash
+cd ~
 curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash | bash -s 1.7.12
 sudo mv actionlint /usr/local/bin/
+cd ~/formula-1-data
 ```
 
-It downloads into whatever folder you are in, so the second line moves it
-somewhere every terminal will find. On macOS, `brew install actionlint`
-does both.
+It downloads into whatever folder you are in, which is why this starts at
+home rather than inside the clone, and the third line moves it somewhere
+every terminal will find. On macOS, `brew install actionlint` does both.
 
 The third linter, Biome, downloads itself when needed. Nothing to do.
 
@@ -257,32 +287,49 @@ curl -fsSL https://claude.ai/install.sh | bash
 Inside WSL, run it at the Ubuntu prompt, not in PowerShell. The first time
 you start it, it asks you to sign in.
 
-Worked if: `claude --version` prints a version number.
+Worked if: `claude --version` prints a version number. If it says *command
+not found*, close the terminal, open a new one and `cd ~/formula-1-data` —
+the installer puts `claude` in `~/.local/bin` and adds that to your `PATH`
+only for terminals opened afterwards.
 
 ### 9. Check it all works
 
-Worked if: run all of it as one line —
+Paste both lines. The second runs the whole build, all three linters and
+one last check, stopping at the first thing that fails.
 
 ```bash
 cd ~/formula-1-data
-make all && make lint && git status --short && echo "SETUP OK"
+make all && make lint && git status --short && [ -z "$(git status --porcelain)" ] && echo "SETUP OK"
 ```
 
-— and the last thing printed is `SETUP OK`, with no files listed above it.
-The `&&` means any failure stops the chain, so `SETUP OK` appearing is the
-whole test; `git status --short` printing nothing proves the build is
-reproducible on your machine, which is the point of it.
+Worked if: the last line is `SETUP OK`. Nothing above it has to be read.
+Each `&&` stops the chain at the first failure, and the final test is that
+the build came out identical to the copy in the repository — if it did not,
+the files that differ are listed and `SETUP OK` does not appear.
 
 **Both commands are noisier than you expect, and that is fine.** `make all`
-prints `All checks passed.` followed by a warning count — six today,
-because the repository has six things on the record it has not resolved —
-and then two `wrote …` lines. Ruff says `All checks passed!`, and Biome
-ends with something like `Found 30 warnings`. None of that is a failure.
+prints `All checks passed.` and then a count of warnings — the repository
+has a handful of things on the record it has not resolved, and they are not
+failures — followed by two `wrote …` lines. Ruff says `All checks passed!`.
+Biome ends with a few lines about diagnostics it did not print, then
+`Found 30 warnings` and `Found 3 infos`. None of that is a failure.
 
 `make all` takes seconds. `make lint` takes about a minute the first time,
 while it downloads Biome; after that it is quick too.
 
-If `make lint` stops with `make: actionlint: No such file or directory`,
+The website has its own check, and the loop runs it on every item — not
+only ones that touch the site. It takes a couple of minutes the first time:
+
+```bash
+cd ~/formula-1-data/web && npm run build && npm test -- --quiet && cd ..
+```
+
+Worked if: it ends with a summary line and no failures. If it says the host
+is missing dependencies to run browsers, the `install-deps` half of step 6
+did not happen.
+
+If `make lint` stops with `make: actionlint: No such file or directory`
+(older `make`, including macOS's, says `Command not found` instead),
 the actionlint half of step 7 did not finish. The same message with `ruff`
 in it means the pipx half did not — and that one stops the command before
 anything else runs, because ruff goes first. Biome is the only one of the
@@ -299,8 +346,12 @@ claude
 publishes the site.** When the review passes and CI is green it merges its
 own pull request into `main`, and every push to `main` builds and deploys
 lapledger.org. Your first run is a production change. If that is not what
-you want yet, stop here and read *Two things to know before you merge
-anything*, below.
+you want yet, do not run it: there is no rehearsal mode, and the loop that
+picks an item is the loop that merges it. To work an item without
+deploying, read it with
+`python3 .claude/skills/backlog-loop/next.py <ITEM-ID>` and do it by hand,
+opening the pull request yourself — *Working autonomously* in
+`CONTRIBUTING.md` is that process.
 
 Then, inside Claude Code:
 
