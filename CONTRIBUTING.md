@@ -278,10 +278,13 @@ Where GraphQL is reachable, the loop needs both — a current `gh` from
 GitHub's own apt repository or a release tarball (the distribution package
 was 2.45 on that image and has no `--json` on `pr checks`, which
 `ci-wait.sh` reads), and a classic PAT with `repo` and `project` scope,
-`project` being what the board read needs. `gh_preflight.py` says which of the three is wrong at the first
-failed call, alongside gh's own message rather than in place of it, and in
-place of the traceback `next.py` used to raise and the twenty minutes
-`ci-wait.sh` used to spend sleeping on an answer that was never coming.
+`project` being what the board read needs. `gh_preflight.py` says which of
+the three is wrong at the first failed call, alongside gh's own message
+rather than in place of it, and in place of the traceback `next.py` used to
+raise and the twenty minutes `ci-wait.sh` used to spend sleeping on an
+answer that was never coming. `docs/LOCAL-SETUP.md` is the step-by-step for
+setting such a machine up from nothing, written for someone who has not
+done it before.
 
 Nothing falls back to cover that gap, and this is deliberate. `file.py`
 moves an item to *In progress*, which is a board write, so a loop that
