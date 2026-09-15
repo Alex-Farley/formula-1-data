@@ -148,9 +148,9 @@ gh auth login
 Choose GitHub.com, then HTTPS, then say **Yes** when it offers to use your
 GitHub login for git as well — that is what lets you push branches without
 being asked for a password. Then log in through the browser when it offers.
-It shows an eight-character code first — copy it. If the browser does not
-open by itself, which happens inside WSL, `gh` prints the address: open it
-in Windows and paste the code there.
+It shows a one-time code first — copy it, hyphen included. If the browser
+does not open by itself, which happens inside WSL, `gh` prints the address:
+open it in Windows and paste the code there.
 
 Then add the two extra permissions the loop needs:
 
@@ -241,9 +241,12 @@ On macOS there are no system libraries to add — run
 `cd web && npx playwright install chromium && cd ..` instead.
 
 Worked if: node reports **22.13 or newer** (`.node-version` says 22, and
-`web/package.json` asks for at least 22.13), and `npm ci` finishes without
-errors. `npm ci` downloads the website's dependencies exactly as recorded —
-it is not the same as `npm install`, and the loop expects this one.
+`web/package.json` asks for at least 22.13), `npm ci` finishes without
+errors, and `ls ~/.cache/ms-playwright` lists a `chromium-` folder — that
+last one is the browser, and it is where the tests will look for it.
+
+`npm ci` downloads the website's dependencies exactly as recorded — it is
+not the same as `npm install`, and the loop expects this one.
 
 ### 7. The two linters
 
@@ -260,10 +263,9 @@ match CI exactly.
 
 `pipx ensurepath` adds pipx's folder to your `PATH`; **close the terminal,
 open a new one, and `cd formula-1-data` again** — a new terminal starts in
-your home folder, and without the `ensurepath` and the restart `ruff` will
-still look missing. On a
-fresh Ubuntu there may be no `pip` at all, so pipx is the answer either
-way. On macOS, `brew install ruff`.
+your home folder, and without both the `ensurepath` and the restart `ruff`
+will still look missing. On a fresh Ubuntu there may be no `pip` at all, so
+pipx is the answer either way.
 
 `actionlint` is not in Ubuntu's package list. Its own installer fetches the
 right binary for your machine, and this is what CI runs too:
@@ -309,15 +311,20 @@ only for terminals opened afterwards.
 
 ### 9. Check it all works
 
-Paste both lines. The second runs the whole build, the unit tests, all
-three linters and one last check, stopping at the first thing that fails.
+Paste all three lines. The second names any tool that is missing; the
+third runs the whole build, the unit tests, all three linters and one last
+check, stopping at the first thing that fails.
 
 ```bash
 cd ~/formula-1-data
+for t in git make python3 node npm gh claude ruff actionlint shellcheck; do command -v "$t" >/dev/null || echo "MISSING $t"; done
 make all && make test && make lint && git status --short && [ -z "$(git status --porcelain)" ] && echo "SETUP OK"
 ```
 
-Worked if: the last line is `SETUP OK`. Nothing above it has to be read.
+Worked if: nothing says `MISSING`, and the last line is `SETUP OK`. Nothing
+else has to be read. The first line is there because the build alone does
+not touch `gh`, `claude` or `shellcheck` — a machine can reach `SETUP OK`
+and still be unable to run the loop.
 Each `&&` stops the chain at the first failure, and the final test is that
 the build came out identical to the copy in the repository — if it did not,
 the files that differ are listed and `SETUP OK` does not appear.
@@ -338,6 +345,11 @@ only ones that touch the site. It takes a couple of minutes the first time:
 ```bash
 cd ~/formula-1-data/web && npm run build && npm test -- --quiet && cd ..
 ```
+
+`npm run build` will say `result FAILED` and `the Parquet bundle could not
+be built`. That is the download bundle for the site; it needs a Python
+package the deploy installs and you do not, nothing else depends on it, and
+the build carries on.
 
 Worked if: it ends with a summary line and no failures. If it says
 *Executable doesn't exist* and names a path under `.cache/ms-playwright`,
@@ -386,12 +398,20 @@ cloned, and run:
 tail -f .claude/loop/progress.log
 ```
 
-If it says the file does not exist, the loop has not reached its first
-stage yet — wait a moment and run it again.
+If it says the file does not exist, the loop has not started yet, or you
+are in the wrong folder — it creates the file before it does anything
+else.
 
 That file is the only view you get of a running item, and it stays empty
 until the first stage finishes. **Quiet is normal.** Three runs have been
 killed by someone assuming a silent session had hung.
+
+One thing that is *not* quiet: Claude Code asks your permission the first
+time it runs each new kind of command, and this repository ships no
+approved list, so a first run asks a lot. The loop cannot move while a
+prompt is waiting — so stay with it until the questions stop, or turn on
+Claude Code's own setting for working without asking. A loop you walked
+away from is more likely parked on a prompt than hung.
 
 Other ways to start it:
 
