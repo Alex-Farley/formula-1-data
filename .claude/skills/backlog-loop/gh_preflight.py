@@ -80,9 +80,12 @@ loop needs both of these:
      NOT `apt-get install gh`, which gave 2.45 on that image and has no
      `--json` on `pr checks`, the flag `ci-wait.sh` reads. Put it in the
      environment's setup script so it survives the container being reclaimed.
-  2. A classic PAT with `repo` and `project` scope, set as GH_TOKEN in the
-     environment's variables. `project` is the scope the board read needs -
-     grant both rather than find out which half is missing from a failure.
+  2. A classic PAT with `repo`, `project` and `workflow` scope, set as
+     GH_TOKEN in the environment's variables. `project` is what the board
+     read needs; `workflow` is what GitHub requires before it will accept a
+     push that changes anything under `.github/workflows/`, which some
+     items do. Grant all three rather than find out which is missing from
+     a rejected push half way through an item.
 
 Short of that these scripts do not run at all, not even for an item named
 by hand: `next.py` reads the issue through gh as well as the board. Work
