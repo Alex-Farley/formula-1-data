@@ -229,7 +229,9 @@ async function mergeGeometry(manifest) {
       // A hardcoded one silently drops whatever the schema gains next, and a
       // copy that drops a column looks exactly like a copy that worked —
       // `segment_count`, `loose_ends` and `closes` arrived after this was
-      // first written, and the circuit page's drawing needs them.
+      // first written — the schema is what grows, so a hardcoded list would
+      // have dropped them silently instead of carrying them here for
+      // whatever reads them next.
       const columns = overlay
         .exec('SELECT name FROM pragma_table_info(\'circuit_geometry\')')[0]
         .values.map(([name]) => name)

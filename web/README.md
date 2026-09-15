@@ -266,13 +266,13 @@ the stored answer has drifted. So the front end is not deciding anything — it
 reproduces a result the database guarantees, and can check its own stitch
 against `measured_km`. The three that do not close are still drawn — an
 incomplete trace is the best shape anyone has for that circuit — but carry no
-direction arrow, and the caption says so.
+direction arrow; the figcaption notes only that the trace does not close.
 
 Everything is projected to **metres east and south of each circuit's own
-centre**, one line in one colour: `AF-20`/`AF-21` (2026-09-14) cut the earlier
-walkable, turn-rate-coloured atlas — it could not be walked in practice, the
-colour read nothing the shape did not already show, and no usage justified
-keeping either.
+centre**, and drawn as one line in one colour. `AF-20`/`AF-21` (2026-09-14)
+cut the earlier walkable, turn-rate-coloured atlas that used to sit alongside
+this: it could not be walked in practice, the colour read nothing the shape
+did not already show, and no usage justified keeping either.
 
 ## The look: Pit Wall
 

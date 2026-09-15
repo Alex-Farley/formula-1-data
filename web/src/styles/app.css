@@ -1969,25 +1969,6 @@ figure.figure > figcaption span {
   max-width: var(--measure);
 }
 
-.ramp {
-  display: flex;
-  height: 8px;
-  border-radius: 2px;
-  overflow: hidden;
-  margin: 8px 0 4px;
-}
-
-.ramp i {
-  flex: 1;
-}
-
-.ramp-ends {
-  display: flex;
-  justify-content: space-between;
-  font-size: 11px;
-  color: var(--ink-faint);
-}
-
 /* ------------------------------------------- racing colours and liveries */
 
 /* A constructor's identity mark. Never alone: it always sits beside the name,
