@@ -58,6 +58,14 @@ body:
       description: File and line, route, table or column. A figure is cited, not guessed. A critique's full reasoning goes in docs/critiques/; this is the queue, not the argument.
     validations:
       required: true
+  - type: textarea
+    id: where
+    attributes:
+      label: Where the work lands
+      description: The file paths this would touch, comma-separated — web/src/components/DataTable.jsx, build.py. This is what `next.py --group` reads to propose landing two items in one pull request, which is the whole of the saving. Guess nothing; "not known yet" is a fine answer and only means the item cannot be grouped.
+      placeholder: "not known yet"
+    validations:
+      required: true
   - type: checkboxes
     id: kind
     attributes:

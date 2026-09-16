@@ -383,3 +383,41 @@ poll every 45 seconds keeps it closed. Since `AF-14` the precheck tells the
 two apart: a call that failed is a WARN naming the API, and the FAIL saying
 an item "is not an open issue" now only happens when `gh` answered and found
 nothing.
+
+### D-34 · An item's body says where the work lands — 2026-09-16 (`AF-36`, #350)
+A reviewer pays its orientation cost once per pull request, not once per
+item, so the average group size is what sets the review cost per item.
+`next.py --group` proposes a companion on a shared file path, a shared route
+or a cross-referenced id — and on 2026-09-16, **99 of the 166 open items
+named no path at all** beyond the footer every issue carries. The signal the
+grouping was built on was mostly absent, so the proposals were riding on
+cross-references and rank adjacency.
+
+The 99 bodies were read and given the paths the work would touch, checked
+against `git ls-files`, added as one `**Where:**` line above the footer and
+nothing else: the item keeps its own words. Measured over the whole open
+queue, companions proposed rose from 182 to 237, the mean per head from 1.11
+to 1.45, and the heads with no companion at all fell from 69 to 52.
+
+**It cost 15 pairings, and that is the rule working.** `NOISE` in `next.py`
+drops a path more than four open items name, so `build.py` (4 items before,
+46 after), `web/scripts/prerender.js` (4, then 17) and
+`web/src/styles/app.css` (3, then 12) stopped scoring, and eight pairs whose
+only shared signal was one of those lost it. Some of them — `AF-07` with
+`AF-08`, `IX-29` with `VD-42` — are pairs a person would group. They were
+riding on an artefact of a queue whose bodies were empty, and the way to
+propose one deliberately is the cross-reference, which outscores any path.
+
+**Raising `NOISE` was measured and rejected.** Against the filled-in bodies:
+at 4 the mean is 1.45 and the largest proposal is 9; at 10 it is 3.06 and 14;
+at 25 it is 7.46 and **43**. Recovering four of those five pairs needs 25,
+which proposes a forty-three-item group — the crowd the constant exists to
+stop, and the reason it was set after five `prerender.js` items were proposed
+as one. The constant is right; its calibration comment, which reasons from a
+queue where almost nothing named a path, is the part this entry supersedes.
+
+So the durable half is at the point of filing: the issue form asks where the
+work lands as its own field, and `CONTRIBUTING.md` says so under *Filing*. An
+item filed without it is not refused — an honest *not known yet* beats a
+guessed path, which costs a fork a worktree to discover is wrong — but it is
+an item `--group` cannot see.

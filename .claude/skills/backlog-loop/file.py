@@ -4,6 +4,7 @@ Write to the queue: file an item, move one between statuses, mark one.
 
     python3 .claude/skills/backlog-loop/file.py new PD "Title." --size S --status Next --body-file note.md
     python3 .claude/skills/backlog-loop/file.py new AF "Title." --size M --body "one paragraph" --decision
+    python3 .claude/skills/backlog-loop/file.py new CR "Title." --size S --body "..." --where "build.py, verify.py"
     python3 .claude/skills/backlog-loop/file.py status 123 "In progress"     # or Now, Next, Someday, Done
     python3 .claude/skills/backlog-loop/file.py blocked 123 "why, in one clause"
     python3 .claude/skills/backlog-loop/file.py decision 123 "what a person must decide"
@@ -16,6 +17,10 @@ prints `#n ID`. Nothing here merges, closes a landed item (the pull request
 does that with `Closes #n`) or reorders the board (a person drags). The
 board auto-adds every new issue of the repository, so `status` finds the
 item before it adds one.
+
+`--where` names the file paths the work would touch and appends them as the
+`**Where:**` line `next.py --group` reads; an item filed without it is filed,
+and simply cannot be grouped on a path `[D-34]`.
 
 `new` takes the prefix and the title, gives it the next unused number in
 that prefix (`next.py --next-id`), the `source:` label the prefix implies,
@@ -162,6 +167,13 @@ def new(a):
     body = open(a.body_file, encoding="utf-8").read() if a.body_file else (a.body or "")
     if not body.strip():
         sys.exit("an item needs a body: what is wrong, where, and what would fix it")
+    # `--where` is the one line `next.py --group` reads to propose landing two
+    # items in one pull request `[D-34]`. It is appended rather than asked of
+    # the caller's prose so that a body written anywhere still carries it in
+    # the one spelling the grouping looks for.
+    if a.where and "**Where:**" not in body:
+        body = body.rstrip() + "\n\n**Where:** " + a.where.rstrip(". ") + "."
+
     labels = [f"source: {SOURCE[a.prefix]}", f"size: {a.size}"] + (["decision"] if a.decision else [])
     args = ["issue", "create", "--repo", REPO, "--title", f"{ident}: {a.title}", "--body", body]
     for lb in labels:
@@ -201,6 +213,7 @@ def main():
     n.add_argument("--status", default="Next")
     n.add_argument("--body")
     n.add_argument("--body-file")
+    n.add_argument("--where", help="comma-separated file paths the work would touch")
     n.add_argument("--decision", action="store_true")
     s = sub.add_parser("status")
     s.add_argument("number", type=int)
