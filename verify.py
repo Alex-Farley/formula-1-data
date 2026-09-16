@@ -315,19 +315,66 @@ def standings():
         check(f"{y} drivers' final table is one row per driver", n == d,
               f"{n} rows, {d} drivers")
 
-    # WHICH row survives, not just how many. Points only accumulate, so of two
-    # sources describing one entity the larger total is the one that has
-    # counted the most rounds; a view row outscored by another source's row
-    # for the same entity kept the stale figure. A front-end review flipped
-    # the view's ORDER BY on a copy and every count-based check still passed
-    # while Antonelli showed 242 instead of 267 - this is the check that fails.
-    stale = con.execute("""SELECT COUNT(*) FROM v_standings_final f
-        WHERE EXISTS (SELECT 1 FROM standings o
-                      WHERE o.after_round IS NULL AND o.year = f.year
-                        AND o.table_type = f.table_type AND o.entity_id = f.entity_id
-                        AND o.source <> f.source AND o.points > f.points)""").fetchone()[0]
+    # WHICH row survives, not just how many: the one whose table has counted
+    # the most rounds, and formula1.com's where both stand after the same
+    # round. A front-end review flipped the view's ORDER BY on a copy and every
+    # count-based check still passed while Antonelli showed 242 instead of 267.
+    # The rule this replaced - "the larger total" - kept Gasly and Alpine on a
+    # round-12 snapshot beside a round-14 table (AF-35), and this check passed
+    # it, because it tested the rule rather than what the rule is for. So the
+    # moment each row stands at is read here from as_of, independently of the
+    # view's own reading of it, and a row whose moment cannot be read fails.
+    last_run = dict(con.execute("SELECT year, MAX(round) FROM races GROUP BY year"))
+    latest = {(y, s): n for y, s, n in con.execute(
+        """SELECT year, source, MAX(after_round) FROM standings
+            WHERE after_round IS NOT NULL GROUP BY year, source""")}
+
+    def rounds_counted(year, source, as_of):
+        m = re.search(r"\(after round (\d+)\)$", as_of or "")
+        if m:
+            return int(m.group(1))
+        if as_of == "current":
+            return latest.get((year, source))
+        if as_of == "final":
+            return last_run.get(year)
+        return None
+
+    counted, unread = {}, []
+    for yr_, kind_, eid_, src_, as_of_ in con.execute(
+            """SELECT DISTINCT year, table_type, entity_id, source, as_of
+                 FROM standings WHERE after_round IS NULL"""):
+        n_ = rounds_counted(yr_, src_, as_of_)
+        if n_ is None:
+            unread.append(f"{yr_} {kind_} {eid_} as_of {as_of_!r}")
+        counted.setdefault((yr_, kind_, eid_), {})[src_] = n_
+    check("every final standings row says which round it stands after",
+          not unread, "; ".join(unread[:3]))
+    stale = []
+    for yr_, kind_, eid_, src_ in con.execute(
+            "SELECT DISTINCT year, table_type, entity_id, source FROM v_standings_final"):
+        by_src = counted.get((yr_, kind_, eid_), {})
+        best = max((n for n in by_src.values() if n is not None), default=None)
+        kept = by_src.get(src_)
+        official = [s for s, n in by_src.items() if n == best and "formula1.com" in s]
+        if best is not None and (kept != best or (official and src_ not in official)):
+            stale.append(f"{yr_} {kind_} {eid_}: kept {src_} at round {kept}, "
+                         f"another source stands after round {best}")
     check("v_standings_final keeps the source that has counted the most rounds",
-          stale == 0, f"{stale} rows outscored by the other source")
+          not stale, "; ".join(stale[:3]))
+    # 'current' is read as the source's latest running table, so hold it to
+    # that: a season-level file that lagged its own per-round file would make
+    # the view's reading of it wrong.
+    lagging = con.execute("""SELECT COUNT(*) FROM standings c
+        WHERE c.after_round IS NULL AND c.as_of = 'current'
+          AND NOT EXISTS (SELECT 1 FROM standings r
+                WHERE r.year = c.year AND r.table_type = c.table_type
+                  AND r.entity_id = c.entity_id AND r.source = c.source
+                  AND r.after_round = (SELECT MAX(x.after_round) FROM standings x
+                                        WHERE x.year = c.year AND x.source = c.source)
+                  AND ABS(COALESCE(r.points, -1) - COALESCE(c.points, -1)) < 0.001)"""
+        ).fetchone()[0]
+    check("every 'current' standings row equals its source's latest round",
+          lagging == 0, f"{lagging} rows differ from the source's own latest table")
     # And the fill: where either source has a position or a team, the view
     # row has it. 2026 is the season with two sources, so it is the test.
     unfilled = con.execute("""SELECT COUNT(*) FROM v_standings_final f
@@ -358,10 +405,10 @@ def standings():
     check("v_standings_final keeps every entry the kept source asserts",
           folded == 0, f"{folded} entity-seasons with a different row count")
 
-    # The check that constrains the VALUE and not the rule. "Larger total
-    # wins" assumes the sources agree at any one round; where the official
-    # snapshot and F1DB's table after the same round differ, that is a
-    # disagreement the build must have filed, or a new one has arrived.
+    # The check that constrains the VALUE and not the rule. The fold assumes
+    # the sources agree at any one round; where the official snapshot and
+    # F1DB's table after the same round differ, that is a disagreement the
+    # build must have filed, or a new one has arrived.
     unfiled = []
     pts_text = lambda v: str(int(v)) if float(v).is_integer() else str(v)  # noqa: E731
     for yr_, kind_, eid_, snap_, rnd_ in con.execute("""
@@ -388,6 +435,42 @@ def standings():
                 unfiled.append(f"{yr_} {kind_} {eid_} {snap_} v {f1db_[0]}")
     check("every points disagreement between the official snapshot and F1DB is filed",
           not unfiled, "; ".join(unfiled[:3]))
+    # Its counterpart (AF-34). Drivers' disagreements that net to zero are a
+    # reclassification, not a scoring difference: points moved between
+    # drivers in some race. Such a set must cite one race, and that race must
+    # carry the open finishing-order disagreement - otherwise the cause is
+    # filed nine times over as season totals and nowhere on the race.
+    uncaused = []
+    groups = {}
+    for field_, stored_, derived_, text_, is_driver_ in con.execute("""
+            SELECT d.field, d.stored_value, d.derived_value, d.assessment,
+                   EXISTS (SELECT 1 FROM drivers x WHERE x.full_name = d.subject)
+              FROM discrepancies d
+             WHERE d.field LIKE '____ championship points, after round %'
+               AND d.status LIKE 'open%'"""):
+        groups.setdefault(field_, []).append((stored_, derived_, text_, is_driver_))
+    for field_, rows_ in sorted(groups.items()):
+        yr_ = field_[:4]
+        driver_rows = [r for r in rows_ if r[3]]
+        net = sum(float(r[0]) - float(r[1]) for r in driver_rows)
+        cited = {m for r in rows_
+                 for m in re.findall(rf"'({yr_} round \d+)'", r[2] or "")}
+        if abs(net) < 0.001 and driver_rows:
+            if len(cited) != 1 or any(f"'{next(iter(cited))}'" not in (r[2] or "")
+                                      for r in rows_):
+                uncaused.append(f"{field_}: nets to zero and cites "
+                                f"{sorted(cited) or 'no race'}")
+                continue
+        for race_ in cited:
+            rn_ = int(race_.rsplit(" ", 1)[1])
+            if rn_ > int(field_.rsplit(" ", 1)[1]) or not con.execute(
+                    """SELECT 1 FROM discrepancies WHERE subject = ?
+                         AND field LIKE 'finishing order%' AND status LIKE 'open%'""",
+                    (race_,)).fetchone():
+                uncaused.append(f"{field_}: cites {race_}, which carries no open "
+                                f"finishing-order disagreement")
+    check("a points disagreement caused by one race is filed on that race",
+          not uncaused, "; ".join(uncaused[:3]))
     # The view is a classification: positions 1..n, points non-increasing.
     for y in (2025, 2026):
         for t in ("drivers", "constructors"):
