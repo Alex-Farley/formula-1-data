@@ -120,6 +120,13 @@ NOISE = 4            # see below
 # race.jsx, smoke.mjs. It is a constant and not a fraction of the queue
 # because a file is named by the few items about it however long the queue
 # grows. Five prerender.js items were proposed as one group before this.
+# Those 2026-09-14 counts predate `AF-36`, which filled in the 99 bodies that
+# named no path at all, and they are not what the queue reads now: build.py
+# 46, prerender.js 27, app.css 13 on 2026-09-16 `[D-34]`. The constant held
+# under that - raising it was measured and rejected - but the sentence above
+# it did not: a hot file is named by a quarter of the queue, not by a few.
+# What a signal costing nothing below the cliff and everything above it
+# should be instead is open, and filed.
 
 
 def gh(*args):
@@ -212,10 +219,44 @@ def first_eligible(ranked, skip):
     return next((r for r in ranked if eligible(r, skip)), None)
 
 
+def tree():
+    """basename -> the one tracked file with that name, lowercased.
+
+    A body writes a file either way - `prerender.js` in ten items, and
+    `web/scripts/prerender.js` in seventeen more since `AF-36` filled the
+    bodies in. Those were two signals that never matched each other, so the
+    ten and the seventeen did not group and the noise counter saw neither
+    count whole (measured 2026-09-16: 32 such splits across the open queue,
+    `datatable.jsx` against `web/src/components/datatable.jsx` among them).
+    A bare name resolves to its full path here so the two spellings are one
+    signal `[D-34]`.
+
+    Only a basename unique in the tree resolves. `README.md` is three
+    different files and stays three - guessing which one an item meant is
+    how a group is proposed on a file the item never mentioned.
+    """
+    if not hasattr(tree, "_map"):
+        root = os.path.dirname(os.path.dirname(os.path.dirname(
+            os.path.dirname(os.path.abspath(__file__)))))
+        try:
+            out = subprocess.run(["git", "ls-files"], capture_output=True, text=True,
+                                 check=False, cwd=root).stdout.split()
+        except OSError:
+            # No git, or not a checkout. Every name then stays as written,
+            # which is what this did before the map existed.
+            out = []
+        seen = Counter(f.rsplit("/", 1)[-1].lower() for f in out)
+        tree._map = {f.rsplit("/", 1)[-1].lower(): f.lower() for f in out
+                     if seen[f.rsplit("/", 1)[-1].lower()] == 1}
+    return tree._map
+
+
 def signals(row):
     """(paths, routes, ids) named anywhere in the item's title or body."""
     text = row["title"] + "\n" + row["body"]
-    paths = {m.lower().lstrip("./") for m in PATH.findall(text)}
+    full = tree()
+    paths = {full.get(m, m) for m in
+             (x.lower().lstrip("./") for x in PATH.findall(text))}
     routes = {m for m in ROUTE.findall(text) if not IS_FILE.search(m)}
     return paths, routes, set(IDREF.findall(text)) - {row["ident"]}
 

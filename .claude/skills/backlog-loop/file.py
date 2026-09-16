@@ -18,9 +18,12 @@ does that with `Closes #n`) or reorders the board (a person drags). The
 board auto-adds every new issue of the repository, so `status` finds the
 item before it adds one.
 
-`--where` names the file paths the work would touch and appends them as the
-`**Where:**` line `next.py --group` reads; an item filed without it is filed,
-and simply cannot be grouped on a path `[D-34]`.
+`--where` names the file paths the work would touch and appends them as a
+`**Where:**` line, the spelling this project writes them in; `next.py --group`
+reads a path wherever it appears in the body, so the line is a convention and
+not a requirement of the grouping. A path not tracked in this checkout is a
+warning, not a refusal - it may be a file the item creates. An item filed
+without `--where` is filed, and simply cannot be grouped on a path `[D-34]`.
 
 `new` takes the prefix and the title, gives it the next unused number in
 that prefix (`next.py --next-id`), the `source:` label the prefix implies,
@@ -157,6 +160,44 @@ def set_status(number, status):
         loop_cache.drop("items")
 
 
+def where_line(body, where):
+    """`body` with the paths `where` names appended as the `**Where:**` line.
+
+    `next.py --group` scores a companion on the file paths a body names
+    `[D-34]`, and `signals()` reads a path wherever it appears and looks for
+    no marker - so the line is this project's house spelling and not
+    something the grouping requires. What the marker is load-bearing for is
+    the guard here, which keeps a second `--where` from appending a second
+    line. Whitespace is not a `--where`: `--where "   "` is truthy and used
+    to write the junk line `**Where:** .`
+
+    A path the checkout does not track is a warning and not a refusal, since
+    it may be a file the item will create; a wrong one costs a fork a
+    worktree to discover, so it is said out loud rather than swallowed.
+    """
+    where = (where or "").strip().rstrip(". ").strip()
+    if not where or "**Where:**" in body:
+        return body
+    unknown = [q for q in (t.strip() for t in where.split(",")) if q and not tracked(q)]
+    if unknown:
+        print("warning: not tracked in this checkout: " + ", ".join(unknown),
+              file=sys.stderr)
+    return body.rstrip() + "\n\n**Where:** " + where + "."
+
+
+def tracked(path):
+    """Is `path` a file of this checkout? False also when git cannot answer."""
+    if not hasattr(tracked, "_files"):
+        root = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
+        try:
+            out = subprocess.run(["git", "ls-files"], capture_output=True, text=True,
+                                 check=False, cwd=root).stdout.split()
+        except OSError:
+            out = []
+        tracked._files = {f.lower() for f in out}
+    return path.lower().lstrip("./") in tracked._files
+
+
 def new(a):
     if a.prefix not in SOURCE:
         sys.exit(f"unknown prefix {a.prefix}; one of {', '.join(sorted(SOURCE))}")
@@ -167,12 +208,7 @@ def new(a):
     body = open(a.body_file, encoding="utf-8").read() if a.body_file else (a.body or "")
     if not body.strip():
         sys.exit("an item needs a body: what is wrong, where, and what would fix it")
-    # `--where` is the one line `next.py --group` reads to propose landing two
-    # items in one pull request `[D-34]`. It is appended rather than asked of
-    # the caller's prose so that a body written anywhere still carries it in
-    # the one spelling the grouping looks for.
-    if a.where and "**Where:**" not in body:
-        body = body.rstrip() + "\n\n**Where:** " + a.where.rstrip(". ") + "."
+    body = where_line(body, a.where)
 
     labels = [f"source: {SOURCE[a.prefix]}", f"size: {a.size}"] + (["decision"] if a.decision else [])
     args = ["issue", "create", "--repo", REPO, "--title", f"{ident}: {a.title}", "--body", body]

@@ -287,5 +287,92 @@ class GroupingProposals(unittest.TestCase):
         self.assertIn("AX-13", [r["ident"] for _, r, _ in rows])
 
 
+class WhereTheWorkLands(unittest.TestCase):
+    """`file.py new --where` through `signals()`, and the spelling it needs.
+
+    `AF-36` filled in the 99 open bodies that named no path, and D-34 turns
+    on two mechanical facts that were held only by a review until this class
+    existed: that the line `--where` writes is read back as the paths it
+    names and nothing else, and that a bare file name and its full path are
+    one signal rather than two. The second was a live defect - ten items
+    wrote `prerender.js`, seventeen wrote `web/scripts/prerender.js`, and
+    they never grouped with each other.
+    """
+
+    def setUp(self):
+        spec = importlib.util.spec_from_file_location(
+            "backlog_file", os.path.join(ROOT, ".claude", "skills", "backlog-loop", "file.py"))
+        self.file_py = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.file_py)
+
+    @staticmethod
+    def paths(body, title="AF-99: A title."):
+        return next_py.signals(dict(title=title, body=body, ident="AF-99"))[0]
+
+    def test_the_where_line_reads_back_as_exactly_the_paths_it_names(self):
+        # Including the trailing full stop, which must not eat an extension.
+        self.assertEqual(
+            self.paths("**Where:** web/src/components/DataTable.jsx, build.py."),
+            {"web/src/components/datatable.jsx", "build.py"})
+
+    def test_not_known_yet_is_an_accepted_answer_and_names_no_path(self):
+        # The form requires the field; this is what an honest blank costs.
+        self.assertEqual(self.paths("**Where:** not known yet."), set())
+
+    def test_a_bare_file_name_and_its_full_path_are_one_signal(self):
+        # The defect D-34 fixes: two spellings of one file scored apart.
+        self.assertEqual(self.paths("`prerender.js` is wrong"),
+                         self.paths("`web/scripts/prerender.js` is wrong"))
+
+    def test_an_ambiguous_bare_name_is_left_as_written(self):
+        # Three files are named README.md; guessing which one an item meant
+        # would propose a group on a file it never mentioned.
+        self.assertEqual(self.paths("`README.md` is wrong"), {"readme.md"})
+
+    def test_where_is_appended_in_the_house_spelling(self):
+        got = self.append("one paragraph", "build.py, verify.py")
+        self.assertTrue(got.endswith("\n\n**Where:** build.py, verify.py."), got)
+        self.assertEqual(self.paths(got), {"build.py", "verify.py"})
+
+    def test_a_second_where_does_not_append_a_second_line(self):
+        once = self.append("one paragraph", "build.py")
+        self.assertEqual(self.append(once, "verify.py"), once)
+
+    def test_whitespace_is_not_a_where(self):
+        # `--where "   "` is truthy and used to write the junk line
+        # "**Where:** ." , which reads back as no path but is still a lie.
+        self.assertNotIn("**Where:**", self.append("one paragraph", "   "))
+
+    def test_an_untracked_path_warns_and_still_files(self):
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            got = self.append("one paragraph", "build.py, nosuchfile.py")
+        self.assertIn("nosuchfile.py", err.getvalue())
+        self.assertNotIn("build.py", err.getvalue())
+        self.assertIn("**Where:** build.py, nosuchfile.py.", got)
+
+    def append(self, body, where):
+        """What `file.py new` would put in the issue body, without calling gh."""
+        return self.file_py.where_line(body, where)
+
+
+class IssueFormIsWellFormed(unittest.TestCase):
+    """The queue's one browser surface. A malformed form fails silently, in
+    somebody's browser, and nothing else in CI parses it: `actionlint` reads
+    workflows only."""
+
+    def test_the_item_form_parses_and_its_field_ids_are_unique(self):
+        try:
+            import yaml
+        except ImportError:
+            self.skipTest("PyYAML is not installed on this interpreter")
+        with open(os.path.join(ROOT, ".github", "ISSUE_TEMPLATE", "item.yml"),
+                  encoding="utf-8") as fh:
+            form = yaml.safe_load(fh)
+        ids = [b["id"] for b in form["body"] if "id" in b]
+        self.assertEqual(sorted(ids), sorted(set(ids)))
+        self.assertIn("where", ids, "the field D-34 rests on")
+
+
 if __name__ == "__main__":
     unittest.main()
