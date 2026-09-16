@@ -1,10 +1,10 @@
-# Lap Ledger — v<!-- fig:version -->2.23<!-- /fig -->
+# Lap Ledger — v<!-- fig:version -->2.24<!-- /fig -->
 
 An expansion of the original single-file JSON into a normalised, queryable
 SQLite database covering <!-- fig:season_span -->1950–2027<!-- /fig -->, with
 the JSON kept as a generated export.
 
-**The latest release, v<!-- fig:version -->2.23<!-- /fig -->,** derives the
+**The latest release, v<!-- fig:version -->2.24<!-- /fig -->,** derives the
 `records` table instead of publishing it. Thirty rows had been typed from
 general knowledge, at `medium`, with nothing in `verify.py` reading them —
 one said Hamilton had 105 wins beside a `drivers.wins` of 106 the same build
@@ -32,8 +32,8 @@ make all          # rebuild, verify, export — no dependencies
 ./f1 chassis lotus
 ```
 
-Built <!-- fig:built -->2026-09-14<!-- /fig -->; `meta.verification_date` is
-<!-- fig:verified_on -->2026-09-14<!-- /fig -->. The last race with a
+Built <!-- fig:built -->2026-09-16<!-- /fig -->; `meta.verification_date` is
+<!-- fig:verified_on -->2026-09-16<!-- /fig -->. The last race with a
 classification is the <!-- fig:last_race -->2026 Madrid Grand Prix<!-- /fig -->.
 The chassis, engine, entrant and results registers are F1DB
 <!-- fig:f1db_version -->v2026.14.0<!-- /fig -->.

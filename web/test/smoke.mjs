@@ -237,6 +237,15 @@ try {
   const page = await context.newPage()
 
     const consoleErrors = []
+    // What counts as the site's error, in one place. A photograph Commons
+    // declined, or any transport failure, is not something this test can hold
+    // the site to - the Console section has said so for as long as it has
+    // existed, and the Shapes loop below has to agree with it or the two read
+    // the same run differently. They did: behind an HTTPS-intercepting proxy
+    // every Commons request fails certificate validation, Console stayed green
+    // because it filters them, and Shapes went red on whichever route happened
+    // to ask for a portrait first.
+    const siteError = (message) => !/commons\.wikimedia\.org|ERR_|net::/i.test(message)
     page.on('console', (message) => {
       if (message.type() === 'error') consoleErrors.push(message.text())
     })
@@ -1556,7 +1565,7 @@ try {
         fail(`${what}: no row in the database matches, so the shape went untested`)
         continue
       }
-      const before = consoleErrors.length
+      const before = consoleErrors.filter(siteError).length
       try {
         await go(route)
         // A page that threw during render leaves the heading and nothing under
@@ -1576,8 +1585,11 @@ try {
           )
           .catch(() => {})
         const filled = await page.$$eval('#root main section, #root main .stats', (n) => n.length)
-        if (filled > 0 && consoleErrors.length === before) pass(`${what} — ${route}`)
-        else fail(`${what} — ${route}: ${filled} blocks, ${consoleErrors.length - before} new error(s)`)
+        // A page whose DATABASE failed to load is still caught, and by the
+        // stronger assertion: it renders no blocks at all.
+        const errors = consoleErrors.filter(siteError).slice(before)
+        if (filled > 0 && errors.length === 0) pass(`${what} — ${route}`)
+        else fail(`${what} — ${route}: ${filled} blocks, ${errors.length} new error(s) ${JSON.stringify(errors)}`)
       } catch (error) {
         fail(`${what} — ${route}: ${String(error.message).split('\n')[0]}`)
       }
@@ -1978,9 +1990,7 @@ try {
   await section('Console', async () => {
     // A missing photograph is a Commons request this test cannot control; a
     // failure inside the app is not.
-    const real = consoleErrors.filter(
-      (message) => !/commons\.wikimedia\.org|ERR_|net::/i.test(message),
-    )
+    const real = consoleErrors.filter(siteError)
     if (real.length === 0) pass('no errors logged during the run')
     else real.forEach((message) => fail(`console error: ${message}`))
   })
