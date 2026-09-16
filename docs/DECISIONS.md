@@ -483,3 +483,94 @@ project's house style and not something the grouping requires — `signals()`
 reads a path wherever it appears in a body and looks for no marker, which is
 what lets an item filed through the form, where the heading comes from the
 field label, group exactly as well.
+
+### D-35 · A skill's frontmatter does not set a fork's effort either — 2026-09-16
+`backlog-item/SKILL.md` carries `effort: high`, and the fork is both the
+longest-running context in the loop and its implementer, so effort costs more
+there than anywhere else. The obvious experiment is to run an item at
+`medium` and see whether the FAIL rounds rise. **It cannot be run by changing
+that key**, because the key does not appear to do anything — the same finding
+as `[D-32]`, one frontmatter key over.
+
+Note that `backlog-loop/SKILL.md` has said all along that "the implementer's
+effort is the session's", and names `CLAUDE_CODE_EFFORT_LEVEL` and
+`effortLevel` as the way to set it. The `effort: high` line is what
+contradicts it, and on the probe evidence it is the line that is wrong. The
+probes cannot prove that much: if the key is live, the wrong document is the
+other one.
+
+**The two probes, as run**, each a throwaway `SKILL.md` written to
+`.claude/skills/`, invoked, read and deleted. A probe wants a retry after it
+is written: both were *Unknown skill* on the first invocation and registered a
+minute later, which is `[D-32]`'s registration lag and not a result.
+
+*Probe A — does the fork run at the effort its frontmatter names?*
+`context: fork` with `effort: low`, invoked from a session running at `high`,
+asked to report `mcp__ccd_session_mgmt__get_session` on `self` and to quote
+anything in its own context stating a reasoning budget. It reported
+`effort: "high"` and said nothing in its context stated a level at all.
+
+*Probe B — is the key parsed?* The same shape with `effort: banana`, which is
+not a valid level. It loaded and ran normally, with no error and no warning
+about the value anywhere in its context or its invocation.
+
+Probe B is consistent with the key being inert and **settles nothing on its
+own**. This build ignores frontmatter it cannot use without saying a word, on
+live keys as much as dead ones, which is precisely why
+`tests/test_conventions.py` guards the spelling of `effort:` in an agent file
+— "a misspelt key in an agent's frontmatter is ignored silently". Silence is
+the expected observation either way.
+
+So: **not proven**, to the same standard `[D-32]` sets. `get_session` reports
+the session's metadata and a fork shares its id, so probe A cannot see a
+sampling budget that was lowered without the metadata following it.
+
+The probe that would settle it is behavioural, not metadata — probe A has
+already shown the fork cannot read its own budget. Invoke the same fork twice
+on one task that is heavy in reasoning and light in tools, identical but for
+`effort:`, and compare the thinking tokens the Agent tool reports for each.
+Run that before acting either way, in either direction.
+
+So the line stays in the frontmatter rather than being deleted — if the key
+turns out to be live, removing it would silently drop the fork's effort, which
+is the change nobody has evidence for — and it is annotated where it sits.
+
+**The baseline is recorded here so the real experiment has its control.** The
+items in `.claude/loop/progress.log` whose review history the log holds in
+full: `VD-26` FAIL then PASS, `VD-27` PASS,
+`VD-25` FAIL then PASS, `AF-04` FAIL then FAIL then PASS, `AX-07` FAIL then
+PASS, `AF-09` FAIL then PASS, `AF-15` PASS then PASS, `AF-16` PASS then FAIL
+then PASS, `AF-17+VD-34` FAIL then PASS, `AF-23+VD-44+IX-31` PASS then PASS.
+**Compare on a fixed denominator.** Of the ten first passes, **6 FAILed**; the
+ten items took **8 FAIL rounds** between them. Those are the two figures a
+later run is measured against, because each has a denominator that does not
+move: ten items either way. The pooled 8 of 21 rounds — 38 % — is a remark,
+not a control. A round exists only because an earlier round failed or passed
+with findings, so that denominator is partly the numerator again, and a change
+of confirmation policy alone would move it. The two populations differ anyway:
+6 of 10 first passes FAILed, 2 of 11 confirmations did.
+
+A round is a pass, whether it launched one reviewer or two, and it counts only
+if it returned a verdict. `AF-15` spent one that did not, the fork having died
+before recording it `[D-23]`; a later comparison must leave its equivalent out
+the same way. `PM-39`, `AF-03` and `AF-10` are excluded: the log holds only
+`progress.sh`'s own smoke-test lines for the first, no first pass for the
+second, and the third was never run at all — "skipped: item is itself an open
+maintainer decision".
+
+**Two things about this control that a later run must hold or state.** The
+session effort is written down nowhere: `progress.log` has no effort field, so
+"high" is stated from the run and not read off a log, and a run meaning to
+compare should record its own. And the instrument moved inside the baseline —
+`[D-33]` dropped `frontend-reviewer` to medium on 2026-09-16, after nine of
+these ten items and before `AF-23+VD-44+IX-31`. The front-end reviewer judged
+most of these rounds, so a comparison either holds the reviewer configuration
+fixed and says which it used, or compares only against post-`[D-33]` rounds.
+
+Both remaining steps are `AF-37` (#352), which stays open: this entry records
+what was probed, not a finished experiment. The one that would settle it is a
+session started at `CLAUDE_CODE_EFFORT_LEVEL=medium` running several items,
+compared against 6
+first-pass FAILs in 10 and 8 FAIL rounds over 10 items — and run only after
+the behavioural probe above says the effort is reaching the fork at all. One
+item cannot tell 6 in 10 from 5 in 10, so it is several or it is nothing.
