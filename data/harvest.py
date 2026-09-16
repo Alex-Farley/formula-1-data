@@ -846,6 +846,24 @@ KNOWN_GAPS = [
      23,
      "Closes when a tool reads the FIA event timetable and verify.py compares "
      "every start against it, with a disagreement filed in discrepancies."),
+    (16, "regulation_limits.cost_cap_usd", "the cost cap after Indexation",
+     "open",
+     "The cost cap shown for each year is the figure the FIA Financial "
+     "Regulations state before Indexation. Those regulations adjust it for "
+     "inflation in 2023 to 2025 and from 2027, and the adjusted figures are "
+     "not held here.",
+     "The 2023-2025 issues (18 and 25 read) and Section D issue 07 each set "
+     "the cap 'adjusted, if applicable, for Indexation', with the rate "
+     "communicated by the Cost Cap Administration by Determination rather "
+     "than written in the regulations. Section D's Indexation does not reach "
+     "2026, so the 2026 figure is final; the 2027 one cannot be known until "
+     "2026 inflation is determined, and the rate to 30 June 2027 can raise "
+     "it. The stored values are the regulations' own figures, which "
+     "verify.py and the 2026 regulation_changes prose agree on.",
+     None,
+     "Closes when the indexed figure for each indexed year is read from an "
+     "FIA Determination or an FIA statement of the adjusted cap, and stored "
+     "beside the base."),
 ]
 
 # Shared fastest laps the season tables render as ONE name. harvest/poles.txt
