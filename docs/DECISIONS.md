@@ -214,8 +214,37 @@ the fork's tools in its frontmatter. **It does not work.** Probed directly on
 2026-09-16 with a throwaway forked skill: `allowed-tools: Read, Bash` left the
 fork holding all 41 loaded schemas, and `disallowed-tools` naming `Artifact`
 and two browser tools removed none of them. Both keys parse and both are
-inert for a `context: fork` skill in this build. Do not re-propose it without
-re-probing first; the probe is six lines and costs a few thousand tokens.
+inert for a `context: fork` skill in this build.
+
+**The probe, so this is reproducible rather than taken on trust.** Write it,
+invoke it with the Skill tool, read the answer, delete it:
+
+```
+.claude/skills/tool-probe/SKILL.md
+---
+name: tool-probe
+description: Throwaway probe - reports which tools its forked context has.
+context: fork
+disallowed-tools: Artifact, mcp__Claude_Browser__navigate
+---
+Call `mcp__Claude_Browser__tabs_context` once and report whether it succeeded
+or was refused. Then say how many tools have full schemas loaded here, and
+whether you can see any tool whose name begins `mcp__`. Nothing else.
+```
+
+**Two things about running it.** The skill registry will not re-register a
+skill name it has already seen deleted in the same session — invoking one
+returns *Unknown skill* however correct the file is — so probe in a fresh
+session, or use a name you have not used before.
+
+**And a caveat the first run did not close.** As run on 2026-09-16 the probe
+only asked the fork what it could *see*, and a context reporting its tools is
+not proof it could call them; the recipe above asks it to *call* a
+supposedly-disallowed tool instead, which is decisive where listing is not.
+That calling form has **not** been run — the registry quirk above blocked it
+in the session that wrote this. So treat the inertness of these keys as
+well-evidenced and not proven, and run the calling probe in a fresh session
+before acting either way, in either direction.
 
 What the probe did establish, and what the earlier estimate got wrong in both
 directions: a fork carries **41 tools with full schemas** — 13 built-ins and
@@ -235,9 +264,16 @@ maintainer's action in the desktop app and not a repository change.
 `effort: medium`; `data-integrity-reviewer` and `licence-reviewer` stay high.
 The consequences are asymmetric, so the review is asymmetric. A missed
 front-end finding is a cosmetic regression on a site we control, caught by the
-next item or by 384 smoke assertions and 766 lines of `conventions.mjs`. A
-missed licence or data finding is a published database that cannot be
-withdrawn, and `verify.py` cannot catch a judgement.
+next item, by the 384 smoke assertions, or by `web/test/conventions.mjs`,
+which is organised by `frontend-reviewer` item number and mechanises much of
+that checklist. A missed licence or data finding is a published database that
+cannot be withdrawn, and `verify.py` cannot catch a judgement.
+
+No line count is given for that suite on purpose: an earlier draft of this
+entry said 766, which was true at `44218a4` and false by the time it was
+written, because `AF-21` removed the track atlas in between. Nothing checks a
+figure in this file — the same reason `CLAUDE.md` refuses to state how many
+declared deviations there are `[D-05]`.
 
 The turn caps are deliberately **not** changed with this. They are runaway
 stops, not budgets `[D-19]`, and a reviewer that hits one returns without a
