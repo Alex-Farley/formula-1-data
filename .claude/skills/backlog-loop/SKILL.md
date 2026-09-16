@@ -97,10 +97,12 @@ PRs, decisions needed, what `next.py` says is next. Then stop.
 
 ## Running it cheaply
 
-- **Start the loop in a session with the connectors off.** Every MCP
-  server's tool schemas sit in the fixed prefix of every turn - about 74,000
-  tokens in the measured sessions - and they ride on the fork and on every
-  reviewer it launches `[D-18]`. The loop uses none of them.
+- **Start the loop in a session with the connectors off.** Every connected
+  MCP server's tool schemas sit in the fixed prefix of every turn, and the
+  fork inherits all of them because its frontmatter names no `allowed-tools`
+  `[D-18]`. The reviewers do not: every agent in `.claude/agents/` restricts
+  itself to `Read, Grep, Glob, Bash`, so an MCP server costs them nothing.
+  The loop uses none of them either way.
 - The implementer's effort is the session's: set `CLAUDE_CODE_EFFORT_LEVEL`
   or `effortLevel` before starting, not during a run, because a change of
   effort mid-session breaks the prompt cache. The pace does not set it; the

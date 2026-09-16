@@ -140,9 +140,23 @@ the fork each time. One line per stage in `.claude/loop/progress.log` is the
 replacement for the visibility the fork took away.
 
 ### D-18 · Run the loop with connectors off
-Every MCP server's tool schemas sit in the fixed prefix of every turn — about
-74,000 tokens before any work in the measured sessions — and they ride on the
-fork and on every reviewer it launches. The loop uses none of them.
+Every connected MCP server's tool schemas sit in the fixed prefix of every
+turn. The loop uses none of them.
+
+**Who actually pays, measured 2026-09-16** — the earlier wording here said the
+schemas ride on "the fork and on every reviewer it launches", and the reviewer
+half of that is wrong. All 13 agents in `.claude/agents/` carry
+`tools: Read, Grep, Glob, Bash`, which is an allowlist, so a connected MCP
+server costs a reviewer nothing. `backlog-item/SKILL.md` names no
+`allowed-tools`, so the **fork** inherits the whole session tool set — and the
+fork is the longest-running context in the loop. That is where the cost lands,
+and restricting it is filed rather than done here, because getting the list
+wrong breaks the loop silently.
+
+The 74,000-token figure came from sessions measured on 2026-09-13 and should
+not be read as a constant. On 2026-09-16 this machine had 48 connected MCP
+tools across four servers — 31 of them one plugin — with the four Google and
+Slack connectors already disabled. Measure before quoting it.
 
 ### D-19 · The pace — 2026-09-13 (`PM-36`)
 `fast`, `balanced`, `thorough`. It may relax the first-pass reviewer for a
