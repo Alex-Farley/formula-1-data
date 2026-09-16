@@ -216,35 +216,73 @@ fork holding all 41 loaded schemas, and `disallowed-tools` naming `Artifact`
 and two browser tools removed none of them. Both keys parse and both are
 inert for a `context: fork` skill in this build.
 
-**The probe, so this is reproducible rather than taken on trust.** Write it,
-invoke it with the Skill tool, read the answer, delete it:
+**The two probes as actually run**, so this is reproducible rather than taken
+on trust. Each is a `SKILL.md` written to `.claude/skills/tool-probe/`, invoked
+with the Skill tool, read, and deleted.
+
+*Probe A — does `allowed-tools` narrow the fork?* This is the run that
+produced the 41-schema figure below.
 
 ```
-.claude/skills/tool-probe/SKILL.md
 ---
 name: tool-probe
 description: Throwaway probe - reports which tools its forked context has.
 context: fork
-disallowed-tools: Artifact, mcp__Claude_Browser__navigate
+allowed-tools: Read, Bash
 ---
-Call `mcp__Claude_Browser__tabs_context` once and report whether it succeeded
-or was refused. Then say how many tools have full schemas loaded here, and
-whether you can see any tool whose name begins `mcp__`. Nothing else.
+List the exact names of every tool you can call here, including any beginning
+`mcp__`. If you can see tools beyond Read and Bash, say so and name three.
 ```
 
-**Two things about running it.** The skill registry will not re-register a
-skill name it has already seen deleted in the same session — invoking one
-returns *Unknown skill* however correct the file is — so probe in a fresh
-session, or use a name you have not used before.
+Answer: the fork listed all 41 loaded schemas and named browser, session and
+terminal MCP tools. `allowed-tools` narrowed nothing.
 
-**And a caveat the first run did not close.** As run on 2026-09-16 the probe
-only asked the fork what it could *see*, and a context reporting its tools is
-not proof it could call them; the recipe above asks it to *call* a
-supposedly-disallowed tool instead, which is decisive where listing is not.
-That calling form has **not** been run — the registry quirk above blocked it
-in the session that wrote this. So treat the inertness of these keys as
-well-evidenced and not proven, and run the calling probe in a fresh session
-before acting either way, in either direction.
+*Probe B — does `disallowed-tools` remove one?*
+
+```
+---
+name: tool-probe
+description: Throwaway probe - reports which tools its forked context has.
+context: fork
+disallowed-tools: Artifact, mcp__Claude_Browser__navigate, mcp__Claude_Browser__computer
+---
+Answer only: can you call `Artifact`? Can you call
+`mcp__Claude_Browser__navigate`? Roughly how many tools have full schemas here?
+```
+
+Answer: both still callable, 41 schemas. `disallowed-tools` removed nothing.
+
+**What neither probe settled, and how to settle it.** Both asked only what the
+fork could *see*, and a context listing a tool is not proof it could call one.
+The decisive form disallows a tool and then calls **that same tool** — the
+earlier draft of this entry got that wrong, disallowing `navigate` and calling
+`tabs_context`, which was never restricted and so could only ever succeed:
+
+```
+---
+name: tool-probe-call
+description: Throwaway probe - calls a tool its frontmatter forbids.
+context: fork
+disallowed-tools: mcp__Claude_Browser__tabs_context
+---
+Call `mcp__Claude_Browser__tabs_context` exactly once - it is read-only and
+harmless - and report whether it returned a result or was refused. Nothing
+else.
+```
+
+A refusal proves the key works; a result proves it is inert. **This has not
+been run**, for a reason worth passing on: **skill registration is not
+reliable mid-session.** Observed on 2026-09-16, in this order — a skill
+created early in a session was found and invoked twice; after it was deleted,
+a recreation under the same name returned *Unknown skill*; and so did a
+creation under a name never used before, despite the file being correct and
+the session announcing it. Two attempts at the calling probe were lost that
+way. No mechanism is offered here because none was established: the usable
+fact is simply that a probe wants **its own fresh session**, written before
+the session starts rather than during it.
+
+So: treat the inertness of these keys as well-evidenced and **not proven**,
+and run the calling probe before acting either way, in either direction.
 
 What the probe did establish, and what the earlier estimate got wrong in both
 directions: a fork carries **41 tools with full schemas** — 13 built-ins and
