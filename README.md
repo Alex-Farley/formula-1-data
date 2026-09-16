@@ -664,10 +664,10 @@ smallest real gap.
 The front end does not draw from it. `/circuits/:id` prints what the build
 measured — the relation, the points, the measured length against the published
 one, and whether the walk closes — under F1DB's outlines, which are the picture
-of a circuit. `web/src/lib/lap.js` still reproduces the stitch in the browser,
-and its unit tests hold its metre to the figure `_haversine` returns here: two
-implementations of the same measurement, which is the point of measuring
-twice.
+of a circuit. `web/src/lib/lap.js` still holds a second implementation of
+the stitch, and `web/test/units.mjs` holds its metre to the figure `_haversine`
+returns here; since AF-23 no page imports it, so it ships in no bundle and that
+test is the whole of what exercises it (CR-32).
 
 Geometry attaches to a **layout**, never to a circuit alone, wherever a layout
 timeline exists. Monza 1955 is not Monza 2026 and `circuit_layouts` already

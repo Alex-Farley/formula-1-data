@@ -246,8 +246,9 @@ calendar or a run of seasons without going back to a list.
 `circuit_geometry.centreline` is a GeoJSON MultiLineString: the ways of an
 OpenStreetMap relation, **in no particular order**. Measuring along it needs
 the ways stitched end to end into one ordered ring first, and `src/lib/lap.js`
-does that — a second implementation of `build.py`'s own walk, whose unit tests
-pin its metre to the figure `_haversine` returns.
+is a second implementation of `build.py`'s own walk, whose unit tests pin its
+metre to the figure `_haversine` returns. No page imports it since AF-23, so it
+is in no bundle: it is that cross-check and nothing else (CR-32).
 
 **The site does not draw it.** AF-23 settled which of the two drawings of a
 circuit leads: F1DB's outlines, which cover 79 of the 80 venues and every

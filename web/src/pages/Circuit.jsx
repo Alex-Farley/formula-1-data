@@ -335,11 +335,16 @@ function CircuitTrace({ geometry, circuit }) {
             // length — it is just not a lap. Las Vegas measures within 2 %
             // of its published length and is still missing a way.
             label: 'The walk',
-            value: geometry.closes
-              ? 'closes into one lap'
-              : `does not close — ${number(geometry.loose_ends)} loose way ${
-                  geometry.loose_ends === 1 ? 'end' : 'ends'
-                }, so the length above is the ways added up rather than a lap walked round`,
+            // build.py writes 0 or 1 and the column is not NOT NULL, so the
+            // absence of a verdict is a third state and reads as one.
+            value:
+              geometry.closes === null || geometry.closes === undefined
+                ? null
+                : geometry.closes
+                  ? 'closes into one lap'
+                  : `does not close — ${number(geometry.loose_ends)} loose way ${
+                      geometry.loose_ends === 1 ? 'end' : 'ends'
+                    }, so the length above is the ways added up rather than a lap walked round`,
           },
           circuit.direction ? { label: 'Raced', value: circuit.direction } : null,
         ]}

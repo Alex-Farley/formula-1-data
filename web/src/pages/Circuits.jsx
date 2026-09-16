@@ -6,7 +6,7 @@ import DataTable, { cell } from '../components/DataTable.jsx'
 import { Chips, Filters, SearchField, Select } from '../components/Filters.jsx'
 import { currentProgress } from '../data/client.js'
 import { rows as pick, useQueries } from '../data/useQuery.js'
-import { TRACE_NOT_LOADED, TRACE_REGISTER_NOTE } from '../lib/trace.js'
+import { TRACE_COLUMN_UNKNOWN, TRACE_NOT_LOADED, traceRegisterNote } from '../lib/trace.js'
 import { CIRCUITS, CIRCUIT_COLUMNS, CIRCUITS_FOOTER, TRACED } from '../queries/circuits.js'
 
 /**
@@ -53,7 +53,7 @@ const APP = {
  * register no longer parses to draw 25 thumbnails.
  */
 const TRACES = `
-  SELECT g.circuit_id, c.name, c.country, g.measured_km, g.closes
+  SELECT g.circuit_id, c.name, c.country, g.measured_km, g.closes, g.licence
     FROM circuit_geometry g
     JOIN circuits c ON c.id = g.circuit_id
    ORDER BY c.name
@@ -83,7 +83,7 @@ export default function Circuits() {
                 count={overlay ? `${traces.length} of ${register.length}` : null}
               >
                 <p className="note" style={{ marginTop: 0 }}>
-                  {overlay ? TRACE_REGISTER_NOTE : TRACE_NOT_LOADED}
+                  {overlay ? traceRegisterNote(traces[0]?.licence) : TRACE_NOT_LOADED}
                 </p>
                 {overlay && traces.length > 0 && (
                   <ul className="lapgrid">
@@ -94,7 +94,7 @@ export default function Circuits() {
                           <span>{trace.country}</span>
                           <span>
                             {trace.measured_km?.toFixed(3)} km measured
-                            {trace.closes ? '' : ' · does not close'}
+                            {trace.closes === 0 ? ' · does not close' : ''}
                           </span>
                         </Link>
                       </li>
@@ -102,8 +102,19 @@ export default function Circuits() {
                   </ul>
                 )}
               </Section>
-              <Section title="Every venue" count={`${register.length} circuits`}>
-                <Register rows={register} />
+              {/* The Traced column is answered from the same overlay, so
+                  without it every row reads as an em dash — the register
+                  saying "unestablished" eighty times when what happened was a
+                  download (IX-31). The column stays, because dropping a column
+                  would make the static and app tables disagree; what it means
+                  today is said beside it, and the filter that reads it goes,
+                  because it would return nothing. */}
+              <Section
+                title="Every venue"
+                count={`${register.length} circuits`}
+                note={overlay ? undefined : TRACE_COLUMN_UNKNOWN}
+              >
+                <Register rows={register} traceable={Boolean(overlay)} />
               </Section>
             </>
           )
@@ -120,7 +131,7 @@ export default function Circuits() {
   )
 }
 
-function Register({ rows }) {
+function Register({ rows, traceable = true }) {
   const [term, setTerm] = useState('')
   const [country, setCountry] = useState('')
   const [kind, setKind] = useState('')
@@ -156,7 +167,10 @@ function Register({ rows }) {
           label="Filter circuits by type"
           value={kind}
           onChange={setKind}
-          options={[['', 'All'], ...types.map((t) => [t, t]), ['traced', 'Traced']]}
+          // Without the overlay every row's Traced is unestablished, so the
+          // chip would filter eighty circuits down to none and read as an
+          // answer (IX-31).
+          options={[['', 'All'], ...types.map((t) => [t, t]), ...(traceable ? [['traced', 'Traced']] : [])]}
         />
       </Filters>
 

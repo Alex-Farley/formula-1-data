@@ -26,10 +26,14 @@ export const TRACE_RULE =
   'centrelines ship as a separate file under ODbL, which your browser merged in to read these ' +
   'figures. F1DB\u2019s outlines are the drawing of this circuit; the trace is what they cannot carry.'
 
-/** Above the traced circuits on the register. */
-export const TRACE_REGISTER_NOTE =
+/**
+ * Above the traced circuits on the register. The licence comes from the rows
+ * being shown, the same way the circuit page takes it from the row it prints,
+ * so one page cannot end up naming it differently from the other.
+ */
+export const traceRegisterNote = (licence) =>
   `What each traced centreline measures, against the length this register publishes. A circuit\u2019s ` +
-  `shape is drawn on its own page, from F1DB\u2019s outlines; the trace is the measurement beside it. ${ODBL_CREDIT}`
+  `shape is drawn on its own page, from F1DB\u2019s outlines; the trace is the measurement beside it. ${odblCredit(licence)}`
 
 /**
  * IX-31: a circuit with no trace and a trace that did not arrive rendered
@@ -38,6 +42,10 @@ export const TRACE_REGISTER_NOTE =
  * a network failure. Which of these is shown is chosen from whether the
  * overlay merged at all, never from this circuit's own rows.
  */
+export const TRACE_COLUMN_UNKNOWN =
+  'Traced cannot be answered while the centreline file is missing: every circuit below reads as ' +
+  'unestablished, which is what an em dash means here \u2014 not as a circuit without a trace.'
+
 export const TRACE_NOT_LOADED =
   'The centreline file did not load, so nothing traced is shown \u2014 here or anywhere else on the site. ' +
   'That is a file that did not arrive, not a circuit without a trace.'
