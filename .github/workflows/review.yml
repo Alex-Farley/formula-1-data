@@ -15,7 +15,10 @@ name: review
 # takes effect.
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    # `labeled` is here so that adding the label below starts a review on a
+    # pull request that is already open. The rest are here so that a review,
+    # once asked for, keeps up with the branch.
+    types: [opened, synchronize, reopened, ready_for_review, labeled]
 
 # NO workflow_dispatch, deliberately. It was here, and every manual run failed
 # in under a second:
@@ -54,8 +57,33 @@ concurrency:
 jobs:
   review:
     runs-on: ubuntu-latest
+    # THIS REVIEW IS OPT-IN, BY THE `ci-review` LABEL. It used to run on every
+    # pull request, and three things were true of it at once (2026-09-16):
+    #
+    #   1. It duplicated the review the backlog loop already runs before it
+    #      merges, using the SAME three agent definitions in .claude/agents/.
+    #   2. CLAUDE.md instructed the loop to ignore its result and run those
+    #      agents locally — so it was a review nobody read.
+    #   3. A green check was not evidence a review happened: on PR #312 it
+    #      reported SUCCESS with its sticky comment stopping two steps short
+    #      of posting findings (#313 / AF-27, still open).
+    #
+    # It also fired on `synchronize`, so every fix push during a review round
+    # started another full run: four on the AF-29 pull request, four on
+    # AF-31/AF-30. That is the largest line of token spend in the loop that
+    # bought nothing.
+    #
+    # WHAT DID NOT CHANGE: this never gated a pull request and still does not,
+    # and the loop's own rule — a fresh independent review from .claude/agents/
+    # before every merge — is untouched and is what actually protects `main`.
+    # Removing the trigger removes a duplicate, not a control. Label a pull
+    # request `ci-review` when you want a second opinion from CI; the review
+    # then keeps up with the branch until the label comes off.
+    #
     # A draft is a work in progress and reviewing one is an interruption.
-    if: github.event.pull_request.draft == false
+    if: >-
+      github.event.pull_request.draft == false
+      && contains(github.event.pull_request.labels.*.name, 'ci-review')
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
@@ -177,6 +205,10 @@ jobs:
             You are reviewing. Do not edit files, do not push, do not resolve
             threads.
 
+      # A SKIPPED job means the pull request is not labelled `ci-review`, which
+      # is now the ordinary case and is visibly skipped rather than silently
+      # green. Of the runs that do happen:
+      #
       # A GREEN CHECK HERE MEANS ONE OF FOUR THINGS and they are not the same:
       # reviewed and found nothing, not configured, declined because this pull
       # request edits the workflow, or the step did not finish. The action

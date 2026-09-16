@@ -192,6 +192,22 @@ what passed.
 pattern can decide. Every check that moves there is one a reviewer never
 spends a turn on again, so the brief stays on judgement.
 
+### D-28 · The CI review is opt-in, by the `ci-review` label — 2026-09-16
+`review.yml` ran on every pull request and on every push to one. It
+duplicated the review the loop already runs before merging, with the *same*
+three agent definitions; `CLAUDE.md` told the loop to ignore its result and
+run those agents locally, so it was a review nobody read; and a green check
+was not evidence a review had happened — on PR #312 it reported SUCCESS with
+its sticky comment two steps short of posting findings (#313 / AF-27, open).
+Firing on `synchronize` meant four runs on the AF-29 pull request and four on
+AF-31/AF-30, each delegating to up to three sub-agents.
+
+It never gated a pull request and still does not. The control that protects
+`main` is the loop's own rule — a fresh independent review from
+`.claude/agents/` before every merge — and that is untouched. This removed a
+duplicate, not a safeguard. Label a pull request `ci-review` for a second
+opinion from CI.
+
 ### D-27 · GitHub's secondary rate limiter is not in `gh api rate_limit`
 On 2026-09-14 every reported bucket read full while the limiter refused every
 GraphQL call. A `gh` failure naming a limit while the buckets look untouched
