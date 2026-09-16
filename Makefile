@@ -24,12 +24,21 @@ TEST_FLAGS = -v
 run = $(1)
 endif
 
-.PHONY: all build readme verify audit export test lint clean check ci help
+.PHONY: all build readme verify audit export release-due test lint clean check ci help
 
-all: build readme verify export   ## rebuild, regenerate the README figures, check and export (default)
+all: build readme verify export release-due   ## rebuild, regenerate the README figures, check, export and say whether a release is due (default)
 
 build:                            ## rebuild f1.db from data/*.py
 	$(call run,$(PYTHON) build.py)
+
+# Last, so it is the line still on screen when the build finishes. A REMINDER
+# and never a gate: it exits 0 whatever it finds, because whether a body of
+# work is worth a release is a judgement and not a check. VERSION sat at 2.23
+# for 141 commits with nothing anywhere saying so (AF-39); this says so.
+# Not in `make ci` - CI's checkout is shallow and has no tags, and a reminder
+# addressed to nobody is noise in a log.
+release-due:                      ## say whether enough has landed to be worth a release
+	@$(PYTHON) tools/release_due.py
 
 # Every number README.md states about the current database is a span the
 # tool rewrites from f1.db. It runs before verify because verify checks the
