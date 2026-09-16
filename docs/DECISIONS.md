@@ -206,6 +206,47 @@ what passed.
 pattern can decide. Every check that moves there is one a reviewer never
 spends a turn on again, so the brief stays on judgement.
 
+### D-32 · A skill's frontmatter cannot restrict a forked context's tools — 2026-09-16 (`AF-32`, #341, declined)
+`backlog-item/SKILL.md` names no `allowed-tools`, so the fork was thought to
+inherit the session's MCP tool schemas where the reviewers, whose agent files
+carry `tools: Read, Grep, Glob, Bash`, do not. The proposed fix was to declare
+the fork's tools in its frontmatter. **It does not work.** Probed directly on
+2026-09-16 with a throwaway forked skill: `allowed-tools: Read, Bash` left the
+fork holding all 41 loaded schemas, and `disallowed-tools` naming `Artifact`
+and two browser tools removed none of them. Both keys parse and both are
+inert for a `context: fork` skill in this build. Do not re-propose it without
+re-probing first; the probe is six lines and costs a few thousand tokens.
+
+What the probe did establish, and what the earlier estimate got wrong in both
+directions: a fork carries **41 tools with full schemas** — 13 built-ins and
+28 MCP — of which the **Claude Browser pane alone is 19**. The long tail is
+*deferred*, costing a name each until something fetches it: gitkraken's 25,
+session-management's 20, pdf-viewer's 9 and about 130 in total. So the loaded
+cost is smaller than the "48 tools / 74,000 tokens" figure implied, and it is
+concentrated in one server rather than spread across the plugins. The fork
+also has **no `Grep` and no `Glob`** — its file search is Bash-only, which is
+worth knowing when reading its transcripts.
+
+The remaining lever is disabling servers at the application level, which is a
+maintainer's action in the desktop app and not a repository change.
+
+### D-33 · Front-end review runs at medium effort — 2026-09-16
+`frontend-reviewer` and `frontend-reviewer-quick` drop from `effort: high` to
+`effort: medium`; `data-integrity-reviewer` and `licence-reviewer` stay high.
+The consequences are asymmetric, so the review is asymmetric. A missed
+front-end finding is a cosmetic regression on a site we control, caught by the
+next item or by 384 smoke assertions and 766 lines of `conventions.mjs`. A
+missed licence or data finding is a published database that cannot be
+withdrawn, and `verify.py` cannot catch a judgement.
+
+The turn caps are deliberately **not** changed with this. They are runaway
+stops, not budgets `[D-19]`, and a reviewer that hits one returns without a
+verdict — so a cap set too low does not save a pass, it wastes one. Lowering
+them wants turn-count evidence per reviewer, which the Agent tool reports on
+every call; the two data-integrity passes on #340 used 44 and 37 of their 90.
+There is no such figure yet for the page-driving front-end reviewer, and
+guessing one is how a cap starts truncating passes.
+
 ### D-31 · Critics never run on a pull request — 2026-09-16
 `.claude/agents/README.md` already said critics are "invoked deliberately, not
 on a diff", but nothing the loop read said so, and on 2026-09-14 `AF-16`
