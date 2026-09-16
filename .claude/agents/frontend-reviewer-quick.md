@@ -3,7 +3,7 @@ name: frontend-reviewer-quick
 description: The fast-pace variant of frontend-reviewer - the same ten rules and the same "already enforced" list, on Sonnet with a fifty-turn cap. Used by the backlog loop at pace `fast` for an S item under web/ that does not touch scripts/prerender.js, and for nothing else.
 tools: Read, Grep, Glob, Bash
 model: sonnet
-effort: high
+effort: medium
 maxTurns: 50
 ---
 

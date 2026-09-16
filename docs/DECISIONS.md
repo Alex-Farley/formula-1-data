@@ -206,6 +206,129 @@ what passed.
 pattern can decide. Every check that moves there is one a reviewer never
 spends a turn on again, so the brief stays on judgement.
 
+### D-32 · A skill's frontmatter cannot restrict a forked context's tools — 2026-09-16 (`AF-32`, #341, declined)
+`backlog-item/SKILL.md` names no `allowed-tools`, so the fork was thought to
+inherit the session's MCP tool schemas where the reviewers, whose agent files
+carry `tools: Read, Grep, Glob, Bash`, do not. The proposed fix was to declare
+the fork's tools in its frontmatter. **It does not work.** Probed directly on
+2026-09-16 with a throwaway forked skill: `allowed-tools: Read, Bash` left the
+fork holding all 41 loaded schemas, and `disallowed-tools` naming `Artifact`
+and two browser tools removed none of them. Both keys parse and both are
+inert for a `context: fork` skill in this build.
+
+**The two probes as actually run**, so this is reproducible rather than taken
+on trust. Each is a `SKILL.md` written to `.claude/skills/tool-probe/`, invoked
+with the Skill tool, read, and deleted.
+
+*Probe A — does `allowed-tools` narrow the fork?* This is the run that
+produced the 41-schema figure below.
+
+```
+---
+name: tool-probe
+description: Throwaway probe - reports which tools its forked context has.
+context: fork
+allowed-tools: Read, Bash
+---
+List the exact names of every tool you can call here, including any beginning
+`mcp__`. If you can see tools beyond Read and Bash, say so and name three.
+```
+
+Answer: the fork listed all 41 loaded schemas and named browser, session and
+terminal MCP tools. `allowed-tools` narrowed nothing.
+
+*Probe B — does `disallowed-tools` remove one?*
+
+```
+---
+name: tool-probe
+description: Throwaway probe - reports which tools its forked context has.
+context: fork
+disallowed-tools: Artifact, mcp__Claude_Browser__navigate, mcp__Claude_Browser__computer
+---
+Answer only: can you call `Artifact`? Can you call
+`mcp__Claude_Browser__navigate`? Roughly how many tools have full schemas here?
+```
+
+Answer: both still callable, 41 schemas. `disallowed-tools` removed nothing.
+Note that the frontmatter named three tools and the prompt asked about two:
+`mcp__Claude_Browser__computer` was declared and never tested, so this
+transcript establishes two of the three. It is left as it was run rather than
+tidied into a probe nobody performed.
+
+**What neither probe settled, and how to settle it.** Both asked only what the
+fork could *see*, and a context listing a tool is not proof it could call one.
+The decisive form disallows a tool and then calls **that same tool** — the
+earlier draft of this entry got that wrong, disallowing `navigate` and calling
+`tabs_context`, which was never restricted and so could only ever succeed:
+
+```
+---
+name: tool-probe-call
+description: Throwaway probe - calls a tool its frontmatter forbids.
+context: fork
+disallowed-tools: mcp__Claude_Browser__tabs_context
+---
+Call `mcp__Claude_Browser__tabs_context` exactly once - it is read-only and
+harmless. Report whether it returned a result, and if it did not, quote the
+error text exactly. Do not summarise or classify it. Nothing else.
+```
+
+A result proves the key is inert. A refusal naming the tool as disallowed
+proves it works. **Quote the error rather than classifying it**, because a
+tool can also fail for an unrelated reason - no browser attached in the
+environment running the probe - and a fork reporting that as "refused" would
+look exactly like the key working when it does not. **This has not
+been run**, for a reason worth passing on: **skill registration is not
+reliable mid-session.** Observed on 2026-09-16, in this order — a skill
+created early in a session was found and invoked twice; after it was deleted,
+a recreation under the same name returned *Unknown skill*; and so did a
+creation under a name never used before, despite the file being correct and
+the session announcing it. Two attempts at the calling probe were lost that
+way. No mechanism is offered here because none was established: the usable
+fact is simply that a probe wants **its own fresh session**, written before
+the session starts rather than during it.
+
+So: treat the inertness of these keys as well-evidenced and **not proven**,
+and run the calling probe before acting either way, in either direction.
+
+What the probe did establish, and what the earlier estimate got wrong in both
+directions: a fork carries **41 tools with full schemas** — 13 built-ins and
+28 MCP — of which the **Claude Browser pane alone is 19**. The long tail is
+*deferred*, costing a name each until something fetches it: gitkraken's 25,
+session-management's 20, pdf-viewer's 9 and about 130 in total. So the loaded
+cost is smaller than the "48 tools / 74,000 tokens" figure implied, and it is
+concentrated in one server rather than spread across the plugins. The fork
+also has **no `Grep` and no `Glob`** — its file search is Bash-only, which is
+worth knowing when reading its transcripts.
+
+The remaining lever is disabling servers at the application level, which is a
+maintainer's action in the desktop app and not a repository change.
+
+### D-33 · Front-end review runs at medium effort — 2026-09-16
+`frontend-reviewer` and `frontend-reviewer-quick` drop from `effort: high` to
+`effort: medium`; `data-integrity-reviewer` and `licence-reviewer` stay high.
+The consequences are asymmetric, so the review is asymmetric. A missed
+front-end finding is a cosmetic regression on a site we control, caught by the
+next item, by the 384 smoke assertions, or by `web/test/conventions.mjs`,
+which is organised by `frontend-reviewer` item number and mechanises much of
+that checklist. A missed licence or data finding is a published database that
+cannot be withdrawn, and `verify.py` cannot catch a judgement.
+
+No line count is given for that suite on purpose: an earlier draft of this
+entry said 766, which was true at `44218a4` and false by the time it was
+written, because `AF-21` removed the track atlas in between. Nothing checks a
+figure in this file — the same reason `CLAUDE.md` refuses to state how many
+declared deviations there are `[D-05]`.
+
+The turn caps are deliberately **not** changed with this. They are runaway
+stops, not budgets `[D-19]`, and a reviewer that hits one returns without a
+verdict — so a cap set too low does not save a pass, it wastes one. Lowering
+them wants turn-count evidence per reviewer, which the Agent tool reports on
+every call; the two data-integrity passes on #340 used 44 and 37 of their 90.
+There is no such figure yet for the page-driving front-end reviewer, and
+guessing one is how a cap starts truncating passes.
+
 ### D-31 · Critics never run on a pull request — 2026-09-16
 `.claude/agents/README.md` already said critics are "invoked deliberately, not
 on a diff", but nothing the loop read said so, and on 2026-09-14 `AF-16`
