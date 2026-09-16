@@ -64,6 +64,7 @@ REGULATIONS = [
     (2026, "technical", "Roughly 50/50 power split", "Electrical output raised to approximately 350 kW, against a comparable figure from the internal combustion engine.", ""),
     (2026, "technical", "100% advanced sustainable fuel", "Fully sustainable drop-in fuel mandated.", "The sport's principal decarbonisation claim for the ruleset."),
     (2026, "safety", "Tougher homologation tests", "Roll-hoop vertical impact requirement raised from 16 g to 20 g; a two-stage nose-cone concept introduced.", ""),
+    (2027, "financial", "Cost cap indexed; unused cap carried forward", "The US$215,000,000 cap is adjusted for Indexation from the reporting year ending 31 December 2027 (Article D4.1.2 and Appendix D1), and a team may deduct the previous year's unused cap, up to US$2,000,000 adjusted for Indexation, from its Relevant Costs (Article D6.1.1.n), both in the 2026 Financial Regulations (Section D, issue 07).", "The headline figure is unchanged from 2026; the indexed figure depends on 2026 inflation, which the Cost Cap Administration communicates by Determination."),
 ]
 
 # year, innovation, originator, description, legacy, banned_year
@@ -239,7 +240,11 @@ REGULATION_LIMITS = [
     # above or below that number adds or removes. The 2026 figure is not
     # comparable with 2025's on its face - the 2026 regulations were rewritten
     # as Section D of a single rulebook - so the two are separate rows rather
-    # than one span with a note.
+    # than one span with a note. 2027 is a row of its own for the same kind of
+    # reason: Section D's Article D4.1.2 sets the same figures for every
+    # reporting year, but Indexation (Appendix D1) first applies to the year
+    # ending 31 December 2027, so the 2027 figure is the base before an
+    # adjustment nobody can know until 2026's inflation is determined.
     (2021, 2021, "cost_cap_usd", 145_000_000.0, "USD",
      "For a 21-Competition reporting year (FIA Financial Regulations 2021, "
      "issue 8).", "reference", _FIN[2021]),
@@ -252,6 +257,12 @@ REGULATION_LIMITS = [
     (2026, 2026, "cost_cap_usd", 215_000_000.0, "USD",
      "For a reporting year of 24 Competitions or fewer, under the 2026 "
      "Financial Regulations (Section D, issue 07).", "reference", _FIN[2026]),
+    (2027, 2027, "cost_cap_usd", 215_000_000.0, "USD",
+     "For a reporting year of 24 Competitions or fewer, before Indexation: "
+     "Article D4.1.2 of the 2026 Financial Regulations (Section D, issue 07) "
+     "adjusts it by the 2026 inflation rate the Cost Cap Administration "
+     "communicates by Determination, and that figure is not held here.",
+     "reference", _FIN[2026]),
     (2021, 2022, "cost_cap_per_competition_usd", 1_200_000.0, "USD",
      "Added or removed for each Competition above or below 21 (issue 8 "
      "states it for 2021 and 2022).", "reference", _FIN[2021]),
@@ -260,6 +271,9 @@ REGULATION_LIMITS = [
      _FIN[2025]),
     (2026, 2026, "cost_cap_per_competition_usd", 1_800_000.0, "USD",
      "Added for each Competition above 24.", "reference", _FIN[2026]),
+    (2027, 2027, "cost_cap_per_competition_usd", 1_800_000.0, "USD",
+     "Added for each Competition above 24, before Indexation (Article "
+     "D4.1.2, issue 07).", "reference", _FIN[2026]),
 
     # The weekend's limits, from the 2025 Sporting Regulations. One season:
     # the years each of these changed are not yet read from earlier issues,

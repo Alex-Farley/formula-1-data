@@ -1829,11 +1829,14 @@ def the_chassis_register():
             if b0 <= a1:
                 overlaps.append(f"{field} {a0}-{a1} and {b0}-{b1}")
     check("no two spans of one regulation limit overlap", not overlaps, "; ".join(overlaps[:4]))
+    # The regulations set a cap before the year is raced, so one year beyond
+    # the latest season may carry a figure; none before 2021, none further on.
     latest = con.execute("SELECT MAX(year) FROM seasons").fetchone()[0]
     capped = {y for y in lim if "cost_cap_usd" in lim[y]}
+    required, allowed = set(range(2021, latest + 1)), set(range(2021, latest + 2))
     check("the cost cap has a figure for every year from 2021 to the current season",
-          capped == set(range(2021, latest + 1)),
-          f"missing {sorted(set(range(2021, latest + 1)) - capped)}")
+          required <= capped <= allowed,
+          f"missing {sorted(required - capped)}, unexpected {sorted(capped - allowed)}")
     # The one other place a cap figure is written is the 2026 regulation_changes
     # row, in prose. It has to agree with the schedule, or one of them is wrong.
     prose = con.execute("SELECT detail FROM regulation_changes WHERE year = 2026 "
