@@ -455,9 +455,9 @@ with a path's commonness, would not have this entry's 27 pairings to pay. That
 is filed rather than decided here, and the constant stays at 4 until it is.
 
 The durable half is at the point of filing. The issue form asks where the work
-lands as its own required field, `file.py new` takes `--where` and warns on a
-path the checkout does not track, and `CONTRIBUTING.md` says so under
-*Filing*. Required is not the same as answered: *not known yet* is an accepted
+lands as its own required field, `file.py new` takes `--where` and warns on
+any token the checkout does not track that is not prose, and `CONTRIBUTING.md`
+says so under *Filing*. Required is not the same as answered: *not known yet* is an accepted
 answer, and costs only the grouping. The `**Where:**` spelling is this
 project's house style and not something the grouping requires — `signals()`
 reads a path wherever it appears in a body and looks for no marker, which is

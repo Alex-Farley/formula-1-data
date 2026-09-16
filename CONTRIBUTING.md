@@ -226,9 +226,10 @@ saying why, because what was declined and why is what a later critique has
 to argue against. Nothing is deleted.
 
 **Filing.** `python3 .claude/skills/backlog-loop/file.py new <prefix>
-"<title>" --size <S|M|L|?> --body "<what is wrong, where, and what would fix
-it>" --where "<the paths it would touch>"` numbers the item, labels it and puts it on the board (under *Next*,
-unless `--status` says otherwise; `--decision` for a question). Filing by
+"<title>" --size <S|M|L|?> --body "<what is wrong, where, and what would
+fix it>" --where "<the paths it would touch>"` numbers the item, labels it
+and puts it on the board (under *Next*, unless `--status` says otherwise;
+`--decision` for a question). Filing by
 hand works too — the title, the two labels and the board status are all
 there is — and the critique's full reasoning stays in `docs/critiques/`; the
 issue is the queue, not the argument.

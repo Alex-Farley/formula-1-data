@@ -21,9 +21,11 @@ item before it adds one.
 `--where` names the file paths the work would touch and appends them as a
 `**Where:**` line, the spelling this project writes them in; `next.py --group`
 reads a path wherever it appears in the body, so the line is a convention and
-not a requirement of the grouping. A path not tracked in this checkout is a
-warning, not a refusal - it may be a file the item creates. An item filed
-without `--where` is filed, and simply cannot be grouped on a path `[D-34]`.
+not a requirement of the grouping. A token the checkout does not track is a
+warning and not a refusal - it may be a file the item creates. A token with a
+space in it is prose, not a path, and is not checked, so the `not known yet`
+the form advertises passes in silence. An item filed without `--where` is
+filed, and simply cannot be grouped on a path `[D-34]`.
 
 `new` takes the prefix and the title, gives it the next unused number in
 that prefix (`next.py --next-id`), the `source:` label the prefix implies,
@@ -37,6 +39,7 @@ declined one by a wrong number; `blocked` and `decision` add the label and a com
 is on the item, not in a fork's context that is about to be discarded.
 """
 import argparse
+import importlib.util
 import json
 import os
 import re
@@ -46,7 +49,25 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))  # behind the stdlib
 import gh_preflight  # noqa: E402  (a sibling script, not an installed package)
 import loop_cache  # noqa: E402
-import next as next_py  # noqa: E402  (`next.py`, the one normaliser - see tracked())
+
+
+def _sibling(name):
+    """Load a sibling script by path.
+
+    `sys.path.append` puts this directory *last*, so `import next` would lose
+    to any installed package of that name - and `next` is a plausible one.
+    The two imports above predate this and keep their distinctive names;
+    anything loaded here is loaded by its file.
+    """
+    here = os.path.dirname(os.path.abspath(__file__))
+    spec = importlib.util.spec_from_file_location(f"_loop_{name}",
+                                                  os.path.join(here, f"{name}.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+next_py = _sibling("next")  # the one normaliser - see tracked()
 
 REPO = "Alex-Farley/formula-1-data"
 OWNER = "Alex-Farley"
@@ -172,15 +193,21 @@ def where_line(body, where):
     line. Whitespace is not a `--where`: `--where "   "` is truthy and used
     to write the junk line `**Where:** .`
 
-    A path the checkout does not track is a warning and not a refusal, since
+    A token the checkout does not track is a warning and not a refusal, since
     it may be a file the item will create; a wrong one costs a fork a
-    worktree to discover, so it is said out loud rather than swallowed.
+    worktree to discover, so it is said out loud rather than swallowed. A
+    token holding a space is prose rather than a path and is not checked -
+    that is what lets `not known yet` through without a warning.
     """
     where = (where or "").strip().rstrip(". ").strip()
     if not where or "**Where:**" in body:
         return body
+    # A token with a space in it is prose - `not known yet`, the answer the
+    # form advertises - and is not checked. Everything else is meant as a
+    # path, including a directory or an extension-less one, which `signals()`
+    # cannot read either and which the filer should hear about.
     unknown = [q for q in (t.strip() for t in where.split(","))
-               if q and next_py.IS_FILE.search(q) and not tracked(q)]
+               if q and not re.search(r"\s", q) and not tracked(q)]
     if unknown:
         print("warning: not tracked in this checkout: " + ", ".join(unknown),
               file=sys.stderr)

@@ -311,9 +311,16 @@ class WhereTheWorkLands(unittest.TestCase):
         return next_py.signals(dict(title=title, body=body, ident="AF-99"))[0]
 
     def needs_the_tree(self):
-        """`tree()` degrades to {} with no git; these assertions do not."""
-        if not next_py.tree():
-            self.skipTest("not a git checkout, so no bare name resolves")
+        """`tree()` degrades to {} with no git; these assertions do not.
+
+        Keyed on the checkout and never on `tree()` itself: a guard that asks
+        the function under test whether to run cannot fail when that function
+        breaks, and bare-name resolution is the mechanism D-34 rests on. A
+        wrong root, a `git ls-files` that errors, a `norm()` regression - all
+        empty the map, and all must fail here rather than skip.
+        """
+        if not os.path.isdir(os.path.join(ROOT, ".git")):
+            self.skipTest("not a git checkout, so no bare name can resolve")
 
     def test_the_where_line_reads_back_as_exactly_the_paths_it_names(self):
         # Including the trailing full stop, which must not eat an extension.
@@ -392,15 +399,42 @@ class IssueFormIsWellFormed(unittest.TestCase):
                   encoding="utf-8") as fh:
             return fh.read()
 
-    def test_no_plain_scalar_hides_a_colon(self):
-        # The defect this class exists for, met while writing it: a `: ` in an
-        # unquoted value ends the scalar and GitHub rejects the whole form. A
-        # long description belongs in a `>-` block, which this allows.
+    def test_no_plain_scalar_hides_a_reserved_character(self):
+        """A plain scalar that ends early, which is how this form last broke.
+
+        `description: Guess nothing: a path` is a `ScannerError` and GitHub
+        rejects the whole file. This walks the form tracking block scalars,
+        because a `: ` inside a `>-` body is ordinary prose and the `where`
+        field is such a block; a check without that context would fail on the
+        next sentence someone writes there.
+
+        It is a check for one failure class and not a parser: a form that is
+        valid YAML but wrong for GitHub - `type: textbox`, a field with no
+        `label` - passes here and is caught only where PyYAML is installed,
+        by the test below, or by GitHub.
+        """
+        block_indent = None
         for n, line in enumerate(self.form.splitlines(), 1):
-            m = re.match(r"""^\s+(?:-\s+)?(\w+): (?![>|&*'"])(.+)$""", line)
-            if m and ": " in m.group(2):
+            indent = len(line) - len(line.lstrip())
+            if block_indent is not None:
+                if not line.strip() or indent > block_indent:
+                    continue        # inside a block scalar: prose, not YAML
+                block_indent = None
+            m = re.match(r"""^\s*(?:-\s+)?([\w-]+):(?:\s+(.*))?$""", line)
+            if not m:
+                continue
+            value = (m.group(2) or "").strip()
+            if value.startswith((">", "|")):
+                block_indent = indent
+                continue
+            if not value or value[0] in "&*!%@`'\"[{":
+                if value and value[0] in "&!%@`":
+                    self.fail(f"item.yml line {n}: `{m.group(1)}` opens with the "
+                              f"reserved character {value[0]!r}")
+                continue
+            if ": " in value or value.endswith(":"):
                 self.fail(f"item.yml line {n}: `{m.group(1)}` is a plain scalar "
-                          f"holding `: ` - quote it or make it a `>-` block")
+                          f"holding a colon - quote it or make it a `>-` block")
 
     def test_no_tab_indents(self):
         self.assertNotIn("\t", self.form, "YAML forbids a tab as indentation")
