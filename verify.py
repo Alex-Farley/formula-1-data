@@ -2510,9 +2510,9 @@ def the_full_classification():
     # invites "fixing" the README. A floor names the harvest. Same rule: the
     # count at v2.22, raised when a harvest legitimately adds, never lowered.
     COLUMN_FLOORS = (
-        ("chassis", "weight_kg", 197, "harvest/car_specs.txt"),
-        ("chassis", "wheelbase_mm", 338, "harvest/car_specs.txt"),
-        ("article_images", "file_name", 602, "harvest/article_images.txt"),
+        ("chassis", "weight_kg", 204, "harvest/car_specs.txt"),
+        ("chassis", "wheelbase_mm", 346, "harvest/car_specs.txt"),
+        ("article_images", "file_name", 623, "harvest/article_images.txt"),
     )
     for table, column, floor, source in COLUMN_FLOORS:
         n = con.execute(f"SELECT COUNT({column}) FROM {table}").fetchone()[0]

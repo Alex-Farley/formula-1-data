@@ -55,8 +55,6 @@ class NameIsForm(unittest.TestCase):
 
     def test_the_family_pages_the_old_rule_accepted(self):
         self.accepts("Lotus 72", "Lotus 72C", "72C", ("Lotus", "Team Lotus"))
-        self.accepts("Maserati 4CL and 4CLT", "Maserati 4CLT/48", "4CLT/48",
-                     ("Maserati", "Officine Alfieri Maserati"))
         self.accepts("Toro_Rosso_STR2", "Toro Rosso STR2B", "STR2B",
                      ("Toro Rosso", "Scuderia Toro Rosso"))
         self.accepts("AGS JH25B", "AGS JH25", "JH25", ("AGS", "AGS"))
@@ -91,6 +89,35 @@ class NameIsForm(unittest.TestCase):
         self.refuses("Boron-11 nuclear magnetic resonance spectroscopy",
                      "Boro 001", "1", ("Boro", "Boro"))
 
+    def test_a_family_is_cut_only_where_digits_meet_letters(self):
+        # Real titles the first draft of this rule admitted; check 2 refused
+        # each, but check 3 must hold on its own.
+        for f10 in ("Ferrari 156 F1", "Ferrari 246 F1", "Ferrari 375 F1"):
+            self.refuses(f10, "Ferrari F10", "F10", FERRARI)
+        self.refuses("Ferrari SF-24", "Ferrari 246", "246", FERRARI)
+        self.refuses("Ferrari Dino 2", "Ferrari 246", "246", FERRARI)
+        self.refuses("Lotus 1-2-3", "Lotus 33", "33", ("Lotus", "Team Lotus"))
+        self.refuses("Ferrari 156 F1", "Ferrari F1-75", "F1-75", FERRARI)
+        self.refuses("Ferrari 125 S", "Ferrari SF-23", "SF-23", FERRARI)
+        # The cost: a family cut after a longer head is refused even where
+        # the family is right. Check 2 refused this page anyway (debut 1939).
+        self.refuses("Maserati 4CL and 4CLT", "Maserati 4CLT/48", "4CLT/48",
+                     ("Maserati", "Officine Alfieri Maserati"))
+        self.accepts("Ferrari 312T", "Ferrari 312T2", "312T2", FERRARI)
+        # Cut at a break the designation itself has, or between letters.
+        self.accepts("Ferrari 312", "Ferrari 312/66", "312/66", FERRARI)
+        self.accepts("Lotus 18", "Lotus 18/21", "18/21",
+                     ("Lotus", "Team Lotus"))
+        self.accepts("Ferrari 126C", "Ferrari 126CK", "126CK", FERRARI)
+        self.accepts("Spyker F8-VII", "Spyker F8-VIIB", "F8-VIIB",
+                     ("Spyker", "Spyker F1 Team"))
+
+    def test_the_constructor_is_compared_in_whole_words(self):
+        self.refuses("Barcelona 007", "BAR 007", "007",
+                     ("BAR", "British American Racing"))
+        self.accepts("British American Racing 007", "BAR 007", "007",
+                     ("BAR", "British American Racing"))
+
     def test_no_constructor_names_refuses_all_but_the_full_name(self):
         self.refuses("Ferrari Tipo 500", "Ferrari 500", "500", ())
 
@@ -117,6 +144,14 @@ class BodyCandidates(unittest.TestCase):
         self.assertEqual(
             WI.body_candidates(["File:Andrea Moda S921 livery.svg"],
                                "Andrea Moda S921", "andrea-moda-s921"), [])
+
+    def test_a_longer_designation_does_not_name_the_car(self):
+        self.assertEqual(
+            WI.body_candidates(["File:Brabham BT46 Lauda.jpg"], "Brabham BT4",
+                               "brabham-bt4"), [])
+        self.assertTrue(WI.names_car(
+            "File:2020 Formula One tests Barcelona, Alfa Romeo C39, "
+            "Räikkönen.jpg", "Alfa Romeo Racing C39", "alfa-romeo-c39"))
 
     def test_title_order(self):
         files = ["File:Lotus 72 b.jpg", "File:Lotus 72 a.JPG"]

@@ -38,22 +38,29 @@ this database already holds and did not get from Wikipedia:
      into words. Some leading run of them must be a form of a name F1DB holds
      for the constructor, compared as a prefix in either direction: "Ferrari
      Tipo" is a form of Ferrari, "Mercedes-Benz" and "Mercedes-AMG" of
-     Mercedes, "Hispania" of Hispania Racing Team. The words after that run
+     Mercedes, "Hispania" of Hispania Racing Team. The comparison is of whole
+     words, so "Barcelona" is not a form of BAR. The words after that run
      must then be the designation - exactly ("Red Bull Racing RB19"),
      followed by more words ("Mercedes-AMG F1 W11 EQ Performance"), with a
      single variant letter after a closing digit ("AGS JH25B" for the JH25),
-     or cut back to the family ("Lotus 72" for the 72C, "Maserati 4CL and
-     4CLT" for the 4CLT/48). A title that is the chassis's full name passes
-     as it stands.
+     or cut back to the family ("Lotus 72" for the 72C, "Ferrari 312" for
+     the 312/66). A title that is the chassis's full name passes as it
+     stands.
 
      Wikipedia routinely documents a family on one page, so the title will
      not always be the chassis's own name, but it may not be a *different*
      car. This is what stops a candidate landing on a namesake: searching
      for "Ferrari 312/66" offers "Ferrari 312T" first, and 312t is neither
-     31266 nor a family of it. The designation is matched word by word, not
-     as a string prefix, so a one-letter designation cannot be read into a
-     longer word: "English Racing Automobiles" is not the ERA A, and
-     "Boron-11 ..." is not the Boro 001.
+     31266 nor a family of it. A family is never cut inside a run of digits
+     unless the designation itself breaks into words there (312/66), so
+     "F1" is not a family of the F10, "24" of the 246, or "3" of the 33 -
+     "Ferrari 156 F1", "Ferrari SF-24" and "Lotus 1-2-3" are all refused.
+     Nor is a family cut taken after a head longer than the constructor's
+     name: "Ferrari 125 S" is not a Ferrari SF-23, though "Ferrari Tipo 500"
+     is the 500. Past the designation, the title must break at a word, so a
+     one-letter designation cannot be read into a longer word: "English
+     Racing Automobiles" is not the ERA A, and "Boron-11 ..." is not the
+     Boro 001.
 
      The title's spelling of the constructor is not the constructor
      evidence - check 1 is, from the infobox. This check asks only whether
@@ -394,12 +401,14 @@ def words(s):
             if w]
 
 
-def either_prefix(a, b):
-    return bool(a and b) and (a.startswith(b) or b.startswith(a))
+def either_word_prefix(a, b):
+    """Is one list of words the leading words of the other?"""
+    n = min(len(a), len(b))
+    return n > 0 and a[:n] == b[:n]
 
 
 def designation(full, cons_short, name):
-    """The chassis's designation, as letters and digits.
+    """The chassis's designation, as a list of words.
 
     Taken from the full name with the constructor's name removed, because
     that is the spelling F1DB shows: the Boro chassis is `name` "1" and
@@ -407,20 +416,30 @@ def designation(full, cons_short, name):
     with a one. The short `name` is the fallback when the full name does not
     start with the constructor's.
     """
-    sf, sn = slug(full), slug(cons_short)
-    if sn and sf.startswith(sn) and len(sf) > len(sn):
-        return sf[len(sn):]
-    return slug(name)
+    fw, cw = words(full), words(cons_short)
+    if cw and fw[:len(cw)] == cw and len(fw) > len(cw):
+        return fw[len(cw):]
+    return words(name)
 
 
-def designation_follows(rest, want):
-    """Do the words `rest` open with the designation `want`?
+def designation_follows(rest, parts, family=True):
+    """Do the words `rest` open with the designation whose words are `parts`?
 
     Exactly, as a run of whole words; with one variant letter after a
-    closing digit (JH25B for JH25); or cut back to a family (72 for 72C).
-    Never a string prefix into the middle of a word.
+    closing digit (JH25B for JH25); or cut back to a family (72 for 72C,
+    312 for 312/66, 126C for 126CK). A family is never cut inside a run of
+    digits, except where the designation itself breaks into words: F1 is not
+    the F10's family, nor 24 the 246's. `family` False allows no cut at all.
     """
-    if want.startswith("".join(rest)):
+    want = "".join(parts)
+    breaks, n = set(), 0
+    for p in parts:
+        n += len(p)
+        breaks.add(n)
+    cut = "".join(rest)
+    if (family and cut and len(cut) < len(want) and want.startswith(cut)
+            and (len(cut) in breaks
+                 or not (cut[-1].isdigit() and want[len(cut)].isdigit()))):
         return True                        # a family page: "72" for 72C
     run = ""
     for w in rest:
@@ -443,13 +462,17 @@ def name_is_form(title, full, name, cons_names):
     """
     if slug(title) == slug(full):
         return True
-    forms = {slug(c) for c in cons_names} - {""}
+    forms = [w for w in (words(c) for c in cons_names) if w]
     want = designation(full, cons_names[0] if cons_names else "", name)
     t = words(title)
     for i in range(1, len(t)):
-        if (any(either_prefix("".join(t[:i]), f) for f in forms)
-                and designation_follows(t[i:], want)):
-            return True
+        for f in forms:
+            # A head with words beyond the constructor's name ("Ferrari
+            # Tipo") must be followed by the designation itself, not a cut
+            # of it: otherwise "Ferrari 156" is a head and "F1" a family.
+            if (either_word_prefix(t[:i], f)
+                    and designation_follows(t[i:], want, family=i <= len(f))):
+                return True
     return False
 
 

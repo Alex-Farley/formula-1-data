@@ -742,12 +742,12 @@ def _stage_10_the_chassis_engine_and_entrant_register(b):
 
 
 def _stage_11_the_lead_image_of_each_accepted(b):
-    """the lead image of each accepted car article, and its credit"""
+    """the photograph of each accepted car article, and its credit"""
     cur = b.cur
 
-    # --- the lead image of each accepted car article, and its credit
+    # --- the photograph of each accepted car article, and its credit
     #
-    # No image is stored. What is stored is which file an article leads with
+    # No image is stored. What is stored is which file an article carries
     # and who must be credited for it. The harvest applied these checks
     # already; they run again here because a harvest file is an input like
     # any other, and a check belongs where the row is admitted rather than

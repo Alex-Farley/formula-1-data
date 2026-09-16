@@ -477,8 +477,9 @@ page is read only if it agrees with three things established elsewhere:
    chassis's designation — "Ferrari Tipo 500", "Red Bull Racing RB19" and
    "Mercedes-Benz W196" all qualify, and Wikipedia documents families on one
    page, so "Lotus 72C" legitimately redirects to "Lotus 72". A different car
-   is refused: searching for "Ferrari 312/66" offers "Ferrari 312T" first,
-   and 312T is not the 312/66.
+   of the same name is refused: searching for "Ferrari 312/66" offers
+   "Ferrari 312T" first, and 312T is not the 312/66; nor is "Ferrari 156 F1"
+   the F10. Words are compared whole, so "Barcelona" is not BAR.
 
 A page failing any of the three is refused whole and logged in
 `harvest/car_specs.log` with the reason. Nothing is partially accepted and a
@@ -974,7 +975,7 @@ queried, not just read here. `./f1 gaps` prints them with the fix for each.
   counted, and points need every season's scoring system applied, including
   the best-N rules that ran until 1990.
 - **What a photograph shows.** <!-- fig:images -->623<!-- /fig --> cars carry
-  a lead image from Wikimedia Commons with its licence and photographer. The
+  a photograph from Wikimedia Commons with its licence and photographer. The
   *article* is well constrained; what the picture depicts is not, and there is
   no second source to disagree with it. This is the only part of the database
   with no cross-check available at all. `./f1 images` lists the
