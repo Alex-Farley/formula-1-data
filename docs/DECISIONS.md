@@ -403,3 +403,83 @@ poll every 45 seconds keeps it closed. Since `AF-14` the precheck tells the
 two apart: a call that failed is a WARN naming the API, and the FAIL saying
 an item "is not an open issue" now only happens when `gh` answered and found
 nothing.
+
+### D-34 · An item's body says where the work lands — 2026-09-16 (`AF-36`, #350)
+A reviewer pays its orientation cost once per pull request, not once per
+item, so the average group size is what sets the review cost per item.
+`next.py --group` proposes a companion on a shared file path, a shared route
+or a cross-referenced id — and on 2026-09-16, **99 of the 166 open items
+named no path at all** beyond the footer every issue carries. The signal the
+grouping was built on was mostly absent, so the proposals were riding on
+cross-references and rank adjacency.
+
+The 99 bodies were read and given the paths the work would touch, checked
+against `git ls-files`, added as one `**Where:**` line above the footer and
+nothing else: the item keeps its own words. Filling them in also exposed a
+second defect and it is fixed here. `prerender.js` and
+`web/scripts/prerender.js` were two signals that never matched each other —
+ten items wrote the first, seventeen the second, and neither count was whole.
+There were 32 such splits. `signals()` now resolves a bare name against
+`git ls-files` when the tree holds exactly one file by that name, so the two
+spellings are one signal; `README.md` is three different files and stays
+three, because guessing which one an item meant proposes a group on a file it
+never mentioned. Matching a bare name against the tree also surfaced an older
+defect it would otherwise have inherited: the normaliser was
+`lstrip("./")`, which strips a character *set*, so every path under
+`.claude/` and `.github/` had its leading dot removed. Harmless while both
+sides of a comparison were mangled alike; not harmless against `git
+ls-files`, which keeps the dot.
+
+Measured over the 164 heads `--group` will actually score — the 166 open
+items less the two carrying `decision` or `blocked`, which it never returns —
+companions proposed rose from 182 to 247, the mean per head from 1.11 to
+1.51, and the heads with no companion at all fell from 69 to 55.
+
+**It cost 27 directed pairings, and that is the rule working.** `NOISE` in
+`next.py` drops a path more than four open items name, so `build.py` (4 items
+before, 46 after), `web/scripts/prerender.js` (4, then 27 once the spellings
+were joined) and `web/src/styles/app.css` (3, then 13) stopped scoring, and
+fourteen pairs whose only shared signal was one of those lost it. The count
+is odd rather than twice fourteen because `bands()` is asymmetric: a pair
+split across two statuses is proposed in one direction only. Some of them —
+`AF-07` with `AF-08`, `IX-29` with `VD-42` — are pairs a person would group.
+They were riding on an artefact of a queue whose bodies were empty, and the
+way to propose one deliberately is the cross-reference, which outscores any
+path.
+
+**Raising `NOISE` was measured and rejected**, and the entry's own figures
+settle it without the sweep. A path scores while the items naming it are
+`NOISE` or fewer, so recovering a pair that shared only `app.css` needs 13,
+only `prerender.js` needs 27, and only `build.py` needs **46** — which is a
+path a quarter of the open queue names, scoring as though it said something
+about two items in particular. The sweep agrees: against the filled-in bodies
+4 gives a mean of 1.51 and a largest proposal of 9; 10 gives 3.06 and 14; 25
+gives 7.46 and **43**, the crowd the constant exists to stop and the reason
+it was set after five `prerender.js` items were proposed as one.
+
+Re-running it needs no GitHub call. `next.py --list` always refetches and
+rewrites the queue snapshot at `.claude/loop/queue-cache.json` — not
+`items-cache.json`, which is `file.py`'s issue-number to board-id map;
+scoring every open item as a head against
+that snapshot, with `next.py`'s `NOISE` overridden in the calling process, is
+what produced every figure above, and the snapshot is what makes it
+repeatable while the live queue moves under it.
+
+What is **not** settled is the shape of the rule. The comment beside the
+constant reasons that "a file is named by the few items about it however long
+the queue grows", and filling the bodies in falsified exactly that: `build.py`
+is named by 28 % of the queue. Raising a cliff was the wrong axis to test, and
+a signal that costs nothing below the cliff and everything above it may be the
+wrong instrument — a threshold relative to the queue, or a weight that falls
+with a path's commonness, would not have this entry's 27 pairings to pay. That
+is filed rather than decided here, and the constant stays at 4 until it is.
+
+The durable half is at the point of filing. The issue form asks where the work
+lands as its own required field, `file.py new` takes `--where` and warns on
+any token the checkout does not track that is not prose, and `CONTRIBUTING.md`
+says so under *Filing*. Required is not the same as answered: *not known yet* is an accepted
+answer, and costs only the grouping. The `**Where:**` spelling is this
+project's house style and not something the grouping requires — `signals()`
+reads a path wherever it appears in a body and looks for no marker, which is
+what lets an item filed through the form, where the heading comes from the
+field label, group exactly as well.

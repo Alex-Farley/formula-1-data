@@ -226,18 +226,30 @@ saying why, because what was declined and why is what a later critique has
 to argue against. Nothing is deleted.
 
 **Filing.** `python3 .claude/skills/backlog-loop/file.py new <prefix>
-"<title>" --size <S|M|L|?> --body "<what is wrong, where, and what would fix
-it>"` numbers the item, labels it and puts it on the board (under *Next*,
-unless `--status` says otherwise; `--decision` for a question). Filing by
+"<title>" --size <S|M|L|?> --body "<what is wrong, where, and what would
+fix it>" --where "<the paths it would touch>"` numbers the item, labels it
+and puts it on the board (under *Next*, unless `--status` says otherwise;
+`--decision` for a question). Filing by
 hand works too — the title, the two labels and the board status are all
 there is — and the critique's full reasoning stays in `docs/critiques/`; the
 issue is the queue, not the argument.
+
+**Say where the work lands.** The file paths an item would touch, written as
+`**Where:** web/src/pages/Glossary.jsx, web/src/queries/glossary.js` — the
+issue form asks for them as a field, and `file.py new` takes
+`--where "<paths>"`. The spelling is this project's house style rather than
+something the grouping requires: `next.py` reads a path wherever it appears in
+a body and looks for no marker. Not a guess — a path that turns out to be
+wrong costs a fork a worktree to find out, and *not known yet* is an accepted
+answer that simply leaves the item ungrouped.
 
 **Naming another item's ID in a body is how the two get proposed together.**
 `next.py --group` reads those cross-references, and the file paths and routes
 a body names, to suggest which items — of any size — could land in one pull
 request instead of one each; the body that says where the work lands is the
-one that gets grouped well.
+one that gets grouped well. It is the cheapest thing a filer can do for the
+queue: a reviewer pays its orientation cost once per pull request, not once
+per item `[D-34]`.
 
 ## Working autonomously
 

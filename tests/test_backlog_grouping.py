@@ -28,6 +28,7 @@ import contextlib
 import importlib.util
 import io
 import os
+import re
 import tempfile
 import unittest
 
@@ -285,6 +286,173 @@ class GroupingProposals(unittest.TestCase):
         loose = dict(self.item("VD-33"), status="In progress", number=99)
         rows = next_py.companions(loose, self.ranked, set(), {99})
         self.assertIn("AX-13", [r["ident"] for _, r, _ in rows])
+
+
+class WhereTheWorkLands(unittest.TestCase):
+    """`file.py new --where` through `signals()`, and the spelling it needs.
+
+    `AF-36` filled in the 99 open bodies that named no path, and D-34 turns
+    on two mechanical facts that were held only by a review until this class
+    existed: that the line `--where` writes is read back as the paths it
+    names and nothing else, and that a bare file name and its full path are
+    one signal rather than two. The second was a live defect - ten items
+    wrote `prerender.js`, seventeen wrote `web/scripts/prerender.js`, and
+    they never grouped with each other.
+    """
+
+    def setUp(self):
+        spec = importlib.util.spec_from_file_location(
+            "backlog_file", os.path.join(ROOT, ".claude", "skills", "backlog-loop", "file.py"))
+        self.file_py = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.file_py)
+
+    @staticmethod
+    def paths(body, title="AF-99: A title."):
+        return next_py.signals(dict(title=title, body=body, ident="AF-99"))[0]
+
+    def needs_the_tree(self):
+        """`tree()` degrades to {} with no git; these assertions do not.
+
+        Keyed on the checkout and never on `tree()` itself: a guard that asks
+        the function under test whether to run cannot fail when that function
+        breaks, and bare-name resolution is the mechanism D-34 rests on. A
+        wrong root, a `git ls-files` that errors, a `norm()` regression - all
+        empty the map, and all must fail here rather than skip.
+        """
+        if not os.path.isdir(os.path.join(ROOT, ".git")):
+            self.skipTest("not a git checkout, so no bare name can resolve")
+
+    def test_the_where_line_reads_back_as_exactly_the_paths_it_names(self):
+        # Including the trailing full stop, which must not eat an extension.
+        self.assertEqual(
+            self.paths("**Where:** web/src/components/DataTable.jsx, build.py."),
+            {"web/src/components/datatable.jsx", "build.py"})
+
+    def test_not_known_yet_is_an_accepted_answer_and_names_no_path(self):
+        # The form requires the field; this is what an honest blank costs.
+        self.assertEqual(self.paths("**Where:** not known yet."), set())
+
+    def test_a_bare_file_name_and_its_full_path_are_one_signal(self):
+        # The defect D-34 fixes: two spellings of one file scored apart.
+        self.needs_the_tree()
+        self.assertEqual(self.paths("`prerender.js` is wrong"),
+                         self.paths("`web/scripts/prerender.js` is wrong"))
+
+    def test_a_dotfile_path_keeps_its_leading_dot(self):
+        # `lstrip("./")` strips a character set, so `.claude/...` came back
+        # as `claude/...` and never matched the basename map, which reads
+        # `git ls-files` and keeps the dot. Every path under `.claude/` and
+        # `.github/` was in that class.
+        self.needs_the_tree()
+        self.assertEqual(self.paths("`.github/workflows/ci.yml` is wrong"),
+                         {".github/workflows/ci.yml"})
+        self.assertEqual(self.paths("`next.py` is wrong"),
+                         {".claude/skills/backlog-loop/next.py"})
+
+    def test_an_ambiguous_bare_name_is_left_as_written(self):
+        # Three files are named README.md; guessing which one an item meant
+        # would propose a group on a file it never mentioned.
+        self.assertEqual(self.paths("`README.md` is wrong"), {"readme.md"})
+
+    def test_where_is_appended_in_the_house_spelling(self):
+        got = self.append("one paragraph", "build.py, verify.py")
+        self.assertTrue(got.endswith("\n\n**Where:** build.py, verify.py."), got)
+        self.assertEqual(self.paths(got), {"build.py", "verify.py"})
+
+    def test_a_second_where_does_not_append_a_second_line(self):
+        once = self.append("one paragraph", "build.py")
+        self.assertEqual(self.append(once, "verify.py"), once)
+
+    def test_whitespace_is_not_a_where(self):
+        # `--where "   "` is truthy and used to write the junk line
+        # "**Where:** ." , which reads back as no path but is still a lie.
+        self.assertNotIn("**Where:**", self.append("one paragraph", "   "))
+
+    def test_an_untracked_path_warns_and_still_files(self):
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            got = self.append("one paragraph", "build.py, nosuchfile.py")
+        self.assertIn("nosuchfile.py", err.getvalue())
+        self.assertNotIn("build.py", err.getvalue())
+        self.assertIn("**Where:** build.py, nosuchfile.py.", got)
+
+    def append(self, body, where):
+        """What `file.py new` would put in the issue body, without calling gh."""
+        return self.file_py.where_line(body, where)
+
+
+class IssueFormIsWellFormed(unittest.TestCase):
+    """The queue's one browser surface. A malformed form fails silently, in
+    somebody's browser, and nothing else in CI looks at it: `actionlint` reads
+    workflows only.
+
+    The checks here are deliberately stdlib-only, because the build has no
+    third-party dependencies and CI installs none - a test that needs PyYAML
+    skips on both interpreters and reads as a pass, which is a check whose
+    execution cannot be established `[D-09]`. The full parse still runs, as an
+    extra, wherever PyYAML happens to be installed.
+    """
+
+    @property
+    def form(self):
+        with open(os.path.join(ROOT, ".github", "ISSUE_TEMPLATE", "item.yml"),
+                  encoding="utf-8") as fh:
+            return fh.read()
+
+    def test_no_plain_scalar_hides_a_reserved_character(self):
+        """A plain scalar that ends early, which is how this form last broke.
+
+        `description: Guess nothing: a path` is a `ScannerError` and GitHub
+        rejects the whole file. This walks the form tracking block scalars,
+        because a `: ` inside a `>-` body is ordinary prose and the `where`
+        field is such a block; a check without that context would fail on the
+        next sentence someone writes there.
+
+        It is a check for one failure class and not a parser: a form that is
+        valid YAML but wrong for GitHub - `type: textbox`, a field with no
+        `label` - passes here and is caught only where PyYAML is installed,
+        by the test below, or by GitHub.
+        """
+        block_indent = None
+        for n, line in enumerate(self.form.splitlines(), 1):
+            indent = len(line) - len(line.lstrip())
+            if block_indent is not None:
+                if not line.strip() or indent > block_indent:
+                    continue        # inside a block scalar: prose, not YAML
+                block_indent = None
+            m = re.match(r"""^\s*(?:-\s+)?([\w-]+):(?:\s+(.*))?$""", line)
+            if not m:
+                continue
+            value = (m.group(2) or "").strip()
+            if value.startswith((">", "|")):
+                block_indent = indent
+                continue
+            if not value or value[0] in "&*!%@`'\"[{":
+                if value and value[0] in "&!%@`":
+                    self.fail(f"item.yml line {n}: `{m.group(1)}` opens with the "
+                              f"reserved character {value[0]!r}")
+                continue
+            if ": " in value or value.endswith(":"):
+                self.fail(f"item.yml line {n}: `{m.group(1)}` is a plain scalar "
+                          f"holding a colon - quote it or make it a `>-` block")
+
+    def test_no_tab_indents(self):
+        self.assertNotIn("\t", self.form, "YAML forbids a tab as indentation")
+
+    def test_the_field_ids_are_unique_and_where_is_among_them(self):
+        ids = re.findall(r"^\s+id: (\S+)$", self.form, re.M)
+        self.assertEqual(sorted(ids), sorted(set(ids)), f"duplicate id in {ids}")
+        self.assertIn("where", ids, "the field D-34 rests on")
+
+    def test_it_parses_where_a_yaml_parser_exists(self):
+        try:
+            import yaml
+        except ImportError:
+            self.skipTest("PyYAML is not installed; the checks above are the "
+                          "ones CI runs")
+        form = yaml.safe_load(self.form)
+        self.assertEqual([b["id"] for b in form["body"] if "id" in b],
+                         ["source", "size", "what", "where", "kind"])
 
 
 if __name__ == "__main__":

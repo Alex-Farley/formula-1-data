@@ -55,7 +55,25 @@ body:
     id: what
     attributes:
       label: What is wrong, where, and what would fix it
-      description: File and line, route, table or column. A figure is cited, not guessed. A critique's full reasoning goes in docs/critiques/; this is the queue, not the argument.
+      description: >-
+        What is wrong and how it is known — the evidence, with a figure cited rather
+        than guessed, and the route, table or column it was seen on. Where the fix
+        would land goes in the next field. A critique's full reasoning goes in
+        docs/critiques/; this is the queue, not the argument.
+    validations:
+      required: true
+  - type: textarea
+    id: where
+    attributes:
+      label: Where the work lands
+      description: >-
+        The file paths this would touch, comma-separated — web/src/pages/Glossary.jsx,
+        web/src/queries/glossary.js. Two items naming the same path can land in one
+        pull request and be read by one reviewer, which is where the saving is.
+        Guess nothing — a path that turns out to be wrong costs a fork a worktree to
+        find out. "not known yet" is an accepted answer, and only means the item
+        cannot be grouped on a path.
+      placeholder: "not known yet"
     validations:
       required: true
   - type: checkboxes
