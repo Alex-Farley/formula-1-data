@@ -853,7 +853,7 @@ KNOWN_GAPS = [
      "inflation in 2023 to 2025 and from 2027, and the adjusted figures are "
      "not held here.",
      "The 2023-2025 issues (18 and 25 read) and Section D issue 07 each set "
-     "the cap 'adjusted, if applicable, for Indexation', with the rate "
+     "the cap as adjusted, where applicable, for Indexation, with the rate "
      "communicated by the Cost Cap Administration by Determination rather "
      "than written in the regulations. Section D's Indexation does not reach "
      "2026, so the 2026 figure is final; the 2027 one cannot be known until "
