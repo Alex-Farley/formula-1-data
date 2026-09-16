@@ -1464,7 +1464,8 @@ SELECT r.year, COUNT(*) AS races,
        SUM(CASE WHEN EXISTS (SELECT 1 FROM race_entries e
                              WHERE e.race_id = r.id AND e.pole = 1
                                AND e.finish_position = 1) THEN 1 ELSE 0 END) AS pole_converted
-FROM races r GROUP BY r.year ORDER BY r.year;
+FROM races r WHERE r.status = 'completed'
+GROUP BY r.year ORDER BY r.year;
 
 -- One row per entity in a season's FINAL table - the question everyone asks
 -- of standings, and the one the raw table answers wrongly.
@@ -1579,12 +1580,17 @@ GROUP BY c.id ORDER BY races DESC, c.name;
 -- constructors when twenty-three entered - the review of #73 caught it.
 CREATE VIEW v_season_grid AS
 SELECT s.year,
-       (SELECT COUNT(DISTINCT e.driver_id) FROM race_entries e
-          JOIN races r ON r.id = e.race_id WHERE r.year = s.year)        AS drivers,
-       (SELECT COUNT(DISTINCT se.f1db_constructor_id) FROM season_entrants se
-         WHERE se.year = s.year)                                          AS constructors,
-       (SELECT COUNT(DISTINCT se.engine_manufacturer_id) FROM season_entrants se
-         WHERE se.year = s.year AND se.engine_manufacturer_id IS NOT NULL) AS engine_manufacturers,
+       -- NULLIF, not the bare count: a season whose calendar has been
+       -- announced and whose entries nobody has published yet has no grid
+       -- ESTABLISHED, which is not the same claim as a grid of nobody. Every
+       -- season that has run has a non-zero count, so this only ever speaks
+       -- for one that has not.
+       NULLIF((SELECT COUNT(DISTINCT e.driver_id) FROM race_entries e
+          JOIN races r ON r.id = e.race_id WHERE r.year = s.year), 0)     AS drivers,
+       NULLIF((SELECT COUNT(DISTINCT se.f1db_constructor_id) FROM season_entrants se
+         WHERE se.year = s.year), 0)                                      AS constructors,
+       NULLIF((SELECT COUNT(DISTINCT se.engine_manufacturer_id) FROM season_entrants se
+         WHERE se.year = s.year AND se.engine_manufacturer_id IS NOT NULL), 0) AS engine_manufacturers,
        (SELECT COUNT(*) FROM races r WHERE r.year = s.year
           AND r.status = 'completed')                                    AS races_run
   FROM seasons s;

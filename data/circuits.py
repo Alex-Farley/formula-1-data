@@ -128,9 +128,9 @@ CIRCUITS = [
      "Laid out through the Winter Olympic park; a long, flat, low-degradation lap dominated by one 90-degree corner",
      "The Russian GP was cancelled in 2022 and the contract terminated following the invasion of Ukraine.", "high"),
     ("istanbul", "Istanbul Park", "Intercity Istanbul Park", "Istanbul", "Turkey", "permanent",
-     2005, 2021, 5.338, 14, "anti-clockwise",
+     2005, 2027, 5.338, 14, "anti-clockwise",
      "Turn 8: a quadruple-apex left-hander taken at over 260 km/h, one of the great modern corners",
-     "Widely regarded as the best of the Tilke-designed circuits. Held the Turkish GP 2005-2011 and returned as a COVID-era replacement in 2020-21.", "high"),
+     "Widely regarded as the best of the Tilke-designed circuits. Held the Turkish GP 2005-2011, returned as a COVID-era replacement in 2020-21, and is round 17 of the 2027 calendar subject to FIA circuit homologation.", "high"),
     ("hockenheim", "Hockenheimring", "Hockenheimring Baden-Wurttemberg", "Hockenheim", "Germany", "permanent",
      1970, 2019, 4.574, 17, "clockwise",
      "Since 2002 a short stadium-based lap; before that, 6.8 km of flat-out running through the forest",
@@ -140,9 +140,9 @@ CIRCUITS = [
      "A modern circuit built alongside the Nordschleife; technical and often cold and wet",
      "Hosted the European, Luxembourg and German Grands Prix at various times.", "medium"),
     ("portimao", "Autodromo Internacional do Algarve", "Autodromo Internacional do Algarve", "Portimao", "Portugal", "permanent",
-     2020, 2021, 4.653, 15, "clockwise",
+     2020, 2027, 4.653, 15, "clockwise",
      "Severe elevation change and several blind crests; a rollercoaster of a lap",
-     "Added to the calendar during the COVID-affected seasons.", "high"),
+     "Added to the calendar during the COVID-affected seasons; returns in 2027 on a two-year deal, bringing the Portuguese Grand Prix back after six years away.", "high"),
     ("mugello", "Mugello Circuit", "Autodromo Internazionale del Mugello", "Scarperia", "Italy", "permanent",
      2020, 2020, 5.245, 15, "clockwise",
      "Fast, flowing and hilly; among the most highly rated circuits by drivers",
@@ -458,7 +458,8 @@ GRANDS_PRIX = [
     ("malaysian", "Malaysian Grand Prix", "Malaysia", 1999, 2017, "Sepang", "", "high"),
     ("bahrain", "Bahrain Grand Prix", "Bahrain", 2004, None, "Sakhir, Sepang", "First Grand Prix in the Middle East. Hosted at Sepang in 2026.", "verified"),
     ("chinese", "Chinese Grand Prix", "China", 2004, None, "Shanghai", "", "high"),
-    ("turkish", "Turkish Grand Prix", "Turkey", 2005, 2021, "Istanbul Park", "", "high"),
+    ("turkish", "Turkish Grand Prix", "Turkey", 2005, 2027, "Istanbul Park",
+     "Returns as round 17 of 2027 under a five-year agreement, subject to FIA circuit homologation.", "high"),
     ("singapore", "Singapore Grand Prix", "Singapore", 2008, None, "Marina Bay", "The sport's first night race.", "high"),
     ("abu-dhabi", "Abu Dhabi Grand Prix", "United Arab Emirates", 2009, None, "Yas Marina", "", "high"),
     ("korean", "Korean Grand Prix", "South Korea", 2010, 2013, "Yeongam", "", "high"),
@@ -470,7 +471,12 @@ GRANDS_PRIX = [
     ("miami", "Miami Grand Prix", "United States", 2022, None, "Miami International Autodrome", "", "high"),
     ("emilia-romagna", "Emilia-Romagna Grand Prix", "Italy", 2020, None, "Imola", "Imola's return under a new name.", "high"),
     ("las-vegas", "Las Vegas Grand Prix", "United States", 2023, None, "Las Vegas Strip Circuit", "", "high"),
-    ("madrid", "Madrid Grand Prix", "Spain", 2026, None, "Madring", "New for 2026.", "verified"),
+    # The 2027 calendar has one Spanish round and the announcement names it
+    # for the country, not the city, so it is recorded as the Spanish Grand
+    # Prix at Madrid. Whether the Madrid Grand Prix name returns is not
+    # established, so last_gp stays open rather than being closed at 2026.
+    ("madrid", "Madrid Grand Prix", "Spain", 2026, None, "Madring",
+     "New for 2026. From 2027 Madrid hosts the Spanish Grand Prix, Barcelona's deal having ended.", "verified"),
 ]
 
 

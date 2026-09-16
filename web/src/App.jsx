@@ -61,7 +61,7 @@ function Wordmark() {
       </svg>
       <span>
         <b>Lap Ledger</b>
-        <span>1950–2026 · every championship race</span>
+        <span>1950–2027 · every championship race</span>
       </span>
     </Link>
   )

@@ -148,7 +148,7 @@ export default function Season() {
         if (!season) {
           return (
             <Page title={`No season ${year}`} cite={false} back={{ to: '/seasons', label: 'All seasons' }}>
-              <p className="muted">The championship register runs from 1950 to 2026.</p>
+              <p className="muted">The championship register runs from 1950 to 2027.</p>
             </Page>
           )
         }
@@ -225,6 +225,12 @@ function SeasonBody({ year, season, data }) {
   const inColour = progression.length > 0 && progression.every((s) => s.colour)
 
   const run = calendar.filter((r) => r.status === 'completed').length
+  // A third state beside `running` and a concluded season: the calendar is
+  // out and nobody has raced it. Its champion slots are not unknown, they are
+  // not yet run, and IA-17 is the rule that they must not read the same.
+  const notRun = run === 0
+  // The words a champion slot carries where there is no fact to miss.
+  const notYet = <span className="muted" style={{ fontSize: 15, fontWeight: 500 }}>{NOT_YET_RUN}</span>
   const ambiguous = constructorsFinal.some((r) => r.engine_id)
 
   // The one hourly-changing fact on the page, as a tile among the others
@@ -295,11 +301,17 @@ function SeasonBody({ year, season, data }) {
         ) : (
           <Stats
             items={[
-              { label: 'Rounds', value: number(season.rounds), note: run === season.rounds ? 'all run' : `${run} run` },
+              {
+                label: 'Rounds',
+                value: number(season.rounds),
+                note: notRun ? NOT_YET_RUN : run === season.rounds ? 'all run' : `${run} run`,
+              },
               {
                 label: "Drivers' champion",
                 value: season.drivers_champion ? (
                   <Link to={`/drivers/${season.drivers_champion}`}>{season.champion}</Link>
+                ) : notRun ? (
+                  notYet
                 ) : null,
                 note: season.champion_points !== null ? `${fmtPoints(season.champion_points)} points` : undefined,
               },
@@ -313,6 +325,8 @@ function SeasonBody({ year, season, data }) {
                   <span className="muted" style={{ fontSize: 15, fontWeight: 500 }}>
                     not contested
                   </span>
+                ) : notRun ? (
+                  notYet
                 ) : null,
                 note:
                   season.constructors_points !== null && season.constructors_points !== undefined
@@ -321,14 +335,16 @@ function SeasonBody({ year, season, data }) {
               },
               {
                 label: 'Margin',
-                value: season.margin !== null ? fmtPoints(season.margin) : null,
+                value: season.margin !== null ? fmtPoints(season.margin) : notRun ? notYet : null,
                 note: season.runner_up_name ? `over ${season.runner_up_name}` : undefined,
               },
               nextTile,
             ]}
           />
         )}
-        {grid && (
+        {/* v_season_grid returns NULL, not 0, for a season nobody has entered
+            yet - so the sentence is absent rather than counting nobody. */}
+        {grid && grid.drivers !== null && (
           <p className="note" style={{ marginTop: 10 }}>
             The grid: {number(grid.drivers)} drivers, {number(grid.constructors)} constructors and{' '}
             {number(grid.engine_manufacturers)} engine makers, counted from the entries — a driver

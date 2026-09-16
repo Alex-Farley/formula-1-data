@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Every FIA Formula One World Championship season, 1950-2026.
+Every FIA Formula One World Championship season, 1950-2027.
 
 Columns:
  year, rounds, champion, champion_team, champ_pts, champ_wins,
@@ -208,6 +208,11 @@ SEASONS = [
      "Norris beat Verstappen by two points with team-mate Piastri third on 410 — the closest top-three in the sport's history. McLaren's 833 points set a constructors' record. Last season of the 2014-25 power-unit formula.", "verified"),
     (2026, 23, None, None, None, None, None, None, None, None, F_16H26, T_PIR,
      "Season in progress. New chassis and power-unit regulations; Audi and Cadillac join as the 11th and 12th entries. Active aerodynamics replace DRS.", "verified"),
+    # Calendar only. Announced 2026-09-16 after World Motor Sport Council
+    # approval, so the round count is a fact; nothing else about the season
+    # is established yet and every championship field stays NULL.
+    (2027, 24, None, None, None, None, None, None, None, None, F_16H26, T_PIR,
+     "Not yet run. Twenty-four rounds across twenty-two countries, ten of them Sprint events — the most in a season. Portugal returns at Portimao and Turkiye at Istanbul Park; Madrid becomes the sole Spanish round as Barcelona's deal ends.", "verified"),
 ]
 
 # Championship-defining moments worth their own record

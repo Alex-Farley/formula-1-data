@@ -14,14 +14,19 @@
  * See queries/drivers.js for what a column's `text` is.
  */
 import { EMPTY, missing, points, text } from '../lib/format.js'
-import { SO_FAR } from '../lib/site.js'
+import { NOT_YET_RUN, SO_FAR } from '../lib/site.js'
 
 /**
  * One row per season, newest first.
  *
- * `undecided` is a season with no drivers' champion recorded and a round
- * still scheduled - not the season page's `live`, which is only "a round
- * still scheduled": a title settled early keeps its champion here. For that
+ * `undecided` is a season with no drivers' champion recorded, a round still
+ * scheduled AND a round already run - not the season page's `live`, which is
+ * only "a round still scheduled": a title settled early keeps its champion
+ * here. `not_started` is the third state, and the reason `undecided` counts
+ * completed rounds at all: a calendar announced for a season nobody has
+ * raced yet has no leader to stand in for the champion, and calling it
+ * undecided would put back the row of em dashes this file exists to remove.
+ * It is "not yet run", the same words a scheduled race carries. For that
  * row the champion's columns carry the leader instead — the top of
  * v_standings_final's drivers' table, the constructor they last raced for
  * this season, their points and wins counted from the race records, the
@@ -33,7 +38,9 @@ export const SEASONS = `
   WITH progress AS (
     SELECT s.year,
            COALESCE(SUM(r.status = 'completed'), 0)                         AS run,
-           (s.drivers_champion IS NULL AND SUM(r.status = 'scheduled') > 0) AS undecided
+           (s.drivers_champion IS NULL AND SUM(r.status = 'scheduled') > 0
+            AND COALESCE(SUM(r.status = 'completed'), 0) > 0)               AS undecided,
+           (COALESCE(SUM(r.status = 'completed'), 0) = 0)                   AS not_started
       FROM seasons s
       LEFT JOIN races r ON r.year = s.year
      GROUP BY s.year),
@@ -42,7 +49,7 @@ export const SEASONS = `
            ROW_NUMBER() OVER (PARTITION BY year, table_type
                               ORDER BY position IS NULL, position, points DESC) AS rank
       FROM v_standings_final)
-  SELECT s.year, s.rounds, p.run, p.undecided,
+  SELECT s.year, s.rounds, p.run, p.undecided, p.not_started,
          CASE WHEN p.undecided THEN d1.entity_id ELSE s.drivers_champion END AS champion_id,
          CASE WHEN p.undecided THEN d1.entity    ELSE d.full_name        END AS champion,
          CASE WHEN p.undecided THEN
@@ -74,8 +81,13 @@ export const SEASONS = `
    ORDER BY s.year DESC
 `
 
-/** "Antonelli so far" on the undecided season's row; the name alone on every other. */
-export const soFar = (name, row) => (missing(name) ? EMPTY : row.undecided ? `${name} ${SO_FAR}` : String(name))
+/**
+ * "Antonelli so far" on the undecided season's row; "not yet run" where the
+ * season has not started, which is a different thing from a name nobody
+ * holds; the name alone on every other.
+ */
+export const soFar = (name, row) =>
+  row.not_started ? NOT_YET_RUN : missing(name) ? EMPTY : row.undecided ? `${name} ${SO_FAR}` : String(name)
 
 const pts = (value) => (missing(value) ? EMPTY : points(value))
 
@@ -93,4 +105,4 @@ export const SEASONS_COLUMNS = [
 ]
 
 export const SEASON_LIST_FOOTER =
-  'Margin is the points gap between champion and runner-up at the end of the season; before 1991 that is net of dropped scores, so it can look small beside the wins. A row marked “so far” is the season still running: its leader, not its champion. A blank constructors’ champion before 1958 is not a gap — the championship did not exist yet.'
+  `Margin is the points gap between champion and runner-up at the end of the season; before 1991 that is net of dropped scores, so it can look small beside the wins. A row marked “so far” is the season still running: its leader, not its champion. A row reading “${NOT_YET_RUN}” is a calendar that has been announced and not yet raced. A blank constructors’ champion before 1958 is not a gap — the championship did not exist yet.`

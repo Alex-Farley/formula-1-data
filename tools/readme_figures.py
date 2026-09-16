@@ -520,8 +520,9 @@ class Figures:
         return n(len(held))
 
     def fo_current_season_rows(self):
-        # races + race_entries + standings for 2025-26, the rows that look
-        # redundant beside F1DB and are not.
+        # races + race_entries + standings for the seasons formula1.com is
+        # read for - 2025-26, plus the races of any calendar announced and
+        # not yet run - the rows that look redundant beside F1DB and are not.
         return n(sum(int(self._fo(t).replace(",", "")) for t in ("races", "race_entries", "standings")))
 
     def no_share(self):
