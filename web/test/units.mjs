@@ -474,8 +474,14 @@ describe('the queries a page and the prerenderer share', () => {
     assert.equal(soFar('Antonelli', { undecided: 1 }), 'Antonelli so far')
     assert.equal(soFar('Norris', { undecided: 0 }), 'Norris')
     assert.equal(soFar(null, { undecided: 1 }), EMPTY)
+    // A season whose calendar is out and whose first round has not run is
+    // "not yet run", not an em dash: nobody is missing, nothing has happened.
+    assert.equal(soFar(null, { undecided: 0, not_started: 1 }), NOT_YET_RUN)
+    assert.equal(soFar('Norris', { undecided: 0, not_started: 1 }), NOT_YET_RUN)
     assert.equal(by(SEASONS_COLUMNS).rounds.text(23, { undecided: 1, run: 13 }), '13 of 23')
     assert.equal(by(SEASONS_COLUMNS).rounds.text(24, { undecided: 0, run: 24 }), '24')
+    // Not "0 of 24": the calendar is the whole fact a season not yet run has.
+    assert.equal(by(SEASONS_COLUMNS).rounds.text(24, { undecided: 0, not_started: 1, run: 0 }), '24')
   })
 
   it('formats the registers the same string for both renderers', () => {

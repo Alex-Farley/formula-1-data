@@ -1071,6 +1071,33 @@ def _stage_15_rules_tech_safety(b):
             VALUES (?,?,?,?,?)""", (i,) + r)
 
 
+def _calendar_date_iso(dates):
+    """The race day of an announced weekend, as ISO.
+
+    A Grand Prix is a weekend and the calendar states it as a span - "12-14
+    Mar 2027", or "30 Apr-02 May 2027" where it crosses a month. The race is
+    the last day of that span, which is the same relationship verify.py
+    already checks between a weekend's timetable and races.dates. F1DB
+    publishes a date_iso for every round it holds and overwrites this later;
+    a season F1DB has not reached yet - a calendar announced but not started
+    - would otherwise carry no machine-readable day at all, which is exactly
+    where a search engine wants a startDate.
+
+    Strict on purpose: a span this cannot read is a typo in the calendar, not
+    a date to guess at.
+    """
+    m = re.match(r"^(\d{1,2})(?:\s+([A-Za-z]{3}))?-(\d{1,2})\s+([A-Za-z]{3})"
+                 r"\s+(\d{4})$", dates.strip())
+    if not m:
+        raise SystemExit(f"calendar: cannot read a race day from {dates!r}")
+    day, mon, year = m.group(3), m.group(4), m.group(5)
+    months = ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
+              "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+    if mon not in months:
+        raise SystemExit(f"calendar: unknown month {mon!r} in {dates!r}")
+    return f"{year}-{months.index(mon) + 1:02d}-{int(day):02d}"
+
+
 def _stage_16_current_season(b):
     """current season"""
     cur = b.cur
@@ -1144,7 +1171,11 @@ def _stage_16_current_season(b):
             "entrant": None, "confidence": "verified", "source": N.SOURCE_F1,
         })
 
-    cal = {r[0]: r for r in N.CALENDAR_2026}
+    # {year: {round: calendar row}} for every season data/current.py holds a
+    # calendar for. Nothing below names a year: the next season arrives by
+    # being added to N.CALENDARS, not by being written into this loader.
+    cal = {yr: {r[0]: r for r in rows}
+           for yr, (rows, _src) in sorted(N.CALENDARS.items())}
     race_key = {}
     rid = 0
     for r in races:
@@ -1154,8 +1185,8 @@ def _stage_16_current_season(b):
             raise SystemExit(f"unmapped grand prix {r['gp_name']!r}")
         circuit = EV.SINGLE_CIRCUIT.get(gid)
         dates = sprint = None
-        if r["year"] == 2026 and r["round"] in cal:
-            c = cal[r["round"]]
+        if r["round"] in cal.get(r["year"], {}):
+            c = cal[r["year"]][r["round"]]
             circuit, dates, sprint = c[4], c[5], c[6]
         cur.execute("""INSERT INTO races (id, year, round, gp_id, name_used,
             circuit_id, dates, sprint, status, confidence, source)
@@ -1183,20 +1214,23 @@ def _stage_16_current_season(b):
                 (rid, r["winner_id"], r["constructor_id"], 1,
                  r["confidence"], r["source"]))
 
-    # 2026 rounds not yet run: the event exists, with no entries
-    for c in N.CALENDAR_2026:
-        if (2026, c[0]) in race_key:
-            continue
-        rid += 1
-        gid = gp_map.get(c[1])
-        if gid is None:
-            raise SystemExit(f"unmapped grand prix {c[1]!r}")
-        cur.execute("""INSERT INTO races (id, year, round, gp_id, name_used,
-            circuit_id, dates, sprint, status, confidence, source)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
-            (rid, 2026, c[0], gid, c[1], c[4], c[5], c[6], c[7],
-             "verified", N.SOURCE_F1))
-        race_key[(2026, c[0])] = rid
+    # Calendar rounds not yet run: the event exists, with no entries. A
+    # season announced but not started - 2027 as this is written - is all of
+    # its rounds and nothing else.
+    for year, (rows, src) in sorted(N.CALENDARS.items()):
+        for c in rows:
+            if (year, c[0]) in race_key:
+                continue
+            rid += 1
+            gid = gp_map.get(c[1])
+            if gid is None:
+                raise SystemExit(f"unmapped grand prix {c[1]!r}")
+            cur.execute("""INSERT INTO races (id, year, round, gp_id, name_used,
+                circuit_id, dates, date_iso, sprint, status, confidence, source)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (rid, year, c[0], gid, c[1], c[4], c[5],
+                 _calendar_date_iso(c[5]), c[6], c[7], "verified", src))
+            race_key[(year, c[0])] = rid
 
     # The weekend timetable, keyed to the races just written (LV-02). Every
     # session names its round, and a round with no race row is a typo here,
@@ -1215,12 +1249,13 @@ def _stage_16_current_season(b):
     # a Bahrain Grand Prix at a Malaysian circuit with no explanation, because
     # this was the one authored field nothing read. It becomes the race's note,
     # which both renderers already show as the lede.
-    for c in N.CALENDAR_2026:
-        if "(" in c[2] and c[2].endswith(")"):
-            aside = c[2][c[2].index("(") + 1:-1]
-            cur.execute("""UPDATE races SET note = ? WHERE year = 2026 AND round = ?
-                           AND note IS NULL""",
-                        (f"The {c[1]} of 2026 is {aside}.", c[0]))
+    for year, (rows, _src) in sorted(N.CALENDARS.items()):
+        for c in rows:
+            if "(" in c[2] and c[2].endswith(")"):
+                aside = c[2][c[2].index("(") + 1:-1]
+                cur.execute("""UPDATE races SET note = ? WHERE year = ? AND round = ?
+                               AND note IS NULL""",
+                            (f"The {c[1]} of {year} is {aside}.", year, c[0]))
 
     b.race_key = race_key
     b.lookup = lookup

@@ -16,7 +16,7 @@ by the build rather than by anyone's memory.
 
     ./f1 licences
 
-<!-- fig:yes_share -->99.4%<!-- /fig --> of the <!-- fig:sourced_rows -->118,460<!-- /fig --> sourced rows carry a licence that permits
+<!-- fig:yes_share -->99.4%<!-- /fig --> of the <!-- fig:sourced_rows -->118,485<!-- /fig --> sourced rows carry a licence that permits
 redistribution outright. The remaining <!-- fig:facts_only_share -->0.6%<!-- /fig --> cite an official source as the
 **authority for a fact** and hold none of that source's prose. Nothing in the
 committed database may not be published.
@@ -24,14 +24,14 @@ committed database may not be published.
 | Class | Rows | Share |
 |---|---:|---:|
 | `yes` — redistributable on the terms given | <!-- fig:yes_rows -->117,790<!-- /fig --> | <!-- fig:yes_share -->99.4%<!-- /fig --> |
-| `facts-only` — the facts, not the expression | <!-- fig:facts_only_rows -->670<!-- /fig --> | <!-- fig:facts_only_share -->0.6%<!-- /fig --> |
+| `facts-only` — the facts, not the expression | <!-- fig:facts_only_rows -->695<!-- /fig --> | <!-- fig:facts_only_share -->0.6%<!-- /fig --> |
 | `no` — not redistributable | <!-- fig:no_rows -->0<!-- /fig --> | <!-- fig:no_share -->0.0%<!-- /fig --> |
 
 ---
 
 ## What was read
 
-<!-- fig:facts_only_rows -->670<!-- /fig --> rows cite `formula1.com` (<!-- fig:facts_only_formula1 -->593<!-- /fig -->) or `fia.com` (<!-- fig:facts_only_fia -->77<!-- /fig -->), the two sources whose
+<!-- fig:facts_only_rows -->695<!-- /fig --> rows cite `formula1.com` (<!-- fig:facts_only_formula1 -->618<!-- /fig -->) or `fia.com` (<!-- fig:facts_only_fia -->77<!-- /fig -->), the two sources whose
 licences are "FOM copyright; no reuse licence" and "FIA copyright; published
 for reference, not redistribution". Every one was examined and classified as
 either
@@ -40,7 +40,7 @@ either
   copyrightable, and restating one is not redistribution; or
 - **(b) text following the source's expression** — rewrite.
 
-**All <!-- fig:facts_only_rows -->670<!-- /fig --> are (a). None is (b).** The breakdown, across <!-- fig:facts_only_tables -->10<!-- /fig --> tables — every
+**All <!-- fig:facts_only_rows -->695<!-- /fig --> are (a). None is (b).** The breakdown, across <!-- fig:facts_only_tables -->10<!-- /fig --> tables — every
 figure here is a span `tools/readme_figures.py` writes from the database and
 `verify.py` checks. Two guards hold the list to the database: the writer
 refuses to run while a facts-only row sits in a table not listed here, and
@@ -51,10 +51,10 @@ fails — so a row nobody has read cannot be counted as read:
 |---|---:|---|---|---|
 | `drivers` | <!-- fig:fo_drivers -->118<!-- /fig --> | formula1.com | names, dates, career totals | `notes` |
 | `circuits` | <!-- fig:fo_circuits -->80<!-- /fig --> | formula1.com | length, turns, GP count | `notes`, `characteristics` |
-| `seasons` | <!-- fig:fo_seasons -->77<!-- /fig --> | formula1.com | champion, points, rounds | `notes` |
+| `seasons` | <!-- fig:fo_seasons -->78<!-- /fig --> | formula1.com | champion, points, rounds | `notes` |
 | `standings` | <!-- fig:fo_standings -->65<!-- /fig --> | formula1.com | 2025 final, 2026 current | — |
 | `constructors` | <!-- fig:fo_constructors -->55<!-- /fig --> | formula1.com | register facts | `notes` |
-| `races` | <!-- fig:fo_races -->47<!-- /fig --> | formula1.com | 2025–26 calendar | — |
+| `races` | <!-- fig:fo_races -->71<!-- /fig --> | formula1.com | 2025–27 calendar | — |
 | `race_entries` | <!-- fig:fo_race_entries -->36<!-- /fig --> | formula1.com | 2025–26 race winners | — |
 | `regulation_changes` | <!-- fig:fo_regulation_changes -->60<!-- /fig --> | fia.com | year, category | `detail`, `impact` |
 | `regulation_limits` | <!-- fig:fo_regulation_limits -->17<!-- /fig --> | fia.com | numeric limits | `note` |
@@ -83,10 +83,11 @@ timetable is the independent check still owed (`known_gaps` #15). If the
 reading is ever doubted, the fallback is the FIA's per-event documents, which
 carry the same figures.
 
-### The <!-- fig:fo_current_season_rows -->148<!-- /fig --> rows that look redundant and are not
+### The <!-- fig:fo_current_season_rows -->172<!-- /fig --> rows that look redundant and are not
 
-`races` (<!-- fig:fo_races -->47<!-- /fig -->), `race_entries` (<!-- fig:fo_race_entries -->36<!-- /fig -->) and `standings` (<!-- fig:fo_standings -->65<!-- /fig -->) cover 2025 and 2026,
-and F1DB covers both seasons under CC BY 4.0. It is tempting to read these as
+`races` (<!-- fig:fo_races -->71<!-- /fig -->), `race_entries` (<!-- fig:fo_race_entries -->36<!-- /fig -->) and `standings` (<!-- fig:fo_standings -->65<!-- /fig -->) cover 2025 and 2026,
+with the announced 2027 calendar adding a `races` row an event and nothing
+else, and F1DB covers both run seasons under CC BY 4.0. It is tempting to read these as
 a redundant hand-maintained copy and delete them.
 
 That would remove a check rather than a liability. Wikipedia's harvest —

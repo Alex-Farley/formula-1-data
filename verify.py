@@ -78,6 +78,25 @@ def winners_in(year):
                 WHERE r.year = ? AND e.finish_position = 1""", (year,))))
 
 
+def season_in_progress():
+    """The season being run: the latest with a round already completed.
+
+    Not MAX(year), which stops being the same thing the moment a calendar is
+    announced for a season that has not started. A season whose every round
+    is still scheduled has run nothing, holds no entries and no standings,
+    and must not be the yardstick any "how far has the current season got"
+    check measures against.
+    """
+    return _once("in_progress", lambda: con.execute(
+        "SELECT MAX(year) FROM races WHERE status = 'completed'").fetchone()[0])
+
+
+def last_season():
+    """The last season the register holds, run or not."""
+    return _once("last_season", lambda: con.execute(
+        "SELECT MAX(year) FROM seasons").fetchone()[0])
+
+
 def entry_count():
     return _once("entries", lambda: con.execute(
         "SELECT COUNT(*) FROM race_entries").fetchone()[0])
@@ -143,8 +162,9 @@ def referential_integrity():
 @section('COVERAGE')
 def coverage():
     yrs = [r[0] for r in con.execute("SELECT year FROM seasons ORDER BY year")]
-    missing = [y for y in range(1950, 2027) if y not in yrs]
-    check("every season 1950-2026 present", not missing, str(missing))
+    last = last_season()
+    missing = [y for y in range(1950, last + 1) if y not in yrs]
+    check(f"every season 1950-{last} present", not missing, str(missing))
     nochamp = [r[0] for r in con.execute(
         "SELECT year FROM seasons WHERE drivers_champion IS NULL AND year < 2026")]
     check("every completed season has a champion", not nochamp, str(nochamp))
@@ -511,7 +531,10 @@ def race_results():
     # season moving on, so what is asserted instead is the SHAPE the season must
     # have whatever week it is: rounds are completed in order, from the first, and
     # never more of them than the calendar holds.
-    CURRENT = con.execute("SELECT MAX(year) FROM races").fetchone()[0]
+    # The season still being run, which is not necessarily the last one in
+    # the database: a calendar announced for a season that has not started
+    # has run none of its rounds and would fail every shape check below.
+    CURRENT = season_in_progress()
     for y in (CURRENT - 1, CURRENT):
         got = con.execute("""SELECT COUNT(*) FROM races
             WHERE year=? AND status='completed'""", (y,)).fetchone()[0]
@@ -542,18 +565,23 @@ def race_results():
 @section('HARVESTED RACE RESULTS')
 def harvested_race_results():
     yrs = [r[0] for r in con.execute("SELECT DISTINCT year FROM races ORDER BY year")]
-    check("races cover every season 1950-2026",
-          yrs == list(range(1950, 2027)), f"{len(yrs)} seasons")
+    last = last_season()
+    check(f"races cover every season 1950-{last}",
+          yrs == list(range(1950, last + 1)), f"{len(yrs)} seasons")
 
     bad = []
     for y, n in con.execute("""SELECT year, COUNT(*) FROM races
         WHERE status='completed' GROUP BY year"""):
         stored = con.execute("SELECT rounds FROM seasons WHERE year=?", (y,)).fetchone()[0]
-        # A finished season must match the calendar it ran. The season in
-        # progress is checked against itself — it can be short of its calendar,
+        # A finished season must match the calendar it ran. A season still
+        # being run is checked against itself — it can be short of its calendar,
         # never past it — because "how many rounds have been run by now" is not a
-        # constant and does not belong in a source file.
-        if y == con.execute("SELECT MAX(year) FROM races").fetchone()[0]:
+        # constant and does not belong in a source file. Asked of the year
+        # rather than of MAX(year), so an announced calendar sitting above it
+        # does not turn the season in progress into a finished one.
+        unrun = con.execute("""SELECT COUNT(*) FROM races
+            WHERE year = ? AND status != 'completed'""", (y,)).fetchone()[0]
+        if unrun:
             expected = n if n <= stored else stored
         else:
             expected = stored
@@ -671,7 +699,13 @@ def pole_position_and_fastest_lap():
     # defect, and it is confined to the season in progress — so the assertion is
     # that every OLDER race has them, and the current season's stragglers are
     # named in a warning rather than failing a build.
-    CURRENT_YEAR = con.execute("SELECT MAX(year) FROM races").fetchone()[0]
+    # The season being run, not MAX(year) FROM races: the lag this warning
+    # exists to tolerate is in the season being harvested, and a calendar
+    # announced above it holds no completed race to straggle. Read from the
+    # calendar, the window would close on the season that needs it - the next
+    # 2026 race to land without its pole harvest would fail the build instead
+    # of being named here.
+    CURRENT_YEAR = season_in_progress()
 
     def _missing(column):
         return [(r[0], r[1]) for r in con.execute(f"""
@@ -784,7 +818,7 @@ def pole_position_and_fastest_lap():
     inferred = [tuple(r) for r in con.execute("""SELECT r.year, r.round FROM races r
         JOIN race_entries e ON e.race_id = r.id AND e.pole = 1
         ORDER BY r.year, r.round""") if tuple(r) not in harvested]
-    current = con.execute("SELECT MAX(year) FROM races").fetchone()[0]
+    current = season_in_progress()
     settled_inferred = [x for x in inferred if x[0] != current]
     check("a pole credited from grid 1 rather than the season record is only ever in the current season",
           not settled_inferred, "; ".join(f"{y} r{r}" for y, r in settled_inferred[:5]))
@@ -1093,7 +1127,11 @@ def records_are_derived():
          "constructors.constructors_titles")
 
     # 4. Most wins in a season, via race_results grouped by year.
+    # WHERE winner_id IS NOT NULL: race_results carries a row for a race that
+    # has not been run, so without it a calendar long enough - 24 announced
+    # rounds - wins this ordering as a season of NULLs.
     sw = con.execute("""SELECT winner_id, year, COUNT(*) n FROM race_results
+        WHERE winner_id IS NOT NULL
         GROUP BY year, winner_id ORDER BY n DESC LIMIT 1""").fetchone()
     same("most-wins-in-a-season", sw["n"], sw["winner_id"], "race_results by season")
 
@@ -1601,7 +1639,16 @@ def the_driver_register():
     _active = {r[0] for r in con.execute("SELECT id FROM drivers WHERE status = 'active'")}
     _grid = {r[0] for r in con.execute("""SELECT DISTINCT e.driver_id FROM race_entries e
         JOIN races r ON r.id = e.race_id WHERE r.year = ?""", (_latest,))}
-    _in_season = _calendar == _latest
+    # In season while the season being run still has rounds to run. The test
+    # was _calendar == _latest alone, which said the same thing only while the
+    # last calendar in the register WAS that season: announce the next one and
+    # every mid-season build reads as pre-season, downgrading this check to a
+    # warning for the rest of the year. The pre-season window is the gap
+    # between a season's last race and the next season's first, and it opens
+    # when the season being run has finished, not when the next is published.
+    _unrun = con.execute("""SELECT COUNT(*) FROM races
+        WHERE year = ? AND status != 'completed'""", (_latest,)).fetchone()[0]
+    _in_season = _calendar == _latest or _unrun > 0
     (check if _in_season else warn)(
         f"every active driver has an entry in {_latest}"
         + ("" if _in_season else f" (pre-season: {_calendar} has no completed race yet)"),
@@ -1913,10 +1960,17 @@ def the_chassis_register():
                 overlaps.append(f"{field} {a0}-{a1} and {b0}-{b1}")
     check("no two spans of one regulation limit overlap", not overlaps, "; ".join(overlaps[:4]))
     # The regulations set a cap before the year is raced, so one year beyond
-    # the latest season may carry a figure; none before 2021, none further on.
-    latest = con.execute("SELECT MAX(year) FROM seasons").fetchone()[0]
+    # the register may carry a figure; none before 2021, none further on. The
+    # two bounds were one MAX(year) FROM seasons while the last season in the
+    # register was also the one being run. A calendar announced above it parts
+    # them: read from the register alone, next year's OPTIONAL figure becomes
+    # a required one the moment its calendar lands, which is the reverse of
+    # what this check says. Required runs to the season being RUN; the slack
+    # runs one year past whatever the register holds.
+    run = season_in_progress()
+    ahead = con.execute("SELECT MAX(year) FROM seasons").fetchone()[0]
     capped = {y for y in lim if "cost_cap_usd" in lim[y]}
-    required, allowed = set(range(2021, latest + 1)), set(range(2021, latest + 2))
+    required, allowed = set(range(2021, run + 1)), set(range(2021, ahead + 2))
     check("the cost cap has a figure for every year from 2021 to the current season",
           required <= capped <= allowed,
           f"missing {sorted(required - capped)}, unexpected {sorted(capped - allowed)}")

@@ -85,6 +85,11 @@ const geometryPath = join(web, '..', 'f1-geometry.db')
 const hasGeometry = existsSync(geometryPath)
 if (hasGeometry) db.exec(`ATTACH DATABASE '${geometryPath}' AS geo`)
 const one = (sql, ...args) => Object.values(db.prepare(sql).get(...args))[0]
+/* The season being RUN, which since the 2027 calendar landed is no longer
+   MAX(year): a season announced and not started has no leader, no standings
+   and no layouts, so every check below that means "the season in progress"
+   has to ask for the latest season with a round already completed. */
+const inProgress = () => one("SELECT MAX(year) FROM races WHERE status = 'completed'")
 const count = (sql, ...args) => one(sql, ...args)
 
 const failures = []
@@ -509,7 +514,7 @@ try {
   // round marked next while any is still to run, in the app and the static
   // page alike.
   await section('/seasons/2026  (the calendar as outlines)', async () => {
-    const year = one('SELECT MAX(year) FROM seasons')
+    const year = inProgress()
     const rounds = count('SELECT COUNT(*) FROM races WHERE year = ?', year)
     const toRun = count("SELECT COUNT(*) FROM races WHERE year = ? AND status != 'completed'", year)
     await go(`/seasons/${year}`, String(year))
@@ -1113,7 +1118,7 @@ try {
     // A season without a champion yet opens with its leader, in the app and in
     // the static page, and the static standings table lists each driver once.
     {
-      const open = db.prepare("SELECT year FROM seasons WHERE drivers_champion IS NULL ORDER BY year DESC LIMIT 1").get()
+      const open = db.prepare("SELECT year FROM seasons WHERE drivers_champion IS NULL AND year = ? LIMIT 1").get(inProgress())
       if (open) {
         const lead = db
           .prepare("SELECT entity, points FROM v_standings_final WHERE year = ? AND table_type = 'drivers' ORDER BY position LIMIT 1")
@@ -1531,7 +1536,11 @@ try {
       ['the first season',
        `SELECT '/seasons/' || MIN(year) FROM seasons`],
       ['the season in progress',
-       `SELECT '/seasons/' || MAX(year) FROM seasons`],
+       `SELECT '/seasons/' || MAX(year) FROM races WHERE status = 'completed'`],
+      ['a season announced and not yet run',
+       `SELECT '/seasons/' || MIN(year) FROM seasons s
+          WHERE NOT EXISTS (SELECT 1 FROM races r
+                             WHERE r.year = s.year AND r.status = 'completed')`],
     ]
 
     /* A shape with no matching row is a gap in the coverage, not a pass — but it
@@ -1825,14 +1834,27 @@ try {
       // Rung two: the seasons list, a season's calendar and its two standings
       // tables - headed by the shared rule, so the check asks for the heading
       // the season in progress actually gets - and the races list.
-      const open = db.prepare('SELECT year FROM seasons WHERE drivers_champion IS NULL ORDER BY year DESC LIMIT 1').get()
+      const open = db.prepare('SELECT year FROM seasons WHERE drivers_champion IS NULL AND year = ? LIMIT 1').get(inProgress())
       await same('/seasons', 'Seasons')
       if (open) {
-        const first = (await appTable(null))?.rows[0]?.join(' | ') ?? ''
+        // Newest first, so the top row is the latest season the register
+        // holds - which is a calendar, not a leaderboard, whenever one has
+        // been announced ahead of the season being run. Both rows are
+        // checked, and the two must not read alike (IA-17).
+        const listed = (await appTable(null))?.rows ?? []
+        const rowFor = (year) => listed.find((r) => String(r[0]) === String(year))?.join(' | ') ?? ''
+        const newest = one('SELECT MAX(year) FROM seasons')
         truthy(
-          first.startsWith(String(open.year)) && first.includes(SO_FAR),
-          `the season in progress opens /seasons with its leader, marked “${SO_FAR}”`,
+          rowFor(open.year).includes(SO_FAR),
+          `the season in progress carries its leader on /seasons, marked “${SO_FAR}”`,
         )
+        if (newest !== open.year) {
+          const ahead = rowFor(newest)
+          truthy(
+            String(listed[0]?.[0]) === String(newest) && ahead.includes(NOT_YET_RUN) && !ahead.includes(SO_FAR),
+            `/seasons opens on ${newest}, a calendar announced and “${NOT_YET_RUN}”`,
+          )
+        }
         const after = one("SELECT MAX(after_round) FROM standings WHERE year = ? AND table_type = 'drivers'", open.year)
         await same(`/seasons/${open.year}`, String(open.year), 'The calendar')
         await same(`/seasons/${open.year}`, String(open.year), standingsHeading("Drivers'", true, after))

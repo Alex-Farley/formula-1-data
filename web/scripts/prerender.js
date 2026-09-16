@@ -258,6 +258,14 @@ if (!existsSync(dbPath)) die('f1.db not found at the repository root.\nBuild it 
 const db = new DatabaseSync(dbPath, { readOnly: true })
 const all = (sql, ...params) => db.prepare(sql).all(...params)
 const one = (sql, ...params) => db.prepare(sql).get(...params) ?? null
+
+/* The span the site describes itself by, read from the register rather than
+   written down: the moment a calendar is announced for a season nobody has
+   raced, the database covers a year further than any sentence here would. It
+   is the same figure README.md's fig:season_span carries, and web/src/App.jsx
+   prints it in the wordmark - the two renderers are compared on it. */
+const { from: SPAN_FROM, to: SPAN_TO } = one('SELECT MIN(year) AS "from", MAX(year) AS "to" FROM seasons')
+const SPAN = `${SPAN_FROM}–${SPAN_TO}`
 // The version and build date, for the static footer: a search arrival's
 // figures used to be undated until the app took over, so the page Google
 // served carried numbers with no currency statement at all.
@@ -527,7 +535,7 @@ const chrome = (body, crumbs, citeUrl) => `
 <div class="app pre">
   <header class="masthead">
     <div class="masthead-inner">
-      <a class="wordmark" href="${esc(href(''))}"><span><b>Lap Ledger</b><span>1950–2026 · every championship race</span></span></a>
+      <a class="wordmark" href="${esc(href(''))}"><span><b>Lap Ledger</b><span>${SPAN} · every championship race</span></span></a>
       <nav>${NAV.map(([to, label]) => link(to, label)).join('')}</nav>
     </div>
   </header>
@@ -594,18 +602,18 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
     path: '',
     title: `${SITE} — a Formula One database you can check`,
     description:
-      'Every championship race, classification, qualifying sheet and pit stop from 1950 to 2026, queried in your browser. Every figure traceable to a source; every blank an unestablished fact rather than a zero.',
+      `Every championship race, classification, qualifying sheet and pit stop from ${SPAN_FROM} to ${SPAN_TO}, queried in your browser. Every figure traceable to a source; every blank an unestablished fact rather than a zero.`,
     jsonld: {
       '@context': 'https://schema.org',
       '@type': 'WebSite',
       name: SITE,
       url: `${ORIGIN}${BASE}`,
       description:
-        'A normalised, verifiable SQLite database of Formula One championship racing, 1950–2026.',
+        `A normalised, verifiable SQLite database of Formula One championship racing, ${SPAN}.`,
       license: 'https://creativecommons.org/licenses/by-sa/4.0/',
     },
     body: `
-      <h1>Formula One, 1950–2026, with its sources attached</h1>
+      <h1>Formula One, ${SPAN}, with its sources attached</h1>
       <p class="lede">Seventy-seven seasons as one SQLite file, queried in this tab. Every figure
         is traceable to the source it came from, and a blank means nobody has established that
         fact — never zero.</p>
@@ -648,11 +656,13 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
   // A name as the app renders it: a link where it has an id, and after it
   // the undecided season's "so far" tag - the row is a leader, not a champion.
   const marked = (path, idKey) => (name, row) =>
-    `${row[idKey] ? link(`${path}/${row[idKey]}`, name) : text(name)}${row.undecided && name ? ` ${tag(SO_FAR)}` : ''}`
+    row.not_started
+      ? tag(NOT_YET_RUN)
+      : `${row[idKey] ? link(`${path}/${row[idKey]}`, name) : text(name)}${row.undecided && name ? ` ${tag(SO_FAR)}` : ''}`
 
   page({
     path: 'seasons',
-    title: titled('Every season, 1950–2026'),
+    title: titled(`Every season, ${SPAN}`),
     description: `All ${seasons.length} FIA Formula One World Championship seasons, with the drivers' and constructors' champions, points and margin for each.`,
     trail: [['', 'Home'], ['seasons', 'Seasons']],
     body: `
@@ -686,9 +696,18 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
     const [lead, second] = driversFinal
     const teamLead = constructorsFinal[0] ?? null
     const gap = running ? lead.points - second.points : null
-    const entered = grid
-      ? `${num(grid.drivers)} drivers, ${num(grid.constructors)} constructors, ${num(grid.engine_manufacturers)} engine makers — counted from the entries, whether or not they started`
-      : '—'
+    // A season nobody has raced yet: its champion slots are not unknown,
+    // they are NOT YET RUN, and the app's page says so too (IA-17). Null
+    // drivers on v_season_grid is the same distinction - a grid nobody has
+    // published is not a grid of nobody - so the sentence is dropped rather
+    // than made to count to zero.
+    const notRun = run === 0
+    const entered =
+      grid && grid.drivers !== null
+        ? `${num(grid.drivers)} drivers, ${num(grid.constructors)} constructors, ${num(grid.engine_manufacturers)} engine makers — counted from the entries, whether or not they started`
+        : notRun
+          ? null
+          : '—'
 
     page({
       path: `seasons/${year}`,
@@ -697,7 +716,9 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
         ? `${s.champion} won the ${year} Formula One World Championship for ${s.champion_team_name ?? '—'} with ${s.champion_points ?? '—'} points over ${s.rounds ?? '?'} rounds. Every race, winner, pole and fastest lap.`
         : running
           ? `${lead.entity} leads the ${year} Formula One World Championship by ${num(gap)} points after ${after ?? run} of ${s.rounds ?? '?'} rounds. Every race, winner, pole and fastest lap.`
-          : `The ${year} Formula One World Championship: ${s.rounds ?? '?'} rounds, with every race, winner, pole and fastest lap.`,
+          : notRun
+            ? `The ${year} Formula One World Championship: a calendar of ${s.rounds ?? '?'} announced rounds, ${NOT_YET_RUN}. Every venue, weekend and Sprint round.`
+            : `The ${year} Formula One World Championship: ${s.rounds ?? '?'} rounds, with every race, winner, pole and fastest lap.`,
       trail: [['', 'Home'], ['seasons', 'Seasons'], [`seasons/${year}`, String(year)]],
       jsonld: {
         '@context': 'https://schema.org',
@@ -709,7 +730,16 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
       body: `
         <h1>${year} FIA Formula One World Championship</h1>
         ${
-          running
+          notRun
+            ? facts([
+                ['Rounds', num(s.rounds)],
+                ["Drivers' champion", NOT_YET_RUN],
+                ["Constructors' champion", NOT_YET_RUN],
+                ['Engine formula', text(s.engine_formula)],
+                ['Tyres', text(s.tyre_suppliers)],
+                ['Entered', entered],
+              ])
+            : running
             ? facts([
                 ['After', `${run} of ${num(s.rounds)} rounds`],
                 ['Leads', `${lead.entity_id ? driver(lead.entity_id) : text(lead.entity)} — ${num(lead.points)}`],
@@ -804,7 +834,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
 
   page({
     path: 'races',
-    title: titled('Every championship race, 1950–2026'),
+    title: titled(`Every championship race, ${SPAN}`),
     description: `All ${races.length.toLocaleString()} FIA Formula One championship Grands Prix with winner, pole, fastest lap and full classification.`,
     trail: [['', 'Home'], ['races', 'Races']],
     body: `
@@ -1039,7 +1069,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
 
   page({
     path: 'drivers',
-    title: titled('Every driver, 1950–2026'),
+    title: titled(`Every driver, ${SPAN}`),
     description: `All ${register.length} drivers in the register, with entries, wins, podiums, poles and fastest laps counted from the race records, and titles from the championship tables.`,
     trail: [['', 'Home'], ['drivers', 'Drivers']],
     body: `
@@ -1153,7 +1183,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
 
   page({
     path: 'constructors',
-    title: titled('Every constructor, 1950–2026'),
+    title: titled(`Every constructor, ${SPAN}`),
     description: `All ${constructors.length} constructors that have entered a championship Grand Prix, with entries, wins, poles and titles.`,
     trail: [['', 'Home'], ['constructors', 'Constructors']],
     body: `
@@ -1275,7 +1305,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
 
   page({
     path: 'circuits',
-    title: titled('Every circuit, 1950–2026'),
+    title: titled(`Every circuit, ${SPAN}`),
     description: `All ${circuits.length} circuits that have held a championship Grand Prix, with length, turns, location and the races held there.`,
     trail: [['', 'Home'], ['circuits', 'Circuits']],
     body: `

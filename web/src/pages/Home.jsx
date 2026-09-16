@@ -183,7 +183,7 @@ export default function Home() {
               <Section title="The shape of the championship">
                 <Figure
                   title="Championship races per season"
-                  note="Seven rounds in 1950; twenty-four by 2025. The 2026 column is a calendar, not a set of results."
+                  note="Seven rounds in 1950; twenty-four by 2025. The 2026 and 2027 columns are calendars, not sets of results."
                   table={{
                     rows: seasons,
                     columns: [
@@ -196,7 +196,7 @@ export default function Home() {
                     data={seasons.map((s) => ({ key: s.year, value: s.rounds, label: s.year % 10 === 0 ? s.year : '' }))}
                     labelEvery={1}
                     height={200}
-                    label="Number of championship races in each season from 1950 to 2026"
+                    label="Number of championship races in each season from 1950 to 2027"
                   />
                 </Figure>
               </Section>

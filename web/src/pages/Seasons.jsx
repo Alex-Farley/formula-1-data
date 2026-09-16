@@ -3,12 +3,18 @@ import { Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { useQuery } from '../data/useQuery.js'
-import { SO_FAR } from '../lib/site.js'
+import { NOT_YET_RUN, SO_FAR } from '../lib/site.js'
 import { SEASONS, SEASONS_COLUMNS, SEASON_LIST_FOOTER } from '../queries/seasons.js'
 
-/** A name as a link where it has an id, with the undecided season's "so far" mark. */
+/**
+ * A name as a link where it has an id, with the undecided season's "so far"
+ * mark - or "not yet run" where the season has a calendar and no rounds
+ * behind it, which is the words its `text` carries and not the em dash a
+ * missing name would get. scripts/prerender.js does the same.
+ */
 const named = (path) => (name, row) => {
   const id = row[`${path === 'drivers' ? 'champion' : 'constructors_champion'}_id`]
+  if (row.not_started) return <span className="tag">{NOT_YET_RUN}</span>
   return (
     <>
       {id ? <Link to={`/${path}/${id}`}>{name}</Link> : cell(name)}

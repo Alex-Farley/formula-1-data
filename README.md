@@ -1,7 +1,7 @@
 # Lap Ledger — v<!-- fig:version -->2.23<!-- /fig -->
 
 An expansion of the original single-file JSON into a normalised, queryable
-SQLite database covering <!-- fig:season_span -->1950–2026<!-- /fig -->, with
+SQLite database covering <!-- fig:season_span -->1950–2027<!-- /fig -->, with
 the JSON kept as a generated export.
 
 **The latest release, v<!-- fig:version -->2.23<!-- /fig -->,** derives the
@@ -50,7 +50,7 @@ here is a number the build checked.
 
 | File | What it is |
 |---|---|
-| `f1.db` | The SQLite database. <!-- fig:tables -->48<!-- /fig --> tables, <!-- fig:views -->41<!-- /fig --> views, <!-- fig:rows -->119,665<!-- /fig --> rows. This is the artefact. |
+| `f1.db` | The SQLite database. <!-- fig:tables -->48<!-- /fig --> tables, <!-- fig:views -->41<!-- /fig --> views, <!-- fig:rows -->119,690<!-- /fig --> rows. This is the artefact. |
 | `f1-geometry.db` | The OpenStreetMap circuit centrelines (ODbL), shipped beside `f1.db` and never merged into it. See *Illustration*. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
@@ -102,14 +102,14 @@ standard library.
 
 ## What's in it
 
-**Championship history** — all <!-- fig:seasons -->77<!-- /fig --> seasons
-<!-- fig:season_span -->1950–2026<!-- /fig -->: champion, points, wins,
+**Championship history** — all <!-- fig:seasons -->78<!-- /fig --> seasons
+<!-- fig:season_span -->1950–2027<!-- /fig -->: champion, points, wins,
 runner-up, margin, constructors' champion, engine formula, tyre suppliers and a
 paragraph of context on each, plus **<!-- fig:standings -->34,597<!-- /fig -->
 championship standings rows** — the table after every round of every season
 and the end-of-season classification for each.
 
-**Every race** — <!-- fig:races -->1,172<!-- /fig --> championship Grands
+**Every race** — <!-- fig:races -->1,196<!-- /fig --> championship Grands
 Prix on the calendar, <!-- fig:races_run -->1,163<!-- /fig --> of them run,
 from the <!-- fig:first_race -->1950 British Grand Prix<!-- /fig --> to the
 <!-- fig:last_race -->2026 Madrid Grand Prix<!-- /fig -->, each with its
@@ -378,7 +378,7 @@ appears there at all, the rows now form a **complete, non-overlapping timeline**
 of what was actually raced. `verify.py` enforces both properties, so a layout
 cannot be added that leaves a season uncovered or claims one twice.
 <!-- fig:layout_circuits -->13<!-- /fig --> circuits have that timeline;
-<!-- fig:as_raced -->483<!-- /fig --> races
+<!-- fig:as_raced -->493<!-- /fig --> races
 (<!-- fig:as_raced_pct -->41%<!-- /fig -->) therefore report the layout as
 raced, and `v_race_venues.figures` says of every row whether it is `as raced`
 or a fallback to `current layout`. The rest is a declared gap, not silence.
@@ -749,7 +749,7 @@ remembered, and several famous ones are missing for exactly that reason.
 
 `race_entries` holds **<!-- fig:race_entries -->27,504<!-- /fig --> rows —
 every entry of every one of the <!-- fig:races_classified -->1,163<!-- /fig -->
-run races**, <!-- fig:season_span -->1950–2026<!-- /fig -->, in the committed
+run races**, <!-- fig:season_span -->1950–2027<!-- /fig -->, in the committed
 database. Position, grid, laps, retirement cause and points. Alongside it sit
 **<!-- fig:qualifying -->27,017<!-- /fig --> qualifying rows** and
 **<!-- fig:standings -->34,597<!-- /fig --> championship standings rows**: the
@@ -1055,7 +1055,7 @@ result is far more often an un-harvested race than a race that did not happen.
 
 `python3 verify.py` runs every check and prints the live count; nothing else
 states one. What it checks, in outline: referential integrity across every
-foreign-key relationship; every season <!-- fig:season_span -->1950–2026<!-- /fig -->
+foreign-key relationship; every season <!-- fig:season_span -->1950–2027<!-- /fig -->
 present with a champion; constructors' champions only from 1958; driver and
 constructor title counts cross-tabulated against the seasons table (and
 `title_years` strings checked year by year against it); margins recomputed;
@@ -1067,7 +1067,7 @@ backwards, nobody starting a Grand Prix aged 15.
 
 The race harvest adds its own layer: race count per season reconciled against
 the independently recorded round count for all
-<!-- fig:seasons -->77<!-- /fig --> seasons; rounds contiguous with no
+<!-- fig:seasons -->78<!-- /fig --> seasons; rounds contiguous with no
 duplicates; every winner and constructor resolving to a known id; the only
 constructor-less races being the <!-- fig:indy -->11<!-- /fig --> Indianapolis
 500s; and — the strongest check in the file — **every driver and constructor

@@ -1,12 +1,24 @@
 # -*- coding: utf-8 -*-
 """
 2026 season: entries, calendar, standings, regulations status.
-Plus verified race-winner records for 2025 and 2026.
+Plus verified race-winner records for 2025 and 2026, and the 2027 calendar.
 
-Everything here was checked against formula1.com on 2026-09-04.
+Everything here was checked against formula1.com on 2026-09-04, except
+CALENDAR_2027, which was read from the announcement of 2026-09-16.
 """
 
 SOURCE_F1 = "https://www.formula1.com/en/results/2026"
+
+# The 2027 calendar was announced on 2026-09-16, after World Motor Sport
+# Council approval. formula1.com has no /racing/2027 or /results/2027 page
+# yet - the results page for the year is served but empty - so the
+# announcement article is the official source, and the round-by-round dates
+# on it are published as an image. Dates, venues and Sprint rounds were read
+# from that image; nothing else on the page is copied (SOURCE_LICENCE,
+# facts-only).
+SOURCE_F1_2027 = ("https://www.formula1.com/en/latest/article/"
+                  "formula-1-reveals-calendar-for-2027-season-with-10-sprint-"
+                  "events.5J8ePLyjRuMyWEIDNUKgY4")
 
 # constructor_id, driver_id, car, power_unit, number, role
 ENTRIES_2026 = [
@@ -75,6 +87,46 @@ CALENDAR_2026 = [
     (22, "Qatar Grand Prix", "Qatar", "Lusail", "lusail", "27-29 Nov 2026", 0, "scheduled"),
     (23, "Abu Dhabi Grand Prix", "Abu Dhabi", "Yas Marina", "yas-marina", "04-06 Dec 2026", 0, "scheduled"),
 ]
+
+# Same columns as CALENDAR_2026. Twenty-four rounds, ten of them Sprint
+# events; no round has been run, so every status is 'scheduled' and the
+# season carries no entries, standings or results. Round 17 is the one
+# conditional entry on the calendar and says so in its country field, which
+# build.py turns into the race's note.
+CALENDAR_2027 = [
+    (1, "Bahrain Grand Prix", "Bahrain", "Sakhir", "bahrain", "12-14 Mar 2027", 1, "scheduled"),
+    (2, "Saudi Arabian Grand Prix", "Saudi Arabia", "Jeddah", "jeddah", "19-21 Mar 2027", 0, "scheduled"),
+    (3, "Australian Grand Prix", "Australia", "Melbourne", "albert-park", "02-04 Apr 2027", 1, "scheduled"),
+    (4, "Japanese Grand Prix", "Japan", "Suzuka", "suzuka", "09-11 Apr 2027", 1, "scheduled"),
+    (5, "Chinese Grand Prix", "China", "Shanghai", "shanghai", "16-18 Apr 2027", 0, "scheduled"),
+    (6, "Miami Grand Prix", "United States", "Miami", "miami", "30 Apr-02 May 2027", 0, "scheduled"),
+    (7, "Canadian Grand Prix", "Canada", "Montreal", "gilles-villeneuve", "21-23 May 2027", 1, "scheduled"),
+    (8, "Monaco Grand Prix", "Monaco", "Monaco", "monaco", "04-06 Jun 2027", 1, "scheduled"),
+    (9, "Portuguese Grand Prix", "Portugal", "Portimao", "portimao", "18-20 Jun 2027", 0, "scheduled"),
+    (10, "British Grand Prix", "United Kingdom", "Silverstone", "silverstone", "02-04 Jul 2027", 1, "scheduled"),
+    (11, "Austrian Grand Prix", "Austria", "Spielberg", "red-bull-ring", "09-11 Jul 2027", 0, "scheduled"),
+    (12, "Belgian Grand Prix", "Belgium", "Spa-Francorchamps", "spa", "23-25 Jul 2027", 0, "scheduled"),
+    (13, "Hungarian Grand Prix", "Hungary", "Budapest", "hungaroring", "30 Jul-01 Aug 2027", 0, "scheduled"),
+    (14, "Italian Grand Prix", "Italy", "Monza", "monza", "03-05 Sep 2027", 1, "scheduled"),
+    (15, "Spanish Grand Prix", "Spain", "Madrid", "madring", "10-12 Sep 2027", 0, "scheduled"),
+    (16, "Azerbaijan Grand Prix", "Azerbaijan", "Baku", "baku", "24-26 Sep 2027", 0, "scheduled"),
+    (17, "Turkish Grand Prix", "Turkey (subject to FIA circuit homologation)", "Istanbul", "istanbul", "01-03 Oct 2027", 0, "scheduled"),
+    (18, "Singapore Grand Prix", "Singapore", "Singapore", "marina-bay", "08-10 Oct 2027", 0, "scheduled"),
+    (19, "United States Grand Prix", "United States", "Austin", "cota", "22-24 Oct 2027", 0, "scheduled"),
+    (20, "Mexico City Grand Prix", "Mexico", "Mexico City", "rodriguez", "29-31 Oct 2027", 0, "scheduled"),
+    (21, "Sao Paulo Grand Prix", "Brazil", "Sao Paulo", "interlagos", "05-07 Nov 2027", 1, "scheduled"),
+    (22, "Las Vegas Grand Prix", "United States", "Las Vegas", "las-vegas", "18-20 Nov 2027", 0, "scheduled"),
+    (23, "Qatar Grand Prix", "Qatar", "Lusail", "lusail", "03-05 Dec 2027", 1, "scheduled"),
+    (24, "Abu Dhabi Grand Prix", "Abu Dhabi", "Yas Marina", "yas-marina", "10-12 Dec 2027", 1, "scheduled"),
+]
+
+# year -> (calendar, source). build.py loads every season named here, so a
+# new season arrives by being added to this map and to data/seasons.py, and
+# nothing in the loader names a year.
+CALENDARS = {
+    2026: (CALENDAR_2026, SOURCE_F1),
+    2027: (CALENDAR_2027, SOURCE_F1_2027),
+}
 
 # position, driver_id, display, team, points
 DRIVER_STANDINGS_2026 = [
