@@ -53,9 +53,10 @@ the site; read the build output · defect)* → feeds **#306**; register half in
 interaction.** `Circuits.jsx:81` strokes every `/circuits` thumbnail
 `var(--accent)` — probed `rgb(200, 16, 40)` light, `#ff4757` dark. `tokens.css:6–8`:
 the accent means "you can act on this", "**Never a data mark**".
-`web/README.md:307` restates the rule in the very paragraph recording `VD-26`
-(#113), which landed and removed a 22 × 2 px bar from stat tiles while leaving
-25 whole circuits red two routes away. The same traces are `--ink` on
+`web/README.md:417` states the rule in those words; `web/README.md:307` applies
+it in the paragraph recording `VD-26` (#113), which landed and removed a
+22 × 2 px bar from stat tiles while leaving 25 whole circuits red two routes
+away. The same traces are `--ink` on
 `/circuits/:id`, and F1DB's outlines are `--ink` everywhere: three drawings of
 one subject, two inks, no rule. *(read the source; probed the running page ·
 defect)* → **`VD-38`**
@@ -153,7 +154,7 @@ legible. One rule as a token — stroke as a fraction of the frame, floored near
 drove the site · defect)* → **`VD-42`**
 
 **9. `/circuits` prerenders with no drawing at all.** The static register is
-30,498 bytes and contains zero SVG — no thumbnails, no *"The traced laps"*
+30,814 bytes and contains zero SVG — no thumbnails, no *"The traced laps"*
 heading. That section is built entirely from the one source that cannot ship in
 `f1.db`, and covers 25 of 80 venues. F1DB's outlines — 79 of 80, CC BY 4.0,
 already in `f1.db`, already prerendered on `/circuits/:id`, on race pages and in
