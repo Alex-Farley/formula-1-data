@@ -661,10 +661,13 @@ holes read as joins — it reported only Las Vegas, and passed two broken traces
 for several versions. One metre is above serialisation noise and below the
 smallest real gap.
 
-This is what lets the front end draw a circuit's traced centreline:
-`web/src/lib/lap.js` reproduces the stitch in the browser and measures the
-projected shape against it, but only where `closes` says there is something
-to measure.
+The front end does not draw from it. `/circuits/:id` prints what the build
+measured — the relation, the points, the measured length against the published
+one, and whether the walk closes — under F1DB's outlines, which are the picture
+of a circuit. `web/src/lib/lap.js` still reproduces the stitch in the browser,
+and its unit tests hold its metre to the figure `_haversine` returns here: two
+implementations of the same measurement, which is the point of measuring
+twice.
 
 Geometry attaches to a **layout**, never to a circuit alone, wherever a layout
 timeline exists. Monza 1955 is not Monza 2026 and `circuit_layouts` already

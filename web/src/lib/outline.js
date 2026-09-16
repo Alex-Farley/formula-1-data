@@ -28,6 +28,18 @@ export const OUTLINE_BY = 'F1DB, CC BY 4.0 · drawn by Jules Roy'
 /** Printed wherever a shape appears. */
 export const OUTLINE_RULE = 'The outline is F1DB’s, for every layout; the trace is OpenStreetMap’s, where it exists.'
 
+/**
+ * Printed under a GRID of outlines, where one card sits beside another and
+ * invites the comparison it cannot answer (VD-44). Every path is fitted to
+ * its own 500-unit box, so Silverstone's 1950 airfield perimeter is drawn
+ * exactly as large as the circuit that replaced it, 27 % longer with ten more
+ * corners. Nothing in the outline data can fix that — a drawing carries no
+ * scale — so the page says so instead.
+ */
+export const OUTLINE_SCALE_NOTE =
+  'Each one is fitted to its own box, so these are not to scale: a longer layout is not drawn larger, ' +
+  'and none of them carries a direction, a position or a start line.'
+
 /** The sources page's paragraph: the credit, what it obliges, and what was changed. */
 export const OUTLINES_NOTE = `${OUTLINE_CREDIT}. Carry that credit with any outline you take. Shown here in the site’s own ink at a constant stroke, otherwise as drawn. ${OUTLINE_RULE}`
 

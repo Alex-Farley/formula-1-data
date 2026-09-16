@@ -1,14 +1,13 @@
-import { useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { Confidence, Fields, Note, Onward, Page, Section, Stats } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
-import LapFigure from '../components/LapFigure.jsx'
 import { OutlineCard } from '../components/Outline.jsx'
-import { buildLap } from '../lib/lap.js'
-import { rows, useQueries } from '../data/useQuery.js'
+import { currentProgress } from '../data/client.js'
+import { rows, row as firstRow, useQueries } from '../data/useQuery.js'
 import { number, span } from '../lib/format.js'
-import { OUTLINE_FIGURES_NOTE, OUTLINE_RULE, outlineCaption } from '../lib/outline.js'
+import { OUTLINE_FIGURES_NOTE, OUTLINE_RULE, OUTLINE_SCALE_NOTE, outlineCaption } from '../lib/outline.js'
+import { TRACE_NOT_LOADED, TRACE_RULE, noTrace, odblCredit } from '../lib/trace.js'
 
 import { NOT_YET_RUN } from '../lib/site.js'
 import {
@@ -20,6 +19,7 @@ import {
   RACE_COLUMNS,
   TEAMS,
   TEAM_COLUMNS,
+  TRACE_COVERAGE,
   WINNERS,
   WINNER_COLUMNS,
 } from '../queries/circuit.js'
@@ -64,6 +64,7 @@ export default function Circuit() {
     geometry: [GEOMETRY, [id]],
     layouts: [LAYOUTS, [id]],
     outlines: [OUTLINES, [id]],
+    coverage: [TRACE_COVERAGE],
     races: [RACES, [id]],
     winners: [WINNERS, [id]],
     teams: [TEAMS, [id]],
@@ -92,6 +93,11 @@ export default function Circuit() {
 
 function CircuitBody({ circuit, data }) {
   const geometry = rows(data, 'geometry')
+  // Whether the ODbL overlay merged, which is a different question from
+  // whether this circuit has a row in it (IX-31). mergeGeometry() in the
+  // worker returns null when the file did not arrive.
+  const overlay = currentProgress().manifest?.geometry ?? null
+  const coverage = firstRow(data, 'coverage')
   const layouts = rows(data, 'layouts')
   const outlines = rows(data, 'outlines')
   const races = rows(data, 'races')
@@ -124,24 +130,18 @@ function CircuitBody({ circuit, data }) {
         />
       </Section>
 
-      {geometry.length > 0 && (
-        <Section
-          title="The shape of it"
-          note="Traced from OpenStreetMap, and measured against the published length. It ships as a separate file under ODbL, which your browser merged in to draw this."
-        >
-          <div className="map-grid">
-            {geometry.map((row) => (
-              <CircuitLap key={`${row.circuit_id}-${row.layout_key}`} geometry={row} circuit={circuit} />
-            ))}
-          </div>
-        </Section>
-      )}
-
-      {/* Beside the trace, every layout the championship has raced here as
-          F1DB draws it (AF-03) — the historic ones no trace can hold. The
-          rule is the section's note, once, rather than under each card. */}
+      {/* AF-23: this page used to draw the circuit twice — the ODbL trace and
+          then every layout F1DB draws (AF-03) — two pictures of one thing,
+          from two sources, with no rule for which to believe. The outline is
+          the picture: it covers 79 of the 80 venues and every historic layout
+          no trace can ever hold. The rule and the caveat are the section's
+          note, once, rather than under each card. */}
       {outlines.length > 0 && (
-        <Section title="Every layout raced here" count={`${outlines.length}`} note={OUTLINE_RULE}>
+        <Section
+          title="Every layout raced here"
+          count={`${outlines.length}`}
+          note={`${OUTLINE_RULE} ${OUTLINE_SCALE_NOTE}`}
+        >
           <div className="outline-grid">
             {outlines.map((row) => (
               <OutlineCard
@@ -154,6 +154,20 @@ function CircuitBody({ circuit, data }) {
             ))}
           </div>
         </Section>
+      )}
+
+      {geometry.length > 0 ? (
+        <Section title="Traced and measured" note={TRACE_RULE}>
+          {geometry.map((row) => (
+            <CircuitTrace key={`${row.circuit_id}-${row.layout_key}`} geometry={row} circuit={circuit} />
+          ))}
+        </Section>
+      ) : (
+        // IX-31: a circuit with no trace and a trace that did not arrive were
+        // the same silent page. Which of the two this is cannot be told from
+        // this circuit's rows — without the overlay every circuit has none —
+        // so it is told from whether the overlay merged at all.
+        <Section note={overlay ? noTrace(coverage?.traced, coverage?.circuits) : TRACE_NOT_LOADED} />
       )}
 
       {layouts.length > 0 && (
@@ -273,39 +287,64 @@ function CircuitBody({ circuit, data }) {
 }
 
 /**
- * The traced centreline, on the circuit's own page: one line, one colour,
- * with the direction of travel where the register states one. The
- * attribution stays attached to the drawing because the geometry is the one
- * ODbL table.
+ * What the trace measures, on the circuit's own page.
+ *
+ * AF-23 demoted it from a drawing to its facts: the outlines above are the
+ * picture of this circuit, and the trace is the thing they cannot be — a
+ * length taken off the map and checked against the one this register
+ * publishes, which is the only independent check the 25 traced circuits have
+ * on their own stated length. `closes` is the build's verdict on the walk,
+ * not a fresh stitch in the browser: build.py decides it when the row is
+ * admitted and verify.py re-derives it on every build.
+ *
+ * The attribution stays attached to the figures because a measurement taken
+ * from an ODbL database is as much that database's as a drawing of it was.
  */
-function CircuitLap({ geometry, circuit }) {
-  const lap = useMemo(
-    () => buildLap({ ...geometry, name: circuit.name, direction: circuit.direction }),
-    [geometry, circuit.name, circuit.direction],
-  )
-  if (!lap) return null
-  const delta = geometry.delta_pct
+function CircuitTrace({ geometry, circuit }) {
+  const { delta_pct: delta, measured_km: measured, published_km: published } = geometry
+  const both = measured !== null && measured !== undefined && published !== null && published !== undefined
   return (
-    <figure className="photo lapfigure-card">
-      <LapFigure lap={lap} />
-      <figcaption>
-        Traced from OpenStreetMap relation{' '}
-        <a
-          href={`https://www.openstreetmap.org/relation/${geometry.osm_relation}`}
-          target="_blank"
-          rel="noreferrer noopener"
-        >
-          {geometry.osm_relation}
-        </a>{' '}
-        · {number(geometry.node_count)} points
-        {!lap.complete && ' · the trace does not close'}
-        {' '}· measures {geometry.measured_km?.toFixed(3)} km against{' '}
-        {geometry.published_km?.toFixed(3)} km published
-        {delta !== null && delta !== undefined && ` (${delta > 0 ? '+' : ''}${delta.toFixed(2)}%)`}
-        {circuit.direction && ` · raced ${circuit.direction}`}
-        {lap.complete && circuit.direction && '; the arrow is the direction, not the start'}
-        <br />© OpenStreetMap contributors, {geometry.licence || 'ODbL 1.0'}.
-      </figcaption>
-    </figure>
+    <>
+      <Fields
+        items={[
+          {
+            label: 'OpenStreetMap relation',
+            value: (
+              <a
+                href={`https://www.openstreetmap.org/relation/${geometry.osm_relation}`}
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                {geometry.osm_relation}
+              </a>
+            ),
+          },
+          geometry.layout_key ? { label: 'Layout traced', value: geometry.layout_key } : null,
+          {
+            label: 'Measured',
+            value: both
+              ? `${measured.toFixed(3)} km against ${published.toFixed(3)} km published here${
+                  delta === null || delta === undefined ? '' : ` (${delta > 0 ? '+' : ''}${delta.toFixed(2)}%)`
+                }`
+              : null,
+          },
+          { label: 'Points', value: number(geometry.node_count) },
+          {
+            // build.py sums every way in the relation, whether or not they
+            // walk into a ring, so a trace with a hole still has an honest
+            // length — it is just not a lap. Las Vegas measures within 2 %
+            // of its published length and is still missing a way.
+            label: 'The walk',
+            value: geometry.closes
+              ? 'closes into one lap'
+              : `does not close — ${number(geometry.loose_ends)} loose way ${
+                  geometry.loose_ends === 1 ? 'end' : 'ends'
+                }, so the length above is the ways added up rather than a lap walked round`,
+          },
+          circuit.direction ? { label: 'Raced', value: circuit.direction } : null,
+        ]}
+      />
+      <p className="faint">{odblCredit(geometry.licence)}</p>
+    </>
   )
 }

@@ -196,7 +196,7 @@ the bug nobody finds until they share a link.
 | `/races`, `/races/:year/:round` | Every round; the full classification, the qualifying sheet and the pit stops |
 | `/drivers`, `/drivers/:id` | The register, and a career counted from the race records |
 | `/constructors`, `/constructors/:id` | Records, lineage chains, every win, every car built |
-| `/circuits`, `/circuits/:id` | The register, traced centrelines, layouts as they changed |
+| `/circuits`, `/circuits/:id` | The register, what each trace measures, every layout as F1DB draws it |
 | `/cars`, `/cars/:id` | The chassis register, specifications and photographs |
 | `/records` | Published records, and leaderboards derived on every load |
 | `/data` | The database itself: the files, the version and build date, how far to trust it, the licence position |
@@ -244,11 +244,17 @@ calendar or a run of seasons without going back to a list.
 ## Traced circuit geometry
 
 `circuit_geometry.centreline` is a GeoJSON MultiLineString: the ways of an
-OpenStreetMap relation, **in no particular order**. Drawing that needs nothing
-more — every way is a line — but measuring along it needs the ways stitched
-end to end into one ordered ring first. `src/lib/lap.js` does that; `LapFigure`
-(the traced centreline on a circuit's own page) and the thumbnails on
-`/circuits` are what it buys.
+OpenStreetMap relation, **in no particular order**. Measuring along it needs
+the ways stitched end to end into one ordered ring first, and `src/lib/lap.js`
+does that — a second implementation of `build.py`'s own walk, whose unit tests
+pin its metre to the figure `_haversine` returns.
+
+**The site does not draw it.** AF-23 settled which of the two drawings of a
+circuit leads: F1DB's outlines, which cover 79 of the 80 venues and every
+historic layout, are the picture; the trace is the measurement beside it — the
+relation, the points, the measured length against the published one, whether
+the walk closes — and the ODbL credit travels with those figures exactly as it
+travelled with the line.
 
 **The one-metre join is measured, not chosen.** Ways in a relation share their
 junction nodes exactly, so a real join is not "close", it is identical: 1,201

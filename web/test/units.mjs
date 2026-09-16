@@ -30,7 +30,7 @@ import {
   text,
   yearList,
 } from '../src/lib/format.js'
-import { metresBetween, runsFor, signedArea, stitch } from '../src/lib/lap.js'
+import { metresBetween, stitch } from '../src/lib/lap.js'
 import { fold, rank } from '../src/lib/search.js'
 import { trackPath } from '../src/lib/track.js'
 import { DRIVER_COLUMNS } from '../src/queries/drivers.js'
@@ -145,29 +145,6 @@ describe('yearList', () => {
 
   it('is an em dash for nothing', () => {
     assert.equal(yearList(null), EMPTY)
-  })
-})
-
-describe('runsFor', () => {
-  it('draws a lap as one run, one colour (AF-21: the turn-rate ramp was cut with the atlas)', () => {
-    const lap = { path: 'M0 0L1 0L2 0L3 0L4 0L5 0' }
-    const runs = runsFor(lap)
-    assert.equal(runs.length, 1)
-    assert.equal(runs[0].d, lap.path)
-    assert.ok(Number.isFinite(runs[0].width) && runs[0].width > 0)
-  })
-  it('is empty for no lap', () => {
-    assert.deepEqual(runsFor(null), [])
-  })
-})
-
-describe('signedArea', () => {
-  it('is positive for a ring walked clockwise on screen, where y grows downward', () => {
-    // Top-left, top-right, bottom-right, bottom-left, back: clockwise as drawn.
-    const cw = { x: [0, 1, 1, 0, 0], y: [0, 0, 1, 1, 0] }
-    assert.ok(signedArea(cw) > 0)
-    const acw = { x: [0, 0, 1, 1, 0], y: [0, 1, 1, 0, 0] }
-    assert.ok(signedArea(acw) < 0)
   })
 })
 
