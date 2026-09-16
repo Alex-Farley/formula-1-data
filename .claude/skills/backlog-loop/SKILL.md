@@ -22,9 +22,10 @@ driving context stop growing.
 The rules are in `CLAUDE.md`; the per-item procedure, the pace table and
 what never slides are in `.claude/skills/backlog-item/SKILL.md`, which is
 their only normative copy; the scripts the fork uses are in this folder: `next.py` (reads the queue), `file.py` (writes to
-it), `precheck.sh`, `ci-wait.sh`, `merge-main.py`, `review-prompt.md`, and
+it), `precheck.sh`, `ci-wait.sh`, `merge-main.py`, `review-prompt.md`,
 `progress.sh`, which the fork calls at each stage to append one line to
-`.claude/loop/progress.log` - the only view of the fork a person has.
+`.claude/loop/progress.log` - the only view of the fork a person has - and
+`tokens.py`, which you run after the fork returns.
 
 ## Arguments
 
@@ -87,13 +88,28 @@ Two words, either order, both optional.
      background-task notification came from a fork that has already
      returned: record it on the PR as a comment so the next fork finds it,
      and never act on it here.
-4. Between items, nothing else: no summary of the fork's work, no reviewer
-   report pasted back, one line per item. The PR comment is the record.
+4. **Say what the item cost**, in one line, after the contract line:
+   `python3 .claude/skills/backlog-loop/tokens.py --item <ID>` and print only
+   its three role totals and the review percentage. It reads Claude Code's own
+   transcripts - the driver's, the fork's and each reviewer's - so it costs a
+   few hundred tokens and needs nothing from the fork. Do this for `MERGED`
+   and `SKIPPED` alike; a skip that cost 200,000 tokens is worth knowing about.
+   Compare items with it, never quote it as a bill: it is raw API usage, not
+   the Agent tool's weighted `subagent_tokens` and not a plan percentage.
+5. Between items, nothing else: no summary of the fork's work, no reviewer
+   report pasted back, one line per item plus its cost line. The PR comment is
+   the record.
 
 ## When the loop stops
 
 End with the stock-take, once, in at most five lines: merged this run, open
 PRs, decisions needed, what `next.py` says is next. Then stop.
+
+Where the tokens went, measured on the `AF-23+VD-44+IX-31` run of 2026-09-16
+(`tokens.py --item AF-23`), and worth having in mind before optimising
+anything: **the fork was 71 % of new tokens, review 23 %, the driver 6 %** -
+763,000, 243,000 and 66,000, with the fork also carrying 24.7 million cache
+reads to review's 3.4 million. Review is the visible cost and the smaller one.
 
 ## Running it cheaply
 
