@@ -801,6 +801,27 @@ try {
     await go('/circuits', 'Circuits')
     is((await tableRows())[0], count('SELECT COUNT(*) FROM v_circuits'), 'the circuit register')
 
+    // AF-23: the strip of 25 thumbnails was the third place the site drew the
+    // same circuit. The cards carry what each trace measures instead, and the
+    // ODbL credit travels with the figures now that no line is drawn from them.
+    if (hasGeometry) {
+      await page.waitForSelector('.lapcard', { timeout: 20000 })
+      const register = await page.$eval('#root main', (n) => n.textContent)
+      is(
+        await page.$$eval('.lapcard svg', (n) => n.length),
+        0,
+        'the register does not draw the circuits a third time',
+      )
+      is(
+        await page.$$eval('.lapcard', (n) => n.length),
+        count('SELECT COUNT(DISTINCT circuit_id) FROM geo.circuit_geometry'),
+        'every traced centreline has a card',
+      )
+      truthy(
+        register.includes('OpenStreetMap contributors'),
+        'the ODbL credit travels with the figures on the register',
+      )
+    }
   })
 
   await section('/circuits/silverstone', async () => {
@@ -826,6 +847,20 @@ try {
       outlinesHere,
       'the static page draws the same outlines',
     )
+    // AF-23/VD-44: the cards are all fitted to one box, so the page says they
+    // are not to scale - in both renderers, from the one string.
+    truthy(
+      (await page.$eval('#root main', (n) => n.textContent)).includes('not to scale') &&
+        staticCircuit.includes('not to scale'),
+      'the app and the static page both say the outlines are not to scale',
+    )
+    // IX-31: Silverstone has no trace, and 55 of the 80 are in the same
+    // position. Saying nothing made an untraced circuit and a failed download
+    // the same page.
+    truthy(
+      (await page.$eval('#root main', (n) => n.textContent)).includes('No traced centreline for this circuit'),
+      'a circuit with no trace says so',
+    )
 
     // Skipped rather than failed when the overlay is absent: a build without
     // f1-geometry.db is a legitimate one, and the track maps are the only thing
@@ -837,18 +872,24 @@ try {
 
       note(`\n/circuits/${traced}  (traced geometry)`)
       await go(`/circuits/${traced}`)
-      await page.waitForSelector('svg.lapfigure path', { timeout: 20000 }).catch(() => null)
-      const drawn = await page
-        .$$eval('svg.lapfigure path', (nodes) => nodes.reduce((n, node) => n + (node.getAttribute('d')?.length ?? 0), 0))
-        .catch(() => 0)
-      atLeast(drawn, 200, 'the centreline drew a path')
+      await page.waitForSelector('#root main a[href*="openstreetmap.org/relation"]', { timeout: 20000 })
+      const relation = one('SELECT osm_relation FROM geo.circuit_geometry WHERE circuit_id = ?', traced)
+      const measured = one('SELECT measured_km FROM geo.circuit_geometry WHERE circuit_id = ?', traced)
+      const traceText = await page.$eval('#root main', (n) => n.textContent)
       truthy(
-        (await page.$$eval('figure.photo figcaption', (n) => n.map((x) => x.textContent).join(' '))).includes(
-          'OpenStreetMap',
-        ),
-        'the ODbL attribution travels with the geometry',
+        await page.$(`#root main a[href="https://www.openstreetmap.org/relation/${relation}"]`),
+        'the relation the trace came from is named and linked',
       )
-      pass(`the overlay merged in the browser — ${traced} drew from f1-geometry.db`)
+      truthy(traceText.includes(`${measured.toFixed(3)} km`), 'the measured length is the one the build stored')
+      truthy(traceText.includes('OpenStreetMap contributors'), 'the ODbL attribution travels with the figures')
+      // AF-23: one circuit, one picture. The trace is not drawn a second time
+      // beside the outlines, here or anywhere.
+      truthy(!(await page.$('svg.lapfigure')), 'the trace is stated, not drawn again')
+      const headings = await page.$$eval('#root main h2', (n) => n.map((h) => h.textContent))
+      const outlineAt = headings.findIndex((h) => h.startsWith('Every layout raced here'))
+      const traceAt = headings.findIndex((h) => h.startsWith('Traced and measured'))
+      truthy(outlineAt >= 0 && traceAt > outlineAt, 'the outlines lead and the trace follows them')
+      pass(`the overlay merged in the browser — ${traced} read its figures from f1-geometry.db`)
     }
 
   })
@@ -1021,23 +1062,27 @@ try {
 
   })
 
-  // The circuit page draws its lap with LapFigure: one black line, not
-  // several coloured by corner-radius band (AF-21 cut the atlas and its
-  // colour ramp).
-  await section('/circuits/spa  (the lap)', async () => {
+  // AF-23: the trace is the measurement, not a second drawing of a shape the
+  // F1DB outlines already draw. What the page prints is what the build
+  // stored, and a trace with a hole in it says so rather than claiming a lap.
+  await section('/circuits/spa  (the trace, stated not drawn)', async () => {
     await go('/circuits/spa', 'Circuit de Spa-Francorchamps')
-    await page.waitForSelector('svg.lapfigure path', { timeout: 20000 })
-    is(await page.$$eval('svg.lapfigure path', (els) => els.length), 1, 'the lap is drawn as one path, one colour')
-    truthy(await page.$('svg.lapfigure polygon'), 'the lap carries its direction arrow')
-    truthy(await page.$('.lapfigure-card figcaption a[href*="openstreetmap.org/relation"]'), 'the drawing keeps its attribution')
-    // A trace that does not close draws no arrow and claims none.
-    const open = one("SELECT circuit_id FROM geo.circuit_geometry WHERE closes = 0 ORDER BY node_count DESC LIMIT 1")
-    await go(`/circuits/${open}`)
-    await page.waitForSelector('svg.lapfigure path', { timeout: 20000 })
+    await page.waitForSelector('#root main a[href*="openstreetmap.org/relation"]', { timeout: 20000 })
+    const spa = await page.$eval('#root main', (n) => n.textContent)
+    truthy(spa.includes('closes into one lap'), 'a trace that closes says it closes')
     truthy(
-      !(await page.$('svg.lapfigure polygon')) &&
-        !(await page.$eval('.lapfigure-card figcaption', (n) => n.textContent)).includes('the arrow is'),
-      `a trace that does not close (${open}) has no arrow and no caption about one`,
+      spa.includes(`${one("SELECT published_km FROM geo.circuit_geometry WHERE circuit_id = 'spa'").toFixed(3)} km published here`),
+      'the measurement is stated against the length this register publishes',
+    )
+    // A trace that does not close claims no lap, and says how it is broken.
+    const open = one('SELECT circuit_id FROM geo.circuit_geometry WHERE closes = 0 ORDER BY node_count DESC LIMIT 1')
+    const ends = one('SELECT loose_ends FROM geo.circuit_geometry WHERE circuit_id = ?', open)
+    await go(`/circuits/${open}`)
+    await page.waitForSelector('#root main a[href*="openstreetmap.org/relation"]', { timeout: 20000 })
+    const broken = await page.$eval('#root main', (n) => n.textContent)
+    truthy(
+      broken.includes('does not close') && broken.includes(`${ends} loose way end`),
+      `a trace that does not close (${open}) says so, and how many ends are loose`,
     )
 
   })

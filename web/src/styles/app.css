@@ -1347,29 +1347,6 @@ figure.photo figcaption a {
   grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
 }
 
-/* ------------------------------------------------------------- track map */
-
-/* One traced layout should not stretch to the width of the page, and four
-   should not each be a postage stamp. */
-.map-grid {
-  display: grid;
-  gap: 16px;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 460px));
-}
-
-.lapfigure {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
-.lapfigure-card .lapfigure {
-  background: var(--stage);
-  border-radius: var(--radius);
-  padding: 12px;
-  box-sizing: border-box;
-}
-
 /* ------------------------------------------------------- circuit outlines */
 
 /* F1DB's drawing of a layout (lib/outline.js): the current ink at a constant
@@ -2247,9 +2224,10 @@ figure.figure > figcaption span {
   color: inherit;
 }
 
-/* ---------------------------------------------------------- lap thumbnails
-   A circuit with a traced centreline can show what it looks like, which is
-   the one thing a table of lengths and corner counts cannot. */
+/* ------------------------------------------------------- traced centrelines
+   What each of the twenty-five measures, one card each. The shape of a
+   circuit is drawn on its own page from F1DB's outlines (AF-23); these carry
+   the measurement, which is the one thing an outline cannot. */
 .lapgrid {
   list-style: none;
   margin: 0;
@@ -2274,15 +2252,9 @@ figure.figure > figcaption span {
   border-color: var(--rule-strong);
 }
 
-.lapcard svg {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
 /* Circuit names run from one line ("Montjuic") to three ("Autodromo Jose
    Carlos Pace (Interlagos)"), which left the row of cards ragged. Two lines'
-   worth of space is reserved so the shapes stay on one baseline. */
+   worth of space is reserved so the figures under them stay on one baseline. */
 .lapcard b {
   display: block;
   min-height: 2.2em;
@@ -2291,7 +2263,6 @@ figure.figure > figcaption span {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.01em;
-  margin-top: 8px;
   line-height: 1.1;
 }
 

@@ -30,6 +30,16 @@ export const CIRCUIT = `
 /** The centreline is a few hundred kilobytes of coordinates; only ever fetched for the one circuit being looked at. */
 export const GEOMETRY = `SELECT * FROM circuit_geometry WHERE circuit_id = ?`
 
+/**
+ * How much of the register is traced, for the line a circuit without a trace
+ * shows (IX-31). Counted rather than written into the sentence: "25 of the
+ * 80" is true today, and a figure typed into prose goes stale in silence.
+ */
+export const TRACE_COVERAGE = `
+  SELECT (SELECT COUNT(DISTINCT circuit_id) FROM circuit_geometry) AS traced,
+         (SELECT COUNT(*) FROM circuits) AS circuits
+`
+
 export const LAYOUTS = `
   SELECT * FROM circuit_layouts WHERE circuit_id = ? ORDER BY from_year
 `

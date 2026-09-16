@@ -172,6 +172,7 @@ import {
   OUTLINE_BY,
   OUTLINE_CREDIT,
   OUTLINE_RULE,
+  OUTLINE_SCALE_NOTE,
   OUTLINE_VIEWBOX,
   OUTLINES_NOTE,
   STATE_WORDS,
@@ -1343,7 +1344,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
         ${prose(c.notes)}
         ${
           outlinesHere.length
-            ? `<h2>Every layout raced here</h2>${note(OUTLINE_RULE)}<div class="outline-grid">${outlinesHere
+            ? `<h2>Every layout raced here</h2>${note(`${OUTLINE_RULE} ${OUTLINE_SCALE_NOTE}`)}<div class="outline-grid">${outlinesHere
                 .map((row) => outlineCard(row.path, c.name, row.f1db_layout_id, outlineCaption(row)))
                 .join('')}</div>`
             : ''

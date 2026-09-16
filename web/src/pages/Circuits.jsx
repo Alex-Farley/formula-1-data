@@ -4,8 +4,9 @@ import { Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { Chips, Filters, SearchField, Select } from '../components/Filters.jsx'
+import { currentProgress } from '../data/client.js'
 import { rows as pick, useQueries } from '../data/useQuery.js'
-import { pathOf, project, stitch } from '../lib/lap.js'
+import { TRACE_COLUMN_UNKNOWN, TRACE_NOT_LOADED, traceRegisterNote } from '../lib/trace.js'
 import { CIRCUITS, CIRCUIT_COLUMNS, CIRCUITS_FOOTER, TRACED } from '../queries/circuits.js'
 
 /**
@@ -37,55 +38,26 @@ const APP = {
 }
 
 /**
- * The traced laps, for the strip at the top of the page.
+ * The traced centrelines, for the cards at the top of the page.
  *
- * 25 of the 80 circuits have a centreline. That is a minority, and the strip
- * says so rather than implying the other 55 are missing something — a trace
- * exists where somebody could match an OSM relation to a length this database
+ * 25 of the 80 circuits have one. That is a minority, and the section says so
+ * rather than implying the other 55 are missing something — a trace exists
+ * where somebody could match an OSM relation to a length this database
  * already held, and most venues in the register have been gone for decades.
+ *
+ * AF-23: what each card carries is the measurement, not the shape. This was
+ * the third place the site drew the same circuit, after the trace and the
+ * F1DB outlines on the circuit's own page; the outline is the picture now,
+ * and the centreline is what it cannot be. The centreline itself is no longer
+ * read here at all, which is a few hundred kilobytes of coordinates the
+ * register no longer parses to draw 25 thumbnails.
  */
 const TRACES = `
-  SELECT g.circuit_id, c.name, c.country, g.measured_km, g.centreline, g.closes
+  SELECT g.circuit_id, c.name, c.country, g.measured_km, g.closes, g.licence
     FROM circuit_geometry g
     JOIN circuits c ON c.id = g.circuit_id
    ORDER BY c.name
 `
-
-/** One circuit's outline, drawn small enough to read as a shape. */
-function LapThumb({ trace }) {
-  // stitch() takes the centreline as stored and parses it itself — handing it
-  // an already-extracted coordinates array makes it look for .coordinates on
-  // an array, find nothing, and return null for every circuit.
-  const shape = useMemo(() => {
-    const walk = stitch(trace.centreline)
-    if (!walk?.ring?.length) return null
-    const flat = project(walk.ring)
-    // pathOf's `to` is exclusive and defaults to the full length. Passing
-    // length - 1 dropped the point that closes the ring, leaving a gap of up
-    // to 40 m on the thumbnail; LapFigure draws the same rings closed.
-    return { d: pathOf(flat.x, flat.y), bounds: flat.bounds }
-  }, [trace.centreline])
-
-  if (!shape) return null
-  const { x0, x1, y0, y1 } = shape.bounds
-  const w = x1 - x0
-  const h = y1 - y0
-  const side = Math.max(w, h) * 1.14
-  const box = `${x0 - (side - w) / 2} ${y0 - (side - h) / 2} ${side} ${side}`
-
-  return (
-    <svg viewBox={box} role="img" aria-label={`The lap at ${trace.name}`} style={{ aspectRatio: '1' }}>
-      <path
-        d={shape.d}
-        fill="none"
-        stroke="var(--accent)"
-        strokeWidth={side / 44}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
 
 export default function Circuits() {
   const state = useQueries({ register: [CIRCUITS], traces: [TRACES] })
@@ -95,35 +67,64 @@ export default function Circuits() {
       lede="Eighty venues, from airfield perimeters to street courses laid out for a single season. Sorted by races held: open one for how its shape changed, who has won there most, and every Grand Prix it has staged."
     >
       <Result state={state} skeleton>
-        {(data) => (
-          <>
-            <Section
-              title="The traced laps"
-              count={`${pick(data, 'traces').length} of ${pick(data, 'register').length}`}
-            >
-              <p className="note" style={{ marginTop: 0 }}>
-                Drawn from the centreline each one was matched to, each at its own scale so the
-                shape reads rather than the size.
-              </p>
-              <ul className="lapgrid">
-                {pick(data, 'traces').map((trace) => (
-                  <li key={trace.circuit_id}>
-                    <Link to={`/circuits/${trace.circuit_id}`} className="lapcard">
-                      <LapThumb trace={trace} />
-                      <b>{trace.name}</b>
-                      <span>
-                        {trace.country} · {trace.measured_km?.toFixed(3)} km
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </Section>
-            <Section title="Every venue" count={`${pick(data, 'register').length} circuits`}>
-              <Register rows={pick(data, 'register')} />
-            </Section>
-          </>
-        )}
+        {(data) => {
+          const traces = pick(data, 'traces')
+          const register = pick(data, 'register')
+          // IX-31: "0 of 80" is a claim about the database, made in the
+          // database's voice, when what happened is that an ODbL file did not
+          // arrive — and the register's Traced column empties with it, so the
+          // page is internally consistent and wrong throughout. The overlay's
+          // own state is the only thing that can tell the two apart.
+          const overlay = currentProgress().manifest?.geometry ?? null
+          return (
+            <>
+              <Section
+                title="The traced centrelines"
+                count={overlay ? `${traces.length} of ${register.length}` : null}
+              >
+                {/* One credit for the set, from the rows themselves: every
+                    row of circuit_geometry states the same licence today, and
+                    a circuit's own page prints its own row's. */}
+                <p className="note" style={{ marginTop: 0 }}>
+                  {overlay ? traceRegisterNote(traces[0]?.licence) : TRACE_NOT_LOADED}
+                </p>
+                {overlay && traces.length > 0 && (
+                  <ul className="lapgrid">
+                    {traces.map((trace) => (
+                      <li key={trace.circuit_id}>
+                        <Link to={`/circuits/${trace.circuit_id}`} className="lapcard">
+                          <b>{trace.name}</b>
+                          <span>{trace.country}</span>
+                          <span>
+                            {trace.measured_km?.toFixed(3)} km measured
+                            {/* Strictly 0, not falsy: a NULL verdict is
+                                unestablished, not a trace that does not
+                                close. */}
+                            {trace.closes === 0 ? ' · does not close' : ''}
+                          </span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Section>
+              {/* The Traced column is answered from the same overlay, so
+                  without it every row reads as an em dash — the register
+                  saying "unestablished" eighty times when what happened was a
+                  download (IX-31). The column stays, because dropping a column
+                  would make the static and app tables disagree; what it means
+                  today is said beside it, and the filter that reads it goes,
+                  because it would return nothing. */}
+              <Section
+                title="Every venue"
+                count={`${register.length} circuits`}
+                note={overlay ? undefined : TRACE_COLUMN_UNKNOWN}
+              >
+                <Register rows={register} traceable={Boolean(overlay)} />
+              </Section>
+            </>
+          )
+        }}
       </Result>
 
       <Onward
@@ -136,7 +137,7 @@ export default function Circuits() {
   )
 }
 
-function Register({ rows }) {
+function Register({ rows, traceable = true }) {
   const [term, setTerm] = useState('')
   const [country, setCountry] = useState('')
   const [kind, setKind] = useState('')
@@ -172,7 +173,10 @@ function Register({ rows }) {
           label="Filter circuits by type"
           value={kind}
           onChange={setKind}
-          options={[['', 'All'], ...types.map((t) => [t, t]), ['traced', 'Traced']]}
+          // Without the overlay every row's Traced is unestablished, so the
+          // chip would filter eighty circuits down to none and read as an
+          // answer (IX-31).
+          options={[['', 'All'], ...types.map((t) => [t, t]), ...(traceable ? [['traced', 'Traced']] : [])]}
         />
       </Filters>
 
