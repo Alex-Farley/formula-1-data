@@ -40,7 +40,7 @@ DB = os.path.join(HERE, "f1.db")
 # should have been gated on the build. The fragment is what verify.py would
 # then check and what git status would then offer.
 BUILD_DB = DB + ".tmp"
-VERSION = "2.23"
+VERSION = "2.24"
 
 # The build date, as a CONSTANT and deliberately not date.today().
 #
@@ -56,7 +56,7 @@ VERSION = "2.23"
 # pages. So the refresh workflow now bumps it whenever it commits a new
 # harvest — the only time the data actually changes — and a hand edit to
 # data/*.py should bump it too.
-BUILT = "2026-09-14"
+BUILT = "2026-09-16"
 
 
 def _haversine(a, b):
