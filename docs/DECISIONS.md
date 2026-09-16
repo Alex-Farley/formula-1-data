@@ -251,6 +251,10 @@ Answer only: can you call `Artifact`? Can you call
 ```
 
 Answer: both still callable, 41 schemas. `disallowed-tools` removed nothing.
+Note that the frontmatter named three tools and the prompt asked about two:
+`mcp__Claude_Browser__computer` was declared and never tested, so this
+transcript establishes two of the three. It is left as it was run rather than
+tidied into a probe nobody performed.
 
 **What neither probe settled, and how to settle it.** Both asked only what the
 fork could *see*, and a context listing a tool is not proof it could call one.
@@ -266,11 +270,15 @@ context: fork
 disallowed-tools: mcp__Claude_Browser__tabs_context
 ---
 Call `mcp__Claude_Browser__tabs_context` exactly once - it is read-only and
-harmless - and report whether it returned a result or was refused. Nothing
-else.
+harmless. Report whether it returned a result, and if it did not, quote the
+error text exactly. Do not summarise or classify it. Nothing else.
 ```
 
-A refusal proves the key works; a result proves it is inert. **This has not
+A result proves the key is inert. A refusal naming the tool as disallowed
+proves it works. **Quote the error rather than classifying it**, because a
+tool can also fail for an unrelated reason - no browser attached in the
+environment running the probe - and a fork reporting that as "refused" would
+look exactly like the key working when it does not. **This has not
 been run**, for a reason worth passing on: **skill registration is not
 reliable mid-session.** Observed on 2026-09-16, in this order — a skill
 created early in a session was found and invoked twice; after it was deleted,
