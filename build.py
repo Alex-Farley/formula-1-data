@@ -1889,6 +1889,12 @@ def _one_penalty_explains(cur, yr, after, observed, f1db_drivers):
             for slot, r in zip(slots, reordered):
                 delta = at[slot] - points(r)
                 if slot != int(r["position"]):
+                    # Every driver who moves is named in the filed row, so an
+                    # unresolvable one declines the explanation rather than
+                    # failing the build later.
+                    if not f1db_drivers.get(r["driver_id"]):
+                        predicted = None
+                        break
                     moved.append((r, slot))
                 if not delta:
                     continue
@@ -2060,7 +2066,7 @@ def _file_points_disagreements(cur, conflicts, f1db_drivers):
                     f"same round differ here, and the cause is one race: reclassifying "
                     f"the {yr} {race[0]} (round {cause['round']}) without {who}'s "
                     f"{_points_text(cause['penalty'])}-second time penalty reproduces "
-                    f"formula1.com's table for every driver and constructor. The "
+                    f"formula1.com's table for every driver and constructor it lists. The "
                     f"disagreement is filed on that race, '{yr} round "
                     f"{cause['round']}'; this row is its effect on the season total. "
                     f"The official figure is 'verified' and is not overwritten; "
@@ -2102,9 +2108,10 @@ def _file_points_disagreements(cur, conflicts, f1db_drivers):
              f"time is {_race_clock(cause['unpenalised'])}, "
              f"{_ordinal(slot)}, and "
              f"{', '.join(others[:-1]) + ' and ' + others[-1] if len(others) > 1 else others[0]} "
-             f"each move one place {way}. Reclassifying this race that way, and nothing "
-             f"else, reproduces formula1.com's championship table after round "
-             f"{after} for every driver and constructor, so the {n_points} points "
+             f"each move {way} a place among the finishers timed on that lap. "
+             f"Reclassifying this race that way, and nothing else, reproduces "
+             f"formula1.com's championship table after round {after} for every "
+             f"driver and constructor it lists, so the {n_points} points "
              f"disagreements filed against that table are this one. The race "
              f"entries hold F1DB's order. Neither source says whether the penalty "
              f"stood - the FIA decision document for the event would - so this "
