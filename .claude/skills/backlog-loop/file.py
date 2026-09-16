@@ -4,7 +4,7 @@ Write to the queue: file an item, move one between statuses, mark one.
 
     python3 .claude/skills/backlog-loop/file.py new PD "Title." --size S --status Next --body-file note.md
     python3 .claude/skills/backlog-loop/file.py new AF "Title." --size M --body "one paragraph" --decision
-    python3 .claude/skills/backlog-loop/file.py new CR "Title." --size S --body "..." --where "build.py, verify.py"
+    python3 .claude/skills/backlog-loop/file.py new CR "Title." --size S --body "..." --where "web/src/pages/Glossary.jsx, web/src/queries/glossary.js"
     python3 .claude/skills/backlog-loop/file.py status 123 "In progress"     # or Now, Next, Someday, Done
     python3 .claude/skills/backlog-loop/file.py blocked 123 "why, in one clause"
     python3 .claude/skills/backlog-loop/file.py decision 123 "what a person must decide"
@@ -46,6 +46,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))  # behind the stdlib
 import gh_preflight  # noqa: E402  (a sibling script, not an installed package)
 import loop_cache  # noqa: E402
+import next as next_py  # noqa: E402  (`next.py`, the one normaliser - see tracked())
 
 REPO = "Alex-Farley/formula-1-data"
 OWNER = "Alex-Farley"
@@ -178,7 +179,8 @@ def where_line(body, where):
     where = (where or "").strip().rstrip(". ").strip()
     if not where or "**Where:**" in body:
         return body
-    unknown = [q for q in (t.strip() for t in where.split(",")) if q and not tracked(q)]
+    unknown = [q for q in (t.strip() for t in where.split(","))
+               if q and next_py.IS_FILE.search(q) and not tracked(q)]
     if unknown:
         print("warning: not tracked in this checkout: " + ", ".join(unknown),
               file=sys.stderr)
@@ -186,7 +188,13 @@ def where_line(body, where):
 
 
 def tracked(path):
-    """Is `path` a file of this checkout? False also when git cannot answer."""
+    """Is `path` a file of this checkout? False also when git cannot answer.
+
+    The normalising and the bare-name resolution are `next.py`'s, imported
+    rather than re-derived: the `lstrip("./")` defect was one rule kept by
+    hand in two places, and a `--where` written `prerender.js` has to be
+    judged by the same rule that will score it.
+    """
     if not hasattr(tracked, "_files"):
         root = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
         try:
@@ -194,11 +202,9 @@ def tracked(path):
                                  check=False, cwd=root).stdout.split()
         except OSError:
             out = []
-        tracked._files = {f.lower() for f in out}
-    # Not `lstrip("./")`: that strips a character set, so `.claude/...` came
-    # back as `claude/...` and every dotfile path warned though it is here.
-    q = path.lower()
-    return (q[2:] if q.startswith("./") else q) in tracked._files
+        tracked._files = {next_py.norm(f) for f in out}
+    q = next_py.norm(path)
+    return next_py.tree().get(q, q) in tracked._files
 
 
 def new(a):

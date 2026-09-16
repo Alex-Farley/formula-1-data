@@ -437,8 +437,10 @@ about two items in particular. The sweep agrees: against the filled-in bodies
 gives 7.46 and **43**, the crowd the constant exists to stop and the reason
 it was set after five `prerender.js` items were proposed as one.
 
-Re-running it needs no GitHub call. `next.py --list` writes the queue to
-`.claude/loop/items-cache.json`; scoring every open item as a head against
+Re-running it needs no GitHub call. `next.py --list` always refetches and
+rewrites the queue snapshot at `.claude/loop/queue-cache.json` — not
+`items-cache.json`, which is `file.py`'s issue-number to board-id map;
+scoring every open item as a head against
 that snapshot, with `next.py`'s `NOISE` overridden in the calling process, is
 what produced every figure above, and the snapshot is what makes it
 repeatable while the live queue moves under it.

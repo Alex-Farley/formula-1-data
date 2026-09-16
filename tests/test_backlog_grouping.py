@@ -28,6 +28,7 @@ import contextlib
 import importlib.util
 import io
 import os
+import re
 import tempfile
 import unittest
 
@@ -309,6 +310,11 @@ class WhereTheWorkLands(unittest.TestCase):
     def paths(body, title="AF-99: A title."):
         return next_py.signals(dict(title=title, body=body, ident="AF-99"))[0]
 
+    def needs_the_tree(self):
+        """`tree()` degrades to {} with no git; these assertions do not."""
+        if not next_py.tree():
+            self.skipTest("not a git checkout, so no bare name resolves")
+
     def test_the_where_line_reads_back_as_exactly_the_paths_it_names(self):
         # Including the trailing full stop, which must not eat an extension.
         self.assertEqual(
@@ -321,6 +327,7 @@ class WhereTheWorkLands(unittest.TestCase):
 
     def test_a_bare_file_name_and_its_full_path_are_one_signal(self):
         # The defect D-34 fixes: two spellings of one file scored apart.
+        self.needs_the_tree()
         self.assertEqual(self.paths("`prerender.js` is wrong"),
                          self.paths("`web/scripts/prerender.js` is wrong"))
 
@@ -329,6 +336,7 @@ class WhereTheWorkLands(unittest.TestCase):
         # as `claude/...` and never matched the basename map, which reads
         # `git ls-files` and keeps the dot. Every path under `.claude/` and
         # `.github/` was in that class.
+        self.needs_the_tree()
         self.assertEqual(self.paths("`.github/workflows/ci.yml` is wrong"),
                          {".github/workflows/ci.yml"})
         self.assertEqual(self.paths("`next.py` is wrong"),
@@ -368,20 +376,49 @@ class WhereTheWorkLands(unittest.TestCase):
 
 class IssueFormIsWellFormed(unittest.TestCase):
     """The queue's one browser surface. A malformed form fails silently, in
-    somebody's browser, and nothing else in CI parses it: `actionlint` reads
-    workflows only."""
+    somebody's browser, and nothing else in CI looks at it: `actionlint` reads
+    workflows only.
 
-    def test_the_item_form_parses_and_its_field_ids_are_unique(self):
+    The checks here are deliberately stdlib-only, because the build has no
+    third-party dependencies and CI installs none - a test that needs PyYAML
+    skips on both interpreters and reads as a pass, which is a check whose
+    execution cannot be established `[D-09]`. The full parse still runs, as an
+    extra, wherever PyYAML happens to be installed.
+    """
+
+    @property
+    def form(self):
+        with open(os.path.join(ROOT, ".github", "ISSUE_TEMPLATE", "item.yml"),
+                  encoding="utf-8") as fh:
+            return fh.read()
+
+    def test_no_plain_scalar_hides_a_colon(self):
+        # The defect this class exists for, met while writing it: a `: ` in an
+        # unquoted value ends the scalar and GitHub rejects the whole form. A
+        # long description belongs in a `>-` block, which this allows.
+        for n, line in enumerate(self.form.splitlines(), 1):
+            m = re.match(r"""^\s+(?:-\s+)?(\w+): (?![>|&*'"])(.+)$""", line)
+            if m and ": " in m.group(2):
+                self.fail(f"item.yml line {n}: `{m.group(1)}` is a plain scalar "
+                          f"holding `: ` - quote it or make it a `>-` block")
+
+    def test_no_tab_indents(self):
+        self.assertNotIn("\t", self.form, "YAML forbids a tab as indentation")
+
+    def test_the_field_ids_are_unique_and_where_is_among_them(self):
+        ids = re.findall(r"^\s+id: (\S+)$", self.form, re.M)
+        self.assertEqual(sorted(ids), sorted(set(ids)), f"duplicate id in {ids}")
+        self.assertIn("where", ids, "the field D-34 rests on")
+
+    def test_it_parses_where_a_yaml_parser_exists(self):
         try:
             import yaml
         except ImportError:
-            self.skipTest("PyYAML is not installed on this interpreter")
-        with open(os.path.join(ROOT, ".github", "ISSUE_TEMPLATE", "item.yml"),
-                  encoding="utf-8") as fh:
-            form = yaml.safe_load(fh)
-        ids = [b["id"] for b in form["body"] if "id" in b]
-        self.assertEqual(sorted(ids), sorted(set(ids)))
-        self.assertIn("where", ids, "the field D-34 rests on")
+            self.skipTest("PyYAML is not installed; the checks above are the "
+                          "ones CI runs")
+        form = yaml.safe_load(self.form)
+        self.assertEqual([b["id"] for b in form["body"] if "id" in b],
+                         ["source", "size", "what", "where", "kind"])
 
 
 if __name__ == "__main__":
