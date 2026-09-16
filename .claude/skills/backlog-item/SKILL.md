@@ -150,8 +150,13 @@ per item.
 
     bash .claude/skills/backlog-loop/progress.sh <ITEM-ID> "<stage>"
 
-appends one line to `.claude/loop/progress.log`. It is the only view of you a
-person has, and a fork that looks stalled gets killed `[D-17]`. Write one — a
+appends one line to `.claude/loop/progress.log`, stamped with what the item
+has cost so far — `| work 412k review 107k driver 12k`, thousands of new
+tokens by role. It is the only view of you a person has, and a fork that looks
+stalled gets killed `[D-17]`; the cost stamp is the only **live** view of
+spend anyone gets, because the driver is blocked inside the Skill call for as
+long as you run and cannot poll. You pay nothing for it — you never read the
+result back. Write one — a
 few words, never a report — at each of: item chosen; group formed (ids, or
 none); worktree open; `make all` green; web tests green; PR opened; reviewer
 launched (agent, model); verdict; fix pushed; confirmation launched; CI wait

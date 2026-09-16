@@ -97,7 +97,7 @@ def transcripts(pdir, reviewers):
     `general-purpose`, so only an agentType naming a file in .claude/agents/
     counts as review."""
     for f in sorted(glob.glob(os.path.join(pdir, "*.jsonl"))):
-        yield f, "driver", "driver"
+        yield f, "driver", "driver", os.path.basename(f)[:-len(".jsonl")]
     for f in sorted(glob.glob(os.path.join(pdir, "*", "subagents", "agent-*.jsonl"))):
         kind = None
         meta = f[:-len(".jsonl")] + ".meta.json"
@@ -107,12 +107,15 @@ def transcripts(pdir, reviewers):
         except (OSError, ValueError):
             pass
         kind = kind or "unknown"
-        yield f, kind, ("review" if kind in reviewers else "work")
+        session = os.path.basename(os.path.dirname(os.path.dirname(f)))
+        yield f, kind, ("review" if kind in reviewers else "work"), session
 
 
-def collect(pdir, start, end, reviewers):
+def collect(pdir, start, end, reviewers, only=None):
     rows = []
-    for f, side, role in transcripts(pdir, reviewers):
+    for f, side, role, session in transcripts(pdir, reviewers):
+        if only and not session.startswith(only):
+            continue
         try:
             fh = open(f, encoding="utf-8")
         except OSError:
@@ -139,6 +142,7 @@ def collect(pdir, start, end, reviewers):
                     "model": (d.get("message") or {}).get("model") or "unknown",
                     "side": side,
                     "role": role,
+                    "session": session,
                     "input": u.get("input_tokens", 0),
                     "output": u.get("output_tokens", 0),
                     "cache_read": u.get("cache_read_input_tokens", 0),
@@ -156,6 +160,10 @@ def main():
     p.add_argument("--day", metavar="YYYY-MM-DD", help="read an older run (default: today)")
     p.add_argument("--cwd", default=os.getcwd(), help=argparse.SUPPRESS)
     p.add_argument("--json", action="store_true", help="machine-readable")
+    p.add_argument("--brief", action="store_true",
+                   help="one short line, for stamping onto a progress line")
+    p.add_argument("--session", metavar="UUID",
+                   help="only this session and its subagents (a prefix will do)")
     a = p.parse_args()
 
     day = dt.date.fromisoformat(a.day) if a.day else dt.date.today()
@@ -165,11 +173,15 @@ def main():
         start = parse_clock(a.since, day)
         end = parse_clock(a.until, day) if a.until else dt.datetime.now(dt.timezone.utc)
 
+    end = min(end, dt.datetime.now(dt.timezone.utc))
+
     pdir = project_dir(a.cwd)
     if not os.path.isdir(pdir):
         raise SystemExit("no transcripts at %s" % pdir)
-    rows = collect(pdir, start, end, reviewer_types(a.cwd))
+    rows = collect(pdir, start, end, reviewer_types(a.cwd), a.session)
     if not rows:
+        if a.brief:
+            return
         raise SystemExit("no assistant turns between %s and %s"
                          % (start.astimezone().strftime("%H:%M:%S"), end.astimezone().strftime("%H:%M:%S")))
 
@@ -186,6 +198,22 @@ def main():
         Cache reads are reported separately because they are billed differently
         and dwarf the rest - a total that buries them is the wrong headline."""
         return b["input"] + b["output"] + b["cache_write"]
+
+    sessions = sorted({r["session"] for r in rows})
+    mixed = len(sessions) > 1
+
+    if a.brief:
+        # Stamped onto a progress line while the fork runs, so it has to be
+        # short and it has to say which number it is. `k` is thousands of new
+        # tokens - input + output + cache-write - with cache reads left out;
+        # they are an order larger and would drown the line.
+        def k(role):
+            s = sum(b["input"] + b["output"] + b["cache_write"]
+                    for kk, b in by.items() if kk[0] == role)
+            return "%dk" % round(s / 1000.0)
+        note = " (%d sessions)" % len(sessions) if mixed else ""
+        print("work %s review %s driver %s%s" % (k("work"), k("review"), k("driver"), note))
+        return
 
     if a.json:
         print(json.dumps({
@@ -221,6 +249,14 @@ def main():
     print()
     print("Raw API usage, for comparing one item with another. Not the Agent")
     print("tool's weighted `subagent_tokens`, and not a plan percentage.")
+    if mixed:
+        print()
+        print("WARNING: %d sessions wrote in this window, so these totals are not"
+              % len(sessions))
+        print("one item's cost. Another loop or a chat session running alongside is")
+        print("counted too. Re-run with --session <uuid> to scope it:")
+        for s in sessions:
+            print("    %s" % s)
 
 
 if __name__ == "__main__":

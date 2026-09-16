@@ -100,6 +100,11 @@ Two words, either order, both optional.
    report pasted back, one line per item plus its cost line. The PR comment is
    the record.
 
+Note what `tokens.py` counts: **every session that wrote in the window**, not
+just this loop's. A second loop or a chat session open alongside lands in the
+same totals, so it says how many sessions it saw and how to scope with
+`--session <uuid>` rather than quietly inflating the figure.
+
 ## When the loop stops
 
 End with the stock-take, once, in at most five lines: merged this run, open

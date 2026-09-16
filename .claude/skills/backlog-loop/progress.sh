@@ -10,6 +10,15 @@
 # Never a report. A line that cannot be written is an error on stderr and
 # exit 1, never a silent success: a log that stays empty while the script
 # reports success would be the failure this script exists to prevent.
+#
+# Each line is also stamped with what the item has cost so far - "work 412k
+# review 0 driver 12k", thousands of new tokens by role, from tokens.py. That
+# is the only LIVE view of cost anyone gets: the driver is blocked inside the
+# Skill call for as long as the fork runs and cannot poll for anything, so a
+# person tailing this file is where it has to appear. The scan takes about a
+# second over the transcripts and the fork never reads the result back, so it
+# costs the fork nothing. It degrades to a plain line rather than failing -
+# a missing figure must not cost a stage line. LOOP_NO_TOKENS=1 turns it off.
 set -u
 item="${1:?item id}"
 shift
@@ -22,7 +31,15 @@ stage="$*"
 common=$(git rev-parse --git-common-dir 2>/dev/null || echo ".git")
 case "$common" in /*) ;; *) common="$PWD/$common" ;; esac
 dir="$(dirname "$common")/.claude/loop"
+# Cost first, so the figure lands on the line it describes. On the very first
+# call for an item there are no lines yet to take a window from, so tokens.py
+# finds nothing and says nothing, which is correct: nothing has been spent.
+cost=""
+if [ "${LOOP_NO_TOKENS:-0}" != "1" ]; then
+  cost=$(python3 "$(dirname "$0")/tokens.py" --item "$item" --brief 2>/dev/null) || cost=""
+fi
 line="$(date +%H:%M:%S) $item $stage"
+[ -n "$cost" ] && line="$line | $cost"
 if ! mkdir -p "$dir" 2>/dev/null || ! printf '%s\n' "$line" >> "$dir/progress.log" 2>/dev/null; then
   echo "progress.sh: could not write $dir/progress.log" >&2
   exit 1
