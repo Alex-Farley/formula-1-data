@@ -33,14 +33,35 @@ this database already holds and did not get from Wikipedia:
      in its championship fields - must fall inside the seasons F1DB records
      that chassis as entered, allowing one year either side for a car
      launched or last raced across a season boundary.
-  3. **Name.** The article title, reduced to letters and digits, must be a
-     prefix of the chassis's F1DB full name reduced the same way, or the
-     other way round. Wikipedia routinely documents a family on one page -
-     "Lotus 72C" redirects to "Lotus 72", "Ferrari 312T2" to "Ferrari 312T" -
-     so the title will not always match, but it may not be a *different*
-     car. This is what stops a truncated candidate landing on a namesake:
-     searching for "Ferrari 312/66" offers "Ferrari 312T" first, and
-     ferrari312t is not a prefix of ferrari31266 in either direction.
+  3. **Name.** The article title must be a form of this chassis's
+     constructor followed by this chassis's designation. The title is split
+     into words. Some leading run of them must be a form of a name F1DB holds
+     for the constructor, compared as a prefix in either direction: "Ferrari
+     Tipo" is a form of Ferrari, "Mercedes-Benz" and "Mercedes-AMG" of
+     Mercedes, "Hispania" of Hispania Racing Team. The words after that run
+     must then be the designation - exactly ("Red Bull Racing RB19"),
+     followed by more words ("Mercedes-AMG F1 W11 EQ Performance"), with a
+     single variant letter after a closing digit ("AGS JH25B" for the JH25),
+     or cut back to the family ("Lotus 72" for the 72C, "Maserati 4CL and
+     4CLT" for the 4CLT/48). A title that is the chassis's full name passes
+     as it stands.
+
+     Wikipedia routinely documents a family on one page, so the title will
+     not always be the chassis's own name, but it may not be a *different*
+     car. This is what stops a candidate landing on a namesake: searching
+     for "Ferrari 312/66" offers "Ferrari 312T" first, and 312t is neither
+     31266 nor a family of it. The designation is matched word by word, not
+     as a string prefix, so a one-letter designation cannot be read into a
+     longer word: "English Racing Automobiles" is not the ERA A, and
+     "Boron-11 ..." is not the Boro 001.
+
+     The title's spelling of the constructor is not the constructor
+     evidence - check 1 is, from the infobox. This check asks only whether
+     the words in front of the designation could name that constructor,
+     which is why Wikipedia inserting "Tipo", "Racing" or "AMG" no longer
+     refuses a page whose designation is exact. The forms compared against
+     are F1DB's rather than the page's, so the check still runs before the
+     page is parsed.
 
 A page failing either check is refused whole and logged. It is never
 partially accepted, and a near miss is never nudged into a match.
@@ -362,6 +383,76 @@ def slug(s):
     return re.sub(r"[^a-z0-9]", "", (s or "").lower())
 
 
+def words(s):
+    """A title's words, each reduced as slug() reduces a whole name.
+
+    Split on spaces, hyphens, slashes and underscores, which is where
+    Wikipedia puts a constructor/designation boundary: "Mercedes-AMG F1 W11",
+    "Toro_Rosso_STR2", "Alfa Romeo 158/159 Alfetta".
+    """
+    return [w for w in (slug(x) for x in re.split(r"[\s/_\-]+", s or ""))
+            if w]
+
+
+def either_prefix(a, b):
+    return bool(a and b) and (a.startswith(b) or b.startswith(a))
+
+
+def designation(full, cons_short, name):
+    """The chassis's designation, as letters and digits.
+
+    Taken from the full name with the constructor's name removed, because
+    that is the spelling F1DB shows: the Boro chassis is `name` "1" and
+    full name "Boro 001", and "1" would be read into any word that starts
+    with a one. The short `name` is the fallback when the full name does not
+    start with the constructor's.
+    """
+    sf, sn = slug(full), slug(cons_short)
+    if sn and sf.startswith(sn) and len(sf) > len(sn):
+        return sf[len(sn):]
+    return slug(name)
+
+
+def designation_follows(rest, want):
+    """Do the words `rest` open with the designation `want`?
+
+    Exactly, as a run of whole words; with one variant letter after a
+    closing digit (JH25B for JH25); or cut back to a family (72 for 72C).
+    Never a string prefix into the middle of a word.
+    """
+    if want.startswith("".join(rest)):
+        return True                        # a family page: "72" for 72C
+    run = ""
+    for w in rest:
+        run += w
+        if run == want:
+            return True
+        if (len(run) == len(want) + 1 and run.startswith(want)
+                and want[-1].isdigit() and run[-1].isalpha()):
+            return True
+        if len(run) > len(want):
+            return False
+    return False
+
+
+def name_is_form(title, full, name, cons_names):
+    """Check 3: is `title` a form of this constructor, then this designation?
+
+    `cons_names` is every name F1DB holds for the chassis's constructor, its
+    short name first.
+    """
+    if slug(title) == slug(full):
+        return True
+    forms = {slug(c) for c in cons_names} - {""}
+    want = designation(full, cons_names[0] if cons_names else "", name)
+    t = words(title)
+    for i in range(1, len(t)):
+        if (any(either_prefix("".join(t[:i]), f) for f in forms)
+                and designation_follows(t[i:], want)):
+            return True
+    return False
+
+
 def candidates(full_name):
     """Titles worth trying for a chassis, most specific first.
 
@@ -463,8 +554,7 @@ def main():
                 continue
             # check 3, applied before anything is read off the page: the
             # article may be a family page, but not a different car.
-            a, b = slug(t), slug(full)
-            if not (a.startswith(b) or b.startswith(a)):
+            if not name_is_form(t, full, name, cons_name.get(con_id, ())):
                 log.append(f"{cid}|name disagrees|{t} is not a form of {full}")
                 continue
             b2 = parse_infobox(body)

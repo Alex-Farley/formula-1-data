@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Harvest the lead image of every car article already accepted into this
+Harvest the photograph of every car article already accepted into this
 database, with the attribution needed to display it.
 
     python3 tools/wikimedia_images.py               # full run, ~26 requests
@@ -25,7 +25,25 @@ already passed the three checks in tools/wikispec_fetch.py: its infobox names
 the constructor F1DB assigns the chassis, the years it reports fall inside the
 seasons F1DB records it entered, and its title is a form of the chassis's own
 name. The claim recorded is therefore "the article that was proved to describe
-this chassis leads with this file", which a rerun of this tool re-establishes.
+this chassis carries this file", which a rerun of this tool re-establishes.
+
+Which file on the article
+-------------------------
+The article's lead image (`pageimage`) is taken where there is one. Where
+there is none, a file from the body of the article is taken - but only one
+whose own name names the car, by the same test as `name_matches` below. A
+body image is placed by an editor to illustrate *something* in the article,
+and that is often not the car: the Cooper T58 article carries a Renault 4
+road car, and the BRM P115 article a Jackie Stewart photograph from a season
+he drove a Matra and a display of BRM's H16 engine. "The first photograph on
+the page" would admit all three. So the rule that half-detects a wrong lead
+image is, for a body image, the condition of taking it at all, and an article
+with no body image that names the car stays refused. Among several that do,
+the first by title is taken, which is the order the API returns and does not
+change between runs. Vector files, audio and video are never candidates.
+
+Lead image or body image, every check below applies unchanged, and a body
+image that fails one gives way to the next that names the car.
 
 Three checks are applied here, and each one refuses a row outright:
 
@@ -202,9 +220,34 @@ def read_articles():
     return out
 
 
+# A body image is a photograph or nothing. Flags, logos and stub icons are
+# SVG; recordings and clips are neither a photograph nor displayable as one.
+RASTER = (".jpg", ".jpeg", ".png", ".gif", ".tif", ".tiff", ".webp")
+
+
+def names_car(file_name, article, chassis_ids):
+    """Does the file's own name name the car? Recorded as `name_matches`.
+
+    `chassis_ids` is car_specs.txt's field, joined with "+" for a family
+    article that several chassis share.
+    """
+    fn = norm(file_name)
+    names = [article] + [c for c in (chassis_ids or "").split("+") if c]
+    return any(norm(x) and norm(x) in fn for x in names)
+
+
+def body_candidates(files, article, chassis_ids):
+    """The body images of an article that may stand in for a lead image:
+    raster files whose names name the car, in title order."""
+    return sorted(f for f in files
+                  if f.lower().endswith(RASTER)
+                  and names_car(f, article, chassis_ids))
+
+
 def lead_images(titles, log):
-    """article title -> 'File:...' for the article's lead image."""
-    found = {}
+    """article title -> 'File:...' for the article's lead image, and the
+    articles that have none."""
+    found, bare = {}, []
     for n, batch in enumerate(batches(titles), 1):
         print(f"  lead images, batch {n}: {len(batch)} articles", flush=True)
         d = api(action="query", prop="pageimages", piprop="name",
@@ -222,9 +265,32 @@ def lead_images(titles, log):
                 log.append(f"{title}\tREFUSED\tno such article")
                 continue
             if not p.get("pageimage"):
-                log.append(f"{title}\tREFUSED\tarticle has no lead image")
+                bare.append(title)
                 continue
             found[title] = title_key("File:" + p["pageimage"])
+    return found, bare
+
+
+def body_images(titles):
+    """article title -> every 'File:...' the article's body carries."""
+    found = {}
+    for n, batch in enumerate(batches(titles), 1):
+        print(f"  body images, batch {n}: {len(batch)} articles", flush=True)
+        cont = {}
+        while True:
+            d = api(action="query", prop="images", imlimit="max",
+                    titles="|".join(batch), **cont)
+            back = {}
+            for kind in ("normalized", "redirects"):
+                for m in d.get("query", {}).get(kind, []) or []:
+                    back[m["to"]] = m["from"]
+            for p in d.get("query", {}).get("pages", []) or []:
+                title = back.get(p.get("title"), p.get("title"))
+                for im in p.get("images") or []:
+                    found.setdefault(title, []).append(title_key(im["title"]))
+            if "continue" not in d:
+                break
+            cont = d["continue"]
     return found
 
 
@@ -288,12 +354,11 @@ def admit(article, file_name, meta, chassis_ids, log):
         log.append(f"{article}\tREFUSED\t{file_name} has no description page")
         return None
 
-    # The signal that is recorded and enforced nowhere. See the module
-    # docstring: it finds under half the correct images, because most are
-    # filed under the driver rather than the car.
-    fn = norm(file_name)
-    names = [article] + [c for c in (chassis_ids or "").split(",") if c]
-    matches = 1 if any(norm(x) and norm(x) in fn for x in names) else 0
+    # The signal that is recorded and, for a lead image, enforced nowhere.
+    # See the module docstring: it finds under half the correct lead images,
+    # because most are filed under the driver rather than the car. A body
+    # image is only a candidate when it holds.
+    matches = 1 if names_car(file_name, article, chassis_ids) else 0
 
     return {
         "article": article,
@@ -332,20 +397,47 @@ def main():
     print(f"{len(titles)} articles", flush=True)
 
     log = []
-    leads = lead_images(titles, log)
+    leads, bare = lead_images(titles, log)
     print(f"{len(leads)} have a lead image", flush=True)
 
-    info = file_info(sorted(set(leads.values())), log)
+    body = {}
+    if bare:
+        found = body_images(bare)
+        body = {a: body_candidates(found.get(a, ()), a, chassis_for.get(a))
+                for a in bare}
+    print(f"{sum(1 for v in body.values() if v)} of {len(bare)} without one "
+          f"carry a body image that names the car", flush=True)
 
-    rows = []
+    wanted = set(leads.values()) | {f for v in body.values() for f in v}
+    info = file_info(sorted(wanted), log)
+
+    rows, via_body = [], set()
     for article in titles:
         f = leads.get(article)
-        if not f:
+        if f:
+            row = admit(article, f, info.get(title_key(f)),
+                        chassis_for.get(article), log)
+            if row:
+                rows.append(row)
+            continue
+        if article not in body:
             continue           # already logged by lead_images
-        row = admit(article, f, info.get(title_key(f)),
-                    chassis_for.get(article), log)
-        if row:
-            rows.append(row)
+        if not body[article]:
+            log.append(f"{article}\tREFUSED\tarticle has no lead image, and "
+                       f"no image in its body names the car")
+            continue
+        # The first candidate that passes every check. The refusals of the
+        # ones before it are kept only if none passes.
+        tried = []
+        for f in body[article]:
+            row = admit(article, f, info.get(title_key(f)),
+                        chassis_for.get(article), tried)
+            if row:
+                rows.append(row)
+                via_body.add(article)
+                break
+        else:
+            log.extend(line + " (body image)" for line in tried)
 
     out = os.path.join(HARVEST, "article_images.txt")
     with open(out, "w", encoding="utf-8") as fh:
@@ -368,11 +460,13 @@ def main():
         for line in sorted(log):
             fh.write(line + "\n")
         for r in rows:
+            where = "body image" if r["article"] in via_body else "lead image"
             fh.write(f"{r['article']}\tACCEPTED\t{r['file_name']}\t"
-                     f"{r['licence']}\n")
+                     f"{r['licence']}\t{where}\n")
 
     named = sum(r["name_matches"] for r in rows)
-    print(f"\naccepted {len(rows)} of {len(titles)} articles")
+    print(f"\naccepted {len(rows)} of {len(titles)} articles, "
+          f"{len(via_body)} of them from the body")
     print(f"refused  {len(log)}  (see harvest/article_images.log)")
     print(f"file name mentions the car: {named} of {len(rows)} "
           f"- recorded, not enforced")

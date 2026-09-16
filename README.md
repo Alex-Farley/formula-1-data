@@ -50,7 +50,7 @@ here is a number the build checked.
 
 | File | What it is |
 |---|---|
-| `f1.db` | The SQLite database. <!-- fig:tables -->48<!-- /fig --> tables, <!-- fig:views -->41<!-- /fig --> views, <!-- fig:rows -->119,690<!-- /fig --> rows. This is the artefact. |
+| `f1.db` | The SQLite database. <!-- fig:tables -->48<!-- /fig --> tables, <!-- fig:views -->41<!-- /fig --> views, <!-- fig:rows -->119,711<!-- /fig --> rows. This is the artefact. |
 | `f1-geometry.db` | The OpenStreetMap circuit centrelines (ODbL), shipped beside `f1.db` and never merged into it. See *Illustration*. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
@@ -435,14 +435,14 @@ dimensions as published, plus three things a spec sheet does not — the
 every chassis that has raced.** It is loaded from
 [F1DB](https://github.com/f1db/f1db) (CC BY 4.0) by `tools/f1db_fetch.py` — a
 scale at which nobody types anything — and
-<!-- fig:chassis_with_spec -->779<!-- /fig --> of them carry a specification
+<!-- fig:chassis_with_spec -->804<!-- /fig --> of them carry a specification
 `tools/wikispec_fetch.py` established off that chassis's own Wikipedia
 article. `chassis.car_id` joins the two.
 
-<!-- fig:chassis_published_wins -->759<!-- /fig --> chassis carry a published
+<!-- fig:chassis_published_wins -->784<!-- /fig --> chassis carry a published
 career win total. The wins this database derives independently, from its own
 race records through the linkage below, **agree exactly for
-<!-- fig:chassis_wins_match -->616<!-- /fig --> of them and exceed for
+<!-- fig:chassis_wins_match -->634<!-- /fig --> of them and exceed for
 <!-- fig:chassis_wins_exceed -->0<!-- /fig -->**; the rest are lower bounds
 where a season could not be linked.
 
@@ -473,10 +473,12 @@ page is read only if it agrees with three things established elsewhere:
    chassis;
 2. the **years** it reports must fall inside the seasons F1DB records that
    chassis as entered;
-3. the **title** must be a form of the chassis's own name — Wikipedia
-   documents families on one page, so "Lotus 72C" legitimately redirects to
-   "Lotus 72", but a namesake is refused. Searching for "Ferrari 312/66"
-   offers "Ferrari 312T" first, and that is not a form of the same name.
+3. the **title** must be a form of the constructor followed by the
+   chassis's designation — "Ferrari Tipo 500", "Red Bull Racing RB19" and
+   "Mercedes-Benz W196" all qualify, and Wikipedia documents families on one
+   page, so "Lotus 72C" legitimately redirects to "Lotus 72". A different car
+   is refused: searching for "Ferrari 312/66" offers "Ferrari 312T" first,
+   and 312T is not the 312/66.
 
 A page failing any of the three is refused whole and logged in
 `harvest/car_specs.log` with the reason. Nothing is partially accepted and a
@@ -571,16 +573,19 @@ Two tables hold pointers to things this repository does not contain.
 
 ### Photographs — `article_images`
 
-**No image is stored.** A row records which file a car's article leads with,
+**No image is stored.** A row records which file a car's article carries,
 who took it, and under what licence; the pixels are fetched from
 `upload.wikimedia.org` by whatever renders the page. `f1.db` does not grow.
 
 The claim is deliberately narrow and it *is* checkable: the article already
 passed the constructor, seasons and name checks in `tools/wikispec_fetch.py`,
-so what is recorded is "the article proved to describe this chassis leads with
-this file". Rerunning the harvest re-establishes it.
-<!-- fig:images -->602<!-- /fig --> of the
-<!-- fig:chassis_with_spec -->779<!-- /fig --> articles yield one.
+so what is recorded is "the article proved to describe this chassis carries
+this file". That is the article's lead image, or — where it has none — a
+photograph in its body whose own file name names the car; a body image that
+does not is refused, because the first picture on a page can be a driver,
+an engine or a road car. Rerunning the harvest re-establishes it.
+<!-- fig:images -->623<!-- /fig --> of the
+<!-- fig:chassis_with_spec -->804<!-- /fig --> articles yield one.
 
 Three things are enforced at harvest and again on every build. The file must
 be on **Commons** — a file uploaded locally to en.wikipedia.org is local
@@ -593,15 +598,15 @@ three is refused and logged in `harvest/article_images.log` with the reason.
 
 There is no single licence covering these.
 <!-- fig:image_licences -->16<!-- /fig --> distinct licence strings appear
-across the <!-- fig:images -->602<!-- /fig --> rows, so every row carries its
+across the <!-- fig:images -->623<!-- /fig --> rows, so every row carries its
 own and any display must show it. The web app's smoke test asserts this: if
 the image renders and the credit does not, the test fails, because that is not
 an ugly page, it is an infringing one.
 
 What **cannot** be checked is whether the photograph shows the car. Testing
 whether the file name mentions the chassis finds
-<!-- fig:images_named -->265<!-- /fig --> of
-<!-- fig:images -->602<!-- /fig --> — most correct images are filed under the
+<!-- fig:images_named -->277<!-- /fig --> of
+<!-- fig:images -->623<!-- /fig --> — most correct images are filed under the
 driver, and `File:Jos_Verstappen_2000_Monza_(cropped).jpg` really is an
 Arrows A21 — so the test would discard half the good rows if it were a rule.
 It is stored as `name_matches` and enforced nowhere. The failure it
@@ -968,12 +973,12 @@ queried, not just read here. `./f1 gaps` prints them with the fix for each.
   as a `race_entries` row once practice-only and withdrawn entries are
   counted, and points need every season's scoring system applied, including
   the best-N rules that ran until 1990.
-- **What a photograph shows.** <!-- fig:images -->602<!-- /fig --> cars carry
+- **What a photograph shows.** <!-- fig:images -->623<!-- /fig --> cars carry
   a lead image from Wikimedia Commons with its licence and photographer. The
   *article* is well constrained; what the picture depicts is not, and there is
   no second source to disagree with it. This is the only part of the database
   with no cross-check available at all. `./f1 images` lists the
-  <!-- fig:images_unnamed -->337<!-- /fig --> whose file name does not even
+  <!-- fig:images_unnamed -->346<!-- /fig --> whose file name does not even
   name the car.
 - **Historic circuit geometry.** Centrelines are traced from OpenStreetMap,
   which maps what is on the ground. Spa's 14.1 km road course and Monza's
