@@ -250,19 +250,43 @@ class AgentAndSkillFrontmatterIsWellFormed(unittest.TestCase):
             folder = os.path.basename(os.path.dirname(rel))
             self.assertEqual(fm["name"], folder, f"{rel}: name {fm['name']!r} is not the folder name")
 
-    def test_no_loop_reviewer_is_a_critic(self):
-        # The two families in .claude/agents/README.md have opposite postures:
-        # a conformance reviewer enforces rules on a diff, a critic assesses
-        # the whole project and exists to find things. A critic in the merge
-        # path turns a sound change into fix-and-confirm rounds - AF-16 spent
-        # five agent launches on one item that way (docs/DECISIONS.md D-31).
+    def families(self):
+        """The two families in .claude/agents/README.md, as {name: family}.
+        Derived from the files on disk rather than trusting the prose to be
+        complete: an agent the README forgets to mention is the whole point
+        of the check, so it must be an error and not an absence. This is the
+        circuit_geometry lesson (D-02) applied to a list of agents."""
         readme = read(".claude/agents/README.md")
+        conformance = readme[readme.index("## Conformance reviewers"):readme.index("## Critics")]
         critics = readme[readme.index("## Critics"):readme.index("## Adding to either family")]
-        named = {os.path.basename(f)[:-3] for f in files_under(".claude/agents", (".md",))
-                 if os.path.basename(f)[:-3] in critics}
-        self.assertTrue(named, "README.md lists no critics; has the section moved?")
-        overlap = sorted(set(LOOP_REVIEWERS) & named)
-        self.assertEqual(overlap, [], f"the loop's reviewers name a critic: {overlap}")
+        out = {}
+        for f in files_under(".claude/agents", (".md",)):
+            name = os.path.basename(f)[:-3]
+            if name == "README":
+                continue
+            where = [fam for fam, text in (("reviewer", conformance), ("critic", critics))
+                     if name in text]
+            self.assertEqual(len(where), 1,
+                             f"{name} is in {len(where)} of README.md's two families, not exactly 1")
+            out[name] = where[0]
+        return out
+
+    def test_every_agent_is_filed_in_exactly_one_family(self):
+        # An agent nobody classified is one the next check cannot reason about.
+        fams = self.families()
+        self.assertTrue(fams, "no agents found")
+
+    def test_every_loop_reviewer_is_a_conformance_reviewer(self):
+        # Fail CLOSED. The earlier form of this asked only that no reviewer
+        # appeared in the critics prose, which passed silently for an agent the
+        # README had never been told about. Asking instead that every merge-path
+        # reviewer IS filed as a conformance reviewer means an unclassified or
+        # miscategorised one fails, which is the direction that matters: a
+        # critic in the merge gate turns a sound change into fix-and-confirm
+        # rounds (docs/DECISIONS.md D-31).
+        fams = self.families()
+        wrong = sorted(n for n in LOOP_REVIEWERS if fams.get(n) != "reviewer")
+        self.assertEqual(wrong, [], f"the loop's reviewers are not all filed as conformance reviewers: {wrong}")
 
     def test_the_loop_reviewers_carry_a_turn_cap_and_an_effort(self):
         for name in LOOP_REVIEWERS:
