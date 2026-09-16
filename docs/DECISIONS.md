@@ -143,20 +143,37 @@ replacement for the visibility the fork took away.
 Every connected MCP server's tool schemas sit in the fixed prefix of every
 turn. The loop uses none of them.
 
-**Who actually pays, measured 2026-09-16** — the earlier wording here said the
-schemas ride on "the fork and on every reviewer it launches", and the reviewer
-half of that is wrong. All 13 agents in `.claude/agents/` carry
-`tools: Read, Grep, Glob, Bash`, which is an allowlist, so a connected MCP
-server costs a reviewer nothing. `backlog-item/SKILL.md` names no
-`allowed-tools`, so the **fork** inherits the whole session tool set — and the
-fork is the longest-running context in the loop. That is where the cost lands,
-and restricting it is filed rather than done here, because getting the list
-wrong breaks the loop silently.
+**Who pays** is the **fork**. `backlog-item/SKILL.md` names no
+`allowed-tools`, so it inherits the whole session tool set, and it is the
+longest-running context in the loop. The reviewers do not: all 13 agents in
+`.claude/agents/` carry `tools: Read, Grep, Glob, Bash`, which is an
+allowlist, so a connected MCP server costs a reviewer nothing. The wording
+here once said the schemas ride on "the fork and on every reviewer it
+launches", and the reviewer half of that was wrong.
 
-The 74,000-token figure came from sessions measured on 2026-09-13 and should
-not be read as a constant. On 2026-09-16 this machine had 48 connected MCP
-tools across four servers — 31 of them one plugin — with the four Google and
-Slack connectors already disabled. Measure before quoting it.
+**What it costs is now measured, not estimated.** Counted on 2026-09-16 in a
+desktop-app session with the connectors on — this machine, four servers, the
+four Google and Slack connectors already disabled — the fixed prefix was
+system tools 33,402 tokens, MCP tools 20,868, skills 9,941, the system prompt
+4,360 and memory files 3,872.
+
+Those five lines total 72,443, which is 1,557 short of the 74,000 this entry
+used to quote — **for MCP alone**. That is what the old figure got
+wrong: not the size of the fixed prefix but what was in it. MCP is a little
+over a quarter of it, and the **built-in tool schemas cost more than every
+connector combined**. Turning the connectors off is still worth doing — about
+21,000 tokens off every turn of the longest context in the loop — but it is
+one lever among several rather than the lever, and the other 52,000 does not
+move when a server is switched off. How much of the 9,941 of skills is this
+repository's own two is not known: the count was taken whole and never broken
+down by owner, and this machine carries a great many skills from plugins.
+
+The inflated figure was not free. It made the connectors look like the whole
+of the fixed cost and sent a round of work at them: `AF-32` (#341), declaring
+the fork's tools in its own frontmatter, which was then declined because the
+keys are inert `[D-32]`. Re-measure before quoting any of these. They move
+with what the machine has connected and with the build, and the 74,000 came
+from sessions measured on 2026-09-13 that nobody re-counted for three days.
 
 ### D-19 · The pace — 2026-09-13 (`PM-36`)
 `fast`, `balanced`, `thorough`. It may relax the first-pass reviewer for a
@@ -298,9 +315,12 @@ directions: a fork carries **41 tools with full schemas** — 13 built-ins and
 *deferred*, costing a name each until something fetches it: gitkraken's 25,
 session-management's 20, pdf-viewer's 9 and about 130 in total. So the loaded
 cost is smaller than the "48 tools / 74,000 tokens" figure implied, and it is
-concentrated in one server rather than spread across the plugins. The fork
-also has **no `Grep` and no `Glob`** — its file search is Bash-only, which is
-worth knowing when reading its transcripts.
+concentrated in one server rather than spread across the plugins. The count
+was later put in tokens `[D-18]`: about 21,000 for the MCP schemas, against
+33,000 for the built-in tools, which the fork carries regardless of what is
+connected.
+The fork also has **no `Grep` and no `Glob`** — its file search is Bash-only,
+which is worth knowing when reading its transcripts.
 
 The remaining lever is disabling servers at the application level, which is a
 maintainer's action in the desktop app and not a repository change.
