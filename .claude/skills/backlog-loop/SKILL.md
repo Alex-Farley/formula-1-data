@@ -14,18 +14,14 @@ item runs in **`backlog-item`**, a forked skill in
 merged, skipped or stopped. What comes back here is one contract line and a
 stock-take of at most five lines.
 
-Why, measured 2026-09-13 from the session transcripts: the session driving
-the loop was 75-85 % of the loop's tokens, not the reviewers. It ran 190-440
-turns per session at a median context of 230,000-356,000 tokens a turn,
-peaking at 612,000, because every slice of the backlog, every build log and
-every reviewer report it had ever read stayed in context for the rest of the
-run. The reviewers ran at 46,000-67,000. A fork per item is what makes the
+Why: the driving session, not the reviewers, was 75-85 % of the loop's
+tokens, because everything it had ever read stayed in context for the rest of
+the run (`docs/DECISIONS.md` `[D-16]`). A fork per item is what makes the
 driving context stop growing.
 
-The rules are in `CLAUDE.md` under *Working autonomously* and in
-`CONTRIBUTING.md`; the per-item procedure, the pace table and what never
-slides are in `.claude/skills/backlog-item/SKILL.md`; the scripts the fork
-uses are in this folder: `next.py` (reads the queue), `file.py` (writes to
+The rules are in `CLAUDE.md`; the per-item procedure, the pace table and
+what never slides are in `.claude/skills/backlog-item/SKILL.md`, which is
+their only normative copy; the scripts the fork uses are in this folder: `next.py` (reads the queue), `file.py` (writes to
 it), `precheck.sh`, `ci-wait.sh`, `merge-main.py`, `review-prompt.md`, and
 `progress.sh`, which the fork calls at each stage to append one line to
 `.claude/loop/progress.log` - the only view of the fork a person has.
@@ -50,8 +46,7 @@ Two words, either order, both optional.
    add one line saying that this session will show no activity until the
    fork returns, and that the fork's stages appear in that file -
    `tail -f .claude/loop/progress.log` from a terminal. Nothing else
-   before the fork. (2026-09-13: three forks were
-   killed by interrupts from a person who took the quiet for a stall.)
+   before the fork: a fork that looks stalled gets killed `[D-17]`.
 2. Invoke the Skill tool: skill `backlog-item`, args `<pace> <target>`
    where target is `next` or the item id, followed by `--skip <ids>` when
    this run has skipped any. Do not do any of the fork's work
@@ -102,9 +97,10 @@ PRs, decisions needed, what `next.py` says is next. Then stop.
 
 ## Running it cheaply
 
-- Start the loop in a session with the connectors off. Every MCP server's
-  tool schemas sit in the fixed prefix of every turn - about 74,000 tokens
-  before any work in the measured sessions - and the loop uses none of them.
+- **Start the loop in a session with the connectors off.** Every MCP
+  server's tool schemas sit in the fixed prefix of every turn - about 74,000
+  tokens in the measured sessions - and they ride on the fork and on every
+  reviewer it launches `[D-18]`. The loop uses none of them.
 - The implementer's effort is the session's: set `CLAUDE_CODE_EFFORT_LEVEL`
   or `effortLevel` before starting, not during a run, because a change of
   effort mid-session breaks the prompt cache. The pace does not set it; the
@@ -112,9 +108,6 @@ PRs, decisions needed, what `next.py` says is next. Then stop.
   reviewer *agents*, whose effort and turn cap are in their frontmatter.
 - `fast` is for a run of small, well-specified items while a person is
   around to look at the result: it relaxes the first-pass reviewer for a
-  small front-end change and how many routes the brief names. Grouping is
-  not one of the things a pace changes any more (2026-09-14): what rides
-  with the head is what is linked to it, at any size and at every pace.
-  `thorough` is for a data change or anything that touches a publishing
-  path. `balanced` is the default because it is
-  what the 2026-09-13 review-cost decisions describe.
+  small front-end change and how many routes the brief names, and nothing
+  else. `thorough` is for a data change or anything that touches a
+  publishing path. `balanced` is the default `[D-19]`.
