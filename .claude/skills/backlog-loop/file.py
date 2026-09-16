@@ -195,7 +195,10 @@ def tracked(path):
         except OSError:
             out = []
         tracked._files = {f.lower() for f in out}
-    return path.lower().lstrip("./") in tracked._files
+    # Not `lstrip("./")`: that strips a character set, so `.claude/...` came
+    # back as `claude/...` and every dotfile path warned though it is here.
+    q = path.lower()
+    return (q[2:] if q.startswith("./") else q) in tracked._files
 
 
 def new(a):

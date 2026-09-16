@@ -324,6 +324,16 @@ class WhereTheWorkLands(unittest.TestCase):
         self.assertEqual(self.paths("`prerender.js` is wrong"),
                          self.paths("`web/scripts/prerender.js` is wrong"))
 
+    def test_a_dotfile_path_keeps_its_leading_dot(self):
+        # `lstrip("./")` strips a character set, so `.claude/...` came back
+        # as `claude/...` and never matched the basename map, which reads
+        # `git ls-files` and keeps the dot. Every path under `.claude/` and
+        # `.github/` was in that class.
+        self.assertEqual(self.paths("`.github/workflows/ci.yml` is wrong"),
+                         {".github/workflows/ci.yml"})
+        self.assertEqual(self.paths("`next.py` is wrong"),
+                         {".claude/skills/backlog-loop/next.py"})
+
     def test_an_ambiguous_bare_name_is_left_as_written(self):
         # Three files are named README.md; guessing which one an item meant
         # would propose a group on a file it never mentioned.

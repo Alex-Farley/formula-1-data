@@ -403,7 +403,12 @@ There were 32 such splits. `signals()` now resolves a bare name against
 `git ls-files` when the tree holds exactly one file by that name, so the two
 spellings are one signal; `README.md` is three different files and stays
 three, because guessing which one an item meant proposes a group on a file it
-never mentioned.
+never mentioned. Matching a bare name against the tree also surfaced an older
+defect it would otherwise have inherited: the normaliser was
+`lstrip("./")`, which strips a character *set*, so every path under
+`.claude/` and `.github/` had its leading dot removed. Harmless while both
+sides of a comparison were mangled alike; not harmless against `git
+ls-files`, which keeps the dot.
 
 Measured over the 164 heads `--group` will actually score — the 166 open
 items less the two carrying `decision` or `blocked`, which it never returns —

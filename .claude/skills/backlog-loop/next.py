@@ -219,6 +219,19 @@ def first_eligible(ranked, skip):
     return next((r for r in ranked if eligible(r, skip)), None)
 
 
+def norm(path):
+    """A path as the queue's two spellings of it agree.
+
+    `lstrip("./")` strips a character *set*, so it took the leading dot off
+    `.claude/...` and `.github/...` and left `claude/...`. Harmless while
+    both sides of a comparison were mangled alike, and not harmless once
+    `tree()` began matching a bare name against `git ls-files`, which keeps
+    the dot: every dotfile path would have missed its own basename.
+    """
+    p = path.lower()
+    return p[2:] if p.startswith("./") else p
+
+
 def tree():
     """basename -> the one tracked file with that name, lowercased.
 
@@ -245,9 +258,9 @@ def tree():
             # No git, or not a checkout. Every name then stays as written,
             # which is what this did before the map existed.
             out = []
-        seen = Counter(f.rsplit("/", 1)[-1].lower() for f in out)
-        tree._map = {f.rsplit("/", 1)[-1].lower(): f.lower() for f in out
-                     if seen[f.rsplit("/", 1)[-1].lower()] == 1}
+        seen = Counter(norm(f).rsplit("/", 1)[-1] for f in out)
+        tree._map = {norm(f).rsplit("/", 1)[-1]: norm(f) for f in out
+                     if seen[norm(f).rsplit("/", 1)[-1]] == 1}
     return tree._map
 
 
@@ -255,8 +268,7 @@ def signals(row):
     """(paths, routes, ids) named anywhere in the item's title or body."""
     text = row["title"] + "\n" + row["body"]
     full = tree()
-    paths = {full.get(m, m) for m in
-             (x.lower().lstrip("./") for x in PATH.findall(text))}
+    paths = {full.get(m, m) for m in (norm(x) for x in PATH.findall(text))}
     routes = {m for m in ROUTE.findall(text) if not IS_FILE.search(m)}
     return paths, routes, set(IDREF.findall(text)) - {row["ident"]}
 
