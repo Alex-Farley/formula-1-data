@@ -192,6 +192,21 @@ what passed.
 pattern can decide. Every check that moves there is one a reviewer never
 spends a turn on again, so the brief stays on judgement.
 
+### D-29 · The track atlas was cut — 2026-09-14 (`AF-20`/`AF-21`, #302/#304)
+`/circuits/atlas` was a walkable, turn-rate-coloured lap compared across all
+25 traced circuits. The walk never worked — no play, no keyboard repeat,
+disabled on the three traces that do not close — and the colour read nothing
+the traced shape did not already show. No usage number justified keeping
+either; none was obtainable, and it was cut without one, on the design
+argument, rather than left standing on an unanswered question.
+`/circuits/:id` still draws the traced centreline through the same
+`LapFigure`.
+
+### D-30 · Node is wherever `PATH` says — 2026-09-15 (`AF-30`)
+The rules named `~/.local/node/bin`. It is not in the same place on every
+machine: a container, nvm and Homebrew each put it somewhere different, and a
+fixed path sends an agent looking in the wrong one. `which node` answers it.
+
 ### D-28 · The CI review is opt-in, by the `ci-review` label — 2026-09-16
 `review.yml` ran on every pull request and on every push to one. It
 duplicated the review the loop already runs before merging, with the *same*

@@ -36,7 +36,8 @@ import subprocess
 import sys
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))  # behind the stdlib
-import loop_cache  # noqa: E402  (a sibling script, not an installed package)
+import gh_preflight  # noqa: E402  (a sibling script, not an installed package)
+import loop_cache  # noqa: E402
 
 REPO = "Alex-Farley/formula-1-data"
 OWNER = "Alex-Farley"
@@ -61,9 +62,16 @@ REFUSED = re.compile(r"rate limit|secondary|abuse detection|forbidden|not author
 
 
 def gh(*args, as_json=False):
-    r = subprocess.run(["gh", *args], capture_output=True, text=True, check=False)
+    try:
+        r = subprocess.run(["gh", *args], capture_output=True, text=True, check=False)
+    except FileNotFoundError:
+        sys.exit(gh_preflight.note(gh_preflight.MISSING))
     if r.returncode:
-        sys.exit(r.stderr.strip() or f"gh {' '.join(args)} failed")
+        said = r.stderr.strip() or f"gh {' '.join(args)} failed"
+        # gh's own message first, always - see next.py's gh() for why.
+        if gh_preflight.unauthenticated():
+            sys.exit(f"{said}\n{gh_preflight.note(gh_preflight.UNAUTH)}")
+        sys.exit(said)
     return json.loads(r.stdout) if as_json else r.stdout.strip()
 
 
@@ -71,7 +79,10 @@ def gh_try(*args):
     """(succeeded, stderr), for the one call allowed to fail: an `item-edit`
     against a cached id GitHub may no longer recognise. The caller decides,
     because most failures are not staleness and must not be retried."""
-    r = subprocess.run(["gh", *args], capture_output=True, text=True, check=False)
+    try:
+        r = subprocess.run(["gh", *args], capture_output=True, text=True, check=False)
+    except FileNotFoundError:
+        sys.exit(gh_preflight.note(gh_preflight.MISSING))
     return r.returncode == 0, r.stderr.strip()
 
 

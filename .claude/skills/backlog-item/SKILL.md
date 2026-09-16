@@ -159,7 +159,9 @@ line could not be written; say so in the stock-take and carry on.
 
 - **Worktree:** `git worktree add -b claude/<slug> <scratchpad>/wt-<slug>
   origin/main`. For web work, `npm ci` inside it — never symlink
-  `node_modules`. Node is at `~/.local/node/bin`.
+  `node_modules`. Node is whatever is on `PATH`; `which node` gives the path
+  if you need it. It is not in the same place on every machine — a container,
+  nvm and Homebrew each put it somewhere different.
 - **Edit through a Python script whose every replacement asserts it matched
   exactly once.** Never write a shell-quoting sequence inside a quoted
   heredoc; apostrophes in JS strings go in double-quoted strings.
@@ -287,9 +289,12 @@ Then `gh pr merge N --merge`, only with the PASS and `check (3.9)`,
 ## Waiting and merging
 
 - **CI:** `bash .claude/skills/backlog-loop/ci-wait.sh <PR>` exits 0 on pass,
-  2 on a failed check, 1 on a twenty-minute timeout, and 3 at once when the
-  PR is CONFLICTING (no check registers, so CI never started — merge main
-  first). Run it in the foreground with the Bash tool's maximum timeout
+  2 on a failed check, 1 on a twenty-minute timeout, 3 at once when the PR is
+  CONFLICTING (no check registers, so CI never started — merge main first),
+  and 4 at once when `gh` itself cannot answer — absent, unauthenticated, or
+  too old for `pr checks --json`. **A 4 is never a defect in the diff:** fix
+  the environment, do not go looking through the change. Run it in the
+  foreground with the Bash tool's maximum timeout
   (600000 ms) and run it again if the tool times out first. Empty output from
   `gh` is pending.
 - **Main moved under the branch:** `python3

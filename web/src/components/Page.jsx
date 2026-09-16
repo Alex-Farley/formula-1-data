@@ -19,7 +19,7 @@ import { SITE, titled, citation } from '../lib/site.js'
 /**
  * document.title and the canonical, kept current across in-app navigation.
  *
- * prerender.js writes both correctly on every one of the 3,515 pages, and
+ * prerender.js writes both correctly on every one of the 3,514 pages, and
  * nothing in the app has ever updated either. So after any client-side
  * navigation the tab, the bookmark, the history entry and the screen
  * reader's announcement all still name the page the reader LANDED on. On a

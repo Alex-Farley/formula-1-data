@@ -63,7 +63,8 @@ import sys
 from collections import Counter
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))  # behind the stdlib
-import loop_cache  # noqa: E402  (a sibling script, not an installed package)
+import gh_preflight  # noqa: E402  (a sibling script, not an installed package)
+import loop_cache  # noqa: E402
 
 REPO = "Alex-Farley/formula-1-data"
 OWNER = "Alex-Farley"
@@ -122,9 +123,20 @@ NOISE = 4            # see below
 
 
 def gh(*args):
-    r = subprocess.run(["gh", *args], capture_output=True, text=True, check=False)
+    try:
+        r = subprocess.run(["gh", *args], capture_output=True, text=True, check=False)
+    except FileNotFoundError:
+        # A web session has no gh at all. The bare traceback this used to
+        # raise named the binary and nothing else.
+        sys.stderr.write(gh_preflight.note(gh_preflight.MISSING))
+        sys.exit(2)
     if r.returncode:
+        # gh's own message first, always: `unauthenticated()` cannot tell a
+        # rejected token from an API it could not reach, so a secondary rate
+        # limit would otherwise be answered with "go and fetch a new PAT".
         sys.stderr.write(r.stderr)
+        if gh_preflight.unauthenticated():
+            sys.stderr.write(gh_preflight.note(gh_preflight.UNAUTH))
         sys.exit(2)
     return json.loads(r.stdout)
 

@@ -197,7 +197,6 @@ the bug nobody finds until they share a link.
 | `/drivers`, `/drivers/:id` | The register, and a career counted from the race records |
 | `/constructors`, `/constructors/:id` | Records, lineage chains, every win, every car built |
 | `/circuits`, `/circuits/:id` | The register, traced centrelines, layouts as they changed |
-| `/circuits/atlas` | All 25 traced circuits: walk a lap, colour it by turn rate, compare them at one scale |
 | `/cars`, `/cars/:id` | The chassis register, specifications and photographs |
 | `/records` | Published records, and leaderboards derived on every load |
 | `/data` | The database itself: the files, the version and build date, how far to trust it, the licence position |
@@ -242,13 +241,14 @@ a specific link is taken far more often than a generic one. `Stepper` puts the
 neighbour on either side under the heading, which is how a reader walks a
 calendar or a run of seasons without going back to a list.
 
-## The track atlas
+## Traced circuit geometry
 
 `circuit_geometry.centreline` is a GeoJSON MultiLineString: the ways of an
 OpenStreetMap relation, **in no particular order**. Drawing that needs nothing
-more — every way is a line — but measuring along it, or putting a marker a
-given distance round, needs the ways stitched end to end into one ordered ring
-first. `src/lib/lap.js` does that, and the atlas is what it buys.
+more — every way is a line — but measuring along it needs the ways stitched
+end to end into one ordered ring first. `src/lib/lap.js` does that; `LapFigure`
+(the traced centreline on a circuit's own page) and the thumbnails on
+`/circuits` are what it buys.
 
 **The one-metre join is measured, not chosen.** Ways in a relation share their
 junction nodes exactly, so a real join is not "close", it is identical: 1,201
@@ -264,25 +264,15 @@ admitted and stores the verdict in `closes`, `loose_ends` and `segment_count`;
 `verify.py` re-derives all three from the geometry on every build and fails if
 the stored answer has drifted. So the front end is not deciding anything — it
 reproduces a result the database guarantees, and can check its own stitch
-against `measured_km`. The three that do not close are still drawn, in amber,
-because an incomplete trace is the best shape anyone has for that circuit; the
-scrubber is simply disabled for them.
-
-**Turn rate is derived from the shape, and labelled as such wherever it
-appears.** The database holds no corner data at all — no numbers, no names, no
-apex positions, no sector boundaries. `turnRate()` measures how fast the
-bearing changes over a 50 m window, which is a property of the traced line and
-nothing more. The window is not decoration: OSM node spacing is irregular, so a
-per-node angle mostly measures how finely that stretch happened to be traced.
-The five colour bands are the quintiles of the real distribution over all 6,272
-points of the 22 closed laps, so each band is a fifth of the traced distance;
-bands picked by hand put 65% of every circuit in the bottom two and washed the
-picture out.
+against `measured_km`. The three that do not close are still drawn — an
+incomplete trace is the best shape anyone has for that circuit — but carry no
+direction arrow; the figcaption notes only that the trace does not close.
 
 Everything is projected to **metres east and south of each circuit's own
-centre**, which is what lets the wall switch between fitting each frame to its
-circuit and giving every frame the same extent. In the second state the sizes
-are honestly comparable: Long Beach really is under half of Spa.
+centre**, and drawn as one line in one colour. `AF-20`/`AF-21` (2026-09-14)
+cut the earlier walkable, turn-rate-coloured atlas that used to sit alongside
+this: it could not be walked in practice, the colour read nothing the shape
+did not already show, and no usage justified keeping either.
 
 ## The look: Pit Wall
 

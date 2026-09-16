@@ -5,10 +5,10 @@ The lap-closure arithmetic, tested directly.
 WHY THIS FILE EXISTS
     _lap_topology decides whether a traced circuit forms one closed lap, and
     verify.py reports its answer for 25 circuits. That report is the only thing
-    standing between the atlas and a trace with a hole in it — and the report
-    is a count, so a change that quietly made everything "close" would read as
-    an improvement. These tests give the function inputs whose right answer is
-    known by construction.
+    standing between the front end's traced-centreline drawing and a trace
+    with a hole in it — and the report is a count, so a change that quietly
+    made everything "close" would read as an improvement. These tests give
+    the function inputs whose right answer is known by construction.
 
     _haversine is checked against a figure that does not come from the same
     arithmetic: a degree of latitude on the sphere it names.

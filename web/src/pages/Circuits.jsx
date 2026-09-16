@@ -62,7 +62,7 @@ function LapThumb({ trace }) {
     const flat = project(walk.ring)
     // pathOf's `to` is exclusive and defaults to the full length. Passing
     // length - 1 dropped the point that closes the ring, leaving a gap of up
-    // to 40 m on the thumbnail. The atlas draws the same rings closed.
+    // to 40 m on the thumbnail; LapFigure draws the same rings closed.
     return { d: pathOf(flat.x, flat.y), bounds: flat.bounds }
   }, [trace.centreline])
 
@@ -103,9 +103,7 @@ export default function Circuits() {
             >
               <p className="note" style={{ marginTop: 0 }}>
                 Drawn from the centreline each one was matched to, each at its own scale so the
-                shape reads rather than the size.{' '}
-                <Link to="/circuits/atlas">Open the track atlas</Link> to compare them at one
-                scale and walk a lap.
+                shape reads rather than the size.
               </p>
               <ul className="lapgrid">
                 {pick(data, 'traces').map((trace) => (
@@ -130,7 +128,6 @@ export default function Circuits() {
 
       <Onward
         items={[
-          { to: '/circuits/atlas', label: 'Track atlas', hint: '25 traced laps, side by side and at true scale.' },
           { to: '/races', label: 'Every race', hint: 'What was run at each of these venues.' },
           { to: '/reference/eras', label: 'Eras and rules', hint: 'The safety work that redrew many of these circuits.' },
         ]}

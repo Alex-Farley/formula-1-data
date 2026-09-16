@@ -16,7 +16,6 @@ import Driver from './pages/Driver.jsx'
 import Constructors from './pages/Constructors.jsx'
 import Constructor from './pages/Constructor.jsx'
 import Circuits from './pages/Circuits.jsx'
-import Atlas from './pages/Atlas.jsx'
 import Circuit from './pages/Circuit.jsx'
 import Cars from './pages/Cars.jsx'
 import Car from './pages/Car.jsx'
@@ -186,10 +185,6 @@ function Chrome() {
           <Route path="/constructors" element={<Constructors />} />
           <Route path="/constructors/:id" element={<Constructor />} />
           <Route path="/circuits" element={<Circuits />} />
-          {/* Router v6 ranks by specificity, so the static segment wins over
-              /circuits/:id wherever it is declared; it sits here to read in
-              the order a reader would expect, not because order decides it. */}
-          <Route path="/circuits/atlas" element={<Atlas />} />
           <Route path="/circuits/:id" element={<Circuit />} />
           <Route path="/cars" element={<Cars />} />
           <Route path="/cars/:id" element={<Car />} />

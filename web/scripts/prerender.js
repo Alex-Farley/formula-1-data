@@ -1879,19 +1879,6 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
         <a href="${esc(href('f1-geometry.db'))}"><code>f1-geometry.db</code></a>.
         ${esc(TWO_FILES)} ${esc(SELF_DESCRIBING)}</p>`,
   })
-
-  page({
-    path: 'circuits/atlas',
-    title: titled('Track atlas'),
-    description:
-      'Every circuit traced from OpenStreetMap and measured against its published length, drawn to a common scale.',
-    trail: [['', 'Home'], ['circuits', 'Circuits'], ['circuits/atlas', 'Atlas']],
-    body: `
-      <h1>Track atlas</h1>
-      <p class="lede">Circuit centrelines traced from OpenStreetMap, each checked against the
-        length this database already held. The drawings need JavaScript; the measurements are on
-        each ${link('circuits', 'circuit page')}.</p>`,
-  })
 }
 
 // ------------------------------------------------------------------ write

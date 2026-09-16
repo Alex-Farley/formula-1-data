@@ -255,6 +255,49 @@ What a person needs to know about it:
   against the repository as it is now before it is started: the code may have
   moved, the fix may have landed under another ID, a later critique may have
   superseded it.
+**What the queue scripts need.** All four shell out to `gh`, and it has to
+be both current and authenticated. The credential is for everything they
+do, not only the board: these scripts reach GitHub only through `gh`, and
+`gh` refuses every call without one — `gh issue list` against this public
+repository answers "please run: gh auth login" and makes no request at all.
+The REST API does serve public reads anonymously; gh does not use it that
+way, so the repository being public buys the loop nothing. The board needs
+it twice over, ranking being a ProjectsV2 read and so GraphQL, which
+refuses an unauthenticated call whatever the repository's visibility.
+
+The container a Claude Code web session ran in on 2026-09-14 had neither:
+no `gh` on PATH, and a `GH_TOKEN` that GitHub rejects. **A session like
+that cannot run the loop at any price**, because the agent proxy refuses
+GraphQL outright — *"GitHub GraphQL is not available from Claude Code
+sessions; use the REST API"* — and ProjectsV2 has no REST equivalent. That
+refusal came back on a request carrying no credential, so it is a blanket
+block rather than an authentication failure, and a PAT does not lift it.
+Do not spend one expecting otherwise. REST is untouched, so issues, pull
+requests and check runs are reachable there with a credential; the ranking
+the queue turns on is not.
+
+Where GraphQL is reachable, the loop needs both — a current `gh` from
+GitHub's own apt repository or a release tarball (the distribution package
+was 2.45 on that image and has no `--json` on `pr checks`, which
+`ci-wait.sh` reads), and a classic PAT with `repo`, `project` and
+`workflow` scope — `project` is what the board read needs, and `workflow`
+what GitHub requires before it will accept a push that changes anything
+under `.github/workflows/`, which some items do. `gh_preflight.py` says
+which of the three is wrong at the first failed call, alongside gh's own
+message rather than in place of it, and in place of the traceback
+`next.py` used to raise and the twenty minutes `ci-wait.sh` used to spend
+sleeping on an answer that was never coming. `docs/LOCAL-SETUP.md` is the
+step-by-step for setting such a machine up from nothing, written for
+someone who has not done it before.
+
+Nothing falls back to cover that gap, and this is deliberate. `file.py`
+moves an item to *In progress*, which is a board write, so a loop that
+cannot reach the board cannot claim an item and two sessions could take the
+same one — the collision that status exists to prevent. A queue with no
+ranking also looks exactly like a correctly ranked one in the output. Read
+and work a named item without a board if you like; do not let the loop
+choose one.
+
 - **Every autonomous pull request gets an independent review from a fresh
   context before it merges**, returning `PASS — safe to merge` or `FAIL —
   changes required`. The agent that made the change never approves it.

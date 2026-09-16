@@ -86,6 +86,7 @@ here is a number the build checked.
 | `tools/readme_figures.py` | Computes every figure this file states and rewrites it (`--write`) or checks it (`--check`). |
 | `docs/BUILD-NOTES.md` | What changed in each version, what it exposed, what was deliberately not done. |
 | `docs/LANDED.md` | What has landed and what was declined, with the reason. The open queue is GitHub Issues. |
+| `docs/LOCAL-SETUP.md` | Getting `/backlog-loop` running on your own machine, from nothing. |
 | `CONTRIBUTING.md` | How to add data without breaking the checks. Read before editing. |
 | `ATTRIBUTION.md` | Where the data came from, and the licensing that follows from it. **Read before making this public.** |
 | `Makefile` | `make all` = build, regenerate the README figures, verify, export. |
@@ -660,9 +661,10 @@ holes read as joins — it reported only Las Vegas, and passed two broken traces
 for several versions. One metre is above serialisation noise and below the
 smallest real gap.
 
-This is what lets the front end offer to walk a lap: `web/src/lib/lap.js`
-reproduces the stitch in the browser and the atlas measures along it, but only
-where `closes` says there is something to measure.
+This is what lets the front end draw a circuit's traced centreline:
+`web/src/lib/lap.js` reproduces the stitch in the browser and measures the
+projected shape against it, but only where `closes` says there is something
+to measure.
 
 Geometry attaches to a **layout**, never to a circuit alone, wherever a layout
 timeline exists. Monza 1955 is not Monza 2026 and `circuit_layouts` already
