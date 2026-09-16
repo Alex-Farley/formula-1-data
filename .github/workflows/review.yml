@@ -79,6 +79,7 @@ jobs:
     # Removing the trigger removes a duplicate, not a control. Label a pull
     # request `ci-review` when you want a second opinion from CI; the review
     # then keeps up with the branch until the label comes off.
+    # Recorded as D-28 in docs/DECISIONS.md.
     #
     # A draft is a work in progress and reviewing one is an interruption.
     if: >-
