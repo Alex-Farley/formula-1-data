@@ -1486,12 +1486,21 @@ GROUP BY r.year ORDER BY r.year;
 -- The source tells them apart, by construction: two rows from DIFFERENT
 -- sources are two descriptions of one thing, two rows from ONE source are two
 -- things. So per entity the view keeps every row from one source - the one
--- with the higher points total, since points only accumulate and the larger
--- figure is the source that has counted the most rounds; formula1.com on a
--- tie - and fills position, position_text, engine_id and team from the other
--- source where the kept row lacks them. Same columns as the table, so a
--- consumer swaps the name and nothing else. For a finished season the sources
--- agree and this is the identity.
+-- whose table has counted the most rounds; formula1.com where both stand
+-- after the same round - and fills position, position_text, engine_id and
+-- team from the other source where the kept row lacks them. Same columns as
+-- the table, so a consumer swaps the name and nothing else. For a finished
+-- season the sources agree and this is the identity.
+--
+-- The freshest row, not the largest. The rule was "the higher total", on the
+-- reasoning that points only accumulate - which holds only while both sources
+-- stand after the same round. In 2026 the official snapshot stood after
+-- round 12 and F1DB after round 14, and the larger figure kept Gasly and
+-- Alpine on the round-12 table beside every other row at round 14 (AF-35).
+-- How many rounds a row has counted is read from what as_of says: a snapshot
+-- names its round ('... (after round 12)'); 'current' is the source's own
+-- latest running table, which verify.py holds it to; 'final' is the whole
+-- season. A row whose moment cannot be read sorts last.
 --
 -- Written for the two sources that exist: formula1.com and F1DB. The tie-break
 -- names one of them, and the fill takes the lowest-id row of "the other", so a
@@ -1499,13 +1508,26 @@ GROUP BY r.year ORDER BY r.year;
 -- survives and what it was filled from are what would say so.
 CREATE VIEW v_standings_final AS
 WITH final AS (SELECT * FROM standings WHERE after_round IS NULL),
+counted AS (
+  SELECT c.year, c.table_type, c.entity_id, c.source,
+         CASE
+           WHEN c.as_of LIKE '%(after round %)'
+             THEN CAST(SUBSTR(c.as_of, INSTR(c.as_of, '(after round ') + 13) AS INTEGER)
+           WHEN c.as_of = 'current'
+             THEN (SELECT MAX(x.after_round) FROM standings x
+                    WHERE x.year = c.year AND x.source = c.source
+                      AND x.after_round IS NOT NULL)
+           WHEN c.as_of = 'final'
+             THEN (SELECT MAX(r.round) FROM races r WHERE r.year = c.year)
+         END AS rounds
+    FROM final c),
 ranked AS (
   SELECT year, table_type, entity_id, source,
          ROW_NUMBER() OVER (
            PARTITION BY year, table_type, entity_id
-           ORDER BY MAX(points) DESC,
+           ORDER BY MAX(rounds) IS NULL, MAX(rounds) DESC,
                     CASE WHEN source LIKE '%formula1.com%' THEN 0 ELSE 1 END) AS rank
-    FROM final GROUP BY year, table_type, entity_id, source)
+    FROM counted GROUP BY year, table_type, entity_id, source)
 SELECT f.id, f.year, f.table_type,
        COALESCE(f.position, o.position)           AS position,
        COALESCE(f.position_text, o.position_text) AS position_text,

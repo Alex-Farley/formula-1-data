@@ -105,9 +105,11 @@ PRs, decisions needed, what `next.py` says is next. Then stop.
   The loop uses none of them either way.
 - The implementer's effort is the session's: set `CLAUDE_CODE_EFFORT_LEVEL`
   or `effortLevel` before starting, not during a run, because a change of
-  effort mid-session breaks the prompt cache. The pace does not set it; the
-  Agent tool overrides a model per call but not an effort, so a pace picks
-  reviewer *agents*, whose effort and turn cap are in their frontmatter.
+  effort mid-session breaks the prompt cache. `backlog-item/SKILL.md`'s
+  `effort: high` appears not to override it — probed, well-evidenced, not
+  proven `[D-35]`. The pace does not set it; the Agent tool overrides a model
+  per call but not an effort, so a pace picks reviewer *agents*, whose effort
+  and turn cap are in their frontmatter.
 - `fast` is for a run of small, well-specified items while a person is
   around to look at the result: it relaxes the first-pass reviewer for a
   small front-end change and how many routes the brief names, and nothing

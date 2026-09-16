@@ -143,20 +143,37 @@ replacement for the visibility the fork took away.
 Every connected MCP server's tool schemas sit in the fixed prefix of every
 turn. The loop uses none of them.
 
-**Who actually pays, measured 2026-09-16** — the earlier wording here said the
-schemas ride on "the fork and on every reviewer it launches", and the reviewer
-half of that is wrong. All 13 agents in `.claude/agents/` carry
-`tools: Read, Grep, Glob, Bash`, which is an allowlist, so a connected MCP
-server costs a reviewer nothing. `backlog-item/SKILL.md` names no
-`allowed-tools`, so the **fork** inherits the whole session tool set — and the
-fork is the longest-running context in the loop. That is where the cost lands,
-and restricting it is filed rather than done here, because getting the list
-wrong breaks the loop silently.
+**Who pays** is the **fork**. `backlog-item/SKILL.md` names no
+`allowed-tools`, so it inherits the whole session tool set, and it is the
+longest-running context in the loop. The reviewers do not: all 13 agents in
+`.claude/agents/` carry `tools: Read, Grep, Glob, Bash`, which is an
+allowlist, so a connected MCP server costs a reviewer nothing. The wording
+here once said the schemas ride on "the fork and on every reviewer it
+launches", and the reviewer half of that was wrong.
 
-The 74,000-token figure came from sessions measured on 2026-09-13 and should
-not be read as a constant. On 2026-09-16 this machine had 48 connected MCP
-tools across four servers — 31 of them one plugin — with the four Google and
-Slack connectors already disabled. Measure before quoting it.
+**What it costs is now measured, not estimated.** Counted on 2026-09-16 in a
+desktop-app session with the connectors on — this machine, four servers, the
+four Google and Slack connectors already disabled — the fixed prefix was
+system tools 33,402 tokens, MCP tools 20,868, skills 9,941, the system prompt
+4,360 and memory files 3,872.
+
+Those five lines total 72,443, which is 1,557 short of the 74,000 this entry
+used to quote — **for MCP alone**. That is what the old figure got
+wrong: not the size of the fixed prefix but what was in it. MCP is a little
+over a quarter of it, and the **built-in tool schemas cost more than every
+connector combined**. Turning the connectors off is still worth doing — about
+21,000 tokens off every turn of the longest context in the loop — but it is
+one lever among several rather than the lever, and the other 52,000 does not
+move when a server is switched off. How much of the 9,941 of skills is this
+repository's own two is not known: the count was taken whole and never broken
+down by owner, and this machine carries a great many skills from plugins.
+
+The inflated figure was not free. It made the connectors look like the whole
+of the fixed cost and sent a round of work at them: `AF-32` (#341), declaring
+the fork's tools in its own frontmatter, which was then declined because the
+keys are inert `[D-32]`. Re-measure before quoting any of these. They move
+with what the machine has connected and with the build, and the 74,000 came
+from sessions measured on 2026-09-13 that nobody re-counted for three days.
 
 ### D-19 · The pace — 2026-09-13 (`PM-36`)
 `fast`, `balanced`, `thorough`. It may relax the first-pass reviewer for a
@@ -298,9 +315,12 @@ directions: a fork carries **41 tools with full schemas** — 13 built-ins and
 *deferred*, costing a name each until something fetches it: gitkraken's 25,
 session-management's 20, pdf-viewer's 9 and about 130 in total. So the loaded
 cost is smaller than the "48 tools / 74,000 tokens" figure implied, and it is
-concentrated in one server rather than spread across the plugins. The fork
-also has **no `Grep` and no `Glob`** — its file search is Bash-only, which is
-worth knowing when reading its transcripts.
+concentrated in one server rather than spread across the plugins. The count
+was later put in tokens `[D-18]`: about 21,000 for the MCP schemas, against
+33,000 for the built-in tools, which the fork carries regardless of what is
+connected.
+The fork also has **no `Grep` and no `Glob`** — its file search is Bash-only,
+which is worth knowing when reading its transcripts.
 
 The remaining lever is disabling servers at the application level, which is a
 maintainer's action in the desktop app and not a repository change.
@@ -383,3 +403,174 @@ poll every 45 seconds keeps it closed. Since `AF-14` the precheck tells the
 two apart: a call that failed is a WARN naming the API, and the FAIL saying
 an item "is not an open issue" now only happens when `gh` answered and found
 nothing.
+
+### D-34 · An item's body says where the work lands — 2026-09-16 (`AF-36`, #350)
+A reviewer pays its orientation cost once per pull request, not once per
+item, so the average group size is what sets the review cost per item.
+`next.py --group` proposes a companion on a shared file path, a shared route
+or a cross-referenced id — and on 2026-09-16, **99 of the 166 open items
+named no path at all** beyond the footer every issue carries. The signal the
+grouping was built on was mostly absent, so the proposals were riding on
+cross-references and rank adjacency.
+
+The 99 bodies were read and given the paths the work would touch, checked
+against `git ls-files`, added as one `**Where:**` line above the footer and
+nothing else: the item keeps its own words. Filling them in also exposed a
+second defect and it is fixed here. `prerender.js` and
+`web/scripts/prerender.js` were two signals that never matched each other —
+ten items wrote the first, seventeen the second, and neither count was whole.
+There were 32 such splits. `signals()` now resolves a bare name against
+`git ls-files` when the tree holds exactly one file by that name, so the two
+spellings are one signal; `README.md` is three different files and stays
+three, because guessing which one an item meant proposes a group on a file it
+never mentioned. Matching a bare name against the tree also surfaced an older
+defect it would otherwise have inherited: the normaliser was
+`lstrip("./")`, which strips a character *set*, so every path under
+`.claude/` and `.github/` had its leading dot removed. Harmless while both
+sides of a comparison were mangled alike; not harmless against `git
+ls-files`, which keeps the dot.
+
+Measured over the 164 heads `--group` will actually score — the 166 open
+items less the two carrying `decision` or `blocked`, which it never returns —
+companions proposed rose from 182 to 247, the mean per head from 1.11 to
+1.51, and the heads with no companion at all fell from 69 to 55.
+
+**It cost 27 directed pairings, and that is the rule working.** `NOISE` in
+`next.py` drops a path more than four open items name, so `build.py` (4 items
+before, 46 after), `web/scripts/prerender.js` (4, then 27 once the spellings
+were joined) and `web/src/styles/app.css` (3, then 13) stopped scoring, and
+fourteen pairs whose only shared signal was one of those lost it. The count
+is odd rather than twice fourteen because `bands()` is asymmetric: a pair
+split across two statuses is proposed in one direction only. Some of them —
+`AF-07` with `AF-08`, `IX-29` with `VD-42` — are pairs a person would group.
+They were riding on an artefact of a queue whose bodies were empty, and the
+way to propose one deliberately is the cross-reference, which outscores any
+path.
+
+**Raising `NOISE` was measured and rejected**, and the entry's own figures
+settle it without the sweep. A path scores while the items naming it are
+`NOISE` or fewer, so recovering a pair that shared only `app.css` needs 13,
+only `prerender.js` needs 27, and only `build.py` needs **46** — which is a
+path a quarter of the open queue names, scoring as though it said something
+about two items in particular. The sweep agrees: against the filled-in bodies
+4 gives a mean of 1.51 and a largest proposal of 9; 10 gives 3.06 and 14; 25
+gives 7.46 and **43**, the crowd the constant exists to stop and the reason
+it was set after five `prerender.js` items were proposed as one.
+
+Re-running it needs no GitHub call. `next.py --list` always refetches and
+rewrites the queue snapshot at `.claude/loop/queue-cache.json` — not
+`items-cache.json`, which is `file.py`'s issue-number to board-id map;
+scoring every open item as a head against
+that snapshot, with `next.py`'s `NOISE` overridden in the calling process, is
+what produced every figure above, and the snapshot is what makes it
+repeatable while the live queue moves under it.
+
+What is **not** settled is the shape of the rule. The comment beside the
+constant reasons that "a file is named by the few items about it however long
+the queue grows", and filling the bodies in falsified exactly that: `build.py`
+is named by 28 % of the queue. Raising a cliff was the wrong axis to test, and
+a signal that costs nothing below the cliff and everything above it may be the
+wrong instrument — a threshold relative to the queue, or a weight that falls
+with a path's commonness, would not have this entry's 27 pairings to pay. That
+is filed rather than decided here, and the constant stays at 4 until it is.
+
+The durable half is at the point of filing. The issue form asks where the work
+lands as its own required field, `file.py new` takes `--where` and warns on
+any token the checkout does not track that is not prose, and `CONTRIBUTING.md`
+says so under *Filing*. Required is not the same as answered: *not known yet* is an accepted
+answer, and costs only the grouping. The `**Where:**` spelling is this
+project's house style and not something the grouping requires — `signals()`
+reads a path wherever it appears in a body and looks for no marker, which is
+what lets an item filed through the form, where the heading comes from the
+field label, group exactly as well.
+
+### D-35 · A skill's frontmatter does not set a fork's effort either — 2026-09-16
+`backlog-item/SKILL.md` carries `effort: high`, and the fork is both the
+longest-running context in the loop and its implementer, so effort costs more
+there than anywhere else. The obvious experiment is to run an item at
+`medium` and see whether the FAIL rounds rise. **It cannot be run by changing
+that key**, because the key does not appear to do anything — the same finding
+as `[D-32]`, one frontmatter key over.
+
+Note that `backlog-loop/SKILL.md` has said all along that "the implementer's
+effort is the session's", and names `CLAUDE_CODE_EFFORT_LEVEL` and
+`effortLevel` as the way to set it. The `effort: high` line is what
+contradicts it, and on the probe evidence it is the line that is wrong. The
+probes cannot prove that much: if the key is live, the wrong document is the
+other one.
+
+**The two probes, as run**, each a throwaway `SKILL.md` written to
+`.claude/skills/`, invoked, read and deleted. A probe wants a retry after it
+is written: both were *Unknown skill* on the first invocation and registered a
+minute later, which is `[D-32]`'s registration lag and not a result.
+
+*Probe A — does the fork run at the effort its frontmatter names?*
+`context: fork` with `effort: low`, invoked from a session running at `high`,
+asked to report `mcp__ccd_session_mgmt__get_session` on `self` and to quote
+anything in its own context stating a reasoning budget. It reported
+`effort: "high"` and said nothing in its context stated a level at all.
+
+*Probe B — is the key parsed?* The same shape with `effort: banana`, which is
+not a valid level. It loaded and ran normally, with no error and no warning
+about the value anywhere in its context or its invocation.
+
+Probe B is consistent with the key being inert and **settles nothing on its
+own**. This build ignores frontmatter it cannot use without saying a word, on
+live keys as much as dead ones, which is precisely why
+`tests/test_conventions.py` guards the spelling of `effort:` in an agent file
+— "a misspelt key in an agent's frontmatter is ignored silently". Silence is
+the expected observation either way.
+
+So: **not proven**, to the same standard `[D-32]` sets. `get_session` reports
+the session's metadata and a fork shares its id, so probe A cannot see a
+sampling budget that was lowered without the metadata following it.
+
+The probe that would settle it is behavioural, not metadata — probe A has
+already shown the fork cannot read its own budget. Invoke the same fork twice
+on one task that is heavy in reasoning and light in tools, identical but for
+`effort:`, and compare the thinking tokens the Agent tool reports for each.
+Run that before acting either way, in either direction.
+
+So the line stays in the frontmatter rather than being deleted — if the key
+turns out to be live, removing it would silently drop the fork's effort, which
+is the change nobody has evidence for — and it is annotated where it sits.
+
+**The baseline is recorded here so the real experiment has its control.** The
+items in `.claude/loop/progress.log` whose review history the log holds in
+full: `VD-26` FAIL then PASS, `VD-27` PASS,
+`VD-25` FAIL then PASS, `AF-04` FAIL then FAIL then PASS, `AX-07` FAIL then
+PASS, `AF-09` FAIL then PASS, `AF-15` PASS then PASS, `AF-16` PASS then FAIL
+then PASS, `AF-17+VD-34` FAIL then PASS, `AF-23+VD-44+IX-31` PASS then PASS.
+**Compare on a fixed denominator.** Of the ten first passes, **6 FAILed**; the
+ten items took **8 FAIL rounds** between them. Those are the two figures a
+later run is measured against, because each has a denominator that does not
+move: ten items either way. The pooled 8 of 21 rounds — 38 % — is a remark,
+not a control. A round exists only because an earlier round failed or passed
+with findings, so that denominator is partly the numerator again, and a change
+of confirmation policy alone would move it. The two populations differ anyway:
+6 of 10 first passes FAILed, 2 of 11 confirmations did.
+
+A round is a pass, whether it launched one reviewer or two, and it counts only
+if it returned a verdict. `AF-15` spent one that did not, the fork having died
+before recording it `[D-23]`; a later comparison must leave its equivalent out
+the same way. `PM-39`, `AF-03` and `AF-10` are excluded: the log holds only
+`progress.sh`'s own smoke-test lines for the first, no first pass for the
+second, and the third was never run at all — "skipped: item is itself an open
+maintainer decision".
+
+**Two things about this control that a later run must hold or state.** The
+session effort is written down nowhere: `progress.log` has no effort field, so
+"high" is stated from the run and not read off a log, and a run meaning to
+compare should record its own. And the instrument moved inside the baseline —
+`[D-33]` dropped `frontend-reviewer` to medium on 2026-09-16, after nine of
+these ten items and before `AF-23+VD-44+IX-31`. The front-end reviewer judged
+most of these rounds, so a comparison either holds the reviewer configuration
+fixed and says which it used, or compares only against post-`[D-33]` rounds.
+
+Both remaining steps are `AF-37` (#352), which stays open: this entry records
+what was probed, not a finished experiment. The one that would settle it is a
+session started at `CLAUDE_CODE_EFFORT_LEVEL=medium` running several items,
+compared against 6
+first-pass FAILs in 10 and 8 FAIL rounds over 10 items — and run only after
+the behavioural probe above says the effort is reaching the fork at all. One
+item cannot tell 6 in 10 from 5 in 10, so it is several or it is nothing.

@@ -3,6 +3,10 @@ name: backlog-item
 description: One item from the queue (GitHub Issues, ranked on the Lap Ledger project), start to merge, in a forked context - the per-item procedure of /backlog-loop. Arguments are <pace> and <next | ITEM-ID>. Invoked by the backlog-loop skill; a person may also run it directly for one item.
 argument-hint: "<fast | balanced | thorough> <next | ITEM-ID>"
 context: fork
+# Probed 2026-09-16 and it appears to do nothing: a fork runs at the
+# session's effort, and `effort: banana` here loads without a warning.
+# Kept because deleting it would drop the fork's effort if it is live
+# after all, which is the change nobody has evidence for. See D-35.
 effort: high
 ---
 

@@ -1852,6 +1852,105 @@ def _points_text(v):
     return str(int(v)) if float(v).is_integer() else str(v)
 
 
+def _race_seconds(text):
+    """'2:24:01.612' or '1:23.456' as seconds; None for anything else."""
+    try:
+        parts = [float(p) for p in (text or "").split(":")]
+    except ValueError:
+        return None
+    if not 1 < len(parts) <= 3:
+        return None
+    total = 0.0
+    for p in parts:
+        total = total * 60 + p
+    return total
+
+
+def _race_clock(seconds):
+    h, rest = divmod(round(seconds * 1000), 3600000)
+    m, rest = divmod(rest, 60000)
+    return f"{h}:{m:02d}:{rest // 1000:02d}.{rest % 1000:03d}"
+
+
+def _one_penalty_explains(cur, yr, after, observed, f1db_drivers):
+    """The one race whose reclassification accounts for every points
+    disagreement between an official snapshot and F1DB after the same round.
+
+    `observed` maps (table_type, entity_id) to official minus F1DB. For each
+    time penalty F1DB applied in a round up to `after`, the race is reordered
+    without that one penalty - the finishers on the same lap re-sorted by
+    time, each position keeping the points F1DB gave it - and the change in
+    every driver's and constructor's points is compared with `observed`. Only
+    an exact match on every entity is an explanation, and only a unique one
+    is returned: this names a cause the build has checked, never a guess
+    (AF-34). Returns a dict describing the race, or None.
+    """
+    by_round = {}
+    for r in HV.load_race_results():
+        if int(r["year"]) == yr and int(r["round"]) <= after:
+            by_round.setdefault(int(r["round"]), []).append(r)
+
+    def points(r):
+        return float(r["points"]) if r["points"] not in (None, "") else 0.0
+
+    def constructor(cid):
+        mapped = HV.constructor_for_f1db(cid, yr)
+        if mapped and cur.execute("SELECT 1 FROM constructors WHERE id=?",
+                                  (mapped,)).fetchone():
+            return mapped
+        return None
+
+    found = []
+    for rnd, rows in sorted(by_round.items()):
+        for pen in rows:
+            if not pen["time_penalty"] or not str(pen["position"]).isdigit():
+                continue
+            timed = [r for r in rows if str(r["position"]).isdigit()
+                     and r["laps"] == pen["laps"]
+                     and _race_seconds(r["time"]) is not None]
+            timed.sort(key=lambda r: int(r["position"]))
+            if pen not in timed or [_race_seconds(r["time"]) for r in timed] != sorted(
+                    _race_seconds(r["time"]) for r in timed):
+                continue
+            unpenalised = _race_seconds(pen["time"]) - float(pen["time_penalty"])
+            reordered = sorted(timed, key=lambda r: unpenalised if r is pen
+                               else _race_seconds(r["time"]))
+            if reordered == timed:
+                continue
+            slots = [int(r["position"]) for r in timed]
+            at = {int(r["position"]): points(r) for r in timed}
+            predicted = {}
+            moved = []
+            for slot, r in zip(slots, reordered):
+                delta = at[slot] - points(r)
+                if slot != int(r["position"]):
+                    # Every driver who moves is named in the filed row, so an
+                    # unresolvable one declines the explanation rather than
+                    # failing the build later.
+                    if not f1db_drivers.get(r["driver_id"]):
+                        predicted = None
+                        break
+                    moved.append((r, slot))
+                if not delta:
+                    continue
+                did = f1db_drivers.get(r["driver_id"])
+                cid = constructor(r["constructor_id"])
+                if not did or not cid:
+                    predicted = None
+                    break
+                for key in (("drivers", did), ("constructors", cid)):
+                    predicted[key] = predicted.get(key, 0.0) + delta
+            if predicted is None:
+                continue
+            predicted = {k: v for k, v in predicted.items() if abs(v) > 0.001}
+            if predicted.keys() == observed.keys() and all(
+                    abs(predicted[k] - observed[k]) < 0.001 for k in observed):
+                found.append({"round": rnd, "penalised": pen,
+                              "penalty": float(pen["time_penalty"]),
+                              "unpenalised": unpenalised, "moved": moved})
+    return found[0] if len(found) == 1 else None
+
+
 def _stage_25_championship_standings_after_every_round_and(b):
     """championship standings, after every round and at season end"""
     cur = b.cur
@@ -1872,6 +1971,7 @@ def _stage_25_championship_standings_after_every_round_and(b):
         """SELECT year FROM races GROUP BY year
            HAVING SUM(CASE WHEN status <> 'completed' THEN 1 ELSE 0 END) = 0""")}
     known_years = {r[0] for r in cur.execute("SELECT year FROM seasons")}
+    conflicts = []
     for (yr, rnd, kind, pos, entity, engine, points) in (
             (r["year"], r["round"], r["table_type"], r["position"],
              r["entity_id"], r["engine_manufacturer_id"], r["points"])
@@ -1918,9 +2018,9 @@ def _stage_25_championship_standings_after_every_round_and(b):
         # AFTER THE SAME ROUND, which is the only like-for-like there is: the
         # snapshot's as_of says which round it stood after. Points only
         # accumulate, so a difference here is two sources disagreeing about
-        # one classification, and it is recorded rather than resolved - the
-        # view that publishes one row picks the larger figure, and the
-        # discrepancy is what makes that choice visible on the page.
+        # one classification, and it is recorded rather than resolved - after
+        # the loop, where the disagreements of one snapshot can be read
+        # together and traced to the race that causes them.
         existing = None
         if after is None:
             existing = cur.execute("""SELECT points FROM standings
@@ -1938,24 +2038,7 @@ def _stage_25_championship_standings_after_every_round_and(b):
             if (existing[0] is not None and pts is not None
                     and abs(existing[0] - pts) > 0.001):
                 std_conflicts += 1
-                # Subject is the display name, which is how a race page or a
-                # driver page finds its disagreements; a constructor's page
-                # does the same on constructors.name.
-                subj = cur.execute(
-                    "SELECT full_name FROM drivers WHERE id=?" if kind == "drivers"
-                    else "SELECT name FROM constructors WHERE id=?", (eid,)).fetchone()
-                stage = "final" if after is None else f"after round {after}"
-                cur.execute("""INSERT INTO discrepancies (subject, field,
-                    stored_value, derived_value, assessment, status)
-                    VALUES (?,?,?,?,?,?)""",
-                    (subj[0] if subj else eid, f"{yr} championship points, {stage}",
-                     _points_text(existing[0]), _points_text(pts),
-                     "formula1.com and F1DB give different championship points "
-                     "for the same entity at the same point in the season. The "
-                     "published figure is 'verified' from the official archive and "
-                     "is not overwritten; where one row has to be shown, "
-                     "v_standings_final takes the larger total, and this row is "
-                     "what makes that choice visible.", "open"))
+                conflicts.append((yr, kind, eid, after, existing[0], pts))
             if after is None:
                 continue
 
@@ -1972,11 +2055,102 @@ def _stage_25_championship_standings_after_every_round_and(b):
              HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
         std_rows += cur.rowcount
 
+    _file_points_disagreements(cur, conflicts, f1db_drivers)
+
     if std_rows:
         print(f"  standings: {std_rows} rows from F1DB; {std_checked} "
               f"end-of-season rows already held and checked "
               f"({std_conflicts} disagreed); {std_skipped} skipped for an "
               f"unresolvable entity")
+
+
+def _file_points_disagreements(cur, conflicts, f1db_drivers):
+    """One discrepancy per entity whose official and F1DB points differ, and
+    - where one race accounts for all of a snapshot's differences - one on
+    that race, which the points rows cite rather than restate (AF-34)."""
+    def name_of(kind, eid):
+        row = cur.execute(
+            "SELECT full_name FROM drivers WHERE id=?" if kind == "drivers"
+            else "SELECT name FROM constructors WHERE id=?", (eid,)).fetchone()
+        return row[0] if row else eid
+
+    causes = {}
+    for yr, after in sorted({(c[0], c[3]) for c in conflicts if c[3] is not None}):
+        observed = {(kind, eid): official - f1db
+                    for (y, kind, eid, a, official, f1db) in conflicts
+                    if (y, a) == (yr, after) and official is not None
+                    and f1db is not None}
+        cause = _one_penalty_explains(cur, yr, after, observed, f1db_drivers)
+        if cause:
+            causes[(yr, after)] = cause
+
+    generic = ("formula1.com and F1DB give different championship points for "
+               "the same entity at the same point in the season. The official "
+               "figure is 'verified' and is not overwritten; v_standings_final "
+               "shows whichever source's table has counted the most rounds, "
+               "formula1.com's where both stand after the same round, and this "
+               "row is what makes the difference visible.")
+    for (yr, kind, eid, after, official, f1db) in conflicts:
+        cause = causes.get((yr, after))
+        if cause:
+            race = cur.execute("SELECT name_used FROM races WHERE year=? AND round=?",
+                               (yr, cause["round"])).fetchone()
+            pen = cause["penalised"]
+            who = name_of("drivers", f1db_drivers[pen["driver_id"]])
+            text = (f"formula1.com's table after round {after} and F1DB's after the "
+                    f"same round differ here, and the cause is one race: reclassifying "
+                    f"the {yr} {race[0]} (round {cause['round']}) without {who}'s "
+                    f"{_points_text(cause['penalty'])}-second time penalty reproduces "
+                    f"formula1.com's table for every driver and constructor it lists. The "
+                    f"disagreement is filed on that race, '{yr} round "
+                    f"{cause['round']}'; this row is its effect on the season total. "
+                    f"The official figure is 'verified' and is not overwritten; "
+                    f"v_standings_final shows whichever source's table has counted "
+                    f"the most rounds.")
+        else:
+            text = generic
+        stage = "final" if after is None else f"after round {after}"
+        # Subject is the display name, which is how a race page or a driver
+        # page finds its disagreements; a constructor's page does the same on
+        # constructors.name.
+        cur.execute("""INSERT INTO discrepancies (subject, field,
+            stored_value, derived_value, assessment, status)
+            VALUES (?,?,?,?,?,?)""",
+            (name_of(kind, eid), f"{yr} championship points, {stage}",
+             _points_text(official), _points_text(f1db), text, "open"))
+
+    for (yr, after), cause in sorted(causes.items()):
+        pen = cause["penalised"]
+        moved = sorted(cause["moved"], key=lambda m: int(m[0]["position"]))
+        lo, hi = min(m[1] for m in moved), max(m[1] for m in moved)
+        f1db_order = [name_of("drivers", f1db_drivers[r["driver_id"]]) for r, _ in moved]
+        official_order = [name_of("drivers", f1db_drivers[r["driver_id"]])
+                          for r, _ in sorted(moved, key=lambda m: m[1])]
+        who = name_of("drivers", f1db_drivers[pen["driver_id"]])
+        others = [n for n in f1db_order if n != who]
+        slot = next(s for r, s in moved if r is pen)
+        way = "down" if slot < int(pen["position"]) else "up"
+        n_points = sum(1 for c in conflicts if (c[0], c[3]) == (yr, after))
+        cur.execute("""INSERT INTO discrepancies (subject, field,
+            stored_value, derived_value, assessment, status)
+            VALUES (?,?,?,?,?,?)""",
+            (f"{yr} round {cause['round']}",
+             f"finishing order, {_ordinal(lo)} to {_ordinal(hi)}",
+             ", ".join(f1db_order), ", ".join(official_order),
+             f"F1DB classifies {who} {_ordinal(int(pen['position']))} on "
+             f"{pen['time']}, which includes a "
+             f"{_points_text(cause['penalty'])}-second time penalty. Without it the "
+             f"time is {_race_clock(cause['unpenalised'])}, "
+             f"{_ordinal(slot)}, and "
+             f"{', '.join(others[:-1]) + ' and ' + others[-1] if len(others) > 1 else others[0]} "
+             f"each move {way} a place among the finishers timed on that lap. "
+             f"Reclassifying this race that way, and nothing else, reproduces "
+             f"formula1.com's championship table after round {after} for every "
+             f"driver and constructor it lists, so the {n_points} points "
+             f"disagreements filed against that table are this one. The race "
+             f"entries hold F1DB's order. Neither source says whether the penalty "
+             f"stood - the FIA decision document for the event would - so this "
+             f"stays open until it is read.", "open"))
 
 
 def _stage_26_pit_stops_from_f1db_under_their(b):

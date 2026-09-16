@@ -335,19 +335,66 @@ def standings():
         check(f"{y} drivers' final table is one row per driver", n == d,
               f"{n} rows, {d} drivers")
 
-    # WHICH row survives, not just how many. Points only accumulate, so of two
-    # sources describing one entity the larger total is the one that has
-    # counted the most rounds; a view row outscored by another source's row
-    # for the same entity kept the stale figure. A front-end review flipped
-    # the view's ORDER BY on a copy and every count-based check still passed
-    # while Antonelli showed 242 instead of 267 - this is the check that fails.
-    stale = con.execute("""SELECT COUNT(*) FROM v_standings_final f
-        WHERE EXISTS (SELECT 1 FROM standings o
-                      WHERE o.after_round IS NULL AND o.year = f.year
-                        AND o.table_type = f.table_type AND o.entity_id = f.entity_id
-                        AND o.source <> f.source AND o.points > f.points)""").fetchone()[0]
+    # WHICH row survives, not just how many: the one whose table has counted
+    # the most rounds, and formula1.com's where both stand after the same
+    # round. A front-end review flipped the view's ORDER BY on a copy and every
+    # count-based check still passed while Antonelli showed 242 instead of 267.
+    # The rule this replaced - "the larger total" - kept Gasly and Alpine on a
+    # round-12 snapshot beside a round-14 table (AF-35), and this check passed
+    # it, because it tested the rule rather than what the rule is for. So the
+    # moment each row stands at is read here from as_of, independently of the
+    # view's own reading of it, and a row whose moment cannot be read fails.
+    last_run = dict(con.execute("SELECT year, MAX(round) FROM races GROUP BY year"))
+    latest = {(y, s): n for y, s, n in con.execute(
+        """SELECT year, source, MAX(after_round) FROM standings
+            WHERE after_round IS NOT NULL GROUP BY year, source""")}
+
+    def rounds_counted(year, source, as_of):
+        m = re.search(r"\(after round (\d+)\)$", as_of or "")
+        if m:
+            return int(m.group(1))
+        if as_of == "current":
+            return latest.get((year, source))
+        if as_of == "final":
+            return last_run.get(year)
+        return None
+
+    counted, unread = {}, []
+    for yr_, kind_, eid_, src_, as_of_ in con.execute(
+            """SELECT DISTINCT year, table_type, entity_id, source, as_of
+                 FROM standings WHERE after_round IS NULL"""):
+        n_ = rounds_counted(yr_, src_, as_of_)
+        if n_ is None:
+            unread.append(f"{yr_} {kind_} {eid_} as_of {as_of_!r}")
+        counted.setdefault((yr_, kind_, eid_), {})[src_] = n_
+    check("every final standings row says which round it stands after",
+          not unread, "; ".join(unread[:3]))
+    stale = []
+    for yr_, kind_, eid_, src_ in con.execute(
+            "SELECT DISTINCT year, table_type, entity_id, source FROM v_standings_final"):
+        by_src = counted.get((yr_, kind_, eid_), {})
+        best = max((n for n in by_src.values() if n is not None), default=None)
+        kept = by_src.get(src_)
+        official = [s for s, n in by_src.items() if n == best and "formula1.com" in s]
+        if best is not None and (kept != best or (official and src_ not in official)):
+            stale.append(f"{yr_} {kind_} {eid_}: kept {src_} at round {kept}, "
+                         f"another source stands after round {best}")
     check("v_standings_final keeps the source that has counted the most rounds",
-          stale == 0, f"{stale} rows outscored by the other source")
+          not stale, "; ".join(stale[:3]))
+    # 'current' is read as the source's latest running table, so hold it to
+    # that: a season-level file that lagged its own per-round file would make
+    # the view's reading of it wrong.
+    lagging = con.execute("""SELECT COUNT(*) FROM standings c
+        WHERE c.after_round IS NULL AND c.as_of = 'current'
+          AND NOT EXISTS (SELECT 1 FROM standings r
+                WHERE r.year = c.year AND r.table_type = c.table_type
+                  AND r.entity_id = c.entity_id AND r.source = c.source
+                  AND r.after_round = (SELECT MAX(x.after_round) FROM standings x
+                                        WHERE x.year = c.year AND x.source = c.source)
+                  AND ABS(COALESCE(r.points, -1) - COALESCE(c.points, -1)) < 0.001)"""
+        ).fetchone()[0]
+    check("every 'current' standings row equals its source's latest round",
+          lagging == 0, f"{lagging} rows differ from the source's own latest table")
     # And the fill: where either source has a position or a team, the view
     # row has it. 2026 is the season with two sources, so it is the test.
     unfilled = con.execute("""SELECT COUNT(*) FROM v_standings_final f
@@ -378,10 +425,10 @@ def standings():
     check("v_standings_final keeps every entry the kept source asserts",
           folded == 0, f"{folded} entity-seasons with a different row count")
 
-    # The check that constrains the VALUE and not the rule. "Larger total
-    # wins" assumes the sources agree at any one round; where the official
-    # snapshot and F1DB's table after the same round differ, that is a
-    # disagreement the build must have filed, or a new one has arrived.
+    # The check that constrains the VALUE and not the rule. The fold assumes
+    # the sources agree at any one round; where the official snapshot and
+    # F1DB's table after the same round differ, that is a disagreement the
+    # build must have filed, or a new one has arrived.
     unfiled = []
     pts_text = lambda v: str(int(v)) if float(v).is_integer() else str(v)  # noqa: E731
     for yr_, kind_, eid_, snap_, rnd_ in con.execute("""
@@ -408,6 +455,42 @@ def standings():
                 unfiled.append(f"{yr_} {kind_} {eid_} {snap_} v {f1db_[0]}")
     check("every points disagreement between the official snapshot and F1DB is filed",
           not unfiled, "; ".join(unfiled[:3]))
+    # Its counterpart (AF-34). Drivers' disagreements that net to zero are a
+    # reclassification, not a scoring difference: points moved between
+    # drivers in some race. Such a set must cite one race, and that race must
+    # carry the open finishing-order disagreement - otherwise the cause is
+    # filed nine times over as season totals and nowhere on the race.
+    uncaused = []
+    groups = {}
+    for field_, stored_, derived_, text_, is_driver_ in con.execute("""
+            SELECT d.field, d.stored_value, d.derived_value, d.assessment,
+                   EXISTS (SELECT 1 FROM drivers x WHERE x.full_name = d.subject)
+              FROM discrepancies d
+             WHERE d.field LIKE '____ championship points, after round %'
+               AND d.status LIKE 'open%'"""):
+        groups.setdefault(field_, []).append((stored_, derived_, text_, is_driver_))
+    for field_, rows_ in sorted(groups.items()):
+        yr_ = field_[:4]
+        driver_rows = [r for r in rows_ if r[3]]
+        net = sum(float(r[0]) - float(r[1]) for r in driver_rows)
+        cited = {m for r in rows_
+                 for m in re.findall(rf"'({yr_} round \d+)'", r[2] or "")}
+        if abs(net) < 0.001 and driver_rows:
+            if len(cited) != 1 or any(f"'{next(iter(cited))}'" not in (r[2] or "")
+                                      for r in rows_):
+                uncaused.append(f"{field_}: nets to zero and cites "
+                                f"{sorted(cited) or 'no race'}")
+                continue
+        for race_ in cited:
+            rn_ = int(race_.rsplit(" ", 1)[1])
+            if rn_ > int(field_.rsplit(" ", 1)[1]) or not con.execute(
+                    """SELECT 1 FROM discrepancies WHERE subject = ?
+                         AND field LIKE 'finishing order%' AND status LIKE 'open%'""",
+                    (race_,)).fetchone():
+                uncaused.append(f"{field_}: cites {race_}, which carries no open "
+                                f"finishing-order disagreement")
+    check("a points disagreement caused by one race is filed on that race",
+          not uncaused, "; ".join(uncaused[:3]))
     # The view is a classification: positions 1..n, points non-increasing.
     for y in (2025, 2026):
         for t in ("drivers", "constructors"):
@@ -616,7 +699,13 @@ def pole_position_and_fastest_lap():
     # defect, and it is confined to the season in progress — so the assertion is
     # that every OLDER race has them, and the current season's stragglers are
     # named in a warning rather than failing a build.
-    CURRENT_YEAR = con.execute("SELECT MAX(year) FROM races").fetchone()[0]
+    # The season being run, not MAX(year) FROM races: the lag this warning
+    # exists to tolerate is in the season being harvested, and a calendar
+    # announced above it holds no completed race to straggle. Read from the
+    # calendar, the window would close on the season that needs it - the next
+    # 2026 race to land without its pole harvest would fail the build instead
+    # of being named here.
+    CURRENT_YEAR = season_in_progress()
 
     def _missing(column):
         return [(r[0], r[1]) for r in con.execute(f"""
@@ -1550,7 +1639,16 @@ def the_driver_register():
     _active = {r[0] for r in con.execute("SELECT id FROM drivers WHERE status = 'active'")}
     _grid = {r[0] for r in con.execute("""SELECT DISTINCT e.driver_id FROM race_entries e
         JOIN races r ON r.id = e.race_id WHERE r.year = ?""", (_latest,))}
-    _in_season = _calendar == _latest
+    # In season while the season being run still has rounds to run. The test
+    # was _calendar == _latest alone, which said the same thing only while the
+    # last calendar in the register WAS that season: announce the next one and
+    # every mid-season build reads as pre-season, downgrading this check to a
+    # warning for the rest of the year. The pre-season window is the gap
+    # between a season's last race and the next season's first, and it opens
+    # when the season being run has finished, not when the next is published.
+    _unrun = con.execute("""SELECT COUNT(*) FROM races
+        WHERE year = ? AND status != 'completed'""", (_latest,)).fetchone()[0]
+    _in_season = _calendar == _latest or _unrun > 0
     (check if _in_season else warn)(
         f"every active driver has an entry in {_latest}"
         + ("" if _in_season else f" (pre-season: {_calendar} has no completed race yet)"),
@@ -1861,14 +1959,21 @@ def the_chassis_register():
             if b0 <= a1:
                 overlaps.append(f"{field} {a0}-{a1} and {b0}-{b1}")
     check("no two spans of one regulation limit overlap", not overlaps, "; ".join(overlaps[:4]))
-    # To the season being run, not to MAX(year): a season whose calendar has
-    # been announced but whose financial regulations this project has not read
-    # yet is a gap to fill from the FIA, not a figure to infer here.
-    latest = season_in_progress()
+    # The regulations set a cap before the year is raced, so one year beyond
+    # the register may carry a figure; none before 2021, none further on. The
+    # two bounds were one MAX(year) FROM seasons while the last season in the
+    # register was also the one being run. A calendar announced above it parts
+    # them: read from the register alone, next year's OPTIONAL figure becomes
+    # a required one the moment its calendar lands, which is the reverse of
+    # what this check says. Required runs to the season being RUN; the slack
+    # runs one year past whatever the register holds.
+    run = season_in_progress()
+    ahead = con.execute("SELECT MAX(year) FROM seasons").fetchone()[0]
     capped = {y for y in lim if "cost_cap_usd" in lim[y]}
+    required, allowed = set(range(2021, run + 1)), set(range(2021, ahead + 2))
     check("the cost cap has a figure for every year from 2021 to the current season",
-          capped == set(range(2021, latest + 1)),
-          f"missing {sorted(set(range(2021, latest + 1)) - capped)}")
+          required <= capped <= allowed,
+          f"missing {sorted(required - capped)}, unexpected {sorted(capped - allowed)}")
     # The one other place a cap figure is written is the 2026 regulation_changes
     # row, in prose. It has to agree with the schedule, or one of them is wrong.
     prose = con.execute("SELECT detail FROM regulation_changes WHERE year = 2026 "

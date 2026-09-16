@@ -195,6 +195,8 @@ deliberately and in the open — never a step on the way to something else.
 ## Measured and rejected — do not re-propose
 
 Route-level code splitting `[D-12]`. An HTTP range-request VFS `[D-13]`.
-`BUILT` as a real timestamp `[D-01]`. The track atlas `[D-29]`. Restricting
-the fork's tools through skill frontmatter `[D-32]` — re-probe before
-re-proposing; the keys were inert when tested.
+`BUILT` as a real timestamp `[D-01]`. The track atlas `[D-29]`. Raising
+`NOISE` in `next.py` to group on a hot file `[D-34]`. Restricting the fork's
+tools through skill frontmatter `[D-32]`, and lowering its effort the same way
+`[D-35]` — for both, re-probe before re-proposing; the keys were inert when
+tested, and `[D-35]` names the probe that would settle it.

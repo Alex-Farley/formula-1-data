@@ -50,7 +50,7 @@ here is a number the build checked.
 
 | File | What it is |
 |---|---|
-| `f1.db` | The SQLite database. <!-- fig:tables -->48<!-- /fig --> tables, <!-- fig:views -->41<!-- /fig --> views, <!-- fig:rows -->119,685<!-- /fig --> rows. This is the artefact. |
+| `f1.db` | The SQLite database. <!-- fig:tables -->48<!-- /fig --> tables, <!-- fig:views -->41<!-- /fig --> views, <!-- fig:rows -->119,690<!-- /fig --> rows. This is the artefact. |
 | `f1-geometry.db` | The OpenStreetMap circuit centrelines (ODbL), shipped beside `f1.db` and never merged into it. See *Illustration*. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
@@ -163,7 +163,7 @@ than asserted. Beneath them, **<!-- fig:chassis -->1,153<!-- /fig -->
 chassis** — every one that has raced — with engines and per-season entry
 lists. See *Cars and chassis*.
 
-**Technical and regulatory** — <!-- fig:regulation_changes -->59<!-- /fig -->
+**Technical and regulatory** — <!-- fig:regulation_changes -->60<!-- /fig -->
 regulation changes by year and category,
 <!-- fig:innovations -->26<!-- /fig --> landmark innovations (with the year
 each was banned, where it was), <!-- fig:engine_eras -->11<!-- /fig --> engine
@@ -939,8 +939,8 @@ and Wikipedia's infobox independently gave 11, matching the derived count.
 
 **Where two sources disagree and neither can be checked against an official
 source, the disagreement is itself the fact worth storing.** `discrepancies`
-holds <!-- fig:discrepancies -->57<!-- /fig --> rows:
-<!-- fig:discrepancies_open -->10<!-- /fig --> open,
+holds <!-- fig:discrepancies -->58<!-- /fig --> rows:
+<!-- fig:discrepancies_open -->11<!-- /fig --> open,
 <!-- fig:discrepancies_explained -->8<!-- /fig --> explained — an external
 figure older than the race it lacks, or two readings of a career span that
 are each right about something — and the rest resolved — corrected,
@@ -1005,8 +1005,8 @@ queried, not just read here. `./f1 gaps` prints them with the fix for each.
   never recorded in a form anyone can retrieve. See *Timing, telemetry and
   radio* above.
 
-The `known_gaps` table holds <!-- fig:known_gaps -->15<!-- /fig --> entries,
-of which <!-- fig:known_gaps_open -->9<!-- /fig --> are open gaps — the figure
+The `known_gaps` table holds <!-- fig:known_gaps -->16<!-- /fig --> entries,
+of which <!-- fig:known_gaps_open -->10<!-- /fig --> are open gaps — the figure
 the site's homepage and `/data` state, counted from the same `v_open_gaps`
 view. The rest are either closed, and kept so the closure is on record, or
 positions: a deliberate absence rather than a gap, such as the lap timing

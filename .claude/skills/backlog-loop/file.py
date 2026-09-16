@@ -4,6 +4,7 @@ Write to the queue: file an item, move one between statuses, mark one.
 
     python3 .claude/skills/backlog-loop/file.py new PD "Title." --size S --status Next --body-file note.md
     python3 .claude/skills/backlog-loop/file.py new AF "Title." --size M --body "one paragraph" --decision
+    python3 .claude/skills/backlog-loop/file.py new CR "Title." --size S --body "..." --where "web/src/pages/Glossary.jsx, web/src/queries/glossary.js"
     python3 .claude/skills/backlog-loop/file.py status 123 "In progress"     # or Now, Next, Someday, Done
     python3 .claude/skills/backlog-loop/file.py blocked 123 "why, in one clause"
     python3 .claude/skills/backlog-loop/file.py decision 123 "what a person must decide"
@@ -17,6 +18,15 @@ does that with `Closes #n`) or reorders the board (a person drags). The
 board auto-adds every new issue of the repository, so `status` finds the
 item before it adds one.
 
+`--where` names the file paths the work would touch and appends them as a
+`**Where:**` line, the spelling this project writes them in; `next.py --group`
+reads a path wherever it appears in the body, so the line is a convention and
+not a requirement of the grouping. A token the checkout does not track is a
+warning and not a refusal - it may be a file the item creates. A token with a
+space in it is prose, not a path, and is not checked, so the `not known yet`
+the form advertises passes in silence. An item filed without `--where` is
+filed, and simply cannot be grouped on a path `[D-34]`.
+
 `new` takes the prefix and the title, gives it the next unused number in
 that prefix (`next.py --next-id`), the `source:` label the prefix implies,
 the `size:` label, and puts it on the board under the status given
@@ -29,6 +39,7 @@ declined one by a wrong number; `blocked` and `decision` add the label and a com
 is on the item, not in a fork's context that is about to be discarded.
 """
 import argparse
+import importlib.util
 import json
 import os
 import re
@@ -38,6 +49,25 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))  # behind the stdlib
 import gh_preflight  # noqa: E402  (a sibling script, not an installed package)
 import loop_cache  # noqa: E402
+
+
+def _sibling(name):
+    """Load a sibling script by path.
+
+    `sys.path.append` puts this directory *last*, so `import next` would lose
+    to any installed package of that name - and `next` is a plausible one.
+    The two imports above predate this and keep their distinctive names;
+    anything loaded here is loaded by its file.
+    """
+    here = os.path.dirname(os.path.abspath(__file__))
+    spec = importlib.util.spec_from_file_location(f"_loop_{name}",
+                                                  os.path.join(here, f"{name}.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+next_py = _sibling("next")  # the one normaliser - see tracked()
 
 REPO = "Alex-Farley/formula-1-data"
 OWNER = "Alex-Farley"
@@ -152,6 +182,58 @@ def set_status(number, status):
         loop_cache.drop("items")
 
 
+def where_line(body, where):
+    """`body` with the paths `where` names appended as the `**Where:**` line.
+
+    `next.py --group` scores a companion on the file paths a body names
+    `[D-34]`, and `signals()` reads a path wherever it appears and looks for
+    no marker - so the line is this project's house spelling and not
+    something the grouping requires. What the marker is load-bearing for is
+    the guard here, which keeps a second `--where` from appending a second
+    line. Whitespace is not a `--where`: `--where "   "` is truthy and used
+    to write the junk line `**Where:** .`
+
+    A token the checkout does not track is a warning and not a refusal, since
+    it may be a file the item will create; a wrong one costs a fork a
+    worktree to discover, so it is said out loud rather than swallowed. A
+    token holding a space is prose rather than a path and is not checked -
+    that is what lets `not known yet` through without a warning.
+    """
+    where = (where or "").strip().rstrip(". ").strip()
+    if not where or "**Where:**" in body:
+        return body
+    # A token with a space in it is prose - `not known yet`, the answer the
+    # form advertises - and is not checked. Everything else is meant as a
+    # path, including a directory or an extension-less one, which `signals()`
+    # cannot read either and which the filer should hear about.
+    unknown = [q for q in (t.strip() for t in where.split(","))
+               if q and not re.search(r"\s", q) and not tracked(q)]
+    if unknown:
+        print("warning: not tracked in this checkout: " + ", ".join(unknown),
+              file=sys.stderr)
+    return body.rstrip() + "\n\n**Where:** " + where + "."
+
+
+def tracked(path):
+    """Is `path` a file of this checkout? False also when git cannot answer.
+
+    The normalising and the bare-name resolution are `next.py`'s, imported
+    rather than re-derived: the `lstrip("./")` defect was one rule kept by
+    hand in two places, and a `--where` written `prerender.js` has to be
+    judged by the same rule that will score it.
+    """
+    if not hasattr(tracked, "_files"):
+        root = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
+        try:
+            out = subprocess.run(["git", "ls-files"], capture_output=True, text=True,
+                                 check=False, cwd=root).stdout.split()
+        except OSError:
+            out = []
+        tracked._files = {next_py.norm(f) for f in out}
+    q = next_py.norm(path)
+    return next_py.tree().get(q, q) in tracked._files
+
+
 def new(a):
     if a.prefix not in SOURCE:
         sys.exit(f"unknown prefix {a.prefix}; one of {', '.join(sorted(SOURCE))}")
@@ -162,6 +244,8 @@ def new(a):
     body = open(a.body_file, encoding="utf-8").read() if a.body_file else (a.body or "")
     if not body.strip():
         sys.exit("an item needs a body: what is wrong, where, and what would fix it")
+    body = where_line(body, a.where)
+
     labels = [f"source: {SOURCE[a.prefix]}", f"size: {a.size}"] + (["decision"] if a.decision else [])
     args = ["issue", "create", "--repo", REPO, "--title", f"{ident}: {a.title}", "--body", body]
     for lb in labels:
@@ -201,6 +285,7 @@ def main():
     n.add_argument("--status", default="Next")
     n.add_argument("--body")
     n.add_argument("--body-file")
+    n.add_argument("--where", help="comma-separated file paths the work would touch")
     n.add_argument("--decision", action="store_true")
     s = sub.add_parser("status")
     s.add_argument("number", type=int)
