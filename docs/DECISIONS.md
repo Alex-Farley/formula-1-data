@@ -464,7 +464,7 @@ reads a path wherever it appears in a body and looks for no marker, which is
 what lets an item filed through the form, where the heading comes from the
 field label, group exactly as well.
 
-### D-35 · A skill's frontmatter does not set a fork's effort either — 2026-09-16 (`AF-37`)
+### D-35 · A skill's frontmatter does not set a fork's effort either — 2026-09-16
 `backlog-item/SKILL.md` carries `effort: high`, and the fork is both the
 longest-running context in the loop and its implementer, so effort costs more
 there than anywhere else. The obvious experiment is to run an item at
@@ -547,8 +547,10 @@ these ten items and before `AF-23+VD-44+IX-31`. The front-end reviewer judged
 most of these rounds, so a comparison either holds the reviewer configuration
 fixed and says which it used, or compares only against post-`[D-33]` rounds.
 
-The experiment that would settle it is a session started at
-`CLAUDE_CODE_EFFORT_LEVEL=medium` running several items, compared against 6
+Both remaining steps are `AF-37` (#352), which stays open: this entry records
+what was probed, not a finished experiment. The one that would settle it is a
+session started at `CLAUDE_CODE_EFFORT_LEVEL=medium` running several items,
+compared against 6
 first-pass FAILs in 10 and 8 FAIL rounds over 10 items — and run only after
 the behavioural probe above says the effort is reaching the fork at all. One
 item cannot tell 6 in 10 from 5 in 10, so it is several or it is nothing.
