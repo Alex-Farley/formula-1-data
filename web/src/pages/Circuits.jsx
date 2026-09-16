@@ -82,6 +82,9 @@ export default function Circuits() {
                 title="The traced centrelines"
                 count={overlay ? `${traces.length} of ${register.length}` : null}
               >
+                {/* One credit for the set, from the rows themselves: every
+                    row of circuit_geometry states the same licence today, and
+                    a circuit's own page prints its own row's. */}
                 <p className="note" style={{ marginTop: 0 }}>
                   {overlay ? traceRegisterNote(traces[0]?.licence) : TRACE_NOT_LOADED}
                 </p>
@@ -94,6 +97,9 @@ export default function Circuits() {
                           <span>{trace.country}</span>
                           <span>
                             {trace.measured_km?.toFixed(3)} km measured
+                            {/* Strictly 0, not falsy: a NULL verdict is
+                                unestablished, not a trace that does not
+                                close. */}
                             {trace.closes === 0 ? ' · does not close' : ''}
                           </span>
                         </Link>
