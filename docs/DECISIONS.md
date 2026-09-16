@@ -475,9 +475,9 @@ as `[D-32]`, one frontmatter key over.
 Note that `backlog-loop/SKILL.md` has said all along that "the implementer's
 effort is the session's", and names `CLAUDE_CODE_EFFORT_LEVEL` and
 `effortLevel` as the way to set it. The `effort: high` line is what
-contradicts it. On the probe evidence that line is the one that is wrong — but
-the probes cannot say which of two documents to believe, and if the key is
-live it is the other one.
+contradicts it, and on the probe evidence it is the line that is wrong. The
+probes cannot prove that much: if the key is live, the wrong document is the
+other one.
 
 **The two probes, as run**, each a throwaway `SKILL.md` written to
 `.claude/skills/`, invoked, read and deleted. A probe wants a retry after it
