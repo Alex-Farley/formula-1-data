@@ -241,17 +241,20 @@ one that gets grouped well.
 
 ## Working autonomously
 
-The same rules apply when an agent works through the backlog unattended.
-These are the ones that exist because the person is not there.
+The same rules apply when an agent works through the queue unattended, and
+the per-item procedure that carries them is in **one** place:
+`.claude/skills/backlog-item/SKILL.md`. It holds the pace table, grouping,
+the review policy, the stop conditions and what never slides at any pace.
+Nothing restates it — three copies of a rule is how two of them end up wrong,
+which is what this section used to be.
 
-**The queue.** GitHub Issues, ranked on the project board, is the canonical
-list of work, and *The queue* above says how an item is written, sized,
-landed and declined; `next.py` prints the next one and `file.py` files one.
-Before starting one, reassess it against the repository as it is now: the
-code it names may have moved, the fix may have landed under a different ID,
-a later critique may have superseded it, or a smaller change may now do.
-Work discovered along the way is filed as an issue under the existing ID,
-source and size conventions. There is no second list.
+What a person needs to know about it:
+
+- **The queue is GitHub Issues**, as *The queue* above describes. `next.py`
+  prints the next item, `file.py` files one, and an item is reassessed
+  against the repository as it is now before it is started: the code may have
+  moved, the fix may have landed under another ID, a later critique may have
+  superseded it.
 
 **What the queue scripts need.** All four shell out to `gh`, and it has to
 be both current and authenticated. The credential is for everything they
@@ -296,82 +299,27 @@ ranking also looks exactly like a correctly ranked one in the output. Read
 and work a named item without a board if you like; do not let the loop
 choose one.
 
-**Facts.** A factual or data change is verified against an authoritative
-source before it is made — official FIA, Formula 1, team, driver, power-unit
-manufacturer or circuit/promoter publications first, then the sources
-`SOURCE_LICENCE` already classifies. A source that is not classified is not
-used. A value nobody can establish stays NULL. Two sources that disagree are
-declared in `DECLARED_DISCREPANCIES`, which lands in `discrepancies`, never
-chosen between silently; a fact nobody holds is recorded in `known_gaps`.
-Never invent one.
+- **Every autonomous pull request gets an independent review from a fresh
+  context before it merges**, returning `PASS — safe to merge` or `FAIL —
+  changes required`. The agent that made the change never approves it.
+  Silence, a rate limit or an unavailable review account is not a PASS. Which
+  reviewer, which model, and what happens to a PASS with findings are in the
+  skill.
+- **A pull request merges** only when the change is complete, `make all`
+  succeeded, the review returned PASS and the required checks are green.
+  Merging `main` deploys lapledger.org through Cloudflare Workers Builds, so
+  a merge is a production change.
+- **An ordinary blocker is recorded and worked around**; a dangerous one
+  stops the loop — anything that could corrupt data, breach a licence, weaken
+  a safeguard, make an irreversible production change or lose history. A CI
+  or test failure is told apart from an environmental or credential failure
+  before it is acted on.
+- **Nothing is changed to make the loop succeed**: not production
+  infrastructure, Cloudflare DNS, credentials, branch protection, repository
+  visibility, billing, the licence controls, the source classification, the
+  redistribution checks, or `review.yml`.
 
-**Artefacts.** `make all` — not `make check` — before any commit that touches
-`data/`, `harvest/`, `build.py`, `schema.sql`, `verify.py` or an exporter, so
-`f1.db`, `f1-geometry.db` and `f1_compat.json` are regenerated together.
-Inspect the artefact diff before committing. Nothing generated is edited.
-
-**Review.** Every autonomous pull request receives an independent review
-from a fresh context before it merges, using the relevant definitions in
-`.claude/agents/` — `licence-reviewer`, `data-integrity-reviewer` and
-`frontend-reviewer` for a diff; the critics for a whole area. The reviewer is
-given the task, the rules that apply, the diff, the provenance of any fact,
-and the test and validation results, and is asked to disprove the work. It
-returns `PASS — safe to merge` or `FAIL — changes required`, with blocking
-findings named. The agent that made the change does not approve it. A FAIL
-is corrected, `make all` is run again, and a fresh-context review of the
-fix is obtained; this repeats until PASS. Silence, an interrupted reviewer
-or an unavailable review account is not a PASS. Which model reviews what,
-what happens to a PASS with non-blocking findings - the findings that belong
-to the diff under review are fixed on it, in one batch with one confirmation,
-and only what needs a decision the item does not settle, touches code the PR
-does not, or would make the diff unreadable is carried and filed (revised
-2026-09-14, after three items landed in a day and filed seven issues, three of
-them against their own diffs) - and which post-PASS
-fixes merge without a further pass - documentation wording, a blank line, a
-comment, a test, the removal of dead code, named in the PR comment - were
-decided by the maintainer on 2026-09-13 to control review cost and are set
-in `.claude/skills/backlog-item/SKILL.md`: Opus for a first pass, a fresh
-Sonnet context to confirm a fix that must land before merge or to review a
-wording-only change, and the rungs of one item in one PR. Items that
-share a file are grouped into one pull request rather than reviewed one at a
-time, whatever their size - `next.py --group` proposes the candidates, what
-is linked to the head decides which of them ride (2026-09-14, replacing an
-S-only rule and a per-pace count), and each item keeps its own `Closes #n`
-so the merge closes all of them.
-A third decision the same day (`PM-36`) added a pace - `fast`, `balanced`, `thorough` - that
-may relax the first-pass model on a small front-end change, the routes the
-brief names and pipelining, and never grouping, the review itself, `make
-all`, the precheck, green CI, the licence triggers or the stop conditions;
-and moved each item into a forked context, because the session driving the
-loop, not the reviewers, was measured at 75-85 % of its tokens.
-
-`.github/workflows/review.yml` runs the same kind of review on GitHub, on a
-credential that is at present exhausted. Its red check is an infrastructure
-condition, not a defect in the pull request, and it is never retried, edited,
-weakened or bypassed to make the loop succeed. Its protection against
-reviewing a pull request that edits it stays.
-
-**Merging.** A pull request merges only when the change is complete, the
-tests pass, `make all` succeeded, the fresh-context review returned PASS and
-the required CI checks are green. Merging `main` deploys lapledger.org through
-Cloudflare Workers Builds, so a merge is a production change. The pull
-request body carries `Closes #n`, so the merge closes the item's issue and
-the board moves it to *Done*; a declined item is closed as *not planned*
-with the reason as a comment; nothing is deleted.
-
-**Blockers.** An ordinary one — a network failure, a service outage, a
-missing non-critical credential, an environment-specific failure — is
-recorded, the repository is left in a safe state, and work moves to the next
-viable item rather than retrying the same operation. A dangerous one stops
-the loop: anything that could corrupt data, compromise security, breach a
-licence, make a destructive or irreversible production change, or lose
-repository history. A CI or test failure is distinguished from an
-environmental, credential or external-service failure before it is acted on.
-
-**What is never changed to make the loop succeed:** production
-infrastructure, Cloudflare DNS, credentials, branch protection, repository
-visibility, billing, licence controls, the source classification, the
-redistribution checks, or `review.yml`.
+The reasons behind each of these are in `docs/DECISIONS.md`.
 
 ## What not to commit
 
