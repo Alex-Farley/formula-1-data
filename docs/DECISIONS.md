@@ -192,6 +192,21 @@ what passed.
 pattern can decide. Every check that moves there is one a reviewer never
 spends a turn on again, so the brief stays on judgement.
 
+### D-31 · Critics never run on a pull request — 2026-09-16
+`.claude/agents/README.md` already said critics are "invoked deliberately, not
+on a diff", but nothing the loop read said so, and on 2026-09-14 `AF-16`
+launched `accessibility-critic` alongside `frontend-reviewer` on PR #303. The
+front-end reviewer returned PASS with four findings; the critic's arrival
+turned that into a fix, a confirmation that FAILed on a wording judgement, a
+second fix and a second confirmation — five agent launches on one item, on a
+change the merge-path reviewer had already passed.
+
+A critic's job is to find things, and it will always find something, because
+that is what it is for. That is the right posture against `main`, where what
+it finds becomes issues and gets ranked against everything else. It is the
+wrong posture inside a merge gate, where it converts a sound change into
+rounds. Keep the families apart, which is what the README asks for.
+
 ### D-29 · The track atlas was cut — 2026-09-14 (`AF-20`/`AF-21`, #302/#304)
 `/circuits/atlas` was a walkable, turn-rate-coloured lap compared across all
 25 traced circuits. The walk never worked — no play, no keyboard repeat,

@@ -250,6 +250,20 @@ class AgentAndSkillFrontmatterIsWellFormed(unittest.TestCase):
             folder = os.path.basename(os.path.dirname(rel))
             self.assertEqual(fm["name"], folder, f"{rel}: name {fm['name']!r} is not the folder name")
 
+    def test_no_loop_reviewer_is_a_critic(self):
+        # The two families in .claude/agents/README.md have opposite postures:
+        # a conformance reviewer enforces rules on a diff, a critic assesses
+        # the whole project and exists to find things. A critic in the merge
+        # path turns a sound change into fix-and-confirm rounds - AF-16 spent
+        # five agent launches on one item that way (docs/DECISIONS.md D-31).
+        readme = read(".claude/agents/README.md")
+        critics = readme[readme.index("## Critics"):readme.index("## Adding to either family")]
+        named = {os.path.basename(f)[:-3] for f in files_under(".claude/agents", (".md",))
+                 if os.path.basename(f)[:-3] in critics}
+        self.assertTrue(named, "README.md lists no critics; has the section moved?")
+        overlap = sorted(set(LOOP_REVIEWERS) & named)
+        self.assertEqual(overlap, [], f"the loop's reviewers name a critic: {overlap}")
+
     def test_the_loop_reviewers_carry_a_turn_cap_and_an_effort(self):
         for name in LOOP_REVIEWERS:
             fm = frontmatter(f".claude/agents/{name}.md")

@@ -220,6 +220,15 @@ Which one:
   change does not also need it. **Two reviewers are the exception, not the
   rule.**
 
+**Never launch a critic on a pull request** `[D-31]`. The nine critics in
+`.claude/agents/` — accessibility, interaction, visual, content, information
+architecture, data architecture, service, product, and the user-research
+simulator — assess the whole project from outside and exist to *find things*,
+which is what refills the queue. On a diff they turn design opinions into
+fix-and-confirm rounds against a change that was already sound. They run
+deliberately against `main`, and what they find is filed as issues. The
+merge path has exactly the four agents named above and no others.
+
 Model: **Opus for a first pass**, front-end and data alike, except where the
 pace table names the quick variant. **Sonnet, fresh, for confirming a fix or
 reviewing a docs-only or wording-only change** — a fresh Sonnet context

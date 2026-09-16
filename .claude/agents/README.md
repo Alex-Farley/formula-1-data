@@ -33,6 +33,13 @@ They assess the **whole project from outside** and may reopen any closed
 decision, including the rejected list — provided they engage with the recorded
 reason. Invoked deliberately, not on a diff.
 
+**Never on a pull request**, and `tests/test_conventions.py` keeps one out of
+the loop's reviewer list. A critic exists to find things and always will,
+which is right against `main`, where what it finds becomes ranked issues, and
+wrong inside a merge gate, where it turns a sound change into fix-and-confirm
+rounds — `AF-16` spent five agent launches on one item that way
+(`docs/DECISIONS.md` D-31).
+
 Each is a discipline and nothing else. All the project context lives in
 **`.claude/CRITIQUE-BRIEF.md`**, which every critic reads first: what the thing
 is, who uses it, the three licence constraints that are not open to argument,
