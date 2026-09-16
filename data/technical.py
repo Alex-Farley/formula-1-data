@@ -64,6 +64,7 @@ REGULATIONS = [
     (2026, "technical", "Roughly 50/50 power split", "Electrical output raised to approximately 350 kW, against a comparable figure from the internal combustion engine.", ""),
     (2026, "technical", "100% advanced sustainable fuel", "Fully sustainable drop-in fuel mandated.", "The sport's principal decarbonisation claim for the ruleset."),
     (2026, "safety", "Tougher homologation tests", "Roll-hoop vertical impact requirement raised from 16 g to 20 g; a two-stage nose-cone concept introduced.", ""),
+    (2027, "financial", "Unused cost cap carried forward; Indexation resumes", "A team may deduct the previous year's unused cap, up to US$2,000,000 adjusted for Indexation, from its Relevant Costs (Article D6.1.1.n), and the US$215,000,000 cap is again adjusted for Indexation, which Section D does not apply to the 2026 reporting year (Article D4.1.2 and Appendix D1), both in the 2026 Financial Regulations (Section D, issue 07).", "The headline figure is unchanged from 2026. The 2023-2025 regulations indexed the cap too; Section D's Indexation for 2027 is the 2026 inflation rate, or the rate to 30 June 2027 where that exceeds it by two points or more."),
 ]
 
 # year, innovation, originator, description, legacy, banned_year
@@ -239,19 +240,32 @@ REGULATION_LIMITS = [
     # above or below that number adds or removes. The 2026 figure is not
     # comparable with 2025's on its face - the 2026 regulations were rewritten
     # as Section D of a single rulebook - so the two are separate rows rather
-    # than one span with a note.
+    # than one span with a note. 2027 is a row of its own for the same kind of
+    # reason: Section D's Article D4.1.2 sets the same figures for every
+    # reporting year, but its Indexation (Appendix D1) does not reach 2026 and
+    # applies from the year ending 31 December 2027. Every figure here is the
+    # one the regulations state before Indexation; the indexed figures are
+    # known_gaps #16.
     (2021, 2021, "cost_cap_usd", 145_000_000.0, "USD",
      "For a 21-Competition reporting year (FIA Financial Regulations 2021, "
      "issue 8).", "reference", _FIN[2021]),
     (2022, 2022, "cost_cap_usd", 140_000_000.0, "USD",
      "For a 21-Competition reporting year (issue 12).", "reference", _FIN[2022]),
     (2023, 2025, "cost_cap_usd", 135_000_000.0, "USD",
-     "For a 21-Competition reporting year. Issue 18 sets it for 2023 'and "
-     "each subsequent' year; issues 22 and 25 restate it for 2024 and 2025.",
+     "For a 21-Competition reporting year, before Indexation. Issue 18 sets "
+     "it for 2023 'and each subsequent' year; issues 22 and 25 restate it "
+     "for 2024 and 2025.",
      "reference", _FIN[2023]),
     (2026, 2026, "cost_cap_usd", 215_000_000.0, "USD",
      "For a reporting year of 24 Competitions or fewer, under the 2026 "
      "Financial Regulations (Section D, issue 07).", "reference", _FIN[2026]),
+    (2027, 2027, "cost_cap_usd", 215_000_000.0, "USD",
+     "For a reporting year of 24 Competitions or fewer, before Indexation: "
+     "Article D4.1.2 of the 2026 Financial Regulations (Section D, issue 07) "
+     "adjusts it by the 2026 inflation rate, or by the rate to 30 June 2027 "
+     "where that exceeds it by two points or more, as the Cost Cap "
+     "Administration communicates them. The adjusted figure is not held here.",
+     "reference", _FIN[2026]),
     (2021, 2022, "cost_cap_per_competition_usd", 1_200_000.0, "USD",
      "Added or removed for each Competition above or below 21 (issue 8 "
      "states it for 2021 and 2022).", "reference", _FIN[2021]),
@@ -260,6 +274,9 @@ REGULATION_LIMITS = [
      _FIN[2025]),
     (2026, 2026, "cost_cap_per_competition_usd", 1_800_000.0, "USD",
      "Added for each Competition above 24.", "reference", _FIN[2026]),
+    (2027, 2027, "cost_cap_per_competition_usd", 1_800_000.0, "USD",
+     "Added for each Competition above 24, before Indexation (Article "
+     "D4.1.2, issue 07).", "reference", _FIN[2026]),
 
     # The weekend's limits, from the 2025 Sporting Regulations. One season:
     # the years each of these changed are not yet read from earlier issues,
