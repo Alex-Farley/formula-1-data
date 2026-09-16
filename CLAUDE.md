@@ -53,6 +53,9 @@ from `f1.db` (`make all` runs it) and `verify.py` checks. Edit the prose,
 never a figure inside a span; a figure that disagrees with the database fails
 the build, which is the point.
 
+**Inspect the artefact diff before committing.** A rebuild that moved more
+than the change explains is the first sign something else moved with it.
+
 On any merge conflict in a committed artefact: **take either side, rebuild,
 commit the rebuild.** Never resolve one by hand. Both databases are
 byte-stable across rebuilds, and `ci.yml` checks the committed copies against

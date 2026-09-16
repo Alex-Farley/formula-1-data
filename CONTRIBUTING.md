@@ -255,6 +255,7 @@ What a person needs to know about it:
   against the repository as it is now before it is started: the code may have
   moved, the fix may have landed under another ID, a later critique may have
   superseded it.
+
 **What the queue scripts need.** All four shell out to `gh`, and it has to
 be both current and authenticated. The credential is for everything they
 do, not only the board: these scripts reach GitHub only through `gh`, and
