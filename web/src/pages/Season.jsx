@@ -9,7 +9,7 @@ import Figure from '../charts/Figure.jsx'
 import LineChart from '../charts/LineChart.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { points as fmtPoints, number } from '../lib/format.js'
-import { colourForEntry } from '../lib/liveries.js'
+import { colourForEntry, lastTeamColour } from '../lib/liveries.js'
 import LiveryMark from '../components/LiveryMark.jsx'
 import { NOT_YET_RUN, SPRINT } from '../lib/site.js'
 import {
@@ -77,20 +77,16 @@ const calendarRenders = (year) => ({
  * The colour mark beside a name in the two standings tables: the team's
  * livery from 2010, the national racing colour before 1968, nothing between
  * (lib/liveries.js). A driver's mark is their last team of the season, from
- * DRIVER_TEAMS; the tooltip names every team where there was more than one.
+ * DRIVER_TEAMS through lastTeamColour(), which the driver page reads too; the
+ * tooltip names every team where there was more than one.
  */
 const driversRenders = (year, teams) => ({
   entity: {
     render: (name, row) => {
-      const raced = teams.get(row.entity_id) ?? []
-      const last = raced[0]
-      const colour = last
-        ? colourForEntry({ constructorId: last.constructor_id, country: last.country, year, team: last.constructor })
-        : null
-      const also = raced.length > 1 ? ` (earlier in the season: ${raced.slice(1).map((t) => t.constructor).join(', ')})` : ''
+      const { colour, title } = lastTeamColour(teams.get(row.entity_id), year)
       return (
         <>
-          <LiveryMark colour={colour} title={colour ? `${colour.title}${also}` : undefined} year={year} />
+          <LiveryMark colour={colour} title={title} year={year} />
           {row.entity_id ? <Link to={`/drivers/${row.entity_id}`}>{name}</Link> : cell(name)}
         </>
       )

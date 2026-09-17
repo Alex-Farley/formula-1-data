@@ -4,7 +4,9 @@ import { Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { Chips, Filters, SearchField, Select } from '../components/Filters.jsx'
+import LiveryMark from '../components/LiveryMark.jsx'
 import { useQuery } from '../data/useQuery.js'
+import { colourForEntry } from '../lib/liveries.js'
 import { NOT_YET_RUN, SHARED, SPRINT } from '../lib/site.js'
 import { RACES, RACE_COLUMNS, RACES_FOOTER } from '../queries/races.js'
 
@@ -42,9 +44,23 @@ const APP = {
         cell(name)
       ),
   },
+  // The winning car's colour mark (AF-47), as the race page draws it beside
+  // the same constructor: one per row, the year the row's own.
   constructor: {
-    render: (name, row) =>
-      row.constructor_id ? <Link to={`/constructors/${row.constructor_id}`}>{name}</Link> : cell(name),
+    render: (name, row) => (
+      <>
+        <LiveryMark
+          colour={colourForEntry({
+            constructorId: row.constructor_id,
+            country: row.constructor_country,
+            year: row.year,
+            team: name,
+          })}
+          year={row.year}
+        />
+        {row.constructor_id ? <Link to={`/constructors/${row.constructor_id}`}>{name}</Link> : cell(name)}
+      </>
+    ),
   },
   pole: {
     render: (name, row) => (row.pole_id ? <Link to={`/drivers/${row.pole_id}`}>{name}</Link> : cell(name)),

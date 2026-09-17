@@ -15,6 +15,14 @@ const M = { top: 16, right: 14, bottom: 30, left: 40 }
  * classified have no y value at all and are not plotted — the point of this
  * database is that a missing result is missing, not zero, and a dot on the
  * floor would say "last".
+ *
+ * A point may carry its own `colour` (AF-47): a driver's championship dots
+ * each take the team of their season. Each dot and its halo then sit in a
+ * `.livery-series` group of their own, reading the {light, dark} pair as a
+ * whole-chart colour does (charts/own.js), and the tooltip swatch takes the
+ * hovered point's. A point without one takes the chart's `colour`, and
+ * failing that the neutral series colour; mixing the two is the caller's
+ * decision, and the driver page declines it.
  */
 export default function DotPlot({
   data,
@@ -40,7 +48,9 @@ export default function DotPlot({
     ? linear([1, top], [M.top, height - M.bottom])
     : linear([0, top], [height - M.bottom, M.top])
 
-  const paint = own.paint ?? seriesColour(0)
+  // The chart's own colour, or a point's where it carries one.
+  const ownOf = (d) => (d.colour ? ownColour(d.colour) : own)
+  const paintOf = (d) => ownOf(d).paint ?? seriesColour(0)
 
   return (
     <div className={`plot-holder${own.className ? ` ${own.className}` : ''}`} style={own.style} ref={ref}>
@@ -76,27 +86,29 @@ export default function DotPlot({
         {plotted
           .filter((d) => d.mark)
           .map((d) => (
-            <circle
-              key={`halo-${d.x}-${d.y}`}
-              className="mark-halo"
-              cx={x(d.x)}
-              cy={y(d.y)}
-              r={hover === d ? 10 : 8.5}
-              fill="none"
-              stroke={paint}
-            />
+            <g key={`halo-${d.x}-${d.y}`} className={d.colour ? ownOf(d).className : undefined} style={d.colour ? ownOf(d).style : undefined}>
+              <circle
+                className="mark-halo"
+                cx={x(d.x)}
+                cy={y(d.y)}
+                r={hover === d ? 10 : 8.5}
+                fill="none"
+                stroke={paintOf(d)}
+              />
+            </g>
           ))}
         {plotted.map((d) => (
-          <circle
-            key={`${d.x}-${d.y}-${d.label ?? ''}`}
-            className="mark-ring"
-            cx={x(d.x)}
-            cy={y(d.y)}
-            r={hover === d ? 6 : 4.5}
-            fill={paint}
-            onMouseEnter={() => setHover(d)}
-            onMouseLeave={() => setHover(null)}
-          />
+          <g key={`${d.x}-${d.y}-${d.label ?? ''}`} className={d.colour ? ownOf(d).className : undefined} style={d.colour ? ownOf(d).style : undefined}>
+            <circle
+              className="mark-ring"
+              cx={x(d.x)}
+              cy={y(d.y)}
+              r={hover === d ? 6 : 4.5}
+              fill={paintOf(d)}
+              onMouseEnter={() => setHover(d)}
+              onMouseLeave={() => setHover(null)}
+            />
+          </g>
         ))}
       </svg>
 
@@ -107,8 +119,8 @@ export default function DotPlot({
           role="status"
         >
           <b>{hover.label ?? formatX(hover.x)}</b>
-          <span className="row">
-            <i style={{ background: paint }} aria-hidden="true" />
+          <span className={hover.colour ? `row ${ownOf(hover).className}` : 'row'} style={hover.colour ? ownOf(hover).style : undefined}>
+            <i style={{ background: paintOf(hover) }} aria-hidden="true" />
             {hover.note ?? format(hover.y)}
           </span>
         </div>
