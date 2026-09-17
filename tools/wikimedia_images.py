@@ -733,7 +733,8 @@ def file_candidates(found, full, names, others=()):
     def sibling(f):
         own = names_car(f, full, names, whole=True)
         return any(names_car(f, o_full, o_id, whole=True)
-                   and not (own and norm(o_full) in norm(full))
+                   and not (own and norm(o_full) != norm(full)
+                            and norm(o_full) in norm(full))
                    for o_id, o_full in others)
     keep = [(f, d) for f, d in found
             if f.lower().endswith(RASTER) and not REPLICA.search(f)
