@@ -749,7 +749,9 @@ KNOWN_GAPS = [
      "A person looking. v_images_to_check lists the 337 whose file name does "
      "not name the car, worst first by how many chassis depend on the "
      "article. Every row sits at 'unverified' until then, which is where "
-     "this database puts what it cannot prove."),
+     "this database puts what it cannot prove; a row taken from a Commons "
+     "category for a chassis with no article sits lower still, at "
+     "'catalogued'."),
 
     (12, "records", "the records the database cannot derive",
      "open",
@@ -1040,6 +1042,7 @@ F1DB_CONS_FILE = os.path.join(HERE, "..", "harvest", "f1db_constructors.txt")
 ENTRANTS_FILE = os.path.join(HERE, "..", "harvest", "entrants.txt")
 SPECS_FILE = os.path.join(HERE, "..", "harvest", "car_specs.txt")
 IMAGES_FILE = os.path.join(HERE, "..", "harvest", "article_images.txt")
+CATEGORY_IMAGES_FILE = os.path.join(HERE, "..", "harvest", "category_images.txt")
 GEOMETRY_FILE = os.path.join(HERE, "..", "harvest", "circuit_geometry.txt")
 RESULTS_FILE = os.path.join(HERE, "..", "harvest", "race_results.txt")
 SPRINT_FILE = os.path.join(HERE, "..", "harvest", "sprint_results.txt")
@@ -1519,6 +1522,17 @@ def load_article_images():
     was refused at harvest time.
     """
     return _read_named(IMAGES_FILE, "tools/wikimedia_images.py")
+
+
+def load_category_images():
+    """The Commons-category photographs of chassis no article describes.
+
+    The same licence obligation as load_article_images(), on a weaker claim:
+    a Commons editor filed the file under a category named for the chassis.
+    The build holds these rows at 'catalogued'.
+    """
+    return _read_named(CATEGORY_IMAGES_FILE,
+                       "tools/wikimedia_images.py --route category")
 
 
 def load_race_results():

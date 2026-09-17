@@ -793,10 +793,62 @@ def _stage_11_the_lead_image_of_each_accepted(b):
         img_rows += 1
     if img_rows:
         named = cur.execute("SELECT COUNT(*) FROM article_images "
-                            "WHERE name_matches = 1").fetchone()[0]
+                            "WHERE route = 'article' AND name_matches = 1"
+                            ).fetchone()[0]
         print(f"  article images: {img_rows} rows, {img_skipped} for "
               f"articles no chassis claims; {named} name the car in the "
               f"file name and {img_rows - named} do not")
+
+    # --- the category route (AF-42): a chassis no article describes
+    #
+    # Keyed on the chassis, and held at 'catalogued', below 'unverified':
+    # the claim is only that a Commons editor filed the file under a
+    # category named for it. The same licence checks as above. A chassis
+    # that has an article is the article route's, whatever its article
+    # carries - two routes for one chassis would make the weaker one a
+    # fallback nobody chose.
+    bare_chassis = {r[0] for r in cur.execute(
+        "SELECT id FROM chassis WHERE article IS NULL")}
+    cat_rows = cat_skipped = 0
+    for im in HV.load_category_images():
+        cid = im.get("chassis_id")
+        if cid not in bare_chassis:
+            cat_skipped += 1
+            continue
+        # Commons answers 'local' about its own file; the harvest wrote
+        # 'commons' only after checking the answer came from Commons for a
+        # page in the File namespace. Anything else is not that check.
+        if im.get("repository") != "commons":
+            raise SystemExit(
+                f"category_images: {cid} carries repository "
+                f"{im.get('repository')!r}, not 'commons'. Rerun "
+                f"tools/wikimedia_images.py --route category.")
+        if not (im.get("category") or "").startswith("Category:"):
+            raise SystemExit(f"category_images: {cid} names no category.")
+        if not im.get("licence"):
+            raise SystemExit(f"category_images: {cid} states no licence.")
+        if not (im.get("artist") or im.get("credit")):
+            raise SystemExit(
+                f"category_images: {cid} names no author for "
+                f"{im.get('file_name')}. Rerun tools/wikimedia_images.py "
+                f"--route category.")
+        if not im.get("description_url"):
+            raise SystemExit(f"category_images: {cid} has no description page.")
+        cur.execute("""INSERT INTO article_images (route, chassis_id,
+            category, file_name, repository, licence, licence_url, artist,
+            credit, description_url, width, height, name_matches, confidence)
+            VALUES ('category',?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (cid, im["category"], im["file_name"], im["repository"],
+             im["licence"], im.get("licence_url"), im.get("artist"),
+             im.get("credit"), im["description_url"],
+             int(im["width"]) if im.get("width") else None,
+             int(im["height"]) if im.get("height") else None,
+             1 if im.get("name_matches") == "1" else 0,
+             "catalogued"))
+        cat_rows += 1
+    if cat_rows or cat_skipped:
+        print(f"  category images: {cat_rows} rows at 'catalogued', "
+              f"{cat_skipped} for chassis that are not without an article")
 
 
 def _stage_12_circuit_centrelines_re_measured_before_they(b):

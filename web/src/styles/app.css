@@ -884,8 +884,8 @@ tbody td.strong {
   vertical-align: 1px;
 }
 
-/* Only the two ends of the ladder take a status colour, and both always carry
-   their word — the colour is never the only thing saying it. */
+/* Only verified and the two bottom rungs take a status colour, and each always
+   carries its word — the colour is never the only thing saying it. */
 .pill-verified {
   background: var(--good-wash);
   color: var(--good);
@@ -896,6 +896,15 @@ tbody td.strong {
   background: var(--warn-wash);
   color: var(--warn);
   border-color: transparent;
+}
+
+/* catalogued sits below unverified (AF-42): the same warning, and the broken
+   border that marks a rung as weaker than the one above it. */
+.pill-catalogued {
+  background: var(--warn-wash);
+  color: var(--warn);
+  border-color: var(--warn);
+  border-style: dashed;
 }
 
 /* The three middle tiers step on border weight, not hue: high is the heavy

@@ -86,7 +86,8 @@ CONSTRAINED_BY = {
     # Nothing in verify.py constrains their values.
 }
 
-LADDER = ["verified", "high", "reference", "medium", "unverified"]
+LADDER = ["verified", "high", "reference", "medium", "unverified",
+          "catalogued"]
 
 
 def authority(con, source, tbl):

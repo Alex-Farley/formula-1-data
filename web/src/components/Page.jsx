@@ -182,9 +182,10 @@ export function Fields({ items }) {
 /**
  * How good a fact is, shown rather than hidden.
  *
- * The ladder is verified > high > reference > medium > unverified. Only its
- * two ends take a colour, and both always carry the word: the colour supports
- * the label, it never replaces it.
+ * The ladder is verified > high > reference > medium > unverified >
+ * catalogued. Only verified and the two bottom rungs take a colour, and each
+ * always carries the word: the colour supports the label, it never replaces
+ * it.
  */
 /**
  * The confidence tier, as a pill that goes to the ladder that defines it.

@@ -126,7 +126,9 @@ function Body({ data }) {
   const mix = rows(data, 'confidenceMix')
 
   const total = mix.reduce((sum, row) => sum + row.n, 0)
-  const ordered = LADDER.map((name) => ({
+  // `catalogued` is a photograph-only rung (AF-42) and none of these tables can
+  // carry it, so the figure would only ever draw it as an empty row.
+  const ordered = LADDER.filter((name) => name !== 'catalogued').map((name) => ({
     key: name,
     value: mix.find((row) => row.confidence === name)?.n ?? 0,
     label: name,
@@ -277,6 +279,12 @@ function Body({ data }) {
                 photograph — most are filed under the driver. But nothing in the database can tell
                 which are not, and one article leads with a picture of police officers, so all of
                 them are held at unverified until someone looks.
+              </p>
+              <p className="source-note">
+                A further {number(images.catalogued)}, for chassis with no article of their own,
+                were filed by Commons editors under a category named for the car. A category also
+                holds replicas and show cars, so those sit a rung lower, at catalogued, and none of
+                them is shown on a car page.
               </p>
             </Section>
           </div>

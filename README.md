@@ -50,7 +50,7 @@ here is a number the build checked.
 
 | File | What it is |
 |---|---|
-| `f1.db` | The SQLite database. <!-- fig:tables -->48<!-- /fig --> tables, <!-- fig:views -->41<!-- /fig --> views, <!-- fig:rows -->119,711<!-- /fig --> rows. This is the artefact. |
+| `f1.db` | The SQLite database. <!-- fig:tables -->48<!-- /fig --> tables, <!-- fig:views -->41<!-- /fig --> views, <!-- fig:rows -->119,831<!-- /fig --> rows. This is the artefact. |
 | `f1-geometry.db` | The OpenStreetMap circuit centrelines (ODbL), shipped beside `f1.db` and never merged into it. See *Illustration*. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
@@ -76,6 +76,7 @@ here is a number the build checked.
 | `harvest/car_specs.txt` | Chassis specifications off the per-car articles. **Generated** by `tools/wikispec_fetch.py`. |
 | `harvest/car_specs.log` | Every chassis that was refused, and the reason. **Generated.** |
 | `harvest/article_images.txt`, `.log` | The photograph of each car article and its licence; every article refused, and why. **Generated** by `tools/wikimedia_images.py`. |
+| `harvest/category_images.txt`, `.log` | For a chassis with no article, a photograph from the Commons category named for it; every such chassis refused, and why. **Generated** by `tools/wikimedia_images.py --route category`. |
 | `harvest/circuit_geometry.txt`, `.log` | The OSM centrelines and every relation refused. **Generated** by `tools/osm_geometry.py`. |
 | `tools/f1db_fetch.py` | Pulls the registers, the classification, qualifying, standings and pit stops from F1DB (CC BY 4.0) into the generated harvest files. Needs network; not part of the build. |
 | `tools/wikispec_fetch.py` | Harvests chassis specifications from the `{{Racing car}}` infobox on each car's article, refusing any page that disagrees with the register. Needs network; not part of the build. |
@@ -620,6 +621,23 @@ It is stored as `name_matches` and enforced nowhere. The failure it
 half-detects is real: the ATS D5 article leads with a photograph of officials
 and police. Every row sits at `unverified`.
 
+**A second, weaker route.**
+<!-- fig:chassis_without_article -->349<!-- /fig --> chassis have no article
+of their own — Wikipedia covers them on the team's page — so the route above
+never reaches them. For those, `tools/wikimedia_images.py --route category`
+looks for a Wikimedia Commons category named for the chassis, such as
+`Category:Vanwall VW5`, and takes a photograph filed under it.
+<!-- fig:images_catalogued -->119<!-- /fig --> rows come from it. The claim is
+only that a Commons editor filed the file there, and a category also holds
+replicas and show cars, so these rows sit a rung *below* `unverified`, at
+`catalogued`, and the `route` column keeps them apart. A category is taken
+only when its title is the chassis's name exactly, Commons files it as a
+Formula One car, and no other chassis claims it. The same licence and
+attribution checks apply; the Commons check is restated rather than dropped,
+because Commons says `local` about its own files — the harvest checks
+instead that Commons answered, for a page in the File namespace. The site
+does not show these photographs.
+
 ### Centrelines — `circuit_geometry`
 
 A circuit's shape as OpenStreetMap maps it, stored as GeoJSON and drawn as
@@ -873,6 +891,7 @@ every fact table now carries a `confidence` column instead:
 | `reference` | Harvested from Wikipedia's season results tables or F1DB, cross-checked on load | Yes, but cite the FIA/F1 archive |
 | `medium` | Correct in substance; an exact figure or date may have drifted or moves with the season | Confirm first |
 | `unverified` | Placeholder or disputed | No |
+| `catalogued` | Not checked by anyone: a photograph filed by Commons editors under a category named for the chassis | No |
 
 Since v2.16 the tier is **traceable**: every row's `source` resolves through
 `source_patterns` to a `source_registry` entry, the tables without a `source`
@@ -984,7 +1003,10 @@ queried, not just read here. `./f1 gaps` prints them with the fix for each.
   a photograph from Wikimedia Commons with its licence and photographer. The
   *article* is well constrained; what the picture depicts is not, and there is
   no second source to disagree with it. This is the only part of the database
-  with no cross-check available at all. `./f1 images` lists the
+  with no cross-check available at all. A further
+  <!-- fig:images_catalogued -->119<!-- /fig --> chassis with no article have
+  one only from a Commons category, held a rung lower at `catalogued` and not
+  shown. `./f1 images` lists the
   <!-- fig:images_unnamed -->346<!-- /fig --> whose file name does not even
   name the car.
 - **Historic circuit geometry.** Centrelines are traced from OpenStreetMap,

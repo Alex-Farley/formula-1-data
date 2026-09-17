@@ -339,17 +339,28 @@ class Figures:
 
     # -- Illustration -------------------------------------------------------------
 
+    # The article route. The category route (AF-42) is counted on its own:
+    # its rows make a weaker claim and the README says so separately.
     def images(self):
-        return n(self.count("article_images"))
+        return n(self.count("article_images", "route = 'article'"))
 
     def image_licences(self):
-        return n(self.one("SELECT COUNT(DISTINCT licence) FROM article_images"))
+        return n(self.one("SELECT COUNT(DISTINCT licence) FROM article_images "
+                          "WHERE route = 'article'"))
 
     def images_named(self):
-        return n(self.count("article_images", "name_matches = 1"))
+        return n(self.count("article_images",
+                            "route = 'article' AND name_matches = 1"))
 
     def images_unnamed(self):
-        return n(self.count("article_images", "name_matches = 0"))
+        return n(self.count("article_images",
+                            "route = 'article' AND name_matches = 0"))
+
+    def images_catalogued(self):
+        return n(self.count("article_images", "route = 'category'"))
+
+    def chassis_without_article(self):
+        return n(self.count("chassis", "article IS NULL"))
 
     def centrelines(self):
         return n(self.count(self.geo))

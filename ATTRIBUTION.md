@@ -128,7 +128,12 @@ lead image, or a photograph in its body whose file name names the car.
 and under what licence. The pixels are fetched from `upload.wikimedia.org` by
 whatever renders the page, under Wikimedia's terms.
 
-There is **no single licence** covering these files. Across 623 rows there are
+A second set of rows (`route = 'category'`) covers chassis with no article of
+their own: a photograph filed on Commons under a category named for the
+chassis. They are held under the same rules — Commons-hosted, a free licence,
+someone to credit — and are not shown on the site.
+
+There is **no single licence** covering these files. Across the 623 article rows there are
 sixteen distinct licence strings — CC BY-SA at 1.0, 2.0, 2.5, 3.0 and 4.0,
 CC BY at 2.0, 2.5, 3.0 and 4.0, CC0, public domain, and national variants such
 as CC BY-SA 2.0 de and CC BY-SA 3.0 nl. So there is no blanket credit line you

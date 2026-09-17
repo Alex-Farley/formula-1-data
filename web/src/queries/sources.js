@@ -18,7 +18,7 @@ export const SOURCES = 'SELECT * FROM source_registry ORDER BY priority, id'
 export const LICENCES = `
   SELECT licence, licence_url, COUNT(*) AS images
     FROM article_images
-   WHERE licence IS NOT NULL
+   WHERE licence IS NOT NULL AND route = 'article'
    GROUP BY licence
    ORDER BY images DESC, licence
 `

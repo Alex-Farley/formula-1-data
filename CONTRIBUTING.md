@@ -68,7 +68,8 @@ python3 harvest/append.py venues.txt 4 < new_rows.txt
 ## Adding data
 
 **Every fact needs a `confidence` and, where there is one, a `source`.** The
-ladder is `verified` > `high` > `reference` > `medium` > `unverified`.
+ladder is `verified` > `high` > `reference` > `medium` > `unverified` >
+`catalogued`; the last is only for photographs taken from a Commons category.
 `verified` means an official FIA or formula1.com source — nothing is promoted
 to it without one.
 

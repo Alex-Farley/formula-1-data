@@ -33,6 +33,12 @@
         "rank": 5,
         "definition": "Placeholder, disputed, or known to be incomplete. Never state as fact.",
         "may_publish": 0
+      },
+      {
+        "confidence": "catalogued",
+        "rank": 6,
+        "definition": "Not checked by anyone, here or at a source: a photograph that Wikimedia Commons editors filed under a category named for the chassis. A category also holds replicas, scale models, show cars and museum mock-ups, and nothing here can tell them from the car that raced. Never present it as the car without a person looking first.",
+        "may_publish": 0
       }
     ],
     "missing_fact_policy": "Mark UNVERIFIED / NOT FOUND IN OFFICIAL SOURCES; never invent.",
@@ -927,11 +933,11 @@
       "priority": 15,
       "source": "Wikimedia Commons (via the MediaWiki API)",
       "url": "https://commons.wikimedia.org/",
-      "use": "The lead photograph of each accepted car article, and the attribution needed to display it. Loaded by tools/wikimedia_images.py. NO IMAGE IS STORED - article_images holds a reference and its credit, and the pixels are fetched from upload.wikimedia.org by whatever renders the page.",
+      "use": "The lead photograph of each accepted car article, and the attribution needed to display it; for a chassis with no article, a photograph filed under the Commons category named for it (AF-42). Loaded by tools/wikimedia_images.py. NO IMAGE IS STORED - article_images holds a reference and its credit, and the pixels are fetched from upload.wikimedia.org by whatever renders the page.",
       "authority": "reference",
       "licence": "Per file, and they differ: sixteen distinct licence strings across 602 rows - CC BY-SA at four versions, CC BY at four more, CC0, public domain and national variants. There is no blanket credit line, so each row carries its own and the build refuses a file that names no author.",
       "cadence": "Continuous, by anyone. The lead image of an article is whatever an editor last put there, which is why the Commons-only and licence checks run on every build rather than once at harvest.",
-      "checkability": "Weak, and this is the one place in the database where that is true. The ARTICLE is constrained - it already passed the three checks in tools/wikispec_fetch.py for constructor, seasons and name - so the claim recorded is 'the article proved to describe this chassis leads with this file'. But nothing here constrains what a photograph SHOWS, and there is no second source to disagree. Testing whether the file name mentions the car finds only 265 of 602, because most correct images are filed under the driver, so the test is recorded as name_matches and enforced nowhere. The failure it half-detects is real: the ATS D5 article leads with a photograph of officials and police. These rows are 'unverified' because that is what they are.",
+      "checkability": "Weak, and this is the one place in the database where that is true. The ARTICLE is constrained - it already passed the three checks in tools/wikispec_fetch.py for constructor, seasons and name - so the claim recorded is 'the article proved to describe this chassis leads with this file'. But nothing here constrains what a photograph SHOWS, and there is no second source to disagree. Testing whether the file name mentions the car finds only 265 of 602, because most correct images are filed under the driver, so the test is recorded as name_matches and enforced nowhere. The failure it half-detects is real: the ATS D5 article leads with a photograph of officials and police. These rows are 'unverified' because that is what they are. For a chassis with no article, a photograph filed under a Commons category named for it is taken instead and held one rung lower, at 'catalogued' (AF-42).",
       "redistributable": "yes",
       "share_alike": 1,
       "attribution_required": 1,
