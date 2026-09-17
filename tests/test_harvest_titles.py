@@ -100,11 +100,7 @@ class NameIsForm(unittest.TestCase):
         self.refuses("Lotus Elan 25", "Lotus 25", "25", lotus)
         self.refuses("Lotus Seven 21", "Lotus 21", "21", lotus)
         self.refuses("March 701 721", "March 721", "721", ("March", "March"))
-        # The cost: the family page "Alfa Romeo 158/159 Alfetta" is not the
-        # 159 either, though it is the 158.
         alfa = ("Alfa Romeo", "Alfa Romeo Racing")
-        self.refuses("Alfa Romeo 158/159 Alfetta", "Alfa Romeo 159", "159",
-                     alfa)
         self.accepts("Alfa Romeo 158/159 Alfetta", "Alfa Romeo 158", "158",
                      alfa)
         self.refuses("Era of Hope A", "ERA A", "A",
@@ -116,6 +112,36 @@ class NameIsForm(unittest.TestCase):
         # A digit in the infobox's constructor is never filler.
         self.assertFalse(WS.name_is_form(
             "Lotus 18 21", "Lotus 21", "21", lotus, "Lotus 18"))
+
+    def test_a_list_of_models_counts_for_each_car_it_lists(self):
+        alfa = ("Alfa Romeo", "Alfa Romeo Racing")
+        alfas = {"158", "159", "177", "179"}
+        for car in ("158", "159"):
+            self.assertTrue(WS.name_is_form(
+                "Alfa Romeo 158/159 Alfetta", "Alfa Romeo " + car, car, alfa,
+                None, alfas), car)
+        # Without the constructor's designations nothing is a list.
+        self.refuses("Alfa Romeo 158/159 Alfetta", "Alfa Romeo 159", "159",
+                     alfa)
+        # An item that is not one of the constructor's cars: not a list.
+        self.assertFalse(WS.name_is_form(
+            "Alfa Romeo 105/115 Series Coupes", "Alfa Romeo 115", "115",
+            alfa, None, alfas | {"115"}))
+        # The joined word is itself a car: it names that car, not a list.
+        lotus = ("Lotus", "Team Lotus")
+        lotuses = {"18", "21", "1821", "25"}
+        self.assertFalse(WS.name_is_form(
+            "Lotus 18/21", "Lotus 21", "21", lotus, None, lotuses))
+        self.assertTrue(WS.name_is_form(
+            "Lotus 18/21", "Lotus 18/21", "18/21", lotus, None, lotuses))
+        # A listed car is matched exactly, never as a family cut.
+        self.assertFalse(WS.name_is_form(
+            "Ferrari 312/158", "Ferrari 312T", "312T", FERRARI, None,
+            {"312", "158", "312t"}))
+        # The list does not loosen the head: filler rules still apply.
+        self.assertFalse(WS.name_is_form(
+            "Alfa Romeo Giulia 158/159", "Alfa Romeo 159", "159", alfa,
+            None, alfas))
 
     def test_a_family_is_cut_only_where_digits_meet_letters(self):
         # Real titles the first draft of this rule admitted; check 2 refused

@@ -70,6 +70,14 @@ this database already holds and did not get from Wikipedia:
      evidence - check 1 is - so the infobox is parsed before this check
      runs, which costs nothing: the page has already been fetched.
 
+     One title names two cars on purpose: "Alfa Romeo 158/159 Alfetta"
+     covers the 158 and the 159. A slash-joined word counts as a list of
+     models only when every item in it is itself the designation of one of
+     the constructor's F1DB chassis and the joined word is not. The title
+     then counts for each listed car exactly as if it named that car alone,
+     with no family cut. So "Lotus 18/21" is still not the 21 (F1DB holds an
+     18/21), and "Alfa Romeo 105/115 Series Coupes" is not a list at all.
+
 A page failing either check is refused whole and logged. It is never
 partially accepted, and a near miss is never nudged into a match.
 
@@ -462,15 +470,52 @@ FILLER = {"tipo", "type", "scuderia", "team", "racing", "f1", "formula", "one"}
 _GLUE = {"in", "of", "the", "and", "a", "an"}
 
 
-def name_is_form(title, full, name, cons_names, page_constructor=None):
+def listed_models(title, want, siblings):
+    """`title` with a list of models cut down to the one that is `want`.
+
+    A word such as "158/159" is a list only when every item is in
+    `siblings` - the constructor's F1DB designations, each reduced to one
+    slug - and the whole word is not. The listed item must be the
+    designation exactly. Returns the rewritten title, or None.
+    """
+    if not siblings:
+        return None
+    chunks = re.split(r"([\s_]+)", title)
+    for k, chunk in enumerate(chunks):
+        items = [slug(x) for x in chunk.split("/")]
+        if (len(items) < 2 or slug(chunk) in siblings
+                or not all(x in siblings for x in items)):
+            continue
+        for x, raw in zip(items, chunk.split("/")):
+            if x == want:
+                return "".join(chunks[:k] + [raw] + chunks[k + 1:])
+    return None
+
+
+def name_is_form(title, full, name, cons_names, page_constructor=None,
+                 siblings=()):
     """Check 3: is `title` a form of this constructor, then this designation?
 
     `cons_names` is every name F1DB holds for the chassis's constructor, its
     short name first. `page_constructor` is the infobox's Constructor value,
     whose words - "Benz" in "Mercedes-Benz" - may also stand between the
     constructor's name and the designation. Nothing else may: "Lotus 18/21"
-    is not the 21, "Lotus Elan 25" is not the 25.
+    is not the 21, "Lotus Elan 25" is not the 25. `siblings` is the set of
+    the constructor's designations, as slugs, which is what lets a list of
+    models ("158/159") count for each car it lists; see listed_models().
     """
+    if slug(title) == slug(full):
+        return True
+    want = designation(full, cons_names[0] if cons_names else "", name)
+    alone = listed_models(title, "".join(want), siblings)
+    if alone is not None and _form(alone, full, name, cons_names,
+                                   page_constructor, family=False):
+        return True
+    return _form(title, full, name, cons_names, page_constructor)
+
+
+def _form(title, full, name, cons_names, page_constructor, family=True):
+    """name_is_form() for one title; `family` False forbids any family cut."""
     if slug(title) == slug(full):
         return True
     forms = [w for w in (words(c) for c in cons_names) if w]
@@ -487,7 +532,8 @@ def name_is_form(title, full, name, cons_names, page_constructor=None):
             # A head with words beyond the constructor's name ("Ferrari
             # Tipo") must be followed by the designation itself, not a cut
             # of it.
-            if designation_follows(t[i:], want, family=i <= len(f)):
+            if designation_follows(t[i:], want,
+                                   family=family and i <= len(f)):
                 return True
     return False
 
@@ -548,6 +594,11 @@ def main():
 
     chassis = [(c, k, n, f) for c, k, n, f in read_pipe("chassis.txt")]
     cons_name = {r[0]: (r[1], r[2]) for r in read_pipe("f1db_constructors.txt")}
+    # Each constructor's designations, for check 3's list of models.
+    siblings = {}
+    for _c, k, n_, f in chassis:
+        short = cons_name.get(k, ("",))[0]
+        siblings.setdefault(k, set()).add("".join(designation(f, short, n_)))
     years = {}
     # Read the columns by name from the file's own header rather than by
     # position. A column was once added to entrants.txt and this loop went on
@@ -605,7 +656,7 @@ def main():
                 spelt = " ".join([strip(raw) or ""]
                                  + re.findall(r"\[\[([^\]|#]+)", raw))
             if not name_is_form(t, full, name, cons_name.get(con_id, ()),
-                                spelt):
+                                spelt, siblings.get(con_id, ())):
                 log.append(f"{cid}|name disagrees|{t} is not a form of {full}")
                 continue
             if b2 is None:
