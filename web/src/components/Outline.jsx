@@ -109,13 +109,13 @@ export function OutlineStrip({ year, calendar }) {
 }
 
 /**
- * The winner's colour under a run round: the winning constructor's livery
- * from 2010, its national racing colour before 1968, nothing between and
+ * The winner's colour under a run round: the winning constructor's mark -
+ * led by the colour it is recognised by (AF-45) - from 2010, its national racing colour before 1968, nothing between and
  * nothing where the round is unrun or the colour unknown (AF-04). Decorative:
  * the table beneath names the winner and the car, and the tooltip names the
  * claim. scripts/prerender.js prints the same bar.
  */
 export function WinnerMark({ round, year }) {
   const colour = winnerColour(round, year)
-  return colour ? <i className="livery" style={colour.style} title={colour.title} aria-hidden="true" /> : null
+  return colour ? <i className="livery" style={colour.mark} title={colour.title} aria-hidden="true" /> : null
 }

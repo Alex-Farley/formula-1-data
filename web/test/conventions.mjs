@@ -28,14 +28,20 @@ import { fileURLToPath } from 'node:url'
 
 import { COLOURS } from '../src/lib/racingColours.js'
 import {
+  ACCENT_APART,
   accentsBySource,
   colourForEntry,
+  deltaE,
   LIVERIES,
   LIVERY_ERA,
   LIVERY_GAPS,
+  liveryFor,
+  liveryPair,
   liveryPrimary,
   liveryStyle,
   markStyleAttr,
+  pairStyle,
+  RECOGNITION,
   schemeGradient,
 } from '../src/lib/liveries.js'
 import { DatabaseSync } from 'node:sqlite'
@@ -345,23 +351,25 @@ describe('a livery is a sourced scheme drawn as itself, and every 2010+ construc
     assert.deepEqual(clashes, [])
   })
 
-  it('no two constructors on the same grid draw the same mark (AF-17)', () => {
+  it('no two constructors on the same grid draw the same mark (AF-17, AF-46)', () => {
     // What the check above became reachable as. The mark used to be the
     // primary alone, so two teams could differ in the file and be identical
-    // on screen; it draws the scheme now, and this measures the style the app
-    // and the prerenderer both write, so a mark that stops carrying the
-    // accents fails here rather than going quietly grey-on-grey.
+    // on screen; it draws a pair now (AF-46), and this measures the style the
+    // app and the prerenderer both write, so a mark that stops carrying its
+    // accent fails here rather than going quietly grey-on-grey.
     //
     // Not every surface, and the difference matters: `.outline-strip .livery`
     // drops the gradient because a three-pixel bar has no room for bands, so
-    // two winning constructors sharing a primary would still draw alike
-    // there. None do today. This checks what is HANDED to a mark, which is
+    // two winning constructors sharing a lead would still draw alike
+    // there - and near-alike already happens: the navy leads of Red Bull and
+    // AlphaTauri in 2020, and of Red Bull and Williams in 2012, are different
+    // hexes a few delta E apart (#375). This checks what is HANDED to a mark, which is
     // the thing this file can decide; what each surface then does with it is
     // the stylesheet's, and the strip's exception is declared in it.
     const byYear = new Map()
     const clashes = []
     for (const l of LIVERIES) {
-      const mark = markStyleAttr({ style: liveryStyle(l) })
+      const mark = markStyleAttr({ mark: pairStyle(liveryPair(l)) })
       for (let y = l.from; y <= l.to; y++) {
         const grid = byYear.get(y) ?? new Map()
         if (grid.has(mark)) clashes.push(`${y}: ${grid.get(mark)} and ${l.constructor} draw ${mark}`)
@@ -372,7 +380,128 @@ describe('a livery is a sourced scheme drawn as itself, and every 2010+ construc
     assert.deepEqual(clashes, [])
   })
 
-  it('a scheme of more than one colour draws every one of them, and a scheme of one draws no gradient (AF-17)', () => {
+  it('two marks on one grid differ by delta E 15 in their lead or their accent, but for the pairs declared here (AF-46)', () => {
+    // Not being byte-identical is a weak promise: two navies 6 apart are
+    // different strings and the same bar. AF-46 chose a two-colour mark on
+    // the measurement that no 2026 pair is nearer than 26.3 in whichever of
+    // lead and accent differs more; this holds every season to 15.
+    //
+    // Declared, with the reason: Red Bull and Toro Rosso 2010-2016 are navy
+    // over red and navy over red. The third colour told them apart when a
+    // mark drew the whole scheme, and a pair drops it (#375).
+    const DECLARED = new Set(['red-bull/toro-rosso'])
+    const years = new Map()
+    for (const l of LIVERIES)
+      for (let y = l.from; y <= l.to; y++) years.set(y, [...(years.get(y) ?? []), l])
+    const failing = []
+    const used = new Set()
+    for (const [y, grid] of years)
+      for (let i = 0; i < grid.length; i++)
+        for (let j = i + 1; j < grid.length; j++) {
+          const [a, b] = [liveryPair(grid[i]), liveryPair(grid[j])]
+          const lead = deltaE(a.lead.base, b.lead.base)
+          const accent = a.accent && b.accent ? deltaE(a.accent.base, b.accent.base) : a.accent || b.accent ? Infinity : 0
+          if (Math.max(lead, accent) >= 15) continue
+          const pair = [grid[i].constructor, grid[j].constructor].sort().join('/')
+          if (DECLARED.has(pair)) used.add(pair)
+          else failing.push(`${y}: ${pair} ${Math.max(lead, accent).toFixed(1)}`)
+        }
+    assert.deepEqual(failing, [])
+    assert.deepEqual([...DECLARED].filter((p) => !used.has(p)), [], 'a declared pair no longer collides: take it off the list')
+  })
+
+  it('the recognition colours are the eleven decided, each one a colour its team has raced (AF-45)', () => {
+    // One fact per constructor. Three moved on the maintainer's word, two
+    // were confirmed where they stood, and the other six are the 2026
+    // sourced primary - which this holds them to, so a relaunch that moves a
+    // primary cannot quietly leave the recognition colour behind.
+    const grid = LIVERIES.filter((l) => l.to === 2026).map((l) => l.constructor).sort()
+    assert.deepEqual(Object.keys(RECOGNITION).sort(), grid, 'every 2026 constructor has one recognition colour, and nobody else')
+    const moved = { mercedes: '#0f9c94', 'red-bull': '#1b2a5e', 'racing-bulls': '#2b4bd8' }
+    for (const [team, rec] of Object.entries(RECOGNITION)) {
+      if (moved[team]) assert.equal(rec.base, moved[team], team)
+      else assert.equal(rec.base, liveryPrimary(liveryFor(team, 2026)).base, `${team}: not its 2026 primary`)
+      assert.ok(
+        LIVERIES.some((l) => l.constructor === team && l.scheme.some((c) => c.name === rec.name && c.base === rec.base)),
+        `${team}: ${rec.name} ${rec.base} is not a colour any of its seasons carries`,
+      )
+    }
+    // Racing Bulls' blue is the one this project picked rather than one a
+    // maintainer named, and nothing else is.
+    assert.deepEqual(
+      Object.entries(RECOGNITION).filter(([, rec]) => rec.chosen).map(([team]) => team),
+      ['racing-bulls'],
+    )
+  })
+
+  it('a mark leads with the recognition colour where its season carries one, and draws exactly two (AF-45, AF-46)', () => {
+    // The check AF-17 wrote said the SOURCED primary leads the mark. That
+    // was true of the car and not of the team, and AF-45 moved it: the mark
+    // leads with the colour the team is recognised by, drawn in the
+    // season's own shade, and where the season never raced it the primary
+    // leads unchanged. Two colours, not the scheme: the band draws all three.
+    const failing = []
+    const count = { leads: 0, lifted: 0, absent: 0 }
+    for (const l of LIVERIES) {
+      const where = `${l.constructor} ${l.from}`
+      const { lead, accent, recognised } = liveryPair(l)
+      const mark = pairStyle({ lead, accent })
+      if (!l.scheme.includes(lead) || (accent && !l.scheme.includes(accent)))
+        failing.push(`${where}: the pair draws a colour the scheme does not hold`)
+      const rec = RECOGNITION[l.constructor]
+      if (rec) {
+        const nearest = Math.min(...l.scheme.map((c) => deltaE(c.base, rec.base)))
+        if (recognised && deltaE(lead.base, rec.base) !== nearest) failing.push(`${where}: a nearer colour than ${lead.name} was passed over`)
+        if (recognised) count[lead === l.scheme[0] ? 'leads' : 'lifted']++
+        else count.absent++
+      }
+      if (!recognised && lead !== l.scheme[0]) failing.push(`${where}: an unrecognised mark does not lead with the primary`)
+      if (mark['--livery'] !== lead.base) failing.push(`${where}: the ring is not mixed from the lead`)
+      if (!accent) {
+        if (l.scheme.length > 1 && l.scheme.some((c) => c !== lead && deltaE(c.base, lead.base) >= ACCENT_APART))
+          failing.push(`${where}: an accent was available and not drawn`)
+        if (mark['--livery-scheme']) failing.push(`${where}: a single colour drew a gradient`)
+        continue
+      }
+      if (deltaE(accent.base, lead.base) < ACCENT_APART) failing.push(`${where}: the accent is the lead again`)
+      const first = l.scheme.find((c) => c !== lead && deltaE(c.base, lead.base) >= ACCENT_APART)
+      if (accent !== first) failing.push(`${where}: the accent is not the first colour standing`)
+      const expected = `linear-gradient(to bottom, ${lead.base} 0 62.00%, ${accent.base} 62.00% 100.00%)`
+      if (mark['--livery-scheme'] !== expected) failing.push(`${where}: the mark draws ${mark['--livery-scheme']}`)
+    }
+    assert.deepEqual(failing, [])
+    // The figures #372 was decided on, over the 32 entries of the eleven
+    // teams: fifteen already led with it, eight lift it, nine never raced it.
+    assert.deepEqual(count, { leads: 15, lifted: 8, absent: 9 })
+  })
+
+  it('a mark says the team is recognised by its lead, and the band still says what the car raced in (AF-45)', () => {
+    const failing = []
+    for (const l of LIVERIES) {
+      const where = `${l.constructor} ${l.from}`
+      const colour = colourForEntry({ constructorId: l.constructor, country: null, year: l.from, team: 'T' })
+      const { lead, recognised } = colour.pair
+      if (!recognised) {
+        if (!colour.title.includes(`T raced in ${l.from}`)) failing.push(`${where}: a primary-led mark does not say what the car raced in`)
+        continue
+      }
+      if (/raced in/.test(colour.title)) failing.push(`${where}: a recognition-led mark says the car raced in it`)
+      if (!colour.title.startsWith(`${lead.name} — the colour T is recognised by, which is this site's reading`))
+        failing.push(`${where}: the tooltip does not say whose reading the recognition is`)
+      // The second claim is the sources', and only where they make it.
+      const own = RECOGNITION[l.constructor].chosen || !lead.sourced
+      const sourced = /as its sources describe it|the name is the team's own/.test(colour.title)
+      if (own && sourced) failing.push(`${where}: a colour this project picked borrows a source`)
+      if (!own && !sourced) failing.push(`${where}: the tooltip drops the sourced fact that the livery carries it`)
+      if (/the name is the team's own/.test(colour.title) !== (!own && lead.named))
+        failing.push(`${where}: the tooltip says whose name it is wrongly`)
+    }
+    assert.deepEqual(failing, [])
+    for (const page of ['Constructor.jsx', 'Driver.jsx'])
+      assert.match(read(join(web, 'src', 'pages', page)), /raced in \$?\{/, `${page}: the band no longer says what the car raced in`)
+  })
+
+  it('a band draws every colour of its scheme, primary first, and a scheme of one draws no gradient (AF-17)', () => {
     // The stops are hard and name the bases unchanged: a blended stop would
     // put a colour on screen that no source states, which is the objection
     // this file's header raises about hexes in the first place.
@@ -389,11 +518,10 @@ describe('a livery is a sourced scheme drawn as itself, and every 2010+ construc
       }
       for (const c of l.scheme)
         if (!gradient.includes(c.base)) failing.push(`${l.constructor} ${l.from}: ${c.name} ${c.base} is not drawn`)
-      // The primary leads: a reader recognises a team by its main colour, and
-      // an accent taking the top of the mark would be the wrong claim drawn
-      // at the wrong size.
+      // The primary leads the BAND: the band says what the car raced in, in
+      // the car's order. A mark's lead is the recognition colour, above.
       if (!gradient.startsWith(`linear-gradient(to bottom, ${liveryPrimary(l).base} 0 `))
-        failing.push(`${l.constructor} ${l.from}: the primary does not lead the mark`)
+        failing.push(`${l.constructor} ${l.from}: the primary does not lead the band`)
       if (!gradient.endsWith('100.00%)')) failing.push(`${l.constructor} ${l.from}: the last stop stops short of the edge`)
     }
     assert.deepEqual(failing, [])
@@ -407,6 +535,7 @@ describe('a livery is a sourced scheme drawn as itself, and every 2010+ construc
     assert.equal(entry.kind, 'national')
     assert.equal(entry.scheme.length, 1)
     assert.deepEqual(Object.keys(entry.style), ['--livery'])
+    assert.deepEqual(entry.mark, entry.style)
   })
 
   it('.livery paints the scheme over the primary, and the primary is still what the edge is mixed from (AF-17)', () => {
@@ -560,12 +689,14 @@ describe('a livery is a sourced scheme drawn as itself, and every 2010+ construc
     ]
     const failing = []
     for (const l of LIVERIES) {
-      const base = l.scheme[0].base
-      for (const [theme, ink, surfaces, t] of themes)
-        for (const surface of surfaces) {
-          const ratio = contrast(blend(base, ink), t[surface])
-          if (ratio < 2) failing.push(`${l.constructor} ${l.from} ${theme} edge of ${base} on --${surface}: ${ratio.toFixed(2)}:1`)
-        }
+      // The band rings the primary; a mark rings its lead (AF-45), which is
+      // not always the primary.
+      for (const base of new Set([l.scheme[0].base, liveryPair(l).lead.base]))
+        for (const [theme, ink, surfaces, t] of themes)
+          for (const surface of surfaces) {
+            const ratio = contrast(blend(base, ink), t[surface])
+            if (ratio < 2) failing.push(`${l.constructor} ${l.from} ${theme} edge of ${base} on --${surface}: ${ratio.toFixed(2)}:1`)
+          }
     }
     assert.deepEqual(failing, [])
   })
@@ -587,11 +718,13 @@ describe('a livery is a sourced scheme drawn as itself, and every 2010+ construc
       const base = liveryPrimary(l).base
       const colour = colourForEntry({ constructorId: l.constructor, country: null, year: l.from, team: l.constructor })
       assert.equal(colour.base, base, `${where}: colourForEntry base`)
-      for (const [what, style] of [
-        ['liveryStyle', liveryStyle(l)],
-        ['colourForEntry style', colour.style],
+      assert.equal(colour.mark['--livery'], colour.pair.lead.base, `${where}: colourForEntry mark does not lead with the pair`)
+      for (const [what, style, lead] of [
+        ['liveryStyle', liveryStyle(l), base],
+        ['colourForEntry style', colour.style, base],
+        ['colourForEntry mark', colour.mark, colour.pair.lead.base],
       ]) {
-        assert.equal(style['--livery'], base, `${where}: ${what} does not hand the mark the primary's base`)
+        assert.equal(style['--livery'], lead, `${where}: ${what} does not hand the element its lead's base unmoved`)
         assert.deepEqual(
           Object.keys(style).filter((k) => k !== '--livery' && k !== '--livery-scheme'),
           [],

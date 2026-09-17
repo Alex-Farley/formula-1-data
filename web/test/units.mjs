@@ -56,6 +56,7 @@ import {
   inColourEra,
   liveryAccents,
   liveryFor,
+  liveryPair,
   liveryPrimary,
   winnerColour,
 } from '../src/lib/liveries.js'
@@ -687,11 +688,55 @@ describe('colourForEntry routes a constructor-season by era (AF-04)', () => {
     assert.equal(c.kind, 'livery')
     assert.equal(c.name, 'Papaya')
     assert.match(c.light, /^#[0-9a-f]{6}$/)
-    assert.match(c.title, /McLaren raced in 2026, as the team names it/)
+    assert.match(c.claim, /as the team names it/)
     assert.equal(c.named, true)
     const w = colourForEntry({ constructorId: 'haas', country: 'United States', year: 2026, team: 'Haas F1 Team' })
     assert.equal(w.named, false)
-    assert.match(w.title, /as its sources describe it/)
+    assert.match(w.claim, /as its sources describe it/)
+  })
+  it('a mark leads with the colour a team is recognised by, and says so; a season that never raced it leads with its primary (AF-45)', () => {
+    // Mercedes raced silver in 2014 and is recognised by Petronas green: the
+    // band names the livery Silver, the mark leads teal and says whose
+    // reading that is, and still says the livery carries it.
+    const merc = colourForEntry({ constructorId: 'mercedes', country: 'Germany', year: 2014, team: 'Mercedes' })
+    assert.equal(merc.name, 'Silver')
+    assert.equal(merc.style['--livery'], '#b5b9be')
+    assert.equal(merc.mark['--livery'], '#0f9c94')
+    assert.equal(merc.pair.accent.name, 'Silver')
+    assert.equal(
+      merc.title,
+      "Petronas green — the colour Mercedes is recognised by, which is this site's reading rather than a source's; the 2014 livery carries it, as its sources describe it",
+    )
+    // The season's own shade leads, not the recognition hex.
+    const rbr = colourForEntry({ constructorId: 'red-bull', country: 'Austria', year: 2020, team: 'Red Bull' })
+    assert.deepEqual([rbr.pair.lead.name, rbr.pair.accent.name], ['Matte navy', 'Red'])
+    const rbr26 = colourForEntry({ constructorId: 'red-bull', country: 'Austria', year: 2026, team: 'Red Bull' })
+    assert.deepEqual([rbr26.pair.lead.base, rbr26.pair.accent.base], ['#1b2a5e', '#f2f2f2'])
+    // McLaren's papaya is the team's own word, and says so.
+    const mcl = colourForEntry({ constructorId: 'mclaren', country: 'United Kingdom', year: 2026, team: 'McLaren' })
+    assert.match(mcl.title, /^Papaya — the colour McLaren is recognised by, .*the name is the team's own$/)
+    // A chrome McLaren is chrome: no papaya on a car that did not race it.
+    const chrome = colourForEntry({ constructorId: 'mclaren', country: 'United Kingdom', year: 2012, team: 'McLaren' })
+    assert.equal(chrome.mark['--livery'], '#c0c4c9')
+    assert.equal(chrome.title, 'Chrome — the colour McLaren raced in 2012, as its sources describe it')
+    // Racing Bulls' blue is this project's pick, and borrows no source.
+    const rb = colourForEntry({ constructorId: 'racing-bulls', country: 'Italy', year: 2025, team: 'Racing Bulls' })
+    assert.equal(rb.mark['--livery'], '#2b4bd8')
+    assert.equal(rb.title, "Blue — the colour Racing Bulls is recognised by, which is this site's reading rather than a source's")
+    // An accent too near the lead is passed over for the next colour: no
+    // real scheme has one yet, so a made-up entry proves the rule holds.
+    const near = liveryPair({
+      constructor: 'nobody',
+      scheme: [
+        { name: 'Navy', base: '#1b2a5e' },
+        { name: 'Other navy', base: '#1f2c66' },
+        { name: 'Red', base: '#d1262f' },
+      ],
+    })
+    assert.deepEqual([near.lead.name, near.accent.name], ['Navy', 'Red'])
+    assert.equal(liveryPair({ constructor: 'nobody', scheme: [{ name: 'A', base: '#1b2a5e' }, { name: 'B', base: '#1f2c66' }] }).accent, null)
+    // Haas 2023-2024 moves from black to white.
+    assert.equal(colourForEntry({ constructorId: 'haas', year: 2023, team: 'Haas' }).mark['--livery'], '#f4f4f4')
     assert.equal(liveryFor('mclaren', 2017).name, 'Tarocco orange')
     assert.equal(liveryFor('mclaren', 2014).name, 'Chrome')
     assert.equal(liveryFor('red-bull', 2026).name, 'Heritage white')
@@ -777,6 +822,9 @@ describe('colourForEntry routes a constructor-season by era (AF-04)', () => {
   it('the strip marks a run round with a recorded winner and nothing else', () => {
     const run = { status: 'completed', winning_team_id: 'ferrari', winning_team_country: 'Italy', winning_team: 'Ferrari' }
     assert.equal(winnerColour(run, 2025).name, 'Rosso corsa')
+    // The strip is a mark: a 2014 Mercedes win is Petronas green.
+    const merc = { ...run, winning_team_id: 'mercedes', winning_team_country: 'Germany', winning_team: 'Mercedes' }
+    assert.equal(winnerColour(merc, 2014).mark['--livery'], '#0f9c94')
     assert.equal(winnerColour(run, 1955).kind, 'national')
     assert.equal(winnerColour(run, 1990), null)
     assert.equal(winnerColour({ ...run, status: 'scheduled' }, 2025), null)
