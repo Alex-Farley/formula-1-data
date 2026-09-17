@@ -61,10 +61,10 @@ this database already holds and did not get from Wikipedia:
      Boro 001.
 
      Between the constructor's name and the designation a title may put
-     only filler ("Tipo", "Type", "Racing", "Team", "Scuderia") or a word
-     of the constructor as the page's own infobox spells or links it ("Benz"
-     in "Mercedes-Benz in Formula One"), and after such a longer head the designation must
-     follow exactly, never cut back to a family. So "Lotus 18/21" is not the
+     only filler ("Tipo", "Type", "Racing", "Team", "Scuderia", "F1",
+     "Formula", "One") or a word of the constructor as the page's own
+     infobox spells or links it ("Benz" in "Mercedes-Benz in Formula One"),
+     and after such a longer head the designation must follow exactly, never cut back to a family. So "Lotus 18/21" is not the
      21, "Lotus Elan 25" not the 25, "Ferrari 125 S" not the SF-23. The
      title's spelling of the constructor is still not the constructor
      evidence - check 1 is - so the infobox is parsed before this check
