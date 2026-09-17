@@ -25,7 +25,7 @@ the current position from the rows themselves.
 | Chassis, engine and season-entrant register | [F1DB](https://github.com/f1db/f1db) | 1,153 chassis, 424 engines, 1,925 entrant rows |
 | Circuit outlines, and the layout each race ran | [F1DB](https://github.com/f1db/f1db), SVG assets drawn by [Jules Roy](https://github.com/julesr0y) | 160 layouts, 1,172 races |
 | Circuit register and layout timelines | Wikipedia per-circuit articles | 80 circuits, 49 layouts |
-| Car photographs (references and credits, not images) | [Wikimedia Commons](https://commons.wikimedia.org/) | 602 articles |
+| Car photographs (references and credits, not images) | [Wikimedia Commons](https://commons.wikimedia.org/) | 623 articles |
 | Circuit centrelines | [OpenStreetMap](https://www.openstreetmap.org/), ids via [Wikidata](https://www.wikidata.org/) | see `v_geometry_coverage` |
 | Notable team radio transcripts | Wikipedia per-race articles | 6 |
 | 2026 season, entry list, standings, calendar | formula1.com | current season |
@@ -121,13 +121,14 @@ was weighed, and when it would be worth revisiting.
 
 ### Wikimedia Commons — sixteen different licences, one per file
 
-`article_images` records the lead photograph of each accepted car article.
+`article_images` records the photograph of each accepted car article: its
+lead image, or a photograph in its body whose file name names the car.
 **No image is stored in this repository or in `f1.db`.** The row is a
-*reference and its credit*: which file the article leads with, who took it,
+*reference and its credit*: which file the article carries, who took it,
 and under what licence. The pixels are fetched from `upload.wikimedia.org` by
 whatever renders the page, under Wikimedia's terms.
 
-There is **no single licence** covering these files. Across 602 rows there are
+There is **no single licence** covering these files. Across 623 rows there are
 sixteen distinct licence strings — CC BY-SA at 1.0, 2.0, 2.5, 3.0 and 4.0,
 CC BY at 2.0, 2.5, 3.0 and 4.0, CC0, public domain, and national variants such
 as CC BY-SA 2.0 de and CC BY-SA 3.0 nl. So there is no blanket credit line you

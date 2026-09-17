@@ -33,14 +33,50 @@ this database already holds and did not get from Wikipedia:
      in its championship fields - must fall inside the seasons F1DB records
      that chassis as entered, allowing one year either side for a car
      launched or last raced across a season boundary.
-  3. **Name.** The article title, reduced to letters and digits, must be a
-     prefix of the chassis's F1DB full name reduced the same way, or the
-     other way round. Wikipedia routinely documents a family on one page -
-     "Lotus 72C" redirects to "Lotus 72", "Ferrari 312T2" to "Ferrari 312T" -
-     so the title will not always match, but it may not be a *different*
-     car. This is what stops a truncated candidate landing on a namesake:
-     searching for "Ferrari 312/66" offers "Ferrari 312T" first, and
-     ferrari312t is not a prefix of ferrari31266 in either direction.
+  3. **Name.** The article title must be a form of this chassis's
+     constructor followed by this chassis's designation. The title is split
+     into words. Some leading run of them must be a form of a name F1DB holds
+     for the constructor, compared as a prefix in either direction: "Ferrari
+     Tipo" is a form of Ferrari, "Mercedes-Benz" and "Mercedes-AMG" of
+     Mercedes, "Hispania" of Hispania Racing Team. The comparison is of whole
+     words, so "Barcelona" is not a form of BAR. The words after that run
+     must then be the designation - exactly ("Red Bull Racing RB19"),
+     followed by more words ("Mercedes-AMG F1 W11 EQ Performance"), with a
+     single variant letter after a closing digit ("AGS JH25B" for the JH25),
+     or cut back to the family ("Lotus 72" for the 72C, "Ferrari 312" for
+     the 312/66). A title that is the chassis's full name passes as it
+     stands.
+
+     Wikipedia routinely documents a family on one page, so the title will
+     not always be the chassis's own name, but it may not be a *different*
+     car. This is what stops a candidate landing on a namesake: searching
+     for "Ferrari 312/66" offers "Ferrari 312T" first, and 312t is neither
+     31266 nor a family of it. A family is never cut inside a run of digits
+     unless the designation itself breaks into words there (312/66), so
+     "F1" is not a family of the F10, "24" of the 246, or "3" of the 33 -
+     "Ferrari 156 F1", "Ferrari SF-24" and "Lotus 1-2-3" are all refused.
+     Past the designation, the title must break at a word, so a
+     one-letter designation cannot be read into a longer word: "English
+     Racing Automobiles" is not the ERA A, and "Boron-11 ..." is not the
+     Boro 001.
+
+     Between the constructor's name and the designation a title may put
+     only filler ("Tipo", "Type", "Racing", "Team", "Scuderia", "F1",
+     "Formula", "One") or a word of the constructor as the page's own
+     infobox spells or links it ("Benz" in "Mercedes-Benz in Formula One"),
+     and after such a longer head the designation must follow exactly, never cut back to a family. So "Lotus 18/21" is not the
+     21, "Lotus Elan 25" not the 25, "Ferrari 125 S" not the SF-23. The
+     title's spelling of the constructor is still not the constructor
+     evidence - check 1 is - so the infobox is parsed before this check
+     runs, which costs nothing: the page has already been fetched.
+
+     One title names two cars on purpose: "Alfa Romeo 158/159 Alfetta"
+     covers the 158 and the 159. A slash-joined word counts as a list of
+     models only when every item in it is itself the designation of one of
+     the constructor's F1DB chassis and the joined word is not. The title
+     then counts for each listed car exactly as if it named that car alone,
+     with no family cut. So "Lotus 18/21" is still not the 21 (F1DB holds an
+     18/21), and "Alfa Romeo 105/115 Series Coupes" is not a list at all.
 
 A page failing either check is refused whole and logged. It is never
 partially accepted, and a near miss is never nudged into a match.
@@ -362,6 +398,146 @@ def slug(s):
     return re.sub(r"[^a-z0-9]", "", (s or "").lower())
 
 
+def words(s):
+    """A title's words, each reduced as slug() reduces a whole name.
+
+    Split on spaces, hyphens, slashes and underscores, which is where
+    Wikipedia puts a constructor/designation boundary: "Mercedes-AMG F1 W11",
+    "Toro_Rosso_STR2", "Alfa Romeo 158/159 Alfetta".
+    """
+    return [w for w in (slug(x) for x in re.split(r"[\s/_\-]+", s or ""))
+            if w]
+
+
+def either_word_prefix(a, b):
+    """Is one list of words the leading words of the other?"""
+    n = min(len(a), len(b))
+    return n > 0 and a[:n] == b[:n]
+
+
+def designation(full, cons_short, name):
+    """The chassis's designation, as a list of words.
+
+    Taken from the full name with the constructor's name removed, because
+    that is the spelling F1DB shows: the Boro chassis is `name` "1" and
+    full name "Boro 001", and "1" would be read into any word that starts
+    with a one. The short `name` is the fallback when the full name does not
+    start with the constructor's.
+    """
+    fw, cw = words(full), words(cons_short)
+    if cw and fw[:len(cw)] == cw and len(fw) > len(cw):
+        return fw[len(cw):]
+    return words(name)
+
+
+def designation_follows(rest, parts, family=True):
+    """Do the words `rest` open with the designation whose words are `parts`?
+
+    Exactly, as a run of whole words; with one variant letter after a
+    closing digit (JH25B for JH25); or cut back to a family (72 for 72C,
+    312 for 312/66, 126C for 126CK). A family is never cut inside a run of
+    digits, except where the designation itself breaks into words: F1 is not
+    the F10's family, nor 24 the 246's. `family` False allows no cut at all.
+    """
+    want = "".join(parts)
+    breaks, n = set(), 0
+    for p in parts:
+        n += len(p)
+        breaks.add(n)
+    cut = "".join(rest)
+    if (family and cut and len(cut) < len(want) and want.startswith(cut)
+            and (len(cut) in breaks
+                 or not (cut[-1].isdigit() and want[len(cut)].isdigit()))):
+        return True                        # a family page: "72" for 72C
+    run = ""
+    for w in rest:
+        run += w
+        if run == want:
+            return True
+        if (len(run) == len(want) + 1 and run.startswith(want)
+                and want[-1].isdigit() and run[-1].isalpha()):
+            return True
+        if len(run) > len(want):
+            return False
+    return False
+
+
+# Words a title may put between the constructor's name and the designation
+# without naming anything else: "Ferrari Tipo 500", "Connaught Type A",
+# "Scuderia Toro Rosso STR13".
+FILLER = {"tipo", "type", "scuderia", "team", "racing", "f1", "formula", "one"}
+# Never taken from the infobox as a spelling of the constructor.
+_GLUE = {"in", "of", "the", "and", "a", "an"}
+
+
+def listed_models(title, want, siblings):
+    """`title` with a list of models cut down to the one that is `want`.
+
+    A word such as "158/159" is a list only when every item is in
+    `siblings` - the constructor's F1DB designations, each reduced to one
+    slug - and the whole word is not. The listed item must be the
+    designation exactly. Returns the rewritten title, or None.
+    """
+    if not siblings:
+        return None
+    chunks = re.split(r"([\s_]+)", title)
+    for k, chunk in enumerate(chunks):
+        items = [slug(x) for x in chunk.split("/")]
+        if (len(items) < 2 or slug(chunk) in siblings
+                or not all(x in siblings for x in items)):
+            continue
+        for x, raw in zip(items, chunk.split("/")):
+            if x == want:
+                return "".join(chunks[:k] + [raw] + chunks[k + 1:])
+    return None
+
+
+def name_is_form(title, full, name, cons_names, page_constructor=None,
+                 siblings=()):
+    """Check 3: is `title` a form of this constructor, then this designation?
+
+    `cons_names` is every name F1DB holds for the chassis's constructor, its
+    short name first. `page_constructor` is the infobox's Constructor value,
+    whose words - "Benz" in "Mercedes-Benz" - may also stand between the
+    constructor's name and the designation. Nothing else may: "Lotus 18/21"
+    is not the 21, "Lotus Elan 25" is not the 25. `siblings` is the set of
+    the constructor's designations, as slugs, which is what lets a list of
+    models ("158/159") count for each car it lists; see listed_models().
+    """
+    if slug(title) == slug(full):
+        return True
+    want = designation(full, cons_names[0] if cons_names else "", name)
+    alone = listed_models(title, "".join(want), siblings)
+    if alone is not None and _form(alone, full, name, cons_names,
+                                   page_constructor, family=False):
+        return True
+    return _form(title, full, name, cons_names, page_constructor)
+
+
+def _form(title, full, name, cons_names, page_constructor, family=True):
+    """name_is_form() for one title; `family` False forbids any family cut."""
+    if slug(title) == slug(full):
+        return True
+    forms = [w for w in (words(c) for c in cons_names) if w]
+    want = designation(full, cons_names[0] if cons_names else "", name)
+    extra = FILLER | {w for w in words(page_constructor)
+                      if w not in _GLUE and not any(c.isdigit() for c in w)}
+    t = words(title)
+    for i in range(1, len(t)):
+        for f in forms:
+            if not either_word_prefix(t[:i], f):
+                continue
+            if any(w not in extra for w in t[len(f):i]):
+                continue
+            # A head with words beyond the constructor's name ("Ferrari
+            # Tipo") must be followed by the designation itself, not a cut
+            # of it.
+            if designation_follows(t[i:], want,
+                                   family=family and i <= len(f)):
+                return True
+    return False
+
+
 def candidates(full_name):
     """Titles worth trying for a chassis, most specific first.
 
@@ -418,6 +594,11 @@ def main():
 
     chassis = [(c, k, n, f) for c, k, n, f in read_pipe("chassis.txt")]
     cons_name = {r[0]: (r[1], r[2]) for r in read_pipe("f1db_constructors.txt")}
+    # Each constructor's designations, for check 3's list of models.
+    siblings = {}
+    for _c, k, n_, f in chassis:
+        short = cons_name.get(k, ("",))[0]
+        siblings.setdefault(k, set()).add("".join(designation(f, short, n_)))
     years = {}
     # Read the columns by name from the file's own header rather than by
     # position. A column was once added to entrants.txt and this loop went on
@@ -461,13 +642,23 @@ def main():
             t, body = resolve(cand)
             if body is None:
                 continue
-            # check 3, applied before anything is read off the page: the
-            # article may be a family page, but not a different car.
-            a, b = slug(t), slug(full)
-            if not (a.startswith(b) or b.startswith(a)):
+            # check 3: the article may be a family page, but not a
+            # different car. The infobox is read first only for the words it
+            # spells the constructor with; nothing else is taken from it
+            # until the page has passed.
+            b2 = parse_infobox(body)
+            spelt = None
+            if b2 and first(b2, ["constructor"]):
+                # The text shown and the article it links to: the W196 page
+                # shows "Mercedes" and links "Mercedes-Benz in Formula One".
+                raw = re.sub(r"<ref.*?</ref>|<ref[^>]*/>", "",
+                             first(b2, ["constructor"]), flags=re.S | re.I)
+                spelt = " ".join([strip(raw) or ""]
+                                 + re.findall(r"\[\[([^\]|#]+)", raw))
+            if not name_is_form(t, full, name, cons_name.get(con_id, ()),
+                                spelt, siblings.get(con_id, ())):
                 log.append(f"{cid}|name disagrees|{t} is not a form of {full}")
                 continue
-            b2 = parse_infobox(body)
             if b2 is None:
                 log.append(f"{cid}|no racing-car infobox|{t}")
                 continue

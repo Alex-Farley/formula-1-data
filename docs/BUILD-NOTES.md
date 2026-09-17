@@ -993,11 +993,6 @@ it continues is CC BY-**NC**-SA, the most restrictive licence in use here.
 
 ### Still open
 
-- The specification harvest's name check is too strict in one direction. It
-  refuses "Alfa Romeo 158/159 Alfetta" for `alfa-romeo-159` and "Alfa Romeo
-  Racing C38" for `alfa-romeo-c38`, both of which are the right article. The
-  fix is to allow the chassis name as a token subsequence of the title rather
-  than a strict prefix; the constructor and year checks would still gate it.
 - Six curated weights await a sourced limit for their season.
 - `tools/ergast_load.py` still has not completed a full live run.
 

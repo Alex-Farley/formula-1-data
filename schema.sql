@@ -116,7 +116,7 @@ CREATE TABLE table_provenance (
     -- 1 where nothing in this database can constrain the claim the table
     -- makes, whatever the source's standing. A well-run source does not
     -- make a row checkable: article_images comes from the MediaWiki API and
-    -- records which file an article leads with, and NOTHING here constrains
+    -- records which file an article carries, and NOTHING here constrains
     -- what the photograph shows. See known_gaps #11. Such a table is floored
     -- at 'unverified' rather than taking its source's tier.
     unconstrained   INTEGER NOT NULL DEFAULT 0,
@@ -598,15 +598,16 @@ CREATE TABLE chassis (
 -- luck rather than by construction, and the moment poles could be attributed
 -- it showed: McLaren ran the M23 and M26 through 1976-77, and the blanket
 -- gave the M23 sixteen poles against a published career fourteen.
--- The lead image of each car article, and the attribution needed to show it.
+-- The photograph of each car article, and the attribution needed to show it.
 --
 -- NO IMAGE IS STORED. This is a reference and its credit: which file an
--- article leads with, who took it, under what licence. The pixels are fetched
+-- article carries (its lead image, or a body image that names the car), who
+-- took it, under what licence. The pixels are fetched
 -- from upload.wikimedia.org by whatever renders the page, under Wikimedia's
 -- terms; this database redistributes nothing and f1.db does not grow.
 --
 -- The claim is checkable and it is deliberately narrow: "the article already
--- proved to describe this chassis leads with this file". The article passed
+-- proved to describe this chassis carries this file". The article passed
 -- the three checks in tools/wikispec_fetch.py before it got here, so the row
 -- is not an image found by searching for a car's name.
 --
