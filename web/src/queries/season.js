@@ -99,10 +99,14 @@ export const DRIVER_TEAMS = `
     LEFT JOIN constructors k ON k.id = e.constructor_id
    WHERE r.year = ? AND e.driver_id IS NOT NULL AND e.constructor_id IS NOT NULL
    GROUP BY e.driver_id, e.constructor_id
-   ORDER BY e.driver_id, last_round DESC
+   ORDER BY e.driver_id, last_round DESC, e.constructor_id
 `
 
-/** DRIVER_TEAMS rows grouped by driver, in the query's order (latest team first). */
+/**
+ * DRIVER_TEAMS rows grouped by driver, in the query's order (latest team
+ * first). queries/driver.js SEASON_TEAMS is the same grouping for one
+ * driver's career, and lib/liveries.js lastTeamColour() reads either.
+ */
 export function teamsByDriver(rows) {
   const map = new Map()
   for (const row of rows) {

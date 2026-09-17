@@ -1356,6 +1356,25 @@ function markTitle(livery, { lead, recognised }, who, year) {
 }
 
 /**
+ * The colour of the team a driver finished a season with, and the tooltip
+ * that says so (AF-47). `raced` is that driver's constructors in the season,
+ * latest first - queries/season.js DRIVER_TEAMS for one season's grid,
+ * queries/driver.js SEASON_TEAMS for one driver's career, grouped the same
+ * way. One mark per row: a driver who changed teams mid-season wears the one
+ * they finished with, and the tooltip names the earlier ones. The season
+ * standings and the driver page both read this, so the two cannot answer the
+ * same question differently.
+ */
+export function lastTeamColour(raced, year) {
+  const last = raced?.[0]
+  if (!last) return { colour: null, title: undefined }
+  const colour = colourForEntry({ constructorId: last.constructor_id, country: last.country, year, team: last.constructor })
+  const also =
+    raced.length > 1 ? ` (earlier in the season: ${raced.slice(1).map((t) => t.constructor).join(', ')})` : ''
+  return { colour, title: colour ? `${colour.title}${also}` : undefined }
+}
+
+/**
  * The national convention as a colour entry, in the same shape colourForEntry
  * returns.
  *

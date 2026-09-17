@@ -22,10 +22,12 @@ import { NOT_YET_RUN, SHARED, SPRINT } from '../lib/site.js'
 export const RACES = `
   SELECT rr.year, rr.round, rr.gp_name, rr.gp_id, rr.circuit_id, c.name AS circuit, c.country,
          rr.winner, rr.winner_id, rr.co_winner_id, rr.constructor, rr.constructor_id,
+         k.country AS constructor_country,
          rr.pole, rr.pole_id, rr.fastest_lap, rr.fastest_lap_id, r.status, r.sprint
     FROM race_results rr
     JOIN races r ON r.id = rr.id
     LEFT JOIN circuits c ON c.id = rr.circuit_id
+    LEFT JOIN constructors k ON k.id = rr.constructor_id
    ORDER BY r.status = 'scheduled',
             rr.year DESC,
             CASE WHEN r.status = 'scheduled' THEN rr.round ELSE -rr.round END

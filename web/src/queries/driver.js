@@ -99,6 +99,34 @@ export const RESULTS = `
 `
 
 /**
+ * The constructors a driver raced for in each season, latest first within a
+ * season: queries/season.js DRIVER_TEAMS, for one driver across a career
+ * rather than one season across a grid, with the same order and the same
+ * tiebreak. teamsBySeason() groups it; lib/liveries.js lastTeamColour()
+ * turns a season's list into the one mark its row wears (AF-47).
+ */
+export const SEASON_TEAMS = `
+  SELECT r.year, e.constructor_id, k.name AS constructor, k.country,
+         MAX(r.round) AS last_round, COUNT(*) AS entries
+    FROM race_entries e
+    JOIN races r ON r.id = e.race_id
+    LEFT JOIN constructors k ON k.id = e.constructor_id
+   WHERE e.driver_id = ? AND e.constructor_id IS NOT NULL
+   GROUP BY r.year, e.constructor_id
+   ORDER BY r.year, last_round DESC, e.constructor_id
+`
+
+/** SEASON_TEAMS rows grouped by season, in the query's order (latest team first). */
+export function teamsBySeason(rows) {
+  const map = new Map()
+  for (const row of rows) {
+    if (!map.has(row.year)) map.set(row.year, [])
+    map.get(row.year).push(row)
+  }
+  return map
+}
+
+/**
  * "Season by season", as the table opens: each BY_SEASON row joined to where
  * that championship finished, latest season first. The order is DataTable's
  * initial sort on the page (year, descending), stated here so the static

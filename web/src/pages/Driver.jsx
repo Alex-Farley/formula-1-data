@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import LiveryMark from '../components/LiveryMark.jsx'
 import LiveryScheme from '../components/LiveryScheme.jsx'
 import { Confidence, Fields, Note, Onward, Page, Section, Stats } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
@@ -10,7 +11,7 @@ import DotPlot from '../charts/DotPlot.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { EMPTY, missing, points as fmtPoints, result } from '../lib/format.js'
 import { ENTRIES_NOTE } from '../lib/site.js'
-import { colourForEntry } from '../lib/liveries.js'
+import { colourForEntry, lastTeamColour } from '../lib/liveries.js'
 import { canonicalCountry } from '../lib/racingColours.js'
 import {
   BY_SEASON,
@@ -20,30 +21,61 @@ import {
   RESULTS,
   SEASON_COLUMNS,
   SEASONS_FOOTER,
+  SEASON_TEAMS,
   STANDINGS,
   pointsDiffer,
   pointsNote,
   record,
   seasonRows,
   strip,
+  teamsBySeason,
 } from '../queries/driver.js'
 
 /**
  * What only the app adds to the shared column lists: links, the sort key
  * behind a text column, and the markup a result wears. Everything a cell
  * SAYS is in queries/driver.js, read by scripts/prerender.js too.
+ *
+ * The colour marks (AF-47): a constructor is a first-class attribute of both
+ * tables' rows, so each row wears one mark beside the constructor it names.
+ * "Season by season" can name two; its mark is the team the season finished
+ * with and the tooltip names the others, exactly as the season standings do
+ * (lib/liveries.js lastTeamColour). The text is BY_SEASON's, unchanged.
  */
-const SEASON_APP = {
+const seasonApp = (teams) => ({
   year: { render: (year) => <Link to={`/seasons/${year}`}>{year}</Link> },
+  teams: {
+    render: (names, row) => {
+      const { colour, title } = lastTeamColour(teams.get(row.year), row.year)
+      return (
+        <>
+          <LiveryMark colour={colour} title={title} year={row.year} />
+          {cell(names)}
+        </>
+      )
+    },
+  },
   championship_text: { sort: (row) => row.championship },
-}
+})
 
 const ENTRY_APP = {
   year: { render: (year) => <Link to={`/seasons/${year}`}>{year}</Link> },
   name_used: { render: (name, row) => <Link to={`/races/${row.year}/${row.round}`}>{name}</Link> },
   constructor: {
-    render: (name, row) =>
-      row.constructor_id ? <Link to={`/constructors/${row.constructor_id}`}>{name}</Link> : cell(name),
+    render: (name, row) => (
+      <>
+        <LiveryMark
+          colour={colourForEntry({
+            constructorId: row.constructor_id,
+            country: row.constructor_country,
+            year: row.year,
+            team: name,
+          })}
+          year={row.year}
+        />
+        {row.constructor_id ? <Link to={`/constructors/${row.constructor_id}`}>{name}</Link> : cell(name)}
+      </>
+    ),
   },
   chassis: {
     render: (name, row) =>
@@ -67,6 +99,7 @@ export default function Driver() {
     bySeason: [BY_SEASON, [id]],
     standings: [STANDINGS, [id]],
     results: [RESULTS, [id]],
+    seasonTeams: [SEASON_TEAMS, [id]],
     disagreements: [DRIVER_DISAGREEMENTS, [id]],
   })
 
@@ -124,6 +157,27 @@ function DriverBody({ driver, data }) {
   )
 
   const seasons = useMemo(() => seasonRows(bySeason, standings), [bySeason, standings])
+  const teams = useMemo(() => teamsBySeason(rows(data, 'seasonTeams')), [data])
+  // Each championship dot in the team that season finished with (AF-47),
+  // from the same lastTeamColour() the season table's marks read. The chart
+  // wears team colours only when every dot has one, as the season page's
+  // title-race chart does: a career that crosses 1968-2009, where no row
+  // can carry a colour, would otherwise plot its colourless seasons in the
+  // neutral series blue, and a blue among liveries reads as a team.
+  const finishes = useMemo(
+    () =>
+      standings.map((s) => {
+        const raced = teams.get(s.year)
+        return { ...s, constructor: raced?.[0]?.constructor ?? null, colour: lastTeamColour(raced, s.year).colour }
+      }),
+    [standings, teams],
+  )
+  const seasonColumns = useMemo(() => {
+    const app = seasonApp(teams)
+    return SEASON_COLUMNS.map((column) => ({ ...column, ...app[column.key] }))
+  }, [teams])
+  const plotted = finishes.filter((s) => typeof s.position === 'number')
+  const finishesInColour = plotted.length > 0 && plotted.every((s) => s.colour)
   const differ = pointsDiffer(driver, derived)
 
   return (
@@ -151,11 +205,16 @@ function DriverBody({ driver, data }) {
         <Section title="Where each championship finished">
           <Figure
             title={`${driver.full_name} in the drivers' championship`}
-            note="Final classified position at the end of each season. A season with points but no position is one the driver was excluded from, so there is nothing to plot. A season finished first is ringed; the colour is the team named above, which is the last one on this record and not necessarily the one driven in the season under a dot."
+            note={`Final classified position at the end of each season. A season with points but no position is one the driver was excluded from, so there is nothing to plot. A season finished first is ringed. ${
+              finishesInColour
+                ? 'Each dot is in the colour of the team that season finished with, named in the table.'
+                : 'The dots are not in team colours: this record has seasons that no team colour covers, and a mix would read the plain ones as a team.'
+            }`}
             table={{
-              rows: standings,
+              rows: finishes,
               columns: [
                 { key: 'year', label: 'Season', align: 'num' },
+                { key: 'constructor', label: 'Constructor' },
                 // The chart plots `position`; its table - the non-fallback source
                 // of the same numbers - must not dash a season the dot has placed.
                 { key: 'position_text', label: 'Position', align: 'num', render: (v, row) => cell(v ?? row.position) },
@@ -164,11 +223,11 @@ function DriverBody({ driver, data }) {
             }}
           >
             <DotPlot
-              colour={teamColour}
-              data={standings.map((s) => ({
+              data={finishes.map((s) => ({
                 x: s.year,
                 y: s.position,
                 label: `${s.year}`,
+                colour: finishesInColour ? s.colour : null,
                 // The halo says nothing the dot does not: position 1 is what
                 // is already plotted at the top of the axis.
                 mark: s.position === 1,
@@ -191,7 +250,7 @@ function DriverBody({ driver, data }) {
           sortable
           sort="year"
           direction="desc"
-          columns={SEASON_COLUMNS.map((column) => ({ ...column, ...SEASON_APP[column.key] }))}
+          columns={seasonColumns}
           footer={SEASONS_FOOTER}
         />
       </Section>
