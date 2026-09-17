@@ -231,7 +231,10 @@ function DriverBody({ driver, data }) {
                 // The halo says nothing the dot does not: position 1 is what
                 // is already plotted at the top of the axis.
                 mark: s.position === 1,
-                note: s.position ? `P${s.position} · ${fmtPoints(s.points)} points` : 'no classified position',
+                // The team is named wherever its colour is read (clause 4 of AF-47).
+                note: `${s.position ? `P${s.position} · ${fmtPoints(s.points)} points` : 'no classified position'}${
+                  s.constructor ? ` · ${s.constructor}` : ''
+                }`,
               }))}
               yMax={Math.max(10, ...standings.map((s) => s.position ?? 0))}
               format={(v) => `P${Math.round(v)}`}
