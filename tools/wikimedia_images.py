@@ -306,7 +306,7 @@ def names_car(file_name, article, chassis_ids, whole=False):
     still name theirs. `chassis_ids` is car_specs.txt's field, joined with
     "+" for a family article that several chassis share.
 
-    `whole` also refuses a name followed directly by a letter, so that
+    `whole` also refuses a name not followed by a separator, so that
     "Coloni FC188B" names the FC188B and not the FC188. The category route
     uses it to find a file that names a sibling chassis.
     """
@@ -727,11 +727,14 @@ def file_candidates(found, full, names, others=()):
 
     `others` is [(chassis_id, full_name)] for the constructor's other
     chassis: the Coloni FC188's category holds "Coloni FC188B 2008
-    Donington Park.jpg", and the FC188B is a chassis of its own."""
+    Donington Park.jpg", and the FC188B is a chassis of its own. A file
+    that names this chassis whole as well is kept: "Talbot-Lago T26C-DA"
+    names the T26C too, and is still the T26C-DA's."""
     keep = [(f, d) for f, d in found
             if f.lower().endswith(RASTER) and not REPLICA.search(f)
-            and not any(names_car(f, o_full, o_id, whole=True)
-                        for o_id, o_full in others)]
+            and (names_car(f, full, names, whole=True)
+                 or not any(names_car(f, o_full, o_id, whole=True)
+                            for o_id, o_full in others))]
     keep.sort(key=lambda fd: (not names_car(fd[0], full, names), fd[1], fd[0]))
     return [f for f, _d in keep[:PER_CHASSIS]]
 

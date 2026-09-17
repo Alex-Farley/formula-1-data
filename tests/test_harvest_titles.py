@@ -308,6 +308,11 @@ class CategoryTail(unittest.TestCase):
             [("File:Coloni FC188B 2008 Donington Park.jpg", 0)],
             "Coloni FC188B", "coloni-fc188b", [("coloni-fc188", "Coloni FC188")]),
             ["File:Coloni FC188B 2008 Donington Park.jpg"])
+        self.assertEqual(WI.file_candidates(
+            [("File:Talbot-Lago T26C-DA 1949.jpg", 0)],
+            "Talbot-Lago T26C-DA", "talbot-lago-t26c-da",
+            [("talbot-lago-t26c", "Talbot-Lago T26C")]),
+            ["File:Talbot-Lago T26C-DA 1949.jpg"])
 
     def test_a_bracket_must_say_formula_one(self):
         lotus = ("Lotus", "Lotus Racing")
