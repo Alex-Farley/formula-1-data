@@ -18,6 +18,10 @@ import { NOT_YET_RUN, SHARED, SPRINT } from '../lib/site.js'
  * Every championship race, the ones that have run first and newest first
  * among them, then the ones still to come, soonest first. The last race run
  * is the row a reader arriving here most likely wants, and it was tenth.
+ * "Soonest first" holds across seasons too: both the season and the round
+ * run backwards for a race that has been run and forwards for one to come, so
+ * the next race heads the scheduled block rather than a later season's
+ * opener (AF-44).
  */
 export const RACES = `
   SELECT rr.year, rr.round, rr.gp_name, rr.gp_id, rr.circuit_id, c.name AS circuit, c.country,
@@ -29,7 +33,7 @@ export const RACES = `
     LEFT JOIN circuits c ON c.id = rr.circuit_id
     LEFT JOIN constructors k ON k.id = rr.constructor_id
    ORDER BY r.status = 'scheduled',
-            rr.year DESC,
+            CASE WHEN r.status = 'scheduled' THEN rr.year ELSE -rr.year END,
             CASE WHEN r.status = 'scheduled' THEN rr.round ELSE -rr.round END
 `
 
@@ -52,4 +56,4 @@ export const RACE_COLUMNS = [
 ]
 
 export const RACES_FOOTER =
-  '“Shared” marks a race two drivers are both classified as winning, which was normal before 1958. A row tagged “not yet run” is a calendar entry with no result; those rows follow every race that has been run.'
+  '“Shared” marks a race two drivers are both classified as winning, which was normal before 1958. A row tagged “not yet run” is a calendar entry with no result; those rows follow every race that has been run, the next one to be run first.'

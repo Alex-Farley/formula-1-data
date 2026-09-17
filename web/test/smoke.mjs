@@ -1881,6 +1881,21 @@ try {
         // Run first: the list opens on the last race run, not the next one scheduled.
         const first = (await appTable(null))?.rows[0]?.join(' | ') ?? ''
         truthy(first && !first.includes(NOT_YET_RUN), 'the races list opens on the last race run')
+        // Then the races still to come, soonest first across seasons as well as
+        // within one (AF-44): the season term once ran newest first for both.
+        const next = db
+          .prepare("SELECT r.year, r.round FROM races r JOIN race_results rr ON rr.id = r.id WHERE r.status = 'scheduled' ORDER BY r.year, r.round")
+          .all()
+          .map((r) => `${r.year} | ${r.round}`)
+        if (next.length) {
+          const rowsAre = (n) => page.waitForFunction((n) => document.querySelector('#root main .table-wrap')?.dataset.rows === String(n), n, { timeout: 10000 })
+          await page.click('[role="group"][aria-label="Filter races by status"] button:has-text("Scheduled")')
+          await rowsAre(next.length)
+          const shown = ((await appTable(null))?.rows ?? []).map((r) => r.slice(0, 2).join(' | '))
+          is(shown[0], next[0], `the scheduled races open on the next one to be run, ${next[0]}`)
+          is(shown.join(' / '), next.slice(0, shown.length).join(' / '), 'the scheduled races run in calendar order')
+          await page.click('[role="group"][aria-label="Filter races by status"] button:has-text("All")')
+        } else pass('no race is scheduled, so there is no calendar order to check')
       }
       // Rung three: the three remaining registers.
       await same('/constructors', 'Constructors')
