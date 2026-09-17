@@ -56,6 +56,7 @@ import {
   inColourEra,
   liveryAccents,
   liveryFor,
+  liveryPair,
   liveryPrimary,
   winnerColour,
 } from '../src/lib/liveries.js'
@@ -722,6 +723,18 @@ describe('colourForEntry routes a constructor-season by era (AF-04)', () => {
     const rb = colourForEntry({ constructorId: 'racing-bulls', country: 'Italy', year: 2025, team: 'Racing Bulls' })
     assert.equal(rb.mark['--livery'], '#2b4bd8')
     assert.equal(rb.title, "Blue — the colour Racing Bulls is recognised by, which is this site's reading rather than a source's")
+    // An accent too near the lead is passed over for the next colour: no
+    // real scheme has one yet, so a made-up entry proves the rule holds.
+    const near = liveryPair({
+      constructor: 'nobody',
+      scheme: [
+        { name: 'Navy', base: '#1b2a5e' },
+        { name: 'Other navy', base: '#1f2c66' },
+        { name: 'Red', base: '#d1262f' },
+      ],
+    })
+    assert.deepEqual([near.lead.name, near.accent.name], ['Navy', 'Red'])
+    assert.equal(liveryPair({ constructor: 'nobody', scheme: [{ name: 'A', base: '#1b2a5e' }, { name: 'B', base: '#1f2c66' }] }).accent, null)
     // Haas 2023-2024 moves from black to white.
     assert.equal(colourForEntry({ constructorId: 'haas', year: 2023, team: 'Haas' }).mark['--livery'], '#f4f4f4')
     assert.equal(liveryFor('mclaren', 2017).name, 'Tarocco orange')

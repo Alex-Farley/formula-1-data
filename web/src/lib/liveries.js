@@ -1266,7 +1266,8 @@ export function pairStyle({ lead, accent }) {
 }
 
 /**
- * The same properties as a style attribute, for scripts/prerender.js. The
+ * A colour entry's `mark` - pairStyle()'s properties - as a style
+ * attribute, for scripts/prerender.js. The
  * static mark and the app's are one function's output rather than two
  * writings of it: the prerenderer used to spell out `--livery:` itself, and
  * a second property added here would have reached the app alone.
@@ -1288,10 +1289,10 @@ export const markStyleAttr = (colour) =>
  *   team    the constructor's name, for the title; the id stands in without it
  *   kind    'livery' or 'national'
  *   named   true where `name` is the team's own term (see the header)
- *   base    the colour itself, which is what a mark draws (AF-16)
+ *   base    the primary itself, unmoved (AF-16); a mark draws `mark`
  *   light   the pair a CHART SERIES wears, and nothing else: the base moved
  *   dark    until it clears 3:1 in that theme, because a series is told from
- *           its neighbour by colour alone. A mark takes `style`, never these
+ *           its neighbour by colour alone. A mark takes `mark`, never these
  *   scheme  the primary and its accents, each { name, base, named, sourced };
  *           a national colour is a scheme of one
  *   style   the custom properties the band draws: the primary itself, and

@@ -361,7 +361,9 @@ describe('a livery is a sourced scheme drawn as itself, and every 2010+ construc
     // Not every surface, and the difference matters: `.outline-strip .livery`
     // drops the gradient because a three-pixel bar has no room for bands, so
     // two winning constructors sharing a lead would still draw alike
-    // there. None do today. This checks what is HANDED to a mark, which is
+    // there - and near-alike already happens: the navy leads of Red Bull and
+    // AlphaTauri in 2020, and of Red Bull and Williams in 2012, are different
+    // hexes a few delta E apart (#375). This checks what is HANDED to a mark, which is
     // the thing this file can decide; what each surface then does with it is
     // the stylesheet's, and the strip's exception is declared in it.
     const byYear = new Map()
