@@ -831,9 +831,12 @@ def main():
         # name does not even name the car, which is the only handle there is.
         rows = c.execute("""SELECT article, file_name, licence, chassis
             FROM v_images_to_check LIMIT 40""").fetchall()
-        total = c.execute("SELECT COUNT(*) FROM article_images").fetchone()[0]
+        total = c.execute("SELECT COUNT(*) FROM article_images "
+                          "WHERE route='article'").fetchone()[0]
         named = c.execute("SELECT COUNT(*) FROM article_images "
-                          "WHERE name_matches=1").fetchone()[0]
+                          "WHERE route='article' AND name_matches=1").fetchone()[0]
+        catalogued = c.execute("SELECT COUNT(*) FROM article_images "
+                               "WHERE route='category'").fetchone()[0]
         print(f"\n  {total} car articles carry a lead photograph. "
               f"{named} name the car in the file name.")
         print(f"  The other {total - named} may still be correct - most "
@@ -841,6 +844,9 @@ def main():
         print("  here can tell. All sit at 'unverified'. Worst first by how "
               "many chassis depend on the article:\n")
         table(rows)
+        print(f"\n  {catalogued} more, for chassis with no article, come from a "
+              f"Commons category and sit a rung lower,\n  at 'catalogued': "
+              f"SELECT * FROM article_images WHERE route='category'.\n")
 
     elif cmd == "unverified":
         table(c.execute("SELECT * FROM v_unverified ORDER BY tbl, label"))

@@ -29,8 +29,10 @@ export const IMAGES = `
   SELECT COUNT(*) AS total,
          SUM(name_matches = 1) AS named,
          SUM(name_matches = 0) AS unnamed,
-         COUNT(DISTINCT licence) AS licences
+         COUNT(DISTINCT licence) AS licences,
+         (SELECT COUNT(*) FROM article_images WHERE route = 'category') AS catalogued
     FROM article_images
+   WHERE route = 'article'
 `
 export const CONFIDENCE_MIX = `
   SELECT confidence, COUNT(*) AS n FROM (
@@ -45,7 +47,7 @@ export const CONFIDENCE_MIX = `
    GROUP BY confidence
 `
 
-export const LADDER = ['verified', 'high', 'reference', 'medium', 'unverified']
+export const LADDER = ['verified', 'high', 'reference', 'medium', 'unverified', 'catalogued']
 
 /** Whether a row at this level may be quoted without a second look. */
 export const safeToQuote = (value) => (value ? 'yes' : 'not without checking')

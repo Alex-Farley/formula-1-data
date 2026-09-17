@@ -445,7 +445,10 @@ SOURCE_REGISTRY = [
      "images are filed under the driver, so the test is recorded as "
      "name_matches and enforced nowhere. The failure it half-detects is "
      "real: the ATS D5 article leads with a photograph of officials and "
-     "police. These rows are 'unverified' because that is what they are."),
+     "police. These rows are 'unverified' because that is what they are. "
+     "For a chassis with no article, a photograph filed under a Commons "
+     "category named for it is taken instead and held one rung lower, at "
+     "'catalogued' (AF-42)."),
 
     (16, "OpenStreetMap (via api.openstreetmap.org)",
      "https://www.openstreetmap.org/",
@@ -565,7 +568,10 @@ TABLE_PROVENANCE = [
     ("article_images", 15, 1,
      "The article is well constrained - it passed the constructor, seasons "
      "and name checks before being accepted. That the PHOTOGRAPH shows the "
-     "car is not established and nothing here can establish it. known_gaps #11."),
+     "car is not established and nothing here can establish it. known_gaps #11. "
+     "Rows on the category route (AF-42) have no article at all: a Commons "
+     "category named for the chassis stands in for it, and they sit a rung "
+     "lower, at 'catalogued'."),
     ("circuit_geometry", 16, 0, None),
 ]
 
@@ -647,4 +653,7 @@ PROVENANCE = [
     ("reference", 3, "Harvested from Wikipedia's season results tables, which are transcribed from FIA classifications. Every row was cross-checked on load against independently held season data. Reliable for results; not official under this database's policy, so cite the FIA/F1 archive if publishing.", 1),
     ("medium", 4, "Correct in substance. An exact figure or date may have drifted or may move with the current season. Confirm before publication.", 0),
     ("unverified", 5, "Placeholder, disputed, or known to be incomplete. Never state as fact.", 0),
+    # AF-42. Below unverified because it is not even a claim this database
+    # makes: it is where someone else filed something.
+    ("catalogued", 6, "Not checked by anyone, here or at a source: a photograph that Wikimedia Commons editors filed under a category named for the chassis. A category also holds replicas, scale models, show cars and museum mock-ups, and nothing here can tell them from the car that raced. Never present it as the car without a person looking first.", 0),
 ]

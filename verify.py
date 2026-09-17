@@ -2512,7 +2512,10 @@ def the_full_classification():
     COLUMN_FLOORS = (
         ("chassis", "weight_kg", 204, "harvest/car_specs.txt"),
         ("chassis", "wheelbase_mm", 346, "harvest/car_specs.txt"),
-        ("article_images", "file_name", 623, "harvest/article_images.txt"),
+        # `article` is filled only on the article route, `chassis_id` only on
+        # the category route (AF-42), so each floor names one harvest.
+        ("article_images", "article", 623, "harvest/article_images.txt"),
+        ("article_images", "chassis_id", 120, "harvest/category_images.txt"),
     )
     for table, column, floor, source in COLUMN_FLOORS:
         n = con.execute(f"SELECT COUNT({column}) FROM {table}").fetchone()[0]
@@ -2809,8 +2812,15 @@ def illustration_and_geometry():
         # A file hosted locally on en.wikipedia.org is local BECAUSE it is
         # non-free; that is what local upload is for. Linking one would be a
         # licence violation that looks exactly like a working feature.
-        local = con.execute("SELECT COUNT(*) FROM article_images "
-                            "WHERE repository <> 'shared'").fetchone()[0]
+        #
+        # The category route (AF-42) asks Commons itself, which answers
+        # 'local' about its own files; its harvest checks the answering host
+        # and the File namespace instead and records 'commons'. The pairing is
+        # also a CHECK in schema.sql; this is where a loosened schema shows.
+        local = con.execute("""SELECT COUNT(*) FROM article_images
+            WHERE NOT ((route = 'article' AND repository = 'shared')
+                    OR (route = 'category' AND repository = 'commons'))"""
+                            ).fetchone()[0]
         check("every linked image is on Wikimedia Commons, not a local upload",
               local == 0, f"{nimg} files")
 
@@ -2830,21 +2840,51 @@ def illustration_and_geometry():
 
         # An image keyed on an article no chassis claims describes nothing here.
         orphan = con.execute("""SELECT COUNT(*) FROM article_images i
-            WHERE NOT EXISTS (SELECT 1 FROM chassis c WHERE c.article = i.article)"""
+            WHERE i.route = 'article' AND NOT EXISTS
+                  (SELECT 1 FROM chassis c WHERE c.article = i.article)"""
                              ).fetchone()[0]
         check("every image belongs to an article a chassis claims", orphan == 0)
+
+        # A category-route image belongs to a chassis with NO article: where
+        # there is one, the stronger route governs and the weaker is not a
+        # fallback anyone chose.
+        stray = con.execute("""SELECT COUNT(*) FROM article_images i
+            WHERE i.route = 'category' AND NOT EXISTS
+                  (SELECT 1 FROM chassis c WHERE c.id = i.chassis_id
+                                             AND c.article IS NULL)"""
+                            ).fetchone()[0]
+        check("every category image belongs to a chassis no article describes",
+              stray == 0)
+
+        # The two routes make different claims and sit on different rungs.
+        # An article-route row at 'catalogued' would blur exactly the line
+        # the rung was added to draw.
+        blurred = con.execute("SELECT COUNT(*) FROM article_images "
+                              "WHERE route = 'article' "
+                              "AND confidence = 'catalogued'").fetchone()[0]
+        check("no article-route image sits at 'catalogued'", blurred == 0)
 
         # These rows are 'unverified' because nothing in this database can
         # confirm a photograph shows the car. If one ever climbs the ladder it
         # will be because a person looked, and this is where that shows up.
+        narticle = con.execute("SELECT COUNT(*) FROM article_images "
+                               "WHERE route = 'article'").fetchone()[0]
         promoted = con.execute("SELECT COUNT(*) FROM article_images "
-                               "WHERE confidence <> 'unverified'").fetchone()[0]
+                               "WHERE route = 'article' "
+                               "AND confidence <> 'unverified'").fetchone()[0]
         unnamed = con.execute("SELECT COUNT(*) FROM article_images "
-                              "WHERE name_matches = 0").fetchone()[0]
+                              "WHERE route = 'article' "
+                              "AND name_matches = 0").fetchone()[0]
         warn("no image has been promoted above 'unverified' without a person",
              promoted == 0,
-             f"{unnamed} of {nimg} do not name the car in the file name; "
+             f"{unnamed} of {narticle} do not name the car in the file name; "
              f"see v_images_to_check")
+        ncat = nimg - narticle
+        lifted = con.execute("SELECT COUNT(*) FROM article_images "
+                             "WHERE route = 'category' "
+                             "AND confidence <> 'catalogued'").fetchone()[0]
+        warn("no category image has left 'catalogued' without a person",
+             lifted == 0, f"{ncat} rows from a Commons category (AF-42)")
 
     if ngeo:
         # The check that matters, re-run from the stored coordinates rather than

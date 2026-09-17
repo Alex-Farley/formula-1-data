@@ -19,7 +19,7 @@ const SHAPE = `
     (SELECT COUNT(*) FROM chassis)        AS chassis,
     (SELECT COUNT(*) FROM circuits)       AS circuits,
     (SELECT COUNT(*) FROM seasons)        AS seasons,
-    (SELECT COUNT(*) FROM article_images) AS images,
+    (SELECT COUNT(*) FROM article_images WHERE route = 'article') AS images,
     (SELECT COUNT(*) FROM discrepancies)  AS discrepancies,
     (SELECT COUNT(*) FROM v_open_gaps)    AS gaps,
     (SELECT COUNT(*) FROM circuit_geometry) AS geometry,
@@ -223,8 +223,8 @@ export default function Home() {
                   <div className="panel">
                     <b>Every row says how solid it is.</b>
                     <p className="muted small" style={{ margin: '6px 0 0' }}>
-                      Verified, high, reference, medium or unverified — only an official source
-                      reaches the top.
+                      Verified, high, reference, medium, unverified or catalogued — only an
+                      official source reaches the top.
                     </p>
                   </div>
                   <div className="panel">

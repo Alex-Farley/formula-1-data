@@ -278,6 +278,12 @@ function Body({ data }) {
                 which are not, and one article leads with a picture of police officers, so all of
                 them are held at unverified until someone looks.
               </p>
+              <p className="source-note">
+                A further {number(images.catalogued)}, for chassis with no article of their own,
+                were filed by Commons editors under a category named for the car. A category also
+                holds replicas and show cars, so those sit a rung lower, at catalogued, and none of
+                them is shown on a car page.
+              </p>
             </Section>
           </div>
         </div>

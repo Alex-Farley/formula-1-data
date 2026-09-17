@@ -5,10 +5,16 @@ database, with the attribution needed to display it.
 
     python3 tools/wikimedia_images.py               # full run, ~26 requests
     python3 tools/wikimedia_images.py --limit 100   # a sample, for a trial
+    python3 tools/wikimedia_images.py --route category   # ~700 requests
 
 Reads:   harvest/car_specs.txt      the articles the spec harvest accepted
 Writes:  harvest/article_images.txt the accepted rows
          harvest/article_images.log every article, and why it was refused
+
+The category route (AF-42, at the end of this docstring) reads
+harvest/chassis.txt as well and writes harvest/category_images.txt and
+harvest/category_images.log instead. The two routes never write each other's
+files.
 
 No image is downloaded and none is stored. What is stored is a *reference*
 and its attribution: which file an article leads with, who took it, and
@@ -79,6 +85,56 @@ which is a photograph of officials and police.
 So these rows enter at `unverified`, which is where this database puts what it
 cannot prove, and `./f1 unverified` lists them for a person to look at. That is
 the honest position, not a gap to pad.
+
+The category route, for a chassis with no article
+-------------------------------------------------
+A chassis whose only Wikipedia coverage is its team's page has no article, so
+the route above never reaches it. `--route category` looks instead for a
+Wikimedia Commons category named for the chassis - `Category:Vanwall VW5` -
+and takes a photograph filed under it. The claim is weaker, and it is
+recorded as weaker: "Commons editors filed this file under a category named
+for this chassis", at the `catalogued` rung, one below `unverified`. An
+editor's filing is better evidence than a file name, but a category admits
+replicas, scale models, show cars and museum mock-ups, and nothing here can
+tell. The rung is what keeps these rows separable from the article route's,
+and `route` in the table says which is which.
+
+A category is taken only when all of these hold:
+
+  a. **Its title is this chassis's name.** A form of the constructor (F1DB's
+     short or full name, with the filler words check 3 allows), then the
+     designation exactly - no family cut and no variant letter, since March
+     ran the 721, 721G and 721X as three chassis - then nothing, or only a
+     tail from TAILS ("F1", "E Performance", "(Formula One car)"). An exact
+     title is tried first; Commons' own category search only proposes
+     titles, which this rule then judges.
+  b. **Commons files it as a Formula One car.** One of its visible parent
+     categories names Formula One. This is the category route's equivalent
+     of the article route's "infobox is not a Formula One car": it is what
+     refuses `Category:Ferrari 275` (the road cars), `Category:Porsche 718`
+     (a sports-racer and a Cayman) and `Category:Lotus 20` (Formula Junior).
+  c. **No other chassis claims it.** A category two chassis resolve to names
+     neither of them.
+
+Its files are then walked, and its subcategories to two levels - the
+Stirling Moss photographs of the VW5 are one level down - but only a
+subcategory whose title is the category's own followed by "of", "in", "at"
+or a bracket, which is how Commons names one car's appearances. A file or
+subcategory whose name says replica, model, scale, show car and the like
+(REPLICA) is passed over: that is a narrowing rule, not a check that the
+rest show the car. So is this: a file that two chassis's categories both
+hold is a candidate for neither. Among the files left, one that names the car is taken
+first, then the shallower, then by title.
+
+Checks 2 and 3 above apply unchanged. Check 1 cannot be applied the same
+way, and this is a restatement, not a dropped check: asked about its own
+file, Commons answers `imagerepository` = `local` - `shared` is what
+en.wikipedia.org says of a file it does not host. The equivalent is that the
+query went to commons.wikimedia.org and the page is in namespace 6 (File),
+which is where a file hosted on Commons lives; a non-free local upload is on
+en.wikipedia.org and cannot be answered by this query at all. Those rows are
+stored with `repository` = `commons`, and the schema's CHECK accepts that
+value only on the category route.
 """
 import argparse
 import html
@@ -91,11 +147,15 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+from wikispec_fetch import FILLER, _GLUE, designation, either_word_prefix, words
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 HARVEST = os.path.join(ROOT, "harvest")
 
 API = "https://en.wikipedia.org/w/api.php"
+COMMONS_HOST = "commons.wikimedia.org"
+COMMONS_API = f"https://{COMMONS_HOST}/w/api.php"
 UA = ("formula-1-data/2.14 (https://github.com/Alex-Farley/formula-1-data; "
       "article lead-image attribution harvest)")
 
@@ -162,11 +222,11 @@ def plain(value):
     return text or None
 
 
-def api(session_delay=DELAY, **params):
+def api(session_delay=DELAY, endpoint=API, **params):
     """One API call, with the backoff a 429 actually needs."""
     params.setdefault("format", "json")
     params.setdefault("formatversion", "2")
-    url = API + "?" + urllib.parse.urlencode(params)
+    url = endpoint + "?" + urllib.parse.urlencode(params)
     req = urllib.request.Request(url, headers={"User-Agent": UA})
     for attempt in range(6):
         try:
@@ -326,20 +386,27 @@ def body_images(titles):
     return found
 
 
-def file_info(files, log):
-    """'File:...' -> dict of repository, licence and attribution."""
+def file_info(files, log, endpoint=API):
+    """'File:...' -> dict of repository, licence and attribution.
+
+    `host` and `namespace` are what the category route's check 1 reads: the
+    wiki that answered, and where the page sits on it.
+    """
     info = {}
+    host = urllib.parse.urlsplit(endpoint).netloc
     for n, batch in enumerate(batches(files), 1):
         print(f"  file metadata, batch {n}: {len(batch)} files", flush=True)
         d = api(action="query", prop="imageinfo",
                 iiprop="url|size|extmetadata", iiurlwidth="800",
-                titles="|".join(batch))
+                titles="|".join(batch), endpoint=endpoint)
         for p in d.get("query", {}).get("pages", []) or []:
             name = title_key(p.get("title"))
             ii = (p.get("imageinfo") or [{}])[0]
             em = ii.get("extmetadata", {}) or {}
             get = lambda k: (em.get(k) or {}).get("value")
             info[name] = {
+                "host": host,
+                "namespace": p.get("ns"),
                 "repository": p.get("imagerepository"),
                 "licence": plain(get("LicenseShortName")),
                 "licence_url": plain(get("LicenseUrl")),
@@ -353,17 +420,37 @@ def file_info(files, log):
     return info
 
 
-def admit(article, file_name, meta, chassis_ids, log):
-    """Apply the three checks. Returns a row, or None with a logged reason."""
+def admit(article, file_name, meta, chassis_ids, log, route="article"):
+    """Apply the three checks. Returns a row, or None with a logged reason.
+
+    On the category route `article` is the chassis's full name - the label
+    the log keys on and the name the file is tested against - and the row's
+    `repository` is 'commons'; see the module docstring for why check 1 is
+    restated there rather than dropped.
+    """
     if meta is None:
         log.append(f"{article}\tREFUSED\tno metadata for {file_name}")
         return None
 
     # 1. Commons only. A local en.wiki file is local because it is non-free.
-    if meta["repository"] != "shared":
+    if route == "category":
+        # Asked of Commons itself, a Commons file answers 'local'. What
+        # proves it is on Commons is who answered and where the page is.
+        if (meta.get("host") != COMMONS_HOST or meta.get("namespace") != 6
+                or meta["repository"] != "local"):
+            log.append(f"{article}\tREFUSED\t{file_name} was not answered "
+                       f"as a File page by {COMMONS_HOST} (host "
+                       f"{meta.get('host')!r}, namespace "
+                       f"{meta.get('namespace')!r}, repository "
+                       f"{meta['repository']!r})")
+            return None
+        repository = "commons"
+    elif meta["repository"] != "shared":
         log.append(f"{article}\tREFUSED\t{file_name} is hosted "
                    f"{meta['repository']!r}, not on Commons")
         return None
+    else:
+        repository = "shared"
 
     # 2. A free licence, matched against a list of what is actually free.
     lic = (meta["licence"] or "").lower()
@@ -395,7 +482,7 @@ def admit(article, file_name, meta, chassis_ids, log):
     return {
         "article": article,
         "file_name": file_name,
-        "repository": meta["repository"],
+        "repository": repository,
         "licence": meta["licence"],
         "licence_url": meta["licence_url"],
         "artist": meta["artist"],
@@ -407,13 +494,377 @@ def admit(article, file_name, meta, chassis_ids, log):
     }
 
 
+# ------------------------------------------------------ the category route
+
+CAT_COLUMNS = ["chassis_id", "category", "file_name", "repository",
+               "licence", "licence_url", "artist", "credit",
+               "description_url", "width", "height", "name_matches"]
+
+# Words a category title may carry after the designation without naming a
+# different car. "Ferrari 125 F1" is the Formula One 125 where "Ferrari 125"
+# is the road-car family; the Mercedes cars are catalogued under their full
+# season names; "ERA A-Type" is how Commons spells the ERA A. Anything else
+# after the designation - "Ferrari 125 S", "Talbot-Lago T26C-GS" - is refused.
+TAILS = {(), ("f1",), ("type",), ("e", "performance"), ("eq", "performance"),
+         ("eq", "power")}
+
+# A parenthesised qualifier is accepted only when it says Formula One:
+# "Lotus T128 (Formula One car)" and not "Lotus T128 (Le Mans Prototype)".
+F1_WORDS = re.compile(r"formula (one|1)\b|\bf1\b", re.I)
+
+# Check b: a visible parent category that files it as a Formula One car.
+F1_PARENT = re.compile(r"formula (one|1)\b|\bf1 cars\b", re.I)
+
+# The narrowing rule: a file or subcategory whose name says it is not the
+# car, or not the car as a whole. The first run took a cutaway drawing, a
+# fuel tank, a rear wing, an engine, a gear lever, a team logo and a
+# photograph of a fatal accident, each from the right category.
+REPLICA = re.compile(r"\b(replicas?|models?|scale|diecast|die-cast|lego|toys?|"
+                     r"miniatures?|mock-?ups?|show ?cars?|tributes?|"
+                     r"re-?creations?|kits?|1[:/]\d+|cutaways?|przekr\w*|"
+                     r"engines?|cockpits?|logos?|wings?|tanks?|gearbox\w*|"
+                     r"steering|suspension|tyres?|tires?|badges?|"
+                     r"dashboards?|interiors?|details?|schalthebel|lenkrad|"
+                     r"accidents?|crash\w*|fatal)\b", re.I)
+
+# How Commons names one car's appearances under its category.
+SUBCATEGORY = re.compile(r"(of|in|at)\s|\(", re.I)
+
+# How deep subcategories are walked, and how many files per chassis are
+# asked about before the chassis is refused.
+DEPTH = 2
+PER_CHASSIS = 5
+
+# Commons answers a batch of fifty as readily as the article API; this pace
+# completed a full run without a 429.
+COMMONS_DELAY = 1.0
+
+
+def cat_bare(title):
+    return title[len("Category:"):] if title.startswith("Category:") else title
+
+
+def category_tail(title, full, name, cons_names):
+    """Check a: is `title` this chassis's name? The tail it carries, or None.
+
+    `cons_names` is F1DB's short and full name for the constructor. Stricter
+    than check 3 for articles: the designation must be matched whole, with no
+    family cut and no variant letter, because a category holds photographs
+    of every car filed under it and a family category would admit them all.
+    """
+    bare = cat_bare(title).strip()
+    m = re.fullmatch(r"(.*?)\s*\(([^()]*)\)", bare)
+    if m:
+        if not F1_WORDS.search(m.group(2)):
+            return None
+        bare = m.group(1)
+    t = words(bare)
+    forms = [w for w in (words(c) for c in cons_names) if w]
+    extra = FILLER | {w for c in cons_names for w in words(c)
+                      if w not in _GLUE and not any(ch.isdigit() for ch in w)}
+    want = "".join(designation(full, cons_names[0] if cons_names else "",
+                               name))
+    if not want:
+        return None
+    for i in range(1, len(t)):
+        for f in forms:
+            if not either_word_prefix(t[:i], f):
+                continue
+            if any(w not in extra for w in t[len(f):i]):
+                continue
+            run = ""
+            for j in range(i, len(t)):
+                run += t[j]
+                if run == want:
+                    tail = tuple(t[j + 1:])
+                    if tail in TAILS:
+                        return tail
+                    break
+                if not want.startswith(run):
+                    break
+    return None
+
+
+def exact_titles(full, name, short):
+    """The category titles tried before any search: the full name, and the
+    full name with the designation's spaces closed ("Vanwall VW 5" is
+    catalogued as "Vanwall VW5")."""
+    out = [f"Category:{full}"]
+    if short and full.startswith(short + " "):
+        closed = f"Category:{short} {full[len(short) + 1:].replace(' ', '')}"
+        if closed not in out:
+            out.append(closed)
+    return out
+
+
+def read_bare_chassis():
+    """(chassis_id, constructor_id, name, full_name) for every F1DB chassis
+    no accepted article claims, and each constructor's two names.
+
+    Read from the harvest files build.py reads, so the set is the one the
+    build will leave with `chassis.article` NULL.
+    """
+    claimed = set()
+    for _article, ids in read_articles():
+        claimed.update(i for i in ids.split("+") if i)
+    cons = {}
+    chassis = []
+    for fname, into in (("f1db_constructors.txt", cons),
+                        ("chassis.txt", chassis)):
+        path = os.path.join(HARVEST, fname)
+        if not os.path.exists(path):
+            raise SystemExit(f"harvest/{fname} is missing. Run "
+                             f"tools/f1db_fetch.py first.")
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                line = line.rstrip("\n")
+                if not line.strip() or line.startswith("#"):
+                    continue
+                p = line.split("|")
+                if into is cons:
+                    cons[p[0]] = (p[1], p[2])
+                elif p[0] not in claimed:
+                    chassis.append((p[0], p[1], p[2], p[3]))
+    return chassis, cons
+
+
+def search_categories(term):
+    d = api(action="query", list="search", srsearch=term, srnamespace=14,
+            srlimit=6, endpoint=COMMONS_API, session_delay=COMMONS_DELAY)
+    return [s["title"] for s in d.get("query", {}).get("search", []) or []]
+
+
+def category_parents(titles):
+    """title -> its visible parent categories, or None where it is missing."""
+    out = {}
+    for n, batch in enumerate(batches(sorted(titles)), 1):
+        print(f"  category parents, batch {n}: {len(batch)}", flush=True)
+        cont = {}
+        while True:
+            d = api(action="query", prop="categories", clshow="!hidden",
+                    cllimit="max", titles="|".join(batch),
+                    endpoint=COMMONS_API, session_delay=COMMONS_DELAY, **cont)
+            back = {m["to"]: m["from"]
+                    for m in d.get("query", {}).get("normalized", []) or []}
+            for p in d.get("query", {}).get("pages", []) or []:
+                title = back.get(p["title"], p["title"])
+                if p.get("missing") or p.get("invalid"):
+                    out[title] = None
+                    continue
+                got = out.setdefault(title, [])
+                if got is not None:
+                    got.extend(c["title"] for c in p.get("categories") or [])
+            if "continue" not in d:
+                break
+            cont = d["continue"]
+    return out
+
+
+def category_members(title):
+    """(files, subcategories) filed directly under a Commons category."""
+    files, subs, cont = [], [], {}
+    while True:
+        d = api(action="query", list="categorymembers", cmtitle=title,
+                cmtype="file|subcat", cmlimit="max",
+                endpoint=COMMONS_API, session_delay=COMMONS_DELAY, **cont)
+        for m in d.get("query", {}).get("categorymembers", []) or []:
+            if m.get("ns") == 6:
+                files.append(title_key(m["title"]))
+            elif m.get("ns") == 14:
+                subs.append(m["title"])
+        if "continue" not in d:
+            break
+        cont = d["continue"]
+    return files, subs
+
+
+def walk(category):
+    """[(file, depth)] under a category and the subcategories that are this
+    car's appearances, to DEPTH levels, replicas passed over."""
+    out, seen = [], set()
+    level = [category]
+    for depth in range(DEPTH + 1):
+        nxt = []
+        for cat in level:
+            files, subs = category_members(cat)
+            for f in files:
+                if f not in seen:
+                    seen.add(f)
+                    out.append((f, depth))
+            head = cat_bare(category) + " "
+            for s in subs:
+                rest = cat_bare(s)[len(head):] if cat_bare(s).startswith(head) else None
+                if (rest is not None and SUBCATEGORY.match(rest)
+                        and not REPLICA.search(s)):
+                    nxt.append(s)
+        level = sorted(nxt)
+    return out
+
+
+def file_candidates(found, full, names):
+    """The files of a category worth asking about, best first: raster, not
+    named as a replica, naming the car before not, shallow before deep."""
+    keep = [(f, d) for f, d in found
+            if f.lower().endswith(RASTER) and not REPLICA.search(f)]
+    keep.sort(key=lambda fd: (not names_car(fd[0], full, names), fd[1], fd[0]))
+    return [f for f, _d in keep[:PER_CHASSIS]]
+
+
+def main_category(args):
+    chassis, cons = read_bare_chassis()
+    if args.only:
+        needle = args.only.lower()
+        chassis = [c for c in chassis
+                   if needle in c[0] or needle in c[3].lower()]
+    if args.limit:
+        chassis = chassis[:args.limit]
+    if not chassis:
+        raise SystemExit("no chassis selected")
+    print(f"{len(chassis)} chassis without an article", flush=True)
+
+    log = []
+    proposed = {}                  # chassis id -> [(tail, title)]
+    for n, (cid, k, name, full) in enumerate(chassis, 1):
+        if n % 50 == 0:
+            print(f"  searched {n}/{len(chassis)}", flush=True)
+        names = cons.get(k, (k, k))
+        titles = exact_titles(full, name, names[0]) + search_categories(full)
+        forms = {}
+        for t in titles:
+            tail = category_tail(t, full, name, names)
+            if tail is not None and t not in forms:
+                forms[t] = tail
+        if not forms:
+            log.append(f"{cid}\tREFUSED\tno category is named for {full}")
+            continue
+        proposed[cid] = sorted(((tail, t) for t, tail in forms.items()),
+                               key=lambda x: (len(x[0]) > 0, x[1]))
+
+    parents = category_parents({t for v in proposed.values() for _x, t in v})
+    accepted = {}                  # chassis id -> [title]
+    for cid, forms in proposed.items():
+        ok = []
+        for _tail, t in forms:
+            ps = parents.get(t)
+            if ps is None:
+                continue           # an exact title Commons does not hold
+            if not any(F1_PARENT.search(p) for p in ps):
+                log.append(f"{cid}\tREFUSED\t{t} is not filed as a "
+                           f"Formula One car ({'; '.join(cat_bare(p) for p in ps) or 'no parents'})")
+                continue
+            ok.append(t)
+        if ok:
+            accepted[cid] = ok
+        elif not any(line.startswith(cid + "\t") for line in log):
+            log.append(f"{cid}\tREFUSED\tno category named for it exists")
+
+    # Check c: a category two chassis resolve to names neither.
+    owners = {}
+    for cid, ts in accepted.items():
+        for t in ts:
+            owners.setdefault(t, set()).add(cid)
+    for t, who in sorted(owners.items()):
+        if len(who) > 1:
+            for cid in sorted(who):
+                accepted[cid].remove(t)
+                log.append(f"{cid}\tREFUSED\t{t} is claimed by "
+                           f"{', '.join(sorted(who))}")
+    accepted = {c: ts for c, ts in accepted.items() if ts}
+
+    by_id = {c[0]: c for c in chassis}
+    wanted, plan = set(), {}
+    for n, cid in enumerate(sorted(accepted), 1):
+        if n % 10 == 0:
+            print(f"  walked {n}/{len(accepted)} categories' chassis",
+                  flush=True)
+        _c, _k, _name, full = by_id[cid]
+        plan[cid] = [(t, walk(t)) for t in accepted[cid]]
+
+    # A file two chassis's categories both hold - the VW2 photograph filed
+    # under the VW55 as well - says which car it is to neither of them.
+    holders = {}
+    for cid, cats in plan.items():
+        for _t, found in cats:
+            for f, _d in found:
+                holders.setdefault(f, set()).add(cid)
+    for cid in sorted(plan):
+        full = by_id[cid][3]
+        cats = []
+        for t, found in plan[cid]:
+            found = [(f, d) for f, d in found if len(holders[f]) == 1]
+            files = file_candidates(found, full, f"{cid}+{cat_bare(t)}")
+            cats.append((t, files))
+            wanted.update(files)
+        plan[cid] = cats
+    info = file_info(sorted(wanted), log, endpoint=COMMONS_API)
+
+    rows = []
+    for cid in sorted(plan):
+        full = by_id[cid][3]
+        tried, row = [], None
+        for t, files in plan[cid]:
+            for f in files:
+                row = admit(full, f, info.get(title_key(f)),
+                            f"{cid}+{cat_bare(t)}", tried, route="category")
+                if row:
+                    row["chassis_id"], row["category"] = cid, t
+                    break
+            if row:
+                break
+        if row:
+            rows.append(row)
+        elif tried:
+            log.extend(f"{cid}\t" + line.split("\t", 1)[1] for line in tried)
+        else:
+            log.append(f"{cid}\tREFUSED\t{', '.join(t for t, _f in plan[cid])}"
+                       f" holds no photograph that is not a replica, a part or another chassis's")
+
+    out = os.path.join(HARVEST, "category_images.txt")
+    with open(out, "w", encoding="utf-8") as fh:
+        fh.write("# Generated by tools/wikimedia_images.py --route category on "
+                 + time.strftime("%Y-%m-%d") + ". Do not edit by hand.\n")
+        fh.write("# Source: a Wikimedia Commons category named for each "
+                 "chassis no article describes, via the Commons API.\n")
+        fh.write("# The claim is only that Commons editors filed the file "
+                 "there; the build holds these rows at 'catalogued'.\n")
+        fh.write("# Each file carries its OWN licence. No image is stored "
+                 "here or in the database.\n")
+        fh.write("# " + "|".join(CAT_COLUMNS) + "\n")
+        for r in rows:
+            fh.write("|".join("" if r[c] is None else str(r[c])
+                              for c in CAT_COLUMNS) + "\n")
+
+    with open(os.path.join(HARVEST, "category_images.log"), "w",
+              encoding="utf-8") as fh:
+        fh.write("# Every chassis without an article, and why it was "
+                 "refused.\n")
+        for line in sorted(log):
+            fh.write(line + "\n")
+        for r in rows:
+            fh.write(f"{r['chassis_id']}\tACCEPTED\t{r['category']}\t"
+                     f"{r['file_name']}\t{r['licence']}\n")
+
+    named = sum(r["name_matches"] for r in rows)
+    print(f"\naccepted {len(rows)} of {len(chassis)} chassis")
+    print(f"refused  {len(chassis) - len(rows)}  "
+          f"(see harvest/category_images.log)")
+    print(f"file name names the car: {named} of {len(rows)}")
+    print(f"wrote {out}")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[1])
     ap.add_argument("--limit", type=int, default=0,
                     help="only the first N articles, for a trial run")
     ap.add_argument("--only", default=None,
                     help="only articles containing this substring")
+    ap.add_argument("--route", choices=("article", "category"),
+                    default="article",
+                    help="article (the default), or a Commons category for "
+                         "each chassis with no article")
     args = ap.parse_args()
+    if args.route == "category":
+        return main_category(args)
 
     articles = read_articles()
     if args.only:

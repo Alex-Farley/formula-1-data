@@ -5,7 +5,8 @@
 -- Provenance model
 -- ----------------
 -- Every fact table carries:
---   confidence  'verified' | 'high' | 'medium' | 'unverified'
+--   confidence  'verified' | 'high' | 'reference' | 'medium' | 'unverified'
+--               | 'catalogued'
 --   source      URL or citation where the fact was checked
 --
 --   verified   = checked this session against fia.com / formula1.com
@@ -18,6 +19,9 @@
 --   medium     = correct in substance, detail (exact figure, exact
 --                date) worth confirming before publication
 --   unverified = placeholder / disputed / known-incomplete
+--   catalogued = below unverified: a third party's filing, not a check -
+--                a photograph a Commons editor filed under a category
+--                named for the chassis (article_images, route 'category')
 --
 -- Rule inherited from v1: never promote a fact to 'verified' without
 -- an official source. See the `provenance` table for the ladder.
@@ -617,12 +621,33 @@ CREATE TABLE chassis (
 -- finds under half the correct images - most are filed under the driver -
 -- so name_matches is RECORDED AND ENFORCED NOWHERE. These rows are
 -- 'unverified' because that is what they are.
+--
+-- A second route (AF-42) reaches the chassis no article describes: a
+-- Wikimedia Commons category named for the chassis. Its claim is weaker -
+-- "Commons editors filed this file under a category named for this
+-- chassis" - and a category admits replicas and show cars, so its rows are
+-- keyed on the chassis, not an article, and sit at 'catalogued', one rung
+-- below 'unverified'. `route` keeps the two separable whatever a person
+-- later does to `confidence`.
 CREATE TABLE article_images (
-    article         TEXT PRIMARY KEY,          -- joins chassis.article
+    route           TEXT NOT NULL DEFAULT 'article'
+                    CHECK (route IN ('article', 'category')),
+    article         TEXT UNIQUE,               -- joins chassis.article; the article route's key
+    chassis_id      TEXT UNIQUE REFERENCES chassis(id), -- the category route's key
+    category        TEXT,                      -- 'Category:...' on Commons, category route only
     file_name       TEXT NOT NULL,             -- 'File:...' as Commons spells it
-    -- Must be 'shared'. A file hosted locally on en.wikipedia.org is local
-    -- BECAUSE it is non-free; linking one would be a licence violation.
-    repository      TEXT NOT NULL CHECK (repository = 'shared'),
+    -- 'shared' on the article route. A file hosted locally on
+    -- en.wikipedia.org is local BECAUSE it is non-free; linking one would be
+    -- a licence violation.
+    --
+    -- 'commons' on the category route, and this is a RESTATEMENT of that
+    -- check, not a weakening of it. Asked about its own file, Commons answers
+    -- 'local'; 'shared' is only what en.wikipedia.org says of a file it does
+    -- not host. The harvest instead requires that the answer came from
+    -- commons.wikimedia.org for a page in namespace 6, which is where a
+    -- Commons file lives and where a non-free en.wikipedia.org upload cannot
+    -- be. See tools/wikimedia_images.py.
+    repository      TEXT NOT NULL CHECK (repository IN ('shared', 'commons')),
     -- Every file carries its own. Sixteen distinct licence strings appear
     -- across these rows, so there is no blanket credit line for them.
     licence         TEXT NOT NULL,
@@ -633,7 +658,12 @@ CREATE TABLE article_images (
     width           INTEGER,
     height          INTEGER,
     name_matches    INTEGER NOT NULL DEFAULT 0,
-    confidence      TEXT NOT NULL DEFAULT 'unverified' REFERENCES provenance(confidence)
+    confidence      TEXT NOT NULL DEFAULT 'unverified' REFERENCES provenance(confidence),
+    -- Exactly one key per route, and each route's repository with it.
+    CHECK ((route = 'article' AND article IS NOT NULL AND chassis_id IS NULL
+            AND category IS NULL AND repository = 'shared')
+        OR (route = 'category' AND article IS NULL AND chassis_id IS NOT NULL
+            AND category IS NOT NULL AND repository = 'commons'))
 );
 
 CREATE TABLE car_seasons (
@@ -1680,16 +1710,17 @@ SELECT DISTINCT ch.car_id, c.full_name AS car, i.article,
 FROM article_images i
 JOIN chassis ch ON ch.article = i.article
 JOIN cars c ON c.id = ch.car_id
-WHERE ch.car_id IS NOT NULL;
+WHERE ch.car_id IS NOT NULL AND i.route = 'article';
 
 -- The images whose file name does not mention the car. NOT a list of wrong
 -- images - most are correct and simply filed under the driver - but it is
--- where a wrong one will be, and it is the only handle there is.
+-- where a wrong one will be, and it is the only handle there is. The
+-- article route only: every category-route row needs a person anyway.
 CREATE VIEW v_images_to_check AS
 SELECT i.article, i.file_name, i.licence, i.description_url,
        (SELECT COUNT(*) FROM chassis ch WHERE ch.article = i.article) AS chassis
 FROM article_images i
-WHERE i.name_matches = 0
+WHERE i.name_matches = 0 AND i.route = 'article'
 ORDER BY chassis DESC, i.article;
 
 CREATE VIEW v_circuits_by_country AS

@@ -232,5 +232,76 @@ class BodyCandidates(unittest.TestCase):
                                       "ferrari-500+ferrari-312t2"))
 
 
+
+class CategoryTail(unittest.TestCase):
+    """Check a of the category route in tools/wikimedia_images.py (AF-42).
+
+    Every case is a title Commons' category search offered for a chassis
+    with no article."""
+
+    MERCEDES = ("Mercedes", "Mercedes AMG F1")
+
+    def accepts(self, title, full, name, cons):
+        self.assertIsNotNone(WI.category_tail(title, full, name, cons),
+                             f"{title!r} should name {full!r}")
+
+    def refuses(self, title, full, name, cons):
+        self.assertIsNone(WI.category_tail(title, full, name, cons),
+                          f"{title!r} should not name {full!r}")
+
+    def test_the_exact_name_and_a_closed_space(self):
+        self.accepts("Category:Vanwall VW5", "Vanwall VW 5", "VW 5",
+                     ("Vanwall", "Vanwall"))
+        self.accepts("Category:Talbot-Lago T26 C", "Talbot-Lago T26C",
+                     "T26C", ("Talbot-Lago", "Talbot-Lago"))
+
+    def test_the_constructors_full_name_and_a_season_name(self):
+        self.accepts("Category:Mercedes-AMG F1 W12 E Performance",
+                     "Mercedes F1 W12", "F1 W12", self.MERCEDES)
+        self.accepts("Category:Mercedes AMG F1 W08 EQ Power+",
+                     "Mercedes F1 W08 EQ Power+", "F1 W08 EQ Power+",
+                     self.MERCEDES)
+
+    def test_a_tail_that_names_another_car(self):
+        self.refuses("Category:Ferrari 125 S", "Ferrari 125", "125", FERRARI)
+        self.refuses("Category:Ferrari 275 GTB", "Ferrari 275", "275",
+                     FERRARI)
+        self.refuses("Category:Talbot-Lago T26C-GS", "Talbot-Lago T26C",
+                     "T26C", ("Talbot-Lago", "Talbot-Lago"))
+        self.accepts("Category:Ferrari 125 F1", "Ferrari 125", "125",
+                     FERRARI)
+
+    def test_no_variant_letter_and_no_family_cut(self):
+        march = ("March", "March Engineering")
+        self.refuses("Category:March 721X", "March 721", "721", march)
+        self.refuses("Category:March 721", "March 721X", "721X", march)
+        self.refuses("Category:Matra MS120", "Matra MS120C", "MS120C",
+                     ("Matra", "Equipe Matra Sports"))
+
+    def test_a_bracket_must_say_formula_one(self):
+        lotus = ("Lotus", "Lotus Racing")
+        self.accepts("Category:Lotus T128 (Formula One car)", "Lotus T128",
+                     "T128", lotus)
+        self.refuses("Category:Lotus T128 (Le Mans Prototype)",
+                     "Lotus T128", "T128", lotus)
+
+    def test_one_cars_appearances_are_not_the_car(self):
+        self.refuses("Category:Vanwall VW5 of Stirling Moss in 1957",
+                     "Vanwall VW 5", "VW 5", ("Vanwall", "Vanwall"))
+
+    def test_the_replica_rule(self):
+        self.assertTrue(WI.REPLICA.search(
+            "File:Replica of Red Bull Racing RB19 at a show.jpg"))
+        self.assertTrue(WI.REPLICA.search("File:Lotus 72E 1:43 model.jpg"))
+        self.assertTrue(WI.REPLICA.search(
+            "File:Hart 415T engine in Lola THL1.JPG"))
+        self.assertTrue(WI.REPLICA.search(
+            "File:Fatal accident at 1973 Dutch Grand Prix (3).jpg"))
+        self.assertFalse(WI.REPLICA.search("File:Vanwall VW5 Donington.jpg"))
+        self.assertFalse(WI.REPLICA.search(
+            "File:Mercedes-AMG F1 W17 E Performance of Andrea Kimi "
+            "Antonelli (028A8052).jpg"))
+
+
 if __name__ == "__main__":
     unittest.main()

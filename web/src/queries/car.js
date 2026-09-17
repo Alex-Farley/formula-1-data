@@ -39,10 +39,14 @@ export const CAR = `
    LIMIT 1
 `
 
+// The article route only. A photograph from a Commons category (AF-42,
+// route 'category', confidence 'catalogued') is not shown until a person
+// decides whether that rung is shown at all.
 export const IMAGES = `
   SELECT * FROM article_images
-   WHERE article = (SELECT article FROM chassis WHERE id = ?)
-      OR article = (SELECT article FROM chassis WHERE car_id = ? LIMIT 1)
+   WHERE route = 'article'
+     AND (article = (SELECT article FROM chassis WHERE id = ?)
+       OR article = (SELECT article FROM chassis WHERE car_id = ? LIMIT 1))
    ORDER BY name_matches DESC
 `
 
