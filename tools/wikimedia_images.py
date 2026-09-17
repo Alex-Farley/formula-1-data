@@ -32,8 +32,8 @@ Which file on the article
 The article's lead image (`pageimage`) is taken where there is one. Where
 there is none, a file from the body of the article is taken - but only one
 whose own name names the car, by the same test as `name_matches` below: the
-article title or a chassis id, not cutting into a run of digits, so
-"Brabham BT46 Lauda.jpg" does not name the BT4. A
+article title or a chassis id, starting at a word and not cutting into a run
+of digits, so "Brabham BT46 Lauda.jpg" does not name the BT4. A
 body image is placed by an editor to illustrate *something* in the article,
 and that is often not the car: the Cooper T58 article carries a Renault 4
 road car, and the BRM P115 article a Jackie Stewart photograph from a season
@@ -236,8 +236,10 @@ RASTER = (".jpg", ".jpeg", ".png", ".gif", ".tif", ".tiff", ".webp")
 def names_car(file_name, article, chassis_ids):
     """Does the file's own name name the car? Recorded as `name_matches`.
 
-    A name matches where it does not cut into a run of digits at either
-    end, so the BT4 is not named by "Brabham BT46", while "Ferrari553F1.jpg",
+    A name matches where it does not cut into a run of digits at its end,
+    and starts at a word or where letters meet digits, so the BT4 is not
+    named by "Brabham BT46" nor the RAM 01 by "Tram 01", while
+    "Ferrari553F1.jpg",
     "Brabham BT11A" and "2020 Formula One tests Barcelona, Alfa Romeo C39"
     still name theirs. `chassis_ids` is car_specs.txt's field, joined with
     "+" for a family article that several chassis share.
@@ -255,8 +257,10 @@ def names_car(file_name, article, chassis_ids):
         at = fn.find(want)
         while at >= 0:
             end = at + len(want)
+            # It may start only at a separator or where letters meet
+            # digits ("1991BenettonB191"): "Camera" does not name the ERA A.
             if (not (at not in seps and fn[at - 1].isdigit()
-                     and want[0].isdigit())
+                     == want[0].isdigit())
                     and not (end not in seps and fn[end].isdigit()
                              and want[-1].isdigit())):
                 return True

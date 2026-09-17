@@ -55,20 +55,20 @@ this database already holds and did not get from Wikipedia:
      unless the designation itself breaks into words there (312/66), so
      "F1" is not a family of the F10, "24" of the 246, or "3" of the 33 -
      "Ferrari 156 F1", "Ferrari SF-24" and "Lotus 1-2-3" are all refused.
-     Nor is a family cut taken after a head longer than the constructor's
-     name: "Ferrari 125 S" is not a Ferrari SF-23, though "Ferrari Tipo 500"
-     is the 500. Past the designation, the title must break at a word, so a
+     Past the designation, the title must break at a word, so a
      one-letter designation cannot be read into a longer word: "English
      Racing Automobiles" is not the ERA A, and "Boron-11 ..." is not the
      Boro 001.
 
-     The title's spelling of the constructor is not the constructor
-     evidence - check 1 is, from the infobox. This check asks only whether
-     the words in front of the designation could name that constructor,
-     which is why Wikipedia inserting "Tipo", "Racing" or "AMG" no longer
-     refuses a page whose designation is exact. The forms compared against
-     are F1DB's rather than the page's, so the check still runs before the
-     page is parsed.
+     Between the constructor's name and the designation a title may put
+     only filler ("Tipo", "Type", "Racing", "Team", "Scuderia") or a word
+     of the constructor as the page's own infobox spells or links it ("Benz"
+     in "Mercedes-Benz in Formula One"), and after such a longer head the designation must
+     follow exactly, never cut back to a family. So "Lotus 18/21" is not the
+     21, "Lotus Elan 25" not the 25, "Ferrari 125 S" not the SF-23. The
+     title's spelling of the constructor is still not the constructor
+     evidence - check 1 is - so the infobox is parsed before this check
+     runs, which costs nothing: the page has already been fetched.
 
 A page failing either check is refused whole and logged. It is never
 partially accepted, and a near miss is never nudged into a match.
@@ -454,24 +454,40 @@ def designation_follows(rest, parts, family=True):
     return False
 
 
-def name_is_form(title, full, name, cons_names):
+# Words a title may put between the constructor's name and the designation
+# without naming anything else: "Ferrari Tipo 500", "Connaught Type A",
+# "Scuderia Toro Rosso STR13".
+FILLER = {"tipo", "type", "scuderia", "team", "racing", "f1", "formula", "one"}
+# Never taken from the infobox as a spelling of the constructor.
+_GLUE = {"in", "of", "the", "and", "a", "an"}
+
+
+def name_is_form(title, full, name, cons_names, page_constructor=None):
     """Check 3: is `title` a form of this constructor, then this designation?
 
     `cons_names` is every name F1DB holds for the chassis's constructor, its
-    short name first.
+    short name first. `page_constructor` is the infobox's Constructor value,
+    whose words - "Benz" in "Mercedes-Benz" - may also stand between the
+    constructor's name and the designation. Nothing else may: "Lotus 18/21"
+    is not the 21, "Lotus Elan 25" is not the 25.
     """
     if slug(title) == slug(full):
         return True
     forms = [w for w in (words(c) for c in cons_names) if w]
     want = designation(full, cons_names[0] if cons_names else "", name)
+    extra = FILLER | {w for w in words(page_constructor)
+                      if w not in _GLUE and not any(c.isdigit() for c in w)}
     t = words(title)
     for i in range(1, len(t)):
         for f in forms:
+            if not either_word_prefix(t[:i], f):
+                continue
+            if any(w not in extra for w in t[len(f):i]):
+                continue
             # A head with words beyond the constructor's name ("Ferrari
             # Tipo") must be followed by the designation itself, not a cut
-            # of it: otherwise "Ferrari 156" is a head and "F1" a family.
-            if (either_word_prefix(t[:i], f)
-                    and designation_follows(t[i:], want, family=i <= len(f))):
+            # of it.
+            if designation_follows(t[i:], want, family=i <= len(f)):
                 return True
     return False
 
@@ -575,12 +591,23 @@ def main():
             t, body = resolve(cand)
             if body is None:
                 continue
-            # check 3, applied before anything is read off the page: the
-            # article may be a family page, but not a different car.
-            if not name_is_form(t, full, name, cons_name.get(con_id, ())):
+            # check 3: the article may be a family page, but not a
+            # different car. The infobox is read first only for the words it
+            # spells the constructor with; nothing else is taken from it
+            # until the page has passed.
+            b2 = parse_infobox(body)
+            spelt = None
+            if b2 and first(b2, ["constructor"]):
+                # The text shown and the article it links to: the W196 page
+                # shows "Mercedes" and links "Mercedes-Benz in Formula One".
+                raw = re.sub(r"<ref.*?</ref>|<ref[^>]*/>", "",
+                             first(b2, ["constructor"]), flags=re.S | re.I)
+                spelt = " ".join([strip(raw) or ""]
+                                 + re.findall(r"\[\[([^\]|#]+)", raw))
+            if not name_is_form(t, full, name, cons_name.get(con_id, ()),
+                                spelt):
                 log.append(f"{cid}|name disagrees|{t} is not a form of {full}")
                 continue
-            b2 = parse_infobox(body)
             if b2 is None:
                 log.append(f"{cid}|no racing-car infobox|{t}")
                 continue

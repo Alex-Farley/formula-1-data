@@ -75,7 +75,7 @@ here is a number the build checked.
 | `harvest/circuit_outlines.txt`, `race_layouts.txt` | The SVG outline of every F1DB circuit layout (drawn by Jules Roy, CC BY 4.0) and the layout each race ran. **Generated** by `tools/f1db_fetch.py`. |
 | `harvest/car_specs.txt` | Chassis specifications off the per-car articles. **Generated** by `tools/wikispec_fetch.py`. |
 | `harvest/car_specs.log` | Every chassis that was refused, and the reason. **Generated.** |
-| `harvest/article_images.txt`, `.log` | The lead image of each car article and its licence; every article refused, and why. **Generated** by `tools/wikimedia_images.py`. |
+| `harvest/article_images.txt`, `.log` | The photograph of each car article and its licence; every article refused, and why. **Generated** by `tools/wikimedia_images.py`. |
 | `harvest/circuit_geometry.txt`, `.log` | The OSM centrelines and every relation refused. **Generated** by `tools/osm_geometry.py`. |
 | `tools/f1db_fetch.py` | Pulls the registers, the classification, qualifying, standings and pit stops from F1DB (CC BY 4.0) into the generated harvest files. Needs network; not part of the build. |
 | `tools/wikispec_fetch.py` | Harvests chassis specifications from the `{{Racing car}}` infobox on each car's article, refusing any page that disagrees with the register. Needs network; not part of the build. |
@@ -435,11 +435,11 @@ dimensions as published, plus three things a spec sheet does not — the
 every chassis that has raced.** It is loaded from
 [F1DB](https://github.com/f1db/f1db) (CC BY 4.0) by `tools/f1db_fetch.py` — a
 scale at which nobody types anything — and
-<!-- fig:chassis_with_spec -->804<!-- /fig --> of them carry a specification
+<!-- fig:chassis_with_spec -->803<!-- /fig --> of them carry a specification
 `tools/wikispec_fetch.py` established off that chassis's own Wikipedia
 article. `chassis.car_id` joins the two.
 
-<!-- fig:chassis_published_wins -->784<!-- /fig --> chassis carry a published
+<!-- fig:chassis_published_wins -->783<!-- /fig --> chassis carry a published
 career win total. The wins this database derives independently, from its own
 race records through the linkage below, **agree exactly for
 <!-- fig:chassis_wins_match -->634<!-- /fig --> of them and exceed for
@@ -477,9 +477,12 @@ page is read only if it agrees with three things established elsewhere:
    chassis's designation — "Ferrari Tipo 500", "Red Bull Racing RB19" and
    "Mercedes-Benz W196" all qualify, and Wikipedia documents families on one
    page, so "Lotus 72C" legitimately redirects to "Lotus 72". A different car
-   of the same name is refused: searching for "Ferrari 312/66" offers
-   "Ferrari 312T" first, and 312T is not the 312/66; nor is "Ferrari 156 F1"
-   the F10. Words are compared whole, so "Barcelona" is not BAR.
+   is refused: searching for "Ferrari 312/66" offers "Ferrari 312T" first,
+   and 312T is not the 312/66. Only filler such as "Tipo" or "Racing", or a
+   word of the constructor as the page's own infobox spells it, may stand
+   between the name and the designation, so "Lotus 18/21" is not the 21 and
+   "Lotus Elan 25" is not the 25. Words are compared whole, so "Barcelona"
+   is not BAR.
 
 A page failing any of the three is refused whole and logged in
 `harvest/car_specs.log` with the reason. Nothing is partially accepted and a
@@ -586,7 +589,7 @@ photograph in its body whose own file name names the car; a body image that
 does not is refused, because the first picture on a page can be a driver,
 an engine or a road car. Rerunning the harvest re-establishes it.
 <!-- fig:images -->623<!-- /fig --> of the
-<!-- fig:chassis_with_spec -->804<!-- /fig --> articles yield one.
+<!-- fig:chassis_with_spec -->803<!-- /fig --> articles yield one.
 
 Three things are enforced at harvest and again on every build. The file must
 be on **Commons** — a file uploaded locally to en.wikipedia.org is local
@@ -606,7 +609,7 @@ an ugly page, it is an infringing one.
 
 What **cannot** be checked is whether the photograph shows the car. Testing
 whether the file name mentions the chassis finds
-<!-- fig:images_named -->277<!-- /fig --> of
+<!-- fig:images_named -->276<!-- /fig --> of
 <!-- fig:images -->623<!-- /fig --> — most correct images are filed under the
 driver, and `File:Jos_Verstappen_2000_Monza_(cropped).jpg` really is an
 Arrows A21 — so the test would discard half the good rows if it were a rule.
@@ -979,7 +982,7 @@ queried, not just read here. `./f1 gaps` prints them with the fix for each.
   *article* is well constrained; what the picture depicts is not, and there is
   no second source to disagree with it. This is the only part of the database
   with no cross-check available at all. `./f1 images` lists the
-  <!-- fig:images_unnamed -->346<!-- /fig --> whose file name does not even
+  <!-- fig:images_unnamed -->347<!-- /fig --> whose file name does not even
   name the car.
 - **Historic circuit geometry.** Centrelines are traced from OpenStreetMap,
   which maps what is on the ground. Spa's 14.1 km road course and Monza's

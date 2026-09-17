@@ -43,7 +43,11 @@ class NameIsForm(unittest.TestCase):
                      ("Toro Rosso", "Scuderia Toro Rosso"))
 
     def test_the_constructor_spelled_differently(self):
-        self.accepts("Mercedes-Benz W196", "Mercedes W196", "W196",
+        # "Benz" is taken from the page's own infobox, not assumed.
+        self.assertTrue(WS.name_is_form(
+            "Mercedes-Benz W196", "Mercedes W196", "W196",
+            ("Mercedes", "Mercedes AMG F1"), "Mercedes-Benz"))
+        self.refuses("Mercedes-Benz W196", "Mercedes W196", "W196",
                      ("Mercedes", "Mercedes AMG F1"))
         # The head matches in either direction: HRT's full name is longer.
         self.accepts("Hispania F110", "HRT F110", "F110",
@@ -88,6 +92,30 @@ class NameIsForm(unittest.TestCase):
         # F1DB's short name is "1"; the full name's "001" is what is matched.
         self.refuses("Boron-11 nuclear magnetic resonance spectroscopy",
                      "Boro 001", "1", ("Boro", "Boro"))
+
+    def test_only_filler_stands_between_constructor_and_designation(self):
+        lotus = ("Lotus", "Team Lotus")
+        self.refuses("Lotus 18/21", "Lotus 21", "21", lotus)
+        self.refuses("Lotus 25/33", "Lotus 33", "33", lotus)
+        self.refuses("Lotus Elan 25", "Lotus 25", "25", lotus)
+        self.refuses("Lotus Seven 21", "Lotus 21", "21", lotus)
+        self.refuses("March 701 721", "March 721", "721", ("March", "March"))
+        # The cost: the family page "Alfa Romeo 158/159 Alfetta" is not the
+        # 159 either, though it is the 158.
+        alfa = ("Alfa Romeo", "Alfa Romeo Racing")
+        self.refuses("Alfa Romeo 158/159 Alfetta", "Alfa Romeo 159", "159",
+                     alfa)
+        self.accepts("Alfa Romeo 158/159 Alfetta", "Alfa Romeo 158", "158",
+                     alfa)
+        self.refuses("Era of Hope A", "ERA A", "A",
+                     ("ERA", "English Racing Automobiles"))
+        self.refuses("Connaught Place C", "Connaught C", "C",
+                     ("Connaught", "Connaught Engineering"))
+        self.accepts("Connaught Type C", "Connaught C", "C",
+                     ("Connaught", "Connaught Engineering"))
+        # A digit in the infobox's constructor is never filler.
+        self.assertFalse(WS.name_is_form(
+            "Lotus 18 21", "Lotus 21", "21", lotus, "Lotus 18"))
 
     def test_a_family_is_cut_only_where_digits_meet_letters(self):
         # Real titles the first draft of this rule admitted; check 2 refused
@@ -144,6 +172,15 @@ class BodyCandidates(unittest.TestCase):
         self.assertEqual(
             WI.body_candidates(["File:Andrea Moda S921 livery.svg"],
                                "Andrea Moda S921", "andrea-moda-s921"), [])
+
+    def test_a_name_starts_at_a_word(self):
+        for f, article, ids in (("File:Camera Angle.jpg", "ERA A", "era-a"),
+                                ("File:Tram 01.jpg", "RAM 01", "ram-01"),
+                                ("File:Marlboro 001 livery.jpg", "Boro 001",
+                                 "boro-001")):
+            self.assertFalse(WI.names_car(f, article, ids), f)
+        self.assertTrue(WI.names_car("File:2006FOS 1991BenettonB191.jpg",
+                                     "Benetton B191", "benetton-b191"))
 
     def test_a_longer_designation_does_not_name_the_car(self):
         self.assertEqual(
