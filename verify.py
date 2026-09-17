@@ -2515,7 +2515,7 @@ def the_full_classification():
         # `article` is filled only on the article route, `chassis_id` only on
         # the category route (AF-42), so each floor names one harvest.
         ("article_images", "article", 623, "harvest/article_images.txt"),
-        ("article_images", "chassis_id", 120, "harvest/category_images.txt"),
+        ("article_images", "chassis_id", 119, "harvest/category_images.txt"),
     )
     for table, column, floor, source in COLUMN_FLOORS:
         n = con.execute(f"SELECT COUNT({column}) FROM {table}").fetchone()[0]

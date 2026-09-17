@@ -933,7 +933,7 @@
       "priority": 15,
       "source": "Wikimedia Commons (via the MediaWiki API)",
       "url": "https://commons.wikimedia.org/",
-      "use": "The lead photograph of each accepted car article, and the attribution needed to display it. Loaded by tools/wikimedia_images.py. NO IMAGE IS STORED - article_images holds a reference and its credit, and the pixels are fetched from upload.wikimedia.org by whatever renders the page.",
+      "use": "The lead photograph of each accepted car article, and the attribution needed to display it; for a chassis with no article, a photograph filed under the Commons category named for it (AF-42). Loaded by tools/wikimedia_images.py. NO IMAGE IS STORED - article_images holds a reference and its credit, and the pixels are fetched from upload.wikimedia.org by whatever renders the page.",
       "authority": "reference",
       "licence": "Per file, and they differ: sixteen distinct licence strings across 602 rows - CC BY-SA at four versions, CC BY at four more, CC0, public domain and national variants. There is no blanket credit line, so each row carries its own and the build refuses a file that names no author.",
       "cadence": "Continuous, by anyone. The lead image of an article is whatever an editor last put there, which is why the Commons-only and licence checks run on every build rather than once at harvest.",

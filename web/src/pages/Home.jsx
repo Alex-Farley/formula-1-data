@@ -223,8 +223,8 @@ export default function Home() {
                   <div className="panel">
                     <b>Every row says how solid it is.</b>
                     <p className="muted small" style={{ margin: '6px 0 0' }}>
-                      Verified, high, reference, medium, unverified or catalogued — only an
-                      official source reaches the top.
+                      Verified, high, reference, medium or unverified — only an official source
+                      reaches the top. Photographs have a sixth rung below those.
                     </p>
                   </div>
                   <div className="panel">

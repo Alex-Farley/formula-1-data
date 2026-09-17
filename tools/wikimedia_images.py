@@ -101,8 +101,8 @@ and `route` in the table says which is which.
 
 A category is taken only when all of these hold:
 
-  a. **Its title is this chassis's name.** A form of the constructor (F1DB's
-     short or full name, with the filler words check 3 allows), then the
+  a. **Its title is this chassis's name.** The constructor (F1DB's short or
+     full name, whole, with the filler words check 3 allows), then the
      designation exactly - no family cut and no variant letter, since March
      ran the 721, 721G and 721X as three chassis - then nothing, or only a
      tail from TAILS ("F1", "E Performance", "(Formula One car)"). An exact
@@ -121,9 +121,11 @@ Stirling Moss photographs of the VW5 are one level down - but only a
 subcategory whose title is the category's own followed by "of", "in", "at"
 or a bracket, which is how Commons names one car's appearances. A file or
 subcategory whose name says replica, model, scale, show car and the like
-(REPLICA) is passed over: that is a narrowing rule, not a check that the
-rest show the car. So is this: a file that two chassis's categories both
-hold is a candidate for neither. Among the files left, one that names the car is taken
+(REPLICA) is passed over, as is a category whose own title says so: that is
+a narrowing rule, not a check that the rest show the car. So are these: a
+file that two chassis's categories both hold is a candidate for neither, and
+a file whose name names another chassis of the same constructor - "Coloni
+FC188B" in the FC188's category - is not a candidate for this one. Among the files left, one that names the car is taken
 first, then the shallower, then by title.
 
 Checks 2 and 3 above apply unchanged. Check 1 cannot be applied the same
@@ -147,7 +149,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-from wikispec_fetch import FILLER, _GLUE, designation, either_word_prefix, words
+from wikispec_fetch import FILLER, _GLUE, designation, words
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -293,7 +295,7 @@ def read_articles():
 RASTER = (".jpg", ".jpeg", ".png", ".gif", ".tif", ".tiff", ".webp")
 
 
-def names_car(file_name, article, chassis_ids):
+def names_car(file_name, article, chassis_ids, whole=False):
     """Does the file's own name name the car? Recorded as `name_matches`.
 
     A name matches where it does not cut into a run of digits at its end,
@@ -303,6 +305,10 @@ def names_car(file_name, article, chassis_ids):
     "Brabham BT11A" and "2020 Formula One tests Barcelona, Alfa Romeo C39"
     still name theirs. `chassis_ids` is car_specs.txt's field, joined with
     "+" for a family article that several chassis share.
+
+    `whole` also refuses a name followed directly by a letter, so that
+    "Coloni FC188B" names the FC188B and not the FC188. The category route
+    uses it to find a file that names a sibling chassis.
     """
     # The file name as norm() reduces it, remembering where a separator
     # stood: "ATS D6 1.jpg" is atsd61jpg, and the D6 ends at a space.
@@ -322,7 +328,8 @@ def names_car(file_name, article, chassis_ids):
             if (not (at not in seps and fn[at - 1].isdigit()
                      == want[0].isdigit())
                     and not (end not in seps and fn[end].isdigit()
-                             and want[-1].isdigit())):
+                             and want[-1].isdigit())
+                    and not (whole and end not in seps)):
                 return True
             at = fn.find(want, at + 1)
     return False
@@ -508,9 +515,10 @@ CAT_COLUMNS = ["chassis_id", "category", "file_name", "repository",
 TAILS = {(), ("f1",), ("type",), ("e", "performance"), ("eq", "performance"),
          ("eq", "power")}
 
-# A parenthesised qualifier is accepted only when it says Formula One:
-# "Lotus T128 (Formula One car)" and not "Lotus T128 (Le Mans Prototype)".
-F1_WORDS = re.compile(r"formula (one|1)\b|\bf1\b", re.I)
+# A parenthesised qualifier is accepted only when it says Formula One and
+# nothing else: "Lotus T128 (Formula One car)", not "Lotus T128 (Le Mans
+# Prototype)" and not "(Formula One show car)".
+F1_BRACKET = re.compile(r"(formula (one|1)|f1)( (racing )?car)?", re.I)
 
 # Check b: a visible parent category that files it as a Formula One car.
 F1_PARENT = re.compile(r"formula (one|1)\b|\bf1 cars\b", re.I)
@@ -553,13 +561,19 @@ def category_tail(title, full, name, cons_names):
     of every car filed under it and a family category would admit them all.
     """
     bare = cat_bare(title).strip()
+    if REPLICA.search(bare):
+        return None                # "(Formula One show car)", "... replica"
     m = re.fullmatch(r"(.*?)\s*\(([^()]*)\)", bare)
     if m:
-        if not F1_WORDS.search(m.group(2)):
+        if not F1_BRACKET.fullmatch(m.group(2).strip()):
             return None
         bare = m.group(1)
     t = words(bare)
-    forms = [w for w in (words(c) for c in cons_names) if w]
+    # The constructor is matched whole, filler aside: "Lotus T128" is Lotus
+    # Racing's and "Red Bull Racing RB22" Red Bull's, but "Red RB22" and
+    # "Aston NB42" name nobody.
+    cores = [c for c in ([w for w in words(n) if w not in FILLER]
+                         for n in cons_names) if c]
     extra = FILLER | {w for c in cons_names for w in words(c)
                       if w not in _GLUE and not any(ch.isdigit() for ch in w)}
     want = "".join(designation(full, cons_names[0] if cons_names else "",
@@ -567,10 +581,11 @@ def category_tail(title, full, name, cons_names):
     if not want:
         return None
     for i in range(1, len(t)):
-        for f in forms:
-            if not either_word_prefix(t[:i], f):
+        core = [w for w in t[:i] if w not in FILLER]
+        for f in cores:
+            if core[:len(f)] != f:
                 continue
-            if any(w not in extra for w in t[len(f):i]):
+            if any(w not in extra for w in core[len(f):]):
                 continue
             run = ""
             for j in range(i, len(t)):
@@ -599,12 +614,14 @@ def exact_titles(full, name, short):
 
 def read_bare_chassis():
     """(chassis_id, constructor_id, name, full_name) for every F1DB chassis
-    no accepted article claims, and each constructor's two names.
+    no accepted article claims, each constructor's two names, and every
+    chassis (for the sibling rule).
 
     Read from the harvest files build.py reads, so the set is the one the
     build will leave with `chassis.article` NULL.
     """
     claimed = set()
+    every = []
     for _article, ids in read_articles():
         claimed.update(i for i in ids.split("+") if i)
     cons = {}
@@ -623,9 +640,11 @@ def read_bare_chassis():
                 p = line.split("|")
                 if into is cons:
                     cons[p[0]] = (p[1], p[2])
-                elif p[0] not in claimed:
+                    continue
+                every.append((p[0], p[1], p[2], p[3]))
+                if p[0] not in claimed:
                     chassis.append((p[0], p[1], p[2], p[3]))
-    return chassis, cons
+    return chassis, cons, every
 
 
 def search_categories(term):
@@ -701,17 +720,30 @@ def walk(category):
     return out
 
 
-def file_candidates(found, full, names):
+def file_candidates(found, full, names, others=()):
     """The files of a category worth asking about, best first: raster, not
-    named as a replica, naming the car before not, shallow before deep."""
+    named as a replica or as another chassis in `others`, naming the car
+    before not, shallow before deep.
+
+    `others` is [(chassis_id, full_name)] for the constructor's other
+    chassis: the Coloni FC188's category holds "Coloni FC188B 2008
+    Donington Park.jpg", and the FC188B is a chassis of its own."""
     keep = [(f, d) for f, d in found
-            if f.lower().endswith(RASTER) and not REPLICA.search(f)]
+            if f.lower().endswith(RASTER) and not REPLICA.search(f)
+            and not any(names_car(f, o_full, o_id, whole=True)
+                        for o_id, o_full in others)]
     keep.sort(key=lambda fd: (not names_car(fd[0], full, names), fd[1], fd[0]))
     return [f for f, _d in keep[:PER_CHASSIS]]
 
 
 def main_category(args):
-    chassis, cons = read_bare_chassis()
+    chassis, cons, every = read_bare_chassis()
+    # A constructor's other chassis. One whose name is only the constructor's
+    # ("Kurtis Kraft") names no particular car and is left out.
+    siblings = {}
+    for cid, k, _n, full in every:
+        if norm(full) != norm(cons.get(k, ("",))[0]):
+            siblings.setdefault(k, []).append((cid, full))
     if args.only:
         needle = args.only.lower()
         chassis = [c for c in chassis
@@ -729,7 +761,7 @@ def main_category(args):
             print(f"  searched {n}/{len(chassis)}", flush=True)
         names = cons.get(k, (k, k))
         titles = exact_titles(full, name, names[0]) + search_categories(full)
-        forms = {}
+        forms = {}                 # insertion order: exact titles, then search
         for t in titles:
             tail = category_tail(t, full, name, names)
             if tail is not None and t not in forms:
@@ -737,8 +769,9 @@ def main_category(args):
         if not forms:
             log.append(f"{cid}\tREFUSED\tno category is named for {full}")
             continue
+        order = list(forms)
         proposed[cid] = sorted(((tail, t) for t, tail in forms.items()),
-                               key=lambda x: (len(x[0]) > 0, x[1]))
+                               key=lambda x: (len(x[0]) > 0, order.index(x[1])))
 
     parents = category_parents({t for v in proposed.values() for _x, t in v})
     accepted = {}                  # chassis id -> [title]
@@ -789,10 +822,12 @@ def main_category(args):
                 holders.setdefault(f, set()).add(cid)
     for cid in sorted(plan):
         full = by_id[cid][3]
+        others = [s for s in siblings.get(by_id[cid][1], ()) if s[0] != cid]
         cats = []
         for t, found in plan[cid]:
             found = [(f, d) for f, d in found if len(holders[f]) == 1]
-            files = file_candidates(found, full, f"{cid}+{cat_bare(t)}")
+            files = file_candidates(found, full, f"{cid}+{cat_bare(t)}",
+                                    others)
             cats.append((t, files))
             wanted.update(files)
         plan[cid] = cats

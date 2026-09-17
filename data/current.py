@@ -424,7 +424,9 @@ SOURCE_REGISTRY = [
     (15, "Wikimedia Commons (via the MediaWiki API)",
      "https://commons.wikimedia.org/",
      "The lead photograph of each accepted car article, and the attribution "
-     "needed to display it. Loaded by tools/wikimedia_images.py. NO IMAGE IS "
+     "needed to display it; for a chassis with no article, a photograph filed "
+     "under the Commons category named for it (AF-42). Loaded by "
+     "tools/wikimedia_images.py. NO IMAGE IS "
      "STORED - article_images holds a reference and its credit, and the "
      "pixels are fetched from upload.wikimedia.org by whatever renders the "
      "page.", "reference",

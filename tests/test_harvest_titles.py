@@ -278,6 +278,37 @@ class CategoryTail(unittest.TestCase):
         self.refuses("Category:Matra MS120", "Matra MS120C", "MS120C",
                      ("Matra", "Equipe Matra Sports"))
 
+    def test_a_show_car_or_replica_title(self):
+        rb = ("Red Bull", "Red Bull Racing")
+        self.refuses("Category:Red Bull RB22 (Formula One show car)",
+                     "Red Bull RB22", "RB22", rb)
+        self.refuses("Category:Red Bull RB22 (F1 replica)",
+                     "Red Bull RB22", "RB22", rb)
+        self.refuses("Category:Red Bull RB22 replica", "Red Bull RB22",
+                     "RB22", rb)
+
+    def test_the_constructor_is_named_whole(self):
+        self.refuses("Category:Red RB22", "Red Bull RB22", "RB22",
+                     ("Red Bull", "Red Bull Racing"))
+        self.refuses("Category:Aston NB42", "Aston Butterworth NB42", "NB42",
+                     ("Aston Butterworth", "Aston Butterworth"))
+        self.accepts("Category:Lotus T128 (Formula One car)", "Lotus T128",
+                     "T128", ("Lotus Racing", "Lotus Racing"))
+        self.accepts("Category:Red Bull Racing RB22", "Red Bull RB22",
+                     "RB22", ("Red Bull", "Red Bull Racing"))
+
+    def test_a_file_naming_a_sibling_chassis(self):
+        others = [("coloni-fc188b", "Coloni FC188B")]
+        self.assertEqual(WI.file_candidates(
+            [("File:Coloni FC188B 2008 Donington Park.jpg", 0),
+             ("File:Coloni FC188 1988.jpg", 0)],
+            "Coloni FC188", "coloni-fc188", others),
+            ["File:Coloni FC188 1988.jpg"])
+        self.assertEqual(WI.file_candidates(
+            [("File:Coloni FC188B 2008 Donington Park.jpg", 0)],
+            "Coloni FC188B", "coloni-fc188b", [("coloni-fc188", "Coloni FC188")]),
+            ["File:Coloni FC188B 2008 Donington Park.jpg"])
+
     def test_a_bracket_must_say_formula_one(self):
         lotus = ("Lotus", "Lotus Racing")
         self.accepts("Category:Lotus T128 (Formula One car)", "Lotus T128",

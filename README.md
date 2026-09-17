@@ -50,7 +50,7 @@ here is a number the build checked.
 
 | File | What it is |
 |---|---|
-| `f1.db` | The SQLite database. <!-- fig:tables -->48<!-- /fig --> tables, <!-- fig:views -->41<!-- /fig --> views, <!-- fig:rows -->119,832<!-- /fig --> rows. This is the artefact. |
+| `f1.db` | The SQLite database. <!-- fig:tables -->48<!-- /fig --> tables, <!-- fig:views -->41<!-- /fig --> views, <!-- fig:rows -->119,831<!-- /fig --> rows. This is the artefact. |
 | `f1-geometry.db` | The OpenStreetMap circuit centrelines (ODbL), shipped beside `f1.db` and never merged into it. See *Illustration*. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
@@ -627,7 +627,7 @@ of their own — Wikipedia covers them on the team's page — so the route above
 never reaches them. For those, `tools/wikimedia_images.py --route category`
 looks for a Wikimedia Commons category named for the chassis, such as
 `Category:Vanwall VW5`, and takes a photograph filed under it.
-<!-- fig:images_catalogued -->120<!-- /fig --> rows come from it. The claim is
+<!-- fig:images_catalogued -->119<!-- /fig --> rows come from it. The claim is
 only that a Commons editor filed the file there, and a category also holds
 replicas and show cars, so these rows sit a rung *below* `unverified`, at
 `catalogued`, and the `route` column keeps them apart. A category is taken
@@ -1003,7 +1003,10 @@ queried, not just read here. `./f1 gaps` prints them with the fix for each.
   a photograph from Wikimedia Commons with its licence and photographer. The
   *article* is well constrained; what the picture depicts is not, and there is
   no second source to disagree with it. This is the only part of the database
-  with no cross-check available at all. `./f1 images` lists the
+  with no cross-check available at all. A further
+  <!-- fig:images_catalogued -->119<!-- /fig --> chassis with no article have
+  one only from a Commons category, held a rung lower at `catalogued` and not
+  shown. `./f1 images` lists the
   <!-- fig:images_unnamed -->346<!-- /fig --> whose file name does not even
   name the car.
 - **Historic circuit geometry.** Centrelines are traced from OpenStreetMap,

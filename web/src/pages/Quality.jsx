@@ -126,7 +126,9 @@ function Body({ data }) {
   const mix = rows(data, 'confidenceMix')
 
   const total = mix.reduce((sum, row) => sum + row.n, 0)
-  const ordered = LADDER.map((name) => ({
+  // `catalogued` is a photograph-only rung (AF-42) and none of these tables can
+  // carry it, so the figure would only ever draw it as an empty row.
+  const ordered = LADDER.filter((name) => name !== 'catalogued').map((name) => ({
     key: name,
     value: mix.find((row) => row.confidence === name)?.n ?? 0,
     label: name,
