@@ -727,14 +727,17 @@ def file_candidates(found, full, names, others=()):
 
     `others` is [(chassis_id, full_name)] for the constructor's other
     chassis: the Coloni FC188's category holds "Coloni FC188B 2008
-    Donington Park.jpg", and the FC188B is a chassis of its own. A file
-    that names this chassis whole as well is kept: "Talbot-Lago T26C-DA"
-    names the T26C too, and is still the T26C-DA's."""
+    Donington Park.jpg", and the FC188B is a chassis of its own. A sibling
+    whose name this chassis's name contains yields to it: "Talbot-Lago
+    T26C-DA" names the T26C whole as well, and is the T26C-DA's alone."""
+    def sibling(f):
+        own = names_car(f, full, names, whole=True)
+        return any(names_car(f, o_full, o_id, whole=True)
+                   and not (own and norm(o_full) in norm(full))
+                   for o_id, o_full in others)
     keep = [(f, d) for f, d in found
             if f.lower().endswith(RASTER) and not REPLICA.search(f)
-            and (names_car(f, full, names, whole=True)
-                 or not any(names_car(f, o_full, o_id, whole=True)
-                            for o_id, o_full in others))]
+            and not sibling(f)]
     keep.sort(key=lambda fd: (not names_car(fd[0], full, names), fd[1], fd[0]))
     return [f for f, _d in keep[:PER_CHASSIS]]
 
