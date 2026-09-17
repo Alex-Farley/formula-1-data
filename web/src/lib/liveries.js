@@ -60,11 +60,10 @@
  * `scheme` - a primary and one or two accents, in that order - and the
  * primary is the colour the old entry held. One moved: Mercedes 2026's
  * black, from #16171a to the #111214 every other black here renders,
- * because one palette renders one name once - and it is drawn, on the nine
- * rounds Mercedes won in 2026. Every other primary, and so every other mark
- * on every page, is byte for byte what it was. Making the accents visible
- * is AF-17; rendering a colour as itself rather than contrast-shifted is
- * AF-16.
+ * because one palette renders one name once. Every other primary was byte
+ * for byte what it had been. Making the accents visible is AF-17; rendering
+ * a colour as itself rather than contrast-shifted is AF-16; which colour
+ * leads a mark is AF-45, below.
  *
  * `name` stays the entry's headline - what a caption calls the livery, and
  * usually the primary's own name - and the scheme, not the name, is where
@@ -93,6 +92,24 @@
  * and this map does not: one scheme per constructor-season is what a row of
  * a standings table can show.
  *
+ * WHICH COLOUR LEADS A MARK (AF-45, AF-46). The scheme's order is the car's:
+ * its primary is what the cited pages say the car mostly was. That is not
+ * always the colour a reader recognises the team by - Red Bull's 2026 car
+ * is heritage white and the team is navy; Mercedes' cars were silver or
+ * black and the team is Petronas green. RECOGNITION holds one colour per
+ * constructor, for all its seasons, and it is this project's reading - the
+ * maintainer's calls of 2026-09-17 - which no cited page states. A mark
+ * (liveryPair) draws two colours: that recognition colour, lifted to the
+ * front of the season's scheme, and the next colour still standing. Where a
+ * season's scheme has no colour near the recognition colour - McLaren
+ * before its papaya, Williams in its older blues - the season's sourced
+ * primary leads unchanged, because a papaya mark on a chrome car would
+ * assert a livery no source supports. The band on a constructor's or a
+ * driver's page is not a mark: it draws the season's whole scheme in the
+ * car's order and says what the car raced in. So a 2014 Mercedes mark is
+ * teal while the band names that livery Silver, and the two sentences - the
+ * mark's "recognised by", the band's "raced in" - are what keep both true.
+ *
  * WHAT IS NOT HERE, AND WHY. LIVERY_GAPS names every constructor-season from
  * 2010 that has race entries and no entry here, with the reason - in every
  * case, no classified source found that states the colour. A gap gets no
@@ -120,12 +137,13 @@
  *               oversight (AF-04, scope decided 2026-09-13: 2010 onwards).
  *   2010-       this map, or nothing where LIVERY_GAPS says so.
  *
- * HOW A COLOUR REACHES THE PAGE. liveryStyle() returns two custom
- * properties for an element's inline style: --livery, the primary's base,
- * and --livery-scheme, the rest of the scheme as hard gradient stops
- * (AF-17), absent for a scheme of one. The `.livery` rules in
- * styles/app.css paint the first, draw the second over it and derive the
- * mark's edge from the first. One value each serves both themes because
+ * HOW A COLOUR REACHES THE PAGE. Two custom properties on an element's
+ * inline style: --livery, the leading colour's base, and --livery-scheme,
+ * the rest as hard gradient stops (AF-17), absent for a single colour. A
+ * band takes liveryStyle() - the primary and the whole scheme - and a mark
+ * takes pairStyle() - the recognition-led pair (AF-46). The `.livery` rules
+ * in styles/app.css paint the first, draw the second over it and derive the
+ * edge from the first. One value each serves both themes because
  * the colour no longer moves with the theme. A chart series is the exception: charts/LineChart.jsx and
  * charts/Figure.jsx set --livery-light and --livery-dark from the pair and
  * `.livery-series` picks one per theme, exactly as tokens.css does for
@@ -1018,6 +1036,116 @@ export const liveryPrimary = (livery) => livery.scheme[0]
 export const liveryAccents = (livery) => livery.scheme.slice(1)
 
 /**
+ * The colour each constructor is recognised by, for every season it raced
+ * (AF-45) - one fact per team, not per season, and this project's reading:
+ * no cited page states which colour a team is recognised by. The
+ * maintainer's calls of 2026-09-17 moved three (Mercedes from black, Red
+ * Bull from heritage white, Racing Bulls from white) and confirmed two that
+ * do not move (Audi's Titanium, Haas's white); the other six are their 2026
+ * sourced primary, which test/conventions.mjs holds them to.
+ *
+ * `name` and `base` are the colour as this file already renders it in some
+ * season's scheme; what a mark draws is the matching colour of the season
+ * in hand (liveryPair), never this hex, so Red Bull 2016-2025 leads with its
+ * own matte navy and not with 2026's dark blue beside it.
+ *
+ * `chosen` marks a team whose recognition colour is itself this project's
+ * pick rather than one a maintainer named - Racing Bulls' blue, which its
+ * scheme carries but nobody called its colour. Its tooltip makes the one
+ * claim that is true, and borrows no source.
+ *
+ * A constructor not listed - every team that has left the grid - has no
+ * recognition colour, and its marks lead with each season's primary.
+ */
+export const RECOGNITION = {
+  mercedes: { name: 'Petronas green', base: '#0f9c94' },
+  'red-bull': { name: 'Dark blue', base: '#1b2a5e' },
+  'racing-bulls': { name: 'Blue', base: '#2b4bd8', chosen: true },
+  audi: { name: 'Titanium', base: '#a9abae' },
+  haas: { name: 'White', base: '#f4f4f4' },
+  ferrari: { name: 'Rosso Scuderia', base: '#e30016' },
+  mclaren: { name: 'Papaya', base: '#ff8000' },
+  'aston-martin': { name: 'Aston Martin Racing Green', base: '#00665e' },
+  williams: { name: 'Gloss blue', base: '#1350e0' },
+  alpine: { name: 'Alpine blue', base: '#2060e0' },
+  cadillac: { name: 'Black', base: '#111214' },
+}
+
+/**
+ * How near a season's colour must be to the recognition colour to count as
+ * it, in CIE L*a*b* delta E 1976. Nearest colour rather than exact hex,
+ * because the palette renders each season's shade: Red Bull's 2016-2025
+ * matte navy is 12.1 from its dark blue, and McLaren's 2017 Tarocco - the
+ * darker pearl papaya McLaren says it became - is 19.9 from papaya. The
+ * nearest miss is Williams' 2021-2025 blue at 22.4, which leads anyway as
+ * that season's primary; nothing else in the eleven teams' schemes is
+ * nearer than 37.
+ */
+export const RECOGNITION_MATCH = 21
+
+/**
+ * The least delta E an accent must stand from the lead to be drawn beside
+ * it: two near-identical bands would read as one colour and spend the
+ * second band on nothing.
+ */
+export const ACCENT_APART = 10
+
+const toLab = (hex) => {
+  const lin = [1, 3, 5].map((i) => {
+    const s = parseInt(hex.slice(i, i + 2), 16) / 255
+    return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
+  })
+  const [r, g, b] = lin
+  const x = (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047
+  const y = 0.2126 * r + 0.7152 * g + 0.0722 * b
+  const z = (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883
+  const f = (t) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116)
+  return [116 * f(y) - 16, 500 * (f(x) - f(y)), 200 * (f(y) - f(z))]
+}
+
+/** CIE76 delta E between two #rrggbb colours. */
+export function deltaE(a, b) {
+  const [p, q] = [toLab(a), toLab(b)]
+  return Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2])
+}
+
+/**
+ * The two colours a mark draws for a livery entry, as { lead, accent,
+ * recognised } - the one shared derivation every mark reads (AF-46), so the
+ * table marks, the calendar strip and the prerenderer cannot each work it
+ * out differently. `lead` and `accent` are colours of the entry's own
+ * scheme, unchanged; `accent` is null where nothing in the scheme stands
+ * ACCENT_APART from the lead.
+ *
+ *   recognised  true where the lead is the constructor's RECOGNITION colour,
+ *               found in this season's scheme within RECOGNITION_MATCH; false
+ *               where the team has no recognition colour or this season does
+ *               not carry it, and the season's sourced primary leads.
+ *
+ * The accent is not chosen: it is the scheme in its own order with the lead
+ * taken out, first colour standing. So the only new fact AF-45 added is the
+ * recognition colour, and AF-17's third colour is still recorded here and
+ * still drawn on the band - a mark draws two of three on purpose (AF-46).
+ */
+export function liveryPair(livery) {
+  const { scheme } = livery
+  const wanted = RECOGNITION[livery.constructor]
+  let lead = scheme[0]
+  let recognised = false
+  if (wanted) {
+    const nearest = scheme
+      .map((colour) => ({ colour, d: deltaE(colour.base, wanted.base) }))
+      .sort((a, b) => a.d - b.d)[0]
+    if (nearest.d <= RECOGNITION_MATCH) {
+      lead = nearest.colour
+      recognised = true
+    }
+  }
+  const accent = scheme.find((colour) => colour !== lead && deltaE(colour.base, lead.base) >= ACCENT_APART) ?? null
+  return { lead, accent, recognised }
+}
+
+/**
  * A scheme's accents split by whether a cited page states them.
  *
  * The header's promise, made reachable by a surface. `sourced: false` marks
@@ -1030,9 +1158,9 @@ export const liveryAccents = (livery) => livery.scheme.slice(1)
  * the first surface ever to print an accent name at all, and it printed
  * both kinds under a sentence saying the sources describe them.
  *
- * `chosen` is still DRAWN - the mark carries every colour of the scheme,
- * which is the recognition the decision bought - it is only never NAMED
- * without the clause that says whose reading it is.
+ * `chosen` is still DRAWN - the band carries every colour of the scheme,
+ * and a mark may take one as its accent - it is only never NAMED without
+ * the clause that says whose reading it is.
  */
 export function accentsBySource(scheme) {
   const accents = Array.isArray(scheme) ? scheme.slice(1) : []
@@ -1064,11 +1192,14 @@ export const isDeclaredGap = (constructorId, year) =>
 export const liveryStyle = (livery) => (livery ? markStyle(liveryPrimary(livery).base, livery.scheme) : undefined)
 
 /**
- * How much of a mark the primary takes. A livery is its main colour with the
+ * How much of a band the primary takes. A livery is its main colour with the
  * rest beside it, not equal thirds: Ferrari in three equal bands is a third
  * red, and the thing a reader recognises at a glance is the red.
  */
 const PRIMARY_SHARE = 0.58
+
+/** How much of a mark its lead takes: 62 / 38, as decided on AF-46. */
+const LEAD_SHARE = 0.62
 
 /**
  * A scheme as hard gradient stops, or null for a scheme of one.
@@ -1089,12 +1220,14 @@ const PRIMARY_SHARE = 0.58
  * accent for - returns null, so `.livery` falls back to `none` and the mark
  * stays the flat fill AF-16 left it as.
  */
-export function schemeGradient(scheme) {
+export const schemeGradient = (scheme) => stops(scheme, PRIMARY_SHARE)
+
+function stops(scheme, first) {
   if (!Array.isArray(scheme) || scheme.length < 2) return null
   const accents = scheme.slice(1)
-  const share = (1 - PRIMARY_SHARE) / accents.length
+  const share = (1 - first) / accents.length
   const pc = (n) => `${(n * 100).toFixed(2)}%`
-  let at = PRIMARY_SHARE
+  let at = first
   const stops = [`${scheme[0].base} 0 ${pc(at)}`]
   for (const colour of accents) {
     // The last stop is pinned to 100% rather than to the accumulated share,
@@ -1121,20 +1254,37 @@ export function markStyle(base, scheme) {
 }
 
 /**
+ * The custom properties a MARK reads (AF-46): --livery, the pair's lead,
+ * which app.css also mixes the ring from, and --livery-scheme, the lead and
+ * the accent at 62 / 38 in the one direction every gradient here runs.
+ * Without an accent, the lead alone.
+ */
+export function pairStyle({ lead, accent }) {
+  return accent
+    ? { '--livery': lead.base, '--livery-scheme': stops([lead, accent], LEAD_SHARE) }
+    : { '--livery': lead.base }
+}
+
+/**
  * The same properties as a style attribute, for scripts/prerender.js. The
  * static mark and the app's are one function's output rather than two
  * writings of it: the prerenderer used to spell out `--livery:` itself, and
  * a second property added here would have reached the app alone.
  */
 export const markStyleAttr = (colour) =>
-  Object.entries(colour.style)
+  Object.entries(colour.mark)
     .map(([property, value]) => `${property}:${value}`)
     .join(';')
 
 /**
  * The colour a constructor raced in a season, routed by era (see the
- * header), as { kind, name, named, base, light, dark, source, style, title,
- * claim } or null.
+ * header), as { kind, name, named, base, light, dark, source, style, pair,
+ * mark, title, claim } or null.
+ *
+ * Two readers, two claims. The BAND (LiveryScheme) takes `name`, `named`,
+ * `scheme`, `style` and `claim`, which are all about what the car raced in.
+ * A MARK takes `mark` and `title`, which are about the pair it draws - led,
+ * where the season carries it, by the colour the team is recognised by.
  *   team    the constructor's name, for the title; the id stands in without it
  *   kind    'livery' or 'national'
  *   named   true where `name` is the team's own term (see the header)
@@ -1144,12 +1294,15 @@ export const markStyleAttr = (colour) =>
  *           its neighbour by colour alone. A mark takes `style`, never these
  *   scheme  the primary and its accents, each { name, base, named, sourced };
  *           a national colour is a scheme of one
- *   style   the custom properties a mark draws: the primary itself, and the
- *           scheme beneath it where there is more than one colour (AF-17)
- *   claim   "as the team names it" or "as its sources describe it" - the
- *           clause every surface appends, so no surface says the first
- *           where only the second is true
- *   title   the sentence a tooltip says, naming the claim being made
+ *   style   the custom properties the band draws: the primary itself, and
+ *           the scheme beneath it where there is more than one colour (AF-17)
+ *   pair    liveryPair(): the lead and accent a mark draws (AF-46)
+ *   mark    pairStyle() of that pair: the properties every mark is handed
+ *   claim   "as the team names it" or "as its sources describe it", about
+ *           the primary - the clause the band's sentence appends, so no
+ *           surface says the first where only the second is true
+ *   title   the sentence a mark's tooltip says, naming the claims being
+ *           made about what it draws (markTitle)
  */
 export function colourForEntry({ constructorId, country, year, team }) {
   const y = Number(year)
@@ -1160,6 +1313,7 @@ export function colourForEntry({ constructorId, country, year, team }) {
   if (!livery) return null
   const who = team ?? constructorId
   const claim = liveryClaim(livery)
+  const pair = liveryPair(livery)
   return {
     kind: 'livery',
     name: livery.name,
@@ -1170,9 +1324,34 @@ export function colourForEntry({ constructorId, country, year, team }) {
     dark: livery.dark,
     source: livery.source,
     style: liveryStyle(livery),
+    pair,
+    mark: pairStyle(pair),
     claim,
-    title: `${livery.name} — the colour ${who} raced in ${y}, ${claim}`,
+    title: markTitle(livery, pair, who, y),
   }
+}
+
+/**
+ * What a mark's tooltip says (AF-45). Two provenance facts, kept apart:
+ * that the lead is the colour a team is RECOGNISED by is this site's
+ * reading, which no cited page states; that the colour is IN that season's
+ * livery, and whose name for it this is, is what the sources establish. A
+ * tooltip carrying only the second would present the project's choice as
+ * the team's word, and one carrying only the first would drop a sourced
+ * fact - so a recognised lead says both. Where the colour is itself this
+ * project's pick (RECOGNITION's `chosen`, or an accent no page states), the
+ * second clause is not available and the tooltip makes the first alone.
+ *
+ * A mark led by the season's primary - a team with no recognition colour,
+ * or a season that did not carry it - draws what the car raced in, and says
+ * so in the sentence the band uses.
+ */
+function markTitle(livery, { lead, recognised }, who, year) {
+  if (!recognised) return `${livery.name} — the colour ${who} raced in ${year}, ${liveryClaim(livery)}`
+  const reading = `${lead.name} — the colour ${who} is recognised by, which is this site's reading rather than a source's`
+  if (RECOGNITION[livery.constructor].chosen || !lead.sourced) return reading
+  const named = lead.named ? "and the name is the team's own" : 'as its sources describe it'
+  return `${reading}; the ${year} livery carries it, ${named}`
 }
 
 /**
@@ -1194,16 +1373,19 @@ export function nationalEntry(country) {
   const entry = COLOURS[canonical]
   if (!entry) return null
   const css = `var(--${entry.token})`
+  const scheme = [{ name: entry.name, base: css, named: false, sourced: true }]
   return {
     kind: 'national',
     name: entry.name,
     named: false,
-    scheme: [{ name: entry.name, base: css, named: false, sourced: true }],
+    scheme,
     base: css,
     light: css,
     dark: css,
     source: null,
     style: { '--livery': css },
+    pair: { lead: scheme[0], accent: null, recognised: false },
+    mark: { '--livery': css },
     claim: 'the convention, not the team\'s own livery',
     title: `${entry.name} — the racing colour of ${canonical}, the convention that painted a car for the country that entered it`,
   }
@@ -1223,10 +1405,12 @@ export const sourceHost = (url) => {
 }
 
 /**
- * The colour a calendar round's winning constructor raced in, for the mark
- * under a round in the season strip (components/Outline.jsx and
- * scripts/prerender.js draw the same bar from this): null for a round not
- * yet run, a round with no recorded winner, or a season with no colour.
+ * The winning constructor's colour, for the mark under a calendar round in
+ * the season strip (components/Outline.jsx and scripts/prerender.js draw the
+ * same bar from this, through `mark`): null for a round not yet run, a
+ * round with no recorded winner, or a season with no colour. The strip is a
+ * mark, so it leads with the recognition colour; it is three pixels tall and
+ * draws the lead alone (app.css).
  */
 export const winnerColour = (round, year) =>
   round.status === 'completed' && round.winning_team_id

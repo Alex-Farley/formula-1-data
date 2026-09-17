@@ -2030,10 +2030,11 @@ figure.figure > figcaption span {
 /* The winner's colour under a round in the calendar strip: a short bar
    between the outline and the round number, in the constructor's livery or
    national colour; nothing where the round is unrun or the colour unknown. */
-/* The winner's bar under a round is three pixels tall, and three bands in
-   three pixels is mush rather than an identity. Below about ten pixels on the
-   axis the stops run along, the mark draws the primary alone - the rule the
-   band on a constructor's page is sized by, from the other end. */
+/* The winner's bar under a round is three pixels tall, and bands in three
+   pixels are mush rather than an identity. Below about ten pixels on the axis
+   the stops run along, the mark draws its lead alone - the recognition colour
+   where the season carries it (AF-45) - rather than turning the stops to run
+   the other way: every gradient here runs one direction (AF-46). */
 .outline-strip .livery {
   display: block;
   width: 26px;
