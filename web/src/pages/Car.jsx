@@ -135,10 +135,16 @@ function CarBody({ chassis, variants, data }) {
             { label: 'Raced', value: span(raced[0], raced[1]) },
             several ? { label: 'Variants', value: number(variants.length) } : null,
             { label: 'Recorded entries', value: number(entries.length) },
-            { label: 'Wins', value: number(wins) },
+            // VD-28: the same two ranks the driver and constructor pages take,
+            // and the same rule that a zero does not lead - most chassis in
+            // the register never won, and a car page two clicks from a
+            // constructor page that ranks should not be the one that does not.
+            { label: 'Wins', value: number(wins), lead: wins > 0 },
             { label: 'Poles', value: number(poles) },
             { label: 'Fastest laps', value: number(fastest) },
-            car?.constructors_titles ? { label: "Constructors' titles", value: car.constructors_titles } : null,
+            car?.constructors_titles
+              ? { label: "Constructors' titles", value: car.constructors_titles, lead: true }
+              : null,
             car?.drivers_titles ? { label: "Drivers' titles", value: car.drivers_titles } : null,
           ].filter(Boolean)}
         />

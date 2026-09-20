@@ -321,12 +321,21 @@ try {
             size: parseFloat(style.fontSize),
             family: style.fontFamily,
             lines: Math.round(dt.getBoundingClientRect().height / parseFloat(getComputedStyle(dt).lineHeight)),
+            row: Math.round(el.getBoundingClientRect().top),
             ddTop: Math.round(dd.getBoundingClientRect().top),
           }
         })
+        // A strip wide enough for every tile has one row; a narrower one
+        // wraps, which is not a defect. The claim is per row: no figure sits
+        // below the figures beside it.
+        const rows = new Map()
+        for (const tile of tiles) rows.set(tile.row, [...(rows.get(tile.row) ?? []), tile])
         return {
           wrapped: tiles.filter((t) => t.lines > 1).map((t) => t.label),
           ddTops: [...new Set(tiles.map((t) => t.ddTop))],
+          misalignedRows: [...rows.values()]
+            .filter((row) => new Set(row.map((t) => t.ddTop)).size > 1)
+            .map((row) => row.map((t) => t.label).join(', ')),
           lead: tiles.filter((t) => t.lead),
           rest: tiles.filter((t) => !t.lead),
           names: tiles.filter((t) => t.kind === 'name'),
@@ -784,10 +793,13 @@ try {
     // at an absence. With nothing to lead, the strip keeps one rank.
     const winless = await statStrip()
     is(winless.lead.length, 0, 'a winless strip leads with nothing')
+    // The size, not just its uniformity: a regression that ranked a strip
+    // with no lead and shrank every figure to the secondary 16px would
+    // satisfy "they all match" while losing the rank this page should keep.
     is(
-      new Set(winless.rest.map((t) => t.size)).size,
-      1,
-      'and so keeps the single rank it always had',
+      [...new Set(winless.rest.map((t) => t.size))].join('/'),
+      '25',
+      'and so keeps the single display rank it always had',
     )
 
     /*
@@ -922,7 +934,7 @@ try {
       'a figure keeps the display face',
     )
     is(strip.wrapped.join(' · '), '', 'no stat label wraps')
-    is(strip.ddTops.length, 1, 'every value in the strip starts at the same height')
+    is(strip.misalignedRows.join(' · '), '', 'no value sits below the values beside it')
   })
 
   await section('/races/1955/1  (a shared drive)', async () => {
@@ -1130,7 +1142,13 @@ try {
     // claim - a strip whose labels all fit on one line has nothing to drop.
     const strip = await statStrip()
     is(strip.wrapped.join(' · '), '', 'no stat label wraps')
-    is(strip.ddTops.length, 1, 'every figure in the strip starts at the same height')
+    // Per row, not per strip. A strip wide enough to hold every tile on one
+    // row proves the claim only while it stays that wide: add a title, or
+    // read the page at 1024, and a check on one shared top would fail for
+    // "the row wrapped" rather than for "a label wrapped", which is a
+    // different thing and not a defect. What VD-28 asks is that no figure
+    // drops below the figures BESIDE it.
+    is(strip.misalignedRows.join(' · '), '', 'no figure sits below the figures beside it')
     truthy(strip.lead.length > 0 && strip.lead.length <= 2, `${strip.lead.length} figures lead, not eight`)
     truthy(
       Math.min(...strip.lead.map((t) => t.size)) > Math.max(...strip.rest.map((t) => t.size)),

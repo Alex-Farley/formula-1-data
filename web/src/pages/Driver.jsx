@@ -50,7 +50,9 @@ import {
  * at an absence. A strip with nothing to lead keeps the single rank it has
  * always had, which is the right answer for a page where no figure stands
  * out. `number()` groups thousands, so the test is for a digit that is not a
- * zero rather than for the string '0'.
+ * zero rather than for the string '0'; and it fails safe for everything else
+ * that could arrive here - an em dash carries no digit, and a value that was
+ * somehow an element stringifies to none either, so neither leads.
  */
 const LEAD_FIGURES = new Set(['Wins', 'Titles'])
 
