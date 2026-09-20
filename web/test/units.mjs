@@ -742,7 +742,7 @@ describe('colourForEntry routes a constructor-season by era (AF-04)', () => {
     assert.equal(liveryFor('red-bull', 2026).name, 'Heritage white')
     assert.equal(liveryFor('red-bull', 2025).name, 'Matte navy')
   })
-  it('a livery is a primary and its accents, and the pair still renders the primary alone (AF-15)', () => {
+  it('a livery is a primary and its accents, and the pair renders the mark\'s lead (AF-15, AF-57)', () => {
     // The defect AF-15 names: Haas and Racing Bulls both raced white in
     // 2025 and the mark drew the same grey for both. The primaries are
     // still the same white - AF-16 is what stops rendering it as grey -
@@ -756,9 +756,17 @@ describe('colourForEntry routes a constructor-season by era (AF-04)', () => {
       liveryAccents(haas).map((c) => c.name),
       liveryAccents(rb).map((c) => c.name),
     )
-    // The pair is the primary's rendering, untouched by the accents.
+    // The pair renders the LEAD, untouched by the accents (AF-57). Haas is
+    // the case where the two coincide - its recognition colour IS its 2025
+    // primary - so the assertion goes through liveryPair rather than
+    // liveryPrimary, and says the rule rather than an entry that happens to
+    // satisfy both. conventions.mjs holds all 59 entries to it; Racing
+    // Bulls, whose 2025 lead is its blue and not its white, is the case
+    // where they part.
     assert.equal(haas.light, '#898989')
-    assert.equal(haas.dark, liveryPrimary(haas).base)
+    assert.equal(haas.dark, liveryPair(haas).lead.base)
+    assert.equal(liveryPair(haas).lead.base, liveryPrimary(haas).base)
+    assert.notEqual(liveryPair(rb).lead.base, liveryPrimary(rb).base)
   })
   it('a colour no cited page states is marked as this project\'s choice, and cannot also be the team\'s own word (AF-15)', () => {
     // Toro Rosso is navy, red and silver to a reader; the pages cited for

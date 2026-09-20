@@ -301,14 +301,23 @@ describe('a livery is a sourced scheme drawn as itself, and every 2010+ construc
         assert.equal(typeof c.sourced, 'boolean', `${where}: ${c.name} sourced`)
         assert.ok(!(c.named && !c.sourced), `${where}: ${c.name} is the team's own word and unsourced`)
       }
-      // The pair renders the PRIMARY, not an accent: the base survives
-      // untouched in whichever theme already clears 3:1, and only the other
-      // is moved. A pair that matches neither is a pair for some other
-      // colour. Since AF-16 only a chart series wears it; the mark wears
-      // the base, and the check below is what guards the mark.
+      // The pair renders the MARK'S LEAD (AF-57), not the primary and not
+      // some third colour: the lead survives untouched in whichever theme
+      // already clears 3:1, and only the other is moved. A pair that matches
+      // neither is a pair for some other colour.
+      //
+      // This is the check that was missing when AF-45 landed. AF-45 gave the
+      // mark a recognition-led lead and left the pair on the primary, so
+      // Mercedes' mark went Petronas green while its title-race line stayed
+      // black - the same team, two colours, one page - and nothing failed.
+      // Holding the pair to the lead means a recognition colour that moves
+      // cannot leave the charts behind: the pair stops rendering the lead
+      // and this fails until it is recomputed. The 3:1 floor those values
+      // owe is measured below, and is the reason the pair exists at all.
+      const lead = liveryPair(l).lead
       assert.ok(
-        l.scheme[0].base === l.light || l.scheme[0].base === l.dark,
-        `${where}: the pair ${l.light}/${l.dark} renders neither the primary ${l.scheme[0].base} nor anything derived from it`,
+        lead.base === l.light || lead.base === l.dark,
+        `${where}: neither half of the pair ${l.light}/${l.dark} is the mark's lead ${lead.base} (${lead.name}), so one of them is a rendering of some other colour`,
       )
       assert.ok(Array.isArray(l.source) && l.source.length >= 1, `${where}: source`)
       for (const s of l.source) assert.match(s, /^https:\/\//, `${where}: source ${s}`)
@@ -711,11 +720,18 @@ describe('a livery is a sourced scheme drawn as itself, and every 2010+ construc
     // AF-17 added a second property, so this can no longer be an equality
     // against one key. What it asserts instead is the thing AF-16 decided:
     // --livery is the primary's base exactly, and the MOVED value - whichever
-    // of the pair is not the base - appears nowhere in what a mark is handed,
-    // the gradient's stops included.
+    // of the pair is not the lead's base - appears nowhere in what a mark is
+    // handed, the gradient's stops included.
+    //
+    // Against the LEAD's base since AF-57, because that is what the pair
+    // renders. The unmoved half now equals the lead, which a mark is
+    // supposed to draw and a band may hold in its gradient; the moved half
+    // is a value no scheme contains, so finding it on a mark is still
+    // exactly the regression AF-16 decided against.
     for (const l of LIVERIES) {
       const where = `${l.constructor} ${l.from}-${l.to}`
       const base = liveryPrimary(l).base
+      const leadBase = liveryPair(l).lead.base
       const colour = colourForEntry({ constructorId: l.constructor, country: null, year: l.from, team: l.constructor })
       assert.equal(colour.base, base, `${where}: colourForEntry base`)
       assert.equal(colour.mark['--livery'], colour.pair.lead.base, `${where}: colourForEntry mark does not lead with the pair`)
@@ -732,7 +748,7 @@ describe('a livery is a sourced scheme drawn as itself, and every 2010+ construc
         )
         const written = Object.values(style).join(' ')
         for (const moved of [l.light, l.dark])
-          if (moved !== base)
+          if (moved !== leadBase)
             assert.ok(!written.includes(moved), `${where}: ${what} writes the moved ${moved} onto a mark`)
       }
     }

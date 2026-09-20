@@ -109,6 +109,13 @@
  * car's order and says what the car raced in. So a 2014 Mercedes mark is
  * teal while the band names that livery Silver, and the two sentences - the
  * mark's "recognised by", the band's "raced in" - are what keep both true.
+ * A CHART SERIES follows the MARK, not the band (AF-57). Its `light`/`dark`
+ * pair renders the pair's lead, so the Mercedes line on the title-race
+ * chart is the teal of the mark in the standings table beside it, and not
+ * the black of the car. AF-45 gave every mark a recognition-led lead and
+ * left the chart pair on the primary, which drew the same team in two
+ * colours on one page; test/conventions.mjs now holds the pair to the lead,
+ * so the two cannot part again.
  *
  * WHAT IS NOT HERE, AND WHY. LIVERY_GAPS names every constructor-season from
  * 2010 that has race entries and no entry here, with the reason - in every
@@ -252,7 +259,7 @@ export const LIVERIES = [
       { name: 'Petronas green', base: '#0f9c94', named: false, sourced: true },
       { name: 'Black', base: '#111214', named: false, sourced: true },
     ],
-    light: '#818891', dark: '#b5b9be', // 3.08 / 8.46
+    light: '#0f9991', dark: '#0f9c94', // 3.02 / 4.93, Petronas green
     source: [
       'https://en.wikipedia.org/wiki/Mercedes_MGP_W01',
       'https://en.wikipedia.org/wiki/Mercedes-AMG_F1_W11_EQ_Performance',
@@ -267,7 +274,7 @@ export const LIVERIES = [
       { name: 'Petronas green', base: '#0f9c94', named: false, sourced: true },
       { name: 'Red', base: '#d1262f', named: false, sourced: true },
     ],
-    light: '#111214', dark: '#636974', // 16.13 / 3.02
+    light: '#0f9991', dark: '#0f9c94', // 3.02 / 4.93, Petronas green
     source: [
       'https://en.wikipedia.org/wiki/Mercedes-AMG_F1_W11_EQ_Performance',
       'https://en.wikipedia.org/wiki/Mercedes-AMG_F1_W13_E_Performance',
@@ -282,7 +289,7 @@ export const LIVERIES = [
       { name: 'Petronas green', base: '#0f9c94', named: false, sourced: true },
       { name: 'Black', base: '#111214', named: false, sourced: true },
     ],
-    light: '#818891', dark: '#b5b9be', // 3.08 / 8.46
+    light: '#0f9991', dark: '#0f9c94', // 3.02 / 4.93, Petronas green
     source: [
       'https://en.wikipedia.org/wiki/Mercedes-AMG_F1_W13_E_Performance',
       'https://en.wikipedia.org/wiki/Formula_One_sponsorship_liveries',
@@ -296,7 +303,7 @@ export const LIVERIES = [
       { name: 'Silver', base: '#b5b9be', named: false, sourced: true },
       { name: 'Petronas green', base: '#0f9c94', named: false, sourced: true },
     ],
-    light: '#111214', dark: '#636974', // 16.13 / 3.02
+    light: '#0f9991', dark: '#0f9c94', // 3.02 / 4.93, Petronas green
     source: [
       'https://en.wikipedia.org/wiki/Mercedes-AMG_F1_W14_E_Performance',
       'https://en.wikipedia.org/wiki/Mercedes-AMG_F1_W15_E_Performance',
@@ -312,7 +319,7 @@ export const LIVERIES = [
       { name: 'Silver', base: '#b5b9be', named: false, sourced: true },
       { name: 'Petronas green', base: '#0f9c94', named: false, sourced: true },
     ],
-    light: '#111214', dark: '#636974', // 16.13 / 3.02
+    light: '#0f9991', dark: '#0f9c94', // 3.02 / 4.93, Petronas green
     source: [
       'https://www.mercedesamgf1.com/news/mercedes-amg-f1-2026-challenger-w17-revealed',
       'https://en.wikipedia.org/wiki/Formula_One_sponsorship_liveries',
@@ -356,7 +363,7 @@ export const LIVERIES = [
       { name: 'Dark blue', base: '#1b2a5e', named: false, sourced: true },
       { name: 'Red', base: '#d1262f', named: false, sourced: true },
     ],
-    light: '#898989', dark: '#f2f2f2', // 3.01 / 14.90
+    light: '#1b2a5e', dark: '#4462c9', // 11.74 / 3.05, dark blue
     source: [
       'https://www.redbullracing.com/int-en/races/season-launch-2026/season-launch-2026-recap',
       'https://www.formula1.com/en/latest/article/first-look-red-bull-unveil-striking-new-livery-for-2026-f1-season.61MNwo6zMoxUtOAjS8JH0S',
@@ -735,7 +742,7 @@ export const LIVERIES = [
       { name: 'Blue', base: '#2b4bd8', named: false, sourced: true },
       { name: 'Red', base: '#d1262f', named: false, sourced: true },
     ],
-    light: '#898989', dark: '#f4f4f4', // 3.01 / 15.17
+    light: '#2b4bd8', dark: '#415ddc', // 5.83 / 3.04, blue
     source: [
       'https://www.visacashapprb.com/int-en/2026-car-reveal',
       'https://www.formula1.com/en/latest/article/first-look-racing-bulls-showcase-2026-livery-at-launch-event-in-detroit.ObKtbPEmmdtrnfMHw34pd',
@@ -927,7 +934,7 @@ export const LIVERIES = [
       { name: 'White', base: '#f4f4f4', named: false, sourced: true },
       { name: 'Red', base: '#d1262f', named: false, sourced: true },
     ],
-    light: '#111214', dark: '#636974', // 16.13 / 3.02
+    light: '#898989', dark: '#f4f4f4', // 3.01 / 15.17, white
     source: [
       'https://en.wikipedia.org/wiki/Haas_VF-23',
       'https://en.wikipedia.org/wiki/Haas_VF-25',
@@ -1290,9 +1297,12 @@ export const markStyleAttr = (colour) =>
  *   kind    'livery' or 'national'
  *   named   true where `name` is the team's own term (see the header)
  *   base    the primary itself, unmoved (AF-16); a mark draws `mark`
- *   light   the pair a CHART SERIES wears, and nothing else: the base moved
- *   dark    until it clears 3:1 in that theme, because a series is told from
- *           its neighbour by colour alone. A mark takes `mark`, never these
+ *   light   the pair a CHART SERIES wears, and nothing else: the PAIR'S LEAD
+ *   dark    moved until it clears 3:1 in that theme, because a series is told
+ *           from its neighbour by colour alone. The lead, not the primary
+ *           (AF-57): a chart and a mark are the same team on the same page,
+ *           so they lead with the same colour. A mark takes `mark`, never
+ *           these - it draws the lead's base unmoved
  *   scheme  the primary and its accents, each { name, base, named, sourced };
  *           a national colour is a scheme of one
  *   style   the custom properties the band draws: the primary itself, and
