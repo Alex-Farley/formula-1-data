@@ -434,7 +434,7 @@ try {
     // handOver() restores two frames after the removal. A settled read, not a
     // poll: polling accepts a value that something later undoes, which is the
     // whole failure being tested for.
-    const settled = (target) => target.waitForTimeout(600)
+    const settled = (target) => target.waitForTimeout(1500)
 
     const held = await browser.newPage({ viewport: { width: 1280, height: 900 } })
     await holdScroll(held)
@@ -499,6 +499,35 @@ try {
     truthy(
       await held.evaluate(() => document.activeElement === document.querySelector('#root main')),
       'and taking it puts focus inside <main>, past the eleven header stops',
+    )
+
+    // A route change that commits UNDER an open modal must not pull focus out
+    // of it. Found by this suite: the search palette is opened, the router
+    // catches up with a click made a moment earlier, focus goes to the heading
+    // behind the palette -- and Escape, pressed into the page, misses the
+    // dialog, which stays open over a page nothing can click through to.
+    await held.keyboard.press('/')
+    await held.waitForSelector('.palette input', { timeout: 10000 })
+    await held.evaluate(() => {
+      window.history.pushState({}, '', '/drivers')
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    })
+    await held.waitForFunction(
+      () => document.querySelector('#root main h1')?.textContent.includes('Drivers'),
+      null,
+      { timeout: 20000 },
+    )
+    truthy(
+      await held.evaluate(() => Boolean(document.activeElement?.closest('[role="dialog"]'))),
+      'a route change under the open search palette leaves focus inside the palette',
+    )
+    await held.keyboard.press('Escape')
+    truthy(
+      await held
+        .waitForFunction(() => !document.querySelector('.palette-backdrop'), null, { timeout: 5000 })
+        .then(() => true)
+        .catch(() => false),
+      'so Escape still reaches it and closes it',
     )
     await held.close()
 

@@ -21,8 +21,8 @@ import './styles/app.css'
  * the scroll to the top: a reader eleven seconds into a 7,000 px page was
  * thrown back to its start by an event they did not cause, and a keyboard
  * reader's focus went to <body>. The offset is read before the removal and
- * restored after the app has painted, and the new page's heading takes focus
- * so a screen reader learns the document changed.
+ * put back as soon as there is a document tall enough to hold it, and the new
+ * page's heading takes focus so a screen reader learns the document changed.
  *
  * App.jsx's ScrollToTop used to undo that restore on its own first render and
  * win the race on a long page, which is what IX-30 measured; it now leaves the
@@ -41,9 +41,36 @@ function handOver() {
     const y = location.pathname === arrival ? window.scrollY : 0
     document.getElementById('prerendered')?.remove()
     stop()
+
+    /*
+     * Two frames was a guess at "once the app has painted", and it was wrong
+     * on any machine slower than the one it was written on. Every data page
+     * renders a skeleton while its query resolves, so two frames after the
+     * removal the document can be a few hundred pixels tall -- scrollTo then
+     * clamps the offset to 0 and the reader is returned to the top after all,
+     * which is the defect this whole function exists to prevent, arriving by
+     * a different route. CI read 0 where the laptop read 1,500.
+     *
+     * So: put the offset back as soon as there is a document that can hold it,
+     * rather than counting frames. It gives up after a second, because a page
+     * that has legitimately got shorter is not going to grow (the drivers page
+     * shrinks fivefold, which is IX-19 and a different problem), and it gives
+     * up the moment the reader scrolls for themselves -- being dragged back to
+     * where you were a second ago is worse than the thing being fixed.
+     */
+    const land = (tries, left) => {
+      if (left !== null && window.scrollY !== left) return
+      window.scrollTo(0, y)
+      const room = document.documentElement.scrollHeight - window.innerHeight
+      if (tries > 0 && window.scrollY < y && room < y) {
+        const at = window.scrollY
+        requestAnimationFrame(() => land(tries - 1, at))
+      }
+    }
+
     requestAnimationFrame(() =>
       requestAnimationFrame(() => {
-        window.scrollTo(0, y)
+        land(60, null)
         document.querySelector('#root main h1')?.focus({ preventScroll: true })
       }),
     )

@@ -110,6 +110,12 @@ function useFocusOnNavigation() {
       landed = true
       return
     }
+    // Not out of a modal. The search palette is open on top of the page, and a
+    // navigation committing underneath it - click a result, press / again
+    // before the router has caught up - would pull focus back to the heading
+    // behind it: Escape then misses the dialog, which stays open over a page
+    // the reader can no longer reach. What is in front of the reader wins.
+    if (document.activeElement?.closest('[role="dialog"]')) return
     ref.current?.focus({ preventScroll: true })
   }, [pathname])
   return ref
