@@ -3,8 +3,10 @@ import { Onward, Page, Section, Stats } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import Figure from '../charts/Figure.jsx'
 import ColumnChart from '../charts/ColumnChart.jsx'
+import LiveryMark from '../components/LiveryMark.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { number } from '../lib/format.js'
+import { colourForEntry } from '../lib/liveries.js'
 
 const SHAPE = `
   SELECT
@@ -31,7 +33,8 @@ const PER_SEASON = `SELECT year, COUNT(*) AS rounds FROM races GROUP BY year ORD
 
 const LATEST = `
   SELECT r.year, r.round, r.name_used, r.dates, c.name AS circuit,
-         d.full_name AS winner, d.id AS winner_id, k.name AS constructor
+         d.full_name AS winner, d.id AS winner_id,
+         k.name AS constructor, k.id AS constructor_id, k.country AS constructor_country
     FROM races r
     LEFT JOIN circuits c ON c.id = r.circuit_id
     LEFT JOIN race_entries e ON e.race_id = r.id AND e.finish_position = 1
@@ -99,6 +102,21 @@ export default function Home() {
           const seasons = rows(data, 'perSeason')
           const latest = data.latest.rows[0]
           const next = data.next.rows[0]
+          // The winning car's colour (AF-47 clause 1: the constructor is a
+          // first-class attribute of the race), in the race's own season, as
+          // /races draws it beside the same name. One mark for the sentence,
+          // beside the constructor and not the driver, which is clause 3.
+          // LiveryMark is given no `year`: its spacer exists to keep a table
+          // column's names aligned and there is no column here, so a season
+          // without a colour leaves the prose as it reads today.
+          const winnerColour = latest
+            ? colourForEntry({
+                constructorId: latest.constructor_id,
+                country: latest.constructor_country,
+                year: latest.year,
+                team: latest.constructor,
+              })
+            : null
 
           return (
             <>
@@ -136,7 +154,14 @@ export default function Home() {
                           ) : (
                             'an unrecorded driver'
                           )}
-                          {latest.constructor ? ` for ${latest.constructor}` : ''}.
+                          {latest.constructor ? (
+                            <>
+                              {' for '}
+                              <LiveryMark colour={winnerColour} />
+                              {latest.constructor}
+                            </>
+                          ) : null}
+                          .
                         </p>
                         <p style={{ margin: '10px 0 0' }}>
                           <Link to={`/races/${latest.year}/${latest.round}`}>
