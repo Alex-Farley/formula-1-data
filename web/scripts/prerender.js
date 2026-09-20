@@ -579,6 +579,83 @@ const crumbs = (trail) =>
 
 const pages = []
 
+/*
+ * SD-19: what a page's `lastmod` is.
+ *
+ * Every URL in the sitemap used to carry `meta.built`, so 3,539 pages claimed
+ * to have last changed on the same day and a crawler was given no reason to
+ * come back to any one of them sooner than the rest. In fact they move at
+ * wildly different rates: a 1954 race page is finished, and the page for the
+ * season being run moves every other weekend.
+ *
+ * So an entity page is dated by the last race it actually describes, and the
+ * indexes and the static routes — whose content is a view over the whole
+ * database rather than over one entity — keep the build date.
+ *
+ * Not by making `BUILT` a real timestamp: that is [D-01], measured and
+ * rejected, and the database stays a pure function of its sources.
+ */
+const BUILT = ISO_DAY.test(META.built ?? '') ? META.built : new Date().toISOString().slice(0, 10)
+
+/**
+ * A page's own date, never later than the build.
+ *
+ * The calendar holds rounds out to 2027, and a `lastmod` in the future is a
+ * date the file cannot have been written on — crawlers discard a sitemap that
+ * carries them. The page for a round still to be run genuinely does change
+ * with every build, so the build date is the honest answer for it.
+ */
+const stamp = (date) => (ISO_DAY.test(date ?? '') && date < BUILT ? date : BUILT)
+
+/**
+ * id -> the date of the most recent race that entity has already had.
+ *
+ * One aggregate per family rather than a date threaded through every page's
+ * own query: what dates a page is the date of a race, and `races.date_iso` is
+ * the only place that lives. `date_iso <= BUILT` is what makes it a race that
+ * has been run, which is why a season part-way through is dated by its last
+ * completed round and not by a December fixture.
+ */
+const runDates = (sql) => new Map(all(sql, BUILT).map((r) => [String(r.key), r.d]))
+
+const LAST_RUN = {
+  season: runDates(
+    `SELECT year AS key, MAX(date_iso) AS d FROM races WHERE date_iso <= ? GROUP BY year`,
+  ),
+  circuit: runDates(
+    `SELECT circuit_id AS key, MAX(date_iso) AS d
+       FROM races WHERE date_iso <= ? AND circuit_id IS NOT NULL GROUP BY circuit_id`,
+  ),
+  driver: runDates(
+    `SELECT e.driver_id AS key, MAX(r.date_iso) AS d
+       FROM race_entries e JOIN races r ON r.id = e.race_id
+      WHERE r.date_iso <= ? GROUP BY e.driver_id`,
+  ),
+  constructor: runDates(
+    `SELECT e.constructor_id AS key, MAX(r.date_iso) AS d
+       FROM race_entries e JOIN races r ON r.id = e.race_id
+      WHERE r.date_iso <= ? AND e.constructor_id IS NOT NULL GROUP BY e.constructor_id`,
+  ),
+  // /cars/<id> is one route over two registers, and which entries a page
+  // shows is not `race_entries.car_id`: `ENTRIES` in queries/car.js resolves
+  // the id through `chassis` — one chassis where the id is a chassis, every
+  // chassis of the design where it is a curated car no chassis shares an id
+  // with — and the join below is that same resolution. Keying on the entry's
+  // own columns instead dated six pages by a race they do not show, three of
+  // them by a later car of the same lineage.
+  car: runDates(
+    `SELECT p.id AS key, MAX(r.date_iso) AS d
+       FROM (SELECT id FROM chassis UNION SELECT id FROM cars) p
+       JOIN chassis ch
+         ON ch.id = p.id
+         OR (ch.car_id = p.id AND NOT EXISTS (SELECT 1 FROM chassis x WHERE x.id = p.id))
+       JOIN race_entries e ON e.chassis_id = ch.id
+       JOIN races r ON r.id = e.race_id
+      WHERE r.date_iso <= ?
+      GROUP BY p.id`,
+  ),
+}
+
 
 // ------------------------------------------------------- photographs, cards
 
@@ -836,8 +913,11 @@ const SITE_CARD = {
  * search engine reading two of them for the same thing is a warning nobody
  * needs. `image` is the page's own photograph where it has one, and the site
  * card where it does not: every page carries one, which is the whole of PD-20.
+ * `lastmod` is the page's own date for the sitemap — the last race it
+ * describes — and defaults to the build date, which is the right answer for
+ * an index or a static route and the only answer for anything undated.
  */
-const page = ({ path, title, description, body, jsonld = null, trail = null, image = null }) => {
+const page = ({ path, title, description, body, jsonld = null, trail = null, image = null, lastmod = null }) => {
   // The citation names the page by the address the canonical carries.
   pages.push({
     path,
@@ -845,6 +925,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
     description,
     jsonld,
     image,
+    lastmod: stamp(lastmod),
     html: chrome(body, trail ? crumbs(trail) : '', `${ORIGIN}${href(path)}`),
   })
 }
@@ -979,6 +1060,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
 
     page({
       path: `seasons/${year}`,
+      lastmod: LAST_RUN.season.get(String(year)),
       title: titled(`${year} Formula One World Championship`),
       description: s.champion
         ? `${s.champion} won the ${year} Formula One World Championship for ${s.champion_team_name ?? '—'} with ${s.champion_points ?? '—'} points over ${s.rounds ?? '?'} rounds. Every race, winner, pole and fastest lap.`
@@ -1163,6 +1245,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
 
     page({
       path: `races/${r.year}/${r.round}`,
+      lastmod: r.date_iso,
       title: titled(headline),
       description: summarise(description, 300),
       trail: [
@@ -1384,6 +1467,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
 
     page({
       path: `drivers/${d.id}`,
+      lastmod: LAST_RUN.driver.get(d.id),
       title: titled(d.full_name),
       description: withNotes.endsWith('…') ? lead : withNotes,
       trail: [['', 'Home'], ['drivers', 'Drivers'], [`drivers/${d.id}`, d.full_name]],
@@ -1486,6 +1570,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
     const designs = all(DESIGNS, c.id)
     page({
       path: `constructors/${c.id}`,
+      lastmod: LAST_RUN.constructor.get(c.id),
       title: titled(c.name),
       description: summarise(
         `${c.full_name ?? c.name}${c.country ? `, ${c.country}` : ''}, Formula One ${c.first_entry ?? '?'}–${c.last_entry ?? 'present'}. ${
@@ -1599,6 +1684,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
     const outlinesHere = all(CIRCUIT_OUTLINES, c.id)
     page({
       path: `circuits/${c.id}`,
+      lastmod: LAST_RUN.circuit.get(c.id),
       title: titled(c.name),
       description: summarise(
         `${c.official_name ?? c.name}${c.locality ? `, ${c.locality}` : ''}${c.country ? `, ${c.country}` : ''}. ${
@@ -1792,6 +1878,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
     const photos = photographs(c.id)
     page({
       path: `cars/${c.id}`,
+      lastmod: LAST_RUN.car.get(c.id),
       title: titled(name),
       image: photos.image,
       description: summarise(
@@ -1855,6 +1942,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
 
     page({
       path: `cars/${ch.id}`,
+      lastmod: LAST_RUN.car.get(ch.id),
       title: titled(name),
       image: photos.image,
       description: summarise(
@@ -2341,13 +2429,13 @@ writeFileSync(
 )
 
 // The sitemap is what makes 2,000-odd pages discoverable without relying on a
-// crawler walking every index table. lastmod is the database build date: the
-// pages are a pure function of it, so they change exactly when it does.
-const built = one(`SELECT value FROM meta WHERE key = 'built'`)?.value ?? new Date().toISOString().slice(0, 10)
+// crawler walking every index table. Each URL carries its own `lastmod`: the
+// date of the last race the page describes, or the build date where the page
+// describes no single entity. See `stamp()` and `LAST_RUN` above.
 writeFileSync(
   join(dist, 'sitemap.xml'),
   `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${pages
-    .map((p) => `  <url><loc>${esc(`${ORIGIN}${href(p.path)}`)}</loc><lastmod>${esc(built)}</lastmod></url>`)
+    .map((p) => `  <url><loc>${esc(`${ORIGIN}${href(p.path)}`)}</loc><lastmod>${esc(p.lastmod)}</lastmod></url>`)
     .join('\n')}\n</urlset>\n`,
 )
 
