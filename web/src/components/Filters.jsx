@@ -61,6 +61,34 @@ export function Select({ value, onChange, options, label, all = 'All' }) {
   )
 }
 
+/**
+ * One chip that asks its own question, beside a group that asks another.
+ *
+ * IX-35: "Traced" sat inside the type chips on /circuits, which are one
+ * mutually exclusive group - so a reader who wanted the street circuits with
+ * a centreline could not ask for them, because choosing either silently
+ * cleared the other. Four of those chips are values of circuits.circuit_type
+ * and this one is a different question about the same row; a toggle that
+ * stays pressed while the group moves beside it is what says so.
+ *
+ * It carries its own accessible name for the same reason the group carries
+ * one: "Traced, toggle button, not pressed" names no subject. The visible
+ * word opens that name, so what is heard contains what is read.
+ */
+export function Toggle({ value, onChange, label, children }) {
+  return (
+    <button
+      type="button"
+      className="chip"
+      aria-pressed={value}
+      aria-label={label}
+      onClick={() => onChange(!value)}
+    >
+      {children}
+    </button>
+  )
+}
+
 /** Mutually exclusive chips, for two or three choices that deserve to be visible. */
 export function Chips({ value, onChange, options, label = 'Filter' }) {
   // A group, with a name: six toggle buttons arriving as "hybrid, toggle

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
-import { Chips, Filters, SearchField, Select } from '../components/Filters.jsx'
+import { Chips, Filters, SearchField, Select, Toggle } from '../components/Filters.jsx'
 import { currentProgress } from '../data/client.js'
 import { rows as pick, useQueries } from '../data/useQuery.js'
 import { TRACE_COLUMN_UNKNOWN, TRACE_NOT_LOADED, traceRegisterNote } from '../lib/trace.js'
@@ -67,64 +67,7 @@ export default function Circuits() {
       lede="Eighty venues, from airfield perimeters to street courses laid out for a single season. Sorted by races held: open one for how its shape changed, who has won there most, and every Grand Prix it has staged."
     >
       <Result state={state} skeleton>
-        {(data) => {
-          const traces = pick(data, 'traces')
-          const register = pick(data, 'register')
-          // IX-31: "0 of 80" is a claim about the database, made in the
-          // database's voice, when what happened is that an ODbL file did not
-          // arrive — and the register's Traced column empties with it, so the
-          // page is internally consistent and wrong throughout. The overlay's
-          // own state is the only thing that can tell the two apart.
-          const overlay = currentProgress().manifest?.geometry ?? null
-          return (
-            <>
-              <Section
-                title="The traced centrelines"
-                count={overlay ? `${traces.length} of ${register.length}` : null}
-              >
-                {/* One credit for the set, from the rows themselves: every
-                    row of circuit_geometry states the same licence today, and
-                    a circuit's own page prints its own row's. */}
-                <p className="note" style={{ marginTop: 0 }}>
-                  {overlay ? traceRegisterNote(traces[0]?.licence) : TRACE_NOT_LOADED}
-                </p>
-                {overlay && traces.length > 0 && (
-                  <ul className="lapgrid">
-                    {traces.map((trace) => (
-                      <li key={trace.circuit_id}>
-                        <Link to={`/circuits/${trace.circuit_id}`} className="lapcard">
-                          <b>{trace.name}</b>
-                          <span>{trace.country}</span>
-                          <span>
-                            {trace.measured_km?.toFixed(3)} km measured
-                            {/* Strictly 0, not falsy: a NULL verdict is
-                                unestablished, not a trace that does not
-                                close. */}
-                            {trace.closes === 0 ? ' · does not close' : ''}
-                          </span>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </Section>
-              {/* The Traced column is answered from the same overlay, so
-                  without it every row reads as an em dash — the register
-                  saying "unestablished" eighty times when what happened was a
-                  download (IX-31). The column stays, because dropping a column
-                  would make the static and app tables disagree; what it means
-                  today is said beside it, and the filter that reads it goes,
-                  because it would return nothing. */}
-              <Section
-                title="Every venue"
-                count={`${register.length} circuits`}
-                note={overlay ? undefined : TRACE_COLUMN_UNKNOWN}
-              >
-                <Register rows={register} traceable={Boolean(overlay)} />
-              </Section>
-            </>
-          )
-        }}
+        {(data) => <Register rows={pick(data, 'register')} traces={pick(data, 'traces')} />}
       </Result>
 
       <Onward
@@ -137,10 +80,32 @@ export default function Circuits() {
   )
 }
 
-function Register({ rows, traceable = true }) {
+/**
+ * The register in both the encodings this page draws it in — the cards for
+ * the traced centrelines and the table of every venue — under one filter bar
+ * that governs both.
+ *
+ * IX-33: the bar used to sit inside the table's section with its state local
+ * to it, roughly two thousand pixels below the cards. Asking for the street
+ * circuits took the table to sixteen rows and left twenty-five cards standing
+ * above it, off screen by then and contradicting the count line the reader had
+ * just read — two answers to one question, with nothing on the page saying
+ * which of them the control had been aimed at. Both sections draw the same
+ * venues, so one predicate settles both, and the bar is above the first thing
+ * it moves.
+ */
+function Register({ rows, traces }) {
   const [term, setTerm] = useState('')
   const [country, setCountry] = useState('')
   const [kind, setKind] = useState('')
+  const [tracedOnly, setTracedOnly] = useState(false)
+
+  // IX-31: "0 of 80" is a claim about the database, made in the database's
+  // voice, when what happened is that an ODbL file did not arrive — and the
+  // register's Traced column empties with it, so the page is internally
+  // consistent and wrong throughout. The overlay's own state is the only
+  // thing that can tell the two apart.
+  const overlay = currentProgress().manifest?.geometry ?? null
 
   const countries = useMemo(
     () => [...new Set(rows.map((r) => r.country).filter(Boolean))].sort(),
@@ -155,14 +120,26 @@ function Register({ rows, traceable = true }) {
     const needle = term.trim().toLowerCase()
     return rows.filter((row) => {
       if (country && row.country !== country) return false
-      if (kind && kind !== 'traced' && row.circuit_type !== kind) return false
-      if (kind === 'traced' && !row.traced) return false
+      // IX-35: the type and the trace are two questions, and they compose.
+      // While "Traced" was a sixth type chip, sixteen street circuits and the
+      // ones among them with a centreline could not both be asked for.
+      if (kind && row.circuit_type !== kind) return false
+      if (tracedOnly && !row.traced) return false
       if (!needle) return true
       return [row.name, row.locality, row.country]
         .filter(Boolean)
         .some((value) => value.toLowerCase().includes(needle))
     })
-  }, [rows, term, country, kind])
+  }, [rows, term, country, kind, tracedOnly])
+
+  // The cards are the filtered register's traced subset, taken by id. Every
+  // row of circuit_geometry joins a circuit and v_circuits is every circuit,
+  // so with nothing filtered this is the whole set — which is what the cards
+  // showed when they answered to no control at all.
+  const shown = useMemo(() => {
+    const ids = new Set(filtered.map((row) => row.id))
+    return traces.filter((trace) => ids.has(trace.circuit_id))
+  }, [filtered, traces])
 
   return (
     <>
@@ -173,22 +150,85 @@ function Register({ rows, traceable = true }) {
           label="Filter circuits by type"
           value={kind}
           onChange={setKind}
-          // Without the overlay every row's Traced is unestablished, so the
-          // chip would filter eighty circuits down to none and read as an
-          // answer (IX-31).
-          options={[['', 'All'], ...types.map((t) => [t, t]), ...(traceable ? [['traced', 'Traced']] : [])]}
+          // "All types", not "All": the toggle beside this group is a
+          // second axis now, and a chip reading "All" beside a pressed
+          // Traced would name a state the bar is not in.
+          options={[['', 'All types'], ...types.map((t) => [t, t])]}
         />
+        {/* Without the overlay every row's Traced is unestablished, so this
+            would filter eighty circuits down to none and read as an answer
+            (IX-31). */}
+        {overlay && (
+          <Toggle value={tracedOnly} onChange={setTracedOnly} label="Traced centrelines only">
+            Traced
+          </Toggle>
+        )}
       </Filters>
 
-      <DataTable
-        rows={filtered}
-        rowKey={(row) => row.id}
-        sort="races"
-        direction="desc"
-        page={100}
-        columns={CIRCUIT_COLUMNS.map((column) => ({ ...column, ...APP[column.key] }))}
-        footer={CIRCUITS_FOOTER}
-      />
+      <Section title="The traced centrelines" count={overlay ? `${shown.length} of ${filtered.length}` : null}>
+        {/* One credit for the set, from the rows themselves: every row of
+            circuit_geometry states the same licence today, and a circuit's
+            own page prints its own row's. */}
+        <p className="note" style={{ marginTop: 0 }}>
+          {overlay ? traceRegisterNote(traces[0]?.licence) : TRACE_NOT_LOADED}
+        </p>
+        {overlay &&
+          (shown.length > 0 ? (
+            <ul className="lapgrid">
+              {shown.map((trace) => (
+                <li key={trace.circuit_id}>
+                  <Link to={`/circuits/${trace.circuit_id}`} className="lapcard">
+                    <b>{trace.name}</b>
+                    <span>{trace.country}</span>
+                    <span>
+                      {trace.measured_km?.toFixed(3)} km measured
+                      {/* Strictly 0, not falsy: a NULL verdict is
+                          unestablished, not a trace that does not
+                          close. */}
+                      {trace.closes === 0 ? ' · does not close' : ''}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            // The filter emptied this section while the one below it may still
+            // have rows, so the section says which of the two happened rather
+            // than disappearing and leaving a heading over a credit.
+            <p className="state is-empty">No traced centreline among these circuits.</p>
+          ))}
+      </Section>
+
+      {/* The Traced column is answered from the same overlay, so without it
+          every row reads as an em dash — the register saying "unestablished"
+          eighty times when what happened was a download (IX-31). The column
+          stays, because dropping a column would make the static and app
+          tables disagree; what it means today is said beside it, and the
+          toggle that reads it goes, because it would return nothing. */}
+      <Section
+        title="Every venue"
+        count={
+          filtered.length === rows.length
+            ? `${rows.length} circuits`
+            : `${filtered.length} of ${rows.length} circuits`
+        }
+        note={overlay ? undefined : TRACE_COLUMN_UNKNOWN}
+      >
+        <DataTable
+          rows={filtered}
+          rowKey={(row) => row.id}
+          sort="races"
+          direction="desc"
+          page={100}
+          columns={CIRCUIT_COLUMNS.map((column) => ({ ...column, ...APP[column.key] }))}
+          // DataTable's default says "Nothing recorded.", which is a claim
+          // about the database; what has happened here is a filter that
+          // matched nothing, which is the same thing the section above says
+          // about its own cards.
+          empty="No circuit matches these filters."
+          footer={CIRCUITS_FOOTER}
+        />
+      </Section>
     </>
   )
 }
