@@ -317,7 +317,7 @@ describe('a livery is a sourced scheme drawn as itself, and every 2010+ construc
       const lead = liveryPair(l).lead
       assert.ok(
         lead.base === l.light || lead.base === l.dark,
-        `${where}: the pair ${l.light}/${l.dark} renders neither the mark's lead ${lead.base} (${lead.name}) nor anything derived from it`,
+        `${where}: neither half of the pair ${l.light}/${l.dark} is the mark's lead ${lead.base} (${lead.name}), so one of them is a rendering of some other colour`,
       )
       assert.ok(Array.isArray(l.source) && l.source.length >= 1, `${where}: source`)
       for (const s of l.source) assert.match(s, /^https:\/\//, `${where}: source ${s}`)

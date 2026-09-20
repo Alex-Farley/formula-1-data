@@ -16,11 +16,11 @@ const M = { top: 14, right: 58, bottom: 26, left: 44 }
  *
  * A series may carry `colour` - a {light, dark} pair from lib/liveries.js,
  * rendering the mark's lead so the line and the team's mark read as one
- * colour (AF-57) - and `dash`. With a colour the <g> wears it as custom
- * properties and
- * the strokes read --livery, which styles/app.css resolves per theme; without
- * one the series takes its slot in the neutral palette. `dash` is the second
- * driver of one team: the same colour, a dashed stroke.
+ * colour (AF-57) - and `dash`. With a colour the <g> wears the pair as
+ * custom properties and the strokes read --livery, which styles/app.css
+ * resolves per theme; without one the series takes its slot in the neutral
+ * palette. `dash` is the second driver of one team: the same colour, a
+ * dashed stroke.
  */
 const seriesStyle = (s) => (s.colour ? { '--livery-light': s.colour.light, '--livery-dark': s.colour.dark } : undefined)
 const seriesPaint = (s, i) => (s.colour ? 'var(--livery)' : seriesColour(i))
