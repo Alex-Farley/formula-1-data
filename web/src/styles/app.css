@@ -518,13 +518,32 @@ main {
    action, and on a Ferrari page indistinguishable from rosso corsa (1.002:1
    in light; 1.76:1 in dark). The hairline grid and the mono label already say
    what the bar said (VD-26). */
+/* min-content, not 0: with a label that may not wrap (below), the tile has
+   to be allowed to be as wide as its label, or it would overflow its own
+   hairline.
+
+   The basis comes down from 150px to 130px to pay for that. A tile held at
+   its label's width takes room from the row, and eight tiles at 150px plus
+   "Constructors' titles" at the 190px its label needs came to 11px more than
+   /constructors/ferrari has: the eighth tile wrapped, and flex-grow spread it
+   alone across the full 1234px, which ranks a figure by accident far harder
+   than the two ranks below rank one on purpose. At 130px the basis no longer
+   decides the row - the labels do - and the tiles settle at their own widths
+   with the wide one wide. It is a floor, not a width: flex-grow still fills
+   the row, so a strip of five is laid out exactly as before. */
 .stats > div {
-  flex: 1 1 150px;
+  flex: 1 1 130px;
   background: var(--panel);
   padding: 13px 15px 15px;
-  min-width: 0;
+  min-width: min-content;
 }
 
+/* VD-28: a label never wraps. It is not a cosmetic rule - the tiles are a
+   flex row and each one lays its own contents out from the top, so a label
+   that takes two lines pushes its own figure a line below every figure
+   beside it. On /constructors/ferrari "Constructors' titles" did exactly
+   that, 22px below the row. Nothing here truncates: the tile grows to its
+   label instead, and the row wraps. */
 .stats dt {
   font-family: var(--mono);
   font-size: 10px;
@@ -533,6 +552,7 @@ main {
   text-transform: uppercase;
   color: var(--ink-faint);
   margin-bottom: 6px;
+  white-space: nowrap;
 }
 
 .stats dd {
@@ -556,6 +576,45 @@ main {
   letter-spacing: 0;
   color: var(--ink-faint);
   margin-top: 2px;
+}
+
+/* ------------------------------------------------------ two ranks (VD-28)
+
+   Eight figures at one size, one weight and one colour rank nothing: the
+   reader who came to a driver page for the wins and the titles has to read
+   all eight to find the two. A strip that names a lead figure gets two
+   ranks - the lead at the display size the tile has always used, the rest at
+   64% of it, which is the "about 60%" the critique asked for at a size the
+   secondary figures are still read at rather than merely seen.
+
+   A strip that names no lead is untouched, so this ranks the pages that have
+   something to rank and leaves the rest at one size. */
+.stats[data-ranked] dd {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.stats[data-ranked] > div[data-lead] dd {
+  font-size: 25px;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+}
+
+/* A name is not a figure. The display face is condensed and drawn for
+   numerals; a driver's name set in it at 25px reads as a headline and, being
+   a link, carries an underline that runs through the descenders. The sans
+   face at a reading size, with the underline cleared of them. */
+.stats > div[data-kind='name'] dd {
+  font-family: var(--sans);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: 0;
+}
+
+.stats > div[data-kind='name'] dd a {
+  text-underline-offset: 3px;
 }
 
 .hero-figure {

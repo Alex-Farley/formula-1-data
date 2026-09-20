@@ -300,6 +300,40 @@ try {
      * re-instantiate SQLite on every route, which is the whole reason this test
      * navigates in-app instead.
      */
+    /**
+     * The stat strip as it is laid out, for VD-28's three rules: a label
+     * never wraps, the figures share a baseline, and one or two lead.
+     *
+     * Read from the rendered box rather than from the stylesheet - the defect
+     * was a layout, not a declaration, and a rule that is written but loses to
+     * another would pass a test that only read the CSS.
+     */
+    const statStrip = async () =>
+      page.$eval('#root main .stats', (dl) => {
+        const tiles = [...dl.querySelectorAll(':scope > div')].map((el) => {
+          const dt = el.querySelector('dt')
+          const dd = el.querySelector('dd')
+          const style = getComputedStyle(dd)
+          return {
+            label: dt.textContent,
+            lead: el.hasAttribute('data-lead'),
+            kind: el.dataset.kind ?? null,
+            size: parseFloat(style.fontSize),
+            family: style.fontFamily,
+            lines: Math.round(dt.getBoundingClientRect().height / parseFloat(getComputedStyle(dt).lineHeight)),
+            ddTop: Math.round(dd.getBoundingClientRect().top),
+          }
+        })
+        return {
+          wrapped: tiles.filter((t) => t.lines > 1).map((t) => t.label),
+          ddTops: [...new Set(tiles.map((t) => t.ddTop))],
+          lead: tiles.filter((t) => t.lead),
+          rest: tiles.filter((t) => !t.lead),
+          names: tiles.filter((t) => t.kind === 'name'),
+          figures: tiles.filter((t) => t.kind !== 'name'),
+        }
+      })
+
     const go = async (route, heading) => {
       // <main> is a stable node — only what Routes renders inside it changes — so
       // "an h2 exists" is still true of the page being NAVIGATED AWAY FROM, and
@@ -858,6 +892,25 @@ try {
     is(race[0], count('SELECT COUNT(*) FROM race_entries WHERE race_id = ?', raceId), 'classification entries')
     is(race[1], count('SELECT COUNT(*) FROM qualifying WHERE race_id = ?', raceId), 'qualifying entries')
 
+    // VD-28: most of a race page's tiles hold a name, not a figure. The
+    // display face is condensed and drawn for numerals, so a name set in it
+    // at the figure size reads as a headline - three of five tiles were
+    // underlined names in 22px display type. A name takes the sans face, and
+    // every tile that is not a name keeps the display face it had.
+    const strip = await statStrip()
+    truthy(strip.names.length >= 3, `${strip.names.length} tiles hold a name`)
+    is(
+      strip.names.filter((t) => /Condensed/.test(t.family)).map((t) => t.label).join(' · '),
+      '',
+      'a name is set in the sans face, not the display face',
+    )
+    is(
+      strip.figures.filter((t) => !/Condensed/.test(t.family)).map((t) => t.label).join(' · '),
+      '',
+      'a figure keeps the display face',
+    )
+    is(strip.wrapped.join(' · '), '', 'no stat label wraps')
+    is(strip.ddTops.length, 1, 'every value in the strip starts at the same height')
   })
 
   await section('/races/1955/1  (a shared drive)', async () => {
@@ -1059,6 +1112,18 @@ try {
       'every Ferrari win is listed',
     )
 
+    // VD-28, and this page is where it was measured: eight tiles, and
+    // "Constructors' titles" took two lines for its label and dropped its own
+    // figure below every figure beside it. A shared top is the whole of the
+    // claim - a strip whose labels all fit on one line has nothing to drop.
+    const strip = await statStrip()
+    is(strip.wrapped.join(' · '), '', 'no stat label wraps')
+    is(strip.ddTops.length, 1, 'every figure in the strip starts at the same height')
+    truthy(strip.lead.length > 0 && strip.lead.length <= 2, `${strip.lead.length} figures lead, not eight`)
+    truthy(
+      Math.min(...strip.lead.map((t) => t.size)) > Math.max(...strip.rest.map((t) => t.size)),
+      'a lead figure is set larger than every figure that does not lead',
+    )
   })
 
   // -------------------------------------------------------------- circuits

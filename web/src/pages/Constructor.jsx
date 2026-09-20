@@ -166,7 +166,9 @@ function ConstructorBody({ constructor, data }) {
               note: `${derived.seasons ?? 0} seasons`,
             },
             { label: 'Race entries', value: number(derived.entries) },
-            { label: 'Wins', value: number(derived.wins ?? 0) },
+            // VD-28: wins and the constructors' titles lead, the same two
+            // ranks the driver page takes and for the same reason.
+            { label: 'Wins', value: number(derived.wins ?? 0), lead: true },
             { label: 'Podiums', value: number(derived.podiums ?? 0) },
             { label: 'Poles', value: number(derived.poles ?? 0) },
             { label: 'Drivers', value: number(derived.drivers) },
@@ -175,6 +177,7 @@ function ConstructorBody({ constructor, data }) {
                   label: "Constructors' titles",
                   value: number(constructor.constructors_titles),
                   note: missing(constructor.title_years) ? undefined : yearList(constructor.title_years),
+                  lead: true,
                 }
               : null,
             constructor.drivers_titles

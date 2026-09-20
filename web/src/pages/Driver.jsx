@@ -32,6 +32,24 @@ import {
 } from '../queries/driver.js'
 
 /**
+ * Which two figures lead the strip (VD-28).
+ *
+ * Emphasis is presentation, so it is added here rather than in
+ * queries/driver.js: that module says what a cell SAYS, and scripts/prerender
+ * reads the same list for a static facts table that has no ranks to give.
+ *
+ * Wins and titles are what a reader came for, and they are the two the
+ * critique named. Which figures a strip should carry AT ALL - 625 of 862
+ * pages show four zeros - is PD-15 (#147), and is not decided here: this
+ * ranks whatever the strip returns, and a lead tile that is not present is
+ * simply not led.
+ */
+const LEAD_FIGURES = new Set(['Wins', 'Titles'])
+
+const leading = (items) =>
+  items.map((item) => (LEAD_FIGURES.has(item.label) ? { ...item, lead: true } : item))
+
+/**
  * What only the app adds to the shared column lists: links, the sort key
  * behind a text column, and the markup a result wears. Everything a cell
  * SAYS is in queries/driver.js, read by scripts/prerender.js too.
@@ -198,7 +216,7 @@ function DriverBody({ driver, data }) {
       }
     >
       <Section>
-        <Stats items={strip(driver, derived)} />
+        <Stats items={leading(strip(driver, derived))} />
       </Section>
 
       {standings.length > 1 && (

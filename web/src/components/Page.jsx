@@ -163,10 +163,20 @@ export function Section({ title, count, note, children, id }) {
 export function Stats({ items }) {
   const shown = items.filter((item) => item && item.value !== null && item.value !== undefined && item.value !== '')
   if (shown.length === 0) return null
+  // VD-28: two ranks, and only where a page has asked for them. A strip with
+  // no `lead` keeps the one rank it has always had, so this changes the pages
+  // that named a lead figure and no others - the alternative was shrinking
+  // every figure on nine pages to make two of them larger by comparison.
+  const ranked = shown.some((item) => item.lead)
   return (
-    <dl className="stats">
-      {shown.map(({ label, value, note }) => (
-        <div key={label}>
+    <dl className="stats" data-ranked={ranked ? '' : undefined}>
+      {shown.map(({ label, value, note, lead, kind }) => (
+        // `kind="name"` is a value that is a person, a team or a place rather
+        // than a figure. The display face is condensed and drawn for numerals;
+        // set a name in it at 25px and the tile reads as a headline, which is
+        // how three of five tiles on a race page came to be underlined names
+        // in display type. Names take the sans face at a reading size.
+        <div key={label} data-lead={lead ? '' : undefined} data-kind={kind || undefined}>
           <dt>{label}</dt>
           <dd>
             {typeof value === 'number' ? text(value) : value}

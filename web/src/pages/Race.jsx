@@ -239,22 +239,26 @@ function RaceBody({ race, data, year, round }) {
           <Stats
             items={[
               {
+                // VD-28: a name is set in the sans face at a reading size by
+                // the rule in app.css, not by an inline size on this one link
+                // - which is what was here, this fix applied by hand to the
+                // first tile that needed it while four others went without.
                 label: 'Circuit',
+                kind: 'name',
                 value: race.circuit_id ? (
-                  <Link to={`/circuits/${race.circuit_id}`} style={{ fontSize: 17 }}>
-                    {race.circuit}
-                  </Link>
+                  <Link to={`/circuits/${race.circuit_id}`}>{race.circuit}</Link>
                 ) : null,
                 note: [race.locality, race.country].filter(Boolean).join(', ') || undefined,
               },
               scheduled
                 ? { label: 'Status', value: 'Scheduled', note: race.dates ?? undefined }
-                : { label: 'Winner', value: nameList(winners), note: winners[0]?.constructor ?? undefined },
-              scheduled ? null : { label: 'Pole', value: nameList(poles) },
+                : { label: 'Winner', kind: 'name', value: nameList(winners), note: winners[0]?.constructor ?? undefined },
+              scheduled ? null : { label: 'Pole', kind: 'name', value: nameList(poles) },
               scheduled || !startedFirst
                 ? null
                 : {
                     label: 'Started first',
+                    kind: 'name',
                     value: (
                       <Link to={`/drivers/${startedFirst.driver_id}`}>
                         {startedFirst.driver ?? startedFirst.driver_id}
@@ -266,6 +270,7 @@ function RaceBody({ race, data, year, round }) {
                 ? null
                 : {
                     label: 'Fastest qualifier',
+                    kind: 'name',
                     value: (
                       <Link to={`/drivers/${outqualified.driver_id}`}>
                         {outqualified.driver ?? outqualified.driver_id}
@@ -275,7 +280,7 @@ function RaceBody({ race, data, year, round }) {
                       entries.find((e) => e.driver_id === outqualified.driver_id)?.grid_text ?? '—'
                     }${race.sprint ? ', the grid set by the sprint' : ''}`,
                   },
-              scheduled ? null : { label: 'Fastest lap', value: nameList(fastest) },
+              scheduled ? null : { label: 'Fastest lap', kind: 'name', value: nameList(fastest) },
               {
                 label: 'Entries',
                 value: number(entries.length),
