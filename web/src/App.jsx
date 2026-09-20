@@ -21,6 +21,7 @@ import Circuit from './pages/Circuit.jsx'
 import Cars from './pages/Cars.jsx'
 import Car from './pages/Car.jsx'
 import Records from './pages/Records.jsx'
+import Changes from './pages/Changes.jsx'
 import Data from './pages/Data.jsx'
 import Eras from './pages/Eras.jsx'
 import Quality from './pages/Quality.jsx'
@@ -138,7 +139,8 @@ function Footer() {
             totals are counted from the race records wherever the records can support it, and an em
             dash means nobody has established that figure — never zero.{' '}
             <Link to="/data/quality">How far to trust it</Link> ·{' '}
-            <Link to="/data/sql">write your own query</Link>.
+            <Link to="/data/sql">write your own query</Link> ·{' '}
+            <Link to="/changes">what changed</Link>.
           </p>
           {/* The inbound channel. A reader who spots a wrong value is the
               adversarial cross-check this project cannot generate for itself,
@@ -250,6 +252,7 @@ function Chrome() {
           <Route path="/cars/:id" element={<Car />} />
           <Route path="/records" element={<Records />} />
           {/* The database's own front door, and the three pages about it. */}
+          <Route path="/changes" element={<Changes />} />
           <Route path="/data" element={<Data />} />
           <Route path="/data/quality" element={<Quality />} />
           <Route path="/data/sources" element={<Sources />} />
