@@ -18,6 +18,12 @@
  * the panels, and a chart drawing `base` would be drawing the one value
  * nothing checks against a background.
  *
+ * The pair renders the MARK'S LEAD, moved only far enough to clear that 3:1
+ * (AF-57). So this series and the mark for the same entry are the same
+ * colour to a reader - which is the whole of what a chart wearing a livery
+ * is for - and the recognition colour AF-45 established reaches the charts
+ * and not the marks alone.
+ *
  * With no colour the caller gets no class and no properties, and the chart's
  * own `seriesColour(0)` fallback stands - which is what a constructor with no
  * sourced livery and no recognised national colour gets.
