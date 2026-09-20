@@ -32,7 +32,7 @@ import {
 } from '../queries/driver.js'
 
 /**
- * Which two figures lead the strip (VD-28).
+ * Which figures lead the strip (VD-28).
  *
  * Emphasis is presentation, so it is added here rather than in
  * queries/driver.js: that module says what a cell SAYS, and scripts/prerender
@@ -43,11 +43,20 @@ import {
  * pages show four zeros - is PD-15 (#147), and is not decided here: this
  * ranks whatever the strip returns, and a lead tile that is not present is
  * simply not led.
+ *
+ * A ZERO NEVER LEADS. Those 625 pages are the reason: on a privateer's page
+ * "Wins" is 0, and leading it would set the one figure the driver does not
+ * have at twice the size of the seventeen entries he does - emphasis pointing
+ * at an absence. A strip with nothing to lead keeps the single rank it has
+ * always had, which is the right answer for a page where no figure stands
+ * out. `number()` groups thousands, so the test is for a digit that is not a
+ * zero rather than for the string '0'.
  */
 const LEAD_FIGURES = new Set(['Wins', 'Titles'])
 
-const leading = (items) =>
-  items.map((item) => (LEAD_FIGURES.has(item.label) ? { ...item, lead: true } : item))
+const worthLeading = (item) => LEAD_FIGURES.has(item.label) && /[1-9]/.test(String(item.value))
+
+const leading = (items) => items.map((item) => (worthLeading(item) ? { ...item, lead: true } : item))
 
 /**
  * What only the app adds to the shared column lists: links, the sort key

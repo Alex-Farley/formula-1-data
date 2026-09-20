@@ -778,6 +778,18 @@ try {
     })
     is(dashedWins, 0, 'no season dashes a wins figure the page knows is zero')
 
+    // VD-28: and the same zero does not LEAD the strip. Gabbiani's page is
+    // one of the 625 that show four of them; setting the win he never had at
+    // twice the size of the seventeen entries he did would point the emphasis
+    // at an absence. With nothing to lead, the strip keeps one rank.
+    const winless = await statStrip()
+    is(winless.lead.length, 0, 'a winless strip leads with nothing')
+    is(
+      new Set(winless.rest.map((t) => t.size)).size,
+      1,
+      'and so keeps the single rank it always had',
+    )
+
     /*
      * A declared oddity reaches the reader. The 2026 calendar says "Bahrain
      * (hosted at Sepang, Malaysia)" and the page showed a Bahrain Grand Prix at a
