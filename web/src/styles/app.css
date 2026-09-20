@@ -2493,6 +2493,31 @@ a.button.secondary:hover {
   margin: 0 0 22px;
 }
 
+/* A note under a heading, at the weight <Section> gives it. `.section > .note`
+   cannot reach the static page — there is no .section element here — so the
+   rule is restated for this one descendant rather than the class being left
+   unstyled, which is what prerender.js's points note has been. */
+#prerendered .note {
+  margin: 4px 0 12px;
+  font-size: 13.5px;
+}
+
+/* The photographs section (PD-19). figure.photo, .photo-grid, .pill and
+   .source-note are the app's own rules and reach the static page unchanged —
+   which is the point, since the reader is looking at this until the database
+   opens and should not watch the page change shape when it does. What is
+   missing is the spacing <Section> gives the app and the static page has no
+   component for, and a ceiling: the grid is auto-fill from 230px, so a page
+   with one photograph would otherwise stretch it across the full measure. */
+#prerendered .photo-grid {
+  margin: 0 0 14px;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 320px));
+}
+
+#prerendered .photo-grid + .source-note {
+  margin-bottom: 22px;
+}
+
 #prerendered .cards {
   list-style: none;
   display: flex;

@@ -90,3 +90,27 @@ export const NOT_HELD =
   'four empty tables, on purpose. Everything that is here may be passed on under the licence ' +
   'shown beside it; the pit stops and the qualifying times come from F1DB, whose CC BY 4.0 ' +
   'allows exactly that.'
+
+/**
+ * The photographs section, in the words both renderers use.
+ *
+ * Car.jsx wrote these two sentences and scripts/prerender.js now writes the
+ * same section into the static page (PD-19), so they live here for the same
+ * reason ENTRIES_NOTE does: a caveat that says one thing before the app loads
+ * and another after it is a caveat nobody can rely on.
+ *
+ * UNCHECKED_NOTE is a pair because the mark sits inside the sentence and each
+ * renderer draws it differently - the app as a <span className="pill">, the
+ * static page as the same span written out. Splitting the prose is what lets
+ * the prose itself be written once.
+ */
+export const PHOTOGRAPHS_NOTE =
+  'From Wikimedia Commons, each shown with the photographer and licence its terms require.'
+
+export const UNCHECKED_MARK = 'unchecked'
+
+export const UNCHECKED_NOTE = [
+  'A photograph marked',
+  'has a file name that does not name this car. Most are still the right car, filed under the ' +
+    'driver rather than the machine — but nobody has confirmed these one by one.',
+]

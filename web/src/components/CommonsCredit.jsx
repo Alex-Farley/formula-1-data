@@ -1,4 +1,5 @@
 import { attribution, fileTitle } from '../lib/commons.js'
+import { UNCHECKED_MARK } from '../lib/site.js'
 
 /**
  * The credit line for a Commons photograph.
@@ -33,7 +34,7 @@ export default function CommonsCredit({ image, className }) {
       ) : (
         licence
       )}
-      {image.name_matches === 0 && ' · unchecked'}
+      {image.name_matches === 0 && ` · ${UNCHECKED_MARK}`}
     </p>
   )
 }
