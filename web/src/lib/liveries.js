@@ -1421,6 +1421,36 @@ export function nationalEntry(country) {
   }
 }
 
+/**
+ * What a chart's colours ARE, for the note beside it (AF-55).
+ *
+ * Two different claims can share one chart, and only one of them is the
+ * team's: a livery from 2010 is the team's own, and a pre-1968 colour is the
+ * international racing convention, which painted a car for the country that
+ * entered it and is explicitly NOT the team's - `nationalEntry()`'s own
+ * claim, and what the driver and constructor asides say beside the same
+ * colour. A note that calls both "the team's colour" contradicts the rest of
+ * the site on the three constructors and nineteen careers where the only
+ * colours are national.
+ *
+ * Here rather than on a page, for the reason nationalEntry() is here: one
+ * construction, so two surfaces cannot describe the same colour differently.
+ * Takes the colourForEntry() results a chart actually drew - nulls and all,
+ * which are the marks drawn hollow and are described separately - and names
+ * whichever of the two kinds is present.
+ */
+export function colourSource(colours) {
+  const livery = colours.some((c) => c?.kind === 'livery')
+  const national = colours.some((c) => c?.kind === 'national')
+  if (livery && national) {
+    return "a livery of the team's own from 2010, and before 1968 the international racing colour of the country that entered the car rather than one of the team's"
+  }
+  if (national) {
+    return "the international racing colour of the country that entered the car, the convention that painted it for its country and not a livery of the team's own"
+  }
+  return "the team's own livery"
+}
+
 /** The clause that says whose word the primary's name is: the team's, or this file's reading of its sources. */
 export const liveryClaim = (livery) =>
   liveryPrimary(livery).named === true ? 'as the team names it' : 'as its sources describe it'

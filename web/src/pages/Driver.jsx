@@ -11,7 +11,7 @@ import DotPlot from '../charts/DotPlot.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { EMPTY, missing, points as fmtPoints, result } from '../lib/format.js'
 import { ENTRIES_NOTE } from '../lib/site.js'
-import { colourForEntry, lastTeamColour } from '../lib/liveries.js'
+import { colourForEntry, colourSource, lastTeamColour } from '../lib/liveries.js'
 import { canonicalCountry } from '../lib/racingColours.js'
 import {
   BY_SEASON,
@@ -245,7 +245,7 @@ function DriverBody({ driver, data }) {
             title={`${driver.full_name} in the drivers' championship`}
             note={`Final classified position at the end of each season. A season with points but no position is one the driver was excluded from, so there is nothing to plot. A season finished first is ringed. ${
               finishesInColour
-                ? `Each dot is in the colour of the team that season finished with, named in the table.${
+                ? `Each dot is coloured for the team that season finished with, named in the table: ${colourSource(plotted.map((s) => s.colour))}.${
                     finishesMixed
                       ? ' A hollow dot is a season this record holds no colour for: between 1968 and 2009 the national convention no longer described the grid and the liveries are not recorded here, so the dot names its team on hover rather than wearing one.'
                       : ''

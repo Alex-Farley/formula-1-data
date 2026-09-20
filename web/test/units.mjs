@@ -53,6 +53,7 @@ import {
   LIVERY_ERA,
   SPONSOR_ERA,
   colourForEntry,
+  colourSource,
   inColourEra,
   liveryAccents,
   liveryFor,
@@ -741,6 +742,39 @@ describe('colourForEntry routes a constructor-season by era (AF-04)', () => {
     assert.equal(liveryFor('mclaren', 2014).name, 'Chrome')
     assert.equal(liveryFor('red-bull', 2026).name, 'Heritage white')
     assert.equal(liveryFor('red-bull', 2025).name, 'Matte navy')
+  })
+  it('a chart note names the kind of colour it actually drew, and never calls the convention the team\'s (AF-55)', () => {
+    // The defect this exists to stop: a chart that mixes 2010+ liveries with
+    // pre-1968 national colours told the reader both were "the team's
+    // colour", on three of the fifteen constructors on /records and nineteen
+    // driver pages. nationalEntry() claims the opposite in the same breath -
+    // 'the convention, not the team's own livery' - so the note contradicted
+    // the tooltip beside it.
+    const livery = colourForEntry({ constructorId: 'ferrari', country: 'Italy', year: 2020, team: 'Ferrari' })
+    const national = colourForEntry({ constructorId: 'vanwall', country: 'United Kingdom', year: 1958, team: 'Vanwall' })
+    const gap = colourForEntry({ constructorId: 'brabham', country: 'United Kingdom', year: 1985, team: 'Brabham' })
+    assert.equal(livery.kind, 'livery')
+    assert.equal(national.kind, 'national')
+    assert.equal(gap, null)
+
+    // Liveries only: the team's own, and nothing about a convention the
+    // chart never drew.
+    assert.equal(colourSource([livery, livery]), "the team's own livery")
+    // National only: never "the team's", and it says whose it is.
+    assert.match(colourSource([national]), /country that entered the car/)
+    assert.doesNotMatch(colourSource([national]), /the team's own livery$/)
+    // Both: both named, and the national one still disclaimed.
+    const both = colourSource([livery, national])
+    assert.match(both, /livery of the team's own from 2010/)
+    assert.match(both, /rather than one of the team's$/)
+    // A hollow mark is a null in the list and changes none of the three
+    // answers - the note describes it in a clause of its own.
+    assert.equal(colourSource([livery, gap]), colourSource([livery]))
+    assert.equal(colourSource([national, gap]), colourSource([national]))
+    // No colour at all is the one case the sentence must never be printed
+    // for, and both callers guard it: Driver.jsx on finishesInColour and
+    // Records.jsx on bars.some(colour), each of which is false here.
+    assert.equal([gap, gap].some((c) => c), false)
   })
   it('a livery is a primary and its accents, and the pair renders the mark\'s lead (AF-15, AF-57)', () => {
     // The defect AF-15 names: Haas and Racing Bulls both raced white in

@@ -10,7 +10,7 @@ import BarChart from '../charts/BarChart.jsx'
 import LineChart from '../charts/LineChart.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { percent } from '../lib/format.js'
-import { colourForEntry } from '../lib/liveries.js'
+import { colourForEntry, colourSource } from '../lib/liveries.js'
 import {
   CONSTRUCTOR_WINS,
   DECADES,
@@ -217,7 +217,7 @@ function Body({ data }) {
           title="Most wins by constructor"
           note={`A constructor's win belongs to the car, so a shared drive counts once here and twice in the driver tables.${
             constructorBars.some((bar) => bar.colour)
-              ? ` Each bar is in the team's colour as of its last win, the year the table gives.${
+              ? ` Each bar is coloured for that constructor as of its last win, the year the table gives: ${colourSource(constructorBars.map((bar) => bar.colour))}.${
                   constructorBars.some((bar) => bar.hollow)
                     ? ' A hollow bar is a team this record holds no colour for: between 1968 and 2009 the national convention no longer described the grid and the liveries are not recorded here.'
                     : ''
