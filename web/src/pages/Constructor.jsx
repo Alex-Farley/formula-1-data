@@ -166,7 +166,13 @@ function ConstructorBody({ constructor, data }) {
               note: `${derived.seasons ?? 0} seasons`,
             },
             { label: 'Race entries', value: number(derived.entries) },
-            { label: 'Wins', value: number(derived.wins ?? 0) },
+            // VD-28: wins and the constructors' titles lead, the same two
+            // ranks the driver page takes and for the same reason - and, for
+            // the same reason, a zero does not lead: of the constructors in
+            // the register most never won, and leading their 0 would point
+            // the emphasis at what is not there. A strip with no lead keeps
+            // the one rank it always had.
+            { label: 'Wins', value: number(derived.wins ?? 0), lead: Number(derived.wins) > 0 },
             { label: 'Podiums', value: number(derived.podiums ?? 0) },
             { label: 'Poles', value: number(derived.poles ?? 0) },
             { label: 'Drivers', value: number(derived.drivers) },
@@ -175,6 +181,7 @@ function ConstructorBody({ constructor, data }) {
                   label: "Constructors' titles",
                   value: number(constructor.constructors_titles),
                   note: missing(constructor.title_years) ? undefined : yearList(constructor.title_years),
+                  lead: true,
                 }
               : null,
             constructor.drivers_titles

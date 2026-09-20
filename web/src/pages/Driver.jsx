@@ -32,6 +32,35 @@ import {
 } from '../queries/driver.js'
 
 /**
+ * Which figures lead the strip (VD-28).
+ *
+ * Emphasis is presentation, so it is added here rather than in
+ * queries/driver.js: that module says what a cell SAYS, and scripts/prerender
+ * reads the same list for a static facts table that has no ranks to give.
+ *
+ * Wins and titles are what a reader came for, and they are the two the
+ * critique named. Which figures a strip should carry AT ALL - 625 of 862
+ * pages show four zeros - is PD-15 (#147), and is not decided here: this
+ * ranks whatever the strip returns, and a lead tile that is not present is
+ * simply not led.
+ *
+ * A ZERO NEVER LEADS. Those 625 pages are the reason: on a privateer's page
+ * "Wins" is 0, and leading it would set the one figure the driver does not
+ * have at twice the size of the seventeen entries he does - emphasis pointing
+ * at an absence. A strip with nothing to lead keeps the single rank it has
+ * always had, which is the right answer for a page where no figure stands
+ * out. `number()` groups thousands, so the test is for a digit that is not a
+ * zero rather than for the string '0'; and it fails safe for everything else
+ * that could arrive here - an em dash carries no digit, and a value that was
+ * somehow an element stringifies to none either, so neither leads.
+ */
+const LEAD_FIGURES = new Set(['Wins', 'Titles'])
+
+const worthLeading = (item) => LEAD_FIGURES.has(item.label) && /[1-9]/.test(String(item.value))
+
+const leading = (items) => items.map((item) => (worthLeading(item) ? { ...item, lead: true } : item))
+
+/**
  * What only the app adds to the shared column lists: links, the sort key
  * behind a text column, and the markup a result wears. Everything a cell
  * SAYS is in queries/driver.js, read by scripts/prerender.js too.
@@ -198,7 +227,7 @@ function DriverBody({ driver, data }) {
       }
     >
       <Section>
-        <Stats items={strip(driver, derived)} />
+        <Stats items={leading(strip(driver, derived))} />
       </Section>
 
       {standings.length > 1 && (

@@ -300,6 +300,48 @@ try {
      * re-instantiate SQLite on every route, which is the whole reason this test
      * navigates in-app instead.
      */
+    /**
+     * The stat strip as it is laid out, for VD-28's three rules: a label
+     * never wraps, the figures share a baseline, and one or two lead.
+     *
+     * Read from the rendered box rather than from the stylesheet - the defect
+     * was a layout, not a declaration, and a rule that is written but loses to
+     * another would pass a test that only read the CSS.
+     */
+    const statStrip = async () =>
+      page.$eval('#root main .stats', (dl) => {
+        const tiles = [...dl.querySelectorAll(':scope > div')].map((el) => {
+          const dt = el.querySelector('dt')
+          const dd = el.querySelector('dd')
+          const style = getComputedStyle(dd)
+          return {
+            label: dt.textContent,
+            lead: el.hasAttribute('data-lead'),
+            kind: el.dataset.kind ?? null,
+            size: parseFloat(style.fontSize),
+            family: style.fontFamily,
+            lines: Math.round(dt.getBoundingClientRect().height / parseFloat(getComputedStyle(dt).lineHeight)),
+            row: Math.round(el.getBoundingClientRect().top),
+            ddTop: Math.round(dd.getBoundingClientRect().top),
+          }
+        })
+        // A strip wide enough for every tile has one row; a narrower one
+        // wraps, which is not a defect. The claim is per row: no figure sits
+        // below the figures beside it.
+        const rows = new Map()
+        for (const tile of tiles) rows.set(tile.row, [...(rows.get(tile.row) ?? []), tile])
+        return {
+          wrapped: tiles.filter((t) => t.lines > 1).map((t) => t.label),
+          misalignedRows: [...rows.values()]
+            .filter((row) => new Set(row.map((t) => t.ddTop)).size > 1)
+            .map((row) => row.map((t) => t.label).join(', ')),
+          lead: tiles.filter((t) => t.lead),
+          rest: tiles.filter((t) => !t.lead),
+          names: tiles.filter((t) => t.kind === 'name'),
+          figures: tiles.filter((t) => t.kind !== 'name'),
+        }
+      })
+
     const go = async (route, heading) => {
       // <main> is a stable node — only what Routes renders inside it changes — so
       // "an h2 exists" is still true of the page being NAVIGATED AWAY FROM, and
@@ -744,6 +786,21 @@ try {
     })
     is(dashedWins, 0, 'no season dashes a wins figure the page knows is zero')
 
+    // VD-28: and the same zero does not LEAD the strip. Gabbiani's page is
+    // one of the 625 that show four of them; setting the win he never had at
+    // twice the size of the seventeen entries he did would point the emphasis
+    // at an absence. With nothing to lead, the strip keeps one rank.
+    const winless = await statStrip()
+    is(winless.lead.length, 0, 'a winless strip leads with nothing')
+    // The size, not just its uniformity: a regression that ranked a strip
+    // with no lead and shrank every figure to the secondary 16px would
+    // satisfy "they all match" while losing the rank this page should keep.
+    is(
+      [...new Set(winless.rest.map((t) => t.size))].join('/'),
+      '25',
+      'and so keeps the single display rank it always had',
+    )
+
     /*
      * A declared oddity reaches the reader. The 2026 calendar says "Bahrain
      * (hosted at Sepang, Malaysia)" and the page showed a Bahrain Grand Prix at a
@@ -858,6 +915,25 @@ try {
     is(race[0], count('SELECT COUNT(*) FROM race_entries WHERE race_id = ?', raceId), 'classification entries')
     is(race[1], count('SELECT COUNT(*) FROM qualifying WHERE race_id = ?', raceId), 'qualifying entries')
 
+    // VD-28: most of a race page's tiles hold a name, not a figure. The
+    // display face is condensed and drawn for numerals, so a name set in it
+    // at the figure size reads as a headline - three of five tiles were
+    // underlined names in 22px display type. A name takes the sans face, and
+    // every tile that is not a name keeps the display face it had.
+    const strip = await statStrip()
+    truthy(strip.names.length >= 3, `${strip.names.length} tiles hold a name`)
+    is(
+      strip.names.filter((t) => /Condensed/.test(t.family)).map((t) => t.label).join(' · '),
+      '',
+      'a name is set in the sans face, not the display face',
+    )
+    is(
+      strip.figures.filter((t) => !/Condensed/.test(t.family)).map((t) => t.label).join(' · '),
+      '',
+      'a figure keeps the display face',
+    )
+    is(strip.wrapped.join(' · '), '', 'no stat label wraps')
+    is(strip.misalignedRows.join(' · '), '', 'no value sits below the values beside it')
   })
 
   await section('/races/1955/1  (a shared drive)', async () => {
@@ -1059,6 +1135,24 @@ try {
       'every Ferrari win is listed',
     )
 
+    // VD-28, and this page is where it was measured: eight tiles, and
+    // "Constructors' titles" took two lines for its label and dropped its own
+    // figure below every figure beside it. A shared top is the whole of the
+    // claim - a strip whose labels all fit on one line has nothing to drop.
+    const strip = await statStrip()
+    is(strip.wrapped.join(' · '), '', 'no stat label wraps')
+    // Per row, not per strip. A strip wide enough to hold every tile on one
+    // row proves the claim only while it stays that wide: add a title, or
+    // read the page at 1024, and a check on one shared top would fail for
+    // "the row wrapped" rather than for "a label wrapped", which is a
+    // different thing and not a defect. What VD-28 asks is that no figure
+    // drops below the figures BESIDE it.
+    is(strip.misalignedRows.join(' · '), '', 'no figure sits below the figures beside it')
+    truthy(strip.lead.length > 0 && strip.lead.length <= 2, `${strip.lead.length} figures lead, not eight`)
+    truthy(
+      Math.min(...strip.lead.map((t) => t.size)) > Math.max(...strip.rest.map((t) => t.size)),
+      'a lead figure is set larger than every figure that does not lead',
+    )
   })
 
   // -------------------------------------------------------------- circuits

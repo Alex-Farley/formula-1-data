@@ -236,6 +236,7 @@ function SeasonBody({ year, season, data }) {
   const nextTile = upcoming
     ? {
         label: 'Next session',
+        kind: 'name',
         value: <Link to={`/races/${year}/${upcoming.round}`}>{upcoming.name}</Link>,
         note: `${upcoming.name_used}, ${clock(upcoming.start_utc, upcoming.zone)} at the circuit, ${until(upcoming.start_utc, now)}`,
       }
@@ -272,6 +273,7 @@ function SeasonBody({ year, season, data }) {
               { label: 'Rounds', value: number(season.rounds), note: `${run} run` },
               {
                 label: 'Leads',
+                kind: 'name',
                 value: lead.entity_id ? <Link to={`/drivers/${lead.entity_id}`}>{lead.entity}</Link> : lead.entity,
                 note: `${fmtPoints(lead.points)} points`,
               },
@@ -282,6 +284,7 @@ function SeasonBody({ year, season, data }) {
               },
               {
                 label: "Constructors' leader",
+                kind: 'name',
                 value: teamLead ? (
                   teamLead.entity_id ? (
                     <Link to={`/constructors/${teamLead.entity_id}`}>{teamLead.entity}</Link>
@@ -304,6 +307,7 @@ function SeasonBody({ year, season, data }) {
               },
               {
                 label: "Drivers' champion",
+                kind: 'name',
                 value: season.drivers_champion ? (
                   <Link to={`/drivers/${season.drivers_champion}`}>{season.champion}</Link>
                 ) : notRun ? (
@@ -313,6 +317,7 @@ function SeasonBody({ year, season, data }) {
               },
               {
                 label: "Constructors' champion",
+                kind: 'name',
                 value: season.constructors_champion ? (
                   <Link to={`/constructors/${season.constructors_champion}`}>
                     {season.constructors_champion_name}
