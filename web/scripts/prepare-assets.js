@@ -251,6 +251,13 @@ writeFileSync(
     // browsers save rather than show, so the licence a reader followed a link
     // to would land in their downloads folder unopened. They change with the
     // build and are not digest-addressed, so they take no immutable rule.
+    // The feed's own media type. A .xml file is served as application/xml,
+    // which every feed reader accepts, but atom+xml is what the rel="alternate"
+    // link advertises and what a browser matches on when it offers to
+    // subscribe. prerender.js writes the file; this says what it is.
+    '/feed.xml',
+    '  Content-Type: application/atom+xml; charset=utf-8',
+    '',
     '/schema.sql',
     '  Content-Type: text/plain; charset=utf-8',
     '',

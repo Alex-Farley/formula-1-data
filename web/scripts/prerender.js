@@ -37,8 +37,8 @@
  *     rather than being left with an error panel and nothing else.
  *
  * Run after `vite build`, from web/. Reads ../f1.db and dist/index.html;
- * writes dist/<route>/index.html, dist/404.html, dist/sitemap.xml and
- * dist/robots.txt.
+ * writes dist/<route>/index.html, dist/404.html, dist/sitemap.xml,
+ * dist/feed.xml and dist/robots.txt.
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { deflateSync } from 'node:zlib'
@@ -85,6 +85,28 @@ import {
   titled,
 } from '../src/lib/site.js'
 import { EXPLAINED_FOOTER, OPEN_FOOTER, allExplained } from '../src/lib/disagreement.js'
+import {
+  CHANGES_DESCRIPTION,
+  CHANGES_LEDE,
+  CHANGES_TITLE,
+  CURRENT_HEADING,
+  CURRENT_NOTE,
+  FEED_FILE,
+  FEED_HEADING,
+  FEED_LINK_TEXT,
+  FEED_NOTE,
+  FEED_SUBTITLE,
+  FEED_TITLE,
+  HISTORY_HEADING,
+  HISTORY_NOTE,
+  RELEASES,
+  RELEASE_COLUMNS,
+  currentBuild,
+  entryId,
+  feedEntries,
+  feedRights,
+} from '../src/lib/changes.js'
+import { LATEST as CHANGES_LATEST, SHAPE as CHANGES_SHAPE } from '../src/queries/changes.js'
 import { markStyleAttr, winnerColour } from '../src/lib/liveries.js'
 import { RACE_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE } from '../src/queries/sessions.js'
 // The pages' own queries and column lists (PD-02). A page and this script
@@ -575,7 +597,7 @@ const chrome = (body, crumbs, citeUrl) => `
     }
   </main>
   <footer class="sitefoot"><div class="sitefoot-inner"><div>
-    <p>Every page here is a query against one SQLite file, running in your browser. ${link('data/quality', 'How far to trust it')} · ${link('data/sources', 'sources')} · ${link('data/sql', 'write your own query')}.</p>
+    <p>Every page here is a query against one SQLite file, running in your browser. ${link('data/quality', 'How far to trust it')} · ${link('data/sources', 'sources')} · ${link('data/sql', 'write your own query')} · ${link('changes', 'what changed')}.</p>
     <p>${esc(REPORT_ASK)} <a href="${esc(REPORT_URL)}">${esc(REPORT_LINK)}</a>. ${esc(REPORT_PROMISE)}</p>
     <p class="faint">Race data from <a href="https://github.com/f1db/f1db">F1DB</a> (CC BY 4.0), prose and registers from Wikipedia (CC BY-SA 4.0), circuit geometry © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL 1.0). ${esc(OUTLINE_CREDIT)}. Unaffiliated with Formula One, the FIA or any team.</p>
   </div><dl><dt>Database</dt><dd>v${esc(META.version)}</dd><dt>Built</dt><dd>${esc(META.built)}</dd></dl></div></footer>
@@ -2296,6 +2318,111 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
   })
 }
 
+// ----------------------------------------------------------------- changes
+//
+// SD-20: the harvest refreshed every morning and there was no way to learn
+// that it had. The facts an entry needs - the version, the build date, what
+// the file now holds - were computed daily and dropped. This is the page that
+// says so and the feed that carries it; lib/changes.js holds the record and
+// the reasoning behind what counts as an entry.
+{
+  const figures = one(CHANGES_SHAPE)
+  const latest = one(CHANGES_LATEST)
+  const now = currentBuild({ version: META.version, built: META.built, figures })
+  // The feed's entries and the table's rows are deliberately not the same
+  // list. The table is the release history - every tagged release, including
+  // the one the current build happens to be - and Changes.jsx renders exactly
+  // the same array, so the static page and the app agree row for row. The feed
+  // drops a release that IS the current build, because the current entry
+  // already carries that pair and a reader would otherwise be told twice.
+  const timeline = feedEntries(now)
+  const feedUrl = `${ORIGIN}${href(FEED_FILE)}`
+  const changesUrl = `${ORIGIN}${href('changes')}`
+
+  page({
+    path: 'changes',
+    title: titled(CHANGES_TITLE),
+    description: CHANGES_DESCRIPTION,
+    trail: [['', 'Home'], ['changes', CHANGES_TITLE]],
+    body: `
+      <h1>${esc(CHANGES_TITLE)}</h1>
+      <p class="lede">${esc(CHANGES_LEDE)}</p>
+      <h2>${esc(CURRENT_HEADING)}</h2>
+      ${facts([
+        ['Version', `v${esc(META.version)}`],
+        ['Built', esc(META.built)],
+        [
+          'Races',
+          `${figures.races_run.toLocaleString()} run, of ${figures.races.toLocaleString()} on the calendar`,
+        ],
+        [
+          'Most recent',
+          latest
+            ? `${link(`races/${latest.year}/${latest.round}`, latest.name_used)}, ${esc(latest.date_iso)}`
+            : null,
+        ],
+        ['Race entries', figures.entries.toLocaleString()],
+        ['Qualifying rows', figures.qualifying.toLocaleString()],
+        ['Drivers', figures.drivers.toLocaleString()],
+        ['Constructors', figures.constructors.toLocaleString()],
+        [
+          'Open disagreements',
+          link('data/quality', `${figures.open_discrepancies.toLocaleString()} recorded, not resolved`),
+        ],
+        ['Known gaps', link('data/quality', `${figures.open_gaps.toLocaleString()} stated`)],
+      ])}
+      ${note(CURRENT_NOTE)}
+      <h2>${esc(FEED_HEADING)}</h2>
+      <p>${esc(FEED_NOTE)} <a href="${esc(href(FEED_FILE))}">${esc(FEED_LINK_TEXT)}</a>.</p>
+      <h2>${esc(HISTORY_HEADING)}</h2>
+      ${fromColumns(RELEASE_COLUMNS, RELEASES)}
+      ${note(HISTORY_NOTE)}`,
+  })
+
+  /*
+   * The feed.
+   *
+   * Atom rather than RSS: an entry's `id` is required and is a plain string,
+   * which is what lets every entry point at the same page without a reader
+   * treating the history as one item it has already seen. `updated` must be a
+   * full RFC 3339 timestamp, and the dates here are days - the build date is a
+   * day by construction, since BUILT is a constant and not a clock [D-01] - so
+   * they are widened to midnight UTC rather than given a time nobody measured.
+   *
+   * Written here, beside the page it summarises, so a change to one is a
+   * change to the other in the same place.
+   */
+  const rfc3339 = (day) => `${day}T00:00:00Z`
+  const entry = (e) => `  <entry>
+    <title>${esc(e.title)}</title>
+    <id>${esc(entryId(e))}</id>
+    <updated>${esc(rfc3339(e.published))}</updated>
+    <link rel="alternate" type="text/html" href="${esc(changesUrl)}" />
+    <summary>${esc(
+      e.isCurrent
+        ? `Database v${e.version}, built ${e.built}: ${e.figures.races_run.toLocaleString()} races run of ${e.figures.races.toLocaleString()} on the calendar, ${e.figures.entries.toLocaleString()} race entries, ${e.figures.qualifying.toLocaleString()} qualifying rows, ${e.figures.open_discrepancies.toLocaleString()} open disagreements and ${e.figures.open_gaps.toLocaleString()} known gaps.`
+        : `Released ${e.published}, built ${e.built}.`,
+    )}</summary>
+  </entry>`
+
+  writeFileSync(
+    join(dist, FEED_FILE),
+    `<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>${esc(FEED_TITLE)}</title>
+  <subtitle>${esc(FEED_SUBTITLE)}</subtitle>
+  <id>${esc(`${ORIGIN}${href('')}`)}</id>
+  <link rel="self" type="application/atom+xml" href="${esc(feedUrl)}" />
+  <link rel="alternate" type="text/html" href="${esc(changesUrl)}" />
+  <updated>${esc(rfc3339(timeline[0].published))}</updated>
+  <author><name>${esc(SITE)}</name></author>
+  <rights>${esc(feedRights(`${ORIGIN}${href('data/sources')}`))}</rights>
+${timeline.map(entry).join('\n')}
+</feed>
+`,
+  )
+}
+
 // ------------------------------------------------------------------ write
 
 // index.html preloads ./db-manifest.json, which is right for the file Vite
@@ -2327,6 +2454,11 @@ const render = ({ path, title, description, jsonld, image = null, html }) => {
   const card = image ?? SITE_CARD
   const head = [
     `<link rel="canonical" href="${esc(url)}" />`,
+    // On every page, not only /changes: `rel="alternate"` is how a reader's
+    // browser and a feed reader find the subscription from wherever the reader
+    // happens to have arrived, which is the whole of the return path SD-20 is
+    // about. The title is what a reader shows in its subscribe prompt.
+    `<link rel="alternate" type="application/atom+xml" title="${esc(FEED_TITLE)}" href="${esc(`${ORIGIN}${href(FEED_FILE)}`)}" />`,
     `<meta property="og:type" content="website" />`,
     `<meta property="og:site_name" content="${esc(SITE)}" />`,
     `<meta property="og:title" content="${esc(title)}" />`,
@@ -2452,10 +2584,19 @@ writeFileSync(
 // crawler walking every index table. Each URL carries its own `lastmod`: the
 // date of the last race the page describes, or the build date where the page
 // describes no single entity. See `stamp()` and `LAST_RUN` above.
+// The feed is listed too. It is not a page, but it is an address a crawler
+// should know about and come back to, and its `lastmod` is the one date on the
+// site that moves whenever the data does - which is exactly the signal the rest
+// of this sitemap exists to give.
+const sitemapUrls = [
+  ...pages.map((p) => ({ loc: `${ORIGIN}${href(p.path)}`, lastmod: p.lastmod })),
+  { loc: `${ORIGIN}${href(FEED_FILE)}`, lastmod: BUILT },
+]
+
 writeFileSync(
   join(dist, 'sitemap.xml'),
-  `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${pages
-    .map((p) => `  <url><loc>${esc(`${ORIGIN}${href(p.path)}`)}</loc><lastmod>${esc(p.lastmod)}</lastmod></url>`)
+  `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${sitemapUrls
+    .map((u) => `  <url><loc>${esc(u.loc)}</loc><lastmod>${esc(u.lastmod)}</lastmod></url>`)
     .join('\n')}\n</urlset>\n`,
 )
 
@@ -2467,5 +2608,7 @@ writeFileSync(
 db.close()
 
 console.log(`  prerendered ${written.toLocaleString()} pages (${(bytes / 1024 / 1024).toFixed(1)} MB)`)
-console.log(`  dist/sitemap.xml, dist/robots.txt, dist/404.html, ${MOVED.length} redirecting pages`)
+console.log(
+  `  dist/sitemap.xml, dist/feed.xml, dist/robots.txt, dist/404.html, ${MOVED.length} redirecting pages`,
+)
 console.log(`  origin ${ORIGIN}${BASE}`)

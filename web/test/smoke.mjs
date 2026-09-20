@@ -1351,6 +1351,105 @@ try {
 
   })
 
+  /*
+   * SD-20: the return path. The feed is the one artefact here that no reader
+   * ever looks at directly - a feed reader does - so nothing but a test will
+   * notice it going wrong. What is checked is that it is well-formed, that its
+   * entry ids are unique (a repeated id is how a feed silently stops
+   * notifying), and that the entry for the current build carries the
+   * database's own figures rather than a copy that could drift.
+   */
+  await section('/changes  (what moved, and the feed)', async () => {
+    await go('/changes', 'What changed')
+
+    const meta = (key) => one('SELECT value FROM meta WHERE key = ?', key)
+    const shown = await page.$eval('#root main', (node) => node.textContent.replace(/\s+/g, ' '))
+    truthy(shown.includes(`v${meta('version')}`), `the app names the database it is running on (v${meta('version')})`)
+    truthy(shown.includes(meta('built')), `and the date it was built (${meta('built')})`)
+
+    const run = count(
+      'SELECT COUNT(*) FROM races r WHERE EXISTS (SELECT 1 FROM race_entries e WHERE e.race_id = r.id)',
+    )
+    truthy(shown.includes(run.toLocaleString()), `and how many races it holds the classification of (${run.toLocaleString()})`)
+
+    // The release table is a committed record, not a query, so the one thing
+    // worth checking is that the two renderers show the same rows: a release
+    // added to lib/changes.js reaches the app and the prerendered page alike.
+    //
+    // Compared cell by cell rather than by row count, and located by its own
+    // heading rather than by being the first table in the document, so that a
+    // table added above it moves neither the assertion nor its meaning.
+    const cells = (html) => {
+      const after = html.slice(html.indexOf('Released versions'))
+      const body = (after.match(/<tbody>[\s\S]*?<\/tbody>/) ?? [''])[0]
+      return [...body.matchAll(/<tr[\s\S]*?<\/tr>/g)].map((tr) =>
+        [...tr[0].matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/g)]
+          .map((td) => td[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim())
+          .join(' | '),
+      )
+    }
+    const staticCells = cells(await (await fetch(`${BASE}/changes`)).text())
+    const appCells = await page.$$eval('#root main table tbody tr', (trs) =>
+      trs.map((tr) =>
+        [...tr.querySelectorAll('td, th')]
+          .map((td) => td.textContent.replace(/\s+/g, ' ').trim())
+          .join(' | '),
+      ),
+    )
+    atLeast(staticCells.length, 1, 'the prerendered release table has rows')
+    is(
+      appCells.join('\n'),
+      staticCells.join('\n'),
+      'and the app shows the same releases, cell for cell',
+    )
+
+    // The feed.
+    const feed = await fetch(`${BASE}/feed.xml`)
+    is(feed.status, 200, 'the feed is served')
+    const xml = await feed.text()
+    truthy(xml.startsWith('<?xml'), 'and it is XML')
+    truthy(xml.includes('xmlns="http://www.w3.org/2005/Atom"'), 'and it is Atom')
+
+    const ids = [...xml.matchAll(/<id>([^<]+)<\/id>/g)].map((m) => m[1])
+    // One feed id plus one per entry; every one distinct, or a reader that has
+    // seen an entry once will never be told about its successor.
+    is(ids.length, new Set(ids).size, `every id in the feed is distinct (${ids.length})`)
+
+    const entries = xml.match(/<entry>/g) ?? []
+    atLeast(entries.length, 1, 'the feed has entries in it')
+    truthy(
+      xml.includes(`tag:lapledger.org,2026:db/${meta('version')}/${meta('built')}`),
+      'the current build has an entry of its own, keyed on the version and the build date',
+    )
+    truthy(
+      xml.includes(`${run.toLocaleString()} races run`),
+      'and its summary carries the figure the database gives, not a stored copy',
+    )
+
+    // Discoverable from anywhere, not only from /changes: the head link is
+    // what a browser and a feed reader look for, and it is on every page.
+    for (const route of ['/', '/drivers/senna', '/changes']) {
+      const html = await (await fetch(`${BASE}${route}`)).text()
+      truthy(
+        /<link rel="alternate" type="application\/atom\+xml"[^>]*href="[^"]*feed\.xml"/.test(html),
+        `${route} points a feed reader at the feed`,
+      )
+    }
+
+    const sitemap = await (await fetch(`${BASE}/sitemap.xml`)).text()
+    truthy(sitemap.includes('/feed.xml</loc>'), 'and the sitemap lists it')
+
+    // vite preview does not read _headers - Cloudflare does - so the rule is
+    // checked where it is written, as the download rules above are.
+    truthy(
+      /^\/feed\.xml\n  Content-Type: application\/atom\+xml/m.test(
+        readFileSync(join(here, '..', 'public', '_headers'), 'utf8'),
+      ),
+      'and _headers serves it as atom+xml rather than as plain XML',
+    )
+
+  })
+
   await section('/reference/glossary', async () => {
     await go('/reference/glossary', 'Glossary')
     is((await tableRows())[0], count('SELECT COUNT(*) FROM glossary'), 'glossary terms')
@@ -2025,7 +2124,11 @@ try {
       1 + one(`SELECT COUNT(*) FROM (
                SELECT id FROM chassis UNION SELECT id FROM cars
              )`) +
-      7 // records, data and its three children, eras, glossary
+      8 + // records, data and its three children, eras, glossary, changes
+      // SD-20: feed.xml is listed too. It is not a page, but it is an address
+      // worth recrawling, and its lastmod is the one on the site that moves
+      // whenever the data does.
+      1
     is(urls, expected, 'the sitemap lists every page the database implies')
     truthy(
       sitemap.includes('/data/quality</loc>') && !sitemap.includes('/reference/quality') && !sitemap.includes('/reference</loc>'),
