@@ -636,17 +636,23 @@ const LAST_RUN = {
        FROM race_entries e JOIN races r ON r.id = e.race_id
       WHERE r.date_iso <= ? AND e.constructor_id IS NOT NULL GROUP BY e.constructor_id`,
   ),
-  // /cars/<id> resolves against either a chassis id or a curated car id, and
-  // an entry carries both, so the two columns are one lookup here for the
-  // same reason the sitemap count unions them.
+  // /cars/<id> is one route over two registers, and which entries a page
+  // shows is not `race_entries.car_id`: `ENTRIES` in queries/car.js resolves
+  // the id through `chassis` — one chassis where the id is a chassis, every
+  // chassis of the design where it is a curated car no chassis shares an id
+  // with — and the join below is that same resolution. Keying on the entry's
+  // own columns instead dated six pages by a race they do not show, three of
+  // them by a later car of the same lineage.
   car: runDates(
-    `SELECT id AS key, MAX(date_iso) AS d FROM (
-       SELECT e.car_id AS id, r.date_iso AS date_iso
-         FROM race_entries e JOIN races r ON r.id = e.race_id
-       UNION ALL
-       SELECT e.chassis_id, r.date_iso
-         FROM race_entries e JOIN races r ON r.id = e.race_id
-     ) WHERE id IS NOT NULL AND date_iso <= ? GROUP BY id`,
+    `SELECT p.id AS key, MAX(r.date_iso) AS d
+       FROM (SELECT id FROM chassis UNION SELECT id FROM cars) p
+       JOIN chassis ch
+         ON ch.id = p.id
+         OR (ch.car_id = p.id AND NOT EXISTS (SELECT 1 FROM chassis x WHERE x.id = p.id))
+       JOIN race_entries e ON e.chassis_id = ch.id
+       JOIN races r ON r.id = e.race_id
+      WHERE r.date_iso <= ?
+      GROUP BY p.id`,
   ),
 }
 

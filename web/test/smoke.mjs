@@ -51,7 +51,7 @@ import { NOT_YET_RUN, SO_FAR } from '../src/lib/site.js'
 // The rule that decides who is credited and whether a file may be shown at
 // all — asked of the served HTML below rather than restated in it.
 import { attribution, canShow, fileTitle } from '../src/lib/commons.js'
-import { IMAGES as CAR_IMAGES } from '../src/queries/car.js'
+import { ENTRIES as CAR_ENTRIES, IMAGES as CAR_IMAGES } from '../src/queries/car.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const web = join(here, '..')
@@ -1772,6 +1772,41 @@ try {
     truthy(
       stamps.some(([loc, d]) => loc.endsWith('/drivers') && d === builtOn),
       'an index page, which describes no one entity, keeps the build date',
+    )
+
+    /*
+     * A page's date has to come from what the page shows, and for /cars/<id>
+     * that is not `race_entries.car_id`: `ENTRIES` resolves the id through
+     * `chassis`, so a curated car covers every chassis of the design and a
+     * chassis covers only itself. Dating them off the entry's own columns put
+     * six pages on a race they do not render, three of them on a later car of
+     * the same lineage. This asks every car page the question its own table
+     * answers.
+     */
+    const raceDates = new Map(
+      db
+        .prepare('SELECT year, round, date_iso FROM races')
+        .all()
+        .map((r) => [`${r.year}/${r.round}`, r.date_iso]),
+    )
+    const carEntries = db.prepare(CAR_ENTRIES)
+    const misdated = []
+    for (const [loc, d] of stamps) {
+      const id = loc.match(/\/cars\/([^/]+)$/)?.[1]
+      if (!id) continue
+      const shown = carEntries
+        .all(id)
+        .map((e) => raceDates.get(`${e.year}/${e.round}`))
+        .filter((date) => date && date <= builtOn)
+        .sort()
+      const expect = shown.at(-1) ?? builtOn
+      if (d !== expect) misdated.push(`${id} ${d} not ${expect}`)
+    }
+    truthy(
+      misdated.length === 0,
+      `every car page is dated by the newest entry its own query shows${
+        misdated.length ? ` — ${misdated.slice(0, 5).join('; ')}` : ''
+      }`,
     )
 
     truthy((await fetch(`${BASE}/robots.txt`).then((r) => r.text())).includes('Sitemap:'), 'robots.txt points at it')
