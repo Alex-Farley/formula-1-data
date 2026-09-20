@@ -3,9 +3,11 @@ import { Confidence, Fields, Note, Onward, Page, Section, Stats } from '../compo
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { OutlineCard } from '../components/Outline.jsx'
+import LiveryMark from '../components/LiveryMark.jsx'
 import { currentProgress } from '../data/client.js'
 import { rows, row as firstRow, useQueries } from '../data/useQuery.js'
 import { number, span } from '../lib/format.js'
+import { colourForEntry } from '../lib/liveries.js'
 import { OUTLINE_FIGURES_NOTE, OUTLINE_RULE, OUTLINE_SCALE_NOTE, outlineCaption } from '../lib/outline.js'
 import { TRACE_NOT_LOADED, TRACE_RULE, noTrace, odblCredit } from '../lib/trace.js'
 
@@ -35,10 +37,28 @@ const WINNER_APP = {
   first_win: { sort: (row) => row.first_win },
 }
 const TEAM_APP = {
+  // The winning team's colour mark (AF-52): a constructor is the subject of
+  // this row under clause 1 of AF-47. The row covers every season the team
+  // won here, so the mark takes the last of them - `last_win`, which the
+  // view already carries - under the site's rule for a subject spanning
+  // seasons.
   constructor: {
-    render: (name, row) =>
-      row.constructor_id ? <Link to={`/constructors/${row.constructor_id}`}>{name}</Link> : cell(name),
+    render: (name, row) => (
+      <>
+        <LiveryMark
+          colour={colourForEntry({
+            constructorId: row.constructor_id,
+            country: row.constructor_country,
+            year: row.last_win,
+            team: name,
+          })}
+          year={row.last_win}
+        />
+        {row.constructor_id ? <Link to={`/constructors/${row.constructor_id}`}>{name}</Link> : cell(name)}
+      </>
+    ),
   },
+  first_win: { sort: (row) => row.first_win },
 }
 const RACE_APP = {
   year: { render: (year) => <Link to={`/seasons/${year}`}>{year}</Link> },

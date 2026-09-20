@@ -86,9 +86,21 @@ export const WINNERS = `
    ORDER BY wins DESC, driver
 `
 
+/**
+ * One row per constructor that has won here, most wins first.
+ *
+ * The join is for the constructor's country, which the pre-1968 national
+ * colour needs and the view does not carry (AF-52). The view's own
+ * `last_win` is the season the mark is drawn for - the site's rule for a
+ * subject spanning seasons is the last one - so nothing here needs a
+ * correlated MAX and `schema.sql` is untouched.
+ */
 export const TEAMS = `
-  SELECT * FROM v_circuit_constructors WHERE circuit_id = ?
-   ORDER BY wins DESC, constructor
+  SELECT v.*, k.country AS constructor_country
+    FROM v_circuit_constructors v
+    LEFT JOIN constructors k ON k.id = v.constructor_id
+   WHERE v.circuit_id = ?
+   ORDER BY v.wins DESC, v.constructor
 `
 
 /** The winner, or "not yet run" for a race still on the calendar. */
@@ -108,7 +120,13 @@ export const WINNER_COLUMNS = [
   { key: 'first_win', label: 'Span', align: 'num', text: (_, row) => span(row.first_win, row.last_win) },
 ]
 
+// The span the WINNERS table above already prints for a driver, and this
+// one did not for a constructor. AF-52's mark takes `last_win` and its
+// tooltip names that season, so the row has to show it: a mark whose claim
+// a reader cannot check against the row is the one thing this site does not
+// do. The column is the same construction as WINNER_COLUMNS's.
 export const TEAM_COLUMNS = [
   { key: 'constructor', label: 'Constructor' },
   { key: 'wins', label: 'Wins', align: 'num' },
+  { key: 'first_win', label: 'Span', align: 'num', text: (_, row) => span(row.first_win, row.last_win) },
 ]

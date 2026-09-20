@@ -3,8 +3,10 @@ import { Confidence, Fields, Note, Onward, Page, Section, Stats } from '../compo
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import CommonsImage from '../components/CommonsImage.jsx'
+import LiveryMark from '../components/LiveryMark.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { missing, number, span } from '../lib/format.js'
+import { colourForEntry } from '../lib/liveries.js'
 import {
   AMBIGUOUS_COLUMNS,
   AMBIGUOUS_FOOTER,
@@ -284,7 +286,30 @@ function CarBody({ chassis, variants, data }) {
       <Section title="On the record">
         <Fields
           items={[
-            { label: 'Constructor', value: chassis.constructor_id ? <Link to={`/constructors/${chassis.constructor_id}`}>{chassis.constructor}</Link> : null },
+            // The builder's colour mark (AF-51), for the last season this
+            // PAGE covers - `raced[1]`, the same figure the "Raced" stat
+            // prints. `chassis` is variants[0], so reading its `last_year`
+            // would take the first variant's last season and contradict the
+            // span shown above it. No `year` is passed:
+            // LiveryMark's spacer exists to keep a table column's names
+            // aligned, and a field list has no column to align, so a season
+            // with no colour draws nothing rather than an indent.
+            {
+              label: 'Constructor',
+              value: chassis.constructor_id ? (
+                <>
+                  <LiveryMark
+                    colour={colourForEntry({
+                      constructorId: chassis.constructor_id,
+                      country: chassis.constructor_country,
+                      year: raced[1],
+                      team: chassis.constructor,
+                    })}
+                  />
+                  <Link to={`/constructors/${chassis.constructor_id}`}>{chassis.constructor}</Link>
+                </>
+              ) : null,
+            },
             { label: 'Predecessor', value: chassis.predecessor },
             { label: 'Successor', value: chassis.successor },
             { label: 'Races (published)', value: number(chassis.published_races) },

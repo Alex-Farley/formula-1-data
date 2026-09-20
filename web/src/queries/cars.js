@@ -46,6 +46,7 @@ export const GALLERY_COLUMNS = [
  */
 export const CHASSIS = `
   SELECT ch.id, ch.name, ch.full_name, ch.constructor_id, k.name AS constructor,
+         k.country AS constructor_country,
          ch.first_year, ch.last_year, ch.engine_name, ch.chassis_type,
          ch.power_bhp, ch.wheelbase_mm, ch.weight_kg,
          ch.races, ch.wins, ch.published_wins, ch.car_id, ch.article, ch.confidence,
