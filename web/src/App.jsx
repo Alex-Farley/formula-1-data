@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { BrowserRouter, Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import Boot from './components/Boot.jsx'
 import Search from './components/Search.jsx'
@@ -67,10 +67,27 @@ function Wordmark() {
   )
 }
 
-/** Send the reader to the top when the route changes, as a page load would. */
+/**
+ * Send the reader to the top when the route changes, as a page load would —
+ * and never on the app's own first render.
+ *
+ * Boot renders this only once the database is open, which is the same instant
+ * main.jsx's handOver() removes the prerendered page and puts back the offset
+ * it read just before. The first effect ran against the app's first pathname
+ * and raced that restore; on the circuit pages the reset won, so a reader
+ * thirteen seconds into a 7,000 px page was returned to y = 0 by an event
+ * they did not cause, four runs out of four. The app's own mount is not a
+ * route change, and saying so leaves the handover's restore as the only thing
+ * touching the scroll at that moment.
+ */
 function ScrollToTop() {
   const { pathname } = useLocation()
+  const first = useRef(true)
   useEffect(() => {
+    if (first.current) {
+      first.current = false
+      return
+    }
     window.scrollTo(0, 0)
   }, [pathname])
   return null
@@ -154,6 +171,20 @@ function Chrome() {
   return (
     <div className="app">
       <ScrollToTop />
+      {/* The wordmark, eight section links, the search trigger and the theme
+          toggle are eleven tab stops, and they stood in front of the content
+          of every page. WCAG 2.4.1 was already satisfied by the landmarks,
+          which is a bypass only for a reader who has a screen reader to move
+          between them; this is the one for everybody else. It is the first
+          element in the document, it is invisible until it takes focus, and
+          it moves focus INTO <main> rather than only scrolling there — a
+          fragment link that lands on a non-focusable target leaves the next
+          Tab back at the wordmark, which is the bug rather than the fix.
+          scripts/prerender.js writes the same link and the same target into
+          the static page, so a cold arrival is not the exception. */}
+      <a className="skiplink" href="#main">
+        Skip to content
+      </a>
       <header className="masthead">
         <div className="masthead-inner">
           <Wordmark />
@@ -173,7 +204,7 @@ function Chrome() {
         </div>
       </header>
 
-      <main>
+      <main id="main" tabIndex={-1}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/seasons" element={<Seasons />} />

@@ -379,6 +379,102 @@ try {
 
   })
 
+  // -------------------------------------------------------------- landing
+
+  /**
+   * Where a reader lands, in the three moments that decide it: the offset the
+   * handover puts back, the focus a client-side navigation moves, and the way
+   * into the content that skips the header.
+   *
+   * A fresh page is a fresh IndexedDB, so the database is fetched again and
+   * the handover window is wide enough to read inside. The init script holds
+   * the reader at y = 1500 for exactly as long as the static page is there and
+   * lets go the instant it is removed - a reader who scrolled once and then
+   * stopped, without this test having to guess when 'ready' arrives.
+   */
+  await section('Landing  (the offset, the focus and the skip link)', async () => {
+    const held = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    await held.addInitScript(() => {
+      const hold = () => {
+        if (!document.getElementById('prerendered')) return
+        window.scrollTo(0, 1500)
+        requestAnimationFrame(hold)
+      }
+      requestAnimationFrame(hold)
+    })
+    await held.goto(`${BASE}/circuits/monza`, { waitUntil: 'domcontentloaded' })
+    await held.waitForSelector('#root main h1', { timeout: 60000 })
+    await held.waitForFunction(() => !document.getElementById('prerendered'), null, { timeout: 60000 })
+    // handOver() restores after two frames, so read after three and a beat -
+    // polling would accept a value that the route-change reset then undid,
+    // which is the failure this is here to catch.
+    await held.evaluate(
+      () =>
+        new Promise((done) =>
+          requestAnimationFrame(() =>
+            requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(done, 250))),
+          ),
+        ),
+    )
+    atLeast(
+      await held.evaluate(() => window.scrollY),
+      1000,
+      'the handover leaves the reader where they were reading, not at the top of the page',
+    )
+
+    // /circuits renders a different component from /circuits/monza, so React
+    // unmounts Page and mounts a new one. That is the navigation a per-instance
+    // guard could not tell from the arrival, and it is every navigation out of
+    // an index.
+    await held.evaluate(() => {
+      window.history.pushState({}, '', '/circuits')
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    })
+    await held.waitForFunction(
+      () => document.querySelector('#root main h1')?.textContent.includes('Circuits'),
+      null,
+      { timeout: 20000 },
+    )
+    truthy(
+      await held
+        .waitForFunction(() => document.activeElement === document.querySelector('#root main h1'), null, {
+          timeout: 5000,
+        })
+        .then(() => true)
+        .catch(() => false),
+      'an in-app navigation moves focus to the new page\'s heading, not to <body>',
+    )
+
+    // Document order rather than a Tab press: the handover and every
+    // navigation leave focus on the h1, so Tab from there runs FORWARD out of
+    // the heading and never reaches a link that sits above it. What has to be
+    // true is that a reader at the top of the document meets this first.
+    is(
+      await held.evaluate(
+        () =>
+          document.querySelector(
+            'a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])',
+          )?.className ?? '',
+      ),
+      'skiplink',
+      'the skip link is the first focusable thing in the document, before the wordmark',
+    )
+    await held.evaluate(() => document.querySelector('.skiplink').focus())
+    truthy(
+      await held.evaluate(() => {
+        const box = document.querySelector('.skiplink').getBoundingClientRect()
+        return box.width > 40 && box.height > 20 && box.top >= 0 && box.bottom < window.innerHeight
+      }),
+      'and is drawn on screen once it has focus, rather than staying hidden where it cannot be used',
+    )
+    await held.keyboard.press('Enter')
+    truthy(
+      await held.evaluate(() => document.activeElement === document.querySelector('#root main')),
+      'and taking it puts focus inside <main>, past the eleven header stops',
+    )
+    await held.close()
+  })
+
   // ------------------------------------------------------------------ home
 
   await section('/  (overview)', async () => {
@@ -1715,6 +1811,13 @@ try {
       await plain.$$eval('#prerendered a[href^="/"]', (n) => n.length),
       20,
       'and links onward, so a crawler has somewhere to go',
+    )
+    truthy(
+      await plain.$eval(
+        '#prerendered .skiplink',
+        (node) => node.getAttribute('href') === '#main' && Boolean(node.closest('.app')?.querySelector('main#main')),
+      ),
+      'and offers the same skip link, to the same target, without JavaScript',
     )
     await noJs.close()
 

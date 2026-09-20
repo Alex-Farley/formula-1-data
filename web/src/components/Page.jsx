@@ -85,16 +85,29 @@ export function Page({ eyebrow, title, lede, back, aside, children, cite = true 
  * screen reader said nothing and the next Tab started at the wordmark -
  * eleven stops before the content, on every hop of a driver -> team -> car
  * journey. Focusing the new page's h1 is what a page load would have done.
- * Not on first mount: that is the handover from the prerendered page, and
- * moving focus there is a separate decision (AX-01).
+ * Not on the arrival: that is the handover from the prerendered page, where
+ * main.jsx focuses this same heading itself once the static page is gone.
+ *
+ * The flag is module-scoped because the guard has to outlive the component,
+ * and a useRef does not. Two routes are two different component types, so
+ * React unmounts the old Page and mounts a new one - `useRef(true)` was
+ * therefore true AGAIN on every navigation that changed page type, which is
+ * every navigation out of an index: /circuits -> /circuits/albert-park sent
+ * focus to <body> with the code to prevent it sitting in this file. Only the
+ * app's first Page is the arrival; every Page after it is a navigation.
+ *
+ * In dev, StrictMode runs that first effect twice and the second pass focuses
+ * the arrival's heading - which is what handOver() does in a build anyway, so
+ * the two agree rather than diverging where nobody is testing.
  */
+let landed = false
+
 function useFocusOnNavigation() {
   const { pathname } = useLocation()
   const ref = useRef(null)
-  const first = useRef(true)
   useEffect(() => {
-    if (first.current) {
-      first.current = false
+    if (!landed) {
+      landed = true
       return
     }
     ref.current?.focus({ preventScroll: true })
