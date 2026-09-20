@@ -5,6 +5,7 @@ import Search from './components/Search.jsx'
 import ThemeToggle from './components/Theme.jsx'
 import { currentProgress } from './data/client.js'
 import { OUTLINE_CREDIT } from './lib/outline.js'
+import { REPORT_ASK, REPORT_LINK, REPORT_PROMISE, REPORT_URL } from './lib/site.js'
 
 import Home from './pages/Home.jsx'
 import Seasons from './pages/Seasons.jsx'
@@ -138,6 +139,15 @@ function Footer() {
             dash means nobody has established that figure — never zero.{' '}
             <Link to="/data/quality">How far to trust it</Link> ·{' '}
             <Link to="/data/sql">write your own query</Link>.
+          </p>
+          {/* The inbound channel. A reader who spots a wrong value is the
+              adversarial cross-check this project cannot generate for itself,
+              and until now the site gave them nowhere to say so - no contact,
+              no report link, and an invisible issue tracker nobody had ever
+              opened an issue in. The promise is deliberately small and true:
+              a disagreement is recorded, not resolved by picking a side. */}
+          <p>
+            {REPORT_ASK} <a href={REPORT_URL}>{REPORT_LINK}</a>. {REPORT_PROMISE}
           </p>
           <p className="faint">
             Race data from <a href="https://github.com/f1db/f1db">F1DB</a> (CC BY 4.0), prose and

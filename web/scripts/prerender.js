@@ -59,13 +59,22 @@ import { finished, missing, result, span, text as formatted, yearList } from '..
 import { attribution, canShow, fileTitle, thumbUrl } from '../src/lib/commons.js'
 import {
   CROSS_CHECKED,
+  DOCUMENTS,
+  DOCUMENTS_NOTE,
   ENTRIES_NOTE,
   citation,
   LANDMARK,
   NOT_HELD,
   NOT_YET_RUN,
   PHOTOGRAPHS_NOTE,
+  REPORT_ASK,
+  REPORT_LINK,
+  REPORT_PROMISE,
+  REPORT_URL,
+  REPOSITORY,
   SELF_DESCRIBING,
+  SETTLE_ASK,
+  SETTLE_LINK,
   SHARED,
   SITE,
   SO_FAR,
@@ -517,7 +526,9 @@ const disagree = (rows, what) => {
       .join('')}</dl>
     <p class="source-note">${
       explained ? EXPLAINED_FOOTER : OPEN_FOOTER
-    }${link('data/quality', 'the quality page')}.</p>
+    }${link('data/quality', 'the quality page')}.${
+      explained ? '' : ` ${esc(SETTLE_ASK)}<a href="${esc(REPORT_URL)}">${esc(SETTLE_LINK)}</a>.`
+    }</p>
   </aside>`
 }
 
@@ -565,6 +576,7 @@ const chrome = (body, crumbs, citeUrl) => `
   </main>
   <footer class="sitefoot"><div class="sitefoot-inner"><div>
     <p>Every page here is a query against one SQLite file, running in your browser. ${link('data/quality', 'How far to trust it')} · ${link('data/sources', 'sources')} · ${link('data/sql', 'write your own query')}.</p>
+    <p>${esc(REPORT_ASK)} <a href="${esc(REPORT_URL)}">${esc(REPORT_LINK)}</a>. ${esc(REPORT_PROMISE)}</p>
     <p class="faint">Race data from <a href="https://github.com/f1db/f1db">F1DB</a> (CC BY 4.0), prose and registers from Wikipedia (CC BY-SA 4.0), circuit geometry © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL 1.0). ${esc(OUTLINE_CREDIT)}. Unaffiliated with Formula One, the FIA or any team.</p>
   </div><dl><dt>Database</dt><dd>v${esc(META.version)}</dd><dt>Built</dt><dd>${esc(META.built)}</dd></dl></div></footer>
 </div>`
@@ -2171,6 +2183,13 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
       <p class="faint">Two JSON exports — <code>f1_database.json.gz</code>, every table, and
         <code>f1_compat.json</code>, the original v1 key layout — are written by the same build
         and travel with each release rather than being served from here.</p>
+      <h2>What explains it</h2>
+      <ul class="cards">
+        ${DOCUMENTS.map(([file, what]) => `<li><a href="${esc(href(file))}"><code>${esc(file)}</code></a> — ${esc(what)}</li>`).join('')}
+      </ul>
+      <p>${esc(DOCUMENTS_NOTE)} <a href="${esc(REPOSITORY)}">The repository</a> holds the build, the
+        checks that gate it and the source data they read, so the cross-checking claimed above can
+        be read rather than taken on trust.</p>
       <h2>How far to trust it</h2>
       ${facts([
         ['Disagreements on record', `${shape.discrepancies.toLocaleString()}, ${shape.open_discrepancies.toLocaleString()} still open`],

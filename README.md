@@ -25,7 +25,7 @@ what has landed and what was declined, with the reason, is in
 [`docs/LANDED.md`](docs/LANDED.md).
 
 ```bash
-git clone <your-repo-url> && cd f1db
+git clone https://github.com/Alex-Farley/formula-1-data.git && cd formula-1-data
 make all          # rebuild, verify, export — no dependencies
 ./f1              # list the query commands
 ./f1 car mp4/4
@@ -55,7 +55,7 @@ here is a number the build checked.
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
 | `f1_compat.json` | JSON in the *original* v1 key layout, so anything already consuming that file keeps working. |
-| `schema.sql` | The schema, commented. |
+| `schema.sql` | The schema, commented. Served at `lapledger.org/schema.sql`, so a downloader can read what the tables mean. |
 | `build.py` | Rebuilds `f1.db` and `f1-geometry.db` from the data modules. Idempotent, and byte-for-byte reproducible. <!-- fig:stages -->36<!-- /fig --> named stages; `STAGES` is the schedule. |
 | `verify.py` | Integrity, cross-tabulation and sanity checks on the DATA. Exit code 1 on failure. |
 | `tests/` | Unit tests for the CODE — name matching, lap-closure arithmetic — plus `test_conventions.py`, the reviewer checklists' mechanical items as tests, and `test_verify_refuses.py`, the licence gate shown refusing each thing it exists to refuse. `make test`, stdlib only. |
@@ -89,7 +89,8 @@ here is a number the build checked.
 | `docs/LANDED.md` | What has landed and what was declined, with the reason. The open queue is GitHub Issues. |
 | `docs/LOCAL-SETUP.md` | Getting `/backlog-loop` running on your own machine, from nothing. |
 | `CONTRIBUTING.md` | How to add data without breaking the checks. Read before editing. |
-| `ATTRIBUTION.md` | Where the data came from, and the licensing that follows from it. **Read before making this public.** |
+| `ATTRIBUTION.md` | Where the data came from, and the licensing that follows from it. Served at `lapledger.org/ATTRIBUTION.md`, beside the data it covers. |
+| `LICENSE-DATA`, `LICENSE` | The terms the data is offered under (CC BY-SA 4.0) and the terms the code is. `LICENSE-DATA` is served at `lapledger.org/LICENSE-DATA`. |
 | `Makefile` | `make all` = build, regenerate the README figures, verify, export. |
 | `requirements.txt` | Empty for the database itself; `fastf1` only for the loader. |
 
@@ -98,6 +99,16 @@ Workflow for any change: edit `data/*.py` → `python3 build.py` → `python3 ve
 
 **No dependencies.** Everything except `tools/fastf1_load.py` is Python 3.9+
 standard library.
+
+**What the site publishes.** lapledger.org serves `f1.db`, `f1-geometry.db`
+and `f1-parquet.zip`, and beside them the three documents that explain them:
+`schema.sql`, `ATTRIBUTION.md` and `LICENSE-DATA`. The obligation follows the
+file rather than the repository, so a licence notice has to be reachable from
+where the data was taken — `web/scripts/prepare-assets.js` stages all three
+and refuses to build without them. Found something wrong in the data? Open an
+issue: two sources that disagree are recorded in `discrepancies` and published
+rather than quietly reconciled, and a fact nobody has established goes in
+`known_gaps`.
 
 ---
 

@@ -5,7 +5,15 @@ import SubNav from '../components/SubNav.jsx'
 import { currentProgress } from '../data/client.js'
 import { row, rows, useQueries } from '../data/useQuery.js'
 import { number } from '../lib/format.js'
-import { CROSS_CHECKED, NOT_HELD, SELF_DESCRIBING, TWO_FILES } from '../lib/site.js'
+import {
+  CROSS_CHECKED,
+  DOCUMENTS,
+  DOCUMENTS_NOTE,
+  NOT_HELD,
+  REPOSITORY,
+  SELF_DESCRIBING,
+  TWO_FILES,
+} from '../lib/site.js'
 
 /**
  * The database's front door.
@@ -166,6 +174,28 @@ function Body({ data }) {
             page loaded the database by. The full digests ship as SHA256SUMS with each release.
           </p>
         )}
+      </Section>
+
+      <Section
+        title="What explains it"
+        note="The schema, the attribution and the terms, served from here beside the files they describe."
+      >
+        <div className="board">
+          {DOCUMENTS.map(([file, what]) => (
+            <a key={file} href={`${base}${file}`}>
+              <b>
+                {file}
+                <span className="n">{file.endsWith('.sql') ? 'SQL' : 'Text'}</span>
+              </b>
+              <p>{what}</p>
+            </a>
+          ))}
+        </div>
+        <p className="measure" style={{ marginTop: 18 }}>
+          {DOCUMENTS_NOTE} <a href={REPOSITORY}>The repository</a> holds the build, the checks that
+          gate it and the source data they read, so the cross-checking claimed above can be read
+          rather than taken on trust.
+        </p>
       </Section>
 
       <Section

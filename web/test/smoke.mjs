@@ -47,7 +47,7 @@ import { fileURLToPath } from 'node:url'
 // The heading rule and the cell marks both renderers share, so the checks
 // below ask for the strings the pages compute rather than copies of them.
 import { standingsHeading, titleHeading } from '../src/queries/season.js'
-import { NOT_YET_RUN, SO_FAR } from '../src/lib/site.js'
+import { DOCUMENTS, NOT_YET_RUN, SO_FAR } from '../src/lib/site.js'
 // The rule that decides who is credited and whether a file may be shown at
 // all — asked of the served HTML below rather than restated in it.
 import { attribution, canShow, fileTitle } from '../src/lib/commons.js'
@@ -676,6 +676,20 @@ try {
         (await page.$$('#root main aside.disagreement')).length > 0,
         'the constructor page shows its open disagreement',
       )
+      // SD-04: an OPEN disagreement is the one place a reader most likely
+      // knows something, so the aside itself asks - in both renderers, and
+      // only when the row is open.
+      atLeast(
+        await page.$$eval('#root main aside.disagreement a[href*="/issues/new"]', (n) => n.length),
+        1,
+        'and asks the reader to settle it',
+      )
+      const staticDispute = await (await fetch(`${BASE}/constructors/${disputed}`)).text()
+      const aside = staticDispute.slice(staticDispute.indexOf('<aside class="disagreement"'))
+      truthy(
+        aside.slice(0, aside.indexOf('</aside>')).includes('/issues/new'),
+        'and the prerendered aside asks too',
+      )
     }
 
   })
@@ -1255,6 +1269,44 @@ try {
       'and the geometry file beside it',
     )
     atLeast(await page.$$eval('#root main a[href$="/f1-parquet.zip"]', (n) => n.length), 1, 'and the Parquet bundle')
+
+    // SD-01: the documents that explain the file, linked from the page that
+    // offers the file and actually served. A link is not the claim - the
+    // claim is that whoever took the data can read its terms from where they
+    // took it - so each is fetched and its FIRST LINE compared with the file
+    // at the repository root. A status alone would pass on the SPA fallback,
+    // which answers any unknown path with index.html and a 200. The list is
+    // site.js's, so the app, the static page and this test cannot disagree
+    // about which three.
+    const headers = readFileSync(join(here, '..', 'dist', '_headers'), 'utf8')
+    for (const [file] of DOCUMENTS) {
+      atLeast(
+        await page.$$eval(`#root main a[href$="/${file}"]`, (n) => n.length),
+        1,
+        `the data page links ${file}`,
+      )
+      const served = await fetch(`${BASE}/${file}`)
+      is(served.status, 200, `and ${file} is served`)
+      const first = (line) => line.split('\n')[0].trim()
+      is(
+        first(await served.text()),
+        first(readFileSync(join(here, '..', '..', file), 'utf8')),
+        `and what is served is the file at the repository root, not the app shell`,
+      )
+      // vite preview does not read _headers - Cloudflare does - so the rule
+      // is checked where it is written. Without it LICENSE-DATA has no
+      // extension to guess from and lands in a downloads folder unread.
+      truthy(
+        new RegExp(`^/${file}\\n  Content-Type: text/`, 'm').test(headers),
+        `and _headers serves ${file} as text rather than as a download`,
+      )
+    }
+    // SD-04: the inbound channel, on every page rather than on this one.
+    const reportHref = await page.$$eval('#root footer.sitefoot a[href*="/issues/new"]', (n) => n.length)
+    atLeast(reportHref, 1, 'the footer offers a way to report something wrong')
+    const staticData = await (await fetch(`${BASE}/data`)).text()
+    truthy(staticData.includes('/issues/new'), 'and the prerendered page carries the same one')
+
     // The masthead stays at eight, and the slot that read Reference reads Data.
     const masthead = await page.$$eval('#root header.masthead nav a', (nodes) => nodes.map((n) => n.textContent.trim()))
     is(masthead.length, 8, 'the masthead has eight items')

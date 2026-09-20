@@ -1,7 +1,10 @@
 # Sources, attribution and licensing
 
-Read this before making the repository public. The code and the data are in
-different positions, and the data has an obligation attached to it.
+Read this before passing any of it on. The code and the data are in different
+positions, and the data has an obligation attached to it. The repository has
+been public since 2026-09-14 and lapledger.org serves this file beside the
+data it covers, because the obligation follows the file rather than the
+repository.
 
 `docs/COMMERCIAL-READINESS.md` is the companion to this file: where this one
 records what each source requires, that one records which rows were read

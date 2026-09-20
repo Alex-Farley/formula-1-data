@@ -6,6 +6,9 @@
  *   f1.db             the database, as built        ~20 MB   the fallback path
  *   sql-wasm.wasm     the SQLite engine            ~660 KB
  *   db-manifest.json  what the above are           ~200 B    fetched first
+ *   schema.sql        what the tables mean          ~92 KB   the three documents
+ *   ATTRIBUTION.md    where the data came from      ~15 KB   that explain the above
+ *   LICENSE-DATA      what you may do with it        ~4 KB
  *
  * WHY A MANIFEST
  *     The database is now twenty megabytes. Downloading that on every visit is
@@ -134,6 +137,33 @@ if (existsSync(geoPath)) {
   console.log('  (no f1-geometry.db — track maps will be absent)')
 }
 
+// ------------------------------------------------------ the documents
+//
+// WHY THE SITE SERVES THESE AND NOT ONLY THE REPOSITORY
+//     lapledger.org hands anyone 20 MB of data. The licence obligation travels
+//     with that file, so the notice that states the terms has to be reachable
+//     from where the file was taken - not from a repository the downloader has
+//     no reason to open, and had no way to read at all until 2026-09-14.
+//     f1-geometry.db's own `meta.apply` row and every release body already
+//     name these paths; until now they named nothing a downloader could fetch.
+//
+// WHY IT IS FATAL RATHER THAN A WARNING
+//     Every other attribution notice this project writes fails closed -
+//     commons.js canShow() refuses an image without a credit, parquet_export.py
+//     refuses ODbL rows, the build refuses an unclassified source. A missing
+//     licence document is the same class of failure, and a deploy that quietly
+//     drops it is the one shape this project has decided it will not ship.
+//     These three are committed files at the repository root, so absence means
+//     a renamed or truncated checkout, not an ordinary Monday.
+for (const name of ['schema.sql', 'ATTRIBUTION.md', 'LICENSE-DATA']) {
+  const from = join(repo, name)
+  if (!existsSync(from)) {
+    die(`${name} not found at the repository root.\nThe site serves it beside the data it explains; it cannot be published without it.`)
+  }
+  copyFileSync(from, join(publicDir, name))
+  console.log(`  public/${name.padEnd(22)} (${kb(statSync(from).size)})`)
+}
+
 // ----------------------------------------------------------------- the wasm
 
 // A bundler resolves sql.js through its "browser" export condition, and that
@@ -215,6 +245,20 @@ writeFileSync(
     '',
     '/assets/*',
     '  Cache-Control: public, max-age=31536000, immutable',
+    '',
+    // The three documents are read, not downloaded. Left to the host, a host
+    // guesses: LICENSE-DATA has no extension at all and .md is a type several
+    // browsers save rather than show, so the licence a reader followed a link
+    // to would land in their downloads folder unopened. They change with the
+    // build and are not digest-addressed, so they take no immutable rule.
+    '/schema.sql',
+    '  Content-Type: text/plain; charset=utf-8',
+    '',
+    '/ATTRIBUTION.md',
+    '  Content-Type: text/plain; charset=utf-8',
+    '',
+    '/LICENSE-DATA',
+    '  Content-Type: text/plain; charset=utf-8',
     '',
   ].join('\n'),
 )
