@@ -409,11 +409,28 @@ try {
     }
     const holdScroll = (target) =>
       target.addInitScript(() => {
+        // `seen` because this starts before the document has been parsed: the
+        // first tick can run while #prerendered does not exist YET, and a hold
+        // that stops there is a reader who never scrolled - which reads as a
+        // pass on the machine where the static page survives longest and a
+        // failure on the one where it does not. It stops when the page it was
+        // holding has gone, never before it has arrived.
+        let seen = false
+        window.__heldTo = 0
         const id = setInterval(() => {
-          if (document.getElementById('prerendered')) window.scrollTo(0, 1500)
-          else clearInterval(id)
+          if (document.getElementById('prerendered')) {
+            seen = true
+            window.scrollTo(0, 1500)
+            window.__heldTo = Math.max(window.__heldTo, window.scrollY)
+          } else if (seen) {
+            clearInterval(id)
+          }
         }, 16)
       })
+    // What the hold actually achieved, so neither assertion below can pass by
+    // never having scrolled in the first place.
+    const wasHeld = async (target, where) =>
+      atLeast(await target.evaluate(() => window.__heldTo), 1000, `the static ${where} was read down before the database opened`)
     // handOver() restores two frames after the removal. A settled read, not a
     // poll: polling accepts a value that something later undoes, which is the
     // whole failure being tested for.
@@ -426,6 +443,7 @@ try {
     await held.waitForSelector('#root main h1', { timeout: 60000 })
     await held.waitForFunction(() => !document.getElementById('prerendered'), null, { timeout: 60000 })
     await settled(held)
+    await wasHeld(held, 'circuit page')
     atLeast(
       await held.evaluate(() => window.scrollY),
       1000,
@@ -543,6 +561,7 @@ try {
     )
     await clicked.waitForFunction(() => !document.getElementById('prerendered'), null, { timeout: 60000 })
     await settled(clicked)
+    await wasHeld(clicked, 'register')
     truthy(
       (await clicked.evaluate(() => window.scrollY)) < 200,
       'and a reader who clicked through it arrives at the top of the page they asked for, not at the offset of the one they left',
