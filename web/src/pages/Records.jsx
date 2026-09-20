@@ -100,14 +100,18 @@ function Body({ data }) {
   // The fifteen bars of the constructor chart, in their teams' colours where
   // the whole chart can have them. The season page's rule (Season.jsx
   // `inColour`): a chart wears liveries only when every mark has one, because
-  // five teams in their own colours beside ten in the same neutral blue reads
-  // as a claim about the ten. Seven of the fifteen last won inside the
-  // 1968-2009 gap as the database stands, so the chart draws neutral today;
-  // whether a partly-coloured chart is allowed is #384, still open, and this
-  // is the shape of that decision rather than an answer to it.
+  // a handful in their own colours beside the rest in one neutral blue reads
+  // as a claim about the rest. Enough of the fifteen last won inside the
+  // 1968-2009 gap that the chart draws neutral as the database stands - no
+  // figure here, because the chart turns the moment the last gap-era team
+  // leaves the top fifteen and nothing would check a number written down.
+  // Whether a partly-coloured chart is allowed at all is #384, still open,
+  // and this is the shape of that decision rather than an answer to it.
   const constructorBars = useMemo(() => {
+    // Keyed on the id, not the name: the view groups on constructors.id, so
+    // every row has one and no row needs a fallback.
     const bars = constructorWins.slice(0, 15).map((c) => ({
-      key: c.id ?? c.name,
+      key: c.id,
       label: c.name,
       value: c.wins,
       colour: constructorColour(c),
@@ -220,7 +224,7 @@ function Body({ data }) {
                 render: (name, row) => (
                   <>
                     <LiveryMark colour={constructorColour(row)} year={row.last_win} />
-                    {row.id ? <Link to={`/constructors/${row.id}`}>{name}</Link> : cell(name)}
+                    <Link to={`/constructors/${row.id}`}>{name}</Link>
                   </>
                 ),
               },

@@ -1452,10 +1452,10 @@ WHERE e.finish_position = 1
 GROUP BY d.id ORDER BY wins DESC, first_win;
 
 CREATE VIEW v_wins_by_constructor AS
--- c.id leads, as v_race_calendar's does: a row of this view is a
--- constructor, and without its key nothing reading the view can link the
--- row or colour it - joining back on the name is not safe, two teams have
--- shared one.
+-- c.id leads, as v_circuits' does and for the same reason: a row of this
+-- view is a constructor, and without its key nothing reading the view can
+-- link the row or colour it - joining back on the name is not safe, two
+-- teams have shared one.
 SELECT c.id, c.name, c.country, COUNT(DISTINCT e.race_id) AS wins,
        MIN(r.year) AS first_win, MAX(r.year) AS last_win, c.constructors_titles
 FROM race_entries e JOIN races r ON r.id = e.race_id
