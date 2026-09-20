@@ -16,9 +16,16 @@ import { useMeasure } from './useMeasure.js'
  * per bar and there is no whole-chart `colour` prop to give. Each bar sits in
  * a `.livery-series` group of its own and reads the {light, dark} pair rather
  * than the flat mark base (charts/own.js). A bar without one falls back to the
- * neutral series colour — and whether to hand out colours at all when only
- * some bars can have one is the CALLER's decision, under the season page's
- * rule that a chart wears liveries only when every mark has one.
+ * neutral series colour.
+ *
+ * A datum may instead be `hollow` (AF-55), the bar form of DotPlot's hollow
+ * point and the same convention: outlined and unfilled, in ink rather than in
+ * any colour, for an entity the record holds no colour for. A bar cannot be
+ * withheld the way `.livery-none` withholds a table mark - the bar IS the
+ * figure - so it is drawn as visibly a non-colour instead, which lets a chart
+ * keep the colours it has rather than dropping all of them because some
+ * entity falls in the declared 1968-2009 gap. Whether to mix at all stays the
+ * CALLER's decision; see Records.jsx.
  */
 const ROW = 27
 const THICKNESS = 14
@@ -67,10 +74,11 @@ export default function BarChart({ data, format = (v) => v.toLocaleString('en-GB
                 {d.label ?? d.key}
               </text>
               <path
+                className={d.hollow ? 'bar-hollow' : undefined}
                 d={`M${start},${y} L${start + long - radius},${y} Q${start + long},${y} ${start + long},${y + radius}
                     L${start + long},${y + THICKNESS - radius} Q${start + long},${y + THICKNESS} ${start + long - radius},${y + THICKNESS}
                     L${start},${y + THICKNESS} Z`}
-                fill={own.paint ?? seriesColour(0)}
+                fill={d.hollow ? 'none' : (own.paint ?? seriesColour(0))}
                 opacity={hover && hover.key !== d.key ? 0.55 : 1}
               />
               <text
