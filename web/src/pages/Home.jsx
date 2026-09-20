@@ -158,7 +158,11 @@ export default function Home() {
                             <>
                               {' for '}
                               <LiveryMark colour={winnerColour} />
-                              {latest.constructor}
+                              {latest.constructor_id ? (
+                                <Link to={`/constructors/${latest.constructor_id}`}>{latest.constructor}</Link>
+                              ) : (
+                                latest.constructor
+                              )}
                             </>
                           ) : null}
                           .
