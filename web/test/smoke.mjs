@@ -1749,6 +1749,31 @@ try {
       sitemap.includes('/data/quality</loc>') && !sitemap.includes('/reference/quality') && !sitemap.includes('/reference</loc>'),
       'the sitemap lists the new addresses and none of the moved ones',
     )
+    /*
+     * SD-19. Every URL used to carry `meta.built`, so the sitemap told a
+     * crawler that 3,539 pages of wildly different shelf lives had all
+     * changed on the same day. A page is now dated by the last race it
+     * describes, and only a page that describes no single entity keeps the
+     * build date.
+     */
+    const stamps = [...sitemap.matchAll(/<loc>([^<]+)<\/loc><lastmod>([^<]+)<\/lastmod>/g)].map((m) => [m[1], m[2]])
+    const builtOn = one(`SELECT value FROM meta WHERE key = 'built'`)
+    is(stamps.length, expected, 'every sitemap URL carries a lastmod')
+    atLeast(new Set(stamps.map(([, d]) => d)).size, 100, 'and they are not all the same date')
+    truthy(
+      stamps.every(([, d]) => /^\d{4}-\d{2}-\d{2}$/.test(d) && d <= builtOn),
+      'no page claims to have changed after the database was built',
+    )
+    const firstOf54 = one('SELECT date_iso FROM races WHERE year = 1954 AND round = 1')
+    truthy(
+      stamps.some(([loc, d]) => loc.endsWith('/races/1954/1') && d === firstOf54),
+      'a finished race page is dated by the race, not by the build',
+    )
+    truthy(
+      stamps.some(([loc, d]) => loc.endsWith('/drivers') && d === builtOn),
+      'an index page, which describes no one entity, keeps the build date',
+    )
+
     truthy((await fetch(`${BASE}/robots.txt`).then((r) => r.text())).includes('Sitemap:'), 'robots.txt points at it')
 
     /*
