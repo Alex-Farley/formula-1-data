@@ -21,8 +21,19 @@ const M = { top: 16, right: 14, bottom: 30, left: 40 }
  * `.livery-series` group of their own, reading the {light, dark} pair as a
  * whole-chart colour does (charts/own.js), and the tooltip swatch takes the
  * hovered point's. A point without one takes the chart's `colour`, and
- * failing that the neutral series colour; mixing the two is the caller's
- * decision, and the driver page declines it.
+ * failing that the neutral series colour.
+ *
+ * A point may instead be `hollow` (AF-55): outlined, unfilled, drawn in ink
+ * rather than in any colour. That is how a chart that wears liveries draws a
+ * mark the record holds no colour for - the seasons in the declared 1968-2009
+ * gap - so a career crossing the boundary keeps the colours it has instead of
+ * losing all of them. The objection the all-or-nothing rule existed to answer
+ * - a neutral among liveries reads as a team - is met by making the mark
+ * visibly a NON-colour rather than by silencing the rest: `.livery-none`'s
+ * "nothing grey pretends to be a colour", on a surface where the mark cannot
+ * simply be withheld because the mark is the datum. Mixing a hollow point
+ * with coloured ones is the caller's decision; a chart no point of which has
+ * a colour has nothing to be misread against and stays plainly neutral.
  */
 export default function DotPlot({
   data,
@@ -48,7 +59,9 @@ export default function DotPlot({
     ? linear([1, top], [M.top, height - M.bottom])
     : linear([0, top], [height - M.bottom, M.top])
 
-  // The chart's own colour, or a point's where it carries one.
+  // The chart's own colour, or a point's where it carries one. A hollow
+  // point carries neither: it is drawn in ink by `.mark-hollow`, and takes no
+  // `.livery-series` group, because there is no pair for one to resolve.
   const ownOf = (d) => (d.colour ? ownColour(d.colour) : own)
   const paintOf = (d) => ownOf(d).paint ?? seriesColour(0)
 
@@ -87,24 +100,27 @@ export default function DotPlot({
           .filter((d) => d.mark)
           .map((d) => (
             <g key={`halo-${d.x}-${d.y}`} className={d.colour ? ownOf(d).className : undefined} style={d.colour ? ownOf(d).style : undefined}>
+              {/* A title won inside the colour gap is both ringed and
+                  hollow - Hamilton 2008 - so the ring follows the dot into
+                  ink rather than ringing an uncoloured mark in a colour. */}
               <circle
-                className="mark-halo"
+                className={d.hollow ? 'mark-halo mark-halo-hollow' : 'mark-halo'}
                 cx={x(d.x)}
                 cy={y(d.y)}
                 r={hover === d ? 10 : 8.5}
                 fill="none"
-                stroke={paintOf(d)}
+                stroke={d.hollow ? undefined : paintOf(d)}
               />
             </g>
           ))}
         {plotted.map((d) => (
           <g key={`${d.x}-${d.y}-${d.label ?? ''}`} className={d.colour ? ownOf(d).className : undefined} style={d.colour ? ownOf(d).style : undefined}>
             <circle
-              className="mark-ring"
+              className={d.hollow ? 'mark-hollow' : 'mark-ring'}
               cx={x(d.x)}
               cy={y(d.y)}
               r={hover === d ? 6 : 4.5}
-              fill={paintOf(d)}
+              fill={d.hollow ? 'none' : paintOf(d)}
               onMouseEnter={() => setHover(d)}
               onMouseLeave={() => setHover(null)}
             />
@@ -120,7 +136,15 @@ export default function DotPlot({
         >
           <b>{hover.label ?? formatX(hover.x)}</b>
           <span className={hover.colour ? `row ${ownOf(hover).className}` : 'row'} style={hover.colour ? ownOf(hover).style : undefined}>
-            <i style={{ background: paintOf(hover) }} aria-hidden="true" />
+            {/* The swatch says what the dot says. A hollow dot's is outlined
+                and unfilled, so the tooltip does not hand a colour to a
+                season the record holds none for - the note beside it still
+                names the team. */}
+            <i
+              className={hover.hollow ? 'swatch-hollow' : undefined}
+              style={hover.hollow ? undefined : { background: paintOf(hover) }}
+              aria-hidden="true"
+            />
             {hover.note ?? format(hover.y)}
           </span>
         </div>

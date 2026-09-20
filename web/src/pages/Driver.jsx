@@ -188,11 +188,7 @@ function DriverBody({ driver, data }) {
   const seasons = useMemo(() => seasonRows(bySeason, standings), [bySeason, standings])
   const teams = useMemo(() => teamsBySeason(rows(data, 'seasonTeams')), [data])
   // Each championship dot in the team that season finished with (AF-47),
-  // from the same lastTeamColour() the season table's marks read. The chart
-  // wears team colours only when every dot has one, as the season page's
-  // title-race chart does: a career that crosses 1968-2009, where no row
-  // can carry a colour, would otherwise plot its colourless seasons in the
-  // neutral series blue, and a blue among liveries reads as a team.
+  // from the same lastTeamColour() the season table's marks read.
   const finishes = useMemo(
     () =>
       standings.map((s) => {
@@ -205,8 +201,21 @@ function DriverBody({ driver, data }) {
     const app = seasonApp(teams)
     return SEASON_COLUMNS.map((column) => ({ ...column, ...app[column.key] }))
   }, [teams])
+  // WHICH DOTS WEAR A COLOUR (AF-55). Any that has one. The chart used to
+  // wear liveries only when EVERY dot had one, which silenced colour for
+  // precisely the careers most likely to be opened - Hamilton, Alonso,
+  // Button, Raikkonen, Schumacher all cross the declared 1968-2009 gap. A
+  // season that gap covers is now drawn hollow instead: outlined and
+  // unfilled, visibly a non-colour rather than a neutral that could be read
+  // as a team, which is the objection the old rule existed to answer.
+  //
+  // A chart NO dot of which has a colour keeps the plain neutral series, as
+  // every other chart on the site does: there are no liveries for a neutral
+  // to be misread against, and a page of outlines would say "missing" about
+  // a career where nothing is missing that the site records anywhere.
   const plotted = finishes.filter((s) => typeof s.position === 'number')
-  const finishesInColour = plotted.length > 0 && plotted.every((s) => s.colour)
+  const finishesInColour = plotted.some((s) => s.colour)
+  const finishesMixed = finishesInColour && !plotted.every((s) => s.colour)
   const differ = pointsDiffer(driver, derived)
 
   return (
@@ -236,8 +245,12 @@ function DriverBody({ driver, data }) {
             title={`${driver.full_name} in the drivers' championship`}
             note={`Final classified position at the end of each season. A season with points but no position is one the driver was excluded from, so there is nothing to plot. A season finished first is ringed. ${
               finishesInColour
-                ? 'Each dot is in the colour of the team that season finished with, named in the table.'
-                : 'The dots are not in team colours: this record has seasons that no team colour covers, and a mix would read the plain ones as a team.'
+                ? `Each dot is in the colour of the team that season finished with, named in the table.${
+                    finishesMixed
+                      ? ' A hollow dot is a season this record holds no colour for: between 1968 and 2009 the national convention no longer described the grid and the liveries are not recorded here, so the dot names its team on hover rather than wearing one.'
+                      : ''
+                  }`
+                : 'The dots are not in team colours: no season on this record has one.'
             }`}
             table={{
               rows: finishes,
@@ -257,6 +270,8 @@ function DriverBody({ driver, data }) {
                 y: s.position,
                 label: `${s.year}`,
                 colour: finishesInColour ? s.colour : null,
+                // Only where some other dot is coloured: see finishesInColour.
+                hollow: finishesInColour && !s.colour,
                 // The halo says nothing the dot does not: position 1 is what
                 // is already plotted at the top of the axis.
                 mark: s.position === 1,

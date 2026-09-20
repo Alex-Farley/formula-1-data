@@ -1821,6 +1821,52 @@ figure.figure > figcaption span {
   opacity: 0.5;
 }
 
+/* THE MARK FOR A SEASON OR A TEAM WITH NO RECORDED COLOUR (AF-55).
+
+   Outlined and unfilled, drawn in ink. A chart that wears liveries used to
+   have to drop all of them the moment one mark fell inside the declared
+   1968-2009 gap, because a neutral fill among liveries reads as a team. The
+   answer is to make the colourless mark visibly a NON-colour instead: an
+   outline is not a hue a reader can attribute to anyone, so it says "nothing
+   recorded here" rather than standing in for a livery.
+
+   This is `.livery-none`'s rule - nothing grey pretends to be a colour - on
+   the one surface that cannot apply it by withholding the mark, because here
+   the mark is the datum. Hence an outline rather than the table's transparent
+   spacer, and ink rather than a grey fill.
+
+   --ink-soft is the body's own secondary text colour in both themes, so the
+   outline carries no colour information and needs no contrast pair of its
+   own; the figure's note and table say what a hollow mark means, and the
+   tooltip names the team, so nothing here is carried by the mark alone. */
+.figure .mark-hollow {
+  fill: none;
+  stroke: var(--ink-soft);
+  stroke-width: 1.6;
+}
+
+/* The ring round a hollow dot - a title won inside the gap. Ink, like the
+   dot it surrounds, and it keeps .mark-halo's lighter weight and opacity so
+   it still reads as a surround rather than a second mark. */
+.figure .mark-halo-hollow {
+  stroke: var(--ink-soft);
+}
+
+/* The bar form of the same mark. A bar is long enough that the outline alone
+   carries the length, so no hatch is needed to make it read. */
+.figure .bar-hollow {
+  fill: none;
+  stroke: var(--ink-soft);
+  stroke-width: 1.5;
+}
+
+/* The tooltip swatch beside a hollow dot's note: the same outline, at the
+   size the filled swatch occupies, so the rows stay aligned. */
+.tooltip .row i.swatch-hollow {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--ink-soft);
+}
+
 .legend {
   display: flex;
   gap: 14px;

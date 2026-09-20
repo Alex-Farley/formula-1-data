@@ -98,15 +98,19 @@ function Body({ data }) {
   const tiers = useMemo(() => tiersOf(records), [records])
 
   // The fifteen bars of the constructor chart, in their teams' colours where
-  // the whole chart can have them. The season page's rule (Season.jsx
-  // `inColour`): a chart wears liveries only when every mark has one, because
-  // a handful in their own colours beside the rest in one neutral blue reads
-  // as a claim about the rest. Enough of the fifteen last won inside the
-  // 1968-2009 gap that the chart draws neutral as the database stands - no
-  // figure here, because the chart turns the moment the last gap-era team
-  // leaves the top fifteen and nothing would check a number written down.
-  // Whether a partly-coloured chart is allowed at all is #384, still open,
-  // and this is the shape of that decision rather than an answer to it.
+  // they have one (AF-55). This chart used to be all-or-nothing, and enough
+  // of the fifteen last won inside the declared 1968-2009 gap that it drew
+  // neutral throughout - Ferrari, McLaren, Mercedes and Red Bull losing their
+  // colours because Team Lotus, Brabham and Tyrrell cannot have one. A
+  // bar without a colour is now drawn hollow: outlined, unfilled, visibly a
+  // non-colour rather than a neutral that could be read as a livery, which is
+  // the same mark DotPlot gives a colourless season and the same rule.
+  //
+  // As on the driver page, a chart no bar of which has a colour keeps the
+  // plain neutral series: nothing is there for a neutral to be misread
+  // against. No figure is written down for how many of the fifteen fall
+  // either side, because the split turns as the top fifteen does and nothing
+  // would check a number stated here.
   const constructorBars = useMemo(() => {
     // Keyed on the id, not the name: the view groups on constructors.id, so
     // every row has one and no row needs a fallback.
@@ -116,7 +120,7 @@ function Body({ data }) {
       value: c.wins,
       colour: constructorColour(c),
     }))
-    if (bars.length > 0 && bars.every((bar) => bar.colour)) return bars
+    if (bars.some((bar) => bar.colour)) return bars.map((bar) => ({ ...bar, hollow: !bar.colour }))
     return bars.map((bar) => ({ key: bar.key, label: bar.label, value: bar.value }))
   }, [constructorWins])
 
@@ -211,7 +215,15 @@ function Body({ data }) {
       <Section title="Constructors">
         <Figure
           title="Most wins by constructor"
-          note="A constructor's win belongs to the car, so a shared drive counts once here and twice in the driver tables."
+          note={`A constructor's win belongs to the car, so a shared drive counts once here and twice in the driver tables.${
+            constructorBars.some((bar) => bar.colour)
+              ? ` Each bar is in the team's colour as of its last win, the year the table gives.${
+                  constructorBars.some((bar) => bar.hollow)
+                    ? ' A hollow bar is a team this record holds no colour for: between 1968 and 2009 the national convention no longer described the grid and the liveries are not recorded here.'
+                    : ''
+                }`
+              : ''
+          }`}
           table={{
             rows: constructorWins,
             columns: [
