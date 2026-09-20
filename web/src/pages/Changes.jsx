@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Page, Section } from '../components/Page.jsx'
+import { Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable from '../components/DataTable.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
@@ -92,6 +92,11 @@ function Current({ data }) {
 
 export default function Changes() {
   const state = useQueries(SPEC)
+  // The most recent race is the one route out of here that depends on the
+  // data, so it is read at this level rather than only inside Current. It is
+  // dropped from the list until the query has answered, which is what Onward's
+  // own filter is for.
+  const latest = rows(state.data, 'latest')[0] ?? null
 
   return (
     <Page title={CHANGES_TITLE} lede={CHANGES_LEDE}>
@@ -109,6 +114,26 @@ export default function Changes() {
         <DataTable columns={RELEASE_COLUMNS} rows={RELEASES} />
         <p className="faint">{HISTORY_NOTE}</p>
       </Section>
+
+      <Onward
+        items={[
+          latest && {
+            to: `/races/${latest.year}/${latest.round}`,
+            label: latest.name_used,
+            hint: 'The most recent race this database holds the classification of.',
+          },
+          {
+            to: '/data/quality',
+            label: 'Data quality',
+            hint: 'The disagreements and the gaps counted above, one by one.',
+          },
+          {
+            to: '/data',
+            label: 'Data',
+            hint: 'The whole database as one file, and how to query it.',
+          },
+        ]}
+      />
     </Page>
   )
 }

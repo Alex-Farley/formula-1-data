@@ -52,8 +52,15 @@
  *
  * `version` and `built` are what build.py carried at that tag; `published` is
  * the day the tag was made, which is the day the release reached a reader and
- * so the day the entry is dated by. `title` is the release's own one-line
- * subject from the repository's history, not a summary written afterwards.
+ * so the day the entry is dated by.
+ *
+ * `title` is the release's own words from the repository's history rather than
+ * a summary written afterwards - but not from one place, because the releases
+ * were not all made the same way. Whichever of these the release actually has,
+ * in this order: the annotated tag's own subject; the release commit's subject
+ * where the tag points at a merge whose body carries it; the version-bump
+ * commit's subject otherwise. Adding a row means reading that release's
+ * history, not inventing a line that reads like the others.
  *
  * v2.22 is absent because it was never tagged: this lists what was published,
  * not what the version counter passed through.
@@ -188,12 +195,17 @@ export const FEED_TITLE = 'Lap Ledger — what changed'
 
 /*
  * The feed is a syndication surface, so it carries its own licence line: an
- * entry can be read in a reader that never fetched the page the footer is on.
- * Both halves are the claims the site already makes - the data page's
- * attribution and the home page's JSON-LD `license` - and not a new one.
+ * entry can be read in a reader that never fetched the page the footer is on,
+ * which makes the pointer part of the attribution rather than a convenience.
+ * Every clause is a claim the site already makes - the footer's source list
+ * and the home page's JSON-LD `license` - and not a new one. The sources URL
+ * is passed in rather than written here, so it is the origin this build is
+ * for and cannot become a second, staler copy of the address.
  */
-export const FEED_RIGHTS =
-  'Summaries CC BY-SA 4.0. Race data from F1DB (CC BY 4.0); full attribution on the data page. Unaffiliated with Formula One, the FIA or any team.'
+export const feedRights = (sourcesUrl) =>
+  'Summaries CC BY-SA 4.0. Race data from F1DB (CC BY 4.0), prose and registers from ' +
+  'Wikipedia (CC BY-SA 4.0), circuit geometry © OpenStreetMap contributors (ODbL 1.0); ' +
+  `full attribution at ${sourcesUrl}. Unaffiliated with Formula One, the FIA or any team.`
 
 export const FEED_SUBTITLE =
   'Every published state of the Lap Ledger Formula One database: what it holds, and when it last moved.'

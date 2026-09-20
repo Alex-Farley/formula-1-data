@@ -95,7 +95,6 @@ import {
   FEED_HEADING,
   FEED_LINK_TEXT,
   FEED_NOTE,
-  FEED_RIGHTS,
   FEED_SUBTITLE,
   FEED_TITLE,
   HISTORY_HEADING,
@@ -105,6 +104,7 @@ import {
   currentBuild,
   entryId,
   feedEntries,
+  feedRights,
 } from '../src/lib/changes.js'
 import { LATEST as CHANGES_LATEST, SHAPE as CHANGES_SHAPE } from '../src/queries/changes.js'
 import { markStyleAttr, winnerColour } from '../src/lib/liveries.js'
@@ -2373,7 +2373,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
       ])}
       ${note(CURRENT_NOTE)}
       <h2>${esc(FEED_HEADING)}</h2>
-      <p>${esc(FEED_NOTE)} <a href="${esc(feedUrl)}">${esc(FEED_LINK_TEXT)}</a>.</p>
+      <p>${esc(FEED_NOTE)} <a href="${esc(href(FEED_FILE))}">${esc(FEED_LINK_TEXT)}</a>.</p>
       <h2>${esc(HISTORY_HEADING)}</h2>
       ${fromColumns(RELEASE_COLUMNS, RELEASES)}
       ${note(HISTORY_NOTE)}`,
@@ -2416,7 +2416,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
   <link rel="alternate" type="text/html" href="${esc(changesUrl)}" />
   <updated>${esc(rfc3339(timeline[0].published))}</updated>
   <author><name>${esc(SITE)}</name></author>
-  <rights>${esc(FEED_RIGHTS)}</rights>
+  <rights>${esc(feedRights(`${ORIGIN}${href('data/sources')}`))}</rights>
 ${timeline.map(entry).join('\n')}
 </feed>
 `,
@@ -2590,7 +2590,7 @@ writeFileSync(
 // of this sitemap exists to give.
 const sitemapUrls = [
   ...pages.map((p) => ({ loc: `${ORIGIN}${href(p.path)}`, lastmod: p.lastmod })),
-  { loc: `${ORIGIN}${href(FEED_FILE)}`, lastmod: stamp(META.built) },
+  { loc: `${ORIGIN}${href(FEED_FILE)}`, lastmod: BUILT },
 ]
 
 writeFileSync(

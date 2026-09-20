@@ -1375,10 +1375,33 @@ try {
     // The release table is a committed record, not a query, so the one thing
     // worth checking is that the two renderers show the same rows: a release
     // added to lib/changes.js reaches the app and the prerendered page alike.
-    const appRows = await tableRows()
-    const staticHtml = await (await fetch(`${BASE}/changes`)).text()
-    const staticRows = (staticHtml.match(/<tbody>[\s\S]*?<\/tbody>/) ?? [''])[0].match(/<tr/g) ?? []
-    is(appRows[0], staticRows.length, 'the prerendered release table has the rows the app has')
+    //
+    // Compared cell by cell rather than by row count, and located by its own
+    // heading rather than by being the first table in the document, so that a
+    // table added above it moves neither the assertion nor its meaning.
+    const cells = (html) => {
+      const after = html.slice(html.indexOf('Released versions'))
+      const body = (after.match(/<tbody>[\s\S]*?<\/tbody>/) ?? [''])[0]
+      return [...body.matchAll(/<tr[\s\S]*?<\/tr>/g)].map((tr) =>
+        [...tr[0].matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/g)]
+          .map((td) => td[1].replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim())
+          .join(' | '),
+      )
+    }
+    const staticCells = cells(await (await fetch(`${BASE}/changes`)).text())
+    const appCells = await page.$$eval('#root main table tbody tr', (trs) =>
+      trs.map((tr) =>
+        [...tr.querySelectorAll('td, th')]
+          .map((td) => td.textContent.replace(/\s+/g, ' ').trim())
+          .join(' | '),
+      ),
+    )
+    atLeast(staticCells.length, 1, 'the prerendered release table has rows')
+    is(
+      appCells.join('\n'),
+      staticCells.join('\n'),
+      'and the app shows the same releases, cell for cell',
+    )
 
     // The feed.
     const feed = await fetch(`${BASE}/feed.xml`)
