@@ -332,7 +332,6 @@ try {
         for (const tile of tiles) rows.set(tile.row, [...(rows.get(tile.row) ?? []), tile])
         return {
           wrapped: tiles.filter((t) => t.lines > 1).map((t) => t.label),
-          ddTops: [...new Set(tiles.map((t) => t.ddTop))],
           misalignedRows: [...rows.values()]
             .filter((row) => new Set(row.map((t) => t.ddTop)).size > 1)
             .map((row) => row.map((t) => t.label).join(', ')),
