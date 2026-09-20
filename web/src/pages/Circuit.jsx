@@ -58,6 +58,7 @@ const TEAM_APP = {
       </>
     ),
   },
+  first_win: { sort: (row) => row.first_win },
 }
 const RACE_APP = {
   year: { render: (year) => <Link to={`/seasons/${year}`}>{year}</Link> },

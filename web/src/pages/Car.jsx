@@ -286,8 +286,11 @@ function CarBody({ chassis, variants, data }) {
       <Section title="On the record">
         <Fields
           items={[
-            // The builder's colour mark (AF-51), for the chassis's last
-            // season - the same rule the register reads. No `year` is passed:
+            // The builder's colour mark (AF-51), for the last season this
+            // PAGE covers - `raced[1]`, the same figure the "Raced" stat
+            // prints. `chassis` is variants[0], so reading its `last_year`
+            // would take the first variant's last season and contradict the
+            // span shown above it. No `year` is passed:
             // LiveryMark's spacer exists to keep a table column's names
             // aligned, and a field list has no column to align, so a season
             // with no colour draws nothing rather than an indent.
@@ -299,7 +302,7 @@ function CarBody({ chassis, variants, data }) {
                     colour={colourForEntry({
                       constructorId: chassis.constructor_id,
                       country: chassis.constructor_country,
-                      year: chassis.last_year,
+                      year: raced[1],
                       team: chassis.constructor,
                     })}
                   />
