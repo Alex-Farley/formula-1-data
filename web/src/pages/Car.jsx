@@ -5,7 +5,9 @@ import DataTable, { cell } from '../components/DataTable.jsx'
 import CommonsImage from '../components/CommonsImage.jsx'
 import LiveryMark from '../components/LiveryMark.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
+import { canShow } from '../lib/commons.js'
 import { missing, number, span } from '../lib/format.js'
+import { PHOTOGRAPHS_NOTE, UNCHECKED_MARK, UNCHECKED_NOTE } from '../lib/site.js'
 import { colourForEntry } from '../lib/liveries.js'
 import {
   AMBIGUOUS_COLUMNS,
@@ -90,7 +92,11 @@ export default function Car() {
 
 function CarBody({ chassis, variants, data }) {
   const car = data.car.rows[0]
-  const images = rows(data, 'images')
+  // Fail closed BEFORE the count, not just before each figure. CommonsImage
+  // renders nothing for a file with nobody to credit, so an unfiltered list
+  // would head the section "Photographs 1" over an empty grid. The build
+  // refuses such a row, which is why this is cheap to be sure of.
+  const images = rows(data, 'images').filter(canShow)
   const entries = rows(data, 'entries')
   const seasons = rows(data, 'seasons')
 
@@ -142,7 +148,7 @@ function CarBody({ chassis, variants, data }) {
         <Section
           title="Photographs"
           count={`${images.length}`}
-          note="From Wikimedia Commons, each shown with the photographer and licence its terms require."
+          note={PHOTOGRAPHS_NOTE}
         >
           <div className="photo-grid">
             {images.slice(0, 6).map((image) => (
@@ -151,9 +157,8 @@ function CarBody({ chassis, variants, data }) {
           </div>
           {images.some((image) => image.name_matches === 0) && (
             <p className="source-note">
-              A photograph marked <span className="pill pill-unverified">unchecked</span> has a file
-              name that does not name this car. Most are still the right car, filed under the driver
-              rather than the machine — but nobody has confirmed these one by one.
+              {UNCHECKED_NOTE[0]} <span className="pill pill-unverified">{UNCHECKED_MARK}</span>{' '}
+              {UNCHECKED_NOTE[1]}
             </p>
           )}
         </Section>

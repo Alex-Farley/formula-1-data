@@ -41,13 +41,17 @@
  */
 import { spawn } from 'node:child_process'
 import { DatabaseSync } from 'node:sqlite'
-import { dirname, join } from 'node:path'
-import { existsSync, readFileSync } from 'node:fs'
+import { dirname, join, relative } from 'node:path'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 // The heading rule and the cell marks both renderers share, so the checks
 // below ask for the strings the pages compute rather than copies of them.
 import { standingsHeading, titleHeading } from '../src/queries/season.js'
 import { NOT_YET_RUN, SO_FAR } from '../src/lib/site.js'
+// The rule that decides who is credited and whether a file may be shown at
+// all — asked of the served HTML below rather than restated in it.
+import { attribution, canShow, fileTitle } from '../src/lib/commons.js'
+import { IMAGES as CAR_IMAGES } from '../src/queries/car.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const web = join(here, '..')
@@ -91,6 +95,17 @@ const one = (sql, ...args) => Object.values(db.prepare(sql).get(...args))[0]
    has to ask for the latest season with a round already completed. */
 const inProgress = () => one("SELECT MAX(year) FROM races WHERE status = 'completed'")
 const count = (sql, ...args) => one(sql, ...args)
+
+/* The five entities esc() in prerender.js writes, read back. Two sections now
+   compare served HTML with what the database holds, and both have to undo the
+   same escaping — &amp; last, so an escaped ampersand is not decoded twice. */
+const unescaped = (text) =>
+  text
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&')
 
 const failures = []
 let passed = 0
@@ -1750,19 +1765,141 @@ try {
      */
   })
 
+
+  await section('Share images and static photographs', async () => {
+    /*
+     * PD-20 and PD-19, which are one row of `article_images` seen twice: the
+     * photograph on the page and the photograph a shared link shows.
+     *
+     * Read from dist/ rather than the browser. Both are facts about what was
+     * SERVED — an unfurler never runs the app, and neither does a crawler — and
+     * the interesting pages are the ones no walkthrough visits.
+     */
+    const distDir = join(web, 'dist')
+
+    // The card the other 3,100 pages carry. An og:image pointing at a file the
+    // build did not write is the grey box again, so the bytes are checked, not
+    // the tag: signature, then the dimensions out of IHDR.
+    const cardPath = join(distDir, 'share-card.png')
+    if (!existsSync(cardPath)) {
+      fail('dist/share-card.png was not written')
+    } else {
+      const card = readFileSync(cardPath)
+      const signed = card.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+      truthy(signed, 'dist/share-card.png is a PNG, which is what an unfurler will rasterise')
+      // 1200x630 is the size every platform documents as needing no crop, and
+      // the size the tags declare; a card that disagrees with its own
+      // og:image:width is cropped by whoever believes the tag.
+      is(`${card.readUInt32BE(16)}x${card.readUInt32BE(20)}`, '1200x630', 'at the size the tags declare')
+    }
+
+    // Every page. The four that carry none are the redirecting stubs, and they
+    // are the one place it would be wrong: they ask not to be indexed and exist
+    // to be left immediately.
+    const walk = (dir) =>
+      readdirSync(dir).flatMap((entry) => {
+        const full = join(dir, entry)
+        if (statSync(full).isDirectory()) return walk(full)
+        return entry === 'index.html' ? [full] : []
+      })
+    const served = walk(distDir)
+    atLeast(served.length, 3000, 'prerendered pages read from dist')
+    const missingCard = served
+      .map((file) => ({ file, html: readFileSync(file, 'utf8') }))
+      .filter(({ html }) => !/<meta property="og:image" content="[^"]+"/.test(html))
+    const naked = missingCard.filter(({ html }) => !/name="robots" content="noindex"/.test(html))
+    if (naked.length === 0) {
+      pass(
+        `all ${served.length - missingCard.length} indexable prerendered pages carry an og:image ` +
+          `(${missingCard.length} noindex redirect stub(s) carry none, which is right)`,
+      )
+    } else {
+      for (const { file } of naked.slice(0, 5)) fail(`no og:image: ${relative(distDir, file)}`)
+      if (naked.length > 5) fail(`…and ${naked.length - 5} more pages with no og:image`)
+    }
+
+    /*
+     * The card a car page carries, against the rule that decides it.
+     *
+     * A `name_matches = 0` photograph is shown on the page with its mark, and
+     * must NOT become the card: the file name does not name the car, and one of
+     * these leads its article with a picture of police officers. On the page
+     * that is labelled; in somebody else's feed it is the whole impression. So
+     * the set of car pages whose og:image is a Commons file is compared with
+     * the set the database says it should be — not a sample, because the
+     * failure this guards against is one page, somewhere, quietly wrong.
+     */
+    const carDirs = readdirSync(join(distDir, 'cars')).filter((entry) =>
+      statSync(join(distDir, 'cars', entry)).isDirectory(),
+    )
+    const images = db.prepare(CAR_IMAGES)
+    const wrong = []
+    let shownCards = 0
+    for (const id of carDirs) {
+      const rows = images.all(id, id).filter(canShow)
+      const confirmed = rows.slice(0, 6).find((row) => row.name_matches === 1) ?? null
+      const html = readFileSync(join(distDir, 'cars', id, 'index.html'), 'utf8')
+      const found = /<meta property="og:image" content="([^"]+)"/.exec(html)?.[1] ?? null
+      const tagged = found === null ? null : unescaped(found)
+      const commons = tagged?.includes('commons.wikimedia.org') ? tagged : null
+      if (confirmed) {
+        shownCards += 1
+        const file = encodeURIComponent(confirmed.file_name.replace(/^File:/, '').replace(/ /g, '_'))
+        if (commons !== `https://commons.wikimedia.org/wiki/Special:FilePath/${file}?width=1200`) {
+          wrong.push(`/cars/${id}: expected its confirmed photograph, got ${commons ?? 'the site card'}`)
+        }
+      } else if (commons) {
+        wrong.push(`/cars/${id}: an unconfirmed photograph became the share card`)
+      }
+    }
+    if (wrong.length === 0) {
+      pass(`${shownCards} of ${carDirs.length} car pages carry their confirmed photograph, and no other page carries one`)
+    } else {
+      for (const message of wrong.slice(0, 5)) fail(message)
+      if (wrong.length > 5) fail(`…and ${wrong.length - 5} more`)
+    }
+
+    /*
+     * The credit, on the static half. Same failure mode as the app check on
+     * /cars/mclaren-mp4-4 and the same assertion: EVERY figure the page draws
+     * names its photographer and its licence. A static renderer that forgets is
+     * a licence breach on 762 pages that no walkthrough of the app would see.
+     */
+    const withPhotos = carDirs.filter((id) => images.all(id, id).filter(canShow).length > 0)
+    atLeast(withPhotos.length, 1, 'car pages that join to a photograph')
+    const uncredited = []
+    let figures = 0
+    for (const id of withPhotos) {
+      const html = readFileSync(join(distDir, 'cars', id, 'index.html'), 'utf8')
+      const captions = [...html.matchAll(/<figcaption>([\s\S]*?)<\/figcaption>/g)].map((m) => m[1])
+      const expected = images.all(id, id).filter(canShow).slice(0, 6)
+      if (captions.length !== expected.length) {
+        uncredited.push(`/cars/${id}: ${expected.length} photograph(s), ${captions.length} caption(s)`)
+        continue
+      }
+      expected.forEach((row, at) => {
+        figures += 1
+        const caption = unescaped(captions[at].replace(/<[^>]+>/g, ''))
+        if (!caption.includes(attribution(row))) uncredited.push(`/cars/${id}: ${row.file_name} names no photographer`)
+        else if (!caption.includes(row.licence.trim())) uncredited.push(`/cars/${id}: ${row.file_name} names no licence`)
+        else if (!caption.includes(fileTitle(row.file_name))) uncredited.push(`/cars/${id}: ${row.file_name} names no file`)
+      })
+    }
+    if (uncredited.length === 0) {
+      pass(`all ${figures} static photograph(s) on ${withPhotos.length} pages carry their file, photographer and licence`)
+    } else {
+      for (const message of uncredited.slice(0, 5)) fail(message)
+      if (uncredited.length > 5) fail(`…and ${uncredited.length - 5} more`)
+    }
+  })
+
   await section('Static tables are the app’s tables', async () => {
     {
       // esc() in prerender.js writes exactly these five entities, and the
       // app's textContent has the characters themselves. &amp; last, so an
       // escaped ampersand does not turn into a second round of decoding.
       const decode = (html) =>
-        html
-          .replace(/<[^>]+>/g, '')
-          .replace(/&lt;/g, '<')
-          .replace(/&gt;/g, '>')
-          .replace(/&quot;/g, '"')
-          .replace(/&#39;/g, "'")
-          .replace(/&amp;/g, '&')
+        unescaped(html.replace(/<[^>]+>/g, ''))
           .replace(/\s+/g, ' ')
           .trim()
 

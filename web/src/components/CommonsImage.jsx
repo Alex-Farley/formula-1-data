@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { attribution, canShow, fileTitle, thumbUrl } from '../lib/commons.js'
+import { UNCHECKED_MARK } from '../lib/site.js'
 
 /**
  * A photograph from Wikimedia Commons, with its credit.
@@ -79,7 +80,7 @@ export default function CommonsImage({ image, width = 800, caption, showCheck = 
         {unchecked && (
           <>
             {' · '}
-            <span className="pill pill-unverified">unchecked</span>
+            <span className="pill pill-unverified">{UNCHECKED_MARK}</span>
           </>
         )}
       </figcaption>

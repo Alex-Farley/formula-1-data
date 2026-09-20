@@ -103,6 +103,36 @@ describe('one attribution rule (frontend-reviewer, item 1)', () => {
     assert.deepEqual(offenders, [], 'attribution can be bypassed')
   })
 
+  // The scan above reads src/ only, and prerender.js is not in src/. It writes
+  // its own <img> and its own caption because it emits HTML and CommonsImage is
+  // a React component (PD-19) — which is exactly the shape the cars gallery had
+  // when it grew a second answer to the licence question. So the static
+  // renderer is held to the same rule by its own check: it may draw the figure
+  // itself, it may not decide for itself who is credited or whether a file may
+  // be shown.
+  it('the static renderer takes the same rule from lib/commons.js', () => {
+    const offenders = []
+    for (const file of sourceFiles(join(web, 'scripts'), /\.m?js$/)) {
+      const text = read(file)
+      if (!/\bthumbUrl\s*\(/.test(text)) {
+        if (/photographer not recorded|licence not recorded/.test(text)) {
+          offenders.push(`${rel(file)} writes its own credit line`)
+        }
+        continue
+      }
+      if (!/\battribution\s*\(/.test(text)) {
+        offenders.push(`${rel(file)} shows a Commons file without attribution()`)
+      }
+      if (!/\bcanShow\s*\(/.test(text)) {
+        offenders.push(`${rel(file)} shows a Commons file without checking canShow()`)
+      }
+      if (!/from '\.\.\/src\/lib\/commons\.js'/.test(text)) {
+        offenders.push(`${rel(file)} does not take the rule from src/lib/commons.js`)
+      }
+    }
+    assert.deepEqual(offenders, [], 'attribution can be bypassed in the static renderer')
+  })
+
   it('the shared rule falls back to `credit` where a file names no artist, as the build does', () => {
     // verify.py accepts `artist` OR `credit`; a surface reading only `artist`
     // captions an admitted row as anonymous, which is what the 1958 Hawthorn

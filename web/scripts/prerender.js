@@ -41,6 +41,7 @@
  * dist/robots.txt.
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { deflateSync } from 'node:zlib'
 import { DatabaseSync } from 'node:sqlite'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -50,6 +51,12 @@ import { fileURLToPath } from 'node:url'
 // app's own cell text — text() in lib/format.js — for the tables below
 // that are drawn from a page's column list.
 import { finished, missing, result, span, text as formatted, yearList } from '../src/lib/format.js'
+// The ONE attribution rule (web/src/lib/commons.js), not a second copy of it.
+// This script cannot import CommonsImage - that is a React component and this
+// file emits HTML - but the question it answers, "who is credited and may this
+// be shown at all", has exactly one answer on this site, and it is imported
+// here for the same reason the cars gallery had to stop writing its own.
+import { attribution, canShow, fileTitle, thumbUrl } from '../src/lib/commons.js'
 import {
   CROSS_CHECKED,
   ENTRIES_NOTE,
@@ -57,12 +64,15 @@ import {
   LANDMARK,
   NOT_HELD,
   NOT_YET_RUN,
+  PHOTOGRAPHS_NOTE,
   SELF_DESCRIBING,
   SHARED,
   SITE,
   SO_FAR,
   SPRINT,
   TWO_FILES,
+  UNCHECKED_MARK,
+  UNCHECKED_NOTE,
   titled,
 } from '../src/lib/site.js'
 import { EXPLAINED_FOOTER, OPEN_FOOTER, allExplained } from '../src/lib/disagreement.js'
@@ -140,6 +150,7 @@ import {
   AMBIGUOUS_COLUMNS as CAR_AMBIGUOUS_COLUMNS,
   AMBIGUOUS_FOOTER as CAR_AMBIGUOUS_FOOTER,
   ENTRIES as CAR_ENTRIES,
+  IMAGES as CAR_IMAGES,
   NO_ENTRIES,
   SEASONS as CAR_SEASONS,
   VARIANTS,
@@ -568,17 +579,258 @@ const crumbs = (trail) =>
 
 const pages = []
 
+
+// ------------------------------------------------------- photographs, cards
+
+/*
+ * A page has two pictures to settle, and they are the same picture.
+ *
+ * PD-19: 757 chassis pages join to a Wikimedia Commons photograph and the
+ * static half of the site showed none of them, so `curl /cars/mclaren-mp4-4 |
+ * grep -c "<img"` answered 0 — a crawler, a reader with no JavaScript and a
+ * model reading the page all got a specification with no machine in it.
+ *
+ * PD-20: none of the 3,515 pages carried an `og:image`, so every link to this
+ * project ever posted anywhere rendered as a grey box.
+ *
+ * Both are answered by the same row of `article_images`, which is why they are
+ * one change: the photograph the page shows is the photograph a shared link
+ * shows.
+ */
+
+/** An external link, as CommonsImage writes it. */
+const outbound = (url, label) =>
+  `<a href="${esc(url)}" target="_blank" rel="noreferrer noopener">${esc(label)}</a>`
+
+/**
+ * One photograph and its credit, as CommonsImage draws it.
+ *
+ * The markup is CommonsImage's markup — `figure.photo`, the caption's three
+ * parts in the same order — because app.css styles it and because the reader
+ * who sees this before the database opens should not watch the page change
+ * shape when it does. What it does NOT restate is the licence rule: the credit
+ * comes from `attribution()` and the figure is only reached through
+ * `canShow()`, so this renderer and the app's cannot disagree about who is
+ * owed a credit. The `data-state` attribute is CommonsImage's own and is
+ * absent here on purpose — there is no React to move it through loading,
+ * ready and failed, and a static page claiming "loading" for ever would be a
+ * worse answer than none.
+ */
+const photograph = (image, width) => {
+  const title = fileTitle(image.file_name)
+  const licence = (image.licence ?? '').trim()
+  const size = image.width && image.height ? ` width="${esc(image.width)}" height="${esc(image.height)}"` : ''
+  return `<figure class="photo">
+        <img src="${esc(thumbUrl(image.file_name, width))}" alt="${esc(title)}"${size} loading="lazy" decoding="async" />
+        <figcaption>${outbound(image.description_url, title)} · ${esc(attribution(image))} · ${
+          image.licence_url ? outbound(image.licence_url, licence) : esc(licence)
+        }${image.name_matches === 0 ? ` · <span class="pill pill-unverified">${esc(UNCHECKED_MARK)}</span>` : ''}</figcaption>
+      </figure>`
+}
+
+/**
+ * The width asked of Commons for the share card.
+ *
+ * Special:FilePath never upscales, so a narrower original simply comes back at
+ * its own size; 1200 is the width every platform documents as the one that
+ * needs no cropping, and asking for it costs nothing where the file is smaller.
+ */
+const CARD_WIDTH = 1200
+
+/**
+ * The photographs section, and the card the page's link will carry.
+ *
+ * The images are the app's images: `IMAGES` from queries/car.js, run with the
+ * same two arguments Car.jsx passes it, so the static section holds the rows
+ * the app holds rather than a second selection that could differ. They are
+ * filtered through `canShow()` BEFORE the count, because a section headed
+ * "Photographs 1" over an empty grid is what an unfiltered count gives the day
+ * a file arrives with nobody to credit.
+ *
+ * Only a `name_matches = 1` photograph becomes the card. `name_matches = 0`
+ * means the file name does not name the car, and while most of those are still
+ * the right car filed under the driver, one of them leads its article with a
+ * picture of police officers. On the page that is a labelled risk the reader
+ * can see; on a share card it is the whole impression, unlabelled, in somebody
+ * else's feed.
+ */
+const photographs = (id) => {
+  const images = all(CAR_IMAGES, id, id).filter(canShow)
+  if (!images.length) return { html: '', image: null }
+  const shown = images.slice(0, 6)
+  const confirmed = shown.find((image) => image.name_matches === 1) ?? null
+  return {
+    html: `<h2>Photographs</h2>
+      <p>${esc(PHOTOGRAPHS_NOTE)}</p>
+      <div class="photo-grid">${shown.map((image) => photograph(image, 600)).join('')}</div>${
+        shown.some((image) => image.name_matches === 0)
+          ? `\n      <p class="source-note">${esc(UNCHECKED_NOTE[0])} <span class="pill pill-unverified">${esc(
+              UNCHECKED_MARK,
+            )}</span> ${esc(UNCHECKED_NOTE[1])}</p>`
+          : ''
+      }`,
+    image: confirmed
+      ? { url: thumbUrl(confirmed.file_name, CARD_WIDTH), alt: fileTitle(confirmed.file_name) }
+      : null,
+  }
+}
+
+/* ------------------------------------------------------------------------ *
+ * The card every other page carries.
+ *
+ * WHY IT IS A PNG AND NOT AN SVG
+ *     The item proposed a per-route SVG card, written at build time for
+ *     essentially nothing. It would have shipped a grey box. No major
+ *     unfurler rasterises SVG: LinkedIn, X, Facebook, WhatsApp, Slack and
+ *     Discord all take PNG, JPEG, GIF or WebP and silently drop anything else,
+ *     several of them explicitly because an SVG can carry script. An og:image
+ *     nobody renders is the defect PD-20 already describes.
+ *
+ * WHY IT CARRIES NO TEXT
+ *     Rasterising a per-route card means rasterising type, and type means a
+ *     font engine — a dependency this build does not have and should not take
+ *     for a share card. Every unfurler prints the title and the description
+ *     beside the image from the tags three lines above this one, so the card's
+ *     job is to be this site rather than to repeat them. What is left is the
+ *     mark: the chequered field from the tab icon, one cell in accent, drawn
+ *     from rectangles. A per-route card with the page's own figures is a
+ *     separate item and a separate decision about that dependency.
+ * ------------------------------------------------------------------------ */
+
+const CARD = { file: 'share-card.png', width: 1200, height: 630 }
+const CARD_FIELD = '#14161b'
+const CARD_CELL = '#ffffff'
+const CARD_ACCENT = '#c81028'
+
+/* CRC-32, which is what a PNG checks each chunk with. */
+const CRC = (() => {
+  const table = new Int32Array(256)
+  for (let n = 0; n < 256; n += 1) {
+    let c = n
+    for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1
+    table[n] = c
+  }
+  return table
+})()
+
+const crc32 = (buffer) => {
+  let c = -1
+  for (let i = 0; i < buffer.length; i += 1) c = CRC[(c ^ buffer[i]) & 0xff] ^ (c >>> 8)
+  return (c ^ -1) >>> 0
+}
+
+const chunk = (type, data) => {
+  const length = Buffer.alloc(4)
+  length.writeUInt32BE(data.length)
+  const body = Buffer.concat([Buffer.from(type, 'latin1'), data])
+  const check = Buffer.alloc(4)
+  check.writeUInt32BE(crc32(body))
+  return Buffer.concat([length, body, check])
+}
+
+const channels = (hex) => [
+  Number.parseInt(hex.slice(1, 3), 16),
+  Number.parseInt(hex.slice(3, 5), 16),
+  Number.parseInt(hex.slice(5, 7), 16),
+]
+
+/**
+ * A PNG of solid rectangles — the whole of the image model this needs.
+ *
+ * Truecolour, eight bits, filter 0 on every scanline: the simplest encoding
+ * the format defines, which is the right one for an image of eleven
+ * rectangles. `deflateSync` writes the zlib stream and its Adler-32, so the
+ * only checksum left to compute is the chunk CRC above.
+ */
+const pngOfRectangles = (width, height, background, rectangles) => {
+  const stride = 1 + width * 3
+  const raw = Buffer.alloc(height * stride)
+  const paint = (x, y, w, h, hex) => {
+    if (x < 0 || y < 0 || x + w > width || y + h > height) die(`share card: ${x},${y} ${w}x${h} falls outside the canvas`)
+    const [r, g, b] = channels(hex)
+    for (let row = y; row < y + h; row += 1) {
+      const base = row * stride + 1
+      for (let column = x; column < x + w; column += 1) {
+        const at = base + column * 3
+        raw[at] = r
+        raw[at + 1] = g
+        raw[at + 2] = b
+      }
+    }
+  }
+  paint(0, 0, width, height, background)
+  for (const r of rectangles) paint(r.x, r.y, r.w, r.h, r.fill)
+
+  const ihdr = Buffer.alloc(13)
+  ihdr.writeUInt32BE(width, 0)
+  ihdr.writeUInt32BE(height, 4)
+  ihdr[8] = 8 // bit depth
+  ihdr[9] = 2 // colour type 2: truecolour
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', ihdr),
+    chunk('IDAT', deflateSync(raw, { level: 9 })),
+    chunk('IEND', Buffer.alloc(0)),
+  ])
+}
+
+/**
+ * The mark, at card size.
+ *
+ * The eight cells and the accent's position are the tab icon's, cell for cell
+ * (index.html), so the card and the favicon are one mark and not two. The
+ * accent bar along the bottom is the rule the masthead carries above a tile.
+ */
+const shareCard = () => {
+  const cell = 96
+  const field = cell * 4
+  const left = (CARD.width - field) / 2
+  const top = (CARD.height - field) / 2
+  const CELLS = [
+    [0, 0], [2, 0],
+    [1, 1], [3, 1],
+    [0, 2], [2, 2, true],
+    [1, 3], [3, 3],
+  ]
+  return pngOfRectangles(CARD.width, CARD.height, CARD_FIELD, [
+    ...CELLS.map(([column, row, accent]) => ({
+      x: left + column * cell,
+      y: top + row * cell,
+      w: cell,
+      h: cell,
+      fill: accent ? CARD_ACCENT : CARD_CELL,
+    })),
+    { x: 0, y: CARD.height - 12, w: CARD.width, h: 12, fill: CARD_ACCENT },
+  ])
+}
+
+/** What a page carries when it has no photograph of its own — which is most of them. */
+const SITE_CARD = {
+  url: `${ORIGIN}${href(CARD.file)}`,
+  alt: `${SITE}: a chequered field with one cell marked in red`,
+  width: CARD.width,
+  height: CARD.height,
+}
+
 /**
  * Queue one route.
  *
  * `path` is relative to the base and carries no leading slash; '' is the home
  * page. `jsonld` is an object or null — one script tag per page, because a
  * search engine reading two of them for the same thing is a warning nobody
- * needs.
+ * needs. `image` is the page's own photograph where it has one, and the site
+ * card where it does not: every page carries one, which is the whole of PD-20.
  */
-const page = ({ path, title, description, body, jsonld = null, trail = null }) => {
+const page = ({ path, title, description, body, jsonld = null, trail = null, image = null }) => {
   // The citation names the page by the address the canonical carries.
-  pages.push({ path, title, description, jsonld, html: chrome(body, trail ? crumbs(trail) : '', `${ORIGIN}${href(path)}`) })
+  pages.push({
+    path,
+    title,
+    description,
+    jsonld,
+    image,
+    html: chrome(body, trail ? crumbs(trail) : '', `${ORIGIN}${href(path)}`),
+  })
 }
 
 
@@ -1519,9 +1771,13 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
 
   for (const c of cars) {
     const name = c.full_name ?? c.designation
+    // Second on the page, where Car.jsx puts it: after the figures that say
+    // what the car is and before the prose that says why it mattered.
+    const photos = photographs(c.id)
     page({
       path: `cars/${c.id}`,
       title: titled(name),
+      image: photos.image,
       description: summarise(
         `${name}, ${c.from_year ?? '?'}–${c.to_year ?? '?'}${c.engine_name ? `, ${c.engine_name}` : ''}${
           c.designers ? `, designed by ${c.designers}` : ''
@@ -1552,6 +1808,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
           ["Constructors' titles", num(c.constructors_titles)],
           ['Specification confidence', text(c.spec_confidence)],
         ])}
+        ${photos.html}
         ${prose(c.concept)}
         ${prose(c.innovations)}
         ${prose(c.story)}
@@ -1578,10 +1835,12 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
       : `${ch.first_year ?? '?'}–${ch.last_year ?? '?'}`
     const entries = raced.get(ch.id) ?? []
     const constructor = ch.constructor ?? ch.constructor_id
+    const photos = photographs(ch.id)
 
     page({
       path: `cars/${ch.id}`,
       title: titled(name),
+      image: photos.image,
       description: summarise(
         `${name}, ${constructor ? `entered by ${constructor}, ` : ''}${years}. ` +
           `${entries.length ? `${entries.length} championship ${entries.length === 1 ? 'entry' : 'entries'}` : 'No championship entry recorded'}` +
@@ -1610,6 +1869,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null }) =
           ['Published wins', ch.published_wins === null ? null : num(ch.published_wins)],
           ['Confidence', ch.confidence ? link('data/quality', ch.confidence) : text(ch.confidence)],
         ])}
+        ${photos.html}
         ${
           ch.car_id && curated.has(ch.car_id)
             ? `<p>One of the ${link(`cars/${ch.car_id}`, 'design family')} that has a specified page of its own.</p>`
@@ -1935,8 +2195,12 @@ if (!source.includes('<div id="prerendered"></div>')) {
  * and their content hashes — come along untouched. Only the parts that differ
  * per route are replaced.
  */
-const render = ({ path, title, description, jsonld, html }) => {
+const render = ({ path, title, description, jsonld, image = null, html }) => {
   const url = `${ORIGIN}${href(path)}`
+  // The site card is the default HERE rather than in page(), because 404.html
+  // is rendered without going through it — and a page with no og:image is the
+  // defect, whichever door it came in by.
+  const card = image ?? SITE_CARD
   const head = [
     `<link rel="canonical" href="${esc(url)}" />`,
     `<meta property="og:type" content="website" />`,
@@ -1944,9 +2208,21 @@ const render = ({ path, title, description, jsonld, html }) => {
     `<meta property="og:title" content="${esc(title)}" />`,
     `<meta property="og:description" content="${esc(description)}" />`,
     `<meta property="og:url" content="${esc(url)}" />`,
-    `<meta name="twitter:card" content="summary" />`,
+    // Every page carries one (PD-20). The width and the height are written only
+    // for the card, whose size this file decides; a Commons thumbnail's is
+    // negotiated server-side and the stored figures are the harvest's, so
+    // declaring them here would be asserting a size nobody measured.
+    `<meta property="og:image" content="${esc(card.url)}" />`,
+    `<meta property="og:image:alt" content="${esc(card.alt)}" />`,
+    card.width ? `<meta property="og:image:width" content="${esc(card.width)}" />` : '',
+    card.height ? `<meta property="og:image:height" content="${esc(card.height)}" />` : '',
+    // Justified now, and only now: `summary` is the card for a page with no
+    // image, and that is what every page was until this one.
+    `<meta name="twitter:card" content="summary_large_image" />`,
     `<meta name="twitter:title" content="${esc(title)}" />`,
     `<meta name="twitter:description" content="${esc(description)}" />`,
+    `<meta name="twitter:image" content="${esc(card.url)}" />`,
+    `<meta name="twitter:image:alt" content="${esc(card.alt)}" />`,
     jsonld
       ? `<script type="application/ld+json">${JSON.stringify(jsonld).replace(/</g, '\\u003c')}</script>`
       : '',
@@ -1963,6 +2239,10 @@ const render = ({ path, title, description, jsonld, html }) => {
     .replace('</head>', `  ${head}\n  </head>`)
     .replace('<div id="prerendered"></div>', `<div id="prerendered">${html}</div>`)
 }
+
+// The card first: a page written with an og:image pointing at a file the
+// build did not produce is the grey box again, one redirect further on.
+writeFileSync(join(dist, CARD.file), shareCard())
 
 let written = 0
 let bytes = 0
