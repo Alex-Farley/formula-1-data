@@ -33,6 +33,13 @@ import { NOT_YET_RUN, SO_FAR } from '../lib/site.js'
  * driver second to them and the gap — and the column formatters below say so. A concluded season with no champion recorded stays blank:
  * the leader of a finished table is a champion, and if the register does not
  * say who, this query does not guess.
+ *
+ * The SELECT is wrapped so each of the row's two constructors can be joined
+ * back to `constructors` for its country, which is what the pre-1968 national
+ * colour is read from (AF-50). It has to be the wrapper and not another join
+ * inside: the undecided season takes `champion_team_id` from `race_entries`
+ * and `constructors_champion_id` from `v_standings_final`, not from the
+ * `seasons` row, so only the resolved ids can be joined on.
  */
 export const SEASONS = `
   WITH progress AS (
@@ -48,37 +55,45 @@ export const SEASONS = `
     SELECT year, table_type, entity_id, entity, team, points,
            ROW_NUMBER() OVER (PARTITION BY year, table_type
                               ORDER BY position IS NULL, position, points DESC) AS rank
-      FROM v_standings_final)
-  SELECT s.year, s.rounds, p.run, p.undecided, p.not_started,
-         CASE WHEN p.undecided THEN d1.entity_id ELSE s.drivers_champion END AS champion_id,
-         CASE WHEN p.undecided THEN d1.entity    ELSE d.full_name        END AS champion,
-         CASE WHEN p.undecided THEN
-              (SELECT e.constructor_id FROM race_entries e JOIN races r ON r.id = e.race_id
-                WHERE r.year = s.year AND e.driver_id = d1.entity_id
-                ORDER BY r.round DESC LIMIT 1)
-              ELSE s.champion_team END                                AS champion_team_id,
-         CASE WHEN p.undecided THEN d1.team      ELSE t.name             END AS champion_team,
-         CASE WHEN p.undecided THEN d1.points    ELSE s.champion_points  END AS champion_points,
-         CASE WHEN p.undecided THEN
-              (SELECT COUNT(*) FROM race_entries e JOIN races r ON r.id = e.race_id
-                WHERE r.year = s.year AND e.driver_id = d1.entity_id AND e.finish_position = 1)
-              ELSE s.champion_wins END                                AS champion_wins,
-         CASE WHEN p.undecided THEN d2.entity_id ELSE s.runner_up        END AS runner_up_id,
-         CASE WHEN p.undecided THEN d2.entity    ELSE ru.full_name       END AS runner_up,
-         CASE WHEN p.undecided THEN d1.points - d2.points ELSE s.margin  END AS margin,
-         CASE WHEN p.undecided THEN k1.entity_id ELSE s.constructors_champion END AS constructors_champion_id,
-         CASE WHEN p.undecided THEN k1.entity    ELSE cc.name            END AS constructors_champion,
-         s.engine_formula
-    FROM seasons s
-    JOIN progress p           ON p.year = s.year
-    LEFT JOIN drivers d       ON d.id  = s.drivers_champion
-    LEFT JOIN drivers ru      ON ru.id = s.runner_up
-    LEFT JOIN constructors t  ON t.id  = s.champion_team
-    LEFT JOIN constructors cc ON cc.id = s.constructors_champion
-    LEFT JOIN ranked d1 ON d1.year = s.year AND d1.table_type = 'drivers'      AND d1.rank = 1
-    LEFT JOIN ranked d2 ON d2.year = s.year AND d2.table_type = 'drivers'      AND d2.rank = 2
-    LEFT JOIN ranked k1 ON k1.year = s.year AND k1.table_type = 'constructors' AND k1.rank = 1
-   ORDER BY s.year DESC
+      FROM v_standings_final),
+  season_row AS (
+    SELECT s.year, s.rounds, p.run, p.undecided, p.not_started,
+           CASE WHEN p.undecided THEN d1.entity_id ELSE s.drivers_champion END AS champion_id,
+           CASE WHEN p.undecided THEN d1.entity    ELSE d.full_name        END AS champion,
+           CASE WHEN p.undecided THEN
+                (SELECT e.constructor_id FROM race_entries e JOIN races r ON r.id = e.race_id
+                  WHERE r.year = s.year AND e.driver_id = d1.entity_id
+                  ORDER BY r.round DESC LIMIT 1)
+                ELSE s.champion_team END                                AS champion_team_id,
+           CASE WHEN p.undecided THEN d1.team      ELSE t.name             END AS champion_team,
+           CASE WHEN p.undecided THEN d1.points    ELSE s.champion_points  END AS champion_points,
+           CASE WHEN p.undecided THEN
+                (SELECT COUNT(*) FROM race_entries e JOIN races r ON r.id = e.race_id
+                  WHERE r.year = s.year AND e.driver_id = d1.entity_id AND e.finish_position = 1)
+                ELSE s.champion_wins END                                AS champion_wins,
+           CASE WHEN p.undecided THEN d2.entity_id ELSE s.runner_up        END AS runner_up_id,
+           CASE WHEN p.undecided THEN d2.entity    ELSE ru.full_name       END AS runner_up,
+           CASE WHEN p.undecided THEN d1.points - d2.points ELSE s.margin  END AS margin,
+           CASE WHEN p.undecided THEN k1.entity_id ELSE s.constructors_champion END AS constructors_champion_id,
+           CASE WHEN p.undecided THEN k1.entity    ELSE cc.name            END AS constructors_champion,
+           s.engine_formula
+      FROM seasons s
+      JOIN progress p           ON p.year = s.year
+      LEFT JOIN drivers d       ON d.id  = s.drivers_champion
+      LEFT JOIN drivers ru      ON ru.id = s.runner_up
+      LEFT JOIN constructors t  ON t.id  = s.champion_team
+      LEFT JOIN constructors cc ON cc.id = s.constructors_champion
+      LEFT JOIN ranked d1 ON d1.year = s.year AND d1.table_type = 'drivers'      AND d1.rank = 1
+      LEFT JOIN ranked d2 ON d2.year = s.year AND d2.table_type = 'drivers'      AND d2.rank = 2
+      LEFT JOIN ranked k1 ON k1.year = s.year AND k1.table_type = 'constructors' AND k1.rank = 1
+  )
+  SELECT sr.*,
+         ct.country AS champion_team_country,
+         ck.country AS constructors_champion_country
+    FROM season_row sr
+    LEFT JOIN constructors ct ON ct.id = sr.champion_team_id
+    LEFT JOIN constructors ck ON ck.id = sr.constructors_champion_id
+   ORDER BY sr.year DESC
 `
 
 /**
