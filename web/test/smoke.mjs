@@ -379,6 +379,229 @@ try {
 
   })
 
+  // -------------------------------------------------------------- landing
+
+  /**
+   * Where a reader lands, in the three moments that decide it: the offset the
+   * handover puts back, the focus a client-side navigation moves, and the way
+   * into the content that skips the header.
+   *
+   * A fresh page is a fresh IndexedDB, so the database is fetched again and
+   * the handover window is wide enough to read inside. The init script holds
+   * the reader at y = 1500 for exactly as long as the static page is there and
+   * lets go the instant it is removed - a reader who scrolled once and then
+   * stopped, without this test having to guess when 'ready' arrives.
+   */
+  await section('Landing  (the offset, the focus and the skip link)', async () => {
+    /*
+     * A page of its own for each arrival: an empty IndexedDB means the
+     * database is fetched again, which is what makes the handover window wide
+     * enough to read inside. Brought to the front and held with a timer rather
+     * than requestAnimationFrame — a background tab's frames are paused, and a
+     * hold that never runs reads as a reader who never scrolled, which is this
+     * test passing itself.
+     */
+    const fresh = async (route) => {
+      const target = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+      await target.bringToFront()
+      await target.goto(`${BASE}${route}`, { waitUntil: 'domcontentloaded' })
+      return target
+    }
+    const holdScroll = (target) =>
+      target.addInitScript(() => {
+        // `seen` because this starts before the document has been parsed: the
+        // first tick can run while #prerendered does not exist YET, and a hold
+        // that stops there is a reader who never scrolled - which reads as a
+        // pass on the machine where the static page survives longest and a
+        // failure on the one where it does not. It stops when the page it was
+        // holding has gone, never before it has arrived.
+        let seen = false
+        window.__heldTo = 0
+        const id = setInterval(() => {
+          if (document.getElementById('prerendered')) {
+            seen = true
+            window.scrollTo(0, 1500)
+            window.__heldTo = Math.max(window.__heldTo, window.scrollY)
+          } else if (seen) {
+            clearInterval(id)
+          }
+        }, 16)
+      })
+    // What the hold actually achieved, so neither assertion below can pass by
+    // never having scrolled in the first place.
+    const wasHeld = async (target, where) =>
+      atLeast(await target.evaluate(() => window.__heldTo), 1000, `the static ${where} was read down before the database opened`)
+    // handOver() restores two frames after the removal. A settled read, not a
+    // poll: polling accepts a value that something later undoes, which is the
+    // whole failure being tested for.
+    const settled = (target) => target.waitForTimeout(1500)
+
+    const held = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    await holdScroll(held)
+    await held.bringToFront()
+    await held.goto(`${BASE}/circuits/monza`, { waitUntil: 'domcontentloaded' })
+    await held.waitForSelector('#root main h1', { timeout: 60000 })
+    await held.waitForFunction(() => !document.getElementById('prerendered'), null, { timeout: 60000 })
+    await settled(held)
+    await wasHeld(held, 'circuit page')
+    atLeast(
+      await held.evaluate(() => window.scrollY),
+      1000,
+      'the handover leaves the reader where they were reading, not at the top of the page',
+    )
+
+    // /circuits renders a different component from /circuits/monza, so React
+    // unmounts Page and mounts a new one. That is the navigation a per-instance
+    // guard could not tell from the arrival, and it is every navigation out of
+    // an index.
+    await held.evaluate(() => {
+      window.history.pushState({}, '', '/circuits')
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    })
+    await held.waitForFunction(
+      () => document.querySelector('#root main h1')?.textContent.includes('Circuits'),
+      null,
+      { timeout: 20000 },
+    )
+    truthy(
+      await held
+        .waitForFunction(() => document.activeElement === document.querySelector('#root main h1'), null, {
+          timeout: 5000,
+        })
+        .then(() => true)
+        .catch(() => false),
+      'an in-app navigation moves focus to the new page\'s heading, not to <body>',
+    )
+
+    // Document order rather than a Tab press: the handover and every
+    // navigation leave focus on the h1, so Tab from there runs FORWARD out of
+    // the heading and never reaches a link that sits above it. What has to be
+    // true is that a reader at the top of the document meets this first.
+    is(
+      await held.evaluate(
+        () =>
+          document.querySelector(
+            'a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])',
+          )?.className ?? '',
+      ),
+      'skiplink',
+      'the skip link is the first focusable thing in the document, before the wordmark',
+    )
+    await held.evaluate(() => document.querySelector('.skiplink').focus())
+    truthy(
+      await held.evaluate(() => {
+        const box = document.querySelector('.skiplink').getBoundingClientRect()
+        return box.width > 40 && box.height > 20 && box.top >= 0 && box.bottom < window.innerHeight
+      }),
+      'and is drawn on screen once it has focus, rather than staying hidden where it cannot be used',
+    )
+    await held.keyboard.press('Enter')
+    truthy(
+      await held.evaluate(() => document.activeElement === document.querySelector('#root main')),
+      'and taking it puts focus inside <main>, past the eleven header stops',
+    )
+
+    // A route change that commits UNDER an open modal must not pull focus out
+    // of it. Found by this suite: the search palette is opened, the router
+    // catches up with a click made a moment earlier, focus goes to the heading
+    // behind the palette -- and Escape, pressed into the page, misses the
+    // dialog, which stays open over a page nothing can click through to.
+    await held.keyboard.press('/')
+    await held.waitForSelector('.palette input', { timeout: 10000 })
+    await held.evaluate(() => {
+      window.history.pushState({}, '', '/drivers')
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    })
+    await held.waitForFunction(
+      () => document.querySelector('#root main h1')?.textContent.includes('Drivers'),
+      null,
+      { timeout: 20000 },
+    )
+    truthy(
+      await held.evaluate(() => Boolean(document.activeElement?.closest('[role="dialog"]'))),
+      'a route change under the open search palette leaves focus inside the palette',
+    )
+    await held.keyboard.press('Escape')
+    truthy(
+      await held
+        .waitForFunction(() => !document.querySelector('.palette-backdrop'), null, { timeout: 5000 })
+        .then(() => true)
+        .catch(() => false),
+      'so Escape still reaches it and closes it',
+    )
+    await held.close()
+
+    /*
+     * The same three things on the static page, which is the half a cold
+     * arrival actually reads — and where main.jsx's holdLinks() turns a click
+     * into a route change. A fragment link into the page the reader is
+     * already on is not one: held, the skip link left focus on itself and put
+     * "opening Skip to content" in the boot strip.
+     */
+    const cold = await fresh('/circuits/monza')
+    truthy(
+      await cold.evaluate(() => {
+        const link = document.querySelector('#prerendered .skiplink')
+        if (!document.getElementById('prerendered') || !link) return false
+        link.focus()
+        return document.activeElement === link
+      }),
+      'the static page carries the skip link, and it takes focus before the database is ready',
+    )
+    await cold.keyboard.press('Enter')
+    is(
+      await cold.evaluate(() => {
+        const main = document.querySelector('#prerendered main#main')
+        if (document.activeElement === main) return true
+        return `focus went to .${document.activeElement?.className || document.activeElement?.tagName}`
+      }),
+      true,
+      'and taking it reaches the static page\'s own content rather than being held as a route change',
+    )
+    await cold.close()
+
+    /*
+     * The other arrival. A click on the static page before the database is
+     * open moves the router on while the reader is still looking at the page
+     * they left, so the offset they had belongs to that page and not to the
+     * one about to render: 1,500 px into the circuit register is nowhere in
+     * particular on one circuit's page. Both halves have to agree about
+     * that — handOver() drops the offset and ScrollToTop treats it as the
+     * route change it is — or the two race and the reader lands wherever the
+     * machine was quick that morning.
+     */
+    const clicked = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    await holdScroll(clicked)
+    await clicked.bringToFront()
+    await clicked.goto(`${BASE}/circuits`, { waitUntil: 'domcontentloaded' })
+    truthy(
+      await clicked.evaluate(() => {
+        const link = document.querySelector('#prerendered a[href="/circuits/monza"]')
+        if (!document.getElementById('prerendered') || !link) return false
+        link.click()
+        return true
+      }),
+      'the static register is still there to click through before the database is ready',
+    )
+    await clicked.waitForFunction(
+      () => document.querySelector('#root main h1')?.textContent.includes('Monza'),
+      null,
+      { timeout: 60000 },
+    )
+    await clicked.waitForFunction(() => !document.getElementById('prerendered'), null, { timeout: 60000 })
+    await settled(clicked)
+    await wasHeld(clicked, 'register')
+    truthy(
+      (await clicked.evaluate(() => window.scrollY)) < 200,
+      'and a reader who clicked through it arrives at the top of the page they asked for, not at the offset of the one they left',
+    )
+    await clicked.close()
+
+    // Every section after this one drives the shared page, which has been in
+    // the background throughout.
+    await page.bringToFront()
+  })
+
   // ------------------------------------------------------------------ home
 
   await section('/  (overview)', async () => {
@@ -1715,6 +1938,13 @@ try {
       await plain.$$eval('#prerendered a[href^="/"]', (n) => n.length),
       20,
       'and links onward, so a crawler has somewhere to go',
+    )
+    truthy(
+      await plain.$eval(
+        '#prerendered .skiplink',
+        (node) => node.getAttribute('href') === '#main' && Boolean(node.closest('.app')?.querySelector('main#main')),
+      ),
+      'and offers the same skip link, to the same target, without JavaScript',
     )
     await noJs.close()
 

@@ -544,13 +544,14 @@ const NAV = [
 
 const chrome = (body, crumbs, citeUrl) => `
 <div class="app pre">
+  <a class="skiplink" href="#main">Skip to content</a>
   <header class="masthead">
     <div class="masthead-inner">
       <a class="wordmark" href="${esc(href(''))}"><span><b>Lap Ledger</b><span>${SPAN} · every championship race</span></span></a>
       <nav>${NAV.map(([to, label]) => link(to, label)).join('')}</nav>
     </div>
   </header>
-  <main>
+  <main id="main" tabindex="-1">
     ${crumbs ? `<nav class="crumbs" aria-label="Breadcrumb">${crumbs}</nav>` : ''}
     ${body}
     ${
