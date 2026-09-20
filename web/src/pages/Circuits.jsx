@@ -150,7 +150,10 @@ function Register({ rows, traces }) {
           label="Filter circuits by type"
           value={kind}
           onChange={setKind}
-          options={[['', 'All'], ...types.map((t) => [t, t])]}
+          // "All types", not "All": the toggle beside this group is a
+          // second axis now, and a chip reading "All" beside a pressed
+          // Traced would name a state the bar is not in.
+          options={[['', 'All types'], ...types.map((t) => [t, t])]}
         />
         {/* Without the overlay every row's Traced is unestablished, so this
             would filter eighty circuits down to none and read as an answer
@@ -218,6 +221,11 @@ function Register({ rows, traces }) {
           direction="desc"
           page={100}
           columns={CIRCUIT_COLUMNS.map((column) => ({ ...column, ...APP[column.key] }))}
+          // DataTable's default says "Nothing recorded.", which is a claim
+          // about the database; what has happened here is a filter that
+          // matched nothing, which is the same thing the section above says
+          // about its own cards.
+          empty="No circuit matches these filters."
           footer={CIRCUITS_FOOTER}
         />
       </Section>
