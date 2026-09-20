@@ -235,6 +235,17 @@ hand works too — the title, the two labels and the board status are all
 there is — and the critique's full reasoning stays in `docs/critiques/`; the
 issue is the queue, not the argument.
 
+**A reader's report is not an item.** `lapledger.org` asks, in its footer
+and beside every open disagreement, whether the reader has found something
+wrong, and sends them to the *Something on the site is wrong* form
+(`.github/ISSUE_TEMPLATE/report.yml`). That form asks for the page, the
+figure and what says otherwise, and for no id, size or board column — none of
+which a person who has spotted a wrong pole position has any reason to know.
+What arrives is evidence, not work: it becomes a `discrepancies` row where
+two sources differ, a `known_gaps` row where nobody has established the fact,
+a correction where the site is simply wrong, or an item filed under the rules
+above. Somebody has to read it and decide which; nothing files itself.
+
 **Say where the work lands.** The file paths an item would touch, written as
 `**Where:** web/src/pages/Glossary.jsx, web/src/queries/glossary.js` — the
 issue form asks for them as a field, and `file.py new` takes

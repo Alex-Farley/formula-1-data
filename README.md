@@ -101,14 +101,20 @@ Workflow for any change: edit `data/*.py` → `python3 build.py` → `python3 ve
 standard library.
 
 **What the site publishes.** lapledger.org serves `f1.db`, `f1-geometry.db`
-and `f1-parquet.zip`, and beside them the three documents that explain them:
-`schema.sql`, `ATTRIBUTION.md` and `LICENSE-DATA`. The obligation follows the
-file rather than the repository, so a licence notice has to be reachable from
-where the data was taken — `web/scripts/prepare-assets.js` stages all three
-and refuses to build without them. Found something wrong in the data? Open an
-issue: two sources that disagree are recorded in `discrepancies` and published
-rather than quietly reconciled, and a fact nobody has established goes in
-`known_gaps`.
+and `f1-parquet.zip`, and beside them `schema.sql`, `ATTRIBUTION.md` and
+`LICENSE-DATA` — what the tables mean, where the data came from, and the
+terms it is offered under. The obligation follows the file rather than the
+repository, so a licence notice has to be reachable from where the data was
+taken; `web/scripts/prepare-assets.js` stages all three and refuses to build
+without them. The centrelines are ODbL instead, stated in `f1-geometry.db`'s
+own `meta` and in `LICENSE-DATA`'s *Circuit geometry* section. `LICENSE-DATA`
+enumerates the files it covers and `f1-parquet.zip` is not among them — `SD-22`
+(#410) has that gap.
+
+**Found something wrong in the data?** Open an issue with the *Something on
+the site is wrong* form. Two sources that disagree are recorded in
+`discrepancies` and published rather than quietly reconciled, and a fact
+nobody has established goes in `known_gaps`.
 
 ---
 

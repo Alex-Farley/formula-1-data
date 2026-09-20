@@ -1,0 +1,61 @@
+# A reader's report, which is not a queue item.
+#
+# SD-04: the site publishes facts it claims are cross-checked and, until now,
+# gave a reader who spotted a wrong one nowhere to say so. That reader is the
+# adversarial cross-check this project cannot generate for itself, and
+# item.yml is the wrong door for them: it asks for a critique prefix, a
+# `next.py --next-id` lookup, a size and a board drag, none of which a person
+# who has found a wrong pole position has any reason to know.
+#
+# So this form asks for what a report actually needs - the page, the figure,
+# and what says otherwise - and says plainly what happens next, because a
+# report with no destination is worse than none. The destination is the one
+# the project already has: `discrepancies` where two sources differ, and
+# `known_gaps` where nobody has established the fact at all.
+name: Something on the site is wrong
+description: A figure, a name, a date or a link that does not match what the sources say.
+title: "Report: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you — this is the one kind of check the project cannot run on itself.
+
+        **What happens to it.** Where two sources disagree and neither can be
+        settled officially, the disagreement is recorded in the database and
+        published beside the figure rather than one reading being picked
+        quietly. Where nobody has established the fact, it is listed as a gap.
+        Where the site is simply wrong, it is fixed. Nothing is closed by
+        choosing a side, so a report that ends in a recorded disagreement has
+        done its job rather than failed.
+
+        You do not need an id, a size or a label. Somebody will add those if
+        this becomes a piece of work.
+  - type: input
+    id: where
+    attributes:
+      label: Where you saw it
+      description: The address of the page, or its title.
+      placeholder: https://lapledger.org/races/2021/10
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What the page says, and what it should say
+      description: The figure, name or date as shown, and the one you believe is right.
+    validations:
+      required: true
+  - type: textarea
+    id: source
+    attributes:
+      label: What says otherwise
+      description: >-
+        Where your reading comes from — the FIA, formula1.com, a team, a circuit,
+        a book, a contemporary report. A link is ideal, a citation is fine, and
+        "I was there" is worth saying too. This is what decides whether the fix
+        is a correction or a recorded disagreement, so it matters more than
+        anything else on this form.
+      placeholder: "not sure — I just know the site's figure is wrong"
+    validations:
+      required: false

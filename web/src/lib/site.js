@@ -125,7 +125,12 @@ export const UNCHECKED_NOTE = [
  * reader the same door, and a second copy of a URL is a copy that can rot.
  */
 export const REPOSITORY = 'https://github.com/Alex-Farley/formula-1-data'
-export const REPORT_URL = `${REPOSITORY}/issues/new`
+// The reader's form, named explicitly. Bare `issues/new` lands on the
+// chooser and then on item.yml, which prefills an `XX-nn:` title and asks
+// for a critique prefix, a `next.py --next-id` lookup and a board drag - it
+// would tell a reader who has found a wrong pole position that their report
+// is malformed, which is the failure SD-04 is about, one step further on.
+export const REPORT_URL = `${REPOSITORY}/issues/new?template=report.yml`
 
 /**
  * The inbound channel, in the words both renderers use.
@@ -152,7 +157,7 @@ export const REPORT_PROMISE =
  * would misdescribe the row they are looking at.
  */
 export const SETTLE_ASK = 'If you can settle it against a source that can be checked, '
-export const SETTLE_LINK = 'say so'
+export const SETTLE_LINK = 'report what you have'
 
 /**
  * The three documents that explain the database, served from the site beside
@@ -185,5 +190,4 @@ export const DOCUMENTS = [
 ]
 
 export const DOCUMENTS_NOTE =
-  'The database is served from here, so the documents that explain it are too. The build, the ' +
-  'checks that gate it and the source data they read are in the repository.'
+  'The database is served from here, so the documents that explain it are served from here too.'
