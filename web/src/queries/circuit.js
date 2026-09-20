@@ -86,9 +86,21 @@ export const WINNERS = `
    ORDER BY wins DESC, driver
 `
 
+/**
+ * One row per constructor that has won here, most wins first.
+ *
+ * The join is for the constructor's country, which the pre-1968 national
+ * colour needs and the view does not carry (AF-52). The view's own
+ * `last_win` is the season the mark is drawn for - the site's rule for a
+ * subject spanning seasons is the last one - so nothing here needs a
+ * correlated MAX and `schema.sql` is untouched.
+ */
 export const TEAMS = `
-  SELECT * FROM v_circuit_constructors WHERE circuit_id = ?
-   ORDER BY wins DESC, constructor
+  SELECT v.*, k.country AS constructor_country
+    FROM v_circuit_constructors v
+    LEFT JOIN constructors k ON k.id = v.constructor_id
+   WHERE v.circuit_id = ?
+   ORDER BY v.wins DESC, v.constructor
 `
 
 /** The winner, or "not yet run" for a race still on the calendar. */

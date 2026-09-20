@@ -4,10 +4,12 @@ import { Note, Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { Chips, Filters, SearchField, Select } from '../components/Filters.jsx'
+import LiveryMark from '../components/LiveryMark.jsx'
 import { rows as pick, useQueries } from '../data/useQuery.js'
 import { canShow, thumbUrl } from '../lib/commons.js'
 import CommonsCredit from '../components/CommonsCredit.jsx'
 import { span } from '../lib/format.js'
+import { colourForEntry } from '../lib/liveries.js'
 import { LANDMARK } from '../lib/site.js'
 import { CHASSIS, CHASSIS_COLUMNS, CHASSIS_FOOTER, GALLERY } from '../queries/cars.js'
 
@@ -31,9 +33,27 @@ const APP = {
       </>
     ),
   },
+  // The builder's colour mark (AF-51): a car is a first-class constructor
+  // attribute under clause 1 of AF-47. A chassis spans seasons and
+  // colourForEntry takes one, so it takes the last - the site's rule for a
+  // subject spanning seasons, the same one the bands on Constructor.jsx and
+  // Driver.jsx read. `last_year` is the second half of the span this row
+  // already prints, so the mark and the years cannot disagree.
   constructor: {
-    render: (name, row) =>
-      row.constructor_id ? <Link to={`/constructors/${row.constructor_id}`}>{name}</Link> : cell(name),
+    render: (name, row) => (
+      <>
+        <LiveryMark
+          colour={colourForEntry({
+            constructorId: row.constructor_id,
+            country: row.constructor_country,
+            year: row.last_year,
+            team: name,
+          })}
+          year={row.last_year}
+        />
+        {row.constructor_id ? <Link to={`/constructors/${row.constructor_id}`}>{name}</Link> : cell(name)}
+      </>
+    ),
   },
   first_year: { sort: (row) => row.first_year },
 }
@@ -171,6 +191,9 @@ function Register({ rows }) {
 
       <Filters showing={filtered.length} of={rows.length} noun="chassis">
         <SearchField value={term} onChange={setTerm} label="Filter cars" placeholder="A chassis or a constructor…" />
+        {/* The options are <option> text and cannot carry a mark; they stay
+            bare (AF-51). Clause 4 of AF-47 is what makes that safe - the name
+            is always there, and the mark never stood in for it. */}
         <Select
           value={constructor}
           onChange={setConstructor}

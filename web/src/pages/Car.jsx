@@ -3,8 +3,10 @@ import { Confidence, Fields, Note, Onward, Page, Section, Stats } from '../compo
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import CommonsImage from '../components/CommonsImage.jsx'
+import LiveryMark from '../components/LiveryMark.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { missing, number, span } from '../lib/format.js'
+import { colourForEntry } from '../lib/liveries.js'
 import {
   AMBIGUOUS_COLUMNS,
   AMBIGUOUS_FOOTER,
@@ -284,7 +286,27 @@ function CarBody({ chassis, variants, data }) {
       <Section title="On the record">
         <Fields
           items={[
-            { label: 'Constructor', value: chassis.constructor_id ? <Link to={`/constructors/${chassis.constructor_id}`}>{chassis.constructor}</Link> : null },
+            // The builder's colour mark (AF-51), for the chassis's last
+            // season - the same rule the register reads. No `year` is passed:
+            // LiveryMark's spacer exists to keep a table column's names
+            // aligned, and a field list has no column to align, so a season
+            // with no colour draws nothing rather than an indent.
+            {
+              label: 'Constructor',
+              value: chassis.constructor_id ? (
+                <>
+                  <LiveryMark
+                    colour={colourForEntry({
+                      constructorId: chassis.constructor_id,
+                      country: chassis.constructor_country,
+                      year: chassis.last_year,
+                      team: chassis.constructor,
+                    })}
+                  />
+                  <Link to={`/constructors/${chassis.constructor_id}`}>{chassis.constructor}</Link>
+                </>
+              ) : null,
+            },
             { label: 'Predecessor', value: chassis.predecessor },
             { label: 'Successor', value: chassis.successor },
             { label: 'Races (published)', value: number(chassis.published_races) },

@@ -25,7 +25,7 @@ import { finished, missing, span, text } from '../lib/format.js'
  * both a car and a chassis, and resolves to the chassis.
  */
 export const VARIANTS = `
-  SELECT ch.*, k.name AS constructor
+  SELECT ch.*, k.name AS constructor, k.country AS constructor_country
     FROM chassis ch
     LEFT JOIN constructors k ON k.id = ch.constructor_id
    WHERE ch.id = ?1
