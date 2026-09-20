@@ -393,29 +393,39 @@ try {
    * stopped, without this test having to guess when 'ready' arrives.
    */
   await section('Landing  (the offset, the focus and the skip link)', async () => {
+    /*
+     * A page of its own for each arrival: an empty IndexedDB means the
+     * database is fetched again, which is what makes the handover window wide
+     * enough to read inside. Brought to the front and held with a timer rather
+     * than requestAnimationFrame — a background tab's frames are paused, and a
+     * hold that never runs reads as a reader who never scrolled, which is this
+     * test passing itself.
+     */
+    const fresh = async (route) => {
+      const target = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+      await target.bringToFront()
+      await target.goto(`${BASE}${route}`, { waitUntil: 'domcontentloaded' })
+      return target
+    }
+    const holdScroll = (target) =>
+      target.addInitScript(() => {
+        const id = setInterval(() => {
+          if (document.getElementById('prerendered')) window.scrollTo(0, 1500)
+          else clearInterval(id)
+        }, 16)
+      })
+    // handOver() restores two frames after the removal. A settled read, not a
+    // poll: polling accepts a value that something later undoes, which is the
+    // whole failure being tested for.
+    const settled = (target) => target.waitForTimeout(600)
+
     const held = await browser.newPage({ viewport: { width: 1280, height: 900 } })
-    await held.addInitScript(() => {
-      const hold = () => {
-        if (!document.getElementById('prerendered')) return
-        window.scrollTo(0, 1500)
-        requestAnimationFrame(hold)
-      }
-      requestAnimationFrame(hold)
-    })
+    await holdScroll(held)
+    await held.bringToFront()
     await held.goto(`${BASE}/circuits/monza`, { waitUntil: 'domcontentloaded' })
     await held.waitForSelector('#root main h1', { timeout: 60000 })
     await held.waitForFunction(() => !document.getElementById('prerendered'), null, { timeout: 60000 })
-    // handOver() restores after two frames, so read after three and a beat -
-    // polling would accept a value that the route-change reset then undid,
-    // which is the failure this is here to catch.
-    await held.evaluate(
-      () =>
-        new Promise((done) =>
-          requestAnimationFrame(() =>
-            requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(done, 250))),
-          ),
-        ),
-    )
+    await settled(held)
     atLeast(
       await held.evaluate(() => window.scrollY),
       1000,
@@ -473,6 +483,75 @@ try {
       'and taking it puts focus inside <main>, past the eleven header stops',
     )
     await held.close()
+
+    /*
+     * The same three things on the static page, which is the half a cold
+     * arrival actually reads — and where main.jsx's holdLinks() turns a click
+     * into a route change. A fragment link into the page the reader is
+     * already on is not one: held, the skip link left focus on itself and put
+     * "opening Skip to content" in the boot strip.
+     */
+    const cold = await fresh('/circuits/monza')
+    truthy(
+      await cold.evaluate(() => {
+        const link = document.querySelector('#prerendered .skiplink')
+        if (!document.getElementById('prerendered') || !link) return false
+        link.focus()
+        return document.activeElement === link
+      }),
+      'the static page carries the skip link, and it takes focus before the database is ready',
+    )
+    await cold.keyboard.press('Enter')
+    is(
+      await cold.evaluate(() => {
+        const main = document.querySelector('#prerendered main#main')
+        if (document.activeElement === main) return true
+        return `focus went to .${document.activeElement?.className || document.activeElement?.tagName}`
+      }),
+      true,
+      'and taking it reaches the static page\'s own content rather than being held as a route change',
+    )
+    await cold.close()
+
+    /*
+     * The other arrival. A click on the static page before the database is
+     * open moves the router on while the reader is still looking at the page
+     * they left, so the offset they had belongs to that page and not to the
+     * one about to render: 1,500 px into the circuit register is nowhere in
+     * particular on one circuit's page. Both halves have to agree about
+     * that — handOver() drops the offset and ScrollToTop treats it as the
+     * route change it is — or the two race and the reader lands wherever the
+     * machine was quick that morning.
+     */
+    const clicked = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    await holdScroll(clicked)
+    await clicked.bringToFront()
+    await clicked.goto(`${BASE}/circuits`, { waitUntil: 'domcontentloaded' })
+    truthy(
+      await clicked.evaluate(() => {
+        const link = document.querySelector('#prerendered a[href="/circuits/monza"]')
+        if (!document.getElementById('prerendered') || !link) return false
+        link.click()
+        return true
+      }),
+      'the static register is still there to click through before the database is ready',
+    )
+    await clicked.waitForFunction(
+      () => document.querySelector('#root main h1')?.textContent.includes('Monza'),
+      null,
+      { timeout: 60000 },
+    )
+    await clicked.waitForFunction(() => !document.getElementById('prerendered'), null, { timeout: 60000 })
+    await settled(clicked)
+    truthy(
+      (await clicked.evaluate(() => window.scrollY)) < 200,
+      'and a reader who clicked through it arrives at the top of the page they asked for, not at the offset of the one they left',
+    )
+    await clicked.close()
+
+    // Every section after this one drives the shared page, which has been in
+    // the background throughout.
+    await page.bringToFront()
   })
 
   // ------------------------------------------------------------------ home

@@ -23,11 +23,22 @@ import './styles/app.css'
  * reader's focus went to <body>. The offset is read before the removal and
  * restored after the app has painted, and the new page's heading takes focus
  * so a screen reader learns the document changed.
+ *
+ * App.jsx's ScrollToTop used to undo that restore on its own first render and
+ * win the race on a long page, which is what IX-30 measured; it now leaves the
+ * arrival alone, so this is the only thing that decides where the reader is
+ * standing when the app takes over.
  */
 function handOver() {
+  const arrival = location.pathname
   const stop = onProgress((state) => {
     if (state.phase !== 'ready') return
-    const y = window.scrollY
+    // Unless the reader has moved on. A click on the static page is held as a
+    // route change (below), so by the time this runs the app may be about to
+    // render a different page from the one that was scrolled: the offset
+    // belongs to what they were reading, not to a stranger, and 1,500 px into
+    // the circuit register is nowhere in particular on one circuit's page.
+    const y = location.pathname === arrival ? window.scrollY : 0
     document.getElementById('prerendered')?.remove()
     stop()
     requestAnimationFrame(() =>
@@ -65,6 +76,14 @@ function holdLinks() {
       if (!anchor || anchor.target === '_blank' || anchor.hasAttribute('download')) return
       const url = new URL(anchor.href, location.href)
       if (url.origin !== location.origin) return
+      // A fragment link into the page the reader is already on is not a
+      // navigation to hold. The skip link is the first one this site has ever
+      // had inside the static page, and held, it became a route change to
+      // /circuits/monza#main: focus stayed on the link, the reader never
+      // reached the content, and the boot strip promised to open "Skip to
+      // content" when the database was ready. Let the browser do what it does
+      // with a fragment.
+      if (url.hash && url.pathname === location.pathname && url.search === location.search) return
       event.preventDefault()
       history.pushState({}, '', url.pathname + url.search + url.hash)
       dispatchEvent(new PopStateEvent('popstate'))
