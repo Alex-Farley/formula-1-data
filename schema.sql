@@ -1,5 +1,5 @@
 -- =====================================================================
--- F1 Verified Facts Database — relational schema
+-- Lap Ledger — relational schema
 -- Version 2.0 (2026-09-04)
 --
 -- Provenance model

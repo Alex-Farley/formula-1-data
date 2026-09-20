@@ -1,6 +1,10 @@
-# Every issue is an item of the queue, so a blank issue is not offered: the
-# form below asks for the three things an item needs. CONTRIBUTING.md, *The
-# queue*, is the rule; the board is the ranking.
+# Two forms, and no blank issue.
+#
+# item.yml is the queue: it asks for the three things an item needs, and
+# CONTRIBUTING.md, *The queue*, is the rule for them. report.yml is a
+# reader's report of something wrong on the site, which is NOT a queue item
+# and is not asked for an id, a size or a board column - SD-04, and the
+# reason the two forms exist rather than one.
 blank_issues_enabled: false
 contact_links:
   - name: How the queue works

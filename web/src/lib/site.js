@@ -114,3 +114,80 @@ export const UNCHECKED_NOTE = [
   'has a file name that does not name this car. Most are still the right car, filed under the ' +
     'driver rather than the machine — but nobody has confirmed these one by one.',
 ]
+
+/**
+ * Where the project itself is, and the one way back into it.
+ *
+ * Until 2026-09-14 the repository was private, so the site published the data
+ * and withheld every document that explains it, and a reader who spotted a
+ * wrong value had nowhere to say so. Both addresses live here for the reason
+ * every other shared string does: the app and the prerenderer must offer the
+ * reader the same door, and a second copy of a URL is a copy that can rot.
+ */
+export const REPOSITORY = 'https://github.com/Alex-Farley/formula-1-data'
+// The reader's form, named explicitly. Bare `issues/new` lands on the
+// chooser and then on item.yml, which prefills an `XX-nn:` title and asks
+// for a critique prefix, a `next.py --next-id` lookup and a board drag - it
+// would tell a reader who has found a wrong pole position that their report
+// is malformed, which is the failure SD-04 is about, one step further on.
+export const REPORT_URL = `${REPOSITORY}/issues/new?template=report.yml`
+
+/**
+ * The inbound channel, in the words both renderers use.
+ *
+ * A report with no destination is worse than none, so the promise is the one
+ * this project can keep and already documents in CONTRIBUTING.md: two sources
+ * that disagree are recorded in `discrepancies` and published with the data
+ * rather than one being picked silently, and a fact nobody has established is
+ * listed in `known_gaps`. Neither is closed by choosing a side, which is why
+ * a reader who knows something is the cross-check this project cannot
+ * generate for itself.
+ */
+export const REPORT_ASK = 'Found something wrong?'
+export const REPORT_LINK = 'Report it'
+export const REPORT_PROMISE =
+  'What two sources disagree about is recorded and published rather than quietly picked, and ' +
+  'what nobody has established is listed as a gap.'
+
+/**
+ * The same invitation beside a disagreement the database has not settled.
+ *
+ * Only beside an OPEN one: a reading explained as each side being right about
+ * something is not waiting for anybody, and asking a reader to settle it
+ * would misdescribe the row they are looking at.
+ */
+export const SETTLE_ASK = 'If you can settle it against a source that can be checked, '
+export const SETTLE_LINK = 'report what you have'
+
+/**
+ * The three documents that explain the database, served from the site beside
+ * the files they describe.
+ *
+ * The obligation follows the file, not the repository: lapledger.org serves
+ * the data to anyone, so the schema that documents it and the two notices
+ * that set its terms are served from the same place rather than from a
+ * repository a reader has no reason to look in. `f1-geometry.db`'s own `meta`
+ * row and each release body already name these files; until now those names
+ * resolved to nothing a downloader could reach.
+ *
+ * One list, read by both renderers, so the static page and the app cannot
+ * offer different documents. `web/scripts/prepare-assets.js` stages exactly
+ * these three and refuses to build without them.
+ */
+export const DOCUMENTS = [
+  [
+    'schema.sql',
+    'The schema, commented: every table, every column, and the reasoning behind the ones that need it.',
+  ],
+  [
+    'ATTRIBUTION.md',
+    'Where each part of the data came from, what its licence requires, and what that requirement cost or bought.',
+  ],
+  [
+    'LICENSE-DATA',
+    'The terms the data is offered under \u2014 CC BY-SA 4.0 \u2014 and why share-alike rather than something looser.',
+  ],
+]
+
+export const DOCUMENTS_NOTE =
+  'The database is served from here, so the documents that explain it are served from here too.'

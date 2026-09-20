@@ -21,6 +21,7 @@
  */
 import { Link } from 'react-router-dom'
 import { EXPLAINED_FOOTER, OPEN_FOOTER, allExplained } from '../lib/disagreement.js'
+import { REPORT_URL, SETTLE_ASK, SETTLE_LINK } from '../lib/site.js'
 
 /*
  * Both values are resolved through `drivers` on the way out. A discrepancy
@@ -105,9 +106,21 @@ export default function Disagreement({ rows, what = 'this' }) {
           </div>
         ))}
       </dl>
+      {/* The invitation goes beside an OPEN row only. A reading explained as
+          each side being right about something is not waiting for anybody, and
+          asking a reader to settle it would misdescribe the row in front of
+          them. These are the pages where a reader is likeliest to know
+          something the database does not. */}
       <p className="source-note">
         {explained ? EXPLAINED_FOOTER : OPEN_FOOTER}
         <Link to="/data/quality">the quality page</Link>.
+        {!explained && (
+          <>
+            {' '}
+            {SETTLE_ASK}
+            <a href={REPORT_URL}>{SETTLE_LINK}</a>.
+          </>
+        )}
       </p>
     </aside>
   )

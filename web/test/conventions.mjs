@@ -27,6 +27,7 @@ import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { COLOURS } from '../src/lib/racingColours.js'
+import { DOCUMENTS } from '../src/lib/site.js'
 import {
   ACCENT_APART,
   accentsBySource,
@@ -198,6 +199,24 @@ describe('the prerendered half and the app agree on the name (frontend-reviewer,
     const stale = [...sourceFiles(join(web, 'src')), ...sourceFiles(join(web, 'scripts'), /\.m?js$/), join(web, 'index.html')]
       .filter((file) => read(file).includes('F1 Verified Facts'))
       .map(rel)
+    assert.deepEqual(stale, [])
+  })
+
+  // SD-01 put three files from the repository root into what the site
+  // publishes, and this check was scoped to web/ - so schema.sql arrived on
+  // lapledger.org still headed with the old name, past the one test that
+  // exists to catch that. What a reader reads is the rule, not where the
+  // file happens to live, so the list the site publishes is read from the
+  // same DOCUMENTS the two renderers link.
+  //
+  // DECLARED: meta.database_name still holds the old name inside f1.db. It
+  // reaches f1_compat.json, which other things consume, so the rename stops
+  // short of it deliberately - PM-22 (#165) carries that one, with its own
+  // version bump. This check reads the served documents, not the database.
+  it('nor in a document the site serves beside the data', () => {
+    const stale = DOCUMENTS.map(([file]) => join(web, '..', file))
+      .filter((file) => read(file).includes('F1 Verified Facts'))
+      .map((file) => relative(join(web, '..'), file))
     assert.deepEqual(stale, [])
   })
 })
