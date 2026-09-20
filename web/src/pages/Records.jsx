@@ -4,11 +4,13 @@ import { Confidence, Note, Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { Chips } from '../components/Filters.jsx'
+import LiveryMark from '../components/LiveryMark.jsx'
 import Figure from '../charts/Figure.jsx'
 import BarChart from '../charts/BarChart.jsx'
 import LineChart from '../charts/LineChart.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { percent } from '../lib/format.js'
+import { colourForEntry } from '../lib/liveries.js'
 import {
   CONSTRUCTOR_WINS,
   DECADES,
@@ -35,6 +37,25 @@ const GRAND_SLAM_APP = {
   year: { render: (year) => <Link to={`/seasons/${year}`}>{year}</Link> },
   gp_name: { render: (name, row) => <Link to={`/races/${row.year}/${row.round}`}>{name}</Link> },
 }
+
+/**
+ * The colour a career-long constructor row wears (AF-53).
+ *
+ * WHICH SEASON. The last one, as the constructor page's band takes the last
+ * season a team raced — here the row's own `last_win`, which is the only year
+ * this row is about and the one already printed in it. A second date in the
+ * view, for a colour and nothing else, would be a column no reader of
+ * `SELECT * FROM v_wins_by_constructor` could account for.
+ *
+ * WHICH COLOUR. colourForEntry(), which is what a MARK takes: the livery from
+ * 2010, the national convention before 1968, and nothing between. The
+ * constructor page's band falls back to the convention for the 1968–2009 gap
+ * as well, but it does that with a sentence beside it saying which convention
+ * it is showing; a mark in a table and a bar on a chart have no room for that
+ * clause, so they keep the gap the rest of the site keeps.
+ */
+const constructorColour = (row) =>
+  colourForEntry({ constructorId: row.id, country: row.country, year: row.last_win, team: row.name })
 
 export default function Records() {
   const state = useQueries({
@@ -75,6 +96,25 @@ function Body({ data }) {
   )
   const shownRecords = category ? records.filter((r) => r.category === category) : records
   const tiers = useMemo(() => tiersOf(records), [records])
+
+  // The fifteen bars of the constructor chart, in their teams' colours where
+  // the whole chart can have them. The season page's rule (Season.jsx
+  // `inColour`): a chart wears liveries only when every mark has one, because
+  // five teams in their own colours beside ten in the same neutral blue reads
+  // as a claim about the ten. Seven of the fifteen last won inside the
+  // 1968-2009 gap as the database stands, so the chart draws neutral today;
+  // whether a partly-coloured chart is allowed is #384, still open, and this
+  // is the shape of that decision rather than an answer to it.
+  const constructorBars = useMemo(() => {
+    const bars = constructorWins.slice(0, 15).map((c) => ({
+      key: c.id ?? c.name,
+      label: c.name,
+      value: c.wins,
+      colour: constructorColour(c),
+    }))
+    if (bars.length > 0 && bars.every((bar) => bar.colour)) return bars
+    return bars.map((bar) => ({ key: bar.key, label: bar.label, value: bar.value }))
+  }, [constructorWins])
 
   const [decade, setDecade] = useState(() => String(Math.max(...decades.map((d) => d.decade))))
   const decadeRows = decades.filter((d) => String(d.decade) === decade).slice(0, 12)
@@ -171,7 +211,19 @@ function Body({ data }) {
           table={{
             rows: constructorWins,
             columns: [
-              { key: 'name', label: 'Constructor' },
+              // The team's colour mark and a link to its page, as /races
+              // draws the same constructor (AF-47). The view carries c.id so
+              // both can be keyed to the constructor rather than its name.
+              {
+                key: 'name',
+                label: 'Constructor',
+                render: (name, row) => (
+                  <>
+                    <LiveryMark colour={constructorColour(row)} year={row.last_win} />
+                    {row.id ? <Link to={`/constructors/${row.id}`}>{name}</Link> : cell(name)}
+                  </>
+                ),
+              },
               { key: 'country', label: 'Country' },
               { key: 'wins', label: 'Wins', align: 'num' },
               { key: 'first_win', label: 'First', align: 'num' },
@@ -181,7 +233,7 @@ function Body({ data }) {
           }}
         >
           <BarChart
-            data={constructorWins.slice(0, 15).map((c) => ({ key: c.name, label: c.name, value: c.wins }))}
+            data={constructorBars}
             label="The fifteen constructors with the most Grand Prix wins"
           />
         </Figure>
