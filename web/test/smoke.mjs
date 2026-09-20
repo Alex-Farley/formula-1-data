@@ -1848,6 +1848,13 @@ try {
         if (commons !== `https://commons.wikimedia.org/wiki/Special:FilePath/${file}?width=1200`) {
           wrong.push(`/cars/${id}: expected its confirmed photograph, got ${commons ?? 'the site card'}`)
         }
+        // The credit has to travel WITH the picture. An unfurler draws the file
+        // in its own feed with none of the page's markup around it, so
+        // og:image:alt is the only caption that leaves with it — and it must be
+        // the caption, not the file name on its own.
+        const alt = unescaped(/<meta property="og:image:alt" content="([^"]*)"/.exec(html)?.[1] ?? '')
+        const credit = `${fileTitle(confirmed.file_name)} · ${attribution(confirmed)} · ${confirmed.licence.trim()}`
+        if (alt !== credit) wrong.push(`/cars/${id}: og:image:alt is "${alt}", not the photograph's credit`)
       } else if (commons) {
         wrong.push(`/cars/${id}: an unconfirmed photograph became the share card`)
       }

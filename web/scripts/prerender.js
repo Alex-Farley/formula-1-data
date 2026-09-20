@@ -629,6 +629,19 @@ const photograph = (image, width) => {
 }
 
 /**
+ * The caption as plain words — the same three parts, in the same order.
+ *
+ * This is what travels with the picture when the picture leaves the page. An
+ * unfurler fetches the file named in `og:image` and draws it in its own feed
+ * with none of the markup around it, so the caption it can carry is
+ * `og:image:alt` and nothing else. Built from the same `attribution()` as the
+ * figcaption, because a credit that differs between the page and the card is
+ * two answers to the licence question again.
+ */
+const creditLine = (image) =>
+  `${fileTitle(image.file_name)} · ${attribution(image)} · ${(image.licence ?? '').trim()}`
+
+/**
  * The width asked of Commons for the share card.
  *
  * Special:FilePath never upscales, so a narrower original simply comes back at
@@ -661,16 +674,19 @@ const photographs = (id) => {
   const confirmed = shown.find((image) => image.name_matches === 1) ?? null
   return {
     html: `<h2>Photographs</h2>
-      <p>${esc(PHOTOGRAPHS_NOTE)}</p>
+      <p class="note">${esc(PHOTOGRAPHS_NOTE)}</p>
       <div class="photo-grid">${shown.map((image) => photograph(image, 600)).join('')}</div>${
-        shown.some((image) => image.name_matches === 0)
+        // Over every image, not just the six drawn: Car.jsx tests `images`, and
+        // a caveat that appears in one renderer and not the other is a caveat
+        // the reader cannot rely on.
+        images.some((image) => image.name_matches === 0)
           ? `\n      <p class="source-note">${esc(UNCHECKED_NOTE[0])} <span class="pill pill-unverified">${esc(
               UNCHECKED_MARK,
             )}</span> ${esc(UNCHECKED_NOTE[1])}</p>`
           : ''
       }`,
     image: confirmed
-      ? { url: thumbUrl(confirmed.file_name, CARD_WIDTH), alt: fileTitle(confirmed.file_name) }
+      ? { url: thumbUrl(confirmed.file_name, CARD_WIDTH), alt: creditLine(confirmed) }
       : null,
   }
 }
