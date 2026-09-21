@@ -200,44 +200,58 @@ def main():
     print(f"wrote {path}  ({os.path.getsize(path) / 1024:.0f} KB)")
 
     if "--compat" in sys.argv:
+        # The season this file's keys name. FROZEN, and deliberately not
+        # meta.current_season: README calls f1_compat.json "the original v1
+        # key layout, so anything already consuming that file keeps working",
+        # and `teams_2026` is part of that layout. Following the season would
+        # rename four keys at rollover, and CI - which compares the committed
+        # file against a fresh build of the same code - would agree with
+        # itself and say nothing while an outside consumer's lookup returned
+        # nothing. web/test/conventions.mjs holds meta.database_name short of
+        # this file for the same reason; PM-22 (#165) carries both, with the
+        # version bump that makes a key change announceable. Named once here
+        # so the number is declared rather than typed nine times (CR-07).
+        SEASON = 2026
         teams = [dict(r) for r in con.execute("""
             SELECT c.name, c.full_name, c.base, c.first_entry,
                    s.position, s.points
             FROM constructors c
-            JOIN v_standings_final s ON s.entity_id=c.id AND s.year=2026
+            JOIN v_standings_final s ON s.entity_id=c.id AND s.year=?
                             AND s.table_type='constructors'
-            ORDER BY s.position""")]
+            ORDER BY s.position""", (SEASON,))]
         for t in teams:
             t["drivers"] = [r[0] for r in con.execute("""
                 SELECT d.full_name FROM season_entries e JOIN drivers d ON d.id=e.driver_id
                 JOIN constructors c ON c.id=e.constructor_id
-                WHERE e.year=2026 AND e.role='race' AND c.name=?""", (t["name"],))]
+                WHERE e.year=? AND e.role='race' AND c.name=?""",
+                (SEASON, t["name"]))]
         compat = {
             "database_name": out["database_name"],
             "version": out["version"],
             "verification_date": meta.get("verification_date"),
             "verification_policy": out["verification_policy"],
-            "teams_2026": teams,
-            "drivers_2026": {
+            f"teams_{SEASON}": teams,
+            f"drivers_{SEASON}": {
                 "full_season_entry_set": [dict(r) for r in con.execute("""
                     SELECT d.full_name AS name, d.nationality_code, e.car_number AS number,
                            c.name AS team
                     FROM season_entries e JOIN drivers d ON d.id=e.driver_id
                     JOIN constructors c ON c.id=e.constructor_id
-                    WHERE e.year=2026 AND e.role='race'""")],
+                    WHERE e.year=? AND e.role='race'""", (SEASON,))],
                 "in_season_reserve_or_substitute": [dict(r) for r in con.execute("""
                     SELECT d.full_name AS name, d.nationality_code, e.car_number AS number,
                            c.name AS team_context, e.role AS status
                     FROM season_entries e JOIN drivers d ON d.id=e.driver_id
                     JOIN constructors c ON c.id=e.constructor_id
-                    WHERE e.year=2026 AND e.role!='race'""")],
+                    WHERE e.year=? AND e.role!='race'""", (SEASON,))],
             },
-            "driver_standings_snapshot_2026": [dict(r) for r in con.execute("""
+            f"driver_standings_snapshot_{SEASON}": [dict(r) for r in con.execute("""
                 SELECT position, entity AS driver, team, points FROM v_standings_final
-                WHERE year=2026 AND table_type='drivers' ORDER BY position""")],
-            "calendar_2026_current": [dict(r) for r in con.execute("""
+                WHERE year=? AND table_type='drivers' ORDER BY position""",
+                (SEASON,))],
+            f"calendar_{SEASON}_current": [dict(r) for r in con.execute("""
                 SELECT round, country, city, dates, circuit_name, circuit_id, sprint, status
-                FROM calendar WHERE year=2026 ORDER BY round""")],
+                FROM calendar WHERE year=? ORDER BY round""", (SEASON,))],
             # Derived, every one. These were typed strings in a file whose CI
             # check compares it only against a fresh build of the same code,
             # so "most_recent_champion" would have read 2025 on the day the
@@ -251,9 +265,9 @@ def main():
         # compares the committed file against a fresh build certified it each
         # time, because it checks reproducibility and not sense. This checks
         # sense.
-        for key, rows_ in (("driver_standings_snapshot_2026",
-                            compat["driver_standings_snapshot_2026"]),
-                           ("teams_2026", teams)):
+        for key, rows_ in ((f"driver_standings_snapshot_{SEASON}",
+                            compat[f"driver_standings_snapshot_{SEASON}"]),
+                           (f"teams_{SEASON}", teams)):
             names = [r["driver"] if "driver" in r else r["name"] for r in rows_]
             if len(names) != len(set(names)):
                 raise SystemExit(f"compat: {key} lists an entity twice")

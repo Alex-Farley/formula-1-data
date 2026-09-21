@@ -1158,13 +1158,20 @@ FROM constructors
 WHERE constructors_titles > 0 OR drivers_titles > 0
 ORDER BY constructors_titles DESC, wins DESC;
 
+-- "Current" is read, not typed (CR-07). The anchor is meta.current_season,
+-- which build.py writes from the one constant in data/current.py and verify.py
+-- holds to the season the race records actually show. NOT MAX(season_entries
+-- .year): that is the same value today only because next season's entry list
+-- has never been carried, and the register already carries next season's
+-- calendar, so the day a 2027 grid is announced MAX() would move to it while
+-- the season in progress had not.
 CREATE VIEW v_current_grid AS
 SELECT e.car_number, d.full_name AS driver, d.nationality_code, c.name AS team,
        e.car, e.power_unit, e.role
 FROM season_entries e
 LEFT JOIN drivers d      ON d.id = e.driver_id
 LEFT JOIN constructors c ON c.id = e.constructor_id
-WHERE e.year = 2026
+WHERE e.year = (SELECT CAST(value AS INTEGER) FROM meta WHERE key = 'current_season')
 ORDER BY e.role, c.name, e.car_number;
 
 CREATE VIEW v_season_timeline AS
@@ -1755,12 +1762,19 @@ LEFT JOIN circuit_layouts l ON l.circuit_id = r.circuit_id AND (
 ORDER BY r.year, r.round;
 
 -- Venues no longer in use, most recently dropped first.
+--
+-- Both the count and the cutoff hang off the season in progress rather than a
+-- typed year (CR-07): "lost" is not on this year's calendar and was not on
+-- last year's, and "years since" is counted back from this year. The anchor is
+-- meta.current_season, as v_current_grid uses, and NOT MAX(races.year), which
+-- becomes the next season's calendar as soon as one is announced.
 CREATE VIEW v_lost_circuits AS
 SELECT c.id, c.name, c.country, COUNT(r.id) AS races,
        MIN(r.year) AS first_gp, MAX(r.year) AS last_gp,
-       2026 - MAX(r.year) AS years_since
+       (SELECT CAST(value AS INTEGER) FROM meta WHERE key = 'current_season') - MAX(r.year) AS years_since
 FROM circuits c JOIN races r ON r.circuit_id = c.id
-WHERE NOT EXISTS (SELECT 1 FROM races s WHERE s.circuit_id = c.id AND s.year >= 2025)
+WHERE NOT EXISTS (SELECT 1 FROM races s WHERE s.circuit_id = c.id
+                    AND s.year >= (SELECT CAST(value AS INTEGER) FROM meta WHERE key = 'current_season') - 1)
 GROUP BY c.id
 ORDER BY last_gp DESC;
 
