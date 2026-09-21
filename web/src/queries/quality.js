@@ -24,6 +24,68 @@ export const RECONCILIATION = 'SELECT * FROM v_stat_reconciliation ORDER BY deri
 export const UNVERIFIED = 'SELECT tbl, COUNT(*) AS n FROM v_unverified GROUP BY tbl ORDER BY n DESC, tbl'
 export const AMBIGUOUS = 'SELECT * FROM v_ambiguous_seasons ORDER BY unlinked_entries DESC, year, constructor'
 export const CHASSIS_COVERAGE = 'SELECT * FROM v_chassis_coverage ORDER BY decade'
+
+/**
+ * The gap register, the chassis-coverage figure and the photograph strip:
+ * their headings, their notes and their columns, read by Quality.jsx and by
+ * scripts/prerender.js (PD-02).
+ *
+ * VD-01. The two renderers drew the gap register in different shapes — a
+ * table in the app, a run of <section><h3> blocks on the static page — and
+ * stated the three group headings and their notes twice, word for word. The
+ * figure and the photograph strip the app draws had no static half at all.
+ */
+export const GAP_COLUMNS = [
+  { key: 'field', label: 'Field' },
+  { key: 'area', label: 'Area', align: 'prose' },
+  { key: 'reader', label: 'What is missing, and why', align: 'prose' },
+]
+
+export const MAINTAINER_NOTE = 'Maintainer\u2019s note'
+
+export const GAP_GROUPS = [
+  {
+    state: 'open',
+    title: 'Open gaps',
+    note: 'What is missing, and what it would take to close each one. Several need a person to read something rather than a script to fetch it.',
+  },
+  {
+    state: 'position',
+    title: 'Positions, not gaps',
+    note: 'Deliberate absences. Each is the right state for this database, stated so it is not mistaken for something unfinished.',
+  },
+  {
+    state: 'closed',
+    title: 'Closed',
+    note: 'Gaps that have since been filled, kept so the closure is on record.',
+  },
+]
+
+export const CHASSIS_TITLE = 'Race entries that name a chassis, by decade'
+export const CHASSIS_NOTE =
+  'A modern team runs one car all season; a 1960s constructor was a name several privateers entered several different designs under. That, not a harvest failure, is why the older decades are thinner.'
+
+export const CHASSIS_COVERAGE_COLUMNS = [
+  // A decade is a year, not a quantity: the default cell groups thousands and
+  // printed the 1950s as "1,950".
+  { key: 'decade', label: 'Decade', align: 'num', text: (value) => String(value) },
+  { key: 'race_entries', label: 'Entries', align: 'num' },
+  { key: 'with_chassis', label: 'With a chassis', align: 'num' },
+  { key: 'pct', label: '%', align: 'num' },
+]
+
+export const PHOTOGRAPH_STATS = [
+  { key: 'total', label: 'Referenced' },
+  { key: 'named', label: 'File names the subject' },
+  { key: 'unnamed', label: 'Needs a person' },
+  { key: 'licences', label: 'Distinct licences' },
+]
+
+export const PHOTOGRAPHS_UNNAMED_NOTE =
+  'A photograph whose file name does not name the car is not necessarily the wrong photograph \u2014 most are filed under the driver. But nothing in the database can tell which are not, and one article leads with a picture of police officers, so all of them are held at unverified until someone looks.'
+
+export const photographsCatalogued = (n) =>
+  `A further ${n}, for chassis with no article of their own, were filed by Commons editors under a category named for the car. A category also holds replicas and show cars, so those sit a rung lower, at catalogued, and none of them is shown on a car page.`
 export const GEOMETRY_COVERAGE = 'SELECT * FROM v_geometry_coverage'
 export const IMAGES = `
   SELECT COUNT(*) AS total,
