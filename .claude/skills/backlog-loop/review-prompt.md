@@ -46,5 +46,11 @@ live fetch unless the item is about one.
 Then, after a fix, to a fresh Sonnet agent (never the agent that already reviewed):
 
     PR #<N> follow-up: <what changed and why> in commit <sha> on `<branch>`
-    (same worktree). Please inspect `git diff <old>..<new>` and return one
-    line: `PASS — safe to merge` or `FAIL — changes required`.
+    (same worktree). Please inspect `git diff <old>..<new>`. Your first line
+    is the verdict and nothing goes above it: exactly `PASS — safe to merge`
+    or `FAIL — changes required`, with no summary sentence, preamble or
+    restated finding in front of it. Anything you want to say goes after it.
+
+A confirmation that leads with a sentence instead of a verdict is not a verdict
+and is not interpreted as one: discard it and spawn the pass again, as
+`.claude/skills/backlog-item/SKILL.md` sets out under *Review*.

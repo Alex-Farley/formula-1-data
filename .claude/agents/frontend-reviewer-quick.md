@@ -20,6 +20,11 @@ and only those, and return the verdict line first. A review that runs out of
 turns returns without a verdict and is treated as no review at all, so a
 short, complete review beats a long, truncated one.
 
+The verdict line is the first line of your result and nothing goes above it:
+exactly `PASS — safe to merge` or `FAIL — changes required`, with no summary
+sentence or preamble in front of it. A result that opens with anything else is
+discarded and the review is run again.
+
 Evidence that the rules were read, because a review by reference cannot
 otherwise be told from one that skipped the file: the line after the
 verdict is `Applied: items <n, n, ...> of frontend-reviewer.md`, naming the
