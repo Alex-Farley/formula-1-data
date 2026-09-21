@@ -91,6 +91,32 @@ def season_in_progress():
         "SELECT MAX(year) FROM races WHERE status = 'completed'").fetchone()[0])
 
 
+def declared_season():
+    """meta.current_season: the season data/current.py says is being run.
+
+    A separate claim from season_in_progress(), which counts what the rows
+    actually show, and the two are compared rather than one being derived
+    from the other (CR-07). That comparison is what makes the constant safe
+    to read everywhere else: a season rolled over in the data but not in
+    data/current.py, or the reverse, fails the build instead of leaving half
+    the file talking about last year.
+    """
+    row = _once("declared_season", lambda: con.execute(
+        "SELECT value FROM meta WHERE key = 'current_season'").fetchone())
+    return int(row[0]) if row else None
+
+
+def recent_seasons():
+    """The season being run and the one before it.
+
+    The pair the hand-entered classification covers: last season's is final,
+    this season's stands after a round. Several checks run over both, and
+    each of them used to name the two years (CR-07).
+    """
+    current = season_in_progress()
+    return (current - 1, current)
+
+
 def last_season():
     """The last season the register holds, run or not."""
     return _once("last_season", lambda: con.execute(
@@ -165,12 +191,25 @@ def coverage():
     last = last_season()
     missing = [y for y in range(1950, last + 1) if y not in yrs]
     check(f"every season 1950-{last} present", not missing, str(missing))
+    # The one place the typed season and the built one are put beside each
+    # other. Everything below reads season_in_progress(); this is what says
+    # the constant data/current.py loaded the grid, the timetable and the
+    # standings from is the same season those rows landed in (CR-07).
+    current = season_in_progress()
+    check("meta.current_season is the season the rows are in",
+          declared_season() == current,
+          f"meta says {declared_season()}, the races say {current}")
+    entry_years = [r[0] for r in con.execute(
+        "SELECT DISTINCT year FROM season_entries ORDER BY year")]
+    check("season_entries holds the season in progress and nothing else",
+          entry_years == [current], str(entry_years))
     nochamp = [r[0] for r in con.execute(
-        "SELECT year FROM seasons WHERE drivers_champion IS NULL AND year < 2026")]
+        "SELECT year FROM seasons WHERE drivers_champion IS NULL AND year < ?",
+        (current,))]
     check("every completed season has a champion", not nochamp, str(nochamp))
     nocc = [r[0] for r in con.execute(
         """SELECT year FROM seasons WHERE constructors_champion IS NULL
-           AND year BETWEEN 1958 AND 2025""")]
+           AND year BETWEEN 1958 AND ?""", (current - 1,))]
     check("every season from 1958 has a constructors' champion", not nocc, str(nocc))
     pre58 = con.execute(
         "SELECT COUNT(*) FROM seasons WHERE year<1958 AND constructors_champion IS NOT NULL"
@@ -261,7 +300,7 @@ def standings():
     OFFICIAL = ("SELECT position, points, entity_id FROM standings "
                 "WHERE year=? AND table_type=? AND after_round IS NULL "
                 "AND source LIKE '%formula1.com%' ORDER BY position")
-    for y in (2025, 2026):
+    for y in recent_seasons():
         for t in ("drivers", "constructors"):
             rows = con.execute(OFFICIAL, (y, t)).fetchall()
             pos = [r[0] for r in rows]
@@ -271,7 +310,7 @@ def standings():
             check(f"{y} {t} points are non-increasing down the order",
                   all(pts[i] >= pts[i + 1] for i in range(len(pts) - 1)))
 
-    for y in (2025, 2026):
+    for y in recent_seasons():
         d = con.execute("""SELECT SUM(points) FROM standings WHERE year=?
             AND table_type='drivers' AND after_round IS NULL
             AND source LIKE '%formula1.com%'""", (y,)).fetchone()[0]
@@ -328,7 +367,7 @@ def standings():
         ).fetchone()[0]
     check("v_standings_final keeps every entity the final table holds", lost == 0,
           f"{lost} entity-seasons dropped")
-    for y in (2025, 2026):
+    for y in recent_seasons():
         n, d = con.execute("""SELECT COUNT(*), COUNT(DISTINCT entity_id)
             FROM v_standings_final WHERE year=? AND table_type='drivers'""",
             (y,)).fetchone()
@@ -396,14 +435,16 @@ def standings():
     check("every 'current' standings row equals its source's latest round",
           lagging == 0, f"{lagging} rows differ from the source's own latest table")
     # And the fill: where either source has a position or a team, the view
-    # row has it. 2026 is the season with two sources, so it is the test.
+    # row has it. The season being run is the one with two sources, so it is
+    # the test.
     unfilled = con.execute("""SELECT COUNT(*) FROM v_standings_final f
-        WHERE f.year = 2026 AND (f.position IS NULL OR f.team IS NULL)
+        WHERE f.year = ? AND (f.position IS NULL OR f.team IS NULL)
           AND EXISTS (SELECT 1 FROM standings o
                       WHERE o.after_round IS NULL AND o.year = f.year
                         AND o.table_type = f.table_type AND o.entity_id = f.entity_id
                         AND ((f.position IS NULL AND o.position IS NOT NULL)
-                          OR (f.team IS NULL AND o.team IS NOT NULL)))""").fetchone()[0]
+                          OR (f.team IS NULL AND o.team IS NOT NULL)))""",
+        (season_in_progress(),)).fetchone()[0]
     check("v_standings_final fills position and team from the other source",
           unfilled == 0, f"{unfilled} rows left blank where a source had the value")
 
@@ -492,7 +533,7 @@ def standings():
     check("a points disagreement caused by one race is filed on that race",
           not uncaused, "; ".join(uncaused[:3]))
     # The view is a classification: positions 1..n, points non-increasing.
-    for y in (2025, 2026):
+    for y in recent_seasons():
         for t in ("drivers", "constructors"):
             rows = con.execute("""SELECT position, points FROM v_standings_final
                 WHERE year=? AND table_type=? AND position IS NOT NULL
@@ -505,7 +546,7 @@ def standings():
                   all(pts_[i] >= pts_[i + 1] for i in range(len(pts_) - 1)))
     # A season built from two sources need not balance where they disagree;
     # it is worth knowing when it does not.
-    for y in (2025, 2026):
+    for y in recent_seasons():
         d_, c_ = (con.execute("""SELECT SUM(points) FROM v_standings_final
             WHERE year=? AND table_type=?""", (y, t)).fetchone()[0]
                   for t in ("drivers", "constructors"))
@@ -524,7 +565,7 @@ def standings():
 
 @section('RACE RESULTS')
 def race_results():
-    w26 = winners_in(2026)
+    w26 = winners_in(season_in_progress())
     # The last season in the database is the one still being run, and how many of
     # its rounds have happened is a fact that changes every other weekend. Asserting
     # a number here would mean a hand-edit stood between a harvest refresh and the
@@ -551,15 +592,18 @@ def race_results():
         check(f"{y} completed rounds run 1..{got} with no gaps",
               rounds == list(range(1, got + 1)))
 
-    w25 = Counter(r[0] for r in con.execute("""SELECT e.driver_id FROM race_entries e
-        JOIN races r ON r.id=e.race_id WHERE r.year=2025 AND e.finish_position=1"""))
-    check("2025 win tally sums to 24", sum(w25.values()) == 24)
-    print("        2025 winners:", ", ".join(f"{k} {v}" for k, v in w25.most_common()))
-    print("        2026 winners:", ", ".join(f"{k} {v}" for k, v in w26.most_common()))
+    # The season before the one being run: complete, so its tally is a fixed
+    # number, and 24 stays written out because it is the fact being checked.
+    PREVIOUS = CURRENT - 1
+    w25 = winners_in(PREVIOUS)
+    check(f"{PREVIOUS} win tally sums to 24", sum(w25.values()) == 24)
+    print(f"        {PREVIOUS} winners:", ", ".join(f"{k} {v}" for k, v in w25.most_common()))
+    print(f"        {CURRENT} winners:", ", ".join(f"{k} {v}" for k, v in w26.most_common()))
 
-    # the 2025 champion must have won at least one race that year
-    c25id = con.execute("SELECT drivers_champion FROM seasons WHERE year=2025").fetchone()[0]
-    check("2025 champion appears in the 2025 race winners", c25id in w25)
+    # the previous season's champion must have won at least one race that year
+    c25id = con.execute("SELECT drivers_champion FROM seasons WHERE year=?",
+                        (PREVIOUS,)).fetchone()[0]
+    check(f"{PREVIOUS} champion appears in the {PREVIOUS} race winners", c25id in w25)
 
 
 @section('HARVESTED RACE RESULTS')
@@ -703,7 +747,7 @@ def pole_position_and_fastest_lap():
     # exists to tolerate is in the season being harvested, and a calendar
     # announced above it holds no completed race to straggle. Read from the
     # calendar, the window would close on the season that needs it - the next
-    # 2026 race to land without its pole harvest would fail the build instead
+    # current-season race to land without its pole harvest would fail the build instead
     # of being named here.
     CURRENT_YEAR = season_in_progress()
 
@@ -1187,20 +1231,25 @@ def records_are_derived():
 
 @section('CALENDAR')
 def calendar():
-    w26 = winners_in(2026)
+    # The year comes from the data; the shape of the season - 23 rounds, six
+    # sprints - stays written out, because that is the fact being checked and
+    # a new season has to be read off a source and re-typed, not inherited.
+    CURRENT = season_in_progress()
+    w26 = winners_in(CURRENT)
     rounds = [r[0] for r in con.execute(
-        "SELECT round FROM races WHERE year=2026 ORDER BY round")]
-    check("2026 calendar rounds are 1..23", rounds == list(range(1, 24)))
+        "SELECT round FROM races WHERE year=? ORDER BY round", (CURRENT,))]
+    check(f"{CURRENT} calendar rounds are 1..23", rounds == list(range(1, 24)))
     sprints = con.execute(
-        "SELECT COUNT(*) FROM races WHERE year=2026 AND sprint=1").fetchone()[0]
-    check("2026 has six sprint events", sprints == 6, f"got {sprints}")
+        "SELECT COUNT(*) FROM races WHERE year=? AND sprint=1",
+        (CURRENT,)).fetchone()[0]
+    check(f"{CURRENT} has six sprint events", sprints == 6, f"got {sprints}")
     completed = con.execute("""SELECT COUNT(*) FROM races
-        WHERE year=2026 AND status='completed'""").fetchone()[0]
-    check("completed 2026 rounds match the recorded results",
+        WHERE year=? AND status='completed'""", (CURRENT,)).fetchone()[0]
+    check(f"completed {CURRENT} rounds match the recorded results",
           completed == sum(w26.values()),
           f"completed {completed}, results {sum(w26.values())}")
 
-    for y in (2025, 2026):
+    for y in recent_seasons():
         cw = con.execute("SELECT drivers_champion, champion_wins FROM seasons WHERE year=?",
                          (y,)).fetchone()
         if cw["drivers_champion"] and cw["champion_wins"] is not None:
@@ -1211,8 +1260,9 @@ def calendar():
             check(f"{y} champion_wins matches the race records",
                   cw["champion_wins"] == actual, f"stored {cw['champion_wins']}, counted {actual}")
     nocirc = con.execute(
-        "SELECT COUNT(*) FROM races WHERE year=2026 AND circuit_id IS NULL").fetchone()[0]
-    check("every 2026 round maps to a circuit", nocirc == 0, f"{nocirc} unmapped")
+        "SELECT COUNT(*) FROM races WHERE year=? AND circuit_id IS NULL",
+        (CURRENT,)).fetchone()[0]
+    check(f"every {CURRENT} round maps to a circuit", nocirc == 0, f"{nocirc} unmapped")
 
     # A race that has been run happened on a day, and until v2.18 this
     # database could not say which for 1,149 of them: F1DB publishes a date
@@ -1260,23 +1310,28 @@ def calendar():
 
 @section('ENTRIES')
 def entries():
-    n = con.execute("""SELECT COUNT(*) FROM season_entries WHERE year=2026
-        AND role='race'""").fetchone()[0]
-    check("2026 has 22 race seats", n == 22, f"got {n}")
+    # Same rule as CALENDAR: the year is read, 22 seats and 11 teams are not.
+    CURRENT = season_in_progress()
+    n = con.execute("""SELECT COUNT(*) FROM season_entries WHERE year=?
+        AND role='race'""", (CURRENT,)).fetchone()[0]
+    check(f"{CURRENT} has 22 race seats", n == 22, f"got {n}")
     teams = con.execute("""SELECT COUNT(DISTINCT constructor_id) FROM season_entries
-        WHERE year=2026 AND role='race'""").fetchone()[0]
-    check("2026 has 11 teams", teams == 11, f"got {teams}")
+        WHERE year=? AND role='race'""", (CURRENT,)).fetchone()[0]
+    check(f"{CURRENT} has 11 teams", teams == 11, f"got {teams}")
     percar = con.execute("""SELECT constructor_id, COUNT(*) n FROM season_entries
-        WHERE year=2026 AND role='race' GROUP BY constructor_id HAVING n != 2""").fetchall()
-    check("every 2026 team has exactly two race drivers", not percar,
+        WHERE year=? AND role='race' GROUP BY constructor_id HAVING n != 2""",
+        (CURRENT,)).fetchall()
+    check(f"every {CURRENT} team has exactly two race drivers", not percar,
           "; ".join(r["constructor_id"] for r in percar))
     dupnum = con.execute("""SELECT car_number, COUNT(*) n FROM season_entries
-        WHERE year=2026 AND role='race' GROUP BY car_number HAVING n>1""").fetchall()
-    check("2026 car numbers are unique", not dupnum)
-    missing = con.execute("""SELECT entity FROM standings WHERE year=2026
+        WHERE year=? AND role='race' GROUP BY car_number HAVING n>1""",
+        (CURRENT,)).fetchall()
+    check(f"{CURRENT} car numbers are unique", not dupnum)
+    missing = con.execute("""SELECT entity FROM standings WHERE year=?1
         AND table_type='drivers' AND entity_id NOT IN
-        (SELECT driver_id FROM season_entries WHERE year=2026)""").fetchall()
-    check("every 2026 driver in the standings has an entry", not missing,
+        (SELECT driver_id FROM season_entries WHERE year=?1)""",
+        (CURRENT,)).fetchall()
+    check(f"every {CURRENT} driver in the standings has an entry", not missing,
           "; ".join(r[0] for r in missing))
 
 
@@ -1667,19 +1722,23 @@ def the_weekend_timetable():
     """sessions: the current season's timetable against the calendar it hangs from."""
     import datetime as _dt
     import zoneinfo as _zi
+    CURRENT = season_in_progress()
     stray = con.execute("""SELECT COUNT(*) FROM sessions
-        WHERE race_id NOT IN (SELECT id FROM races WHERE year = 2026)""").fetchone()[0]
-    check("sessions holds the season in progress and nothing else", stray == 0, f"{stray} rows outside 2026")
+        WHERE race_id NOT IN (SELECT id FROM races WHERE year = ?)""",
+        (CURRENT,)).fetchone()[0]
+    check("sessions holds the season in progress and nothing else", stray == 0,
+          f"{stray} rows outside {CURRENT}")
     unz = con.execute("SELECT COUNT(*) FROM sessions WHERE start_utc NOT GLOB '????-??-??T??:??Z'").fetchone()[0]
     check("every session start is YYYY-MM-DDTHH:MMZ, so a browser reads it as UTC", unz == 0, f"{unz} rows")
     rows = con.execute("""SELECT r.round, r.sprint, r.dates, s.kind, s.start_utc, s.zone
-        FROM sessions s JOIN races r ON r.id = s.race_id WHERE r.year = 2026
-        ORDER BY r.round, s.start_utc""").fetchall()
+        FROM sessions s JOIN races r ON r.id = s.race_id WHERE r.year = ?
+        ORDER BY r.round, s.start_utc""", (CURRENT,)).fetchall()
     by_round = {}
     for rnd, sprint, dates, kind, start, zone in rows:
         by_round.setdefault(rnd, []).append((sprint, dates, kind, start, zone))
-    rounds = {r[0] for r in con.execute("SELECT round FROM races WHERE year = 2026")}
-    check("every 2026 round has a timetable", set(by_round) == rounds,
+    rounds = {r[0] for r in con.execute(
+        "SELECT round FROM races WHERE year = ?", (CURRENT,))}
+    check(f"every {CURRENT} round has a timetable", set(by_round) == rounds,
           "missing: " + (", ".join(map(str, sorted(rounds - set(by_round)))) or "none"))
     # The set of sessions is what the sprint flag says it is: a weekend that
     # says sprint and has three practices, or the reverse, is a flag or a
@@ -1993,7 +2052,8 @@ def the_chassis_register():
     ngrid = con.execute("SELECT COUNT(*) FROM v_season_grid").fetchone()[0]
     check("v_season_grid has one row per season", ngrid == nseasons, f"{ngrid} vs {nseasons}")
     wrong = []
-    for year in (1950, 1959, 1994, 2026):
+    SAMPLE = (1950, 1959, 1994, season_in_progress())
+    for year in SAMPLE:
         g = con.execute("SELECT * FROM v_season_grid WHERE year = ?", (year,)).fetchone()
         direct = con.execute("""SELECT
             (SELECT COUNT(DISTINCT e.driver_id) FROM race_entries e JOIN races r ON r.id = e.race_id
@@ -2006,7 +2066,8 @@ def the_chassis_register():
         got = (g["drivers"], g["constructors"], g["engine_manufacturers"], g["races_run"])
         if got != tuple(direct):
             wrong.append(f"{year}: view {got}, direct {tuple(direct)}")
-    check("v_season_grid agrees with direct counts for 1950, 1959, 1994 and 2026",
+    check("v_season_grid agrees with direct counts for "
+          + ", ".join(map(str, SAMPLE[:-1])) + f" and {SAMPLE[-1]}",
           not wrong, "; ".join(wrong))
     # And the one fact about the Indianapolis era the first cut got wrong: in
     # 1950 more constructors entered than the curated register names.
@@ -2174,7 +2235,11 @@ def circuits_and_venues():
             continue
         if r["first_gp"] != r["mn"]:
             bad.append(f"{r['id']}: first_gp {r['first_gp']} vs first race {r['mn']}")
-        if r["last_gp"] is None and r["mx"] < 2025:
+        # Open-ended means still in use: on this season's calendar or the
+        # previous one. Counted back from the season being run, not from a
+        # typed year that would have quietly let a lapsed venue stay open
+        # (CR-07).
+        if r["last_gp"] is None and r["mx"] < season_in_progress() - 1:
             bad.append(f"{r['id']}: open-ended but last race {r['mx']}")
         if r["last_gp"] is not None and r["last_gp"] != r["mx"]:
             bad.append(f"{r['id']}: last_gp {r['last_gp']} vs last race {r['mx']}")

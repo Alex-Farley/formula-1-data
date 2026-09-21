@@ -7,7 +7,25 @@ Everything here was checked against formula1.com on 2026-09-04, except
 CALENDAR_2027, which was read from the announcement of 2026-09-16.
 """
 
-SOURCE_F1 = "https://www.formula1.com/en/results/2026"
+# The season in progress, and the one number every other file used to type
+# out (CR-07). It is NOT MAX(year) in the season register: that is 2027, whose
+# calendar was announced on 2026-09-16 and which has not run a race. Anything
+# that means "this year's grid, calendar, standings or timetable" reads this;
+# a year that is part of a fact - a livery, a regulation reset, a historical
+# comparison - stays written out, because it is data and not the clock.
+#
+# build.py writes it into `meta.current_season`, so the artefact carries it and
+# verify.py, export_json.py and the renderers read it from there rather than
+# importing this module. verify.py then checks it against the season the built
+# database actually holds an entry list and a timetable for, which is what
+# stops this line and the data below drifting apart.
+CURRENT_SEASON = 2026
+
+# The season before it: the most recent one with a final classification, which
+# is what the standings cross-checks run over alongside the running season.
+PREVIOUS_SEASON = CURRENT_SEASON - 1
+
+SOURCE_F1 = f"https://www.formula1.com/en/results/{CURRENT_SEASON}"
 
 # The 2027 calendar was announced on 2026-09-16, after World Motor Sport
 # Council approval. formula1.com has no /racing/2027 or /results/2027 page

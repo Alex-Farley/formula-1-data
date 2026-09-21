@@ -79,7 +79,13 @@ for t in tables():
 if not issues:
     print("  every non-optional column is populated")
 
-head(2, "TIME COVERAGE  (which tables span the full 1950-2026 range)")
+# The span and the season count come off the register, not off two numbers
+# typed here: this report said "1950-2026" and "/77 seasons" for a build whose
+# register already held 2027, which is exactly the rot CR-07 is about.
+FIRST, LAST, SEASONS = con.execute(
+    "SELECT MIN(year), MAX(year), COUNT(*) FROM seasons").fetchone()
+
+head(2, f"TIME COVERAGE  (which tables span the full {FIRST}-{LAST} range)")
 for t, col in (("races", "year"), ("race_entries", None), ("seasons", "year"),
                ("standings", "year"), ("season_entries", "year")):
     if col is None:
@@ -87,7 +93,7 @@ for t, col in (("races", "year"), ("race_entries", None), ("seasons", "year"),
             FROM race_entries e JOIN races r ON r.id = e.race_id""").fetchone()
     else:
         r = con.execute(f"SELECT MIN({col}), MAX({col}), COUNT(DISTINCT {col}) FROM {t}").fetchone()
-    span = "FULL" if r[2] == 77 else f"{r[2]}/77 seasons"
+    span = "FULL" if r[2] == SEASONS else f"{r[2]}/{SEASONS} seasons"
     print(f"  {t:<16} {r[0]}-{r[1]}   {span}")
 
 head(3, "KEYS AND CONSTRAINTS")

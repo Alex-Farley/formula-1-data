@@ -219,7 +219,14 @@ def _stage_01_meta(b):
         ("verification_date", BUILT),
         ("missing_fact_policy", "Mark UNVERIFIED / NOT FOUND IN OFFICIAL SOURCES; never invent."),
         ("promotion_rule", "Never promote a fact to 'verified' without an official FIA or Formula 1 source."),
-        ("coverage_seasons", "1950-2026"),
+        # Both are overwritten in the final stage - the span off the season
+        # register, the note off the row counts - and a typed value here is
+        # only ever the one that goes stale (SD-12, CR-07).
+        ("coverage_seasons", "derived at the end of the build"),
+        # The season in progress, from the one place it is written down. The
+        # artefact carries it so verify.py, export_json.py and the renderers
+        # read it rather than each repeating it (CR-07).
+        ("current_season", str(N.CURRENT_SEASON)),
         # Overwritten from the row counts in the final stage; a typed sentence
         # here said "qualifying ... (not held)" beside 26,997 qualifying rows
         # for seven releases, and a bulk-data consumer reads this before
@@ -1161,14 +1168,16 @@ def _stage_16_current_season(b):
         cur.execute("""INSERT INTO season_entries (id, year, constructor_id, driver_id,
             car, power_unit, car_number, role, confidence)
             VALUES (?,?,?,?,?,?,?,?,?)""",
-            (i, 2026, cid, did, car, pu, num, role, "verified"))
+            (i, N.CURRENT_SEASON, cid, did, car, pu, num, role, "verified"))
 
     sid = 0
     for year, tbl, rows, asof in (
-            (2026, "drivers", N.DRIVER_STANDINGS_2026, "2026-09-04 (after round 12)"),
-            (2026, "constructors", N.TEAM_STANDINGS_2026, "2026-09-04 (after round 12)"),
-            (2025, "drivers", N.DRIVER_STANDINGS_2025, "final"),
-            (2025, "constructors", N.TEAM_STANDINGS_2025, "final")):
+            (N.CURRENT_SEASON, "drivers", N.DRIVER_STANDINGS_2026,
+             "2026-09-04 (after round 12)"),
+            (N.CURRENT_SEASON, "constructors", N.TEAM_STANDINGS_2026,
+             "2026-09-04 (after round 12)"),
+            (N.PREVIOUS_SEASON, "drivers", N.DRIVER_STANDINGS_2025, "final"),
+            (N.PREVIOUS_SEASON, "constructors", N.TEAM_STANDINGS_2025, "final")):
         for row in rows:
             sid += 1
             if tbl == "drivers":
@@ -1288,9 +1297,10 @@ def _stage_16_current_season(b):
     # session names its round, and a round with no race row is a typo here,
     # not a session to store.
     for rnd, kind, start_utc, zone in SS.SESSIONS_2026:
-        rid = race_key.get((2026, rnd))
+        rid = race_key.get((N.CURRENT_SEASON, rnd))
         if rid is None:
-            raise SystemExit(f"sessions: 2026 round {rnd} has no race row")
+            raise SystemExit(
+                f"sessions: {N.CURRENT_SEASON} round {rnd} has no race row")
         cur.execute("""INSERT INTO sessions (race_id, kind, name, start_utc, zone,
             confidence, source) VALUES (?,?,?,?,?,?,?)""",
             (rid, kind, SS.SESSION_NAMES[kind], start_utc, zone, "verified",

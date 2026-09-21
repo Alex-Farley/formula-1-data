@@ -2129,12 +2129,12 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
     page({
       path: 'data',
       title: titled('Data'),
-      description: `The whole site is one SQLite file, and you can have it. Formula One 1950–2026, v${META.version}, built ${META.built}. ${CROSS_CHECKED}`,
+      description: `The whole site is one SQLite file, and you can have it. Formula One ${SPAN}, v${META.version}, built ${META.built}. ${CROSS_CHECKED}`,
       trail: [['', 'Home'], ['data', 'Data']],
       jsonld: {
         '@context': 'https://schema.org',
         '@type': 'Dataset',
-        name: `${SITE} — Formula One, 1950–2026`,
+        name: `${SITE} — Formula One, ${SPAN}`,
         description: CROSS_CHECKED,
         url: `${ORIGIN}${href('data')}`,
         version: META.version,
