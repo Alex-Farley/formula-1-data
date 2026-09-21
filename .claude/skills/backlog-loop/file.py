@@ -30,8 +30,10 @@ filed, and simply cannot be grouped on a path `[D-34]`.
 `new` takes the prefix and the title, gives it the next unused number in
 that prefix (`next.py --next-id`), the `source:` label the prefix implies,
 the `size:` label, and puts it on the board under the status given
-(`Next` by default) at the foot of that status. `--decision` adds the label
-that keeps the loop off it.
+(`Someday` by default) at the foot of that status: filing is not ranking, and
+a discovered item joins the queue where nobody has judged it yet rather than
+above everything a person has already ranked below it `[D-36]`. `--decision`
+adds the label that keeps the loop off it.
 
 `decline` closes an open issue as *not planned* with the reason as a comment
 and refuses a closed one, so a landed record cannot be turned into a
@@ -282,7 +284,7 @@ def main():
     n.add_argument("prefix")
     n.add_argument("title")
     n.add_argument("--size", required=True)
-    n.add_argument("--status", default="Next")
+    n.add_argument("--status", default="Someday")
     n.add_argument("--body")
     n.add_argument("--body-file")
     n.add_argument("--where", help="comma-separated file paths the work would touch")
