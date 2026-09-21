@@ -167,6 +167,7 @@ import {
 } from '../src/queries/race.js'
 import {
   BY_SEASON as TEAM_BY_SEASON,
+  DERIVED as TEAM_DERIVED,
   DESIGNS,
   DESIGN_COLUMNS,
   ENGINE_SPLIT_FOOTER,
@@ -1837,6 +1838,11 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
   for (const c of constructors) {
     // The three tables read web/src/queries/constructor.js, the app's own
     // queries and column lists (PD-02, rung five).
+    // The record is counted from the race records, never read from the
+    // stored column: constructors.entries is NULL for all 150 rows, so this
+    // list printed "Entries -" beside an app whose Stats strip derived
+    // 2,496 for the same team. Same query as Constructor.jsx (CD-30).
+    const teamDerived = one(TEAM_DERIVED, c.id) ?? {}
     const teamStandings = all(TEAM_STANDINGS, c.id)
     const seasons = constructorSeasons(all(TEAM_BY_SEASON, c.id), teamStandings)
     const engineSplit = teamStandings.some((s) => s.engine_id)
@@ -1868,12 +1874,13 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
           ['Country', text(c.country)],
           ['Base', text(c.base)],
           ['Entered', `${c.first_entry ?? '?'}–${c.last_entry ?? 'present'}`],
-          ['Entries', num(c.entries)],
+          ['Race entries', num(teamDerived.entries)],
           ['Wins', num(c.wins)],
           ['Poles', num(c.poles)],
           ["Constructors' titles", c.constructors_titles ? `${c.constructors_titles} (${yearList(c.title_years)})` : num(c.constructors_titles)],
           ["Drivers' titles", num(c.drivers_titles)],
-          ['Active', c.active === null ? null : c.active ? 'Yes' : 'No'],
+          // No "Active" row: the app has no such field, and "Entered" above
+          // already says it - an open span ends in "present" (CD-30).
           ['Confidence', c.confidence ? link('data/quality', c.confidence) : text(c.confidence)],
         ])}
         ${prose(c.notes)}

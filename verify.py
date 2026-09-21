@@ -2649,6 +2649,30 @@ def the_full_classification():
     check("constructors.last_entry is NULL exactly for the still-competing", bad_last == 0,
           f"{bad_last} constructors disagree with their active flag")
 
+    # constructors.active against the season the build declares it is in -
+    # the same statement the drivers' register gets above, which constructors
+    # never had. Without it `active` was only as good as the number whoever
+    # wrote the row had in mind: the eleven current entrants type it by hand
+    # in data/teams.py, the rest take it from stage 08, and nothing compared
+    # either with the grid. The comparator is season_entries at
+    # meta.current_season, the anchor CR-07 settled on and the one
+    # /constructors' "on the grid" chip reads; a MAX() over season_entries
+    # would move to next season's grid the day one is carried.
+    #
+    # Both directions are hard, unlike the drivers' pair: season_entries is
+    # the declared entry list rather than the race records, so a constructor
+    # in it that is not active, or active and not in it, is a register row
+    # nobody moved when the season did (CR-35).
+    _cur = declared_season()
+    _act = {r[0] for r in con.execute("SELECT id FROM constructors WHERE active = 1")}
+    _ent = {r[0] for r in con.execute(
+        "SELECT DISTINCT constructor_id FROM season_entries WHERE year = ?",
+        (_cur,)) if r[0] is not None}
+    check(f"constructors.active is exactly the {_cur} entry list",
+          _act == _ent,
+          "active without an entry: " + (", ".join(sorted(_act - _ent)) or "none")
+          + "; entered but not active: " + (", ".join(sorted(_ent - _act)) or "none"))
+
     # A FLOOR UNDER EVERY BULK TABLE. data/harvest.py's _read_named returns []
     # for a missing generated file by design, from when those files were a
     # local extra; they are now 93% of the rows, and the checks below are

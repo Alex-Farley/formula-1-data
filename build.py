@@ -353,7 +353,9 @@ def _stage_03_drivers_admitted_from_the_f1db_register(b):
     # have stayed active - `max(yrs) >= 2026` - until someone edited the
     # number, and verify.py's grid check would have named the stale rows
     # without being able to name the cause (PM-29, from the review of #84).
-    # Constructors read the same figure in stage 08. It rests on F1DB writing
+    # This is the drivers' anchor only. Constructors read it too until
+    # CR-07 made meta.current_season the one anchor for "this season", and
+    # stage 08 now reads that constant directly. It rests on F1DB writing
     # `rounds` only for rounds actually run - a pre-season entry list carries
     # none, so the filter above drops it - which keeps this equal to the
     # latest completed season verify.py reads; the pin below fails the build
@@ -584,7 +586,6 @@ def _stage_08_constructors_admitted_from_the_f1db_register(b):
     """constructors admitted from the F1DB register (data/teams.py"""
     cur = b.cur
     known_cons = b.known_cons
-    current_season = b.current_season
 
     # --- constructors admitted from the F1DB register (data/teams.py
     # F1DB_CONSTRUCTORS). The ids are authored there; every attribute comes
@@ -627,7 +628,18 @@ def _stage_08_constructors_admitted_from_the_f1db_register(b):
             drivers_titles, active, confidence, source)
             VALUES (?,?,?,?,?,?,NULL,0,0,?,?,?)""",
             (f1db_id, name, full, f1db_country.get(country_id),
-             min(yrs), max(yrs), 1 if max(yrs) >= current_season else 0,
+             min(yrs), max(yrs),
+             # N.CURRENT_SEASON, not the highest year in the entry lists:
+             # CR-07 made meta.current_season the one anchor for anything
+             # meaning "this season", and schema.sql says in as many words
+             # that it is NOT a MAX() over them, because the register already
+             # carries next season's calendar. The two are the same number
+             # today, which is why this went unread; the day they part, a
+             # MAX() calls a constructor retired in a season still being run.
+             # verify.py now holds the flag to that season's entry list,
+             # which constrains the hand-typed flags in data/teams.py as
+             # well as these (CR-35).
+             1 if max(yrs) >= N.CURRENT_SEASON else 0,
              HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
         known_cons.add(f1db_id)
 
