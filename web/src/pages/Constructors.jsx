@@ -43,7 +43,7 @@ export default function Constructors() {
   return (
     <Page
       title="Constructors"
-      lede="A hundred and fifty constructors, from the ones that defined an era to the ones that entered a handful of races and disappeared. Filter by country, or narrow to race winners and champions; each page carries the team’s record, the cars it built, and the names it raced under before and after."
+      lede="A hundred and fifty constructors, from the ones that defined an era to the ones that entered a handful of races and disappeared. Sorted by race entries, with alphabetical a click away: filter by country, or narrow to race winners, champions and this season’s grid. Each page carries the team’s record, the cars it built, and the names it raced under before and after."
     >
       <Section>
         <Result state={state} skeleton>
