@@ -2504,7 +2504,43 @@ const MOVED = [
   ['reference/sources', 'data/sources'],
   ['reference/sql', 'data/sql'],
 ]
-for (const [from, to] of MOVED) {
+
+/**
+ * And the one address that has not moved and never will.
+ *
+ * /now is an alias rather than a forwarding note: the one URL a returning
+ * reader can type, and a link can point at, without going stale each January.
+ * The target is `meta.current_season` - the season data/current.py declares
+ * is being run - and NOT MAX(seasons.year), which is 2027 here and has run no
+ * race; schema.sql's views anchor on the same row. web/src/App.jsx answers
+ * /now the same way in-app, by reading that row itself.
+ *
+ * It is written with the machinery above and inherits its terms: noindex, the
+ * season page named canonical, and no sitemap entry, because /seasons/2026 is
+ * the address to index and this one exists to be left immediately.
+ */
+const CURRENT_SEASON = META.current_season
+if (!CURRENT_SEASON) {
+  die(
+    'meta.current_season is missing from f1.db, so /now has no target.\n' +
+      'It comes from CURRENT_SEASON in data/current.py:  cd .. && python3 build.py',
+  )
+}
+const ALIASES = [['now', `seasons/${CURRENT_SEASON}`]]
+
+// The two differ only in what the page says while it is on screen. A stub
+// that tells a reader /now has "moved" would be the one false sentence on the
+// site, and it is the sentence a reader sees if the redirect ever fails.
+const REDIRECTS = [
+  ...MOVED.map(([from, to]) => ({ from, to, title: 'Moved', lead: 'This page has moved to' })),
+  ...ALIASES.map(([from, to]) => ({
+    from,
+    to,
+    title: 'The season being run',
+    lead: 'The season being run is',
+  })),
+]
+for (const { from, to, title, lead } of REDIRECTS) {
   const target = href(to)
   const url = `${ORIGIN}${target}`
   const dir = join(dist, from)
@@ -2516,14 +2552,14 @@ for (const [from, to] of MOVED) {
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>${esc(titled('Moved'))}</title>
+    <title>${esc(titled(title))}</title>
     <meta name="robots" content="noindex" />
     <link rel="canonical" href="${esc(url)}" />
     <meta http-equiv="refresh" content="0; url=${esc(target)}" />
     <script>location.replace(${JSON.stringify(target)} + location.search + location.hash)</script>
   </head>
   <body>
-    <p>This page has moved to <a href="${esc(target)}">${esc(url)}</a>.</p>
+    <p>${esc(lead)} <a href="${esc(target)}">${esc(url)}</a>.</p>
   </body>
 </html>
 `,
@@ -2580,6 +2616,6 @@ db.close()
 
 console.log(`  prerendered ${written.toLocaleString()} pages (${(bytes / 1024 / 1024).toFixed(1)} MB)`)
 console.log(
-  `  dist/sitemap.xml, dist/feed.xml, dist/robots.txt, dist/404.html, ${MOVED.length} redirecting pages`,
+  `  dist/sitemap.xml, dist/feed.xml, dist/robots.txt, dist/404.html, ${REDIRECTS.length} redirecting pages`,
 )
 console.log(`  origin ${ORIGIN}${BASE}`)
