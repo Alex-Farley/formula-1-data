@@ -10,6 +10,7 @@ import { canShow, thumbUrl } from '../lib/commons.js'
 import CommonsCredit from '../components/CommonsCredit.jsx'
 import { span } from '../lib/format.js'
 import { colourForEntry } from '../lib/liveries.js'
+import { anyThisSeason, gridLabel, seasonOf } from '../lib/season.js'
 import { LANDMARK } from '../lib/site.js'
 import { CHASSIS, CHASSIS_COLUMNS, CHASSIS_FOOTER, GALLERY } from '../queries/cars.js'
 
@@ -155,6 +156,10 @@ function Register({ rows }) {
   const [term, setTerm] = useState('')
   const [constructor, setConstructor] = useState('')
   const [kind, setKind] = useState('')
+  // IA-19: this register had no route to this year's chassis at all, in a
+  // page of 1,153 rows opening on 1950.
+  const gridSeason = seasonOf(rows)
+  const hasGrid = anyThisSeason(rows, 'on_grid')
 
   const constructors = useMemo(
     () =>
@@ -169,6 +174,7 @@ function Register({ rows }) {
     return rows.filter((row) => {
       if (constructor && row.constructor !== constructor) return false
       if (kind === 'landmark' && !row.landmark) return false
+      if (kind === 'grid' && !row.on_grid) return false
       if (kind === 'spec' && !row.has_spec) return false
       if (kind === 'winners' && !row.wins) return false
       if (!needle) return true
@@ -210,6 +216,7 @@ function Register({ rows }) {
             ['winners', 'Race winners'],
             ['spec', 'With a spec'],
             ['landmark', `Landmark (${landmarks})`],
+            ...(hasGrid ? [['grid', gridLabel(gridSeason)]] : []),
           ]}
         />
       </Filters>

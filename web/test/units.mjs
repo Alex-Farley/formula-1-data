@@ -19,6 +19,14 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
 import {
+  CURRENT_SEASON_SQL,
+  anyThisSeason,
+  calendarLabel,
+  gridLabel,
+  seasonOf,
+} from '../src/lib/season.js'
+
+import {
   EMPTY,
   classificationOrder,
   missing,
@@ -1038,5 +1046,44 @@ describe('colourForEntry routes a constructor-season by era (AF-04)', () => {
     assert.deepEqual(map.get('a').map((t) => t.constructor_id), ['red-bull', 'racing-bulls'])
     assert.deepEqual(map.get('b').map((t) => t.constructor_id), ['ferrari'])
     assert.equal(map.get('c'), undefined)
+  })
+})
+
+describe('one season, one label, on all four registers (IA-19)', () => {
+  // The words. smoke.mjs reads them off the four running registers; what it
+  // cannot reach is the branch taken when a register's rows do not carry the
+  // season, which is a query that changed without its page.
+  it('names the season, and says the concept plainly without one', () => {
+    assert.equal(gridLabel(2026), 'On the 2026 grid')
+    assert.equal(calendarLabel(2026), 'On the 2026 calendar')
+    assert.equal(gridLabel(null), 'On the grid')
+    assert.equal(calendarLabel(undefined), 'On the calendar')
+  })
+
+  // The season is a global that rides on every row, so the first row answers
+  // for all of them - and an empty register has no season rather than a zero.
+  it('reads the season off the rows, under either name', () => {
+    assert.equal(seasonOf([{ grid_season: 2026 }, { grid_season: 2026 }]), 2026)
+    assert.equal(seasonOf([{ calendar_season: 2026 }]), 2026)
+    assert.equal(seasonOf([]), null)
+    assert.equal(seasonOf([{ wins: 0 }]), null)
+  })
+
+  // IX-31: a filter whose only possible outcome is an empty table makes a
+  // claim about the database in the database's voice. Between the declaration
+  // of a season and its first entry there is nothing to keep, so there is no
+  // control either.
+  it('offers the control only where the register has rows for that season', () => {
+    assert.equal(anyThisSeason([{ on_grid: 0 }, { on_grid: 1 }], 'on_grid'), true)
+    assert.equal(anyThisSeason([{ on_grid: 0 }, { on_grid: 0 }], 'on_grid'), false)
+    assert.equal(anyThisSeason([], 'on_calendar'), false)
+  })
+
+  // The anchor is meta.current_season and nothing else: the register already
+  // carries next season's calendar, so a MAX() over the records names a season
+  // nobody has run (CR-07).
+  it('anchors on the declared season, never a MAX() over the records', () => {
+    assert.match(CURRENT_SEASON_SQL, /meta WHERE key = 'current_season'/)
+    assert.doesNotMatch(CURRENT_SEASON_SQL, /MAX/i)
   })
 })

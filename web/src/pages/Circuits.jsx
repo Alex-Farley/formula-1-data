@@ -6,6 +6,7 @@ import DataTable, { cell } from '../components/DataTable.jsx'
 import { Chips, Filters, SearchField, Select, Toggle } from '../components/Filters.jsx'
 import { currentProgress } from '../data/client.js'
 import { rows as pick, useQueries } from '../data/useQuery.js'
+import { anyThisSeason, calendarLabel, seasonOf } from '../lib/season.js'
 import { TRACE_COLUMN_UNKNOWN, TRACE_NOT_LOADED, traceRegisterNote } from '../lib/trace.js'
 import { CIRCUITS, CIRCUIT_COLUMNS, CIRCUITS_FOOTER, TRACED } from '../queries/circuits.js'
 
@@ -99,6 +100,15 @@ function Register({ rows, traces }) {
   const [country, setCountry] = useState('')
   const [kind, setKind] = useState('')
   const [tracedOnly, setTracedOnly] = useState(false)
+  const [onCalendar, setOnCalendar] = useState(false)
+
+  // IA-19: the same question the other three registers ask, in the same
+  // words - but a toggle rather than a fifth chip, because the chip group
+  // here is the type axis and IX-35 is the record of what happens when a
+  // second question is filed into it: the sixteen street circuits and the
+  // ones among them on this year's calendar could not both be asked for.
+  const calendarSeason = seasonOf(rows)
+  const hasCalendar = anyThisSeason(rows, 'on_calendar')
 
   // IX-31: "0 of 80" is a claim about the database, made in the database's
   // voice, when what happened is that an ODbL file did not arrive — and the
@@ -125,12 +135,13 @@ function Register({ rows, traces }) {
       // ones among them with a centreline could not both be asked for.
       if (kind && row.circuit_type !== kind) return false
       if (tracedOnly && !row.traced) return false
+      if (onCalendar && !row.on_calendar) return false
       if (!needle) return true
       return [row.name, row.locality, row.country]
         .filter(Boolean)
         .some((value) => value.toLowerCase().includes(needle))
     })
-  }, [rows, term, country, kind, tracedOnly])
+  }, [rows, term, country, kind, tracedOnly, onCalendar])
 
   // The cards are the filtered register's traced subset, taken by id. Every
   // row of circuit_geometry joins a circuit and v_circuits is every circuit,
@@ -155,6 +166,15 @@ function Register({ rows, traces }) {
           // Traced would name a state the bar is not in.
           options={[['', 'All types'], ...types.map((t) => [t, t])]}
         />
+        {hasCalendar && (
+          <Toggle
+            value={onCalendar}
+            onChange={setOnCalendar}
+            label={`${calendarLabel(calendarSeason)} only`}
+          >
+            {calendarLabel(calendarSeason)}
+          </Toggle>
+        )}
         {/* Without the overlay every row's Traced is unestablished, so this
             would filter eighty circuits down to none and read as an answer
             (IX-31). */}

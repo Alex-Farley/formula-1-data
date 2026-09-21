@@ -13,6 +13,7 @@
  * See queries/drivers.js for what a column's `text` is.
  */
 import { EMPTY, span } from '../lib/format.js'
+import { CURRENT_SEASON_SQL } from '../lib/season.js'
 
 /**
  * Most races first, then by name — the order the app's table opens in.
@@ -24,7 +25,15 @@ import { EMPTY, span } from '../lib/format.js'
  */
 export const CIRCUITS = `
   SELECT v.*,
-         (SELECT COUNT(*) FROM circuit_geometry g WHERE g.circuit_id = v.id) AS traced
+         (SELECT COUNT(*) FROM circuit_geometry g WHERE g.circuit_id = v.id) AS traced,
+         -- This year's calendar (IA-19), against the declared season and not
+         -- MAX(races.year): the 2027 calendar was announced on 2026-09-16 and
+         -- is already in the register, so a MAX() would name a season nobody
+         -- has run (lib/season.js, CR-07). A round scheduled but not yet run
+         -- counts - it is the calendar, not the results.
+         ${CURRENT_SEASON_SQL} AS calendar_season,
+         EXISTS (SELECT 1 FROM races r
+                  WHERE r.circuit_id = v.id AND r.year = ${CURRENT_SEASON_SQL}) AS on_calendar
     FROM v_circuits v
    ORDER BY v.races DESC, v.name
 `

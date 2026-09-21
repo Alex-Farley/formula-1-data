@@ -12,6 +12,7 @@
  * See queries/drivers.js for what a column's `text` is.
  */
 import { span, text } from '../lib/format.js'
+import { CURRENT_SEASON_SQL } from '../lib/season.js'
 import { LANDMARK } from '../lib/site.js'
 
 /**
@@ -43,6 +44,13 @@ export const GALLERY_COLUMNS = [
 /**
  * Every chassis with a championship entry, first raced first. `landmark` is
  * the curated car this chassis belongs to, where it belongs to one.
+ *
+ * `on_grid` is the chassis whose raced span covers the declared season
+ * (IA-19; lib/season.js has the anchor). The span, not the entry list:
+ * season_entries carries the car as the team names it - "W17" against the
+ * register's "F1 W17", "MAC-26" against "CA01" - so there is no key to join
+ * on, while first_year and last_year are the very years this row already
+ * prints in its Raced column.
  */
 export const CHASSIS = `
   SELECT ch.id, ch.name, ch.full_name, ch.constructor_id, k.name AS constructor,
@@ -52,7 +60,11 @@ export const CHASSIS = `
          ch.races, ch.wins, ch.published_wins, ch.car_id, ch.article, ch.confidence,
          CASE WHEN ch.chassis_type IS NULL AND ch.engine_name IS NULL
               THEN 0 ELSE 1 END AS has_spec,
-         (SELECT landmark FROM cars WHERE cars.id = ch.car_id) AS landmark
+         (SELECT landmark FROM cars WHERE cars.id = ch.car_id) AS landmark,
+         ${CURRENT_SEASON_SQL} AS grid_season,
+         CASE WHEN ch.first_year <= ${CURRENT_SEASON_SQL}
+               AND ch.last_year  >= ${CURRENT_SEASON_SQL}
+              THEN 1 ELSE 0 END AS on_grid
     FROM chassis ch
     LEFT JOIN constructors k ON k.id = ch.constructor_id
    ORDER BY ch.first_year, ch.name, ch.id

@@ -11,21 +11,36 @@
  * See queries/drivers.js for what a column's `text` is.
  */
 import { span } from '../lib/format.js'
+import { CURRENT_SEASON_SQL } from '../lib/season.js'
 
 /**
- * Alphabetical, case-insensitively, and the app's table opens in this order
- * rather than re-sorting, so the static page prints the rows as they come.
+ * Most race entries first, then alphabetically, case-insensitively.
+ *
+ * It opened alphabetically until VD-30: AFM, AGS, Alfa Special, Amon, Andrea
+ * Moda, and roughly sixty of the seventy-eight figures on the first screen
+ * were zero. A register is a way in, and the way in was its emptiest rows.
+ * Alphabetical is one click on the Constructor header away, which is where
+ * every other ordering of this table already lives.
+ *
+ * DataTable opens the app's table on the same key and its sort is stable, so
+ * ties keep the order below and the static page can still print the rows as
+ * they come - the same arrangement queries/drivers.js relies on.
+ *
  * Entries and designs are counted from the race records and the chassis
- * register rather than read from a column.
+ * register rather than read from a column; `on_grid` is the season's entry
+ * list, the anchor lib/season.js explains.
  */
 export const CONSTRUCTORS = `
   SELECT k.id, k.name, k.country, k.base, k.first_entry, k.last_entry,
          k.wins, k.poles, k.constructors_titles, k.drivers_titles, k.title_years,
          k.lineage_chain, k.active,
          (SELECT COUNT(*) FROM race_entries e WHERE e.constructor_id = k.id) AS entries,
-         (SELECT COUNT(DISTINCT ch.id) FROM chassis ch WHERE ch.constructor_id = k.id) AS designs
+         (SELECT COUNT(DISTINCT ch.id) FROM chassis ch WHERE ch.constructor_id = k.id) AS designs,
+         ${CURRENT_SEASON_SQL} AS grid_season,
+         EXISTS (SELECT 1 FROM season_entries se
+                  WHERE se.constructor_id = k.id AND se.year = ${CURRENT_SEASON_SQL}) AS on_grid
     FROM constructors k
-   ORDER BY k.name COLLATE NOCASE, k.id
+   ORDER BY entries DESC, k.name COLLATE NOCASE, k.id
 `
 
 /** "1950–" for a constructor still entered; "1950–1964" for one that is not. */

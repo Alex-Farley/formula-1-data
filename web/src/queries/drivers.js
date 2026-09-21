@@ -18,6 +18,7 @@
  * the sort state, and a Node script has neither.
  */
 import { span } from '../lib/format.js'
+import { CURRENT_SEASON_SQL } from '../lib/season.js'
 
 /**
  * The whole register in one query.
@@ -40,14 +41,21 @@ export const DRIVERS = `
          d.wins, d.podiums, d.poles, d.fastest_laps, d.career_points,
          d.titles, d.title_years, d.status, d.confidence,
          (SELECT COUNT(*) FROM race_entries e WHERE e.driver_id = d.id) AS entries,
-         -- The grid is derived, not read from status: an entry in the latest
-         -- completed season. That season rides along as grid_season - global,
-         -- unlike the driver's own last_season beside it - so the filter can
-         -- name it (IX-17).
-         (SELECT MAX(year) FROM races WHERE status = 'completed') AS grid_season,
-         EXISTS (SELECT 1 FROM race_entries e JOIN races r ON r.id = e.race_id
-                  WHERE e.driver_id = d.id
-                    AND r.year = (SELECT MAX(year) FROM races WHERE status = 'completed')) AS on_grid
+         -- The grid is derived, never read from drivers.status (IX-17), and
+         -- the season it is derived for is the declared one (CR-07): see
+         -- lib/season.js for why it is not a MAX() over the records. That
+         -- season rides along as grid_season - global, unlike the driver's own
+         -- last_season beside it - so the filter can name it.
+         --
+         -- The entry list, not an appearance in a race that has been run: the
+         -- entry list IS the grid, build.py carries it for the declared season
+         -- and verify.py refuses a season without one, so the filter still
+         -- names a set over a winter. The two describe the same 23 drivers
+         -- today - the one reserve entry has raced - so this changes the
+         -- anchor, not the register.
+         ${CURRENT_SEASON_SQL} AS grid_season,
+         EXISTS (SELECT 1 FROM season_entries se
+                  WHERE se.driver_id = d.id AND se.year = ${CURRENT_SEASON_SQL}) AS on_grid
     FROM drivers d
    ORDER BY d.wins DESC, d.podiums DESC, d.full_name
 `

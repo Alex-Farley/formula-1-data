@@ -5,6 +5,7 @@ import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { Chips, Filters, SearchField, Select } from '../components/Filters.jsx'
 import { useQuery } from '../data/useQuery.js'
+import { anyThisSeason, gridLabel, seasonOf } from '../lib/season.js'
 import { colourFor } from '../lib/racingColours.js'
 import { CONSTRUCTORS, CONSTRUCTOR_COLUMNS, CONSTRUCTORS_FOOTER } from '../queries/constructors.js'
 
@@ -42,7 +43,7 @@ export default function Constructors() {
   return (
     <Page
       title="Constructors"
-      lede="A hundred and fifty constructors, from the ones that defined an era to the ones that entered a handful of races and disappeared. Filter by country, or narrow to race winners and champions; each page carries the team’s record, the cars it built, and the names it raced under before and after."
+      lede="A hundred and fifty constructors, from the ones that defined an era to the ones that entered a handful of races and disappeared. Sorted by race entries, with alphabetical a click away: filter by country, or narrow to race winners, champions and this season’s grid. Each page carries the team’s record, the cars it built, and the names it raced under before and after."
     >
       <Section>
         <Result state={state} skeleton>
@@ -65,6 +66,11 @@ function Register({ rows }) {
   const [term, setTerm] = useState('')
   const [country, setCountry] = useState('')
   const [kind, setKind] = useState('')
+  // IA-19: the same question /drivers asks, in the same words. It read
+  // "Active" before, which named the stored constructors.active column and
+  // left a reader to work out that it meant this year.
+  const gridSeason = seasonOf(rows)
+  const hasGrid = anyThisSeason(rows, 'on_grid')
 
   const countries = useMemo(
     () => [...new Set(rows.map((r) => r.country).filter(Boolean))].sort(),
@@ -77,7 +83,11 @@ function Register({ rows }) {
       if (country && row.country !== country) return false
       if (kind === 'winners' && !row.wins) return false
       if (kind === 'champions' && !row.constructors_titles) return false
-      if (kind === 'active' && !row.active) return false
+      // `on_grid` from the query, not the stored `active` column: the two
+      // agree on the same eleven teams today, but `active` is built against
+      // the highest year in the entry lists rather than the declared season
+      // (CR-35, #429), and this chip names that season out loud.
+      if (kind === 'grid' && !row.on_grid) return false
       if (!needle) return true
       return row.name.toLowerCase().includes(needle)
     })
@@ -96,16 +106,19 @@ function Register({ rows }) {
             ['', 'All'],
             ['winners', 'Race winners'],
             ['champions', 'Champions'],
-            ['active', 'Active'],
+            ...(hasGrid ? [['grid', gridLabel(gridSeason)]] : []),
           ]}
         />
       </Filters>
 
-      {/* No opening sort: the query's ORDER BY is the alphabetical order the
-          table opens in, and the static page prints the rows as they come. */}
+      {/* VD-30: most race entries first, which is the query's own ORDER BY,
+          so the static page still prints the rows as they come. Alphabetical
+          is one click on the Constructor header away. */}
       <DataTable
         rows={filtered}
         rowKey={(row) => row.id}
+        sort="entries"
+        direction="desc"
         page={150}
         columns={CONSTRUCTOR_COLUMNS.map((column) => ({ ...column, ...APP[column.key] }))}
         footer={CONSTRUCTORS_FOOTER}
