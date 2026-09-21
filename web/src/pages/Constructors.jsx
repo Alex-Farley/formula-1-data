@@ -83,10 +83,11 @@ function Register({ rows }) {
       if (country && row.country !== country) return false
       if (kind === 'winners' && !row.wins) return false
       if (kind === 'champions' && !row.constructors_titles) return false
-      // `on_grid` from the query, not the stored `active` column: the two
-      // agree on the same eleven teams today, but `active` is built against
-      // the highest year in the entry lists rather than the declared season
-      // (CR-35, #429), and this chip names that season out loud.
+      // `on_grid` from the query, not the stored `active` column. CR-35
+      // moved `active` onto the declared season and verify.py now holds it
+      // to that season's entry list, so the two cannot disagree; this chip
+      // is still the one to read, because it names the season out loud
+      // rather than leaving a reader to work out which one "active" means.
       if (kind === 'grid' && !row.on_grid) return false
       if (!needle) return true
       return row.name.toLowerCase().includes(needle)
