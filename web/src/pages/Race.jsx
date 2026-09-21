@@ -5,11 +5,13 @@ import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import Disagreement, { RACE_DISAGREEMENTS } from '../components/Disagreement.jsx'
 import { OutlineCard } from '../components/Outline.jsx'
+import Photographs from '../components/Photographs.jsx'
 import { RACE_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE, clock, nextSession, readerZone, until, yourTimeColumn } from '../queries/sessions.js'
 import { rows, useQueries } from '../data/useQuery.js'
 import { finished, missing, number, result } from '../lib/format.js'
 import { SHARED } from '../lib/site.js'
 import { outlineCaption } from '../lib/outline.js'
+import { RACE_IMAGES } from '../queries/photographs.js'
 import {
   CLASSIFICATION_COLUMNS,
   CLASSIFICATION_FOOTER,
@@ -142,6 +144,7 @@ export default function Race() {
     neighbours: [NEIGHBOURS, args],
     disagreements: [RACE_DISAGREEMENTS, args],
     sessions: [RACE_SESSIONS, args],
+    images: [RACE_IMAGES, args],
   })
 
   return (
@@ -310,6 +313,11 @@ function RaceBody({ race, data, year, round }) {
           result yet.
         </Note>
       )}
+
+      {/* The cars entered, the best finisher first (VD-33). Six of them,
+          captioned with the car each one is - a race is twenty machines and an
+          uncaptioned strip is twenty red cars. */}
+      <Photographs images={rows(data, 'images')} subjects />
 
       {sessions.length > 0 && (
         <Section title="Timetable" count={`${sessions.length} sessions`}>

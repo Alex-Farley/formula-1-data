@@ -2,12 +2,10 @@ import { Link, useParams } from 'react-router-dom'
 import { Confidence, Fields, Note, Onward, Page, Section, Stats } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
-import CommonsImage from '../components/CommonsImage.jsx'
+import Photographs from '../components/Photographs.jsx'
 import LiveryMark from '../components/LiveryMark.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
-import { canShow } from '../lib/commons.js'
 import { missing, number, span } from '../lib/format.js'
-import { PHOTOGRAPHS_NOTE, UNCHECKED_MARK, UNCHECKED_NOTE } from '../lib/site.js'
 import { colourForEntry } from '../lib/liveries.js'
 import {
   AMBIGUOUS_COLUMNS,
@@ -92,11 +90,11 @@ export default function Car() {
 
 function CarBody({ chassis, variants, data }) {
   const car = data.car.rows[0]
-  // Fail closed BEFORE the count, not just before each figure. CommonsImage
-  // renders nothing for a file with nobody to credit, so an unfiltered list
-  // would head the section "Photographs 1" over an empty grid. The build
-  // refuses such a row, which is why this is cheap to be sure of.
-  const images = rows(data, 'images').filter(canShow)
+  // Fail closed before the count, not just before each figure: the section
+  // is headed "Photographs 1" over an empty grid otherwise, the day a file
+  // arrives with nobody to credit. components/Photographs.jsx does it, for
+  // every surface that shows one.
+  const images = rows(data, 'images')
   const entries = rows(data, 'entries')
   const seasons = rows(data, 'seasons')
 
@@ -150,25 +148,11 @@ function CarBody({ chassis, variants, data }) {
         />
       </Section>
 
-      {images.length > 0 && (
-        <Section
-          title="Photographs"
-          count={`${images.length}`}
-          note={PHOTOGRAPHS_NOTE}
-        >
-          <div className="photo-grid">
-            {images.slice(0, 6).map((image) => (
-              <CommonsImage key={image.file_name} image={image} width={600} />
-            ))}
-          </div>
-          {images.some((image) => image.name_matches === 0) && (
-            <p className="source-note">
-              {UNCHECKED_NOTE[0]} <span className="pill pill-unverified">{UNCHECKED_MARK}</span>{' '}
-              {UNCHECKED_NOTE[1]}
-            </p>
-          )}
-        </Section>
-      )}
+      {/* The section itself is components/Photographs.jsx, which the
+          constructor, season and race pages draw too (VD-33). No `subjects`:
+          this page is the car, and captioning six photographs with its own
+          title says nothing the heading has not. */}
+      <Photographs images={images} />
 
       {car && (
         <Section title="Why it mattered">

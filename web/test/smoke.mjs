@@ -47,11 +47,14 @@ import { fileURLToPath } from 'node:url'
 // The heading rule and the cell marks both renderers share, so the checks
 // below ask for the strings the pages compute rather than copies of them.
 import { standingsHeading, titleHeading } from '../src/queries/season.js'
-import { DOCUMENTS, NOT_YET_RUN, SO_FAR } from '../src/lib/site.js'
+import { DOCUMENTS, NOT_YET_RUN, PHOTOGRAPHS_SHOWN, SO_FAR } from '../src/lib/site.js'
 // The rule that decides who is credited and whether a file may be shown at
 // all — asked of the served HTML below rather than restated in it.
 import { attribution, canShow, fileTitle } from '../src/lib/commons.js'
 import { ENTRIES as CAR_ENTRIES, IMAGES as CAR_IMAGES } from '../src/queries/car.js'
+// The three surfaces VD-33 gave the photographs to, read from the app's own
+// queries so that the static pages are checked against what the app shows.
+import { CONSTRUCTOR_IMAGES, RACE_IMAGES, SEASON_IMAGES } from '../src/queries/photographs.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const web = join(here, '..')
@@ -1222,6 +1225,49 @@ try {
       Math.min(...strip.lead.map((t) => t.size)) > Math.max(...strip.rest.map((t) => t.size)),
       'a lead figure is set larger than every figure that does not lead',
     )
+
+    /*
+     * VD-33 and AX-13, on the surface VD-33 was filed about.
+     *
+     * The licence obligation travels with the photograph, so every figure is
+     * asked for its credit rather than one of them — the failure this guards
+     * against is a page crediting the first of six. The alt is asked at the
+     * same time because the two are one figure: it must say what the picture
+     * is OF, which is the car, and never the file name it used to read.
+     */
+    const team = await page.$$eval('figure.photo', (figures) =>
+      figures.map((figure) => ({
+        subject: figure.querySelector('.photo-subject')?.textContent?.trim() ?? '',
+        alt: figure.querySelector('img')?.getAttribute('alt') ?? '',
+        file: figure.querySelector('figcaption a')?.textContent?.trim() ?? '',
+        caption: figure.querySelector('figcaption')?.textContent ?? '',
+      })),
+    )
+    is(team.length, PHOTOGRAPHS_SHOWN, `the constructor page shows ${PHOTOGRAPHS_SHOWN} photographs`)
+    is(new Set(team.map((figure) => figure.subject)).size, team.length, 'each one a different Ferrari')
+    const unnamed = team.filter((figure) => figure.alt !== figure.subject || /\.(jpe?g|png)$/i.test(figure.alt))
+    if (unnamed.length === 0) pass('every alt names the car, not the file')
+    else for (const figure of unnamed) fail(`alt is "${figure.alt}" for ${figure.subject || figure.file}`)
+
+    const teamCredits = db.prepare(
+      `SELECT file_name, licence,
+            COALESCE(NULLIF(TRIM(COALESCE(artist, '')), ''),
+                     NULLIF(TRIM(COALESCE(credit, '')), '')) AS credit
+       FROM article_images WHERE route = 'article'`,
+    ).all()
+    const teamByTitle = new Map(
+      teamCredits.map((row) => [row.file_name.replace(/^File:/, '').replace(/_/g, ' '), row]),
+    )
+    const teamUncredited = team.filter((figure) => {
+      const row = teamByTitle.get(figure.file)
+      if (!row) return true
+      return !figure.caption.includes(row.licence) || !figure.caption.includes(row.credit)
+    })
+    if (teamUncredited.length === 0) {
+      pass(`all ${team.length} photograph(s) carry their licence and their credit`)
+    } else {
+      for (const figure of teamUncredited) fail(`photograph shown without full credit: ${figure.file}`)
+    }
   })
 
   // -------------------------------------------------------------- circuits
@@ -2458,7 +2504,7 @@ try {
     let shownCards = 0
     for (const id of carDirs) {
       const rows = images.all(id, id).filter(canShow)
-      const confirmed = rows.slice(0, 6).find((row) => row.name_matches === 1) ?? null
+      const confirmed = rows.slice(0, PHOTOGRAPHS_SHOWN).find((row) => row.name_matches === 1) ?? null
       const html = readFileSync(join(distDir, 'cars', id, 'index.html'), 'utf8')
       const found = /<meta property="og:image" content="([^"]+)"/.exec(html)?.[1] ?? null
       const tagged = found === null ? null : unescaped(found)
@@ -2500,7 +2546,7 @@ try {
     for (const id of withPhotos) {
       const html = readFileSync(join(distDir, 'cars', id, 'index.html'), 'utf8')
       const captions = [...html.matchAll(/<figcaption>([\s\S]*?)<\/figcaption>/g)].map((m) => m[1])
-      const expected = images.all(id, id).filter(canShow).slice(0, 6)
+      const expected = images.all(id, id).filter(canShow).slice(0, PHOTOGRAPHS_SHOWN)
       if (captions.length !== expected.length) {
         uncredited.push(`/cars/${id}: ${expected.length} photograph(s), ${captions.length} caption(s)`)
         continue
@@ -2518,6 +2564,71 @@ try {
     } else {
       for (const message of uncredited.slice(0, 5)) fail(message)
       if (uncredited.length > 5) fail(`…and ${uncredited.length - 5} more`)
+    }
+
+    /*
+     * The same obligation on the pages VD-33 reached: constructor, season and
+     * race. 762 static pages showed a photograph before it and 2,068 do now,
+     * so this is where a licence breach would sit unseen — every one of them,
+     * not a sample, because the failure is one page somewhere quietly wrong.
+     *
+     * Each is checked against the app's own query, so the static page holds
+     * the six the app holds rather than a second selection. The subject line
+     * and the alt are checked here too (AX-13): an alt that has gone back to
+     * the file name is not visible in any count of figures.
+     */
+    const dirsIn = (...parts) => {
+      const dir = join(distDir, ...parts)
+      return existsSync(dir)
+        ? readdirSync(dir).filter((entry) => statSync(join(dir, entry)).isDirectory())
+        : []
+    }
+    const surfaces = []
+    for (const id of dirsIn('constructors')) surfaces.push({ at: `constructors/${id}`, query: CONSTRUCTOR_IMAGES, args: [id] })
+    for (const year of dirsIn('seasons')) surfaces.push({ at: `seasons/${year}`, query: SEASON_IMAGES, args: [Number(year)] })
+    for (const year of dirsIn('races')) {
+      for (const round of dirsIn('races', year)) {
+        surfaces.push({ at: `races/${year}/${round}`, query: RACE_IMAGES, args: [Number(year), Number(round)] })
+      }
+    }
+    atLeast(surfaces.length, 1000, 'constructor, season and race pages read from dist')
+
+    const prepared = new Map()
+    const broken = []
+    let reached = 0
+    let strips = 0
+    for (const { at, query, args } of surfaces) {
+      const file = join(distDir, at, 'index.html')
+      if (!existsSync(file)) continue
+      if (!prepared.has(query)) prepared.set(query, db.prepare(query))
+      const expected = prepared.get(query).all(...args).filter(canShow).slice(0, PHOTOGRAPHS_SHOWN)
+      const html = readFileSync(file, 'utf8')
+      // The photographs only: a race page also draws the circuit's outline,
+      // which is a <figure> with a caption of its own and no licence to name.
+      const drawn = [...html.matchAll(/<figure class="photo">([\s\S]*?)<\/figure>/g)].map((m) => m[1])
+      if (drawn.length !== expected.length) {
+        broken.push(`/${at}: ${expected.length} photograph(s), ${drawn.length} drawn`)
+        continue
+      }
+      if (expected.length === 0) continue
+      strips += 1
+      expected.forEach((row, at_) => {
+        reached += 1
+        const figure = drawn[at_]
+        const caption = unescaped(/<figcaption>([\s\S]*?)<\/figcaption>/.exec(figure)?.[1]?.replace(/<[^>]+>/g, '') ?? '')
+        const alt = unescaped(/<img [^>]*alt="([^"]*)"/.exec(figure)?.[1] ?? '')
+        if (!caption.includes(attribution(row))) broken.push(`/${at}: ${row.file_name} names no photographer`)
+        else if (!caption.includes(row.licence.trim())) broken.push(`/${at}: ${row.file_name} names no licence`)
+        else if (!caption.includes(fileTitle(row.file_name))) broken.push(`/${at}: ${row.file_name} names no file`)
+        else if (!caption.includes(row.article)) broken.push(`/${at}: ${row.file_name} does not say which car it is`)
+        else if (alt !== row.article) broken.push(`/${at}: alt is "${alt}", not "${row.article}"`)
+      })
+    }
+    if (broken.length === 0) {
+      pass(`all ${reached} photograph(s) on ${strips} constructor, season and race pages carry their credit, their car and an alt that names it`)
+    } else {
+      for (const message of broken.slice(0, 5)) fail(message)
+      if (broken.length > 5) fail(`…and ${broken.length - 5} more`)
     }
   })
 

@@ -4,12 +4,14 @@ import { Confidence, Fields, Note, Onward, Page, Section, Stats } from '../compo
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import Figure from '../charts/Figure.jsx'
+import Photographs from '../components/Photographs.jsx'
 import ColumnChart from '../charts/ColumnChart.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { missing, number, span, yearList } from '../lib/format.js'
 import LiveryScheme from '../components/LiveryScheme.jsx'
 import { LIVERY_ERA, colourForEntry, liveryFor, nationalEntry, sourceHost } from '../lib/liveries.js'
 
+import { CONSTRUCTOR_IMAGES } from '../queries/photographs.js'
 import {
   BY_SEASON,
   CONSTRUCTOR,
@@ -69,6 +71,7 @@ export default function Constructor() {
     wins: [WINS, [id]],
     designs: [DESIGNS, [id]],
     lineage: [LINEAGE, [id]],
+    images: [CONSTRUCTOR_IMAGES, [id]],
   })
 
   return (
@@ -101,6 +104,7 @@ function ConstructorBody({ constructor, data }) {
   const wins = rows(data, 'wins')
   const designs = rows(data, 'designs')
   const lineage = rows(data, 'lineage')
+  const images = rows(data, 'images')
 
   const winsBySeason = bySeason.filter((s) => s.wins > 0)
   // The chart used to draw only these, on a band scale, so the pixels between
@@ -190,6 +194,11 @@ function ConstructorBody({ constructor, data }) {
           ].filter(Boolean)}
         />
       </Section>
+
+      {/* The cars, oldest first - the order "Cars built" prints them in
+          further down. Six of them: this is a team's page, not a gallery, and
+          the table below it lists every design with a link to its own page. */}
+      <Photographs images={images} subjects />
 
       {lineage.length > 1 && (
         <Section

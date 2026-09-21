@@ -1451,6 +1451,14 @@ figure.photo figcaption a {
   grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
 }
 
+/* Which car a photograph is of, above its credit — a constructor, a season or
+   a race shows six different cars (VD-33) and the credit line names the file,
+   not the machine. The app and the static page write the same element. */
+.photo-subject {
+  color: var(--ink-soft);
+  margin-bottom: 3px;
+}
+
 /* ------------------------------------------------------- circuit outlines */
 
 /* F1DB's drawing of a layout (lib/outline.js): the current ink at a constant
