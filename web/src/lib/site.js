@@ -50,6 +50,19 @@ export const ENTRIES_NOTE =
   'neither is corrected.'
 
 /**
+ * What an em dash in a cell means, and where the career totals come from.
+ *
+ * The app's footer has said this since the totals were first counted; the
+ * static footer never carried it, so the search arrival, the no-JS reader and
+ * the first seconds of every cold visit got the convention's consequences
+ * with the rule for reading them deleted (CD-04). A blank that is not
+ * explained is read as a zero, which is the one thing it never is.
+ */
+export const COUNTED_TOTALS =
+  'Career totals are counted from the race records wherever the records can support it, and an em ' +
+  'dash means nobody has established that figure \u2014 never zero.'
+
+/**
  * How to cite a page. The page is named by its address, not its title: the
  * app and the static page have titled the same route differently since the
  * prerenderer was written, and a citation is the one place that difference

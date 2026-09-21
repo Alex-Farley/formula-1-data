@@ -58,6 +58,7 @@ import { finished, missing, result, span, text as formatted, yearList } from '..
 // here for the same reason the cars gallery had to stop writing its own.
 import { attribution, canShow, fileTitle, photoAlt, thumbUrl } from '../src/lib/commons.js'
 import {
+  COUNTED_TOTALS,
   CROSS_CHECKED,
   DOCUMENTS,
   DOCUMENTS_NOTE,
@@ -153,6 +154,7 @@ import {
   PIT_COLUMNS,
   QUALIFYING,
   QUALIFYING_FOOTER,
+  SHARED_DRIVE_NOTE,
   SPRINT as SPRINT_RESULTS,
   SPRINT_COLUMNS,
   SPRINT_FOOTER,
@@ -548,7 +550,7 @@ const chrome = (body, crumbs, citeUrl) => `
     }
   </main>
   <footer class="sitefoot"><div class="sitefoot-inner"><div>
-    <p>Every page here is a query against one SQLite file, running in your browser. ${link('data/quality', 'How far to trust it')} · ${link('data/sources', 'sources')} · ${link('data/sql', 'write your own query')} · ${link('changes', 'what changed')}.</p>
+    <p>Every page here is a query against one SQLite file, running in your browser. ${esc(COUNTED_TOTALS)} ${link('data/quality', 'How far to trust it')} · ${link('data/sources', 'sources')} · ${link('data/sql', 'write your own query')} · ${link('changes', 'what changed')}.</p>
     <p>${esc(REPORT_ASK)} <a href="${esc(REPORT_URL)}">${esc(REPORT_LINK)}</a>. ${esc(REPORT_PROMISE)}</p>
     <p class="faint">Race data from <a href="https://github.com/f1db/f1db">F1DB</a> (CC BY 4.0), prose and registers from Wikipedia (CC BY-SA 4.0), circuit geometry © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL 1.0). ${esc(OUTLINE_CREDIT)}. Unaffiliated with Formula One, the FIA or any team.</p>
   </div><dl><dt>Database</dt><dd>v${esc(META.version)}</dd><dt>Built</dt><dd>${esc(META.built)}</dd></dl></div></footer>
@@ -1414,6 +1416,11 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
         }
         ${prose(r.note)}
         ${disagree(disagreements.all(`${r.year} round ${r.round}`), 'this race')}
+        ${
+          entries.some((e) => e.shared_drive === 1)
+            ? `<p class="note"><strong>${esc(SHARED_DRIVE_NOTE.head)}</strong> ${esc(SHARED_DRIVE_NOTE.body)}</p>`
+            : ''
+        }
         ${
           entries.length
             ? `<h2>Classification</h2>${fromColumns(CLASSIFICATION_COLUMNS, entries, {
