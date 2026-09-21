@@ -5,6 +5,7 @@ import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { Chips, Filters, SearchField, Select } from '../components/Filters.jsx'
 import { useQuery } from '../data/useQuery.js'
+import { anyThisSeason, gridLabel, seasonOf } from '../lib/season.js'
 import { DRIVERS, DRIVER_COLUMNS } from '../queries/drivers.js'
 
 /**
@@ -52,7 +53,8 @@ function Register({ rows }) {
   const [kind, setKind] = useState('')
   // The season the grid filter names, from the shared query; every row
   // carries the same value.
-  const gridSeason = rows[0]?.grid_season
+  const gridSeason = seasonOf(rows)
+  const hasGrid = anyThisSeason(rows, 'on_grid')
 
   const nationalities = useMemo(
     () => [...new Set(rows.map((r) => r.nationality).filter(Boolean))].sort(),
@@ -65,10 +67,10 @@ function Register({ rows }) {
       if (nationality && row.nationality !== nationality) return false
       if (kind === 'champions' && !row.titles) return false
       if (kind === 'winners' && !row.wins) return false
-      // The grid is an entry in the latest completed season, derived in the
-      // shared query; the register's open span is a NULL last_season, so the
-      // year was never the test (IX-17).
-      if (kind === 'active' && !row.on_grid) return false
+      // The grid is the declared season's entry list, derived in the shared
+      // query; the register's open span is a NULL last_season, so the year
+      // was never the test (IX-17).
+      if (kind === 'grid' && !row.on_grid) return false
       if (!needle) return true
       return row.full_name.toLowerCase().includes(needle)
     })
@@ -93,7 +95,7 @@ function Register({ rows }) {
             ['', 'All'],
             ['winners', 'Race winners'],
             ['champions', 'Champions'],
-            ['active', gridSeason ? `On the ${gridSeason} grid` : 'On the grid'],
+            ...(hasGrid ? [['grid', gridLabel(gridSeason)]] : []),
           ]}
         />
       </Filters>

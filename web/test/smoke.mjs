@@ -1092,11 +1092,16 @@ try {
       // page: a race_entries row is an entry, not a start, and the published
       // `entries`/`starts` columns stay off the register.
       truthy(heads.includes('Entries') && !heads.includes('Races') && !heads.includes('Starts'), 'Entries is counted from the race records; Races and Starts are gone')
-      // The Active filter keeps the current grid - it matched nobody for a
+      // The grid filter keeps the current grid - it matched nobody for a
       // version, testing last_season against a year the open span never holds.
-      const latest = one("SELECT MAX(year) FROM races WHERE status = 'completed'")
+      //
+      // The season is meta.current_season, what data/current.py declares, and
+      // the set is that season's entry list (IA-19, CR-07). NOT MAX(year) over
+      // the completed races: that names last season for the whole of a winter,
+      // while the chip beside it on /circuits would be naming this one.
+      const latest = one("SELECT value FROM meta WHERE key = 'current_season'")
       const gridCount = count(
-        "SELECT COUNT(DISTINCT e.driver_id) FROM race_entries e JOIN races r ON r.id = e.race_id WHERE r.year = ?",
+        'SELECT COUNT(DISTINCT driver_id) FROM season_entries WHERE year = ?',
         latest,
       )
       truthy(gridCount > 0, `there is a ${latest} grid to keep`)
@@ -1236,8 +1241,61 @@ try {
 
   await section('/constructors', async () => {
     await go('/constructors', 'Constructors')
-    is((await tableRows())[0], count('SELECT COUNT(*) FROM constructors'), 'the constructor register')
+    const everyConstructor = count('SELECT COUNT(*) FROM constructors')
+    is((await tableRows())[0], everyConstructor, 'the constructor register')
 
+    // VD-30: it opened on AFM, AGS, Alfa Special - roughly sixty of the
+    // seventy-eight figures on the first screen were zero. Most race entries
+    // first now, with alphabetical one click on the header away.
+    {
+      const busiest = db
+        .prepare(
+          `SELECT k.name, (SELECT COUNT(*) FROM race_entries e WHERE e.constructor_id = k.id) AS entries
+             FROM constructors k ORDER BY entries DESC, k.name COLLATE NOCASE, k.id LIMIT 1`,
+        )
+        .get()
+      const first = await page.$eval('#root main tbody tr', (tr) => tr.textContent)
+      truthy(first.includes(busiest.name), `the register opens on the busiest constructor, ${busiest.name}`)
+      const first_ = one('SELECT name FROM constructors ORDER BY name COLLATE NOCASE, id LIMIT 1')
+      await page.click('#root main thead th:first-child button')
+      await page.waitForFunction(
+        (name) => document.querySelector('#root main tbody tr')?.textContent.includes(name),
+        first_,
+        { timeout: 10000 },
+      )
+      is(
+        await page.$eval('#root main thead th:first-child', (th) => th.getAttribute('aria-sort')),
+        'ascending',
+        `alphabetical is one click on the Constructor header away, and it opens on ${first_}`,
+      )
+    }
+
+    // IA-19: the same chip, in the same words, as /drivers and /cars - it
+    // read "Active" here, which named a stored column rather than a season.
+    {
+      const season = one("SELECT value FROM meta WHERE key = 'current_season'")
+      const onGrid = count('SELECT COUNT(DISTINCT constructor_id) FROM season_entries WHERE year = ?', season)
+      truthy(onGrid > 0, `there is a ${season} grid of constructors to keep`)
+      const group = '[role="group"][aria-label="Filter constructors by kind"]'
+      is(
+        await page.$$eval(`${group} button`, (bs) => bs.map((b) => b.textContent.trim()).join(' | ')),
+        `All | Race winners | Champions | On the ${season} grid`,
+        'the chip names the season, and "Active" is gone',
+      )
+      await page.click(`${group} button:has-text("On the ${season} grid")`)
+      await page.waitForFunction(
+        (n) => document.querySelector('#root main .table-wrap')?.dataset.rows === String(n),
+        onGrid,
+        { timeout: 10000 },
+      )
+      is((await tableRows())[0], onGrid, `the grid chip keeps the ${onGrid} constructors entered in ${season}`)
+      await page.click(`${group} button:has-text("All")`)
+      await page.waitForFunction(
+        (n) => document.querySelector('#root main .table-wrap')?.dataset.rows === String(n),
+        everyConstructor,
+        { timeout: 10000 },
+      )
+    }
   })
 
   await section('/constructors/ferrari', async () => {
@@ -1317,7 +1375,62 @@ try {
 
   await section('/circuits', async () => {
     await go('/circuits', 'Circuits')
-    is((await tableRows())[0], count('SELECT COUNT(*) FROM v_circuits'), 'the circuit register')
+    const everyVenue = count('SELECT COUNT(*) FROM v_circuits')
+    is((await tableRows())[0], everyVenue, 'the circuit register')
+
+    // IA-19: this year's calendar, the fourth register's share of the one
+    // chip. A toggle and not a fifth type chip, because IX-35 is the record
+    // of what happens when a second axis is filed into that group - and it
+    // composes with the type, which is the whole point.
+    //
+    // The season is meta.current_season and NOT MAX(races.year): the 2027
+    // calendar was announced on 2026-09-16 and is already in the register.
+    {
+      const season = one("SELECT value FROM meta WHERE key = 'current_season'")
+      const onCalendar = count('SELECT COUNT(DISTINCT circuit_id) FROM races WHERE year = ?', season)
+      truthy(onCalendar > 0 && onCalendar < everyVenue, `there is a ${season} calendar to keep`)
+      truthy(
+        count('SELECT COUNT(*) FROM races WHERE year > ?', season) > 0,
+        'a later calendar is already in the register, which is what the anchor is for',
+      )
+      const label = `On the ${season} calendar`
+      const toggle = `.filters button[aria-label="${label} only"]`
+      truthy(
+        (await page.$eval(toggle, (b) => b.textContent.trim())) === label,
+        'the toggle carries the same words the other three registers put on their chip',
+      )
+      await page.click(toggle)
+      await page.waitForFunction(
+        (n) => document.querySelector('#root main .table-wrap')?.dataset.rows === String(n),
+        onCalendar,
+        { timeout: 10000 },
+      )
+      is((await tableRows())[0], onCalendar, `the calendar toggle keeps the ${onCalendar} venues run in ${season}`)
+
+      // It composes with the type chips, which is what a toggle buys over a
+      // fifth chip in that group (IX-35).
+      const type = one('SELECT circuit_type FROM v_circuits WHERE circuit_type IS NOT NULL GROUP BY circuit_type ORDER BY COUNT(*) DESC LIMIT 1')
+      const both = count(
+        `SELECT COUNT(DISTINCT v.id) FROM v_circuits v
+          WHERE v.circuit_type = ? AND EXISTS (SELECT 1 FROM races r WHERE r.circuit_id = v.id AND r.year = ?)`,
+        type,
+        season,
+      )
+      await page.click(`[role="group"][aria-label="Filter circuits by type"] button:has-text("${type}")`)
+      await page.waitForFunction(
+        (n) => document.querySelector('#root main .table-wrap')?.dataset.rows === String(n),
+        both,
+        { timeout: 10000 },
+      )
+      is((await tableRows())[0], both, `the calendar and the type compose: ${both} ${type} venues in ${season}`)
+      await page.click(toggle)
+      await page.click('[role="group"][aria-label="Filter circuits by type"] button:has-text("All types")')
+      await page.waitForFunction(
+        (n) => document.querySelector('#root main .table-wrap')?.dataset.rows === String(n),
+        everyVenue,
+        { timeout: 10000 },
+      )
+    }
 
     // AF-23: the strip of 25 thumbnails was the third place the site drew the
     // same circuit. The cards carry what each trace measures instead, and the
@@ -1418,6 +1531,30 @@ try {
     await go('/cars', 'Cars')
     is((await tableRows())[0], count('SELECT COUNT(*) FROM chassis'), 'the chassis register')
 
+    // IA-19: 1,153 rows opening on 1950, and no route at all to this year's
+    // chassis until now. The register's own Raced span is the test, because
+    // season_entries carries the car as the team names it and will not join.
+    {
+      const season = one("SELECT value FROM meta WHERE key = 'current_season'")
+      const thisYear = count(
+        'SELECT COUNT(*) FROM chassis WHERE first_year <= ? AND last_year >= ?',
+        season,
+        season,
+      )
+      truthy(thisYear > 0, `there are ${season} chassis to keep`)
+      const group = '[role="group"][aria-label="Filter cars by kind"]'
+      truthy(
+        await page.$(`${group} button:has-text("On the ${season} grid")`),
+        'the chip is the one /drivers and /constructors carry, in the same words',
+      )
+      await page.click(`${group} button:has-text("On the ${season} grid")`)
+      await page.waitForFunction(
+        (n) => document.querySelector('#root main .table-wrap')?.dataset.rows === String(n),
+        thisYear,
+        { timeout: 10000 },
+      )
+      is((await tableRows())[0], thisYear, `the grid chip keeps the ${thisYear} chassis raced in ${season}`)
+    }
   })
 
   // Six ids name a car that no single chassis shares an id with. No race entry
