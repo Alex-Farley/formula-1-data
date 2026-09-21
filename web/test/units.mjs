@@ -75,6 +75,7 @@ import { traced } from '../src/queries/circuits.js'
 import { chassisName } from '../src/queries/cars.js'
 import { PIT_COLUMNS, driverName, fastestLapMark, inClassificationOrder, outcome, position, raceLede, raceSentence, railOf } from '../src/queries/race.js'
 import { RACE_COLUMNS, raceWinnerHere } from '../src/queries/circuit.js'
+import { SEASON_COLUMNS as TEAM_SEASON_COLUMNS } from '../src/queries/constructor.js'
 import { constructorSeasons } from '../src/queries/constructor.js'
 import { NOT_YET_RUN } from '../src/lib/site.js'
 import {
@@ -1304,21 +1305,22 @@ describe('a column every row agrees on (VD-29)', () => {
     assert.deepEqual(shared(columns, rows).shared.map((s) => s.column.label), ['First'])
   })
 
-  // Every column the repository declares, against the rule the flag asserts:
-  // the cell is its text, so no page may draw it itself.
-  it('is declared only on columns neither renderer draws itself', () => {
+  // The columns the repository declares, in the four modules that declare
+  // any. That nobody draws one of them is not checkable from here - a
+  // `render` is written in a page and a link in prerender's own map - so it
+  // is a conventions test and a build failure instead; see
+  // test/conventions.mjs and fromColumns() in scripts/prerender.js.
+  it('is declared on the columns that are their text, and on no others', () => {
     const declared = [
       ...RACE_COLUMNS,
       ...SEASON_COLUMNS,
+      ...TEAM_SEASON_COLUMNS,
       ...PIT_COLUMNS,
       ...recordColumns([{ confidence: 'reference' }]),
     ].filter((c) => c.collapse === true)
     assert.deepEqual(
       declared.map((c) => c.key),
-      ['layout_key', 'wins', 'podiums', 'poles', 'fastest_laps', 'source', 'as_of'],
+      ['layout_key', 'wins', 'podiums', 'poles', 'fastest_laps', 'wins', 'podiums', 'poles', 'source', 'as_of'],
     )
-    // A `render` belongs to a page, not to a column spec; a declared column
-    // that grew one would be collapsing a cell somebody draws.
-    for (const column of declared) assert.equal(column.render, undefined, column.key)
   })
 })

@@ -410,6 +410,15 @@ const fromColumns = (columns, rows, links = {}) => {
   // different columns - `links` and the app's renders are two lists, and
   // deriving it from each of them separately is what once put a nine-column
   // static table under a ten-column app one.
+  // A declared column this half draws as a link is a contradiction - the flag
+  // says the cell is its text - and it is the failure the flag exists to make
+  // impossible, so it stops the build on the page where it happens rather than
+  // shipping a table the app does not have.
+  for (const c of columns) {
+    if (c.collapse === true && Object.hasOwn(links, c.key)) {
+      die(`prerender: column "${c.key}" declares collapse: true and is rendered as a link here`)
+    }
+  }
   const { columns: kept, shared: constants } = shared(columns, rows)
   const line = constants.length ? `<p class="table-shared">${esc(sharedLine(constants, rows.length))}</p>` : ''
   return (
