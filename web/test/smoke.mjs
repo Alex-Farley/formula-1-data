@@ -415,13 +415,23 @@ try {
         { timeout },
       )
       const deadline = Date.now() + timeout
-      for (;;) {
+      for (let attempt = 1; ; attempt += 1) {
         await target.keyboard.press('/')
         const opened = await target
           .waitForSelector('.palette input', { timeout: 1000 })
           .then(() => true)
           .catch(() => false)
-        if (opened) return
+        if (opened) {
+          // A retry that succeeds is a press the app swallowed from a page
+          // that was settled and had focus outside every field — the one case
+          // this loop would otherwise absorb, and the shape of a real
+          // regression rather than of the race it was written for. Said out
+          // loud rather than through note(), which is silent under --quiet
+          // and so silent in CI, which is where it would matter. It costs a
+          // line that should never be printed.
+          if (attempt > 1) console.log(`  NOTE  \`/\` opened the palette on attempt ${attempt}, not the first`)
+          return
+        }
         if (Date.now() >= deadline) throw new Error('`/` did not open the search palette')
       }
     }
