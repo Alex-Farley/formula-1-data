@@ -296,7 +296,7 @@ phrased as a sentence tomorrow `[D-37]`. Then:
 - **Not a PASS**, and no respawn is owed: a rate limit or an unavailable
   account. Retrying a limit extends it `[D-27]`.
 - **Not a PASS after its one respawn**, and one respawn is the whole of it:
-  any result that does not lead with one of the two verdict lines — silence,
+  any result that does not lead with a verdict this loop accepts — silence,
   a preamble above the verdict, a reviewer that hit its turn cap, a
   quick-variant verdict without its `Applied:` line. The second result
   settles the item, whichever of those the first was.
