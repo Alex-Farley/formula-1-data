@@ -123,12 +123,35 @@ export const fastestLapMark = (value) => (value === 1 ? `●${FASTEST_LAP}` : ''
 
 const pts = (value) => (missing(value) ? EMPTY : points(value))
 
+/**
+ * The car an entry raced, for every surface that names one.
+ *
+ * The constructor where one is resolved, the entrant's name where none is -
+ * which is how eleven winning entries come to be named at all. The
+ * Indianapolis 500 counted for the championship from 1950 to 1960 and its
+ * winners were entered as "Kurtis Kraft-Offenhauser", "Watson-Offenhauser"
+ * and the like, designations no constructor row holds, so `constructor_id`
+ * is NULL and `constructor` with it. Reading the stored name alone leaves
+ * those pages blank about a car the entry plainly had.
+ *
+ * It is a function rather than four copies of the expression because it was
+ * four copies: the classification's Constructor column and raceSentence()
+ * applied it, while the Winner tile in pages/Race.jsx and the Constructor
+ * fact row in scripts/prerender.js read `constructor` raw, so one race page
+ * named the car in its standfirst and in its table and showed nothing
+ * between them (AF-64).
+ *
+ * Returns undefined for no row, which is what the tile wants for "no note".
+ */
+export const carName = (row) =>
+  row?.constructor_id ? row.constructor : (row?.entrant ?? row?.constructor)
+
 export const CLASSIFICATION_COLUMNS = [
   rail,
   { key: 'position_text', label: 'Pos', align: 'num', text: position },
   { key: 'driver', label: 'Driver', text: driverName },
   // The entrant's name where no constructor is resolved: a privateer entry.
-  { key: 'constructor', label: 'Constructor', text: (name, row) => text(row.constructor_id ? name : (row.entrant ?? name)) },
+  { key: 'constructor', label: 'Constructor', text: (_, row) => text(carName(row)) },
   { key: 'chassis', label: 'Chassis', text: (name, row) => text(name ?? row.chassis_id) },
   { key: 'grid_text', label: 'Grid', align: 'num' },
   { key: 'laps_completed', label: 'Laps', align: 'num' },
@@ -234,7 +257,7 @@ export const raceSentence = (race, winners) => {
   }
   if (!winners.length) return 'No winner is recorded for this round.'
   const first = winners[0]
-  const car = first.constructor_id ? first.constructor : (first.entrant ?? first.constructor)
+  const car = carName(first)
   const forWhom = car ? ` for ${car}` : ''
   const who = winners.map((w) => w.driver ?? w.driver_id).join(' and ')
   return winners.length > 1 ? `${who} shared the win${forWhom}${where}.` : `${who} won${forWhom}${where}.`

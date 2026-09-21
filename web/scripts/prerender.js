@@ -158,6 +158,7 @@ import {
   SPRINT as SPRINT_RESULTS,
   SPRINT_COLUMNS,
   SPRINT_FOOTER,
+  carName,
   inClassificationOrder,
   qualifyingColumns,
   raceLede,
@@ -1565,7 +1566,13 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
             ? [['Status', 'Scheduled — not yet run']]
             : [
                 ['Winner', driver(r.winner_id, r.winner)],
-                ['Constructor', team(r.constructor_id, r.constructor)],
+                // The entrant's name where no constructor row exists, the
+                // rule queries/race.js applies everywhere a car is named; the
+                // eleven championship Indianapolis 500s are the entries that
+                // have one and it is the only name they have (AF-64). The
+                // Entrant row below repeats it there, as it already repeats
+                // the constructor wherever the two designations agree.
+                ['Constructor', team(r.constructor_id, carName(r))],
                 ['Entrant', text(r.entrant)],
                 // "Pole position" is the driver the season record credits,
                 // which is what race_results holds. Where the car at grid 1
@@ -1642,7 +1649,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
                 position_text: (_, row) =>
                   missing(row.finish_position) ? `<span class="tag tag-dnf">${esc(result(row))}</span>` : `<b>${esc(result(row))}</b>`,
                 driver: (name, row) => `${driverCell(name, row)}${row.shared_drive === 1 ? ` ${tag(SHARED)}` : ''}`,
-                constructor: (name, row) => (row.constructor_id ? link(`constructors/${row.constructor_id}`, name) : text(row.entrant ?? name)),
+                constructor: (name, row) => (row.constructor_id ? link(`constructors/${row.constructor_id}`, name) : text(carName(row))),
                 chassis: (name, row) => (row.chassis_id ? link(`cars/${row.chassis_id}`, name ?? row.chassis_id) : text(name)),
                 status: outCell,
                 fastest_lap: (value) =>

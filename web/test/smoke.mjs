@@ -1085,6 +1085,53 @@ try {
      */
   })
 
+  await section('/races/1950/3  (a winner whose car is not a constructor)', async () => {
+    /*
+     * The eleven Indianapolis 500s that counted for the championship, 1950 to
+     * 1960. Their winning entries name a car -- "Kurtis Kraft-Offenhauser",
+     * "Watson-Offenhauser" -- that no constructor row holds, so constructor_id
+     * is NULL. carName() in queries/race.js falls back to the entrant, and the
+     * claim here is that all four surfaces on the page apply it: the
+     * standfirst, the Winner tile, the classification's Constructor cell and
+     * the static Constructor fact row. Two of the four did and two did not,
+     * so the page named the car above and below a blank (AF-64).
+     */
+    const car = one(
+      `SELECT e.entrant FROM race_entries e JOIN races r ON r.id = e.race_id
+        WHERE r.year = 1950 AND r.round = 3 AND e.finish_position = 1`,
+    )
+    truthy(car, `the winning entry names a car — "${car}"`)
+
+    await go('/races/1950/3')
+    is(
+      await page.$eval('#root main .stats', (dl) => {
+        const tile = [...dl.querySelectorAll(':scope > div')].find(
+          (el) => el.querySelector('dt')?.textContent === 'Winner',
+        )
+        return tile?.querySelector('dd small')?.textContent ?? ''
+      }),
+      car,
+      'the Winner tile names the car under the driver',
+    )
+    truthy((await text('#root main .lede')).includes(car), 'and the standfirst names it')
+    is(
+      await page.$eval('#root main table', (t) => {
+        const head = [...t.querySelectorAll('thead th')].map((th) => th.textContent)
+        const row = t.querySelector('tbody tr')
+        return row.querySelectorAll('td')[head.indexOf('Constructor')]?.textContent ?? ''
+      }),
+      car,
+      "and the classification's Constructor cell names it for the winner",
+    )
+
+    const html = await (await fetch(`${BASE}/races/1950/3`)).text()
+    is(
+      html.match(/<dt>Constructor<\/dt><dd>([^<]*)<\/dd>/)?.[1] ?? '',
+      car,
+      'and the static Constructor fact row names it rather than an em dash',
+    )
+  })
+
   await section('/races/2021/10  (pole is not the fastest qualifier)', async () => {
     await go('/races/2021/10')
     const front = await page.content()
