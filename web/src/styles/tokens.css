@@ -23,6 +23,10 @@
  *           passed on, and 158 nodes failed on the other three.
  *   dark    ink 15.1:1 · soft 7.0:1 · faint 4.8:1 · accent 5.4:1 on panel
  *
+ * Those are the accent as text, on the panel. As a fill it carries
+ * --ink-invert, not white: white on the dark accent is 3.34:1, and
+ * --ink-invert makes it 5.9:1 in light and 5.8:1 in dark.
+ *
  * One number decides a rule elsewhere: accent against body ink is 3.07:1 in
  * light and 2.78:1 in dark. Only the first clears the 3:1 that lets colour
  * mark a link on its own, so links keep an underline in both — the dark side
@@ -43,6 +47,9 @@
   --ink: #14161b;
   --ink-soft: #4f5561;
   --ink-faint: #656c77;
+  /* the foreground for an accent fill — a button, not a surface. Inverted
+     against the theme rather than fixed white, because the dark accent is
+     light enough that white on it fails 1.4.3 (AX-06). */
   --ink-invert: #ffffff;
 
   /* structure */
