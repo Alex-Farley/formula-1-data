@@ -42,7 +42,33 @@ export const DERIVED = `
          SUM(COALESCE(e.points, 0))      AS points,
          MIN(e.finish_position)          AS best,
          SUM(e.finish_position IS NOT NULL) AS classified,
-         SUM(e.shared_drive = 1)         AS shared
+         SUM(e.shared_drive = 1)         AS shared,
+         -- PD-15's substitutes. On 625 of the 862 driver pages Wins, Podiums,
+         -- Poles and Fastest laps are all zero, and strip() drops the four
+         -- there in favour of these. They are counted here rather than in a
+         -- second query because every one of them was already one SELECT away.
+         --
+         -- A START, BY THE RULE THE RECORDS USE. build.py's STARTED decides
+         -- what counts as a start for the records tables, and this is that
+         -- rule spelled again in SQLite the browser runs: an entry is a start
+         -- unless the source's result says it never was. Spelling it twice is
+         -- how the country vocabulary once split, so the two are pinned
+         -- together by tests/test_conventions.py, which fails if either list
+         -- of codes moves without the other. A pit-lane start counts, and so
+         -- does a retirement on lap one.
+         SUM(COALESCE(e.position_text, '') NOT IN ('DNQ', 'DNPQ', 'DNS', 'DNP', 'EX')) AS starts,
+         -- The source's own code, counted, not a status string interpreted:
+         -- position_text is 'DNF' on 8,719 entries and NC, DSQ and EX are
+         -- each a different fact that is not a retirement.
+         SUM(e.position_text = 'DNF')    AS retirements,
+         -- Best grid is the best SLOT ON RECORD, which is why the count of
+         -- recorded grids comes with it: 1,917 entries carry no grid - every
+         -- DNQ among them - and a minimum over what is recorded must not be
+         -- read as a minimum over a career. The strip says how many it is the
+         -- best of wherever the two differ.
+         MIN(e.grid)                     AS best_grid,
+         SUM(e.grid IS NOT NULL)         AS grids,
+         COUNT(DISTINCT e.constructor_id) AS constructors
     FROM race_entries e
     JOIN races r ON r.id = e.race_id
    WHERE e.driver_id = ?
@@ -190,19 +216,60 @@ export const ENTRY_COLUMNS = [
  * where there is one to show; Best finish only where a finish was classified.
  * Each item is { label, value, note }, value a string or null; both Stats and
  * the static facts list drop a null value.
+ *
+ * THE STRIP FITS THE CAREER (PD-15). It used to carry Wins, Podiums, Poles
+ * and Fastest laps whatever they were, and on 625 of the 862 driver pages all
+ * four were zero: a summary that summarised nothing, four times, above a page
+ * whose actual story - seventeen entries, three starts, three retirements -
+ * was not on it anywhere. Those four now appear only where at least ONE of
+ * them is non-zero, and give way to figures that are not zero when they do
+ * not: the best grid slot on record, the retirements, the constructors.
+ *
+ * THE FOUR MOVE TOGETHER, and that is deliberate. A zero among non-zeros is
+ * informative - 'Podiums 3, Wins 0' is a career - so the test is whether any
+ * of the four says something, not whether each does. 237 strips keep them,
+ * 121 of those still showing Wins 0, which is why Driver.jsx still refuses to
+ * LEAD with a zero.
+ *
+ * AND A DROPPED TILE IS NOT A MISSING FACT. The zero is still on the page
+ * twice below: every season's Wins, Podiums, Poles and FL in 'Season by
+ * season', and Wins, Poles and Fastest laps derived-and-published under 'On
+ * the record'. The strip is the summary, not the register, so dropping a
+ * figure here hides nothing - which is the condition on dropping it at all.
  */
 export function strip(driver, derived) {
+  const entries = derived.entries ?? 0
+  const starts = derived.starts ?? 0
+  // Whether the four results figures have anything to say between them.
+  const placed = [derived.wins, derived.podiums, derived.poles, derived.fastest_laps].some(
+    (figure) => (figure ?? 0) > 0,
+  )
   return [
     {
       label: 'Seasons',
       value: span(driver.first_season, driver.last_season),
       note: seasonsNote(driver, derived),
     },
-    { label: 'Entries', value: number(derived.entries) },
-    { label: 'Wins', value: number(derived.wins ?? 0) },
-    { label: 'Podiums', value: number(derived.podiums ?? 0) },
-    { label: 'Poles', value: number(derived.poles ?? 0) },
-    { label: 'Fastest laps', value: number(derived.fastest_laps ?? 0) },
+    { label: 'Entries', value: number(entries) },
+    // Only where an entry was not a start. On 415 careers the two figures are
+    // the same and a second tile would restate the first; on the other 447 the
+    // gap IS the career - the late 1980s put 1,041 DNQs and 337 DNPQs on these
+    // pages, and an entry list that never says so reads as a career of races.
+    starts === entries
+      ? null
+      : {
+          label: 'Starts',
+          value: number(starts),
+          note: `${number(entries - starts)} did not start`,
+        },
+    ...(placed
+      ? [
+          { label: 'Wins', value: number(derived.wins ?? 0) },
+          { label: 'Podiums', value: number(derived.podiums ?? 0) },
+          { label: 'Poles', value: number(derived.poles ?? 0) },
+          { label: 'Fastest laps', value: number(derived.fastest_laps ?? 0) },
+        ]
+      : []),
     driver.titles
       ? {
           label: 'Titles',
@@ -211,8 +278,30 @@ export function strip(driver, derived) {
         }
       : null,
     { label: 'Best finish', value: derived.best ? `P${derived.best}` : null },
+    ...(placed ? [] : instead(derived, starts, entries)),
   ].filter(Boolean)
 }
+
+/**
+ * What a strip carries in place of four zeros.
+ *
+ * Each one is dropped where it would itself be empty or say nothing: a career
+ * with no grid on record gets no Best grid, one that never started gets no
+ * Retirements (0 of 0 starts is not a fact about a driver), and the two
+ * drivers in the register with no entry at all get none of them and a strip
+ * of two tiles, which is the whole truth about them.
+ */
+const instead = (derived, starts, entries) => [
+  {
+    label: 'Best grid',
+    value: missing(derived.best_grid) ? null : `P${derived.best_grid}`,
+    // The minimum is over the grids that exist, so where some entry has none
+    // the tile says what it is the best of rather than implying a career.
+    note: (derived.grids ?? 0) < entries ? `best of ${number(derived.grids ?? 0)} on record` : undefined,
+  },
+  starts > 0 ? { label: 'Retirements', value: number(derived.retirements ?? 0), note: 'DNF' } : null,
+  derived.constructors ? { label: 'Constructors', value: number(derived.constructors) } : null,
+]
 
 /**
  * The Seasons note: how many seasons carry an entry, and, where the register's

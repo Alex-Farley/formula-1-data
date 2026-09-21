@@ -405,15 +405,88 @@ describe('the queries a page and the prerenderer share', () => {
   })
 
   it('shows Titles only where there is one, and Best finish only where a finish was classified', () => {
-    const none = strip({ first_season: 1963, last_season: 1976, titles: 0 }, { entries: 96, seasons: 13, best: null })
+    // A career that keeps the four results figures because one of them is
+    // non-zero (PD-15): the OTHER three still show their zeros, which is the
+    // whole reason the four are tested together rather than one by one.
+    const placed = strip(
+      { first_season: 1963, last_season: 1976, titles: 0 },
+      { entries: 96, seasons: 13, starts: 96, wins: 0, podiums: 3, best: 2 },
+    )
     assert.deepEqual(
-      none.map((i) => i.label),
+      placed.map((i) => i.label),
       ['Seasons', 'Entries', 'Wins', 'Podiums', 'Poles', 'Fastest laps', 'Best finish'],
     )
+    // A driver with three podiums has zero wins, not an unknown number.
+    assert.equal(placed.find((i) => i.label === 'Wins').value, '0')
+    assert.equal(placed.find((i) => i.label === 'Seasons').note, '13 with an entry')
+
+    const none = strip(
+      { first_season: 1963, last_season: 1976, titles: 0 },
+      { entries: 96, seasons: 13, starts: 96, best: null },
+    )
     assert.equal(none.find((i) => i.label === 'Best finish').value, null)
-    // A driver with no classified finish has zero wins, not an unknown number.
-    assert.equal(none.find((i) => i.label === 'Wins').value, '0')
-    assert.equal(none.find((i) => i.label === 'Seasons').note, '13 with an entry')
+    assert.equal(
+      none.find((i) => i.label === 'Titles'),
+      undefined,
+      'no title, no tile',
+    )
+  })
+
+  it('drops the four results figures where all four are zero, and puts something there instead (PD-15)', () => {
+    // Beppe Gabbiani, the smoke test's representative of the 625 driver pages
+    // of 862 on which Wins, Podiums, Poles and Fastest laps are all zero: 17
+    // entries, 3 of them starts, 3 retirements, best grid 20, 2 constructors,
+    // never classified.
+    const winless = strip(
+      { first_season: 1978, last_season: 1981, titles: 0 },
+      {
+        entries: 17,
+        seasons: 3,
+        starts: 3,
+        wins: 0,
+        podiums: 0,
+        poles: 0,
+        fastest_laps: 0,
+        best: null,
+        best_grid: 20,
+        grids: 3,
+        retirements: 3,
+        constructors: 2,
+      },
+    )
+    const label = (name) => winless.find((i) => i.label === name)
+    assert.deepEqual(
+      ['Wins', 'Podiums', 'Poles', 'Fastest laps'].filter(label),
+      [],
+      'four zeros summarise nothing and are not shown',
+    )
+    assert.equal(label('Starts').value, '3')
+    assert.equal(label('Starts').note, '14 did not start')
+    assert.equal(label('Best grid').value, 'P20')
+    // 14 of the 17 entries never reached a grid, so the minimum is over 3.
+    assert.equal(label('Best grid').note, 'best of 3 on record')
+    assert.equal(label('Retirements').value, '3')
+    assert.equal(label('Constructors').value, '2')
+
+    // Starts restates Entries where no entry failed to become one, so the
+    // tile is not there: 415 of the 862 careers.
+    const everyStart = strip({ first_season: 2007, last_season: 2012, titles: 1 }, { entries: 100, seasons: 6, starts: 100, wins: 21, best: 1 })
+    assert.equal(everyStart.find((i) => i.label === 'Starts'), undefined)
+    // ...and a winner keeps the four, so none of the substitutes appears.
+    assert.deepEqual(
+      ['Best grid', 'Retirements', 'Constructors'].filter((n) => everyStart.find((i) => i.label === n)),
+      [],
+    )
+
+    // The two drivers in the register with no entry at all: nothing is
+    // invented for them. Retirements needs a start, Constructors a
+    // constructor, and Best grid a grid - so the strip says what is true and
+    // stops, rather than reporting four zeros and three more.
+    const noEntry = strip({ first_season: 2012, last_season: 2012, titles: 0 }, { entries: 0, seasons: 0, starts: 0, best: null })
+    assert.deepEqual(
+      noEntry.filter((i) => i.value !== null).map((i) => i.label),
+      ['Seasons', 'Entries'],
+    )
     // The register's span and the race records' agree for all but two drivers;
     // where they differ, the note says which years are the records'.
     assert.equal(

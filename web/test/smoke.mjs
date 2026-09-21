@@ -801,6 +801,44 @@ try {
       'and so keeps the single display rank it always had',
     )
 
+    // PD-15: and it no longer shows the four zeros at all. Gabbiani entered
+    // 17 races, started 3 of them and retired from all 3 - which is the page
+    // the strip now leads with, in place of WINS 0 PODIUMS 0 POLES 0 FL 0.
+    // The figures are asserted, not just the labels: a strip that dropped the
+    // four and put an em dash in every substitute would pass a label test.
+    const tiles = await page.$eval('#root main .stats', (dl) =>
+      Object.fromEntries(
+        [...dl.querySelectorAll(':scope > div')].map((el) => [
+          el.querySelector('dt').textContent.trim(),
+          // <small> is the note; the figure is what precedes it.
+          [...el.querySelector('dd').childNodes]
+            .filter((n) => n.nodeName !== 'SMALL')
+            .map((n) => n.textContent)
+            .join('')
+            .trim(),
+        ]),
+      ),
+    )
+    is(
+      ['Wins', 'Podiums', 'Poles', 'Fastest laps'].filter((label) => label in tiles).join(', '),
+      '',
+      'a strip with nothing to report drops the four results figures rather than zeroing them',
+    )
+    is(tiles.Entries, '17', 'the entries stay')
+    is(tiles.Starts, '3', 'and the starts say how few of them were races')
+    is(tiles['Best grid'], 'P20', 'the best grid slot on record')
+    is(tiles.Retirements, '3', 'every start retired')
+    is(tiles.Constructors, '2', 'two constructors')
+
+    // The dropped zero is still ON THE PAGE, which is the condition on
+    // dropping it from the strip: "Season by season" carries a Wins column
+    // and every row of it reads 0 (the dashedWins check above), and "On the
+    // record" states Wins derived and published.
+    truthy(
+      ((await text('#root main')) ?? '').includes('0 derived'),
+      'and the zero it dropped is still stated under On the record',
+    )
+
     /*
      * A declared oddity reaches the reader. The 2026 calendar says "Bahrain
      * (hosted at Sepang, Malaysia)" and the page showed a Bahrain Grand Prix at a

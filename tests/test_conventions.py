@@ -311,3 +311,40 @@ class AgentAndSkillFrontmatterIsWellFormed(unittest.TestCase):
         skills = {os.path.basename(os.path.dirname(f)) for f in self.skills()}
         commands = {os.path.basename(f)[:-3] for f in files_under(".claude/commands", (".md",))}
         self.assertEqual(sorted(skills & commands), [], "a .claude/commands file shadows a skill of the same name")
+
+
+class OneRuleForWhatCountsAsAStart(unittest.TestCase):
+    """data-integrity-reviewer, the one-vocabulary rule, across two languages.
+
+    build.py's STARTED decides what counts as a start for the records tables;
+    queries/driver.js counts Starts for the driver strip (PD-15) in the SQLite
+    the browser runs, because the front end cannot import a Python constant.
+    That is one rule written out twice, which is how the country vocabulary
+    split, and the failure would be silent in the direction that matters: a
+    code added to one list and not the other makes the driver page and the
+    records page disagree about the same career, and neither says so.
+
+    Pinned as a SET of codes, not as a string: the two spellings differ in
+    whitespace and quoting and always will."""
+
+    CODES = re.compile(r"NOT IN \(([^)]*)\)")
+
+    def codes(self, text, what):
+        m = self.CODES.search(text)
+        self.assertIsNotNone(m, f"{what}: no `NOT IN (...)` list of result codes")
+        return frozenset(c.strip().strip("'\"") for c in m.group(1).split(",") if c.strip())
+
+    def test_build_and_the_driver_strip_agree(self):
+        build = re.search(r"^STARTED = \((.*?)\)$", read("build.py"), re.M | re.S)
+        self.assertIsNotNone(build, "build.py has no STARTED constant")
+        js = read("web/src/queries/driver.js")
+        marker = js.find("AS starts,")
+        self.assertNotEqual(marker, -1, "web/src/queries/driver.js counts no `AS starts`")
+        line = js[js.rfind("\n", 0, marker) + 1:marker]
+        self.assertEqual(
+            self.codes(build.group(1), "build.py STARTED"),
+            self.codes(line, "queries/driver.js Starts"),
+            "build.py STARTED and the driver strip's Starts count different result "
+            "codes; a start is one thing on this site, and the records page and the "
+            "driver page must not disagree about which entries were starts",
+        )

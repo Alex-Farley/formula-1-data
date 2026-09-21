@@ -153,7 +153,12 @@ describe('a NULL is "not established", never zero (frontend-reviewer, item 2)', 
   // until it is added here with its reason, or written as `missing()`.
   const DECLARED = new Map([
     ['src/pages/Constructor.jsx', [8, 'derived career counts and a sort over the designs']],
-    ['src/queries/driver.js', [5, 'derived career counts; seasons with an entry']],
+    // PD-15 added six: entries, starts, the four results figures tested
+    // together, recorded grids and retirements. Every one is a COUNT over
+    // race_entries, where SUM and COUNT are NULL only when no row matched
+    // and none-matched IS the zero - a driver with no entry has no start,
+    // not an unknown number of them. None reads a stored column.
+    ['src/queries/driver.js', [11, 'derived career counts; seasons with an entry; PD-15 substitutes']],
     ['src/pages/Driver.jsx', [5, 'sort keys over derived counts, and a chart ceiling']],
     ['src/data/worker.js', [3, 'download progress in bytes']],
     ['src/lib/search.js', [1, 'a ranking weight']],
