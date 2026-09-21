@@ -18,6 +18,21 @@ import { EMPTY, finished, missing, number, points, result, span, text, yearList 
 export const DRIVER = `SELECT * FROM drivers WHERE id = ?`
 
 /**
+ * What counts as a start, for the SQLite the browser runs.
+ *
+ * THIS IS build.py's STARTED, and it is here as a constant rather than
+ * written into the query because DERIVED asks the question three times - how
+ * many starts, how many starts have no grid recorded, how many have no lap
+ * count - and one rule spelled three times is how the country vocabulary
+ * split. tests/test_conventions.py compares this string's codes with
+ * build.py's and fails if either moves without the other.
+ *
+ * An entry is a start unless the source's result says it never was. A
+ * pit-lane start counts; so does a retirement on the first lap.
+ */
+const STARTED = "COALESCE(e.position_text, '') NOT IN ('DNQ', 'DNPQ', 'DNS', 'DNP', 'EX')"
+
+/**
  * The career, counted from the race records rather than read from a column.
  *
  * The stored figures are shown beside these on the page, because where they
@@ -48,27 +63,34 @@ export const DERIVED = `
          -- there in favour of these. They are counted here rather than in a
          -- second query because every one of them was already one SELECT away.
          --
-         -- A START, BY THE RULE THE RECORDS USE. build.py's STARTED decides
-         -- what counts as a start for the records tables, and this is that
-         -- rule spelled again in SQLite the browser runs: an entry is a start
-         -- unless the source's result says it never was. Spelling it twice is
-         -- how the country vocabulary once split, so the two are pinned
-         -- together by tests/test_conventions.py, which fails if either list
-         -- of codes moves without the other. A pit-lane start counts, and so
-         -- does a retirement on lap one.
-         SUM(COALESCE(e.position_text, '') NOT IN ('DNQ', 'DNPQ', 'DNS', 'DNP', 'EX')) AS starts,
+         -- A START, BY THE RULE THE RECORDS USE: the STARTED constant above,
+         -- which is build.py's.
+         SUM(${STARTED})                 AS starts,
          -- The source's own code, counted, not a status string interpreted:
          -- position_text is 'DNF' on 8,719 entries and NC, DSQ and EX are
          -- each a different fact that is not a retirement.
          SUM(e.position_text = 'DNF')    AS retirements,
-         -- Best grid is the best SLOT ON RECORD, which is why the count of
-         -- recorded grids comes with it: 1,917 entries carry no grid - every
-         -- DNQ among them - and a minimum over what is recorded must not be
-         -- read as a minimum over a career. The strip says how many it is the
-         -- best of wherever the two differ.
+         -- WHAT IS MISSING IS COUNTED AGAINST THE STARTS, not against the
+         -- entries. 1,917 entries carry no grid and 1,837 no lap count, but
+         -- for most of them there is nothing missing: a driver who did not
+         -- qualify has no grid slot and ran no laps, and saying "best of 3 on
+         -- record" about his seventeen entries would report an absence as a
+         -- gap in the data. A START with no grid or no lap count IS a gap -
+         -- 62 careers and 24 - and that is what the strip notes.
+         --
+         -- A non-start can still hold a grid: 36 careers have more grids than
+         -- starts, because a DNS qualified and then did not go. Those are not
+         -- missing either, which is the other half of the same point.
          MIN(e.grid)                     AS best_grid,
-         SUM(e.grid IS NOT NULL)         AS grids,
-         COUNT(DISTINCT e.constructor_id) AS constructors
+         SUM(e.grid IS NULL AND ${STARTED})           AS starts_without_grid,
+         SUM(e.laps_completed)           AS laps,
+         SUM(e.laps_completed IS NULL AND ${STARTED}) AS starts_without_laps,
+         COUNT(DISTINCT e.constructor_id) AS constructors,
+         -- COUNT(DISTINCT) skips a NULL, so a career whose entries do not all
+         -- name a constructor counts only the named ones. Four winless
+         -- careers are in that position; the tile says so rather than
+         -- implying the entries it could not read.
+         SUM(e.constructor_id IS NULL)   AS entries_without_constructor
     FROM race_entries e
     JOIN races r ON r.id = e.race_id
    WHERE e.driver_id = ?
@@ -223,7 +245,8 @@ export const ENTRY_COLUMNS = [
  * whose actual story - seventeen entries, three starts, three retirements -
  * was not on it anywhere. Those four now appear only where at least ONE of
  * them is non-zero, and give way to figures that are not zero when they do
- * not: the best grid slot on record, the retirements, the constructors.
+ * not: the best grid slot on record, the laps, the retirements, the
+ * constructors.
  *
  * THE FOUR MOVE TOGETHER, and that is deliberate. A zero among non-zeros is
  * informative - 'Podiums 3, Wins 0' is a career - so the test is whether any
@@ -278,30 +301,60 @@ export function strip(driver, derived) {
         }
       : null,
     { label: 'Best finish', value: derived.best ? `P${derived.best}` : null },
-    ...(placed ? [] : instead(derived, starts, entries)),
+    ...(placed ? [] : instead(derived, starts)),
   ].filter(Boolean)
 }
 
+/** "1 start", "3 starts", "1 entry", "4 entries". */
+const plural = (n, one, many = `${one}s`) => `${number(n)} ${n === 1 ? one : many}`
+
 /**
- * What a strip carries in place of four zeros.
+ * What a strip carries in place of four zeros: PD-15's list, in the order the
+ * issue gives it.
  *
- * Each one is dropped where it would itself be empty or say nothing: a career
- * with no grid on record gets no Best grid, one that never started gets no
- * Retirements (0 of 0 starts is not a fact about a driver), and the two
- * drivers in the register with no entry at all get none of them and a strip
- * of two tiles, which is the whole truth about them.
+ * EACH ONE IS DROPPED WHERE IT WOULD SAY NOTHING rather than shown as a zero
+ * or an em dash - which is the whole point of the change, and would be undone
+ * by substituting four different zeros for the four it removed. A career with
+ * no grid on record gets no Best grid, one that ran no recorded lap gets no
+ * Laps, one that never started gets no Retirements (0 of 0 starts is not a
+ * fact about a driver), one whose entries name no constructor gets no
+ * Constructors, and the two drivers in the register with no entry at all get
+ * none of them: a strip of two tiles, which is the whole truth about them.
+ *
+ * EACH ONE SAYS WHAT IT IS OVER where that is not every start. `starts` is
+ * the denominator rather than `entries` because a driver who did not qualify
+ * has no grid and ran no laps, and there is nothing missing about that; a
+ * start with neither is a gap, and only a gap gets a note.
  */
-const instead = (derived, starts, entries) => [
-  {
-    label: 'Best grid',
-    value: missing(derived.best_grid) ? null : `P${derived.best_grid}`,
-    // The minimum is over the grids that exist, so where some entry has none
-    // the tile says what it is the best of rather than implying a career.
-    note: (derived.grids ?? 0) < entries ? `best of ${number(derived.grids ?? 0)} on record` : undefined,
-  },
-  starts > 0 ? { label: 'Retirements', value: number(derived.retirements ?? 0), note: 'DNF' } : null,
-  derived.constructors ? { label: 'Constructors', value: number(derived.constructors) } : null,
-]
+const instead = (derived, starts) => {
+  const noGrid = derived.starts_without_grid ?? 0
+  const noLaps = derived.starts_without_laps ?? 0
+  const unnamed = derived.entries_without_constructor ?? 0
+  return [
+    {
+      label: 'Best grid',
+      value: missing(derived.best_grid) ? null : `P${derived.best_grid}`,
+      note: noGrid > 0 ? `${plural(noGrid, 'start')} with no grid recorded` : undefined,
+    },
+    // Laps completed, added up. A lap count is per entry and 1,837 entries
+    // carry none, so the note is the same shape as Best grid's.
+    missing(derived.laps)
+      ? null
+      : {
+          label: 'Laps',
+          value: number(derived.laps),
+          note: noLaps > 0 ? `${plural(noLaps, 'start')} with no lap count` : undefined,
+        },
+    starts > 0 ? { label: 'Retirements', value: number(derived.retirements ?? 0), note: 'DNF' } : null,
+    derived.constructors
+      ? {
+          label: 'Constructors',
+          value: number(derived.constructors),
+          note: unnamed > 0 ? `no constructor on ${plural(unnamed, 'entry', 'entries')}` : undefined,
+        }
+      : null,
+  ]
+}
 
 /**
  * The Seasons note: how many seasons carry an entry, and, where the register's
@@ -352,7 +405,11 @@ export function record(driver) {
     // shown only where it exists, so most rows get no em dash for it.
     ...(driver.provenance ? [['Provenance', String(driver.provenance)]] : []),
     // Published figures, labelled as such (CD-18): the strip above counts
-    // Entries from the race records, and an entry is not a start.
+    // both Entries and Starts from the race records, by the rule STARTED
+    // states, and an entry is not a start. Fourteen drivers' published entry
+    // count and two drivers' published start count differ from the counted
+    // one; both figures are shown and ENTRIES_NOTE under this list says why
+    // neither is corrected.
     ['Entries (published)', number(driver.entries)],
     ['Starts (published)', number(driver.starts)],
     ['Wins', derivedAndPublished(driver.wins, driver.wins_external)],

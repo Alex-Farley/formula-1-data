@@ -434,9 +434,9 @@ describe('the queries a page and the prerenderer share', () => {
 
   it('drops the four results figures where all four are zero, and puts something there instead (PD-15)', () => {
     // Beppe Gabbiani, the smoke test's representative of the 625 driver pages
-    // of 862 on which Wins, Podiums, Poles and Fastest laps are all zero: 17
-    // entries, 3 of them starts, 3 retirements, best grid 20, 2 constructors,
-    // never classified.
+    // of 862 on which Wins, Podiums, Poles and Fastest laps are all zero, as
+    // f1.db counts him: 17 entries, 3 of them starts, 79 laps, 3 retirements,
+    // best grid 20, 2 constructors, never classified.
     const winless = strip(
       { first_season: 1978, last_season: 1981, titles: 0 },
       {
@@ -449,9 +449,12 @@ describe('the queries a page and the prerenderer share', () => {
         fastest_laps: 0,
         best: null,
         best_grid: 20,
-        grids: 3,
+        starts_without_grid: 0,
+        laps: 79,
+        starts_without_laps: 0,
         retirements: 3,
         constructors: 2,
+        entries_without_constructor: 0,
       },
     )
     const label = (name) => winless.find((i) => i.label === name)
@@ -463,10 +466,35 @@ describe('the queries a page and the prerenderer share', () => {
     assert.equal(label('Starts').value, '3')
     assert.equal(label('Starts').note, '14 did not start')
     assert.equal(label('Best grid').value, 'P20')
-    // 14 of the 17 entries never reached a grid, so the minimum is over 3.
-    assert.equal(label('Best grid').note, 'best of 3 on record')
+    assert.equal(label('Laps').value, '79')
     assert.equal(label('Retirements').value, '3')
     assert.equal(label('Constructors').value, '2')
+    // THE DENOMINATOR IS STARTS, NOT ENTRIES. All three of Gabbiani's starts
+    // have a grid and a lap count; the fourteen entries that have neither are
+    // the races he did not qualify for, where there is nothing to record. A
+    // note here would report an absence as a gap in the data.
+    assert.deepEqual(
+      ['Best grid', 'Laps', 'Constructors'].map((n) => label(n).note),
+      [undefined, undefined, undefined],
+    )
+
+    // Andre Pilette and Henry Banks, where there IS a gap: one start with no
+    // grid and one with no lap count on the first, and two of three entries
+    // naming no constructor at all on the second.
+    const gaps = strip(
+      { first_season: 1951, last_season: 1964, titles: 0 },
+      { entries: 14, seasons: 7, starts: 9, best: 5, best_grid: 8, starts_without_grid: 1,
+        laps: 281, starts_without_laps: 1, retirements: 2, constructors: 7, entries_without_constructor: 0 },
+    )
+    assert.equal(gaps.find((i) => i.label === 'Best grid').note, '1 start with no grid recorded')
+    assert.equal(gaps.find((i) => i.label === 'Laps').note, '1 start with no lap count')
+    const unnamed = strip(
+      { first_season: 1950, last_season: 1952, titles: 0 },
+      { entries: 3, seasons: 3, starts: 3, best: 6, best_grid: 12, starts_without_grid: 0,
+        laps: 496, starts_without_laps: 0, retirements: 0, constructors: 1, entries_without_constructor: 2 },
+    )
+    assert.equal(unnamed.find((i) => i.label === 'Constructors').note, 'no constructor on 2 entries')
+    assert.equal(unnamed.find((i) => i.label === 'Retirements').value, '0', 'three starts, none retired')
 
     // Starts restates Entries where no entry failed to become one, so the
     // tile is not there: 415 of the 862 careers.
@@ -474,7 +502,7 @@ describe('the queries a page and the prerenderer share', () => {
     assert.equal(everyStart.find((i) => i.label === 'Starts'), undefined)
     // ...and a winner keeps the four, so none of the substitutes appears.
     assert.deepEqual(
-      ['Best grid', 'Retirements', 'Constructors'].filter((n) => everyStart.find((i) => i.label === n)),
+      ['Best grid', 'Laps', 'Retirements', 'Constructors'].filter((n) => everyStart.find((i) => i.label === n)),
       [],
     )
 

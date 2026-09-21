@@ -158,7 +158,7 @@ describe('a NULL is "not established", never zero (frontend-reviewer, item 2)', 
     // race_entries, where SUM and COUNT are NULL only when no row matched
     // and none-matched IS the zero - a driver with no entry has no start,
     // not an unknown number of them. None reads a stored column.
-    ['src/queries/driver.js', [11, 'derived career counts; seasons with an entry; PD-15 substitutes']],
+    ['src/queries/driver.js', [12, 'derived career counts; seasons with an entry; PD-15 substitutes']],
     ['src/pages/Driver.jsx', [5, 'sort keys over derived counts, and a chart ceiling']],
     ['src/data/worker.js', [3, 'download progress in bytes']],
     ['src/lib/search.js', [1, 'a ranking weight']],

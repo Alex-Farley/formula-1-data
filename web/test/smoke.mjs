@@ -827,8 +827,16 @@ try {
     is(tiles.Entries, '17', 'the entries stay')
     is(tiles.Starts, '3', 'and the starts say how few of them were races')
     is(tiles['Best grid'], 'P20', 'the best grid slot on record')
+    is(tiles.Laps, '79', 'the laps he did complete')
     is(tiles.Retirements, '3', 'every start retired')
     is(tiles.Constructors, '2', 'two constructors')
+
+    // ENTRIES_NOTE under "On the record" used to say that telling a start
+    // from an entry needs a reason "no source here supplies", which the tile
+    // forty pixels above now contradicts. It states the rule instead.
+    const note = (await text('#root main .source-note')) ?? ''
+    truthy(!note.includes('no source here supplies'), 'the note no longer denies the Starts tile above it')
+    truthy(note.includes('did not qualify'), 'and says what the site counts as a start')
 
     // The dropped zero is still ON THE PAGE, which is the condition on
     // dropping it from the strip: "Season by season" carries a Wins column
@@ -1702,18 +1710,31 @@ try {
     await go('/drivers/no-such-driver', 'No such driver')
     truthy(!(await page.$('#root .cite')), 'an unknown driver offers no citation either')
 
-    // Where a driver has a published entry count that differs from the derived
-    // one, both renderers show both and say why, in the same words.
+    // Where a driver has a published count that differs from the derived one,
+    // both renderers show both and say why, in the same words. PD-15 made the
+    // same true of STARTS - piquet 203 counted against 204 published,
+    // raikkonen 350 against 349 - so the query asks about either figure and
+    // the sentence looked for is the one that covers both.
     {
       const two = db
-        .prepare('SELECT d.id FROM drivers d WHERE d.entries IS NOT NULL AND d.entries != (SELECT COUNT(*) FROM race_entries e WHERE e.driver_id = d.id) LIMIT 1')
+        .prepare(`SELECT d.id FROM drivers d
+                   WHERE (d.entries IS NOT NULL
+                          AND d.entries != (SELECT COUNT(*) FROM race_entries e WHERE e.driver_id = d.id))
+                      OR (d.starts IS NOT NULL
+                          AND d.starts != (SELECT COUNT(*) FROM race_entries e WHERE e.driver_id = d.id
+                                            AND COALESCE(e.position_text, '') NOT IN ('DNQ', 'DNPQ', 'DNS', 'DNP', 'EX')))
+                   LIMIT 1`)
         .get()
       if (two) {
         await go(`/drivers/${two.id}`)
         const appNote = await page.waitForSelector('#root main .source-note', { timeout: 20000 }).then((n) => n.textContent())
-        truthy(appNote.includes('an entry is not a start'), `the app says why ${two.id} has two entry counts`)
+        const says = 'both are shown and neither is corrected'
+        truthy(appNote.includes(says), `the app says why ${two.id} has two counts of the same thing`)
         const html = await (await fetch(`${BASE}/drivers/${two.id}`)).text()
-        truthy(html.includes('an entry is not a start') && html.includes('Entries (published)'), 'the static page says the same beside both figures')
+        truthy(
+          html.includes(says) && html.includes('Entries (published)') && html.includes('Starts (published)'),
+          'the static page says the same beside both figures',
+        )
       }
     }
 

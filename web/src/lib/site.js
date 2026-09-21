@@ -22,16 +22,32 @@ export const LANDMARK = 'landmark'
 export const titled = (headline) => `${headline} — ${SITE}`
 
 /**
- * Why a driver's page can show two entry counts. Said once, in both
- * renderers: the review of #75 found fourteen pages printing 393 beside 392
- * with nothing between them.
+ * Why a driver's page can show two entry counts, and two start counts. Said
+ * once, in both renderers: the review of #75 found fourteen pages printing
+ * 393 beside 392 with nothing between them.
+ *
+ * It used to say that telling a start from an entry "needs a reason for each
+ * non-start that no source here supplies", which was true until PD-15: the
+ * result each source printed IS that reason, `position_text` holds it
+ * losslessly, and the strip above now counts Starts from it on 447 pages. A
+ * caveat that denies the figure beside it is worse than no caveat, so the
+ * sentence states the rule instead - the same rule build.py's STARTED applies
+ * to the records tables, in the same words as STARTED_RULE.
+ *
+ * The disagreement clause covers starts as well as entries for the same
+ * reason: two drivers, Piquet and Raikkonen, have a published start count
+ * that the race records do not reach, and a page showing both with nothing
+ * between them is the defect #75 found.
  */
 export const ENTRIES_NOTE =
   'Entries is counted here from the race records, one for every race a driver was entered for, and ' +
   'wins, podiums and poles are counted the same way and checked against the published totals on every ' +
-  'build. The published entry and start figures are a different count, kept for the few drivers who ' +
-  'have one: an entry is not a start, and telling them apart needs a reason for each non-start that no ' +
-  'source here supplies. Where the two entry counts disagree, both are shown.'
+  'build. Starts is counted from those records too: an entry is a start unless the result the source ' +
+  'printed says it never was - did not qualify, pre-qualify, start or practise, or excluded before the ' +
+  'start - so a pit-lane start counts and so does a retirement on the first lap. The published entry ' +
+  'and start figures are a separate count kept for the few drivers who have one, reached by rules this ' +
+  'database does not hold. Where a published figure and the counted one disagree, both are shown and ' +
+  'neither is corrected.'
 
 /**
  * How to cite a page. The page is named by its address, not its title: the
