@@ -103,21 +103,33 @@ export default function Boot({ children }) {
       <div className="boot">
         <div className="boot-inner">
           <h1 id="boot-phase">{WORDS.failed}</h1>
-          <div className="error" role="alert">
-            <pre>{state.error}</pre>
-          </div>
+          {/* The reader first, the checkout second (CD-17). This panel used to
+              answer "the database could not be opened" with a raw exception
+              and a paragraph about `npm run build` and `file://` - an answer
+              written for somebody holding the repository, shown to everybody
+              who is not. Both are still here; which of them is the page and
+              which is behind a disclosure has swapped, the way Quality.jsx
+              already puts a reader's sentence over a maintainer's note. */}
+          <p className="error" role="alert">
+            The site’s data file did not load. Try again below — and if it keeps happening, it
+            may be unavailable for the moment rather than anything being wrong at your end.
+          </p>
           <p>
             <button type="button" className="button" onClick={retry}>
               Try again
             </button>
           </p>
-          <p className="small">
-            The site serves <code>f1.db.gz</code>, <code>f1.db</code>, <code>sql-wasm.wasm</code>{' '}
-            and <code>db-manifest.json</code> from the same directory as the page. If you are
-            running this from a checkout, <code>npm run build</code> stages all four; opening{' '}
-            <code>dist/index.html</code> straight off the filesystem will not work, because a{' '}
-            <code>file://</code> page may not start a worker.
-          </p>
+          <details className="gap-note">
+            <summary>Running this from a checkout?</summary>
+            <pre>{state.error}</pre>
+            <p>
+              The site serves <code>f1.db.gz</code>, <code>f1.db</code>, <code>sql-wasm.wasm</code>{' '}
+              and <code>db-manifest.json</code> from the same directory as the page.{' '}
+              <code>npm run build</code> stages all four; opening <code>dist/index.html</code>{' '}
+              straight off the filesystem will not work, because a <code>file://</code> page may
+              not start a worker.
+            </p>
+          </details>
         </div>
       </div>
     )

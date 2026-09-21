@@ -1149,6 +1149,28 @@ tbody td.strong {
   font-size: 14px;
 }
 
+/* A register its own filters have emptied: the sentence and the way back, in
+   the place the table would have been (IX-28). The button wraps under the
+   sentence rather than shrinking it at narrow widths. */
+.no-match {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.no-match p {
+  margin: 0;
+}
+
+/* The developer's half of the boot failure, behind its disclosure (CD-17). */
+.boot-inner .gap-note pre {
+  margin: 6px 0 0;
+  white-space: pre-wrap;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+
 .error {
   border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--rule));
   background: var(--accent-wash);

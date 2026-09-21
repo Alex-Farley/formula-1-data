@@ -1285,10 +1285,25 @@ try {
     // the page: the first cut of the scroll fade declared its hooks after the
     // empty-state return, and React threw on the first empty search.
     await page.fill('input[type="search"]', 'zzzz-no-such-driver')
-    await page.waitForSelector('#root main .state.is-empty', { timeout: 10000 })
+    const emptied = await page.waitForSelector('#root main .state.is-empty', { timeout: 10000 })
     truthy(await page.$('#root main h1'), 'a register filtered to no rows shows its empty state, and the page stands')
-    await page.fill('input[type="search"]', '')
+    // IX-28: that state names the filter that emptied the register and offers
+    // the way back. "Nothing recorded." did neither, and read as a claim about
+    // the database rather than about the search box (CD-17).
+    const said = (await emptied.textContent()).trim()
+    truthy(
+      said.includes('zzzz-no-such-driver'),
+      `the filtered empty state names the term that emptied it - "${said}"`,
+    )
+    const clear = await page.$('#root main .state.is-empty button')
+    truthy(clear, 'the filtered empty state offers a way back out of the filters')
+    await clear.click()
     await page.waitForSelector('#root main tbody tr', { timeout: 10000 })
+    is(
+      await page.$eval('input[type="search"]', (node) => node.value),
+      '',
+      'Clear filters empties the search box and the register comes back',
+    )
 
   })
 
@@ -1979,6 +1994,29 @@ try {
   await section('/reference/glossary', async () => {
     await go('/reference/glossary', 'Glossary')
     is((await tableRows())[0], count('SELECT COUNT(*) FROM glossary'), 'glossary terms')
+    // IX-28's sentence is composed by each page, so each page is where it can
+    // be read; /drivers proves the component, not the six phrasings. This is
+    // the register whose filter values are not noun phrases - `sporting`,
+    // `power unit` - which is the case the template has to survive.
+    {
+      const category = one('SELECT category FROM glossary WHERE category IS NOT NULL ORDER BY category LIMIT 1')
+      const group = '[role="group"][aria-label="Filter terms by category"]'
+      await page.click(`${group} button:text-is("${category}")`)
+      await page.fill('input[type="search"]', 'zzzz-no-such-term')
+      await page.waitForSelector('#root main .state.is-empty', { timeout: 10000 })
+      is(
+        await page.$eval('#root main .state.is-empty p', (node) => node.textContent.trim()),
+        `No term matches “zzzz-no-such-term” among terms in the ${category} category.`,
+        'the glossary empty state names both filters, and names the category as a category',
+      )
+      await page.click('#root main .state.is-empty button')
+      await page.waitForSelector('#root main tbody tr', { timeout: 10000 })
+      is(
+        (await tableRows())[0],
+        count('SELECT COUNT(*) FROM glossary'),
+        'Clear filters brings the whole glossary back, category chip and search box both',
+      )
+    }
 
   })
 

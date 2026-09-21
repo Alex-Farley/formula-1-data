@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
-import { Chips, Filters, SearchField, Select } from '../components/Filters.jsx'
+import { Chips, Filters, NoMatch, SearchField, Select } from '../components/Filters.jsx'
 import { useQuery } from '../data/useQuery.js'
 import { anyThisSeason, gridLabel, seasonOf } from '../lib/season.js'
 import { colourFor } from '../lib/racingColours.js'
@@ -94,6 +94,29 @@ function Register({ rows }) {
     })
   }, [rows, term, country, kind])
 
+  // The filters as a plural noun phrase, for the empty state (IX-28).
+  const among =
+    country || kind
+      ? [
+          kind === 'winners'
+            ? 'race winners'
+            : kind === 'champions'
+              ? 'champions'
+              : kind === 'grid'
+                ? `constructors on the ${gridSeason} grid`
+                : 'constructors',
+          country ? `from ${country}` : '',
+        ]
+          .filter(Boolean)
+          .join(' ')
+      : ''
+
+  const clear = () => {
+    setTerm('')
+    setCountry('')
+    setKind('')
+  }
+
   return (
     <>
       <Filters showing={filtered.length} of={rows.length} noun="constructors">
@@ -122,6 +145,7 @@ function Register({ rows }) {
         direction="desc"
         page={150}
         columns={CONSTRUCTOR_COLUMNS.map((column) => ({ ...column, ...APP[column.key] }))}
+        empty={<NoMatch noun="constructor" term={term} among={among} onClear={clear} />}
         footer={CONSTRUCTORS_FOOTER}
       />
     </>

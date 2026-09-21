@@ -483,7 +483,9 @@ const noteBox = (head, body) => `<div class="note-box"><strong>${esc(head)}</str
 // What DataTable puts in place of a table it has no rows for. Without it a
 // heading stands alone announcing a table that is not there — which is what
 // a season not yet run looked like.
-const EMPTY_STATE = '<p class="state is-empty">Nothing recorded.</p>'
+// The same words as DataTable's default, decided once: the static page and
+// the app render the same section, and smoke.mjs compares them (CD-17).
+const EMPTY_STATE = '<p class="state is-empty">No rows here.</p>'
 
 // A Section's heading with the count beside it, as components/Page.jsx writes
 // it — including the text-node space, because the visible gap is CSS and the

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Note, Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
-import { Chips, Filters, SearchField, Select } from '../components/Filters.jsx'
+import { Chips, Filters, NoMatch, SearchField, Select } from '../components/Filters.jsx'
 import LiveryMark from '../components/LiveryMark.jsx'
 import { rows as pick, useQueries } from '../data/useQuery.js'
 import { canShow, thumbUrl } from '../lib/commons.js'
@@ -186,6 +186,27 @@ function Register({ rows }) {
 
   const landmarks = rows.filter((r) => r.landmark).length
 
+  // The filters as a plural noun phrase, for the empty state (IX-28).
+  const among = kind
+    ? `${
+        kind === 'winners'
+          ? 'race winners'
+          : kind === 'spec'
+            ? 'chassis with a spec'
+            : kind === 'landmark'
+              ? 'landmark chassis'
+              : `chassis on the ${gridSeason} grid`
+      }${constructor ? ` from ${constructor}` : ''}`
+    : constructor
+      ? `${constructor} chassis`
+      : ''
+
+  const clear = () => {
+    setTerm('')
+    setConstructor('')
+    setKind('')
+  }
+
   return (
     <>
       <Note>
@@ -228,6 +249,7 @@ function Register({ rows }) {
         direction="asc"
         page={150}
         columns={CHASSIS_COLUMNS.map((column) => ({ ...column, ...APP[column.key] }))}
+        empty={<NoMatch noun="chassis" term={term} among={among} onClear={clear} />}
         footer={CHASSIS_FOOTER}
       />
     </>
