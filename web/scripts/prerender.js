@@ -216,6 +216,7 @@ import {
   POINTS_NOTE,
   REGULATIONS,
   REGULATION_COLUMNS,
+  SAFETY,
   TYRES,
   TYRE_COLUMNS,
 } from '../src/queries/eras.js'
@@ -251,11 +252,21 @@ import {
   AMBIGUOUS_NOTE as UNATTRIBUTED_NOTE,
   DISCREPANCIES,
   DISCREPANCIES_NOTE,
+  CHASSIS_COVERAGE,
+  CHASSIS_COVERAGE_COLUMNS,
+  CHASSIS_NOTE,
+  CHASSIS_TITLE,
   DISCREPANCY_COLUMNS,
   GAPS,
+  GAP_COLUMNS,
+  GAP_GROUPS,
   GEOMETRY_COLUMNS,
   GEOMETRY_FOOTER,
+  IMAGES,
   LADDER_NOTE,
+  MAINTAINER_NOTE,
+  PHOTOGRAPHS_UNNAMED_NOTE,
+  PHOTOGRAPH_STATS,
   PROVENANCE,
   PROVENANCE_COLUMNS,
   RECONCILIATION,
@@ -264,6 +275,7 @@ import {
   UNVERIFIED,
   UNVERIFIED_COLUMNS,
   UNVERIFIED_FOOTER,
+  photographsCatalogued,
 } from '../src/queries/quality.js'
 import {
   BY_SEASON,
@@ -274,6 +286,7 @@ import {
   SEASONS_FOOTER,
   STANDINGS,
   careerSentence,
+  leading,
   lede,
   pointsDiffer,
   pointsNote,
@@ -357,16 +370,22 @@ const note = (value) => (value ? `<p class="faint">${esc(value)}</p>` : '')
 
 // `aligns` is a class per column — 'num', 'prose' or nothing — the same
 // classes DataTable puts on its cells, so a column of figures lines up.
+//
+// The two wrappers are DataTable's own (VD-01): `.table-wrap` draws the box
+// and `.table-scroll` is what actually scrolls, and the static page used to
+// spell a single `.tablewrap` doing both. One class means one set of rules —
+// including the fade at the right edge, which is drawn on `.table-wrap` and
+// so never reached the static page at all.
 const table = (headers, rows, options = {}) => {
   if (!rows.length) return ''
   const { aligns = [] } = options
   const cls = (i) => (aligns[i] ? ` class="${esc(aligns[i])}"` : '')
   return [
-    '<div class="tablewrap"><table>',
+    '<div class="table-wrap"><div class="table-scroll"><table>',
     `<thead><tr>${headers.map((h, i) => `<th scope="col"${cls(i)}>${typeof h === 'string' ? esc(h) : h.html}</th>`).join('')}</tr></thead>`,
     '<tbody>',
     rows.map((cells) => `<tr>${cells.map((c, i) => `<td${cls(i)}>${c}</td>`).join('')}</tr>`).join(''),
-    '</tbody></table></div>',
+    '</tbody></table></div></div>',
   ].join('')
 }
 
@@ -398,15 +417,117 @@ const fromColumns = (columns, rows, links = {}) =>
     { aligns: columns.map((c) => c.align ?? '') },
   )
 
-const facts = (pairs) => {
+/**
+ * Label/value rows, as components/Page.jsx's <Fields> draws them.
+ *
+ * This was `.facts`, a two-column grid with thirty lines of `#prerendered`
+ * CSS describing a shape nothing else on the site had — so the same rows
+ * were a bordered panel here and a run of hairline-ruled rows in the app,
+ * and a reader watched the page change shape when the database opened
+ * (VD-01). The markup is the app's now and app.css's `.fields` draws both.
+ *
+ * A pair whose value is not held is still DROPPED rather than dashed, which
+ * is what this has always done and is a decision about what each page says
+ * rather than about its shape; the call sites that want a dash already ask
+ * for one through text().
+ */
+const fields = (pairs) => {
   const kept = pairs.filter(([, value]) => value !== null && value !== undefined && value !== '')
   if (!kept.length) return ''
-  return `<dl class="facts">${kept
+  return `<dl class="fields">${kept
     .map(([label, value]) => `<dt>${esc(label)}</dt><dd>${value}</dd>`)
     .join('')}</dl>`
 }
 
-const prose = (value) => (value ? `<p>${esc(value)}</p>` : '')
+/**
+ * Headline figures as tiles, as components/Page.jsx's <Stats> draws them.
+ *
+ * The complaint VD-01 was filed on: the app opens a page on a strip of
+ * tiles and the static half opened the same page on a key/value table, so
+ * the first thing a reader saw was replaced by a different thing the moment
+ * the database opened. Same element, same `data-lead` and `data-kind`, so
+ * the two ranks VD-28 gave the app reach the static page too.
+ *
+ * A null is dropped rather than dashed, as it is there — an empty tile is
+ * noise where an empty table cell is information. `value` is HTML, as
+ * everywhere else in this file; `label` and `note` are text.
+ */
+const stats = (items) => {
+  const shown = items.filter(
+    (item) => item && item.value !== null && item.value !== undefined && item.value !== '',
+  )
+  if (!shown.length) return ''
+  const ranked = shown.some((item) => item.lead)
+  return `<dl class="stats"${ranked ? ' data-ranked=""' : ''}>${shown
+    .map(
+      ({ label, value, note, lead, kind }) =>
+        `<div${lead ? ' data-lead=""' : ''}${kind ? ` data-kind="${esc(kind)}"` : ''}>` +
+        `<dt>${esc(label)}</dt><dd>${value}${note ? `<small>${esc(note)}</small>` : ''}</dd></div>`,
+    )
+    .join('')}</dl>`
+}
+
+// `.measure` is the app's class for a paragraph held to a readable line, and
+// the static page's prose takes it rather than `#prerendered p` holding every
+// paragraph on the page to the measure and recolouring it besides (VD-01).
+const prose = (value) => (value ? `<p class="measure">${esc(value)}</p>` : '')
+
+// A standing-out note, as components/Page.jsx's <Note> draws it: a ruled
+// panel, not a paragraph. Four of these read as ordinary prose on the static
+// page while the app set them apart, which is the same second vocabulary
+// VD-01 is about.
+const noteBox = (head, body) => `<div class="note-box"><strong>${esc(head)}</strong> ${esc(body)}</div>`
+
+// What DataTable puts in place of a table it has no rows for. Without it a
+// heading stands alone announcing a table that is not there — which is what
+// a season not yet run looked like.
+const EMPTY_STATE = '<p class="state is-empty">Nothing recorded.</p>'
+
+// A Section's heading with the count beside it, as components/Page.jsx writes
+// it — including the text-node space, because the visible gap is CSS and the
+// accessible name is the text: "Open gaps12" is what a heading-by-heading
+// reader was given the last time somebody left it out.
+const heading = (title, count) =>
+  `<h2>${esc(title)}${count === null || count === undefined ? '' : ` <span class="count">${esc(count)}</span>`}</h2>`
+
+/**
+ * The safety milestones, as Eras.jsx draws them: a dated timeline, not a
+ * table.
+ *
+ * The static eras page carried the eras and seven tables and simply left this
+ * section out, so the one part of that page that is a narrative was the one
+ * part a reader without JavaScript never saw (VD-01). `.timeline` is the
+ * app's own rule and the markup is its own markup, so nothing here needs a
+ * style of its own.
+ */
+const timeline = (milestones) =>
+  milestones.length
+    ? `${heading('Safety', milestones.length)}<div class="timeline">${milestones
+        .map(
+          (m) =>
+            `<article><h3>${esc(m.milestone)}<span class="years">${esc(m.year)}</span></h3>${
+              m.trigger_event
+                ? `<p class="faint small"><strong>After:</strong> ${esc(m.trigger_event)}</p>`
+                : ''
+            }${m.description ? `<p>${esc(m.description)}</p>` : ''}</article>`,
+        )
+        .join('')}</div>`
+    : ''
+
+/**
+ * A figure, as charts/Figure.jsx frames one: a caption and, always, a table
+ * of the same numbers.
+ *
+ * The drawing itself is not here — it is a React component reading a layout
+ * this file has no way to run — and that is the whole of what the static
+ * half is missing. THE TABLE IS NOT A FALLBACK, in Figure.jsx's own words:
+ * it is the copy of the figure that a keyboard, a screen reader and anything
+ * pasting it elsewhere can actually use, and it is what both halves carry.
+ * It is open here rather than behind the app's disclosure, because there is
+ * no chart above it to be the thing on display.
+ */
+const figure = (title, caption, body) =>
+  `<figure class="figure"><figcaption><b>${esc(title)}</b><span>${esc(caption)}</span></figcaption>${body}</figure>`
 
 // The circuit outlines (AF-03), as components/Outline.jsx draws them: F1DB's
 // path in its 500-unit box, the current ink, a constant stroke. The path is
@@ -959,8 +1080,16 @@ const nameTables = (body) => {
       return heading ? `<table><caption class="sr-only">${heading}</caption>` : match
     }
     // The heading's own markup - a faint span of years, a link - is not part
-    // of its name; the entities esc() wrote stay as they are.
-    heading = text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+    // of its name; the entities esc() wrote stay as they are. The count goes
+    // with its contents: the app names a table from the Section's TITLE
+    // (SectionTitle in components/Page.jsx), which the count is not, so
+    // keeping it here would have a screen reader hear "Open gaps 10" on one
+    // half of the site and "Open gaps" on the other.
+    heading = text
+      .replace(/<span class="count">[\s\S]*?<\/span>/g, ' ')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
     return match
   })
   // The claim is the build's, not a sample's. The smoke suite compares the two
@@ -969,6 +1098,65 @@ const nameTables = (body) => {
   // heading - which is a body worth stopping for rather than shipping.
   if (/<table>(?!<caption)/.test(named)) die('prerender: a table with no heading above it, so no caption')
   return named
+}
+
+/**
+ * The static page in the app's own shapes.
+ *
+ * Every route's body below is written the way a page in the app is built:
+ * a heading, a standfirst, then a run of <h2>-led blocks. In the app that
+ * is a <Page> and a run of <Section>s (components/Page.jsx). The static
+ * half said the same thing in a second vocabulary — a bare h1, bare h2s,
+ * bare sections — and app.css carried its own treatment for each of them,
+ * a hundred-odd lines describing a design that existed on no other surface
+ * (VD-01). So the reader who arrived before the database opened was shown
+ * one design and then, silently, another.
+ *
+ * This puts the app's class names on the markup this file already writes,
+ * and nothing else: `.page`, its `<header>`, and a `.section` per block.
+ * One set of rules then draws both halves, and neither can drift.
+ *
+ * The h1 and the lede move into the header exactly as written and still
+ * adjacent — smoke.mjs reads that pair straight out of the HTML, and the
+ * pair is also what PD-16 put there.
+ *
+ * A body that already opens on its own top-level <section> — the eras page,
+ * which is a run of eras before it is a run of tables — carries the class
+ * itself and is left alone; wrapping it would nest a section in a section
+ * for no gain.
+ */
+const SECTIONING = /<(\/?)(section|h2)\b/g
+
+const sectioned = (html) => {
+  // A block starts at every h2 that is not already inside a section of its
+  // own. Depth is counted because an era's <h2> sits inside the era's
+  // <section> and is that section's heading, not the start of a new one.
+  const starts = []
+  let depth = 0
+  // matchAll rather than exec in a loop: the regex is module-scoped and
+  // global, so a loop would carry its lastIndex from one page into the next.
+  for (const match of html.matchAll(SECTIONING)) {
+    if (match[2] === 'section') depth += match[1] ? -1 : 1
+    else if (!match[1] && depth === 0) starts.push(match.index)
+  }
+  // What comes before the first h2 is a block of its own — a strip of tiles
+  // under the title is a titleless <Section> in the app too. A body whose
+  // opening run is already its own sections (the eras page) carries the class
+  // itself and is left as written, since nesting one in another gains nothing.
+  const head = starts.length ? html.slice(0, starts[0]) : html
+  const wrap = (part) => (part.trim() ? `<section class="section">${part}</section>` : '')
+  return [
+    head.includes('<section') ? head : wrap(head),
+    ...starts.map((at, i) => wrap(html.slice(at, i + 1 < starts.length ? starts[i + 1] : html.length))),
+  ].join('')
+}
+
+const structure = (body) => {
+  const opening = body.match(/^\s*(<h1\b[\s\S]*?<\/h1>)(\s*<p class="lede">[\s\S]*?<\/p>)?/)
+  if (!opening) die('prerender: a page body that does not open on an h1')
+  return `<article class="page"><header>${opening[1]}${opening[2] ?? ''}</header>${sectioned(
+    body.slice(opening[0].length),
+  )}</article>`
 }
 
 const page = ({ path, title, description, body, jsonld = null, trail = null, image = null, lastmod = null }) => {
@@ -980,7 +1168,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
     jsonld,
     image,
     lastmod: stamp(lastmod),
-    html: chrome(nameTables(body), trail ? crumbs(trail) : '', `${ORIGIN}${href(path)}`),
+    html: chrome(nameTables(structure(body)), trail ? crumbs(trail) : '', `${ORIGIN}${href(path)}`),
   })
 }
 
@@ -1020,7 +1208,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
       <p class="lede">Seventy-seven seasons as one SQLite file, queried in this tab. Every figure
         is traceable to the source it came from, and a blank means nobody has established that
         fact — never zero.</p>
-      ${facts([
+      ${fields([
         ['Races', `${counts.races.toLocaleString()} championship Grands Prix`],
         ['Classifications', `${counts.race_entries.toLocaleString()} race entries`],
         ['Qualifying', `${counts.qualifying.toLocaleString()} rows`],
@@ -1146,7 +1334,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
         <h1>${year} FIA Formula One World Championship</h1>
         ${
           notRun
-            ? facts([
+            ? fields([
                 ['Rounds', num(s.rounds)],
                 ["Drivers' champion", NOT_YET_RUN],
                 ["Constructors' champion", NOT_YET_RUN],
@@ -1155,7 +1343,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
                 ['Entered', entered],
               ])
             : running
-            ? facts([
+            ? fields([
                 ['After', `${run} of ${num(s.rounds)} rounds`],
                 ['Leads', `${lead.entity_id ? driver(lead.entity_id) : text(lead.entity)} — ${num(lead.points)}`],
                 ['Second', `${second.entity_id ? driver(second.entity_id) : text(second.entity)} — ${num(second.points)}`],
@@ -1168,7 +1356,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
                 ['Tyres', text(s.tyre_suppliers)],
                 ['Entered', entered],
               ])
-            : facts([
+            : fields([
                 ["Drivers' champion", driver(s.drivers_champion)],
                 ['Team', team(s.champion_team)],
                 ['Points', num(s.champion_points)],
@@ -1199,10 +1387,13 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
         })}
         ${note(CALENDAR_FOOTER)}
         <h2>${esc(standingsHeading("Drivers'", live, after))}</h2>
-        ${fromColumns(DRIVERS_FINAL_COLUMNS, driversFinal, {
-          entity: (name, row) => (row.entity_id ? link(`drivers/${row.entity_id}`, name) : text(name)),
-        })}
-        ${driversFinal.length ? note(DRIVERS_FINAL_FOOTER) : ''}
+        ${
+          driversFinal.length
+            ? fromColumns(DRIVERS_FINAL_COLUMNS, driversFinal, {
+                entity: (name, row) => (row.entity_id ? link(`drivers/${row.entity_id}`, name) : text(name)),
+              }) + note(DRIVERS_FINAL_FOOTER)
+            : EMPTY_STATE
+        }
         <h2>${esc(standingsHeading("Constructors'", live, after))}</h2>
         ${
           constructorsFinal.length
@@ -1210,7 +1401,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
                 entity: (name, row) =>
                   `${row.entity_id ? link(`constructors/${row.entity_id}`, name) : text(name)}${row.engine_id ? ` ${tag(row.engine_id)}` : ''}`,
               }) + note(constructorsFooter(constructorsFinal.some((r) => r.engine_id)))
-            : `<p><strong>No constructors' championship.</strong> ${esc(NO_CONSTRUCTORS_TITLE)}</p>`
+            : noteBox("No constructors' championship.", NO_CONSTRUCTORS_TITLE)
         }
         ${
           entrants.length
@@ -1363,7 +1554,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
       body: `
         <h1>${esc(headline)}</h1>
         <p class="lede">${esc(standfirst)}</p>
-        ${facts([
+        ${fields([
           ['Round', `${r.round} of ${r.year}`],
           ['Circuit', r.circuit_id ? link(`circuits/${r.circuit_id}`, r.circuit ?? r.circuit_id) : '—'],
           ['Location', text(list([r.locality, r.country]))],
@@ -1440,7 +1631,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
         ${disagree(disagreements.all(`${r.year} round ${r.round}`), 'this race')}
         ${
           entries.some((e) => e.shared_drive === 1)
-            ? `<p class="note"><strong>${esc(SHARED_DRIVE_NOTE.head)}</strong> ${esc(SHARED_DRIVE_NOTE.body)}</p>`
+            ? noteBox(SHARED_DRIVE_NOTE.head, SHARED_DRIVE_NOTE.body)
             : ''
         }
         ${
@@ -1457,7 +1648,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
                   value === 1 ? `<span class="fl" aria-hidden="true">●</span><span class="sr-only">${esc(FASTEST_LAP)}</span>` : '',
               })}${note(CLASSIFICATION_FOOTER)}`
             : scheduled
-              ? '<p>This race has not been run. The classification will appear here once it has.</p>'
+              ? noteBox('This race has not been run.', 'The classification will appear here once it has.')
               : ''
         }
         ${
@@ -1570,11 +1761,8 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
       body: `
         <h1>${esc(d.full_name)}</h1>
         <p class="lede">${esc(lede(d, derived, constructors))}</p>
-        ${facts(
-          strip(d, derived).map(({ label, value, note }) => [
-            label,
-            value === null ? null : `${esc(value)}${note ? ` <small>${esc(note)}</small>` : ''}`,
-          ]),
+        ${stats(
+          leading(strip(d, derived)).map((item) => ({ ...item, value: esc(item.value) })),
         )}
         ${disagree(careerDisagreements.all(d.full_name), 'this career')}
         ${
@@ -1599,10 +1787,10 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
         <h2>On the record</h2>
         ${
           pointsDiffer(d, derived)
-            ? `<p class="note"><strong>${esc(pointsNote(d, derived).head)}</strong> ${esc(pointsNote(d, derived).body)}</p>`
+            ? noteBox(pointsNote(d, derived).head, pointsNote(d, derived).body)
             : ''
         }
-        ${facts([
+        ${fields([
           ...record(d).map(([label, value]) => [label, esc(value)]),
           ['Confidence', d.confidence ? link('data/quality', d.confidence) : text(d.confidence)],
           ['Source', d.source ? `<a href="${esc(d.source)}">${esc(d.source)}</a>` : text(d.source)],
@@ -1675,7 +1863,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
       },
       body: `
         <h1>${esc(c.name)}</h1>
-        ${facts([
+        ${fields([
           ['Full name', text(c.full_name)],
           ['Country', text(c.country)],
           ['Base', text(c.base)],
@@ -1697,7 +1885,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
             ? `${fromColumns(TEAM_SEASON_COLUMNS, seasons, {
                 year: (year) => link(`seasons/${year}`, year),
               })}${engineSplit ? note(ENGINE_SPLIT_FOOTER) : ''}`
-            : '<p>Nothing recorded.</p>'
+            : EMPTY_STATE
         }
         ${
           wins.length
@@ -1799,7 +1987,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
       },
       body: `
         <h1>${esc(c.name)}</h1>
-        ${facts([
+        ${fields([
           ['Official name', text(c.official_name)],
           ['Location', text(list([c.locality, c.country]))],
           ['Type', text(c.circuit_type)],
@@ -1847,7 +2035,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
                       ? link(`drivers/${row.winner_id}`, name)
                       : text(name),
               })}`
-            : '<p>Nothing recorded.</p>'
+            : EMPTY_STATE
         }`,
     })
   }
@@ -1926,7 +2114,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
                 ? `<span class="tag tag-dnf">${esc(entryResult(value, row))}</span>`
                 : `<b>${esc(entryResult(value, row))}</b>`,
           })
-        : `<p>${esc(NO_ENTRIES)}</p>`
+        : `<p class="measure">${esc(NO_ENTRIES)}</p>`
     }`
   }
 
@@ -1944,7 +2132,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
       <h2>The cars with a page of their own</h2>
       ${fromColumns(GALLERY_COLUMNS, all(GALLERY), { car: (name, row) => link(`cars/${row.id}`, name) })}
       <h2>The chassis register</h2>
-      <p>Every chassis that has started a championship Grand Prix, whether or not anybody
+      <p class="measure">Every chassis that has started a championship Grand Prix, whether or not anybody
         has published a specification for it.</p>
       ${fromColumns(
         CHASSIS_COLUMNS,
@@ -1976,7 +2164,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
       trail: [['', 'Home'], ['cars', 'Cars'], [`cars/${c.id}`, name]],
       body: `
         <h1>${esc(name)}</h1>
-        ${facts([
+        ${fields([
           ['Constructor', c.constructor_id ? link(`constructors/${c.constructor_id}`, c.constructor_id) : '—'],
           ['Years', `${c.from_year ?? '?'}–${c.to_year ?? '?'}`],
           ['Designers', text(c.designers)],
@@ -2009,7 +2197,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
   // The rest of the register. `cars` ids are skipped because the loop above has
   // already written those pages from the richer curated row.
   //
-  // Facts are passed RAW rather than through text(), so facts() drops the ones
+  // Facts are passed RAW rather than through text(), so fields() drops the ones
   // nothing is known for. 376 of these chassis carry no specification at all,
   // and a page of twenty em dashes claims twenty times over that nobody has
   // established a figure — which is true, and is not worth saying twenty times.
@@ -2041,7 +2229,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
       trail: [['', 'Home'], ['cars', 'Cars'], [`cars/${ch.id}`, name]],
       body: `
         <h1>${esc(name)}</h1>
-        ${facts([
+        ${fields([
           ['Constructor', ch.constructor_id ? link(`constructors/${ch.constructor_id}`, constructor) : null],
           ['Years', years],
           ['Designers', ch.designers],
@@ -2062,7 +2250,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
         ${photos.html}
         ${
           ch.car_id && curated.has(ch.car_id)
-            ? `<p>One of the ${link(`cars/${ch.car_id}`, 'design family')} that has a specified page of its own.</p>`
+            ? `<p class="measure">One of the ${link(`cars/${ch.car_id}`, 'design family')} that has a specified page of its own.</p>`
             : ''
         }
         ${carTables(ch.id)}`,
@@ -2111,10 +2299,10 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
       <h1>Eras</h1>
       ${eras
         .map(
-          (e) => `<section>
+          (e) => `<section class="section">
             <h2>${esc(e.era_name)} <span class="faint">${e.from_year}–${e.to_year ?? 'present'}</span></h2>
             ${prose(e.summary)}
-            ${facts([
+            ${fields([
               ['Dominant teams', text(e.dominant_teams)],
               ['Defining features', text(e.defining_features)],
             ])}
@@ -2127,15 +2315,16 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
           `<b>${esc(name)}</b> <br><span class="faint small">${esc(span(row.from_year, row.to_year))}</span>`,
       })}
       <h2>Scoring systems</h2>
-      <p>${esc(POINTS_NOTE)}</p>
+      <p class="note">${esc(POINTS_NOTE)}</p>
       ${fromColumns(POINTS_COLUMNS, all(POINTS))}
       <h2>Regulation changes</h2>
       ${fromColumns(REGULATION_COLUMNS, all(REGULATIONS))}
       <h2>Regulation limits</h2>
-      <p>${esc(LIMITS_NOTE)}</p>
+      <p class="note">${esc(LIMITS_NOTE)}</p>
       ${fromColumns(LIMIT_COLUMNS, all(LIMITS))}
       <h2>Technical innovations</h2>
       ${fromColumns(INNOVATION_COLUMNS, all(INNOVATIONS))}
+      ${timeline(all(SAFETY))}
       <h2>Governance</h2>
       ${fromColumns(GOVERNANCE_COLUMNS, all(GOVERNANCE))}
       <h2>Tyre suppliers</h2>
@@ -2167,16 +2356,16 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
       <h1>Sources</h1>
       <p class="lede">What each source is trusted for, under what licence, and what constrains it.</p>
       <h2>What a licence cost, or bought</h2>
-      <p>${esc(CONSEQUENCES_NOTE)}</p>
+      <p class="note">${esc(CONSEQUENCES_NOTE)}</p>
       ${fromColumns(CONSEQUENCE_COLUMNS, CONSEQUENCES)}
       <h2>The source registry</h2>
       ${fromColumns(SOURCE_COLUMNS, sources, {
         source: (name, row) => (row.url && row.url !== 'None' ? `<a href="${esc(row.url)}">${esc(name)}</a>` : text(name)),
       })}
       ${note(SOURCES_FOOTER)}
-      <p>${esc(OUTLINES_NOTE)}</p>
+      <p class="measure">${esc(OUTLINES_NOTE)}</p>
       <h2>Photograph licences</h2>
-      <p>${esc(LICENCES_NOTE)}</p>
+      <p class="note">${esc(LICENCES_NOTE)}</p>
       ${fromColumns(LICENCE_COLUMNS, all(LICENCES), {
         licence: (name, row) => (row.licence_url ? `<a href="${esc(row.licence_url)}">${esc(name)}</a>` : text(name)),
       })}`,
@@ -2238,21 +2427,21 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
       <h1>Data</h1>
       <p class="lede">The whole site is one SQLite file, and you can have it. What it is, the files
         it comes as, how far to trust it, and what you may do with it.</p>
-      ${facts([
+      ${fields([
         ['Database', `v${esc(META.version)}`],
         ['Built', esc(META.built)],
         ['Covers', esc(META.coverage_seasons)],
         ['Tables', `${shape.tables.toLocaleString()}, and ${shape.views.toLocaleString()} views`],
         ['Races', `${shape.races.toLocaleString()}, in ${shape.entries.toLocaleString()} race entries`],
       ])}
-      <p>${esc(CROSS_CHECKED)}</p>
+      <p class="measure">${esc(CROSS_CHECKED)}</p>
       <h2>The files</h2>
       <ul class="cards">
         <li><a href="${esc(href('f1.db'))}"><code>f1.db</code></a> — the database, as built. Open it with any SQLite client; <code>circuit_geometry</code> in it is deliberately empty.</li>
         <li><a href="${esc(href('f1-geometry.db'))}"><code>f1-geometry.db</code></a> — the circuit centrelines, © OpenStreetMap contributors under ODbL 1.0, in a file of their own.</li>
         <li><a href="${esc(href('f1-parquet.zip'))}"><code>f1-parquet.zip</code></a> — every table as Parquet, one file each; pandas, polars and DuckDB read it directly.</li>
       </ul>
-      <p>${esc(TWO_FILES)} ${esc(SELF_DESCRIBING)}</p>
+      <p class="measure">${esc(TWO_FILES)} ${esc(SELF_DESCRIBING)}</p>
       <p class="faint">Two JSON exports — <code>f1_database.json.gz</code>, every table, and
         <code>f1_compat.json</code>, the original v1 key layout — are written by the same build
         and travel with each release rather than being served from here.</p>
@@ -2260,33 +2449,33 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
       <ul class="cards">
         ${DOCUMENTS.map(([file, what]) => `<li><a href="${esc(href(file))}"><code>${esc(file)}</code></a> — ${esc(what)}</li>`).join('')}
       </ul>
-      <p>${esc(DOCUMENTS_NOTE)} <a href="${esc(REPOSITORY)}">The repository</a> holds the build, the
+      <p class="measure">${esc(DOCUMENTS_NOTE)} <a href="${esc(REPOSITORY)}">The repository</a> holds the build, the
         checks that gate it and the source data they read, so the cross-checking claimed above can
         be read rather than taken on trust.</p>
       <h2>How far to trust it</h2>
-      ${facts([
+      ${fields([
         ['Disagreements on record', `${shape.discrepancies.toLocaleString()}, ${shape.open_discrepancies.toLocaleString()} still open`],
         ['Open gaps', `${shape.gaps.toLocaleString()}, and what would close each`],
         ['Sources', `${shape.sources.toLocaleString()}, each with its licence`],
         ['The ladder', esc(ladder.join(' › '))],
       ])}
-      <p>Only an official source — the FIA or formula1.com — carries a row to the top. Where a
+      <p class="measure">Only an official source — the FIA or formula1.com — carries a row to the top. Where a
         career total derived from the race records differs from a published one, both are shown.
         ${link('data/quality', 'The full account')}: the ladder defined, every gap, every
         disagreement, and the reconciliation that runs on each build.</p>
       <h2>What you may do with it</h2>
-      ${facts([
+      ${fields([
         ['Redistributable', `${(classes.yes ?? 0).toLocaleString()} sources — their rows may be passed on under the licence shown beside them.`],
         ['Facts only', `${(classes['facts-only'] ?? 0).toLocaleString()} sources — the facts are used; nothing is copied.`],
         ['Not redistributable', `${(classes.no ?? 0).toLocaleString()} sources — on the register so the position is on record; no row may cite one.`],
       ])}
-      <p>${esc(NOT_HELD)}</p>
-      <p>Race data from F1DB is CC BY 4.0; prose and registers from Wikipedia are CC BY-SA 4.0 and
+      <p class="measure">${esc(NOT_HELD)}</p>
+      <p class="measure">Race data from F1DB is CC BY 4.0; prose and registers from Wikipedia are CC BY-SA 4.0 and
         carry share-alike; the centrelines are ODbL and the obligation follows
         <code>f1-geometry.db</code> alone. ${link('data/sources', 'Every source')}, what it is
         trusted for, and what each licence cost or bought.</p>
       <h2>Ask it something</h2>
-      <p>${link('data/sql', 'The SQL console')} runs any read against the whole database in your
+      <p class="measure">${link('data/sql', 'The SQL console')} runs any read against the whole database in your
         browser. Nothing is sent anywhere, and a query&rsquo;s address is a link to it.</p>`,
     })
   }
@@ -2307,15 +2496,21 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
       .replace('LEFT JOIN circuit_geometry g', 'LEFT JOIN geo.circuit_geometry g'),
   )
   db.exec('DETACH DATABASE geo')
-  const gapGroup = (state, heading, intro) => {
+  const images = one(IMAGES) ?? {}
+  // The register as Quality.jsx's <Gaps> draws it: the same three groups from
+  // the same list, each a Section with its count, and one table per group with
+  // the maintainer's note behind the same disclosure (VD-01). It was a run of
+  // <section><h3> blocks here and a table there, from two copies of the three
+  // headings and their notes.
+  const gapGroup = ({ state, title, note: intro }) => {
     const rows = gaps.filter((g) => g.state === state)
     if (!rows.length) return ''
-    return `<h2>${esc(heading)}</h2><p>${esc(intro)}</p>${rows
-      .map(
-        (g) =>
-          `<section><h3>${esc(g.field)} — ${esc(g.area)}</h3>${prose(g.reader)}<details><summary>Maintainer’s note</summary>${prose(g.description)}${prose(g.resolution)}</details></section>`,
-      )
-      .join('')}`
+    return `${heading(title, rows.length)}<p class="note">${esc(intro)}</p>${fromColumns(GAP_COLUMNS, rows, {
+      reader: (value, row) =>
+        `<p class="gap-reader">${esc(value)}</p><details class="gap-note"><summary>${esc(
+          MAINTAINER_NOTE,
+        )}</summary>${prose(row.description)}${prose(row.resolution)}</details>`,
+    })}`
   }
   page({
     path: 'data/quality',
@@ -2327,23 +2522,27 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
       <h1>Data quality</h1>
       <p class="lede">A blank in this database is an unestablished fact, never a zero. These are
         the gaps that are known and stated.</p>
-      ${gapGroup('open', 'Open gaps', 'What is missing, and what it would take to close each one. Several need a person to read something rather than a script to fetch it.')}
-      ${gapGroup('position', 'Positions, not gaps', 'Deliberate absences. Each is the right state for this database, stated so it is not mistaken for something unfinished.')}
-      ${gapGroup('closed', 'Closed', 'Gaps that have since been filled, kept so the closure is on record.')}
+      ${GAP_GROUPS.map(gapGroup).join('')}
       <h2>The confidence ladder</h2>
       ${fromColumns(PROVENANCE_COLUMNS, all(PROVENANCE))}
       <p class="source-note">${esc(LADDER_NOTE)}</p>
       <h2>Disagreements kept rather than resolved</h2>
-      <p>${esc(DISCREPANCIES_NOTE)}</p>
+      <p class="note">${esc(DISCREPANCIES_NOTE)}</p>
       ${fromColumns(DISCREPANCY_COLUMNS, all(DISCREPANCIES))}
       <h2>Career totals against published ones</h2>
-      <p>${esc(RECONCILIATION_NOTE)}</p>
+      <p class="note">${esc(RECONCILIATION_NOTE)}</p>
       ${fromColumns(RECONCILIATION_COLUMNS, all(RECONCILIATION))}
+      <h2>Coverage</h2>
+      ${figure(CHASSIS_TITLE, CHASSIS_NOTE, fromColumns(CHASSIS_COVERAGE_COLUMNS, all(CHASSIS_COVERAGE)))}
       <h2>Circuit geometry</h2>
       ${fromColumns(GEOMETRY_COLUMNS, coverage)}
       ${note(GEOMETRY_FOOTER)}
+      <h2>Photographs</h2>
+      ${stats(PHOTOGRAPH_STATS.map(({ key, label }) => ({ label, value: esc(formatted(images[key])) })))}
+      <p class="source-note">${esc(PHOTOGRAPHS_UNNAMED_NOTE)}</p>
+      <p class="source-note">${esc(photographsCatalogued(formatted(images.catalogued)))}</p>
       <h2>Where a result cannot be attributed to a car</h2>
-      <p>${esc(UNATTRIBUTED_NOTE)}</p>
+      <p class="note">${esc(UNATTRIBUTED_NOTE)}</p>
       ${fromColumns(UNATTRIBUTED_COLUMNS, all(UNATTRIBUTED), { year: (year) => link(`seasons/${year}`, year) })}
       <h2>Rows nobody has checked</h2>
       ${fromColumns(UNVERIFIED_COLUMNS, all(UNVERIFIED))}
@@ -2360,7 +2559,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
       <h1>SQL console</h1>
       <p class="lede">The console needs JavaScript: it runs SQLite compiled to WebAssembly against
         the database file in your own browser. Nothing you type is sent anywhere.</p>
-      <p>The database is a plain SQLite file. If you would rather query it with your own tools,
+      <p class="measure">The database is a plain SQLite file. If you would rather query it with your own tools,
         download <a href="${esc(href('f1.db'))}"><code>f1.db</code></a> and open it with any
         SQLite client. The circuit centrelines are not in it — <code>circuit_geometry</code>
         there is deliberately empty — and ship beside it as
@@ -2399,7 +2598,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
       <h1>${esc(CHANGES_TITLE)}</h1>
       <p class="lede">${esc(CHANGES_LEDE)}</p>
       <h2>${esc(CURRENT_HEADING)}</h2>
-      ${facts([
+      ${fields([
         ['Version', `v${esc(META.version)}`],
         ['Built', esc(META.built)],
         [
@@ -2424,7 +2623,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
       ])}
       ${note(CURRENT_NOTE)}
       <h2>${esc(FEED_HEADING)}</h2>
-      <p>${esc(FEED_NOTE)} <a href="${esc(href(FEED_FILE))}">${esc(FEED_LINK_TEXT)}</a>.</p>
+      <p class="measure">${esc(FEED_NOTE)} <a href="${esc(href(FEED_FILE))}">${esc(FEED_LINK_TEXT)}</a>.</p>
       <h2>${esc(HISTORY_HEADING)}</h2>
       ${fromColumns(RELEASE_COLUMNS, RELEASES)}
       ${note(HISTORY_NOTE)}`,
@@ -2657,11 +2856,16 @@ writeFileSync(
     title: titled('Not found'),
     description: 'No page at this address.',
     jsonld: null,
+    // Through structure() like every other page: it is the one route that does
+    // not go through page(), and a 404 outside `.page` would be the only
+    // heading on the site set in a third treatment again.
     html: chrome(
-      `<h1>Not found</h1>
+      structure(
+        `<h1>Not found</h1>
        <p class="lede">There is no page at this address. It may have been a typo, or a link to
          something this database does not hold.</p>
        <ul class="cards">${NAV.map(([to, label]) => `<li>${link(to, label)}</li>`).join('')}</ul>`,
+      ),
       '',
     ),
   }),

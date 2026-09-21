@@ -1622,10 +1622,7 @@ figure.photo figcaption a {
   max-width: var(--measure);
 }
 
-/* #prerendered p would otherwise win on specificity and recolour the static
-   copy; the two renderers should look the same for the second both exist. */
-.cite p,
-#prerendered .cite p {
+.cite p {
   margin: 0;
   color: var(--ink-faint);
 }
@@ -2544,10 +2541,18 @@ a.button.secondary:hover {
    The prerendered page.
 
    scripts/prerender.js writes each route's facts into #prerendered as static
-   HTML before the app has loaded, using the same chrome classes as the app so
-   the masthead and footer need no rules of their own here. What is left is the
-   handful of content shapes that only the static page uses: a fact list, a
-   breadcrumb trail, a scrolling table wrapper and a card list.
+   HTML before the app has loaded. It writes them in the app's own shapes — a
+   .page with its header, a .section per block, .stats, .fields, .table-wrap,
+   .timeline, figure.figure — so everything above draws both halves and there
+   is one design rather than two (VD-01). What is left here is the two shapes
+   that exist only on the static page: the breadcrumb trail a crawler and a
+   deep arrival are given in place of the app's single way back, and the card
+   list of section links under it.
+
+   This block was 126 lines. It described a second treatment for the heading,
+   the standfirst, every paragraph and every table on the site, and a reader
+   who arrived before the database opened was shown one design and then,
+   without being told, another.
 
    It is removed the moment the database is open, so nothing below can affect
    the running app. It is also the only thing a reader without JavaScript ever
@@ -2568,96 +2573,14 @@ a.button.secondary:hover {
   color: var(--rule-strong);
 }
 
-#prerendered h1 {
-  font-family: var(--disp);
-  font-size: clamp(28px, 4vw, 40px);
-  line-height: 1.1;
-  margin: 0 0 12px;
-}
-
-#prerendered h2 {
-  font-family: var(--disp);
-  font-size: 22px;
-  margin: 34px 0 12px;
-}
-
-#prerendered h3 {
-  font-size: 16px;
-  margin: 22px 0 6px;
-}
-
-#prerendered p {
-  max-width: var(--measure);
-  color: var(--ink-soft);
-  margin: 0 0 12px;
-}
-
-#prerendered .lede {
-  font-size: 16.5px;
-  color: var(--ink-soft);
-  margin-bottom: 22px;
-}
-
-/* A two-column fact list: label in the narrow column, value in the wide one.
-   Wrapping to one column below 560px keeps long values off a phone's edge. */
-#prerendered .facts {
-  display: grid;
-  grid-template-columns: minmax(140px, 200px) 1fr;
-  gap: 1px;
-  margin: 0 0 22px;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  background: var(--rule);
-  overflow: hidden;
-}
-
-#prerendered .facts dt,
-#prerendered .facts dd {
-  background: var(--panel);
-  margin: 0;
-  padding: 8px 14px;
-  font-size: 13.5px;
-}
-
-#prerendered .facts dt {
-  color: var(--ink-faint);
-}
-
-@media (max-width: 560px) {
-  #prerendered .facts {
-    grid-template-columns: 1fr;
-  }
-
-  #prerendered .facts dt {
-    padding-bottom: 0;
-  }
-}
-
-/* Wide tables scroll inside their own box rather than pushing the page sideways. */
-#prerendered .tablewrap {
-  overflow-x: auto;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  background: var(--panel);
-  margin: 0 0 22px;
-}
-
-/* A note under a heading, at the weight <Section> gives it. `.section > .note`
-   cannot reach the static page — there is no .section element here — so the
-   rule is restated for this one descendant rather than the class being left
-   unstyled, which is what prerender.js's points note has been. */
-#prerendered .note {
-  margin: 4px 0 12px;
-  font-size: 13.5px;
-}
-
 /* The photographs section (PD-19). figure.photo, .photo-grid, .pill and
    .source-note are the app's own rules and reach the static page unchanged —
    which is the point, since the reader is looking at this until the database
-   opens and should not watch the page change shape when it does. What is
-   missing is the spacing <Section> gives the app and the static page has no
-   component for, and a ceiling: the grid is auto-fill from 230px, so a page
-   with one photograph would otherwise stretch it across the full measure. */
+   opens and should not watch the page change shape when it does. The section's
+   own spacing comes from .section now, like every other block here; what is
+   left is the gap under the grid and a ceiling on a tile, since the grid is
+   auto-fill from 230px and a page with one photograph would otherwise stretch
+   it across the full measure. */
 #prerendered .photo-grid {
   margin: 0 0 14px;
   grid-template-columns: repeat(auto-fill, minmax(230px, 320px));
@@ -2682,26 +2605,6 @@ a.button.secondary:hover {
   background: var(--panel);
   padding: 10px 14px;
   font-size: 13.5px;
-}
-
-#prerendered .glossary {
-  margin: 0;
-  max-width: var(--measure);
-}
-
-#prerendered .glossary dt {
-  font-weight: 600;
-  margin-top: 14px;
-}
-
-#prerendered .glossary dd {
-  margin: 2px 0 0;
-  color: var(--ink-soft);
-  font-size: 14px;
-}
-
-#prerendered section {
-  margin-bottom: 18px;
 }
 
 /* The "no match" row in the search palette. It was an <a href="#/"> whose only

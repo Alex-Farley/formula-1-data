@@ -334,6 +334,41 @@ export function strip(driver, derived) {
   ].filter(Boolean)
 }
 
+/**
+ * Which figures lead the strip (VD-28).
+ *
+ * It lived in Driver.jsx while emphasis was the app's alone and the static
+ * page drew the same list as a key/value table with no ranks to give. The
+ * static page draws the tiles now (VD-01), so a lead decided in a React page
+ * would be a lead on one half of the site and not the other — which is the
+ * divergence this module exists to prevent. It is still presentation, and it
+ * is still only ever a flag ON what strip() returned.
+ *
+ * Wins and titles are what a reader came for, and they are the two the
+ * critique named. WHICH figures a strip carries at all is PD-15 (#147),
+ * settled above, and still not decided here: this ranks whatever the strip
+ * returns, and a lead tile that is not present is simply not led.
+ *
+ * A ZERO NEVER LEADS, and PD-15 did not retire the rule. It dropped the four
+ * results figures from the 625 pages where all four were zero, so the
+ * privateer's page no longer offers a "Wins" 0 to lead with at all. It left
+ * 237 strips that keep them because one of the four is non-zero, and on 121
+ * of those Wins is still 0 - a driver with podiums and no win. Leading that
+ * would set the one figure the driver does not have at twice the size of the
+ * ones he does, which is emphasis pointing at an absence, so the test below
+ * still runs on every tile. `number()` groups thousands, so it looks for a
+ * digit that is not a zero rather than for the string '0'; and it fails safe
+ * for everything else that could arrive here - an em dash carries no digit,
+ * and a value that was somehow an element stringifies to none either, so
+ * neither leads.
+ */
+const LEAD_FIGURES = new Set(['Wins', 'Titles'])
+
+const worthLeading = (item) => LEAD_FIGURES.has(item.label) && /[1-9]/.test(String(item.value))
+
+export const leading = (items) =>
+  items.map((item) => (worthLeading(item) ? { ...item, lead: true } : item))
+
 /** "1 start", "3 starts", "1 entry", "4 entries". */
 const plural = (n, one, many = `${one}s`) => `${number(n)} ${n === 1 ? one : many}`
 
