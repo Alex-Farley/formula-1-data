@@ -120,6 +120,14 @@ Measured and rejected, in `CLAUDE.md` and `docs/`:
 
 ## How to report
 
+**The first line of your result is the verdict, and nothing goes above it.**
+It is exactly `PASS — safe to merge` or `FAIL — changes required` — no summary
+sentence, no preamble, no restatement of a finding, not even a greeting. The
+loop reads that first line and nothing else to decide the outcome, so a result
+that opens with anything else is discarded and the review is run again. This
+holds for a confirmation pass on a fix exactly as it holds for a first pass;
+findings, however short, come after the verdict line.
+
 Order by consequence, worst first. For each finding: the file and line, the
 invariant it breaks, and the failure it would produce — concretely, not in the
 abstract. Distinguish "this breaks a rule the build enforces" from "this is a

@@ -262,7 +262,14 @@ or live fetches unless the item is about them. Ask for the verdict line and
 findings with file:line, nothing else.
 
 **The agent returns exactly `PASS — safe to merge` or `FAIL — changes
-required` as its first line.** Anything else is not a verdict. Then:
+required` as its first line.** Anything else is not a verdict — including a
+result whose verdict is plainly there on the second line, under a summary
+sentence. **Do not read it for what it meant.** Discard the result, spawn the
+pass again from the same brief, and take the second result's first line; if
+that one does not lead with a verdict either, the item has no review and the
+*Not a PASS* rule below applies. Interpreting one is how the rule rots: the
+fork that reads past a preamble today is the fork that reads past a FAIL
+phrased as a sentence tomorrow `[D-37]`. Then:
 
 - **FAIL:** fix, run the precheck again, confirm with a fresh agent by commit
   range — Sonnet, or Opus at `thorough`.
@@ -282,7 +289,9 @@ required` as its first line.** Anything else is not a verdict. Then:
 - **A review finding is not discovered work, and only one of them is an
   issue** `[D-15]`. A defect in the diff under review is fixed, not filed.
 - **Not a PASS:** silence, a rate limit, a reviewer that hit its turn cap, a
-  quick-variant verdict without its `Applied:` line, an unavailable account.
+  result whose first line is not one of the two verdict lines and whose
+  respawn's first line is not either, a quick-variant verdict without its
+  `Applied:` line, an unavailable account.
   If the agent dies on a session limit, return `LIMIT: resets <time>` at
   once; you cannot outlive the reset.
 - **Record the verdict as a PR comment the moment it arrives**, before the

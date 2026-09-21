@@ -374,3 +374,61 @@ class OneRuleForWhatCountsAsAStart(unittest.TestCase):
             "starts, how many have no grid recorded, how many have no lap count - so a "
             "constant used fewer times means one of them stopped using it",
         )
+
+
+
+class TheVerdictContractIsWhereTheAgentReads(unittest.TestCase):
+    """PM-41 (#428). The loop decides PASS or FAIL from the FIRST line of a
+    reviewer's result, and four forks in two days met a confirmation agent
+    that put a summary sentence above it. The contract was written only in
+    the brief the fork composes (review-prompt.md), so a reviewer reading its
+    own agent file found nothing about a verdict; and the confirmation half
+    of that brief asked for "one line", which a line anywhere satisfies.
+    Both are prose a tidying pass could drop again, so the wording lives here
+    as a test (D-26, D-37) rather than in a checklist nobody re-reads."""
+
+    PASS = "`PASS \u2014 safe to merge`"
+    FAIL = "`FAIL \u2014 changes required`"
+
+    def flat(self, rel):
+        """The file with runs of whitespace collapsed: these documents wrap,
+        and `FAIL \u2014 changes required` is written across a line break in
+        more than one of them."""
+        return re.sub(r"\s+", " ", read(rel))
+
+    def states_the_contract(self, rel, text, what):
+        # assertIn would print the whole document; these are thousands of
+        # words each, so say what is missing and not where it isn't.
+        for line in (self.PASS, self.FAIL):
+            self.assertTrue(line in text, f"{what} does not give the verdict line {line}")
+
+    def test_every_loop_reviewer_states_the_first_line_contract(self):
+        for name in LOOP_REVIEWERS:
+            rel = f".claude/agents/{name}.md"
+            text = self.flat(rel)
+            self.states_the_contract(rel, text, f"{name}.md")
+            self.assertTrue("first line" in text,
+                            f"{name}.md names the verdict lines without saying it leads with one")
+
+    def test_both_halves_of_the_brief_ask_for_the_verdict_first(self):
+        # The first-pass brief always asked for it; the confirmation brief,
+        # below the "after a fix" marker, is the half that drifted.
+        brief = self.flat(".claude/skills/backlog-loop/review-prompt.md")
+        marker = "after a fix"
+        self.assertTrue(marker in brief, "review-prompt.md no longer has a confirmation brief")
+        cut = brief.index(marker)
+        for what, half, wording in (("first-pass brief", brief[:cut], "verdict line first"),
+                                    ("confirmation brief", brief[cut:], "first line")):
+            self.states_the_contract("review-prompt.md", half, f"the {what}")
+            self.assertTrue(wording in half,
+                            f"the {what} does not ask for the verdict first ({wording!r})")
+
+    def test_the_item_procedure_refuses_rather_than_interprets(self):
+        # The refusal is the rule; a fork left to judge an ambiguous result is
+        # the state PM-41 found. "spawn the pass again" is the instruction that
+        # makes the refusal actionable, so its absence is the regression.
+        skill = self.flat(".claude/skills/backlog-item/SKILL.md")
+        self.states_the_contract("SKILL.md", skill, "the item procedure")
+        self.assertTrue("spawn the pass again" in skill,
+                        "the item procedure names the verdict lines without saying what to do "
+                        "when a result does not lead with one; a fork then interprets (D-37)")

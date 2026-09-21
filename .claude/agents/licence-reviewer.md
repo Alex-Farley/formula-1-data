@@ -110,6 +110,14 @@ These are decisions on the record in `docs/COMMERCIAL-READINESS.md` and
 
 ## How to report
 
+**The first line of your result is the verdict, and nothing goes above it.**
+It is exactly `PASS — safe to merge` or `FAIL — changes required` — no summary
+sentence, no preamble, no restatement of a finding, not even a greeting. The
+loop reads that first line and nothing else to decide the outcome, so a result
+that opens with anything else is discarded and the review is run again. This
+holds for a confirmation pass on a fix exactly as it holds for a first pass;
+findings, however short, come after the verdict line.
+
 Order by consequence, worst first. For each finding give the file and line, what
 would end up published, and which rule it breaks. Say plainly when you find
 nothing — a licence review that always finds something is one nobody reads.
