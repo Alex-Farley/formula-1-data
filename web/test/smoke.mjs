@@ -838,6 +838,29 @@ try {
     truthy(!note.includes('no source here supplies'), 'the note no longer denies the Starts tile above it')
     truthy(note.includes('did not qualify'), 'and says what the site counts as a start')
 
+    // A PIT-LANE START IS NOT A MISSING GRID, checked through the real query
+    // rather than a fixture, because the fixtures cannot reach the SQL. All
+    // 97 of Marcus Ericsson's entries are starts and five of them began in
+    // the pit lane, which carries no grid NUMBER but says exactly where the
+    // car started in grid_text ('PL', 237 entries site-wide). Counting those
+    // as gaps put "5 starts with no grid recorded" on his page and on 39
+    // others, under a note two paragraphs below saying a pit-lane start
+    // counts. schema.sql: "NULLing those would say we do not know where they
+    // started, which is the opposite of the truth."
+    await go('/drivers/marcus-ericsson', 'Marcus Ericsson')
+    const pit = await page.$eval('#root main .stats', (dl) =>
+      Object.fromEntries(
+        [...dl.querySelectorAll(':scope > div')].map((el) => [
+          el.querySelector('dt').textContent.trim(),
+          el.querySelector('dd small')?.textContent.trim() ?? null,
+        ]),
+      ),
+    )
+    is(pit['Best grid'], null, 'a pit-lane start is not a grid slot nobody recorded')
+    truthy(!('Starts' in pit), 'and all 97 entries were starts, so no Starts tile')
+
+    await go('/drivers/beppe-gabbiani', 'Beppe Gabbiani')
+
     // The dropped zero is still ON THE PAGE, which is the condition on
     // dropping it from the strip: "Season by season" carries a Wins column
     // and every row of it reads 0 (the dashedWins check above), and "On the

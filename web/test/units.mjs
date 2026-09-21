@@ -495,9 +495,14 @@ describe('the queries a page and the prerenderer share', () => {
     )
     assert.equal(unnamed.find((i) => i.label === 'Constructors').note, 'no constructor on 2 entries')
     assert.equal(unnamed.find((i) => i.label === 'Retirements').value, '0', 'three starts, none retired')
+    // The note names the code the table below shows. Under a zero there are
+    // no rows to match it to, so it is the source code printed for its own
+    // sake - which is what a note is not for.
+    assert.equal(unnamed.find((i) => i.label === 'Retirements').note, undefined)
+    assert.equal(gaps.find((i) => i.label === 'Retirements').note, 'DNF', 'and it is there where there are rows')
 
     // Starts restates Entries where no entry failed to become one, so the
-    // tile is not there: 415 of the 862 careers.
+    // tile is not there: 417 of the 862 careers.
     const everyStart = strip({ first_season: 2007, last_season: 2012, titles: 1 }, { entries: 100, seasons: 6, starts: 100, wins: 21, best: 1 })
     assert.equal(everyStart.find((i) => i.label === 'Starts'), undefined)
     // ...and a winner keeps the four, so none of the substitutes appears.

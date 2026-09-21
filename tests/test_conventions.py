@@ -369,6 +369,8 @@ class OneRuleForWhatCountsAsAStart(unittest.TestCase):
             "interpolate ${STARTED} instead",
         )
         self.assertGreaterEqual(
-            body.count("${STARTED}"), 1,
-            "queries/driver.js declares STARTED and never uses it",
+            body.count("${STARTED}"), 3,
+            "queries/driver.js asks three questions that need the start rule - how many "
+            "starts, how many have no grid recorded, how many have no lap count - so a "
+            "constant used fewer times means one of them stopped using it",
         )

@@ -70,19 +70,30 @@ export const DERIVED = `
          -- position_text is 'DNF' on 8,719 entries and NC, DSQ and EX are
          -- each a different fact that is not a retirement.
          SUM(e.position_text = 'DNF')    AS retirements,
-         -- WHAT IS MISSING IS COUNTED AGAINST THE STARTS, not against the
-         -- entries. 1,917 entries carry no grid and 1,837 no lap count, but
-         -- for most of them there is nothing missing: a driver who did not
-         -- qualify has no grid slot and ran no laps, and saying "best of 3 on
-         -- record" about his seventeen entries would report an absence as a
-         -- gap in the data. A START with no grid or no lap count IS a gap -
-         -- 62 careers and 24 - and that is what the strip notes.
+         -- WHAT IS MISSING IS COUNTED AGAINST THE STARTS, and only where it
+         -- is really missing. 1,917 entries carry no grid number, and there
+         -- are three reasons for that of which only one is a gap:
          --
-         -- A non-start can still hold a grid: 36 careers have more grids than
-         -- starts, because a DNS qualified and then did not go. Those are not
-         -- missing either, which is the other half of the same point.
+         --   a DNQ never qualified, so there is no slot to record and nothing
+         --     is absent; counting those would report 14 of Gabbiani's 17
+         --     entries as holes in the data;
+         --   a PIT-LANE START has no grid number but carries 'PL' in
+         --     grid_text - 237 entries - and schema.sql says why that is not
+         --     an absence: "NULLing those would say we do not know where they
+         --     started, which is the opposite of the truth". Reading them as
+         --     gaps put a spurious note on 40 driver pages, under a strip
+         --     whose own note says a pit-lane start counts;
+         --   a start with neither a number nor a grid_text IS a gap.
+         --
+         -- Only the third is counted: 20 of the winless pages that show a
+         -- Best grid at all. The lap count is the same shape - a non-start
+         -- ran no laps - and its gap falls on 20 pages too.
+         --
+         -- MIN(e.grid) itself spans every entry, including a DNS that
+         -- qualified and then did not go. That is deliberate: it is the best
+         -- slot ON RECORD, not the best slot started from.
          MIN(e.grid)                     AS best_grid,
-         SUM(e.grid IS NULL AND ${STARTED})           AS starts_without_grid,
+         SUM(e.grid IS NULL AND e.grid_text IS NULL AND ${STARTED}) AS starts_without_grid,
          SUM(e.laps_completed)           AS laps,
          SUM(e.laps_completed IS NULL AND ${STARTED}) AS starts_without_laps,
          COUNT(DISTINCT e.constructor_id) AS constructors,
@@ -274,9 +285,10 @@ export function strip(driver, derived) {
       note: seasonsNote(driver, derived),
     },
     { label: 'Entries', value: number(entries) },
-    // Only where an entry was not a start. On 415 careers the two figures are
-    // the same and a second tile would restate the first; on the other 447 the
-    // gap IS the career - the late 1980s put 1,041 DNQs and 337 DNPQs on these
+    // Only where an entry was not a start. On 417 careers the two figures are
+    // the same and a second tile would restate the first - the two drivers
+    // with no entry at all among them, 0 and 0 - and on the other 445 the gap
+    // IS the career: the late 1980s put 1,041 DNQs and 337 DNPQs on these
     // pages, and an entry list that never says so reads as a career of races.
     starts === entries
       ? null
@@ -345,7 +357,16 @@ const instead = (derived, starts) => {
           value: number(derived.laps),
           note: noLaps > 0 ? `${plural(noLaps, 'start')} with no lap count` : undefined,
         },
-    starts > 0 ? { label: 'Retirements', value: number(derived.retirements ?? 0), note: 'DNF' } : null,
+    // The note names the code the entry table below shows, so a reader can
+    // match the figure to the rows it counts. Under a zero there are no rows
+    // to match and it is the source code printed for its own sake.
+    starts > 0
+      ? {
+          label: 'Retirements',
+          value: number(derived.retirements ?? 0),
+          note: (derived.retirements ?? 0) > 0 ? 'DNF' : undefined,
+        }
+      : null,
     derived.constructors
       ? {
           label: 'Constructors',
