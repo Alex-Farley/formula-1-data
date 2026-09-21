@@ -51,7 +51,16 @@ export default function DataTable({
   caption,
   sort: initialSort = null,
   direction: initialDirection = 'asc',
-  empty = 'Nothing recorded.',
+  // "Nothing recorded." is a claim about the database, and it was the default
+  // on some fifty tables - including every register a reader had just filtered
+  // to nothing, where what had happened was a search box (CD-17). The neutral
+  // default says only what is true of the table; an absence that means
+  // something gets its own string, as Car.jsx's NO_ENTRIES does.
+  //
+  // A node rather than a string replaces the whole state, which is how a
+  // filtered register names the filters that emptied it and offers the way
+  // back (IX-28); it carries `state is-empty` itself.
+  empty = 'No rows here.',
   rowKey,
   highlight,
   page = PAGE,
@@ -125,7 +134,9 @@ export default function DataTable({
     // differently to anyone watching for the wait to end. The smoke test was
     // watching for exactly that, and sat out a twenty-second timeout on every
     // page carrying an empty section.
-    return <p className="state is-empty">{empty}</p>
+    // A <div> inside this <p> would be invalid HTML and the browser would
+    // reparent it, so a node renders as itself and brings its own classes.
+    return typeof empty === 'string' ? <p className="state is-empty">{empty}</p> : empty
   }
 
   const visible = showAll ? ordered : ordered.slice(0, page)

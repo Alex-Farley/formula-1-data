@@ -33,6 +33,51 @@ export function Filters({ children, showing, of, noun = 'rows' }) {
   )
 }
 
+/**
+ * A register its own filters have emptied, and the way back (IX-28).
+ *
+ * `zzzz` + Brazil + Champions gave *“Nothing recorded.”* and nothing else: no
+ * word for which of three filters had done it, and no way out but undoing
+ * them one at a time. It was also the wrong claim — on a site where an empty
+ * table ordinarily means the database holds nothing, a filter that matched
+ * nothing is a different fact, which is CD-17's verdict and why DataTable's
+ * default is now the neutral “No rows here.”
+ *
+ * One template, so six registers do not each invent a sentence:
+ *
+ *     No driver matches “zzzz” among champions from Brazil.
+ *     No driver matches “zzzz”.
+ *     No street circuits in Monaco here.
+ *
+ * `among` is the page's own phrase and not a join of raw filter values,
+ * because only the page knows the grammar of its own filters: a driver's
+ * nationality is a country and not an adjective ("from Brazil", never
+ * "Brazilian"), and a chip's visible label is a heading rather than a noun
+ * phrase. It is written plural, so that it reads as the subject when there is
+ * no search term to be the subject instead.
+ *
+ * It keeps `state is-empty`, which is how the smoke suite tells a query that
+ * has finished and found nothing from one still running.
+ */
+export function NoMatch({ noun, term = '', among = '', onClear }) {
+  const needle = String(term ?? '').trim()
+  const sentence = needle
+    ? `No ${noun} matches “${needle}”${among ? ` among ${among}` : ''}.`
+    : among
+      ? `No ${among} here.`
+      : `No ${noun} matches these filters.`
+  return (
+    <div className="state is-empty no-match">
+      <p>{sentence}</p>
+      {onClear && (
+        <button type="button" className="button secondary" onClick={onClear}>
+          Clear filters
+        </button>
+      )}
+    </div>
+  )
+}
+
 export function SearchField({ value, onChange, placeholder = 'Filter…', label }) {
   return (
     <input

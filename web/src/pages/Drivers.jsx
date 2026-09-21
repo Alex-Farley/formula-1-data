@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
-import { Chips, Filters, SearchField, Select } from '../components/Filters.jsx'
+import { Chips, Filters, NoMatch, SearchField, Select } from '../components/Filters.jsx'
 import { useQuery } from '../data/useQuery.js'
 import { anyThisSeason, gridLabel, seasonOf } from '../lib/season.js'
 import { DRIVERS, DRIVER_COLUMNS } from '../queries/drivers.js'
@@ -76,6 +76,32 @@ function Register({ rows }) {
     })
   }, [rows, term, nationality, kind])
 
+  // What the three filters are asking for, as a plural noun phrase, for the
+  // state that says which of them emptied the register (IX-28). The chips'
+  // own labels are headings rather than nouns, and `nationality` is a country
+  // and not an adjective, so neither goes in raw.
+  const among =
+    nationality || kind
+      ? [
+          kind === 'winners'
+            ? 'race winners'
+            : kind === 'champions'
+              ? 'champions'
+              : kind === 'grid'
+                ? `drivers on the ${gridSeason} grid`
+                : 'drivers',
+          nationality ? `from ${nationality}` : '',
+        ]
+          .filter(Boolean)
+          .join(' ')
+      : ''
+
+  const clear = () => {
+    setTerm('')
+    setNationality('')
+    setKind('')
+  }
+
   return (
     <>
       <Filters showing={filtered.length} of={rows.length} noun="drivers">
@@ -107,6 +133,7 @@ function Register({ rows }) {
         direction="desc"
         page={150}
         columns={DRIVER_COLUMNS.map((column) => ({ ...column, ...APP[column.key] }))}
+        empty={<NoMatch noun="driver" term={term} among={among} onClear={clear} />}
         footer="Most wins first; sort by any column. Entries is every race a driver was entered for, counted from the race records — an entry is not a start. A blank is a figure nobody has established, not a zero, and those rows sink to the bottom whichever way you sort."
       />
     </>

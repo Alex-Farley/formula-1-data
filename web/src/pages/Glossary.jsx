@@ -3,7 +3,7 @@ import { Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable from '../components/DataTable.jsx'
 import { SportNav } from '../components/SubNav.jsx'
-import { Chips, Filters, SearchField } from '../components/Filters.jsx'
+import { Chips, Filters, NoMatch, SearchField } from '../components/Filters.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { GLOSSARY, GLOSSARY_COLUMNS, PERSONNEL, PERSONNEL_COLUMNS } from '../queries/glossary.js'
 
@@ -65,6 +65,15 @@ function Body({ glossary, personnel, term, setTerm, category, setCategory }) {
     })
   }, [glossary, term, category])
 
+  // The two filters as a plural noun phrase, for the empty state (IX-28).
+  // "terms about tyres", never "tyres terms": every category is a plural noun
+  // and none of them is an adjective.
+  const among = category ? `terms about ${category}` : ''
+  const clear = () => {
+    setTerm('')
+    setCategory('')
+  }
+
   return (
     <>
       <Section title="Glossary" count={`${glossary.length} terms`}>
@@ -79,7 +88,14 @@ function Body({ glossary, personnel, term, setTerm, category, setCategory }) {
         </Filters>
         {/* No opening sort: the query's case-insensitive ORDER BY is the order
             the table opens in, and the static page prints the rows as they come. */}
-        <DataTable rows={filtered} rowKey={(row) => row.term} sortable page={80} columns={GLOSSARY_COLUMNS} />
+        <DataTable
+          rows={filtered}
+          rowKey={(row) => row.term}
+          sortable
+          page={80}
+          columns={GLOSSARY_COLUMNS}
+          empty={<NoMatch noun="term" term={term} among={among} onClear={clear} />}
+        />
       </Section>
 
       <Section title="People" count={`${personnel.length}`}>

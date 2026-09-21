@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
-import { Chips, Filters, SearchField, Select, Toggle } from '../components/Filters.jsx'
+import { Chips, Filters, NoMatch, SearchField, Select, Toggle } from '../components/Filters.jsx'
 import { currentProgress } from '../data/client.js'
 import { rows as pick, useQueries } from '../data/useQuery.js'
 import { anyThisSeason, calendarLabel, seasonOf } from '../lib/season.js'
@@ -152,6 +152,29 @@ function Register({ rows, traces }) {
     return traces.filter((trace) => ids.has(trace.circuit_id))
   }, [filtered, traces])
 
+  // The five filters as a plural noun phrase, for the empty state (IX-28).
+  // The two toggles are their own axis, so they read as trailing clauses
+  // rather than as adjectives on the type.
+  const among =
+    country || kind || tracedOnly || onCalendar
+      ? [
+          kind ? `${kind} circuits` : 'circuits',
+          country ? `in ${country}` : '',
+          onCalendar ? `on the ${calendarSeason} calendar` : '',
+          tracedOnly ? 'with a traced centreline' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')
+      : ''
+
+  const clear = () => {
+    setTerm('')
+    setCountry('')
+    setKind('')
+    setTracedOnly(false)
+    setOnCalendar(false)
+  }
+
   return (
     <>
       <Filters showing={filtered.length} of={rows.length} noun="circuits">
@@ -241,11 +264,10 @@ function Register({ rows, traces }) {
           direction="desc"
           page={100}
           columns={CIRCUIT_COLUMNS.map((column) => ({ ...column, ...APP[column.key] }))}
-          // DataTable's default says "Nothing recorded.", which is a claim
-          // about the database; what has happened here is a filter that
-          // matched nothing, which is the same thing the section above says
-          // about its own cards.
-          empty="No circuit matches these filters."
+          // A filter that matched nothing, said the way the section above
+          // says it about its own cards - and now naming which of five
+          // filters did it, with the way back (IX-28).
+          empty={<NoMatch noun="circuit" term={term} among={among} onClear={clear} />}
           footer={CIRCUITS_FOOTER}
         />
       </Section>

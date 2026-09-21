@@ -1285,10 +1285,25 @@ try {
     // the page: the first cut of the scroll fade declared its hooks after the
     // empty-state return, and React threw on the first empty search.
     await page.fill('input[type="search"]', 'zzzz-no-such-driver')
-    await page.waitForSelector('#root main .state.is-empty', { timeout: 10000 })
+    const emptied = await page.waitForSelector('#root main .state.is-empty', { timeout: 10000 })
     truthy(await page.$('#root main h1'), 'a register filtered to no rows shows its empty state, and the page stands')
-    await page.fill('input[type="search"]', '')
+    // IX-28: that state names the filter that emptied the register and offers
+    // the way back. "Nothing recorded." did neither, and read as a claim about
+    // the database rather than about the search box (CD-17).
+    const said = (await emptied.textContent()).trim()
+    truthy(
+      said.includes('zzzz-no-such-driver'),
+      `the filtered empty state names the term that emptied it - "${said}"`,
+    )
+    const clear = await page.$('#root main .state.is-empty button')
+    truthy(clear, 'the filtered empty state offers a way back out of the filters')
+    await clear.click()
     await page.waitForSelector('#root main tbody tr', { timeout: 10000 })
+    is(
+      await page.$eval('input[type="search"]', (node) => node.value),
+      '',
+      'Clear filters empties the search box and the register comes back',
+    )
 
   })
 

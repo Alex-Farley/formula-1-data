@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
-import { Chips, Filters, SearchField, Select } from '../components/Filters.jsx'
+import { Chips, Filters, NoMatch, SearchField, Select } from '../components/Filters.jsx'
 import LiveryMark from '../components/LiveryMark.jsx'
 import { useQuery } from '../data/useQuery.js'
 import { colourForEntry } from '../lib/liveries.js'
@@ -119,6 +119,23 @@ function RaceList({ rows, term, setTerm, decade, setDecade, status, setStatus })
     })
   }, [rows, term, decade, status])
 
+  // The filters as a plural noun phrase, for the empty state (IX-28).
+  const among =
+    decade || status
+      ? [
+          status === 'run' ? 'races already run' : status === 'scheduled' ? 'races still to come' : 'races',
+          decade ? `in the ${decade}s` : '',
+        ]
+          .filter(Boolean)
+          .join(' ')
+      : ''
+
+  const clear = () => {
+    setTerm('')
+    setDecade('')
+    setStatus('')
+  }
+
   return (
     <>
       <Filters showing={filtered.length} of={rows.length} noun="races">
@@ -155,6 +172,7 @@ function RaceList({ rows, term, setTerm, decade, setDecade, status, setStatus })
         sortable={false}
         page={120}
         columns={RACE_COLUMNS.map((column) => ({ ...column, ...APP[column.key] }))}
+        empty={<NoMatch noun="race" term={term} among={among} onClear={clear} />}
         footer={RACES_FOOTER}
       />
     </>
