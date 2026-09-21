@@ -284,6 +284,9 @@ export default function Sql() {
                 data={state.data}
                 page={200}
                 raw
+                // The result's shape is the statement's shape: a column the
+                // reader selected stays, even where every row agrees on it.
+                collapse={false}
                 // The one table on the site the page's own heading would name
                 // wrongly: "SQL console" is where the reader is, not what they
                 // are looking at.

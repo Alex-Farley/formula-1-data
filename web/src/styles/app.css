@@ -879,6 +879,21 @@ tbody td.strong {
   font-weight: 600;
 }
 
+/*
+ * What a table no longer repeats (VD-29).
+ *
+ * A column every row agreed on is stated here once, above the table, so the
+ * fact is not lost with the column. It takes the margin `.section > h2 +
+ * .table-wrap` would have given the table itself, because it now stands
+ * between the two and that adjacency rule no longer matches.
+ */
+.table-shared {
+  margin: 8px 0 10px;
+  max-width: var(--measure);
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+
 .table-foot {
   padding: 9px 14px;
   border-top: 1px solid var(--rule);

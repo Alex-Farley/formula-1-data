@@ -51,6 +51,7 @@ import { fileURLToPath } from 'node:url'
 // app's own cell text — text() in lib/format.js — for the tables below
 // that are drawn from a page's column list.
 import { finished, missing, result, span, text as formatted, yearList } from '../src/lib/format.js'
+import { shared, sharedLine } from '../src/lib/table.js'
 // The ONE attribution rule (web/src/lib/commons.js), not a second copy of it.
 // This script cannot import CommonsImage - that is a React component and this
 // file emits HTML - but the question it answers, "who is credited and may this
@@ -402,22 +403,35 @@ const table = (headers, rows, options = {}) => {
 // A column with a React-only `render` and no `text` falls back to the
 // formatted raw value here; a render that changes the text must come with a
 // matching `text`, or the two renderers part.
-const fromColumns = (columns, rows, links = {}) =>
-  table(
-    // A column marked srOnly names itself to a screen reader only, as the
-    // app's does: the classification's rail has a header and no visible word.
-    columns.map((c) => (c.srOnly ? { html: `<span class="sr-only">${esc(c.label)}</span>` } : c.label)),
-    rows.map((row) =>
-      columns.map((c) => {
-        const value = row[c.key]
-        // Own properties only: a column keyed `constructor` would otherwise
-        // find Object.prototype.constructor and print "[object Object]".
-        if (Object.hasOwn(links, c.key)) return links[c.key](value, row)
-        return esc(c.text ? c.text(value, row) : formatted(value))
-      }),
-    ),
-    { aligns: columns.map((c) => c.align ?? '') },
+const fromColumns = (columns, rows, links = {}) => {
+  // The columns every row agreed on are said once above the table and dropped
+  // from it (VD-29). `links` is this half's renders, so a linked cell is left
+  // alone here exactly as a `render` is in DataTable.jsx - the two halves must
+  // lose the same columns or smoke.mjs's comparison fails, which is what makes
+  // one module the only place the rule is written.
+  const { columns: kept, shared: constants } = shared(columns, rows, {
+    rendered: (c) => Object.hasOwn(links, c.key),
+  })
+  const line = constants.length ? `<p class="table-shared">${esc(sharedLine(constants, rows.length))}</p>` : ''
+  return (
+    line +
+    table(
+      // A column marked srOnly names itself to a screen reader only, as the
+      // app's does: the classification's rail has a header and no visible word.
+      kept.map((c) => (c.srOnly ? { html: `<span class="sr-only">${esc(c.label)}</span>` } : c.label)),
+      rows.map((row) =>
+        kept.map((c) => {
+          const value = row[c.key]
+          // Own properties only: a column keyed `constructor` would otherwise
+          // find Object.prototype.constructor and print "[object Object]".
+          if (Object.hasOwn(links, c.key)) return links[c.key](value, row)
+          return esc(c.text ? c.text(value, row) : formatted(value))
+        }),
+      ),
+      { aligns: kept.map((c) => c.align ?? '') },
+    )
   )
+}
 
 /**
  * Label/value rows, as components/Page.jsx's <Fields> draws them.

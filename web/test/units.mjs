@@ -18,6 +18,8 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
+import { MIN_ROWS, cellText, shared, sharedLine } from '../src/lib/table.js'
+
 import {
   CURRENT_SEASON_SQL,
   anyThisSeason,
@@ -1225,5 +1227,77 @@ describe('one season, one label, on all four registers (IA-19)', () => {
   it('anchors on the declared season, never a MAX() over the records', () => {
     assert.match(CURRENT_SEASON_SQL, /meta WHERE key = 'current_season'/)
     assert.doesNotMatch(CURRENT_SEASON_SQL, /MAX/i)
+  })
+})
+
+
+// ------------------------------------------------- columns holding nothing
+
+describe('a column every row agrees on (VD-29)', () => {
+  // Monza: five columns, of which the Grand Prix is "Italian Grand Prix" on
+  // every row and the layout is not established on any of them.
+  const monza = [
+    { year: 1950, name_used: 'Italian Grand Prix', layout_key: null, winner: 'Nino Farina' },
+    { year: 1951, name_used: 'Italian Grand Prix', layout_key: null, winner: 'Alberto Ascari' },
+    { year: 1952, name_used: 'Italian Grand Prix', layout_key: null, winner: 'Alberto Ascari' },
+    { year: 1953, name_used: 'Italian Grand Prix', layout_key: null, winner: 'Juan Manuel Fangio' },
+    { year: 1954, name_used: 'Italian Grand Prix', layout_key: null, winner: 'Juan Manuel Fangio' },
+  ]
+  const columns = [
+    { key: 'year', label: 'Season' },
+    { key: 'name_used', label: 'Grand Prix' },
+    { key: 'layout_key', label: 'Layout' },
+    { key: 'winner', label: 'Winner' },
+  ]
+
+  it('drops it from the table and states it once, missing values included', () => {
+    const { columns: kept, shared: constants } = shared(columns, monza)
+    assert.deepEqual(kept.map((c) => c.key), ['year', 'winner'])
+    assert.deepEqual(constants.map((c) => c.column.key), ['name_used', 'layout_key'])
+    assert.equal(
+      sharedLine(constants, monza.length),
+      'The same on all 5 rows: Grand Prix — Italian Grand Prix; Layout — not established.',
+    )
+  })
+
+  // The circuit page's Grand Prix cell links each row to a different race, and
+  // a driver's Constructor cell carries that season's livery colour. Both read
+  // the same on every row and neither is the same cell.
+  it('leaves a column the page renders itself alone', () => {
+    const { columns: kept, shared: constants } = shared(columns, monza, {
+      rendered: (c) => c.key === 'name_used',
+    })
+    assert.deepEqual(kept.map((c) => c.key), ['year', 'name_used', 'winner'])
+    assert.deepEqual(constants.map((c) => c.column.key), ['layout_key'])
+    // And a column that refuses in its own spec, which both renderers read.
+    const refused = shared(
+      columns.map((c) => (c.key === 'layout_key' ? { ...c, collapse: false } : c)),
+      monza,
+    )
+    assert.deepEqual(refused.shared.map((s) => s.column.key), ['name_used'])
+    assert.ok(refused.columns.some((c) => c.key === 'layout_key'))
+  })
+
+  it('says nothing about a short table, or about one it would leave a column wide', () => {
+    assert.deepEqual(shared(columns, monza.slice(0, MIN_ROWS - 1)).shared, [])
+    assert.equal(shared(columns, monza).shared.length, 2)
+    const pair = monza.map((row, i) => ({ a: i, b: 'same' }))
+    assert.deepEqual(shared([{ key: 'a' }, { key: 'b' }], pair).columns.map((c) => c.key), ['a', 'b'])
+  })
+
+  // The column's own formatter, not the raw value: two rows can hold the same
+  // `first_win` and a different span, and a formatter reads the whole row.
+  it('compares what the cell prints, not what the row stores', () => {
+    const column = { key: 'first_win', label: 'Span', text: (_, row) => `${row.first_win}-${row.last_win}` }
+    const rows = [
+      { driver: 'Ascari', first_win: 1950, last_win: 1953 },
+      { driver: 'Fangio', first_win: 1950, last_win: 1958 },
+      { driver: 'Moss', first_win: 1950, last_win: 1960 },
+      { driver: 'Brooks', first_win: 1950, last_win: 1961 },
+      { driver: 'Hawthorn', first_win: 1950, last_win: 1962 },
+    ]
+    const columns = [{ key: 'driver', label: 'Driver' }, column, { key: 'first_win', label: 'First' }]
+    assert.equal(cellText(column, rows[0]), '1950-1953')
+    assert.deepEqual(shared(columns, rows).shared.map((s) => s.column.label), ['First'])
   })
 })
