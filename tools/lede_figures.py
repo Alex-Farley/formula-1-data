@@ -12,11 +12,17 @@ CI runs, so a version difference that narrowed it to nothing would be seen
 (CD-21, CD-23, AF-63).
 
 The vocabulary below is a driver career's, and a race note borrows it whole
-rather than getting a second pattern to drift from this one. The cost is that
-it is wider than a race page's own figures - a race note stating a count of
-races is caught alongside one stating its entry count - and the cost of that
-is a rewording. subset_figures() below is driver-only: it totals a named part
-of a career against the race records, and a single round has no such subset.
+rather than getting a second pattern to drift from this one. It is therefore
+wider than a race page's own figures, on two axes. "races" is one of its
+nouns, so "one of three races held at Sebring" is caught. And the two words
+BETWEEN allows describe the driver on a driver note but need not on a race
+note, whose subject varies: "six drivers scored points" and "three cars
+shared points" are caught, though no race tile recomputes either. Both fail
+loudly at build time and both cost a rewording, which is the right way round
+for a rule that exists to keep an unrecomputed number out of a lede.
+
+subset_figures() below is driver-only: it totals a named part of a career
+against the race records, and a single round has no such subset.
 
 What counts as a figure
 -----------------------

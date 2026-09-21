@@ -65,10 +65,15 @@ RACE_CAUGHT = {
     "The 1000th World Championship race.": "1000th World Championship race",
     "Hamilton's fourth win here.": "fourth win",
     "Six points were awarded, the race stopped short of half distance.": "Six points",
-    # Wider than a race page's own figures, and deliberately so: the pattern
-    # is a driver career's vocabulary, "races" is in it, and the cost of
-    # catching a count no race page shows is a rewording.
+    # Wider than a race page's own figures on two axes, and deliberately so.
+    # "races" is one of the pattern's nouns:
     "One of three races held at Sebring.": "three races",
+    # and the two words allowed between the number and the noun describe the
+    # driver on a driver note, but need not on a race note, whose subject
+    # varies. Neither of these is a figure a race tile recomputes; both cost
+    # a rewording, which is the cheap way for the rule to be wrong.
+    "Six drivers scored points on debut.": "Six drivers scored points",
+    "Three cars shared points under the shared-drive rule.": "Three cars shared points",
 }
 
 # The two notes the database carries today, and the kinds of prose a race note

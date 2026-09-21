@@ -1331,9 +1331,13 @@ def calendar():
     # driver check reads, proved by tests/test_lede_figures.py on both of CI's
     # interpreters; the subset-figure machinery beside it totals a career and
     # has no subset to count here. It is a driver's vocabulary applied to race
-    # prose, so it is the conservative way round - a note that states a count
-    # of races is caught along with one that states a count of entries, and
-    # the cost of that is a rewording.
+    # prose, so it is the conservative way round, and wider than a race page's
+    # own figures on two axes: "races" is one of its nouns, so "one of three
+    # races held at Sebring" is caught; and it allows two words between the
+    # number and the noun, which on a driver note always describes the driver
+    # and on a race note need not - "six drivers scored points" is caught as
+    # "six drivers scored points". Both fail loudly at build time and both
+    # cost a rewording, which is the right way for this to be wrong.
     _rfigure = _lede_figures().FIGURE
     _rtyped = [f"{r[1]} r{r[2]} ({_m.group(0)})" for r in con.execute(
         "SELECT id, year, round, note FROM races WHERE note IS NOT NULL ORDER BY id")
