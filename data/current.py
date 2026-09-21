@@ -25,13 +25,56 @@ CURRENT_SEASON = 2026
 # is what the standings cross-checks run over alongside the running season.
 PREVIOUS_SEASON = CURRENT_SEASON - 1
 
-# DELIBERATELY NOT an f-string over CURRENT_SEASON. This URL is cited by the
-# PREVIOUS season's final standings as well as this one's - 31 rows of the 2025
-# classification carry it - so following the constant would silently re-point
-# last season's citation at next season's results page, and source_patterns
-# prefix-matches formula1.com, so nothing would object. The wrong citation is
-# older than this constant and is #426; the literal keeps it from spreading.
-SOURCE_F1 = "https://www.formula1.com/en/results/2026"
+# formula1.com's results are published per season AND per section, and the
+# fact each row here holds decides which page it must cite. One constant could
+# not: it carried 31 rows of the 2025 final classification, 47 race rows from
+# both seasons and the 2026 calendar, all citing the same page - and that page
+# was https://www.formula1.com/en/results/2026, which formula1.com does not
+# serve at all. The bare year path 404s; only the section pages under it
+# resolve, and the calendar lives under /en/racing/ instead (#426).
+#
+# So each season names its own pages, every one of them read and checked, and
+# NONE of them is derived from CURRENT_SEASON. A citation follows the season of
+# the row that carries it, which is what keeps last season's standings citing
+# last season's page when CURRENT_SEASON moves; and a season whose pages do not
+# exist yet - formula1.com serves /en/results/<year> for a year it has not run
+# empty, and served nothing at all for 2027 when its calendar was announced -
+# cannot acquire a citation by arithmetic. It gets one when someone reads one.
+#
+# `drivers` and `constructors` are the two standings tables, named for the
+# table_type that cites them; formula1.com calls the second one `team` in its
+# path. `races` is the season's race-by-race results, which is what the winner
+# rows cite. `calendar` is the schedule, and only a season with a calendar
+# here needs it.
+SOURCE_F1_SEASON = {
+    2025: {
+        "races": "https://www.formula1.com/en/results/2025/races",
+        "drivers": "https://www.formula1.com/en/results/2025/drivers",
+        "constructors": "https://www.formula1.com/en/results/2025/team",
+    },
+    2026: {
+        "races": "https://www.formula1.com/en/results/2026/races",
+        "drivers": "https://www.formula1.com/en/results/2026/drivers",
+        "constructors": "https://www.formula1.com/en/results/2026/team",
+        "calendar": "https://www.formula1.com/en/racing/2026",
+    },
+}
+
+
+def f1_source(year, section):
+    """The checked formula1.com page for one season and one kind of fact.
+
+    A season nobody has read a page for is a build failure rather than a
+    guessed URL: the alternative is a citation that points at a page which
+    may not exist, which is the defect this map replaced.
+    """
+    pages = SOURCE_F1_SEASON.get(year)
+    if pages is None or section not in pages:
+        raise SystemExit(
+            f"no checked formula1.com page for {year} {section!r}. Read the "
+            f"page and add it to SOURCE_F1_SEASON in data/current.py before "
+            f"the build can cite it.")
+    return pages[section]
 
 # The 2027 calendar was announced on 2026-09-16, after World Motor Sport
 # Council approval. formula1.com has no /racing/2027 or /results/2027 page
@@ -148,7 +191,7 @@ CALENDAR_2027 = [
 # new season arrives by being added to this map and to data/seasons.py, and
 # nothing in the loader names a year.
 CALENDARS = {
-    2026: (CALENDAR_2026, SOURCE_F1),
+    2026: (CALENDAR_2026, f1_source(2026, "calendar")),
     2027: (CALENDAR_2027, SOURCE_F1_2027),
 }
 

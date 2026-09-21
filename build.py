@@ -1193,7 +1193,8 @@ def _stage_16_current_season(b):
             cur.execute("""INSERT INTO standings (id, year, table_type, position, entity,
                 entity_id, team, points, as_of, confidence, source)
                 VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
-                (sid, year, tbl, pos, disp, eid, team, pts, asof, "verified", N.SOURCE_F1))
+                (sid, year, tbl, pos, disp, eid, team, pts, asof, "verified",
+                 N.f1_source(year, tbl)))
 
     # =================================================================
     # Races and race entries
@@ -1234,7 +1235,8 @@ def _stage_16_current_season(b):
         races.append({
             "year": yr, "round": rnd, "gp_name": gp, "winners": None,
             "winner_id": win, "constructor_id": cons, "chassis": None,
-            "entrant": None, "confidence": "verified", "source": N.SOURCE_F1,
+            "entrant": None, "confidence": "verified",
+            "source": N.f1_source(yr, "races"),
         })
 
     # {year: {round: calendar row}} for every season data/current.py holds a
