@@ -28,6 +28,7 @@ import {
   SPRINT,
   SPRINT_COLUMNS,
   SPRINT_FOOTER,
+  carName,
   inClassificationOrder,
   qualifyingColumns,
   raceLede,
@@ -99,7 +100,7 @@ const classificationRenders = (year) => ({
           colour={colourForEntry({ constructorId: row.constructor_id, country: row.constructor_country, year, team: name })}
           year={year}
         />
-        {row.constructor_id ? <Link to={`/constructors/${row.constructor_id}`}>{name}</Link> : cell(row.entrant ?? name)}
+        {row.constructor_id ? <Link to={`/constructors/${row.constructor_id}`}>{name}</Link> : cell(carName(row))}
       </>
     ),
   },
@@ -257,7 +258,15 @@ function RaceBody({ race, data, year, round }) {
               },
               scheduled
                 ? { label: 'Status', value: 'Scheduled', note: race.dates ?? undefined }
-                : { label: 'Winner', kind: 'name', value: nameList(winners), note: winners[0]?.constructor ?? undefined },
+                : {
+                    label: 'Winner',
+                    kind: 'name',
+                    value: nameList(winners),
+                    // The car by the classification's own rule, so the tile,
+                    // the standfirst above it and the table below it name the
+                    // same one on the eleven Indianapolis 500s (AF-64).
+                    note: carName(winners[0]) ?? undefined,
+                  },
               scheduled ? null : { label: 'Pole', kind: 'name', value: nameList(poles) },
               scheduled || !startedFirst
                 ? null
