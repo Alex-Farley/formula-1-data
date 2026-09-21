@@ -252,14 +252,19 @@ export const raceSentence = (race, winners) => {
  * sentence, written once and read by both, so the description and the
  * standfirst cannot come to disagree.
  *
- * A blank note is not a note. `note` has no NOT NULL or length constraint,
- * so an empty string would otherwise render an empty lede rather than
- * falling through to the sentence. The trimmed string is what is returned as
- * well as what is tested: deciding on one string and showing another is how
- * the two would come to disagree. lede() in queries/driver.js is the same
- * rule for the same reason.
+ * What counts as a note is raceNote() below, so the static page can ask the
+ * same question before deciding whether it has already printed one. lede() in
+ * queries/driver.js is the same rule for the same reason.
  */
-export const raceLede = (race, winners) => {
-  const written = race.note == null ? '' : String(race.note).trim()
-  return written || raceSentence(race, winners)
-}
+export const raceLede = (race, winners) => raceNote(race) || raceSentence(race, winners)
+
+/**
+ * The note a person wrote on this round, or '' where nobody did.
+ *
+ * A blank note is not a note: `note` has no NOT NULL or length constraint, so
+ * an empty string would otherwise render an empty lede rather than falling
+ * through to the sentence. Read here rather than decided twice - the static
+ * page also has to know whether the lede it is printing is the note, and two
+ * copies of this rule are how the two would come to disagree.
+ */
+export const raceNote = (race) => (race.note == null ? '' : String(race.note).trim())

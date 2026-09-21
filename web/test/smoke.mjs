@@ -904,6 +904,17 @@ try {
       .replace(/&quot;/g, '"')
       .replace(/&amp;/g, '&')
     is(staticNote, written, 'the static page does not overwrite the note with the derived sentence')
+    // And says it once. The note was a bare paragraph below the timetable in
+    // the static half and the lede in the app; the lede is the note in both
+    // now, so a second copy would be the same words twice on one page.
+    // As element text, so the meta description - which carries the note as
+    // well as the derived sentence, on purpose - is not counted.
+    const staticRaceHtml = await (await fetch(`${BASE}/races/2026/16`)).text()
+    is(
+      staticRaceHtml.split(`>${written}<`).length - 1,
+      1,
+      'and prints it once, not once as the lede and again below',
+    )
     // AF-03: the race page draws the F1DB layout the round runs, named in
     // the drawing's accessible name, and the static page carries the same.
     const layout = one('SELECT f1db_layout_id FROM races WHERE year = 2026 AND round = 16')
