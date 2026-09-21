@@ -1,14 +1,22 @@
 """
-The figure a driver's note must not state, as one compiled pattern.
+The figure a lede must not state, as one compiled pattern.
 
-`drivers.notes` is read as the page's lede and its meta description. A figure
-the page derives - starts, entries, wins, poles, podiums, points, fastest
-laps, titles - belongs to the strip beside the lede, where it cannot go
-stale: Amon's note said 96 starts beside a strip that counted 108, and
-Montoya's said a fourth start where the race records held a third. verify.py
-fails the build on any note this pattern matches; tests/test_lede_figures.py
-proves what it matches on every interpreter CI runs, so a version difference
-that narrowed it to nothing would be seen (CD-21, CD-23).
+`drivers.notes` and `races.note` are each read as their page's lede and part
+of its meta description. A figure the page derives - starts, entries, wins,
+poles, podiums, points, fastest laps, titles - belongs to the strip beside the
+lede, where it cannot go stale: Amon's note said 96 starts beside a strip that
+counted 108, and Montoya's said a fourth start where the race records held a
+third. verify.py fails the build on any note this pattern matches, in either
+column; tests/test_lede_figures.py proves what it matches on every interpreter
+CI runs, so a version difference that narrowed it to nothing would be seen
+(CD-21, CD-23, AF-63).
+
+The vocabulary below is a driver career's, and a race note borrows it whole
+rather than getting a second pattern to drift from this one. The cost is that
+it is wider than a race page's own figures - a race note stating a count of
+races is caught alongside one stating its entry count - and the cost of that
+is a rewording. subset_figures() below is driver-only: it totals a named part
+of a career against the race records, and a single round has no such subset.
 
 What counts as a figure
 -----------------------

@@ -1,10 +1,16 @@
 """
 What the lede check catches, proved on every interpreter CI runs.
 
-verify.py fails the build when a driver's note states a figure the page
-derives. The pattern is a scoped-flag regular expression whose behaviour
-across Python versions the review of #79 could only reason about; these
-cases make both interpreters demonstrate it (CD-23).
+verify.py fails the build when a driver's note, or a race's, states a figure
+the page derives. The pattern is a scoped-flag regular expression whose
+behaviour across Python versions the review of #79 could only reason about;
+these cases make both interpreters demonstrate it (CD-23).
+
+The race cases below are the second half of that (AF-63). `races.note` reuses
+the driver pattern whole rather than growing a second one to drift from it, so
+what needs demonstrating is that a driver's vocabulary still reads race prose:
+that it catches the figures a race page derives, and that it leaves the prose
+a race note is actually for - a venue, a homologation, a stoppage - alone.
 """
 import os
 import sys
@@ -50,6 +56,34 @@ LEFT_ALONE = [
 ]
 
 
+# A race page derives its entry count, the classified count beside it and the
+# count on every section heading, and the site's own records pages derive the
+# rest: a note that states one of those is the figure that goes stale.
+RACE_CAUGHT = {
+    "Twenty entries, the smallest field since 1958.": "Twenty entries",
+    "Ferrari's 100th win.": "100th win",
+    "The 1000th World Championship race.": "1000th World Championship race",
+    "Hamilton's fourth win here.": "fourth win",
+    "Six points were awarded, the race stopped short of half distance.": "Six points",
+    # Wider than a race page's own figures, and deliberately so: the pattern
+    # is a driver career's vocabulary, "races" is in it, and the cost of
+    # catching a count no race page shows is a rewording.
+    "One of three races held at Sebring.": "three races",
+}
+
+# The two notes the database carries today, and the kinds of prose a race note
+# is for. None of it states a total, and none of it may fail the build.
+RACE_LEFT_ALONE = [
+    "The Bahrain Grand Prix of 2026 is hosted at Sepang, Malaysia.",
+    "The Turkish Grand Prix of 2027 is subject to FIA circuit homologation.",
+    "Stopped after 31 laps and not restarted.",
+    "Held over two heats, the results aggregated.",
+    "Run on the Saturday because of a local election.",
+    "The grid was set by the sprint.",
+    "Half points were awarded.",
+]
+
+
 class LedeFigures(unittest.TestCase):
     def test_a_stated_total_is_caught_whole(self):
         for note, expected in CAUGHT.items():
@@ -58,6 +92,16 @@ class LedeFigures(unittest.TestCase):
 
     def test_a_note_that_states_no_total_is_left_alone(self):
         for note in LEFT_ALONE:
+            with self.subTest(note=note):
+                self.assertIsNone(figure(note))
+
+    def test_a_race_note_may_not_state_a_figure_the_page_derives(self):
+        for note, expected in RACE_CAUGHT.items():
+            with self.subTest(note=note):
+                self.assertEqual(figure(note), expected)
+
+    def test_the_prose_a_race_note_is_for_is_left_alone(self):
+        for note in RACE_LEFT_ALONE:
             with self.subTest(note=note):
                 self.assertIsNone(figure(note))
 

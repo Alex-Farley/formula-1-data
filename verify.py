@@ -1319,6 +1319,28 @@ def calendar():
     check("the display date and the ISO date never disagree", disagree == 0,
           f"{disagree} disagree")
 
+    # `note` is the standfirst of a race's page and part of its meta
+    # description (CD-03), which is the job drivers.notes does on a driver's,
+    # so it is held to the driver's rule: a figure the page derives - its
+    # entry count, the classified count beside it, the count on every section
+    # heading - belongs to the strip of tiles under the lede, where it is
+    # recomputed from the records every build and cannot go stale. Amon's note
+    # said 96 starts beside a strip that counted 108 (CD-21, CD-23), and
+    # nothing applied that rule to the largest page type until now (AF-63).
+    # The pattern is tools/lede_figures.py, the one compiled expression the
+    # driver check reads, proved by tests/test_lede_figures.py on both of CI's
+    # interpreters; the subset-figure machinery beside it totals a career and
+    # has no subset to count here. It is a driver's vocabulary applied to race
+    # prose, so it is the conservative way round - a note that states a count
+    # of races is caught along with one that states a count of entries, and
+    # the cost of that is a rewording.
+    _rfigure = _lede_figures().FIGURE
+    _rtyped = [f"{r[1]} r{r[2]} ({_m.group(0)})" for r in con.execute(
+        "SELECT id, year, round, note FROM races WHERE note IS NOT NULL ORDER BY id")
+        if (_m := _rfigure.search(r[3]))]
+    check("no race note states a figure the page derives",
+          not _rtyped, "; ".join(_rtyped[:6]))
+
 
 @section('ENTRIES')
 def entries():
