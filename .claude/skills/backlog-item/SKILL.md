@@ -143,11 +143,18 @@ back), stopped or skipped (status back), or dropped from the group (status
 back). An issue left at *In progress* is one `next.py` never returns, so it
 is out of the queue until a person moves it by hand.
 
-The one exception is a usage limit: a `LIMIT:` return leaves the group *at*
-*In progress* on purpose, because the next fork picks the work up from the
-open PR and needs to see it is taken. Until that PR exists the only record of
-the group is the board — the branch is named for the head alone — so a fork
-inheriting a worktree reads `next.py`'s *In progress elsewhere* footer first.
+There are two exceptions, and both leave the group *at* *In progress* on
+purpose. A usage limit: a `LIMIT:` return leaves it there because the next
+fork picks the work up from the open PR and needs to see it is taken. And
+**the secondary rate limiter refusing the board**: there the status cannot be
+put back, because putting it back *is* a board write and the board is what is
+being refused. Say so in the `STOP:` line, so a person reading it knows the
+item is claimed and why nothing moved it.
+
+Until a PR exists the only record of the group is the board — the branch is
+named for the head alone — so a fork inheriting a worktree reads `next.py`'s
+*In progress elsewhere* footer first, and `start-check.sh` prints the open
+PRs and worktrees before that.
 
 Every issue in the group gets `file.py status <n> "In progress"` when the
 worktree opens and a `Closes #<n>` line of its own in the PR body. The branch
@@ -351,8 +358,11 @@ non-critical credential — with `file.py blocked <n> "<what>"`, and leave the
 repository clean: no worktree, no open PR, no half-edited file.
 
 **Put every issue's status back before you stop or skip**, the head and each
-companion. An item left at *In progress* is one `next.py` never returns, and
-that is the one way this loop loses work.
+companion — except on the two returns that declare otherwise above, a
+`LIMIT:` and the limiter refusing the board, where the call that would put it
+back is the call being refused. An item left at *In progress* for any other
+reason is one `next.py` never returns, and that is the one way this loop
+loses work.
 
 ## The result
 

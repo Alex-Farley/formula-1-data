@@ -109,11 +109,24 @@ def fake_board_rows():
 
 
 def fake_gh(*args):
-    """`gh` as next.py calls it for the issues. The board is its own read."""
-    return [{"number": n, "title": t, "body": b,
-             "labels": [{"name": f"size: {size}"}] + [{"name": x} for x in extra],
-             "url": f"https://example.invalid/{n}"}
-            for n, _, t, size, extra, b in QUEUE]
+    """`gh` as next.py calls it for the issues. The board is its own read.
+
+    The `--json` field list is honoured rather than ignored, so a body is
+    returned only where `load()` asked for one. Without that the fixture
+    hands back bodies whatever is requested, `bodies=True` is decoration,
+    and the tests below would score the same if the scorer were reading a
+    field the real call no longer fetches (found in review).
+    """
+    wanted = args[args.index("--json") + 1].split(",")
+    rows = []
+    for n, _, t, size, extra, b in QUEUE:
+        row = {"number": n, "title": t,
+               "labels": [{"name": f"size: {size}"}] + [{"name": x} for x in extra],
+               "url": f"https://example.invalid/{n}"}
+        if "body" in wanted:
+            row["body"] = b
+        rows.append(row)
+    return rows
 
 
 class GroupingProposals(unittest.TestCase):

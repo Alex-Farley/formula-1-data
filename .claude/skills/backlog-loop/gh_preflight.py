@@ -51,20 +51,27 @@ UNAUTH = "gh ran but could not confirm a working credential"
 TOO_OLD = "gh is on PATH but too old for these scripts"
 LIMITED = "GitHub refused the call, and calling again extends the refusal"
 
-# A gh failure a second attempt cannot improve on, matched against an
-# arbitrary call's stderr. The secondary rate limiter is the one that
-# matters: it is not a bucket `gh api rate_limit` reports - every one of
-# those read full while it was active, on 2026-09-14 and again on
-# 2026-09-21 - it refuses every GraphQL call while it lasts, and each
-# further attempt extends it `[D-27]`. The authorisation refusals are here
-# for the same reason: the answer will not change on a retry.
+# Two questions, and they are not the same question.
 #
-# One copy, because two drift. `file.py` decides with it whether an
-# `item-edit` is worth a second attempt; `next.py` uses it to say which
-# kind of failure a reader is looking at, since "gh failed" reads as
-# something to try again and trying again is the one thing that makes this
-# worse. It lived in `file.py` until `PM-44`.
-DO_NOT_RETRY = re.compile(r"rate limit|secondary|abuse detection|forbidden|not authoriz", re.I)
+# LIMITER: this is the secondary rate limiter. It is not a bucket
+# `gh api rate_limit` reports - every one of those read full while it was
+# active, on 2026-09-14 and again on 2026-09-21 - it refuses every GraphQL
+# call while it lasts, and each further attempt extends it `[D-27]`. It
+# clears on its own, so waiting is the answer and `LIMIT_HELP` says so.
+LIMITER = r"rate limit|secondary|abuse detection"
+# DO_NOT_RETRY: anything a second attempt cannot improve on, which is the
+# limiter plus the authorisation refusals. `file.py` decides with this
+# whether an `item-edit` is worth retrying, and the answer for both halves
+# is no.
+#
+# `next.py` asks the narrower question instead, and must: an OAuth App
+# access restriction says "forbidden" and never clears, so telling an
+# operator to wait it out would be telling them to wait for ever, and
+# would suppress the one diagnosis that names it. Found in review. The
+# union is built from LIMITER rather than written out again, so the two
+# cannot drift apart. Both lived in `file.py` until `PM-44`.
+DO_NOT_RETRY = re.compile(rf"{LIMITER}|forbidden|not authoriz", re.I)
+LIMITER = re.compile(LIMITER, re.I)
 
 # Matched against `gh auth status` only - its own wording, not an arbitrary
 # command's stderr, which is why this is a pattern at all. See

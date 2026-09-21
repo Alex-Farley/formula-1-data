@@ -132,6 +132,18 @@ NOISE = 4            # see below
 # should be instead is open, and filed.
 
 
+def die(said):
+    """Exit 2 - "gh could not answer" - with a reason.
+
+    Not the bare `sys.exit("...")` this was written with, which exits **1**,
+    and 1 is the code the docstring reserves for "there is no open item": a
+    board that could not be read would have been indistinguishable from a
+    queue that is finished. Found in review, and it is the same distinction
+    `run()` draws two functions above."""
+    sys.stderr.write(f"{said}\n")
+    sys.exit(2)
+
+
 def run(*args):
     """`gh`, returning stdout as text. The one failure path every read shares.
 
@@ -152,11 +164,16 @@ def run(*args):
         # rejected token from an API it could not reach, so a secondary rate
         # limit would otherwise be answered with "go and fetch a new PAT".
         sys.stderr.write(r.stderr)
-        if gh_preflight.DO_NOT_RETRY.search(r.stderr):
+        if gh_preflight.LIMITER.search(r.stderr):
             # Asked before `unauthenticated()`, which spends another call on
             # a limiter that counts it and would answer "no credential"
             # whatever the truth is - it cannot tell a rejected token from an
             # API it could not reach, and says so.
+            #
+            # The limiter alone, not the whole of `DO_NOT_RETRY`: an
+            # authorisation refusal is also not worth retrying, but it does
+            # not clear on its own, so it belongs on the path below that
+            # names the credential rather than on the one that says wait.
             sys.stderr.write(gh_preflight.limit_note())
             sys.exit(3)
         if gh_preflight.unauthenticated():
@@ -213,23 +230,24 @@ def board_rows():
     decoded as a stream and not parsed whole."""
     raw = run("api", "graphql", "--paginate", "-F", f"owner={OWNER}",
               "-F", f"number={PROJECT}", "-f", f"query={BOARD_QUERY}")
-    rows, decoder, at = [], json.JSONDecoder(), 0
+    rows, decoder, at, pages = [], json.JSONDecoder(), 0, 0
     while at < len(raw):
         while at < len(raw) and raw[at].isspace():
             at += 1
         if at >= len(raw):
             break
         page, at = decoder.raw_decode(raw, at)
+        pages += 1
         if page.get("errors"):
             # GraphQL answers 200 with errors beside a partial `data`, and
             # `gh` does not always exit non-zero on it. A board missing its
             # tail is indistinguishable from a complete one in the output,
             # which is the failure gh_preflight refuses by name: a traceback
             # is honest, a plausible wrong answer is not.
-            sys.exit(f"the board read returned errors: {json.dumps(page['errors'])}")
+            die(f"the board read returned errors: {json.dumps(page['errors'])}")
         project = ((page.get("data") or {}).get("user") or {}).get("projectV2")
         if project is None:
-            sys.exit(f"no ProjectsV2 number {PROJECT} for user {OWNER}")
+            die(f"no ProjectsV2 number {PROJECT} for user {OWNER}")
         for node in project["items"]["nodes"]:
             content = node.get("content") or {}
             # A draft item or a pull request is on the board and is not an
@@ -238,6 +256,14 @@ def board_rows():
                 continue
             rows.append((content["number"],
                          (node.get("fieldValueByName") or {}).get("name") or ""))
+    if not pages:
+        # gh exited 0 and said nothing. Every other way this read can come up
+        # short raises or exits; this one would return an empty board, and an
+        # empty board is not an error anywhere downstream - `main()` reports
+        # it as "no open item", which is how the queue says it is finished.
+        # The shortest short board is the one that has to be loudest (found
+        # in review).
+        die("the board read returned nothing; gh exited 0 with empty output")
     return rows
 
 

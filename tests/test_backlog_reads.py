@@ -62,6 +62,14 @@ class TheBoardRead(unittest.TestCase):
     def reply(self, raw):
         return mock.patch.object(next_py, "run", lambda *a: raw)
 
+    def fails_on(self, raw):
+        """(exit code, what it wrote to stderr) for a board read that cannot
+        answer. The code matters as much as the reason: see `die`."""
+        with self.reply(raw), contextlib.redirect_stderr(io.StringIO()) as said:
+            with self.assertRaises(SystemExit) as caught:
+                next_py.board_rows()
+        return caught.exception.code, said.getvalue()
+
     def test_every_page_of_a_paginated_reply_is_read(self):
         # `--paginate` concatenates one document per page rather than merging
         # them, so a reader that json.loads() the reply whole sees the first
@@ -101,19 +109,34 @@ class TheBoardRead(unittest.TestCase):
         raw = json.dumps({"data": {"user": {"projectV2": {"items": {
             "pageInfo": {"hasNextPage": False, "endCursor": None}, "nodes": [issue(1, "Now")]}}}},
             "errors": [{"message": "timeout"}]})
-        with self.reply(raw), self.assertRaises(SystemExit) as caught:
-            with contextlib.redirect_stderr(io.StringIO()):
-                next_py.board_rows()
-        self.assertIn("timeout", str(caught.exception))
+        code, said = self.fails_on(raw)
+        self.assertEqual(code, 2)
+        self.assertIn("timeout", said)
 
     def test_a_board_that_is_not_there_stops_rather_than_reading_as_empty(self):
         # An empty queue and an unreachable project must not look alike: one
         # means the loop is done, the other means it cannot start.
         raw = json.dumps({"data": {"user": None}})
-        with self.reply(raw), self.assertRaises(SystemExit) as caught:
-            with contextlib.redirect_stderr(io.StringIO()):
-                next_py.board_rows()
-        self.assertIn("ProjectsV2", str(caught.exception))
+        code, said = self.fails_on(raw)
+        self.assertEqual(code, 2)
+        self.assertIn("ProjectsV2", said)
+
+    def test_gh_exiting_0_with_nothing_to_say_is_not_an_empty_board(self):
+        # The shortest short board, and the only one that was silent: no page
+        # decodes, so every guard above is skipped, `board_rows()` returns []
+        # and `main()` reports "no open item" - which is how the queue says it
+        # is finished. Found in review.
+        for raw in ("", "   \n"):
+            code, said = self.fails_on(raw)
+            self.assertEqual(code, 2, raw)
+            self.assertIn("returned nothing", said)
+
+    def test_a_board_that_cannot_be_read_never_exits_1(self):
+        # 1 is reserved for "there is no open item", which is the loop being
+        # done. A board read that failed must not be able to say that.
+        for raw in ("", json.dumps({"data": {"user": None}}),
+                    json.dumps({"errors": [{"message": "boom"}]})):
+            self.assertEqual(self.fails_on(raw)[0], 2, raw)
 
 
 class WhatTheIssueReadAsksFor(unittest.TestCase):
@@ -203,6 +226,22 @@ class ARefusalIsNotRetried(unittest.TestCase):
                      "HTTP 403: Resource not accessible (forbidden)"):
             self.assertTrue(gh_preflight.DO_NOT_RETRY.search(said), said)
 
+    def test_an_authorisation_refusal_is_not_worth_retrying_and_is_not_the_limiter(self):
+        # Both halves say "do not try again" and only one of them clears on
+        # its own, so only one is answered with "wait". A token that has not
+        # been granted the board says forbidden and never clears: telling an
+        # operator to wait it out would be telling them to wait for ever, and
+        # would skip the diagnosis that names it. Found in review.
+        for said in ("HTTP 403: Resource not accessible by personal access token (forbidden)",
+                     "HTTP 403: not authorized to use this project"):
+            self.assertTrue(gh_preflight.DO_NOT_RETRY.search(said), said)
+            self.assertIsNone(gh_preflight.LIMITER.search(said), said)
+
+    def test_the_union_cannot_drift_from_the_narrow_pattern(self):
+        for said in ("secondary rate limit", "abuse detection", "API rate limit exceeded"):
+            self.assertTrue(gh_preflight.LIMITER.search(said), said)
+            self.assertTrue(gh_preflight.DO_NOT_RETRY.search(said), said)
+
     def test_an_ordinary_failure_is_not_read_as_a_refusal(self):
         for said in ("could not resolve host: api.github.com",
                      "GraphQL: Could not resolve to an Issue with the number 999"):
@@ -232,6 +271,19 @@ class ARefusalIsNotRetried(unittest.TestCase):
         # so against a limiter it answers "no credential" whatever the truth.
         # The mock above raises if it is called; reaching exit 3 is the proof.
         self.assertEqual(self.run_gh("secondary rate limit")[0], 3)
+
+    def test_an_authorisation_refusal_takes_the_credential_path_not_the_wait_one(self):
+        # It must reach `unauthenticated()`, which is what names it, and exit
+        # 2 rather than telling the loop to stop and come back later.
+        done = mock.Mock(returncode=1, stdout="", stderr="HTTP 403: Forbidden")
+        with mock.patch.object(next_py.subprocess, "run", return_value=done), \
+                mock.patch.object(gh_preflight, "unauthenticated", return_value=True) as asked, \
+                contextlib.redirect_stderr(io.StringIO()) as said:
+            with self.assertRaises(SystemExit) as caught:
+                next_py.run("api", "graphql")
+        self.assertEqual(caught.exception.code, 2)
+        self.assertTrue(asked.called)
+        self.assertNotIn("extends the refusal", said.getvalue())
 
     def test_an_ordinary_gh_failure_still_exits_2(self):
         with mock.patch.object(gh_preflight, "unauthenticated", return_value=False), \

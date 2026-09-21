@@ -63,10 +63,23 @@ if [ -n "${untracked}" ]; then
     printf '%s\n' "${untracked}" | sed 's/^/  /'
 fi
 
+# The open pull requests are not decoration: an open `claude/` PR is work this
+# fork is required to finish from where it stopped, and its comments are read
+# before anything else. A `gh` that cannot answer leaves that fact unknown, so
+# it refuses rather than printing "safe to start" over a gap (found in
+# review). If the limiter is what silenced it, `next.py` would stop the run a
+# moment later anyway - this just stops it here, saying which check failed.
+if ! prs=$(gh pr list --state open 2>&1); then
+    echo "start-check: could not read the open pull requests, so what is already" >&2
+    echo "in flight is unknown. Not safe to start." >&2
+    printf '%s\n' "${prs}" >&2
+    exit 2
+fi
+
 echo "start-check: primary checkout on main and clean — ${primary}"
 echo
 echo "Open pull requests:"
-gh pr list --state open || echo "  (gh could not answer; see its message above)"
+if [ -n "${prs}" ]; then printf '%s\n' "${prs}"; else echo "  (none)"; fi
 echo
 echo "Worktrees:"
 git worktree list
