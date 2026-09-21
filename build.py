@@ -724,8 +724,13 @@ def _stage_10_the_chassis_engine_and_entrant_register(b):
         harvest file records what the page said and the build records what
         survived the checks, and because this check needs no network: the
         harvest can be re-run by anyone, and this cannot be skipped.
+
+        The digit is an ASCII one, because verify.py restates this rule as a
+        GLOB and SQLite's character classes are ASCII. str.isdigit() is not:
+        it is true of a superscript two and of full-width and Arabic-Indic
+        digits, so using it here would admit a note verify.py then refuses.
         """
-        return v if v and any(c.isdigit() for c in v) else None
+        return v if v and re.search(r"[0-9]", v) else None
 
     for ch_id, f1db_cons, name, full in HV.load_chassis():
         if ch_id in chassis_car and chassis_car[ch_id] not in seen_cars:
