@@ -74,7 +74,7 @@ export function Page({ eyebrow, title, lede, back, aside, children, cite = true 
         {lede && <p className="lede">{lede}</p>}
         {aside}
       </header>
-      {children}
+      <PageTitle.Provider value={typeof title === 'string' ? title : null}>{children}</PageTitle.Provider>
       {cite && <Cite />}
     </article>
   )
@@ -151,6 +151,20 @@ function useFocusOnNavigation() {
  * out of step with the heading a reader can see.
  */
 export const SectionTitle = createContext(null)
+
+/**
+ * The h1 of the page a component is rendered inside, or null.
+ *
+ * SectionTitle's fallback. Four registers and the SQL console render their
+ * table outside any titled Section - there is nothing above it but the page's
+ * own h1 - so the mechanism above fired on fifty tables and missed the five
+ * busiest on the site: entering /drivers with a screen reader announced
+ * "table, 10 columns, 862 rows" and no name at all (AX-17). The name is taken
+ * from the heading rather than written at the call site for the same reason
+ * as SectionTitle: one string, the one already on screen, and no way for the
+ * two to drift.
+ */
+export const PageTitle = createContext(null)
 
 export function Section({ title, count, note, children, id }) {
   return (

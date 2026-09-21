@@ -284,6 +284,10 @@ export default function Sql() {
                 data={state.data}
                 page={200}
                 raw
+                // The one table on the site the page's own heading would name
+                // wrongly: "SQL console" is where the reader is, not what they
+                // are looking at.
+                caption="The result of your query"
                 empty="The statement ran and matched nothing."
                 footer={
                   state.data.rows.length > 200

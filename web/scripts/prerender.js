@@ -354,11 +354,10 @@ const note = (value) => (value ? `<p class="faint">${esc(value)}</p>` : '')
 // classes DataTable puts on its cells, so a column of figures lines up.
 const table = (headers, rows, options = {}) => {
   if (!rows.length) return ''
-  const { caption, aligns = [] } = options
+  const { aligns = [] } = options
   const cls = (i) => (aligns[i] ? ` class="${esc(aligns[i])}"` : '')
   return [
     '<div class="tablewrap"><table>',
-    caption ? `<caption>${esc(caption)}</caption>` : '',
     `<thead><tr>${headers.map((h, i) => `<th scope="col"${cls(i)}>${typeof h === 'string' ? esc(h) : h.html}</th>`).join('')}</tr></thead>`,
     '<tbody>',
     rows.map((cells) => `<tr>${cells.map((c, i) => `<td${cls(i)}>${c}</td>`).join('')}</tr>`).join(''),
@@ -928,6 +927,39 @@ const SITE_CARD = {
  * describes — and defaults to the build date, which is the right answer for
  * an index or a static route and the only answer for anything undated.
  */
+/**
+ * Give every static table the name the app's DataTable gives it (AX-17).
+ *
+ * A <caption> is how a table tells assistive technology what it holds, and no
+ * table in this half had one: entering the 862 rows of /drivers with a screen
+ * reader announced "table, 10 columns, 862 rows" and nothing else. The app
+ * takes that name from the heading that introduces the table - the enclosing
+ * Section's, or failing that the page's h1 - so this takes it from the same
+ * heading in the same position, and the two halves cannot drift apart or from
+ * the heading a reader can see. The alternative, a caption written out at each
+ * of the forty-six call sites, is forty-six strings that can each drift from
+ * the h2 on the line above it.
+ *
+ * sr-only, as the app's is, because that heading is right there to be read.
+ *
+ * A regex over markup this file generated a few lines earlier, not over
+ * markup from anywhere else: table() emits a bare `<table>` and headings are
+ * written as literal tags, so the two are unambiguous here in a way they
+ * would not be in general.
+ */
+const nameTables = (body) => {
+  let heading = ''
+  return body.replace(/<h[1-3]\b[^>]*>([\s\S]*?)<\/h[1-3]>|<table>/g, (match, text) => {
+    if (text === undefined) {
+      return heading ? `<table><caption class="sr-only">${heading}</caption>` : match
+    }
+    // The heading's own markup - a faint span of years, a link - is not part
+    // of its name; the entities esc() wrote stay as they are.
+    heading = text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+    return match
+  })
+}
+
 const page = ({ path, title, description, body, jsonld = null, trail = null, image = null, lastmod = null }) => {
   // The citation names the page by the address the canonical carries.
   pages.push({
@@ -937,7 +969,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
     jsonld,
     image,
     lastmod: stamp(lastmod),
-    html: chrome(body, trail ? crumbs(trail) : '', `${ORIGIN}${href(path)}`),
+    html: chrome(nameTables(body), trail ? crumbs(trail) : '', `${ORIGIN}${href(path)}`),
   })
 }
 
@@ -1875,7 +1907,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
         privateer for a single weekend. A blank is a figure nobody published, not a car
         with no wheelbase.</p>
       <h2>The cars with a page of their own</h2>
-      ${fromColumns(GALLERY_COLUMNS, all(GALLERY), { car: (name, row) => link(`cars/${row.id}`, name) }, { caption: 'Landmark cars' })}
+      ${fromColumns(GALLERY_COLUMNS, all(GALLERY), { car: (name, row) => link(`cars/${row.id}`, name) })}
       <h2>The chassis register</h2>
       <p>Every chassis that has started a championship Grand Prix, whether or not anybody
         has published a specification for it.</p>
@@ -1886,7 +1918,6 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
           name: (name, row) => `${link(`cars/${row.id}`, name)}${row.landmark ? ` ${tag(LANDMARK)}` : ''}`,
           constructor: (name, row) => (row.constructor_id ? link(`constructors/${row.constructor_id}`, name ?? row.constructor_id) : text(name)),
         },
-        { caption: 'Chassis register' },
       )}
       ${note(CHASSIS_FOOTER)}`,
   })

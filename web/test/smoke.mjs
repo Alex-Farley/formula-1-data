@@ -2883,6 +2883,10 @@ try {
           [...row.matchAll(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`, 'g'))].map((m) => decode(m[1]))
         const body = markup.slice(markup.indexOf('<tbody>'))
         return {
+          // AX-17: the name the table gives assistive technology, which is the
+          // heading above it in both halves. Read from the whole slice, not
+          // from the head: a <caption> is a child of <table>, before <thead>.
+          caption: decode((markup.match(/<caption[^>]*>([\s\S]*?)<\/caption>/) ?? ['', ''])[1]),
           heads: cells(markup.slice(0, markup.indexOf('</thead>')), 'th'),
           rows: [...body.matchAll(/<tr>([\s\S]*?)<\/tr>/g)].map((m) => cells(m[1], 'td')),
         }
@@ -2903,6 +2907,7 @@ try {
           const table = wrap?.querySelector('table')
           if (!table) return null
           return {
+            caption: table.querySelector('caption') ? clean(table.querySelector('caption')) : '',
             heads: [...table.querySelectorAll('thead th')].map(clean),
             rows: [...table.querySelectorAll('tbody tr')].map((tr) => [...tr.children].map(clean)),
             // The whole table's count, shown or paged away.
@@ -2922,6 +2927,11 @@ try {
         truthy(served && app, `${where}: both renderers carry the table`)
         if (!served || !app) return
         is(served.heads.join(' | '), app.heads.join(' | '), `${where}: the static headers are the app’s, in order`)
+        // AX-17. Unnamed, a table announces itself as "table, 10 columns, 862
+        // rows"; the two halves take the name from the same heading, so the
+        // check is that it is there and that it is the same one.
+        truthy(app.caption, `${where}: the app’s table names itself — “${app.caption}”`)
+        is(served.caption, app.caption, `${where}: the static table gives the same name`)
         if (prefix) {
           truthy(
             served.rows.length > 0 && served.rows.length <= app.total,

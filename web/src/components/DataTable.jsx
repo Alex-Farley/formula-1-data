@@ -1,6 +1,6 @@
 import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { EMPTY, isNumericColumn, isProseColumn, label as humanise, missing, text } from '../lib/format.js'
-import { SectionTitle } from './Page.jsx'
+import { PageTitle, SectionTitle } from './Page.jsx'
 
 /**
  * One table component for everything, from the season list to whatever a
@@ -63,6 +63,11 @@ export default function DataTable({
   const source = given ?? data?.rows ?? []
   // Read unconditionally: hooks may not sit behind the early return below.
   const sectionTitle = useContext(SectionTitle)
+  const pageTitle = useContext(PageTitle)
+  // What this table is called. An explicit `caption` where the heading above
+  // would be the wrong name for the table under it - the SQL console, whose
+  // page is not its result - and otherwise the heading that introduces it.
+  const name = caption ?? sectionTitle ?? pageTitle
   const [sort, setSort] = useState(initialSort)
   const [direction, setDirection] = useState(initialDirection)
   const [showAll, setShowAll] = useState(false)
@@ -113,7 +118,7 @@ export default function DataTable({
     }
   }, [ordered.length, showAll])
 
-  if (cols.length === 0 || (source.length === 0 && !caption)) {
+  if (cols.length === 0 || source.length === 0) {
     // "state is-empty", not bare "state". A skeleton and a Loading share that
     // class because they are both the page waiting; this is the page having
     // finished and found nothing, which is a different thing and reads
@@ -149,14 +154,12 @@ export default function DataTable({
           to scroll to; a tab stop on every table would be noise. */}
       <div className="table-scroll" ref={scroller} tabIndex={clipped ? 0 : undefined}>
         <table>
-          {/* An explicit caption is shown; the one derived from the enclosing
-              Section is not, because the reader can already see that heading
-              directly above the table and a visible copy would only repeat
-              it. Hidden, it still gives the table a name when somebody
-              enters it with a screen reader, which is the whole point. */}
-          {caption
-            ? <caption>{caption}</caption>
-            : sectionTitle && <caption className="sr-only">{sectionTitle}</caption>}
+          {/* Never shown. Whatever the name is, the reader can already see it
+              directly above the table - the Section's heading, or the page's
+              own - and a visible copy would only repeat it. Hidden, it still
+              gives the table a name when somebody enters it with a screen
+              reader, which is the whole point. */}
+          {name && <caption className="sr-only">{name}</caption>}
           <thead>
             <tr>
               {cols.map((column) => {
