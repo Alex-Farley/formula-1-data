@@ -487,9 +487,23 @@ main {
   align-items: start;
 }
 
+/* The wider-left variant, a class rather than an inline style: an inline
+   grid-template-columns outranks the stacking rule below, so the SQL console
+   stayed two columns at 320 px and its example list overflowed the page. */
+.split.uneven {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+}
+
+/* This block must stay below .split.uneven: the two rules are the same
+   specificity, so source order is what makes the stack win. */
 @media (max-width: 860px) {
-  .split {
-    grid-template-columns: 1fr;
+  /* minmax(0, 1fr), never 1fr: a bare 1fr track is floored at its content's
+     min-content width, so a wide table inside a .table-wrap pushed the track
+     past the viewport and scrolled the whole body sideways instead of
+     scrolling inside its own wrapper (1.4.10). */
+  .split,
+  .split.uneven {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
