@@ -47,7 +47,7 @@ import { fileURLToPath } from 'node:url'
 // The heading rule and the cell marks both renderers share, so the checks
 // below ask for the strings the pages compute rather than copies of them.
 import { standingsHeading, titleHeading } from '../src/queries/season.js'
-import { DOCUMENTS, NOT_YET_RUN, SO_FAR } from '../src/lib/site.js'
+import { DOCUMENTS, NOT_YET_RUN, PHOTOGRAPHS_SHOWN, SO_FAR } from '../src/lib/site.js'
 // The rule that decides who is credited and whether a file may be shown at
 // all — asked of the served HTML below rather than restated in it.
 import { attribution, canShow, fileTitle } from '../src/lib/commons.js'
@@ -1243,11 +1243,11 @@ try {
         caption: figure.querySelector('figcaption')?.textContent ?? '',
       })),
     )
-    is(team.length, 6, 'the constructor page shows six photographs')
+    is(team.length, PHOTOGRAPHS_SHOWN, `the constructor page shows ${PHOTOGRAPHS_SHOWN} photographs`)
     is(new Set(team.map((figure) => figure.subject)).size, team.length, 'each one a different Ferrari')
     const unnamed = team.filter((figure) => figure.alt !== figure.subject || /\.(jpe?g|png)$/i.test(figure.alt))
     if (unnamed.length === 0) pass('every alt names the car, not the file')
-    else unnamed.forEach((figure) => fail(`alt is "${figure.alt}" for ${figure.subject || figure.file}`))
+    else for (const figure of unnamed) fail(`alt is "${figure.alt}" for ${figure.subject || figure.file}`)
 
     const teamCredits = db.prepare(
       `SELECT file_name, licence,
@@ -1266,7 +1266,7 @@ try {
     if (teamUncredited.length === 0) {
       pass(`all ${team.length} photograph(s) carry their licence and their credit`)
     } else {
-      teamUncredited.forEach((figure) => fail(`photograph shown without full credit: ${figure.file}`))
+      for (const figure of teamUncredited) fail(`photograph shown without full credit: ${figure.file}`)
     }
   })
 
@@ -2504,7 +2504,7 @@ try {
     let shownCards = 0
     for (const id of carDirs) {
       const rows = images.all(id, id).filter(canShow)
-      const confirmed = rows.slice(0, 6).find((row) => row.name_matches === 1) ?? null
+      const confirmed = rows.slice(0, PHOTOGRAPHS_SHOWN).find((row) => row.name_matches === 1) ?? null
       const html = readFileSync(join(distDir, 'cars', id, 'index.html'), 'utf8')
       const found = /<meta property="og:image" content="([^"]+)"/.exec(html)?.[1] ?? null
       const tagged = found === null ? null : unescaped(found)
@@ -2546,7 +2546,7 @@ try {
     for (const id of withPhotos) {
       const html = readFileSync(join(distDir, 'cars', id, 'index.html'), 'utf8')
       const captions = [...html.matchAll(/<figcaption>([\s\S]*?)<\/figcaption>/g)].map((m) => m[1])
-      const expected = images.all(id, id).filter(canShow).slice(0, 6)
+      const expected = images.all(id, id).filter(canShow).slice(0, PHOTOGRAPHS_SHOWN)
       if (captions.length !== expected.length) {
         uncredited.push(`/cars/${id}: ${expected.length} photograph(s), ${captions.length} caption(s)`)
         continue
@@ -2601,7 +2601,7 @@ try {
       const file = join(distDir, at, 'index.html')
       if (!existsSync(file)) continue
       if (!prepared.has(query)) prepared.set(query, db.prepare(query))
-      const expected = prepared.get(query).all(...args).filter(canShow).slice(0, 6)
+      const expected = prepared.get(query).all(...args).filter(canShow).slice(0, PHOTOGRAPHS_SHOWN)
       const html = readFileSync(file, 'utf8')
       // The photographs only: a race page also draws the circuit's outline,
       // which is a <figure> with a caption of its own and no licence to name.

@@ -123,6 +123,18 @@ export const NOT_HELD =
 export const PHOTOGRAPHS_NOTE =
   'From Wikimedia Commons, each shown with the photographer and licence its terms require.'
 
+/**
+ * How many photographs a strip draws, and how wide each one is asked for.
+ *
+ * Both renderers claim they cannot draw a different six - components/
+ * Photographs.jsx and scripts/prerender.js - and until these were one
+ * constant that claim rested on two literals happening to agree. A strip
+ * truncated to six says "6 of 51", so the number is in the heading as well as
+ * in the slice; there is no second place for it to be wrong.
+ */
+export const PHOTOGRAPHS_SHOWN = 6
+export const PHOTOGRAPH_WIDTH = 600
+
 export const UNCHECKED_MARK = 'unchecked'
 
 export const UNCHECKED_NOTE = [

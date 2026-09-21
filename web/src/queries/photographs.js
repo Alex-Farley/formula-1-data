@@ -11,18 +11,23 @@
  *     scripts/prerender.js both run them: a static page showing a different
  *     photograph from the app's is the shape PD-19 was filed to end.
  *
- * ONE PHOTOGRAPH PER CAR
+ * ONE PHOTOGRAPH PER CAR, AND THE SCHEMA ALREADY SAYS SO
  *     These surfaces are about a team, a year or an afternoon, not about one
- *     machine, so the strip shows a row of DIFFERENT cars rather than six
- *     views of whichever car is best photographed. The best photograph of an
- *     article is the one whose file name names the car (`name_matches = 1`),
- *     and the file name breaks the tie so the same row comes back every time.
+ *     machine, so the strip is a row of DIFFERENT cars rather than six views
+ *     of whichever car is best photographed. Nothing here has to choose one:
+ *     `article_images.article` is UNIQUE (schema.sql), so the article route
+ *     holds exactly one photograph per article and a car cannot appear twice
+ *     through the images.
  *
  * AN ARTICLE, NOT A CHASSIS
- *     `article_images.chassis_id` is NULL on every one of these 623 rows; the
- *     key is the article title, and 118 articles cover more than one chassis
- *     (the Lotus 72 covers seven). Selecting through the article rather than
- *     joining chassis is what keeps one photograph one row instead of seven.
+ *     What CAN appear seven times is the same photograph. `chassis_id` is
+ *     NULL on all 623 of these rows, so the key is the article title, and 118
+ *     articles cover more than one chassis — the Lotus 72 covers seven. A
+ *     query that joined `chassis` and then selected the images would hand
+ *     back that photograph once per chassis. So each query below folds the
+ *     chassis into their articles FIRST, in a CTE, and joins one row to one
+ *     row: that is the whole of the deduplication, and it is why there is no
+ *     DISTINCT here to wonder about.
  *
  * WHAT COMES FIRST
  *     Six of forty is a choice about which six, so each query orders by what
@@ -32,21 +37,6 @@
  *     finished that afternoon. `article` last in every one of them, because a
  *     tie has to break the same way in both renderers.
  */
-
-/**
- * The best photograph of each article — the filter the three queries share.
- *
- * `i` is the outer row: a photograph survives only if it is the one its own
- * article would choose. That is "one per car" without a window function,
- * which keeps this the plain SQL the rest of queries/ is written in.
- */
-const BEST_OF_ITS_ARTICLE = `
-     AND i.file_name = (
-           SELECT j.file_name FROM article_images j
-            WHERE j.route = 'article' AND j.article = i.article
-            ORDER BY j.name_matches DESC, j.file_name
-            LIMIT 1)
-`
 
 /** The cars this constructor built, oldest first, one photograph each. */
 export const CONSTRUCTOR_IMAGES = `
@@ -58,7 +48,6 @@ export const CONSTRUCTOR_IMAGES = `
   SELECT i.*, built.from_year FROM article_images i
     JOIN built ON built.article = i.article
    WHERE i.route = 'article'
-     ${BEST_OF_ITS_ARTICLE}
    ORDER BY built.from_year IS NULL, built.from_year, i.article
 `
 
@@ -85,7 +74,6 @@ export const SEASON_IMAGES = `
   SELECT i.*, raced.wins, raced.entries FROM article_images i
     JOIN raced ON raced.article = i.article
    WHERE i.route = 'article'
-     ${BEST_OF_ITS_ARTICLE}
    ORDER BY raced.wins DESC, raced.entries DESC, i.article
 `
 
@@ -108,6 +96,5 @@ export const RACE_IMAGES = `
   SELECT i.*, entered.best FROM article_images i
     JOIN entered ON entered.article = i.article
    WHERE i.route = 'article'
-     ${BEST_OF_ITS_ARTICLE}
    ORDER BY entered.best, i.article
 `

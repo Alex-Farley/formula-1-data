@@ -1,7 +1,13 @@
 import CommonsImage from './CommonsImage.jsx'
 import { Section } from './Page.jsx'
 import { canShow } from '../lib/commons.js'
-import { PHOTOGRAPHS_NOTE, UNCHECKED_MARK, UNCHECKED_NOTE } from '../lib/site.js'
+import {
+  PHOTOGRAPHS_NOTE,
+  PHOTOGRAPHS_SHOWN,
+  PHOTOGRAPH_WIDTH,
+  UNCHECKED_MARK,
+  UNCHECKED_NOTE,
+} from '../lib/site.js'
 
 /**
  * The photographs section, on every surface that has one.
@@ -27,7 +33,12 @@ import { PHOTOGRAPHS_NOTE, UNCHECKED_MARK, UNCHECKED_NOTE } from '../lib/site.js
  * six times. A constructor, a season or a race is showing six different cars,
  * and unlabelled they are six red cars.
  */
-export default function Photographs({ images, limit = 6, width = 600, subjects = false }) {
+export default function Photographs({
+  images,
+  limit = PHOTOGRAPHS_SHOWN,
+  width = PHOTOGRAPH_WIDTH,
+  subjects = false,
+}) {
   const shown = images.filter(canShow)
   if (shown.length === 0) return null
   const drawn = shown.slice(0, limit)

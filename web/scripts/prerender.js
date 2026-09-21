@@ -67,6 +67,8 @@ import {
   NOT_HELD,
   NOT_YET_RUN,
   PHOTOGRAPHS_NOTE,
+  PHOTOGRAPHS_SHOWN,
+  PHOTOGRAPH_WIDTH,
   REPORT_ASK,
   REPORT_LINK,
   REPORT_PROMISE,
@@ -782,8 +784,6 @@ const CARD_WIDTH = 1200
  * can see; on a share card it is the whole impression, unlabelled, in somebody
  * else's feed.
  */
-const PHOTOGRAPHS_SHOWN = 6
-
 /**
  * The photographs section itself, as components/Photographs.jsx draws it.
  *
@@ -796,7 +796,7 @@ const PHOTOGRAPHS_SHOWN = 6
  * `subjects` is what the app's `subjects` prop is — the car a photograph is
  * of, above its credit. A car page needs none: the page is that car.
  */
-const photographSection = (rows, { subjects = false, width = 600 } = {}) => {
+const photographSection = (rows, { subjects = false, width = PHOTOGRAPH_WIDTH } = {}) => {
   const images = rows.filter(canShow)
   if (!images.length) return ''
   const drawn = images.slice(0, PHOTOGRAPHS_SHOWN)
