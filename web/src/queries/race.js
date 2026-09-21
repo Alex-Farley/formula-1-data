@@ -137,6 +137,23 @@ export const CLASSIFICATION_COLUMNS = [
   { key: 'fastest_lap', label: 'FL', align: 'num', text: fastestLapMark },
 ]
 
+/**
+ * Why a position appears twice in a classification.
+ *
+ * Both renderers mark the drivers with the "shared" tag, but only the app
+ * explained what the duplicated position meant; the static race page showed
+ * the tag and left the reader to guess that a row had been repeated in error
+ * (CD-04). A pair rather than one string because the app sets the first
+ * sentence as <strong> and the static page writes it out, the same split
+ * driver.js's pointsNote uses.
+ */
+export const SHARED_DRIVE_NOTE = {
+  head: 'This race includes a shared drive.',
+  body:
+    'Two drivers took turns in one car and both are classified in the same position, so a ' +
+    'position below appears twice. That is correct, not a duplicated row.',
+}
+
 export const CLASSIFICATION_FOOTER =
   'An empty “Out” is a retirement nobody recorded a reason for, not a driver who finished. A blank chassis is a season the team ran more than one design and no source says which car raced here.'
 

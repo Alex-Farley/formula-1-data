@@ -25,6 +25,7 @@ import {
   QUALIFYING_FOOTER,
   RACE,
   SPRINT,
+  SHARED_DRIVE_NOTE,
   SPRINT_COLUMNS,
   SPRINT_FOOTER,
   inClassificationOrder,
@@ -340,9 +341,7 @@ function RaceBody({ race, data, year, round }) {
 
       {shared && (
         <Note>
-          <strong>This race includes a shared drive.</strong> Two drivers took turns in one car and
-          both are classified in the same position, so a position below appears twice. That is
-          correct, not a duplicated row.
+          <strong>{SHARED_DRIVE_NOTE.head}</strong> {SHARED_DRIVE_NOTE.body}
         </Note>
       )}
 
