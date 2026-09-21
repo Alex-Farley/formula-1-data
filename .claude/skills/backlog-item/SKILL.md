@@ -97,7 +97,8 @@ exporters, `web/scripts/prerender.js` or a workflow `[D-19]`.
 
 Reviewer effort and turn caps are frontmatter in `.claude/agents/`. The caps
 are runaway stops, not budgets: a reviewer that hits one returns without a
-verdict line, and that is not a PASS.
+verdict line, and that is not a PASS. It gets the one respawn *Review* gives
+any result that does not lead with a verdict, and no more.
 
 ## Grouping
 
@@ -268,8 +269,10 @@ sentence. **Do not read it for what it meant.** Discard the result, spawn the
 pass again from the same brief, and take the second result's first line; if
 that one does not lead with a verdict either, the item has no review and the
 *Not a PASS* rule below applies. **One respawn, whatever the reason the first
-line is not a verdict** — a preamble above it, or a reviewer that ran out of
-turns before it wrote one. The second result settles the item either way. Interpreting one is how the rule rots: the
+line is not a verdict** — a preamble above it, silence, or a reviewer that ran
+out of turns before it wrote one; the *Not a PASS* bullets below list the
+same cases, and the two that are owed no respawn at all. The second result
+settles the item either way. Interpreting one is how the rule rots: the
 fork that reads past a preamble today is the fork that reads past a FAIL
 phrased as a sentence tomorrow `[D-37]`. Then:
 
@@ -290,10 +293,13 @@ phrased as a sentence tomorrow `[D-37]`. Then:
   of dead code needs **no further pass at all**.
 - **A review finding is not discovered work, and only one of them is an
   issue** `[D-15]`. A defect in the diff under review is fixed, not filed.
-- **Not a PASS:** silence, a rate limit, a reviewer that hit its turn cap, a
-  result whose first line is not one of the two verdict lines and whose
-  respawn's first line is not either, a quick-variant verdict without its
-  `Applied:` line, an unavailable account.
+- **Not a PASS**, and no respawn is owed: a rate limit or an unavailable
+  account. Retrying a limit extends it `[D-27]`.
+- **Not a PASS after its one respawn**, and one respawn is the whole of it:
+  any result that does not lead with one of the two verdict lines — silence,
+  a preamble above the verdict, a reviewer that hit its turn cap, a
+  quick-variant verdict without its `Applied:` line. The second result
+  settles the item, whichever of those the first was.
   If the agent dies on a session limit, return `LIMIT: resets <time>` at
   once; you cannot outlive the reset.
 - **Record the verdict as a PR comment the moment it arrives**, before the
