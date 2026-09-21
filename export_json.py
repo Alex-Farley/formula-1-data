@@ -200,11 +200,18 @@ def main():
     print(f"wrote {path}  ({os.path.getsize(path) / 1024:.0f} KB)")
 
     if "--compat" in sys.argv:
-        # The season the snapshot keys name, from the artefact rather than
-        # typed here four times over (CR-07). The keys move with it: a file
-        # whose `teams_2026` held next year's teams would be worse than one
-        # whose key changed, and this is the only reader of them.
-        SEASON = int(meta["current_season"])
+        # The season this file's keys name. FROZEN, and deliberately not
+        # meta.current_season: README calls f1_compat.json "the original v1
+        # key layout, so anything already consuming that file keeps working",
+        # and `teams_2026` is part of that layout. Following the season would
+        # rename four keys at rollover, and CI - which compares the committed
+        # file against a fresh build of the same code - would agree with
+        # itself and say nothing while an outside consumer's lookup returned
+        # nothing. web/test/conventions.mjs holds meta.database_name short of
+        # this file for the same reason; PM-22 (#165) carries both, with the
+        # version bump that makes a key change announceable. Named once here
+        # so the number is declared rather than typed nine times (CR-07).
+        SEASON = 2026
         teams = [dict(r) for r in con.execute("""
             SELECT c.name, c.full_name, c.base, c.first_entry,
                    s.position, s.points

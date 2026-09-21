@@ -199,10 +199,22 @@ def coverage():
     check("meta.current_season is the season the rows are in",
           declared_season() == current,
           f"meta says {declared_season()}, the races say {current}")
+    # The two views read meta.current_season, so it has to name a season the
+    # entry list actually covers. Deliberately "covers" and not "is the only
+    # one": the register already carries next season's calendar, and an
+    # announced grid should be an addition rather than a build failure.
     entry_years = [r[0] for r in con.execute(
         "SELECT DISTINCT year FROM season_entries ORDER BY year")]
-    check("season_entries holds the season in progress and nothing else",
-          entry_years == [current], str(entry_years))
+    check("meta.current_season is a season the entry list covers",
+          current in entry_years, f"entries for {entry_years}")
+    # meta.coverage_seasons is derived in the same final stage, off the same
+    # register. Until now nothing checked it directly - a skipped stage was
+    # caught only through coverage_note, one transitive step away.
+    lo, hi = con.execute("SELECT MIN(year), MAX(year) FROM seasons").fetchone()
+    span = con.execute(
+        "SELECT value FROM meta WHERE key = 'coverage_seasons'").fetchone()[0]
+    check("meta.coverage_seasons is the span the register holds",
+          span == f"{lo}-{hi}", f"meta says {span}, the register runs {lo}-{hi}")
     nochamp = [r[0] for r in con.execute(
         "SELECT year FROM seasons WHERE drivers_champion IS NULL AND year < ?",
         (current,))]

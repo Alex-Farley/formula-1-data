@@ -25,7 +25,13 @@ CURRENT_SEASON = 2026
 # is what the standings cross-checks run over alongside the running season.
 PREVIOUS_SEASON = CURRENT_SEASON - 1
 
-SOURCE_F1 = f"https://www.formula1.com/en/results/{CURRENT_SEASON}"
+# DELIBERATELY NOT an f-string over CURRENT_SEASON. This URL is cited by the
+# PREVIOUS season's final standings as well as this one's - 31 rows of the 2025
+# classification carry it - so following the constant would silently re-point
+# last season's citation at next season's results page, and source_patterns
+# prefix-matches formula1.com, so nothing would object. The wrong citation is
+# older than this constant and is #426; the literal keeps it from spreading.
+SOURCE_F1 = "https://www.formula1.com/en/results/2026"
 
 # The 2027 calendar was announced on 2026-09-16, after World Motor Sport
 # Council approval. formula1.com has no /racing/2027 or /results/2027 page
