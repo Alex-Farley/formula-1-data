@@ -1091,10 +1091,10 @@ try {
      * 1960. Their winning entries name a car -- "Kurtis Kraft-Offenhauser",
      * "Watson-Offenhauser" -- that no constructor row holds, so constructor_id
      * is NULL. carName() in queries/race.js falls back to the entrant, and the
-     * claim here is that every surface on the page applies it: the standfirst,
-     * the Winner tile, the classification's Constructor cell and the static
-     * fact row. Three of the four had it and the tile did not, so the page
-     * named the car above and below a blank (AF-64).
+     * claim here is that all four surfaces on the page apply it: the
+     * standfirst, the Winner tile, the classification's Constructor cell and
+     * the static Constructor fact row. Two of the four did and two did not,
+     * so the page named the car above and below a blank (AF-64).
      */
     const car = one(
       `SELECT e.entrant FROM race_entries e JOIN races r ON r.id = e.race_id
@@ -1114,6 +1114,15 @@ try {
       'the Winner tile names the car under the driver',
     )
     truthy((await text('#root main .lede')).includes(car), 'and the standfirst names it')
+    is(
+      await page.$eval('#root main table', (t) => {
+        const head = [...t.querySelectorAll('thead th')].map((th) => th.textContent)
+        const row = t.querySelector('tbody tr')
+        return row.querySelectorAll('td')[head.indexOf('Constructor')]?.textContent ?? ''
+      }),
+      car,
+      "and the classification's Constructor cell names it for the winner",
+    )
 
     const html = await (await fetch(`${BASE}/races/1950/3`)).text()
     is(

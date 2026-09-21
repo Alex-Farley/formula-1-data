@@ -1649,7 +1649,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
                 position_text: (_, row) =>
                   missing(row.finish_position) ? `<span class="tag tag-dnf">${esc(result(row))}</span>` : `<b>${esc(result(row))}</b>`,
                 driver: (name, row) => `${driverCell(name, row)}${row.shared_drive === 1 ? ` ${tag(SHARED)}` : ''}`,
-                constructor: (name, row) => (row.constructor_id ? link(`constructors/${row.constructor_id}`, name) : text(row.entrant ?? name)),
+                constructor: (name, row) => (row.constructor_id ? link(`constructors/${row.constructor_id}`, name) : text(carName(row))),
                 chassis: (name, row) => (row.chassis_id ? link(`cars/${row.chassis_id}`, name ?? row.chassis_id) : text(name)),
                 status: outCell,
                 fastest_lap: (value) =>
