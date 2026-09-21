@@ -925,3 +925,78 @@ describe('a chart series clears 3:1 on the surface figures draw on (AX-07)', () 
     })
   }
 })
+
+describe('the button carries a foreground that clears 4.5:1 on its own fill (AX-06)', () => {
+  // The rule said `color: #fff` against `background: var(--accent)`. In
+  // light that is 5.9:1; in dark the accent is #ff4757 and it was 3.34:1,
+  // under the 4.5:1 that 1.4.3 asks of 13.5px semibold text - on the one
+  // button the SQL console has, and on every primary Link that Page.jsx
+  // renders. The fix is a token, so the check is that the declarations
+  // stay tokens and that every fill/foreground pair still measures: a
+  // later theme that lightens --accent, or a hand-written hex creeping
+  // back into either rule, fails here rather than on the page.
+  const css = read(join(web, 'src', 'styles', 'tokens.css'))
+  const app = read(join(web, 'src', 'styles', 'app.css'))
+  const blocks = {
+    light: css.slice(0, css.indexOf('@media (prefers-color-scheme: dark)')),
+    osDark: css.slice(css.indexOf('@media (prefers-color-scheme: dark)'), css.indexOf(":root[data-theme='dark']")),
+    stampedDark: css.slice(css.indexOf(":root[data-theme='dark']")),
+  }
+  const tokens = (block) => Object.fromEntries([...block.matchAll(/--([a-z0-9-]+):\s*(#[0-9a-f]{6})\b/g)].map((m) => [m[1], m[2]]))
+  const luminance = (hex) => {
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+    const lin = (c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
+    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+  }
+  const contrast = (a, b) => {
+    const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x)
+    return (hi + 0.05) / (lo + 0.05)
+  }
+  // the base rule, not `.boot-strip .button`, which only resizes it
+  const rule = (selector) => {
+    const found = app.match(new RegExp(`\\n${selector.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')} \\{([^}]*)\\}`))
+    assert.ok(found, `app.css has no ${selector} rule`)
+    return found[1]
+  }
+  const varOf = (body, property) => {
+    const found = body.match(new RegExp(`(?:^|;|\\n)\\s*${property}:\\s*var\\((--[a-z0-9-]+)\\)`))
+    assert.ok(found, `${property} in "${body.trim()}" is not a var() reference`)
+    return found[1].slice(2)
+  }
+
+  const base = rule('\\.button')
+  const hover = rule('\\.button:hover')
+  const anchorHover = rule('a\\.button:hover')
+
+  it('both button rules take their colours from tokens, and the anchor hover agrees with the base', () => {
+    assert.equal(varOf(base, 'color'), varOf(anchorHover, 'color'))
+    // reading these is what proves the pairs below are the ones that ship
+    assert.ok(varOf(base, 'background'))
+    assert.ok(varOf(hover, 'background'))
+  })
+
+  it('the two dark blocks declare the same fills and foreground', () => {
+    const [a, b] = [tokens(blocks.osDark), tokens(blocks.stampedDark)]
+    for (const name of [varOf(base, 'background'), varOf(hover, 'background'), varOf(base, 'color')]) {
+      assert.equal(a[name], b[name], name)
+    }
+  })
+
+  for (const [label, block] of [['light', blocks.light], ['dark', blocks.stampedDark]]) {
+    it(`${label}: the foreground clears 4.5:1 on the resting fill and on the hover fill`, () => {
+      const t = tokens(block)
+      const fg = varOf(base, 'color')
+      // an unmatched token would make luminance() throw on undefined - a
+      // failure, but a cryptic one
+      assert.ok(t[fg], `${label} block has no six-digit --${fg}`)
+      const failing = [['resting', varOf(base, 'background')], ['hover', varOf(hover, 'background')]]
+        .map(([state, fill]) => {
+          assert.ok(t[fill], `${label} block has no six-digit --${fill}`)
+          return [state, fill, contrast(t[fg], t[fill])]
+        })
+        .filter(([, , ratio]) => ratio < 4.5)
+        .map(([state, fill, ratio]) => `${state}: --${fg} on --${fill}: ${ratio.toFixed(2)}:1`)
+      assert.deepEqual(failing, [])
+    })
+  }
+})

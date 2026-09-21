@@ -1665,7 +1665,12 @@ textarea.sql {
   font-weight: 600;
   border: 1px solid transparent;
   background: var(--accent);
-  color: #fff;
+  /* Not #fff: the accent is a light red on the dark side, and white on it
+     measured 3.34:1 — under the 4.5:1 that 1.4.3 asks of 13.5px text
+     (AX-06). --ink-invert is white in light and near-black in dark, which
+     is 5.9:1 and 5.8:1 on the fill, and 8.0:1 and 7.1:1 on the hover fill.
+     conventions.mjs measures all four against the tokens as declared. */
+  color: var(--ink-invert);
   border-radius: var(--radius-sm);
   padding: 7px 16px;
   cursor: pointer;
@@ -2510,7 +2515,7 @@ a.button {
 }
 
 a.button:hover {
-  color: #fff;
+  color: var(--ink-invert);
 }
 
 a.button.secondary:hover {
