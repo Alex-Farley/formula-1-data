@@ -12,18 +12,26 @@ import {
   AMBIGUOUS,
   AMBIGUOUS_COLUMNS,
   AMBIGUOUS_NOTE,
+  CHASSIS_COVERAGE_COLUMNS,
   CHASSIS_COVERAGE,
+  CHASSIS_NOTE,
+  CHASSIS_TITLE,
   CONFIDENCE_MIX,
   DISCREPANCIES,
   DISCREPANCIES_NOTE,
   DISCREPANCY_COLUMNS,
   GAPS,
+  GAP_COLUMNS,
+  GAP_GROUPS,
   GEOMETRY_COLUMNS,
   GEOMETRY_COVERAGE,
   GEOMETRY_FOOTER,
   IMAGES,
   LADDER,
   LADDER_NOTE,
+  MAINTAINER_NOTE,
+  PHOTOGRAPHS_UNNAMED_NOTE,
+  PHOTOGRAPH_STATS,
   PROVENANCE,
   PROVENANCE_COLUMNS,
   RECONCILIATION,
@@ -33,6 +41,7 @@ import {
   UNVERIFIED_COLUMNS,
   UNVERIFIED_FOOTER,
   disagrees,
+  photographsCatalogued,
 } from '../queries/quality.js'
 
 const SPEC = {
@@ -57,6 +66,20 @@ const pill = { render: (value) => <Confidence value={value} plain /> }
 const PROVENANCE_APP = { confidence: pill }
 const RECONCILIATION_APP = { confidence: pill }
 const AMBIGUOUS_APP = { year: { render: (year) => <Link to={`/seasons/${year}`}>{year}</Link> } }
+const GAP_APP = {
+  reader: {
+    render: (value, row) => (
+      <>
+        <p className="gap-reader">{value}</p>
+        <details className="gap-note">
+          <summary>{MAINTAINER_NOTE}</summary>
+          <p>{row.description}</p>
+          {row.resolution && <p>{row.resolution}</p>}
+        </details>
+      </>
+    ),
+  },
+}
 const withRenders = (columns, renders) =>
   columns.map((column) => ({ ...column, ...(Object.hasOwn(renders, column.key) ? renders[column.key] : {}) }))
 
@@ -89,25 +112,7 @@ function Gaps({ rows: list, title, note }) {
         rowKey={(row) => row.id}
         sortable={false}
         page={20}
-        columns={[
-          { key: 'field', label: 'Field' },
-          { key: 'area', label: 'Area', align: 'prose' },
-          {
-            key: 'reader',
-            label: 'What is missing, and why',
-            align: 'prose',
-            render: (value, row) => (
-              <>
-                <p className="gap-reader">{value}</p>
-                <details className="gap-note">
-                  <summary>Maintainer’s note</summary>
-                  <p>{row.description}</p>
-                  {row.resolution && <p>{row.resolution}</p>}
-                </details>
-              </>
-            ),
-          },
-        ]}
+        columns={withRenders(GAP_COLUMNS, GAP_APP)}
       />
     </Section>
   )
@@ -173,23 +178,9 @@ function Body({ data }) {
         </Figure>
       </Section>
 
-      <Gaps
-        rows={gaps.filter((row) => row.state === 'open')}
-        title="Open gaps"
-        note="What is missing, and what it would take to close each one. Several need a person to read something rather than a script to fetch it."
-      />
-
-      <Gaps
-        rows={gaps.filter((row) => row.state === 'position')}
-        title="Positions, not gaps"
-        note="Deliberate absences. Each is the right state for this database, stated so it is not mistaken for something unfinished."
-      />
-
-      <Gaps
-        rows={gaps.filter((row) => row.state === 'closed')}
-        title="Closed"
-        note="Gaps that have since been filled, kept so the closure is on record."
-      />
+      {GAP_GROUPS.map(({ state, title, note }) => (
+        <Gaps key={state} rows={gaps.filter((row) => row.state === state)} title={title} note={note} />
+      ))}
 
       <Section
         title="Disagreements kept rather than resolved"
@@ -230,17 +221,9 @@ function Body({ data }) {
       <Section title="Coverage">
         <div className="split">
           <Figure
-            title="Race entries that name a chassis, by decade"
-            note="A modern team runs one car all season; a 1960s constructor was a name several privateers entered several different designs under. That, not a harvest failure, is why the older decades are thinner."
-            table={{
-              rows: chassisCoverage,
-              columns: [
-                { key: 'decade', label: 'Decade', align: 'num' },
-                { key: 'race_entries', label: 'Entries', align: 'num' },
-                { key: 'with_chassis', label: 'With a chassis', align: 'num' },
-                { key: 'pct', label: '%', align: 'num' },
-              ],
-            }}
+            title={CHASSIS_TITLE}
+            note={CHASSIS_NOTE}
+            table={{ rows: chassisCoverage, columns: CHASSIS_COVERAGE_COLUMNS }}
           >
             <ColumnChart
               data={chassisCoverage.map((row) => ({
@@ -267,25 +250,10 @@ function Body({ data }) {
 
             <Section title="Photographs">
               <Stats
-                items={[
-                  { label: 'Referenced', value: number(images.total) },
-                  { label: 'File names the subject', value: number(images.named) },
-                  { label: 'Needs a person', value: number(images.unnamed) },
-                  { label: 'Distinct licences', value: number(images.licences) },
-                ]}
+                items={PHOTOGRAPH_STATS.map(({ key, label }) => ({ label, value: number(images[key]) }))}
               />
-              <p className="source-note">
-                A photograph whose file name does not name the car is not necessarily the wrong
-                photograph — most are filed under the driver. But nothing in the database can tell
-                which are not, and one article leads with a picture of police officers, so all of
-                them are held at unverified until someone looks.
-              </p>
-              <p className="source-note">
-                A further {number(images.catalogued)}, for chassis with no article of their own,
-                were filed by Commons editors under a category named for the car. A category also
-                holds replicas and show cars, so those sit a rung lower, at catalogued, and none of
-                them is shown on a car page.
-              </p>
+              <p className="source-note">{PHOTOGRAPHS_UNNAMED_NOTE}</p>
+              <p className="source-note">{photographsCatalogued(number(images.catalogued))}</p>
             </Section>
           </div>
         </div>

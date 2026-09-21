@@ -29,41 +29,10 @@ import {
   pointsNote,
   record,
   seasonRows,
+  leading,
   strip,
   teamsBySeason,
 } from '../queries/driver.js'
-
-/**
- * Which figures lead the strip (VD-28).
- *
- * Emphasis is presentation, so it is added here rather than in
- * queries/driver.js: that module says what a cell SAYS, and scripts/prerender
- * reads the same list for a static facts table that has no ranks to give.
- *
- * Wins and titles are what a reader came for, and they are the two the
- * critique named. WHICH figures a strip carries at all is PD-15 (#147),
- * settled in queries/driver.js, and still not decided here: this ranks
- * whatever the strip returns, and a lead tile that is not present is simply
- * not led.
- *
- * A ZERO NEVER LEADS, and PD-15 did not retire the rule. It dropped the four
- * results figures from the 625 pages where all four were zero, so the
- * privateer's page no longer offers a "Wins" 0 to lead with at all. It left
- * 237 strips that keep them because one of the four is non-zero, and on 121
- * of those Wins is still 0 - a driver with podiums and no win. Leading that
- * would set the one figure the driver does not have at twice the size of the
- * ones he does, which is emphasis pointing at an absence, so the test below
- * still runs on every tile. `number()` groups thousands, so it looks for a
- * digit that is not a zero rather than for the string '0'; and it fails safe
- * for everything else that could arrive here - an em dash carries no digit,
- * and a value that was somehow an element stringifies to none either, so
- * neither leads.
- */
-const LEAD_FIGURES = new Set(['Wins', 'Titles'])
-
-const worthLeading = (item) => LEAD_FIGURES.has(item.label) && /[1-9]/.test(String(item.value))
-
-const leading = (items) => items.map((item) => (worthLeading(item) ? { ...item, lead: true } : item))
 
 /**
  * What only the app adds to the shared column lists: links, the sort key
