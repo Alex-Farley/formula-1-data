@@ -107,6 +107,23 @@ export const DERIVED = `
    WHERE e.driver_id = ?
 `
 
+/**
+ * The constructors a driver entered for, most often first.
+ *
+ * Here rather than in either renderer because the opening sentence below
+ * names them and both renderers write that sentence. 377 entries name no
+ * constructor and the JOIN drops them, so a career that named none returns
+ * no row and the sentence says nothing about who it was for.
+ */
+export const DRIVER_CONSTRUCTORS = `
+  SELECT c.name, COUNT(*) AS n
+    FROM race_entries e
+    JOIN constructors c ON c.id = e.constructor_id
+   WHERE e.driver_id = ?
+   GROUP BY c.id
+   ORDER BY n DESC, c.name
+`
+
 export const BY_SEASON = `
   SELECT r.year,
          COUNT(*)                    AS entries,
@@ -457,3 +474,76 @@ export const pointsNote = (driver, derived) => ({
     "Both are right. Up to 1990 only a driver's best few results counted towards the " +
     'championship, so the published total is net of the points that were dropped.',
 })
+
+/** "Ferrari", "Ferrari and Matra", "Mercedes, McLaren and Ferrari", "Ferrari, Matra and 6 other constructors". */
+const constructorList = (names) => {
+  if (names.length <= 3) return names.length < 3 ? names.join(' and ') : `${names[0]}, ${names[1]} and ${names[2]}`
+  const rest = names.length - 2
+  return `${names[0]}, ${names[1]} and ${rest} other ${rest === 1 ? 'constructor' : 'constructors'}`
+}
+
+// Digits throughout: "best finish 4th" and "best finish 33rd" read as one
+// system, where words to twelfth and digits beyond did not.
+const ordinal = (n) => {
+  const tail = n % 10 === 1 && n % 100 !== 11 ? 'st' : n % 10 === 2 && n % 100 !== 12 ? 'nd' : n % 10 === 3 && n % 100 !== 13 ? 'rd' : 'th'
+  return `${n}${tail}`
+}
+
+/**
+ * A driver's career as one sentence, from the figures counted out of the race
+ * records - the ones the strip below it derives - and never from a stored
+ * column the page labels as published.
+ *
+ *     Entered 88 championship Grands Prix across 1979-1986 for Arrows,
+ *     Brabham and 5 other constructors; best finish 4th.
+ *
+ * `finish_position` is NULL for a DNF, a DNQ and a DNS alike, so a career
+ * with no classified finish says exactly that rather than guessing why.
+ */
+export const careerSentence = (derived, constructors, titles) => {
+  if (!derived || !derived.entries) return 'No championship race entry in the records.'
+  const when =
+    derived.first_year === derived.last_year
+      ? `in ${derived.first_year}`
+      : `across ${derived.first_year}–${derived.last_year}`
+  const who = constructors.length ? ` for ${constructorList(constructors)}` : ''
+  const entered = `Entered ${plural(derived.entries, 'championship Grand Prix', 'championship Grands Prix')} ${when}${who}`
+
+  const tally = [
+    titles ? plural(titles, 'world title') : null,
+    derived.wins ? plural(derived.wins, 'win') : null,
+    derived.podiums ? plural(derived.podiums, 'podium') : null,
+    derived.poles ? plural(derived.poles, 'pole') : null,
+  ].filter(Boolean)
+  const counted = tally.length > 1 ? `${tally.slice(0, -1).join(', ')} and ${tally.at(-1)}` : tally[0] ?? null
+
+  // A winner's best finish is the win; anyone else is described by their best
+  // result, or by the absence of one.
+  const best = derived.wins
+    ? null
+    : derived.best
+      ? `best finish ${ordinal(derived.best)}`
+      : 'no classified finish'
+
+  return `${entered}; ${[counted, best].filter(Boolean).join(', ')}.`
+}
+
+/**
+ * The opening sentence of a driver's page, in both renderers (PD-16).
+ *
+ * `notes` is the override and stays the lede wherever a person wrote one -
+ * 163 of the 862 rows. The other 699 pages opened on a strip of tiles with
+ * nothing to say what the reader was looking at; careerSentence() above says
+ * it from the race records, so the sentence is current by construction and
+ * cannot go stale the way a written figure can. That is the same rule
+ * `notes` is held to: tools/lede_figures.py fails the build on a note that
+ * states a figure the page derives.
+ *
+ * A blank note is not a note. 0 rows hold one today, and `notes` has no NOT
+ * NULL or length constraint, so an empty string would otherwise render an
+ * empty lede rather than falling through to the sentence.
+ */
+export const lede = (driver, derived, constructors) =>
+  driver.notes && String(driver.notes).trim()
+    ? driver.notes
+    : careerSentence(derived, constructors, driver.titles)

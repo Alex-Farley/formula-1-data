@@ -17,12 +17,14 @@ import {
   BY_SEASON,
   DERIVED,
   DRIVER,
+  DRIVER_CONSTRUCTORS,
   ENTRY_COLUMNS,
   RESULTS,
   SEASON_COLUMNS,
   SEASONS_FOOTER,
   SEASON_TEAMS,
   STANDINGS,
+  lede,
   pointsDiffer,
   pointsNote,
   record,
@@ -131,6 +133,7 @@ export default function Driver() {
     bySeason: [BY_SEASON, [id]],
     standings: [STANDINGS, [id]],
     results: [RESULTS, [id]],
+    constructors: [DRIVER_CONSTRUCTORS, [id]],
     seasonTeams: [SEASON_TEAMS, [id]],
     disagreements: [DRIVER_DISAGREEMENTS, [id]],
   })
@@ -164,6 +167,11 @@ function DriverBody({ driver, data }) {
     [data],
   )
   const results = rows(data, 'results')
+  // The opening sentence (PD-16). `notes` is the override and 699 of the 862
+  // rows have none; lede() writes those from the race records, in
+  // queries/driver.js so scripts/prerender.js writes the same sentence rather
+  // than a second reading of it.
+  const constructors = useMemo(() => rows(data, 'constructors').map((c) => c.name), [data])
 
   // The team a reader is most likely to want next is the one they drove for
   // last, and the season worth offering is the one they won most in.
@@ -226,7 +234,7 @@ function DriverBody({ driver, data }) {
       eyebrow="Driver"
       title={driver.full_name}
       back={{ to: '/drivers', label: 'The register' }}
-      lede={driver.notes}
+      lede={lede(driver, derived, constructors)}
       aside={
         <LiveryScheme
           colour={teamColour}

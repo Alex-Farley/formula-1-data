@@ -262,9 +262,12 @@ import {
   BY_SEASON,
   DERIVED,
   DRIVER,
+  DRIVER_CONSTRUCTORS,
   SEASON_COLUMNS,
   SEASONS_FOOTER,
   STANDINGS,
+  careerSentence,
+  lede,
   pointsDiffer,
   pointsNote,
   record,
@@ -456,62 +459,6 @@ const summarise = (value, limit = 160) => {
 }
 
 const list = (values) => values.filter(Boolean).join(', ')
-
-/** "Ferrari", "Ferrari and Matra", "Mercedes, McLaren and Ferrari", "Ferrari, Matra and 6 other constructors". */
-const constructorList = (names) => {
-  if (names.length <= 3) return names.length < 3 ? names.join(' and ') : `${names[0]}, ${names[1]} and ${names[2]}`
-  const rest = names.length - 2
-  return `${names[0]}, ${names[1]} and ${rest} other ${rest === 1 ? 'constructor' : 'constructors'}`
-}
-
-// Digits throughout: "best finish 4th" and "best finish 33rd" read as one
-// system, where words to twelfth and digits beyond did not.
-const ordinal = (n) => {
-  const tail = n % 10 === 1 && n % 100 !== 11 ? 'st' : n % 10 === 2 && n % 100 !== 12 ? 'nd' : n % 10 === 3 && n % 100 !== 13 ? 'rd' : 'th'
-  return `${n}${tail}`
-}
-
-const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
-
-/**
- * A driver's career as one sentence a search snippet can show, from the
- * figures counted out of the race records - the ones the strip at the top of
- * the page derives - and never from a stored column the page labels as
- * published. For a winner: what they won. For everyone else: what is true.
- *
- *     Entered 88 championship Grands Prix across 1979–1986 for Arrows,
- *     Brabham and 5 other constructors; best finish 4th.
- *
- * `finish_position` is NULL for a DNF, a DNQ and a DNS alike, so a career
- * with no classified finish says exactly that rather than guessing why.
- */
-const careerSentence = (derived, constructors, titles) => {
-  if (!derived || !derived.entries) return 'No championship race entry in the records.'
-  const when =
-    derived.first_year === derived.last_year
-      ? `in ${derived.first_year}`
-      : `across ${derived.first_year}–${derived.last_year}`
-  const who = constructors.length ? ` for ${constructorList(constructors)}` : ''
-  const entered = `Entered ${plural(derived.entries, 'championship Grand Prix', 'championship Grands Prix')} ${when}${who}`
-
-  const tally = [
-    titles ? plural(titles, 'world title') : null,
-    derived.wins ? plural(derived.wins, 'win') : null,
-    derived.podiums ? plural(derived.podiums, 'podium') : null,
-    derived.poles ? plural(derived.poles, 'pole') : null,
-  ].filter(Boolean)
-  const counted = tally.length > 1 ? `${tally.slice(0, -1).join(', ')} and ${tally.at(-1)}` : tally[0] ?? null
-
-  // A winner's best finish is the win; anyone else is described by their best
-  // result, or by the absence of one.
-  const best = derived.wins
-    ? null
-    : derived.best
-      ? `best finish ${ordinal(derived.best)}`
-      : 'no classified finish'
-
-  return `${entered}; ${[counted, best].filter(Boolean).join(', ')}.`
-}
 
 /**
  * A recorded source disagreement, rendered beside the fact it is about.
@@ -1500,14 +1447,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
     `SELECT rr.year, rr.round, rr.gp_name, rr.constructor_id, rr.constructor
        FROM race_results rr WHERE rr.winner_id = ? ORDER BY rr.year, rr.round`,
   )
-  // Constructors entered for, most often first; 377 entries name none.
-  const constructorsOf = db.prepare(
-    `SELECT c.name, COUNT(*) AS n
-       FROM race_entries e
-       JOIN constructors c ON c.id = e.constructor_id
-      WHERE e.driver_id = ?
-      GROUP BY c.id ORDER BY n DESC, c.name`,
-  )
+  const constructorsOf = db.prepare(DRIVER_CONSTRUCTORS)
 
   for (const { id } of register) {
     const d = one(DRIVER, id)
@@ -1522,7 +1462,8 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
     const derived = one(DERIVED, id) ?? {}
     const seasons = seasonRows(all(BY_SEASON, id), all(STANDINGS, id))
     const wins = winsOf.all(id)
-    const career = careerSentence(derived, constructorsOf.all(id).map((c) => c.name), d.titles)
+    const constructors = constructorsOf.all(id).map((c) => c.name)
+    const career = careerSentence(derived, constructors, d.titles)
     // The lede follows the derived sentence where there is room for a whole
     // sentence of it; a note that is one long sentence would otherwise be
     // cut mid-thought with an ellipsis, and the career alone is complete.
@@ -1547,13 +1488,13 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
       },
       body: `
         <h1>${esc(d.full_name)}</h1>
+        <p class="lede">${esc(lede(d, derived, constructors))}</p>
         ${facts(
           strip(d, derived).map(({ label, value, note }) => [
             label,
             value === null ? null : `${esc(value)}${note ? ` <small>${esc(note)}</small>` : ''}`,
           ]),
         )}
-        ${prose(d.notes)}
         ${disagree(careerDisagreements.all(d.full_name), 'this career')}
         ${
           wins.length
