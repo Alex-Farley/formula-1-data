@@ -2107,6 +2107,19 @@ def the_chassis_register():
                     leaked.append(f"{tbl}.{r[0]} wheelbase {r[4]} = the {y} maximum")
     check("no regulation limit is stored as a car's own figure", not leaked,
           "; ".join(leaked[:4]))
+    # The harvested power note is the article's own `power` field, which is
+    # meant to state a figure. One with no digit in it states none - the
+    # {{Racing car}} template's unfilled `NNN hp` placeholder, or a "See
+    # Table" pointing at a section of the article that does not come with the
+    # value - and power_bhp beside it is already NULL, because number()
+    # refuses the same string. build.py drops it; this is what says so.
+    # cars.power_note is curated prose, not a harvested field, and is not
+    # held to this: "peak power was never published" is a good note.
+    empty = [r[0] for r in con.execute(
+        """SELECT full_name FROM chassis WHERE power_note IS NOT NULL
+             AND power_note NOT GLOB '*[0-9]*'""")]
+    check("no harvested power note names a power without a number", not empty,
+          f"{len(empty)}: " + "; ".join(empty[:4]))
     overlaps = []
     for field in [r[0] for r in con.execute("SELECT DISTINCT field FROM regulation_limits")]:
         spans = con.execute("SELECT from_year, to_year FROM regulation_limits WHERE field = ? "
