@@ -217,7 +217,7 @@ export default function Sql() {
         {TWO_FILES} {SELF_DESCRIBING}
       </p>
 
-      <div className="split" style={{ gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)' }}>
+      <div className="split uneven">
         <div>
           <textarea
             className="sql"
