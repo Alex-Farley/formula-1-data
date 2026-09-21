@@ -494,6 +494,8 @@ main {
   grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
 }
 
+/* This block must stay below .split.uneven: the two rules are the same
+   specificity, so source order is what makes the stack win. */
 @media (max-width: 860px) {
   /* minmax(0, 1fr), never 1fr: a bare 1fr track is floored at its content's
      min-content width, so a wide table inside a .table-wrap pushed the track
