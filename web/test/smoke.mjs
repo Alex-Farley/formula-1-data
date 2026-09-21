@@ -1186,7 +1186,39 @@ try {
           html.includes('<dt>Entries (published)</dt>') && html.includes('<dt>Starts (published)</dt>'),
           'the static facts label the published figures as the app does',
         )
+
+        // PD-16: the same sentence is the page's OPENING one, in both
+        // renderers, from lede() in queries/driver.js. Before this the 699
+        // note-less pages opened straight onto the strip of tiles.
+        const staticLede = (html.match(/<h1>[^<]*<\/h1>\s*<p class="lede">([^<]*)<\/p>/)?.[1] ?? '')
+          .replace(/&#39;/g, "'")
+          .replace(/&quot;/g, '"')
+          .replace(/&amp;/g, '&')
+        truthy(
+          staticLede.startsWith(`Entered ${entries} championship Grand`),
+          `the static page opens on the derived sentence — "${staticLede}"`,
+        )
+        await go(`/drivers/${quiet.id}`, quiet.full_name)
+        is(await text('#root main .lede'), staticLede, 'and the app opens on the same sentence')
       }
+    }
+
+    // The override: a driver with a note keeps it as the lede, in both halves.
+    {
+      const written = db
+        .prepare(
+          `SELECT id, full_name, notes FROM drivers
+            WHERE notes IS NOT NULL AND TRIM(notes) <> '' ORDER BY id LIMIT 1`,
+        )
+        .get()
+      note(`\n/drivers/${written.id}  (a written note is still the lede)`)
+      await go(`/drivers/${written.id}`, written.full_name)
+      is(await text('#root main .lede'), written.notes, 'the app shows the written note, not the derived sentence')
+      const html = await (await fetch(`${BASE}/drivers/${written.id}`)).text()
+      truthy(
+        !html.includes('<p class="lede">Entered '),
+        'and the static page does not overwrite it with the derived sentence',
+      )
     }
 
   })
