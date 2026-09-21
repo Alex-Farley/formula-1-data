@@ -267,7 +267,9 @@ result whose verdict is plainly there on the second line, under a summary
 sentence. **Do not read it for what it meant.** Discard the result, spawn the
 pass again from the same brief, and take the second result's first line; if
 that one does not lead with a verdict either, the item has no review and the
-*Not a PASS* rule below applies. Interpreting one is how the rule rots: the
+*Not a PASS* rule below applies. **One respawn, whatever the reason the first
+line is not a verdict** — a preamble above it, or a reviewer that ran out of
+turns before it wrote one. The second result settles the item either way. Interpreting one is how the rule rots: the
 fork that reads past a preamble today is the fork that reads past a FAIL
 phrased as a sentence tomorrow `[D-37]`. Then:
 

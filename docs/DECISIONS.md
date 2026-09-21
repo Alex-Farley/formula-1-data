@@ -236,16 +236,16 @@ pattern can decide. Every check that moves there is one a reviewer never
 spends a turn on again, so the brief stays on judgement.
 
 ### D-37 · A result that does not lead with its verdict is refused, not read — 2026-09-21 (`PM-41`, #428)
-Four forks reported the same deviation in two days — a confirmation agent
-putting a summary sentence above its verdict line, on #407, twice on #409 and
-on #427. Each merged on substance and recorded the deviation, which was right
+Four occurrences in two days, across three forks — a confirmation agent
+putting a summary sentence above its verdict line, on #407, twice on #409 (one
+fork, two fresh contexts) and on #427. Each merged on substance and recorded the deviation, which was right
 in the moment and wrong to keep doing: the contract was being held up by a
 fork's reading rather than by the rule, and the next fork to read past a
 preamble is the one that reads past a `FAIL` phrased as a sentence.
 
-Two causes, both fixed here. The contract lived only in
-`review-prompt.md`, so a reviewer reading its own agent file found nothing
-about a verdict at all — it is now in each merge-path reviewer's *How to
+Two causes, both fixed here. The contract was stated in `SKILL.md`,
+`CONTRIBUTING.md` and the brief the fork composes, and in no agent file at
+all, so a reviewer reading its own definition found nothing about a verdict — it is now in each merge-path reviewer's *How to
 report*, and `tests/test_conventions.py` keeps it there `[D-26]`. And the
 confirmation brief asked for "one line", which is satisfied by a line
 anywhere; it now asks for the first line and says nothing goes above it.

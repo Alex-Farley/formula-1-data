@@ -376,7 +376,6 @@ class OneRuleForWhatCountsAsAStart(unittest.TestCase):
         )
 
 
-
 class TheVerdictContractIsWhereTheAgentReads(unittest.TestCase):
     """PM-41 (#428). The loop decides PASS or FAIL from the FIRST line of a
     reviewer's result, and four forks in two days met a confirmation agent
@@ -401,14 +400,21 @@ class TheVerdictContractIsWhereTheAgentReads(unittest.TestCase):
         # words each, so say what is missing and not where it isn't.
         for line in (self.PASS, self.FAIL):
             self.assertTrue(line in text, f"{what} does not give the verdict line {line}")
+    # Distinctive enough that an unrelated sentence will not satisfy them, and
+    # shared by all four files, so they double as the check that the four
+    # copies still say the same thing. A deliberate rewording updates this
+    # tuple; that is the declaration, and it is the point of the test.
+    CONTRACT = ("nothing goes above it", "discarded and the review is run again")
 
     def test_every_loop_reviewer_states_the_first_line_contract(self):
         for name in LOOP_REVIEWERS:
             rel = f".claude/agents/{name}.md"
             text = self.flat(rel)
             self.states_the_contract(rel, text, f"{name}.md")
-            self.assertTrue("first line" in text,
-                            f"{name}.md names the verdict lines without saying it leads with one")
+            for phrase in self.CONTRACT:
+                self.assertTrue(phrase in text,
+                                f"{name}.md names the verdict lines without the rule that "
+                                f"puts one first: {phrase!r} is missing")
 
     def test_both_halves_of_the_brief_ask_for_the_verdict_first(self):
         # The first-pass brief always asked for it; the confirmation brief,
@@ -422,6 +428,9 @@ class TheVerdictContractIsWhereTheAgentReads(unittest.TestCase):
             self.states_the_contract("review-prompt.md", half, f"the {what}")
             self.assertTrue(wording in half,
                             f"the {what} does not ask for the verdict first ({wording!r})")
+        self.assertTrue("nothing goes above it" in brief[cut:],
+                        "the confirmation brief no longer says what goes above the verdict "
+                        "line, which is the half PM-41 found had drifted")
 
     def test_the_item_procedure_refuses_rather_than_interprets(self):
         # The refusal is the rule; a fork left to judge an ambiguous result is
