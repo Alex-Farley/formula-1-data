@@ -152,7 +152,7 @@ function Now() {
   const { search, hash } = useLocation()
   const state = useQuery("SELECT value FROM meta WHERE key = 'current_season'")
   return (
-    <Result state={state} context="Which season is being run">
+    <Result state={state} context="The season being run could not be read">
       {(data) => {
         const year = data?.rows?.[0]?.value
         if (!year) return <Navigate to="/seasons" replace />

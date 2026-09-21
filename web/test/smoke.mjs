@@ -2130,11 +2130,22 @@ try {
       `/drivers/${one(`SELECT id FROM drivers WHERE lower(full_name) LIKE '%schumacher%' ORDER BY wins DESC LIMIT 1`)}`,
       'the winningest Schumacher is first',
     )
+    // Escape is the one way out of the palette that needs no pointer, and the
+    // only modal on the site. The route-change close (AF-60) is asserted in the
+    // landing section; this is the keyboard one, and it is here rather than
+    // there because the palette is already open at this point.
     await page.keyboard.press('Escape')
+    truthy(
+      await page
+        .waitForFunction(() => !document.querySelector('.palette'), null, { timeout: 5000 })
+        .then(() => true)
+        .catch(() => false),
+      'Escape dismisses the palette',
+    )
     await page.waitForFunction(() => document.querySelector('#root main h1')?.textContent.includes('Rindt'), null, {
       timeout: 10000,
     })
-    pass('and opens their page')
+    pass('revealing the page behind it')
 
   })
 
