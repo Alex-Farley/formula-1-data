@@ -390,6 +390,53 @@ try {
     }
 
     /**
+     * Open the search palette with the key that opens it, and prove it opened.
+     *
+     * One press is only reliable from a settled page. `/` is ignored while
+     * focus is in a field, and the palette closes itself on a route change
+     * (AF-60) — so a press made while the previous navigation is still
+     * committing either lands in a dying palette's own input or opens one the
+     * route change immediately closes, and the wait spends its whole timeout
+     * on an element that will never appear. That is what failed once in CI and
+     * passed on a re-run of the same commit (AF-61): nothing the site did
+     * wrong, and a red build either way.
+     *
+     * So press from a page with no palette on it and focus outside any field,
+     * give the press a second to produce one, and press again if it did not.
+     * Raising the timeout instead would have made the flake rarer and slower;
+     * this makes it a press that either opens the palette or says it could not.
+     */
+    const openPalette = async (target, timeout = 10000) => {
+      await target.waitForFunction(
+        () =>
+          !document.querySelector('.palette') &&
+          !/^(input|textarea|select)$/i.test(document.activeElement?.tagName ?? ''),
+        null,
+        { timeout },
+      )
+      const deadline = Date.now() + timeout
+      for (let attempt = 1; ; attempt += 1) {
+        await target.keyboard.press('/')
+        const opened = await target
+          .waitForSelector('.palette input', { timeout: 1000 })
+          .then(() => true)
+          .catch(() => false)
+        if (opened) {
+          // A retry that succeeds is a press the app swallowed from a page
+          // that was settled and had focus outside every field — the one case
+          // this loop would otherwise absorb, and the shape of a real
+          // regression rather than of the race it was written for. Said out
+          // loud rather than through note(), which is silent under --quiet
+          // and so silent in CI, which is where it would matter. It costs a
+          // line that should never be printed.
+          if (attempt > 1) console.log(`  NOTE  \`/\` opened the palette on attempt ${attempt}, not the first`)
+          return
+        }
+        if (Date.now() >= deadline) throw new Error('`/` did not open the search palette')
+      }
+    }
+
+    /**
      * The total each table on the page holds, in document order.
      *
      * Every chart carries a table of its own numbers, which is the point of the
@@ -556,8 +603,7 @@ try {
     // (AF-60): a modal is about the page it was opened on. What still has to
     // hold is the half this found -- the reader is not left on <body> with the
     // page changed under them -- so both are asserted here.
-    await held.keyboard.press('/')
-    await held.waitForSelector('.palette input', { timeout: 10000 })
+    await openPalette(held)
     await held.evaluate(() => {
       window.history.pushState({}, '', '/drivers')
       window.dispatchEvent(new PopStateEvent('popstate'))
@@ -2333,8 +2379,7 @@ try {
   // ---------------------------------------------------------------- search
 
   await section('Search', async () => {
-    await page.keyboard.press('/')
-    await page.waitForSelector('.palette input', { timeout: 10000 })
+    await openPalette(page)
     await page.fill('.palette input', 'rindt')
     // The index is one query on first open, so the list can show "no match" for a
     // frame before it lands. Wait for a real hit rather than for any row.
@@ -2342,6 +2387,12 @@ try {
     const first = await page.$eval('#palette-results li a', (node) => node.getAttribute('href'))
     is(first, '/drivers/rindt', 'search finds a driver by name')
     await page.click('#palette-results li a')
+    // Wait for what that click started. A section that leaves its own
+    // navigation in flight hands the next one a page mid-commit, which is
+    // where the `/` above used to be swallowed (AF-61).
+    await page.waitForFunction(() => document.querySelector('#root main h1')?.textContent.includes('Rindt'), null, {
+      timeout: 20000,
+    })
 
   })
 
@@ -2349,8 +2400,7 @@ try {
   // to offer Ralf, on six wins, above Michael on ninety-one, because the only
   // tie-break was the length of the name.
   await section('Search  (prominence)', async () => {
-    await page.keyboard.press('/')
-    await page.waitForSelector('.palette input', { timeout: 10000 })
+    await openPalette(page)
     await page.fill('.palette input', 'schumacher')
     await page.waitForSelector('#palette-results li a[href^="/drivers/"]', { timeout: 10000 })
     is(
