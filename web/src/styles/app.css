@@ -709,6 +709,13 @@ caption {
 }
 
 thead th {
+  /* Positioned, and above the .table-wrap[data-clipped] fade, so that a table
+     clipped at its right edge keeps its last header label legible while its
+     rows fade. Not sticky: that rule never stuck, because .table-scroll and
+     .table-wrap are both scroll containers between the th and the viewport,
+     and it was deleted rather than fixed (IX-18). */
+  position: relative;
+  z-index: 1;
   background: var(--panel);
   text-align: left;
   font-family: var(--mono);
