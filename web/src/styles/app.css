@@ -2576,10 +2576,11 @@ a.button.secondary:hover {
 /* The photographs section (PD-19). figure.photo, .photo-grid, .pill and
    .source-note are the app's own rules and reach the static page unchanged —
    which is the point, since the reader is looking at this until the database
-   opens and should not watch the page change shape when it does. What is
-   missing is the spacing <Section> gives the app and the static page has no
-   component for, and a ceiling: the grid is auto-fill from 230px, so a page
-   with one photograph would otherwise stretch it across the full measure. */
+   opens and should not watch the page change shape when it does. The section's
+   own spacing comes from .section now, like every other block here; what is
+   left is the gap under the grid and a ceiling on a tile, since the grid is
+   auto-fill from 230px and a page with one photograph would otherwise stretch
+   it across the full measure. */
 #prerendered .photo-grid {
   margin: 0 0 14px;
   grid-template-columns: repeat(auto-fill, minmax(230px, 320px));

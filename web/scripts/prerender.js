@@ -472,6 +472,17 @@ const stats = (items) => {
 // paragraph on the page to the measure and recolouring it besides (VD-01).
 const prose = (value) => (value ? `<p class="measure">${esc(value)}</p>` : '')
 
+// A standing-out note, as components/Page.jsx's <Note> draws it: a ruled
+// panel, not a paragraph. Four of these read as ordinary prose on the static
+// page while the app set them apart, which is the same second vocabulary
+// VD-01 is about.
+const noteBox = (head, body) => `<div class="note-box"><strong>${esc(head)}</strong> ${esc(body)}</div>`
+
+// What DataTable puts in place of a table it has no rows for. Without it a
+// heading stands alone announcing a table that is not there — which is what
+// a season not yet run looked like.
+const EMPTY_STATE = '<p class="state is-empty">Nothing recorded.</p>'
+
 // A Section's heading with the count beside it, as components/Page.jsx writes
 // it — including the text-node space, because the visible gap is CSS and the
 // accessible name is the text: "Open gaps12" is what a heading-by-heading
@@ -479,18 +490,6 @@ const prose = (value) => (value ? `<p class="measure">${esc(value)}</p>` : '')
 const heading = (title, count) =>
   `<h2>${esc(title)}${count === null || count === undefined ? '' : ` <span class="count">${esc(count)}</span>`}</h2>`
 
-/**
- * A figure, as charts/Figure.jsx frames one: a caption and, always, a table
- * of the same numbers.
- *
- * The drawing itself is not here — it is a React component reading a layout
- * this file has no way to run — and that is the whole of what the static
- * half is missing. THE TABLE IS NOT A FALLBACK, in Figure.jsx's own words:
- * it is the copy of the figure that a keyboard, a screen reader and anything
- * pasting it elsewhere can actually use, and it is what both halves carry.
- * It is open here rather than behind the app's disclosure, because there is
- * no chart above it to be the thing on display.
- */
 /**
  * The safety milestones, as Eras.jsx draws them: a dated timeline, not a
  * table.
@@ -515,6 +514,18 @@ const timeline = (milestones) =>
         .join('')}</div>`
     : ''
 
+/**
+ * A figure, as charts/Figure.jsx frames one: a caption and, always, a table
+ * of the same numbers.
+ *
+ * The drawing itself is not here — it is a React component reading a layout
+ * this file has no way to run — and that is the whole of what the static
+ * half is missing. THE TABLE IS NOT A FALLBACK, in Figure.jsx's own words:
+ * it is the copy of the figure that a keyboard, a screen reader and anything
+ * pasting it elsewhere can actually use, and it is what both halves carry.
+ * It is open here rather than behind the app's disclosure, because there is
+ * no chart above it to be the thing on display.
+ */
 const figure = (title, caption, body) =>
   `<figure class="figure"><figcaption><b>${esc(title)}</b><span>${esc(caption)}</span></figcaption>${body}</figure>`
 
@@ -1069,8 +1080,16 @@ const nameTables = (body) => {
       return heading ? `<table><caption class="sr-only">${heading}</caption>` : match
     }
     // The heading's own markup - a faint span of years, a link - is not part
-    // of its name; the entities esc() wrote stay as they are.
-    heading = text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+    // of its name; the entities esc() wrote stay as they are. The count goes
+    // with its contents: the app names a table from the Section's TITLE
+    // (SectionTitle in components/Page.jsx), which the count is not, so
+    // keeping it here would have a screen reader hear "Open gaps 10" on one
+    // half of the site and "Open gaps" on the other.
+    heading = text
+      .replace(/<span class="count">[\s\S]*?<\/span>/g, ' ')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
     return match
   })
   // The claim is the build's, not a sample's. The smoke suite compares the two
@@ -1368,10 +1387,13 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
         })}
         ${note(CALENDAR_FOOTER)}
         <h2>${esc(standingsHeading("Drivers'", live, after))}</h2>
-        ${fromColumns(DRIVERS_FINAL_COLUMNS, driversFinal, {
-          entity: (name, row) => (row.entity_id ? link(`drivers/${row.entity_id}`, name) : text(name)),
-        })}
-        ${driversFinal.length ? note(DRIVERS_FINAL_FOOTER) : ''}
+        ${
+          driversFinal.length
+            ? fromColumns(DRIVERS_FINAL_COLUMNS, driversFinal, {
+                entity: (name, row) => (row.entity_id ? link(`drivers/${row.entity_id}`, name) : text(name)),
+              }) + note(DRIVERS_FINAL_FOOTER)
+            : EMPTY_STATE
+        }
         <h2>${esc(standingsHeading("Constructors'", live, after))}</h2>
         ${
           constructorsFinal.length
@@ -1379,7 +1401,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
                 entity: (name, row) =>
                   `${row.entity_id ? link(`constructors/${row.entity_id}`, name) : text(name)}${row.engine_id ? ` ${tag(row.engine_id)}` : ''}`,
               }) + note(constructorsFooter(constructorsFinal.some((r) => r.engine_id)))
-            : `<p class="measure"><strong>No constructors' championship.</strong> ${esc(NO_CONSTRUCTORS_TITLE)}</p>`
+            : noteBox("No constructors' championship.", NO_CONSTRUCTORS_TITLE)
         }
         ${
           entrants.length
@@ -1609,7 +1631,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
         ${disagree(disagreements.all(`${r.year} round ${r.round}`), 'this race')}
         ${
           entries.some((e) => e.shared_drive === 1)
-            ? `<p class="note"><strong>${esc(SHARED_DRIVE_NOTE.head)}</strong> ${esc(SHARED_DRIVE_NOTE.body)}</p>`
+            ? noteBox(SHARED_DRIVE_NOTE.head, SHARED_DRIVE_NOTE.body)
             : ''
         }
         ${
@@ -1626,7 +1648,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
                   value === 1 ? `<span class="fl" aria-hidden="true">●</span><span class="sr-only">${esc(FASTEST_LAP)}</span>` : '',
               })}${note(CLASSIFICATION_FOOTER)}`
             : scheduled
-              ? '<p class="measure">This race has not been run. The classification will appear here once it has.</p>'
+              ? noteBox('This race has not been run.', 'The classification will appear here once it has.')
               : ''
         }
         ${
@@ -1765,7 +1787,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
         <h2>On the record</h2>
         ${
           pointsDiffer(d, derived)
-            ? `<p class="note"><strong>${esc(pointsNote(d, derived).head)}</strong> ${esc(pointsNote(d, derived).body)}</p>`
+            ? noteBox(pointsNote(d, derived).head, pointsNote(d, derived).body)
             : ''
         }
         ${fields([
@@ -1863,7 +1885,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
             ? `${fromColumns(TEAM_SEASON_COLUMNS, seasons, {
                 year: (year) => link(`seasons/${year}`, year),
               })}${engineSplit ? note(ENGINE_SPLIT_FOOTER) : ''}`
-            : '<p class="measure">Nothing recorded.</p>'
+            : EMPTY_STATE
         }
         ${
           wins.length
@@ -2013,7 +2035,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
                       ? link(`drivers/${row.winner_id}`, name)
                       : text(name),
               })}`
-            : '<p class="measure">Nothing recorded.</p>'
+            : EMPTY_STATE
         }`,
     })
   }
