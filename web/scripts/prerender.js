@@ -376,7 +376,7 @@ const table = (headers, rows, options = {}) => {
 // A column with a React-only `render` and no `text` falls back to the
 // formatted raw value here; a render that changes the text must come with a
 // matching `text`, or the two renderers part.
-const fromColumns = (columns, rows, links = {}, options = {}) =>
+const fromColumns = (columns, rows, links = {}) =>
   table(
     // A column marked srOnly names itself to a screen reader only, as the
     // app's does: the classification's rail has a header and no visible word.
@@ -390,7 +390,7 @@ const fromColumns = (columns, rows, links = {}, options = {}) =>
         return esc(c.text ? c.text(value, row) : formatted(value))
       }),
     ),
-    { ...options, aligns: columns.map((c) => c.align ?? '') },
+    { aligns: columns.map((c) => c.align ?? '') },
   )
 
 const facts = (pairs) => {
@@ -949,7 +949,7 @@ const SITE_CARD = {
  */
 const nameTables = (body) => {
   let heading = ''
-  return body.replace(/<h[1-3]\b[^>]*>([\s\S]*?)<\/h[1-3]>|<table>/g, (match, text) => {
+  const named = body.replace(/<h[1-3]\b[^>]*>([\s\S]*?)<\/h[1-3]>|<table>/g, (match, text) => {
     if (text === undefined) {
       return heading ? `<table><caption class="sr-only">${heading}</caption>` : match
     }
@@ -958,6 +958,12 @@ const nameTables = (body) => {
     heading = text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
     return match
   })
+  // The claim is the build's, not a sample's. The smoke suite compares the two
+  // halves on the forty routes it visits; this covers all 3,540 pages, and the
+  // way to leave a table unnamed is to write one above the page's first
+  // heading - which is a body worth stopping for rather than shipping.
+  if (/<table>(?!<caption)/.test(named)) die('prerender: a table with no heading above it, so no caption')
+  return named
 }
 
 const page = ({ path, title, description, body, jsonld = null, trail = null, image = null, lastmod = null }) => {
