@@ -3,14 +3,24 @@
 
 WHY THIS EXISTS
     `next.py` reads the whole board and every open issue on each run - two
-    GraphQL calls, both `--limit 1000`, one of them a ProjectsV2 item-list,
-    which is the expensive kind - and `file.py` spent four calls on every
-    status change. On 2026-09-14 a day of that tripped GitHub's secondary
-    rate limiter: it is not one of the buckets `/rate_limit` reports (every
-    one of those read full while it was active), it refuses every GraphQL
-    call while it lasts, and it extends if you keep trying. Grouping made the
-    pressure worse rather than better - each issue of a group needs a status
-    on the way in and another on the way out.
+    paginated GraphQL reads, one of them a ProjectsV2 item list, which is the
+    expensive kind - and `file.py` spent four calls on every status change.
+    On 2026-09-14 a day of that tripped GitHub's secondary rate limiter: it
+    is not one of the buckets `/rate_limit` reports (every one of those read
+    full while it was active), it refuses every GraphQL call while it lasts,
+    and it extends if you keep trying. Grouping made the pressure worse
+    rather than better - each issue of a group needs a status on the way in
+    and another on the way out.
+
+    It recurred on 2026-09-21 after a fourteen-item run, against a board that
+    had grown to 273 items. The cache was not the thing that had failed: what
+    had changed was the load it covers, which scales with queue size times
+    forks per hour and had grown on both axes. `PM-44` cut the reads
+    themselves rather than caching more of them - the board query now asks
+    for the two fields it uses instead of every field of every item, and the
+    issue read asks for bodies only where one is printed or scored. Neither
+    lever is this file's, and the division stands: cheaper reads here,
+    remembered ones only where staleness cannot cost anything.
 
 WHAT IS CACHED, AND WHY STALENESS CANNOT COST ANYTHING
     - The board metadata `file.py` needs - project id, Status field id, its

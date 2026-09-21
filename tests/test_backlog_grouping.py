@@ -103,21 +103,38 @@ QUEUE = [
 ]
 
 
+def fake_board_rows():
+    """The board read: (number, status) in the board's own order."""
+    return [(n, s) for n, s, _, _, _, _ in QUEUE]
+
+
 def fake_gh(*args):
-    """`gh` as next.py calls it: the board, then the open issues."""
-    if args[0] == "project":
-        return {"items": [{"status": s, "content": {"type": "Issue", "number": n}}
-                          for n, s, _, _, _, _ in QUEUE]}
-    return [{"number": n, "title": t, "body": b,
-             "labels": [{"name": f"size: {size}"}] + [{"name": x} for x in extra],
-             "url": f"https://example.invalid/{n}"}
-            for n, _, t, size, extra, b in QUEUE]
+    """`gh` as next.py calls it for the issues. The board is its own read.
+
+    The `--json` field list is honoured rather than ignored, so a body is
+    returned only where `load()` asked for one. Without that the fixture
+    hands back bodies whatever is requested, `bodies=True` is decoration,
+    and the tests below would score the same if the scorer were reading a
+    field the real call no longer fetches (found in review).
+    """
+    wanted = args[args.index("--json") + 1].split(",")
+    rows = []
+    for n, _, t, size, extra, b in QUEUE:
+        row = {"number": n, "title": t,
+               "labels": [{"name": f"size: {size}"}] + [{"name": x} for x in extra],
+               "url": f"https://example.invalid/{n}"}
+        if "body" in wanted:
+            row["body"] = b
+        rows.append(row)
+    return rows
 
 
 class GroupingProposals(unittest.TestCase):
     def setUp(self):
         self.real_gh, next_py.gh = next_py.gh, fake_gh
         self.addCleanup(setattr, next_py, "gh", self.real_gh)
+        self.real_board, next_py.board_rows = next_py.board_rows, fake_board_rows
+        self.addCleanup(setattr, next_py, "board_rows", self.real_board)
         # load() writes the queue cache. Without this the fixture's twelve
         # invented items land in the checkout's own .claude/loop, where the
         # next real `next.py VD-33` would read them back as the queue.
@@ -126,7 +143,9 @@ class GroupingProposals(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.addCleanup(setattr, cache, "DIR", cache.DIR)
         cache.DIR = self.tmp.name
-        self.ranked, _, _ = next_py.load()
+        # `bodies=True` is what `--group` passes: the scorer reads bodies, so
+        # a grouping fixture that did not ask for them would score nothing.
+        self.ranked, _, _ = next_py.load(bodies=True)
 
     def item(self, ident):
         return next(r for r in self.ranked if r["ident"] == ident)

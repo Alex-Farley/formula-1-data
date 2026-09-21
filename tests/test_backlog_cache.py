@@ -219,11 +219,15 @@ class ReadingTheQueue(CacheIsolated):
     def use(self, calls):
         def fake(*args):
             calls.append(args[0])
-            if args[0] == "project":
-                return {"items": []}
+            return []
+
+        def fake_board():
+            calls.append("board")
             return []
         self.addCleanup(setattr, next_py, "gh", next_py.gh)
+        self.addCleanup(setattr, next_py, "board_rows", next_py.board_rows)
         next_py.gh = fake
+        next_py.board_rows = fake_board
 
     def test_choosing_the_next_item_always_reads_github(self):
         # The collision the *In progress* status exists to prevent: two forks
@@ -232,14 +236,14 @@ class ReadingTheQueue(CacheIsolated):
         self.use(calls)
         next_py.load()
         next_py.load()
-        self.assertEqual(calls.count("project"), 2)
+        self.assertEqual(calls.count("board"), 2)
 
     def test_a_call_that_names_its_items_may_use_the_cache(self):
         calls = []
         self.use(calls)
         next_py.load()                       # `next.py --group` populates it
         next_py.load(allow_cache=True)       # `next.py VD-33 AX-13` reads bodies
-        self.assertEqual(calls.count("project"), 1)
+        self.assertEqual(calls.count("board"), 1)
 
     def test_a_queue_payload_of_the_wrong_shape_is_a_miss_not_a_traceback(self):
         # .claude/loop survives a branch switch, so a payload written by an
@@ -248,7 +252,7 @@ class ReadingTheQueue(CacheIsolated):
         self.use(calls)
         loop_cache.write("queue", {"rows": []})
         next_py.load(allow_cache=True)
-        self.assertEqual(calls.count("project"), 1)
+        self.assertEqual(calls.count("board"), 1)
 
     def test_a_cache_older_than_the_ttl_is_a_miss(self):
         calls = []
@@ -264,7 +268,7 @@ class ReadingTheQueue(CacheIsolated):
         with open(loop_cache.path("queue"), "w", encoding="utf-8") as f:
             json.dump(aged, f)
         next_py.load(allow_cache=True)
-        self.assertEqual(calls.count("project"), 2)
+        self.assertEqual(calls.count("board"), 2)
 
 
 class TheWiring(CacheIsolated):
@@ -279,14 +283,19 @@ class TheWiring(CacheIsolated):
 
         def fake(*args):
             self.calls.append(args[0])
-            if args[0] == "project":
-                return {"items": [{"status": st, "content": {"type": "Issue", "number": n}}
-                                  for n, st, _, _ in self.ROWS]}
+            if args[:2] == ("issue", "view"):
+                return {"body": "b"}        # `one_body`, on the bare call
             return [{"number": n, "title": t, "body": "b", "labels": [{"name": f"size: {z}"}],
                      "url": f"https://example.invalid/{n}"} for n, _, t, z in self.ROWS]
 
+        def fake_board():
+            self.calls.append("board")
+            return [(n, st) for n, st, _, _ in self.ROWS]
+
         self.addCleanup(setattr, next_py, "gh", next_py.gh)
+        self.addCleanup(setattr, next_py, "board_rows", next_py.board_rows)
         next_py.gh = fake
+        next_py.board_rows = fake_board
 
     def run_main(self, argv):
         import contextlib
@@ -295,7 +304,7 @@ class TheWiring(CacheIsolated):
             next_py.main(argv)
 
     def reads(self):
-        return self.calls.count("project")
+        return self.calls.count("board")
 
     def test_a_bare_call_and_group_choose_an_item_so_never_cache(self):
         # Both arms of the decision, each against a cache the previous call

@@ -49,6 +49,29 @@ import sys
 MISSING = "gh is not on PATH"
 UNAUTH = "gh ran but could not confirm a working credential"
 TOO_OLD = "gh is on PATH but too old for these scripts"
+LIMITED = "GitHub refused the call, and calling again extends the refusal"
+
+# Two questions, and they are not the same question.
+#
+# LIMITER: this is the secondary rate limiter. It is not a bucket
+# `gh api rate_limit` reports - every one of those read full while it was
+# active, on 2026-09-14 and again on 2026-09-21 - it refuses every GraphQL
+# call while it lasts, and each further attempt extends it `[D-27]`. It
+# clears on its own, so waiting is the answer and `LIMIT_HELP` says so.
+LIMITER = r"rate limit|secondary|abuse detection"
+# DO_NOT_RETRY: anything a second attempt cannot improve on, which is the
+# limiter plus the authorisation refusals. `file.py` decides with this
+# whether an `item-edit` is worth retrying, and the answer for both halves
+# is no.
+#
+# `next.py` asks the narrower question instead, and must: an OAuth App
+# access restriction says "forbidden" and never clears, so telling an
+# operator to wait it out would be telling them to wait for ever, and
+# would suppress the one diagnosis that names it. Found in review. The
+# union is built from LIMITER rather than written out again, so the two
+# cannot drift apart. Both lived in `file.py` until `PM-44`.
+DO_NOT_RETRY = re.compile(rf"{LIMITER}|forbidden|not authoriz", re.I)
+LIMITER = re.compile(LIMITER, re.I)
 
 # Matched against `gh auth status` only - its own wording, not an arbitrary
 # command's stderr, which is why this is a pattern at all. See
@@ -93,9 +116,27 @@ such an item from the issue itself; the loop stays off.
 """
 
 
+LIMIT_HELP = """
+This is a refusal to wait out, not a defect in the queue scripts and not
+something to poll through: the limiter extends while calls keep arriving,
+and `gh api rate_limit` will look untouched throughout because this is not
+one of the buckets it reports. Stop calling GitHub.
+
+For the loop this is a stop rather than an ordinary blocker: a blocker is
+recorded on its issue and worked around, and recording it is itself a board
+write, which is the call that cannot be made. No fork can choose an item
+while the board is unreadable, so the run ends and is resumed later.
+"""
+
+
 def note(reason):
     """The reason and the standing explanation, ready for stderr."""
     return f"backlog-loop: {reason}.\n{HELP}"
+
+
+def limit_note():
+    """The same shape for a refusal, whose fix is not a credential."""
+    return f"backlog-loop: {LIMITED}.\n{LIMIT_HELP}"
 
 
 def unauthenticated():
