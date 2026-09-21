@@ -161,7 +161,7 @@ class _Build:
     lookup = None
     seen_cars = None
     driver_id = None
-    current_season = None   # stage 03 -> stage 08: the latest year anybody entered
+    current_season = None   # stage 03 only: the latest year anybody entered
 
 
 def _stage_00_open_the_database(b):
@@ -353,9 +353,9 @@ def _stage_03_drivers_admitted_from_the_f1db_register(b):
     # have stayed active - `max(yrs) >= 2026` - until someone edited the
     # number, and verify.py's grid check would have named the stale rows
     # without being able to name the cause (PM-29, from the review of #84).
-    # This is the drivers' anchor only. Constructors read it too until
-    # CR-07 made meta.current_season the one anchor for "this season", and
-    # stage 08 now reads that constant directly. It rests on F1DB writing
+    # This is the drivers' anchor, and nothing else's. Constructors read it
+    # too until CR-07 made meta.current_season the one anchor for "this
+    # season"; stage 08 reads that constant directly now (CR-35). It rests on F1DB writing
     # `rounds` only for rounds actually run - a pre-season entry list carries
     # none, so the filter above drops it - which keeps this equal to the
     # latest completed season verify.py reads; the pin below fails the build

@@ -1874,7 +1874,13 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
           ['Country', text(c.country)],
           ['Base', text(c.base)],
           ['Entered', `${c.first_entry ?? '?'}–${c.last_entry ?? 'present'}`],
-          ['Race entries', num(teamDerived.entries)],
+          // `formatted`, not `num`: the app's own lib/format.js `text`,
+          // which routes a number through `number()` and separates
+          // thousands. `num` would print 2496 against the app's 2,496 and
+          // the /constructors table's, which is the divergence this row was
+          // changed to close. A zero stays 0 - rob-walker has no race entry
+          // and both halves say so.
+          ['Race entries', esc(formatted(teamDerived.entries))],
           ['Wins', num(c.wins)],
           ['Poles', num(c.poles)],
           ["Constructors' titles", c.constructors_titles ? `${c.constructors_titles} (${yearList(c.title_years)})` : num(c.constructors_titles)],
