@@ -801,6 +801,75 @@ try {
       'and so keeps the single display rank it always had',
     )
 
+    // PD-15: and it no longer shows the four zeros at all. Gabbiani entered
+    // 17 races, started 3 of them and retired from all 3 - which is the page
+    // the strip now leads with, in place of WINS 0 PODIUMS 0 POLES 0 FL 0.
+    // The figures are asserted, not just the labels: a strip that dropped the
+    // four and put an em dash in every substitute would pass a label test.
+    const tiles = await page.$eval('#root main .stats', (dl) =>
+      Object.fromEntries(
+        [...dl.querySelectorAll(':scope > div')].map((el) => [
+          el.querySelector('dt').textContent.trim(),
+          // <small> is the note; the figure is what precedes it.
+          [...el.querySelector('dd').childNodes]
+            .filter((n) => n.nodeName !== 'SMALL')
+            .map((n) => n.textContent)
+            .join('')
+            .trim(),
+        ]),
+      ),
+    )
+    is(
+      ['Wins', 'Podiums', 'Poles', 'Fastest laps'].filter((label) => label in tiles).join(', '),
+      '',
+      'a strip with nothing to report drops the four results figures rather than zeroing them',
+    )
+    is(tiles.Entries, '17', 'the entries stay')
+    is(tiles.Starts, '3', 'and the starts say how few of them were races')
+    is(tiles['Best grid'], 'P20', 'the best grid slot on record')
+    is(tiles.Laps, '79', 'the laps he did complete')
+    is(tiles.Retirements, '3', 'every start retired')
+    is(tiles.Constructors, '2', 'two constructors')
+
+    // ENTRIES_NOTE under "On the record" used to say that telling a start
+    // from an entry needs a reason "no source here supplies", which the tile
+    // forty pixels above now contradicts. It states the rule instead.
+    const note = (await text('#root main .source-note')) ?? ''
+    truthy(!note.includes('no source here supplies'), 'the note no longer denies the Starts tile above it')
+    truthy(note.includes('did not qualify'), 'and says what the site counts as a start')
+
+    // A PIT-LANE START IS NOT A MISSING GRID, checked through the real query
+    // rather than a fixture, because the fixtures cannot reach the SQL. All
+    // 97 of Marcus Ericsson's entries are starts and five of them began in
+    // the pit lane, which carries no grid NUMBER but says exactly where the
+    // car started in grid_text ('PL', 237 entries site-wide). Counting those
+    // as gaps put "5 starts with no grid recorded" on his page and on 39
+    // others, under a note two paragraphs below saying a pit-lane start
+    // counts. schema.sql: "NULLing those would say we do not know where they
+    // started, which is the opposite of the truth."
+    await go('/drivers/marcus-ericsson', 'Marcus Ericsson')
+    const pit = await page.$eval('#root main .stats', (dl) =>
+      Object.fromEntries(
+        [...dl.querySelectorAll(':scope > div')].map((el) => [
+          el.querySelector('dt').textContent.trim(),
+          el.querySelector('dd small')?.textContent.trim() ?? null,
+        ]),
+      ),
+    )
+    is(pit['Best grid'], null, 'a pit-lane start is not a grid slot nobody recorded')
+    truthy(!('Starts' in pit), 'and all 97 entries were starts, so no Starts tile')
+
+    await go('/drivers/beppe-gabbiani', 'Beppe Gabbiani')
+
+    // The dropped zero is still ON THE PAGE, which is the condition on
+    // dropping it from the strip: "Season by season" carries a Wins column
+    // and every row of it reads 0 (the dashedWins check above), and "On the
+    // record" states Wins derived and published.
+    truthy(
+      ((await text('#root main')) ?? '').includes('0 derived'),
+      'and the zero it dropped is still stated under On the record',
+    )
+
     /*
      * A declared oddity reaches the reader. The 2026 calendar says "Bahrain
      * (hosted at Sepang, Malaysia)" and the page showed a Bahrain Grand Prix at a
@@ -1664,18 +1733,31 @@ try {
     await go('/drivers/no-such-driver', 'No such driver')
     truthy(!(await page.$('#root .cite')), 'an unknown driver offers no citation either')
 
-    // Where a driver has a published entry count that differs from the derived
-    // one, both renderers show both and say why, in the same words.
+    // Where a driver has a published count that differs from the derived one,
+    // both renderers show both and say why, in the same words. PD-15 made the
+    // same true of STARTS - piquet 203 counted against 204 published,
+    // raikkonen 350 against 349 - so the query asks about either figure and
+    // the sentence looked for is the one that covers both.
     {
       const two = db
-        .prepare('SELECT d.id FROM drivers d WHERE d.entries IS NOT NULL AND d.entries != (SELECT COUNT(*) FROM race_entries e WHERE e.driver_id = d.id) LIMIT 1')
+        .prepare(`SELECT d.id FROM drivers d
+                   WHERE (d.entries IS NOT NULL
+                          AND d.entries != (SELECT COUNT(*) FROM race_entries e WHERE e.driver_id = d.id))
+                      OR (d.starts IS NOT NULL
+                          AND d.starts != (SELECT COUNT(*) FROM race_entries e WHERE e.driver_id = d.id
+                                            AND COALESCE(e.position_text, '') NOT IN ('DNQ', 'DNPQ', 'DNS', 'DNP', 'EX')))
+                   LIMIT 1`)
         .get()
       if (two) {
         await go(`/drivers/${two.id}`)
         const appNote = await page.waitForSelector('#root main .source-note', { timeout: 20000 }).then((n) => n.textContent())
-        truthy(appNote.includes('an entry is not a start'), `the app says why ${two.id} has two entry counts`)
+        const says = 'both are shown and neither is corrected'
+        truthy(appNote.includes(says), `the app says why ${two.id} has two counts of the same thing`)
         const html = await (await fetch(`${BASE}/drivers/${two.id}`)).text()
-        truthy(html.includes('an entry is not a start') && html.includes('Entries (published)'), 'the static page says the same beside both figures')
+        truthy(
+          html.includes(says) && html.includes('Entries (published)') && html.includes('Starts (published)'),
+          'the static page says the same beside both figures',
+        )
       }
     }
 

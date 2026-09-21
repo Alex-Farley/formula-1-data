@@ -311,3 +311,66 @@ class AgentAndSkillFrontmatterIsWellFormed(unittest.TestCase):
         skills = {os.path.basename(os.path.dirname(f)) for f in self.skills()}
         commands = {os.path.basename(f)[:-3] for f in files_under(".claude/commands", (".md",))}
         self.assertEqual(sorted(skills & commands), [], "a .claude/commands file shadows a skill of the same name")
+
+
+class OneRuleForWhatCountsAsAStart(unittest.TestCase):
+    """data-integrity-reviewer, the one-vocabulary rule, across two languages.
+
+    build.py's STARTED decides what counts as a start for the records tables;
+    the STARTED constant in web/src/queries/driver.js decides it for the
+    driver strip (PD-15), in the SQLite the browser runs, because the front
+    end cannot import a Python constant. That is one rule written out twice,
+    which is how the country vocabulary split, and the failure would be silent
+    in the direction that matters: a code added to one list and not the other
+    makes the driver page and the records page disagree about the same career,
+    and neither says so.
+
+    Both halves are checked, because both can drift. The CODES decide which
+    results are not starts; the COALESCE decides what an absent result is,
+    and dropping it would make a NULL position_text a non-start under SQL's
+    three-valued logic instead of a start. position_text is NOT NULL on all
+    27,504 rows today, so that one would break quietly."""
+
+    RULE = re.compile(r"COALESCE\(e\.position_text,\s*''\)\s*NOT IN \(([^)]*)\)")
+
+    def rule(self, text, what):
+        m = self.RULE.search(text)
+        self.assertIsNotNone(
+            m, f"{what}: no `COALESCE(e.position_text, '') NOT IN (...)` - the COALESCE is "
+               "part of the rule, not decoration: without it a NULL result is neither in "
+               "nor not in the list, and the entry stops counting as a start")
+        return frozenset(c.strip().strip("'\"") for c in m.group(1).split(",") if c.strip())
+
+    def test_build_and_the_driver_strip_agree(self):
+        build = re.search(r"^STARTED = \((.*?)\)$", read("build.py"), re.M | re.S)
+        self.assertIsNotNone(build, "build.py has no STARTED constant")
+        js = re.search(r"^const STARTED = (\".*\")$", read("web/src/queries/driver.js"), re.M)
+        self.assertIsNotNone(js, "web/src/queries/driver.js has no STARTED constant; the rule "
+                                 "belongs in one named place there, not written into a query")
+        self.assertEqual(
+            self.rule(build.group(1), "build.py STARTED"),
+            self.rule(js.group(1), "queries/driver.js STARTED"),
+            "build.py STARTED and the driver strip's STARTED count different result codes; "
+            "a start is one thing on this site, and the records page and the driver page "
+            "must not disagree about which entries were starts",
+        )
+
+    def test_the_driver_strip_uses_its_constant_and_writes_the_rule_nowhere_else(self):
+        # Three questions in DERIVED need the rule; a fourth site written out
+        # by hand is the drift this class exists to stop, and it would pass
+        # the test above because that reads only the constant.
+        js = read("web/src/queries/driver.js")
+        # After the constant's own line: the declaration itself is the one
+        # place the codes may appear.
+        body = js[js.index("\n", js.index("const STARTED = ")):]
+        self.assertEqual(
+            body.count("NOT IN ("), 0,
+            "queries/driver.js spells the start rule again after the STARTED constant; "
+            "interpolate ${STARTED} instead",
+        )
+        self.assertGreaterEqual(
+            body.count("${STARTED}"), 3,
+            "queries/driver.js asks three questions that need the start rule - how many "
+            "starts, how many have no grid recorded, how many have no lap count - so a "
+            "constant used fewer times means one of them stopped using it",
+        )
