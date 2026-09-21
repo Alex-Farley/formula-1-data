@@ -69,7 +69,7 @@ function Body({ glossary, personnel, term, setTerm, category, setCategory }) {
   // Not "terms about tyres": a glossary category is whatever `data/` says it
   // is, and half of them are adjectives - `sporting`, `technical`, `format`,
   // `power unit` - so "terms about sporting" is what that phrasing would
-  // actually have written for 15 of the 44 terms. Naming the category as a
+  // actually have written for 13 of the 44 terms. Naming the category as a
   // category reads for every value the chips can carry, including one added
   // after this line.
   const among = category ? `terms in the ${category} category` : ''
