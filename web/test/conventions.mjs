@@ -930,11 +930,13 @@ describe('the button carries a foreground that clears 4.5:1 on its own fill (AX-
   // The rule said `color: #fff` against `background: var(--accent)`. In
   // light that is 5.9:1; in dark the accent is #ff4757 and it was 3.34:1,
   // under the 4.5:1 that 1.4.3 asks of 13.5px semibold text - on the one
-  // button the SQL console has, and on every primary Link that Page.jsx
-  // renders. The fix is a token, so the check is that the declarations
-  // stay tokens and that every fill/foreground pair still measures: a
-  // later theme that lightens --accent, or a hand-written hex creeping
-  // back into either rule, fails here rather than on the page.
+  // button the SQL console has, and on Boot's retry. The fix is a token, so
+  // the check is that the declarations stay tokens and that every
+  // fill/foreground pair still measures: a later theme that lightens
+  // --accent, or a hand-written hex creeping back into any of these rules,
+  // fails here rather than on the page. The secondary variant is measured
+  // too - it is the same kind of pair, and a theme change could break it
+  // just as quietly.
   const css = read(join(web, 'src', 'styles', 'tokens.css'))
   const app = read(join(web, 'src', 'styles', 'app.css'))
   const blocks = {
@@ -952,50 +954,78 @@ describe('the button carries a foreground that clears 4.5:1 on its own fill (AX-
     const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x)
     return (hi + 0.05) / (lo + 0.05)
   }
-  // the base rule, not `.boot-strip .button`, which only resizes it
-  const rule = (selector) => {
-    const found = app.match(new RegExp(`\\n${selector.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')} \\{([^}]*)\\}`))
-    assert.ok(found, `app.css has no ${selector} rule`)
-    return found[1]
+  // The caller passes the pattern, already escaped: an escape helper here
+  // would be one more thing to get right, and a wrong one reads like a
+  // guard while matching nothing. Each pattern anchors the selector to the
+  // start of a line, so `.button` is the base rule and not the
+  // `.boot-strip .button` override that only resizes it. Comments come out
+  // of the body, because this rule's comment names the #fff it replaced.
+  const rule = (pattern, label) => {
+    const found = app.match(pattern)
+    assert.ok(found, `app.css has no ${label} rule`)
+    return found[1].replace(/\/\*[\s\S]*?\*\//g, '')
   }
-  const varOf = (body, property) => {
+  const varOf = (body, property, label) => {
     const found = body.match(new RegExp(`(?:^|;|\\n)\\s*${property}:\\s*var\\((--[a-z0-9-]+)\\)`))
-    assert.ok(found, `${property} in "${body.trim()}" is not a var() reference`)
+    assert.ok(found, `${label}: ${property} is not a var() reference in "${body.trim()}"`)
     return found[1].slice(2)
   }
 
-  const base = rule('\\.button')
-  const hover = rule('\\.button:hover')
-  const anchorHover = rule('a\\.button:hover')
+  const rules = {
+    '.button': rule(/\n\.button \{([^}]*)\}/, '.button'),
+    '.button:hover': rule(/\n\.button:hover \{([^}]*)\}/, '.button:hover'),
+    '.button.secondary': rule(/\n\.button\.secondary \{([^}]*)\}/, '.button.secondary'),
+    '.button.secondary:hover': rule(/\n\.button\.secondary:hover \{([^}]*)\}/, '.button.secondary:hover'),
+    'a.button:hover': rule(/\na\.button:hover \{([^}]*)\}/, 'a.button:hover'),
+    'a.button.secondary:hover': rule(/\na\.button\.secondary:hover \{([^}]*)\}/, 'a.button.secondary:hover'),
+  }
+  // [label, the rule the fill comes from, the rule the foreground comes
+  // from] - :hover on the primary restates only the background, so its
+  // foreground is still the base rule's.
+  const pairs = [
+    ['.button', '.button', '.button'],
+    ['.button:hover', '.button:hover', '.button'],
+    ['.button.secondary', '.button.secondary', '.button.secondary'],
+    ['.button.secondary:hover', '.button.secondary:hover', '.button.secondary:hover'],
+  ]
 
-  it('both button rules take their colours from tokens, and the anchor hover agrees with the base', () => {
-    assert.equal(varOf(base, 'color'), varOf(anchorHover, 'color'))
-    // reading these is what proves the pairs below are the ones that ship
-    assert.ok(varOf(base, 'background'))
-    assert.ok(varOf(hover, 'background'))
+  it('no button rule declares a colour of its own: the defect was a literal #fff', () => {
+    const offenders = Object.entries(rules)
+      .filter(([, body]) => /#[0-9a-f]{3,8}\b/i.test(body))
+      .map(([label, body]) => `${label}: ${body.trim()}`)
+    assert.deepEqual(offenders, [])
   })
 
-  it('the two dark blocks declare the same fills and foreground', () => {
+  it('the anchor variants restate the foreground of the rule they shadow, never a second one', () => {
+    assert.equal(varOf(rules['a.button:hover'], 'color', 'a.button:hover'), varOf(rules['.button'], 'color', '.button'))
+    assert.equal(
+      varOf(rules['a.button.secondary:hover'], 'color', 'a.button.secondary:hover'),
+      varOf(rules['.button.secondary:hover'], 'color', '.button.secondary:hover'),
+    )
+  })
+
+  it('the two dark blocks declare the same fills and foregrounds', () => {
     const [a, b] = [tokens(blocks.osDark), tokens(blocks.stampedDark)]
-    for (const name of [varOf(base, 'background'), varOf(hover, 'background'), varOf(base, 'color')]) {
-      assert.equal(a[name], b[name], name)
-    }
+    const names = new Set(pairs.flatMap(([label, fill, fg]) => [varOf(rules[fill], 'background', label), varOf(rules[fg], 'color', label)]))
+    assert.ok(names.size > 0)
+    for (const name of names) assert.equal(a[name], b[name], name)
   })
 
   for (const [label, block] of [['light', blocks.light], ['dark', blocks.stampedDark]]) {
-    it(`${label}: the foreground clears 4.5:1 on the resting fill and on the hover fill`, () => {
+    it(`${label}: every button state's foreground clears 4.5:1 on its own fill`, () => {
       const t = tokens(block)
-      const fg = varOf(base, 'color')
-      // an unmatched token would make luminance() throw on undefined - a
-      // failure, but a cryptic one
-      assert.ok(t[fg], `${label} block has no six-digit --${fg}`)
-      const failing = [['resting', varOf(base, 'background')], ['hover', varOf(hover, 'background')]]
-        .map(([state, fill]) => {
+      const failing = pairs
+        .map(([state, fillRule, fgRule]) => {
+          const fill = varOf(rules[fillRule], 'background', state)
+          const fg = varOf(rules[fgRule], 'color', state)
+          // an unmatched token would make luminance() throw on undefined -
+          // a failure, but a cryptic one
           assert.ok(t[fill], `${label} block has no six-digit --${fill}`)
-          return [state, fill, contrast(t[fg], t[fill])]
+          assert.ok(t[fg], `${label} block has no six-digit --${fg}`)
+          return [state, fg, fill, contrast(t[fg], t[fill])]
         })
-        .filter(([, , ratio]) => ratio < 4.5)
-        .map(([state, fill, ratio]) => `${state}: --${fg} on --${fill}: ${ratio.toFixed(2)}:1`)
+        .filter(([, , , ratio]) => ratio < 4.5)
+        .map(([state, fg, fill, ratio]) => `${state}: --${fg} on --${fill}: ${ratio.toFixed(2)}:1`)
       assert.deepEqual(failing, [])
     })
   }
