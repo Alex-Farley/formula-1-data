@@ -546,11 +546,16 @@ try {
       'and taking it puts focus inside <main>, past the eleven header stops',
     )
 
-    // A route change that commits UNDER an open modal must not pull focus out
-    // of it. Found by this suite: the search palette is opened, the router
-    // catches up with a click made a moment earlier, focus goes to the heading
-    // behind the palette -- and Escape, pressed into the page, misses the
-    // dialog, which stays open over a page nothing can click through to.
+    // A route change that commits UNDER an open modal. Found by this suite:
+    // the search palette is opened, the router catches up with a click made a
+    // moment earlier, focus goes to the heading behind the palette -- and
+    // Escape, pressed into the page, misses the dialog, which stays open over
+    // a page nothing can click through to.
+    //
+    // The palette no longer survives that navigation to be stranded by it
+    // (AF-60): a modal is about the page it was opened on. What still has to
+    // hold is the half this found -- the reader is not left on <body> with the
+    // page changed under them -- so both are asserted here.
     await held.keyboard.press('/')
     await held.waitForSelector('.palette input', { timeout: 10000 })
     await held.evaluate(() => {
@@ -563,16 +568,22 @@ try {
       { timeout: 20000 },
     )
     truthy(
-      await held.evaluate(() => Boolean(document.activeElement?.closest('[role="dialog"]'))),
-      'a route change under the open search palette leaves focus inside the palette',
-    )
-    await held.keyboard.press('Escape')
-    truthy(
       await held
-        .waitForFunction(() => !document.querySelector('.palette-backdrop'), null, { timeout: 5000 })
+        .waitForFunction(() => !document.querySelector('.palette'), null, { timeout: 5000 })
         .then(() => true)
         .catch(() => false),
-      'so Escape still reaches it and closes it',
+      'a route change closes the search palette, which described the page it was opened on',
+    )
+    truthy(
+      await held
+        .waitForFunction(
+          () => document.activeElement === document.querySelector('#root main h1'),
+          null,
+          { timeout: 5000 },
+        )
+        .then(() => true)
+        .catch(() => false),
+      'and hands focus to the new heading rather than stranding it on <body>',
     )
     await held.close()
 
@@ -2049,6 +2060,23 @@ try {
 
   })
 
+  // The season being run, at an address that does not change. The year is
+  // meta.current_season - what data/current.py declares - and not the newest
+  // year in the file, which is a season nobody has raced. The test reads the
+  // same row rather than naming a year, so it is still true next January.
+  await section('/now  (the season being run has a stable address)', async () => {
+    const year = one("SELECT value FROM meta WHERE key = 'current_season'")
+    await page.evaluate((to) => {
+      window.history.pushState({}, '', to)
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    }, '/now')
+    await page.waitForFunction((to) => location.pathname === to, `/seasons/${year}`, {
+      timeout: 20000,
+    })
+    pass(`/now redirects to /seasons/${year}, the season meta.current_season names`)
+
+  })
+
   // ------------------------------------------------------------------ sorting
 
   // NULL means "not established" here, and 64 of 862 drivers have no first
@@ -2102,11 +2130,22 @@ try {
       `/drivers/${one(`SELECT id FROM drivers WHERE lower(full_name) LIKE '%schumacher%' ORDER BY wins DESC LIMIT 1`)}`,
       'the winningest Schumacher is first',
     )
+    // Escape is the one way out of the palette that needs no pointer, and the
+    // only modal on the site. The route-change close (AF-60) is asserted in the
+    // landing section; this is the keyboard one, and it is here rather than
+    // there because the palette is already open at this point.
     await page.keyboard.press('Escape')
+    truthy(
+      await page
+        .waitForFunction(() => !document.querySelector('.palette'), null, { timeout: 5000 })
+        .then(() => true)
+        .catch(() => false),
+      'Escape dismisses the palette',
+    )
     await page.waitForFunction(() => document.querySelector('#root main h1')?.textContent.includes('Rindt'), null, {
       timeout: 10000,
     })
-    pass('and opens their page')
+    pass('revealing the page behind it')
 
   })
 
@@ -2324,6 +2363,25 @@ try {
     )
     pass('a cold arrival at /reference/sql?q=… is sent to /data/sql with its query')
     await moved.close()
+
+    // /now, cold. Not a moved address but an alias, written by the same
+    // machinery and on the same terms: noindex, the season page canonical,
+    // and absent from the sitemap, which lists the addresses to index.
+    const season = one("SELECT value FROM meta WHERE key = 'current_season'")
+    const nowStatic = readFileSync(join(web, 'dist', 'now', 'index.html'), 'utf8')
+    truthy(
+      new RegExp(`http-equiv="refresh"[^>]*url=/seasons/${season}`).test(nowStatic) &&
+        new RegExp(`<link rel="canonical" href="[^"]*/seasons/${season}"`).test(nowStatic),
+      `dist/now/index.html sends a cold arrival to /seasons/${season} and names it canonical`,
+    )
+    truthy(
+      nowStatic.includes('name="robots" content="noindex"') && !nowStatic.includes('has moved'),
+      'asks not to be indexed, and does not tell the reader the season page moved',
+    )
+    truthy(
+      !readFileSync(join(web, 'dist', 'sitemap.xml'), 'utf8').includes('/now</loc>'),
+      'and is not in the sitemap; the season page is the address to index',
+    )
 
     const noJs = await browser.newContext({ javaScriptEnabled: false })
     const plain = await noJs.newPage()

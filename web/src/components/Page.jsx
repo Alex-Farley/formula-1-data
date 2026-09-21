@@ -110,13 +110,32 @@ function useFocusOnNavigation() {
       landed = true
       return
     }
-    // Not out of a modal. The search palette is open on top of the page, and a
-    // navigation committing underneath it - click a result, press / again
-    // before the router has caught up - would pull focus back to the heading
-    // behind it: Escape then misses the dialog, which stays open over a page
-    // the reader can no longer reach. What is in front of the reader wins.
-    if (document.activeElement?.closest('[role="dialog"]')) return
+    // Not out of a modal that is staying. The search palette is open on top of
+    // the page, and a navigation committing underneath it - click a result,
+    // press / again before the router has caught up - would pull focus back to
+    // the heading behind it: Escape then misses the dialog, which stays open
+    // over a page the reader can no longer reach. What is in front of the
+    // reader wins.
+    //
+    // A route change now also CLOSES the palette (AF-60, App.jsx's
+    // CloseSearchOnNavigate), and React removes it in the commit after this
+    // effect - so at this instant focus is still inside a dialog that is about
+    // to stop existing, and bailing out for good would drop the reader on
+    // <body> with the page changed under them. Look again after the next
+    // frame, by which time that commit has landed: a dialog still standing
+    // keeps focus, one that has gone hands it over like any other navigation.
+    // A frame rather than a microtask, because a microtask can run before
+    // React has re-rendered and would read the palette as still open.
+    if (document.activeElement?.closest('[role="dialog"]')) {
+      const frame = requestAnimationFrame(() => {
+        if (!document.activeElement?.closest('[role="dialog"]')) {
+          ref.current?.focus({ preventScroll: true })
+        }
+      })
+      return () => cancelAnimationFrame(frame)
+    }
     ref.current?.focus({ preventScroll: true })
+    return undefined
   }, [pathname])
   return ref
 }

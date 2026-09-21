@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { BrowserRouter, Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import Boot from './components/Boot.jsx'
 import Search from './components/Search.jsx'
+import { Result } from './components/States.jsx'
 import ThemeToggle from './components/Theme.jsx'
 import { currentProgress } from './data/client.js'
+import { useQuery } from './data/useQuery.js'
 import { OUTLINE_CREDIT } from './lib/outline.js'
 import { REPORT_ASK, REPORT_LINK, REPORT_PROMISE, REPORT_URL } from './lib/site.js'
 
@@ -126,6 +128,40 @@ function Moved({ to }) {
   return <Navigate to={{ pathname: to, search, hash }} replace />
 }
 
+/**
+ * The season being run, at an address that does not change.
+ *
+ * `/now` is the one URL a returning reader can type and a link can point at
+ * without going stale each January. It redirects rather than rendering: a
+ * season already has an address, and a second address for the same page is
+ * the thing a canonical tag exists to undo.
+ *
+ * The year is `meta.current_season` - the season data/current.py declares is
+ * being run - and NOT the newest year in the file. The registers already hold
+ * 2027, which has run no race, so MAX(year) would send the reader to an empty
+ * season; schema.sql's views anchor on the same row for the same reason.
+ *
+ * Unlike the four Moved addresses this one has to ask the database, so it
+ * cannot be a plain <Navigate>. Nearly every reader meets it before the app
+ * exists anyway: scripts/prerender.js writes a static redirecting page at
+ * /now, and that one answers on a cold arrival without opening f1.db at all.
+ * With no row to read - which verify.py does not allow into a built database
+ * - the seasons index is the honest answer rather than /seasons/undefined.
+ */
+function Now() {
+  const { search, hash } = useLocation()
+  const state = useQuery("SELECT value FROM meta WHERE key = 'current_season'")
+  return (
+    <Result state={state} context="The season being run could not be read">
+      {(data) => {
+        const year = data?.rows?.[0]?.value
+        if (!year) return <Navigate to="/seasons" replace />
+        return <Navigate to={{ pathname: `/seasons/${year}`, search, hash }} replace />
+      }}
+    </Result>
+  )
+}
+
 function Footer() {
   const manifest = currentProgress().manifest
   return (
@@ -181,6 +217,30 @@ function Footer() {
   )
 }
 
+/**
+ * Close the search palette when the route changes.
+ *
+ * `Search` closes itself on Escape, on a backdrop mousedown and on picking a
+ * result - `go()` calls `onClose()` before `navigate()` - but a navigation
+ * that happens by any other route left it standing over a page it was never
+ * opened against, and browser Back with the palette open did the same. A
+ * modal is about the page it was opened on, and the page has gone.
+ *
+ * It sits beside ScrollToTop, with the rest of what a route change means,
+ * rather than inside Chrome: subscribing Chrome itself to the location would
+ * re-render the masthead and the footer on every navigation to do it.
+ * `setSearching` is a useState setter, so it is stable and the effect runs on
+ * the pathname alone. On the arrival it sets false over false, which React
+ * discards.
+ */
+function CloseSearchOnNavigate({ setSearching }) {
+  const { pathname } = useLocation()
+  useEffect(() => {
+    setSearching(false)
+  }, [pathname, setSearching])
+  return null
+}
+
 function Chrome() {
   const [searching, setSearching] = useState(false)
 
@@ -202,6 +262,7 @@ function Chrome() {
   return (
     <div className="app">
       <ScrollToTop />
+      <CloseSearchOnNavigate setSearching={setSearching} />
       {/* The wordmark, eight section links, the search trigger and the theme
           toggle are eleven tab stops, and they stood in front of the content
           of every page. WCAG 2.4.1 was already satisfied by the landmarks,
@@ -251,6 +312,9 @@ function Chrome() {
           <Route path="/cars" element={<Cars />} />
           <Route path="/cars/:id" element={<Car />} />
           <Route path="/records" element={<Records />} />
+          {/* Guessable, shareable, and not a masthead item: the season in
+              progress, for a reader who wants it without picking a year. */}
+          <Route path="/now" element={<Now />} />
           {/* The database's own front door, and the three pages about it. */}
           <Route path="/changes" element={<Changes />} />
           <Route path="/data" element={<Data />} />
