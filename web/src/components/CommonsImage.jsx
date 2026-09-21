@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { attribution, canShow, fileTitle, thumbUrl } from '../lib/commons.js'
+import { attribution, canShow, fileTitle, photoAlt, thumbUrl } from '../lib/commons.js'
 import { UNCHECKED_MARK } from '../lib/site.js'
 
 /**
@@ -44,7 +44,7 @@ export default function CommonsImage({ image, width = 800, caption, showCheck = 
     <figure className="photo" data-state={state}>
       <img
         src={src}
-        alt={caption ?? fileTitle(image.file_name)}
+        alt={photoAlt(image, caption)}
         width={image.width || undefined}
         height={image.height || undefined}
         loading="lazy"
@@ -63,7 +63,10 @@ export default function CommonsImage({ image, width = 800, caption, showCheck = 
         </p>
       )}
       <figcaption>
-        {caption && <div style={{ color: 'var(--ink-soft)', marginBottom: 3 }}>{caption}</div>}
+        {/* The subject, above the credit: which car this is, where the page
+            is showing several (VD-33). A class rather than an inline style so
+            that scripts/prerender.js can write the same figure. */}
+        {caption && <div className="photo-subject">{caption}</div>}
         <a href={image.description_url} target="_blank" rel="noreferrer noopener">
           {fileTitle(image.file_name)}
         </a>

@@ -134,6 +134,22 @@ describe('one attribution rule (frontend-reviewer, item 1)', () => {
     assert.deepEqual(offenders, [], 'attribution can be bypassed in the static renderer')
   })
 
+  // VD-33 took the section from one page to four. The component is the whole
+  // of the licence obligation on those four - the fail-closed filter, the
+  // credit under every figure, the caveat - so a page that draws its own grid
+  // is a page that has opted out of it without saying so. The static renderer
+  // writes the same markup from its own function, for the reason the check
+  // below this one exists: it emits HTML, and a React component cannot.
+  it('one photographs section: no page writes its own grid', () => {
+    const offenders = []
+    const section = join(web, 'src', 'components', 'Photographs.jsx')
+    for (const file of sourceFiles(join(web, 'src'), /\.jsx?$/)) {
+      if (file === section) continue
+      if (/photo-grid/.test(read(file))) offenders.push(`${rel(file)} draws its own photographs section`)
+    }
+    assert.deepEqual(offenders, [], 'the photographs section has more than one definition')
+  })
+
   it('the shared rule falls back to `credit` where a file names no artist, as the build does', () => {
     // verify.py accepts `artist` OR `credit`; a surface reading only `artist`
     // captions an admitted row as anonymous, which is what the 1958 Hawthorn

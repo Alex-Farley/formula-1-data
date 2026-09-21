@@ -11,7 +11,9 @@ import { rows, useQueries } from '../data/useQuery.js'
 import { points as fmtPoints, number } from '../lib/format.js'
 import { colourForEntry, lastTeamColour } from '../lib/liveries.js'
 import LiveryMark from '../components/LiveryMark.jsx'
+import Photographs from '../components/Photographs.jsx'
 import { NOT_YET_RUN, SPRINT } from '../lib/site.js'
+import { SEASON_IMAGES } from '../queries/photographs.js'
 import {
   CALENDAR,
   CALENDAR_COLUMNS,
@@ -135,6 +137,7 @@ export default function Season() {
     grid: [GRID, [Number(year)]],
     sessions: [SEASON_SESSIONS, [Number(year)]],
     teams: [DRIVER_TEAMS, [Number(year)]],
+    images: [SEASON_IMAGES, [Number(year)]],
   })
 
   return (
@@ -353,6 +356,11 @@ function SeasonBody({ year, season, data }) {
           </p>
         )}
       </Section>
+
+      {/* The cars of the year, what they won first (VD-33). A season that
+          has not run yet has no entries and so no strip, which is right: the
+          photographs are of cars that raced. */}
+      <Photographs images={rows(data, 'images')} subjects />
 
       {progression.length > 1 && (
         <Section title={titleHeading(live)}>

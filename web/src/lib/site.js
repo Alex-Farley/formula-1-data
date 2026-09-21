@@ -127,8 +127,8 @@ export const UNCHECKED_MARK = 'unchecked'
 
 export const UNCHECKED_NOTE = [
   'A photograph marked',
-  'has a file name that does not name this car. Most are still the right car, filed under the ' +
-    'driver rather than the machine — but nobody has confirmed these one by one.',
+  'has a file name that does not name the car it is shown for. Most are still the right car, ' +
+    'filed under the driver rather than the machine — but nobody has confirmed these one by one.',
 ]
 
 /**

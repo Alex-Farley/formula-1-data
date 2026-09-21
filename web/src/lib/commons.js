@@ -29,6 +29,31 @@ export function thumbUrl(fileName, width = 800) {
 export const fileTitle = (fileName) => String(fileName ?? '').replace(/^File:/, '').replace(/_/g, ' ')
 
 /**
+ * What the photograph is OF — its `alt` (AX-13).
+ *
+ * Every figure on the site took its alt from the file name, ".jpg" included:
+ * a screen reader read "Rétromobile 2017 dash AGS JH23 dash 1989 dash 001 dot
+ * j p g" where a sighted reader saw a car. That is a 1.1.1 failure, and it is
+ * the file name twice over, since the figcaption already names the file and
+ * links it.
+ *
+ * Every row of `article_images` carries the article it was gathered from, and
+ * that article names the car — "AGS JH23", "McLaren MP4/4". So the alt is the
+ * subject, exactly as the cars gallery has always written it.
+ *
+ * A `name_matches = 0` file is still described by its subject rather than
+ * hedged here: the caveat belongs beside the picture, where the figcaption's
+ * `unchecked` mark puts it for a screen reader and for everybody else at the
+ * same time. What is left is the fallback nothing should reach — a row with
+ * no article — and there the file name at least says something, minus the
+ * extension, which is a fact about a file and not about a car.
+ */
+export const photoAlt = (image, caption) =>
+  (caption ?? '').trim() ||
+  (image?.article ?? '').trim() ||
+  fileTitle(image?.file_name).replace(/\.(jpe?g|png|gif|svg|webp|tiff?)$/i, '')
+
+/**
  * The person or source to credit for a photograph — the ONE rule.
  *
  * This is the same rule the build applies. verify.py refuses a file where

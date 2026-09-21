@@ -56,7 +56,7 @@ import { finished, missing, result, span, text as formatted, yearList } from '..
 // file emits HTML - but the question it answers, "who is credited and may this
 // be shown at all", has exactly one answer on this site, and it is imported
 // here for the same reason the cars gallery had to stop writing its own.
-import { attribution, canShow, fileTitle, thumbUrl } from '../src/lib/commons.js'
+import { attribution, canShow, fileTitle, photoAlt, thumbUrl } from '../src/lib/commons.js'
 import {
   CROSS_CHECKED,
   DOCUMENTS,
@@ -135,6 +135,7 @@ import {
   stillRunning,
 } from '../src/queries/season.js'
 import { RACES, RACE_COLUMNS, RACES_FOOTER } from '../src/queries/races.js'
+import { CONSTRUCTOR_IMAGES, RACE_IMAGES, SEASON_IMAGES } from '../src/queries/photographs.js'
 import { CONSTRUCTORS, CONSTRUCTOR_COLUMNS, CONSTRUCTORS_FOOTER } from '../src/queries/constructors.js'
 import { CIRCUITS, CIRCUIT_COLUMNS, CIRCUITS_FOOTER, TRACED } from '../src/queries/circuits.js'
 import { CHASSIS, CHASSIS_COLUMNS, CHASSIS_FOOTER, GALLERY, GALLERY_COLUMNS } from '../src/queries/cars.js'
@@ -717,24 +718,26 @@ const outbound = (url, label) =>
 /**
  * One photograph and its credit, as CommonsImage draws it.
  *
- * The markup is CommonsImage's markup — `figure.photo`, the caption's three
- * parts in the same order — because app.css styles it and because the reader
- * who sees this before the database opens should not watch the page change
- * shape when it does. What it does NOT restate is the licence rule: the credit
- * comes from `attribution()` and the figure is only reached through
- * `canShow()`, so this renderer and the app's cannot disagree about who is
- * owed a credit. The `data-state` attribute is CommonsImage's own and is
+ * The markup is CommonsImage's markup — `figure.photo`, the optional subject
+ * line, the caption's three parts in the same order — because app.css styles
+ * it and because the reader who sees this before the database opens should
+ * not watch the page change shape when it does. What it does NOT restate is
+ * the licence rule: the credit comes from `attribution()` and the figure is
+ * only reached through `canShow()`, so this renderer and the app's cannot
+ * disagree about who is owed a credit. Nor does it restate what the picture
+ * is OF: `photoAlt()` decides the alt in both (AX-13), which is the only
+ * reason the two cannot drift back to captioning a car ".jpg". The `data-state` attribute is CommonsImage's own and is
  * absent here on purpose — there is no React to move it through loading,
  * ready and failed, and a static page claiming "loading" for ever would be a
  * worse answer than none.
  */
-const photograph = (image, width) => {
+const photograph = (image, width, caption = null) => {
   const title = fileTitle(image.file_name)
   const licence = (image.licence ?? '').trim()
   const size = image.width && image.height ? ` width="${esc(image.width)}" height="${esc(image.height)}"` : ''
   return `<figure class="photo">
-        <img src="${esc(thumbUrl(image.file_name, width))}" alt="${esc(title)}"${size} loading="lazy" decoding="async" />
-        <figcaption>${outbound(image.description_url, title)} · ${esc(attribution(image))} · ${
+        <img src="${esc(thumbUrl(image.file_name, width))}" alt="${esc(photoAlt(image, caption))}"${size} loading="lazy" decoding="async" />
+        <figcaption>${caption ? `<div class="photo-subject">${esc(caption)}</div>` : ''}${outbound(image.description_url, title)} · ${esc(attribution(image))} · ${
           image.licence_url ? outbound(image.licence_url, licence) : esc(licence)
         }${image.name_matches === 0 ? ` · <span class="pill pill-unverified">${esc(UNCHECKED_MARK)}</span>` : ''}</figcaption>
       </figure>`
@@ -779,24 +782,48 @@ const CARD_WIDTH = 1200
  * can see; on a share card it is the whole impression, unlabelled, in somebody
  * else's feed.
  */
-const photographs = (id) => {
-  const images = all(CAR_IMAGES, id, id).filter(canShow)
-  if (!images.length) return { html: '', image: null }
-  const shown = images.slice(0, 6)
-  const confirmed = shown.find((image) => image.name_matches === 1) ?? null
-  return {
-    html: `<h2>Photographs</h2>
+const PHOTOGRAPHS_SHOWN = 6
+
+/**
+ * The photographs section itself, as components/Photographs.jsx draws it.
+ *
+ * VD-33 gave the section to the constructor, season and race pages, which
+ * already join chassis, so what was one call site is four. The app draws them
+ * from one component and this draws them from one function, off the same
+ * queries and the same strings: the six a page shows, the subject each one is
+ * of where the page is showing several cars, and the caveat.
+ *
+ * `subjects` is what the app's `subjects` prop is — the car a photograph is
+ * of, above its credit. A car page needs none: the page is that car.
+ */
+const photographSection = (rows, { subjects = false, width = 600 } = {}) => {
+  const images = rows.filter(canShow)
+  if (!images.length) return ''
+  const drawn = images.slice(0, PHOTOGRAPHS_SHOWN)
+  return `<h2>Photographs</h2>
       <p class="note">${esc(PHOTOGRAPHS_NOTE)}</p>
-      <div class="photo-grid">${shown.map((image) => photograph(image, 600)).join('')}</div>${
-        // Over every image, not just the six drawn: Car.jsx tests `images`, and
-        // a caveat that appears in one renderer and not the other is a caveat
-        // the reader cannot rely on.
-        images.some((image) => image.name_matches === 0)
+      <div class="photo-grid">${drawn
+        .map((image) => photograph(image, width, subjects ? image.article : null))
+        .join('')}</div>${
+        // Over the six DRAWN, which is what Photographs.jsx tests: a
+        // constructor draws six of fifty-one, and a caveat explaining a mark
+        // that is nowhere on the page explains nothing. A caveat that appears
+        // in one renderer and not the other is worse than either, so both
+        // renderers slice first and ask afterwards.
+        drawn.some((image) => image.name_matches === 0)
           ? `\n      <p class="source-note">${esc(UNCHECKED_NOTE[0])} <span class="pill pill-unverified">${esc(
               UNCHECKED_MARK,
             )}</span> ${esc(UNCHECKED_NOTE[1])}</p>`
           : ''
-      }`,
+      }`
+}
+
+const photographs = (id) => {
+  const images = all(CAR_IMAGES, id, id).filter(canShow)
+  if (!images.length) return { html: '', image: null }
+  const confirmed = images.slice(0, PHOTOGRAPHS_SHOWN).find((image) => image.name_matches === 1) ?? null
+  return {
+    html: photographSection(images),
     image: confirmed
       ? { url: thumbUrl(confirmed.file_name, CARD_WIDTH), alt: creditLine(confirmed) }
       : null,
@@ -1152,6 +1179,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
               ])
         }
         ${prose(s.notes)}
+        ${photographSection(all(SEASON_IMAGES, year), { subjects: true })}
         <h2>The calendar</h2>
         ${outlineStrip(year, calendar)}
         ${fromColumns(CALENDAR_COLUMNS, calendar, {
@@ -1379,6 +1407,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
           outlineCaption({ f1db_layout_id: r.f1db_layout_id, length_km: r.outline_km, turns: r.outline_turns }),
           true,
         )}
+        ${photographSection(all(RACE_IMAGES, r.year, r.round), { subjects: true })}
         ${
           sessions.length
             ? `<h2>Timetable</h2>${fromColumns(SESSION_COLUMNS, sessions)}<p class="source-note">${esc(TIMETABLE_NOTE)}</p>`
@@ -1638,6 +1667,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
           ['Confidence', c.confidence ? link('data/quality', c.confidence) : text(c.confidence)],
         ])}
         ${prose(c.notes)}
+        ${photographSection(all(CONSTRUCTOR_IMAGES, c.id), { subjects: true })}
         ${disagree(teamDisagreements.all(c.name), 'this team')}
         <h2>Season by season</h2>
         ${
