@@ -1042,12 +1042,23 @@ CREATE TABLE tyre_suppliers (
     confidence      TEXT NOT NULL DEFAULT 'high' REFERENCES provenance(confidence)
 );
 
+-- `scoring` is the rule as a sentence; `win_points` and `fastest_lap_points`
+-- are the two figures of it a query can add up. known_gaps #12 records that
+-- the clinching round and the title permutations are computable from
+-- `standings` and this table "once the per-season maximum-points rule is
+-- written down" - these two columns are that rule, and the season page's
+-- "who can still win" is the first thing to read them. They are authored in
+-- data/technical.py beside the prose, not parsed out of it at read time, and
+-- verify.py holds each to the sentence it sits next to so the two cannot
+-- disagree. A sprint row carries its own win value here too.
 CREATE TABLE points_systems (
     id              INTEGER PRIMARY KEY,
     from_year       INTEGER NOT NULL,
     to_year         INTEGER,
     scoring         TEXT NOT NULL,
+    win_points      INTEGER NOT NULL,          -- points for a win, e.g. 25
     fastest_lap     TEXT,
+    fastest_lap_points INTEGER NOT NULL DEFAULT 0,
     dropped_scores  TEXT,
     notes           TEXT,
     confidence      TEXT NOT NULL DEFAULT 'high' REFERENCES provenance(confidence)

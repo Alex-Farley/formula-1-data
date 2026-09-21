@@ -1374,6 +1374,91 @@ def timeline_sanity():
     check("lineage periods run forwards", not bad)
 
 
+@section('POINTS SYSTEMS: THE FIGURES AGAINST THE PROSE')
+def points_systems_figures():
+    """`win_points` and `fastest_lap_points` say as numbers what `scoring` and
+    `fastest_lap` say as sentences, so that a query can add a season's maximum
+    up (known_gaps #12). Nothing but this section stops the two drifting: the
+    season page's "who can still win" is arithmetic on these figures, and a
+    reworded sentence that left them behind would publish a wrong claim about
+    a live championship rather than merely look untidy."""
+    rows = con.execute("""SELECT id, from_year, to_year, scoring, win_points,
+        fastest_lap, fastest_lap_points FROM points_systems ORDER BY id""").fetchall()
+
+    bad = []
+    for r in rows:
+        head = r["scoring"][len("SPRINT: "):] if r["scoring"].startswith("SPRINT: ") else r["scoring"]
+        lead = re.match(r"\d+", head)
+        said = int(lead.group()) if lead else None
+        if said != r["win_points"]:
+            bad.append(f"#{r['id']} {r['scoring']!r} opens on "
+                       f"{said if said is not None else 'no figure'}, win_points is {r['win_points']}")
+    check("win_points is the leading figure of the scoring rule it sits beside",
+          not bad, "; ".join(bad))
+
+    # 'None' is the string these rows carry where there was no fastest-lap
+    # point, and NULL is what a sprint row carries; neither is a point.
+    bad = [f"#{r['id']} fastest_lap={r['fastest_lap']!r} but fastest_lap_points={r['fastest_lap_points']}"
+           for r in rows
+           if (r["fastest_lap"] not in (None, "None")) != (r["fastest_lap_points"] > 0)]
+    check("fastest_lap_points is set exactly where a fastest-lap rule is named",
+          not bad, "; ".join(bad))
+
+    bad = [f"#{r['id']}" for r in rows if r["fastest_lap_points"] not in (0, 1)]
+    check("no fastest lap has ever been worth more than a point", not bad, "; ".join(bad))
+
+    bad = [f"#{r['id']}" for r in rows
+           if r["scoring"].startswith("SPRINT: ") and r["fastest_lap_points"] != 0]
+    check("no sprint carries a fastest-lap point", not bad, "; ".join(bad))
+
+    # The season page picks one system per season with ORDER BY from_year DESC
+    # LIMIT 1. That is the right row only while the periods neither overlap nor
+    # leave a hole, which is what these two check for every season the register
+    # holds - including the seasons scheduled but not yet run.
+    # The figures above are checked against the sentence beside them, which is
+    # the same tuple said twice. This one is not: it asks the race records what
+    # a win was actually paid, which is the only check here that could catch an
+    # authored pair where both halves are wrong together. The cap is the win
+    # plus the fastest lap because a winner can take both.
+    #
+    # 2014 is the one season over it, and deliberately: Abu Dhabi paid double
+    # points that year, a one-race rule the period table has no row shape for
+    # and `scoring` has never mentioned. It is declared here rather than
+    # smoothed away, and it is why win_points is a maximum for a normal race
+    # and not a promise about every race of the period.
+    DOUBLE_POINTS = {2014: 50.0}
+    over = []
+    for r in con.execute("""SELECT r.year AS year, MAX(e.points) AS most
+        FROM race_entries e JOIN races r ON r.id = e.race_id
+        WHERE e.finish_position = 1 AND e.points IS NOT NULL
+        GROUP BY r.year ORDER BY r.year"""):
+        cap = con.execute("""SELECT win_points + fastest_lap_points FROM points_systems
+            WHERE scoring NOT LIKE 'SPRINT:%' AND from_year <= ? AND (to_year IS NULL OR to_year >= ?)
+            ORDER BY from_year DESC LIMIT 1""", (r["year"], r["year"])).fetchone()
+        if cap is None:
+            over.append(f"{r['year']}: no points system covers it")
+        elif r["most"] > cap[0] and DOUBLE_POINTS.get(r["year"]) != r["most"]:
+            over.append(f"{r['year']}: a winner scored {r['most']}, the system pays at most {cap[0]}")
+    check("no winner scored more than the season's win and fastest-lap points, "
+          "bar 2014's double-points finale", not over, "; ".join(over))
+    check("2014 Abu Dhabi is still the double-points race the exception is for",
+          con.execute("""SELECT MAX(e.points) FROM race_entries e JOIN races r ON r.id = e.race_id
+              WHERE r.year = 2014 AND e.finish_position = 1""").fetchone()[0] == DOUBLE_POINTS[2014])
+
+    for kind, want in (("grand prix", 1), ("sprint", None)):
+        gaps = []
+        for year in range(1950, last_season() + 1):
+            n = sum(1 for r in rows
+                    if r["scoring"].startswith("SPRINT: ") == (kind == "sprint")
+                    and r["from_year"] <= year
+                    and (r["to_year"] is None or r["to_year"] >= year))
+            if n > 1 or (want is not None and n != want):
+                gaps.append(f"{year}: {n}")
+        check(f"every season is covered by at most one {kind} points system"
+              + (" and no fewer" if want else ""),
+              not gaps, "; ".join(gaps))
+
+
 @section('FINISHING ORDER AND PODIUMS')
 def finishing_order_and_podiums():
     n_pod = con.execute("""SELECT COUNT(*) FROM race_entries

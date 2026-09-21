@@ -1107,13 +1107,18 @@ def _stage_15_rules_tech_safety(b):
 
     for i, r in enumerate(X.POINTS, 1):
         cur.execute("""INSERT INTO points_systems (id, from_year, to_year, scoring,
-            fastest_lap, dropped_scores, notes) VALUES (?,?,?,?,?,?,?)""", (i,) + r)
+            win_points, fastest_lap, fastest_lap_points, dropped_scores, notes)
+            VALUES (?,?,?,?,?,?,?,?,?)""", (i,) + r)
 
+    # A sprint row has no fastest-lap point of its own - no sprint has ever
+    # carried one - so its fastest_lap_points is 0 rather than NULL, and
+    # verify.py checks that against the NULL `fastest_lap` beside it.
     off = len(X.POINTS)
-    for i, (fy, ty, scoring, note) in enumerate(X.SPRINT_POINTS, off + 1):
+    for i, (fy, ty, scoring, win, note) in enumerate(X.SPRINT_POINTS, off + 1):
         cur.execute("""INSERT INTO points_systems (id, from_year, to_year, scoring,
-            fastest_lap, dropped_scores, notes) VALUES (?,?,?,?,?,?,?)""",
-            (i, fy, ty, "SPRINT: " + scoring, None, None, note))
+            win_points, fastest_lap, fastest_lap_points, dropped_scores, notes)
+            VALUES (?,?,?,?,?,?,?,?,?)""",
+            (i, fy, ty, "SPRINT: " + scoring, win, None, 0, None, note))
 
     # `records` is no longer loaded here: it is DERIVED in stage 31, after the
     # career figures it is computed from exist. See derive_records().

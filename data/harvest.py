@@ -778,9 +778,14 @@ KNOWN_GAPS = [
      "margin IS derived - qualifying.gap holds a parseable gap for second "
      "place in all but one completed race - and stands as a record.",
      0,
-     "The clinching round is computable from `standings` and `points_systems` "
-     "once the per-season maximum-points rule is written down; that is the one "
-     "of the five with a route. The others need race timing, which no source "
+     "The clinching round is computable from `standings` and `points_systems`, "
+     "and the per-season maximum-points rule that route was waiting on is now "
+     "written down: points_systems.win_points and .fastest_lap_points carry as "
+     "figures what `scoring` and `fastest_lap` carry as sentences, and the "
+     "season page already adds them up to say who can still win (PD-28). What "
+     "is left is walking the standings back round by round to find the first "
+     "at which the gap exceeded what remained; this gap stays open until that "
+     "is derived and checked. The others need race timing, which no source "
      "publishes under a licence that permits passing it on (known_gaps #5), "
      "or an attribute the project does not model."),
     (13, "governance", "what a new team pays to enter",

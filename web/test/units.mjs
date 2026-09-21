@@ -56,7 +56,16 @@ import {
   seasonsNote,
   strip,
 } from '../src/queries/driver.js'
-import { latestRound, roundName, roundWinner, standingsHeading, stillRunning, titleHeading } from '../src/queries/season.js'
+import {
+  constructorsFooter,
+  latestRound,
+  roundName,
+  roundWinner,
+  standingsHeading,
+  stillRunning,
+  titleHeading,
+  titlePermutations,
+} from '../src/queries/season.js'
 import { SEASONS_COLUMNS, soFar } from '../src/queries/seasons.js'
 import { raceWinner } from '../src/queries/races.js'
 import { entered } from '../src/queries/constructors.js'
@@ -614,6 +623,81 @@ describe('the queries a page and the prerenderer share', () => {
         `a ${JSON.stringify(notes)} note falls through to the records`,
       )
     }
+  })
+
+  // PD-28. The claim is arithmetic on figures the reader cannot see, so what
+  // matters is where it declines to make one: the tests below are mostly the
+  // nulls.
+  it('works out who can still win, and says nothing where the arithmetic will not carry', () => {
+    const live = { races: 2, sprints: 1, run: 21, dropped_scores: 'None', available: 58 }
+    const table = [
+      { entity: 'Antonelli', position: 1, points: 300 },
+      { entity: 'Russell', position: 2, points: 250 },
+      { entity: 'Hamilton', position: 3, points: 200 },
+      { entity: 'Norris', position: 4, points: 100 },
+    ]
+    const said = titlePermutations({ drivers: table, remaining: live, afterRound: 21, built: '2026-09-16' })
+    // 58 available: Hamilton is exactly 100 behind and out, Russell is 50
+    // behind and in. A driver who can only draw level is counted in, because
+    // the countback this does not do is what would settle that.
+    assert.match(said, /^Who can still win the drivers' title: Antonelli and Russell\./)
+    assert.match(said, /2 rounds and 1 sprint still to run, so 58 points are still available/)
+    assert.match(said, /Counted after round 21, from the database built 2026-09-16\./)
+    assert.match(said, /a tie at the top is settled on wins/)
+
+    // Exactly level with the last available point is still in.
+    assert.match(
+      titlePermutations({ drivers: [table[0], { entity: 'Level', position: 2, points: 242 }], remaining: live, afterRound: 21 }),
+      /: Antonelli and Level\./,
+    )
+    // One driver left in is the title decided, and it says so rather than
+    // printing a list of one.
+    assert.equal(
+      titlePermutations({ drivers: [table[0], table[3]], remaining: live, afterRound: 21 }).split(' 2 rounds')[0],
+      "Only Antonelli can still win the drivers' title: no other driver can now reach that total.",
+    )
+    // More than ten still in: the count is the answer, not the names.
+    const crowd = Array.from({ length: 12 }, (_, i) => ({ entity: `D${i}`, position: i + 1, points: 300 - i }))
+    assert.match(
+      titlePermutations({ drivers: crowd, remaining: live, afterRound: 21 }),
+      /^Every driver who has scored can still reach the leader's total\./,
+    )
+    // Eleven in and one out: the count, because eleven names is not a sentence.
+    assert.match(
+      titlePermutations({ drivers: [...crowd, { entity: 'Out', position: 13, points: 1 }], remaining: live, afterRound: 21 }),
+      /^12 of the 13 drivers who have scored can still reach the leader's total\./,
+    )
+    // No round left, a dropped-scores season, and a table too short to have a
+    // gap in it: three different reasons to say nothing at all.
+    assert.equal(titlePermutations({ drivers: table, remaining: { ...live, races: 0 }, afterRound: 23 }), null)
+    assert.equal(
+      titlePermutations({ drivers: table, remaining: { ...live, dropped_scores: 'Best 6 of 10' }, afterRound: 8 }),
+      null,
+    )
+    assert.equal(titlePermutations({ drivers: [table[0]], remaining: live, afterRound: 21 }), null)
+    assert.equal(titlePermutations({ drivers: table, remaining: null, afterRound: 21 }), null)
+    // The calendar and the standings are harvested apart. A table that stands
+    // after round 21 while 22 have run would be measured against one race too
+    // few, so the claim is withheld rather than made a round out of date - and
+    // so it is where no round has been counted at all.
+    assert.equal(titlePermutations({ drivers: table, remaining: { ...live, run: 22 }, afterRound: 21 }), null)
+    assert.equal(titlePermutations({ drivers: table, remaining: live, afterRound: null }), null)
+    // A driver with points and no position was excluded from the
+    // classification: not the leader to catch, and not someone to catch.
+    assert.equal(
+      titlePermutations({
+        drivers: [{ entity: 'Excluded', position: null, points: 900 }, table[0], table[1]],
+        remaining: live,
+        afterRound: 21,
+      }).split('.')[0],
+      "Who can still win the drivers' title: Antonelli and Russell",
+    )
+  })
+
+  it('tells a constructor a gap from a chassis-engine pair', () => {
+    assert.match(constructorsFooter(false), /^The gap is to the highest points total classified/)
+    assert.match(constructorsFooter(false), /before 1991 it is a difference of net totals/)
+    assert.match(constructorsFooter(true), /net totals, dropped scores and all\. The championship is contested by a chassis–engine pair/)
   })
 
   it('does not call a rounding difference two totals', () => {
