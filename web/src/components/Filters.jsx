@@ -70,7 +70,21 @@ export function NoMatch({ noun, term = '', among = '', onClear }) {
     <div className="state is-empty no-match">
       <p>{sentence}</p>
       {onClear && (
-        <button type="button" className="button secondary" onClick={onClear}>
+        <button
+          type="button"
+          className="button secondary"
+          onClick={(event) => {
+            // Clearing the filters unmounts this button, and unaided the focus
+            // on it falls to <body>: the reader is put at the top of the
+            // document, away from the strip they were operating. The strip's
+            // first control survives the re-render, so hand it back there.
+            const first = event.currentTarget
+              .closest('section')
+              ?.querySelector('.filters input, .filters select, .filters button')
+            onClear()
+            first?.focus()
+          }}
+        >
           Clear filters
         </button>
       )}

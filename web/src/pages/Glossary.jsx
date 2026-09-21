@@ -66,9 +66,13 @@ function Body({ glossary, personnel, term, setTerm, category, setCategory }) {
   }, [glossary, term, category])
 
   // The two filters as a plural noun phrase, for the empty state (IX-28).
-  // "terms about tyres", never "tyres terms": every category is a plural noun
-  // and none of them is an adjective.
-  const among = category ? `terms about ${category}` : ''
+  // Not "terms about tyres": a glossary category is whatever `data/` says it
+  // is, and half of them are adjectives - `sporting`, `technical`, `format`,
+  // `power unit` - so "terms about sporting" is what that phrasing would
+  // actually have written for 15 of the 44 terms. Naming the category as a
+  // category reads for every value the chips can carry, including one added
+  // after this line.
+  const among = category ? `terms in the ${category} category` : ''
   const clear = () => {
     setTerm('')
     setCategory('')

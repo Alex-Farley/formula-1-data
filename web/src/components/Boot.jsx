@@ -111,9 +111,8 @@ export default function Boot({ children }) {
               which is behind a disclosure has swapped, the way Quality.jsx
               already puts a reader's sentence over a maintainer's note. */}
           <p className="error" role="alert">
-            This usually means the download was interrupted. Try again below — and if it keeps
-            happening, the site’s data file may be unavailable for the moment rather than
-            anything being wrong at your end.
+            The site’s data file did not load. Try again below — and if it keeps happening, it
+            may be unavailable for the moment rather than anything being wrong at your end.
           </p>
           <p>
             <button type="button" className="button" onClick={retry}>

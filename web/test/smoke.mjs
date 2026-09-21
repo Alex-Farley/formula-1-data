@@ -1994,6 +1994,29 @@ try {
   await section('/reference/glossary', async () => {
     await go('/reference/glossary', 'Glossary')
     is((await tableRows())[0], count('SELECT COUNT(*) FROM glossary'), 'glossary terms')
+    // IX-28's sentence is composed by each page, so each page is where it can
+    // be read; /drivers proves the component, not the six phrasings. This is
+    // the register whose filter values are not noun phrases - `sporting`,
+    // `power unit` - which is the case the template has to survive.
+    {
+      const category = one('SELECT category FROM glossary WHERE category IS NOT NULL ORDER BY category LIMIT 1')
+      const group = '[role="group"][aria-label="Filter terms by category"]'
+      await page.click(`${group} button:text-is("${category}")`)
+      await page.fill('input[type="search"]', 'zzzz-no-such-term')
+      await page.waitForSelector('#root main .state.is-empty', { timeout: 10000 })
+      is(
+        await page.$eval('#root main .state.is-empty p', (node) => node.textContent.trim()),
+        `No term matches “zzzz-no-such-term” among terms in the ${category} category.`,
+        'the glossary empty state names both filters, and names the category as a category',
+      )
+      await page.click('#root main .state.is-empty button')
+      await page.waitForSelector('#root main tbody tr', { timeout: 10000 })
+      is(
+        (await tableRows())[0],
+        count('SELECT COUNT(*) FROM glossary'),
+        'Clear filters brings the whole glossary back, category chip and search box both',
+      )
+    }
 
   })
 
