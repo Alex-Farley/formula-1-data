@@ -708,6 +708,25 @@ def _stage_10_the_chassis_engine_and_entrant_register(b):
     def _float(v):
         return float(v) if v else None
 
+    def _power_note(v):
+        """A harvested power note that names no number is not a power figure.
+
+        The infobox `power` field the harvest reads is meant to hold one, and
+        number() already refuses to take a bhp figure out of a value with no
+        digit in it. Where the article leaves the {{Racing car}} template's
+        unfilled `NNN hp` placeholder in place, or answers with a
+        cross-reference ("See Table") that does not travel with the value,
+        the page states no power - so storing the text as a note contradicts
+        the NULL beside it and puts "NNN hp" on the car's page. 45 chassis
+        carried one when this was written.
+
+        It is refused here rather than in tools/wikispec_fetch.py because the
+        harvest file records what the page said and the build records what
+        survived the checks, and because this check needs no network: the
+        harvest can be re-run by anyone, and this cannot be skipped.
+        """
+        return v if v and any(c.isdigit() for c in v) else None
+
     for ch_id, f1db_cons, name, full in HV.load_chassis():
         if ch_id in chassis_car and chassis_car[ch_id] not in seen_cars:
             raise SystemExit(f"CAR_CHASSIS names unknown car "
@@ -747,7 +766,7 @@ def _stage_10_the_chassis_engine_and_entrant_register(b):
              sp.get("engine_position"), sp.get("gearbox"), sp.get("gears"),
              sp.get("brakes"), sp.get("fuel"), sp.get("tyres"),
              _int(sp.get("capacity_cc")), _int(sp.get("power_bhp")),
-             sp.get("power_note"), _float(sp.get("weight_kg")),
+             _power_note(sp.get("power_note")), _float(sp.get("weight_kg")),
              _int(sp.get("wheelbase_mm")), _int(sp.get("track_front_mm")),
              _int(sp.get("track_rear_mm")), _int(sp.get("fuel_l")),
              sp.get("predecessor"), sp.get("successor"),
