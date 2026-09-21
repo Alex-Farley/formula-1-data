@@ -33,10 +33,19 @@ ids this run has already skipped. If you were not invoked by the
 `backlog-loop` driver or by a person typing `/backlog-item`, return
 `STOP: not invoked by the loop` and do nothing.
 
-First, `gh pr list --state open` and `git worktree list`. An open `claude/`
-PR or a leftover worktree is finished from where it stopped, and **its
-comments are read before anything else**: a recorded `FAIL` nobody has fixed
-is fixed, never reviewed again on the same head `[D-23]`.
+First, `bash .claude/skills/backlog-loop/start-check.sh`. It prints the open
+pull requests and the worktrees, and **refuses, exit 2, when the primary
+checkout is on a branch other than `main` or has uncommitted changes to
+tracked files**: a session worked in that checkout directly instead of in a
+worktree and may still be, and a fork that starts anyway shares a working
+tree with it. Return `STOP` on that refusal — whatever is on somebody else's
+branch is theirs to settle, not a fork's to reset. Untracked files are a
+warning, not a refusal.
+
+An open `claude/` PR or a leftover worktree does **not** refuse: that is the
+inheritance to finish from where it stopped, and **its comments are read
+before anything else** — a recorded `FAIL` nobody has fixed is fixed, never
+reviewed again on the same head `[D-23]`.
 
 ## Before an item
 
@@ -294,6 +303,13 @@ Then `gh pr merge N --merge`, only with the PASS and `check (3.9)`,
   A `gh` failure naming a limit while `gh api rate_limit` looks untouched is
   the secondary limiter. Record it, stop calling, come back. `precheck.sh`
   tells it from a real "not an open issue" FAIL, which you can trust.
+- **The limiter refusing the board read is a `STOP`, not a skip.** `next.py`
+  exits **3** on it and names it, distinctly from the 2 that means `gh`
+  failed for some other reason. Recording a blocker is itself a board write,
+  so the skip path needs the call that is being refused; and no fork can
+  choose an item while the board is unreadable. Do not poll it — a poll every
+  45 seconds keeps it closed `[D-27]`. Return `STOP` and let the run be
+  picked up later.
 - **Keep your own messages short.** Do not paste reviewer reports into your
   context twice; the PR comment is the record. Read build and test output in
   its quiet form and never `cat` a log you have already checked the exit
@@ -324,6 +340,11 @@ Then `gh pr merge N --merge`, only with the PASS and `check (3.9)`,
 Stop and say why when a change could corrupt data, breach a licence, weaken a
 check or workflow, change production infrastructure other than by merging, or
 lose history; when a decision is a person's; when the user asks to pause.
+
+Stop, too, when `start-check.sh` refuses the primary checkout, and when
+`next.py` exits 3 because the secondary limiter is refusing the board: both
+are conditions no fork can work around, and the second cannot even be
+recorded.
 
 Skip and record an ordinary blocker — network, a service, a missing
 non-critical credential — with `file.py blocked <n> "<what>"`, and leave the

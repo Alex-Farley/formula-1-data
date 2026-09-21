@@ -416,6 +416,30 @@ two apart: a call that failed is a WARN naming the API, and the FAIL saying
 an item "is not an open issue" now only happens when `gh` answered and found
 nothing.
 
+**It recurred on 2026-09-21** after a fourteen-item run, against a board
+grown to 273 items, and `PM-44` (#451) measured why and what the rule should
+be. The cache built in 2026-09-14's answer had not failed; the load it covers
+had grown, on queue size and on forks per hour together. The reads themselves
+were the lever: `gh project item-list --format json` has **no field
+selection**, so it returned every field of every board item — each issue's
+body included — and `next.py` used two of them. A hand-written GraphQL query
+for number and status returns byte-identical numbers, order and statuses over
+the same three pages, at **23 KB in 3.4 s against 468 KB in 6.5 s**. Time is
+what matters rather than bytes: the limiter counts processing time as well as
+calls, and fourteen forks spent about ninety seconds of board time on the old
+query alone. The issue read now asks for bodies only where one is printed or
+scored, which is most of its payload again. Nothing was cached that was not
+cached before — choosing an item still always reads GitHub, because a stale
+board is how two forks take the same item.
+
+Two rule changes came with it. `next.py` exits **3**, not 2, when a refusal
+matches the do-not-retry pattern, so "the limiter is active" is
+distinguishable from "gh failed"; and the pattern now lives in
+`gh_preflight.py` as one copy that both `next.py` and `file.py` read. And the
+limiter refusing the **board** read is a `STOP` for the loop rather than an
+ordinary blocker to skip: recording a blocker is itself a board write, so the
+skip path needs the call that is being refused.
+
 ### D-34 · An item's body says where the work lands — 2026-09-16 (`AF-36`, #350)
 A reviewer pays its orientation cost once per pull request, not once per
 item, so the average group size is what sets the review cost per item.

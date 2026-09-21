@@ -49,6 +49,22 @@ import sys
 MISSING = "gh is not on PATH"
 UNAUTH = "gh ran but could not confirm a working credential"
 TOO_OLD = "gh is on PATH but too old for these scripts"
+LIMITED = "GitHub refused the call, and calling again extends the refusal"
+
+# A gh failure a second attempt cannot improve on, matched against an
+# arbitrary call's stderr. The secondary rate limiter is the one that
+# matters: it is not a bucket `gh api rate_limit` reports - every one of
+# those read full while it was active, on 2026-09-14 and again on
+# 2026-09-21 - it refuses every GraphQL call while it lasts, and each
+# further attempt extends it `[D-27]`. The authorisation refusals are here
+# for the same reason: the answer will not change on a retry.
+#
+# One copy, because two drift. `file.py` decides with it whether an
+# `item-edit` is worth a second attempt; `next.py` uses it to say which
+# kind of failure a reader is looking at, since "gh failed" reads as
+# something to try again and trying again is the one thing that makes this
+# worse. It lived in `file.py` until `PM-44`.
+DO_NOT_RETRY = re.compile(r"rate limit|secondary|abuse detection|forbidden|not authoriz", re.I)
 
 # Matched against `gh auth status` only - its own wording, not an arbitrary
 # command's stderr, which is why this is a pattern at all. See
@@ -93,9 +109,27 @@ such an item from the issue itself; the loop stays off.
 """
 
 
+LIMIT_HELP = """
+This is a refusal to wait out, not a defect in the queue scripts and not
+something to poll through: the limiter extends while calls keep arriving,
+and `gh api rate_limit` will look untouched throughout because this is not
+one of the buckets it reports. Stop calling GitHub.
+
+For the loop this is a stop rather than an ordinary blocker: a blocker is
+recorded on its issue and worked around, and recording it is itself a board
+write, which is the call that cannot be made. No fork can choose an item
+while the board is unreadable, so the run ends and is resumed later.
+"""
+
+
 def note(reason):
     """The reason and the standing explanation, ready for stderr."""
     return f"backlog-loop: {reason}.\n{HELP}"
+
+
+def limit_note():
+    """The same shape for a refusal, whose fix is not a credential."""
+    return f"backlog-loop: {LIMITED}.\n{LIMIT_HELP}"
 
 
 def unauthenticated():

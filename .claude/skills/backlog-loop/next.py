@@ -53,7 +53,10 @@ number after the highest `PD-n` in use, so a new finding continues the
 critique's own sequence and no id is reused (`file.py` calls this).
 
 Exit 0 with the item on stdout; 1 when there is no open item (or the named
-one is not open), with the reason on stderr; 2 when `gh` fails.
+one is not open), with the reason on stderr; 2 when `gh` fails; 3 when
+GitHub refused the call in a way a second attempt cannot improve on - the
+secondary rate limiter above all, which extends while calls keep arriving,
+so a 3 is a stop and never something to poll through `[D-27]`.
 """
 import json
 import os
@@ -129,7 +132,14 @@ NOISE = 4            # see below
 # should be instead is open, and filed.
 
 
-def gh(*args):
+def run(*args):
+    """`gh`, returning stdout as text. The one failure path every read shares.
+
+    A refusal the secondary limiter is making exits 3 and says so. Nothing
+    here ever retried one, but "gh failed" reads as something to try again,
+    and trying again is precisely what extends the block `[D-27]`; the
+    caller of a script cannot act on a distinction the script does not
+    draw."""
     try:
         r = subprocess.run(["gh", *args], capture_output=True, text=True, check=False)
     except FileNotFoundError:
@@ -142,44 +152,147 @@ def gh(*args):
         # rejected token from an API it could not reach, so a secondary rate
         # limit would otherwise be answered with "go and fetch a new PAT".
         sys.stderr.write(r.stderr)
+        if gh_preflight.DO_NOT_RETRY.search(r.stderr):
+            # Asked before `unauthenticated()`, which spends another call on
+            # a limiter that counts it and would answer "no credential"
+            # whatever the truth is - it cannot tell a rejected token from an
+            # API it could not reach, and says so.
+            sys.stderr.write(gh_preflight.limit_note())
+            sys.exit(3)
         if gh_preflight.unauthenticated():
             sys.stderr.write(gh_preflight.note(gh_preflight.UNAUTH))
         sys.exit(2)
-    return json.loads(r.stdout)
+    return r.stdout
 
 
-def load(allow_cache=False):
+def gh(*args):
+    return json.loads(run(*args))
+
+
+# Number and status, and nothing else. `fieldValueByName` is the whole
+# reason this is written out rather than left to `gh project item-list`.
+BOARD_QUERY = """
+query($owner: String!, $number: Int!, $endCursor: String) {
+  user(login: $owner) {
+    projectV2(number: $number) {
+      items(first: 100, after: $endCursor) {
+        pageInfo { hasNextPage endCursor }
+        nodes {
+          content { __typename ... on Issue { number } }
+          fieldValueByName(name: "Status") {
+            ... on ProjectV2ItemFieldSingleSelectValue { name }
+          }
+        }
+      }
+    }
+  }
+}
+"""
+
+
+def board_rows():
+    """[(issue number, status)], in the board's own order, top to bottom.
+
+    `gh project item-list --format json` has no field selection: it returns
+    every field of every item, each issue's body included, and this read used
+    two of them. Measured 2026-09-21 against the live 273-item board: 468 KB
+    in 6.5 s, against 23 KB in 3.4 s for the query above - the same three
+    pages, and numbers, order and statuses identical item for item.
+
+    Time is the point rather than bytes. GitHub's secondary limiter counts
+    processing time as well as calls, a ProjectsV2 item-list is the expensive
+    kind, and every fork runs this once before it can choose anything: the
+    fourteen-item session that tripped the limiter spent about a minute and a
+    half of board time here on the old query alone `[D-27]`.
+
+    Not cached, ever, and not a candidate to be: this is the read that tells
+    a fork which items are already taken `[D-27]`, and a stale answer is how
+    two forks take the same one. Cheaper, not remembered.
+
+    `--paginate` concatenates one JSON document per page, so the reply is
+    decoded as a stream and not parsed whole."""
+    raw = run("api", "graphql", "--paginate", "-F", f"owner={OWNER}",
+              "-F", f"number={PROJECT}", "-f", f"query={BOARD_QUERY}")
+    rows, decoder, at = [], json.JSONDecoder(), 0
+    while at < len(raw):
+        while at < len(raw) and raw[at].isspace():
+            at += 1
+        if at >= len(raw):
+            break
+        page, at = decoder.raw_decode(raw, at)
+        if page.get("errors"):
+            # GraphQL answers 200 with errors beside a partial `data`, and
+            # `gh` does not always exit non-zero on it. A board missing its
+            # tail is indistinguishable from a complete one in the output,
+            # which is the failure gh_preflight refuses by name: a traceback
+            # is honest, a plausible wrong answer is not.
+            sys.exit(f"the board read returned errors: {json.dumps(page['errors'])}")
+        project = ((page.get("data") or {}).get("user") or {}).get("projectV2")
+        if project is None:
+            sys.exit(f"no ProjectsV2 number {PROJECT} for user {OWNER}")
+        for node in project["items"]["nodes"]:
+            content = node.get("content") or {}
+            # A draft item or a pull request is on the board and is not an
+            # item of the queue, the way `content.type != "Issue"` filtered.
+            if content.get("__typename") != "Issue":
+                continue
+            rows.append((content["number"],
+                         (node.get("fieldValueByName") or {}).get("name") or ""))
+    return rows
+
+
+def one_body(number):
+    """One issue's body, read on its own.
+
+    A bare `next.py` prints one item out of the ~175 open, and asking the
+    list read for every body in order to print one is three quarters of that
+    read's payload. A call that names items asks in bulk instead: it prints
+    several, and it may be reading the snapshot `--group` has just left."""
+    return gh("issue", "view", str(number), "--repo", REPO, "--json", "body")["body"] or ""
+
+
+def load(allow_cache=False, bodies=False):
     """Open issues in board order: [(status, number, ident, title, labels, body, url)].
 
-    Two GraphQL reads, both `--limit 1000`, the first of them a ProjectsV2
-    query - the expensive kind, and what tripped GitHub's secondary rate
-    limiter on 2026-09-14. `allow_cache` is passed only by a call that names
-    the items it wants, never by one choosing the next item."""
+    Two GraphQL reads, both paginated at a hundred: the board, for number and
+    status only (`board_rows`), and the open issues.
+
+    `bodies` asks the issue read for the bodies too. They are three quarters
+    of its payload and are wanted only by a call that will print one or score
+    a group on one, so `--list`, which prints none, and a bare choosing call,
+    which prints exactly one and reads that one on its own, no longer pay for
+    every body in the queue to answer with none or with one.
+
+    `allow_cache` is passed only by a call that names the items it wants,
+    never by one choosing the next item. A payload cached without bodies is a
+    miss for a call that needs them, so no call can print a body as blank
+    because an earlier, cheaper one did not fetch it."""
     if allow_cache:
         hit = loop_cache.read("queue", CACHE_TTL)
-        if isinstance(hit, dict) and {"ranked", "in_progress", "unplaced"} <= hit.keys():
+        if (isinstance(hit, dict) and {"ranked", "in_progress", "unplaced"} <= hit.keys()
+                and (hit.get("bodies") or not bodies)):
             return hit["ranked"], hit["in_progress"], hit["unplaced"]
-    board = gh("project", "item-list", PROJECT, "--owner", OWNER, "--format", "json", "--limit", "1000")["items"]
+    fields = "number,title,labels,url" + (",body" if bodies else "")
+    board = board_rows()
     open_issues = {i["number"]: i for i in gh("issue", "list", "--repo", REPO, "--state", "open",
-                                              "--limit", "1000", "--json", "number,title,labels,body,url")}
+                                              "--limit", "1000", "--json", fields)}
     rows = []
-    for item in board:
-        c = item.get("content") or {}
-        n = c.get("number")
-        if c.get("type") != "Issue" or n not in open_issues:
+    for n, status in board:
+        issue = open_issues.get(n)
+        if issue is None:
             continue
-        issue = open_issues[n]
         m = ID.match(issue["title"])
-        rows.append(dict(status=item.get("status") or "", number=n, ident=m.group(1) if m else f"#{n}",
+        rows.append(dict(status=status, number=n, ident=m.group(1) if m else f"#{n}",
                          title=issue["title"], labels=sorted(lb["name"] for lb in issue["labels"]),
-                         body=issue["body"] or "", url=issue["url"]))
+                         body=issue.get("body") or "", url=issue["url"]))
     ranked = [r for s in QUEUE for r in rows if r["status"] == s]
     in_progress = [r for r in rows if r["status"] == "In progress"]
     # Open, on the board, and in no queue status: no Status at all, or Done
     # while still open. Never silently dropped - the loop's rule is that an
     # item goes missing only by a person's hand.
     unplaced = [r for r in rows if r["status"] not in QUEUE + ("In progress",)]
-    loop_cache.write("queue", {"ranked": ranked, "in_progress": in_progress, "unplaced": unplaced})
+    loop_cache.write("queue", {"ranked": ranked, "in_progress": in_progress,
+                               "unplaced": unplaced, "bodies": bodies})
     return ranked, in_progress, unplaced
 
 
@@ -404,8 +517,16 @@ def main(argv):
     # reads GitHub: `next.py`, and `--group` in both its forms - `--group` is
     # stripped from argv above, so without the `not group` clause
     # `next.py --group AF-09` would score every candidate against a snapshot.
+    # A body is most of the issue read and is wanted only where one is
+    # printed or scored: `--list` prints none, `--group` scores every one of
+    # them, a call that names items prints each, and a bare call prints the
+    # single item it chooses - which `one_body` fetches below, after the
+    # choosing, for the price of the one it needs.
+    listing = argv[:1] == ["--list"]
+    want_bodies = not listing and (group or bool(argv))
     ranked, in_progress, unplaced = load(
-        allow_cache=bool(argv) and not group and argv[0] != "--list")
+        allow_cache=bool(argv) and not group and not listing,
+        bodies=want_bodies)
     decisions = [r for r in ranked if "decision" in r["labels"]]
     everything = ranked + in_progress + unplaced
 
@@ -439,6 +560,8 @@ def main(argv):
         heads = [head]
 
     for row in heads:
+        if not want_bodies:
+            row["body"] = one_body(row["number"])
         show(row)
     if group:
         show_companions(heads[0], ranked, skip, {r["number"] for r in heads})

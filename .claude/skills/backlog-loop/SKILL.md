@@ -21,7 +21,8 @@ driving context stop growing.
 
 The rules are in `CLAUDE.md`; the per-item procedure, the pace table and
 what never slides are in `.claude/skills/backlog-item/SKILL.md`, which is
-their only normative copy; the scripts the fork uses are in this folder: `next.py` (reads the queue), `file.py` (writes to
+their only normative copy; the scripts the fork uses are in this folder: `start-check.sh` (what it
+checks before it starts), `next.py` (reads the queue), `file.py` (writes to
 it), `precheck.sh`, `ci-wait.sh`, `merge-main.py`, `review-prompt.md`, and
 `progress.sh`, which the fork calls at each stage to append one line to
 `.claude/loop/progress.log` - the only view of the fork a person has.
@@ -66,7 +67,13 @@ Two words, either order, both optional.
      consecutive skips of different items stop the loop: a blocker that
      hits two unrelated items is the environment, not the items.
    - `STOP: <reason>`: a stop condition or a person's decision. Stop; print
-     the stock-take.
+     the stock-take. Two of these are the environment rather than the item,
+     and both are a person's to clear: the fork's `start-check.sh` refusing
+     because this checkout is on a feature branch or has uncommitted changes
+     — a session worked in it directly instead of in a worktree — and
+     GitHub's secondary rate limiter refusing the board read, which no fork
+     can record around and no poll can shorten `[D-27]`. Neither is worth a
+     second fork; say which one it was.
    - `LIMIT: resets <time>`, **or the Skill tool returning an error that
      names a usage or session limit** (`You've hit your session limit ·
      resets 1:30pm (Europe/London)` was the wording on 2026-09-13; a fork

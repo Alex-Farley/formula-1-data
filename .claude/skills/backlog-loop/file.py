@@ -89,8 +89,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 BOARD_TTL = 3600
 ITEMS_TTL = 900
 # A failure that is not a stale id: retrying it wastes calls, and against the
-# secondary limiter it extends the block.
-REFUSED = re.compile(r"rate limit|secondary|abuse detection|forbidden|not authoriz", re.I)
+# secondary limiter it extends the block. The pattern moved to gh_preflight
+# with `PM-44`, so `next.py` can name the same failure without a second copy
+# of it going quietly out of step with this one.
+REFUSED = gh_preflight.DO_NOT_RETRY
 
 
 def gh(*args, as_json=False):
