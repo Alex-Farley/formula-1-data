@@ -78,7 +78,8 @@ export const FINAL = `
   SELECT f.id, f.year, f.table_type, f.position, f.position_text, f.entity, f.entity_id,
          f.engine_id, f.team, f.points, f.source,
          k.country AS constructor_country,
-         MAX(f.points) OVER (PARTITION BY f.table_type) - f.points AS gap,
+         MAX(CASE WHEN f.position IS NOT NULL THEN f.points END)
+           OVER (PARTITION BY f.table_type) - f.points AS gap,
          CASE WHEN f.table_type = 'drivers' AND f.entity_id IS NOT NULL THEN (
            SELECT COUNT(DISTINCT e.race_id)
              FROM race_entries e JOIN races r ON r.id = e.race_id
@@ -106,9 +107,11 @@ export const FINAL = `
  */
 export const REMAINING = `
   WITH to_run AS (
-    SELECT COUNT(*) AS races, COALESCE(SUM(r.sprint), 0) AS sprints
+    SELECT SUM(CASE WHEN r.status <> 'completed' THEN 1 ELSE 0 END)          AS races,
+           SUM(CASE WHEN r.status <> 'completed' THEN r.sprint ELSE 0 END)   AS sprints,
+           SUM(CASE WHEN r.status =  'completed' THEN 1 ELSE 0 END)          AS run
       FROM races r
-     WHERE r.year = ?1 AND r.status <> 'completed'),
+     WHERE r.year = ?1),
   gp AS (
     SELECT win_points, fastest_lap_points, dropped_scores
       FROM points_systems
@@ -121,7 +124,7 @@ export const REMAINING = `
      WHERE scoring LIKE 'SPRINT:%'
        AND from_year <= ?1 AND (to_year IS NULL OR to_year >= ?1)
      ORDER BY from_year DESC LIMIT 1)
-  SELECT t.races, t.sprints, g.win_points, g.fastest_lap_points, g.dropped_scores,
+  SELECT t.races, t.sprints, t.run, g.win_points, g.fastest_lap_points, g.dropped_scores,
          COALESCE((SELECT win_points FROM sp), 0) AS sprint_points,
          t.races * (g.win_points + g.fastest_lap_points)
            + t.sprints * COALESCE((SELECT win_points FROM sp), 0) AS available
@@ -228,13 +231,18 @@ const listed = (names) =>
  * It returns null rather than a hedge wherever the arithmetic would not carry:
  *
  *   - no round left to run — there is nothing to work out;
+ *   - a standings table that does not stand after the round the calendar says
+ *     has run: results and standings are harvested separately and either can
+ *     land first, and a table one round behind a calendar would be measured
+ *     against one race too few and put a driver out who is not;
  *   - a dropped-scores season — before 1991 only a driver's best few results
  *     counted, so a total need not rise by what its driver scores and being
  *     behind by more than is available does not put anyone out;
  *   - fewer than two drivers on the table.
  *
  * Where more than ten drivers are still in - the opening weeks of a season,
- * when nobody is out - the count is the answer and the list of names is not.
+ * when nobody is out - the count is the answer and the list of names is not,
+ * and where nobody at all is out it says that rather than counting to itself.
  *
  * What it does not claim is in its own last sentence: a tie on points is
  * settled on wins, so "can still reach the leader's total" is not the same as
@@ -246,7 +254,11 @@ const listed = (names) =>
 export function titlePermutations({ drivers, remaining, afterRound, built }) {
   if (!remaining || !remaining.races) return null
   if (remaining.dropped_scores && remaining.dropped_scores !== 'None') return null
-  const scored = (drivers ?? []).filter((d) => !missing(d.points))
+  if (missing(afterRound) || afterRound !== remaining.run) return null
+  // A driver with points and no position was excluded from the classification,
+  // which is the same table's footer: their points stand and their position
+  // does not, so they are neither the leader to catch nor someone to catch.
+  const scored = (drivers ?? []).filter((d) => !missing(d.points) && !missing(d.position))
   if (scored.length < 2) return null
 
   const available = remaining.available
@@ -262,7 +274,9 @@ export function titlePermutations({ drivers, remaining, afterRound, built }) {
       ? `Only ${alive[0].entity} can still win the drivers' title: no other driver can now reach that total.`
       : alive.length <= 10
         ? `Who can still win the drivers' title: ${listed(alive.map((d) => d.entity))}.`
-        : `${number(alive.length)} of the ${number(scored.length)} drivers who have scored can still reach the leader's total.`
+        : alive.length === scored.length
+          ? "Every driver who has scored can still reach the leader's total."
+          : `${number(alive.length)} of the ${number(scored.length)} drivers who have scored can still reach the leader's total.`
 
   return [
     who,
@@ -299,6 +313,14 @@ export const CALENDAR_FOOTER =
 // position_text is the source's own spelling ("EX", "NC"); the hand-maintained
 // 2025-26 rows carry only the number. Falling back to it is the difference
 // between P1 and an em dash on the champion.
+// Said once and printed under both standings tables. The net-of-dropped-scores
+// clause is the same warning seasons.js puts on the Margin column: before 1991
+// a total is what counted, not what was scored, so a gap of 3 can sit between
+// two drivers eleven points apart on the road (1988).
+export const GAP_FOOTER =
+  "The gap is to the highest points total classified, so the leader's own is an em dash; " +
+  'before 1991 it is a difference of net totals, dropped scores and all.'
+
 const position = (value, row) => text(value ?? row.position)
 const pts = (value) => (missing(value) ? EMPTY : points(value))
 // The leader is nobody's gap: a 0 here means no one is ahead of you on points,
@@ -317,7 +339,8 @@ export const DRIVERS_FINAL_COLUMNS = [
 
 export const DRIVERS_FINAL_FOOTER =
   'A driver with points and no position was excluded from the classification: the points stand, the position does not. ' +
-  'Wins are counted from the race records, and a shared drive is a win for both of its drivers; the gap is to the leader\'s points, so the leader\'s own is an em dash.'
+  'Wins are counted from the race records, and a shared drive is a win for both of its drivers. ' +
+  GAP_FOOTER
 
 /** "McLaren mercedes" where the championship is contested by a chassis–engine pair. */
 export const constructorEntity = (name, row) => (row.engine_id ? `${text(name)} ${row.engine_id}` : text(name))
@@ -332,13 +355,13 @@ export const CONSTRUCTORS_FINAL_COLUMNS = [
 export const CONSTRUCTORS_PAIR_FOOTER =
   'The championship is contested by a chassis–engine pair, so one name can appear more than once with different engines.'
 
-export const CONSTRUCTORS_GAP_FOOTER = 'The gap is to the leader\'s points, so the leader\'s own is an em dash.'
+export const CONSTRUCTORS_GAP_FOOTER = GAP_FOOTER
 
 /**
- * No wins column here to match the drivers\' table: a row can be a
- * chassis–engine pair, and the race records say which constructor won a race
+ * No wins column here to match the drivers' table: a row can be a
+ * chassis-engine pair, and the race records say which constructor won a race
  * and not which of its engines is credited with the championship point, so a
- * pair\'s wins cannot be told apart without asserting something no source does.
+ * pair's wins cannot be told apart without asserting something no source does.
  */
 export const constructorsFooter = (ambiguous) =>
   ambiguous ? `${CONSTRUCTORS_GAP_FOOTER} ${CONSTRUCTORS_PAIR_FOOTER}` : CONSTRUCTORS_GAP_FOOTER

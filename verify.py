@@ -1415,6 +1415,36 @@ def points_systems_figures():
     # LIMIT 1. That is the right row only while the periods neither overlap nor
     # leave a hole, which is what these two check for every season the register
     # holds - including the seasons scheduled but not yet run.
+    # The figures above are checked against the sentence beside them, which is
+    # the same tuple said twice. This one is not: it asks the race records what
+    # a win was actually paid, which is the only check here that could catch an
+    # authored pair where both halves are wrong together. The cap is the win
+    # plus the fastest lap because a winner can take both.
+    #
+    # 2014 is the one season over it, and deliberately: Abu Dhabi paid double
+    # points that year, a one-race rule the period table has no row shape for
+    # and `scoring` has never mentioned. It is declared here rather than
+    # smoothed away, and it is why win_points is a maximum for a normal race
+    # and not a promise about every race of the period.
+    DOUBLE_POINTS = {2014: 50.0}
+    over = []
+    for r in con.execute("""SELECT r.year AS year, MAX(e.points) AS most
+        FROM race_entries e JOIN races r ON r.id = e.race_id
+        WHERE e.finish_position = 1 AND e.points IS NOT NULL
+        GROUP BY r.year ORDER BY r.year"""):
+        cap = con.execute("""SELECT win_points + fastest_lap_points FROM points_systems
+            WHERE scoring NOT LIKE 'SPRINT:%' AND from_year <= ? AND (to_year IS NULL OR to_year >= ?)
+            ORDER BY from_year DESC LIMIT 1""", (r["year"], r["year"])).fetchone()
+        if cap is None:
+            over.append(f"{r['year']}: no points system covers it")
+        elif r["most"] > cap[0] and DOUBLE_POINTS.get(r["year"]) != r["most"]:
+            over.append(f"{r['year']}: a winner scored {r['most']}, the system pays at most {cap[0]}")
+    check("no winner scored more than the season's win and fastest-lap points, "
+          "bar 2014's double-points finale", not over, "; ".join(over))
+    check("2014 Abu Dhabi is still the double-points race the exception is for",
+          con.execute("""SELECT MAX(e.points) FROM race_entries e JOIN races r ON r.id = e.race_id
+              WHERE r.year = 2014 AND e.finish_position = 1""").fetchone()[0] == DOUBLE_POINTS[2014])
+
     for kind, want in (("grand prix", 1), ("sprint", None)):
         gaps = []
         for year in range(1950, last_season() + 1):
