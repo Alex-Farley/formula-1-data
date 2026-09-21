@@ -37,7 +37,17 @@ import { DRIVER_COLUMNS } from '../src/queries/drivers.js'
 import { holderPath } from '../src/queries/records.js'
 import { EXPLAINED_FOOTER, OPEN_FOOTER, allExplained } from '../src/lib/disagreement.js'
 import { clock, nextSession, until, utc } from '../src/queries/sessions.js'
-import { SEASON_COLUMNS, derivedAndPublished, pointsDiffer, record, seasonRows, seasonsNote, strip } from '../src/queries/driver.js'
+import {
+  SEASON_COLUMNS,
+  careerSentence,
+  derivedAndPublished,
+  lede,
+  pointsDiffer,
+  record,
+  seasonRows,
+  seasonsNote,
+  strip,
+} from '../src/queries/driver.js'
 import { latestRound, roundName, roundWinner, standingsHeading, stillRunning, titleHeading } from '../src/queries/season.js'
 import { SEASONS_COLUMNS, soFar } from '../src/queries/seasons.js'
 import { raceWinner } from '../src/queries/races.js'
@@ -555,6 +565,47 @@ describe('the queries a page and the prerenderer share', () => {
     assert.equal('Provenance' in pairs, false)
     assert.equal(Object.fromEntries(record({ provenance: 'harvest' })).Provenance, 'harvest')
     assert.equal(derivedAndPublished(null, 3), '— derived · 3 published')
+  })
+
+  it('opens a driver page on the career the records hold, or on the note where one is written (PD-16)', () => {
+    const many = { entries: 88, first_year: 1979, last_year: 1986, wins: 0, podiums: 0, poles: 0, best: 4 }
+    assert.equal(
+      careerSentence(many, ['Arrows', 'Brabham', 'Ensign', 'Osella', 'RAM', 'Theodore', 'Tyrrell'], 0),
+      'Entered 88 championship Grands Prix across 1979–1986 for Arrows, Brabham and 5 other constructors; best finish 4th.',
+    )
+    // One entry, one season, one constructor: every plural and the span
+    // collapse together, and 618 of the 699 pages this writes are short careers.
+    assert.equal(
+      careerSentence({ entries: 1, first_year: 1952, last_year: 1952, best: null }, ['Veritas'], 0),
+      'Entered 1 championship Grand Prix in 1952 for Veritas; no classified finish.',
+    )
+    // A winner is described by what they won, never by a best finish of 1st.
+    assert.equal(
+      careerSentence({ entries: 51, first_year: 1950, last_year: 1958, wins: 24, podiums: 35, poles: 29, best: 1 }, ['Alfa Romeo', 'Maserati', 'Mercedes'], 5),
+      'Entered 51 championship Grands Prix across 1950–1958 for Alfa Romeo, Maserati and Mercedes; 5 world titles, 24 wins, 35 podiums and 29 poles.',
+    )
+    assert.equal(
+      careerSentence({ entries: 2, first_year: 1960, last_year: 1960, podiums: 1, best: 3 }, [], 0),
+      'Entered 2 championship Grands Prix in 1960; 1 podium, best finish 3rd.',
+    )
+    // `titles` is DEFAULT 0 and the strip never leads a zero; nor does this.
+    assert.ok(!careerSentence({ entries: 3, first_year: 1958, last_year: 1958, wins: 1, best: 1 }, ['Cooper'], 0).includes('world title'))
+    // 377 entries name no constructor, and two register rows have no entry at all.
+    assert.equal(careerSentence({ entries: 0 }, [], 0), 'No championship race entry in the records.')
+    assert.equal(careerSentence(undefined, [], 0), 'No championship race entry in the records.')
+
+    // The override, and what counts as one. A note is judgement the SQL does
+    // not have; whitespace is not a note.
+    const derived = { entries: 1, first_year: 1952, last_year: 1952, best: null }
+    assert.equal(lede({ notes: 'Killed at Imola.', titles: 3 }, derived, ['Veritas']), 'Killed at Imola.')
+    assert.equal(lede({ notes: '  Killed at Imola.  ', titles: 3 }, derived, ['Veritas']), 'Killed at Imola.')
+    for (const notes of [null, undefined, '', '   ']) {
+      assert.equal(
+        lede({ notes, titles: 0 }, derived, ['Veritas']),
+        'Entered 1 championship Grand Prix in 1952 for Veritas; no classified finish.',
+        `a ${JSON.stringify(notes)} note falls through to the records`,
+      )
+    }
   })
 
   it('does not call a rounding difference two totals', () => {

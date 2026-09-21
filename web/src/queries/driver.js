@@ -541,9 +541,11 @@ export const careerSentence = (derived, constructors, titles) => {
  *
  * A blank note is not a note. 0 rows hold one today, and `notes` has no NOT
  * NULL or length constraint, so an empty string would otherwise render an
- * empty lede rather than falling through to the sentence.
+ * empty lede rather than falling through to the sentence. The trimmed string
+ * is what is returned as well as what is tested: deciding on one string and
+ * showing another is how the two would come to disagree.
  */
-export const lede = (driver, derived, constructors) =>
-  driver.notes && String(driver.notes).trim()
-    ? driver.notes
-    : careerSentence(derived, constructors, driver.titles)
+export const lede = (driver, derived, constructors) => {
+  const written = driver.notes == null ? '' : String(driver.notes).trim()
+  return written || careerSentence(derived, constructors, driver.titles)
+}
