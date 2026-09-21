@@ -119,6 +119,18 @@ for a person, or a defect elsewhere in the codebase *is* an issue. On
 2026-09-14 three items landed and filed seven issues between them; four were
 discovered work and three were findings against their own diffs.
 
+### D-36 · Filing is not ranking — 2026-09-21 (`AF-65`)
+`file.py new` put a fresh item under *Next*. The loop takes *Now*, then
+*Next*, then *Someday*, so every item a fork discovered mid-run outranked
+every item a person had deliberately dragged to *Someday* — on the strength
+of an argparse default. On 2026-09-21 the board was *Now* 2 (both parked, one
+`decision` and one `blocked`), *Next* 64, *Someday* 105: the loop was falling
+through an empty *Now* into a 64-item pile held in arrival order, which is
+not a ranking, while the ranking a person had actually done sat underneath
+it. The default is now *Someday*. An item arrives where nobody has judged it;
+promoting it is a person's act, and `--status Next` is still there for a
+caller that means it.
+
 ---
 
 ## The loop

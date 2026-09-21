@@ -229,11 +229,12 @@ to argue against. Nothing is deleted.
 **Filing.** `python3 .claude/skills/backlog-loop/file.py new <prefix>
 "<title>" --size <S|M|L|?> --body "<what is wrong, where, and what would
 fix it>" --where "<the paths it would touch>"` numbers the item, labels it
-and puts it on the board (under *Next*, unless `--status` says otherwise;
-`--decision` for a question). Filing by
-hand works too — the title, the two labels and the board status are all
-there is — and the critique's full reasoning stays in `docs/critiques/`; the
-issue is the queue, not the argument.
+and puts it on the board (under *Someday*, unless `--status` says otherwise;
+`--decision` for a question). **Filing is not ranking** `[D-36]`: an item
+arrives where nobody has judged it, and a person promotes it to *Next* or
+*Now*. Filing by hand works too — the title, the two labels and the board
+status are all there is — and the critique's full reasoning stays in
+`docs/critiques/`; the issue is the queue, not the argument.
 
 **A reader's report is not an item.** `lapledger.org` asks, in its footer
 and beside every open disagreement, whether the reader has found something
