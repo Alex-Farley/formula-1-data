@@ -73,8 +73,8 @@ import { raceWinner } from '../src/queries/races.js'
 import { entered } from '../src/queries/constructors.js'
 import { traced } from '../src/queries/circuits.js'
 import { chassisName } from '../src/queries/cars.js'
-import { driverName, fastestLapMark, inClassificationOrder, outcome, position, raceLede, raceSentence, railOf } from '../src/queries/race.js'
-import { raceWinnerHere } from '../src/queries/circuit.js'
+import { PIT_COLUMNS, driverName, fastestLapMark, inClassificationOrder, outcome, position, raceLede, raceSentence, railOf } from '../src/queries/race.js'
+import { RACE_COLUMNS, raceWinnerHere } from '../src/queries/circuit.js'
 import { constructorSeasons } from '../src/queries/constructor.js'
 import { NOT_YET_RUN } from '../src/lib/site.js'
 import {
@@ -1243,52 +1243,55 @@ describe('a column every row agrees on (VD-29)', () => {
     { year: 1953, name_used: 'Italian Grand Prix', layout_key: null, winner: 'Juan Manuel Fangio' },
     { year: 1954, name_used: 'Italian Grand Prix', layout_key: null, winner: 'Juan Manuel Fangio' },
   ]
+  // As queries/circuit.js declares them: the Grand Prix cell links each row to
+  // a different race, so it is not a candidate however alike the rows read.
   const columns = [
     { key: 'year', label: 'Season' },
     { key: 'name_used', label: 'Grand Prix' },
-    { key: 'layout_key', label: 'Layout' },
+    { key: 'layout_key', label: 'Layout', collapse: true },
     { key: 'winner', label: 'Winner' },
   ]
 
-  it('drops it from the table and states it once, missing values included', () => {
+  it('drops a declared column from the table and states it once', () => {
     const { columns: kept, shared: constants } = shared(columns, monza)
-    assert.deepEqual(kept.map((c) => c.key), ['year', 'winner'])
-    assert.deepEqual(constants.map((c) => c.column.key), ['name_used', 'layout_key'])
+    assert.deepEqual(kept.map((c) => c.key), ['year', 'name_used', 'winner'])
+    assert.deepEqual(constants.map((c) => c.column.key), ['layout_key'])
+    // An em dash in a cell reads against the cells around it; in a sentence it
+    // has nothing to read against, so it is written out.
+    assert.equal(sharedLine(constants, monza.length), 'The same on all 5 rows: Layout — not established.')
     assert.equal(
-      sharedLine(constants, monza.length),
-      'The same on all 5 rows: Grand Prix — Italian Grand Prix; Layout — not established.',
+      sharedLine([{ column: columns[1], value: 'Italian Grand Prix' }], 76),
+      'The same on all 76 rows: Grand Prix — Italian Grand Prix.',
     )
   })
 
-  // The circuit page's Grand Prix cell links each row to a different race, and
-  // a driver's Constructor cell carries that season's livery colour. Both read
-  // the same on every row and neither is the same cell.
-  it('leaves a column the page renders itself alone', () => {
-    const { columns: kept, shared: constants } = shared(columns, monza, {
-      rendered: (c) => c.key === 'name_used',
-    })
-    assert.deepEqual(kept.map((c) => c.key), ['year', 'name_used', 'winner'])
-    assert.deepEqual(constants.map((c) => c.column.key), ['layout_key'])
-    // And a column that refuses in its own spec, which both renderers read.
-    const refused = shared(
-      columns.map((c) => (c.key === 'layout_key' ? { ...c, collapse: false } : c)),
-      monza,
-    )
-    assert.deepEqual(refused.shared.map((s) => s.column.key), ['name_used'])
-    assert.ok(refused.columns.some((c) => c.key === 'layout_key'))
+  // The whole reason the flag is on the column rather than derived by each
+  // renderer: the app protects a cell with a React `render` and prerender with
+  // an entry in its `links` map, and those are two different lists.
+  it('leaves an undeclared column alone however alike its rows read', () => {
+    assert.deepEqual(shared(columns, monza).columns.map((c) => c.key), ['year', 'name_used', 'winner'])
+    const declared = columns.map((c) => (c.key === 'name_used' ? { ...c, collapse: true } : c))
+    assert.deepEqual(shared(declared, monza).shared.map((s) => s.column.key), ['name_used', 'layout_key'])
   })
 
   it('says nothing about a short table, or about one it would leave a column wide', () => {
     assert.deepEqual(shared(columns, monza.slice(0, MIN_ROWS - 1)).shared, [])
-    assert.equal(shared(columns, monza).shared.length, 2)
-    const pair = monza.map((row, i) => ({ a: i, b: 'same' }))
-    assert.deepEqual(shared([{ key: 'a' }, { key: 'b' }], pair).columns.map((c) => c.key), ['a', 'b'])
+    const pair = monza.map((_, i) => ({ a: i, b: 'same' }))
+    assert.deepEqual(
+      shared([{ key: 'a' }, { key: 'b', collapse: true }], pair).columns.map((c) => c.key),
+      ['a', 'b'],
+    )
   })
 
   // The column's own formatter, not the raw value: two rows can hold the same
   // `first_win` and a different span, and a formatter reads the whole row.
   it('compares what the cell prints, not what the row stores', () => {
-    const column = { key: 'first_win', label: 'Span', text: (_, row) => `${row.first_win}-${row.last_win}` }
+    const column = {
+      key: 'first_win',
+      label: 'Span',
+      collapse: true,
+      text: (_, row) => `${row.first_win}-${row.last_win}`,
+    }
     const rows = [
       { driver: 'Ascari', first_win: 1950, last_win: 1953 },
       { driver: 'Fangio', first_win: 1950, last_win: 1958 },
@@ -1296,8 +1299,26 @@ describe('a column every row agrees on (VD-29)', () => {
       { driver: 'Brooks', first_win: 1950, last_win: 1961 },
       { driver: 'Hawthorn', first_win: 1950, last_win: 1962 },
     ]
-    const columns = [{ key: 'driver', label: 'Driver' }, column, { key: 'first_win', label: 'First' }]
+    const columns = [{ key: 'driver', label: 'Driver' }, column, { key: 'first_win', label: 'First', collapse: true }]
     assert.equal(cellText(column, rows[0]), '1950-1953')
     assert.deepEqual(shared(columns, rows).shared.map((s) => s.column.label), ['First'])
+  })
+
+  // Every column the repository declares, against the rule the flag asserts:
+  // the cell is its text, so no page may draw it itself.
+  it('is declared only on columns neither renderer draws itself', () => {
+    const declared = [
+      ...RACE_COLUMNS,
+      ...SEASON_COLUMNS,
+      ...PIT_COLUMNS,
+      ...recordColumns([{ confidence: 'reference' }]),
+    ].filter((c) => c.collapse === true)
+    assert.deepEqual(
+      declared.map((c) => c.key),
+      ['layout_key', 'wins', 'podiums', 'poles', 'fastest_laps', 'source', 'as_of'],
+    )
+    // A `render` belongs to a page, not to a column spec; a declared column
+    // that grew one would be collapsing a cell somebody draws.
+    for (const column of declared) assert.equal(column.render, undefined, column.key)
   })
 })

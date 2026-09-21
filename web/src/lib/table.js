@@ -11,15 +11,24 @@
  * scripts/prerender.js - so the static table and the app's table lose the same
  * columns and print the same sentence, which is what smoke.mjs compares.
  *
- * ONLY A COLUMN WHOSE CELL IS ITS TEXT.
- *     A cell with a render is more than the string it prints: the circuit
- *     page's *Grand Prix* column reads "Italian Grand Prix" on all 76 rows and
- *     links each one to a different race, and a driver's *Constructor* column
- *     carries a livery mark whose colour is that row's season. Collapsing
- *     either would throw away what varies while keeping what does not, so a
- *     column the page renders itself is left alone - `rendered` is how each
- *     renderer names its own: a React `render` in the app, an entry in
- *     prerender's `links` map.
+ * A COLUMN DECLARES ITSELF, IN web/src/queries/*.
+ *     The first version of this collapsed any column whose cells read alike
+ *     and asked each renderer to protect its own: a React `render` in the app,
+ *     an entry in prerender's `links` map. Those are two lists, and they are
+ *     not the same list. The driver page's *Constructor* column has a render -
+ *     the livery mark - and no link, so the static half collapsed it and the
+ *     app could not: 32 driver pages shipped a nine-column table under a
+ *     ten-column one, and the reader watched the table change shape as the
+ *     database opened. `collapse: true` on the column itself is the one thing
+ *     both halves read, so they cannot disagree.
+ *
+ *     It is a claim about the cell, and it is only true where the cell is its
+ *     text: no link that differs row by row, no mark, no tag. It is also a
+ *     claim about the value, because the sentence has to be readable on its
+ *     own - "Pole - not established" under a season not yet run says the
+ *     database is missing something, and an em dash on that column means the
+ *     race has not happened. Declaring a column is a judgement, once, where
+ *     the column is defined.
  */
 import { EMPTY, label as humanise, text } from './format.js'
 
@@ -40,15 +49,14 @@ export const cellText = (column, row) =>
  * Split a column list into the columns worth showing and the ones every row
  * agrees on, with the value each of those holds.
  *
- * `rendered(column)` is true where the renderer draws the cell itself. A
- * column can also refuse outright with `collapse: false` in its own spec,
- * which both renderers read from web/src/queries/*.
+ * Only a column whose spec says `collapse: true` is ever a candidate, and even
+ * then only where every row prints the same cell.
  */
-export function shared(columns, rows, { rendered = () => false } = {}) {
+export function shared(columns, rows) {
   const none = { columns, shared: [] }
   if (rows.length < MIN_ROWS) return none
   const constant = columns.filter((column) => {
-    if (column.collapse === false || rendered(column)) return false
+    if (column.collapse !== true) return false
     const first = cellText(column, rows[0])
     return rows.every((row) => cellText(column, row) === first)
   })

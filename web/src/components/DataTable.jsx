@@ -69,12 +69,6 @@ export default function DataTable({
   footer,
   // The SQL console shows data as data: 1950, not 1,950.
   raw = false,
-  // Whether a column every row agrees on is said once above the table instead
-  // of once per row (VD-29, lib/table.js). The console is the one table where
-  // it must not happen: a reader who selected a column asked for that column,
-  // and a result whose shape is not the statement's shape is a lie about the
-  // query.
-  collapse = true,
 }) {
   const source = given ?? data?.rows ?? []
   // Read unconditionally: hooks may not sit behind the early return below.
@@ -93,13 +87,11 @@ export default function DataTable({
     [columns, data?.columns, source],
   )
 
-  // The columns the header keeps, and the ones every row agreed on. A cell the
-  // page renders itself is never one of the second: lib/table.js says why, and
-  // scripts/prerender.js names its own renders the same way.
-  const { columns: kept, shared: constants } = useMemo(
-    () => (collapse ? shared(cols, source, { rendered: (c) => Boolean(c.render) }) : { columns: cols, shared: [] }),
-    [cols, source, collapse],
-  )
+  // The columns the header keeps, and the ones every row agreed on, which a
+  // column has to have declared itself a candidate for in web/src/queries/*
+  // (VD-29). A console result declares nothing, so nothing there collapses,
+  // which is right: the result's shape is the statement's shape.
+  const { columns: kept, shared: constants } = useMemo(() => shared(cols, source), [cols, source])
 
   const ordered = useMemo(() => {
     if (!sort) return source

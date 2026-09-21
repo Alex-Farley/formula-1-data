@@ -405,13 +405,12 @@ const table = (headers, rows, options = {}) => {
 // matching `text`, or the two renderers part.
 const fromColumns = (columns, rows, links = {}) => {
   // The columns every row agreed on are said once above the table and dropped
-  // from it (VD-29). `links` is this half's renders, so a linked cell is left
-  // alone here exactly as a `render` is in DataTable.jsx - the two halves must
-  // lose the same columns or smoke.mjs's comparison fails, which is what makes
-  // one module the only place the rule is written.
-  const { columns: kept, shared: constants } = shared(columns, rows, {
-    rendered: (c) => Object.hasOwn(links, c.key),
-  })
+  // from it (VD-29). The candidates are declared on the column, in the same
+  // queries module this half and the app both read, so the two cannot lose
+  // different columns - `links` and the app's renders are two lists, and
+  // deriving it from each of them separately is what once put a nine-column
+  // static table under a ten-column app one.
+  const { columns: kept, shared: constants } = shared(columns, rows)
   const line = constants.length ? `<p class="table-shared">${esc(sharedLine(constants, rows.length))}</p>` : ''
   return (
     line +

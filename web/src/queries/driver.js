@@ -224,10 +224,15 @@ export const SEASON_COLUMNS = [
   { key: 'year', label: 'Season', align: 'num' },
   { key: 'teams', label: 'Constructor', align: 'prose' },
   { key: 'entries', label: 'Entries', align: 'num' },
-  { key: 'wins', label: 'Wins', align: 'num' },
-  { key: 'podiums', label: 'Podiums', align: 'num' },
-  { key: 'poles', label: 'Poles', align: 'num' },
-  { key: 'fastest_laps', label: 'FL', align: 'num' },
+  // Counted from the race records, so a 0 is a true zero and a column of them
+  // is a career fact worth stating once rather than a column worth scrolling
+  // (VD-29). Not `teams`, `entries`, `championship_text` or `points`: the
+  // first carries a livery mark the app draws itself, and an em dash on the
+  // others is a season classified nowhere rather than a nought.
+  { key: 'wins', label: 'Wins', align: 'num', collapse: true },
+  { key: 'podiums', label: 'Podiums', align: 'num', collapse: true },
+  { key: 'poles', label: 'Poles', align: 'num', collapse: true },
+  { key: 'fastest_laps', label: 'FL', align: 'num', collapse: true },
   { key: 'best', label: 'Best', align: 'num', text: (value) => (missing(value) ? EMPTY : `P${value}`) },
   {
     key: 'championship_text',
