@@ -121,7 +121,6 @@ import {
   CALENDAR_COLUMNS,
   CALENDAR_FOOTER,
   CONSTRUCTORS_FINAL_COLUMNS,
-  CONSTRUCTORS_PAIR_FOOTER,
   DRIVERS_FINAL_COLUMNS,
   DRIVERS_FINAL_FOOTER,
   ENTRANTS,
@@ -130,11 +129,14 @@ import {
   FINAL,
   GRID,
   NO_CONSTRUCTORS_TITLE,
+  REMAINING,
   SEASON,
   STANDINGS as SEASON_STANDINGS,
+  constructorsFooter,
   latestRound,
   standingsHeading,
   stillRunning,
+  titlePermutations,
 } from '../src/queries/season.js'
 import { RACES, RACE_COLUMNS, RACES_FOOTER } from '../src/queries/races.js'
 import { CONSTRUCTOR_IMAGES, RACE_IMAGES, SEASON_IMAGES } from '../src/queries/photographs.js'
@@ -1060,6 +1062,17 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
     // published is not a grid of nobody - so the sentence is dropped rather
     // than made to count to zero.
     const notRun = run === 0
+    // The same sentence the app prints, from the same function and the same
+    // rows (PD-28): who can still win the drivers' title, what is left to win
+    // and the round and build date the answer stands at.
+    const permutations = running
+      ? titlePermutations({
+          drivers: driversFinal,
+          remaining: one(REMAINING, year),
+          afterRound: after,
+          built: META.built,
+        })
+      : null
     const entered =
       grid && grid.drivers !== null
         ? `${num(grid.drivers)} drivers, ${num(grid.constructors)} constructors, ${num(grid.engine_manufacturers)} engine makers — counted from the entries, whether or not they started`
@@ -1125,6 +1138,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
                 ['Entered', entered],
               ])
         }
+        ${permutations ? note(permutations) : ''}
         ${prose(s.notes)}
         ${photographSection(all(SEASON_IMAGES, year), { subjects: true })}
         <h2>The calendar</h2>
@@ -1152,7 +1166,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
             ? fromColumns(CONSTRUCTORS_FINAL_COLUMNS, constructorsFinal, {
                 entity: (name, row) =>
                   `${row.entity_id ? link(`constructors/${row.entity_id}`, name) : text(name)}${row.engine_id ? ` ${tag(row.engine_id)}` : ''}`,
-              }) + (constructorsFinal.some((r) => r.engine_id) ? note(CONSTRUCTORS_PAIR_FOOTER) : '')
+              }) + note(constructorsFooter(constructorsFinal.some((r) => r.engine_id)))
             : `<p><strong>No constructors' championship.</strong> ${esc(NO_CONSTRUCTORS_TITLE)}</p>`
         }
         ${

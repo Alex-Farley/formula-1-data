@@ -8,6 +8,7 @@ import { OutlineStrip } from '../components/Outline.jsx'
 import Figure from '../charts/Figure.jsx'
 import LineChart from '../charts/LineChart.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
+import { currentProgress } from '../data/client.js'
 import { points as fmtPoints, number } from '../lib/format.js'
 import { colourForEntry, lastTeamColour } from '../lib/liveries.js'
 import LiveryMark from '../components/LiveryMark.jsx'
@@ -19,7 +20,6 @@ import {
   CALENDAR_COLUMNS,
   CALENDAR_FOOTER,
   CONSTRUCTORS_FINAL_COLUMNS,
-  CONSTRUCTORS_PAIR_FOOTER,
   DRIVERS_FINAL_COLUMNS,
   DRIVERS_FINAL_FOOTER,
   DRIVER_TEAMS,
@@ -30,14 +30,17 @@ import {
   GRID,
   NEIGHBOURS,
   NO_CONSTRUCTORS_TITLE,
+  REMAINING,
   SEASON,
   STANDINGS,
+  constructorsFooter,
   latestRound,
   progressionNote,
   standingsHeading,
   stillRunning,
   teamsByDriver,
   titleHeading,
+  titlePermutations,
 } from '../queries/season.js'
 
 /*
@@ -138,6 +141,7 @@ export default function Season() {
     sessions: [SEASON_SESSIONS, [Number(year)]],
     teams: [DRIVER_TEAMS, [Number(year)]],
     images: [SEASON_IMAGES, [Number(year)]],
+    remaining: [REMAINING, [Number(year)]],
   })
 
   return (
@@ -231,6 +235,20 @@ function SeasonBody({ year, season, data }) {
   // The words a champion slot carries where there is no fact to miss.
   const notYet = <span className="muted" style={{ fontSize: 15, fontWeight: 500 }}>{NOT_YET_RUN}</span>
   const ambiguous = constructorsFinal.some((r) => r.engine_id)
+
+  // The September question, answered from the standings, the calendar and the
+  // season's own scoring rule (PD-28). Only where there is no champion yet:
+  // once there is one, the strip above has already said who won, and a second
+  // sentence working out who could have is noise at best and a contradiction
+  // at worst. queries/season.js decides where the arithmetic will not carry.
+  const permutations = running
+    ? titlePermutations({
+        drivers: driversFinal,
+        remaining: data.remaining.rows[0] ?? null,
+        afterRound: after,
+        built: currentProgress().manifest?.built,
+      })
+    : null
 
   // The one hourly-changing fact on the page, as a tile among the others
   // rather than a paragraph beneath them (IA-17). Only a browser knows how
@@ -346,6 +364,11 @@ function SeasonBody({ year, season, data }) {
             ]}
           />
         )}
+        {permutations && (
+          <p className="note" style={{ marginTop: 10 }}>
+            {permutations}
+          </p>
+        )}
         {/* v_season_grid returns NULL, not 0, for a season nobody has entered
             yet - so the sentence is absent rather than counting nobody. */}
         {grid && grid.drivers !== null && (
@@ -430,7 +453,7 @@ function SeasonBody({ year, season, data }) {
               sortable={false}
               page={40}
               columns={withRenders(CONSTRUCTORS_FINAL_COLUMNS, constructorsRenders(year))}
-              footer={ambiguous ? CONSTRUCTORS_PAIR_FOOTER : undefined}
+              footer={constructorsFooter(ambiguous)}
             />
           )}
         </Section>
