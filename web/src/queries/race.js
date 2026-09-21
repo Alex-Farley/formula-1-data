@@ -203,3 +203,68 @@ export const PIT_COLUMNS = [
 
 export const PITS_FOOTER =
   'Stationary time is the car standing still; pit-lane time is the whole detour. Where two sources record the same stop, both are kept so you can compare them.'
+
+/**
+ * What happened, in one sentence, counted from the race records rather than
+ * read off a stored column - so it is current by construction and cannot go
+ * stale the way a written sentence can.
+ *
+ *     Juan Manuel Fangio and Luigi Fagioli shared the win for Alfa Romeo at
+ *     Reims-Gueux.
+ *
+ * `winners` is every entry classified first, which is two of them on the
+ * three races a pair shared a car; both are credited, as the classification
+ * below credits both. The car is the constructor, falling back to the
+ * entrant where no constructor is resolved - the rule the classification's
+ * own Constructor column applies, and the reason the eleven Indianapolis
+ * 500s in the championship read "Kurtis Kraft-Offenhauser" rather than
+ * nothing.
+ *
+ * A scheduled round has no classification to describe, so it says when and
+ * where instead, that being the whole of what is established about it. The
+ * no-winner sentence holds for no race today - every one of the 1,163 run
+ * rounds classifies someone first - and is here because a round whose
+ * classification has not been loaded yet is a state this site passes through
+ * every time a season runs.
+ */
+export const raceSentence = (race, winners) => {
+  const where = race.circuit ? ` at ${race.circuit}` : ''
+  if (race.status === 'scheduled') {
+    return `Scheduled${race.dates ? ` for ${race.dates}` : ''}${where}; not yet run.`
+  }
+  if (!winners.length) return 'No winner is recorded for this round.'
+  const first = winners[0]
+  const car = first.constructor_id ? first.constructor : (first.entrant ?? first.constructor)
+  const forWhom = car ? ` for ${car}` : ''
+  const who = winners.map((w) => w.driver ?? w.driver_id).join(' and ')
+  return winners.length > 1 ? `${who} shared the win${forWhom}${where}.` : `${who} won${forWhom}${where}.`
+}
+
+/**
+ * The opening sentence of a race's page, in both renderers (CD-03).
+ *
+ * `note` is the override and stays the lede wherever a person wrote one - 2
+ * of the 1,196 rows, each a scheduled round whose venue or status needs
+ * explaining. The other 1,194 pages opened straight onto the strip of tiles
+ * with nothing to say what the reader was looking at, while
+ * scripts/prerender.js had already composed a serviceable sentence for the
+ * meta description and kept it off the page. raceSentence() above is that
+ * sentence, written once and read by both, so the description and the
+ * standfirst cannot come to disagree.
+ *
+ * What counts as a note is raceNote() below, so the static page can ask the
+ * same question before deciding whether it has already printed one. lede() in
+ * queries/driver.js is the same rule for the same reason.
+ */
+export const raceLede = (race, winners) => raceNote(race) || raceSentence(race, winners)
+
+/**
+ * The note a person wrote on this round, or '' where nobody did.
+ *
+ * A blank note is not a note: `note` has no NOT NULL or length constraint, so
+ * an empty string would otherwise render an empty lede rather than falling
+ * through to the sentence. Read here rather than decided twice - the static
+ * page also has to know whether the lede it is printing is the note, and two
+ * copies of this rule are how the two would come to disagree.
+ */
+export const raceNote = (race) => (race.note == null ? '' : String(race.note).trim())

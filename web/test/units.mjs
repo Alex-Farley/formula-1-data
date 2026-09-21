@@ -71,7 +71,7 @@ import { raceWinner } from '../src/queries/races.js'
 import { entered } from '../src/queries/constructors.js'
 import { traced } from '../src/queries/circuits.js'
 import { chassisName } from '../src/queries/cars.js'
-import { driverName, fastestLapMark, inClassificationOrder, outcome, position, railOf } from '../src/queries/race.js'
+import { driverName, fastestLapMark, inClassificationOrder, outcome, position, raceLede, raceSentence, railOf } from '../src/queries/race.js'
 import { raceWinnerHere } from '../src/queries/circuit.js'
 import { constructorSeasons } from '../src/queries/constructor.js'
 import { NOT_YET_RUN } from '../src/lib/site.js'
@@ -772,6 +772,62 @@ describe('the queries a page and the prerenderer share', () => {
     ]
     assert.deepEqual(inClassificationOrder(rows).map((r) => r.id), ['p1', 'p2', 'dnf-late', 'dnf-early', 'dns'])
     assert.equal(rows[0].id, 'dnf-late', 'the caller’s array is not sorted in place')
+  })
+
+  // CD-03. The sentence 1,194 race pages open on, and the description every
+  // one of them carries. What matters is the cases the run of the mill hides:
+  // a shared drive, an entry with no constructor, a round not yet run.
+  it('says what happened at a race in one sentence, and lets a written note override it', () => {
+    const monza = { year: 1988, status: 'completed', circuit: 'Monza', note: null }
+    assert.equal(
+      raceSentence(monza, [{ driver: 'Gerhard Berger', constructor_id: 'ferrari', constructor: 'Ferrari' }]),
+      'Gerhard Berger won for Ferrari at Monza.',
+    )
+    // Three races were shared between two drivers in one car; both are
+    // classified first, and both are credited here as they are below.
+    assert.equal(
+      raceSentence({ ...monza, circuit: 'Reims-Gueux' }, [
+        { driver: 'Juan Manuel Fangio', constructor_id: 'alfa-romeo', constructor: 'Alfa Romeo' },
+        { driver: 'Luigi Fagioli', constructor_id: 'alfa-romeo', constructor: 'Alfa Romeo' },
+      ]),
+      'Juan Manuel Fangio and Luigi Fagioli shared the win for Alfa Romeo at Reims-Gueux.',
+    )
+    // The eleven Indianapolis 500s: no constructor row holds the car, and
+    // the entrant is what the classification's own column falls back to.
+    assert.equal(
+      raceSentence({ ...monza, circuit: 'Indianapolis Motor Speedway' }, [
+        { driver: 'Johnnie Parsons', constructor_id: null, constructor: null, entrant: 'Kurtis Kraft-Offenhauser' },
+      ]),
+      'Johnnie Parsons won for Kurtis Kraft-Offenhauser at Indianapolis Motor Speedway.',
+    )
+    assert.equal(
+      raceSentence({ ...monza, circuit: null }, [{ driver: null, driver_id: 'berger', constructor_id: null, constructor: null, entrant: null }]),
+      'berger won.',
+      'a sentence states only what it holds, rather than an empty clause',
+    )
+    assert.equal(
+      raceSentence({ year: 2027, status: 'scheduled', circuit: 'Istanbul Park', dates: '01-03 Oct 2027', note: null }, []),
+      'Scheduled for 01-03 Oct 2027 at Istanbul Park; not yet run.',
+    )
+    assert.equal(
+      raceSentence({ year: 2027, status: 'scheduled', circuit: null, dates: null, note: null }, []),
+      'Scheduled; not yet run.',
+    )
+    // No race is in this state today; a round part-way through being loaded
+    // would be, and a thrown lede is worse than a plain sentence.
+    assert.equal(raceSentence(monza, []), 'No winner is recorded for this round.')
+
+    // The override, and what counts as one. Whitespace is not a note.
+    const won = [{ driver: 'Gerhard Berger', constructor_id: 'ferrari', constructor: 'Ferrari' }]
+    assert.equal(raceLede({ ...monza, note: 'Held on a Sunday in June.' }, won), 'Held on a Sunday in June.')
+    assert.equal(raceLede({ ...monza, note: '  Held on a Sunday in June.  ' }, won), 'Held on a Sunday in June.')
+    for (const note of [null, undefined, '', '   ']) {
+      assert.equal(
+        raceLede({ ...monza, note }, won),
+        'Gerhard Berger won for Ferrari at Monza.',
+        `a ${JSON.stringify(note)} note falls through to the records`,
+      )
+    }
   })
 
   it('joins a constructor’s seasons to their championship position, newest first', () => {

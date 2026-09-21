@@ -30,6 +30,7 @@ import {
   SPRINT_FOOTER,
   inClassificationOrder,
   qualifyingColumns,
+  raceLede,
   railOf,
 } from '../queries/race.js'
 import { colourForEntry } from '../lib/liveries.js'
@@ -227,7 +228,7 @@ function RaceBody({ race, data, year, round }) {
       eyebrow={`Round ${round} of ${year}`}
       title={race.name_used}
       back={{ to: `/seasons/${year}`, label: `${year} season` }}
-      lede={race.note}
+      lede={raceLede(race, winners)}
       aside={
         <Stepper
           previous={neighbours.previous ? { to: `/races/${neighbours.previous}`, label: 'Previous race' } : null}

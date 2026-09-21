@@ -160,6 +160,9 @@ import {
   SPRINT_FOOTER,
   inClassificationOrder,
   qualifyingColumns,
+  raceLede,
+  raceNote,
+  raceSentence,
   railOf,
 } from '../src/queries/race.js'
 import {
@@ -1303,9 +1306,28 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
     const scheduled = r.status === 'scheduled'
     const sessions = all(RACE_SESSIONS, r.year, r.round)
     const headline = `${r.year} ${r.name_used}`
-    const description = scheduled
-      ? `${headline}: round ${r.round}${r.circuit ? ` at ${r.circuit}` : ''}${r.dates ? `, ${r.dates}` : ''}. Scheduled — no classification yet.`
-      : `${r.winner ?? 'Nobody recorded'} won the ${headline}${r.constructor ? ` for ${r.constructor}` : ''}${r.circuit ? ` at ${r.circuit}` : ''}. Full classification, grid, pole and fastest lap.`
+    // CD-03: the standfirst the page opens on and the description a search
+    // result shows are one expression, queries/race.js's, so they cannot come
+    // to describe different races - which is what the old description, read
+    // off race_results and written only into a meta tag, was free to do. The
+    // winners come from the classification this page prints rather than from
+    // the view over it, so the sentence and the table below agree by
+    // construction on a shared drive.
+    const raceWinners = entries.filter((e) => e.finish_position === 1)
+    const standfirst = raceLede(r, raceWinners)
+    // The description carries the derived sentence AND the note, where the
+    // lede shows the note alone: read out of context a description has to
+    // say what the page is, and the note explains rather than replaces it.
+    // driver.js's lede and its description split the same way.
+    //
+    // The note used to be a bare paragraph below the timetable here and the
+    // lede in the app, which was already two placements for one sentence;
+    // now that the lede is the note in both halves, that paragraph would be
+    // the same words twice on the page, so it has gone.
+    const written = raceNote(r)
+    const description = `${headline}. ${raceSentence(r, raceWinners)}${written ? ` ${written}` : ''}${
+      scheduled ? '' : ' Full classification, grid, pole and fastest lap.'
+    }`
 
     page({
       path: `races/${r.year}/${r.round}`,
@@ -1340,6 +1362,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
       },
       body: `
         <h1>${esc(headline)}</h1>
+        <p class="lede">${esc(standfirst)}</p>
         ${facts([
           ['Round', `${r.round} of ${r.year}`],
           ['Circuit', r.circuit_id ? link(`circuits/${r.circuit_id}`, r.circuit ?? r.circuit_id) : '—'],
@@ -1414,7 +1437,6 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
             ? `<h2>Timetable</h2>${fromColumns(SESSION_COLUMNS, sessions)}<p class="source-note">${esc(TIMETABLE_NOTE)}</p>`
             : ''
         }
-        ${prose(r.note)}
         ${disagree(disagreements.all(`${r.year} round ${r.round}`), 'this race')}
         ${
           entries.some((e) => e.shared_drive === 1)

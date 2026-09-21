@@ -895,6 +895,26 @@ try {
   await section('/races/2026/16  (the Sepang note reaches the page)', async () => {
     await go('/races/2026/16', 'Bahrain Grand Prix')
     truthy(((await text('#root main .lede')) ?? '').includes('Sepang'), 'the calendar\'s explanation is the lede')
+    // CD-03: and the static half opens on the note too, rather than on the
+    // derived sentence that would say only where the round is scheduled.
+    const written = one('SELECT note FROM races WHERE year = 2026 AND round = 16')
+    const staticNote = (await (await fetch(`${BASE}/races/2026/16`)).text())
+      .match(/<h1>[^<]*<\/h1>\s*<p class="lede">([^<]*)<\/p>/)?.[1]
+      ?.replace(/&#39;/g, "'")
+      .replace(/&quot;/g, '"')
+      .replace(/&amp;/g, '&')
+    is(staticNote, written, 'the static page does not overwrite the note with the derived sentence')
+    // And says it once. The note was a bare paragraph below the timetable in
+    // the static half and the lede in the app; the lede is the note in both
+    // now, so a second copy would be the same words twice on one page.
+    // As element text, so the meta description - which carries the note as
+    // well as the derived sentence, on purpose - is not counted.
+    const staticRaceHtml = await (await fetch(`${BASE}/races/2026/16`)).text()
+    is(
+      staticRaceHtml.split(`>${written}<`).length - 1,
+      1,
+      'and prints it once, not once as the lede and again below',
+    )
     // AF-03: the race page draws the F1DB layout the round runs, named in
     // the drawing's accessible name, and the static page carries the same.
     const layout = one('SELECT f1db_layout_id FROM races WHERE year = 2026 AND round = 16')
@@ -1017,6 +1037,30 @@ try {
     )
     is(strip.wrapped.join(' · '), '', 'no stat label wraps')
     is(strip.misalignedRows.join(' · '), '', 'no value sits below the values beside it')
+
+    // CD-03: the largest page type opens on a sentence. 1,194 of the 1,196
+    // rounds carry no written note, and get it from the race records through
+    // raceLede() in queries/race.js - the same expression the description is
+    // built from, so the page and the search result cannot describe different
+    // races the way they were free to before.
+    const winner = one(
+      `SELECT d.full_name FROM race_entries e LEFT JOIN drivers d ON d.id = e.driver_id
+        WHERE e.race_id = ? AND e.finish_position = 1`,
+      raceId,
+    )
+    const plain = (s) =>
+      s.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
+    const html = await (await fetch(`${BASE}/races/1976/9`)).text()
+    const staticLede = plain(html.match(/<h1>[^<]*<\/h1>\s*<p class="lede">([^<]*)<\/p>/)?.[1] ?? '')
+    truthy(
+      staticLede.startsWith(`${winner} won for `) && staticLede.endsWith('.'),
+      `the static page opens on the derived sentence — "${staticLede}"`,
+    )
+    is(await text('#root main .lede'), staticLede, 'and the app opens on the same sentence')
+    truthy(
+      plain(html.match(/<meta name="description" content="([^"]*)" \/>/)?.[1] ?? '').includes(staticLede),
+      'and the description is built from that same sentence',
+    )
   })
 
   await section('/races/1955/1  (a shared drive)', async () => {
