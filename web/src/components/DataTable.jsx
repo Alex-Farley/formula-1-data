@@ -3,6 +3,7 @@ import { EMPTY, isNumericColumn, isProseColumn, label as humanise, missing, text
 import { shared, sharedLine } from '../lib/table.js'
 import { useUrlState } from '../lib/urlstate.js'
 import { PageTitle, SectionTitle } from './Page.jsx'
+import TakeAway from './TakeAway.jsx'
 
 /**
  * One table component for everything, from the season list to whatever a
@@ -139,6 +140,20 @@ function Table({
   // would be the wrong name for the table under it - the SQL console, whose
   // page is not its result - and otherwise the heading that introduces it.
   const name = caption ?? sectionTitle ?? pageTitle
+  /*
+   * What the FILE is called, which is not always what the table is called.
+   *
+   * On a register the page is the table and one name serves both. On an entity
+   * page `name` is the section heading - "Every race" - which says what the
+   * table is and nothing about whose, so every driver's race table would land
+   * in a downloads folder as another copy of one file name. The page's own
+   * title is the subject, so the file takes both.
+   *
+   * An explicit `caption` is left alone: it is already a statement that this
+   * table has a name of its own and the heading above it is the wrong one.
+   */
+  const fileLabel =
+    caption ?? [pageTitle, name === pageTitle ? null : name].filter(Boolean).join(' ')
   const [ownSort, setOwnSort] = useState(givenSort)
   const [ownDirection, setOwnDirection] = useState(givenDirection)
   const [ownShowAll, setOwnShowAll] = useState(false)
@@ -312,16 +327,34 @@ function Table({
             </tbody>
           </table>
         </div>
-        {(hidden > 0 || footer) && (
-          <div className="table-foot">
-            <span>{footer}</span>
+        {/* The footer is drawn on every table that has rows now, where before
+            it appeared only to hold a "Show the remaining" button or a page's
+            own note. It carries the way out of the site (IX-26), and a table
+            small enough to fit is exactly the one a reader is most likely to
+            want to take. */}
+        <div className="table-foot">
+          <span>{footer}</span>
+          <div className="table-acts">
             {hidden > 0 && (
-              <button type="button" onClick={() => (onShowAll ? onShowAll() : setOwnShowAll(true))}>
+              <button
+                type="button"
+                className="more"
+                // Seven tables on a page put seven identical "Show the
+                // remaining" in a screen reader's list of controls.
+                aria-label={
+                  name ? `Show the remaining ${hidden.toLocaleString('en-GB')}, ${name}` : undefined
+                }
+                onClick={() => (onShowAll ? onShowAll() : setOwnShowAll(true))}
+              >
                 Show the remaining {hidden.toLocaleString('en-GB')}
               </button>
             )}
+            {/* `cols` and not `kept`: a column collapsed into the sentence
+                above the table (VD-29) is still data, and a file that has
+                left the page has no sentence above it. */}
+            <TakeAway columns={cols} rows={ordered} shown={visible.length} name={name} fileLabel={fileLabel} />
           </div>
-        )}
+        </div>
       </div>
     </>
   )

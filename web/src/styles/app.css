@@ -920,6 +920,31 @@ tbody td.strong {
   color: var(--ink);
 }
 
+/*
+ * The controls end of the footer (IX-26).
+ *
+ * `.table-foot` puts its note at one end and everything else at the other, and
+ * "everything else" is now up to three buttons and a status line rather than
+ * one button. They group so that the note keeps its end of the row and the
+ * group wraps as a block on a narrow screen instead of scattering.
+ */
+.table-acts {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/*
+ * What the copy said. Empty until something happens, so it takes no room and
+ * draws no border; a live region has to be in the page before it fills or it
+ * is never announced.
+ */
+.take-said:not(:empty) {
+  max-width: 34ch;
+}
+
 /* --------------------------------------------------------- filter strip */
 
 .filters {

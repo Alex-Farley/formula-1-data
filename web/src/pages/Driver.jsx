@@ -9,7 +9,7 @@ import Disagreement, { DRIVER_DISAGREEMENTS } from '../components/Disagreement.j
 import Figure from '../charts/Figure.jsx'
 import DotPlot from '../charts/DotPlot.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
-import { EMPTY, missing, points as fmtPoints, result } from '../lib/format.js'
+import { EMPTY, missing, points as fmtPoints, result, text as valueText } from '../lib/format.js'
 import { ENTRIES_NOTE } from '../lib/site.js'
 import { colourForEntry, colourSource, lastTeamColour } from '../lib/liveries.js'
 import { canonicalCountry } from '../lib/racingColours.js'
@@ -232,7 +232,20 @@ function DriverBody({ driver, data }) {
                 { key: 'constructor', label: 'Constructor' },
                 // The chart plots `position`; its table - the non-fallback source
                 // of the same numbers - must not dash a season the dot has placed.
-                { key: 'position_text', label: 'Position', align: 'num', render: (v, row) => cell(v ?? row.position) },
+                //
+                // `text` as well as `render`, and they must agree: the fallback
+                // is the whole point of the cell, and a column whose render
+                // holds a fallback its `text` does not is a column that reads
+                // one way on the page and another in the file a reader takes
+                // away (IX-26). 21 drivers in 2025 alone have a null
+                // position_text and a position.
+                {
+                  key: 'position_text',
+                  label: 'Position',
+                  align: 'num',
+                  render: (v, row) => cell(v ?? row.position),
+                  text: (v, row) => valueText(v ?? row.position),
+                },
                 { key: 'points', label: 'Points', align: 'num' },
               ],
             }}

@@ -21,6 +21,15 @@ import { describe, it } from 'node:test'
 import { MIN_ROWS, cellText, shared, sharedLine } from '../src/lib/table.js'
 
 import {
+  fieldText,
+  fileName,
+  headerOf,
+  toCsv,
+  toTsv,
+  writtenColumns,
+} from '../src/lib/takeaway.js'
+
+import {
   CURRENT_SEASON_SQL,
   anyThisSeason,
   calendarLabel,
@@ -1389,5 +1398,122 @@ describe('a register in the address bar', () => {
     // A register whose default is not the empty one falls back to its own.
     assert.equal(oneOf('1730', ['2020', '2010'], '2020'), '2020')
     assert.equal(oneOf('2010', ['2020', '2010'], '2020'), '2010')
+  })
+})
+
+/*
+ * IX-26. The file a reader takes away, which is the one artefact of this site
+ * that has to stand up with no page around it. Every rule it follows is a
+ * deliberate difference from the rendered cell (lib/takeaway.js), and each one
+ * is the kind that reads as working until the row that breaks it turns up:
+ * the driver called O'Ward, the constructor with a comma in its name, the
+ * assessment with a newline in it, the column of 27,482.
+ */
+describe('a table as a file (IX-26)', () => {
+  const columns = [
+    { key: 'full_name', label: 'Driver' },
+    { key: 'entries', label: 'Entries' },
+    { key: 'first_season', label: 'First season' },
+  ]
+  const rows = [
+    { full_name: 'Ayrton Senna', entries: 162, first_season: 1984 },
+    { full_name: 'Pastor Maldonado', entries: 95, first_season: null },
+  ]
+
+  it('writes the header the table shows, and humanises a column that gave none', () => {
+    assert.equal(headerOf({ key: 'full_name', label: 'Driver' }), 'Driver')
+    assert.equal(headerOf({ key: 'pole_to_win' }), 'Pole to win')
+  })
+
+  it('writes a number unformatted: a spreadsheet reading "27,482" gets a string', () => {
+    assert.equal(fieldText({ key: 'n' }, { n: 27482 }), '27482')
+    assert.equal(fieldText({ key: 'n' }, { n: 1950 }), '1950')
+    // And the rendered cell does not, which is the point of the difference.
+    assert.equal(text(27482), '27,482')
+  })
+
+  it('carries an em dash for a value nobody has established, never a blank', () => {
+    assert.equal(fieldText({ key: 'n' }, { n: null }), EMPTY)
+    assert.equal(fieldText({ key: 'n' }, { n: undefined }), EMPTY)
+    assert.equal(fieldText({ key: 'n' }, { n: '' }), EMPTY)
+    // A zero is a zero. It is the one value the em dash never means.
+    assert.equal(fieldText({ key: 'n' }, { n: 0 }), '0')
+  })
+
+  it("takes a column's own formatter where it has one, so the file and the page agree", () => {
+    const spanned = { key: 'from', text: (_value, row) => span(row.from, row.to) }
+    assert.equal(fieldText(spanned, { from: 1950, to: 1958 }), '1950–1958')
+    assert.equal(fieldText(spanned, { from: 1950, to: null }), '1950–')
+  })
+
+  it('leaves out a column that is drawn rather than written — the result rail', () => {
+    const rail = { key: 'rail', label: 'Result', text: () => '' }
+    assert.deepEqual(
+      writtenColumns([...columns, rail], rows).map((c) => c.key),
+      ['full_name', 'entries', 'first_season'],
+    )
+    // A column of nothing but em dashes is NOT that: "not established" on
+    // every row is a fact about the database, and it travels.
+    const unknown = { key: 'gap', label: 'Gap' }
+    assert.deepEqual(
+      writtenColumns([unknown], [{ gap: null }, { gap: null }]).map((c) => c.key),
+      ['gap'],
+    )
+  })
+
+  it('tab-separates the clipboard, header first, with no trailing row', () => {
+    assert.equal(
+      toTsv(columns, rows),
+      ['Driver\tEntries\tFirst season', 'Ayrton Senna\t162\t1984', `Pastor Maldonado\t95\t${EMPTY}`].join('\n'),
+    )
+  })
+
+  it('a pasted field loses its own tabs and newlines rather than becoming two cells', () => {
+    const prose = [{ note: 'Two sources disagree.\nBoth are recorded.\tSee below.' }]
+    assert.equal(
+      toTsv([{ key: 'note', label: 'Note' }], prose),
+      'Note\nTwo sources disagree. Both are recorded. See below.',
+    )
+  })
+
+  it('quotes a CSV field by RFC 4180 and doubles the quotes inside it', () => {
+    const awkward = [{ v: 'Brabham, Repco' }, { v: 'He said "no"' }, { v: 'one\ntwo' }, { v: ' padded ' }, { v: "O'Ward" }]
+    const lines = toCsv([{ key: 'v', label: 'V' }], awkward).split('\r\n')
+    assert.equal(lines[1], '"Brabham, Repco"')
+    assert.equal(lines[2], '"He said ""no"""')
+    // A quoted field keeps its own line break rather than ending the record,
+    // which is why the row count of a CSV is not its line count.
+    assert.equal(lines[3], '"one\ntwo"')
+    assert.equal(lines[4], '" padded "')
+    // An apostrophe is not a quote character and must not be touched.
+    assert.equal(lines[5], "O'Ward")
+  })
+
+  it('comma-separates the file, one record per CRLF', () => {
+    // The first version of this joined the FIELDS with the record separator,
+    // which a one-column test cannot see: every cell became its own line and
+    // an 862-row register came out as 7,766.
+    assert.equal(
+      toCsv(columns, rows),
+      '\uFEFFDriver,Entries,First season\r\n' +
+        'Ayrton Senna,162,1984\r\n' +
+        `Pastor Maldonado,95,${EMPTY}\r\n`,
+    )
+  })
+
+  it('opens the CSV with a byte-order mark, so Excel reads Räikkönen as Räikkönen', () => {
+    const csv = toCsv([{ key: 'v', label: 'Driver' }], [{ v: 'Kimi Räikkönen' }])
+    assert.equal(csv.slice(0, 1), '\uFEFF')
+    assert.equal(csv, '\uFEFFDriver\r\nKimi Räikkönen\r\n')
+  })
+
+  it('names the file for the table and the database version that fixes its figures', () => {
+    assert.equal(fileName('Drivers', '3.4.0', 'csv'), 'lap-ledger-drivers-v3.4.0.csv')
+    assert.equal(fileName('The result of your query', '3.4.0', 'csv'), 'lap-ledger-the-result-of-your-query-v3.4.0.csv')
+    // The version is what a citation rests on, but a table must still be
+    // takeable before the manifest has arrived.
+    assert.equal(fileName('Drivers', undefined, 'csv'), 'lap-ledger-drivers.csv')
+    assert.equal(fileName(undefined, '3.4.0', 'csv'), 'lap-ledger-table-v3.4.0.csv')
+    assert.equal(fileName('Monza — every race', '3.4.0', 'csv'), 'lap-ledger-monza-every-race-v3.4.0.csv')
   })
 })
