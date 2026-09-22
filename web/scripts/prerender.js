@@ -193,7 +193,6 @@ import { CIRCUITS, CIRCUIT_COLUMNS, CIRCUITS_FOOTER, TRACED } from '../src/queri
 import { CHASSIS, CHASSIS_COLUMNS, CHASSIS_FOOTER, GALLERY, GALLERY_COLUMNS } from '../src/queries/cars.js'
 import {
   CLASSIFICATION_COLUMNS,
-  CLASSIFICATION_FOOTER,
   ENTRIES,
   NEIGHBOURS as RACE_NEIGHBOURS,
   FASTEST_LAP,
@@ -207,6 +206,7 @@ import {
   SPRINT_COLUMNS,
   SPRINT_FOOTER,
   carName,
+  classificationFooter,
   inClassificationOrder,
   qualifyingColumns,
   raceLede,
@@ -1949,7 +1949,7 @@ const page = ({
                 status: outCell,
                 fastest_lap: (value) =>
                   value === 1 ? `<span class="fl" aria-hidden="true">●</span><span class="sr-only">${esc(FASTEST_LAP)}</span>` : '',
-              })}${note(CLASSIFICATION_FOOTER)}`
+              })}${note(classificationFooter(entries))}`
             : scheduled
               ? noteBox(pending.head, pending.body)
               : ''

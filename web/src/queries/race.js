@@ -177,8 +177,36 @@ export const SHARED_DRIVE_NOTE = {
     'position below appears twice. That is correct, not a duplicated row.',
 }
 
-export const CLASSIFICATION_FOOTER =
-  'An empty “Out” is a retirement nobody recorded a reason for, not a driver who finished. A blank chassis is a season the team ran more than one design and no source says which car raced here.'
+/**
+ * What the classification's blanks mean — each sentence only where the blank
+ * it explains is on the page.
+ *
+ * Both sentences were printed unconditionally beneath all 1,163 classifications.
+ * The first matched nothing: CD-01 made a classified finisher with no status
+ * read "Finished" rather than an em dash, which left no row in the database at
+ * all where "Out" is empty (0 of 27,504 entries), so every race page taught a
+ * rule about a value the reader will never see, under a column showing
+ * "Finished" twenty times. The second is true of 761 of the 1,163 and was
+ * asserted on the other 402 (CD-36). The sentences are kept rather than the
+ * first deleted, because each one is right whenever its blank appears and the
+ * database is rebuilt from sources that may yet produce one.
+ *
+ * The tests are the cells' own: "Out" is blank exactly where `outcome` falls
+ * through to the em dash, and a chassis cell is blank exactly where neither the
+ * name nor the id is there for either renderer to print.
+ */
+export const OUT_NOTE = 'An empty “Out” is a retirement nobody recorded a reason for, not a driver who finished.'
+
+export const CHASSIS_NOTE =
+  'A blank chassis is a season the team ran more than one design and no source says which car raced here.'
+
+export const classificationFooter = (entries) =>
+  [
+    entries.some((row) => missing(row.status) && missing(row.finish_position)) ? OUT_NOTE : '',
+    entries.some((row) => missing(row.chassis) && missing(row.chassis_id)) ? CHASSIS_NOTE : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
 
 /** One time per driver before knock-out qualifying arrived in 2006; the best lap of each session from then. */
 export const qualifyingColumns = (rows) => [
