@@ -786,6 +786,52 @@ try {
     )
     await sliced.close()
 
+    /*
+     * And the links that are not routes at all. /data links to /f1.db,
+     * /f1-geometry.db, /f1-parquet.zip, /schema.sql and /db-manifest.json,
+     * none of them with a `download` attribute — a static host's
+     * Content-Disposition is its own. Held as a route change, such a click
+     * moved the address bar and fetched nothing; held and then served from
+     * the prerendered page, /f1.db is twenty-three megabytes pulled alongside
+     * the download the hold exists to protect, and parsed as HTML.
+     */
+    const fileLink = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    // Answered here rather than served, so the assertion costs a request and
+    // not twenty-three megabytes. What it reads is how the request was made:
+    // a navigation the browser owns is a `document` request, and the hold
+    // fetching a page to swap in is a `fetch` one.
+    const askedFor = []
+    await fileLink.route('**/f1.db', (route) => {
+      askedFor.push(route.request().resourceType())
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/octet-stream',
+        body: 'stands in for the database file',
+      })
+    })
+    await fileLink.goto(`${BASE}/data`, { waitUntil: 'domcontentloaded' })
+    truthy(
+      await fileLink.evaluate(() => {
+        const link = document.querySelector('#prerendered a[href="/f1.db"]')
+        if (!link || !document.getElementById('prerendered')) return false
+        link.click()
+        return true
+      }),
+      'the static data page offers the database file before the database is open',
+    )
+    await fileLink.waitForTimeout(500)
+    is(
+      askedFor.join(', ') || '(no request)',
+      'document',
+      'and a click on it is the browser downloading a file, not the boot window fetching a page',
+    )
+    is(
+      await fileLink.evaluate(() => location.pathname),
+      '/data',
+      'and the reader is left on the page they were reading',
+    )
+    await fileLink.close()
+
     // Every section after this one drives the shared page, which has been in
     // the background throughout.
     await page.bringToFront()
@@ -845,6 +891,43 @@ try {
     truthy(
       !(await stranded.innerText('#prerendered')).includes('needs JavaScript'),
       'and is not told it needs JavaScript in a tab that is running it',
+    )
+
+    /*
+     * And the other order: the click first, the failure after it. The
+     * connection drops mid-thought, so the held route's own page cannot be
+     * fetched either — and the reader is left standing on the register with
+     * the address bar naming a circuit, no router coming to render it, and a
+     * strip offering figures that belong to a page they cannot see. The
+     * address bar goes back to the page on screen.
+     */
+    const stalled = await blocked.newPage()
+    // A page route is answered before the context's, so the failure arrives
+    // four seconds in - long enough to click inside - rather than at once.
+    await stalled.route('**/f1.db*', async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 4000))
+      await route.abort()
+    })
+    await stalled.route('**/circuits/monza', (route) => route.abort())
+    await stalled.goto(`${BASE}/circuits`, { waitUntil: 'domcontentloaded' })
+    await stalled.click('#prerendered a[href="/circuits/monza"]')
+    await stalled.waitForFunction(() => location.pathname === '/circuits/monza', null, { timeout: 15000 })
+    await stalled.waitForFunction(
+      () => document.querySelector('.boot-strip .boot-phase')?.textContent.includes('could not be opened'),
+      null,
+      { timeout: 60000 },
+    )
+    await stalled.waitForTimeout(250)
+    is(
+      await stalled.evaluate(
+        () => `${location.pathname} ${document.querySelector('#prerendered h1')?.textContent}`,
+      ),
+      '/circuits Circuits',
+      'a click held before the failure leaves the address bar naming the page the reader can see',
+    )
+    truthy(
+      !(await stalled.$eval('.boot-strip .boot-phase', (node) => node.textContent)).includes('opening'),
+      'and the strip stops promising a page nothing is going to open',
     )
     await blocked.close()
   })
@@ -3455,6 +3538,19 @@ try {
       })
     const served = walk(distDir)
     atLeast(served.length, 3000, 'prerendered pages read from dist')
+    // main.jsx tells a route from a file by the extension, because /data links
+    // to /f1.db and /f1-parquet.zip with no `download` attribute and holding
+    // one of those as a route change fetches the file into a DOMParser. That
+    // is only safe while no route has a dot in its last segment.
+    const dotted = served
+      .map((file) => relative(distDir, dirname(file)))
+      .filter((route) => route && route.split('/').at(-1).includes('.'))
+    truthy(
+      dotted.length === 0,
+      `every route is extensionless, which is how a link to a page is told from a link to a file${
+        dotted.length ? ` — ${dotted.slice(0, 5).join(', ')}` : ''
+      }`,
+    )
     const missingCard = served
       .map((file) => ({ file, html: readFileSync(file, 'utf8') }))
       .filter(({ html }) => !/<meta property="og:image" content="[^"]+"/.test(html))

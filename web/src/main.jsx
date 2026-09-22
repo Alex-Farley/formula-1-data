@@ -107,6 +107,17 @@ function handOver() {
  */
 const staticPage = { route: location.pathname, work: Promise.resolve(true) }
 
+/** The id the address bar's fragment names, or '' — a bad escape is not one. */
+function fragmentId() {
+  const raw = location.hash.slice(1)
+  if (!raw) return ''
+  try {
+    return decodeURIComponent(raw)
+  } catch {
+    return raw
+  }
+}
+
 /**
  * Put the prerendered half of `route` on screen in place of the one there.
  * Resolves false when it could not be had — an offline fetch, a route with no
@@ -121,6 +132,12 @@ async function fetchStatic(route) {
   if (!pre) return false
   const response = await fetch(route, { headers: { accept: 'text/html' } })
   if (!response.ok) return false
+  // Read the type before the body. Whatever slips past the caller's test for
+  // a file is dropped here rather than drained into a string and parsed.
+  if (!/\btext\/html\b/i.test(response.headers.get('content-type') ?? '')) {
+    await response.body?.cancel().catch(() => {})
+    return false
+  }
   const doc = new DOMParser().parseFromString(await response.text(), 'text/html')
   const next = doc.getElementById('prerendered')
   if (!next?.firstElementChild) return false
@@ -134,10 +151,14 @@ async function fetchStatic(route) {
   // and so handOver() knows which route the reader's offset belongs to.
   captureStaticTables()
   if (doc.title) document.title = doc.title
-  // A page the reader has just asked for starts at its top, and its content
-  // takes focus so a screen reader learns the document changed — the same
-  // arrival handOver() gives the app's own page.
-  window.scrollTo(0, 0)
+  // A page the reader has just asked for starts at its top — or at the
+  // fragment they asked for, which the browser cannot resolve for a
+  // navigation that never happened. Its content takes focus either way, so a
+  // screen reader learns the document changed: the same arrival handOver()
+  // gives the app's own page.
+  const anchored = fragmentId() ? pre.querySelector(`#${CSS.escape(fragmentId())}`) : null
+  if (anchored) anchored.scrollIntoView()
+  else window.scrollTo(0, 0)
   pre.querySelector('main')?.focus({ preventScroll: true })
   return true
 }
@@ -149,6 +170,30 @@ function showStatic(route) {
     staticPage.work = fetchStatic(route).catch(() => false)
   }
   return staticPage.work
+}
+
+/**
+ * The address bar goes back to the page the reader is actually looking at,
+ * once nothing is coming to render the one it names.
+ *
+ * Refusing to hold a click after a failure (below) is only half of it: the
+ * connection can drop between the click and the failure, and then the held
+ * route could not be fetched either. That reader is standing on /circuits
+ * with the address bar reading /circuits/monza, no router coming, and a strip
+ * offering them figures from the last published build that belong to a
+ * different page. So the address bar is corrected to the page on screen —
+ * replaceState, because the entry it replaces was never a page anybody saw —
+ * and the anchors do the rest.
+ */
+function releaseOnFailure() {
+  onProgress((state) => {
+    if (state.phase !== 'failed') return
+    const at = staticArrival()
+    if (!at || location.pathname === at) return
+    if (!document.getElementById('prerendered')) return
+    history.replaceState({}, '', at)
+    setPending(null)
+  })
 }
 
 function holdLinks() {
@@ -189,6 +234,16 @@ function holdLinks() {
       // content" when the database was ready. Let the browser do what it does
       // with a fragment.
       if (url.hash && url.pathname === location.pathname && url.search === location.search) return
+      // A path with an extension is a file, not one of this site's routes.
+      // /data and /data/sql link to /f1.db, /f1-geometry.db, /f1-parquet.zip,
+      // /schema.sql and /db-manifest.json, and none of them carries a
+      // `download` attribute — a static host's Content-Disposition is its own.
+      // Held, such a click moved the address bar and downloaded nothing; held
+      // and then fetched, /f1.db is twenty-three megabytes pulled alongside
+      // the download this function exists to protect, and run through
+      // DOMParser. Every one of the 3,541 prerendered routes is extensionless,
+      // which smoke.mjs holds to so this test cannot quietly stop being true.
+      if (/\.[^/]+$/.test(url.pathname)) return
       event.preventDefault()
       const route = url.pathname
       history.pushState({}, '', route + url.search + url.hash)
@@ -207,6 +262,7 @@ function holdLinks() {
 }
 
 holdLinks()
+releaseOnFailure()
 // Before anything can remove the static page: how many rows each of its
 // tables drew is what DataTable opens on, so the handover does not delete
 // rows under a reader who has scrolled past them (IX-19).
