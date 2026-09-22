@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable from '../components/DataTable.jsx'
@@ -8,6 +8,7 @@ import { rows, useQueries } from '../data/useQuery.js'
 import { GLOSSARY, GLOSSARY_COLUMNS, PERSONNEL, PERSONNEL_COLUMNS } from '../queries/glossary.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
+import { oneOf, useUrlState } from '../lib/urlstate.js'
 const SPEC = {
   glossary: [GLOSSARY],
   personnel: [PERSONNEL],
@@ -20,8 +21,6 @@ const withRenders = (columns, renders) =>
 
 export default function Glossary() {
   const state = useQueries(SPEC)
-  const [term, setTerm] = useState('')
-  const [category, setCategory] = useState('')
 
   return (
     <Page
@@ -34,27 +33,26 @@ export default function Glossary() {
         {(data) => {
           const glossary = rows(data, 'glossary')
           const personnel = rows(data, 'personnel')
-          return (
-            <Body
-              glossary={glossary}
-              personnel={personnel}
-              term={term}
-              setTerm={setTerm}
-              category={category}
-              setCategory={setCategory}
-            />
-          )
+          return <Body glossary={glossary} personnel={personnel} />
         }}
       </Result>
     </Page>
   )
 }
 
-function Body({ glossary, personnel, term, setTerm, category, setCategory }) {
+function Body({ glossary, personnel }) {
   const categories = useMemo(
     () => [...new Set(glossary.map((row) => row.category).filter(Boolean))].sort(),
     [glossary],
   )
+  const chips = [['', 'All'], ...categories.map((c) => [c, c])]
+
+  // In the address, where it survives the page it explains (IA-08). The two
+  // tables here are not addressed: one set of sort parameters names one
+  // table, and this page has a glossary and a list of people.
+  const [params, set, clear] = useUrlState({ q: '', category: '' })
+  const term = params.q
+  const category = oneOf(params.category, chips)
 
   const filtered = useMemo(() => {
     const needle = term.trim().toLowerCase()
@@ -75,21 +73,22 @@ function Body({ glossary, personnel, term, setTerm, category, setCategory }) {
   // category reads for every value the chips can carry, including one added
   // after this line.
   const among = category ? `terms in the ${category} category` : ''
-  const clear = () => {
-    setTerm('')
-    setCategory('')
-  }
 
   return (
     <>
       <Section title="Glossary" count={`${glossary.length} terms`}>
         <Filters showing={filtered.length} of={glossary.length} noun="terms">
-          <SearchField value={term} onChange={setTerm} label="Filter terms" placeholder="A term…" />
+          <SearchField
+            value={term}
+            onChange={(value) => set({ q: value })}
+            label="Filter terms"
+            placeholder="A term…"
+          />
           <Chips
             label="Filter terms by category"
             value={category}
-            onChange={setCategory}
-            options={[['', 'All'], ...categories.map((c) => [c, c])]}
+            onChange={(value) => set({ category: value })}
+            options={chips}
           />
         </Filters>
         {/* No opening sort: the query's case-insensitive ORDER BY is the order

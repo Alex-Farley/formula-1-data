@@ -1,6 +1,7 @@
 import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { EMPTY, isNumericColumn, isProseColumn, label as humanise, missing, text } from '../lib/format.js'
 import { shared, sharedLine } from '../lib/table.js'
+import { useUrlState } from '../lib/urlstate.js'
 import { PageTitle, SectionTitle } from './Page.jsx'
 
 /**
@@ -45,13 +46,73 @@ function normalise(columns, rows) {
   })
 }
 
-export default function DataTable({
+/**
+ * The table a reader can send somebody: its sort column, its direction and
+ * whether it has been expanded, in the address bar as `?sort=wins&dir=asc`
+ * and `?all=1` (IA-08). A sort that is the table's own default is not
+ * written down, so a register nobody has touched keeps a clean address.
+ *
+ * `addressed` is opt-in, and only a page whose register IS the page takes it
+ * — the four registers and the race index. One set of parameters can name
+ * one table, and on a page of seven they would fight over it.
+ */
+export default function DataTable({ addressed = false, ...props }) {
+  return addressed ? <AddressedTable {...props} /> : <Table {...props} />
+}
+
+function AddressedTable({ sort = null, direction = 'asc', ...props }) {
+  const [state, set] = useUrlState({ sort: sort ?? '', dir: direction, all: false })
+
+  /*
+   * A sort is a column, and what arrives from the address is a string.
+   *
+   * `/races` renders its header unsortable — the query's own order, run
+   * first and newest first, is the order the page means — and `?sort=year`
+   * there put the index in an order no control expresses, under an
+   * `aria-sort` on a header with no button inside it to change or clear.
+   * `?sort=` with nothing after it threw a register's opening sort away
+   * just as quietly, taking the arrow and the `aria-sort` with it.
+   *
+   * So the address is read the same way a filter is (`oneOf` in
+   * lib/urlstate.js): a key no header offers, or any key at all on a table
+   * that does not sort, falls back to the table's own opening sort and
+   * direction. The parameter stays in the address, wrong and visible,
+   * rather than the page quietly being wrong.
+   */
+  const offered = (props.sortable === false ? [] : (props.columns ?? []))
+    .map((column) => (typeof column === 'string' ? { key: column } : column))
+    .filter((column) => column.sortable !== false)
+    .map((column) => column.key)
+  const asked = offered.includes(state.sort)
+
+  return (
+    <Table
+      {...props}
+      sort={asked ? state.sort : sort}
+      // A direction is one of two words; anything else typed into the address
+      // is not a third option, it is a mistake, and ascending is the default.
+      direction={asked ? (state.dir === 'desc' ? 'desc' : 'asc') : direction}
+      showAll={state.all}
+      onSort={(key, next) => set({ sort: key, dir: next })}
+      onShowAll={() => set({ all: true })}
+    />
+  )
+}
+
+function Table({
   data,
   rows: given,
   columns,
   caption,
-  sort: initialSort = null,
-  direction: initialDirection = 'asc',
+  // The sort, the direction and the expansion are the table's own until a
+  // caller hands back an `onSort` or an `onShowAll`, at which point that
+  // caller holds them — which is how AddressedTable keeps its copy in the
+  // URL rather than in a second place that could disagree with it.
+  sort: givenSort = null,
+  direction: givenDirection = 'asc',
+  showAll: givenShowAll = false,
+  onSort,
+  onShowAll,
   // "Nothing recorded." is a claim about the database, and it was the default
   // on some fifty tables - including every register a reader had just filtered
   // to nothing, where what had happened was a search box (CD-17). The neutral
@@ -78,9 +139,12 @@ export default function DataTable({
   // would be the wrong name for the table under it - the SQL console, whose
   // page is not its result - and otherwise the heading that introduces it.
   const name = caption ?? sectionTitle ?? pageTitle
-  const [sort, setSort] = useState(initialSort)
-  const [direction, setDirection] = useState(initialDirection)
-  const [showAll, setShowAll] = useState(false)
+  const [ownSort, setOwnSort] = useState(givenSort)
+  const [ownDirection, setOwnDirection] = useState(givenDirection)
+  const [ownShowAll, setOwnShowAll] = useState(false)
+  const sort = onSort ? givenSort : ownSort
+  const direction = onSort ? givenDirection : ownDirection
+  const showAll = onShowAll ? givenShowAll : ownShowAll
 
   const cols = useMemo(
     () => normalise(columns ?? data?.columns ?? [], source),
@@ -150,11 +214,19 @@ export default function DataTable({
   const hidden = ordered.length - visible.length
 
   const toggle = (key) => {
-    if (key === sort) setDirection(direction === 'asc' ? 'desc' : 'asc')
+    const next =
+      key === sort
+        ? direction === 'asc'
+          ? 'desc'
+          : 'asc'
+        : // Numbers are nearly always most interesting at their largest.
+          cols.find((c) => c.key === key)?.align === 'num'
+          ? 'desc'
+          : 'asc'
+    if (onSort) onSort(key, next)
     else {
-      setSort(key)
-      // Numbers are nearly always most interesting at their largest.
-      setDirection(cols.find((c) => c.key === key)?.align === 'num' ? 'desc' : 'asc')
+      setOwnSort(key)
+      setOwnDirection(next)
     }
   }
 
@@ -244,7 +316,7 @@ export default function DataTable({
           <div className="table-foot">
             <span>{footer}</span>
             {hidden > 0 && (
-              <button type="button" onClick={() => setShowAll(true)}>
+              <button type="button" onClick={() => (onShowAll ? onShowAll() : setOwnShowAll(true))}>
                 Show the remaining {hidden.toLocaleString('en-GB')}
               </button>
             )}

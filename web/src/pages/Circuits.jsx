@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
@@ -8,6 +8,7 @@ import { currentProgress } from '../data/client.js'
 import { rows as pick, useQueries } from '../data/useQuery.js'
 import { anyThisSeason, calendarLabel, seasonOf } from '../lib/season.js'
 import { TRACE_COLUMN_UNKNOWN, TRACE_NOT_LOADED, traceRegisterNote } from '../lib/trace.js'
+import { oneOf, useUrlState } from '../lib/urlstate.js'
 import { CIRCUITS, CIRCUIT_COLUMNS, CIRCUITS_FOOTER, TRACED } from '../queries/circuits.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
@@ -93,12 +94,6 @@ export default function Circuits() {
  * it moves.
  */
 function Register({ rows, traces }) {
-  const [term, setTerm] = useState('')
-  const [country, setCountry] = useState('')
-  const [kind, setKind] = useState('')
-  const [tracedOnly, setTracedOnly] = useState(false)
-  const [onCalendar, setOnCalendar] = useState(false)
-
   // IA-19: the same question the other three registers ask, in the same
   // words - but a toggle rather than a fifth chip, because the chip group
   // here is the type axis and IX-35 is the record of what happens when a
@@ -122,6 +117,24 @@ function Register({ rows, traces }) {
     () => [...new Set(rows.map((r) => r.circuit_type).filter(Boolean))].sort(),
     [rows],
   )
+  const kinds = [['', 'All types'], ...types.map((t) => [t, t])]
+
+  // In the address (IA-08). The two toggles answer to whether their control
+  // is there at all: `?traced=1` without the overlay, or `?calendar=1` in a
+  // season with no calendar yet, would filter eighty circuits to none with
+  // nothing on the page to say what had been asked.
+  const [params, set, clear] = useUrlState({
+    q: '',
+    country: '',
+    kind: '',
+    traced: false,
+    calendar: false,
+  })
+  const term = params.q
+  const country = oneOf(params.country, countries)
+  const kind = oneOf(params.kind, kinds)
+  const tracedOnly = Boolean(overlay) && params.traced
+  const onCalendar = hasCalendar && params.calendar
 
   const filtered = useMemo(() => {
     const needle = term.trim().toLowerCase()
@@ -164,32 +177,35 @@ function Register({ rows, traces }) {
           .join(' ')
       : ''
 
-  const clear = () => {
-    setTerm('')
-    setCountry('')
-    setKind('')
-    setTracedOnly(false)
-    setOnCalendar(false)
-  }
-
   return (
     <>
       <Filters showing={filtered.length} of={rows.length} noun="circuits">
-        <SearchField value={term} onChange={setTerm} label="Filter circuits" placeholder="A circuit or a place…" />
-        <Select value={country} onChange={setCountry} label="Country" all="Every country" options={countries} />
+        <SearchField
+          value={term}
+          onChange={(value) => set({ q: value })}
+          label="Filter circuits"
+          placeholder="A circuit or a place…"
+        />
+        <Select
+          value={country}
+          onChange={(value) => set({ country: value })}
+          label="Country"
+          all="Every country"
+          options={countries}
+        />
         <Chips
           label="Filter circuits by type"
           value={kind}
-          onChange={setKind}
+          onChange={(value) => set({ kind: value })}
           // "All types", not "All": the toggle beside this group is a
           // second axis now, and a chip reading "All" beside a pressed
           // Traced would name a state the bar is not in.
-          options={[['', 'All types'], ...types.map((t) => [t, t])]}
+          options={kinds}
         />
         {hasCalendar && (
           <Toggle
             value={onCalendar}
-            onChange={setOnCalendar}
+            onChange={(value) => set({ calendar: value })}
             label={`${calendarLabel(calendarSeason)} only`}
           >
             {calendarLabel(calendarSeason)}
@@ -199,7 +215,11 @@ function Register({ rows, traces }) {
             would filter eighty circuits down to none and read as an answer
             (IX-31). */}
         {overlay && (
-          <Toggle value={tracedOnly} onChange={setTracedOnly} label="Traced centrelines only">
+          <Toggle
+            value={tracedOnly}
+            onChange={(value) => set({ traced: value })}
+            label="Traced centrelines only"
+          >
             Traced
           </Toggle>
         )}
@@ -255,6 +275,7 @@ function Register({ rows, traces }) {
         note={overlay ? undefined : TRACE_COLUMN_UNKNOWN}
       >
         <DataTable
+          addressed
           rows={filtered}
           rowKey={(row) => row.id}
           sort="races"

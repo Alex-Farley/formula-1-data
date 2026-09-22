@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Confidence, Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable from '../components/DataTable.jsx'
@@ -6,6 +6,7 @@ import { SportNav } from '../components/SubNav.jsx'
 import { Chips } from '../components/Filters.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { span } from '../lib/format.js'
+import { oneOf, useUrlState } from '../lib/urlstate.js'
 import {
   ENGINES,
   ENGINE_COLUMNS,
@@ -85,11 +86,16 @@ function Body({ data }) {
   const tyres = rows(data, 'tyres')
   const limits = rows(data, 'limits')
 
-  const [category, setCategory] = useState('')
   const categories = useMemo(
     () => [...new Set(regulations.map((r) => r.category).filter(Boolean))].sort(),
     [regulations],
   )
+  const chips = [['', 'All'], ...categories.map((c) => [c, c])]
+
+  // In the address (IA-08): the regulation category is the one thing a
+  // reader chooses on this page, and it is what they would want to send.
+  const [params, set] = useUrlState({ category: '' })
+  const category = oneOf(params.category, chips)
   const shownRegulations = category ? regulations.filter((r) => r.category === category) : regulations
   const eraTiers = [...new Set(eras.map((e) => e.confidence))]
 
@@ -150,8 +156,8 @@ function Body({ data }) {
           <Chips
             label="Filter regulation changes by category"
             value={category}
-            onChange={setCategory}
-            options={[['', 'All'], ...categories.map((c) => [c, c])]}
+            onChange={(value) => set({ category: value })}
+            options={chips}
           />
         </div>
         <DataTable

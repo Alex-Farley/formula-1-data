@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
@@ -8,6 +8,7 @@ import LiveryMark from '../components/LiveryMark.jsx'
 import { useQuery } from '../data/useQuery.js'
 import { colourForEntry } from '../lib/liveries.js'
 import { NOT_YET_RUN, SHARED, SPRINT } from '../lib/site.js'
+import { oneOf, useUrlState } from '../lib/urlstate.js'
 import { RACES, RACE_COLUMNS, RACES_FOOTER } from '../queries/races.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
@@ -74,9 +75,6 @@ const APP = {
 
 export default function Races() {
   const state = useQuery(RACES)
-  const [term, setTerm] = useState('')
-  const [decade, setDecade] = useState('')
-  const [status, setStatus] = useState('')
 
   return (
     <Page
@@ -86,7 +84,7 @@ export default function Races() {
     >
       <Section>
         <Result state={state} skeleton>
-          {(data) => <RaceList rows={data.rows} {...{ term, setTerm, decade, setDecade, status, setStatus }} />}
+          {(data) => <RaceList rows={data.rows} />}
         </Result>
       </Section>
 
@@ -95,11 +93,29 @@ export default function Races() {
   )
 }
 
-function RaceList({ rows, term, setTerm, decade, setDecade, status, setStatus }) {
+/**
+ * The filters used to be held above `Result`, so that a query settling did
+ * not throw away what the reader had typed. They are in the address now
+ * (IA-08), which is a better place for the same reason and two others: the
+ * register can be sent to somebody, and it comes back from a race page as
+ * they left it.
+ */
+function RaceList({ rows }) {
   const decades = useMemo(
     () => [...new Set(rows.map((r) => Math.floor(r.year / 10) * 10))].sort((a, b) => b - a),
     [rows],
   )
+  const decadeOptions = decades.map((d) => [String(d), `${d}s`])
+  const statuses = [
+    ['', 'All'],
+    ['run', 'Run'],
+    ['scheduled', 'Scheduled'],
+  ]
+
+  const [params, set, clear] = useUrlState({ q: '', decade: '', status: '' })
+  const term = params.q
+  const decade = oneOf(params.decade, decadeOptions)
+  const status = oneOf(params.status, statuses)
 
   const filtered = useMemo(() => {
     const needle = term.trim().toLowerCase()
@@ -125,43 +141,34 @@ function RaceList({ rows, term, setTerm, decade, setDecade, status, setStatus })
           .join(' ')
       : ''
 
-  const clear = () => {
-    setTerm('')
-    setDecade('')
-    setStatus('')
-  }
-
   return (
     <>
       <Filters showing={filtered.length} of={rows.length} noun="races">
         <SearchField
           value={term}
-          onChange={setTerm}
+          onChange={(value) => set({ q: value })}
           label="Filter races"
           placeholder="A Grand Prix, a circuit, a winner…"
         />
         <Select
           value={decade}
-          onChange={setDecade}
+          onChange={(value) => set({ decade: value })}
           label="Decade"
           all="Every decade"
-          options={decades.map((d) => [String(d), `${d}s`])}
+          options={decadeOptions}
         />
         <Chips
           label="Filter races by status"
           value={status}
-          onChange={setStatus}
-          options={[
-            ['', 'All'],
-            ['run', 'Run'],
-            ['scheduled', 'Scheduled'],
-          ]}
+          onChange={(value) => set({ status: value })}
+          options={statuses}
         />
       </Filters>
 
       {/* The rows come in the query's order — run first, newest first, then
           the rounds still to come — and the table keeps it. */}
       <DataTable
+        addressed
         rows={filtered}
         rowKey={(row) => `${row.year}-${row.round}`}
         sortable={false}

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
@@ -6,6 +6,7 @@ import DataTable, { cell } from '../components/DataTable.jsx'
 import { Chips, Filters, NoMatch, SearchField, Select } from '../components/Filters.jsx'
 import { useQuery } from '../data/useQuery.js'
 import { anyThisSeason, gridLabel, seasonOf } from '../lib/season.js'
+import { oneOf, useUrlState } from '../lib/urlstate.js'
 import { DRIVERS, DRIVER_COLUMNS } from '../queries/drivers.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
@@ -44,9 +45,6 @@ export default function Drivers() {
 }
 
 function Register({ rows }) {
-  const [term, setTerm] = useState('')
-  const [nationality, setNationality] = useState('')
-  const [kind, setKind] = useState('')
   // The season the grid filter names, from the shared query; every row
   // carries the same value.
   const gridSeason = seasonOf(rows)
@@ -56,6 +54,22 @@ function Register({ rows }) {
     () => [...new Set(rows.map((r) => r.nationality).filter(Boolean))].sort(),
     [rows],
   )
+  const kinds = [
+    ['', 'All'],
+    ['winners', 'Race winners'],
+    ['champions', 'Champions'],
+    ...(hasGrid ? [['grid', gridLabel(gridSeason)]] : []),
+  ]
+
+  // The filters are in the address, so the register can be sent to somebody
+  // and survives a driver's page and Back (IA-08). A value the data does not
+  // know is dropped rather than filtered on: the grid chip is not offered in
+  // a season with no entry list yet, and a nationality this register does
+  // not hold would empty it while the select still read "Every nationality".
+  const [params, set, clear] = useUrlState({ q: '', nationality: '', kind: '' })
+  const term = params.q
+  const nationality = oneOf(params.nationality, nationalities)
+  const kind = oneOf(params.kind, kinds)
 
   const filtered = useMemo(() => {
     const needle = term.trim().toLowerCase()
@@ -92,19 +106,18 @@ function Register({ rows }) {
           .join(' ')
       : ''
 
-  const clear = () => {
-    setTerm('')
-    setNationality('')
-    setKind('')
-  }
-
   return (
     <>
       <Filters showing={filtered.length} of={rows.length} noun="drivers">
-        <SearchField value={term} onChange={setTerm} label="Filter drivers" placeholder="A name…" />
+        <SearchField
+          value={term}
+          onChange={(value) => set({ q: value })}
+          label="Filter drivers"
+          placeholder="A name…"
+        />
         <Select
           value={nationality}
-          onChange={setNationality}
+          onChange={(value) => set({ nationality: value })}
           label="Nationality"
           all="Every nationality"
           options={nationalities}
@@ -112,17 +125,13 @@ function Register({ rows }) {
         <Chips
           label="Filter drivers by kind"
           value={kind}
-          onChange={setKind}
-          options={[
-            ['', 'All'],
-            ['winners', 'Race winners'],
-            ['champions', 'Champions'],
-            ...(hasGrid ? [['grid', gridLabel(gridSeason)]] : []),
-          ]}
+          onChange={(value) => set({ kind: value })}
+          options={kinds}
         />
       </Filters>
 
       <DataTable
+        addressed
         rows={filtered}
         rowKey={(row) => row.id}
         sort="wins"

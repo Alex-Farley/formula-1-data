@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { Note, Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
@@ -10,6 +10,7 @@ import { canShow, thumbUrl } from '../lib/commons.js'
 import CommonsCredit from '../components/CommonsCredit.jsx'
 import { span } from '../lib/format.js'
 import { colourForEntry } from '../lib/liveries.js'
+import { oneOf, useUrlState } from '../lib/urlstate.js'
 import { anyThisSeason, gridLabel, seasonOf } from '../lib/season.js'
 import { LANDMARK } from '../lib/site.js'
 import { CHASSIS, CHASSIS_COLUMNS, CHASSIS_FOOTER, GALLERY } from '../queries/cars.js'
@@ -149,9 +150,6 @@ function Gallery({ cars }) {
 }
 
 function Register({ rows }) {
-  const [term, setTerm] = useState('')
-  const [constructor, setConstructor] = useState('')
-  const [kind, setKind] = useState('')
   // IA-19: this register had no route to this year's chassis at all, in a
   // page of 1,153 rows opening on 1950.
   const gridSeason = seasonOf(rows)
@@ -164,6 +162,21 @@ function Register({ rows }) {
       ),
     [rows],
   )
+
+  const landmarks = rows.filter((r) => r.landmark).length
+  const kinds = [
+    ['', 'All'],
+    ['winners', 'Race winners'],
+    ['spec', 'With a spec'],
+    ['landmark', `Landmark (${landmarks})`],
+    ...(hasGrid ? [['grid', gridLabel(gridSeason)]] : []),
+  ]
+
+  // In the address, and clamped to what this register actually holds (IA-08).
+  const [params, set, clear] = useUrlState({ q: '', constructor: '', kind: '' })
+  const term = params.q
+  const constructor = oneOf(params.constructor, constructors)
+  const kind = oneOf(params.kind, kinds)
 
   const filtered = useMemo(() => {
     const needle = term.trim().toLowerCase()
@@ -180,8 +193,6 @@ function Register({ rows }) {
     })
   }, [rows, term, constructor, kind])
 
-  const landmarks = rows.filter((r) => r.landmark).length
-
   // The filters as a plural noun phrase, for the empty state (IX-28).
   const among = kind
     ? `${
@@ -197,12 +208,6 @@ function Register({ rows }) {
       ? `${constructor} chassis`
       : ''
 
-  const clear = () => {
-    setTerm('')
-    setConstructor('')
-    setKind('')
-  }
-
   return (
     <>
       <Note>
@@ -213,13 +218,18 @@ function Register({ rows }) {
       </Note>
 
       <Filters showing={filtered.length} of={rows.length} noun="chassis">
-        <SearchField value={term} onChange={setTerm} label="Filter cars" placeholder="A chassis or a constructor…" />
+        <SearchField
+          value={term}
+          onChange={(value) => set({ q: value })}
+          label="Filter cars"
+          placeholder="A chassis or a constructor…"
+        />
         {/* The options are <option> text and cannot carry a mark; they stay
             bare (AF-51). Clause 4 of AF-47 is what makes that safe - the name
             is always there, and the mark never stood in for it. */}
         <Select
           value={constructor}
-          onChange={setConstructor}
+          onChange={(value) => set({ constructor: value })}
           label="Constructor"
           all="Every constructor"
           options={constructors}
@@ -227,18 +237,13 @@ function Register({ rows }) {
         <Chips
           label="Filter cars by kind"
           value={kind}
-          onChange={setKind}
-          options={[
-            ['', 'All'],
-            ['winners', 'Race winners'],
-            ['spec', 'With a spec'],
-            ['landmark', `Landmark (${landmarks})`],
-            ...(hasGrid ? [['grid', gridLabel(gridSeason)]] : []),
-          ]}
+          onChange={(value) => set({ kind: value })}
+          options={kinds}
         />
       </Filters>
 
       <DataTable
+        addressed
         rows={filtered}
         rowKey={(row) => row.id}
         sort="first_year"
