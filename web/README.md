@@ -159,7 +159,18 @@ really there, not because anything rewrites them.
 npm run build                        # includes the prerender
 SITE_ORIGIN=https://example.com npm run build     # canonical URLs and sitemap
 SITE_BASE=/f1/ npm run build                      # served from a subdirectory
+CF_BEACON_TOKEN=... npm run build                 # Cloudflare Web Analytics beacon
+GOOGLE_SITE_VERIFICATION=... npm run build        # Search Console meta tag
 ```
+
+The last two are how PD-0 (#261) measures arrivals, and both are optional:
+unset, `prerender.js` writes neither tag and says which it skipped, and why,
+in the `measurement` block of `/build-status.txt`. A malformed one is never
+fatal — an analytics token does not get to take the site down — and never
+silent either `[D-10]`. The beacon is written with `"spa": false` on purpose:
+one count per arrival, and none for a route change, because a route change
+here queries a database already in the tab and the footer promises as much.
+`docs/MEASUREMENT.md` has the dashboard steps and the two numbers to read.
 
 **The static block is not hydrated.** It lives in `#prerendered`, outside
 `#root`, so React never reconciles with it and there is no markup contract to

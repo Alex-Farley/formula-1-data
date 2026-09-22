@@ -128,10 +128,29 @@ export const ENTRIES_NOTE =
  * because that sentence is about where the copy of the database lives - the
  * browser store data/cache.js writes - and not about which tab survives a
  * network loss.
+ *
+ * AMENDED 2026-09-22, because the site now counts arrivals (PD-0, #261).
+ *     It used to say "Nothing you look at or type is sent anywhere", and that
+ *     sentence stopped being true the moment prerender.js started writing a
+ *     Cloudflare Web Analytics beacon into every page: the address you arrive
+ *     on is sent, once, cookielessly, to Cloudflare. Shipping the beacon and
+ *     leaving the sentence alone was never one of the options - a promise this
+ *     site cannot keep is worse than the measurement is worth, and this is the
+ *     paragraph a reader is most entitled to read literally.
+ *
+ *     So it now says the narrower thing that is true, and says it in the two
+ *     halves a reader actually cares about: what you search for and type never
+ *     leaves, and moving between pages sends nothing, because the beacon is
+ *     written with `"spa": false` and fires on the arrival only. The claim and
+ *     the tag are one decision; if the beacon is ever taken out, this sentence
+ *     goes back, and if it is ever left on for route changes, "moving between
+ *     pages asks the network for nothing" has to come out first.
  */
 export const IN_THIS_TAB =
-  'Every page here is a query against one SQLite file, running in this tab. Nothing you look at ' +
-  'or type is sent anywhere, and once it has loaded, this tab keeps working without a network.'
+  'Every page here is a query against one SQLite file, running in this tab. What you search for, ' +
+  'sort or type is never sent anywhere, and moving between pages asks the network for nothing; ' +
+  'the one thing that leaves is a cookieless count of the page you arrived on. Once it has ' +
+  'loaded, this tab keeps working without a network.'
 
 /**
  * What an em dash in a cell means, and where the career totals come from.

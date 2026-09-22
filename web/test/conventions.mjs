@@ -28,7 +28,7 @@ import { fileURLToPath } from 'node:url'
 
 import { COLOURS } from '../src/lib/racingColours.js'
 import { LAST_CHECKED } from '../src/lib/refresh.js'
-import { DOCUMENTS } from '../src/lib/site.js'
+import { DOCUMENTS, IN_THIS_TAB } from '../src/lib/site.js'
 import {
   ACCENT_APART,
   accentsBySource,
@@ -1179,5 +1179,89 @@ describe('the workflow can still stamp the check date it publishes (SD-25)', () 
   it('and what is committed today is an ISO day, not a placeholder', () => {
     assert.match(LAST_CHECKED, /^\d{4}-\d{2}-\d{2}$/)
     assert.ok(!Number.isNaN(Date.parse(`${LAST_CHECKED}T00:00:00Z`)), `${LAST_CHECKED} is not a date`)
+  })
+})
+
+/*
+ * The measurement tags, and the promise they cost (PD-0, #261).
+ *
+ * The site counts arrivals with a Cloudflare Web Analytics beacon that
+ * prerender.js writes into every page, and it does that against a footer
+ * whose whole purpose is to say where the reading happens. Two things can go
+ * wrong quietly and this file is where they are caught:
+ *
+ *   - a token pasted into the source instead of read from the build
+ *     environment, which points a fork's arrivals at this maintainer's
+ *     dashboard and cannot be rotated without a commit; and
+ *
+ *   - the beacon's `"spa": false` dropped, which turns one count per arrival
+ *     into a running account of a reader's browsing and makes IN_THIS_TAB's
+ *     "moving between pages asks the network for nothing" false without
+ *     touching the sentence.
+ *
+ * The third-party list is the declared-exceptions pattern this file uses
+ * everywhere else: two hosts, each with a reason, and a new one fails until
+ * it is written down.
+ */
+describe('what the pages send, and to whom (PD-0)', () => {
+  const prerender = read(join(web, 'scripts', 'prerender.js'))
+
+  // host -> why a page is allowed to reach it
+  const THIRD_PARTIES = {
+    'fonts.googleapis.com': 'the stylesheet for Saira and JetBrains Mono, loaded non-blocking in index.html',
+    'fonts.gstatic.com': 'the font files that stylesheet names',
+    'static.cloudflareinsights.com': 'the Web Analytics beacon, one count per arrival (PD-0)',
+  }
+
+  it('no page reaches a third-party host that is not declared here', () => {
+    const files = [join(web, 'index.html'), ...sourceFiles(join(web, 'src')), ...sourceFiles(join(web, 'scripts'))]
+    const offenders = []
+    for (const file of files) {
+      for (const [, host] of read(file).matchAll(/https?:\/\/([a-z0-9.-]+\.[a-z]{2,})/gi)) {
+        // Addresses the page CITES rather than fetches - a source, a licence,
+        // a Commons file - are the rest of the site's business, and
+        // commons.js is where that rule lives. Only the hosts a browser is
+        // told to load code or fonts from are in scope here.
+        if (!/^(fonts|static)\./.test(host)) continue
+        if (!(host in THIRD_PARTIES)) offenders.push(`${rel(file)} loads from ${host}`)
+      }
+    }
+    assert.deepEqual(offenders, [], offenders.join('\n'))
+  })
+
+  it('the beacon token is read from the build environment and never written here', () => {
+    assert.match(prerender, /process\.env\.CF_BEACON_TOKEN/, 'prerender.js no longer reads CF_BEACON_TOKEN')
+    assert.doesNotMatch(
+      prerender,
+      /"token"\s*:\s*"[A-Za-z0-9]{8,}"/,
+      'a literal Web Analytics token is written into prerender.js',
+    )
+    assert.doesNotMatch(
+      prerender,
+      /google-site-verification"\s+content="[A-Za-z0-9_-]{20,}"/,
+      'a literal Search Console verification string is written into prerender.js',
+    )
+  })
+
+  it('and is written with spa:false, which is what the footer promises', () => {
+    assert.match(prerender, /spa:\s*false/, 'the beacon no longer declares spa:false')
+    assert.match(
+      IN_THIS_TAB,
+      /moving between pages asks the network for nothing/,
+      'the footer no longer makes the claim spa:false is what keeps',
+    )
+  })
+
+  it('the footer claims only what the beacon leaves true', () => {
+    assert.doesNotMatch(
+      IN_THIS_TAB,
+      /[Nn]othing you look at/,
+      'the footer promises that nothing you look at is sent, and the beacon sends the page you arrived on',
+    )
+    assert.match(IN_THIS_TAB, /cookieless count of the page you arrived on/)
+  })
+
+  it('a reader can read the outcome without a deploy log [D-10]', () => {
+    assert.match(prerender, /build-status\.txt/, 'prerender.js no longer reports what it wrote for measurement')
   })
 })
