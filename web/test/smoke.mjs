@@ -732,6 +732,36 @@ try {
     )
     await register.close()
 
+    /*
+     * And the other half of it: the table still collapses, by the reader's
+     * hand. /races is the one static table that is a declared leading slice -
+     * its lede says the 200 most recently run - so a seeded /races opens on
+     * 200 of its rows with "Show the remaining" under it for the rest. A
+     * seeded table that had lost that button would have taken the reader's
+     * way to the whole register with it.
+     */
+    const sliced = await fresh('/races')
+    const slice = await sliced.evaluate(() => {
+      const table = document.querySelector('#prerendered table')
+      return table ? table.querySelectorAll('tbody tr').length : 0
+    })
+    await sliced.waitForFunction(() => !document.getElementById('prerendered'), null, { timeout: 60000 })
+    await sliced.waitForSelector('#root main .table-wrap', { timeout: 20000 })
+    const race = await sliced.evaluate(() => {
+      const wrap = document.querySelector('#root main .table-wrap')
+      return {
+        total: Number(wrap?.dataset.rows),
+        shown: Number(wrap?.dataset.shown),
+        more: wrap?.querySelector('.table-foot button.more')?.textContent.trim() ?? '',
+      }
+    })
+    is(race.shown, slice, `a static table that is a declared slice seeds that slice — ${slice} of ${race.total}`)
+    truthy(
+      race.more.startsWith('Show the remaining'),
+      `and the rest is still the reader's to ask for — “${race.more}”`,
+    )
+    await sliced.close()
+
     // Every section after this one drives the shared page, which has been in
     // the background throughout.
     await page.bringToFront()

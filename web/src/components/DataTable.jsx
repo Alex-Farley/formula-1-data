@@ -233,8 +233,25 @@ function Table({
    * 1,182 chassis - and this table used to replace it with `page` of them the
    * moment the database opened. A reader at row 700 was returned to a table
    * that ended at 150 (IX-19). lib/handover.js counted the static table before
-   * it was removed; from there the reader pages it themselves, with "Show the
-   * remaining".
+   * it was removed, and the app opens on at least that many.
+   *
+   * Where the static table held everything, that is the whole table and there
+   * is nothing left to show: `hidden` is 0 and no "Show the remaining" is
+   * drawn, which is right, because a control that took rows away again would
+   * be the defect with a button on it. Where the static table was itself a
+   * declared slice - /races prints the 200 most recently run - the button is
+   * there for the rest, which is the "collapse only afterwards" the item asked
+   * for: by the reader's hand, never by an event they did not cause.
+   *
+   * AND SO A SEEDED TABLE IS EXPANDED WITHOUT `all=1` IN THE ADDRESS.
+   *     IA-08 writes an expansion down so a reader can send the table they
+   *     are looking at. This one is not written down, so the link they send
+   *     opens at `page` rows for somebody who did not arrive through the
+   *     static page. The alternative is worse: writing to the address bar on
+   *     an event the reader did not cause, which would put a parameter in
+   *     their history for having waited for the database. The rows are the
+   *     same rows either way, and the receiver's own arrival seeds their own
+   *     table.
    */
   const size = Math.max(page, staticRows(name))
   const visible = showAll ? ordered : ordered.slice(0, size)

@@ -54,8 +54,9 @@ function handOver() {
      *
      * So: put the offset back as soon as there is a document that can hold it,
      * rather than counting frames. It gives up after a second, because a page
-     * that has legitimately got shorter is not going to grow - captureStaticTables()
-     * below is what stops a register shrinking fivefold under the offset - and it gives
+     * that has legitimately got shorter is not going to grow. A register no
+     * longer shrinks fivefold under the offset - DataTable opens on the rows
+     * captureStaticTables() counted below (IX-19) - and it gives
      * up the moment the reader scrolls for themselves -- being dragged back to
      * where you were a second ago is worse than the thing being fixed.
      */
