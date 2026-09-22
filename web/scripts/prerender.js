@@ -2912,8 +2912,15 @@ const page = ({
     onward: ONWARD.sql(),
     body: `
       <h1>${esc(NAMES.sql().headline)}</h1>
-      <p class="lede">The console needs JavaScript: it runs SQLite compiled to WebAssembly against
-        the database file in your own browser. Nothing you type is sent anywhere.</p>
+      <p class="lede">Every page on this site is a query against one SQLite file. Here you write
+        your own: SQLite compiled to WebAssembly, running against the database file in your own
+        browser. Nothing you type is sent anywhere.</p>
+      <!-- The JavaScript requirement belongs to the reader who has none. As a
+           lede it was the whole visible prose of this page whenever the
+           database failed to open, which diagnosed the one failure that had
+           not happened (CD-40). -->
+      <noscript><p class="measure">Running the console needs JavaScript. Downloading the file
+        below does not.</p></noscript>
       <p class="measure">The database is a plain SQLite file. If you would rather query it with your own tools,
         download <a href="${esc(href('f1.db'))}"><code>f1.db</code></a> and open it with any
         SQLite client. The circuit centrelines are not in it — <code>circuit_geometry</code>

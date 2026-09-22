@@ -73,6 +73,16 @@ export function captureStaticTables() {
 }
 
 /**
+ * The route the static page now in the document was written for.
+ *
+ * main.jsx's handover reads it rather than the route the app booted on,
+ * because the static page can be swapped for another one's while the database
+ * is still arriving (IX-37): the offset a reader has then belongs to the page
+ * they were actually reading.
+ */
+export const staticArrival = () => drawn.get(ARRIVAL) ?? null
+
+/**
  * How many rows the static page drew for the table of this name — 0 where it
  * drew none, and 0 once the reader has moved to another route, because the
  * page they are standing on is then the app's own and nothing was taken from

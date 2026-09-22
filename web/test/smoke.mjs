@@ -517,9 +517,20 @@ try {
         // holding has gone, never before it has arrived.
         let seen = false
         window.__heldTo = 0
+        // Every heading the static page carried, in order. A click on it
+        // before the database opens fetches the asked-for page's prerendered
+        // half and puts it there (IX-37), and the whole thing is gone the
+        // moment the database is ready - so what it showed in between is
+        // recorded as it happens rather than caught in flight.
+        window.__staticHeadings = []
         const id = setInterval(() => {
-          if (document.getElementById('prerendered')) {
+          const pre = document.getElementById('prerendered')
+          if (pre) {
             seen = true
+            const heading = pre.querySelector('h1')?.textContent?.trim()
+            if (heading && window.__staticHeadings.at(-1) !== heading) {
+              window.__staticHeadings.push(heading)
+            }
             window.scrollTo(0, 1500)
             window.__heldTo = Math.max(window.__heldTo, window.scrollY)
           } else if (seen) {
@@ -672,13 +683,19 @@ try {
 
     /*
      * The other arrival. A click on the static page before the database is
-     * open moves the router on while the reader is still looking at the page
-     * they left, so the offset they had belongs to that page and not to the
-     * one about to render: 1,500 px into the circuit register is nowhere in
-     * particular on one circuit's page. Both halves have to agree about
-     * that — handOver() drops the offset and ScrollToTop treats it as the
-     * route change it is — or the two race and the reader lands wherever the
-     * machine was quick that morning.
+     * open moves the router on — and now moves the static page with it: the
+     * asked-for page's own prerendered half is fetched and put on screen, so
+     * the reader has the page they clicked in a few hundred milliseconds
+     * rather than at the end of a twenty-megabyte download (IX-37). The
+     * download itself is never restarted, which is what holding the click has
+     * always been for.
+     *
+     * So the offset then belongs to the page they asked for, because that is
+     * the page they are reading: handOver() takes its arrival from the static
+     * page actually in the document rather than from the route the app booted
+     * on. Before this, the click left the register up and the offset was
+     * dropped — 1,500 px into the circuit register being nowhere in
+     * particular on one circuit's page.
      */
     const clicked = await browser.newPage({ viewport: { width: 1280, height: 900 } })
     await holdScroll(clicked)
@@ -701,9 +718,15 @@ try {
     await clicked.waitForFunction(() => !document.getElementById('prerendered'), null, { timeout: 60000 })
     await settled(clicked)
     await wasHeld(clicked, 'register')
+    const headings = await clicked.evaluate(() => window.__staticHeadings)
     truthy(
-      (await clicked.evaluate(() => window.scrollY)) < 200,
-      'and a reader who clicked through it arrives at the top of the page they asked for, not at the offset of the one they left',
+      headings.some((heading) => heading.includes('Monza')),
+      `and the page they asked for is on screen from its own prerendered half while the database is still coming — the static page read ${headings.join(' then ') || '(nothing)'}`,
+    )
+    atLeast(
+      await clicked.evaluate(() => window.scrollY),
+      1000,
+      'and the handover leaves them where they were reading on it, rather than at its top',
     )
     await clicked.close()
 
@@ -763,9 +786,178 @@ try {
     )
     await sliced.close()
 
+    /*
+     * And the links that are not routes at all. /data links to /f1.db,
+     * /f1-geometry.db, /f1-parquet.zip, /schema.sql and /db-manifest.json,
+     * none of them with a `download` attribute — a static host's
+     * Content-Disposition is its own. Held as a route change, such a click
+     * moved the address bar and fetched nothing; held and then served from
+     * the prerendered page, /f1.db is twenty-three megabytes pulled alongside
+     * the download the hold exists to protect, and parsed as HTML.
+     */
+    const fileLink = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    // Answered here rather than served, so the assertion costs a request and
+    // not twenty-three megabytes. What it reads is how the request was made:
+    // a navigation the browser owns is a `document` request, and the hold
+    // fetching a page to swap in is a `fetch` one.
+    const askedFor = []
+    await fileLink.route('**/f1.db', (route) => {
+      askedFor.push(route.request().resourceType())
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/octet-stream',
+        body: 'stands in for the database file',
+      })
+    })
+    await fileLink.goto(`${BASE}/data`, { waitUntil: 'domcontentloaded' })
+    truthy(
+      await fileLink.evaluate(() => {
+        const link = document.querySelector('#prerendered a[href="/f1.db"]')
+        if (!link || !document.getElementById('prerendered')) return false
+        link.click()
+        return true
+      }),
+      'the static data page offers the database file before the database is open',
+    )
+    await fileLink.waitForTimeout(500)
+    is(
+      askedFor.join(', ') || '(no request)',
+      'document',
+      'and a click on it is the browser downloading a file, not the boot window fetching a page',
+    )
+    is(
+      await fileLink.evaluate(() => location.pathname),
+      '/data',
+      'and the reader is left on the page they were reading',
+    )
+    await fileLink.close()
+
+    // And the file links with no extension to give them away, on a page of
+    // their own so the first click's download cannot have taken the static
+    // page with it. Answered as the host answers this one — text/plain, which
+    // the browser renders rather than saves.
+    const plainFile = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    const askedPlain = []
+    await plainFile.route('**/SHA256SUMS', (route) => {
+      askedPlain.push(route.request().resourceType())
+      return route.fulfill({ status: 200, contentType: 'text/plain; charset=utf-8', body: 'a digest' })
+    })
+    await plainFile.goto(`${BASE}/data`, { waitUntil: 'domcontentloaded' })
+    truthy(
+      await plainFile.evaluate(() => {
+        const link = document.querySelector('#prerendered a[href="/SHA256SUMS"]')
+        if (!link) return false
+        link.click()
+        return true
+      }),
+      'the static data page offers SHA256SUMS, which has no extension to give it away',
+    )
+    await plainFile.waitForTimeout(500)
+    is(
+      askedPlain.join(', ') || '(no request)',
+      'document',
+      'and a click on it is the browser\'s as well, not a page fetched into the boot window',
+    )
+    await plainFile.close()
+
     // Every section after this one drives the shared page, which has been in
     // the background throughout.
     await page.bringToFront()
+  })
+
+  /**
+   * The arrival where the database never comes at all.
+   *
+   * A blocked host, a captive portal, a file the deploy lost: the app cannot
+   * open, and the 2,385 prerendered pages are the whole of what the reader
+   * has. Holding a click then strands them for good — no router is coming to
+   * render the route the address bar now names, so the URL read /records
+   * while the heading still said Drivers, with no way out but a reload
+   * nobody was told to attempt (IX-37). The anchors have to come back.
+   *
+   * And the console is the one page with no figures to fall back to, so the
+   * strip cannot offer it the reassurance it offers everywhere else (CD-40).
+   */
+  await section('A database that never arrives  (the links come back)', async () => {
+    const blocked = await browser.newContext()
+    // The manifest still answers, so this is the download failing rather than
+    // a site that was never deployed — the failure a reader actually meets.
+    await blocked.route('**/f1.db*', (route) => route.abort())
+    const stranded = await blocked.newPage()
+    const failed = () =>
+      stranded.waitForFunction(
+        () => document.querySelector('.boot-strip .boot-phase')?.textContent.includes('could not be opened'),
+        null,
+        { timeout: 60000 },
+      )
+
+    await stranded.goto(`${BASE}/circuits`, { waitUntil: 'domcontentloaded' })
+    await failed()
+    truthy(
+      await stranded.$eval('#prerendered', (node) => node.textContent.includes('Monza')),
+      'the static register is still the page, with the figures from the last published build',
+    )
+    await stranded.click('#prerendered a[href="/circuits/monza"]')
+    await stranded.waitForURL(`${BASE}/circuits/monza`, { timeout: 20000 })
+    await failed()
+    truthy(
+      await stranded.evaluate(
+        () =>
+          location.pathname === '/circuits/monza' &&
+          Boolean(document.querySelector('#prerendered h1')?.textContent.includes('Monza')),
+      ),
+      'and a click on it still navigates, so the address bar and the heading name the same page',
+    )
+
+    await stranded.goto(`${BASE}/data/sql`, { waitUntil: 'domcontentloaded' })
+    await failed()
+    const strip = await stranded.$eval('.boot-strip .boot-phase', (node) => node.textContent)
+    truthy(
+      strip.includes('nothing here to query') && !strip.includes('figures on this page'),
+      `the console is not told its missing figures are from the last build — “${strip.trim()}”`,
+    )
+    truthy(
+      !(await stranded.innerText('#prerendered')).includes('needs JavaScript'),
+      'and is not told it needs JavaScript in a tab that is running it',
+    )
+
+    /*
+     * And the other order: the click first, the failure after it. The
+     * connection drops mid-thought, so the held route's own page cannot be
+     * fetched either — and the reader is left standing on the register with
+     * the address bar naming a circuit, no router coming to render it, and a
+     * strip offering figures that belong to a page they cannot see. The
+     * address bar goes back to the page on screen.
+     */
+    const stalled = await blocked.newPage()
+    // A page route is answered before the context's, so the failure arrives
+    // four seconds in - long enough to click inside - rather than at once.
+    await stalled.route('**/f1.db*', async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 4000))
+      await route.abort()
+    })
+    await stalled.route('**/circuits/monza', (route) => route.abort())
+    await stalled.goto(`${BASE}/circuits`, { waitUntil: 'domcontentloaded' })
+    await stalled.click('#prerendered a[href="/circuits/monza"]')
+    await stalled.waitForFunction(() => location.pathname === '/circuits/monza', null, { timeout: 15000 })
+    await stalled.waitForFunction(
+      () => document.querySelector('.boot-strip .boot-phase')?.textContent.includes('could not be opened'),
+      null,
+      { timeout: 60000 },
+    )
+    await stalled.waitForTimeout(250)
+    is(
+      await stalled.evaluate(
+        () => `${location.pathname} ${document.querySelector('#prerendered h1')?.textContent}`,
+      ),
+      '/circuits Circuits',
+      'a click held before the failure leaves the address bar naming the page the reader can see',
+    )
+    truthy(
+      !(await stalled.$eval('.boot-strip .boot-phase', (node) => node.textContent)).includes('opening'),
+      'and the strip stops promising a page nothing is going to open',
+    )
+    await blocked.close()
   })
 
   // ------------------------------------------------------------------ home
@@ -3374,6 +3566,45 @@ try {
       })
     const served = walk(distDir)
     atLeast(served.length, 3000, 'prerendered pages read from dist')
+
+    /*
+     * The rule main.jsx tells a page from a file by, held against the built
+     * site from both ends. Asked here because this is where every page is
+     * already in hand, one read of dist rather than two.
+     *
+     * During the boot window a click on the static page is held — the URL
+     * moves, the asked-for page's prerendered half is fetched and swapped in,
+     * and the database download is never restarted. That is right for a page
+     * and wrong for a file: /data links to /f1.db, /f1-parquet.zip,
+     * /schema.sql, /ATTRIBUTION.md, /LICENSE-DATA and /SHA256SUMS with no
+     * `download` attribute, and holding one of those moved the address bar,
+     * downloaded nothing, and left the router to render a 404 for it when the
+     * database opened. The test it uses is that a route is a slug; so every
+     * route has to pass it, and every link to something that is not a route
+     * has to fail it. Neither half is worth anything without the other.
+     */
+    const slug = /^[a-z0-9-/]*$/
+    const routes = new Set(served.map((file) => `/${relative(distDir, dirname(file))}`.replace(/\/$/, '') || '/'))
+    const unheld = [...routes].filter((route) => !slug.test(route))
+    truthy(
+      unheld.length === 0,
+      `every one of the ${routes.size} routes is a slug, so a click on a link to one is held${
+        unheld.length ? ` — ${unheld.slice(0, 5).join(', ')}` : ''
+      }`,
+    )
+    const filesHeld = [
+      ...new Set(
+        served.flatMap((file) =>
+          [...readFileSync(file, 'utf8').matchAll(/href="(\/[^"#?]*)/g)].map((match) => match[1]),
+        ),
+      ),
+    ].filter((href) => !routes.has(href.replace(/\/$/, '') || '/') && slug.test(href))
+    truthy(
+      filesHeld.length === 0,
+      `and every root-relative link that is not a route — the database, the documents, the feed — fails it, so the browser gets the click${
+        filesHeld.length ? ` — ${filesHeld.slice(0, 5).join(', ')}` : ''
+      }`,
+    )
     const missingCard = served
       .map((file) => ({ file, html: readFileSync(file, 'utf8') }))
       .filter(({ html }) => !/<meta property="og:image" content="[^"]+"/.test(html))

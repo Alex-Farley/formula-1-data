@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import App from './App.jsx'
 import { currentProgress, onProgress } from './data/client.js'
 import { setPending } from './data/pending.js'
-import { captureStaticTables } from './lib/handover.js'
+import { captureStaticTables, staticArrival } from './lib/handover.js'
 import './styles/app.css'
 
 /**
@@ -31,7 +31,6 @@ import './styles/app.css'
  * standing when the app takes over.
  */
 function handOver() {
-  const arrival = location.pathname
   const stop = onProgress((state) => {
     if (state.phase !== 'ready') return
     // Unless the reader has moved on. A click on the static page is held as a
@@ -39,7 +38,9 @@ function handOver() {
     // render a different page from the one that was scrolled: the offset
     // belongs to what they were reading, not to a stranger, and 1,500 px into
     // the circuit register is nowhere in particular on one circuit's page.
-    const y = location.pathname === arrival ? window.scrollY : 0
+    // staticArrival() is the route of the static page ACTUALLY on screen,
+    // which a held click now replaces rather than leaves behind (IX-37).
+    const y = location.pathname === staticArrival() ? window.scrollY : 0
     document.getElementById('prerendered')?.remove()
     stop()
 
@@ -80,25 +81,155 @@ function handOver() {
 }
 
 /**
- * A click on the static page before the database is ready used to be a full
- * navigation, which abandoned the download in flight and started it again:
- * measured at 14.9 s to ready instead of 11.9 s, 4.7 MB pulled twice, and it
- * compounds with every further click. The reader had no way to know, because
- * the links look and behave like links.
+ * The static page follows the address bar, for as long as it is the page.
  *
- * So a same-origin click becomes a route change: the URL updates, the router
- * hears the popstate and renders the asked-for page the moment the database
- * opens, and the boot strip says what is pending. The static page stays where
- * it is meanwhile. Modified clicks, new-tab links and downloads are left to
- * the browser.
+ * A click on the static page used to be a full navigation, which abandoned
+ * the download in flight and started it again: measured at 14.9 s to ready
+ * instead of 11.9 s, 4.7 MB pulled twice, and it compounds with every further
+ * click. So the click was held as a route change instead — and the reader was
+ * left looking at the page they had clicked away from until the database
+ * opened. At 1.6 Mbps, /drivers clicked a second BEFORE this script runs is
+ * 862 rows on screen at t = 5.6 s, straight from the prerendered page; the
+ * same click a second after it changed the URL, left the homepage up, and
+ * showed 150 rows at t ≈ 30 s. The site prerenders 2,385 pages and used to
+ * switch them off at the moment they are worth most (IX-37).
+ *
+ * Neither cost is necessary. The click is still held, so the download is
+ * never restarted — and the asked-for page's static half, 224 KB of HTML, is
+ * fetched and put in place of the one on screen. The router renders the same
+ * route for real when the database opens, out of the same download.
+ *
+ * Driven by popstate rather than by the click, so Back and Forward move the
+ * static page too: the strip used to name a destination the reader had
+ * already backed out of, over a title belonging to a third page (IX-21).
+ *
+ * Modified clicks, new-tab links and downloads are left to the browser.
  */
+const staticPage = { route: location.pathname, work: Promise.resolve(true) }
+
+/**
+ * Whether a path is one of this site's own prerendered routes rather than a
+ * file served beside them. See the click handler for what rests on it.
+ */
+const SLUG = /^[a-z0-9-/]*$/
+function routeish(pathname) {
+  const base = import.meta.env.BASE_URL
+  return SLUG.test(pathname.startsWith(base) ? pathname.slice(base.length) : pathname)
+}
+
+/** The id the address bar's fragment names, or '' — a bad escape is not one. */
+function fragmentId() {
+  const raw = location.hash.slice(1)
+  if (!raw) return ''
+  try {
+    return decodeURIComponent(raw)
+  } catch {
+    return raw
+  }
+}
+
+/**
+ * Put the prerendered half of `route` on screen in place of the one there.
+ * Resolves false when it could not be had — an offline fetch, a route with no
+ * prerendered page of its own, or an answer that arrived too late to be the
+ * right one — and the caller then falls back to saying what is pending.
+ *
+ * The element is kept and its children replaced: holdLinks()'s listener is on
+ * #prerendered itself, and replacing the node would take the links with it.
+ */
+async function fetchStatic(route) {
+  const pre = document.getElementById('prerendered')
+  if (!pre) return false
+  const response = await fetch(route, { headers: { accept: 'text/html' } })
+  if (!response.ok) return false
+  // Read the type before the body. Whatever slips past the caller's test for
+  // a file is dropped here rather than drained into a string and parsed.
+  if (!/\btext\/html\b/i.test(response.headers.get('content-type') ?? '')) {
+    await response.body?.cancel().catch(() => {})
+    return false
+  }
+  const doc = new DOMParser().parseFromString(await response.text(), 'text/html')
+  const next = doc.getElementById('prerendered')
+  if (!next?.firstElementChild) return false
+  // While this was in flight the database may have opened and taken the
+  // static page away, or the reader may have asked for somewhere else. Either
+  // way this answer is no longer the page to show.
+  if (currentProgress().phase === 'ready' || !pre.isConnected) return false
+  if (location.pathname !== route) return false
+  pre.replaceChildren(...document.importNode(next, true).childNodes)
+  // What the new page drew, so the app opens on at least those rows (IX-19),
+  // and so handOver() knows which route the reader's offset belongs to.
+  captureStaticTables()
+  if (doc.title) document.title = doc.title
+  // A page the reader has just asked for starts at its top — or at the
+  // fragment they asked for, which the browser cannot resolve for a
+  // navigation that never happened. Its content takes focus either way, so a
+  // screen reader learns the document changed: the same arrival handOver()
+  // gives the app's own page.
+  const anchored = fragmentId() ? pre.querySelector(`#${CSS.escape(fragmentId())}`) : null
+  if (anchored) anchored.scrollIntoView()
+  else window.scrollTo(0, 0)
+  pre.querySelector('main')?.focus({ preventScroll: true })
+  return true
+}
+
+/** One fetch per route, shared by the click that asked for it and by popstate. */
+function showStatic(route) {
+  if (staticPage.route !== route) {
+    staticPage.route = route
+    staticPage.work = fetchStatic(route).catch(() => false)
+  }
+  return staticPage.work
+}
+
+/**
+ * The address bar goes back to the page the reader is actually looking at,
+ * once nothing is coming to render the one it names.
+ *
+ * Refusing to hold a click after a failure (below) is only half of it: the
+ * connection can drop between the click and the failure, and then the held
+ * route could not be fetched either. That reader is standing on /circuits
+ * with the address bar reading /circuits/monza, no router coming, and a strip
+ * offering them figures from the last published build that belong to a
+ * different page. So the address bar is corrected to the page on screen —
+ * replaceState, because the entry it replaces was never a page anybody saw —
+ * and the anchors do the rest.
+ */
+function releaseOnFailure() {
+  onProgress((state) => {
+    if (state.phase !== 'failed') return
+    const at = staticArrival()
+    if (!at || location.pathname === at) return
+    if (!document.getElementById('prerendered')) return
+    history.replaceState({}, '', at)
+    setPending(null)
+  })
+}
+
 function holdLinks() {
   const pre = document.getElementById('prerendered')
   if (!pre) return
+
+  addEventListener('popstate', () => {
+    if (!document.getElementById('prerendered')) return
+    const { phase } = currentProgress()
+    if (phase === 'ready' || phase === 'failed') return
+    // Whatever was pending was asked for at the address we have just left.
+    setPending(null)
+    showStatic(location.pathname)
+  })
+
   pre.addEventListener(
     'click',
     (event) => {
-      if (currentProgress().phase === 'ready') return
+      const { phase } = currentProgress()
+      // Ready: the app is the page, and owns its own links.
+      if (phase === 'ready') return
+      // Failed: no router is coming to render the held route, so holding one
+      // more click would leave the reader on a page the address bar does not
+      // name — URL /records, heading Drivers, for good. The anchors are the
+      // only navigation left, and the page at the other end is a whole answer.
+      if (phase === 'failed') return
       if (event.defaultPrevented || event.button !== 0) return
       if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
       const anchor = event.target.closest('a[href]')
@@ -113,16 +244,42 @@ function holdLinks() {
       // content" when the database was ready. Let the browser do what it does
       // with a fragment.
       if (url.hash && url.pathname === location.pathname && url.search === location.search) return
+      // Only a route of this site is worth holding. /data links to the
+      // database and to the documents that explain it — /f1.db,
+      // /f1-geometry.db, /f1-parquet.zip, /schema.sql, /ATTRIBUTION.md,
+      // /LICENSE-DATA, /SHA256SUMS — and not one of those anchors carries a
+      // `download` attribute, because a static host's Content-Disposition is
+      // its own. Held, such a click moved the address bar and downloaded
+      // nothing, and left the router to render a 404 for it twenty seconds
+      // later; held and then served from the prerendered page, /f1.db is
+      // twenty-three megabytes pulled alongside the download this function
+      // exists to protect, and run through DOMParser.
+      //
+      // A prerendered path is a slug — lower-case, digits and hyphens between
+      // slashes — and every file served beside the app has either an
+      // extension or a capital letter in its name. smoke.mjs holds both ends
+      // of that against the built site: all 3,546 routes pass this test, and
+      // every root-relative link in them that is not a route fails it.
+      if (!routeish(url.pathname)) return
       event.preventDefault()
-      history.pushState({}, '', url.pathname + url.search + url.hash)
+      const route = url.pathname
+      history.pushState({}, '', route + url.search + url.hash)
       dispatchEvent(new PopStateEvent('popstate'))
-      setPending(anchor.textContent.trim() || url.pathname)
+      // Said at once, because fetching the page it names takes a moment on the
+      // connection this exists for — and withdrawn once the reader is looking
+      // at that page rather than waiting for it.
+      const label = anchor.textContent.trim() || route
+      setPending(label)
+      showStatic(route).then((shown) => {
+        if (shown && location.pathname === route) setPending(null)
+      })
     },
     true,
   )
 }
 
 holdLinks()
+releaseOnFailure()
 // Before anything can remove the static page: how many rows each of its
 // tables drew is what DataTable opens on, so the handover does not delete
 // rows under a reader who has scrolled past them (IX-19).

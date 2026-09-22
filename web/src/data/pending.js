@@ -7,6 +7,11 @@
  * route change and records what was asked for here, so the boot strip can
  * say "opening Drivers when it is ready" instead of the page silently
  * changing shape later.
+ *
+ * Set for as long as the reader is waiting and no longer: main.jsx clears it
+ * the moment the asked-for page's prerendered half is on screen (IX-37), and
+ * on any popstate, because a destination asked for at the address the reader
+ * has just left is not one they are still waiting for (IX-21).
  */
 let pending = null
 const listeners = new Set()
