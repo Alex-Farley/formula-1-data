@@ -43,6 +43,7 @@ import { spawn } from 'node:child_process'
 import { DatabaseSync } from 'node:sqlite'
 import { dirname, join, relative } from 'node:path'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { CHASSIS_NOTE, OUT_NOTE } from '../src/queries/race.js'
 import { fileURLToPath } from 'node:url'
 // The heading rule and the cell marks both renderers share, so the checks
 // below ask for the strings the pages compute rather than copies of them.
@@ -1426,6 +1427,24 @@ try {
       plain(html.match(/<meta name="description" content="([^"]*)" \/>/)?.[1] ?? '').includes(staticLede),
       'and the description is built from that same sentence',
     )
+
+    /*
+     * CD-36: the classification's footnote explains the blanks that are on
+     * this page and no others. Both sentences were printed beneath all 1,163
+     * classifications; the one about an empty "Out" matched no row in the
+     * database at all, because CD-01 had made that cell read "Finished".
+     * Eleven of these thirty entries have no chassis, so this page gets the
+     * chassis sentence and not the other -- in both renderers.
+     */
+    const blankChassis = count(
+      'SELECT COUNT(*) FROM race_entries WHERE race_id = ? AND chassis_id IS NULL',
+      raceId,
+    )
+    truthy(blankChassis > 0, `${blankChassis} of this classification's entries have no chassis`)
+    const app76 = await page.content()
+    truthy(html.includes(CHASSIS_NOTE) && app76.includes(CHASSIS_NOTE), 'the blank chassis is explained')
+    is(html.includes(OUT_NOTE), false, 'and the static page does not explain a blank that is not there')
+    is(app76.includes(OUT_NOTE), false, 'nor does the app')
   })
 
   await section('/races/1955/1  (a shared drive)', async () => {
@@ -1509,6 +1528,23 @@ try {
     )
 
     truthy(front.includes('set by the sprint'), 'and says the sprint set the grid')
+
+    /*
+     * CD-36, the other side of it: every one of these twenty entries has a
+     * chassis and a status, so the classification has no blank to explain and
+     * carries no footnote at all. 402 of the 1,163 completed races are this
+     * page, and each of them used to carry two sentences about blanks it does
+     * not have.
+     */
+    is(
+      count(`SELECT COUNT(*) FROM race_entries e JOIN races r ON r.id = e.race_id
+              WHERE r.year = 2021 AND r.round = 10 AND e.chassis_id IS NULL`),
+      0,
+      'no entry on this page is missing its chassis',
+    )
+    const static21 = await (await fetch(`${BASE}/races/2021/10`)).text()
+    is(front.includes(CHASSIS_NOTE) || front.includes(OUT_NOTE), false, 'the app prints no footnote')
+    is(static21.includes(CHASSIS_NOTE) || static21.includes(OUT_NOTE), false, 'nor does the static page')
 
     /*
      * The one race where the credited pole-sitter did not start from the front:

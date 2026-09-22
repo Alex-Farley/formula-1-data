@@ -14,7 +14,6 @@ import { outlineCaption } from '../lib/outline.js'
 import { RACE_IMAGES } from '../queries/photographs.js'
 import {
   CLASSIFICATION_COLUMNS,
-  CLASSIFICATION_FOOTER,
   ENTRIES,
   FASTEST_LAP,
   NEIGHBOURS,
@@ -29,6 +28,7 @@ import {
   SPRINT_COLUMNS,
   SPRINT_FOOTER,
   carName,
+  classificationFooter,
   inClassificationOrder,
   qualifyingColumns,
   raceLede,
@@ -367,7 +367,7 @@ function RaceBody({ race, data, year, round }) {
             page={60}
             highlight={(row) => row.finish_position === 1}
             columns={withRenders(CLASSIFICATION_COLUMNS, classificationRenders(year))}
-            footer={CLASSIFICATION_FOOTER}
+            footer={classificationFooter(classified)}
           />
         </Section>
       )}
