@@ -42,7 +42,11 @@ README = os.path.join(ROOT, "README.md")
 # Every document whose figures are spans this tool writes and verify.py
 # checks. docs/COMMERCIAL-READINESS.md typed its class table and per-table
 # breakdown by hand and drifted, 539 stated against 552 held (PM-31).
-DOCUMENTS = (README, os.path.join(ROOT, "docs", "COMMERCIAL-READINESS.md"))
+# ATTRIBUTION.md joined them with PM-47: it sizes the five columns offered
+# under CC BY 4.0, and a licence document is the last place a figure should be
+# left to drift.
+DOCUMENTS = (README, os.path.join(ROOT, "docs", "COMMERCIAL-READINESS.md"),
+             os.path.join(ROOT, "ATTRIBUTION.md"))
 
 # <!-- fig:name -->value<!-- /fig -->. The value may run over a line break -
 # the centreline table is one figure - so DOTALL, and non-greedy so two spans
@@ -596,6 +600,35 @@ class Figures:
 
     def _fo(self, table):
         return n(sum(k for (t, _), k in self._licence_tally()[2].items() if t == table))
+
+    # -- the project's own writing (PM-47) -------------------------------------
+    #
+    # The columns LICENSE-DATA offers under CC BY 4.0, sized from the database
+    # rather than typed: a gap added or an assessment rewritten moves these,
+    # and a licence document stating a size nobody recomputes is the drift
+    # PM-31 caught in the class table. The list of columns comes from the
+    # grant the database itself publishes, so a figure here cannot size a
+    # column the licence does not cover.
+    def _prose_chars(self, name):
+        granted = self.meta("project_prose_columns").split(", ")
+        if name not in granted:
+            raise SystemExit(
+                f"{name} is sized in ATTRIBUTION.md and is not in "
+                f"meta.project_prose_columns ({', '.join(granted)}): the "
+                f"licence statement and PROJECT_PROSE_COLUMNS have diverged")
+        table, _, column = name.partition(".")
+        return self.one(f'SELECT COALESCE(SUM(LENGTH("{column}")), 0) '
+                        f'FROM "{table}"')
+
+    def prose_assessment(self):      return n(self._prose_chars("discrepancies.assessment"))
+    def prose_gap_reader(self):      return n(self._prose_chars("known_gaps.reader"))
+    def prose_gap_description(self): return n(self._prose_chars("known_gaps.description"))
+    def prose_gap_resolution(self):  return n(self._prose_chars("known_gaps.resolution"))
+    def prose_gap_area(self):        return n(self._prose_chars("known_gaps.area"))
+
+    def prose_kb(self):
+        granted = self.meta("project_prose_columns").split(", ")
+        return f"{round(sum(self._prose_chars(c) for c in granted) / 1024)} KB"
 
     def fo_drivers(self):            return self._fo("drivers")
     def fo_circuits(self):           return self._fo("circuits")

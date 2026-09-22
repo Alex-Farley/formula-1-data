@@ -114,6 +114,15 @@ In practice that means one of:
    work but it is not enormous — it is a few hundred fields.
 3. **Keep the repository private**, in which case none of this applies.
 
+Two of the fields option 2 lists — `glossary.definition` and
+`technical_innovations.*` — have been classified the opposite way since v2.16:
+`source_registry` entry 18, *"Written for this project from general
+knowledge"*, and the build caps every row in those twelve tables at `medium`
+on exactly that basis. The paragraph above predates that classification and
+the two have never been reconciled; `PM-49` (#573) holds the question and
+`PM-17` (#249) is the pass that would settle it. Until it does they stay
+CC BY-SA, which is the safe side of a disagreement about share-alike.
+
 The database also quotes six team radio exchanges verbatim. They are short,
 attributed, and used to document historical events, which is the ordinary
 case for quotation — but they are quotations, not facts. Keeping them was a
@@ -191,6 +200,45 @@ Any use of the geometry must credit **© OpenStreetMap contributors** and share
 derived geometry under ODbL. The relation ids come from
 [Wikidata](https://www.wikidata.org/), which is **CC0** and places no
 obligation on anything at all.
+
+## What this project wrote — CC BY 4.0
+
+Five columns are this project's own writing, offered under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) rather than under
+the share-alike above:
+
+| Column | What it holds | Chars |
+|---|---|---:|
+| `discrepancies.assessment` | this project's reading of a disagreement between two sources — which figure it takes, and why | <!-- fig:prose_assessment -->16,786<!-- /fig --> |
+| `known_gaps.reader` | what a reader is shown about a gap | <!-- fig:prose_gap_reader -->4,516<!-- /fig --> |
+| `known_gaps.description` | the maintainer's note on it | <!-- fig:prose_gap_description -->11,443<!-- /fig --> |
+| `known_gaps.resolution` | what would close it, or what did | <!-- fig:prose_gap_resolution -->4,768<!-- /fig --> |
+| `known_gaps.area` | the part of the database it falls in | <!-- fig:prose_gap_area -->806<!-- /fig --> |
+
+Every figure in that table is a span this build rewrites from the database
+itself:
+<!-- fig:prose_kb -->37 KB<!-- /fig --> between them.
+
+The share-alike on everything else comes from Wikipedia, and
+none of Wikipedia's text is in these columns: a disagreement between two
+sources is found here, by the build, and written up here; a gap is this
+project's account of what it does not hold. There is no upstream to owe
+anything to, and the whole-file licence covered them by the convenience
+LICENSE-DATA records — *"rather than draw a line field-by-field"* — rather
+than by any obligation.
+
+So: attribute Lap Ledger, and build what you like on them. The remaining
+columns of those two tables — the subject and field of a disagreement, the
+stored and derived values, a gap's state and the number of races it affects
+— hold facts and identifiers rather than expression.
+
+The grant is in the database as well as here, as `meta.project_prose` and
+`meta.project_prose_columns`, so a copy of `f1.db` carries its own terms;
+`verify.py` fails a build where the database, `data/current.py`,
+`LICENSE-DATA` and this file do not name the same columns. A CC BY grant
+cannot be withdrawn from a copy already taken, which is why the list is
+exactly this long and why the twelve `authored` tables are not on it yet
+(`PM-49`, #573).
 
 ## Suggested arrangement
 

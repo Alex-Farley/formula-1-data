@@ -718,6 +718,53 @@ SOURCE_LICENCE = {
     18: ("yes", 1, 1, None),
 }
 
+# --------------------------------------------------- the project's own prose
+#
+# PM-47. The release is CC BY-SA 4.0 because prose taken from or closely
+# following Wikipedia is in it and share-alike runs with that prose.
+# LICENSE-DATA says so, and says why the line was drawn around the whole file
+# rather than around the prose: "Rather than draw a line field-by-field, the
+# whole data release is licensed CC BY-SA 4.0." That was a convenience and not
+# an obligation, and it swept up writing that has no upstream at all.
+#
+# These columns are that writing. The assessment of each disagreement between
+# sources is this project's reading of it, reached here; every column of
+# known_gaps - what a reader is shown, the maintainer's note, what would close
+# it - was written here for this project. Nothing in either came from
+# anywhere else, so nothing in either owes share-alike to anyone. They are
+# offered under CC BY 4.0: attribution, and no condition on what a reader
+# builds. That is the licence F1DB already gives this project for 97% of its
+# sourced rows.
+#
+# A CC BY grant is not retractable from a copy already taken, which is why
+# this list is short and why every name on it has to be a column nobody else
+# wrote. The line stops here on purpose: `source_registry` entry 18 names
+# twelve further tables as authored, and whether that prose is equally free of
+# Wikipedia is read one way by ATTRIBUTION.md and another by the 2026-09-21
+# data-architecture critique. PM-49 (#573) holds that question, PM-17 (#249)
+# is the pass that would answer it, and nothing else moves until it does.
+#
+# build.py writes both values into `meta`, so the grant travels with the file
+# and not only with the repository, and verify.py checks that the two licence
+# documents name every column it covers.
+PROJECT_PROSE_COLUMNS = [
+    "discrepancies.assessment",
+    "known_gaps.area",
+    "known_gaps.reader",
+    "known_gaps.description",
+    "known_gaps.resolution",
+]
+
+PROJECT_PROSE_NOTE = (
+    "The columns named in meta.project_prose_columns are this project's own "
+    "writing. They have no upstream source and carry no share-alike "
+    "obligation, and they are offered under CC BY 4.0 "
+    "(https://creativecommons.org/licenses/by/4.0/) - attribution to Lap "
+    "Ledger, and no condition on what you build from them. Everything else "
+    "in this file stays CC BY-SA 4.0: see LICENSE-DATA, which names what the "
+    "share-alike comes from. The remaining columns of those two tables hold "
+    "facts and identifiers rather than expression.")
+
 # ------------------------------------------------------------- identifiers
 #
 # Which `id` a reader may keep, and which one they may not (DA-04).
