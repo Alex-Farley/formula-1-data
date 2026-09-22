@@ -136,7 +136,7 @@ CREATE TABLE drivers (
     born            TEXT,                      -- ISO date where known
     died            TEXT,
     -- What F1DB publishes about a person, which the harvest used to read and
-    -- drop (PD-17). All four come from one CC BY 4.0 register and none is
+    -- drop (PD-17). All five come from one CC BY 4.0 register and none is
     -- derived here.
     --
     -- f1db_id is the reconciliation key: the id this driver resolves to in
@@ -146,7 +146,10 @@ CREATE TABLE drivers (
     -- driver is how Nelson Piquet Jr was once given his father's 23 wins, and
     -- a constraint states that in the schema rather than in a function.
     f1db_id         TEXT UNIQUE,
-    abbreviation    TEXT,                      -- VER, HAM; not unique, reused
+    -- VER, HAM. Not unique - three letters are reused across eras - and not
+    -- an identifier the sport issued: F1DB gives one to every driver it
+    -- holds, so Fangio carries FAN for a championship that never used codes.
+    abbreviation    TEXT,
     -- The number the driver races under, where the era has one: 28 of F1DB's
     -- 917 drivers, all distinct. NOT the number on the car in a given season,
     -- which is season_entries.car_number - the reigning champion may carry 1

@@ -1733,18 +1733,22 @@ def the_driver_register():
           not _num_dupe, "; ".join(_num_dupe[:4]))
 
     # The number F1DB publishes against the number the entry list gives, with
-    # the one exception the rule itself names: the reigning champion may carry
+    # the one exception the rule itself names: the REIGNING champion may carry
     # 1. Lando Norris is entered as 1 for 2026 and his permanent number is 4.
-    # build.py stops on anything else; this is the gate that says so.
-    _num_vs_entry = [f"{r[0]} has {r[1]}, entered as {r[3]} in {r[2]}"
-                     for r in con.execute("""SELECT d.id, d.permanent_number,
-            e.year, e.car_number
+    # Read from title_years and not from titles > 0, or the one driver the
+    # escape covers has a number nothing constrains. build.py stops on
+    # anything else; this is the gate that says so.
+    _num_vs_entry = [f"{_r[0]} has {_r[1]}, entered as {_r[3]} in {_r[2]}"
+                     for _r in con.execute("""SELECT d.id, d.permanent_number,
+            e.year, e.car_number, d.title_years
         FROM drivers d JOIN season_entries e ON e.driver_id = d.id
         WHERE d.permanent_number IS NOT NULL AND e.car_number IS NOT NULL
           AND e.car_number != d.permanent_number
-          AND NOT (e.car_number = 1 AND d.titles > 0)
-        ORDER BY e.year, d.id""")]
-    check("every entry number is the driver's permanent number, or the champion's 1",
+        ORDER BY e.year, d.id""")
+                     if not (_r[3] == 1
+                             and str(_r[2] - 1) in (_r[4] or "").split(","))]
+    check("every entry number is the driver's permanent number, or the "
+          "reigning champion's 1",
           not _num_vs_entry, "; ".join(_num_vs_entry[:4]))
 
     _keyed, _coded, _numbered, _placed = con.execute("""SELECT COUNT(f1db_id),

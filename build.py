@@ -3415,24 +3415,35 @@ def _stage_36_what_f1db_publishes_about_a_driver_and(b):
     # THE CHECK on the number, and the reason it is worth storing. A permanent
     # number is the number the driver races under, so it has to be the number
     # the entry list gives them - with one exception the rule itself names:
-    # the reigning champion may carry 1 instead. Lando Norris is entered as 1
+    # the REIGNING champion may carry 1 instead. Lando Norris is entered as 1
     # for 2026 and his permanent number is 4, and that is the whole of the
     # divergence in the register. Anything else means the two sources disagree
     # about who is driving which car, which is not a thing to publish.
-    for our_id, number, entered, titles in cur.execute("""
-            SELECT d.id, d.permanent_number, e.car_number, d.titles
+    #
+    # "Reigning" is the whole of the escape, and it is read from title_years
+    # rather than from titles > 0. Any title-holder would leave the one driver
+    # the escape covers with a number nothing constrains in either direction -
+    # a 1992 champion entered as 1 in 2026 would pass - which is a check that
+    # stops checking exactly where it is used.
+    #
+    # One thing it cannot constrain, and the limit is in the data rather than
+    # here: a driver actually carrying 1 has no entry number to check their
+    # permanent number against, because the entry list records the 1. Their
+    # number is held only by F1DB until they carry it again.
+    for our_id, number, year, entered, title_years in cur.execute("""
+            SELECT d.id, d.permanent_number, e.year, e.car_number, d.title_years
             FROM drivers d JOIN season_entries e ON e.driver_id = d.id
             WHERE d.permanent_number IS NOT NULL
               AND e.car_number IS NOT NULL
               AND e.car_number != d.permanent_number
-            ORDER BY d.id, e.year""").fetchall():
-        if entered == 1 and titles:
+            ORDER BY e.year, d.id""").fetchall():
+        if entered == 1 and str(year - 1) in (title_years or "").split(","):
             continue
         raise SystemExit(
-            f"{our_id} is entered with car number {entered} and F1DB gives "
-            f"the permanent number {number}. Only the reigning champion may "
-            f"carry 1, and this driver has {titles} title(s): one of the two "
-            f"numbers is wrong.")
+            f"{our_id} is entered with car number {entered} in {year} and "
+            f"F1DB gives the permanent number {number}. Only the champion of "
+            f"the season before may carry 1, and this driver's titles are "
+            f"{title_years or 'none'}: one of the two numbers is wrong.")
 
     print(f"  f1db ids: {keyed} driver(s) keyed to the F1DB register, "
           f"{coded} with a three-letter code, {numbered} with a permanent number")
