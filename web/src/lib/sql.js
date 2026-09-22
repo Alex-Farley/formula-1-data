@@ -51,10 +51,14 @@ const TIMING_READ = new RegExp(
 /*
  * A CTE named for one of the four shadows the table: the rows that matched
  * nothing are the reader's own, and the licence has nothing to do with them.
+ *
+ * The body's opening bracket is required, or the second branch matches an
+ * ordinary column alias - `SELECT id, laps AS n FROM laps` reads the empty
+ * table and must be told so.
  */
 const shadowedByCte = (statement, table) =>
   new RegExp(
-    `(?:\\bwith\\b|,)\\s*(?:recursive\\s+)?${QUOTE}?${table}${UNQUOTE}?\\s*(?:\\([^()]*\\))?\\s*\\bas\\b`,
+    `(?:\\bwith\\b|,)\\s*(?:recursive\\s+)?${QUOTE}?${table}${UNQUOTE}?\\s*(?:\\([^()]*\\))?\\s*\\bas\\s*\\(`,
     'i',
   ).test(statement)
 

@@ -1662,6 +1662,11 @@ describe('which empty-by-licence table a statement reads (CD-05)', () => {
     assert.equal(reads('WITH a AS (SELECT 1), laps AS (SELECT 1 WHERE 0) SELECT * FROM laps'), null)
   })
 
+  it('reads a column aliased for one of the names as the alias it is', () => {
+    assert.equal(reads('SELECT id, laps AS n FROM laps'), 'laps')
+    assert.equal(reads('SELECT a, stints AS n FROM stints WHERE 1 = 0'), 'stints')
+  })
+
   it('answers nothing for what is not a statement', () => {
     assert.equal(reads(undefined), null)
     assert.equal(reads(''), null)
