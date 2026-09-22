@@ -2962,15 +2962,17 @@ const page = ({
     path: 'data/sql',
     title: NAMES.sql().title,
     description:
-      'Run your own SQL against the whole database in your browser: it runs in this tab, and a query&rsquo;s address is a link you can share.',
+      // esc() runs over every description, so a named entity here ships as
+      // `&amp;rsquo;`; the character itself does not (review finding, #580).
+      'Run your own SQL against the whole database in your browser: it runs in this tab, and a query\u2019s address is a link you can share.',
     trail: TRAIL.sql(),
     onward: ONWARD.sql(),
     body: `
       <h1>${esc(NAMES.sql().headline)}</h1>
       <p class="lede">Every page on this site is a query against one SQLite file. Here you write
         your own: SQLite compiled to WebAssembly, running against the database file in your own
-        browser. Nothing you type is sent as you write it; the statement is kept in the address,
-        so a link you share or reload carries it.</p>
+        browser. Nothing you type is sent as you write it &mdash; though running a statement keeps
+        it in the address, so a link you share or reload carries it.</p>
       <!-- The JavaScript requirement belongs to the reader who has none. As a
            lede it was the whole visible prose of this page whenever the
            database failed to open, which diagnosed the one failure that had

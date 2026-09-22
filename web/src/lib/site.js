@@ -152,20 +152,37 @@ export const ENTRIES_NOTE =
  *     wider one; it just takes a reviewer rather than a reader to catch it
  *     (review finding, 2026-09-22).
  *
- *     So the "nothing" clause is gone and the two things that do leave are
- *     named: the arrival count, and the photographs. What is still absolute is
- *     the half this page is actually about - a search, a sort, a SQL query -
- *     because those run against a file already in the tab. The claim and the
- *     tag are one decision: the count is of the page you ARRIVED on because
- *     the beacon is written with `"spa": false`, and if that is ever dropped,
- *     this sentence is wrong before the next deploy finishes.
+ *     So the "nothing" clause is gone and what leaves is named. THE SECOND
+ *     ATTEMPT NAMED TWO OF THE THREE. Every page preconnects to and fetches
+ *     fonts.googleapis.com and fonts.gstatic.com (web/index.html), which hands
+ *     Google the reader's IP, user agent and referrer on every load, including
+ *     the pages with no photograph on them - and conventions.mjs's host table
+ *     says in terms that the four `load` hosts "are the ones IN_THIS_TAB has
+ *     to account for". A sentence of the form "what leaves is X and Y" is
+ *     exhaustive, so two of four was a false sentence (review finding, #580).
+ *
+ *     AND IT WAS NOT ABSOLUTE WHERE IT COULD HAVE BEEN. A search, a sort or a
+ *     SQL statement is kept in the address - urlstate.js writes a register's
+ *     state there (IA-08) and Sql.jsx writes `?q=` - and the beacon reads
+ *     `document.location.href` when it executes, so an arrival at one of those
+ *     addresses sends the reader's own text to Cloudflare. Not as it is typed:
+ *     `"spa": false` means one beacon per document load and none on a route
+ *     change, so "the address you arrive on, counted once" is exact and "each
+ *     page you open" was wider than the truth. The claim and the tag are one
+ *     decision, and if `"spa": false` is ever dropped this sentence is wrong
+ *     before the next deploy finishes.
+ *
+ *     PD-50 (#581) is the mechanism that would let the shorter claim back:
+ *     strip the reader's own parameters before the beacon executes.
  */
 export const IN_THIS_TAB =
   'Every page here is a query against one SQLite file, running in this tab: nothing you search ' +
-  'for, sort or type is sent as you do it. What leaves is a cookieless count of each page you ' +
-  'open, and the photographs, fetched from Wikimedia Commons as you reach them. A search, a ' +
-  'filter or a SQL statement is kept in the address, so opening or reloading one of those counts ' +
-  'it with the page. Once it has loaded, this tab keeps working without a network.'
+  'for, sort or type is sent as you do it. Three things leave: the address you arrive on, counted ' +
+  'once and without cookies by Cloudflare; the photographs, from Wikimedia Commons as you reach ' +
+  'them; and the fonts, from Google. Moving between pages counts nothing further — but a search, ' +
+  'a filter or a SQL statement is kept in the address, so arriving at one of those, by reload or ' +
+  'by a link, hands it over with the page. Once it has loaded, this tab keeps working without a ' +
+  'network.'
 
 /**
  * What an em dash in a cell means, and where the career totals come from.

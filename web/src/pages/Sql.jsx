@@ -287,7 +287,9 @@ export default function Sql() {
       <Note>
         <strong>Nothing you type can break anything.</strong> The database is a copy in your own
         browser, every statement runs inside a transaction that is rolled back, and a reload
-        restores it either way. Reads only.
+        restores it either way. Reads only. Nothing you type is sent as you write it either —
+        though running a statement keeps it in the address, so a link you share or reload carries
+        it.
       </Note>
 
       <p className="measure">

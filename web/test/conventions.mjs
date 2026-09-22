@@ -1306,13 +1306,26 @@ describe('what the pages send, and to whom (PD-0)', () => {
     assert.match(tag, /data-cf-beacon='\{"token":"[A-Za-z0-9]+","spa":false\}'><\/script>$/)
   })
 
-  it('and the footer names what that buys: a count of the page arrived on', () => {
-    assert.match(IN_THIS_TAB, /cookieless count of each page you open/)
+  it('and the footer names what that buys: the address arrived on, counted once', () => {
+    assert.match(IN_THIS_TAB, /the address you arrive on, counted once/)
+    // "each page you open" was wider than `"spa": false` buys, and this
+    // assertion had been relaxed to fit it — the guard following the prose
+    // instead of holding it (review finding, #580).
+    assert.match(
+      IN_THIS_TAB,
+      /Moving between pages counts nothing further/,
+      'the footer no longer says that a route change sends nothing, which is what "spa": false is for',
+    )
+    assert.match(
+      IN_THIS_TAB,
+      /the fonts, from Google/,
+      'the footer names what leaves and omits the fonts, which every page fetches from Google',
+    )
     // And, since #580, the half that sentence alone does not carry: the
     // address is the reader's own text on a searched register or the console.
     assert.match(
       IN_THIS_TAB,
-      /kept in the address, so opening or reloading one of those counts it/,
+      /kept in the address, so arriving at one of those, by reload or by a link, hands it over/,
       'the footer no longer says that a search, a filter or a statement is in the address the beacon counts',
     )
   })
@@ -1365,8 +1378,25 @@ describe('what the pages send, and to whom (PD-0)', () => {
   })
 
   /*
-   * Every claim the front end publishes about what is not sent, and why it is
-   * true.
+   * The claims the front end publishes about what is not sent, in the shapes
+   * these claims have actually taken, and why each is true.
+   *
+   * It is a backstop and not a proof, and says so because a rule that names a
+   * property it does not have is worse than no rule (the host table above
+   * makes the same point). A sentence has to put "nothing", "never" or "no"
+   * in front of one of five verbs to be seen at all: probed, "This site sends
+   * nothing about you to anyone", "Your typing is not sent anywhere" and
+   * "What you search for is private" all pass it unseen (review finding,
+   * #580).
+   *
+   * That boundary is where it is on evidence, not laziness. Taking "not" as
+   * well, and verbs like "reaches" and "shared", was tried in the same sitting
+   * and flagged nine innocent sentences across the two READMEs and
+   * `changes.js` — "no driver credited twice for the same race; shared
+   * fastest laps recorded as shared", "not the one already stored". A sweep
+   * that cries wolf nine times gets its allowlist padded until it means
+   * nothing. What this one catches is every wording this project has so far
+   * written, and any reuse of one of them somewhere it is not true.
    *
    * The two tests above pin IN_THIS_TAB, which is the sentence PD-0 rewrote
    * when the beacon went in. It was not the only claim, and the first version
@@ -1394,8 +1424,24 @@ describe('what the pages send, and to whom (PD-0)', () => {
     ],
     ['src/queries/home.js', /nothing you search for is sent as you type it/, "home's standfirst: the same claim, narrower"],
     [
+      'src/lib/site.js',
+      // The match begins at the claim word, so the pattern does too.
+      /nothing further — but a search, a filter or a SQL statement is kept in the address/,
+      'true while the tag carries "spa": false, which the assertion above pins',
+    ],
+    [
+      'src/pages/Sql.jsx',
+      /Nothing you type is sent as you write it either/,
+      "the console's own note, in the app: the same sentence the prerendered lede carries",
+    ],
+    [
+      '../docs/MEASUREMENT.md',
+      /nothing further; and a search, a filter or a SQL statement is \*\*kept in the address\*\*/,
+      'the account of the footer, quoting it',
+    ],
+    [
       'scripts/prerender.js',
-      /Nothing you type is sent as you write it; the statement is kept in the address/,
+      /Nothing you type is sent as you write it &mdash; though running a statement keeps/,
       'the console: the denial and its limit in one sentence',
     ],
     [
@@ -1415,16 +1461,10 @@ describe('what the pages send, and to whom (PD-0)', () => {
       /nothing you search for, sort or type is sent \*\*as you do it\*\*/,
       'the account of the footer, quoting it',
     ],
-    ['../docs/MEASUREMENT.md', /typing alone sends nothing/, 'true: "spa": false, so no beacon fires on a keystroke'],
     [
       '../docs/MEASUREMENT.md',
       /[Nn]othing you look at or type is sent\s*anywhere/,
       'the wording this replaced, quoted as history and marked as such',
-    ],
-    [
-      '../docs/MEASUREMENT.md',
-      /moving between pages asks the network for nothing/,
-      'likewise: the first attempt, quoted to say why it was wrong',
     ],
   ]
 
