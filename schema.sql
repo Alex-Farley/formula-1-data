@@ -135,6 +135,27 @@ CREATE TABLE drivers (
     nationality_code TEXT,
     born            TEXT,                      -- ISO date where known
     died            TEXT,
+    -- What F1DB publishes about a person, which the harvest used to read and
+    -- drop (PD-17). All four come from one CC BY 4.0 register and none is
+    -- derived here.
+    --
+    -- f1db_id is the reconciliation key: the id this driver resolves to in
+    -- F1DB, stored rather than recomputed from a name match every time
+    -- somebody wants to line the two registers up. UNIQUE because the match
+    -- is one-to-one and has to stay that way - two entries claiming one F1DB
+    -- driver is how Nelson Piquet Jr was once given his father's 23 wins, and
+    -- a constraint states that in the schema rather than in a function.
+    f1db_id         TEXT UNIQUE,
+    abbreviation    TEXT,                      -- VER, HAM; not unique, reused
+    -- The number the driver races under, where the era has one: 28 of F1DB's
+    -- 917 drivers, all distinct. NOT the number on the car in a given season,
+    -- which is season_entries.car_number - the reigning champion may carry 1
+    -- instead, and build.py holds the two to exactly that rule.
+    permanent_number INTEGER,
+    place_of_birth  TEXT,                      -- the town, as F1DB writes it
+    -- The country, in the one country vocabulary: normalise_countries() holds
+    -- this column to the F1DB registry the same way it holds nationality.
+    country_of_birth TEXT,
     first_season    INTEGER,
     last_season     INTEGER,
     entries         INTEGER,

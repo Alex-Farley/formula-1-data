@@ -1696,6 +1696,63 @@ def the_driver_register():
     print(f"  [info] {len(_ourd)} drivers, {_admitted_d} of them admitted from "
           f"the F1DB register; {len(_RS.DRIVER_NON_MAPPING)} Jolpica drivers are "
           f"declared as a source disagreement rather than created")
+
+    # --- what the register keeps from F1DB about the person (PD-17). The id
+    # first: a stored key that no longer agrees with the match it was written
+    # from is worse than no key at all, because nothing about it looks wrong.
+    _stored = dict(con.execute(
+        "SELECT id, f1db_id FROM drivers WHERE f1db_id IS NOT NULL"))
+    _resolved = {_our: _f1 for _f1, _our in _dmap.items()}
+    _differ = sorted(d for d in set(_stored) | set(_resolved)
+                     if _stored.get(d) != _resolved.get(d))
+    check("every driver the F1DB match resolves stores the id it resolved to",
+          not _differ,
+          "; ".join(f"{d}: stored {_stored.get(d)}, resolves to {_resolved.get(d)}"
+                    for d in _differ[:4]))
+
+    _abbr_bad = [r[0] for r in con.execute("""SELECT id FROM drivers
+        WHERE abbreviation IS NOT NULL
+          AND (LENGTH(abbreviation) != 3 OR abbreviation != UPPER(abbreviation))""")]
+    check("every three-letter code is three capital letters",
+          not _abbr_bad, ", ".join(_abbr_bad[:6]))
+
+    _num_bad = [f"{r[0]}: {r[1]}" for r in con.execute("""SELECT id, permanent_number
+        FROM drivers WHERE permanent_number IS NOT NULL
+          AND (permanent_number < 1 OR permanent_number > 99)""")]
+    check("every permanent number is one a car may carry",
+          not _num_bad, ", ".join(_num_bad[:6]))
+
+    # Two drivers cannot race the same number, so two rows cannot hold it.
+    # F1DB clears the field when a driver stops racing - Daniel Ricciardo has
+    # none - which is what keeps this true upstream as numbers are reassigned.
+    _num_dupe = [f"{r[0]} ({r[1]})" for r in con.execute("""SELECT permanent_number,
+        GROUP_CONCAT(id, ', '), COUNT(*) n FROM drivers
+        WHERE permanent_number IS NOT NULL
+        GROUP BY permanent_number HAVING n > 1""")]
+    check("no two drivers hold the same permanent number",
+          not _num_dupe, "; ".join(_num_dupe[:4]))
+
+    # The number F1DB publishes against the number the entry list gives, with
+    # the one exception the rule itself names: the reigning champion may carry
+    # 1. Lando Norris is entered as 1 for 2026 and his permanent number is 4.
+    # build.py stops on anything else; this is the gate that says so.
+    _num_vs_entry = [f"{r[0]} has {r[1]}, entered as {r[3]} in {r[2]}"
+                     for r in con.execute("""SELECT d.id, d.permanent_number,
+            e.year, e.car_number
+        FROM drivers d JOIN season_entries e ON e.driver_id = d.id
+        WHERE d.permanent_number IS NOT NULL AND e.car_number IS NOT NULL
+          AND e.car_number != d.permanent_number
+          AND NOT (e.car_number = 1 AND d.titles > 0)
+        ORDER BY e.year, d.id""")]
+    check("every entry number is the driver's permanent number, or the champion's 1",
+          not _num_vs_entry, "; ".join(_num_vs_entry[:4]))
+
+    _keyed, _coded, _numbered, _placed = con.execute("""SELECT COUNT(f1db_id),
+        COUNT(abbreviation), COUNT(permanent_number), COUNT(place_of_birth)
+        FROM drivers""").fetchone()
+    print(f"  [info] {_keyed} drivers keyed to F1DB, {_coded} with a "
+          f"three-letter code, {_placed} with a place of birth, "
+          f"{_numbered} with a permanent number")
     _dupe = con.execute("""SELECT full_name, COUNT(*) n FROM drivers
         GROUP BY LOWER(full_name) HAVING n > 1""").fetchall()
     check("no two register rows share a driver's full name", not _dupe,

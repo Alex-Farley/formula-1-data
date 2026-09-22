@@ -280,8 +280,16 @@ def driver_rows(data, yaml):
     offline, and enough to describe one the register admits.
 
     This file never decides that a driver exists - data/drivers.py does that,
-    one authored line at a time. It only supplies the spelling, the dates and
-    the nationality for the ones already admitted."""
+    one authored line at a time. It only supplies the spelling, the dates, the
+    nationality and the rest of what F1DB holds about the ones already
+    admitted.
+
+    `permanentNumber` is set for 28 of the 917 drivers - the era that has
+    them - and `placeOfBirth`, `countryOfBirthCountryId` and `abbreviation`
+    for all of them. Two fields F1DB publishes are NOT here and cannot be:
+    `bestStartingGridPosition` and `totalRaceLaps` are computed by F1DB's own
+    Gradle build and appear only in its released artefacts, not in the source
+    tree this reads (PD-45, #520)."""
     import glob
     rows = []
     for p in sorted(glob.glob(os.path.join(data, "drivers", "*.yml"))):
@@ -289,7 +297,8 @@ def driver_rows(data, yaml):
         rows.append("|".join(_clean(d.get(k)) for k in
                              ("id", "name", "firstName", "lastName",
                               "dateOfBirth", "dateOfDeath", "abbreviation",
-                              "nationalityCountryId")))
+                              "nationalityCountryId", "placeOfBirth",
+                              "countryOfBirthCountryId", "permanentNumber")))
     return sorted(rows)
 
 
@@ -710,7 +719,8 @@ def main():
                 country_rows(data, yaml), version, commit, args.check)
     ok &= write("f1db_drivers.txt",
                 "driver_id|name|first_name|last_name|date_of_birth|"
-                "date_of_death|abbreviation|nationality_country_id",
+                "date_of_death|abbreviation|nationality_country_id|"
+                "place_of_birth|country_of_birth_country_id|permanent_number",
                 driver_rows(data, yaml), version, commit, args.check)
     ok &= write("entrants.txt",
                 "year|entrant_id|constructor_id|engine_manufacturer_id|"
