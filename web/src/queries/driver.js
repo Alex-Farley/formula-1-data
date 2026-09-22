@@ -473,9 +473,19 @@ export const derivedAndPublished = (derived, published) =>
  * the list is ENTRIES_NOTE in lib/site.js, shared the same way.
  */
 export function record(driver) {
+  // A DATE OF DEATH A LIVING DRIVER DOES NOT HAVE IS NOT A MISSING FACT
+  // (CD-37). `status` is the register's own word and two of its values say
+  // the driver is alive: 310 of the 862 pages carried `Died —` directly above
+  // `Status active` or `Status retired`, which is the em-dash convention -
+  // the site's loudest claim about its own honesty - asserting the opposite
+  // of the row beneath it. A `deceased` row keeps the dash, because 10 of the
+  // 441 are a death whose date nobody has established and that is exactly
+  // what it means; so does a blank status, where nothing is established
+  // either way.
+  const living = driver.status === 'active' || driver.status === 'retired'
   return [
     ['Born', text(driver.born)],
-    ['Died', text(driver.died)],
+    ...(living ? [] : [['Died', text(driver.died)]]),
     ['Nationality', text(driver.nationality)],
     ['Status', text(driver.status)],
     // How a harvest put the row here, where one did. It used to open
@@ -488,8 +498,14 @@ export function record(driver) {
     // count and two drivers' published start count differ from the counted
     // one; both figures are shown and ENTRIES_NOTE under this list says why
     // neither is corrected.
-    ['Entries (published)', number(driver.entries)],
-    ['Starts (published)', number(driver.starts)],
+    // AND ONLY WHERE THERE IS A PUBLISHED FIGURE (CD-37). The register holds
+    // an entry count for 38 drivers and a start count for 31; on the other
+    // 824 and 831 pages the row said that nobody had established a number
+    // the strip above states, counted, in the same words minus the label.
+    // ENTRIES_NOTE already says these are "kept for the few drivers who have
+    // one", so a page without one has nothing to explain.
+    ...(missing(driver.entries) ? [] : [['Entries (published)', number(driver.entries)]]),
+    ...(missing(driver.starts) ? [] : [['Starts (published)', number(driver.starts)]]),
     ['Wins', derivedAndPublished(driver.wins, driver.wins_external)],
     ['Poles', derivedAndPublished(driver.poles, driver.poles_external)],
     ['Fastest laps', derivedAndPublished(driver.fastest_laps, driver.fastest_laps_external)],

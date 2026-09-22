@@ -116,5 +116,23 @@ export const entryColumns = (several) => [
   { key: 'status', label: 'Out', text: entryOut },
 ]
 
+/**
+ * What the Specification section says where there is no specification (CD-37).
+ *
+ * 339 of the 1,153 chassis in the register have nothing in any of the
+ * eighteen fields, and the section drew eighteen em dashes for them: eighteen
+ * separate claims that nobody has established a figure, where the truth is
+ * one claim about the car. The sentence replaces the fields rather than the
+ * heading, so a reader who came looking for a specification is still told
+ * where they are and what the answer is. The static half already drops a
+ * field nothing is known for rather than dashing it.
+ */
+export const NO_SPECIFICATION =
+  'No specification is published for this car: no chassis, engine, weight or dimension figure is ' +
+  'on record for it.'
+
+/** Whether any specification field holds a figure, and so whether to draw the fields at all. */
+export const specified = (fields) => fields.some(({ value }) => !missing(value))
+
 export const NO_ENTRIES =
   'No race entry in this database resolves here. That is usually a constructor that ran several designs in a season and no source saying which raced when, not a car that never raced.'
