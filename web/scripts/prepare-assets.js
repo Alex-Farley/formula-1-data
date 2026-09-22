@@ -6,7 +6,8 @@
  *   f1.db             the database, as built        ~20 MB   the fallback path
  *   sql-wasm.wasm     the SQLite engine            ~660 KB
  *   db-manifest.json  what the above are           ~200 B    fetched first
- *   SHA256SUMS        full digests of the above     ~300 B    shasum -c
+ *   SHA256SUMS        the SHA-256 of each file      ~600 B    shasum -c
+ *                     it names, not of the above
  *   schema.sql        what the tables mean          ~92 KB   the three documents
  *   ATTRIBUTION.md    where the data came from      ~15 KB   that explain the above
  *   LICENSE-DATA      what you may do with it        ~4 KB
