@@ -391,11 +391,11 @@ SOURCE_REGISTRY = [
 
     (10, "F1DB", "https://github.com/f1db/f1db",
      "Since v2.15 the primary source for RESULTS as well as registers: the "
-     "full classification for all 1,161 races (27,555 entries, 1950-2026), "
-     "qualifying (26,975), championship standings after every round (34,495) "
-     "and pit stops (22,472) - plus the chassis, engine, constructor and "
+     "full classification for all {{fig:races_completed}} races ({{fig:race_entries}} entries, 1950-2026), "
+     "qualifying ({{fig:qualifying}}), championship standings after every round ({{fig:standings}}) "
+     "and pit stops ({{fig:pit_stops}}) - plus the chassis, engine, constructor and "
      "per-season entrant register it already supplied, and since 2026-09-13 "
-     "the outline of every one of its 160 circuit layouts (SVG assets drawn "
+     "the outline of every one of its {{fig:circuit_outlines}} circuit layouts (SVG assets drawn "
      "by Jules Roy) with the layout each race ran. Loaded by "
      "tools/f1db_fetch.py into diffable text, then built offline.",
      "reference",
@@ -408,16 +408,18 @@ SOURCE_REGISTRY = [
      "Re-released after every race, versioned, with a public commit history "
      "and a changelog. Better maintained than anything else at this scale.",
      "Heavily, in four independent places, all of them held here before F1DB "
-     "was read. (1) The winner of every one of the 1,161 races came from the "
-     "Wikipedia harvest; a race whose winner disagreed is refused WHOLE, and "
+     "was read. (1) The winner of every one of the {{fig:races_completed}} races was established here "
+     "before F1DB was read - from the Wikipedia harvest, and from "
+     "formula1.com for the seasons it covers; a race whose winner "
+     "disagreed is refused WHOLE, and "
      "none was. The comparison is on sets, because a shared drive puts two "
      "drivers on position 1 and both are winners. (2) The champion, the "
-     "runner-up and both their point totals for 76 seasons were already in "
+     "runner-up and both their point totals for {{fig:seasons_reproduced}} seasons were already in "
      "`seasons`; the final standings must reproduce all four and do. "
      "(3) Qualifying position 1 is checked against the pole-sitter already "
      "stored - 13 races differ, every one a grid penalty or a sprint "
      "weekend, each recorded rather than resolved. (4) Its (constructor, "
-     "season) -> chassis mapping is checked against the 41 CAR_SEASONS "
+     "season) -> chassis mapping is checked against the {{fig:car_seasons}} CAR_SEASONS "
      "assertions already proved against published win totals. It carries NO "
      "technical specifications at all, so nothing it says can be mistaken "
      "for one."),
@@ -497,7 +499,7 @@ SOURCE_REGISTRY = [
      "STORED - article_images holds a reference and its credit, and the "
      "pixels are fetched from upload.wikimedia.org by whatever renders the "
      "page.", "reference",
-     "Per file, and they differ: sixteen distinct licence strings across 602 "
+     "Per file, and they differ: sixteen distinct licence strings across {{fig:article_images}} "
      "rows - CC BY-SA at four versions, CC BY at four more, CC0, public "
      "domain and national variants. There is no blanket credit line, so each "
      "row carries its own and the build refuses a file that names no author.",
@@ -510,7 +512,7 @@ SOURCE_REGISTRY = [
      "claim recorded is 'the article proved to describe this chassis leads "
      "with this file'. But nothing here constrains what a photograph SHOWS, "
      "and there is no second source to disagree. Testing whether the file "
-     "name mentions the car finds only 265 of 602, because most correct "
+     "name mentions the car finds only {{fig:article_route_named}} of {{fig:article_route_images}}, because most correct "
      "images are filed under the driver, so the test is recorded as "
      "name_matches and enforced nowhere. The failure it half-detects is "
      "real: the ATS D5 article leads with a photograph of officials and "

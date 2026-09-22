@@ -37,6 +37,13 @@ def _lede_figures():
     import lede_figures
     return lede_figures
 
+
+def _prose_figures():
+    """tools/prose_figures.py, imported from beside this file."""
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "tools"))
+    import prose_figures
+    return prose_figures
+
 DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "f1.db")
 
 # Set F1_LOCAL_TIMING=1 when you have deliberately loaded FOM-owned timing onto
@@ -3452,6 +3459,44 @@ def readme_figures():
             detail = a if "\n" not in a else "table"
             check(f"fig:{name} = {detail}", s == a,
                   "" if s == a else f"the document says {s!r}")
+
+
+@section('THE DATABASE STATES WHAT IT HOLDS IN ITS OWN PROSE')
+def prose_figures():
+    # The README's discipline, turned on the prose inside the artefact.
+    # `source_registry` is what /data/sources renders, and its figures were
+    # typed by hand: 1,161 races and 27,555 entries where 1,163 and 27,504
+    # are held, with qualifying, standings, pit stops and the Commons
+    # totals stale beside them, because nothing read them (CD-38, AF-63).
+    # Each is now a {{fig:name}} token in data/*.py; build.py expands it off
+    # the counts in its final stage. Here the literals are re-expanded from
+    # the same tables and the stored prose is compared WHOLE, the way
+    # meta.coverage_note is, so a row whose other figures were wrong could
+    # not pass on the strength of one.
+    pf = _prose_figures()
+    cur = con.cursor()
+
+    for (table, keycol, key, column), want in pf.expected(cur).items():
+        row = con.execute(f"SELECT {column} FROM {table} WHERE {keycol} = ?",
+                          (key,)).fetchone()
+        where = f"{table}.{column} ({keycol} {key})"
+        if row is None:
+            check(f"{where} is a row this database has", False, "no such row")
+            continue
+        check(f"{where} is what the counts say", row[0] == want,
+              "" if row[0] == want else "the stored prose is not the expanded literal")
+
+    # A token in a column PROSE does not name would ship to the page as
+    # itself. Every text column of every table, from PRAGMA rather than a
+    # list, because the ones worth catching are the ones nobody listed.
+    left = pf.survivors(con)
+    check("no figure token survived into the database", not left,
+          "; ".join(f"{t}.{c} ({n} row(s))" for t, c, n in left))
+
+    # A figure computed and stated nowhere is a dead expression, the same
+    # rule readme_figures.py applies to a figure no document names.
+    spare = pf.unused(cur)
+    check("every figure computed is stated in some prose", not spare, ", ".join(spare))
 
 
 

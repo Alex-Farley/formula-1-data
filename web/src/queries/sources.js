@@ -38,7 +38,7 @@ export const CONSEQUENCES = [
     source: 'F1DB',
     licence: 'CC BY 4.0',
     consequence:
-      'Attribution only, and no non-commercial clause — which is why the full classification of all 1,161 races ships in the committed database rather than being loaded locally. This is the licence that closed the largest gap this project had.',
+      'Attribution only, and no non-commercial clause — which is why the full classification of every race ships in the committed database rather than being loaded locally. This is the licence that closed the largest gap this project had.',
   },
   {
     source: 'Wikipedia',

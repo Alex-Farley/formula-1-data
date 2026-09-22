@@ -32,6 +32,14 @@ from data import radio as RA       # noqa: E402
 from data import results as RS     # noqa: E402
 from data import sessions as SS    # noqa: E402
 
+
+def _prose_figures():
+    """tools/prose_figures.py, imported from beside this file."""
+    sys.path.insert(0, os.path.join(HERE, "tools"))
+    import prose_figures
+    return prose_figures
+
+
 DB = os.path.join(HERE, "f1.db")
 # The build writes here and moves the file into place only when every stage
 # has run. It used to drop f1.db and build in place, so a stage that failed
@@ -2947,6 +2955,25 @@ def _stage_35_link_race_entries_to_the_curated(b):
                 (coverage_note(cur),))
     if cur.rowcount != 1:
         raise SystemExit("meta.coverage_note is missing")
+
+    # The same discipline for the prose the database carries about itself.
+    # `source_registry` is read straight onto /data/sources, and its figures
+    # were typed: 1,161 races and 27,555 entries against 1,163 and 27,504
+    # held, with qualifying, standings and pit stops stale beside them,
+    # because nothing recomputed them (CD-38, AF-63). Each is now a
+    # {{fig:name}} token in data/current.py that this expands off the counts,
+    # here and not at insert time because the tables it counts are loaded by
+    # the stages above. verify.py re-expands the literals and compares whole,
+    # and refuses a token that survived into any text column.
+    pf = _prose_figures()
+    rewritten = pf.apply(cur)
+    left = pf.survivors(con)
+    if left:
+        raise SystemExit(
+            "a figure token reached the built database in "
+            + "; ".join(f"{t}.{c} ({n} row(s))" for t, c, n in left)
+            + ". Expand it by naming the column in tools/prose_figures.py PROSE.")
+    print(f"  prose figures: {rewritten} row(s) rewritten from the counts")
     # Every loader's skipped rounds, in one place, so a round F1DB has and
     # the calendar does not is visible whichever loader met it first.
     for what, rounds in sorted(b.skipped_rounds.items()):
