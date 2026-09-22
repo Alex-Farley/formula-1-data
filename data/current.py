@@ -897,3 +897,58 @@ PROVENANCE = [
     # makes: it is where someone else filed something.
     ("catalogued", 6, "Not checked by anyone, here or at a source: a photograph that Wikimedia Commons editors filed under a category named for the chassis. A category also holds replicas, scale models, show cars and museum mock-ups, and nothing here can tell them from the car that raced. Never present it as the car without a person looking first.", 0),
 ]
+
+
+# ---------------------------------------------------------------------------
+# The championship table only ever goes up
+#
+# A running championship total is a cumulative figure: the entrant's total
+# after round N is its total after round N-1 plus what it scored in round N.
+# So if its cars scored, the total MUST move. That is a rule about arithmetic
+# rather than about any era's regulations, and it is the one cross-check that
+# catches a standings file which has not been updated - the failure mode a
+# source figure compared only with another source figure cannot show.
+#
+# 2026 round 14 is why this exists. F1DB v2026.14.0 published a
+# constructor-standings.yml for round 14 holding round 13's totals, byte for
+# byte, for all eleven entries, while its driver-standings.yml for the same
+# round was current. The build stored what the file said, verify.py had
+# nothing to compare it with, and lapledger.org showed Mercedes on 468 when
+# their two drivers had 503 between them.
+#
+# FROM WHICH SEASON, measured rather than assumed (`tools/standings_rule.py
+# --survey`):
+#
+#   constructors, 1979 - before 1979 only the best-placed car of each
+#   constructor scored, so a constructor could score in a race and its
+#   championship total stand still. The last such row is Ferrari, 1977 round
+#   9; from 1978 the only violations in the whole file are the three declared
+#   below.
+#
+#   drivers, 1991 - dropped scores. Until 1990 a driver's total counted only
+#   their best N results, so scoring in a race that did not improve on their
+#   worst counted result left the total where it was: Depailler 1979 round 7,
+#   Scheckter 1979 round 14, Mansell 1986 round 15, Prost 1988 round 15. From
+#   1991 there are none.
+STANDINGS_ACCUMULATE_FROM = {"constructors": 1979, "drivers": 1991}
+
+# The three entrants whose table legitimately does not accumulate, each a
+# decision taken by somebody else and published. A season and an entity, not a
+# round: the exclusion applies to the whole of its season's table.
+STANDINGS_ACCUMULATION_EXCEPTIONS = {
+    ("constructors", 2007, "mclaren"): (
+        "Excluded from the 2007 constructors' championship by the World Motor "
+        "Sport Council on 13 September 2007. The cars scored in every round "
+        "from Australia to Brazil and the constructor received none of it, so "
+        "its table reads 0 after all seventeen rounds while its drivers' "
+        "totals move."),
+    ("constructors", 2018, "force-india"): (
+        "The team went into administration and was re-entered from Spa as a "
+        "new constructor, Racing Point Force India. The 59 points scored "
+        "before round 13 stayed with the entity that scored them and did not "
+        "carry, so this table falls from 59 to 18 at round 13."),
+    ("constructors", 2020, "racing-point"): (
+        "Fifteen points deducted after the brake-duct protest, applied to the "
+        "table at round 5, so the total rises by less than the cars scored "
+        "in that round and every later total carries the deduction."),
+}

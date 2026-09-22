@@ -589,6 +589,64 @@ def standings():
               got_ == want_, f"{got_} rows")
 
 
+@section('STANDINGS ACCUMULATE')
+def standings_accumulate():
+    """A running championship total is cumulative, so a round an entrant
+    scored in must move its total. It is the only cross-check that can see a
+    standings file which was not updated - comparing one source's table with
+    another source's table cannot, and for 2026 round 14 did not: F1DB
+    published round 13's constructor totals under round 14 and the site
+    showed Mercedes on 468 while their drivers held 503 between them.
+
+    The rule, the season it starts holding from for each table and the three
+    entrants it legitimately does not hold for are declared in
+    `data/current.py`. build.py corrects what it can and files the published
+    figure in `discrepancies`; this is the check that the correction actually
+    happened, and that a case the correction does not cover - a total that
+    went DOWN, a round that would reorder - stops the build instead of
+    shipping.
+    """
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "tools"))
+    import standings_rule
+
+    from data.current import (STANDINGS_ACCUMULATE_FROM,
+                              STANDINGS_ACCUMULATION_EXCEPTIONS)
+
+    bad = standings_rule.violations(con)
+    check("every championship total moves in a round its cars scored",
+          not bad,
+          "; ".join(standings_rule.describe(v) for v in bad[:4])
+          + (f" (+{len(bad) - 4} more)" if len(bad) > 4 else "") if bad else "")
+
+    # The declarations are only worth anything if they still describe
+    # something. An exception nobody needs is a claim about this database that
+    # has quietly stopped being true, and the next one is written by copying
+    # it.
+    unused = []
+    for (table, year, entity) in STANDINGS_ACCUMULATION_EXCEPTIONS:
+        still = standings_rule.violations(
+            con, exceptions={k: v for k, v in STANDINGS_ACCUMULATION_EXCEPTIONS.items()
+                             if k != (table, year, entity)})
+        if not any(v["table_type"] == table and v["year"] == year
+                   and v["entity_id"] == entity for v in still):
+            unused.append(f"{table} {year} {entity}")
+    check("every declared exception is still one", not unused,
+          ", ".join(unused))
+
+    # And the floors, the same way round: the season before each one has to
+    # hold a violation, or the floor is further back than the evidence for it.
+    for table, floor in STANDINGS_ACCUMULATE_FROM.items():
+        below = standings_rule.violations(
+            con, floors={table: 0}, exceptions=STANDINGS_ACCUMULATION_EXCEPTIONS)
+        earlier = [v for v in below
+                   if v["table_type"] == table and v["year"] < floor]
+        check(f"{table} standings accumulate from {floor} and not before",
+              bool(earlier),
+              f"no violation before {floor}, so the floor is later than the "
+              f"evidence for it" if not earlier
+              else f"last is {max(v['year'] for v in earlier)}")
+
+
 @section('RACE RESULTS')
 def race_results():
     w26 = winners_in(season_in_progress())

@@ -63,7 +63,7 @@
       "base": "Brackley, United Kingdom",
       "first_entry": 1954,
       "position": 1,
-      "points": 468.0,
+      "points": 503.0,
       "drivers": [
         "George Russell",
         "Andrea Kimi Antonelli"
@@ -75,7 +75,7 @@
       "base": "Maranello, Italy",
       "first_entry": 1950,
       "position": 2,
-      "points": 346.0,
+      "points": 358.0,
       "drivers": [
         "Charles Leclerc",
         "Sir Lewis Hamilton"
@@ -87,7 +87,7 @@
       "base": "Woking, United Kingdom",
       "first_entry": 1966,
       "position": 3,
-      "points": 287.0,
+      "points": 306.0,
       "drivers": [
         "Lando Norris",
         "Oscar Piastri"
@@ -99,7 +99,7 @@
       "base": "Milton Keynes, United Kingdom",
       "first_entry": 2005,
       "position": 4,
-      "points": 204.0,
+      "points": 230.0,
       "drivers": [
         "Max Verstappen",
         "Isack Hadjar"
@@ -111,7 +111,7 @@
       "base": "Faenza, Italy",
       "first_entry": 1985,
       "position": 5,
-      "points": 75.0,
+      "points": 77.0,
       "drivers": [
         "Liam Lawson",
         "Arvid Lindblad"
@@ -123,7 +123,7 @@
       "base": "Enstone, United Kingdom",
       "first_entry": 2021,
       "position": 6,
-      "points": 62.0,
+      "points": 68.0,
       "drivers": [
         "Pierre Gasly",
         "Franco Colapinto"
@@ -147,7 +147,7 @@
       "base": "Hinwil, Switzerland",
       "first_entry": 2026,
       "position": 8,
-      "points": 16.0,
+      "points": 17.0,
       "drivers": [
         "Nico Hulkenberg",
         "Gabriel Bortoleto"
