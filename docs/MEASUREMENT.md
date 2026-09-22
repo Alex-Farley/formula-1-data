@@ -42,67 +42,121 @@ the sentence goes back to the old wording while the beacon is still there.
 
 ## Setting it up
 
-Both accounts are outside this repository, so the first four steps are a
-person's and the loop cannot take them. Nothing here is a secret: a beacon
-token is in the page source of every site that uses it, and a verification
-string is a public claim of ownership. They are environment variables anyway,
-because they name **an account** rather than describing this repository — a
-fork that built this tree would otherwise report its arrivals into this
-dashboard.
+Both accounts are outside this repository, so all of this is a person's and
+the loop cannot take any of it. Nothing here is a secret: a beacon token is in
+the page source of every site that uses it, and a verification string is a
+public claim of ownership. They are environment variables anyway, because they
+name **an account** rather than describing this repository — a fork that built
+this tree would otherwise report its arrivals into this dashboard.
 
-### 1. Cloudflare Web Analytics
+**The order that matters.** Setting the token does nothing on its own:
+`prerender.js` is what writes the tag, so the beacon appears on the first
+deploy that carries both. Set the variable whenever — it sits there
+harmlessly — but if the code is not on `main` yet, expect
+`/build-status.txt` to say nothing about measurement at all until it is.
 
-1. Cloudflare dashboard → **Analytics & Logs → Web Analytics → Add a site**,
-   hostname `lapledger.org`.
-2. Choose **manual installation** and copy the **site token** out of the
-   snippet it offers. Do not paste the snippet anywhere; only the token is
-   wanted. (Automatic injection rewrites HTML at the edge, and this site is
-   served out of a Worker's static assets. Rather than spend a fortnight
-   discovering whether that path is rewritten, `prerender.js` writes the tag
-   and `curl -s https://lapledger.org | grep beacon` settles it in one line
-   `[D-09]`.)
-3. Workers & Pages → **formula-1-data → Settings → Build → Variables and
-   Secrets**, add a plain (not encrypted) variable:
+### 1. Get the Cloudflare beacon token
+
+1. **dash.cloudflare.com**, signed in.
+2. Sidebar → **Analytics & Logs → Web Analytics**. It is at the *account*
+   level, not inside the `lapledger.org` zone, which is the usual reason for
+   not finding it.
+3. **Add a site**, hostname `lapledger.org`.
+4. Choose **manual installation**. If the site is already there with automatic
+   setup, open **Manage site** and **turn automatic off**: it injects its own
+   beacon at the edge, and with this one in the page every arrival would be
+   counted twice.
+
+   (Manual is the choice for a second reason. Automatic rewrites HTML at the
+   edge, and this site is served out of a Worker's static assets; whether that
+   path is rewritten is not something this repository can establish. Written
+   into the page instead, one `curl` settles it `[D-09]`.)
+5. It offers a snippet like
+
+   ```html
+   <script defer src='https://static.cloudflareinsights.com/beacon.min.js'
+     data-cf-beacon='{"token": "0a1b2c3d4e5f60718293a4b5c6d7e8f9"}'></script>
+   ```
+
+   **Copy the token only** — the string inside the quotes after `"token":`.
+   Not the tag, not the quotes, not `token:`. `prerender.js` writes the rest,
+   and writes it with `"spa": false`, which the dashboard's snippet does not.
+
+### 2. Put it on the Workers Builds project
+
+1. dash.cloudflare.com → **Workers & Pages** (newer dashboards: **Compute**) →
+   **`formula-1-data`**.
+2. **Settings → Build → Variables and Secrets → Add**.
+3. Type **Text**, not Secret — it is not one, and a plain variable can be read
+   back later.
 
    ```
-   CF_BEACON_TOKEN = <the site token>
+   CF_BEACON_TOKEN = <the token from step 1>
    ```
 
-4. Push anything to `main`, or re-run the last deploy. Then check the two
-   places that say whether it worked:
+4. **Save.** Nothing happens yet: a build variable applies to the *next*
+   build.
 
-   ```bash
-   curl -s https://lapledger.org/build-status.txt | sed -n '/measurement/,$p'
-   curl -s https://lapledger.org/ | grep -o 'beacon.min.js[^>]*'
-   ```
+### 3. Deploy, and check it landed
 
-   The first should read `beacon   on — token ……, spa:false`. If it reads
-   `OFF —` with a reason, the variable is malformed and the site deployed
-   without it: the tag is never allowed to fail a deploy, and never allowed to
-   fail silently either `[D-10]`.
+A push to `main` builds and deploys. If the variable was added after the last
+build, no push is needed either — **Deployments → Retry build** on the latest
+one rebuilds the same commit with the new variable.
 
-### 2. Google Search Console
+```bash
+curl -s https://lapledger.org/build-status.txt | sed -n '/measurement/,$p'
+curl -s https://lapledger.org/ | grep -o 'beacon\.min\.js[^>]*'
+```
 
-1. search.google.com/search-console → **Add property → Domain**, enter
-   `lapledger.org`.
-2. It asks for a DNS TXT record. Add it in the Cloudflare dashboard under
-   **DNS → Records**; verification usually passes within a minute or two.
-   A Domain property covers `www`, `http` and every subdomain, which a URL-prefix
-   property does not — prefer it.
-3. **Sitemaps → Add a new sitemap**: `sitemap.xml`. It carries one entry per
-   prerendered page plus the feed, and `prerender.js` writes it fresh on every
-   deploy, so it never needs resubmitting.
+The first should read `beacon   on — token 0a1b2c…, spa:false`, the second
+should show the tag with `"spa":false` in it. What the other answers mean:
 
-   If the DNS is ever somewhere unreachable, the other route is a URL-prefix
-   property verified by a meta tag: set `GOOGLE_SITE_VERIFICATION` as a build
-   variable exactly as above, with the `content` value only — not the whole
-   tag — and `prerender.js` writes it into every page.
+| It says | What happened |
+|---|---|
+| `off — CF_BEACON_TOKEN is not set` | The variable did not reach the build: wrong project, or added after the build ran |
+| `OFF — … is not 8–64 alphanumerics` | More than the token was pasted — the whole tag, stray quotes, a trailing space |
+| no `measurement` block at all | The deploy is still running a `prerender.js` from before this change |
 
-### 3. Wait a fortnight
+A malformed token is never allowed to fail a deploy, and never allowed to fail
+silently either `[D-10]`, which is what that block is.
 
-Search Console backfills nothing. The clock starts when the property
-verifies, not when the pages went up, and the first few days of arrival data
-are worth nothing on their own.
+Then open the site and look at Web Analytics a few minutes later. **Ad
+blockers block `static.cloudflareinsights.com`**, so an empty dashboard after
+your own visit is expected; test from a phone on mobile data before concluding
+anything is broken.
+
+### 4. Google Search Console
+
+No code at all if DNS verification works, and it will.
+
+1. **search.google.com/search-console**, signed in to an account worth
+   keeping: the property belongs to it, and other users can be added later.
+2. Property dropdown, top left → **Add property**.
+3. Two boxes appear. Take the left one, **Domain** — not URL prefix. Enter
+   `lapledger.org`: no `https://`, no `www`. A Domain property covers `www`,
+   `http` and every subdomain, which a URL-prefix property does not.
+4. It gives a TXT record. Copy the whole value, which starts
+   `google-site-verification=`.
+5. dash.cloudflare.com → the **lapledger.org** zone → **DNS → Records → Add
+   record**. Type **TXT**, name `@`, content the pasted value, TTL Auto.
+   **Save.**
+6. Back in Search Console, **Verify**. Usually under a minute; a failure in
+   the first few is DNS propagating, so wait five and try again.
+7. Verified → **Sitemaps → Add a new sitemap**, and type just `sitemap.xml`.
+   It carries one entry per prerendered page plus the feed, and
+   `prerender.js` writes it fresh on every deploy, so it never needs
+   resubmitting.
+
+`GOOGLE_SITE_VERIFICATION` is **not** needed for any of this. It exists for
+the day the DNS is somewhere unreachable: a URL-prefix property verified by a
+meta tag instead, set as a build variable exactly as in step 2, with the
+`content` value only and not the whole tag.
+
+### 5. Wait a fortnight
+
+Search Console backfills nothing. The clock starts when the property verifies,
+not when the pages went up, and the first few days of arrival data are worth
+nothing on their own.
 
 ## The baseline, so the fortnight has something to beat
 
@@ -121,7 +175,14 @@ Every release before 2026-09-14 was private, so the clean window opens there.
 ## The two numbers to read, and what each answers
 
 After a fortnight, read **arrivals by landing page** and **search impressions
-by query**. Between them they close out this item:
+by query**. Where each one is:
+
+- Cloudflare → **Web Analytics → lapledger.org**, broken down by **Path** for
+  the landing pages and by **Referrer** for how they got there.
+- Search Console → **Performance**, the *Queries* tab for impressions by
+  query and the *Pages* tab for which page each one showed.
+
+Between them they close out this item:
 
 - **Any organic arrival on a deep page** — a driver, a race, a season, not the
   home page — is the site working as designed. Every page on this site is
