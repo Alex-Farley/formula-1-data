@@ -410,6 +410,16 @@ describe('the weekend timetable', () => {
       'and so does one whose timetable cannot be read',
     )
     assert.equal(
+      eventDay([{ kind: 'race', start_utc: null, zone: 'America/Los_Angeles' }], '2026-11-22'),
+      '2026-11-22',
+      'a null start is not the epoch',
+    )
+    assert.equal(
+      eventDay([{ kind: 'race', start_utc: '2026-11-22T04:00Z', zone: 'Mars/Olympus_Mons' }], '2026-11-22'),
+      '2026-11-22',
+      'and a zone nobody knows falls back rather than throwing',
+    )
+    assert.equal(
       eventDay([{ kind: 'race', start_utc: '2026-03-08T04:00Z', zone: 'Australia/Melbourne' }], '2026-03-08'),
       '2026-03-08',
       'a race whose two frames agree states the day both of them hold',

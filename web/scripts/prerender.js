@@ -1709,7 +1709,14 @@ const page = ({
           ['Dates', text(r.dates)],
           ['Format', r.sprint ? 'Sprint weekend' : 'Standard weekend'],
           ...(scheduled
-            ? [['Status', 'Scheduled — not yet run']]
+            ? [[
+                'Status',
+                // The third place this page says it, and it says it in the
+                // same frame as the other two: a round the clock has passed
+                // is still `scheduled`, because no classification is held for
+                // it, but it is not still to come (AF-01).
+                stage === 'awaited' ? 'Scheduled — not yet run' : 'Scheduled — no result recorded yet',
+              ]]
             : [
                 ['Winner', driver(r.winner_id, r.winner)],
                 // The entrant's name where no constructor row exists, the

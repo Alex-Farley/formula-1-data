@@ -134,17 +134,24 @@ export const raceStage = (race, sessions = [], now = Date.now()) => {
 export const eventDay = (sessions = [], fallback = null) => {
   const race = sessions.find((s) => s.kind === 'race')
   if (!race) return fallback
-  const at = new Date(race.start_utc)
-  if (Number.isNaN(at.getTime())) return fallback
-  const parts = new Intl.DateTimeFormat('en-GB', {
-    timeZone: race.zone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(at)
-  const part = (type) => parts.find((p) => p.type === type)?.value
-  const day = `${part('year')}-${part('month')}-${part('day')}`
-  return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : fallback
+  // Date.parse of a null start_utc is NaN where `new Date(null)` would be the
+  // epoch, and an unknown zone throws rather than returning anything: both
+  // fall back, because a fallback is what the line above promises.
+  const at = Date.parse(race.start_utc ?? '')
+  if (!Number.isFinite(at)) return fallback
+  try {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: race.zone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(at)
+    const part = (type) => parts.find((p) => p.type === type)?.value
+    const day = `${part('year')}-${part('month')}-${part('day')}`
+    return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : fallback
+  } catch {
+    return fallback
+  }
 }
 
 /** The columns both renderers print, in order: the session, the circuit's clock, UTC. */
