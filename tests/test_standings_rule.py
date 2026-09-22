@@ -37,6 +37,8 @@ sys.path.insert(0, os.path.join(ROOT, "tools"))
 
 import standings_rule  # noqa: E402
 
+import build  # noqa: E402
+
 
 class PlantedInACopy(unittest.TestCase):
     def setUp(self):
@@ -147,6 +149,108 @@ class TheDeclarationsAreRead(PlantedInACopy):
             self.assertTrue(
                 [v for v in bad if v["table_type"] == table and v["year"] < floor],
                 f"{table}'s floor of {floor} is later than the evidence for it")
+
+
+class OnlyARepeatedRoundIsCorrected(PlantedInACopy):
+    """The build path, which is where the correction lives.
+
+    The first version of these tests called `violations()` only, which by
+    construction never reads a stored previous row - so the test named for
+    the previous-row defect could not have caught it (review finding, #583).
+    These drive `build.py`'s own function against a planted database.
+    """
+
+    class _Build:
+        """What the correction reads of the build: a cursor and a connection."""
+
+        def __init__(self, con):
+            self.con = con
+            self.cur = con.cursor()
+
+    def correct(self):
+        return build._correct_standings_the_results_contradict(self._Build(self.con))
+
+    def points(self, year, table, entity, rnd):
+        return self.con.execute(
+            "SELECT points FROM standings WHERE year=? AND table_type=? AND "
+            "entity_id=? AND after_round=?", (year, table, entity, rnd)).fetchone()[0]
+
+    def test_a_repeated_round_is_put_back_on_the_results(self):
+        self.freeze(2026, "constructors", 14, 13)
+        self.assertGreaterEqual(self.correct(), 7)
+        self.assertAlmostEqual(self.points(2026, "constructors", "mercedes", 14),
+                               503.0, places=3)
+
+    def test_two_stale_rounds_are_each_their_own_sum(self):
+        """The defect the previous-row arithmetic produced: round 14 built on
+        a corrected round 13 rather than on the results, and Ferrari settled
+        on 350 where the results give 358."""
+        self.freeze(2026, "constructors", 13, 12)
+        self.freeze(2026, "constructors", 14, 13)
+        self.correct()
+        self.assertAlmostEqual(self.points(2026, "constructors", "ferrari", 13),
+                               346.0, places=3)
+        self.assertAlmostEqual(self.points(2026, "constructors", "ferrari", 14),
+                               358.0, places=3)
+
+    def test_the_published_figure_is_filed_once_and_as_published(self):
+        # The copy already carries the row this build filed for real, so it
+        # is what the correction ADDS that is counted.
+        self.con.execute("DELETE FROM discrepancies WHERE subject='2026 round 14'")
+        self.con.commit()
+        self.freeze(2026, "constructors", 14, 13)
+        self.correct()
+        rows = self.con.execute(
+            "SELECT stored_value, derived_value FROM discrepancies "
+            "WHERE subject='2026 round 14'").fetchall()
+        self.assertEqual(len(rows), 1, "the round was filed more than once")
+        self.assertIn("mercedes 468", rows[0][0])
+        self.assertIn("mercedes 503", rows[0][1])
+
+    def test_an_undeclared_deduction_stops_the_build(self):
+        """A points deduction arriving without a declaration is somebody's
+        decision, not a stale file. The first version overwrote it with this
+        build's arithmetic and filed the real figure as the error."""
+        self.con.execute(
+            "UPDATE standings SET points = points - 10 WHERE year=2026 AND "
+            "table_type='constructors' AND entity_id='ferrari' AND after_round=14")
+        self.con.commit()
+        with self.assertRaises(SystemExit) as stop:
+            self.correct()
+        self.assertIn("ferrari", str(stop.exception))
+        self.assertIn("STANDINGS_ADJUSTMENTS", str(stop.exception))
+
+    def test_a_current_row_that_is_ahead_is_not_pulled_backwards(self):
+        """The carry follows a `current` row that repeated the same stale
+        figure. Any other value is left alone and said out loud - writing the
+        latest round over it in either direction would turn a build stop into
+        a silently shipped stale figure."""
+        self.freeze(2026, "constructors", 14, 13)
+        self.con.execute(
+            "UPDATE standings SET points = 999 WHERE year=2026 AND "
+            "table_type='constructors' AND entity_id='mercedes' "
+            "AND after_round IS NULL AND as_of='current'")
+        self.con.commit()
+        self.correct()
+        self.assertEqual(
+            self.con.execute(
+                "SELECT points FROM standings WHERE year=2026 AND "
+                "table_type='constructors' AND entity_id='mercedes' "
+                "AND after_round IS NULL AND as_of='current'").fetchone()[0],
+            999.0, "a 'current' row that was not the stale figure was overwritten")
+
+    def test_a_round_the_results_do_not_reach_stops_it(self):
+        """A table published ahead of the results cannot be checked against
+        them, and a round that cannot be checked is one the rule can never
+        refuse."""
+        self.con.execute("DELETE FROM race_entries WHERE race_id IN "
+                         "(SELECT id FROM races WHERE year=2026 AND round=14)")
+        self.con.execute("DELETE FROM sprint_results WHERE race_id IN "
+                         "(SELECT id FROM races WHERE year=2026 AND round=14)")
+        self.con.commit()
+        with self.assertRaises(SystemExit) as stop:
+            self.correct()
+        self.assertIn("round 14", str(stop.exception))
 
 
 class TheToolSaysSo(PlantedInACopy):

@@ -61,33 +61,54 @@ _MULTI_ENGINE = """
 
 
 class Unmappable(Exception):
-    """A standings entity with no results under its own id and no alias.
+    """A standings row the derivation cannot reach, which is therefore a row
+    this check can never fail for however wrong it is.
 
-    Raised rather than skipped: an entity the derivation cannot see is one
-    this check can never fail for, whatever its figures say, and 104 rows sat
-    in exactly that state (review finding, #583).
+    Three shapes, all raised rather than skipped, because each of them was a
+    silent skip once and 104 rows sat in the first of them (review findings,
+    #583):
+
+      an entity with no results under its own id and no alias;
+      a standings round with no results at all, which is a table published
+        ahead of the results this database holds;
+      nothing else - an entity that simply never scored derives 0, which is a
+        figure and not an absence.
     """
 
 
 def _running_totals(con, table):
-    """(year, entity, round) -> the sum of rounds 1..round."""
-    per_round = {}
+    """(year, entity, round) -> the sum of rounds 1..round, and the rounds
+    each season has results for.
+
+    Every entity that appears in a season's results gets a total for every
+    round of it, zero included: an entity that has not scored yet derives 0,
+    and skipping it was how 454 constructor rows went unchecked.
+    """
+    per_round, rounds, entities = {}, {}, {}
+    # The rounds come from the races that have results, not from the points:
+    # a 1958 round whose entries name no constructor produces no points row
+    # and is still a round that was run, and reading the rounds off the
+    # points made the rule refuse it as "published ahead of the results".
+    for y, rnd in con.execute(
+            """SELECT DISTINCT r.year, r.round FROM races r
+                 WHERE EXISTS (SELECT 1 FROM race_entries e WHERE e.race_id = r.id)
+                    OR EXISTS (SELECT 1 FROM sprint_results s WHERE s.race_id = r.id)"""):
+        rounds.setdefault(y, set()).add(rnd)
     for y, rnd, ent, p in con.execute(
             f"SELECT y, rnd, ent, SUM(p) FROM ({_ROUND_POINTS[table]}) "
             "GROUP BY y, rnd, ent"):
-        if ent is not None:
-            per_round[(y, rnd, ent)] = p or 0.0
-    rounds = sorted({(y, rnd) for (y, rnd, _) in per_round})
-    totals, seen = {}, {}
-    for y, rnd in rounds:
-        for (yy, rr, ent), p in list(per_round.items()):
-            if (yy, rr) != (y, rnd):
-                continue
-            seen[(y, ent)] = seen.get((y, ent), 0.0) + p
-        for (yy, ent), tot in seen.items():
-            if yy == y:
-                totals[(y, rnd, ent)] = tot
-    return totals
+        if ent is None:
+            continue
+        per_round[(y, rnd, ent)] = p or 0.0
+        entities.setdefault(y, set()).add(ent)
+    totals = {}
+    for y, in_season in rounds.items():
+        for ent in entities.get(y, ()):
+            run = 0.0
+            for rnd in sorted(in_season):
+                run += per_round.get((y, rnd, ent), 0.0)
+                totals[(y, rnd, ent)] = run
+    return totals, rounds
 
 
 def expected(derived, adjustment, rnd):
@@ -112,8 +133,8 @@ def violations(con, floors=None, adjustments=None, aliases=None):
         floor = floors.get(table)
         if floor is None:
             continue
-        totals = _running_totals(con, table)
-        scored_in = {(y, ent) for (y, _r, ent) in totals}
+        totals, rounds = _running_totals(con, table)
+        in_season = {(y, ent) for (y, _r, ent) in totals}
         for year, ent, engine, rnd, pts in con.execute(
                 """SELECT year, entity_id, engine_id, after_round, points
                      FROM standings
@@ -123,16 +144,21 @@ def violations(con, floors=None, adjustments=None, aliases=None):
             if year < floor or (table == "constructors" and (year, ent) in multi):
                 continue
             who = aliases.get((table, year, ent), ent)
-            if (year, who) not in scored_in:
+            if (year, who) not in in_season:
                 raise Unmappable(
                     f"{year} {table} '{ent}' has a championship table and no "
                     f"result rows under that id. Either the results name it "
                     f"something else - add it to STANDINGS_ENTITY_ALIASES in "
                     f"data/current.py with the reason - or the results are "
                     f"missing, which is the larger problem.")
-            derived = totals.get((year, rnd, who))
-            if derived is None:
-                continue                  # the round itself has no results yet
+            if rnd not in rounds.get(year, ()):
+                raise Unmappable(
+                    f"{year} {table} stands after round {rnd} and this "
+                    f"database holds no results for that round. A table "
+                    f"published ahead of the results cannot be checked "
+                    f"against them, and a round that cannot be checked is one "
+                    f"this rule can never refuse.")
+            derived = totals[(year, rnd, who)]
             want = expected(derived, adjustments.get((table, year, ent)), rnd)
             if abs(pts - want) > TOLERANCE:
                 out.append({

@@ -960,12 +960,16 @@ STANDINGS_ENTITY_ALIASES = {
 STANDINGS_ADJUSTMENTS = {
     ("constructors", 1995, "benetton"): (2, -10.0, (
         "Both cars were excluded from the Brazilian Grand Prix result over a "
-        "fuel sample and the constructors' points went with them, while the "
-        "drivers kept theirs on appeal - so the constructors' table runs 10 "
-        "behind the sum of its cars' points for the rest of the season.")),
+        "fuel sample. The drivers' points were restored on appeal and the "
+        "constructors' were not, so the table runs 10 behind the sum of its "
+        "cars' points for the rest of the season. From round 2 and not round "
+        "1 because F1DB publishes no round-1 table for either team - the "
+        "classification they were excluded from is the one that would have "
+        "been round 1's.")),
     ("constructors", 1995, "williams"): (2, -6.0, (
-        "The same Brazilian Grand Prix decision: Coulthard's six "
-        "constructors' points were not restored when his own were.")),
+        "The same Brazilian Grand Prix decision and the same missing round-1 "
+        "table: Coulthard's six constructors' points were not restored when "
+        "his own were.")),
     ("constructors", 2000, "mclaren"): (10, -10.0, (
         "Hakkinen's Austrian Grand Prix win was struck from the "
         "constructors' championship after a seal was found missing from the "
@@ -997,6 +1001,15 @@ STANDINGS_ADJUSTMENTS = {
 # modern hides here - but a constructor that changes engine mid-season takes
 # its whole season out of the rule, which is a gap worth knowing about rather
 # than one this file can close.
-STANDINGS_MULTI_ENGINE_UNCHECKED = (
-    "a chassis-engine pair's share of a round's points is not recoverable "
-    "from race_entries, which names no engine")
+# Pinned, because an exemption that can quietly grow is one nobody notices
+# growing: verify.py fails if these stop being the figures, and a constructor
+# that takes a second engine mid-season therefore arrives as a failed check
+# and a decision rather than as 20-odd rows leaving the rule in silence. The
+# five from 1979 are 1982 Brabham, 1983 Lotus, 1983 Williams, 1984 Arrows and
+# 1985 Tyrrell.
+STANDINGS_MULTI_ENGINE_UNCHECKED = {
+    "why": ("a chassis-engine pair's share of a round's points is not "
+            "recoverable from race_entries, which names no engine"),
+    "entity_seasons": 20,
+    "rows": 352,
+}
