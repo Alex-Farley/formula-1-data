@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
+import Outline from '../components/Outline.jsx'
 import { Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
@@ -8,8 +9,17 @@ import { currentProgress } from '../data/client.js'
 import { rows as pick, useQueries } from '../data/useQuery.js'
 import { anyThisSeason, calendarLabel, seasonOf } from '../lib/season.js'
 import { TRACE_COLUMN_UNKNOWN, TRACE_NOT_LOADED, traceRegisterNote } from '../lib/trace.js'
+import { OUTLINE_REGISTER_NOTE } from '../lib/outline.js'
 import { oneOf, useUrlState } from '../lib/urlstate.js'
-import { CIRCUITS, CIRCUIT_COLUMNS, CIRCUITS_FOOTER, TRACED } from '../queries/circuits.js'
+import {
+  CIRCUITS,
+  CIRCUIT_COLUMNS,
+  CIRCUITS_FOOTER,
+  NO_SHAPES,
+  REGISTER_OUTLINES,
+  SHAPES,
+  TRACED,
+} from '../queries/circuits.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
 import { NAMES } from '../lib/site.js'
@@ -64,16 +74,18 @@ const TRACES = `
 `
 
 export default function Circuits() {
-  const state = useQueries({ register: [CIRCUITS], traces: [TRACES] })
+  const state = useQueries({ register: [CIRCUITS], traces: [TRACES], shapes: [REGISTER_OUTLINES] })
   return (
     <Page
       title={NAMES.circuits().headline}
       documentName={NAMES.circuits().title}
       trail={TRAIL.circuits()}
-      lede="Eighty venues, from airfield perimeters to street courses laid out for a single season. Sorted by races held: open one for how its shape changed, who has won there most, and every Grand Prix it has staged."
+      lede="Eighty venues, from airfield perimeters to street courses laid out for a single season. Drawn below, then listed by races held: open one for how its shape changed, who has won there most, and every Grand Prix it has staged."
     >
       <Result state={state} skeleton>
-        {(data) => <Register rows={pick(data, 'register')} traces={pick(data, 'traces')} />}
+        {(data) => (
+          <Register rows={pick(data, 'register')} traces={pick(data, 'traces')} shapes={pick(data, 'shapes')} />
+        )}
       </Result>
 
       <Onward {...ONWARD.circuits()} />
@@ -95,7 +107,7 @@ export default function Circuits() {
  * venues, so one predicate settles both, and the bar is above the first thing
  * it moves.
  */
-function Register({ rows, traces }) {
+function Register({ rows, traces, shapes }) {
   // IA-19: the same question the other three registers ask, in the same
   // words - but a toggle rather than a fifth chip, because the chip group
   // here is the type axis and IX-35 is the record of what happens when a
@@ -164,6 +176,15 @@ function Register({ rows, traces }) {
     return traces.filter((trace) => ids.has(trace.circuit_id))
   }, [filtered, traces])
 
+  // VD-50: the same take as the cards above, on the same ids. 79 of the 80
+  // venues have an F1DB outline, so with nothing filtered the count reads
+  // "79 of 80" - the venue without one is in the table below like every
+  // other, and the figure says so rather than the grid quietly being short.
+  const drawn = useMemo(() => {
+    const ids = new Set(filtered.map((row) => row.id))
+    return shapes.filter((shape) => ids.has(shape.circuit_id))
+  }, [filtered, shapes])
+
   // The five filters as a plural noun phrase, for the empty state (IX-28).
   // The two toggles are their own axis, so they read as trailing clauses
   // rather than as adjectives on the type.
@@ -226,6 +247,33 @@ function Register({ rows, traces }) {
           </Toggle>
         )}
       </Filters>
+
+      {/* VD-50: the register drew nothing at all - 4,838 px of table and no
+          picture of a circuit in it - while the outline it needs was already
+          in f1.db and drawn on four other surfaces. AF-23's argument holds:
+          this is the DRAWING, once per venue, and the cards below carry the
+          measurement the drawing cannot. One card rule and one stroke rule
+          serve both, so a third is not invented here. */}
+      <Section title={SHAPES} count={`${drawn.length} of ${filtered.length}`} note={OUTLINE_REGISTER_NOTE}>
+        {drawn.length > 0 ? (
+          <ul className="lapgrid">
+            {drawn.map((shape) => (
+              <li key={shape.circuit_id}>
+                <Link to={`/circuits/${shape.circuit_id}`} className="lapcard shapecard">
+                  {/* Decorative: the link's own name says which circuit this
+                      is, and an outline announcing itself beside it would be
+                      the name twice. */}
+                  <Outline path={shape.path} decorative />
+                  <b>{shape.name}</b>
+                  <span>{shape.country}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="state is-empty">{NO_SHAPES}</p>
+        )}
+      </Section>
 
       <Section title="The traced centrelines" count={overlay ? `${shown.length} of ${filtered.length}` : null}>
         {/* One credit for the set, from the rows themselves: every row of
