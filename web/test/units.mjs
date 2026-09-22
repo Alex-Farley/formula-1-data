@@ -19,6 +19,7 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
 import { MIN_ROWS, cellText, shared, sharedLine } from '../src/lib/table.js'
+import { captureStaticTables, staticRows } from '../src/lib/handover.js'
 
 import {
   fieldText,
@@ -1515,5 +1516,102 @@ describe('a table as a file (IX-26)', () => {
     assert.equal(fileName('Drivers', undefined, 'csv'), 'lap-ledger-drivers.csv')
     assert.equal(fileName(undefined, '3.4.0', 'csv'), 'lap-ledger-table-v3.4.0.csv')
     assert.equal(fileName('Monza — every race', '3.4.0', 'csv'), 'lap-ledger-monza-every-race-v3.4.0.csv')
+  })
+})
+
+/**
+ * What the static page drew, so the handover does not take it away (IX-19).
+ *
+ * A DOM of three objects rather than a browser: captureStaticTables() asks a
+ * document for #prerendered, its tables, each table's <caption> and each
+ * table's <tbody> rows, and that is the whole of its contract with the page.
+ * The duplicate-caption branch cannot be reached from any page this site
+ * builds - no prerendered page has two tables under one heading - so a unit
+ * case is the only thing that can hold it.
+ */
+describe('the rows the static page drew (IX-19)', () => {
+  const fakeTable = (caption, rows) => ({
+    querySelector: (selector) => (selector === 'caption' && caption !== null ? { textContent: caption } : null),
+    querySelectorAll: () => ({ length: rows }),
+  })
+  const stand = (pathname, tables, run) => {
+    const hadDocument = 'document' in globalThis
+    const hadLocation = 'location' in globalThis
+    const document = globalThis.document
+    const location = globalThis.location
+    globalThis.document = {
+      getElementById: (id) => (id === 'prerendered' ? { querySelectorAll: () => tables } : null),
+    }
+    globalThis.location = { pathname }
+    try {
+      run()
+    } finally {
+      if (hadDocument) globalThis.document = document
+      else delete globalThis.document
+      if (hadLocation) globalThis.location = location
+      else delete globalThis.location
+    }
+  }
+
+  it('counts each static table under the name its caption gives', () => {
+    stand('/drivers', [fakeTable('Drivers', 862)], () => {
+      captureStaticTables()
+      assert.equal(staticRows('Drivers'), 862)
+    })
+  })
+
+  it('reads a caption and a heading that differ only in whitespace as one name', () => {
+    stand('/cars', [fakeTable('\n  The chassis register\n', 1182)], () => {
+      captureStaticTables()
+      assert.equal(staticRows('The chassis register'), 1182)
+    })
+  })
+
+  it('seeds nothing for a table the static half did not draw', () => {
+    stand('/records', [fakeTable('The most wins', 25)], () => {
+      captureStaticTables()
+      assert.equal(staticRows('The most poles'), 0)
+      // A table with no name at all asks for nothing rather than for the
+      // first table on the page.
+      assert.equal(staticRows(undefined), 0)
+      assert.equal(staticRows(null), 0)
+    })
+  })
+
+  it('drops a name that named two tables rather than seeding the wrong one', () => {
+    stand('/somewhere', [fakeTable('Every entry', 40), fakeTable('Every entry', 900)], () => {
+      captureStaticTables()
+      assert.equal(staticRows('Every entry'), 0)
+    })
+  })
+
+  it('stops once the reader is on another route, and holds across a query string', () => {
+    stand('/drivers', [fakeTable('Drivers', 862)], () => {
+      captureStaticTables()
+      globalThis.location = { pathname: '/drivers' }
+      assert.equal(staticRows('Drivers'), 862)
+      // A filter or a sort is the reader's own doing, and the rows they had
+      // stay available to them.
+      globalThis.location = { pathname: '/drivers', search: '?kind=champions' }
+      assert.equal(staticRows('Drivers'), 862)
+      globalThis.location = { pathname: '/drivers/senna' }
+      assert.equal(staticRows('Drivers'), 0)
+    })
+  })
+
+  it('a route with no static page records no arrival, and leaves one that had', () => {
+    stand('/drivers', [fakeTable('Drivers', 862)], () => {
+      captureStaticTables()
+      // A route the build does not prerender: #prerendered is not there, the
+      // capture finds nothing, and it must return before recording the route
+      // it was called on - or the register it counted a moment ago is filed
+      // under the wrong page and seeds nothing when the reader reaches it.
+      globalThis.document = { getElementById: () => null }
+      globalThis.location = { pathname: '/reference/sql' }
+      captureStaticTables()
+      assert.equal(staticRows('The result of your query'), 0)
+      globalThis.location = { pathname: '/drivers' }
+      assert.equal(staticRows('Drivers'), 862)
+    })
   })
 })

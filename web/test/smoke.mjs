@@ -706,6 +706,62 @@ try {
     )
     await clicked.close()
 
+    /*
+     * And the rows themselves (IX-19). The static /drivers is every one of the
+     * 862; the app pages the register at 150, so the handover used to end a
+     * table the reader had scrolled into at row 150 and say nothing. What has
+     * to hold is that the app opens on at least what the static page drew —
+     * counted from the static table itself rather than from a number written
+     * here, because the register grows.
+     */
+    const register = await fresh('/drivers')
+    const staticRows = await register.evaluate(() => {
+      const table = document.querySelector('#prerendered table')
+      return table ? table.querySelectorAll('tbody tr').length : 0
+    })
+    atLeast(staticRows, 200, 'the static register draws its rows before the database opens')
+    await register.waitForFunction(() => !document.getElementById('prerendered'), null, { timeout: 60000 })
+    await register.waitForSelector('#root main .table-wrap', { timeout: 20000 })
+    const appShown = await register.evaluate(
+      () => Number(document.querySelector('#root main .table-wrap')?.dataset.shown),
+    )
+    atLeast(
+      appShown,
+      staticRows,
+      `the app takes over without deleting rows — ${appShown} drawn where the static page drew ${staticRows}`,
+    )
+    await register.close()
+
+    /*
+     * And the other half of it: the table still collapses, by the reader's
+     * hand. /races is the one static table that is a declared leading slice -
+     * its lede says the 200 most recently run - so a seeded /races opens on
+     * 200 of its rows with "Show the remaining" under it for the rest. A
+     * seeded table that had lost that button would have taken the reader's
+     * way to the whole register with it.
+     */
+    const sliced = await fresh('/races')
+    const slice = await sliced.evaluate(() => {
+      const table = document.querySelector('#prerendered table')
+      return table ? table.querySelectorAll('tbody tr').length : 0
+    })
+    await sliced.waitForFunction(() => !document.getElementById('prerendered'), null, { timeout: 60000 })
+    await sliced.waitForSelector('#root main .table-wrap', { timeout: 20000 })
+    const race = await sliced.evaluate(() => {
+      const wrap = document.querySelector('#root main .table-wrap')
+      return {
+        total: Number(wrap?.dataset.rows),
+        shown: Number(wrap?.dataset.shown),
+        more: wrap?.querySelector('.table-foot button.more')?.textContent.trim() ?? '',
+      }
+    })
+    is(race.shown, slice, `a static table that is a declared slice seeds that slice — ${slice} of ${race.total}`)
+    truthy(
+      race.more.startsWith('Show the remaining'),
+      `and the rest is still the reader's to ask for — “${race.more}”`,
+    )
+    await sliced.close()
+
     // Every section after this one drives the shared page, which has been in
     // the background throughout.
     await page.bringToFront()
