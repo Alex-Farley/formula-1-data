@@ -44,7 +44,8 @@ BUILD_DB = DB + ".tmp"
 # Bumping this for a release means bumping `version` in CITATION.cff too:
 # that is the citation GitHub hands a reader, nothing downstream reads it
 # back, and a citation naming a version this repository does not build is
-# invisible. tests/test_conventions.py fails the build when the two drift.
+# invisible. tests/test_conventions.py fails `make ci` and CI's check job
+# when the two drift.
 VERSION = "2.24"
 
 # The build date, as a CONSTANT and deliberately not date.today().

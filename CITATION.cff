@@ -9,10 +9,10 @@
 #     "Cite this repository" button from this file, in BibTeX and APA.
 #
 #     `version` below is VERSION in build.py. It is not copied by hand and
-#     left to rot: tests/test_conventions.py fails the build when the two
-#     drift, the same way a README figure that disagrees with the database
-#     does. Bumping VERSION for a release means bumping it here, and the
-#     comment beside VERSION says so.
+#     left to rot: tests/test_conventions.py fails `make ci` and CI's
+#     check job when the two drift, the same way a README figure that
+#     disagrees with the database does. Bumping VERSION for a release
+#     means bumping it here, and the comment beside VERSION says so.
 #
 # WHAT THIS FILE DELIBERATELY DOES NOT SAY
 #     **No `license:`.** CFF's licence list is OR, not AND: "when there are
