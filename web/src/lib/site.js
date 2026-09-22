@@ -64,8 +64,11 @@ export const ENTRIES_NOTE =
  * It says "this tab" rather than "your browser", which is what the static
  * footer used to say, because that is the claim this site can keep: there is
  * no service worker here, so a second tab opened without a network has
- * nothing to render. It is also the phrasing the home page, /data and the SQL
- * console already use.
+ * nothing to render. It is also the phrasing the home page and /data already
+ * use. The SQL console deliberately keeps "your own browser" in its Note,
+ * because that sentence is about where the copy of the database lives - the
+ * browser store data/cache.js writes - and not about which tab survives a
+ * network loss.
  */
 export const IN_THIS_TAB =
   'Every page here is a query against one SQLite file, running in this tab. Nothing you look at ' +
