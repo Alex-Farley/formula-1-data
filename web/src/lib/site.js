@@ -161,10 +161,11 @@ export const ENTRIES_NOTE =
  *     this sentence is wrong before the next deploy finishes.
  */
 export const IN_THIS_TAB =
-  'Every page here is a query against one SQLite file, running in this tab: what you search for, ' +
-  'sort or type is never sent anywhere. What leaves is a cookieless count of the page you arrived ' +
-  'on, and the photographs, fetched from Wikimedia Commons as you reach them. Once it has loaded, ' +
-  'this tab keeps working without a network.'
+  'Every page here is a query against one SQLite file, running in this tab: nothing you search ' +
+  'for, sort or type is sent as you do it. What leaves is a cookieless count of each page you ' +
+  'open, and the photographs, fetched from Wikimedia Commons as you reach them. A search, a ' +
+  'filter or a SQL statement is kept in the address, so opening or reloading one of those counts ' +
+  'it with the page. Once it has loaded, this tab keeps working without a network.'
 
 /**
  * What an em dash in a cell means, and where the career totals come from.

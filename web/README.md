@@ -8,7 +8,8 @@ from the command line.
 There is no server, no API and no build step on the data. That is the point:
 the database is already a single self-contained file, so the front end is a
 static site that can be dropped on GitHub Pages, Netlify, Vercel or an S3
-bucket and will work. Nothing you query leaves the tab.
+bucket and will work. Nothing you query leaves the tab as you type it; the statement is kept in
+the address, which is what the arrival count sees (`docs/MEASUREMENT.md`).
 
 Every route is also written out as a real HTML file at build time, straight
 from the database, so each page has its own URL, title and content whether or

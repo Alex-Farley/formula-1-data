@@ -2876,7 +2876,7 @@ const page = ({
         trusted for, and what each licence cost or bought.</p>
       <h2>Ask it something</h2>
       <p class="measure">${link('data/sql', 'The SQL console')} runs any read against the whole database in your
-        browser. Nothing you type is sent anywhere, and a query&rsquo;s address is a link to it.</p>
+        browser &mdash; and a query&rsquo;s address is a link to it.</p>
       <p class="measure">Where a view exists, start from it. <code>standings</code> keeps a row after every round
         and more than one source&rsquo;s reading of each, so the obvious query over it answers with the season
         several times over. <code>v_standings_final</code> folds both away: the end-of-season rows, one
@@ -2962,14 +2962,15 @@ const page = ({
     path: 'data/sql',
     title: NAMES.sql().title,
     description:
-      'Run your own SQL against the whole database in your browser. Nothing you type is sent anywhere; the query runs in this tab.',
+      'Run your own SQL against the whole database in your browser: it runs in this tab, and a query&rsquo;s address is a link you can share.',
     trail: TRAIL.sql(),
     onward: ONWARD.sql(),
     body: `
       <h1>${esc(NAMES.sql().headline)}</h1>
       <p class="lede">Every page on this site is a query against one SQLite file. Here you write
         your own: SQLite compiled to WebAssembly, running against the database file in your own
-        browser. Nothing you type is sent anywhere.</p>
+        browser. Nothing you type is sent as you write it; the statement is kept in the address,
+        so a link you share or reload carries it.</p>
       <!-- The JavaScript requirement belongs to the reader who has none. As a
            lede it was the whole visible prose of this page whenever the
            database failed to open, which diagnosed the one failure that had
