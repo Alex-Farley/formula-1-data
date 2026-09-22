@@ -88,7 +88,7 @@ import { PIT_COLUMNS, driverName, fastestLapMark, inClassificationOrder, outcome
 import { RACE_COLUMNS, raceWinnerHere } from '../src/queries/circuit.js'
 import { SEASON_COLUMNS as TEAM_SEASON_COLUMNS } from '../src/queries/constructor.js'
 import { constructorSeasons } from '../src/queries/constructor.js'
-import { NOT_YET_RUN } from '../src/lib/site.js'
+import { DIGEST_NOTE, NOT_YET_RUN, citation } from '../src/lib/site.js'
 import { seasonComplete, seasonHeading, seasonStrip, stillToRunNote } from '../src/queries/home.js'
 import {
   LIVERIES,
@@ -1593,8 +1593,9 @@ describe('a table as a file (IX-26)', () => {
   it('names the file for the table and the database version that fixes its figures', () => {
     assert.equal(fileName('Drivers', '3.4.0', 'csv'), 'lap-ledger-drivers-v3.4.0.csv')
     assert.equal(fileName('The result of your query', '3.4.0', 'csv'), 'lap-ledger-the-result-of-your-query-v3.4.0.csv')
-    // The version is what a citation rests on, but a table must still be
-    // takeable before the manifest has arrived.
+    // A citation rests on the digest (SD-24) and a filename cannot carry
+    // one, but a table must still be takeable before the manifest has
+    // arrived at all.
     assert.equal(fileName('Drivers', undefined, 'csv'), 'lap-ledger-drivers.csv')
     assert.equal(fileName(undefined, '3.4.0', 'csv'), 'lap-ledger-table-v3.4.0.csv')
     assert.equal(fileName('Monza — every race', '3.4.0', 'csv'), 'lap-ledger-monza-every-race-v3.4.0.csv')
@@ -1813,5 +1814,40 @@ describe("the home page's season block (PD-48)", () => {
   it('hands the reader on by name when the season is over', () => {
     assert.equal(seasonComplete(2026), 'Every round of the 2026 season has been run.')
     assert.equal(seasonHeading(2026), 'The 2026 season')
+  })
+})
+
+/**
+ * The two sentences that name the file a reader is looking at (SD-24).
+ *
+ * The citation used to end "the version and build date fix which figures you
+ * saw", and two different databases were both v2.24 built 2026-09-16 on the
+ * day that was measured. The digest is what makes the sentence true, so a
+ * citation without one is not a weaker citation - it is the old claim back.
+ *
+ * DIGEST_NOTE is held here because both renderers split it on the literal
+ * "SHA256SUMS" to hang the link on, and the failure is silent and different
+ * in each: Data.jsx indexes [1] and would render `undefined`, and the
+ * prerenderer's join() would emit the sentence with no link at all, or two.
+ */
+describe('the sentences that name the file (SD-24)', () => {
+  it('puts the digest in the citation, between the build date and the address', () => {
+    const text = citation('2.24', '2026-09-16', 'dcb3f6b98aebba26', 'https://lapledger.org/drivers/senna')
+    assert.match(text, /database v2\.24 built 2026-09-16, digest dcb3f6b98aebba26, https:\/\/lapledger\.org\/drivers\/senna\./)
+    // The address appears once, because both renderers split the sentence on
+    // it to mark the URL up.
+    assert.equal(text.split('https://lapledger.org/drivers/senna').length, 2)
+  })
+
+  it('does not tell a reader the version and the build date fix the figures', () => {
+    const text = citation('2.24', '2026-09-16', 'dcb3f6b98aebba26', 'https://lapledger.org/')
+    assert.doesNotMatch(text, /version and build date fix/)
+  })
+
+  it('names SHA256SUMS once in the digest note, so each renderer can link it', () => {
+    const parts = DIGEST_NOTE.split('SHA256SUMS')
+    assert.equal(parts.length, 2)
+    assert.notEqual(parts[0].trim(), '')
+    assert.notEqual(parts[1].trim(), '')
   })
 })

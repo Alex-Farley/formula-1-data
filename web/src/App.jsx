@@ -207,6 +207,10 @@ function Footer() {
           <dd>v{manifest?.version ?? '—'}</dd>
           <dt>Built</dt>
           <dd>{manifest?.built ?? '—'}</dd>
+          <dt>Digest</dt>
+          <dd>
+            <code>{manifest?.digest ?? '—'}</code>
+          </dd>
           <dt>Size</dt>
           <dd>
             {manifest ? `${(manifest.bytes / 1024 / 1024).toFixed(1)} MB` : '—'}

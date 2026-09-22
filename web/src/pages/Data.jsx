@@ -5,7 +5,7 @@ import SubNav from '../components/SubNav.jsx'
 import { currentProgress } from '../data/client.js'
 import { row, rows, useQueries } from '../data/useQuery.js'
 import { number } from '../lib/format.js'
-import { CROSS_CHECKED, DOCUMENTS, DOCUMENTS_NOTE, NAMES, NOT_HELD, REPOSITORY, SELF_DESCRIBING, TWO_FILES } from '../lib/site.js'
+import { CROSS_CHECKED, DIGEST_NOTE, DOCUMENTS, DOCUMENTS_NOTE, NAMES, NOT_HELD, REPOSITORY, SELF_DESCRIBING, TWO_FILES } from '../lib/site.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
 /**
@@ -165,8 +165,11 @@ function Body({ data }) {
         )}
         {manifest?.digest && (
           <p className="source-note">
-            The first sixteen hex digits of each file&rsquo;s SHA-256, read from the manifest this
-            page loaded the database by. The full digests ship as SHA256SUMS with each release.
+            {DIGEST_NOTE.split('SHA256SUMS')[0]}
+            <a href={`${base}SHA256SUMS`}>
+              <code>SHA256SUMS</code>
+            </a>
+            {DIGEST_NOTE.split('SHA256SUMS')[1]}
           </p>
         )}
       </Section>

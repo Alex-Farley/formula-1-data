@@ -373,7 +373,10 @@ export function Stepper({ previous, next }) {
  */
 export function Cite() {
   const manifest = currentProgress().manifest
-  if (!manifest) return null
+  // No digest, no citation. The aside exists to say which file the figures
+  // came from, and a version and a build date alone do not answer that
+  // (SD-24); an aside that names them anyway is the claim worth withholding.
+  if (!manifest?.digest) return null
   // The address as the browser has it - origin and base included - so a
   // preview cites itself and lapledger.org cites lapledger.org; the static
   // page uses the canonical origin, which on the site is the same string.
@@ -384,7 +387,7 @@ export function Cite() {
   // the head and the address the static half was prerendered at; the filtered
   // view is a way of reading that page, and there are thousands of them.
   const url = `${window.location.origin}${window.location.pathname}`
-  const text = citation(manifest.version, manifest.built, url)
+  const text = citation(manifest.version, manifest.built, manifest.digest, url)
   const [before, after] = text.split(url)
   return (
     <aside className="cite" aria-label="How to cite this page">

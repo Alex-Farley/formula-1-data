@@ -64,6 +64,7 @@ import {
   ABOUT_REPOSITORY,
   COUNTED_TOTALS,
   CROSS_CHECKED,
+  DIGEST_NOTE,
   DOCUMENTS,
   DOCUMENTS_NOTE,
   ENTRIES_NOTE,
@@ -402,6 +403,33 @@ const SPAN = `${SPAN_FROM}–${SPAN_TO}`
 // figures used to be undated until the app took over, so the page Google
 // served carried numbers with no currency statement at all.
 const META = Object.fromEntries(all('SELECT key, value FROM meta').map((r) => [r.key, r.value]))
+
+/*
+ * The digest of the file this page was built from, from the manifest the app
+ * would have loaded it by.
+ *
+ * Neither `meta.version` nor `meta.built` identifies a file. VERSION moves on
+ * a release, BUILT only on a harvest refresh, and the copy this site serves is
+ * rebuilt on every deploy; on 2026-09-21 the served f1.db and the v2.24
+ * release asset both read v2.24 / 2026-09-16 and were not the same database
+ * (SD-24). The digest is, and prepare-assets.js has already computed it into
+ * db-manifest.json - the same string the app's footer and citation read, so
+ * the two renderers cannot disagree about which file they described.
+ *
+ * Fatal rather than degraded, and for the same reason the licence documents
+ * are: `npm run build` is `assets && parquet && vite build && prerender`, so
+ * the only way this file is missing here is a chain that did not run the step
+ * that writes it, and 3,541 pages citing a version-and-date pair that names
+ * two different databases is the state this change exists to end.
+ */
+const manifestPath = join(dist, 'db-manifest.json')
+if (!existsSync(manifestPath)) {
+  die('dist/db-manifest.json not found.\nRun the whole chain:  npm run build')
+}
+const MANIFEST = JSON.parse(readFileSync(manifestPath, 'utf8'))
+if (!MANIFEST.digest || !MANIFEST.sha256) {
+  die('dist/db-manifest.json carries no digest.\nEvery page cites it; prepare-assets.js writes it.')
+}
 
 // ------------------------------------------------------------------- html
 
@@ -752,7 +780,7 @@ const chrome = (body, crumbs, citeUrl) => `
     ${body}
     ${
       citeUrl
-        ? `<aside class="cite" aria-label="How to cite this page"><p>${citation(META.version, META.built, citeUrl)
+        ? `<aside class="cite" aria-label="How to cite this page"><p>${citation(META.version, META.built, MANIFEST.digest, citeUrl)
             .split(citeUrl)
             .map(esc)
             .join(`<span class="url">${esc(citeUrl)}</span>`)}</p></aside>`
@@ -763,7 +791,7 @@ const chrome = (body, crumbs, citeUrl) => `
     <p>${esc(IN_THIS_TAB)} ${esc(COUNTED_TOTALS)} ${link('data/quality', 'How far to trust it')} · ${link('data/sources', 'sources')} · ${link('data/sql', 'write your own query')} · ${link('changes', 'what changed')} · ${link('about', 'who publishes this')}.</p>
     <p>${esc(REPORT_ASK)} <a href="${esc(REPORT_URL)}">${esc(REPORT_LINK)}</a>. ${esc(REPORT_PROMISE)}</p>
     <p class="faint">Race data from <a href="https://github.com/f1db/f1db">F1DB</a> (CC BY 4.0), prose and registers from Wikipedia (CC BY-SA 4.0), circuit geometry © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL 1.0). ${esc(OUTLINE_CREDIT)}. Unaffiliated with Formula One, the FIA or any team.</p>
-  </div><dl><dt>Database</dt><dd>v${esc(META.version)}</dd><dt>Built</dt><dd>${esc(META.built)}</dd></dl></div></footer>
+  </div><dl><dt>Database</dt><dd>v${esc(META.version)}</dd><dt>Built</dt><dd>${esc(META.built)}</dd><dt>Digest</dt><dd><code>${esc(MANIFEST.digest)}</code></dd></dl></div></footer>
 </div>`
 
 /**
@@ -2712,6 +2740,9 @@ const page = ({
         description: CROSS_CHECKED,
         url: `${ORIGIN}${href('data')}`,
         version: META.version,
+        // The one field in here that names a file rather than a release. A
+        // consumer that pinned `version` alone pinned nothing (SD-24).
+        identifier: `sha256:${MANIFEST.sha256}`,
         dateModified: META.built,
         temporalCoverage: String(META.coverage_seasons ?? '').replace('-', '/'),
         license: 'https://creativecommons.org/licenses/by-sa/4.0/',
@@ -2751,6 +2782,13 @@ const page = ({
       <p class="faint">Two JSON exports — <code>f1_database.json.gz</code>, every table, and
         <code>f1_compat.json</code>, the original v1 key layout — are written by the same build
         and travel with each release rather than being served from here.</p>
+      ${fields([
+        ['f1.db digest', `<code>${esc(MANIFEST.digest)}</code>`],
+        ['f1-geometry.db digest', MANIFEST.geometry?.digest ? `<code>${esc(MANIFEST.geometry.digest)}</code>` : null],
+      ])}
+      <p class="source-note">${DIGEST_NOTE.split('SHA256SUMS')
+        .map(esc)
+        .join(`<a href="${esc(href('SHA256SUMS'))}"><code>SHA256SUMS</code></a>`)}</p>
       <h2>What explains it</h2>
       <ul class="cards">
         ${DOCUMENTS.map(([file, what]) => `<li><a href="${esc(href(file))}"><code>${esc(file)}</code></a> — ${esc(what)}</li>`).join('')}

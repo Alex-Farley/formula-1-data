@@ -150,10 +150,48 @@ export const COUNTED_TOTALS =
  * How to cite a page. The page is named by its address, not its title: the
  * app and the static page have titled the same route differently since the
  * prerenderer was written, and a citation is the one place that difference
- * must not show. The version and build date fix which figures were seen.
+ * must not show.
+ *
+ * The digest is here because the version and the build date are not an
+ * identity. `VERSION` moves on a release and `BUILT` only on a harvest
+ * refresh, while the file this site serves is rebuilt on every deploy: on
+ * 2026-09-21 the site's f1.db and the v2.24 release asset both said
+ * `v2.24, built 2026-09-16` and differed by five columns and 452 row hashes
+ * (SD-24). The sentence this replaced ended "the version and build date fix
+ * which figures you saw", which was the false half of exactly that.
+ *
+ * db-manifest.json's `digest` is the first sixteen hex digits of the SHA-256
+ * of the bytes the reader actually opened, and both renderers read it from
+ * that one file, so a citation cannot name a file the page was not built
+ * from. It is not optional: a citation with no digest is the claim this
+ * change exists to stop making, so the callers withhold the whole aside
+ * rather than print a weaker one.
  */
-export const citation = (version, built, url) =>
-  `Cite this page as Lap Ledger, database v${version} built ${built}, ${url}. The version and build date fix which figures you saw.`
+export const citation = (version, built, digest, url) =>
+  `Cite this page as Lap Ledger, database v${version} built ${built}, digest ${digest}, ${url}. The digest names the exact file the figures came from; a version and a build date alone can name more than one.`
+
+/**
+ * What the digests on `/data` are, said once for the app and the static page.
+ *
+ * It names the site's own SHA256SUMS rather than a release's. The sentence
+ * this replaced sent a reader to the release's list, and following it was a
+ * FAILED: that list digests the release's copies correctly, and the copy
+ * served from here has moved on since the tag (SD-24).
+ *
+ * It does not say "the manifest this page loaded the database by", because the
+ * prerendered half of /data prints this sentence too and has loaded nothing.
+ * Nor does it promise digests of everything served from here: the list names
+ * what it covers, which is the only form of that claim that cannot go stale.
+ *
+ * "SHA256SUMS" appears exactly once, and each renderer links that one
+ * occurrence by splitting on it - held by a unit case in test/units.mjs,
+ * because the failure is silent in both renderers and different in each.
+ */
+export const DIGEST_NOTE =
+  'The first sixteen hex digits of each file\u2019s SHA-256, as db-manifest.json carries them. ' +
+  'SHA256SUMS, beside the files themselves, gives the whole of each and names what it covers; it ' +
+  'is rewritten on every deploy, and the copies attached to a release are digested by that ' +
+  'release\u2019s own list instead.'
 
 /**
  * The download paragraph's two sentences that must not drift between the
@@ -440,8 +478,11 @@ export const ABOUT = [
         'passed every check, so the race record follows a race weekend by a few days rather than ' +
         'by a week. Everything else — the eras, the regulations, the registers, the prose — ' +
         'moves when somebody works on it.',
-      'Every page names the database version it is running on and the date that database was ' +
-        'built, and the version is what fixes which figures you were shown.',
+      'Every page names the database version it is running on, the date that database was built, ' +
+        'and a digest of the file itself. The digest is what fixes which figures you were shown: ' +
+        'the version moves on a release and the build date only when the harvest does, while the ' +
+        'copy this site serves is rebuilt whenever anything changes \u2014 so a version and a date ' +
+        'together can name more than one file, and a digest names one.',
     ],
   },
   {
@@ -449,8 +490,9 @@ export const ABOUT = [
     paragraphs: [
       'The database is a pure function of its sources and a published build script: the same inputs ' +
         'produce the same bytes, which is why the build date inside it is a constant rather than a ' +
-        'timestamp. Every release carries a SHA256SUMS file, so a copy can be checked against the ' +
-        'digests the build produced rather than against this site still being up.',
+        'timestamp. Every release carries a SHA256SUMS file and this site serves one for the copies ' +
+        'it hands out, so a copy can be checked against the digests the build produced rather than ' +
+        'against this site still being up.',
       'The data is offered under CC BY-SA 4.0 and the code under the MIT licence; the circuit ' +
         'centrelines are © OpenStreetMap contributors under ODbL 1.0, and that obligation follows ' +
         'f1-geometry.db alone. So if the person ' +
