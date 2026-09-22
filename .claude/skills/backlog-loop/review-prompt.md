@@ -54,3 +54,50 @@ Then, after a fix, to a fresh Sonnet agent (never the agent that already reviewe
 A confirmation that leads with a sentence instead of a verdict is not a verdict
 and is not interpreted as one: discard it and spawn the pass again, as
 `.claude/skills/backlog-item/SKILL.md` sets out under *Review*.
+
+The respawn changes what is asked for, not what is reviewed. Restating the
+format requirement — even in capitals, with the consequence spelled out — was
+measured not to work `[D-38]`, so **send the same brief the discarded result
+was given, to a fresh agent of the same kind, and replace only the sentences
+that say how to report**. Which brief that is, and which sentences those are,
+depends on which pass preambled:
+
+- a **first pass**: the brief at the top of this file, with its last
+  paragraph — `Return exactly one verdict line first...` — replaced.
+  Everything else goes across unchanged: the worktree, the task, the routes,
+  the "try to disprove" list and the constraints, `Do NOT run npm test` among
+  them.
+- a **confirmation**: the *after a fix* brief above, with its two verdict
+  sentences — `Your first line is the verdict and nothing goes above it...` —
+  replaced. Its commit range, its worktree and what the fix was go across
+  unchanged.
+
+A respawn is the pass that settles the item, so it is briefed no more thinly
+than the one it replaces.
+
+    This replaces the report contract above, and it overrides the *How to
+    report* section of your agent file for this pass only. Your entire reply
+    is ONE line, and it is the verdict: exactly `PASS — safe to merge` or
+    `FAIL — changes required`. No summary, no preamble, no findings, no
+    closing note, nothing above it and nothing below it. Do the review in
+    full; report only its conclusion — the review is not shortened, the
+    report is.
+
+For `frontend-reviewer-quick`, whose `Applied:` line is the evidence that the
+rules were read and without which the loop has no review, the reply is those
+two lines and nothing else:
+
+    This replaces the report contract above, and it overrides the *How to
+    report* section of your agent file for this pass only. Your entire reply
+    is TWO lines: the verdict, exactly `PASS — safe to merge` or `FAIL —
+    changes required`, and below it your `Applied: items <n, n, ...> of
+    frontend-reviewer.md` line. Nothing above them, nothing below them, no
+    findings and no summary. Do the review in full; report only its
+    conclusion.
+
+**A respawned pass returns no findings at all, and the discarded result's may
+not be read back.** On a `FAIL`, spawn a fresh full pass to learn what is
+wrong. On a `PASS`, there is nothing to fix under `[D-22]` and nothing to list
+under `[D-23]` — a non-blocking finding this pass would have made is lost, and
+that is the price of the second attempt settling the item. Both costs are
+`[D-38]`.
