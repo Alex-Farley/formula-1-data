@@ -1388,20 +1388,44 @@ describe('what the pages send, and to whom (PD-0)', () => {
    */
   const SCOPED = [
     [
+      'src/lib/site.js',
       /nothing you search for, sort or type is sent as you do it/,
       'the footer: true of the moment, and the sentence after it names the address',
     ],
-    [/nothing you search for is sent as you type it/, "home's standfirst: the same claim, narrower"],
+    ['src/queries/home.js', /nothing you search for is sent as you type it/, "home's standfirst: the same claim, narrower"],
     [
+      'scripts/prerender.js',
       /Nothing you type is sent as you write it; the statement is kept in the address/,
       'the console: the denial and its limit in one sentence',
     ],
     [
+      'README.md',
       /Nothing you query leaves the tab as you type it; the statement is kept in/,
       'web/README.md, the same claim for a reader of the source',
     ],
-    [/No pixels are stored/, 'about the photographs, not the reader: commons.js stores a reference (AF-07)'],
-    [/never sent to a server/, 'web/README.md on fragments, the history of the hash router, and true of them'],
+    [
+      'src/queries/sources.js',
+      /No pixels are stored/,
+      'about the photographs, not the reader: commons.js stores a reference (AF-07)',
+    ],
+    ['README.md', /never sent to a server/, 'web/README.md on fragments, the history of the hash router, and true of them'],
+    ['../README.md', /No image is stored/, 'the project README on article_images, the same as sources.js'],
+    [
+      '../docs/MEASUREMENT.md',
+      /nothing you search for, sort or type is sent \*\*as you do it\*\*/,
+      'the account of the footer, quoting it',
+    ],
+    ['../docs/MEASUREMENT.md', /typing alone sends nothing/, 'true: "spa": false, so no beacon fires on a keystroke'],
+    [
+      '../docs/MEASUREMENT.md',
+      /[Nn]othing you look at or type is sent\s*anywhere/,
+      'the wording this replaced, quoted as history and marked as such',
+    ],
+    [
+      '../docs/MEASUREMENT.md',
+      /moving between pages asks the network for nothing/,
+      'likewise: the first attempt, quoted to say why it was wrong',
+    ],
   ]
 
   it('every published claim about what is not sent says why it is true', () => {
@@ -1410,6 +1434,11 @@ describe('what the pages send, and to whom (PD-0)', () => {
       ...sourceFiles(join(web, 'scripts'), /\.m?js$/),
       join(web, 'index.html'),
       join(web, 'README.md'),
+      // The documents make the same claims in the same present tense, and are
+      // read by anyone the site sends there. MEASUREMENT.md carried the
+      // retracted absolute for a day because nothing looked here (#580).
+      join(web, '..', 'README.md'),
+      join(web, '..', 'docs', 'MEASUREMENT.md'),
     ]
     const undeclared = []
     for (const file of files) {
@@ -1434,7 +1463,12 @@ describe('what the pages send, and to whom (PD-0)', () => {
           .replace(/['"]\s*\+\s*['"]/g, '')
           .replace(/\s+/g, ' ')
           .trim()
-        if (!SCOPED.some(([pattern]) => pattern.test(flat))) undeclared.push(`${rel(file)}: ${flat}`)
+        // Declared per file, not per pattern: a reason that is true of
+        // `sources.js` is not a licence to write the same words anywhere
+        // else, which a pattern-only allowlist would have granted (review
+        // finding, #580).
+        const declared = SCOPED.some(([where, pattern]) => rel(file).endsWith(where) && pattern.test(flat))
+        if (!declared) undeclared.push(`${rel(file)}: ${flat}`)
       }
     }
     assert.deepEqual(
