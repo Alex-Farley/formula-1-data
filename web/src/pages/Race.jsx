@@ -6,7 +6,7 @@ import DataTable, { cell } from '../components/DataTable.jsx'
 import Disagreement, { RACE_DISAGREEMENTS } from '../components/Disagreement.jsx'
 import { OutlineCard } from '../components/Outline.jsx'
 import Photographs from '../components/Photographs.jsx'
-import { RACE_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE, clock, nextSession, readerZone, until, yourTimeColumn } from '../queries/sessions.js'
+import { RACE_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE, clock, nextSession, raceStage, readerZone, until, yourTimeColumn } from '../queries/sessions.js'
 import { rows, useQueries } from '../data/useQuery.js'
 import { finished, missing, number, result } from '../lib/format.js'
 import { SHARED } from '../lib/site.js'
@@ -33,6 +33,7 @@ import {
   qualifyingColumns,
   raceLede,
   railOf,
+  scheduledNote,
 } from '../queries/race.js'
 import { colourForEntry } from '../lib/liveries.js'
 import LiveryMark from '../components/LiveryMark.jsx'
@@ -183,6 +184,9 @@ function RaceBody({ race, data, year, round }) {
   // One reading of the clock for both the choice of session and the countdown.
   const now = Date.now()
   const upcoming = nextSession(sessions, now)
+  // Whether the race has happened, which is not what `status` records; the
+  // browser is the half of the site that has a real clock to answer it with.
+  const stage = raceStage(race, sessions, now)
 
   // In the order a classification is printed; queries/race.js says why.
   const classified = useMemo(() => inClassificationOrder(entries), [entries])
@@ -212,6 +216,7 @@ function RaceBody({ race, data, year, round }) {
   const finishers = entries.filter((e) => !missing(e.finish_position)).length
   const shared = entries.some((e) => e.shared_drive === 1)
   const scheduled = race.status === 'scheduled'
+  const pending = scheduled ? scheduledNote(race, stage) : null
 
   const nameList = (list) =>
     list.length === 0 ? null : (
@@ -230,7 +235,7 @@ function RaceBody({ race, data, year, round }) {
       eyebrow={`Round ${round} of ${year}`}
       title={race.name_used}
       trail={TRAIL.race(year, round, race.name_used)}
-      lede={raceLede(race, winners)}
+      lede={raceLede(race, winners, stage)}
       aside={
         <Stepper {...raceSteps(neighbours)} />
       }
@@ -316,10 +321,9 @@ function RaceBody({ race, data, year, round }) {
         </div>
       </Section>
 
-      {scheduled && (
+      {pending && (
         <Note>
-          <strong>This race has not been run.</strong> It is on the {year} calendar and carries no
-          result yet.
+          <strong>{pending.head}</strong> {pending.body}
         </Note>
       )}
 

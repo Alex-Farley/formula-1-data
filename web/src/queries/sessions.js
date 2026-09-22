@@ -75,6 +75,85 @@ export const until = (startUtc, now = Date.now()) => {
   return `in ${days} days`
 }
 
+/**
+ * The three hours a grand prix may last: FIA Sporting Regulations art. 5.3
+ * caps the elapsed time at three hours, suspensions included, so a race whose
+ * start was three hours ago is over whatever else the day held.
+ */
+export const RACE_WINDOW_MS = 3 * 60 * 60 * 1000
+
+/**
+ * Where a round stands against the clock, rather than against the record
+ * (AF-01).
+ *
+ * `races.status` says whether a classification is held, which is a different
+ * question from whether the race has happened: the harvest lands a day or two
+ * after the flag, and for twenty-three hours after the 2026 Madrid Grand Prix
+ * the page for it said the race had not been run. The timetable this page
+ * already prints answers it, so nothing new is stored and nothing is guessed.
+ *
+ *   'awaited'  the race session has not started
+ *   'running'  it has, and the three hours of RACE_WINDOW_MS have not passed
+ *   'run'      it is over, whatever the database holds for it
+ *
+ * Sessions are held for the current season alone, so every other round falls
+ * back to its date — and the date alone supports a much weaker claim than it
+ * looks. `date_iso` is not held in one frame: Las Vegas 2026 carries the UTC
+ * day of a race run on the Saturday evening before it, and Las Vegas 2027
+ * carries the local Saturday. So the fallback waits a full day past the end
+ * of that date's UTC day, which is past the end of the race whichever of the
+ * two the row means and whatever zone it was run in. Slow, and it cannot say
+ * a race is over while it is being run, which is the whole point of it. A
+ * round with neither a session nor a readable date is 'awaited': an
+ * unreadable date is not evidence that something happened.
+ */
+export const raceStage = (race, sessions = [], now = Date.now()) => {
+  const started = Date.parse(sessions.find((s) => s.kind === 'race')?.start_utc ?? '')
+  if (Number.isFinite(started)) {
+    if (now < started) return 'awaited'
+    return now < started + RACE_WINDOW_MS ? 'running' : 'run'
+  }
+  const dayEnd = Date.parse(`${race?.date_iso ?? ''}T23:59Z`)
+  if (!Number.isFinite(dayEnd)) return 'awaited'
+  return now > dayEnd + 24 * 60 * 60 * 1000 ? 'run' : 'awaited'
+}
+
+/**
+ * The calendar day the event happens on, where the event is (AF-01).
+ *
+ * schema.org reads a bare date in the event's own frame, so the day a race
+ * page states to a search engine has to be the circuit's day and not the UTC
+ * one. They differ on Las Vegas, whose race is a Saturday evening that is
+ * Sunday in UTC — the one page a ticket-holder would search, and the reason
+ * `date_iso` 2026-11-22 sat outside the "19–21 Nov" a reader was shown.
+ *
+ * Derived from the timetable instant through the same Intl path the timetable
+ * prints, so nothing is stored and nothing is guessed; `fallback` is
+ * `races.date_iso` for every round the timetable does not cover.
+ */
+export const eventDay = (sessions = [], fallback = null) => {
+  const race = sessions.find((s) => s.kind === 'race')
+  if (!race) return fallback
+  // Date.parse of a null start_utc is NaN where `new Date(null)` would be the
+  // epoch, and an unknown zone throws rather than returning anything: both
+  // fall back, because a fallback is what the line above promises.
+  const at = Date.parse(race.start_utc ?? '')
+  if (!Number.isFinite(at)) return fallback
+  try {
+    const parts = new Intl.DateTimeFormat('en-GB', {
+      timeZone: race.zone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(at)
+    const part = (type) => parts.find((p) => p.type === type)?.value
+    const day = `${part('year')}-${part('month')}-${part('day')}`
+    return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : fallback
+  } catch {
+    return fallback
+  }
+}
+
 /** The columns both renderers print, in order: the session, the circuit's clock, UTC. */
 export const SESSION_COLUMNS = [
   { key: 'name', label: 'Session' },

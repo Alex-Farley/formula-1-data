@@ -2993,6 +2993,35 @@ try {
       JSON.parse(await deep.$eval('script[type="application/ld+json"]', (n) => n.textContent))['@type'] === 'Person',
       'and describes itself to a search engine as a Person',
     )
+
+    /*
+     * AF-01. The block every one of the 1,196 race pages emits had no test at
+     * all, which is how it went a year without the two properties Search
+     * Console asks for. Read off f1.db so the dates cannot be asserted against
+     * themselves, and on a round with no timetable held for it, where the day
+     * the markup states is `date_iso` itself - eventDay()'s derivation of a
+     * circuit's own day is units.mjs's to check, against Las Vegas.
+     */
+    const marked = one(
+      `SELECT r.year || '/' || r.round || '|' || r.date_iso FROM races r
+        JOIN race_results rr ON rr.id = r.id
+        LEFT JOIN sessions s ON s.race_id = r.id
+       WHERE r.date_iso IS NOT NULL AND rr.winner_id IS NOT NULL AND s.id IS NULL
+       ORDER BY r.year DESC, r.round DESC LIMIT 1`,
+    )
+    const [markedRoute, markedDate] = String(marked).split('|')
+    const markup = await (await fetch(`${BASE}/races/${markedRoute}`)).text()
+    const event = JSON.parse(
+      markup.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)?.[1] ?? '{}',
+    )
+    is(event['@type'], 'SportsEvent', `a race page describes itself as a SportsEvent — /races/${markedRoute}`)
+    is(event.startDate, markedDate, 'and starts on the date the database holds')
+    is(event.endDate, markedDate, 'and ends on it — a grand prix is a one-day event')
+    is(event.eventStatus, 'https://schema.org/EventScheduled', 'and carries the one status this calendar has')
+    truthy(
+      event.performer === undefined && event.offers === undefined,
+      'and sells nobody a ticket: `performer` and `offers` are declined, not invented',
+    )
     // The handover: the static block is what a reader sees first, and it must be
     // gone once the app can answer for itself — otherwise the page renders twice.
     await deep.waitForSelector('#root main h1', { timeout: 60000 })
