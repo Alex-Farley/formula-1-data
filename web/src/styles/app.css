@@ -1821,6 +1821,10 @@ textarea.sql {
   background: var(--panel-sunk);
   border-radius: var(--radius-sm);
   color: var(--ink-soft);
+}
+
+.schema-list .ddl pre {
+  margin: 0;
   font-family: var(--mono);
   font-size: 12px;
   line-height: 1.6;
