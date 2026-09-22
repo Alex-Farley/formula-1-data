@@ -517,9 +517,20 @@ try {
         // holding has gone, never before it has arrived.
         let seen = false
         window.__heldTo = 0
+        // Every heading the static page carried, in order. A click on it
+        // before the database opens fetches the asked-for page's prerendered
+        // half and puts it there (IX-37), and the whole thing is gone the
+        // moment the database is ready - so what it showed in between is
+        // recorded as it happens rather than caught in flight.
+        window.__staticHeadings = []
         const id = setInterval(() => {
-          if (document.getElementById('prerendered')) {
+          const pre = document.getElementById('prerendered')
+          if (pre) {
             seen = true
+            const heading = pre.querySelector('h1')?.textContent?.trim()
+            if (heading && window.__staticHeadings.at(-1) !== heading) {
+              window.__staticHeadings.push(heading)
+            }
             window.scrollTo(0, 1500)
             window.__heldTo = Math.max(window.__heldTo, window.scrollY)
           } else if (seen) {
@@ -672,13 +683,19 @@ try {
 
     /*
      * The other arrival. A click on the static page before the database is
-     * open moves the router on while the reader is still looking at the page
-     * they left, so the offset they had belongs to that page and not to the
-     * one about to render: 1,500 px into the circuit register is nowhere in
-     * particular on one circuit's page. Both halves have to agree about
-     * that — handOver() drops the offset and ScrollToTop treats it as the
-     * route change it is — or the two race and the reader lands wherever the
-     * machine was quick that morning.
+     * open moves the router on — and now moves the static page with it: the
+     * asked-for page's own prerendered half is fetched and put on screen, so
+     * the reader has the page they clicked in a few hundred milliseconds
+     * rather than at the end of a twenty-megabyte download (IX-37). The
+     * download itself is never restarted, which is what holding the click has
+     * always been for.
+     *
+     * So the offset then belongs to the page they asked for, because that is
+     * the page they are reading: handOver() takes its arrival from the static
+     * page actually in the document rather than from the route the app booted
+     * on. Before this, the click left the register up and the offset was
+     * dropped — 1,500 px into the circuit register being nowhere in
+     * particular on one circuit's page.
      */
     const clicked = await browser.newPage({ viewport: { width: 1280, height: 900 } })
     await holdScroll(clicked)
@@ -701,9 +718,15 @@ try {
     await clicked.waitForFunction(() => !document.getElementById('prerendered'), null, { timeout: 60000 })
     await settled(clicked)
     await wasHeld(clicked, 'register')
+    const headings = await clicked.evaluate(() => window.__staticHeadings)
     truthy(
-      (await clicked.evaluate(() => window.scrollY)) < 200,
-      'and a reader who clicked through it arrives at the top of the page they asked for, not at the offset of the one they left',
+      headings.some((heading) => heading.includes('Monza')),
+      `and the page they asked for is on screen from its own prerendered half while the database is still coming — the static page read ${headings.join(' then ') || '(nothing)'}`,
+    )
+    atLeast(
+      await clicked.evaluate(() => window.scrollY),
+      1000,
+      'and the handover leaves them where they were reading on it, rather than at its top',
     )
     await clicked.close()
 
@@ -766,6 +789,64 @@ try {
     // Every section after this one drives the shared page, which has been in
     // the background throughout.
     await page.bringToFront()
+  })
+
+  /**
+   * The arrival where the database never comes at all.
+   *
+   * A blocked host, a captive portal, a file the deploy lost: the app cannot
+   * open, and the 2,385 prerendered pages are the whole of what the reader
+   * has. Holding a click then strands them for good — no router is coming to
+   * render the route the address bar now names, so the URL read /records
+   * while the heading still said Drivers, with no way out but a reload
+   * nobody was told to attempt (IX-37). The anchors have to come back.
+   *
+   * And the console is the one page with no figures to fall back to, so the
+   * strip cannot offer it the reassurance it offers everywhere else (CD-40).
+   */
+  await section('A database that never arrives  (the links come back)', async () => {
+    const blocked = await browser.newContext()
+    // The manifest still answers, so this is the download failing rather than
+    // a site that was never deployed — the failure a reader actually meets.
+    await blocked.route('**/f1.db*', (route) => route.abort())
+    const stranded = await blocked.newPage()
+    const failed = () =>
+      stranded.waitForFunction(
+        () => document.querySelector('.boot-strip .boot-phase')?.textContent.includes('could not be opened'),
+        null,
+        { timeout: 60000 },
+      )
+
+    await stranded.goto(`${BASE}/circuits`, { waitUntil: 'domcontentloaded' })
+    await failed()
+    truthy(
+      await stranded.$eval('#prerendered', (node) => node.textContent.includes('Monza')),
+      'the static register is still the page, with the figures from the last published build',
+    )
+    await stranded.click('#prerendered a[href="/circuits/monza"]')
+    await stranded.waitForURL(`${BASE}/circuits/monza`, { timeout: 20000 })
+    await failed()
+    truthy(
+      await stranded.evaluate(
+        () =>
+          location.pathname === '/circuits/monza' &&
+          Boolean(document.querySelector('#prerendered h1')?.textContent.includes('Monza')),
+      ),
+      'and a click on it still navigates, so the address bar and the heading name the same page',
+    )
+
+    await stranded.goto(`${BASE}/data/sql`, { waitUntil: 'domcontentloaded' })
+    await failed()
+    const strip = await stranded.$eval('.boot-strip .boot-phase', (node) => node.textContent)
+    truthy(
+      strip.includes('nothing here to query') && !strip.includes('figures on this page'),
+      `the console is not told its missing figures are from the last build — “${strip.trim()}”`,
+    )
+    truthy(
+      !(await stranded.innerText('#prerendered')).includes('needs JavaScript'),
+      'and is not told it needs JavaScript in a tab that is running it',
+    )
+    await blocked.close()
   })
 
   // ------------------------------------------------------------------ home

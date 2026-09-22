@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import App from './App.jsx'
 import { currentProgress, onProgress } from './data/client.js'
 import { setPending } from './data/pending.js'
-import { captureStaticTables } from './lib/handover.js'
+import { captureStaticTables, staticArrival } from './lib/handover.js'
 import './styles/app.css'
 
 /**
@@ -31,7 +31,6 @@ import './styles/app.css'
  * standing when the app takes over.
  */
 function handOver() {
-  const arrival = location.pathname
   const stop = onProgress((state) => {
     if (state.phase !== 'ready') return
     // Unless the reader has moved on. A click on the static page is held as a
@@ -39,7 +38,9 @@ function handOver() {
     // render a different page from the one that was scrolled: the offset
     // belongs to what they were reading, not to a stranger, and 1,500 px into
     // the circuit register is nowhere in particular on one circuit's page.
-    const y = location.pathname === arrival ? window.scrollY : 0
+    // staticArrival() is the route of the static page ACTUALLY on screen,
+    // which a held click now replaces rather than leaves behind (IX-37).
+    const y = location.pathname === staticArrival() ? window.scrollY : 0
     document.getElementById('prerendered')?.remove()
     stop()
 
@@ -80,25 +81,100 @@ function handOver() {
 }
 
 /**
- * A click on the static page before the database is ready used to be a full
- * navigation, which abandoned the download in flight and started it again:
- * measured at 14.9 s to ready instead of 11.9 s, 4.7 MB pulled twice, and it
- * compounds with every further click. The reader had no way to know, because
- * the links look and behave like links.
+ * The static page follows the address bar, for as long as it is the page.
  *
- * So a same-origin click becomes a route change: the URL updates, the router
- * hears the popstate and renders the asked-for page the moment the database
- * opens, and the boot strip says what is pending. The static page stays where
- * it is meanwhile. Modified clicks, new-tab links and downloads are left to
- * the browser.
+ * A click on the static page used to be a full navigation, which abandoned
+ * the download in flight and started it again: measured at 14.9 s to ready
+ * instead of 11.9 s, 4.7 MB pulled twice, and it compounds with every further
+ * click. So the click was held as a route change instead — and the reader was
+ * left looking at the page they had clicked away from until the database
+ * opened. At 1.6 Mbps, /drivers clicked a second BEFORE this script runs is
+ * 862 rows on screen at t = 5.6 s, straight from the prerendered page; the
+ * same click a second after it changed the URL, left the homepage up, and
+ * showed 150 rows at t ≈ 30 s. The site prerenders 2,385 pages and used to
+ * switch them off at the moment they are worth most (IX-37).
+ *
+ * Neither cost is necessary. The click is still held, so the download is
+ * never restarted — and the asked-for page's static half, 224 KB of HTML, is
+ * fetched and put in place of the one on screen. The router renders the same
+ * route for real when the database opens, out of the same download.
+ *
+ * Driven by popstate rather than by the click, so Back and Forward move the
+ * static page too: the strip used to name a destination the reader had
+ * already backed out of, over a title belonging to a third page (IX-21).
+ *
+ * Modified clicks, new-tab links and downloads are left to the browser.
  */
+const staticPage = { route: location.pathname, work: Promise.resolve(true) }
+
+/**
+ * Put the prerendered half of `route` on screen in place of the one there.
+ * Resolves false when it could not be had — an offline fetch, a route with no
+ * prerendered page of its own, or an answer that arrived too late to be the
+ * right one — and the caller then falls back to saying what is pending.
+ *
+ * The element is kept and its children replaced: holdLinks()'s listener is on
+ * #prerendered itself, and replacing the node would take the links with it.
+ */
+async function fetchStatic(route) {
+  const pre = document.getElementById('prerendered')
+  if (!pre) return false
+  const response = await fetch(route, { headers: { accept: 'text/html' } })
+  if (!response.ok) return false
+  const doc = new DOMParser().parseFromString(await response.text(), 'text/html')
+  const next = doc.getElementById('prerendered')
+  if (!next?.firstElementChild) return false
+  // While this was in flight the database may have opened and taken the
+  // static page away, or the reader may have asked for somewhere else. Either
+  // way this answer is no longer the page to show.
+  if (currentProgress().phase === 'ready' || !pre.isConnected) return false
+  if (location.pathname !== route) return false
+  pre.replaceChildren(...document.importNode(next, true).childNodes)
+  // What the new page drew, so the app opens on at least those rows (IX-19),
+  // and so handOver() knows which route the reader's offset belongs to.
+  captureStaticTables()
+  if (doc.title) document.title = doc.title
+  // A page the reader has just asked for starts at its top, and its content
+  // takes focus so a screen reader learns the document changed — the same
+  // arrival handOver() gives the app's own page.
+  window.scrollTo(0, 0)
+  pre.querySelector('main')?.focus({ preventScroll: true })
+  return true
+}
+
+/** One fetch per route, shared by the click that asked for it and by popstate. */
+function showStatic(route) {
+  if (staticPage.route !== route) {
+    staticPage.route = route
+    staticPage.work = fetchStatic(route).catch(() => false)
+  }
+  return staticPage.work
+}
+
 function holdLinks() {
   const pre = document.getElementById('prerendered')
   if (!pre) return
+
+  addEventListener('popstate', () => {
+    if (!document.getElementById('prerendered')) return
+    const { phase } = currentProgress()
+    if (phase === 'ready' || phase === 'failed') return
+    // Whatever was pending was asked for at the address we have just left.
+    setPending(null)
+    showStatic(location.pathname)
+  })
+
   pre.addEventListener(
     'click',
     (event) => {
-      if (currentProgress().phase === 'ready') return
+      const { phase } = currentProgress()
+      // Ready: the app is the page, and owns its own links.
+      if (phase === 'ready') return
+      // Failed: no router is coming to render the held route, so holding one
+      // more click would leave the reader on a page the address bar does not
+      // name — URL /records, heading Drivers, for good. The anchors are the
+      // only navigation left, and the page at the other end is a whole answer.
+      if (phase === 'failed') return
       if (event.defaultPrevented || event.button !== 0) return
       if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
       const anchor = event.target.closest('a[href]')
@@ -114,9 +190,17 @@ function holdLinks() {
       // with a fragment.
       if (url.hash && url.pathname === location.pathname && url.search === location.search) return
       event.preventDefault()
-      history.pushState({}, '', url.pathname + url.search + url.hash)
+      const route = url.pathname
+      history.pushState({}, '', route + url.search + url.hash)
       dispatchEvent(new PopStateEvent('popstate'))
-      setPending(anchor.textContent.trim() || url.pathname)
+      // Said at once, because fetching the page it names takes a moment on the
+      // connection this exists for — and withdrawn once the reader is looking
+      // at that page rather than waiting for it.
+      const label = anchor.textContent.trim() || route
+      setPending(label)
+      showStatic(route).then((shown) => {
+        if (shown && location.pathname === route) setPending(null)
+      })
     },
     true,
   )

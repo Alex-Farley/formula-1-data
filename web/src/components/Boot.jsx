@@ -32,6 +32,25 @@ const WORDS = {
 /** Whether the prerendered page is in the document — decided once, at mount. */
 const standingIn = () => typeof document !== 'undefined' && Boolean(document.getElementById('prerendered'))
 
+/**
+ * The console is the one route whose static page is not facts.
+ *
+ * Every other prerendered page is the answer the reader came for, written
+ * from the last published build, so a failed open leaves them holding it.
+ * /data/sql has nothing to hold: the page IS the app. Told that the figures
+ * on this page are from the last published build, a reader on the console is
+ * being reassured about figures that are not there — and the only prose
+ * beside the strip is the page's own line about needing JavaScript, in a tab
+ * where JavaScript is plainly running (CD-40). So the strip says what
+ * actually follows from the database not opening.
+ *
+ * Read at render rather than at mount, because the route can change while the
+ * database is still arriving.
+ */
+const CONSOLE = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/data/sql`
+const onConsole = () =>
+  typeof location !== 'undefined' && location.pathname.replace(/\/$/, '') === CONSOLE
+
 export default function Boot({ children }) {
   const [state, setState] = useState({ phase: 'idle' })
   const [pending, setPending] = useState(null)
@@ -55,6 +74,11 @@ export default function Boot({ children }) {
       ? formatBytes(state.loaded)
       : ''
   const phrase = failed ? WORDS.failed : WORDS[state.phase] ?? WORDS.idle
+  const stranded = failed
+    ? onConsole()
+      ? '. The console runs on that file, so there is nothing here to query until it opens.'
+      : '. The figures on this page are from the last published build.'
+    : ''
   const retry = () => retryOpen().catch(() => {})
 
   // Named by the phase sentence, bounded, and read out as bytes rather than a
@@ -83,7 +107,7 @@ export default function Boot({ children }) {
           <p id="boot-phase" className="boot-phase" role="status">
             {phrase}
             {pending && !failed ? ` — opening ${pending} when it is ready` : ''}
-            {failed ? '. The figures on this page are from the last published build.' : ''}
+            {stranded}
           </p>
           {failed ? (
             <button type="button" className="button" onClick={retry}>
