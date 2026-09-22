@@ -589,6 +589,104 @@ def standings():
               got_ == want_, f"{got_} rows")
 
 
+@section('STANDINGS ARE THE SUM OF THE RESULTS')
+def standings_are_the_sum_of_the_results():
+    """A running championship total is what the entrant scored in the rounds
+    up to it. It is the only cross-check that can see a standings file which
+    was not updated - comparing one source's table with another source's
+    table cannot, and for 2026 round 14 did not: F1DB published round 13's
+    constructor totals under round 14 and the site showed Mercedes on 468
+    while their drivers held 503 between them.
+
+    What this constrains, said plainly, because the honest answer is not the
+    flattering one. `build.py` corrects a round that repeats the one before
+    it and stops the build on any other disagreement, so a database this
+    build produced cannot fail the first check here: it either agrees or the
+    build never finished. Its work is against an artefact edited by hand or
+    merged rather than rebuilt - which `CLAUDE.md` forbids and `ci.yml`
+    compares for - and against the rule being weakened later, which the
+    declaration checks below are the whole point of. The count of rows
+    compared is printed rather than written down, because a figure typed into
+    a docstring is one nobody re-measures.
+
+    The floors, the six declared adjustments, the one alias and the
+    multi-engine exemption are in `data/current.py`. An entity whose results
+    cannot be found at all stops the build rather than being skipped: 104
+    rows sat in that state under the first version of this check and could
+    not have failed it however wrong they were.
+    """
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "tools"))
+    import standings_rule
+
+    from data.current import (STANDINGS_ACCUMULATE_FROM,
+                              STANDINGS_ADJUSTMENTS)
+
+    try:
+        bad = standings_rule.violations(con)
+    except standings_rule.Unmappable as e:
+        check("every championship table joins to the results it is the sum of",
+              False, str(e))
+        return
+    compared = con.execute(
+        """SELECT COUNT(*) FROM standings s WHERE s.after_round IS NOT NULL
+             AND s.points IS NOT NULL AND s.entity_id IS NOT NULL
+             AND s.year >= (CASE s.table_type WHEN 'drivers' THEN ? ELSE ? END)""",
+        (STANDINGS_ACCUMULATE_FROM["drivers"],
+         STANDINGS_ACCUMULATE_FROM["constructors"])).fetchone()[0]
+    check("every championship table joins to the results it is the sum of", True,
+          f"{compared:,} rows in the rule's scope")
+    check("every championship total is the sum of what the cars scored",
+          not bad,
+          ("; ".join(standings_rule.describe(v) for v in bad[:4])
+           + (f" (+{len(bad) - 4} more)" if len(bad) > 4 else "")) if bad else "")
+
+    # A declaration is only worth something while it still describes
+    # something. An adjustment nobody needs is a claim about this database
+    # that has quietly stopped being true, and the next one is written by
+    # copying it.
+    # One derivation for all six: with no adjustments declared, every row an
+    # adjustment exists for must appear. Six separate runs asked the same
+    # question six times and cost 40 seconds of the build's gate.
+    undeclared = standings_rule.violations(con, adjustments={})
+    needed = {(v["table_type"], v["year"], v["entity_id"]) for v in undeclared}
+    unused = [f"{t} {y} {e}" for (t, y, e) in STANDINGS_ADJUSTMENTS
+              if (t, y, e) not in needed]
+    check("every declared adjustment is still one", not unused, ", ".join(unused))
+
+    # The one exemption with nothing above it to keep it honest: a
+    # constructor that takes a second engine mid-season leaves the rule for
+    # its whole season, and nothing would say so. Pinned to its measured size
+    # so that growing it is a decision (review finding, #583).
+    from data.current import STANDINGS_MULTI_ENGINE_UNCHECKED as unchecked
+    seasons, rows = con.execute(
+        """WITH multi AS (
+             SELECT year, entity_id FROM standings
+              WHERE table_type='constructors' AND after_round IS NOT NULL
+              GROUP BY year, entity_id
+             HAVING COUNT(DISTINCT COALESCE(engine_id, '')) > 1)
+           SELECT (SELECT COUNT(*) FROM multi),
+                  (SELECT COUNT(*) FROM standings s JOIN multi m
+                     ON m.year = s.year AND m.entity_id = s.entity_id
+                    WHERE s.table_type='constructors'
+                      AND s.after_round IS NOT NULL)""").fetchone()
+    check("the multi-engine exemption is the size it is declared to be",
+          (seasons, rows) == (unchecked["entity_seasons"], unchecked["rows"]),
+          f"{seasons} entity-seasons and {rows} rows against "
+          f"{unchecked['entity_seasons']} and {unchecked['rows']} declared")
+
+    # And the floors, the same way round: the season before each one must hold
+    # a row the rule would refuse, or the floor is later than its evidence.
+    for table, floor in STANDINGS_ACCUMULATE_FROM.items():
+        below = standings_rule.violations(con, floors={table: 0}, adjustments={})
+        earlier = [v for v in below
+                   if v["table_type"] == table and v["year"] < floor]
+        check(f"{table} standings are the plain sum from {floor} and not before",
+              bool(earlier),
+              f"nothing before {floor} disagrees, so the floor is later than "
+              f"the evidence for it" if not earlier
+              else f"last is {max(v['year'] for v in earlier)}")
+
+
 @section('RACE RESULTS')
 def race_results():
     w26 = winners_in(season_in_progress())

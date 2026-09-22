@@ -40,6 +40,13 @@ def _prose_figures():
     return prose_figures
 
 
+def _standings_rule():
+    """tools/standings_rule.py, imported from beside this file."""
+    sys.path.insert(0, os.path.join(HERE, "tools"))
+    import standings_rule
+    return standings_rule
+
+
 DB = os.path.join(HERE, "f1.db")
 # The build writes here and moves the file into place only when every stage
 # has run. It used to drop f1.db and build in place, so a stage that failed
@@ -54,6 +61,7 @@ BUILD_DB = DB + ".tmp"
 # back, and a citation naming a version this repository does not build is
 # invisible. tests/test_conventions.py fails `make ci` and CI's check job
 # when the two drift.
+
 VERSION = "2.24"
 
 # The build date, as a CONSTANT and deliberately not date.today().
@@ -2242,12 +2250,183 @@ def _stage_25_championship_standings_after_every_round_and(b):
         std_rows += cur.rowcount
 
     _file_points_disagreements(cur, conflicts, f1db_drivers)
+    std_corrected = _correct_standings_the_results_contradict(b)
 
     if std_rows:
         print(f"  standings: {std_rows} rows from F1DB; {std_checked} "
               f"end-of-season rows already held and checked "
               f"({std_conflicts} disagreed); {std_skipped} skipped for an "
-              f"unresolvable entity")
+              f"unresolvable entity"
+              + (f"; {std_corrected} corrected against the results"
+                 if std_corrected else ""))
+
+
+def _correct_standings_the_results_contradict(b):
+    """A standings round that repeats the round before it is a file that was
+    not updated. That, and nothing else, is corrected here.
+
+    2026 round 14: F1DB v2026.14.0 published round 13's constructor totals
+    under round 14, all eleven of them, while its driver standings for the
+    same round were current. Stored as published, the site said Mercedes had
+    468 points when their two drivers had 503 between them.
+
+    ONLY THE REPEAT IS CORRECTED. The first version corrected any figure the
+    results contradicted, which meant an undeclared points deduction - a real
+    decision by somebody, arriving without warning - would have been
+    overwritten with this build's arithmetic and filed as though the source
+    were wrong (review finding, #583). A disagreement that is not a repeated
+    round stops the build and asks for a declaration, the same way an entity
+    the results cannot reach does.
+
+    What replaces a repeated figure is the sum of that entrant's race and
+    sprint points over rounds 1..N, plus any decision declared in
+    `data/current.py` - computed from the RESULTS and never from the previous
+    round's stored total, so two consecutive stale rounds are each corrected
+    to their own sum rather than one being built on the other.
+
+    The published figure goes on the record in `discrepancies`. If correcting
+    a round would reorder it, nothing is written: a position is a countback
+    this build cannot do, and a person has to look.
+    """
+    cur = b.cur
+    rule = _standings_rule()
+    try:
+        found = rule.violations(b.con)
+    except rule.Unmappable as e:
+        raise SystemExit(f"standings: {e}") from None
+    if not found:
+        return 0
+    repeats, others = [], []
+    for v in found:
+        previous = cur.execute(
+            """SELECT points FROM standings
+                WHERE year=? AND table_type=? AND entity_id=? AND after_round=?""",
+            (v["year"], v["table_type"], v["entity_id"],
+             v["after_round"] - 1)).fetchone()
+        if (previous and previous[0] is not None
+                and abs(previous[0] - v["points"]) < 0.001):
+            repeats.append(v)
+        else:
+            others.append(v)
+    if others:
+        raise SystemExit(
+            "standings: "
+            + "; ".join(rule.describe(v) for v in others[:4])
+            + (f" (+{len(others) - 4} more)" if len(others) > 4 else "")
+            + ". That is not a round repeating the one before it, so it is "
+              "not a file that failed to update, and this build will not "
+              "overwrite a figure a source published on its own arithmetic. "
+              "A deduction, an exclusion or a re-entry is declared in "
+              "STANDINGS_ADJUSTMENTS in data/current.py, with the round it "
+              "took effect and why.")
+    for v in repeats:
+        cur.execute(
+            """UPDATE standings SET points = ?
+                WHERE year=? AND table_type=? AND entity_id=? AND after_round=?
+                  AND engine_id IS ?""",
+            (v["expected"], v["year"], v["table_type"], v["entity_id"],
+             v["after_round"], v["engine_id"]))
+    corrected = len(repeats)
+    for year, table, rnd in sorted({(v["year"], v["table_type"], v["after_round"])
+                                    for v in repeats}):
+        _refuse_a_reordered_round(cur, year, table, rnd)
+        _file_a_standings_correction(
+            cur, year, table, rnd,
+            [v for v in repeats
+             if (v["year"], v["table_type"], v["after_round"]) == (year, table, rnd)])
+    corrected += _carry_a_correction_to_the_current_row(cur, repeats)
+    left = rule.violations(b.con)
+    if left:
+        raise SystemExit(
+            "standings: correcting against the results left "
+            f"{len(left)} row(s) still wrong, beginning "
+            f"{rule.describe(left[0])}. That is a fault in the correction "
+            "itself, not a stale file; nothing further is written.")
+    return corrected
+
+
+def _refuse_a_reordered_round(cur, year, table, rnd):
+    """The corrected points must leave the source's own order intact."""
+    rows = cur.execute("""SELECT entity_id, position, points FROM standings
+        WHERE year=? AND table_type=? AND after_round=? AND position IS NOT NULL
+        ORDER BY position""", (year, table, rnd)).fetchall()
+    by_points = sorted(rows, key=lambda r: -r[2] if r[2] is not None else 0)
+    if [r[0] for r in rows] != [r[0] for r in by_points]:
+        raise SystemExit(
+            f"standings: correcting {year} {table} round {rnd} against the "
+            "results puts the table in a different order from the one the "
+            "source published. A position is a countback this build cannot "
+            "do; a person has to look at it.")
+
+
+def _file_a_standings_correction(cur, year, table, rnd, rows):
+    """One discrepancies row per corrected round, naming what was published.
+
+    Filed once, from the one pass, so `stored_value` is always what the source
+    said and never an intermediate of this build's own (review finding, #583).
+    """
+    published = ", ".join(f"{v['entity_id']} {v['points']:g}" for v in rows)
+    now = ", ".join(f"{v['entity_id']} {v['expected']:g}" for v in rows)
+    cur.execute("""INSERT INTO discrepancies (subject, field, stored_value,
+            derived_value, assessment, status)
+        VALUES (?,?,?,?,?,?)""",
+        (f"{year} round {rnd}",
+         f"{table}' championship points repeated from round {rnd - 1}",
+         published, now,
+         "F1DB's standings file for this round repeated the round before it "
+         "while its own results for the round awarded points, so the table "
+         "did not move for any entrant that scored. A running total is the "
+         "sum of what the cars scored, so a repeated round cannot be right "
+         "whatever the points system: what is stored is that sum, computed "
+         "from this database's race and sprint results, and what the file "
+         "said is the stored_value here. Expected to resolve itself upstream "
+         "when the file is regenerated.",
+         "open"))
+
+
+def _carry_a_correction_to_the_current_row(cur, repeats):
+    """The season-level file lags the same way the per-round one does.
+
+    A season still being run also has a row with no after_round and
+    `as_of = 'current'`, read as the source's latest running table - and
+    verify.py holds it to exactly that, so correcting only the round rows
+    left the two disagreeing and failed the build.
+
+    It follows the round rows ONLY where it carries the same stale figure
+    they did. The first version compared magnitudes and would have written
+    the latest round's total over a `current` row in either direction, so a
+    season file AHEAD of its own per-round files would have been pulled
+    backwards - and, because verify.py would otherwise have stopped the
+    build on that state, quietly shipped (review finding, #583). Anything
+    else is left alone and said out loud.
+    """
+    moved = 0
+    latest = {}
+    for v in repeats:
+        key = (v["year"], v["table_type"], v["entity_id"])
+        if key not in latest or v["after_round"] > latest[key]["after_round"]:
+            latest[key] = v
+    for (year, table, entity), v in sorted(latest.items()):
+        row = cur.execute(
+            """SELECT points FROM standings
+                WHERE year=? AND table_type=? AND entity_id=?
+                  AND after_round IS NULL AND as_of = 'current'""",
+            (year, table, entity)).fetchone()
+        if row is None or row[0] is None:
+            continue
+        if abs(row[0] - v["points"]) > 0.001:
+            print(f"  standings: {year} {table} {entity}'s 'current' row says "
+                  f"{row[0]:g}, which is neither the figure the round rows "
+                  f"repeated ({v['points']:g}) nor a lag this build corrects. "
+                  f"Left as published.")
+            continue
+        cur.execute(
+            """UPDATE standings SET points = ?
+                WHERE year=? AND table_type=? AND entity_id=?
+                  AND after_round IS NULL AND as_of = 'current'""",
+            (v["expected"], year, table, entity))
+        moved += cur.rowcount
+    return moved
 
 
 def _file_points_disagreements(cur, conflicts, f1db_drivers):

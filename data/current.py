@@ -897,3 +897,119 @@ PROVENANCE = [
     # makes: it is where someone else filed something.
     ("catalogued", 6, "Not checked by anyone, here or at a source: a photograph that Wikimedia Commons editors filed under a category named for the chassis. A category also holds replicas, scale models, show cars and museum mock-ups, and nothing here can tell them from the car that raced. Never present it as the car without a person looking first.", 0),
 ]
+
+
+# ---------------------------------------------------------------------------
+# A championship total is the sum of what the cars scored
+#
+# The running total after round N is what the entrant scored in rounds 1..N.
+# That is arithmetic over rows this database already holds, so it is the one
+# cross-check that can see a standings file which was not updated - the
+# failure a source figure compared only with another source figure cannot
+# show.
+#
+# 2026 round 14 is why it exists. F1DB v2026.14.0 published a
+# constructor-standings.yml for round 14 holding round 13's totals, byte for
+# byte, for all eleven entries, while its driver-standings.yml for the same
+# round was current. The build stored what the file said, and lapledger.org
+# showed Mercedes on 468 when their two drivers had 503 between them.
+#
+# The first version of this rule only asked whether the total MOVED. The
+# review of #583 showed why that is not enough: it cannot see a figure that
+# moved by the wrong amount, and it let two consecutive stale rounds converge
+# on a number no source ever published. The rule is the value.
+#
+# FROM WHICH SEASON, measured rather than assumed
+# (`python3 tools/standings_rule.py --survey`):
+#
+#   drivers, 1991 - dropped scores. Until 1990 a driver's total counted only
+#   their best N results, so it is not the sum of what they scored. From 1991
+#   every one of the 12,640 driver rows in this database is exactly that sum,
+#   with no exceptions at all.
+#
+#   constructors, 1979 - before 1979 only the best-placed car of each
+#   constructor scored. From 1979 the only rows that are not the plain sum are
+#   the six adjustments declared below, each one a decision somebody took and
+#   published.
+STANDINGS_ACCUMULATE_FROM = {"constructors": 1979, "drivers": 1991}
+
+# The same entrant under two ids in two tables. `standings` takes F1DB's
+# constructorId and `race_entries` this project's own, and for 2019-2023 they
+# disagree: the championship table says `alfa-romeo`, the results say
+# `sauber`. Both are real - Alfa Romeo ran as a works constructor from 1979 to
+# 1985 - so this is per season and not a rename.
+#
+# Declared here because the rule needs it, NOT because it is acceptable: it is
+# a split vocabulary of exactly the kind `COUNTRY_ALIASES` exists to stop, and
+# without this entry the cross-check reads 104 rows as "scored nothing" and
+# cannot fail for them however wrong they are (review finding, #583). The
+# split itself is filed as its own item. Any other entity in `standings` with
+# no results under its own id in that season stops the build, so a second one
+# cannot arrive quietly.
+STANDINGS_ENTITY_ALIASES = {
+    ("constructors", year, "alfa-romeo"): "sauber"
+    for year in range(2019, 2024)
+}
+
+# The six rows in the whole file, from 1979 for constructors and 1991 for
+# drivers, where the championship total is deliberately not the sum of what
+# the cars scored. Each is (from_round, adjustment, why): an adjustment of
+# 'zero' means the table reads zero from that round, and a number is added to
+# the sum from that round on. They are scoped to the round the decision took
+# effect, so every earlier round of the same entrant is still checked.
+STANDINGS_ADJUSTMENTS = {
+    ("constructors", 1995, "benetton"): (2, -10.0, (
+        "Both cars were excluded from the Brazilian Grand Prix result over a "
+        "fuel sample. The drivers' points were restored on appeal and the "
+        "constructors' were not, so the table runs 10 behind the sum of its "
+        "cars' points for the rest of the season. From round 2 and not round "
+        "1 because F1DB publishes no round-1 table for either team - the "
+        "classification they were excluded from is the one that would have "
+        "been round 1's.")),
+    ("constructors", 1995, "williams"): (2, -6.0, (
+        "The same Brazilian Grand Prix decision and the same missing round-1 "
+        "table: Coulthard's six constructors' points were not restored when "
+        "his own were.")),
+    ("constructors", 2000, "mclaren"): (10, -10.0, (
+        "Hakkinen's Austrian Grand Prix win was struck from the "
+        "constructors' championship after a seal was found missing from the "
+        "electronic control unit. The driver kept the points; the constructor "
+        "did not.")),
+    ("constructors", 2007, "mclaren"): (1, "zero", (
+        "Excluded from the 2007 constructors' championship by the World Motor "
+        "Sport Council on 13 September 2007. The cars scored in every round "
+        "from Australia to Brazil and the constructor received none of it, so "
+        "the table reads zero after all seventeen rounds while the drivers' "
+        "totals move.")),
+    ("constructors", 2018, "force-india"): (13, -59.0, (
+        "The team went into administration and was re-entered from Spa as a "
+        "new constructor. The 59 points scored before round 13 stayed with "
+        "the entity that scored them and did not carry.")),
+    ("constructors", 2020, "racing-point"): (5, -15.0, (
+        "Fifteen points deducted after the brake-duct protest, applied to the "
+        "table at round 5 and carried by every total after it.")),
+}
+
+# A constructor that ran two engines in one season has two championship
+# entries - the championship is contested by a chassis-engine pair - and
+# `race_entries` names no engine, so a round's points cannot be split between
+# them. Those entity-seasons are not checked, and this is the whole of that
+# exemption. Measured: 20 entity-seasons and 352 rows, of which the ones from
+# 1979 are 1982 Brabham, 1983 Lotus, 1983 Williams, 1984 Arrows and 1985
+# Tyrrell. Summing a season's engines together and checking the total instead
+# surfaces four further violations, all below the 1979 floor, so nothing
+# modern hides here - but a constructor that changes engine mid-season takes
+# its whole season out of the rule, which is a gap worth knowing about rather
+# than one this file can close.
+# Pinned, because an exemption that can quietly grow is one nobody notices
+# growing: verify.py fails if these stop being the figures, and a constructor
+# that takes a second engine mid-season therefore arrives as a failed check
+# and a decision rather than as 20-odd rows leaving the rule in silence. The
+# five from 1979 are 1982 Brabham, 1983 Lotus, 1983 Williams, 1984 Arrows and
+# 1985 Tyrrell.
+STANDINGS_MULTI_ENGINE_UNCHECKED = {
+    "why": ("a chassis-engine pair's share of a round's points is not "
+            "recoverable from race_entries, which names no engine"),
+    "entity_seasons": 20,
+    "rows": 352,
+}
