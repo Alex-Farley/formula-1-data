@@ -27,6 +27,7 @@ import {
   TYRE_COLUMNS,
 } from '../queries/eras.js'
 
+import { ONWARD, TRAIL } from '../lib/wayfinding.js'
 const SPEC = {
   eras: [ERAS],
   engines: [ENGINES],
@@ -64,6 +65,7 @@ export default function Eras() {
   return (
     <Page
       title="Eras and regulations"
+      trail={TRAIL.eras()}
       lede="Formula One is a rule set that keeps being rewritten, and most of what changed about the cars follows from that. Here is the chronology: what the rules were, what someone invented to get round them, and what was banned afterwards."
     >
       <SportNav />
@@ -228,13 +230,7 @@ function Body({ data }) {
         />
       </Section>
 
-      <Onward
-        items={[
-          { to: '/cars', label: 'Cars', hint: 'The designs these rules produced.' },
-          { to: '/seasons', label: 'Seasons', hint: 'The championships they were raced under.' },
-          { to: '/reference/glossary', label: 'Glossary', hint: 'The vocabulary the rules are written in.' },
-        ]}
-      />
+      <Onward {...ONWARD.eras()} />
     </>
   )
 }

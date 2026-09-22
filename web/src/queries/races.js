@@ -23,6 +23,27 @@ import { NOT_YET_RUN, SHARED, SPRINT } from '../lib/site.js'
  * the next race heads the scheduled block rather than a later season's
  * opener (AF-44).
  */
+/**
+ * The last race actually run: what the overview opens on, and the season its
+ * onward band offers. It sat in Home.jsx until scripts/prerender.js needed
+ * the same row to write the same band (IA-03), and a second copy of "latest"
+ * is how the two renderers would have come to disagree about which race that
+ * is.
+ */
+export const LATEST = `
+  SELECT r.year, r.round, r.name_used, r.dates, c.name AS circuit,
+         d.full_name AS winner, d.id AS winner_id,
+         k.name AS constructor, k.id AS constructor_id, k.country AS constructor_country
+    FROM races r
+    LEFT JOIN circuits c ON c.id = r.circuit_id
+    LEFT JOIN race_entries e ON e.race_id = r.id AND e.finish_position = 1
+    LEFT JOIN drivers d ON d.id = e.driver_id
+    LEFT JOIN constructors k ON k.id = e.constructor_id
+   WHERE r.status = 'completed'
+   ORDER BY r.year DESC, r.round DESC
+   LIMIT 1
+`
+
 export const RACES = `
   SELECT rr.year, rr.round, rr.gp_name, rr.gp_id, rr.circuit_id, c.name AS circuit, c.country,
          rr.winner, rr.winner_id, rr.co_winner_id, rr.constructor, rr.constructor_id,

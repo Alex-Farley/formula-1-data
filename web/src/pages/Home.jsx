@@ -8,6 +8,8 @@ import { rows, useQueries } from '../data/useQuery.js'
 import { number } from '../lib/format.js'
 import { colourForEntry } from '../lib/liveries.js'
 
+import { LATEST } from '../queries/races.js'
+import { ONWARD } from '../lib/wayfinding.js'
 const SHAPE = `
   SELECT
     (SELECT COUNT(*) FROM races WHERE status = 'completed') AS races_run,
@@ -30,20 +32,6 @@ const SHAPE = `
 `
 
 const PER_SEASON = `SELECT year, COUNT(*) AS rounds FROM races GROUP BY year ORDER BY year`
-
-const LATEST = `
-  SELECT r.year, r.round, r.name_used, r.dates, c.name AS circuit,
-         d.full_name AS winner, d.id AS winner_id,
-         k.name AS constructor, k.id AS constructor_id, k.country AS constructor_country
-    FROM races r
-    LEFT JOIN circuits c ON c.id = r.circuit_id
-    LEFT JOIN race_entries e ON e.race_id = r.id AND e.finish_position = 1
-    LEFT JOIN drivers d ON d.id = e.driver_id
-    LEFT JOIN constructors k ON k.id = e.constructor_id
-   WHERE r.status = 'completed'
-   ORDER BY r.year DESC, r.round DESC
-   LIMIT 1
-`
 
 const NEXT = `
   SELECT year, round, name_used, dates
@@ -266,19 +254,7 @@ export default function Home() {
                 </div>
               </Section>
 
-              <Onward
-                title="Popular ways in"
-                items={[
-                  {
-                    to: latest ? `/seasons/${latest.year}` : '/seasons',
-                    label: `The ${latest ? latest.year : 'latest'} season`,
-                    hint: 'Calendar, title race and final standings.',
-                  },
-                  { to: '/records', label: 'Records', hint: 'Most wins, most poles, champions, grand slams.' },
-                  { to: '/data/sql', label: 'SQL console', hint: 'Ask the database your own question.' },
-                  { to: '/reference/eras', label: 'Eras and rules', hint: 'How the rules changed, and the words they are written in.' },
-                ]}
-              />
+              <Onward {...ONWARD.home({ latest })} />
             </>
           )
         }}

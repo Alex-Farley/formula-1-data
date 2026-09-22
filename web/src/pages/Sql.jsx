@@ -8,6 +8,7 @@ import SubNav from '../components/SubNav.jsx'
 import { query, queryReadOnly } from '../data/client.js'
 import { number } from '../lib/format.js'
 
+import { ONWARD, TRAIL } from '../lib/wayfinding.js'
 const SCHEMA = `
   SELECT m.type, m.name,
          (SELECT group_concat(p.name, ', ') FROM pragma_table_info(m.name) p) AS columns
@@ -198,6 +199,7 @@ export default function Sql() {
   return (
     <Page
       title="SQL console"
+      trail={TRAIL.sql()}
       lede="Every page on this site is a query against one SQLite file. Here you write your own. Start from an example on the right, or open a table below to see its columns — then run it with ⌘/Ctrl + Enter."
     >
       <SubNav />
@@ -330,13 +332,7 @@ export default function Sql() {
         </div>
       </div>
 
-      <Onward
-        items={[
-          { to: '/data/quality', label: 'Data quality', hint: 'What the confidence column means before you quote a row.' },
-          { to: '/data/sources', label: 'Sources and licences', hint: 'What you may do with what you pull out.' },
-          { to: '/records', label: 'Records', hint: 'The leaderboards already written for you.' },
-        ]}
-      />
+      <Onward {...ONWARD.sql()} />
     </Page>
   )
 }

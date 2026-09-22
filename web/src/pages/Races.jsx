@@ -10,6 +10,7 @@ import { colourForEntry } from '../lib/liveries.js'
 import { NOT_YET_RUN, SHARED, SPRINT } from '../lib/site.js'
 import { RACES, RACE_COLUMNS, RACES_FOOTER } from '../queries/races.js'
 
+import { ONWARD, TRAIL } from '../lib/wayfinding.js'
 /**
  * The React renders for the columns queries/races.js defines — the links
  * and the tags; the router is the reason they live here. The words each cell
@@ -80,6 +81,7 @@ export default function Races() {
   return (
     <Page
       title="Races"
+      trail={TRAIL.races()}
       lede="Every round of every championship, back to Silverstone in May 1950. Search for a Grand Prix, a circuit or a winner, or pick a decade — then open a race for its full classification, qualifying sheet and, from 1994, its pit stops."
     >
       <Section>
@@ -88,14 +90,7 @@ export default function Races() {
         </Result>
       </Section>
 
-      <Onward
-        items={[
-          { to: '/seasons', label: 'Seasons', hint: 'The same races, grouped into championships.' },
-          { to: '/circuits', label: 'Circuits', hint: 'The venues these races were held at.' },
-          { to: '/records', label: 'Records', hint: 'Who won the most of them.' },
-          { to: '/reference/glossary', label: 'Glossary', hint: 'What the words on a classification mean.' },
-        ]}
-      />
+      <Onward {...ONWARD.races()} />
     </Page>
   )
 }

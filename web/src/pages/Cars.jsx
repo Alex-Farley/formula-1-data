@@ -14,6 +14,7 @@ import { anyThisSeason, gridLabel, seasonOf } from '../lib/season.js'
 import { LANDMARK } from '../lib/site.js'
 import { CHASSIS, CHASSIS_COLUMNS, CHASSIS_FOOTER, GALLERY } from '../queries/cars.js'
 
+import { ONWARD, TRAIL } from '../lib/wayfinding.js'
 /**
  * The gallery: 24 of the 29 curated cars have a Commons photograph, which is
  * why this page can open with pictures at all; the 1,153-row register cannot,
@@ -64,6 +65,7 @@ export default function Cars() {
   return (
     <Page
       title="Cars"
+      trail={TRAIL.cars()}
       lede="Twenty-nine designs with a page of their own, and behind them every chassis with a championship entry — 1,153 of them, most raced by a privateer for a single weekend. Filter the register to race winners, landmark designs, or the ones with a published specification. A blank is a figure nobody published, not a car with no wheelbase."
     >
       <Result state={state} skeleton>
@@ -91,13 +93,7 @@ export default function Cars() {
         )}
       </Result>
 
-      <Onward
-        items={[
-          { to: '/constructors', label: 'Constructors', hint: 'The teams that built and ran them.' },
-          { to: '/reference/eras', label: 'Eras and rules', hint: 'The regulations these cars were designed around.' },
-          { to: '/records', label: 'Records', hint: 'What the fastest of them actually won.' },
-        ]}
-      />
+      <Onward {...ONWARD.cars()} />
     </Page>
   )
 }

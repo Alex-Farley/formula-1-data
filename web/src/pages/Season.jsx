@@ -43,6 +43,7 @@ import {
   titlePermutations,
 } from '../queries/season.js'
 
+import { ONWARD, TRAIL, seasonSteps } from '../lib/wayfinding.js'
 /*
  * The React renders for the columns queries/season.js defines — the links
  * and the tags; the router is the reason they live here. The words each cell
@@ -150,7 +151,7 @@ export default function Season() {
         const season = data.season.rows[0]
         if (!season) {
           return (
-            <Page title={`No season ${year}`} cite={false} back={{ to: '/seasons', label: 'All seasons' }}>
+            <Page title={`No season ${year}`} cite={false} trail={TRAIL.missing('/seasons', 'Seasons')}>
               <p className="muted">The championship register runs from 1950 to 2027.</p>
             </Page>
           )
@@ -267,21 +268,10 @@ function SeasonBody({ year, season, data }) {
     <Page
       eyebrow="Season"
       title={`${year}`}
-      back={{ to: '/seasons', label: 'All seasons' }}
+      trail={TRAIL.season(year)}
       lede={season.notes}
       aside={
-        <Stepper
-          previous={
-            neighbours.previous
-              ? { to: `/seasons/${neighbours.previous}`, label: `${neighbours.previous} season` }
-              : null
-          }
-          next={
-            neighbours.next
-              ? { to: `/seasons/${neighbours.next}`, label: `${neighbours.next} season` }
-              : null
-          }
-        />
+        <Stepper {...seasonSteps(neighbours)} />
       }
     >
       <Section>
@@ -492,31 +482,7 @@ function SeasonBody({ year, season, data }) {
         />
       </Section>
 
-      <Onward
-        items={[
-          season.drivers_champion
-            ? {
-                to: `/drivers/${season.drivers_champion}`,
-                label: season.champion,
-                hint: `The champion's full career, ${year} and everything either side of it.`,
-              }
-            : null,
-          season.constructors_champion
-            ? {
-                to: `/constructors/${season.constructors_champion}`,
-                label: season.constructors_champion_name,
-                hint: 'The winning constructor, its cars and its record.',
-              }
-            : null,
-          neighbours.next
-            ? { to: `/seasons/${neighbours.next}`, label: `The ${neighbours.next} season`, hint: 'What happened next.' }
-            : null,
-          season.drivers_champion
-            ? null
-            : { to: '/races', label: 'Every race', hint: 'The rounds of this season beside all the others.' },
-          { to: '/seasons', label: 'All seasons', hint: 'Seventy-seven championships, compared in one table.' },
-        ]}
-      />
+      <Onward {...ONWARD.season({ season, year, neighbours })} />
     </Page>
   )
 }

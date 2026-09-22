@@ -168,14 +168,20 @@ describe('a NULL is "not established", never zero (frontend-reviewer, item 2)', 
   // fact. The number is the most a file may carry; a new site anywhere fails
   // until it is added here with its reason, or written as `missing()`.
   const DECLARED = new Map([
-    ['src/pages/Constructor.jsx', [8, 'derived career counts and a sort over the designs']],
+    ['src/pages/Constructor.jsx', [4, 'derived career counts']],
+    // IA-03 moved the two sorts that pick an onward band's car and season out
+    // of Constructor.jsx and Driver.jsx and into one module both renderers
+    // read. Same eight comparisons, same reason: every key is a COUNT over the
+    // race records, where nothing matched IS zero - a design with no win has
+    // no wins, not an unknown number of them - and none reads a stored column.
+    ['src/lib/wayfinding.js', [8, 'sort keys over derived win, podium and race counts']],
     // PD-15 added six: entries, starts, the four results figures tested
     // together, recorded grids and retirements. Every one is a COUNT over
     // race_entries, where SUM and COUNT are NULL only when no row matched
     // and none-matched IS the zero - a driver with no entry has no start,
     // not an unknown number of them. None reads a stored column.
     ['src/queries/driver.js', [13, 'derived career counts; seasons with an entry; PD-15 substitutes']],
-    ['src/pages/Driver.jsx', [5, 'sort keys over derived counts, and a chart ceiling']],
+    ['src/pages/Driver.jsx', [1, 'a chart ceiling; its sort keys are in lib/wayfinding.js']],
     ['src/data/worker.js', [3, 'download progress in bytes']],
     ['src/lib/search.js', [1, 'a ranking weight']],
     ['src/pages/Quality.jsx', [1, 'rows in a confidence class']],

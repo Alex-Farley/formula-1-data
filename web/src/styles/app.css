@@ -375,33 +375,32 @@ main {
   margin-bottom: 26px;
 }
 
-.crumb {
+/* The trail, in both halves (IA-22). It was `#prerendered .crumbs` and a
+   separate `.crumb` back link in the app, which is how the two renderers came
+   to describe two hierarchies of one document; now Page.jsx emits
+   prerender.js's markup and one set of rules draws both. */
+.crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
   font-size: 13px;
   color: var(--ink-faint);
-  margin: 0 0 8px;
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  align-items: baseline;
+  margin-bottom: 18px;
 }
 
-.crumb a {
+.crumbs a {
   color: var(--ink-soft);
   text-decoration: none;
 }
 
-.crumb a:hover {
+.crumbs a:hover {
   color: var(--accent);
   text-decoration: underline;
 }
 
-.crumb::before {
-  content: '←';
-  color: var(--ink-faint);
-}
-
-.crumb.plain::before {
-  content: none;
+.crumbs .sep {
+  color: var(--rule-strong);
 }
 
 .page h1 {
@@ -2600,10 +2599,11 @@ a.button.secondary:hover {
    HTML before the app has loaded. It writes them in the app's own shapes — a
    .page with its header, a .section per block, .stats, .fields, .table-wrap,
    .timeline, figure.figure — so everything above draws both halves and there
-   is one design rather than two (VD-01). What is left here is the two shapes
-   that exist only on the static page: the breadcrumb trail a crawler and a
-   deep arrival are given in place of the app's single way back, and the card
-   list of section links under it.
+   is one design rather than two (VD-01). What is left here is the one shape
+   that exists only on the static page: the card list of section links. It
+   was two until IA-22 — the trail was the other, and the app draws the same
+   one from the same source now, so its rules sit with the rest of the page
+   above.
 
    This block was 126 lines. It described a second treatment for the heading,
    the standfirst, every paragraph and every table on the site, and a reader
@@ -2614,20 +2614,6 @@ a.button.secondary:hover {
    the running app. It is also the only thing a reader without JavaScript ever
    sees, which is why it is styled properly rather than left bare.
    --------------------------------------------------------------------------- */
-
-#prerendered .crumbs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-  font-size: 13px;
-  color: var(--ink-faint);
-  margin-bottom: 18px;
-}
-
-#prerendered .crumbs .sep {
-  color: var(--rule-strong);
-}
 
 /* The photographs section (PD-19). figure.photo, .photo-grid, .pill and
    .source-note are the app's own rules and reach the static page unchanged —
