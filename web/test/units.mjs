@@ -1599,14 +1599,19 @@ describe('the rows the static page drew (IX-19)', () => {
     })
   })
 
-  it('is inert where there is no static page to read', () => {
+  it('a route with no static page records no arrival, and leaves one that had', () => {
     stand('/drivers', [fakeTable('Drivers', 862)], () => {
-      globalThis.document = { getElementById: () => null }
       captureStaticTables()
-      // The capture above left the previous one standing rather than throwing;
-      // what matters is that a route with no static page seeds nothing.
+      // A route the build does not prerender: #prerendered is not there, the
+      // capture finds nothing, and it must return before recording the route
+      // it was called on - or the register it counted a moment ago is filed
+      // under the wrong page and seeds nothing when the reader reaches it.
+      globalThis.document = { getElementById: () => null }
       globalThis.location = { pathname: '/reference/sql' }
+      captureStaticTables()
       assert.equal(staticRows('The result of your query'), 0)
+      globalThis.location = { pathname: '/drivers' }
+      assert.equal(staticRows('Drivers'), 862)
     })
   })
 })

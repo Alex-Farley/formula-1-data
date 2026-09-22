@@ -28,10 +28,29 @@
 /** One heading as one string, so " Drivers\n" and "Drivers" are one key. */
 const key = (name) => String(name ?? '').replace(/\s+/g, ' ').trim()
 
-/** The route the static page was written for; null until it has been read. */
-let arrival = null
-/** Rows drawn, by table name. A null value is a name that named two tables. */
-let drawn = new Map()
+/**
+ * Everything this module remembers, in one Map that is never reassigned: the
+ * route under ARRIVAL, and the rows each table drew under its name. A null
+ * value is a name that named two tables.
+ *
+ * ONE `const` MAP, MUTATED. NOT A MODULE-LEVEL `let`.
+ *     The first version of this was `let arrival` and `let drawn`, assigned
+ *     here and read from DataTable. It worked in the dev server and in every
+ *     unit case, and the minified bundle dropped both assignments: `arrival =
+ *     location.pathname` came out as the expression `location.pathname;` and
+ *     `drawn = counted` came out as nothing at all, so staticRows() folded to
+ *     0 and `Math.max(page, 0)` folded to `page`. The whole handover fix was
+ *     optimised out of the built site while the source still read correctly.
+ *     A Map's contents are opaque to that analysis — the same build kept
+ *     every `.set()` on the local map beside the assignments it deleted — so
+ *     the state lives in one and nothing here is ever reassigned.
+ *
+ *     smoke.mjs is what caught it, because it drives the built bundle. The
+ *     units in test/units.mjs passed throughout and would again: they read
+ *     this source, which was never wrong.
+ */
+const ARRIVAL = Symbol('the route the static page was written for')
+const drawn = new Map()
 
 /**
  * Count the static page's tables. Call this while it is still in the document
@@ -42,16 +61,15 @@ export function captureStaticTables() {
   if (typeof document === 'undefined') return
   const pre = document.getElementById('prerendered')
   if (!pre) return
-  arrival = location.pathname
-  const counted = new Map()
+  drawn.clear()
+  drawn.set(ARRIVAL, location.pathname)
   for (const table of pre.querySelectorAll('table')) {
     const name = key(table.querySelector('caption')?.textContent)
     if (!name) continue
     // Two tables under one heading cannot be told apart by it, and seeding
     // the wrong one is worse than seeding neither.
-    counted.set(name, counted.has(name) ? null : table.querySelectorAll('tbody tr').length)
+    drawn.set(name, drawn.has(name) ? null : table.querySelectorAll('tbody tr').length)
   }
-  drawn = counted
 }
 
 /**
@@ -62,6 +80,8 @@ export function captureStaticTables() {
  * reader's own doing, and the rows they had stay available to them.
  */
 export function staticRows(name) {
-  if (arrival === null || location.pathname !== arrival) return 0
+  const at = drawn.get(ARRIVAL)
+  // Before `location` is touched at all, so this is inert under Node.
+  if (at === undefined || location.pathname !== at) return 0
   return drawn.get(key(name)) ?? 0
 }
