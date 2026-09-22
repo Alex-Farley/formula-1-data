@@ -35,7 +35,7 @@ const SAID_FOR = 6000
 
 const count = (n) => n.toLocaleString('en-GB')
 
-export default function TakeAway({ columns, rows, shown, name }) {
+export default function TakeAway({ columns, rows, shown, name, fileLabel }) {
   const [said, setSaid] = useState(null)
   const timer = useRef(null)
   // A table can be unmounted by a filter keystroke between the copy and the
@@ -63,7 +63,7 @@ export default function TakeAway({ columns, rows, shown, name }) {
   }
 
   const download = () => {
-    const file = fileName(name, currentProgress().manifest?.version, 'csv')
+    const file = fileName(fileLabel ?? name, currentProgress().manifest?.version, 'csv')
     const url = URL.createObjectURL(
       new Blob([toCsv(written(), rows)], { type: 'text/csv;charset=utf-8' }),
     )
@@ -82,12 +82,22 @@ export default function TakeAway({ columns, rows, shown, name }) {
   const whole = shown >= rows.length
   const all = whole ? '' : `all ${count(rows.length)} `
 
+  /*
+   * The table's name inside the accessible name, because /data/quality draws
+   * seven tables and /races/<year>/<round> three, and a reader listing the
+   * controls on one of those would otherwise be offered "Copy as TSV" seven
+   * times over with nothing to tell them apart. The visible text stays the
+   * whole first clause of it, so the accessible name still contains the label
+   * a reader can see and say (2.5.3).
+   */
+  const named = (visible) => (name ? `${visible}, ${name}` : undefined)
+
   return (
     <>
-      <button type="button" className="take copy" onClick={copy}>
+      <button type="button" className="take copy" aria-label={named(`Copy ${all}as TSV`)} onClick={copy}>
         Copy {all}as TSV
       </button>
-      <button type="button" className="take csv" onClick={download}>
+      <button type="button" className="take csv" aria-label={named(`Download ${all}as CSV`)} onClick={download}>
         Download {all}as CSV
       </button>
       {/* Always in the tree, empty when there is nothing to say: a live region

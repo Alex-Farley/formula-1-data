@@ -2539,6 +2539,67 @@ try {
     is(csv.slice(0, 1), '﻿', 'and opens with the mark that makes Excel read it as UTF-8')
     is(csv.split('\r\n').length - 2, rows, 'and holds the same rows the clipboard did')
 
+    /*
+     * The em dash is a claim, and the file must not make one the page does
+     * not. The first review of this found the column that broke the rule:
+     * `position_text` on the driver championship table renders `v ??
+     * row.position`, and the export saw only the null - so 21 drivers' 2025
+     * season read 6 on screen and "not established" in the file, in the one
+     * artefact that travels with no page around it to correct it.
+     *
+     * So this is the general form rather than that one cell: every table on
+     * an entity page, every column the file and the page share, and an em
+     * dash in the file only where the page has one too.
+     */
+    await go('/drivers/hamilton', 'Sir Lewis Hamilton')
+    const tables = await page.$$('#root main .table-wrap')
+    let compared = 0
+    for (const [index, wrap] of tables.entries()) {
+      const [all, drawn] = await wrap.evaluate((el) => [Number(el.dataset.rows), Number(el.dataset.shown)])
+      // Only a table drawn whole can be compared row for row with its file.
+      if (all !== drawn) continue
+      // A chart's table is folded away behind its own <details> - and it is
+      // exactly the table the first review found the defect in, so it is
+      // opened rather than skipped.
+      await wrap.evaluate((el) => el.closest('details')?.setAttribute('open', ''))
+      const button = await wrap.$('.table-foot button.take.copy')
+      if (!(await button.isVisible())) continue
+      await button.click()
+      await page.waitForFunction(
+        (i) =>
+          document.querySelectorAll('#root main .table-wrap')[i].querySelector('.take-said')?.textContent.length > 0,
+        index,
+        { timeout: 10000 },
+      )
+      const copied = (await page.evaluate(() => navigator.clipboard.readText()))
+        .split('\n')
+        .map((line) => line.split('\t'))
+      const seen = await wrap.evaluate((el) => ({
+        headers: [...el.querySelectorAll('thead th')].map((h) => h.textContent.replace(/[▲▼]/g, '').trim()),
+        rows: [...el.querySelectorAll('tbody tr')].map((tr) =>
+          [...tr.querySelectorAll('td')].map((td) => td.textContent.trim()),
+        ),
+      }))
+      for (const [column, header] of seen.headers.entries()) {
+        const inFile = copied[0].indexOf(header)
+        if (inFile === -1) continue
+        for (const [row, cells] of seen.rows.entries()) {
+          const drawnCell = cells[column] ?? ''
+          const written = copied[row + 1]?.[inFile] ?? ''
+          // Silent unless it is wrong: one check per cell would be a
+          // thousand lines of green. The count below is the passing check.
+          if (written === '—' && drawnCell !== '—') {
+            truthy(
+              false,
+              `table ${index + 1}, ${header}, row ${row + 1}: the page shows "${drawnCell}" and the file says not established`,
+            )
+          }
+          compared += 1
+        }
+      }
+    }
+    truthy(compared > 200, `every cell of every whole table on a driver page agrees about what is missing — ${compared} compared`)
+
     // The console's result is a table like any other, and the one the item
     // named first: someone who can write SQL had Run and nothing else.
     await go('/data/sql', 'SQL console')
