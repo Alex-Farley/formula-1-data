@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { SELF_DESCRIBING, TWO_FILES } from '../lib/site.js'
+import { Link, useSearchParams } from 'react-router-dom'
+import { SELF_DESCRIBING, TIMING_EMPTY, TIMING_EMPTY_TABLES, TWO_FILES } from '../lib/site.js'
 import { Note, Onward, Page, Section } from '../components/Page.jsx'
 import { ErrorBox, Loading } from '../components/States.jsx'
 import DataTable from '../components/DataTable.jsx'
@@ -80,6 +80,22 @@ const EXAMPLES = [
 const START = EXAMPLES[0][1]
 
 /**
+ * Does this statement read one of the four tables that are empty by licence?
+ *
+ * Only a FROM or a JOIN counts, not the bare name: `laps` is also a column of
+ * race_entries, so `SELECT laps FROM race_entries WHERE ...` matching nothing
+ * keeps the ordinary empty message rather than being told about a licence
+ * position it never touched. The opening quote is optional because FROM "laps",
+ * FROM [laps] and FROM `laps` are all the same read.
+ */
+const TIMING_READ = new RegExp(
+  '\\b(?:from|join)\\s+[\'"`[]?(' + TIMING_EMPTY_TABLES.join('|') + ')\\b',
+  'i',
+)
+
+const readsEmptyTimingTable = (sql) => typeof sql === 'string' && TIMING_READ.test(sql)
+
+/**
  * A courtesy, not the guarantee.
  *
  * The guarantee is that every statement runs inside a transaction that is
@@ -151,7 +167,10 @@ export default function Sql() {
     running.current = controller
     try {
       const data = await queryReadOnly(statement, [], { signal: controller.signal })
-      setState({ status: 'done', data, elapsed: performance.now() - started })
+      // The statement travels with its result: an empty result is read
+      // differently depending on what was asked for, and the ref holding the
+      // last statement is not what re-renders the table.
+      setState({ status: 'done', data, statement, elapsed: performance.now() - started })
     } catch (error) {
       if (error?.name === 'AbortError') {
         setState({ status: 'cancelled', elapsed: performance.now() - started })
@@ -290,7 +309,15 @@ export default function Sql() {
                 // wrongly: "SQL console" is where the reader is, not what they
                 // are looking at.
                 caption="The result of your query"
-                empty="The statement ran and matched nothing."
+                empty={
+                  readsEmptyTimingTable(state.statement) ? (
+                    <p className="state is-empty">
+                      {TIMING_EMPTY} <Link to="/data">Why this is so</Link>.
+                    </p>
+                  ) : (
+                    'The statement ran and matched nothing.'
+                  )
+                }
                 footer={
                   state.data.rows.length > 200
                     ? 'Showing the first two hundred rows.'
@@ -322,9 +349,17 @@ export default function Sql() {
                 <details key={entry.name}>
                   <summary>
                     <code>{entry.name}</code>
+                    {TIMING_EMPTY_TABLES.includes(entry.name) && (
+                      <span className="pill">empty by design</span>
+                    )}
                     <span className="rows">{entry.type}</span>
                   </summary>
                   <p className="cols">{entry.columns}</p>
+                  {TIMING_EMPTY_TABLES.includes(entry.name) && (
+                    <p className="small faint" style={{ margin: '0 0 8px', paddingLeft: 14 }}>
+                      {TIMING_EMPTY} <Link to="/data">Why this is so</Link>.
+                    </p>
+                  )}
                 </details>
               ))}
             </div>

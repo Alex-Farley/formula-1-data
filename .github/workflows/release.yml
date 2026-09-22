@@ -130,6 +130,12 @@ jobs:
             and the obligation follows the file it belongs to.
             See `ATTRIBUTION.md`.
 
+            Nobody licenses Formula One race timing for redistribution, so
+            this database holds none: `laps`, `stints`, `race_timing` and
+            `race_control_messages` are empty on purpose. Everything that is
+            here may be passed on under the licence shown beside it.
+            `docs/TIMING-ARCHITECTURE.md` is that decision in full.
+
             **Stable links.** Every asset above is also reachable at a URL
             that always points at the newest release, so a script does not
             need updating each time:
