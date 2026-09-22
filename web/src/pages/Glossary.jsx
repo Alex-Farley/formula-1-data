@@ -7,6 +7,7 @@ import { Chips, Filters, NoMatch, SearchField } from '../components/Filters.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { GLOSSARY, GLOSSARY_COLUMNS, PERSONNEL, PERSONNEL_COLUMNS } from '../queries/glossary.js'
 
+import { ONWARD, TRAIL } from '../lib/wayfinding.js'
 const SPEC = {
   glossary: [GLOSSARY],
   personnel: [PERSONNEL],
@@ -25,6 +26,7 @@ export default function Glossary() {
   return (
     <Page
       title="Glossary and people"
+      trail={TRAIL.glossary()}
       lede="What the words on a classification actually mean — and the designers, administrators and team principals whose decisions are behind most of the rest of this site."
     >
       <SportNav />
@@ -114,13 +116,7 @@ function Body({ glossary, personnel, term, setTerm, category, setCategory }) {
         />
       </Section>
 
-      <Onward
-        items={[
-          { to: '/reference/eras', label: 'Eras and rules', hint: 'Where most of this vocabulary comes from.' },
-          { to: '/races', label: 'Races', hint: 'See the terms in use on a classification.' },
-          { to: '/data/quality', label: 'Data quality', hint: 'What “verified” and “reference” mean here.' },
-        ]}
-      />
+      <Onward {...ONWARD.glossary()} />
     </>
   )
 }

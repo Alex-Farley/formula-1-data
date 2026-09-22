@@ -37,6 +37,7 @@ import {
 import { colourForEntry } from '../lib/liveries.js'
 import LiveryMark from '../components/LiveryMark.jsx'
 
+import { ONWARD, TRAIL, raceSteps } from '../lib/wayfinding.js'
 /*
  * The React renders for the columns queries/race.js defines — the links, the
  * tags, the rail; the router is the reason they live here. The words each
@@ -156,7 +157,7 @@ export default function Race() {
         const race = data.race.rows[0]
         if (!race) {
           return (
-            <Page title="No such race" cite={false} back={{ to: '/races', label: 'All races' }}>
+            <Page title="No such race" cite={false} trail={TRAIL.missing('/races', 'Races')}>
               <p className="muted">
                 There is no round {round} of {year} in the register.
               </p>
@@ -228,13 +229,10 @@ function RaceBody({ race, data, year, round }) {
     <Page
       eyebrow={`Round ${round} of ${year}`}
       title={race.name_used}
-      back={{ to: `/seasons/${year}`, label: `${year} season` }}
+      trail={TRAIL.race(year, round, race.name_used)}
       lede={raceLede(race, winners)}
       aside={
-        <Stepper
-          previous={neighbours.previous ? { to: `/races/${neighbours.previous}`, label: 'Previous race' } : null}
-          next={neighbours.next ? { to: `/races/${neighbours.next}`, label: 'Next race' } : null}
-        />
+        <Stepper {...raceSteps(neighbours)} />
       }
     >
       <Section>
@@ -440,28 +438,7 @@ function RaceBody({ race, data, year, round }) {
         )}
       </Section>
 
-      <Onward
-        items={[
-          race.circuit_id
-            ? {
-                to: `/circuits/${race.circuit_id}`,
-                label: race.circuit,
-                hint: 'The venue, its layouts and every race held there.',
-              }
-            : null,
-          { to: `/seasons/${year}`, label: `The ${year} season`, hint: 'Calendar, title race and final standings.' },
-          winners[0]?.driver_id
-            ? {
-                to: `/drivers/${winners[0].driver_id}`,
-                label: winners[0].driver ?? 'The winner',
-                hint: 'Their full career, race by race.',
-              }
-            : null,
-          neighbours.next
-            ? { to: `/races/${neighbours.next}`, label: 'The next race', hint: 'Where the championship went from here.' }
-            : null,
-        ]}
-      />
+      <Onward {...ONWARD.race({ race, year, winners, neighbours })} />
     </Page>
   )
 }

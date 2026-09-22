@@ -134,6 +134,7 @@ import {
   ENTRANTS_FOOTER,
   FINAL,
   GRID,
+  NEIGHBOURS as SEASON_NEIGHBOURS,
   NO_CONSTRUCTORS_TITLE,
   REMAINING,
   SEASON,
@@ -144,7 +145,7 @@ import {
   stillRunning,
   titlePermutations,
 } from '../src/queries/season.js'
-import { RACES, RACE_COLUMNS, RACES_FOOTER } from '../src/queries/races.js'
+import { LATEST as LATEST_RUN, RACES, RACE_COLUMNS, RACES_FOOTER } from '../src/queries/races.js'
 import { CONSTRUCTOR_IMAGES, RACE_IMAGES, SEASON_IMAGES } from '../src/queries/photographs.js'
 import { CONSTRUCTORS, CONSTRUCTOR_COLUMNS, CONSTRUCTORS_FOOTER } from '../src/queries/constructors.js'
 import { CIRCUITS, CIRCUIT_COLUMNS, CIRCUITS_FOOTER, TRACED } from '../src/queries/circuits.js'
@@ -153,6 +154,7 @@ import {
   CLASSIFICATION_COLUMNS,
   CLASSIFICATION_FOOTER,
   ENTRIES,
+  NEIGHBOURS as RACE_NEIGHBOURS,
   FASTEST_LAP,
   PITS,
   PITS_FOOTER,
@@ -289,6 +291,7 @@ import {
   DERIVED,
   DRIVER,
   DRIVER_CONSTRUCTORS,
+  RESULTS as DRIVER_RESULTS,
   SEASON_COLUMNS,
   SEASONS_FOOTER,
   STANDINGS,
@@ -301,7 +304,21 @@ import {
   seasonRows,
   strip,
 } from '../src/queries/driver.js'
-import { RECORDS, TIER_AFTER, holderPath, recordColumns, tierBefore, tiersOf, RECORDS_LEDE } from '../src/queries/records.js'
+import {
+  DRIVER_WINS,
+  RECORDS,
+  TIER_AFTER,
+  holderPath,
+  recordColumns,
+  tierBefore,
+  tiersOf,
+  RECORDS_LEDE,
+} from '../src/queries/records.js'
+// Where a page sits and where it leads, from the module the app reads (IA-03,
+// IA-22). The trails were written out here and the onward bands existed only
+// in the app, so the half a crawler and a cold arrival are given had no
+// relational layer at all; both now come from one place.
+import { ONWARD, TRAIL, raceSteps, seasonSteps } from '../src/lib/wayfinding.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const web = join(here, '..')
@@ -709,6 +726,33 @@ const chrome = (body, crumbs, citeUrl) => `
     <p class="faint">Race data from <a href="https://github.com/f1db/f1db">F1DB</a> (CC BY 4.0), prose and registers from Wikipedia (CC BY-SA 4.0), circuit geometry © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL 1.0). ${esc(OUTLINE_CREDIT)}. Unaffiliated with Formula One, the FIA or any team.</p>
   </div><dl><dt>Database</dt><dd>v${esc(META.version)}</dd><dt>Built</dt><dd>${esc(META.built)}</dd></dl></div></footer>
 </div>`
+
+/**
+ * The onward band and the step sideways, as HTML.
+ *
+ * Page.jsx's <Onward> and <Stepper>, element for element and class for class,
+ * so app.css draws one design rather than two and the static page does not
+ * change shape when the database opens. The items are lib/wayfinding.js's —
+ * this writes them, it does not choose them.
+ */
+const onwardBand = ({ title = 'Keep going', items }) => {
+  const shown = items.filter(Boolean)
+  if (!shown.length) return ''
+  return `<nav class="onward" aria-label="${esc(title)}"><h2>${esc(title)}</h2><div>${shown
+    .map(
+      ({ to, label, hint }) =>
+        `<a href="${esc(href(to))}"><b>${esc(label)}</b>${hint ? `<span>${esc(hint)}</span>` : ''}</a>`,
+    )
+    .join('')}</div></nav>`
+}
+
+const side = (step, arrow) =>
+  step ? `<a href="${esc(href(step.to))}">${arrow === 'left' ? `← ${esc(step.label)}` : `${esc(step.label)} →`}</a>` : '<span></span>'
+
+const stepperNav = ({ previous, next }) =>
+  previous || next
+    ? `<nav class="stepper" aria-label="Neighbouring pages">${side(previous, 'left')}${side(next, 'right')}</nav>`
+    : ''
 
 const crumbs = (trail) =>
   trail
@@ -1193,15 +1237,30 @@ const sectioned = (html) => {
   ].join('')
 }
 
-const structure = (body) => {
-  const opening = body.match(/^\s*(<h1\b[\s\S]*?<\/h1>)(\s*<p class="lede">[\s\S]*?<\/p>)?/)
+const structure = (body, tail = '') => {
+  // The stepper belongs to the header, because <Page aside> renders it there:
+  // a nav left in the body would be swept into the first section instead, and
+  // the two halves would put the same two links in different places.
+  const opening = body.match(
+    /^\s*(<h1\b[\s\S]*?<\/h1>)(\s*<p class="lede">[\s\S]*?<\/p>)?(\s*<nav class="stepper"[\s\S]*?<\/nav>)?/,
+  )
   if (!opening) die('prerender: a page body that does not open on an h1')
-  return `<article class="page"><header>${opening[1]}${opening[2] ?? ''}</header>${sectioned(
+  return `<article class="page"><header>${opening[1]}${opening[2] ?? ''}${opening[3] ?? ''}</header>${sectioned(
     body.slice(opening[0].length),
-  )}</article>`
+  )}${tail}</article>`
 }
 
-const page = ({ path, title, description, body, jsonld = null, trail = null, image = null, lastmod = null }) => {
+const page = ({
+  path,
+  title,
+  description,
+  body,
+  jsonld = null,
+  trail = null,
+  onward = null,
+  image = null,
+  lastmod = null,
+}) => {
   // The citation names the page by the address the canonical carries.
   pages.push({
     path,
@@ -1210,7 +1269,11 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
     jsonld,
     image,
     lastmod: stamp(lastmod),
-    html: chrome(nameTables(structure(body)), trail ? crumbs(trail) : '', `${ORIGIN}${href(path)}`),
+    html: chrome(
+      nameTables(structure(body, onward ? onwardBand(onward) : '')),
+      trail ? crumbs(trail) : '',
+      `${ORIGIN}${href(path)}`,
+    ),
   })
 }
 
@@ -1245,6 +1308,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
         `A normalised, verifiable SQLite database of Formula One championship racing, ${SPAN}.`,
       license: 'https://creativecommons.org/licenses/by-sa/4.0/',
     },
+    onward: ONWARD.home({ latest: one(LATEST_RUN) }),
     body: `
       <h1>Formula One, ${SPAN}, with its sources attached</h1>
       <p class="lede">Seventy-seven seasons as one SQLite file, queried in this tab. Every figure
@@ -1297,7 +1361,8 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
     path: 'seasons',
     title: titled(`Every season, ${SPAN}`),
     description: `All ${seasons.length} FIA Formula One World Championship seasons, with the drivers' and constructors' champions, points and margin for each.`,
-    trail: [['', 'Home'], ['seasons', 'Seasons']],
+    trail: TRAIL.seasons(),
+    onward: ONWARD.seasons(),
     body: `
       <h1>Seasons</h1>
       <p class="lede">Every FIA Formula One World Championship season from 1950.</p>
@@ -1313,6 +1378,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
 
   for (const { year } of all('SELECT year FROM seasons ORDER BY year DESC')) {
     const s = one(SEASON, year)
+    const neighbours = one(SEASON_NEIGHBOURS, year) ?? {}
     const calendar = all(CALENDAR, year)
     const final = all(FINAL, year)
     const driversFinal = final.filter((r) => r.table_type === 'drivers')
@@ -1364,7 +1430,8 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
           : notRun
             ? `The ${year} Formula One World Championship: a calendar of ${s.rounds ?? '?'} announced rounds, ${NOT_YET_RUN}. Every venue, weekend and Sprint round.`
             : `The ${year} Formula One World Championship: ${s.rounds ?? '?'} rounds, with every race, winner, pole and fastest lap.`,
-      trail: [['', 'Home'], ['seasons', 'Seasons'], [`seasons/${year}`, String(year)]],
+      trail: TRAIL.season(year),
+      onward: ONWARD.season({ season: s, year, neighbours }),
       jsonld: {
         '@context': 'https://schema.org',
         '@type': 'SportsSeason',
@@ -1374,6 +1441,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
       },
       body: `
         <h1>${year} FIA Formula One World Championship</h1>
+        ${stepperNav(seasonSteps(neighbours))}
         ${
           notRun
             ? fields([
@@ -1486,7 +1554,8 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
     path: 'races',
     title: titled(`Every championship race, ${SPAN}`),
     description: `All ${races.length.toLocaleString()} FIA Formula One championship Grands Prix with winner, pole, fastest lap and full classification.`,
-    trail: [['', 'Home'], ['races', 'Races']],
+    trail: TRAIL.races(),
+    onward: ONWARD.races(),
     body: `
       <h1>Races</h1>
       <p class="lede">${races.length.toLocaleString()} championship Grands Prix. The 200 most recently run
@@ -1532,6 +1601,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
   const outCell = (value, row) => (finished(value, row.finish_position) ? 'Finished' : missing(value) ? '—' : tag(value))
 
   for (const r of races) {
+    const neighbours = one(RACE_NEIGHBOURS, r.year, r.round) ?? {}
     const entries = inClassificationOrder(all(ENTRIES, r.year, r.round))
     const qualifying = all(QUALIFYING, r.year, r.round)
     const sprintResults = inClassificationOrder(all(SPRINT_RESULTS, r.year, r.round))
@@ -1567,12 +1637,8 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
       lastmod: r.date_iso,
       title: titled(headline),
       description: summarise(description, 300),
-      trail: [
-        ['', 'Home'],
-        ['seasons', 'Seasons'],
-        [`seasons/${r.year}`, String(r.year)],
-        [`races/${r.year}/${r.round}`, r.name_used],
-      ],
+      trail: TRAIL.race(r.year, r.round, r.name_used),
+      onward: ONWARD.race({ race: r, year: r.year, winners: raceWinners, neighbours }),
       jsonld: {
         '@context': 'https://schema.org',
         '@type': 'SportsEvent',
@@ -1596,6 +1662,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
       body: `
         <h1>${esc(headline)}</h1>
         <p class="lede">${esc(standfirst)}</p>
+        ${stepperNav(raceSteps(neighbours))}
         ${fields([
           ['Round', `${r.round} of ${r.year}`],
           ['Circuit', r.circuit_id ? link(`circuits/${r.circuit_id}`, r.circuit ?? r.circuit_id) : '—'],
@@ -1753,7 +1820,8 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
     path: 'drivers',
     title: titled(`Every driver, ${SPAN}`),
     description: `All ${register.length} drivers in the register, with entries, wins, podiums, poles and fastest laps counted from the race records, and titles from the championship tables.`,
-    trail: [['', 'Home'], ['drivers', 'Drivers']],
+    trail: TRAIL.drivers(),
+    onward: ONWARD.drivers(),
     body: `
       <h1>Drivers</h1>
       <p class="lede">${register.length} drivers. Career totals are counted from the race records
@@ -1768,6 +1836,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
        FROM race_results rr WHERE rr.winner_id = ? ORDER BY rr.year, rr.round`,
   )
   const constructorsOf = db.prepare(DRIVER_CONSTRUCTORS)
+  const resultsOf = db.prepare(DRIVER_RESULTS)
 
   for (const { id } of register) {
     const d = one(DRIVER, id)
@@ -1780,7 +1849,8 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
     // those "(published)", and a description that quoted them read "0 wins,
     // 0 poles" for 81 drivers whose lede had just moved to `provenance`.
     const derived = one(DERIVED, id) ?? {}
-    const seasons = seasonRows(all(BY_SEASON, id), all(STANDINGS, id))
+    const bySeason = all(BY_SEASON, id)
+    const seasons = seasonRows(bySeason, all(STANDINGS, id))
     const wins = winsOf.all(id)
     const constructors = constructorsOf.all(id).map((c) => c.name)
     const career = careerSentence(derived, constructors, d.titles)
@@ -1795,7 +1865,8 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
       lastmod: LAST_RUN.driver.get(d.id),
       title: titled(d.full_name),
       description: withNotes.endsWith('…') ? lead : withNotes,
-      trail: [['', 'Home'], ['drivers', 'Drivers'], [`drivers/${d.id}`, d.full_name]],
+      trail: TRAIL.driver(d.id, d.full_name),
+      onward: ONWARD.driver({ results: resultsOf.all(d.id), bySeason }),
       jsonld: {
         '@context': 'https://schema.org',
         '@type': 'Person',
@@ -1859,7 +1930,8 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
     path: 'constructors',
     title: titled(`Every constructor, ${SPAN}`),
     description: `All ${constructors.length} constructors that have entered a championship Grand Prix, with entries, wins, poles and titles.`,
-    trail: [['', 'Home'], ['constructors', 'Constructors']],
+    trail: TRAIL.constructors(),
+    onward: ONWARD.constructors(),
     body: `
       <h1>Constructors</h1>
       <p class="lede">${constructors.length} constructors that have entered a championship Grand Prix.</p>
@@ -1891,7 +1963,8 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
     // 2,496 for the same team. Same query as Constructor.jsx (CD-30).
     const teamDerived = one(TEAM_DERIVED, c.id) ?? {}
     const teamStandings = all(TEAM_STANDINGS, c.id)
-    const seasons = constructorSeasons(all(TEAM_BY_SEASON, c.id), teamStandings)
+    const teamBySeason = all(TEAM_BY_SEASON, c.id)
+    const seasons = constructorSeasons(teamBySeason, teamStandings)
     const engineSplit = teamStandings.some((s) => s.engine_id)
     const wins = all(TEAM_WINS, c.id)
     const designs = all(DESIGNS, c.id)
@@ -1905,7 +1978,8 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
         }${c.constructors_titles ? `, ${c.constructors_titles} constructors' titles` : ''}. ${c.notes ?? ''}`,
         300,
       ),
-      trail: [['', 'Home'], ['constructors', 'Constructors'], [`constructors/${c.id}`, c.name]],
+      trail: TRAIL.constructor(c.id, c.name),
+      onward: ONWARD.constructor({ constructor: c, designs, bySeason: teamBySeason }),
       jsonld: {
         '@context': 'https://schema.org',
         '@type': 'SportsOrganization',
@@ -1995,7 +2069,8 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
     path: 'circuits',
     title: titled(`Every circuit, ${SPAN}`),
     description: `All ${circuits.length} circuits that have held a championship Grand Prix, with length, turns, location and the races held there.`,
-    trail: [['', 'Home'], ['circuits', 'Circuits']],
+    trail: TRAIL.circuits(),
+    onward: ONWARD.circuits(),
     body: `
       <h1>Circuits</h1>
       <p class="lede">${circuits.length} circuits that have held a championship Grand Prix.</p>
@@ -2029,7 +2104,8 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
         }. ${c.characteristics ?? ''}`,
         300,
       ),
-      trail: [['', 'Home'], ['circuits', 'Circuits'], [`circuits/${c.id}`, c.name]],
+      trail: TRAIL.circuit(c.id, c.name),
+      onward: ONWARD.circuit({ races: racesHere, winners: winnersHere }),
       jsonld: {
         '@context': 'https://schema.org',
         '@type': 'Place',
@@ -2145,10 +2221,8 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
   // be attributed, and every entry. A page for one chassis covers that
   // chassis; a page for a car no chassis shares an id with covers them all,
   // which is what VARIANTS resolves either way.
-  const carTables = (id) => {
-    const variants = all(VARIANTS, id)
+  const carTables = (id, variants, entries) => {
     const several = variants.length > 1
-    const entries = all(CAR_ENTRIES, id)
     const ambiguous = all(CAR_SEASONS, id, id).filter((s) => !s.corroborated)
     return `${
       several
@@ -2182,7 +2256,8 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
     path: 'cars',
     title: titled('Cars'),
     description: `${cars.length} landmark Formula One chassis specified in full, and the register of all ${chassis.length} chassis that have started a Grand Prix.`,
-    trail: [['', 'Home'], ['cars', 'Cars']],
+    trail: TRAIL.cars(),
+    onward: ONWARD.cars(),
     body: `
       <h1>Cars</h1>
       <p class="lede">${cars.length} landmark chassis, specified and sourced, and behind them
@@ -2207,6 +2282,8 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
 
   for (const c of cars) {
     const name = c.full_name ?? c.designation
+    const variants = all(VARIANTS, c.id)
+    const carEntries = all(CAR_ENTRIES, c.id)
     // Second on the page, where Car.jsx puts it: after the figures that say
     // what the car is and before the prose that says why it mattered.
     const photos = photographs(c.id)
@@ -2221,7 +2298,8 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
         }. ${c.concept ?? c.story ?? ''}`,
         300,
       ),
-      trail: [['', 'Home'], ['cars', 'Cars'], [`cars/${c.id}`, name]],
+      trail: TRAIL.car(c.id, name),
+      onward: ONWARD.car({ chassis: variants[0] ?? c, car: c, entries: carEntries }),
       body: `
         <h1>${esc(name)}</h1>
         ${fields([
@@ -2250,7 +2328,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
         ${prose(c.innovations)}
         ${prose(c.story)}
         ${prose(c.outcome)}
-        ${carTables(c.id)}`,
+        ${carTables(c.id, variants, carEntries)}`,
     })
   }
 
@@ -2271,6 +2349,8 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
       ? String(ch.first_year ?? '?')
       : `${ch.first_year ?? '?'}–${ch.last_year ?? '?'}`
     const entries = raced.get(ch.id) ?? []
+    const variants = all(VARIANTS, ch.id)
+    const carEntries = all(CAR_ENTRIES, ch.id)
     const constructor = ch.constructor ?? ch.constructor_id
     const photos = photographs(ch.id)
 
@@ -2286,7 +2366,8 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
           `${ch.engine_name ? `. ${ch.engine_name} engine` : ''}.`,
         300,
       ),
-      trail: [['', 'Home'], ['cars', 'Cars'], [`cars/${ch.id}`, name]],
+      trail: TRAIL.car(ch.id, name),
+      onward: ONWARD.car({ chassis: variants[0] ?? ch, car: null, entries: carEntries }),
       body: `
         <h1>${esc(name)}</h1>
         ${fields([
@@ -2313,7 +2394,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
             ? `<p class="measure">One of the ${link(`cars/${ch.car_id}`, 'design family')} that has a specified page of its own.</p>`
             : ''
         }
-        ${carTables(ch.id)}`,
+        ${carTables(ch.id, variants, carEntries)}`,
     })
   }
 }
@@ -2332,7 +2413,8 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
     path: 'records',
     title: titled('Records'),
     description: `${records.length} Formula One records, each derived from the database's own race records and stating how.`,
-    trail: [['', 'Home'], ['records', 'Records']],
+    trail: TRAIL.records(),
+    onward: ONWARD.records({ driverWins: all(DRIVER_WINS) }),
     body: `
       <h1>Records</h1>
       <p class="lede">${esc(RECORDS_LEDE)}${
@@ -2354,7 +2436,8 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
     path: 'reference/eras',
     title: titled('Eras'),
     description: 'Formula One divided into eras, with the dominant teams and defining features of each.',
-    trail: [['', 'Home'], ['reference/eras', 'Eras']],
+    trail: TRAIL.eras(),
+    onward: ONWARD.eras(),
     body: `
       <h1>Eras</h1>
       ${eras
@@ -2396,7 +2479,8 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
     path: 'reference/glossary',
     title: titled('Glossary'),
     description: `${glossary.length} Formula One terms defined — the vocabulary the rest of this database uses.`,
-    trail: [['', 'Home'], ['reference/glossary', 'Glossary']],
+    trail: TRAIL.glossary(),
+    onward: ONWARD.glossary(),
     body: `
       <h1>Glossary</h1>
       <h2>Glossary</h2>
@@ -2411,7 +2495,8 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
     title: titled('Sources'),
     description:
       'Every source this database draws on, what it is trusted for, its licence, and how its claims are cross-checked.',
-    trail: [['', 'Home'], ['data', 'Data'], ['data/sources', 'Sources']],
+    trail: TRAIL.sources(),
+    onward: ONWARD.sources(),
     body: `
       <h1>Sources</h1>
       <p class="lede">What each source is trusted for, under what licence, and what constrains it.</p>
@@ -2459,7 +2544,8 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
       path: 'data',
       title: titled('Data'),
       description: `The whole site is one SQLite file, and you can have it. Formula One ${SPAN}, v${META.version}, built ${META.built}. ${CROSS_CHECKED}`,
-      trail: [['', 'Home'], ['data', 'Data']],
+      trail: TRAIL.data(),
+      onward: ONWARD.data(),
       jsonld: {
         '@context': 'https://schema.org',
         '@type': 'Dataset',
@@ -2578,7 +2664,8 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
     title: titled('Data quality'),
     description:
       'The confidence model, the open discrepancies and every known gap — what this database does not know, stated rather than hidden.',
-    trail: [['', 'Home'], ['data', 'Data'], ['data/quality', 'Data quality']],
+    trail: TRAIL.quality(),
+    onward: ONWARD.quality(),
     body: `
       <h1>Data quality</h1>
       <p class="lede">A blank in this database is an unestablished fact, never a zero. These are
@@ -2615,7 +2702,8 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
     title: titled('SQL console'),
     description:
       'Run your own SQL against the whole database in your browser. Nothing is sent anywhere; the query runs in this tab.',
-    trail: [['', 'Home'], ['data', 'Data'], ['data/sql', 'SQL console']],
+    trail: TRAIL.sql(),
+    onward: ONWARD.sql(),
     body: `
       <h1>SQL console</h1>
       <p class="lede">The console needs JavaScript: it runs SQLite compiled to WebAssembly against
@@ -2657,7 +2745,8 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
     path: 'about',
     title: titled('About'),
     description: `${SITE} is built and kept by ${MAINTAINER}, one person, in the open. ${ABOUT_LEDE}`,
-    trail: [['', 'Home'], ['about', 'About']],
+    trail: TRAIL.about(),
+    onward: ONWARD.about(),
     jsonld: {
       '@context': 'https://schema.org',
       '@type': 'AboutPage',
@@ -2673,13 +2762,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
       ${ABOUT.map(
         ({ title, paragraphs, after }) =>
           `${heading(title)}${paragraphs.map(prose).join('')}${linked(after)}`,
-      ).join('')}
-      <h2>Keep going</h2>
-      <ul class="cards">
-        <li>${link('data', 'Data')} — the file itself, what it holds, and what you may do with it.</li>
-        <li>${link('data/quality', 'Data quality')} — the ladder, every gap, every disagreement.</li>
-        <li>${link('data/sources', 'Sources and licences')} — who says so, and what each licence cost or bought.</li>
-      </ul>`,
+      ).join('')}`,
   })
 }
 
@@ -2708,7 +2791,8 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
     path: 'changes',
     title: titled(CHANGES_TITLE),
     description: CHANGES_DESCRIPTION,
-    trail: [['', 'Home'], ['changes', CHANGES_TITLE]],
+    trail: TRAIL.changes(CHANGES_TITLE),
+    onward: ONWARD.changes({ latest }),
     body: `
       <h1>${esc(CHANGES_TITLE)}</h1>
       <p class="lede">${esc(CHANGES_LEDE)}</p>

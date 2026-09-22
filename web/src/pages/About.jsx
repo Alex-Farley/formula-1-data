@@ -10,6 +10,7 @@ import {
   REPOSITORY,
 } from '../lib/site.js'
 
+import { ONWARD, TRAIL } from '../lib/wayfinding.js'
 /**
  * Who publishes this, and how to tell it it is wrong.
  *
@@ -30,7 +31,7 @@ import {
  */
 export default function About() {
   return (
-    <Page title="About" lede={ABOUT_LEDE}>
+    <Page title="About" trail={TRAIL.about()} lede={ABOUT_LEDE}>
       {ABOUT.map(({ title, paragraphs, after }) => (
         <Section key={title} title={title}>
           {/* The index: ABOUT is a literal that never reorders and never
@@ -61,17 +62,7 @@ export default function About() {
         </Section>
       ))}
 
-      <Onward
-        items={[
-          { to: '/data', label: 'Data', hint: 'The file itself, what it holds, and what you may do with it.' },
-          { to: '/data/quality', label: 'Data quality', hint: 'The ladder, every gap, every disagreement.' },
-          {
-            to: '/data/sources',
-            label: 'Sources and licences',
-            hint: 'Who says so, and what each licence cost or bought.',
-          },
-        ]}
-      />
+      <Onward {...ONWARD.about()} />
     </Page>
   )
 }

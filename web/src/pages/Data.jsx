@@ -15,6 +15,7 @@ import {
   TWO_FILES,
 } from '../lib/site.js'
 
+import { ONWARD, TRAIL } from '../lib/wayfinding.js'
 /**
  * The database's front door.
  *
@@ -72,6 +73,7 @@ export default function Data() {
   return (
     <Page
       title="Data"
+      trail={TRAIL.data()}
       lede="The whole site is one SQLite file, and you can have it. What it is, the files it comes as, how far to trust it, and what you may do with it."
     >
       <SubNav />
@@ -275,13 +277,7 @@ function Body({ data }) {
         </div>
       </Section>
 
-      <Onward
-        items={[
-          { to: '/data/quality', label: 'Data quality', hint: 'The ladder, the gaps, the disagreements, the coverage.' },
-          { to: '/data/sources', label: 'Sources and licences', hint: 'Who says so, and what you may reuse.' },
-          { to: '/data/sql', label: 'SQL console', hint: 'Pull the rows you need straight out of the database.' },
-        ]}
-      />
+      <Onward {...ONWARD.data()} />
     </>
   )
 }

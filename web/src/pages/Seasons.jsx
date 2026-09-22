@@ -8,6 +8,7 @@ import { colourForEntry } from '../lib/liveries.js'
 import { NOT_YET_RUN, SO_FAR } from '../lib/site.js'
 import { SEASONS, SEASONS_COLUMNS, SEASON_LIST_FOOTER } from '../queries/seasons.js'
 
+import { ONWARD, TRAIL } from '../lib/wayfinding.js'
 /**
  * A name as a link where it has an id, with the undecided season's "so far"
  * mark - or "not yet run" where the season has a calendar and no rounds
@@ -99,6 +100,7 @@ export default function Seasons() {
   return (
     <Page
       title="Seasons"
+      trail={TRAIL.seasons()}
       lede="Seventy-seven championships, newest first. Pick a year for its calendar, the title race round by round, and the final tables — or sort this list by any column to find the closest finishes and the biggest walkovers."
     >
       <Section>
@@ -116,13 +118,7 @@ export default function Seasons() {
         </Result>
       </Section>
 
-      <Onward
-        items={[
-          { to: '/races', label: 'Every race', hint: 'All 1,000-plus rounds in one filterable list.' },
-          { to: '/records', label: 'Records', hint: 'Champions, most wins, most poles, grand slams.' },
-          { to: '/reference/eras', label: 'Eras and rules', hint: 'Why a 1955 points total cannot be compared with a 2025 one.' },
-        ]}
-      />
+      <Onward {...ONWARD.seasons()} />
     </Page>
   )
 }

@@ -19,6 +19,7 @@ import {
 } from '../lib/changes.js'
 import { LATEST, SHAPE } from '../queries/changes.js'
 
+import { ONWARD, TRAIL } from '../lib/wayfinding.js'
 /*
  * What changed (SD-20).
  *
@@ -99,7 +100,7 @@ export default function Changes() {
   const latest = rows(state.data, 'latest')[0] ?? null
 
   return (
-    <Page title={CHANGES_TITLE} lede={CHANGES_LEDE}>
+    <Page title={CHANGES_TITLE} trail={TRAIL.changes(CHANGES_TITLE)} lede={CHANGES_LEDE}>
       <Section title={CURRENT_HEADING}>
         <Result state={state}>{(data) => <Current data={data} />}</Result>
       </Section>
@@ -115,25 +116,7 @@ export default function Changes() {
         <p className="faint">{HISTORY_NOTE}</p>
       </Section>
 
-      <Onward
-        items={[
-          latest && {
-            to: `/races/${latest.year}/${latest.round}`,
-            label: latest.name_used,
-            hint: 'The most recent race this database holds the classification of.',
-          },
-          {
-            to: '/data/quality',
-            label: 'Data quality',
-            hint: 'The disagreements and the gaps counted above, one by one.',
-          },
-          {
-            to: '/data',
-            label: 'Data',
-            hint: 'The whole database as one file, and how to query it.',
-          },
-        ]}
-      />
+      <Onward {...ONWARD.changes({ latest })} />
     </Page>
   )
 }

@@ -44,6 +44,7 @@ import {
   photographsCatalogued,
 } from '../queries/quality.js'
 
+import { ONWARD, TRAIL } from '../lib/wayfinding.js'
 const SPEC = {
   provenance: [PROVENANCE],
   gaps: [GAPS],
@@ -89,6 +90,7 @@ export default function Quality() {
   return (
     <Page
       title="Data quality"
+      trail={TRAIL.quality()}
       lede="How far to trust anything on this site. Every row carries a confidence level, every disagreement between sources is kept rather than quietly resolved, and everything known to be missing is listed here."
     >
       <SubNav />
@@ -287,13 +289,7 @@ function Body({ data }) {
         />
       </Section>
 
-      <Onward
-        items={[
-          { to: '/data/sources', label: 'Sources and licences', hint: 'Who says so, and what you may reuse.' },
-          { to: '/data/sql', label: 'SQL console', hint: 'Interrogate any of this yourself.' },
-          { to: '/records', label: 'Records', hint: 'The figures these checks are protecting.' },
-        ]}
-      />
+      <Onward {...ONWARD.quality()} />
     </>
   )
 }

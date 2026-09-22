@@ -18,6 +18,7 @@ import {
   SOURCE_COLUMNS,
 } from '../queries/sources.js'
 
+import { ONWARD, TRAIL } from '../lib/wayfinding.js'
 const SPEC = {
   sources: [SOURCES],
   licences: [LICENCES],
@@ -50,6 +51,7 @@ export default function Sources() {
   return (
     <Page
       title="Sources and licences"
+      trail={TRAIL.sources()}
       lede="Where every figure on this site comes from, and what you may do with it if you take it. Sources are ranked on whether anything independent can check them, not on how much data they hold."
     >
       <SubNav />
@@ -122,13 +124,7 @@ export default function Sources() {
                 </p>
               </Section>
 
-              <Onward
-                items={[
-                  { to: '/data/quality', label: 'Data quality', hint: 'How far to trust each figure, and what is missing.' },
-                  { to: '/data/sql', label: 'SQL console', hint: 'Pull the rows you need straight out of the database.' },
-                  { to: '/data', label: 'Data', hint: 'The database itself: the files, the version, and how far to trust it.' },
-                ]}
-              />
+              <Onward {...ONWARD.sources()} />
             </>
           )
         }}

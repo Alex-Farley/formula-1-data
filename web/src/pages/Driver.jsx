@@ -34,6 +34,7 @@ import {
   teamsBySeason,
 } from '../queries/driver.js'
 
+import { ONWARD, TRAIL, lastTeamOf } from '../lib/wayfinding.js'
 /**
  * What only the app adds to the shared column lists: links, the sort key
  * behind a text column, and the markup a result wears. Everything a cell
@@ -113,7 +114,7 @@ export default function Driver() {
         const driver = data.driver.rows[0]
         if (!driver) {
           return (
-            <Page title="No such driver" cite={false} back={{ to: '/drivers', label: 'The register' }}>
+            <Page title="No such driver" cite={false} trail={TRAIL.missing('/drivers', 'Drivers')}>
               <p className="muted">Nothing in the register has the id “{id}”.</p>
               <p>
                 Press <kbd>/</kbd> to search every driver by name, or{' '}
@@ -143,8 +144,8 @@ function DriverBody({ driver, data }) {
   const constructors = useMemo(() => rows(data, 'constructors').map((c) => c.name), [data])
 
   // The team a reader is most likely to want next is the one they drove for
-  // last, and the season worth offering is the one they won most in.
-  const lastTeam = results.find((row) => row.constructor_id)
+  // last — the same pick the onward band makes, from lib/wayfinding.js.
+  const lastTeam = lastTeamOf(results)
   // The stripe in the header: the colour of the team the driver raced for
   // last, in the season they last raced for it - the livery from 2010, the
   // national convention before 1968, nothing between (AF-04). RESULTS is
@@ -157,14 +158,6 @@ function DriverBody({ driver, data }) {
         team: lastTeam.constructor,
       })
     : null
-  const bestSeason = useMemo(
-    () =>
-      [...bySeason].sort(
-        (a, b) => (b.wins ?? 0) - (a.wins ?? 0) || (b.podiums ?? 0) - (a.podiums ?? 0) || b.year - a.year,
-      )[0] ?? null,
-    [bySeason],
-  )
-
   const seasons = useMemo(() => seasonRows(bySeason, standings), [bySeason, standings])
   const teams = useMemo(() => teamsBySeason(rows(data, 'seasonTeams')), [data])
   // Each championship dot in the team that season finished with (AF-47),
@@ -202,7 +195,7 @@ function DriverBody({ driver, data }) {
     <Page
       eyebrow="Driver"
       title={driver.full_name}
-      back={{ to: '/drivers', label: 'The register' }}
+      trail={TRAIL.driver(driver.id, driver.full_name)}
       lede={lede(driver, derived, constructors)}
       aside={
         <LiveryScheme
@@ -322,28 +315,7 @@ function DriverBody({ driver, data }) {
         <p className="source-note">{ENTRIES_NOTE}</p>
       </Section>
 
-      <Onward
-        items={[
-          lastTeam
-            ? {
-                to: `/constructors/${lastTeam.constructor_id}`,
-                label: lastTeam.constructor,
-                hint: 'The team, its cars and everyone else who drove for it.',
-              }
-            : null,
-          bestSeason
-            ? {
-                to: `/seasons/${bestSeason.year}`,
-                label: `The ${bestSeason.year} season`,
-                hint: bestSeason.wins
-                  ? `Their best year here — ${bestSeason.wins} ${bestSeason.wins === 1 ? 'win' : 'wins'} from ${bestSeason.entries} entries.`
-                  : 'The championship they were part of, round by round.',
-              }
-            : null,
-          { to: '/records', label: 'Records', hint: 'Where this career sits against everyone else.' },
-          { to: '/drivers', label: 'All drivers', hint: 'Filter the register by nationality or era.' },
-        ]}
-      />
+      <Onward {...ONWARD.driver({ results, bySeason })} />
     </Page>
   )
 }

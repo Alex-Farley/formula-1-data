@@ -26,6 +26,7 @@ import {
   WINNER_COLUMNS,
 } from '../queries/circuit.js'
 
+import { ONWARD, TRAIL } from '../lib/wayfinding.js'
 /*
  * The React renders for the columns queries/circuit.js defines — the links,
  * the tag and the sort keys; the router is the reason they live here. The
@@ -96,7 +97,7 @@ export default function Circuit() {
         const circuit = data.circuit.rows[0]
         if (!circuit) {
           return (
-            <Page title="No such circuit" cite={false} back={{ to: '/circuits', label: 'The register' }}>
+            <Page title="No such circuit" cite={false} trail={TRAIL.missing('/circuits', 'Circuits')}>
               <p className="muted">Nothing in the register has the id “{id}”.</p>
               <p>
                 Press <kbd>/</kbd> to search by name, or{' '}
@@ -123,14 +124,11 @@ function CircuitBody({ circuit, data }) {
   const races = rows(data, 'races')
   const winners = rows(data, 'winners')
   const teams = rows(data, 'teams')
-  // Races come back newest first, so the first completed one is the last held.
-  const latest = races.find((race) => race.status === 'completed') ?? null
-
   return (
     <Page
       eyebrow={[circuit.locality, circuit.country].filter(Boolean).join(', ')}
       title={circuit.name}
-      back={{ to: '/circuits', label: 'The register' }}
+      trail={TRAIL.circuit(circuit.id, circuit.name)}
       lede={circuit.notes}
     >
       <Section>
@@ -283,25 +281,7 @@ function CircuitBody({ circuit, data }) {
         />
       </Section>
 
-      <Onward
-        items={[
-          latest
-            ? {
-                to: `/races/${latest.year}/${latest.round}`,
-                label: `${latest.year} ${latest.name_used}`,
-                hint: 'The most recent race held here, in full.',
-              }
-            : null,
-          winners[0]
-            ? {
-                to: `/drivers/${winners[0].driver_id}`,
-                label: winners[0].driver,
-                hint: `Has won here ${winners[0].wins} ${winners[0].wins === 1 ? 'time' : 'times'} — more than anyone.`,
-              }
-            : null,
-          { to: '/circuits', label: 'All circuits', hint: 'Eighty venues, by races held.' },
-        ]}
-      />
+      <Onward {...ONWARD.circuit({ races, winners })} />
     </Page>
   )
 }

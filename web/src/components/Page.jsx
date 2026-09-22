@@ -56,17 +56,13 @@ function useDocumentName(headline) {
   }, [pathname])
 }
 
-export function Page({ eyebrow, title, lede, back, aside, children, cite = true }) {
+export function Page({ eyebrow, title, lede, trail, aside, children, cite = true }) {
   useDocumentName(title)
   const heading = useFocusOnNavigation()
   return (
     <article className="page">
+      {trail && <Crumbs trail={trail} />}
       <header>
-        {back && (
-          <p className="crumb">
-            <Link to={back.to}>{back.label}</Link>
-          </p>
-        )}
         {eyebrow && <p className="eyebrow">{eyebrow}</p>}
         <h1 ref={heading} tabIndex={-1}>
           {title}
@@ -77,6 +73,35 @@ export function Page({ eyebrow, title, lede, back, aside, children, cite = true 
       <PageTitle.Provider value={typeof title === 'string' ? title : null}>{children}</PageTitle.Provider>
       {cite && <Cite />}
     </article>
+  )
+}
+
+/**
+ * The trail, in the app's half of the site.
+ *
+ * IA-22: prerender.js has written one on every page since it was added, and
+ * the app answered with a single back link to the section above — so the two
+ * renderers described two different hierarchies of the same document, and a
+ * reader who arrived on the static page watched the trail collapse to one
+ * step the moment the database opened. The trail itself comes from
+ * lib/wayfinding.js, so neither renderer holds its own reading of it.
+ *
+ * The markup is prerender.js's, class for class, so `.crumbs` in app.css
+ * draws both. It sits inside the article rather than beside it, where the
+ * static page puts it: <main> belongs to App.jsx, and a prop threaded up
+ * there to place one nav would be a second way of saying where a page sits.
+ * The rules are on the class, so the two look the same either way.
+ */
+function Crumbs({ trail }) {
+  return (
+    <nav className="crumbs" aria-label="Breadcrumb">
+      {trail.map(([to, label], i) => (
+        <Fragment key={to}>
+          {i > 0 && <span className="sep">/</span>}
+          {i === trail.length - 1 ? <span aria-current="page">{label}</span> : <Link to={to}>{label}</Link>}
+        </Fragment>
+      ))}
+    </nav>
   )
 }
 

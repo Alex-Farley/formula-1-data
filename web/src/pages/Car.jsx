@@ -22,6 +22,7 @@ import {
   entryResult,
 } from '../queries/car.js'
 
+import { ONWARD, TRAIL } from '../lib/wayfinding.js'
 /*
  * The React renders for the columns queries/car.js defines — the links and
  * the result's styling; the router is the reason they live here. The words
@@ -73,7 +74,7 @@ export default function Car() {
         const chassis = variants[0]
         if (!chassis) {
           return (
-            <Page title="No such car" cite={false} back={{ to: '/cars', label: 'The register' }}>
+            <Page title="No such car" cite={false} trail={TRAIL.missing('/cars', 'Cars')}>
               <p className="muted">Nothing in the chassis register has the id “{id}”.</p>
               <p>
                 Press <kbd>/</kbd> to search by chassis name, or{' '}
@@ -104,10 +105,6 @@ function CarBody({ chassis, variants, data }) {
   const ambiguous = seasons.filter((s) => !s.corroborated)
 
   const several = variants.length > 1
-  // Entries come back newest first, so the last winning row is the first win.
-  const firstWin = [...entries].reverse().find((entry) => entry.finish_position === 1) ?? null
-  const notableRace = firstWin ?? entries[entries.length - 1] ?? null
-
   // chassis.published_wins is the CAR's figure, taken from the article the
   // whole family shares, and it is repeated verbatim on every variant row —
   // all eleven multi-variant cars in the register carry one distinct value
@@ -124,7 +121,7 @@ function CarBody({ chassis, variants, data }) {
     <Page
       eyebrow={chassis.constructor ?? 'Chassis'}
       title={(several ? car?.full_name : null) || chassis.full_name || chassis.name}
-      back={{ to: '/cars', label: 'The register' }}
+      trail={TRAIL.car(chassis.id, (several ? car?.full_name : null) || chassis.full_name || chassis.name)}
       lede={car?.story}
     >
       <Section>
@@ -331,28 +328,7 @@ function CarBody({ chassis, variants, data }) {
         />
       </Section>
 
-      <Onward
-        items={[
-          chassis.constructor_id
-            ? {
-                to: `/constructors/${chassis.constructor_id}`,
-                label: chassis.constructor,
-                hint: 'The team that built it, and everything else it made.',
-              }
-            : null,
-          notableRace
-            ? {
-                to: `/races/${notableRace.year}/${notableRace.round}`,
-                label: `${notableRace.year} ${notableRace.name_used}`,
-                hint: firstWin ? 'Its first win, in full.' : 'A race it entered, in full.',
-              }
-            : null,
-          car?.supersedes_id
-            ? { to: `/cars/${car.supersedes_id}`, label: 'The car before it', hint: 'What this design replaced.' }
-            : null,
-          { to: '/cars', label: 'All cars', hint: '1,153 chassis, filterable by team and era.' },
-        ]}
-      />
+      <Onward {...ONWARD.car({ chassis, car, entries })} />
     </Page>
   )
 }

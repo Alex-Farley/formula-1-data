@@ -10,6 +10,7 @@ import { anyThisSeason, calendarLabel, seasonOf } from '../lib/season.js'
 import { TRACE_COLUMN_UNKNOWN, TRACE_NOT_LOADED, traceRegisterNote } from '../lib/trace.js'
 import { CIRCUITS, CIRCUIT_COLUMNS, CIRCUITS_FOOTER, TRACED } from '../queries/circuits.js'
 
+import { ONWARD, TRAIL } from '../lib/wayfinding.js'
 /**
  * Race counts and first/last Grand Prix come from v_circuits, which derives
  * them from the races. The stored circuits.last_gp is NULL for the 27 venues
@@ -65,18 +66,14 @@ export default function Circuits() {
   return (
     <Page
       title="Circuits"
+      trail={TRAIL.circuits()}
       lede="Eighty venues, from airfield perimeters to street courses laid out for a single season. Sorted by races held: open one for how its shape changed, who has won there most, and every Grand Prix it has staged."
     >
       <Result state={state} skeleton>
         {(data) => <Register rows={pick(data, 'register')} traces={pick(data, 'traces')} />}
       </Result>
 
-      <Onward
-        items={[
-          { to: '/races', label: 'Every race', hint: 'What was run at each of these venues.' },
-          { to: '/reference/eras', label: 'Eras and rules', hint: 'The safety work that redrew many of these circuits.' },
-        ]}
-      />
+      <Onward {...ONWARD.circuits()} />
     </Page>
   )
 }

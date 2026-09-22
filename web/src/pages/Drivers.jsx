@@ -8,6 +8,7 @@ import { useQuery } from '../data/useQuery.js'
 import { anyThisSeason, gridLabel, seasonOf } from '../lib/season.js'
 import { DRIVERS, DRIVER_COLUMNS } from '../queries/drivers.js'
 
+import { ONWARD, TRAIL } from '../lib/wayfinding.js'
 /**
  * What only the app adds to the shared column list: the link on a name, the
  * sort key behind the Seasons span, the title years behind a titles count.
@@ -28,6 +29,7 @@ export default function Drivers() {
   return (
     <Page
       title="Drivers"
+      trail={TRAIL.drivers()}
       lede="Every driver the championship has recorded an entry for, from 1950 to now. Filter by nationality, narrow to champions or race winners, then open anyone for their full career, season by season."
     >
       <Section>
@@ -36,13 +38,7 @@ export default function Drivers() {
         </Result>
       </Section>
 
-      <Onward
-        items={[
-          { to: '/records', label: 'Records', hint: 'Most wins, most poles, every champion.' },
-          { to: '/constructors', label: 'Constructors', hint: 'The teams these drivers drove for.' },
-          { to: '/seasons', label: 'Seasons', hint: 'Championship tables year by year.' },
-        ]}
-      />
+      <Onward {...ONWARD.drivers()} />
     </Page>
   )
 }

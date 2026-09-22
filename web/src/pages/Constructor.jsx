@@ -28,6 +28,7 @@ import {
   constructorSeasons,
 } from '../queries/constructor.js'
 
+import { ONWARD, TRAIL, lastSeasonOf } from '../lib/wayfinding.js'
 /*
  * The React renders for the columns queries/constructor.js defines — the
  * links and the sort keys; the router is the reason they live here. The words
@@ -80,7 +81,7 @@ export default function Constructor() {
         const constructor = data.constructor.rows[0]
         if (!constructor) {
           return (
-            <Page title="No such constructor" cite={false} back={{ to: '/constructors', label: 'The register' }}>
+            <Page title="No such constructor" cite={false} trail={TRAIL.missing('/constructors', 'Constructors')}>
               <p className="muted">Nothing in the register has the id “{id}”.</p>
               <p>
                 Press <kbd>/</kbd> to search by name, or{' '}
@@ -111,10 +112,9 @@ function ConstructorBody({ constructor, data }) {
   // 1990 and 1994 were as wide as those between 1996 and 1997 and a reader saw
   // an unbroken run of wins. Every season entered goes on the axis now.
   const seasonsAsc = [...bySeason].sort((a, b) => a.year - b.year)
-  // The two routes out of here a reader most often wants: the car that won the
-  // most, and the season they were last part of.
-  const bestCar = [...designs].sort((a, b) => (b.wins ?? 0) - (a.wins ?? 0) || (b.races ?? 0) - (a.races ?? 0))[0] ?? null
-  const lastSeason = bySeason[bySeason.length - 1] ?? null
+  // The season they were last part of, which is the one the header's livery
+  // is read from; the onward band picks it the same way (lib/wayfinding.js).
+  const lastSeason = lastSeasonOf(bySeason)
   const engineSplit = standings.some((s) => s.engine_id)
   // The team's own colour where the record has it: the livery of the last
   // season it raced, 2010 onwards (lib/liveries.js). The national convention
@@ -138,7 +138,7 @@ function ConstructorBody({ constructor, data }) {
     <Page
       eyebrow="Constructor"
       title={constructor.name}
-      back={{ to: '/constructors', label: 'The register' }}
+      trail={TRAIL.constructor(constructor.id, constructor.name)}
       lede={constructor.notes}
       aside={
         <LiveryScheme
@@ -319,28 +319,7 @@ function ConstructorBody({ constructor, data }) {
         />
       </Section>
 
-      <Onward
-        items={[
-          bestCar
-            ? {
-                to: `/cars/${bestCar.id}`,
-                label: bestCar.name,
-                hint: bestCar.wins
-                  ? `Their most successful design — ${bestCar.wins} ${bestCar.wins === 1 ? 'win' : 'wins'}.`
-                  : 'Specification, entries and results.',
-              }
-            : null,
-          lastSeason
-            ? {
-                to: `/seasons/${lastSeason.year}`,
-                label: `The ${lastSeason.year} season`,
-                hint: constructor.active ? 'The championship as it stands.' : 'Their last season in the championship.',
-              }
-            : null,
-          { to: '/records', label: 'Records', hint: 'Most wins by constructor, and every title.' },
-          { to: '/constructors', label: 'All constructors', hint: 'The other 149, filterable by country and era.' },
-        ]}
-      />
+      <Onward {...ONWARD.constructor({ constructor, designs, bySeason })} />
     </Page>
   )
 }
