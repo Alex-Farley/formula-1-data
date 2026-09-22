@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { Confidence, Note, Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
@@ -10,6 +10,7 @@ import BarChart from '../charts/BarChart.jsx'
 import LineChart from '../charts/LineChart.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { percent } from '../lib/format.js'
+import { oneOf, useUrlState } from '../lib/urlstate.js'
 import { colourForEntry, colourSource } from '../lib/liveries.js'
 import {
   CONSTRUCTOR_WINS,
@@ -91,10 +92,24 @@ function Body({ data }) {
   const poleToWin = rows(data, 'poleToWin')
   const grandSlams = rows(data, 'grandSlams')
 
-  const [category, setCategory] = useState('')
   const categories = useMemo(
     () => [...new Set(records.map((r) => r.category))].sort(),
     [records],
+  )
+  const chips = [['', 'All'], ...categories.map((c) => [c, c])]
+  const decadeOptions = [...new Set(decades.map((d) => d.decade))].sort((a, b) => b - a)
+  const latestDecade = String(Math.max(...decades.map((d) => d.decade)))
+
+  // Both choices on this page, in the address (IA-08). The decade opens on
+  // the most recent one, so that is its default and the address stays clean
+  // until a reader picks another; `?decade=1730` is not one of the ten this
+  // page holds, and falls back to the same.
+  const [params, set] = useUrlState({ category: '', decade: latestDecade })
+  const category = oneOf(params.category, chips)
+  const decade = oneOf(
+    params.decade,
+    decadeOptions.map((d) => String(d)),
+    latestDecade,
   )
   const shownRecords = category ? records.filter((r) => r.category === category) : records
   const tiers = useMemo(() => tiersOf(records), [records])
@@ -126,9 +141,7 @@ function Body({ data }) {
     return bars.map((bar) => ({ key: bar.key, label: bar.label, value: bar.value }))
   }, [constructorWins])
 
-  const [decade, setDecade] = useState(() => String(Math.max(...decades.map((d) => d.decade))))
   const decadeRows = decades.filter((d) => String(d.decade) === decade).slice(0, 12)
-  const decadeOptions = [...new Set(decades.map((d) => d.decade))].sort((a, b) => b - a)
 
   return (
     <>
@@ -149,8 +162,8 @@ function Body({ data }) {
           <Chips
             label="Filter records by category"
             value={category}
-            onChange={setCategory}
-            options={[['', 'All'], ...categories.map((c) => [c, c])]}
+            onChange={(value) => set({ category: value })}
+            options={chips}
           />
         </div>
         <DataTable
@@ -272,7 +285,7 @@ function Body({ data }) {
           <Chips
             label="Choose a decade"
             value={decade}
-            onChange={setDecade}
+            onChange={(value) => set({ decade: value })}
             options={decadeOptions.map((d) => [String(d), `${d}s`])}
           />
         </div>

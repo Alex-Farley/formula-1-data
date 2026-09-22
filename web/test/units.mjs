@@ -95,6 +95,7 @@ import { teamsByDriver } from '../src/queries/season.js'
 import { NEXT, RUN, TO_COME, outlineCaption, outlineFigures, roundShortName, roundStates } from '../src/lib/outline.js'
 import { attribution, canShow, fileTitle, thumbUrl } from '../src/lib/commons.js'
 import { recordColumns, tiersOf } from '../src/queries/records.js'
+import { clearState, oneOf, readState, writeState } from '../src/lib/urlstate.js'
 
 // A square about 111 m on a side, as [lon, lat] — the order the geometry uses.
 const P0 = [0, 0]
@@ -1322,5 +1323,71 @@ describe('a column every row agrees on (VD-29)', () => {
       declared.map((c) => c.key),
       ['layout_key', 'wins', 'podiums', 'poles', 'fastest_laps', 'wins', 'podiums', 'poles', 'source', 'as_of'],
     )
+  })
+})
+describe('a register in the address bar', () => {
+  const DEFAULTS = { q: '', kind: '', traced: false, decade: '2020' }
+  const params = (query) => new URLSearchParams(query)
+
+  it('takes each default where the URL is silent', () => {
+    assert.deepEqual(readState(params(''), DEFAULTS), {
+      q: '',
+      kind: '',
+      traced: false,
+      decade: '2020',
+    })
+  })
+
+  it('reads a string, and a toggle as present-or-not', () => {
+    const state = readState(params('q=senna&kind=winners&traced=1&decade=1970'), DEFAULTS)
+    assert.deepEqual(state, { q: 'senna', kind: 'winners', traced: true, decade: '1970' })
+    // Anything but "1" is not the toggle being pressed. `?traced=0` and
+    // `?traced=false` both read false rather than truthy-string true.
+    assert.equal(readState(params('traced=0'), DEFAULTS).traced, false)
+    assert.equal(readState(params('traced=false'), DEFAULTS).traced, false)
+  })
+
+  it('does not write a default down', () => {
+    // `/drivers` stays `/drivers`, and clearing one filter takes its
+    // parameter out rather than leaving `?kind=` behind.
+    assert.equal(String(writeState(params(''), { q: '', kind: '' }, DEFAULTS)), '')
+    assert.equal(String(writeState(params('kind=winners'), { kind: '' }, DEFAULTS)), '')
+    assert.equal(String(writeState(params('traced=1'), { traced: false }, DEFAULTS)), '')
+    assert.equal(String(writeState(params('decade=1970'), { decade: '2020' }, DEFAULTS)), '')
+  })
+
+  it('writes what was actually asked for', () => {
+    assert.equal(String(writeState(params(''), { q: 'senna' }, DEFAULTS)), 'q=senna')
+    assert.equal(String(writeState(params(''), { traced: true }, DEFAULTS)), 'traced=1')
+    assert.equal(
+      String(writeState(params('q=senna'), { kind: 'winners' }, DEFAULTS)),
+      'q=senna&kind=winners',
+    )
+  })
+
+  it('leaves a parameter it was not given to hold', () => {
+    // The declared keys are the only ones this touches: a statement in the
+    // SQL console's `?q=` is another page's business, and so is anything a
+    // link arrives with.
+    assert.equal(String(writeState(params('utm=x'), { kind: 'winners' }, DEFAULTS)), 'utm=x&kind=winners')
+    assert.equal(String(clearState(params('utm=x&q=senna&traced=1'), DEFAULTS)), 'utm=x')
+  })
+
+  it('clear-all drops the declared set', () => {
+    assert.equal(String(clearState(params('q=senna&kind=winners&traced=1'), DEFAULTS)), '')
+  })
+
+  // A parameter a reader can type is a parameter that can be wrong. Filtering
+  // on a value no row carries would empty the register while the select
+  // beside it went on reading "Every nationality" - the control and the table
+  // disagreeing about what had been asked.
+  it('refuses a value the data does not vouch for', () => {
+    assert.equal(oneOf('Italy', ['Italy', 'Brazil']), 'Italy')
+    assert.equal(oneOf('Ruritania', ['Italy', 'Brazil']), '')
+    assert.equal(oneOf('winners', [['', 'All'], ['winners', 'Race winners']]), 'winners')
+    assert.equal(oneOf('nonsense', [['', 'All'], ['winners', 'Race winners']]), '')
+    // A register whose default is not the empty one falls back to its own.
+    assert.equal(oneOf('1730', ['2020', '2010'], '2020'), '2020')
+    assert.equal(oneOf('2010', ['2020', '2010'], '2020'), '2010')
   })
 })

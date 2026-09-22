@@ -2063,7 +2063,11 @@ try {
         'the glossary empty state names both filters, and names the category as a category',
       )
       await page.click('#root main .state.is-empty button')
-      await page.waitForSelector('#root main tbody tr', { timeout: 10000 })
+      // Not "a row exists": the people below the glossary always have rows,
+      // so that was satisfied by the page as it already stood, and the count
+      // could be read while the glossary was still empty. The empty state
+      // going is the restoration itself.
+      await page.waitForFunction(() => !document.querySelector('#root main .state.is-empty'), null, { timeout: 10000 })
       is(
         (await tableRows())[0],
         count('SELECT COUNT(*) FROM glossary'),
@@ -2464,6 +2468,89 @@ try {
       nodes[nodes.length - 1].textContent.trim(),
     )
     is(lastEntries, '—', 'and sinks the unestablished ones')
+
+  })
+
+  // ------------------------------------------------------ addressable state
+
+  /*
+   * IA-08. Every register answered to component state alone: a reader who
+   * found the champions, sorted them and expanded the table could send that
+   * to nobody, cite none of it, and lose all of it by opening one driver.
+   *
+   * The two halves of the claim are both here. An address REPRODUCES a view:
+   * the same route with the same parameters gives the same rows. And a view
+   * SURVIVES: the register comes back from the page the reader opened out of
+   * it, which is the Back press at the end and the acceptance test this was
+   * written against.
+   */
+  await section('Registers in the address bar', async () => {
+    const chips = '[role="group"][aria-label="Filter drivers by kind"]'
+    const query = () => new URL(page.url()).searchParams
+
+    await page.goto(`${BASE}/drivers`, { waitUntil: 'domcontentloaded' })
+    await page.waitForSelector('#root main tbody tr', { timeout: 20000 })
+    await settle()
+    const everyone = (await tableRows())[0]
+    is(page.url(), `${BASE}/drivers`, 'an untouched register carries no parameters')
+
+    await page.click(`${chips} button:text-is("Champions")`)
+    await page.waitForFunction((was) => Number(document.querySelector('#root main .table-wrap')?.dataset.rows) !== was, everyone, { timeout: 10000 })
+    is(query().get('kind'), 'champions', 'a chip writes itself into the address')
+    const champions = (await tableRows())[0]
+    truthy(champions > 0 && champions < everyone, `and the register filtered to ${champions} of ${everyone}`)
+
+    // A column header is the other half of what a reader arranges, and the
+    // direction with it: a first season ascending is not one descending. The
+    // first click takes the column at the direction that column opens in,
+    // which is the table's own and so is not written down; the second turns
+    // it round, which is.
+    const topCell = () => page.$eval('#root main tbody tr td:nth-child(3)', (node) => node.textContent.trim())
+    await page.click('#root main th:nth-child(3) button')
+    await page.waitForFunction(() => new URL(window.location.href).searchParams.has('sort'), null, { timeout: 10000 })
+    await settle()
+    const descending = await topCell()
+    await page.click('#root main th:nth-child(3) button')
+    await page.waitForFunction(() => new URL(window.location.href).searchParams.get('dir') === 'asc', null, { timeout: 10000 })
+    await settle()
+    const sorted = await topCell()
+    const address = page.url()
+    truthy(sorted !== descending, `turning the column round reorders the table — ${descending} then ${sorted}`)
+    is(query().get('dir'), 'asc', `and the direction is in the address — ${address.slice(BASE.length)}`)
+
+    // The whole of it, from a cold start: this is the link a reader sends.
+    await page.goto(address, { waitUntil: 'domcontentloaded' })
+    await page.waitForSelector('#root main tbody tr', { timeout: 20000 })
+    await settle()
+    is((await tableRows())[0], champions, 'the address alone reproduces the filtered register')
+    is(
+      await page.$eval('#root main tbody tr td:nth-child(3)', (node) => node.textContent.trim()),
+      sorted,
+      'sorted the same way',
+    )
+    is(
+      await page.$eval(`${chips} button[aria-pressed="true"]`, (node) => node.textContent.trim()),
+      'Champions',
+      'with the chip that did it reading as pressed',
+    )
+
+    // The acceptance test. Open a driver out of the register and come back.
+    await page.click('#root main tbody tr td a')
+    await page.waitForFunction(() => window.location.pathname.startsWith('/drivers/'), null, { timeout: 20000 })
+    await page.goBack()
+    await page.waitForSelector('#root main tbody tr', { timeout: 20000 })
+    await settle()
+    is(page.url(), address, 'Back returns to the register as it was left')
+    is((await tableRows())[0], champions, 'with the filter still applied')
+
+    // A parameter is typed by hand as often as it is clicked, and a register
+    // filtered to nothing by a value no row carries — while the select beside
+    // it read "Every nationality" — would be the control and the table
+    // disagreeing about what had been asked.
+    await page.goto(`${BASE}/drivers?nationality=Ruritania&kind=not-a-kind`, { waitUntil: 'domcontentloaded' })
+    await page.waitForSelector('#root main tbody tr', { timeout: 20000 })
+    await settle()
+    is((await tableRows())[0], everyone, 'a value the register does not hold is ignored, not filtered on')
 
   })
 
