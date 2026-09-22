@@ -825,8 +825,28 @@ td.num {
   white-space: nowrap;
 }
 
+/*
+ * A prose cell is a line of text and takes a measure, like any other.
+ *
+ * `max-width` alone did not give it one. A cell's max-width is honoured while
+ * the table still fits its box; once the table is at its max-content width and
+ * scrolling - which is the normal state of the wider registers - the auto
+ * layout lays the column out past it. The 60ch here computed to 544px and
+ * rendered 715px, and the assessment column on /data/quality ran to 117
+ * characters a line with the rule in force (VD-52).
+ *
+ * `width` is the lever the auto algorithm does respect: it is a preference,
+ * not a cap, so the column still shrinks to min-width where the table is
+ * cramped and still gives the space back where a cell is short. 42ch takes the
+ * longest prose line across /data/quality, /reference/eras, /records and
+ * /circuits from 117 characters to 65, and leaves the median where it was
+ * (53 -> 52) - the short cells do not move, only the ones that were running on.
+ *
+ * max-width stays: it is what the record cells below narrow from.
+ */
 td.prose {
   min-width: 18ch;
+  width: 42ch;
   max-width: 60ch;
   white-space: normal;
   color: var(--ink-soft);
