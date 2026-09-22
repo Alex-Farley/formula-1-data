@@ -88,6 +88,25 @@ class TheGateRefuses(unittest.TestCase):
         self.assertIn("races_run_backwards", str(caught.exception))
 
 
+    def test_a_shifted_SOURCE_REGISTRY_tuple_is_refused(self):
+        # The accessor reads indices 3/5/6/7. A field inserted into the tuple
+        # would shift build.py and verify.py IDENTICALLY - cadence text
+        # written into `licence` and compared against cadence text - so the
+        # comparison would pass on prose in the wrong column and only the
+        # artefact diff would show it. The arity and the one field with a
+        # controlled vocabulary are checked where the indices are written.
+        from data import current as N
+        good = N.SOURCE_REGISTRY
+        shifted = [("inserted",) + e for e in good]
+        try:
+            N.SOURCE_REGISTRY = shifted
+            with self.assertRaises(SystemExit) as caught:
+                pf._source_registry_literals()
+        finally:
+            N.SOURCE_REGISTRY = good
+        self.assertIn("positional", str(caught.exception))
+
+
 class TheFiguresAreWhatTheProseUses(unittest.TestCase):
     def test_every_figure_computed_is_stated_in_some_prose(self):
         # A figure computed and named nowhere is a dead expression. verify.py

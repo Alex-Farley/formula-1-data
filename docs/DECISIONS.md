@@ -66,12 +66,23 @@ plants a stale figure and a stray token in a copy and shows the gate closing,
 because a check that only ever runs against the database the same build wrote
 would read as a pass however it was written.
 
-Two things stay typed, and the rule says so: a figure about another source's
-holdings — Jolpica's 628,454 lap times, its 118 of 26,082 readings — counts
-rows that are not here to count, and a figure `verify.py` already pins as an
-invariant, like the 13 races where the credited pole-sitter was not the
-fastest qualifier, is checked where it is pinned. A second one there would be
-a second place to be wrong.
+Three things stay typed, and the rule says so. A figure about another
+source's holdings — Jolpica's 628,454 lap times, its 118 of 26,082 readings —
+counts rows that are not here to count. A figure `verify.py` already pins as
+an invariant, like the 13 races where the credited pole-sitter was not the
+fastest qualifier, is checked where it is pinned; a second place to state it
+is a second place to be wrong. And a figure house style spells out —
+"sixteen distinct licence strings", which `web/src/queries/sources.js` and
+`schema.sql` also spell — stays spelled, because the mechanism writes digits.
+
+The scope is `source_registry`, the table `/data/sources` renders, and the
+rule in `CLAUDE.md` says so rather than claiming the whole database:
+`known_gaps` prose carries the same typed figures on `/data/quality`, `PROSE`
+is built to take a second accessor, and that sweep is its own item because
+each of its figures needs a reading of what the sentence around it claims —
+one is a harvest file's row count, one a past state in the past tense, two
+are Jolpica's. A rule stated more broadly than it is enforced is the kind
+nobody can rely on.
 
 ---
 

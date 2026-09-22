@@ -27,12 +27,21 @@ typed: the number that ships is the count, every build.
     python3 tools/prose_figures.py            print every figure and its value
     python3 tools/prose_figures.py --check    exit 1 where the database disagrees
 
-What stays typed, and why: a figure about a source's own holdings rather than
+What stays typed, and why. A figure about a source's own holdings rather than
 this database's - Jolpica's 628,454 lap times, its 118 of 26,082 readings -
-counts rows that are not here to count, and a figure verify.py already pins
-as an invariant, like the 13 races where the credited pole-sitter was not the
-fastest qualifier, is checked where it is pinned. Everything else that counts
-this database's rows is a token.
+counts rows that are not here to count. A figure verify.py already pins as an
+invariant, like the 13 races where the credited pole-sitter was not the
+fastest qualifier, is checked where it is pinned, and a second place to state
+it would be a second place to be wrong. And a figure house style spells out -
+"sixteen distinct licence strings", which web/src/queries/sources.js and
+schema.sql also spell - stays spelled, because this writes digits and a split
+vocabulary across three surfaces costs more than the figure is worth.
+
+What this covers today is `source_registry`, which is what /data/sources
+renders. `known_gaps` prose carries the same class of typed figure on
+/data/quality; PROSE is built to take a second accessor, and that sweep is
+filed rather than folded in, because each of its figures needs a reading of
+what the sentence around it claims.
 
 Nothing here writes to a database except through apply(), which build.py
 calls once.
@@ -63,9 +72,21 @@ FIGURES = {
         WHERE drivers_champion IS NOT NULL AND runner_up IS NOT NULL
           AND champion_points IS NOT NULL AND runner_up_points IS NOT NULL""",
     "article_images": "SELECT COUNT(*) FROM article_images",
-    "article_images_named": "SELECT COUNT(*) FROM article_images WHERE name_matches = 1",
-    "article_image_licences": "SELECT COUNT(DISTINCT licence) FROM article_images",
+    # The name-matching test is the ARTICLE route's weakness and is
+    # stated as such. A category-route file was drawn from a category
+    # named for the chassis, so it matches for a structural reason;
+    # folding the two together would flatter the test the sentence
+    # exists to disown (87 of 119 against 277 of 623).
+    "article_route_images": "SELECT COUNT(*) FROM article_images WHERE route = 'article'",
+    "article_route_named": """SELECT COUNT(*) FROM article_images
+        WHERE route = 'article' AND name_matches = 1""",
 }
+
+
+# schema.sql constrains source_registry.authority to these. It sits at index 4
+# of every SOURCE_REGISTRY tuple, which is what makes it the cheapest proof
+# that the prose indices below still point where they say.
+AUTHORITY = ("official", "reference", "authored", "forbidden")
 
 
 def _source_registry_literals():
@@ -76,9 +97,24 @@ def _source_registry_literals():
     """
     sys.path.insert(0, ROOT)
     from data import current as N  # noqa: E402 - ROOT has to be on the path first
-    return {e[0]: {"use": e[3], "licence": e[5], "cadence": e[6],
-                   "checkability": e[7]}
-            for e in N.SOURCE_REGISTRY}
+    out = {}
+    for e in N.SOURCE_REGISTRY:
+        # A field inserted into the tuple would shift every index below
+        # it, and because build.py and verify.py both read this one
+        # accessor they would shift together: cadence text written into
+        # `licence` and compared against cadence text, and passing. The
+        # arity and the one field with a controlled vocabulary are
+        # checked here, where the indices are written.
+        if len(e) != 8 or e[4] not in AUTHORITY:
+            raise SystemExit(
+                f"SOURCE_REGISTRY entry {e[0]} is not the shape this reads: "
+                f"{len(e)} fields with {e[4]!r} at index 4, where 8 fields and "
+                f"one of {', '.join(sorted(AUTHORITY))} are expected. The prose "
+                f"indices below are positional; correct them before the build "
+                f"writes one column's text into another.")
+        out[e[0]] = {"use": e[3], "licence": e[5], "cadence": e[6],
+                     "checkability": e[7]}
+    return out
 
 
 # The prose a build expands. Each entry names the table, the column that

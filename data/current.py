@@ -408,8 +408,10 @@ SOURCE_REGISTRY = [
      "Re-released after every race, versioned, with a public commit history "
      "and a changelog. Better maintained than anything else at this scale.",
      "Heavily, in four independent places, all of them held here before F1DB "
-     "was read. (1) The winner of every one of the {{fig:races_completed}} races came from the "
-     "Wikipedia harvest; a race whose winner disagreed is refused WHOLE, and "
+     "was read. (1) The winner of every one of the {{fig:races_completed}} races was established here "
+     "before F1DB was read - from the Wikipedia harvest, and from "
+     "formula1.com for the seasons it covers; a race whose winner "
+     "disagreed is refused WHOLE, and "
      "none was. The comparison is on sets, because a shared drive puts two "
      "drivers on position 1 and both are winners. (2) The champion, the "
      "runner-up and both their point totals for {{fig:seasons_reproduced}} seasons were already in "
@@ -497,7 +499,7 @@ SOURCE_REGISTRY = [
      "STORED - article_images holds a reference and its credit, and the "
      "pixels are fetched from upload.wikimedia.org by whatever renders the "
      "page.", "reference",
-     "Per file, and they differ: {{fig:article_image_licences}} distinct licence strings across {{fig:article_images}} "
+     "Per file, and they differ: sixteen distinct licence strings across {{fig:article_images}} "
      "rows - CC BY-SA at four versions, CC BY at four more, CC0, public "
      "domain and national variants. There is no blanket credit line, so each "
      "row carries its own and the build refuses a file that names no author.",
@@ -510,7 +512,7 @@ SOURCE_REGISTRY = [
      "claim recorded is 'the article proved to describe this chassis leads "
      "with this file'. But nothing here constrains what a photograph SHOWS, "
      "and there is no second source to disagree. Testing whether the file "
-     "name mentions the car finds only {{fig:article_images_named}} of {{fig:article_images}}, because most correct "
+     "name mentions the car finds only {{fig:article_route_named}} of {{fig:article_route_images}}, because most correct "
      "images are filed under the driver, so the test is recorded as "
      "name_matches and enforced nowhere. The failure it half-detects is "
      "real: the ATS D5 article leads with a photograph of officials and "

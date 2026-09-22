@@ -53,13 +53,15 @@ from `f1.db` (`make all` runs it) and `verify.py` checks. Edit the prose,
 never a figure inside a span; a figure that disagrees with the database fails
 the build, which is the point.
 
-**Never type a figure into database prose.** Prose in `data/*.py` that states
-a count of this database's own rows writes it as a `{{fig:name}}` token;
+**Never type a figure into `source_registry` prose.** A count of this
+database's own rows is a `{{fig:name}}` token in `data/current.py`;
 `build.py` expands it off the counts in its final stage and `verify.py`
 re-expands the literal and compares whole `[D-39]`. Adding a figure means
-adding its one expression to `FIGURES` in `tools/prose_figures.py`. A figure
-about another source's holdings, or one `verify.py` already pins as an
-invariant, stays typed where it is checked.
+adding its one expression to `FIGURES` in `tools/prose_figures.py`, and
+`PROSE` there is where a second table joins — `known_gaps` prose has not yet.
+A figure about another source's holdings, one `verify.py` already pins as an
+invariant, and one house style spells out each stay typed, and the module
+says which is which.
 
 **Inspect the artefact diff before committing.** A rebuild that moved more
 than the change explains is the first sign something else moved with it.
