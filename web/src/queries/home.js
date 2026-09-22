@@ -77,6 +77,10 @@ export const NEXT = `
  * same set /drivers filters on and the same one /seasons/<year> heads its
  * grid table with; a reserve is a row there and is counted here only under
  * `race`, because "24 drivers" on a home page means the race seats.
+ *
+ * The teams are counted over the same `race` rows and not over every row, so
+ * the two figures in the tile describe one set: a team that declared only a
+ * reserve would otherwise be a team with no driver in the count beside it.
  */
 export const SEASON_NOW = `
   WITH now AS (SELECT CAST(value AS INTEGER) AS year FROM meta WHERE key = 'current_season')
@@ -85,7 +89,7 @@ export const SEASON_NOW = `
          (SELECT COUNT(*) FROM races r WHERE r.year = n.year AND r.status = 'completed') AS run,
          (SELECT COUNT(*) FROM season_entries e WHERE e.year = n.year AND e.role = 'race') AS seats,
          (SELECT COUNT(DISTINCT e.constructor_id) FROM season_entries e
-           WHERE e.year = n.year AND e.constructor_id IS NOT NULL)                     AS teams
+           WHERE e.year = n.year AND e.role = 'race' AND e.constructor_id IS NOT NULL) AS teams
     FROM now n
 `
 
