@@ -3146,6 +3146,96 @@ def redistribution():
             not forbidden, "; ".join(forbidden[:4]))
 
 
+# ---------------------------------------------------------------------------
+# THE PROJECT'S OWN PROSE
+#
+# PM-47. One part of this file is not CC BY-SA: the columns named in
+# PROJECT_PROSE_COLUMNS, which were written here and owe share-alike to
+# nobody. A licence grant is only as good as its list of what it covers, and
+# a CC BY grant cannot be taken back from a copy already made — so what this
+# section checks is that the list, the database and the two licence documents
+# say the same thing, and that nothing sourced has drifted onto the list.
+# ---------------------------------------------------------------------------
+@section("THE PROJECT'S OWN PROSE")
+def project_prose():
+    from data import current as _N
+
+    declared = list(_N.PROJECT_PROSE_COLUMNS)
+
+    # A grant naming a column that does not exist grants nothing, and a
+    # renamed column would leave it pointing at nothing without a word.
+    missing, sourced = [], []
+    for name in declared:
+        table, _, column = name.partition(".")
+        cols = [c[1] for c in con.execute(f'PRAGMA table_info("{table}")')]
+        if column not in cols:
+            missing.append(name)
+        # Deliberately strict: a table that cites a source may hold prose
+        # somebody else wrote, and telling which is the prose pass (PM-17,
+        # #249). Until it has run, only a table with no external source at
+        # all may be granted, so adding one to the list is a decision a
+        # person has to take rather than a line somebody slips in.
+        elif "source" in cols or con.execute(
+                "SELECT 1 FROM table_provenance WHERE tbl = ?", (table,)).fetchone():
+            sourced.append(name)
+    check("every column offered under CC BY 4.0 exists", not missing,
+          ", ".join(missing))
+    check("no column offered under CC BY 4.0 sits in a table that cites a source",
+          not sourced, ", ".join(sourced))
+
+    # The grant travels inside the file: a reader with f1.db and no repository
+    # still holds the terms.
+    published = value_or_none("project_prose_columns")
+    expected = ", ".join(declared)
+    check("meta.project_prose_columns publishes every column granted",
+          published == expected,
+          "" if published == expected else f"meta says {published!r}")
+    check("meta.project_prose states the grant",
+          value_or_none("project_prose") == _N.PROJECT_PROSE_NOTE)
+
+    # And it is named where a reader looks for a licence. LICENSE-DATA is
+    # served at lapledger.org/LICENSE-DATA; ATTRIBUTION.md beside it. These
+    # two documents are what a reader takes the grant FROM, so they are
+    # checked in both directions: a column granted here and missing there
+    # would leave a reader unable to find the terms, and a column offered
+    # there and not granted here would widen the grant in prose alone, which
+    # is the direction nobody could see and no build could refuse.
+    here = os.path.dirname(os.path.abspath(__file__))
+    columns = {t: [c[1] for c in con.execute(f'PRAGMA table_info("{t}")')]
+               for (t,) in con.execute(
+                   "SELECT name FROM sqlite_master WHERE type = 'table'")}
+    for doc, heading in (("LICENSE-DATA", "## The project's own writing"),
+                         ("ATTRIBUTION.md", "## What this project wrote")):
+        try:
+            with open(os.path.join(here, doc), encoding="utf-8") as f:
+                text = f.read()
+        except OSError as e:
+            check(f"{doc} is readable", False, str(e))
+            continue
+        absent = [c for c in declared if c not in text]
+        check(f"{doc} names every column offered under CC BY 4.0",
+              not absent, ", ".join(absent))
+
+        # The section is found by its heading, and a heading that has been
+        # renamed fails here rather than leaving the section unread: a check
+        # that cannot find its subject passes on everything.
+        found = text.count(heading)
+        check(f"{doc} states the grant under one heading", found == 1,
+              "" if found == 1 else f"{found} headings matching {heading!r}")
+        if found != 1:
+            continue
+        section_ = text.split(heading, 1)[1].split("\n## ", 1)[0]
+        # `table.column` in that section, and only where both halves are real
+        # - `meta.project_prose` names a key, not a column, and is not one of
+        # these.
+        offered = [f"{t}.{c}" for t, c in
+                   re.findall(r"`([a-z_]+)\.([a-z_]+)`", section_)
+                   if c in columns.get(t, ())]
+        wider = sorted(set(offered) - set(declared))
+        check(f"{doc} offers no column that PROJECT_PROSE_COLUMNS does not",
+              not wider, ", ".join(wider))
+
+
 @section('ILLUSTRATION AND GEOMETRY')
 def illustration_and_geometry():
     # Two tables that hold pointers to things this repository does not contain:
