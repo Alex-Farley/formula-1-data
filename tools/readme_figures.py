@@ -117,6 +117,36 @@ class Figures:
         import build  # noqa: E402 - the schedule is the source of this number
         return n(len(build.STAGES))
 
+    # -- Identifiers ------------------------------------------------------------
+
+    def _id_policy(self):
+        """(every surrogate-id table, the stable ones, table -> natural key),
+        all of it read out of the database: the tables off the schema, the
+        policy off `meta`. Nothing here restates the declaration in
+        data/current.py — verify.py is what holds those two together."""
+        sys.path.insert(0, ROOT)
+        import build  # noqa: E402 - the schema is what says which ids are surrogates
+        stable = set(self.meta("id_stability_stable").split(", "))
+        keys = {}
+        for part in self.meta("id_stability_keys").split("; "):
+            table, columns = part.split("(", 1)
+            keys[table] = columns.rstrip(")")
+        return sorted(build.surrogate_id_tables(self.con)), stable, keys
+
+    def stable_id_tables(self):
+        return n(len(self._id_policy()[1]))
+
+    def id_keys(self):
+        # A whole table, header included, so the span can sit on lines of its
+        # own: an HTML comment on the same line as a table row is where GitHub
+        # stops rendering the table.
+        tables, stable, keys = self._id_policy()
+        rows = [f"| `{t}` | {'stable' if t in stable else 'unstable'} | "
+                f"{'`(' + keys[t] + ')`' if t in keys else '—'} |"
+                for t in tables]
+        return "\n".join(["", "| Table | `id` | Natural key |", "|---|---|---|"]
+                          + rows) + "\n"
+
     # -- What's in it -----------------------------------------------------------
 
     def seasons(self):

@@ -50,7 +50,7 @@ here is a number the build checked.
 
 | File | What it is |
 |---|---|
-| `f1.db` | The SQLite database. <!-- fig:tables -->48<!-- /fig --> tables, <!-- fig:views -->41<!-- /fig --> views, <!-- fig:rows -->119,832<!-- /fig --> rows. This is the artefact. |
+| `f1.db` | The SQLite database. <!-- fig:tables -->48<!-- /fig --> tables, <!-- fig:views -->41<!-- /fig --> views, <!-- fig:rows -->119,835<!-- /fig --> rows. This is the artefact. |
 | `f1-geometry.db` | The OpenStreetMap circuit centrelines (ODbL), shipped beside `f1.db` and never merged into it. See *Illustration*. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
@@ -341,6 +341,79 @@ move — and when the full classification arrived in v2.15 it did not.
 
 `race_results`, `race_credits` and `calendar` still exist as **views** over the
 new tables, so anything written against the old schema keeps working.
+
+### Identifiers
+
+Which `id` you may keep, and which you may not.
+
+A text id — `hamilton`, `monza`, `lotus-79` — is derived from the thing itself
+and does not move. An integer `id` is a **surrogate**: the build hands it out
+in insert order, so a source read in a different order shifts every id after
+the row it added. That is what happened between v2.20 and v2.21, when 17% of
+`race_entries.id` changed — and nothing in the database or in this file said
+whether a reader had been entitled to rely on them.
+
+Now it does, inside the database itself:
+
+```sql
+SELECT key, value FROM meta WHERE key LIKE 'id_stability%';
+```
+
+An integer id is **unstable between releases** unless its table is named in
+`meta.id_stability_stable` — the <!-- fig:stable_id_tables -->8<!-- /fig -->
+tables whose ids have held across the last four releases and which this release
+undertakes to keep. Everywhere else the id is the build's business: join on the
+**natural key**, the columns that identify the fact rather than the row.
+`verify.py` checks on every build that each published key identifies exactly
+one row, because a key that does not is worse than no key at all — a reader
+joining on it silently doubles their rows instead of failing.
+
+<!-- fig:id_keys -->
+| Table | `id` | Natural key |
+|---|---|---|
+| `circuit_layouts` | stable | `(circuit_id, layout_key)` |
+| `constructor_lineage` | unstable | — |
+| `discrepancies` | unstable | — |
+| `engine_eras` | unstable | — |
+| `eras` | unstable | — |
+| `governance` | unstable | — |
+| `known_gaps` | unstable | — |
+| `laps` | unstable | — |
+| `pit_stops` | stable | `(race_id, driver_id, stop_number)` |
+| `points_systems` | unstable | — |
+| `qualifying` | stable | `(race_id, driver_id)` |
+| `race_control_messages` | unstable | — |
+| `race_entries` | stable | `(race_id, driver_id)` |
+| `races` | stable | `(year, round)` |
+| `records` | stable | `(key)` |
+| `regulation_changes` | unstable | — |
+| `regulation_limits` | unstable | — |
+| `safety_milestones` | unstable | — |
+| `season_entrants` | stable | `(year, entrant_id, f1db_constructor_id, engine_manufacturer_id)` |
+| `season_entries` | unstable | — |
+| `sessions` | unstable | — |
+| `source_patterns` | unstable | — |
+| `source_registry` | unstable | — |
+| `sprint_results` | stable | `(race_id, driver_id)` |
+| `standings` | unstable | `(year, table_type, entity_id, engine_id, as_of, position_text)` |
+| `stints` | unstable | — |
+| `team_radio` | unstable | — |
+| `technical_innovations` | unstable | — |
+| `tyre_suppliers` | unstable | — |
+<!-- /fig -->
+
+`standings` is the one to watch: it is the table a reader is most likely to
+have joined to by id, and a running season's table is reloaded whole, so every
+id in it moves. Its key carries `position_text` because 2018 holds Force India
+twice in the constructors' final classification — the excluded entity on nought
+points and the re-entered one on 52 — which is a fact and not a duplicate.
+Making the insert order of the unstable tables deterministic, so their ids
+could be promised too, is separate open work.
+
+A table listed with no natural key has none published yet; treat its ids as
+unstable and read the table whole. `build.py` refuses a table with a surrogate
+id that the policy does not classify, so a new table cannot quietly arrive
+outside it.
 
 ### What the restructure fixed
 

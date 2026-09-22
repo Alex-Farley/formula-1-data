@@ -179,6 +179,58 @@ def _stage_00_open_the_database(b):
     b.cur = cur
 
 
+def surrogate_id_tables(con):
+    """Every table whose whole primary key is an INTEGER `id` — the ids the
+    build hands out in insert order, and the ones that move when an insert
+    order does. Read off the schema rather than written out: a list typed by
+    hand is the thing that silently leaves a new table outside the identifier
+    policy, the way a typed column list once dropped three columns of
+    circuit_geometry."""
+    out = set()
+    for (name,) in con.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table'"
+            " AND name NOT LIKE 'sqlite_%' ORDER BY name").fetchall():
+        pk = [c for c in con.execute("PRAGMA table_info(%s)" % name) if c[5]]
+        if len(pk) == 1 and pk[0][1] == "id" and pk[0][2].upper() == "INTEGER":
+            out.add(name)
+    return out
+
+
+def _identifier_policy(con):
+    """(the stable tables, the declared natural keys) as the strings meta
+    carries, having refused anything the policy does not account for."""
+    surrogate = surrogate_id_tables(con)
+    undeclared = sorted(surrogate - set(N.ID_STABILITY))
+    if undeclared:
+        raise SystemExit(
+            f"no identifier policy for {', '.join(undeclared)}: add each to "
+            f"ID_STABILITY in data/current.py as 'stable' or 'unstable' before "
+            f"the build can say whether a reader may keep its ids.")
+    gone = sorted(set(N.ID_STABILITY) - surrogate)
+    if gone:
+        raise SystemExit(
+            f"ID_STABILITY names {', '.join(gone)}, which has no surrogate "
+            f"`id` in schema.sql: remove the entry, or correct the name.")
+
+    stable, keys = [], []
+    for table in sorted(N.ID_STABILITY):
+        stability, key = N.ID_STABILITY[table]
+        if stability not in ("stable", "unstable"):
+            raise SystemExit(f"ID_STABILITY['{table}'] is {stability!r}; it must "
+                             f"be 'stable' or 'unstable'.")
+        if stability == "stable":
+            stable.append(table)
+        if key:
+            columns = {c[1] for c in con.execute("PRAGMA table_info(%s)" % table)}
+            absent = [c for c in key if c not in columns]
+            if absent:
+                raise SystemExit(
+                    f"ID_STABILITY['{table}'] names {', '.join(absent)} as part "
+                    f"of the natural key, and {table} has no such column.")
+            keys.append(f"{table}({', '.join(key)})")
+    return ", ".join(stable), "; ".join(keys)
+
+
 def _stage_01_meta(b):
     """meta"""
     cur = b.cur
@@ -212,6 +264,13 @@ def _stage_01_meta(b):
         "INSERT INTO table_provenance (tbl, source_id, unconstrained, note)"
         " VALUES (?,?,?,?)",
         N.TABLE_PROVENANCE)
+    # Which ids a reader may keep (DA-04). Same shape as the licence classes
+    # above: the build refuses a table nobody has classified rather than
+    # assuming one, because the assumption is what goes unnoticed. The two
+    # strings are what verify.py checks the declaration against, and what
+    # tools/readme_figures.py builds the README's table from.
+    stable_ids, id_keys = _identifier_policy(b.con)
+
     cur.executemany("INSERT INTO meta VALUES (?,?)", [
         ("database_name", "F1 Verified Facts Project Memory Database"),
         ("version", VERSION),
@@ -232,6 +291,9 @@ def _stage_01_meta(b):
         # for seven releases, and a bulk-data consumer reads this before
         # anything else.
         ("coverage_note", "derived at the end of the build"),
+        ("id_stability", N.ID_STABILITY_NOTE),
+        ("id_stability_stable", stable_ids),
+        ("id_stability_keys", id_keys),
     ])
 
 
