@@ -373,6 +373,12 @@ export function Cite() {
   // The address as the browser has it - origin and base included - so a
   // preview cites itself and lapledger.org cites lapledger.org; the static
   // page uses the canonical origin, which on the site is the same string.
+  //
+  // The pathname and NOT the query string, deliberately, now that a register
+  // carries its filters and its sort there (IA-08). A citation names the page
+  // a reader can be sent to and an index can hold, which is the canonical in
+  // the head and the address the static half was prerendered at; the filtered
+  // view is a way of reading that page, and there are thousands of them.
   const url = `${window.location.origin}${window.location.pathname}`
   const text = citation(manifest.version, manifest.built, url)
   const [before, after] = text.split(url)
