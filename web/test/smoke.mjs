@@ -251,7 +251,14 @@ try {
     // An explicit context, not browser.newPage(): the shortcut owns its context,
   // and @axe-core/playwright opens a page in the same context to run in, which
   // Playwright refuses on an owned one ("Please use browser.newContext()").
-  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } })
+  // The clipboard is granted because IX-26 put a copy button under every
+  // table, and the only check worth making of a copy button is what landed on
+  // the clipboard. Chromium refuses navigator.clipboard to a page that has
+  // never been granted it, headless or not.
+  const context = await browser.newContext({
+    viewport: { width: 1280, height: 900 },
+    permissions: ['clipboard-read', 'clipboard-write'],
+  })
   const page = await context.newPage()
 
     const consoleErrors = []
@@ -1262,7 +1269,7 @@ try {
       truthy(firstStatic.includes(top.full_name), 'the static register opens on the same driver')
       // Row for row, not only the first: the tie-break must collate as SQLite
       // does, or 518 of 862 positions differ while the first row agrees.
-      await page.click('#root main .table-foot button')
+      await page.click('#root main .table-foot button.more')
       await page.waitForFunction(() => document.querySelectorAll('#root main tbody tr').length > 150, null, { timeout: 20000 })
       const appOrder = await page.$$eval('#root main tbody tr td:first-child', (tds) => tds.map((td) => td.textContent.trim()))
       const staticOrder = ([...html.matchAll(/<tbody>[\s\S]*?<\/tbody>/g)][0][0].match(/<tr>[\s\S]*?<\/tr>/g) ?? []).map(
@@ -2462,13 +2469,97 @@ try {
       `descending sort leads with a value, not a blank — "${firstEntries}"`,
     )
     // The register pages at 150 rows; the unestablished ones are beyond that.
-    await page.click('#root main .table-foot button')
+    await page.click('#root main .table-foot button.more')
     await page.waitForFunction(() => document.querySelectorAll('#root main tbody tr').length > 150, null, { timeout: 20000 })
     const lastEntries = await page.$$eval('#root main tbody tr td:nth-child(3)', (nodes) =>
       nodes[nodes.length - 1].textContent.trim(),
     )
     is(lastEntries, '—', 'and sinks the unestablished ones')
 
+  })
+
+  // ------------------------------------------------------- taking it away
+
+  /*
+   * IX-26. Before this there was no `clipboard`, no `download` and no share
+   * anywhere in web/src: every table on the site could be read and nothing
+   * else. The button is one component in the footer of every table, so the
+   * checks here are about what actually comes out of it — the whole table
+   * rather than the page of it on screen, numbers a spreadsheet can add up,
+   * and a file named for the database version that fixes its figures.
+   */
+  await section('Taking a table away', async () => {
+    await go('/drivers', 'Drivers')
+    const [rows, shown] = await page.$eval('#root main .table-wrap', (el) => [
+      Number(el.dataset.rows),
+      Number(el.dataset.shown),
+    ])
+    truthy(rows > shown, `the register is paged — ${shown} of ${rows} rows drawn`)
+
+    // The label says the count BEFORE the click, because the difference
+    // between what is drawn and what is taken is the one thing a reader
+    // would otherwise find out afterwards, in a spreadsheet.
+    const labels = await page.$$eval('#root main .table-foot button.take', (buttons) =>
+      buttons.map((b) => b.textContent.trim().replace(/\s+/g, ' ')),
+    )
+    is(
+      labels.join(' · '),
+      `Copy all ${rows.toLocaleString('en-GB')} as TSV · Download all ${rows.toLocaleString('en-GB')} as CSV`,
+      'the buttons name the whole table, not the page of it on screen',
+    )
+
+    await page.click('#root main .table-foot button.take.copy')
+    await page.waitForFunction(
+      (n) => document.querySelector('#root main .take-said')?.textContent.includes(`Copied ${n} rows`),
+      rows.toLocaleString('en-GB'),
+      { timeout: 10000 },
+    )
+    const tsv = await page.evaluate(() => navigator.clipboard.readText())
+    const lines = tsv.split('\n')
+    is(lines.length, rows + 1, 'the clipboard holds every row of the register and one header')
+    const headers = await page.$$eval('#root main thead th', (th) =>
+      th.map((h) => h.textContent.replace(/[▲▼]/g, '').trim()),
+    )
+    is(lines[0], headers.join('\t'), 'under the headers the table is showing')
+    // Data as data: the table prints 1,000 and the file must not, or every
+    // figure over 999 arrives in a spreadsheet as a string — or as two
+    // columns, in the CSV.
+    truthy(!/\d,\d{3}/.test(tsv), 'with no thousands separators in it')
+
+    const download = await Promise.all([
+      page.waitForEvent('download', { timeout: 20000 }),
+      page.click('#root main .table-foot button.take.csv'),
+    ]).then(([d]) => d)
+    const name = download.suggestedFilename()
+    truthy(
+      /^lap-ledger-drivers-v\d[\w.]*\.csv$/.test(name),
+      `the file is named for the table and the database version — "${name}"`,
+    )
+    const csv = readFileSync(await download.path(), 'utf8')
+    is(csv.slice(0, 1), '﻿', 'and opens with the mark that makes Excel read it as UTF-8')
+    is(csv.split('\r\n').length - 2, rows, 'and holds the same rows the clipboard did')
+
+    // The console's result is a table like any other, and the one the item
+    // named first: someone who can write SQL had Run and nothing else.
+    await go('/data/sql', 'SQL console')
+    const result = await page.$eval('#root main .table-wrap', (el) => Number(el.dataset.rows))
+    const consoleLabels = await page.$$eval('#root main .table-foot button.take', (buttons) =>
+      buttons.map((b) => b.textContent.trim().replace(/\s+/g, ' ')),
+    )
+    is(
+      consoleLabels.join(' · '),
+      'Copy as TSV · Download as CSV',
+      'a table with nothing hidden does not claim a count it does not need',
+    )
+    await page.click('#root main .table-foot button.take.copy')
+    await page.waitForFunction(
+      () => document.querySelector('#root main .take-said')?.textContent.includes('Copied'),
+      null,
+      { timeout: 10000 },
+    )
+    const query = (await page.evaluate(() => navigator.clipboard.readText())).split('\n')
+    is(query.length, result + 1, 'the console result comes away whole')
+    is(query[0], 'Full name\tPole to win', 'with the headers the console gave it')
   })
 
   // ------------------------------------------------------ addressable state

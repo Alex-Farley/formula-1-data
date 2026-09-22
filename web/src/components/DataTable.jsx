@@ -3,6 +3,7 @@ import { EMPTY, isNumericColumn, isProseColumn, label as humanise, missing, text
 import { shared, sharedLine } from '../lib/table.js'
 import { useUrlState } from '../lib/urlstate.js'
 import { PageTitle, SectionTitle } from './Page.jsx'
+import TakeAway from './TakeAway.jsx'
 
 /**
  * One table component for everything, from the season list to whatever a
@@ -312,16 +313,29 @@ function Table({
             </tbody>
           </table>
         </div>
-        {(hidden > 0 || footer) && (
-          <div className="table-foot">
-            <span>{footer}</span>
+        {/* The footer is drawn on every table that has rows now, where before
+            it appeared only to hold a "Show the remaining" button or a page's
+            own note. It carries the way out of the site (IX-26), and a table
+            small enough to fit is exactly the one a reader is most likely to
+            want to take. */}
+        <div className="table-foot">
+          <span>{footer}</span>
+          <div className="table-acts">
             {hidden > 0 && (
-              <button type="button" onClick={() => (onShowAll ? onShowAll() : setOwnShowAll(true))}>
+              <button
+                type="button"
+                className="more"
+                onClick={() => (onShowAll ? onShowAll() : setOwnShowAll(true))}
+              >
                 Show the remaining {hidden.toLocaleString('en-GB')}
               </button>
             )}
+            {/* `cols` and not `kept`: a column collapsed into the sentence
+                above the table (VD-29) is still data, and a file that has
+                left the page has no sentence above it. */}
+            <TakeAway columns={cols} rows={ordered} shown={visible.length} name={name} />
           </div>
-        )}
+        </div>
       </div>
     </>
   )
