@@ -859,6 +859,65 @@ try {
 
   })
 
+  /*
+   * Who is in the cars (PD-38). The database has held `season_entries` and
+   * `v_current_grid` all along and no page read either, so a reader could not
+   * find out who drives car 12; the expectation is read from the entry list
+   * itself, as everything here is.
+   */
+  await section('/seasons/2026  (who is in the cars)', async () => {
+    const year = inProgress()
+    await go(`/seasons/${year}`, String(year))
+    const grid = await page.evaluate(() => {
+      const h2 = [...document.querySelectorAll('#root main h2')].find((h) => h.textContent.startsWith('On the grid'))
+      const table = h2?.closest('section')?.querySelector('table')
+      return [...(table?.querySelectorAll('tbody tr') ?? [])].map((tr) =>
+        [...tr.children].map((c) => c.textContent.replace(/\s+/g, ' ').trim()),
+      )
+    })
+    is(
+      grid.length,
+      count('SELECT COUNT(*) FROM season_entries WHERE year = ?', year),
+      `the grid is one row per entry declared for ${year}`,
+    )
+    const seat = db
+      .prepare(`SELECT e.car_number, d.full_name AS driver, d.abbreviation, k.name AS team, e.car, e.power_unit
+                  FROM season_entries e
+                  LEFT JOIN drivers d      ON d.id = e.driver_id
+                  LEFT JOIN constructors k ON k.id = e.constructor_id
+                 WHERE e.year = ? AND e.role = 'race' AND e.car_number IS NOT NULL
+                 ORDER BY e.car_number LIMIT 1`)
+      .get(year)
+    truthy(
+      grid.some(
+        (r) =>
+          r[0] === String(seat.car_number) &&
+          r[1] === seat.driver &&
+          r[2] === seat.abbreviation &&
+          r[3] === seat.team &&
+          r[4] === seat.car &&
+          r[5] === seat.power_unit,
+      ),
+      `car ${seat.car_number} is ${seat.driver} (${seat.abbreviation}), ${seat.team} ${seat.car}, ${seat.power_unit}`,
+    )
+    // A reserve is a row and says so, which is the difference between the
+    // entry list and a count of who has started.
+    const reserve = one("SELECT COUNT(*) FROM season_entries WHERE year = ? AND role <> 'race'", year)
+    if (reserve) {
+      const role = one("SELECT role FROM season_entries WHERE year = ? AND role <> 'race' LIMIT 1", year)
+      truthy(
+        grid.some((r) => r[1].endsWith(role)),
+        `a seat that is not a race seat carries the word “${role}”`,
+      )
+    } else pass('no reserve is declared this season, so there is no role to mark')
+    const html = await (await fetch(`${BASE}/seasons/${year}`)).text()
+    truthy(
+      html.includes('On the grid') && html.includes(seat.driver) && html.includes(String(seat.car)),
+      'the static season page carries the grid too',
+    )
+
+  })
+
   // The app's SQL page carries the download paragraph the static one does,
   // with both files named: the two renderers used to disagree about whether
   // the file could be had at all.
@@ -3563,6 +3622,9 @@ try {
           )
         }
         const after = one("SELECT MAX(after_round) FROM standings WHERE year = ? AND table_type = 'drivers'", open.year)
+        // The entry list is a table of the season being run, so it is here
+        // and on no other season page.
+        await same(`/seasons/${open.year}`, String(open.year), 'On the grid')
         await same(`/seasons/${open.year}`, String(open.year), 'The calendar')
         await same(`/seasons/${open.year}`, String(open.year), standingsHeading("Drivers'", true, after))
         await same(`/seasons/${open.year}`, String(open.year), standingsHeading("Constructors'", true, after))

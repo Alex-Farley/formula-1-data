@@ -26,8 +26,12 @@ import {
   ENTRANTS,
   ENTRANT_COLUMNS,
   ENTRANTS_FOOTER,
+  CURRENT_GRID,
   FINAL,
   GRID,
+  GRID_COLUMNS,
+  GRID_FOOTER,
+  GRID_HEADING,
   NEIGHBOURS,
   NO_CONSTRUCTORS_TITLE,
   REMAINING,
@@ -116,6 +120,40 @@ const constructorsRenders = (year) => ({
   },
 })
 
+/*
+ * The grid: the driver links to their page, a seat that is not a race seat
+ * says so, and the colour mark sits beside the team whose livery it is
+ * (AF-04) - one mark to a row, where the drivers' standings has nowhere else
+ * to put it.
+ */
+const gridRenders = (year) => ({
+  driver: {
+    render: (name, row) => (
+      <>
+        {row.driver_id ? <Link to={`/drivers/${row.driver_id}`}>{name}</Link> : cell(name)}
+        {row.role && row.role !== 'race' ? ' ' : ''}
+        {row.role && row.role !== 'race' ? <span className="tag">{row.role}</span> : null}
+      </>
+    ),
+  },
+  team: {
+    render: (name, row) => {
+      const colour = colourForEntry({
+        constructorId: row.constructor_id,
+        country: row.team_country,
+        year,
+        team: name,
+      })
+      return (
+        <>
+          <LiveryMark colour={colour} year={year} />
+          {row.constructor_id ? <Link to={`/constructors/${row.constructor_id}`}>{name}</Link> : cell(name)}
+        </>
+      )
+    },
+  },
+})
+
 const ENTRANTS_APP = {
   constructor: {
     render: (name, row) =>
@@ -139,6 +177,7 @@ export default function Season() {
     entrants: [ENTRANTS, [Number(year)]],
     neighbours: [NEIGHBOURS, [Number(year)]],
     grid: [GRID, [Number(year)]],
+    currentGrid: [CURRENT_GRID, [Number(year)]],
     sessions: [SEASON_SESSIONS, [Number(year)]],
     teams: [DRIVER_TEAMS, [Number(year)]],
     images: [SEASON_IMAGES, [Number(year)]],
@@ -167,6 +206,7 @@ function SeasonBody({ year, season, data }) {
   const standings = rows(data, 'standings')
   const final = rows(data, 'final')
   const entrants = rows(data, 'entrants')
+  const currentGrid = rows(data, 'currentGrid')
   const neighbours = data.neighbours.rows[0] ?? {}
   const grid = data.grid.rows[0] ?? null
   const teams = useMemo(() => teamsByDriver(rows(data, 'teams')), [data])
@@ -369,6 +409,24 @@ function SeasonBody({ year, season, data }) {
           </p>
         )}
       </Section>
+
+      {/* Who is in the cars this season (PD-38). Only a season with a
+          declared entry list has one, so the section is absent rather than
+          empty on the 76 that have only the record of who entered. */}
+      {currentGrid.length > 0 && (
+        <Section title={GRID_HEADING} count={`${currentGrid.length} drivers`}>
+          {/* No opening sort, as with the entrants below: the query's ORDER BY
+              is the order the table opens in, and the static page prints the
+              rows as they come. */}
+          <DataTable
+            rows={currentGrid}
+            rowKey={(row) => row.id}
+            sortable
+            columns={withRenders(GRID_COLUMNS, gridRenders(year))}
+            footer={GRID_FOOTER}
+          />
+        </Section>
+      )}
 
       {/* The cars of the year, what they won first (VD-33). A season that
           has not run yet has no entries and so no strip, which is right: the
