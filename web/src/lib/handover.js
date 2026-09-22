@@ -3,7 +3,7 @@
  * away again (IX-19).
  *
  * scripts/prerender.js writes every row of a register into the static page:
- * /drivers is 862 rows and /cars 1,182. The app then pages the same table at
+ * /drivers is 862 rows and /cars 1,153. The app then pages the same table at
  * 150, and main.jsx's handOver() removed the static page and put the app's in
  * its place — so at about thirteen seconds on a slow connection a reader
  * scrolled to row 700 was returned to a table that stopped at 150, with the

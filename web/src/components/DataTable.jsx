@@ -230,10 +230,16 @@ function Table({
    * The page opens on at least what the reader could already see.
    *
    * On a prerendered route the static page draws every row - 862 drivers,
-   * 1,182 chassis - and this table used to replace it with `page` of them the
+   * 1,153 chassis - and this table used to replace it with `page` of them the
    * moment the database opened. A reader at row 700 was returned to a table
    * that ended at 150 (IX-19). lib/handover.js counted the static table before
    * it was removed, and the app opens on at least that many.
+   *
+   * The price is that a seeded register re-renders all of its rows rather than
+   * `page` of them - every keystroke in the filter above /drivers now lays out
+   * 862 rows, not 150. They are the rows the static page already had in the
+   * document, and the alternative is taking them away again, so it is the
+   * right side of the trade; it is the one thing here that got dearer.
    *
    * Where the static table held everything, that is the whole table and there
    * is nothing left to show: `hidden` is 0 and no "Show the remaining" is
