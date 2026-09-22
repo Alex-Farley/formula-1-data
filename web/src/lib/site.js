@@ -294,8 +294,8 @@ export const ABOUT = [
       'A fact goes in only with a source somebody else can check, and it carries the standing of ' +
         'that source with it — an official FIA or formula1.com source is the only thing that ' +
         'reaches the top of the confidence ladder, and nothing is promoted to it without one. A ' +
-        'figure nobody has established is left empty rather than guessed: an em dash means ' +
-        'unestablished, and never zero.',
+        'figure nobody has established is left empty rather than guessed at, and an empty figure ' +
+        'is never a zero.',
       'Two things are refused outright. A source whose licence does not allow its rows to be passed ' +
         'on is classified as such on the register, and the build refuses a database in which any ' +
         'row cites one. And Formula One race timing, which nobody publishes under terms that permit ' +
@@ -346,7 +346,9 @@ export const ABOUT = [
         'produce the same bytes, which is why the build date inside it is a constant rather than a ' +
         'timestamp. Every release carries a SHA256SUMS file, so a copy can be checked against the ' +
         'digests the build produced rather than against this site still being up.',
-      'The data is offered under CC BY-SA 4.0 and the code under the MIT licence. So if the person ' +
+      'The data is offered under CC BY-SA 4.0 and the code under the MIT licence; the circuit ' +
+        'centrelines are © OpenStreetMap contributors under ODbL 1.0, and that obligation follows ' +
+        'f1-geometry.db alone. So if the person ' +
         'named above stops, what has already been published stays readable, checkable and ' +
         'rebuildable by anybody holding a copy — which is the most this page can honestly ' +
         'promise, and worth more than a promise to carry on.',

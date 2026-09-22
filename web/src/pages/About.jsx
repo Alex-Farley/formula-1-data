@@ -33,8 +33,13 @@ export default function About() {
     <Page title="About" lede={ABOUT_LEDE}>
       {ABOUT.map(({ title, paragraphs, after }) => (
         <Section key={title} title={title}>
-          {paragraphs.map((paragraph) => (
-            <p key={paragraph.slice(0, 40)} className="measure">
+          {/* The index: ABOUT is a literal that never reorders and never
+              grows at runtime, so the position IS the identity, and a key
+              cut from the prose would turn an edit to a sentence into a
+              remount. */}
+          {paragraphs.map((paragraph, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: a static literal that never reorders
+            <p key={i} className="measure">
               {paragraph}
             </p>
           ))}

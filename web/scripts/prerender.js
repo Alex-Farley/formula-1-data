@@ -717,6 +717,18 @@ const crumbs = (trail) =>
     )
     .join('<span class="sep">/</span>')
 
+/**
+ * Who a machine is told publishes this, in one object read by both pages
+ * that say so.
+ *
+ * /data's Dataset named an Organization after the site, on a database one
+ * person builds, and /about now says in prose that it is one person - so a
+ * structured-data reader was being given two answers to the question this
+ * item exists to answer once. The url is /about, because that is where the
+ * answer is written out for a reader.
+ */
+const PUBLISHED_BY = { '@type': 'Person', name: MAINTAINER, url: `${ORIGIN}${href('about')}` }
+
 // ------------------------------------------------------------------- pages
 
 const pages = []
@@ -2459,8 +2471,8 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
         temporalCoverage: String(META.coverage_seasons ?? '').replace('-', '/'),
         license: 'https://creativecommons.org/licenses/by-sa/4.0/',
         isAccessibleForFree: true,
-        creator: { '@type': 'Person', name: MAINTAINER, url: `${ORIGIN}${href('about')}` },
-        publisher: { '@type': 'Organization', name: SITE, url: `${ORIGIN}${BASE}` },
+        creator: PUBLISHED_BY,
+        publisher: PUBLISHED_BY,
         distribution: [
           { ...download('f1.db', 'f1.db — the SQLite database'), encodingFormat: 'application/vnd.sqlite3' },
           { ...download('f1.db.gz', 'f1.db.gz — the same, gzipped'), encodingFormat: 'application/gzip' },
@@ -2652,7 +2664,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
       name: titled('About'),
       url: `${ORIGIN}${href('about')}`,
       description: ABOUT_LEDE,
-      publisher: { '@type': 'Person', name: MAINTAINER, url: `${ORIGIN}${href('about')}` },
+      publisher: PUBLISHED_BY,
       about: { '@type': 'Dataset', name: `${SITE} — Formula One, ${SPAN}`, url: `${ORIGIN}${href('data')}` },
     },
     body: `
@@ -2768,7 +2780,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
   <link rel="self" type="application/atom+xml" href="${esc(feedUrl)}" />
   <link rel="alternate" type="text/html" href="${esc(changesUrl)}" />
   <updated>${esc(rfc3339(timeline[0].published))}</updated>
-  <author><name>${esc(SITE)}</name></author>
+  <author><name>${esc(MAINTAINER)}</name></author>
   <rights>${esc(feedRights(`${ORIGIN}${href('data/sources')}`))}</rights>
 ${timeline.map(entry).join('\n')}
 </feed>
