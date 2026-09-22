@@ -1,14 +1,5 @@
 import { Onward, Page, Section } from '../components/Page.jsx'
-import {
-  ABOUT,
-  ABOUT_LEDE,
-  ABOUT_REPOSITORY,
-  REPORT_ASK,
-  REPORT_LINK,
-  REPORT_PROMISE,
-  REPORT_URL,
-  REPOSITORY,
-} from '../lib/site.js'
+import { ABOUT, ABOUT_LEDE, ABOUT_REPOSITORY, NAMES, REPORT_ASK, REPORT_LINK, REPORT_PROMISE, REPORT_URL, REPOSITORY } from '../lib/site.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
 /**
@@ -31,7 +22,7 @@ import { ONWARD, TRAIL } from '../lib/wayfinding.js'
  */
 export default function About() {
   return (
-    <Page title="About" trail={TRAIL.about()} lede={ABOUT_LEDE}>
+    <Page title={NAMES.about().headline} documentName={NAMES.about().title} trail={TRAIL.about()} lede={ABOUT_LEDE}>
       {ABOUT.map(({ title, paragraphs, after }) => (
         <Section key={title} title={title}>
           {/* The index: ABOUT is a literal that never reorders and never

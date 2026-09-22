@@ -10,7 +10,7 @@ import Figure from '../charts/Figure.jsx'
 import DotPlot from '../charts/DotPlot.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { EMPTY, missing, points as fmtPoints, result, text as valueText } from '../lib/format.js'
-import { ENTRIES_NOTE } from '../lib/site.js'
+import { ENTRIES_NOTE, NAMES } from '../lib/site.js'
 import { colourForEntry, colourSource, lastTeamColour } from '../lib/liveries.js'
 import { canonicalCountry } from '../lib/racingColours.js'
 import {
@@ -194,7 +194,7 @@ function DriverBody({ driver, data }) {
   return (
     <Page
       eyebrow="Driver"
-      title={driver.full_name}
+      title={NAMES.driver(driver.full_name).headline}
       trail={TRAIL.driver(driver.id, driver.full_name)}
       lede={lede(driver, derived, constructors)}
       aside={

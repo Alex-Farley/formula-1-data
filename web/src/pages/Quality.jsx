@@ -45,6 +45,7 @@ import {
 } from '../queries/quality.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
+import { NAMES } from '../lib/site.js'
 const SPEC = {
   provenance: [PROVENANCE],
   gaps: [GAPS],
@@ -89,7 +90,8 @@ export default function Quality() {
 
   return (
     <Page
-      title="Data quality"
+      title={NAMES.quality().headline}
+      documentName={NAMES.quality().title}
       trail={TRAIL.quality()}
       lede="How far to trust anything on this site. Every row carries a confidence level, every disagreement between sources is kept rather than quietly resolved, and everything known to be missing is listed here."
     >

@@ -22,6 +22,66 @@ export const LANDMARK = 'landmark'
 export const titled = (headline) => `${headline} — ${SITE}`
 
 /**
+ * What every page calls itself: the h1 both renderers draw, and the name the
+ * document carries into the tab, the bookmark and the search result.
+ *
+ * WHY THIS EXISTS
+ *     The app and scripts/prerender.js each wrote their own heading for the
+ *     same route, so 9 of 18 sampled routes disagreed about the title, the
+ *     h1 or both (PD-40). The two that mattered were the ones with pages
+ *     behind them: 1,196 race pages were headed "1976 British Grand Prix"
+ *     until the database opened and then "British Grand Prix", and 78 season
+ *     pages went from "1976 FIA Formula One World Championship" to "1976".
+ *     A reader watched the page rename itself, and a crawler indexed
+ *     whichever half it was served.
+ *
+ * HOW TO READ IT
+ *     One entry per page, returning `{ headline, title }`. `headline` is the
+ *     h1 exactly as both halves must draw it. `title` is the whole document
+ *     title, `titled(headline)` unless the page has a fuller name worth
+ *     giving a tab and a search result than the one worth giving a page - the
+ *     registers, whose h1 is one word, and the home page.
+ *
+ *     Nothing here takes the coverage span. The static half used to title the
+ *     five registers "Every driver, 1950-2027"; the app cannot know the span
+ *     before the database is open, which is exactly when the title is needed,
+ *     so a shared title that wanted one would have to fall back - and a
+ *     fallback is the drift this file exists to end. The span is still on
+ *     every one of those pages, in the description and the wordmark, both of
+ *     which are written where it is known.
+ *
+ *     /changes is absent on purpose: its heading is CHANGES_TITLE in
+ *     queries/changes.js, which both renderers already read, and moving it
+ *     here would only give one string two homes.
+ */
+const named = (headline, title) => ({ headline, title: title ?? titled(headline) })
+
+export const NAMES = {
+  home: () => named('Every Formula One race since 1950', `${SITE} — a Formula One database you can check`),
+  seasons: () => named('Seasons', titled('Every Formula One season')),
+  season: (year) => named(`${year} FIA Formula One World Championship`),
+  races: () => named('Races', titled('Every championship race')),
+  race: (year, name) => named(`${year} ${name}`),
+  drivers: () => named('Drivers', titled('Every Formula One driver')),
+  driver: (name) => named(name),
+  constructors: () => named('Constructors', titled('Every Formula One constructor')),
+  constructor: (name) => named(name),
+  circuits: () => named('Circuits', titled('Every Formula One circuit')),
+  circuit: (name) => named(name),
+  cars: () => named('Cars'),
+  car: (name) => named(name),
+  records: () => named('Records'),
+  eras: () => named('Eras and regulations'),
+  glossary: () => named('Glossary and people'),
+  sources: () => named('Sources and licences'),
+  data: () => named('Data'),
+  quality: () => named('Data quality'),
+  sql: () => named('SQL console'),
+  about: () => named('About'),
+  notFound: () => named('No such page'),
+}
+
+/**
  * Why a driver's page can show two entry counts, and two start counts. Said
  * once, in both renderers: the review of #75 found fourteen pages printing
  * 393 beside 392 with nothing between them.

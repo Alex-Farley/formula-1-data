@@ -23,6 +23,7 @@ import {
 } from '../queries/car.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
+import { NAMES } from '../lib/site.js'
 /*
  * The React renders for the columns queries/car.js defines — the links and
  * the result's styling; the router is the reason they live here. The words
@@ -120,7 +121,7 @@ function CarBody({ chassis, variants, data }) {
   return (
     <Page
       eyebrow={chassis.constructor ?? 'Chassis'}
-      title={(several ? car?.full_name : null) || chassis.full_name || chassis.name}
+      title={NAMES.car((several ? car?.full_name : null) || chassis.full_name || chassis.name).headline}
       trail={TRAIL.car(chassis.id, (several ? car?.full_name : null) || chassis.full_name || chassis.name)}
       lede={car?.story}
     >

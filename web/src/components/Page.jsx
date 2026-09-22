@@ -30,7 +30,7 @@ import { SITE, titled, citation } from '../lib/site.js'
  * the same string it uses for the h1 — so the document name and the visible
  * name cannot drift, and a page added later gets this for free.
  */
-function useDocumentName(headline) {
+function useDocumentName(documentName, headline) {
   const { pathname } = useLocation()
 
   useEffect(() => {
@@ -40,8 +40,12 @@ function useDocumentName(headline) {
     // give. It gets the site and nothing more. Writing `undefined — Lap
     // Ledger` would put a non-answer in the tab, the bookmark, the history
     // entry and the announcement, which is the em dash lying one surface over.
-    document.title = missing(headline) ? SITE : titled(headline)
-  }, [headline, pathname])
+    // `documentName` is the whole title, from lib/site.js's NAMES, for the
+    // pages whose tab and search result are worth more words than their h1 -
+    // "Every Formula One driver" over "Drivers". Everything else is the h1
+    // titled, which is what the static half writes for the same route.
+    document.title = documentName ?? (missing(headline) ? SITE : titled(headline))
+  }, [documentName, headline, pathname])
 
   // The canonical is mechanical: one per document, created if the static
   // HTML did not carry one, and always the path we are actually on.
@@ -56,8 +60,8 @@ function useDocumentName(headline) {
   }, [pathname])
 }
 
-export function Page({ eyebrow, title, lede, trail, aside, children, cite = true }) {
-  useDocumentName(title)
+export function Page({ eyebrow, title, documentName, lede, trail, aside, children, cite = true }) {
+  useDocumentName(documentName, title)
   const heading = useFocusOnNavigation()
   return (
     <article className="page">

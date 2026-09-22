@@ -13,7 +13,7 @@ import { points as fmtPoints, number } from '../lib/format.js'
 import { colourForEntry, lastTeamColour } from '../lib/liveries.js'
 import LiveryMark from '../components/LiveryMark.jsx'
 import Photographs from '../components/Photographs.jsx'
-import { NOT_YET_RUN, SPRINT } from '../lib/site.js'
+import { NAMES, NOT_YET_RUN, SPRINT } from '../lib/site.js'
 import { SEASON_IMAGES } from '../queries/photographs.js'
 import {
   CALENDAR,
@@ -306,9 +306,12 @@ function SeasonBody({ year, season, data }) {
     : null
 
   return (
+    // No eyebrow: the h1 is "2026 FIA Formula One World Championship" now
+    // rather than the bare year (PD-40), so the "Season" above it restated
+    // the heading it was there to explain.
     <Page
-      eyebrow="Season"
-      title={`${year}`}
+      title={NAMES.season(year).headline}
+      documentName={NAMES.season(year).title}
       trail={TRAIL.season(year)}
       lede={season.notes}
       aside={

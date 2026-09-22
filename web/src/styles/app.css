@@ -475,6 +475,35 @@ main {
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
 }
 
+/* The home page's panels: the two rounds either side of today, and the four
+   conventions under them. Both halves of the site draw these now (PD-40), and
+   the spacing is rules rather than the inline styles Home.jsx used to carry,
+   for the reason the comment on .split.uneven below gives - an inline style
+   outranks a rule, and scripts/prerender.js has no way to write one. */
+.round-panel > * {
+  margin: 10px 0 0;
+}
+
+.round-panel > :first-child {
+  margin: 0;
+}
+
+.round-panel > h3 {
+  margin: 6px 0 2px;
+}
+
+.round-panel > h3 + p {
+  margin: 0;
+}
+
+.convention > p {
+  margin: 6px 0 0;
+}
+
+.season-more {
+  margin: 14px 0 0;
+}
+
 .grid.wide {
   grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
 }

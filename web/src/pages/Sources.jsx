@@ -19,6 +19,7 @@ import {
 } from '../queries/sources.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
+import { NAMES } from '../lib/site.js'
 const SPEC = {
   sources: [SOURCES],
   licences: [LICENCES],
@@ -50,7 +51,8 @@ export default function Sources() {
 
   return (
     <Page
-      title="Sources and licences"
+      title={NAMES.sources().headline}
+      documentName={NAMES.sources().title}
       trail={TRAIL.sources()}
       lede="Where every figure on this site comes from, and what you may do with it if you take it. Sources are ranked on whether anything independent can check them, not on how much data they hold."
     >

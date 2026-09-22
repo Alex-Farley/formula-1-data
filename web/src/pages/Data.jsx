@@ -5,15 +5,7 @@ import SubNav from '../components/SubNav.jsx'
 import { currentProgress } from '../data/client.js'
 import { row, rows, useQueries } from '../data/useQuery.js'
 import { number } from '../lib/format.js'
-import {
-  CROSS_CHECKED,
-  DOCUMENTS,
-  DOCUMENTS_NOTE,
-  NOT_HELD,
-  REPOSITORY,
-  SELF_DESCRIBING,
-  TWO_FILES,
-} from '../lib/site.js'
+import { CROSS_CHECKED, DOCUMENTS, DOCUMENTS_NOTE, NAMES, NOT_HELD, REPOSITORY, SELF_DESCRIBING, TWO_FILES } from '../lib/site.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
 /**
@@ -72,7 +64,8 @@ export default function Data() {
 
   return (
     <Page
-      title="Data"
+      title={NAMES.data().headline}
+      documentName={NAMES.data().title}
       trail={TRAIL.data()}
       lede="The whole site is one SQLite file, and you can have it. What it is, the files it comes as, how far to trust it, and what you may do with it."
     >

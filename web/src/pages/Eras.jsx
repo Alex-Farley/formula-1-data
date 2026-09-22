@@ -29,6 +29,7 @@ import {
 } from '../queries/eras.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
+import { NAMES } from '../lib/site.js'
 const SPEC = {
   eras: [ERAS],
   engines: [ENGINES],
@@ -65,7 +66,8 @@ export default function Eras() {
 
   return (
     <Page
-      title="Eras and regulations"
+      title={NAMES.eras().headline}
+      documentName={NAMES.eras().title}
       trail={TRAIL.eras()}
       lede="Formula One is a rule set that keeps being rewritten, and most of what changed about the cars follows from that. Here is the chronology: what the rules were, what someone invented to get round them, and what was banned afterwards."
     >

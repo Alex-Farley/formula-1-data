@@ -9,7 +9,7 @@ import Photographs from '../components/Photographs.jsx'
 import { RACE_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE, clock, nextSession, raceStage, readerZone, until, yourTimeColumn } from '../queries/sessions.js'
 import { rows, useQueries } from '../data/useQuery.js'
 import { finished, missing, number, result } from '../lib/format.js'
-import { SHARED } from '../lib/site.js'
+import { NAMES, SHARED } from '../lib/site.js'
 import { outlineCaption } from '../lib/outline.js'
 import { RACE_IMAGES } from '../queries/photographs.js'
 import {
@@ -233,7 +233,8 @@ function RaceBody({ race, data, year, round }) {
   return (
     <Page
       eyebrow={`Round ${round} of ${year}`}
-      title={race.name_used}
+      title={NAMES.race(year, race.name_used).headline}
+      documentName={NAMES.race(year, race.name_used).title}
       trail={TRAIL.race(year, round, race.name_used)}
       lede={raceLede(race, winners, stage)}
       aside={

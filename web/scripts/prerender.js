@@ -50,7 +50,7 @@ import { fileURLToPath } from 'node:url'
 // hardcoded `circuit_geometry` columns went wrong. `formatted` is the
 // app's own cell text — text() in lib/format.js — for the tables below
 // that are drawn from a page's column list.
-import { finished, missing, result, span, text as formatted, yearList } from '../src/lib/format.js'
+import { finished, missing, number, result, span, text as formatted, yearList } from '../src/lib/format.js'
 import { shared, sharedLine } from '../src/lib/table.js'
 // The ONE attribution rule (web/src/lib/commons.js), not a second copy of it.
 // This script cannot import CommonsImage - that is a React component and this
@@ -86,6 +86,7 @@ import {
   SETTLE_LINK,
   SHARED,
   SITE,
+  NAMES,
   SO_FAR,
   SPRINT,
   TWO_FILES,
@@ -116,7 +117,7 @@ import {
   feedRights,
 } from '../src/lib/changes.js'
 import { LATEST as CHANGES_LATEST, SHAPE as CHANGES_SHAPE } from '../src/queries/changes.js'
-import { markStyleAttr, winnerColour } from '../src/lib/liveries.js'
+import { colourForEntry, markStyleAttr, winnerColour } from '../src/lib/liveries.js'
 import { RACE_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE, eventDay, raceStage } from '../src/queries/sessions.js'
 // The pages' own queries and column lists (PD-02). A page and this script
 // read the same module, so the static table is the app's table by
@@ -152,6 +153,36 @@ import {
   titlePermutations,
 } from '../src/queries/season.js'
 import { LATEST as LATEST_RUN, RACES, RACE_COLUMNS, RACES_FOOTER } from '../src/queries/races.js'
+import {
+  BOARD,
+  BOARD_HEADING,
+  BOARD_NOTE,
+  CHART_HEADING,
+  CHART_TITLE,
+  CLASSIFICATION_LINK,
+  LAST_RACE,
+  LEDE as HOME_LEDE,
+  NEXT as HOME_NEXT,
+  NEXT_RACE,
+  NOTHING_SCHEDULED,
+  PER_SEASON,
+  READING_HEADING,
+  READING_NOTE,
+  SEASON_LEAD,
+  SEASON_NOW,
+  SHAPE as HOME_SHAPE,
+  UNRECORDED_WINNER,
+  WON_BY,
+  WON_FOR,
+  calendarLink,
+  chartNote,
+  reading,
+  seasonHeading,
+  seasonLink,
+  seasonStrip,
+  stillToRunNote,
+  strip as homeStrip,
+} from '../src/queries/home.js'
 import { CONSTRUCTOR_IMAGES, RACE_IMAGES, SEASON_IMAGES } from '../src/queries/photographs.js'
 import { CONSTRUCTORS, CONSTRUCTOR_COLUMNS, CONSTRUCTORS_FOOTER } from '../src/queries/constructors.js'
 import { CIRCUITS, CIRCUIT_COLUMNS, CIRCUITS_FOOTER, TRACED } from '../src/queries/circuits.js'
@@ -607,12 +638,11 @@ const outlineCard = (path, circuit, layoutId, caption, rule = false) =>
 // The properties come from markStyleAttr, not from a `--livery:` written out
 // here: AF-17 added a second one, and a spelled-out attribute would have
 // given the app the scheme and the static page the primary.
-const winnerMark = (round, year) => {
-  const colour = winnerColour(round, year)
-  return colour
+const liveryMark = (colour) =>
+  colour
     ? `<i class="livery" style="${esc(markStyleAttr(colour))}" title="${esc(colour.title)}" aria-hidden="true"></i>`
     : ''
-}
+const winnerMark = (round, year) => liveryMark(winnerColour(round, year))
 const outlineStrip = (year, calendar) => {
   if (!calendar.some((round) => round.outline)) return ''
   const states = roundStates(calendar)
@@ -1300,23 +1330,70 @@ const page = ({
 
 
 // ------------------------------------------------------------------- home
+//
+// The home page, from src/queries/home.js - the same queries, figures,
+// headings and sentences the app draws (PD-40, PD-48). What used to be here
+// was a second home page about the same database: a different headline, a
+// key/value list, the last ten champions, and nothing at all about the season
+// being run. A reader who arrived cold read that one and then watched it be
+// replaced, and a crawler indexed whichever half it was served.
 
 {
-  const counts = Object.fromEntries(
-    ['drivers', 'constructors', 'circuits', 'races', 'race_entries', 'qualifying', 'chassis'].map(
-      (t) => [t, one(`SELECT COUNT(*) AS n FROM ${t}`).n],
-    ),
-  )
-  const champions = all(
-    `SELECT year, drivers_champion, champion_team, champion_points
-       FROM seasons WHERE drivers_champion IS NOT NULL ORDER BY year DESC LIMIT 10`,
-  )
-  const names = Object.fromEntries(all('SELECT id, full_name FROM drivers').map((d) => [d.id, d.full_name]))
-  const teams = Object.fromEntries(all('SELECT id, name FROM constructors').map((c) => [c.id, c.name]))
+  const shape = one(HOME_SHAPE)
+  const seasons = all(PER_SEASON)
+  const latest = one(LATEST_RUN)
+  const upcoming = one(HOME_NEXT)
+  const now = one(SEASON_NOW)
+  const lead = all(SEASON_LEAD)
+  const { headline, title } = NAMES.home()
+
+  // The winning car's colour, as Home.jsx takes it from the same row.
+  const winner = latest
+    ? colourForEntry({
+        constructorId: latest.constructor_id,
+        country: latest.constructor_country,
+        year: latest.year,
+        team: latest.constructor,
+      })
+    : null
+
+  const lastPanel = latest
+    ? `<div class="panel round-panel"><p class="eyebrow">${esc(LAST_RACE)}</p>
+        <h3>${link(`races/${latest.year}/${latest.round}`, `${latest.year} ${latest.name_used}`)}</h3>
+        <p class="muted small">${esc([latest.circuit, latest.dates].filter(Boolean).join(' \u00b7 '))}</p>
+        <p>${esc(WON_BY)}${
+          latest.winner_id ? link(`drivers/${latest.winner_id}`, latest.winner) : esc(UNRECORDED_WINNER)
+        }${
+          latest.constructor
+            ? `${esc(WON_FOR)}${liveryMark(winner)}${
+                latest.constructor_id
+                  ? link(`constructors/${latest.constructor_id}`, latest.constructor)
+                  : esc(latest.constructor)
+              }`
+            : ''
+        }.</p>
+        <p>${link(`races/${latest.year}/${latest.round}`, CLASSIFICATION_LINK)}</p></div>`
+    : '<div class="panel round-panel"></div>'
+
+  const nextPanel = `<div class="panel round-panel"><p class="eyebrow">${esc(NEXT_RACE)}</p>${
+    upcoming
+      ? `<h3>${link(`races/${upcoming.year}/${upcoming.round}`, `${upcoming.year} ${upcoming.name_used}`)}</h3>
+        <p class="muted small">${esc(`${upcoming.dates} \u00b7 round ${upcoming.round}`)}</p>
+        <p class="muted">${esc(stillToRunNote(shape.races_scheduled))}</p>
+        <p>${link(`seasons/${upcoming.year}`, calendarLink(upcoming.year))}</p>`
+      : `<p class="muted">${esc(NOTHING_SCHEDULED)}</p>`
+  }</div>`
+
+  const seasonBlock = now
+    ? `${heading(seasonHeading(now.year))}
+      ${stats(seasonStrip(now, lead).map((item) => ({ ...item, value: esc(item.value) })))}
+      <div class="split">${lastPanel}${nextPanel}</div>
+      <p class="season-more">${link(`seasons/${now.year}`, seasonLink(now.year))}</p>`
+    : ''
 
   page({
     path: '',
-    title: `${SITE} — a Formula One database you can check`,
+    title,
     description:
       `Every championship race, classification, qualifying sheet and pit stop from ${SPAN_FROM} to ${SPAN_TO}, queried in your browser. Every figure traceable to a source; every blank an unestablished fact rather than a zero.`,
     jsonld: {
@@ -1328,33 +1405,40 @@ const page = ({
         `A normalised, verifiable SQLite database of Formula One championship racing, ${SPAN}.`,
       license: 'https://creativecommons.org/licenses/by-sa/4.0/',
     },
-    onward: ONWARD.home({ latest: one(LATEST_RUN) }),
+    onward: ONWARD.home({ latest }),
     body: `
-      <h1>Formula One, ${SPAN}, with its sources attached</h1>
-      <p class="lede">Seventy-seven seasons as one SQLite file, queried in this tab. Every figure
-        is traceable to the source it came from, and a blank means nobody has established that
-        fact — never zero.</p>
-      ${fields([
-        ['Races', `${counts.races.toLocaleString()} championship Grands Prix`],
-        ['Classifications', `${counts.race_entries.toLocaleString()} race entries`],
-        ['Qualifying', `${counts.qualifying.toLocaleString()} rows`],
-        ['Drivers', counts.drivers.toLocaleString()],
-        ['Constructors', counts.constructors.toLocaleString()],
-        ['Chassis', counts.chassis.toLocaleString()],
-        ['Circuits', counts.circuits.toLocaleString()],
-      ])}
-      <h2>The last ten champions</h2>
-      ${table(
-        ['Season', 'Champion', 'Team', 'Points'],
-        champions.map((s) => [
-          link(`seasons/${s.year}`, s.year),
-          link(`drivers/${s.drivers_champion}`, names[s.drivers_champion] ?? s.drivers_champion),
-          s.champion_team ? link(`constructors/${s.champion_team}`, teams[s.champion_team] ?? s.champion_team) : '—',
-          num(s.champion_points),
-        ]),
+      <h1>${esc(headline)}</h1>
+      <p class="lede">${esc(HOME_LEDE)}</p>
+      ${stats(homeStrip(shape).map((item) => ({ ...item, value: esc(item.value) })))}
+      ${seasonBlock}
+      ${heading(BOARD_HEADING)}
+      <p class="note">${esc(BOARD_NOTE)}</p>
+      <div class="board">${BOARD.map(
+        ({ to, label, count, blurb }) =>
+          `<a href="${esc(href(to.replace(/^\//, '')))}"><b>${esc(label)}${
+            count ? `<span class="n">${esc(number(shape[count]))}</span>` : ''
+          }</b><p>${esc(blurb)}</p></a>`,
+      ).join('')}</div>
+      ${heading(CHART_HEADING)}
+      ${figure(
+        CHART_TITLE,
+        chartNote(seasons),
+        table(
+          ['Season', 'Rounds'],
+          seasons.map((row) => [link(`seasons/${row.year}`, row.year), num(row.rounds)]),
+          { aligns: ['num', 'num'] },
+        ),
       )}
-      <h2>Browse</h2>
-      <ul class="cards">${NAV.map(([to, label]) => `<li>${link(to, label)}</li>`).join('')}</ul>`,
+      ${heading(READING_HEADING)}
+      <p class="note">${esc(READING_NOTE)}</p>
+      <div class="grid">${reading(shape)
+        .map(
+          ({ head, body, link: to }) =>
+            `<div class="panel convention"><b>${esc(head)}</b><p class="muted small">${esc(body[0])}${
+              to ? link(to.to.replace(/^\//, ''), to.text) : ''
+            }${esc(body[1] ?? '')}</p></div>`,
+        )
+        .join('')}</div>`,
   })
 }
 
@@ -1379,12 +1463,12 @@ const page = ({
 
   page({
     path: 'seasons',
-    title: titled(`Every season, ${SPAN}`),
+    title: NAMES.seasons().title,
     description: `All ${seasons.length} FIA Formula One World Championship seasons, with the drivers' and constructors' champions, points and margin for each.`,
     trail: TRAIL.seasons(),
     onward: ONWARD.seasons(),
     body: `
-      <h1>Seasons</h1>
+      <h1>${esc(NAMES.seasons().headline)}</h1>
       <p class="lede">Every FIA Formula One World Championship season from 1950.</p>
       ${fromColumns(SEASONS_COLUMNS, seasons, {
         year: (year) => link(`seasons/${year}`, year),
@@ -1443,7 +1527,7 @@ const page = ({
     page({
       path: `seasons/${year}`,
       lastmod: LAST_RUN.season.get(String(year)),
-      title: titled(`${year} Formula One World Championship`),
+      title: NAMES.season(year).title,
       description: s.champion
         ? `${s.champion} won the ${year} Formula One World Championship for ${s.champion_team_name ?? '—'} with ${s.champion_points ?? '—'} points over ${s.rounds ?? '?'} rounds. Every race, winner, pole and fastest lap.`
         : running
@@ -1461,7 +1545,7 @@ const page = ({
         url: `${ORIGIN}${href(`seasons/${year}`)}`,
       },
       body: `
-        <h1>${year} FIA Formula One World Championship</h1>
+        <h1>${esc(NAMES.season(year).headline)}</h1>
         ${stepperNav(seasonSteps(neighbours))}
         ${
           notRun
@@ -1584,12 +1668,12 @@ const page = ({
 
   page({
     path: 'races',
-    title: titled(`Every championship race, ${SPAN}`),
+    title: NAMES.races().title,
     description: `All ${races.length.toLocaleString()} FIA Formula One championship Grands Prix with winner, pole, fastest lap and full classification.`,
     trail: TRAIL.races(),
     onward: ONWARD.races(),
     body: `
-      <h1>Races</h1>
+      <h1>${esc(NAMES.races().headline)}</h1>
       <p class="lede">${races.length.toLocaleString()} championship Grands Prix. The 200 most recently run
         are listed here; every one of them is reachable from ${link('seasons', 'its season')}.</p>
       ${fromColumns(RACE_COLUMNS, all(RACES).slice(0, 200), {
@@ -1643,7 +1727,7 @@ const page = ({
     const stage = raceStage(r, sessions, STATIC_NOW)
     const day = eventDay(sessions, r.date_iso)
     const pending = scheduled ? scheduledNote(r, stage) : null
-    const headline = `${r.year} ${r.name_used}`
+    const headline = NAMES.race(r.year, r.name_used).headline
     // CD-03: the standfirst the page opens on and the description a search
     // result shows are one expression, queries/race.js's, so they cannot come
     // to describe different races - which is what the old description, read
@@ -1670,7 +1754,7 @@ const page = ({
     page({
       path: `races/${r.year}/${r.round}`,
       lastmod: r.date_iso,
-      title: titled(headline),
+      title: NAMES.race(r.year, r.name_used).title,
       description: summarise(description, 300),
       trail: TRAIL.race(r.year, r.round, r.name_used),
       onward: ONWARD.race({ race: r, year: r.year, winners: raceWinners, neighbours }),
@@ -1882,12 +1966,12 @@ const page = ({
 
   page({
     path: 'drivers',
-    title: titled(`Every driver, ${SPAN}`),
+    title: NAMES.drivers().title,
     description: `All ${register.length} drivers in the register, with entries, wins, podiums, poles and fastest laps counted from the race records, and titles from the championship tables.`,
     trail: TRAIL.drivers(),
     onward: ONWARD.drivers(),
     body: `
-      <h1>Drivers</h1>
+      <h1>${esc(NAMES.drivers().headline)}</h1>
       <p class="lede">${register.length} drivers. Career totals are counted from the race records
         wherever the records support it; an em dash means nobody has established that figure.</p>
       ${fromColumns(DRIVER_COLUMNS, register, {
@@ -1927,7 +2011,7 @@ const page = ({
     page({
       path: `drivers/${d.id}`,
       lastmod: LAST_RUN.driver.get(d.id),
-      title: titled(d.full_name),
+      title: NAMES.driver(d.full_name).title,
       description: withNotes.endsWith('…') ? lead : withNotes,
       trail: TRAIL.driver(d.id, d.full_name),
       onward: ONWARD.driver({ results: resultsOf.all(d.id), bySeason }),
@@ -1942,7 +2026,7 @@ const page = ({
         jobTitle: 'Formula One driver',
       },
       body: `
-        <h1>${esc(d.full_name)}</h1>
+        <h1>${esc(NAMES.driver(d.full_name).headline)}</h1>
         <p class="lede">${esc(lede(d, derived, constructors))}</p>
         ${stats(
           leading(strip(d, derived)).map((item) => ({ ...item, value: esc(item.value) })),
@@ -1992,12 +2076,12 @@ const page = ({
 
   page({
     path: 'constructors',
-    title: titled(`Every constructor, ${SPAN}`),
+    title: NAMES.constructors().title,
     description: `All ${constructors.length} constructors that have entered a championship Grand Prix, with entries, wins, poles and titles.`,
     trail: TRAIL.constructors(),
     onward: ONWARD.constructors(),
     body: `
-      <h1>Constructors</h1>
+      <h1>${esc(NAMES.constructors().headline)}</h1>
       <p class="lede">${constructors.length} constructors that have entered a championship Grand Prix.</p>
       ${fromColumns(CONSTRUCTOR_COLUMNS, all(CONSTRUCTORS), {
         name: (name, row) => link(`constructors/${row.id}`, name),
@@ -2035,7 +2119,7 @@ const page = ({
     page({
       path: `constructors/${c.id}`,
       lastmod: LAST_RUN.constructor.get(c.id),
-      title: titled(c.name),
+      title: NAMES.constructor(c.name).title,
       description: summarise(
         `${c.full_name ?? c.name}${c.country ? `, ${c.country}` : ''}, Formula One ${c.first_entry ?? '?'}–${c.last_entry ?? 'present'}. ${
           c.wins !== null ? `${c.wins} wins` : ''
@@ -2053,7 +2137,7 @@ const page = ({
         ...(c.country ? { location: { '@type': 'Place', name: c.country } } : {}),
       },
       body: `
-        <h1>${esc(c.name)}</h1>
+        <h1>${esc(NAMES.constructor(c.name).headline)}</h1>
         ${fields([
           ['Full name', text(c.full_name)],
           ['Country', text(c.country)],
@@ -2131,12 +2215,12 @@ const page = ({
 
   page({
     path: 'circuits',
-    title: titled(`Every circuit, ${SPAN}`),
+    title: NAMES.circuits().title,
     description: `All ${circuits.length} circuits that have held a championship Grand Prix, with length, turns, location and the races held there.`,
     trail: TRAIL.circuits(),
     onward: ONWARD.circuits(),
     body: `
-      <h1>Circuits</h1>
+      <h1>${esc(NAMES.circuits().headline)}</h1>
       <p class="lede">${circuits.length} circuits that have held a championship Grand Prix.</p>
       <h2>Every venue</h2>
       ${fromColumns(CIRCUIT_COLUMNS, register, {
@@ -2159,7 +2243,7 @@ const page = ({
     page({
       path: `circuits/${c.id}`,
       lastmod: LAST_RUN.circuit.get(c.id),
-      title: titled(c.name),
+      title: NAMES.circuit(c.name).title,
       description: summarise(
         `${c.official_name ?? c.name}${c.locality ? `, ${c.locality}` : ''}${c.country ? `, ${c.country}` : ''}. ${
           c.length_km ? `${c.length_km} km` : ''
@@ -2186,7 +2270,7 @@ const page = ({
           : {}),
       },
       body: `
-        <h1>${esc(c.name)}</h1>
+        <h1>${esc(NAMES.circuit(c.name).headline)}</h1>
         ${fields([
           ['Official name', text(c.official_name)],
           ['Location', text(list([c.locality, c.country]))],
@@ -2318,12 +2402,12 @@ const page = ({
 
   page({
     path: 'cars',
-    title: titled('Cars'),
+    title: NAMES.cars().title,
     description: `${cars.length} landmark Formula One chassis specified in full, and the register of all ${chassis.length} chassis that have started a Grand Prix.`,
     trail: TRAIL.cars(),
     onward: ONWARD.cars(),
     body: `
-      <h1>Cars</h1>
+      <h1>${esc(NAMES.cars().headline)}</h1>
       <p class="lede">${cars.length} landmark chassis, specified and sourced, and behind them
         every chassis with a championship entry — ${num(chassis.length)} of them, most raced by a
         privateer for a single weekend. A blank is a figure nobody published, not a car
@@ -2354,7 +2438,7 @@ const page = ({
     page({
       path: `cars/${c.id}`,
       lastmod: LAST_RUN.car.get(c.id),
-      title: titled(name),
+      title: NAMES.car(name).title,
       image: photos.image,
       description: summarise(
         `${name}, ${c.from_year ?? '?'}–${c.to_year ?? '?'}${c.engine_name ? `, ${c.engine_name}` : ''}${
@@ -2365,7 +2449,7 @@ const page = ({
       trail: TRAIL.car(c.id, name),
       onward: ONWARD.car({ chassis: variants[0] ?? c, car: c, entries: carEntries }),
       body: `
-        <h1>${esc(name)}</h1>
+        <h1>${esc(NAMES.car(name).headline)}</h1>
         ${fields([
           ['Constructor', c.constructor_id ? link(`constructors/${c.constructor_id}`, c.constructor_id) : '—'],
           ['Years', `${c.from_year ?? '?'}–${c.to_year ?? '?'}`],
@@ -2421,7 +2505,7 @@ const page = ({
     page({
       path: `cars/${ch.id}`,
       lastmod: LAST_RUN.car.get(ch.id),
-      title: titled(name),
+      title: NAMES.car(name).title,
       image: photos.image,
       description: summarise(
         `${name}, ${constructor ? `entered by ${constructor}, ` : ''}${years}. ` +
@@ -2433,7 +2517,7 @@ const page = ({
       trail: TRAIL.car(ch.id, name),
       onward: ONWARD.car({ chassis: variants[0] ?? ch, car: null, entries: carEntries }),
       body: `
-        <h1>${esc(name)}</h1>
+        <h1>${esc(NAMES.car(name).headline)}</h1>
         ${fields([
           ['Constructor', ch.constructor_id ? link(`constructors/${ch.constructor_id}`, constructor) : null],
           ['Years', years],
@@ -2475,12 +2559,12 @@ const page = ({
   const tiers = tiersOf(records)
   page({
     path: 'records',
-    title: titled('Records'),
+    title: NAMES.records().title,
     description: `${records.length} Formula One records, each derived from the database's own race records and stating how.`,
     trail: TRAIL.records(),
     onward: ONWARD.records({ driverWins: all(DRIVER_WINS) }),
     body: `
-      <h1>Records</h1>
+      <h1>${esc(NAMES.records().headline)}</h1>
       <p class="lede">${esc(RECORDS_LEDE)}${
           tiers.length === 1
             ? ` ${esc(tierBefore(records.length))}${link('data/quality', tiers[0])}${esc(TIER_AFTER)}`
@@ -2498,12 +2582,12 @@ const page = ({
   const eras = all(ERAS)
   page({
     path: 'reference/eras',
-    title: titled('Eras'),
+    title: NAMES.eras().title,
     description: 'Formula One divided into eras, with the dominant teams and defining features of each.',
     trail: TRAIL.eras(),
     onward: ONWARD.eras(),
     body: `
-      <h1>Eras</h1>
+      <h1>${esc(NAMES.eras().headline)}</h1>
       ${eras
         .map(
           (e) => `<section class="section">
@@ -2541,12 +2625,12 @@ const page = ({
   const glossary = all(GLOSSARY)
   page({
     path: 'reference/glossary',
-    title: titled('Glossary'),
+    title: NAMES.glossary().title,
     description: `${glossary.length} Formula One terms defined — the vocabulary the rest of this database uses.`,
     trail: TRAIL.glossary(),
     onward: ONWARD.glossary(),
     body: `
-      <h1>Glossary</h1>
+      <h1>${esc(NAMES.glossary().headline)}</h1>
       <h2>Glossary</h2>
       ${fromColumns(GLOSSARY_COLUMNS, glossary)}
       <h2>People</h2>
@@ -2556,13 +2640,13 @@ const page = ({
   const sources = all(SOURCES)
   page({
     path: 'data/sources',
-    title: titled('Sources'),
+    title: NAMES.sources().title,
     description:
       'Every source this database draws on, what it is trusted for, its licence, and how its claims are cross-checked.',
     trail: TRAIL.sources(),
     onward: ONWARD.sources(),
     body: `
-      <h1>Sources</h1>
+      <h1>${esc(NAMES.sources().headline)}</h1>
       <p class="lede">What each source is trusted for, under what licence, and what constrains it.</p>
       <h2>What a licence cost, or bought</h2>
       <p class="note">${esc(CONSEQUENCES_NOTE)}</p>
@@ -2606,7 +2690,7 @@ const page = ({
     })
     page({
       path: 'data',
-      title: titled('Data'),
+      title: NAMES.data().title,
       description: `The whole site is one SQLite file, and you can have it. Formula One ${SPAN}, v${META.version}, built ${META.built}. ${CROSS_CHECKED}`,
       trail: TRAIL.data(),
       onward: ONWARD.data(),
@@ -2635,7 +2719,7 @@ const page = ({
         ],
       },
       body: `
-      <h1>Data</h1>
+      <h1>${esc(NAMES.data().headline)}</h1>
       <p class="lede">The whole site is one SQLite file, and you can have it. What it is, the files
         it comes as, how far to trust it, and what you may do with it.</p>
       ${fields([
@@ -2733,13 +2817,13 @@ const page = ({
   }
   page({
     path: 'data/quality',
-    title: titled('Data quality'),
+    title: NAMES.quality().title,
     description:
       'The confidence model, the open discrepancies and every known gap — what this database does not know, stated rather than hidden.',
     trail: TRAIL.quality(),
     onward: ONWARD.quality(),
     body: `
-      <h1>Data quality</h1>
+      <h1>${esc(NAMES.quality().headline)}</h1>
       <p class="lede">A blank in this database is an unestablished fact, never a zero. These are
         the gaps that are known and stated.</p>
       ${GAP_GROUPS.map(gapGroup).join('')}
@@ -2771,13 +2855,13 @@ const page = ({
 
   page({
     path: 'data/sql',
-    title: titled('SQL console'),
+    title: NAMES.sql().title,
     description:
       'Run your own SQL against the whole database in your browser. Nothing is sent anywhere; the query runs in this tab.',
     trail: TRAIL.sql(),
     onward: ONWARD.sql(),
     body: `
-      <h1>SQL console</h1>
+      <h1>${esc(NAMES.sql().headline)}</h1>
       <p class="lede">The console needs JavaScript: it runs SQLite compiled to WebAssembly against
         the database file in your own browser. Nothing you type is sent anywhere.</p>
       <p class="measure">The database is a plain SQLite file. If you would rather query it with your own tools,
@@ -2815,7 +2899,7 @@ const page = ({
   }
   page({
     path: 'about',
-    title: titled('About'),
+    title: NAMES.about().title,
     description: `${SITE} is built and kept by ${MAINTAINER}, one person, in the open. ${ABOUT_LEDE}`,
     trail: TRAIL.about(),
     onward: ONWARD.about(),
@@ -2829,7 +2913,7 @@ const page = ({
       about: { '@type': 'Dataset', name: `${SITE} — Formula One, ${SPAN}`, url: `${ORIGIN}${href('data')}` },
     },
     body: `
-      <h1>About</h1>
+      <h1>${esc(NAMES.about().headline)}</h1>
       <p class="lede">${esc(ABOUT_LEDE)}</p>
       ${ABOUT.map(
         ({ title, paragraphs, after }) =>
@@ -3124,7 +3208,7 @@ writeFileSync(
   join(dist, '404.html'),
   render({
     path: '404',
-    title: titled('Not found'),
+    title: NAMES.notFound().title,
     description: 'No page at this address.',
     jsonld: null,
     // Through structure() like every other page: it is the one route that does
@@ -3132,7 +3216,7 @@ writeFileSync(
     // heading on the site set in a third treatment again.
     html: chrome(
       structure(
-        `<h1>Not found</h1>
+        `<h1>${esc(NAMES.notFound().headline)}</h1>
        <p class="lede">There is no page at this address. It may have been a typo, or a link to
          something this database does not hold.</p>
        <ul class="cards">${NAV.map(([to, label]) => `<li>${link(to, label)}</li>`).join('')}</ul>`,

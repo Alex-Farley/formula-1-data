@@ -12,6 +12,7 @@ import { oneOf, useUrlState } from '../lib/urlstate.js'
 import { CIRCUITS, CIRCUIT_COLUMNS, CIRCUITS_FOOTER, TRACED } from '../queries/circuits.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
+import { NAMES } from '../lib/site.js'
 /**
  * Race counts and first/last Grand Prix come from v_circuits, which derives
  * them from the races. The stored circuits.last_gp is NULL for the 27 venues
@@ -66,7 +67,8 @@ export default function Circuits() {
   const state = useQueries({ register: [CIRCUITS], traces: [TRACES] })
   return (
     <Page
-      title="Circuits"
+      title={NAMES.circuits().headline}
+      documentName={NAMES.circuits().title}
       trail={TRAIL.circuits()}
       lede="Eighty venues, from airfield perimeters to street courses laid out for a single season. Sorted by races held: open one for how its shape changed, who has won there most, and every Grand Prix it has staged."
     >
