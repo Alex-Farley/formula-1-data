@@ -59,6 +59,9 @@ import { shared, sharedLine } from '../src/lib/table.js'
 // here for the same reason the cars gallery had to stop writing its own.
 import { attribution, canShow, fileTitle, photoAlt, thumbUrl } from '../src/lib/commons.js'
 import {
+  ABOUT,
+  ABOUT_LEDE,
+  ABOUT_REPOSITORY,
   COUNTED_TOTALS,
   CROSS_CHECKED,
   DOCUMENTS,
@@ -66,6 +69,7 @@ import {
   ENTRIES_NOTE,
   citation,
   LANDMARK,
+  MAINTAINER,
   NOT_HELD,
   NOT_YET_RUN,
   PHOTOGRAPHS_NOTE,
@@ -700,7 +704,7 @@ const chrome = (body, crumbs, citeUrl) => `
     }
   </main>
   <footer class="sitefoot"><div class="sitefoot-inner"><div>
-    <p>Every page here is a query against one SQLite file, running in your browser. ${esc(COUNTED_TOTALS)} ${link('data/quality', 'How far to trust it')} · ${link('data/sources', 'sources')} · ${link('data/sql', 'write your own query')} · ${link('changes', 'what changed')}.</p>
+    <p>Every page here is a query against one SQLite file, running in your browser. ${esc(COUNTED_TOTALS)} ${link('data/quality', 'How far to trust it')} · ${link('data/sources', 'sources')} · ${link('data/sql', 'write your own query')} · ${link('changes', 'what changed')} · ${link('about', 'who publishes this')}.</p>
     <p>${esc(REPORT_ASK)} <a href="${esc(REPORT_URL)}">${esc(REPORT_LINK)}</a>. ${esc(REPORT_PROMISE)}</p>
     <p class="faint">Race data from <a href="https://github.com/f1db/f1db">F1DB</a> (CC BY 4.0), prose and registers from Wikipedia (CC BY-SA 4.0), circuit geometry © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL 1.0). ${esc(OUTLINE_CREDIT)}. Unaffiliated with Formula One, the FIA or any team.</p>
   </div><dl><dt>Database</dt><dd>v${esc(META.version)}</dd><dt>Built</dt><dd>${esc(META.built)}</dd></dl></div></footer>
@@ -712,6 +716,18 @@ const crumbs = (trail) =>
       i === trail.length - 1 ? `<span aria-current="page">${esc(label)}</span>` : link(path, label),
     )
     .join('<span class="sep">/</span>')
+
+/**
+ * Who a machine is told publishes this, in one object read by both pages
+ * that say so.
+ *
+ * /data's Dataset named an Organization after the site, on a database one
+ * person builds, and /about now says in prose that it is one person - so a
+ * structured-data reader was being given two answers to the question this
+ * item exists to answer once. The url is /about, because that is where the
+ * answer is written out for a reader.
+ */
+const PUBLISHED_BY = { '@type': 'Person', name: MAINTAINER, url: `${ORIGIN}${href('about')}` }
 
 // ------------------------------------------------------------------- pages
 
@@ -2455,7 +2471,8 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
         temporalCoverage: String(META.coverage_seasons ?? '').replace('-', '/'),
         license: 'https://creativecommons.org/licenses/by-sa/4.0/',
         isAccessibleForFree: true,
-        creator: { '@type': 'Organization', name: SITE, url: `${ORIGIN}${BASE}` },
+        creator: PUBLISHED_BY,
+        publisher: PUBLISHED_BY,
         distribution: [
           { ...download('f1.db', 'f1.db — the SQLite database'), encodingFormat: 'application/vnd.sqlite3' },
           { ...download('f1.db.gz', 'f1.db.gz — the same, gzipped'), encodingFormat: 'application/gzip' },
@@ -2612,6 +2629,60 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
   })
 }
 
+// ------------------------------------------------------------------- about
+
+/*
+ * Who publishes this, and how to tell it it is wrong.
+ *
+ * UR-05: four of seven simulated readers stopped at the same place, because
+ * no page on the site named a publisher, an editorial rule or a way in. The
+ * prose is site.js's, shared with pages/About.jsx, so the page a crawler
+ * reads and the page a reader reads make the same promises.
+ */
+{
+  const linked = (after) => {
+    if (after === 'repository') {
+      return `<p class="measure">${esc(ABOUT_REPOSITORY[0])}<a href="${esc(REPOSITORY)}">${esc(
+        ABOUT_REPOSITORY[1],
+      )}</a>${esc(ABOUT_REPOSITORY[2])}</p>`
+    }
+    if (after === 'report') {
+      return `<p class="measure">${esc(REPORT_ASK)} <a href="${esc(REPORT_URL)}">${esc(
+        REPORT_LINK,
+      )}</a>. ${esc(REPORT_PROMISE)}</p>`
+    }
+    return ''
+  }
+  page({
+    path: 'about',
+    title: titled('About'),
+    description: `${SITE} is built and kept by ${MAINTAINER}, one person, in the open. ${ABOUT_LEDE}`,
+    trail: [['', 'Home'], ['about', 'About']],
+    jsonld: {
+      '@context': 'https://schema.org',
+      '@type': 'AboutPage',
+      name: titled('About'),
+      url: `${ORIGIN}${href('about')}`,
+      description: ABOUT_LEDE,
+      publisher: PUBLISHED_BY,
+      about: { '@type': 'Dataset', name: `${SITE} — Formula One, ${SPAN}`, url: `${ORIGIN}${href('data')}` },
+    },
+    body: `
+      <h1>About</h1>
+      <p class="lede">${esc(ABOUT_LEDE)}</p>
+      ${ABOUT.map(
+        ({ title, paragraphs, after }) =>
+          `${heading(title)}${paragraphs.map(prose).join('')}${linked(after)}`,
+      ).join('')}
+      <h2>Keep going</h2>
+      <ul class="cards">
+        <li>${link('data', 'Data')} — the file itself, what it holds, and what you may do with it.</li>
+        <li>${link('data/quality', 'Data quality')} — the ladder, every gap, every disagreement.</li>
+        <li>${link('data/sources', 'Sources and licences')} — who says so, and what each licence cost or bought.</li>
+      </ul>`,
+  })
+}
+
 // ----------------------------------------------------------------- changes
 //
 // SD-20: the harvest refreshed every morning and there was no way to learn
@@ -2709,7 +2780,7 @@ const page = ({ path, title, description, body, jsonld = null, trail = null, ima
   <link rel="self" type="application/atom+xml" href="${esc(feedUrl)}" />
   <link rel="alternate" type="text/html" href="${esc(changesUrl)}" />
   <updated>${esc(rfc3339(timeline[0].published))}</updated>
-  <author><name>${esc(SITE)}</name></author>
+  <author><name>${esc(MAINTAINER)}</name></author>
   <rights>${esc(feedRights(`${ORIGIN}${href('data/sources')}`))}</rights>
 ${timeline.map(entry).join('\n')}
 </feed>

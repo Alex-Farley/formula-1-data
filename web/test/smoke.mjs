@@ -47,7 +47,7 @@ import { fileURLToPath } from 'node:url'
 // The heading rule and the cell marks both renderers share, so the checks
 // below ask for the strings the pages compute rather than copies of them.
 import { standingsHeading, titleHeading } from '../src/queries/season.js'
-import { DOCUMENTS, NOT_YET_RUN, PHOTOGRAPHS_SHOWN, SO_FAR } from '../src/lib/site.js'
+import { ABOUT, DOCUMENTS, MAINTAINER, NOT_YET_RUN, PHOTOGRAPHS_SHOWN, SO_FAR } from '../src/lib/site.js'
 // The rule that decides who is credited and whether a file may be shown at
 // all — asked of the served HTML below rather than restated in it.
 import { attribution, canShow, fileTitle } from '../src/lib/commons.js'
@@ -1991,6 +1991,59 @@ try {
 
   })
 
+  /*
+   * UR-05. The one page on the site that is about the site: a reader who
+   * wants to cite these figures, or an editor deciding whether they may be
+   * cited, needs a publisher, an editorial rule and a way in - and got a
+   * footer crediting F1DB and nothing else.
+   *
+   * What is asserted is what the page exists to carry: that both renderers
+   * name the same person, that every section of the shared prose reaches
+   * both, and that the way in is on the page rather than only in the footer.
+   * The prose itself is site.js's and is not restated here.
+   */
+  await section('/about  (who publishes this)', async () => {
+    await go('/about', 'About')
+    const shown = await page.$eval('#root main', (node) => node.textContent.replace(/\s+/g, ' '))
+    truthy(shown.includes(MAINTAINER), `the app names who publishes this (${MAINTAINER})`)
+    for (const { title } of ABOUT) truthy(shown.includes(title), `and asks "${title}"`)
+    truthy(
+      await page.$('#root main a[href*="template=report.yml"]'),
+      'and the way to say something is wrong is on the page, not only in the footer',
+    )
+
+    // Cold, before any of the 20 MB has loaded: this page answers a reader
+    // who has not decided to trust the site yet, so it has to answer without
+    // the database. Every section, not a sample - the static half losing one
+    // is exactly the drift the shared prose exists to prevent.
+    const cold = await (await fetch(`${BASE}/about`)).text()
+    truthy(cold.includes(MAINTAINER), 'the prerendered page names the same person')
+    for (const { title, paragraphs } of ABOUT) {
+      truthy(cold.includes(title), `the prerendered page carries "${title}"`)
+      for (const paragraph of paragraphs) {
+        truthy(
+          cold.replace(/&#39;|&#x27;/g, "'").includes(paragraph.slice(0, 60)),
+          `and its opening words: "${paragraph.slice(0, 40)}…"`,
+        )
+      }
+    }
+    truthy(
+      /<script type="application\/ld\+json">[^<]*"@type":"AboutPage"/.test(cold),
+      'and describes itself to a search engine as an AboutPage',
+    )
+    truthy(
+      (await (await fetch(`${BASE}/sitemap.xml`)).text()).includes('/about</loc>'),
+      'and the sitemap lists it, because it is a page to index',
+    )
+
+    // The footer is the route to it from all 3,545 other pages, and the
+    // reader who wants it is on one of those rather than here.
+    for (const route of ['/', '/drivers/senna']) {
+      const html = await (await fetch(`${BASE}${route}`)).text()
+      truthy(/<footer[\s\S]*href="\/about"/.test(html), `${route} links to it from the footer`)
+    }
+  })
+
   await section('/reference/glossary', async () => {
     await go('/reference/glossary', 'Glossary')
     is((await tableRows())[0], count('SELECT COUNT(*) FROM glossary'), 'glossary terms')
@@ -2752,7 +2805,7 @@ try {
       1 + one(`SELECT COUNT(*) FROM (
                SELECT id FROM chassis UNION SELECT id FROM cars
              )`) +
-      8 + // records, data and its three children, eras, glossary, changes
+      9 + // records, data and its three children, eras, glossary, changes, about
       // SD-20: feed.xml is listed too. It is not a page, but it is an address
       // worth recrawling, and its lastmod is the one on the site that moves
       // whenever the data does.
@@ -3275,6 +3328,10 @@ try {
       ['/cars/mclaren-mp4-4', 'McLaren MP4/4'],
       ['/records', 'Records'],
       ['/data/sql', 'SQL console'],
+      // The one page here that is prose and nothing else - no table, no
+      // query, six sections and a way onward - which is a shape none of
+      // the nine above covers.
+      ['/about', 'About'],
     ]
     for (const [route, heading] of pages) {
       await go(route, heading)

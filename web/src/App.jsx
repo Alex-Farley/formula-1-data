@@ -30,6 +30,7 @@ import Quality from './pages/Quality.jsx'
 import Sources from './pages/Sources.jsx'
 import Glossary from './pages/Glossary.jsx'
 import Sql from './pages/Sql.jsx'
+import About from './pages/About.jsx'
 import NotFound from './pages/NotFound.jsx'
 
 const NAV = [
@@ -174,7 +175,8 @@ function Footer() {
             without a network. {COUNTED_TOTALS}{' '}
             <Link to="/data/quality">How far to trust it</Link> ·{' '}
             <Link to="/data/sql">write your own query</Link> ·{' '}
-            <Link to="/changes">what changed</Link>.
+            <Link to="/changes">what changed</Link> ·{' '}
+            <Link to="/about">who publishes this</Link>.
           </p>
           {/* The inbound channel. A reader who spots a wrong value is the
               adversarial cross-check this project cannot generate for itself,
@@ -319,6 +321,11 @@ function Chrome() {
           <Route path="/data/quality" element={<Quality />} />
           <Route path="/data/sources" element={<Sources />} />
           <Route path="/data/sql" element={<Sql />} />
+          {/* Neither about the sport nor about the file: about the person
+              who publishes both, and what they will and will not promise.
+              Off the masthead and linked from the footer of every page,
+              which is where a reader goes looking for it. */}
+          <Route path="/about" element={<About />} />
           {/* About the sport rather than the database. These keep their
               addresses and lost the masthead slot; Seasons, Cars, Circuits,
               Races and the home page lead here. */}
