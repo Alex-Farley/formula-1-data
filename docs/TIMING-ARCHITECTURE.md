@@ -5,6 +5,20 @@ writing it down — the decision that nothing should change is worth as much as
 the other kind, and it is the one most likely to be quietly reversed by someone
 who has not checked.
 
+**The position, in one paragraph.** Nobody publishes Formula One race timing
+under a licence that permits passing it on, so this database holds none of it:
+`laps`, `stints`, `race_timing` and `race_control_messages` ship as four empty
+tables, on purpose. Everything that is here may be passed on under the licence
+shown beside it. That is a claim about the licences on offer, not about what
+anyone may lawfully do — FOM and its licensees redistribute timing every
+weekend — and it is about *race* timing: the qualifying table holds lap times,
+which F1DB publishes under CC BY 4.0.
+
+The rest of this file is that paragraph with its working shown. `/data` states
+it for a reader, the console states it in one line where a reader meets an
+empty table, and `README.md` states it beside the licence; the words are
+`web/src/lib/site.js`'s, so the four cannot drift apart.
+
 `laps`, `stints`, `race_timing` and `race_control_messages` are empty in the
 committed database, and the front end has no lap chart. It would be easy to
 read that as an unfinished feature, and easy to reach for an architecture — a
@@ -14,18 +28,19 @@ Before reaching for any of that, check the licences. They settle it first.
 
 ## The binding constraint is a licence, not a byte count
 
-There is no redistributable source of Formula One lap times.
+No source publishes Formula One race timing on terms that allow passing it on.
 
 | Source | Lap times | Licence | Can this project ship it? |
 |---|---|---|---|
 | **Jolpica-F1** | 628,454 laps, 1996– | CC BY-**NC**-SA 4.0 | **No.** Non-commercial. |
 | **FastF1** | 2018–, with sectors | FOM's data; personal, non-commercial use | **No.** |
 | **OpenF1** | 2023–, telemetry | FOM's data | **No.** |
-| **F1DB** | none | CC BY 4.0 | Nothing to ship. |
+| **F1DB** | none from a race | CC BY 4.0 | Nothing of a race to ship. |
 
 F1DB is the one source here whose licence permits redistribution, and it is why
 the full classification, qualifying, standings and **22,481 pit stops** are in
-the committed database. It does not publish lap times.
+the committed database. It publishes no lap times from a race — the
+qualifying times it does publish are the `qualifying` table, and are here.
 
 So the empty tables are not a gap in the harvest. They are the correct and
 permanent state until a source appears that both has the data and permits

@@ -130,6 +130,17 @@ jobs:
             and the obligation follows the file it belongs to.
             See `ATTRIBUTION.md`.
 
+            Nobody publishes Formula One race timing under a licence that
+            permits passing it on, so this database holds none: `laps`,
+            `stints`, `race_timing` and `race_control_messages` are empty on
+            purpose, and everything that is here may be passed on under the
+            licence shown beside it. That is about the licences on offer
+            rather than about what anyone may lawfully do — FOM and its
+            licensees redistribute timing every weekend — and about race
+            timing: the qualifying table holds lap times, which F1DB
+            publishes under CC BY 4.0.
+            `docs/TIMING-ARCHITECTURE.md` is that decision in full.
+
             **Stable links.** Every asset above is also reachable at a URL
             that always points at the newest release, so a script does not
             need updating each time:

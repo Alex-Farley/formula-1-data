@@ -121,6 +121,27 @@ export const NOT_HELD =
   'allows exactly that.'
 
 /**
+ * The same position in one line, for the two places a paragraph will not go:
+ * beside each of the four tables in the console's schema browser, and as the
+ * empty result when a statement reads one of them.
+ *
+ * That second placement is the one that matters (CD-05). `SELECT * FROM laps`
+ * answering "The statement ran and matched nothing." reads, to the developer
+ * evaluating this database, as a bug in their own query - and the explanation
+ * was only ever on a page they had no reason to open. The words say what
+ * NOT_HELD says at length, and for the same reasons: the licences on offer
+ * rather than the law, and race timing rather than lap times.
+ *
+ * TIMING_EMPTY_TABLES is the list both placements test against, so a fifth
+ * table would not have to be remembered in two places.
+ */
+export const TIMING_EMPTY_TABLES = ['laps', 'stints', 'race_timing', 'race_control_messages']
+
+export const timingEmpty = (table) =>
+  'Empty by design: no source licenses Formula One race timing on terms that allow passing it ' +
+  `on, so ${table ?? 'this table'} ships with no rows.`
+
+/**
  * The photographs section, in the words both renderers use.
  *
  * Car.jsx wrote these two sentences and scripts/prerender.js now writes the

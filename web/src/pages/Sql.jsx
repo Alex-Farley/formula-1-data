@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { SELF_DESCRIBING, TWO_FILES } from '../lib/site.js'
+import { Link, useSearchParams } from 'react-router-dom'
+import { SELF_DESCRIBING, TIMING_EMPTY_TABLES, TWO_FILES, timingEmpty } from '../lib/site.js'
+import { bare, emptyTimingTableRead } from '../lib/sql.js'
 import { Note, Onward, Page, Section } from '../components/Page.jsx'
 import { ErrorBox, Loading } from '../components/States.jsx'
 import DataTable from '../components/DataTable.jsx'
@@ -93,10 +94,7 @@ const INTROSPECTION =
   /^pragma\s+(table_info|table_xinfo|table_list|index_list|index_info|index_xinfo|foreign_key_list|database_list|collation_list|compile_options|function_list|pragma_list|module_list)\b/i
 
 function complain(sql) {
-  const stripped = sql
-    .replace(/--[^\n]*/g, ' ')
-    .replace(/\/\*[\s\S]*?\*\//g, ' ')
-    .trim()
+  const stripped = bare(sql).trim()
   if (!stripped) return 'Nothing to run.'
   if (!/^(select|with|explain|pragma|values)\b/i.test(stripped)) {
     return 'Reads only: start with SELECT, WITH, VALUES, EXPLAIN or PRAGMA. A write would be rolled back anyway, so nothing has changed.'
@@ -151,7 +149,10 @@ export default function Sql() {
     running.current = controller
     try {
       const data = await queryReadOnly(statement, [], { signal: controller.signal })
-      setState({ status: 'done', data, elapsed: performance.now() - started })
+      // The statement travels with its result: an empty result is read
+      // differently depending on what was asked for, and the ref holding the
+      // last statement is not what re-renders the table.
+      setState({ status: 'done', data, statement, elapsed: performance.now() - started })
     } catch (error) {
       if (error?.name === 'AbortError') {
         setState({ status: 'cancelled', elapsed: performance.now() - started })
@@ -188,6 +189,10 @@ export default function Sql() {
     setText(statement)
     run(statement)
   }
+
+  // Which of the four tables that are empty by licence this result came from
+  // asking for, if any: what the empty result says depends on it.
+  const emptied = state.status === 'done' ? emptyTimingTableRead(state.statement) : null
 
   const onKeyDown = (event) => {
     if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
@@ -290,7 +295,15 @@ export default function Sql() {
                 // wrongly: "SQL console" is where the reader is, not what they
                 // are looking at.
                 caption="The result of your query"
-                empty="The statement ran and matched nothing."
+                empty={
+                  emptied ? (
+                    <p className="state is-empty">
+                      {timingEmpty(emptied)} <Link to="/data">Why this is so</Link>.
+                    </p>
+                  ) : (
+                    'The statement ran and matched nothing.'
+                  )
+                }
                 footer={
                   state.data.rows.length > 200
                     ? 'Showing the first two hundred rows.'
@@ -322,9 +335,17 @@ export default function Sql() {
                 <details key={entry.name}>
                   <summary>
                     <code>{entry.name}</code>
+                    {TIMING_EMPTY_TABLES.includes(entry.name) && (
+                      <span className="pill">empty by design</span>
+                    )}
                     <span className="rows">{entry.type}</span>
                   </summary>
                   <p className="cols">{entry.columns}</p>
+                  {TIMING_EMPTY_TABLES.includes(entry.name) && (
+                    <p className="small faint" style={{ margin: '0 0 8px', paddingLeft: 14 }}>
+                      {timingEmpty(entry.name)} <Link to="/data">Why this is so</Link>.
+                    </p>
+                  )}
                 </details>
               ))}
             </div>

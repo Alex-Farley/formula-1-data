@@ -111,6 +111,17 @@ own `meta` and in `LICENSE-DATA`'s *Circuit geometry* section. `LICENSE-DATA`
 enumerates the files it covers and `f1-parquet.zip` is not among them — `SD-22`
 (#410) has that gap.
 
+**What no licence allows.** Nobody publishes Formula One race timing under a
+licence that permits passing it on, so this database holds none: `laps`,
+`stints`, `race_timing`
+and `race_control_messages` are empty on purpose, and everything that *is*
+here may be passed on under the licence shown beside it. That is a statement
+about the licences on offer rather than about what anyone may lawfully do,
+and about race timing rather than lap times — the qualifying table holds lap
+times, because F1DB publishes those under CC BY 4.0. *Timing, telemetry and
+radio* below states the position at length, and
+`docs/TIMING-ARCHITECTURE.md` is the decision in full.
+
 **Found something wrong in the data?** Open an issue with the *Something on
 the site is wrong* form. Two sources that disagree are recorded in
 `discrepancies` and published rather than quietly reconciled, and a fact
@@ -741,10 +752,11 @@ transcripts. F1 puts the clips on the same API, also from 2018.
 at about 4 Hz plus position at 10 Hz. It is hundreds of megabytes per race
 weekend. It does not belong in a SQLite file and it is not in one.
 
-**None of it is redistributable.** The live timing API is Formula One
-Management's data; the one other source of lap times, Jolpica-F1, is CC
-BY-NC-SA, and this project publishes under terms that permit reuse. So the
-split is:
+**None of it is offered on terms that let this project pass it on.** The live
+timing API is Formula One Management's data; the one other source of race lap
+times, Jolpica-F1, is CC BY-NC-SA, and this project publishes under terms that
+permit reuse. FOM and its licensees redistribute timing every weekend — the
+constraint is the licences available here, not the law. So the split is:
 
 | Table | Covers | In the committed database |
 |---|---|---|
@@ -1060,8 +1072,9 @@ The `known_gaps` table holds <!-- fig:known_gaps -->16<!-- /fig --> entries,
 of which <!-- fig:known_gaps_open -->10<!-- /fig --> are open gaps — the figure
 the site's homepage and `/data` state, counted from the same `v_open_gaps`
 view. The rest are either closed, and kept so the closure is on record, or
-positions: a deliberate absence rather than a gap, such as the lap timing
-nobody may redistribute, or the 2021 Belgian Grand Prix's fastest lap, which
+positions: a deliberate absence rather than a gap, such as the race timing
+nobody publishes under a licence that permits passing it on, or the 2021
+Belgian Grand Prix's fastest lap, which
 does not exist because none was set. `./f1 gaps` prints them all with the fix
 for each.
 
