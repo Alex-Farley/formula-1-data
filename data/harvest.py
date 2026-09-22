@@ -1372,8 +1372,9 @@ def load_f1db_countries():
 
 def load_f1db_drivers():
     """driver_id, name, first_name, last_name, date_of_birth, date_of_death,
-    abbreviation, nationality_country_id"""
-    return _read_pipe(F1DB_DRIVERS_FILE, 8)
+    abbreviation, nationality_country_id, place_of_birth,
+    country_of_birth_country_id, permanent_number"""
+    return _read_pipe(F1DB_DRIVERS_FILE, 11)
 
 
 def load_entrant_drivers():
@@ -1448,7 +1449,7 @@ def resolve_f1db_drivers(our_drivers):
     aliases = {_norm(k): v for k, v in DRIVER_ALIASES.items()}
 
     hits = {}
-    for f1db_id, name, first, last, _dob, _dod, _abbr, _nat in load_f1db_drivers():
+    for f1db_id, name, first, last, *_rest in load_f1db_drivers():
         if f1db_id in ours_by_id:
             # Admitted under its own F1DB id, so it maps to itself and can
             # never be pulled onto a namesake by the name match below.

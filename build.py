@@ -383,7 +383,7 @@ def _stage_03_drivers_admitted_from_the_f1db_register(b):
         if not yrs:
             raise SystemExit(f"F1DB_DRIVERS admits {f1db_id}, which the entry "
                              f"lists show entering no championship race")
-        _id, name, _first, _last, born, died, abbr, nat_id = meta
+        _id, name, _first, _last, born, died, _abbr, nat_id = meta[:8]
         nat, code = f1db_ctry.get(nat_id, (None, None))
         cur.execute("""INSERT INTO drivers (id, full_name, nationality,
             nationality_code, born, died, first_season, last_season, titles,
@@ -3000,7 +3000,12 @@ def normalise_countries(cur):
     registry = {name: alpha3 for _cid, name, alpha3, _dem in HV.load_f1db_countries()}
     renamed = coded = 0
 
+    # Four columns name a country, not three: a driver's country of birth
+    # joined them with PD-17 and is held to the same vocabulary, because
+    # "United States of America" on one column and "United States" on another
+    # is the same split this function exists to prevent, one table further in.
     for table, column in (("drivers", "nationality"),
+                          ("drivers", "country_of_birth"),
                           ("constructors", "country"),
                           ("circuits", "country")):
         for (value,) in cur.execute(
@@ -3355,6 +3360,95 @@ def _stage_34_circuit_outlines_from_f1db(b):
              f"{', '.join(unplaced)}" if unplaced else ""))
 
 
+def _stage_36_what_f1db_publishes_about_a_driver_and(b):
+    """what F1DB publishes about a driver, and the id it publishes it under"""
+    cur = b.cur
+
+    # --- what F1DB publishes about a driver, and the id it publishes it under
+    #
+    # The harvest read eight columns out of F1DB's driver register and the
+    # build used seven. The abbreviation was fetched on every run and dropped
+    # on the floor; the place of birth, the country of birth and the permanent
+    # number were never fetched at all (PD-17). They are facts about a person
+    # from one CC BY 4.0 source, and the three-letter code and the car number
+    # are what a grid or a standings table is written with.
+    #
+    # This runs late and updates rather than inserting, because it has to
+    # reach every driver the register holds and not only the ones admitted
+    # from F1DB: `norris` was authored here and is `lando-norris` there, and
+    # b.f1db_drivers - resolved in stage 21, which refuses a collision rather
+    # than guessing - is what joins the two.
+    #
+    # f1db_id is the reconciliation key. Until now the only link between this
+    # register and the largest source for it was a name match recomputed on
+    # every read. Storing what it resolved to means a reader lining the two up
+    # does not repeat the match, and means the schema's UNIQUE constraint
+    # stands behind the one-to-one-ness that resolve_f1db_drivers checks.
+    f1db_drv = {r[0]: r for r in HV.load_f1db_drivers()}
+    f1db_ctry = {r[0]: r[1] for r in HV.load_f1db_countries()}
+    keyed = numbered = coded = 0
+    for f1db_id, our_id in sorted(b.f1db_drivers.items()):
+        meta = f1db_drv.get(f1db_id)
+        if meta is None:
+            raise SystemExit(
+                f"the driver map resolves {our_id} to {f1db_id}, which is not "
+                f"in harvest/f1db_drivers.txt. Rerun tools/f1db_fetch.py.")
+        (_id, _name, _first, _last, _born, _died, abbr, _nat,
+         place, born_country_id, number) = meta
+        country = None
+        if born_country_id:
+            country = f1db_ctry.get(born_country_id)
+            if country is None:
+                raise SystemExit(
+                    f"F1DB gives {f1db_id} a country of birth "
+                    f"{born_country_id!r} that is not in "
+                    f"harvest/f1db_countries.txt. Rerun tools/f1db_fetch.py.")
+        cur.execute("""UPDATE drivers SET f1db_id = ?, abbreviation = ?,
+            place_of_birth = ?, country_of_birth = ?, permanent_number = ?
+            WHERE id = ?""",
+            (f1db_id, abbr, place, country,
+             int(number) if number else None, our_id))
+        keyed += cur.rowcount
+        numbered += 1 if number else 0
+        coded += 1 if abbr else 0
+
+    # THE CHECK on the number, and the reason it is worth storing. A permanent
+    # number is the number the driver races under, so it has to be the number
+    # the entry list gives them - with one exception the rule itself names:
+    # the REIGNING champion may carry 1 instead. Lando Norris is entered as 1
+    # for 2026 and his permanent number is 4, and that is the whole of the
+    # divergence in the register. Anything else means the two sources disagree
+    # about who is driving which car, which is not a thing to publish.
+    #
+    # "Reigning" is the whole of the escape, and it is read from title_years
+    # rather than from titles > 0. Any title-holder would leave the one driver
+    # the escape covers with a number nothing constrains in either direction -
+    # a 1992 champion entered as 1 in 2026 would pass - which is a check that
+    # stops checking exactly where it is used.
+    #
+    # One thing it cannot constrain, and the limit is in the data rather than
+    # here: a driver actually carrying 1 has no entry number to check their
+    # permanent number against, because the entry list records the 1. Their
+    # number is held only by F1DB until they carry it again.
+    for our_id, number, year, entered, title_years in cur.execute("""
+            SELECT d.id, d.permanent_number, e.year, e.car_number, d.title_years
+            FROM drivers d JOIN season_entries e ON e.driver_id = d.id
+            WHERE d.permanent_number IS NOT NULL
+              AND e.car_number IS NOT NULL
+              AND e.car_number != d.permanent_number
+            ORDER BY e.year, d.id""").fetchall():
+        if entered == 1 and str(year - 1) in (title_years or "").split(","):
+            continue
+        raise SystemExit(
+            f"{our_id} is entered with car number {entered} in {year} and "
+            f"F1DB gives the permanent number {number}. Only the champion of "
+            f"the season before may carry 1, and this driver's titles are "
+            f"{title_years or 'none'}: one of the two numbers is wrong.")
+
+    print(f"  f1db ids: {keyed} driver(s) keyed to the F1DB register, "
+          f"{coded} with a three-letter code, {numbered} with a permanent number")
+
+
 STAGES = [
     _stage_00_open_the_database,
     _stage_01_meta,
@@ -3391,6 +3485,7 @@ STAGES = [
     _stage_32_link_race_entries_to_the_chassis,
     _stage_33_rule_two_resolve_through_the_driver,
     _stage_34_circuit_outlines_from_f1db,
+    _stage_36_what_f1db_publishes_about_a_driver_and,
     # Last on purpose: it closes the build - the authored ceiling, the
     # geometry split and the VACUUM live at its end - so a loader after it
     # would write into a connection nothing commits.
