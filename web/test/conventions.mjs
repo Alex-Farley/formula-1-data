@@ -1467,7 +1467,10 @@ describe('what the pages send, and to whom (PD-0)', () => {
         // `sources.js` is not a licence to write the same words anywhere
         // else, which a pattern-only allowlist would have granted (review
         // finding, #580).
-        const declared = SCOPED.some(([where, pattern]) => rel(file).endsWith(where) && pattern.test(flat))
+        // Exact, not endsWith: `README.md` is a suffix of `../README.md`, so
+        // the first version of this binding let a web/README.md declaration
+        // license those words in the project README (review finding, #580).
+        const declared = SCOPED.some(([where, pattern]) => rel(file) === where && pattern.test(flat))
         if (!declared) undeclared.push(`${rel(file)}: ${flat}`)
       }
     }
