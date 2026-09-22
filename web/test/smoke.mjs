@@ -52,7 +52,7 @@ import { ABOUT, DOCUMENTS, MAINTAINER, NOT_YET_RUN, PHOTOGRAPHS_SHOWN, SO_FAR } 
 // all — asked of the served HTML below rather than restated in it.
 import { attribution, canShow, fileTitle } from '../src/lib/commons.js'
 import { ENTRIES as CAR_ENTRIES, IMAGES as CAR_IMAGES } from '../src/queries/car.js'
-import { LAST_CHECKED } from '../src/lib/refresh.js'
+import { CHECKED_LABEL, LAST_CHECKED } from '../src/lib/refresh.js'
 // The three surfaces VD-33 gave the photographs to, read from the app's own
 // queries so that the static pages are checked against what the app shows.
 import { CONSTRUCTOR_IMAGES, RACE_IMAGES, SEASON_IMAGES } from '../src/queries/photographs.js'
@@ -2038,13 +2038,27 @@ try {
     // refresh, so the check date is shown beside it - and it comes from
     // committed source rather than from meta, which is exactly why it needs
     // checking on both renderers rather than assumed to travel with the file.
-    truthy(
-      shown.includes(LAST_CHECKED),
-      `and when the sources were last checked (${LAST_CHECKED})`,
+    // Matched against the label, never a bare date: on a morning the harvest
+    // moved, BUILT and LAST_CHECKED are the same day, and a bare-date test
+    // would be satisfied by the `Built` row alone - on precisely the morning
+    // refresh.yml runs this suite.
+    const checkedDd = await page.$$eval(
+      '#root main dl dt',
+      (dts, label) =>
+        dts
+          .filter((dt) => dt.textContent.trim() === label)
+          .map((dt) => dt.nextElementSibling?.textContent.trim() ?? null),
+      CHECKED_LABEL,
+    )
+    is(
+      checkedDd.join(),
+      LAST_CHECKED,
+      `and when the sources were last checked, under its own label (${CHECKED_LABEL})`,
     )
     truthy(
-      (await (await fetch(`${BASE}/changes`)).text()).includes(LAST_CHECKED),
-      'and the prerendered page says the same',
+      (await (await fetch(`${BASE}/changes`)).text())
+        .includes(`<dt>${CHECKED_LABEL}</dt><dd>${LAST_CHECKED}</dd>`),
+      'and the prerendered page says the same, in its own markup',
     )
 
     const run = count(
@@ -3214,7 +3228,7 @@ try {
       'the static footer carries the version and build date',
     )
     truthy(
-      staticFoot.includes(LAST_CHECKED),
+      staticFoot.includes(`<dt>${CHECKED_LABEL}</dt><dd>${LAST_CHECKED}</dd>`),
       `and when the sources were last checked (${LAST_CHECKED}), on every page and not only /changes`,
     )
 

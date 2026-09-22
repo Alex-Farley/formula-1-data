@@ -1147,6 +1147,35 @@ describe('the workflow can still stamp the check date it publishes (SD-25)', () 
     assert.ok(pattern.test(stamped), 'the grep pattern would not match the stamped file')
   })
 
+  /*
+   * The patterns above prove the stamp can still be WRITTEN. These prove it
+   * would still be RUN and COMMITTED: an `if:` added to the stamping step, or
+   * the guard dropped from the committing one, silently removes the whole
+   * heartbeat - the first by skipping the no-change morning that is the only
+   * one it exists for, the second by committing on a path that already
+   * commits.
+   */
+  const step = (name) => {
+    const all = workflow.split(/\n(?=      - )/)
+    return all.find((s) => s.includes(`- name: ${name}`))
+  }
+
+  it('stamps on every morning, changed or not', () => {
+    const stamp = step('Stamp the check')
+    assert.ok(stamp, 'refresh.yml no longer has a "Stamp the check" step')
+    assert.doesNotMatch(
+      stamp,
+      /^\s+if:/m,
+      'the stamping step is now conditional, so a no-change morning stamps nothing',
+    )
+  })
+
+  it('and commits it only on the path that would otherwise commit nothing', () => {
+    const commit = step('Commit the check')
+    assert.ok(commit, 'refresh.yml no longer has a "Commit the check" step')
+    assert.match(commit, /^\s+if: steps\.diff\.outputs\.changed == 'false'$/m)
+  })
+
   it('and what is committed today is an ISO day, not a placeholder', () => {
     assert.match(LAST_CHECKED, /^\d{4}-\d{2}-\d{2}$/)
     assert.ok(!Number.isNaN(Date.parse(`${LAST_CHECKED}T00:00:00Z`)), `${LAST_CHECKED} is not a date`)

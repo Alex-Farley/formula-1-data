@@ -57,7 +57,8 @@ export const CHECKED_LABEL = 'Checked'
  * pipeline, and that only works if the page says which is which.
  */
 export const CHECKED_NOTE =
-  'The sources are checked every morning; “checked” is the last morning that check finished. '
+  'F1DB, the source the harvest is rebuilt from, is checked every morning; “checked” is the '
+  + 'last morning that check finished. '
   + '“Built” moves only when something had genuinely changed, so a later check date than build '
   + 'date means the data has not moved. A check date that is itself several days old means the '
   + 'refresh itself is failing.'
