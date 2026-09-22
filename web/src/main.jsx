@@ -107,6 +107,16 @@ function handOver() {
  */
 const staticPage = { route: location.pathname, work: Promise.resolve(true) }
 
+/**
+ * Whether a path is one of this site's own prerendered routes rather than a
+ * file served beside them. See the click handler for what rests on it.
+ */
+const SLUG = /^[a-z0-9-/]*$/
+function routeish(pathname) {
+  const base = import.meta.env.BASE_URL
+  return SLUG.test(pathname.startsWith(base) ? pathname.slice(base.length) : pathname)
+}
+
 /** The id the address bar's fragment names, or '' — a bad escape is not one. */
 function fragmentId() {
   const raw = location.hash.slice(1)
@@ -234,16 +244,23 @@ function holdLinks() {
       // content" when the database was ready. Let the browser do what it does
       // with a fragment.
       if (url.hash && url.pathname === location.pathname && url.search === location.search) return
-      // A path with an extension is a file, not one of this site's routes.
-      // /data and /data/sql link to /f1.db, /f1-geometry.db, /f1-parquet.zip,
-      // /schema.sql and /db-manifest.json, and none of them carries a
-      // `download` attribute — a static host's Content-Disposition is its own.
-      // Held, such a click moved the address bar and downloaded nothing; held
-      // and then fetched, /f1.db is twenty-three megabytes pulled alongside
-      // the download this function exists to protect, and run through
-      // DOMParser. Every one of the 3,541 prerendered routes is extensionless,
-      // which smoke.mjs holds to so this test cannot quietly stop being true.
-      if (/\.[^/]+$/.test(url.pathname)) return
+      // Only a route of this site is worth holding. /data links to the
+      // database and to the documents that explain it — /f1.db,
+      // /f1-geometry.db, /f1-parquet.zip, /schema.sql, /ATTRIBUTION.md,
+      // /LICENSE-DATA, /SHA256SUMS — and not one of those anchors carries a
+      // `download` attribute, because a static host's Content-Disposition is
+      // its own. Held, such a click moved the address bar and downloaded
+      // nothing, and left the router to render a 404 for it twenty seconds
+      // later; held and then served from the prerendered page, /f1.db is
+      // twenty-three megabytes pulled alongside the download this function
+      // exists to protect, and run through DOMParser.
+      //
+      // A prerendered path is a slug — lower-case, digits and hyphens between
+      // slashes — and every file served beside the app has either an
+      // extension or a capital letter in its name. smoke.mjs holds both ends
+      // of that against the built site: all 3,546 routes pass this test, and
+      // every root-relative link in them that is not a route fails it.
+      if (!routeish(url.pathname)) return
       event.preventDefault()
       const route = url.pathname
       history.pushState({}, '', route + url.search + url.hash)

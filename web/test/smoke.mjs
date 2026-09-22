@@ -832,6 +832,34 @@ try {
     )
     await fileLink.close()
 
+    // And the file links with no extension to give them away, on a page of
+    // their own so the first click's download cannot have taken the static
+    // page with it. Answered as the host answers this one — text/plain, which
+    // the browser renders rather than saves.
+    const plainFile = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    const askedPlain = []
+    await plainFile.route('**/SHA256SUMS', (route) => {
+      askedPlain.push(route.request().resourceType())
+      return route.fulfill({ status: 200, contentType: 'text/plain; charset=utf-8', body: 'a digest' })
+    })
+    await plainFile.goto(`${BASE}/data`, { waitUntil: 'domcontentloaded' })
+    truthy(
+      await plainFile.evaluate(() => {
+        const link = document.querySelector('#prerendered a[href="/SHA256SUMS"]')
+        if (!link) return false
+        link.click()
+        return true
+      }),
+      'the static data page offers SHA256SUMS, which has no extension to give it away',
+    )
+    await plainFile.waitForTimeout(500)
+    is(
+      askedPlain.join(', ') || '(no request)',
+      'document',
+      'and a click on it is the browser\'s as well, not a page fetched into the boot window',
+    )
+    await plainFile.close()
+
     // Every section after this one drives the shared page, which has been in
     // the background throughout.
     await page.bringToFront()
@@ -3538,17 +3566,43 @@ try {
       })
     const served = walk(distDir)
     atLeast(served.length, 3000, 'prerendered pages read from dist')
-    // main.jsx tells a route from a file by the extension, because /data links
-    // to /f1.db and /f1-parquet.zip with no `download` attribute and holding
-    // one of those as a route change fetches the file into a DOMParser. That
-    // is only safe while no route has a dot in its last segment.
-    const dotted = served
-      .map((file) => relative(distDir, dirname(file)))
-      .filter((route) => route && route.split('/').at(-1).includes('.'))
+
+    /*
+     * The rule main.jsx tells a page from a file by, held against the built
+     * site from both ends. Asked here because this is where every page is
+     * already in hand, one read of dist rather than two.
+     *
+     * During the boot window a click on the static page is held — the URL
+     * moves, the asked-for page's prerendered half is fetched and swapped in,
+     * and the database download is never restarted. That is right for a page
+     * and wrong for a file: /data links to /f1.db, /f1-parquet.zip,
+     * /schema.sql, /ATTRIBUTION.md, /LICENSE-DATA and /SHA256SUMS with no
+     * `download` attribute, and holding one of those moved the address bar,
+     * downloaded nothing, and left the router to render a 404 for it when the
+     * database opened. The test it uses is that a route is a slug; so every
+     * route has to pass it, and every link to something that is not a route
+     * has to fail it. Neither half is worth anything without the other.
+     */
+    const slug = /^[a-z0-9-/]*$/
+    const routes = new Set(served.map((file) => `/${relative(distDir, dirname(file))}`.replace(/\/$/, '') || '/'))
+    const unheld = [...routes].filter((route) => !slug.test(route))
     truthy(
-      dotted.length === 0,
-      `every route is extensionless, which is how a link to a page is told from a link to a file${
-        dotted.length ? ` — ${dotted.slice(0, 5).join(', ')}` : ''
+      unheld.length === 0,
+      `every one of the ${routes.size} routes is a slug, so a click on a link to one is held${
+        unheld.length ? ` — ${unheld.slice(0, 5).join(', ')}` : ''
+      }`,
+    )
+    const filesHeld = [
+      ...new Set(
+        served.flatMap((file) =>
+          [...readFileSync(file, 'utf8').matchAll(/href="(\/[^"#?]*)/g)].map((match) => match[1]),
+        ),
+      ),
+    ].filter((href) => !routes.has(href.replace(/\/$/, '') || '/') && slug.test(href))
+    truthy(
+      filesHeld.length === 0,
+      `and every root-relative link that is not a route — the database, the documents, the feed — fails it, so the browser gets the click${
+        filesHeld.length ? ` — ${filesHeld.slice(0, 5).join(', ')}` : ''
       }`,
     )
     const missingCard = served
