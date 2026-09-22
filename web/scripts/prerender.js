@@ -129,11 +129,16 @@ import {
   CONSTRUCTORS_FINAL_COLUMNS,
   DRIVERS_FINAL_COLUMNS,
   DRIVERS_FINAL_FOOTER,
+  CURRENT_GRID,
   ENTRANTS,
   ENTRANT_COLUMNS,
   ENTRANTS_FOOTER,
   FINAL,
   GRID,
+  GRID_COLUMNS,
+  GRID_FOOTER,
+  GRID_HEADING,
+  GRID_NOTE,
   NEIGHBOURS as SEASON_NEIGHBOURS,
   NO_CONSTRUCTORS_TITLE,
   REMAINING,
@@ -1399,6 +1404,7 @@ const page = ({
     const constructorsFinal = final.filter((r) => r.table_type === 'constructors')
     const entrants = all(ENTRANTS, year)
     const grid = one(GRID, year)
+    const currentGrid = all(CURRENT_GRID, year)
     // Two different questions, as on the app's page. `running`: is there a
     // champion yet? `live`: is there a round still to run? The first decides
     // what the page opens with; the second whether its headings say final.
@@ -1495,6 +1501,17 @@ const page = ({
         }
         ${permutations ? note(permutations) : ''}
         ${prose(s.notes)}
+        ${
+          currentGrid.length
+            ? `<h2>${esc(GRID_HEADING)}</h2>${note(GRID_NOTE)}${fromColumns(GRID_COLUMNS, currentGrid, {
+                driver: (name, row) =>
+                  `${row.driver_id ? link(`drivers/${row.driver_id}`, name) : text(name)}${
+                    row.role && row.role !== 'race' ? ` ${tag(row.role)}` : ''
+                  }`,
+                team: (name, row) => (row.constructor_id ? link(`constructors/${row.constructor_id}`, name) : text(name)),
+              })}${note(GRID_FOOTER)}`
+            : ''
+        }
         ${photographSection(all(SEASON_IMAGES, year), { subjects: true })}
         <h2>The calendar</h2>
         ${outlineStrip(year, calendar)}

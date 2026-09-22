@@ -184,6 +184,69 @@ export const ENTRANTS = `
 
 export const GRID = 'SELECT * FROM v_season_grid WHERE year = ?'
 
+/**
+ * Who is in the cars: one row per entry declared for the season, with the
+ * number it carries, the driver's three-letter code, the chassis and the
+ * power unit (PD-38, and the fields PD-17 harvested).
+ *
+ * The database answers this already in `v_current_grid`, which `./f1 grid`
+ * prints. That view is pinned to `meta.current_season` and returns display
+ * names only, so it can be asked about one year and its rows can neither be
+ * linked nor coloured. This asks the same question of the same table, by
+ * year, and brings back the two ids a page needs - which is the arrangement
+ * lib/season.js already sets out: the site shares the anchor with those
+ * views rather than the views themselves.
+ *
+ * `season_entries` is the entry list as declared, and not a count of who has
+ * started a race - v_season_grid's counting sentence above the table is that
+ * - so a reserve is a row here and carries the word. It is the same set the
+ * drivers' register filters on ("On the 2026 grid", queries/drivers.js
+ * `on_grid`), because the entry list is what this site means by the grid.
+ */
+export const CURRENT_GRID = `
+  SELECT e.id, e.car_number, e.driver_id, d.full_name AS driver, d.abbreviation,
+         e.constructor_id, k.name AS team, k.country AS team_country,
+         e.car, e.power_unit, e.role
+    FROM season_entries e
+    LEFT JOIN drivers d      ON d.id = e.driver_id
+    LEFT JOIN constructors k ON k.id = e.constructor_id
+   WHERE e.year = ?
+   ORDER BY CASE e.role WHEN 'race' THEN 0 WHEN 'substitute' THEN 1 WHEN 'reserve' THEN 2 ELSE 3 END,
+            k.name IS NULL, k.name COLLATE NOCASE, e.car_number
+`
+
+/** "Yuki Tsunoda reserve": the role, wherever the seat is not a race seat. */
+export const gridDriver = (name, row) =>
+  row.role && row.role !== 'race' ? `${text(name)} ${row.role}` : text(name)
+
+export const GRID_COLUMNS = [
+  { key: 'car_number', label: 'No.', align: 'num' },
+  { key: 'driver', label: 'Driver', text: gridDriver },
+  { key: 'abbreviation', label: 'Code' },
+  { key: 'team', label: 'Team' },
+  { key: 'car', label: 'Car' },
+  { key: 'power_unit', label: 'Power unit' },
+]
+
+export const GRID_HEADING = 'On the grid'
+
+/**
+ * Two figures on this page are called the grid, and they answer different
+ * questions: the sentence in the strip above counts the drivers who have
+ * been entered for a round (v_season_grid, from race_entries), and this
+ * table is the list the season declared. They agree in a season whose
+ * line-up does not move and need not in one whose does, so the difference
+ * is said above the table rather than under it.
+ */
+export const GRID_NOTE =
+  'The entry list as the season declared it, one row per seat. The count above is taken from the race ' +
+  'entries — the drivers entered for a round — so in a season whose line-up moves the two need not agree.'
+
+export const GRID_FOOTER =
+  'A driver named as a reserve or a substitute carries that word: this is not a count of who has started. ' +
+  'The number is the one carried this season and the code is the three letters the timing screens use; ' +
+  'the power unit is the maker, whose engine the car is entered with.'
+
 /* ------------------------------------------------------------------ state */
 
 /** A season with a round still to run. The headings below turn on this. */
