@@ -423,14 +423,32 @@ class TheVerdictContractIsWhereTheAgentReads(unittest.TestCase):
         marker = "after a fix"
         self.assertTrue(marker in brief, "review-prompt.md no longer has a confirmation brief")
         cut = brief.index(marker)
+        # PM-48 (D-38) added a third brief below the confirmation one. Bound
+        # the confirmation half at it: unbounded, the respawn brief's own
+        # verdict strings would satisfy this check with the confirmation
+        # brief gutted, which is the drift PM-41 found in the first place.
+        respawn = "The respawn changes what is asked for"
+        self.assertTrue(respawn in brief, "review-prompt.md no longer has a respawn brief (D-38)")
+        cut2 = brief.index(respawn)
+        self.assertTrue(cut < cut2, "the respawn brief must come after the confirmation brief")
         for what, half, wording in (("first-pass brief", brief[:cut], "verdict line first"),
-                                    ("confirmation brief", brief[cut:], "first line")):
+                                    ("confirmation brief", brief[cut:cut2], "first line"),
+                                    ("respawn brief", brief[cut2:], "nothing else")):
             self.states_the_contract("review-prompt.md", half, f"the {what}")
             self.assertTrue(wording in half,
                             f"the {what} does not ask for the verdict first ({wording!r})")
-        self.assertTrue("nothing goes above it" in brief[cut:],
+        self.assertTrue("nothing goes above it" in brief[cut:cut2],
                         "the confirmation brief no longer says what goes above the verdict "
                         "line, which is the half PM-41 found had drifted")
+        # D-38's carve-out: without its `Applied:` line a quick-variant verdict
+        # is no review (frontend-reviewer-quick.md), so the respawn brief has
+        # to ask for it. Dropping it would make that respawn unsatisfiable.
+        # "Applied: items" and not "Applied:": the prose above the template
+        # mentions the line, so the looser string passes with the template
+        # itself gutted — probed, 2026-09-22.
+        self.assertTrue("Applied: items" in brief[cut2:],
+                        "the respawn brief no longer asks frontend-reviewer-quick for its "
+                        "`Applied:` line, so its respawn cannot satisfy the loop (D-38)")
 
     def test_the_item_procedure_refuses_rather_than_interprets(self):
         # The refusal is the rule; a fork left to judge an ambiguous result is

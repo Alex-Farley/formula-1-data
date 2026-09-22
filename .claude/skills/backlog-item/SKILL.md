@@ -266,17 +266,20 @@ findings with file:line, nothing else.
 required` as its first line.** Anything else is not a verdict — including a
 result whose verdict is plainly there on the second line, under a summary
 sentence. **Do not read it for what it meant.** Discard the result — its
-findings with it — and spawn the pass again, this time asking for **the
-verdict line alone and nothing else**: a reply with nothing to summarise has
-nothing to put a summary above, and restating the format in the same brief
-was measured not to work `[D-38]`. The respawn brief is in
-`.claude/skills/backlog-loop/review-prompt.md`. Take the second result's
+findings with it — and spawn the pass again from the same brief with one
+paragraph changed: it now asks for **the verdict line alone and nothing
+else** (two lines for `frontend-reviewer-quick`, which keeps its `Applied:`
+line). A reply with nothing to summarise has nothing to put a summary above,
+and restating the format was measured not to work `[D-38]`. The respawn brief
+is in `.claude/skills/backlog-loop/review-prompt.md`; everything but the
+report contract goes across unchanged, so the pass that settles the item is
+briefed no more thinly than the one it replaces. Take the second result's
 first line; if that one does not lead with a verdict either, the item has no
-review and the *Not a PASS* rule below applies. A verdict-only respawn that
-comes back `FAIL` carries no findings — the first result's were discarded
-unread — so spawn a fresh full pass to learn what is wrong; that is the price
-of not interpreting a result, and it is paid on a FAIL a fix was expected to
-clear, which is rare. **One respawn, whatever the reason the first
+review and the *Not a PASS* rule below applies. **A respawned pass returns no
+findings at all**: on a `FAIL`, spawn a fresh full pass to learn what is
+wrong; on a `PASS`, there is nothing to fix under `[D-22]` and nothing to
+list under `[D-23]`, so a non-blocking finding that pass would have made is
+lost. That is the price of not interpreting a result `[D-38]`. **One respawn, whatever the reason the first
 line is not a verdict** — a preamble above it, silence, or a reviewer that ran
 out of turns before it wrote one; the *Not a PASS* bullets below list the
 same cases, and the two that are owed no respawn at all. The second result
@@ -306,8 +309,9 @@ phrased as a sentence tomorrow `[D-37]`. Then:
 - **Not a PASS after its one respawn**, and one respawn is the whole of it:
   any result that does not lead with a verdict this loop accepts — silence,
   a preamble above the verdict, a reviewer that hit its turn cap, a
-  quick-variant verdict without its `Applied:` line. The second result
-  settles the item, whichever of those the first was.
+  quick-variant verdict without its `Applied:` line — which a respawn does
+  not excuse, because the respawn brief asks the quick variant for that line
+  too. The second result settles the item, whichever of those the first was.
   If the agent dies on a session limit, return `LIMIT: resets <time>` at
   once; you cannot outlive the reset.
 - **Record the verdict as a PR comment the moment it arrives**, before the

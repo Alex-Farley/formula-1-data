@@ -55,21 +55,36 @@ A confirmation that leads with a sentence instead of a verdict is not a verdict
 and is not interpreted as one: discard it and spawn the pass again, as
 `.claude/skills/backlog-item/SKILL.md` sets out under *Review*.
 
-The respawn does not repeat the brief that produced the preamble — restating
-the format requirement, even in capitals with the consequence spelled out, was
-measured not to work `[D-38]`. It asks for the verdict and nothing else, to a
-fresh agent of the same kind:
+The respawn changes what is asked for, not what is reviewed. Restating the
+format requirement — even in capitals, with the consequence spelled out — was
+measured not to work `[D-38]`, so **send the same brief the discarded result
+was given, to a fresh agent of the same kind, with its last paragraph (`Return
+exactly one verdict line first...`) replaced by this one**. Everything else
+goes across unchanged: the worktree, the task, the routes, the "try to
+disprove" list and the constraints, `Do NOT run npm test` among them. A
+respawn is the pass that settles the item, so it is briefed no more thinly
+than the one it replaces.
 
-    PR #<N>, branch `<branch>` at <sha>, worktree <path>. Review
-    `git diff <old>..<new>` against CLAUDE.md and
-    `.claude/agents/<reviewer>.md` exactly as that file sets out, including
-    its "Already enforced" list.
+    This replaces the report contract above, and it overrides the *How to
+    report* section of your agent file for this pass only. Your entire reply
+    is ONE line, and it is the verdict: exactly `PASS — safe to merge` or
+    `FAIL — changes required`. No summary, no preamble, no findings, no
+    closing note, nothing above it and nothing below it. Do the review in
+    full; report only its conclusion — the review is not shortened, the
+    report is.
 
-    Your entire reply is ONE line, and it is the verdict: exactly
-    `PASS — safe to merge` or `FAIL — changes required`. No summary, no
-    preamble, no findings, no closing note, nothing above it and nothing
-    below it. Do the review in full; report only its conclusion.
+For `frontend-reviewer-quick`, whose `Applied:` line is the evidence that the
+rules were read and without which the loop has no review, the reply is those
+two lines and nothing else:
 
-A `FAIL` from this pass arrives without findings, because the discarded result's
-were never read. Spawn a fresh full pass to get them — do not go back to the
-result you discarded.
+    ...Your entire reply is TWO lines: the verdict, exactly
+    `PASS — safe to merge` or `FAIL — changes required`, and below it your
+    `Applied: items <n, n, ...> of frontend-reviewer.md` line. Nothing above
+    them, nothing below them, no findings and no summary.
+
+**A respawned pass returns no findings at all, and the discarded result's may
+not be read back.** On a `FAIL`, spawn a fresh full pass to learn what is
+wrong. On a `PASS`, there is nothing to fix under `[D-22]` and nothing to list
+under `[D-23]` — a non-blocking finding this pass would have made is lost, and
+that is the price of the second attempt settling the item. Both costs are
+`[D-38]`.
