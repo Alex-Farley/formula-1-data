@@ -32,6 +32,7 @@ import {
   GRID_COLUMNS,
   GRID_FOOTER,
   GRID_HEADING,
+  GRID_NOTE,
   NEIGHBOURS,
   NO_CONSTRUCTORS_TITLE,
   REMAINING,
@@ -414,7 +415,7 @@ function SeasonBody({ year, season, data }) {
           declared entry list has one, so the section is absent rather than
           empty on the 76 that have only the record of who entered. */}
       {currentGrid.length > 0 && (
-        <Section title={GRID_HEADING} count={`${currentGrid.length} drivers`}>
+        <Section title={GRID_HEADING} count={`${currentGrid.length} drivers`} note={GRID_NOTE}>
           {/* No opening sort, as with the entrants below: the query's ORDER BY
               is the order the table opens in, and the static page prints the
               rows as they come. */}

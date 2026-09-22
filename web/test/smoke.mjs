@@ -880,6 +880,10 @@ try {
       count('SELECT COUNT(*) FROM season_entries WHERE year = ?', year),
       `the grid is one row per entry declared for ${year}`,
     )
+    // The cell is the site's em dash where the database has nothing, so the
+    // expectation is read through the same rule: a NULL that lands on this
+    // seat is the page being right, not the suite catching it out.
+    const shown = (value) => (value === null || value === undefined || value === '' ? '\u2014' : String(value))
     const seat = db
       .prepare(`SELECT e.car_number, d.full_name AS driver, d.abbreviation, k.name AS team, e.car, e.power_unit
                   FROM season_entries e
@@ -892,11 +896,11 @@ try {
       grid.some(
         (r) =>
           r[0] === String(seat.car_number) &&
-          r[1] === seat.driver &&
-          r[2] === seat.abbreviation &&
-          r[3] === seat.team &&
-          r[4] === seat.car &&
-          r[5] === seat.power_unit,
+          r[1] === shown(seat.driver) &&
+          r[2] === shown(seat.abbreviation) &&
+          r[3] === shown(seat.team) &&
+          r[4] === shown(seat.car) &&
+          r[5] === shown(seat.power_unit),
       ),
       `car ${seat.car_number} is ${seat.driver} (${seat.abbreviation}), ${seat.team} ${seat.car}, ${seat.power_unit}`,
     )

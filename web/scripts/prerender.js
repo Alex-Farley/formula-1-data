@@ -138,6 +138,7 @@ import {
   GRID_COLUMNS,
   GRID_FOOTER,
   GRID_HEADING,
+  GRID_NOTE,
   NEIGHBOURS as SEASON_NEIGHBOURS,
   NO_CONSTRUCTORS_TITLE,
   REMAINING,
@@ -1502,7 +1503,7 @@ const page = ({
         ${prose(s.notes)}
         ${
           currentGrid.length
-            ? `<h2>${esc(GRID_HEADING)}</h2>${fromColumns(GRID_COLUMNS, currentGrid, {
+            ? `<h2>${esc(GRID_HEADING)}</h2>${note(GRID_NOTE)}${fromColumns(GRID_COLUMNS, currentGrid, {
                 driver: (name, row) =>
                   `${row.driver_id ? link(`drivers/${row.driver_id}`, name) : text(name)}${
                     row.role && row.role !== 'race' ? ` ${tag(row.role)}` : ''

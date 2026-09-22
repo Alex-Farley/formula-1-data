@@ -211,7 +211,8 @@ export const CURRENT_GRID = `
     LEFT JOIN drivers d      ON d.id = e.driver_id
     LEFT JOIN constructors k ON k.id = e.constructor_id
    WHERE e.year = ?
-   ORDER BY e.role, k.name IS NULL, k.name COLLATE NOCASE, e.car_number
+   ORDER BY CASE e.role WHEN 'race' THEN 0 WHEN 'substitute' THEN 1 WHEN 'reserve' THEN 2 ELSE 3 END,
+            k.name IS NULL, k.name COLLATE NOCASE, e.car_number
 `
 
 /** "Yuki Tsunoda reserve": the role, wherever the seat is not a race seat. */
@@ -229,10 +230,22 @@ export const GRID_COLUMNS = [
 
 export const GRID_HEADING = 'On the grid'
 
+/**
+ * Two figures on this page are called the grid, and they answer different
+ * questions: the sentence in the strip above counts the drivers who have
+ * been entered for a round (v_season_grid, from race_entries), and this
+ * table is the list the season declared. They agree in a season whose
+ * line-up does not move and need not in one whose does, so the difference
+ * is said above the table rather than under it.
+ */
+export const GRID_NOTE =
+  'The entry list as the season declared it, one row per seat. The count above is taken from the race ' +
+  'entries — the drivers entered for a round — so in a season whose line-up moves the two need not agree.'
+
 export const GRID_FOOTER =
-  'The entry list as it was declared, not a count of who has started: a driver named as a reserve or a ' +
-  'substitute carries that word. The number is the one carried this season and the code is the three ' +
-  'letters the timing screens use; the power unit is the maker, whose engine the car is entered with.'
+  'A driver named as a reserve or a substitute carries that word: this is not a count of who has started. ' +
+  'The number is the one carried this season and the code is the three letters the timing screens use; ' +
+  'the power unit is the maker, whose engine the car is entered with.'
 
 /* ------------------------------------------------------------------ state */
 
