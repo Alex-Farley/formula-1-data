@@ -1,21 +1,28 @@
 #!/usr/bin/env python3
-"""The championship table only ever goes up.
+"""A championship total is the sum of what the cars scored.
 
-A running total is cumulative: an entrant's points after round N are its
-points after round N-1 plus whatever its cars scored in round N. So a round
-it scored in must move its total. Nothing about that depends on a points
-system, which is what makes it the cross-check worth having - a standings
-figure compared only with another standings figure cannot show a source file
-that was not updated, and that is exactly what 2026 round 14 was.
+The running total after round N is what the entrant scored in rounds 1..N.
+Nothing in that depends on a points system, which is what makes it the
+cross-check worth having: a standings figure compared only with another
+standings figure cannot show a source file that was not updated, and for 2026
+round 14 did not.
 
-The rule, its two starting seasons and its three exceptions are declared in
-`data/current.py`; this module is only how they are applied, so that
-`build.py` and `verify.py` ask the same question of the same rows.
+The rule compares a STORED figure with one derived from `race_entries` and
+`sprint_results`, which are different rows from a different part of the same
+source. Where `build.py` has corrected a figure the two agree by
+construction - that is what a correction is - and the record of what the
+source published is the `discrepancies` row it files. For every figure the
+build did not touch, this constrains the value and not merely its direction.
+
+The floors, the six adjustments, the alias and the multi-engine exemption are
+declared in `data/current.py`; this module is only how they are applied, so
+that `build.py` and `verify.py` ask one question of the same rows.
 
     python3 tools/standings_rule.py            # violations in f1.db
-    python3 tools/standings_rule.py --survey   # every violation, all seasons,
-                                               # ignoring the floors: the
-                                               # measurement the floors are set
+    python3 tools/standings_rule.py --survey   # every row that is not the
+                                               # plain sum, ignoring the
+                                               # floors and the adjustments:
+                                               # the measurement both are set
                                                # from
 """
 import argparse
@@ -26,78 +33,112 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from data.current import (STANDINGS_ACCUMULATE_FROM,  # noqa: E402
-                          STANDINGS_ACCUMULATION_EXCEPTIONS)
+                          STANDINGS_ADJUSTMENTS,
+                          STANDINGS_ENTITY_ALIASES)
 
-# A constructor that ran two engines in one season has two championship
-# entries, and `race_entries` names no engine, so a round's points cannot be
-# split between them: Tyrrell 1985 (Cosworth, then Renault) and Williams and
-# Benetton in 1995 are the cases. Their rows are not checked, and saying so
-# here is the whole of the exemption - it is not a list of seasons that can
-# rot.
+TOLERANCE = 0.001
+
 _ROUND_POINTS = {
     "drivers": """
-        SELECT r.year y, r.round rnd, e.driver_id ent, SUM(COALESCE(e.points,0)) p
-          FROM race_entries e JOIN races r ON r.id = e.race_id GROUP BY 1,2,3
+        SELECT r.year y, r.round rnd, e.driver_id ent, COALESCE(e.points,0) p
+          FROM race_entries e JOIN races r ON r.id = e.race_id
         UNION ALL
-        SELECT r.year, r.round, s.driver_id, SUM(COALESCE(s.points,0))
-          FROM sprint_results s JOIN races r ON r.id = s.race_id GROUP BY 1,2,3""",
+        SELECT r.year, r.round, s.driver_id, COALESCE(s.points,0)
+          FROM sprint_results s JOIN races r ON r.id = s.race_id""",
     "constructors": """
-        SELECT r.year y, r.round rnd, e.constructor_id ent, SUM(COALESCE(e.points,0)) p
-          FROM race_entries e JOIN races r ON r.id = e.race_id GROUP BY 1,2,3
+        SELECT r.year y, r.round rnd, e.constructor_id ent, COALESCE(e.points,0) p
+          FROM race_entries e JOIN races r ON r.id = e.race_id
         UNION ALL
-        SELECT r.year, r.round, s.constructor_id, SUM(COALESCE(s.points,0))
-          FROM sprint_results s JOIN races r ON r.id = s.race_id GROUP BY 1,2,3""",
+        SELECT r.year, r.round, s.constructor_id, COALESCE(s.points,0)
+          FROM sprint_results s JOIN races r ON r.id = s.race_id""",
 }
 
-_SINGLE_ENTRY = """
+_MULTI_ENGINE = """
     SELECT year, entity_id FROM standings
-     WHERE table_type = ? AND after_round IS NOT NULL
+     WHERE table_type = 'constructors' AND after_round IS NOT NULL
      GROUP BY year, entity_id
-    HAVING COUNT(DISTINCT COALESCE(engine_id, '')) = 1"""
+    HAVING COUNT(DISTINCT COALESCE(engine_id, '')) > 1"""
 
 
-def violations(con, floors=None, exceptions=None):
-    """Every standings row whose total did not move when its cars scored, or
-    moved down. One dict per row, oldest first."""
+class Unmappable(Exception):
+    """A standings entity with no results under its own id and no alias.
+
+    Raised rather than skipped: an entity the derivation cannot see is one
+    this check can never fail for, whatever its figures say, and 104 rows sat
+    in exactly that state (review finding, #583).
+    """
+
+
+def _running_totals(con, table):
+    """(year, entity, round) -> the sum of rounds 1..round."""
+    per_round = {}
+    for y, rnd, ent, p in con.execute(
+            f"SELECT y, rnd, ent, SUM(p) FROM ({_ROUND_POINTS[table]}) "
+            "GROUP BY y, rnd, ent"):
+        if ent is not None:
+            per_round[(y, rnd, ent)] = p or 0.0
+    rounds = sorted({(y, rnd) for (y, rnd, _) in per_round})
+    totals, seen = {}, {}
+    for y, rnd in rounds:
+        for (yy, rr, ent), p in list(per_round.items()):
+            if (yy, rr) != (y, rnd):
+                continue
+            seen[(y, ent)] = seen.get((y, ent), 0.0) + p
+        for (yy, ent), tot in seen.items():
+            if yy == y:
+                totals[(y, rnd, ent)] = tot
+    return totals
+
+
+def expected(derived, adjustment, rnd):
+    """What the table should read, given the sum and any declared decision."""
+    if adjustment is None:
+        return derived
+    from_round, how, _why = adjustment
+    if rnd < from_round:
+        return derived
+    return 0.0 if how == "zero" else derived + how
+
+
+def violations(con, floors=None, adjustments=None, aliases=None):
+    """Every standings row that is not what the results make it. One dict per
+    row, oldest first. Raises Unmappable before checking anything."""
     floors = STANDINGS_ACCUMULATE_FROM if floors is None else floors
-    exceptions = (STANDINGS_ACCUMULATION_EXCEPTIONS if exceptions is None
-                  else exceptions)
+    adjustments = STANDINGS_ADJUSTMENTS if adjustments is None else adjustments
+    aliases = STANDINGS_ENTITY_ALIASES if aliases is None else aliases
+    multi = {(y, e) for y, e in con.execute(_MULTI_ENGINE)}
     out = []
     for table in ("constructors", "drivers"):
         floor = floors.get(table)
-        single = {(y, e) for y, e in con.execute(_SINGLE_ENTRY, (table,))}
-        scored = {}
-        for y, rnd, ent, p in con.execute(
-                f"SELECT y, rnd, ent, SUM(p) FROM ({_ROUND_POINTS[table]}) "
-                "GROUP BY y, rnd, ent"):
-            scored[(y, rnd, ent)] = p or 0.0
-        rows = con.execute(
-            """SELECT year, entity_id, after_round, points FROM standings
-                WHERE table_type = ? AND after_round IS NOT NULL
-                  AND points IS NOT NULL AND entity_id IS NOT NULL
-                ORDER BY year, entity_id, after_round""", (table,))
-        previous = {}
-        for year, ent, rnd, pts in rows:
-            prev = previous.get((year, ent))
-            previous[(year, ent)] = (rnd, pts)
-            if floor is None or year < floor:
+        if floor is None:
+            continue
+        totals = _running_totals(con, table)
+        scored_in = {(y, ent) for (y, _r, ent) in totals}
+        for year, ent, engine, rnd, pts in con.execute(
+                """SELECT year, entity_id, engine_id, after_round, points
+                     FROM standings
+                    WHERE table_type = ? AND after_round IS NOT NULL
+                      AND points IS NOT NULL AND entity_id IS NOT NULL
+                    ORDER BY year, entity_id, after_round""", (table,)):
+            if year < floor or (table == "constructors" and (year, ent) in multi):
                 continue
-            if (year, ent) not in single:
-                continue                      # two engines: see above
-            if prev is None or prev[0] != rnd - 1:
-                continue                      # no round to compare with
-            if (table, year, ent) in exceptions:
-                continue
-            this_round = scored.get((year, rnd, ent), 0.0)
-            went_down = pts < prev[1] - 0.001
-            flat = this_round > 0.001 and pts <= prev[1] + 0.001
-            if went_down or flat:
+            who = aliases.get((table, year, ent), ent)
+            if (year, who) not in scored_in:
+                raise Unmappable(
+                    f"{year} {table} '{ent}' has a championship table and no "
+                    f"result rows under that id. Either the results name it "
+                    f"something else - add it to STANDINGS_ENTITY_ALIASES in "
+                    f"data/current.py with the reason - or the results are "
+                    f"missing, which is the larger problem.")
+            derived = totals.get((year, rnd, who))
+            if derived is None:
+                continue                  # the round itself has no results yet
+            want = expected(derived, adjustments.get((table, year, ent)), rnd)
+            if abs(pts - want) > TOLERANCE:
                 out.append({
                     "table_type": table, "year": year, "entity_id": ent,
-                    "after_round": rnd, "previous": prev[1], "points": pts,
-                    "scored": this_round,
-                    "kind": "went down" if went_down else "scored but flat",
-                    "derived": round(prev[1] + this_round, 3),
+                    "engine_id": engine, "after_round": rnd, "points": pts,
+                    "derived": round(derived, 3), "expected": round(want, 3),
                 })
     out.sort(key=lambda v: (v["year"], v["after_round"], v["entity_id"]))
     return out
@@ -105,8 +146,8 @@ def violations(con, floors=None, exceptions=None):
 
 def describe(v):
     return (f"{v['year']} round {v['after_round']} {v['table_type'][:-1]} "
-            f"{v['entity_id']}: {v['previous']:g} -> {v['points']:g} "
-            f"with {v['scored']:g} scored ({v['kind']})")
+            f"{v['entity_id']}: table says {v['points']:g}, the results make "
+            f"it {v['expected']:g}")
 
 
 def main(argv=None):
@@ -114,14 +155,20 @@ def main(argv=None):
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--db", default="f1.db")
     ap.add_argument("--survey", action="store_true",
-                    help="ignore the starting seasons and the exceptions, and "
-                         "print everything: the measurement behind both")
+                    help="ignore the floors and the adjustments and print "
+                         "every row that is not the plain sum: the "
+                         "measurement behind both")
     args = ap.parse_args(argv)
     con = sqlite3.connect(args.db)
-    found = violations(con)
-    if args.survey:
-        found = violations(con, floors={"constructors": 0, "drivers": 0},
-                           exceptions={})
+    try:
+        if args.survey:
+            found = violations(con, floors={"constructors": 0, "drivers": 0},
+                               adjustments={})
+        else:
+            found = violations(con)
+    except Unmappable as e:
+        print(f"  {e}")
+        return 1
     for v in found:
         print(" ", describe(v))
     print(f"{len(found)} row(s)")

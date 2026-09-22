@@ -589,61 +589,70 @@ def standings():
               got_ == want_, f"{got_} rows")
 
 
-@section('STANDINGS ACCUMULATE')
-def standings_accumulate():
-    """A running championship total is cumulative, so a round an entrant
-    scored in must move its total. It is the only cross-check that can see a
-    standings file which was not updated - comparing one source's table with
-    another source's table cannot, and for 2026 round 14 did not: F1DB
-    published round 13's constructor totals under round 14 and the site
-    showed Mercedes on 468 while their drivers held 503 between them.
+@section('STANDINGS ARE THE SUM OF THE RESULTS')
+def standings_are_the_sum_of_the_results():
+    """A running championship total is what the entrant scored in the rounds
+    up to it. It is the only cross-check that can see a standings file which
+    was not updated - comparing one source's table with another source's
+    table cannot, and for 2026 round 14 did not: F1DB published round 13's
+    constructor totals under round 14 and the site showed Mercedes on 468
+    while their drivers held 503 between them.
 
-    The rule, the season it starts holding from for each table and the three
-    entrants it legitimately does not hold for are declared in
-    `data/current.py`. build.py corrects what it can and files the published
-    figure in `discrepancies`; this is the check that the correction actually
-    happened, and that a case the correction does not cover - a total that
-    went DOWN, a round that would reorder - stops the build instead of
-    shipping.
+    What this constrains, said plainly. For a figure `build.py` corrected,
+    the stored value and the derived one agree because the build made them
+    agree; the record of what the source published is the `discrepancies` row
+    beside it. For every other figure - 12,640 driver rows from 1991 and
+    7,942 constructor rows from 1979 - this is a check on the VALUE, against
+    rows the standings file had no part in writing.
+
+    The floors, the six declared adjustments, the one alias and the
+    multi-engine exemption are in `data/current.py`. An entity whose results
+    cannot be found at all stops the build rather than being skipped: 104
+    rows sat in that state under the first version of this check and could
+    not have failed it however wrong they were.
     """
     sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "tools"))
     import standings_rule
 
     from data.current import (STANDINGS_ACCUMULATE_FROM,
-                              STANDINGS_ACCUMULATION_EXCEPTIONS)
+                              STANDINGS_ADJUSTMENTS)
 
-    bad = standings_rule.violations(con)
-    check("every championship total moves in a round its cars scored",
+    try:
+        bad = standings_rule.violations(con)
+    except standings_rule.Unmappable as e:
+        check("every championship table joins to the results it is the sum of",
+              False, str(e))
+        return
+    check("every championship table joins to the results it is the sum of", True)
+    check("every championship total is the sum of what the cars scored",
           not bad,
-          "; ".join(standings_rule.describe(v) for v in bad[:4])
-          + (f" (+{len(bad) - 4} more)" if len(bad) > 4 else "") if bad else "")
+          ("; ".join(standings_rule.describe(v) for v in bad[:4])
+           + (f" (+{len(bad) - 4} more)" if len(bad) > 4 else "")) if bad else "")
 
-    # The declarations are only worth anything if they still describe
-    # something. An exception nobody needs is a claim about this database that
-    # has quietly stopped being true, and the next one is written by copying
-    # it.
+    # A declaration is only worth something while it still describes
+    # something. An adjustment nobody needs is a claim about this database
+    # that has quietly stopped being true, and the next one is written by
+    # copying it.
     unused = []
-    for (table, year, entity) in STANDINGS_ACCUMULATION_EXCEPTIONS:
-        still = standings_rule.violations(
-            con, exceptions={k: v for k, v in STANDINGS_ACCUMULATION_EXCEPTIONS.items()
-                             if k != (table, year, entity)})
+    for key in STANDINGS_ADJUSTMENTS:
+        without = {k: v for k, v in STANDINGS_ADJUSTMENTS.items() if k != key}
+        table, year, entity = key
+        still = standings_rule.violations(con, adjustments=without)
         if not any(v["table_type"] == table and v["year"] == year
                    and v["entity_id"] == entity for v in still):
             unused.append(f"{table} {year} {entity}")
-    check("every declared exception is still one", not unused,
-          ", ".join(unused))
+    check("every declared adjustment is still one", not unused, ", ".join(unused))
 
-    # And the floors, the same way round: the season before each one has to
-    # hold a violation, or the floor is further back than the evidence for it.
+    # And the floors, the same way round: the season before each one must hold
+    # a row the rule would refuse, or the floor is later than its evidence.
     for table, floor in STANDINGS_ACCUMULATE_FROM.items():
-        below = standings_rule.violations(
-            con, floors={table: 0}, exceptions=STANDINGS_ACCUMULATION_EXCEPTIONS)
+        below = standings_rule.violations(con, floors={table: 0}, adjustments={})
         earlier = [v for v in below
                    if v["table_type"] == table and v["year"] < floor]
-        check(f"{table} standings accumulate from {floor} and not before",
+        check(f"{table} standings are the plain sum from {floor} and not before",
               bool(earlier),
-              f"no violation before {floor}, so the floor is later than the "
-              f"evidence for it" if not earlier
+              f"nothing before {floor} disagrees, so the floor is later than "
+              f"the evidence for it" if not earlier
               else f"last is {max(v['year'] for v in earlier)}")
 
 
