@@ -117,6 +117,60 @@ class Figures:
         import build  # noqa: E402 - the schedule is the source of this number
         return n(len(build.STAGES))
 
+    # -- Identifiers ------------------------------------------------------------
+
+    def _id_policy(self):
+        """(every surrogate-id table, the stable ones, table -> natural key),
+        all of it read out of the database: the tables off the schema, the
+        policy off `meta`. Nothing here restates the declaration in
+        data/current.py — verify.py is what holds those two together."""
+        sys.path.insert(0, ROOT)
+        import build  # noqa: E402 - the schema is what says which ids are surrogates
+        # An empty meta value splits to [""], not to []: without these guards
+        # a policy with nothing stable would render as one table rather than
+        # none, and the keys branch would raise instead. Two halves of the same
+        # figure failing in opposite directions is how a wrong number ships.
+        published = self.meta("id_stability_stable")
+        stable = set(published.split(", ")) if published else set()
+        keys = {}
+        for part in (self.meta("id_stability_keys") or "").split("; "):
+            if not part:
+                continue
+            table, columns = part.split("(", 1)
+            keys[table] = columns.rstrip(")")
+        return sorted(build.surrogate_id_tables(self.con)), stable, keys
+
+    def stable_id_tables(self):
+        return n(len(self._id_policy()[1]))
+
+    def _nullable(self, table, column):
+        """Whether that key column holds NULL on any row, asked of the rows and
+        not of the schema: `standings.position_text` has no NOT NULL and is
+        filled on all but 65, and it is the ROWS that decide whether a reader
+        joining with `=` loses any."""
+        return bool(self.one(f"SELECT COUNT(*) FROM {table} WHERE {column} IS NULL"))
+
+    def id_keys(self):
+        # A whole table, header included, so the span can sit on lines of its
+        # own: an HTML comment on the same line as a table row is where GitHub
+        # stops rendering the table.
+        #
+        # A key column that holds NULL is marked `?`: SQLite's `=` is not
+        # null-safe, so a reader joining `standings` on `=` silently loses
+        # every drivers' row. Computed, so the mark cannot drift from the data.
+        tables, stable, keys = self._id_policy()
+
+        def key(t):
+            columns = [c + ("?" if self._nullable(t, c) else "")
+                       for c in keys[t].split(", ")]
+            return "`(" + ", ".join(columns) + ")`"
+
+        rows = [f"| `{t}` | {'stable' if t in stable else 'unstable'} | "
+                f"{key(t) if t in keys else '—'} |"
+                for t in tables]
+        return "\n".join(["", "| Table | `id` | Natural key |", "|---|---|---|"]
+                          + rows) + "\n"
+
     # -- What's in it -----------------------------------------------------------
 
     def seasons(self):

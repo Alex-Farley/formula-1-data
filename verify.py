@@ -158,6 +158,13 @@ def check(name, ok, detail=""):
         fails.append(name)
 
 
+def value_or_none(key):
+    """A `meta` value, or None where the build never wrote one — so a missing
+    row reads as a failed check rather than a crash inside it."""
+    row = con.execute("SELECT value FROM meta WHERE key = ?", (key,)).fetchone()
+    return row[0] if row else None
+
+
 def warn(name, ok, detail=""):
     print(f"  [{'ok  ' if ok else 'WARN'}] {name}" + (f" — {detail}" if detail else ""))
     if not ok:
@@ -1028,6 +1035,55 @@ def structure():
           AND e.driver_id = s.drivers_champion)""").fetchone()[0]
     check("champion_wins matches the race records in every season", bad == 0,
           f"{bad} seasons")
+
+
+@section('IDENTIFIER STABILITY')
+def identifier_stability():
+    """Which ids a reader may keep (DA-04). The policy is declared in
+    data/current.py and published in `meta`; this checks it against the
+    database it describes. A published natural key that does not identify one
+    row is worse than none at all — a reader joining on it silently doubles
+    their rows instead of failing."""
+    import build
+    from data import current as _N
+
+    surrogate = build.surrogate_id_tables(con)
+    undeclared = sorted(surrogate - set(_N.ID_STABILITY))
+    check("every surrogate id is classified stable or unstable", not undeclared,
+          f"{', '.join(undeclared)} not in ID_STABILITY" if undeclared
+          else f"{len(surrogate)} tables")
+
+    # The artefact's own claim, against the declaration it was built from: a
+    # database whose meta named a table the policy no longer does would be
+    # promising stability on nobody's behalf.
+    declared = ", ".join(sorted(t for t, (s, _k) in _N.ID_STABILITY.items()
+                                if s == "stable"))
+    published = value_or_none("id_stability_stable")
+    check("meta.id_stability_stable names exactly the tables declared stable",
+          published == declared,
+          "" if published == declared else
+          f"meta says {published!r}, ID_STABILITY says {declared!r}")
+
+    keys = {t: k for t, (_s, k) in _N.ID_STABILITY.items() if k}
+    declared_keys = "; ".join(f"{t}({', '.join(keys[t])})" for t in sorted(keys))
+    published_keys = value_or_none("id_stability_keys")
+    check("meta.id_stability_keys publishes every declared natural key",
+          published_keys == declared_keys,
+          "" if published_keys == declared_keys else
+          f"meta says {published_keys!r}, ID_STABILITY says {declared_keys!r}")
+
+    check("meta.id_stability states the policy",
+          value_or_none("id_stability") == _N.ID_STABILITY_NOTE)
+
+    # GROUP BY treats two NULLs as one group, which is the comparison a reader
+    # joining on a key with a nullable column in SQLite would have to make;
+    # `=` would not, so this is the stricter of the two readings.
+    for table in sorted(keys):
+        cols = ", ".join(keys[table])
+        dup = con.execute(f"""SELECT COUNT(*) FROM (SELECT {cols} FROM {table}
+            GROUP BY {cols} HAVING COUNT(*) > 1)""").fetchone()[0]
+        check(f"{table} natural key ({cols}) identifies one row", dup == 0,
+              "" if not dup else f"{dup} key(s) on more than one row")
 
 
 @section('EXTERNAL FIGURES VS THE RACE RECORDS')

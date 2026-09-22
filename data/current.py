@@ -716,6 +716,128 @@ SOURCE_LICENCE = {
     18: ("yes", 1, 1, None),
 }
 
+# ------------------------------------------------------------- identifiers
+#
+# Which `id` a reader may keep, and which one they may not (DA-04).
+#
+# Seventeen per cent of `race_entries.id` moved between v2.20 and v2.21, and
+# nothing in the database or the README said whether that was allowed. It is:
+# an INTEGER PRIMARY KEY here is a SURROGATE, handed out in the order the
+# build happens to insert rows, so a source read in a different order shifts
+# every id after the row it added. A text id - `hamilton`, `monza`,
+# `lotus-79` - is a natural key and does not move; an integer one is an
+# implementation detail unless something says otherwise.
+#
+# So every table with a surrogate id says which it is:
+#
+#   "stable"    this release undertakes not to renumber them. A reader may
+#               store them.
+#   "unstable"  the ids are the build's business. Join on the natural key.
+#
+# "stable" is an UNDERTAKING and not a measurement. Nothing in the build
+# compares a release with the one before it - doing that is the M half of
+# DA-04 - so what keeps the promise is whoever changes a loader reading this
+# comment. Write nothing here that the artefacts do not bear out: `records`
+# was proposed for the stable list and is not on it, because 23 of its 29 ids
+# moved between v2.21 and v2.23.
+#
+# The second element is the NATURAL KEY - the columns that identify the fact
+# rather than the row - or None where none has been established. It is the
+# tuple to join on whichever way the first element reads, and verify.py
+# checks on every build that each declared one identifies exactly one row: a
+# published key that does not is worse than no key at all, because a reader
+# joining on it silently doubles their rows rather than failing.
+#
+# build.py REFUSES a surrogate-id table that is not listed here, the way it
+# refuses a source with no licence class. The default for a new table is not
+# "unstable", it is "nobody has decided yet".
+ID_STABILITY = {
+    # The stable ones. Each natural key is the grain the table is built at:
+    # one row per driver per race, per entrant's chassis-engine per season,
+    # per stop.
+    "circuit_layouts":       ("stable",   ("circuit_id", "layout_key")),
+    # The table's own UNIQUE, and deliberately not (race_id, driver_id,
+    # stop_number): `source` is 'f1db' on every row of the DISTRIBUTED database
+    # and would look redundant here, but a local F1_LOCAL_TIMING load puts
+    # fastf1 rows beside them, and a published key that duplicates the moment
+    # somebody exercises a supported path is not a key.
+    "pit_stops":             ("stable",   ("race_id", "source", "driver_key",
+                                           "stop_number")),
+    "qualifying":            ("stable",   ("race_id", "driver_id")),
+    # One row per driver per race even where a driver drove two cars, which
+    # was normal before 1965 - see the `finish_position` row of `known_gaps`.
+    "race_entries":          ("stable",   ("race_id", "driver_id")),
+    "races":                 ("stable",   ("year", "round")),
+    "season_entrants":       ("stable",   ("year", "entrant_id",
+                                           "f1db_constructor_id",
+                                           "engine_manufacturer_id")),
+    "sprint_results":        ("stable",   ("race_id", "driver_id")),
+
+    # `records.id` is `enumerate(derive_records(cur), 1)` - a position in a
+    # derived list, so inserting one record renumbers every row after it. 23 of
+    # 29 moved between v2.21 and v2.23. The table has a real key and that is
+    # what a reader should hold; the id is the order the build wrote them in.
+    "records":               ("unstable", ("key",)),
+
+    # Unstable, and the one a reader is most likely to have joined to: a
+    # running season's table is reloaded whole, so every id in it moves. The
+    # key needs `position_text` because 2018 holds Force India twice in the
+    # constructors' final table - the excluded entity on nought points and
+    # the re-entered one on 52 - which is a real fact and not a duplicate.
+    # Making the insert order deterministic is the M half of DA-04. Three of
+    # the seven columns hold NULL - `engine_id` on every drivers' row because a
+    # driver has no engine, `after_round` on every end-of-season row, and
+    # `position_text` on 65 - so this is a key to join with `IS`, SQLite's
+    # null-safe comparison, and not with `=`, which would drop most of the
+    # table in silence. The README marks all three.
+    # It is `ux_standings_identity` in schema.sql, column for column: the
+    # database already enforces this key, and publishing a narrower one would
+    # have said the grain was something the schema does not agree with.
+    "standings":             ("unstable", ("year", "table_type", "after_round",
+                                           "entity_id", "engine_id", "as_of",
+                                           "position_text")),
+
+    # Unstable, with no natural key published yet. Each is either a register
+    # small enough to read whole or one of the timing tables that ship empty
+    # under the licence decision in docs/TIMING-ARCHITECTURE.md. Declaring a
+    # key for one of them is a change to that table, not to this list:
+    # `discrepancies` gets (tbl, row_key, field) under DA-09, and
+    # `known_gaps` a stable `key` under DA-24.
+    "constructor_lineage":   ("unstable", None),
+    "discrepancies":         ("unstable", None),
+    "engine_eras":           ("unstable", None),
+    "eras":                  ("unstable", None),
+    "governance":            ("unstable", None),
+    "known_gaps":            ("unstable", None),
+    "laps":                  ("unstable", None),
+    "points_systems":        ("unstable", None),
+    "race_control_messages": ("unstable", None),
+    "regulation_changes":    ("unstable", None),
+    "regulation_limits":     ("unstable", None),
+    "safety_milestones":     ("unstable", None),
+    "season_entries":        ("unstable", None),
+    "sessions":              ("unstable", None),
+    "source_patterns":       ("unstable", None),
+    "source_registry":       ("unstable", None),
+    "stints":                ("unstable", None),
+    "team_radio":            ("unstable", None),
+    "technical_innovations": ("unstable", None),
+    "tyre_suppliers":        ("unstable", None),
+}
+
+# The sentence the database carries as `meta.id_stability`. It is written out
+# here rather than assembled in build.py so that the policy and the tables it
+# governs sit on one screen.
+ID_STABILITY_NOTE = (
+    "Integer `id` columns are surrogates, handed out by the build in insert "
+    "order, and are NOT stable between releases except in the tables named by "
+    "meta.id_stability_stable. There the maintainers undertake not to renumber "
+    "them; nothing in the build measures that, because no release is compared "
+    "with the one before it. Join on the natural keys published in "
+    "meta.id_stability_keys - a `?` in one of those marks a column that holds "
+    "NULL, so join it with IS rather than =. A text id is a natural key and "
+    "does not move.")
+
 PROVENANCE = [
     ("verified", 1, "Checked directly against an official FIA or Formula 1 source during database construction. Safe to state as fact and to cite.", 1),
     ("high", 2, "A well-established record, consistently published in official sources over many years. Safe to rely on; cite the official archive if publishing.", 1),
