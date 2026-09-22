@@ -2599,11 +2599,11 @@ a.button.secondary:hover {
    HTML before the app has loaded. It writes them in the app's own shapes — a
    .page with its header, a .section per block, .stats, .fields, .table-wrap,
    .timeline, figure.figure — so everything above draws both halves and there
-   is one design rather than two (VD-01). What is left here is the two shapes
-   that exist only on the static page: the card list of section links under
-   the trail. The trail itself is no longer one of them — the app draws the
-   same one from the same source now (IA-22), so its rules sit with the rest
-   of the page above.
+   is one design rather than two (VD-01). What is left here is the one shape
+   that exists only on the static page: the card list of section links. It
+   was two until IA-22 — the trail was the other, and the app draws the same
+   one from the same source now, so its rules sit with the rest of the page
+   above.
 
    This block was 126 lines. It described a second treatment for the heading,
    the standfirst, every paragraph and every table on the site, and a reader
