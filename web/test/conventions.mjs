@@ -1356,4 +1356,47 @@ describe('what the pages send, and to whom (PD-0)', () => {
     assert.equal(measurement({}).status.length, 2)
     assert.equal(measurement({ CF_BEACON_TOKEN: TOKEN, GOOGLE_SITE_VERIFICATION: VERIFICATION }).status.length, 2)
   })
+
+  /*
+   * Every "nothing ... is sent" the front end publishes, and the subject it
+   * names.
+   *
+   * The two tests above pin IN_THIS_TAB, which is the sentence PD-0 rewrote
+   * when the beacon went in. It was not the only claim on the site. The /data
+   * board card, its prerendered twin and the /data/sql meta description each
+   * said "Nothing is sent anywhere" — an unscoped absolute on pages whose
+   * arrival the beacon counts, so /data contradicted the footer printed
+   * underneath it, and the description went to search engines besides. They
+   * were missed because nothing looked beyond the one constant.
+   *
+   * So the rule is the subject, not the wording: a claim that something is not
+   * sent has to say what. `Nothing you type` is true — the beacon sends the
+   * address and never the query — and `Nothing` alone is not. A new sentence
+   * fails here until it names its subject, which is the only form of this
+   * test that survives the next rewrite of the prose.
+   */
+  const SCOPED = [
+    [/Nothing you type is sent anywhere/, 'the beacon sends the address arrived on, never the statement'],
+  ]
+
+  it('every published claim that something is not sent names what', () => {
+    const unscoped = []
+    for (const file of [...sourceFiles(join(web, 'src'), /\.jsx?$/), join(web, 'scripts', 'prerender.js')]) {
+      // Comments quote the claims this rule replaced, deliberately and at
+      // length; they are the record of why, not something a reader is told.
+      const prose = read(file)
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/^\s*\/\/.*$/gm, '')
+      for (const [claim] of prose.matchAll(/[Nn]othing\b[^.]{0,100}?\b(?:sent|leaves|leave)\b[^.]*\./g)) {
+        const flat = claim.replace(/\s+/g, ' ')
+        if (!SCOPED.some(([pattern]) => pattern.test(flat))) unscoped.push(`${rel(file)}: ${flat}`)
+      }
+    }
+    assert.deepEqual(
+      unscoped,
+      [],
+      `unscoped claim(s) that nothing is sent:\n  ${unscoped.join('\n  ')}\n` +
+        'Name the subject — what you type, what you search for — or add the sentence to SCOPED with the reason it is true.',
+    )
+  })
 })

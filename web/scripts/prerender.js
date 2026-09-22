@@ -2876,7 +2876,7 @@ const page = ({
         trusted for, and what each licence cost or bought.</p>
       <h2>Ask it something</h2>
       <p class="measure">${link('data/sql', 'The SQL console')} runs any read against the whole database in your
-        browser. Nothing is sent anywhere, and a query&rsquo;s address is a link to it.</p>
+        browser. Nothing you type is sent anywhere, and a query&rsquo;s address is a link to it.</p>
       <p class="measure">Where a view exists, start from it. <code>standings</code> keeps a row after every round
         and more than one source&rsquo;s reading of each, so the obvious query over it answers with the season
         several times over. <code>v_standings_final</code> folds both away: the end-of-season rows, one
@@ -2962,7 +2962,7 @@ const page = ({
     path: 'data/sql',
     title: NAMES.sql().title,
     description:
-      'Run your own SQL against the whole database in your browser. Nothing is sent anywhere; the query runs in this tab.',
+      'Run your own SQL against the whole database in your browser. Nothing you type is sent anywhere; the query runs in this tab.',
     trail: TRAIL.sql(),
     onward: ONWARD.sql(),
     body: `

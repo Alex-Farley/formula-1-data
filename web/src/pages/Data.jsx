@@ -269,8 +269,8 @@ function Body({ data }) {
               </span>
             </b>
             <p>
-              Any read against the whole database, in this tab. Nothing is sent anywhere, and a
-              query&rsquo;s address is a link to it.
+              Any read against the whole database, in this tab. Nothing you type is sent
+              anywhere, and a query&rsquo;s address is a link to it.
             </p>
           </Link>
         </div>
