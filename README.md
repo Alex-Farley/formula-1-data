@@ -360,13 +360,18 @@ SELECT key, value FROM meta WHERE key LIKE 'id_stability%';
 ```
 
 An integer id is **unstable between releases** unless its table is named in
-`meta.id_stability_stable` — the <!-- fig:stable_id_tables -->8<!-- /fig -->
-tables whose ids have held across the last four releases and which this release
-undertakes to keep. Everywhere else the id is the build's business: join on the
-**natural key**, the columns that identify the fact rather than the row.
-`verify.py` checks on every build that each published key identifies exactly
-one row, because a key that does not is worse than no key at all — a reader
-joining on it silently doubles their rows instead of failing.
+`meta.id_stability_stable` — the <!-- fig:stable_id_tables -->7<!-- /fig -->
+tables this release undertakes not to renumber. That is an undertaking and not
+yet a measurement: nothing in the build compares a release with the one before
+it, so what keeps it is whoever next changes a loader. Comparing a release with
+its predecessor, and making the unstable tables' insert order deterministic so
+they could be promised too, is separate open work.
+
+Everywhere else the id is the build's business: join on the **natural key**,
+the columns that identify the fact rather than the row. `verify.py` checks on
+every build that each published key identifies exactly one row, because a key
+that does not is worse than no key at all — a reader joining on it silently
+doubles their rows instead of failing.
 
 <!-- fig:id_keys -->
 | Table | `id` | Natural key |
@@ -379,13 +384,13 @@ joining on it silently doubles their rows instead of failing.
 | `governance` | unstable | — |
 | `known_gaps` | unstable | — |
 | `laps` | unstable | — |
-| `pit_stops` | stable | `(race_id, driver_id, stop_number)` |
+| `pit_stops` | stable | `(race_id, source, driver_key, stop_number)` |
 | `points_systems` | unstable | — |
 | `qualifying` | stable | `(race_id, driver_id)` |
 | `race_control_messages` | unstable | — |
 | `race_entries` | stable | `(race_id, driver_id)` |
 | `races` | stable | `(year, round)` |
-| `records` | stable | `(key)` |
+| `records` | unstable | `(key)` |
 | `regulation_changes` | unstable | — |
 | `regulation_limits` | unstable | — |
 | `safety_milestones` | unstable | — |
@@ -395,20 +400,30 @@ joining on it silently doubles their rows instead of failing.
 | `source_patterns` | unstable | — |
 | `source_registry` | unstable | — |
 | `sprint_results` | stable | `(race_id, driver_id)` |
-| `standings` | unstable | `(year, table_type, entity_id, engine_id, as_of, position_text)` |
+| `standings` | unstable | `(year, table_type, entity_id, engine_id?, as_of, position_text?)` |
 | `stints` | unstable | — |
 | `team_radio` | unstable | — |
 | `technical_innovations` | unstable | — |
 | `tyre_suppliers` | unstable | — |
 <!-- /fig -->
 
-`standings` is the one to watch: it is the table a reader is most likely to
-have joined to by id, and a running season's table is reloaded whole, so every
-id in it moves. Its key carries `position_text` because 2018 holds Force India
-twice in the constructors' final classification — the excluded entity on nought
-points and the re-entered one on 52 — which is a fact and not a duplicate.
-Making the insert order of the unstable tables deterministic, so their ids
-could be promised too, is separate open work.
+A `?` marks a key column that holds NULL on some rows. SQLite's `=` is not
+null-safe, so join those with `IS`: `standings.engine_id` is NULL on every
+drivers' row — a driver has no engine, while the constructors' championship is
+contested by a chassis-engine combination — and joining that key with `=`
+silently drops every drivers' row and reports no error at all.
+
+`standings` is the one to watch in general: it is the table a reader is most
+likely to have joined to by id, and a running season's table is reloaded whole,
+so every id in it moves. Its key carries `position_text` because 2018 holds
+Force India twice in the constructors' final classification — the excluded
+entity on nought points and the re-entered one on 52 — which is a fact and not
+a duplicate.
+
+`records` is the cautionary one. Its ids look permanent — a small table,
+rebuilt whole every time — and they are a position in a derived list, so most
+of them moved between v2.21 and v2.23 when a record was added in the middle.
+It is published unstable, with `records.key` as the thing to hold.
 
 A table listed with no natural key has none published yet; treat its ids as
 unstable and read the table whole. `build.py` refuses a table with a surrogate

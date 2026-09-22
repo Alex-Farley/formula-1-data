@@ -730,9 +730,16 @@ SOURCE_LICENCE = {
 #
 # So every table with a surrogate id says which it is:
 #
-#   "stable"    the ids have held across the last four releases, and this
-#               release undertakes to keep them. A reader may store them.
+#   "stable"    this release undertakes not to renumber them. A reader may
+#               store them.
 #   "unstable"  the ids are the build's business. Join on the natural key.
+#
+# "stable" is an UNDERTAKING and not a measurement. Nothing in the build
+# compares a release with the one before it - doing that is the M half of
+# DA-04 - so what keeps the promise is whoever changes a loader reading this
+# comment. Write nothing here that the artefacts do not bear out: `records`
+# was proposed for the stable list and is not on it, because 23 of its 29 ids
+# moved between v2.21 and v2.23.
 #
 # The second element is the NATURAL KEY - the columns that identify the fact
 # rather than the row - or None where none has been established. It is the
@@ -745,28 +752,43 @@ SOURCE_LICENCE = {
 # refuses a source with no licence class. The default for a new table is not
 # "unstable", it is "nobody has decided yet".
 ID_STABILITY = {
-    # The eight whose ids have held. Each natural key is the grain the table
-    # is built at: one row per driver per race, per entrant's chassis-engine
-    # per season, per stop.
+    # The stable ones. Each natural key is the grain the table is built at:
+    # one row per driver per race, per entrant's chassis-engine per season,
+    # per stop.
     "circuit_layouts":       ("stable",   ("circuit_id", "layout_key")),
-    "pit_stops":             ("stable",   ("race_id", "driver_id", "stop_number")),
+    # The table's own UNIQUE, and deliberately not (race_id, driver_id,
+    # stop_number): `source` is 'f1db' on every row of the DISTRIBUTED database
+    # and would look redundant here, but a local F1_LOCAL_TIMING load puts
+    # fastf1 rows beside them, and a published key that duplicates the moment
+    # somebody exercises a supported path is not a key.
+    "pit_stops":             ("stable",   ("race_id", "source", "driver_key",
+                                           "stop_number")),
     "qualifying":            ("stable",   ("race_id", "driver_id")),
     # One row per driver per race even where a driver drove two cars, which
-    # was normal before 1965 - see the shared-drive note in `known_gaps`.
+    # was normal before 1965 - see the `finish_position` row of `known_gaps`.
     "race_entries":          ("stable",   ("race_id", "driver_id")),
     "races":                 ("stable",   ("year", "round")),
-    "records":               ("stable",   ("key",)),
     "season_entrants":       ("stable",   ("year", "entrant_id",
                                            "f1db_constructor_id",
                                            "engine_manufacturer_id")),
     "sprint_results":        ("stable",   ("race_id", "driver_id")),
+
+    # `records.id` is `enumerate(derive_records(cur), 1)` - a position in a
+    # derived list, so inserting one record renumbers every row after it. 23 of
+    # 29 moved between v2.21 and v2.23. The table has a real key and that is
+    # what a reader should hold; the id is the order the build wrote them in.
+    "records":               ("unstable", ("key",)),
 
     # Unstable, and the one a reader is most likely to have joined to: a
     # running season's table is reloaded whole, so every id in it moves. The
     # key needs `position_text` because 2018 holds Force India twice in the
     # constructors' final table - the excluded entity on nought points and
     # the re-entered one on 52 - which is a real fact and not a duplicate.
-    # Making the insert order deterministic is the M half of DA-04.
+    # Making the insert order deterministic is the M half of DA-04. Two of
+    # the six columns hold NULL - `engine_id` on every drivers' row, because a
+    # driver has no engine, and `position_text` on 65 - so this is a key to
+    # join with `IS`, SQLite's null-safe comparison, and not with `=`, which
+    # would drop two thirds of the table in silence. The README marks both.
     "standings":             ("unstable", ("year", "table_type", "entity_id",
                                            "engine_id", "as_of",
                                            "position_text")),

@@ -136,13 +136,30 @@ class Figures:
     def stable_id_tables(self):
         return n(len(self._id_policy()[1]))
 
+    def _nullable(self, table, column):
+        """Whether that key column holds NULL on any row, asked of the rows and
+        not of the schema: `standings.position_text` has no NOT NULL and is
+        filled on all but 65, and it is the ROWS that decide whether a reader
+        joining with `=` loses any."""
+        return bool(self.one(f"SELECT COUNT(*) FROM {table} WHERE {column} IS NULL"))
+
     def id_keys(self):
         # A whole table, header included, so the span can sit on lines of its
         # own: an HTML comment on the same line as a table row is where GitHub
         # stops rendering the table.
+        #
+        # A key column that holds NULL is marked `?`: SQLite's `=` is not
+        # null-safe, so a reader joining `standings` on `=` silently loses
+        # every drivers' row. Computed, so the mark cannot drift from the data.
         tables, stable, keys = self._id_policy()
+
+        def key(t):
+            columns = [c + ("?" if self._nullable(t, c) else "")
+                       for c in keys[t].split(", ")]
+            return "`(" + ", ".join(columns) + ")`"
+
         rows = [f"| `{t}` | {'stable' if t in stable else 'unstable'} | "
-                f"{'`(' + keys[t] + ')`' if t in keys else '—'} |"
+                f"{key(t) if t in keys else '—'} |"
                 for t in tables]
         return "\n".join(["", "| Table | `id` | Natural key |", "|---|---|---|"]
                           + rows) + "\n"
