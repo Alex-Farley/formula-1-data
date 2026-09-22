@@ -2552,6 +2552,32 @@ try {
     await settle()
     is((await tableRows())[0], everyone, 'a value the register does not hold is ignored, not filtered on')
 
+    // The same rule for the sort, which is a column and not a string. The
+    // race index renders its header unsortable — the query's order, run
+    // first and newest first, is the order the page means — so a sort named
+    // in the address there would be an order no control expresses and none
+    // can undo, announced by an aria-sort on a header with no button in it.
+    const firstRace = async (address) => {
+      await page.goto(`${BASE}${address}`, { waitUntil: 'domcontentloaded' })
+      await page.waitForSelector('#root main tbody tr', { timeout: 20000 })
+      await settle()
+      return page.$eval('#root main tbody tr', (node) => node.textContent.trim())
+    }
+    const ordered = await firstRace('/races')
+    is(await firstRace('/races?sort=year&dir=asc'), ordered, 'a table that does not sort ignores a sort in the address')
+    is(await page.$$eval('#root main th[aria-sort]', (nodes) => nodes.length), 0, 'and announces none')
+
+    // A key no header offers is not a reason to throw the register's own
+    // opening sort away: the arrow and the aria-sort stay where they were.
+    await page.goto(`${BASE}/circuits?sort=not-a-column`, { waitUntil: 'domcontentloaded' })
+    await page.waitForSelector('#root main tbody tr', { timeout: 20000 })
+    await settle()
+    is(
+      await page.$eval('#root main th[aria-sort]', (node) => node.getAttribute('aria-sort')),
+      'descending',
+      'and a sort the header does not offer falls back to the one the register opens on',
+    )
+
   })
 
   // ---------------------------------------------------------------- search

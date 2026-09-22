@@ -62,13 +62,36 @@ export default function DataTable({ addressed = false, ...props }) {
 
 function AddressedTable({ sort = null, direction = 'asc', ...props }) {
   const [state, set] = useUrlState({ sort: sort ?? '', dir: direction, all: false })
+
+  /*
+   * A sort is a column, and what arrives from the address is a string.
+   *
+   * `/races` renders its header unsortable — the query's own order, run
+   * first and newest first, is the order the page means — and `?sort=year`
+   * there put the index in an order no control expresses, under an
+   * `aria-sort` on a header with no button inside it to change or clear.
+   * `?sort=` with nothing after it threw a register's opening sort away
+   * just as quietly, taking the arrow and the `aria-sort` with it.
+   *
+   * So the address is read the same way a filter is (`oneOf` in
+   * lib/urlstate.js): a key no header offers, or any key at all on a table
+   * that does not sort, falls back to the table's own opening sort and
+   * direction. The parameter stays in the address, wrong and visible,
+   * rather than the page quietly being wrong.
+   */
+  const offered = (props.sortable === false ? [] : (props.columns ?? []))
+    .map((column) => (typeof column === 'string' ? { key: column } : column))
+    .filter((column) => column.sortable !== false)
+    .map((column) => column.key)
+  const asked = offered.includes(state.sort)
+
   return (
     <Table
       {...props}
-      sort={state.sort || null}
+      sort={asked ? state.sort : sort}
       // A direction is one of two words; anything else typed into the address
       // is not a third option, it is a mistake, and ascending is the default.
-      direction={state.dir === 'desc' ? 'desc' : 'asc'}
+      direction={asked ? (state.dir === 'desc' ? 'desc' : 'asc') : direction}
       showAll={state.all}
       onSort={(key, next) => set({ sort: key, dir: next })}
       onShowAll={() => set({ all: true })}
