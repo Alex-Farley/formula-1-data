@@ -12,7 +12,7 @@ import { span } from '../lib/format.js'
 import { colourForEntry } from '../lib/liveries.js'
 import { oneOf, useUrlState } from '../lib/urlstate.js'
 import { anyThisSeason, gridLabel, seasonOf } from '../lib/season.js'
-import { LANDMARK } from '../lib/site.js'
+import { LANDMARK, NAMES } from '../lib/site.js'
 import { CHASSIS, CHASSIS_COLUMNS, CHASSIS_FOOTER, GALLERY } from '../queries/cars.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
@@ -65,7 +65,8 @@ export default function Cars() {
   const state = useQueries({ gallery: [GALLERY], register: [CHASSIS] })
   return (
     <Page
-      title="Cars"
+      title={NAMES.cars().headline}
+      documentName={NAMES.cars().title}
       trail={TRAIL.cars()}
       lede="Twenty-nine designs with a page of their own, and behind them every chassis with a championship entry — 1,153 of them, most raced by a privateer for a single weekend. Filter the register to race winners, landmark designs, or the ones with a published specification. A blank is a figure nobody published, not a car with no wheelbase."
     >

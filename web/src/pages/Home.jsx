@@ -7,56 +7,52 @@ import LiveryMark from '../components/LiveryMark.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { number } from '../lib/format.js'
 import { colourForEntry } from '../lib/liveries.js'
+import { NAMES } from '../lib/site.js'
 
 import { LATEST } from '../queries/races.js'
 import { ONWARD } from '../lib/wayfinding.js'
-const SHAPE = `
-  SELECT
-    (SELECT COUNT(*) FROM races WHERE status = 'completed') AS races_run,
-    (SELECT COUNT(*) FROM races WHERE status = 'scheduled') AS races_scheduled,
-    (SELECT COUNT(*) FROM race_entries)   AS entries,
-    (SELECT COUNT(*) FROM qualifying)     AS qualifying,
-    (SELECT COUNT(*) FROM standings)      AS standings,
-    (SELECT COUNT(*) FROM pit_stops)      AS pit_stops,
-    (SELECT COUNT(*) FROM drivers)        AS drivers,
-    (SELECT COUNT(*) FROM constructors)   AS constructors,
-    (SELECT COUNT(*) FROM chassis)        AS chassis,
-    (SELECT COUNT(*) FROM circuits)       AS circuits,
-    (SELECT COUNT(*) FROM seasons)        AS seasons,
-    (SELECT COUNT(*) FROM article_images WHERE route = 'article') AS images,
-    (SELECT COUNT(*) FROM discrepancies)  AS discrepancies,
-    (SELECT COUNT(*) FROM v_open_gaps)    AS gaps,
-    (SELECT COUNT(*) FROM circuit_geometry) AS geometry,
-    (SELECT MIN(year) FROM races)         AS from_year,
-    (SELECT MAX(year) FROM races)         AS to_year
-`
-
-const PER_SEASON = `SELECT year, COUNT(*) AS rounds FROM races GROUP BY year ORDER BY year`
-
-const NEXT = `
-  SELECT year, round, name_used, dates
-    FROM races WHERE status = 'scheduled'
-   ORDER BY year, round LIMIT 1
-`
+import {
+  BOARD,
+  BOARD_HEADING,
+  BOARD_NOTE,
+  CHART_HEADING,
+  CHART_TITLE,
+  CLASSIFICATION_LINK,
+  LAST_RACE,
+  LEDE,
+  NEXT,
+  NEXT_RACE,
+  NEXT_SEASON,
+  NOTHING_SCHEDULED,
+  PER_SEASON,
+  READING_HEADING,
+  READING_NOTE,
+  SEASON_LEAD,
+  SEASON_NOW,
+  SHAPE,
+  UNRECORDED_WINNER,
+  WON_BY,
+  WON_FOR,
+  calendarLink,
+  chartLabel,
+  chartNote,
+  reading,
+  stillToRunNote,
+  seasonHeading,
+  seasonComplete,
+  seasonLink,
+  seasonStrip,
+  strip,
+} from '../queries/home.js'
 
 function Board({ shape }) {
-  const cards = [
-    ['/seasons', 'Seasons', shape.seasons, 'Championship tables, calendars and entry lists, year by year.'],
-    ['/races', 'Races', shape.races_run, 'Every classification: grid, finish, status, laps and points.'],
-    ['/drivers', 'Drivers', shape.drivers, 'Look up a career — every entry, season by season.'],
-    ['/constructors', 'Constructors', shape.constructors, 'Team records, the cars they built, and who they became.'],
-    ['/circuits', 'Circuits', shape.circuits, 'Venues, the layouts as they changed, and 25 traced laps.'],
-    ['/cars', 'Cars', shape.chassis, 'The chassis register, with specifications where they exist.'],
-    ['/records', 'Records', null, 'Leaderboards, champions, grand slams and who won each decade.'],
-    ['/data', 'Data', null, 'The database itself: download it, query it, and see how far to trust it.'],
-  ]
   return (
     <div className="board">
-      {cards.map(([to, title, n, blurb]) => (
+      {BOARD.map(({ to, label, count, blurb }) => (
         <Link key={to} to={to}>
           <b>
-            {title}
-            {n ? <span className="n">{number(n)}</span> : null}
+            {label}
+            {count ? <span className="n">{number(shape[count])}</span> : null}
           </b>
           <p>{blurb}</p>
         </Link>
@@ -71,25 +67,25 @@ export default function Home() {
     perSeason: [PER_SEASON],
     latest: [LATEST],
     next: [NEXT],
+    nextSeason: [NEXT_SEASON],
+    now: [SEASON_NOW],
+    lead: [SEASON_LEAD],
   })
 
+  const { headline, title } = NAMES.home()
+
   return (
-    <Page
-      title="Every Formula One race since 1950"
-      lede={
-        <>
-          Seventy-seven seasons of results, grids, championship tables and pit stops — from
-          Silverstone in May 1950 to the calendar still to be run. Search it, sort it, or write your
-          own SQL. It all runs in this tab, so it is quick and nothing you look at is sent anywhere.
-        </>
-      }
-    >
+    <Page title={headline} documentName={title} lede={LEDE}>
       <Result state={state}>
         {(data) => {
           const shape = data.shape.rows[0]
           const seasons = rows(data, 'perSeason')
           const latest = data.latest.rows[0]
           const next = data.next.rows[0]
+          // The season after this one, named only when this one is over.
+          const after = data.nextSeason.rows[0]?.year ?? null
+          const now = data.now.rows[0]
+          const lead = rows(data, 'lead')
           // The winning car's colour (AF-47 clause 1: the constructor is a
           // first-class attribute of the race), in the race's own season, as
           // /races draws it beside the same name. One mark for the sentence,
@@ -109,98 +105,100 @@ export default function Home() {
           return (
             <>
               <Section>
-                <Stats
-                  items={[
-                    { label: 'Races run', value: number(shape.races_run), note: `${shape.from_year}–${shape.to_year}` },
-                    { label: 'Race entries', value: number(shape.entries), note: 'one row per driver per race' },
-                    { label: 'Qualifying rows', value: number(shape.qualifying) },
-                    { label: 'Standings rows', value: number(shape.standings), note: 'after every round' },
-                    { label: 'Pit stops', value: number(shape.pit_stops), note: 'from 1994' },
-                    { label: 'Photographs', value: number(shape.images), note: 'referenced, not stored' },
-                  ]}
-                />
+                <Stats items={strip(shape)} />
               </Section>
 
-              <Section title="The season, at both ends">
-                <div className="split">
-                  <div className="panel">
-                    <p className="eyebrow" style={{ margin: 0 }}>Last race run</p>
-                    {latest ? (
-                      <>
-                        <h3 style={{ margin: '6px 0 2px' }}>
-                          <Link to={`/races/${latest.year}/${latest.round}`}>
-                            {latest.year} {latest.name_used}
-                          </Link>
-                        </h3>
-                        <p className="muted small" style={{ margin: 0 }}>
-                          {[latest.circuit, latest.dates].filter(Boolean).join(' · ')}
-                        </p>
-                        <p style={{ margin: '10px 0 0' }}>
-                          Won by{' '}
-                          {latest.winner_id ? (
-                            <Link to={`/drivers/${latest.winner_id}`}>{latest.winner}</Link>
+              {/* The season being run: what it is up to, who leads it and who
+                  is in the cars (PD-48), then the round either side of today.
+                  scripts/prerender.js draws this same block from the same
+                  module, so the static half opens on it too. */}
+              {now ? (
+                <Section title={seasonHeading(now.year)}>
+                  <Stats items={seasonStrip(now, lead)} />
+                  <div className="split">
+                    <div className="panel round-panel">
+                      <p className="eyebrow">{LAST_RACE}</p>
+                      {latest ? (
+                        <>
+                          <h3>
+                            <Link to={`/races/${latest.year}/${latest.round}`}>
+                              {latest.year} {latest.name_used}
+                            </Link>
+                          </h3>
+                          <p className="muted small">
+                            {[latest.circuit, latest.dates].filter(Boolean).join(' · ')}
+                          </p>
+                          <p>
+                            {WON_BY}
+                            {latest.winner_id ? (
+                              <Link to={`/drivers/${latest.winner_id}`}>{latest.winner}</Link>
+                            ) : (
+                              UNRECORDED_WINNER
+                            )}
+                            {latest.constructor ? (
+                              <>
+                                {WON_FOR}
+                                <LiveryMark colour={winnerColour} />
+                                {latest.constructor_id ? (
+                                  <Link to={`/constructors/${latest.constructor_id}`}>{latest.constructor}</Link>
+                                ) : (
+                                  latest.constructor
+                                )}
+                              </>
+                            ) : null}
+                            .
+                          </p>
+                          <p>
+                            <Link to={`/races/${latest.year}/${latest.round}`}>{CLASSIFICATION_LINK}</Link>
+                          </p>
+                        </>
+                      ) : null}
+                    </div>
+                    <div className="panel round-panel">
+                      <p className="eyebrow">{NEXT_RACE}</p>
+                      {next ? (
+                        <>
+                          <h3>
+                            <Link to={`/races/${next.year}/${next.round}`}>
+                              {next.year} {next.name_used}
+                            </Link>
+                          </h3>
+                          <p className="muted small">
+                            {next.dates} · round {next.round}
+                          </p>
+                          <p className="muted">{stillToRunNote(now)}</p>
+                          <p>
+                            <Link to={`/seasons/${next.year}`}>{calendarLink(next.year)}</Link>
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="muted">{seasonComplete(now.year)}</p>
+                          {after ? (
+                            <p>
+                              <Link to={`/seasons/${after}`}>{calendarLink(after)}</Link>
+                            </p>
                           ) : (
-                            'an unrecorded driver'
+                            <p className="muted">{NOTHING_SCHEDULED}</p>
                           )}
-                          {latest.constructor ? (
-                            <>
-                              {' for '}
-                              <LiveryMark colour={winnerColour} />
-                              {latest.constructor_id ? (
-                                <Link to={`/constructors/${latest.constructor_id}`}>{latest.constructor}</Link>
-                              ) : (
-                                latest.constructor
-                              )}
-                            </>
-                          ) : null}
-                          .
-                        </p>
-                        <p style={{ margin: '10px 0 0' }}>
-                          <Link to={`/races/${latest.year}/${latest.round}`}>
-                            See the full classification →
-                          </Link>
-                        </p>
-                      </>
-                    ) : null}
+                        </>
+                      )}
+                    </div>
                   </div>
-                  <div className="panel">
-                    <p className="eyebrow" style={{ margin: 0 }}>Next on the calendar</p>
-                    {next ? (
-                      <>
-                        <h3 style={{ margin: '6px 0 2px' }}>
-                          <Link to={`/races/${next.year}/${next.round}`}>
-                            {next.year} {next.name_used}
-                          </Link>
-                        </h3>
-                        <p className="muted small" style={{ margin: 0 }}>
-                          {next.dates} · round {next.round}
-                        </p>
-                        <p className="muted" style={{ margin: '10px 0 0' }}>
-                          {number(shape.races_scheduled)} races on the calendar have not been run
-                          yet, so they carry no result.
-                        </p>
-                        <p style={{ margin: '10px 0 0' }}>
-                          <Link to={`/seasons/${next.year}`}>Open the {next.year} calendar →</Link>
-                        </p>
-                      </>
-                    ) : (
-                      <p className="muted">Nothing scheduled beyond the last recorded race.</p>
-                    )}
-                  </div>
-                </div>
-              </Section>
+                  <p className="season-more">
+                    <Link to={`/seasons/${now.year}`}>{seasonLink(now.year)}</Link>
+                  </p>
+                </Section>
+              ) : null}
 
-              <Section
-                title="Where to start"
-                note="Or press / from anywhere to jump straight to a driver, team, circuit, car, season or race."
-              >
+              <Section title={BOARD_HEADING} note={BOARD_NOTE}>
                 <Board shape={shape} />
               </Section>
 
-              <Section title="The shape of the championship">
+              <Section title={CHART_HEADING}>
                 <Figure
-                  title="Championship races per season"
-                  note="Seven rounds in 1950; twenty-four by 2025. The 2026 and 2027 columns are calendars, not sets of results."
+                  title={CHART_TITLE}
+                  note={chartNote(seasons)}
                   table={{
                     rows: seasons,
                     columns: [
@@ -213,44 +211,23 @@ export default function Home() {
                     data={seasons.map((s) => ({ key: s.year, value: s.rounds, label: s.year % 10 === 0 ? s.year : '' }))}
                     labelEvery={1}
                     height={200}
-                    label="Number of championship races in each season from 1950 to 2027"
+                    label={chartLabel(shape)}
                   />
                 </Figure>
               </Section>
 
-              <Section
-                title="Reading the numbers here"
-                note="Four things worth knowing before you quote anything off this site."
-              >
+              <Section title={READING_HEADING} note={READING_NOTE}>
                 <div className="grid">
-                  <div className="panel">
-                    <b>A blank means unknown.</b>
-                    <p className="muted small" style={{ margin: '6px 0 0' }}>
-                      An em dash is a figure nobody has established — never a zero, never a
-                      plausible guess.
-                    </p>
-                  </div>
-                  <div className="panel">
-                    <b>Disagreements are shown, not settled.</b>
-                    <p className="muted small" style={{ margin: '6px 0 0' }}>
-                      Where two sources conflict you see both. There are{' '}
-                      <Link to="/data/quality">{number(shape.discrepancies)} on record</Link>.
-                    </p>
-                  </div>
-                  <div className="panel">
-                    <b>Every row says how solid it is.</b>
-                    <p className="muted small" style={{ margin: '6px 0 0' }}>
-                      Verified, high, reference, medium or unverified — only an official source
-                      reaches the top. Photographs have a sixth rung below those.
-                    </p>
-                  </div>
-                  <div className="panel">
-                    <b>The gaps are published too.</b>
-                    <p className="muted small" style={{ margin: '6px 0 0' }}>
-                      <Link to="/data/quality">{number(shape.gaps)} open gaps</Link> — what is
-                      missing, why, and what would close it.
-                    </p>
-                  </div>
+                  {reading(shape).map(({ head, body, link }) => (
+                    <div className="panel convention" key={head}>
+                      <b>{head}</b>
+                      <p className="muted small">
+                        {body[0]}
+                        {link ? <Link to={link.to}>{link.text}</Link> : null}
+                        {body[1] ?? ''}
+                      </p>
+                    </div>
+                  ))}
                 </div>
               </Section>
 

@@ -3504,6 +3504,78 @@ try {
     }
   })
 
+  /*
+   * One h1 and one title per route, whichever renderer drew it (PD-40).
+   *
+   * Nine of eighteen sampled routes disagreed when this was written: the home
+   * page was a different page in each half, 1,196 race pages dropped the year
+   * at the handover and 78 season pages collapsed to the bare year. The
+   * headings now come from NAMES in src/lib/site.js, which both halves read,
+   * and this is what holds them there - one route per kind of page, since the
+   * kind is what carries a heading and not the row behind it.
+   *
+   * The static half is read from the server rather than from the app's own
+   * DOM, and the app's is read after the handover, so this compares the two
+   * documents a reader actually gets.
+   */
+  await section('Both renderers name the page the same way', async () => {
+    const ROUTES = [
+      '/',
+      '/seasons',
+      '/seasons/2026',
+      // The two page STATES the kinds above do not reach: a season whose
+      // rounds have all still to be run, and a round with no result yet.
+      '/seasons/2027',
+      '/races',
+      '/races/1976/9',
+      '/races/2027/1',
+      '/drivers',
+      '/drivers/senna',
+      '/constructors',
+      '/constructors/ferrari',
+      '/circuits',
+      '/circuits/monza',
+      '/cars',
+      '/cars/lotus-72',
+      '/records',
+      '/reference/eras',
+      '/reference/glossary',
+      '/data',
+      '/data/quality',
+      '/data/sources',
+      '/data/sql',
+      '/about',
+      '/changes',
+    ]
+    const flat = (value) => unescaped(value).replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()
+    const wrong = []
+    for (const route of ROUTES) {
+      const html = await (await fetch(`${BASE}${route}`)).text()
+      const served = {
+        title: flat((html.match(/<title>([\s\S]*?)<\/title>/) ?? ['', ''])[1]),
+        h1: flat(
+          (html.split('<div id="prerendered">')[1]?.match(/<h1[^>]*>([\s\S]*?)<\/h1>/) ?? ['', ''])[1],
+        ),
+      }
+      await go(route)
+      const app = await page.evaluate(() => ({
+        title: document.title,
+        h1: document.querySelector('#root main h1')?.textContent.replace(/\s+/g, ' ').trim() ?? '',
+      }))
+      if (!served.h1) wrong.push(`${route}: the static page opens on no h1`)
+      else if (!app.h1) wrong.push(`${route}: the app opens on no h1`)
+      else if (app.h1 !== served.h1) wrong.push(`${route}: h1 \u2014 app \u201c${app.h1}\u201d, static \u201c${served.h1}\u201d`)
+      else if (app.title !== served.title)
+        wrong.push(`${route}: title \u2014 app \u201c${app.title}\u201d, static \u201c${served.title}\u201d`)
+    }
+    if (wrong.length === 0) {
+      pass(`all ${ROUTES.length} routes carry one h1 and one document title across both renderers`)
+    } else {
+      for (const message of wrong.slice(0, 6)) fail(message)
+      if (wrong.length > 6) fail(`\u2026and ${wrong.length - 6} more`)
+    }
+  })
+
   await section('Static tables are the app’s tables', async () => {
     {
       // esc() in prerender.js writes exactly these five entities, and the

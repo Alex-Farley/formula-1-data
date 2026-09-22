@@ -9,6 +9,7 @@ import { GLOSSARY, GLOSSARY_COLUMNS, PERSONNEL, PERSONNEL_COLUMNS } from '../que
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
 import { oneOf, useUrlState } from '../lib/urlstate.js'
+import { NAMES } from '../lib/site.js'
 const SPEC = {
   glossary: [GLOSSARY],
   personnel: [PERSONNEL],
@@ -24,7 +25,8 @@ export default function Glossary() {
 
   return (
     <Page
-      title="Glossary and people"
+      title={NAMES.glossary().headline}
+      documentName={NAMES.glossary().title}
       trail={TRAIL.glossary()}
       lede="What the words on a classification actually mean — and the designers, administrators and team principals whose decisions are behind most of the rest of this site."
     >

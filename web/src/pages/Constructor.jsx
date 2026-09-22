@@ -29,6 +29,7 @@ import {
 } from '../queries/constructor.js'
 
 import { ONWARD, TRAIL, lastSeasonOf } from '../lib/wayfinding.js'
+import { NAMES } from '../lib/site.js'
 /*
  * The React renders for the columns queries/constructor.js defines — the
  * links and the sort keys; the router is the reason they live here. The words
@@ -137,7 +138,7 @@ function ConstructorBody({ constructor, data }) {
   return (
     <Page
       eyebrow="Constructor"
-      title={constructor.name}
+      title={NAMES.constructor(constructor.name).headline}
       trail={TRAIL.constructor(constructor.id, constructor.name)}
       lede={constructor.notes}
       aside={

@@ -11,6 +11,7 @@ import { colourFor } from '../lib/racingColours.js'
 import { CONSTRUCTORS, CONSTRUCTOR_COLUMNS, CONSTRUCTORS_FOOTER } from '../queries/constructors.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
+import { NAMES } from '../lib/site.js'
 /**
  * The React renders for the columns queries/constructors.js defines — the
  * racing-colour swatch, the links, a title attribute; the router is the
@@ -44,7 +45,8 @@ export default function Constructors() {
   const state = useQuery(CONSTRUCTORS)
   return (
     <Page
-      title="Constructors"
+      title={NAMES.constructors().headline}
+      documentName={NAMES.constructors().title}
       trail={TRAIL.constructors()}
       lede="A hundred and fifty constructors, from the ones that defined an era to the ones that entered a handful of races and disappeared. Sorted by race entries, with alphabetical a click away: filter by country, or narrow to race winners, champions and this season’s grid. Each page carries the team’s record, the cars it built, and the names it raced under before and after."
     >

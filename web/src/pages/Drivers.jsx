@@ -10,6 +10,7 @@ import { oneOf, useUrlState } from '../lib/urlstate.js'
 import { DRIVERS, DRIVER_COLUMNS } from '../queries/drivers.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
+import { NAMES } from '../lib/site.js'
 /**
  * What only the app adds to the shared column list: the link on a name, the
  * sort key behind the Seasons span, the title years behind a titles count.
@@ -29,7 +30,8 @@ export default function Drivers() {
   const state = useQuery(DRIVERS)
   return (
     <Page
-      title="Drivers"
+      title={NAMES.drivers().headline}
+      documentName={NAMES.drivers().title}
       trail={TRAIL.drivers()}
       lede="Every driver the championship has recorded an entry for, from 1950 to now. Filter by nationality, narrow to champions or race winners, then open anyone for their full career, season by season."
     >

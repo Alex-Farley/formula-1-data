@@ -11,7 +11,7 @@ import { colourForEntry } from '../lib/liveries.js'
 import { OUTLINE_FIGURES_NOTE, OUTLINE_RULE, OUTLINE_SCALE_NOTE, outlineCaption } from '../lib/outline.js'
 import { TRACE_NOT_LOADED, TRACE_RULE, noTrace, odblCredit } from '../lib/trace.js'
 
-import { NOT_YET_RUN } from '../lib/site.js'
+import { NAMES, NOT_YET_RUN } from '../lib/site.js'
 import {
   CIRCUIT,
   GEOMETRY,
@@ -127,7 +127,7 @@ function CircuitBody({ circuit, data }) {
   return (
     <Page
       eyebrow={[circuit.locality, circuit.country].filter(Boolean).join(', ')}
-      title={circuit.name}
+      title={NAMES.circuit(circuit.name).headline}
       trail={TRAIL.circuit(circuit.id, circuit.name)}
       lede={circuit.notes}
     >

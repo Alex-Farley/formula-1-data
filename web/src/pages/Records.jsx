@@ -30,6 +30,7 @@ import {
   tiersOf, RECORDS_LEDE } from '../queries/records.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
+import { NAMES } from '../lib/site.js'
 /**
  * What only the app adds to the shared column lists: the links. The queries
  * and the columns are in queries/records.js, read by scripts/prerender.js
@@ -73,7 +74,8 @@ export default function Records() {
 
   return (
     <Page
-      title="Records"
+      title={NAMES.records().headline}
+      documentName={NAMES.records().title}
       trail={TRAIL.records()}
       lede="Who has the most of everything: wins, poles, titles, grand slams, and the decade each of them owned. The records at the top are derived from the same tables as the leaderboards below on every build; the leaderboards are counted from the race records as this page loads."
     >

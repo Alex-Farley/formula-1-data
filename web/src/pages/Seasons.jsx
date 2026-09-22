@@ -5,7 +5,7 @@ import DataTable, { cell } from '../components/DataTable.jsx'
 import LiveryMark from '../components/LiveryMark.jsx'
 import { useQuery } from '../data/useQuery.js'
 import { colourForEntry } from '../lib/liveries.js'
-import { NOT_YET_RUN, SO_FAR } from '../lib/site.js'
+import { NAMES, NOT_YET_RUN, SO_FAR } from '../lib/site.js'
 import { SEASONS, SEASONS_COLUMNS, SEASON_LIST_FOOTER } from '../queries/seasons.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
@@ -99,7 +99,8 @@ export default function Seasons() {
 
   return (
     <Page
-      title="Seasons"
+      title={NAMES.seasons().headline}
+      documentName={NAMES.seasons().title}
       trail={TRAIL.seasons()}
       lede="Seventy-seven championships, newest first. Pick a year for its calendar, the title race round by round, and the final tables — or sort this list by any column to find the closest finishes and the biggest walkovers."
     >

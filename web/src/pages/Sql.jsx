@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { SELF_DESCRIBING, TIMING_EMPTY_TABLES, TWO_FILES, timingEmpty } from '../lib/site.js'
+import { NAMES, SELF_DESCRIBING, TIMING_EMPTY_TABLES, timingEmpty, TWO_FILES } from '../lib/site.js'
 import { bare, emptyTimingTableRead } from '../lib/sql.js'
 import { Note, Onward, Page, Section } from '../components/Page.jsx'
 import { ErrorBox, Loading } from '../components/States.jsx'
@@ -277,7 +277,8 @@ export default function Sql() {
 
   return (
     <Page
-      title="SQL console"
+      title={NAMES.sql().headline}
+      documentName={NAMES.sql().title}
       trail={TRAIL.sql()}
       lede="Every page on this site is a query against one SQLite file. Here you write your own. Start from an example on the right, or open a table below for its columns and its commented schema — then run it with ⌘/Ctrl + Enter."
     >
