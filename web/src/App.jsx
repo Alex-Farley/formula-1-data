@@ -7,6 +7,7 @@ import ThemeToggle from './components/Theme.jsx'
 import { currentProgress } from './data/client.js'
 import { useQuery } from './data/useQuery.js'
 import { OUTLINE_CREDIT } from './lib/outline.js'
+import { CHECKED_LABEL, LAST_CHECKED } from './lib/refresh.js'
 import {
   COUNTED_TOTALS,
   IN_THIS_TAB,
@@ -207,6 +208,12 @@ function Footer() {
           <dd>v{manifest?.version ?? '—'}</dd>
           <dt>Built</dt>
           <dd>{manifest?.built ?? '—'}</dd>
+          {/* When the pipeline last looked, beside when the data last moved.
+              A build date alone cannot tell a quiet week from a dead refresh
+              (SD-25); this is a committed source constant rather than a row
+              in meta, because BUILT is deliberately not a clock [D-01]. */}
+          <dt>{CHECKED_LABEL}</dt>
+          <dd>{LAST_CHECKED}</dd>
           <dt>Digest</dt>
           <dd>
             <code>{manifest?.digest ?? '—'}</code>
