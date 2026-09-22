@@ -2669,7 +2669,15 @@ const page = ({
         trusted for, and what each licence cost or bought.</p>
       <h2>Ask it something</h2>
       <p class="measure">${link('data/sql', 'The SQL console')} runs any read against the whole database in your
-        browser. Nothing is sent anywhere, and a query&rsquo;s address is a link to it.</p>`,
+        browser. Nothing is sent anywhere, and a query&rsquo;s address is a link to it.</p>
+      <p class="measure">Where a view exists, start from it. <code>standings</code> keeps a row after every round
+        and more than one source&rsquo;s reading of each, so the obvious query over it answers with the season
+        several times over. <code>v_standings_final</code> folds both away: the end-of-season rows, one
+        source&rsquo;s reading of each entrant. What it does not fold is the constructors&rsquo;
+        championship&rsquo;s own grain &mdash; Cooper-Climax and Cooper-Maserati are two 1960 entries and not
+        one &mdash; so count that side on <code>entity_id</code> and <code>engine_id</code> together. The
+        console&rsquo;s schema panel prints the commented schema of every table and view, which is where each
+        column says what it means.</p>`,
     })
   }
 

@@ -10,8 +10,17 @@ import { query, queryReadOnly } from '../data/client.js'
 import { number } from '../lib/format.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
+// `m.sql` alongside the column names, because the column names are the half
+// of the schema that cannot warn anybody. The comments in the DDL are where
+// this database says what a column means — that `standings.after_round IS
+// NULL` is the end-of-season classification and not the last round, that a
+// NULL `position` is an exclusion rather than a gap. The page already tells
+// the reader to run `SELECT sql FROM sqlite_master` for the commented schema
+// (SELF_DESCRIBING, in the paragraph below the note); the panel beside it
+// printed only `pragma_table_info`, so the warning was one query away from
+// the reader who most needed it.
 const SCHEMA = `
-  SELECT m.type, m.name,
+  SELECT m.type, m.name, m.sql,
          (SELECT group_concat(p.name, ', ') FROM pragma_table_info(m.name) p) AS columns
     FROM sqlite_master m
    WHERE m.type IN ('table', 'view') AND m.name NOT LIKE 'sqlite_%'
@@ -28,6 +37,16 @@ const EXAMPLES = [
   GROUP BY e.driver_id
   ORDER BY pole_to_win DESC
   LIMIT 15`,
+  ],
+  [
+    "The drivers' championship as it stands",
+    `SELECT position, entity AS driver, team, points
+   -- standings keeps a row after every round, and more than one source's
+   -- reading of each; this view is the fold — one row per driver per season.
+   FROM v_standings_final
+  WHERE table_type = 'drivers'
+    AND year = (SELECT CAST(value AS INTEGER) FROM meta WHERE key = 'current_season')
+  ORDER BY position`,
   ],
   [
     'The races two drivers both won',
@@ -108,6 +127,61 @@ function complain(sql) {
     return 'That pragma can change how later queries behave, and a pragma is not undone by the rollback. Introspection pragmas (table_info, index_list, foreign_key_list and the like) are fine.'
   }
   return null
+}
+
+/**
+ * One table or view in the schema panel: its columns, then the DDL the
+ * database itself holds.
+ *
+ * The DDL is scrolled sideways rather than wrapped. These comments are written
+ * against the column they annotate — `after_round`'s is the one that explains
+ * why the obvious standings query answers with the season several times over —
+ * and wrapping a CREATE TABLE (65 lines, for `drivers`) into a 220-pixel column
+ * folds every trailing comment back to the left margin, where it reads as if it
+ * belonged to the next column instead.
+ *
+ * A scrolling region has to be reachable without a pointer, and only while
+ * there is something to scroll to: a tab stop on a block that fits is noise.
+ * That is DataTable's rule for `.table-scroll`, and the same measurement, with
+ * the tab stop on the scrolling div rather than on the <pre>. A closed
+ * <details> lays nothing out, so the width is not knowable until it opens —
+ * which is a resize, and what the observer is watching for.
+ */
+function SchemaEntry({ entry }) {
+  const box = useRef(null)
+  const [clipped, setClipped] = useState(false)
+  const empty = TIMING_EMPTY_TABLES.includes(entry.name)
+
+  useEffect(() => {
+    const el = box.current
+    if (!el) return undefined
+    const check = () => setClipped(el.scrollWidth > el.clientWidth)
+    check()
+    const watch = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(check)
+    watch?.observe(el)
+    return () => watch?.disconnect()
+  }, [])
+
+  return (
+    <details>
+      <summary>
+        <code>{entry.name}</code>
+        {empty && <span className="pill">empty by design</span>}
+        <span className="rows">{entry.type}</span>
+      </summary>
+      <p className="cols">{entry.columns}</p>
+      {entry.sql && (
+        <div className="ddl" ref={box} tabIndex={clipped ? 0 : undefined}>
+          <pre>{entry.sql}</pre>
+        </div>
+      )}
+      {empty && (
+        <p className="small faint" style={{ margin: '0 0 8px', paddingLeft: 14 }}>
+          {timingEmpty(entry.name)} <Link to="/data">Why this is so</Link>.
+        </p>
+      )}
+    </details>
+  )
 }
 
 export default function Sql() {
@@ -205,7 +279,7 @@ export default function Sql() {
     <Page
       title="SQL console"
       trail={TRAIL.sql()}
-      lede="Every page on this site is a query against one SQLite file. Here you write your own. Start from an example on the right, or open a table below to see its columns — then run it with ⌘/Ctrl + Enter."
+      lede="Every page on this site is a query against one SQLite file. Here you write your own. Start from an example on the right, or open a table below for its columns and its commented schema — then run it with ⌘/Ctrl + Enter."
     >
       <SubNav />
 
@@ -332,21 +406,7 @@ export default function Sql() {
           <Section title="Schema" count={`${schema.length}`}>
             <div className="panel schema-list">
               {schema.map((entry) => (
-                <details key={entry.name}>
-                  <summary>
-                    <code>{entry.name}</code>
-                    {TIMING_EMPTY_TABLES.includes(entry.name) && (
-                      <span className="pill">empty by design</span>
-                    )}
-                    <span className="rows">{entry.type}</span>
-                  </summary>
-                  <p className="cols">{entry.columns}</p>
-                  {TIMING_EMPTY_TABLES.includes(entry.name) && (
-                    <p className="small faint" style={{ margin: '0 0 8px', paddingLeft: 14 }}>
-                      {timingEmpty(entry.name)} <Link to="/data">Why this is so</Link>.
-                    </p>
-                  )}
-                </details>
+                <SchemaEntry key={entry.name} entry={entry} />
               ))}
             </div>
           </Section>
