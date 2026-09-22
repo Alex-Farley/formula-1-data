@@ -114,8 +114,27 @@
   --sans: 'Saira', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif;
   --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-  /* rhythm */
-  --measure: 68ch;
+  /*
+   * rhythm
+   *
+   * --measure is a line length, and `ch` is not a character: it is the
+   * advance of the digit zero, which in Saira is 10.74px against an average
+   * character advance of 7.36px at 16px - 46% wider. So 68ch did not set 68
+   * characters, it set 730px, and the rendered ledes measured 89-105
+   * characters per line, well past the 45-75 a measure is for.
+   *
+   * 46ch was chosen by counting characters on the rendered line rather than
+   * by dividing, across the ledes on /, /data/quality, /reference/eras and
+   * /records and the notes on /data/quality: median 65, longest 76. The
+   * arithmetic route says 50ch, and it overshoots - 50ch measures a median
+   * 71 and a longest 83.
+   *
+   * The token is in `ch` and not `px` because it is applied at five type
+   * sizes (16px ledes down to 12.5px source notes), and `ch` scales with
+   * them, holding the character count roughly constant where a px value
+   * would not.
+   */
+  --measure: 46ch;
   --page: 1280px;
   --radius: 3px;
   --radius-sm: 2px;
