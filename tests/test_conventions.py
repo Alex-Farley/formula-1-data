@@ -459,3 +459,88 @@ class TheVerdictContractIsWhereTheAgentReads(unittest.TestCase):
         self.assertTrue("spawn the pass again" in skill,
                         "the item procedure names the verdict lines without saying what to do "
                         "when a result does not lead with one; a fork then interprets (D-37)")
+
+
+class TheCitationStaysInStepWithTheRepository(unittest.TestCase):
+    """CITATION.cff states a version, a release date and three licences, and
+    GitHub renders a "Cite this repository" button from them. Nothing in the
+    build reads that file back, so a VERSION bump or a licence change that
+    left it behind would publish a citation describing a repository that no
+    longer exists, and no check would notice — the failure mode the README's
+    figure spans exist to stop. These are that check (SD-27)."""
+
+    # SPDX id -> (the file that must still offer it, the string it says it in).
+    # A licence named in the citation and nowhere in the licence files is a
+    # claim about terms this repository does not actually offer.
+    LICENCES = {
+        "MIT": ("LICENSE", "MIT License"),
+        "CC-BY-SA-4.0": ("LICENSE-DATA", "CC BY-SA 4.0"),
+        "ODbL-1.0": ("LICENSE-DATA", "ODbL 1.0"),
+    }
+
+    def scalars(self):
+        """The unindented `key: value` lines of CITATION.cff.
+
+        A hand parser rather than PyYAML, because the build is
+        standard-library only and `make test` has to run on a clean clone.
+        It reads only top-level scalars, which is all this test asserts on;
+        list entries and block-scalar continuations are indented, so the
+        first-character rule skips them.
+        """
+        out = {}
+        for line in read("CITATION.cff").splitlines():
+            if not line or line[0] in " #-":
+                continue
+            m = re.match(r"^([A-Za-z0-9-]+):\s*(.*)$", line)
+            if m:
+                out[m.group(1)] = m.group(2).strip().strip("\"'")
+        return out
+
+    def items_under(self, key):
+        """The `- value` entries indented under a top-level key."""
+        out, inside = [], False
+        for line in read("CITATION.cff").splitlines():
+            if re.match(rf"^{key}:\s*$", line):
+                inside = True
+                continue
+            if inside:
+                m = re.match(r"^\s+-\s*(\S.*)$", line)
+                if m:
+                    out.append(m.group(1).strip().strip("\"'"))
+                elif line and not line[0].isspace():
+                    break
+        return out
+
+    def build_constant(self, name):
+        m = re.search(rf'^{name} = "([^"]+)"$', read("build.py"), re.M)
+        self.assertIsNotNone(m, f"{name} is no longer a quoted literal in build.py")
+        return m.group(1)
+
+    def test_the_required_citation_keys_are_present(self):
+        cff = self.scalars()
+        for key in ("cff-version", "message", "title", "authors", "type"):
+            self.assertIn(key, cff, f"CITATION.cff has no {key}; GitHub renders no "
+                                    "citation from a file missing a required key")
+
+    def test_the_version_is_the_version_the_build_publishes(self):
+        self.assertEqual(self.scalars().get("version"), self.build_constant("VERSION"),
+                         "CITATION.cff's version and VERSION in build.py disagree, so the "
+                         "citation GitHub offers names a version this repository does not build")
+
+    def test_the_release_date_is_the_date_the_database_was_built(self):
+        self.assertEqual(self.scalars().get("date-released"), self.build_constant("BUILT"),
+                         "CITATION.cff's date-released and BUILT in build.py disagree, so the "
+                         "citation dates a build that did not happen on that day")
+
+    def test_every_licence_cited_is_one_the_repository_offers(self):
+        cited = self.items_under("license")
+        self.assertEqual(sorted(cited), sorted(self.LICENCES),
+                         "CITATION.cff's licence list and the repository's licence files "
+                         "disagree; the citation is what a reader copies, so it may not "
+                         "name terms LICENSE and LICENSE-DATA do not offer, and may not "
+                         "drop one they do — dropping ODbL-1.0 would state that the "
+                         "OpenStreetMap centrelines are offered under the other two")
+        for spdx in cited:
+            rel, says = self.LICENCES[spdx]
+            self.assertIn(says, read(rel), f"CITATION.cff cites {spdx} but {rel} no longer "
+                                           f"says {says!r}")

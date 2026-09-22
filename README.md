@@ -91,6 +91,7 @@ here is a number the build checked.
 | `CONTRIBUTING.md` | How to add data without breaking the checks. Read before editing. |
 | `ATTRIBUTION.md` | Where the data came from, and the licensing that follows from it. Served at `lapledger.org/ATTRIBUTION.md`, beside the data it covers. |
 | `LICENSE-DATA`, `LICENSE` | The terms the data is offered under (CC BY-SA 4.0) and the terms the code is. `LICENSE-DATA` is served at `lapledger.org/LICENSE-DATA`. |
+| `CITATION.cff` | The citation for the database, in Citation File Format. GitHub renders a *Cite this repository* button from it; its version, build date and licence list are checked against `build.py` and the licence files by `tests/test_conventions.py`. |
 | `Makefile` | `make all` = build, regenerate the README figures, verify, export. |
 | `requirements.txt` | Empty for the database itself; `fastf1` only for the loader. |
 
@@ -110,6 +111,17 @@ without them. The centrelines are ODbL instead, stated in `f1-geometry.db`'s
 own `meta` and in `LICENSE-DATA`'s *Circuit geometry* section. `LICENSE-DATA`
 enumerates the files it covers and `f1-parquet.zip` is not among them — `SD-22`
 (#410) has that gap.
+
+**Citing it.** `CITATION.cff` at the repository root is the citation for
+the database, and GitHub renders a *Cite this repository* button from it in
+BibTeX and APA. The version and the build date in it are not copied by hand:
+`tests/test_conventions.py` fails the build when they drift from `VERSION`
+and `BUILT`, and its licence list has to stay the three the licence files
+actually offer. To cite a figure read on the site, use the line at the foot
+of that page instead — it names the SHA-256 digest of the exact database file
+the page was built from, and a version and a build date together can name
+more than one. There is no DOI: nobody has minted one, and `CITATION.cff`
+will carry it when somebody does.
 
 **What no licence allows.** Nobody publishes Formula One race timing under a
 licence that permits passing it on, so this database holds none: `laps`,
