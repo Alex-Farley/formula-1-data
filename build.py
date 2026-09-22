@@ -40,6 +40,11 @@ DB = os.path.join(HERE, "f1.db")
 # should have been gated on the build. The fragment is what verify.py would
 # then check and what git status would then offer.
 BUILD_DB = DB + ".tmp"
+
+# Bumping this for a release means bumping `version` in CITATION.cff too:
+# that is the citation GitHub hands a reader, nothing downstream reads it
+# back, and a citation naming a version this repository does not build is
+# invisible. tests/test_conventions.py fails the build when the two drift.
 VERSION = "2.24"
 
 # The build date, as a CONSTANT and deliberately not date.today().

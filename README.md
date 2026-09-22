@@ -91,7 +91,7 @@ here is a number the build checked.
 | `CONTRIBUTING.md` | How to add data without breaking the checks. Read before editing. |
 | `ATTRIBUTION.md` | Where the data came from, and the licensing that follows from it. Served at `lapledger.org/ATTRIBUTION.md`, beside the data it covers. |
 | `LICENSE-DATA`, `LICENSE` | The terms the data is offered under (CC BY-SA 4.0) and the terms the code is. `LICENSE-DATA` is served at `lapledger.org/LICENSE-DATA`. |
-| `CITATION.cff` | The citation for the database, in Citation File Format. GitHub renders a *Cite this repository* button from it; its version, build date and licence list are checked against `build.py` and the licence files by `tests/test_conventions.py`. |
+| `CITATION.cff` | The citation for the database, in Citation File Format. GitHub renders a *Cite this repository* button from it; its `version` is checked against `build.py` by `tests/test_conventions.py`, and the licence and release date it deliberately does not state are argued in the file. |
 | `Makefile` | `make all` = build, regenerate the README figures, verify, export. |
 | `requirements.txt` | Empty for the database itself; `fastf1` only for the loader. |
 
@@ -114,14 +114,16 @@ enumerates the files it covers and `f1-parquet.zip` is not among them — `SD-22
 
 **Citing it.** `CITATION.cff` at the repository root is the citation for
 the database, and GitHub renders a *Cite this repository* button from it in
-BibTeX and APA. The version and the build date in it are not copied by hand:
-`tests/test_conventions.py` fails the build when they drift from `VERSION`
-and `BUILT`, and its licence list has to stay the three the licence files
-actually offer. To cite a figure read on the site, use the line at the foot
-of that page instead — it names the SHA-256 digest of the exact database file
-the page was built from, and a version and a build date together can name
-more than one. There is no DOI: nobody has minted one, and `CITATION.cff`
-will carry it when somebody does.
+BibTeX and APA. Its `version` is not copied by hand: `tests/test_conventions.py`
+fails the build when it drifts from `VERSION`. It states no licence, because
+the Citation File Format reads a list of them as *or* — naming all three this
+repository holds would offer every part of it under any one, MIT included —
+and the terms are in `LICENSE`, `LICENSE-DATA` and `ATTRIBUTION.md` already.
+To cite a figure read on the site, use the line at the foot of that page
+instead: it names the first sixteen hex digits of the SHA-256 of the exact
+database file the page was built from, and a version and a build date
+together can name more than one. There is no DOI — nobody has minted one,
+and `CITATION.cff` will carry it when somebody does.
 
 **What no licence allows.** Nobody publishes Formula One race timing under a
 licence that permits passing it on, so this database holds none: `laps`,

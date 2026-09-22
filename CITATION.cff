@@ -1,23 +1,44 @@
 # Citation File Format 1.2.0 — https://citation-file-format.github.io
 #
 # WHY THIS EXISTS
-#     Every citation this project invites resolved to lapledger.org, which is
+#     Every citation this project invited resolved to lapledger.org, which is
 #     one domain registration. A reader who wants to cite the database — a
 #     journalist, a Wikipedia editor arguing WP:RS, anyone filing a figure
 #     they may have to defend later — had no citation to copy and nothing
 #     naming the work apart from the page they were on. GitHub renders a
-#     "Cite this repository" button from this file, in BibTeX and APA, at
-#     zero maintenance.
+#     "Cite this repository" button from this file, in BibTeX and APA.
 #
-#     `version` and `date-released` below are VERSION and BUILT in build.py.
-#     They are not copied by hand and left to rot:
-#     tests/test_conventions.py fails the build when they drift, the same way
-#     a README figure that disagrees with the database does.
+#     `version` below is VERSION in build.py. It is not copied by hand and
+#     left to rot: tests/test_conventions.py fails the build when the two
+#     drift, the same way a README figure that disagrees with the database
+#     does. Bumping VERSION for a release means bumping it here, and the
+#     comment beside VERSION says so.
 #
-#     There is no `doi:` here. Nobody has minted one — Zenodo's GitHub
-#     integration is an account switch a maintainer flips, not something a
-#     build can do — and a DOI written down before it exists is a citation
-#     that resolves to nothing. NULL means not established.
+# WHAT THIS FILE DELIBERATELY DOES NOT SAY
+#     **No `license:`.** CFF's licence list is OR, not AND: "when there are
+#     multiple licenses, it is assumed their relationship is OR". So naming
+#     MIT, CC-BY-SA-4.0 and ODbL-1.0 together would not describe a repository
+#     holding three kinds of thing — it would offer every one of them under
+#     any one of the three, MIT included. This project cannot offer the
+#     Wikipedia-derived data or the OpenStreetMap centrelines in
+#     f1-geometry.db under MIT; that is a grant of rights it does not hold,
+#     and it would dissolve the two share-alike obligations the split
+#     between f1.db and f1-geometry.db exists to keep. CFF cannot express
+#     the split, so this file does not pretend to: the terms are in LICENSE,
+#     LICENSE-DATA and ATTRIBUTION.md, and a single id here would be a
+#     licence position rather than a restatement — PD-41 (#481) is open on
+#     what that position is.
+#
+#     **No `date-released`.** BUILT moves on a harvest refresh and VERSION
+#     only on a release, so binding a release date to BUILT would sooner or
+#     later date v2.24 to a day on which no v2.24 was released, and no
+#     in-tree record says when a tag was published. A citation that cannot
+#     be checked is one this file does not make.
+#
+#     **No `doi:`.** Nobody has minted one. Zenodo's GitHub integration is
+#     an account switch a maintainer flips, not something a build can do,
+#     and a DOI written down before it exists is a citation that resolves to
+#     nothing. SD-31 (#555) holds it.
 
 cff-version: 1.2.0
 message: If you use this database, please cite it as below.
@@ -37,24 +58,16 @@ abstract: >-
   digest identifies exactly one file. Where two sources disagree the
   difference is published rather than reconciled, and where nobody has
   established a fact it is recorded as a gap instead of being invented.
-  Race timing is deliberately absent: no licence on offer permits passing
-  it on.
+  Race timing is deliberately absent — no licence on offer permits passing
+  it on — which is about race timing rather than lap times, and about the
+  licences available rather than about what anyone may lawfully do. The
+  terms each part is offered under are in LICENSE, LICENSE-DATA and
+  ATTRIBUTION.md; the circuit centrelines are a separate file under a
+  separate licence.
 keywords:
   - Formula One
   - motorsport
   - open data
   - SQLite
   - sports statistics
-# Three licences, because the repository holds three kinds of thing. The code
-# is MIT (LICENSE). The data is CC BY-SA 4.0 (LICENSE-DATA). The circuit
-# centrelines traced from OpenStreetMap are ODbL 1.0 and ship as their own
-# file, f1-geometry.db, so that share-alike follows that file alone and does
-# not reach the rest. Dropping ODbL-1.0 from this list would state that the
-# geometry is offered under the other two, which is the one thing the split
-# exists to prevent.
-license:
-  - MIT
-  - CC-BY-SA-4.0
-  - ODbL-1.0
 version: "2.24"
-date-released: "2026-09-16"

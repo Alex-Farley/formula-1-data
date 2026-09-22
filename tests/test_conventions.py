@@ -461,22 +461,24 @@ class TheVerdictContractIsWhereTheAgentReads(unittest.TestCase):
                         "when a result does not lead with one; a fork then interprets (D-37)")
 
 
-class TheCitationStaysInStepWithTheRepository(unittest.TestCase):
-    """CITATION.cff states a version, a release date and three licences, and
-    GitHub renders a "Cite this repository" button from them. Nothing in the
-    build reads that file back, so a VERSION bump or a licence change that
-    left it behind would publish a citation describing a repository that no
-    longer exists, and no check would notice — the failure mode the README's
-    figure spans exist to stop. These are that check (SD-27)."""
+class TheCitationStaysInStepWithTheBuild(unittest.TestCase):
+    """CITATION.cff states a version, and GitHub renders a "Cite this
+    repository" button from it. Nothing in the build reads that file back, so
+    a VERSION bump that left it behind would publish a citation naming a
+    version this repository does not build, and no check would notice — the
+    failure mode the README's figure spans exist to stop. This is that check,
+    plus the two ways the file can be present and still render no citation at
+    all (SD-27).
 
-    # SPDX id -> (the file that must still offer it, the string it says it in).
-    # A licence named in the citation and nowhere in the licence files is a
-    # claim about terms this repository does not actually offer.
-    LICENCES = {
-        "MIT": ("LICENSE", "MIT License"),
-        "CC-BY-SA-4.0": ("LICENSE-DATA", "CC BY-SA 4.0"),
-        "ODbL-1.0": ("LICENSE-DATA", "ODbL 1.0"),
-    }
+    It does not check a licence. CFF's `license` list is OR, not AND, so a
+    list naming this repository's three licences would offer every part of it
+    under any one of them, MIT included; CITATION.cff therefore states none
+    and says why. If a `license:` key is ever added, it is a licence position
+    and wants a person, not a test written alongside it.
+    """
+
+    def raw(self):
+        return read("CITATION.cff")
 
     def scalars(self):
         """The unindented `key: value` lines of CITATION.cff.
@@ -488,32 +490,18 @@ class TheCitationStaysInStepWithTheRepository(unittest.TestCase):
         first-character rule skips them.
         """
         out = {}
-        for line in read("CITATION.cff").splitlines():
+        for line in self.raw().splitlines():
             if not line or line[0] in " #-":
                 continue
             m = re.match(r"^([A-Za-z0-9-]+):\s*(.*)$", line)
             if m:
-                out[m.group(1)] = m.group(2).strip().strip("\"'")
-        return out
-
-    def items_under(self, key):
-        """The `- value` entries indented under a top-level key."""
-        out, inside = [], False
-        for line in read("CITATION.cff").splitlines():
-            if re.match(rf"^{key}:\s*$", line):
-                inside = True
-                continue
-            if inside:
-                m = re.match(r"^\s+-\s*(\S.*)$", line)
-                if m:
-                    out.append(m.group(1).strip().strip("\"'"))
-                elif line and not line[0].isspace():
-                    break
+                out[m.group(1)] = m.group(2).strip()
         return out
 
     def build_constant(self, name):
         m = re.search(rf'^{name} = "([^"]+)"$', read("build.py"), re.M)
-        self.assertIsNotNone(m, f"{name} is no longer a quoted literal in build.py")
+        self.assertIsNotNone(m, f"{name} is no longer a quoted literal in build.py, so "
+                                "CITATION.cff cannot be checked against it")
         return m.group(1)
 
     def test_the_required_citation_keys_are_present(self):
@@ -522,25 +510,55 @@ class TheCitationStaysInStepWithTheRepository(unittest.TestCase):
             self.assertIn(key, cff, f"CITATION.cff has no {key}; GitHub renders no "
                                     "citation from a file missing a required key")
 
+    def test_at_least_one_author_is_named(self):
+        # `authors: []`, and `authors:` with its entries deleted, both leave the
+        # key present and render no citation at all — the one outcome this file
+        # exists to prevent. So the entry is what is asserted, not the key.
+        self.assertTrue(re.search(r"^authors:\s*$", self.raw(), re.M),
+                        "CITATION.cff's authors is not a block list, so the entry below "
+                        "cannot be checked")
+        self.assertTrue(re.search(r"^\s+-\s*(family-names|name):\s*\S", self.raw(), re.M),
+                        "CITATION.cff names no author; GitHub renders no citation from an "
+                        "empty author list, and the file is then present and useless")
+
+    def test_the_version_is_quoted(self):
+        # YAML reads an unquoted 2.40 as the float 2.4, so GitHub and
+        # cffconvert would publish a version this repository does not build
+        # while a string comparison against VERSION passed. The quotes are
+        # load-bearing, so they are the assertion.
+        self.assertTrue(re.search(r'^version: "[^"]+"$', self.raw(), re.M),
+                        "CITATION.cff's version is not a quoted string; YAML reads an "
+                        "unquoted 2.40 as 2.4 and the citation names a version that does "
+                        "not exist")
+
     def test_the_version_is_the_version_the_build_publishes(self):
-        self.assertEqual(self.scalars().get("version"), self.build_constant("VERSION"),
+        self.assertEqual(self.scalars().get("version", "").strip('"'),
+                         self.build_constant("VERSION"),
                          "CITATION.cff's version and VERSION in build.py disagree, so the "
-                         "citation GitHub offers names a version this repository does not build")
+                         "citation GitHub offers names a version this repository does not "
+                         "build")
 
-    def test_the_release_date_is_the_date_the_database_was_built(self):
-        self.assertEqual(self.scalars().get("date-released"), self.build_constant("BUILT"),
-                         "CITATION.cff's date-released and BUILT in build.py disagree, so the "
-                         "citation dates a build that did not happen on that day")
+    def test_the_citation_states_no_licence(self):
+        # Not style: CFF 1.2.0 defines `license` as OR when it holds more than
+        # one id, so any list here would offer the Wikipedia-derived data and
+        # the ODbL centrelines under MIT as well - rights this project does not
+        # hold, in the file GitHub hands a reader to copy. A single id would be
+        # a licence position, and PD-41 (#481) is open on what it should be.
+        # Either is a person's call; this fails so that it is taken as one.
+        self.assertNotIn("license", self.scalars(),
+                         "CITATION.cff has a license key. CFF's licence list is OR, not "
+                         "AND, so naming this repository's three licences offers every "
+                         "part of it under any one of them; naming one is a licence "
+                         "position PD-41 (#481) has not taken. The terms live in LICENSE, "
+                         "LICENSE-DATA and ATTRIBUTION.md")
 
-    def test_every_licence_cited_is_one_the_repository_offers(self):
-        cited = self.items_under("license")
-        self.assertEqual(sorted(cited), sorted(self.LICENCES),
-                         "CITATION.cff's licence list and the repository's licence files "
-                         "disagree; the citation is what a reader copies, so it may not "
-                         "name terms LICENSE and LICENSE-DATA do not offer, and may not "
-                         "drop one they do — dropping ODbL-1.0 would state that the "
-                         "OpenStreetMap centrelines are offered under the other two")
-        for spdx in cited:
-            rel, says = self.LICENCES[spdx]
-            self.assertIn(says, read(rel), f"CITATION.cff cites {spdx} but {rel} no longer "
-                                           f"says {says!r}")
+    def test_no_release_date_is_claimed(self):
+        # BUILT moves on a harvest refresh and VERSION only on a release, so a
+        # date-released bound to BUILT would eventually date v2.24 to a day on
+        # which no v2.24 was released; nothing in the tree records when a tag
+        # was published, so no date here can be checked.
+        self.assertNotIn("date-released", self.scalars(),
+                         "CITATION.cff claims a release date. BUILT is a build date and "
+                         "moves without VERSION, and no in-tree record says when a tag was "
+                         "published, so this date cannot be checked and will misdate a "
+                         "version sooner or later")
