@@ -30,7 +30,7 @@ deploying.
 into `public/` when the dev server starts, so a `python3 build.py` while it is
 running leaves you looking at the previous data through a live UI.
 
-## The four files the site serves
+## The five files the site serves
 
 `npm run dev` and `npm run build` both run `scripts/prepare-assets.js` first,
 which stages these into `public/`. None of them is committed: `f1.db` is a
@@ -43,7 +43,7 @@ build artefact of `build.py` at the repository root, the wasm comes back with
 | `f1.db` | the database as built — the fallback path | 20 MB |
 | `sql-wasm.wasm` | the SQLite engine, from the installed sql.js | 643 KB |
 | `db-manifest.json` | a digest, the sizes, and the database's version | ~200 B |
-| `SHA256SUMS` | the full SHA-256 of every file above, in `sha256sum` format | ~300 B |
+| `SHA256SUMS` | the full SHA-256 of each file it names, in `sha256sum` format — the two databases, the gzip, the wasm, the Parquet bundle and the three documents | ~600 B |
 
 ## How twenty megabytes gets to a reader
 

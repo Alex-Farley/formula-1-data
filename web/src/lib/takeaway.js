@@ -112,12 +112,16 @@ export const toCsv = (columns, rows) =>
   `﻿${rowsOf(columns, rows, csvField, ',').join('\r\n')}\r\n`
 
 /**
- * What the file is called: the table's own name, the database version that
- * fixes which figures are in it, and the extension.
+ * What the file is called: the table's own name, the database version it was
+ * taken from, and the extension.
  *
- * The version is there for the reason lib/site.js's citation() gives — "the
- * version and build date fix which figures you saw" — and a file that travels
- * is the one artefact from this site that carries no page around it to say so.
+ * The version is there because a file that travels is the one artefact from
+ * this site that carries no page around it to say where it came from. It is
+ * the weaker half of the identity and deliberately so: lib/site.js's
+ * citation() names the digest, because a version and a build date together
+ * can name more than one file (SD-24), and sixty-four hex digits in a
+ * filename would serve nobody. This narrows a spreadsheet to a release; the
+ * page it was taken from pins it exactly.
  */
 export function fileName(name, version, extension) {
   const slug = String(name ?? '')
