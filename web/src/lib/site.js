@@ -232,3 +232,124 @@ export const DOCUMENTS = [
 
 export const DOCUMENTS_NOTE =
   'The database is served from here, so the documents that explain it are served from here too.'
+
+/**
+ * Who publishes this, and what the site is willing to promise about it.
+ *
+ * Nothing on any of the 3,545 pages here said who keeps this database, what
+ * goes into it, or what becomes of it if the person keeping it stops. A
+ * reader deciding whether to cite it, or an editor deciding whether it can be
+ * a source, had a footer crediting F1DB and Wikipedia and no answer at all
+ * about the thing in front of them. The name is the one already on LICENSE
+ * and LICENSE-DATA; this page is where a reader can reach it.
+ *
+ * The prose lives here rather than in About.jsx for the reason every other
+ * shared string does: /about is prerendered as well as rendered, and a page
+ * whose whole subject is what this site promises is the last page on which
+ * the static half and the app may say different things.
+ *
+ * Two things a reader will look for are deliberately NOT claimed. There is no
+ * correction route off GitHub and no stated turnaround, because neither is
+ * this page's to invent; and no permanent archive is promised, because none
+ * has been deposited. What is written instead is what is true today, which is
+ * the only version of this page worth having.
+ */
+export const MAINTAINER = 'Alex Farley'
+
+export const ABOUT_LEDE =
+  'Who keeps this database, what goes into it and what is refused, how to say it is wrong, how ' +
+  'often it changes, and what becomes of it if the person keeping it stops.'
+
+/**
+ * The link out to the project itself, split around its own anchor text for
+ * the same reason UNCHECKED_NOTE is: the words are decided once and each
+ * renderer draws the anchor in its own markup.
+ */
+export const ABOUT_REPOSITORY = [
+  'The build, the checks that gate it and the source data they read are all public, so what this ' +
+    'page says about itself can be read rather than taken on trust: ',
+  'the repository',
+  '.',
+]
+
+/**
+ * The page itself: six questions, in the order a reader asks them.
+ *
+ * `after` names the one linked block a section ends on, so both renderers put
+ * it in the same place and neither decides for itself which section gets it.
+ */
+export const ABOUT = [
+  {
+    title: 'Who publishes this',
+    after: 'repository',
+    paragraphs: [
+      `Lap Ledger is built and kept by ${MAINTAINER}, one person, in the open. It is not a Formula ` +
+        'One publication: it is unaffiliated with Formula One, with the FIA and with every team, ' +
+        'nothing here is licensed from any of them, and nobody at any of them has checked it.',
+    ],
+  },
+  {
+    title: 'What goes in, and what is refused',
+    paragraphs: [
+      'A fact goes in only with a source somebody else can check, and it carries the standing of ' +
+        'that source with it — an official FIA or formula1.com source is the only thing that ' +
+        'reaches the top of the confidence ladder, and nothing is promoted to it without one. A ' +
+        'figure nobody has established is left empty rather than guessed: an em dash means ' +
+        'unestablished, and never zero.',
+      'Two things are refused outright. A source whose licence does not allow its rows to be passed ' +
+        'on is classified as such on the register, and the build refuses a database in which any ' +
+        'row cites one. And Formula One race timing, which nobody publishes under terms that permit ' +
+        'passing it on, so lap times, stints, race timing and race control messages ship as four ' +
+        'empty tables on purpose.',
+    ],
+  },
+  {
+    title: 'When two sources disagree',
+    paragraphs: [
+      'Neither reading is picked quietly. The disagreement is written into the database as a row of ' +
+        'its own — both figures, and what each source says — and published beside the data; a ' +
+        'fact nobody has established is listed in the gap register with what would close it. Both ' +
+        'registers ship inside the file you can download, so a question this database has not ' +
+        'settled is one you can see rather than one you have to catch it out on.',
+    ],
+  },
+  {
+    title: 'If something here is wrong',
+    after: 'report',
+    paragraphs: [
+      'A reader who has spotted a wrong figure is the cross-check this project cannot run on ' +
+        'itself. The report form asks for the page, the figure and what says otherwise, and for ' +
+        'nothing about how this project files its own work.',
+      'What a report gets is an answer on the issue it opens and one of four outcomes: a ' +
+        'correction, a recorded disagreement, a recorded gap, or a reason it was not taken. It is ' +
+        'read by the one person named above, who does not do this full time. There is no desk ' +
+        'behind it and no promised turnaround, and saying so is better than promising one nobody ' +
+        'is staffed to keep.',
+    ],
+  },
+  {
+    title: 'How often it changes',
+    paragraphs: [
+      'F1DB publishes a race within a day or two of it being run; the harvest here is re-fetched ' +
+        'from it every morning at 06:00 UTC and committed only once the rebuilt database has ' +
+        'passed every check, so the race record follows a race weekend by a few days rather than ' +
+        'by a week. Everything else — the eras, the regulations, the registers, the prose — ' +
+        'moves when somebody works on it.',
+      'Every page names the database version it is running on and the date that database was ' +
+        'built, and the version is what fixes which figures you were shown.',
+    ],
+  },
+  {
+    title: 'If this stops',
+    paragraphs: [
+      'The database is a pure function of its sources and a published build script: the same inputs ' +
+        'produce the same bytes, which is why the build date inside it is a constant rather than a ' +
+        'timestamp. Every release carries a SHA256SUMS file, so a copy can be checked against the ' +
+        'digests the build produced rather than against this site still being up.',
+      'The data is offered under CC BY-SA 4.0 and the code under the MIT licence. So if the person ' +
+        'named above stops, what has already been published stays readable, checkable and ' +
+        'rebuildable by anybody holding a copy — which is the most this page can honestly ' +
+        'promise, and worth more than a promise to carry on.',
+    ],
+  },
+]
