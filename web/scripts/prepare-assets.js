@@ -6,6 +6,7 @@
  *   f1.db             the database, as built        ~20 MB   the fallback path
  *   sql-wasm.wasm     the SQLite engine            ~660 KB
  *   db-manifest.json  what the above are           ~200 B    fetched first
+ *   SHA256SUMS        full digests of the above     ~300 B    shasum -c
  *   schema.sql        what the tables mean          ~92 KB   the three documents
  *   ATTRIBUTION.md    where the data came from      ~15 KB   that explain the above
  *   LICENSE-DATA      what you may do with it        ~4 KB
@@ -54,6 +55,31 @@ const die = (message) => {
 const kb = (bytes) => `${(bytes / 1024).toFixed(0)} KB`
 const mb = (bytes) => `${(bytes / 1024 / 1024).toFixed(1)} MB`
 
+const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex')
+
+/*
+ * SHA256SUMS, for the files this script stages.
+ *
+ * /data showed a short digest and then told the reader the full ones "ship as
+ * SHA256SUMS with each release". Following that instruction returned FAILED:
+ * the release's list digests the release's own copies, correctly, and the copy
+ * served from here is rebuilt on every deploy and had moved eleven commits
+ * past the tag while still calling itself the same version and build date
+ * (SD-24). A verification instruction that fails for the honest reader is
+ * worse than none, because it looks like tampering.
+ *
+ * Each file is digested as it is staged, so the list cannot describe a file
+ * this run did not write. Deliberately free of comment lines and of any
+ * header: `shasum -c SHA256SUMS` and `sha256sum -c SHA256SUMS` both warn on a
+ * line they cannot parse, so what the list covers is said on /data, where the
+ * reader is, and this file stays machine-readable.
+ */
+const sums = []
+const digested = (name, bytes) => {
+  sums.push([name, sha256(bytes)])
+  return bytes
+}
+
 // ------------------------------------------------------------------ the database
 
 const dbPath = join(repo, 'f1.db')
@@ -63,8 +89,9 @@ if (!existsSync(dbPath)) {
 
 mkdirSync(publicDir, { recursive: true })
 
-const bytes = readFileSync(dbPath)
-const digest = createHash('sha256').update(bytes).digest('hex').slice(0, 16)
+const bytes = digested('f1.db', readFileSync(dbPath))
+const fullDigest = sha256(bytes)
+const digest = fullDigest.slice(0, 16)
 
 // A rebuild that changed nothing should not cost every reader a 4.7 MB
 // download, and gzipping twenty megabytes at level 9 is the slow part of this
@@ -80,10 +107,12 @@ try {
 
 let gzipBytes
 if (previous?.digest === digest && existsSync(gzPath)) {
-  gzipBytes = statSync(gzPath).size
+  // Read back rather than recompressed: the staged file is the one served, so
+  // it is the one the digest has to describe.
+  gzipBytes = digested('f1.db.gz', readFileSync(gzPath)).length
   console.log(`  public/f1.db.gz          (${mb(gzipBytes)}, unchanged)`)
 } else {
-  const gz = gzipSync(bytes, { level: 9 })
+  const gz = digested('f1.db.gz', gzipSync(bytes, { level: 9 }))
   writeFileSync(gzPath, gz)
   gzipBytes = gz.length
   console.log(`  public/f1.db.gz          (${mb(gzipBytes)})`)
@@ -123,12 +152,12 @@ try {
 const geoPath = join(repo, 'f1-geometry.db')
 let geometry = null
 if (existsSync(geoPath)) {
-  const geoBytes = readFileSync(geoPath)
+  const geoBytes = digested('f1-geometry.db', readFileSync(geoPath))
   copyFileSync(geoPath, join(publicDir, 'f1-geometry.db'))
   geometry = {
     file: 'f1-geometry.db',
     bytes: geoBytes.length,
-    digest: createHash('sha256').update(geoBytes).digest('hex').slice(0, 16),
+    digest: sha256(geoBytes).slice(0, 16),
     licence: 'ODbL-1.0',
     attribution: '© OpenStreetMap contributors',
   }
@@ -161,6 +190,7 @@ for (const name of ['schema.sql', 'ATTRIBUTION.md', 'LICENSE-DATA']) {
     die(`${name} not found at the repository root.\nThe site serves it beside the data it explains; it cannot be published without it.`)
   }
   copyFileSync(from, join(publicDir, name))
+  digested(name, readFileSync(from))
   console.log(`  public/${name.padEnd(22)} (${kb(statSync(from).size)})`)
 }
 
@@ -183,8 +213,8 @@ const wasm = ['sql-wasm-browser.wasm', 'sql-wasm.wasm']
   .find((path) => existsSync(path))
 
 if (!wasm) die('sql.js not installed.\nInstall it first:  npm install')
-const wasmBytes = readFileSync(wasm)
-const wasmDigest = createHash('sha256').update(wasmBytes).digest('hex').slice(0, 16)
+const wasmBytes = digested('sql-wasm.wasm', readFileSync(wasm))
+const wasmDigest = sha256(wasmBytes).slice(0, 16)
 copyFileSync(wasm, join(publicDir, 'sql-wasm.wasm'))
 console.log(`  public/sql-wasm.wasm     (${kb(wasmBytes.length)}, digest ${wasmDigest})`)
 
@@ -192,6 +222,12 @@ console.log(`  public/sql-wasm.wasm     (${kb(wasmBytes.length)}, digest ${wasmD
 
 const manifest = {
   digest,
+  // The whole digest as well as the short one. The short form is what a
+  // person reads in a footer and what the cache keys on; a machine-readable
+  // identifier that says `sha256:` and then gives sixteen of sixty-four hex
+  // digits is claiming to be something it is not, and /data's JSON-LD is
+  // read by machines (SD-24).
+  sha256: fullDigest,
   bytes: bytes.length,
   gzipBytes,
   wasm: wasmDigest,
@@ -202,6 +238,19 @@ const manifest = {
 }
 writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`)
 console.log(`  public/db-manifest.json  (v${manifest.version ?? '?'}, digest ${digest})`)
+
+// ---------------------------------------------------------------- the digests
+
+// In sha256sum's own format - hex, two spaces, the name a reader's download
+// will have - so `shasum -c SHA256SUMS` works in the directory they fetched
+// the files into. parquet-bundle.mjs appends f1-parquet.zip to this when it
+// succeeds; it runs next in the chain, and it is the one staged file this
+// script does not write.
+writeFileSync(
+  join(publicDir, 'SHA256SUMS'),
+  sums.map(([name, hex]) => `${hex}  ${name}\n`).join(''),
+)
+console.log(`  public/SHA256SUMS        (${sums.length} files)`)
 
 // ---------------------------------------------------------------- cache rules
 
@@ -230,6 +279,15 @@ writeFileSync(
   [
     '/db-manifest.json',
     '  Cache-Control: no-cache',
+    '',
+    // Digests of files that are rewritten on every deploy, under a name that
+    // does not change. A cached copy is a checksum list for a file the reader
+    // no longer has, which reads as tampering rather than as staleness - so it
+    // takes the manifest's rule and not the immutable one below. No extension,
+    // like LICENSE-DATA, so the type is said here or the host guesses.
+    '/SHA256SUMS',
+    '  Cache-Control: no-cache',
+    '  Content-Type: text/plain; charset=utf-8',
     '',
     '/f1.db',
     '  Cache-Control: public, max-age=31536000, immutable',

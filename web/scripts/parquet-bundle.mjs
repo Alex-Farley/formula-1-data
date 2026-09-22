@@ -23,7 +23,8 @@
  *     cannot be read.
  */
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, writeFileSync, statSync, rmSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync, statSync, rmSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -128,6 +129,23 @@ try {
   execFileSync(py, [join(repo, 'tools', 'parquet_export.py'), '--out', outDir, '--zip', zipPath],
                { stdio: 'pipe', cwd: repo, env: { ...process.env, ...env } })
   say(`result   ok, ${(statSync(zipPath).size / 1048576).toFixed(1)} MB`)
+  // The zip is the one file /data offers that prepare-assets.js does not
+  // stage, so its digest is added here or SHA256SUMS describes two of the
+  // three downloads (SD-24). Appended only on the success path: the failure
+  // path removes the zip, and a checksum for a file the site is not serving
+  // is worse than no checksum. Never fatal, for the reason at the top of this
+  // file - and never silent either, so the outcome goes in build-status.txt.
+  try {
+    const sums = join(publicDir, 'SHA256SUMS')
+    if (existsSync(sums)) {
+      appendFileSync(sums, `${createHash('sha256').update(readFileSync(zipPath)).digest('hex')}  f1-parquet.zip\n`)
+      say('checksum added to SHA256SUMS')
+    } else {
+      say('checksum SHA256SUMS absent, not digested')
+    }
+  } catch (error) {
+    say(`checksum could not be appended: ${error.message}`)
+  }
   ok = true
 } catch (error) {
   const detail = [error?.message, error?.stderr?.toString(), error?.stdout?.toString()]

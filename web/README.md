@@ -43,6 +43,7 @@ build artefact of `build.py` at the repository root, the wasm comes back with
 | `f1.db` | the database as built — the fallback path | 20 MB |
 | `sql-wasm.wasm` | the SQLite engine, from the installed sql.js | 643 KB |
 | `db-manifest.json` | a digest, the sizes, and the database's version | ~200 B |
+| `SHA256SUMS` | the full SHA-256 of every file above, in `sha256sum` format | ~300 B |
 
 ## How twenty megabytes gets to a reader
 

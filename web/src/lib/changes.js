@@ -177,7 +177,10 @@ export const CURRENT_NOTE =
 export const HISTORY_HEADING = 'Released versions'
 
 export const HISTORY_NOTE =
-  'Each release carries the version stamped into the database’s own meta table, so a file you downloaded can be placed in this list without trusting the page it came from.'
+  'Each release carries the version stamped into the database’s own meta table. That places a '
+  + 'released file in this list, but it does not identify one: the copy this site serves is '
+  + 'rebuilt on every deploy and moves ahead of the tag it still names. The digest on the data '
+  + 'page is what tells two files with the same version and build date apart.'
 
 export const FEED_HEADING = 'Subscribe'
 

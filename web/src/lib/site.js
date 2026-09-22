@@ -150,10 +150,40 @@ export const COUNTED_TOTALS =
  * How to cite a page. The page is named by its address, not its title: the
  * app and the static page have titled the same route differently since the
  * prerenderer was written, and a citation is the one place that difference
- * must not show. The version and build date fix which figures were seen.
+ * must not show.
+ *
+ * The digest is here because the version and the build date are not an
+ * identity. `VERSION` moves on a release and `BUILT` only on a harvest
+ * refresh, while the file this site serves is rebuilt on every deploy: on
+ * 2026-09-21 the site's f1.db and the v2.24 release asset both said
+ * `v2.24, built 2026-09-16` and differed by five columns and 452 row hashes
+ * (SD-24). The sentence this replaced ended "the version and build date fix
+ * which figures you saw", which was the false half of exactly that.
+ *
+ * db-manifest.json's `digest` is the first sixteen hex digits of the SHA-256
+ * of the bytes the reader actually opened, and both renderers read it from
+ * that one file, so a citation cannot name a file the page was not built
+ * from. It is not optional: a citation with no digest is the claim this
+ * change exists to stop making, so the callers withhold the whole aside
+ * rather than print a weaker one.
  */
-export const citation = (version, built, url) =>
-  `Cite this page as Lap Ledger, database v${version} built ${built}, ${url}. The version and build date fix which figures you saw.`
+export const citation = (version, built, digest, url) =>
+  `Cite this page as Lap Ledger, database v${version} built ${built}, digest ${digest}, ${url}. The digest names the exact file the figures came from; a version and a build date alone can name more than one.`
+
+/**
+ * What the digests on `/data` are, said once for the app and the static page.
+ *
+ * It names the site's own SHA256SUMS rather than a release's. The sentence
+ * this replaced sent a reader to the release's list, and following it was a
+ * FAILED: that list digests the release's copies correctly, and the copy
+ * served from here has moved on since the tag (SD-24). "SHA256SUMS" appears
+ * once, and each renderer links that one occurrence.
+ */
+export const DIGEST_NOTE =
+  'The first sixteen hex digits of each file\u2019s SHA-256, read from the manifest this page ' +
+  'loaded the database by. The full digests of the files served from here are in SHA256SUMS, ' +
+  'written beside them on every deploy; the copies attached to a release are digested by that ' +
+  'release\u2019s own list instead.'
 
 /**
  * The download paragraph's two sentences that must not drift between the
