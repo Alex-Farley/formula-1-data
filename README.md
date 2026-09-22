@@ -111,8 +111,9 @@ own `meta` and in `LICENSE-DATA`'s *Circuit geometry* section. `LICENSE-DATA`
 enumerates the files it covers and `f1-parquet.zip` is not among them — `SD-22`
 (#410) has that gap.
 
-**What no licence allows.** Nobody licenses Formula One race timing for
-redistribution, so this database holds none: `laps`, `stints`, `race_timing`
+**What no licence allows.** Nobody publishes Formula One race timing under a
+licence that permits passing it on, so this database holds none: `laps`,
+`stints`, `race_timing`
 and `race_control_messages` are empty on purpose, and everything that *is*
 here may be passed on under the licence shown beside it. That is a statement
 about the licences on offer rather than about what anyone may lawfully do,
@@ -1072,8 +1073,8 @@ of which <!-- fig:known_gaps_open -->10<!-- /fig --> are open gaps — the figur
 the site's homepage and `/data` state, counted from the same `v_open_gaps`
 view. The rest are either closed, and kept so the closure is on record, or
 positions: a deliberate absence rather than a gap, such as the race timing
-nobody licenses for redistribution, or the 2021 Belgian Grand Prix's fastest
-lap, which
+nobody publishes under a licence that permits passing it on, or the 2021
+Belgian Grand Prix's fastest lap, which
 does not exist because none was set. `./f1 gaps` prints them all with the fix
 for each.
 

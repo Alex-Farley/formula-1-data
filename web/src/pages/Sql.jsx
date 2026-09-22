@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { SELF_DESCRIBING, TIMING_EMPTY, TIMING_EMPTY_TABLES, TWO_FILES } from '../lib/site.js'
+import { SELF_DESCRIBING, TIMING_EMPTY_TABLES, TWO_FILES, timingEmpty } from '../lib/site.js'
+import { bare, emptyTimingTableRead } from '../lib/sql.js'
 import { Note, Onward, Page, Section } from '../components/Page.jsx'
 import { ErrorBox, Loading } from '../components/States.jsx'
 import DataTable from '../components/DataTable.jsx'
@@ -80,22 +81,6 @@ const EXAMPLES = [
 const START = EXAMPLES[0][1]
 
 /**
- * Does this statement read one of the four tables that are empty by licence?
- *
- * Only a FROM or a JOIN counts, not the bare name: `laps` is also a column of
- * race_entries, so `SELECT laps FROM race_entries WHERE ...` matching nothing
- * keeps the ordinary empty message rather than being told about a licence
- * position it never touched. The opening quote is optional because FROM "laps",
- * FROM [laps] and FROM `laps` are all the same read.
- */
-const TIMING_READ = new RegExp(
-  '\\b(?:from|join)\\s+[\'"`[]?(' + TIMING_EMPTY_TABLES.join('|') + ')\\b',
-  'i',
-)
-
-const readsEmptyTimingTable = (sql) => typeof sql === 'string' && TIMING_READ.test(sql)
-
-/**
  * A courtesy, not the guarantee.
  *
  * The guarantee is that every statement runs inside a transaction that is
@@ -109,10 +94,7 @@ const INTROSPECTION =
   /^pragma\s+(table_info|table_xinfo|table_list|index_list|index_info|index_xinfo|foreign_key_list|database_list|collation_list|compile_options|function_list|pragma_list|module_list)\b/i
 
 function complain(sql) {
-  const stripped = sql
-    .replace(/--[^\n]*/g, ' ')
-    .replace(/\/\*[\s\S]*?\*\//g, ' ')
-    .trim()
+  const stripped = bare(sql).trim()
   if (!stripped) return 'Nothing to run.'
   if (!/^(select|with|explain|pragma|values)\b/i.test(stripped)) {
     return 'Reads only: start with SELECT, WITH, VALUES, EXPLAIN or PRAGMA. A write would be rolled back anyway, so nothing has changed.'
@@ -207,6 +189,10 @@ export default function Sql() {
     setText(statement)
     run(statement)
   }
+
+  // Which of the four tables that are empty by licence this result came from
+  // asking for, if any: what the empty result says depends on it.
+  const emptied = state.status === 'done' ? emptyTimingTableRead(state.statement) : null
 
   const onKeyDown = (event) => {
     if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
@@ -310,9 +296,9 @@ export default function Sql() {
                 // are looking at.
                 caption="The result of your query"
                 empty={
-                  readsEmptyTimingTable(state.statement) ? (
+                  emptied ? (
                     <p className="state is-empty">
-                      {TIMING_EMPTY} <Link to="/data">Why this is so</Link>.
+                      {timingEmpty(emptied)} <Link to="/data">Why this is so</Link>.
                     </p>
                   ) : (
                     'The statement ran and matched nothing.'
@@ -357,7 +343,7 @@ export default function Sql() {
                   <p className="cols">{entry.columns}</p>
                   {TIMING_EMPTY_TABLES.includes(entry.name) && (
                     <p className="small faint" style={{ margin: '0 0 8px', paddingLeft: 14 }}>
-                      {TIMING_EMPTY} <Link to="/data">Why this is so</Link>.
+                      {timingEmpty(entry.name)} <Link to="/data">Why this is so</Link>.
                     </p>
                   )}
                 </details>

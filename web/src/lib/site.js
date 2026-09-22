@@ -137,9 +137,9 @@ export const NOT_HELD =
  */
 export const TIMING_EMPTY_TABLES = ['laps', 'stints', 'race_timing', 'race_control_messages']
 
-export const TIMING_EMPTY =
+export const timingEmpty = (table) =>
   'Empty by design: no source licenses Formula One race timing on terms that allow passing it ' +
-  'on, so this table ships with no rows.'
+  `on, so ${table ?? 'this table'} ships with no rows.`
 
 /**
  * The photographs section, in the words both renderers use.

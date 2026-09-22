@@ -52,6 +52,7 @@ import {
 } from '../src/lib/format.js'
 import { metresBetween, stitch } from '../src/lib/lap.js'
 import { fold, rank } from '../src/lib/search.js'
+import { emptyTimingTableRead } from '../src/lib/sql.js'
 import { trackPath } from '../src/lib/track.js'
 import { DRIVER_COLUMNS } from '../src/queries/drivers.js'
 import { holderPath } from '../src/queries/records.js'
@@ -1613,5 +1614,56 @@ describe('the rows the static page drew (IX-19)', () => {
       globalThis.location = { pathname: '/drivers' }
       assert.equal(staticRows('Drivers'), 862)
     })
+  })
+})
+
+/*
+ * The console's one-line timing position goes to the reader who asked for one
+ * of the four tables that are empty by licence, and to nobody else (CD-05).
+ * Every case below that expects null is one the review of #533 found the
+ * first cut claiming a licence position about.
+ */
+describe('which empty-by-licence table a statement reads (CD-05)', () => {
+  const reads = (sql) => emptyTimingTableRead(sql)
+
+  it('reads the four, however SQLite spells the name', () => {
+    assert.equal(reads('SELECT * FROM laps'), 'laps')
+    assert.equal(reads('select * from laps limit 5'), 'laps')
+    assert.equal(reads('SELECT * FROM "laps"'), 'laps')
+    assert.equal(reads('SELECT * FROM [stints]'), 'stints')
+    assert.equal(reads('SELECT * FROM `race_timing`'), 'race_timing')
+    assert.equal(reads('SELECT * FROM main.laps'), 'laps')
+    assert.equal(reads('SELECT * FROM "main"."race_timing"'), 'race_timing')
+    assert.equal(reads('SELECT * FROM"laps"'), 'laps')
+    assert.equal(reads('SELECT * FROM\n  laps'), 'laps')
+    assert.equal(reads('SELECT 1 FROM x JOIN race_control_messages m ON 1'), 'race_control_messages')
+    assert.equal(reads('SELECT * FROM (SELECT * FROM laps)'), 'laps')
+    assert.equal(reads('WITH x AS (SELECT * FROM race_timing) SELECT * FROM x'), 'race_timing')
+  })
+
+  it('does not read a column, a view or a longer name as the table', () => {
+    assert.equal(reads('SELECT e.laps FROM race_entries e WHERE e.laps = 0'), null)
+    assert.equal(reads('SELECT * FROM v_laps'), null)
+    assert.equal(reads('SELECT * FROM lapsx'), null)
+    assert.equal(reads('SELECT * FROM races'), null)
+    assert.equal(reads('SELECT * FROM race_entries'), null)
+  })
+
+  it('does not read a comment or a string literal', () => {
+    assert.equal(reads('-- from laps\nSELECT 1 WHERE 0'), null)
+    assert.equal(reads('/* from laps */ SELECT 1 WHERE 0'), null)
+    assert.equal(reads("SELECT 'from laps' WHERE 0"), null)
+    assert.equal(reads("SELECT * FROM races WHERE name LIKE '%from laps%'"), null)
+  })
+
+  it('leaves a CTE that shadows one of the names to the reader', () => {
+    assert.equal(reads('WITH laps AS (SELECT 1 WHERE 0) SELECT * FROM laps'), null)
+    assert.equal(reads('WITH RECURSIVE laps(n) AS (SELECT 1 WHERE 0) SELECT * FROM laps'), null)
+    assert.equal(reads('WITH a AS (SELECT 1), laps AS (SELECT 1 WHERE 0) SELECT * FROM laps'), null)
+  })
+
+  it('answers nothing for what is not a statement', () => {
+    assert.equal(reads(undefined), null)
+    assert.equal(reads(''), null)
   })
 })

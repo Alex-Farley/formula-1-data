@@ -35,11 +35,12 @@ No source publishes Formula One race timing on terms that allow passing it on.
 | **Jolpica-F1** | 628,454 laps, 1996– | CC BY-**NC**-SA 4.0 | **No.** Non-commercial. |
 | **FastF1** | 2018–, with sectors | FOM's data; personal, non-commercial use | **No.** |
 | **OpenF1** | 2023–, telemetry | FOM's data | **No.** |
-| **F1DB** | none | CC BY 4.0 | Nothing to ship. |
+| **F1DB** | none from a race | CC BY 4.0 | Nothing of a race to ship. |
 
 F1DB is the one source here whose licence permits redistribution, and it is why
 the full classification, qualifying, standings and **22,481 pit stops** are in
-the committed database. It does not publish lap times.
+the committed database. It publishes no lap times from a race — the
+qualifying times it does publish are the `qualifying` table, and are here.
 
 So the empty tables are not a gap in the harvest. They are the correct and
 permanent state until a source appears that both has the data and permits
