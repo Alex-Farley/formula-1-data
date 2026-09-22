@@ -190,7 +190,15 @@ import {
 } from '../src/queries/home.js'
 import { CONSTRUCTOR_IMAGES, RACE_IMAGES, SEASON_IMAGES } from '../src/queries/photographs.js'
 import { CONSTRUCTORS, CONSTRUCTOR_COLUMNS, CONSTRUCTORS_FOOTER } from '../src/queries/constructors.js'
-import { CIRCUITS, CIRCUIT_COLUMNS, CIRCUITS_FOOTER, TRACED } from '../src/queries/circuits.js'
+import {
+  CIRCUITS,
+  CIRCUIT_COLUMNS,
+  CIRCUITS_FOOTER,
+  NO_SHAPES,
+  REGISTER_OUTLINES,
+  SHAPES,
+  TRACED,
+} from '../src/queries/circuits.js'
 import { CHASSIS, CHASSIS_COLUMNS, CHASSIS_FOOTER, GALLERY, GALLERY_COLUMNS } from '../src/queries/cars.js'
 import {
   CLASSIFICATION_COLUMNS,
@@ -276,6 +284,7 @@ import { GLOSSARY, GLOSSARY_COLUMNS, PERSONNEL, PERSONNEL_COLUMNS } from '../src
 import {
   OUTLINE_BY,
   OUTLINE_CREDIT,
+  OUTLINE_REGISTER_NOTE,
   OUTLINE_RULE,
   OUTLINE_SCALE_NOTE,
   OUTLINE_VIEWBOX,
@@ -650,9 +659,18 @@ const figure = (title, caption, body) =>
 // path in its 500-unit box, the current ink, a constant stroke. The path is
 // SVG path data and nothing else - build.py and verify.py both refuse any
 // other character - and is escaped here all the same.
+//
+// AX-25: an SVG with a viewBox and no width or height is sized by its
+// containing block, so before app.css arrives the race page's outline drew
+// itself 1,236 px square and pushed the classification off the screen - and
+// the register's grid would have done it 79 times over. The attributes give
+// it an intrinsic size in that window; app.css (`.outline { width: 100% }`)
+// beats a presentation attribute, so nothing about the styled page changes.
+// The app's own Outline needs none: React mounts after the stylesheet.
+const OUTLINE_PX = 200
 const outlineSvg = (path, label) =>
   path
-    ? `<svg class="outline" viewBox="${OUTLINE_VIEWBOX}"${
+    ? `<svg class="outline" width="${OUTLINE_PX}" height="${OUTLINE_PX}" viewBox="${OUTLINE_VIEWBOX}"${
         label ? ` role="img" aria-label="${esc(label)}"` : ' aria-hidden="true"'
       }><path d="${esc(path)}" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg>`
     : ''
@@ -2264,6 +2282,10 @@ const page = ({
   geo.close()
   for (const row of register) row.traced = traced.has(row.id) ? 1 : 0
 
+  // VD-50: one outline per venue, the app's own query, so the static register
+  // and the app draw the same layout of the same circuit in the same order.
+  const shapes = all(REGISTER_OUTLINES)
+
   page({
     path: 'circuits',
     title: NAMES.circuits().title,
@@ -2273,6 +2295,21 @@ const page = ({
     body: `
       <h1>${esc(NAMES.circuits().headline)}</h1>
       <p class="lede">${circuits.length} circuits that have held a championship Grand Prix.</p>
+      ${heading(SHAPES, `${shapes.length} of ${register.length}`)}
+      ${note(OUTLINE_REGISTER_NOTE)}
+      ${
+        shapes.length
+          ? `<ul class="lapgrid">${shapes
+              .map(
+                (shape) =>
+                  `<li><a class="lapcard shapecard" href="${esc(href(`circuits/${shape.circuit_id}`))}">${outlineSvg(
+                    shape.path,
+                    null,
+                  )}<b>${esc(shape.name)}</b><span>${esc(shape.country ?? '')}</span></a></li>`,
+              )
+              .join('')}</ul>`
+          : `<p class="state is-empty">${esc(NO_SHAPES)}</p>`
+      }
       <h2>Every venue</h2>
       ${fromColumns(CIRCUIT_COLUMNS, register, {
         name: (name, row) => link(`circuits/${row.id}`, name),

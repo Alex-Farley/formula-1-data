@@ -2014,19 +2014,64 @@ try {
       )
     }
 
+    // VD-50: the register draws each venue once, from F1DB's outline - the
+    // drawing that is already in f1.db and needs no centreline parsed. One
+    // card per circuit that has one; 79 of the 80 do, and the count says so.
+    {
+      const drawn = count('SELECT COUNT(DISTINCT circuit_id) FROM circuit_outlines')
+      const venues = count('SELECT COUNT(*) FROM v_circuits')
+      truthy(drawn < venues, 'at least one venue has no outline, which is what the count is for')
+      await page.waitForSelector('#root main .shapecard svg.outline path', { timeout: 20000 })
+      is(await page.$$eval('#root main .shapecard', (n) => n.length), drawn, 'every venue F1DB draws has a card')
+      is(
+        await page.$eval('#root main .section:has(.shapecard) .count', (n) => n.textContent.trim()),
+        `${drawn} of ${venues}`,
+        'the count names the venues without an outline rather than leaving the grid quietly short',
+      )
+      const shapes = await page.$eval('#root main .section:has(.shapecard)', (n) => n.textContent)
+      truthy(
+        shapes.includes('Jules Roy') && shapes.includes('not to scale'),
+        'the grid carries its credit once and says the drawings are not to scale',
+      )
+      // The static register draws the same ones: the pick is SQL, not a
+      // renderer's choice, so both halves show the same layout of each venue.
+      const staticRegister = await (await fetch(`${BASE}/circuits`)).text()
+      is(
+        (staticRegister.match(/class="lapcard shapecard"/g) ?? []).length,
+        drawn,
+        'the static register draws the same venues',
+      )
+      // AX-25: sized, so a page whose CSS has not arrived draws a 200 px
+      // square rather than one the width of the viewport, 79 times over.
+      truthy(
+        (staticRegister.match(/<svg class="outline" width="\d+" height="\d+"/g) ?? []).length === drawn,
+        'every prerendered outline carries an intrinsic size',
+      )
+      const raceRoute = one(`SELECT '/races/' || r.year || '/' || r.round FROM races r
+                               JOIN circuit_outlines o ON o.f1db_layout_id = r.f1db_layout_id
+                              WHERE r.status = 'completed' ORDER BY r.year DESC LIMIT 1`)
+      const staticRace = await (await fetch(`${BASE}${raceRoute}`)).text()
+      truthy(
+        !/<svg class="outline" viewBox/.test(staticRace) && /<svg class="outline" width=/.test(staticRace),
+        'the race page\u2019s prerendered outline is sized too',
+      )
+    }
+
     // AF-23: the strip of 25 thumbnails was the third place the site drew the
     // same circuit. The cards carry what each trace measures instead, and the
     // ODbL credit travels with the figures now that no line is drawn from them.
+    // The shapes above are F1DB's drawing, not the trace: the centreline is
+    // still not drawn here, which is what this asks.
     if (hasGeometry) {
       await page.waitForSelector('.lapcard', { timeout: 20000 })
       const register = await page.$eval('#root main', (n) => n.textContent)
       is(
-        await page.$$eval('.lapcard svg', (n) => n.length),
+        await page.$$eval('.lapcard:not(.shapecard) svg', (n) => n.length),
         0,
-        'the register does not draw the circuits a third time',
+        'the register does not draw the traced centrelines a third time',
       )
       is(
-        await page.$$eval('.lapcard', (n) => n.length),
+        await page.$$eval('.lapcard:not(.shapecard)', (n) => n.length),
         count('SELECT COUNT(DISTINCT circuit_id) FROM geo.circuit_geometry'),
         'every traced centreline has a card',
       )

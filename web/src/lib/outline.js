@@ -44,6 +44,17 @@ export const OUTLINE_SCALE_NOTE =
 export const OUTLINES_NOTE = `${OUTLINE_CREDIT}. Carry that credit with any outline you take. Shown here in the site’s own ink at a constant stroke, otherwise as drawn. ${OUTLINE_RULE}`
 
 /**
+ * Under the register's grid of shapes, where one outline stands for a whole
+ * circuit: the rule, the scale caveat a grid always needs (VD-44), and the
+ * credit once for the set. Every card is F1DB's drawing under one licence on
+ * one page, which is what CC BY 4.0 s.3(a)(2)'s "reasonable manner" means
+ * here - the strip under a season's calendar credits its outlines the same
+ * way, and a circuit's own page, where each card carries figures of its own,
+ * credits them card by card.
+ */
+export const OUTLINE_REGISTER_NOTE = `${OUTLINE_RULE} ${OUTLINE_SCALE_NOTE} ${OUTLINE_BY}.`
+
+/**
  * Under a circuit's timeline, where the register's length sits a few lines
  * below F1DB's for the same layout and nine circuits disagree (Silverstone's
  * 1950 layout 4.649 v 4.711 km; Spa 19 v 21 turns).

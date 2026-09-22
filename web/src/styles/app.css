@@ -2544,6 +2544,14 @@ figure.figure > figcaption span {
   border-color: var(--rule-strong);
 }
 
+/* The register's shapes (VD-50): the same card, with F1DB's drawing of the
+   venue above the name. No stroke rule of its own - `.outline` is the one
+   rule every surface that draws a circuit uses, and this is a fourth surface
+   inside the size range it was set for, not a fourth rule. */
+.shapecard .outline {
+  margin-bottom: 9px;
+}
+
 /* Circuit names run from one line ("Montjuic") to three ("Autodromo Jose
    Carlos Pace (Interlagos)"), which left the row of cards ragged. Two lines'
    worth of space is reserved so the figures under them stay on one baseline. */
