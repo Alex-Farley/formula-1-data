@@ -3,6 +3,7 @@ import { Onward, Page, Section } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable from '../components/DataTable.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
+import { CHECKED_LABEL, CHECKED_NOTE, LAST_CHECKED } from '../lib/refresh.js'
 import {
   CHANGES_LEDE,
   CHANGES_TITLE,
@@ -56,6 +57,11 @@ function Current({ data }) {
         <dd>{meta.version ? `v${meta.version}` : '—'}</dd>
         <dt>Built</dt>
         <dd>{meta.built ?? '—'}</dd>
+        {/* Not from meta: the check date is a fact about the pipeline, not
+            about the data, and it is the one that moves on a morning when
+            nothing else did. lib/refresh.js says why it lives there. */}
+        <dt>{CHECKED_LABEL}</dt>
+        <dd>{LAST_CHECKED}</dd>
         <dt>Races</dt>
         <dd>{shape ? `${n(shape.races_run)} run, of ${n(shape.races)} on the calendar` : '—'}</dd>
         <dt>Most recent</dt>
@@ -86,6 +92,7 @@ function Current({ data }) {
           <Link to="/data/quality">{`${n(shape?.open_gaps)} stated`}</Link>
         </dd>
       </dl>
+      <p className="faint">{CHECKED_NOTE}</p>
       <p className="faint">{CURRENT_NOTE}</p>
     </>
   )

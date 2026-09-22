@@ -27,6 +27,7 @@ import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { COLOURS } from '../src/lib/racingColours.js'
+import { LAST_CHECKED } from '../src/lib/refresh.js'
 import { DOCUMENTS } from '../src/lib/site.js'
 import {
   ACCENT_APART,
@@ -1100,5 +1101,54 @@ describe('a column declaring collapse: true is drawn by nobody (VD-29)', () => {
       }
     }
     assert.deepEqual(drawn, [])
+  })
+})
+
+/*
+ * SD-25. `refresh.yml` rewrites one line of src/lib/refresh.js with sed every
+ * morning and asserts the rewrite with grep, so a red run is the failure mode
+ * if the line ever changes shape. That is a failure a day later, in a job
+ * nobody is watching, on the one signal that exists to be watched.
+ *
+ * So the coupling is checked here instead, and from the workflow rather than
+ * from a copy of it: the sed expression and the grep pattern are read out of
+ * refresh.yml and run against the real file. Rename the constant, requote it,
+ * wrap the line, or edit either pattern alone, and this fails on the pull
+ * request that did it.
+ */
+describe('the workflow can still stamp the check date it publishes (SD-25)', () => {
+  const workflow = read(join(web, '..', '.github', 'workflows', 'refresh.yml'))
+  const stampedFile = workflow.match(/^\s*file=(\S+)$/m)
+
+  it('names the file it stamps', () => {
+    assert.ok(stampedFile, 'refresh.yml no longer sets `file=` in the stamping step')
+    assert.equal(stampedFile[1], 'web/src/lib/refresh.js')
+  })
+
+  const sed = workflow.match(/sed -i "s\/(.+?)\/(.+?)\/" "\$file"/)
+  const grep = workflow.match(/grep -q "(.+?)" "\$file"/)
+  const today = '2099-12-31'
+
+  it('still has a sed expression and a grep assertion for it', () => {
+    assert.ok(sed, 'refresh.yml no longer seds $file')
+    assert.ok(grep, 'refresh.yml no longer greps $file for the result')
+  })
+
+  it('and the sed expression matches exactly one line of the file', () => {
+    const source = read(join(web, 'src', 'lib', 'refresh.js'))
+    const matched = source.split('\n').filter((line) => new RegExp(sed[1]).test(line))
+    assert.equal(matched.length, 1, `matched ${matched.length} lines, not 1`)
+  })
+
+  it('and the grep assertion passes on what the sed expression produces', () => {
+    const source = read(join(web, 'src', 'lib', 'refresh.js'))
+    const stamped = source.replace(new RegExp(sed[1], 'm'), sed[2].replace('${today}', today))
+    const pattern = new RegExp(grep[1].replace('${today}', today), 'm')
+    assert.ok(pattern.test(stamped), 'the grep pattern would not match the stamped file')
+  })
+
+  it('and what is committed today is an ISO day, not a placeholder', () => {
+    assert.match(LAST_CHECKED, /^\d{4}-\d{2}-\d{2}$/)
+    assert.ok(!Number.isNaN(Date.parse(`${LAST_CHECKED}T00:00:00Z`)), `${LAST_CHECKED} is not a date`)
   })
 })

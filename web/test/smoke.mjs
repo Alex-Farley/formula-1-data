@@ -52,6 +52,7 @@ import { ABOUT, DOCUMENTS, MAINTAINER, NOT_YET_RUN, PHOTOGRAPHS_SHOWN, SO_FAR } 
 // all — asked of the served HTML below rather than restated in it.
 import { attribution, canShow, fileTitle } from '../src/lib/commons.js'
 import { ENTRIES as CAR_ENTRIES, IMAGES as CAR_IMAGES } from '../src/queries/car.js'
+import { LAST_CHECKED } from '../src/lib/refresh.js'
 // The three surfaces VD-33 gave the photographs to, read from the app's own
 // queries so that the static pages are checked against what the app shows.
 import { CONSTRUCTOR_IMAGES, RACE_IMAGES, SEASON_IMAGES } from '../src/queries/photographs.js'
@@ -2033,6 +2034,18 @@ try {
     const shown = await page.$eval('#root main', (node) => node.textContent.replace(/\s+/g, ' '))
     truthy(shown.includes(`v${meta('version')}`), `the app names the database it is running on (v${meta('version')})`)
     truthy(shown.includes(meta('built')), `and the date it was built (${meta('built')})`)
+    // SD-25. The build date alone cannot tell a quiet week from a dead
+    // refresh, so the check date is shown beside it - and it comes from
+    // committed source rather than from meta, which is exactly why it needs
+    // checking on both renderers rather than assumed to travel with the file.
+    truthy(
+      shown.includes(LAST_CHECKED),
+      `and when the sources were last checked (${LAST_CHECKED})`,
+    )
+    truthy(
+      (await (await fetch(`${BASE}/changes`)).text()).includes(LAST_CHECKED),
+      'and the prerendered page says the same',
+    )
 
     const run = count(
       'SELECT COUNT(*) FROM races r WHERE EXISTS (SELECT 1 FROM race_entries e WHERE e.race_id = r.id)',
@@ -3199,6 +3212,10 @@ try {
       staticFoot.includes(`v${one(`SELECT value FROM meta WHERE key = 'version'`)}`) &&
         staticFoot.includes(one(`SELECT value FROM meta WHERE key = 'built'`)),
       'the static footer carries the version and build date',
+    )
+    truthy(
+      staticFoot.includes(LAST_CHECKED),
+      `and when the sources were last checked (${LAST_CHECKED}), on every page and not only /changes`,
     )
 
     const sitemap = await fetch(`${BASE}/sitemap.xml`).then((r) => r.text())

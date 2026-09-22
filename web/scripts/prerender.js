@@ -117,6 +117,7 @@ import {
   feedEntries,
   feedRights,
 } from '../src/lib/changes.js'
+import { CHECKED_LABEL, CHECKED_NOTE, LAST_CHECKED } from '../src/lib/refresh.js'
 import { LATEST as CHANGES_LATEST, SHAPE as CHANGES_SHAPE } from '../src/queries/changes.js'
 import { colourForEntry, markStyleAttr, winnerColour } from '../src/lib/liveries.js'
 import { RACE_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE, eventDay, raceStage } from '../src/queries/sessions.js'
@@ -791,7 +792,7 @@ const chrome = (body, crumbs, citeUrl) => `
     <p>${esc(IN_THIS_TAB)} ${esc(COUNTED_TOTALS)} ${link('data/quality', 'How far to trust it')} · ${link('data/sources', 'sources')} · ${link('data/sql', 'write your own query')} · ${link('changes', 'what changed')} · ${link('about', 'who publishes this')}.</p>
     <p>${esc(REPORT_ASK)} <a href="${esc(REPORT_URL)}">${esc(REPORT_LINK)}</a>. ${esc(REPORT_PROMISE)}</p>
     <p class="faint">Race data from <a href="https://github.com/f1db/f1db">F1DB</a> (CC BY 4.0), prose and registers from Wikipedia (CC BY-SA 4.0), circuit geometry © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL 1.0). ${esc(OUTLINE_CREDIT)}. Unaffiliated with Formula One, the FIA or any team.</p>
-  </div><dl><dt>Database</dt><dd>v${esc(META.version)}</dd><dt>Built</dt><dd>${esc(META.built)}</dd><dt>Digest</dt><dd><code>${esc(MANIFEST.digest)}</code></dd></dl></div></footer>
+  </div><dl><dt>Database</dt><dd>v${esc(META.version)}</dd><dt>Built</dt><dd>${esc(META.built)}</dd><dt>${esc(CHECKED_LABEL)}</dt><dd>${esc(LAST_CHECKED)}</dd><dt>Digest</dt><dd><code>${esc(MANIFEST.digest)}</code></dd></dl></div></footer>
 </div>`
 
 /**
@@ -3005,6 +3006,7 @@ const page = ({
       ${fields([
         ['Version', `v${esc(META.version)}`],
         ['Built', esc(META.built)],
+        [CHECKED_LABEL, esc(LAST_CHECKED)],
         [
           'Races',
           `${figures.races_run.toLocaleString()} run, of ${figures.races.toLocaleString()} on the calendar`,
@@ -3025,6 +3027,7 @@ const page = ({
         ],
         ['Known gaps', link('data/quality', `${figures.open_gaps.toLocaleString()} stated`)],
       ])}
+      ${note(CHECKED_NOTE)}
       ${note(CURRENT_NOTE)}
       <h2>${esc(FEED_HEADING)}</h2>
       <p class="measure">${esc(FEED_NOTE)} <a href="${esc(href(FEED_FILE))}">${esc(FEED_LINK_TEXT)}</a>.</p>

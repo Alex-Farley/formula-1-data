@@ -7,6 +7,12 @@ name: refresh the harvest
 # still to come. That is the whole staleness problem, and it is a job for a
 # schedule rather than for remembering.
 #
+# Every morning's run also stamps web/src/lib/refresh.js with the day it
+# checked, and commits that one line even when nothing else moved (SD-25).
+# Without it the only public freshness signal was the build date, which does
+# not move on a quiet morning - so ten green runs and one dead pipeline looked
+# identical from outside.
+#
 # Daily, just before 06:00 UTC. F1DB publishes within a day or two of a race,
 # and a weekly poll against that has a failure mode with no recovery inside
 # the period: miss it by four hours and the site says a race that has been run
@@ -24,8 +30,13 @@ on:
     - cron: '47 5 * * *'
   workflow_dispatch:
 
-# The workflow commits the refreshed harvest to the default branch when, and
-# only when, the rebuilt database passes every check.
+# The workflow commits to the default branch on two paths, and they are not
+# equally guarded because they are not equally risky. The refreshed HARVEST is
+# committed when, and only when, the rebuilt database passes every check
+# below. The dated check line is committed on the no-change path with no
+# rebuild at all: nothing is built from it, the sed that writes it asserts its
+# own result, and the web build gates it on every morning the harvest did
+# move.
 permissions:
   contents: write
 
@@ -64,6 +75,32 @@ jobs:
             echo "changed=true" >> "$GITHUB_OUTPUT"
             git diff --stat -- harvest/
           fi
+
+      # THE HEARTBEAT (SD-25, absorbing SD-14). A morning that found nothing
+      # new used to commit nothing, so no public surface moved: /changes went
+      # on saying `Built <three weeks ago>` whether this job had run green
+      # every day since or died on the first one. Those are different facts
+      # and the second is the one worth knowing.
+      #
+      # Stamped here, after the fetch has succeeded and whether or not the
+      # harvest moved, which is what makes a stale date mean something: a
+      # morning that failed - as 2026-09-13 did, when verify.py refused the
+      # chassis harvest - leaves the date where it was, and the reader sees
+      # it stop. A stamp written on every attempt would report the pipeline
+      # healthy right up to the point nobody could tell any more.
+      #
+      # The line is rewritten by sed and the rewrite asserted, exactly as
+      # BUILT is below; web/test/conventions.mjs holds the shape of the line
+      # to the shape matched here, so a reformat fails a pull request rather
+      # than a morning. The resulting daily commit is also what keeps
+      # GitHub's 60-day idle disable away from the schedule above.
+      - name: Stamp the check
+        run: |
+          today=$(date -u +%Y-%m-%d)
+          file=web/src/lib/refresh.js
+          sed -i "s/^export const LAST_CHECKED = '.*'$/export const LAST_CHECKED = '${today}'/" "$file"
+          grep -q "^export const LAST_CHECKED = '${today}'$" "$file" \
+            || { echo "::error::LAST_CHECKED was not updated; has the line in ${file} changed shape?"; exit 1; }
 
       # THE GATE. A refresh is only worth having if it is still true. build.py
       # rebuilds from the new harvest and verify.py runs every check against
@@ -151,4 +188,30 @@ jobs:
           git add -A
           git commit -m "harvest: refresh from F1DB ${version}" \
                      -m "Rebuilt and verified before committing; every check passed."
+          git push
+
+      # The no-change path's entire commit: one dated line. Cloudflare Workers
+      # Builds runs on every push to main, so this is also what re-deploys the
+      # site daily and so what keeps /build-status.txt - the deploy heartbeat,
+      # written per deploy and never committed - from ageing through a quiet
+      # week alongside everything else.
+      #
+      # Guarded on the file having actually moved, because a second run on the
+      # same day (a workflow_dispatch after the schedule) would otherwise try
+      # an empty commit and fail. No rebase and no retry on a losing push: the
+      # run goes red, this date does not advance, and the next morning writes
+      # it. That is the same signal a real failure gives, which is the signal
+      # the date exists to carry.
+      - name: Commit the check
+        if: steps.diff.outputs.changed == 'false'
+        run: |
+          if git diff --quiet -- web/src/lib/refresh.js; then
+            echo "Already stamped with today's date. Nothing to commit."
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add web/src/lib/refresh.js
+          git commit -m "refresh: checked F1DB, nothing new" \
+                     -m "The harvest already matches F1DB. This records that the check ran."
           git push
