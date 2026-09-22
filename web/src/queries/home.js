@@ -59,11 +59,29 @@ export const PER_SEASON = `
     FROM races GROUP BY year ORDER BY year
 `
 
-/** The next round anywhere in the register, which may be next season's first. */
+/**
+ * The next round OF THE SEASON BEING RUN, and, where that season has none
+ * left, the next season the register holds a calendar for.
+ *
+ * Not the next round anywhere: the panel sits inside a section headed "The
+ * 2026 season", and `meta.current_season` does not move to the following
+ * year until F1DB publishes its entry lists - so between a finale and
+ * pre-season "the next round anywhere" is next year's opener, drawn under
+ * this year's heading. A block that names a season answers about that
+ * season, and hands the reader on to the next one by name when it is over.
+ */
 export const NEXT = `
-  SELECT year, round, name_used, dates
-    FROM races WHERE status = 'scheduled'
-   ORDER BY year, round LIMIT 1
+  WITH now AS (SELECT CAST(value AS INTEGER) AS year FROM meta WHERE key = 'current_season')
+  SELECT r.year, r.round, r.name_used, r.dates
+    FROM races r, now n
+   WHERE r.status = 'scheduled' AND r.year = n.year
+   ORDER BY r.round LIMIT 1
+`
+
+export const NEXT_SEASON = `
+  WITH now AS (SELECT CAST(value AS INTEGER) AS year FROM meta WHERE key = 'current_season')
+  SELECT MIN(r.year) AS year FROM races r, now n
+   WHERE r.status = 'scheduled' AND r.year > n.year
 `
 
 /**
@@ -89,7 +107,8 @@ export const SEASON_NOW = `
          (SELECT COUNT(*) FROM races r WHERE r.year = n.year AND r.status = 'completed') AS run,
          (SELECT COUNT(*) FROM season_entries e WHERE e.year = n.year AND e.role = 'race') AS seats,
          (SELECT COUNT(DISTINCT e.constructor_id) FROM season_entries e
-           WHERE e.year = n.year AND e.role = 'race' AND e.constructor_id IS NOT NULL) AS teams
+           WHERE e.year = n.year AND e.role = 'race' AND e.constructor_id IS NOT NULL) AS teams,
+         (SELECT s.drivers_champion FROM seasons s WHERE s.year = n.year)              AS champion
     FROM now n
 `
 
@@ -158,7 +177,11 @@ export const seasonStrip = (now, lead) => {
     },
     started && first
       ? {
-          label: 'Leading the championship',
+          // "Leading" only while there is something to lead: once the season
+          // has a champion on the record, the same row is the champion, and
+          // a tile still calling them the leader would restate as open a
+          // question the season page next door has settled.
+          label: now.champion ? 'Champion' : 'Leading the championship',
           value: first.entity,
           kind: 'name',
           note: leadNote(first, gap),
@@ -179,12 +202,19 @@ const leadNote = (first, gap) => {
 export const seasonLink = (year) => `Open the ${year} season — the grid, the calendar and the standings →`
 
 export const LAST_RACE = 'Last race run'
+export const seasonComplete = (year) => `Every round of the ${year} season has been run.`
 export const NEXT_RACE = 'Next on the calendar'
 export const CLASSIFICATION_LINK = 'See the full classification →'
 export const NOTHING_SCHEDULED = 'Nothing scheduled beyond the last recorded race.'
 export const calendarLink = (year) => `Open the ${year} calendar →`
-export const stillToRunNote = (n) =>
-  `${number(n)} races on the calendar have not been run yet, so they carry no result.`
+/**
+ * How much of THIS season is still to come. It used to count every scheduled
+ * round in the register, which is this season's remainder plus the whole of
+ * next season's announced calendar - true of the database, and read as a
+ * claim about the season the heading above it names.
+ */
+export const stillToRunNote = (now) =>
+  `${number(now.rounds - now.run)} rounds of the ${now.year} season are still to run, so they carry no result.`
 
 /** "Won by Lando Norris for McLaren." — split around the two links in it. */
 export const WON_BY = 'Won by '

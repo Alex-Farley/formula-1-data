@@ -3523,8 +3523,12 @@ try {
       '/',
       '/seasons',
       '/seasons/2026',
+      // The two page STATES the kinds above do not reach: a season whose
+      // rounds have all still to be run, and a round with no result yet.
+      '/seasons/2027',
       '/races',
       '/races/1976/9',
+      '/races/2027/1',
       '/drivers',
       '/drivers/senna',
       '/constructors',

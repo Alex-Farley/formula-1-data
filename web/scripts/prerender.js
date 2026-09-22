@@ -164,6 +164,7 @@ import {
   LEDE as HOME_LEDE,
   NEXT as HOME_NEXT,
   NEXT_RACE,
+  NEXT_SEASON,
   NOTHING_SCHEDULED,
   PER_SEASON,
   READING_HEADING,
@@ -177,6 +178,7 @@ import {
   calendarLink,
   chartNote,
   reading,
+  seasonComplete,
   seasonHeading,
   seasonLink,
   seasonStrip,
@@ -1343,6 +1345,8 @@ const page = ({
   const seasons = all(PER_SEASON)
   const latest = one(LATEST_RUN)
   const upcoming = one(HOME_NEXT)
+  // The season after this one, named only when this one is over.
+  const after = one(NEXT_SEASON)?.year ?? null
   const now = one(SEASON_NOW)
   const lead = all(SEASON_LEAD)
   const { headline, title } = NAMES.home()
@@ -1357,9 +1361,9 @@ const page = ({
       })
     : null
 
-  const lastPanel = latest
-    ? `<div class="panel round-panel"><p class="eyebrow">${esc(LAST_RACE)}</p>
-        <h3>${link(`races/${latest.year}/${latest.round}`, `${latest.year} ${latest.name_used}`)}</h3>
+  const lastPanel = `<div class="panel round-panel"><p class="eyebrow">${esc(LAST_RACE)}</p>${
+    latest
+      ? `<h3>${link(`races/${latest.year}/${latest.round}`, `${latest.year} ${latest.name_used}`)}</h3>
         <p class="muted small">${esc([latest.circuit, latest.dates].filter(Boolean).join(' \u00b7 '))}</p>
         <p>${esc(WON_BY)}${
           latest.winner_id ? link(`drivers/${latest.winner_id}`, latest.winner) : esc(UNRECORDED_WINNER)
@@ -1372,16 +1376,23 @@ const page = ({
               }`
             : ''
         }.</p>
-        <p>${link(`races/${latest.year}/${latest.round}`, CLASSIFICATION_LINK)}</p></div>`
-    : '<div class="panel round-panel"></div>'
+        <p>${link(`races/${latest.year}/${latest.round}`, CLASSIFICATION_LINK)}</p>`
+      : ''
+  }</div>`
 
-  const nextPanel = `<div class="panel round-panel"><p class="eyebrow">${esc(NEXT_RACE)}</p>${
+  // Both panels read `now`, and the block they sit in is drawn only where
+  // there is a season being run, so neither is built without one.
+  const nextPanel = !now
+    ? ''
+    : `<div class="panel round-panel"><p class="eyebrow">${esc(NEXT_RACE)}</p>${
     upcoming
       ? `<h3>${link(`races/${upcoming.year}/${upcoming.round}`, `${upcoming.year} ${upcoming.name_used}`)}</h3>
         <p class="muted small">${esc(`${upcoming.dates} \u00b7 round ${upcoming.round}`)}</p>
-        <p class="muted">${esc(stillToRunNote(shape.races_scheduled))}</p>
+        <p class="muted">${esc(stillToRunNote(now))}</p>
         <p>${link(`seasons/${upcoming.year}`, calendarLink(upcoming.year))}</p>`
-      : `<p class="muted">${esc(NOTHING_SCHEDULED)}</p>`
+      : `<p class="muted">${esc(seasonComplete(now.year))}</p>${
+          after ? `<p>${link(`seasons/${after}`, calendarLink(after))}</p>` : `<p class="muted">${esc(NOTHING_SCHEDULED)}</p>`
+        }`
   }</div>`
 
   const seasonBlock = now

@@ -43,12 +43,11 @@ export const titled = (headline) => `${headline} — ${SITE}`
  *     registers, whose h1 is one word, and the home page.
  *
  *     Nothing here takes the coverage span. The static half used to title the
- *     five registers "Every driver, 1950-2027"; the app cannot know the span
+ *     registers "Every driver, 1950-2027"; the app cannot know the span
  *     before the database is open, which is exactly when the title is needed,
  *     so a shared title that wanted one would have to fall back - and a
  *     fallback is the drift this file exists to end. The span is still on
- *     every one of those pages, in the description and the wordmark, both of
- *     which are written where it is known.
+ *     every page in the masthead, which is written where it is known.
  *
  *     /changes is absent on purpose: its heading is CHANGES_TITLE in
  *     queries/changes.js, which both renderers already read, and moving it
@@ -68,7 +67,7 @@ export const NAMES = {
   constructor: (name) => named(name),
   circuits: () => named('Circuits', titled('Every Formula One circuit')),
   circuit: (name) => named(name),
-  cars: () => named('Cars'),
+  cars: () => named('Cars', titled('Every Formula One car')),
   car: (name) => named(name),
   records: () => named('Records'),
   eras: () => named('Eras and regulations'),

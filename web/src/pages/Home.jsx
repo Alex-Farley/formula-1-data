@@ -22,6 +22,7 @@ import {
   LEDE,
   NEXT,
   NEXT_RACE,
+  NEXT_SEASON,
   NOTHING_SCHEDULED,
   PER_SEASON,
   READING_HEADING,
@@ -38,6 +39,7 @@ import {
   reading,
   stillToRunNote,
   seasonHeading,
+  seasonComplete,
   seasonLink,
   seasonStrip,
   strip,
@@ -65,6 +67,7 @@ export default function Home() {
     perSeason: [PER_SEASON],
     latest: [LATEST],
     next: [NEXT],
+    nextSeason: [NEXT_SEASON],
     now: [SEASON_NOW],
     lead: [SEASON_LEAD],
   })
@@ -79,6 +82,8 @@ export default function Home() {
           const seasons = rows(data, 'perSeason')
           const latest = data.latest.rows[0]
           const next = data.next.rows[0]
+          // The season after this one, named only when this one is over.
+          const after = data.nextSeason.rows[0]?.year ?? null
           const now = data.now.rows[0]
           const lead = rows(data, 'lead')
           // The winning car's colour (AF-47 clause 1: the constructor is a
@@ -161,13 +166,22 @@ export default function Home() {
                           <p className="muted small">
                             {next.dates} · round {next.round}
                           </p>
-                          <p className="muted">{stillToRunNote(shape.races_scheduled)}</p>
+                          <p className="muted">{stillToRunNote(now)}</p>
                           <p>
                             <Link to={`/seasons/${next.year}`}>{calendarLink(next.year)}</Link>
                           </p>
                         </>
                       ) : (
-                        <p className="muted">{NOTHING_SCHEDULED}</p>
+                        <>
+                          <p className="muted">{seasonComplete(now.year)}</p>
+                          {after ? (
+                            <p>
+                              <Link to={`/seasons/${after}`}>{calendarLink(after)}</Link>
+                            </p>
+                          ) : (
+                            <p className="muted">{NOTHING_SCHEDULED}</p>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
