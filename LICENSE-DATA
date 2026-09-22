@@ -1,4 +1,4 @@
-Data licence — CC BY-SA 4.0
+Data licence — CC BY-SA 4.0, except this project's own writing (CC BY 4.0)
 
 This licence covers the data in this repository: data/, harvest/, f1.db,
 f1_database.json and f1_compat.json (but not the code — see LICENSE).
@@ -6,7 +6,8 @@ f1_database.json and f1_compat.json (but not the code — see LICENSE).
 Copyright (c) 2026 Alex Farley and Wikipedia contributors.
 
 The data is licensed under the Creative Commons Attribution-ShareAlike 4.0
-International License (CC BY-SA 4.0):
+International License (CC BY-SA 4.0), except for the five columns named under
+*The project's own writing* below, which are CC BY 4.0:
 
     https://creativecommons.org/licenses/by-sa/4.0/
 
@@ -23,8 +24,42 @@ articles: the car design histories, circuit descriptions, and some notes and
 glossary entries. Wikipedia text is licensed CC BY-SA 4.0, and that prose
 carries the same attribution and share-alike requirements with it. Rather
 than draw a line field-by-field, the whole data release is licensed CC BY-SA
-4.0. See ATTRIBUTION.md for the source of every part of the data and the
-reasoning in full.
+4.0 — with the one exception in the next section, where the line is drawn
+because there was never anything on the other side of it. See ATTRIBUTION.md
+for the source of every part of the data and the reasoning in full.
+
+## The project's own writing — CC BY 4.0
+
+Five columns hold writing that came from nowhere else. They are offered under
+the Creative Commons Attribution 4.0 International License (CC BY 4.0):
+
+    https://creativecommons.org/licenses/by/4.0/
+
+  - `discrepancies.assessment` — this project's reading of each disagreement
+    between two sources: which figure it takes, and why.
+  - `known_gaps.area`, `known_gaps.reader`, `known_gaps.description` and
+    `known_gaps.resolution` — what a reader is shown about each gap, the
+    maintainer's note on it, and what would close it.
+
+Attribute Lap Ledger; there is no share-alike, so
+nothing you build on them takes a licence from them. The share-alike above
+comes from Wikipedia, and none of Wikipedia's text is in these columns: every
+sentence in them was written for this project, about this project's own
+database. The remaining columns of those two tables — the subject and field
+of a disagreement, the two values, the state of a gap, the number of races it
+affects — hold facts and identifiers rather than expression.
+
+The grant is stated inside the database too, as `meta.project_prose` and
+`meta.project_prose_columns`, so a copy of `f1.db` carries its own terms; a
+build in which those disagree with this file fails. A CC BY grant cannot be
+withdrawn from a copy already taken, which is why the list is exactly this
+long.
+
+**The rest of the project's own prose is not in it yet.** `source_registry`
+entry 18 — "Written for this project from general knowledge" — names twelve
+further tables, and whether their text is equally free of Wikipedia is read
+one way by ATTRIBUTION.md and another by `docs/critiques/2026-09-21-data-architecture.md`.
+Until somebody reads those fields, they stay CC BY-SA.
 
 ## Attribution
 

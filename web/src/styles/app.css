@@ -825,8 +825,37 @@ td.num {
   white-space: nowrap;
 }
 
+/*
+ * A prose cell is a line of text and takes a measure, like any other.
+ *
+ * `max-width` alone did not give it one. A cell's max-width is honoured while
+ * the table still fits its box; once the table is at its max-content width and
+ * scrolling - which is the normal state of the wider registers - the auto
+ * layout lays the column out past it. The 60ch here computed to 544px and
+ * rendered 715px, and the assessment column on /data/quality ran to 117
+ * characters a line with the rule in force (VD-52).
+ *
+ * `width` is the lever the auto algorithm does respect: it is a preference,
+ * not a cap, so the column still shrinks to min-width where the table is
+ * cramped. 42ch takes the longest prose line across /data/quality,
+ * /reference/eras, /records and /circuits from 117 characters to 65, and
+ * leaves the median where it was (53 -> 52) - the cells that were running on
+ * are the ones that move.
+ *
+ * It is a preference and not a cap in the other direction too, which is worth
+ * knowing before reading a width off a page: in a table that already fits its
+ * box the algorithm honours the preference by taking the space from the
+ * columns beside it. On /seasons/2026 the prose column of design identifiers
+ * went 204px -> 381px and its two neighbours gave up the difference. Nothing
+ * wrapped that had not wrapped before and the table's own width did not
+ * change, so this is a redistribution rather than a widening - but a short
+ * prose cell does not always give space back, and this rule does not make it.
+ *
+ * max-width stays: it is what the record cells below narrow from.
+ */
 td.prose {
   min-width: 18ch;
+  width: 42ch;
   max-width: 60ch;
   white-space: normal;
   color: var(--ink-soft);

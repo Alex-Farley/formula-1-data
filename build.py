@@ -308,6 +308,11 @@ def _stage_01_meta(b):
         ("id_stability", N.ID_STABILITY_NOTE),
         ("id_stability_stable", stable_ids),
         ("id_stability_keys", id_keys),
+        # PM-47. The one part of this file that is not CC BY-SA, and the
+        # columns it covers. A reader holding f1.db and nothing else can read
+        # the grant off the file rather than having to find LICENSE-DATA.
+        ("project_prose", N.PROJECT_PROSE_NOTE),
+        ("project_prose_columns", ", ".join(N.PROJECT_PROSE_COLUMNS)),
     ])
 
 
