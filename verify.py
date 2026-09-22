@@ -3194,9 +3194,18 @@ def project_prose():
           value_or_none("project_prose") == _N.PROJECT_PROSE_NOTE)
 
     # And it is named where a reader looks for a licence. LICENSE-DATA is
-    # served at lapledger.org/LICENSE-DATA; ATTRIBUTION.md beside it.
+    # served at lapledger.org/LICENSE-DATA; ATTRIBUTION.md beside it. These
+    # two documents are what a reader takes the grant FROM, so they are
+    # checked in both directions: a column granted here and missing there
+    # would leave a reader unable to find the terms, and a column offered
+    # there and not granted here would widen the grant in prose alone, which
+    # is the direction nobody could see and no build could refuse.
     here = os.path.dirname(os.path.abspath(__file__))
-    for doc in ("LICENSE-DATA", "ATTRIBUTION.md"):
+    columns = {t: [c[1] for c in con.execute(f'PRAGMA table_info("{t}")')]
+               for (t,) in con.execute(
+                   "SELECT name FROM sqlite_master WHERE type = 'table'")}
+    for doc, heading in (("LICENSE-DATA", "## The project's own writing"),
+                         ("ATTRIBUTION.md", "## What this project wrote")):
         try:
             with open(os.path.join(here, doc), encoding="utf-8") as f:
                 text = f.read()
@@ -3206,6 +3215,25 @@ def project_prose():
         absent = [c for c in declared if c not in text]
         check(f"{doc} names every column offered under CC BY 4.0",
               not absent, ", ".join(absent))
+
+        # The section is found by its heading, and a heading that has been
+        # renamed fails here rather than leaving the section unread: a check
+        # that cannot find its subject passes on everything.
+        found = text.count(heading)
+        check(f"{doc} states the grant under one heading", found == 1,
+              "" if found == 1 else f"{found} headings matching {heading!r}")
+        if found != 1:
+            continue
+        section_ = text.split(heading, 1)[1].split("\n## ", 1)[0]
+        # `table.column` in that section, and only where both halves are real
+        # - `meta.project_prose` names a key, not a column, and is not one of
+        # these.
+        offered = [f"{t}.{c}" for t, c in
+                   re.findall(r"`([a-z_]+)\.([a-z_]+)`", section_)
+                   if c in columns.get(t, ())]
+        wider = sorted(set(offered) - set(declared))
+        check(f"{doc} offers no column that PROJECT_PROSE_COLUMNS does not",
+              not wider, ", ".join(wider))
 
 
 @section('ILLUSTRATION AND GEOMETRY')

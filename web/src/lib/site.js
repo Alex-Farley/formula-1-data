@@ -369,7 +369,7 @@ export const DOCUMENTS = [
   ],
   [
     'LICENSE-DATA',
-    'The terms the data is offered under \u2014 CC BY-SA 4.0, and CC BY 4.0 for what this project wrote itself \u2014 and why share-alike rather than something looser.',
+    'The terms the data is offered under \u2014 CC BY-SA 4.0, and CC BY 4.0 for the five columns holding this project\u2019s reading of each disagreement and its account of each gap \u2014 and why share-alike rather than something looser.',
   ],
 ]
 
@@ -493,8 +493,9 @@ export const ABOUT = [
         'timestamp. Every release carries a SHA256SUMS file and this site serves one for the copies ' +
         'it hands out, so a copy can be checked against the digests the build produced rather than ' +
         'against this site still being up.',
-      'The data is offered under CC BY-SA 4.0 \u2014 with this project\u2019s own writing under CC BY 4.0 \u2014 ' +
-        'and the code under the MIT licence; the circuit ' +
+      'The data is offered under CC BY-SA 4.0 \u2014 with the five columns named in ' +
+        'meta.project_prose_columns, this project\u2019s reading of each disagreement and its ' +
+        'account of each gap, under CC BY 4.0 \u2014 and the code under the MIT licence; the circuit ' +
         'centrelines are © OpenStreetMap contributors under ODbL 1.0, and that obligation follows ' +
         'f1-geometry.db alone. So if the person ' +
         'named above stops, what has already been published stays readable, checkable and ' +
