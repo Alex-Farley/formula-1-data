@@ -141,10 +141,25 @@ No code at all if DNS verification works, and it will.
    keeping: the property belongs to it, and other users can be added later.
 2. Property dropdown, top left → **Add property**.
 3. Two boxes appear. Take the left one, **Domain** — not URL prefix. Enter
-   `lapledger.org`: no `https://`, no `www`. A Domain property covers `www`,
-   `http` and every subdomain, which a URL-prefix property does not.
-4. It gives a TXT record. Copy the whole value, which starts
-   `google-site-verification=`.
+   `lapledger.org`: no `https://`, no `www`.
+
+   **This is not a preference, and here is the concrete reason.**
+   `https://www.lapledger.org/` serves the whole site — same pages, same
+   title, `200` — with its canonical pointing back at the apex (checked
+   2026-09-22). A URL-prefix property for `https://lapledger.org/` would not
+   cover that hostname, so every impression and click arriving on `www` would
+   be missing from the only report this item is being measured by, and
+   nothing in the interface would say so. A Domain property covers the apex,
+   `www`, any subdomain and both schemes at once. Its one cost is that it can
+   only be verified by DNS, which is free here.
+4. It gives a TXT record — but the popup has a **DNS provider** dropdown,
+   and until it reads **"Any DNS provider"** (with record type **TXT**) it
+   shows provider-specific instructions rather than the string. Cloudflare is
+   in that list and offers to write the record for you over OAuth; it works,
+   and it asks for DNS write access across the account to save one paste.
+   Copy the whole value, which starts `google-site-verification=`. If the
+   popup is closed before that: the property name → verification methods →
+   **DNS TXT record → Details** shows it again.
 5. dash.cloudflare.com → the **lapledger.org** zone → **DNS → Records → Add
    record**. Type **TXT**, name `@`, content the pasted value, TTL Auto.
    **Save.**
@@ -179,6 +194,49 @@ Measured 2026-09-21, before any of the above:
 | Search impressions | never measured |
 
 Every release before 2026-09-14 was private, so the clean window opens there.
+
+### Day zero, 2026-09-22
+
+What was actually in place when counting began, verified against the live
+site rather than assumed:
+
+| | |
+|---|---|
+| Beacon live from | **18:02 UTC**, deploy `46306b4` |
+| Beacon tags per page | **1** — on `/` and on a deep page, so automatic injection is off and no arrival is double-counted |
+| Tag as served | `data-cf-beacon='{"token":"1f1f3c…","spa":false}'` |
+| Search Console | verified some days earlier; the apex TXT record resolves, and it is the only TXT there |
+| `sitemap.xml` | `200`, **3,542** URLs, named by `robots.txt` |
+| Google's discovery route | the sitemap, and internal links — a sampled race page names `/constructors/ferrari` as its referring page |
+| A sampled deep page | `/races/1976/9`: **Discovered – currently not indexed**, last crawl **N/A** |
+
+**The two clocks do not start together.** Search Console had been accruing
+for several days by the time the beacon went out, so for the first fortnight
+the indexing trend has a longer runway than the arrivals data. Do not read
+them week-on-week against each other.
+
+### What "Discovered – currently not indexed" means here, because it will dominate the first read
+
+The sampled page is technically clean: `200`, no `robots` meta, no
+`X-Robots-Tag`, a self-referential canonical, in the sitemap, and 29,545
+bytes of real prerendered HTML naming the winner and the classification. It
+has simply never been fetched — last crawl `N/A`. That is the mild form of
+the status: queued, not visited. The form that would mean something is wrong
+carries a crawl date, meaning Google looked and declined.
+
+Google crawls a new domain in proportion to what it thinks the domain is
+worth, and that is mostly inbound links, of which this site has almost none.
+So the count to watch across the 3,542 is not whether any single page
+indexed but **whether that count falls**:
+
+- **falling** — crawl budget is ramping and the site is earning trust; wait.
+- **flat** — Google has decided the domain is not worth the crawl, and no
+  technical work changes that. The remedy is links, which is `SD-18` (#389),
+  the item that says this artefact is finished and undistributed.
+
+Requesting indexing by hand moves one URL. The quota is about ten a day
+against 3,542 pages, so it is a way to inspect a page's status, not a way to
+get the site indexed.
 
 ## The two numbers to read, and what each answers
 
