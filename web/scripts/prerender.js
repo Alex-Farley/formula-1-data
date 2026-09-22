@@ -3062,8 +3062,8 @@ writeFileSync(
       structure(
         `<h1>Not found</h1>
        <p class="lede">There is no page at this address. It may have been a typo, or a link to
-         something this database does not hold.</p>`,
-        onwardBand(ONWARD.notFound()),
+         something this database does not hold.</p>
+       <ul class="cards">${NAV.map(([to, label]) => `<li>${link(to, label)}</li>`).join('')}</ul>`,
       ),
       '',
     ),
