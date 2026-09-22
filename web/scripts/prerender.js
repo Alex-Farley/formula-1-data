@@ -67,6 +67,7 @@ import {
   DOCUMENTS,
   DOCUMENTS_NOTE,
   ENTRIES_NOTE,
+  IN_THIS_TAB,
   citation,
   LANDMARK,
   MAINTAINER,
@@ -727,7 +728,7 @@ const chrome = (body, crumbs, citeUrl) => `
     }
   </main>
   <footer class="sitefoot"><div class="sitefoot-inner"><div>
-    <p>Every page here is a query against one SQLite file, running in your browser. ${esc(COUNTED_TOTALS)} ${link('data/quality', 'How far to trust it')} · ${link('data/sources', 'sources')} · ${link('data/sql', 'write your own query')} · ${link('changes', 'what changed')} · ${link('about', 'who publishes this')}.</p>
+    <p>${esc(IN_THIS_TAB)} ${esc(COUNTED_TOTALS)} ${link('data/quality', 'How far to trust it')} · ${link('data/sources', 'sources')} · ${link('data/sql', 'write your own query')} · ${link('changes', 'what changed')} · ${link('about', 'who publishes this')}.</p>
     <p>${esc(REPORT_ASK)} <a href="${esc(REPORT_URL)}">${esc(REPORT_LINK)}</a>. ${esc(REPORT_PROMISE)}</p>
     <p class="faint">Race data from <a href="https://github.com/f1db/f1db">F1DB</a> (CC BY 4.0), prose and registers from Wikipedia (CC BY-SA 4.0), circuit geometry © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL 1.0). ${esc(OUTLINE_CREDIT)}. Unaffiliated with Formula One, the FIA or any team.</p>
   </div><dl><dt>Database</dt><dd>v${esc(META.version)}</dd><dt>Built</dt><dd>${esc(META.built)}</dd></dl></div></footer>
