@@ -2998,12 +2998,15 @@ try {
      * AF-01. The block every one of the 1,196 race pages emits had no test at
      * all, which is how it went a year without the two properties Search
      * Console asks for. Read off f1.db so the dates cannot be asserted against
-     * themselves, and on a round that has been run, whose date is settled.
+     * themselves, and on a round with no timetable held for it, where the day
+     * the markup states is `date_iso` itself - eventDay()'s derivation of a
+     * circuit's own day is units.mjs's to check, against Las Vegas.
      */
     const marked = one(
       `SELECT r.year || '/' || r.round || '|' || r.date_iso FROM races r
         JOIN race_results rr ON rr.id = r.id
-       WHERE r.date_iso IS NOT NULL AND rr.winner_id IS NOT NULL
+        LEFT JOIN sessions s ON s.race_id = r.id
+       WHERE r.date_iso IS NOT NULL AND rr.winner_id IS NOT NULL AND s.id IS NULL
        ORDER BY r.year DESC, r.round DESC LIMIT 1`,
     )
     const [markedRoute, markedDate] = String(marked).split('|')

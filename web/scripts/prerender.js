@@ -116,7 +116,7 @@ import {
 } from '../src/lib/changes.js'
 import { LATEST as CHANGES_LATEST, SHAPE as CHANGES_SHAPE } from '../src/queries/changes.js'
 import { markStyleAttr, winnerColour } from '../src/lib/liveries.js'
-import { RACE_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE, raceStage } from '../src/queries/sessions.js'
+import { RACE_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE, eventDay, raceStage } from '../src/queries/sessions.js'
 // The pages' own queries and column lists (PD-02). A page and this script
 // read the same module, so the static table is the app's table by
 // construction; the rest of the pages follow these.
@@ -1623,6 +1623,7 @@ const page = ({
     const scheduled = r.status === 'scheduled'
     const sessions = all(RACE_SESSIONS, r.year, r.round)
     const stage = raceStage(r, sessions, STATIC_NOW)
+    const day = eventDay(sessions, r.date_iso)
     const pending = scheduled ? scheduledNote(r, stage) : null
     const headline = `${r.year} ${r.name_used}`
     // CD-03: the standfirst the page opens on and the description a search
@@ -1667,18 +1668,22 @@ const page = ({
         ...(r.winner && !scheduled
           ? { winner: { '@type': 'Person', name: r.winner } }
           : {}),
-        // startDate comes from date_iso, not from the display value. The
-        // two columns exist precisely so this can be emitted for every
-        // race: `dates` may be a weekend range no parser can read, and the
-        // races that carry one are the SCHEDULED ones - exactly where a
-        // search engine most wants a date. Still guarded on the shape,
-        // because invalid structured data is worse than none.
+        // The day, not the display value. `dates` may be a weekend range
+        // no parser can read, and the races that carry one are the SCHEDULED
+        // ones - exactly where a search engine most wants a date. Still
+        // guarded on the shape, because invalid structured data is worse
+        // than none.
         //
         // `endDate` beside it, under the same guard, because Search Console
-        // asks for both and a grand prix is a one-day event: the same date,
-        // not a weekend range read out of `dates`. An end date that is not a
-        // date is an error where a missing one is a warning (AF-01).
-        ...(ISO_DAY.test(r.date_iso ?? '') ? { startDate: r.date_iso, endDate: r.date_iso } : {}),
+        // asks for both and a grand prix is a one-day event: the same day,
+        // not a range. An end date that is not a date is an error where a
+        // missing one is a warning (AF-01).
+        //
+        // eventDay() is the circuit's day rather than `date_iso`, because
+        // that is the frame schema.org reads a bare date in; the two differ
+        // on Las Vegas, and date_iso is what is left where no timetable is
+        // held to derive it from.
+        ...(ISO_DAY.test(day ?? '') ? { startDate: day, endDate: day } : {}),
         // A constant, and true of all 1,196 rounds: `races.status` tells a
         // round that has been run from one still to come, and neither is
         // cancelled, postponed or moved online — the states schema.org keeps

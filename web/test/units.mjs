@@ -57,7 +57,7 @@ import { trackPath } from '../src/lib/track.js'
 import { DRIVER_COLUMNS } from '../src/queries/drivers.js'
 import { holderPath } from '../src/queries/records.js'
 import { EXPLAINED_FOOTER, OPEN_FOOTER, allExplained } from '../src/lib/disagreement.js'
-import { clock, nextSession, raceStage, until, utc } from '../src/queries/sessions.js'
+import { clock, eventDay, nextSession, raceStage, until, utc } from '../src/queries/sessions.js'
 import {
   SEASON_COLUMNS,
   careerSentence,
@@ -398,6 +398,24 @@ describe('the weekend timetable', () => {
     assert.equal(until('2026-11-19T13:31:00Z', before), 'in 2 hours')
   })
 
+  // AF-01. schema.org reads a bare date in the event's own frame, so the day
+  // a race page states is the circuit's day - the Saturday Las Vegas races on,
+  // not the Sunday it is in UTC.
+  it("states the day the race happens where it happens, not the UTC one", () => {
+    assert.equal(eventDay(rows, '2026-11-22'), '2026-11-21')
+    assert.equal(eventDay([], '1976-08-15'), '1976-08-15', 'a round with no timetable keeps date_iso')
+    assert.equal(
+      eventDay([{ kind: 'race', start_utc: 'not a time', zone: 'America/Los_Angeles' }], '2026-11-22'),
+      '2026-11-22',
+      'and so does one whose timetable cannot be read',
+    )
+    assert.equal(
+      eventDay([{ kind: 'race', start_utc: '2026-03-08T04:00Z', zone: 'Australia/Melbourne' }], '2026-03-08'),
+      '2026-03-08',
+      'a race whose two frames agree states the day both of them hold',
+    )
+  })
+
   /*
    * AF-01. `status` says whether a classification is held; this says whether
    * the race has happened, which is the question the page was answering wrong
@@ -410,10 +428,17 @@ describe('the weekend timetable', () => {
     assert.equal(raceStage(race, rows, Date.parse('2026-11-22T06:59Z')), 'running')
     assert.equal(raceStage(race, rows, Date.parse('2026-11-22T07:00Z')), 'run')
     // No session is held for any round before the current season, so the date
-    // alone has to answer, and the latest claim it supports is the end of the
-    // race's own UTC day - never during it, in any zone.
-    assert.equal(raceStage(race, [], Date.parse('2026-11-22T23:58Z')), 'awaited')
-    assert.equal(raceStage(race, [], Date.parse('2026-11-23T00:00Z')), 'run')
+    // alone has to answer - and `date_iso` is not held in one frame: this row
+    // is the UTC day of a race run on the Saturday evening before it, while
+    // Las Vegas 2027 carries the local Saturday. A full day past the end of
+    // that date is after the race on either reading, and never during it.
+    assert.equal(raceStage(race, [], Date.parse('2026-11-23T23:58Z')), 'awaited')
+    assert.equal(raceStage(race, [], Date.parse('2026-11-24T00:00Z')), 'run')
+    assert.equal(
+      raceStage({ year: 2027, status: 'scheduled', date_iso: '2027-11-20' }, [], Date.parse('2027-11-21T00:30Z')),
+      'awaited',
+      'the local-Saturday reading of date_iso does not read as run four hours before the start',
+    )
     assert.equal(
       raceStage({ ...race, date_iso: null }, [], Date.parse('2030-01-01T00:00Z')),
       'awaited',
