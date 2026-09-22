@@ -1306,15 +1306,35 @@ describe('what the pages send, and to whom (PD-0)', () => {
     assert.match(tag, /data-cf-beacon='\{"token":"[A-Za-z0-9]+","spa":false\}'><\/script>$/)
   })
 
-  it('and the footer names what that buys: a count of the page arrived on', () => {
-    assert.match(IN_THIS_TAB, /cookieless count of the page you arrived on/)
+  it('and the footer names what that buys: the address arrived on, counted once', () => {
+    assert.match(IN_THIS_TAB, /the address you arrive on, counted once/)
+    // "each page you open" was wider than `"spa": false` buys, and this
+    // assertion had been relaxed to fit it — the guard following the prose
+    // instead of holding it (review finding, #580).
+    assert.match(
+      IN_THIS_TAB,
+      /Moving between pages counts nothing further/,
+      'the footer no longer says that a route change sends nothing, which is what "spa": false is for',
+    )
+    assert.match(
+      IN_THIS_TAB,
+      /the fonts, from Google/,
+      'the footer names what leaves and omits the fonts, which every page fetches from Google',
+    )
+    // And, since #580, the half that sentence alone does not carry: the
+    // address is the reader's own text on a searched register or the console.
+    assert.match(
+      IN_THIS_TAB,
+      /kept in the address, so arriving at one of those, by reload or by a link, hands it over/,
+      'the footer no longer says that a search, a filter or a statement is in the address the beacon counts',
+    )
   })
 
   it('the footer claims only what the page leaves true', () => {
     assert.doesNotMatch(
       IN_THIS_TAB,
       /[Nn]othing you look at/,
-      'the footer promises that nothing you look at is sent, and the beacon sends the page you arrived on',
+      'the footer promises that nothing you look at is sent, and the beacon sends the page you opened',
     )
     // The clause this replaced. commons.wikimedia.org is fetched on a route
     // change to any page with photographs, so the absolute is not available.
@@ -1355,5 +1375,150 @@ describe('what the pages send, and to whom (PD-0)', () => {
     assert.match(prerender, /build-status\.txt/, 'prerender.js no longer reports what it wrote for measurement')
     assert.equal(measurement({}).status.length, 2)
     assert.equal(measurement({ CF_BEACON_TOKEN: TOKEN, GOOGLE_SITE_VERIFICATION: VERIFICATION }).status.length, 2)
+  })
+
+  /*
+   * The claims the front end publishes about what is not sent, in the shapes
+   * these claims have actually taken, and why each is true.
+   *
+   * It is a backstop and not a proof, and says so because a rule that names a
+   * property it does not have is worse than no rule (the host table above
+   * makes the same point). A sentence has to put "nothing", "never" or "no"
+   * in front of one of five verbs to be seen at all: probed, "This site sends
+   * nothing about you to anyone", "Your typing is not sent anywhere" and
+   * "What you search for is private" all pass it unseen (review finding,
+   * #580).
+   *
+   * That boundary is where it is on evidence, not laziness. Taking "not" as
+   * well, and verbs like "reaches" and "shared", was tried in the same sitting
+   * and flagged nine innocent sentences across the two READMEs and
+   * `changes.js` — "no driver credited twice for the same race; shared
+   * fastest laps recorded as shared", "not the one already stored". A sweep
+   * that cries wolf nine times gets its allowlist padded until it means
+   * nothing. What this one catches is every wording this project has so far
+   * written, and any reuse of one of them somewhere it is not true.
+   *
+   * The two tests above pin IN_THIS_TAB, which is the sentence PD-0 rewrote
+   * when the beacon went in. It was not the only claim, and the first version
+   * of this test — which looked for the word "nothing" in two directories —
+   * was not the whole sweep either. What the review of #580 established is
+   * why: the beacon records `document.location.href` at execution, and this
+   * site puts reader input in the address. `Sql.jsx` writes the typed
+   * statement to `?q=`, and `urlstate.js` writes a register's search, filters
+   * and sort there too (IA-08). So an arrival at one of those addresses — a
+   * reload, a bookmark, a restored session, a shared link — sends what the
+   * reader typed to Cloudflare. "Nothing you type is sent anywhere" was false
+   * on the one page it was written for.
+   *
+   * The claims below are therefore about the moment, not the lifetime: what
+   * you type is not sent *as you type it*, which is true and stays true, and
+   * the footer names the address separately. Every match has to be declared
+   * with the reason it is true, so the next rewrite of the prose argues its
+   * case here rather than passing a pattern.
+   */
+  const SCOPED = [
+    [
+      'src/lib/site.js',
+      /nothing you search for, sort or type is sent as you do it/,
+      'the footer: true of the moment, and the sentence after it names the address',
+    ],
+    ['src/queries/home.js', /nothing you search for is sent as you type it/, "home's standfirst: the same claim, narrower"],
+    [
+      'src/lib/site.js',
+      // The match begins at the claim word, so the pattern does too.
+      /nothing further — but a search, a filter or a SQL statement is kept in the address/,
+      'true while the tag carries "spa": false, which the assertion above pins',
+    ],
+    [
+      'src/pages/Sql.jsx',
+      /Nothing you type is sent as you write it either/,
+      "the console's own note, in the app: the same sentence the prerendered lede carries",
+    ],
+    [
+      '../docs/MEASUREMENT.md',
+      /nothing further; and a search, a filter or a SQL statement is \*\*kept in the address\*\*/,
+      'the account of the footer, quoting it',
+    ],
+    [
+      'scripts/prerender.js',
+      /Nothing you type is sent as you write it &mdash; though running a statement keeps/,
+      'the console: the denial and its limit in one sentence',
+    ],
+    [
+      'README.md',
+      /Nothing you query leaves the tab as you type it; the statement is kept in/,
+      'web/README.md, the same claim for a reader of the source',
+    ],
+    [
+      'src/queries/sources.js',
+      /No pixels are stored/,
+      'about the photographs, not the reader: commons.js stores a reference (AF-07)',
+    ],
+    ['README.md', /never sent to a server/, 'web/README.md on fragments, the history of the hash router, and true of them'],
+    ['../README.md', /No image is stored/, 'the project README on article_images, the same as sources.js'],
+    [
+      '../docs/MEASUREMENT.md',
+      /nothing you search for, sort or type is sent \*\*as you do it\*\*/,
+      'the account of the footer, quoting it',
+    ],
+    [
+      '../docs/MEASUREMENT.md',
+      /[Nn]othing you look at or type is sent\s*anywhere/,
+      'the wording this replaced, quoted as history and marked as such',
+    ],
+  ]
+
+  it('every published claim about what is not sent says why it is true', () => {
+    const files = [
+      ...sourceFiles(join(web, 'src'), /\.jsx?$/),
+      ...sourceFiles(join(web, 'scripts'), /\.m?js$/),
+      join(web, 'index.html'),
+      join(web, 'README.md'),
+      // The documents make the same claims in the same present tense, and are
+      // read by anyone the site sends there. MEASUREMENT.md carried the
+      // retracted absolute for a day because nothing looked here (#580).
+      join(web, '..', 'README.md'),
+      join(web, '..', 'docs', 'MEASUREMENT.md'),
+    ]
+    const undeclared = []
+    for (const file of files) {
+      // Comments quote the claims these replaced, deliberately and at length;
+      // they are the record of why, not something a reader is told. Markdown
+      // and HTML are read whole.
+      const prose = /\.(jsx?|mjs)$/.test(file)
+        ? read(file)
+            .replace(/\/\*[\s\S]*?\*\//g, '')
+            .replace(/^\s*\/\/.*$/gm, '')
+        : read(file)
+      // No terminal full stop required, and "never"/"no" as well as "nothing":
+      // the review got `Nothing is stored or tracked`, `Your query is never
+      // sent anywhere.` and the no-period form of the removed sentence past
+      // the first version of this.
+      for (const [claim] of prose.matchAll(
+        /\b(?:nothing|never|no)\b[^.<>{}]{0,90}?\b(?:sent|leaves?|stored|tracked|kept)\b[^.]{0,90}/gi,
+      )) {
+        // A published sentence is often written across a `' + '` join; the
+        // reader sees one sentence, so the test reads one too.
+        const flat = claim
+          .replace(/['"]\s*\+\s*['"]/g, '')
+          .replace(/\s+/g, ' ')
+          .trim()
+        // Declared per file, not per pattern: a reason that is true of
+        // `sources.js` is not a licence to write the same words anywhere
+        // else, which a pattern-only allowlist would have granted (review
+        // finding, #580).
+        // Exact, not endsWith: `README.md` is a suffix of `../README.md`, so
+        // the first version of this binding let a web/README.md declaration
+        // license those words in the project README (review finding, #580).
+        const declared = SCOPED.some(([where, pattern]) => rel(file) === where && pattern.test(flat))
+        if (!declared) undeclared.push(`${rel(file)}: ${flat}`)
+      }
+    }
+    assert.deepEqual(
+      undeclared,
+      [],
+      `undeclared claim(s) about what is not sent:\n  ${undeclared.join('\n  ')}\n` +
+        'Say when it is true — as you type, as you read — and add it to SCOPED with that reason.',
+    )
   })
 })

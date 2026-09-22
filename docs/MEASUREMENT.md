@@ -32,15 +32,34 @@ worth more than the measurement. Two changes keep it honest:
   arrival and never on a route change. That is also exactly what *arrivals by
   landing page* means, so nothing was given up buying it;
 - `IN_THIS_TAB` in `web/src/lib/site.js` now claims only what the page leaves
-  true: what you search for, sort or type never leaves, and what does is the
-  cookieless arrival count **and the photographs**, which come from Wikimedia
-  Commons as a reader reaches them.
+  true: nothing you search for, sort or type is sent **as you do it**; what
+  leaves is the address arrived on, counted once, **the photographs** from
+  Wikimedia Commons as a reader reaches them, and **the fonts** from Google,
+  which every page fetches; moving between pages counts nothing further; and a
+  search, a filter or a SQL statement is **kept in the address**, so arriving
+  at one of those hands it over with the page.
 
 That last clause is there because the first attempt at this sentence said
 "moving between pages asks the network for nothing", which is false — a route
 change to any page with a photograph fetches it from Wikimedia, handing them
 the reader's IP and the referrer. A narrower claim than the truth is the same
 failure as a wider one.
+
+The review of #580 found the third version of it, and this time the claim was
+too wide. The beacon records `document.location.href` when it executes;
+`web/src/pages/Sql.jsx` writes the typed statement to `?q=`, and
+`web/src/lib/urlstate.js` writes a register's search, filters and sort there
+too (IA-08, #525). So an arrival at one of those addresses — a reload, a
+bookmark, a restored session, the permalink the console invites a reader to
+share — sends the reader's own text to Cloudflare. `"spa": false` holds, so
+typing alone sends nothing; it is one beacon per arrival, at whatever address
+that arrival carries. Every published claim is therefore about the moment,
+with the address named beside it, on this page as well as on the site.
+
+**PD-50 (#581)** is the mechanism that would let the shorter claim come back:
+strip the reader's own parameters from the address before the beacon executes,
+and hand them to the app afterwards. Until it lands, the wording above is the
+whole of the honesty.
 
 They are one decision, and `web/test/conventions.mjs` holds them together: it
 calls `measurement()` and asserts against **the tag that will actually be
