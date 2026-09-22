@@ -38,9 +38,11 @@
  *
  * Run after `vite build`, from web/. Reads ../f1.db and dist/index.html;
  * writes dist/<route>/index.html, dist/404.html, dist/sitemap.xml,
- * dist/feed.xml and dist/robots.txt.
+ * dist/feed.xml and dist/robots.txt, and appends what it did about
+ * measurement to dist/build-status.txt.
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { measurement } from './measurement.js'
 import { deflateSync } from 'node:zlib'
 import { DatabaseSync } from 'node:sqlite'
 import { dirname, join } from 'node:path'
@@ -3140,6 +3142,20 @@ ${timeline.map(entry).join('\n')}
   )
 }
 
+// ------------------------------------------------------------ measurement
+
+// The tags, their shapes and the whole of the reasoning are in
+// scripts/measurement.js. They live there rather than here because a test can
+// call a function and can only grep a script: the assertion that used to pin
+// the beacon's `"spa": false` was satisfied by this file's own status line,
+// and deleting the tag left it passing (review finding, 2026-09-22).
+const { tags: MEASUREMENT, status: MEASUREMENT_STATUS } = measurement(process.env, esc)
+for (const line of MEASUREMENT_STATUS) {
+  // Never fatal, never silent: a malformed token is reported here and in
+  // build-status.txt, and the site deploys without the tag [D-10].
+  if (line.includes('OFF —')) console.warn(`  ${line}`)
+}
+
 // ------------------------------------------------------------------ write
 
 // index.html preloads ./db-manifest.json, which is right for the file Vite
@@ -3199,6 +3215,10 @@ const render = ({ path, title, description, jsonld, image = null, html }) => {
     jsonld
       ? `<script type="application/ld+json">${JSON.stringify(jsonld).replace(/</g, '\\u003c')}</script>`
       : '',
+    // Last, and on 404.html too: a reader who arrived at an address that does
+    // not exist is an arrival, and the page it should have been is the thing
+    // PD-0 most wants to know.
+    ...MEASUREMENT,
   ]
     .filter(Boolean)
     .join('\n    ')
@@ -3365,8 +3385,31 @@ writeFileSync(
 
 db.close()
 
+// Where the measurement tags can be read without a deploy log.
+//
+// parquet-bundle.mjs writes public/build-status.txt earlier in the same chain
+// and vite copies it here, so this adds to a file it did not create: one file,
+// at /build-status.txt, saying what this deploy did. Build logs are off for
+// this project, so a beacon that silently did not ship would look exactly like
+// a site nobody visits [D-10] - which is the one mistake PD-0 cannot afford to
+// make, since it would answer its own question wrongly.
+//
+// A REPLACED SPAN RATHER THAN AN APPEND. The npm chain empties dist on every
+// run, so appending was correct for every path Cloudflare takes - but `npm run
+// prerender` on its own, which is how this script is worked on, stacked a
+// second `measurement` block on the first and the older one read as current
+// (review finding, 2026-09-22). The block is always last and always starts
+// with its own name, so rewriting from that name is the whole of it.
+const statusPath = join(dist, 'build-status.txt')
+const before = existsSync(statusPath) ? readFileSync(statusPath, 'utf8') : 'lapledger build\n'
+writeFileSync(
+  statusPath,
+  `${before.replace(/\n*measurement\n[\s\S]*$/, '\n')}\nmeasurement\n${MEASUREMENT_STATUS.join('\n')}\n`,
+)
+
 console.log(`  prerendered ${written.toLocaleString()} pages (${(bytes / 1024 / 1024).toFixed(1)} MB)`)
 console.log(
   `  dist/sitemap.xml, dist/feed.xml, dist/robots.txt, dist/404.html, ${REDIRECTS.length} redirecting pages`,
 )
 console.log(`  origin ${ORIGIN}${BASE}`)
+for (const line of MEASUREMENT_STATUS) console.log(`  ${line}`)

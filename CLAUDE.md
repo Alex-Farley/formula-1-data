@@ -153,7 +153,11 @@ is worth less than no build step** `[D-09]`.
 Anything non-fatal in that chain must report where it can be read — build
 logs are off for this project, so a silent failure is invisible `[D-10]`. The
 Parquet step writes `public/build-status.txt`, served at `/build-status.txt`,
-on success as well as failure.
+on success as well as failure. `prerender.js` appends its `measurement`
+block to the same file: whether the Cloudflare Web Analytics beacon and the
+Search Console tag went out, and if not, why. Both come from build variables
+(`CF_BEACON_TOKEN`, `GOOGLE_SITE_VERIFICATION`) and neither is ever fatal —
+an analytics token does not get to take the site down. `docs/MEASUREMENT.md`.
 
 The deploy does **not** rebuild the database or re-run `verify.py`; `ci.yml`
 does both on every push, so CI is the gate. Do not move it to the deploy

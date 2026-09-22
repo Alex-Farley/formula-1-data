@@ -125,6 +125,7 @@ src/charts/             scales, the figure frame, four chart types
 src/pages/              one file per route
 scripts/prepare-assets.js  stages the database, its gzip, the wasm, a manifest
 scripts/prerender.js       writes a real HTML file for every route
+scripts/measurement.js     the two arrival-counting tags, for prerender and its test
 test/smoke.mjs          drives the built site in a browser
 ```
 
@@ -159,7 +160,21 @@ really there, not because anything rewrites them.
 npm run build                        # includes the prerender
 SITE_ORIGIN=https://example.com npm run build     # canonical URLs and sitemap
 SITE_BASE=/f1/ npm run build                      # served from a subdirectory
+CF_BEACON_TOKEN=... npm run build                 # Cloudflare Web Analytics beacon
+GOOGLE_SITE_VERIFICATION=... npm run build        # Search Console meta tag
 ```
+
+The last two are how PD-0 (#261) measures arrivals, and both are optional:
+unset, `prerender.js` writes neither tag and says which it skipped, and why,
+in the `measurement` block of `/build-status.txt`. A malformed one is never
+fatal — an analytics token does not get to take the site down — and never
+silent either `[D-10]`. The beacon is written with `"spa": false` on purpose:
+one count per arrival and none for a route change, which is what *arrivals by
+landing page* asks for and what the footer's `IN_THIS_TAB` says it sends. The
+tags are built in `scripts/measurement.js` rather than inline, so
+`test/conventions.mjs` can assert against the markup instead of grepping the
+script that writes it. `docs/MEASUREMENT.md` has the dashboard steps and the
+two numbers to read.
 
 **The static block is not hydrated.** It lives in `#prerendered`, outside
 `#root`, so React never reconciles with it and there is no markup contract to

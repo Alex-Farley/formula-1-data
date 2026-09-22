@@ -88,6 +88,7 @@ here is a number the build checked.
 | `docs/BUILD-NOTES.md` | What changed in each version, what it exposed, what was deliberately not done. |
 | `docs/LANDED.md` | What has landed and what was declined, with the reason. The open queue is GitHub Issues. |
 | `docs/LOCAL-SETUP.md` | Getting `/backlog-loop` running on your own machine, from nothing. |
+| `docs/MEASUREMENT.md` | How arrivals and search impressions are counted, what that cost the footer's promise, and the two numbers to read. |
 | `CONTRIBUTING.md` | How to add data without breaking the checks. Read before editing. |
 | `ATTRIBUTION.md` | Where the data came from, and the licensing that follows from it. Served at `lapledger.org/ATTRIBUTION.md`, beside the data it covers. |
 | `LICENSE-DATA`, `LICENSE` | The terms the data is offered under (CC BY-SA 4.0, and CC BY 4.0 for the five columns this project wrote itself) and the terms the code is. `LICENSE-DATA` is served at `lapledger.org/LICENSE-DATA`. |

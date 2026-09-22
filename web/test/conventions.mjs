@@ -28,7 +28,8 @@ import { fileURLToPath } from 'node:url'
 
 import { COLOURS } from '../src/lib/racingColours.js'
 import { LAST_CHECKED } from '../src/lib/refresh.js'
-import { DOCUMENTS } from '../src/lib/site.js'
+import { DOCUMENTS, IN_THIS_TAB } from '../src/lib/site.js'
+import { measurement } from '../scripts/measurement.js'
 import {
   ACCENT_APART,
   accentsBySource,
@@ -1179,5 +1180,180 @@ describe('the workflow can still stamp the check date it publishes (SD-25)', () 
   it('and what is committed today is an ISO day, not a placeholder', () => {
     assert.match(LAST_CHECKED, /^\d{4}-\d{2}-\d{2}$/)
     assert.ok(!Number.isNaN(Date.parse(`${LAST_CHECKED}T00:00:00Z`)), `${LAST_CHECKED} is not a date`)
+  })
+})
+
+/*
+ * The measurement tags, and the promise they cost (PD-0, #261).
+ *
+ * The site counts arrivals with a Cloudflare Web Analytics beacon that
+ * prerender.js writes into every page, and it does that against a footer whose
+ * whole purpose is to say where the reading happens.
+ *
+ * THE FIRST VERSION OF THIS BLOCK DID NOT CHECK WHAT IT SAID IT DID.
+ *     Its beacon test was `assert.match(prerender, /spa:\s*false/)` - a grep
+ *     over the whole of prerender.js, which that file's own status line
+ *     `beacon on - token …, spa:false` satisfied by itself. Deleting the
+ *     entire `data-cf-beacon` expression left it passing. The one assertion
+ *     whose job is to stop the beacon becoming a running account of a reader's
+ *     browsing was answered by a log string (review finding, 2026-09-22).
+ *
+ *     A grep over a script is all a test can do to a script. The tags moved to
+ *     scripts/measurement.js so that this file can call the function and read
+ *     the markup it really returns, with the inputs it will really be given.
+ *
+ * The other rule here is the host list, and it is drawn the way the rest of
+ * this file draws one: every address in the front end is classified, with a
+ * reason, and a new one fails until somebody writes it down. Its first version
+ * looked only at hosts beginning `fonts.` or `static.`, which let it call
+ * itself a third-party rule while skipping commons.wikimedia.org - the
+ * browser's largest third-party fetch on this site, on hundreds of pages (the
+ * same review). A rule that names a property it does not have is worse than no
+ * rule, because it is cited.
+ */
+describe('what the pages send, and to whom (PD-0)', () => {
+  const prerender = read(join(web, 'scripts', 'prerender.js'))
+  const TOKEN = 'a1b2c3d4e5f60718293a4b5c6d7e8f90'
+  const VERIFICATION = 'abcdefghijklmnopqrstuvwxyz0123456789_-ABCD'
+
+  /*
+   * Every host the front end names, and what it is.
+   *
+   * `load` - the browser is told to fetch it, so it learns the reader's IP,
+   * the referrer and what was wanted. These are the ones IN_THIS_TAB has to
+   * account for, and the list is deliberately short enough to read.
+   *
+   * `cite` - an address the site prints, links or stores as a source. A reader
+   * who clicks one has chosen to; nothing is fetched by rendering the page.
+   *
+   * A host that appears in neither list fails, whichever kind it is. Adding a
+   * livery source or a new document link therefore costs one line here, which
+   * is the price of the load list being trustworthy.
+   */
+  const HOSTS = {
+    // load
+    'fonts.googleapis.com': ['load', 'the stylesheet for Saira and JetBrains Mono, non-blocking in index.html'],
+    'fonts.gstatic.com': ['load', 'the font files that stylesheet names'],
+    'static.cloudflareinsights.com': ['load', 'the Web Analytics beacon, one count per arrival (PD-0)'],
+    // Special:FilePath redirects to upload.wikimedia.org, which is therefore
+    // fetched too and never appears in this source. One entry, one decision.
+    'commons.wikimedia.org': ['load', 'the photographs, via thumbUrl() in src/lib/commons.js'],
+    // cite
+    'en.wikipedia.org': ['cite', 'the source behind a prose field or a register row'],
+    'www.formula1.com': ['cite', 'the official record a figure is checked against'],
+    'www.openstreetmap.org': ['cite', 'the ODbL attribution the centrelines carry'],
+    'schema.org': ['cite', 'the JSON-LD vocabulary, a namespace and not a fetch'],
+    'www.w3.org': ['cite', 'an XML namespace, likewise'],
+    'www.sitemaps.org': ['cite', 'the sitemap namespace, likewise'],
+    'creativecommons.org': ['cite', 'the licence a row or a photograph is offered under'],
+    'opendatacommons.org': ['cite', 'the ODbL text'],
+    'github.com': ['cite', 'the repository, the issue tracker and the releases'],
+    'lapledger.org': ['cite', 'this site, in canonical URLs and the default origin'],
+    'www.williamsf1.com': ['cite', 'a livery source (AF-15)'],
+    'www.redbullracing.com': ['cite', 'a livery source (AF-15)'],
+    'www.redbull.com': ['cite', 'a livery source (AF-15)'],
+    'www.mclaren.com': ['cite', 'a livery source (AF-15)'],
+    'www.astonmartinf1.com': ['cite', 'a livery source (AF-15)'],
+    'www.mercedesamgf1.com': ['cite', 'a livery source (AF-15)'],
+    'www.ferrari.com': ['cite', 'a livery source (AF-15)'],
+    'www.haasf1team.com': ['cite', 'a livery source (AF-15)'],
+    'www.visacashapprb.com': ['cite', 'a livery source (AF-15)'],
+    'www.cadillacf1team.com': ['cite', 'a livery source (AF-15)'],
+    'www.audi-mediacenter.com': ['cite', 'a livery source (AF-15)'],
+    'media.alpinecars.com': ['cite', 'a livery source (AF-15)'],
+  }
+
+  const hostsInFrontEnd = () => {
+    const files = [join(web, 'index.html'), ...sourceFiles(join(web, 'src')), ...sourceFiles(join(web, 'scripts'))]
+    const found = new Map()
+    for (const file of files) {
+      for (const [, host] of read(file).matchAll(/https?:\/\/([a-z0-9.-]+\.[a-z]{2,})/gi)) {
+        if (!found.has(host)) found.set(host, rel(file))
+      }
+    }
+    return found
+  }
+
+  it('every address the front end names is classified, load or cite', () => {
+    const undeclared = []
+    for (const [host, where] of hostsInFrontEnd()) {
+      if (!(host in HOSTS)) undeclared.push(`${host} (first seen in ${where})`)
+    }
+    assert.deepEqual(
+      undeclared,
+      [],
+      `undeclared host(s):\n  ${undeclared.join('\n  ')}\nAdd each to HOSTS in this file as 'load' (the browser fetches it) or 'cite' (the site only prints it), with the reason.`,
+    )
+  })
+
+  it('and the hosts the browser actually fetches from are these four and no others', () => {
+    // Spelled out rather than derived, so that reclassifying a host from cite
+    // to load is a visible edit in two places and not a quiet one in a table.
+    assert.deepEqual(
+      Object.entries(HOSTS)
+        .filter(([, [use]]) => use === 'load')
+        .map(([host]) => host)
+        .sort(),
+      ['commons.wikimedia.org', 'fonts.googleapis.com', 'fonts.gstatic.com', 'static.cloudflareinsights.com'],
+    )
+  })
+
+  it('the tag the build will write carries "spa":false, so one arrival is one count', () => {
+    const [tag] = measurement({ CF_BEACON_TOKEN: TOKEN }).tags
+    // Against the markup, not against the source that produces it: the whole
+    // point of the module.
+    assert.match(tag, /^<script type="module" src="https:\/\/static\.cloudflareinsights\.com\/beacon\.min\.js" /)
+    assert.match(tag, /data-cf-beacon='\{"token":"[A-Za-z0-9]+","spa":false\}'><\/script>$/)
+  })
+
+  it('and the footer names what that buys: a count of the page arrived on', () => {
+    assert.match(IN_THIS_TAB, /cookieless count of the page you arrived on/)
+  })
+
+  it('the footer claims only what the page leaves true', () => {
+    assert.doesNotMatch(
+      IN_THIS_TAB,
+      /[Nn]othing you look at/,
+      'the footer promises that nothing you look at is sent, and the beacon sends the page you arrived on',
+    )
+    // The clause this replaced. commons.wikimedia.org is fetched on a route
+    // change to any page with photographs, so the absolute is not available.
+    assert.doesNotMatch(
+      IN_THIS_TAB,
+      /asks the network for nothing/,
+      'the footer says a route change fetches nothing, and a photograph is fetched from Wikimedia',
+    )
+    assert.match(IN_THIS_TAB, /Wikimedia Commons/, 'the footer does not name the photographs as something that leaves')
+  })
+
+  it('neither token is written into the source; both come from the environment', () => {
+    assert.match(prerender, /measurement\(process\.env, esc\)/, 'prerender.js no longer reads the environment')
+    assert.doesNotMatch(
+      read(join(web, 'scripts', 'measurement.js')),
+      /"token"\s*:\s*"[A-Za-z0-9]{8,}"/,
+      'a literal Web Analytics token is written into measurement.js',
+    )
+    assert.doesNotMatch(
+      prerender,
+      /google-site-verification"\s+content="[A-Za-z0-9_-]{20,}"/,
+      'a literal Search Console verification string is written into prerender.js',
+    )
+  })
+
+  it('an unset environment writes no tag at all, and a malformed one writes no tag and says why', () => {
+    assert.deepEqual(measurement({}).tags, [])
+    for (const bad of ['abc', `abc'><script>`, 'x'.repeat(65)]) {
+      const { tags, status } = measurement({ CF_BEACON_TOKEN: bad })
+      assert.deepEqual(tags, [], `a token of ${JSON.stringify(bad)} produced a tag`)
+      assert.match(status[0], /^beacon\s+OFF — /)
+    }
+    const { tags } = measurement({ GOOGLE_SITE_VERIFICATION: 'short' })
+    assert.deepEqual(tags, [])
+  })
+
+  it('and both cases are readable without a deploy log [D-10]', () => {
+    assert.match(prerender, /build-status\.txt/, 'prerender.js no longer reports what it wrote for measurement')
+    assert.equal(measurement({}).status.length, 2)
+    assert.equal(measurement({ CF_BEACON_TOKEN: TOKEN, GOOGLE_SITE_VERIFICATION: VERIFICATION }).status.length, 2)
   })
 })

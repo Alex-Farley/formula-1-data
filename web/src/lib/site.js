@@ -128,10 +128,43 @@ export const ENTRIES_NOTE =
  * because that sentence is about where the copy of the database lives - the
  * browser store data/cache.js writes - and not about which tab survives a
  * network loss.
+ *
+ * AMENDED 2026-09-22, because the site now counts arrivals (PD-0, #261).
+ *     It used to say "Nothing you look at or type is sent anywhere", and that
+ *     sentence stopped being true the moment prerender.js started writing a
+ *     Cloudflare Web Analytics beacon into every page: the address you arrive
+ *     on is sent, once, cookielessly, to Cloudflare. Shipping the beacon and
+ *     leaving the sentence alone was never one of the options - a promise this
+ *     site cannot keep is worse than the measurement is worth, and this is the
+ *     paragraph a reader is most entitled to read literally.
+ *
+ *     THE FIRST ATTEMPT AT THE REPLACEMENT WAS WORSE THAN WHAT IT REPLACED.
+ *     It said "moving between pages asks the network for nothing", which is
+ *     false and more specifically false than the sentence it corrected: the
+ *     thumb-URL builder in commons.js makes a Wikimedia address that the
+ *     shared photograph component renders as an <img src>, so reaching any
+ *     Season, Race, Constructor or Car page hands Wikimedia the reader's IP,
+ *     the referrer and which photograph - and during the boot window main.jsx
+ *     fetches the prerendered half of the page asked for. (Named indirectly
+ *     because this file does not show a photograph, and the attribution rule
+ *     in conventions.mjs reads source rather than prose to decide that.)
+ *     Writing a narrower claim than the truth is the same failure as writing a
+ *     wider one; it just takes a reviewer rather than a reader to catch it
+ *     (review finding, 2026-09-22).
+ *
+ *     So the "nothing" clause is gone and the two things that do leave are
+ *     named: the arrival count, and the photographs. What is still absolute is
+ *     the half this page is actually about - a search, a sort, a SQL query -
+ *     because those run against a file already in the tab. The claim and the
+ *     tag are one decision: the count is of the page you ARRIVED on because
+ *     the beacon is written with `"spa": false`, and if that is ever dropped,
+ *     this sentence is wrong before the next deploy finishes.
  */
 export const IN_THIS_TAB =
-  'Every page here is a query against one SQLite file, running in this tab. Nothing you look at ' +
-  'or type is sent anywhere, and once it has loaded, this tab keeps working without a network.'
+  'Every page here is a query against one SQLite file, running in this tab: what you search for, ' +
+  'sort or type is never sent anywhere. What leaves is a cookieless count of the page you arrived ' +
+  'on, and the photographs, fetched from Wikimedia Commons as you reach them. Once it has loaded, ' +
+  'this tab keeps working without a network.'
 
 /**
  * What an em dash in a cell means, and where the career totals come from.
