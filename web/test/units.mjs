@@ -89,6 +89,7 @@ import { RACE_COLUMNS, raceWinnerHere } from '../src/queries/circuit.js'
 import { SEASON_COLUMNS as TEAM_SEASON_COLUMNS } from '../src/queries/constructor.js'
 import { constructorSeasons } from '../src/queries/constructor.js'
 import { NOT_YET_RUN } from '../src/lib/site.js'
+import { seasonComplete, seasonHeading, seasonStrip, stillToRunNote } from '../src/queries/home.js'
 import {
   LIVERIES,
   LIVERY_ERA,
@@ -1750,5 +1751,67 @@ describe('which empty-by-licence table a statement reads (CD-05)', () => {
   it('answers nothing for what is not a statement', () => {
     assert.equal(reads(undefined), null)
     assert.equal(reads(''), null)
+  })
+})
+
+describe("the home page's season block (PD-48)", () => {
+  // The states `/` cannot be in today. f1.db has one current season, part-run
+  // and undecided, so the suite that drives the site only ever sees that one:
+  // a season not yet started, a season decided, and a one-round remainder are
+  // reachable here and nowhere else.
+  const lead = [
+    { entity: 'Lando Norris', points: 312 },
+    { entity: 'Oscar Piastri', points: 288 },
+  ]
+  const running = { year: 2026, rounds: 23, run: 14, seats: 20, teams: 10, champion: null }
+
+  it('names a season with no round run as a calendar, and nobody as leading it', () => {
+    const strip = seasonStrip({ year: 2027, rounds: 24, run: 0, seats: 0, teams: 0, champion: null }, [])
+    assert.deepEqual(
+      strip.map((t) => t.label),
+      ['Rounds run', 'On the grid'],
+    )
+    assert.equal(strip[0].value, NOT_YET_RUN)
+    assert.equal(strip[0].note, '24 on the calendar')
+  })
+
+  it('leads on the leader while the championship is open', () => {
+    const [, tile] = seasonStrip(running, lead)
+    assert.equal(tile.label, 'Leading the championship')
+    assert.equal(tile.value, 'Lando Norris')
+    assert.equal(tile.note, '312 points, 24 clear')
+  })
+
+  it('calls the same row the champion once the season has one', () => {
+    const [, tile] = seasonStrip({ ...running, run: 23, champion: 'Lando Norris' }, lead)
+    assert.equal(tile.label, 'Champion')
+    assert.equal(tile.value, 'Lando Norris')
+  })
+
+  it('never says a leader is 0 clear, and needs no runner-up to say the points', () => {
+    const level = [lead[0], { entity: 'Oscar Piastri', points: 312 }]
+    assert.equal(seasonStrip(running, level)[1].note, '312 points, level at the top')
+    assert.equal(seasonStrip(running, [lead[0]])[1].note, '312 points')
+  })
+
+  it('has no strip at all without a current season', () => {
+    assert.deepEqual(seasonStrip(null, lead), [])
+    assert.deepEqual(seasonStrip(undefined, undefined), [])
+  })
+
+  it('counts what is left of the named season, not of the register', () => {
+    assert.equal(
+      stillToRunNote(running),
+      '9 rounds of the 2026 season are still to run, so they carry no result.',
+    )
+    assert.equal(
+      stillToRunNote({ ...running, run: 22 }),
+      '1 round of the 2026 season is still to run, so it carries no result.',
+    )
+  })
+
+  it('hands the reader on by name when the season is over', () => {
+    assert.equal(seasonComplete(2026), 'Every round of the 2026 season has been run.')
+    assert.equal(seasonHeading(2026), 'The 2026 season')
   })
 })

@@ -213,8 +213,13 @@ export const calendarLink = (year) => `Open the ${year} calendar →`
  * next season's announced calendar - true of the database, and read as a
  * claim about the season the heading above it names.
  */
-export const stillToRunNote = (now) =>
-  `${number(now.rounds - now.run)} rounds of the ${now.year} season are still to run, so they carry no result.`
+export const stillToRunNote = (now) => {
+  const left = now.rounds - now.run
+  const one = left === 1
+  return `${number(left)} round${one ? '' : 's'} of the ${now.year} season ${
+    one ? 'is' : 'are'
+  } still to run, so ${one ? 'it carries' : 'they carry'} no result.`
+}
 
 /** "Won by Lando Norris for McLaren." — split around the two links in it. */
 export const WON_BY = 'Won by '
