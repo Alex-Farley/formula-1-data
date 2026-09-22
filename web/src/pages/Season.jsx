@@ -34,12 +34,13 @@ import {
   GRID_HEADING,
   GRID_NOTE,
   NEIGHBOURS,
-  NO_CONSTRUCTORS_TITLE,
+  NOT_RUN_STANDINGS,
   REMAINING,
   SEASON,
   STANDINGS,
   constructorsFooter,
   latestRound,
+  noConstructorsNote,
   progressionNote,
   standingsHeading,
   stillRunning,
@@ -78,9 +79,17 @@ const calendarRenders = (year) => ({
         cell(name)
       ),
   },
+  // A round still to come has no winning car to link to, and the Winner cell
+  // beside it already says so: queries/season.js roundResult (CD-37).
   winning_team: {
     render: (name, row) =>
-      row.winning_team_id ? <Link to={`/constructors/${row.winning_team_id}`}>{name}</Link> : cell(name),
+      row.status !== 'completed' ? (
+        ''
+      ) : row.winning_team_id ? (
+        <Link to={`/constructors/${row.winning_team_id}`}>{name}</Link>
+      ) : (
+        cell(name)
+      ),
   },
 })
 
@@ -277,6 +286,9 @@ function SeasonBody({ year, season, data }) {
   // The words a champion slot carries where there is no fact to miss.
   const notYet = <span className="muted" style={{ fontSize: 15, fontWeight: 500 }}>{NOT_YET_RUN}</span>
   const ambiguous = constructorsFinal.some((r) => r.engine_id)
+  // Why there is no constructors' table, where there is none: the 1950-1957
+  // sentence, or the one a season nobody has raced needs (CD-32).
+  const noConstructors = noConstructorsNote(year, notRun)
 
   // The September question, answered from the standings, the calendar and the
   // season's own scoring rule (PD-28). Only where there is no champion yet:
@@ -490,13 +502,17 @@ function SeasonBody({ year, season, data }) {
             page={40}
             columns={withRenders(DRIVERS_FINAL_COLUMNS, driversRenders(year, teams))}
             footer={DRIVERS_FINAL_FOOTER}
+            // "No rows here." is true of a season nobody has raced and says
+            // nothing about it; the reason is the whole of what the page has
+            // (CD-32). Both renderers print this string.
+            empty={notRun ? NOT_RUN_STANDINGS : undefined}
           />
         </Section>
 
         <Section title={standingsHeading("Constructors'", live, after)} count={`${constructorsFinal.length} constructors`}>
           {constructorsFinal.length === 0 ? (
             <Note>
-              <strong>No constructors' championship.</strong> {NO_CONSTRUCTORS_TITLE}
+              <strong>{noConstructors.head}</strong> {noConstructors.body}
             </Note>
           ) : (
             <DataTable

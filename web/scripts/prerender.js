@@ -144,12 +144,13 @@ import {
   GRID_HEADING,
   GRID_NOTE,
   NEIGHBOURS as SEASON_NEIGHBOURS,
-  NO_CONSTRUCTORS_TITLE,
+  NOT_RUN_STANDINGS,
   REMAINING,
   SEASON,
   STANDINGS as SEASON_STANDINGS,
   constructorsFooter,
   latestRound,
+  noConstructorsNote,
   standingsHeading,
   stillRunning,
   titlePermutations,
@@ -1546,6 +1547,9 @@ const page = ({
     // published is not a grid of nobody - so the sentence is dropped rather
     // than made to count to zero.
     const notRun = run === 0
+    // Why there is no constructors' table, where there is none — the app's
+    // sentence, from the same module (CD-32).
+    const noConstructors = noConstructorsNote(year, notRun)
     // The same sentence the app prints, from the same function and the same
     // rows (PD-28): who can still win the drivers' title, what is left to win
     // and the round and build date the answer stands at.
@@ -1649,7 +1653,12 @@ const page = ({
               : row.winner_id && !String(name ?? '').includes(' / ')
                 ? link(`drivers/${row.winner_id}`, name)
                 : text(name),
-          winning_team: (name, row) => (row.winning_team_id ? link(`constructors/${row.winning_team_id}`, name) : text(name)),
+          // Nothing on a round still to come, as the app draws it: the
+          // Winner cell beside it carries the "not yet run" tag, and three
+          // more em dashes said a fact was missing about a race that has not
+          // happened (CD-37). queries/season.js roundResult is the rule.
+          winning_team: (name, row) =>
+            row.status !== 'completed' ? '' : row.winning_team_id ? link(`constructors/${row.winning_team_id}`, name) : text(name),
         })}
         ${note(CALENDAR_FOOTER)}
         <h2>${esc(standingsHeading("Drivers'", live, after))}</h2>
@@ -1658,7 +1667,9 @@ const page = ({
             ? fromColumns(DRIVERS_FINAL_COLUMNS, driversFinal, {
                 entity: (name, row) => (row.entity_id ? link(`drivers/${row.entity_id}`, name) : text(name)),
               }) + note(DRIVERS_FINAL_FOOTER)
-            : EMPTY_STATE
+            : notRun
+              ? `<p class="state is-empty">${esc(NOT_RUN_STANDINGS)}</p>`
+              : EMPTY_STATE
         }
         <h2>${esc(standingsHeading("Constructors'", live, after))}</h2>
         ${
@@ -1667,7 +1678,7 @@ const page = ({
                 entity: (name, row) =>
                   `${row.entity_id ? link(`constructors/${row.entity_id}`, name) : text(name)}${row.engine_id ? ` ${tag(row.engine_id)}` : ''}`,
               }) + note(constructorsFooter(constructorsFinal.some((r) => r.engine_id)))
-            : noteBox("No constructors' championship.", NO_CONSTRUCTORS_TITLE)
+            : noteBox(noConstructors.head, noConstructors.body)
         }
         ${
           entrants.length

@@ -1344,6 +1344,38 @@ try {
 
   })
 
+  // A calendar that has been announced and not raced. Its blanks are not
+  // unestablished facts: nobody has won a round of it, and the page used to
+  // say the constructors' championship "was not contested until 1958" and dash
+  // the Car, Pole and Fastest lap of every round (CD-32, CD-37).
+  await section('a season not yet run  (the blanks it has are not gaps)', async () => {
+    const awaited = one(
+      `SELECT MIN(year) FROM races
+        GROUP BY year HAVING SUM(status = 'completed') = 0 ORDER BY year LIMIT 1`,
+    )
+    if (!awaited) {
+      note('no season on the calendar is unraced — nothing to check')
+    } else {
+      await go(`/seasons/${awaited}`, String(awaited))
+      const main = await page.$eval('#root main', (node) => node.textContent)
+      truthy(
+        !main.includes('not contested until 1958'),
+        `${awaited} is not told about the 1958 championship`,
+      )
+      truthy(main.includes('Not yet run.'), 'its constructors\' standings say why they are empty')
+      // The calendar's own table, found by a header no other table has.
+      const dashed = await page.$$eval('#root main table', (tables) => {
+        const calendar = tables.find((table) =>
+          [...table.querySelectorAll('th')].some((th) => th.textContent.trim() === 'Fastest lap'),
+        )
+        if (!calendar) return -1
+        return [...calendar.querySelectorAll('td')].filter((td) => td.textContent.trim() === '—').length
+      })
+      is(dashed, 0, 'and no round of it dashes a result it cannot have yet')
+    }
+
+  })
+
   // ---------------------------------------------------------------- a race
 
   // 2026 carries two final standings rows per driver — formula1.com records the
@@ -1705,10 +1737,53 @@ try {
         )
         truthy(!/\b0 (wins|poles)\b/.test(description), 'and does not read "0 wins" or "0 poles" off a published column')
         truthy(/\.$/.test(description), 'and ends at a sentence')
-        truthy(
-          html.includes('<dt>Entries (published)</dt>') && html.includes('<dt>Starts (published)</dt>'),
-          'the static facts label the published figures as the app does',
+        // A published entry count exists for 38 of the 862 drivers and a
+        // published start count for 31. The row appears exactly where one
+        // does: an em dash there claimed nobody had established a figure the
+        // strip above counts, on 824 pages (CD-37). Both renderers read
+        // record() in queries/driver.js, so this pins the pair.
+        const held = db.prepare('SELECT entries, starts FROM drivers WHERE id = ?').get(quiet.id)
+        is(
+          html.includes('<dt>Entries (published)</dt>'),
+          held.entries !== null,
+          'the static facts carry a published entry count only where the register holds one',
         )
+        is(
+          html.includes('<dt>Starts (published)</dt>'),
+          held.starts !== null,
+          'and a published start count only where it holds one',
+        )
+        const published = db
+          .prepare('SELECT id FROM drivers WHERE entries IS NOT NULL AND starts IS NOT NULL ORDER BY id LIMIT 1')
+          .get()
+        const publishedHtml = await (await fetch(`${BASE}/drivers/${published.id}`)).text()
+        truthy(
+          publishedHtml.includes('<dt>Entries (published)</dt>') &&
+            publishedHtml.includes('<dt>Starts (published)</dt>'),
+          `and both rows stand on a driver who has them — /drivers/${published.id}`,
+        )
+
+        // A DATE OF DEATH A LIVING DRIVER DOES NOT HAVE IS NOT A MISSING FACT.
+        // 310 pages read "Died —" directly above "Status active" or
+        // "Status retired", which is the em-dash convention contradicting the
+        // row beneath it; a deceased driver with no date keeps the dash,
+        // because there it is true (CD-37).
+        const living = db
+          .prepare("SELECT id FROM drivers WHERE status IN ('active', 'retired') ORDER BY id LIMIT 1")
+          .get()
+        const dead = db
+          .prepare("SELECT id FROM drivers WHERE status = 'deceased' AND died IS NULL ORDER BY id LIMIT 1")
+          .get()
+        truthy(
+          !(await (await fetch(`${BASE}/drivers/${living.id}`)).text()).includes('<dt>Died</dt>'),
+          `a living driver's page has no Died row — /drivers/${living.id}`,
+        )
+        if (dead) {
+          truthy(
+            (await (await fetch(`${BASE}/drivers/${dead.id}`)).text()).includes('<dt>Died</dt>'),
+            `and a death nobody has dated keeps its em dash — /drivers/${dead.id}`,
+          )
+        }
 
         // PD-16: the same sentence is the page's OPENING one, in both
         // renderers, from lede() in queries/driver.js. Before this the 699
@@ -2141,6 +2216,49 @@ try {
   })
 
   // ------------------------------------------------------------- reference
+
+  // 339 of the 1,153 chassis have nothing in any of the eighteen
+  // specification fields, and the section drew eighteen em dashes: eighteen
+  // claims that nobody had established a figure, where the truth is one claim
+  // about the car (CD-37).
+  await section('a car with no published specification', async () => {
+    const bare = db
+      .prepare(
+        `SELECT ch.id FROM chassis ch LEFT JOIN cars c ON c.id = ch.car_id
+          WHERE ch.chassis_type IS NULL AND ch.susp_front IS NULL AND ch.susp_rear IS NULL
+            AND COALESCE(ch.brakes, c.brakes) IS NULL AND ch.gearbox IS NULL AND ch.gears IS NULL
+            AND COALESCE(ch.tyres, c.tyres) IS NULL AND ch.fuel IS NULL
+            AND COALESCE(ch.engine_name, c.engine_name) IS NULL
+            AND COALESCE(ch.engine_config, c.engine_config) IS NULL
+            AND COALESCE(ch.capacity_cc, c.capacity_cc) IS NULL
+            AND COALESCE(ch.aspiration, c.aspiration) IS NULL
+            AND ch.power_bhp IS NULL AND COALESCE(ch.power_note, c.power_note) IS NULL
+            AND ch.weight_kg IS NULL AND ch.wheelbase_mm IS NULL
+            AND ch.track_front_mm IS NULL AND ch.track_rear_mm IS NULL
+          ORDER BY ch.id LIMIT 1`,
+      )
+      .get()
+    if (!bare) {
+      note('every chassis carries a specification — nothing to check')
+    } else {
+      await go(`/cars/${bare.id}`, null)
+      const labels = await page.$$eval('#root main dt', (dts) => dts.map((dt) => dt.textContent.trim()))
+      truthy(
+        (await page.$eval('#root main', (node) => node.textContent)).includes(
+          'No specification is published for this car',
+        ),
+        `the empty specification is one sentence — /cars/${bare.id}`,
+      )
+      truthy(!labels.includes('Wheelbase'), 'and not eighteen em dashes')
+    }
+    // And a car that has one still lists every field, blanks included.
+    await go('/cars/mclaren-mp4-4', 'McLaren MP4/4')
+    truthy(
+      (await page.$$eval('#root main dt', (dts) => dts.map((dt) => dt.textContent.trim()))).includes('Wheelbase'),
+      'a specified car keeps its fields',
+    )
+
+  })
 
   await section('/records', async () => {
     await go('/records', 'Records')

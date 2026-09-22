@@ -14,12 +14,14 @@ import {
   ENTRIES,
   IMAGES,
   NO_ENTRIES,
+  NO_SPECIFICATION,
   SEASONS,
   VARIANTS,
   VARIANTS_FOOTER,
   VARIANT_COLUMNS,
   entryColumns,
   entryResult,
+  specified,
 } from '../queries/car.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
@@ -118,6 +120,37 @@ function CarBody({ chassis, variants, data }) {
     Math.max(...variants.map((v) => v.last_year ?? v.first_year).filter((y) => !missing(y))),
   ]
 
+  // THE SPECIFICATION, WHERE THERE IS ONE (CD-37). The two lists are built
+  // here rather than inline so the section can ask whether any of the
+  // eighteen fields holds anything before drawing eighteen em dashes at a
+  // reader - which is what 339 of the 1,153 chassis pages did, each dash a
+  // claim that nobody had established that figure, where one sentence says
+  // the whole of it. `car` is the curated row a variant falls back to, so a
+  // family's published engine still counts as this chassis's.
+  const specChassis = [
+    { label: 'Chassis', value: chassis.chassis_type },
+    { label: 'Front suspension', value: chassis.susp_front },
+    { label: 'Rear suspension', value: chassis.susp_rear },
+    { label: 'Brakes', value: chassis.brakes ?? car?.brakes },
+    { label: 'Gearbox', value: chassis.gearbox },
+    { label: 'Gears', value: chassis.gears },
+    { label: 'Tyres', value: chassis.tyres ?? car?.tyres },
+    { label: 'Fuel', value: chassis.fuel },
+  ]
+  const specEngine = [
+    { label: 'Engine', value: chassis.engine_name ?? car?.engine_name },
+    { label: 'Configuration', value: chassis.engine_config ?? car?.engine_config },
+    { label: 'Capacity', value: (chassis.capacity_cc ?? car?.capacity_cc) ? `${number(chassis.capacity_cc ?? car.capacity_cc)} cc` : null },
+    { label: 'Aspiration', value: chassis.aspiration ?? car?.aspiration },
+    { label: 'Power', value: chassis.power_bhp ? `${number(chassis.power_bhp)} bhp` : null },
+    { label: 'Power note', value: chassis.power_note ?? car?.power_note },
+    { label: 'Weight', value: chassis.weight_kg ? `${chassis.weight_kg} kg` : null },
+    { label: 'Wheelbase', value: chassis.wheelbase_mm ? `${number(chassis.wheelbase_mm)} mm` : null },
+    { label: 'Track, front', value: chassis.track_front_mm ? `${number(chassis.track_front_mm)} mm` : null },
+    { label: 'Track, rear', value: chassis.track_rear_mm ? `${number(chassis.track_rear_mm)} mm` : null },
+  ]
+  const hasSpecification = specified([...specChassis, ...specEngine])
+
   return (
     <Page
       eyebrow={chassis.constructor ?? 'Chassis'}
@@ -203,40 +236,22 @@ function CarBody({ chassis, variants, data }) {
       )}
 
       <Section title={several ? `Specification — ${chassis.name}` : 'Specification'}>
-        <div className="split">
-          <Fields
-            items={[
-              { label: 'Chassis', value: chassis.chassis_type },
-              { label: 'Front suspension', value: chassis.susp_front },
-              { label: 'Rear suspension', value: chassis.susp_rear },
-              { label: 'Brakes', value: chassis.brakes ?? car?.brakes },
-              { label: 'Gearbox', value: chassis.gearbox },
-              { label: 'Gears', value: chassis.gears },
-              { label: 'Tyres', value: chassis.tyres ?? car?.tyres },
-              { label: 'Fuel', value: chassis.fuel },
-            ]}
-          />
-          <Fields
-            items={[
-              { label: 'Engine', value: chassis.engine_name ?? car?.engine_name },
-              { label: 'Configuration', value: chassis.engine_config ?? car?.engine_config },
-              { label: 'Capacity', value: (chassis.capacity_cc ?? car?.capacity_cc) ? `${number(chassis.capacity_cc ?? car.capacity_cc)} cc` : null },
-              { label: 'Aspiration', value: chassis.aspiration ?? car?.aspiration },
-              { label: 'Power', value: chassis.power_bhp ? `${number(chassis.power_bhp)} bhp` : null },
-              { label: 'Power note', value: chassis.power_note ?? car?.power_note },
-              { label: 'Weight', value: chassis.weight_kg ? `${chassis.weight_kg} kg` : null },
-              { label: 'Wheelbase', value: chassis.wheelbase_mm ? `${number(chassis.wheelbase_mm)} mm` : null },
-              { label: 'Track, front', value: chassis.track_front_mm ? `${number(chassis.track_front_mm)} mm` : null },
-              { label: 'Track, rear', value: chassis.track_rear_mm ? `${number(chassis.track_rear_mm)} mm` : null },
-            ]}
-          />
-        </div>
-        <p className="source-note">
-          A blank is a figure nobody published for this car. Where several teams quote the same
-          number in a season it is usually the rule they were all built to rather than a
-          measurement, so it is kept with the{' '}
-          <Link to="/reference/eras">regulation limits</Link> instead of here.
-        </p>
+        {hasSpecification ? (
+          <>
+            <div className="split">
+              <Fields items={specChassis} />
+              <Fields items={specEngine} />
+            </div>
+            <p className="source-note">
+              A blank is a figure nobody published for this car. Where several teams quote the same
+              number in a season it is usually the rule they were all built to rather than a
+              measurement, so it is kept with the{' '}
+              <Link to="/reference/eras">regulation limits</Link> instead of here.
+            </p>
+          </>
+        ) : (
+          <p className="source-note">{NO_SPECIFICATION}</p>
+        )}
       </Section>
 
       {winsDiffer && (

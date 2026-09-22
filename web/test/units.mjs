@@ -72,7 +72,9 @@ import {
 import {
   constructorsFooter,
   latestRound,
+  noConstructorsNote,
   roundName,
+  roundResult,
   roundWinner,
   standingsHeading,
   stillRunning,
@@ -652,15 +654,36 @@ describe('the queries a page and the prerenderer share', () => {
     assert.equal(some.find((i) => i.label === 'Best finish').value, 'P1')
   })
 
-  it('labels the stored figures as published, and dashes what nobody published', () => {
+  it('labels the stored figures as published, and shows a row only where there is a figure or a fact', () => {
     const pairs = Object.fromEntries(record({ wins: 8, wins_external: 8, poles: 5, poles_external: null, entries: null }))
-    assert.equal(pairs['Entries (published)'], EMPTY)
+    // A published entry count exists for 38 of the 862 drivers; the rest get
+    // no row rather than an em dash claiming nobody established the figure
+    // the strip above counts (CD-37).
+    assert.equal('Entries (published)' in pairs, false)
+    assert.equal('Starts (published)' in pairs, false)
     assert.equal('Entries (stored)' in pairs, false)
+    assert.equal(Object.fromEntries(record({ entries: 91, starts: 90 }))['Entries (published)'], '91')
+    assert.equal(Object.fromEntries(record({ entries: 91, starts: 90 }))['Starts (published)'], '90')
+    // Zero is a published figure, and a published zero is not a blank.
+    assert.equal(Object.fromEntries(record({ entries: 0 }))['Entries (published)'], '0')
     assert.equal(pairs.Wins, '8 derived · 8 published')
     assert.equal(pairs.Poles, '5 derived')
     assert.equal('Provenance' in pairs, false)
     assert.equal(Object.fromEntries(record({ provenance: 'harvest' })).Provenance, 'harvest')
     assert.equal(derivedAndPublished(null, 3), '— derived · 3 published')
+  })
+
+  it('drops Died where the register says the driver is alive, and keeps it where it does not (CD-37)', () => {
+    const died = (driver) => Object.fromEntries(record(driver))
+    assert.equal('Died' in died({ status: 'active' }), false)
+    assert.equal('Died' in died({ status: 'retired' }), false)
+    // A death whose date nobody has established: 10 of the 441 deceased rows,
+    // and the one place on this row where the em dash means what it says.
+    assert.equal(died({ status: 'deceased', died: null }).Died, EMPTY)
+    assert.equal(died({ status: 'deceased', died: '1994-05-01' }).Died, '1994-05-01')
+    // 111 rows carry no status at all, and nothing is established either way.
+    assert.equal(died({ status: '' }).Died, EMPTY)
+    assert.equal(died({}).Died, EMPTY)
   })
 
   it('opens a driver page on the career the records hold, or on the note where one is written (PD-16)', () => {
@@ -798,6 +821,18 @@ describe('the queries a page and the prerenderer share', () => {
     assert.equal(roundWinner('Lando Norris', { status: 'completed' }), 'Lando Norris')
     assert.equal(roundWinner(null, { status: 'completed' }), EMPTY)
     assert.equal(roundWinner(null, { status: 'scheduled' }), NOT_YET_RUN)
+    // The three result columns beside that cell say nothing rather than
+    // dashing a fact about a race nobody has run (CD-37).
+    assert.equal(roundResult('Red Bull Racing', { status: 'completed' }), 'Red Bull Racing')
+    assert.equal(roundResult(null, { status: 'completed' }), EMPTY)
+    assert.equal(roundResult(null, { status: 'scheduled' }), '')
+    assert.equal(roundResult('Red Bull Racing', { status: 'scheduled' }), '')
+    // Why a constructors' table is empty: before 1958 it did not exist, and
+    // on a calendar nobody has raced it has not happened yet (CD-32).
+    assert.equal(noConstructorsNote(1952, false).body, 'It was not contested until 1958.')
+    assert.equal(noConstructorsNote(2027, true).head, 'Not yet run.')
+    assert.match(noConstructorsNote(2027, true).body, /No round of the 2027 calendar/)
+    assert.equal(noConstructorsNote(1975, false).head, "No constructors' standings.")
     assert.equal(roundName('Chinese Grand Prix', { sprint: 1 }), 'Chinese Grand Prix sprint')
     assert.equal(raceWinner('A', { status: 'completed', co_winner_id: 'b' }), 'A shared')
     assert.equal(raceWinner('A', { status: 'scheduled', co_winner_id: null }), NOT_YET_RUN)

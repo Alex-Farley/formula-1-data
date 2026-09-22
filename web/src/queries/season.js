@@ -359,15 +359,27 @@ export const roundName = (name, row) => (row.sprint ? `${text(name)} ${SPRINT}` 
 /** The winner, or "not yet run" for a calendar entry with no result. */
 export const roundWinner = (name, row) => (row.status !== 'completed' ? NOT_YET_RUN : text(name))
 
+/**
+ * A result column on a round that has not been run: nothing (CD-37, CD-32).
+ *
+ * The Winner cell beside it already says "not yet run", and the em dash means
+ * a figure nobody has established - so Car, Pole and Fastest lap dashed three
+ * times per scheduled round said that a fact was missing about a race that
+ * has not happened. 33 rounds on the calendar are in that state today and
+ * every season passes through it. The row states the case once, in the cell
+ * that exists to state it, and the rest stay blank.
+ */
+export const roundResult = (value, row) => (row.status !== 'completed' ? '' : text(value))
+
 export const CALENDAR_COLUMNS = [
   { key: 'round', label: 'R', align: 'num' },
   { key: 'name_used', label: 'Grand Prix', text: roundName },
   { key: 'circuit', label: 'Circuit' },
   { key: 'dates', label: 'Dates' },
   { key: 'winner', label: 'Winner', text: roundWinner },
-  { key: 'winning_team', label: 'Car' },
-  { key: 'pole', label: 'Pole' },
-  { key: 'fastest', label: 'Fastest lap' },
+  { key: 'winning_team', label: 'Car', text: roundResult },
+  { key: 'pole', label: 'Pole', text: roundResult },
+  { key: 'fastest', label: 'Fastest lap', text: roundResult },
 ]
 
 export const CALENDAR_FOOTER =
@@ -429,7 +441,41 @@ export const CONSTRUCTORS_GAP_FOOTER = GAP_FOOTER
 export const constructorsFooter = (ambiguous) =>
   ambiguous ? `${CONSTRUCTORS_GAP_FOOTER} ${CONSTRUCTORS_PAIR_FOOTER}` : CONSTRUCTORS_GAP_FOOTER
 
-export const NO_CONSTRUCTORS_TITLE = 'It was not contested until 1958.'
+/**
+ * What stands where a constructors' table would, and why it is empty (CD-32).
+ *
+ * Nine seasons hold no constructors' standings and they are not empty for the
+ * same reason. Eight are 1950-1957, before the championship existed; the
+ * ninth is a calendar that has been announced and not yet raced, and it was
+ * being told the championship "was not contested until 1958" - a sentence
+ * about a season seventy years earlier, on the page of one that has not
+ * started. The strip at the top of that page already reads "not yet run" for
+ * both champions, which is IA-17's rule that an unrun season and an unknown
+ * one must not read the same; this block is where that rule had not reached.
+ *
+ * `notRun` is the season with no round completed, as both renderers compute
+ * it. The third case holds for no season today and is what the two facts
+ * actually leave: a season that has run and whose constructors' table this
+ * database does not hold.
+ */
+export const noConstructorsNote = (year, notRun) => {
+  if (notRun) {
+    return {
+      head: 'Not yet run.',
+      body: `No round of the ${year} calendar has been raced, so the constructors' championship has nothing to show yet.`,
+    }
+  }
+  if (year < 1958) {
+    return { head: "No constructors' championship.", body: 'It was not contested until 1958.' }
+  }
+  return {
+    head: "No constructors' standings.",
+    body: "This database holds no constructors' table for this season.",
+  }
+}
+
+/** What an empty standings table says on a season nobody has raced yet. */
+export const NOT_RUN_STANDINGS = 'Not yet run: no round of this calendar has been raced.'
 
 export const ENTRANT_COLUMNS = [
   { key: 'constructor', label: 'Constructor', text: (name, row) => text(name ?? row.entrant_id) },
