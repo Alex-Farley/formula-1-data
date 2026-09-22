@@ -1030,3 +1030,63 @@ describe('the button carries a foreground that clears 4.5:1 on its own fill (AX-
     })
   }
 })
+
+
+describe('a column declaring collapse: true is drawn by nobody (VD-29)', () => {
+  /*
+   * `collapse: true` in web/src/queries/* says the cell is its text, so the
+   * column may be dropped and stated once above the table. A page that gives
+   * that column a `render` - a link that differs row by row, a livery mark, a
+   * tag - makes the claim false, and the first version of this rule shipped
+   * exactly that: a nine-column static table under the app's ten on 32 driver
+   * pages, because the app protected its renders and the static half did not.
+   *
+   * The static half's own answer is a build failure: fromColumns() in
+   * scripts/prerender.js refuses a declared column that appears in its `links`
+   * map, on the page where it happens. This is the app's half, read from the
+   * source because a page is JSX and cannot be imported here.
+   */
+  const declared = sourceFiles(join(web, 'src', 'queries'), /\.js$/).flatMap((file) =>
+    [...read(file).matchAll(/key:\s*'([^']+)'[^}]*collapse:\s*true/g)].map((m) => [m[1], rel(file)]),
+  )
+
+  it('the repository declares the columns this rule expects', () => {
+    assert.deepEqual(
+      [...new Set(declared.map(([key]) => key))].sort(),
+      ['as_of', 'fastest_laps', 'layout_key', 'podiums', 'poles', 'source', 'wins'],
+    )
+    // Ten declarations of those seven keys: a driver's season table and a
+    // constructor's each declare wins, podiums and poles.
+    assert.equal(declared.length, 10, declared.map(([key, file]) => `${file}: ${key}`).join(', '))
+  })
+
+  // The override maps are written as `<key>: { ... }`; this reads the block
+  // that follows each one, so a `render` anywhere inside it is found wherever
+  // the map happens to live.
+  const blockAfter = (source, at) => {
+    const open = source.indexOf('{', at)
+    if (open < 0) return ''
+    let depth = 0
+    for (let i = open; i < source.length; i += 1) {
+      if (source[i] === '{') depth += 1
+      else if (source[i] === '}') {
+        depth -= 1
+        if (depth === 0) return source.slice(open, i + 1)
+      }
+    }
+    return source.slice(open)
+  }
+
+  it('no page gives one of them a render', () => {
+    const drawn = []
+    for (const file of sourceFiles(join(web, 'src', 'pages'), /\.jsx$/)) {
+      const source = read(file)
+      for (const [key] of declared) {
+        for (const match of source.matchAll(new RegExp(`\\b${key}:\\s*\\{`, 'g'))) {
+          if (/\brender\b/.test(blockAfter(source, match.index))) drawn.push(`${rel(file)}: ${key}`)
+        }
+      }
+    }
+    assert.deepEqual(drawn, [])
+  })
+})

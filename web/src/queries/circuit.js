@@ -109,7 +109,11 @@ export const raceWinnerHere = (name, row) => (row.status !== 'completed' ? NOT_Y
 export const RACE_COLUMNS = [
   { key: 'year', label: 'Season', align: 'num', text: (year) => String(year) },
   { key: 'name_used', label: 'Grand Prix' },
-  { key: 'layout_key', label: 'Layout' },
+  // Plain text in both halves, and a NULL here is a race this database has
+  // not attributed to a layout - which is what the sentence above the table
+  // says in words. Monza ran 77 races with no layout recorded against any of
+  // them (VD-29).
+  { key: 'layout_key', label: 'Layout', collapse: true },
   { key: 'winner', label: 'Winner', text: raceWinnerHere },
   { key: 'constructor', label: 'Car' },
 ]

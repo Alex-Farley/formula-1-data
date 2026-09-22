@@ -1,5 +1,6 @@
 import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { EMPTY, isNumericColumn, isProseColumn, label as humanise, missing, text } from '../lib/format.js'
+import { shared, sharedLine } from '../lib/table.js'
 import { PageTitle, SectionTitle } from './Page.jsx'
 
 /**
@@ -86,6 +87,12 @@ export default function DataTable({
     [columns, data?.columns, source],
   )
 
+  // The columns the header keeps, and the ones every row agreed on, which a
+  // column has to have declared itself a candidate for in web/src/queries/*
+  // (VD-29). A console result declares nothing, so nothing there collapses,
+  // which is right: the result's shape is the statement's shape.
+  const { columns: kept, shared: constants } = useMemo(() => shared(cols, source), [cols, source])
+
   const ordered = useMemo(() => {
     if (!sort) return source
     const column = cols.find((c) => c.key === sort)
@@ -151,95 +158,100 @@ export default function DataTable({
     }
   }
 
+  // data-rows is the total the table holds, not the number currently on
+  // screen. The smoke suite reads it to compare what a page shows against
+  // what the database says it should, without having to page through.
   return (
-    // data-rows is the total the table holds, not the number currently on
-    // screen. The smoke suite reads it to compare what a page shows against
-    // what the database says it should, without having to page through.
-    <div
-      className="table-wrap"
-      data-rows={ordered.length}
-      data-shown={visible.length}
-      data-clipped={clipped || undefined}
-    >
-      {/* A scrollable region is keyboard-reachable only while it has something
-          to scroll to; a tab stop on every table would be noise. */}
-      <div className="table-scroll" ref={scroller} tabIndex={clipped ? 0 : undefined}>
-        <table>
-          {/* Never shown. Whatever the name is, the reader can already see it
-              directly above the table - the Section's heading, or the page's
-              own - and a visible copy would only repeat it. Hidden, it still
-              gives the table a name when somebody enters it with a screen
-              reader, which is the whole point. */}
-          {name && <caption className="sr-only">{name}</caption>}
-          <thead>
-            <tr>
-              {cols.map((column) => {
-                const active = sort === column.key
-                const canSort = sortable && column.sortable !== false
-                return (
-                  <th
-                    key={column.key}
-                    scope="col"
-                    className={[column.align, canSort ? 'sortable' : null].filter(Boolean).join(' ')}
-                    style={column.width ? { width: column.width } : undefined}
-                    aria-sort={active ? (direction === 'asc' ? 'ascending' : 'descending') : undefined}
-                  >
-                    {canSort ? (
-                      <button type="button" onClick={() => toggle(column.key)}>
-                        {column.label}
-                        <span className="arrow" aria-hidden="true">
-                          {active ? (direction === 'asc' ? '▲' : '▼') : ''}
-                        </span>
-                      </button>
-                    ) : (
-                      column.label
-                    )}
-                  </th>
-                )
-              })}
-            </tr>
-          </thead>
-          <tbody>
-            {visible.length === 0 && (
+    <>
+      {/* Above the table rather than in its footer: a column that is not there
+          has to be accounted for before the reader wonders where it went. */}
+      {constants.length > 0 && <p className="table-shared">{sharedLine(constants, ordered.length)}</p>}
+      <div
+        className="table-wrap"
+        data-rows={ordered.length}
+        data-shown={visible.length}
+        data-clipped={clipped || undefined}
+      >
+        {/* A scrollable region is keyboard-reachable only while it has something
+            to scroll to; a tab stop on every table would be noise. */}
+        <div className="table-scroll" ref={scroller} tabIndex={clipped ? 0 : undefined}>
+          <table>
+            {/* Never shown. Whatever the name is, the reader can already see it
+                directly above the table - the Section's heading, or the page's
+                own - and a visible copy would only repeat it. Hidden, it still
+                gives the table a name when somebody enters it with a screen
+                reader, which is the whole point. */}
+            {name && <caption className="sr-only">{name}</caption>}
+            <thead>
               <tr>
-                <td colSpan={cols.length} className="prose">
-                  {empty}
-                </td>
+                {kept.map((column) => {
+                  const active = sort === column.key
+                  const canSort = sortable && column.sortable !== false
+                  return (
+                    <th
+                      key={column.key}
+                      scope="col"
+                      className={[column.align, canSort ? 'sortable' : null].filter(Boolean).join(' ')}
+                      style={column.width ? { width: column.width } : undefined}
+                      aria-sort={active ? (direction === 'asc' ? 'ascending' : 'descending') : undefined}
+                    >
+                      {canSort ? (
+                        <button type="button" onClick={() => toggle(column.key)}>
+                          {column.label}
+                          <span className="arrow" aria-hidden="true">
+                            {active ? (direction === 'asc' ? '▲' : '▼') : ''}
+                          </span>
+                        </button>
+                      ) : (
+                        column.label
+                      )}
+                    </th>
+                  )
+                })}
               </tr>
-            )}
-            {visible.map((row, i) => (
-              <tr
-                key={rowKey ? rowKey(row, i) : i}
-                className={highlight?.(row) ? 'is-highlight' : undefined}
-              >
-                {cols.map((column) => (
-                  <td
-                    key={column.key}
-                    className={[column.align, column.className?.(row)].filter(Boolean).join(' ')}
-                  >
-                    {column.render
-                      ? column.render(row[column.key], row)
-                      : column.text
-                        ? plain(column.text(row[column.key], row))
-                        : cell(row[column.key], { raw })}
+            </thead>
+            <tbody>
+              {visible.length === 0 && (
+                <tr>
+                  <td colSpan={kept.length} className="prose">
+                    {empty}
                   </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {(hidden > 0 || footer) && (
-        <div className="table-foot">
-          <span>{footer}</span>
-          {hidden > 0 && (
-            <button type="button" onClick={() => setShowAll(true)}>
-              Show the remaining {hidden.toLocaleString('en-GB')}
-            </button>
-          )}
+                </tr>
+              )}
+              {visible.map((row, i) => (
+                <tr
+                  key={rowKey ? rowKey(row, i) : i}
+                  className={highlight?.(row) ? 'is-highlight' : undefined}
+                >
+                  {kept.map((column) => (
+                    <td
+                      key={column.key}
+                      className={[column.align, column.className?.(row)].filter(Boolean).join(' ')}
+                    >
+                      {column.render
+                        ? column.render(row[column.key], row)
+                        : column.text
+                          ? plain(column.text(row[column.key], row))
+                          : cell(row[column.key], { raw })}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      )}
-    </div>
+        {(hidden > 0 || footer) && (
+          <div className="table-foot">
+            <span>{footer}</span>
+            {hidden > 0 && (
+              <button type="button" onClick={() => setShowAll(true)}>
+                Show the remaining {hidden.toLocaleString('en-GB')}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </>
   )
 }
 

@@ -18,6 +18,8 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
+import { MIN_ROWS, cellText, shared, sharedLine } from '../src/lib/table.js'
+
 import {
   CURRENT_SEASON_SQL,
   anyThisSeason,
@@ -71,8 +73,9 @@ import { raceWinner } from '../src/queries/races.js'
 import { entered } from '../src/queries/constructors.js'
 import { traced } from '../src/queries/circuits.js'
 import { chassisName } from '../src/queries/cars.js'
-import { driverName, fastestLapMark, inClassificationOrder, outcome, position, raceLede, raceSentence, railOf } from '../src/queries/race.js'
-import { raceWinnerHere } from '../src/queries/circuit.js'
+import { PIT_COLUMNS, driverName, fastestLapMark, inClassificationOrder, outcome, position, raceLede, raceSentence, railOf } from '../src/queries/race.js'
+import { RACE_COLUMNS, raceWinnerHere } from '../src/queries/circuit.js'
+import { SEASON_COLUMNS as TEAM_SEASON_COLUMNS } from '../src/queries/constructor.js'
 import { constructorSeasons } from '../src/queries/constructor.js'
 import { NOT_YET_RUN } from '../src/lib/site.js'
 import {
@@ -1225,5 +1228,99 @@ describe('one season, one label, on all four registers (IA-19)', () => {
   it('anchors on the declared season, never a MAX() over the records', () => {
     assert.match(CURRENT_SEASON_SQL, /meta WHERE key = 'current_season'/)
     assert.doesNotMatch(CURRENT_SEASON_SQL, /MAX/i)
+  })
+})
+
+
+// ------------------------------------------------- columns holding nothing
+
+describe('a column every row agrees on (VD-29)', () => {
+  // Monza: five columns, of which the Grand Prix is "Italian Grand Prix" on
+  // every row and the layout is not established on any of them.
+  const monza = [
+    { year: 1950, name_used: 'Italian Grand Prix', layout_key: null, winner: 'Nino Farina' },
+    { year: 1951, name_used: 'Italian Grand Prix', layout_key: null, winner: 'Alberto Ascari' },
+    { year: 1952, name_used: 'Italian Grand Prix', layout_key: null, winner: 'Alberto Ascari' },
+    { year: 1953, name_used: 'Italian Grand Prix', layout_key: null, winner: 'Juan Manuel Fangio' },
+    { year: 1954, name_used: 'Italian Grand Prix', layout_key: null, winner: 'Juan Manuel Fangio' },
+  ]
+  // As queries/circuit.js declares them: the Grand Prix cell links each row to
+  // a different race, so it is not a candidate however alike the rows read.
+  const columns = [
+    { key: 'year', label: 'Season' },
+    { key: 'name_used', label: 'Grand Prix' },
+    { key: 'layout_key', label: 'Layout', collapse: true },
+    { key: 'winner', label: 'Winner' },
+  ]
+
+  it('drops a declared column from the table and states it once', () => {
+    const { columns: kept, shared: constants } = shared(columns, monza)
+    assert.deepEqual(kept.map((c) => c.key), ['year', 'name_used', 'winner'])
+    assert.deepEqual(constants.map((c) => c.column.key), ['layout_key'])
+    // An em dash in a cell reads against the cells around it; in a sentence it
+    // has nothing to read against, so it is written out.
+    assert.equal(sharedLine(constants, monza.length), 'The same on all 5 rows: Layout — not established.')
+    assert.equal(
+      sharedLine([{ column: columns[1], value: 'Italian Grand Prix' }], 76),
+      'The same on all 76 rows: Grand Prix — Italian Grand Prix.',
+    )
+  })
+
+  // The whole reason the flag is on the column rather than derived by each
+  // renderer: the app protects a cell with a React `render` and prerender with
+  // an entry in its `links` map, and those are two different lists.
+  it('leaves an undeclared column alone however alike its rows read', () => {
+    assert.deepEqual(shared(columns, monza).columns.map((c) => c.key), ['year', 'name_used', 'winner'])
+    const declared = columns.map((c) => (c.key === 'name_used' ? { ...c, collapse: true } : c))
+    assert.deepEqual(shared(declared, monza).shared.map((s) => s.column.key), ['name_used', 'layout_key'])
+  })
+
+  it('says nothing about a short table, or about one it would leave a column wide', () => {
+    assert.deepEqual(shared(columns, monza.slice(0, MIN_ROWS - 1)).shared, [])
+    const pair = monza.map((_, i) => ({ a: i, b: 'same' }))
+    assert.deepEqual(
+      shared([{ key: 'a' }, { key: 'b', collapse: true }], pair).columns.map((c) => c.key),
+      ['a', 'b'],
+    )
+  })
+
+  // The column's own formatter, not the raw value: two rows can hold the same
+  // `first_win` and a different span, and a formatter reads the whole row.
+  it('compares what the cell prints, not what the row stores', () => {
+    const column = {
+      key: 'first_win',
+      label: 'Span',
+      collapse: true,
+      text: (_, row) => `${row.first_win}-${row.last_win}`,
+    }
+    const rows = [
+      { driver: 'Ascari', first_win: 1950, last_win: 1953 },
+      { driver: 'Fangio', first_win: 1950, last_win: 1958 },
+      { driver: 'Moss', first_win: 1950, last_win: 1960 },
+      { driver: 'Brooks', first_win: 1950, last_win: 1961 },
+      { driver: 'Hawthorn', first_win: 1950, last_win: 1962 },
+    ]
+    const columns = [{ key: 'driver', label: 'Driver' }, column, { key: 'first_win', label: 'First', collapse: true }]
+    assert.equal(cellText(column, rows[0]), '1950-1953')
+    assert.deepEqual(shared(columns, rows).shared.map((s) => s.column.label), ['First'])
+  })
+
+  // The columns the repository declares, in the four modules that declare
+  // any. That nobody draws one of them is not checkable from here - a
+  // `render` is written in a page and a link in prerender's own map - so it
+  // is a conventions test and a build failure instead; see
+  // test/conventions.mjs and fromColumns() in scripts/prerender.js.
+  it('is declared on the columns that are their text, and on no others', () => {
+    const declared = [
+      ...RACE_COLUMNS,
+      ...SEASON_COLUMNS,
+      ...TEAM_SEASON_COLUMNS,
+      ...PIT_COLUMNS,
+      ...recordColumns([{ confidence: 'reference' }]),
+    ].filter((c) => c.collapse === true)
+    assert.deepEqual(
+      declared.map((c) => c.key),
+      ['layout_key', 'wins', 'podiums', 'poles', 'fastest_laps', 'wins', 'podiums', 'poles', 'source', 'as_of'],
+    )
   })
 })

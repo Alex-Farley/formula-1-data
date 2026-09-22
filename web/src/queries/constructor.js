@@ -109,9 +109,12 @@ export const SEASON_COLUMNS = [
   { key: 'year', label: 'Season', align: 'num', text: (year) => String(year) },
   { key: 'entries', label: 'Entries', align: 'num' },
   { key: 'drivers', label: 'Drivers', align: 'num' },
-  { key: 'wins', label: 'Wins', align: 'num' },
-  { key: 'podiums', label: 'Podiums', align: 'num' },
-  { key: 'poles', label: 'Poles', align: 'num' },
+  // Counted from the race records, as the driver page's are, and declared for
+  // the same reason (VD-29): a team that never won prints a column of noughts,
+  // and the two pages describing the same figures should not differ on it.
+  { key: 'wins', label: 'Wins', align: 'num', collapse: true },
+  { key: 'podiums', label: 'Podiums', align: 'num', collapse: true },
+  { key: 'poles', label: 'Poles', align: 'num', collapse: true },
   { key: 'best', label: 'Best', align: 'num', text: (value) => (missing(value) ? EMPTY : `P${value}`) },
   { key: 'points', label: 'Points scored', align: 'num', text: (value) => points(value) },
   { key: 'championship_text', label: 'Championship', align: 'num', text: (value, row) => text(value ?? row.championship) },

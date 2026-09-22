@@ -94,7 +94,9 @@ export function recordColumns(records) {
     // number is value_num, with its unit, for a query.
     { key: 'value', label: 'Value', align: 'prose' },
     { key: 'detail', label: 'How it is derived', align: 'prose' },
-    { key: 'as_of', label: 'As of' },
+    // Every record is derived in one pass, so the date is the same on all of
+    // them until a figure moves (VD-29).
+    { key: 'as_of', label: 'As of', collapse: true },
     ...(tiersOf(records).length === 1 ? [] : [{ key: 'confidence', label: 'Confidence' }]),
   ]
 }

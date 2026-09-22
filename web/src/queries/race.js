@@ -221,7 +221,11 @@ export const PIT_COLUMNS = [
   { key: 'stop_number', label: 'Stop', align: 'num' },
   { key: 'stationary_seconds', label: 'Stationary (s)', align: 'num' },
   { key: 'pit_lane_seconds', label: 'Pit lane (s)', align: 'num' },
-  { key: 'source', label: 'Source' },
+  // Every stop on a page usually comes from the one source, and the column
+  // says so twenty times (VD-29). Not the two durations above it: they are
+  // NULL because F1DB publishes no duration, which PITS_FOOTER and schema.sql
+  // explain and "not established" would contradict.
+  { key: 'source', label: 'Source', collapse: true },
 ]
 
 export const PITS_FOOTER =
