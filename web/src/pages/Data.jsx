@@ -275,6 +275,14 @@ function Body({ data }) {
             </p>
           </Link>
         </div>
+        <p className="measure">
+          Where a view exists, start from it. <code>standings</code> keeps a row after every
+          round and more than one source&rsquo;s reading of each, so the obvious query over it
+          answers with the season several times over;{' '}
+          <code>v_standings_final</code> is the fold — one row per driver or constructor per
+          season. The console&rsquo;s schema panel prints the commented schema of every table
+          and view, which is where each column says what it means.
+        </p>
       </Section>
 
       <Onward {...ONWARD.data()} />

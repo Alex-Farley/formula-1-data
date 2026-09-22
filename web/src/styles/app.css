@@ -1810,6 +1810,29 @@ textarea.sql {
   line-height: 1.7;
 }
 
+.schema-list .ddl {
+  /* The DDL keeps its own alignment: a comment written beside a column stops
+     meaning that column once the line wraps. So it scrolls sideways, and the
+     element carries tabindex so the scrolling is reachable from the keyboard
+     (WCAG 2.2 AA, and axe's scrollable-region-focusable). */
+  overflow-x: auto;
+  margin: 0 0 8px 14px;
+  padding: 8px 10px;
+  background: var(--panel-sunk);
+  border-radius: var(--radius-sm);
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* Inside the box, like .table-scroll: the outline of a scrolling region sits
+   on the edge that is already against its neighbour. */
+.schema-list .ddl:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
 .example {
   all: unset;
   display: block;
