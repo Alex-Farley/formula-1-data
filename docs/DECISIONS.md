@@ -235,6 +235,38 @@ what passed.
 pattern can decide. Every check that moves there is one a reviewer never
 spends a turn on again, so the brief stays on judgement.
 
+### D-38 · The respawn asks for the verdict alone — 2026-09-22 (`PM-48`, #542)
+`[D-37]`'s remedy — the contract in each merge-path reviewer's *How to
+report*, kept there by `tests/test_conventions.py` — is in place and did not
+stop the preambles. Three of the fifteen items in the 2026-09-22 run stalled
+on it: UR-07 (#541), PD-40 (#548) and SD-24 (#551), each a finished, green,
+genuinely reviewed change the loop was not allowed to merge. Two were rescued
+only because the next fork inherited the open PR and drew a clean confirmation
+on a fresh respawn budget; the third stopped the loop.
+
+Four results on #541 are the measurement. The one that matters is the fourth:
+a Sonnet confirmation briefed with the format requirement restated in
+capitals, the exact strings given and the consequence spelled out, which
+opened with a summary sentence anyway. **Restating the format does not work**,
+so the third option in #542 — change what the respawn asks for — is the one
+taken.
+
+The respawn now asks for the verdict line and nothing else: no findings, no
+summary, nothing above or below. A reply with nothing to summarise has nothing
+to put a summary in front of. `[D-37]` is untouched — the gate is exactly as
+strict, a verdict on the second line is still refused, and the respawn is
+still one. The widening that was *not* taken is #542's second option,
+accepting a verdict as the first line of the last paragraph: it would have
+admitted all four of #541's results, including `PASS — no. Findings below; one
+requires a change.`, which is a FAIL that opens with the word PASS and is the
+reason `[D-37]` exists.
+
+The cost is named rather than hidden: a verdict-only respawn that returns
+`FAIL` carries no findings, and the discarded result's may not be read back,
+so a fresh full pass is needed to learn what is wrong. That falls on a
+confirmation of a fix that was expected to pass, which is the rare case; the
+common case is a `PASS` that costs one line.
+
 ### D-37 · A result that does not lead with its verdict is refused, not read — 2026-09-21 (`PM-41`, #428)
 Four occurrences in two days, across three forks — a confirmation agent
 putting a summary sentence above its verdict line, on #407, twice on #409 (one

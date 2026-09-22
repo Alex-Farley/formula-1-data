@@ -54,3 +54,22 @@ Then, after a fix, to a fresh Sonnet agent (never the agent that already reviewe
 A confirmation that leads with a sentence instead of a verdict is not a verdict
 and is not interpreted as one: discard it and spawn the pass again, as
 `.claude/skills/backlog-item/SKILL.md` sets out under *Review*.
+
+The respawn does not repeat the brief that produced the preamble — restating
+the format requirement, even in capitals with the consequence spelled out, was
+measured not to work `[D-38]`. It asks for the verdict and nothing else, to a
+fresh agent of the same kind:
+
+    PR #<N>, branch `<branch>` at <sha>, worktree <path>. Review
+    `git diff <old>..<new>` against CLAUDE.md and
+    `.claude/agents/<reviewer>.md` exactly as that file sets out, including
+    its "Already enforced" list.
+
+    Your entire reply is ONE line, and it is the verdict: exactly
+    `PASS — safe to merge` or `FAIL — changes required`. No summary, no
+    preamble, no findings, no closing note, nothing above it and nothing
+    below it. Do the review in full; report only its conclusion.
+
+A `FAIL` from this pass arrives without findings, because the discarded result's
+were never read. Spawn a fresh full pass to get them — do not go back to the
+result you discarded.

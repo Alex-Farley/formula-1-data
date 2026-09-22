@@ -265,10 +265,18 @@ findings with file:line, nothing else.
 **The agent returns exactly `PASS — safe to merge` or `FAIL — changes
 required` as its first line.** Anything else is not a verdict — including a
 result whose verdict is plainly there on the second line, under a summary
-sentence. **Do not read it for what it meant.** Discard the result, spawn the
-pass again from the same brief, and take the second result's first line; if
-that one does not lead with a verdict either, the item has no review and the
-*Not a PASS* rule below applies. **One respawn, whatever the reason the first
+sentence. **Do not read it for what it meant.** Discard the result — its
+findings with it — and spawn the pass again, this time asking for **the
+verdict line alone and nothing else**: a reply with nothing to summarise has
+nothing to put a summary above, and restating the format in the same brief
+was measured not to work `[D-38]`. The respawn brief is in
+`.claude/skills/backlog-loop/review-prompt.md`. Take the second result's
+first line; if that one does not lead with a verdict either, the item has no
+review and the *Not a PASS* rule below applies. A verdict-only respawn that
+comes back `FAIL` carries no findings — the first result's were discarded
+unread — so spawn a fresh full pass to learn what is wrong; that is the price
+of not interpreting a result, and it is paid on a FAIL a fix was expected to
+clear, which is rare. **One respawn, whatever the reason the first
 line is not a verdict** — a preamble above it, silence, or a reviewer that ran
 out of turns before it wrote one; the *Not a PASS* bullets below list the
 same cases, and the two that are owed no respawn at all. The second result
