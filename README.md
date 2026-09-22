@@ -400,7 +400,7 @@ doubles their rows instead of failing.
 | `source_patterns` | unstable | — |
 | `source_registry` | unstable | — |
 | `sprint_results` | stable | `(race_id, driver_id)` |
-| `standings` | unstable | `(year, table_type, entity_id, engine_id?, as_of, position_text?)` |
+| `standings` | unstable | `(year, table_type, after_round?, entity_id, engine_id?, as_of, position_text?)` |
 | `stints` | unstable | — |
 | `team_radio` | unstable | — |
 | `technical_innovations` | unstable | — |

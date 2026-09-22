@@ -784,13 +784,17 @@ ID_STABILITY = {
     # key needs `position_text` because 2018 holds Force India twice in the
     # constructors' final table - the excluded entity on nought points and
     # the re-entered one on 52 - which is a real fact and not a duplicate.
-    # Making the insert order deterministic is the M half of DA-04. Two of
-    # the six columns hold NULL - `engine_id` on every drivers' row, because a
-    # driver has no engine, and `position_text` on 65 - so this is a key to
-    # join with `IS`, SQLite's null-safe comparison, and not with `=`, which
-    # would drop two thirds of the table in silence. The README marks both.
-    "standings":             ("unstable", ("year", "table_type", "entity_id",
-                                           "engine_id", "as_of",
+    # Making the insert order deterministic is the M half of DA-04. Three of
+    # the seven columns hold NULL - `engine_id` on every drivers' row because a
+    # driver has no engine, `after_round` on every end-of-season row, and
+    # `position_text` on 65 - so this is a key to join with `IS`, SQLite's
+    # null-safe comparison, and not with `=`, which would drop most of the
+    # table in silence. The README marks all three.
+    # It is `ux_standings_identity` in schema.sql, column for column: the
+    # database already enforces this key, and publishing a narrower one would
+    # have said the grain was something the schema does not agree with.
+    "standings":             ("unstable", ("year", "table_type", "after_round",
+                                           "entity_id", "engine_id", "as_of",
                                            "position_text")),
 
     # Unstable, with no natural key published yet. Each is either a register
@@ -827,8 +831,12 @@ ID_STABILITY = {
 ID_STABILITY_NOTE = (
     "Integer `id` columns are surrogates, handed out by the build in insert "
     "order, and are NOT stable between releases except in the tables named by "
-    "meta.id_stability_stable. Join on the natural keys published in "
-    "meta.id_stability_keys; a text id is a natural key and does not move.")
+    "meta.id_stability_stable. There the maintainers undertake not to renumber "
+    "them; nothing in the build measures that, because no release is compared "
+    "with the one before it. Join on the natural keys published in "
+    "meta.id_stability_keys - a `?` in one of those marks a column that holds "
+    "NULL, so join it with IS rather than =. A text id is a natural key and "
+    "does not move.")
 
 PROVENANCE = [
     ("verified", 1, "Checked directly against an official FIA or Formula 1 source during database construction. Safe to state as fact and to cite.", 1),

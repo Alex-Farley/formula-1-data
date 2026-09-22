@@ -126,9 +126,16 @@ class Figures:
         data/current.py — verify.py is what holds those two together."""
         sys.path.insert(0, ROOT)
         import build  # noqa: E402 - the schema is what says which ids are surrogates
-        stable = set(self.meta("id_stability_stable").split(", "))
+        # An empty meta value splits to [""], not to []: without these guards
+        # a policy with nothing stable would render as one table rather than
+        # none, and the keys branch would raise instead. Two halves of the same
+        # figure failing in opposite directions is how a wrong number ships.
+        published = self.meta("id_stability_stable")
+        stable = set(published.split(", ")) if published else set()
         keys = {}
-        for part in self.meta("id_stability_keys").split("; "):
+        for part in (self.meta("id_stability_keys") or "").split("; "):
+            if not part:
+                continue
             table, columns = part.split("(", 1)
             keys[table] = columns.rstrip(")")
         return sorted(build.surrogate_id_tables(self.con)), stable, keys
