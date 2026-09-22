@@ -471,8 +471,10 @@ const link = (path, label) => `<a href="${esc(href(path))}">${esc(label)}</a>`
 const tag = (word) => `<span class="tag">${esc(word)}</span>`
 const note = (value) => (value ? `<p class="faint">${esc(value)}</p>` : '')
 
-// `aligns` is a class per column — 'num', 'prose' or nothing — the same
-// classes DataTable puts on its cells, so a column of figures lines up.
+// `aligns` is the class per column — 'num', 'prose', a column's own
+// `cellClass`, or nothing — the same classes DataTable puts on its cells, so a
+// column of figures lines up and a column the stylesheet treats specially is
+// not styled on one half of the site only.
 //
 // The two wrappers are DataTable's own (VD-01): `.table-wrap` draws the box
 // and `.table-scroll` is what actually scrolls, and the static page used to
@@ -536,7 +538,7 @@ const fromColumns = (columns, rows, links = {}) => {
           return esc(c.text ? c.text(value, row) : formatted(value))
         }),
       ),
-      { aligns: kept.map((c) => c.align ?? '') },
+      { aligns: kept.map((c) => [c.align, c.cellClass].filter(Boolean).join(' ')) },
     )
   )
 }

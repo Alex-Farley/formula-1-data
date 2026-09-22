@@ -837,6 +837,53 @@ td:not(.prose) {
 }
 
 /*
+ * The two cells of a record, on /records.
+ *
+ * The page's superlatives were set in the same soft ink, the same size and the
+ * same face as the derivation beside them, so `16`, `250` and `95.45% (21 of
+ * 22, 2023)` lined up on nothing and the most citable figures on the site
+ * ranked level with their own footnotes (VD-51). The value takes mono at a step
+ * above body size and full ink; the derivation keeps its measure and drops to
+ * faint, which is still 5.3:1 in light and 4.8:1 in dark and so stays readable
+ * — it is the evidence the page's opening sentence promises, demoted, not
+ * hidden.
+ *
+ * Both keep `prose`: these cells wrap, and the widths here only narrow the
+ * 18ch–60ch that rule sets, so the derivation stops being the widest column on
+ * the page and driving the height of every row.
+ */
+/*
+ * The record's name wraps. Every other cell on the site that is not prose is
+ * `nowrap`, and here that set the first column to the width of "Most Grands
+ * Prix entered without a win by a constructor" on one line - 378 px, wider
+ * than a 400 px viewport, so the figure the row is about started off-screen
+ * whatever order the columns were in (VD-51). No max-width: where there is
+ * room the name still takes one line, and the column only narrows when the
+ * table has to.
+ */
+td.record-name {
+  white-space: normal;
+  min-width: 16ch;
+}
+
+td.record-value {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--ink);
+  min-width: 9ch;
+  max-width: 30ch;
+}
+
+td.record-derivation {
+  font-size: 12.5px;
+  color: var(--ink-faint);
+  max-width: 46ch;
+}
+
+/*
  * Links inside a table and inside a stat tile.
  *
  * A classification is forty links in a row. Painting all of them accent turns

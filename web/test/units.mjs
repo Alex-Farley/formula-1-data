@@ -979,7 +979,9 @@ describe('the queries a page and the prerenderer share', () => {
     assert.deepEqual(tiersOf(shared), ['reference'])
     assert.deepEqual(
       recordColumns(shared).map((c) => c.label),
-      ['Record', 'Holder', 'Value', 'How it is derived', 'As of'],
+      // The value is second: the record and its figure are the pair the
+      // page is for, and the holder answers the question after that (VD-51).
+      ['Record', 'Value', 'Holder', 'How it is derived', 'As of'],
     )
     assert.equal(recordColumns([{ confidence: 'reference' }, { confidence: 'high' }]).at(-1).key, 'confidence')
   })

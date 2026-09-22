@@ -11,9 +11,14 @@ import TakeAway from './TakeAway.jsx'
  * reader types into the SQL console.
  *
  * Columns can be given as strings (take the value, guess the alignment) or as
- * objects — { key, label, align, render, sort, className, width, text } — which
- * is how an id becomes a link without this component knowing anything about
- * routes. Given neither, it renders the result's own shape, which is what the
+ * objects — { key, label, align, cellClass, render, sort, className, width,
+ * text } — which is how an id becomes a link without this component knowing
+ * anything about routes.
+ *
+ * `cellClass` is a constant class on every cell of the column, declared in the
+ * page's queries module and read by scripts/prerender.js too, so a column the
+ * stylesheet treats specially looks the same before the database opens and
+ * after. `className` is the per-row one and stays a function. Given neither, it renders the result's own shape, which is what the
  * console needs.
  *
  * `text` is a plain-string formatter from a page's queries module, shared
@@ -348,7 +353,9 @@ function Table({
                   {kept.map((column) => (
                     <td
                       key={column.key}
-                      className={[column.align, column.className?.(row)].filter(Boolean).join(' ')}
+                      className={[column.align, column.cellClass, column.className?.(row)]
+                        .filter(Boolean)
+                        .join(' ')}
                     >
                       {column.render
                         ? column.render(row[column.key], row)

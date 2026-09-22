@@ -87,13 +87,24 @@ export const tiersOf = (records) => [...new Set(records.map((r) => r.confidence)
  */
 export function recordColumns(records) {
   return [
-    { key: 'record', label: 'Record' },
+    { key: 'record', label: 'Record', cellClass: 'record-name' },
+    // SECOND, not third. The pair a reader came for is the record and its
+    // figure; the holder answers "whose", which is the next question, not the
+    // first. Third, the value was the column behind the horizontal scroll at
+    // 400 px - the one thing on the page that should never be (VD-51).
+    //
+    // "18 years, 228 days, 2016 Spanish Grand Prix": a phrase, not a column of
+    // figures, so it stays left-aligned and does not pretend to align as one.
+    // Mono lines the leading figures up at the edge the eye starts from, which
+    // is as much as a figure-led phrase can honestly claim; `num` would line up
+    // the ends of sentences instead. The comparable number is value_num, with
+    // its unit, for a query.
+    { key: 'value', label: 'Value', align: 'prose', cellClass: 'record-value' },
     { key: 'holder', label: 'Holder', align: 'prose' },
-    // "18 years, 228 days, 2016 Spanish Grand Prix": a phrase, not a column
-    // of figures, so it does not pretend to align as one. The comparable
-    // number is value_num, with its unit, for a query.
-    { key: 'value', label: 'Value', align: 'prose' },
-    { key: 'detail', label: 'How it is derived', align: 'prose' },
+    // The derivation is what CR-22's claim rests on, so it stays in the table
+    // and stays legible; it is the footnote to the figure, not its equal, and
+    // it was set in the same ink at the same size (VD-51).
+    { key: 'detail', label: 'How it is derived', align: 'prose', cellClass: 'record-derivation' },
     // Every record is derived in one pass, so the date is the same on all of
     // them until a figure moves (VD-29).
     { key: 'as_of', label: 'As of', collapse: true },
