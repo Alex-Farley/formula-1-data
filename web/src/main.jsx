@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import App from './App.jsx'
 import { currentProgress, onProgress } from './data/client.js'
 import { setPending } from './data/pending.js'
+import { captureStaticTables } from './lib/handover.js'
 import './styles/app.css'
 
 /**
@@ -53,8 +54,8 @@ function handOver() {
      *
      * So: put the offset back as soon as there is a document that can hold it,
      * rather than counting frames. It gives up after a second, because a page
-     * that has legitimately got shorter is not going to grow (the drivers page
-     * shrinks fivefold, which is IX-19 and a different problem), and it gives
+     * that has legitimately got shorter is not going to grow - captureStaticTables()
+     * below is what stops a register shrinking fivefold under the offset - and it gives
      * up the moment the reader scrolls for themselves -- being dragged back to
      * where you were a second ago is worse than the thing being fixed.
      */
@@ -121,6 +122,10 @@ function holdLinks() {
 }
 
 holdLinks()
+// Before anything can remove the static page: how many rows each of its
+// tables drew is what DataTable opens on, so the handover does not delete
+// rows under a reader who has scrolled past them (IX-19).
+captureStaticTables()
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

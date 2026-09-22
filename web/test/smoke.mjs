@@ -706,6 +706,32 @@ try {
     )
     await clicked.close()
 
+    /*
+     * And the rows themselves (IX-19). The static /drivers is every one of the
+     * 862; the app pages the register at 150, so the handover used to end a
+     * table the reader had scrolled into at row 150 and say nothing. What has
+     * to hold is that the app opens on at least what the static page drew —
+     * counted from the static table itself rather than from a number written
+     * here, because the register grows.
+     */
+    const register = await fresh('/drivers')
+    const staticRows = await register.evaluate(() => {
+      const table = document.querySelector('#prerendered table')
+      return table ? table.querySelectorAll('tbody tr').length : 0
+    })
+    atLeast(staticRows, 200, 'the static register draws its rows before the database opens')
+    await register.waitForFunction(() => !document.getElementById('prerendered'), null, { timeout: 60000 })
+    await register.waitForSelector('#root main .table-wrap', { timeout: 20000 })
+    const appShown = await register.evaluate(
+      () => Number(document.querySelector('#root main .table-wrap')?.dataset.shown),
+    )
+    atLeast(
+      appShown,
+      staticRows,
+      `the app takes over without deleting rows — ${appShown} drawn where the static page drew ${staticRows}`,
+    )
+    await register.close()
+
     // Every section after this one drives the shared page, which has been in
     // the background throughout.
     await page.bringToFront()

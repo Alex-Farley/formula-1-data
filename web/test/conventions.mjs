@@ -184,6 +184,12 @@ describe('a NULL is "not established", never zero (frontend-reviewer, item 2)', 
     ['src/pages/Driver.jsx', [1, 'a chart ceiling; its sort keys are in lib/wayfinding.js']],
     ['src/data/worker.js', [3, 'download progress in bytes']],
     ['src/lib/search.js', [1, 'a ranking weight']],
+    // IX-19: how many rows the static page drew for a table of this name.
+    // A name the static half does not hold - a table it never drew, or one
+    // heading over two tables, which is dropped rather than guessed at -
+    // drew none of them, and none IS the zero. It counts <tr> in a document,
+    // never a stored column, and the table pages as it always did.
+    ['src/lib/handover.js', [1, 'rows a static table drew; a name it does not hold drew none']],
     ['src/pages/Quality.jsx', [1, 'rows in a confidence class']],
     ['src/pages/Data.jsx', [1, 'sources in a licence class']],
     ['src/pages/Circuit.jsx', [1, 'seasons a layout was used']],

@@ -1,5 +1,6 @@
 import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { EMPTY, isNumericColumn, isProseColumn, label as humanise, missing, text } from '../lib/format.js'
+import { staticRows } from '../lib/handover.js'
 import { shared, sharedLine } from '../lib/table.js'
 import { useUrlState } from '../lib/urlstate.js'
 import { PageTitle, SectionTitle } from './Page.jsx'
@@ -225,7 +226,18 @@ function Table({
     return typeof empty === 'string' ? <p className="state is-empty">{empty}</p> : empty
   }
 
-  const visible = showAll ? ordered : ordered.slice(0, page)
+  /*
+   * The page opens on at least what the reader could already see.
+   *
+   * On a prerendered route the static page draws every row - 862 drivers,
+   * 1,182 chassis - and this table used to replace it with `page` of them the
+   * moment the database opened. A reader at row 700 was returned to a table
+   * that ended at 150 (IX-19). lib/handover.js counted the static table before
+   * it was removed; from there the reader pages it themselves, with "Show the
+   * remaining".
+   */
+  const size = Math.max(page, staticRows(name))
+  const visible = showAll ? ordered : ordered.slice(0, size)
   const hidden = ordered.length - visible.length
 
   const toggle = (key) => {
