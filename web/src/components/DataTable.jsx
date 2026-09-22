@@ -11,10 +11,16 @@ import TakeAway from './TakeAway.jsx'
  * reader types into the SQL console.
  *
  * Columns can be given as strings (take the value, guess the alignment) or as
- * objects — { key, label, align, render, sort, className, width, text } — which
- * is how an id becomes a link without this component knowing anything about
- * routes. Given neither, it renders the result's own shape, which is what the
- * console needs.
+ * objects — { key, label, align, cellClass, render, sort, className, width,
+ * text } — which is how an id becomes a link without this component knowing
+ * anything about routes. Given neither, it renders the result's own shape,
+ * which is what the console needs.
+ *
+ * `cellClass` is a constant class on every cell of the column, header included,
+ * declared in the page's queries module and read by scripts/prerender.js too,
+ * so a column the stylesheet treats specially looks the same before the
+ * database opens and after. `className` is the per-row one and stays a
+ * function.
  *
  * `text` is a plain-string formatter from a page's queries module, shared
  * with scripts/prerender.js so the static table prints the same cell; it is
@@ -313,7 +319,14 @@ function Table({
                     <th
                       key={column.key}
                       scope="col"
-                      className={[column.align, canSort ? 'sortable' : null].filter(Boolean).join(' ')}
+                      // `cellClass` on the header too: scripts/prerender.js puts the
+                      // column's class on its <th> as well as its <td>, and a class
+                      // the two halves spell differently is the divergence this
+                      // mechanism exists to prevent (VD-01). `sortable` is the app's
+                      // alone — the static table has no buttons to sort with.
+                      className={[column.align, column.cellClass, canSort ? 'sortable' : null]
+                        .filter(Boolean)
+                        .join(' ')}
                       style={column.width ? { width: column.width } : undefined}
                       aria-sort={active ? (direction === 'asc' ? 'ascending' : 'descending') : undefined}
                     >
@@ -348,7 +361,9 @@ function Table({
                   {kept.map((column) => (
                     <td
                       key={column.key}
-                      className={[column.align, column.className?.(row)].filter(Boolean).join(' ')}
+                      className={[column.align, column.cellClass, column.className?.(row)]
+                        .filter(Boolean)
+                        .join(' ')}
                     >
                       {column.render
                         ? column.render(row[column.key], row)
