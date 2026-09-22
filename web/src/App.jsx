@@ -7,7 +7,14 @@ import ThemeToggle from './components/Theme.jsx'
 import { currentProgress } from './data/client.js'
 import { useQuery } from './data/useQuery.js'
 import { OUTLINE_CREDIT } from './lib/outline.js'
-import { COUNTED_TOTALS, REPORT_ASK, REPORT_LINK, REPORT_PROMISE, REPORT_URL } from './lib/site.js'
+import {
+  COUNTED_TOTALS,
+  IN_THIS_TAB,
+  REPORT_ASK,
+  REPORT_LINK,
+  REPORT_PROMISE,
+  REPORT_URL,
+} from './lib/site.js'
 
 import Home from './pages/Home.jsx'
 import Seasons from './pages/Seasons.jsx'
@@ -170,9 +177,7 @@ function Footer() {
       <div className="sitefoot-inner">
         <div>
           <p>
-            Every page here is a query against one SQLite file, running in this tab. Nothing you
-            look at or type is sent anywhere, and once it has loaded, this tab keeps working
-            without a network. {COUNTED_TOTALS}{' '}
+            {IN_THIS_TAB} {COUNTED_TOTALS}{' '}
             <Link to="/data/quality">How far to trust it</Link> ·{' '}
             <Link to="/data/sql">write your own query</Link> ·{' '}
             <Link to="/changes">what changed</Link> ·{' '}

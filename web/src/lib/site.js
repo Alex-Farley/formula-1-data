@@ -50,6 +50,31 @@ export const ENTRIES_NOTE =
   'neither is corrected.'
 
 /**
+ * What the footer promises about where the reading happens.
+ *
+ * The app's footer has made both claims since the database first opened in
+ * the browser; the static footer made only the first half of the first one,
+ * so the two things a reader most needs on arrival - that nothing they look
+ * at or type is sent anywhere, and that the page keeps working once the
+ * network goes - were told only to a reader who had already stayed long
+ * enough for the database to load (CD-31). The search arrival and the no-JS
+ * reader got neither, which is the same defect CD-04 fixed for the em dash,
+ * in the same paragraph.
+ *
+ * It says "this tab" rather than "your browser", which is what the static
+ * footer used to say, because that is the claim this site can keep: there is
+ * no service worker here, so a second tab opened without a network has
+ * nothing to render. It is also the phrasing the home page and /data already
+ * use. The SQL console deliberately keeps "your own browser" in its Note,
+ * because that sentence is about where the copy of the database lives - the
+ * browser store data/cache.js writes - and not about which tab survives a
+ * network loss.
+ */
+export const IN_THIS_TAB =
+  'Every page here is a query against one SQLite file, running in this tab. Nothing you look at ' +
+  'or type is sent anywhere, and once it has loaded, this tab keeps working without a network.'
+
+/**
  * What an em dash in a cell means, and where the career totals come from.
  *
  * The app's footer has said this since the totals were first counted; the
