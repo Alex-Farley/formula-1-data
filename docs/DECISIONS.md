@@ -44,6 +44,35 @@ are. It said "14" for exactly one day, before two `fastest lap` rows were
 filed, and nothing checks a number in that file. `verify.py` reports the live
 figure.
 
+### D-39 · A figure in database prose is a token, not a number — 2026-09-22 (`CD-38`, #498)
+`source_registry` prose is rendered straight onto `/data/sources`, and its
+figures were typed. On 2026-09-22 it said the full classification covered
+1,161 races in 27,555 entries against 1,163 and 27,504 held, and qualifying,
+standings, pit stops and the two Commons totals were stale beside them —
+26,975 against 27,017, 34,495 against 34,597, 22,472 against 22,506, 602
+against 742. Nothing read them, so they drifted one race weekend at a time,
+exactly as the README's counts had before `[D-03]`'s `readme_figures.py` and
+as `races.note` had under `AF-63`.
+
+The remedy is that file's idea pointed at the database's own prose, and it
+retires the class rather than reporting it: a figure is a `{{fig:name}}`
+token in `data/*.py`, `build.py` expands it off the counts in its final
+stage — after every loader, because the tables it counts are filled by the
+stages above — and `verify.py` re-expands the literal and compares the stored
+prose whole, the way it already does `meta.coverage_note`. A token that
+survived into any text column of any table is refused, scanned from `PRAGMA`
+rather than a list for the reason `[D-02]` gives. `tests/test_prose_figures.py`
+plants a stale figure and a stray token in a copy and shows the gate closing,
+because a check that only ever runs against the database the same build wrote
+would read as a pass however it was written.
+
+Two things stay typed, and the rule says so: a figure about another source's
+holdings — Jolpica's 628,454 lap times, its 118 of 26,082 readings — counts
+rows that are not here to count, and a figure `verify.py` already pins as an
+invariant, like the 13 races where the credited pole-sitter was not the
+fastest qualifier, is checked where it is pinned. A second one there would be
+a second place to be wrong.
+
 ---
 
 ## Licensing and redistribution
