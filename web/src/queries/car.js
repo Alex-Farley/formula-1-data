@@ -129,8 +129,7 @@ export const entryColumns = (several) => [
  */
 export const NO_SPECIFICATION =
   'No specification is published for this car: no chassis, engine, weight or dimension figure is ' +
-  'on record for it. A car with even one of them lists every field, and a blank there is that one ' +
-  'figure nobody published.'
+  'on record for it.'
 
 /** Whether any specification field holds a figure, and so whether to draw the fields at all. */
 export const specified = (fields) => fields.some(({ value }) => !missing(value))
