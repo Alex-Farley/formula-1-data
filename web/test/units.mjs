@@ -57,7 +57,7 @@ import { trackPath } from '../src/lib/track.js'
 import { DRIVER_COLUMNS } from '../src/queries/drivers.js'
 import { holderPath } from '../src/queries/records.js'
 import { EXPLAINED_FOOTER, OPEN_FOOTER, allExplained } from '../src/lib/disagreement.js'
-import { clock, nextSession, until, utc } from '../src/queries/sessions.js'
+import { clock, nextSession, raceStage, until, utc } from '../src/queries/sessions.js'
 import {
   SEASON_COLUMNS,
   careerSentence,
@@ -84,7 +84,7 @@ import { raceWinner } from '../src/queries/races.js'
 import { entered } from '../src/queries/constructors.js'
 import { traced } from '../src/queries/circuits.js'
 import { chassisName } from '../src/queries/cars.js'
-import { PIT_COLUMNS, driverName, fastestLapMark, inClassificationOrder, outcome, position, raceLede, raceSentence, railOf } from '../src/queries/race.js'
+import { PIT_COLUMNS, driverName, fastestLapMark, inClassificationOrder, outcome, position, raceLede, raceSentence, railOf, scheduledNote } from '../src/queries/race.js'
 import { RACE_COLUMNS, raceWinnerHere } from '../src/queries/circuit.js'
 import { SEASON_COLUMNS as TEAM_SEASON_COLUMNS } from '../src/queries/constructor.js'
 import { constructorSeasons } from '../src/queries/constructor.js'
@@ -396,6 +396,34 @@ describe('the weekend timetable', () => {
     assert.equal(until('2026-11-19T12:00:20Z', before), 'in under a minute')
     assert.equal(until('2026-11-19T13:29:45Z', before), 'in 90 minutes')
     assert.equal(until('2026-11-19T13:31:00Z', before), 'in 2 hours')
+  })
+
+  /*
+   * AF-01. `status` says whether a classification is held; this says whether
+   * the race has happened, which is the question the page was answering wrong
+   * for the twenty-three hours between a flag and a harvest.
+   */
+  it('says whether a scheduled race has happened yet, from the clock and not the record', () => {
+    const race = { year: 2026, status: 'scheduled', date_iso: '2026-11-22' }
+    assert.equal(raceStage(race, rows, Date.parse('2026-11-22T03:59Z')), 'awaited')
+    assert.equal(raceStage(race, rows, Date.parse('2026-11-22T04:00Z')), 'running')
+    assert.equal(raceStage(race, rows, Date.parse('2026-11-22T06:59Z')), 'running')
+    assert.equal(raceStage(race, rows, Date.parse('2026-11-22T07:00Z')), 'run')
+    // No session is held for any round before the current season, so the date
+    // alone has to answer, and the latest claim it supports is the end of the
+    // race's own UTC day - never during it, in any zone.
+    assert.equal(raceStage(race, [], Date.parse('2026-11-22T23:58Z')), 'awaited')
+    assert.equal(raceStage(race, [], Date.parse('2026-11-23T00:00Z')), 'run')
+    assert.equal(
+      raceStage({ ...race, date_iso: null }, [], Date.parse('2030-01-01T00:00Z')),
+      'awaited',
+      'an unreadable date is not evidence that anything happened',
+    )
+    assert.equal(
+      raceStage(race, [{ kind: 'qualifying', start_utc: '2026-11-21T04:00Z' }], Date.parse('2026-11-21T12:00Z')),
+      'awaited',
+      'qualifying being over is not the race being over',
+    )
   })
 })
 
@@ -828,6 +856,23 @@ describe('the queries a page and the prerenderer share', () => {
       raceSentence({ year: 2027, status: 'scheduled', circuit: null, dates: null, note: null }, []),
       'Scheduled; not yet run.',
     )
+    // AF-01: once the clock says the race has been run, "not yet run" is the
+    // one thing the sentence must not say - the round is still `scheduled`
+    // because no classification has been loaded, which is what it says
+    // instead. The note below the classification agrees with it.
+    assert.equal(
+      raceSentence({ year: 2027, status: 'scheduled', circuit: 'Istanbul Park', dates: '01-03 Oct 2027', note: null }, [], 'run'),
+      'Scheduled for 01-03 Oct 2027 at Istanbul Park; no result is recorded yet.',
+    )
+    assert.equal(
+      raceLede({ year: 2027, status: 'scheduled', circuit: 'Istanbul Park', dates: '01-03 Oct 2027', note: null }, [], 'running'),
+      'Scheduled for 01-03 Oct 2027 at Istanbul Park; no result is recorded yet.',
+    )
+    const scheduledRound = { year: 2027, status: 'scheduled', circuit: 'Istanbul Park', dates: '01-03 Oct 2027', note: null }
+    assert.equal(scheduledNote(scheduledRound).head, 'This race has not been run.')
+    assert.equal(scheduledNote(scheduledRound).body, 'It is on the 2027 calendar and carries no result yet.')
+    assert.equal(scheduledNote(scheduledRound, 'running').head, 'This race is under way.')
+    assert.equal(scheduledNote(scheduledRound, 'run').head, 'This race has been run; the result is not here yet.')
     // No race is in this state today; a round part-way through being loaded
     // would be, and a thrown lede is worse than a plain sentence.
     assert.equal(raceSentence(monza, []), 'No winner is recorded for this round.')

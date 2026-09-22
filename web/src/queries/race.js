@@ -254,10 +254,16 @@ export const PITS_FOOTER =
  * classification has not been loaded yet is a state this site passes through
  * every time a season runs.
  */
-export const raceSentence = (race, winners) => {
+export const raceSentence = (race, winners, stage = 'awaited') => {
   const where = race.circuit ? ` at ${race.circuit}` : ''
   if (race.status === 'scheduled') {
-    return `Scheduled${race.dates ? ` for ${race.dates}` : ''}${where}; not yet run.`
+    // "not yet run" is true of a round still to come and false of one that
+    // ran on Sunday and has not been harvested yet, which is the state AF-01
+    // measured at twenty-three hours. `stage` is raceStage() in
+    // queries/sessions.js, read from the clock by whichever renderer has one;
+    // where nobody passes it the sentence is what the record says, unchanged.
+    const held = stage === 'awaited' ? 'not yet run' : 'no result is recorded yet'
+    return `Scheduled${race.dates ? ` for ${race.dates}` : ''}${where}; ${held}.`
   }
   if (!winners.length) return 'No winner is recorded for this round.'
   const first = winners[0]
@@ -283,7 +289,36 @@ export const raceSentence = (race, winners) => {
  * same question before deciding whether it has already printed one. lede() in
  * queries/driver.js is the same rule for the same reason.
  */
-export const raceLede = (race, winners) => raceNote(race) || raceSentence(race, winners)
+export const raceLede = (race, winners, stage = 'awaited') =>
+  raceNote(race) || raceSentence(race, winners, stage)
+
+/**
+ * The block a scheduled round carries where its classification would be, in
+ * both renderers (AF-01).
+ *
+ * The two halves each wrote their own sentence for this and had already come
+ * to word it differently; one function is what stops them drifting further,
+ * the rule SHARED_DRIVE_NOTE above is here for.
+ *
+ * `stage` is raceStage() in queries/sessions.js. Only the headline changes
+ * with it: what the reader does next — wait for the classification — is the
+ * same in all three states, and the body says so once.
+ */
+export const scheduledNote = (race, stage = 'awaited') => {
+  if (stage === 'awaited') {
+    return {
+      head: 'This race has not been run.',
+      body: `It is on the ${race.year} calendar and carries no result yet.`,
+    }
+  }
+  return {
+    head: stage === 'running' ? 'This race is under way.' : 'This race has been run; the result is not here yet.',
+    body:
+      stage === 'running'
+        ? 'Its scheduled start has passed; the classification appears here once the result has been recorded.'
+        : 'The classification appears here once the result has been recorded.',
+  }
+}
 
 /**
  * The note a person wrote on this round, or '' where nobody did.

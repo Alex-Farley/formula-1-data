@@ -7,15 +7,21 @@ name: refresh the harvest
 # still to come. That is the whole staleness problem, and it is a job for a
 # schedule rather than for remembering.
 #
-# Daily at 06:00 UTC. F1DB publishes within a day or two of a race, and a
-# weekly poll against that has a failure mode with no recovery inside the
-# period: miss it by four hours and the site says a race that has been run
+# Daily, just before 06:00 UTC. F1DB publishes within a day or two of a race,
+# and a weekly poll against that has a failure mode with no recovery inside
+# the period: miss it by four hours and the site says a race that has been run
 # has not been run for eight days. The job's first real step is a diff that
 # short-circuits everything after it, so a day with nothing new costs a
 # checkout and a fetch. Also runnable by hand.
+#
+# Not on the hour. Scheduled workflows queue behind everyone else's, and the
+# top of the hour is where everyone else's are: ten runs of this job at
+# '0 6 * * *' started between 10:03 and 11:57 UTC, a mean of 4 h 52 m late,
+# which is most of a day of staleness bought for nothing. GitHub's own advice
+# for that is to pick a minute nobody else picked (AF-01).
 on:
   schedule:
-    - cron: '0 6 * * *'
+    - cron: '47 5 * * *'
   workflow_dispatch:
 
 # The workflow commits the refreshed harvest to the default branch when, and

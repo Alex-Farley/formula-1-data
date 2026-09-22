@@ -116,7 +116,7 @@ import {
 } from '../src/lib/changes.js'
 import { LATEST as CHANGES_LATEST, SHAPE as CHANGES_SHAPE } from '../src/queries/changes.js'
 import { markStyleAttr, winnerColour } from '../src/lib/liveries.js'
-import { RACE_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE } from '../src/queries/sessions.js'
+import { RACE_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE, raceStage } from '../src/queries/sessions.js'
 // The pages' own queries and column lists (PD-02). A page and this script
 // read the same module, so the static table is the app's table by
 // construction; the rest of the pages follow these.
@@ -172,6 +172,7 @@ import {
   raceNote,
   raceSentence,
   railOf,
+  scheduledNote,
 } from '../src/queries/race.js'
 import {
   BY_SEASON as TEAM_BY_SEASON,
@@ -804,6 +805,19 @@ const BUILT = ISO_DAY.test(META.built ?? '') ? META.built : new Date().toISOStri
  * with every build, so the build date is the honest answer for it.
  */
 const stamp = (date) => (ISO_DAY.test(date ?? '') && date < BUILT ? date : BUILT)
+
+/**
+ * The clock the static half reads (AF-01).
+ *
+ * A page a crawler fetches has to be a pure function of the database, the
+ * same rule [D-01] keeps `BUILT` a constant for — so "now" here is the start
+ * of the database's own build day and not the machine's clock, and two
+ * deploys of one database write the same bytes. It is the conservative
+ * reading on purpose: a race run since the build still reads as awaited in
+ * the static page, and the app, which has a real clock, corrects the sentence
+ * the moment the database opens in the browser.
+ */
+const STATIC_NOW = Date.parse(`${BUILT}T00:00Z`)
 
 /**
  * id -> the date of the most recent race that entity has already had.
@@ -1608,6 +1622,8 @@ const page = ({
     const pits = all(PITS, r.year, r.round)
     const scheduled = r.status === 'scheduled'
     const sessions = all(RACE_SESSIONS, r.year, r.round)
+    const stage = raceStage(r, sessions, STATIC_NOW)
+    const pending = scheduled ? scheduledNote(r, stage) : null
     const headline = `${r.year} ${r.name_used}`
     // CD-03: the standfirst the page opens on and the description a search
     // result shows are one expression, queries/race.js's, so they cannot come
@@ -1617,7 +1633,7 @@ const page = ({
     // the view over it, so the sentence and the table below agree by
     // construction on a shared drive.
     const raceWinners = entries.filter((e) => e.finish_position === 1)
-    const standfirst = raceLede(r, raceWinners)
+    const standfirst = raceLede(r, raceWinners, stage)
     // The description carries the derived sentence AND the note, where the
     // lede shows the note alone: read out of context a description has to
     // say what the page is, and the note explains rather than replaces it.
@@ -1628,7 +1644,7 @@ const page = ({
     // now that the lede is the note in both halves, that paragraph would be
     // the same words twice on the page, so it has gone.
     const written = raceNote(r)
-    const description = `${headline}. ${raceSentence(r, raceWinners)}${written ? ` ${written}` : ''}${
+    const description = `${headline}. ${raceSentence(r, raceWinners, stage)}${written ? ` ${written}` : ''}${
       scheduled ? '' : ' Full classification, grid, pole and fastest lap.'
     }`
 
@@ -1657,7 +1673,25 @@ const page = ({
         // races that carry one are the SCHEDULED ones - exactly where a
         // search engine most wants a date. Still guarded on the shape,
         // because invalid structured data is worse than none.
-        ...(ISO_DAY.test(r.date_iso ?? '') ? { startDate: r.date_iso } : {}),
+        //
+        // `endDate` beside it, under the same guard, because Search Console
+        // asks for both and a grand prix is a one-day event: the same date,
+        // not a weekend range read out of `dates`. An end date that is not a
+        // date is an error where a missing one is a warning (AF-01).
+        ...(ISO_DAY.test(r.date_iso ?? '') ? { startDate: r.date_iso, endDate: r.date_iso } : {}),
+        // A constant, and true of all 1,196 rounds: `races.status` tells a
+        // round that has been run from one still to come, and neither is
+        // cancelled, postponed or moved online — the states schema.org keeps
+        // the other values for.
+        //
+        // The three Search Console also names are declined. Nothing here
+        // sells a ticket, so an `offers` block would be invented, and false
+        // structured data is a policy matter rather than a warning; the
+        // drivers are not the billed `performer` of a 1950 results page; and
+        // each grand prix is organised by its own promoter under an FIA
+        // permit, so one constant `organizer` would state a fact about 1,196
+        // events that the database holds for none of them.
+        eventStatus: 'https://schema.org/EventScheduled',
       },
       body: `
         <h1>${esc(headline)}</h1>
@@ -1763,7 +1797,7 @@ const page = ({
                   value === 1 ? `<span class="fl" aria-hidden="true">●</span><span class="sr-only">${esc(FASTEST_LAP)}</span>` : '',
               })}${note(CLASSIFICATION_FOOTER)}`
             : scheduled
-              ? noteBox('This race has not been run.', 'The classification will appear here once it has.')
+              ? noteBox(pending.head, pending.body)
               : ''
         }
         ${
