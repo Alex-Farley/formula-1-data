@@ -41,7 +41,8 @@
  * dist/feed.xml and dist/robots.txt, and appends what it did about
  * measurement to dist/build-status.txt.
  */
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { measurement } from './measurement.js'
 import { deflateSync } from 'node:zlib'
 import { DatabaseSync } from 'node:sqlite'
 import { dirname, join } from 'node:path'
@@ -3143,84 +3144,16 @@ ${timeline.map(entry).join('\n')}
 
 // ------------------------------------------------------------ measurement
 
-/**
- * The two measurement tags every page carries, when the build environment
- * names them, and nothing at all when it does not.
- *
- * PD-0 (#261) settled on 2026-09-21 that measurement is wanted, on the
- * narrowest pair that answers it: Cloudflare Web Analytics for arrivals by
- * landing page, Google Search Console for impressions by query. Between them
- * they separate "nobody arrives" from "people arrive and leave", which is the
- * one distinction every other ranking on the board was assuming without
- * evidence. Both are free and cookieless. docs/MEASUREMENT.md is the whole of
- * the setup, and the two numbers to read a fortnight later.
- *
- * WHY THE TOKENS COME FROM THE ENVIRONMENT
- *     Neither is a secret - the beacon's token is in the page source of every
- *     site that uses it, and a verification string is a public claim of
- *     ownership - but neither describes this repository either. They name one
- *     account, so a fork that built this tree would report its arrivals into
- *     somebody else's dashboard and claim its domain for somebody else's
- *     Search Console. They are set on the Workers Builds project instead, and
- *     conventions.mjs fails the build if a literal one is ever pasted here.
- *
- * WHY MANUAL, AND NOT CLOUDFLARE'S AUTOMATIC INJECTION
- *     Automatic setup rewrites HTML at the edge; this site is served out of a
- *     Worker's static assets, and whether that path is rewritten is not
- *     something this repository can establish. The alternative to guessing is
- *     a fortnight of empty dashboard and no way to tell an unvisited site from
- *     an uninstrumented one. Written here, `curl -s https://lapledger.org |
- *     grep beacon` settles it in one line [D-09].
- *
- * WHY `"spa": false`
- *     Left on, the beacon overrides pushState and reports every route change.
- *     In this app a route change queries a database already in the tab: it
- *     asks the network for nothing, and the footer says so. What PD-0 asked
- *     for is arrivals BY LANDING PAGE, and an arrival is the first load by
- *     definition - so one beacon per arrival, and the rest of a reader's
- *     browsing stays where site.js's IN_THIS_TAB promises it stays.
- *
- * Neither tag is ever fatal. A typo in an analytics token must not take the
- * site down; it must not be silent either, so the outcome is appended to
- * build-status.txt and served at /build-status.txt [D-10].
- */
-const MEASUREMENT = []
-const MEASUREMENT_STATUS = []
-
-// 32 lowercase hex in every token seen, but the shape is Cloudflare's to
-// change; the test is only tight enough to keep the value safe inside a
-// single-quoted attribute holding JSON, and to catch a pasted sentence.
-const BEACON_TOKEN = (process.env.CF_BEACON_TOKEN ?? '').trim()
-if (BEACON_TOKEN === '') {
-  MEASUREMENT_STATUS.push('beacon   off — CF_BEACON_TOKEN is not set in the build environment')
-} else if (!/^[A-Za-z0-9]{8,64}$/.test(BEACON_TOKEN)) {
-  MEASUREMENT_STATUS.push(
-    `beacon   OFF — CF_BEACON_TOKEN is not 8–64 alphanumerics (${BEACON_TOKEN.length} characters); no tag written`,
-  )
-  console.warn('  CF_BEACON_TOKEN is not shaped like a Web Analytics token; the site deploys without the beacon')
-} else {
-  MEASUREMENT.push(
-    `<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" ` +
-      `data-cf-beacon='${JSON.stringify({ token: BEACON_TOKEN, spa: false })}'></script>`,
-  )
-  MEASUREMENT_STATUS.push(`beacon   on — token ${BEACON_TOKEN.slice(0, 6)}…, spa:false`)
-}
-
-// Search Console verifies a Domain property by DNS TXT, which needs nothing
-// from this build and is what MEASUREMENT.md recommends. This is the other
-// route: a URL-prefix property verified by a meta tag, for the day the DNS is
-// somewhere this maintainer cannot reach.
-const GOOGLE_VERIFICATION = (process.env.GOOGLE_SITE_VERIFICATION ?? '').trim()
-if (GOOGLE_VERIFICATION === '') {
-  MEASUREMENT_STATUS.push('search   no meta verification — GOOGLE_SITE_VERIFICATION is not set (DNS TXT needs no tag)')
-} else if (!/^[A-Za-z0-9_-]{20,128}$/.test(GOOGLE_VERIFICATION)) {
-  MEASUREMENT_STATUS.push(
-    `search   OFF — GOOGLE_SITE_VERIFICATION is not 20–128 of [A-Za-z0-9_-] (${GOOGLE_VERIFICATION.length} characters); no tag written`,
-  )
-  console.warn('  GOOGLE_SITE_VERIFICATION is not shaped like a verification string; the site deploys without the meta tag')
-} else {
-  MEASUREMENT.push(`<meta name="google-site-verification" content="${esc(GOOGLE_VERIFICATION)}" />`)
-  MEASUREMENT_STATUS.push(`search   meta verification ${GOOGLE_VERIFICATION.slice(0, 6)}…`)
+// The tags, their shapes and the whole of the reasoning are in
+// scripts/measurement.js. They live there rather than here because a test can
+// call a function and can only grep a script: the assertion that used to pin
+// the beacon's `"spa": false` was satisfied by this file's own status line,
+// and deleting the tag left it passing (review finding, 2026-09-22).
+const { tags: MEASUREMENT, status: MEASUREMENT_STATUS } = measurement(process.env, esc)
+for (const line of MEASUREMENT_STATUS) {
+  // Never fatal, never silent: a malformed token is reported here and in
+  // build-status.txt, and the site deploys without the tag [D-10].
+  if (line.includes('OFF —')) console.warn(`  ${line}`)
 }
 
 // ------------------------------------------------------------------ write
@@ -3455,15 +3388,23 @@ db.close()
 // Where the measurement tags can be read without a deploy log.
 //
 // parquet-bundle.mjs writes public/build-status.txt earlier in the same chain
-// and vite copies it here, so this appends rather than writing: one file, at
-// /build-status.txt, saying what this deploy did. Build logs are off for this
-// project, so a beacon that silently did not ship would look exactly like a
-// site nobody visits [D-10] - which is the one mistake PD-0 cannot afford to
+// and vite copies it here, so this adds to a file it did not create: one file,
+// at /build-status.txt, saying what this deploy did. Build logs are off for
+// this project, so a beacon that silently did not ship would look exactly like
+// a site nobody visits [D-10] - which is the one mistake PD-0 cannot afford to
 // make, since it would answer its own question wrongly.
+//
+// A REPLACED SPAN RATHER THAN AN APPEND. The npm chain empties dist on every
+// run, so appending was correct for every path Cloudflare takes - but `npm run
+// prerender` on its own, which is how this script is worked on, stacked a
+// second `measurement` block on the first and the older one read as current
+// (review finding, 2026-09-22). The block is always last and always starts
+// with its own name, so rewriting from that name is the whole of it.
 const statusPath = join(dist, 'build-status.txt')
-appendFileSync(
+const before = existsSync(statusPath) ? readFileSync(statusPath, 'utf8') : 'lapledger build\n'
+writeFileSync(
   statusPath,
-  `${existsSync(statusPath) ? '\n' : 'lapledger build\n\n'}measurement\n${MEASUREMENT_STATUS.join('\n')}\n`,
+  `${before.replace(/\n*measurement\n[\s\S]*$/, '\n')}\nmeasurement\n${MEASUREMENT_STATUS.join('\n')}\n`,
 )
 
 console.log(`  prerendered ${written.toLocaleString()} pages (${(bytes / 1024 / 1024).toFixed(1)} MB)`)

@@ -29,16 +29,24 @@ stopped being true the day it shipped, and a promise this site cannot keep is
 worth more than the measurement. Two changes keep it honest:
 
 - the beacon is written with **`"spa": false`**, so it fires once on the
-  arrival and never again. A route change here queries a database already in
-  the tab, and it still asks the network for nothing;
-- `IN_THIS_TAB` in `web/src/lib/site.js` now claims only that much — what you
-  search for, sort or type never leaves, moving between pages sends nothing,
-  and the one thing that does leave is a cookieless count of the page you
-  arrived on.
+  arrival and never on a route change. That is also exactly what *arrivals by
+  landing page* means, so nothing was given up buying it;
+- `IN_THIS_TAB` in `web/src/lib/site.js` now claims only what the page leaves
+  true: what you search for, sort or type never leaves, and what does is the
+  cookieless arrival count **and the photographs**, which come from Wikimedia
+  Commons as a reader reaches them.
 
-They are one decision. `web/test/conventions.mjs` fails the build if the
-`spa: false` is dropped while the sentence still promises what it buys, and if
-the sentence goes back to the old wording while the beacon is still there.
+That last clause is there because the first attempt at this sentence said
+"moving between pages asks the network for nothing", which is false — a route
+change to any page with a photograph fetches it from Wikimedia, handing them
+the reader's IP and the referrer. A narrower claim than the truth is the same
+failure as a wider one.
+
+They are one decision, and `web/test/conventions.mjs` holds them together: it
+calls `measurement()` and asserts against **the tag that will actually be
+written**, so dropping `"spa": false` fails, and it fails too if the footer
+stops naming what that buys or goes back to either of the two wordings it has
+already outgrown.
 
 ## Setting it up
 
@@ -205,7 +213,7 @@ Then two follow-ons, both of which were waiting on this:
 
 | | |
 |---|---|
-| The tags, and the reasoning | `web/scripts/prerender.js`, under *measurement* |
+| The tags, and the reasoning | `web/scripts/measurement.js`, called from `prerender.js` |
 | The claim they cost | `IN_THIS_TAB` in `web/src/lib/site.js`, `LEDE` in `web/src/queries/home.js` |
 | The rules that keep the two in step | `web/test/conventions.mjs`, *what the pages send, and to whom* |
 | What a given deploy actually wrote | `/build-status.txt`, last block |

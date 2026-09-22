@@ -138,19 +138,33 @@ export const ENTRIES_NOTE =
  *     site cannot keep is worse than the measurement is worth, and this is the
  *     paragraph a reader is most entitled to read literally.
  *
- *     So it now says the narrower thing that is true, and says it in the two
- *     halves a reader actually cares about: what you search for and type never
- *     leaves, and moving between pages sends nothing, because the beacon is
- *     written with `"spa": false` and fires on the arrival only. The claim and
- *     the tag are one decision; if the beacon is ever taken out, this sentence
- *     goes back, and if it is ever left on for route changes, "moving between
- *     pages asks the network for nothing" has to come out first.
+ *     THE FIRST ATTEMPT AT THE REPLACEMENT WAS WORSE THAN WHAT IT REPLACED.
+ *     It said "moving between pages asks the network for nothing", which is
+ *     false and more specifically false than the sentence it corrected: the
+ *     thumb-URL builder in commons.js makes a Wikimedia address that the
+ *     shared photograph component renders as an <img src>, so reaching any
+ *     Season, Race, Constructor or Car page hands Wikimedia the reader's IP,
+ *     the referrer and which photograph - and during the boot window main.jsx
+ *     fetches the prerendered half of the page asked for. (Named indirectly
+ *     because this file does not show a photograph, and the attribution rule
+ *     in conventions.mjs reads source rather than prose to decide that.)
+ *     Writing a narrower claim than the truth is the same failure as writing a
+ *     wider one; it just takes a reviewer rather than a reader to catch it
+ *     (review finding, 2026-09-22).
+ *
+ *     So the "nothing" clause is gone and the two things that do leave are
+ *     named: the arrival count, and the photographs. What is still absolute is
+ *     the half this page is actually about - a search, a sort, a SQL query -
+ *     because those run against a file already in the tab. The claim and the
+ *     tag are one decision: the count is of the page you ARRIVED on because
+ *     the beacon is written with `"spa": false`, and if that is ever dropped,
+ *     this sentence is wrong before the next deploy finishes.
  */
 export const IN_THIS_TAB =
-  'Every page here is a query against one SQLite file, running in this tab. What you search for, ' +
-  'sort or type is never sent anywhere, and moving between pages asks the network for nothing; ' +
-  'the one thing that leaves is a cookieless count of the page you arrived on. Once it has ' +
-  'loaded, this tab keeps working without a network.'
+  'Every page here is a query against one SQLite file, running in this tab: what you search for, ' +
+  'sort or type is never sent anywhere. What leaves is a cookieless count of the page you arrived ' +
+  'on, and the photographs, fetched from Wikimedia Commons as you reach them. Once it has loaded, ' +
+  'this tab keeps working without a network.'
 
 /**
  * What an em dash in a cell means, and where the career totals come from.
