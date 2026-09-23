@@ -6,6 +6,7 @@ database, with the attribution needed to display it.
     python3 tools/wikimedia_images.py               # full run, ~26 requests
     python3 tools/wikimedia_images.py --limit 100   # a sample, for a trial
     python3 tools/wikimedia_images.py --route category   # ~700 requests
+    python3 tools/wikimedia_images.py --thumbs      # thumb_url only, both files
 
 Reads:   harvest/car_specs.txt      the articles the spec harvest accepted
 Writes:  harvest/article_images.txt the accepted rows
@@ -18,9 +19,28 @@ files.
 
 No image is downloaded and none is stored. What is stored is a *reference*
 and its attribution: which file an article leads with, who took it, and
-under what licence. The pixels are fetched from upload.wikimedia.org by
+under what licence. The pixels are fetched from Wikimedia's own servers by
 whatever renders the page, under Wikimedia's terms, and this repository
 redistributes nothing.
+
+The thumbnail's own address (VD-23)
+-----------------------------------
+`thumb_url` is the address the API gives for the file at the width asked
+(`thumburl`, with its tracking query dropped), so a page can ask for the
+pixels in one request. Built from the file name instead, through
+`Special:FilePath`, the same thumbnail took two redirects on 2026-09-23 - to
+`Special:Redirect`, then to the thumbnail server - before a byte of it
+arrived. Commons now serves only a fixed ladder of thumbnail widths, and
+refuses a direct request for any other with a 400, so the address is taken
+as the API gives it and never assembled here. Every one is fetched once
+before it is written: an address that does not answer 200 with an image is
+left empty and logged, and a page with no `thumb_url` builds the
+`Special:FilePath` address as it always did (web/src/lib/commons.js).
+
+`--thumbs` refreshes that one column in both committed files and changes
+nothing else: no file is chosen afresh and no credit is re-read, so the rows
+stay the rows the dated run above chose, and the note it adds to the header
+says when the addresses were last fetched.
 
 What is checked, and what cannot be
 -----------------------------------
@@ -170,8 +190,19 @@ BATCH = 50
 DELAY = 1.5
 
 COLUMNS = ["article", "file_name", "repository", "licence", "licence_url",
-           "artist", "credit", "description_url", "width", "height",
-           "name_matches"]
+           "artist", "credit", "description_url", "thumb_url", "width",
+           "height", "name_matches"]
+
+# The width asked of the API for `thumb_url`, `width` and `height`. The
+# front end asks for no more than this from the stored address and builds a
+# Special:FilePath one for anything wider (THUMB_WIDTH in web/src/lib/commons.js,
+# which must agree).
+THUMB_WIDTH = 800
+
+# Where Wikimedia serves the pixels from. The API answered with the second on
+# 2026-09-23; the first is the one the files have been served from for years
+# and still answers. A thumburl on any other host is not taken.
+THUMB_HOSTS = ("upload.wikimedia.org", "thumb.wikimedia.org")
 
 # Licence strings accepted as free, matched case-insensitively against the
 # start of extmetadata.LicenseShortName. Deliberately a list of prefixes and
@@ -253,6 +284,81 @@ def api(session_delay=DELAY, endpoint=API, **params):
 def batches(xs, n=BATCH):
     for i in range(0, len(xs), n):
         yield xs[i:i + n]
+
+
+def thumb_address(url):
+    """The API's thumburl without its tracking query, or None.
+
+    `?utm_source=...` is Wikimedia counting which wiki handed the address
+    out, not part of the file's address, and a stored copy of it would tell
+    them the wrong thing on every load. Only https on THUMB_HOSTS is kept.
+    """
+    if not url:
+        return None
+    parts = urllib.parse.urlsplit(url)
+    if parts.scheme != "https" or parts.netloc not in THUMB_HOSTS:
+        return None
+    return urllib.parse.urlunsplit((parts.scheme, parts.netloc, parts.path,
+                                    "", ""))
+
+
+# Pacing for the thumbnail check. These are HEAD requests to the media
+# servers, not the API, one per file.
+HEAD_DELAY = 0.2
+
+
+def check_thumbs(rows, log, key):
+    """Fetch every row's thumb_url once; empty the ones that do not answer.
+
+    A HEAD request, so no pixels are downloaded. What passes is a 200 whose
+    content type is an image; a redirect is followed and then counted as a
+    failure, because an address that redirects is not the one-request
+    address this column exists to hold.
+    """
+    class NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, *a, **k):
+            return None
+    opener = urllib.request.build_opener(NoRedirect)
+    bad = 0
+    for n, r in enumerate(rows, 1):
+        if n % 100 == 0:
+            print(f"  thumbnails checked: {n}/{len(rows)}", flush=True)
+        url = r.get("thumb_url")
+        if not url:
+            log.append(f"{r[key]}\tNO THUMB\t{r['file_name']}: the API gave "
+                       f"no thumbnail address on {', '.join(THUMB_HOSTS)}")
+            bad += 1
+            continue
+        req = urllib.request.Request(url, method="HEAD",
+                                     headers={"User-Agent": UA})
+        why = None
+        for attempt in range(4):
+            try:
+                with opener.open(req, timeout=30) as resp:
+                    kind = resp.headers.get("Content-Type", "")
+                    if resp.status != 200 or not kind.startswith("image/"):
+                        why = f"answered {resp.status} {kind or 'no type'}"
+                    else:
+                        why = None
+                break
+            except urllib.error.HTTPError as e:
+                if e.code in (429, 503) and attempt < 3:
+                    time.sleep(5 * (attempt + 1))
+                    continue
+                why = f"answered {e.code}"
+                break
+            except Exception as e:  # network: retried, then recorded
+                if attempt < 3:
+                    time.sleep(5 * (attempt + 1))
+                    continue
+                why = f"did not answer ({type(e).__name__})"
+        time.sleep(HEAD_DELAY)
+        if why:
+            log.append(f"{r[key]}\tNO THUMB\t{r['file_name']}: {url} {why}")
+            r["thumb_url"] = None
+            bad += 1
+    print(f"  thumbnails: {len(rows) - bad} of {len(rows)} answer in one "
+          f"request; the rest fall back to Special:FilePath", flush=True)
 
 
 def read_articles():
@@ -404,7 +510,7 @@ def file_info(files, log, endpoint=API):
     for n, batch in enumerate(batches(files), 1):
         print(f"  file metadata, batch {n}: {len(batch)} files", flush=True)
         d = api(action="query", prop="imageinfo",
-                iiprop="url|size|extmetadata", iiurlwidth="800",
+                iiprop="url|size|extmetadata", iiurlwidth=str(THUMB_WIDTH),
                 titles="|".join(batch), endpoint=endpoint)
         for p in d.get("query", {}).get("pages", []) or []:
             name = title_key(p.get("title"))
@@ -420,6 +526,7 @@ def file_info(files, log, endpoint=API):
                 "artist": plain(get("Artist")),
                 "credit": plain(get("Credit")),
                 "description_url": ii.get("descriptionurl"),
+                "thumb_url": thumb_address(ii.get("thumburl")),
                 "attribution_required": (get("AttributionRequired") or ""),
                 "width": ii.get("thumbwidth") or ii.get("width"),
                 "height": ii.get("thumbheight") or ii.get("height"),
@@ -495,6 +602,7 @@ def admit(article, file_name, meta, chassis_ids, log, route="article"):
         "artist": meta["artist"],
         "credit": meta["credit"],
         "description_url": meta["description_url"],
+        "thumb_url": meta.get("thumb_url"),
         "width": meta["width"],
         "height": meta["height"],
         "name_matches": matches,
@@ -505,7 +613,8 @@ def admit(article, file_name, meta, chassis_ids, log, route="article"):
 
 CAT_COLUMNS = ["chassis_id", "category", "file_name", "repository",
                "licence", "licence_url", "artist", "credit",
-               "description_url", "width", "height", "name_matches"]
+               "description_url", "thumb_url", "width", "height",
+               "name_matches"]
 
 # Words a category title may carry after the designation without naming a
 # different car. "Ferrari 125 F1" is the Formula One 125 where "Ferrari 125"
@@ -860,6 +969,7 @@ def main_category(args):
         else:
             log.append(f"{cid}\tREFUSED\t{', '.join(t for t, _f in plan[cid])}"
                        f" holds no photograph that is not a replica, a part or another chassis's")
+    check_thumbs(rows, log, "chassis_id")
 
     out = os.path.join(HARVEST, "category_images.txt")
     with open(out, "w", encoding="utf-8") as fh:
@@ -904,7 +1014,12 @@ def main():
                     default="article",
                     help="article (the default), or a Commons category for "
                          "each chassis with no article")
+    ap.add_argument("--thumbs", action="store_true",
+                    help="refresh thumb_url in both committed files and "
+                         "nothing else")
     args = ap.parse_args()
+    if args.thumbs:
+        return main_thumbs()
     if args.route == "category":
         return main_category(args)
 
@@ -963,6 +1078,7 @@ def main():
                 break
         else:
             log.extend(line + " (body image)" for line in tried)
+    check_thumbs(rows, log, "article")
 
     out = os.path.join(HARVEST, "article_images.txt")
     with open(out, "w", encoding="utf-8") as fh:
@@ -996,6 +1112,62 @@ def main():
     print(f"file name mentions the car: {named} of {len(rows)} "
           f"- recorded, not enforced")
     print(f"wrote {out}")
+
+
+THUMBS_NOTE = "# thumb_url last fetched by tools/wikimedia_images.py --thumbs on "
+
+
+def main_thumbs():
+    """Refill thumb_url in both committed files, and change nothing else.
+
+    Each file is read by its column header, the way data/harvest.py reads it,
+    and written back line for line: the rows, their order and their credits
+    are the dated run's. Only the column and a dated note in the header move.
+    """
+    for name, key, columns, endpoint in (
+            ("article_images.txt", "article", COLUMNS, API),
+            ("category_images.txt", "chassis_id", CAT_COLUMNS, COMMONS_API)):
+        path = os.path.join(HARVEST, name)
+        with open(path, encoding="utf-8") as fh:
+            lines = fh.read().splitlines()
+        notes = [ln for ln in lines if ln.startswith("#") and "|" not in ln
+                 and not ln.startswith(THUMBS_NOTE)]
+        header = [ln for ln in lines if ln.startswith("#") and "|" in ln]
+        if len(header) != 1:
+            raise SystemExit(f"{name}: expected one column header, "
+                             f"found {len(header)}")
+        cols = header[0].lstrip("# ").split("|")
+        missing = [c for c in columns if c not in cols and c != "thumb_url"]
+        if missing:
+            raise SystemExit(f"{name}: no column {', '.join(missing)}")
+        rows = []
+        for ln in lines:
+            if not ln.strip() or ln.startswith("#"):
+                continue
+            parts = ln.split("|")
+            if len(parts) != len(cols):
+                raise SystemExit(f"{name}: {len(parts)} fields where the "
+                                 f"header names {len(cols)}: {ln[:60]}")
+            rows.append(dict(zip(cols, parts)))
+        print(f"{name}: {len(rows)} rows", flush=True)
+        info = file_info(sorted({r["file_name"] for r in rows}), [],
+                         endpoint=endpoint)
+        for r in rows:
+            r["thumb_url"] = (info.get(title_key(r["file_name"])) or {}
+                              ).get("thumb_url")
+        log = []
+        check_thumbs(rows, log, key)
+        for line in log:
+            print("  " + line.replace("\t", "  "))
+        with open(path, "w", encoding="utf-8") as fh:
+            for ln in notes:
+                fh.write(ln + "\n")
+            fh.write(THUMBS_NOTE + time.strftime("%Y-%m-%d")
+                     + "; no file was chosen afresh.\n")
+            fh.write("# " + "|".join(columns) + "\n")
+            for r in rows:
+                fh.write("|".join(r.get(c) or "" for c in columns) + "\n")
+        print(f"wrote {path}")
 
 
 if __name__ == "__main__":

@@ -913,11 +913,11 @@ def _stage_11_the_lead_image_of_each_accepted(b):
                 f"{im.get('file_name')}. Rerun tools/wikimedia_images.py.")
         cur.execute("""INSERT INTO article_images (article, file_name,
             repository, licence, licence_url, artist, credit, description_url,
-            width, height, name_matches, confidence)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+            thumb_url, width, height, name_matches, confidence)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (article, im["file_name"], im["repository"], im["licence"],
              im.get("licence_url"), im.get("artist"), im.get("credit"),
-             im["description_url"],
+             im["description_url"], im.get("thumb_url") or None,
              int(im["width"]) if im.get("width") else None,
              int(im["height"]) if im.get("height") else None,
              1 if im.get("name_matches") == "1" else 0,
@@ -968,11 +968,13 @@ def _stage_11_the_lead_image_of_each_accepted(b):
             raise SystemExit(f"category_images: {cid} has no description page.")
         cur.execute("""INSERT INTO article_images (route, chassis_id,
             category, file_name, repository, licence, licence_url, artist,
-            credit, description_url, width, height, name_matches, confidence)
-            VALUES ('category',?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            credit, description_url, thumb_url, width, height, name_matches,
+            confidence)
+            VALUES ('category',?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (cid, im["category"], im["file_name"], im["repository"],
              im["licence"], im.get("licence_url"), im.get("artist"),
              im.get("credit"), im["description_url"],
+             im.get("thumb_url") or None,
              int(im["width"]) if im.get("width") else None,
              int(im["height"]) if im.get("height") else None,
              1 if im.get("name_matches") == "1" else 0,

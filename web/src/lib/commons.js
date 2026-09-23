@@ -9,16 +9,33 @@
  */
 
 /**
- * A thumbnail URL, built from the file name.
- *
- * Special:FilePath negotiates the width server-side, which avoids
- * reconstructing Commons' md5-sharded thumbnail paths here — those are an
- * implementation detail of their storage and have changed before. The database
- * stores no URL for the pixels precisely so that this stays the one place to
- * change if it changes again.
+ * The width the harvest asked the API for, and so the widest a stored
+ * `thumb_url` can stand in for. THUMB_WIDTH in tools/wikimedia_images.py,
+ * which must agree.
  */
-export function thumbUrl(fileName, width = 800) {
-  const bare = String(fileName ?? '')
+export const THUMB_WIDTH = 800
+
+/**
+ * A thumbnail URL for a row of `article_images`.
+ *
+ * The row's `thumb_url` where it has one and the width asked is within it
+ * (VD-23): the address the API gave for the file, which answers in one
+ * request. Built from the file name instead, through Special:FilePath, the
+ * same picture took two redirects before a byte of it arrived — on a page of
+ * six photographs, eighteen requests where six will do.
+ *
+ * Special:FilePath is still the answer where there is no stored address, for
+ * anything wider than the harvest asked for (the share card), and when a
+ * caller passes `direct: false` because the stored one failed to load.
+ * Commons' storage paths are theirs and have changed before — they now serve
+ * only a fixed ladder of widths, and a direct request for any other is
+ * refused — so the address is never assembled here: it is taken as the API
+ * gives it or it is not used, and this stays the one place that decides.
+ */
+export function thumbUrl(image, width = THUMB_WIDTH, { direct = true } = {}) {
+  const stored = direct && width <= THUMB_WIDTH ? String(image?.thumb_url ?? '').trim() : ''
+  if (stored) return stored
+  const bare = String(image?.file_name ?? '')
     .replace(/^File:/, '')
     .replace(/ /g, '_')
   if (!bare) return null

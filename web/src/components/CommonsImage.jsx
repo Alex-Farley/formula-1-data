@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { attribution, canShow, fileTitle, photoAlt, thumbUrl } from '../lib/commons.js'
+import { THUMB_WIDTH, attribution, canShow, fileTitle, photoAlt, thumbUrl } from '../lib/commons.js'
 import { UNCHECKED_MARK } from '../lib/site.js'
 
 /**
@@ -25,19 +25,25 @@ import { UNCHECKED_MARK } from '../lib/site.js'
  * article with a picture of police officers. They are all held at
  * `unverified`, and this says so on the picture rather than in a footnote.
  */
-export default function CommonsImage({ image, width = 800, caption, showCheck = true }) {
+export default function CommonsImage({ image, width = THUMB_WIDTH, caption, showCheck = true }) {
   // Loading, arrived, or failed: three states that used to look the same -
-  // a sunk grey box - for the seconds a Commons thumbnail takes to arrive
-  // through its redirects, and for ever when it does not. The box now says
-  // which it is.
+  // a sunk grey box - for the seconds a Commons thumbnail takes to arrive,
+  // and for ever when it does not. The box now says which it is.
   const [state, setState] = useState('loading')
+  // The stored address that failed, if one did (VD-23). The harvest fetched
+  // every one before writing it, but Commons can move a file after that, and
+  // a picture that would still arrive through Special:FilePath is not a
+  // failure: it gets one more try there before the box says it failed.
+  const [refused, setRefused] = useState(null)
   if (!image?.file_name) return null
 
   if (!canShow(image)) return null
   const credit = attribution(image)
   const licence = (image.licence ?? '').trim()
 
-  const src = thumbUrl(image.file_name, width)
+  const direct = thumbUrl(image, width)
+  const fallback = thumbUrl(image, width, { direct: false })
+  const src = refused === direct ? fallback : direct
   const unchecked = showCheck && image.name_matches === 0
 
   return (
@@ -50,7 +56,7 @@ export default function CommonsImage({ image, width = 800, caption, showCheck = 
         loading="lazy"
         decoding="async"
         onLoad={() => setState('ready')}
-        onError={() => setState('failed')}
+        onError={() => (src === direct && direct !== fallback ? setRefused(direct) : setState('failed'))}
         style={image.width && image.height ? { aspectRatio: `${image.width} / ${image.height}` } : undefined}
       />
       {state === 'failed' && (

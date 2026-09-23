@@ -122,7 +122,7 @@ function Gallery({ cars }) {
           <Link to={`/cars/${car.id}`} className="carcard-shot" tabIndex={-1} aria-hidden="true">
             {canShow(car) ? (
               <img
-                src={thumbUrl(car.file_name, 640)}
+                src={thumbUrl(car, 640)}
                 alt={car.car}
                 loading="lazy"
                 decoding="async"

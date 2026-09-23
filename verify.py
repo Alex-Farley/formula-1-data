@@ -3397,6 +3397,39 @@ def illustration_and_geometry():
         nolic = con.execute("SELECT COUNT(*) FROM article_images "
                             "WHERE licence IS NULL OR TRIM(licence) = ''"
                             ).fetchone()[0]
+        # The stored thumbnail address (VD-23) is followed by every reader's
+        # browser without anything checking it on the way, so it has to be
+        # the file the row credits and not merely a Wikimedia URL. Commons
+        # files its pixels under the MD5 of the file's own name - /a/ab/Name
+        # - so the address is checked against the row's file_name here,
+        # which the harvest cannot have got right by accident. An original
+        # narrower than 800 px is served as itself (/a/ab/Name); a thumbnail
+        # carries the width after it (/thumb/a/ab/Name/960px-Name).
+        import hashlib as _hashlib
+        import urllib.parse as _up
+        misaddressed, nthumb = [], 0
+        for key, file_name, url in con.execute(
+                """SELECT COALESCE(article, chassis_id), file_name, thumb_url
+                   FROM article_images WHERE thumb_url IS NOT NULL"""):
+            nthumb += 1
+            name = file_name.removeprefix("File:").replace(" ", "_")
+            md5 = _hashlib.md5(name.encode("utf-8")).hexdigest()
+            parts = _up.urlsplit(url)
+            path = _up.unquote(parts.path)
+            shard = f"/wikipedia/commons/{md5[0]}/{md5[:2]}/{name}"
+            thumb = f"/wikipedia/commons/thumb/{md5[0]}/{md5[:2]}/{name}/"
+            ok = (parts.scheme == "https" and not parts.query
+                  and parts.netloc in ("upload.wikimedia.org",
+                                       "thumb.wikimedia.org")
+                  and (path == shard or (path.startswith(thumb)
+                                         and "/" not in path[len(thumb):])))
+            if not ok:
+                misaddressed.append(f"{key}: {url}")
+        check("every stored thumbnail address is its own row's file on "
+              "Wikimedia's media servers", not misaddressed,
+              f"{nthumb} of {nimg} carry one" if not misaddressed
+              else "; ".join(misaddressed[:3]))
+
         check("every image states its own licence", nolic == 0,
               f"{con.execute('SELECT COUNT(DISTINCT licence) FROM article_images').fetchone()[0]} distinct licences in use")
 

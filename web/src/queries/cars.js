@@ -24,7 +24,7 @@ export const GALLERY = `
   SELECT v.id, v.car, v.constructor, v.from_year, v.to_year, v.concept,
          v.wins, v.drivers_titles, v.constructors_titles,
          i.file_name, i.licence, i.licence_url, i.artist, i.credit,
-         i.description_url, i.width, i.height, i.name_matches
+         i.description_url, i.thumb_url, i.width, i.height, i.name_matches
     FROM v_cars v
     LEFT JOIN v_car_images i ON i.car_id = v.id
    ORDER BY v.from_year, v.car
