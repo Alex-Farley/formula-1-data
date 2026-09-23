@@ -42,6 +42,7 @@ import {
 } from '../queries/driver.js'
 
 import { ONWARD, TRAIL, lastTeamOf } from '../lib/wayfinding.js'
+import SearchKey from '../components/SearchKey.jsx'
 /**
  * What only the app adds to the shared column lists: links, the sort key
  * behind a text column, and the markup a result wears. Everything a cell
@@ -207,7 +208,7 @@ export default function Driver() {
             <Page title="No such driver" cite={false} trail={TRAIL.missing('/drivers', 'Drivers')}>
               <p className="muted">Nothing in the register has the id “{id}”.</p>
               <p>
-                Press <kbd>/</kbd> to search every driver by name, or{' '}
+                Press <SearchKey /> to search every driver by name, or{' '}
                 <Link to="/drivers">browse the register</Link>.
               </p>
             </Page>

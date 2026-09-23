@@ -30,6 +30,7 @@ import {
 
 import { ONWARD, TRAIL, lastSeasonOf } from '../lib/wayfinding.js'
 import { NAMES } from '../lib/site.js'
+import SearchKey from '../components/SearchKey.jsx'
 /*
  * The React renders for the columns queries/constructor.js defines — the
  * links and the sort keys; the router is the reason they live here. The words
@@ -85,7 +86,7 @@ export default function Constructor() {
             <Page title="No such constructor" cite={false} trail={TRAIL.missing('/constructors', 'Constructors')}>
               <p className="muted">Nothing in the register has the id “{id}”.</p>
               <p>
-                Press <kbd>/</kbd> to search by name, or{' '}
+                Press <SearchKey /> to search by name, or{' '}
                 <Link to="/constructors">browse the register</Link>. A few names used by other
                 sources are deliberately not held here — the{' '}
                 <Link to="/data/quality">data quality page</Link> says which and why.

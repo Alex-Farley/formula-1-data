@@ -141,7 +141,7 @@ function useFocusOnNavigation() {
     }
     // Not out of a modal that is staying. The search palette is open on top of
     // the page, and a navigation committing underneath it - click a result,
-    // press / again before the router has caught up - would pull focus back to
+    // press Ctrl+K again before the router has caught up - would pull focus back to
     // the heading behind it: Escape then misses the dialog, which stays open
     // over a page the reader can no longer reach. What is in front of the
     // reader wins.

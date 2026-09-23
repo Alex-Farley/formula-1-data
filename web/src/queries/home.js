@@ -233,8 +233,10 @@ export const WON_FOR = ' for '
 export const UNRECORDED_WINNER = 'an unrecorded driver'
 
 export const BOARD_HEADING = 'Where to start'
+// The static page carries this too, where no platform is known, so it names
+// both keys rather than guessing (AX-15: a bare `/` no longer opens search).
 export const BOARD_NOTE =
-  'Or press / from anywhere to jump straight to a driver, team, circuit, car, season or race.'
+  'Or press Ctrl K, or ⌘K on a Mac, from anywhere to jump straight to a driver, team, circuit, car, season or race.'
 
 /**
  * The eight doors out of the home page. `count` names the figure from SHAPE
