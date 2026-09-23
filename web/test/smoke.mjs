@@ -2405,6 +2405,25 @@ try {
     await go('/cars', 'Cars')
     is((await tableRows())[0], count('SELECT COUNT(*) FROM chassis'), 'the chassis register')
 
+    // AX-22: each card's frame and heading are links to one page. The heading
+    // is the one a keyboard or a screen reader meets; the frame is hidden from
+    // both, so a card is one tab stop, not two with the same destination.
+    {
+      const cards = await page.$$eval('#root main .carcard', (els) =>
+        els.map((card) => {
+          const reachable = [...card.querySelectorAll('a[href]')].filter(
+            (a) => a.tabIndex >= 0 && !a.closest('[aria-hidden="true"]'),
+          )
+          return reachable.filter((a) => a.getAttribute('href').startsWith('/cars/')).length
+        }),
+      )
+      is(cards.length, count('SELECT COUNT(*) FROM cars'), 'a card per curated car')
+      truthy(
+        cards.every((n) => n === 1),
+        `every card reaches its car page once from the keyboard (${cards.join(',')})`,
+      )
+    }
+
     // IA-19: 1,153 rows opening on 1950, and no route at all to this year's
     // chassis until now. The register's own Raced span is the test, because
     // season_entries carries the car as the team names it and will not join.

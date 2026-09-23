@@ -108,13 +108,18 @@ export default function Cars() {
  * matched photograph still gets a card — its concept line is the reason it is
  * here — and the frame simply carries no picture rather than a placeholder
  * pretending one is coming.
+ *
+ * The frame and the heading both go to /cars/<id>, so the frame is a mouse
+ * target only (AX-22): out of the tab order and out of the accessibility
+ * tree, which leaves one stop per card named by the car rather than two, the
+ * first of which, on a card with no photograph, was named for the absence.
  */
 function Gallery({ cars }) {
   return (
     <ul className="cardgrid">
       {cars.map((car) => (
         <li key={car.id} className="carcard">
-          <Link to={`/cars/${car.id}`} className="carcard-shot">
+          <Link to={`/cars/${car.id}`} className="carcard-shot" tabIndex={-1} aria-hidden="true">
             {canShow(car) ? (
               <img
                 src={thumbUrl(car.file_name, 640)}
