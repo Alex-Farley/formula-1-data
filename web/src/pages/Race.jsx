@@ -46,7 +46,6 @@ import { ONWARD, TRAIL, raceSteps } from '../lib/wayfinding.js'
  * too, so the static tables are these.
  */
 const RAIL = {
-  label: <span className="sr-only">Result</span>,
   render: (_, row) => <i className={railOf(row)} />,
 }
 const driverLink = {

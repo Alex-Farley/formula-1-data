@@ -26,6 +26,11 @@ import TakeAway from './TakeAway.jsx'
  * with scripts/prerender.js so the static table prints the same cell; it is
  * used where the page gives no `render`. See queries/drivers.js.
  *
+ * `ariaHidden` takes a column out of the accessibility tree, header and every
+ * cell, and leaves its header empty: a column that only repeats in colour
+ * what the column beside it says in words, which is the classification's
+ * result rail (AX-12). scripts/prerender.js reads the same flag.
+ *
  * `opening` is the order the rows already arrive in - `{ key, direction }`,
  * the column a query's ORDER BY leads with - and it is shown, never applied.
  * A table that opens in the query's own order used to open with no arrow and
@@ -369,8 +374,9 @@ function Table({
                         .join(' ')}
                       style={column.width ? { width: column.width } : undefined}
                       aria-sort={active ? (shownDirection === 'asc' ? 'ascending' : 'descending') : undefined}
+                      aria-hidden={column.ariaHidden ? 'true' : undefined}
                     >
-                      {canSort ? (
+                      {column.ariaHidden ? null : canSort ? (
                         <button type="button" onClick={() => toggle(column.key)}>
                           {column.label}
                           {/* A column that sorts says so at rest (IX-20): the idle
@@ -408,6 +414,7 @@ function Table({
                       className={[column.align, column.cellClass, column.className?.(row)]
                         .filter(Boolean)
                         .join(' ')}
+                      aria-hidden={column.ariaHidden ? 'true' : undefined}
                     >
                       {column.render
                         ? column.render(row[column.key], row)

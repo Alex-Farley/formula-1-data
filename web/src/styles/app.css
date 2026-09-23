@@ -969,7 +969,9 @@ tbody tr.is-highlight td {
  * before any of the numbers do. The rail encodes what the row achieved —
  * podium, points, classified, retired — from race_entries, so it is data
  * rather than decoration, and it is always paired with the position text
- * beside it: the colour never carries the meaning alone.
+ * beside it: the colour never carries the meaning alone. For the same reason
+ * the column is aria-hidden in both renderers (AX-12) - a screen reader
+ * already hears the position, and heard an empty "Result" cell besides.
  */
 th.rail,
 td.rail {
@@ -2532,8 +2534,8 @@ figure.figure > figcaption span {
   color: var(--ink-soft);
 }
 
-/* Announced but not shown: the result rail is a column with no text, and an
-   unnamed column header is a column a screen reader cannot introduce. */
+/* Announced but not shown: a table's caption, the words behind a mark such
+   as the fastest-lap bullet, a live status line. */
 .sr-only {
   position: absolute;
   width: 1px;

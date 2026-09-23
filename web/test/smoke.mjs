@@ -1628,6 +1628,28 @@ try {
     truthy(html.includes(CHASSIS_NOTE) && app76.includes(CHASSIS_NOTE), 'the blank chassis is explained')
     is(html.includes(OUT_NOTE), false, 'and the static page does not explain a blank that is not there')
     is(app76.includes(OUT_NOTE), false, 'nor does the app')
+
+    // AX-12: the rail says in colour what Pos says in words, so a screen
+    // reader is spared it - it was an empty cell named "Result" on every
+    // row. Hidden, header and cells, in both renderers, and named nowhere.
+    const appRail = await page.evaluate(() => {
+      const h2 = [...document.querySelectorAll('#root main h2')].find((h) => h.textContent.trim().startsWith('Classification'))
+      const table = h2.closest('section').querySelector('.table-wrap table')
+      const cells = [table.querySelector('thead th'), ...[...table.querySelectorAll('tbody tr')].map((tr) => tr.querySelector('td'))]
+      return {
+        rail: cells.every((c) => c.classList.contains('rail')),
+        hidden: cells.filter((c) => c.getAttribute('aria-hidden') !== 'true').length,
+        named: cells[0].textContent.trim(),
+      }
+    })
+    truthy(appRail.rail, "the app's classification leads on the rail")
+    is(appRail.hidden, 0, "and every cell of it, header included, is aria-hidden")
+    is(appRail.named, '', 'with no header text to announce')
+    const staticRail = html.match(/<th scope="col" class="rail"[^>]*>([^<]*)<\/th>/)
+    truthy(staticRail?.[0].includes('aria-hidden="true"') && staticRail[1] === '', 'the static rail header is hidden and empty')
+    const railCells = html.match(/<td class="rail"[^>]*>/g) ?? []
+    is(railCells.length, race[0], 'the static classification draws a rail cell per entry')
+    is(railCells.filter((c) => !c.includes('aria-hidden="true"')).length, 0, 'and every one is aria-hidden')
   })
 
   await section('/races/1955/1  (a shared drive)', async () => {
