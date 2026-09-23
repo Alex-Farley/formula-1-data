@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { NAMES, SELF_DESCRIBING, TIMING_EMPTY_TABLES, timingEmpty, TWO_FILES } from '../lib/site.js'
-import { bare, emptyTimingTableRead } from '../lib/sql.js'
+import { complaint, emptyTimingTableRead } from '../lib/sql.js'
 import { Note, Onward, Page, Section } from '../components/Page.jsx'
 import { ErrorBox, Loading } from '../components/States.jsx'
 import DataTable from '../components/DataTable.jsx'
@@ -29,36 +29,6 @@ const SCHEMA = `
 `
 
 const START = EXAMPLES[0][1]
-
-/**
- * A courtesy, not the guarantee.
- *
- * The guarantee is that every statement runs inside a transaction that is
- * rolled back — see the worker. This only catches the obvious case early so
- * that a reader who types DELETE gets an explanation rather than an empty
- * result and a false sense of what happened.
- */
-// Read-only, row-returning pragmas: they report on the schema and change no
-// setting, so nothing survives the statement to affect the next one.
-const INTROSPECTION =
-  /^pragma\s+(table_info|table_xinfo|table_list|index_list|index_info|index_xinfo|foreign_key_list|database_list|collation_list|compile_options|function_list|pragma_list|module_list)\b/i
-
-function complain(sql) {
-  const stripped = bare(sql).trim()
-  if (!stripped) return 'Nothing to run.'
-  if (!/^(select|with|explain|pragma|values)\b/i.test(stripped)) {
-    return 'Reads only: start with SELECT, WITH, VALUES, EXPLAIN or PRAGMA. A write would be rolled back anyway, so nothing has changed.'
-  }
-  // The rollback does not cover pragmas. A PRAGMA is not transactional, so
-  // `PRAGMA case_sensitive_like = ON` survives the ROLLBACK and silently
-  // changes every later query in the tab — which is exactly the guarantee this
-  // page makes. The introspection pragmas below only read, so they keep
-  // working; anything else is refused rather than quietly breaking the promise.
-  if (/^pragma\b/i.test(stripped) && !INTROSPECTION.test(stripped)) {
-    return 'That pragma can change how later queries behave, and a pragma is not undone by the rollback. Introspection pragmas (table_info, index_list, foreign_key_list and the like) are fine.'
-  }
-  return null
-}
 
 /**
  * One table or view in the schema panel: its columns, then the DDL the
@@ -141,9 +111,9 @@ export default function Sql() {
     // Ctrl+Enter and the example buttons were not, and a second statement
     // behind a stuck one left Cancel aborting the wrong request.
     if (running.current) return
-    const complaint = complain(statement)
-    if (complaint) {
-      setState({ status: 'error', error: new Error(complaint) })
+    const refusal = complaint(statement)
+    if (refusal) {
+      setState({ status: 'error', error: new Error(refusal) })
       return
     }
     setState({ status: 'running' })
@@ -217,7 +187,7 @@ export default function Sql() {
       title={NAMES.sql().headline}
       documentName={NAMES.sql().title}
       trail={TRAIL.sql()}
-      lede="Every page on this site is a query against one SQLite file. Here you write your own. Start from an example on the right, or open a table below for its columns and its commented schema — then run it with ⌘/Ctrl + Enter."
+      lede="Every page on this site is a query against one SQLite file. Here you write your own. Start from an example on the right, or open a table below for its columns and its commented schema — then run it with Cmd/Ctrl + Enter."
     >
       <SubNav />
 
@@ -258,7 +228,7 @@ export default function Sql() {
                 Cancel
               </button>
             ) : (
-              <span className="faint small">or ⌘/Ctrl + Enter</span>
+              <span className="faint small">or Cmd/Ctrl + Enter</span>
             )}
             <span className="spacer" />
             {state.status === 'done' && (

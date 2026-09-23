@@ -11,6 +11,7 @@
  * rather than as a regular expression inside a page.
  */
 
+import { distance } from './search.js'
 import { TIMING_EMPTY_TABLES } from './site.js'
 
 /**
@@ -73,4 +74,85 @@ export const emptyTimingTableRead = (sql) => {
   if (!found) return null
   const table = found[1].toLowerCase()
   return shadowedByCte(statement, table) ? null : table
+}
+
+/**
+ * The console's refusal before a statement runs, or null to run it.
+ *
+ * A courtesy, not the guarantee. The guarantee is that every statement runs
+ * inside a transaction that is rolled back - see the worker. This only
+ * catches the obvious case early so that a reader who types DELETE gets an
+ * explanation rather than an empty result and a false sense of what happened.
+ *
+ * And it answers what was typed. `SELEC 1` used to be told that a write would
+ * be rolled back, which is a lecture to somebody who made a typo (IX-25).
+ */
+export function complaint(sql) {
+  const stripped = bare(sql).trim()
+  if (!stripped) return 'Nothing to run.'
+  if (!/^(select|with|explain|pragma|values)\b/i.test(stripped)) {
+    const word = stripped.match(/^[a-z_][a-z0-9_]*/i)?.[0]
+    const near = word ? nearestStatement(word) : null
+    if (near && READS.includes(near)) {
+      return `Did you mean ${near.toUpperCase()}? No statement starts with “${word}”, so nothing ran.`
+    }
+    if (near) {
+      return 'Reads only: start with SELECT, WITH, VALUES, EXPLAIN or PRAGMA. A write would be rolled back anyway, so nothing has changed.'
+    }
+    const opening = word ?? stripped.split(/\s/)[0]
+    return `No statement starts with “${opening}”, so nothing ran. A read starts with SELECT, WITH, VALUES, EXPLAIN or PRAGMA.`
+  }
+  // The rollback does not cover pragmas. A PRAGMA is not transactional, so
+  // `PRAGMA case_sensitive_like = ON` survives the ROLLBACK and silently
+  // changes every later query in the tab - which is exactly the guarantee this
+  // page makes. The introspection pragmas below only read, so they keep
+  // working; anything else is refused rather than quietly breaking the promise.
+  if (/^pragma\b/i.test(stripped) && !INTROSPECTION.test(stripped)) {
+    return 'That pragma can change how later queries behave, and a pragma is not undone by the rollback. Introspection pragmas (table_info, index_list, foreign_key_list and the like) are fine.'
+  }
+  return null
+}
+
+// Read-only, row-returning pragmas: they report on the schema and change no
+// setting, so nothing survives the statement to affect the next one.
+const INTROSPECTION =
+  /^pragma\s+(table_info|table_xinfo|table_list|index_list|index_info|index_xinfo|foreign_key_list|database_list|collation_list|compile_options|function_list|pragma_list|module_list)\b/i
+
+// The words a statement may start with here, and every other word SQLite
+// starts one with. The second list is here so that a near miss is read as the
+// statement it is nearest: `DELET` is two edits from SELECT and one from
+// DELETE, and the reader who typed it was not trying to read.
+const READS = ['select', 'with', 'values', 'explain', 'pragma']
+const OTHERS = [
+  'alter', 'analyze', 'attach', 'begin', 'commit', 'create', 'delete', 'detach', 'drop', 'end',
+  'insert', 'reindex', 'release', 'replace', 'rollback', 'savepoint', 'update', 'vacuum',
+]
+
+/**
+ * The statement keyword `word` is a near miss of, or null. Two edits, a swap
+ * of neighbours counting as one; one for a keyword of four letters or fewer,
+ * where two would leave half the word (`it` is two from WITH). A word as near
+ * one keyword as another is not guessed at, and a tie that includes a write
+ * is not read as a read.
+ */
+export function nearestStatement(word) {
+  const typed = word.toLowerCase()
+  let best = null
+  let bestDistance = Infinity
+  let tied = false
+  for (const keyword of [...READS, ...OTHERS]) {
+    const most = keyword.length <= 4 ? 1 : 2
+    const d = distance(typed, keyword, most)
+    if (d > most) continue
+    if (d < bestDistance) {
+      best = keyword
+      bestDistance = d
+      tied = false
+    } else if (d === bestDistance) {
+      tied = true
+      if (!READS.includes(keyword)) best = keyword
+    }
+  }
+  if (tied && READS.includes(best)) return null
+  return best
 }

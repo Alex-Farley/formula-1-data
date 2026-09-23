@@ -56,7 +56,7 @@ import {
 import { metresBetween, stitch } from '../src/lib/lap.js'
 import { distance, elsewhere, fold, prepare, rank } from '../src/lib/search.js'
 import { EXAMPLES, QUESTIONS, TOPICS, questionPath } from '../src/lib/questions.js'
-import { emptyTimingTableRead } from '../src/lib/sql.js'
+import { complaint, emptyTimingTableRead, nearestStatement } from '../src/lib/sql.js'
 import { DRIVER_COLUMNS } from '../src/queries/drivers.js'
 import { holderPath } from '../src/queries/records.js'
 import { EXPLAINED_FOOTER, OPEN_FOOTER, allExplained } from '../src/lib/disagreement.js'
@@ -2121,5 +2121,65 @@ describe('the sentences that name the file (SD-24)', () => {
     assert.equal(parts.length, 2)
     assert.notEqual(parts[0].trim(), '')
     assert.notEqual(parts[1].trim(), '')
+  })
+})
+
+/**
+ * What the console says before it runs anything. A typo in SELECT used to be
+ * answered with the explanation meant for a write (IX-25).
+ */
+describe('the console refuses what it will not run, and says why (IX-25)', () => {
+  it('runs the five ways a read starts', () => {
+    for (const sql of ['SELECT 1', 'with t as (select 1) select * from t', 'VALUES (1)', 'EXPLAIN SELECT 1', 'PRAGMA table_info(drivers)']) {
+      assert.equal(complaint(sql), null, sql)
+    }
+    assert.equal(complaint('-- a note\nSELECT 1'), null)
+  })
+
+  it('suggests the read a near miss was meant to be', () => {
+    assert.match(complaint('SELEC 1'), /^Did you mean SELECT\? No statement starts with “SELEC”/)
+    assert.match(complaint('slect * from drivers'), /^Did you mean SELECT\?/)
+    assert.match(complaint('SLEECT 1'), /^Did you mean SELECT\?/)
+    assert.match(complaint('selectt 1'), /^Did you mean SELECT\?/)
+    assert.match(complaint('WIHT t AS (SELECT 1) SELECT * FROM t'), /^Did you mean WITH\?/)
+    assert.match(complaint('VALEUS (1)'), /^Did you mean VALUES\?/)
+    assert.match(complaint('EXPLIAN SELECT 1'), /^Did you mean EXPLAIN\?/)
+    assert.match(complaint('PRAMGA table_info(drivers)'), /^Did you mean PRAGMA\?/)
+    assert.match(complaint('/* why */ SELEC 1'), /“SELEC”/)
+  })
+
+  it('still tells a write, or a near miss of one, that it would be rolled back', () => {
+    for (const sql of ['DELETE FROM drivers', 'DELET FROM drivers', 'insrt into x values (1)', 'DROP TABLE drivers', 'UPDATE drivers SET x = 1', 'ATTACH ...']) {
+      assert.match(complaint(sql), /^Reads only: .* rolled back anyway/, sql)
+    }
+  })
+
+  it('names a word that starts no statement at all, without the lecture', () => {
+    const said = complaint('foo 1')
+    assert.match(said, /^No statement starts with “foo”/)
+    assert.doesNotMatch(said, /rolled back|write/)
+    assert.doesNotMatch(complaint('it 1'), /Did you mean/)
+  })
+
+  it('keeps the other refusals', () => {
+    assert.equal(complaint('   '), 'Nothing to run.')
+    assert.equal(complaint('-- only a comment'), 'Nothing to run.')
+    assert.match(complaint('PRAGMA case_sensitive_like = ON'), /^That pragma can change/)
+    assert.match(complaint('(SELECT 1)'), /^No statement starts with “\(SELECT”/)
+  })
+
+  it('reads a near miss as the statement it is nearest, and does not guess a tie', () => {
+    assert.equal(nearestStatement('selec'), 'select')
+    assert.equal(nearestStatement('SELEC'), 'select')
+    assert.equal(nearestStatement('delet'), 'delete')
+    assert.equal(nearestStatement('wiht'), 'with')
+    assert.equal(nearestStatement('wh'), null)
+    assert.equal(nearestStatement('xyzzy'), null)
+    // One from DELETE and two from SELECT: the write is nearer.
+    assert.equal(nearestStatement('selete'), 'delete')
+    // Two from SELECT and two from DELETE: a tie that includes a write is
+    // not guessed to be a read.
+    assert.equal(nearestStatement('belet'), 'delete')
+    assert.match(complaint('BELET 1'), /^Reads only: /)
   })
 })
