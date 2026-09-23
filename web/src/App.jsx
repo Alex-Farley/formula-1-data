@@ -308,7 +308,6 @@ function Chrome() {
           <button
             type="button"
             className="search-trigger"
-            aria-keyshortcuts="Meta+K Control+K"
             onClick={() => setSearching(true)}
           >
             <span aria-hidden="true">⌕</span>

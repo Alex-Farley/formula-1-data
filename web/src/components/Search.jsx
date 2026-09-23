@@ -163,7 +163,9 @@ export default function Search({ open, onClose }) {
     } else if (event.key === 'ArrowDown') {
       event.preventDefault()
       byKey.current = true
-      setActive((i) => Math.min(i + 1, results.length - 1))
+      // Never below 0: with no rows yet — the index still loading — the upper
+      // bound is -1, and an active descendant of -1 names no element.
+      setActive((i) => Math.max(0, Math.min(i + 1, results.length - 1)))
     } else if (event.key === 'ArrowUp') {
       event.preventDefault()
       byKey.current = true
