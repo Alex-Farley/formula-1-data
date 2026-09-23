@@ -20,6 +20,21 @@ export const odblCredit = (licence) => `\u00a9 OpenStreetMap contributors, ${lic
 
 export const ODBL_CREDIT = odblCredit()
 
+/**
+ * "6.004 km against 6.003 km published here (+0.01%)": what a trace measured,
+ * against the length this register publishes, or null where it has not got
+ * both. The circuit's page states it under "Measured", and the season page's
+ * next round states it in a sentence (PD-49); one wording, so the figure a
+ * reader meets on the way to a circuit is the one they meet when they arrive.
+ */
+export const measured = (geometry) => {
+  const { delta_pct: delta, measured_km: km, published_km: published } = geometry
+  if (km === null || km === undefined || published === null || published === undefined) return null
+  return `${km.toFixed(3)} km against ${published.toFixed(3)} km published here${
+    delta === null || delta === undefined ? '' : ` (${delta > 0 ? '+' : ''}${delta.toFixed(2)}%)`
+  }`
+}
+
 /** Under the trace's figures on a circuit's own page. */
 export const TRACE_RULE =
   'Traced from OpenStreetMap and measured against the length this register publishes. The ' +

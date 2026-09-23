@@ -47,7 +47,8 @@ import { CHASSIS_NOTE, OUT_NOTE } from '../src/queries/race.js'
 import { fileURLToPath } from 'node:url'
 // The heading rule and the cell marks both renderers share, so the checks
 // below ask for the strings the pages compute rather than copies of them.
-import { standingsHeading, titleHeading } from '../src/queries/season.js'
+import { NEXT_HEADING, NEXT_ROUND, WON_HERE, WON_HERE_HEADING, standingsHeading, titleHeading } from '../src/queries/season.js'
+import { THIS_SEASON, roundsRun, thisSeasonHeading } from '../src/queries/driver.js'
 import { ABOUT, DOCUMENTS, MAINTAINER, NOT_YET_RUN, PHOTOGRAPHS_SHOWN, SO_FAR } from '../src/lib/site.js'
 // The rule that decides who is credited and whether a file may be shown at
 // all — asked of the served HTML below rather than restated in it.
@@ -458,6 +459,21 @@ try {
       )
 
     const text = (selector) => page.$eval(selector, (node) => node.textContent.trim()).catch(() => null)
+
+    // The rows of the table under the h2 that starts with `heading`, where a
+    // page's tables are not in a fixed order: the season being run gains the
+    // next round's two above its standings (PD-49), and an index into
+    // tableRows() would silently count the wrong one.
+    const rowsUnder = (heading) =>
+      page.$$eval(
+        '#root main h2',
+        (nodes, heading) => {
+          const h2 = nodes.find((node) => node.textContent.trim().startsWith(heading))
+          const wrap = [...(h2?.closest('section')?.querySelectorAll('.table-wrap') ?? [])].find((n) => !n.closest('figure.figure'))
+          return wrap ? Number(wrap.dataset.rows) : null
+        },
+        heading,
+      )
 
   // ---------------------------------------------------------------- booting
 
@@ -1322,6 +1338,130 @@ try {
     is((staticSeason.match(/<li data-state="next"/g) ?? []).length, toRun > 0 ? 1 : 0, 'and marks the same round next')
   })
 
+  /*
+   * PD-49: three pages that open on the season being run where the reader is
+   * in it. The season page carries the next round and who won there before;
+   * a driver of the season opens on a dot per round; this year's chassis
+   * opens on its photograph. Each is checked in both halves, and each against
+   * a page it must NOT appear on, because a section gated on the wrong year
+   * shows up everywhere or nowhere and both read as a working page.
+   */
+  await section('/seasons, /drivers and /cars open on the season being run (PD-49)', async () => {
+    const season = one("SELECT CAST(value AS INTEGER) FROM meta WHERE key = 'current_season'")
+    const flat = (html) => unescaped(html.replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim()
+    const served = async (route) => (await (await fetch(`${BASE}${route}`)).text()).split('<div id="prerendered">')[1] ?? ''
+    const staticHeadings = (html) => [...html.matchAll(/<h2>([\s\S]*?)<\/h2>/g)].map((m) => flat(m[1]))
+    const appHeadings = () =>
+      page.$$eval('#root main h2', (nodes) => nodes.map((node) => node.textContent.replace(/\s+/g, ' ').trim()))
+    // The body rows of the first table after an h2, in the served HTML.
+    const staticRowsUnder = (html, heading) => {
+      const from = html.indexOf(`<h2>${heading}</h2>`)
+      if (from < 0) return null
+      const start = html.indexOf('<tbody>', from)
+      return (html.slice(start, html.indexOf('</tbody>', start)).match(/<tr>/g) ?? []).length
+    }
+
+    // The next round: the round the strip marks next, in both halves, and
+    // only on the page of the season being run.
+    const next = db.prepare(NEXT_ROUND).get(season)
+    await go(`/seasons/${season}`, String(season))
+    const seasonHtml = await served(`/seasons/${season}`)
+    if (next) {
+      truthy(
+        (await appHeadings()).includes(NEXT_HEADING) && staticHeadings(seasonHtml).includes(NEXT_HEADING),
+        `both halves of /seasons/${season} carry “${NEXT_HEADING}”`,
+      )
+      const named = await page.$$eval(
+        '#root main h2',
+        (nodes, heading) =>
+          nodes.find((node) => node.textContent.trim() === heading)?.closest('section')?.querySelector('a[href*="/races/"]')?.getAttribute('href') ?? null,
+        NEXT_HEADING,
+      )
+      const marked = await page.$eval('#root main .outline-strip li[data-state="next"] a', (a) => a.getAttribute('href')).catch(() => null)
+      truthy(
+        named?.endsWith(`/races/${season}/${next.round}`) && named === marked,
+        `and it names round ${next.round}, the round the calendar strip marks next — ${named}`,
+      )
+      const won = db.prepare(WON_HERE).all(season).length
+      if (won > 0) {
+        is(await rowsUnder(WON_HERE_HEADING), won, `“${WON_HERE_HEADING}” holds the ${won} past winners at ${next.circuit}`)
+        is(staticRowsUnder(seasonHtml, WON_HERE_HEADING), won, 'and the static page holds the same rows')
+      }
+    } else {
+      truthy(
+        !(await appHeadings()).includes(NEXT_HEADING) && !staticHeadings(seasonHtml).includes(NEXT_HEADING),
+        `a season with nothing left to run carries no “${NEXT_HEADING}”`,
+      )
+    }
+    const later = one('SELECT MIN(year) FROM seasons WHERE year > ?', season)
+    if (later) {
+      await go(`/seasons/${later}`, String(later))
+      truthy(
+        !(await appHeadings()).includes(NEXT_HEADING) && !staticHeadings(await served(`/seasons/${later}`)).includes(NEXT_HEADING),
+        `next season's page, ${later}, has no “${NEXT_HEADING}” a year away`,
+      )
+    }
+
+    // A driver of the season opens on it: its heading first, a dot per
+    // classified round, the table the rounds run. A driver of another era
+    // does not.
+    const racer = db
+      .prepare('SELECT d.id, d.full_name FROM race_entries e JOIN races r ON r.id = e.race_id JOIN drivers d ON d.id = e.driver_id WHERE r.year = ? ORDER BY e.id LIMIT 1')
+      .get(season)
+    if (racer) {
+      const calendar = db.prepare(THIS_SEASON).all(racer.id)
+      const heading = thisSeasonHeading(calendar)
+      const run = roundsRun(calendar).length
+      const placed = calendar.filter((row) => typeof row.finish_position === 'number').length
+      await go(`/drivers/${racer.id}`, racer.full_name)
+      is((await appHeadings())[0], heading, `/drivers/${racer.id} opens on “${heading}”`)
+      const drawn = await page.$$eval(
+        '#root main h2',
+        (nodes, heading) => {
+          const scope = nodes.find((node) => node.textContent.trim() === heading)?.closest('section')
+          return {
+            dots: scope?.querySelectorAll('figure.figure svg circle.mark-ring, figure.figure svg circle.mark-hollow').length ?? 0,
+            rows: Number(scope?.querySelector('figure.figure .table-wrap')?.dataset.rows ?? -1),
+          }
+        },
+        heading,
+      )
+      is(drawn.dots, placed, `a dot for each of the ${placed} rounds ${racer.full_name} was classified in`)
+      is(drawn.rows, run, `and the table under it holds the ${run} rounds run`)
+      const html = await served(`/drivers/${racer.id}`)
+      is(staticHeadings(html)[0], heading, 'the static page opens on the same heading')
+      is(staticRowsUnder(html, heading), run, 'and holds the same rounds')
+    }
+    await go('/drivers/senna', 'Senna')
+    truthy(
+      !(await appHeadings()).some((h) => h.startsWith(`The ${season} season`)) &&
+        !staticHeadings(await served('/drivers/senna')).some((h) => h.startsWith(`The ${season} season`)),
+      `a driver with no ${season} entry has no ${season} section`,
+    )
+
+    // This year's chassis opens on its photograph; a car of another year
+    // opens on its figures, the photographs after them.
+    const pictured = db
+      .prepare('SELECT id FROM chassis WHERE COALESCE(last_year, first_year) = ? ORDER BY id')
+      .all(season)
+      .map((row) => row.id)
+      .find((id) => db.prepare(CAR_IMAGES).all(id, id).some(canShow))
+    const firstSection = () =>
+      page.$eval('#root main section.section', (node) => node.querySelector('h2')?.textContent.trim() ?? '')
+    const photoFirst = (html) => {
+      const photo = html.indexOf('<h2>Photographs')
+      return photo >= 0 && photo < html.indexOf('<dl class=')
+    }
+    if (pictured) {
+      await go(`/cars/${pictured}`)
+      truthy((await firstSection()).startsWith('Photographs'), `/cars/${pictured}, a ${season} chassis, opens on its photograph`)
+      truthy(photoFirst(await served(`/cars/${pictured}`)), 'and so does its static page')
+    }
+    await go('/cars/lotus-72', 'Lotus 72')
+    truthy(!(await firstSection()).startsWith('Photographs'), 'a car of another year opens on its figures')
+    truthy(!photoFirst(await served('/cars/lotus-72')), 'in both halves')
+  })
+
   await section('/seasons/1976', async () => {
     await go('/seasons/1976', '1976')
     const s76 = await tableRows()
@@ -1384,7 +1524,7 @@ try {
   await section('/seasons/2026  (the same fact from two sources)', async () => {
     await go('/seasons/2026', '2026')
     is(
-      (await tableRows())[1],
+      await rowsUnder("Drivers'"),
       count(
         `SELECT COUNT(DISTINCT entity_id) FROM standings
         WHERE year = 2026 AND table_type = 'drivers' AND after_round IS NULL`,

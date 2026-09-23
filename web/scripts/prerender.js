@@ -122,7 +122,7 @@ import {
 import { CHECKED_LABEL, CHECKED_NOTE, LAST_CHECKED } from '../src/lib/refresh.js'
 import { LATEST as CHANGES_LATEST, SHAPE as CHANGES_SHAPE } from '../src/queries/changes.js'
 import { colourForEntry, markStyleAttr, winnerColour } from '../src/lib/liveries.js'
-import { RACE_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE, eventDay, raceStage } from '../src/queries/sessions.js'
+import { RACE_SESSIONS, SEASON_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE, eventDay, raceStage } from '../src/queries/sessions.js'
 // The pages' own queries and column lists (PD-02). A page and this script
 // read the same module, so the static table is the app's table by
 // construction; the rest of the pages follow these.
@@ -146,16 +146,23 @@ import {
   GRID_HEADING,
   GRID_NOTE,
   NEIGHBOURS as SEASON_NEIGHBOURS,
+  NEXT_HEADING,
+  NEXT_ROUND,
   NOT_RUN_STANDINGS,
   REMAINING,
   SEASON,
   STANDINGS as SEASON_STANDINGS,
+  WON_HERE,
+  WON_HERE_COLUMNS,
+  WON_HERE_HEADING,
   constructorsFooter,
   latestRound,
+  nextLine,
   noConstructorsNote,
   standingsHeading,
   stillRunning,
   titlePermutations,
+  wonHereNote,
 } from '../src/queries/season.js'
 import { LATEST as LATEST_RUN, RACES, RACE_COLUMNS, RACES_FOOTER } from '../src/queries/races.js'
 import {
@@ -261,6 +268,7 @@ import {
   VARIANT_COLUMNS,
   entryColumns,
   entryResult,
+  leadsWithPhotograph,
 } from '../src/queries/car.js'
 import {
   ENGINES,
@@ -349,14 +357,20 @@ import {
   SEASON_COLUMNS,
   SEASONS_FOOTER,
   STANDINGS,
+  THIS_SEASON,
+  THIS_SEASON_COLUMNS,
   careerSentence,
   leading,
   lede,
   pointsDiffer,
   pointsNote,
   record,
+  roundsRun,
   seasonRows,
   strip,
+  thisSeasonFooter,
+  thisSeasonHeading,
+  thisSeasonNote,
 } from '../src/queries/driver.js'
 import {
   DRIVER_WINS,
@@ -416,6 +430,9 @@ const SPAN = `${SPAN_FROM}–${SPAN_TO}`
 // figures used to be undated until the app took over, so the page Google
 // served carried numbers with no currency statement at all.
 const META = Object.fromEntries(all('SELECT key, value FROM meta').map((r) => [r.key, r.value]))
+// meta.current_season as the integer the pages compare a year with (PD-49);
+// lib/season.js's CAST, here, where the pages' own queries do not ask for it.
+const SEASON_NOW_YEAR = Number.parseInt(META.current_season, 10) || null
 
 /*
  * The digest of the file this page was built from, from the manifest the app
@@ -1553,6 +1570,38 @@ const page = ({
     const entrants = all(ENTRANTS, year)
     const grid = one(GRID, year)
     const currentGrid = all(CURRENT_GRID, year)
+    // The next round, on the page of the season being run only (PD-49): the
+    // same row, sessions and past winners Season.jsx draws. No trace - f1.db
+    // carries none, and only the browser merges f1-geometry.db in.
+    const next = one(NEXT_ROUND, year)
+    const nextSessions = next ? all(SEASON_SESSIONS, year).filter((row) => row.round === next.round) : []
+    const wonHere = next ? all(WON_HERE, year) : []
+    const nextSection = (() => {
+      if (!next) return ''
+      const line = nextLine(next)
+      return `<h2>${esc(NEXT_HEADING)}</h2>
+        <p class="measure">${esc(line.before)}${link(`races/${year}/${next.round}`, next.name_used)}${
+          next.sprint ? ` ${tag(SPRINT)}` : ''
+        }${esc(line.at)}${next.circuit_id && next.circuit ? link(`circuits/${next.circuit_id}`, next.circuit) : esc(line.circuit)}${esc(line.after)}</p>
+        <div${next.outline ? ' class="with-outline"' : ''}><div>${
+          nextSessions.length ? `${fromColumns(SESSION_COLUMNS, nextSessions)}<p class="source-note">${esc(TIMETABLE_NOTE)}</p>` : ''
+        }</div>${outlineCard(
+          next.outline,
+          next.circuit,
+          next.f1db_layout_id,
+          outlineCaption({ f1db_layout_id: next.f1db_layout_id, length_km: next.outline_km, turns: next.outline_turns }),
+          true,
+        )}</div>
+        <h2>${esc(WON_HERE_HEADING)}</h2>
+        ${note(wonHereNote(next, wonHere))}
+        ${fromColumns(WON_HERE_COLUMNS, wonHere, {
+          year: (value) => link(`seasons/${value}`, value),
+          name_used: (name, row) => link(`races/${row.year}/${row.round}`, name),
+          winner: (name, row) =>
+            row.winner_id && !String(name ?? '').includes(' / ') ? link(`drivers/${row.winner_id}`, name) : text(name),
+          constructor: (name, row) => (row.constructor_id ? link(`constructors/${row.constructor_id}`, name) : text(name)),
+        })}`
+    })()
     // Two different questions, as on the app's page. `running`: is there a
     // champion yet? `live`: is there a round still to run? The first decides
     // what the page opens with; the second whether its headings say final.
@@ -1652,6 +1701,7 @@ const page = ({
         }
         ${permutations ? note(permutations) : ''}
         ${prose(s.notes)}
+        ${nextSection}
         ${
           currentGrid.length
             ? `<h2>${esc(GRID_HEADING)}</h2>${note(GRID_NOTE)}${fromColumns(GRID_COLUMNS, currentGrid, {
@@ -2058,6 +2108,7 @@ const page = ({
   )
   const constructorsOf = db.prepare(DRIVER_CONSTRUCTORS)
   const resultsOf = db.prepare(DRIVER_RESULTS)
+  const thisSeasonOf = db.prepare(THIS_SEASON)
 
   for (const { id } of register) {
     const d = one(DRIVER, id)
@@ -2071,7 +2122,25 @@ const page = ({
     // 0 poles" for 81 drivers whose lede had just moved to `provenance`.
     const derived = one(DERIVED, id) ?? {}
     const bySeason = all(BY_SEASON, id)
-    const seasons = seasonRows(bySeason, all(STANDINGS, id))
+    const standings = all(STANDINGS, id)
+    const seasons = seasonRows(bySeason, standings)
+    // A driver of the season being run opens on it (PD-49), as Driver.jsx
+    // does: the same rows, heading, sentence and table. The app draws the
+    // dots above the table; a page with no script has the table itself.
+    const thisSeason = thisSeasonOf.all(id)
+    const thisSeasonSection = (() => {
+      if (!thisSeason.length) return ''
+      const standing = standings.find((row) => row.year === thisSeason[0].season) ?? null
+      const footer = thisSeasonFooter(thisSeason, standing)
+      return `<h2>${esc(thisSeasonHeading(thisSeason))}</h2>
+        <p class="note">${esc(thisSeasonNote(thisSeason, standing))}</p>
+        ${fromColumns(THIS_SEASON_COLUMNS, roundsRun(thisSeason), {
+          name_used: (name, row) => link(`races/${row.season}/${row.round}`, name),
+          constructor: (name, row) =>
+            row.entry_id && row.constructor_id ? link(`constructors/${row.constructor_id}`, name) : esc(THIS_SEASON_COLUMNS.find((c) => c.key === 'constructor').text(name, row)),
+        })}
+        ${footer ? `<p class="source-note">${esc(footer)}</p>` : ''}`
+    })()
     const wins = winsOf.all(id)
     const constructors = constructorsOf.all(id).map((c) => c.name)
     const career = careerSentence(derived, constructors, d.titles)
@@ -2101,6 +2170,7 @@ const page = ({
       body: `
         <h1>${esc(NAMES.driver(d.full_name).headline)}</h1>
         <p class="lede">${esc(lede(d, derived, constructors))}</p>
+        ${thisSeasonSection}
         ${stats(
           leading(strip(d, derived)).map((item) => ({ ...item, value: esc(item.value) })),
         )}
@@ -2527,6 +2597,7 @@ const page = ({
     // Second on the page, where Car.jsx puts it: after the figures that say
     // what the car is and before the prose that says why it mattered.
     const photos = photographs(c.id)
+    const photoFirst = leadsWithPhotograph(variants, SEASON_NOW_YEAR)
     page({
       path: `cars/${c.id}`,
       lastmod: LAST_RUN.car.get(c.id),
@@ -2542,6 +2613,7 @@ const page = ({
       onward: ONWARD.car({ chassis: variants[0] ?? c, car: c, entries: carEntries }),
       body: `
         <h1>${esc(NAMES.car(name).headline)}</h1>
+        ${photoFirst ? photos.html : ''}
         ${fields([
           ['Constructor', c.constructor_id ? link(`constructors/${c.constructor_id}`, c.constructor_id) : '—'],
           ['Years', `${c.from_year ?? '?'}–${c.to_year ?? '?'}`],
@@ -2563,7 +2635,7 @@ const page = ({
           ["Constructors' titles", num(c.constructors_titles)],
           ['Specification confidence', text(c.spec_confidence)],
         ])}
-        ${photos.html}
+        ${photoFirst ? '' : photos.html}
         ${prose(c.concept)}
         ${prose(c.innovations)}
         ${prose(c.story)}
@@ -2593,6 +2665,8 @@ const page = ({
     const carEntries = all(CAR_ENTRIES, ch.id)
     const constructor = ch.constructor ?? ch.constructor_id
     const photos = photographs(ch.id)
+    // This year's chassis opens on its photograph, as Car.jsx's does (PD-49).
+    const photoFirst = leadsWithPhotograph(variants.length ? variants : [ch], SEASON_NOW_YEAR)
 
     page({
       path: `cars/${ch.id}`,
@@ -2610,6 +2684,7 @@ const page = ({
       onward: ONWARD.car({ chassis: variants[0] ?? ch, car: null, entries: carEntries }),
       body: `
         <h1>${esc(NAMES.car(name).headline)}</h1>
+        ${photoFirst ? photos.html : ''}
         ${fields([
           ['Constructor', ch.constructor_id ? link(`constructors/${ch.constructor_id}`, constructor) : null],
           ['Years', years],
@@ -2628,7 +2703,7 @@ const page = ({
           ['Published wins', ch.published_wins === null ? null : num(ch.published_wins)],
           ['Confidence', ch.confidence ? link('data/quality', ch.confidence) : text(ch.confidence)],
         ])}
-        ${photos.html}
+        ${photoFirst ? '' : photos.html}
         ${
           ch.car_id && curated.has(ch.car_id)
             ? `<p class="measure">One of the ${link(`cars/${ch.car_id}`, 'design family')} that has a specified page of its own.</p>`

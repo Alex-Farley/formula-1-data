@@ -29,6 +29,13 @@ export const CURRENT_SEASON_SQL =
   "(SELECT CAST(value AS INTEGER) FROM meta WHERE key = 'current_season')"
 
 /**
+ * The same value as a row of its own, for a page whose subject may or may
+ * not belong to the season (PD-49): a car page asks whether its chassis is
+ * this year's before it decides what leads. One row, always.
+ */
+export const CURRENT_SEASON = `SELECT ${CURRENT_SEASON_SQL} AS season`
+
+/**
  * The words on the control, in one place so the four registers cannot drift
  * apart again. A register that reaches the fallback is one whose rows did not
  * carry the season, which is a query that changed without its page.

@@ -131,6 +131,21 @@ export const NO_SPECIFICATION =
   'No specification is published for this car: no chassis, engine, weight or dimension figure is ' +
   'on record for it.'
 
+/**
+ * THIS YEAR'S CHASSIS LEADS WITH ITS PHOTOGRAPH (PD-49).
+ *
+ * A car on this season's grid is one a reader has just watched race, and the
+ * picture is what they came to match it against; every other car's page
+ * leads with its figures and the photographs follow, as before. "This
+ * year's" is the last season any variant the page covers raced - the span
+ * the Raced tile prints - reaching meta.current_season (lib/season.js), and
+ * never the latest season the register holds. Both renderers ask here.
+ */
+export const leadsWithPhotograph = (variants, season) => {
+  const years = variants.map((v) => v.last_year ?? v.first_year).filter((y) => !missing(y))
+  return !missing(season) && years.length > 0 && Math.max(...years) === season
+}
+
 /** Whether any specification field holds a figure, and so whether to draw the fields at all. */
 export const specified = (fields) => fields.some(({ value }) => !missing(value))
 
