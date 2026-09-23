@@ -13,7 +13,9 @@
 # pass opened with `quick` (frontend-reviewer-quick) also needs its applied
 # items, `record <id> PASS 1,4,7`, the evidence that the rules were read.
 # `read` prints PASS or FAIL and exits 0, or says why there is none and
-# exits 1: a pass with no recorded verdict is not a PASS.
+# exits 1: a pass with no recorded verdict is not a PASS. Only the reviewer
+# runs `record`; a fork that records one for it has read the reply for a
+# verdict, which is the thing this script exists to stop.
 #
 # Why a command: the loop used to take the verdict from the first line of the
 # reviewer's reply, and reviewers kept writing a summary above it however the
@@ -38,7 +40,9 @@ case "${1:-}" in
     case "$kind" in full|quick) ;; *) usage ;; esac
     mkdir -p "$dir" || { echo "verdict.sh: could not create $dir" >&2; exit 1; }
     n=1
-    while [ -e "$dir/$pr-${full:0:7}-$n.pass" ]; do n=$((n + 1)); done
+    # Skip a number with either file: a .verdict left without its .pass must
+    # never be inherited by a new pass, or that pass reads PASS unreviewed.
+    while [ -e "$dir/$pr-${full:0:7}-$n.pass" ] || [ -e "$dir/$pr-${full:0:7}-$n.verdict" ]; do n=$((n + 1)); done
     id="$pr-${full:0:7}-$n"
     printf '%s %s\n' "$full" "$kind" > "$dir/$id.pass" || { echo "verdict.sh: could not write $dir/$id.pass" >&2; exit 1; }
     printf '%s\n' "$id"
@@ -52,8 +56,11 @@ case "${1:-}" in
     read -r want kind < "$dir/$id.pass"
     head=$(git rev-parse HEAD 2>/dev/null)
     [ "$head" = "$want" ] || { echo "verdict.sh: this checkout is at ${head:-nothing}, pass $id is for $want" >&2; exit 2; }
-    if [ "$kind" = quick ]; then
-      case "$applied" in ''|*[!0-9,]*) echo "verdict.sh: a quick pass records its applied items, e.g. 'record $id $verdict 1,4,7'" >&2; exit 2 ;; esac
+    if [ "$kind" = quick ] && [ -z "$applied" ]; then
+      echo "verdict.sh: a quick pass records its applied items, e.g. 'record $id $verdict 1,4,7'" >&2; exit 2
+    fi
+    if [ -n "$applied" ] && ! [[ "$applied" =~ ^[0-9]+(,[0-9]+)*$ ]]; then
+      echo "verdict.sh: applied items are item numbers, e.g. 1,4,7, not '$applied'" >&2; exit 2
     fi
     printf '%s %s\n' "$verdict" "$applied" > "$dir/$id.verdict" || { echo "verdict.sh: could not write the verdict" >&2; exit 1; }
     echo "recorded: $verdict for pass $id"

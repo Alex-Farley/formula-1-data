@@ -184,8 +184,8 @@ MODELS = {"opus", "sonnet", "haiku", "fable", "inherit"}
 EFFORTS = {"low", "medium", "high", "xhigh", "max"}
 # The reviewers the backlog loop launches. Each carries a turn cap so a
 # reviewer that loses its way returns rather than runs until the session
-# limit ends it; .claude/skills/backlog-item/SKILL.md says a return without
-# a verdict line is not a PASS.
+# limit ends it; .claude/skills/backlog-item/SKILL.md says a pass that
+# recorded no verdict through verdict.sh is not a PASS.
 LOOP_REVIEWERS = ("frontend-reviewer", "frontend-reviewer-quick", "data-integrity-reviewer", "licence-reviewer")
 
 
@@ -454,7 +454,7 @@ class TheVerdictIsACommand(unittest.TestCase):
                                     f"verdict.sh recorded {bad!r} as a verdict")
             self.assertNotEqual(self.run_script(repo, "record", old, "PASS").returncode, 0,
                                 "verdict.sh recorded a verdict for another head")
-            for applied in ((), ("all",)):
+            for applied in ((), ("all",), (",",), ("1,,2",), ("1,",)):
                 self.assertNotEqual(self.run_script(repo, "record", quick, "PASS", *applied).returncode, 0,
                                     f"a quick pass recorded a verdict with applied items {applied!r}")
             self.assertNotEqual(self.run_script(repo, "record", "7-nosuch-1", "PASS").returncode, 0,
@@ -466,6 +466,22 @@ class TheVerdictIsACommand(unittest.TestCase):
             self.assertEqual((got.returncode, got.stdout.strip()), (0, "FAIL"))
             self.assertEqual(self.run_script(repo, "record", quick, "PASS", "2,5").returncode, 0)
             self.assertEqual(self.run_script(repo, "read", quick).stdout.strip(), "PASS applied 2,5")
+            # A verdict whose .pass has gone must not be inherited by the
+            # next pass opened on that head.
+            os.remove(os.path.join(repo, ".claude/loop/verdicts", quick + ".pass"))
+            fresh = self.run_script(repo, "new", "7", "HEAD").stdout.strip()
+            self.assertNotEqual(fresh, quick, "a new pass took the id of a leftover verdict")
+            self.assertEqual(self.run_script(repo, "read", fresh).returncode, 1,
+                             "a new pass read a verdict nobody recorded for it")
+            # The design depends on this: the fork opens and reads the pass in
+            # one checkout, the reviewer records it in a worktree.
+            tree = os.path.join(repo, "wt")
+            subprocess.run(["git", "worktree", "add", "-q", tree, "HEAD"], cwd=repo, check=True)
+            self.assertEqual(self.run_script(tree, "record", fresh, "PASS").returncode, 0,
+                             "a reviewer in a worktree could not record its verdict")
+            got = self.run_script(repo, "read", fresh)
+            self.assertEqual((got.returncode, got.stdout.strip()), (0, "PASS"),
+                             "the main checkout did not read a verdict recorded in a worktree")
 
 
 class TheCitationStaysInStepWithTheBuild(unittest.TestCase):

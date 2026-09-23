@@ -275,7 +275,9 @@ is read for one** — not a PASS in its first line, not a FAIL in its last. The
 reply is read for findings only, in whatever layout it arrives. Both
 directions of disagreement settle on the command: a reply that sounds like a
 PASS over a recorded FAIL is a FAIL, and a reply of any kind over a pass that
-recorded nothing is no review.
+recorded nothing is no review. **Only the reviewer runs `record`.** A fork
+that records a verdict on a reviewer's behalf — because the reply plainly
+said PASS — has read the reply for a verdict by another route.
 
 **One respawn when a pass records no verdict**, whatever the reason — it ran
 out of turns, forgot the command, or the command refused it. Open a new pass

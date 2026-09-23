@@ -72,7 +72,9 @@ prints `PASS` or `FAIL` (with `applied <items>` for a quick pass) and exits 0,
 or exits 1 when the pass recorded none. The exit and the printed word are the
 verdict. The reply is read for findings only: a reply that says PASS over a
 pass that recorded FAIL is a FAIL, and a reply that says anything at all over
-a pass that recorded nothing is no review `[D-40]`.
+a pass that recorded nothing is no review `[D-40]`. Only the reviewer runs
+`record`: recording a verdict on its behalf, however plain its reply, is
+reading the reply for one.
 
 A pass that recorded no verdict — the reviewer ran out of turns, forgot the
 command, or the command refused it — gets one respawn: a new pass id and the

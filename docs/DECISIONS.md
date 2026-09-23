@@ -284,8 +284,9 @@ first pass, and was skipped anyway: the Sonnet confirmation put a summary
 sentence above its verdict, and its respawn — briefed for one line and nothing
 else — put a paragraph above it. With #407, #409 and #427 under `[D-37]` and #541,
 #548 and #551 under `[D-38]`, that is seven pull requests held up by the same
-formatting, each costing a respawn, often a fork, and tokens for a review
-whose substance was never in doubt.
+formatting. The first three merged on substance with the deviation recorded,
+which `[D-37]` then ruled out; since then each has cost a respawn, often a
+fork, and tokens for a review whose substance was never in doubt.
 Wording is the wrong lever: the layout of a model's final message is not
 something a prompt reliably controls.
 
