@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { linear, niceDomain, ticks } from './scales.js'
-import { seriesColour } from './palette.js'
+import { seriesColour, seriesDash } from './palette.js'
+import { LineKey } from './Figure.jsx'
 import { useMeasure } from './useMeasure.js'
 
 const M = { top: 14, right: 58, bottom: 26, left: 44 }
@@ -16,11 +17,14 @@ const M = { top: 14, right: 58, bottom: 26, left: 44 }
  *
  * A series may carry `colour` - a {light, dark} pair from lib/liveries.js,
  * rendering the mark's lead so the line and the team's mark read as one
- * colour (AF-57) - and `dash`. With a colour the <g> wears the pair as
- * custom properties and the strokes read --livery, which styles/app.css
- * resolves per theme; without one the series takes its slot in the neutral
- * palette. `dash` is the second driver of one team: the same colour, a
- * dashed stroke.
+ * colour (AF-57). With a colour the <g> wears the pair as custom properties
+ * and the strokes read --livery, which styles/app.css resolves per theme;
+ * without one the series takes its slot in the neutral palette.
+ *
+ * Every series also takes its slot's dash - solid, dashed, dotted - whatever
+ * its colour (AX-16). A dropped end label leaves the legend as the key to
+ * that line, and a key in hue alone is not one 1.4.1 allows; the caller's
+ * Figure takes `marks="line"` so the legend draws the same strokes.
  */
 const seriesStyle = (s) => (s.colour ? { '--livery-light': s.colour.light, '--livery-dark': s.colour.dark } : undefined)
 const seriesPaint = (s, i) => (s.colour ? 'var(--livery)' : seriesColour(i))
@@ -134,7 +138,7 @@ export default function LineChart({
                 fill="none"
                 stroke={seriesPaint(s, i)}
                 strokeWidth="2"
-                strokeDasharray={s.dash ? '6 4' : undefined}
+                strokeDasharray={seriesDash(i)}
                 strokeLinejoin="round"
                 strokeLinecap="round"
               />
@@ -178,11 +182,7 @@ export default function LineChart({
             if (!point) return null
             return (
               <span className="row" key={s.name}>
-                <i
-                  className={s.colour ? `livery-series${s.dash ? ' dashed' : ''}` : undefined}
-                  style={s.colour ? { ...seriesStyle(s), background: s.dash ? 'transparent' : 'var(--livery)', boxShadow: s.dash ? 'inset 0 0 0 2px var(--livery)' : undefined } : { background: seriesColour(i) }}
-                  aria-hidden="true"
-                />
+                <LineKey index={i} colour={s.colour} />
                 {series.length > 1 && `${s.name} `}
                 <b style={{ display: 'inline', color: 'var(--ink)' }}>{format(point.y)}</b>
               </span>

@@ -50,6 +50,31 @@ export const SERIES = ['var(--series-1)', 'var(--series-2)', 'var(--series-3)']
 export const seriesColour = (i) => SERIES[i % SERIES.length]
 
 /**
+ * The second channel: every series its own stroke, solid, dashed, dotted
+ * (AX-16).
+ *
+ * A line chart's direct end labels carry the value, and one that would
+ * collide with its neighbour is dropped, which leaves the legend as the only
+ * key to that line. A key that differs only in hue is a key that 1.4.1 says
+ * may not be the only one, and it is the one a reader with a colour-vision
+ * deficiency, or anyone on a washed-out screen, cannot use - and the chart
+ * wearing liveries (AF-04) makes that likelier rather than rarer, because two
+ * teams' colours are not chosen to be told apart. So the dash follows the
+ * series slot, livery or not, and the legend and the tooltip draw a stroke
+ * sample in it rather than a square: the pattern on the line is the pattern
+ * in the key. It also does the work the old teammate-dash did, since two
+ * drivers of one team sit in two slots.
+ *
+ * Measured at the chart's 2px width with round caps, which add a pixel at
+ * each end of every dash: 7-on 5-off reads as 9 and 3, and 1-on 4.5-off as
+ * three-pixel dots two and a half apart - apart in a 16px key as well as on
+ * the line.
+ */
+export const DASHES = [undefined, '7 5', '1 4.5']
+
+export const seriesDash = (i) => DASHES[i % DASHES.length]
+
+/**
  * Text never wears a series colour. Values, labels and ticks take ink tokens
  * from the stylesheet — `.figure .axis-text` and `.figure .value-text` — which
  * is why there is nothing to export here for them.

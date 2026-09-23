@@ -2462,12 +2462,16 @@ figure.figure > figcaption span {
   --livery: var(--livery-dark);
 }
 
-/* The second driver of one team on the title-race chart: the same colour,
-   dashed, and the legend square outlined rather than filled, so two lines
-   in papaya are still two lines. */
-.legend i.dashed {
-  background: transparent !important;
-  box-shadow: inset 0 0 0 2px var(--livery, var(--ink-faint));
+/* The key to a line (charts/Figure.jsx LineKey): a stroke in the series'
+   dash, in the legend and the tooltip alike (AX-16). The round caps reach a
+   pixel past the box. `.figure svg` sizes the plot to its column, so the key
+   has to out-rank it to keep its own 20 by 8. */
+.figure svg.line-key {
+  display: inline-block;
+  flex: none;
+  width: 20px;
+  height: 8px;
+  overflow: visible;
 }
 
 /* The winner's colour under a round in the calendar strip: a short bar
