@@ -539,7 +539,9 @@ function Table({
                       style={column.width ? { width: column.width } : undefined}
                       aria-sort={active ? (shownDirection === 'asc' ? 'ascending' : 'descending') : undefined}
                       aria-hidden={column.ariaHidden ? 'true' : undefined}
+                      aria-label={key ? key.header : undefined}
                     >
+                      {key?.first && <Link className="key" to={key.to} aria-label={key.name} title={key.name} />}
                       {column.ariaHidden ? null : canSort ? (
                         <button type="button" onClick={() => toggle(column.key)}>
                           {column.label}
@@ -554,7 +556,7 @@ function Table({
                       ) : (
                         column.label
                       )}
-                      {key && <Link className="key" to={key.to} aria-label={key.name} title={key.name} />}
+                      {key && !key.first && <Link className="key" to={key.to} aria-label={key.name} title={key.name} />}
                     </th>
                   )
                 })}

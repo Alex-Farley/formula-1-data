@@ -732,7 +732,8 @@ def race_results():
     # Every code a results table prints in place of a number - DNQ, NC, PL -
     # is a glossary term, in the source's own spelling (CD-09). The codes are
     # printed verbatim on every classification, and the site links each
-    # results column's header to the glossary's results category; a code the
+    # results table's Pos, Result or Championship header to the glossary's
+    # results category (the one mark covers the Grid column's PL); a code the
     # glossary does not hold would be a link to a page that does not define
     # it. Read from the tables rather than listed here, so the next code a
     # harvest brings in fails this until data/technical.py defines it.

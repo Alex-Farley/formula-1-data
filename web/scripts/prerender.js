@@ -544,9 +544,11 @@ const table = (headers, rows, options = {}) => {
     '<div class="table-wrap"><div class="table-scroll"><table>',
     `<thead><tr>${headers
       .map((h, i) => {
-        // A keyed header adds its class to the column's own (lib/table.js).
+        // A keyed header adds its class to the column's own, and names
+        // itself by its label alone (lib/table.js).
         const own = typeof h === 'string' || !h.className ? cls(i) : cls(i, h.className)
-        return `<th scope="col"${own}>${typeof h === 'string' ? esc(h) : h.html}</th>`
+        const named = typeof h !== 'string' && h.label ? ` aria-label="${esc(h.label)}"` : ''
+        return `<th scope="col"${own}${named}>${typeof h === 'string' ? esc(h) : h.html}</th>`
       })
       .join('')}</tr></thead>`,
     '<tbody>',
@@ -600,12 +602,13 @@ const fromColumns = (declared, rows, links = {}) => {
       kept.map((c) => {
         if (c.ariaHidden) return { html: '' }
         const key = glossaryKey(c)
-        return key
-          ? {
-              html: `${esc(c.label)}<a class="key" href="${esc(href(key.to))}" aria-label="${esc(key.name)}" title="${esc(key.name)}"></a>`,
-              className: 'keyed',
-            }
-          : c.label
+        if (!key) return c.label
+        const mark = `<a class="key" href="${esc(href(key.to))}" aria-label="${esc(key.name)}" title="${esc(key.name)}"></a>`
+        return {
+          html: key.first ? `${mark}${esc(c.label)}` : `${esc(c.label)}${mark}`,
+          className: 'keyed',
+          label: key.header,
+        }
       }),
       rows.map((row) =>
         kept.map((c) => {

@@ -112,7 +112,6 @@ export const sharedLine = (entries, count) =>
  * every width: it is the table they asked for, and the one they can send.
  */
 
-/** The width the phone default applies below. app.css says the same number. */
 /**
  * Where a column's header points for the words its cells print (CD-09, IA-12).
  *
@@ -127,16 +126,28 @@ export const sharedLine = (entries, count) =>
  * The link has no text of its own: the stylesheet draws the mark, so the
  * header's text is still its label - which is what a reader copying the
  * table, and smoke.mjs comparing the two renderers, both read - and the
- * accessible name is the sentence below.
+ * link's accessible name is `name` below.
+ *
+ * `header` is the header cell's own name, set as its aria-label. A column
+ * header is named from everything inside it, link included, and a screen
+ * reader announces that name on every cell it moves into: without this, each
+ * row of a classification was read as "Pos The abbreviations in Pos, in the
+ * glossary, 1".
+ *
+ * `first`: on a right-aligned column the mark goes before the label, so the
+ * label's right edge stays over the figures it heads, in both renderers.
  */
 export const glossaryKey = (column) =>
   column.glossary
     ? {
         to: `/reference/glossary?category=${encodeURIComponent(column.glossary)}`,
         name: `The abbreviations in ${column.label}, in the glossary`,
+        header: column.label,
+        first: column.align === 'num',
       }
     : null
 
+/** The width the phone default applies below. app.css says the same number. */
 export const PHONE = '(max-width: 560px)'
 
 /** The class on a column the phone default leaves out. */

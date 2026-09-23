@@ -3583,12 +3583,18 @@ try {
       const key = await page.evaluate(() => {
         const h2 = [...document.querySelectorAll('#root main h2')].find((h) => h.textContent.trim().startsWith('Classification'))
         const a = h2?.closest('section')?.querySelector('thead th .key')
-        return a && { href: a.getAttribute('href'), name: a.getAttribute('aria-label') }
+        return a && { href: a.getAttribute('href'), name: a.getAttribute('aria-label'), header: a.closest('th').getAttribute('aria-label') }
       })
       is(key?.href, want, 'the classification’s Pos header links to the glossary’s results terms')
       truthy(key?.name?.includes('Pos'), `and the link is named for its column — “${key?.name}”`)
+      // A header is named from all it holds; without its own name, every cell
+      // under it would be announced with the link's sentence first.
+      is(key?.header, 'Pos', 'and the header is still named Pos alone')
       const html = await (await fetch(`${BASE}/races/1976/9`)).text()
-      truthy(html.includes(`<a class="key" href="${want}"`), 'and the static race page carries the same link')
+      truthy(
+        html.includes(`aria-label="Pos"><a class="key" href="${want}"`),
+        'and the static race page carries the same link, under the same header name',
+      )
     }
     // Pos is the classification's second column: the rail comes first. A
     // retirement has no finish_position and stays below every finisher.

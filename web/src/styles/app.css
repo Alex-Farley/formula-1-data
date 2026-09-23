@@ -830,16 +830,18 @@ th.sortable button .arrow.is-idle::before {
  * text stays its label; the link is named by its aria-label. Beside the sort
  * button rather than inside it, so the button gives up its full width and the
  * two sit on one line, and 24px square so it clears the target-size floor
- * without the button's padding standing in for it.
+ * without the button's padding standing in for it. On a figure column it
+ * comes first (lib/table.js), so the label keeps its edge over the figures,
+ * and the button's padding on that side closes up to it.
  */
-th.keyed.sortable {
-  padding-right: var(--space-3);
-}
-
 th.keyed.sortable button {
   display: inline-flex;
   width: auto;
   vertical-align: middle;
+}
+
+th.keyed.num.sortable button {
+  padding-left: var(--space-2);
 }
 
 th .key {
@@ -848,7 +850,7 @@ th .key {
   justify-content: center;
   width: 24px;
   height: 24px;
-  margin-left: var(--space-1);
+  margin-inline: var(--space-1);
   vertical-align: middle;
   color: var(--ink-faint);
   text-decoration: none;

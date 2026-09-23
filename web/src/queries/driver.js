@@ -387,6 +387,7 @@ export const SEASON_COLUMNS = [
     label: 'Championship',
     align: 'num',
     text: (value, row) => text(value ?? row.championship),
+    glossary: 'results',
   },
   { key: 'points', label: 'Points scored', align: 'num', text: (value) => points(value) },
 ]
