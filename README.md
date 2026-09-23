@@ -5,10 +5,10 @@ championship, <!-- fig:season_span -->1950–2027<!-- /fig --> — every race,
 entry, qualifying session and standings table so far, and the calendar still
 to run — as one normalised, queryable SQLite database. It is rebuilt from
 its sources and cross-checked against independent ones on every build;
-every fact table carries a `confidence` column saying how far each row was
-checked, and where two sources disagree the disagreement is kept on the
-record rather than settled quietly. The JSON is a generated export of the
-same tables.
+each race, entry, qualifying and standings row carries a `confidence` level
+saying how far it was checked, and where two sources disagree the
+disagreement is kept on the record rather than settled quietly. The JSON is
+a generated export of the same tables.
 
 **What changed in every version**, what each one exposed, and what was
 deliberately not done, is in [`docs/BUILD-NOTES.md`](docs/BUILD-NOTES.md).
@@ -1007,7 +1007,9 @@ derived — see *What it deliberately doesn't have*.
 
 Your v1 policy was "official sources only, never invent". That's the right
 instinct but it caps the database at whatever can be fetched in a session. So
-every fact table now carries a `confidence` column instead:
+every fact table but one now carries a `confidence` column instead. The one
+is `pit_stops`, which holds only F1DB's lap and stop order and is checked by
+source instead: `verify.py` fails on a row from anywhere else.
 
 | Level | Meaning | Safe to publish? |
 |---|---|---|
