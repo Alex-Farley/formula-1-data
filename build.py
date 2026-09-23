@@ -1036,8 +1036,9 @@ def _stage_12_circuit_centrelines_re_measured_before_they(b):
         # Whether the ways form a lap is a different question from whether
         # they measure the right length, and the length cannot answer it: Las
         # Vegas is missing a way and still measures within 2%. Ask it here,
-        # where the row is admitted, and store the answer - the front end
-        # offers to walk a lap only where one exists.
+        # where the row is admitted, and store the answer - the circuit's own
+        # page prints it as "closes into one lap" or as the count of loose
+        # way ends, and says the length is the ways added up rather than a lap.
         closes, loose, used, walked = _lap_topology(geo["coordinates"])
         if not closes:
             unclosed.append(
@@ -1067,8 +1068,9 @@ def _stage_12_circuit_centrelines_re_measured_before_they(b):
               f"(worst {worst:+.2f}%)")
         print(f"    {laps} of {geom_rows} stitch into a closed lap")
         for line in unclosed:
-            # Not fatal: an incomplete trace is still the best shape anyone
-            # has for that circuit, and it is drawn. It just cannot be walked.
+            # Not fatal: an incomplete trace still has an honest length, and
+            # that length is still published beside the stated one. It just
+            # cannot be walked round as a lap, and the page says so.
             print(f"    does not close: {line}")
 
 
