@@ -109,7 +109,7 @@ export const entryOut = (value, row) => (finished(value, row.finish_position) ? 
 export const entryColumns = (several) => [
   { key: 'year', rowHeader: true, label: 'Season', align: 'num', text: (year) => String(year) },
   { key: 'name_used', rowHeader: true, label: 'Grand Prix' },
-  { key: 'driver', label: 'Driver' },
+  { key: 'driver', rowHeader: true, label: 'Driver' },
   ...(several ? [{ key: 'chassis', label: 'Chassis' }] : []),
   { key: 'grid_text', label: 'Grid', align: 'num' },
   { key: 'position_text', label: 'Result', align: 'num', text: entryResult },

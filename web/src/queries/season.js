@@ -589,7 +589,7 @@ export const NOT_RUN_STANDINGS = 'Not yet run: no round of this calendar has bee
 
 export const ENTRANT_COLUMNS = [
   { key: 'constructor', rowHeader: true, label: 'Constructor', text: (name, row) => text(name ?? row.entrant_id) },
-  { key: 'entrant_id', label: 'Entered as' },
+  { key: 'entrant_id', rowHeader: true, label: 'Entered as' },
   { key: 'chassis_ids', label: 'Chassis', align: 'prose' },
   { key: 'chassis_count', label: 'Designs', align: 'num' },
   { key: 'engine_ids', label: 'Engines' },

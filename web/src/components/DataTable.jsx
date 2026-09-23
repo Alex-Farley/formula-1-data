@@ -35,10 +35,12 @@ import TakeAway from './TakeAway.jsx'
  * the cell that says which row this is - the driver, the chassis, the season
  * (AX-21). Without one, a screen reader moving down the Result column of a
  * 394-race career hears 394 values and nothing to say which race each belongs
- * to; with one, it names the row as it arrives. A row is sometimes named by
- * two cells together - a race is its season AND its Grand Prix, since either
- * alone repeats down the table - and a column list marks both, which is what
- * HTML's row headers allow. Every declared column list in web/src/queries
+ * to; with one, it names the row as it arrives. A row is often named by
+ * two or three cells together - a race is its season AND its Grand Prix,
+ * since either alone repeats down the table; a car's entry is that race and
+ * its driver; a pit stop is the driver and the stop - and a column list marks
+ * each of them, which is what HTML's row headers allow. The test of a choice
+ * is whether the marked cells tell one row from the next. Every declared column list in web/src/queries
  * names at least one (web/test/conventions.mjs); the SQL console's result
  * declares nothing and has none, because a statement's shape is not known to
  * have a name column. scripts/prerender.js reads the same flag, and the

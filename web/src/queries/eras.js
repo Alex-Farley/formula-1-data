@@ -86,7 +86,7 @@ export const GOVERNANCE_COLUMNS = [
 
 export const TYRE_COLUMNS = [
   { key: 'supplier', rowHeader: true, label: 'Supplier' },
-  { key: 'from_year', label: 'Years', align: 'num', text: years },
+  { key: 'from_year', rowHeader: true, label: 'Years', align: 'num', text: years },
   { key: 'exclusive', label: 'Sole supplier', align: 'num', text: (value) => (value ? 'yes' : 'no') },
   { key: 'notes', label: 'Notes', align: 'prose' },
 ]

@@ -249,7 +249,7 @@ export const SPRINT_FOOTER =
 export const PIT_COLUMNS = [
   { key: 'lap_number', label: 'Lap', align: 'num' },
   { key: 'driver', rowHeader: true, label: 'Driver', text: (name, row) => text(name ?? row.driver_key) },
-  { key: 'stop_number', label: 'Stop', align: 'num' },
+  { key: 'stop_number', rowHeader: true, label: 'Stop', align: 'num' },
   { key: 'stationary_seconds', label: 'Stationary (s)', align: 'num' },
   { key: 'pit_lane_seconds', label: 'Pit lane (s)', align: 'num' },
   // Every stop on a page usually comes from the one source, and the column
