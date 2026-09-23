@@ -25,6 +25,7 @@ import Races from './pages/Races.jsx'
 import Race from './pages/Race.jsx'
 import Drivers from './pages/Drivers.jsx'
 import Driver from './pages/Driver.jsx'
+import Compare from './pages/Compare.jsx'
 import Constructors from './pages/Constructors.jsx'
 import Constructor from './pages/Constructor.jsx'
 import Circuits from './pages/Circuits.jsx'
@@ -331,6 +332,9 @@ function Chrome() {
           <Route path="/grands-prix/:id" element={<GrandPrix />} />
           <Route path="/drivers" element={<Drivers />} />
           <Route path="/drivers/:id" element={<Driver />} />
+          {/* Two drivers side by side (PD-43). The pair is the query string,
+              so one static page at /compare answers every comparison. */}
+          <Route path="/compare" element={<Compare />} />
           <Route path="/constructors" element={<Constructors />} />
           <Route path="/constructors/:id" element={<Constructor />} />
           <Route path="/circuits" element={<Circuits />} />

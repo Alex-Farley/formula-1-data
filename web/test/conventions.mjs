@@ -184,6 +184,11 @@ describe('a NULL is "not established", never zero (frontend-reviewer, item 2)', 
     // not an unknown number of them. None reads a stored column.
     ['src/queries/driver.js', [13, 'derived career counts; seasons with an entry; PD-15 substitutes']],
     ['src/pages/Driver.jsx', [1, 'a chart ceiling; its sort keys are in lib/wayfinding.js']],
+    // PD-43: /compare's careers table reads DERIVED, whose SUM of a
+    // comparison is NULL only where no entry matched - a driver never
+    // classified has no win - which is strip()'s reading above. One helper,
+    // six figures; none reads a stored column.
+    ['src/queries/compare.js', [1, 'derived career counts, as queries/driver.js']],
     ['src/data/worker.js', [3, 'download progress in bytes']],
     ['src/lib/search.js', [1, 'a ranking weight']],
     // IX-19: how many rows the static page drew for a table of this name.
@@ -225,6 +230,7 @@ describe('every declared table names its rows (AX-21)', () => {
     entryColumns: [true],
     qualifyingColumns: [[{ q1: '1:20.000' }]],
     recordColumns: [[]],
+    careerColumns: ['Ayrton Senna', 'Alain Prost'],
   }
   const modules = [
     ...readdirSync(join(web, 'src/queries')).map((entry) => join(web, 'src/queries', entry)),

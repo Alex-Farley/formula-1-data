@@ -3004,6 +3004,162 @@ try {
   // At a phone width the register opens on its phone set, and a table a
   // reader has made wider than the screen says so; the masthead shows every
   // destination rather than a strip with a hidden scrollbar.
+  await section('/drivers/senna  (team-mates, head to head: PD-43)', async () => {
+    await go('/drivers/senna', 'Ayrton Senna')
+    // The pairing counted a second way: one row per Grand Prix, compared here
+    // in JavaScript, rather than through TEAM_MATES's grouped TOTALs - so a
+    // comparison written the wrong way round in the query, or a race counted
+    // that one side was not classified in, shows up as a different figure.
+    const pair = (a, b, year) => {
+      const races = db
+        .prepare(
+          `SELECT e.finish_position AS mine, o.finish_position AS theirs,
+                  qa.position AS qmine, qb.position AS qtheirs, e.points AS p, o.points AS op
+             FROM race_entries e
+             JOIN races r ON r.id = e.race_id
+             JOIN race_entries o ON o.race_id = e.race_id AND o.driver_id = ? AND o.constructor_id = e.constructor_id
+             LEFT JOIN qualifying qa ON qa.race_id = e.race_id AND qa.driver_id = e.driver_id
+             LEFT JOIN qualifying qb ON qb.race_id = e.race_id AND qb.driver_id = o.driver_id
+            WHERE e.driver_id = ? AND (? IS NULL OR r.year = ?)`,
+        )
+        .all(b, a, year, year)
+      const both = (x, y) => typeof x === 'number' && typeof y === 'number'
+      const tally = (key, other) => [
+        races.filter((r) => both(r[key], r[other]) && r[key] < r[other]).length,
+        races.filter((r) => both(r[key], r[other]) && r[key] > r[other]).length,
+      ]
+      return {
+        races: races.length,
+        qualifying: tally('qmine', 'qtheirs'),
+        race: tally('mine', 'theirs'),
+        classified: races.filter((r) => both(r.mine, r.theirs)).length,
+        points: [races.reduce((s, r) => s + (r.p ?? 0), 0), races.reduce((s, r) => s + (r.op ?? 0), 0)],
+      }
+    }
+    const want = pair('senna', 'prost', 1988)
+    truthy(want.races > 0, `Senna and Prost share ${want.races} Grands Prix at McLaren in 1988`)
+    const row = await page.$$eval(
+      '#root main h2',
+      (nodes) => {
+        const h2 = nodes.find((node) => node.textContent.trim().startsWith('Team-mates'))
+        const tr = [...(h2?.closest('section')?.querySelectorAll('tbody tr') ?? [])].find((r) =>
+          r.textContent.includes('Alain Prost') && r.textContent.startsWith('1988'),
+        )
+        return tr ? [...tr.children].map((c) => c.textContent.trim()) : null
+      },
+    )
+    is(
+      row?.join(' | '),
+      ['1988', 'Alain Prost', 'McLaren', String(want.races), want.qualifying.join('–'), want.race.join('–'), want.points.join('–')].join(' | '),
+      'the 1988 McLaren pairing reads as the races, compared one by one, add up',
+    )
+    // The count is team-mates, not rows: Berger is three seasons and one driver.
+    const mates = count(
+      `SELECT COUNT(DISTINCT o.driver_id) FROM race_entries e
+         JOIN race_entries o ON o.race_id = e.race_id AND o.constructor_id = e.constructor_id AND o.driver_id <> e.driver_id
+        WHERE e.driver_id = 'senna'`,
+    )
+    truthy(
+      (await text('#root main section:has(h2:text-matches("^Team-mates")) h2 .count')) === `${mates} team-mates`,
+      `the heading counts ${mates} different team-mates`,
+    )
+    truthy(
+      await page.$('#root main a[href="/compare?a=senna"]'),
+      'and the section links to /compare with Senna already chosen',
+    )
+    // A career with no team-mate on the record has no section at all, as the
+    // static page has none: a heading over an empty table says nothing.
+    const alone = db
+      .prepare(
+        `SELECT d.id, d.full_name FROM drivers d
+          WHERE EXISTS (SELECT 1 FROM race_entries e WHERE e.driver_id = d.id)
+            AND NOT EXISTS (SELECT 1 FROM race_entries e JOIN race_entries o
+                              ON o.race_id = e.race_id AND o.constructor_id = e.constructor_id AND o.driver_id <> e.driver_id
+                             WHERE e.driver_id = d.id)
+          ORDER BY d.id LIMIT 1`,
+      )
+      .get()
+    if (alone) {
+      await go(`/drivers/${alone.id}`, alone.full_name)
+      is(await rowsUnder('Team-mates'), null, `a career with no team-mate has no Team-mates section — /drivers/${alone.id}`)
+      truthy(
+        !(await (await fetch(`${BASE}/drivers/${alone.id}`)).text()).includes('<h2>Team-mates</h2>'),
+        'and neither does its static page',
+      )
+    }
+  })
+
+  await section('/compare  (two drivers side by side: PD-43)', async () => {
+    await go('/compare?a=senna&b=prost', 'Ayrton Senna and Alain Prost')
+    is(await page.title(), 'Ayrton Senna and Alain Prost — Lap Ledger', 'the pair names the document, in the order the address gives it')
+    // The careers table is DERIVED's figures, the driver pages' own.
+    const careers = await page.$$eval('#root main section:has(h2:text-is("Two careers")) tbody tr', (trs) =>
+      Object.fromEntries(trs.map((tr) => [tr.children[0].textContent.trim(), [...tr.children].slice(1).map((c) => c.textContent.trim())])),
+    )
+    const wins = (id) => String(count('SELECT COUNT(*) FROM race_entries WHERE driver_id = ? AND finish_position = 1', id))
+    is(careers.Wins?.join(' | '), `${wins('senna')} | ${wins('prost')}`, 'Wins are counted from the race records for each driver')
+    const entries = (id) => String(count('SELECT COUNT(*) FROM race_entries WHERE driver_id = ?', id))
+    is(careers.Entries?.join(' | '), `${entries('senna')} | ${entries('prost')}`, 'and so are Entries')
+    // The sentence is the table's total, by the count above made a second way.
+    const want = (() => {
+      const races = db
+        .prepare(
+          `SELECT e.finish_position AS mine, o.finish_position AS theirs, qa.position AS qmine, qb.position AS qtheirs
+             FROM race_entries e
+             JOIN race_entries o ON o.race_id = e.race_id AND o.driver_id = 'prost' AND o.constructor_id = e.constructor_id
+             LEFT JOIN qualifying qa ON qa.race_id = e.race_id AND qa.driver_id = e.driver_id
+             LEFT JOIN qualifying qb ON qb.race_id = e.race_id AND qb.driver_id = o.driver_id
+            WHERE e.driver_id = 'senna'`,
+        )
+        .all()
+      const both = (x, y) => typeof x === 'number' && typeof y === 'number'
+      return {
+        races: races.length,
+        qualified: races.filter((r) => both(r.qmine, r.qtheirs) && r.qmine < r.qtheirs).length,
+        classified: races.filter((r) => both(r.mine, r.theirs)).length,
+      }
+    })()
+    const summary = await text('#root main section:has(h2:text-is("As team-mates")) p.note')
+    truthy(
+      summary?.startsWith(`Team-mates in ${want.races} Grands Prix at McLaren`) &&
+        summary.includes(`In qualifying Ayrton Senna was ahead ${want.qualified} times`) &&
+        summary.includes(`Of the ${want.classified} races both were classified in`),
+      `the head to head is summed from the races — “${summary}”`,
+    )
+    is(await rowsUnder('As team-mates'), 2, 'one row per season they shared a constructor')
+
+    // A pair who never shared a constructor: a fact, said, and no table.
+    await go('/compare?a=senna&b=fangio', 'Ayrton Senna and Juan Manuel Fangio')
+    truthy(
+      (await text('#root main section:has(h2:text-is("As team-mates")) p.note'))?.includes('were never team-mates on this record'),
+      'a pair who never shared a constructor is told so',
+    )
+    is(await rowsUnder('As team-mates'), null, 'and gets no empty table')
+
+    // One driver chosen: the team-mates most often beside them, each a pair.
+    await go('/compare?a=senna', 'Compare two drivers')
+    const berger = await page.$('#root main a[href="/compare?a=senna&b=berger"]')
+    truthy(berger, 'one driver chosen offers their team-mates, each a comparison')
+    // The picker writes the address, so the pair is shareable by construction.
+    await page.selectOption('#root main select[aria-label="Second driver"]', 'prost')
+    await page.waitForFunction(() => document.querySelector('#root main h1')?.textContent === 'Ayrton Senna and Alain Prost', null, { timeout: 10000 })
+    is(
+      await page.evaluate(() => window.location.search),
+      '?a=senna&b=prost',
+      'choosing the second driver puts the pair in the address',
+    )
+
+    // The same driver twice, and an id the register does not hold.
+    await go('/compare?a=senna&b=senna', 'Compare two drivers')
+    truthy((await text('#root main p.muted'))?.startsWith('That is the same driver twice'), 'the same driver twice is told so')
+    await go('/compare?a=nobody&b=prost', 'Compare two drivers')
+    is(
+      await page.$eval('#root main select[aria-label="First driver"]', (s) => s.value),
+      '',
+      'an id the register does not hold leaves the picker empty rather than disagreeing with it',
+    )
+  })
+
   await section('/drivers  (at 375 px)', async () => {
     await page.setViewportSize({ width: 375, height: 812 })
     // The headers a reader can see: a column the phone set leaves out is in
@@ -4491,7 +4647,7 @@ try {
       1 + one(`SELECT COUNT(*) FROM (
                SELECT id FROM chassis UNION SELECT id FROM cars
              )`) +
-      9 + // records, data and its three children, eras, glossary, changes, about
+      10 + // records, data and its three children, eras, glossary, changes, about, compare (PD-43)
       // SD-20: feed.xml is listed too. It is not a page, but it is an address
       // worth recrawling, and its lastmod is the one on the site that moves
       // whenever the data does.
@@ -4843,6 +4999,7 @@ try {
       '/races/2027/1',
       '/drivers',
       '/drivers/senna',
+      '/compare',
       '/constructors',
       '/constructors/ferrari',
       '/circuits',
@@ -4997,6 +5154,11 @@ try {
       // what notices if a SQLite bump makes them disagree.
       await same('/drivers/hamilton', 'Hamilton', 'Season by season')
       await same('/drivers/amon', 'Chris Amon', 'Season by season')
+      // PD-43. Senna's thirteen pairings, and Brabham's 176, which page in the
+      // app at 100 and are all on the static page: the comparison is of every
+      // row the app holds, not of the page it happens to show.
+      await same('/drivers/senna', 'Ayrton Senna', 'Team-mates')
+      await same('/drivers/brabham', 'Sir Jack Brabham', 'Team-mates')
       await same('/records', 'Records')
 
       // Rung two: the seasons list, a season's calendar and its two standings
@@ -5158,6 +5320,9 @@ try {
       ['/cars/mclaren-mp4-4', 'McLaren MP4/4'],
       ['/records', 'Records'],
       ['/data/sql', 'SQL console'],
+      // PD-43: two pickers, two tables and a sentence, none of which the
+      // pages above have in that arrangement.
+      ['/compare?a=senna&b=prost', 'Ayrton Senna and Alain Prost'],
       // The one page here that is prose and nothing else - no table, no
       // query, six sections and a way onward - which is a shape none of
       // the nine above covers.

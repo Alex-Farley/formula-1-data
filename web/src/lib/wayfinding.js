@@ -72,6 +72,7 @@ export const TRAIL = {
   sources: () => [HOME, ['/data', 'Data'], ['/data/sources', 'Sources']],
   quality: () => [HOME, ['/data', 'Data'], ['/data/quality', 'Data quality']],
   sql: () => [HOME, ['/data', 'Data'], ['/data/sql', 'SQL console']],
+  compare: () => [HOME, ['/compare', 'Compare two drivers']],
   about: () => [HOME, ['/about', 'About']],
   changes: (title) => [HOME, ['/changes', title]],
   /* An id that resolves to nothing. The section above is real and is a link;
@@ -256,6 +257,7 @@ export const ONWARD = {
       { to: '/records', label: 'Records', hint: 'Most wins, most poles, every champion.' },
       { to: '/constructors', label: 'Constructors', hint: 'The teams these drivers drove for.' },
       { to: '/seasons', label: 'Seasons', hint: 'Championship tables year by year.' },
+      { to: '/compare', label: 'Compare two drivers', hint: 'Two careers side by side, and how they fared as team-mates.' },
     ],
   }),
 
@@ -457,6 +459,14 @@ export const ONWARD = {
         label: 'Data',
         hint: 'The database itself: the files, the version, and how far to trust it.',
       },
+    ],
+  }),
+
+  compare: () => ({
+    items: [
+      { to: '/drivers', label: 'All drivers', hint: 'Filter the register by nationality or era.' },
+      { to: '/records', label: 'Records', hint: 'Most wins, most poles, every champion.' },
+      { to: '/seasons', label: 'Seasons', hint: 'Championship tables year by year.' },
     ],
   }),
 
