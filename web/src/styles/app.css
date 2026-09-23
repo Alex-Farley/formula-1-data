@@ -2446,8 +2446,9 @@ figure.figure > figcaption span {
 /* A chart series in a livery: the <g> carries the {light, dark} pair, the
    strokes and fills inside read --livery. This is the one surface that keeps
    the moved pair, and the reason AF-16 did not delete it: a line is told from
-   its neighbour by colour, with the legend as the only key, so here the colour
-   really is carrying the information and 1.4.11's 3:1 applies. */
+   its neighbour by colour and by its dash (AX-16), with the legend keying
+   both, so the colour is one of the two channels carrying the information
+   and 1.4.11's 3:1 applies to it. */
 .livery-series {
   --livery: var(--livery-light);
 }

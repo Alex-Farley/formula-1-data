@@ -1493,7 +1493,15 @@ try {
       2,
       'the championship chart drew its lines',
     )
-
+    // AX-16: each line has its own dash, and the legend's key to it is the
+    // same stroke, in the same order - a key in hue alone is what 1.4.1
+    // forbids once an end label is dropped.
+    const dashes = await page.$eval('#root main .figure:has(.legend)', (figure) => ({
+      lines: [...figure.querySelectorAll('.figure-body svg path')].map((p) => p.getAttribute('stroke-dasharray') ?? 'solid'),
+      keys: [...figure.querySelectorAll('.legend svg.line-key line')].map((l) => l.getAttribute('stroke-dasharray') ?? 'solid'),
+    }))
+    is(dashes.keys.join(' | '), dashes.lines.join(' | '), 'the legend keys each line with its own dash')
+    is(new Set(dashes.lines).size, dashes.lines.length, 'no two lines of the title race share a dash')
   })
 
   // A calendar that has been announced and not raced. Its blanks are not
