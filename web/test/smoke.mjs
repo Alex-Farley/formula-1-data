@@ -48,12 +48,12 @@ import { fileURLToPath } from 'node:url'
 // The heading rule and the cell marks both renderers share, so the checks
 // below ask for the strings the pages compute rather than copies of them.
 import { NEXT_HEADING, NEXT_ROUND, WON_HERE, WON_HERE_HEADING, standingsHeading, titleHeading } from '../src/queries/season.js'
-import { THIS_SEASON, roundsRun, thisSeasonHeading } from '../src/queries/driver.js'
+import { CAREER_HEADING, THIS_SEASON, roundsRun, thisSeasonHeading } from '../src/queries/driver.js'
 import { ABOUT, DOCUMENTS, MAINTAINER, NOT_YET_RUN, PHOTOGRAPHS_SHOWN, SO_FAR } from '../src/lib/site.js'
 // The rule that decides who is credited and whether a file may be shown at
 // all — asked of the served HTML below rather than restated in it.
 import { attribution, canShow, fileTitle } from '../src/lib/commons.js'
-import { ENTRIES as CAR_ENTRIES, IMAGES as CAR_IMAGES } from '../src/queries/car.js'
+import { ENTRIES as CAR_ENTRIES, FIGURES_HEADING, IMAGES as CAR_IMAGES } from '../src/queries/car.js'
 import { CHECKED_LABEL, LAST_CHECKED } from '../src/lib/refresh.js'
 // The three surfaces VD-33 gave the photographs to, read from the app's own
 // queries so that the static pages are checked against what the app shows.
@@ -1415,6 +1415,9 @@ try {
       const placed = calendar.filter((row) => typeof row.finish_position === 'number').length
       await go(`/drivers/${racer.id}`, racer.full_name)
       is((await appHeadings())[0], heading, `/drivers/${racer.id} opens on “${heading}”`)
+      // The career strip below it has a heading of its own, so it does not
+      // read as the season section's figures.
+      is((await appHeadings())[1], CAREER_HEADING, `and the career below it is headed “${CAREER_HEADING}”`)
       const drawn = await page.$$eval(
         '#root main h2',
         (nodes, heading) => {
@@ -1430,6 +1433,7 @@ try {
       is(drawn.rows, run, `and the table under it holds the ${run} rounds run`)
       const html = await served(`/drivers/${racer.id}`)
       is(staticHeadings(html)[0], heading, 'the static page opens on the same heading')
+      is(staticHeadings(html)[1], CAREER_HEADING, 'and heads the career the same way')
       is(staticRowsUnder(html, heading), run, 'and holds the same rounds')
     }
     await go('/drivers/senna', 'Senna')
@@ -1455,11 +1459,17 @@ try {
     if (pictured) {
       await go(`/cars/${pictured}`)
       truthy((await firstSection()).startsWith('Photographs'), `/cars/${pictured}, a ${season} chassis, opens on its photograph`)
-      truthy(photoFirst(await served(`/cars/${pictured}`)), 'and so does its static page')
+      const carHtml = await served(`/cars/${pictured}`)
+      truthy(photoFirst(carHtml), 'and so does its static page')
+      truthy(
+        (await appHeadings()).includes(FIGURES_HEADING) && staticHeadings(carHtml).includes(FIGURES_HEADING),
+        `and its figures are headed “${FIGURES_HEADING}” in both halves, not read as the photographs' own`,
+      )
     }
     await go('/cars/lotus-72', 'Lotus 72')
     truthy(!(await firstSection()).startsWith('Photographs'), 'a car of another year opens on its figures')
     truthy(!photoFirst(await served('/cars/lotus-72')), 'in both halves')
+    truthy(!(await appHeadings()).includes(FIGURES_HEADING), `and needs no “${FIGURES_HEADING}” heading`)
   })
 
   await section('/seasons/1976', async () => {

@@ -141,6 +141,13 @@ export const NO_SPECIFICATION =
  * the Raced tile prints - reaching meta.current_season (lib/season.js), and
  * never the latest season the register holds. Both renderers ask here.
  */
+/**
+ * The heading the figures take when the photograph leads: under the
+ * Photographs h2 the untitled strip and fields read as the section's own, so
+ * they get one of their own there, and nowhere else.
+ */
+export const FIGURES_HEADING = 'In figures'
+
 export const leadsWithPhotograph = (variants, season) => {
   const years = variants.map((v) => v.last_year ?? v.first_year).filter((y) => !missing(y))
   return !missing(season) && years.length > 0 && Math.max(...years) === season

@@ -268,6 +268,7 @@ import {
   VARIANT_COLUMNS,
   entryColumns,
   entryResult,
+  FIGURES_HEADING,
   leadsWithPhotograph,
 } from '../src/queries/car.js'
 import {
@@ -356,6 +357,7 @@ import {
   RESULTS as DRIVER_RESULTS,
   SEASON_COLUMNS,
   SEASONS_FOOTER,
+  CAREER_HEADING,
   STANDINGS,
   THIS_SEASON,
   THIS_SEASON_COLUMNS,
@@ -2171,6 +2173,7 @@ const page = ({
         <h1>${esc(NAMES.driver(d.full_name).headline)}</h1>
         <p class="lede">${esc(lede(d, derived, constructors))}</p>
         ${thisSeasonSection}
+        ${thisSeasonSection ? `<h2>${esc(CAREER_HEADING)}</h2>` : ''}
         ${stats(
           leading(strip(d, derived)).map((item) => ({ ...item, value: esc(item.value) })),
         )}
@@ -2613,7 +2616,7 @@ const page = ({
       onward: ONWARD.car({ chassis: variants[0] ?? c, car: c, entries: carEntries }),
       body: `
         <h1>${esc(NAMES.car(name).headline)}</h1>
-        ${photoFirst ? photos.html : ''}
+        ${photoFirst && photos.html ? `${photos.html}<h2>${esc(FIGURES_HEADING)}</h2>` : ''}
         ${fields([
           ['Constructor', c.constructor_id ? link(`constructors/${c.constructor_id}`, c.constructor_id) : '—'],
           ['Years', `${c.from_year ?? '?'}–${c.to_year ?? '?'}`],
@@ -2684,7 +2687,7 @@ const page = ({
       onward: ONWARD.car({ chassis: variants[0] ?? ch, car: null, entries: carEntries }),
       body: `
         <h1>${esc(NAMES.car(name).headline)}</h1>
-        ${photoFirst ? photos.html : ''}
+        ${photoFirst && photos.html ? `${photos.html}<h2>${esc(FIGURES_HEADING)}</h2>` : ''}
         ${fields([
           ['Constructor', ch.constructor_id ? link(`constructors/${ch.constructor_id}`, constructor) : null],
           ['Years', years],

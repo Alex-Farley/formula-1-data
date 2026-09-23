@@ -8,10 +8,12 @@ import { rows, useQueries } from '../data/useQuery.js'
 import { missing, number, span } from '../lib/format.js'
 import { colourForEntry } from '../lib/liveries.js'
 import { CURRENT_SEASON } from '../lib/season.js'
+import { canShow } from '../lib/commons.js'
 import {
   AMBIGUOUS_COLUMNS,
   AMBIGUOUS_FOOTER,
   CAR,
+  FIGURES_HEADING,
   ENTRIES,
   IMAGES,
   NO_ENTRIES,
@@ -165,7 +167,9 @@ function CarBody({ chassis, variants, data }) {
     >
       {leadsWithPhotograph && <Photographs images={images} />}
 
-      <Section>
+      {/* A heading only when the photograph is above it and something is
+          drawn there; otherwise the strip sits under the h1 as before. */}
+      <Section title={leadsWithPhotograph && images.some(canShow) ? FIGURES_HEADING : undefined}>
         <Stats
           items={[
             { label: 'Raced', value: span(raced[0], raced[1]) },

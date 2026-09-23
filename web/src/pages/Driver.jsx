@@ -23,6 +23,7 @@ import {
   SEASON_COLUMNS,
   SEASONS_FOOTER,
   SEASON_TEAMS,
+  CAREER_HEADING,
   STANDINGS,
   THIS_SEASON,
   THIS_SEASON_COLUMNS,
@@ -122,6 +123,7 @@ function ThisSeason({ name, rows: calendar, standings }) {
       : null,
   }))
   const placed = dots.filter((d) => typeof d.row.finish_position === 'number')
+  const toCome = calendar.some((row) => row.status !== 'completed')
   const inColour = placed.some((d) => d.colour)
   const mixed = inColour && !placed.every((d) => d.colour)
 
@@ -129,7 +131,7 @@ function ThisSeason({ name, rows: calendar, standings }) {
     <Section title={thisSeasonHeading(calendar)} note={thisSeasonNote(calendar, standing)}>
       <Figure
         title={`${name}'s finishes, round by round`}
-        note={`Where ${name} finished in each round of ${season}, P1 at the top. A round with no dot is one ${name} was not classified in or not entered for, and the table says which; the space to the right is the rounds still to run. A win is ringed. ${
+        note={`Where ${name} finished in each round of ${season}, P1 at the top. A round with no dot is one ${name} was not classified in or not entered for, and the table says which${toCome ? '; the space to the right is the rounds still to run' : ''}. A win is ringed. ${
           inColour
             ? `Each dot is in the colour of the team raced that weekend: ${colourSource(placed.map((d) => d.colour))}.${
                 mixed ? ' A hollow dot is a round this record holds no colour for.' : ''
@@ -149,7 +151,13 @@ function ThisSeason({ name, rows: calendar, standings }) {
             colour: inColour ? colour : null,
             hollow: inColour && !colour,
             mark: row.finish_position === 1,
-            note: `P${row.finish_position} · ${fmtPoints(row.points)} points${row.constructor ? ` · ${row.constructor}` : ''}`,
+            // No points clause where the entry carries none: a finish outside
+            // the points holds NULL, and "— points" would claim a gap.
+            note: `P${row.finish_position}${
+              row.points === null || row.points === undefined
+                ? ''
+                : ` · ${fmtPoints(row.points)} ${row.points === 1 ? 'point' : 'points'}`
+            }${row.constructor ? ` · ${row.constructor}` : ''}`,
           }))}
           yMax={Math.max(10, ...placed.map((d) => d.row.finish_position))}
           format={(v) => `P${Math.round(v)}`}
@@ -298,7 +306,7 @@ function DriverBody({ driver, data }) {
         <ThisSeason name={driver.full_name} rows={thisSeason} standings={standings} />
       )}
 
-      <Section>
+      <Section title={thisSeason.length > 0 ? CAREER_HEADING : undefined}>
         <Stats items={leading(strip(driver, derived))} />
       </Section>
 

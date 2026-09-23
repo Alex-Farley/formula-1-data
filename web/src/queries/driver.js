@@ -227,6 +227,15 @@ export const THIS_SEASON = `
 export const thisSeasonHeading = (rows) =>
   rows.some((row) => row.status !== 'completed') ? `The ${rows[0]?.season} season so far` : `The ${rows[0]?.season} season`
 
+/**
+ * The heading the career strip takes when the season leads the page. Below
+ * an h2 the untitled strip read as that section's own - "Entries 117" under
+ * a heading about 2026 - so where the season section is drawn the career
+ * gets a heading of its own, and where it is not the strip stays directly
+ * under the h1, as on every other driver's page.
+ */
+export const CAREER_HEADING = 'The career'
+
 /** The rounds run, which are the table's rows: a round still to come has no result to state. */
 export const roundsRun = (rows) => rows.filter((row) => row.status === 'completed')
 
@@ -291,7 +300,7 @@ export const thisSeasonFooter = (rows, standing) => {
     .filter((row) => entered(row) && !missing(row.points))
     .reduce((sum, row) => sum + row.points, 0)
   if (!standing || missing(standing.points) || Math.abs(standing.points - scored) < 0.01) return null
-  const why = rows.some((row) => row.sprint)
+  const why = roundsRun(rows).some((row) => row.sprint)
     ? "the championship total above is the drivers' table's, which counts the Sprint races as well"
     : "the championship total above is the drivers' table's own"
   return `Points here are each Grand Prix's own, ${points(scored)} between them; ${why}.`
