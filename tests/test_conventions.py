@@ -17,6 +17,9 @@ front-end tools run them.
 """
 import os
 import re
+import shutil
+import subprocess
+import tempfile
 import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -181,8 +184,8 @@ MODELS = {"opus", "sonnet", "haiku", "fable", "inherit"}
 EFFORTS = {"low", "medium", "high", "xhigh", "max"}
 # The reviewers the backlog loop launches. Each carries a turn cap so a
 # reviewer that loses its way returns rather than runs until the session
-# limit ends it; .claude/skills/backlog-item/SKILL.md says a return without
-# a verdict line is not a PASS.
+# limit ends it; .claude/skills/backlog-item/SKILL.md says a pass that
+# recorded no verdict through verdict.sh is not a PASS.
 LOOP_REVIEWERS = ("frontend-reviewer", "frontend-reviewer-quick", "data-integrity-reviewer", "licence-reviewer")
 
 
@@ -376,89 +379,109 @@ class OneRuleForWhatCountsAsAStart(unittest.TestCase):
         )
 
 
-class TheVerdictContractIsWhereTheAgentReads(unittest.TestCase):
-    """PM-41 (#428). The loop decides PASS or FAIL from the FIRST line of a
-    reviewer's result, and four forks in two days met a confirmation agent
-    that put a summary sentence above it. The contract was written only in
-    the brief the fork composes (review-prompt.md), so a reviewer reading its
-    own agent file found nothing about a verdict; and the confirmation half
-    of that brief asked for "one line", which a line anywhere satisfies.
-    Both are prose a tidying pass could drop again, so the wording lives here
-    as a test (D-26, D-37) rather than in a checklist nobody re-reads."""
+class TheVerdictIsACommand(unittest.TestCase):
+    """PM-41 (#428), PM-48 (#542), then D-40. The loop used to take a
+    reviewer's verdict from the first line of its reply, and reviewers kept
+    putting a summary above it however the brief was worded. The verdict is
+    now recorded by `verdict.sh record` and read by `verdict.sh read`; the
+    reply is never read for one. This keeps the command where each agent and
+    each half of the brief will read it (D-26), and runs the script in a
+    scratch repository so each refusal is shown closing rather than assumed:
+    a script that accepted `PASS — no. Findings below` would be D-37 again."""
 
-    PASS = "`PASS \u2014 safe to merge`"
-    FAIL = "`FAIL \u2014 changes required`"
+    SCRIPT = os.path.join(ROOT, ".claude/skills/backlog-loop/verdict.sh")
+    RECORD = "verdict.sh record <id> PASS"
 
     def flat(self, rel):
-        """The file with runs of whitespace collapsed: these documents wrap,
-        and `FAIL \u2014 changes required` is written across a line break in
-        more than one of them."""
+        """The file with runs of whitespace collapsed: these documents wrap."""
         return re.sub(r"\s+", " ", read(rel))
 
-    def states_the_contract(self, rel, text, what):
-        # assertIn would print the whole document; these are thousands of
-        # words each, so say what is missing and not where it isn't.
-        for line in (self.PASS, self.FAIL):
-            self.assertTrue(line in text, f"{what} does not give the verdict line {line}")
-    # Distinctive enough that an unrelated sentence will not satisfy them, and
-    # shared by all four files, so they double as the check that the four
-    # copies still say the same thing. A deliberate rewording updates this
-    # tuple; that is the declaration, and it is the point of the test.
-    CONTRACT = ("nothing goes above it", "discarded and the review is run again")
-
-    def test_every_loop_reviewer_states_the_first_line_contract(self):
+    def test_every_loop_reviewer_records_its_verdict_by_command(self):
         for name in LOOP_REVIEWERS:
-            rel = f".claude/agents/{name}.md"
-            text = self.flat(rel)
-            self.states_the_contract(rel, text, f"{name}.md")
-            for phrase in self.CONTRACT:
-                self.assertTrue(phrase in text,
-                                f"{name}.md names the verdict lines without the rule that "
-                                f"puts one first: {phrase!r} is missing")
+            text = self.flat(f".claude/agents/{name}.md")
+            self.assertTrue(self.RECORD in text,
+                            f"{name}.md does not tell the reviewer to run {self.RECORD!r}")
+            self.assertTrue("not a line of your reply" in text,
+                            f"{name}.md no longer says the reply does not carry the verdict")
+            # The old contract, left behind, would hand the model two report
+            # contracts: the prompt shape D-38 blamed for the preambles.
+            self.assertFalse("nothing goes above it" in text,
+                             f"{name}.md still asks for a verdict on the reply's first line")
 
-    def test_both_halves_of_the_brief_ask_for_the_verdict_first(self):
-        # The first-pass brief always asked for it; the confirmation brief,
-        # below the "after a fix" marker, is the half that drifted.
+    def test_every_brief_carries_the_command(self):
         brief = self.flat(".claude/skills/backlog-loop/review-prompt.md")
-        marker = "after a fix"
-        self.assertTrue(marker in brief, "review-prompt.md no longer has a confirmation brief")
-        cut = brief.index(marker)
-        # PM-48 (D-38) added a third brief below the confirmation one. Bound
-        # the confirmation half at it: unbounded, the respawn brief's own
-        # verdict strings would satisfy this check with the confirmation
-        # brief gutted, which is the drift PM-41 found in the first place.
-        respawn = "The respawn changes what is asked for"
-        self.assertTrue(respawn in brief, "review-prompt.md no longer has a respawn brief (D-38)")
-        cut2 = brief.index(respawn)
-        self.assertTrue(cut < cut2, "the respawn brief must come after the confirmation brief")
-        for what, half, wording in (("first-pass brief", brief[:cut], "verdict line first"),
-                                    ("confirmation brief", brief[cut:cut2], "first line"),
-                                    ("respawn brief", brief[cut2:], "nothing else")):
-            self.states_the_contract("review-prompt.md", half, f"the {what}")
-            self.assertTrue(wording in half,
-                            f"the {what} does not ask for the verdict first ({wording!r})")
-        self.assertTrue("nothing goes above it" in brief[cut:cut2],
-                        "the confirmation brief no longer says what goes above the verdict "
-                        "line, which is the half PM-41 found had drifted")
-        # D-38's carve-out: without its `Applied:` line a quick-variant verdict
-        # is no review (frontend-reviewer-quick.md), so the respawn brief has
-        # to ask for it. Dropping it would make that respawn unsatisfiable.
-        # "Applied: items" and not "Applied:": the prose above the template
-        # mentions the line, so the looser string passes with the template
-        # itself gutted — probed, 2026-09-22.
-        self.assertTrue("Applied: items" in brief[cut2:],
-                        "the respawn brief no longer asks frontend-reviewer-quick for its "
-                        "`Applied:` line, so its respawn cannot satisfy the loop (D-38)")
+        self.assertTrue("verdict.sh new <N> <sha>" in brief,
+                        "review-prompt.md no longer opens a pass before launching it")
+        marker, reading = "after a fix", "## Reading the verdict"
+        for m in (marker, reading):
+            self.assertTrue(m in brief, f"review-prompt.md has lost {m!r}")
+        cut, cut2 = brief.index(marker), brief.index(reading)
+        for what, half in (("first-pass brief", brief[:cut]), ("confirmation brief", brief[cut:cut2])):
+            self.assertTrue("verdict.sh record <id> PASS" in half,
+                            f"the {what} does not tell the reviewer to record its verdict")
+            self.assertTrue("nothing in your reply is read for one" in half,
+                            f"the {what} no longer says the reply carries no verdict")
+        self.assertTrue("verdict.sh read <id>" in brief[cut2:],
+                        "review-prompt.md no longer says how the fork reads the verdict")
 
-    def test_the_item_procedure_refuses_rather_than_interprets(self):
-        # The refusal is the rule; a fork left to judge an ambiguous result is
-        # the state PM-41 found. "spawn the pass again" is the instruction that
-        # makes the refusal actionable, so its absence is the regression.
+    def test_the_item_procedure_reads_the_command_not_the_reply(self):
         skill = self.flat(".claude/skills/backlog-item/SKILL.md")
-        self.states_the_contract("SKILL.md", skill, "the item procedure")
-        self.assertTrue("spawn the pass again" in skill,
-                        "the item procedure names the verdict lines without saying what to do "
-                        "when a result does not lead with one; a fork then interprets (D-37)")
+        for phrase in ("verdict.sh read <id>", "nothing in the reply is read for one",
+                       "One respawn when a pass records no verdict"):
+            self.assertTrue(phrase in skill, f"the item procedure has lost {phrase!r} (D-40)")
+
+    def run_script(self, cwd, *args):
+        return subprocess.run(["bash", self.SCRIPT, *args], cwd=cwd,
+                              capture_output=True, text=True, check=False)
+
+    def test_the_script_accepts_a_verdict_and_refuses_everything_else(self):
+        if not shutil.which("git"):
+            self.skipTest("git is not on PATH")
+        with tempfile.TemporaryDirectory() as repo:
+            git = ["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false"]
+            subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+            for n in (1, 2):
+                subprocess.run([*git, "commit", "-q", "--allow-empty", "-m", str(n)], cwd=repo, check=True)
+            old = self.run_script(repo, "new", "7", "HEAD~1").stdout.strip()
+            full = self.run_script(repo, "new", "7", "HEAD").stdout.strip()
+            quick = self.run_script(repo, "new", "7", "HEAD", "quick").stdout.strip()
+            self.assertTrue(old and full and quick and len({old, full, quick}) == 3,
+                            "verdict.sh new did not print three distinct pass ids")
+            self.assertEqual(self.run_script(repo, "read", full).returncode, 1,
+                             "a pass with no verdict read as one")
+            for bad in ("PASS \u2014 safe to merge", "pass", "PASS \u2014 no. Findings below", ""):
+                self.assertNotEqual(self.run_script(repo, "record", full, bad).returncode, 0,
+                                    f"verdict.sh recorded {bad!r} as a verdict")
+            self.assertNotEqual(self.run_script(repo, "record", old, "PASS").returncode, 0,
+                                "verdict.sh recorded a verdict for another head")
+            for applied in ((), ("all",), (",",), ("1,,2",), ("1,",)):
+                self.assertNotEqual(self.run_script(repo, "record", quick, "PASS", *applied).returncode, 0,
+                                    f"a quick pass recorded a verdict with applied items {applied!r}")
+            self.assertNotEqual(self.run_script(repo, "record", "7-nosuch-1", "PASS").returncode, 0,
+                                "verdict.sh recorded a verdict for a pass nobody opened")
+            self.assertEqual(self.run_script(repo, "record", full, "FAIL").returncode, 0)
+            self.assertNotEqual(self.run_script(repo, "record", full, "PASS").returncode, 0,
+                                "a pass recorded a second verdict over its first")
+            got = self.run_script(repo, "read", full)
+            self.assertEqual((got.returncode, got.stdout.strip()), (0, "FAIL"))
+            self.assertEqual(self.run_script(repo, "record", quick, "PASS", "2,5").returncode, 0)
+            self.assertEqual(self.run_script(repo, "read", quick).stdout.strip(), "PASS applied 2,5")
+            # A verdict whose .pass has gone must not be inherited by the
+            # next pass opened on that head.
+            os.remove(os.path.join(repo, ".claude/loop/verdicts", quick + ".pass"))
+            fresh = self.run_script(repo, "new", "7", "HEAD").stdout.strip()
+            self.assertNotEqual(fresh, quick, "a new pass took the id of a leftover verdict")
+            self.assertEqual(self.run_script(repo, "read", fresh).returncode, 1,
+                             "a new pass read a verdict nobody recorded for it")
+            # The design depends on this: the fork opens and reads the pass in
+            # one checkout, the reviewer records it in a worktree.
+            tree = os.path.join(repo, "wt")
+            subprocess.run(["git", "worktree", "add", "-q", tree, "HEAD"], cwd=repo, check=True)
+            self.assertEqual(self.run_script(tree, "record", fresh, "PASS").returncode, 0,
+                             "a reviewer in a worktree could not record its verdict")
+            got = self.run_script(repo, "read", fresh)
+            self.assertEqual((got.returncode, got.stdout.strip()), (0, "PASS"),
+                             "the main checkout did not read a verdict recorded in a worktree")
 
 
 class TheCitationStaysInStepWithTheBuild(unittest.TestCase):

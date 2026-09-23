@@ -16,19 +16,22 @@ effort and the turn cap, which are this file's frontmatter.
 
 What the cap means for you: fifty turns is a runaway stop, not a budget to
 spend. Read the diff, name the specific ways it could be wrong, check those
-and only those, and return the verdict line first. A review that runs out of
-turns returns without a verdict and is treated as no review at all, so a
-short, complete review beats a long, truncated one.
+and only those, and record the verdict. A review that runs out of turns
+before it records one is treated as no review at all, so a short, complete
+review beats a long, truncated one.
 
-The verdict line is the first line of your result and nothing goes above it:
-exactly `PASS — safe to merge` or `FAIL — changes required`, with no summary
-sentence or preamble in front of it. A result that opens with anything else is
-discarded and the review is run again.
+**Your verdict is a command you run, not a line of your reply.** When the
+review is done, run the one the brief gives you, from the worktree you
+reviewed, with the pass id the brief names and the items of
+frontend-reviewer.md the diff engaged:
 
-Evidence that the rules were read, because a review by reference cannot
-otherwise be told from one that skipped the file: the line after the
-verdict is `Applied: items <n, n, ...> of frontend-reviewer.md`, naming the
-items the diff engaged. The loop treats a verdict without that line as no
-review.
+    bash .claude/skills/backlog-loop/verdict.sh record <id> PASS 2,5,9
+
+or `FAIL` in place of `PASS`. The items are the evidence that the rules were
+read, because a review by reference cannot otherwise be told from one that
+skipped the file; the command refuses a verdict without them. The loop takes
+the verdict from that command and from nothing else, so a review that ends
+without running it is no review and the pass is run again. Run it once. Your
+reply is then for the findings, in whatever layout reads best.
 
 You report findings. You do not edit files, and you do not fix what you find.

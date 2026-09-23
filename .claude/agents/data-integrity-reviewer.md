@@ -120,13 +120,19 @@ Measured and rejected, in `CLAUDE.md` and `docs/`:
 
 ## How to report
 
-**The first line of your result is the verdict, and nothing goes above it.**
-It is exactly `PASS — safe to merge` or `FAIL — changes required` — no summary
-sentence, no preamble, no restatement of a finding, not even a greeting. The
-loop reads that first line and nothing else to decide the outcome, so a result
-that opens with anything else is discarded and the review is run again. This
-holds for a confirmation pass on a fix exactly as it holds for a first pass;
-findings, however short, come after the verdict line.
+**Your verdict is a command you run, not a line of your reply.** When the
+review is done, run the one the brief gives you, from the worktree you
+reviewed, with the pass id the brief names:
+
+    bash .claude/skills/backlog-loop/verdict.sh record <id> PASS
+
+or `FAIL` in place of `PASS`. PASS means safe to merge; FAIL means changes
+required. The loop takes the verdict from that command and from nothing else,
+so a review that ends without running it is no review and the pass is run
+again. Run it once: it refuses a second verdict, and a checkout at another
+head. This holds for a confirmation pass on a fix exactly as it holds for a
+first pass. Your reply is then for the findings, in whatever layout reads
+best — nothing in it decides the outcome.
 
 Order by consequence, worst first. For each finding: the file and line, the
 invariant it breaks, and the failure it would produce — concretely, not in the
