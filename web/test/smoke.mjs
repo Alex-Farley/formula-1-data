@@ -55,6 +55,7 @@ import { ABOUT, DOCUMENTS, MAINTAINER, NOT_YET_RUN, PHOTOGRAPHS_SHOWN, SO_FAR } 
 import { attribution, canShow, fileTitle } from '../src/lib/commons.js'
 import { ENTRIES as CAR_ENTRIES, FIGURES_HEADING, IMAGES as CAR_IMAGES } from '../src/queries/car.js'
 import { CHECKED_LABEL, LAST_CHECKED } from '../src/lib/refresh.js'
+import { EXAMPLES } from '../src/lib/questions.js'
 import { NO_DRAWING, NO_TIMELINE_ROW } from '../src/lib/outline.js'
 // The three surfaces VD-33 gave the photographs to, read from the app's own
 // queries so that the static pages are checked against what the app shows.
@@ -3956,6 +3957,64 @@ try {
       'a bare `/` does not open search: Ctrl or Cmd+K is the only key that does',
     )
 
+  })
+
+  // IA-20: the searches that used to return nothing. A model number typed
+  // with the wrong separator, a name one letter out, a question, and a term
+  // nothing answers - which now hands the reader somewhere to go.
+  await section('Search  (questions and near spellings)', async () => {
+    const hrefs = () => page.$$eval('#palette-results li a', (nodes) => nodes.map((node) => node.getAttribute('href')))
+    const status = () => page.$eval('.palette-status', (node) => node.textContent)
+    const settle = (test, arg = null) =>
+      page.waitForFunction(test, arg, { timeout: 10000 }).then(
+        () => true,
+        () => false,
+      )
+    await openPalette(page)
+    await page.fill('.palette input', 'mp4-4')
+    const mp44 = `/cars/${one("SELECT id FROM chassis WHERE full_name = 'McLaren MP4/4'")}`
+    truthy(
+      await settle((want) => document.querySelector('#palette-results li a')?.getAttribute('href') === want, mp44),
+      `"mp4-4" finds the McLaren MP4/4 at ${mp44}`,
+    )
+    await page.fill('.palette input', 'schumaker')
+    truthy(
+      await settle(() => document.querySelector('.palette-status')?.textContent.includes('Did you mean')),
+      'a name two letters out is answered with "Did you mean"',
+    )
+    is(
+      (await hrefs())[0],
+      `/drivers/${one(`SELECT id FROM drivers WHERE lower(full_name) LIKE '%schumacher%' ORDER BY wins DESC LIMIT 1`)}`,
+      'and the winningest Schumacher first',
+    )
+    await page.fill('.palette input', 'qzxvq')
+    truthy(await settle(() => document.querySelector('.palette-status')?.textContent.includes('No match')), 'a term nothing answers says so')
+    const exits = await hrefs()
+    truthy(
+      exits.length === 2 && exits[0].startsWith('/data/sql?q=') && exits[1] === '/records',
+      'and offers the console and the records as options the arrow keys reach',
+    )
+    truthy((await status()).includes('Two places'), 'naming them as the places to look instead')
+    // A question is answered by running it: Enter on the first row opens the
+    // console with the statement, and the console runs it.
+    await page.fill('.palette input', 'who has taken the most pole positions')
+    await settle(() => document.querySelector('#palette-results li a')?.getAttribute('href')?.startsWith('/data/sql'))
+    await page.keyboard.press('Enter')
+    const polesLeader = one('SELECT full_name FROM v_poles_by_driver ORDER BY poles DESC LIMIT 1')
+    truthy(
+      await page
+        .waitForFunction((want) => document.querySelector('#root main tbody td')?.textContent === want, polesLeader, { timeout: 20000 })
+        .then(
+          () => true,
+          () => false,
+        ),
+      `a question opens the console, which runs it: ${polesLeader} leads`,
+    )
+    is(
+      await page.$$eval('#root main button.example', (nodes) => nodes.length),
+      EXAMPLES.length,
+      'and the console offers every question in the library that is a query',
+    )
   })
 
   // -------------------------------------------------------------- 404 route
