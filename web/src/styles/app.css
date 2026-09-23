@@ -2350,6 +2350,43 @@ figure.figure > figcaption span {
   max-width: var(--measure);
 }
 
+/* A circuit's layouts as one list (IX-32): each timeline row beside the
+   drawing it names, at the grid's card width, below the large lead. A row
+   with no drawing holds the drawing's square with the words that say so,
+   so the rows still line up. */
+.layout-timeline {
+  margin-top: 28px;
+}
+
+.layout-timeline > article {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: 150px minmax(0, 1fr);
+  align-items: start;
+}
+
+.timeline .outline-none {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 10px;
+  border: 1px dashed var(--rule);
+  border-radius: var(--radius);
+  color: var(--ink-faint);
+  font-size: 12.5px;
+  text-align: center;
+}
+
+@media (max-width: 480px) {
+  .layout-timeline > article {
+    grid-template-columns: 104px minmax(0, 1fr);
+    gap: 12px;
+  }
+}
+
 /* ------------------------------------------- racing colours and liveries */
 
 /* A constructor's identity mark. Never alone: it always sits beside the name,

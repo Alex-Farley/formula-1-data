@@ -108,10 +108,13 @@ import {
 import { teamsByDriver } from '../src/queries/season.js'
 import {
   NEXT,
+  OUTLINE_FIGURES_NOTE,
   OUTLINE_LEAD_NOTE,
   RUN,
   TO_COME,
   circuitOutlinesNote,
+  layoutTimeline,
+  layoutsCount,
   leadOutline,
   outlineCaption,
   outlineFigures,
@@ -1121,6 +1124,36 @@ describe('the circuit outlines (AF-03)', () => {
     assert.ok(circuitOutlinesNote(8).endsWith(OUTLINE_LEAD_NOTE))
     assert.ok(!circuitOutlinesNote(1).includes(OUTLINE_LEAD_NOTE))
     assert.ok(circuitOutlinesNote(1).includes('not to scale'))
+    // Whose lengths are whose, only where the register's sit beside F1DB's.
+    assert.ok(!circuitOutlinesNote(8).includes(OUTLINE_FIGURES_NOTE))
+    assert.ok(circuitOutlinesNote(8, true).endsWith(OUTLINE_FIGURES_NOTE))
+  })
+  it("folds a circuit's timeline and its outlines into one list, and hides neither side's gaps (IX-32)", () => {
+    const layout = (id, from, drawn) => ({ id, from_year: from, f1db_layout_id: drawn })
+    const outline = (id, first) => ({ f1db_layout_id: id, first_year: first })
+    const shape = (entries) => entries.map(({ layout: l, outline: o }) => [l?.id ?? null, o?.f1db_layout_id ?? null])
+    // Monza's shape: a drawing two rows name, a row that names none, and a
+    // drawing no row names, which ties with that row on its year.
+    const outlines = [outline('m-1', 1950), outline('m-2', 1955), outline('m-5', 1974), outline('m-6', 1976), outline('m-9', null)]
+    const layouts = [layout(3, 1950, 'm-1'), layout(4, 1955, 'm-2'), layout(6, 1960, 'm-2'), layout(9, 1974, null), layout(10, 1994, 'm-6')]
+    assert.deepEqual(shape(layoutTimeline(layouts, outlines)), [
+      [3, 'm-1'],
+      [4, 'm-2'],
+      [6, 'm-2'],
+      [9, null],
+      [null, 'm-5'],
+      [10, 'm-6'],
+      [null, 'm-9'],
+    ])
+    // A row naming a drawing this circuit has none of is a row with no drawing, not a dropped row.
+    assert.deepEqual(shape(layoutTimeline([layout(1, 2000, 'x-1')], [])), [[1, null]])
+    // A register row with no year goes last too.
+    assert.deepEqual(shape(layoutTimeline([layout(2, null, null), layout(1, 1990, null)], [])), [[1, null], [2, null]])
+    const keys = layoutTimeline(layouts, outlines).map((entry) => entry.key)
+    assert.equal(new Set(keys).size, keys.length, 'every row has its own key, a drawing shown twice included')
+    assert.deepEqual(layoutTimeline(undefined, undefined), [])
+    assert.equal(layoutsCount(layouts, outlines), '5 in the timeline, 5 drawn')
+    assert.equal(layoutsCount([], outlines), '5')
   })
 })
 
