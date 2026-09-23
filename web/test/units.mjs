@@ -16,6 +16,9 @@
  *     npm run test:units
  */
 import assert from 'node:assert/strict'
+import { DatabaseSync } from 'node:sqlite'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, it } from 'node:test'
 
 import { MIN_ROWS, cellText, chosenColumns, defaultColumns, onPhone, shared, sharedLine } from '../src/lib/table.js'
@@ -51,7 +54,8 @@ import {
   yearList,
 } from '../src/lib/format.js'
 import { metresBetween, stitch } from '../src/lib/lap.js'
-import { fold, rank } from '../src/lib/search.js'
+import { distance, elsewhere, fold, prepare, rank } from '../src/lib/search.js'
+import { EXAMPLES, QUESTIONS, TOPICS, questionPath } from '../src/lib/questions.js'
 import { emptyTimingTableRead } from '../src/lib/sql.js'
 import { DRIVER_COLUMNS } from '../src/queries/drivers.js'
 import { holderPath } from '../src/queries/records.js'
@@ -123,6 +127,8 @@ import {
 import { THUMB_WIDTH, attribution, canShow, fileTitle, thumbUrl } from '../src/lib/commons.js'
 import { recordColumns, tiersOf } from '../src/queries/records.js'
 import { clearState, oneOf, readState, writeState } from '../src/lib/urlstate.js'
+
+const web = join(dirname(fileURLToPath(import.meta.url)), '..')
 
 // A square about 111 m on a side, as [lon, lat] — the order the geometry uses.
 const P0 = [0, 0]
@@ -209,7 +215,7 @@ describe('yearList', () => {
 })
 
 describe('search', () => {
-  const entry = (label, weight = 0) => ({ label, needle: fold(label), weight })
+  const entry = (label, weight = 0, more = {}) => prepare({ label, weight, ...more })
 
   it('folds letters that have no combining mark to strip', () => {
     assert.equal(fold('Tom Belsø'), 'tom belso')
@@ -241,6 +247,111 @@ describe('search', () => {
 
   it('finds a car by the name anyone types, once the index carries it', () => {
     assert.ok(rank(entry('Ferrari 312/67'), 'ferrari 312') > 0)
+  })
+
+  // IA-20: the searches the critique found returning nothing.
+  it('reads past the separator in a model number and the space in a team name', () => {
+    assert.ok(rank(entry('McLaren MP4/4'), 'mp4-4') > 0)
+    assert.ok(rank(entry('McLaren MP4/4'), 'mp44') > 0)
+    assert.ok(rank(entry('Red Bull Racing'), 'redbull') > 0)
+  })
+
+  it('takes a year as the span a page covers, and nothing outside it', () => {
+    const ferrari = entry('Ferrari', 250, { meta: 'Italy', from_year: 1950, to_year: 2026 })
+    const gone = entry('Ferrari', 0, { meta: 'Italy', from_year: 1950, to_year: 1960 })
+    assert.ok(rank(ferrari, 'ferrari 2026') > 0)
+    assert.equal(rank(gone, 'ferrari 2026'), -1)
+  })
+
+  it('offers the driver for a name and a year before the season whose champion he was', () => {
+    const lewis = entry('Sir Lewis Hamilton', 106, { meta: 'United Kingdom', from_year: 2007, to_year: 2026 })
+    const season = entry('2008 season', 0, { meta: 'Sir Lewis Hamilton', from_year: 2008, to_year: 2008 })
+    assert.ok(rank(season, 'hamilton 2008') > 0, 'the season still answers, by its champion')
+    assert.ok(rank(lewis, 'hamilton 2008') > rank(season, 'hamilton 2008'))
+  })
+
+  it('reads a question for the race it names', () => {
+    const race = entry('2026 Italian Grand Prix', 0, { meta: 'Autodromo Nazionale Monza', from_year: 2026, to_year: 2026 })
+    assert.ok(rank(race, 'who won the 2026 italian grand prix') > 0)
+    assert.ok(rank(race, 'italian gp 2026') > 0, 'gp is a Grand Prix')
+    // A search of nothing but grammar is still a search for those words.
+    assert.equal(rank(entry('Monaco'), 'the'), -1)
+  })
+
+  it('finds a word in the meta and the hidden words, below one in the label', () => {
+    const page = entry('Data', 100, { also: 'download files' })
+    assert.ok(rank(page, 'download') > 0)
+    assert.ok(rank(entry('Downloads'), 'download') > rank(page, 'download'), 'a label outranks a hidden word')
+  })
+
+  it('allows a near spelling only when asked, and never for a short word', () => {
+    const max = entry('Max Verstappen', 71)
+    const michael = entry('Michael Schumacher', 91)
+    assert.equal(rank(max, 'verstapen'), -1, 'not as typed')
+    assert.ok(rank(max, 'verstapen', { fuzzy: true }) > 0, 'one letter dropped')
+    assert.ok(rank(michael, 'schumaker', { fuzzy: true }) > 0, 'two edits in a long name')
+    assert.ok(rank(max, 'verstpapen', { fuzzy: true }) > 0, 'a swap is one edit')
+    assert.equal(rank(entry('Damon Hill'), 'hull', { fuzzy: true }), -1, 'four letters must be spelt')
+    assert.equal(rank(max, 'vettel', { fuzzy: true }), -1)
+  })
+
+  it('counts edits, with a swap of neighbours as one', () => {
+    assert.equal(distance('verstappen', 'verstappen', 2), 0)
+    assert.equal(distance('verstapen', 'verstappen', 2), 1)
+    assert.equal(distance('hmailton', 'hamilton', 2), 1)
+    assert.equal(distance('schumaker', 'schumacher', 2), 2)
+    assert.ok(distance('prost', 'senna', 1) > 1)
+  })
+
+  // IA-21: the empty state hands the words over rather than ending there.
+  it('hands a search that found nothing to the console, as a statement that runs', () => {
+    const [sql, records] = elsewhere("o'brien\nDROP")
+    assert.equal(records.path, '/records')
+    const statement = decodeURIComponent(sql.path.replace('/data/sql?q=', ''))
+    const lines = statement.split('\n')
+    assert.ok(lines[0].startsWith('--') && lines[0].includes("o'brien DROP"), 'the line break in the term stays inside the comment')
+    assert.ok(!lines.some((line) => line.startsWith('DROP')), 'and never begins a line of its own')
+    const db = new DatabaseSync(join(web, '..', 'f1.db'), { readOnly: true })
+    try {
+      assert.ok(Array.isArray(db.prepare(statement).all()), 'a quote in the term is doubled, not a syntax error')
+      const run = (term) => db.prepare(decodeURIComponent(elsewhere(term)[0].path.replace('/data/sql?q=', ''))).all()
+      assert.ok(run('senna').some((row) => row.kind === 'driver'))
+      // A reader's % and _ are the characters, not LIKE's wildcards.
+      assert.equal(run('100%').length, 0, 'no name holds "100%"')
+      assert.equal(run('_').length, 0, 'nor an underscore')
+    } finally {
+      db.close()
+    }
+  })
+})
+
+describe('the question library (IA-20, PD-32)', () => {
+  it('holds forty questions, each a query or a page and never both', () => {
+    assert.equal(QUESTIONS.length, 40)
+    assert.equal(new Set(QUESTIONS.map((entry) => entry.q)).size, QUESTIONS.length, 'no question twice')
+    for (const entry of QUESTIONS) {
+      assert.ok(Boolean(entry.sql) !== Boolean(entry.to), entry.q)
+      assert.ok(TOPICS.includes(entry.topic), `${entry.q}: a topic the console shows`)
+    }
+  })
+
+  it('keeps the console opening on the statement it always opened on', () => {
+    assert.equal(EXAMPLES[0][0], 'Who has led a race from pole most often?')
+    assert.equal(questionPath(QUESTIONS[0]), '/data/sql')
+    assert.ok(questionPath(QUESTIONS[1]).startsWith('/data/sql?q='))
+  })
+
+  it('answers every question it asks: each statement runs on f1.db and returns rows', () => {
+    const db = new DatabaseSync(join(web, '..', 'f1.db'), { readOnly: true })
+    try {
+      const empty = QUESTIONS.filter((entry) => entry.sql && db.prepare(entry.sql).all().length === 0)
+      assert.deepEqual(
+        empty.map((entry) => entry.q),
+        [],
+      )
+    } finally {
+      db.close()
+    }
   })
 })
 

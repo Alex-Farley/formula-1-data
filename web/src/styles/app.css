@@ -2140,6 +2140,24 @@ textarea.sql {
   margin-bottom: 1px;
 }
 
+/* One topic of the console's question library to a fold. */
+.examples > summary {
+  cursor: pointer;
+  font-size: var(--size-4);
+  color: var(--ink);
+  padding: var(--space-3) 0;
+}
+
+.examples > summary b {
+  font-weight: var(--weight-semibold);
+}
+
+.examples > summary .rows {
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+  margin-left: var(--space-3);
+}
+
 /* --------------------------------------------------------------- charts */
 
 figure.figure {
@@ -3020,13 +3038,15 @@ a.button.secondary:hover {
 /* The "no match" row in the search palette. It was an <a href="#/"> whose only
    job was to look like the rows above it while an onClick cancelled the
    navigation; it is a span now, and this keeps the shape. It sits in the
-   status region under the listbox rather than in it (AX-02), so it takes the
-   list's own 6px inset as a margin; it starts where a result row would. */
+   status region above the listbox rather than in it (AX-02), where it heads
+   the rows it explains - the near spellings, or the two places to look
+   instead (IA-20). It takes the list's own inset as a margin and gives the
+   list's top padding back, so it starts where a result row would. */
 .palette-status .nohit {
   display: flex;
   gap: var(--space-5);
   align-items: baseline;
-  margin: calc(-1 * var(--space-3)) var(--space-3) var(--space-3);
+  margin: var(--space-3) var(--space-3) calc(-1 * var(--space-3));
   padding: var(--space-4) var(--space-5);
   cursor: default;
 }

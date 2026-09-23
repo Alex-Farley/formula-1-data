@@ -231,10 +231,14 @@ the move still resolves. Eras and the glossary are about the sport, not the
 database; they kept their addresses and are reached from Seasons, Cars,
 Circuits, Races and the home page rather than from the masthead.
 
-Press <kbd>⌘K</kbd> or <kbd>Ctrl K</kbd> anywhere for a search across all 3,494
-drivers, constructors, circuits, chassis, seasons and races at once. A register
-of 862 drivers reached only by scrolling an alphabetical table is a register
-nobody reads.
+Press <kbd>⌘K</kbd> or <kbd>Ctrl K</kbd> anywhere for a search across every
+driver, constructor, circuit, car, season, race, Grand Prix and record at once,
+the site's own pages, and the question library in `src/lib/questions.js`,
+whose queries open in the SQL console. A register of hundreds of drivers
+reached only by scrolling an alphabetical table is a register nobody reads.
+Every word typed must be found - in the name, in the words beside it, or as a
+year the page covers, so *hamilton 2008* and *ferrari 2026* work - and only
+when nothing matches as typed does it offer the near spellings.
 
 ## The voice, and where a page sends you next
 

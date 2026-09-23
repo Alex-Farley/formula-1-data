@@ -8,6 +8,7 @@ import DataTable from '../components/DataTable.jsx'
 import SubNav from '../components/SubNav.jsx'
 import { query, queryReadOnly } from '../data/client.js'
 import { number } from '../lib/format.js'
+import { EXAMPLES, QUESTIONS, TOPICS } from '../lib/questions.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
 // `m.sql` alongside the column names, because the column names are the half
@@ -26,76 +27,6 @@ const SCHEMA = `
    WHERE m.type IN ('table', 'view') AND m.name NOT LIKE 'sqlite_%'
    ORDER BY m.type DESC, m.name
 `
-
-const EXAMPLES = [
-  [
-    'Who has led a race from pole most often?',
-    `SELECT d.full_name, COUNT(*) AS pole_to_win
-   FROM race_entries e
-   JOIN drivers d ON d.id = e.driver_id
-  WHERE e.pole = 1 AND e.finish_position = 1
-  GROUP BY e.driver_id
-  ORDER BY pole_to_win DESC
-  LIMIT 15`,
-  ],
-  [
-    "The drivers' championship as it stands",
-    `SELECT position, entity AS driver, team, points
-   -- standings keeps a row after every round, and more than one source's
-   -- reading of each; this view is the fold — one row per driver per season.
-   FROM v_standings_final
-  WHERE table_type = 'drivers'
-    AND year = (SELECT CAST(value AS INTEGER) FROM meta WHERE key = 'current_season')
-  ORDER BY position`,
-  ],
-  [
-    'The races two drivers both won',
-    `SELECT r.year, r.name_used, group_concat(d.full_name, ' and ') AS winners
-   FROM race_entries e
-   JOIN races r   ON r.id = e.race_id
-   JOIN drivers d ON d.id = e.driver_id
-  WHERE e.finish_position = 1
-  GROUP BY r.id
- HAVING COUNT(*) > 1
-  ORDER BY r.year`,
-  ],
-  [
-    'What actually stops a Formula One car',
-    `SELECT status, COUNT(*) AS entries
-   FROM race_entries
-  WHERE status IS NOT NULL
-  GROUP BY status
-  ORDER BY entries DESC
-  LIMIT 25`,
-  ],
-  [
-    'Constructors who entered a race and never scored',
-    `SELECT k.name, COUNT(*) AS entries, MIN(r.year) AS first_year, MAX(r.year) AS last_year
-   FROM race_entries e
-   JOIN races r        ON r.id = e.race_id
-   JOIN constructors k ON k.id = e.constructor_id
-  GROUP BY k.id
- HAVING SUM(COALESCE(e.points, 0)) = 0
-  ORDER BY entries DESC`,
-  ],
-  [
-    'How grid position turns into a result, in 2025',
-    `SELECT e.grid, COUNT(*) AS starts,
-         ROUND(AVG(e.finish_position), 2) AS mean_finish,
-         SUM(e.finish_position = 1) AS wins
-   FROM race_entries e
-   JOIN races r ON r.id = e.race_id
-  WHERE r.year = 2025 AND e.grid IS NOT NULL
-  GROUP BY e.grid
-  ORDER BY e.grid`,
-  ],
-  [
-    'Everything the database is unsure about',
-    `SELECT tbl, label, confidence
-   FROM v_unverified
-  ORDER BY tbl, label`,
-  ],
-]
 
 const START = EXAMPLES[0][1]
 
@@ -249,11 +180,17 @@ export default function Sql() {
   useEffect(() => () => running.current?.abort(), [])
 
   // On arrival, and again whenever the address brings a different query
-  // while the page stays mounted (a link to a query from within the site).
+  // while the page stays mounted (a link to a query from within the site, or
+  // a question picked in the search palette). The editor always takes the
+  // statement that runs: it used to be set only when the address held one,
+  // so a move to the bare address ran START beneath whatever the editor last
+  // showed. And what the reader had typed and not run is kept to put back,
+  // as an example button keeps it.
   useEffect(() => {
     const statement = arrived || START
     if (statement === ran.current) return
-    if (arrived) setText(arrived)
+    if (text.trim() && text !== statement && text !== START && text !== ran.current) setReplaced(text)
+    setText(statement)
     run(statement)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [arrived])
@@ -392,18 +329,31 @@ export default function Sql() {
         </div>
 
         <div>
-          <Section title="Try one of these">
-            {EXAMPLES.map(([label, statement]) => (
-              <button
-                key={label}
-                type="button"
-                className="example"
-                onClick={() => useExample(statement)}
-              >
-                <b>{label}</b>
-                <span className="faint">{statement.split('\n')[0].slice(0, 46)}…</span>
-              </button>
-            ))}
+          {/* The question library, one topic to a fold: forty buttons in one
+              column pushed the schema two screens down. The first fold is
+              open, and holds the statement the console opens on. */}
+          <Section title="Try one of these" count={`${EXAMPLES.length}`}>
+            {TOPICS.map((topic, i) => {
+              const asked = QUESTIONS.filter((entry) => entry.sql && entry.topic === topic)
+              return (
+                <details key={topic} className="examples" open={i === 0}>
+                  <summary>
+                    <b>{topic}</b> <span className="rows">{asked.length}</span>
+                  </summary>
+                  {asked.map((entry) => (
+                    <button
+                      key={entry.q}
+                      type="button"
+                      className="example"
+                      onClick={() => useExample(entry.sql)}
+                    >
+                      <b>{entry.q}</b>
+                      <span className="faint">{entry.sql.split('\n')[0].slice(0, 46)}…</span>
+                    </button>
+                  ))}
+                </details>
+              )
+            })}
           </Section>
 
           <Section title="Schema" count={`${schema.length}`}>
