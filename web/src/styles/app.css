@@ -17,7 +17,7 @@
 
 html {
   -webkit-text-size-adjust: 100%;
-  /* The masthead is sticky and 63px tall. Without this, Shift+Tab onto a link
+  /* The masthead is sticky and about 66px tall. Without this, Shift+Tab onto a link
      near the top of the viewport scrolls it to y=0 - entirely behind the
      masthead - which is WCAG 2.4.11 failed on every page. */
   scroll-padding-top: 72px;

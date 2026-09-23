@@ -12,8 +12,10 @@
  *   --livery      identity, 2010 onwards: the colour a constructor raced in
  *                 that season, sourced as a named colour and rendered as a
  *                 hex (lib/liveries.js). Set per element, not here, and one
- *                 value in both themes - a mark beside a name it never
- *                 replaces, ringed rather than moved (AF-16, AF-17). A
+ *                 value in both themes on a mark beside a name it never
+ *                 replaces, ringed rather than moved (AF-16, AF-17); a chart
+ *                 line drawn in it takes a light and a dark value instead
+ *                 (charts/own.js). A
  *                 constructor-season without one is declared a gap there,
  *                 with the reason, not given a colour nobody sourced.
  *   --racing-*    identity, 1950-1967: the national racing colours
@@ -139,7 +141,10 @@
    * between 9 and 16px - 12, 12.5, 13 and 13.5 all in use, which at this
    * face are one size drawn four ways - and nothing at all between 25px and
    * the page title. Eight steps cover the small end, each at least 9% above
-   * the last and 25% at the top, so that two neighbours can be told apart:
+   * the last and 25% at the top, so that two neighbours can be told apart.
+   * Each old size went to its nearest step, and a tie to the larger - the
+   * opposite of spacing below, because a smaller size costs legibility where
+   * a smaller gap costs only room:
    *
    *   1  10px    eyebrows, pills, the sort arrow
    *   2  11px    column heads, tags, axis text, meta labels
