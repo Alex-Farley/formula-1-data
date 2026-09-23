@@ -248,6 +248,7 @@ import {
 } from '../src/queries/constructor.js'
 import {
   CIRCUIT as CIRCUIT_ROW,
+  GRANDS_PRIX as CIRCUIT_GRANDS_PRIX,
   LAYOUTS as CIRCUIT_LAYOUTS,
   RACES as CIRCUIT_RACES,
   RACE_COLUMNS as CIRCUIT_RACE_COLUMNS,
@@ -256,7 +257,19 @@ import {
   OUTLINES as CIRCUIT_OUTLINES,
   WINNERS as WINNERS_HERE,
   WINNER_COLUMNS,
+  heldAs,
 } from '../src/queries/circuit.js'
+import { GRANDS_PRIX, GRANDS_PRIX_COLUMNS, GRANDS_PRIX_FOOTER, GRANDS_PRIX_LEDE } from '../src/queries/grandsprix.js'
+import {
+  CIRCUITS as GP_CIRCUITS,
+  CIRCUIT_COLUMNS as GP_CIRCUIT_COLUMNS,
+  EDITIONS as GP_EDITIONS,
+  EDITION_COLUMNS as GP_EDITION_COLUMNS,
+  GRAND_PRIX,
+  WINNERS as GP_WINNERS,
+  WINNER_COLUMNS as GP_WINNER_COLUMNS,
+  editionCar,
+} from '../src/queries/grandprix.js'
 import {
   AMBIGUOUS_COLUMNS as CAR_AMBIGUOUS_COLUMNS,
   AMBIGUOUS_FOOTER as CAR_AMBIGUOUS_FOOTER,
@@ -999,6 +1012,7 @@ const LAST_RUN = {
     `SELECT circuit_id AS key, MAX(date_iso) AS d
        FROM races WHERE date_iso <= ? AND circuit_id IS NOT NULL GROUP BY circuit_id`,
   ),
+  grandPrix: runDates(`SELECT gp_id AS key, MAX(date_iso) AS d FROM races WHERE date_iso <= ? GROUP BY gp_id`),
   driver: runDates(
     `SELECT e.driver_id AS key, MAX(r.date_iso) AS d
        FROM race_entries e JOIN races r ON r.id = e.race_id
@@ -1831,6 +1845,7 @@ const page = ({
 
   const races = all(
     `SELECT r.id, r.year, r.round, r.name_used, r.dates, r.date_iso, r.status, r.sprint, r.note,
+            r.gp_id, g.name AS gp_full,
             r.circuit_id, c.name AS circuit, c.locality, c.country, c.length_km, c.turns,
             rr.winner_id, rr.winner, rr.constructor_id, rr.constructor, rr.entrant,
             rr.pole, rr.pole_id, rr.fastest_lap, rr.fastest_lap_id, rr.confidence, rr.source,
@@ -1840,6 +1855,7 @@ const page = ({
             (SELECT e.driver_id FROM race_entries e
               WHERE e.race_id = r.id AND e.grid = 1) AS front_id
        FROM races r
+       LEFT JOIN grands_prix g ON g.id = r.gp_id
        LEFT JOIN circuits c ON c.id = r.circuit_id
        LEFT JOIN race_results rr ON rr.year = r.year AND rr.round = r.round
        LEFT JOIN circuit_outlines o ON o.f1db_layout_id = r.f1db_layout_id
@@ -1986,6 +2002,8 @@ const page = ({
         ${stepperNav(raceSteps(neighbours))}
         ${fields([
           ['Round', `${r.round} of ${r.year}`],
+          // The event this race is an edition of, linked as Race.jsx links it (IA-01).
+          ['Grand Prix', r.gp_id ? link(`grands-prix/${r.gp_id}`, r.gp_full ?? r.name_used) : text(r.name_used)],
           ['Circuit', r.circuit_id ? link(`circuits/${r.circuit_id}`, r.circuit ?? r.circuit_id) : '—'],
           ['Location', text(list([r.locality, r.country]))],
           ['Dates', text(r.dates)],
@@ -2465,6 +2483,11 @@ const page = ({
     const layoutsHere = all(CIRCUIT_LAYOUTS, c.id)
     const outlineSplit = leadOutline(outlinesHere)
     const card = (row) => outlineCard(row.path, c.name, row.f1db_layout_id, outlineCaption(row))
+    // The events held here, in Circuit.jsx's words (IA-01).
+    const held = heldAs(all(CIRCUIT_GRANDS_PRIX, c.id))
+    const heldLine = held.length
+      ? `<p class="measure">${held.map((segment) => (segment.id ? link(`grands-prix/${segment.id}`, segment.name) : esc(segment.text))).join('')}</p>`
+      : ''
     page({
       path: `circuits/${c.id}`,
       lastmod: LAST_RUN.circuit.get(c.id),
@@ -2540,6 +2563,7 @@ const page = ({
             : ''
         }
         <h2>Every race held here</h2>
+        ${heldLine}
         ${
           racesHere.length
             ? `${fromColumns(CIRCUIT_RACE_COLUMNS, racesHere, {
@@ -2554,6 +2578,102 @@ const page = ({
               })}`
             : EMPTY_STATE
         }`,
+    })
+  }
+}
+
+// ------------------------------------------------------------ grands prix
+//
+// IA-01: the event a race is an edition of, which had a table, a view and no
+// page. The register and each event's page read web/src/queries/grandsprix.js
+// and grandprix.js, the app's own queries and column lists.
+
+{
+  const register = all(GRANDS_PRIX)
+  const lastWinner = (name, row) =>
+    row.last_winner_id
+      ? `${link(`drivers/${row.last_winner_id}`, name)}${row.last_co_winner_id ? ` ${tag(SHARED)}` : ''}`
+      : text(name)
+
+  page({
+    path: 'grands-prix',
+    title: NAMES.grandsPrix().title,
+    description: `All ${register.length} Formula One Grands Prix, with how often each has been held, when, at how many circuits, and who won it last.`,
+    trail: TRAIL.grandsPrix(),
+    onward: ONWARD.grandsPrix(),
+    body: `
+      <h1>${esc(NAMES.grandsPrix().headline)}</h1>
+      <p class="lede">${esc(GRANDS_PRIX_LEDE)}</p>
+      ${fromColumns(GRANDS_PRIX_COLUMNS, register, {
+        name: (name, row) => link(`grands-prix/${row.id}`, name),
+        last_winner: lastWinner,
+      })}
+      ${note(GRANDS_PRIX_FOOTER)}`,
+  })
+
+  for (const { id } of register) {
+    const gp = one(GRAND_PRIX, id)
+    const circuitsHere = all(GP_CIRCUITS, id)
+    const editions = all(GP_EDITIONS, id)
+    const winners = all(GP_WINNERS, id)
+    const venue = (name, row) => (row.circuit_id ? link(`circuits/${row.circuit_id}`, name ?? row.circuit_id) : text(name))
+    page({
+      path: `grands-prix/${id}`,
+      lastmod: LAST_RUN.grandPrix.get(id),
+      title: NAMES.grandPrix(gp.name).title,
+      description: summarise(
+        `The ${gp.name}: ${gp.held} ${gp.held === 1 ? 'edition' : 'editions'} run${
+          gp.first_held ? `, ${span(gp.first_held, gp.last_held)}` : ''
+        }, at ${gp.circuits} ${gp.circuits === 1 ? 'circuit' : 'circuits'}. ${gp.notes ?? ''}`,
+        300,
+      ),
+      trail: TRAIL.grandPrix(id, gp.name),
+      onward: ONWARD.grandPrix({ editions, winners }),
+      body: `
+        <h1>${esc(NAMES.grandPrix(gp.name).headline)}</h1>
+        ${gp.notes ? `<p class="lede">${esc(gp.notes)}</p>` : ''}
+        ${stats([
+          { label: 'Times held', value: esc(number(gp.held)) },
+          { label: 'Span', value: esc(span(gp.first_held, gp.last_held)) },
+          { label: 'Circuits', value: esc(number(gp.circuits)) },
+          gp.scheduled ? { label: 'Still to come', value: esc(number(gp.scheduled)) } : null,
+        ])}
+        <h2>Where it has been held</h2>
+        ${fromColumns(GP_CIRCUIT_COLUMNS, circuitsHere, {
+          circuit: venue,
+          first_year: (_, row) =>
+            row.first_year === null && row.scheduled ? tag(NOT_YET_RUN) : esc(span(row.first_year, row.last_year)),
+        })}
+        ${
+          winners.length
+            ? `<h2>Most wins</h2>${fromColumns(
+                GP_WINNER_COLUMNS,
+                winners,
+                { driver: (name, row) => link(`drivers/${row.driver_id}`, name) },
+              )}`
+            : ''
+        }
+        <h2>Every edition</h2>
+        ${fromColumns(GP_EDITION_COLUMNS, editions, {
+          year: (year) => link(`seasons/${year}`, year),
+          name_used: (name, row) => `${link(`races/${row.year}/${row.round}`, name)}${row.sprint ? ` ${tag(SPRINT)}` : ''}`,
+          circuit: venue,
+          winner: (name, row) =>
+            row.status !== 'completed'
+              ? tag(NOT_YET_RUN)
+              : row.winner_id
+                ? `${link(`drivers/${row.winner_id}`, name)}${row.co_winner_id ? ` ${tag(SHARED)}` : ''}`
+                : text(name),
+          constructor: (name, row) =>
+            row.status === 'completed' && row.constructor_id
+              ? link(`constructors/${row.constructor_id}`, name)
+              : esc(editionCar(name, row)),
+        })}
+        <h2>On the record</h2>
+        ${fields([
+          ['Also run as', gp.aliases ? esc(gp.aliases) : null],
+          ['Confidence', gp.confidence ? link('data/quality', gp.confidence) : text(gp.confidence)],
+        ])}`,
     })
   }
 }

@@ -23,6 +23,7 @@ import { NAMES, NOT_YET_RUN } from '../lib/site.js'
 import {
   CIRCUIT,
   GEOMETRY,
+  GRANDS_PRIX,
   LAYOUTS,
   OUTLINES,
   RACES,
@@ -32,6 +33,7 @@ import {
   TRACE_COVERAGE,
   WINNERS,
   WINNER_COLUMNS,
+  heldAs,
 } from '../queries/circuit.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
@@ -98,6 +100,7 @@ export default function Circuit() {
     races: [RACES, [id]],
     winners: [WINNERS, [id]],
     teams: [TEAMS, [id]],
+    grandsPrix: [GRANDS_PRIX, [id]],
   })
 
   return (
@@ -134,6 +137,7 @@ function CircuitBody({ circuit, data }) {
   const races = rows(data, 'races')
   const winners = rows(data, 'winners')
   const teams = rows(data, 'teams')
+  const held = heldAs(rows(data, 'grandsPrix'))
   return (
     <Page
       eyebrow={[circuit.locality, circuit.country].filter(Boolean).join(', ')}
@@ -285,6 +289,22 @@ function CircuitBody({ circuit, data }) {
       </div>
 
       <Section title="Every race held here" count={`${races.length}`}>
+        {/* IA-01: the way from a venue to every other place its Grand Prix
+            has been run. The words are queries/circuit.js's, which
+            prerender.js prints too. */}
+        {held.length > 0 && (
+          <p className="measure">
+            {held.map((segment) =>
+              segment.id ? (
+                <Link key={segment.key} to={`/grands-prix/${segment.id}`}>
+                  {segment.name}
+                </Link>
+              ) : (
+                <span key={segment.key}>{segment.text}</span>
+              ),
+            )}
+          </p>
+        )}
         <DataTable
           rows={races}
           rowKey={(row) => `${row.year}-${row.round}`}

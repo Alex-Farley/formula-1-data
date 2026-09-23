@@ -434,7 +434,17 @@ function RaceBody({ race, data, year, round }) {
       <Section title="Where this comes from">
         <Fields
           items={[
-            { label: 'Grand Prix', value: race.gp_full ?? race.name_used },
+            // The event this race is an edition of, and the way to every other
+            // edition of it and every circuit it has used (IA-01). It was
+            // printed as dead text for want of a page to link to.
+            {
+              label: 'Grand Prix',
+              value: race.gp_id ? (
+                <Link to={`/grands-prix/${race.gp_id}`}>{race.gp_full ?? race.name_used}</Link>
+              ) : (
+                race.name_used
+              ),
+            },
             { label: 'Dates', value: race.dates },
             {
               label: 'Layout raced',

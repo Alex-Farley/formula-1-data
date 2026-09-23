@@ -2400,6 +2400,72 @@ try {
 
   })
 
+  // ----------------------------------------------------------- grands prix
+
+  // IA-01: the event a race is an edition of, which had a table, a view and
+  // no page. Three ways in - the race page's Grand Prix field, the circuit
+  // page's race list and /races - and the event's own page holding what no
+  // circuit page can: the French Grand Prix's seven venues on one page.
+  await section('/grands-prix  (the event, across its venues)', async () => {
+    await go('/grands-prix', 'Grands Prix')
+    is((await tableRows())[0], count('SELECT COUNT(*) FROM grands_prix'), 'every Grand Prix in the register')
+
+    await go('/grands-prix/french', 'French Grand Prix')
+    is(
+      await rowsUnder('Where it has been held'),
+      count("SELECT COUNT(DISTINCT circuit_id) FROM races WHERE gp_id = 'french'"),
+      'every circuit the French Grand Prix has used',
+    )
+    is(
+      await rowsUnder('Every edition'),
+      count("SELECT COUNT(*) FROM races WHERE gp_id = 'french'"),
+      'and every edition of it',
+    )
+
+    // A venue booked and not yet raced is a row, marked, and is not counted
+    // among the circuits the event has used.
+    const booked = db
+      .prepare(`SELECT gp_id FROM races GROUP BY gp_id, circuit_id HAVING SUM(status = 'completed') = 0 LIMIT 1`)
+      .get()?.gp_id
+    if (booked) {
+      await go(`/grands-prix/${booked}`)
+      const venues = await page.$$eval('#root main h2', (nodes) =>
+        nodes.find((h) => h.textContent.startsWith('Where it has been held'))?.closest('section')?.textContent ?? '',
+      )
+      truthy(venues.includes(NOT_YET_RUN) && venues.includes('to come'), `/grands-prix/${booked}: a booked venue is marked, and counted apart`)
+    } else pass('no Grand Prix is booked at a venue it has not raced at')
+
+    // The race page's field, which was dead text, in both renderers.
+    const british = db.prepare("SELECT year, round FROM races WHERE gp_id = 'british' AND status = 'completed' ORDER BY year LIMIT 1").get()
+    await go(`/races/${british.year}/${british.round}`, 'British Grand Prix')
+    truthy(
+      (await page.$$eval('#root main dl.fields a', (nodes) => nodes.map((a) => a.getAttribute('href')))).includes('/grands-prix/british'),
+      'a race page links its Grand Prix',
+    )
+    truthy(
+      (await (await fetch(`${BASE}/races/${british.year}/${british.round}`)).text()).includes('href="/grands-prix/british"'),
+      'and so does its static page',
+    )
+
+    // The circuit page's race list names the events held there.
+    await go('/circuits/silverstone', 'Silverstone')
+    truthy(
+      (await page.$$eval('#root main p.measure a', (nodes) => nodes.map((a) => a.getAttribute('href')))).includes('/grands-prix/british'),
+      'a circuit page links the Grands Prix held there',
+    )
+    truthy(
+      (await (await fetch(`${BASE}/circuits/silverstone`)).text()).includes('href="/grands-prix/british"'),
+      'and so does its static page',
+    )
+
+    // And /races offers the way in.
+    await go('/races', 'Races')
+    truthy(
+      (await page.$$eval('#root main nav.onward a', (nodes) => nodes.map((a) => a.getAttribute('href')))).includes('/grands-prix'),
+      '/races leads to the Grands Prix',
+    )
+  })
+
   // ------------------------------------------------------------------ cars
 
   await section('/cars', async () => {
@@ -3987,6 +4053,12 @@ try {
       `/drivers/${one(`SELECT id FROM drivers WHERE lower(full_name) LIKE '%schumacher%' ORDER BY wins DESC LIMIT 1`)}`,
       'and the winningest Schumacher first',
     )
+    // IA-01: a Grand Prix opens its own page, ahead of its editions.
+    await page.fill('.palette input', 'british grand prix')
+    truthy(
+      await settle(() => document.querySelector('#palette-results li a')?.getAttribute('href') === '/grands-prix/british'),
+      '"british grand prix" opens the event, ahead of its editions',
+    )
     await page.fill('.palette input', 'qzxvq')
     truthy(await settle(() => document.querySelector('.palette-status')?.textContent.includes('No match')), 'a term nothing answers says so')
     const exits = await hrefs()
@@ -4347,6 +4419,7 @@ try {
       1 + one('SELECT COUNT(*) FROM drivers') +
       1 + one('SELECT COUNT(*) FROM constructors') +
       1 + one('SELECT COUNT(*) FROM circuits') +
+      1 + one('SELECT COUNT(*) FROM grands_prix') + // IA-01
       // /cars/<id> is the UNION of the chassis register and the curated cars,
       // because Car.jsx resolves that route against either: a chassis id, or a
       // car id where no chassis owns it (six do, `lotus-72` among them). Counting
@@ -4923,6 +4996,22 @@ try {
       // Rung three: the three remaining registers.
       await same('/constructors', 'Constructors')
       await same('/circuits', 'Circuits', 'Every venue')
+      await same('/grands-prix', 'Grands Prix')
+      await same('/grands-prix/french', 'French Grand Prix', 'Where it has been held')
+      await same('/grands-prix/french', 'French Grand Prix', 'Most wins')
+      await same('/grands-prix/french', 'French Grand Prix', 'Every edition')
+      // The car an entrant ran where no constructor row exists (AF-64).
+      await same('/grands-prix/indianapolis-500', 'Indianapolis 500', 'Every edition')
+      // An event with a round still to come, whose Winner and Car cells say
+      // so in both halves.
+      {
+        const upcoming = one("SELECT gp_id FROM races WHERE status = 'scheduled' ORDER BY year, round LIMIT 1")
+        if (upcoming) {
+          const name = one('SELECT name FROM grands_prix WHERE id = ?', upcoming)
+          await same(`/grands-prix/${upcoming}`, name, 'Where it has been held')
+          await same(`/grands-prix/${upcoming}`, name, 'Every edition')
+        }
+      }
       await same('/cars', 'Cars', 'The chassis register')
       // Rung four: a race page's four tables - a sprint weekend with pit stops
       // and knock-out qualifying, a pre-2006 race with one time per driver, and
