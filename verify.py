@@ -3529,7 +3529,8 @@ def illustration_and_geometry():
         warn("every centreline closes into a loop", not unclosed,
              "; ".join(unclosed[:5]) if unclosed else "")
         # The warning above is the finding; this is the guarantee behind the
-        # verdict the circuit page prints from `closes` and `loose_ends`.
+        # verdict the pages print from `closes` and `loose_ends`: the circuit
+        # page's "The walk" field and the list's "does not close".
         check("the stored lap topology matches the geometry", not bad_topo,
               "; ".join(bad_topo[:3]) if bad_topo else
               f"{con.execute('SELECT COUNT(*) FROM circuit_geometry WHERE closes = 1').fetchone()[0]}"
