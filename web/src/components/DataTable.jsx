@@ -128,7 +128,7 @@ function useMatches(query) {
 /**
  * The table a reader can send somebody: its sort column, its direction,
  * whether it has been expanded and which columns it shows, in the address bar
- * as `?sort=wins&dir=asc`, `?all=1` (IA-08) and `?cols=full_name,wins,poles`
+ * as `?sort=wins&dir=asc`, `?all=1` (IA-08) and `?cols=full_name+wins+poles`
  * (IA-23). A sort or a column set that is the table's own default is not
  * written down, so a register nobody has touched keeps a clean address.
  *
@@ -184,7 +184,9 @@ function AddressedTable({ sort = null, direction = 'asc', ...props }) {
       onSort={(key, next) => set({ sort: key, dir: next })}
       onShowAll={(all) => set({ all })}
       choice={choice?.map((column) => column.key) ?? null}
-      onChoose={(keys) => set({ cols: keys?.join(',') ?? '' })}
+      // Spaces, which the address spells `+`: a comma is `%2C` there, and
+      // `?cols=full_name+wins+poles` is the one a reader can read and type.
+      onChoose={(keys) => set({ cols: keys?.join(' ') ?? '' })}
     />
   )
 }
@@ -322,8 +324,11 @@ function Table({
    * moves to follow the cells that name the row: a register sorted by poles
    * whose Poles column is off the edge has told the reader nothing (VD-31).
    */
-  const phoneSet = !chosen && all.some((c) => c.phone === true)
-  const narrow = useMatches(phoneSet ? PHONE : null)
+  // The width is asked on any list that has a phone set, chosen or not: the
+  // Columns control needs it to know which default a choice has landed on.
+  const phoneShaped = all.some((c) => c.phone === true)
+  const phoneSet = !chosen && phoneShaped
+  const narrow = useMatches(phoneShaped ? PHONE : null)
   const arranged = useMemo(() => {
     if (!phoneSet) return kept
     const marked = kept.map((c) => ({ ...c, wideOnly: !onPhone(c, all) && c.key !== shownSort }))
@@ -432,17 +437,24 @@ function Table({
    * they are shown, once, and the reader who wants them back in the grid has
    * a row where they differ to find. At phone width with no choice made, the
    * ticks are the phone set and the sorted column - what is on the screen.
+   *
+   * "Nobody has chosen" is the default THIS WIDTH opens on, and only that
+   * one. At phone width the desktop default is a choice - nine columns a
+   * reader ticked their way up to - and writing it as no choice would hand
+   * them back three. Nor is the phone set no choice while a sorted column is
+   * pinned beside it: unticking that column is asking for it to go, which a
+   * choice does (the sort falls back, as it does at any width), and writing
+   * it as no choice would leave it pinned with its box ticked again.
    */
-  const ticked = (chosen || !phoneSet || !narrow ? cols : cols.filter((c) => onPhone(c, all) || c.key === shownSort)).map(
-    (c) => c.key,
-  )
+  const phoneView = phoneSet && narrow
+  const ticked = (phoneView ? cols.filter((c) => onPhone(c, all) || c.key === shownSort) : cols).map((c) => c.key)
+  const pinned = phoneView && ticked.some((key) => !onPhone(all.find((c) => c.key === key), all))
   const same = (a, b) => a.length === b.length && a.every((key, i) => key === b[i])
   const choose = (key, on) => {
     const keys = all.filter((c) => (c.key === key ? on : ticked.includes(c.key))).map((c) => c.key)
     const plain = defaultColumns(all)
-    const isDefault =
-      same(keys, plain.map((c) => c.key)) ||
-      (phoneSet && narrow && same(keys, plain.filter((c) => onPhone(c, all)).map((c) => c.key)))
+    const opensOn = phoneShaped && narrow ? plain.filter((c) => onPhone(c, all)) : plain
+    const isDefault = !pinned && same(keys, opensOn.map((c) => c.key))
     onChoose(isDefault ? null : keys)
   }
 

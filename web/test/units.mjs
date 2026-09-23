@@ -1548,6 +1548,7 @@ describe('the columns a register shows (IA-23)', () => {
   it('reads ?cols= against the list, never past it', () => {
     assert.deepEqual(keys(chosenColumns(columns, 'titles,points')), ['name', 'points', 'titles'])
     assert.deepEqual(keys(chosenColumns(columns, 'wins,not-a-column')), ['name', 'wins'])
+    assert.deepEqual(keys(chosenColumns(columns, 'titles wins')), ['name', 'wins', 'titles'])
     assert.equal(chosenColumns(columns, 'not-a-column'), null)
     assert.equal(chosenColumns(columns, ''), null)
     assert.equal(chosenColumns(columns, null), null)

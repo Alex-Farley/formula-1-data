@@ -134,7 +134,9 @@ export const onPhone = (column, columns) =>
  */
 export function chosenColumns(columns, param) {
   if (!param) return null
-  const asked = new Set(String(param).split(','))
+  // Written with spaces (`+` in the address); a comma is read too, since
+  // that is what a reader typing a list by hand reaches for.
+  const asked = new Set(String(param).split(/[\s,]+/))
   const known = columns.filter((column) => column.ariaHidden !== true && asked.has(column.key))
   if (known.length === 0) return null
   return columns.filter((column) => column.rowHeader === true || known.includes(column))

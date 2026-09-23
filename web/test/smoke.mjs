@@ -2962,6 +2962,28 @@ try {
     // VD-31: the column the register is sorted by is on the screen, second.
     await to('?sort=poles&dir=desc')
     is((await drawn()).join(' | '), 'Driver | Poles | Wins | Titles', 'sorted by a column the phone set leaves out, that column follows the name')
+    // The review of PR #613 found both of these: a phone reader's choices
+    // are written as choices, whichever default they happen to land on.
+    const tick = async (label, expected) => {
+      if (!(await page.$('#root main details.columns[open]'))) await page.click('#root main details.columns > summary')
+      await page.click(`#root main details.columns label:has-text("${label}") input`)
+      await page.waitForFunction(
+        (n) => {
+          const wrap = [...document.querySelectorAll('#root main .table-wrap')].find((w) => !w.closest('figure.figure'))
+          return [...(wrap?.querySelectorAll('thead th') ?? [])].filter((th) => getComputedStyle(th).display !== 'none').length === n
+        },
+        expected,
+        { timeout: 10000 },
+      )
+      await settle()
+    }
+    await tick('Poles', 3)
+    is((await drawn()).join(' | '), 'Driver | Wins | Titles', 'unticking the pinned sort column takes it out')
+    is(new URL(page.url()).search.match(/cols=([^&]*)/)?.[1], 'full_name+wins+titles', 'as a choice, so it stays out, in an address a reader can read')
+    await to('?cols=full_name,nationality,first_season,entries,wins,podiums,poles,titles')
+    await tick('Fastest laps', 9)
+    truthy(new URL(page.url()).searchParams.has('cols'), 'and ticking up to the desktop default at 375 px keeps all nine rather than returning to three')
+    await page.keyboard.press('Escape')
     // A choice is the reader's at every width, and a wide one scrolls.
     const every = 'full_name,nationality,first_season,entries,wins,podiums,poles,fastest_laps,titles'
     await to(`?cols=${every}`)
