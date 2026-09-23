@@ -1,16 +1,38 @@
 /*
- * Pit Wall — the instrument-panel palette.
+ * Pit Wall — the instrument-panel palette, and the scales it is set in.
  *
- * Three families, kept apart on purpose:
+ * Five colour families, each with one job, kept apart on purpose:
  *
  *   --accent      one red, and it means "you can act on this" or "this was
- *                 fastest". Links, focus, the current nav item, P1. Never a
- *                 data mark.
+ *                 fastest". Links, focus, the current nav item, the fastest
+ *                 lap. Identity and state have families of their own below;
+ *                 two of them sit on or beside its hex - the podium rail and
+ *                 Italian racing red - and each is its own token so that it
+ *                 can part from the accent without moving it.
+ *   --livery      identity, 2010 onwards: the colour a constructor raced in
+ *                 that season, sourced as a named colour and rendered as a
+ *                 hex (lib/liveries.js). Set per element, not here, and one
+ *                 value in both themes on a mark beside a name it never
+ *                 replaces, ringed rather than moved (AF-16, AF-17); a chart
+ *                 line drawn in it takes a light and a dark value instead
+ *                 (charts/own.js). A
+ *                 constructor-season without one is declared a gap there,
+ *                 with the reason, not given a colour nobody sourced.
+ *   --racing-*    identity, 1950-1967: the national racing colours
+ *                 (lib/racingColours.js), stepped per theme below. 1968-2009
+ *                 draws nothing, because nothing sourced says what to draw.
+ *   --rail-*      state: podium, scored, classified, retired - the result
+ *                 rail on a row.
  *   --series-*    the chart colours. Slots 1-3 of the reference categorical
  *                 palette, validated by script against these exact surfaces
  *                 rather than chosen by eye, and each clears 3:1 on --panel,
  *                 the surface every figure draws on, in both themes. Never
  *                 text.
+ *
+ * And three scales, so that a new component picks a step rather than a
+ * number (VD-03): --size-* for type, --weight-* for weight and --space-* for
+ * padding, margin and gap. app.css uses nothing else for those properties,
+ * and test/conventions.mjs refuses a literal that creeps back.
  *
  * Dark is not an inversion of light: it is a second instrument, stepped
  * against its own ground. Light is paper under a pit-lane strip light; dark
@@ -115,6 +137,79 @@
   --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   /*
+   * The type scale (VD-03). There were twenty-two sizes, seventeen of them
+   * between 9 and 16px - 12, 12.5, 13 and 13.5 all in use, which at this
+   * face are one size drawn four ways - and nothing at all between 25px and
+   * the page title. Eight steps cover the small end, each at least 9% above
+   * the last and 25% at the top, so that two neighbours can be told apart.
+   * Each old size went to its nearest step, and a tie to the larger - the
+   * opposite of spacing below, because a smaller size costs legibility where
+   * a smaller gap costs only room:
+   *
+   *   1  10px    eyebrows, pills, the sort arrow
+   *   2  11px    column heads, tags, axis text, meta labels
+   *   3  12px    notes, captions, source lines, footnotes
+   *   4  13.5px  tables, controls, UI text
+   *   5  15px    body, and a value set in a row
+   *   6  17px    ledes, a name in a stat tile, the search field
+   *   7  20px    section heads
+   *   8  25px    a stat figure
+   *
+   * 9-11 are the middle register the page had none of: one number per page -
+   * the season leader's points, a driver's wins - sits there rather than at
+   * 25px or at the title's 62px (VD-53). The display sizes are fluid, the
+   * page title and the one hero figure, and stay clamps.
+   *
+   * Monospace in running text is the one relative size: 0.92em of whatever
+   * it sits in, because JetBrains Mono's x-height is larger than Saira's and
+   * a fixed step would not follow the text it is set in.
+   */
+  --size-1: 10px;
+  --size-2: 11px;
+  --size-3: 12px;
+  --size-4: 13.5px;
+  --size-5: 15px;
+  --size-6: 17px;
+  --size-7: 20px;
+  --size-8: 25px;
+  --size-9: 32px;
+  --size-10: 40px;
+  --size-11: 50px;
+  --size-display: clamp(34px, 5.2vw, 62px);
+  --size-hero: clamp(38px, 7vw, 56px);
+
+  /* Weights. Six were in use, and 600, 620 and 640 sat within 40 units -
+     at 13px Saira's 600 and 640 cannot be told apart - so they are one, and
+     the one 680 is bold. 400 is the default and is never written. */
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /*
+   * The spacing scale (VD-03): padding, margin and gap. There were
+   * twenty-eight values. Ten steps now, on a 4px grid from 8px with the 2, 6
+   * and 10 half-steps below 12 that tight UI - a pill, a chip, a table cell -
+   * needs. Every old value went to its nearest step, and a tie to the smaller
+   * one (14 to 12, 9 to 8), because a phone has no width to give: 14 to 16
+   * put the three-column drivers register past a 375px screen.
+   *
+   * Two values are not steps and stay literal: 0, and 1px - a hairline
+   * nudge beside a border, not a unit of rhythm. A negative step is
+   * calc(-1 * var(--space-n)). Anything else a new rule needs is a step here
+   * first, or a reason in a comment beside it.
+   */
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 6px;
+  --space-4: 8px;
+  --space-5: 10px;
+  --space-6: 12px;
+  --space-7: 16px;
+  --space-8: 24px;
+  --space-9: 40px;
+  --space-10: 64px;
+
+  /*
    * rhythm
    *
    * --measure is a line length, and `ch` is not a character: it is the
@@ -130,7 +225,7 @@
    * 71 and a longest 83.
    *
    * The token is in `ch` and not `px` because it is applied at five type
-   * sizes (16px ledes down to 12.5px source notes), and `ch` scales with
+   * sizes (--size-6 ledes down to --size-3 source notes), and `ch` scales with
    * them, holding the character count roughly constant where a px value
    * would not.
    */
