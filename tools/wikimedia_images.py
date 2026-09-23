@@ -25,9 +25,11 @@ redistributes nothing.
 
 The thumbnail's own address (VD-23)
 -----------------------------------
-`thumb_url` is the address the API gives for the file at the width asked
+`thumb_url` is the address the API gives when asked for THUMB_WIDTH
 (`thumburl`, with its tracking query dropped), so a page can ask for the
-pixels in one request. Built from the file name instead, through
+pixels in one request. It is not an 800 px file: Commons rounds the width up
+to the next one it serves, 960 px, and gives the original where the file is
+narrower than that. Built from the file name instead, through
 `Special:FilePath`, the same thumbnail took two redirects on 2026-09-23 - to
 `Special:Redirect`, then to the thumbnail server - before a byte of it
 arrived. Commons now serves only a fixed ladder of thumbnail widths, and
@@ -193,7 +195,8 @@ COLUMNS = ["article", "file_name", "repository", "licence", "licence_url",
            "artist", "credit", "description_url", "thumb_url", "width",
            "height", "name_matches"]
 
-# The width asked of the API for `thumb_url`, `width` and `height`. The
+# The width asked of the API for `thumb_url`, `width` and `height` - asked,
+# not served: the address it answers with is the 960px thumbnail. The
 # front end asks for no more than this from the stored address and builds a
 # Special:FilePath one for anything wider (THUMB_WIDTH in web/src/lib/commons.js,
 # which must agree).
@@ -307,19 +310,22 @@ def thumb_address(url):
 HEAD_DELAY = 0.2
 
 
-def check_thumbs(rows, log, key):
+def check_thumbs(rows, key):
     """Fetch every row's thumb_url once; empty the ones that do not answer.
 
     A HEAD request, so no pixels are downloaded. What passes is a 200 whose
-    content type is an image; a redirect is followed and then counted as a
-    failure, because an address that redirects is not the one-request
-    address this column exists to hold.
+    content type is an image. A redirect is not followed: it is recorded as
+    the status it answered with, because an address that redirects is not
+    the one-request address this column exists to hold.
+
+    Returns the NO THUMB lines rather than adding them to a refusal log: the
+    row is still accepted, and only its address falls back.
     """
     class NoRedirect(urllib.request.HTTPRedirectHandler):
         def redirect_request(self, *a, **k):
             return None
     opener = urllib.request.build_opener(NoRedirect)
-    bad = 0
+    log, bad = [], 0
     for n, r in enumerate(rows, 1):
         if n % 100 == 0:
             print(f"  thumbnails checked: {n}/{len(rows)}", flush=True)
@@ -359,6 +365,12 @@ def check_thumbs(rows, log, key):
             bad += 1
     print(f"  thumbnails: {len(rows) - bad} of {len(rows)} answer in one "
           f"request; the rest fall back to Special:FilePath", flush=True)
+    return log
+
+
+# Heads the NO THUMB lines in a .log, whose first line is about refusals.
+NO_THUMB_NOTE = ("# NO THUMB: accepted, but the thumbnail address did not "
+                 "answer; the page builds a Special:FilePath one instead.\n")
 
 
 def read_articles():
@@ -969,7 +981,7 @@ def main_category(args):
         else:
             log.append(f"{cid}\tREFUSED\t{', '.join(t for t, _f in plan[cid])}"
                        f" holds no photograph that is not a replica, a part or another chassis's")
-    check_thumbs(rows, log, "chassis_id")
+    thumb_log = check_thumbs(rows, "chassis_id")
 
     out = os.path.join(HARVEST, "category_images.txt")
     with open(out, "w", encoding="utf-8") as fh:
@@ -995,6 +1007,10 @@ def main_category(args):
         for r in rows:
             fh.write(f"{r['chassis_id']}\tACCEPTED\t{r['category']}\t"
                      f"{r['file_name']}\t{r['licence']}\n")
+        if thumb_log:
+            fh.write(NO_THUMB_NOTE)
+            for line in sorted(thumb_log):
+                fh.write(line + "\n")
 
     named = sum(r["name_matches"] for r in rows)
     print(f"\naccepted {len(rows)} of {len(chassis)} chassis")
@@ -1078,7 +1094,7 @@ def main():
                 break
         else:
             log.extend(line + " (body image)" for line in tried)
-    check_thumbs(rows, log, "article")
+    thumb_log = check_thumbs(rows, "article")
 
     out = os.path.join(HARVEST, "article_images.txt")
     with open(out, "w", encoding="utf-8") as fh:
@@ -1104,6 +1120,10 @@ def main():
             where = "body image" if r["article"] in via_body else "lead image"
             fh.write(f"{r['article']}\tACCEPTED\t{r['file_name']}\t"
                      f"{r['licence']}\t{where}\n")
+        if thumb_log:
+            fh.write(NO_THUMB_NOTE)
+            for line in sorted(thumb_log):
+                fh.write(line + "\n")
 
     named = sum(r["name_matches"] for r in rows)
     print(f"\naccepted {len(rows)} of {len(titles)} articles, "
@@ -1140,6 +1160,12 @@ def main_thumbs():
         missing = [c for c in columns if c not in cols and c != "thumb_url"]
         if missing:
             raise SystemExit(f"{name}: no column {', '.join(missing)}")
+        # Written back by this tool's own list, so a column it does not know
+        # would vanish. Refused instead: that file wants a full run.
+        unknown = [c for c in cols if c not in columns]
+        if unknown:
+            raise SystemExit(f"{name}: column {', '.join(unknown)} is not one "
+                             f"this tool writes; rerun the full harvest")
         rows = []
         for ln in lines:
             if not ln.strip() or ln.startswith("#"):
@@ -1155,9 +1181,7 @@ def main_thumbs():
         for r in rows:
             r["thumb_url"] = (info.get(title_key(r["file_name"])) or {}
                               ).get("thumb_url")
-        log = []
-        check_thumbs(rows, log, key)
-        for line in log:
+        for line in check_thumbs(rows, key):
             print("  " + line.replace("\t", "  "))
         with open(path, "w", encoding="utf-8") as fh:
             for ln in notes:

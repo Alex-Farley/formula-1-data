@@ -679,8 +679,10 @@ CREATE TABLE article_images (
     artist          TEXT,                      -- plain text; the API returns HTML
     credit          TEXT,
     description_url TEXT NOT NULL,             -- the Commons file page
-    -- The pixels' own address at 800 px, as the API gave it (VD-23): one
-    -- request where Special:FilePath takes three, two of them redirects.
+    -- The pixels' own address, as the API gave it when asked for 800 px
+    -- (VD-23): the 960px thumbnail, since Commons rounds up to the widths it
+    -- serves, or the original where that is narrower. One request where
+    -- Special:FilePath takes three, two of them redirects.
     -- NULL where the harvest could not fetch it; a page then builds the
     -- Special:FilePath address. verify.py checks it names this row's file
     -- in Commons' own path, on upload.wikimedia.org or thumb.wikimedia.org.

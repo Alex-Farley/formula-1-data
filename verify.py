@@ -3403,8 +3403,11 @@ def illustration_and_geometry():
         # files its pixels under the MD5 of the file's own name - /a/ab/Name
         # - so the address is checked against the row's file_name here,
         # which the harvest cannot have got right by accident. An original
-        # narrower than 800 px is served as itself (/a/ab/Name); a thumbnail
-        # carries the width after it (/thumb/a/ab/Name/960px-Name).
+        # narrower than the width asked is served as itself (/a/ab/Name); a
+        # thumbnail carries the width after it (/thumb/a/ab/Name/960px-Name),
+        # and a vector or TIFF original a rendered extension after that. The
+        # last segment is held to that shape too, so a thumb path whose tail
+        # names another file, or nothing, does not pass on the folder alone.
         import hashlib as _hashlib
         import urllib.parse as _up
         misaddressed, nthumb = [], 0
@@ -3418,11 +3421,14 @@ def illustration_and_geometry():
             path = _up.unquote(parts.path)
             shard = f"/wikipedia/commons/{md5[0]}/{md5[:2]}/{name}"
             thumb = f"/wikipedia/commons/thumb/{md5[0]}/{md5[:2]}/{name}/"
+            tail = re.compile(r"\d+px-" + re.escape(name)
+                              + r"(\.(png|jpg))?")
             ok = (parts.scheme == "https" and not parts.query
                   and parts.netloc in ("upload.wikimedia.org",
                                        "thumb.wikimedia.org")
                   and (path == shard or (path.startswith(thumb)
-                                         and "/" not in path[len(thumb):])))
+                                         and tail.fullmatch(
+                                             path[len(thumb):]))))
             if not ok:
                 misaddressed.append(f"{key}: {url}")
         check("every stored thumbnail address is its own row's file on "
