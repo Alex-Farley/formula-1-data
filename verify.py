@@ -2862,6 +2862,240 @@ def provenance_resolves():
     print("        table provenance: " +
           ", ".join(f"{r['authority']}={r['n']}" for r in auth))
 
+    # DA-03. The build now STORES what a row's source resolves to, so "which
+    # source, under what licence" is a join. The checks above read only the
+    # tables carrying `confidence`, which is how pit_stops' 22,506 rows sat
+    # unresolved behind a passing check: it has `source` and no `confidence`.
+    # These read every table carrying `source`, and hold the stored answer to
+    # this section's own copy of the rule.
+    sourced = []
+    for (t,) in con.execute("""SELECT name FROM sqlite_master WHERE type='table'
+                               AND name <> 'source_registry' ORDER BY name"""):
+        cols = [c[1] for c in con.execute(f'PRAGMA table_info("{t}")')]
+        if "source" in cols:
+            sourced.append((t, "source_id" in cols))
+    missing = [t for t, has in sourced if not has]
+    check("every table carrying `source` carries `source_id`", not missing,
+          ", ".join(missing))
+
+    # Rows a local loader added after the build have a source and no id,
+    # which is the same state F1_LOCAL_TIMING already downgrades: the copy
+    # is fine to hold and not the file to publish.
+    verdict = warn if LOCAL_TIMING else check
+    wrong, blank, spurious, total = [], [], [], 0
+    for t, has in sourced:
+        if not has:
+            continue
+        for r in con.execute(f"""SELECT source, source_id, COUNT(*) n FROM "{t}"
+                                 GROUP BY source, source_id"""):
+            text = (r["source"] or "").strip()
+            if not text:
+                if r["source_id"] is not None:
+                    spurious.append(f"{t}: {r['n']} row(s)")
+                continue
+            total += r["n"]
+            if r["source_id"] is None:
+                blank.append(f"{t}: {r['n']} row(s) cite {text}")
+            elif r["source_id"] != resolve(r["source"])[0]:
+                wrong.append(f"{t}: {text} stored as {r['source_id']}, "
+                             f"resolves to {resolve(r['source'])[0]}")
+    verdict("every row with a source has its source_id", not blank,
+            "; ".join(blank[:3]))
+    # This copy of the rule is the build's, restated, so what it catches is
+    # drift: a `source` written after store_source_ids ran, or the two copies
+    # diverging. The independent route to a row's terms is the host reading
+    # in REDISTRIBUTION, which is held to the stored id there.
+    check("every stored source_id is the entry its source resolves to",
+          not wrong, "; ".join(wrong[:3]))
+    check("no row without a source carries a source_id", not spurious,
+          "; ".join(spurious[:3]))
+    print(f"        source_id: {total:,} sourced rows across "
+          f"{sum(1 for _, has in sourced if has)} tables")
+
+    # The use the column was stored for. f1.db carries no OpenStreetMap data
+    # - the centrelines ship beside it as f1-geometry.db, under ODbL - and
+    # with source_id that is one query over every sourced table, not a
+    # property of circuit_geometry alone.
+    osm = [r[0] for r in con.execute(
+        "SELECT id FROM source_registry "
+        "WHERE ',' || domains || ',' LIKE '%,openstreetmap.org,%'")]
+    cite = []
+    for t, has in sourced:
+        if has and osm:
+            n = con.execute(
+                f'SELECT COUNT(*) FROM "{t}" WHERE source_id IN '
+                f'({",".join("?" * len(osm))})', osm).fetchone()[0]
+            if n:
+                cite.append(f"{t}: {n}")
+    check("no sourced row in f1.db cites OpenStreetMap", bool(osm) and not cite,
+          "; ".join(cite) if osm else "the registry names no OpenStreetMap entry")
+
+
+# ---------------------------------------------------------------------------
+# CLAIMS
+#
+# PM-14. `claims` holds, per column of a row, the value each source gave -
+# the one shape for what the encodings recorded several ways. Three things
+# make it worth trusting: every kind of claim is declared, every column it
+# backs is exactly its claims in both directions, and the source each claim
+# cites is held to the data module that says where the value came from, not
+# only to the build that copied it.
+# ---------------------------------------------------------------------------
+def claim_key_columns(table):
+    """The columns a claim's row_key joins, in key order, or None.
+
+    The primary key, unless it is a bare INTEGER id: those are the build's
+    business and may be renumbered (README, "which ids a reader may keep"),
+    and a claim keyed on one would silently re-point at another row.
+    """
+    info = con.execute(f'PRAGMA table_info("{table}")').fetchall()
+    pk = [r["name"] for r in sorted(info, key=lambda r: r["pk"]) if r["pk"]]
+    if not pk:
+        return None
+    if len(pk) == 1 and next(r for r in info if r["name"] == pk[0])["type"].upper() == "INTEGER":
+        return None
+    return pk
+
+
+@section('CLAIMS')
+def claims():
+    from data import current as _N
+    from data import drivers as _D
+    harvest = harvest_module()
+
+    # Which driver figures a source is NAMED for, from the modules that say
+    # so rather than from the build that copied them: the two fetched
+    # fastest-lap totals, formula1.com for the three figures its driver pages
+    # gave, and the correction that replaced a figure with another source's.
+    # Every other external figure was typed from reference records nobody
+    # named, and has no claim - that is the declaration, and PM-57 (#624) is
+    # the question it leaves open.
+    named = {}
+    for did, (_n, src) in harvest.EXTERNAL_FASTEST_LAPS.items():
+        named[(did, "fastest_laps_external")] = src
+    for did, figures in _D.VERIFIED_STATS.items():
+        _entries, _starts, wins, podiums, poles, _pts = figures
+        for f, v in (("wins", wins), ("poles", poles), ("podiums", podiums)):
+            if v is not None:
+                named[(did, f"{f}_external")] = "https://www.formula1.com/en/drivers"
+    for did, f, *_rest, src in harvest.CORRECTIONS:
+        if src is not None:
+            named[(did, f"{f}_external")] = src
+    unnamed = {}   # (tbl, field) -> row_keys whose value no source is named for
+
+    held = {(r[0], r[1]): r[2] for r in con.execute(
+        "SELECT tbl, field, COUNT(*) FROM claims GROUP BY tbl, field")}
+    undeclared = sorted(f"{t}.{f}" for t, f in held if (t, f) not in _N.CLAIM_FIELDS)
+    check("every claim is of a kind CLAIM_FIELDS declares", not undeclared,
+          ", ".join(undeclared))
+    empty = sorted(f"{t}.{f}" for t, f in _N.CLAIM_FIELDS if (t, f) not in held)
+    check("every kind CLAIM_FIELDS declares holds a claim", not empty,
+          ", ".join(empty))
+
+    # A claim names a column of a row. One that names no column, no row, or
+    # two rows is worse than none.
+    unkeyed, nocolumn, dangling = [], [], []
+    for t, f in sorted(_N.CLAIM_FIELDS):
+        exists = con.execute("SELECT 1 FROM sqlite_master WHERE type='table' "
+                             "AND name=?", (t,)).fetchone()
+        key = claim_key_columns(t) if exists else None
+        if key is None:
+            unkeyed.append(t)
+            continue
+        if f not in [c[1] for c in con.execute(f'PRAGMA table_info("{t}")')]:
+            nocolumn.append(f"{t}.{f}")
+            continue
+        expr = " || '|' || ".join(f'CAST(x."{c}" AS TEXT)' for c in key)
+        n = con.execute(f"""SELECT COUNT(*) FROM claims c WHERE c.tbl = ?
+            AND c.field = ?
+            AND (SELECT COUNT(*) FROM "{t}" x WHERE {expr} = c.row_key) <> 1""",
+            (t, f)).fetchone()[0]
+        if n:
+            dangling.append(f"{t}.{f}: {n}")
+            continue
+
+        # The column is exactly its claims: no row holds two, no claim
+        # disagrees with the value the row holds, and no value is held
+        # without one - bar a driver figure no source is named for, which is
+        # declared above and counted here. A NULL claim may stand for a NULL
+        # value - a source consulted that named nothing - and matches it by IS.
+        two = con.execute("""SELECT COUNT(*) FROM (SELECT 1 FROM claims
+            WHERE tbl = ? AND field = ? GROUP BY row_key HAVING COUNT(*) > 1)""",
+            (t, f)).fetchone()[0]
+        differ = con.execute(f"""SELECT COUNT(*) FROM claims c JOIN "{t}" x
+            ON {expr} = c.row_key WHERE c.tbl = ? AND c.field = ?
+            AND c.value_given IS NOT CAST(x."{f}" AS TEXT)""", (t, f)).fetchone()[0]
+        without = [r[0] for r in con.execute(f"""SELECT {expr} FROM "{t}" x
+            WHERE x."{f}" IS NOT NULL AND NOT EXISTS (SELECT 1 FROM claims c
+                WHERE c.tbl = ? AND c.field = ? AND c.row_key = {expr})""", (t, f))]
+        if t == "drivers":
+            unnamed[(t, f)] = [k for k in without if (k, f) not in named]
+            without = [k for k in without if (k, f) in named]
+        bare = len(without)
+        check(f"{t}.{f} is exactly its claims", not (two or differ or bare),
+              f"{two} rows with two, {differ} disagreeing, {bare} values with none")
+    check("every declared column's table has a key a claim can name",
+          not unkeyed, ", ".join(unkeyed))
+    check("every declared kind names a column of its table", not nocolumn,
+          ", ".join(nocolumn))
+    check("every claim's row_key names exactly one row", not dangling,
+          "; ".join(dangling))
+
+    # The driver claims are exactly the named figures, each citing the
+    # source its module names - and so none for a figure typed from records
+    # nobody named.
+    claimed = {(r["row_key"], r["field"]): r["source"] for r in con.execute(
+        "SELECT row_key, field, source FROM claims WHERE tbl = 'drivers'")}
+    stray = sorted(f"{k[0]}.{k[1]}" for k in set(claimed) ^ set(named)
+                   if claimed.get(k) != named.get(k))
+    stray += sorted(f"{k[0]}.{k[1]} cites {claimed[k]}" for k in set(claimed) & set(named)
+                    if claimed[k] != named[k])
+    check("every driver claim is a figure its data module names a source for, "
+          "citing that source", not stray, "; ".join(stray[:3]))
+    print(f"        drivers: {sum(len(v) for v in unnamed.values())} figures "
+          f"typed from reference records nobody named carry no claim (#624)")
+
+    wrong_source = con.execute("""SELECT COUNT(*) FROM claims cl
+        JOIN chassis c ON c.id = cl.row_key
+        WHERE cl.tbl = 'chassis' AND cl.source IS NOT c.spec_source""").fetchone()[0]
+    check("every chassis claim cites the article its figures came from",
+          wrong_source == 0, f"{wrong_source} do not")
+
+    # The car-season claims against the entry lists themselves, as f1.db holds
+    # them in season_entrants - the check that the claimed remainder is what
+    # F1DB named, not only that the columns agree with a list written in the
+    # same loop.
+    bad = []
+    rows = con.execute("""SELECT s.car_id, s.year, c.constructor_id,
+            cl.value_given, cl.row_key AS claimed
+        FROM car_seasons s JOIN cars c ON c.id = s.car_id
+        LEFT JOIN claims cl ON cl.tbl = 'car_seasons' AND cl.field = 'other_chassis'
+             AND cl.row_key = s.car_id || '|' || s.year""").fetchall()
+    for r in rows:
+        listed = set()
+        for (ids,) in con.execute("""SELECT chassis_ids FROM season_entrants
+                WHERE constructor_id = ? AND year = ?""", (r["constructor_id"], r["year"])):
+            listed.update(filter(None, (ids or "").split("+")))
+        covered = {c[0] for c in con.execute(
+            "SELECT id FROM chassis WHERE car_id = ?", (r["car_id"],))}
+        if r["claimed"] is None:
+            bad.append(f"{r['car_id']} {r['year']}: no claim")
+        elif r["value_given"] != ("+".join(sorted(listed - covered)) or None):
+            bad.append(f"{r['car_id']} {r['year']}")
+    uncorroborated = con.execute("""SELECT COUNT(*) FROM car_seasons
+        WHERE corroborated IS NOT (other_chassis IS NULL)""").fetchone()[0]
+    check("every car season has a claim, and its remainder is what "
+          "season_entrants names beyond the car",
+          bool(rows) and not bad, "; ".join(bad[:3]) or f"{len(rows)} seasons")
+    check("car_seasons.corroborated is 1 exactly where the remainder is empty",
+          uncorroborated == 0, f"{uncorroborated} disagree")
+
+    by_source = con.execute("""SELECT s.source, COUNT(*) n FROM claims c
+        JOIN source_registry s ON s.id = c.source_id
+        GROUP BY s.id ORDER BY n DESC""").fetchall()
+    print("        claims by source: " +
+          "; ".join(f"{r['source']} {r['n']}" for r in by_source))
+
 
 @section('THE FULL CLASSIFICATION')
 def the_full_classification():
@@ -3265,6 +3499,28 @@ def redistribution():
     # has decided, which is the state every problem this pass fixed began in.
     check("every cited source is one the registry classifies",
           not unknown, "; ".join(unknown[:4]))
+
+    # Two routes to a row's licence now exist - the host its citation names,
+    # read here, and the source_id the build stored by prefix and pattern
+    # (DA-03) - and a reader may take either. They must give the same terms,
+    # or which one was read would decide what a reader may do with the row.
+    terms_of = {r[0]: (r[1], r[2], r[3]) for r in con.execute(
+        "SELECT id, redistributable, share_alike, attribution_required "
+        "FROM source_registry")}
+    split = []
+    for (table,) in con.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' "
+            "AND name <> 'source_registry' ORDER BY name").fetchall():
+        columns = [c[1] for c in con.execute('PRAGMA table_info("%s")' % table)]
+        if "source" not in columns or "source_id" not in columns:
+            continue
+        for value, sid, n in con.execute(
+                'SELECT source, source_id, COUNT(*) FROM "%s" WHERE source_id '
+                "IS NOT NULL GROUP BY source, source_id" % table).fetchall():
+            if resolve(value) != terms_of.get(sid):
+                split.append(f"{table}: {n} row(s) cite {value}")
+    check("every stored source_id carries the licence its citation's host does",
+          not split, "; ".join(split[:4]))
     verdict("no row cites a source that may not be redistributed",
             not forbidden, "; ".join(forbidden[:4]))
 

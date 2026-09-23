@@ -183,6 +183,10 @@ def main():
         # Without these the registry names sources nothing can be traced to.
         "source_patterns": dump(con, "source_patterns", "id"),
         "table_provenance": dump(con, "table_provenance", "tbl"),
+        # What each source gave for one fact of one row (PM-14): the
+        # field-grain half of provenance, where the rows' own source_id is
+        # the row-grain half.
+        "claims": dump(con, "claims", "tbl, row_key, field, source_id"),
         "fia_regulation_issues_2026": {
             k.split("::", 1)[1]: v for k, v in meta.items() if k.startswith("fia_issue::")},
     }

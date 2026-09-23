@@ -8,6 +8,12 @@
 --   confidence  'verified' | 'high' | 'reference' | 'medium' | 'unverified'
 --               | 'catalogued'
 --   source      URL or citation where the fact was checked
+--   source_id   the source_registry entry `source` resolves to. Not written
+--               out below: the build's last stage adds it to every table
+--               carrying `source` and fills it by the resolution described
+--               at source_patterns, so the answer to "which source, under
+--               what licence" is a join rather than ten regular expressions
+--               (DA-03). A table given `source` gets it with no edit here.
 --
 --   verified   = checked this session against fia.com / formula1.com
 --   high       = well-established record, stable across decades of
@@ -125,6 +131,71 @@ CREATE TABLE table_provenance (
     -- at 'unverified' rather than taking its source's tier.
     unconstrained   INTEGER NOT NULL DEFAULT 0,
     note            TEXT
+);
+
+-- Which source gave the value in one column of one row (PM-14).
+--
+-- `source` is row-grain and sourcing is not. A driver's external career
+-- figures came from three places - figures typed into data/drivers.py,
+-- formula1.com's driver pages, Wikipedia articles - and one
+-- `external_source` string described them per row, so it dated four typed
+-- fastest-lap totals to a formula1.com fetch that never gave them, and
+-- credited formula1.com with Russell's 11 poles, which are Wikipedia's
+-- figure after formula1.com's 12 was corrected; the typed totals beside
+-- them had no source at all. A chassis is an F1DB row
+-- carrying three figures off a Wikipedia article, and its source_id can say
+-- only the first. Five places encoded "another source holds this value"
+-- five different ways; this is the one shape for it.
+--
+-- A claim is the value, as text, that `source` gave for column `field` of
+-- the row of `tbl` whose key is `row_key`. So the source of a single value
+-- - and so the terms it may be reused on - is a lookup, and agreement
+-- between sources is a comparison. The columns stay where they were, so
+-- nothing reading them changes; verify.py holds each one to be exactly its
+-- claims, in both directions, which makes it a view of them rather than a
+-- second record - bar the driver figures no source is named for, which
+-- have none and are counted. data/current.py CLAIM_FIELDS names every column
+-- a claim may back, and the build refuses any other.
+--
+--   drivers.*_external       one claim per figure a source is named for,
+--                            citing THAT source: formula1.com's dated fetch,
+--                            the two Wikipedia fastest-lap totals, the
+--                            Wikipedia figure a correction took. A correction
+--                            replaces the claim, and the old value stays in
+--                            `discrepancies`. A figure typed into the data
+--                            modules from reference records nobody named has
+--                            NO claim: no source is established for it, and
+--                            which one it should cite is PM-57 (#624).
+--   chassis.published_*      the article's figures, citing the article. As
+--                            the column is, the career of the article's
+--                            subject: for a family article, the family's.
+--   car_seasons.other_chassis
+--                            what F1DB's entry lists name for the car's
+--                            constructor that season beyond the chassis the
+--                            car covers. NULL: they name none, which is what
+--                            `corroborated` = 1 means.
+--
+-- Two of the five encodings docs/DERIVED-CONFIDENCE.md names are NOT here,
+-- on purpose. circuit_geometry's measured_km is OpenStreetMap's, and f1.db
+-- carries no OpenStreetMap data (ATTRIBUTION.md; that table is empty in this
+-- file). article_images.name_matches is a string test of a row's own file
+-- name against its own chassis, not a second source.
+--
+-- `row_key` is the row's primary key where that is not a bare integer id,
+-- its columns joined by '|' in key order: 'fangio', 'mclaren-m23|1976'.
+CREATE TABLE claims (
+    tbl             TEXT NOT NULL,
+    row_key         TEXT NOT NULL,
+    field           TEXT NOT NULL,
+    value_given     TEXT,              -- as the source gave it; NULL = it names none
+    as_of           TEXT,              -- when the source said it, where the build knows
+    source          TEXT NOT NULL,
+    -- Resolved by the build's last stage, like every other table's; declared
+    -- here so the constraint below can name it. Two URLs resolving to the
+    -- same entry would be one source counted twice.
+    source_id       INTEGER REFERENCES source_registry(id),
+    PRIMARY KEY (tbl, row_key, field, source),
+    UNIQUE (tbl, row_key, field, source_id)
 );
 
 -- ------------------------------------------------------------- people

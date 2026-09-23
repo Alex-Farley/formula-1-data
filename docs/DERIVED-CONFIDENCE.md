@@ -1,9 +1,9 @@
 # Deriving confidence, rather than declaring it
 
 A sketch, first written against v2.15. **Steps 1 and 2 of the order of work
-are now implemented in v2.16** — see *What shipped* at the end. The rest is
-still a sketch; `tools/confidence_rule.py` runs the whole rule read-only and
-reports what it would change.
+are now implemented in v2.16, and step 3 after v2.24** — see *What shipped*
+at the end. The rest is still a sketch; `tools/confidence_rule.py` runs the
+whole rule read-only and reports what it would change.
 
 ## The problem
 
@@ -347,16 +347,17 @@ declared by the check's author rather than inferred later.
 2. ~~**The `authored` authority**, and the honest re-rating~~ — **done in
    v2.16**, together with `table_provenance` for the fifteen tables that
    carry `confidence` and no `source`.
-3. **`claims`**, back-filled from the five existing encodings. No new data —
-   it moves what is already recorded into one shape, and it is what makes
-   corroboration a `GROUP BY` rather than a column somebody remembered.
+3. ~~**`claims`**, back-filled from the five existing encodings~~ — **done
+   after v2.24** (`PM-14`), with `source_id` on every sourced row (`DA-03`).
+   Three of the five encodings are back-filled; the other two are declared
+   out, with the reason — see *What shipped after v2.24* below.
 4. **`checks`**, with `kind` and `constrains`. The largest piece, and
    mechanical: each check declares whether it compares against an independent
    source, and which rows it actually covered.
 5. **Derivation in `build.py`**, `confidence_basis`, and the check that says
    no stored confidence differs from the derived one.
 
-Steps 3–5 are still ahead. Step 3 is worth doing whether or not 4 and 5 ever
+Steps 4–5 are still ahead. Step 3 was worth doing whether or not 4 and 5 ever
 happen: it retires five ad-hoc encodings of the same idea and makes
 corroboration expressible at all, which is the precondition for a new source
 adding *constraint* rather than only rows — and that, rather than breadth, is
@@ -399,3 +400,62 @@ remaining 3,343 differences are the backlog steps 3–5 exist to work through,
 and `tools/confidence_rule.py` prints them ranked. The largest is still
 `season_entrants`: 1,925 rows at `reference`, single-source, and the table
 that *constrains* `race_entries` while nothing constrains it.
+
+## What shipped after v2.24
+
+**`source_id`** on every table carrying `source` (`DA-03`). The build's last
+stage adds the column wherever `source` is — read from `sqlite_master`, not
+listed — and fills it by the resolution `source_patterns` describes, so which
+registry entry a row belongs to, and under what licence it may be
+redistributed, is a join rather than ten regular expressions SQLite cannot
+run. `verify.py` re-resolves every value by its own copy of the rule and
+compares, and holds the stored id to the licence the citation's host carries,
+so the two routes to a row's terms cannot give two answers. It found one gap
+on the way in: `pit_stops`' bare `f1db` token resolved to no entry, and the
+v2.16 check never saw it because it read only the tables carrying
+`confidence`. The token now has a pattern.
+
+**`claims`** (`PM-14`): which source gave the value in one column of one
+row, with the value as text. That is the sketch above, sharpened in one
+respect: `field` is always a column of its table, and never NULL. The row as
+a whole is what `source_id` now answers, and a column is what a licence has
+to be argued over. `as_of` is kept for the one source that dates its figures.
+
+|  | back-filled | how |
+|---|---|---|
+| `drivers.*_external` | yes, where a source is named | one claim per figure, citing where *that* figure came from; a figure typed from reference records nobody named has none |
+| `chassis.published_*` | yes | the article's figures, citing the article: an F1DB row carrying Wikipedia's numbers |
+| `car_seasons` | yes, as `other_chassis` | what F1DB's entry lists name beyond the car's chassis; NULL is the corroboration |
+| `circuit_geometry` | **no** | `measured_km` is OpenStreetMap's, and `f1.db` carries no OpenStreetMap data |
+| `article_images.name_matches` | **no** | a string test of a row's own file name, not a second source |
+
+The encodings stay where they were, so nothing reading them changes.
+`verify.py` holds each back-filled column to be exactly its claims in both
+directions, and holds the driver claims to exactly the figures the data
+modules name a source for, each citing that source. `CLAIM_FIELDS` in `data/current.py`
+declares every column a claim may back, and the build refuses any other.
+
+Two things the field grain showed straight away:
+
+- Four current drivers' fastest-lap totals were dated by `external_source`
+  to a formula1.com fetch that never gave them; they were typed in by hand,
+  and they carry no claim.
+- Russell's pole total is Wikipedia's 11, the figure that corrected
+  formula1.com's 12, and the row-grain column credited formula1.com with it.
+  The claim cites Wikipedia.
+
+Two things the claims deliberately do not say:
+
+- Where the hand-typed figures came from. Several hundred of them name no
+  source at all, so they have no claim, rather than one borrowed from their
+  row - a list of polesitters does not publish career wins. Which source
+  they should cite is a question for a person (`PM-57`, #624).
+- That a family article's total is one chassis's career. The register
+  cannot tell a family article from a single-chassis one, so the claim is
+  what the column always was: the article's figure for its subject.
+
+Still ahead on this step: the pole and fastest-lap credits on `race_entries`,
+which come from the Wikipedia season tables whatever the row's `source` says,
+are the next field-grain case, and retiring the `*_external` and
+`published_*` columns onto views over `claims` is a schema change for every
+reader of them. They are `PM-55` (#620) and `PM-56` (#621).

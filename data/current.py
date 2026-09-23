@@ -600,7 +600,38 @@ SOURCE_PATTERNS = [
     # Everything else on en.wikipedia is a topic or per-car article. Last, so
     # the three specific Wikipedia patterns above win first.
     (11, r"^https://en\.wikipedia\.org/wiki/", "per-car and per-topic articles"),
+    # The bare token pit_stops carries. It is part of that table's natural
+    # key, so it stays a token rather than becoming the URL. Until it had a
+    # pattern its 22,506 rows resolved to nothing and no check noticed: the
+    # check read only tables with a `confidence` column, and pit_stops has
+    # none (DA-03).
+    (10, r"^f1db$", "the bare token pit_stops carries"),
 ]
+
+# ------------------------------------------------------------------ claims
+#
+# PM-14. The columns `claims` backs: (tbl, column) -> what the column holds.
+# A claim's `field` is a column of its table, and its value is the value that
+# column holds as the claim's source gave it - so which source stands behind
+# one value in one column of one row is a lookup, where the row's source_id
+# answers only for the row as a whole.
+#
+# The build refuses a claim on a column not named here. verify.py requires
+# every column named here to be exactly its claims: one claim per row, the
+# same value, and no value without one - except a driver figure typed from
+# reference records nobody named, which has no source to claim and so no
+# claim (PM-57, #624). A new kind of claim is therefore a declaration, and a
+# column that stops being backed fails rather than thinning out.
+CLAIM_FIELDS = {
+    ("drivers", "wins_external"): "career wins as a source other than the race records gives them",
+    ("drivers", "poles_external"): "career poles, likewise",
+    ("drivers", "fastest_laps_external"): "career fastest laps, likewise",
+    ("drivers", "podiums_external"): "career podiums, likewise",
+    ("chassis", "published_races"): "the career the chassis's Wikipedia article publishes for its subject",
+    ("chassis", "published_wins"): "likewise, wins",
+    ("chassis", "published_poles"): "likewise, poles",
+    ("car_seasons", "other_chassis"): "chassis F1DB's entry lists name for the constructor that season beyond the ones the car covers",
+}
 
 # Provenance for the tables that carry `confidence` and no `source` column.
 # (tbl, source_id, unconstrained, note)

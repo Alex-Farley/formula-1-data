@@ -491,6 +491,13 @@ def _stage_03_drivers_admitted_from_the_f1db_register(b):
         wins_external = wins, poles_external = poles,
         fastest_laps_external = fastest_laps,
         external_source = 'hand-entered from reference records'""")
+    # These figures get NO claim (PM-14). A claim is the value a source gave,
+    # and the reference records they were typed from were never named: the
+    # row's own source is not established as theirs - a list of polesitters
+    # publishes no career wins - and entry 18 is for writing done here. So
+    # they stay what external_source says they are, and which source they
+    # should cite is a person's question (PM-57, #624). Every figure below
+    # that a source DID give is claimed where it arrives.
     # Fastest-lap totals for drivers whose hand-entered row carries none,
     # declared with their source so the derived figure has something to be
     # checked against. Fills a blank only.
@@ -502,6 +509,9 @@ def _stage_03_drivers_admitted_from_the_f1db_register(b):
             (fl_, src_, did_)).rowcount
         if n != 1:
             raise SystemExit(f"external fastest laps: {did_} not applied")
+        cur.execute("""INSERT INTO claims (tbl, row_key, field, value_given,
+            source) VALUES ('drivers', ?, 'fastest_laps_external', ?, ?)""",
+            (did_, str(fl_), src_))
 
 
 def _stage_04_constructors(b):
@@ -869,6 +879,20 @@ def _stage_10_the_chassis_engine_and_entrant_register(b):
              ("https://en.wikipedia.org/wiki/" +
               sp["article"].replace(" ", "_")) if sp.get("article") else None,
              HV.F1DB_SOURCE))
+
+    # The published figures as claims (PM-14), citing the article that gave
+    # them. The claim is what the column already is - the career the article
+    # publishes for its subject, which for a family article is the family's -
+    # and not that this chassis raced that often: the register cannot tell a
+    # family article from a single-chassis one (two spellings of one title;
+    # variants with no article of their own), so it does not try. What the
+    # claim adds is the column's source: an F1DB row carrying Wikipedia's
+    # figures, which the row's own source_id cannot say.
+    for field in ("races", "wins", "poles"):
+        cur.execute(f"""INSERT INTO claims (tbl, row_key, field, value_given,
+            source) SELECT 'chassis', id, 'published_{field}',
+                CAST(published_{field} AS TEXT), spec_source
+            FROM chassis WHERE published_{field} IS NOT NULL""")
 
     b.entrants = entrants
 
@@ -2598,6 +2622,20 @@ def _stage_29_career_figures_checked_against_the_official(b):
              "formula1.com driver page, " + D.STATS_AS_OF, did)).rowcount
         if n != 1:
             raise SystemExit(f"VERIFIED_STATS: no driver row for {did!r}")
+        # The claims follow the columns: the three figures this fetch gave
+        # are claimed, dated, replacing whatever backed the column before.
+        # The fastest-lap total, which it did not give, stays as it was -
+        # typed, and unclaimed - though external_source now names this fetch
+        # for the whole row. That one column is the case it cannot express.
+        for field, value in (("wins_external", wins), ("poles_external", poles),
+                             ("podiums_external", podiums)):
+            cur.execute("""DELETE FROM claims WHERE tbl = 'drivers'
+                AND row_key = ? AND field = ?""", (did, field))
+            if value is not None:
+                cur.execute("""INSERT INTO claims (tbl, row_key, field,
+                    value_given, as_of, source) VALUES ('drivers',?,?,?,?,?)""",
+                    (did, field, str(value), D.STATS_AS_OF,
+                     "https://www.formula1.com/en/drivers"))
 
 
 def _stage_30_derived_win_totals(b):
@@ -2634,11 +2672,28 @@ def _stage_30_derived_win_totals(b):
     # was hand-entered or externally checked in the *_external columns first,
     # then overwrite the main columns from the race data.
     # Corrections to external figures that were checked and found wrong.
-    for did, field, old, new, reason in HV.CORRECTIONS:
+    for did, field, old, new, reason, new_source in HV.CORRECTIONS:
         n = cur.execute(f"""UPDATE drivers SET {field}_external = ?
             WHERE id = ? AND {field}_external = ?""", (new, did, old)).rowcount
         if n != 1:
             raise SystemExit(f"correction did not apply: {did} {field} {old}->{new}")
+        # The claim moves with the column. A new source replaces the old one,
+        # and the old value is on the record in `discrepancies` below; no new
+        # source means the old one was mistyped and keeps its claim - or, for
+        # a hand-typed figure, keeps having none.
+        n = cur.execute("""UPDATE claims SET value_given = ?,
+                source = COALESCE(?, source),
+                as_of = CASE WHEN ? IS NULL THEN as_of END
+            WHERE tbl = 'drivers' AND row_key = ? AND field = ?
+              AND value_given = ?""",
+            (str(new), new_source, new_source, did, f"{field}_external",
+             str(old))).rowcount
+        if n == 0 and new_source is not None:
+            cur.execute("""INSERT INTO claims (tbl, row_key, field,
+                value_given, source) VALUES ('drivers',?,?,?,?)""",
+                (did, f"{field}_external", str(new), new_source))
+        elif n > 1:
+            raise SystemExit(f"correction: {n} claims back {did} {field} = {old}")
 
     cur.execute("""UPDATE drivers SET poles = (
             SELECT COUNT(*) FROM race_entries e
@@ -2690,7 +2745,7 @@ def _stage_30_derived_win_totals(b):
     # Record every stored-vs-derived difference, and assert that each one is
     # either explained by a known gap (the driver was still racing in a season
     # the harvest could not reach) or explicitly declared above.
-    for i, (did, field, old, new, reason) in enumerate(HV.CORRECTIONS, 1):
+    for i, (did, field, old, new, reason, _src) in enumerate(HV.CORRECTIONS, 1):
         cur.execute("""INSERT INTO discrepancies (subject, field, stored_value,
             derived_value, assessment, status)
             SELECT full_name, ?, ?, ?, ?, 'resolved - corrected'
@@ -2993,6 +3048,12 @@ def _stage_35_link_race_entries_to_the_curated(b):
         cur.execute("""INSERT INTO car_seasons (car_id, year, corroborated,
             other_chassis) VALUES (?,?,?,?)""",
             (cid, yr, 0 if others else 1, "+".join(others) or None))
+        # The remainder is F1DB's: the entry lists name those chassis for the
+        # constructor that season (PM-14). A NULL claim is the list naming
+        # none beyond the car's, which is what `corroborated` = 1 means.
+        cur.execute("""INSERT INTO claims (tbl, row_key, field, value_given,
+            source) VALUES ('car_seasons', ?, 'other_chassis', ?, ?)""",
+            (f"{cid}|{yr}", "+".join(others) or None, HV.F1DB_SOURCE))
         if others:
             uncorroborated.append((cid, yr, others))
             continue
@@ -3174,6 +3235,20 @@ def _stage_35_link_race_entries_to_the_curated(b):
         print(f"  {what}: {len(rounds)} round(s) not yet on the calendar: "
               + ", ".join(f"{y} r{r}" for y, r in sorted(rounds)))
 
+    resolved = store_source_ids(con)
+    print(f"  source_id: {resolved} rows across the tables carrying `source` "
+          f"resolved to a registry entry")
+    undeclared = [f"{t}.{f}" for t, f in cur.execute(
+        "SELECT DISTINCT tbl, field FROM claims ORDER BY 1, 2")
+        if (t, f) not in N.CLAIM_FIELDS]
+    if undeclared:
+        raise SystemExit(
+            "claims holds " + ", ".join(undeclared) + ", which CLAIM_FIELDS in "
+            "data/current.py does not declare. Name the column it backs.")
+    print("  claims: " + ", ".join(
+        f"{t} {n}" for t, n in cur.execute(
+            "SELECT tbl, COUNT(*) FROM claims GROUP BY tbl ORDER BY tbl")))
+
     # ------------------------------------------- the authored ceiling
     #
     # The first instalment of the rule in docs/DERIVED-CONFIDENCE.md, and the
@@ -3218,6 +3293,67 @@ def _stage_35_link_race_entries_to_the_curated(b):
     con.execute("VACUUM")
     con.commit()
     return con
+
+
+def store_source_ids(con):
+    """Give every table carrying `source` a `source_id`, and fill it (DA-03).
+
+    Until this, which registry entry a row belonged to - and so under what
+    licence it may be redistributed - was answerable only in Python: a
+    longest-prefix match on source_registry.url and then the regular
+    expressions in source_patterns, which SQLite cannot evaluate. Storing the
+    answer makes it a join.
+
+    The tables are read from sqlite_master rather than listed, so a table
+    that gains `source` gains this with it. source_registry is left out: its
+    `source` is a source's name, not a citation. A value that resolves to
+    nothing stops the build, because a row whose source nobody has assessed
+    is a row whose licence nobody knows. verify.py re-resolves every value by
+    its own copy of the rule and compares.
+    """
+    registry = con.execute(
+        "SELECT id, url FROM source_registry WHERE url IS NOT NULL "
+        "AND url <> ''").fetchall()
+    patterns = [(re.compile(p), sid) for sid, p in con.execute(
+        "SELECT source_id, pattern FROM source_patterns ORDER BY id")]
+
+    def resolve(text):
+        best = None
+        for sid, url in registry:
+            if text.startswith(url.rstrip("/")) and (
+                    best is None or len(url) > len(best[1])):
+                best = (sid, url)
+        if best:
+            return best[0]
+        return next((sid for rx, sid in patterns if rx.match(text)), None)
+
+    tables = [r[0] for r in con.execute(
+        "SELECT name FROM sqlite_master WHERE type = 'table' "
+        "AND name <> 'source_registry' ORDER BY name")]
+    written, unresolved = 0, []
+    for table in tables:
+        columns = [c[1] for c in con.execute(f'PRAGMA table_info("{table}")')]
+        if "source" not in columns:
+            continue
+        if "source_id" not in columns:
+            con.execute(f'ALTER TABLE "{table}" ADD COLUMN source_id '
+                        f'INTEGER REFERENCES source_registry(id)')
+        for (text,) in con.execute(
+                f'SELECT DISTINCT source FROM "{table}" WHERE source IS NOT NULL '
+                f"AND TRIM(source) <> ''").fetchall():
+            sid = resolve(text)
+            if sid is None:
+                unresolved.append(f"{table}: {text}")
+                continue
+            written += con.execute(
+                f'UPDATE "{table}" SET source_id = ? WHERE source = ?',
+                (sid, text)).rowcount
+    if unresolved:
+        raise SystemExit(
+            f"{len(unresolved)} source value(s) resolve to no registry entry, "
+            f"e.g. {'; '.join(unresolved[:3])}. Add a pattern to "
+            f"SOURCE_PATTERNS in data/current.py, or correct the citation.")
+    return written
 
 
 GEOMETRY_DB = os.path.join(HERE, "f1-geometry.db")

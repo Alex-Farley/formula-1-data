@@ -41,7 +41,8 @@ Every row carries a `confidence` value and most carry a `source` URL. The
 
 Since v2.16 the provenance is traceable rather than only described here.
 `source_patterns` resolves a row's `source` to a registry entry — the build
-fails if one does not resolve — and `table_provenance` gives a source to the
+fails if one does not resolve, and stores the answer as the row's `source_id`
+— and `table_provenance` gives a source to the
 fifteen tables that carry `confidence` and no `source` column of their own.
 So the table above is now checkable against the database rather than a claim
 about it. See `docs/DERIVED-CONFIDENCE.md`.
