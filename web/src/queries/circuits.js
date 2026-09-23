@@ -102,13 +102,14 @@ export const NO_SHAPES = 'No outline among these circuits.'
 export const CIRCUIT_COLUMNS = [
   { key: 'name', rowHeader: true, label: 'Circuit' },
   { key: 'locality', label: 'Locality' },
-  { key: 'country', label: 'Country' },
+  { key: 'country', label: 'Country', phone: true },
   { key: 'circuit_type', label: 'Type' },
-  { key: 'races', label: 'Races', align: 'num' },
+  { key: 'races', label: 'Races', align: 'num', phone: true },
   { key: 'first_gp', label: 'Grands Prix', align: 'num', text: (_, row) => span(row.first_gp, row.last_gp) },
   { key: 'layouts', label: 'Layouts', align: 'num' },
   { key: 'length_km', label: 'Length (km)', align: 'num' },
   { key: 'turns', label: 'Turns', align: 'num' },
+  { key: 'direction', label: 'Direction', optional: true },
   { key: 'traced', label: 'Traced', align: 'num', text: traced },
 ]
 

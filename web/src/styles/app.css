@@ -1050,6 +1050,106 @@ tbody th.strong {
   color: var(--ink-faint);
 }
 
+/*
+ * The phone default (IA-23, IX-27).
+ *
+ * Both renderers mark the columns a register's phone set leaves out with
+ * `.wide-only` (lib/table.js), and this is the one rule that acts on it, at
+ * the width lib/table.js's PHONE names - the two numbers are the same number.
+ * A reader who has chosen columns gets no marks at all, so nothing here can
+ * hide a column somebody asked for.
+ */
+@media (max-width: 560px) {
+  .table-wrap .wide-only {
+    display: none;
+  }
+}
+
+/*
+ * The Columns control above a register (IA-23): a disclosure, drawn as the
+ * footer's buttons are, whose list opens over the top of the table rather
+ * than pushing it down a screen.
+ */
+.columns {
+  position: relative;
+  margin: 6px 0 8px;
+  font-size: 13px;
+  text-align: right;
+}
+
+.columns > summary {
+  display: inline-block;
+  list-style: none;
+  cursor: pointer;
+  border: 1px solid var(--rule-strong);
+  background: var(--panel);
+  color: var(--ink-soft);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+}
+
+.columns > summary::-webkit-details-marker {
+  display: none;
+}
+
+.columns > summary:hover,
+.columns[open] > summary {
+  border-color: var(--ink-faint);
+  color: var(--ink);
+}
+
+.columns-count,
+.columns-note {
+  color: var(--ink-faint);
+}
+
+.columns > fieldset {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 5;
+  margin: 4px 0 0;
+  min-width: 15rem;
+  max-width: calc(100vw - 32px);
+  padding: 8px 12px 10px;
+  display: grid;
+  gap: 2px;
+  text-align: left;
+  background: var(--panel);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+}
+
+.columns label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 28px;
+  cursor: pointer;
+}
+
+.columns label.is-fixed {
+  cursor: default;
+}
+
+.columns-reset {
+  justify-self: start;
+  margin-top: 6px;
+  font: inherit;
+  border: 1px solid var(--rule-strong);
+  background: var(--panel);
+  color: var(--ink-soft);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.columns-reset:hover {
+  border-color: var(--ink-faint);
+  color: var(--ink);
+}
+
 .table-foot {
   padding: 9px 14px;
   border-top: 1px solid var(--rule);

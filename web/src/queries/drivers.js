@@ -16,6 +16,10 @@
  * DataTable prints it wherever the page does not wrap the cell in a link.
  * The React `render` and `sort` stay on the page: they need the router and
  * the sort state, and a Node script has neither.
+ *
+ * `phone: true` marks the columns a register opens on at phone width, and
+ * `optional: true` one it holds for a reader to ask for and does not open
+ * on; lib/table.js says what both renderers do with them (IA-23).
  */
 import { span } from '../lib/format.js'
 import { CURRENT_SEASON_SQL } from '../lib/season.js'
@@ -70,9 +74,9 @@ export const DRIVER_COLUMNS = [
     text: (_, row) => span(row.first_season, row.last_season),
   },
   { key: 'entries', label: 'Entries', align: 'num' },
-  { key: 'wins', label: 'Wins', align: 'num' },
+  { key: 'wins', label: 'Wins', align: 'num', phone: true },
   { key: 'podiums', label: 'Podiums', align: 'num' },
   { key: 'poles', label: 'Poles', align: 'num' },
   { key: 'fastest_laps', label: 'Fastest laps', align: 'num' },
-  { key: 'titles', label: 'Titles', align: 'num' },
+  { key: 'titles', label: 'Titles', align: 'num', phone: true },
 ]

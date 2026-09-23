@@ -18,7 +18,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
-import { MIN_ROWS, cellText, shared, sharedLine } from '../src/lib/table.js'
+import { MIN_ROWS, cellText, chosenColumns, defaultColumns, onPhone, shared, sharedLine } from '../src/lib/table.js'
 import { captureStaticTables, staticRows } from '../src/lib/handover.js'
 
 import {
@@ -81,10 +81,10 @@ import {
   titlePermutations,
 } from '../src/queries/season.js'
 import { SEASONS_COLUMNS, soFar } from '../src/queries/seasons.js'
-import { raceWinner } from '../src/queries/races.js'
-import { entered } from '../src/queries/constructors.js'
-import { traced } from '../src/queries/circuits.js'
-import { chassisName } from '../src/queries/cars.js'
+import { RACE_COLUMNS as RACES_COLUMNS, raceWinner } from '../src/queries/races.js'
+import { CONSTRUCTOR_COLUMNS, entered } from '../src/queries/constructors.js'
+import { CIRCUIT_COLUMNS, traced } from '../src/queries/circuits.js'
+import { CHASSIS_COLUMNS, chassisName } from '../src/queries/cars.js'
 import { PIT_COLUMNS, driverName, fastestLapMark, inClassificationOrder, outcome, position, raceLede, raceSentence, railOf, scheduledNote } from '../src/queries/race.js'
 import { RACE_COLUMNS, raceWinnerHere } from '../src/queries/circuit.js'
 import { SEASON_COLUMNS as TEAM_SEASON_COLUMNS } from '../src/queries/constructor.js'
@@ -1515,6 +1515,69 @@ describe('a column every row agrees on (VD-29)', () => {
     )
   })
 })
+
+// ------------------------------------------------- the columns a register shows
+
+describe('the columns a register shows (IA-23)', () => {
+  const columns = [
+    { key: 'name', rowHeader: true, label: 'Driver' },
+    { key: 'nation', label: 'Nationality' },
+    { key: 'wins', label: 'Wins', phone: true },
+    { key: 'points', label: 'Points', optional: true },
+    { key: 'titles', label: 'Titles', phone: true },
+  ]
+  const keys = (list) => list?.map((c) => c.key) ?? null
+
+  it('opens on every column but the optional ones', () => {
+    assert.deepEqual(keys(defaultColumns(columns)), ['name', 'nation', 'wins', 'titles'])
+  })
+
+  // The phone set is a mark on the default, not a second list; the row
+  // header is in it without saying so, and a list that declares no phone
+  // column has nothing to leave out.
+  it('keeps the row header in the phone set, and marks nothing on a list that declares none', () => {
+    assert.deepEqual(keys(columns.filter((c) => onPhone(c, columns))), ['name', 'wins', 'titles'])
+    const plain = [{ key: 'a', rowHeader: true }, { key: 'b' }, { key: 'c' }]
+    assert.deepEqual(keys(plain.filter((c) => onPhone(c, plain))), ['a', 'b', 'c'])
+  })
+
+  // `?cols=` is typed as often as it is clicked. The list's order, not the
+  // parameter's; the row header whether asked for or not; a key the list
+  // does not have dropped; and a parameter naming nothing it has is the
+  // default rather than an empty table.
+  it('reads ?cols= against the list, never past it', () => {
+    assert.deepEqual(keys(chosenColumns(columns, 'titles,points')), ['name', 'points', 'titles'])
+    assert.deepEqual(keys(chosenColumns(columns, 'wins,not-a-column')), ['name', 'wins'])
+    assert.deepEqual(keys(chosenColumns(columns, 'titles wins')), ['name', 'wins', 'titles'])
+    assert.equal(chosenColumns(columns, 'not-a-column'), null)
+    assert.equal(chosenColumns(columns, ''), null)
+    assert.equal(chosenColumns(columns, null), null)
+  })
+
+  // IX-27 asked for three at phone width, and the static page opens on the
+  // phone set before a line of script has run, so each register's set holds
+  // the column it opens sorted on as well: otherwise the app would redraw the
+  // table the moment it took over, to show the column its arrow is on.
+  it('gives each register a phone default of three, holding its opening sort', () => {
+    const registers = [
+      ['drivers', DRIVER_COLUMNS, 'wins'],
+      ['constructors', CONSTRUCTOR_COLUMNS, 'entries'],
+      ['circuits', CIRCUIT_COLUMNS, 'races'],
+      ['chassis', CHASSIS_COLUMNS, 'first_year'],
+      ['races', RACES_COLUMNS, null],
+    ]
+    for (const [name, list, opening] of registers) {
+      const phone = defaultColumns(list).filter((c) => onPhone(c, list))
+      assert.equal(phone.length, 3, `${name}: ${keys(phone).join(', ')}`)
+      if (opening) assert.ok(keys(phone).includes(opening), `${name} opens sorted on ${opening}`)
+      // An optional column is never in the phone set: the phone set is a
+      // part of the default, and an optional column is not in the default.
+      assert.ok(!list.some((c) => c.optional === true && c.phone === true), `${name}: optional and phone`)
+      assert.ok(!list.some((c) => c.optional === true && c.rowHeader === true), `${name}: an optional row header`)
+    }
+  })
+})
+
 describe('a register in the address bar', () => {
   const DEFAULTS = { q: '', kind: '', traced: false, decade: '2020' }
   const params = (query) => new URLSearchParams(query)

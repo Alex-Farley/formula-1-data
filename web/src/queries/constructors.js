@@ -49,10 +49,11 @@ export const entered = (_, row) => span(row.first_entry, row.active ? null : row
 export const CONSTRUCTOR_COLUMNS = [
   { key: 'name', rowHeader: true, label: 'Constructor' },
   { key: 'country', label: 'Country' },
+  { key: 'base', label: 'Base', optional: true },
   { key: 'first_entry', label: 'Entered', align: 'num', text: entered },
-  { key: 'entries', label: 'Race entries', align: 'num' },
+  { key: 'entries', label: 'Race entries', align: 'num', phone: true },
   { key: 'designs', label: 'Designs', align: 'num' },
-  { key: 'wins', label: 'Wins', align: 'num' },
+  { key: 'wins', label: 'Wins', align: 'num', phone: true },
   { key: 'poles', label: 'Poles', align: 'num' },
   { key: 'constructors_titles', label: "Constructors' titles", align: 'num' },
   { key: 'drivers_titles', label: "Drivers' titles", align: 'num' },

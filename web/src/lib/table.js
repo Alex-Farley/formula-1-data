@@ -84,3 +84,60 @@ export const sharedLine = (entries, count) =>
   `The same on all ${count.toLocaleString('en-GB')} rows: ${entries
     .map(({ column, value }) => `${column.label ?? humanise(column.key)} — ${value === EMPTY ? 'not established' : value}`)
     .join('; ')}.`
+
+/**
+ * Which columns a register shows (IA-23).
+ *
+ * A register's column list, in web/src/queries/*, is its FULL set. Two
+ * smaller sets are declared on the columns themselves, so both renderers read
+ * them from one place, as they read `collapse`:
+ *
+ *   `optional: true`  is in the full set and not the default. Neither renderer
+ *                     draws it until a reader asks for it, so the static page
+ *                     prints the default and the app opens on the same one.
+ *   `phone: true`     is in the phone default, the three columns a register
+ *                     opens on at `PHONE` width (IX-27, folded into IA-23). A
+ *                     row header is always in it - it is the cell that says
+ *                     which row this is, at any width - and a list that
+ *                     declares no `phone` column has no phone set at all.
+ *
+ * The phone default is not a second column list: both renderers draw the
+ * default and mark every column the phone set leaves out with `WIDE_ONLY`,
+ * which app.css hides at the same width. So the static page and the app draw
+ * one table, which is what smoke.mjs compares, and a phone that has not run a
+ * line of script still opens on three columns rather than one and a fade.
+ *
+ * What a reader chooses is `?cols=`, the keys in the order the list declares
+ * them (DataTable's AddressedTable), and a choice replaces both defaults at
+ * every width: it is the table they asked for, and the one they can send.
+ */
+
+/** The width the phone default applies below. app.css says the same number. */
+export const PHONE = '(max-width: 560px)'
+
+/** The class on a column the phone default leaves out. */
+export const WIDE_ONLY = 'wide-only'
+
+/** The columns a table opens on where nobody has chosen. */
+export const defaultColumns = (columns) => columns.filter((column) => column.optional !== true)
+
+/** Is this column in the phone default of the list it belongs to? */
+export const onPhone = (column, columns) =>
+  column.rowHeader === true || column.phone === true || !columns.some((c) => c.phone === true)
+
+/**
+ * The keys `?cols=` names, as the list's own columns in the list's own order,
+ * or null where it names none this list has - a parameter the data does not
+ * vouch for falls back, as a filter's does (`oneOf` in lib/urlstate.js). The
+ * row headers are always in: a table whose rows nobody can tell apart is not
+ * a choice this control offers.
+ */
+export function chosenColumns(columns, param) {
+  if (!param) return null
+  // Written with spaces (`+` in the address); a comma is read too, since
+  // that is what a reader typing a list by hand reaches for.
+  const asked = new Set(String(param).split(/[\s,]+/))
+  const known = columns.filter((column) => column.ariaHidden !== true && asked.has(column.key))
+  if (known.length === 0) return null
+  return columns.filter((column) => column.rowHeader === true || known.includes(column))
+}

@@ -53,7 +53,7 @@ import { fileURLToPath } from 'node:url'
 // app's own cell text — text() in lib/format.js — for the tables below
 // that are drawn from a page's column list.
 import { finished, missing, number, result, span, text as formatted, yearList } from '../src/lib/format.js'
-import { shared, sharedLine } from '../src/lib/table.js'
+import { WIDE_ONLY, defaultColumns, onPhone, shared, sharedLine } from '../src/lib/table.js'
 // The ONE attribution rule (web/src/lib/commons.js), not a second copy of it.
 // This script cannot import CommonsImage - that is a React component and this
 // file emits HTML - but the question it answers, "who is credited and may this
@@ -540,7 +540,12 @@ const table = (headers, rows, options = {}) => {
 // A column with a React-only `render` and no `text` falls back to the
 // formatted raw value here; a render that changes the text must come with a
 // matching `text`, or the two renderers part.
-const fromColumns = (columns, rows, links = {}) => {
+const fromColumns = (declared, rows, links = {}) => {
+  // The default set, never the full one: a column declared `optional` waits
+  // for a reader to ask for it, in the app, through `?cols=` (IA-23). The
+  // phone default is the same table with the columns it leaves out marked
+  // WIDE_ONLY, which app.css hides at the width lib/table.js names.
+  const columns = defaultColumns(declared)
   // The columns every row agreed on are said once above the table and dropped
   // from it (VD-29). The candidates are declared on the column, in the same
   // queries module this half and the app both read, so the two cannot lose
@@ -574,7 +579,9 @@ const fromColumns = (columns, rows, links = {}) => {
         }),
       ),
       {
-        aligns: kept.map((c) => [c.align, c.cellClass].filter(Boolean).join(' ')),
+        aligns: kept.map((c) =>
+          [c.align, c.cellClass, onPhone(c, declared) ? null : WIDE_ONLY].filter(Boolean).join(' '),
+        ),
         hidden: kept.map((c) => c.ariaHidden === true),
         rowHeaders: kept.map((c) => c.rowHeader === true),
       },
