@@ -78,6 +78,11 @@ export const NAMES = {
   data: () => named('Data'),
   quality: () => named('Data quality'),
   sql: () => named('SQL console'),
+  // One page at /compare in the static half; the pair, once chosen, is the
+  // app's alone - a query string never reaches a static file - and names
+  // itself after both drivers, in the order the address gives them.
+  compare: () => named('Compare two drivers'),
+  comparison: (a, b) => named(`${a} and ${b}`),
   about: () => named('About'),
   notFound: () => named('No such page'),
 }

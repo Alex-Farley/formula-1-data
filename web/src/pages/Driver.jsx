@@ -26,6 +26,8 @@ import {
   SEASON_TEAMS,
   CAREER_HEADING,
   STANDINGS,
+  TEAM_MATES,
+  TEAM_MATE_COLUMNS,
   THIS_SEASON,
   THIS_SEASON_COLUMNS,
   lede,
@@ -40,7 +42,10 @@ import {
   thisSeasonFooter,
   thisSeasonHeading,
   thisSeasonNote,
+  teamMateCount,
+  teamMatesFooter,
 } from '../queries/driver.js'
+import { comparePath, compareWith } from '../queries/compare.js'
 
 import { ONWARD, TRAIL, lastTeamOf } from '../lib/wayfinding.js'
 import SearchKey from '../components/SearchKey.jsx'
@@ -103,6 +108,26 @@ const ENTRY_APP = {
     },
   },
 }
+
+/**
+ * What the app adds to the Team-mates table (PD-43): the links, the entry
+ * table's livery mark beside the constructor - the rows carry the same three
+ * keys it reads - and, for each head-to-head column, a sort on the margin
+ * rather than on the first figure, so "14–2" sorts above "15–9". A row whose
+ * qualifying is not established sorts last, as its em dash says.
+ */
+const margin = (ahead, behind) => (row) => row[ahead] - row[behind]
+const TEAM_MATE_APP = {
+  year: ENTRY_APP.year,
+  mate: { render: (name, row) => <Link to={`/drivers/${row.mate_id}`}>{name}</Link> },
+  constructor: ENTRY_APP.constructor,
+  qualified_ahead: {
+    sort: (row) => (row.both_qualified ? margin('qualified_ahead', 'qualified_behind')(row) : null),
+  },
+  finished_ahead: { sort: margin('finished_ahead', 'finished_behind') },
+  points: { sort: margin('points', 'mate_points') },
+}
+const teamMateColumns = TEAM_MATE_COLUMNS.map((column) => ({ ...column, ...TEAM_MATE_APP[column.key] }))
 
 /**
  * The season being run, a dot per round (PD-49): where the driver finished,
@@ -198,6 +223,7 @@ export default function Driver() {
     seasonTeams: [SEASON_TEAMS, [id]],
     disagreements: [DRIVER_DISAGREEMENTS, [id]],
     thisSeason: [THIS_SEASON, [id]],
+    teamMates: [TEAM_MATES, [id, null]],
     sources: [DRIVER_SOURCES, [id]],
   })
 
@@ -284,7 +310,7 @@ function DriverBody({ driver, data }) {
   const finishesMixed = finishesInColour && !plotted.every((s) => s.colour)
   const differ = pointsDiffer(driver, derived)
   const thisSeason = rows(data, 'thisSeason')
-
+  const teamMates = rows(data, 'teamMates')
 
   return (
     <Page
@@ -390,6 +416,28 @@ function DriverBody({ driver, data }) {
           footer={SEASONS_FOOTER}
         />
       </Section>
+
+      {/* A career with no team-mate on the record - 132 of the 862 - has
+          no section, as it has no rows (PD-43). */}
+      {teamMates.length > 0 && (
+        <Section title="Team-mates" count={teamMateCount(teamMates)}>
+          <DataTable
+            rows={teamMates}
+            rowKey={(row) => `${row.year}-${row.constructor_id}-${row.mate_id}`}
+            sortable
+            sort="year"
+            direction="desc"
+            page={100}
+            columns={teamMateColumns}
+            footer={teamMatesFooter(driver.full_name)}
+          />
+          {/* A plain paragraph: .source-note is the page's sentence about
+              its sources, and the first of them is ENTRIES_NOTE's. */}
+          <p>
+            <Link to={comparePath(driver.id)}>{compareWith(driver.full_name)}</Link>
+          </p>
+        </Section>
+      )}
 
       <Section title="Every entry" count={`${results.length} races`}>
         <DataTable

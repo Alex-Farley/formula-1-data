@@ -60,7 +60,14 @@ function useDocumentName(documentName, headline) {
   }, [pathname])
 }
 
-export function Page({ eyebrow, title, documentName, lede, trail, aside, children, cite = true, sources }) {
+/**
+ * `citedSearch` is for the one page whose query string IS the page: /compare,
+ * where `?a=senna&b=prost` decides the h1, the title and every figure, and
+ * the address without it is an empty pair of pickers. Everywhere else the
+ * query string is a way of reading the page and stays out of the citation
+ * (see Cite).
+ */
+export function Page({ eyebrow, title, documentName, lede, trail, aside, children, cite = true, citedSearch = '', sources }) {
   useDocumentName(documentName, title)
   const heading = useFocusOnNavigation()
   return (
@@ -75,7 +82,7 @@ export function Page({ eyebrow, title, documentName, lede, trail, aside, childre
         {aside}
       </header>
       <PageTitle.Provider value={typeof title === 'string' ? title : null}>{children}</PageTitle.Provider>
-      {cite && <Cite sources={sources} />}
+      {cite && <Cite sources={sources} search={citedSearch} />}
     </article>
   )
 }
@@ -351,7 +358,7 @@ export function Stepper({ previous, next }) {
  * with the date the reader is looking at it left to the reader: the build
  * date is the date that matters, because the figures are a function of it.
  */
-export function Cite({ sources }) {
+export function Cite({ sources, search = '' }) {
   const manifest = currentProgress().manifest
   // No digest, no citation. The aside exists to say which file the figures
   // came from, and a version and a build date alone do not answer that
@@ -366,7 +373,9 @@ export function Cite({ sources }) {
   // a reader can be sent to and an index can hold, which is the canonical in
   // the head and the address the static half was prerendered at; the filtered
   // view is a way of reading that page, and there are thousands of them.
-  const url = `${window.location.origin}${window.location.pathname}`
+  // The exception is a page that hands its own `search` in (Page's
+  // citedSearch), whose query string is what the page is.
+  const url = `${window.location.origin}${window.location.pathname}${search}`
   const text = citation(manifest.version, manifest.built, manifest.digest, url)
   const [before, after] = text.split(url)
   // The sources behind the rows, where the page passes them (CD-08): a

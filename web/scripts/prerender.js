@@ -382,6 +382,8 @@ import {
   SEASONS_FOOTER,
   CAREER_HEADING,
   STANDINGS,
+  TEAM_MATES,
+  TEAM_MATE_COLUMNS,
   THIS_SEASON,
   THIS_SEASON_COLUMNS,
   careerSentence,
@@ -396,7 +398,15 @@ import {
   thisSeasonFooter,
   thisSeasonHeading,
   thisSeasonNote,
+  teamMatesFooter,
 } from '../src/queries/driver.js'
+import {
+  COMPARE_DESCRIPTION,
+  COMPARE_LEDE,
+  COMPARE_NOSCRIPT,
+  comparePath,
+  compareWith,
+} from '../src/queries/compare.js'
 import {
   DRIVER_WINS,
   RECORDS,
@@ -2223,6 +2233,7 @@ const page = ({
   const constructorsOf = db.prepare(DRIVER_CONSTRUCTORS)
   const resultsOf = db.prepare(DRIVER_RESULTS)
   const thisSeasonOf = db.prepare(THIS_SEASON)
+  const teamMatesOf = db.prepare(TEAM_MATES)
 
   for (const { id } of register) {
     const d = one(DRIVER, id)
@@ -2256,6 +2267,10 @@ const page = ({
         ${footer ? `<p class="source-note">${esc(footer)}</p>` : ''}`
     })()
     const wins = winsOf.all(id)
+    // Driver.jsx's Team-mates table (PD-43): the same query with no second
+    // driver, the same columns, the same footer, and no section where the
+    // career had no team-mate.
+    const teamMates = teamMatesOf.all(id, null)
     const constructors = constructorsOf.all(id).map((c) => c.name)
     const career = careerSentence(derived, constructors, d.titles)
     // The lede follows the derived sentence where there is room for a whole
@@ -2312,6 +2327,16 @@ const page = ({
               })}<p class="faint">${esc(SEASONS_FOOTER)}</p>`
             : ''
         }
+        ${
+          teamMates.length
+            ? `<h2>Team-mates</h2>${fromColumns(TEAM_MATE_COLUMNS, teamMates, {
+                year: (year) => link(`seasons/${year}`, year),
+                mate: (name, row) => link(`drivers/${row.mate_id}`, name),
+                constructor: (name, row) => link(`constructors/${row.constructor_id}`, name),
+              })}<p class="faint">${esc(teamMatesFooter(d.full_name))}</p>
+              <p>${link(comparePath(d.id), compareWith(d.full_name))}</p>`
+            : ''
+        }
         <h2>On the record</h2>
         ${
           pointsDiffer(d, derived)
@@ -2327,6 +2352,25 @@ const page = ({
     })
   }
 }
+
+// ---------------------------------------------------------------- compare
+//
+// Two drivers side by side (PD-43). The pair is the query string, which no
+// static file can read, so this is the one page every comparison lands on:
+// the name, the lede and the way onward, as Compare.jsx draws them before a
+// pair is chosen. The comparison itself is drawn once the database is open.
+
+page({
+  path: 'compare',
+  title: NAMES.compare().title,
+  description: COMPARE_DESCRIPTION,
+  trail: TRAIL.compare(),
+  onward: ONWARD.compare(),
+  body: `
+    <h1>${esc(NAMES.compare().headline)}</h1>
+    <p class="lede">${esc(COMPARE_LEDE)}</p>
+    <noscript><p class="measure">${esc(COMPARE_NOSCRIPT)}</p></noscript>`,
+})
 
 // ----------------------------------------------------------- constructors
 

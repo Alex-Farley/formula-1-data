@@ -397,6 +397,136 @@ export const SEASONS_FOOTER =
   'actually finished, which before 1991 could be lower once dropped scores were applied. Open a season ' +
   'for its full table.'
 
+/**
+ * TEAM-MATES, SEASON BY SEASON (PD-43).
+ *
+ * The comparison fans actually make is with the one driver in the same car,
+ * and it is exactly computable here: two entries in the same race for the
+ * same constructor. One row per season, constructor and team-mate, so a
+ * driver who changed teams mid-season, or a 1950s team that ran four cars,
+ * gets a row for each pairing rather than one row averaging over them.
+ *
+ *   qualifying  who had the better qualifying position, over the races where
+ *               both have one - `qualifying` holds a position for 26,882
+ *               of the 27,504 entries, and a race where either lacks one
+ *               is counted on neither side;
+ *   race        who finished ahead, over the races BOTH were classified in.
+ *               A retirement is not a defeat by the team-mate: the car
+ *               failing is not the other driver beating you, so a race with
+ *               a DNF, a DNS or a DNQ on either side counts for neither. A
+ *               shared drive puts two drivers on one car's result, which is
+ *               a tie and also counts for neither;
+ *   points      each driver's own, from the Grands Prix they ran together.
+ *               Every point scored, before any dropped score, and no Sprint
+ *               points: race_entries holds each Grand Prix's.
+ *
+ * TOTAL rather than SUM: a group always has at least one row, and TOTAL of
+ * comparisons that are all NULL is 0.0 where SUM's is NULL - and here nothing
+ * comparable IS none ahead. both_qualified carries the denominator, so the
+ * column can tell "0-0 of 0" (nothing established) from a real 0-0.
+ *
+ * ?2 narrows to one team-mate, for /compare; NULL keeps every one.
+ *
+ * WHAT A CONSTRUCTOR IS NOT. It is the make of the car, not the team that
+ * entered it, and before the 1980s a constructor's cars were routinely
+ * entered by private teams as well as its own: season_entrants names fifteen
+ * entrants of Coopers in 1959, and 91 of Jack Brabham's 176 pairings are in
+ * one. The record holds no per-race entrant, so the pairing cannot be
+ * narrowed to a garage; the footer says so rather than the query guessing.
+ */
+export const TEAM_MATES = `
+  SELECT r.year, e.constructor_id, k.name AS constructor, k.country AS constructor_country,
+         o.driver_id AS mate_id, d.full_name AS mate,
+         COUNT(*) AS races,
+         CAST(TOTAL(qa.position IS NOT NULL AND qb.position IS NOT NULL) AS INTEGER) AS both_qualified,
+         CAST(TOTAL(qa.position < qb.position) AS INTEGER) AS qualified_ahead,
+         CAST(TOTAL(qa.position > qb.position) AS INTEGER) AS qualified_behind,
+         CAST(TOTAL(e.finish_position IS NOT NULL AND o.finish_position IS NOT NULL) AS INTEGER) AS both_classified,
+         CAST(TOTAL(e.finish_position < o.finish_position) AS INTEGER) AS finished_ahead,
+         CAST(TOTAL(e.finish_position > o.finish_position) AS INTEGER) AS finished_behind,
+         TOTAL(e.points) AS points,
+         TOTAL(o.points) AS mate_points
+    FROM race_entries e
+    JOIN race_entries o ON o.race_id = e.race_id AND o.constructor_id = e.constructor_id
+                       AND o.driver_id <> e.driver_id
+    JOIN races r ON r.id = e.race_id
+    JOIN constructors k ON k.id = e.constructor_id
+    JOIN drivers d ON d.id = o.driver_id
+    LEFT JOIN qualifying qa ON qa.race_id = e.race_id AND qa.driver_id = e.driver_id
+    LEFT JOIN qualifying qb ON qb.race_id = e.race_id AND qb.driver_id = o.driver_id
+   WHERE e.driver_id = ?1 AND (?2 IS NULL OR o.driver_id = ?2)
+   GROUP BY r.year, e.constructor_id, o.driver_id
+   ORDER BY r.year DESC, k.name, races DESC, d.full_name
+`
+
+/** "14–2": this driver's figure first. Both are counts, so neither is ever NULL. */
+export const versus = (mine, theirs) => `${number(mine)}–${number(theirs)}`
+
+/**
+ * The three comparison columns, shared by a driver's Team-mates table and the
+ * pair's table on /compare. Qualifying is an em dash only where no race of the
+ * row has a qualifying position for both - not established - and never 0–0.
+ */
+const HEAD_TO_HEAD_COLUMNS = [
+  { key: 'races', label: 'Races', align: 'num' },
+  {
+    key: 'qualified_ahead',
+    label: 'Qualifying',
+    align: 'num',
+    text: (ahead, row) => (row.both_qualified ? versus(ahead, row.qualified_behind) : EMPTY),
+  },
+  // "none" where no race of the row had both classified: a true fact, and
+  // not the em dash, but not a 0–0 either, which would read as races run
+  // level. A tie on a shared car is in both_classified and on neither side.
+  {
+    key: 'finished_ahead',
+    label: 'Race',
+    align: 'num',
+    text: (ahead, row) => (row.both_classified ? versus(ahead, row.finished_behind) : 'none'),
+  },
+  {
+    key: 'points',
+    label: 'Points',
+    align: 'num',
+    text: (mine, row) => `${points(mine)}–${points(row.mate_points)}`,
+  },
+]
+
+/** The season and the team-mate name the row: a pairing is both. */
+export const TEAM_MATE_COLUMNS = [
+  { key: 'year', rowHeader: true, label: 'Season', align: 'num' },
+  { key: 'mate', rowHeader: true, label: 'Team-mate' },
+  { key: 'constructor', label: 'Constructor' },
+  ...HEAD_TO_HEAD_COLUMNS,
+]
+
+/** On /compare the team-mate is the page's second driver on every row, so the season and team name it. */
+export const PAIR_COLUMNS = [
+  { key: 'year', rowHeader: true, label: 'Season', align: 'num' },
+  { key: 'constructor', rowHeader: true, label: 'Constructor' },
+  ...HEAD_TO_HEAD_COLUMNS,
+]
+
+/** How many different drivers the rows pair this one with: the section's count. */
+export const teamMateCount = (rows) => {
+  const n = new Set(rows.map((row) => row.mate_id)).size
+  return `${number(n)} ${n === 1 ? 'team-mate' : 'team-mates'}`
+}
+
+/**
+ * Under the table, in both renderers. It says what each figure counts, what
+ * a constructor is not, and - as the critique asked - declines the verdict
+ * the table invites.
+ */
+export const teamMatesFooter = (name) =>
+  `A team-mate is anyone entered for the same constructor in the same Grand Prix, and each pair of figures is ${name}’s first. ` +
+  'Races counts every Grand Prix both were entered for, started or not. Qualifying counts the races both have a qualifying ' +
+  'position in; Race only those both were classified in, so a retirement on either side counts for neither, and reads none ' +
+  'where there was no such race; Points are each ' +
+  'driver’s own from those Grands Prix, before any dropped scores and without Sprint points. Before the 1980s a constructor’s ' +
+  'cars were often entered by private teams as well as its own, so a pairing then can be two drivers who never shared a garage. ' +
+  'The figures say who was ahead, not who was better.'
+
 /** "Every entry": one row per race the driver was entered for, latest first. */
 export const ENTRY_COLUMNS = [
   { key: 'year', rowHeader: true, label: 'Season', align: 'num' },
