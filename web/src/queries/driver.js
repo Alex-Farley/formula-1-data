@@ -475,7 +475,15 @@ const HEAD_TO_HEAD_COLUMNS = [
     align: 'num',
     text: (ahead, row) => (row.both_qualified ? versus(ahead, row.qualified_behind) : EMPTY),
   },
-  { key: 'finished_ahead', label: 'Race', align: 'num', text: (ahead, row) => versus(ahead, row.finished_behind) },
+  // "none" where no race of the row had both classified: a true fact, and
+  // not the em dash, but not a 0–0 either, which would read as races run
+  // level. A tie on a shared car is in both_classified and on neither side.
+  {
+    key: 'finished_ahead',
+    label: 'Race',
+    align: 'num',
+    text: (ahead, row) => (row.both_classified ? versus(ahead, row.finished_behind) : 'none'),
+  },
   {
     key: 'points',
     label: 'Points',
@@ -513,7 +521,8 @@ export const teamMateCount = (rows) => {
 export const teamMatesFooter = (name) =>
   `A team-mate is anyone entered for the same constructor in the same Grand Prix, and each pair of figures is ${name}’s first. ` +
   'Races counts every Grand Prix both were entered for, started or not. Qualifying counts the races both have a qualifying ' +
-  'position in; Race only those both were classified in, so a retirement on either side counts for neither; Points are each ' +
+  'position in; Race only those both were classified in, so a retirement on either side counts for neither, and reads none ' +
+  'where there was no such race; Points are each ' +
   'driver’s own from those Grands Prix, before any dropped scores and without Sprint points. Before the 1980s a constructor’s ' +
   'cars were often entered by private teams as well as its own, so a pairing then can be two drivers who never shared a garage. ' +
   'The figures say who was ahead, not who was better.'

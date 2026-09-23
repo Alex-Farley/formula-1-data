@@ -3092,6 +3092,12 @@ try {
   await section('/compare  (two drivers side by side: PD-43)', async () => {
     await go('/compare?a=senna&b=prost', 'Ayrton Senna and Alain Prost')
     is(await page.title(), 'Ayrton Senna and Alain Prost — Lap Ledger', 'the pair names the document, in the order the address gives it')
+    // The query string is this page, so the citation carries it: without it
+    // the cited address is two empty pickers (review of #634).
+    truthy(
+      (await text('#root main .cite .url'))?.endsWith('/compare?a=senna&b=prost'),
+      `the citation names the pair — ${await text('#root main .cite .url')}`,
+    )
     // The careers table is DERIVED's figures, the driver pages' own.
     const careers = await page.$$eval('#root main section:has(h2:text-is("Two careers")) tbody tr', (trs) =>
       Object.fromEntries(trs.map((tr) => [tr.children[0].textContent.trim(), [...tr.children].slice(1).map((c) => c.textContent.trim())])),
@@ -3147,6 +3153,18 @@ try {
       await page.evaluate(() => window.location.search),
       '?a=senna&b=prost',
       'choosing the second driver puts the pair in the address',
+    )
+
+    // Only the second picker chosen: that driver's team-mates, offered as
+    // the first, so the choice the reader made stays where they made it.
+    await go('/compare?b=prost', 'Compare two drivers')
+    truthy(
+      await page.waitForSelector('#root main a[href="/compare?a=senna&b=prost"]', { timeout: 10000 }).catch(() => null),
+      'the second driver alone offers their team-mates in the first place',
+    )
+    truthy(
+      !(await text('#root main .cite .url'))?.includes('?'),
+      'and a page with no pair cites /compare itself',
     )
 
     // The same driver twice, and an id the register does not hold.

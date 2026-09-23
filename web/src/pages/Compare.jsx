@@ -20,6 +20,7 @@ import {
   closestNote,
   closestTeamMates,
   comparePath,
+  compareSearch,
   noTeamMate,
   neverTeamMates,
   pairSummary,
@@ -77,7 +78,15 @@ function CompareBody({ a, b, nameOf, options, set }) {
   const names = pair ? NAMES.comparison(nameOf(a), nameOf(b)) : NAMES.compare()
 
   return (
-    <Page title={names.headline} documentName={names.title} trail={TRAIL.compare()} lede={COMPARE_LEDE}>
+    <Page
+      title={names.headline}
+      documentName={names.title}
+      trail={TRAIL.compare()}
+      lede={COMPARE_LEDE}
+      // The pair is the page: cited without it, a comparison is two empty
+      // pickers. The canonical stays /compare, the one static page.
+      citedSearch={pair ? compareSearch(a, b) : ''}
+    >
       <div className="filters">
         <Select value={a} onChange={(value) => set({ a: value })} options={options} label="First driver" all={CHOOSE} />
         <Select value={b} onChange={(value) => set({ b: value })} options={options} label="Second driver" all={CHOOSE} />
@@ -87,7 +96,7 @@ function CompareBody({ a, b, nameOf, options, set }) {
 
       {/* Keyed on the choice, so a new choice starts from loading rather
           than rendering one frame of the last choice's answers under it. */}
-      {a && a !== b && <Chosen key={`${a}|${b}`} a={a} b={b} pair={pair} nameOf={nameOf} />}
+      {(a || b) && a !== b && <Chosen key={`${a}|${b}`} a={a} b={b} pair={pair} nameOf={nameOf} />}
 
       <Onward {...ONWARD.compare()} />
     </Page>
@@ -96,6 +105,9 @@ function CompareBody({ a, b, nameOf, options, set }) {
 
 /** What the choice asks of the database, and the answer drawn. */
 function Chosen({ a, b, pair, nameOf }) {
+  // One chosen, in either picker: that driver's team-mates, each offered in
+  // the other picker's place.
+  const one = a || b
   const state = useQueries({
     driverA: pair ? [DRIVER, [a]] : null,
     driverB: pair ? [DRIVER, [b]] : null,
@@ -103,12 +115,20 @@ function Chosen({ a, b, pair, nameOf }) {
     derivedB: pair ? [DERIVED, [b]] : null,
     // With one driver chosen, every team-mate of theirs, to offer as the
     // second; with two, the pair's own seasons.
-    together: [TEAM_MATES, [a, pair ? b : null]],
+    together: [TEAM_MATES, [one, pair ? b : null]],
   })
   return (
     <Result state={state} context="Those careers could not be read" skeleton>
       {(data) =>
-        pair ? <Pair data={data} /> : <Closest a={a} name={nameOf(a)} together={rows(data, 'together')} />
+        pair ? (
+          <Pair data={data} />
+        ) : (
+          <Closest
+            name={nameOf(one)}
+            together={rows(data, 'together')}
+            pathTo={(mate) => (a ? comparePath(a, mate) : comparePath(mate, b))}
+          />
+        )
       }
     </Result>
   )
@@ -158,7 +178,7 @@ function Pair({ data }) {
  * One chosen: the drivers they shared most Grands Prix with, each a link to
  * that pair, so the most common comparison is one click from here.
  */
-function Closest({ a, name, together }) {
+function Closest({ name, together, pathTo }) {
   const mates = closestTeamMates(together)
   if (mates.length === 0) return <p className="muted">{noTeamMate(name)}</p>
   return (
@@ -166,7 +186,7 @@ function Closest({ a, name, together }) {
       <ul>
         {mates.map((mate) => (
           <li key={mate.id}>
-            <Link to={comparePath(a, mate.id)}>{mate.name}</Link>{' '}
+            <Link to={pathTo(mate.id)}>{mate.name}</Link>{' '}
             <span className="faint">
               {mate.races} {mate.races === 1 ? 'Grand Prix' : 'Grands Prix'} together
             </span>

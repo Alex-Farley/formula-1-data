@@ -33,14 +33,17 @@ import { number, points, span, text, yearList } from '../lib/format.js'
  */
 export const COMPARE_DRIVERS = `SELECT id, full_name FROM drivers ORDER BY full_name`
 
-/** "/compare?a=senna&b=prost", or "/compare?a=senna" while the second is unchosen. */
-export const comparePath = (a, b) => {
+/** "?a=senna&b=prost", "?a=senna", or "" with neither: the pair as the address holds it. */
+export const compareSearch = (a, b) => {
   const params = new URLSearchParams()
   if (a) params.set('a', a)
   if (b) params.set('b', b)
   const query = params.toString()
-  return query ? `/compare?${query}` : '/compare'
+  return query ? `?${query}` : ''
 }
+
+/** "/compare?a=senna&b=prost", or "/compare?a=senna" while the second is unchosen. */
+export const comparePath = (a, b) => `/compare${compareSearch(a, b)}`
 
 export const COMPARE_LEDE =
   'Two careers side by side, counted from the race records the driver pages use, and — where the two ever drove ' +
@@ -122,8 +125,13 @@ export function pairSummary(nameA, nameB, rows) {
     ? ` In qualifying ${nameA} was ahead ${plural(sum('qualified_ahead'), 'time')} and ${nameB} ${plural(sum('qualified_behind'), 'time')}.`
     : ''
   const classified = sum('both_classified')
+  // A tie is a shared drive: two drivers credited with one car's result,
+  // which is in the count of races both were classified in and on neither
+  // side of it. Said, so the two figures are seen not to add up by design.
+  const ties = classified - sum('finished_ahead') - sum('finished_behind')
+  const tied = ties > 0 ? `; ${ties === 1 ? 'one was a tie, a car' : `${number(ties)} were ties, cars`} the two shared` : ''
   const raced = classified
-    ? ` Of the ${plural(classified, 'race')} both were classified in, ${nameA} finished ahead in ${number(sum('finished_ahead'))} and ${nameB} in ${number(sum('finished_behind'))}.`
+    ? ` Of the ${plural(classified, 'race')} both were classified in, ${nameA} finished ahead in ${number(sum('finished_ahead'))} and ${nameB} in ${number(sum('finished_behind'))}${tied}.`
     : ' They were never both classified in the same race.'
   const scored = (value) => `${points(value)} ${value === 1 ? 'point' : 'points'}`
   return (
