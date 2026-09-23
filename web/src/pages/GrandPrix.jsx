@@ -167,7 +167,9 @@ function GrandPrixBody({ gp, data }) {
       <Section title="On the record">
         <Fields
           items={[
-            { label: 'Also run as', value: gp.aliases },
+            // Dropped rather than dashed where there is none, as the static
+            // page drops it: an event with no other name is not missing one.
+            gp.aliases ? { label: 'Also run as', value: gp.aliases } : null,
             { label: 'Confidence', value: <Confidence value={gp.confidence} /> },
           ]}
         />

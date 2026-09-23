@@ -2205,7 +2205,12 @@ describe('a Grand Prix and the venues it has used', () => {
         { id: 'european', name: 'European Grand Prix', races: 1, scheduled: 0 },
         { id: 'spanish', name: 'Spanish Grand Prix', races: 0, scheduled: 1 },
       ]),
-      'Held here as the [British Grand Prix] (60 races), the [European Grand Prix] (1 race) and the [Spanish Grand Prix] (not yet run).',
+      'Held here as the [British Grand Prix] (60 races) and the [European Grand Prix] (1 race). On the calendar here as the [Spanish Grand Prix].',
+    )
+    assert.equal(
+      sentence([{ id: 'spanish', name: 'Spanish Grand Prix', races: 0, scheduled: 1 }]),
+      'On the calendar here as the [Spanish Grand Prix].',
+      'a venue that has held nothing yet is not said to have held it',
     )
     const keys = heldAs([
       { id: 'a', name: 'A', races: 1, scheduled: 0 },

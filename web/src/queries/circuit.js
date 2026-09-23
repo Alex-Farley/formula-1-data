@@ -161,17 +161,23 @@ export const TEAM_COLUMNS = [
  * segments both renderers draw: `{ text }` is words, `{ id, name }` is a
  * link to that Grand Prix, and `key` is the segment's place in the sentence,
  * for React. "Held here as the British Grand Prix (60 races) and the
- * European Grand Prix (2 races)."
+ * 70th Anniversary Grand Prix (1 race)." An event only on the calendar here
+ * has not been held here, and gets a sentence of its own: "On the calendar
+ * here as the Spanish Grand Prix."
  */
 export function heldAs(rows) {
-  if (!rows.length) return []
-  const count = (row) =>
-    row.races ? `${row.races} ${row.races === 1 ? 'race' : 'races'}` : row.scheduled ? NOT_YET_RUN : '0 races'
-  const words = [{ text: 'Held here as the ' }]
-  rows.forEach((row, i) => {
-    if (i > 0) words.push({ text: i === rows.length - 1 ? ' and the ' : ', the ' })
-    words.push({ id: row.id, name: row.name }, { text: ` (${count(row)})` })
-  })
-  words.push({ text: '.' })
+  const words = []
+  const clause = (lead, group, count) => {
+    if (!group.length) return
+    words.push({ text: `${words.length ? ' ' : ''}${lead} the ` })
+    group.forEach((row, i) => {
+      if (i > 0) words.push({ text: i === group.length - 1 ? ' and the ' : ', the ' })
+      words.push({ id: row.id, name: row.name })
+      if (count) words.push({ text: ` (${row.races} ${row.races === 1 ? 'race' : 'races'})` })
+    })
+    words.push({ text: '.' })
+  }
+  clause('Held here as', rows.filter((row) => row.races > 0), true)
+  clause('On the calendar here as', rows.filter((row) => !(row.races > 0) && row.scheduled > 0), false)
   return words.map((segment, place) => ({ ...segment, key: `${place}` }))
 }
