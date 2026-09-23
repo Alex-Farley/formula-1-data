@@ -96,22 +96,28 @@ class TheRuleCatchesAStaleFile(PlantedInACopy):
         self.assertAlmostEqual(bad[("ferrari", 14)]["expected"], 358.0, places=3)
         self.assertAlmostEqual(bad[("ferrari", 13)]["expected"], 346.0, places=3)
 
-    def test_a_table_frozen_for_a_whole_season_under_an_aliased_id(self):
-        """Alfa Romeo is `alfa-romeo` in standings and `sauber` in the
-        results. Without the alias the derivation sees no points at all, and
-        a table frozen for eighteen rounds reads as correct."""
+    def test_a_table_frozen_for_a_whole_season_of_the_hinwil_team(self):
+        """The team that raced as Alfa Romeo in 2019-2023 is `sauber` in both
+        tables since DA-28. Before, the standings said `alfa-romeo`, the
+        derivation needed an alias to see any points at all, and without it a
+        table frozen for eighteen rounds read as correct."""
         self.freeze(2022, "constructors", 20, 4)
         bad = [v for v in standings_rule.violations(self.con)
-               if v["entity_id"] == "alfa-romeo"]
-        self.assertTrue(bad, "a frozen Alfa Romeo table was not refused")
+               if v["entity_id"] == "sauber"]
+        self.assertTrue(bad, "a frozen 2022 Sauber table was not refused")
 
 
 class AnEntityTheResultsDoNotHoldStopsTheRule(PlantedInACopy):
-    def test_a_missing_alias_is_raised_and_not_skipped(self):
-        bad = {k: v for k, v in standings_rule.STANDINGS_ENTITY_ALIASES.items()
-               if v != "sauber"}
+    def test_one_entrant_under_two_ids_is_raised_and_not_skipped(self):
+        """The split DA-28 closed, put back in a copy: the 2022 table under
+        F1DB's `alfa-romeo` while the results say `sauber`."""
+        self.con.execute(
+            "UPDATE standings SET entity_id='alfa-romeo' "
+            "WHERE year=2022 AND table_type='constructors' "
+            "AND entity_id='sauber'")
+        self.con.commit()
         with self.assertRaises(standings_rule.Unmappable) as caught:
-            standings_rule.violations(self.con, aliases=bad)
+            standings_rule.violations(self.con)
         self.assertIn("alfa-romeo", str(caught.exception))
 
     def test_a_new_unmappable_entity_stops_it_too(self):

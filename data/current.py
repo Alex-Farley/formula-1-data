@@ -933,24 +933,6 @@ PROVENANCE = [
 #   published.
 STANDINGS_ACCUMULATE_FROM = {"constructors": 1979, "drivers": 1991}
 
-# The same entrant under two ids in two tables. `standings` takes F1DB's
-# constructorId and `race_entries` this project's own, and for 2019-2023 they
-# disagree: the championship table says `alfa-romeo`, the results say
-# `sauber`. Both are real - Alfa Romeo ran as a works constructor from 1979 to
-# 1985 - so this is per season and not a rename.
-#
-# Declared here because the rule needs it, NOT because it is acceptable: it is
-# a split vocabulary of exactly the kind `COUNTRY_ALIASES` exists to stop, and
-# without this entry the cross-check reads 104 rows as "scored nothing" and
-# cannot fail for them however wrong they are (review finding, #583). The
-# split itself is filed as its own item. Any other entity in `standings` with
-# no results under its own id in that season stops the build, so a second one
-# cannot arrive quietly.
-STANDINGS_ENTITY_ALIASES = {
-    ("constructors", year, "alfa-romeo"): "sauber"
-    for year in range(2019, 2024)
-}
-
 # The six rows in the whole file, from 1979 for constructors and 1991 for
 # drivers, where the championship total is deliberately not the sum of what
 # the cars scored. Each is (from_round, adjustment, why): an adjustment of
