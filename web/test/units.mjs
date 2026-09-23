@@ -314,8 +314,11 @@ describe('search', () => {
     const db = new DatabaseSync(join(web, '..', 'f1.db'), { readOnly: true })
     try {
       assert.ok(Array.isArray(db.prepare(statement).all()), 'a quote in the term is doubled, not a syntax error')
-      const found = db.prepare(decodeURIComponent(elsewhere('senna')[0].path.replace('/data/sql?q=', ''))).all()
-      assert.ok(found.some((row) => row.kind === 'driver'))
+      const run = (term) => db.prepare(decodeURIComponent(elsewhere(term)[0].path.replace('/data/sql?q=', ''))).all()
+      assert.ok(run('senna').some((row) => row.kind === 'driver'))
+      // A reader's % and _ are the characters, not LIKE's wildcards.
+      assert.equal(run('100%').length, 0, 'no name holds "100%"')
+      assert.equal(run('_').length, 0, 'nor an underscore')
     } finally {
       db.close()
     }

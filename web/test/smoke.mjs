@@ -4015,6 +4015,24 @@ try {
       EXAMPLES.length,
       'and the console offers every question in the library that is a query',
     )
+    // From the console itself, to the question it opens on: only the query
+    // string moves, to nothing. The editor must show what runs, and what the
+    // reader had typed and not run is offered back (review of #617).
+    await page.fill('textarea.sql', 'SELECT 5 AS typed')
+    // Ctrl+K from inside a field is the field's; the reader leaves it first.
+    await page.evaluate(() => document.activeElement?.blur())
+    await openPalette(page)
+    await page.fill('.palette input', 'who has led a race from pole most often')
+    await settle(() => document.querySelector('#palette-results li a')?.getAttribute('href') === '/data/sql')
+    await page.keyboard.press('Enter')
+    truthy(
+      await settle(() => document.querySelector('textarea.sql')?.value.includes('pole_to_win')),
+      'a question picked on the console puts its statement in the editor',
+    )
+    truthy(
+      await settle(() => document.querySelector('button.linklike')?.textContent.includes('Restore')),
+      'and offers back what had been typed',
+    )
   })
 
   // -------------------------------------------------------------- 404 route

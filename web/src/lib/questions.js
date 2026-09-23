@@ -198,7 +198,7 @@ export const QUESTIONS = [
   {
     topic: 'Drivers',
     q: 'Pole, win and fastest lap in the same race',
-    also: 'grand slam hat-trick hat trick',
+    also: 'hat-trick hat trick',
     sql: `SELECT year, gp_name, driver, constructor
    FROM v_grand_slams
   ORDER BY year, round`,

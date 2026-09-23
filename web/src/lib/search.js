@@ -182,12 +182,14 @@ export function rank(entry, typed, { fuzzy = false } = {}) {
 /**
  * Where a search that found nothing can go instead (IA-21): the console, with
  * a statement that looks for the same words in every name, and the records.
- * The term goes inside a string literal, so a quote in it is doubled, and
+ * The term goes inside a string literal, so a quote in it is doubled; into a
+ * LIKE pattern, so its own % and _ are escaped and match only themselves; and
  * into a line comment, so any line break in it is made a space first.
  */
 export function elsewhere(typed) {
   const term = String(typed).replace(/\s+/g, ' ').trim()
-  const literal = `'%${term.replaceAll("'", "''")}%'`
+  const pattern = term.replace(/[\\%_]/g, (c) => `\\${c}`).replaceAll("'", "''")
+  const literal = `'%${pattern}%' ESCAPE '\\'`
   const sql = `-- Every name that holds "${term}". LIKE ignores case, not accents.
 SELECT 'driver' AS kind, id, full_name AS name FROM drivers WHERE full_name LIKE ${literal}
 UNION ALL

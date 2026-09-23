@@ -180,11 +180,17 @@ export default function Sql() {
   useEffect(() => () => running.current?.abort(), [])
 
   // On arrival, and again whenever the address brings a different query
-  // while the page stays mounted (a link to a query from within the site).
+  // while the page stays mounted (a link to a query from within the site, or
+  // a question picked in the search palette). The editor always takes the
+  // statement that runs: it used to be set only when the address held one,
+  // so a move to the bare address ran START beneath whatever the editor last
+  // showed. And what the reader had typed and not run is kept to put back,
+  // as an example button keeps it.
   useEffect(() => {
     const statement = arrived || START
     if (statement === ran.current) return
-    if (arrived) setText(arrived)
+    if (text.trim() && text !== statement && text !== START && text !== ran.current) setReplaced(text)
+    setText(statement)
     run(statement)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [arrived])
