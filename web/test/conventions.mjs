@@ -1574,3 +1574,78 @@ describe('what the pages send, and to whom (PD-0)', () => {
     )
   })
 })
+
+describe('type, weight and spacing are steps on the scales in tokens.css (VD-03)', () => {
+  // app.css had twenty-two font sizes, six weights and twenty-eight spacing
+  // values, none of them named, and each new component picked a number of
+  // its own - 12, 12.5, 13 and 13.5px all in use at once. The scales are in
+  // tokens.css; this is what keeps a literal from creeping back, which is
+  // the drift the scales exist to stop. A value that is not a step is either
+  // made one in tokens.css or declared below with its reason.
+  const tokens = read(join(web, 'src', 'styles', 'tokens.css'))
+  const app = read(join(web, 'src', 'styles', 'app.css')).replace(/\/\*[\s\S]*?\*\//g, '')
+  const declarations = (props) =>
+    [...app.matchAll(/(?<=[{;\s])([a-z-]+)\s*:\s*([^;{}]+?)\s*(?=;|})/g)]
+      .filter((m) => props.test(m[1]))
+      .map((m) => ({ prop: m[1], value: m[2] }))
+  const defined = new Map([...tokens.matchAll(/--((?:size|weight|space)-[a-z0-9]+):\s*([^;]+);/g)].map((m) => [m[1], m[2].trim()]))
+  const px = (name) => Number.parseFloat(defined.get(name))
+
+  // Relative on purpose: monospace set 0.92em of whatever it sits in, because
+  // its x-height is larger than Saira's (tokens.css says why), and the em
+  // padding and margin that belong to inline code and running prose. Spacing
+  // may also be a fraction of the viewport - the search palette sits 10vh down -
+  // which no fixed step could stand in for.
+  const RELATIVE = /^-?[0-9.]+em$/
+  const VIEWPORT = /^[0-9.]+(vh|vw)$/
+  const SPACE_LITERAL = new Set(['0', 'auto', '1px', '-1px'])
+
+  it('every font-size, font and font-weight in app.css is a step, or relative', () => {
+    const off = declarations(/^font(-size|-weight)?$/)
+      .filter(({ prop, value }) => {
+        if (prop === 'font-size') return !/^var\(--size-[a-z0-9]+\)$/.test(value) && !RELATIVE.test(value)
+        if (prop === 'font-weight') return !/^var\(--weight-[a-z]+\)$/.test(value) && value !== 'inherit'
+        return value !== 'inherit' && !/^var\(--size-[a-z0-9]+\)\//.test(value)
+      })
+      .map(({ prop, value }) => `${prop}: ${value}`)
+    assert.deepEqual(off, [], `off the scale:\n  ${off.join('\n  ')}\nUse a --size-* or --weight-* step from tokens.css.`)
+  })
+
+  it('every padding, margin and gap in app.css is a step, 0, a 1px hairline or relative', () => {
+    const off = []
+    for (const { prop, value } of declarations(/^(padding|margin)(-[a-z-]+)?$|^(row-|column-)?gap$/)) {
+      const parts = value.match(/calc\(-1 \* var\(--space-\d+\)\)|var\(--space-\d+\)|\S+/g)
+      for (const part of parts) {
+        if (/^(calc\(-1 \* )?var\(--space-\d+\)\)?$/.test(part) || SPACE_LITERAL.has(part) || RELATIVE.test(part) || VIEWPORT.test(part)) continue
+        off.push(`${prop}: ${value}`)
+        break
+      }
+    }
+    assert.deepEqual(off, [], `off the scale:\n  ${off.join('\n  ')}\nUse a --space-* step from tokens.css.`)
+  })
+
+  it('every step app.css names is defined in tokens.css', () => {
+    const used = new Set([...app.matchAll(/var\(--((?:size|weight|space)-[a-z0-9]+)\)/g)].map((m) => m[1]))
+    const missing = [...used].filter((name) => !defined.has(name))
+    assert.deepEqual(missing, [], `named in app.css, defined nowhere: ${missing.join(', ')}`)
+  })
+
+  it('each scale ascends, and neighbouring type sizes are at least 9% apart', () => {
+    // A scale whose neighbours cannot be told apart is the defect again under
+    // another name: 12.5px and 13px were two steps in all but effect.
+    for (const [family, floor] of [
+      ['size', 1.09],
+      ['space', 1.1],
+    ]) {
+      const steps = [...defined.keys()]
+        .filter((name) => new RegExp(`^${family}-\\d+$`).test(name))
+        .sort((a, b) => Number(a.split('-')[1]) - Number(b.split('-')[1]))
+      assert.ok(steps.length >= 8, `${steps.length} --${family}-* steps`)
+      steps.forEach((name, i) => assert.equal(Number(name.split('-')[1]), i + 1, `--${family}-* is numbered 1..n without a hole`))
+      for (let i = 1; i < steps.length; i++) {
+        const ratio = px(steps[i]) / px(steps[i - 1])
+        assert.ok(ratio >= floor, `--${steps[i]} is ${ratio.toFixed(3)}x --${steps[i - 1]}, under ${floor}`)
+      }
+    }
+  })
+})
