@@ -96,9 +96,9 @@ exporters, `web/scripts/prerender.js` or a workflow `[D-19]`.
 | Pipelining | none — the review and the CI wait are foreground, so a fork holds one item at a time | none | none |
 
 Reviewer effort and turn caps are frontmatter in `.claude/agents/`. The caps
-are runaway stops, not budgets: a reviewer that hits one returns without a
-verdict line, and that is not a PASS. It gets the one respawn *Review* gives
-any result that does not lead with a verdict, and no more.
+are runaway stops, not budgets: a reviewer that hits one returns without
+recording a verdict, and that is not a PASS. It gets the one respawn *Review*
+gives any pass that recorded no verdict, and no more.
 
 ## Grouping
 
@@ -259,33 +259,33 @@ gets a new fresh Opus agent, not a confirmation.
 The brief stays inside the diff: name the specific ways the change could be
 wrong; name the routes the pace allows and no more; ask for one isolated
 rebuild only when an artefact changed; never ask for site-wide enumerations
-or live fetches unless the item is about them. Ask for the verdict line and
-findings with file:line, nothing else.
+or live fetches unless the item is about them. Ask for the findings with
+file:line, nothing else.
 
-**The agent returns exactly `PASS — safe to merge` or `FAIL — changes
-required` as its first line.** Anything else is not a verdict — including a
-result whose verdict is plainly there on the second line, under a summary
-sentence. **Do not read it for what it meant.** Discard the result — its
-findings with it — and spawn the pass again from the same brief with one
-paragraph changed: it now asks for **the verdict line alone and nothing
-else** (two lines for `frontend-reviewer-quick`, which keeps its `Applied:`
-line). A reply with nothing to summarise has nothing to put a summary above,
-and restating the format was measured not to work `[D-38]`. The respawn brief
-is in `.claude/skills/backlog-loop/review-prompt.md`; everything but the
-report contract goes across unchanged, so the pass that settles the item is
-briefed no more thinly than the one it replaces. Take the second result's
-first line; if that one does not lead with a verdict either, the item has no
-review and the *Not a PASS* rule below applies. **A respawned pass returns no
-findings at all**: on a `FAIL`, spawn a fresh full pass to learn what is
-wrong; on a `PASS`, there is nothing to fix under `[D-22]` and nothing to
-list under `[D-23]`, so a non-blocking finding that pass would have made is
-lost. That is the price of not interpreting a result `[D-38]`. **One respawn, whatever the reason the first
-line is not a verdict** — a preamble above it, silence, or a reviewer that ran
-out of turns before it wrote one; the *Not a PASS* bullets below list the
-same cases, and the two that are owed no respawn at all. The second result
-settles the item either way. Interpreting one is how the rule rots: the
-fork that reads past a preamble today is the fork that reads past a FAIL
-phrased as a sentence tomorrow `[D-37]`. Then:
+**The verdict is recorded by a command, never read from the reply** `[D-40]`.
+Before each pass — first pass, confirmation or respawn — open it with
+`bash .claude/skills/backlog-loop/verdict.sh new <PR> <sha>` (add `quick` for
+`frontend-reviewer-quick`), which prints a pass id, and put that id in the
+brief. The reviewer runs `verdict.sh record <id> PASS` or `FAIL` from the
+worktree; the script accepts nothing else, refuses a second verdict and
+refuses a checkout at another head, and for a quick pass refuses a verdict
+without the applied items. When the agent returns, run `verdict.sh read <id>`:
+its printed word and exit status are the verdict, and **nothing in the reply
+is read for one** — not a PASS in its first line, not a FAIL in its last. The
+reply is read for findings only, in whatever layout it arrives. Both
+directions of disagreement settle on the command: a reply that sounds like a
+PASS over a recorded FAIL is a FAIL, and a reply of any kind over a pass that
+recorded nothing is no review.
+
+**One respawn when a pass records no verdict**, whatever the reason — it ran
+out of turns, forgot the command, or the command refused it. Open a new pass
+id and send the **same brief** to a fresh agent of the same kind with only the
+id changed; everything else goes across, so the pass that settles the item is
+briefed no more thinly than the one it replaces. The respawn's findings are
+read like any pass's. If it records nothing either, the item has no review and
+the *Not a PASS* rule below applies. Interpreting a reply instead is how the
+rule rots: the fork that reads a verdict out of prose today is the fork that
+reads past a FAIL phrased as a sentence tomorrow `[D-37]`. Then:
 
 - **FAIL:** fix, run the precheck again, confirm with a fresh agent by commit
   range — Sonnet, or Opus at `thorough`.
@@ -307,11 +307,10 @@ phrased as a sentence tomorrow `[D-37]`. Then:
 - **Not a PASS**, and no respawn is owed: a rate limit or an unavailable
   account. Retrying a limit extends it `[D-27]`.
 - **Not a PASS after its one respawn**, and one respawn is the whole of it:
-  any result that does not lead with a verdict this loop accepts — silence,
-  a preamble above the verdict, a reviewer that hit its turn cap, a
-  quick-variant verdict without its `Applied:` line — which a respawn does
-  not excuse, because the respawn brief asks the quick variant for that line
-  too. The second result settles the item, whichever of those the first was.
+  a pass for which `verdict.sh read` exits 1 — silence, a reviewer that hit
+  its turn cap, one that never ran the command, or one whose command was
+  refused. The second pass settles the item, whichever of those the first
+  was.
   If the agent dies on a session limit, return `LIMIT: resets <time>` at
   once; you cannot outlive the reset.
 - **Record the verdict as a PR comment the moment it arrives**, before the

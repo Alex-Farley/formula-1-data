@@ -325,8 +325,9 @@ and work a named item without a board if you like; do not let the loop
 choose one.
 
 - **Every autonomous pull request gets an independent review from a fresh
-  context before it merges**, returning `PASS — safe to merge` or `FAIL —
-  changes required`. The agent that made the change never approves it.
+  context before it merges**, which records `PASS` or `FAIL` by running
+  `.claude/skills/backlog-loop/verdict.sh` rather than by writing it in its
+  reply. The agent that made the change never approves it.
   Silence, a rate limit or an unavailable review account is not a PASS. Which
   reviewer, which model, and what happens to a PASS with findings are in the
   skill.
