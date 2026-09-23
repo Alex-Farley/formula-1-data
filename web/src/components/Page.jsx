@@ -30,7 +30,7 @@ import { SITE, SOURCES_LINK, behindThisPage, titled, citation } from '../lib/sit
  * the same string it uses for the h1 — so the document name and the visible
  * name cannot drift, and a page added later gets this for free.
  */
-function useDocumentName(documentName, headline) {
+function useDocumentName(documentName, headline, canonical) {
   const { pathname } = useLocation()
 
   useEffect(() => {
@@ -48,7 +48,11 @@ function useDocumentName(documentName, headline) {
   }, [documentName, headline, pathname])
 
   // The canonical is mechanical: one per document, created if the static
-  // HTML did not carry one, and always the path we are actually on.
+  // HTML did not carry one, and the path we are actually on - unless the
+  // page says it is a copy of another (`canonical`, IA-06), when it is that
+  // one, as the static page already said. Overwriting it with the path here
+  // would take back, the moment the database opened, what the static page
+  // told a crawler.
   useEffect(() => {
     let tag = document.head.querySelector('link[rel="canonical"]')
     if (!tag) {
@@ -56,8 +60,8 @@ function useDocumentName(documentName, headline) {
       tag.rel = 'canonical'
       document.head.appendChild(tag)
     }
-    tag.href = `${window.location.origin}${pathname}`
-  }, [pathname])
+    tag.href = `${window.location.origin}${canonical ?? pathname}`
+  }, [pathname, canonical])
 }
 
 /**
@@ -66,9 +70,25 @@ function useDocumentName(documentName, headline) {
  * the address without it is an empty pair of pickers. Everywhere else the
  * query string is a way of reading the page and stays out of the citation
  * (see Cite).
+ *
+ * `canonical` is for a page that is a copy of another at a second address -
+ * a router path, which the head's canonical and the citation both name
+ * instead of the address the reader is on (IA-06).
  */
-export function Page({ eyebrow, title, documentName, lede, trail, aside, children, cite = true, citedSearch = '', sources }) {
-  useDocumentName(documentName, title)
+export function Page({
+  eyebrow,
+  title,
+  documentName,
+  lede,
+  trail,
+  aside,
+  children,
+  cite = true,
+  citedSearch = '',
+  canonical,
+  sources,
+}) {
+  useDocumentName(documentName, title, canonical)
   const heading = useFocusOnNavigation()
   return (
     <article className="page">
@@ -82,7 +102,7 @@ export function Page({ eyebrow, title, documentName, lede, trail, aside, childre
         {aside}
       </header>
       <PageTitle.Provider value={typeof title === 'string' ? title : null}>{children}</PageTitle.Provider>
-      {cite && <Cite sources={sources} search={citedSearch} />}
+      {cite && <Cite sources={sources} search={citedSearch} canonical={canonical} />}
     </article>
   )
 }
@@ -358,7 +378,7 @@ export function Stepper({ previous, next }) {
  * with the date the reader is looking at it left to the reader: the build
  * date is the date that matters, because the figures are a function of it.
  */
-export function Cite({ sources, search = '' }) {
+export function Cite({ sources, search = '', canonical }) {
   const manifest = currentProgress().manifest
   // No digest, no citation. The aside exists to say which file the figures
   // came from, and a version and a build date alone do not answer that
@@ -375,7 +395,10 @@ export function Cite({ sources, search = '' }) {
   // view is a way of reading that page, and there are thousands of them.
   // The exception is a page that hands its own `search` in (Page's
   // citedSearch), whose query string is what the page is.
-  const url = `${window.location.origin}${window.location.pathname}${search}`
+  // A copy cites the page it is a copy of, under the deploy's base the way
+  // the pathname carries it, as the static page does.
+  const path = canonical ? `${(import.meta.env.BASE_URL ?? '/').replace(/\/$/, '')}${canonical}` : window.location.pathname
+  const url = `${window.location.origin}${path}${search}`
   const text = citation(manifest.version, manifest.built, manifest.digest, url)
   const [before, after] = text.split(url)
   // The sources behind the rows, where the page passes them (CD-08): a

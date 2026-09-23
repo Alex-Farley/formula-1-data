@@ -22,6 +22,8 @@ import {
   VARIANTS,
   VARIANTS_FOOTER,
   VARIANT_COLUMNS,
+  carAddress,
+  carPageName,
   entryColumns,
   entryResult,
   leadsWithPhotograph as photographLeads,
@@ -92,14 +94,16 @@ export default function Car() {
             </Page>
           )
         }
-        return <CarBody chassis={chassis} variants={variants} data={data} />
+        return <CarBody id={id} chassis={chassis} variants={variants} data={data} />
       }}
     </Result>
   )
 }
 
-function CarBody({ chassis, variants, data }) {
+function CarBody({ id, chassis, variants, data }) {
   const car = data.car.rows[0]
+  // The name both renderers print, from queries/car.js.
+  const name = carPageName(variants, car)
   // Fail closed before the count, not just before each figure: the section
   // is headed "Photographs 1" over an empty grid otherwise, the day a file
   // arrives with nobody to credit. components/Photographs.jsx does it, for
@@ -162,8 +166,9 @@ function CarBody({ chassis, variants, data }) {
   return (
     <Page
       eyebrow={chassis.constructor ?? 'Chassis'}
-      title={NAMES.car((several ? car?.full_name : null) || chassis.full_name || chassis.name).headline}
-      trail={TRAIL.car(chassis.id, (several ? car?.full_name : null) || chassis.full_name || chassis.name)}
+      title={NAMES.car(name).headline}
+      trail={TRAIL.car(chassis.id, name)}
+      canonical={carAddress(id, car)}
       lede={car?.story}
     >
       {leadsWithPhotograph && <Photographs images={images} />}

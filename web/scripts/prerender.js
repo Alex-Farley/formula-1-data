@@ -276,6 +276,7 @@ import {
 import {
   AMBIGUOUS_COLUMNS as CAR_AMBIGUOUS_COLUMNS,
   AMBIGUOUS_FOOTER as CAR_AMBIGUOUS_FOOTER,
+  CAR as CAR_ROW,
   ENTRIES as CAR_ENTRIES,
   IMAGES as CAR_IMAGES,
   NO_ENTRIES,
@@ -283,6 +284,8 @@ import {
   VARIANTS,
   VARIANTS_FOOTER,
   VARIANT_COLUMNS,
+  carAddress,
+  carPageName,
   entryColumns,
   entryResult,
   FIGURES_HEADING,
@@ -1499,10 +1502,14 @@ const page = ({
   image = null,
   lastmod = null,
   sources = null,
+  // The page this one is a copy of, where it is one (IA-06): the canonical,
+  // og:url and the citation name it, and the sitemap leaves this one out.
+  canonical = null,
 }) => {
   // The citation names the page by the address the canonical carries.
   pages.push({
     path,
+    canonical: canonical ?? path,
     title,
     description,
     jsonld,
@@ -1511,7 +1518,7 @@ const page = ({
     html: chrome(
       nameTables(structure(body, onward ? onwardBand(onward) : '')),
       trail ? crumbs(trail) : '',
-      `${ORIGIN}${href(path)}`,
+      `${ORIGIN}${href(canonical ?? path)}`,
       sources,
     ),
   })
@@ -2765,7 +2772,12 @@ page({
 // ------------------------------------------------------------------- cars
 
 {
-  const cars = all(`SELECT * FROM cars ORDER BY from_year, designation`)
+  const cars = all(`
+    SELECT c.*, k.name AS constructor_name
+      FROM cars c
+      LEFT JOIN constructors k ON k.id = c.constructor_id
+     ORDER BY c.from_year, c.designation
+  `)
 
   // EVERY chassis, because the app links every one of them. Cars.jsx builds its
   // register from `chassis` and links each row to /cars/<id>, so writing pages
@@ -2866,8 +2878,9 @@ page({
   })
 
   for (const c of cars) {
-    const name = c.full_name ?? c.designation
     const variants = all(VARIANTS, c.id)
+    // The app's name for the page, from the same function (IA-06).
+    const name = carPageName(variants, c)
     const carEntries = all(CAR_ENTRIES, c.id)
     // Second on the page, where Car.jsx puts it: after the figures that say
     // what the car is and before the prose that says why it mattered.
@@ -2890,7 +2903,9 @@ page({
         <h1>${esc(NAMES.car(name).headline)}</h1>
         ${photoFirst && photos.html ? `${photos.html}<h2>${esc(FIGURES_HEADING)}</h2>` : ''}
         ${fields([
-          ['Constructor', c.constructor_id ? link(`constructors/${c.constructor_id}`, c.constructor_id) : '—'],
+          // The name, as the app prints it: the id was the storage model on
+          // the six most famous pages in the register (IA-06).
+          ['Constructor', c.constructor_id ? link(`constructors/${c.constructor_id}`, c.constructor_name ?? c.constructor_id) : '—'],
           ['Years', `${c.from_year ?? '?'}–${c.to_year ?? '?'}`],
           ['Designers', text(c.designers)],
           ['Engine', text(c.engine_name)],
@@ -2942,9 +2957,13 @@ page({
     const photos = photographs(ch.id)
     // This year's chassis opens on its photograph, as Car.jsx's does (PD-49).
     const photoFirst = leadsWithPhotograph(variants.length ? variants : [ch], SEASON_NOW_YEAR)
+    // A chassis that is the whole of a curated car is a copy of the car's
+    // page, and says so (IA-06); queries/car.js holds the rule for both halves.
+    const address = carAddress(ch.id, one(CAR_ROW, ch.id, ch.id))
 
     page({
       path: `cars/${ch.id}`,
+      canonical: address.slice(1),
       lastmod: LAST_RUN.car.get(ch.id),
       title: NAMES.car(name).title,
       image: photos.image,
@@ -3532,8 +3551,8 @@ if (!source.includes('<div id="prerendered"></div>')) {
  * and their content hashes — come along untouched. Only the parts that differ
  * per route are replaced.
  */
-const render = ({ path, title, description, jsonld, image = null, html }) => {
-  const url = `${ORIGIN}${href(path)}`
+const render = ({ path, canonical = path, title, description, jsonld, image = null, html }) => {
+  const url = `${ORIGIN}${href(canonical)}`
   // The site card is the default HERE rather than in page(), because 404.html
   // is rendered without going through it — and a page with no og:image is the
   // defect, whichever door it came in by.
@@ -3719,8 +3738,10 @@ writeFileSync(
 // should know about and come back to, and its `lastmod` is the one date on the
 // site that moves whenever the data does - which is exactly the signal the rest
 // of this sitemap exists to give.
+// A page that names another as its canonical is left out: a sitemap lists
+// the addresses an index should hold, and that one has said it is not one.
 const sitemapUrls = [
-  ...pages.map((p) => ({ loc: `${ORIGIN}${href(p.path)}`, lastmod: p.lastmod })),
+  ...pages.filter((p) => p.canonical === p.path).map((p) => ({ loc: `${ORIGIN}${href(p.path)}`, lastmod: p.lastmod })),
   { loc: `${ORIGIN}${href(FEED_FILE)}`, lastmod: BUILT },
 ]
 
