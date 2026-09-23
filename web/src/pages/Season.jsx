@@ -355,21 +355,17 @@ function SeasonBody({ year, season, data }) {
     // Each line in its driver's team colour where the season has one (AF-04):
     // the livery from 2010, the national colour before 1968, the neutral
     // series palette between and wherever a colour is missing. Two drivers
-    // of one team share the colour and the second is dashed. A driver who
-    // changed teams wears the one they finished with.
-    const seen = new Set()
+    // of one team share the colour; every line has its slot's dash as well
+    // (AX-16), so they are still two lines. A driver who changed teams wears
+    // the one they finished with.
     return contenders.map((driver) => {
       const last = (teams.get(driver.entity_id) ?? [])[0]
       const colour = last
         ? colourForEntry({ constructorId: last.constructor_id, country: last.country, year, team: last.constructor })
         : null
-      const key = colour ? `${last.constructor_id}` : null
-      const dash = key !== null && seen.has(key)
-      if (key !== null) seen.add(key)
       return {
         name: driver.entity,
         colour,
-        dash,
         // STANDINGS holds the running table only; the season's end is FINAL,
         // and drawing it here would put the final total at round zero.
         points: standings
@@ -570,7 +566,8 @@ function SeasonBody({ year, season, data }) {
           <Figure
             title={`Championship points after each round, ${year}`}
             note={progressionNote(live)}
-            legend={progression.map((s) => ({ name: s.name, colour: inColour ? s.colour : null, dash: inColour && s.dash }))}
+            legend={progression.map((s) => ({ name: s.name, colour: inColour ? s.colour : null }))}
+            marks="line"
             table={{
               rows: progression.flatMap((s) => s.points.map((p) => ({ driver: s.name, round: p.x, points: p.y }))),
               columns: [
@@ -585,7 +582,6 @@ function SeasonBody({ year, season, data }) {
                 name: s.name,
                 points: s.points,
                 colour: inColour ? s.colour : null,
-                dash: inColour && s.dash,
               }))}
               format={(v) => fmtPoints(v)}
               formatX={(v) => `R${Math.round(v)}`}
