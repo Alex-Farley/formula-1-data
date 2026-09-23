@@ -60,7 +60,7 @@ test:                             ## unit tests for the code (not the data)
 # rule left out, are in ruff.toml and web/biome.jsonc with their reasons.
 lint:                             ## Ruff, Biome and actionlint, as CI runs them
 	ruff check
-	cd web && npx -y @biomejs/biome@2.5.13 lint
+	cd web && npm run --silent lint
 	actionlint
 
 audit:                            ## structural health report

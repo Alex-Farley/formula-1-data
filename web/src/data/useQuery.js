@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { query } from './client.js'
 
 /**
@@ -148,13 +148,3 @@ export const rows = (data, name) => data?.[name]?.rows ?? []
 
 /** The first row of a named result, or null. */
 export const row = (data, name) => data?.[name]?.rows?.[0] ?? null
-
-/** One scalar from a one-row, one-column result. */
-export function useScalar(sql, params = []) {
-  const { data, ...rest } = useQuery(sql, params)
-  const value = useMemo(() => {
-    const first = data?.rows?.[0]
-    return first ? Object.values(first)[0] : null
-  }, [data])
-  return { ...rest, value }
-}

@@ -1,7 +1,9 @@
 // Biome, the JavaScript linter CI's `lint` job runs on the front end
-// (.github/workflows/ci.yml). A CI tool, not a dependency: it is not in
-// package.json, so `npm ci` on Cloudflare installs nothing for it and the
-// deploy chain is untouched. Locally: `npx @biomejs/biome@2 lint` from web/.
+// (.github/workflows/ci.yml). A CI tool, not a dependency: it is not among
+// package.json's dependencies, so `npm ci` on Cloudflare installs nothing for
+// it and the deploy chain is untouched. Locally: `npm run lint` from web/,
+// which names the scoped package. A bare `npx biome` does not: it fetches an
+// unrelated package called `biome`, checks nothing and exits 0.
 //
 // The formatter is off for the same reason Ruff's is (see ../ruff.toml):
 // the code is laid out by hand and a reflow would bury every real diff.

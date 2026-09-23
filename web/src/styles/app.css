@@ -2824,14 +2824,6 @@ figure.figure > figcaption span {
   color: var(--ink-soft);
 }
 
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  align-items: center;
-  margin: 16px 0 0;
-}
-
 /* A Link is an anchor: it needs the box the button rule assumes and the
    underline links otherwise carry. */
 a.button {

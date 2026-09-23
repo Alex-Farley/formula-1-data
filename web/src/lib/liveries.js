@@ -1183,10 +1183,6 @@ export function liveryFor(constructorId, year) {
   return LIVERIES.find((l) => l.constructor === constructorId && year >= l.from && year <= l.to) ?? null
 }
 
-/** True where LIVERY_GAPS declares this constructor-season unfilled. */
-export const isDeclaredGap = (constructorId, year) =>
-  LIVERY_GAPS.some((g) => g.constructor === constructorId && year >= g.from && year <= g.to)
-
 /**
  * The inline style that carries a colour to an element the `.livery` rules
  * paint: --livery, holding the primary's base, and --livery-scheme, the

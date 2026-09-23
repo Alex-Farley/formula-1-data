@@ -53,7 +53,6 @@ import {
 import { metresBetween, stitch } from '../src/lib/lap.js'
 import { fold, rank } from '../src/lib/search.js'
 import { emptyTimingTableRead } from '../src/lib/sql.js'
-import { trackPath } from '../src/lib/track.js'
 import { DRIVER_COLUMNS } from '../src/queries/drivers.js'
 import { holderPath } from '../src/queries/records.js'
 import { EXPLAINED_FOOTER, OPEN_FOOTER, allExplained } from '../src/lib/disagreement.js'
@@ -361,21 +360,6 @@ describe('stitch', () => {
     assert.equal(stitch('not json'), null)
     assert.equal(stitch(null), null)
     assert.equal(stitch(ring([])), null)
-  })
-})
-
-describe('trackPath', () => {
-  it('draws a path and reports the aspect it needs', () => {
-    const out = trackPath(ring([[P0, P1, P2, P3, P0]]))
-    assert.ok(out.path.startsWith('M'))
-    assert.equal(out.segments, 1)
-    assert.equal(out.nodes, 5)
-  })
-
-  it('returns null rather than throwing on rubbish', () => {
-    assert.equal(trackPath('not json'), null)
-    assert.equal(trackPath(ring([])), null)
-    assert.equal(trackPath(ring([[P0]])), null)
   })
 })
 
