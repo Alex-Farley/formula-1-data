@@ -99,7 +99,7 @@ export function complaint(sql) {
     if (near) {
       return 'Reads only: start with SELECT, WITH, VALUES, EXPLAIN or PRAGMA. A write would be rolled back anyway, so nothing has changed.'
     }
-    const opening = word ?? stripped.split(/\s/)[0]
+    const opening = word ?? stripped[0]
     return `No statement starts with “${opening}”, so nothing ran. A read starts with SELECT, WITH, VALUES, EXPLAIN or PRAGMA.`
   }
   // The rollback does not cover pragmas. A PRAGMA is not transactional, so

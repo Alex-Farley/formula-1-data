@@ -2165,7 +2165,7 @@ describe('the console refuses what it will not run, and says why (IX-25)', () =>
     assert.equal(complaint('   '), 'Nothing to run.')
     assert.equal(complaint('-- only a comment'), 'Nothing to run.')
     assert.match(complaint('PRAGMA case_sensitive_like = ON'), /^That pragma can change/)
-    assert.match(complaint('(SELECT 1)'), /^No statement starts with “\(SELECT”/)
+    assert.match(complaint('(SELECT 1)'), /^No statement starts with “\(”/)
   })
 
   it('reads a near miss as the statement it is nearest, and does not guess a tie', () => {
