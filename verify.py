@@ -848,11 +848,14 @@ def win_tallies_stored_figures_vs_figures_derived_from_r():
     # alone and whichever season came first answered for all of them. A
     # reader saw Alfa Romeo in the table and Sauber in the results of the
     # same season, and a join on the id found nothing (DA-28). Every row, in
-    # every season and both tables, and no exceptions to declare.
-    split = con.execute("""SELECT s.year, s.table_type, s.entity_id, COUNT(*)
+    # every season and both tables, and no exceptions to declare. A row with
+    # no id at all joins nothing either, so it fails here rather than being
+    # passed over: the F1DB loader skips what it cannot resolve, but a
+    # hand-entered row could still arrive without one (review finding, #594).
+    split = con.execute("""SELECT s.year, s.table_type,
+               COALESCE(s.entity_id, '(no id: ' || s.entity || ')'), COUNT(*)
         FROM standings s
-        WHERE s.entity_id IS NOT NULL
-          AND NOT EXISTS (
+        WHERE NOT EXISTS (
               SELECT 1 FROM race_entries e JOIN races r ON r.id = e.race_id
               WHERE r.year = s.year
                 AND (CASE s.table_type WHEN 'drivers' THEN e.driver_id
