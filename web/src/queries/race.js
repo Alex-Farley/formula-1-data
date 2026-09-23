@@ -79,6 +79,28 @@ export const NEIGHBOURS = `
       ORDER BY year, round LIMIT 1) AS next
 `
 
+/**
+ * The registry entries behind the rows this page prints, for the citation's
+ * second sentence (CD-08; site.js's behindThisPage says what it reads). The
+ * race row, and every classification, qualifying, sprint, pit-stop and
+ * timetable row of it: each carries `source_id`, which build.py resolves
+ * from `source` and verify.py re-resolves, so this is a join and not a
+ * reading of URLs. Photographs are not here - each carries its own credit
+ * beside it, per file, which is the rule for them.
+ */
+export const RACE_SOURCES = `
+  SELECT s.source, s.redistributable, s.share_alike, s.attribution_required
+    FROM source_registry s
+   WHERE s.id IN (
+           SELECT r.source_id FROM races r WHERE r.year = ?1 AND r.round = ?2
+     UNION SELECT e.source_id FROM race_entries e JOIN races r ON r.id = e.race_id WHERE r.year = ?1 AND r.round = ?2
+     UNION SELECT q.source_id FROM qualifying q JOIN races r ON r.id = q.race_id WHERE r.year = ?1 AND r.round = ?2
+     UNION SELECT x.source_id FROM sprint_results x JOIN races r ON r.id = x.race_id WHERE r.year = ?1 AND r.round = ?2
+     UNION SELECT p.source_id FROM pit_stops p JOIN races r ON r.id = p.race_id WHERE r.year = ?1 AND r.round = ?2
+     UNION SELECT t.source_id FROM sessions t JOIN races r ON r.id = t.race_id WHERE r.year = ?1 AND r.round = ?2)
+   ORDER BY s.priority, s.id
+`
+
 /* ------------------------------------------------------------------ order */
 
 /**

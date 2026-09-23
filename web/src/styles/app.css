@@ -1976,6 +1976,11 @@ figure.photo figcaption a {
   color: var(--ink-faint);
 }
 
+/* The sources behind the page (CD-08), a second sentence under the first. */
+.cite p + p {
+  margin-top: var(--space-3);
+}
+
 .cite .url {
   font-family: var(--mono);
   font-size: var(--size-3);

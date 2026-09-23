@@ -96,7 +96,7 @@ import { PIT_COLUMNS, driverName, fastestLapMark, inClassificationOrder, outcome
 import { RACE_COLUMNS, raceWinnerHere } from '../src/queries/circuit.js'
 import { SEASON_COLUMNS as TEAM_SEASON_COLUMNS } from '../src/queries/constructor.js'
 import { constructorSeasons } from '../src/queries/constructor.js'
-import { DIGEST_NOTE, NOT_YET_RUN, citation } from '../src/lib/site.js'
+import { DIGEST_NOTE, NOT_YET_RUN, behindThisPage, citation, licenceTerms } from '../src/lib/site.js'
 import { seasonComplete, seasonHeading, seasonStrip, stillToRunNote } from '../src/queries/home.js'
 import {
   LIVERIES,
@@ -2125,6 +2125,36 @@ describe('the sentences that name the file (SD-24)', () => {
     assert.equal(parts.length, 2)
     assert.notEqual(parts[0].trim(), '')
     assert.notEqual(parts[1].trim(), '')
+  })
+})
+
+/*
+ * CD-08: the citation's second sentence names the sources behind the page's
+ * rows with their terms, read from the three columns the build enforces
+ * rather than from the licence prose.
+ */
+describe('the sources behind a page (CD-08)', () => {
+  const f1db = { source: 'F1DB', redistributable: 'yes', share_alike: 0, attribution_required: 1 }
+  const wiki = { source: 'Wikipedia season results tables', redistributable: 'yes', share_alike: 1, attribution_required: 1 }
+  const fom = { source: 'F1 results archive', redistributable: 'facts-only', share_alike: 0, attribution_required: 0 }
+
+  it('reads the terms from the classification, share-alike before attribution', () => {
+    assert.equal(licenceTerms(f1db), 'redistributable with attribution')
+    assert.equal(licenceTerms(wiki), 'redistributable, share-alike')
+    assert.equal(licenceTerms(fom), 'facts only')
+    assert.equal(licenceTerms({ redistributable: 'no' }), 'not redistributable')
+    assert.equal(licenceTerms({ redistributable: 'yes', share_alike: 0, attribution_required: 0 }), 'redistributable')
+  })
+
+  it('lists one, two and three sources as a sentence, and none as nothing', () => {
+    assert.equal(behindThisPage([f1db]).before, 'Behind this page: F1DB (redistributable with attribution). ')
+    assert.equal(
+      behindThisPage([wiki, f1db]).before,
+      'Behind this page: Wikipedia season results tables (redistributable, share-alike) and F1DB (redistributable with attribution). ',
+    )
+    assert.match(behindThisPage([fom, wiki, f1db]).before, /\(facts only\), Wikipedia .* and F1DB/)
+    assert.equal(behindThisPage([]), null)
+    assert.equal(behindThisPage(undefined), null)
   })
 })
 

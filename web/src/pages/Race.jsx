@@ -23,6 +23,7 @@ import {
   QUALIFYING,
   QUALIFYING_FOOTER,
   RACE,
+  RACE_SOURCES,
   SHARED_DRIVE_NOTE,
   SPRINT,
   SPRINT_COLUMNS,
@@ -159,6 +160,7 @@ export default function Race() {
     disagreements: [RACE_DISAGREEMENTS, args],
     sessions: [RACE_SESSIONS, args],
     images: [RACE_IMAGES, args],
+    sources: [RACE_SOURCES, args],
   })
 
   return (
@@ -246,6 +248,7 @@ function RaceBody({ race, data, year, round }) {
       documentName={NAMES.race(year, race.name_used).title}
       trail={TRAIL.race(year, round, race.name_used)}
       lede={raceLede(race, winners, stage)}
+      sources={rows(data, 'sources')}
       aside={
         <Stepper {...raceSteps(neighbours)} />
       }
