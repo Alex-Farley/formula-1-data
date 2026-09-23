@@ -563,9 +563,11 @@ stopped after 19 of 40 turns with a `success` result and five tool calls
 refused by its allow-list, and the action exits SUCCESS on any result that is
 not an error — so the check had never been conditioned on a review being
 posted. The prompt now closes the comment with a line naming the head
-commit, and the job's last step goes red when no comment carries it. The
-tools refused are named in the run summary, since the log hides the model's
-output. It is still not a required check and still gates nothing.
+commit, and the job's last step goes red unless a bot's comment has it on a
+line of its own — not merely quoted, since the progress checklist shares the
+comment and can quote it as a to-do. The tools refused are named in the run
+summary, since the log hides the model's output. It is still not a required
+check and still gates nothing.
 
 ### D-27 · GitHub's secondary rate limiter is not in `gh api rate_limit`
 On 2026-09-14 every reported bucket read full while the limiter refused every

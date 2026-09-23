@@ -230,15 +230,20 @@ jobs:
       # `success` result, and a sticky comment whose checklist ended at
       # "Delegate" — no findings, green check (#313 / AF-27). So a success
       # here is read against the pull request itself: the findings count as
-      # posted only when a comment on it carries the closing line the prompt
-      # asks for, naming this run's head commit. A sticky comment from an
-      # earlier push names an earlier commit and does not count.
+      # posted only when a bot's comment on it has the closing line the prompt
+      # asks for, on a line of its own, naming this run's head commit. On a
+      # line of its own because the progress checklist lives in the same
+      # comment and may quote the line as a to-do; a bot's because anyone can
+      # comment on a public repository. A sticky comment from an earlier push
+      # names an earlier commit and does not count.
       #
-      # FIVE OUTCOMES, and they are not the same: reviewed, not configured,
-      # declined because this pull request edits the workflow, stopped without
-      # posting, or the step did not finish. The action exits SUCCESS for the
-      # middle three. The first three are green; the last two are red, because
-      # a green check that reviewed nothing reads as approval and is not one.
+      # SIX OUTCOMES, and they are not the same: reviewed; not configured (the
+      # review step never ran); declined because this pull request edits the
+      # workflow; stopped without posting; not established, because the
+      # comments could not be read; or the step did not finish. The action
+      # exits SUCCESS for the third and fourth. The first three are green; the
+      # last three are red, because a green check that reviewed nothing reads
+      # as approval and is not one.
       # Red is not a gate — `review` is not a required check, and this still
       # never blocks a merge. The tools the allow-list refused are named in
       # the summary on every outcome, because the log hides the model's
@@ -250,7 +255,7 @@ jobs:
       # that place here, and it is written on every outcome, not just the bad
       # ones. `always()` because the unfinished case is the one most worth
       # naming.
-      - name: Say which of the five happened
+      - name: Say which outcome happened
         if: always()
         env:
           ENABLED: ${{ steps.guard.outputs.enabled }}
@@ -264,12 +269,18 @@ jobs:
         run: |
           say() { printf '%s\n' "$1" >> "$GITHUB_STEP_SUMMARY"; }
           # Which tools the allow-list refused, from the result message the
-          # action saved. Best effort: an unreadable file is said, not fatal.
+          # action saved. Best effort and never fatal, but a file that does
+          # not have the expected shape is said, so it cannot pass for a run
+          # with no refusals. Empty means the result message listed none.
           denied=""
           if [ -n "$EXECUTION_FILE" ] && [ -r "$EXECUTION_FILE" ]; then
             denied=$(jq -r '[.[]? | select(.type? == "result")] | last
-              | (.permission_denials // []) | map(.tool_name) | unique
-              | join(", ")' "$EXECUTION_FILE" 2>/dev/null) || denied="(the execution file could not be read)"
+              | if . == null then "(the execution file has no result message)"
+                elif (.permission_denials | type) != "array" then "(the result message has no permission_denials list)"
+                else .permission_denials | map(.tool_name) | unique | join(", ")
+                end' "$EXECUTION_FILE" 2>/dev/null) || denied="(the execution file could not be read)"
+          elif [ "$OUTCOME" = "success" ]; then
+            denied="(no execution file was saved)"
           fi
           say_denied() {
             if [ -n "$denied" ]; then
@@ -277,13 +288,23 @@ jobs:
               say "Tools the allow-list refused: $denied"
             fi
           }
-          # Posted means a comment on the pull request carries the closing
-          # line for THIS head commit. Backticks are stripped first, so a
-          # line the model set as code still counts.
+          # Posted means a bot's comment on the pull request has the closing
+          # line for THIS head commit on a line of its own. Backticks and
+          # carriage returns are stripped first, and emphasis or a trailing
+          # full stop around the line is allowed, so a line the model set as
+          # code or bold still counts; a checklist item quoting it does not.
+          # The sha is 40 hex characters, so it is safe inside the pattern.
           posted=false
           if [ "$ENABLED" = "true" ] && [ "$EDITED" != "true" ] && [ "$OUTCOME" = "success" ]; then
-            if bodies=$(gh api --paginate "repos/${REPO}/issues/${PR_NUMBER}/comments" --jq '.[].body'); then
-              if printf '%s\n' "$bodies" | tr -d '`' | grep -Fq "Review complete at ${HEAD_SHA}"; then
+            if [ -z "$HEAD_SHA" ]; then
+              say "### Not established — this run has no head commit to check against"
+              say ""
+              say "The review step succeeded, but without the head commit there is no telling a finished comment from an old one. Read the sticky comment on the pull request."
+              say_denied
+              exit 1
+            fi
+            if bodies=$(gh api --paginate "repos/${REPO}/issues/${PR_NUMBER}/comments" --jq '.[] | select(.user.type == "Bot") | .body'); then
+              if printf '%s\n' "$bodies" | tr -d '`\r' | grep -Eq "^[[:space:]*_]*Review complete at ${HEAD_SHA}[.[:space:]*_]*$"; then
                 posted=true
               fi
             else
