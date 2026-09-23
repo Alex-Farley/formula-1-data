@@ -50,7 +50,7 @@ here is a number the build checked.
 
 | File | What it is |
 |---|---|
-| `f1.db` | The SQLite database. <!-- fig:tables -->49<!-- /fig --> tables, <!-- fig:views -->41<!-- /fig --> views, <!-- fig:rows -->121,889<!-- /fig --> rows. This is the artefact. |
+| `f1.db` | The SQLite database. <!-- fig:tables -->49<!-- /fig --> tables, <!-- fig:views -->41<!-- /fig --> views, <!-- fig:rows -->122,642<!-- /fig --> rows. This is the artefact. |
 | `f1-geometry.db` | The OpenStreetMap circuit centrelines (ODbL), shipped beside `f1.db` and never merged into it. See *Illustration*. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
@@ -1031,8 +1031,8 @@ column are covered by `table_provenance`, and anything **authored** for this
 project from general knowledge is capped at `medium` because nothing outside
 the project constrains it. The build stores that resolution as `source_id` on
 every sourced row, so a row's licence is a join to `source_registry`, and
-`claims` records, per fact, which source gave which value where one row's
-figures came from more than one. See `docs/DERIVED-CONFIDENCE.md`, and `./f1
+`claims` records which source gave the value in each column that can come
+from somewhere other than the rest of its row. See `docs/DERIVED-CONFIDENCE.md`, and `./f1
 licences` for what each source permits.
 
 ### On admitting Wikipedia

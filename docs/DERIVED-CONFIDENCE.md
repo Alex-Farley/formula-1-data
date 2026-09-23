@@ -415,29 +415,41 @@ on the way in: `pit_stops`' bare `f1db` token resolved to no entry, and the
 v2.16 check never saw it because it read only the tables carrying
 `confidence`. The token now has a pattern.
 
-**`claims`** (`PM-14`): per fact, the value each source gave for it, with the
-source, as text. The shape the sketch above proposed, less its nullable
-`field` — the row as a whole is what `source_id` now answers — and with
-`as_of` for the one source that dates its figures.
+**`claims`** (`PM-14`): which source gave the value in one column of one
+row, with the value as text. That is the sketch above, sharpened in one
+respect: `field` is always a column of its table, and never NULL. The row as
+a whole is what `source_id` now answers, and a column is what a licence has
+to be argued over. `as_of` is kept for the one source that dates its figures.
 
 |  | back-filled | how |
 |---|---|---|
 | `drivers.*_external` | yes | one claim per figure, citing where *that* figure came from |
-| `chassis.published_*` | yes, for a single-chassis article | a family article's total is the family's, and no one chassis's |
-| `car_seasons` | yes | the chassis F1DB's entry lists name; `corroborated` and `other_chassis` are that list read against the car |
+| `chassis.published_*` | yes | the article's figures, citing the article: an F1DB row carrying Wikipedia's numbers |
+| `car_seasons` | yes, as `other_chassis` | what F1DB's entry lists name beyond the car's chassis; NULL is the corroboration |
 | `circuit_geometry` | **no** | `measured_km` is OpenStreetMap's, and `f1.db` carries no OpenStreetMap data |
 | `article_images.name_matches` | **no** | a string test of a row's own file name, not a second source |
 
-The encodings stay where they were, so nothing reading them changes, and
-`verify.py` holds each back-filled one to be reproducible from the claims in
-both directions. `CLAIM_FIELDS` in `data/current.py` declares every kind of
-claim and the columns it backs; the build refuses any other.
+The encodings stay where they were, so nothing reading them changes.
+`verify.py` holds each back-filled column to be exactly its claims in both
+directions, and holds the source each driver claim cites to the data module
+that says where the figure came from. `CLAIM_FIELDS` in `data/current.py`
+declares every column a claim may back, and the build refuses any other.
 
-The first thing the field grain showed is the thing it exists for. Four
-current drivers' fastest-lap totals were attributed to formula1.com by the
-row's `external_source`, and were typed in by hand; Russell's pole total is
-Wikipedia's 11, the figure that corrected formula1.com's 12. The row-grain
-column could say neither. A claim says both.
+Two things the field grain showed straight away:
+
+- Four current drivers' fastest-lap totals were dated by `external_source`
+  to a formula1.com fetch that never gave them; they were typed in by hand.
+- Russell's pole total is Wikipedia's 11, the figure that corrected
+  formula1.com's 12, and the row-grain column credited formula1.com with it.
+
+A claim can say both. Two things it deliberately does not say:
+
+- Where the hand-typed figures came from. They cite their row's source, the
+  only one ever named for them; that is a question for a person (`PM-57`,
+  #624).
+- That a family article's total is one chassis's career. The register
+  cannot tell a family article from a single-chassis one, so the claim is
+  what the column always was: the article's figure for its subject.
 
 Still ahead on this step: the pole and fastest-lap credits on `race_entries`,
 which come from the Wikipedia season tables whatever the row's `source` says,

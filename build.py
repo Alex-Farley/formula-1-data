@@ -491,13 +491,16 @@ def _stage_03_drivers_admitted_from_the_f1db_register(b):
         wins_external = wins, poles_external = poles,
         fastest_laps_external = fastest_laps,
         external_source = 'hand-entered from reference records'""")
-    # The same figures as claims, one per figure (PM-14). `authored` because
-    # the reference records were never named: the figures were typed into the
-    # data modules, and registry entry 18 is the provenance of what was.
+    # The same figures as claims, one per figure (PM-14). The reference
+    # records they were typed from were never named, so each claim cites the
+    # one source this database has ever named for them: its row's. That is
+    # the row-grain position restated per figure and not a new reading of
+    # where they came from - which is a question for a person, not the build.
     for field in ("wins", "poles", "fastest_laps"):
         cur.execute(f"""INSERT INTO claims (tbl, row_key, field, value_given,
-            source) SELECT 'drivers', id, '{field}', CAST({field} AS TEXT),
-            'authored' FROM drivers WHERE {field} IS NOT NULL""")
+            source) SELECT 'drivers', id, '{field}_external',
+            CAST({field} AS TEXT), source FROM drivers
+            WHERE {field} IS NOT NULL""")
     # Fastest-lap totals for drivers whose hand-entered row carries none,
     # declared with their source so the derived figure has something to be
     # checked against. Fills a blank only.
@@ -510,7 +513,7 @@ def _stage_03_drivers_admitted_from_the_f1db_register(b):
         if n != 1:
             raise SystemExit(f"external fastest laps: {did_} not applied")
         cur.execute("""INSERT INTO claims (tbl, row_key, field, value_given,
-            source) VALUES ('drivers', ?, 'fastest_laps', ?, ?)""",
+            source) VALUES ('drivers', ?, 'fastest_laps_external', ?, ?)""",
             (did_, str(fl_), src_))
 
 
@@ -880,19 +883,19 @@ def _stage_10_the_chassis_engine_and_entrant_register(b):
               sp["article"].replace(" ", "_")) if sp.get("article") else None,
              HV.F1DB_SOURCE))
 
-    # The published figures as claims (PM-14), from the article that gave
-    # them - but only where that article describes this chassis and no
-    # other. A family article publishes the family's career, which the build
-    # already treats as a ceiling rather than a figure for one chassis; a
-    # claim that it IS one chassis's total would be false.
+    # The published figures as claims (PM-14), citing the article that gave
+    # them. The claim is what the column already is - the career the article
+    # publishes for its subject, which for a family article is the family's -
+    # and not that this chassis raced that often: the register cannot tell a
+    # family article from a single-chassis one (two spellings of one title;
+    # variants with no article of their own), so it does not try. What the
+    # claim adds is the column's source: an F1DB row carrying Wikipedia's
+    # figures, which the row's own source_id cannot say.
     for field in ("races", "wins", "poles"):
         cur.execute(f"""INSERT INTO claims (tbl, row_key, field, value_given,
-            source) SELECT 'chassis', c.id, '{field}',
-                CAST(c.published_{field} AS TEXT), c.spec_source
-            FROM chassis c
-            WHERE c.published_{field} IS NOT NULL
-              AND (SELECT COUNT(*) FROM chassis o
-                   WHERE o.article = c.article) = 1""")
+            source) SELECT 'chassis', id, 'published_{field}',
+                CAST(published_{field} AS TEXT), spec_source
+            FROM chassis WHERE published_{field} IS NOT NULL""")
 
     b.entrants = entrants
 
@@ -2622,12 +2625,12 @@ def _stage_29_career_figures_checked_against_the_official(b):
              "formula1.com driver page, " + D.STATS_AS_OF, did)).rowcount
         if n != 1:
             raise SystemExit(f"VERIFIED_STATS: no driver row for {did!r}")
-        # The claims follow the columns: the three figures formula1.com gave
+        # The claims follow the columns: the three figures this fetch gave
         # replace the hand-entered ones they overwrote, and the fastest-lap
-        # total, which this page did not give, keeps the claim it had. That
-        # one field is the case external_source cannot express.
-        for field, value in (("wins", wins), ("poles", poles),
-                             ("podiums", podiums)):
+        # total, which it did not give, keeps the claim it had. That one
+        # column is the case external_source cannot express.
+        for field, value in (("wins_external", wins), ("poles_external", poles),
+                             ("podiums_external", podiums)):
             cur.execute("""DELETE FROM claims WHERE tbl = 'drivers'
                 AND row_key = ? AND field = ?""", (did, field))
             if value is not None:
@@ -2684,7 +2687,8 @@ def _stage_30_derived_win_totals(b):
                 as_of = CASE WHEN ? IS NULL THEN as_of END
             WHERE tbl = 'drivers' AND row_key = ? AND field = ?
               AND value_given = ?""",
-            (str(new), new_source, new_source, did, field, str(old))).rowcount
+            (str(new), new_source, new_source, did, f"{field}_external",
+             str(old))).rowcount
         if n != 1:
             raise SystemExit(f"correction: no claim backs {did} {field} = {old}")
 
@@ -3036,16 +3040,17 @@ def _stage_35_link_race_entries_to_the_curated(b):
         if (fy is not None and yr < fy) or (ty is not None and yr > ty):
             raise SystemExit(
                 f"car season: {cid} asserted for {yr}, outside its {fy}-{ty} life")
-        named = sorted(season_all.get((cons, yr), set()))
-        others = sorted(set(named) - set(CR.CAR_CHASSIS.get(cid, ())))
+        others = sorted(season_all.get((cons, yr), set())
+                        - set(CR.CAR_CHASSIS.get(cid, ())))
         cur.execute("""INSERT INTO car_seasons (car_id, year, corroborated,
             other_chassis) VALUES (?,?,?,?)""",
             (cid, yr, 0 if others else 1, "+".join(others) or None))
-        # What F1DB's entry lists say, as a claim (PM-14): the two columns
-        # above are that list read against the chassis the car covers.
+        # The remainder is F1DB's: the entry lists name those chassis for the
+        # constructor that season (PM-14). A NULL claim is the list naming
+        # none beyond the car's, which is what `corroborated` = 1 means.
         cur.execute("""INSERT INTO claims (tbl, row_key, field, value_given,
-            source) VALUES ('car_seasons', ?, 'chassis', ?, ?)""",
-            (f"{cid}|{yr}", "+".join(named) or None, HV.F1DB_SOURCE))
+            source) VALUES ('car_seasons', ?, 'other_chassis', ?, ?)""",
+            (f"{cid}|{yr}", "+".join(others) or None, HV.F1DB_SOURCE))
         if others:
             uncorroborated.append((cid, yr, others))
             continue
@@ -3236,7 +3241,7 @@ def _stage_35_link_race_entries_to_the_curated(b):
     if undeclared:
         raise SystemExit(
             "claims holds " + ", ".join(undeclared) + ", which CLAIM_FIELDS in "
-            "data/current.py does not declare. Name the encoding it backs.")
+            "data/current.py does not declare. Name the column it backs.")
     print("  claims: " + ", ".join(
         f"{t} {n}" for t, n in cur.execute(
             "SELECT tbl, COUNT(*) FROM claims GROUP BY tbl ORDER BY tbl")))

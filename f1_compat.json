@@ -978,7 +978,7 @@
       "priority": 18,
       "source": "Written for this project from general knowledge",
       "url": null,
-      "use": "The glossary, the era and engine-era periodisations, the governance and safety timelines, the technical-innovation notes, the constructor lineage chains, the points-system table, the tyre-supplier list, the grand prix register, the personnel notes and the engine-manufacturer notes. Twelve tables; the records list left it in v2.23, derived from the race records instead of written. Also the career figures typed into the data modules from reference records nobody named, which `claims` cites under the token `authored`.",
+      "use": "The glossary, the era and engine-era periodisations, the governance and safety timelines, the technical-innovation notes, the constructor lineage chains, the points-system table, the tyre-supplier list, the grand prix register, the personnel notes and the engine-manufacturer notes. Twelve tables; the records list left it in v2.23, derived from the race records instead of written.",
       "authority": "authored",
       "licence": "Original to this repository, and the only content here under no external obligation at all.",
       "cadence": "Whenever somebody edits it. There is no upstream to track and no version to pin.",
@@ -986,7 +986,7 @@
       "redistributable": "yes",
       "share_alike": 1,
       "attribution_required": 1,
-      "domains": "authored"
+      "domains": null
     }
   ]
 }

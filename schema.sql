@@ -92,7 +92,7 @@ CREATE TABLE source_registry (
 
     -- How a row's `source` is recognised as belonging to this entry: a
     -- comma-separated list of hostnames and of the bare tokens the loaders
-    -- write ('f1db', 'fastf1', 'jolpica', 'authored'). NULL where no row ever cites the
+    -- write ('f1db', 'fastf1', 'jolpica'). NULL where no row ever cites the
     -- source - the fan-site entry exists to record that it is forbidden, not
     -- to be pointed at. Several entries may share a host, and where they do
     -- the build requires them to agree on the three columns above.
@@ -133,40 +133,42 @@ CREATE TABLE table_provenance (
     note            TEXT
 );
 
--- What each source says about one fact of one row (PM-14).
+-- Which source gave the value in one column of one row (PM-14).
 --
 -- `source` is row-grain and sourcing is not. A driver's external career
--- figures came from three places - hand-entered records, formula1.com's
--- driver pages, Wikipedia articles - and one `external_source` string
--- named them per row, so it named formula1.com for four fastest-lap totals
--- that were typed in by hand, and for Russell's 11 poles, which are
--- Wikipedia's figure after formula1.com's 12 was corrected. Five places
--- encoded "a second source holds this value" five different ways, and none
--- could say which source held which value. This is the one shape for it.
+-- figures came from three places - figures typed into data/drivers.py,
+-- formula1.com's driver pages, Wikipedia articles - and one
+-- `external_source` string described them per row, so it dated four typed
+-- fastest-lap totals to a formula1.com fetch that never gave them, and
+-- credited formula1.com with Russell's 11 poles, which are Wikipedia's
+-- figure after formula1.com's 12 was corrected. A chassis is an F1DB row
+-- carrying three figures off a Wikipedia article, and its source_id can say
+-- only the first. Five places encoded "another source holds this value"
+-- five different ways; this is the one shape for it.
 --
--- A claim is the value a source gave, as text, for `field` of the row whose
--- key is `row_key`. Agreement is then a comparison and corroboration a
--- GROUP BY, rather than a column somebody remembered to add. The encodings
--- stay where they were, so nothing reading them changes; verify.py holds
--- each one to be reproducible from these rows, both ways, which is what
--- makes it a view of the claims rather than a second record of them.
--- data/current.py CLAIM_FIELDS names every (tbl, field) a claim may carry
--- and the columns it backs, and the build refuses any other.
+-- A claim is the value, as text, that `source` gave for column `field` of
+-- the row of `tbl` whose key is `row_key`. So the source of a single value
+-- - and so the terms it may be reused on - is a lookup, and agreement
+-- between sources is a comparison. The columns stay where they were, so
+-- nothing reading them changes; verify.py holds each one to be exactly its
+-- claims, in both directions, which makes it a view of them rather than a
+-- second record. data/current.py CLAIM_FIELDS names every column a claim
+-- may back, and the build refuses any other.
 --
---   drivers.*_external       wins, poles, fastest_laps, podiums: one claim
---                            per figure, citing where THAT figure came from.
---                            A correction replaces the claim, and its old
---                            value stays in `discrepancies`.
---   chassis.published_*      races, wins, poles, off the car's Wikipedia
---                            article - only where the article describes
---                            this chassis alone. A family article's total is
---                            about the family, and a claim that it is this
---                            chassis's figure would be false; those stay in
---                            the published_* columns only.
---   car_seasons              the chassis F1DB's entry lists name for the
---                            car's constructor that season. `corroborated`
---                            and `other_chassis` are what that list gives
---                            against the chassis the car covers.
+--   drivers.*_external       one claim per figure, citing where THAT figure
+--                            came from. A figure typed into the data modules
+--                            from reference records nobody named cites its
+--                            row's source, the only one ever given for it. A
+--                            correction replaces the claim, and the old value
+--                            stays in `discrepancies`.
+--   chassis.published_*      the article's figures, citing the article. As
+--                            the column is, the career of the article's
+--                            subject: for a family article, the family's.
+--   car_seasons.other_chassis
+--                            what F1DB's entry lists name for the car's
+--                            constructor that season beyond the chassis the
+--                            car covers. NULL: they name none, which is what
+--                            `corroborated` = 1 means.
 --
 -- Two of the five encodings docs/DERIVED-CONFIDENCE.md names are NOT here,
 -- on purpose. circuit_geometry's measured_km is OpenStreetMap's, and f1.db
@@ -180,7 +182,7 @@ CREATE TABLE claims (
     tbl             TEXT NOT NULL,
     row_key         TEXT NOT NULL,
     field           TEXT NOT NULL,
-    value_given     TEXT,              -- as the source gave it; NULL = names none
+    value_given     TEXT,              -- as the source gave it; NULL = it names none
     as_of           TEXT,              -- when the source said it, where the build knows
     source          TEXT NOT NULL,
     -- Resolved by the build's last stage, like every other table's; declared
