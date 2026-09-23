@@ -231,7 +231,7 @@ the move still resolves. Eras and the glossary are about the sport, not the
 database; they kept their addresses and are reached from Seasons, Cars,
 Circuits, Races and the home page rather than from the masthead.
 
-Press <kbd>/</kbd> or <kbd>⌘K</kbd> anywhere for a search across all 3,494
+Press <kbd>⌘K</kbd> or <kbd>Ctrl K</kbd> anywhere for a search across all 3,494
 drivers, constructors, circuits, chassis, seasons and races at once. A register
 of 862 drivers reached only by scrolling an alphabetical table is a register
 nobody reads.

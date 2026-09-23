@@ -8,7 +8,7 @@ export default function NotFound() {
       cite={false}
       title={NAMES.notFound().headline}
       documentName={NAMES.notFound().title}
-      lede="That address is not one this site has. Press / to search every driver, team, circuit, car, season and race at once — or pick up one of these."
+      lede="That address is not one this site has. Press Ctrl K, or Cmd K on a Mac, to search every driver, team, circuit, car, season and race at once — or pick up one of these."
     >
       <Onward {...ONWARD.notFound()} />
     </Page>

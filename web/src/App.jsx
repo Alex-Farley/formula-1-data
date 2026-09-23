@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { BrowserRouter, Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import Boot from './components/Boot.jsx'
 import Search from './components/Search.jsx'
+import SearchKey from './components/SearchKey.jsx'
 import { Result } from './components/States.jsx'
 import ThemeToggle from './components/Theme.jsx'
 import { currentProgress } from './data/client.js'
@@ -261,12 +262,13 @@ function Chrome() {
   const [searching, setSearching] = useState(false)
 
   useEffect(() => {
+    // Cmd/Ctrl+K, and nothing without a modifier. A bare `/` opened search
+    // here too, as a single-character shortcut nobody could turn off (WCAG
+    // 2.1.4, AX-15); it is gone rather than made optional, because this
+    // chord already did the same thing. Either modifier on any platform:
+    // SearchKey only chooses which one to name.
     const onKey = (event) => {
-      const typing = /^(input|textarea|select)$/i.test(event.target?.tagName ?? '')
       if ((event.key === 'k' || event.key === 'K') && (event.metaKey || event.ctrlKey)) {
-        event.preventDefault()
-        setSearching(true)
-      } else if (event.key === '/' && !typing && !event.metaKey && !event.ctrlKey) {
         event.preventDefault()
         setSearching(true)
       }
@@ -303,10 +305,14 @@ function Chrome() {
               </NavLink>
             ))}
           </nav>
-          <button type="button" className="search-trigger" onClick={() => setSearching(true)}>
+          <button
+            type="button"
+            className="search-trigger"
+            onClick={() => setSearching(true)}
+          >
             <span aria-hidden="true">⌕</span>
             Search
-            <kbd>/</kbd>
+            <SearchKey />
           </button>
           <ThemeToggle />
         </div>

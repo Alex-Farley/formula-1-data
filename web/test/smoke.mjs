@@ -403,12 +403,13 @@ try {
     /**
      * Open the search palette with the key that opens it, and prove it opened.
      *
-     * One press is only reliable from a settled page. `/` is ignored while
-     * focus is in a field, and the palette closes itself on a route change
-     * (AF-60) — so a press made while the previous navigation is still
-     * committing either lands in a dying palette's own input or opens one the
-     * route change immediately closes, and the wait spends its whole timeout
-     * on an element that will never appear. That is what failed once in CI and
+     * The key is Ctrl+K; App.jsx takes Cmd as well, and a bare `/` no longer
+     * opens it at all (AX-15). One press is only reliable from a settled page:
+     * the palette closes itself on a route change (AF-60), so a press made
+     * while the previous navigation is still committing either lands in a
+     * dying palette's own input or opens one the route change immediately
+     * closes, and the wait spends its whole timeout on an element that will
+     * never appear. That is what failed once in CI and
      * passed on a re-run of the same commit (AF-61): nothing the site did
      * wrong, and a red build either way.
      *
@@ -427,7 +428,7 @@ try {
       )
       const deadline = Date.now() + timeout
       for (let attempt = 1; ; attempt += 1) {
-        await target.keyboard.press('/')
+        await target.keyboard.press('Control+k')
         const opened = await target
           .waitForSelector('.palette input', { timeout: 1000 })
           .then(() => true)
@@ -440,10 +441,10 @@ try {
           // loud rather than through note(), which is silent under --quiet
           // and so silent in CI, which is where it would matter. It costs a
           // line that should never be printed.
-          if (attempt > 1) console.log(`  NOTE  \`/\` opened the palette on attempt ${attempt}, not the first`)
+          if (attempt > 1) console.log(`  NOTE  Ctrl+K opened the palette on attempt ${attempt}, not the first`)
           return
         }
-        if (Date.now() >= deadline) throw new Error('`/` did not open the search palette')
+        if (Date.now() >= deadline) throw new Error('Ctrl+K did not open the search palette')
       }
     }
 
@@ -3676,10 +3677,29 @@ try {
     await page.waitForSelector('#palette-results li a[href^="/drivers/"]', { timeout: 10000 })
     const first = await page.$eval('#palette-results li a', (node) => node.getAttribute('href'))
     is(first, '/drivers/rindt', 'search finds a driver by name')
+    // AX-02: the highlighted row is one a screen reader can follow. The field
+    // is a combobox pointing into a listbox at the option drawn as active.
+    const combo = await page.$eval('.palette input', (field) => {
+      const row = document.getElementById(field.getAttribute('aria-activedescendant') ?? '')
+      return {
+        role: field.getAttribute('role'),
+        expanded: field.getAttribute('aria-expanded'),
+        list: document.getElementById(field.getAttribute('aria-controls') ?? '')?.getAttribute('role'),
+        row: row && [row.getAttribute('role'), row.getAttribute('aria-selected'), row.dataset.active].join(' '),
+        tabbable: [...document.querySelectorAll('.palette a')].filter((a) => a.tabIndex >= 0).length,
+      }
+    })
+    is(
+      `${combo.role} ${combo.expanded} ${combo.list}`,
+      'combobox true listbox',
+      'the search field is an expanded combobox controlling a listbox',
+    )
+    is(combo.row, 'option true true', 'and names the highlighted row as its active descendant')
+    is(combo.tabbable, 0, 'and is the palette\'s only tab stop: the result links are out of the tab order')
     await page.click('#palette-results li a')
     // Wait for what that click started. A section that leaves its own
     // navigation in flight hands the next one a page mid-commit, which is
-    // where the `/` above used to be swallowed (AF-61).
+    // where the key above used to be swallowed (AF-61).
     await page.waitForFunction(() => document.querySelector('#root main h1')?.textContent.includes('Rindt'), null, {
       timeout: 20000,
     })
@@ -3690,6 +3710,16 @@ try {
   // to offer Ralf, on six wins, above Michael on ninety-one, because the only
   // tie-break was the length of the name.
   await section('Search  (prominence)', async () => {
+    // Whatever has focus at the press that opens the palette, read in the
+    // capture phase so it is taken before App.jsx's listener acts on the key.
+    await page.evaluate(() => {
+      const note = (event) => {
+        if (event.key.toLowerCase() !== 'k' || !(event.ctrlKey || event.metaKey)) return
+        window.__paletteOpener = document.activeElement
+        window.removeEventListener('keydown', note, true)
+      }
+      window.addEventListener('keydown', note, true)
+    })
     await openPalette(page)
     await page.fill('.palette input', 'schumacher')
     await page.waitForSelector('#palette-results li a[href^="/drivers/"]', { timeout: 10000 })
@@ -3698,6 +3728,19 @@ try {
       `/drivers/${one(`SELECT id FROM drivers WHERE lower(full_name) LIKE '%schumacher%' ORDER BY wins DESC LIMIT 1`)}`,
       'the winningest Schumacher is first',
     )
+    // AX-02: a modal the keyboard cannot leave except by closing it.
+    const inField = () => page.evaluate(() => document.activeElement === document.querySelector('.palette input'))
+    await page.keyboard.press('Shift+Tab')
+    truthy(await inField(), 'Shift+Tab does not leave the palette for the page behind it')
+    await page.keyboard.press('Tab')
+    truthy(await inField(), 'nor does Tab')
+    await page.keyboard.press('ArrowDown')
+    is(
+      await page.$eval('.palette input', (field) => field.getAttribute('aria-activedescendant')),
+      'palette-option-1',
+      'an arrow key moves the active descendant with the highlight',
+    )
+    await page.keyboard.press('ArrowUp')
     // Escape is the one way out of the palette that needs no pointer, and the
     // only modal on the site. The route-change close (AF-60) is asserted in the
     // landing section; this is the keyboard one, and it is here rather than
@@ -3710,10 +3753,28 @@ try {
         .catch(() => false),
       'Escape dismisses the palette',
     )
+    truthy(
+      await page.evaluate(() => {
+        const now = document.activeElement
+        const was = window.__paletteOpener
+        return now !== document.body && (now === was || (was === document.body && now === document.getElementById('main')))
+      }),
+      'and hands focus back to where it was when the palette opened, not to <body>',
+    )
     await page.waitForFunction(() => document.querySelector('#root main h1')?.textContent.includes('Rindt'), null, {
       timeout: 10000,
     })
     pass('revealing the page behind it')
+    // AX-15: a single printable key with no modifier and no way to turn it
+    // off is a shortcut speech input sets off by accident. It opens nothing.
+    await page.keyboard.press('/')
+    truthy(
+      await page
+        .waitForSelector('.palette', { timeout: 750 })
+        .then(() => false)
+        .catch(() => true),
+      'a bare `/` does not open search: Ctrl or Cmd+K is the only key that does',
+    )
 
   })
 

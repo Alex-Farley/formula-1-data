@@ -2892,11 +2892,14 @@ a.button.secondary:hover {
 
 /* The "no match" row in the search palette. It was an <a href="#/"> whose only
    job was to look like the rows above it while an onClick cancelled the
-   navigation; it is a span now, and this keeps the shape. */
-#palette-results .nohit {
+   navigation; it is a span now, and this keeps the shape. It sits in the
+   status region under the listbox rather than in it (AX-02), so it takes the
+   list's own 6px inset as a margin; it starts where a result row would. */
+.palette-status .nohit {
   display: flex;
   gap: 10px;
   align-items: baseline;
-  padding: 9px 14px;
+  margin: -6px 6px 6px;
+  padding: 9px 10px;
   cursor: default;
 }

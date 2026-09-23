@@ -30,6 +30,7 @@ import {
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
 import { NAMES } from '../lib/site.js'
+import SearchKey from '../components/SearchKey.jsx'
 /*
  * The React renders for the columns queries/car.js defines — the links and
  * the result's styling; the router is the reason they live here. The words
@@ -85,7 +86,7 @@ export default function Car() {
             <Page title="No such car" cite={false} trail={TRAIL.missing('/cars', 'Cars')}>
               <p className="muted">Nothing in the chassis register has the id “{id}”.</p>
               <p>
-                Press <kbd>/</kbd> to search by chassis name, or{' '}
+                Press <SearchKey /> to search by chassis name, or{' '}
                 <Link to="/cars">browse the register</Link>.
               </p>
             </Page>
