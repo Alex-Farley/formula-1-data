@@ -44,6 +44,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { dirname, join, relative } from 'node:path'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { CHASSIS_NOTE, OUT_NOTE, RACE_SOURCES } from '../src/queries/race.js'
+import { CURRENT_SEASON_SQL } from '../src/lib/season.js'
 import { fileURLToPath } from 'node:url'
 // The heading rule and the cell marks both renderers share, so the checks
 // below ask for the strings the pages compute rather than copies of them.
@@ -3139,6 +3140,20 @@ try {
           : `the citation on ${route} names no sources, for a page that passes none`,
       )
     }
+    // A current driver's page prints the whole calendar, entered or not, so
+    // every one of those races' sources is behind it (review of CD-08: on
+    // /drivers/hadjar rounds 13-23 came from a source the sentence omitted).
+    const current = db
+      .prepare(`SELECT DISTINCT driver_id AS id FROM race_entries e JOIN races r ON r.id = e.race_id WHERE r.year = ${CURRENT_SEASON_SQL}`)
+      .all()
+    const unnamed = current.filter(({ id }) => {
+      const named = new Set(db.prepare(DRIVER_SOURCES).all(id).map((s) => s.source))
+      return db
+        .prepare(THIS_SEASON)
+        .all(id)
+        .some((row) => !named.has(one('SELECT s.source FROM races r JOIN source_registry s ON s.id = r.source_id WHERE r.year = ? AND r.round = ?', row.season, row.round)))
+    })
+    is(unnamed.length, 0, `every source behind the season a current driver's page prints is named (${current.length} drivers)`)
     await go('/no-such-page-here')
     truthy(!(await page.$('#root .cite')), 'a page that does not exist offers no citation')
     await go('/drivers/no-such-driver', 'No such driver')

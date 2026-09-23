@@ -85,8 +85,9 @@ export const NEIGHBOURS = `
  * race row, and every classification, qualifying, sprint, pit-stop and
  * timetable row of it: each carries `source_id`, which build.py resolves
  * from `source` and verify.py re-resolves, so this is a join and not a
- * reading of URLs. Photographs are not here - each carries its own credit
- * beside it, per file, which is the rule for them.
+ * reading of URLs. Photographs and the circuit outline are not here: each
+ * carries its own credit beside it - per file for a photograph, F1DB's
+ * CC BY 4.0 line under the outline - which is the rule for them.
  */
 export const RACE_SOURCES = `
   SELECT s.source, s.redistributable, s.share_alike, s.attribution_required
