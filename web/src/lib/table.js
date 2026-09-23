@@ -113,6 +113,30 @@ export const sharedLine = (entries, count) =>
  */
 
 /** The width the phone default applies below. app.css says the same number. */
+/**
+ * Where a column's header points for the words its cells print (CD-09, IA-12).
+ *
+ * DNQ, NC, DSQ, PL: a classification prints the source's own code, and none
+ * of them was defined anywhere on the site - the glossary was linked from
+ * three places and from no page where one of its terms appeared. A column
+ * that prints codes declares `glossary: '<category>'` in its queries module,
+ * and its header carries a link to that category of the glossary, which
+ * opens filtered to it. Both renderers read this, so the static header and
+ * the app's link to the same place and name it the same way.
+ *
+ * The link has no text of its own: the stylesheet draws the mark, so the
+ * header's text is still its label - which is what a reader copying the
+ * table, and smoke.mjs comparing the two renderers, both read - and the
+ * accessible name is the sentence below.
+ */
+export const glossaryKey = (column) =>
+  column.glossary
+    ? {
+        to: `/reference/glossary?category=${encodeURIComponent(column.glossary)}`,
+        name: `The abbreviations in ${column.label}, in the glossary`,
+      }
+    : null
+
 export const PHONE = '(max-width: 560px)'
 
 /** The class on a column the phone default leaves out. */

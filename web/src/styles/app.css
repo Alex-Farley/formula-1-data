@@ -824,6 +824,55 @@ th.sortable button .arrow.is-idle::before {
   content: '↕';
 }
 
+/*
+ * A header that links to the glossary for the codes its column prints -
+ * DNQ, NC, PL (CD-09, IA-12). The mark is generated content, so the header's
+ * text stays its label; the link is named by its aria-label. Beside the sort
+ * button rather than inside it, so the button gives up its full width and the
+ * two sit on one line, and 24px square so it clears the target-size floor
+ * without the button's padding standing in for it.
+ */
+th.keyed.sortable {
+  padding-right: var(--space-3);
+}
+
+th.keyed.sortable button {
+  display: inline-flex;
+  width: auto;
+  vertical-align: middle;
+}
+
+th .key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-left: var(--space-1);
+  vertical-align: middle;
+  color: var(--ink-faint);
+  text-decoration: none;
+  letter-spacing: 0;
+}
+
+th .key::before {
+  content: '?';
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5em;
+  height: 1.5em;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  font-size: var(--size-1);
+  line-height: 1;
+}
+
+th .key:hover,
+th .key:focus-visible {
+  color: var(--accent);
+}
+
 th.sortable button:hover .arrow.is-idle {
   color: inherit;
 }

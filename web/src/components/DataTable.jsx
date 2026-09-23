@@ -1,7 +1,8 @@
 import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { EMPTY, isNumericColumn, isProseColumn, label as humanise, missing, text } from '../lib/format.js'
 import { staticRows } from '../lib/handover.js'
-import { PHONE, WIDE_ONLY, chosenColumns, defaultColumns, onPhone, shared, sharedLine } from '../lib/table.js'
+import { Link } from 'react-router-dom'
+import { PHONE, WIDE_ONLY, chosenColumns, defaultColumns, glossaryKey, onPhone, shared, sharedLine } from '../lib/table.js'
 import { useUrlState } from '../lib/urlstate.js'
 import Columns from './Columns.jsx'
 import { PageTitle, SectionTitle } from './Page.jsx'
@@ -514,6 +515,9 @@ function Table({
                 {arranged.map((column) => {
                   const active = shownSort === column.key
                   const canSort = sortable && column.sortable !== false
+                  // Beside the button, never inside it: a link in a button is
+                  // two controls a click cannot tell apart (lib/table.js).
+                  const key = column.ariaHidden ? null : glossaryKey(column)
                   return (
                     <th
                       key={column.key}
@@ -528,6 +532,7 @@ function Table({
                         column.cellClass,
                         column.wideOnly ? WIDE_ONLY : null,
                         canSort ? 'sortable' : null,
+                        key ? 'keyed' : null,
                       ]
                         .filter(Boolean)
                         .join(' ')}
@@ -549,6 +554,7 @@ function Table({
                       ) : (
                         column.label
                       )}
+                      {key && <Link className="key" to={key.to} aria-label={key.name} title={key.name} />}
                     </th>
                   )
                 })}

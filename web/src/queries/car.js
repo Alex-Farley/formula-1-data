@@ -112,7 +112,7 @@ export const entryColumns = (several) => [
   { key: 'driver', rowHeader: true, label: 'Driver' },
   ...(several ? [{ key: 'chassis', label: 'Chassis' }] : []),
   { key: 'grid_text', label: 'Grid', align: 'num' },
-  { key: 'position_text', label: 'Result', align: 'num', text: entryResult },
+  { key: 'position_text', label: 'Result', align: 'num', text: entryResult, glossary: 'results' },
   { key: 'status', label: 'Out', text: entryOut },
 ]
 

@@ -174,7 +174,7 @@ export const carName = (row) =>
 
 export const CLASSIFICATION_COLUMNS = [
   rail,
-  { key: 'position_text', label: 'Pos', align: 'num', text: position },
+  { key: 'position_text', label: 'Pos', align: 'num', text: position, glossary: 'results' },
   { key: 'driver', rowHeader: true, label: 'Driver', text: driverName },
   // The entrant's name where no constructor is resolved: a privateer entry.
   { key: 'constructor', label: 'Constructor', text: (_, row) => text(carName(row)) },
@@ -236,7 +236,7 @@ export const classificationFooter = (entries) =>
 
 /** One time per driver before knock-out qualifying arrived in 2006; the best lap of each session from then. */
 export const qualifyingColumns = (rows) => [
-  { key: 'position_text', label: 'Pos', align: 'num' },
+  { key: 'position_text', label: 'Pos', align: 'num', glossary: 'results' },
   { key: 'driver', rowHeader: true, label: 'Driver', text: (name, row) => text(name ?? row.driver_id) },
   { key: 'constructor', label: 'Constructor' },
   { key: 'driver_number', label: 'No.', align: 'num' },
@@ -256,7 +256,7 @@ export const QUALIFYING_FOOTER =
 
 export const SPRINT_COLUMNS = [
   rail,
-  { key: 'position_text', label: 'Pos', align: 'num' },
+  { key: 'position_text', label: 'Pos', align: 'num', glossary: 'results' },
   { key: 'driver', rowHeader: true, label: 'Driver', text: (name, row) => text(name ?? row.driver_id) },
   { key: 'constructor', label: 'Constructor' },
   { key: 'grid', label: 'Grid', align: 'num' },

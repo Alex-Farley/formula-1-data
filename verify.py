@@ -729,6 +729,27 @@ def race_results():
                         (PREVIOUS,)).fetchone()[0]
     check(f"{PREVIOUS} champion appears in the {PREVIOUS} race winners", c25id in w25)
 
+    # Every code a results table prints in place of a number - DNQ, NC, PL -
+    # is a glossary term, in the source's own spelling (CD-09). The codes are
+    # printed verbatim on every classification, and the site links each
+    # results column's header to the glossary's results category; a code the
+    # glossary does not hold would be a link to a page that does not define
+    # it. Read from the tables rather than listed here, so the next code a
+    # harvest brings in fails this until data/technical.py defines it.
+    printed = {}
+    for table, column in (("race_entries", "position_text"), ("race_entries", "grid_text"),
+                          ("sprint_results", "position_text"), ("qualifying", "position_text"),
+                          ("standings", "position_text")):
+        for (code,) in con.execute(
+                f"SELECT DISTINCT {column} FROM {table} "
+                f"WHERE {column} IS NOT NULL AND CAST({column} AS TEXT) GLOB '*[^0-9]*'"):
+            printed.setdefault(code, []).append(f"{table}.{column}")
+    defined = {t for (t,) in con.execute("SELECT term FROM glossary WHERE category = 'results'")}
+    undefined = sorted(set(printed) - defined)
+    check("every results code the tables print is defined in the glossary",
+          bool(printed) and not undefined,
+          "; ".join(f"{c} ({', '.join(printed[c])})" for c in undefined))
+
 
 @section('HARVESTED RACE RESULTS')
 def harvested_race_results():

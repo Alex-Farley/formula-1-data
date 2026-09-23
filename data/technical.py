@@ -380,7 +380,23 @@ GLOSSARY = [
     ("Cost cap", "governance", "The annual spending limit on team operations, introduced in 2021 and excluding driver salaries, marketing and the three highest-paid staff."),
     ("Delta time", "sporting", "A target lap time drivers must not beat, used to enforce Virtual Safety Car conditions."),
     ("Dirty air", "aerodynamics", "The turbulent wake behind a car, which reduces the downforce of a car following closely."),
-    ("DNF", "results", "Did Not Finish."),
+    # The results abbreviations: every code a classification prints in its
+    # Pos, Grid or Result column, in the source's own spelling (CD-09). They are
+    # what a newcomer trips on here, and verify.py fails the build on a code any
+    # results table prints that this list does not define, so the next one a
+    # harvest brings in arrives with its definition or not at all.
+    ("DNF", "results", "Did not finish: retired from the race and not classified. A driver who retires late enough is still classified and has a finishing position (see Classified), so a DNF is a retirement with no place in the result."),
+    ("Classified", "results", "Ranked in a race's final order. A driver who retired is still classified if they had covered enough of the distance - under the current rules, 90% of the winner's laps - which is why a car that stopped can have a finishing position."),
+    ("NC", "results", "Not classified: still in the race at the end, but too far behind - too few laps covered - to be given a position. A driver who retired short of the distance is a DNF instead."),
+    ("DNS", "results", "Did not start: took part in the event but not in the start of the race - a car that failed before the start, or a driver hurt in practice or qualifying."),
+    ("DNQ", "results", "Did not qualify: too slow in qualifying to be one of the cars allowed to start, in the years when more cars were entered than the grid could hold."),
+    ("DNPQ", "results", "Did not pre-qualify: eliminated in pre-qualifying, a session some events held before qualifying itself when there were too many entries - above all in the late 1980s and early 1990s. A car that failed it never reached qualifying."),
+    ("DNP", "results", "Did not practise: entered for the event but took part in none of its sessions, so the car never ran and has no time and no result."),
+    ("DSQ", "results", "Disqualified: took part and was then removed from the result, usually for a technical or sporting breach found afterwards. In a championship table, a driver removed from the classification - Michael Schumacher in 1997, whose points stand without a position."),
+    ("EX", "results", "Excluded: removed by the stewards from an event or a session - a car found underweight or illegal, or one that missed a weight check - so it has no result. In a championship table, a team or driver excluded from the classification altogether, as McLaren was from the 2007 constructors' championship."),
+    ("PL", "results", "Pit lane: in the Grid column, a driver who started the race from the pit lane rather than a grid slot - most often because the car was changed after qualifying, which the parc ferme rules punish that way."),
+    ("FL", "results", "Fastest lap: the quickest single lap of the race, marked in its own column on a classification. It has earned a championship point in two periods, 1950-1959 and 2019-2024."),
+    ("Shared drive", "results", "Two or more drivers taking turns in one car in the same race, which the championship's early seasons allowed. Each is classified in the car's position, so that position appears more than once."),
     ("DRS", "aerodynamics", "Drag Reduction System, 2011-2025: a driver-adjustable rear wing flap usable within one second of the car ahead in designated zones."),
     ("Degradation", "tyres", "The loss of tyre performance over a stint, distinct from wear; Pirelli's tyres are specified to degrade deliberately."),
     ("Downforce", "aerodynamics", "Aerodynamically generated load pressing the car onto the track, increasing grip at the cost of drag."),
