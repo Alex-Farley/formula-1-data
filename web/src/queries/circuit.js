@@ -51,13 +51,18 @@ export const LAYOUTS = `
  * calendar and not yet raced is "1 round to come", not a round run at a
  * venue that has never held one. A drawing, not a measurement:
  * lib/outline.js says how it differs from GEOMETRY.
+ *
+ * `latest` is the last race that names the layout, run or to come, as one
+ * sortable year-and-round (202609): leadOutline draws that layout large
+ * (VD-37). The grid keeps the chronological order below.
  */
 export const OUTLINES = `
   SELECT o.f1db_layout_id, o.length_km, o.turns, o.path,
          MIN(CASE WHEN r.status = 'completed' THEN r.year END) AS first_year,
          MAX(CASE WHEN r.status = 'completed' THEN r.year END) AS last_year,
          COUNT(CASE WHEN r.status = 'completed' THEN 1 END) AS rounds,
-         COUNT(CASE WHEN r.status != 'completed' THEN 1 END) AS scheduled
+         COUNT(CASE WHEN r.status != 'completed' THEN 1 END) AS scheduled,
+         MAX(r.year * 100 + r.round) AS latest
     FROM circuit_outlines o
     LEFT JOIN races r ON r.f1db_layout_id = o.f1db_layout_id
    WHERE o.circuit_id = ?

@@ -8,7 +8,7 @@ import { currentProgress } from '../data/client.js'
 import { rows, row as firstRow, useQueries } from '../data/useQuery.js'
 import { number, span } from '../lib/format.js'
 import { colourForEntry } from '../lib/liveries.js'
-import { OUTLINE_FIGURES_NOTE, OUTLINE_RULE, OUTLINE_SCALE_NOTE, outlineCaption } from '../lib/outline.js'
+import { OUTLINE_FIGURES_NOTE, circuitOutlinesNote, leadOutline, outlineCaption } from '../lib/outline.js'
 import { TRACE_NOT_LOADED, TRACE_RULE, measured, noTrace, odblCredit } from '../lib/trace.js'
 
 import { NAMES, NOT_YET_RUN } from '../lib/site.js'
@@ -121,6 +121,7 @@ function CircuitBody({ circuit, data }) {
   const coverage = firstRow(data, 'coverage')
   const layouts = rows(data, 'layouts')
   const outlines = rows(data, 'outlines')
+  const { lead, rest } = leadOutline(outlines)
   const races = rows(data, 'races')
   const winners = rows(data, 'winners')
   const teams = rows(data, 'teams')
@@ -153,23 +154,33 @@ function CircuitBody({ circuit, data }) {
           from two sources, with no rule for which to believe. The outline is
           the picture: it covers 79 of the 80 venues and every historic layout
           no trace can ever hold. The rule and the caveat are the section's
-          note, once, rather than under each card. */}
+          note, once, rather than under each card.
+
+          VD-37: the latest layout leads, drawn large, and the rest sit in the
+          grid beside it - a venue with one layout had nothing but a card a
+          sixth of the row, and Silverstone's current layout was the eighth
+          card, alone under a row of seven. */}
       {outlines.length > 0 && (
         <Section
           title="Every layout raced here"
           count={`${outlines.length}`}
-          note={`${OUTLINE_RULE} ${OUTLINE_SCALE_NOTE}`}
+          note={circuitOutlinesNote(outlines.length)}
         >
-          <div className="outline-grid">
-            {outlines.map((row) => (
-              <OutlineCard
-                key={row.f1db_layout_id}
-                path={row.path}
-                circuit={circuit.name}
-                layoutId={row.f1db_layout_id}
-                caption={outlineCaption(row)}
-              />
-            ))}
+          <div className="outline-set">
+            <OutlineCard path={lead.path} circuit={circuit.name} layoutId={lead.f1db_layout_id} caption={outlineCaption(lead)} />
+            {rest.length > 0 && (
+              <div className="outline-grid">
+                {rest.map((row) => (
+                  <OutlineCard
+                    key={row.f1db_layout_id}
+                    path={row.path}
+                    circuit={circuit.name}
+                    layoutId={row.f1db_layout_id}
+                    caption={outlineCaption(row)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </Section>
       )}
