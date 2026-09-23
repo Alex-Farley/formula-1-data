@@ -66,7 +66,9 @@ jobs:
     #      agents locally — so it was a review nobody read.
     #   3. A green check was not evidence a review happened: on PR #312 it
     #      reported SUCCESS with its sticky comment stopping two steps short
-    #      of posting findings (#313 / AF-27, still open).
+    #      of posting findings. AF-27 (#313) made green mean posted: the last
+    #      step of this job now goes red unless the findings are on the pull
+    #      request for the head commit this run reviewed.
     #
     # It also fired on `synchronize`, so every fix push during a review round
     # started another full run: four on the AF-29 pull request, four on
@@ -202,6 +204,16 @@ jobs:
               specific failure this review is written to avoid.
             - If you find nothing, say so in one line. A review that always
               finds something is one nobody reads.
+            - End the comment with this line, exactly as written and on a
+              line of its own, once the findings are in it:
+
+                  Review complete at ${{ github.event.pull_request.head.sha }}
+
+              The job checks for it and goes red without it, because a
+              review that posts nothing must not read as one that found
+              nothing. Post the findings even if delegating to an agent was
+              refused — apply its checklist yourself, as above — and do not
+              write the line on a comment that has no findings in it.
 
             You are reviewing. Do not edit files, do not push, do not resolve
             threads.
@@ -210,11 +222,26 @@ jobs:
       # is now the ordinary case and is visibly skipped rather than silently
       # green. Of the runs that do happen:
       #
-      # A GREEN CHECK HERE MEANS ONE OF FOUR THINGS and they are not the same:
-      # reviewed and found nothing, not configured, declined because this pull
-      # request edits the workflow, or the step did not finish. The action
-      # exits SUCCESS for the middle two, so without this step the only way to
-      # tell them apart is to open the job log and know what to look for.
+      # THE REVIEW STEP'S SUCCESS IS NOT A REVIEW. The action exits SUCCESS
+      # whenever the model stops without an error, whether or not it posted
+      # anything. On PR #312 (run 34875692232) it stopped after 19 of its 40
+      # turns, with five tool calls refused by the allow-list below, a
+      # `success` result, and a sticky comment whose checklist ended at
+      # "Delegate" — no findings, green check (#313 / AF-27). So a success
+      # here is read against the pull request itself: the findings count as
+      # posted only when a comment on it carries the closing line the prompt
+      # asks for, naming this run's head commit. A sticky comment from an
+      # earlier push names an earlier commit and does not count.
+      #
+      # FIVE OUTCOMES, and they are not the same: reviewed, not configured,
+      # declined because this pull request edits the workflow, stopped without
+      # posting, or the step did not finish. The action exits SUCCESS for the
+      # middle three. The first three are green; the last two are red, because
+      # a green check that reviewed nothing reads as approval and is not one.
+      # Red is not a gate — `review` is not a required check, and this still
+      # never blocks a merge. The tools the allow-list refused are named in
+      # the summary on every outcome, because the log hides the model's
+      # output and that list is the one account of why it stopped.
       #
       # CLAUDE.md states the rule this follows: anything non-fatal must report
       # where it can be read, because a silent step is an invisible one — the
@@ -222,14 +249,50 @@ jobs:
       # that place here, and it is written on every outcome, not just the bad
       # ones. `always()` because the unfinished case is the one most worth
       # naming.
-      - name: Say which of the four happened
+      - name: Say which of the five happened
         if: always()
         env:
           ENABLED: ${{ steps.guard.outputs.enabled }}
           EDITED: ${{ steps.validation.outputs.edited }}
           OUTCOME: ${{ steps.review.outcome }}
+          EXECUTION_FILE: ${{ steps.review.outputs.execution_file }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           say() { printf '%s\n' "$1" >> "$GITHUB_STEP_SUMMARY"; }
+          # Which tools the allow-list refused, from the result message the
+          # action saved. Best effort: an unreadable file is said, not fatal.
+          denied=""
+          if [ -n "$EXECUTION_FILE" ] && [ -r "$EXECUTION_FILE" ]; then
+            denied=$(jq -r '[.[]? | select(.type? == "result")] | last
+              | (.permission_denials // []) | map(.tool_name) | unique
+              | join(", ")' "$EXECUTION_FILE" 2>/dev/null) || denied="(the execution file could not be read)"
+          fi
+          say_denied() {
+            if [ -n "$denied" ]; then
+              say ""
+              say "Tools the allow-list refused: $denied"
+            fi
+          }
+          # Posted means a comment on the pull request carries the closing
+          # line for THIS head commit. Backticks are stripped first, so a
+          # line the model set as code still counts.
+          posted=false
+          if [ "$ENABLED" = "true" ] && [ "$EDITED" != "true" ] && [ "$OUTCOME" = "success" ]; then
+            if bodies=$(gh api --paginate "repos/${REPO}/issues/${PR_NUMBER}/comments" --jq '.[].body'); then
+              if printf '%s\n' "$bodies" | tr -d '`' | grep -Fq "Review complete at ${HEAD_SHA}"; then
+                posted=true
+              fi
+            else
+              say "### Not established — the pull request's comments could not be read"
+              say ""
+              say "The review step succeeded, but whether it posted findings is unknown. Read the sticky comment on the pull request."
+              say_denied
+              exit 1
+            fi
+          fi
           if [ "$ENABLED" != "true" ]; then
             say "### Not reviewed — no key is configured"
             say ""
@@ -238,12 +301,20 @@ jobs:
             say "### Not reviewed — this pull request edits \`review.yml\`"
             say ""
             say "The action reviews only when the workflow is byte-identical to the copy on the default branch, so that a pull request cannot rewrite the reviewer judging it. Nothing is wrong with this pull request; it simply reviewed nothing, and posted no comment. Read the diff yourself, and expect the review to resume on the next pull request that leaves this file alone."
-          elif [ "$OUTCOME" = "success" ]; then
+          elif [ "$OUTCOME" = "success" ] && [ "$posted" = "true" ]; then
             say "### Reviewed"
             say ""
-            say "The findings, or a line saying there were none, are in the sticky comment on the pull request."
+            say "The findings, or a line saying there were none, are in the sticky comment on the pull request, closed for \`${HEAD_SHA}\`."
+            say_denied
+          elif [ "$OUTCOME" = "success" ]; then
+            say "### Not reviewed — the action succeeded and posted no findings"
+            say ""
+            say "No comment on this pull request ends with the closing line for \`${HEAD_SHA}\`, so the model stopped before it posted. This check is red on purpose: a green one here would read as a review that found nothing. It gates nothing; read the diff yourself, or push again for another run."
+            say_denied
+            exit 1
           else
             say "### The review did not finish — \`$OUTCOME\`"
             say ""
-            say "This is the one outcome above that is a real failure. The job log has the error."
+            say "The job log has the error."
+            say_denied
           fi
