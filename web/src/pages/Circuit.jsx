@@ -8,7 +8,15 @@ import { currentProgress } from '../data/client.js'
 import { rows, row as firstRow, useQueries } from '../data/useQuery.js'
 import { number, span } from '../lib/format.js'
 import { colourForEntry } from '../lib/liveries.js'
-import { OUTLINE_FIGURES_NOTE, circuitOutlinesNote, leadOutline, outlineCaption } from '../lib/outline.js'
+import {
+  NO_DRAWING,
+  NO_TIMELINE_ROW,
+  circuitOutlinesNote,
+  layoutTimeline,
+  layoutsCount,
+  leadOutline,
+  outlineCaption,
+} from '../lib/outline.js'
 import { TRACE_NOT_LOADED, TRACE_RULE, measured, noTrace, odblCredit } from '../lib/trace.js'
 
 import { NAMES, NOT_YET_RUN } from '../lib/site.js'
@@ -159,29 +167,66 @@ function CircuitBody({ circuit, data }) {
           VD-37: the latest layout leads, drawn large, and the rest sit in the
           grid beside it - a venue with one layout had nothing but a card a
           sixth of the row, and Silverstone's current layout was the eighth
-          card, alone under a row of seven. */}
-      {outlines.length > 0 && (
+          card, alone under a row of seven.
+
+          IX-32: where the register has a timeline, it is this list rather
+          than a second one further down joined by a "drawn as monza-5" the
+          reader matched by eye. Each row sits beside the drawing it names; a
+          row that names none and a drawing no row names are both shown as
+          what they are (lib/outline.js, layoutTimeline). */}
+      {(outlines.length > 0 || layouts.length > 0) && (
         <Section
           title="Every layout raced here"
-          count={`${outlines.length}`}
-          note={circuitOutlinesNote(outlines.length)}
+          count={layoutsCount(layouts, outlines)}
+          note={circuitOutlinesNote(outlines.length, layouts.length > 0)}
         >
-          <div className="outline-set">
-            <OutlineCard path={lead.path} circuit={circuit.name} layoutId={lead.f1db_layout_id} caption={outlineCaption(lead)} />
-            {rest.length > 0 && (
-              <div className="outline-grid">
-                {rest.map((row) => (
-                  <OutlineCard
-                    key={row.f1db_layout_id}
-                    path={row.path}
-                    circuit={circuit.name}
-                    layoutId={row.f1db_layout_id}
-                    caption={outlineCaption(row)}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
+          {lead && (
+            <div className="outline-set">
+              <OutlineCard path={lead.path} circuit={circuit.name} layoutId={lead.f1db_layout_id} caption={outlineCaption(lead)} />
+              {layouts.length === 0 && rest.length > 0 && (
+                <div className="outline-grid">
+                  {rest.map((row) => (
+                    <OutlineCard
+                      key={row.f1db_layout_id}
+                      path={row.path}
+                      circuit={circuit.name}
+                      layoutId={row.f1db_layout_id}
+                      caption={outlineCaption(row)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          {layouts.length > 0 && (
+            <div className="timeline layout-timeline">
+              {layoutTimeline(layouts, outlines).map(({ key, layout, outline }) => (
+                <article key={key}>
+                  {outline ? (
+                    <OutlineCard
+                      path={outline.path}
+                      circuit={circuit.name}
+                      layoutId={outline.f1db_layout_id}
+                      caption={outlineCaption(outline)}
+                    />
+                  ) : (
+                    <p className="outline-none">{NO_DRAWING}</p>
+                  )}
+                  <div>
+                    <h3>
+                      {layout ? layout.layout_name : NO_TIMELINE_ROW}
+                      <span className="years">
+                        {layout ? span(layout.from_year, layout.to_year) : span(outline.first_year, outline.last_year)}
+                      </span>
+                      {layout?.length_km && <span className="years">{layout.length_km} km</span>}
+                      {layout && <Confidence value={layout.confidence} />}
+                    </h3>
+                    {layout?.change_reason && <p>{layout.change_reason}</p>}
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
         </Section>
       )}
 
@@ -197,25 +242,6 @@ function CircuitBody({ circuit, data }) {
         // this circuit's rows — without the overlay every circuit has none —
         // so it is told from whether the overlay merged at all.
         <Section note={overlay ? noTrace(coverage?.traced, coverage?.circuits) : TRACE_NOT_LOADED} />
-      )}
-
-      {layouts.length > 0 && (
-        <Section title="How it changed" count={`${layouts.length} layouts`} note={outlines.length > 0 ? OUTLINE_FIGURES_NOTE : undefined}>
-          <div className="timeline">
-            {layouts.map((layout) => (
-              <article key={layout.id}>
-                <h3>
-                  {layout.layout_name}
-                  <span className="years">{span(layout.from_year, layout.to_year)}</span>
-                  {layout.length_km && <span className="years">{layout.length_km} km</span>}
-                  {layout.f1db_layout_id && <span className="years">drawn as {layout.f1db_layout_id}</span>}
-                  <Confidence value={layout.confidence} />
-                </h3>
-                {layout.change_reason && <p>{layout.change_reason}</p>}
-              </article>
-            ))}
-          </div>
-        </Section>
       )}
 
       {layouts.length === 0 && circuit.races > 1 && (

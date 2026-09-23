@@ -248,6 +248,7 @@ import {
 } from '../src/queries/constructor.js'
 import {
   CIRCUIT as CIRCUIT_ROW,
+  LAYOUTS as CIRCUIT_LAYOUTS,
   RACES as CIRCUIT_RACES,
   RACE_COLUMNS as CIRCUIT_RACE_COLUMNS,
   TEAMS as TEAMS_HERE,
@@ -299,8 +300,12 @@ import {
   OUTLINE_RULE,
   OUTLINE_VIEWBOX,
   OUTLINES_NOTE,
+  NO_DRAWING,
+  NO_TIMELINE_ROW,
   STATE_WORDS,
   circuitOutlinesNote,
+  layoutTimeline,
+  layoutsCount,
   leadOutline,
   outlineCaption,
   outlineLabel,
@@ -704,6 +709,33 @@ const outlineCard = (path, circuit, layoutId, caption, rule = false) =>
         rule ? `<br><span class="faint">${esc(OUTLINE_RULE)}</span>` : ''
       }</figcaption></figure>`
     : ''
+// A confidence tier as components/Page.jsx's Confidence draws it: the pill,
+// linked to the page that says what the tier means.
+const confidencePill = (value) =>
+  value
+    ? `<a class="pill pill-${esc(String(value).toLowerCase())}" href="${esc(href('data/quality'))}" title="${esc(
+        `Confidence tier "${value}" - what it means, on the quality page`,
+      )}">${esc(value)}</a>`
+    : ''
+// A circuit's layouts as one list, as Circuit.jsx draws it (IX-32): each
+// timeline row beside the drawing it names, from the same layoutTimeline, so
+// the static page carries the register's history (AF-08) in the app's shape
+// rather than the two lists the app used to draw.
+const layoutRows = (circuit, entries) =>
+  `<div class="timeline layout-timeline">${entries
+    .map(
+      ({ layout, outline }) =>
+        `<article>${
+          outline
+            ? outlineCard(outline.path, circuit, outline.f1db_layout_id, outlineCaption(outline))
+            : `<p class="outline-none">${esc(NO_DRAWING)}</p>`
+        }<div><h3>${esc(layout ? layout.layout_name : NO_TIMELINE_ROW)}<span class="years">${esc(
+          layout ? span(layout.from_year, layout.to_year) : span(outline.first_year, outline.last_year),
+        )}</span>${layout?.length_km ? `<span class="years">${esc(layout.length_km)} km</span>` : ''}${
+          layout ? confidencePill(layout.confidence) : ''
+        }</h3>${layout?.change_reason ? `<p>${esc(layout.change_reason)}</p>` : ''}</div></article>`,
+    )
+    .join('')}</div>`
 // The winner's colour bar under a run round, as components/Outline.jsx draws
 // it: the same properties on the same element, so the static strip and the
 // app's agree (AF-04). One value, both themes, since AF-16 stopped moving a
@@ -2406,6 +2438,7 @@ const page = ({
     const winnersHere = all(WINNERS_HERE, c.id)
     const teamsHere = all(TEAMS_HERE, c.id)
     const outlinesHere = all(CIRCUIT_OUTLINES, c.id)
+    const layoutsHere = all(CIRCUIT_LAYOUTS, c.id)
     const outlineSplit = leadOutline(outlinesHere)
     const card = (row) => outlineCard(row.path, c.name, row.f1db_layout_id, outlineCaption(row))
     page({
@@ -2454,10 +2487,18 @@ const page = ({
         ${prose(c.characteristics)}
         ${prose(c.notes)}
         ${
-          outlinesHere.length
-            ? `<h2>Every layout raced here</h2>${note(circuitOutlinesNote(outlinesHere.length))}<div class="outline-set">${card(
-                outlineSplit.lead,
-              )}${outlineSplit.rest.length ? `<div class="outline-grid">${outlineSplit.rest.map(card).join('')}</div>` : ''}</div>`
+          outlinesHere.length || layoutsHere.length
+            ? `${heading('Every layout raced here', layoutsCount(layoutsHere, outlinesHere))}${note(
+                circuitOutlinesNote(outlinesHere.length, layoutsHere.length > 0),
+              )}${
+                outlineSplit.lead
+                  ? `<div class="outline-set">${card(outlineSplit.lead)}${
+                      !layoutsHere.length && outlineSplit.rest.length
+                        ? `<div class="outline-grid">${outlineSplit.rest.map(card).join('')}</div>`
+                        : ''
+                    }</div>`
+                  : ''
+              }${layoutsHere.length ? layoutRows(c.name, layoutTimeline(layoutsHere, outlinesHere)) : ''}`
             : ''
         }
         ${

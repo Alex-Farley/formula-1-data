@@ -63,8 +63,10 @@ export const leadOutline = (rows) => {
  * and - where one is drawn larger than the others - why that one.
  */
 export const OUTLINE_LEAD_NOTE = 'The large one is the latest layout raced or on the calendar here, not the longest.'
-export const circuitOutlinesNote = (count) =>
-  [OUTLINE_RULE, OUTLINE_SCALE_NOTE, count > 1 ? OUTLINE_LEAD_NOTE : null].filter(Boolean).join(' ')
+export const circuitOutlinesNote = (count, timeline = false) =>
+  [OUTLINE_RULE, OUTLINE_SCALE_NOTE, count > 1 ? OUTLINE_LEAD_NOTE : null, timeline ? OUTLINE_FIGURES_NOTE : null]
+    .filter(Boolean)
+    .join(' ')
 
 /** The sources page's paragraph: the credit, what it obliges, and what was changed. */
 export const OUTLINES_NOTE = `${OUTLINE_CREDIT}. Carry that credit with any outline you take. Shown here in the site’s own ink at a constant stroke, otherwise as drawn. ${OUTLINE_RULE}`
@@ -81,11 +83,55 @@ export const OUTLINES_NOTE = `${OUTLINE_CREDIT}. Carry that credit with any outl
 export const OUTLINE_REGISTER_NOTE = `${OUTLINE_RULE} ${OUTLINE_SCALE_NOTE} ${OUTLINE_BY}.`
 
 /**
- * Under a circuit's timeline, where the register's length sits a few lines
- * below F1DB's for the same layout and nine circuits disagree (Silverstone's
- * 1950 layout 4.649 v 4.711 km; Spa 19 v 21 turns).
+ * Over a circuit's timeline, where the register's length sits beside F1DB's
+ * for the same layout and nine circuits disagree (Silverstone's 1950 layout
+ * 4.649 v 4.711 km; Spa 19 v 21 turns).
  */
-export const OUTLINE_FIGURES_NOTE = 'Lengths here are this register’s, from its own sources; the figures under each outline above are F1DB’s, and at some circuits the two disagree.'
+export const OUTLINE_FIGURES_NOTE = 'The length in each heading is this register’s, from its own sources; the figures under its drawing are F1DB’s, and at some circuits the two disagree.'
+
+/** A timeline row whose layout names no F1DB outline, where its drawing would be. */
+export const NO_DRAWING = 'No F1DB outline names this layout'
+
+/** The heading of an outline no timeline row names: a drawing with no history here. */
+export const NO_TIMELINE_ROW = 'Not in this register’s timeline'
+
+/** The count beside a circuit's layouts: the timeline's rows and the drawings, which need not agree. */
+export const layoutsCount = (layouts, outlines) =>
+  layouts.length ? `${layouts.length} in the timeline, ${outlines.length} drawn` : `${outlines.length}`
+
+/**
+ * A circuit's layout timeline and F1DB's outlines as one list (IX-32). They
+ * were two sections - the drawings, then the register's rows - joined only by
+ * a "drawn as monza-5" string the reader carried back up the page, and at
+ * Monza they disagreed with nothing on screen saying so. Here each
+ * circuit_layouts row carries the outline it names (`outline` null where it
+ * names none, or names one this circuit has no outline for), and each outline
+ * no row names is a row of its own with `layout` null. Neither side is
+ * dropped or matched by guesswork: the only join is `f1db_layout_id`, and a
+ * drawing two rows name (Monza's banked oval, 1955-56 and 1960-61) is drawn
+ * beside both.
+ *
+ * In order of the row's first year - the register's `from_year`, or for an
+ * unnamed outline the first completed race run on it - a year nobody holds
+ * last, and a tie in the order given: the register's rows before the
+ * outlines, each in its query's order.
+ */
+export const layoutTimeline = (layouts, outlines) => {
+  const drawn = new Map((outlines ?? []).map((outline) => [outline.f1db_layout_id, outline]))
+  const named = new Set((layouts ?? []).map((layout) => layout.f1db_layout_id).filter(Boolean))
+  const at = (year) => (year === null || year === undefined ? Number.POSITIVE_INFINITY : year)
+  return [
+    ...(layouts ?? []).map((layout) => ({
+      key: `layout-${layout.id}`,
+      layout,
+      outline: (layout.f1db_layout_id && drawn.get(layout.f1db_layout_id)) || null,
+      year: layout.from_year,
+    })),
+    ...(outlines ?? [])
+      .filter((outline) => !named.has(outline.f1db_layout_id))
+      .map((outline) => ({ key: `outline-${outline.f1db_layout_id}`, layout: null, outline, year: outline.first_year })),
+  ].sort((a, b) => (at(a.year) === at(b.year) ? 0 : at(a.year) < at(b.year) ? -1 : 1))
+}
 
 /** The accessible name of one outline: what it is, and which F1DB layout. */
 export const outlineLabel = (circuit, layoutId) => `Outline of ${circuit ?? 'the circuit'}, F1DB layout ${layoutId}`

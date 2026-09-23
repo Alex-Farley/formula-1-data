@@ -55,6 +55,7 @@ import { ABOUT, DOCUMENTS, MAINTAINER, NOT_YET_RUN, PHOTOGRAPHS_SHOWN, SO_FAR } 
 import { attribution, canShow, fileTitle } from '../src/lib/commons.js'
 import { ENTRIES as CAR_ENTRIES, FIGURES_HEADING, IMAGES as CAR_IMAGES } from '../src/queries/car.js'
 import { CHECKED_LABEL, LAST_CHECKED } from '../src/lib/refresh.js'
+import { NO_DRAWING, NO_TIMELINE_ROW } from '../src/lib/outline.js'
 // The three surfaces VD-33 gave the photographs to, read from the app's own
 // queries so that the static pages are checked against what the app shows.
 import { CONSTRUCTOR_IMAGES, RACE_IMAGES, SEASON_IMAGES } from '../src/queries/photographs.js'
@@ -2241,10 +2242,13 @@ try {
     )
     // AF-03: F1DB's outline of every layout raced here - eight at
     // Silverstone, which no trace could hold - each with its credit, in the
-    // app and in the static page alike.
+    // app and in the static page alike. IX-32 draws one beside each timeline
+    // row, so a drawing can appear more than once: every one of the eight
+    // is drawn, and nothing that is not one of them.
     const outlinesHere = count("SELECT COUNT(*) FROM circuit_outlines WHERE circuit_id = 'silverstone'")
     await page.waitForSelector('#root main .outline-card svg.outline path', { timeout: 20000 })
-    is(await page.$$eval('#root main .outline-card', (n) => n.length), outlinesHere, 'every F1DB layout of Silverstone is drawn')
+    const drawnLabels = await page.$$eval('#root main .outline-card svg.outline', (n) => n.map((svg) => svg.getAttribute('aria-label')))
+    is(new Set(drawnLabels).size, outlinesHere, 'every F1DB layout of Silverstone is drawn')
     truthy(
       await page.$$eval('#root main .outline-card figcaption', (n) => n.length > 0 && n.every((c) => c.textContent.includes('Jules Roy'))),
       'every outline carries its credit',
@@ -2252,9 +2256,26 @@ try {
     const staticCircuit = await (await fetch(`${BASE}/circuits/silverstone`)).text()
     is(
       (staticCircuit.match(/<figure class="outline-card">/g) ?? []).length,
-      outlinesHere,
+      drawnLabels.length,
       'the static page draws the same outlines',
     )
+    // IX-32/AF-08: the register's timeline is one list with the drawings,
+    // one row per circuit_layouts row and per outline no row names, in the
+    // app and - it had none at all - the static page, in the same words.
+    const timelineRows = count(
+      `SELECT (SELECT COUNT(*) FROM circuit_layouts WHERE circuit_id = 'silverstone')
+            + (SELECT COUNT(*) FROM circuit_outlines o WHERE o.circuit_id = 'silverstone'
+                  AND NOT EXISTS (SELECT 1 FROM circuit_layouts l WHERE l.f1db_layout_id = o.f1db_layout_id))`,
+    )
+    const appRows = await page.$$eval('#root main .layout-timeline > article h3', (n) => n.map((h) => h.textContent))
+    is(appRows.length, timelineRows, 'one row per layout in the timeline, and per drawing it does not name')
+    truthy(
+      !(await page.$$eval('#root main h2', (n) => n.some((h) => h.textContent.startsWith('How it changed')))),
+      'the timeline is not drawn a second time as its own section',
+    )
+    const staticTimeline = staticCircuit.slice(staticCircuit.indexOf('<div class="timeline layout-timeline">'))
+    const staticRows = [...staticTimeline.matchAll(/<h3>(.*?)<\/h3>/g)].slice(0, timelineRows).map((m) => unescaped(m[1].replace(/<[^>]+>/g, '')))
+    is(JSON.stringify(staticRows), JSON.stringify(appRows), 'the static page carries the same timeline rows, in the same words and order')
     // AF-23/VD-44: the cards are all fitted to one box, so the page says they
     // are not to scale - in both renderers, from the one string.
     truthy(
@@ -2270,9 +2291,9 @@ try {
     )
     const leadLabel = await page.$eval('#root main .outline-set > .outline-card svg.outline', (n) => n.getAttribute('aria-label'))
     truthy(leadLabel.endsWith(`F1DB layout ${latestHere}`), `the latest layout, ${latestHere}, leads`)
-    const [leadWidth, cardWidth] = await page.$eval('#root main .outline-set', (n) => [
-      n.querySelector(':scope > .outline-card svg').getBoundingClientRect().width,
-      n.querySelector('.outline-grid .outline-card svg').getBoundingClientRect().width,
+    const [leadWidth, cardWidth] = await page.$eval('#root main', (n) => [
+      n.querySelector('.outline-set > .outline-card svg').getBoundingClientRect().width,
+      n.querySelector('.layout-timeline .outline-card svg').getBoundingClientRect().width,
     ])
     truthy(leadWidth > 2 * cardWidth, `the lead is drawn large (${Math.round(leadWidth)} px against ${Math.round(cardWidth)} px)`)
     truthy(
@@ -2287,6 +2308,32 @@ try {
       (await page.$eval('#root main', (n) => n.textContent)).includes('No traced centreline for this circuit'),
       'a circuit with no trace says so',
     )
+
+    // IX-32: at Monza the two sides disagree, and the list shows both gaps
+    // as what they are - a timeline row naming no drawing, and a drawing no
+    // row names - where the two sections used to leave them to be found.
+    {
+      const monzaStatic = await (await fetch(`${BASE}/circuits/monza`)).text()
+      await go('/circuits/monza', 'Monza')
+      await page.waitForSelector('#root main .layout-timeline > article', { timeout: 20000 })
+      const undrawn = count("SELECT COUNT(*) FROM circuit_layouts WHERE circuit_id = 'monza' AND f1db_layout_id IS NULL")
+      const unnamed = count(
+        `SELECT COUNT(*) FROM circuit_outlines o WHERE o.circuit_id = 'monza'
+            AND NOT EXISTS (SELECT 1 FROM circuit_layouts l WHERE l.f1db_layout_id = o.f1db_layout_id)`,
+      )
+      truthy(undrawn > 0 && unnamed > 0, 'Monza still has a row with no drawing and a drawing with no row')
+      is(await page.$$eval('#root main .layout-timeline .outline-none', (n) => n.length), undrawn, `the ${undrawn} undrawn layouts say so`)
+      is(
+        await page.$$eval('#root main .layout-timeline h3', (n, words) => n.filter((h) => h.textContent.startsWith(words)).length, NO_TIMELINE_ROW),
+        unnamed,
+        `the ${unnamed} drawings the timeline does not name say so`,
+      )
+      truthy(
+        monzaStatic.split(`<p class="outline-none">${NO_DRAWING}</p>`).length - 1 === undrawn &&
+          monzaStatic.split(`<h3>${NO_TIMELINE_ROW.replace(/'/g, '&#39;')}`).length - 1 === unnamed,
+        'the static page shows the same two gaps',
+      )
+    }
 
     // Skipped rather than failed when the overlay is absent: a build without
     // f1-geometry.db is a legitimate one, and the track maps are the only thing
