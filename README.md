@@ -1,21 +1,14 @@
 # Lap Ledger — v<!-- fig:version -->2.24<!-- /fig -->
 
-An expansion of the original single-file JSON into a normalised, queryable
-SQLite database covering <!-- fig:season_span -->1950–2027<!-- /fig -->, with
-the JSON kept as a generated export.
-
-**The latest release, v<!-- fig:version -->2.24<!-- /fig -->,** derives the
-`records` table instead of publishing it. Thirty rows had been typed from
-general knowledge, at `medium`, with nothing in `verify.py` reading them —
-one said Hamilton had 105 wins beside a `drivers.wins` of 106 the same build
-had computed. Every row is now one query over the tables the leaderboards
-read, with its rule, exclusions and every holder of a tie in `detail`, a
-machine key for the holder, a numeric value with its unit, and one ISO
-`as_of` read off the last completed race; `verify.py` recomputes a sample by
-a different route. The five records the database cannot derive are declared
-in `known_gaps` rather than kept. v2.22 gave the final championship table a
-key and a view (`v_standings_final`), after the compat export had shipped the
-running table rather than the final one in every release since v2.15.
+**The Formula One record that says how much it can be trusted.** The world
+championship, <!-- fig:season_span -->1950–2027<!-- /fig --> — every race,
+entry, qualifying session and standings table so far, and the calendar still
+to run — as one normalised, queryable SQLite database. It is rebuilt from
+its sources and cross-checked against independent ones on every build;
+every fact table carries a `confidence` column saying how far each row was
+checked, and where two sources disagree the disagreement is kept on the
+record rather than settled quietly. The JSON is a generated export of the
+same tables.
 
 **What changed in every version**, what each one exposed, and what was
 deliberately not done, is in [`docs/BUILD-NOTES.md`](docs/BUILD-NOTES.md).
