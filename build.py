@@ -4104,6 +4104,19 @@ def derive_records(cur):
     decided = q("SELECT COUNT(*) FROM seasons WHERE drivers_champion IS NOT NULL")[0][0]
     race_name = lambda year, name: f"{year} {name}"                       # noqa: E731
 
+    def tie_value(lead, single, part, figure=None, joiner=", "):
+        """A record's value from its leading rows, each (figure, name, id, ...):
+        `single(row)` when one row leads; when one holder leads in several -
+        two seasons, two Grands Prix - the figure and every `part(row)`, because
+        add() names that holder once and holds its id; '<figure> each' only
+        when two or more holders share it."""
+        figure = figure or _num(lead[0][0])
+        if len(lead) == 1:
+            return single(lead[0])
+        if len({r[2] for r in lead}) == 1:
+            return f"{figure}{joiner}" + " and ".join(part(r) for r in lead)
+        return f"{figure} each"
+
     # ------------------------------------------------------------ drivers
     rows = q("""SELECT COUNT(*) n, d.full_name, d.id,
                        GROUP_CONCAT(s.year, ', ') yrs
@@ -4174,8 +4187,8 @@ def derive_records(cur):
     lead = _leaders(rows)
     add("most-wins-in-a-season", "drivers", "Most wins in a season",
         [(r[1], r[2]) for r in lead], "drivers", lead[0][0], "wins",
-        (f"{_num(lead[0][0])} of the {races_in[lead[0][3]]} races in {lead[0][3]}"
-         if len(lead) == 1 else f"{_num(lead[0][0])} each"),
+        tie_value(lead, lambda r: f"{_num(r[0])} of the {races_in[r[3]]} races in {r[3]}",
+                  lambda r: str(r[3]), joiner=", in "),
         "race_entries rows with finish_position = 1 per driver per season. "
         + "; ".join(f"{r[1]}, {r[3]}: {r[0]} of {races_in[r[3]]}" for r in lead)
         + ". Next: " + ", ".join(f"{r[1]} {r[0]} ({r[3]})" for r in _rest(rows, lead)) + ".")
@@ -4342,8 +4355,8 @@ def derive_records(cur):
     lead = _leaders(rows)
     add("most-constructor-wins-in-a-season", "constructors", "Most wins in a season by a constructor",
         [(r[1], r[2]) for r in lead], "constructors", lead[0][0], "wins",
-        (f"{_num(lead[0][0])} of the {races_in[lead[0][3]]} races in {lead[0][3]}"
-         if len(lead) == 1 else f"{_num(lead[0][0])} each"),
+        tie_value(lead, lambda r: f"{_num(r[0])} of the {races_in[r[3]]} races in {r[3]}",
+                  lambda r: str(r[3]), joiner=", in "),
         "Distinct races with a finish_position = 1 entry per constructor per season, so a "
         "one-two counts once. "
         + "; ".join(f"{r[1]}, {r[3]}: {r[0]} of {races_in[r[3]]}" for r in lead)
@@ -4362,8 +4375,8 @@ def derive_records(cur):
     add("highest-season-win-share-constructor", "constructors",
         "Highest share of a season's races won by a constructor",
         [(r[1], r[2]) for r in lead], "constructors", lead[0][0], "per cent",
-        (f"{lead[0][0]:.2f}% ({lead[0][4]} of {races_in[lead[0][3]]}, {lead[0][3]})"
-         if len(lead) == 1 else f"{lead[0][0]:.2f}% each"),
+        tie_value(lead, lambda r: f"{r[0]:.2f}% ({r[4]} of {races_in[r[3]]}, {r[3]})",
+                  lambda r: str(r[3]), figure=f"{lead[0][0]:.2f}%", joiner=", in "),
         "Distinct races won by the constructor over the completed races of the season, "
         "the Indianapolis 500 of 1950-60 counted as a race; seasons still in progress are "
         "excluded. Next: "
@@ -4377,7 +4390,7 @@ def derive_records(cur):
     add("most-constructor-points-in-a-season", "constructors",
         "Most points in a season by a constructor",
         [(r[1], r[2]) for r in lead], "constructors", lead[0][0], "points",
-        (f"{_num(lead[0][0])}, {lead[0][3]}" if len(lead) == 1 else f"{_num(lead[0][0])} each"),
+        tie_value(lead, lambda r: f"{_num(r[0])}, {r[3]}", lambda r: str(r[3])),
         "The final constructors' table of every season (v_standings_final). Points systems "
         "differ across the years, so this is the nominal figure the official table "
         "shows, not a like-for-like measure. Next: "
@@ -4437,8 +4450,8 @@ def derive_records(cur):
     lead = _leaders(rows, biggest=False)
     add("closest-championship-margin", "races", "Closest drivers' championship margin",
         [(r[1], r[2]) for r in lead], "drivers", lead[0][0], "points",
-        (f"{_num(lead[0][0])} point{'s' if lead[0][0] != 1 else ''}, {lead[0][3]}"
-         if len(lead) == 1 else f"{_num(lead[0][0])} points each"),
+        tie_value(lead, lambda r: f"{_num(r[0])} point{'s' if r[0] != 1 else ''}, {r[3]}",
+                  lambda r: str(r[3]), figure=f"{_num(lead[0][0])} points", joiner=", in "),
         "First minus second in the final drivers' table of every decided season "
         "(v_standings_final), with dropped scores as the official table applied them. "
         + "; ".join(f"{r[3]}: {r[1]} {_num(r[4])}, {r[5]} {_num(r[6])}" for r in lead)
@@ -4495,8 +4508,8 @@ def derive_records(cur):
     nogrid = q("SELECT COUNT(*) FROM race_entries WHERE finish_position = 1 AND grid IS NULL")[0][0]
     add("lowest-grid-position-for-a-winner", "races", "Lowest grid position for a race winner",
         [(r[1], r[2]) for r in lead], "drivers", lead[0][0], "grid position",
-        (f"{_ordinal(lead[0][0])}, {race_name(lead[0][3], lead[0][4])}" if len(lead) == 1
-         else f"{_ordinal(lead[0][0])} each"),
+        tie_value(lead, lambda r: f"{_ordinal(r[0])}, {race_name(r[3], r[4])}",
+                  lambda r: race_name(r[3], r[4]), figure=_ordinal(lead[0][0])),
         "race_entries.grid of every finish_position = 1 entry. A pit-lane start "
         "(grid_text 'PL') has no grid slot and could not place; "
         + ("every winning entry has a grid slot held. " if nogrid == 0 else
@@ -4542,11 +4555,8 @@ def derive_records(cur):
     def season_value(lead, noun="races"):
         """'15 of the 19 races in 2011'; a tie across holders is 'N each', and
         one holder level with themself in two seasons names both."""
-        if len(lead) == 1:
-            return f"{_num(lead[0][0])} of the {races_in[lead[0][3]]} {noun} in {lead[0][3]}"
-        if len({r[2] for r in lead}) == 1:
-            return f"{_num(lead[0][0])}, in " + " and ".join(str(r[3]) for r in lead)
-        return f"{_num(lead[0][0])} each"
+        return tie_value(lead, lambda r: f"{_num(r[0])} of the {races_in[r[3]]} {noun} in {r[3]}",
+                         lambda r: str(r[3]), joiner=", in ")
 
     def season_detail(rule, rows, lead):
         return (f"{rule}. " + "; ".join(f"{r[1]}, {r[3]}: {r[0]} of {races_in[r[3]]}" for r in lead)
@@ -4572,7 +4582,7 @@ def derive_records(cur):
     lead = _leaders(rows)
     add("most-wins-with-one-constructor", "drivers", "Most wins with one constructor",
         [(r[1], r[2]) for r in lead], "drivers", lead[0][0], "wins",
-        (f"{_num(lead[0][0])}, with {lead[0][3]}" if len(lead) == 1 else f"{_num(lead[0][0])} each"),
+        tie_value(lead, lambda r: f"{_num(r[0])}, with {r[3]}", lambda r: r[3], joiner=", with "),
         "race_entries rows with finish_position = 1 per driver per constructor id, under the "
         "constructor name raced under: lineage is not merged, as it is not for "
         "constructors.wins. " + "; ".join(f"{r[1]} with {r[3]}" for r in lead)
@@ -4591,8 +4601,8 @@ def derive_records(cur):
     add("highest-season-win-share-driver", "drivers",
         "Highest share of a season's races won by a driver",
         [(r[1], r[2]) for r in lead], "drivers", lead[0][0], "per cent",
-        (f"{lead[0][0]:.2f}% ({lead[0][4]} of {races_in[lead[0][3]]}, {lead[0][3]})"
-         if len(lead) == 1 else f"{lead[0][0]:.2f}% each"),
+        tie_value(lead, lambda r: f"{r[0]:.2f}% ({r[4]} of {races_in[r[3]]}, {r[3]})",
+                  lambda r: str(r[3]), figure=f"{lead[0][0]:.2f}%", joiner=", in "),
         "The driver's finish_position = 1 entries over the completed races of the season, "
         "the Indianapolis 500 of 1950-60 counted as a race and a shared drive counted for "
         "both drivers; seasons still in progress are excluded. Next: "
@@ -4613,7 +4623,7 @@ def derive_records(cur):
         f"Next: {_also(rows, lead, 1)}.")
 
     rows = q("""SELECT wins, full_name, id FROM drivers
-                 WHERE wins IS NOT NULL AND COALESCE(titles, 0) = 0
+                 WHERE wins IS NOT NULL AND titles = 0
                  ORDER BY wins DESC, full_name""")
     lead = _leaders(rows)
     add("most-wins-without-a-title", "drivers", "Most wins without a drivers' championship",
@@ -4636,7 +4646,7 @@ def derive_records(cur):
     lead = _leaders(rows)
     add("most-wins-at-one-grand-prix", "drivers", "Most wins at one Grand Prix",
         [(r[1], r[2]) for r in lead], "drivers", lead[0][0], "wins",
-        (f"{_num(lead[0][0])}, {lead[0][3]}" if len(lead) == 1 else f"{_num(lead[0][0])} each"),
+        tie_value(lead, lambda r: f"{_num(r[0])}, {r[3]}", lambda r: str(r[3])),
         "finish_position = 1 entries per driver per Grand Prix (races.gp_id): the event, "
         "wherever it was held, not the circuit. "
         + "; ".join(f"{r[1]}, {r[3]}: {', '.join(map(str, r[4]))}" for r in lead)
@@ -4712,7 +4722,7 @@ def derive_records(cur):
     lead = _leaders(rows)
     add("most-driver-points-in-a-season", "drivers", "Most points in a season by a driver",
         [(r[1], r[2]) for r in lead], "drivers", lead[0][0], "points",
-        (f"{_num(lead[0][0])}, {lead[0][3]}" if len(lead) == 1 else f"{_num(lead[0][0])} each"),
+        tie_value(lead, lambda r: f"{_num(r[0])}, {r[3]}", lambda r: str(r[3])),
         "The final drivers' table of every season (v_standings_final). Points systems "
         "differ across the years, so this is the nominal figure the official table "
         "shows, not a like-for-like measure. Next: "
