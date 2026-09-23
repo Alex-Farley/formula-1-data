@@ -2921,17 +2921,56 @@ try {
 
   })
 
-  // At a phone width the register is wider than the screen and says so; the
-  // masthead shows every destination rather than a strip with a hidden
-  // scrollbar.
+  // At a phone width the register opens on its phone set, and a table a
+  // reader has made wider than the screen says so; the masthead shows every
+  // destination rather than a strip with a hidden scrollbar.
   await section('/drivers  (at 375 px)', async () => {
     await page.setViewportSize({ width: 375, height: 812 })
+    // The headers a reader can see: a column the phone set leaves out is in
+    // the document, in both renderers, and drawn by neither.
+    const drawn = () =>
+      page.$$eval('#root main .table-wrap', (wraps) =>
+        [...(wraps.find((w) => !w.closest('figure.figure'))?.querySelectorAll('thead th') ?? [])]
+          .filter((th) => getComputedStyle(th).display !== 'none')
+          .map((th) => th.textContent.replace(/[▲▼]/g, '').trim()),
+      )
     await go('/drivers', 'Drivers')
     await page.waitForSelector('#root main tbody tr', { timeout: 20000 })
+    await settle()
+    // IX-27: 632 px of every row was off the screen, Wins and Titles among it.
+    is((await drawn()).join(' | '), 'Driver | Wins | Titles', 'at 375 px the register opens on its phone set of three')
+    truthy(!(await page.$('#root main .table-wrap[data-clipped]')), 'with nothing past the right edge')
+    {
+      const html = await (await fetch(`${BASE}/drivers`)).text()
+      truthy(
+        /<th scope="col" class="wide-only">Nationality<\/th>/.test(html) && /<th scope="col" class="num">Wins<\/th>/.test(html),
+        'and the static page marks the same columns, so a phone without script opens on the same three',
+      )
+    }
+    // The address changed in place, as a control changes it, rather than by a
+    // fresh load: a load would make /drivers the page the reader arrived on,
+    // and every later section that opens the register would find it seeded
+    // with all 862 rows instead of paged.
+    const to = async (search) => {
+      await page.evaluate((search) => {
+        window.history.replaceState({}, '', `/drivers${search}`)
+        window.dispatchEvent(new PopStateEvent('popstate'))
+      }, search)
+      await page.waitForFunction((search) => window.location.search === search, search, { timeout: 10000 })
+      await settle()
+    }
+    // VD-31: the column the register is sorted by is on the screen, second.
+    await to('?sort=poles&dir=desc')
+    is((await drawn()).join(' | '), 'Driver | Poles | Wins | Titles', 'sorted by a column the phone set leaves out, that column follows the name')
+    // A choice is the reader's at every width, and a wide one scrolls.
+    const every = 'full_name,nationality,first_season,entries,wins,podiums,poles,fastest_laps,titles'
+    await to(`?cols=${every}`)
+    is((await drawn()).length, 9, 'columns a reader chose are drawn at any width')
     truthy(
       await page.waitForSelector('.table-wrap[data-clipped]', { timeout: 10000 }).catch(() => null),
       'a table wider than the screen shows a fade at its right edge',
     )
+    await to('')
     const navBox = await page.$eval('.masthead nav', (nav) => {
       const box = nav.getBoundingClientRect()
       const links = [...nav.querySelectorAll('a')].map((a) => a.getBoundingClientRect())
@@ -3691,6 +3730,97 @@ try {
       await page.$eval('#root main th[aria-sort]', (node) => node.getAttribute('aria-sort')),
       'descending',
       'and a sort the header does not offer falls back to the one the register opens on',
+    )
+
+    /*
+     * IA-23. The columns are the third thing a reader arranges, and the
+     * address holds them for the same reason it holds the other two. A
+     * column taken out comes out of the address again when it is put back;
+     * an optional one is there to be asked for; and the default is absent.
+     */
+    const heads = () =>
+      page.$$eval('#root main .table-wrap', (wraps) =>
+        [...(wraps.find((w) => !w.closest('figure.figure'))?.querySelectorAll('thead th') ?? [])].map((th) =>
+          th.textContent.replace(/[▲▼]/g, '').trim(),
+        ),
+      )
+    const box = (label) => `#root main details.columns label:has-text("${label}") input`
+    // The address is written first and the table redrawn after it, so each
+    // step waits for the header it expects, not for the address.
+    const headed = (label, present) =>
+      page.waitForFunction(
+        ([label, present]) => {
+          const wrap = [...document.querySelectorAll('#root main .table-wrap')].find((w) => !w.closest('figure.figure'))
+          const has = [...(wrap?.querySelectorAll('thead th') ?? [])].some((th) => th.textContent.trim() === label)
+          return has === present
+        },
+        [label, present],
+        { timeout: 10000 },
+      )
+    await page.goto(`${BASE}/constructors`, { waitUntil: 'domcontentloaded' })
+    await page.waitForSelector('#root main tbody tr', { timeout: 20000 })
+    await settle()
+    const opening = await heads()
+    truthy(!opening.includes('Base'), `a register opens without its optional columns — ${opening.join(', ')}`)
+    await page.click('#root main details.columns > summary')
+    // A click, not check(): the box is the address's to set, and it turns
+    // when the address has, a render later than check() looks.
+    await page.click(box('Base'))
+    await headed('Base', true)
+    const withBase = await heads()
+    is(withBase.length, opening.length + 1, `asking for one adds it — ${query().get('cols')}`)
+    is(withBase[withBase.indexOf('Country') + 1], 'Base', 'in the place the register declares it')
+    await page.click(box('Designs'))
+    await headed('Designs', false)
+    const chosen = page.url()
+    truthy(!(await heads()).includes('Designs'), 'and a default one can be taken out')
+    await page.goto(chosen, { waitUntil: 'domcontentloaded' })
+    await page.waitForSelector('#root main tbody tr', { timeout: 20000 })
+    await settle()
+    is((await heads()).join(' | '), withBase.filter((h) => h !== 'Designs').join(' | '), 'the address alone reproduces the columns')
+    truthy(await page.isDisabled('#root main details.columns label.is-fixed input'), 'the column that names the row is not offered')
+    await page.click('#root main details.columns > summary')
+    await page.click('#root main details.columns button.columns-reset')
+    await headed('Designs', true)
+    is(query().get('cols'), null, 'the reset takes the parameter out of the address')
+    is((await heads()).join(' | '), opening.join(' | '), 'and the default columns are one press away')
+    // The same stranger rule as a filter's: a parameter naming nothing the
+    // register has is the default, not an empty grid.
+    await page.goto(`${BASE}/constructors?cols=not-a-column`, { waitUntil: 'domcontentloaded' })
+    await page.waitForSelector('#root main tbody tr', { timeout: 20000 })
+    await settle()
+    is((await heads()).join(' | '), opening.join(' | '), 'columns the register does not have are ignored')
+
+    /*
+     * IX-41. An expansion the reader made can be put away again, by the same
+     * control, and the address forgets it: a link with `?all=1` on it was
+     * 1,125 rows with only the address bar to get out of them.
+     */
+    await page.goto(`${BASE}/races`, { waitUntil: 'domcontentloaded' })
+    await page.waitForSelector('#root main tbody tr', { timeout: 20000 })
+    await settle()
+    const seeded = await page.$eval('#root main .table-wrap', (node) => Number(node.dataset.shown))
+    const says = (start) =>
+      page.waitForFunction(
+        (start) => document.querySelector('#root main .table-foot button.more')?.textContent.trim().startsWith(start),
+        start,
+        { timeout: 20000 },
+      )
+    await page.click('#root main .table-foot button.more')
+    await says('Show the first')
+    is(query().get('all'), '1', 'the expansion is in the address')
+    is(
+      await page.$eval('#root main .table-foot button.more', (node) => node.textContent.trim()),
+      `Show the first ${seeded}`,
+      'an expanded table offers the way back, in the same control',
+    )
+    await page.click('#root main .table-foot button.more')
+    await says('Show the remaining')
+    is(query().get('all'), null, 'and putting it away takes it out again')
+    is(await page.$eval('#root main .table-wrap', (node) => Number(node.dataset.shown)), seeded, `and pressing it shows ${seeded} again`)
+    truthy(
+      await page.evaluate(() => document.activeElement?.matches('.table-foot button.more')),
+      'with focus still on the control that did it',
     )
 
   })

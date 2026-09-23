@@ -1,8 +1,9 @@
 import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { EMPTY, isNumericColumn, isProseColumn, label as humanise, missing, text } from '../lib/format.js'
 import { staticRows } from '../lib/handover.js'
-import { shared, sharedLine } from '../lib/table.js'
+import { PHONE, WIDE_ONLY, chosenColumns, defaultColumns, onPhone, shared, sharedLine } from '../lib/table.js'
 import { useUrlState } from '../lib/urlstate.js'
+import Columns from './Columns.jsx'
 import { PageTitle, SectionTitle } from './Page.jsx'
 import TakeAway from './TakeAway.jsx'
 
@@ -67,6 +68,15 @@ import TakeAway from './TakeAway.jsx'
  *     rows as they came, descending is those rows reversed with the missing
  *     ones still last. Every other column sorts by `compare()` as before.
  *
+ * THE COLUMNS ARE A DEFAULT, AND ON A REGISTER THE READER'S TO CHANGE (IA-23).
+ *     A column list is the full set; `optional` and `phone` on its columns
+ *     declare the default and the phone default (lib/table.js). An addressed
+ *     table offers the choice as a Columns control and keeps it in `?cols=`.
+ *     At phone width, where nobody has chosen, the column the table is sorted
+ *     by is drawn whether or not the phone set holds it, and second - after
+ *     the cells that name the row - so the order a reader asked for is the
+ *     one thing on screen that says what it is (VD-31, folded into IX-27).
+ *
  * NULLS SORT LAST, ALWAYS.
  *     SQLite sorts NULL first, and this database uses NULL for "not
  *     established". Sorted naively, the drivers nobody has a points total for
@@ -96,9 +106,30 @@ function normalise(columns, rows) {
 }
 
 /**
- * The table a reader can send somebody: its sort column, its direction and
- * whether it has been expanded, in the address bar as `?sort=wins&dir=asc`
- * and `?all=1` (IA-08). A sort that is the table's own default is not
+ * Does the page match a media query? False where there is no query to ask,
+ * so a table that declares no phone set subscribes to nothing.
+ */
+function useMatches(query) {
+  const [matches, setMatches] = useState(() => Boolean(query && globalThis.matchMedia?.(query).matches))
+  useEffect(() => {
+    if (!query || !globalThis.matchMedia) {
+      setMatches(false)
+      return undefined
+    }
+    const list = globalThis.matchMedia(query)
+    const change = () => setMatches(list.matches)
+    change()
+    list.addEventListener('change', change)
+    return () => list.removeEventListener('change', change)
+  }, [query])
+  return matches
+}
+
+/**
+ * The table a reader can send somebody: its sort column, its direction,
+ * whether it has been expanded and which columns it shows, in the address bar
+ * as `?sort=wins&dir=asc`, `?all=1` (IA-08) and `?cols=full_name,wins,poles`
+ * (IA-23). A sort or a column set that is the table's own default is not
  * written down, so a register nobody has touched keeps a clean address.
  *
  * `addressed` is opt-in, and only a page whose register IS the page takes it
@@ -110,7 +141,11 @@ export default function DataTable({ addressed = false, ...props }) {
 }
 
 function AddressedTable({ sort = null, direction = 'asc', ...props }) {
-  const [state, set] = useUrlState({ sort: sort ?? '', dir: direction, all: false })
+  const [state, set] = useUrlState({ sort: sort ?? '', dir: direction, all: false, cols: '' })
+  const declared = (props.columns ?? []).map((column) => (typeof column === 'string' ? { key: column } : column))
+  // Read the way the sort is: keys this list does not have are dropped, and
+  // a `?cols=` naming none of them is the default, not an empty table.
+  const choice = chosenColumns(declared, state.cols)
 
   /*
    * A sort is a column, and what arrives from the address is a string.
@@ -127,9 +162,13 @@ function AddressedTable({ sort = null, direction = 'asc', ...props }) {
    * that does not sort, falls back to the table's own opening sort and
    * direction. The parameter stays in the address, wrong and visible,
    * rather than the page quietly being wrong.
+   *
+   * A column the table is not showing is one no header offers either: a
+   * reader who takes Poles out of the table has taken its header, and a
+   * `?sort=poles` left behind would order the rows by something on nobody's
+   * screen.
    */
-  const offered = (props.sortable === false ? [] : (props.columns ?? []))
-    .map((column) => (typeof column === 'string' ? { key: column } : column))
+  const offered = (props.sortable === false ? [] : (choice ?? defaultColumns(declared)))
     .filter((column) => column.sortable !== false)
     .map((column) => column.key)
   const asked = offered.includes(state.sort)
@@ -143,7 +182,9 @@ function AddressedTable({ sort = null, direction = 'asc', ...props }) {
       direction={asked ? (state.dir === 'desc' ? 'desc' : 'asc') : direction}
       showAll={state.all}
       onSort={(key, next) => set({ sort: key, dir: next })}
-      onShowAll={() => set({ all: true })}
+      onShowAll={(all) => set({ all })}
+      choice={choice?.map((column) => column.key) ?? null}
+      onChoose={(keys) => set({ cols: keys?.join(',') ?? '' })}
     />
   )
 }
@@ -163,6 +204,12 @@ function Table({
   showAll: givenShowAll = false,
   onSort,
   onShowAll,
+  // The reader's column set as keys, or null for the default, and the way to
+  // change it. Only AddressedTable passes them: a choice nobody can link to
+  // would be a third divergence between what a reader sees and what they can
+  // cite, so a table that is not in the address has no Columns control.
+  choice = null,
+  onChoose,
   // "Nothing recorded." is a claim about the database, and it was the default
   // on some fifty tables - including every register a reader had just filtered
   // to nothing, where what had happened was a search box (CD-17). The neutral
@@ -210,10 +257,18 @@ function Table({
   const direction = onSort ? givenDirection : ownDirection
   const showAll = onShowAll ? givenShowAll : ownShowAll
 
-  const cols = useMemo(
+  // Every column the list declares, and the ones this table is showing: the
+  // reader's choice, or the default without the optional ones (IA-23).
+  const all = useMemo(
     () => normalise(columns ?? data?.columns ?? [], source),
     [columns, data?.columns, source],
   )
+  const chosen = choice?.join(',') ?? ''
+  const cols = useMemo(() => {
+    if (!chosen) return defaultColumns(all)
+    const keys = chosen.split(',')
+    return all.filter((column) => keys.includes(column.key))
+  }, [all, chosen])
 
   // The columns the header keeps, and the ones every row agreed on, which a
   // column has to have declared itself a candidate for in web/src/queries/*
@@ -225,7 +280,9 @@ function Table({
   const openingDirection = opening?.direction ?? 'asc'
   const ordered = useMemo(() => {
     if (!sort) return source
-    const column = cols.find((c) => c.key === sort)
+    // `all`, not `cols`: a register whose own opening column a reader has
+    // taken out of the table still arrives in that column's order.
+    const column = all.find((c) => c.key === sort)
     const value = column?.sort ?? ((row) => row[sort])
     if (sort === openingKey) {
       if (direction === openingDirection) return source
@@ -247,7 +304,37 @@ function Table({
       if (missing(right)) return -1
       return sign * compare(left, right)
     })
-  }, [source, sort, direction, cols, openingKey, openingDirection])
+  }, [source, sort, direction, all, openingKey, openingDirection])
+
+  // The order the header states: the reader's sort where there is one, and
+  // otherwise the order the rows arrived in, where the caller has named it
+  // and the column is one a reader can sort by.
+  const resting =
+    !sort && opening && sortable && kept.some((c) => c.key === opening.key && c.sortable !== false) ? opening : null
+  const shownSort = sort ?? resting?.key ?? null
+  const shownDirection = sort ? direction : (resting?.direction ?? 'asc')
+
+  /*
+   * The phone default, where nobody has chosen (IX-27). Every column the
+   * phone set leaves out is marked, and app.css hides the marked ones at the
+   * width lib/table.js names - the static page marks the same ones, so the two
+   * draw one table. The sorted column is never marked, and at that width it
+   * moves to follow the cells that name the row: a register sorted by poles
+   * whose Poles column is off the edge has told the reader nothing (VD-31).
+   */
+  const phoneSet = !chosen && all.some((c) => c.phone === true)
+  const narrow = useMatches(phoneSet ? PHONE : null)
+  const arranged = useMemo(() => {
+    if (!phoneSet) return kept
+    const marked = kept.map((c) => ({ ...c, wideOnly: !onPhone(c, all) && c.key !== shownSort }))
+    const pinned = narrow ? marked.find((c) => c.key === shownSort && !onPhone(c, all)) : null
+    if (!pinned) return marked
+    const rest = marked.filter((c) => c !== pinned)
+    let at = 0
+    while (at < rest.length && rest[at].rowHeader) at += 1
+    return [...rest.slice(0, at), pinned, ...rest.slice(at)]
+  }, [phoneSet, narrow, kept, all, shownSort])
+  const layout = arranged.map((c) => c.key).join(',')
 
   // Hooks before the empty-state return below: a register filtered to no
   // rows must call the same hooks as one with rows, or React throws.
@@ -268,7 +355,19 @@ function Table({
       el.removeEventListener('scroll', check)
       watch?.disconnect()
     }
-  }, [ordered.length, showAll])
+  }, [ordered.length, showAll, layout])
+
+  // IX-41. Putting the rows away again leaves the reader wherever the long
+  // table ended, which is now past the end of a short one; the control they
+  // pressed is brought back to them, focused, as it was.
+  const more = useRef(null)
+  const collapsed = useRef(false)
+  useEffect(() => {
+    if (!showAll && collapsed.current) {
+      collapsed.current = false
+      more.current?.scrollIntoView?.({ block: 'nearest' })
+    }
+  }, [showAll])
 
   if (cols.length === 0 || source.length === 0) {
     // "state is-empty", not bare "state". A skeleton and a Loading share that
@@ -315,17 +414,37 @@ function Table({
    *     same rows either way, and the receiver's own arrival seeds their own
    *     table.
    */
-  // The order the header states: the reader's sort where there is one, and
-  // otherwise the order the rows arrived in, where the caller has named it
-  // and the column is one a reader can sort by.
-  const resting =
-    !sort && opening && sortable && kept.some((c) => c.key === opening.key && c.sortable !== false) ? opening : null
-  const shownSort = sort ?? resting?.key ?? null
-  const shownDirection = sort ? direction : (resting?.direction ?? 'asc')
-
   const size = Math.max(page, staticRows(name))
   const visible = showAll ? ordered : ordered.slice(0, size)
   const hidden = ordered.length - visible.length
+  // Only an expansion the reader made can be undone: a seeded table that
+  // opened on every row has no smaller self to go back to (see above).
+  const collapsible = showAll && ordered.length > size
+  const expand = (next) => {
+    collapsed.current = !next
+    if (onShowAll) onShowAll(next)
+    else setOwnShowAll(next)
+  }
+
+  /*
+   * What the Columns control ticks, and what counts as nobody having chosen.
+   * The columns collapsed into the sentence above the table are still ticked:
+   * they are shown, once, and the reader who wants them back in the grid has
+   * a row where they differ to find. At phone width with no choice made, the
+   * ticks are the phone set and the sorted column - what is on the screen.
+   */
+  const ticked = (chosen || !phoneSet || !narrow ? cols : cols.filter((c) => onPhone(c, all) || c.key === shownSort)).map(
+    (c) => c.key,
+  )
+  const same = (a, b) => a.length === b.length && a.every((key, i) => key === b[i])
+  const choose = (key, on) => {
+    const keys = all.filter((c) => (c.key === key ? on : ticked.includes(c.key))).map((c) => c.key)
+    const plain = defaultColumns(all)
+    const isDefault =
+      same(keys, plain.map((c) => c.key)) ||
+      (phoneSet && narrow && same(keys, plain.filter((c) => onPhone(c, all)).map((c) => c.key)))
+    onChoose(isDefault ? null : keys)
+  }
 
   const toggle = (key) => {
     // From the order the header shows, so the first click on a column the
@@ -354,6 +473,14 @@ function Table({
       {/* Above the table rather than in its footer: a column that is not there
           has to be accounted for before the reader wonders where it went. */}
       {constants.length > 0 && <p className="table-shared">{sharedLine(constants, ordered.length)}</p>}
+      {onChoose && (
+        <Columns
+          columns={all}
+          ticked={ticked}
+          onChange={choose}
+          onReset={chosen ? () => onChoose(null) : null}
+        />
+      )}
       <div
         className="table-wrap"
         data-rows={ordered.length}
@@ -372,7 +499,7 @@ function Table({
             {name && <caption className="sr-only">{name}</caption>}
             <thead>
               <tr>
-                {kept.map((column) => {
+                {arranged.map((column) => {
                   const active = shownSort === column.key
                   const canSort = sortable && column.sortable !== false
                   return (
@@ -384,7 +511,12 @@ function Table({
                       // the two halves spell differently is the divergence this
                       // mechanism exists to prevent (VD-01). `sortable` is the app's
                       // alone — the static table has no buttons to sort with.
-                      className={[column.align, column.cellClass, canSort ? 'sortable' : null]
+                      className={[
+                        column.align,
+                        column.cellClass,
+                        column.wideOnly ? WIDE_ONLY : null,
+                        canSort ? 'sortable' : null,
+                      ]
                         .filter(Boolean)
                         .join(' ')}
                       style={column.width ? { width: column.width } : undefined}
@@ -413,7 +545,7 @@ function Table({
             <tbody>
               {visible.length === 0 && (
                 <tr>
-                  <td colSpan={kept.length} className="prose">
+                  <td colSpan={arranged.length} className="prose">
                     {empty}
                   </td>
                 </tr>
@@ -423,13 +555,18 @@ function Table({
                   key={rowKey ? rowKey(row, i) : i}
                   className={highlight?.(row) ? 'is-highlight' : undefined}
                 >
-                  {kept.map((column) => {
+                  {arranged.map((column) => {
                     const Cell = column.rowHeader ? 'th' : 'td'
                     return (
                       <Cell
                         key={column.key}
                         scope={column.rowHeader ? 'row' : undefined}
-                        className={[column.align, column.cellClass, column.className?.(row)]
+                        className={[
+                          column.align,
+                          column.cellClass,
+                          column.wideOnly ? WIDE_ONLY : null,
+                          column.className?.(row),
+                        ]
                           .filter(Boolean)
                           .join(' ')}
                         aria-hidden={column.ariaHidden ? 'true' : undefined}
@@ -455,23 +592,37 @@ function Table({
         <div className="table-foot">
           <span>{footer}</span>
           <div className="table-acts">
-            {hidden > 0 && (
+            {/* One button whose words turn round, not two that swap places
+                (IX-41): the element stays, so focus stays on it, and a
+                reader who expanded a register and wants it short again
+                presses the thing they just pressed. */}
+            {(hidden > 0 || collapsible) && (
               <button
+                ref={more}
                 type="button"
                 className="more"
                 // Seven tables on a page put seven identical "Show the
                 // remaining" in a screen reader's list of controls.
                 aria-label={
-                  name ? `Show the remaining ${hidden.toLocaleString('en-GB')}, ${name}` : undefined
+                  name
+                    ? hidden > 0
+                      ? `Show the remaining ${hidden.toLocaleString('en-GB')}, ${name}`
+                      : `Show the first ${size.toLocaleString('en-GB')}, ${name}`
+                    : undefined
                 }
-                onClick={() => (onShowAll ? onShowAll() : setOwnShowAll(true))}
+                onClick={() => expand(hidden > 0)}
               >
-                Show the remaining {hidden.toLocaleString('en-GB')}
+                {hidden > 0
+                  ? `Show the remaining ${hidden.toLocaleString('en-GB')}`
+                  : `Show the first ${size.toLocaleString('en-GB')}`}
               </button>
             )}
             {/* `cols` and not `kept`: a column collapsed into the sentence
                 above the table (VD-29) is still data, and a file that has
-                left the page has no sentence above it. */}
+                left the page has no sentence above it. And `cols` rather
+                than `all`: a reader who chose the columns chose the file's,
+                while the phone default, which is a matter of screen width,
+                does not narrow a file that will be opened somewhere wider. */}
             <TakeAway columns={cols} rows={ordered} shown={visible.length} name={name} fileLabel={fileLabel} />
           </div>
         </div>

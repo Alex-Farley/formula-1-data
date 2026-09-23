@@ -76,10 +76,11 @@ export const chassisName = (name, row) => (row.landmark ? `${text(name)} ${LANDM
 export const CHASSIS_COLUMNS = [
   { key: 'name', rowHeader: true, label: 'Chassis', text: chassisName },
   { key: 'constructor', rowHeader: true, label: 'Constructor' },
-  { key: 'first_year', label: 'Raced', align: 'num', text: (_, row) => span(row.first_year, row.last_year) },
+  { key: 'first_year', label: 'Raced', align: 'num', text: (_, row) => span(row.first_year, row.last_year), phone: true },
   { key: 'engine_name', label: 'Engine', align: 'prose' },
   { key: 'power_bhp', label: 'Power (bhp)', align: 'num' },
   { key: 'wheelbase_mm', label: 'Wheelbase (mm)', align: 'num' },
+  { key: 'weight_kg', label: 'Weight (kg)', align: 'num', optional: true },
   { key: 'races', label: 'Races', align: 'num' },
   { key: 'wins', label: 'Wins', align: 'num' },
   { key: 'published_wins', label: 'Published wins', align: 'num' },
