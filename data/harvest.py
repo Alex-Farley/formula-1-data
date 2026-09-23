@@ -759,7 +759,10 @@ KNOWN_GAPS = [
      "because the database cannot derive them: the youngest and oldest "
      "champion need the round at which the title was clinched, the closest "
      "finish and the longest race need race times it does not hold, and "
-     "'only woman to score points' needs an attribute no table models.",
+     "'only woman to score points' needs an attribute no table models. Nor "
+     "are the race-leader records in Wikipedia's lists of driver and "
+     "constructor records - laps and distance led, races led, leading every "
+     "lap and so the grand slam - which need the running order lap by lap.",
      "records is derived from the race records on every build - every row is "
      "one query, with its rule in `detail` - and a record the tables cannot "
      "support is not shipped rather than typed in from memory, which is how "
@@ -776,7 +779,19 @@ KNOWN_GAPS = [
      "'Only woman to score points' needs a gender attribute, which no table "
      "holds and no source in use publishes as data. The closest qualifying "
      "margin IS derived - qualifying.gap holds a parseable gap for second "
-     "place in all but one completed race - and stands as a record.",
+     "place in all but one completed race - and stands as a record. WK-06 "
+     "read Wikipedia's lists of driver and constructor records against this "
+     "table and added the headline records the race records can derive, "
+     "leaving which of the lists' many variants belong here to WK-08 (#643); "
+     "what they cannot derive is the race-leader family - laps and distance led, in "
+     "a career, a season or a run, races led, leading every lap, and the "
+     "grand slam, which is pole, win and fastest lap while leading every lap. "
+     "All of it needs the running order lap by lap, which is lap timing and "
+     "which `laps` holds none of by licence (gap #5); pole, win and fastest "
+     "lap together IS derived. The list's records that need the clinching "
+     "round - the youngest champion, the most races left when a title was "
+     "won - wait on the same derivation as the youngest and oldest champion "
+     "above, and its pit-stop durations need timing too.",
      0,
      "The clinching round is computable from `standings` and `points_systems`, "
      "and the per-season maximum-points rule that route was waiting on is now "

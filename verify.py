@@ -1327,7 +1327,10 @@ def records_are_derived():
     # instead of the standings - because re-running the same query would only
     # prove SQLite is deterministic.
     rows = {r["key"]: r for r in con.execute("SELECT * FROM records")}
-    FLOOR = 29   # the number shipped at v2.23; a derivation that silently drops one fails here
+    # 29 shipped at v2.23; WK-06 added the 31 more that Wikipedia's lists of
+    # driver and constructor records hold and the race records can derive. A
+    # derivation that silently drops one fails here.
+    FLOOR = 60
     check(f"the records table holds at least {FLOOR} derived rows", len(rows) >= FLOOR,
           f"{len(rows)}")
 
@@ -1442,6 +1445,58 @@ def records_are_derived():
               floor is not None and best["id"] == r["holder_id"]
               and abs(best["pct"] - r["value_num"]) < 1e-9,
               f"floor {floor}, {best['id']} at {best['pct']}")
+
+    # 11. Wins from pole, through race_results' pole and winner columns.
+    wp = con.execute("""SELECT d, COUNT(*) n FROM (
+            SELECT winner_id d FROM race_results WHERE winner_id = pole_id
+            UNION ALL SELECT co_winner_id FROM race_results WHERE co_winner_id = pole_id)
+        GROUP BY d ORDER BY n DESC LIMIT 1""").fetchone()
+    same("most-wins-from-pole", wp["n"], wp["d"], "race_results' pole and winner")
+
+    # 12. Poles in a season, through race_results.pole_id by year.
+    ps = con.execute("""SELECT pole_id, COUNT(*) n FROM race_results
+        WHERE pole_id IS NOT NULL GROUP BY year, pole_id ORDER BY n DESC LIMIT 1""").fetchone()
+    same("most-poles-in-a-season", ps["n"], ps["pole_id"], "race_results by season")
+
+    # 13. Wins at one Grand Prix, through race_results by gp_id.
+    wg = con.execute("""SELECT d, COUNT(*) n FROM (
+            SELECT winner_id d, gp_id FROM race_results WHERE winner_id IS NOT NULL
+            UNION ALL SELECT co_winner_id, gp_id FROM race_results WHERE co_winner_id IS NOT NULL)
+        GROUP BY d, gp_id ORDER BY n DESC LIMIT 1""").fetchone()
+    same("most-wins-at-one-grand-prix", wg["n"], wg["d"], "race_results by Grand Prix")
+
+    # 14. Consecutive drivers' titles, as a gaps-and-islands query.
+    dt = con.execute("""SELECT drivers_champion c, COUNT(*) n FROM (
+            SELECT year, drivers_champion,
+                   year - ROW_NUMBER() OVER (PARTITION BY drivers_champion ORDER BY year) grp
+              FROM seasons WHERE drivers_champion IS NOT NULL)
+        GROUP BY c, grp ORDER BY n DESC LIMIT 1""").fetchone()
+    same("most-consecutive-drivers-titles", dt["n"], dt["c"], "a window query over seasons")
+
+    # 15. Consecutive poles, as gaps and islands over the completed races in
+    # date order - the build walks the races in Python instead. Every holder
+    # of the longest run, since the record may be shared.
+    runs = con.execute("""WITH o AS (
+            SELECT rr.pole_id p, ROW_NUMBER() OVER (ORDER BY r.date_iso, r.year, r.round) i
+              FROM race_results rr JOIN races r ON r.id = rr.id WHERE r.status = 'completed'),
+          g AS (SELECT p, i - ROW_NUMBER() OVER (PARTITION BY p ORDER BY i) grp
+                  FROM o WHERE p IS NOT NULL)
+        SELECT p, COUNT(*) n FROM g GROUP BY p, grp""").fetchall()
+    top = max(r["n"] for r in runs)
+    run_holders = sorted({r["p"] for r in runs if r["n"] == top})
+    r = rows.get("most-consecutive-poles")
+    got = sorted(r["holder"].split(", ")) if r else []
+    want = sorted(w[0] for w in con.execute(f"""SELECT full_name FROM drivers WHERE id IN
+        ({','.join('?' * len(run_holders))})""", run_holders))
+    check("records.most-consecutive-poles agrees with a window query over race_results",
+          r is not None and r["value_num"] == top and got == want,
+          f"{top}: {', '.join(run_holders)}")
+
+    # 16. The constructors' poles record against constructors.poles, which a
+    # later stage fills by its own query.
+    cp = con.execute("""SELECT id, poles FROM constructors
+        ORDER BY poles DESC LIMIT 1""").fetchone()
+    same("most-constructor-poles", cp["poles"], cp["id"], "constructors.poles")
 
     dist = con.execute("""SELECT category, COUNT(*) n FROM records
         GROUP BY category ORDER BY category""").fetchall()

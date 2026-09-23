@@ -43,7 +43,7 @@ here is a number the build checked.
 
 | File | What it is |
 |---|---|
-| `f1.db` | The SQLite database. <!-- fig:tables -->49<!-- /fig --> tables, <!-- fig:views -->41<!-- /fig --> views, <!-- fig:rows -->122,284<!-- /fig --> rows. This is the artefact. |
+| `f1.db` | The SQLite database. <!-- fig:tables -->49<!-- /fig --> tables, <!-- fig:views -->41<!-- /fig --> views, <!-- fig:rows -->122,315<!-- /fig --> rows. This is the artefact. |
 | `f1-geometry.db` | The OpenStreetMap circuit centrelines (ODbL), shipped beside `f1.db` and never merged into it. See *Illustration*. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
@@ -209,7 +209,7 @@ suppliers, <!-- fig:points_systems -->10<!-- /fig --> points systems, and
 <!-- fig:eras -->10<!-- /fig --> defined eras of the sport.
 
 **Also** — <!-- fig:personnel -->32<!-- /fig --> non-driving figures
-(designers, principals, officials), <!-- fig:records -->29<!-- /fig -->
+(designers, principals, officials), <!-- fig:records -->60<!-- /fig -->
 records, <!-- fig:glossary -->55<!-- /fig --> glossary terms and
 <!-- fig:governance -->18<!-- /fig --> governance milestones.
 
