@@ -89,11 +89,19 @@ export const OUTLINE_REGISTER_NOTE = `${OUTLINE_RULE} ${OUTLINE_SCALE_NOTE} ${OU
  */
 export const OUTLINE_FIGURES_NOTE = 'The length in each heading is this register’s, from its own sources; the figures under its drawing are F1DB’s, and at some circuits the two disagree.'
 
-/** A timeline row whose layout names no F1DB outline, where its drawing would be. */
-export const NO_DRAWING = 'No F1DB outline names this layout'
+/**
+ * Where a timeline row's drawing would be, when the row names no F1DB
+ * outline. The row does the naming, so the words say the row lacks one -
+ * at Marina Bay the drawings of those years are on the page, unnamed.
+ */
+export const NO_DRAWING = 'This row names no F1DB outline'
 
-/** The heading of an outline no timeline row names: a drawing with no history here. */
-export const NO_TIMELINE_ROW = 'Not in this register’s timeline'
+/**
+ * The heading of an outline no timeline row names. What is missing is the
+ * row naming it, not the years: at Spa and Marina Bay a row covers them and
+ * names no drawing.
+ */
+export const NO_TIMELINE_ROW = 'No timeline row names this drawing'
 
 /** The count beside a circuit's layouts: the timeline's rows and the drawings, which need not agree. */
 export const layoutsCount = (layouts, outlines) =>

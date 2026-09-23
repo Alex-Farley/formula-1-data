@@ -2265,7 +2265,7 @@ try {
     const timelineRows = count(
       `SELECT (SELECT COUNT(*) FROM circuit_layouts WHERE circuit_id = 'silverstone')
             + (SELECT COUNT(*) FROM circuit_outlines o WHERE o.circuit_id = 'silverstone'
-                  AND NOT EXISTS (SELECT 1 FROM circuit_layouts l WHERE l.f1db_layout_id = o.f1db_layout_id))`,
+                  AND NOT EXISTS (SELECT 1 FROM circuit_layouts l WHERE l.circuit_id = o.circuit_id AND l.f1db_layout_id = o.f1db_layout_id))`,
     )
     const appRows = await page.$$eval('#root main .layout-timeline > article h3', (n) => n.map((h) => h.textContent))
     is(appRows.length, timelineRows, 'one row per layout in the timeline, and per drawing it does not name')
@@ -2319,7 +2319,7 @@ try {
       const undrawn = count("SELECT COUNT(*) FROM circuit_layouts WHERE circuit_id = 'monza' AND f1db_layout_id IS NULL")
       const unnamed = count(
         `SELECT COUNT(*) FROM circuit_outlines o WHERE o.circuit_id = 'monza'
-            AND NOT EXISTS (SELECT 1 FROM circuit_layouts l WHERE l.f1db_layout_id = o.f1db_layout_id)`,
+            AND NOT EXISTS (SELECT 1 FROM circuit_layouts l WHERE l.circuit_id = o.circuit_id AND l.f1db_layout_id = o.f1db_layout_id)`,
       )
       truthy(undrawn > 0 && unnamed > 0, 'Monza still has a row with no drawing and a drawing with no row')
       is(await page.$$eval('#root main .layout-timeline .outline-none', (n) => n.length), undrawn, `the ${undrawn} undrawn layouts say so`)
