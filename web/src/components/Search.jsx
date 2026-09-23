@@ -68,12 +68,18 @@ const INDEX_SQL = `
     FROM races r
     LEFT JOIN circuits c ON c.id = r.circuit_id
   UNION ALL
-  -- A Grand Prix has no page of its own; the race index filtered to its name
-  -- is every edition run under that name, on one page. The address is
-  -- written in loadIndex, where the name can be encoded.
-  SELECT 'Grand Prix', id, name, COALESCE(country, ''), first_held, last_held,
-         COALESCE(editions, 0), COALESCE(aliases, ''), NULL
-    FROM grands_prix
+  -- The event's own page (IA-01), which it did not have: this row used to
+  -- open the race index filtered to the name. The span and the weight are
+  -- the editions run, counted as the page counts them, not the stored
+  -- figures, which count a round still on the calendar as held.
+  SELECT 'Grand Prix', g.id, g.name, COALESCE(g.country, ''),
+         MIN(CASE WHEN r.status = 'completed' THEN r.year END),
+         MAX(CASE WHEN r.status = 'completed' THEN r.year END),
+         COUNT(CASE WHEN r.status = 'completed' THEN 1 END), COALESCE(g.aliases, ''),
+         '/grands-prix/' || g.id
+    FROM grands_prix g
+    LEFT JOIN races r ON r.gp_id = g.id
+   GROUP BY g.id
   UNION ALL
   -- The holder and the figure as the meta, so "most poles" is answered in the
   -- row before it is opened.
@@ -92,6 +98,7 @@ const PAGES = [
   ['/seasons', NAMES.seasons().headline, 'years championships calendar'],
   ['/now', 'The season in progress', 'current this year now live'],
   ['/races', NAMES.races().headline, 'grands prix results calendar'],
+  ['/grands-prix', NAMES.grandsPrix().headline, 'events editions every grand prix'],
   ['/drivers', NAMES.drivers().headline, 'register every driver'],
   ['/constructors', NAMES.constructors().headline, 'teams register'],
   ['/circuits', NAMES.circuits().headline, 'tracks venues register'],
@@ -127,9 +134,7 @@ function loadIndex() {
     // back but a reload. Forget a failed attempt so the next open retries.
     indexPromise = query(INDEX_SQL)
       .then(({ rows }) =>
-        [...PAGES, ...rows, ...ASKED].map((row) =>
-          prepare(row.kind === 'Grand Prix' ? { ...row, path: `/races?q=${encodeURIComponent(row.label)}` } : row),
-        ),
+        [...PAGES, ...rows, ...ASKED].map(prepare),
       )
       .catch((error) => {
         indexPromise = null

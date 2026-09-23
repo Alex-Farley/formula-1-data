@@ -52,6 +52,11 @@ export const TRAIL = {
     [`/seasons/${year}`, String(year)],
     [`/races/${year}/${round}`, name],
   ],
+  // IA-01: a level-two index, reached from /races, a race page and a circuit
+  // page rather than from the masthead - but its address is its own, so its
+  // trail is too (IA-22).
+  grandsPrix: () => [HOME, ['/grands-prix', 'Grands Prix']],
+  grandPrix: (id, name) => [HOME, ['/grands-prix', 'Grands Prix'], [`/grands-prix/${id}`, name]],
   drivers: () => [HOME, ['/drivers', 'Drivers']],
   driver: (id, name) => [HOME, ['/drivers', 'Drivers'], [`/drivers/${id}`, name]],
   constructors: () => [HOME, ['/constructors', 'Constructors']],
@@ -175,14 +180,53 @@ export const ONWARD = {
     ],
   }),
 
+  // IA-01: "By Grand Prix" is the band's first route, because the race list
+  // is where a reader looking for the British Grand Prix arrives. Records
+  // gave up its place: it is in the masthead, and this is a way in nothing
+  // else on the page offers.
   races: () => ({
     items: [
+      { to: '/grands-prix', label: 'By Grand Prix', hint: 'Every edition of each event, and every circuit it has used.' },
       { to: '/seasons', label: 'Seasons', hint: 'The same races, grouped into championships.' },
       { to: '/circuits', label: 'Circuits', hint: 'The venues these races were held at.' },
-      { to: '/records', label: 'Records', hint: 'Who won the most of them.' },
       { to: '/reference/glossary', label: 'Glossary', hint: 'What the words on a classification mean.' },
     ],
   }),
+
+  grandsPrix: () => ({
+    items: [
+      { to: '/races', label: 'Every race', hint: 'Each edition as one round among all the others.' },
+      { to: '/circuits', label: 'Circuits', hint: 'The venues, and the events each has held.' },
+      { to: '/seasons', label: 'Seasons', hint: 'The calendars these events made up.' },
+    ],
+  }),
+
+  grandPrix: ({ editions, winners }) => {
+    const latest = lastRunOf(editions)
+    return {
+      items: [
+        latest
+          ? {
+              to: `/races/${latest.year}/${latest.round}`,
+              label: `${latest.year} ${latest.name_used}`,
+              hint: 'The latest edition run, in full.',
+            }
+          : null,
+        winners[0]
+          ? {
+              to: `/drivers/${winners[0].driver_id}`,
+              label: winners[0].driver,
+              // Level with someone is not "more than anyone", and where the
+              // record is shared the band says so.
+              hint: `Has won it ${plural(winners[0].wins, 'time', 'times')} — ${
+                winners[1]?.wins === winners[0].wins ? 'a record shared with others' : 'more than anyone'
+              }.`,
+            }
+          : null,
+        { to: '/grands-prix', label: 'All Grands Prix', hint: 'Every event, by how often it has been held.' },
+      ],
+    }
+  },
 
   race: ({ race, year, winners, neighbours }) => ({
     items: [

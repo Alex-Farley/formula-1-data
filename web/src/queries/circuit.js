@@ -108,6 +108,22 @@ export const TEAMS = `
    ORDER BY v.wins DESC, v.constructor
 `
 
+/**
+ * The events this venue has held, for the line above its race list (IA-01):
+ * the way from a circuit to every other place its Grand Prix has been run.
+ * Counted the way the race list below is, run and still to come apart.
+ */
+export const GRANDS_PRIX = `
+  SELECT g.id, g.name,
+         COUNT(CASE WHEN r.status = 'completed' THEN 1 END) AS races,
+         COUNT(CASE WHEN r.status != 'completed' THEN 1 END) AS scheduled
+    FROM races r
+    JOIN grands_prix g ON g.id = r.gp_id
+   WHERE r.circuit_id = ?
+   GROUP BY g.id
+   ORDER BY races DESC, g.name
+`
+
 /** The winner, or "not yet run" for a race still on the calendar. */
 export const raceWinnerHere = (name, row) => (row.status !== 'completed' ? NOT_YET_RUN : text(name))
 
@@ -139,3 +155,23 @@ export const TEAM_COLUMNS = [
   { key: 'wins', label: 'Wins', align: 'num' },
   { key: 'first_win', label: 'Span', align: 'num', text: (_, row) => span(row.first_win, row.last_win) },
 ]
+
+/**
+ * The line above a circuit's race list naming the events held there, as
+ * segments both renderers draw: `{ text }` is words, `{ id, name }` is a
+ * link to that Grand Prix, and `key` is the segment's place in the sentence,
+ * for React. "Held here as the British Grand Prix (60 races) and the
+ * European Grand Prix (2 races)."
+ */
+export function heldAs(rows) {
+  if (!rows.length) return []
+  const count = (row) =>
+    row.races ? `${row.races} ${row.races === 1 ? 'race' : 'races'}` : row.scheduled ? NOT_YET_RUN : '0 races'
+  const words = [{ text: 'Held here as the ' }]
+  rows.forEach((row, i) => {
+    if (i > 0) words.push({ text: i === rows.length - 1 ? ' and the ' : ', the ' })
+    words.push({ id: row.id, name: row.name }, { text: ` (${count(row)})` })
+  })
+  words.push({ text: '.' })
+  return words.map((segment, place) => ({ ...segment, key: `${place}` }))
+}

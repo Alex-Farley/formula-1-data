@@ -29,6 +29,8 @@ import Constructors from './pages/Constructors.jsx'
 import Constructor from './pages/Constructor.jsx'
 import Circuits from './pages/Circuits.jsx'
 import Circuit from './pages/Circuit.jsx'
+import GrandsPrix from './pages/GrandsPrix.jsx'
+import GrandPrix from './pages/GrandPrix.jsx'
 import Cars from './pages/Cars.jsx'
 import Car from './pages/Car.jsx'
 import Records from './pages/Records.jsx'
@@ -325,6 +327,8 @@ function Chrome() {
           <Route path="/seasons/:year" element={<Season />} />
           <Route path="/races" element={<Races />} />
           <Route path="/races/:year/:round" element={<Race />} />
+          <Route path="/grands-prix" element={<GrandsPrix />} />
+          <Route path="/grands-prix/:id" element={<GrandPrix />} />
           <Route path="/drivers" element={<Drivers />} />
           <Route path="/drivers/:id" element={<Driver />} />
           <Route path="/constructors" element={<Constructors />} />

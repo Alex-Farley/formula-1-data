@@ -88,6 +88,9 @@ import { SEASONS_COLUMNS, soFar } from '../src/queries/seasons.js'
 import { RACE_COLUMNS as RACES_COLUMNS, raceWinner } from '../src/queries/races.js'
 import { CONSTRUCTOR_COLUMNS, entered } from '../src/queries/constructors.js'
 import { CIRCUIT_COLUMNS, traced } from '../src/queries/circuits.js'
+import { GRANDS_PRIX_COLUMNS } from '../src/queries/grandsprix.js'
+import { circuitYears, venuesCount } from '../src/queries/grandprix.js'
+import { heldAs } from '../src/queries/circuit.js'
 import { CHASSIS_COLUMNS, chassisName } from '../src/queries/cars.js'
 import { PIT_COLUMNS, driverName, fastestLapMark, inClassificationOrder, outcome, position, raceLede, raceSentence, railOf, scheduledNote } from '../src/queries/race.js'
 import { RACE_COLUMNS, raceWinnerHere } from '../src/queries/circuit.js'
@@ -1674,6 +1677,7 @@ describe('the columns a register shows (IA-23)', () => {
       ['drivers', DRIVER_COLUMNS, 'wins'],
       ['constructors', CONSTRUCTOR_COLUMNS, 'entries'],
       ['circuits', CIRCUIT_COLUMNS, 'races'],
+      ['grands prix', GRANDS_PRIX_COLUMNS, 'held'],
       ['chassis', CHASSIS_COLUMNS, 'first_year'],
       ['races', RACES_COLUMNS, null],
     ]
@@ -2181,5 +2185,39 @@ describe('the console refuses what it will not run, and says why (IX-25)', () =>
     // not guessed to be a read.
     assert.equal(nearestStatement('belet'), 'delete')
     assert.match(complaint('BELET 1'), /^Reads only: /)
+  })
+})
+
+// IA-01: the words a Grand Prix's page and a circuit's page put round the
+// tables, which both renderers print from these functions.
+describe('a Grand Prix and the venues it has used', () => {
+  const sentence = (rows) =>
+    heldAs(rows)
+      .map((segment) => (segment.id ? `[${segment.name}]` : segment.text))
+      .join('')
+
+  it('names every event a circuit has held, linked, with its count', () => {
+    assert.equal(sentence([]), '')
+    assert.equal(sentence([{ id: 'monaco', name: 'Monaco Grand Prix', races: 72, scheduled: 1 }]), 'Held here as the [Monaco Grand Prix] (72 races).')
+    assert.equal(
+      sentence([
+        { id: 'british', name: 'British Grand Prix', races: 60, scheduled: 1 },
+        { id: 'european', name: 'European Grand Prix', races: 1, scheduled: 0 },
+        { id: 'spanish', name: 'Spanish Grand Prix', races: 0, scheduled: 1 },
+      ]),
+      'Held here as the [British Grand Prix] (60 races), the [European Grand Prix] (1 race) and the [Spanish Grand Prix] (not yet run).',
+    )
+    const keys = heldAs([
+      { id: 'a', name: 'A', races: 1, scheduled: 0 },
+      { id: 'b', name: 'B', races: 1, scheduled: 0 },
+    ]).map((segment) => segment.key)
+    assert.equal(new Set(keys).size, keys.length, 'every segment has a key of its own')
+  })
+
+  it('gives a venue only booked no span, and counts it apart', () => {
+    assert.equal(circuitYears(null, { first_year: 1950, last_year: 2026, scheduled: 1 }), '1950–2026')
+    assert.equal(circuitYears(null, { first_year: null, last_year: null, scheduled: 1 }), 'not yet run')
+    assert.equal(venuesCount([{ races: 21 }, { races: 0, scheduled: 1 }]), '1 · 1 to come')
+    assert.equal(venuesCount([{ races: 11 }, { races: 18 }]), '2')
   })
 })
