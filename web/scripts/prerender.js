@@ -297,10 +297,11 @@ import {
   OUTLINE_CREDIT,
   OUTLINE_REGISTER_NOTE,
   OUTLINE_RULE,
-  OUTLINE_SCALE_NOTE,
   OUTLINE_VIEWBOX,
   OUTLINES_NOTE,
   STATE_WORDS,
+  circuitOutlinesNote,
+  leadOutline,
   outlineCaption,
   outlineLabel,
   roundShortName,
@@ -2405,6 +2406,8 @@ const page = ({
     const winnersHere = all(WINNERS_HERE, c.id)
     const teamsHere = all(TEAMS_HERE, c.id)
     const outlinesHere = all(CIRCUIT_OUTLINES, c.id)
+    const outlineSplit = leadOutline(outlinesHere)
+    const card = (row) => outlineCard(row.path, c.name, row.f1db_layout_id, outlineCaption(row))
     page({
       path: `circuits/${c.id}`,
       lastmod: LAST_RUN.circuit.get(c.id),
@@ -2452,9 +2455,9 @@ const page = ({
         ${prose(c.notes)}
         ${
           outlinesHere.length
-            ? `<h2>Every layout raced here</h2>${note(`${OUTLINE_RULE} ${OUTLINE_SCALE_NOTE}`)}<div class="outline-grid">${outlinesHere
-                .map((row) => outlineCard(row.path, c.name, row.f1db_layout_id, outlineCaption(row)))
-                .join('')}</div>`
+            ? `<h2>Every layout raced here</h2>${note(circuitOutlinesNote(outlinesHere.length))}<div class="outline-set">${card(
+                outlineSplit.lead,
+              )}${outlineSplit.rest.length ? `<div class="outline-grid">${outlineSplit.rest.map(card).join('')}</div>` : ''}</div>`
             : ''
         }
         ${

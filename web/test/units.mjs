@@ -106,7 +106,18 @@ import {
   winnerColour,
 } from '../src/lib/liveries.js'
 import { teamsByDriver } from '../src/queries/season.js'
-import { NEXT, RUN, TO_COME, outlineCaption, outlineFigures, roundShortName, roundStates } from '../src/lib/outline.js'
+import {
+  NEXT,
+  OUTLINE_LEAD_NOTE,
+  RUN,
+  TO_COME,
+  circuitOutlinesNote,
+  leadOutline,
+  outlineCaption,
+  outlineFigures,
+  roundShortName,
+  roundStates,
+} from '../src/lib/outline.js'
 import { attribution, canShow, fileTitle, thumbUrl } from '../src/lib/commons.js'
 import { recordColumns, tiersOf } from '../src/queries/records.js'
 import { clearState, oneOf, readState, writeState } from '../src/lib/urlstate.js'
@@ -1091,6 +1102,25 @@ describe('the circuit outlines (AF-03)', () => {
     // A race page's card: no years, no rounds.
     assert.equal(outlineCaption({ f1db_layout_id: 'sepang-1', length_km: 5.543, turns: 15 }), 'F1DB layout sepang-1 · 5.543 km · 15 turns, F1DB’s figures')
     assert.equal(outlineCaption({ f1db_layout_id: 'x-1', length_km: null, turns: null }), 'F1DB layout x-1')
+  })
+  it('leads a circuit page with its latest layout and keeps the rest in order (VD-37)', () => {
+    const ids = ({ lead, rest }) => [lead?.f1db_layout_id ?? null, rest.map((r) => r.f1db_layout_id)]
+    const row = (id, latest) => ({ f1db_layout_id: id, latest })
+    // Chronological in, the latest out in front, the rest untouched.
+    assert.deepEqual(ids(leadOutline([row('a-1', 195007), row('a-2', 202609), row('a-3', 199508)])), ['a-2', ['a-1', 'a-3']])
+    // One layout: the lead and nothing else.
+    assert.deepEqual(ids(leadOutline([row('b-1', 202504)])), ['b-1', []])
+    // A tie goes to the later row; a row no race names never beats one a race does.
+    assert.deepEqual(ids(leadOutline([row('c-1', 202001), row('c-2', 202001)])), ['c-2', ['c-1']])
+    assert.deepEqual(ids(leadOutline([row('d-1', 199001), row('d-2', null)])), ['d-1', ['d-2']])
+    assert.deepEqual(ids(leadOutline([row('e-1', null)])), ['e-1', []])
+    assert.deepEqual(ids(leadOutline([])), [null, []])
+    assert.deepEqual(ids(leadOutline(undefined)), [null, []])
+  })
+  it('says why one outline is larger only where there is another to compare', () => {
+    assert.ok(circuitOutlinesNote(8).endsWith(OUTLINE_LEAD_NOTE))
+    assert.ok(!circuitOutlinesNote(1).includes(OUTLINE_LEAD_NOTE))
+    assert.ok(circuitOutlinesNote(1).includes('not to scale'))
   })
 })
 

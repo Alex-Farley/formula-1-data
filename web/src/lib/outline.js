@@ -40,6 +40,32 @@ export const OUTLINE_SCALE_NOTE =
   'Each one is fitted to its own box, so these are not to scale: a longer layout is not drawn larger, ' +
   'and none of them carries a direction, a position or a start line.'
 
+/**
+ * A circuit page's outlines, split into the one it leads with and the rest
+ * (VD-37). The lead is the layout of the latest race that names one, run or
+ * to come - the one a reader arriving today is looking for - and is drawn
+ * large, because 42 of the 79 venues have only the one layout and a grid of
+ * one drew it a sixth of the width it had. The rest keep the query's
+ * chronological order. A tie goes to the later row; a row no race names
+ * (`latest` NULL) leads only when nothing else can.
+ */
+export const leadOutline = (rows) => {
+  if (!rows?.length) return { lead: null, rest: [] }
+  let at = 0
+  rows.forEach((row, i) => {
+    if ((row.latest ?? -1) >= (rows[at].latest ?? -1)) at = i
+  })
+  return { lead: rows[at], rest: rows.filter((_, i) => i !== at) }
+}
+
+/**
+ * The note over a circuit page's outlines: the rule and the scale caveat,
+ * and - where one is drawn larger than the others - why that one.
+ */
+export const OUTLINE_LEAD_NOTE = 'The large one is the latest layout raced or on the calendar here, not the longest.'
+export const circuitOutlinesNote = (count) =>
+  [OUTLINE_RULE, OUTLINE_SCALE_NOTE, count > 1 ? OUTLINE_LEAD_NOTE : null].filter(Boolean).join(' ')
+
 /** The sources page's paragraph: the credit, what it obliges, and what was changed. */
 export const OUTLINES_NOTE = `${OUTLINE_CREDIT}. Carry that credit with any outline you take. Shown here in the site’s own ink at a constant stroke, otherwise as drawn. ${OUTLINE_RULE}`
 

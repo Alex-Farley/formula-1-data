@@ -2262,6 +2262,24 @@ try {
         staticCircuit.includes('not to scale'),
       'the app and the static page both say the outlines are not to scale',
     )
+    // VD-37: the latest layout leads, drawn large, in both renderers - it
+    // was the eighth card, alone under a row of seven, and 42 venues with a
+    // single layout drew nothing larger than a card a sixth of the row.
+    const latestHere = one(
+      "SELECT f1db_layout_id FROM races WHERE circuit_id = 'silverstone' AND f1db_layout_id IS NOT NULL ORDER BY year DESC, round DESC LIMIT 1",
+    )
+    const leadLabel = await page.$eval('#root main .outline-set > .outline-card svg.outline', (n) => n.getAttribute('aria-label'))
+    truthy(leadLabel.endsWith(`F1DB layout ${latestHere}`), `the latest layout, ${latestHere}, leads`)
+    const [leadWidth, cardWidth] = await page.$eval('#root main .outline-set', (n) => [
+      n.querySelector(':scope > .outline-card svg').getBoundingClientRect().width,
+      n.querySelector('.outline-grid .outline-card svg').getBoundingClientRect().width,
+    ])
+    truthy(leadWidth > 2 * cardWidth, `the lead is drawn large (${Math.round(leadWidth)} px against ${Math.round(cardWidth)} px)`)
+    truthy(
+      staticCircuit.includes(`<div class="outline-set"><figure class="outline-card"><svg class="outline"`) &&
+        new RegExp(`<div class="outline-set"><figure class="outline-card"><svg[^>]*aria-label="[^"]*F1DB layout ${latestHere}"`).test(staticCircuit),
+      'the static page leads with the same layout',
+    )
     // IX-31: Silverstone has no trace, and 55 of the 80 are in the same
     // position. Saying nothing made an untraced circuit and a failed download
     // the same page.

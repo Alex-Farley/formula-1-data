@@ -1697,6 +1697,23 @@ figure.photo figcaption a {
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
 }
 
+/* A circuit page's outlines (VD-37): the latest layout large, the rest in
+   the grid beside it; the lead above the grid on a phone. The lead's column
+   is held whether or not a grid follows, so a venue with one layout draws it
+   at the size Silverstone's lead is drawn, not the width of the row. */
+.outline-set {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  align-items: start;
+}
+
+@media (max-width: 720px) {
+  .outline-set {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 /* The race page: the figures with the outline beside them; below them on a
    phone, where it is capped rather than left to fill the width. */
 .with-outline {
