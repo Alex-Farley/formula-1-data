@@ -33,11 +33,58 @@ export const VARIANTS = `
    ORDER BY ch.first_year, ch.id
 `
 
+/**
+ * The curated car behind a page, with the two facts carAddress() needs:
+ * `family`, how many chassis name it as their design, and `owned`, whether a
+ * chassis shares its id.
+ */
 export const CAR = `
-  SELECT c.* FROM cars c
+  SELECT c.*,
+         (SELECT COUNT(*) FROM chassis x WHERE x.car_id = c.id) AS family,
+         EXISTS (SELECT 1 FROM chassis y WHERE y.id = c.id) AS owned
+    FROM cars c
    WHERE c.id = (SELECT car_id FROM chassis WHERE id = ?) OR c.id = ?
    LIMIT 1
 `
+
+/**
+ * ONE CAR, ONE ADDRESS (IA-06).
+ *
+ * Four curated cars are a single chassis under another id: `mercedes-w11` is
+ * the chassis `mercedes-f1-w11` and nothing else. VARIANTS resolves both
+ * addresses to that one chassis, so both draw the same page, and both named
+ * themselves canonical and sat in the sitemap - two indexed records of one
+ * object. The curated id is the subject: it is the address the gallery at
+ * /cars links, and the one every car that shares its id with its chassis
+ * (`mclaren-mp4-4`) already has. The chassis address still answers; it says
+ * which page it is a copy of, and the sitemap lists only that one.
+ *
+ * A design of several variants is not a copy. `/cars/lotus-72b` is one of
+ * the four chassis `/cars/lotus-72` covers, with its own entries and its own
+ * specification, and stays its own subject; so does a variant beside a car
+ * whose id a chassis owns (`ferrari-312t2` beside `ferrari-312t`).
+ *
+ * `id` is the address's own id and `car` the CAR row for it. Returns the
+ * router path, which both renderers print as the canonical and cite.
+ */
+export const carAddress = (id, car) =>
+  `/cars/${car && car.id !== id && !car.owned && car.family === 1 ? car.id : id}`
+
+/**
+ * The page's name, the h1 and the title in both renderers: the car's where
+ * the page covers several variants, the chassis's otherwise. The static
+ * curated page printed the car's always, so `/cars/mercedes-w11` opened on
+ * "Mercedes F1 W11 EQ Performance" and the app then renamed it "Mercedes F1
+ * W11" - and three more did the same (IA-06). Which of the two records names
+ * the car better is a separate question; this is only the two halves of one
+ * page agreeing on the answer the app already gives.
+ */
+export const carPageName = (variants, car) =>
+  (variants.length > 1 ? car?.full_name : null) ||
+  variants[0]?.full_name ||
+  variants[0]?.name ||
+  car?.full_name ||
+  car?.designation
 
 // The article route only. A photograph from a Commons category (AF-42,
 // route 'category', confidence 'catalogued') is not shown until a person

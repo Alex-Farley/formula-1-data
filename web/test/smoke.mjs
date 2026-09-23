@@ -2538,6 +2538,55 @@ try {
 
   })
 
+  /*
+   * IA-06. Four curated cars are one chassis under another id
+   * (`mercedes-w11` is the chassis `mercedes-f1-w11`), so two addresses draw
+   * one page. The chassis address names the car's as canonical - in the
+   * static head, in the app's after the database opens, and in the citation -
+   * and only the car's is in the sitemap. A variant of a design of several is
+   * its own subject and keeps its own. The set is read out of f1.db, so it
+   * holds as the curated register grows.
+   */
+  await section('/cars/<chassis> that is the whole of a curated car  (one car, one address)', async () => {
+    const copies = db
+      .prepare(
+        `SELECT ch.id AS chassis, c.id AS car
+           FROM cars c JOIN chassis ch ON ch.car_id = c.id
+          WHERE NOT EXISTS (SELECT 1 FROM chassis y WHERE y.id = c.id)
+            AND (SELECT COUNT(*) FROM chassis x WHERE x.car_id = c.id) = 1
+          ORDER BY c.id`,
+      )
+      .all()
+    atLeast(copies.length, 1, 'some curated car is a single chassis under another id')
+    const canonicalOf = (html) => {
+      const href = html.match(/<link rel="canonical" href="([^"]+)"/)?.[1]
+      return href ? new URL(href).pathname : null
+    }
+    const sitemap = await fetch(`${BASE}/sitemap.xml`).then((r) => r.text())
+    const wrong = []
+    for (const { chassis, car } of copies) {
+      const html = await (await fetch(`${BASE}/cars/${chassis}`)).text()
+      if (canonicalOf(html) !== `/cars/${car}`) wrong.push(`/cars/${chassis}: static canonical ${canonicalOf(html)}`)
+      if (!new RegExp(`<span class="url">[^<]*/cars/${car}</span>`).test(html)) {
+        wrong.push(`/cars/${chassis}: the static citation does not name /cars/${car}`)
+      }
+      if (sitemap.includes(`/cars/${chassis}</loc>`)) wrong.push(`/cars/${chassis} is in the sitemap`)
+      if (!sitemap.includes(`/cars/${car}</loc>`)) wrong.push(`/cars/${car} is not in the sitemap`)
+      const own = await (await fetch(`${BASE}/cars/${car}`)).text()
+      if (canonicalOf(own) !== `/cars/${car}`) wrong.push(`/cars/${car}: static canonical ${canonicalOf(own)}`)
+    }
+    is(wrong.join('; '), '', `all ${copies.length} name the car's page as canonical, and only it is in the sitemap`)
+
+    const appCanonical = () => page.$eval('link[rel=canonical]', (node) => new URL(node.href).pathname)
+    const appCited = () => page.$eval('#root .cite .url', (node) => new URL(node.textContent).pathname)
+    const { chassis, car } = copies[0]
+    await go(`/cars/${chassis}`)
+    is(await appCanonical(), `/cars/${car}`, `the app keeps /cars/${chassis}'s canonical on /cars/${car}`)
+    is(await appCited(), `/cars/${car}`, 'and cites that address')
+    await go('/cars/lotus-72b', 'Lotus 72B')
+    is(await appCanonical(), '/cars/lotus-72b', 'a variant of a design of several is its own canonical')
+  })
+
   await section('/cars/mclaren-mp4-4', async () => {
     await go('/cars/mclaren-mp4-4', 'McLaren MP4/4')
     const mp44 = await tableRows()
@@ -4664,7 +4713,13 @@ try {
       // who followed a shared link.
       1 + one(`SELECT COUNT(*) FROM (
                SELECT id FROM chassis UNION SELECT id FROM cars
-             )`) +
+             )`) -
+      // IA-06: less the chassis pages that are copies of a curated car's -
+      // a car that is one chassis under another id - which name the car's
+      // page as canonical and so are not addresses for an index to hold.
+      one(`SELECT COUNT(*) FROM cars c
+            WHERE NOT EXISTS (SELECT 1 FROM chassis y WHERE y.id = c.id)
+              AND (SELECT COUNT(*) FROM chassis x WHERE x.car_id = c.id) = 1`) +
       10 + // records, data and its three children, eras, glossary, changes, about, compare (PD-43)
       // SD-20: feed.xml is listed too. It is not a page, but it is an address
       // worth recrawling, and its lastmod is the one on the site that moves
@@ -5024,6 +5079,11 @@ try {
       '/circuits/monza',
       '/cars',
       '/cars/lotus-72',
+      // IA-06: a curated car that is one chassis under another id, and one
+      // whose id a chassis shares - both named after the chassis in the app,
+      // and both after the curated row in the static page, until they agreed.
+      '/cars/mercedes-w11',
+      '/cars/brabham-bt46',
       '/records',
       '/reference/eras',
       '/reference/glossary',
