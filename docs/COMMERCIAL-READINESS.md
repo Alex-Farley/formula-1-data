@@ -16,7 +16,7 @@ by the build rather than by anyone's memory.
 
     ./f1 licences
 
-<!-- fig:yes_share -->99.4%<!-- /fig --> of the <!-- fig:sourced_rows -->120,911<!-- /fig --> sourced rows carry a licence that permits
+<!-- fig:yes_share -->99.4%<!-- /fig --> of the <!-- fig:sourced_rows -->120,919<!-- /fig --> sourced rows carry a licence that permits
 redistribution outright. The remaining <!-- fig:facts_only_share -->0.6%<!-- /fig --> cite an official source as the
 **authority for a fact** and hold none of that source's prose. Nothing in the
 committed database may not be published.
@@ -24,14 +24,14 @@ committed database may not be published.
 | Class | Rows | Share |
 |---|---:|---:|
 | `yes` — redistributable on the terms given | <!-- fig:yes_rows -->120,196<!-- /fig --> | <!-- fig:yes_share -->99.4%<!-- /fig --> |
-| `facts-only` — the facts, not the expression | <!-- fig:facts_only_rows -->715<!-- /fig --> | <!-- fig:facts_only_share -->0.6%<!-- /fig --> |
+| `facts-only` — the facts, not the expression | <!-- fig:facts_only_rows -->723<!-- /fig --> | <!-- fig:facts_only_share -->0.6%<!-- /fig --> |
 | `no` — not redistributable | <!-- fig:no_rows -->0<!-- /fig --> | <!-- fig:no_share -->0.0%<!-- /fig --> |
 
 ---
 
 ## What was read
 
-<!-- fig:facts_only_rows -->715<!-- /fig --> rows cite `formula1.com` (<!-- fig:facts_only_formula1 -->638<!-- /fig -->) or `fia.com` (<!-- fig:facts_only_fia -->77<!-- /fig -->), the two sources whose
+<!-- fig:facts_only_rows -->723<!-- /fig --> rows cite `formula1.com` (<!-- fig:facts_only_formula1 -->638<!-- /fig -->) or `fia.com` (<!-- fig:facts_only_fia -->85<!-- /fig -->), the two sources whose
 licences are "FOM copyright; no reuse licence" and "FIA copyright; published
 for reference, not redistribution". Every one was examined and classified as
 either
@@ -40,7 +40,7 @@ either
   copyrightable, and restating one is not redistribution; or
 - **(b) text following the source's expression** — rewrite.
 
-**All <!-- fig:facts_only_rows -->715<!-- /fig --> are (a). None is (b).** The breakdown, across <!-- fig:facts_only_tables -->11<!-- /fig --> tables — every
+**All <!-- fig:facts_only_rows -->723<!-- /fig --> are (a). None is (b).** The breakdown, across <!-- fig:facts_only_tables -->11<!-- /fig --> tables — every
 figure here is a span `tools/readme_figures.py` writes from the database and
 `verify.py` checks. Two guards hold the list to the database: the writer
 refuses to run while a facts-only row sits in a table not listed here, and
@@ -57,7 +57,7 @@ fails — so a row nobody has read cannot be counted as read:
 | `races` | <!-- fig:fo_races -->71<!-- /fig --> | formula1.com | 2025–27 calendar | — |
 | `race_entries` | <!-- fig:fo_race_entries -->36<!-- /fig --> | formula1.com | 2025–26 race winners | — |
 | `regulation_changes` | <!-- fig:fo_regulation_changes -->60<!-- /fig --> | fia.com | year, category | `detail`, `impact` |
-| `regulation_limits` | <!-- fig:fo_regulation_limits -->17<!-- /fig --> | fia.com | numeric limits | `note` |
+| `regulation_limits` | <!-- fig:fo_regulation_limits -->25<!-- /fig --> | fia.com | numeric limits | `note` |
 | `sessions` | <!-- fig:fo_sessions -->115<!-- /fig --> | formula1.com | 2026 session start times (UTC) and circuit zone | — |
 | `claims` | <!-- fig:fo_claims -->20<!-- /fig --> | formula1.com | career wins, poles and podiums of seven 2026 drivers, one figure a row, as their driver pages gave them on the fetch `drivers.stats_as_of` dates — the figures `drivers` carries as `*_external`, with the source of each | — |
 

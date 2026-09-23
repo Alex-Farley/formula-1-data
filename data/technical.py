@@ -159,12 +159,25 @@ _FIA2026 = "https://www.fia.com/regulations/formula-1"
 # cap for its own year in Article 2 - "in the event that N Competitions take
 # place ... US Dollars X" - with the per-Competition adjustment beside it. The
 # figures below were read from these documents, not from a summary of them.
-# The FIA Sporting Regulations for 2025, issue 5 (30 April 2025), read for the
-# weekend's limits: Article 30.2(a) (tyre sets per driver per Competition),
-# 61.2 / 62.2 (classification) and Article 39.4(b)(i) (the 107% rule). The
-# first cut cited 30.5 and merged the stewards' separate power into the 107%
-# rule; the review read the document and caught both.
-_SPORT2025 = "https://www.fia.com/system/files/documents/fia_2025_formula_1_sporting_regulations_-_issue_5_-_2025-04-30.pdf"
+# The FIA Sporting Regulations, read for the weekend's limits: the last issue
+# of each season the FIA's own archive holds, from 2018, where that archive
+# begins, to the current 2026 issue. Every year inside a weekend row's span was
+# read in that season's own issue, so a span is a run of issues that agree,
+# not a value carried across years nobody read. 2018 is where the reading
+# starts, not where any of these rules did. The 2025 rows came first; their
+# review caught a first cut that cited 30.5 for the tyre allocation and merged
+# the stewards' separate power into the 107% rule.
+_SPORT = {
+    2018: "https://www.fia.com/sites/default/files/1-2018_sporting_regulations_2018-07-17.pdf",
+    2019: "https://www.fia.com/sites/default/files/2019_sporting_regulations_-_2019-03-12.pdf",
+    2020: "https://www.fia.com/sites/default/files/2020_formula_1_sporting_regulations_-_iss_14_-_2020-11-23.pdf",
+    2021: "https://www.fia.com/sites/default/files/2021_formula_1_sporting_regulations_-_iss_13_-_2021-12-08.pdf",
+    2022: "https://www.fia.com/sites/default/files/fia_2022_formula_1_sporting_regulations_-_issue_9_-_2022-10-19_0.pdf",
+    2023: "https://www.fia.com/sites/default/files/fia_2023_formula_1_sporting_regulations_-_issue_8_-_2023-12-06_0.pdf",
+    2024: "https://www.fia.com/sites/default/files/fia_2024_formula_1_sporting_regulations_-_issue_7_-_2024-07-31.pdf",
+    2025: "https://www.fia.com/system/files/documents/fia_2025_formula_1_sporting_regulations_-_issue_5_-_2025-04-30.pdf",
+    2026: "https://www.fia.com/system/files/documents/fia_2026_f1_regulations_-_section_b_sporting_-_iss_08_-_2026-08-05_7.pdf",
+}
 
 _FIN = {
     2021: "https://www.fia.com/sites/default/files/formula_1_-_financial_regulations_-_2021_-_iss_8_-_2021-10-15.pdf",
@@ -278,30 +291,84 @@ REGULATION_LIMITS = [
      "Added for each Competition above 24, before Indexation (Article "
      "D4.1.2, issue 07).", "reference", _FIN[2026]),
 
-    # The weekend's limits, from the 2025 Sporting Regulations. One season:
-    # the years each of these changed are not yet read from earlier issues,
-    # which is what WK-03 still holds open. A "Competition" is the FIA's
-    # word for a Grand Prix weekend.
-    (2025, 2025, "tyre_sets_dry_per_competition", 13.0, "sets",
-     "Per driver, at a Competition without a sprint and without additional "
-     "tyres made available under Article 30.1(a)(iii); twelve where a sprint "
-     "is scheduled, and twelve where additional tyres are made available "
-     "(Article 30.2(a)).", "reference", _SPORT2025),
-    (2025, 2025, "tyre_sets_intermediate_per_competition", 5.0, "sets",
-     "Per driver per Competition (Article 30.2(a)).", "reference", _SPORT2025),
-    (2025, 2025, "tyre_sets_wet_per_competition", 2.0, "sets",
-     "Per driver per Competition; three at Monaco (Article 30.2(a)).",
-     "reference", _SPORT2025),
-    (2025, 2025, "classification_min_distance_pct", 90.0, "%",
+    # The weekend's limits, from the Sporting Regulations, 2018 to 2026. A
+    # "Competition" is the FIA's word for a Grand Prix weekend; until the 2022
+    # issue it was "Event". A span runs while the issues read agree on the
+    # figure and cites the first of them; a note names what the later issues
+    # added around it. 2026 is a row of its own for each limit, as it is for
+    # the cost cap: the 2026 rules were rewritten as Section B of a single
+    # rulebook, so a figure there is not the earlier one restated.
+    (2018, 2025, "tyre_sets_dry_per_competition", 13.0, "sets",
+     "Per driver per Event (Article 24.2(a) of the 2018 to 2021 issues) and "
+     "per Competition (Article 30.2(a) from 2022), where no sprint is "
+     "scheduled and no additional tyres are made available. The later "
+     "issues add "
+     "the exceptions: twelve where sprint qualifying (from 2022 a sprint "
+     "session) is scheduled, from 2021; twelve where additional tyres are "
+     "made available under Article 30.1(a)(iii), from 2022; eleven where an "
+     "Alternative Tyre Allocation is scheduled, in the 2023 issue only.",
+     "reference", _SPORT[2018]),
+    (2026, 2026, "tyre_sets_dry_per_competition", 13.0, "sets",
+     "Per driver at a Standard Format Competition; twelve at an Alternative "
+     "Format Competition (one with a sprint) and twelve at a Standard Format "
+     "Competition with In-Competition Tyre Testing (Article B6.3.4).",
+     "reference", _SPORT[2026]),
+    (2018, 2023, "tyre_sets_intermediate_per_competition", 4.0, "sets",
+     "Per driver per Event (Article 24.2(a) of the 2018 to 2021 issues) and "
+     "per Competition (Article 30.2(a) of the 2022 and 2023 issues), at "
+     "every format. The 2024 issue raised it to five.",
+     "reference", _SPORT[2018]),
+    (2024, 2025, "tyre_sets_intermediate_per_competition", 5.0, "sets",
+     "Per driver per Competition (Article 30.2(a)); the 2025 issue restates "
+     "it.", "reference", _SPORT[2024]),
+    (2026, 2026, "tyre_sets_intermediate_per_competition", 5.0, "sets",
+     "Per driver per Competition at every format (Article B6.3.4). At an "
+     "Alternative Format Competition one additional set is made available "
+     "to a driver who used intermediates in a wet FP1 or Sprint Qualifying, "
+     "or in the Sprint (Article B6.3.9b).", "reference", _SPORT[2026]),
+    (2018, 2023, "tyre_sets_wet_per_competition", 3.0, "sets",
+     "Per driver per Event (Article 24.2(a) of the 2018 to 2021 issues) and "
+     "per Competition (Article 30.2(a) of the 2022 and 2023 issues), at "
+     "every format. The 2024 issue cut it to two.",
+     "reference", _SPORT[2018]),
+    (2024, 2025, "tyre_sets_wet_per_competition", 2.0, "sets",
+     "Per driver per Competition (Article 30.2(a)). The 2025 issue makes it "
+     "three at Monaco; the 2024 issue has no exception.",
+     "reference", _SPORT[2024]),
+    (2026, 2026, "tyre_sets_wet_per_competition", 2.0, "sets",
+     "Per driver per Competition at every format, Monaco included: the 2026 "
+     "issue carries no Monaco exception (Article B6.3.4).",
+     "reference", _SPORT[2026]),
+    (2018, 2025, "classification_min_distance_pct", 90.0, "%",
      "A car that has covered less than 90% of the winner's laps, rounded "
-     "down to whole laps, is not classified (Articles 61.2 and 62.2).",
-     "reference", _SPORT2025),
-    (2025, 2025, "qualifying_107_pct", 107.0, "%",
+     "down to whole laps, is not classified: Article 45.2 of the 2018 to "
+     "2020 issues; 55.2 for the race and 54.2 for sprint qualifying in "
+     "2021; 62.2 for the race and 61.2 for the sprint from 2022.",
+     "reference", _SPORT[2018]),
+    (2026, 2026, "classification_min_distance_pct", 90.0, "%",
+     "The same rule for the Race (Article B2.5.5b) and the Sprint (Article "
+     "B2.3.5b).", "reference", _SPORT[2026]),
+    (2018, 2022, "qualifying_107_pct", 107.0, "%",
+     "A driver knocked out in Q1 is barred from the race if their best lap "
+     "there was more than 107% of the session's fastest, or they set no time "
+     "at all, unless the track was declared wet; in exceptional "
+     "circumstances the stewards can still admit them. Article 35.1 of the 2018 to "
+     "2020 issues; 36.2 in 2021, where 35.2 also bars such a driver from "
+     "sprint qualifying; 42.2 for the race and 41.2 for the sprint in 2022, "
+     "whose Article 39.3(b)(i) also declares the driver unclassified.",
+     "reference", _SPORT[2018]),
+    (2023, 2025, "qualifying_107_pct", 107.0, "%",
      "A driver eliminated in Q1 or SQ1 whose best lap exceeded 107% of the "
      "fastest time set in that session is unclassified, unless the track was "
-     "declared wet by the Race Director (Article 39.4(b)(i)). Whether an "
-     "unclassified driver takes part in the rest of the Competition is a "
-     "separate decision for the stewards.", "reference", _SPORT2025),
+     "declared wet by the Race Director (Article 39.4(c)(i) in 2023, "
+     "39.4(b)(i) in 2024 and 2025). Whether an unclassified driver takes "
+     "part in the rest of the Competition is a separate decision for the "
+     "stewards; the bar on starting the race that the 2018 to 2022 issues "
+     "carried is gone.", "reference", _SPORT[2023]),
+    (2026, 2026, "qualifying_107_pct", 107.0, "%",
+     "The same rule for Q1 (Article B2.4.3b.i) and SQ1 (Article "
+     "B2.2.3b.i), with participation in the rest of the Competition still "
+     "left to the stewards.", "reference", _SPORT[2026]),
 ]
 
 
