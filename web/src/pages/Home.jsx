@@ -202,7 +202,7 @@ export default function Home() {
                   table={{
                     rows: seasons,
                     columns: [
-                      { key: 'year', label: 'Season', align: 'num' },
+                      { key: 'year', label: 'Season', align: 'num', rowHeader: true },
                       { key: 'rounds', label: 'Rounds', align: 'num' },
                     ],
                   }}

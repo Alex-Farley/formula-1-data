@@ -72,7 +72,7 @@ export const CONSEQUENCES = [
 ]
 
 export const CONSEQUENCE_COLUMNS = [
-  { key: 'source', label: 'Source' },
+  { key: 'source', rowHeader: true, label: 'Source' },
   { key: 'licence', label: 'Licence' },
   { key: 'consequence', label: 'Consequence', align: 'prose' },
 ]
@@ -82,7 +82,7 @@ export const CONSEQUENCES_NOTE =
 
 export const SOURCE_COLUMNS = [
   { key: 'priority', label: 'Rank', align: 'num' },
-  { key: 'source', label: 'Source' },
+  { key: 'source', rowHeader: true, label: 'Source' },
   { key: 'authority', label: 'Authority' },
   { key: 'use', label: 'Used for', align: 'prose' },
   { key: 'licence', label: 'Licence', align: 'prose' },
@@ -94,7 +94,7 @@ export const SOURCES_FOOTER =
   'Ranked by authority, not by volume. The last column is the one that decides where a source sits.'
 
 export const LICENCE_COLUMNS = [
-  { key: 'licence', label: 'Licence' },
+  { key: 'licence', rowHeader: true, label: 'Licence' },
   { key: 'images', label: 'Photographs', align: 'num' },
   { key: 'licence_url', label: 'Terms', text: (url) => (url ? host(url) : text(null)) },
 ]

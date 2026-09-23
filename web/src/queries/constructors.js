@@ -47,7 +47,7 @@ export const CONSTRUCTORS = `
 export const entered = (_, row) => span(row.first_entry, row.active ? null : row.last_entry)
 
 export const CONSTRUCTOR_COLUMNS = [
-  { key: 'name', label: 'Constructor' },
+  { key: 'name', rowHeader: true, label: 'Constructor' },
   { key: 'country', label: 'Country' },
   { key: 'first_entry', label: 'Entered', align: 'num', text: entered },
   { key: 'entries', label: 'Race entries', align: 'num' },

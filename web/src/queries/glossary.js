@@ -17,13 +17,13 @@ export const GLOSSARY = 'SELECT * FROM glossary ORDER BY term COLLATE NOCASE'
 export const PERSONNEL = 'SELECT * FROM personnel ORDER BY active_from IS NULL, active_from, full_name, id'
 
 export const GLOSSARY_COLUMNS = [
-  { key: 'term', label: 'Term', width: '18%' },
+  { key: 'term', rowHeader: true, label: 'Term', width: '18%' },
   { key: 'category', label: 'Category' },
   { key: 'definition', label: 'Definition', align: 'prose' },
 ]
 
 export const PERSONNEL_COLUMNS = [
-  { key: 'full_name', label: 'Name' },
+  { key: 'full_name', rowHeader: true, label: 'Name' },
   { key: 'role', label: 'Role' },
   { key: 'associated_with', label: 'With' },
   { key: 'active_from', label: 'Active', align: 'num', text: (_, row) => span(row.active_from, row.active_to) },

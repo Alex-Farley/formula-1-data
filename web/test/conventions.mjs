@@ -210,6 +210,56 @@ describe('a NULL is "not established", never zero (frontend-reviewer, item 2)', 
   })
 })
 
+describe('every declared table names its rows (AX-21)', () => {
+  // A table with no row header is a column of values a screen reader cannot
+  // place: reading down the Result column of a career, nothing says which
+  // race each belongs to. A column list in web/src/queries is a table the app
+  // and scripts/prerender.js both draw, so each one marks the column (or the
+  // pair, a race being its season and its Grand Prix) that says which row
+  // this is. The SQL console's result is not a declared list and has none.
+  //
+  // The column lists that are functions of their rows are called here with
+  // the arguments that give their widest shape, and a new one fails until it
+  // is added to BUILT with them.
+  const BUILT = {
+    entryColumns: [true],
+    qualifyingColumns: [[{ q1: '1:20.000' }]],
+    recordColumns: [[]],
+  }
+  const modules = [
+    ...readdirSync(join(web, 'src/queries')).map((entry) => join(web, 'src/queries', entry)),
+    join(web, 'src/lib/changes.js'),
+  ]
+
+  it('each column list marks a row header, and never on a column taken out of the accessibility tree', async () => {
+    const unnamed = []
+    const unbuilt = []
+    for (const file of modules) {
+      const module = await import(file)
+      for (const [name, value] of Object.entries(module)) {
+        let columns = null
+        if (/_COLUMNS$/.test(name) && Array.isArray(value)) columns = value
+        else if (/[a-z]Columns$/.test(name) && typeof value === 'function') {
+          if (!Object.hasOwn(BUILT, name)) {
+            unbuilt.push(`${rel(file)}: ${name}`)
+            continue
+          }
+          columns = value(...BUILT[name])
+        }
+        if (!columns) continue
+        const specs = columns.filter((column) => typeof column === 'object')
+        const headers = specs.filter((column) => column.rowHeader === true)
+        if (headers.length === 0) unnamed.push(`${rel(file)}: ${name} has no rowHeader column`)
+        for (const column of headers) {
+          if (column.ariaHidden) unnamed.push(`${rel(file)}: ${name}.${column.key} is a row header and aria-hidden`)
+        }
+      }
+    }
+    assert.deepEqual(unbuilt, [], 'a column list built by a function: add it to BUILT with the arguments for its widest shape')
+    assert.deepEqual(unnamed, [])
+  })
+})
+
 describe('display: contents is never a styled wrapper (frontend-reviewer, item 8)', () => {
   // The box tree looks right and selectors match the DOM, so `.fields > dd`
   // silently matches nothing. A keyed Fragment is the answer; a comment

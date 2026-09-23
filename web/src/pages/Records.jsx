@@ -197,7 +197,7 @@ function Body({ data }) {
             table={{
               rows: driverWins,
               columns: [
-                { key: 'full_name', label: 'Driver', render: (name, row) => <Link to={`/drivers/${row.driver_id}`}>{name}</Link> },
+                { key: 'full_name', label: 'Driver', rowHeader: true, render: (name, row) => <Link to={`/drivers/${row.driver_id}`}>{name}</Link> },
                 { key: 'wins', label: 'Wins', align: 'num' },
                 { key: 'first_win', label: 'First', align: 'num' },
                 { key: 'last_win', label: 'Last', align: 'num' },
@@ -216,7 +216,7 @@ function Body({ data }) {
             table={{
               rows: driverPoles,
               columns: [
-                { key: 'full_name', label: 'Driver', render: (name, row) => <Link to={`/drivers/${row.driver_id}`}>{name}</Link> },
+                { key: 'full_name', label: 'Driver', rowHeader: true, render: (name, row) => <Link to={`/drivers/${row.driver_id}`}>{name}</Link> },
                 { key: 'poles', label: 'Poles', align: 'num' },
               ],
             }}
@@ -250,6 +250,7 @@ function Body({ data }) {
               {
                 key: 'name',
                 label: 'Constructor',
+                rowHeader: true,
                 render: (name, row) => (
                   <>
                     <LiveryMark colour={constructorColour(row)} year={row.last_win} />
@@ -297,7 +298,7 @@ function Body({ data }) {
           table={{
             rows: decadeRows,
             columns: [
-              { key: 'full_name', label: 'Driver' },
+              { key: 'full_name', label: 'Driver', rowHeader: true },
               { key: 'wins', label: 'Wins', align: 'num' },
             ],
           }}
@@ -319,7 +320,7 @@ function Body({ data }) {
               share: percent(r.pole_converted, r.races),
             })),
             columns: [
-              { key: 'year', label: 'Season', align: 'num' },
+              { key: 'year', label: 'Season', align: 'num', rowHeader: true },
               { key: 'races', label: 'Races', align: 'num' },
               { key: 'pole_converted', label: 'Won from pole', align: 'num' },
               { key: 'share', label: 'Share', align: 'num' },

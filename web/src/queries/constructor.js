@@ -106,7 +106,7 @@ export const constructorSeasons = (bySeason, standings) =>
     })
 
 export const SEASON_COLUMNS = [
-  { key: 'year', label: 'Season', align: 'num', text: (year) => String(year) },
+  { key: 'year', rowHeader: true, label: 'Season', align: 'num', text: (year) => String(year) },
   { key: 'entries', label: 'Entries', align: 'num' },
   { key: 'drivers', label: 'Drivers', align: 'num' },
   // Counted from the race records, as the driver page's are, and declared for
@@ -124,8 +124,8 @@ export const ENGINE_SPLIT_FOOTER =
   "The constructors' championship is contested by a chassis–engine pair, so a season can carry more than one entry for the same name. Open the season to see both."
 
 export const WIN_COLUMNS = [
-  { key: 'year', label: 'Season', align: 'num', text: (year) => String(year) },
-  { key: 'name_used', label: 'Grand Prix' },
+  { key: 'year', rowHeader: true, label: 'Season', align: 'num', text: (year) => String(year) },
+  { key: 'name_used', rowHeader: true, label: 'Grand Prix' },
   { key: 'circuit', label: 'Circuit' },
   { key: 'driver', label: 'Driver' },
   { key: 'chassis', label: 'Chassis', text: (name, row) => text(name ?? row.chassis_id) },
@@ -135,7 +135,7 @@ export const WINS_FOOTER =
   'A blank chassis is a season this team ran more than one design and no source records which car raced which round.'
 
 export const DESIGN_COLUMNS = [
-  { key: 'name', label: 'Chassis' },
+  { key: 'name', rowHeader: true, label: 'Chassis' },
   { key: 'first_year', label: 'Years', align: 'num', text: (_, row) => span(row.first_year, row.last_year) },
   { key: 'engine_name', label: 'Engine' },
   { key: 'power_bhp', label: 'Power (bhp)', align: 'num' },

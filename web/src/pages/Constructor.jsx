@@ -230,7 +230,7 @@ function ConstructorBody({ constructor, data }) {
             table={{
               rows: seasonsAsc,
               columns: [
-                { key: 'year', label: 'Season', align: 'num' },
+                { key: 'year', label: 'Season', align: 'num', rowHeader: true },
                 { key: 'wins', label: 'Wins', align: 'num' },
                 { key: 'entries', label: 'Entries', align: 'num' },
               ],

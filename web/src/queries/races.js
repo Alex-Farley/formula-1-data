@@ -66,9 +66,9 @@ export const raceWinner = (name, row) =>
   row.status !== 'completed' ? NOT_YET_RUN : row.co_winner_id ? `${text(name)} ${SHARED}` : text(name)
 
 export const RACE_COLUMNS = [
-  { key: 'year', label: 'Season', align: 'num', text: (year) => String(year) },
+  { key: 'year', rowHeader: true, label: 'Season', align: 'num', text: (year) => String(year) },
   { key: 'round', label: 'R', align: 'num' },
-  { key: 'gp_name', label: 'Grand Prix', text: raceName },
+  { key: 'gp_name', rowHeader: true, label: 'Grand Prix', text: raceName },
   { key: 'circuit', label: 'Circuit' },
   { key: 'winner', label: 'Winner', text: raceWinner },
   { key: 'constructor', label: 'Car' },
