@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { attribution, canShow, fileTitle, photoAlt, thumbUrl } from '../lib/commons.js'
+import { THUMB_WIDTH, attribution, canShow, fileTitle, photoAlt, thumbUrl } from '../lib/commons.js'
 import { UNCHECKED_MARK } from '../lib/site.js'
 
 /**
@@ -10,7 +10,7 @@ import { UNCHECKED_MARK } from '../lib/site.js'
  * different licence strings between them. Almost all of those licences
  * require attribution, so the caption is built into this component rather
  * than left to each caller to remember, and nothing else in the app is
- * allowed to render a Commons file — the smoke test reads the source and
+ * allowed to render a Commons file — web/test/conventions.mjs reads the source and
  * fails if a second <img> or a second thumbUrl() call appears anywhere else.
  *
  * IT FAILS CLOSED. An image with nobody to credit, or with no licence to
@@ -25,19 +25,42 @@ import { UNCHECKED_MARK } from '../lib/site.js'
  * article with a picture of police officers. They are all held at
  * `unverified`, and this says so on the picture rather than in a footnote.
  */
-export default function CommonsImage({ image, width = 800, caption, showCheck = true }) {
+/**
+ * The address to draw a row's photograph from, and what to do when it fails.
+ *
+ * The stored `thumb_url` first (VD-23). The harvest fetched every one before
+ * writing it, but Commons can move a file after that, and a picture that
+ * would still arrive through Special:FilePath is not a failure: `retry()`
+ * switches to that address once and returns true, and returns false when
+ * there is nothing left to try. Both surfaces that draw a Commons file - this
+ * component and the cars gallery's card - take it from here, so they cannot
+ * disagree about how many tries a photograph gets.
+ */
+export function useThumbSrc(image, width) {
+  const [refused, setRefused] = useState(null)
+  const direct = thumbUrl(image, width)
+  const fallback = thumbUrl(image, width, { direct: false })
+  const src = refused === direct ? fallback : direct
+  const retry = () => {
+    if (src !== direct || direct === fallback) return false
+    setRefused(direct)
+    return true
+  }
+  return [src, retry]
+}
+
+export default function CommonsImage({ image, width = THUMB_WIDTH, caption, showCheck = true }) {
   // Loading, arrived, or failed: three states that used to look the same -
-  // a sunk grey box - for the seconds a Commons thumbnail takes to arrive
-  // through its redirects, and for ever when it does not. The box now says
-  // which it is.
+  // a sunk grey box - for the seconds a Commons thumbnail takes to arrive,
+  // and for ever when it does not. The box now says which it is.
   const [state, setState] = useState('loading')
+  const [src, retry] = useThumbSrc(image, width)
   if (!image?.file_name) return null
 
   if (!canShow(image)) return null
   const credit = attribution(image)
   const licence = (image.licence ?? '').trim()
 
-  const src = thumbUrl(image.file_name, width)
   const unchecked = showCheck && image.name_matches === 0
 
   return (
@@ -50,7 +73,7 @@ export default function CommonsImage({ image, width = 800, caption, showCheck = 
         loading="lazy"
         decoding="async"
         onLoad={() => setState('ready')}
-        onError={() => setState('failed')}
+        onError={() => retry() || setState('failed')}
         style={image.width && image.height ? { aspectRatio: `${image.width} / ${image.height}` } : undefined}
       />
       {state === 'failed' && (

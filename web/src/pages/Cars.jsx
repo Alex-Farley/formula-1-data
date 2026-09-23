@@ -6,8 +6,9 @@ import DataTable, { cell } from '../components/DataTable.jsx'
 import { Chips, Filters, NoMatch, SearchField, Select } from '../components/Filters.jsx'
 import LiveryMark from '../components/LiveryMark.jsx'
 import { rows as pick, useQueries } from '../data/useQuery.js'
-import { canShow, thumbUrl } from '../lib/commons.js'
+import { canShow } from '../lib/commons.js'
 import CommonsCredit from '../components/CommonsCredit.jsx'
+import { useThumbSrc } from '../components/CommonsImage.jsx'
 import { span } from '../lib/format.js'
 import { colourForEntry } from '../lib/liveries.js'
 import { oneOf, useUrlState } from '../lib/urlstate.js'
@@ -114,6 +115,25 @@ export default function Cars() {
  * tree, which leaves one stop per card named by the car rather than two, the
  * first of which, on a card with no photograph, was named for the absence.
  */
+/**
+ * The card's picture. Its own component only so that it can hold the one
+ * retry CommonsImage gives a stored address that has stopped answering.
+ */
+function Shot({ car }) {
+  const [src, retry] = useThumbSrc(car, 640)
+  return (
+    <img
+      src={src}
+      alt={car.car}
+      loading="lazy"
+      decoding="async"
+      width={car.width || undefined}
+      height={car.height || undefined}
+      onError={retry}
+    />
+  )
+}
+
 function Gallery({ cars }) {
   return (
     <ul className="cardgrid">
@@ -121,14 +141,7 @@ function Gallery({ cars }) {
         <li key={car.id} className="carcard">
           <Link to={`/cars/${car.id}`} className="carcard-shot" tabIndex={-1} aria-hidden="true">
             {canShow(car) ? (
-              <img
-                src={thumbUrl(car.file_name, 640)}
-                alt={car.car}
-                loading="lazy"
-                decoding="async"
-                width={car.width || undefined}
-                height={car.height || undefined}
-              />
+              <Shot car={car} />
             ) : (
               <span className="carcard-nophoto">no photograph matched</span>
             )}

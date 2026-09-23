@@ -1285,8 +1285,10 @@ describe('what the pages send, and to whom (PD-0)', () => {
     'fonts.googleapis.com': ['load', 'the stylesheet for Saira and JetBrains Mono, non-blocking in index.html'],
     'fonts.gstatic.com': ['load', 'the font files that stylesheet names'],
     'static.cloudflareinsights.com': ['load', 'the Web Analytics beacon, one count per arrival (PD-0)'],
-    // Special:FilePath redirects to upload.wikimedia.org, which is therefore
-    // fetched too and never appears in this source. One entry, one decision.
+    // Special:FilePath redirects to Wikimedia's media servers, and a row's
+    // stored thumb_url (VD-23) names them directly - upload.wikimedia.org or
+    // thumb.wikimedia.org, which verify.py pins - so they are fetched too and
+    // never appear in this source. One entry, one decision.
     'commons.wikimedia.org': ['load', 'the photographs, via thumbUrl() in src/lib/commons.js'],
     // cite
     'en.wikipedia.org': ['cite', 'the source behind a prose field or a register row'],

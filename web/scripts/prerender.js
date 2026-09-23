@@ -1066,7 +1066,7 @@ const photograph = (image, width, caption = null) => {
   const licence = (image.licence ?? '').trim()
   const size = image.width && image.height ? ` width="${esc(image.width)}" height="${esc(image.height)}"` : ''
   return `<figure class="photo">
-        <img src="${esc(thumbUrl(image.file_name, width))}" alt="${esc(photoAlt(image, caption))}"${size} loading="lazy" decoding="async" />
+        <img src="${esc(thumbUrl(image, width))}" alt="${esc(photoAlt(image, caption))}"${size} loading="lazy" decoding="async" />
         <figcaption>${caption ? `<div class="photo-subject">${esc(caption)}</div>` : ''}${outbound(image.description_url, title)} · ${esc(attribution(image))} · ${
           image.licence_url ? outbound(image.licence_url, licence) : esc(licence)
         }${image.name_matches === 0 ? ` · <span class="pill pill-unverified">${esc(UNCHECKED_MARK)}</span>` : ''}</figcaption>
@@ -1092,6 +1092,9 @@ const creditLine = (image) =>
  * Special:FilePath never upscales, so a narrower original simply comes back at
  * its own size; 1200 is the width every platform documents as the one that
  * needs no cropping, and asking for it costs nothing where the file is smaller.
+ * It is wider than the stored `thumb_url` (THUMB_WIDTH in lib/commons.js), so
+ * the card keeps the Special:FilePath address: its redirects are paid by an
+ * unfurler fetching it once, not by a reader waiting on the page.
  */
 const CARD_WIDTH = 1200
 
@@ -1153,7 +1156,7 @@ const photographs = (id) => {
   return {
     html: photographSection(images),
     image: confirmed
-      ? { url: thumbUrl(confirmed.file_name, CARD_WIDTH), alt: creditLine(confirmed) }
+      ? { url: thumbUrl(confirmed, CARD_WIDTH), alt: creditLine(confirmed) }
       : null,
   }
 }

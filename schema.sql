@@ -630,9 +630,9 @@ CREATE TABLE chassis (
 --
 -- NO IMAGE IS STORED. This is a reference and its credit: which file an
 -- article carries (its lead image, or a body image that names the car), who
--- took it, under what licence. The pixels are fetched
--- from upload.wikimedia.org by whatever renders the page, under Wikimedia's
--- terms; this database redistributes nothing and f1.db does not grow.
+-- took it, under what licence. The pixels are fetched from Wikimedia's
+-- media servers by whatever renders the page, under Wikimedia's terms;
+-- this database redistributes nothing and f1.db does not grow.
 --
 -- The claim is checkable and it is deliberately narrow: "the article already
 -- proved to describe this chassis carries this file". The article passed
@@ -679,6 +679,14 @@ CREATE TABLE article_images (
     artist          TEXT,                      -- plain text; the API returns HTML
     credit          TEXT,
     description_url TEXT NOT NULL,             -- the Commons file page
+    -- The pixels' own address, as the API gave it when asked for 800 px
+    -- (VD-23): the 960px thumbnail, since Commons rounds up to the widths it
+    -- serves, or the original where that is narrower. One request where
+    -- Special:FilePath takes three, two of them redirects.
+    -- NULL where the harvest could not fetch it; a page then builds the
+    -- Special:FilePath address. verify.py checks it names this row's file
+    -- in Commons' own path, on upload.wikimedia.org or thumb.wikimedia.org.
+    thumb_url       TEXT,
     width           INTEGER,
     height          INTEGER,
     name_matches    INTEGER NOT NULL DEFAULT 0,
@@ -1752,7 +1760,7 @@ GROUP BY status ORDER BY status;
 CREATE VIEW v_car_images AS
 SELECT DISTINCT ch.car_id, c.full_name AS car, i.article,
        i.file_name, i.licence, i.licence_url, i.artist, i.credit,
-       i.description_url, i.width, i.height, i.name_matches
+       i.description_url, i.thumb_url, i.width, i.height, i.name_matches
 FROM article_images i
 JOIN chassis ch ON ch.article = i.article
 JOIN cars c ON c.id = ch.car_id

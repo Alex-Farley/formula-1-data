@@ -120,7 +120,7 @@ import {
   roundShortName,
   roundStates,
 } from '../src/lib/outline.js'
-import { attribution, canShow, fileTitle, thumbUrl } from '../src/lib/commons.js'
+import { THUMB_WIDTH, attribution, canShow, fileTitle, thumbUrl } from '../src/lib/commons.js'
 import { recordColumns, tiersOf } from '../src/queries/records.js'
 import { clearState, oneOf, readState, writeState } from '../src/lib/urlstate.js'
 
@@ -1032,18 +1032,32 @@ describe('canShow: no credit or no licence means no picture', () => {
   })
 })
 
-describe('thumbUrl and fileTitle: the file name is the only thing stored', () => {
+describe('thumbUrl and fileTitle: the stored address, or one built from the file name', () => {
+  const stored = 'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a8/X.jpg/960px-X.jpg'
   it('strips the File: prefix, underscores the spaces and encodes the rest', () => {
     assert.equal(
-      thumbUrl('File:Ayrton Senna 1988 (Canada).jpg', 640),
+      thumbUrl({ file_name: 'File:Ayrton Senna 1988 (Canada).jpg' }, 640),
       'https://commons.wikimedia.org/wiki/Special:FilePath/Ayrton_Senna_1988_(Canada).jpg?width=640',
     )
-    assert.equal(thumbUrl('Nürburgring.jpg').includes('N%C3%BCrburgring.jpg?width=800'), true)
+    assert.equal(thumbUrl({ file_name: 'Nürburgring.jpg' }).includes('N%C3%BCrburgring.jpg?width=800'), true)
+  })
+  it('takes the stored address up to the width it was fetched at (VD-23)', () => {
+    assert.equal(thumbUrl({ file_name: 'File:X.jpg', thumb_url: stored }, 600), stored)
+    assert.equal(thumbUrl({ file_name: 'File:X.jpg', thumb_url: stored }), stored)
+    assert.equal(thumbUrl({ file_name: 'File:X.jpg', thumb_url: stored }, THUMB_WIDTH), stored)
+  })
+  it('builds the Special:FilePath address past that width, without one, or when told not to', () => {
+    const built = 'https://commons.wikimedia.org/wiki/Special:FilePath/X.jpg?width='
+    assert.equal(thumbUrl({ file_name: 'File:X.jpg', thumb_url: stored }, 1200), `${built}1200`)
+    assert.equal(thumbUrl({ file_name: 'File:X.jpg', thumb_url: null }, 600), `${built}600`)
+    assert.equal(thumbUrl({ file_name: 'File:X.jpg', thumb_url: ' ' }, 600), `${built}600`)
+    assert.equal(thumbUrl({ file_name: 'File:X.jpg', thumb_url: stored }, 600, { direct: false }), `${built}600`)
   })
   it('is null for no file name rather than a URL to nothing', () => {
-    assert.equal(thumbUrl(''), null)
+    assert.equal(thumbUrl({ file_name: '' }), null)
+    assert.equal(thumbUrl({ file_name: null }), null)
+    assert.equal(thumbUrl({ file_name: 'File:' }), null)
     assert.equal(thumbUrl(null), null)
-    assert.equal(thumbUrl('File:'), null)
   })
   it('captions with the name a person would read', () => {
     assert.equal(fileTitle('File:Ayrton_Senna_1988.jpg'), 'Ayrton Senna 1988.jpg')
