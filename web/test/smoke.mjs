@@ -5000,6 +5000,8 @@ try {
       await same('/grands-prix/french', 'French Grand Prix', 'Where it has been held')
       await same('/grands-prix/french', 'French Grand Prix', 'Most wins')
       await same('/grands-prix/french', 'French Grand Prix', 'Every edition')
+      // The car an entrant ran where no constructor row exists (AF-64).
+      await same('/grands-prix/indianapolis-500', 'Indianapolis 500', 'Every edition')
       // An event with a round still to come, whose Winner and Car cells say
       // so in both halves.
       {

@@ -14,6 +14,7 @@ import {
   EDITIONS,
   EDITION_COLUMNS,
   GRAND_PRIX,
+  editionCar,
   WINNERS,
   WINNER_COLUMNS,
 } from '../queries/grandprix.js'
@@ -68,7 +69,11 @@ const EDITION_APP = {
   },
   constructor: {
     render: (name, row) =>
-      row.status !== 'completed' ? '' : row.constructor_id ? <Link to={`/constructors/${row.constructor_id}`}>{name}</Link> : cell(name),
+      row.status === 'completed' && row.constructor_id ? (
+        <Link to={`/constructors/${row.constructor_id}`}>{name}</Link>
+      ) : (
+        editionCar(name, row)
+      ),
   },
 }
 const WINNER_APP = {

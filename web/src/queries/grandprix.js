@@ -12,10 +12,10 @@
  *
  * See queries/drivers.js for what a column's `text` is.
  */
-import { span } from '../lib/format.js'
+import { span, text } from '../lib/format.js'
 import { NOT_YET_RUN } from '../lib/site.js'
+import { carName } from './race.js'
 import { raceName, raceWinner } from './races.js'
-import { roundResult } from './season.js'
 
 /** The stored row, with the figures the page shows counted beside it. */
 export const GRAND_PRIX = `
@@ -53,7 +53,7 @@ export const CIRCUITS = `
 /** Newest first, the order the app's table opens in, as on a circuit's page. */
 export const EDITIONS = `
   SELECT r.year, r.round, r.name_used, r.status, r.sprint, r.circuit_id, c.name AS circuit,
-         rr.winner, rr.winner_id, rr.co_winner_id, rr.constructor, rr.constructor_id,
+         rr.winner, rr.winner_id, rr.co_winner_id, rr.constructor, rr.constructor_id, rr.entrant,
          k.country AS constructor_country
     FROM races r
     LEFT JOIN circuits c ON c.id = r.circuit_id
@@ -98,6 +98,16 @@ export const venuesCount = (rows) => {
   return booked ? `${used} · ${booked} to come` : `${used}`
 }
 
+/**
+ * The winning car: the entrant's name where no constructor row exists, the
+ * rule carName applies wherever a car is named (AF-64) - the eleven
+ * championship Indianapolis 500s are this page's whole table otherwise
+ * blank. Nothing on an edition still to come, as a season's calendar leaves
+ * it: the Winner cell says "not yet run" once, and an em dash here would say
+ * a fact is missing about a race that has not happened (CD-37).
+ */
+export const editionCar = (_, row) => (row.status !== 'completed' ? '' : text(carName(row)))
+
 export const CIRCUIT_COLUMNS = [
   { key: 'circuit', rowHeader: true, label: 'Circuit' },
   { key: 'country', label: 'Country' },
@@ -110,10 +120,7 @@ export const EDITION_COLUMNS = [
   { key: 'name_used', rowHeader: true, label: 'Run as', text: raceName },
   { key: 'circuit', label: 'Circuit' },
   { key: 'winner', label: 'Winner', text: raceWinner },
-  // Blank on an edition still to come, as a season's calendar leaves it: the
-  // Winner cell says "not yet run" once, and an em dash here would say a
-  // fact is missing about a race that has not happened (CD-37).
-  { key: 'constructor', label: 'Car', text: roundResult },
+  { key: 'constructor', label: 'Car', text: editionCar },
 ]
 
 export const WINNER_COLUMNS = [

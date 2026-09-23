@@ -268,6 +268,7 @@ import {
   GRAND_PRIX,
   WINNERS as GP_WINNERS,
   WINNER_COLUMNS as GP_WINNER_COLUMNS,
+  editionCar,
 } from '../src/queries/grandprix.js'
 import {
   AMBIGUOUS_COLUMNS as CAR_AMBIGUOUS_COLUMNS,
@@ -2664,7 +2665,9 @@ const page = ({
                 ? `${link(`drivers/${row.winner_id}`, name)}${row.co_winner_id ? ` ${tag(SHARED)}` : ''}`
                 : text(name),
           constructor: (name, row) =>
-            row.status !== 'completed' ? '' : row.constructor_id ? link(`constructors/${row.constructor_id}`, name) : text(name),
+            row.status === 'completed' && row.constructor_id
+              ? link(`constructors/${row.constructor_id}`, name)
+              : esc(editionCar(name, row)),
         })}
         <h2>On the record</h2>
         ${fields([

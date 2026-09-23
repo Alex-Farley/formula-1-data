@@ -89,7 +89,7 @@ import { RACE_COLUMNS as RACES_COLUMNS, raceWinner } from '../src/queries/races.
 import { CONSTRUCTOR_COLUMNS, entered } from '../src/queries/constructors.js'
 import { CIRCUIT_COLUMNS, traced } from '../src/queries/circuits.js'
 import { GRANDS_PRIX_COLUMNS } from '../src/queries/grandsprix.js'
-import { circuitYears, venuesCount } from '../src/queries/grandprix.js'
+import { circuitYears, editionCar, venuesCount } from '../src/queries/grandprix.js'
 import { heldAs } from '../src/queries/circuit.js'
 import { CHASSIS_COLUMNS, chassisName } from '../src/queries/cars.js'
 import { PIT_COLUMNS, driverName, fastestLapMark, inClassificationOrder, outcome, position, raceLede, raceSentence, railOf, scheduledNote } from '../src/queries/race.js'
@@ -2219,5 +2219,12 @@ describe('a Grand Prix and the venues it has used', () => {
     assert.equal(circuitYears(null, { first_year: null, last_year: null, scheduled: 1 }), 'not yet run')
     assert.equal(venuesCount([{ races: 21 }, { races: 0, scheduled: 1 }]), '1 · 1 to come')
     assert.equal(venuesCount([{ races: 11 }, { races: 18 }]), '2')
+  })
+
+  it('names the car an entrant ran where no constructor row exists, and none for an edition to come', () => {
+    const run = { status: 'completed', constructor_id: null, constructor: null, entrant: 'Kurtis Kraft-Offenhauser' }
+    assert.equal(editionCar(null, run), 'Kurtis Kraft-Offenhauser')
+    assert.equal(editionCar('Ferrari', { status: 'completed', constructor_id: 'ferrari', constructor: 'Ferrari', entrant: 'Scuderia Ferrari' }), 'Ferrari')
+    assert.equal(editionCar(null, { status: 'scheduled', constructor_id: null, constructor: null, entrant: null }), '')
   })
 })
