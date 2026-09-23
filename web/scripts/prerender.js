@@ -508,10 +508,13 @@ const note = (value) => (value ? `<p class="faint">${esc(value)}</p>` : '')
 // spell a single `.tablewrap` doing both. One class means one set of rules —
 // including the fade at the right edge, which is drawn on `.table-wrap` and
 // so never reached the static page at all.
+//
+// `hidden` marks the columns DataTable takes out of the accessibility tree
+// (a column's `ariaHidden`), header and cells alike.
 const table = (headers, rows, options = {}) => {
   if (!rows.length) return ''
-  const { aligns = [] } = options
-  const cls = (i) => (aligns[i] ? ` class="${esc(aligns[i])}"` : '')
+  const { aligns = [], hidden = [] } = options
+  const cls = (i) => (aligns[i] ? ` class="${esc(aligns[i])}"` : '') + (hidden[i] ? ' aria-hidden="true"' : '')
   return [
     '<div class="table-wrap"><div class="table-scroll"><table>',
     `<thead><tr>${headers.map((h, i) => `<th scope="col"${cls(i)}>${typeof h === 'string' ? esc(h) : h.html}</th>`).join('')}</tr></thead>`,
@@ -553,9 +556,9 @@ const fromColumns = (columns, rows, links = {}) => {
   return (
     line +
     table(
-      // A column marked srOnly names itself to a screen reader only, as the
-      // app's does: the classification's rail has a header and no visible word.
-      kept.map((c) => (c.srOnly ? { html: `<span class="sr-only">${esc(c.label)}</span>` } : c.label)),
+      // A column marked ariaHidden has an empty header, hidden with its cells,
+      // as the app's does: the classification's rail (AX-12).
+      kept.map((c) => (c.ariaHidden ? { html: '' } : c.label)),
       rows.map((row) =>
         kept.map((c) => {
           const value = row[c.key]
@@ -565,7 +568,10 @@ const fromColumns = (columns, rows, links = {}) => {
           return esc(c.text ? c.text(value, row) : formatted(value))
         }),
       ),
-      { aligns: kept.map((c) => [c.align, c.cellClass].filter(Boolean).join(' ')) },
+      {
+        aligns: kept.map((c) => [c.align, c.cellClass].filter(Boolean).join(' ')),
+        hidden: kept.map((c) => c.ariaHidden === true),
+      },
     )
   )
 }

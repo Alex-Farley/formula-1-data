@@ -105,9 +105,12 @@ export const FASTEST_LAP = 'fastest lap'
 
 // The rail is data, not decoration — what the row achieved, read before any
 // of the numbers — and it is always paired with the position beside it, so
-// the colour never carries the meaning alone. Its header is for a screen
-// reader only; its cell carries no text in either renderer.
-const rail = { key: 'rail', label: 'Result', align: 'rail', sortable: false, srOnly: true, text: () => '' }
+// the colour never carries the meaning alone. Because the Pos cell says in
+// words what the rail says in colour, the whole column is hidden from
+// assistive technology in both renderers: named "Result" for a screen reader,
+// it was an empty cell announced as Result on every row, and nothing more
+// (AX-12). Its cell carries no text in either renderer.
+const rail = { key: 'rail', label: 'Result', align: 'rail', sortable: false, ariaHidden: true, text: () => '' }
 
 /** The classified position, the source's own spelling first ("EX", "NC"), or the em dash. */
 export const position = (_, row) => result(row)
