@@ -192,8 +192,16 @@ function Body({ data }) {
         note={DISCREPANCIES_NOTE}
       >
         {/* No opening sort: the query orders by subject, case-insensitively,
-            and the static page prints the rows as they come. */}
-        <DataTable rows={discrepancies} rowKey={(row) => row.id} sortable page={60} columns={DISCREPANCY_COLUMNS} />
+            and the static page prints the rows as they come. The header says
+            so without re-sorting them (CR-28). */}
+        <DataTable
+          rows={discrepancies}
+          rowKey={(row) => row.id}
+          sortable
+          opening={{ key: 'subject', direction: 'asc' }}
+          page={60}
+          columns={DISCREPANCY_COLUMNS}
+        />
       </Section>
 
       <Section

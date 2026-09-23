@@ -808,6 +808,26 @@ th.sortable button .arrow {
   font-size: 9px;
 }
 
+/*
+ * The resting mark on a header that sorts (IX-20). Before it, a sortable
+ * header and a dead one looked the same until one had been clicked. Dimmer
+ * than the active arrow and a different shape, so the column the rows are in
+ * still reads first; generated content, so it is no part of the header's
+ * text, and the span it sits in is hidden from assistive technology, which
+ * already hears a button.
+ */
+th.sortable button .arrow.is-idle {
+  color: var(--ink-faint);
+}
+
+th.sortable button .arrow.is-idle::before {
+  content: '↕';
+}
+
+th.sortable button:hover .arrow.is-idle {
+  color: inherit;
+}
+
 tbody td {
   padding: 8px 14px;
   border-top: 1px solid var(--rule);

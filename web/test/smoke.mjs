@@ -3176,6 +3176,153 @@ try {
     )
     is(lastEntries, '—', 'and sinks the unestablished ones')
 
+    /*
+     * IX-20. A header that sorts says so at rest, and one that does not says
+     * nothing: before this the two looked the same until one was clicked, and
+     * the standings and the classification - the two a reader most wants to
+     * sort - did not sort at all. A table that opens in its query's order
+     * names that order on its header without re-sorting (CR-28), and the
+     * first click there reverses it rather than restating it.
+     */
+    const headers = (heading) =>
+      page.evaluate((heading) => {
+        const h2 = [...document.querySelectorAll('#root main h2')].find((h) => h.textContent.trim().startsWith(heading))
+        const table = h2?.closest('section')?.querySelector('.table-wrap table')
+        if (!table) return null
+        return [...table.querySelectorAll('thead th')].map((th) => {
+          const arrow = th.querySelector('.arrow')
+          return {
+            label: th.textContent.replace(/[▲▼]/g, '').trim(),
+            button: Boolean(th.querySelector('button')),
+            sort: th.getAttribute('aria-sort'),
+            idle: arrow ? getComputedStyle(arrow, '::before').content : null,
+          }
+        })
+      }, heading)
+    const firstCell = (heading) =>
+      page.evaluate((heading) => {
+        const h2 = [...document.querySelectorAll('#root main h2')].find((h) => h.textContent.trim().startsWith(heading))
+        return h2?.closest('section')?.querySelector('tbody tr td:nth-child(1)')?.textContent.trim() ?? null
+      }, heading)
+
+    // Click the header at `index` in the section under `heading`, and wait for
+    // it to announce the order it was clicked into.
+    const clickHeader = async (heading, index, expected) => {
+      await page.evaluate(
+        ([heading, index]) =>
+          [...document.querySelectorAll('#root main h2')]
+            .find((h) => h.textContent.trim().startsWith(heading))
+            .closest('section')
+            .querySelectorAll('thead th')
+            [index].querySelector('button')
+            .click(),
+        [heading, index],
+      )
+      await page.waitForFunction(
+        ([heading, index, expected]) =>
+          [...document.querySelectorAll('#root main h2')]
+            .find((h) => h.textContent.trim().startsWith(heading))
+            ?.closest('section')
+            ?.querySelectorAll('thead th')
+            [index]?.getAttribute('aria-sort') === expected,
+        [heading, index, expected],
+        { timeout: 10000 },
+      )
+    }
+
+    await go('/seasons/1976', '1976')
+    const standings = "Final drivers' standings"
+    const atRest = await headers(standings)
+    truthy(atRest?.every((h) => h.button), 'every column of the drivers\' standings sorts')
+    is(atRest?.[0].sort, 'ascending', 'and the table names the order it opened in, on Pos')
+    is(atRest?.filter((h) => h.sort).length, 1, 'on one header only')
+    truthy(
+      atRest?.slice(1).every((h) => h.idle.includes('↕')),
+      'and every other header that sorts carries the resting mark',
+    )
+    const champion = one(
+      "SELECT position_text FROM v_standings_final WHERE year = 1976 AND table_type = 'drivers' ORDER BY position IS NULL, position LIMIT 1",
+    )
+    is(await firstCell(standings), String(champion), 'and opens on the champion')
+    const dead = await headers('The calendar')
+    truthy(
+      dead?.length > 0 && dead.every((h) => !h.button && !h.sort && h.idle === null),
+      'while a table that does not sort has no button, no aria-sort and no mark',
+    )
+
+    is((await headers('Who entered'))?.[0].sort, 'ascending', "the entrants name their query's order on Constructor")
+
+    await clickHeader(standings, 0, 'descending')
+    const reversed = await headers(standings)
+    is(reversed?.[0].sort, 'descending', 'one click on the opening column reverses it')
+    const last = await firstCell(standings)
+    truthy(last !== '—' && last !== '' && last !== String(champion), `and leads with a position, not a blank - "${last}"`)
+
+    // The descending order is the ascending one reversed with the missing
+    // values still last - and on Pos the missing value is `position`, not the
+    // "DSQ" the cell prints. 1997 has a driver excluded from the
+    // classification; he is last in both directions, never the leader of
+    // the reversed table.
+    const lastCell = (heading) =>
+      page.evaluate((heading) => {
+        const h2 = [...document.querySelectorAll('#root main h2')].find((h) => h.textContent.trim().startsWith(heading))
+        const rows = h2?.closest('section')?.querySelectorAll('tbody tr') ?? []
+        return rows.length ? rows[rows.length - 1].querySelector('td').textContent.trim() : null
+      }, heading)
+    const excluded = one(
+      "SELECT position_text FROM v_standings_final WHERE year = 1997 AND table_type = 'drivers' AND position IS NULL",
+    )
+    await go('/seasons/1997', '1997')
+    is(await lastCell(standings), excluded, `1997 opens with the excluded driver last, as "${excluded}"`)
+    await clickHeader(standings, 0, 'descending')
+    const lowest = one(
+      "SELECT MAX(position) FROM v_standings_final WHERE year = 1997 AND table_type = 'drivers'",
+    )
+    is(await firstCell(standings), String(lowest), 'and reversed, the table leads on the lowest position held')
+    is(await lastCell(standings), excluded, 'with the excluded driver still last')
+
+    await go('/races/1976/9')
+    const classification = await headers('Classification')
+    is(
+      classification?.filter((h) => h.button).length,
+      classification?.length - 1,
+      'the classification sorts on every column but its result rail',
+    )
+    is(classification?.find((h) => h.sort)?.label, 'Pos', 'and names the classification order on Pos')
+    // Pos is the classification's second column: the rail comes first. A
+    // retirement has no finish_position and stays below every finisher.
+    const posCell = (which) =>
+      page.evaluate((which) => {
+        const h2 = [...document.querySelectorAll('#root main h2')].find((h) => h.textContent.trim().startsWith('Classification'))
+        const rows = [...h2.closest('section').querySelectorAll('tbody tr')]
+        return rows.at(which).querySelectorAll('td')[1].textContent.trim()
+      }, which)
+    const lastOut = await posCell(-1)
+    await clickHeader('Classification', 1, 'descending')
+    const lastHome = one(
+      `SELECT MAX(e.finish_position) FROM race_entries e JOIN races r ON r.id = e.race_id
+        WHERE r.year = 1976 AND r.round = 9`,
+    )
+    is(await posCell(0), String(lastHome), 'reversed, the classification leads on the last classified finisher')
+    is(await posCell(-1), lastOut, 'and the retirements stay below every finisher')
+
+    // The disagreements open in SQLite's order, where "10 chassis" comes
+    // before "3 chassis", and the browser's numeric compare would put them
+    // the other way round. So this is the table a re-sort would show: the
+    // rows at rest are the query's, and down and back up returns to them
+    // rather than to a second order under the same "Subject ▲".
+    await go('/data/quality', 'Data quality')
+    const kept = 'Disagreements kept rather than resolved'
+    const opening = one('SELECT subject FROM discrepancies ORDER BY subject COLLATE NOCASE, id LIMIT 1')
+    is((await headers(kept))?.[0].sort, 'ascending', 'the disagreements name their order on Subject')
+    is(await firstCell(kept), opening, `and open in the query's order, on "${opening}", not a re-sort of it`)
+    await clickHeader(kept, 0, 'descending')
+    await clickHeader(kept, 0, 'ascending')
+    is(await firstCell(kept), opening, 'and down and back up returns to the same rows')
+
+    await go('/reference/glossary', 'Glossary')
+    is((await headers('Glossary'))?.[0].sort, 'ascending', 'the glossary names its alphabetical order on Term')
+
   })
 
   // ------------------------------------------------------- taking it away

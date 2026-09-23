@@ -76,9 +76,16 @@ const outTag = {
     finished(value, row.finish_position) ? 'Finished' : missing(value) ? cell(value) : <span className="tag">{value}</span>,
 }
 
+/*
+ * Every column of the classification sorts on what it means rather than on
+ * the string it prints (IX-20): a position on the number, so a retirement
+ * sinks in both directions as it does in the classification; a grid slot on
+ * `grid`, so "PL" is not a slot; a car on the name the cell shows.
+ */
 const classificationRenders = (year) => ({
   rail: RAIL,
   position_text: {
+    sort: (row) => row.finish_position,
     render: (_, row) => {
       const value = result(row)
       return missing(row.finish_position) ? <span className="tag tag-dnf">{value}</span> : <b>{value}</b>
@@ -96,6 +103,7 @@ const classificationRenders = (year) => ({
     ),
   },
   constructor: {
+    sort: (row) => carName(row),
     render: (name, row) => (
       <>
         <LiveryMark
@@ -107,10 +115,12 @@ const classificationRenders = (year) => ({
     ),
   },
   chassis: {
+    sort: (row) => row.chassis ?? row.chassis_id,
     render: (name, row) =>
       row.chassis_id ? <Link to={`/cars/${row.chassis_id}`}>{name ?? row.chassis_id}</Link> : cell(name),
   },
-  status: outTag,
+  grid_text: { sort: (row) => row.grid },
+  status: { ...outTag, sort: (row) => (finished(row.status, row.finish_position) ? 'Finished' : row.status) },
   fastest_lap: {
     render: (value) =>
       value === 1 ? (
@@ -370,7 +380,9 @@ function RaceBody({ race, data, year, round }) {
           <DataTable
             rows={classified}
             rowKey={(row) => row.id}
-            sortable={false}
+            sortable
+            // Already in classification order, from inClassificationOrder().
+            opening={{ key: 'position_text', direction: 'asc' }}
             page={60}
             highlight={(row) => row.finish_position === 1}
             columns={withRenders(CLASSIFICATION_COLUMNS, classificationRenders(year))}
