@@ -3258,6 +3258,29 @@ try {
     const last = await firstCell(standings)
     truthy(last !== '—' && last !== '' && last !== String(champion), `and leads with a position, not a blank - "${last}"`)
 
+    // The descending order is the ascending one reversed with the missing
+    // values still last - and on Pos the missing value is `position`, not the
+    // "DSQ" the cell prints. 1997 has a driver excluded from the
+    // classification; he is last in both directions, never the leader of
+    // the reversed table.
+    const lastCell = (heading) =>
+      page.evaluate((heading) => {
+        const h2 = [...document.querySelectorAll('#root main h2')].find((h) => h.textContent.trim().startsWith(heading))
+        const rows = h2?.closest('section')?.querySelectorAll('tbody tr') ?? []
+        return rows.length ? rows[rows.length - 1].querySelector('td').textContent.trim() : null
+      }, heading)
+    const excluded = one(
+      "SELECT position_text FROM v_standings_final WHERE year = 1997 AND table_type = 'drivers' AND position IS NULL",
+    )
+    await go('/seasons/1997', '1997')
+    is(await lastCell(standings), excluded, `1997 opens with the excluded driver last, as "${excluded}"`)
+    await clickHeader(standings, 0, 'descending')
+    const lowest = one(
+      "SELECT MAX(position) FROM v_standings_final WHERE year = 1997 AND table_type = 'drivers'",
+    )
+    is(await firstCell(standings), String(lowest), 'and reversed, the table leads on the lowest position held')
+    is(await lastCell(standings), excluded, 'with the excluded driver still last')
+
     await go('/races/1976/9')
     const classification = await headers('Classification')
     is(
@@ -3266,6 +3289,22 @@ try {
       'the classification sorts on every column but its result rail',
     )
     is(classification?.find((h) => h.sort)?.label, 'Pos', 'and names the classification order on Pos')
+    // Pos is the classification's second column: the rail comes first. A
+    // retirement has no finish_position and stays below every finisher.
+    const posCell = (which) =>
+      page.evaluate((which) => {
+        const h2 = [...document.querySelectorAll('#root main h2')].find((h) => h.textContent.trim().startsWith('Classification'))
+        const rows = [...h2.closest('section').querySelectorAll('tbody tr')]
+        return rows.at(which).querySelectorAll('td')[1].textContent.trim()
+      }, which)
+    const lastOut = await posCell(-1)
+    await clickHeader('Classification', 1, 'descending')
+    const lastHome = one(
+      `SELECT MAX(e.finish_position) FROM race_entries e JOIN races r ON r.id = e.race_id
+        WHERE r.year = 1976 AND r.round = 9`,
+    )
+    is(await posCell(0), String(lastHome), 'reversed, the classification leads on the last classified finisher')
+    is(await posCell(-1), lastOut, 'and the retirements stay below every finisher')
 
     // The disagreements open in SQLite's order, where "10 chassis" comes
     // before "3 chassis", and the browser's numeric compare would put them
