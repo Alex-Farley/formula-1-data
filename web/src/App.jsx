@@ -35,6 +35,7 @@ import GrandPrix from './pages/GrandPrix.jsx'
 import Cars from './pages/Cars.jsx'
 import Car from './pages/Car.jsx'
 import Records from './pages/Records.jsx'
+import Record from './pages/Record.jsx'
 import Changes from './pages/Changes.jsx'
 import Data from './pages/Data.jsx'
 import Eras from './pages/Eras.jsx'
@@ -342,6 +343,7 @@ function Chrome() {
           <Route path="/cars" element={<Cars />} />
           <Route path="/cars/:id" element={<Car />} />
           <Route path="/records" element={<Records />} />
+          <Route path="/records/:key" element={<Record />} />
           {/* Guessable, shareable, and not a masthead item: the season in
               progress, for a reader who wants it without picking a year. */}
           <Route path="/now" element={<Now />} />

@@ -72,6 +72,7 @@ export const NAMES = {
   cars: () => named('Cars', titled('Every Formula One car')),
   car: (name) => named(name),
   records: () => named('Records'),
+  record: (name) => named(name),
   eras: () => named('Eras and regulations'),
   glossary: () => named('Glossary and people'),
   sources: () => named('Sources and licences'),

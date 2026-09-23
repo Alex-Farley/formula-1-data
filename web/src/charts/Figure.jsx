@@ -42,6 +42,11 @@ export function LineKey({ index, colour }) {
  * entry is then a stroke in its slot's dash rather than a square, because on
  * a line chart the dash is the key that is not colour (AX-16).
  *
+ * `table.caption` names the table where the section heading above it would
+ * name two tables the same: two figures in one section otherwise both take
+ * that heading, and a screen reader's table list cannot tell them apart
+ * (AX-28). Left out, the table is named from the heading, as every other is.
+ *
  * THE TABLE IS NOT A FALLBACK. A value that can only be got at by hovering is
  * a value a keyboard user and a screen reader cannot get at at all, and it is
  * also the value nobody can copy into anything else. It is collapsed rather
@@ -85,7 +90,7 @@ export default function Figure({ title, note, legend, marks = 'swatch', table, c
       {table && (
         <details>
           <summary>The numbers behind this chart</summary>
-          <DataTable rows={table.rows} columns={table.columns} sortable={false} page={5000} />
+          <DataTable rows={table.rows} columns={table.columns} caption={table.caption} sortable={false} page={5000} />
         </details>
       )}
     </figure>

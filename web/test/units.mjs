@@ -58,7 +58,7 @@ import { distance, elsewhere, fold, prepare, rank } from '../src/lib/search.js'
 import { EXAMPLES, QUESTIONS, TOPICS, questionPath } from '../src/lib/questions.js'
 import { complaint, emptyTimingTableRead, nearestStatement } from '../src/lib/sql.js'
 import { DRIVER_COLUMNS } from '../src/queries/drivers.js'
-import { holderPath } from '../src/queries/records.js'
+import { KEY_SHAPE, holderPath, recordPath } from '../src/queries/records.js'
 import { EXPLAINED_FOOTER, OPEN_FOOTER, allExplained } from '../src/lib/disagreement.js'
 import { clock, eventDay, nextSession, raceStage, until, utc } from '../src/queries/sessions.js'
 import {
@@ -485,6 +485,15 @@ describe('record holders', () => {
     assert.equal(holderPath({ holder_table: 'races', holder_id: '142', race_year: 1966, race_round: 1 }), 'races/1966/1')
     assert.equal(holderPath({ holder_table: 'races', holder_id: '142', race_year: null, race_round: null }), null)
     assert.equal(holderPath({ holder_table: 'drivers', holder_id: null, holder: 'Michael Schumacher, Sir Lewis Hamilton' }), null)
+  })
+
+  // PD-27: a record's address is its key, and only a slug is one.
+  it('addresses a record by its key, and takes only a slug as one', () => {
+    assert.equal(recordPath({ id: 2, key: 'most-wins' }), 'records/most-wins')
+    for (const key of ['most-wins', 'most-wins-in-a-season', 'f1']) assert.ok(KEY_SHAPE.test(key), key)
+    for (const key of ['', 'Most-wins', 'most wins', 'most/wins', '-most', 'most--wins', 'most-', 'most-wins?x=1']) {
+      assert.ok(!KEY_SHAPE.test(key), JSON.stringify(key))
+    }
   })
 })
 

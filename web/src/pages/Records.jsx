@@ -25,6 +25,7 @@ import {
   TITLE_COLUMNS,
   TITLES,
   recordColumns,
+  recordPath,
   holderPath,
   tierBefore,
   tiersOf, RECORDS_LEDE } from '../queries/records.js'
@@ -36,6 +37,24 @@ import { NAMES } from '../lib/site.js'
  * and the columns are in queries/records.js, read by scripts/prerender.js
  * too, so the static records table is this one.
  */
+// Each record's name is its own page's link (PD-27), and its holder the
+// holder's, where the record has one holder to send a reader to.
+const RECORD_APP = {
+  record: { render: (value, row) => <Link to={`/${recordPath(row)}`}>{value}</Link> },
+  holder: {
+    render: (value, row) => {
+      const path = holderPath(row)
+      return path ? <Link to={`/${path}`}>{value}</Link> : cell(value)
+    },
+  },
+  confidence: { render: (value) => <Confidence value={value} /> },
+}
+
+// The champions, linked by the id v_title_count now carries (PD-27).
+const TITLE_APP = {
+  full_name: { render: (name, row) => <Link to={`/drivers/${row.id}`}>{name}</Link> },
+}
+
 const GRAND_SLAM_APP = {
   year: { render: (year) => <Link to={`/seasons/${year}`}>{year}</Link> },
   gp_name: { render: (name, row) => <Link to={`/races/${row.year}/${row.round}`}>{name}</Link> },
@@ -173,19 +192,7 @@ function Body({ data }) {
           rowKey={(row) => row.id}
           sortable={false}
           page={60}
-          columns={recordColumns(records).map((column) =>
-            column.key === 'confidence'
-              ? { ...column, render: (value) => <Confidence value={value} /> }
-              : column.key === 'holder'
-                ? {
-                    ...column,
-                    render: (value, row) => {
-                      const path = holderPath(row)
-                      return path ? <Link to={`/${path}`}>{value}</Link> : cell(value)
-                    },
-                  }
-                : column,
-          )}
+          columns={recordColumns(records).map((column) => ({ ...column, ...RECORD_APP[column.key] }))}
         />
       </Section>
 
@@ -195,6 +202,7 @@ function Body({ data }) {
             title="Most Grand Prix wins"
             note="One win per driver classified first, so a shared drive counts for both of them."
             table={{
+              caption: 'Most Grand Prix wins',
               rows: driverWins,
               columns: [
                 { key: 'full_name', label: 'Driver', rowHeader: true, render: (name, row) => <Link to={`/drivers/${row.driver_id}`}>{name}</Link> },
@@ -214,6 +222,7 @@ function Body({ data }) {
             title="Most pole positions"
             note="The driver the season record credits with pole. Not always the car at grid 1: a penalty or a sprint-set grid can part them, and each race page says so where they differ."
             table={{
+              caption: 'Most pole positions',
               rows: driverPoles,
               columns: [
                 { key: 'full_name', label: 'Driver', rowHeader: true, render: (name, row) => <Link to={`/drivers/${row.driver_id}`}>{name}</Link> },
@@ -242,6 +251,7 @@ function Body({ data }) {
               : ''
           }`}
           table={{
+            caption: 'Most wins by constructor',
             rows: constructorWins,
             columns: [
               // The team's colour mark and a link to its page, as /races
@@ -276,10 +286,10 @@ function Body({ data }) {
       <Section title="Champions" count={`${titles.length}`}>
         <DataTable
           rows={titles}
-          rowKey={(row) => row.full_name}
+          rowKey={(row) => row.id}
           sort="titles"
           direction="desc"
-          columns={TITLE_COLUMNS}
+          columns={TITLE_COLUMNS.map((column) => ({ ...column, ...TITLE_APP[column.key] }))}
         />
       </Section>
 
@@ -298,13 +308,18 @@ function Body({ data }) {
           table={{
             rows: decadeRows,
             columns: [
-              { key: 'full_name', label: 'Driver', rowHeader: true },
+              {
+                key: 'full_name',
+                label: 'Driver',
+                rowHeader: true,
+                render: (name, row) => <Link to={`/drivers/${row.driver_id}`}>{name}</Link>,
+              },
               { key: 'wins', label: 'Wins', align: 'num' },
             ],
           }}
         >
           <BarChart
-            data={decadeRows.map((d) => ({ key: d.full_name, label: d.full_name, value: d.wins }))}
+            data={decadeRows.map((d) => ({ key: d.driver_id, label: d.full_name, value: d.wins }))}
             label={`Drivers with the most wins in the ${decade}s`}
           />
         </Figure>

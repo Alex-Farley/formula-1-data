@@ -21,6 +21,31 @@ export const RECORDS = `
 `
 
 /**
+ * One record, by its key, for its own page (PD-27). The key and not the id:
+ * `records.id` is a position in a derived list and moves whenever a record
+ * is added ahead of it, so it is published as unstable, and `key` is the
+ * natural key the identifier policy names instead (DA-26). An address has to
+ * be the one that does not move.
+ */
+export const RECORD = `
+  SELECT rec.*, ra.year AS race_year, ra.round AS race_round
+    FROM records rec
+    LEFT JOIN races ra ON rec.holder_table = 'races' AND ra.id = CAST(rec.holder_id AS INTEGER)
+   WHERE rec.key = ?
+`
+
+/**
+ * A record's own page: the path without its leading slash, as holderPath()
+ * gives one. A key that is not a slug would make an address that is not one
+ * record, so the prerenderer refuses it rather than writing it (KEY_SHAPE).
+ */
+export const recordPath = (row) => `records/${row.key}`
+export const KEY_SHAPE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+
+/** The derivation's heading, on the page and in the table's column. */
+export const DERIVATION = 'How it is derived'
+
+/**
  * Where a record's holder has a page: the path without its leading slash,
  * or null for a holder the page cannot resolve - a shared record names two
  * or more holders and carries no holder_id, and stays text (PD-26). The
@@ -104,7 +129,7 @@ export function recordColumns(records) {
     // The derivation is what CR-22's claim rests on, so it stays in the table
     // and stays legible; it is the footnote to the figure, not its equal, and
     // it was set in the same ink at the same size (VD-51).
-    { key: 'detail', label: 'How it is derived', align: 'prose', cellClass: 'record-derivation' },
+    { key: 'detail', label: DERIVATION, align: 'prose', cellClass: 'record-derivation' },
     // Every record is derived in one pass, so the date is the same on all of
     // them until a figure moves (VD-29).
     { key: 'as_of', label: 'As of', collapse: true },
