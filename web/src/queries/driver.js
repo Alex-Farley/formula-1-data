@@ -148,6 +148,34 @@ export const BY_SEASON = `
 `
 
 /**
+ * The registry entries behind the rows this page prints, for the citation's
+ * second sentence (CD-08; site.js's behindThisPage says what it reads): the
+ * driver's own row, every entry, the race each entry was in, every round of
+ * the current season that THIS_SEASON prints - the whole calendar, including
+ * rounds the driver did not enter and rounds still to run, so its races are
+ * reached by the same condition and not through the entries - and every
+ * final standings row. The final rows rather than v_standings_final's,
+ * because the view folds a second source's position into the first's row
+ * where the first has none, and a source whose value is printed is behind
+ * the page.
+ */
+export const DRIVER_SOURCES = `
+  SELECT s.source, s.redistributable, s.share_alike, s.attribution_required
+    FROM source_registry s
+   WHERE s.id IN (
+           SELECT source_id FROM drivers WHERE id = ?1
+     UNION SELECT source_id FROM race_entries WHERE driver_id = ?1
+     UNION SELECT r.source_id FROM races r JOIN race_entries e ON e.race_id = r.id WHERE e.driver_id = ?1
+     UNION SELECT r.source_id FROM races r
+            WHERE r.year = ${CURRENT_SEASON_SQL}
+              AND EXISTS (SELECT 1 FROM race_entries x JOIN races y ON y.id = x.race_id
+                           WHERE x.driver_id = ?1 AND y.year = r.year)
+     UNION SELECT source_id FROM standings
+            WHERE table_type = 'drivers' AND entity_id = ?1 AND after_round IS NULL)
+   ORDER BY s.priority, s.id
+`
+
+/**
  * The table as each season finished, one row per season. v_standings_final
  * folds the two sources that describe 2026 into one row and says why in
  * schema.sql; a driver can still hold two rows in one season only where one

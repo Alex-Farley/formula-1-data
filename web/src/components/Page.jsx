@@ -2,7 +2,7 @@ import { createContext, Fragment, useEffect, useRef } from 'react'
 import { currentProgress } from '../data/client.js'
 import { Link, useLocation } from 'react-router-dom'
 import { missing, text } from '../lib/format.js'
-import { SITE, titled, citation } from '../lib/site.js'
+import { SITE, SOURCES_LINK, behindThisPage, titled, citation } from '../lib/site.js'
 
 /**
  * A page: an optional way back, a title, an optional standfirst.
@@ -60,7 +60,7 @@ function useDocumentName(documentName, headline) {
   }, [pathname])
 }
 
-export function Page({ eyebrow, title, documentName, lede, trail, aside, children, cite = true }) {
+export function Page({ eyebrow, title, documentName, lede, trail, aside, children, cite = true, sources }) {
   useDocumentName(documentName, title)
   const heading = useFocusOnNavigation()
   return (
@@ -75,7 +75,7 @@ export function Page({ eyebrow, title, documentName, lede, trail, aside, childre
         {aside}
       </header>
       <PageTitle.Provider value={typeof title === 'string' ? title : null}>{children}</PageTitle.Provider>
-      {cite && <Cite />}
+      {cite && <Cite sources={sources} />}
     </article>
   )
 }
@@ -351,7 +351,7 @@ export function Stepper({ previous, next }) {
  * with the date the reader is looking at it left to the reader: the build
  * date is the date that matters, because the figures are a function of it.
  */
-export function Cite() {
+export function Cite({ sources }) {
   const manifest = currentProgress().manifest
   // No digest, no citation. The aside exists to say which file the figures
   // came from, and a version and a build date alone do not answer that
@@ -369,6 +369,9 @@ export function Cite() {
   const url = `${window.location.origin}${window.location.pathname}`
   const text = citation(manifest.version, manifest.built, manifest.digest, url)
   const [before, after] = text.split(url)
+  // The sources behind the rows, where the page passes them (CD-08): a
+  // citation of this site alone is a citation of a middleman.
+  const behind = behindThisPage(sources)
   return (
     <aside className="cite" aria-label="How to cite this page">
       <p>
@@ -376,6 +379,13 @@ export function Cite() {
         <span className="url">{url}</span>
         {after}
       </p>
+      {behind && (
+        <p>
+          {behind.before}
+          <Link to="/data/sources">{SOURCES_LINK}</Link>
+          {behind.after}
+        </p>
+      )}
     </aside>
   )
 }

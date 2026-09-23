@@ -71,6 +71,8 @@ import {
   DOCUMENTS_NOTE,
   ENTRIES_NOTE,
   IN_THIS_TAB,
+  SOURCES_LINK,
+  behindThisPage,
   citation,
   LANDMARK,
   MAINTAINER,
@@ -219,6 +221,7 @@ import {
   PIT_COLUMNS,
   QUALIFYING,
   QUALIFYING_FOOTER,
+  RACE_SOURCES,
   SHARED_DRIVE_NOTE,
   SPRINT as SPRINT_RESULTS,
   SPRINT_COLUMNS,
@@ -373,6 +376,7 @@ import {
   DERIVED,
   DRIVER,
   DRIVER_CONSTRUCTORS,
+  DRIVER_SOURCES,
   RESULTS as DRIVER_RESULTS,
   SEASON_COLUMNS,
   SEASONS_FOOTER,
@@ -874,7 +878,7 @@ const NAV = [
   ['data', 'Data'],
 ]
 
-const chrome = (body, crumbs, citeUrl) => `
+const chrome = (body, crumbs, citeUrl, sources = null) => `
 <div class="app pre">
   <a class="skiplink" href="#main">Skip to content</a>
   <header class="masthead">
@@ -891,7 +895,15 @@ const chrome = (body, crumbs, citeUrl) => `
         ? `<aside class="cite" aria-label="How to cite this page"><p>${citation(META.version, META.built, MANIFEST.digest, citeUrl)
             .split(citeUrl)
             .map(esc)
-            .join(`<span class="url">${esc(citeUrl)}</span>`)}</p></aside>`
+            .join(`<span class="url">${esc(citeUrl)}</span>`)}</p>${
+            // The sources behind the rows, the app's Cite paragraph (CD-08).
+            (() => {
+              const behind = behindThisPage(sources)
+              return behind
+                ? `<p>${esc(behind.before)}${link('data/sources', SOURCES_LINK)}${esc(behind.after)}</p>`
+                : ''
+            })()
+          }</aside>`
         : ''
     }
   </main>
@@ -1452,6 +1464,7 @@ const page = ({
   onward = null,
   image = null,
   lastmod = null,
+  sources = null,
 }) => {
   // The citation names the page by the address the canonical carries.
   pages.push({
@@ -1465,6 +1478,7 @@ const page = ({
       nameTables(structure(body, onward ? onwardBand(onward) : '')),
       trail ? crumbs(trail) : '',
       `${ORIGIN}${href(path)}`,
+      sources,
     ),
   })
 }
@@ -1954,6 +1968,7 @@ const page = ({
       description: summarise(description, 300),
       trail: TRAIL.race(r.year, r.round, r.name_used),
       onward: ONWARD.race({ race: r, year: r.year, winners: raceWinners, neighbours }),
+      sources: all(RACE_SOURCES, r.year, r.round),
       jsonld: {
         '@context': 'https://schema.org',
         '@type': 'SportsEvent',
@@ -2232,6 +2247,7 @@ const page = ({
       description: withNotes.endsWith('…') ? lead : withNotes,
       trail: TRAIL.driver(d.id, d.full_name),
       onward: ONWARD.driver({ results: resultsOf.all(d.id), bySeason }),
+      sources: all(DRIVER_SOURCES, d.id),
       jsonld: {
         '@context': 'https://schema.org',
         '@type': 'Person',

@@ -224,6 +224,51 @@ export const citation = (version, built, digest, url) =>
   `Cite this page as Lap Ledger, database v${version} built ${built}, digest ${digest}, ${url}. The digest names the exact file the figures came from; a version and a build date alone can name more than one.`
 
 /**
+ * The sources behind a page, named with what each lets a reader do (CD-08).
+ *
+ * A citation that names only this site cites a middleman; the rows on the
+ * page came from somewhere, and `source_id` on every row that carries a
+ * `source` says where as a join. The page's own query lists the registry
+ * entries its rows resolve to, in the registry's order.
+ *
+ * The terms are read from the columns the build enforces -
+ * `redistributable`, `share_alike`, `attribution_required`, which
+ * `SOURCE_LICENCE` in data/current.py sets for every source and the build
+ * refuses to guess - and not from `licence`, which is prose written for a
+ * person and would change the citation whenever its wording did. The labels
+ * are the ones `/data` gives the three classes. A `no` source cannot reach a
+ * page (verify.py fails on a row citing one), but it is named for what it is
+ * rather than dropped if one ever did.
+ *
+ * No confidence tier here, deliberately: a tier moves between builds, and a
+ * citation carrying one would make an old citation say something it did not.
+ * The tier is on the page, where it is dated by the build it came from.
+ *
+ * Returns the parts either side of the words that link to the sources page,
+ * so the app can make them a Link and the static page an anchor and the text
+ * stays one string. `null` for a page whose rows name no source at all.
+ */
+export const SOURCES_LINK = 'The sources page'
+
+export const licenceTerms = ({ redistributable, share_alike: shareAlike, attribution_required: credit }) =>
+  redistributable === 'facts-only'
+    ? 'facts only'
+    : redistributable !== 'yes'
+      ? 'not redistributable'
+      : shareAlike
+        ? 'redistributable, share-alike'
+        : credit
+          ? 'redistributable with attribution'
+          : 'redistributable'
+
+export const behindThisPage = (sources) => {
+  if (!sources?.length) return null
+  const named = sources.map((s) => `${s.source} (${licenceTerms(s)})`)
+  const listed = named.length === 1 ? named[0] : `${named.slice(0, -1).join(', ')} and ${named.at(-1)}`
+  return { before: `Behind this page: ${listed}. `, after: ' gives each licence in full.' }
+}
+
+/**
  * What the digests on `/data` are, said once for the app and the static page.
  *
  * It names the site's own SHA256SUMS rather than a release's. The sentence

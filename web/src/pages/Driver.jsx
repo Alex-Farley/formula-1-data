@@ -18,6 +18,7 @@ import {
   DERIVED,
   DRIVER,
   DRIVER_CONSTRUCTORS,
+  DRIVER_SOURCES,
   ENTRY_COLUMNS,
   RESULTS,
   SEASON_COLUMNS,
@@ -197,6 +198,7 @@ export default function Driver() {
     seasonTeams: [SEASON_TEAMS, [id]],
     disagreements: [DRIVER_DISAGREEMENTS, [id]],
     thisSeason: [THIS_SEASON, [id]],
+    sources: [DRIVER_SOURCES, [id]],
   })
 
   return (
@@ -290,6 +292,7 @@ function DriverBody({ driver, data }) {
       title={NAMES.driver(driver.full_name).headline}
       trail={TRAIL.driver(driver.id, driver.full_name)}
       lede={lede(driver, derived, constructors)}
+      sources={rows(data, 'sources')}
       aside={
         <LiveryScheme
           colour={teamColour}
