@@ -978,18 +978,28 @@ EXPLAINED_SPANS = [
 
 # Corrections made to hand-entered career figures after checking them against an
 # external reference. Kept as a record of what changed and why.
-#   driver_id, field, old_value, new_value, reason
+#
+# The last field is where the corrected value came from, and it is what the
+# claim backing the external column cites from then on (PM-14). None means
+# the SAME source, mistyped: the figure was transcribed wrongly and the source
+# itself gives the new value, so the claim keeps its source and takes the
+# value. A URL means a different source outranked the first, so the claim
+# changes source - Russell's 11 poles are Wikipedia's figure, not
+# formula1.com's, and the row-grain drivers.external_source cannot say so.
+#   driver_id, field, old_value, new_value, reason, source of the new value
 CORRECTIONS = [
     ("russell", "poles", 12, 11,
      "The formula1.com driver page gave 12. That same fetch returned internally "
      "inconsistent 2026 figures (160 points against the standings' 183, and third "
      "place against second), so it was not reliable. The Wikipedia career infobox "
      "independently gives 11 poles and 7 wins, both matching the figures derived "
-     "from the race records. Corrected to 11."),
+     "from the race records. Corrected to 11.",
+     "https://en.wikipedia.org/wiki/George_Russell_(racing_driver)"),
     ("surtees", "fastest_laps", 11, 10,
      "The hand-entered total of 11 was wrong. The reference record gives 10, which is "
      "also the number found in the race data. Corrected in favour of the derived "
-     "figure, which two independent sources now agree on."),
+     "figure, which two independent sources now agree on.",
+     None),
 ]
 
 

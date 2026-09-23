@@ -565,7 +565,9 @@ SOURCE_REGISTRY = [
      "lineage chains, the points-system table, the tyre-supplier list, the "
      "grand prix register, the personnel notes and the engine-manufacturer "
      "notes. Twelve tables; the records list left it in v2.23, derived from "
-     "the race records instead of written.",
+     "the race records instead of written. Also the career figures typed "
+     "into the data modules from reference records nobody named, which "
+     "`claims` cites under the token `authored`.",
      "authored",
      "Original to this repository, and the only content here under no "
      "external obligation at all.",
@@ -600,7 +602,41 @@ SOURCE_PATTERNS = [
     # Everything else on en.wikipedia is a topic or per-car article. Last, so
     # the three specific Wikipedia patterns above win first.
     (11, r"^https://en\.wikipedia\.org/wiki/", "per-car and per-topic articles"),
+    # The two bare tokens a committed row carries. `f1db` is part of
+    # pit_stops' natural key, so it stays a token rather than becoming the
+    # URL; until it had a pattern, 22,506 rows resolved to nothing and no
+    # check noticed, because the old check read only tables with a
+    # `confidence` column and pit_stops has none (DA-03). `authored` is what
+    # a claim cites for a figure typed into data/*.py from reference records
+    # nobody named - the career figures data/drivers.py holds.
+    (10, r"^f1db$", "the bare token pit_stops carries"),
+    (18, r"^authored$", "a figure typed into data/*.py from unnamed reference records"),
 ]
+
+# ------------------------------------------------------------------ claims
+#
+# PM-14. What `claims` may hold, and which encoding each kind of claim backs.
+# (tbl, field) -> the column(s) the claims reproduce. The build refuses a
+# claim on a pair not named here, and verify.py requires every pair named
+# here to hold at least one claim and to reproduce its columns exactly - so a
+# new kind of claim is a declaration, and an encoding that stops being backed
+# fails rather than thinning out.
+#
+# `field` names the fact the source gave a value for, which is a column of
+# `tbl` where the table stores that fact. chassis.poles is not stored - the
+# derived pole count is computed where it is compared - and a car season's
+# chassis are what the entry lists name, which car_seasons records only as
+# the verdict (`corroborated`) and the remainder (`other_chassis`).
+CLAIM_FIELDS = {
+    ("drivers", "wins"): "drivers.wins_external",
+    ("drivers", "poles"): "drivers.poles_external",
+    ("drivers", "fastest_laps"): "drivers.fastest_laps_external",
+    ("drivers", "podiums"): "drivers.podiums_external",
+    ("chassis", "races"): "chassis.published_races",
+    ("chassis", "wins"): "chassis.published_wins",
+    ("chassis", "poles"): "chassis.published_poles",
+    ("car_seasons", "chassis"): "car_seasons.corroborated, car_seasons.other_chassis",
+}
 
 # Provenance for the tables that carry `confidence` and no `source` column.
 # (tbl, source_id, unconstrained, note)
@@ -714,8 +750,9 @@ SOURCE_LICENCE = {
     # domain to match a URL against, so it takes the licence the release itself
     # carries. Nothing here may sit above 'medium' - see the authored ceiling
     # in build.py and docs/DERIVED-CONFIDENCE.md - but that is a confidence
-    # question, not a redistribution one: it is ours to publish.
-    18: ("yes", 1, 1, None),
+    # question, not a redistribution one: it is ours to publish. `authored` is
+    # the bare token a claim carries for a figure typed here (PM-14).
+    18: ("yes", 1, 1, "authored"),
 }
 
 # --------------------------------------------------- the project's own prose

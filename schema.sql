@@ -8,6 +8,12 @@
 --   confidence  'verified' | 'high' | 'reference' | 'medium' | 'unverified'
 --               | 'catalogued'
 --   source      URL or citation where the fact was checked
+--   source_id   the source_registry entry `source` resolves to. Not written
+--               out below: the build's last stage adds it to every table
+--               carrying `source` and fills it by the resolution described
+--               at source_patterns, so the answer to "which source, under
+--               what licence" is a join rather than ten regular expressions
+--               (DA-03). A table given `source` gets it with no edit here.
 --
 --   verified   = checked this session against fia.com / formula1.com
 --   high       = well-established record, stable across decades of
@@ -86,7 +92,7 @@ CREATE TABLE source_registry (
 
     -- How a row's `source` is recognised as belonging to this entry: a
     -- comma-separated list of hostnames and of the bare tokens the loaders
-    -- write ('f1db', 'fastf1', 'jolpica'). NULL where no row ever cites the
+    -- write ('f1db', 'fastf1', 'jolpica', 'authored'). NULL where no row ever cites the
     -- source - the fan-site entry exists to record that it is forbidden, not
     -- to be pointed at. Several entries may share a host, and where they do
     -- the build requires them to agree on the three columns above.
@@ -125,6 +131,64 @@ CREATE TABLE table_provenance (
     -- at 'unverified' rather than taking its source's tier.
     unconstrained   INTEGER NOT NULL DEFAULT 0,
     note            TEXT
+);
+
+-- What each source says about one fact of one row (PM-14).
+--
+-- `source` is row-grain and sourcing is not. A driver's external career
+-- figures came from three places - hand-entered records, formula1.com's
+-- driver pages, Wikipedia articles - and one `external_source` string
+-- named them per row, so it named formula1.com for four fastest-lap totals
+-- that were typed in by hand, and for Russell's 11 poles, which are
+-- Wikipedia's figure after formula1.com's 12 was corrected. Five places
+-- encoded "a second source holds this value" five different ways, and none
+-- could say which source held which value. This is the one shape for it.
+--
+-- A claim is the value a source gave, as text, for `field` of the row whose
+-- key is `row_key`. Agreement is then a comparison and corroboration a
+-- GROUP BY, rather than a column somebody remembered to add. The encodings
+-- stay where they were, so nothing reading them changes; verify.py holds
+-- each one to be reproducible from these rows, both ways, which is what
+-- makes it a view of the claims rather than a second record of them.
+-- data/current.py CLAIM_FIELDS names every (tbl, field) a claim may carry
+-- and the columns it backs, and the build refuses any other.
+--
+--   drivers.*_external       wins, poles, fastest_laps, podiums: one claim
+--                            per figure, citing where THAT figure came from.
+--                            A correction replaces the claim, and its old
+--                            value stays in `discrepancies`.
+--   chassis.published_*      races, wins, poles, off the car's Wikipedia
+--                            article - only where the article describes
+--                            this chassis alone. A family article's total is
+--                            about the family, and a claim that it is this
+--                            chassis's figure would be false; those stay in
+--                            the published_* columns only.
+--   car_seasons              the chassis F1DB's entry lists name for the
+--                            car's constructor that season. `corroborated`
+--                            and `other_chassis` are what that list gives
+--                            against the chassis the car covers.
+--
+-- Two of the five encodings docs/DERIVED-CONFIDENCE.md names are NOT here,
+-- on purpose. circuit_geometry's measured_km is OpenStreetMap's, and f1.db
+-- carries no OpenStreetMap data (ATTRIBUTION.md; that table is empty in this
+-- file). article_images.name_matches is a string test of a row's own file
+-- name against its own chassis, not a second source.
+--
+-- `row_key` is the row's primary key where that is not a bare integer id,
+-- its columns joined by '|' in key order: 'fangio', 'mclaren-m23|1976'.
+CREATE TABLE claims (
+    tbl             TEXT NOT NULL,
+    row_key         TEXT NOT NULL,
+    field           TEXT NOT NULL,
+    value_given     TEXT,              -- as the source gave it; NULL = names none
+    as_of           TEXT,              -- when the source said it, where the build knows
+    source          TEXT NOT NULL,
+    -- Resolved by the build's last stage, like every other table's; declared
+    -- here so the constraint below can name it. Two URLs resolving to the
+    -- same entry would be one source counted twice.
+    source_id       INTEGER REFERENCES source_registry(id),
+    PRIMARY KEY (tbl, row_key, field, source),
+    UNIQUE (tbl, row_key, field, source_id)
 );
 
 -- ------------------------------------------------------------- people
