@@ -3205,6 +3205,31 @@ try {
         return h2?.closest('section')?.querySelector('tbody tr td:nth-child(1)')?.textContent.trim() ?? null
       }, heading)
 
+    // Click the header at `index` in the section under `heading`, and wait for
+    // it to announce the order it was clicked into.
+    const clickHeader = async (heading, index, expected) => {
+      await page.evaluate(
+        ([heading, index]) =>
+          [...document.querySelectorAll('#root main h2')]
+            .find((h) => h.textContent.trim().startsWith(heading))
+            .closest('section')
+            .querySelectorAll('thead th')
+            [index].querySelector('button')
+            .click(),
+        [heading, index],
+      )
+      await page.waitForFunction(
+        ([heading, index, expected]) =>
+          [...document.querySelectorAll('#root main h2')]
+            .find((h) => h.textContent.trim().startsWith(heading))
+            ?.closest('section')
+            ?.querySelectorAll('thead th')
+            [index]?.getAttribute('aria-sort') === expected,
+        [heading, index, expected],
+        { timeout: 10000 },
+      )
+    }
+
     await go('/seasons/1976', '1976')
     const standings = "Final drivers' standings"
     const atRest = await headers(standings)
@@ -3218,27 +3243,16 @@ try {
     const champion = one(
       "SELECT position_text FROM v_standings_final WHERE year = 1976 AND table_type = 'drivers' ORDER BY position IS NULL, position LIMIT 1",
     )
-    is(await firstCell(standings), String(champion), 'without having re-sorted the rows')
+    is(await firstCell(standings), String(champion), 'and opens on the champion')
     const dead = await headers('The calendar')
     truthy(
       dead?.length > 0 && dead.every((h) => !h.button && !h.sort && h.idle === null),
       'while a table that does not sort has no button, no aria-sort and no mark',
     )
 
-    await page.evaluate((heading) => {
-      const h2 = [...document.querySelectorAll('#root main h2')].find((h) => h.textContent.trim().startsWith(heading))
-      h2.closest('section').querySelector('thead th:first-child button').click()
-    }, standings)
-    await page.waitForFunction(
-      (heading) =>
-        [...document.querySelectorAll('#root main h2')]
-          .find((h) => h.textContent.trim().startsWith(heading))
-          ?.closest('section')
-          ?.querySelector('thead th:first-child')
-          ?.getAttribute('aria-sort') === 'descending',
-      standings,
-      { timeout: 10000 },
-    )
+    is((await headers('Who entered'))?.[0].sort, 'ascending', "the entrants name their query's order on Constructor")
+
+    await clickHeader(standings, 0, 'descending')
     const reversed = await headers(standings)
     is(reversed?.[0].sort, 'descending', 'one click on the opening column reverses it')
     const last = await firstCell(standings)
@@ -3252,6 +3266,20 @@ try {
       'the classification sorts on every column but its result rail',
     )
     is(classification?.find((h) => h.sort)?.label, 'Pos', 'and names the classification order on Pos')
+
+    // The disagreements open in SQLite's order, where "10 chassis" comes
+    // before "3 chassis", and the browser's numeric compare would put them
+    // the other way round. So this is the table a re-sort would show: the
+    // rows at rest are the query's, and down and back up returns to them
+    // rather than to a second order under the same "Subject ▲".
+    await go('/data/quality', 'Data quality')
+    const kept = 'Disagreements kept rather than resolved'
+    const opening = one('SELECT subject FROM discrepancies ORDER BY subject COLLATE NOCASE, id LIMIT 1')
+    is((await headers(kept))?.[0].sort, 'ascending', 'the disagreements name their order on Subject')
+    is(await firstCell(kept), opening, `and open in the query's order, on "${opening}", not a re-sort of it`)
+    await clickHeader(kept, 0, 'descending')
+    await clickHeader(kept, 0, 'ascending')
+    is(await firstCell(kept), opening, 'and down and back up returns to the same rows')
 
     await go('/reference/glossary', 'Glossary')
     is((await headers('Glossary'))?.[0].sort, 'ascending', 'the glossary names its alphabetical order on Term')

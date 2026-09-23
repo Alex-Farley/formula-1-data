@@ -37,6 +37,16 @@ import TakeAway from './TakeAway.jsx'
  * `aria-sort` on a header with no button inside it announces an order the
  * reader cannot change.
  *
+ * AND THAT COLUMN KEEPS THE QUERY'S ORDER IN BOTH DIRECTIONS.
+ *     `compare()` below reads digits as numbers and SQLite's NOCASE reads
+ *     them as characters, so the disagreements table opens "10 chassis"
+ *     before "3 chassis" and a client sort on the same column puts them the
+ *     other way round. Sorted by `compare()`, one "Subject ▲" would have
+ *     stood for two orders depending on whether the reader had clicked. So
+ *     on the opening column the arrival order is the order: ascending is the
+ *     rows as they came, descending is those rows reversed with the missing
+ *     ones still last. Every other column sorts by `compare()` as before.
+ *
  * NULLS SORT LAST, ALWAYS.
  *     SQLite sorts NULL first, and this database uses NULL for "not
  *     established". Sorted naively, the drivers nobody has a points total for
@@ -191,10 +201,18 @@ function Table({
   // which is right: the result's shape is the statement's shape.
   const { columns: kept, shared: constants } = useMemo(() => shared(cols, source), [cols, source])
 
+  const openingKey = opening?.key
+  const openingDirection = opening?.direction ?? 'asc'
   const ordered = useMemo(() => {
     if (!sort) return source
     const column = cols.find((c) => c.key === sort)
     const value = column?.sort ?? ((row) => row[sort])
+    if (sort === openingKey) {
+      if (direction === openingDirection) return source
+      // Reversed, not re-sorted, and the missing values stay at the bottom.
+      const present = source.filter((row) => !missing(value(row)))
+      return [...present.reverse(), ...source.filter((row) => missing(value(row)))]
+    }
     const sign = direction === 'desc' ? -1 : 1
     // A copy: the caller's array is a query result other components may hold.
     return [...source].sort((a, b) => {
@@ -209,7 +227,7 @@ function Table({
       if (missing(right)) return -1
       return sign * compare(left, right)
     })
-  }, [source, sort, direction, cols])
+  }, [source, sort, direction, cols, openingKey, openingDirection])
 
   // Hooks before the empty-state return below: a register filtered to no
   // rows must call the same hooks as one with rows, or React throws.
