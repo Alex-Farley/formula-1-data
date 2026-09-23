@@ -2830,6 +2830,19 @@ try {
       truthy(shown.includes(n) && app.includes('Sprint qualifying') && app.includes('At the circuit') && app.includes('UTC'), `the app lists the ${n} sessions with the circuit clock and UTC`)
       const html = await (await fetch(`${BASE}/races/2026/${sprintRound}`)).text()
       truthy(html.includes('<h2>Timetable</h2>') && html.includes('Sprint qualifying') && html.includes('At the circuit'), 'the static page carries the same timetable')
+
+      // A round with no entries held says nothing about entries (PD-47,
+      // UR-20): "Entries 0" on a race not yet run read as a claim that
+      // nobody had entered. The static page never printed the figure.
+      const unrun = db
+        .prepare("SELECT r.year, r.round FROM races r WHERE r.status = 'scheduled' AND NOT EXISTS (SELECT 1 FROM race_entries e WHERE e.race_id = r.id) ORDER BY r.year, r.round LIMIT 1")
+        .get()
+      if (unrun) {
+        await go(`/races/${unrun.year}/${unrun.round}`, 'Grand Prix')
+        await page.waitForSelector('#root main dl.stats', { timeout: 20000 })
+        const tiles = await page.$$eval('#root main dl.stats dt', (dts) => dts.map((d) => d.textContent.trim()))
+        truthy(tiles.includes('Status') && !tiles.includes('Entries'), `/races/${unrun.year}/${unrun.round} shows no Entries tile on a round with no entries held — ${tiles.join(', ')}`)
+      } else pass('no scheduled round is without entries, so there is no empty weekend to check')
       // The next-session line depends on the clock: asserted only while the
       // season has a session still to come.
       const future = count("SELECT COUNT(*) FROM sessions WHERE start_utc > strftime('%Y-%m-%dT%H:%MZ', 'now')")

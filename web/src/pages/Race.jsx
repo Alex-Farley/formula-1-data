@@ -299,11 +299,18 @@ function RaceBody({ race, data, year, round }) {
                     }${race.sprint ? ', the grid set by the sprint' : ''}`,
                   },
               scheduled ? null : { label: 'Fastest lap', kind: 'name', value: nameList(fastest) },
-              {
-                label: 'Entries',
-                value: number(entries.length),
-                note: scheduled ? undefined : `${finishers} classified`,
-              },
+              // No tile where no entry is held (PD-47, UR-20). A round not yet
+              // run has no entries recorded, and "0" on this site is a
+              // positive claim that nobody entered; the Status tile and the
+              // note below already say what the round is. The static page
+              // prints no entries figure at all, so the two now agree.
+              entries.length === 0
+                ? null
+                : {
+                    label: 'Entries',
+                    value: number(entries.length),
+                    note: scheduled ? undefined : `${finishers} classified`,
+                  },
             ].filter(Boolean)}
           />
           {race.outline && (
