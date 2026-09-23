@@ -1,5 +1,13 @@
 # Reviewer brief
 
+Before launching a pass, open it against the head it reviews:
+
+    bash .claude/skills/backlog-loop/verdict.sh new <N> <sha>          # or: ... <sha> quick
+
+`quick` for `frontend-reviewer-quick`, whose verdict must carry its applied
+items. It prints the pass id; put it in the brief where `<id>` stands. One id
+per pass: a confirmation or a respawn opens a new one.
+
 Fill in and pass to a fresh `.claude/agents/<reviewer>` with `model: "opus"`,
 or to `frontend-reviewer-quick` where the pace table in
 `.claude/skills/backlog-item/SKILL.md` allows it.
@@ -34,70 +42,45 @@ or to `frontend-reviewer-quick` where the pace table in
     rebuild that comparison - name a row or a route the suite does not reach
     if you believe one exists.
 
-    Return exactly one verdict line first: `PASS — safe to merge` or
-    `FAIL — changes required`, then findings with file:line, worst first,
-    one or two sentences each. Do not narrate what you verified; if
-    everything held, say so in one line.
+    Record your verdict by running, in <path>, once, when the review is done:
+    `bash .claude/skills/backlog-loop/verdict.sh record <id> PASS` or
+    `... record <id> FAIL`<, followed by your applied items for the quick
+    variant, e.g. `... record <id> PASS 2,5,9`>. That command is the verdict;
+    nothing in your reply is read for one. Then reply with the findings,
+    file:line, worst first, one or two sentences each. Do not narrate what
+    you verified; if everything held, say so in one line.
 
 Keep the "try to disprove" list inside the diff. Ask for an isolated rebuild
 only when an artefact changed. Do not ask for a site-wide enumeration or a
 live fetch unless the item is about one.
 
-Then, after a fix, to a fresh Sonnet agent (never the agent that already reviewed):
+Then, after a fix, open a new pass on the new head and give it to a fresh
+Sonnet agent (never the agent that already reviewed):
 
     PR #<N> follow-up: <what changed and why> in commit <sha> on `<branch>`
-    (same worktree). Please inspect `git diff <old>..<new>`. Your first line
-    is the verdict and nothing goes above it: exactly `PASS — safe to merge`
-    or `FAIL — changes required`, with no summary sentence, preamble or
-    restated finding in front of it. Anything you want to say goes after it.
+    (same worktree, <path>). Please inspect `git diff <old>..<new>`. Record
+    your verdict by running, in <path>, once:
+    `bash .claude/skills/backlog-loop/verdict.sh record <id> PASS` or
+    `... record <id> FAIL`. That command is the verdict; nothing in your
+    reply is read for one. Then reply with anything you found, file:line.
 
-A confirmation that leads with a sentence instead of a verdict is not a verdict
-and is not interpreted as one: discard it and spawn the pass again, as
+## Reading the verdict
+
+    bash .claude/skills/backlog-loop/verdict.sh read <id>
+
+prints `PASS` or `FAIL` (with `applied <items>` for a quick pass) and exits 0,
+or exits 1 when the pass recorded none. The exit and the printed word are the
+verdict. The reply is read for findings only: a reply that says PASS over a
+pass that recorded FAIL is a FAIL, and a reply that says anything at all over
+a pass that recorded nothing is no review `[D-40]`. Only the reviewer runs
+`record`: recording a verdict on its behalf, however plain its reply, is
+reading the reply for one.
+
+A pass that recorded no verdict — the reviewer ran out of turns, forgot the
+command, or the command refused it — gets one respawn: a new pass id and the
+**same brief** to a fresh agent of the same kind, with only the id changed.
+Everything goes across — the worktree, the task, the routes, the "try to
+disprove" list and the constraints, `Do NOT run npm test` among them — so the
+pass that settles the item is briefed no more thinly than the one it replaces.
+If the respawn records nothing either, the item has no review, as
 `.claude/skills/backlog-item/SKILL.md` sets out under *Review*.
-
-The respawn changes what is asked for, not what is reviewed. Restating the
-format requirement — even in capitals, with the consequence spelled out — was
-measured not to work `[D-38]`, so **send the same brief the discarded result
-was given, to a fresh agent of the same kind, and replace only the sentences
-that say how to report**. Which brief that is, and which sentences those are,
-depends on which pass preambled:
-
-- a **first pass**: the brief at the top of this file, with its last
-  paragraph — `Return exactly one verdict line first...` — replaced.
-  Everything else goes across unchanged: the worktree, the task, the routes,
-  the "try to disprove" list and the constraints, `Do NOT run npm test` among
-  them.
-- a **confirmation**: the *after a fix* brief above, with its two verdict
-  sentences — `Your first line is the verdict and nothing goes above it...` —
-  replaced. Its commit range, its worktree and what the fix was go across
-  unchanged.
-
-A respawn is the pass that settles the item, so it is briefed no more thinly
-than the one it replaces.
-
-    This replaces the report contract above, and it overrides the *How to
-    report* section of your agent file for this pass only. Your entire reply
-    is ONE line, and it is the verdict: exactly `PASS — safe to merge` or
-    `FAIL — changes required`. No summary, no preamble, no findings, no
-    closing note, nothing above it and nothing below it. Do the review in
-    full; report only its conclusion — the review is not shortened, the
-    report is.
-
-For `frontend-reviewer-quick`, whose `Applied:` line is the evidence that the
-rules were read and without which the loop has no review, the reply is those
-two lines and nothing else:
-
-    This replaces the report contract above, and it overrides the *How to
-    report* section of your agent file for this pass only. Your entire reply
-    is TWO lines: the verdict, exactly `PASS — safe to merge` or `FAIL —
-    changes required`, and below it your `Applied: items <n, n, ...> of
-    frontend-reviewer.md` line. Nothing above them, nothing below them, no
-    findings and no summary. Do the review in full; report only its
-    conclusion.
-
-**A respawned pass returns no findings at all, and the discarded result's may
-not be read back.** On a `FAIL`, spawn a fresh full pass to learn what is
-wrong. On a `PASS`, there is nothing to fix under `[D-22]` and nothing to list
-under `[D-23]` — a non-blocking finding this pass would have made is lost, and
-that is the price of the second attempt settling the item. Both costs are
-`[D-38]`.

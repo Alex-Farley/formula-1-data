@@ -275,7 +275,47 @@ what passed.
 pattern can decide. Every check that moves there is one a reviewer never
 spends a turn on again, so the brief stays on judgement.
 
+### D-40 · The verdict is a command the reviewer runs, not a line it writes — 2026-09-23
+`[D-37]` and `[D-38]` both tried to make a reviewer put its verdict on the
+first line of its reply, first by writing the contract into each agent file,
+then by asking the respawn for the verdict alone. Neither held. On 2026-09-23
+PD-49 (#586) was finished, green and fixed against all four findings of its
+first pass, and was skipped anyway: the Sonnet confirmation put a summary
+sentence above its verdict, and its respawn — briefed for one line and nothing
+else — put a paragraph above it. With #407, #409 and #427 under `[D-37]` and #541,
+#548 and #551 under `[D-38]`, that is seven pull requests held up by the same
+formatting. The first three merged on substance with the deviation recorded,
+which `[D-37]` then ruled out; since then each has cost a respawn, often a
+fork, and tokens for a review whose substance was never in doubt.
+Wording is the wrong lever: the layout of a model's final message is not
+something a prompt reliably controls.
+
+So the verdict leaves the reply. The fork opens each pass with
+`verdict.sh new <PR> <sha>`, which prints a pass id; the reviewer runs
+`verdict.sh record <id> PASS|FAIL` from the worktree; the fork runs
+`verdict.sh read <id>` and takes the verdict from its output and exit status.
+The script accepts the two words and nothing else, refuses a second verdict
+for a pass, refuses a checkout at another head, and for
+`frontend-reviewer-quick` refuses a verdict without the applied items that
+used to be its `Applied:` line.
+
+The gate is no looser, and on the case `[D-37]` exists for it is tighter. A
+reply is never read for a verdict, so `PASS — no. Findings below; one requires
+a change.` — the FAIL that opens with the word PASS — can no longer be taken
+for one either way; only a recorded FAIL or PASS counts. No recorded verdict is
+still not a PASS, still gets one respawn, and the second pass still settles the
+item. What goes is `[D-38]`'s cost: a respawn no longer has to be asked for a
+bare verdict, so its findings come back like any pass's, and a non-blocking
+finding is no longer lost to the retry. The reply's layout stops mattering
+because nothing depends on it.
+
+`tests/test_conventions.py` keeps the command in each merge-path reviewer's
+*How to report* and in every half of the brief, and runs the script in a
+scratch repository to show each refusal holding.
+
 ### D-38 · The respawn asks for the verdict alone — 2026-09-22 (`PM-48`, #542)
+*The report contract here was superseded on 2026-09-23 by `[D-40]`: the verdict is recorded by command, and a respawn is sent the same brief. The measurement stands.*
+
 `[D-37]`'s remedy — the contract in each merge-path reviewer's *How to
 report*, kept there by `tests/test_conventions.py` — is in place and did not
 stop the preambles. Three items in the 2026-09-22 run stalled on it — of
@@ -324,6 +364,8 @@ by giving up its findings. It is still the better trade than a finished,
 reviewed, green change that cannot be merged.
 
 ### D-37 · A result that does not lead with its verdict is refused, not read — 2026-09-21 (`PM-41`, #428)
+*The refusal stands; where the verdict is read from was changed on 2026-09-23 by `[D-40]`, which takes it from a command rather than the reply's first line.*
+
 Four occurrences in two days, across three forks — a confirmation agent
 putting a summary sentence above its verdict line, on #407, twice on #409 (one
 fork, two fresh contexts) and on #427. Each merged on substance and recorded the deviation, which was right

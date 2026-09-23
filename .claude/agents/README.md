@@ -14,8 +14,8 @@ They are project-specific by design, and will not transplant.
 
 Each carries an `effort` and a `maxTurns` in its frontmatter; read the files
 rather than this paragraph for the values, which change. The cap is a runaway
-stop, not a budget: a reviewer that hits it returns without a verdict line, and
-the backlog loop treats that as no review — so a cap set too low wastes a pass
+stop, not a budget: a reviewer that hits it returns without recording a
+verdict through `verdict.sh`, and the backlog loop treats that as no review — so a cap set too low wastes a pass
 rather than saving one.
 
 The two front-end reviewers run at `effort: medium` and the licence and data
