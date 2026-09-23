@@ -18,7 +18,8 @@
     "prerender": "node scripts/prerender.js",
     "test:units": "node --test test/units.mjs test/conventions.mjs",
     "test:page": "node test/smoke.mjs --quiet --only",
-    "test:browser": "node test/smoke.mjs"
+    "test:browser": "node test/smoke.mjs",
+    "lint": "npx -y @biomejs/biome@2.5.13 lint"
   },
   "dependencies": {
     "react": "^19.3.0",

@@ -302,11 +302,6 @@ export function Confidence({ value, plain = false }) {
   )
 }
 
-/** Where a row came from, set small and out of the way. */
-export function SourceNote({ children }) {
-  return <p className="source-note">{children}</p>
-}
-
 export function Note({ children }) {
   return <div className="note-box">{children}</div>
 }
@@ -334,21 +329,6 @@ export function Onward({ title = 'Keep going', items }) {
         ))}
       </div>
     </nav>
-  )
-}
-
-/** A row of buttons that start something, primary first. */
-export function Actions({ items }) {
-  const shown = items.filter(Boolean)
-  if (shown.length === 0) return null
-  return (
-    <p className="actions">
-      {shown.map(({ to, label, primary }) => (
-        <Link key={`${to}-${label}`} to={to} className={primary ? 'button' : 'button secondary'}>
-          {label}
-        </Link>
-      ))}
-    </p>
   )
 }
 
