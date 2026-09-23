@@ -213,7 +213,8 @@ jobs:
               review that posts nothing must not read as one that found
               nothing. Post the findings even if delegating to an agent was
               refused — apply its checklist yourself, as above — and do not
-              write the line on a comment that has no findings in it.
+              write the line until the findings, or the one line saying
+              there are none, are in the comment above it.
 
             You are reviewing. Do not edit files, do not push, do not resolve
             threads.
@@ -309,7 +310,7 @@ jobs:
           elif [ "$OUTCOME" = "success" ]; then
             say "### Not reviewed — the action succeeded and posted no findings"
             say ""
-            say "No comment on this pull request ends with the closing line for \`${HEAD_SHA}\`, so the model stopped before it posted. This check is red on purpose: a green one here would read as a review that found nothing. It gates nothing; read the diff yourself, or push again for another run."
+            say "No comment on this pull request carries the closing line for \`${HEAD_SHA}\`, so the model stopped before it posted. This check is red on purpose: a green one here would read as a review that found nothing. It gates nothing; read the diff yourself, or push again for another run."
             say_denied
             exit 1
           else
