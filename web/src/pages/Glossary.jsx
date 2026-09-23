@@ -94,11 +94,13 @@ function Body({ glossary, personnel }) {
           />
         </Filters>
         {/* No opening sort: the query's case-insensitive ORDER BY is the order
-            the table opens in, and the static page prints the rows as they come. */}
+            the table opens in, and the static page prints the rows as they come.
+            The header says so without re-sorting them (CR-28). */}
         <DataTable
           rows={filtered}
           rowKey={(row) => row.term}
           sortable
+          opening={{ key: 'term', direction: 'asc' }}
           page={80}
           columns={GLOSSARY_COLUMNS}
           empty={<NoMatch noun="term" term={term} among={among} onClear={clear} />}

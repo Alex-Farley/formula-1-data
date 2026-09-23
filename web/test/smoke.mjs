@@ -3176,6 +3176,86 @@ try {
     )
     is(lastEntries, '—', 'and sinks the unestablished ones')
 
+    /*
+     * IX-20. A header that sorts says so at rest, and one that does not says
+     * nothing: before this the two looked the same until one was clicked, and
+     * the standings and the classification - the two a reader most wants to
+     * sort - did not sort at all. A table that opens in its query's order
+     * names that order on its header without re-sorting (CR-28), and the
+     * first click there reverses it rather than restating it.
+     */
+    const headers = (heading) =>
+      page.evaluate((heading) => {
+        const h2 = [...document.querySelectorAll('#root main h2')].find((h) => h.textContent.trim().startsWith(heading))
+        const table = h2?.closest('section')?.querySelector('.table-wrap table')
+        if (!table) return null
+        return [...table.querySelectorAll('thead th')].map((th) => {
+          const arrow = th.querySelector('.arrow')
+          return {
+            label: th.textContent.replace(/[▲▼]/g, '').trim(),
+            button: Boolean(th.querySelector('button')),
+            sort: th.getAttribute('aria-sort'),
+            idle: arrow ? getComputedStyle(arrow, '::before').content : null,
+          }
+        })
+      }, heading)
+    const firstCell = (heading) =>
+      page.evaluate((heading) => {
+        const h2 = [...document.querySelectorAll('#root main h2')].find((h) => h.textContent.trim().startsWith(heading))
+        return h2?.closest('section')?.querySelector('tbody tr td:nth-child(1)')?.textContent.trim() ?? null
+      }, heading)
+
+    await go('/seasons/1976', '1976')
+    const standings = "Final drivers' standings"
+    const atRest = await headers(standings)
+    truthy(atRest?.every((h) => h.button), 'every column of the drivers\' standings sorts')
+    is(atRest?.[0].sort, 'ascending', 'and the table names the order it opened in, on Pos')
+    is(atRest?.filter((h) => h.sort).length, 1, 'on one header only')
+    truthy(
+      atRest?.slice(1).every((h) => h.idle.includes('↕')),
+      'and every other header that sorts carries the resting mark',
+    )
+    const champion = one(
+      "SELECT position_text FROM v_standings_final WHERE year = 1976 AND table_type = 'drivers' ORDER BY position IS NULL, position LIMIT 1",
+    )
+    is(await firstCell(standings), String(champion), 'without having re-sorted the rows')
+    const dead = await headers('The calendar')
+    truthy(
+      dead?.length > 0 && dead.every((h) => !h.button && !h.sort && h.idle === null),
+      'while a table that does not sort has no button, no aria-sort and no mark',
+    )
+
+    await page.evaluate((heading) => {
+      const h2 = [...document.querySelectorAll('#root main h2')].find((h) => h.textContent.trim().startsWith(heading))
+      h2.closest('section').querySelector('thead th:first-child button').click()
+    }, standings)
+    await page.waitForFunction(
+      (heading) =>
+        [...document.querySelectorAll('#root main h2')]
+          .find((h) => h.textContent.trim().startsWith(heading))
+          ?.closest('section')
+          ?.querySelector('thead th:first-child')
+          ?.getAttribute('aria-sort') === 'descending',
+      standings,
+      { timeout: 10000 },
+    )
+    const reversed = await headers(standings)
+    is(reversed?.[0].sort, 'descending', 'one click on the opening column reverses it')
+    const last = await firstCell(standings)
+    truthy(last !== '—' && last !== '' && last !== String(champion), `and leads with a position, not a blank - "${last}"`)
+
+    await go('/races/1976/9')
+    const classification = await headers('Classification')
+    is(
+      classification?.filter((h) => h.button).length,
+      classification?.length - 1,
+      'the classification sorts on every column but its result rail',
+    )
+    is(classification?.find((h) => h.sort)?.label, 'Pos', 'and names the classification order on Pos')
+
+    await go('/reference/glossary', 'Glossary')
+    is((await headers('Glossary'))?.[0].sort, 'ascending', 'the glossary names its alphabetical order on Term')
+
   })
 
   // ------------------------------------------------------- taking it away

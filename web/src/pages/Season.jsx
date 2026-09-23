@@ -110,7 +110,17 @@ const calendarRenders = (year) => ({
  * DRIVER_TEAMS through lastTeamColour(), which the driver page reads too; the
  * tooltip names every team where there was more than one.
  */
+/*
+ * A standings position sorts on the number: `position_text` is the source's
+ * own spelling, and "EX" for a driver excluded from the classification is not
+ * a place between 9 and 10. A position nobody established is NULL and sinks
+ * in both directions, as the query's ORDER BY sinks it.
+ */
+const POSITION_SORT = { position_text: { sort: (row) => row.position } }
+const STANDINGS_OPENING = { key: 'position_text', direction: 'asc' }
+
 const driversRenders = (year, teams) => ({
+  ...POSITION_SORT,
   entity: {
     render: (name, row) => {
       const { colour, title } = lastTeamColour(teams.get(row.entity_id), year)
@@ -125,6 +135,7 @@ const driversRenders = (year, teams) => ({
 })
 
 const constructorsRenders = (year) => ({
+  ...POSITION_SORT,
   entity: {
     render: (name, row) => {
       const colour = colourForEntry({ constructorId: row.entity_id, country: row.constructor_country, year, team: name })
@@ -603,7 +614,8 @@ function SeasonBody({ year, season, data }) {
           <DataTable
             rows={driversFinal}
             rowKey={(row) => row.entity_id ?? row.entity}
-            sortable={false}
+            sortable
+            opening={STANDINGS_OPENING}
             page={40}
             columns={withRenders(DRIVERS_FINAL_COLUMNS, driversRenders(year, teams))}
             footer={DRIVERS_FINAL_FOOTER}
@@ -623,7 +635,8 @@ function SeasonBody({ year, season, data }) {
             <DataTable
               rows={constructorsFinal}
               rowKey={(row) => `${row.entity_id}-${row.engine_id ?? ''}`}
-              sortable={false}
+              sortable
+              opening={STANDINGS_OPENING}
               page={40}
               columns={withRenders(CONSTRUCTORS_FINAL_COLUMNS, constructorsRenders(year))}
               footer={constructorsFooter(ambiguous)}
@@ -634,11 +647,13 @@ function SeasonBody({ year, season, data }) {
 
       <Section title="Who entered" count={`${entrants.length} entrants`}>
         {/* No opening sort: the query's ORDER BY is the order the table opens
-            in, and the static page prints the rows as they come. */}
+            in, and the static page prints the rows as they come. The header
+            says so without re-sorting them. */}
         <DataTable
           rows={entrants}
           rowKey={(row) => row.id}
           sortable
+          opening={{ key: 'constructor', direction: 'asc' }}
           columns={withRenders(ENTRANT_COLUMNS, ENTRANTS_APP)}
           footer={ENTRANTS_FOOTER}
         />

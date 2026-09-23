@@ -26,6 +26,17 @@ import TakeAway from './TakeAway.jsx'
  * with scripts/prerender.js so the static table prints the same cell; it is
  * used where the page gives no `render`. See queries/drivers.js.
  *
+ * `opening` is the order the rows already arrive in - `{ key, direction }`,
+ * the column a query's ORDER BY leads with - and it is shown, never applied.
+ * A table that opens in the query's own order used to open with no arrow and
+ * no `aria-sort` on any header, so the order a reader saw was unexplained
+ * (CR-28); re-sorting client-side to show it would trade SQLite's collation
+ * for the browser's and break the tie-breaks the ORDER BY spells out. So the
+ * header says what the order is, and the rows are left as they came until
+ * the reader asks for another. It is shown only on a column that sorts: an
+ * `aria-sort` on a header with no button inside it announces an order the
+ * reader cannot change.
+ *
  * NULLS SORT LAST, ALWAYS.
  *     SQLite sorts NULL first, and this database uses NULL for "not
  *     established". Sorted naively, the drivers nobody has a points total for
@@ -118,6 +129,7 @@ function Table({
   // URL rather than in a second place that could disagree with it.
   sort: givenSort = null,
   direction: givenDirection = 'asc',
+  opening = null,
   showAll: givenShowAll = false,
   onSort,
   onShowAll,
@@ -265,14 +277,24 @@ function Table({
    *     same rows either way, and the receiver's own arrival seeds their own
    *     table.
    */
+  // The order the header states: the reader's sort where there is one, and
+  // otherwise the order the rows arrived in, where the caller has named it
+  // and the column is one a reader can sort by.
+  const resting =
+    !sort && opening && sortable && kept.some((c) => c.key === opening.key && c.sortable !== false) ? opening : null
+  const shownSort = sort ?? resting?.key ?? null
+  const shownDirection = sort ? direction : (resting?.direction ?? 'asc')
+
   const size = Math.max(page, staticRows(name))
   const visible = showAll ? ordered : ordered.slice(0, size)
   const hidden = ordered.length - visible.length
 
   const toggle = (key) => {
+    // From the order the header shows, so the first click on a column the
+    // table merely opened in reverses it rather than restating it.
     const next =
-      key === sort
-        ? direction === 'asc'
+      key === shownSort
+        ? shownDirection === 'asc'
           ? 'desc'
           : 'asc'
         : // Numbers are nearly always most interesting at their largest.
@@ -313,7 +335,7 @@ function Table({
             <thead>
               <tr>
                 {kept.map((column) => {
-                  const active = sort === column.key
+                  const active = shownSort === column.key
                   const canSort = sortable && column.sortable !== false
                   return (
                     <th
@@ -328,13 +350,17 @@ function Table({
                         .filter(Boolean)
                         .join(' ')}
                       style={column.width ? { width: column.width } : undefined}
-                      aria-sort={active ? (direction === 'asc' ? 'ascending' : 'descending') : undefined}
+                      aria-sort={active ? (shownDirection === 'asc' ? 'ascending' : 'descending') : undefined}
                     >
                       {canSort ? (
                         <button type="button" onClick={() => toggle(column.key)}>
                           {column.label}
-                          <span className="arrow" aria-hidden="true">
-                            {active ? (direction === 'asc' ? '▲' : '▼') : ''}
+                          {/* A column that sorts says so at rest (IX-20): the idle
+                              mark is the stylesheet's, so it is no part of the
+                              header's text and the static table, which has no
+                              buttons, draws none. */}
+                          <span className={active ? 'arrow' : 'arrow is-idle'} aria-hidden="true">
+                            {active ? (shownDirection === 'asc' ? '▲' : '▼') : ''}
                           </span>
                         </button>
                       ) : (
