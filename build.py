@@ -491,16 +491,13 @@ def _stage_03_drivers_admitted_from_the_f1db_register(b):
         wins_external = wins, poles_external = poles,
         fastest_laps_external = fastest_laps,
         external_source = 'hand-entered from reference records'""")
-    # The same figures as claims, one per figure (PM-14). The reference
-    # records they were typed from were never named, so each claim cites the
-    # one source this database has ever named for them: its row's. That is
-    # the row-grain position restated per figure and not a new reading of
-    # where they came from - which is a question for a person, not the build.
-    for field in ("wins", "poles", "fastest_laps"):
-        cur.execute(f"""INSERT INTO claims (tbl, row_key, field, value_given,
-            source) SELECT 'drivers', id, '{field}_external',
-            CAST({field} AS TEXT), source FROM drivers
-            WHERE {field} IS NOT NULL""")
+    # These figures get NO claim (PM-14). A claim is the value a source gave,
+    # and the reference records they were typed from were never named: the
+    # row's own source is not established as theirs - a list of polesitters
+    # publishes no career wins - and entry 18 is for writing done here. So
+    # they stay what external_source says they are, and which source they
+    # should cite is a person's question (PM-57, #624). Every figure below
+    # that a source DID give is claimed where it arrives.
     # Fastest-lap totals for drivers whose hand-entered row carries none,
     # declared with their source so the derived figure has something to be
     # checked against. Fills a blank only.
@@ -2626,9 +2623,10 @@ def _stage_29_career_figures_checked_against_the_official(b):
         if n != 1:
             raise SystemExit(f"VERIFIED_STATS: no driver row for {did!r}")
         # The claims follow the columns: the three figures this fetch gave
-        # replace the hand-entered ones they overwrote, and the fastest-lap
-        # total, which it did not give, keeps the claim it had. That one
-        # column is the case external_source cannot express.
+        # are claimed, dated, replacing whatever backed the column before.
+        # The fastest-lap total, which it did not give, stays as it was -
+        # typed, and unclaimed - though external_source now names this fetch
+        # for the whole row. That one column is the case it cannot express.
         for field, value in (("wins_external", wins), ("poles_external", poles),
                              ("podiums_external", podiums)):
             cur.execute("""DELETE FROM claims WHERE tbl = 'drivers'
@@ -2681,7 +2679,8 @@ def _stage_30_derived_win_totals(b):
             raise SystemExit(f"correction did not apply: {did} {field} {old}->{new}")
         # The claim moves with the column. A new source replaces the old one,
         # and the old value is on the record in `discrepancies` below; no new
-        # source means the old one was mistyped and keeps its claim.
+        # source means the old one was mistyped and keeps its claim - or, for
+        # a hand-typed figure, keeps having none.
         n = cur.execute("""UPDATE claims SET value_given = ?,
                 source = COALESCE(?, source),
                 as_of = CASE WHEN ? IS NULL THEN as_of END
@@ -2689,8 +2688,12 @@ def _stage_30_derived_win_totals(b):
               AND value_given = ?""",
             (str(new), new_source, new_source, did, f"{field}_external",
              str(old))).rowcount
-        if n != 1:
-            raise SystemExit(f"correction: no claim backs {did} {field} = {old}")
+        if n == 0 and new_source is not None:
+            cur.execute("""INSERT INTO claims (tbl, row_key, field,
+                value_given, source) VALUES ('drivers',?,?,?,?)""",
+                (did, f"{field}_external", str(new), new_source))
+        elif n > 1:
+            raise SystemExit(f"correction: {n} claims back {did} {field} = {old}")
 
     cur.execute("""UPDATE drivers SET poles = (
             SELECT COUNT(*) FROM race_entries e

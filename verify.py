@@ -2963,6 +2963,26 @@ def claims():
     from data import drivers as _D
     harvest = harvest_module()
 
+    # Which driver figures a source is NAMED for, from the modules that say
+    # so rather than from the build that copied them: the two fetched
+    # fastest-lap totals, formula1.com for the three figures its driver pages
+    # gave, and the correction that replaced a figure with another source's.
+    # Every other external figure was typed from reference records nobody
+    # named, and has no claim - that is the declaration, and PM-57 (#624) is
+    # the question it leaves open.
+    named = {}
+    for did, (_n, src) in harvest.EXTERNAL_FASTEST_LAPS.items():
+        named[(did, "fastest_laps_external")] = src
+    for did, figures in _D.VERIFIED_STATS.items():
+        _entries, _starts, wins, podiums, poles, _pts = figures
+        for f, v in (("wins", wins), ("poles", poles), ("podiums", podiums)):
+            if v is not None:
+                named[(did, f"{f}_external")] = "https://www.formula1.com/en/drivers"
+    for did, f, *_rest, src in harvest.CORRECTIONS:
+        if src is not None:
+            named[(did, f"{f}_external")] = src
+    unnamed = {}   # (tbl, field) -> row_keys whose value no source is named for
+
     held = {(r[0], r[1]): r[2] for r in con.execute(
         "SELECT tbl, field, COUNT(*) FROM claims GROUP BY tbl, field")}
     undeclared = sorted(f"{t}.{f}" for t, f in held if (t, f) not in _N.CLAIM_FIELDS)
@@ -2996,17 +3016,22 @@ def claims():
 
         # The column is exactly its claims: no row holds two, no claim
         # disagrees with the value the row holds, and no value is held
-        # without one. A NULL claim may stand for a NULL value - a source
-        # consulted that named nothing - and matches it by IS.
+        # without one - bar a driver figure no source is named for, which is
+        # declared above and counted here. A NULL claim may stand for a NULL
+        # value - a source consulted that named nothing - and matches it by IS.
         two = con.execute("""SELECT COUNT(*) FROM (SELECT 1 FROM claims
             WHERE tbl = ? AND field = ? GROUP BY row_key HAVING COUNT(*) > 1)""",
             (t, f)).fetchone()[0]
         differ = con.execute(f"""SELECT COUNT(*) FROM claims c JOIN "{t}" x
             ON {expr} = c.row_key WHERE c.tbl = ? AND c.field = ?
             AND c.value_given IS NOT CAST(x."{f}" AS TEXT)""", (t, f)).fetchone()[0]
-        bare = con.execute(f"""SELECT COUNT(*) FROM "{t}" x WHERE x."{f}" IS NOT NULL
-            AND NOT EXISTS (SELECT 1 FROM claims c WHERE c.tbl = ? AND c.field = ?
-                            AND c.row_key = {expr})""", (t, f)).fetchone()[0]
+        without = [r[0] for r in con.execute(f"""SELECT {expr} FROM "{t}" x
+            WHERE x."{f}" IS NOT NULL AND NOT EXISTS (SELECT 1 FROM claims c
+                WHERE c.tbl = ? AND c.field = ? AND c.row_key = {expr})""", (t, f))]
+        if t == "drivers":
+            unnamed[(t, f)] = [k for k in without if (k, f) not in named]
+            without = [k for k in without if (k, f) in named]
+        bare = len(without)
         check(f"{t}.{f} is exactly its claims", not (two or differ or bare),
               f"{two} rows with two, {differ} disagreeing, {bare} values with none")
     check("every declared column's table has a key a claim can name",
@@ -3016,29 +3041,19 @@ def claims():
     check("every claim's row_key names exactly one row", not dangling,
           "; ".join(dangling))
 
-    # Where each driver figure came from, from the modules that say so rather
-    # than from the build that copied them: the row's own source for a figure
-    # typed into data/*.py, then the two fetched fastest-lap totals, then
-    # formula1.com for the three figures its driver pages gave, then the
-    # correction that replaced a figure with another source's.
-    expected = {}
-    for r in con.execute("SELECT id, source FROM drivers"):
-        for f in ("wins", "poles", "fastest_laps"):
-            expected[(r["id"], f"{f}_external")] = r["source"]
-    for did, (_n, src) in harvest.EXTERNAL_FASTEST_LAPS.items():
-        expected[(did, "fastest_laps_external")] = src
-    for did in _D.VERIFIED_STATS:
-        for f in ("wins", "poles", "podiums"):
-            expected[(did, f"{f}_external")] = "https://www.formula1.com/en/drivers"
-    for did, f, *_rest, src in harvest.CORRECTIONS:
-        if src is not None:
-            expected[(did, f"{f}_external")] = src
-    stray = [f"{r['row_key']}.{r['field']} cites {r['source']}" for r in con.execute(
-        "SELECT row_key, field, source FROM claims WHERE tbl = 'drivers' "
-        "ORDER BY row_key, field")
-        if expected.get((r["row_key"], r["field"])) != r["source"]]
-    check("every driver claim cites the source its data module names", not stray,
-          "; ".join(stray[:3]))
+    # The driver claims are exactly the named figures, each citing the
+    # source its module names - and so none for a figure typed from records
+    # nobody named.
+    claimed = {(r["row_key"], r["field"]): r["source"] for r in con.execute(
+        "SELECT row_key, field, source FROM claims WHERE tbl = 'drivers'")}
+    stray = sorted(f"{k[0]}.{k[1]}" for k in set(claimed) ^ set(named)
+                   if claimed.get(k) != named.get(k))
+    stray += sorted(f"{k[0]}.{k[1]} cites {claimed[k]}" for k in set(claimed) & set(named)
+                    if claimed[k] != named[k])
+    check("every driver claim is a figure its data module names a source for, "
+          "citing that source", not stray, "; ".join(stray[:3]))
+    print(f"        drivers: {sum(len(v) for v in unnamed.values())} figures "
+          f"typed from reference records nobody named carry no claim (#624)")
 
     wrong_source = con.execute("""SELECT COUNT(*) FROM claims cl
         JOIN chassis c ON c.id = cl.row_key
@@ -3051,22 +3066,26 @@ def claims():
     # F1DB named, not only that the columns agree with a list written in the
     # same loop.
     bad = []
-    rows = con.execute("""SELECT s.car_id, s.year, c.constructor_id, cl.value_given
+    rows = con.execute("""SELECT s.car_id, s.year, c.constructor_id,
+            cl.value_given, cl.row_key AS claimed
         FROM car_seasons s JOIN cars c ON c.id = s.car_id
         LEFT JOIN claims cl ON cl.tbl = 'car_seasons' AND cl.field = 'other_chassis'
              AND cl.row_key = s.car_id || '|' || s.year""").fetchall()
     for r in rows:
-        named = set()
+        listed = set()
         for (ids,) in con.execute("""SELECT chassis_ids FROM season_entrants
                 WHERE constructor_id = ? AND year = ?""", (r["constructor_id"], r["year"])):
-            named.update(filter(None, (ids or "").split("+")))
+            listed.update(filter(None, (ids or "").split("+")))
         covered = {c[0] for c in con.execute(
             "SELECT id FROM chassis WHERE car_id = ?", (r["car_id"],))}
-        if r["value_given"] != ("+".join(sorted(named - covered)) or None):
+        if r["claimed"] is None:
+            bad.append(f"{r['car_id']} {r['year']}: no claim")
+        elif r["value_given"] != ("+".join(sorted(listed - covered)) or None):
             bad.append(f"{r['car_id']} {r['year']}")
     uncorroborated = con.execute("""SELECT COUNT(*) FROM car_seasons
         WHERE corroborated IS NOT (other_chassis IS NULL)""").fetchone()[0]
-    check("car_seasons' remainders are what season_entrants names beyond the car",
+    check("every car season has a claim, and its remainder is what "
+          "season_entrants names beyond the car",
           bool(rows) and not bad, "; ".join(bad[:3]) or f"{len(rows)} seasons")
     check("car_seasons.corroborated is 1 exactly where the remainder is empty",
           uncorroborated == 0, f"{uncorroborated} disagree")

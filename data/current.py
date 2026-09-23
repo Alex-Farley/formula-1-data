@@ -618,9 +618,10 @@ SOURCE_PATTERNS = [
 #
 # The build refuses a claim on a column not named here. verify.py requires
 # every column named here to be exactly its claims: one claim per row, the
-# same value, and no value without one. A new kind of claim is therefore a
-# declaration, and a column that stops being backed fails rather than
-# thinning out.
+# same value, and no value without one - except a driver figure typed from
+# reference records nobody named, which has no source to claim and so no
+# claim (PM-57, #624). A new kind of claim is therefore a declaration, and a
+# column that stops being backed fails rather than thinning out.
 CLAIM_FIELDS = {
     ("drivers", "wins_external"): "career wins as a source other than the race records gives them",
     ("drivers", "poles_external"): "career poles, likewise",

@@ -141,7 +141,8 @@ CREATE TABLE table_provenance (
 -- `external_source` string described them per row, so it dated four typed
 -- fastest-lap totals to a formula1.com fetch that never gave them, and
 -- credited formula1.com with Russell's 11 poles, which are Wikipedia's
--- figure after formula1.com's 12 was corrected. A chassis is an F1DB row
+-- figure after formula1.com's 12 was corrected; the typed totals beside
+-- them had no source at all. A chassis is an F1DB row
 -- carrying three figures off a Wikipedia article, and its source_id can say
 -- only the first. Five places encoded "another source holds this value"
 -- five different ways; this is the one shape for it.
@@ -152,15 +153,19 @@ CREATE TABLE table_provenance (
 -- between sources is a comparison. The columns stay where they were, so
 -- nothing reading them changes; verify.py holds each one to be exactly its
 -- claims, in both directions, which makes it a view of them rather than a
--- second record. data/current.py CLAIM_FIELDS names every column a claim
--- may back, and the build refuses any other.
+-- second record - bar the driver figures no source is named for, which
+-- have none and are counted. data/current.py CLAIM_FIELDS names every column
+-- a claim may back, and the build refuses any other.
 --
---   drivers.*_external       one claim per figure, citing where THAT figure
---                            came from. A figure typed into the data modules
---                            from reference records nobody named cites its
---                            row's source, the only one ever given for it. A
---                            correction replaces the claim, and the old value
---                            stays in `discrepancies`.
+--   drivers.*_external       one claim per figure a source is named for,
+--                            citing THAT source: formula1.com's dated fetch,
+--                            the two Wikipedia fastest-lap totals, the
+--                            Wikipedia figure a correction took. A correction
+--                            replaces the claim, and the old value stays in
+--                            `discrepancies`. A figure typed into the data
+--                            modules from reference records nobody named has
+--                            NO claim: no source is established for it, and
+--                            which one it should cite is PM-57 (#624).
 --   chassis.published_*      the article's figures, citing the article. As
 --                            the column is, the career of the article's
 --                            subject: for a family article, the family's.

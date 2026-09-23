@@ -423,7 +423,7 @@ to be argued over. `as_of` is kept for the one source that dates its figures.
 
 |  | back-filled | how |
 |---|---|---|
-| `drivers.*_external` | yes | one claim per figure, citing where *that* figure came from |
+| `drivers.*_external` | yes, where a source is named | one claim per figure, citing where *that* figure came from; a figure typed from reference records nobody named has none |
 | `chassis.published_*` | yes | the article's figures, citing the article: an F1DB row carrying Wikipedia's numbers |
 | `car_seasons` | yes, as `other_chassis` | what F1DB's entry lists name beyond the car's chassis; NULL is the corroboration |
 | `circuit_geometry` | **no** | `measured_km` is OpenStreetMap's, and `f1.db` carries no OpenStreetMap data |
@@ -431,22 +431,25 @@ to be argued over. `as_of` is kept for the one source that dates its figures.
 
 The encodings stay where they were, so nothing reading them changes.
 `verify.py` holds each back-filled column to be exactly its claims in both
-directions, and holds the source each driver claim cites to the data module
-that says where the figure came from. `CLAIM_FIELDS` in `data/current.py`
+directions, and holds the driver claims to exactly the figures the data
+modules name a source for, each citing that source. `CLAIM_FIELDS` in `data/current.py`
 declares every column a claim may back, and the build refuses any other.
 
 Two things the field grain showed straight away:
 
 - Four current drivers' fastest-lap totals were dated by `external_source`
-  to a formula1.com fetch that never gave them; they were typed in by hand.
+  to a formula1.com fetch that never gave them; they were typed in by hand,
+  and they carry no claim.
 - Russell's pole total is Wikipedia's 11, the figure that corrected
   formula1.com's 12, and the row-grain column credited formula1.com with it.
+  The claim cites Wikipedia.
 
-A claim can say both. Two things it deliberately does not say:
+Two things the claims deliberately do not say:
 
-- Where the hand-typed figures came from. They cite their row's source, the
-  only one ever named for them; that is a question for a person (`PM-57`,
-  #624).
+- Where the hand-typed figures came from. Several hundred of them name no
+  source at all, so they have no claim, rather than one borrowed from their
+  row - a list of polesitters does not publish career wins. Which source
+  they should cite is a question for a person (`PM-57`, #624).
 - That a family article's total is one chassis's career. The register
   cannot tell a family article from a single-chassis one, so the claim is
   what the column always was: the article's figure for its subject.
