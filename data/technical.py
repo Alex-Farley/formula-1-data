@@ -150,6 +150,12 @@ SAFETY = [
 # has holes - 1989-2003, 2005-2012, 2014-2016, 2018-2023 - and the holes are
 # the honest shape of what has been established, not an oversight.
 #
+# `source` holds one document, and a span can rest on more than one. The
+# weekend rows are the case: each was read in every season's own Sporting
+# Regulations across its span, the row stores the first of those issues, and
+# the rest are named in `_SPORT` below and by article in the row's note. The
+# first issue alone does not state the later years.
+#
 # from_year, to_year, field, value, unit, note, confidence, source
 # ---------------------------------------------------------------------
 _HFOR = "https://en.wikipedia.org/wiki/History_of_Formula_One_regulations"
@@ -159,14 +165,24 @@ _FIA2026 = "https://www.fia.com/regulations/formula-1"
 # cap for its own year in Article 2 - "in the event that N Competitions take
 # place ... US Dollars X" - with the per-Competition adjustment beside it. The
 # figures below were read from these documents, not from a summary of them.
+_FIN = {
+    2021: "https://www.fia.com/sites/default/files/formula_1_-_financial_regulations_-_2021_-_iss_8_-_2021-10-15.pdf",
+    2022: "https://www.fia.com/sites/default/files/fia_formula_1_financial_regulations_iss.12.pdf",
+    2023: "https://www.fia.com/sites/default/files/fia_formula_1_financial_regulations_-_issue_18_-_2023-12-06.pdf",
+    2024: "https://www.fia.com/sites/default/files/fia_formula_1_financial_regulations_-_issue_22_-_2024-12-11.pdf",
+    2025: "https://www.fia.com/system/files/documents/2025_fia_formula_1_financial_regulations_-_issue_25_-_2025-07-31.pdf",
+    2026: "https://www.fia.com/system/files/documents/fia_2026_f1_regulations_-_section_d_financial_-_f1_teams_-_iss_07_-_2026-06-25.pdf",
+}
+
 # The FIA Sporting Regulations, read for the weekend's limits: the last issue
 # of each season the FIA's own archive holds, from 2018, where that archive
 # begins, to the current 2026 issue. Every year inside a weekend row's span was
 # read in that season's own issue, so a span is a run of issues that agree,
 # not a value carried across years nobody read. 2018 is where the reading
-# starts, not where any of these rules did. The 2025 rows came first; their
-# review caught a first cut that cited 30.5 for the tyre allocation and merged
-# the stewards' separate power into the 107% rule.
+# starts, not where any of these rules did; the seasons before it are WK-07
+# (#642). The 2025 rows came first; their review caught a first cut that
+# cited 30.5 for the tyre allocation and merged the stewards' separate power
+# into the 107% rule.
 _SPORT = {
     2018: "https://www.fia.com/sites/default/files/1-2018_sporting_regulations_2018-07-17.pdf",
     2019: "https://www.fia.com/sites/default/files/2019_sporting_regulations_-_2019-03-12.pdf",
@@ -177,15 +193,6 @@ _SPORT = {
     2024: "https://www.fia.com/sites/default/files/fia_2024_formula_1_sporting_regulations_-_issue_7_-_2024-07-31.pdf",
     2025: "https://www.fia.com/system/files/documents/fia_2025_formula_1_sporting_regulations_-_issue_5_-_2025-04-30.pdf",
     2026: "https://www.fia.com/system/files/documents/fia_2026_f1_regulations_-_section_b_sporting_-_iss_08_-_2026-08-05_7.pdf",
-}
-
-_FIN = {
-    2021: "https://www.fia.com/sites/default/files/formula_1_-_financial_regulations_-_2021_-_iss_8_-_2021-10-15.pdf",
-    2022: "https://www.fia.com/sites/default/files/fia_formula_1_financial_regulations_iss.12.pdf",
-    2023: "https://www.fia.com/sites/default/files/fia_formula_1_financial_regulations_-_issue_18_-_2023-12-06.pdf",
-    2024: "https://www.fia.com/sites/default/files/fia_formula_1_financial_regulations_-_issue_22_-_2024-12-11.pdf",
-    2025: "https://www.fia.com/system/files/documents/2025_fia_formula_1_financial_regulations_-_issue_25_-_2025-07-31.pdf",
-    2026: "https://www.fia.com/system/files/documents/fia_2026_f1_regulations_-_section_d_financial_-_f1_teams_-_iss_07_-_2026-06-25.pdf",
 }
 
 REGULATION_LIMITS = [
@@ -358,10 +365,10 @@ REGULATION_LIMITS = [
      "whose Article 39.3(b)(i) also declares the driver unclassified.",
      "reference", _SPORT[2018]),
     (2023, 2025, "qualifying_107_pct", 107.0, "%",
-     "A driver eliminated in Q1 or SQ1 whose best lap exceeded 107% of the "
-     "fastest time set in that session is unclassified, unless the track was "
-     "declared wet by the Race Director (Article 39.4(c)(i) in 2023, "
-     "39.4(b)(i) in 2024 and 2025). Whether an unclassified driver takes "
+     "A driver knocked out in Q1 or SQ1 with a best lap more than 107% of "
+     "that session's fastest is left unclassified, unless the Race Director "
+     "had declared the track wet (Article 39.4(c)(i) in 2023, 39.4(b)(i) in "
+     "2024 and 2025). Whether an unclassified driver takes "
      "part in the rest of the Competition is a separate decision for the "
      "stewards; the bar on starting the race that the 2018 to 2022 issues "
      "carried is gone.", "reference", _SPORT[2023]),
