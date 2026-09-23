@@ -281,7 +281,13 @@ export const THIS_SEASON_COLUMNS = [
   { key: 'name_used', rowHeader: true, label: 'Grand Prix' },
   { key: 'constructor', label: 'Constructor', text: ifEntered((value) => text(value)) },
   { key: 'grid_text', label: 'Grid', align: 'num', text: ifEntered((value) => text(value)) },
-  { key: 'position_text', label: 'Result', align: 'num', text: (_, row) => (entered(row) ? result(row) : NOT_ENTERED) },
+  {
+    key: 'position_text',
+    label: 'Result',
+    align: 'num',
+    text: (_, row) => (entered(row) ? result(row) : NOT_ENTERED),
+    glossary: 'results',
+  },
   { key: 'points', label: 'Points', align: 'num', text: ifEntered((value) => points(value)) },
 ]
 
@@ -381,6 +387,7 @@ export const SEASON_COLUMNS = [
     label: 'Championship',
     align: 'num',
     text: (value, row) => text(value ?? row.championship),
+    glossary: 'results',
   },
   { key: 'points', label: 'Points scored', align: 'num', text: (value) => points(value) },
 ]
@@ -397,7 +404,7 @@ export const ENTRY_COLUMNS = [
   { key: 'constructor', label: 'Constructor' },
   { key: 'chassis', label: 'Chassis', text: (name, row) => text(name ?? row.chassis_id) },
   { key: 'grid_text', label: 'Grid', align: 'num' },
-  { key: 'position_text', label: 'Result', align: 'num', text: (_, row) => result(row) },
+  { key: 'position_text', label: 'Result', align: 'num', text: (_, row) => result(row), glossary: 'results' },
   {
     key: 'status',
     label: 'Out',

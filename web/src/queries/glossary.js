@@ -13,7 +13,19 @@ import { span } from '../lib/format.js'
 
 // Case-insensitive, and the app's table opens in this order rather than
 // re-sorting: "DRS" sorts among the Ds, not before "Downforce".
-export const GLOSSARY = 'SELECT * FROM glossary ORDER BY term COLLATE NOCASE'
+//
+// The confidence tiers are the provenance table's rows, not glossary rows
+// (CD-09): "reference" and "medium" are printed on page after page, and the
+// ladder's own definition of each is the one the build enforces. Copying them
+// into data/technical.py would have made a second wording free to drift from
+// the first, so the page reads the ladder and names the tier as it is
+// printed everywhere else, capitalised as a term.
+export const GLOSSARY = `
+  SELECT term, category, definition FROM glossary
+  UNION ALL
+  SELECT upper(substr(confidence, 1, 1)) || substr(confidence, 2), 'confidence', definition
+    FROM provenance
+   ORDER BY term COLLATE NOCASE`
 export const PERSONNEL = 'SELECT * FROM personnel ORDER BY active_from IS NULL, active_from, full_name, id'
 
 export const GLOSSARY_COLUMNS = [

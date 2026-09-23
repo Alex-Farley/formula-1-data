@@ -112,6 +112,41 @@ export const sharedLine = (entries, count) =>
  * every width: it is the table they asked for, and the one they can send.
  */
 
+/**
+ * Where a column's header points for the words its cells print (CD-09, IA-12).
+ *
+ * DNQ, NC, DSQ, PL: a classification prints the source's own code, and none
+ * of them was defined anywhere on the site - the glossary was linked from
+ * three places and from no page where one of its terms appeared. A column
+ * that prints codes declares `glossary: '<category>'` in its queries module,
+ * and its header carries a link to that category of the glossary, which
+ * opens filtered to it. Both renderers read this, so the static header and
+ * the app's link to the same place and name it the same way.
+ *
+ * The link has no text of its own: the stylesheet draws the mark, so the
+ * header's text is still its label - which is what a reader copying the
+ * table, and smoke.mjs comparing the two renderers, both read - and the
+ * link's accessible name is `name` below.
+ *
+ * `header` is the header cell's own name, set as its aria-label. A column
+ * header is named from everything inside it, link included, and a screen
+ * reader announces that name on every cell it moves into: without this, each
+ * row of a classification was read as "Pos The abbreviations in Pos, in the
+ * glossary, 1".
+ *
+ * `first`: on a right-aligned column the mark goes before the label, so the
+ * label's right edge stays over the figures it heads, in both renderers.
+ */
+export const glossaryKey = (column) =>
+  column.glossary
+    ? {
+        to: `/reference/glossary?category=${encodeURIComponent(column.glossary)}`,
+        name: `The abbreviations in ${column.label}, in the glossary`,
+        header: column.label,
+        first: column.align === 'num',
+      }
+    : null
+
 /** The width the phone default applies below. app.css says the same number. */
 export const PHONE = '(max-width: 560px)'
 

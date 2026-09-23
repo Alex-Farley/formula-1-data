@@ -347,6 +347,7 @@ function DriverBody({ driver, data }) {
                   align: 'num',
                   render: (v, row) => cell(v ?? row.position),
                   text: (v, row) => valueText(v ?? row.position),
+                  glossary: 'results',
                 },
                 { key: 'points', label: 'Points', align: 'num' },
               ],

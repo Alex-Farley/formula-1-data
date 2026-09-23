@@ -53,7 +53,7 @@ import { fileURLToPath } from 'node:url'
 // app's own cell text — text() in lib/format.js — for the tables below
 // that are drawn from a page's column list.
 import { finished, missing, number, result, span, text as formatted, yearList } from '../src/lib/format.js'
-import { WIDE_ONLY, defaultColumns, onPhone, shared, sharedLine } from '../src/lib/table.js'
+import { WIDE_ONLY, defaultColumns, glossaryKey, onPhone, shared, sharedLine } from '../src/lib/table.js'
 // The ONE attribution rule (web/src/lib/commons.js), not a second copy of it.
 // This script cannot import CommonsImage - that is a React component and this
 // file emits HTML - but the question it answers, "who is credited and may this
@@ -535,11 +535,22 @@ const note = (value) => (value ? `<p class="faint">${esc(value)}</p>` : '')
 const table = (headers, rows, options = {}) => {
   if (!rows.length) return ''
   const { aligns = [], hidden = [], rowHeaders = [] } = options
-  const cls = (i) => (aligns[i] ? ` class="${esc(aligns[i])}"` : '') + (hidden[i] ? ' aria-hidden="true"' : '')
+  const cls = (i, extra) => {
+    const names = [aligns[i], extra].filter(Boolean).join(' ')
+    return (names ? ` class="${esc(names)}"` : '') + (hidden[i] ? ' aria-hidden="true"' : '')
+  }
   const cell = (c, i) => (rowHeaders[i] ? `<th scope="row"${cls(i)}>${c}</th>` : `<td${cls(i)}>${c}</td>`)
   return [
     '<div class="table-wrap"><div class="table-scroll"><table>',
-    `<thead><tr>${headers.map((h, i) => `<th scope="col"${cls(i)}>${typeof h === 'string' ? esc(h) : h.html}</th>`).join('')}</tr></thead>`,
+    `<thead><tr>${headers
+      .map((h, i) => {
+        // A keyed header adds its class to the column's own, and names
+        // itself by its label alone (lib/table.js).
+        const own = typeof h === 'string' || !h.className ? cls(i) : cls(i, h.className)
+        const named = typeof h !== 'string' && h.label ? ` aria-label="${esc(h.label)}"` : ''
+        return `<th scope="col"${own}${named}>${typeof h === 'string' ? esc(h) : h.html}</th>`
+      })
+      .join('')}</tr></thead>`,
     '<tbody>',
     rows.map((cells) => `<tr>${cells.map(cell).join('')}</tr>`).join(''),
     '</tbody></table></div></div>',
@@ -585,7 +596,20 @@ const fromColumns = (declared, rows, links = {}) => {
     table(
       // A column marked ariaHidden has an empty header, hidden with its cells,
       // as the app's does: the classification's rail (AX-12).
-      kept.map((c) => (c.ariaHidden ? { html: '' } : c.label)),
+      // A column that prints codes links its header to the glossary, as the
+      // app's does (lib/table.js): the static race pages are where most
+      // readers arrive, and they are the pages the codes are on.
+      kept.map((c) => {
+        if (c.ariaHidden) return { html: '' }
+        const key = glossaryKey(c)
+        if (!key) return c.label
+        const mark = `<a class="key" href="${esc(href(key.to))}" aria-label="${esc(key.name)}" title="${esc(key.name)}"></a>`
+        return {
+          html: key.first ? `${mark}${esc(c.label)}` : `${esc(c.label)}${mark}`,
+          className: 'keyed',
+          label: key.header,
+        }
+      }),
       rows.map((row) =>
         kept.map((c) => {
           const value = row[c.key]

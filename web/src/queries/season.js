@@ -515,7 +515,7 @@ const behind = (value) => (missing(value) || value === 0 ? EMPTY : points(value)
 const won = (value) => (missing(value) ? EMPTY : number(value))
 
 export const DRIVERS_FINAL_COLUMNS = [
-  { key: 'position_text', label: 'Pos', align: 'num', text: position },
+  { key: 'position_text', label: 'Pos', align: 'num', text: position, glossary: 'results' },
   { key: 'entity', rowHeader: true, label: 'Driver' },
   { key: 'wins', label: 'Wins', align: 'num', text: won },
   { key: 'points', label: 'Points', align: 'num', text: pts },
@@ -531,7 +531,7 @@ export const DRIVERS_FINAL_FOOTER =
 export const constructorEntity = (name, row) => (row.engine_id ? `${text(name)} ${row.engine_id}` : text(name))
 
 export const CONSTRUCTORS_FINAL_COLUMNS = [
-  { key: 'position_text', label: 'Pos', align: 'num', text: position },
+  { key: 'position_text', label: 'Pos', align: 'num', text: position, glossary: 'results' },
   { key: 'entity', rowHeader: true, label: 'Constructor', text: constructorEntity },
   { key: 'points', label: 'Points', align: 'num', text: pts },
   { key: 'gap', label: 'Gap', align: 'num', text: behind },

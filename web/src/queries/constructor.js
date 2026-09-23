@@ -117,7 +117,13 @@ export const SEASON_COLUMNS = [
   { key: 'poles', label: 'Poles', align: 'num', collapse: true },
   { key: 'best', label: 'Best', align: 'num', text: (value) => (missing(value) ? EMPTY : `P${value}`) },
   { key: 'points', label: 'Points scored', align: 'num', text: (value) => points(value) },
-  { key: 'championship_text', label: 'Championship', align: 'num', text: (value, row) => text(value ?? row.championship) },
+  {
+    key: 'championship_text',
+    label: 'Championship',
+    align: 'num',
+    text: (value, row) => text(value ?? row.championship),
+    glossary: 'results',
+  },
 ]
 
 export const ENGINE_SPLIT_FOOTER =

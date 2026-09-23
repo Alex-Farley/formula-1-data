@@ -2924,7 +2924,10 @@ try {
 
   await section('/reference/glossary', async () => {
     await go('/reference/glossary', 'Glossary')
-    is((await tableRows())[0], count('SELECT COUNT(*) FROM glossary'), 'glossary terms')
+    // The glossary's own rows and the confidence ladder's, which the page
+    // reads from `provenance` rather than holding a second wording (CD-09).
+    const terms = count('SELECT (SELECT COUNT(*) FROM glossary) + (SELECT COUNT(*) FROM provenance)')
+    is((await tableRows())[0], terms, 'glossary terms, and every confidence tier among them')
     // IX-28's sentence is composed by each page, so each page is where it can
     // be read; /drivers proves the component, not the six phrasings. This is
     // the register whose filter values are not noun phrases - `sporting`,
@@ -2948,10 +2951,19 @@ try {
       await page.waitForFunction(() => !document.querySelector('#root main .state.is-empty'), null, { timeout: 10000 })
       is(
         (await tableRows())[0],
-        count('SELECT COUNT(*) FROM glossary'),
+        terms,
         'Clear filters brings the whole glossary back, category chip and search box both',
       )
     }
+
+    // Where a results header's link arrives (CD-09, IA-12): the codes, and
+    // only the codes, with the chip that says so pressed.
+    await go('/reference/glossary?category=results', 'Glossary')
+    is(
+      (await tableRows())[0],
+      count("SELECT COUNT(*) FROM glossary WHERE category = 'results'"),
+      'the results key arrives on the results terms alone',
+    )
 
   })
 
@@ -3563,6 +3575,27 @@ try {
       'the classification sorts on every column but its result rail',
     )
     is(classification?.find((h) => h.sort)?.label, 'Pos', 'and names the classification order on Pos')
+    // CD-09, IA-12: the codes a classification prints - DNQ, NC, PL - are one
+    // link from its Pos header, on both halves. The header's text is still
+    // "Pos" (above): the mark is the stylesheet's.
+    {
+      const want = '/reference/glossary?category=results'
+      const key = await page.evaluate(() => {
+        const h2 = [...document.querySelectorAll('#root main h2')].find((h) => h.textContent.trim().startsWith('Classification'))
+        const a = h2?.closest('section')?.querySelector('thead th .key')
+        return a && { href: a.getAttribute('href'), name: a.getAttribute('aria-label'), header: a.closest('th').getAttribute('aria-label') }
+      })
+      is(key?.href, want, 'the classification’s Pos header links to the glossary’s results terms')
+      truthy(key?.name?.includes('Pos'), `and the link is named for its column — “${key?.name}”`)
+      // A header is named from all it holds; without its own name, every cell
+      // under it would be announced with the link's sentence first.
+      is(key?.header, 'Pos', 'and the header is still named Pos alone')
+      const html = await (await fetch(`${BASE}/races/1976/9`)).text()
+      truthy(
+        html.includes(`aria-label="Pos"><a class="key" href="${want}"`),
+        'and the static race page carries the same link, under the same header name',
+      )
+    }
     // Pos is the classification's second column: the rail comes first. A
     // retirement has no finish_position and stays below every finisher.
     const posCell = (which) =>
