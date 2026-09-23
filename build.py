@@ -2158,6 +2158,12 @@ def _stage_25_championship_standings_after_every_round_and(b):
     # which is what makes the overlap worth having.
     std_rows = std_skipped = 0
     std_checked = std_conflicts = 0
+    # Keyed on the season as well as the id, because the answer depends on
+    # it: F1DB's `alfa-romeo` is this register's Alfa Romeo until 1985 and
+    # Sauber from 2019. Keyed on the id alone, whichever season was read
+    # first decided every other one, and all 109 constructors' rows of
+    # 2019-2023 went in as `alfa-romeo` while the results of the same races
+    # said `sauber` - one entrant under two ids in two tables (DA-28).
     f1db_cons = {}
     known_engines = {r[0] for r in cur.execute(
         "SELECT id FROM engine_manufacturers")}
@@ -2179,9 +2185,9 @@ def _stage_25_championship_standings_after_every_round_and(b):
         if kind == "drivers":
             eid = f1db_drivers.get(entity)
         else:
-            if entity not in f1db_cons:
-                f1db_cons[entity] = HV.constructor_for_f1db(entity, yr)
-            eid = f1db_cons[entity]
+            if (entity, yr) not in f1db_cons:
+                f1db_cons[(entity, yr)] = HV.constructor_for_f1db(entity, yr)
+            eid = f1db_cons[(entity, yr)]
             if eid and not cur.execute("SELECT 1 FROM constructors WHERE id=?",
                                        (eid,)).fetchone():
                 eid = None

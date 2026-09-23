@@ -14,7 +14,7 @@ construction - that is what a correction is - and the record of what the
 source published is the `discrepancies` row it files. For every figure the
 build did not touch, this constrains the value and not merely its direction.
 
-The floors, the six adjustments, the alias and the multi-engine exemption are
+The floors, the six adjustments and the multi-engine exemption are
 declared in `data/current.py`; this module is only how they are applied, so
 that `build.py` and `verify.py` ask one question of the same rows.
 
@@ -33,8 +33,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from data.current import (STANDINGS_ACCUMULATE_FROM,  # noqa: E402
-                          STANDINGS_ADJUSTMENTS,
-                          STANDINGS_ENTITY_ALIASES)
+                          STANDINGS_ADJUSTMENTS)
 
 TOLERANCE = 0.001
 
@@ -68,7 +67,7 @@ class Unmappable(Exception):
     silent skip once and 104 rows sat in the first of them (review findings,
     #583):
 
-      an entity with no results under its own id and no alias;
+      an entity with no results under its own id in that season;
       a standings round with no results at all, which is a table published
         ahead of the results this database holds;
       nothing else - an entity that simply never scored derives 0, which is a
@@ -121,12 +120,11 @@ def expected(derived, adjustment, rnd):
     return 0.0 if how == "zero" else derived + how
 
 
-def violations(con, floors=None, adjustments=None, aliases=None):
+def violations(con, floors=None, adjustments=None):
     """Every standings row that is not what the results make it. One dict per
     row, oldest first. Raises Unmappable before checking anything."""
     floors = STANDINGS_ACCUMULATE_FROM if floors is None else floors
     adjustments = STANDINGS_ADJUSTMENTS if adjustments is None else adjustments
-    aliases = STANDINGS_ENTITY_ALIASES if aliases is None else aliases
     multi = {(y, e) for y, e in con.execute(_MULTI_ENGINE)}
     out = []
     for table in ("constructors", "drivers"):
@@ -143,14 +141,14 @@ def violations(con, floors=None, adjustments=None, aliases=None):
                     ORDER BY year, entity_id, after_round""", (table,)):
             if year < floor or (table == "constructors" and (year, ent) in multi):
                 continue
-            who = aliases.get((table, year, ent), ent)
-            if (year, who) not in in_season:
+            if (year, ent) not in in_season:
                 raise Unmappable(
                     f"{year} {table} '{ent}' has a championship table and no "
-                    f"result rows under that id. Either the results name it "
-                    f"something else - add it to STANDINGS_ENTITY_ALIASES in "
-                    f"data/current.py with the reason - or the results are "
-                    f"missing, which is the larger problem.")
+                    f"result rows under that id. Either the two tables name "
+                    f"one entrant with two ids - fix the id where it is "
+                    f"loaded, the way DA-28 did for 2019-2023, never with an "
+                    f"alias - or the results are missing, which is the "
+                    f"larger problem.")
             if rnd not in rounds.get(year, ()):
                 raise Unmappable(
                     f"{year} {table} stands after round {rnd} and this "
@@ -158,7 +156,7 @@ def violations(con, floors=None, adjustments=None, aliases=None):
                     f"published ahead of the results cannot be checked "
                     f"against them, and a round that cannot be checked is one "
                     f"this rule can never refuse.")
-            derived = totals[(year, rnd, who)]
+            derived = totals[(year, rnd, ent)]
             want = expected(derived, adjustments.get((table, year, ent)), rnd)
             if abs(pts - want) > TOLERANCE:
                 out.append({

@@ -841,6 +841,28 @@ def win_tallies_stored_figures_vs_figures_derived_from_r():
           not era,
           "; ".join(f"{r[0]}: {r[1]} ({r[2]}-{r[3]}) x{r[4]}" for r in era[:5]))
 
+    # And the championship table names the same entrant the results do. The
+    # two are loaded from different F1DB files through the same mapping, and
+    # for 2019-2023 they disagreed: standings said `alfa-romeo`, the results
+    # `sauber`, because the standings loader cached the mapping on the id
+    # alone and whichever season came first answered for all of them. A
+    # reader saw Alfa Romeo in the table and Sauber in the results of the
+    # same season, and a join on the id found nothing (DA-28). Every row, in
+    # every season and both tables, and no exceptions to declare.
+    split = con.execute("""SELECT s.year, s.table_type, s.entity_id, COUNT(*)
+        FROM standings s
+        WHERE s.entity_id IS NOT NULL
+          AND NOT EXISTS (
+              SELECT 1 FROM race_entries e JOIN races r ON r.id = e.race_id
+              WHERE r.year = s.year
+                AND (CASE s.table_type WHEN 'drivers' THEN e.driver_id
+                                       ELSE e.constructor_id END) = s.entity_id)
+        GROUP BY s.year, s.table_type, s.entity_id
+        ORDER BY s.year""").fetchall()
+    check("every championship-table entrant has a race entry under the same id "
+          "that season", not split,
+          "; ".join(f"{r[0]} {r[1]} {r[2]} x{r[3]}" for r in split[:5]))
+
     total = con.execute("SELECT COUNT(*) FROM races WHERE status='completed'").fetchone()[0]
     credits = con.execute("""SELECT COUNT(*) FROM race_entries
         WHERE finish_position = 1""").fetchone()[0]
