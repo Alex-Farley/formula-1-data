@@ -30,7 +30,7 @@ const years = (_, row) => span(row.from_year, row.to_year)
 export const eraCell = (name, row) => `${text(name)} ${span(row.from_year, row.to_year)}`
 
 export const ENGINE_COLUMNS = [
-  { key: 'era_name', label: 'Era', text: eraCell },
+  { key: 'era_name', rowHeader: true, label: 'Era', text: eraCell },
   { key: 'formula', label: 'Formula', align: 'prose' },
   { key: 'typical_config', label: 'Typical' },
   { key: 'approx_power_bhp', label: 'Power (bhp)', align: 'num' },
@@ -39,7 +39,7 @@ export const ENGINE_COLUMNS = [
 ]
 
 export const POINTS_COLUMNS = [
-  { key: 'from_year', label: 'Years', align: 'num', text: years },
+  { key: 'from_year', rowHeader: true, label: 'Years', align: 'num', text: years },
   { key: 'scoring', label: 'Scoring', align: 'prose' },
   { key: 'fastest_lap', label: 'Fastest lap' },
   { key: 'dropped_scores', label: 'Dropped scores', align: 'prose' },
@@ -52,14 +52,14 @@ export const POINTS_NOTE =
 export const REGULATION_COLUMNS = [
   { key: 'year', label: 'Year', align: 'num', text: (year) => String(year) },
   { key: 'category', label: 'Category' },
-  { key: 'title', label: 'Change' },
+  { key: 'title', rowHeader: true, label: 'Change' },
   { key: 'detail', label: 'Detail', align: 'prose' },
   { key: 'impact', label: 'Impact', align: 'prose' },
 ]
 
 export const LIMIT_COLUMNS = [
-  { key: 'field', label: 'Limit' },
-  { key: 'from_year', label: 'Years', align: 'num', text: years },
+  { key: 'field', rowHeader: true, label: 'Limit' },
+  { key: 'from_year', rowHeader: true, label: 'Years', align: 'num', text: years },
   { key: 'value', label: 'Value', align: 'num' },
   { key: 'unit', label: 'Unit' },
   { key: 'note', label: 'Note', align: 'prose' },
@@ -70,7 +70,7 @@ export const LIMITS_NOTE =
 
 export const INNOVATION_COLUMNS = [
   { key: 'year', label: 'Year', align: 'num', text: (year) => String(year) },
-  { key: 'innovation', label: 'Innovation' },
+  { key: 'innovation', rowHeader: true, label: 'Innovation' },
   { key: 'originator', label: 'Originator' },
   { key: 'description', label: 'What it was', align: 'prose' },
   { key: 'legacy', label: 'What became of it', align: 'prose' },
@@ -79,13 +79,13 @@ export const INNOVATION_COLUMNS = [
 
 export const GOVERNANCE_COLUMNS = [
   { key: 'year', label: 'Year', align: 'num', text: (year) => String(year) },
-  { key: 'event', label: 'Event' },
+  { key: 'event', rowHeader: true, label: 'Event' },
   { key: 'detail', label: 'Detail', align: 'prose' },
   { key: 'significance', label: 'Why it mattered', align: 'prose' },
 ]
 
 export const TYRE_COLUMNS = [
-  { key: 'supplier', label: 'Supplier' },
+  { key: 'supplier', rowHeader: true, label: 'Supplier' },
   { key: 'from_year', label: 'Years', align: 'num', text: years },
   { key: 'exclusive', label: 'Sole supplier', align: 'num', text: (value) => (value ? 'yes' : 'no') },
   { key: 'notes', label: 'Notes', align: 'prose' },

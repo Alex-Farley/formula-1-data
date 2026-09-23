@@ -511,15 +511,20 @@ const note = (value) => (value ? `<p class="faint">${esc(value)}</p>` : '')
 //
 // `hidden` marks the columns DataTable takes out of the accessibility tree
 // (a column's `ariaHidden`), header and cells alike.
+//
+// `rowHeaders` marks the columns whose cells are `<th scope="row">`, the ones
+// that say which row this is (a column's `rowHeader`, AX-21), as DataTable's
+// are; the smoke suite holds the two halves to the same positions.
 const table = (headers, rows, options = {}) => {
   if (!rows.length) return ''
-  const { aligns = [], hidden = [] } = options
+  const { aligns = [], hidden = [], rowHeaders = [] } = options
   const cls = (i) => (aligns[i] ? ` class="${esc(aligns[i])}"` : '') + (hidden[i] ? ' aria-hidden="true"' : '')
+  const cell = (c, i) => (rowHeaders[i] ? `<th scope="row"${cls(i)}>${c}</th>` : `<td${cls(i)}>${c}</td>`)
   return [
     '<div class="table-wrap"><div class="table-scroll"><table>',
     `<thead><tr>${headers.map((h, i) => `<th scope="col"${cls(i)}>${typeof h === 'string' ? esc(h) : h.html}</th>`).join('')}</tr></thead>`,
     '<tbody>',
-    rows.map((cells) => `<tr>${cells.map((c, i) => `<td${cls(i)}>${c}</td>`).join('')}</tr>`).join(''),
+    rows.map((cells) => `<tr>${cells.map(cell).join('')}</tr>`).join(''),
     '</tbody></table></div></div>',
   ].join('')
 }
@@ -571,6 +576,7 @@ const fromColumns = (columns, rows, links = {}) => {
       {
         aligns: kept.map((c) => [c.align, c.cellClass].filter(Boolean).join(' ')),
         hidden: kept.map((c) => c.ariaHidden === true),
+        rowHeaders: kept.map((c) => c.rowHeader === true),
       },
     )
   )
@@ -1547,7 +1553,7 @@ const page = ({
         table(
           ['Season', 'Rounds'],
           seasons.map((row) => [link(`seasons/${row.year}`, row.year), num(row.rounds)]),
-          { aligns: ['num', 'num'] },
+          { aligns: ['num', 'num'], rowHeaders: [true] },
         ),
       )}
       ${heading(READING_HEADING)}
@@ -2226,6 +2232,8 @@ const page = ({
                   link(`races/${w.year}/${w.round}`, w.gp_name),
                   w.constructor_id ? link(`constructors/${w.constructor_id}`, teams[w.constructor_id] ?? w.constructor) : text(w.constructor),
                 ]),
+                // The race is its season and its Grand Prix, as on every race list.
+                { rowHeaders: [true, true] },
               )}`
             : ''
         }

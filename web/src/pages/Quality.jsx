@@ -168,7 +168,7 @@ function Body({ data }) {
               share: percent(row.value, total),
             })),
             columns: [
-              { key: 'confidence', label: 'Confidence' },
+              { key: 'confidence', label: 'Confidence', rowHeader: true },
               { key: 'rows', label: 'Rows', align: 'num' },
               { key: 'share', label: 'Share', align: 'num' },
             ],

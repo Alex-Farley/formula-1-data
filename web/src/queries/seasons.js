@@ -108,7 +108,7 @@ const pts = (value) => (missing(value) ? EMPTY : points(value))
 
 export const SEASONS_COLUMNS = [
   // The year is a link in both renderers; text() would print 2,026.
-  { key: 'year', label: 'Season', align: 'num', text: (year) => String(year) },
+  { key: 'year', rowHeader: true, label: 'Season', align: 'num', text: (year) => String(year) },
   { key: 'rounds', label: 'Rounds', align: 'num', text: (rounds, row) => (row.undecided ? `${row.run} of ${text(rounds)}` : text(rounds)) },
   { key: 'champion', label: "Drivers' champion", text: soFar },
   { key: 'champion_team', label: 'Driving for' },

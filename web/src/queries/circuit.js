@@ -112,8 +112,8 @@ export const TEAMS = `
 export const raceWinnerHere = (name, row) => (row.status !== 'completed' ? NOT_YET_RUN : text(name))
 
 export const RACE_COLUMNS = [
-  { key: 'year', label: 'Season', align: 'num', text: (year) => String(year) },
-  { key: 'name_used', label: 'Grand Prix' },
+  { key: 'year', rowHeader: true, label: 'Season', align: 'num', text: (year) => String(year) },
+  { key: 'name_used', rowHeader: true, label: 'Grand Prix' },
   // Plain text in both halves, and a NULL here is a race this database has
   // not attributed to a layout - which is what the sentence above the table
   // says in words. Monza ran 77 races with no layout recorded against any of
@@ -124,7 +124,7 @@ export const RACE_COLUMNS = [
 ]
 
 export const WINNER_COLUMNS = [
-  { key: 'driver', label: 'Driver' },
+  { key: 'driver', rowHeader: true, label: 'Driver' },
   { key: 'wins', label: 'Wins', align: 'num' },
   { key: 'first_win', label: 'Span', align: 'num', text: (_, row) => span(row.first_win, row.last_win) },
 ]
@@ -135,7 +135,7 @@ export const WINNER_COLUMNS = [
 // a reader cannot check against the row is the one thing this site does not
 // do. The column is the same construction as WINNER_COLUMNS's.
 export const TEAM_COLUMNS = [
-  { key: 'constructor', label: 'Constructor' },
+  { key: 'constructor', rowHeader: true, label: 'Constructor' },
   { key: 'wins', label: 'Wins', align: 'num' },
   { key: 'first_win', label: 'Span', align: 'num', text: (_, row) => span(row.first_win, row.last_win) },
 ]

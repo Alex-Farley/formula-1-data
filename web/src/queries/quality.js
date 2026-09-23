@@ -36,7 +36,7 @@ export const CHASSIS_COVERAGE = 'SELECT * FROM v_chassis_coverage ORDER BY decad
  * figure and the photograph strip the app draws had no static half at all.
  */
 export const GAP_COLUMNS = [
-  { key: 'field', label: 'Field' },
+  { key: 'field', rowHeader: true, label: 'Field' },
   { key: 'area', label: 'Area', align: 'prose' },
   { key: 'reader', label: 'What is missing, and why', align: 'prose' },
 ]
@@ -68,7 +68,7 @@ export const CHASSIS_NOTE =
 export const CHASSIS_COVERAGE_COLUMNS = [
   // A decade is a year, not a quantity: the default cell groups thousands and
   // printed the 1950s as "1,950".
-  { key: 'decade', label: 'Decade', align: 'num', text: (value) => String(value) },
+  { key: 'decade', rowHeader: true, label: 'Decade', align: 'num', text: (value) => String(value) },
   { key: 'race_entries', label: 'Entries', align: 'num' },
   { key: 'with_chassis', label: 'With a chassis', align: 'num' },
   { key: 'pct', label: '%', align: 'num' },
@@ -116,7 +116,7 @@ export const safeToQuote = (value) => (value ? 'yes' : 'not without checking')
 
 export const PROVENANCE_COLUMNS = [
   { key: 'rank', label: 'Rank', align: 'num' },
-  { key: 'confidence', label: 'Level' },
+  { key: 'confidence', rowHeader: true, label: 'Level' },
   { key: 'definition', label: 'What it means', align: 'prose' },
   { key: 'may_publish', label: 'Safe to quote', align: 'num', text: safeToQuote },
 ]
@@ -125,8 +125,8 @@ export const LADDER_NOTE =
   'Only an official source — the FIA or formula1.com — carries a row to “verified”. Wikipedia and F1DB reach “reference”, which is not a criticism of either: it means something else would have to check them.'
 
 export const DISCREPANCY_COLUMNS = [
-  { key: 'subject', label: 'Subject' },
-  { key: 'field', label: 'Field' },
+  { key: 'subject', rowHeader: true, label: 'Subject' },
+  { key: 'field', rowHeader: true, label: 'Field' },
   { key: 'stored_value', label: 'Recorded', align: 'num' },
   { key: 'derived_value', label: 'Derived', align: 'num' },
   { key: 'assessment', label: 'Assessment', align: 'prose' },
@@ -137,7 +137,7 @@ export const DISCREPANCIES_NOTE =
   "Where two sources differ and neither can be checked officially, the difference is recorded instead of one being picked quietly. Several of these are a regulation minimum masquerading as a car's measured weight — the check that caught them is why those figures are now blank rather than wrong."
 
 export const RECONCILIATION_COLUMNS = [
-  { key: 'full_name', label: 'Driver' },
+  { key: 'full_name', rowHeader: true, label: 'Driver' },
   { key: 'derived_wins', label: 'Wins derived', align: 'num' },
   { key: 'wins_external', label: 'Wins published', align: 'num' },
   { key: 'derived_poles', label: 'Poles derived', align: 'num' },
@@ -157,7 +157,7 @@ export const disagrees = (row) =>
   (row.fastest_laps_external !== null && row.derived_fl !== row.fastest_laps_external)
 
 export const GEOMETRY_COLUMNS = [
-  { key: 'status', label: 'Status' },
+  { key: 'status', rowHeader: true, label: 'Status' },
   { key: 'circuits', label: 'Circuits', align: 'num' },
   { key: 'traced', label: 'Traced', align: 'num' },
   { key: 'pct', label: '%', align: 'num' },
@@ -167,8 +167,8 @@ export const GEOMETRY_FOOTER =
   "Historic geometry has no source at all: OpenStreetMap maps what is on the ground, and Spa's 14.1 km road course is not on the ground any more."
 
 export const AMBIGUOUS_COLUMNS = [
-  { key: 'year', label: 'Season', align: 'num', text: (year) => String(year) },
-  { key: 'constructor', label: 'Constructor' },
+  { key: 'year', rowHeader: true, label: 'Season', align: 'num', text: (year) => String(year) },
+  { key: 'constructor', rowHeader: true, label: 'Constructor' },
   { key: 'chassis', label: 'Designs entered', align: 'prose' },
   { key: 'unlinked_entries', label: 'Entries left unattributed', align: 'num' },
 ]
@@ -177,7 +177,7 @@ export const AMBIGUOUS_NOTE =
   'A constructor that ran more than one design in a season, where no source in use here says which car raced which round. Attributing a win to one of them would be a guess, so the chassis is left blank.'
 
 export const UNVERIFIED_COLUMNS = [
-  { key: 'tbl', label: 'Table' },
+  { key: 'tbl', rowHeader: true, label: 'Table' },
   { key: 'n', label: 'Rows at medium or unverified', align: 'num' },
 ]
 

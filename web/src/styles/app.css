@@ -828,17 +828,35 @@ th.sortable button:hover .arrow.is-idle {
   color: inherit;
 }
 
-tbody td {
+/*
+ * A row header is drawn as the cell it replaced (AX-21).
+ *
+ * `<th scope="row">` is what says to a screen reader which row a value
+ * belongs to - the driver, the chassis, the season - and it changes nothing a
+ * sighted reader sees: the browser's own bold and centring for a <th> are
+ * undone here, and every rule below that draws a body cell names the row
+ * header beside the <td>. Each pair is a selector list rather than one
+ * :is(), so the <td> half keeps exactly the specificity it had.
+ */
+tbody th {
+  font-weight: inherit;
+  text-align: inherit;
+}
+
+tbody td,
+tbody th {
   padding: 8px 14px;
   border-top: 1px solid var(--rule);
   vertical-align: top;
 }
 
-tbody tr:hover td {
+tbody tr:hover td,
+tbody tr:hover th {
   background: color-mix(in srgb, var(--panel-sunk) 60%, transparent);
 }
 
-td.num {
+td.num,
+tbody th.num {
   text-align: right;
   font-family: var(--mono);
   font-variant-numeric: tabular-nums;
@@ -873,7 +891,8 @@ td.num {
  *
  * max-width stays: it is what the record cells below narrow from.
  */
-td.prose {
+td.prose,
+tbody th.prose {
   min-width: 18ch;
   width: 42ch;
   max-width: 60ch;
@@ -881,7 +900,8 @@ td.prose {
   color: var(--ink-soft);
 }
 
-td:not(.prose) {
+td:not(.prose),
+tbody th:not(.prose) {
   white-space: nowrap;
 }
 
@@ -910,7 +930,8 @@ td:not(.prose) {
  * room the name still takes one line, and the column only narrows when the
  * table has to.
  */
-td.record-name {
+td.record-name,
+tbody th.record-name {
   white-space: normal;
   min-width: 16ch;
 }
@@ -945,6 +966,7 @@ td.record-derivation {
  * the accent back.
  */
 td a,
+tbody th a,
 .stats dd a {
   color: inherit;
   text-decoration-color: var(--rule-strong);
@@ -952,13 +974,16 @@ td a,
 
 td a:hover,
 td a:focus-visible,
+tbody th a:hover,
+tbody th a:focus-visible,
 .stats dd a:hover,
 .stats dd a:focus-visible {
   color: var(--accent);
   text-decoration-color: currentColor;
 }
 
-tbody tr.is-highlight td {
+tbody tr.is-highlight td,
+tbody tr.is-highlight th {
   background: var(--accent-wash);
 }
 

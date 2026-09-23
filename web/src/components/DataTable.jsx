@@ -31,6 +31,19 @@ import TakeAway from './TakeAway.jsx'
  * what the column beside it says in words, which is the classification's
  * result rail (AX-12). scripts/prerender.js reads the same flag.
  *
+ * `rowHeader` makes the column's cells `<th scope="row">` rather than `<td>`:
+ * the cell that says which row this is - the driver, the chassis, the season
+ * (AX-21). Without one, a screen reader moving down the Result column of a
+ * 394-race career hears 394 values and nothing to say which race each belongs
+ * to; with one, it names the row as it arrives. A row is sometimes named by
+ * two cells together - a race is its season AND its Grand Prix, since either
+ * alone repeats down the table - and a column list marks both, which is what
+ * HTML's row headers allow. Every declared column list in web/src/queries
+ * names at least one (web/test/conventions.mjs); the SQL console's result
+ * declares nothing and has none, because a statement's shape is not known to
+ * have a name column. scripts/prerender.js reads the same flag, and the
+ * stylesheet draws the cell as the `<td>` it replaced.
+ *
  * `opening` is the order the rows already arrive in - `{ key, direction }`,
  * the column a query's ORDER BY leads with - and it is shown, never applied.
  * A table that opens in the query's own order used to open with no arrow and
@@ -408,21 +421,25 @@ function Table({
                   key={rowKey ? rowKey(row, i) : i}
                   className={highlight?.(row) ? 'is-highlight' : undefined}
                 >
-                  {kept.map((column) => (
-                    <td
-                      key={column.key}
-                      className={[column.align, column.cellClass, column.className?.(row)]
-                        .filter(Boolean)
-                        .join(' ')}
-                      aria-hidden={column.ariaHidden ? 'true' : undefined}
-                    >
-                      {column.render
-                        ? column.render(row[column.key], row)
-                        : column.text
-                          ? plain(column.text(row[column.key], row))
-                          : cell(row[column.key], { raw })}
-                    </td>
-                  ))}
+                  {kept.map((column) => {
+                    const Cell = column.rowHeader ? 'th' : 'td'
+                    return (
+                      <Cell
+                        key={column.key}
+                        scope={column.rowHeader ? 'row' : undefined}
+                        className={[column.align, column.cellClass, column.className?.(row)]
+                          .filter(Boolean)
+                          .join(' ')}
+                        aria-hidden={column.ariaHidden ? 'true' : undefined}
+                      >
+                        {column.render
+                          ? column.render(row[column.key], row)
+                          : column.text
+                            ? plain(column.text(row[column.key], row))
+                            : cell(row[column.key], { raw })}
+                      </Cell>
+                    )
+                  })}
                 </tr>
               ))}
             </tbody>

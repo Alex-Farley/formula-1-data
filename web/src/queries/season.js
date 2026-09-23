@@ -319,8 +319,8 @@ export const wonHereNote = (next, rows) =>
       : `The last ${WON_HERE_LIMIT} Grands Prix run at ${next.circuit}, newest first. Every race held there is on the circuit's page.`
 
 export const WON_HERE_COLUMNS = [
-  { key: 'year', label: 'Season', align: 'num', text: (year) => String(year) },
-  { key: 'name_used', label: 'Grand Prix' },
+  { key: 'year', rowHeader: true, label: 'Season', align: 'num', text: (year) => String(year) },
+  { key: 'name_used', rowHeader: true, label: 'Grand Prix' },
   { key: 'winner', label: 'Winner' },
   { key: 'constructor', label: 'Constructor' },
 ]
@@ -331,7 +331,7 @@ export const gridDriver = (name, row) =>
 
 export const GRID_COLUMNS = [
   { key: 'car_number', label: 'No.', align: 'num' },
-  { key: 'driver', label: 'Driver', text: gridDriver },
+  { key: 'driver', rowHeader: true, label: 'Driver', text: gridDriver },
   { key: 'abbreviation', label: 'Code' },
   { key: 'team', label: 'Team' },
   { key: 'car', label: 'Car' },
@@ -483,7 +483,7 @@ export const roundResult = (value, row) => (row.status !== 'completed' ? '' : te
 
 export const CALENDAR_COLUMNS = [
   { key: 'round', label: 'R', align: 'num' },
-  { key: 'name_used', label: 'Grand Prix', text: roundName },
+  { key: 'name_used', rowHeader: true, label: 'Grand Prix', text: roundName },
   { key: 'circuit', label: 'Circuit' },
   { key: 'dates', label: 'Dates' },
   { key: 'winner', label: 'Winner', text: roundWinner },
@@ -516,7 +516,7 @@ const won = (value) => (missing(value) ? EMPTY : number(value))
 
 export const DRIVERS_FINAL_COLUMNS = [
   { key: 'position_text', label: 'Pos', align: 'num', text: position },
-  { key: 'entity', label: 'Driver' },
+  { key: 'entity', rowHeader: true, label: 'Driver' },
   { key: 'wins', label: 'Wins', align: 'num', text: won },
   { key: 'points', label: 'Points', align: 'num', text: pts },
   { key: 'gap', label: 'Gap', align: 'num', text: behind },
@@ -532,7 +532,7 @@ export const constructorEntity = (name, row) => (row.engine_id ? `${text(name)} 
 
 export const CONSTRUCTORS_FINAL_COLUMNS = [
   { key: 'position_text', label: 'Pos', align: 'num', text: position },
-  { key: 'entity', label: 'Constructor', text: constructorEntity },
+  { key: 'entity', rowHeader: true, label: 'Constructor', text: constructorEntity },
   { key: 'points', label: 'Points', align: 'num', text: pts },
   { key: 'gap', label: 'Gap', align: 'num', text: behind },
 ]
@@ -588,7 +588,7 @@ export const noConstructorsNote = (year, notRun) => {
 export const NOT_RUN_STANDINGS = 'Not yet run: no round of this calendar has been raced.'
 
 export const ENTRANT_COLUMNS = [
-  { key: 'constructor', label: 'Constructor', text: (name, row) => text(name ?? row.entrant_id) },
+  { key: 'constructor', rowHeader: true, label: 'Constructor', text: (name, row) => text(name ?? row.entrant_id) },
   { key: 'entrant_id', label: 'Entered as' },
   { key: 'chassis_ids', label: 'Chassis', align: 'prose' },
   { key: 'chassis_count', label: 'Designs', align: 'num' },

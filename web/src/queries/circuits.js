@@ -100,7 +100,7 @@ export const SHAPES = 'The shapes'
 export const NO_SHAPES = 'No outline among these circuits.'
 
 export const CIRCUIT_COLUMNS = [
-  { key: 'name', label: 'Circuit' },
+  { key: 'name', rowHeader: true, label: 'Circuit' },
   { key: 'locality', label: 'Locality' },
   { key: 'country', label: 'Country' },
   { key: 'circuit_type', label: 'Type' },

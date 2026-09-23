@@ -152,7 +152,7 @@ export const carName = (row) =>
 export const CLASSIFICATION_COLUMNS = [
   rail,
   { key: 'position_text', label: 'Pos', align: 'num', text: position },
-  { key: 'driver', label: 'Driver', text: driverName },
+  { key: 'driver', rowHeader: true, label: 'Driver', text: driverName },
   // The entrant's name where no constructor is resolved: a privateer entry.
   { key: 'constructor', label: 'Constructor', text: (_, row) => text(carName(row)) },
   { key: 'chassis', label: 'Chassis', text: (name, row) => text(name ?? row.chassis_id) },
@@ -214,7 +214,7 @@ export const classificationFooter = (entries) =>
 /** One time per driver before knock-out qualifying arrived in 2006; the best lap of each session from then. */
 export const qualifyingColumns = (rows) => [
   { key: 'position_text', label: 'Pos', align: 'num' },
-  { key: 'driver', label: 'Driver', text: (name, row) => text(name ?? row.driver_id) },
+  { key: 'driver', rowHeader: true, label: 'Driver', text: (name, row) => text(name ?? row.driver_id) },
   { key: 'constructor', label: 'Constructor' },
   { key: 'driver_number', label: 'No.', align: 'num' },
   ...(rows.some((q) => q.q1)
@@ -234,7 +234,7 @@ export const QUALIFYING_FOOTER =
 export const SPRINT_COLUMNS = [
   rail,
   { key: 'position_text', label: 'Pos', align: 'num' },
-  { key: 'driver', label: 'Driver', text: (name, row) => text(name ?? row.driver_id) },
+  { key: 'driver', rowHeader: true, label: 'Driver', text: (name, row) => text(name ?? row.driver_id) },
   { key: 'constructor', label: 'Constructor' },
   { key: 'grid', label: 'Grid', align: 'num' },
   { key: 'laps_completed', label: 'Laps', align: 'num' },
@@ -248,7 +248,7 @@ export const SPRINT_FOOTER =
 
 export const PIT_COLUMNS = [
   { key: 'lap_number', label: 'Lap', align: 'num' },
-  { key: 'driver', label: 'Driver', text: (name, row) => text(name ?? row.driver_key) },
+  { key: 'driver', rowHeader: true, label: 'Driver', text: (name, row) => text(name ?? row.driver_key) },
   { key: 'stop_number', label: 'Stop', align: 'num' },
   { key: 'stationary_seconds', label: 'Stationary (s)', align: 'num' },
   { key: 'pit_lane_seconds', label: 'Pit lane (s)', align: 'num' },

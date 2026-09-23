@@ -1716,7 +1716,8 @@ try {
       await page.$eval('#root main table', (t) => {
         const head = [...t.querySelectorAll('thead th')].map((th) => th.textContent)
         const row = t.querySelector('tbody tr')
-        return row.querySelectorAll('td')[head.indexOf('Constructor')]?.textContent ?? ''
+        // Every cell of the row, the driver's row header among them (AX-21).
+        return row.children[head.indexOf('Constructor')]?.textContent ?? ''
       }),
       car,
       "and the classification's Constructor cell names it for the winner",
@@ -1833,11 +1834,11 @@ try {
       // does, or 518 of 862 positions differ while the first row agrees.
       await page.click('#root main .table-foot button.more')
       await page.waitForFunction(() => document.querySelectorAll('#root main tbody tr').length > 150, null, { timeout: 20000 })
-      const appOrder = await page.$$eval('#root main tbody tr td:first-child', (tds) => tds.map((td) => td.textContent.trim()))
+      const appOrder = await page.$$eval('#root main tbody tr > :first-child', (cells) => cells.map((c) => c.textContent.trim()))
       const staticOrder = ([...html.matchAll(/<tbody>[\s\S]*?<\/tbody>/g)][0][0].match(/<tr>[\s\S]*?<\/tr>/g) ?? []).map(
         (tr) =>
           tr
-            .match(/<td[^>]*>([\s\S]*?)<\/td>/)[1]
+            .match(/<(?:td|th)[^>]*>([\s\S]*?)<\/(?:td|th)>/)[1]
             .replace(/<[^>]+>/g, '')
             .replace(/&#39;/g, "'")
             .replace(/&quot;/g, '"')
@@ -3298,7 +3299,7 @@ try {
     const firstCell = (heading) =>
       page.evaluate((heading) => {
         const h2 = [...document.querySelectorAll('#root main h2')].find((h) => h.textContent.trim().startsWith(heading))
-        return h2?.closest('section')?.querySelector('tbody tr td:nth-child(1)')?.textContent.trim() ?? null
+        return h2?.closest('section')?.querySelector('tbody tr > :first-child')?.textContent.trim() ?? null
       }, heading)
 
     // Click the header at `index` in the section under `heading`, and wait for
@@ -3520,7 +3521,7 @@ try {
       const seen = await wrap.evaluate((el) => ({
         headers: [...el.querySelectorAll('thead th')].map((h) => h.textContent.replace(/[▲▼]/g, '').trim()),
         rows: [...el.querySelectorAll('tbody tr')].map((tr) =>
-          [...tr.querySelectorAll('td')].map((td) => td.textContent.trim()),
+          [...tr.children].map((cell) => cell.textContent.trim()),
         ),
       }))
       for (const [column, header] of seen.headers.entries()) {
@@ -3630,7 +3631,7 @@ try {
     )
 
     // The acceptance test. Open a driver out of the register and come back.
-    await page.click('#root main tbody tr td a')
+    await page.click('#root main tbody tr :is(td, th) a')
     await page.waitForFunction(() => window.location.pathname.startsWith('/drivers/'), null, { timeout: 20000 })
     await page.goBack()
     await page.waitForSelector('#root main tbody tr', { timeout: 20000 })
@@ -4526,13 +4527,20 @@ try {
         const cells = (row, tag) =>
           [...row.matchAll(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`, 'g'))].map((m) => decode(m[1]))
         const body = markup.slice(markup.indexOf('<tbody>'))
+        // A body cell is a <td> or, for the column that names the row, a
+        // <th scope="row"> (AX-21); both are cells of the row, in order.
+        const bodyCells = (row) => [...row.matchAll(/<(td|th)[^>]*>([\s\S]*?)<\/\1>/g)]
+        const first = body.match(/<tr>([\s\S]*?)<\/tr>/)?.[1] ?? ''
         return {
           // AX-17: the name the table gives assistive technology, which is the
           // heading above it in both halves. Read from the whole slice, not
           // from the head: a <caption> is a child of <table>, before <thead>.
           caption: decode((markup.match(/<caption[^>]*>([\s\S]*?)<\/caption>/) ?? ['', ''])[1]),
           heads: cells(markup.slice(0, markup.indexOf('</thead>')), 'th'),
-          rows: [...body.matchAll(/<tr>([\s\S]*?)<\/tr>/g)].map((m) => cells(m[1], 'td')),
+          rows: [...body.matchAll(/<tr>([\s\S]*?)<\/tr>/g)].map((m) => bodyCells(m[1]).map((c) => decode(c[2]))),
+          rowHeads: bodyCells(first)
+            .map((c, i) => (c[1] === 'th' && /scope="row"/.test(c[0]) ? i : -1))
+            .filter((i) => i >= 0),
         }
       }
 
@@ -4554,6 +4562,9 @@ try {
             caption: table.querySelector('caption') ? clean(table.querySelector('caption')) : '',
             heads: [...table.querySelectorAll('thead th')].map(clean),
             rows: [...table.querySelectorAll('tbody tr')].map((tr) => [...tr.children].map(clean)),
+            rowHeads: [...(table.querySelector('tbody tr')?.children ?? [])]
+              .map((c, i) => (c.tagName === 'TH' && c.getAttribute('scope') === 'row' ? i : -1))
+              .filter((i) => i >= 0),
             // The whole table's count, shown or paged away.
             total: Number(wrap.dataset.rows),
           }
@@ -4576,6 +4587,10 @@ try {
         // check is that it is there and that it is the same one.
         truthy(app.caption, `${where}: the app’s table names itself — “${app.caption}”`)
         is(served.caption, app.caption, `${where}: the static table gives the same name`)
+        // AX-21. The cell that says which row this is: there is one, and the
+        // two halves put it in the same column.
+        truthy(app.rowHeads.length > 0, `${where}: the app’s rows are named by a row header`)
+        is(served.rowHeads.join(','), app.rowHeads.join(','), `${where}: the static row headers are the app’s columns`)
         if (prefix) {
           truthy(
             served.rows.length > 0 && served.rows.length <= app.total,

@@ -156,7 +156,7 @@ export const eventDay = (sessions = [], fallback = null) => {
 
 /** The columns both renderers print, in order: the session, the circuit's clock, UTC. */
 export const SESSION_COLUMNS = [
-  { key: 'name', label: 'Session' },
+  { key: 'name', rowHeader: true, label: 'Session' },
   { key: 'circuit_time', label: 'At the circuit', text: (_, row) => clock(row.start_utc, row.zone) },
   { key: 'utc_time', label: 'UTC', text: (_, row) => utc(row.start_utc) },
 ]

@@ -87,7 +87,7 @@ export const tiersOf = (records) => [...new Set(records.map((r) => r.confidence)
  */
 export function recordColumns(records) {
   return [
-    { key: 'record', label: 'Record', cellClass: 'record-name' },
+    { key: 'record', rowHeader: true, label: 'Record', cellClass: 'record-name' },
     // SECOND, not third. The pair a reader came for is the record and its
     // figure; the holder answers "whose", which is the next question, not the
     // first. Third, the value was the column behind the horizontal scroll at
@@ -121,7 +121,7 @@ export const tierBefore = (count) => `All ${count} carry the `
 export const TIER_AFTER = ' tier, so it is not repeated on every row.'
 
 export const TITLE_COLUMNS = [
-  { key: 'full_name', label: 'Driver' },
+  { key: 'full_name', rowHeader: true, label: 'Driver' },
   { key: 'nationality', label: 'Nationality' },
   { key: 'titles', label: 'Titles', align: 'num' },
   { key: 'title_years', label: 'Years', align: 'prose' },
@@ -130,8 +130,8 @@ export const TITLE_COLUMNS = [
 ]
 
 export const GRAND_SLAM_COLUMNS = [
-  { key: 'year', label: 'Season', align: 'num' },
-  { key: 'gp_name', label: 'Grand Prix' },
+  { key: 'year', rowHeader: true, label: 'Season', align: 'num' },
+  { key: 'gp_name', rowHeader: true, label: 'Grand Prix' },
   { key: 'driver', label: 'Driver' },
   { key: 'constructor', label: 'Constructor' },
 ]

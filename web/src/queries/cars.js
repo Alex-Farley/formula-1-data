@@ -32,7 +32,7 @@ export const GALLERY = `
 
 /** The static page's table of the gallery: what each card says, as a row. */
 export const GALLERY_COLUMNS = [
-  { key: 'car', label: 'Car' },
+  { key: 'car', rowHeader: true, label: 'Car' },
   { key: 'constructor', label: 'Constructor' },
   { key: 'from_year', label: 'Years', align: 'num', text: (_, row) => span(row.from_year, row.to_year) },
   { key: 'concept', label: 'What it was for', align: 'prose' },
@@ -74,7 +74,7 @@ export const CHASSIS = `
 export const chassisName = (name, row) => (row.landmark ? `${text(name)} ${LANDMARK}` : text(name))
 
 export const CHASSIS_COLUMNS = [
-  { key: 'name', label: 'Chassis', text: chassisName },
+  { key: 'name', rowHeader: true, label: 'Chassis', text: chassisName },
   { key: 'constructor', label: 'Constructor' },
   { key: 'first_year', label: 'Raced', align: 'num', text: (_, row) => span(row.first_year, row.last_year) },
   { key: 'engine_name', label: 'Engine', align: 'prose' },

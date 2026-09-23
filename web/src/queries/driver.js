@@ -250,7 +250,7 @@ const ifEntered = (format) => (value, row) => (entered(row) ? format(value, row)
 
 export const THIS_SEASON_COLUMNS = [
   { key: 'round', label: 'Round', align: 'num', text: (round) => String(round) },
-  { key: 'name_used', label: 'Grand Prix' },
+  { key: 'name_used', rowHeader: true, label: 'Grand Prix' },
   { key: 'constructor', label: 'Constructor', text: ifEntered((value) => text(value)) },
   { key: 'grid_text', label: 'Grid', align: 'num', text: ifEntered((value) => text(value)) },
   { key: 'position_text', label: 'Result', align: 'num', text: (_, row) => (entered(row) ? result(row) : NOT_ENTERED) },
@@ -335,7 +335,7 @@ export function seasonRows(bySeason, standings) {
 }
 
 export const SEASON_COLUMNS = [
-  { key: 'year', label: 'Season', align: 'num' },
+  { key: 'year', rowHeader: true, label: 'Season', align: 'num' },
   { key: 'teams', label: 'Constructor', align: 'prose' },
   { key: 'entries', label: 'Entries', align: 'num' },
   // Counted from the race records, so a 0 is a true zero and a column of them
@@ -364,8 +364,8 @@ export const SEASONS_FOOTER =
 
 /** "Every entry": one row per race the driver was entered for, latest first. */
 export const ENTRY_COLUMNS = [
-  { key: 'year', label: 'Season', align: 'num' },
-  { key: 'name_used', label: 'Grand Prix' },
+  { key: 'year', rowHeader: true, label: 'Season', align: 'num' },
+  { key: 'name_used', rowHeader: true, label: 'Grand Prix' },
   { key: 'constructor', label: 'Constructor' },
   { key: 'chassis', label: 'Chassis', text: (name, row) => text(name ?? row.chassis_id) },
   { key: 'grid_text', label: 'Grid', align: 'num' },

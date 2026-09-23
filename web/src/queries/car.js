@@ -79,7 +79,7 @@ export const SEASONS = `
 /* ---------------------------------------------------------------- columns */
 
 export const VARIANT_COLUMNS = [
-  { key: 'name', label: 'Chassis' },
+  { key: 'name', rowHeader: true, label: 'Chassis' },
   { key: 'first_year', label: 'Raced', align: 'num', text: (_, row) => span(row.first_year, row.last_year) },
   { key: 'engine_name', label: 'Engine', align: 'prose' },
   { key: 'power_bhp', label: 'Power (bhp)', align: 'num' },
@@ -92,7 +92,7 @@ export const VARIANTS_FOOTER =
   'Races and wins here belong to that particular variant. The published figure covers the whole car and is shown once, below.'
 
 export const AMBIGUOUS_COLUMNS = [
-  { key: 'year', label: 'Season', align: 'num', text: (year) => String(year) },
+  { key: 'year', rowHeader: true, label: 'Season', align: 'num', text: (year) => String(year) },
   { key: 'other_chassis', label: 'Also entered by this constructor', align: 'prose' },
 ]
 
@@ -107,8 +107,8 @@ export const entryOut = (value, row) => (finished(value, row.finish_position) ? 
 
 /** The columns of the entries table; the Chassis column only where the page covers several. */
 export const entryColumns = (several) => [
-  { key: 'year', label: 'Season', align: 'num', text: (year) => String(year) },
-  { key: 'name_used', label: 'Grand Prix' },
+  { key: 'year', rowHeader: true, label: 'Season', align: 'num', text: (year) => String(year) },
+  { key: 'name_used', rowHeader: true, label: 'Grand Prix' },
   { key: 'driver', label: 'Driver' },
   ...(several ? [{ key: 'chassis', label: 'Chassis' }] : []),
   { key: 'grid_text', label: 'Grid', align: 'num' },

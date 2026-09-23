@@ -571,8 +571,8 @@ function SeasonBody({ year, season, data }) {
             table={{
               rows: progression.flatMap((s) => s.points.map((p) => ({ driver: s.name, round: p.x, points: p.y }))),
               columns: [
-                { key: 'driver', label: 'Driver' },
-                { key: 'round', label: 'After round', align: 'num' },
+                { key: 'driver', label: 'Driver', rowHeader: true },
+                { key: 'round', label: 'After round', align: 'num', rowHeader: true },
                 { key: 'points', label: 'Points', align: 'num' },
               ],
             }}

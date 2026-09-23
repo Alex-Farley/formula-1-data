@@ -61,7 +61,7 @@ export const DRIVERS = `
 `
 
 export const DRIVER_COLUMNS = [
-  { key: 'full_name', label: 'Driver' },
+  { key: 'full_name', rowHeader: true, label: 'Driver' },
   { key: 'nationality', label: 'Nationality' },
   {
     key: 'first_season',
