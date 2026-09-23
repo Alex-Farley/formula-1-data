@@ -7,10 +7,13 @@ import LiveryMark from '../components/LiveryMark.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { missing, number, span } from '../lib/format.js'
 import { colourForEntry } from '../lib/liveries.js'
+import { CURRENT_SEASON } from '../lib/season.js'
+import { canShow } from '../lib/commons.js'
 import {
   AMBIGUOUS_COLUMNS,
   AMBIGUOUS_FOOTER,
   CAR,
+  FIGURES_HEADING,
   ENTRIES,
   IMAGES,
   NO_ENTRIES,
@@ -21,6 +24,7 @@ import {
   VARIANT_COLUMNS,
   entryColumns,
   entryResult,
+  leadsWithPhotograph as photographLeads,
   specified,
 } from '../queries/car.js'
 
@@ -68,6 +72,7 @@ export default function Car() {
     images: [IMAGES, [id, id]],
     entries: [ENTRIES, [id]],
     seasons: [SEASONS, [id, id]],
+    current: [CURRENT_SEASON],
   })
 
   return (
@@ -150,6 +155,8 @@ function CarBody({ chassis, variants, data }) {
     { label: 'Track, rear', value: chassis.track_rear_mm ? `${number(chassis.track_rear_mm)} mm` : null },
   ]
   const hasSpecification = specified([...specChassis, ...specEngine])
+  // This year's chassis opens on its photograph (PD-49); queries/car.js says why.
+  const leadsWithPhotograph = photographLeads(variants, data.current.rows[0]?.season)
 
   return (
     <Page
@@ -158,7 +165,11 @@ function CarBody({ chassis, variants, data }) {
       trail={TRAIL.car(chassis.id, (several ? car?.full_name : null) || chassis.full_name || chassis.name)}
       lede={car?.story}
     >
-      <Section>
+      {leadsWithPhotograph && <Photographs images={images} />}
+
+      {/* A heading only when the photograph is above it and something is
+          drawn there; otherwise the strip sits under the h1 as before. */}
+      <Section title={leadsWithPhotograph && images.some(canShow) ? FIGURES_HEADING : undefined}>
         <Stats
           items={[
             { label: 'Raced', value: span(raced[0], raced[1]) },
@@ -183,7 +194,7 @@ function CarBody({ chassis, variants, data }) {
           constructor, season and race pages draw too (VD-33). No `subjects`:
           this page is the car, and captioning six photographs with its own
           title says nothing the heading has not. */}
-      <Photographs images={images} />
+      {!leadsWithPhotograph && <Photographs images={images} />}
 
       {car && (
         <Section title="Why it mattered">

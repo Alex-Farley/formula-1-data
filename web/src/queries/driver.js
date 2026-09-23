@@ -14,6 +14,7 @@
  * See queries/drivers.js for what a column's `text` is.
  */
 import { EMPTY, finished, missing, number, points, result, span, text, yearList } from '../lib/format.js'
+import { CURRENT_SEASON_SQL } from '../lib/season.js'
 
 export const DRIVER = `SELECT * FROM drivers WHERE id = ?`
 
@@ -191,6 +192,119 @@ export const SEASON_TEAMS = `
    GROUP BY r.year, e.constructor_id
    ORDER BY r.year, last_round DESC, e.constructor_id
 `
+
+/**
+ * THE SEASON BEING RUN, ROUND BY ROUND (PD-49).
+ *
+ * A driver of the current season has a page that opens on that season, with
+ * the career below it. Every round of the declared season's calendar is a
+ * row here, with the driver's entry beside it where there is one, so a round
+ * still to run and a round the driver was not entered for are rows as well:
+ * the chart's axis then runs the length of the calendar, and how much of the
+ * season is left is the space to the right of the last dot rather than a
+ * figure to read. The anchor is meta.current_season (lib/season.js), never a
+ * MAX() over the races - the register already holds next season's calendar.
+ *
+ * A driver with no entry in that season gets no rows, and so no section: a
+ * declared reserve who has not raced has no season to show yet, and for
+ * everyone else the career is the page, as it was.
+ */
+export const THIS_SEASON = `
+  SELECT r.year AS season, r.round, r.name_used, r.status, r.sprint,
+         e.id AS entry_id, e.grid_text, e.grid, e.position_text, e.finish_position,
+         e.status AS out, e.points,
+         k.id AS constructor_id, k.name AS constructor, k.country AS constructor_country
+    FROM races r
+    LEFT JOIN race_entries e ON e.race_id = r.id AND e.driver_id = ?1
+    LEFT JOIN constructors k ON k.id = e.constructor_id
+   WHERE r.year = ${CURRENT_SEASON_SQL}
+     AND EXISTS (SELECT 1 FROM race_entries x JOIN races y ON y.id = x.race_id
+                  WHERE x.driver_id = ?1 AND y.year = r.year)
+   ORDER BY r.round, e.id
+`
+
+/** "The 2026 season so far" while a round is still to run; "The 2026 season" once none is. */
+export const thisSeasonHeading = (rows) =>
+  rows.some((row) => row.status !== 'completed') ? `The ${rows[0]?.season} season so far` : `The ${rows[0]?.season} season`
+
+/**
+ * The heading the career strip takes when the season leads the page. Below
+ * an h2 the untitled strip read as that section's own - "Entries 117" under
+ * a heading about 2026 - so where the season section is drawn the career
+ * gets a heading of its own, and where it is not the strip stays directly
+ * under the h1, as on every other driver's page.
+ */
+export const CAREER_HEADING = 'The career'
+
+/** The rounds run, which are the table's rows: a round still to come has no result to state. */
+export const roundsRun = (rows) => rows.filter((row) => row.status === 'completed')
+
+/**
+ * A round the driver was not entered for is a fact about the round, not a
+ * missing result, so it says so in words rather than drawing the em dash
+ * that means nobody has established the figure; its other cells are blank.
+ */
+export const NOT_ENTERED = 'not entered'
+const entered = (row) => !missing(row.entry_id)
+const ifEntered = (format) => (value, row) => (entered(row) ? format(value, row) : '')
+
+export const THIS_SEASON_COLUMNS = [
+  { key: 'round', label: 'Round', align: 'num', text: (round) => String(round) },
+  { key: 'name_used', label: 'Grand Prix' },
+  { key: 'constructor', label: 'Constructor', text: ifEntered((value) => text(value)) },
+  { key: 'grid_text', label: 'Grid', align: 'num', text: ifEntered((value) => text(value)) },
+  { key: 'position_text', label: 'Result', align: 'num', text: (_, row) => (entered(row) ? result(row) : NOT_ENTERED) },
+  { key: 'points', label: 'Points', align: 'num', text: ifEntered((value) => points(value)) },
+]
+
+/**
+ * The line under the heading: where the drivers' championship has this
+ * driver, for whom, and how much of the season that is.
+ *
+ * The position and the total are the standings' own row for the season -
+ * v_standings_final, which the championship chart below already reads -
+ * and never the rounds added up: the table counts each Grand Prix's points,
+ * and the championship counts the Sprint races as well.
+ */
+export const thisSeasonNote = (rows, standing) => {
+  const rounds = new Set(rows.map((row) => row.round)).size
+  const run = roundsRun(rows)
+  const ran = new Set(run.map((row) => row.round)).size
+  const started = new Set(run.filter(entered).map((row) => row.round)).size
+  const teams = [...new Set(rows.map((row) => row.constructor).filter(Boolean))]
+  const total = missing(standing?.points) ? null : `${points(standing.points)} ${standing.points === 1 ? 'point' : 'points'}`
+  const place = !standing
+    ? null
+    : !missing(standing.position)
+      ? `${ordinal(standing.position)} in the drivers' championship${total ? ` on ${total}` : ''}`
+      : total
+        ? `${total} in the drivers' championship`
+        : null
+  const how = ran === rounds ? `with all ${plural(rounds, 'round')} run` : `with ${number(ran)} of the ${plural(rounds, 'round')} run`
+  const who = teams.length ? `driving for ${constructorList(teams)}` : null
+  const head = [place, who, how].filter(Boolean).join(', ')
+  const sentence = `${head.charAt(0).toUpperCase()}${head.slice(1)}.`
+  return started < ran ? `${sentence} Entered for ${number(started)} of those ${number(ran)}.` : sentence
+}
+
+/**
+ * Said under the table only where it is needed: where the championship
+ * total above is not what the table's points add up to. The two differ by
+ * the Sprint races in a season that ran any, and the sentence names them
+ * only then; anything else is the standings' own figure, and says no more.
+ */
+export const thisSeasonFooter = (rows, standing) => {
+  // Over the entries that carry a figure: a round whose points nobody has
+  // recorded adds nothing rather than being read as a zero.
+  const scored = roundsRun(rows)
+    .filter((row) => entered(row) && !missing(row.points))
+    .reduce((sum, row) => sum + row.points, 0)
+  if (!standing || missing(standing.points) || Math.abs(standing.points - scored) < 0.01) return null
+  const why = roundsRun(rows).some((row) => row.sprint)
+    ? "the championship total above is the drivers' table's, which counts the Sprint races as well"
+    : "the championship total above is the drivers' table's own"
+  return `Points here are each Grand Prix's own, ${points(scored)} between them; ${why}.`
+}
 
 /** SEASON_TEAMS rows grouped by season, in the query's order (latest team first). */
 export function teamsBySeason(rows) {

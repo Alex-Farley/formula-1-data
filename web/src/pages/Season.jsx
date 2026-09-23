@@ -1,10 +1,12 @@
 import { useMemo } from 'react'
-import { SEASON_SESSIONS, clock, nextSession, until } from '../queries/sessions.js'
+import { SEASON_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE, clock, nextSession, until } from '../queries/sessions.js'
 import { Link, useParams } from 'react-router-dom'
 import { Confidence, Fields, Note, Onward, Page, Section, Stats, Stepper } from '../components/Page.jsx'
 import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
-import { OutlineStrip } from '../components/Outline.jsx'
+import { OutlineCard, OutlineStrip } from '../components/Outline.jsx'
+import { outlineCaption } from '../lib/outline.js'
+import { measured, odblCredit } from '../lib/trace.js'
 import Figure from '../charts/Figure.jsx'
 import LineChart from '../charts/LineChart.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
@@ -34,12 +36,19 @@ import {
   GRID_HEADING,
   GRID_NOTE,
   NEIGHBOURS,
+  NEXT_HEADING,
+  NEXT_ROUND,
+  NEXT_TRACE,
   NOT_RUN_STANDINGS,
   REMAINING,
   SEASON,
   STANDINGS,
+  WON_HERE,
+  WON_HERE_COLUMNS,
+  WON_HERE_HEADING,
   constructorsFooter,
   latestRound,
+  nextLine,
   noConstructorsNote,
   progressionNote,
   standingsHeading,
@@ -47,6 +56,7 @@ import {
   teamsByDriver,
   titleHeading,
   titlePermutations,
+  wonHereNote,
 } from '../queries/season.js'
 
 import { ONWARD, TRAIL, seasonSteps } from '../lib/wayfinding.js'
@@ -175,7 +185,88 @@ const ENTRANTS_APP = {
   },
 }
 
-const withRenders = (columns, renders) => columns.map((column) => ({ ...column, ...renders[column.key] }))
+const WON_HERE_APP = {
+  year: { render: (year) => <Link to={`/seasons/${year}`}>{year}</Link> },
+  name_used: { render: (name, row) => <Link to={`/races/${row.year}/${row.round}`}>{name}</Link> },
+  winner: {
+    render: (name, row) =>
+      row.winner_id && !String(name ?? '').includes(' / ') ? <Link to={`/drivers/${row.winner_id}`}>{name}</Link> : cell(name),
+  },
+  constructor: {
+    render: (name, row) => (row.constructor_id ? <Link to={`/constructors/${row.constructor_id}`}>{name}</Link> : cell(name)),
+  },
+}
+
+const withRenders = (columns, renders) =>
+  columns.map((column) => ({ ...column, ...(Object.hasOwn(renders, column.key) ? renders[column.key] : {}) }))
+
+/**
+ * Where the championship goes next (PD-49): the round, its outline, its
+ * weekend, its trace where the overlay has one, and who won there before.
+ * Every word is queries/season.js's and the static page prints the same;
+ * the trace alone is the app's, because f1.db carries none and only the
+ * browser merges f1-geometry.db in.
+ */
+function NextRound({ year, next, sessions, traces, wonHere }) {
+  const line = nextLine(next)
+  return (
+    <>
+      <Section title={NEXT_HEADING}>
+        <p className="measure">
+          {line.before}
+          <Link to={`/races/${year}/${next.round}`}>{next.name_used}</Link>
+          {next.sprint ? ' ' : ''}
+          {next.sprint ? <span className="tag">{SPRINT}</span> : null}
+          {line.at}
+          {next.circuit_id && next.circuit ? <Link to={`/circuits/${next.circuit_id}`}>{next.circuit}</Link> : line.circuit}
+          {line.after}
+        </p>
+        {/* The race page's own arrangement: the weekend, and the outline
+            beside it at a fixed width, below it on a phone. */}
+        <div className={next.outline ? 'with-outline' : undefined}>
+          <div>
+            {sessions.length > 0 ? (
+              <DataTable
+                rows={sessions}
+                rowKey={(row) => row.kind}
+                sortable={false}
+                columns={SESSION_COLUMNS}
+                footer={TIMETABLE_NOTE}
+              />
+            ) : null}
+          </div>
+          {next.outline ? (
+            <OutlineCard
+              path={next.outline}
+              circuit={next.circuit}
+              layoutId={next.f1db_layout_id}
+              caption={outlineCaption({ f1db_layout_id: next.f1db_layout_id, length_km: next.outline_km, turns: next.outline_turns })}
+              rule
+            />
+          ) : null}
+        </div>
+        {traces
+          .filter((geometry) => measured(geometry))
+          .map((geometry) => (
+            <p className="faint" key={`${geometry.circuit_id}-${geometry.layout_key ?? ''}`}>
+              Traced from OpenStreetMap: {measured(geometry)}. {odblCredit(geometry.licence)}
+            </p>
+          ))}
+      </Section>
+
+      <Section title={WON_HERE_HEADING} note={wonHereNote(next, wonHere)}>
+        {wonHere.length > 0 && (
+          <DataTable
+            rows={wonHere}
+            rowKey={(row) => `${row.year}-${row.round}`}
+            sortable={false}
+            columns={withRenders(WON_HERE_COLUMNS, WON_HERE_APP)}
+          />
+        )}
+      </Section>
+    </>
+  )
+}
 
 export default function Season() {
   const { year } = useParams()
@@ -192,6 +283,9 @@ export default function Season() {
     teams: [DRIVER_TEAMS, [Number(year)]],
     images: [SEASON_IMAGES, [Number(year)]],
     remaining: [REMAINING, [Number(year)]],
+    next: [NEXT_ROUND, [Number(year)]],
+    wonHere: [WON_HERE, [Number(year)]],
+    nextTrace: [NEXT_TRACE, [Number(year)]],
   })
 
   return (
@@ -222,6 +316,7 @@ function SeasonBody({ year, season, data }) {
   const teams = useMemo(() => teamsByDriver(rows(data, 'teams')), [data])
   const now = Date.now()
   const upcoming = nextSession(data.sessions.rows, now)
+  const next = data.next.rows[0] ?? null
 
   const driversFinal = useMemo(() => final.filter((r) => r.table_type === 'drivers'), [final])
   const constructorsFinal = useMemo(() => final.filter((r) => r.table_type === 'constructors'), [final])
@@ -425,6 +520,16 @@ function SeasonBody({ year, season, data }) {
           </p>
         )}
       </Section>
+
+      {next && (
+        <NextRound
+          year={year}
+          next={next}
+          sessions={data.sessions.rows.filter((row) => row.round === next.round)}
+          traces={rows(data, 'nextTrace')}
+          wonHere={rows(data, 'wonHere')}
+        />
+      )}
 
       {/* Who is in the cars this season (PD-38). Only a season with a
           declared entry list has one, so the section is absent rather than

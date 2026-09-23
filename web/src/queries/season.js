@@ -17,6 +17,7 @@
  */
 import { EMPTY, missing, number, points, text } from '../lib/format.js'
 import { NOT_YET_RUN, SPRINT } from '../lib/site.js'
+import { CURRENT_SEASON_SQL } from '../lib/season.js'
 
 export const SEASON = `
   SELECT s.*, d.full_name AS champion, t.name AS champion_team_name,
@@ -214,6 +215,115 @@ export const CURRENT_GRID = `
    ORDER BY CASE e.role WHEN 'race' THEN 0 WHEN 'substitute' THEN 1 WHEN 'reserve' THEN 2 ELSE 3 END,
             k.name IS NULL, k.name COLLATE NOCASE, e.car_number
 `
+
+/**
+ * THE NEXT ROUND, ON THE PAGE OF THE SEASON BEING RUN (PD-49).
+ *
+ * The first round the database holds no classification for - the round the
+ * calendar strip below marks "next" (lib/outline.js roundStates), from the
+ * same status, so the section and the strip cannot name different rounds and
+ * the static page, which has no clock, names the same one as the app.
+ *
+ * Only on the page of meta.current_season (lib/season.js). Next season's
+ * page has a "next round" too, a year away, and the question this section
+ * answers - where is the championship going this weekend - is not one that
+ * page is asked. A season with nothing left to run returns no row, and the
+ * section is absent.
+ */
+export const NEXT_ROUND = `
+  SELECT r.year, r.round, r.name_used, r.dates, r.sprint, r.circuit_id,
+         c.name AS circuit, c.locality, c.country,
+         r.f1db_layout_id, o.path AS outline, o.length_km AS outline_km, o.turns AS outline_turns
+    FROM races r
+    LEFT JOIN circuits c ON c.id = r.circuit_id
+    LEFT JOIN circuit_outlines o ON o.f1db_layout_id = r.f1db_layout_id
+   WHERE r.year = ?1 AND r.year = ${CURRENT_SEASON_SQL} AND r.status <> 'completed'
+   ORDER BY r.round
+   LIMIT 1
+`
+
+/** How many of the venue's past winners the section names; the circuit's page has every one. */
+export const WON_HERE_LIMIT = 5
+
+/**
+ * The last Grands Prix run at the next round's venue, newest first, with who
+ * won each. The venue is the circuit, not the event's name: a Grand Prix that
+ * has moved takes its history with the name, and the one being raced this
+ * weekend is at this circuit. The winner and the car are counted from the
+ * race records, as the calendar above counts them.
+ */
+export const WON_HERE = `
+  WITH next AS (${NEXT_ROUND})
+  SELECT r.year, r.round, r.name_used,
+         (SELECT group_concat(d.full_name, ' / ') FROM race_entries e
+            JOIN drivers d ON d.id = e.driver_id
+           WHERE e.race_id = r.id AND e.finish_position = 1)          AS winner,
+         (SELECT e.driver_id FROM race_entries e
+           WHERE e.race_id = r.id AND e.finish_position = 1 LIMIT 1) AS winner_id,
+         (SELECT k.name FROM race_entries e JOIN constructors k ON k.id = e.constructor_id
+           WHERE e.race_id = r.id AND e.finish_position = 1 LIMIT 1) AS constructor,
+         (SELECT e.constructor_id FROM race_entries e
+           WHERE e.race_id = r.id AND e.finish_position = 1 LIMIT 1) AS constructor_id
+    FROM races r
+   WHERE r.circuit_id = (SELECT circuit_id FROM next) AND r.status = 'completed'
+   ORDER BY r.year DESC, r.round DESC
+   LIMIT ${WON_HERE_LIMIT}
+`
+
+/**
+ * The next venue's OpenStreetMap trace, where it has one: queries/circuit.js
+ * GEOMETRY for the one circuit the section is about. Nothing in f1.db - the
+ * centrelines ship as f1-geometry.db and only the browser merges them - so
+ * the static page never has a row, and the app has one only once the overlay
+ * has arrived.
+ */
+export const NEXT_TRACE = `
+  WITH next AS (${NEXT_ROUND})
+  SELECT g.* FROM circuit_geometry g WHERE g.circuit_id = (SELECT circuit_id FROM next)
+`
+
+export const NEXT_HEADING = 'The next round'
+export const WON_HERE_HEADING = 'Won here before'
+
+/**
+ * The sentence that opens the section, in the pieces either side of its two
+ * links - the race and the circuit - so both renderers say it word for word:
+ *
+ *     Round 15, 24-26 Sep 2026: Azerbaijan Grand Prix at Baku City Circuit,
+ *     Baku, Azerbaijan.
+ *
+ * The place is the circuit page's own eyebrow, locality then country. A round
+ * with no circuit recorded says nothing about where it is rather than
+ * guessing, and the Sprint tag goes after the race's name in both halves.
+ */
+export const nextLine = (next) => {
+  const place = [next.locality, next.country].filter(Boolean).join(', ')
+  return {
+    before: `Round ${next.round}${next.dates ? `, ${next.dates}` : ''}: `,
+    at: next.circuit ? ' at ' : '',
+    circuit: next.circuit ?? '',
+    after: `${next.circuit && place ? `, ${place}` : ''}.`,
+  }
+}
+
+/**
+ * The line under the past winners: how many there are and where the rest
+ * are, or that there are none. A venue with no race run is a fact about the
+ * register - no championship Grand Prix is recorded there - not a gap in it.
+ */
+export const wonHereNote = (next, rows) =>
+  rows.length === 0
+    ? `No championship Grand Prix is recorded at ${next.circuit ?? 'this circuit'} before this one.`
+    : rows.length < WON_HERE_LIMIT
+      ? `Every Grand Prix run at ${next.circuit}, newest first.`
+      : `The last ${WON_HERE_LIMIT} Grands Prix run at ${next.circuit}, newest first. Every race held there is on the circuit's page.`
+
+export const WON_HERE_COLUMNS = [
+  { key: 'year', label: 'Season', align: 'num', text: (year) => String(year) },
+  { key: 'name_used', label: 'Grand Prix' },
+  { key: 'winner', label: 'Winner' },
+  { key: 'constructor', label: 'Constructor' },
+]
 
 /** "Yuki Tsunoda reserve": the role, wherever the seat is not a race seat. */
 export const gridDriver = (name, row) =>

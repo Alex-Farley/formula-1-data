@@ -23,7 +23,10 @@ import {
   SEASON_COLUMNS,
   SEASONS_FOOTER,
   SEASON_TEAMS,
+  CAREER_HEADING,
   STANDINGS,
+  THIS_SEASON,
+  THIS_SEASON_COLUMNS,
   lede,
   pointsDiffer,
   pointsNote,
@@ -32,6 +35,10 @@ import {
   leading,
   strip,
   teamsBySeason,
+  roundsRun,
+  thisSeasonFooter,
+  thisSeasonHeading,
+  thisSeasonNote,
 } from '../queries/driver.js'
 
 import { ONWARD, TRAIL, lastTeamOf } from '../lib/wayfinding.js'
@@ -95,6 +102,88 @@ const ENTRY_APP = {
   },
 }
 
+/**
+ * The season being run, a dot per round (PD-49): where the driver finished,
+ * P1 at the top, across the whole calendar, so the rounds still to come are
+ * the space to the right. The words above it and the table under it are
+ * queries/driver.js's, which scripts/prerender.js prints too.
+ */
+function ThisSeason({ name, rows: calendar, standings }) {
+  const season = calendar[0].season
+  const standing = standings.find((s) => s.year === season) ?? null
+  const run = roundsRun(calendar)
+  const footer = thisSeasonFooter(calendar, standing)
+  // Each dot in the team that weekend (AF-47), hollow where the record holds
+  // no colour for it, and plainly neutral only where no dot has one - the
+  // championship chart's rule (AF-55), for the same reasons.
+  const dots = calendar.map((row) => ({
+    row,
+    colour: row.entry_id
+      ? colourForEntry({ constructorId: row.constructor_id, country: row.constructor_country, year: season, team: row.constructor })
+      : null,
+  }))
+  const placed = dots.filter((d) => typeof d.row.finish_position === 'number')
+  const toCome = calendar.some((row) => row.status !== 'completed')
+  const inColour = placed.some((d) => d.colour)
+  const mixed = inColour && !placed.every((d) => d.colour)
+
+  return (
+    <Section title={thisSeasonHeading(calendar)} note={thisSeasonNote(calendar, standing)}>
+      <Figure
+        title={`${name}'s finishes, round by round`}
+        note={`Where ${name} finished in each round of ${season}, P1 at the top. A round with no dot is one ${name} was not classified in or not entered for, and the table says which${toCome ? '; the space to the right is the rounds still to run' : ''}. A win is ringed. ${
+          inColour
+            ? `Each dot is in the colour of the team raced that weekend: ${colourSource(placed.map((d) => d.colour))}.${
+                mixed ? ' A hollow dot is a round this record holds no colour for.' : ''
+              }`
+            : 'The dots are not in team colours: no round on this record has one.'
+        }`}
+        table={{
+          rows: run,
+          columns: THIS_SEASON_COLUMNS.map((column) => ({ ...column, ...THIS_SEASON_APP[column.key] })),
+        }}
+      >
+        <DotPlot
+          data={dots.map(({ row, colour }) => ({
+            x: row.round,
+            y: row.finish_position,
+            label: `R${row.round} ${row.name_used}`,
+            colour: inColour ? colour : null,
+            hollow: inColour && !colour,
+            mark: row.finish_position === 1,
+            // No points clause where the entry carries none: a finish outside
+            // the points holds NULL, and "— points" would claim a gap.
+            note: `P${row.finish_position}${
+              row.points === null || row.points === undefined
+                ? ''
+                : ` · ${fmtPoints(row.points)} ${row.points === 1 ? 'point' : 'points'}`
+            }${row.constructor ? ` · ${row.constructor}` : ''}`,
+          }))}
+          yMax={Math.max(10, ...placed.map((d) => d.row.finish_position))}
+          format={(v) => `P${Math.round(v)}`}
+          formatX={(v) => `R${Math.round(v)}`}
+          height={180}
+          label={`Finishing position in each round of ${season} for ${name}`}
+        />
+      </Figure>
+      {footer && <p className="source-note">{footer}</p>}
+    </Section>
+  )
+}
+
+/** The links the season table's cells carry in the app; the words are THIS_SEASON_COLUMNS'. */
+const THIS_SEASON_APP = {
+  name_used: { render: (name, row) => <Link to={`/races/${row.season}/${row.round}`}>{name}</Link> },
+  constructor: {
+    render: (name, row) =>
+      row.entry_id && row.constructor_id ? (
+        <Link to={`/constructors/${row.constructor_id}`}>{name}</Link>
+      ) : (
+        THIS_SEASON_COLUMNS.find((c) => c.key === 'constructor').text(name, row)
+      ),
+  },
+}
+
 export default function Driver() {
   const { id } = useParams()
   const state = useQueries({
@@ -106,6 +195,7 @@ export default function Driver() {
     constructors: [DRIVER_CONSTRUCTORS, [id]],
     seasonTeams: [SEASON_TEAMS, [id]],
     disagreements: [DRIVER_DISAGREEMENTS, [id]],
+    thisSeason: [THIS_SEASON, [id]],
   })
 
   return (
@@ -190,6 +280,8 @@ function DriverBody({ driver, data }) {
   const finishesInColour = plotted.some((s) => s.colour)
   const finishesMixed = finishesInColour && !plotted.every((s) => s.colour)
   const differ = pointsDiffer(driver, derived)
+  const thisSeason = rows(data, 'thisSeason')
+
 
   return (
     <Page
@@ -208,7 +300,13 @@ function DriverBody({ driver, data }) {
         />
       }
     >
-      <Section>
+      {/* A driver of the season being run opens on it, the career below
+          (PD-49). Absent for every other driver: no rows, no section. */}
+      {thisSeason.length > 0 && (
+        <ThisSeason name={driver.full_name} rows={thisSeason} standings={standings} />
+      )}
+
+      <Section title={thisSeason.length > 0 ? CAREER_HEADING : undefined}>
         <Stats items={leading(strip(driver, derived))} />
       </Section>
 

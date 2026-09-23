@@ -9,7 +9,7 @@ import { rows, row as firstRow, useQueries } from '../data/useQuery.js'
 import { number, span } from '../lib/format.js'
 import { colourForEntry } from '../lib/liveries.js'
 import { OUTLINE_FIGURES_NOTE, OUTLINE_RULE, OUTLINE_SCALE_NOTE, outlineCaption } from '../lib/outline.js'
-import { TRACE_NOT_LOADED, TRACE_RULE, noTrace, odblCredit } from '../lib/trace.js'
+import { TRACE_NOT_LOADED, TRACE_RULE, measured, noTrace, odblCredit } from '../lib/trace.js'
 
 import { NAMES, NOT_YET_RUN } from '../lib/site.js'
 import {
@@ -301,8 +301,6 @@ function CircuitBody({ circuit, data }) {
  * from an ODbL database is as much that database's as a drawing of it was.
  */
 function CircuitTrace({ geometry, circuit }) {
-  const { delta_pct: delta, measured_km: measured, published_km: published } = geometry
-  const both = measured !== null && measured !== undefined && published !== null && published !== undefined
   return (
     <>
       <Fields
@@ -320,14 +318,7 @@ function CircuitTrace({ geometry, circuit }) {
             ),
           },
           geometry.layout_key ? { label: 'Layout traced', value: geometry.layout_key } : null,
-          {
-            label: 'Measured',
-            value: both
-              ? `${measured.toFixed(3)} km against ${published.toFixed(3)} km published here${
-                  delta === null || delta === undefined ? '' : ` (${delta > 0 ? '+' : ''}${delta.toFixed(2)}%)`
-                }`
-              : null,
-          },
+          { label: 'Measured', value: measured(geometry) },
           { label: 'Points', value: number(geometry.node_count) },
           {
             // build.py sums every way in the relation, whether or not they
