@@ -52,7 +52,8 @@ function useDocumentName(documentName, headline, canonical) {
   // page says it is a copy of another (`canonical`, IA-06), when it is that
   // one, as the static page already said. Overwriting it with the path here
   // would take back, the moment the database opened, what the static page
-  // told a crawler.
+  // told a crawler. Under the deploy's base, which the router's pathname
+  // leaves out and the static page and Cite both carry.
   useEffect(() => {
     let tag = document.head.querySelector('link[rel="canonical"]')
     if (!tag) {
@@ -60,7 +61,7 @@ function useDocumentName(documentName, headline, canonical) {
       tag.rel = 'canonical'
       document.head.appendChild(tag)
     }
-    tag.href = `${window.location.origin}${canonical ?? pathname}`
+    tag.href = `${window.location.origin}${(import.meta.env.BASE_URL ?? '/').replace(/\/$/, '')}${canonical ?? pathname}`
   }, [pathname, canonical])
 }
 
