@@ -1060,11 +1060,14 @@ CREATE TABLE race_entries (
     status          TEXT,                      -- Finished | +1 Lap | Engine | Accident ...
     laps_completed  INTEGER,
     -- 0 for a classified finisher below the last place the season's points
-    -- system paid (points_systems.scale, DA-08): the rule paid them nothing,
-    -- which is established, so it is not a blank. NULL is left where it is
-    -- not established by that rule - an entry that did not finish, and the
-    -- few finishers inside the paid places whom the race's own rules did not
-    -- pay, which verify.py names.
+    -- system paid (points_systems.scale, DA-08), and for an entry that was
+    -- not classified - retired, disqualified, did not start, did not qualify
+    -- - in a race that has a classification (DA-36): the rule paid them
+    -- nothing, which is established, so it is not a blank. A point such an
+    -- entry did earn, a 1950s fastest lap, keeps its value. NULL is left
+    -- where that rule does not establish it - the few finishers inside the
+    -- paid places whom the race's own rules did not pay, which verify.py
+    -- names.
     points          REAL,
     note            TEXT,
     confidence      TEXT NOT NULL DEFAULT 'reference' REFERENCES provenance(confidence),
@@ -1104,7 +1107,8 @@ CREATE TABLE sprint_results (
     time            TEXT,                      -- winner's time; gap for the rest
     gap             TEXT,
     points          REAL,                      -- counts towards the championship;
-                                               -- 0 below the paid places, as race_entries
+                                               -- 0 below the paid places and for an
+                                               -- entry not classified, as race_entries
     note            TEXT,
     confidence      TEXT NOT NULL DEFAULT 'reference' REFERENCES provenance(confidence),
     source          TEXT,

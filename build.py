@@ -1998,37 +1998,56 @@ def _stage_22_the_sprint_races(b):
 
 
 def _zero_below_the_paid_places(cur):
-    """0, not NULL, for a classified finisher the points system paid nothing.
+    """0, not NULL, for an entry the points system paid nothing.
 
-    F1DB leaves the points field empty for a finisher outside the points, so
-    thousands of classified finishers held NULL - the value this database
-    uses for *not established* - where what is established is that the rule
-    paid them nothing (DA-08). The line is points_systems.scale: a system
-    pays as far down the order as its scale runs and no further, so every
-    classified finisher below it scored 0.
+    F1DB leaves the points field empty for a finisher outside the points and
+    for an entry that did not finish, so thousands of entries held NULL - the
+    value this database uses for *not established* - where what is
+    established is that the rule paid them nothing. The line is
+    points_systems.scale: a system pays as far down the order as its scale
+    runs and no further, so every classified finisher below it scored 0
+    (DA-08). It pays only a classified place, so every entry that was not
+    classified - a retirement, a disqualification, a car that did not start
+    or did not qualify - scored 0 as well (DA-36, the maintainer's ruling of
+    2026-09-24). An unclassified entry is written only in a race or sprint
+    that has a classification, since until one arrives nobody has been paid
+    anything and nothing is established.
 
-    Only a NULL is written and only below that line. A finisher below it who
-    did score keeps F1DB's figure - a 1950s fastest-lap point, or a
-    championship car classified behind the Formula Two entries of a German
-    Grand Prix. A finisher inside the paid places with no points is left
-    NULL: the scale says those places were paid, so what the race's own
-    rules did to that entry is not this rule's to state, and verify.py names
-    each one. Every row this touches is written here, after the last stage
-    that inserts a race or sprint entry."""
+    Only a NULL is written. An entry that did score keeps F1DB's figure - a
+    1950s fastest-lap point for a car that retired, or a championship car
+    classified behind the Formula Two entries of a German Grand Prix. A
+    finisher inside the paid places with no points is left NULL: the scale
+    says those places were paid, so what the race's own rules did to that
+    entry is not this rule's to state, and verify.py names each one. Every
+    row this touches is written here, after the last stage that inserts a
+    race or sprint entry."""
     written = {}
     for table, sprint in (("race_entries", False), ("sprint_results", True)):
         for fy, ty, scale in cur.execute("""SELECT from_year, to_year, scale
                 FROM points_systems WHERE (scoring LIKE 'SPRINT:%') = ?
                 ORDER BY id""", (sprint,)).fetchall():
-            written[table] = written.get(table, 0) + cur.execute(f"""
+            below = cur.execute(f"""
                 UPDATE {table} SET points = 0
                 WHERE points IS NULL AND finish_position > ?
                   AND race_id IN (SELECT id FROM races WHERE year >= ?
                                   AND (? IS NULL OR year <= ?))""",
                 (len(json.loads(scale)), fy, ty, ty)).rowcount
-    print(f"  points: 0 written for {written.get('race_entries', 0)} classified "
-          f"finishers and {written.get('sprint_results', 0)} sprint finishers "
-          f"below the last place their points system paid")
+            unclassified = cur.execute(f"""
+                UPDATE {table} SET points = 0
+                WHERE points IS NULL AND finish_position IS NULL
+                  AND race_id IN (SELECT id FROM races WHERE year >= ?
+                                  AND (? IS NULL OR year <= ?))
+                  AND EXISTS (SELECT 1 FROM {table} c
+                              WHERE c.race_id = {table}.race_id
+                                AND c.finish_position IS NOT NULL)""",
+                (fy, ty, ty)).rowcount
+            b, u = written.get(table, (0, 0))
+            written[table] = (b + below, u + unclassified)
+    (gb, gu), (sb, su) = (written.get("race_entries", (0, 0)),
+                          written.get("sprint_results", (0, 0)))
+    print(f"  points: 0 written for {gb} classified finishers below the last "
+          f"place their points system paid and {gu} entries not classified; "
+          f"sprints {sb} and {su}")
 
 
 def _stage_23_a_round_that_has_a_result(b):
