@@ -1260,7 +1260,10 @@ LEFT JOIN constructors cc ON cc.id = s.constructors_champion
 ORDER BY s.year;
 
 CREATE VIEW v_title_count AS
-SELECT d.full_name, d.nationality, d.titles, d.title_years, d.wins, d.poles
+-- d.id leads, as v_wins_by_constructor's c.id does: a row of this view is a
+-- driver, and without the key nothing reading it can link the row - joining
+-- back on full_name is not safe, since names are not unique (PD-27).
+SELECT d.id, d.full_name, d.nationality, d.titles, d.title_years, d.wins, d.poles
 FROM drivers d
 WHERE d.titles > 0
 ORDER BY d.titles DESC, d.wins DESC;
@@ -1585,7 +1588,9 @@ WHERE e.finish_position = 1
 GROUP BY c.id ORDER BY wins DESC;
 
 CREATE VIEW v_wins_by_decade AS
-SELECT (r.year/10)*10 AS decade, d.full_name, COUNT(*) AS wins
+-- A row is a decade and a driver, so the driver's key is driver_id, as the
+-- other views keyed on something other than their own row name it (PD-27).
+SELECT (r.year/10)*10 AS decade, d.id AS driver_id, d.full_name, COUNT(*) AS wins
 FROM race_entries e JOIN races r ON r.id = e.race_id JOIN drivers d ON d.id = e.driver_id
 WHERE e.finish_position = 1
 GROUP BY decade, d.id ORDER BY decade, wins DESC;

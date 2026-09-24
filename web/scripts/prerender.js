@@ -411,10 +411,14 @@ import {
   compareWith,
 } from '../src/queries/compare.js'
 import {
+  DERIVATION,
   DRIVER_WINS,
+  KEY_SHAPE,
+  RECORD,
   RECORDS,
   TIER_AFTER,
   holderPath,
+  recordPath,
   recordColumns,
   tierBefore,
   tiersOf,
@@ -3032,6 +3036,7 @@ page({
             : ''
         }</p>
       ${fromColumns(recordColumns(records), records, {
+        record: (value, row) => link(recordPath(row), value),
         confidence: (value) => (value ? link('data/quality', value) : text(value)),
         holder: (value, row) => {
           const path = holderPath(row)
@@ -3039,6 +3044,40 @@ page({
         },
       })}`,
   })
+
+  // One page per record, at its key (PD-27): the row, and the citation
+  // block every page carries. The key is the address because the id moves
+  // (DA-26); a key that is not a slug would write a path that is not one
+  // record, so it stops the build here rather than shipping.
+  for (const { key } of records) {
+    if (!KEY_SHAPE.test(key)) die(`prerender: records.key "${key}" is not a slug, so it cannot be an address`)
+    const record = one(RECORD, key)
+    const holder = holderPath(record)
+    page({
+      path: recordPath(record),
+      title: NAMES.record(record.record).title,
+      description: summarise(`${record.record}: ${record.holder}, ${record.value}. ${record.detail}`, 300),
+      trail: TRAIL.record(record.key, record.record),
+      onward: ONWARD.record({ record, holder }),
+      body: `
+        <h1>${esc(NAMES.record(record.record).headline)}</h1>
+        ${stats([
+          { label: 'Value', value: esc(record.value), lead: true },
+          { label: 'Holder', value: holder ? link(holder, record.holder) : esc(record.holder) },
+        ])}
+        <h2>${esc(DERIVATION)}</h2>
+        ${prose(record.detail)}
+        <h2>On the record</h2>
+        ${fields([
+          ['As of', esc(record.as_of)],
+          ['Confidence', confidencePill(record.confidence)],
+          ['Category', esc(record.category)],
+          ['Comparable figure', esc(number(record.value_num))],
+          ['Unit', esc(record.unit)],
+          ['Key', `<code>${esc(record.key)}</code>`],
+        ])}`,
+    })
+  }
 
   const eras = all(ERAS)
   page({

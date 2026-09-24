@@ -66,6 +66,7 @@ export const TRAIL = {
   cars: () => [HOME, ['/cars', 'Cars']],
   car: (id, name) => [HOME, ['/cars', 'Cars'], [`/cars/${id}`, name]],
   records: () => [HOME, ['/records', 'Records']],
+  record: (key, name) => [HOME, ['/records', 'Records'], [`/records/${key}`, name]],
   eras: () => [HOME, ['/reference/eras', 'Eras']],
   glossary: () => [HOME, ['/reference/glossary', 'Glossary']],
   data: () => [HOME, ['/data', 'Data']],
@@ -411,6 +412,23 @@ export const ONWARD = {
         label: 'Ask your own question',
         hint: 'The SQL console, for the leaderboard that is not on this page.',
       },
+    ],
+  }),
+
+  /**
+   * One record's page (PD-27): the holder where the record has one page to
+   * send a reader to - a shared record names two or more and has none - the
+   * row itself in the console, and the rest of the records.
+   */
+  record: ({ record, holder }) => ({
+    items: [
+      holder ? { to: `/${holder}`, label: record.holder, hint: 'The holder, and the career this record is part of.' } : null,
+      {
+        to: `/data/sql?q=${encodeURIComponent(`SELECT * FROM records WHERE key = '${record.key}'`)}`,
+        label: 'The row itself',
+        hint: 'This record as the database holds it, in the SQL console.',
+      },
+      { to: '/records', label: 'All records', hint: 'Every record, and the leaderboards they are counted beside.' },
     ],
   }),
 

@@ -2693,6 +2693,59 @@ try {
     is((await tableRows())[0], count('SELECT COUNT(*) FROM records'), 'published records')
     atLeast(await page.$$eval('#root main .figure svg', (n) => n.length), 4, 'the leaderboards drew')
 
+    // PD-27: every record's name is its own page, and every champion and
+    // decade leader a driver's, by the id the two views now carry.
+    const recordLinks = await page.$$eval('#root main table tbody th a[href^="/records/"]', (n) => n.length)
+    is(recordLinks, count('SELECT COUNT(*) FROM records'), 'every record links its own page')
+    const championLinks = await page.$$eval('#root main h2', (nodes) =>
+      [...(nodes.find((h) => h.textContent.startsWith('Champions'))?.closest('section')?.querySelectorAll('tbody a[href^="/drivers/"]') ?? [])].length,
+    )
+    is(championLinks, count('SELECT COUNT(*) FROM v_title_count'), 'every champion links the driver')
+
+    // AX-28: the three leaderboard tables in one section were all named for
+    // it; a screen reader's table list has to be able to tell them apart.
+    const captions = await page.$$eval('#root main table caption', (nodes) => nodes.map((n) => n.textContent.trim()))
+    is(new Set(captions).size, captions.length, `all ${captions.length} tables on /records carry a caption of their own`)
+
+  })
+
+  // PD-27: a record at an address of its own, by its key. Three holders the
+  // page has to draw differently: one driver, a record shared by two or more
+  // (no holder_id, so no link), and a race, linked by year and round.
+  await section('/records/:key  (one record)', async () => {
+    const pick = (where) => db.prepare(`SELECT * FROM records WHERE ${where} ORDER BY key LIMIT 1`).get()
+    const cases = [
+      [pick("holder_table = 'drivers' AND holder_id IS NOT NULL"), 'a driver'],
+      [pick('holder_id IS NULL'), 'a shared record'],
+      [pick("holder_table = 'races' AND holder_id IS NOT NULL"), 'a race'],
+    ]
+    for (const [rec, what] of cases) {
+      if (!rec) {
+        pass(`no record is held by ${what}`)
+        continue
+      }
+      await go(`/records/${rec.key}`, rec.record)
+      const app = await page.$eval('#root main', (main) =>
+        [...main.querySelectorAll('dl.stats dd, dl.fields dd')].map((dd) => dd.textContent.trim()),
+      )
+      truthy(app.includes(rec.value) && app.includes(rec.key), `/records/${rec.key} (${what}): the value and the key`)
+      const holderHref = await page.$$eval('#root main dl.stats a', (nodes) => nodes.map((a) => a.getAttribute('href')))
+      if (rec.holder_id === null) is(holderHref.length, 0, 'and a shared holder is text, not a link')
+      else if (rec.holder_table === 'races') {
+        const race = db.prepare('SELECT year, round FROM races WHERE id = ?').get(Number(rec.holder_id))
+        is(holderHref[0], `/races/${race.year}/${race.round}`, 'and the holder links the race')
+      } else is(holderHref[0], `/${rec.holder_table}/${rec.holder_id}`, 'and the holder links its page')
+
+      // The static page carries the same figures in the same order.
+      const html = (await (await fetch(`${BASE}/records/${rec.key}`)).text()).split('<article class="page">')[1] ?? ''
+      const served = [...html.split('</article>')[0].matchAll(/<dd>([\s\S]*?)<\/dd>/g)].map((m) =>
+        unescaped(m[1].replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim(),
+      )
+      is(served.join(' | '), app.join(' | '), 'and the static page states the same figures, in order')
+    }
+
+    await go('/records/no-such-record', 'No such record')
+    pass('an unknown key is a page that says so')
   })
 
   // The front door. The version and build date it states are read from the
@@ -4721,6 +4774,7 @@ try {
             WHERE NOT EXISTS (SELECT 1 FROM chassis y WHERE y.id = c.id)
               AND (SELECT COUNT(*) FROM chassis x WHERE x.car_id = c.id) = 1`) +
       10 + // records, data and its three children, eras, glossary, changes, about, compare (PD-43)
+      one('SELECT COUNT(*) FROM records') + // one per record, at its key (PD-27)
       // SD-20: feed.xml is listed too. It is not a page, but it is an address
       // worth recrawling, and its lastmod is the one on the site that moves
       // whenever the data does.
@@ -5085,6 +5139,7 @@ try {
       '/cars/mercedes-w11',
       '/cars/brabham-bt46',
       '/records',
+      '/records/most-wins',
       '/reference/eras',
       '/reference/glossary',
       '/data',
