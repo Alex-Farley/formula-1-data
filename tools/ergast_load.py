@@ -734,10 +734,16 @@ def main():
                         and held[0] != e["position"]
                         and "f1db" in (held[1] or "").lower()):
                     conflicts.append((year, rnd, did, held[0], e["position"]))
+                    # One entry's line: race_entries' natural key whole,
+                    # spelt and named the way build.py files every other
+                    # row (DA-09).
                     cur.execute("""INSERT OR IGNORE INTO discrepancies
-                        (subject, field, stored_value, derived_value,
-                         assessment, status) VALUES (?,?,?,?,?,?)""",
-                        (f"{year} round {rnd}, {did}", "finish_position",
+                        (key, subject, tbl, row_key, field, stored_value,
+                         derived_value, assessment, status)
+                        VALUES (?,?,?,?,?,?,?,?,?)""",
+                        (f"race_entries.finish_position[{rid}|{did}]",
+                         f"{year} round {rnd}, {did}", "race_entries",
+                         f"{rid}|{did}", "finish_position",
                          str(held[0]), str(e["position"]),
                          "F1DB and Jolpica-F1 give different finishing "
                          "positions for the same driver in the same race. "

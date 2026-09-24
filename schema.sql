@@ -1543,8 +1543,15 @@ CREATE INDEX idx_radio_notable    ON team_radio(notable);
 --             a race in which no lap was set) - the right state, not a gap
 -- `reader` is the one-paragraph version a reader of the site is shown;
 -- `description` and `resolution` are the maintainer's note, kept whole.
+-- `key` is the gap's name to cite it by, written beside it in
+-- data/harvest.py and never reused (DA-24): `id` is numbered by hand and
+-- has held, but the identifier policy promises no integer id outside the
+-- tables it names, and a correction that names a gap needs something the
+-- policy does promise. It is the natural key data/current.py ID_STABILITY
+-- publishes, so verify.py holds it to one row.
 CREATE TABLE known_gaps (
     id              INTEGER PRIMARY KEY,
+    key             TEXT NOT NULL UNIQUE,      -- e.g. 'cost-cap-indexation'
     field           TEXT NOT NULL,             -- which column is incomplete
     area            TEXT NOT NULL,
     state           TEXT NOT NULL CHECK (state IN ('open', 'closed', 'position')),
@@ -1559,14 +1566,46 @@ CREATE TABLE known_gaps (
 CREATE VIEW v_open_gaps AS
 SELECT * FROM known_gaps WHERE state = 'open' ORDER BY id;
 
+-- Where two sources disagree, both readings, on the record (DA-09).
+--
+-- `tbl`, `row_key` and `field` say which value the disagreement is about:
+-- column `field` of the row of `tbl` whose key is `row_key`, spelt the way
+-- `claims` spells it - the primary key where that is not a bare integer id,
+-- or else the natural key data/current.py ID_STABILITY publishes, its
+-- columns joined by '|' in key order: 'mclaren-m23', 'ferrari-500|1952'.
+-- A leading part of a key names every row it begins - '57' is every entry
+-- in race 57, '2026|constructors|14' the constructors' table after round 14
+-- - because some disagreements are about a race's classification rather
+-- than one driver's line of it. NULL names no single row: a figure a whole
+-- grid quoted, withdrawn from every chassis that quoted it, which `subject`
+-- describes. verify.py holds `field` to a column of `tbl` and a `row_key`
+-- to at least one of its rows.
+--
+-- `key` is the row's name to cite it by, `tbl.field[row_key]` - or, where
+-- `row_key` is NULL, `tbl.field[=stored_value]` - so it follows from the
+-- fact and not from the order the build filed it in. It is the natural key
+-- ID_STABILITY publishes; the three columns cannot be, because their NULL
+-- would make one key of every grid-wide row.
+--
+-- `subject` is the display name, and is what a race, driver or constructor
+-- page finds its rows by. `status` is one of three words: open (nothing has
+-- settled it), resolved (settled - the record was changed or the claim not
+-- applied) or explained (settled without either side being wrong). How is
+-- `status_note`, a short phrase: 'withdrawn', 'external figure is older'.
+-- A value that is absent is NULL, never the string 'NULL'.
 CREATE TABLE discrepancies (
     id              INTEGER PRIMARY KEY,
+    key             TEXT NOT NULL UNIQUE,
     subject         TEXT NOT NULL,
-    field           TEXT NOT NULL,
+    tbl             TEXT NOT NULL,
+    row_key         TEXT,
+    field           TEXT NOT NULL,             -- a column of `tbl`
     stored_value    TEXT,
     derived_value   TEXT,
     assessment      TEXT NOT NULL,
     status          TEXT NOT NULL DEFAULT 'open'
+                    CHECK (status IN ('open', 'resolved', 'explained')),
+    status_note     TEXT
 );
 
 -- Shared poles and fastest laps: one row per driver credited. Used because

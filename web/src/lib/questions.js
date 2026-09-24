@@ -402,9 +402,9 @@ export const QUESTIONS = [
     topic: 'The data',
     q: 'Where the sources disagree',
     also: 'discrepancies conflicts open questions',
-    sql: `SELECT subject, field, stored_value, derived_value, status
+    sql: `SELECT key, subject, field, stored_value, derived_value
    FROM discrepancies
-  WHERE status LIKE 'open%'
+  WHERE status = 'open'
   ORDER BY subject`,
   },
   {

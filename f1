@@ -724,13 +724,13 @@ def main():
                     print("        " + line)
                 print(f"        -> {r['resolution']}\n")
         print("  CORRECTIONS — an external figure was checked and found wrong\n")
-        for r in c.execute("SELECT * FROM discrepancies WHERE status LIKE 'resolved%'"):
+        for r in c.execute("SELECT * FROM discrepancies WHERE status = 'resolved'"):
             print(f"    {r['subject']} {r['field']}: {r['stored_value']} -> {r['derived_value']}")
             for line in textwrap.wrap(r["assessment"], W - 8):
                 print("        " + line)
             print()
         print("  OPEN DISCREPANCIES — external figure disagrees with the race records\n")
-        for r in c.execute("SELECT * FROM discrepancies WHERE status LIKE 'open%'"):
+        for r in c.execute("SELECT * FROM discrepancies WHERE status = 'open'"):
             print(f"    {r['subject']} {r['field']}: "
                   f"external {r['stored_value']}, derived {r['derived_value']}")
             for line in textwrap.wrap(r["assessment"], W - 8):

@@ -7,11 +7,12 @@
  * open wording for both, which is the cautious side to fall on; no driver
  * has both today.
  */
-// The same prefix the queries select on, so a row of another explained kind
-// could never be introduced as this one.
-export const EXPLAINED_SPAN = 'explained - each side'
+// The status_note the queries select on - build.py's EACH_SIDE_RIGHT, the
+// phrase it files these rows with (DA-09) - so a row of another explained
+// kind could never be introduced as this one.
+export const EXPLAINED_SPAN = 'each side is right about something'
 export const allExplained = (rows) =>
-  rows.length > 0 && rows.every((r) => String(r.status ?? '').startsWith(EXPLAINED_SPAN))
+  rows.length > 0 && rows.every((r) => r.status === 'explained' && r.status_note === EXPLAINED_SPAN)
 
 /**
  * The aside's closing sentences, one string for both renderers. "Published"

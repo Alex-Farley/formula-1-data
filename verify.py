@@ -534,10 +534,10 @@ def standings():
             # Open, and about this entity: a tidying pass that marked one
             # resolved would take it off the page, and this is what says so.
             filed = con.execute("""SELECT 1 FROM discrepancies
-                WHERE subject = ? AND field = ? AND stored_value = ?
-                  AND derived_value = ? AND status LIKE 'open%'""",
-                (subj_[0] if subj_ else eid_,
-                 f"{yr_} championship points, after round {rnd_}",
+                WHERE tbl = 'standings' AND row_key = ? AND field = 'points'
+                  AND subject = ? AND stored_value = ?
+                  AND derived_value = ? AND status = 'open'""",
+                (f"{yr_}|{kind_}|{rnd_}|{eid_}", subj_[0] if subj_ else eid_,
                  pts_text(snap_), pts_text(f1db_[0]))).fetchone()
             if not filed:
                 unfiled.append(f"{yr_} {kind_} {eid_} {snap_} v {f1db_[0]}")
@@ -550,15 +550,24 @@ def standings():
     # filed nine times over as season totals and nowhere on the race.
     uncaused = []
     groups = {}
-    for field_, stored_, derived_, text_, is_driver_ in con.execute("""
-            SELECT d.field, d.stored_value, d.derived_value, d.assessment,
-                   EXISTS (SELECT 1 FROM drivers x WHERE x.full_name = d.subject)
+    # A snapshot is (year, the round it stands after), the head of the row
+    # key, and only the official running snapshots are compared - the rows
+    # the check above says must be filed. A final table's disagreement is
+    # not a snapshot and is not traced to a race.
+    for row_key_, stored_, derived_, text_, is_driver_ in con.execute("""
+            SELECT d.row_key, d.stored_value, d.derived_value, d.assessment,
+                   d.row_key LIKE '%|drivers|%'
               FROM discrepancies d
-             WHERE d.field LIKE '____ championship points, after round %'
-               AND d.status LIKE 'open%'"""):
-        groups.setdefault(field_, []).append((stored_, derived_, text_, is_driver_))
-    for field_, rows_ in sorted(groups.items()):
-        yr_ = field_[:4]
+             WHERE d.tbl = 'standings' AND d.field = 'points'
+               AND d.status = 'open'
+               AND EXISTS (SELECT 1 FROM standings s
+                    WHERE s.basis = 'running' AND s.source LIKE '%formula1.com%'
+                      AND d.row_key = s.year || '|' || s.table_type || '|'
+                                      || s.after_round || '|' || s.entity_id)"""):
+        yr_, _kind, after_, _eid = row_key_.split("|", 3)
+        groups.setdefault((yr_, after_), []).append((stored_, derived_, text_, is_driver_))
+    for (yr_, after_), rows_ in sorted(groups.items()):
+        field_ = f"{yr_} after round {after_}"
         driver_rows = [r for r in rows_ if r[3]]
         net = sum(float(r[0]) - float(r[1]) for r in driver_rows)
         cited = {m for r in rows_
@@ -571,9 +580,10 @@ def standings():
                 continue
         for race_ in cited:
             rn_ = int(race_.rsplit(" ", 1)[1])
-            if rn_ > int(field_.rsplit(" ", 1)[1]) or not con.execute(
+            if rn_ > int(after_) or not con.execute(
                     """SELECT 1 FROM discrepancies WHERE subject = ?
-                         AND field LIKE 'finishing order%' AND status LIKE 'open%'""",
+                         AND tbl = 'race_entries' AND field = 'finish_position'
+                         AND status = 'open'""",
                     (race_,)).fetchone():
                 uncaused.append(f"{field_}: cites {race_}, which carries no open "
                                 f"finishing-order disagreement")
@@ -1190,6 +1200,13 @@ def pole_position_and_fastest_lap():
     _ids = [r[0] for r in con.execute("SELECT id FROM known_gaps ORDER BY id")]
     check("known_gaps ids are 1..N, written and contiguous",
           _ids == list(range(1, len(_ids) + 1)), ", ".join(map(str, _ids)))
+    # DA-24. The id is a number in a list; the key is what a reader cites a
+    # gap by, so it is a word they can type. ID_STABILITY publishes it, which
+    # is what holds it to one row.
+    _bad_keys = [k for (k,) in con.execute("SELECT key FROM known_gaps")
+                 if not re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", k or "")]
+    check("every known gap's key is lower-case words and digits joined by hyphens",
+          not _bad_keys, ", ".join(_bad_keys[:4]))
     _here = os.path.dirname(os.path.abspath(__file__))
     _cited = {}
     for root, dirs, files in os.walk(_here):
@@ -1311,7 +1328,7 @@ def external_figures_vs_the_race_records():
     d = con.execute("SELECT COUNT(*) FROM discrepancies").fetchone()[0]
     print(f"        {n} drivers compared on three fields; {d} differences, all accounted for")
 
-    openn = con.execute("SELECT COUNT(*) FROM discrepancies WHERE status LIKE 'open%'").fetchone()[0]
+    openn = con.execute("SELECT COUNT(*) FROM discrepancies WHERE status = 'open'").fetchone()[0]
     warn("no open discrepancies awaiting an official check", openn == 0,
          f"{openn} open - see the discrepancies table")
 
@@ -1322,10 +1339,11 @@ def external_figures_vs_the_race_records():
     # the problem, because the disagreement would simply stop being shown and
     # nothing would say so. This is the check that makes the quiet join safe to
     # rely on: a subject that names no race, or no driver, is refused here.
+    import build
     unresolved = []
     for did, subject in con.execute(
-            "SELECT id, subject FROM discrepancies WHERE status LIKE 'open%' "
-            "OR status LIKE 'explained - each side%'"):
+            "SELECT id, subject FROM discrepancies WHERE status = 'open' "
+            "OR (status = 'explained' AND status_note = ?)", (build.EACH_SIDE_RIGHT,)):
         m = re.fullmatch(r"(\d{4}) round (\d+)", subject or "")
         if m:
             if not con.execute("SELECT 1 FROM races WHERE year=? AND round=?",
@@ -2234,10 +2252,11 @@ def the_driver_register():
     # the end, and its two figures must be that end's register value and
     # the records' MIN or MAX year.
     _explained = {}
+    import build
     for did, field, sv, dv in con.execute("""SELECT d.id, x.field, x.stored_value, x.derived_value
-        FROM discrepancies x JOIN drivers d ON d.full_name = x.subject
-        WHERE x.field IN ('first_season', 'last_season')
-          AND x.status = 'explained - each side is right about something'"""):
+        FROM discrepancies x JOIN drivers d ON d.id = x.row_key
+        WHERE x.tbl = 'drivers' AND x.field IN ('first_season', 'last_season')
+          AND x.status = 'explained' AND x.status_note = ?""", (build.EACH_SIDE_RIGHT,)):
         _explained.setdefault(did, []).append((field, sv, dv))
     _declared = set(_explained)
     _agg = {"first_season": "MIN", "last_season": "MAX"}
@@ -2249,7 +2268,7 @@ def the_driver_register():
                      (int(sv), int(dv), d)).fetchone()[0]]
     _top = con.execute("SELECT MAX(id) FROM discrepancies").fetchone()[0]
     _exp_ids = sorted(r[0] for r in con.execute("""SELECT id FROM discrepancies
-        WHERE status = 'explained - each side is right about something'"""))
+        WHERE status = 'explained' AND status_note = ?""", (build.EACH_SIDE_RIGHT,)))
     _n_exp = len(harvest_module().EXPLAINED_SPANS)
     check("the explained span rows are the last discrepancies written, so adding one moves no id",
           len(_exp_ids) == _n_exp and _exp_ids == list(range(_top - _n_exp + 1, _top + 1)),
@@ -3373,6 +3392,69 @@ def claims():
         GROUP BY s.id ORDER BY n DESC""").fetchall()
     print("        claims by source: " +
           "; ".join(f"{r['source']} {r['n']}" for r in by_source))
+
+
+@section('A DISAGREEMENT NAMES THE VALUE IT IS ABOUT')
+def a_disagreement_names_the_value_it_is_about():
+    """DA-09. `subject` is display text in five shapes and `field` used three
+    vocabularies, so nothing outside this file could join a disagreement to
+    the value it is about. (tbl, row_key, field) is that join, spelt the way
+    `claims` spells it, and this holds it to the database: the table exists,
+    the field is one of its columns, and the row key names at least one of
+    its rows. The columns are read from the schema, never listed here."""
+    from data import current as _N
+
+    tables = {r[0] for r in con.execute(
+        "SELECT name FROM sqlite_master WHERE type = 'table'")}
+    rows = con.execute("""SELECT id, key, tbl, row_key, field, stored_value,
+        derived_value FROM discrepancies ORDER BY id""").fetchall()
+    notable, nocolumn, dangling, misnamed = [], [], [], []
+    for r in rows:
+        if r["tbl"] not in tables:
+            notable.append(f"#{r['id']} {r['tbl']}")
+            continue
+        cols = [c[1] for c in con.execute(f'PRAGMA table_info("{r["tbl"]}")')]
+        if r["field"] not in cols:
+            nocolumn.append(f"#{r['id']} {r['tbl']}.{r['field']}")
+        want = (f"{r['tbl']}.{r['field']}[{r['row_key']}]" if r["row_key"] is not None
+                else f"{r['tbl']}.{r['field']}[={r['stored_value']}]")
+        if r["key"] != want:
+            misnamed.append(f"#{r['id']} {r['key']!r}, not {want!r}")
+        if r["row_key"] is None:
+            continue
+        # The primary key where it is not a bare integer id, as a claim's
+        # is, and otherwise the natural key the identifier policy publishes.
+        # A row key may name only the head of it: a race's entries, a
+        # standings table after one round.
+        key = claim_key_columns(r["tbl"]) or list(
+            (_N.ID_STABILITY.get(r["tbl"]) or (None, None))[1] or [])
+        parts = r["row_key"].split("|")
+        if not key or len(parts) > len(key):
+            dangling.append(f"#{r['id']} {r['tbl']} [{r['row_key']}]: "
+                            f"{'no key to name a row by' if not key else 'longer than its key'}")
+            continue
+        where = " AND ".join(f'CAST("{c}" AS TEXT) = ?' for c in key[:len(parts)])
+        if not con.execute(f'SELECT 1 FROM "{r["tbl"]}" WHERE {where} LIMIT 1',
+                           parts).fetchone():
+            dangling.append(f"#{r['id']} {r['tbl']} [{r['row_key']}]")
+    check("every disagreement names a table the database holds", not notable,
+          "; ".join(notable[:4]))
+    check("every disagreement's field is a column of its table", not nocolumn,
+          "; ".join(nocolumn[:4]))
+    check("every disagreement's row key names a row of its table", not dangling,
+          "; ".join(dangling[:4]))
+    check("every disagreement's key is made from what it is about", not misnamed,
+          "; ".join(misnamed[:4]))
+    # The absence of a value is NULL. The literal string, which every
+    # withdrawn figure's row used to carry, read as a value to anything that
+    # did not know the convention.
+    lit = con.execute("""SELECT COUNT(*) FROM discrepancies
+        WHERE stored_value = 'NULL' OR derived_value = 'NULL'""").fetchone()[0]
+    check("no disagreement holds the string 'NULL' for an absent value", lit == 0,
+          f"{lit} rows")
+    print(f"  [info] discrepancies: {len(rows)} rows, "
+          + ", ".join(f"{n} {t}" for t, n in con.execute(
+              "SELECT status, COUNT(*) FROM discrepancies GROUP BY status ORDER BY status")))
 
 
 @section('THE FULL CLASSIFICATION')

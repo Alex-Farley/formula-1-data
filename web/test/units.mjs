@@ -595,8 +595,10 @@ describe('the disagreement aside', () => {
     assert.ok(EXPLAINED_FOOTER.includes('the published span'))
   })
   it('introduces a set of explained rows as readings, and anything else as a disagreement', () => {
-    const explained = { status: 'explained - each side is right about something' }
-    const open = { status: 'open - needs official check' }
+    const explained = { status: 'explained', status_note: 'each side is right about something' }
+    const open = { status: 'open', status_note: 'needs official check' }
+    const older = { status: 'explained', status_note: 'external figure is older' }
+    assert.equal(allExplained([older]), false)
     assert.equal(allExplained([explained]), true)
     assert.equal(allExplained([explained, explained]), true)
     assert.equal(allExplained([open]), false)

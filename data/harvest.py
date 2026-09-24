@@ -470,12 +470,16 @@ POLE_ONLY_PROVENANCE = ("Added to the register from the pole position and fastes
 
 # ---------------------------------------------------------------------
 # What the database does not hold, and why. One tuple per row of known_gaps:
-#   id, field, area, state, reader, description, races_affected, resolution
+#   id, key, field, area, state, reader, description, races_affected, resolution
 # `id` is written here, not counted: it used to come from the list position,
 # so filing a gap mid-list renumbered every `known_gaps #N` citation after
 # it, and nine had drifted by the time #87 read them (PM-30). A new gap takes
 # the next number and keeps it; verify.py requires the ids to be unique and
 # contiguous and every citation in the tree to name a row that exists.
+# `key` is the name a reader cites the gap by (DA-24): lower-case words and
+# digits joined by hyphens, saying what is missing rather than where it sits
+# in this list. Like the id it is written once and never changed or reused,
+# including when the gap closes.
 # `state` is 'open' (a fact nobody holds yet - the gaps the site counts),
 # 'closed' (filled since; the row stays, and `resolution` says when and how)
 # or 'position' (a deliberate absence, which is the right state and not a
@@ -484,7 +488,7 @@ POLE_ONLY_PROVENANCE = ("Added to the register from the pole position and fastes
 # A row is never deleted: a closed gap is recorded as closed.
 # ---------------------------------------------------------------------
 KNOWN_GAPS = [
-    (1, "fastest_lap", "the fastest lap of a race the pole harvest has not "
+    (1, "fastest-lap-before-the-harvest", "fastest_lap", "the fastest lap of a race the pole harvest has not "
      "reached yet",
      "closed",
      "Closed: every completed race now carries a fastest lap, read from F1DB "
@@ -514,7 +518,7 @@ KNOWN_GAPS = [
      "completed race still without a fastest lap is 2021 Belgium, where no "
      "racing lap was ever set, which is the true null this gap always "
      "excluded."),
-    (2, "finish_position", "shared drives, and where two sources read a race "
+    (2, "shared-drives", "finish_position", "shared drives, and where two sources read a race "
      "differently",
      "closed",
      "Closed: the full classification of every race ships in the database, "
@@ -548,7 +552,7 @@ KNOWN_GAPS = [
      "`discrepancies` and leaves the stored value alone. Reading those 118 "
      "rows is the work, and it is a person's."),
 
-    (3, "chassis_id", "the chassis each race was won in, where a season is ambiguous",
+    (3, "winning-chassis", "chassis_id", "the chassis each race was won in, where a season is ambiguous",
      "open",
      "We do not know which car won roughly one race in four. Where a team "
      "ran more than one design in a season and no source in use here says "
@@ -571,7 +575,7 @@ KNOWN_GAPS = [
      "came from, and that column IS per round. Harvesting it is only safe "
      "with the check that now exists: a harvested chassis must appear in "
      "that constructor's entry list for that season, or be refused."),
-    (4, "cars.poles", "the car each pole was taken in, where the season is ambiguous",
+    (4, "pole-car", "cars.poles", "the car each pole was taken in, where the season is ambiguous",
      "open",
      "For a handful of seasons we cannot say which car took a pole. Almost "
      "every pole entry now names a constructor, but where a team ran two "
@@ -591,7 +595,7 @@ KNOWN_GAPS = [
      "Per-round chassis data, which no source in use here has. The remaining "
      "seasons are listed in v_ambiguous_seasons and in car_seasons where "
      "corroborated = 0."),
-    (5, "laps", "lap times, tyre stints, pit stops, radio and telemetry",
+    (5, "lap-timing", "laps", "lap times, tyre stints, pit stops, radio and telemetry",
      "position",
      "No lap times, tyre stints, race control messages or telemetry. Nobody "
      "publishes Formula One race timing under a licence that permits passing "
@@ -633,7 +637,7 @@ KNOWN_GAPS = [
      "already stored from the pole harvest - 446 races, no disagreement. "
      "docs/TIMING-ARCHITECTURE.md has the measurements and the design this "
      "would take if a redistributable source ever appears."),
-    (6, "race_timing", "pole, fastest lap and race times per race",
+    (6, "race-timing", "race_timing", "pole, fastest lap and race times per race",
      # A position, not an open gap: the table is one of the four verify.py
      # keeps empty, because per-race timing is FOM's data. The review of #72
      # caught it filed as fillable. The pre-2018 race-report route is a
@@ -650,7 +654,7 @@ KNOWN_GAPS = [
      "information at far greater resolution.", 0,
      "Either harvest race articles for the pre-2018 seasons, or accept that "
      "timing starts in 2018 and fill it with tools/fastf1_load.py."),
-    (7, "layout_name", "circuit configuration as raced, for most circuits",
+    (7, "layout-as-raced", "layout_name", "circuit configuration as raced, for most circuits",
      "open",
      "For most circuits we hold one shape - the current one - so a 1976 "
      "Kyalami lap is reported at the length of the 1992 rebuild. Thirteen "
@@ -670,7 +674,7 @@ KNOWN_GAPS = [
      "Research the configuration history of each remaining multi-race circuit "
      "and add the rows; verify.py already enforces that a circuit's layout "
      "rows, once present, form a complete non-overlapping timeline."),
-    (8, "fastest_lap", "fastest lap, 2021 round 12 (Belgian Grand Prix)",
+    (8, "fastest-lap-2021-belgian-gp", "fastest_lap", "fastest lap, 2021 round 12 (Belgian Grand Prix)",
      "position",
      "The 2021 Belgian Grand Prix has no fastest lap because none was set: "
      "the race was abandoned after two laps behind the safety car, half "
@@ -681,7 +685,7 @@ KNOWN_GAPS = [
      "completed. This is a true null, not missing data.", 1,
      "Nothing to fix - the absence is correct."),
 
-    (9, "qualifying.q1", "qualifying session detail before 1996, and sector times",
+    (9, "qualifying-before-1996", "qualifying.q1", "qualifying session detail before 1996, and sector times",
      "open",
      "No sector times, tyre compounds or qualifying session detail before "
      "1996. A pre-1996 qualifying session was a single time, so there are "
@@ -699,7 +703,7 @@ KNOWN_GAPS = [
      "From 2018, tools/fastf1_load.py has all of it at far greater "
      "resolution. Before that it does not exist in any retrievable form."),
 
-    (10, "centreline", "the shape of a circuit, for anything but the present day",
+    (10, "historic-centrelines", "centreline", "the shape of a circuit, for anything but the present day",
      "position",
      "A traced circuit is always the circuit as it is today. OpenStreetMap "
      "maps what is on the ground, and Spa's 14.1 km road course is not on "
@@ -723,7 +727,7 @@ KNOWN_GAPS = [
      "checked against - the one thing that makes the current ones "
      "trustworthy. Leaving them absent is the correct answer."),
 
-    (11, "article_images.name_matches", "whether a photograph shows the car",
+    (11, "photograph-shows-the-car", "article_images.name_matches", "whether a photograph shows the car",
      "open",
      "We cannot confirm that 337 photographs show the car they are filed "
      "under. The article is verified; the picture in it is not, and there "
@@ -753,7 +757,7 @@ KNOWN_GAPS = [
      "category for a chassis with no article sits lower still, at "
      "'catalogued'."),
 
-    (12, "records", "the records the database cannot derive",
+    (12, "underivable-records", "records", "the records the database cannot derive",
      "open",
      "Five records the authored table used to carry are not published, "
      "because the database cannot derive them: the youngest and oldest "
@@ -803,7 +807,7 @@ KNOWN_GAPS = [
      "is derived and checked. The others need race timing, which no source "
      "publishes under a licence that permits passing it on (known_gaps #5), "
      "or an attribute the project does not model."),
-    (13, "governance", "what a new team pays to enter",
+    (13, "team-entry-fee", "governance", "what a new team pays to enter",
      "open",
      "The sum a new team pays to join - the anti-dilution fund - is a term "
      "of the Concorde Agreement, a private contract. The figures in print, "
@@ -824,7 +828,7 @@ KNOWN_GAPS = [
      "Closes if the FIA or Formula One publishes the figure, or if the "
      "Concorde Agreement is published; the row would then go in governance "
      "citing that document."),
-    (14, "race_entries", "the two 2011 Australian Grand Prix entries that failed "
+    (14, "107-per-cent-2011-australian-gp", "race_entries", "the two 2011 Australian Grand Prix entries that failed "
      "the 107 per cent rule",
      "open",
      "Two HRT cars, Vitantonio Liuzzi's and Narain Karthikeyan's, set "
@@ -849,7 +853,7 @@ KNOWN_GAPS = [
      "Closes when F1DB's classification for 2011 round 1 carries the two DNQ "
      "rows, which the next fetch would pick up; or by a curated-entry "
      "mechanism with its own source column, if a second case appears."),
-    (15, "sessions", "the weekend timetable, checked against one source only",
+    (15, "session-timetable", "sessions", "the weekend timetable, checked against one source only",
      "open",
      "The start time of every 2026 session is held from formula1.com's race "
      "pages and reproduced from them by machine. The FIA publishes the same "
@@ -868,7 +872,7 @@ KNOWN_GAPS = [
      23,
      "Closes when a tool reads the FIA event timetable and verify.py compares "
      "every start against it, with a disagreement filed in discrepancies."),
-    (16, "regulation_limits.cost_cap_usd", "the cost cap after Indexation",
+    (16, "cost-cap-indexation", "regulation_limits.cost_cap_usd", "the cost cap after Indexation",
      "open",
      "The cost cap shown for each year is the figure the FIA Financial "
      "Regulations state before Indexation. Those regulations adjust it for "
@@ -928,10 +932,12 @@ SHARED_FASTEST_LAPS = {
 # `discrepancies`; an entry here replaces the generic open assessment with
 # what the check found, and says whether the row is still open. A race not
 # listed here stays open with the generic text.
-#   (year, round): (status, assessment)
+#   (year, round): (status, status_note, assessment)
+# status is open, resolved or explained; the note is the short phrase saying
+# how, and None where the status says it all (DA-09).
 FASTEST_LAP_DISAGREEMENTS = {
     (1970, 1): (
-        "open - sources differ, reference record favours the stored value",
+        "open", "sources differ, reference record favours the stored value",
         "The harvest credits Brabham alone with the 1:20.8; F1DB credits "
         "Surtees. The race article credits Brabham and footnotes that some "
         "sources credit both, so this is a real disagreement between sources "

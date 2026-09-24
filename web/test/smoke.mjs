@@ -1050,7 +1050,7 @@ try {
     // SQL; a reworded query that stopped matching would return null silently,
     // and this is what would say so.
     const disputed = one(`SELECT c.id FROM constructors c JOIN discrepancies d ON d.subject = c.name
-                         WHERE d.status LIKE 'open%' LIMIT 1`)
+                         WHERE d.status = 'open' LIMIT 1`)
     if (disputed) {
       note(`\n/constructors/${disputed}  (an open disagreement is shown)`)
       await go(`/constructors/${disputed}`)

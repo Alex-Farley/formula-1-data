@@ -490,10 +490,10 @@ class Figures:
         return n(self.count("discrepancies"))
 
     def discrepancies_open(self):
-        return n(self.count("discrepancies", "status LIKE 'open%'"))
+        return n(self.count("discrepancies", "status = 'open'"))
 
     def discrepancies_explained(self):
-        return n(self.count("discrepancies", "status LIKE 'explained%'"))
+        return n(self.count("discrepancies", "status = 'explained'"))
 
     # -- What it deliberately doesn't have ----------------------------------------------
 
