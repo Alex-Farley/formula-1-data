@@ -3110,6 +3110,76 @@ def provenance_resolves():
           "; ".join(cite) if osm else "the registry names no OpenStreetMap entry")
 
 
+@section('TIER DEFINITIONS NAME THEIR SOURCES')
+def tier_sources():
+    # DA-05. A tier's definition is what reaches the site, both exports and
+    # f1_compat.json, and the one for 'reference' named Wikipedia's season
+    # tables for years while F1DB supplied nearly every row at that tier.
+    # PROVENANCE_SOURCES declares, per tier whose definition names registry
+    # entries, the words it names each by. Held both ways: every name is in
+    # the definition as shipped, and the declared sources are exactly the
+    # ones the tier's rows resolve to - by source_id, or by table_provenance
+    # for a table with no `source` column, the same two routes
+    # provenance_resolves reads.
+    from data.current import PROVENANCE_SOURCES as declared
+    defs = {r["confidence"]: r["definition"]
+            for r in con.execute("SELECT confidence, definition FROM provenance")}
+    names = {r["id"]: r["source"]
+             for r in con.execute("SELECT id, source FROM source_registry")}
+
+    off = sorted(t for t in declared if t not in defs)
+    check("every tier declaring its sources is on the ladder", not off, ", ".join(off))
+    unnamed = [f"{tier}: {phrase!r}" for tier, named in declared.items()
+               for phrase in named.values()
+               if tier in defs and phrase not in defs[tier]]
+    check("every source a tier declares is named in its definition", not unnamed,
+          "; ".join(unnamed))
+
+    cited = {tier: Counter() for tier in declared}
+    uncited = []
+    tiers = list(declared)
+    marks = ",".join("?" * len(tiers))
+    for (t,) in con.execute("""SELECT name FROM sqlite_master WHERE type='table'
+                               AND name <> 'provenance' ORDER BY name"""):
+        cols = {c[1] for c in con.execute(f'PRAGMA table_info("{t}")')}
+        if "confidence" not in cols:
+            continue
+        if "source_id" in cols:
+            rows = con.execute(f"""SELECT confidence, source_id, COUNT(*) FROM "{t}"
+                WHERE confidence IN ({marks}) GROUP BY 1, 2""", tiers).fetchall()
+        else:
+            tp = con.execute("SELECT source_id FROM table_provenance WHERE tbl = ?",
+                             (t,)).fetchone()
+            rows = con.execute(f"""SELECT confidence, ?, COUNT(*) FROM "{t}"
+                WHERE confidence IN ({marks}) GROUP BY 1""",
+                [tp[0] if tp else None, *tiers]).fetchall()
+        for tier, sid, n in rows:
+            if sid is None:
+                uncited.append(f"{t}: {n} at {tier}")
+            else:
+                cited[tier][sid] += n
+
+    # A row a local loader added after the build carries a source and no id,
+    # the state F1_LOCAL_TIMING already downgrades in provenance_resolves; a
+    # timing loader's rows land at 'reference' from a source this map does
+    # not name, which is right for a copy nobody publishes.
+    verdict = warn if LOCAL_TIMING else check
+    verdict("every row at a tier that names its sources cites one", not uncited,
+            "; ".join(uncited[:3]))
+    extra = [f"{tier}: {names.get(sid, sid)} ({n:,} rows)"
+             for tier, c in cited.items() for sid, n in c.most_common()
+             if sid not in declared[tier]]
+    verdict("every source a tier's rows cite is named in its definition", not extra,
+            "; ".join(extra))
+    idle = [f"{tier}: {names.get(sid, sid)}" for tier, named in declared.items()
+            for sid in named if not cited[tier][sid]]
+    check("every source a tier's definition names is cited at that tier", not idle,
+          "; ".join(idle))
+    for tier, c in cited.items():
+        print(f"        {tier}: " + ", ".join(
+            f"{names.get(sid, sid)}={n:,}" for sid, n in c.most_common()))
+
+
 # ---------------------------------------------------------------------------
 # CLAIMS
 #

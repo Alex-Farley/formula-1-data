@@ -925,13 +925,36 @@ ID_STABILITY_NOTE = (
 PROVENANCE = [
     ("verified", 1, "Checked directly against an official FIA or Formula 1 source during database construction. Safe to state as fact and to cite.", 1),
     ("high", 2, "A well-established record, consistently published in official sources over many years. Safe to rely on; cite the official archive if publishing.", 1),
-    ("reference", 3, "Harvested from Wikipedia's season results tables, which are transcribed from FIA classifications. Every row was cross-checked on load against independently held season data. Reliable for results; not official under this database's policy, so cite the FIA/F1 archive if publishing.", 1),
+    ("reference", 3, "Taken from a published secondary record rather than an official one: F1DB for almost all of it, and for most of the rest Wikipedia's season results tables or its per-car and per-topic articles. A few regulation limits read from the FIA's own regulations sit here too. Where a second source held here covers the same fact the two are compared on load - the winner of every race, F1DB's against the Wikipedia harvest, for one - but some tables at this tier, the entrant, engine and sprint registers among them, have no second source, so the tier alone does not say a row was cross-checked. Reliable; not official under this database's policy, so cite the FIA/F1 archive if publishing.", 1),
     ("medium", 4, "Correct in substance. An exact figure or date may have drifted or may move with the current season. Confirm before publication.", 0),
     ("unverified", 5, "Placeholder, disputed, or known to be incomplete. Never state as fact.", 0),
     # AF-42. Below unverified because it is not even a claim this database
     # makes: it is where someone else filed something.
     ("catalogued", 6, "Not checked by anyone, here or at a source: a photograph that Wikimedia Commons editors filed under a category named for the chassis. A category also holds replicas, scale models, show cars and museum mock-ups, and nothing here can tell them from the car that raced. Never present it as the car without a person looking first.", 0),
 ]
+
+# DA-05. The registry sources a tier's definition names, by id, each with the
+# words the definition names it by. The `reference` definition said Wikipedia
+# for years while F1DB supplied nearly every row at that tier, and nothing
+# could notice. verify.py now holds both directions: every phrase below is in
+# the shipped definition, and the sources declared here are exactly the ones
+# the tier's rows resolve to - by `source_id`, or by `table_provenance` for a
+# table without a `source` column. So a source that starts supplying a tier
+# fails the build until its definition says so, and one that stops fails it
+# until the definition stops saying so. A tier absent from this map names a
+# kind of source ("an official FIA or Formula 1 source"), not a registry
+# entry, and is not held to one.
+PROVENANCE_SOURCES = {
+    "reference": {
+        10: "F1DB",
+        8:  "Wikipedia's season results tables",
+        11: "per-car and per-topic articles",
+        1:  "the FIA's own regulations",
+    },
+    "catalogued": {
+        15: "Wikimedia Commons",
+    },
+}
 
 
 # ---------------------------------------------------------------------------

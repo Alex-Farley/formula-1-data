@@ -257,6 +257,10 @@ another one — "no entry is credited to a constructor that was not racing that
 season" is checked against it — while nothing constrains `season_entrants`
 itself. It is doing the work of a witness without having been examined.
 
+*(Carried back into the definition by `DA-05`: `provenance.definition` for
+`reference` now names F1DB first and says that not every table at the tier
+has a second source. The tiers themselves have not moved; that is step 5.)*
+
 ### Group 2 — rows that have earned more than they are given (273 rows)
 
 | rows | table | stored | derived |
@@ -459,3 +463,11 @@ which come from the Wikipedia season tables whatever the row's `source` says,
 are the next field-grain case, and retiring the `*_external` and
 `published_*` columns onto views over `claims` is a schema change for every
 reader of them. They are `PM-55` (#620) and `PM-56` (#621).
+
+**A definition names the sources its rows cite** (`DA-05`). The
+`reference` definition named Wikipedia's season tables for a tier F1DB
+supplies almost entirely. `PROVENANCE_SOURCES` in `data/current.py` now
+declares, for each tier whose definition names registry entries, the words
+it names each by; `verify.py` holds every name to the shipped definition and
+the declared set to exactly the sources the tier's rows resolve to, so the
+definition cannot fall behind a new loader again without failing the build.
