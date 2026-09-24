@@ -154,10 +154,11 @@ export const BY_SEASON = `
  * the current season that THIS_SEASON prints - the whole calendar, including
  * rounds the driver did not enter and rounds still to run, so its races are
  * reached by the same condition and not through the entries - and every
- * final standings row. The final rows rather than v_standings_final's,
- * because the view folds a second source's position into the first's row
- * where the first has none, and a source whose value is printed is behind
- * the page.
+ * standings row the season's table is read from: a finished season's final
+ * rows, and for the season being run the running rows, where both sources
+ * stand. Those rather than v_standings_final's, because the view folds a
+ * second source's position into the first's row where the first has none,
+ * and a source whose value is printed is behind the page.
  */
 export const DRIVER_SOURCES = `
   SELECT s.source, s.redistributable, s.share_alike, s.attribution_required
@@ -170,8 +171,12 @@ export const DRIVER_SOURCES = `
             WHERE r.year = ${CURRENT_SEASON_SQL}
               AND EXISTS (SELECT 1 FROM race_entries x JOIN races y ON y.id = x.race_id
                            WHERE x.driver_id = ?1 AND y.year = r.year)
-     UNION SELECT source_id FROM standings
-            WHERE table_type = 'drivers' AND entity_id = ?1 AND after_round IS NULL)
+     UNION SELECT t.source_id FROM standings t
+            WHERE t.table_type = 'drivers' AND t.driver_id = ?1
+              AND (t.basis = 'final'
+                   OR NOT EXISTS (SELECT 1 FROM standings f
+                                   WHERE f.year = t.year AND f.table_type = 'drivers'
+                                     AND f.basis = 'final')))
    ORDER BY s.priority, s.id
 `
 

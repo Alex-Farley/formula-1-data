@@ -858,7 +858,7 @@
       "priority": 10,
       "source": "F1DB",
       "url": "https://github.com/f1db/f1db",
-      "use": "Since v2.15 the primary source for RESULTS as well as registers: the full classification for all 1,163 races (27,504 entries, 1950-2026), qualifying (27,017), championship standings after every round (34,597) and pit stops (22,506) - plus the chassis, engine, constructor and per-season entrant register it already supplied, and since 2026-09-13 the outline of every one of its 160 circuit layouts (SVG assets drawn by Jules Roy) with the layout each race ran. Loaded by tools/f1db_fetch.py into diffable text, then built offline.",
+      "use": "Since v2.15 the primary source for RESULTS as well as registers: the full classification for all 1,163 races (27,504 entries, 1950-2026), qualifying (27,017), championship standings after every round (34,563) and pit stops (22,506) - plus the chassis, engine, constructor and per-season entrant register it already supplied, and since 2026-09-13 the outline of every one of its 160 circuit layouts (SVG assets drawn by Jules Roy) with the layout each race ran. Loaded by tools/f1db_fetch.py into diffable text, then built offline.",
       "authority": "reference",
       "licence": "CC BY 4.0 - attribution only, no share-alike, and NO NON-COMMERCIAL CLAUSE. That last absence is not a footnote: it is the reason the full classification ships in the committed database when the same facts from Jolpica-F1 could only ever be loaded onto a local copy. The most permissive licence of any bulk source used here, and now the most consequential.",
       "cadence": "Re-released after every race, versioned, with a public commit history and a changelog. Better maintained than anything else at this scale.",

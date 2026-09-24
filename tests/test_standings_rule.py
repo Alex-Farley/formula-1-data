@@ -58,11 +58,12 @@ class PlantedInACopy(unittest.TestCase):
         the F1DB file that caused this."""
         rows = self.con.execute(
             "SELECT entity_id, points FROM standings WHERE year=? AND "
-            "table_type=? AND after_round=?", (year, table, onto)).fetchall()
+            f"table_type=? AND after_round=? AND {standings_rule.SCOPE}",
+            (year, table, onto)).fetchall()
         for entity, pts in rows:
             self.con.execute(
                 "UPDATE standings SET points=? WHERE year=? AND table_type=? "
-                "AND entity_id=? AND after_round=?",
+                f"AND entity_id=? AND after_round=? AND {standings_rule.SCOPE}",
                 (pts, year, table, entity, rnd))
         self.con.commit()
         return len(rows)
@@ -112,7 +113,7 @@ class AnEntityTheResultsDoNotHoldStopsTheRule(PlantedInACopy):
         """The split DA-28 closed, put back in a copy: the 2022 table under
         F1DB's `alfa-romeo` while the results say `sauber`."""
         self.con.execute(
-            "UPDATE standings SET entity_id='alfa-romeo' "
+            "UPDATE standings SET entity_id='alfa-romeo', constructor_id='alfa-romeo' "
             "WHERE year=2022 AND table_type='constructors' "
             "AND entity_id='sauber'")
         self.con.commit()
@@ -122,7 +123,8 @@ class AnEntityTheResultsDoNotHoldStopsTheRule(PlantedInACopy):
 
     def test_a_new_unmappable_entity_stops_it_too(self):
         self.con.execute(
-            "UPDATE standings SET entity_id='a-team-that-never-raced' "
+            "UPDATE standings SET entity_id='a-team-that-never-raced', "
+            "constructor_id='a-team-that-never-raced' "
             "WHERE year=2026 AND table_type='constructors' AND entity_id='haas'")
         self.con.commit()
         with self.assertRaises(standings_rule.Unmappable):
@@ -179,7 +181,8 @@ class OnlyARepeatedRoundIsCorrected(PlantedInACopy):
     def points(self, year, table, entity, rnd):
         return self.con.execute(
             "SELECT points FROM standings WHERE year=? AND table_type=? AND "
-            "entity_id=? AND after_round=?", (year, table, entity, rnd)).fetchone()[0]
+            f"entity_id=? AND after_round=? AND {standings_rule.SCOPE}",
+            (year, table, entity, rnd)).fetchone()[0]
 
     def test_a_repeated_round_is_put_back_on_the_results(self):
         self.freeze(2026, "constructors", 14, 13)
@@ -226,24 +229,80 @@ class OnlyARepeatedRoundIsCorrected(PlantedInACopy):
         self.assertIn("ferrari", str(stop.exception))
         self.assertIn("STANDINGS_ADJUSTMENTS", str(stop.exception))
 
-    def test_a_current_row_that_is_ahead_is_not_pulled_backwards(self):
-        """The carry follows a `current` row that repeated the same stale
-        figure. Any other value is left alone and said out loud - writing the
-        latest round over it in either direction would turn a build stop into
-        a silently shipped stale figure."""
-        self.freeze(2026, "constructors", 14, 13)
-        self.con.execute(
-            "UPDATE standings SET points = 999 WHERE year=2026 AND "
-            "table_type='constructors' AND entity_id='mercedes' "
-            "AND after_round IS NULL AND as_of='current'")
-        self.con.commit()
+    def season_file(self, **changed):
+        """F1DB's season-level file for the 2026 constructors, as the loader
+        holds it: the latest round's own rows as they stand now, with any
+        entity's row changed as given."""
+        rows = []
+        for entity, engine, points, position_text in self.con.execute(
+                "SELECT entity_id, engine_id, points, position_text FROM standings "
+                "WHERE year=2026 AND table_type='constructors' AND after_round=14 "
+                f"AND {standings_rule.SCOPE} ORDER BY position"):
+            row = {"year": 2026, "table_type": "constructors", "entity_id": entity,
+                   "engine_id": engine, "points": points,
+                   "position_text": position_text}
+            row.update(changed.get(entity.replace("-", "_"), {}))
+            rows.append(row)
+        return rows
+
+    def hold(self, rows):
+        """The load path around the correction: what the latest round said
+        before it, the correction, then the season file held to the result."""
+        before = build._latest_round_points(self.con.cursor(), rows)
         self.correct()
-        self.assertEqual(
-            self.con.execute(
-                "SELECT points FROM standings WHERE year=2026 AND "
-                "table_type='constructors' AND entity_id='mercedes' "
-                "AND after_round IS NULL AND as_of='current'").fetchone()[0],
-            999.0, "a 'current' row that was not the stale figure was overwritten")
+        build._hold_the_season_file_to_its_latest_round(
+            self.con.cursor(), rows, before)
+
+    def test_a_season_file_that_lagged_with_the_round_is_accepted(self):
+        """The season file lags the same way the per-round one does. Where it
+        carried the figure the stale round did, the correction repairing the
+        round is not a disagreement between the two files."""
+        self.freeze(2026, "constructors", 14, 13)
+        self.hold(self.season_file())
+        self.assertAlmostEqual(self.points(2026, "constructors", "mercedes", 14),
+                               503.0, places=3)
+
+    def test_a_season_file_ahead_of_a_stale_round_is_accepted(self):
+        """The season file already on the results while its round file was
+        stale: the correction brings the round to it."""
+        self.freeze(2026, "constructors", 14, 13)
+        self.hold(self.season_file(mercedes={"points": 503.0}))
+
+    def test_a_season_file_that_is_neither_stops_the_build(self):
+        """Neither the figure the round held nor the one it holds now: two
+        files of one source disagree about one table, and the build does not
+        pick one. Until DA-01 this row was stored as 'current' and verify.py
+        refused the same state after the build had finished."""
+        self.freeze(2026, "constructors", 14, 13)
+        with self.assertRaises(SystemExit) as stop:
+            self.hold(self.season_file(mercedes={"points": 999.0}))
+        self.assertIn("mercedes", str(stop.exception))
+
+    def test_a_season_file_naming_another_position_stops_the_build(self):
+        """Not storing the season file is only lossless while it says what
+        the latest round says, position included."""
+        with self.assertRaises(SystemExit) as stop:
+            self.hold(self.season_file(mercedes={"position_text": "9"}))
+        self.assertIn("mercedes", str(stop.exception))
+
+    def test_a_season_file_missing_an_entry_stops_the_build(self):
+        """Both ways round: an entrant the latest round holds and the season
+        file does not name is the same disagreement as the reverse."""
+        rows = [r for r in self.season_file() if r["entity_id"] != "haas"]
+        with self.assertRaises(SystemExit) as stop:
+            self.hold(rows)
+        self.assertIn("haas", str(stop.exception))
+
+    def test_a_figure_neither_file_holds_is_the_same_figure(self):
+        """NULL points on both sides is agreement, not a stop."""
+        self.con.execute(
+            "UPDATE standings SET points = NULL WHERE year=2026 AND "
+            "table_type='constructors' AND entity_id='haas' AND after_round=14 "
+            f"AND {standings_rule.SCOPE}")
+        self.con.commit()
+        build._hold_the_season_file_to_its_latest_round(
+            self.con.cursor(), self.season_file(),
+            build._latest_round_points(self.con.cursor(), self.season_file()))
 
     def test_a_round_the_results_do_not_reach_stops_it(self):
         """A table published ahead of the results cannot be checked against

@@ -1328,14 +1328,23 @@ def _stage_16_current_season(b):
             VALUES (?,?,?,?,?,?,?,?,?)""",
             (i, N.CURRENT_SEASON, cid, did, car, pu, num, role, "verified"))
 
+    # The official snapshot's moment, said once. after_round is the round it
+    # stood after and as_of keeps the date beside it for one more release;
+    # an end-of-season table stands after the season's last round (DA-01).
+    snap_date, snap_round = "2026-09-04", 12
+    snapshot = f"{snap_date} (after round {snap_round})"
+    season_end = cur.execute("SELECT rounds FROM seasons WHERE year=?",
+                             (N.PREVIOUS_SEASON,)).fetchone()[0]
     sid = 0
-    for year, tbl, rows, asof in (
+    for year, tbl, rows, asof, after, basis in (
             (N.CURRENT_SEASON, "drivers", N.DRIVER_STANDINGS_2026,
-             "2026-09-04 (after round 12)"),
+             snapshot, snap_round, "running"),
             (N.CURRENT_SEASON, "constructors", N.TEAM_STANDINGS_2026,
-             "2026-09-04 (after round 12)"),
-            (N.PREVIOUS_SEASON, "drivers", N.DRIVER_STANDINGS_2025, "final"),
-            (N.PREVIOUS_SEASON, "constructors", N.TEAM_STANDINGS_2025, "final")):
+             snapshot, snap_round, "running"),
+            (N.PREVIOUS_SEASON, "drivers", N.DRIVER_STANDINGS_2025,
+             "final", season_end, "final"),
+            (N.PREVIOUS_SEASON, "constructors", N.TEAM_STANDINGS_2025,
+             "final", season_end, "final")):
         for row in rows:
             sid += 1
             if tbl == "drivers":
@@ -1344,9 +1353,13 @@ def _stage_16_current_season(b):
                 pos, eid, disp, pts = row
                 team = None
             cur.execute("""INSERT INTO standings (id, year, table_type, position, entity,
-                entity_id, team, points, as_of, confidence, source)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
-                (sid, year, tbl, pos, disp, eid, team, pts, asof, "verified",
+                entity_id, driver_id, constructor_id, team, points, after_round,
+                basis, as_of, confidence, source)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (sid, year, tbl, pos, disp, eid,
+                 eid if tbl == "drivers" else None,
+                 eid if tbl == "constructors" else None,
+                 team, pts, after, basis, asof, "verified",
                  N.f1_source(year, tbl)))
 
     # =================================================================
@@ -2193,13 +2206,15 @@ def _stage_25_championship_standings_after_every_round_and(b):
     # 2019-2023 went in as `alfa-romeo` while the results of the same races
     # said `sauber` - one entrant under two ids in two tables (DA-28).
     f1db_cons = {}
-    known_engines = {r[0] for r in cur.execute(
-        "SELECT id FROM engine_manufacturers")}
     completed_seasons = {r[0] for r in cur.execute(
         """SELECT year FROM races GROUP BY year
            HAVING SUM(CASE WHEN status <> 'completed' THEN 1 ELSE 0 END) = 0""")}
     known_years = {r[0] for r in cur.execute("SELECT year FROM seasons")}
+    last_round = dict(cur.execute("SELECT year, MAX(round) FROM races GROUP BY year"))
     conflicts = []
+    # F1DB's season-level file for a season still being run: held here and
+    # compared with F1DB's own table after its latest round, never stored.
+    season_file = []
     for (yr, rnd, kind, pos, entity, engine, points) in (
             (r["year"], r["round"], r["table_type"], r["position"],
              r["entity_id"], r["engine_manufacturer_id"], r["points"])
@@ -2223,21 +2238,30 @@ def _stage_25_championship_standings_after_every_round_and(b):
             std_skipped += 1
             continue
         # The engine is part of the constructors' championship entry, not a
-        # decoration on it. It is resolved through the same map the engine
-        # register uses, and kept as F1DB's own id where we hold no
-        # manufacturer - losing it would merge two championship entries.
-        engine_id = None
-        if kind == "constructors" and engine:
-            mapped = HV.constructor_for_f1db(engine, yr)
-            engine_id = mapped if mapped in known_engines else engine
+        # decoration on it - losing it would merge two championship entries.
+        # It is F1DB's own engine-manufacturer id, which is what the column
+        # says it holds (DA-11). It used to be passed through the constructor
+        # map and kept where the result happened to be an
+        # engine_manufacturers id, which made the column's namespace depend
+        # on a coincidence of spelling.
+        engine_id = engine if kind == "constructors" and engine else None
         pts = float(points) if points not in (None, "") else None
         # A season-level file for a season still being run is not a FINAL
         # classification, it is the current one. Calling both 'final' put two
-        # rows on the same key for 2026 and doubled every points total.
+        # rows on the same key for 2026 and doubled every points total. It is
+        # F1DB's running table after its latest round under another name,
+        # so it is held to that table below and not stored beside it: two
+        # rows of one source saying one thing are one fact twice (DA-01).
         if after:
-            as_of = f"round {after}"
+            as_of, basis = f"round {after}", "running"
+        elif yr in completed_seasons:
+            as_of, basis, after = "final", "final", last_round[yr]
         else:
-            as_of = "final" if yr in completed_seasons else "current"
+            season_file.append({
+                "year": yr, "table_type": kind, "entity_id": eid,
+                "engine_id": engine_id, "points": pts,
+                "position_text": str(pos) if pos else None})
+            continue
 
         # The hand-entered rows predate this column and carry no engine, so
         # the overlap check matches on entity alone and only for the single
@@ -2249,42 +2273,41 @@ def _stage_25_championship_standings_after_every_round_and(b):
         # one classification, and it is recorded rather than resolved - after
         # the loop, where the disagreements of one snapshot can be read
         # together and traced to the race that causes them.
-        existing = None
-        if after is None:
-            existing = cur.execute("""SELECT points FROM standings
-                WHERE year=? AND table_type=? AND entity_id=?
-                  AND after_round IS NULL AND as_of='final'
-                  AND engine_id IS NULL""", (yr, kind, eid)).fetchone()
-        else:
-            existing = cur.execute("""SELECT points FROM standings
-                WHERE year=? AND table_type=? AND entity_id=?
-                  AND after_round IS NULL AND engine_id IS NULL
-                  AND as_of LIKE ?""",
-                (yr, kind, eid, f"%(after round {after})")).fetchone()
+        existing = cur.execute("""SELECT points FROM standings
+            WHERE year=? AND table_type=? AND entity_id=? AND after_round=?
+              AND basis=? AND source <> ? AND engine_id IS NULL""",
+            (yr, kind, eid, after, basis, HV.F1DB_SOURCE)).fetchone()
         if existing is not None:
             std_checked += 1
             if (existing[0] is not None and pts is not None
                     and abs(existing[0] - pts) > 0.001):
                 std_conflicts += 1
-                conflicts.append((yr, kind, eid, after, existing[0], pts))
-            if after is None:
+                conflicts.append((yr, kind, eid, None if basis == "final" else after,
+                                  existing[0], pts))
+            if basis == "final":
                 continue
 
         name = cur.execute(
             "SELECT full_name FROM drivers WHERE id=?" if kind == "drivers"
             else "SELECT name FROM constructors WHERE id=?", (eid,)).fetchone()
         cur.execute("""INSERT OR IGNORE INTO standings (year, table_type,
-                position, position_text, entity, entity_id, engine_id, points,
-                after_round, as_of, confidence, source)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+                position, position_text, entity, entity_id, driver_id,
+                constructor_id, engine_id, points, after_round, basis, as_of,
+                confidence, source)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (yr, kind,
              int(pos) if str(pos).isdigit() else None, str(pos) if pos else None,
-             name[0] if name else eid, eid, engine_id, pts, after, as_of,
+             name[0] if name else eid, eid,
+             eid if kind == "drivers" else None,
+             eid if kind == "constructors" else None,
+             engine_id, pts, after, basis, as_of,
              HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
         std_rows += cur.rowcount
 
     _file_points_disagreements(cur, conflicts, f1db_drivers)
+    published = _latest_round_points(cur, season_file)
     std_corrected = _correct_standings_the_results_contradict(b)
+    _hold_the_season_file_to_its_latest_round(cur, season_file, published)
 
     if std_rows:
         print(f"  standings: {std_rows} rows from F1DB; {std_checked} "
@@ -2334,9 +2357,10 @@ def _correct_standings_the_results_contradict(b):
     for v in found:
         previous = cur.execute(
             """SELECT points FROM standings
-                WHERE year=? AND table_type=? AND entity_id=? AND after_round=?""",
+                WHERE year=? AND table_type=? AND entity_id=? AND after_round=?
+                  AND engine_id IS ? AND basis='running' AND source=?""",
             (v["year"], v["table_type"], v["entity_id"],
-             v["after_round"] - 1)).fetchone()
+             v["after_round"] - 1, v["engine_id"], HV.F1DB_SOURCE)).fetchone()
         if (previous and previous[0] is not None
                 and abs(previous[0] - v["points"]) < 0.001):
             repeats.append(v)
@@ -2353,13 +2377,16 @@ def _correct_standings_the_results_contradict(b):
               "A deduction, an exclusion or a re-entry is declared in "
               "STANDINGS_ADJUSTMENTS in data/current.py, with the round it "
               "took effect and why.")
+    # F1DB's running rows only. A final row stands after the last round
+    # too, and the official snapshot after its own, and neither is the file
+    # that failed to update.
     for v in repeats:
         cur.execute(
             """UPDATE standings SET points = ?
                 WHERE year=? AND table_type=? AND entity_id=? AND after_round=?
-                  AND engine_id IS ?""",
+                  AND engine_id IS ? AND basis='running' AND source=?""",
             (v["expected"], v["year"], v["table_type"], v["entity_id"],
-             v["after_round"], v["engine_id"]))
+             v["after_round"], v["engine_id"], HV.F1DB_SOURCE))
     corrected = len(repeats)
     for year, table, rnd in sorted({(v["year"], v["table_type"], v["after_round"])
                                     for v in repeats}):
@@ -2368,7 +2395,6 @@ def _correct_standings_the_results_contradict(b):
             cur, year, table, rnd,
             [v for v in repeats
              if (v["year"], v["table_type"], v["after_round"]) == (year, table, rnd)])
-    corrected += _carry_a_correction_to_the_current_row(cur, repeats)
     left = rule.violations(b.con)
     if left:
         raise SystemExit(
@@ -2383,7 +2409,8 @@ def _refuse_a_reordered_round(cur, year, table, rnd):
     """The corrected points must leave the source's own order intact."""
     rows = cur.execute("""SELECT entity_id, position, points FROM standings
         WHERE year=? AND table_type=? AND after_round=? AND position IS NOT NULL
-        ORDER BY position""", (year, table, rnd)).fetchall()
+          AND basis='running' AND source=?
+        ORDER BY position""", (year, table, rnd, HV.F1DB_SOURCE)).fetchall()
     by_points = sorted(rows, key=lambda r: -r[2] if r[2] is not None else 0)
     if [r[0] for r in rows] != [r[0] for r in by_points]:
         raise SystemExit(
@@ -2418,49 +2445,88 @@ def _file_a_standings_correction(cur, year, table, rnd, rows):
          "open"))
 
 
-def _carry_a_correction_to_the_current_row(cur, repeats):
-    """The season-level file lags the same way the per-round one does.
+def _latest_round_row(cur, v):
+    """F1DB's own row for this entry after the latest round it has counted
+    that season, as (points, position_text), or None."""
+    return cur.execute(
+        """SELECT points, position_text FROM standings s
+            WHERE s.year=? AND s.table_type=? AND s.entity_id=?
+              AND s.engine_id IS ? AND s.basis='running' AND s.source=?
+              AND s.after_round = (SELECT MAX(x.after_round) FROM standings x
+                                    WHERE x.year = s.year
+                                      AND x.table_type = s.table_type
+                                      AND x.basis='running' AND x.source = s.source)""",
+        (v["year"], v["table_type"], v["entity_id"], v["engine_id"],
+         HV.F1DB_SOURCE)).fetchone()
 
-    A season still being run also has a row with no after_round and
-    `as_of = 'current'`, read as the source's latest running table - and
-    verify.py holds it to exactly that, so correcting only the round rows
-    left the two disagreeing and failed the build.
 
-    It follows the round rows ONLY where it carries the same stale figure
-    they did. The first version compared magnitudes and would have written
-    the latest round's total over a `current` row in either direction, so a
-    season file AHEAD of its own per-round files would have been pulled
-    backwards - and, because verify.py would otherwise have stopped the
-    build on that state, quietly shipped (review finding, #583). Anything
-    else is left alone and said out loud.
+def _latest_round_points(cur, season_file):
+    """What the latest round said before the correction touched it."""
+    return [(_latest_round_row(cur, v) or (None, None))[0] for v in season_file]
+
+
+def _hold_the_season_file_to_its_latest_round(cur, season_file, published):
+    """F1DB's season-level file for a season still being run is its running
+    table after the latest round under another name. It is checked against
+    that table and not stored beside it (DA-01).
+
+    Until DA-01 it was stored, as a row with no after_round and `as_of =
+    'current'`, and verify.py held it to exactly this: every one of the 34 in
+    2026 matched the latest round in every column. Stored, it was the same
+    fact twice in one source, and `after_round IS NULL` meant a finished
+    season's classification in 1950-2025 and a running table in 2026.
+
+    It agrees when the two list the same entries, both ways round, and each
+    entry has the same position and either the figure the round now holds or
+    the figure the round held before the correction put it back on the
+    results: the season file lags the same way the per-round one does, and a
+    lag the correction repaired is not a disagreement (review finding, #583).
+    A figure neither file holds is the same figure. Anything else is two
+    files of one source disagreeing about one table, a person has to look,
+    and the build stops rather than keep either.
     """
-    moved = 0
-    latest = {}
-    for v in repeats:
-        key = (v["year"], v["table_type"], v["entity_id"])
-        if key not in latest or v["after_round"] > latest[key]["after_round"]:
-            latest[key] = v
-    for (year, table, entity), v in sorted(latest.items()):
-        row = cur.execute(
-            """SELECT points FROM standings
-                WHERE year=? AND table_type=? AND entity_id=?
-                  AND after_round IS NULL AND as_of = 'current'""",
-            (year, table, entity)).fetchone()
-        if row is None or row[0] is None:
+    def same(a, b):
+        return (a is None and b is None) or (
+            a is not None and b is not None and abs(a - b) < 0.001)
+
+    wrong = []
+    for v, before in zip(season_file, published):
+        row = _latest_round_row(cur, v)
+        if row is None:
+            wrong.append(f"{v['year']} {v['table_type']} {v['entity_id']}: "
+                         f"in the season file and not in the latest round")
             continue
-        if abs(row[0] - v["points"]) > 0.001:
-            print(f"  standings: {year} {table} {entity}'s 'current' row says "
-                  f"{row[0]:g}, which is neither the figure the round rows "
-                  f"repeated ({v['points']:g}) nor a lag this build corrects. "
-                  f"Left as published.")
-            continue
-        cur.execute(
-            """UPDATE standings SET points = ?
-                WHERE year=? AND table_type=? AND entity_id=?
-                  AND after_round IS NULL AND as_of = 'current'""",
-            (v["expected"], year, table, entity))
-        moved += cur.rowcount
-    return moved
+        now, position_text = row
+        if position_text != v["position_text"] or not (
+                same(now, v["points"]) or same(before, v["points"])):
+            wrong.append(f"{v['year']} {v['table_type']} {v['entity_id']}: "
+                         f"season file {v['position_text']} on {v['points']}, "
+                         f"latest round {position_text} on {now}")
+    # And the other way round: an entry the latest round holds and the
+    # season file does not name.
+    named = {(v["year"], v["table_type"], v["entity_id"], v["engine_id"])
+             for v in season_file}
+    for year, table in sorted({(v["year"], v["table_type"]) for v in season_file}):
+        for entity, engine in cur.execute(
+                """SELECT s.entity_id, s.engine_id FROM standings s
+                    WHERE s.year=? AND s.table_type=? AND s.basis='running'
+                      AND s.source=?
+                      AND s.after_round = (SELECT MAX(x.after_round) FROM standings x
+                                            WHERE x.year = s.year
+                                              AND x.table_type = s.table_type
+                                              AND x.basis='running'
+                                              AND x.source = s.source)""",
+                (year, table, HV.F1DB_SOURCE)):
+            if (year, table, entity, engine) not in named:
+                wrong.append(f"{year} {table} {entity}: in the latest round "
+                             f"and not in the season file")
+    if wrong:
+        raise SystemExit(
+            "standings: F1DB's season-level file disagrees with its own table "
+            "after the latest round - " + "; ".join(wrong[:4])
+            + (f" (+{len(wrong) - 4} more)" if len(wrong) > 4 else "")
+            + ". The two are one table, so one of the files is wrong, and "
+              "this build will not pick one.")
 
 
 def _file_points_disagreements(cur, conflicts, f1db_drivers):

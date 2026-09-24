@@ -657,12 +657,15 @@ request there. Getting this wrong does not produce a 404: a dev server answers
 an unknown path with `index.html`, and you get
 `WebAssembly.instantiate(): expected magic word` instead.
 
-**`standings.after_round IS NULL` is the season as it finished,** not a missing
-round. `as_of` reads "final" on those rows, they are what the dropped-scores
-rule produced, and for the 2018 constructors' table they are not the same as
-the last round's. Reading `after_round` arithmetically turns those NULLs into
-round zero, which plots a champion's season total before the first race of the
-year — which is exactly what happened here before it was caught.
+**`standings.basis = 'final'` is the season as it finished,** and it stands
+after the last round, beside the running row after the same round: they are
+what the dropped-scores rule produced, and for the 2018 constructors' table they
+are not the same as the last round's. So a query over the running table says
+`basis = 'running'`, and picks one source, because the official snapshot stands
+after its round too. Until DA-01 the final rows carried a NULL `after_round`,
+and reading that arithmetically turned them into round zero, which plotted a
+champion's season total before the first race of the year — which is exactly
+what happened here before it was caught.
 
 **Never use `display: contents` on a wrapper you also style through.** The box
 tree looks right and CSS selectors match the DOM, so `.fields > dd` silently
