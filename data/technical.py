@@ -392,8 +392,15 @@ TYRES = [
     ("Pirelli", 2011, None, 1, "Sole supplier since 2011, contracted to design deliberately high-degradation tyres to generate strategic variation."),
 ]
 
-# from_year, to_year, scoring, win_points, fastest_lap, fastest_lap_points,
-# dropped_scores, notes
+# from_year, to_year, scoring, scale, win_points, fastest_lap,
+# fastest_lap_points, dropped_scores, notes
+#
+# `scale` is the scoring rule itself as numbers: the points for first, second,
+# third and on down to the last place paid (DA-08). Its length is how far down
+# the order the system paid, which is what lets the build write 0 - not NULL -
+# for a classified finisher below that line: the rule paid them nothing, and
+# a blank would say nobody knows. verify.py holds it to the sentence beside
+# it figure by figure, and to the "top n" the sentence ends on.
 #
 # `win_points` and `fastest_lap_points` are the same rule as the prose beside
 # them, written as numbers so a query can add them up: known_gaps #12 records
@@ -403,23 +410,25 @@ TYRES = [
 # source: verify.py holds `win_points` to the leading figure of `scoring` and
 # `fastest_lap_points` to whether `fastest_lap` names a rule at all, so the
 # number and the sentence cannot drift apart.
+TOP_TEN = (25, 18, 15, 12, 10, 8, 6, 4, 2, 1)
+
 POINTS = [
-    (1950, 1959, "8-6-4-3-2 to the top five", 8, "1 point, shared equally if tied", 1, "Best 4 of 7 (1950), varying through the decade",
+    (1950, 1959, "8-6-4-3-2 to the top five", (8, 6, 4, 3, 2), 8, "1 point, shared equally if tied", 1, "Best 4 of 7 (1950), varying through the decade",
      "Shared drives split the points equally between the drivers involved."),
-    (1960, 1960, "8-6-4-3-2-1 to the top six", 8, "None", 0, "Best 6 of 10", "The fastest-lap point was dropped."),
-    (1961, 1990, "9-6-4-3-2-1 to the top six", 9, "None", 0, "Varied: typically best n from each half of the season",
+    (1960, 1960, "8-6-4-3-2-1 to the top six", (8, 6, 4, 3, 2, 1), 8, "None", 0, "Best 6 of 10", "The fastest-lap point was dropped."),
+    (1961, 1990, "9-6-4-3-2-1 to the top six", (9, 6, 4, 3, 2, 1), 9, "None", 0, "Varied: typically best n from each half of the season",
      "The long-running classic system. Dropped scores caused several championships to be decided on net rather than gross points, notably 1988."),
-    (1991, 2002, "10-6-4-3-2-1 to the top six", 10, "None", 0, "None", "The win was revalued to discourage points-accumulation racing."),
-    (2003, 2009, "10-8-6-5-4-3-2-1 to the top eight", 10, "None", 0, "None", "Widened deliberately to reduce Ferrari's dominance."),
-    (2010, 2018, "25-18-15-12-10-8-6-4-2-1 to the top ten", 25, "None", 0, "None", "Introduced with the expansion to 24 cars."),
-    (2019, 2024, "25-18-15-12-10-8-6-4-2-1 to the top ten", 25, "1 point for fastest lap if classified in the top ten", 1, "None", ""),
-    (2025, None, "25-18-15-12-10-8-6-4-2-1 to the top ten", 25, "None", 0, "None", "The fastest-lap point was removed."),
+    (1991, 2002, "10-6-4-3-2-1 to the top six", (10, 6, 4, 3, 2, 1), 10, "None", 0, "None", "The win was revalued to discourage points-accumulation racing."),
+    (2003, 2009, "10-8-6-5-4-3-2-1 to the top eight", (10, 8, 6, 5, 4, 3, 2, 1), 10, "None", 0, "None", "Widened deliberately to reduce Ferrari's dominance."),
+    (2010, 2018, "25-18-15-12-10-8-6-4-2-1 to the top ten", TOP_TEN, 25, "None", 0, "None", "Introduced with the expansion to 24 cars."),
+    (2019, 2024, "25-18-15-12-10-8-6-4-2-1 to the top ten", TOP_TEN, 25, "1 point for fastest lap if classified in the top ten", 1, "None", ""),
+    (2025, None, "25-18-15-12-10-8-6-4-2-1 to the top ten", TOP_TEN, 25, "None", 0, "None", "The fastest-lap point was removed."),
 ]
 
-# from_year, to_year, scoring, win_points, notes
+# from_year, to_year, scoring, scale, win_points, notes
 SPRINT_POINTS = [
-    (2021, 2021, "3-2-1 to the top three", 3, "The sprint set the Grand Prix grid and its winner was credited with pole position."),
-    (2022, None, "8-7-6-5-4-3-2-1 to the top eight", 8, "From 2024 the sprint runs to its own qualifying session and no longer sets the Grand Prix grid."),
+    (2021, 2021, "3-2-1 to the top three", (3, 2, 1), 3, "The sprint set the Grand Prix grid and its winner was credited with pole position."),
+    (2022, None, "8-7-6-5-4-3-2-1 to the top eight", (8, 7, 6, 5, 4, 3, 2, 1), 8, "From 2024 the sprint runs to its own qualifying session and no longer sets the Grand Prix grid."),
 ]
 
 # from_year, to_year, era_name, summary, dominant_teams, defining_features

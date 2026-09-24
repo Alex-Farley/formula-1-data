@@ -24,6 +24,7 @@ This file checks what came out; those check what does the work.
 """
 import contextlib
 import io
+import json
 import os
 import re
 import sqlite3
@@ -1773,8 +1774,35 @@ def points_systems_figures():
     season page's "who can still win" is arithmetic on these figures, and a
     reworded sentence that left them behind would publish a wrong claim about
     a live championship rather than merely look untidy."""
-    rows = con.execute("""SELECT id, from_year, to_year, scoring, win_points,
+    rows = con.execute("""SELECT id, from_year, to_year, scoring, scale, win_points,
         fastest_lap, fastest_lap_points FROM points_systems ORDER BY id""").fetchall()
+
+    # `scale` is the rule the build reads to write 0 below the paid places
+    # (DA-08), so it is held to the sentence as a whole: the same figures in
+    # the same order, as many of them as the "top n" the sentence ends on,
+    # opening on win_points, and never paying a place more than the one above.
+    WORDS = {"three": 3, "five": 5, "six": 6, "eight": 8, "ten": 10}
+    bad = []
+    for r in rows:
+        head = r["scoring"][len("SPRINT: "):] if r["scoring"].startswith("SPRINT: ") else r["scoring"]
+        try:
+            scale = json.loads(r["scale"])
+        except ValueError:
+            bad.append(f"#{r['id']} scale {r['scale']!r} is not JSON")
+            continue
+        m = re.fullmatch(r"([\d-]+) to the top (\w+)", head)
+        if not m:
+            bad.append(f"#{r['id']} {r['scoring']!r} is not 'a-b-c to the top n'")
+            continue
+        said = [int(x) for x in m.group(1).split("-")]
+        if (not isinstance(scale, list) or scale != said
+                or WORDS.get(m.group(2)) != len(scale)
+                or scale[0] != r["win_points"]
+                or any(a < b for a, b in zip(scale, scale[1:]))):
+            bad.append(f"#{r['id']} scale {r['scale']} against {r['scoring']!r}, "
+                       f"win_points {r['win_points']}")
+    check("scale is the scoring rule figure by figure, as long as its 'top n'",
+          not bad, "; ".join(bad))
 
     bad = []
     for r in rows:
@@ -4172,6 +4200,70 @@ def views():
         WHERE points < 0 OR (points > 0 AND finish_position IS NULL)""").fetchone()[0]
     check("sprint points are non-negative and go to classified finishers",
           bad_points == 0, f"{bad_points} rows")
+
+
+@section('POINTS: ZERO BELOW THE PAID PLACES, NULL ONLY WHERE NOT ESTABLISHED')
+def points_below_the_paid_places():
+    """A classified finisher below the last place the season's points system
+    paid scored 0, and says so (DA-08): NULL is what this database uses for
+    *not established*, and the scale establishes it. The build writes the 0;
+    this is what stops a new F1DB refresh, a new season or a reworded system
+    leaving a blank behind it."""
+    # The paid places per season, read from the scale in Python rather than
+    # with SQLite's JSON functions, which nothing else here depends on.
+    systems = con.execute("""SELECT from_year, to_year, scale,
+        scoring LIKE 'SPRINT:%' AS sprint FROM points_systems""").fetchall()
+
+    def paid(year, sprint):
+        for s in sorted(systems, key=lambda s: -s["from_year"]):
+            if (bool(s["sprint"]) == sprint and s["from_year"] <= year
+                    and (s["to_year"] is None or s["to_year"] >= year)):
+                return len(json.loads(s["scale"]))
+        return None
+
+    inside_unpaid = set()
+    for table, sprint, what in (("race_entries", False, "grand prix"),
+                                ("sprint_results", True, "sprint")):
+        blank, above = [], 0
+        for r in con.execute(f"""SELECT r.year, r.round, e.driver_id,
+                e.finish_position AS pos, e.points
+            FROM {table} e JOIN races r ON r.id = e.race_id
+            WHERE e.points IS NULL OR e.points = 0
+            ORDER BY r.year, r.round, e.finish_position"""):
+            n = paid(r["year"], sprint)
+            below = r["pos"] is not None and n is not None and r["pos"] > n
+            if r["points"] is None and below:
+                blank.append(f"{r['year']} r{r['round']} P{r['pos']}")
+            elif r["points"] is None and r["pos"] is not None:
+                inside_unpaid.add((r["year"], r["round"], r["driver_id"]))
+            elif r["points"] == 0 and not below:
+                above += 1
+        check(f"no {what} finisher below the paid places holds NULL points", not blank,
+              "; ".join(blank[:5]))
+        # The write reaches below the line and no further: nothing inside
+        # the paid places, and no entry that did not finish, was given a 0.
+        check(f"a {what} 0 is only ever below the paid places, and only for a finisher",
+              above == 0, f"{above} rows")
+
+    # A finisher inside the paid places whom F1DB gives no points is left
+    # NULL, because the scale says the place was paid and what the race's
+    # own rules did to that entry - a shared drive, a Formula Two car, a
+    # second car not entered for the championship, a penalty - is not the
+    # scale's to state. These are the ones there are; a new one is a row to
+    # read, not a zero to write.
+    INSIDE_UNPAID = {
+        (1957, 5, "collins"), (1958, 8, "mclaren-d"), (1958, 10, "gregory"),
+        (1958, 10, "carroll-shelby"), (1960, 1, "moss"), (1960, 1, "trintignant"),
+        (1963, 4, "g-hill"), (1967, 7, "oliver"), (1969, 7, "pescarolo"),
+        (1969, 7, "attwood"), (1984, 14, "jo-gartner"), (1984, 14, "berger"),
+        (1987, 16, "yannick-dalmas"),
+    }
+    # A sprint has none, so one there is new by definition.
+    check(f"the {len(INSIDE_UNPAID)} unpaid finishers inside the paid places are "
+          "the ones declared, and no others",
+          inside_unpaid == INSIDE_UNPAID,
+          f"new: {sorted(inside_unpaid - INSIDE_UNPAID)}; "
+          f"gone: {sorted(INSIDE_UNPAID - inside_unpaid)}")
 
 
 @section('THE README STATES WHAT THE DATABASE HOLDS')
