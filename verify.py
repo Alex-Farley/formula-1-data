@@ -4282,13 +4282,14 @@ def views():
           bad_points == 0, f"{bad_points} rows")
 
 
-@section('POINTS: ZERO BELOW THE PAID PLACES, NULL ONLY WHERE NOT ESTABLISHED')
+@section('POINTS: ZERO WHERE NOTHING WAS PAID, NULL ONLY WHERE NOT ESTABLISHED')
 def points_below_the_paid_places():
     """A classified finisher below the last place the season's points system
-    paid scored 0, and says so (DA-08): NULL is what this database uses for
-    *not established*, and the scale establishes it. The build writes the 0;
-    this is what stops a new F1DB refresh, a new season or a reworded system
-    leaving a blank behind it."""
+    paid scored 0, and says so (DA-08), and so did an entry that was not
+    classified in a race that has a classification (DA-36): NULL is what
+    this database uses for *not established*, and the scale establishes
+    both. The build writes the 0; this is what stops a new F1DB refresh, a
+    new season or a reworded system leaving a blank behind it."""
     # The paid places per season, read from the scale in Python rather than
     # with SQLite's JSON functions, which nothing else here depends on.
     systems = con.execute("""SELECT from_year, to_year, scale,
@@ -4304,25 +4305,39 @@ def points_below_the_paid_places():
     inside_unpaid = set()
     for table, sprint, what in (("race_entries", False, "grand prix"),
                                 ("sprint_results", True, "sprint")):
-        blank, above = [], 0
+        blank, unclassified, above = [], [], 0
         for r in con.execute(f"""SELECT r.year, r.round, e.driver_id,
-                e.finish_position AS pos, e.points
+                e.finish_position AS pos, e.position_text, e.points,
+                EXISTS (SELECT 1 FROM {table} c WHERE c.race_id = e.race_id
+                        AND c.finish_position IS NOT NULL) AS run
             FROM {table} e JOIN races r ON r.id = e.race_id
             WHERE e.points IS NULL OR e.points = 0
             ORDER BY r.year, r.round, e.finish_position"""):
             n = paid(r["year"], sprint)
             below = r["pos"] is not None and n is not None and r["pos"] > n
+            # Not classified, in a race somebody was classified in: the
+            # scale pays only a classified place, so this entry scored 0.
+            unpaid = r["pos"] is None and n is not None and bool(r["run"])
             if r["points"] is None and below:
                 blank.append(f"{r['year']} r{r['round']} P{r['pos']}")
+            elif r["points"] is None and unpaid:
+                unclassified.append(f"{r['year']} r{r['round']} "
+                                    f"{r['driver_id']} {r['position_text']}")
             elif r["points"] is None and r["pos"] is not None:
                 inside_unpaid.add((r["year"], r["round"], r["driver_id"]))
-            elif r["points"] == 0 and not below:
+            elif r["points"] == 0 and not (below or unpaid):
                 above += 1
         check(f"no {what} finisher below the paid places holds NULL points", not blank,
               "; ".join(blank[:5]))
-        # The write reaches below the line and no further: nothing inside
-        # the paid places, and no entry that did not finish, was given a 0.
-        check(f"a {what} 0 is only ever below the paid places, and only for a finisher",
+        check(f"no {what} entry that was not classified holds NULL points",
+              not unclassified,
+              f"{len(unclassified)} rows: " + "; ".join(unclassified[:5])
+              if unclassified else "")
+        # The write reaches no further than those two: nothing inside the
+        # paid places, and nothing in a race nobody was classified in, was
+        # given a 0.
+        check(f"a {what} 0 is only ever below the paid places or for an entry "
+              "not classified in a race that has a classification",
               above == 0, f"{above} rows")
 
     # A finisher inside the paid places whom F1DB gives no points is left
