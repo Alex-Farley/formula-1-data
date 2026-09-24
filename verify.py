@@ -1707,6 +1707,64 @@ def timeline_sanity():
     check("lineage periods run forwards", not bad)
 
 
+@section('LINEAGE: A RACE ENTRY IN EXACTLY ONE PERIOD')
+def lineage_periods():
+    # constructors.lineage_chain is one value per NAME, and names are reused:
+    # counted through it, Renault's 1977-85 entries sat in the Enstone chain,
+    # which was Toleman then, and Mercedes 1954-55 and Honda 1964-68 in
+    # Brackley's, which began with Tyrrell in 1970 (DA-02). The period is the
+    # link - constructor_id and a span of years - and these hold it both ways.
+    #
+    # Every race entry under a constructor that any period names lies inside
+    # exactly one of that constructor's periods: none drops the entry from
+    # its chain, two count it twice.
+    bad = con.execute("""
+        SELECT e.constructor_id, r.year, COUNT(l.id) AS hits
+          FROM race_entries e JOIN races r ON r.id = e.race_id
+          LEFT JOIN constructor_lineage l
+            ON l.constructor_id = e.constructor_id
+           AND r.year >= l.from_year AND r.year <= COALESCE(l.to_year, r.year)
+         WHERE e.constructor_id IN (SELECT constructor_id FROM constructor_lineage)
+         GROUP BY e.id HAVING COUNT(l.id) != 1""").fetchall()
+    spans = {}
+    for r in bad:
+        k = (r["constructor_id"], "no period" if r["hits"] == 0 else f"{r['hits']} periods")
+        spans.setdefault(k, []).append(r["year"])
+    check("every race entry under a chained constructor lies in exactly one of its "
+          "lineage periods", not bad,
+          f"{len(bad)} entries: " + "; ".join(
+              f"{c} {min(y)}-{max(y)} ({len(y)}, {why})"
+              for (c, why), y in sorted(spans.items())))
+    # And the other way: every period holds at least one race entry of its
+    # constructor, so a constructor_id pointing at the wrong team of the same
+    # name - Team Lotus 2011 at the `lotus` of 1958-94 - fails rather than
+    # quietly covering nothing. A constructor with no race entry at all (Rob
+    # Walker, an entrant of other makers' cars) has nothing to place.
+    bad = con.execute("""
+        SELECT l.chain_id, l.entity_name, l.constructor_id, l.from_year, l.to_year
+          FROM constructor_lineage l
+         WHERE EXISTS (SELECT 1 FROM race_entries e WHERE e.constructor_id = l.constructor_id)
+           AND NOT EXISTS (
+               SELECT 1 FROM race_entries e JOIN races r ON r.id = e.race_id
+                WHERE e.constructor_id = l.constructor_id
+                  AND r.year >= l.from_year
+                  AND r.year <= COALESCE(l.to_year, r.year))""").fetchall()
+    check("every lineage period holds a race entry of its constructor", not bad,
+          "; ".join(f"{r['chain_id']} {r['entity_name']} {r['from_year']}-"
+                    f"{r['to_year'] or ''} as {r['constructor_id']}" for r in bad))
+    # lineage_chain, re-derived: the chain of the latest period naming the
+    # row, and NULL only where none does.
+    bad = con.execute("""
+        SELECT c.id, c.lineage_chain,
+               (SELECT l.chain_id FROM constructor_lineage l
+                 WHERE l.constructor_id = c.id
+                 ORDER BY l.from_year DESC, l.sequence DESC, l.id DESC LIMIT 1) AS derived
+          FROM constructors c""").fetchall()
+    bad = [r for r in bad if r["lineage_chain"] != r["derived"]]
+    check("constructors.lineage_chain is the chain of its latest lineage period", not bad,
+          "; ".join(f"{r['id']}: {r['lineage_chain']} not {r['derived']}" for r in bad))
+
+
 @section('POINTS SYSTEMS: THE FIGURES AGAINST THE PROSE')
 def points_systems_figures():
     """`win_points` and `fastest_lap_points` say as numbers what `scoring` and

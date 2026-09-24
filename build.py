@@ -551,28 +551,6 @@ def _stage_04_constructors(b):
             VALUES (?,?,?,?,?,?,0,0,0,0,?,?,?)""",
             (cid, name, full, nat, base, first, notes, conf, HV.F1DB_SOURCE))
 
-    for i, (chain, cname, seq, ent, fy, ty, note) in enumerate(T.LINEAGE, 1):
-        cur.execute("""INSERT INTO constructor_lineage
-            (id, chain_id, chain_name, sequence, entity_name, from_year, to_year, note)
-            VALUES (?,?,?,?,?,?,?,?)""", (i, chain, cname, seq, ent, fy, ty, note))
-
-    # Every constructor must resolve to a lineage chain. Teams that never
-    # changed identity get a chain of one, generated from their own row, so
-    # the link is never dangling and `lineage` works for all of them.
-    have = {r[0] for r in cur.execute("SELECT DISTINCT chain_id FROM constructor_lineage")}
-    nid = cur.execute("SELECT COALESCE(MAX(id), 0) FROM constructor_lineage").fetchone()[0]
-    for c in cur.execute("""SELECT id, name, lineage_chain, first_entry, last_entry
-                             FROM constructors WHERE lineage_chain IS NOT NULL""").fetchall():
-        if c[2] in have:
-            continue
-        nid += 1
-        cur.execute("""INSERT INTO constructor_lineage (id, chain_id, chain_name,
-            sequence, entity_name, from_year, to_year, note)
-            VALUES (?,?,?,?,?,?,?,?)""",
-            (nid, c[2], f"{c[1]}", 1, c[1], c[3], c[4],
-             "Raced under a single identity throughout."))
-        have.add(c[2])
-
     for r in T.ENGINES:
         cur.execute("""INSERT INTO engine_manufacturers (id, name, country, first_year,
             last_year, wins, constructors_titles, drivers_titles, notes, confidence)
@@ -741,6 +719,55 @@ def _stage_08_constructors_admitted_from_the_f1db_register(b):
              1 if max(yrs) >= N.CURRENT_SEASON else 0,
              HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
         known_cons.add(f1db_id)
+
+    # The lineage periods, here rather than with the register in stage 04:
+    # a period names its constructors row, and three of those rows - Midland,
+    # Spyker, Frank Williams Racing Cars - are the F1DB admissions above.
+    for i, (chain, cname, seq, ent, cid, fy, ty, note) in enumerate(T.LINEAGE, 1):
+        cur.execute("""INSERT INTO constructor_lineage
+            (id, chain_id, chain_name, sequence, entity_name, constructor_id,
+             from_year, to_year, note)
+            VALUES (?,?,?,?,?,?,?,?,?)""", (i, chain, cname, seq, ent, cid, fy, ty, note))
+
+    # Every chain data/teams.py names must resolve. A team it gives a chain
+    # that LINEAGE does not hold never changed identity, and gets a chain of
+    # one generated from its own row, so the link is never dangling and
+    # `lineage` works for all of them.
+    have = {r[0] for r in cur.execute("SELECT DISTINCT chain_id FROM constructor_lineage")}
+    nid = cur.execute("SELECT COALESCE(MAX(id), 0) FROM constructor_lineage").fetchone()[0]
+    for c in cur.execute("""SELECT id, name, lineage_chain, first_entry, last_entry
+                             FROM constructors WHERE lineage_chain IS NOT NULL""").fetchall():
+        if c[2] in have:
+            continue
+        nid += 1
+        cur.execute("""INSERT INTO constructor_lineage (id, chain_id, chain_name,
+            sequence, entity_name, constructor_id, from_year, to_year, note)
+            VALUES (?,?,?,?,?,?,?,?,?)""",
+            (nid, c[2], f"{c[1]}", 1, c[1], c[0], c[3], c[4],
+             "Raced under a single identity throughout."))
+        have.add(c[2])
+
+    # constructors.lineage_chain is the chain this NAME most recently belonged
+    # to: the chain of the latest lineage period naming the row. It is derived
+    # here, now that every constructor exists - the F1DB admissions above
+    # carry no chain, though Midland, Spyker and Frank Williams Racing Cars
+    # are each a period of one. A chain typed in data/teams.py that disagrees is a
+    # mistake in one place or the other, and the build says which.
+    latest = {}
+    for cid, chain in cur.execute("""SELECT constructor_id, chain_id
+            FROM constructor_lineage ORDER BY from_year, sequence, id"""):
+        latest[cid] = chain
+    for cid, typed in cur.execute(
+            "SELECT id, lineage_chain FROM constructors ORDER BY id").fetchall():
+        derived = latest.get(cid)
+        if typed is not None and typed != derived:
+            raise SystemExit(
+                f"data/teams.py gives {cid} the lineage chain {typed!r}, but the "
+                f"latest LINEAGE period naming it is in {derived!r}. "
+                f"lineage_chain is the chain of that period (schema.sql).")
+        if typed is None and derived is not None:
+            cur.execute("UPDATE constructors SET lineage_chain = ? WHERE id = ?",
+                        (derived, cid))
 
 
 def _stage_09_regulation_limits_loaded_before_the_chassis(b):
