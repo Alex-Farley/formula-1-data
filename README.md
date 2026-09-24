@@ -1040,7 +1040,7 @@ source instead: `verify.py` fails on a row from anywhere else.
 |---|---|---|
 | `verified` | Checked against fia.com or formula1.com during construction | Yes, with citation |
 | `high` | Long-established record, consistently published officially for decades | Yes |
-| `reference` | Harvested from Wikipedia's season results tables or F1DB, cross-checked on load | Yes, but cite the FIA/F1 archive |
+| `reference` | A published secondary record - F1DB for almost all of it, Wikipedia for most of the rest - compared on load with a second source where one is held | Yes, but cite the FIA/F1 archive |
 | `medium` | Correct in substance; an exact figure or date may have drifted or moves with the season | Confirm first |
 | `unverified` | Placeholder or disputed | No |
 | `catalogued` | Not checked by anyone: a photograph filed by Commons editors under a category named for the chassis | No |

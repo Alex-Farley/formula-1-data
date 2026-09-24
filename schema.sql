@@ -18,10 +18,12 @@
 --   verified   = checked this session against fia.com / formula1.com
 --   high       = well-established record, stable across decades of
 --                official publication; safe to rely on
---   reference  = harvested from Wikipedia's season results tables, which
---                are transcribed from FIA classifications. Cross-checked
---                on load against independently held season data. Usable,
---                but not official under this database's policy.
+--   reference  = a published secondary record: F1DB for almost all of
+--                it, Wikipedia for most of the rest. Compared on load with
+--                a second source where one is held - not every table has
+--                one. Usable, but not official under this database's
+--                policy. The `provenance` row names each source, and
+--                verify.py holds the names to the rows (DA-05).
 --   medium     = correct in substance, detail (exact figure, exact
 --                date) worth confirming before publication
 --   unverified = placeholder / disputed / known-incomplete
