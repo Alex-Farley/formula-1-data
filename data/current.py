@@ -375,7 +375,7 @@ SOURCE_REGISTRY = [
      "The winner of every race is held independently from the Wikipedia "
      "harvest; the two must agree."),
     (8, "Wikipedia season results tables", "https://en.wikipedia.org/wiki/List_of_Formula_One_World_Championship_points_scoring_systems",
-     "Admitted as a REFERENCE source for race-by-race results only (see the 'reference' confidence tier). Its season tables are transcribed from FIA classifications and were cross-checked on load against independently held season data. Not admissible for narrative, attribution or contested claims, and never promoted to 'verified' without an FIA/F1 check.", "reference",
+     "Admitted as a REFERENCE source for race-by-race results only (see the 'reference' confidence tier). Its season tables are transcribed from FIA classifications, and a race winner harvested from them is compared on load with F1DB's. Not admissible for narrative, attribution or contested claims, and never promoted to 'verified' without an FIA/F1 check.", "reference",
      "CC BY-SA 4.0. Share-alike reaches any prose taken from it - see "
      "ATTRIBUTION.md.", "Continuous, by anyone.",
      "Race count per season, contiguous rounds, and every driver and "
@@ -925,7 +925,7 @@ ID_STABILITY_NOTE = (
 PROVENANCE = [
     ("verified", 1, "Checked directly against an official FIA or Formula 1 source during database construction. Safe to state as fact and to cite.", 1),
     ("high", 2, "A well-established record, consistently published in official sources over many years. Safe to rely on; cite the official archive if publishing.", 1),
-    ("reference", 3, "Taken from a published secondary record rather than an official one: F1DB for almost all of it, and for most of the rest Wikipedia's season results tables or its per-car and per-topic articles. A few regulation limits read from the FIA's own regulations sit here too. Where a second source held here covers the same fact the two are compared on load - the winner of every race, F1DB's against the Wikipedia harvest, for one - but some tables at this tier, the entrant, engine and sprint registers among them, have no second source, so the tier alone does not say a row was cross-checked. Reliable; not official under this database's policy, so cite the FIA/F1 archive if publishing.", 1),
+    ("reference", 3, "Taken from a published secondary record rather than an official one: F1DB for almost all of it, and for most of the rest Wikipedia's season results tables or its per-car and per-topic articles. A few regulation limits read from the FIA's own regulations sit here too. Where a second source held here covers the same fact the two are compared on load - a race's winner, where one is already held from another source, against F1DB's, for one - but some tables at this tier, the entrant, engine and sprint registers among them, have no second source, so the tier alone does not say a row was cross-checked. Reliable; not official under this database's policy, so cite the FIA/F1 archive if publishing.", 1),
     ("medium", 4, "Correct in substance. An exact figure or date may have drifted or may move with the current season. Confirm before publication.", 0),
     ("unverified", 5, "Placeholder, disputed, or known to be incomplete. Never state as fact.", 0),
     # AF-42. Below unverified because it is not even a claim this database
@@ -943,7 +943,10 @@ PROVENANCE = [
 # fails the build until its definition says so, and one that stops fails it
 # until the definition stops saying so. A tier absent from this map names a
 # kind of source ("an official FIA or Formula 1 source"), not a registry
-# entry, and is not held to one.
+# entry, and is not held to one. What is held is that a phrase appears, not
+# what the sentence around it says: nothing here checks the definition's
+# account of cross-checking, which is prose, and is the reason it names no
+# table as checked that has no second source.
 PROVENANCE_SOURCES = {
     "reference": {
         10: "F1DB",

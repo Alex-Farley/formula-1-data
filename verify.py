@@ -3120,7 +3120,8 @@ def tier_sources():
     # the definition as shipped, and the declared sources are exactly the
     # ones the tier's rows resolve to - by source_id, or by table_provenance
     # for a table with no `source` column, the same two routes
-    # provenance_resolves reads.
+    # provenance_resolves reads. A phrase is matched as text, and nothing
+    # here reads what the definition says about cross-checking.
     from data.current import PROVENANCE_SOURCES as declared
     defs = {r["confidence"]: r["definition"]
             for r in con.execute("SELECT confidence, definition FROM provenance")}

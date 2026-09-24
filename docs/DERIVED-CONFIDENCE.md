@@ -469,5 +469,9 @@ reader of them. They are `PM-55` (#620) and `PM-56` (#621).
 supplies almost entirely. `PROVENANCE_SOURCES` in `data/current.py` now
 declares, for each tier whose definition names registry entries, the words
 it names each by; `verify.py` holds every name to the shipped definition and
-the declared set to exactly the sources the tier's rows resolve to, so the
-definition cannot fall behind a new loader again without failing the build.
+the declared set to exactly the sources the tier's rows resolve to, so a
+loader that brings a new source to a tier fails the build until the
+definition names it. That is all it holds. A phrase is matched as text, not
+read, and the definition's account of what is cross-checked is prose nothing
+checks: a new F1DB table with no second source would fail nothing. Holding
+that part is what `checks` (step 4) is for.

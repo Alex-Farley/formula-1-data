@@ -61,8 +61,10 @@ class TheTierCheckRefuses(unittest.TestCase):
         self.assertRefused("every source a tier declares is named in its definition")
 
     def test_rows_from_a_source_the_definition_does_not_name_are_refused(self):
-        jolpica = sqlite3.connect(self.db).execute(
+        con = sqlite3.connect(self.db)
+        jolpica = con.execute(
             "SELECT id FROM source_registry WHERE source LIKE 'Jolpica%'").fetchone()[0]
+        con.close()
         self.alter("UPDATE qualifying SET source_id = ? WHERE rowid = "
                    "(SELECT MIN(rowid) FROM qualifying WHERE confidence = 'reference')",
                    (jolpica,))
@@ -72,6 +74,25 @@ class TheTierCheckRefuses(unittest.TestCase):
         self.alter("UPDATE regulation_limits SET confidence = 'medium' "
                    "WHERE confidence = 'reference' AND source LIKE 'https://en.wikipedia.org/%'")
         self.assertRefused("every source a tier's definition names is cited at that tier")
+
+    def test_a_table_without_a_source_column_is_read_through_its_provenance(self):
+        # `records` has no `source`; its rows reach a registry entry only
+        # through table_provenance, which is the route this breaks.
+        con = sqlite3.connect(self.db)
+        jolpica = con.execute(
+            "SELECT id FROM source_registry WHERE source LIKE 'Jolpica%'").fetchone()[0]
+        con.close()
+        self.alter("UPDATE table_provenance SET source_id = ? WHERE tbl = 'records'",
+                   (jolpica,))
+        self.assertRefused("every source a tier's rows cite is named in its definition")
+
+    def test_a_table_whose_provenance_is_missing_is_refused(self):
+        self.alter("DELETE FROM table_provenance WHERE tbl = 'records'")
+        self.assertRefused("every row at a tier that names its sources cites one")
+
+    def test_a_declared_tier_off_the_ladder_is_refused(self):
+        self.alter("DELETE FROM provenance WHERE confidence = 'catalogued'")
+        self.assertRefused("every tier declaring its sources is on the ladder")
 
     def test_a_row_at_the_tier_that_cites_nothing_is_refused(self):
         self.alter("UPDATE qualifying SET source_id = NULL WHERE rowid = "
