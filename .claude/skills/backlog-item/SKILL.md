@@ -253,8 +253,9 @@ deliberately against `main`, and what they find is filed as issues. The
 merge path has exactly the four agents named above and no others.
 
 Model: **Opus for a first pass**, front-end and data alike, except where the
-pace table names the quick variant. **Sonnet, fresh, for confirming a fix or
-reviewing a docs-only or wording-only change** — a fresh Sonnet context
+pace table names the quick variant. **A confirmation of a fix is the
+model the pace table's *Confirming* row names** `[D-41]`; **Sonnet, fresh,
+for reviewing a docs-only or wording-only change** — a fresh Sonnet context
 satisfies the independent-review rule. A substantive rewrite after a FAIL
 gets a new fresh Opus agent, not a confirmation.
 

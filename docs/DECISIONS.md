@@ -252,8 +252,8 @@ confirmation reads a commit range against findings already written down, and
 a fresh Sonnet context satisfies the independent-review rule for that job, as
 it does on the front end. `thorough` still confirms with Opus. The rule is
 stated once: *Never slides* names the first pass and points at the pace
-table's *Confirming* row, and the FAIL bullet names that row instead of
-restating it.
+table's *Confirming* row, and the FAIL bullet, the *Model* paragraph and
+`review-prompt.md`'s follow-up brief name that row instead of restating it.
 
 ### D-20 · Grouping is not a pace setting — 2026-09-14
 Replaces an S-only rule and a per-pace count of four, two and none. What
