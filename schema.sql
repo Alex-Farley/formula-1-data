@@ -1059,6 +1059,12 @@ CREATE TABLE race_entries (
     classified      INTEGER,                   -- 1 = classified finisher
     status          TEXT,                      -- Finished | +1 Lap | Engine | Accident ...
     laps_completed  INTEGER,
+    -- 0 for a classified finisher below the last place the season's points
+    -- system paid (points_systems.scale, DA-08): the rule paid them nothing,
+    -- which is established, so it is not a blank. NULL is left where it is
+    -- not established by that rule - an entry that did not finish, and the
+    -- few finishers inside the paid places whom the race's own rules did not
+    -- pay, which verify.py names.
     points          REAL,
     note            TEXT,
     confidence      TEXT NOT NULL DEFAULT 'reference' REFERENCES provenance(confidence),
@@ -1097,7 +1103,8 @@ CREATE TABLE sprint_results (
     laps_completed  INTEGER,
     time            TEXT,                      -- winner's time; gap for the rest
     gap             TEXT,
-    points          REAL,                      -- counts towards the championship
+    points          REAL,                      -- counts towards the championship;
+                                               -- 0 below the paid places, as race_entries
     note            TEXT,
     confidence      TEXT NOT NULL DEFAULT 'reference' REFERENCES provenance(confidence),
     source          TEXT,
@@ -1213,11 +1220,18 @@ CREATE TABLE tyre_suppliers (
 -- data/technical.py beside the prose, not parsed out of it at read time, and
 -- verify.py holds each to the sentence it sits next to so the two cannot
 -- disagree. A sprint row carries its own win value here too.
+--
+-- `scale` is the whole of `scoring`'s rule as a JSON array - the points for
+-- first, second, third, down to the last place paid (DA-08). Its length is
+-- how far down the order the system paid, and the build reads it to write 0
+-- into race_entries.points and sprint_results.points for a classified
+-- finisher below that line.
 CREATE TABLE points_systems (
     id              INTEGER PRIMARY KEY,
     from_year       INTEGER NOT NULL,
     to_year         INTEGER,
     scoring         TEXT NOT NULL,
+    scale           TEXT NOT NULL,             -- JSON array, e.g. [8,6,4,3,2]
     win_points      INTEGER NOT NULL,          -- points for a win, e.g. 25
     fastest_lap     TEXT,
     fastest_lap_points INTEGER NOT NULL DEFAULT 0,

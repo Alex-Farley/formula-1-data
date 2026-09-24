@@ -1285,20 +1285,22 @@ def _stage_15_rules_tech_safety(b):
         cur.execute("""INSERT INTO tyre_suppliers (id, supplier, from_year, to_year,
             exclusive, notes) VALUES (?,?,?,?,?,?)""", (i,) + r)
 
-    for i, r in enumerate(X.POINTS, 1):
+    for i, (fy, ty, scoring, scale, *rest) in enumerate(X.POINTS, 1):
         cur.execute("""INSERT INTO points_systems (id, from_year, to_year, scoring,
-            win_points, fastest_lap, fastest_lap_points, dropped_scores, notes)
-            VALUES (?,?,?,?,?,?,?,?,?)""", (i,) + r)
+            scale, win_points, fastest_lap, fastest_lap_points, dropped_scores, notes)
+            VALUES (?,?,?,?,?,?,?,?,?,?)""",
+            (i, fy, ty, scoring, json.dumps(list(scale), separators=(",", ":")), *rest))
 
     # A sprint row has no fastest-lap point of its own - no sprint has ever
     # carried one - so its fastest_lap_points is 0 rather than NULL, and
     # verify.py checks that against the NULL `fastest_lap` beside it.
     off = len(X.POINTS)
-    for i, (fy, ty, scoring, win, note) in enumerate(X.SPRINT_POINTS, off + 1):
+    for i, (fy, ty, scoring, scale, win, note) in enumerate(X.SPRINT_POINTS, off + 1):
         cur.execute("""INSERT INTO points_systems (id, from_year, to_year, scoring,
-            win_points, fastest_lap, fastest_lap_points, dropped_scores, notes)
-            VALUES (?,?,?,?,?,?,?,?,?)""",
-            (i, fy, ty, "SPRINT: " + scoring, win, None, 0, None, note))
+            scale, win_points, fastest_lap, fastest_lap_points, dropped_scores, notes)
+            VALUES (?,?,?,?,?,?,?,?,?,?)""",
+            (i, fy, ty, "SPRINT: " + scoring,
+             json.dumps(list(scale), separators=(",", ":")), win, None, 0, None, note))
 
     # `records` is no longer loaded here: it is DERIVED in stage 31, after the
     # career figures it is computed from exist. See derive_records().
@@ -1992,6 +1994,42 @@ def _stage_22_the_sprint_races(b):
         print(f"  sprint races: {spr_rows} entries over {spr_races} sprints "
               f"from F1DB ({flagged} rounds flagged); {spr_skipped} rows "
               f"skipped for an unresolvable driver")
+
+    _zero_below_the_paid_places(cur)
+
+
+def _zero_below_the_paid_places(cur):
+    """0, not NULL, for a classified finisher the points system paid nothing.
+
+    F1DB leaves the points field empty for a finisher outside the points, so
+    thousands of classified finishers held NULL - the value this database
+    uses for *not established* - where what is established is that the rule
+    paid them nothing (DA-08). The line is points_systems.scale: a system
+    pays as far down the order as its scale runs and no further, so every
+    classified finisher below it scored 0.
+
+    Only a NULL is written and only below that line. A finisher below it who
+    did score keeps F1DB's figure - a 1950s fastest-lap point, or a
+    championship car classified behind the Formula Two entries of a German
+    Grand Prix. A finisher inside the paid places with no points is left
+    NULL: the scale says those places were paid, so what the race's own
+    rules did to that entry is not this rule's to state, and verify.py names
+    each one. Every row this touches is written here, after the last stage
+    that inserts a race or sprint entry."""
+    written = {}
+    for table, sprint in (("race_entries", False), ("sprint_results", True)):
+        for fy, ty, scale in cur.execute("""SELECT from_year, to_year, scale
+                FROM points_systems WHERE (scoring LIKE 'SPRINT:%') = ?
+                ORDER BY id""", (sprint,)).fetchall():
+            written[table] = written.get(table, 0) + cur.execute(f"""
+                UPDATE {table} SET points = 0
+                WHERE points IS NULL AND finish_position > ?
+                  AND race_id IN (SELECT id FROM races WHERE year >= ?
+                                  AND (? IS NULL OR year <= ?))""",
+                (len(json.loads(scale)), fy, ty, ty)).rowcount
+    print(f"  points: 0 written for {written.get('race_entries', 0)} classified "
+          f"finishers and {written.get('sprint_results', 0)} sprint finishers "
+          f"below the last place their points system paid")
 
 
 def _stage_23_a_round_that_has_a_result(b):

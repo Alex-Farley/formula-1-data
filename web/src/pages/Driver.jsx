@@ -178,8 +178,9 @@ function ThisSeason({ name, rows: calendar, standings }) {
             colour: inColour ? colour : null,
             hollow: inColour && !colour,
             mark: row.finish_position === 1,
-            // No points clause where the entry carries none: a finish outside
-            // the points holds NULL, and "— points" would claim a gap.
+            // No points clause where the entry carries none. A finish outside
+            // the points holds 0 and says so (DA-08); NULL is a figure nobody
+            // established, and "— points" would claim a gap.
             note: `P${row.finish_position}${
               row.points === null || row.points === undefined
                 ? ''
