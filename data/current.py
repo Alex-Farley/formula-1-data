@@ -575,8 +575,10 @@ SOURCE_REGISTRY = [
      "external source to be compared against and no check in verify.py that "
      "constrains a value - what "
      "constrains grands_prix, constructor_lineage and personnel is "
-     "referential and temporal only: ids resolve, years run forwards. Those "
-     "prove the shape and say nothing about the claim. So nothing here may "
+     "referential and temporal only: ids resolve, years run forwards, and "
+     "a lineage period holds its constructor's race entries. Those prove the "
+     "shape and say nothing about the claim - that Toleman and Alpine are one "
+     "team. So nothing here may "
      "sit above 'medium', which is what that tier means: correct in "
      "substance, confirm the figure before publishing. It sat at 'high' "
      "until v2.16, which promised more than anything could deliver."),

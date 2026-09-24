@@ -202,58 +202,84 @@ CONSTRUCTORS = [
 
 # ---------------------------------------------------------------------
 # Lineage: one continuous racing operation, many names.
-# chain_id, chain_name, sequence, entity_name, from_year, to_year, note
+# chain_id, chain_name, sequence, entity_name, constructor_id, from_year,
+# to_year, note
+#
+# constructor_id is the constructors row the period's race entries are
+# recorded under - not the one whose name matches entity_name. They differ:
+# Alfa Romeo 2019-23 and Kick Sauber raced as `sauber`, and Team Lotus 2011
+# is `caterham`, not the `lotus` of 1958-94. verify.py holds every race entry
+# under a constructor named here to exactly one of its periods, and every
+# period to at least one of its constructor's entries.
 # ---------------------------------------------------------------------
 LINEAGE = [
-    ("enstone", "The Enstone team", 1, "Toleman", 1981, 1985, "Founded by a Essex-based haulage group; Senna's first F1 seat."),
-    ("enstone", "The Enstone team", 2, "Benetton", 1986, 2001, "Two drivers' titles (1994, 1995) and one constructors' (1995)."),
-    ("enstone", "The Enstone team", 3, "Renault", 2002, 2011, "Doubles in 2005 and 2006 with Alonso."),
-    ("enstone", "The Enstone team", 4, "Lotus F1 Team", 2012, 2015, "Name licensed from Group Lotus; two wins with Raikkonen."),
-    ("enstone", "The Enstone team", 5, "Renault", 2016, 2020, "Works Renault entry restored."),
-    ("enstone", "The Enstone team", 6, "Alpine", 2021, None, "Rebadged to Renault's sports-car brand."),
+    ("enstone", "The Enstone team", 1, "Toleman", "toleman", 1981, 1985, "Founded by a Essex-based haulage group; Senna's first F1 seat."),
+    ("enstone", "The Enstone team", 2, "Benetton", "benetton", 1986, 2001, "Two drivers' titles (1994, 1995) and one constructors' (1995)."),
+    ("enstone", "The Enstone team", 3, "Renault", "renault", 2002, 2011, "Doubles in 2005 and 2006 with Alonso."),
+    ("enstone", "The Enstone team", 4, "Lotus F1 Team", "lotus-f1", 2012, 2015, "Name licensed from Group Lotus; two wins with Raikkonen."),
+    ("enstone", "The Enstone team", 5, "Renault", "renault", 2016, 2020, "Works Renault entry restored."),
+    ("enstone", "The Enstone team", 6, "Alpine", "alpine", 2021, None, "Rebadged to Renault's sports-car brand."),
 
-    ("brackley", "The Brackley team", 1, "Tyrrell", 1970, 1998, "Ken Tyrrell's constructor; entry sold to BAT."),
-    ("brackley", "The Brackley team", 2, "British American Racing (BAR)", 1999, 2005, "Tobacco-funded relaunch; second in 2004."),
-    ("brackley", "The Brackley team", 3, "Honda Racing F1", 2006, 2008, "Works Honda; withdrew in the financial crisis."),
-    ("brackley", "The Brackley team", 4, "Brawn GP", 2009, 2009, "Management buyout; won both titles in its only season."),
-    ("brackley", "The Brackley team", 5, "Mercedes", 2010, None, "Eight consecutive constructors' titles, 2014-2021."),
+    ("brackley", "The Brackley team", 1, "Tyrrell", "tyrrell", 1970, 1998, "Ken Tyrrell's constructor; entry sold to BAT."),
+    ("brackley", "The Brackley team", 2, "British American Racing (BAR)", "bar", 1999, 2005, "Tobacco-funded relaunch; second in 2004."),
+    ("brackley", "The Brackley team", 3, "Honda Racing F1", "honda-works", 2006, 2008, "Works Honda; withdrew in the financial crisis."),
+    ("brackley", "The Brackley team", 4, "Brawn GP", "brawn", 2009, 2009, "Management buyout; won both titles in its only season."),
+    ("brackley", "The Brackley team", 5, "Mercedes", "mercedes", 2010, None, "Eight consecutive constructors' titles, 2014-2021."),
 
-    ("milton-keynes", "The Milton Keynes team", 1, "Stewart Grand Prix", 1997, 1999, "Won at the Nurburgring in 1999."),
-    ("milton-keynes", "The Milton Keynes team", 2, "Jaguar Racing", 2000, 2004, "Ford ownership; no wins."),
-    ("milton-keynes", "The Milton Keynes team", 3, "Red Bull Racing", 2005, None, "Six constructors' titles and eight drivers' titles."),
+    ("milton-keynes", "The Milton Keynes team", 1, "Stewart Grand Prix", "stewart-gp", 1997, 1999, "Won at the Nurburgring in 1999."),
+    ("milton-keynes", "The Milton Keynes team", 2, "Jaguar Racing", "jaguar", 2000, 2004, "Ford ownership; no wins."),
+    ("milton-keynes", "The Milton Keynes team", 3, "Red Bull Racing", "red-bull", 2005, None, "Six constructors' titles and eight drivers' titles."),
 
-    ("faenza", "The Faenza team", 1, "Minardi", 1985, 2005, "Twenty-one seasons as the grid's most-loved underdog."),
-    ("faenza", "The Faenza team", 2, "Scuderia Toro Rosso", 2006, 2019, "Vettel's Monza win in 2008."),
-    ("faenza", "The Faenza team", 3, "Scuderia AlphaTauri", 2020, 2023, "Gasly's Monza win in 2020."),
-    ("faenza", "The Faenza team", 4, "RB / Racing Bulls", 2024, None, "Repositioned as an explicit Red Bull feeder."),
+    ("faenza", "The Faenza team", 1, "Minardi", "minardi", 1985, 2005, "Twenty-one seasons as the grid's most-loved underdog."),
+    ("faenza", "The Faenza team", 2, "Scuderia Toro Rosso", "toro-rosso", 2006, 2019, "Vettel's Monza win in 2008."),
+    ("faenza", "The Faenza team", 3, "Scuderia AlphaTauri", "alphatauri", 2020, 2023, "Gasly's Monza win in 2020."),
+    ("faenza", "The Faenza team", 4, "RB / Racing Bulls", "racing-bulls", 2024, None, "Repositioned as an explicit Red Bull feeder."),
 
-    ("silverstone", "The Silverstone (Jordan) team", 1, "Jordan Grand Prix", 1991, 2005, "Four wins; third in the 1999 championship."),
-    ("silverstone", "The Silverstone (Jordan) team", 2, "MF1 / Midland", 2006, 2006, "Russian-Canadian ownership."),
-    ("silverstone", "The Silverstone (Jordan) team", 3, "Spyker", 2007, 2007, "Dutch sports-car owner; one season."),
-    ("silverstone", "The Silverstone (Jordan) team", 4, "Force India", 2008, 2018, "Fourth in 2016 and 2017 on a fraction of the budget."),
-    ("silverstone", "The Silverstone (Jordan) team", 5, "Racing Point", 2019, 2020, "Stroll consortium rescue; won the Sakhir GP."),
-    ("silverstone", "The Silverstone (Jordan) team", 6, "Aston Martin", 2021, None, "New factory and wind tunnel at Silverstone; Newey arrived for 2026."),
+    ("silverstone", "The Silverstone (Jordan) team", 1, "Jordan Grand Prix", "jordan", 1991, 2005, "Four wins; third in the 1999 championship."),
+    ("silverstone", "The Silverstone (Jordan) team", 2, "MF1 / Midland", "midland", 2006, 2006, "Russian-Canadian ownership."),
+    ("silverstone", "The Silverstone (Jordan) team", 3, "Spyker", "spyker", 2007, 2007, "Dutch sports-car owner; one season."),
+    ("silverstone", "The Silverstone (Jordan) team", 4, "Force India", "force-india", 2008, 2018, "Fourth in 2016 and 2017 on a fraction of the budget."),
+    ("silverstone", "The Silverstone (Jordan) team", 5, "Racing Point", "racing-point", 2019, 2020, "Stroll consortium rescue; won the Sakhir GP."),
+    ("silverstone", "The Silverstone (Jordan) team", 6, "Aston Martin", "aston-martin", 2021, None, "New factory and wind tunnel at Silverstone; Newey arrived for 2026."),
 
-    ("hinwil", "The Hinwil team", 1, "Sauber", 1993, 2005, "Peter Sauber's independent constructor."),
-    ("hinwil", "The Hinwil team", 2, "BMW Sauber", 2006, 2010, "Works BMW; won in Canada 2008."),
-    ("hinwil", "The Hinwil team", 3, "Sauber", 2010, 2018, "Independent again after BMW's exit."),
-    ("hinwil", "The Hinwil team", 4, "Alfa Romeo", 2019, 2023, "Alfa naming rights over a Ferrari-powered Sauber."),
-    ("hinwil", "The Hinwil team", 5, "Kick Sauber", 2024, 2025, "Interim identity during the Audi transition."),
-    ("hinwil", "The Hinwil team", 6, "Audi", 2026, None, "Full works Audi entry with its own power unit."),
+    ("hinwil", "The Hinwil team", 1, "Sauber", "sauber", 1993, 2005, "Peter Sauber's independent constructor."),
+    ("hinwil", "The Hinwil team", 2, "BMW Sauber", "bmw-sauber", 2006, 2010, "Works BMW; won in Canada 2008."),
+    ("hinwil", "The Hinwil team", 3, "Sauber", "sauber", 2010, 2018, "Independent again after BMW's exit."),
+    ("hinwil", "The Hinwil team", 4, "Alfa Romeo", "sauber", 2019, 2023, "Alfa naming rights over a Ferrari-powered Sauber."),
+    ("hinwil", "The Hinwil team", 5, "Kick Sauber", "sauber", 2024, 2025, "Interim identity during the Audi transition."),
+    ("hinwil", "The Hinwil team", 6, "Audi", "audi", 2026, None, "Full works Audi entry with its own power unit."),
 
-    ("grove", "The Williams team", 1, "Frank Williams Racing Cars", 1969, 1976, "Frank Williams's first venture; entered customer cars."),
-    ("grove", "The Williams team", 2, "Williams Grand Prix Engineering", 1977, None, "Founded with Patrick Head; nine constructors' titles."),
+    ("grove", "The Williams team", 1, "Frank Williams Racing Cars", "frank-williams-racing-cars", 1969, 1976, "Frank Williams's first venture; entered customer cars."),
+    ("grove", "The Williams team", 2, "Williams Grand Prix Engineering", "williams", 1977, None, "Founded with Patrick Head; nine constructors' titles."),
 
-    ("manor", "The Manor team", 1, "Virgin Racing", 2010, 2011, "One of three new 2010 entrants."),
-    ("manor", "The Manor team", 2, "Marussia", 2012, 2015, "Bianchi scored its only points at Monaco 2014."),
-    ("manor", "The Manor team", 3, "Manor Racing", 2016, 2016, "Folded in January 2017."),
+    ("manor", "The Manor team", 1, "Virgin Racing", "virgin", 2010, 2011, "One of three new 2010 entrants."),
+    ("manor", "The Manor team", 2, "Marussia", "virgin", 2012, 2015, "Bianchi scored its only points at Monaco 2014."),
+    ("manor", "The Manor team", 3, "Manor Racing", "virgin", 2016, 2016, "Folded in January 2017."),
 
-    ("caterham", "The Caterham team", 1, "Lotus Racing", 2010, 2010, "Entered under a Group Lotus licence."),
-    ("caterham", "The Caterham team", 2, "Team Lotus", 2011, 2011, "Naming dispute with the Enstone team."),
-    ("caterham", "The Caterham team", 3, "Caterham F1", 2012, 2014, "Never scored a point in 94 starts."),
+    ("caterham", "The Caterham team", 1, "Lotus Racing", "caterham", 2010, 2010, "Entered under a Group Lotus licence."),
+    ("caterham", "The Caterham team", 2, "Team Lotus", "caterham", 2011, 2011, "Naming dispute with the Enstone team."),
+    ("caterham", "The Caterham team", 3, "Caterham F1", "caterham", 2012, 2014, "Never scored a point in 94 starts."),
 
-    ("ligier-chain", "The Magny-Cours team", 1, "Ligier", 1976, 1996, "Nine wins; a fixture of French motorsport."),
-    ("ligier-chain", "The Magny-Cours team", 2, "Prost Grand Prix", 1997, 2001, "Bought by Alain Prost; bankrupt in 2002."),
+    ("ligier-chain", "The Magny-Cours team", 1, "Ligier", "ligier", 1976, 1996, "Nine wins; a fixture of French motorsport."),
+    ("ligier-chain", "The Magny-Cours team", 2, "Prost Grand Prix", "prost-gp", 1997, 2001, "Bought by Alain Prost; bankrupt in 2002."),
+
+    # Four names this sport reused. Each constructor below raced a first spell
+    # under the name that a later, unrelated operation took over, so its
+    # constructors row carries the later chain and these years belong to no
+    # multi-name chain at all. They are chains of one, declared, so that every
+    # race entry under a chained constructor lies inside exactly one period -
+    # which verify.py holds - and a Renault win in 1982 cannot be counted
+    # through Enstone. The notes on the mercedes, honda-works and aston-martin
+    # rows give their two spells; renault's race entries give its own, 1977-85
+    # against Toleman's 1981-85 in the Enstone chain.
+    ("renault-1977", "The works Renault team, 1977-85", 1, "Renault", "renault", 1977, 1985,
+     "The first works Renault entry, which raced alongside Toleman from 1981; the Renault name reached the Enstone team only in 2002."),
+    ("mercedes-1954", "The works Mercedes team, 1954-55", 1, "Mercedes", "mercedes", 1954, 1955,
+     "Withdrew after 1955; the Brackley team took the Mercedes name in 2010."),
+    ("honda-1964", "The works Honda team, 1964-68", 1, "Honda", "honda-works", 1964, 1968,
+     "Withdrew after 1968; Honda bought BAR and raced it under its own name from 2006."),
+    ("aston-martin-1959", "The works Aston Martin team, 1959-60", 1, "Aston Martin", "aston-martin", 1959, 1960,
+     "Withdrew after 1960; the Silverstone team took the Aston Martin name in 2021."),
 ]
 
 # ---------------------------------------------------------------------

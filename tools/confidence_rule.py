@@ -83,7 +83,10 @@ CONSTRAINED_BY = {
     # Deliberately absent: article_images, glossary, eras, records, governance,
     # technical_innovations, safety_milestones, points_systems, tyre_suppliers,
     # engine_eras, grands_prix, constructor_lineage, personnel, circuit_layouts.
-    # Nothing in verify.py constrains their values.
+    # Nothing in verify.py constrains their values. constructor_lineage comes
+    # closest: its constructor_id and years are held to race_entries (DA-02),
+    # which places a period and says nothing about whether the names in a
+    # chain are one operation - the claim the table makes.
 }
 
 LADDER = ["verified", "high", "reference", "medium", "unverified",

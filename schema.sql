@@ -294,7 +294,16 @@ CREATE TABLE constructors (
     constructors_titles INTEGER DEFAULT 0,
     drivers_titles  INTEGER DEFAULT 0,
     title_years     TEXT,
-    lineage_chain   TEXT,                      -- FK-ish to constructor_lineage.chain_id
+    -- The chain this NAME most recently belonged to: the chain of the latest
+    -- constructor_lineage period whose constructor_id is this row, NULL when
+    -- no period names it. build.py derives it where data/teams.py leaves it
+    -- out and refuses a typed one that disagrees; verify.py re-derives it.
+    -- It is NOT a join from a race entry to a chain. A name in this sport is
+    -- reused by unrelated operations, so `renault` carries 'enstone' for
+    -- 1977-85 as well, when Enstone was Toleman and Renault was somewhere
+    -- else. To place an entry in a chain, join constructor_lineage on
+    -- constructor_id and the race's year (see there).
+    lineage_chain   TEXT,
     active          INTEGER NOT NULL DEFAULT 0,
     notes           TEXT,
     confidence      TEXT NOT NULL DEFAULT 'medium' REFERENCES provenance(confidence),
@@ -303,12 +312,29 @@ CREATE TABLE constructors (
 
 -- A single continuous racing operation that changed names/owners over
 -- time, e.g. Enstone: Toleman > Benetton > Renault > Lotus > Renault > Alpine
+--
+-- ONE ROW IS A PERIOD: a name the operation raced under, for a span of years,
+-- and the constructors row its race entries are recorded under. The period,
+-- not the constructors row, is what places a race entry in a chain:
+--
+--   SELECT l.chain_id, e.* FROM race_entries e
+--     JOIN races r ON r.id = e.race_id
+--     JOIN constructor_lineage l ON l.constructor_id = e.constructor_id
+--      AND r.year BETWEEN l.from_year AND COALESCE(l.to_year, r.year)
+--
+-- verify.py holds that join to exactly one period for every entry under a
+-- constructor any period names, so it neither drops nor doubles a row; and
+-- every period to at least one entry of its constructor (where it has any),
+-- so a constructor_id that points at the wrong team of the same name fails.
 CREATE TABLE constructor_lineage (
     id              INTEGER PRIMARY KEY,
     chain_id        TEXT NOT NULL,
     chain_name      TEXT NOT NULL,
     sequence        INTEGER NOT NULL,
-    entity_name     TEXT NOT NULL,
+    entity_name     TEXT NOT NULL,             -- the name as raced, for reading
+    -- The id, which entity_name is not: 'Jordan Grand Prix' is `jordan`, and
+    -- Alfa Romeo 2019-23 and Kick Sauber are both `sauber`.
+    constructor_id  TEXT NOT NULL REFERENCES constructors(id),
     from_year       INTEGER,
     to_year         INTEGER,
     note            TEXT,

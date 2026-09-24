@@ -43,7 +43,7 @@ here is a number the build checked.
 
 | File | What it is |
 |---|---|
-| `f1.db` | The SQLite database. <!-- fig:tables -->49<!-- /fig --> tables, <!-- fig:views -->41<!-- /fig --> views, <!-- fig:rows -->122,281<!-- /fig --> rows. This is the artefact. |
+| `f1.db` | The SQLite database. <!-- fig:tables -->49<!-- /fig --> tables, <!-- fig:views -->41<!-- /fig --> views, <!-- fig:rows -->122,285<!-- /fig --> rows. This is the artefact. |
 | `f1-geometry.db` | The OpenStreetMap circuit centrelines (ODbL), shipped beside `f1.db` and never merged into it. See *Illustration*. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
@@ -180,10 +180,20 @@ preserved in the `*_external` columns so the two can always be compared.
 
 **Constructors** — <!-- fig:constructors -->150<!-- /fig --> rows, plus a
 `constructor_lineage` table that tracks
-<!-- fig:lineage_chains -->36<!-- /fig --> continuous racing operations
+<!-- fig:lineage_chains -->40<!-- /fig --> continuous racing operations
 through their name changes. Enstone is Toleman → Benetton → Renault → Lotus →
 Renault → Alpine; Brackley is Tyrrell → BAR → Honda → Brawn → Mercedes. This
 is the thing most F1 databases get wrong.
+
+A name is not an operation, so the link from a result to its chain is a
+*period*: each lineage row names the `constructor_id` its entries are recorded
+under and the years it covers, and a race entry belongs to the chain whose
+period holds its constructor and its season. Renault's 1977–85 works team,
+Mercedes in 1954–55, Honda in 1964–68 and Aston Martin in 1959–60 are chains
+of their own, so Renault's wins of 1979–83 are not counted as Enstone's.
+`verify.py` holds every entry under a chained constructor to exactly one
+period. `constructors.lineage_chain` is only the chain a name last belonged
+to — Renault's is Enstone — and is not the join.
 
 **Circuits** — <!-- fig:circuits -->80<!-- /fig --> circuits, from Bremgarten
 and Pescara to the Madring. Every race is linked to one
