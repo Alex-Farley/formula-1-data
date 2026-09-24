@@ -861,6 +861,16 @@ ID_STABILITY = {
     # what a reader should hold; the id is the order the build wrote them in.
     "records":               ("unstable", ("key",)),
 
+    # The two registers this project originates rather than re-exports, each
+    # given a name to cite a row by. `discrepancies.key` is made from the
+    # (tbl, row_key, field) the row is about, so it follows the fact (DA-09);
+    # the three columns are not the key themselves because a figure a whole
+    # grid quoted has no one row, and its NULL row_key would collapse every
+    # such row into one. `known_gaps.key` is written by hand in
+    # data/harvest.py beside the id, and like it is never reused (DA-24).
+    "discrepancies":         ("unstable", ("key",)),
+    "known_gaps":            ("unstable", ("key",)),
+
     # Unstable, and the one a reader is most likely to have joined to: a
     # running season's table is reloaded whole, so every id in it moves. The
     # key needs `position_text` because 2018 holds Force India twice in the
@@ -884,15 +894,11 @@ ID_STABILITY = {
     # Unstable, with no natural key published yet. Each is either a register
     # small enough to read whole or one of the timing tables that ship empty
     # under the licence decision in docs/TIMING-ARCHITECTURE.md. Declaring a
-    # key for one of them is a change to that table, not to this list:
-    # `discrepancies` gets (tbl, row_key, field) under DA-09, and
-    # `known_gaps` a stable `key` under DA-24.
+    # key for one of them is a change to that table, not to this list.
     "constructor_lineage":   ("unstable", None),
-    "discrepancies":         ("unstable", None),
     "engine_eras":           ("unstable", None),
     "eras":                  ("unstable", None),
     "governance":            ("unstable", None),
-    "known_gaps":            ("unstable", None),
     "laps":                  ("unstable", None),
     "points_systems":        ("unstable", None),
     "race_control_messages": ("unstable", None),

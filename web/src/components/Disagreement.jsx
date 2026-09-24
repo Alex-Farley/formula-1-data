@@ -20,7 +20,7 @@
  * no race: the check is what makes the quiet join safe to rely on.
  */
 import { Link } from 'react-router-dom'
-import { EXPLAINED_FOOTER, OPEN_FOOTER, allExplained } from '../lib/disagreement.js'
+import { EXPLAINED_FOOTER, EXPLAINED_SPAN, OPEN_FOOTER, allExplained } from '../lib/disagreement.js'
 import { REPORT_URL, SETTLE_ASK, SETTLE_LINK } from '../lib/site.js'
 
 /*
@@ -31,7 +31,7 @@ import { REPORT_URL, SETTLE_ASK, SETTLE_LINK } from '../lib/site.js'
  * unaffected.
  */
 const RESOLVED = `
-  SELECT d.id, d.field, d.status, d.assessment,
+  SELECT d.id, d.field, d.status, d.status_note, d.assessment,
          COALESCE(s.full_name, d.stored_value)  AS stored_value,
          COALESCE(v.full_name, d.derived_value) AS derived_value
     FROM discrepancies d
@@ -43,7 +43,7 @@ const RESOLVED = `
 export const RACE_DISAGREEMENTS = `
   ${RESOLVED}
    WHERE d.subject = CAST(?1 AS TEXT) || ' round ' || CAST(?2 AS TEXT)
-     AND d.status LIKE 'open%'
+     AND d.status = 'open'
    ORDER BY d.id
 `
 
@@ -55,7 +55,7 @@ export const RACE_DISAGREEMENTS = `
 export const DRIVER_DISAGREEMENTS = `
   ${RESOLVED}
    WHERE d.subject = (SELECT full_name FROM drivers WHERE id = ?1)
-     AND (d.status LIKE 'open%' OR d.status LIKE 'explained - each side%')
+     AND (d.status = 'open' OR (d.status = 'explained' AND d.status_note = '${EXPLAINED_SPAN}'))
    ORDER BY d.id
 `
 
@@ -67,7 +67,7 @@ const label = (field) => String(field ?? '').replace(/_/g, ' ')
 export const CONSTRUCTOR_DISAGREEMENTS = `
   ${RESOLVED}
    WHERE d.subject = (SELECT name FROM constructors WHERE id = ?1)
-     AND d.status LIKE 'open%'
+     AND d.status = 'open'
    ORDER BY d.id
 `
 

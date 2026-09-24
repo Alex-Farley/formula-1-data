@@ -99,7 +99,7 @@ import {
   UNCHECKED_NOTE,
   titled,
 } from '../src/lib/site.js'
-import { EXPLAINED_FOOTER, OPEN_FOOTER, allExplained } from '../src/lib/disagreement.js'
+import { EXPLAINED_FOOTER, EXPLAINED_SPAN, OPEN_FOOTER, allExplained } from '../src/lib/disagreement.js'
 import {
   CHANGES_DESCRIPTION,
   CHANGES_LEDE,
@@ -1959,7 +1959,7 @@ const page = ({
        FROM discrepancies d
        LEFT JOIN drivers s ON s.id = d.stored_value
        LEFT JOIN drivers v ON v.id = d.derived_value
-      WHERE d.subject = ? AND d.status LIKE 'open%'
+      WHERE d.subject = ? AND d.status = 'open'
       ORDER BY d.id`,
   )
 
@@ -2211,13 +2211,13 @@ const page = ({
   // figure. verify.py refuses a subject shape that resolves to nothing, so a
   // silent empty join cannot survive a build.
   const careerDisagreements = db.prepare(
-    `SELECT d.field, d.status, d.assessment,
+    `SELECT d.field, d.status, d.status_note, d.assessment,
             COALESCE(s.full_name, d.stored_value)  AS stored_value,
             COALESCE(v.full_name, d.derived_value) AS derived_value
        FROM discrepancies d
        LEFT JOIN drivers s ON s.id = d.stored_value
        LEFT JOIN drivers v ON v.id = d.derived_value
-      WHERE d.subject = ? AND (d.status LIKE 'open%' OR d.status LIKE 'explained - each side%')
+      WHERE d.subject = ? AND (d.status = 'open' OR (d.status = 'explained' AND d.status_note = '${EXPLAINED_SPAN}'))
       ORDER BY d.id`,
   )
   const teams = Object.fromEntries(all('SELECT id, name FROM constructors').map((c) => [c.id, c.name]))
@@ -2409,13 +2409,13 @@ page({
   // careerDisagreements is scoped to that section, so this is the same
   // statement for this one.
   const teamDisagreements = db.prepare(
-    `SELECT d.field, d.status, d.assessment,
+    `SELECT d.field, d.status, d.status_note, d.assessment,
             COALESCE(s.full_name, d.stored_value)  AS stored_value,
             COALESCE(v.full_name, d.derived_value) AS derived_value
        FROM discrepancies d
        LEFT JOIN drivers s ON s.id = d.stored_value
        LEFT JOIN drivers v ON v.id = d.derived_value
-      WHERE d.subject = ? AND d.status LIKE 'open%'
+      WHERE d.subject = ? AND d.status = 'open'
       ORDER BY d.id`,
   )
   for (const c of constructors) {
@@ -3175,7 +3175,7 @@ page({
              (SELECT COUNT(*) FROM sqlite_master WHERE type = 'view')  AS views,
              (SELECT COUNT(*) FROM source_registry)                    AS sources,
              (SELECT COUNT(*) FROM discrepancies)                      AS discrepancies,
-             (SELECT COUNT(*) FROM discrepancies WHERE status LIKE 'open%') AS open_discrepancies,
+             (SELECT COUNT(*) FROM discrepancies WHERE status = 'open')     AS open_discrepancies,
              (SELECT COUNT(*) FROM v_open_gaps)                        AS gaps,
              (SELECT COUNT(*) FROM races)                              AS races,
              (SELECT COUNT(*) FROM race_entries)                       AS entries`)

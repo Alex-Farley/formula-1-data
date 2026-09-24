@@ -27,7 +27,7 @@ export const SHAPE = `
     (SELECT COUNT(*) FROM qualifying)                               AS qualifying,
     (SELECT COUNT(*) FROM drivers)                                  AS drivers,
     (SELECT COUNT(*) FROM constructors)                             AS constructors,
-    (SELECT COUNT(*) FROM discrepancies WHERE status LIKE 'open%')  AS open_discrepancies,
+    (SELECT COUNT(*) FROM discrepancies WHERE status = 'open')      AS open_discrepancies,
     (SELECT COUNT(*) FROM v_open_gaps)                              AS open_gaps
 `
 

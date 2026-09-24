@@ -130,7 +130,9 @@ export const DISCREPANCY_COLUMNS = [
   { key: 'stored_value', label: 'Recorded', align: 'num' },
   { key: 'derived_value', label: 'Derived', align: 'num' },
   { key: 'assessment', label: 'Assessment', align: 'prose' },
-  { key: 'status', label: 'Status' },
+  // One of three words, and the phrase saying how where there is one: the
+  // two were one free-text column until DA-09.
+  { key: 'status', label: 'Status', text: (value, row) => (row.status_note ? `${value}: ${row.status_note}` : value) },
 ]
 
 export const DISCREPANCIES_NOTE =

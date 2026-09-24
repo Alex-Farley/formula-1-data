@@ -175,6 +175,15 @@ class OnlyARepeatedRoundIsCorrected(PlantedInACopy):
             self.con = con
             self.cur = con.cursor()
 
+    def setUp(self):
+        super().setUp()
+        # The copy already carries the rows this build filed for real, and a
+        # correction files its round again: a discrepancy's key names one
+        # row (DA-09), so what the correction ADDS is counted from nothing.
+        self.con.execute("""DELETE FROM discrepancies WHERE tbl = 'standings'
+                            AND subject LIKE '____ round %'""")
+        self.con.commit()
+
     def correct(self):
         return build._correct_standings_the_results_contradict(self._Build(self.con))
 
@@ -203,10 +212,6 @@ class OnlyARepeatedRoundIsCorrected(PlantedInACopy):
                                358.0, places=3)
 
     def test_the_published_figure_is_filed_once_and_as_published(self):
-        # The copy already carries the row this build filed for real, so it
-        # is what the correction ADDS that is counted.
-        self.con.execute("DELETE FROM discrepancies WHERE subject='2026 round 14'")
-        self.con.commit()
         self.freeze(2026, "constructors", 14, 13)
         self.correct()
         rows = self.con.execute(

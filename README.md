@@ -396,11 +396,11 @@ doubles their rows instead of failing.
 |---|---|---|
 | `circuit_layouts` | stable | `(circuit_id, layout_key)` |
 | `constructor_lineage` | unstable | — |
-| `discrepancies` | unstable | — |
+| `discrepancies` | unstable | `(key)` |
 | `engine_eras` | unstable | — |
 | `eras` | unstable | — |
 | `governance` | unstable | — |
-| `known_gaps` | unstable | — |
+| `known_gaps` | unstable | `(key)` |
 | `laps` | unstable | — |
 | `pit_stops` | stable | `(race_id, source, driver_key, stop_number)` |
 | `points_systems` | unstable | — |

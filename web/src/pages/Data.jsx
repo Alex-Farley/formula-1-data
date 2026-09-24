@@ -31,7 +31,7 @@ const SPEC = {
        (SELECT COUNT(*) FROM sqlite_master WHERE type = 'view')  AS views,
        (SELECT COUNT(*) FROM source_registry)                    AS sources,
        (SELECT COUNT(*) FROM discrepancies)                      AS discrepancies,
-       (SELECT COUNT(*) FROM discrepancies WHERE status LIKE 'open%') AS open_discrepancies,
+       (SELECT COUNT(*) FROM discrepancies WHERE status = 'open')     AS open_discrepancies,
        (SELECT COUNT(*) FROM v_open_gaps)                        AS gaps,
        (SELECT COUNT(*) FROM races)                              AS races,
        (SELECT COUNT(*) FROM race_entries)                       AS entries,
