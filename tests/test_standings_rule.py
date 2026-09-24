@@ -229,16 +229,21 @@ class OnlyARepeatedRoundIsCorrected(PlantedInACopy):
         self.assertIn("ferrari", str(stop.exception))
         self.assertIn("STANDINGS_ADJUSTMENTS", str(stop.exception))
 
-    def season_file(self, entity, points):
-        """F1DB's season-level row for a 2026 constructor, as the loader
-        holds it: the latest round's own row, with the points given."""
-        engine, position_text = self.con.execute(
-            "SELECT engine_id, position_text FROM standings WHERE year=2026 "
-            "AND table_type='constructors' AND entity_id=? AND after_round=14 "
-            f"AND {standings_rule.SCOPE}", (entity,)).fetchone()
-        return {"year": 2026, "table_type": "constructors", "entity_id": entity,
-                "engine_id": engine, "points": points,
-                "position_text": position_text}
+    def season_file(self, **changed):
+        """F1DB's season-level file for the 2026 constructors, as the loader
+        holds it: the latest round's own rows as they stand now, with any
+        entity's row changed as given."""
+        rows = []
+        for entity, engine, points, position_text in self.con.execute(
+                "SELECT entity_id, engine_id, points, position_text FROM standings "
+                "WHERE year=2026 AND table_type='constructors' AND after_round=14 "
+                f"AND {standings_rule.SCOPE} ORDER BY position"):
+            row = {"year": 2026, "table_type": "constructors", "entity_id": entity,
+                   "engine_id": engine, "points": points,
+                   "position_text": position_text}
+            row.update(changed.get(entity.replace("-", "_"), {}))
+            rows.append(row)
+        return rows
 
     def hold(self, rows):
         """The load path around the correction: what the latest round said
@@ -253,8 +258,7 @@ class OnlyARepeatedRoundIsCorrected(PlantedInACopy):
         carried the figure the stale round did, the correction repairing the
         round is not a disagreement between the two files."""
         self.freeze(2026, "constructors", 14, 13)
-        stale = self.points(2026, "constructors", "mercedes", 14)
-        self.hold([self.season_file("mercedes", stale)])
+        self.hold(self.season_file())
         self.assertAlmostEqual(self.points(2026, "constructors", "mercedes", 14),
                                503.0, places=3)
 
@@ -262,7 +266,7 @@ class OnlyARepeatedRoundIsCorrected(PlantedInACopy):
         """The season file already on the results while its round file was
         stale: the correction brings the round to it."""
         self.freeze(2026, "constructors", 14, 13)
-        self.hold([self.season_file("mercedes", 503.0)])
+        self.hold(self.season_file(mercedes={"points": 503.0}))
 
     def test_a_season_file_that_is_neither_stops_the_build(self):
         """Neither the figure the round held nor the one it holds now: two
@@ -271,18 +275,34 @@ class OnlyARepeatedRoundIsCorrected(PlantedInACopy):
         refused the same state after the build had finished."""
         self.freeze(2026, "constructors", 14, 13)
         with self.assertRaises(SystemExit) as stop:
-            self.hold([self.season_file("mercedes", 999.0)])
+            self.hold(self.season_file(mercedes={"points": 999.0}))
         self.assertIn("mercedes", str(stop.exception))
 
     def test_a_season_file_naming_another_position_stops_the_build(self):
         """Not storing the season file is only lossless while it says what
         the latest round says, position included."""
-        row = self.season_file("mercedes", self.points(2026, "constructors",
-                                                       "mercedes", 14))
-        row["position_text"] = "9"
         with self.assertRaises(SystemExit) as stop:
-            self.hold([row])
+            self.hold(self.season_file(mercedes={"position_text": "9"}))
         self.assertIn("mercedes", str(stop.exception))
+
+    def test_a_season_file_missing_an_entry_stops_the_build(self):
+        """Both ways round: an entrant the latest round holds and the season
+        file does not name is the same disagreement as the reverse."""
+        rows = [r for r in self.season_file() if r["entity_id"] != "haas"]
+        with self.assertRaises(SystemExit) as stop:
+            self.hold(rows)
+        self.assertIn("haas", str(stop.exception))
+
+    def test_a_figure_neither_file_holds_is_the_same_figure(self):
+        """NULL points on both sides is agreement, not a stop."""
+        self.con.execute(
+            "UPDATE standings SET points = NULL WHERE year=2026 AND "
+            "table_type='constructors' AND entity_id='haas' AND after_round=14 "
+            f"AND {standings_rule.SCOPE}")
+        self.con.commit()
+        build._hold_the_season_file_to_its_latest_round(
+            self.con.cursor(), self.season_file(),
+            build._latest_round_points(self.con.cursor(), self.season_file()))
 
     def test_a_round_the_results_do_not_reach_stops_it(self):
         """A table published ahead of the results cannot be checked against

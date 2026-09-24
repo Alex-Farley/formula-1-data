@@ -63,9 +63,11 @@ export const CALENDAR = `
 
 /**
  * The running table, round by round, for the title-race chart: one source's,
- * the one that has counted the most rounds. The official snapshot stands
- * after its own round too (DA-01), and two sources' readings of one round
- * would draw two points at it.
+ * the one that holds a table after the most rounds - a history, not the
+ * latest single table, so an official snapshot refreshed ahead of F1DB does
+ * not replace fourteen points per driver with one. The snapshot stands after
+ * its own round too (DA-01), and two sources' readings of one round would
+ * draw two points at it.
  */
 export const STANDINGS = `
   SELECT id, year, table_type, after_round, position, position_text,
@@ -74,7 +76,8 @@ export const STANDINGS = `
    WHERE year = ?1 AND basis = 'running'
      AND source = (SELECT source FROM standings
                     WHERE year = ?1 AND basis = 'running'
-                    GROUP BY source ORDER BY MAX(after_round) DESC, COUNT(*) DESC
+                    GROUP BY source
+                    ORDER BY COUNT(DISTINCT after_round) DESC, MAX(after_round) DESC, source
                     LIMIT 1)
    ORDER BY after_round, table_type, position
 `

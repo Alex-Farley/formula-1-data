@@ -2476,14 +2476,19 @@ def _hold_the_season_file_to_its_latest_round(cur, season_file, published):
     fact twice in one source, and `after_round IS NULL` meant a finished
     season's classification in 1950-2025 and a running table in 2026.
 
-    It agrees when it names every entry the latest round does not contradict
-    - the same position, and either the figure the round now holds or the
-    figure the round held before the correction put it back on the results:
-    the season file lags the same way the per-round one does, and a lag the
-    correction repaired is not a disagreement (review finding, #583).
-    Anything else is two files of one source disagreeing about one table, a
-    person has to look, and the build stops rather than keep either.
+    It agrees when the two list the same entries, both ways round, and each
+    entry has the same position and either the figure the round now holds or
+    the figure the round held before the correction put it back on the
+    results: the season file lags the same way the per-round one does, and a
+    lag the correction repaired is not a disagreement (review finding, #583).
+    A figure neither file holds is the same figure. Anything else is two
+    files of one source disagreeing about one table, a person has to look,
+    and the build stops rather than keep either.
     """
+    def same(a, b):
+        return (a is None and b is None) or (
+            a is not None and b is not None and abs(a - b) < 0.001)
+
     wrong = []
     for v, before in zip(season_file, published):
         row = _latest_round_row(cur, v)
@@ -2492,12 +2497,29 @@ def _hold_the_season_file_to_its_latest_round(cur, season_file, published):
                          f"in the season file and not in the latest round")
             continue
         now, position_text = row
-        agrees = [p for p in (now, before) if p is not None and v["points"] is not None
-                  and abs(p - v["points"]) < 0.001]
-        if position_text != v["position_text"] or not agrees:
+        if position_text != v["position_text"] or not (
+                same(now, v["points"]) or same(before, v["points"])):
             wrong.append(f"{v['year']} {v['table_type']} {v['entity_id']}: "
                          f"season file {v['position_text']} on {v['points']}, "
                          f"latest round {position_text} on {now}")
+    # And the other way round: an entry the latest round holds and the
+    # season file does not name.
+    named = {(v["year"], v["table_type"], v["entity_id"], v["engine_id"])
+             for v in season_file}
+    for year, table in sorted({(v["year"], v["table_type"]) for v in season_file}):
+        for entity, engine in cur.execute(
+                """SELECT s.entity_id, s.engine_id FROM standings s
+                    WHERE s.year=? AND s.table_type=? AND s.basis='running'
+                      AND s.source=?
+                      AND s.after_round = (SELECT MAX(x.after_round) FROM standings x
+                                            WHERE x.year = s.year
+                                              AND x.table_type = s.table_type
+                                              AND x.basis='running'
+                                              AND x.source = s.source)""",
+                (year, table, HV.F1DB_SOURCE)):
+            if (year, table, entity, engine) not in named:
+                wrong.append(f"{year} {table} {entity}: in the latest round "
+                             f"and not in the season file")
     if wrong:
         raise SystemExit(
             "standings: F1DB's season-level file disagrees with its own table "

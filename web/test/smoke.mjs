@@ -1016,7 +1016,7 @@ try {
       "the 2026 drivers' table is one row per driver",
     )
     // And the row that survived is the current one: the leader's points on the
-    // page equal the LARGEST total either source holds for them, after any
+    // page equal the LARGER of the two sources' totals after each one's latest
     // round, straight from the table rather than the view, so a view that kept
     // the stale row fails here even though the count above would still be
     // right.
@@ -1028,7 +1028,9 @@ try {
       return cells
     })
     const leaderExpected = String(one(`SELECT MAX(points) FROM standings
-                                WHERE year = 2026 AND table_type = 'drivers' AND entity_id = ?`, leader))
+                                WHERE year = 2026 AND table_type = 'drivers' AND entity_id = ?
+                                  AND after_round = (SELECT MAX(x.after_round) FROM standings x
+                                                      WHERE x.year = standings.year AND x.source = standings.source)`, leader))
     truthy(
       leaderPoints.some((c) => c.replace(/,/g, '') === leaderExpected || c.replace(/,/g, '') === leaderExpected.replace(/\.0$/, '')),
       `the leader's points are the current source's — ${leaderExpected}`,
@@ -1542,9 +1544,9 @@ try {
 
   // ---------------------------------------------------------------- a race
 
-  // 2026 carries two final standings rows per driver — formula1.com records the
-  // team, F1DB the position — so a page that does not collapse them lists every
-  // driver twice.
+  // 2026 carries two tables as it stands — formula1.com's snapshot records the
+  // team, F1DB's running table the position — so a page that does not
+  // collapse them lists every driver twice.
   await section('/seasons/2026  (the same fact from two sources)', async () => {
     await go('/seasons/2026', '2026')
     is(

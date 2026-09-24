@@ -607,6 +607,20 @@ def standings():
             (yr_, eid_)).fetchone()[0]
         check(f"{yr_} {eid_} keeps its {want_} entries in the final table",
               got_ == want_, f"{got_} rows")
+    # The table-level UNIQUE is gone (DA-01): once after_round was filled it
+    # refused the 2018 pair above, and ux_standings_identity carries
+    # position_text for exactly that pair. Which leaves position_text able to
+    # tell ANY two rows apart - a running row loaded twice with its position
+    # changed would stand twice and no count would notice. So the key without
+    # it must break for that one declared pair and nothing else.
+    apart = [tuple(r) for r in con.execute("""SELECT year, table_type, entity_id, as_of
+        FROM standings
+        GROUP BY year, table_type, after_round, entity_id,
+                 COALESCE(engine_id, ''), as_of
+        HAVING COUNT(*) > 1""")]
+    check("only 2018 Force India's final pair needs position_text to tell two rows apart",
+          apart == [(2018, "constructors", "force-india", "final")],
+          "; ".join(" ".join(map(str, r)) for r in apart[:3]))
     # engine_id is F1DB's namespace, and the column comment says so (DA-11).
     # A value from anywhere else - this database's own engine_manufacturers
     # ids, say, which spell Ferrari 'ferrari-eng' - would make a join on
