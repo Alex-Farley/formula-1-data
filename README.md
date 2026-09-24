@@ -190,7 +190,7 @@ A name is not an operation, so the link from a result to its chain is a
 under and the years it covers, and a race entry belongs to the chain whose
 period holds its constructor and its season. Renault's 1977–85 works team,
 Mercedes in 1954–55, Honda in 1964–68 and Aston Martin in 1959–60 are chains
-of their own, so Renault's turbo wins at Viry are not counted as Enstone's.
+of their own, so Renault's wins of 1979–83 are not counted as Enstone's.
 `verify.py` holds every entry under a chained constructor to exactly one
 period. `constructors.lineage_chain` is only the chain a name last belonged
 to — Renault's is Enstone — and is not the join.

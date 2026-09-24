@@ -268,8 +268,10 @@ LINEAGE = [
     # constructors row carries the later chain and these years belong to no
     # multi-name chain at all. They are chains of one, declared, so that every
     # race entry under a chained constructor lies inside exactly one period -
-    # which verify.py holds - and a win at Viry in 1982 cannot be counted
-    # through Enstone. The two spells are the constructors rows' own notes.
+    # which verify.py holds - and a Renault win in 1982 cannot be counted
+    # through Enstone. The notes on the mercedes, honda-works and aston-martin
+    # rows give their two spells; renault's race entries give its own, 1977-85
+    # against Toleman's 1981-85 in the Enstone chain.
     ("renault-1977", "The works Renault team, 1977-85", 1, "Renault", "renault", 1977, 1985,
      "The first works Renault entry, which raced alongside Toleman from 1981; the Renault name reached the Enstone team only in 2002."),
     ("mercedes-1954", "The works Mercedes team, 1954-55", 1, "Mercedes", "mercedes", 1954, 1955,
