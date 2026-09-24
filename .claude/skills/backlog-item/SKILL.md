@@ -83,9 +83,11 @@ reviewed again on the same head `[D-23]`.
 
 **Never slides, at any pace:** a fresh independent review before merge;
 `make all`; the precheck; `check (3.9)`, `check (3.12)`, `web` **and `lint`**
-green; the licence-reviewer triggers; the stop conditions; Opus for any
-change under `data/`, `harvest/`, `build.py`, `verify.py`, `schema.sql`, the
-exporters, `web/scripts/prerender.js` or a workflow `[D-19]`.
+green; the licence-reviewer triggers; the stop conditions; an Opus **first
+pass** for any change under `data/`, `harvest/`, `build.py`, `verify.py`,
+`schema.sql`, the exporters, `web/scripts/prerender.js` or a workflow
+`[D-19]`. The confirmation of a fix to one follows the pace table's
+*Confirming* row like any other `[D-41]`.
 
 | | `fast` | `balanced` | `thorough` |
 |---|---|---|---|
@@ -251,8 +253,9 @@ deliberately against `main`, and what they find is filed as issues. The
 merge path has exactly the four agents named above and no others.
 
 Model: **Opus for a first pass**, front-end and data alike, except where the
-pace table names the quick variant. **Sonnet, fresh, for confirming a fix or
-reviewing a docs-only or wording-only change** — a fresh Sonnet context
+pace table names the quick variant. **A confirmation of a fix is the
+model the pace table's *Confirming* row names** `[D-41]`; **Sonnet, fresh,
+for reviewing a docs-only or wording-only change** — a fresh Sonnet context
 satisfies the independent-review rule. A substantive rewrite after a FAIL
 gets a new fresh Opus agent, not a confirmation.
 
@@ -290,7 +293,8 @@ rule rots: the fork that reads a verdict out of prose today is the fork that
 reads past a FAIL phrased as a sentence tomorrow `[D-37]`. Then:
 
 - **FAIL:** fix, run the precheck again, confirm with a fresh agent by commit
-  range — Sonnet, or Opus at `thorough`.
+  range, on the model the pace table's *Confirming* row names — whatever the
+  change touches `[D-41]`.
 - **FAIL against one item of a group:** fix it if the fix is small. If not,
   drop that item from the PR — its commits, its `Closes` line, its section,
   **and its *In progress* status**, which nothing else on this path puts

@@ -233,6 +233,28 @@ small front-end change and how many routes the brief names. It may never
 relax the review itself, `make all`, the precheck, green CI, the licence
 triggers or the stop conditions.
 
+*Clarified on 2026-09-24 by `[D-41]`: the Opus rule for a data, build, verify,
+schema, exporter, prerender or workflow change governs the first pass; a
+confirmation follows the pace table.*
+
+### D-41 · Opus reviews a data change first; its confirmation follows the pace — 2026-09-24 (`CR-45`, #590)
+*Never slides* said "Opus for any change under `data/`, `build.py`,
+`verify.py`" and the rest, while the pace table, the FAIL bullet and
+`review-prompt.md`'s follow-up brief all confirmed a fix with a fresh Sonnet
+at `fast` and `balanced`. A fork confirming a fix to a data change had two
+instructions and no rule for choosing; the 2026-09-23 audit of the
+context-loaded instruction files found it.
+
+The maintainer ruled for the cheaper reading. The first pass is where a data
+change is judged whole — the cross-checks it could slip, the figure it could
+copy rather than compute — and that pass stays Opus at every pace. A
+confirmation reads a commit range against findings already written down, and
+a fresh Sonnet context satisfies the independent-review rule for that job, as
+it does on the front end. `thorough` still confirms with Opus. The rule is
+stated once: *Never slides* names the first pass and points at the pace
+table's *Confirming* row, and the FAIL bullet, the *Model* paragraph and
+`review-prompt.md`'s follow-up brief name that row instead of restating it.
+
 ### D-20 · Grouping is not a pace setting — 2026-09-14
 Replaces an S-only rule and a per-pace count of four, two and none. What
 rides with the head is what is linked to it, at any size and at every pace.
