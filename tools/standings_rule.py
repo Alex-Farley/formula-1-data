@@ -37,6 +37,16 @@ from data.current import (STANDINGS_ACCUMULATE_FROM,  # noqa: E402
 
 TOLERANCE = 0.001
 
+# The rows the rule reads: F1DB's running table, the one built round by round
+# from the results this database holds. Not a final row - before 1991 that
+# applied dropped scores, which is not a sum - and not the official snapshot,
+# which is another source's table after one round and is compared with
+# F1DB's after the same round, where a disagreement is a `discrepancies` row
+# and not a stale file. Until DA-01 filled `after_round` on every row,
+# `after_round IS NOT NULL` said this without naming a source; it no longer
+# can, because the snapshot now stands after its round too.
+SCOPE = "basis = 'running' AND source LIKE '%f1db%'"
+
 _ROUND_POINTS = {
     "drivers": """
         SELECT r.year y, r.round rnd, e.driver_id ent, COALESCE(e.points,0) p
@@ -52,9 +62,9 @@ _ROUND_POINTS = {
           FROM sprint_results s JOIN races r ON r.id = s.race_id""",
 }
 
-_MULTI_ENGINE = """
+_MULTI_ENGINE = f"""
     SELECT year, entity_id FROM standings
-     WHERE table_type = 'constructors' AND after_round IS NOT NULL
+     WHERE table_type = 'constructors' AND {SCOPE}
      GROUP BY year, entity_id
     HAVING COUNT(DISTINCT COALESCE(engine_id, '')) > 1"""
 
@@ -134,9 +144,9 @@ def violations(con, floors=None, adjustments=None):
         totals, rounds = _running_totals(con, table)
         in_season = {(y, ent) for (y, _r, ent) in totals}
         for year, ent, engine, rnd, pts in con.execute(
-                """SELECT year, entity_id, engine_id, after_round, points
+                f"""SELECT year, entity_id, engine_id, after_round, points
                      FROM standings
-                    WHERE table_type = ? AND after_round IS NOT NULL
+                    WHERE table_type = ? AND {SCOPE}
                       AND points IS NOT NULL AND entity_id IS NOT NULL
                     ORDER BY year, entity_id, after_round""", (table,)):
             if year < floor or (table == "constructors" and (year, ent) in multi):

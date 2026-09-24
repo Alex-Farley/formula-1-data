@@ -13,9 +13,9 @@ import { EXAMPLES, QUESTIONS, TOPICS } from '../lib/questions.js'
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
 // `m.sql` alongside the column names, because the column names are the half
 // of the schema that cannot warn anybody. The comments in the DDL are where
-// this database says what a column means — that `standings.after_round IS
-// NULL` is the end-of-season classification and not the last round, that a
-// NULL `position` is an exclusion rather than a gap. The page already tells
+// this database says what a column means — that `standings.basis` tells the
+// end-of-season classification from the running total after the same round,
+// that a NULL `position` is an exclusion rather than a gap. The page already tells
 // the reader to run `SELECT sql FROM sqlite_master` for the commented schema
 // (SELF_DESCRIBING, in the paragraph below the note); the panel beside it
 // printed only `pragma_table_info`, so the warning was one query away from
@@ -35,8 +35,9 @@ const START = EXAMPLES[0][1]
  * database itself holds.
  *
  * The DDL is scrolled sideways rather than wrapped. These comments are written
- * against the column they annotate — `after_round`'s is the one that explains
- * why the obvious standings query answers with the season several times over —
+ * against the column they annotate — `after_round`'s and `basis`'s are the ones
+ * that explain why the obvious standings query answers with the season several
+ * times over —
  * and wrapping a CREATE TABLE (65 lines, for `drivers`) into a 220-pixel column
  * folds every trailing comment back to the left margin, where it reads as if it
  * belonged to the next column instead.

@@ -1001,8 +1001,8 @@ try {
 
   })
 
-  // One row per driver. The end-of-season rows hold two sources' descriptions
-  // of 2026; the page reads v_standings_final, which folds them, and the
+  // One row per driver. The rows 2026's table is read from hold two sources'
+  // descriptions of it; the page reads v_standings_final, which folds them, and the
   // count here is the view's own, so the assertion and the page cannot drift.
   await section('/seasons/2026  (one row per driver in the final table)', async () => {
     await go('/seasons/2026', '2026')
@@ -1016,9 +1016,10 @@ try {
       "the 2026 drivers' table is one row per driver",
     )
     // And the row that survived is the current one: the leader's points on the
-    // page equal the LARGER of the two sources' totals for them, straight from
-    // the table rather than the view, so a view that kept the stale row fails
-    // here even though the count above would still be right.
+    // page equal the LARGEST total either source holds for them, after any
+    // round, straight from the table rather than the view, so a view that kept
+    // the stale row fails here even though the count above would still be
+    // right.
     const leader = one(`SELECT entity_id FROM v_standings_final
                        WHERE year = 2026 AND table_type = 'drivers' ORDER BY position LIMIT 1`)
     const leaderPoints = await page.$$eval('#root main table', (tables) => {
@@ -1027,7 +1028,7 @@ try {
       return cells
     })
     const leaderExpected = String(one(`SELECT MAX(points) FROM standings
-                                WHERE year = 2026 AND table_type = 'drivers' AND after_round IS NULL AND entity_id = ?`, leader))
+                                WHERE year = 2026 AND table_type = 'drivers' AND entity_id = ?`, leader))
     truthy(
       leaderPoints.some((c) => c.replace(/,/g, '') === leaderExpected || c.replace(/,/g, '') === leaderExpected.replace(/\.0$/, '')),
       `the leader's points are the current source's — ${leaderExpected}`,
@@ -1159,7 +1160,7 @@ try {
     is(
       championPos,
       String(one(`SELECT position FROM standings WHERE year = 2025 AND table_type = 'drivers'
-                  AND after_round IS NULL ORDER BY points DESC LIMIT 1`)),
+                  AND basis = 'final' ORDER BY points DESC LIMIT 1`)),
       "the 2025 champion's position is rendered",
     )
 
@@ -1482,10 +1483,11 @@ try {
     is(s76[0], count('SELECT COUNT(*) FROM races WHERE year = 1976'), '1976 calendar rounds')
     is(
       s76[1],
-      // after_round IS NULL is the season as it finished, which is what the page
-      // shows — not the last round it happens to hold a running table for.
+      // basis = 'final' is the season as it finished, which is what the page
+      // shows — not the running table after the last round, which it stands
+      // beside.
       count(
-        "SELECT COUNT(*) FROM standings WHERE year = 1976 AND table_type = 'drivers' AND after_round IS NULL",
+        "SELECT COUNT(*) FROM standings WHERE year = 1976 AND table_type = 'drivers' AND basis = 'final'",
       ),
       "1976 final drivers' standings",
     )
@@ -1548,8 +1550,10 @@ try {
     is(
       await rowsUnder("Drivers'"),
       count(
-        `SELECT COUNT(DISTINCT entity_id) FROM standings
-        WHERE year = 2026 AND table_type = 'drivers' AND after_round IS NULL`,
+        `SELECT COUNT(DISTINCT s.driver_id) FROM standings s
+        WHERE s.year = 2026 AND s.table_type = 'drivers'
+          AND s.after_round = (SELECT MAX(x.after_round) FROM standings x
+                                WHERE x.year = s.year AND x.source = s.source)`,
       ),
       'each driver appears once in the final table',
     )
@@ -1564,7 +1568,7 @@ try {
       (await tableRows())[2],
       count(
         `SELECT COUNT(*) FROM standings
-        WHERE year = 2018 AND table_type = 'constructors' AND after_round IS NULL`,
+        WHERE year = 2018 AND table_type = 'constructors' AND basis = 'final'`,
       ),
       "the excluded constructor and its successor both stand",
     )

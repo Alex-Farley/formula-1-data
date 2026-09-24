@@ -43,7 +43,7 @@ here is a number the build checked.
 
 | File | What it is |
 |---|---|
-| `f1.db` | The SQLite database. <!-- fig:tables -->49<!-- /fig --> tables, <!-- fig:views -->41<!-- /fig --> views, <!-- fig:rows -->122,315<!-- /fig --> rows. This is the artefact. |
+| `f1.db` | The SQLite database. <!-- fig:tables -->49<!-- /fig --> tables, <!-- fig:views -->41<!-- /fig --> views, <!-- fig:rows -->122,281<!-- /fig --> rows. This is the artefact. |
 | `f1-geometry.db` | The OpenStreetMap circuit centrelines (ODbL), shipped beside `f1.db` and never merged into it. See *Illustration*. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
@@ -142,7 +142,7 @@ nobody has established goes in `known_gaps`.
 **Championship history** — all <!-- fig:seasons -->78<!-- /fig --> seasons
 <!-- fig:season_span -->1950–2027<!-- /fig -->: champion, points, wins,
 runner-up, margin, constructors' champion, engine formula, tyre suppliers and a
-paragraph of context on each, plus **<!-- fig:standings -->34,597<!-- /fig -->
+paragraph of context on each, plus **<!-- fig:standings -->34,563<!-- /fig -->
 championship standings rows** — the table after every round of every season
 and the end-of-season classification for each.
 
@@ -408,7 +408,7 @@ doubles their rows instead of failing.
 | `source_patterns` | unstable | — |
 | `source_registry` | unstable | — |
 | `sprint_results` | stable | `(race_id, driver_id)` |
-| `standings` | unstable | `(year, table_type, after_round?, entity_id, engine_id?, as_of, position_text?)` |
+| `standings` | unstable | `(year, table_type, after_round, entity_id, engine_id?, as_of, position_text?)` |
 | `stints` | unstable | — |
 | `team_radio` | unstable | — |
 | `technical_innovations` | unstable | — |
@@ -427,6 +427,21 @@ so every id in it moves. Its key carries `position_text` because 2018 holds
 Force India twice in the constructors' final classification — the excluded
 entity on nought points and the re-entered one on 52 — which is a fact and not
 a duplicate.
+
+Every `standings` row says which round it stands after and which table it
+belongs to: `after_round`, now filled on every row, and `basis`, which is
+`running` for the total after that round and `final` for the end-of-season
+classification. Those are two tables even after the last round — before 1991
+only a driver's best results counted, and an exclusion takes a position
+away. Up to v2.24 a NULL `after_round` marked the final table, and in the
+season being run it marked a snapshot too, so a query written with
+`after_round IS NULL` now finds nothing and wants `basis = 'final'` instead;
+`v_standings_final` is still the one to start from. `as_of` stays for one
+release beside the two columns that replace it. `driver_id` and
+`constructor_id` carry `entity_id` under a key the schema declares, because
+four ids — `brabham`, `fittipaldi`, `amon`, `modena` — are both a driver and
+a constructor, and a join on `entity_id` that forgets `table_type` finds the
+wrong one.
 
 `records` is the cautionary one. Its ids look permanent — a small table,
 rebuilt whole every time — and they are a position in a derived list, so most
@@ -907,7 +922,7 @@ every entry of every one of the <!-- fig:races_classified -->1,163<!-- /fig -->
 run races**, <!-- fig:season_span -->1950–2027<!-- /fig -->, in the committed
 database. Position, grid, laps, retirement cause and points. Alongside it sit
 **<!-- fig:qualifying -->27,017<!-- /fig --> qualifying rows** and
-**<!-- fig:standings -->34,597<!-- /fig --> championship standings rows**: the
+**<!-- fig:standings -->34,563<!-- /fig --> championship standings rows**: the
 table after every round of every season, and the end-of-season classification
 for each, which `v_standings_final` returns one row per entity.
 

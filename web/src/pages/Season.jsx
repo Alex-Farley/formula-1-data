@@ -367,7 +367,8 @@ function SeasonBody({ year, season, data }) {
         name: driver.entity,
         colour,
         // STANDINGS holds the running table only; the season's end is FINAL,
-        // and drawing it here would put the final total at round zero.
+        // and drawing it here would put the final classification beside the
+        // last round's running total, which before 1991 is another figure.
         points: standings
           .filter((r) => r.table_type === 'drivers' && r.entity_id === driver.entity_id)
           .sort((a, b) => a.after_round - b.after_round)

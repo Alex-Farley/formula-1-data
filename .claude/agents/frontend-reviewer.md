@@ -36,12 +36,15 @@ in use, so circuit pages read race counts and first/last Grand Prix from
 every page load rather than read from a column. Flag a diff that reaches for the
 stored column because it is cheaper.
 
-**4. `standings.after_round IS NULL` is the season as it finished,** not round
-zero. `as_of` reads "final" on those rows, they are what the dropped-scores rule
-produced, and for the 2018 constructors' table they are not the same as the last
-round's. Reading `after_round` arithmetically plots a champion's season total
-before the first race of the year — which is exactly what happened here before it
-was caught. See the comment in `web/src/lib/standings.js`.
+**4. `standings.basis = 'final'` is the season as it finished,** and it stands
+after the last round, beside the running row after the same round. They are
+what the dropped-scores rule produced, and for the 2018 constructors' table they
+are not the same as the last round's. A running-table query that does not say
+`basis = 'running'` plots the final classification as one more point at the last
+round; one that does not pick a source plots the official snapshot beside
+F1DB's table after its round. Until DA-01 the final rows had a NULL
+`after_round`, and reading that arithmetically plotted a champion's season total
+before the first race of the year. See the `standings` comments in `schema.sql`.
 
 **5. The SQL page only runs reads, and the rollback is what guarantees it.** A
 statement cannot be classified by its first word: SQLite accepts a `WITH` clause

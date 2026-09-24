@@ -388,39 +388,70 @@ CREATE TABLE standings (
     position        INTEGER,
     position_text   TEXT,                      -- "2", or DSQ / EX
     entity          TEXT NOT NULL,             -- driver or constructor display name
-    entity_id       TEXT,
+    -- One column over two namespaces: a drivers.id on a drivers' row and a
+    -- constructors.id on a constructors' one. Four ids are both - brabham,
+    -- fittipaldi, amon, modena - so a join on this without table_type turned
+    -- 517 constructors' rows into drivers' ones and said nothing (DA-10).
+    -- driver_id and constructor_id below are the same id under a key the
+    -- schema can declare; join on those. This column stays, always equal to
+    -- whichever of the two is set, so a query written against it still works.
+    entity_id       TEXT NOT NULL,
+    driver_id       TEXT REFERENCES drivers(id),
+    constructor_id  TEXT REFERENCES constructors(id),
     -- The constructors' championship is contested by a CHASSIS-ENGINE
     -- combination, not by a chassis maker. Cooper-Climax won 1960 with 48
     -- points; Cooper-Maserati and Cooper-Castellotti tied for fifth on 3.
     -- Without this column those are one row and Cooper's total is whichever
     -- happened to be written last. NULL on driver rows.
+    -- The values are F1DB's engine-manufacturer ids - the ones
+    -- engines.f1db_manufacturer_id holds, 'ferrari', 'red-bull-ford' - and not
+    -- this database's engine_manufacturers.id, which spells them
+    -- 'ferrari-eng'. A join on engine_manufacturers matches 'climax' and
+    -- 'cosworth' by coincidence and drops the other nine rows in ten without
+    -- an error (DA-11); join engines on f1db_manufacturer_id instead.
     engine_id       TEXT,
     team            TEXT,
     points          REAL,
-    -- The round these standings stood after. NULL is the END-OF-SEASON
-    -- classification, which is not the same fact as "after the last round":
-    -- before 1991 the championship counted only a driver's best N results,
-    -- so the final table and the running total genuinely differ.
-    after_round     INTEGER,
-    as_of           TEXT,                      -- 'final' | 'round 7' | a date
+    -- The round these standings stood after, on every row (DA-01). An
+    -- end-of-season row stands after the season's last round, and `basis`
+    -- says which of the two tables after that round it belongs to.
+    after_round     INTEGER NOT NULL,
+    -- 'running' is the total after after_round, as it stood that weekend.
+    -- 'final' is the END-OF-SEASON classification, which is not the same
+    -- fact as the running total after the last round: before 1991 the
+    -- championship counted only a driver's best N results, and an exclusion
+    -- takes the position away (Schumacher 1997), so the two tables after one
+    -- round genuinely differ. A season still being run has no 'final' row;
+    -- the table as it stands is each source's running table after the last
+    -- round that source has counted, which is what v_standings_final reads.
+    basis           TEXT NOT NULL CHECK (basis IN ('running', 'final')),
+    -- 'final' | 'round 7' | '2026-09-04 (after round 12)'. Everything this
+    -- said is now after_round and basis, except an official snapshot's
+    -- date; it stays for one release so queries written against it keep
+    -- working, and verify.py holds it to the two columns until then.
+    as_of           TEXT,
     confidence      TEXT NOT NULL DEFAULT 'high' REFERENCES provenance(confidence),
     source          TEXT,
-    -- as_of is in the key so an official live snapshot and a derived
-    -- end-of-season row can coexist for the same season without one
-    -- silently overwriting the other.
-    UNIQUE (year, table_type, after_round, entity_id, engine_id, as_of)
+    CHECK ((table_type = 'drivers') = (driver_id IS NOT NULL)),
+    CHECK ((table_type = 'constructors') = (constructor_id IS NOT NULL)),
+    CHECK (entity_id = COALESCE(driver_id, constructor_id))
 );
 
--- The UNIQUE above is inert for 69% of the rows. SQLite treats NULLs as
--- distinct in a unique index, and after_round is NULL on every end-of-season
--- row while engine_id is NULL on every driver row, so a byte-for-byte
--- duplicate of a final driver row was accepted. This index says what the key
--- actually is, with the NULLs pinned. position_text is in it on purpose: it
--- is the column that tells the two 2018 Force India constructor rows apart -
--- EX on 0 points and P7 on 52, one entrant excluded and its successor scoring
--- under the same id - which are two facts and not a loader running twice.
+-- The key. The table used to declare UNIQUE (year, table_type, after_round,
+-- entity_id, engine_id, as_of), which SQLite made inert for 69% of the rows -
+-- it treats NULLs as distinct, and after_round was NULL on every end-of-season
+-- row and engine_id is NULL on every driver row - so a byte-for-byte
+-- duplicate of a final driver row was accepted. Once DA-01 filled after_round
+-- it bit instead, and refused the 2018 Force India pair below; it is gone,
+-- and this index is the one statement of the key, with the NULLs pinned.
+-- position_text is in it on purpose: it is the column that tells the two
+-- 2018 Force India constructor rows apart - EX on 0 points and P7 on 52, one
+-- entrant excluded and its successor scoring under the same id - which are
+-- two facts and not a loader running twice. as_of is in it so an official
+-- snapshot and F1DB's table after the same round can coexist without one
+-- silently overwriting the other.
 CREATE UNIQUE INDEX ux_standings_identity ON standings(
-    year, table_type, COALESCE(after_round, -1), entity_id,
+    year, table_type, after_round, entity_id,
     COALESCE(engine_id, ''), as_of, COALESCE(position_text, ''));
 
 -- ------------------------------------------------- circuits and events
@@ -1631,13 +1662,15 @@ GROUP BY r.year ORDER BY r.year;
 -- One row per entity in a season's FINAL table - the question everyone asks
 -- of standings, and the one the raw table answers wrongly.
 --
--- after_round IS NULL holds the end-of-season classification, but not one row
--- per entity, for two different reasons and only one of them is a duplicate:
+-- A season's table is its basis = 'final' rows once it has finished, and
+-- until then each source's running table after the last round that source
+-- has counted. Neither is one row per entity, for two different reasons and
+-- only one of them is a duplicate:
 --
---   Two sources describing one season. 2026 carries a formula1.com row (team,
---   no engine) and an F1DB row (engine, position, more recent points) for
---   every driver and team. Rendered naively, everyone appears twice, and the
---   compat export shipped exactly that for seven releases.
+--   Two sources describing one season. 2026 carries a formula1.com snapshot
+--   (team, no engine) and F1DB's running table (engine, position, more
+--   rounds) for every driver and team. Rendered naively, everyone appears
+--   twice, and the compat export shipped exactly that for seven releases.
 --
 --   One source asserting two entries. Force India was excluded from the 2018
 --   constructors' championship on 0 points and its successor scored 52 under
@@ -1658,50 +1691,55 @@ GROUP BY r.year ORDER BY r.year;
 -- stand after the same round. In 2026 the official snapshot stood after
 -- round 12 and F1DB after round 14, and the larger figure kept Gasly and
 -- Alpine on the round-12 table beside every other row at round 14 (AF-35).
--- How many rounds a row has counted is read from what as_of says: a snapshot
--- names its round ('... (after round 12)'); 'current' is the source's own
--- latest running table, which verify.py holds it to; 'final' is the whole
--- season. A row whose moment cannot be read sorts last.
+-- How many rounds a row has counted is its after_round, which every row
+-- carries (DA-01); it used to be read out of as_of's prose.
+--
+-- The fill reads only an unambiguous row. Where the other source asserts two
+-- entries for the entity - 2018 Force India's shape, arriving in a season
+-- with two sources - there is no telling which of the two a kept row's blank
+-- belongs to, and the lowest id would have given both kept rows the first
+-- entry's position and engine, so one entry would read as the other. The
+-- blank stays blank: NULL is "not established", which is true.
 --
 -- Written for the two sources that exist: formula1.com and F1DB. The tie-break
--- names one of them, and the fill takes the lowest-id row of "the other", so a
+-- names one of them, and the fill takes the one row of "the other", so a
 -- third source would need this revisited - verify.py's checks on which row
 -- survives and what it was filled from are what would say so.
 CREATE VIEW v_standings_final AS
-WITH final AS (SELECT * FROM standings WHERE after_round IS NULL),
-counted AS (
-  SELECT c.year, c.table_type, c.entity_id, c.source,
-         CASE
-           WHEN c.as_of LIKE '%(after round %)'
-             THEN CAST(SUBSTR(c.as_of, INSTR(c.as_of, '(after round ') + 13) AS INTEGER)
-           WHEN c.as_of = 'current'
-             THEN (SELECT MAX(x.after_round) FROM standings x
-                    WHERE x.year = c.year AND x.source = c.source
-                      AND x.after_round IS NOT NULL)
-           WHEN c.as_of = 'final'
-             THEN (SELECT MAX(r.round) FROM races r WHERE r.year = c.year)
-         END AS rounds
-    FROM final c),
+WITH season AS (
+  SELECT year, table_type, MAX(basis = 'final') AS finished
+    FROM standings GROUP BY year, table_type),
+latest AS (
+  SELECT year, table_type, source, MAX(after_round) AS after_round
+    FROM standings WHERE basis = 'running' GROUP BY year, table_type, source),
+final AS (
+  SELECT s.* FROM standings s
+    JOIN season n ON n.year = s.year AND n.table_type = s.table_type
+    LEFT JOIN latest l ON l.year = s.year AND l.table_type = s.table_type
+                      AND l.source = s.source
+   WHERE CASE WHEN n.finished THEN s.basis = 'final'
+              ELSE s.after_round = l.after_round END),
 ranked AS (
   SELECT year, table_type, entity_id, source,
          ROW_NUMBER() OVER (
            PARTITION BY year, table_type, entity_id
-           ORDER BY MAX(rounds) IS NULL, MAX(rounds) DESC,
+           ORDER BY MAX(after_round) DESC,
                     CASE WHEN source LIKE '%formula1.com%' THEN 0 ELSE 1 END) AS rank
-    FROM counted GROUP BY year, table_type, entity_id, source)
+    FROM final GROUP BY year, table_type, entity_id, source)
 SELECT f.id, f.year, f.table_type,
        COALESCE(f.position, o.position)           AS position,
        COALESCE(f.position_text, o.position_text) AS position_text,
-       f.entity, f.entity_id,
+       f.entity, f.entity_id, f.driver_id, f.constructor_id,
        COALESCE(f.engine_id, o.engine_id)         AS engine_id,
        COALESCE(f.team, o.team)                   AS team,
-       f.points, f.after_round, f.as_of, f.confidence, f.source
+       f.points, f.after_round, f.basis, f.as_of, f.confidence, f.source
   FROM final f
   JOIN ranked k ON k.year = f.year AND k.table_type = f.table_type
                AND k.entity_id = f.entity_id AND k.source = f.source AND k.rank = 1
-  LEFT JOIN final o ON o.id = (SELECT MIN(x.id) FROM final x
-                                WHERE x.year = f.year AND x.table_type = f.table_type
-                                  AND x.entity_id = f.entity_id AND x.source <> f.source);
+  LEFT JOIN final o ON o.id = (
+       SELECT CASE WHEN COUNT(*) = 1 THEN MIN(x.id) END FROM final x
+        WHERE x.year = f.year AND x.table_type = f.table_type
+          AND x.entity_id = f.entity_id AND x.source <> f.source);
 
 CREATE VIEW v_stat_reconciliation AS
 SELECT d.full_name,
