@@ -4330,8 +4330,9 @@ def points_below_the_paid_places():
         check(f"no {what} finisher below the paid places holds NULL points", not blank,
               "; ".join(blank[:5]))
         check(f"no {what} entry that was not classified holds NULL points",
-              not unclassified, f"{len(unclassified)} rows: "
-              + "; ".join(unclassified[:5]))
+              not unclassified,
+              f"{len(unclassified)} rows: " + "; ".join(unclassified[:5])
+              if unclassified else "")
         # The write reaches no further than those two: nothing inside the
         # paid places, and nothing in a race nobody was classified in, was
         # given a 0.

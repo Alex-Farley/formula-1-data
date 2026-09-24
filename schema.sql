@@ -1067,7 +1067,7 @@ CREATE TABLE race_entries (
     -- entry did earn, a 1950s fastest lap, keeps its value. NULL is left
     -- where that rule does not establish it - the few finishers inside the
     -- paid places whom the race's own rules did not pay, which verify.py
-    -- names.
+    -- names, and every entry in a race nobody has yet been classified in.
     points          REAL,
     note            TEXT,
     confidence      TEXT NOT NULL DEFAULT 'reference' REFERENCES provenance(confidence),
