@@ -648,7 +648,7 @@ def _stage_07_cars_inserted_in_file_order_so(b):
             raise SystemExit(
                 f"{car_id}.{field} is declared withdrawn but still holds "
                 f"{row[0]}. Set it to None in data/cars.py.")
-        _file_discrepancy(cur, "cars", car_id, field,
+        _file_discrepancy(cur, "regulation", "cars", car_id, field,
                           _full_name(cur, "cars", car_id), str(old), None,
                           reason, "resolved", "withdrawn")
 
@@ -1154,7 +1154,7 @@ def _stage_13_a_regulation_figure_is_not_a(b):
             if hit:
                 cur.execute(f"UPDATE chassis SET {col}=NULL WHERE id=?", (cid_,))
                 _file_discrepancy(
-                    cur, "chassis", cid_, col,
+                    cur, "regulation", "chassis", cid_, col,
                     _full_name(cur, "chassis", cid_), str(val), None,
                     f"{val:g} is the {hit[0]} regulation {what}, which every "
                     f"car that season was built to. It describes the rules, "
@@ -1229,7 +1229,7 @@ def _stage_14_a_regulation_figure_is_not_a(b):
                 # No one row holds it - every chassis that quoted it - so
                 # the row key is NULL and the subject says which.
                 _file_discrepancy(
-                    cur, "chassis", None, col,
+                    cur, "regulation", "chassis", None, col,
                     f"{nids} chassis quoting {val:g}", str(val), None,
                     f"{ncons} different constructors racing in {y} all quote "
                     f"{val:g} for this field. A figure a whole grid shares is "
@@ -1615,7 +1615,8 @@ def _stage_17_pole_position_and_fastest_lap_as(b):
     # article gives, with the source.
     for yr_, rnd_ in sorted(restored):
         held_, names_, src_, why_ = HV.SHARED_FASTEST_LAPS[(yr_, rnd_)]
-        _file_discrepancy(cur, "race_entries", _race_row_key(cur, yr_, rnd_),
+        _file_discrepancy(cur, "shared-fastest-lap", "race_entries",
+                          _race_row_key(cur, yr_, rnd_),
                           "fastest_lap", f"{yr_} round {rnd_}", held_, names_,
                           f"{why_} Source: {src_}", "resolved",
                           "shared fastest lap restored")
@@ -2151,25 +2152,37 @@ def _stage_24_qualifying_checked_against_the_pole_already(b):
 EACH_SIDE_RIGHT = "each side is right about something"
 
 
-def _file_discrepancy(cur, tbl, row_key, field, subject, stored, derived,
-                      assessment, status, note=None):
+def _file_discrepancy(cur, kind, tbl, row_key, field, subject, stored,
+                      derived, assessment, status, note=None):
     """File one row of `discrepancies`, and the one place its key is made
     (DA-09).
 
-    `row_key` is spelt as schema.sql says: the row's key columns joined by
-    '|', a leading part of them, or None for a figure no one row holds. The
-    key follows from the three, so a row keeps its name for as long as it
-    records the same fact. `status` is 'open', 'resolved' or 'explained' -
-    the schema refuses any other - and `note` the phrase saying how. None
-    goes in as NULL; the string 'NULL' is not a value.
+    `kind` is which two readings are compared - one word per filing site,
+    and the schema's CHECK is the list - because one value can carry two
+    disagreements: George Russell's poles hold a correction, and the first
+    pole he takes after the external figure's date files the as-of lag on
+    the same (tbl, row_key, field) (review finding, #661). `row_key` is spelt
+    as schema.sql says: the row's key columns joined by '|', a leading part
+    of them, or None for a figure no one row holds. The key follows from the
+    four, so a row keeps its name for as long as it records the same fact.
+    `status` is 'open', 'resolved' or 'explained' - the schema refuses any
+    other - and `note` the phrase saying how. None goes in as NULL; the
+    string 'NULL' is not a value.
     """
-    key = (f"{tbl}.{field}[{row_key}]" if row_key is not None
-           else f"{tbl}.{field}[={stored}]")
-    cur.execute("""INSERT INTO discrepancies (key, subject, tbl, row_key,
-        field, stored_value, derived_value, assessment, status, status_note)
-        VALUES (?,?,?,?,?,?,?,?,?,?)""",
-        (key, subject, tbl, row_key, field, stored, derived, assessment,
+    key = (f"{tbl}.{field}[{row_key}]:{kind}" if row_key is not None
+           else f"{tbl}.{field}[={stored}]:{kind}")
+    cur.execute("""INSERT INTO discrepancies (key, kind, subject, tbl,
+        row_key, field, stored_value, derived_value, assessment, status,
+        status_note) VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+        (key, kind, subject, tbl, row_key, field, stored, derived, assessment,
          status, note))
+
+
+def _table_words(year, table, after):
+    """Which championship table a standings disagreement is about, in words:
+    "2026 drivers' championship points after round 12"."""
+    stage = "in the final table" if after is None else f"after round {after}"
+    return f"{year} {table}' championship points {stage}"
 
 
 def _full_name(cur, tbl, id_):
@@ -2542,8 +2555,9 @@ def _file_a_standings_correction(cur, year, table, rnd, rows):
     # the head of standings' key - since the repeat is the table's, not one
     # entrant's.
     _file_discrepancy(
-        cur, "standings", f"{year}|{table}|{rnd}", "points",
+        cur, "repeated-round", "standings", f"{year}|{table}|{rnd}", "points",
         f"{year} round {rnd}", published, now,
+        f"{_table_words(year, table, rnd)}, repeated from round {rnd - 1}. "
         "F1DB's standings file for this round repeated the round before it "
         "while its own results for the round awarded points, so the table "
         "did not move for any entrant that scored. A running total is the "
@@ -2659,16 +2673,12 @@ def _file_points_disagreements(cur, conflicts, f1db_drivers):
         if cause:
             causes[(yr, after)] = cause
 
-    # The round is said in words as well as in the row key: `field` is the
-    # column now, and it used to be the only place a reader saw which table.
-    def generic(yr, after):
-        stage = "in the final table" if after is None else f"after round {after}"
-        return (f"formula1.com and F1DB give different {yr} championship points "
-                f"for the same entity {stage}. The official "
-                "figure is 'verified' and is not overwritten; v_standings_final "
-                "shows whichever source's table has counted the most rounds, "
-                "formula1.com's where both stand after the same round, and this "
-                "row is what makes the difference visible.")
+    generic = ("formula1.com and F1DB give different championship points for "
+               "the same entity at the same point in the season. The official "
+               "figure is 'verified' and is not overwritten; v_standings_final "
+               "shows whichever source's table has counted the most rounds, "
+               "formula1.com's where both stand after the same round, and this "
+               "row is what makes the difference visible.")
     for (yr, kind, eid, after, official, f1db, after_round) in conflicts:
         cause = causes.get((yr, after))
         if cause:
@@ -2687,15 +2697,20 @@ def _file_points_disagreements(cur, conflicts, f1db_drivers):
                     f"v_standings_final shows whichever source's table has counted "
                     f"the most rounds.")
         else:
-            text = generic(yr, after)
+            text = generic
         # Subject is the display name, which is how a race page or a driver
         # page finds its disagreements; a constructor's page does the same on
         # constructors.name. The row key is the head of standings' own -
         # year, table, the round it stands after, entity - which names both
         # sources' rows for that entity, as a disagreement between them should.
-        _file_discrepancy(cur, "standings", f"{yr}|{kind}|{after_round}|{eid}",
+        # The field is the column, so the table and the round are said in
+        # words at the head of the assessment: "points" alone on a driver's
+        # page reads as a career total (review finding, #661).
+        _file_discrepancy(cur, "final-table" if after is None else "running-table",
+                          "standings", f"{yr}|{kind}|{after_round}|{eid}",
                           "points", name_of(kind, eid), _points_text(official),
-                          _points_text(f1db), text, "open")
+                          _points_text(f1db), f"{_table_words(yr, kind, after)}. {text}",
+                          "open")
 
     for (yr, after), cause in sorted(causes.items()):
         pen = cause["penalised"]
@@ -2710,11 +2725,12 @@ def _file_points_disagreements(cur, conflicts, f1db_drivers):
         way = "down" if slot < int(pen["position"]) else "up"
         n_points = sum(1 for c in conflicts if (c[0], c[3]) == (yr, after))
         _file_discrepancy(
-            cur, "race_entries", _race_row_key(cur, yr, cause["round"]),
+            cur, "reclassification", "race_entries",
+        _race_row_key(cur, yr, cause["round"]),
             "finish_position", f"{yr} round {cause['round']}",
             ", ".join(f1db_order), ", ".join(official_order),
             # The places, which the field used to name and a column cannot.
-            f"Places {_ordinal(lo)} to {_ordinal(hi)}. "
+            f"Finishing order, {_ordinal(lo)} to {_ordinal(hi)}. "
             f"F1DB classifies {who} {_ordinal(int(pen['position']))} on "
             f"{pen['time']}, which includes a "
             f"{_points_text(cause['penalty'])}-second time penalty. Without it the "
@@ -2926,7 +2942,7 @@ def _stage_30_derived_win_totals(b):
     # either explained by a known gap (the driver was still racing in a season
     # the harvest could not reach) or explicitly declared above.
     for i, (did, field, old, new, reason, _src) in enumerate(HV.CORRECTIONS, 1):
-        _file_discrepancy(cur, "drivers", did, field,
+        _file_discrepancy(cur, "correction", "drivers", did, field,
                           _full_name(cur, "drivers", did), str(old), str(new),
                           reason, "resolved", "corrected")
 
@@ -2956,8 +2972,8 @@ def _stage_30_derived_win_totals(b):
                 raise SystemExit(
                     f"UNEXPLAINED discrepancy: {r[1]} {field} "
                     f"external {external}, derived {derived}")
-            _file_discrepancy(cur, "drivers", r[0], field, r[1], str(external),
-                              str(derived), assessment, status, note)
+            _file_discrepancy(cur, "external-figure", "drivers", r[0], field, r[1],
+                              str(external), str(derived), assessment, status, note)
 
 
 def _stage_31_figures_derivable_from_the_race_records(b):
@@ -3245,7 +3261,8 @@ def _stage_35_link_race_entries_to_the_curated(b):
         # The same (tbl, row_key, field) as the claim F1DB's side is filed
         # under above, so the two join.
         _file_discrepancy(
-            cur, "car_seasons", f"{cid}|{yr}", "other_chassis", f"{cid} {yr}",
+            cur, "car-season", "car_seasons", f"{cid}|{yr}", "other_chassis",
+        f"{cid} {yr}",
             "one chassis", "+".join(others),
              f"CAR_SEASONS claims every {yr} result for this constructor was "
              f"in {cid}, but the season's entry lists also name "
@@ -3259,7 +3276,7 @@ def _stage_35_link_race_entries_to_the_curated(b):
     # STAGES - verify.py holds that - so a row added here appends and moves
     # no existing id (the PM-30 lesson).
     for did, field, stored, derived, why in HV.EXPLAINED_SPANS:
-        _file_discrepancy(cur, "drivers", did, field,
+        _file_discrepancy(cur, "career-span", "drivers", did, field,
                           _full_name(cur, "drivers", did), str(stored),
                           str(derived), why, "explained",
                           EACH_SIDE_RIGHT)
@@ -3850,7 +3867,7 @@ def _stage_28_race_dates_and_the_fastest_lap_where(b):
              "thing, so one of them is wrong. The harvest keeps the slot "
              "because it is hand-checked and older; the other reading is "
              "recorded here so somebody can look at it."))
-        _file_discrepancy(cur, "race_entries",
+        _file_discrepancy(cur, "f1db-fastest-lap", "race_entries",
                           _race_row_key(cur, int(yr_), int(rnd_)),
                           "fastest_lap", f"{yr_} round {rnd_}", ours_, theirs_,
                           assessment_, status_, note_)

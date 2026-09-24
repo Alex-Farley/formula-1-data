@@ -738,11 +738,11 @@ def main():
                     # spelt and named the way build.py files every other
                     # row (DA-09).
                     cur.execute("""INSERT OR IGNORE INTO discrepancies
-                        (key, subject, tbl, row_key, field, stored_value,
-                         derived_value, assessment, status)
-                        VALUES (?,?,?,?,?,?,?,?,?)""",
-                        (f"race_entries.finish_position[{rid}|{did}]",
-                         f"{year} round {rnd}, {did}", "race_entries",
+                        (key, kind, subject, tbl, row_key, field,
+                         stored_value, derived_value, assessment, status)
+                        VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                        (f"race_entries.finish_position[{rid}|{did}]:jolpica-result",
+                         "jolpica-result", f"{year} round {rnd}, {did}", "race_entries",
                          f"{rid}|{did}", "finish_position",
                          str(held[0]), str(e["position"]),
                          "F1DB and Jolpica-F1 give different finishing "

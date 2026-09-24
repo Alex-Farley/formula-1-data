@@ -534,7 +534,8 @@ def standings():
             # Open, and about this entity: a tidying pass that marked one
             # resolved would take it off the page, and this is what says so.
             filed = con.execute("""SELECT 1 FROM discrepancies
-                WHERE tbl = 'standings' AND row_key = ? AND field = 'points'
+                WHERE kind = 'running-table' AND tbl = 'standings'
+                  AND row_key = ? AND field = 'points'
                   AND subject = ? AND stored_value = ?
                   AND derived_value = ? AND status = 'open'""",
                 (f"{yr_}|{kind_}|{rnd_}|{eid_}", subj_[0] if subj_ else eid_,
@@ -551,19 +552,14 @@ def standings():
     uncaused = []
     groups = {}
     # A snapshot is (year, the round it stands after), the head of the row
-    # key, and only the official running snapshots are compared - the rows
-    # the check above says must be filed. A final table's disagreement is
-    # not a snapshot and is not traced to a race.
+    # key. Only running tables are snapshots: a final table's disagreement
+    # is filed as its own kind and is not traced to a race.
     for row_key_, stored_, derived_, text_, is_driver_ in con.execute("""
             SELECT d.row_key, d.stored_value, d.derived_value, d.assessment,
                    d.row_key LIKE '%|drivers|%'
               FROM discrepancies d
-             WHERE d.tbl = 'standings' AND d.field = 'points'
-               AND d.status = 'open'
-               AND EXISTS (SELECT 1 FROM standings s
-                    WHERE s.basis = 'running' AND s.source LIKE '%formula1.com%'
-                      AND d.row_key = s.year || '|' || s.table_type || '|'
-                                      || s.after_round || '|' || s.entity_id)"""):
+             WHERE d.kind = 'running-table' AND d.tbl = 'standings'
+               AND d.field = 'points' AND d.status = 'open'"""):
         yr_, _kind, after_, _eid = row_key_.split("|", 3)
         groups.setdefault((yr_, after_), []).append((stored_, derived_, text_, is_driver_))
     for (yr_, after_), rows_ in sorted(groups.items()):
@@ -582,8 +578,8 @@ def standings():
             rn_ = int(race_.rsplit(" ", 1)[1])
             if rn_ > int(after_) or not con.execute(
                     """SELECT 1 FROM discrepancies WHERE subject = ?
-                         AND tbl = 'race_entries' AND field = 'finish_position'
-                         AND status = 'open'""",
+                         AND kind = 'reclassification' AND tbl = 'race_entries'
+                         AND field = 'finish_position' AND status = 'open'""",
                     (race_,)).fetchone():
                 uncaused.append(f"{field_}: cites {race_}, which carries no open "
                                 f"finishing-order disagreement")
@@ -2255,7 +2251,8 @@ def the_driver_register():
     import build
     for did, field, sv, dv in con.execute("""SELECT d.id, x.field, x.stored_value, x.derived_value
         FROM discrepancies x JOIN drivers d ON d.id = x.row_key
-        WHERE x.tbl = 'drivers' AND x.field IN ('first_season', 'last_season')
+        WHERE x.kind = 'career-span' AND x.tbl = 'drivers'
+          AND x.field IN ('first_season', 'last_season')
           AND x.status = 'explained' AND x.status_note = ?""", (build.EACH_SIDE_RIGHT,)):
         _explained.setdefault(did, []).append((field, sv, dv))
     _declared = set(_explained)
@@ -3406,7 +3403,7 @@ def a_disagreement_names_the_value_it_is_about():
 
     tables = {r[0] for r in con.execute(
         "SELECT name FROM sqlite_master WHERE type = 'table'")}
-    rows = con.execute("""SELECT id, key, tbl, row_key, field, stored_value,
+    rows = con.execute("""SELECT id, key, kind, tbl, row_key, field, stored_value,
         derived_value FROM discrepancies ORDER BY id""").fetchall()
     notable, nocolumn, dangling, misnamed = [], [], [], []
     for r in rows:
@@ -3416,8 +3413,9 @@ def a_disagreement_names_the_value_it_is_about():
         cols = [c[1] for c in con.execute(f'PRAGMA table_info("{r["tbl"]}")')]
         if r["field"] not in cols:
             nocolumn.append(f"#{r['id']} {r['tbl']}.{r['field']}")
-        want = (f"{r['tbl']}.{r['field']}[{r['row_key']}]" if r["row_key"] is not None
-                else f"{r['tbl']}.{r['field']}[={r['stored_value']}]")
+        want = (f"{r['tbl']}.{r['field']}[{r['row_key']}]:{r['kind']}"
+                if r["row_key"] is not None
+                else f"{r['tbl']}.{r['field']}[={r['stored_value']}]:{r['kind']}")
         if r["key"] != want:
             misnamed.append(f"#{r['id']} {r['key']!r}, not {want!r}")
         if r["row_key"] is None:

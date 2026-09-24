@@ -1581,11 +1581,16 @@ SELECT * FROM known_gaps WHERE state = 'open' ORDER BY id;
 -- describes. verify.py holds `field` to a column of `tbl` and a `row_key`
 -- to at least one of its rows.
 --
--- `key` is the row's name to cite it by, `tbl.field[row_key]` - or, where
--- `row_key` is NULL, `tbl.field[=stored_value]` - so it follows from the
--- fact and not from the order the build filed it in. It is the natural key
--- ID_STABILITY publishes; the three columns cannot be, because their NULL
--- would make one key of every grid-wide row.
+-- `kind` says which two readings are compared, one word per way the build
+-- files a row, because one value can carry two disagreements: a driver's
+-- corrected figure and, later, the lag of the external figure behind the
+-- races run since.
+--
+-- `key` is the row's name to cite it by, `tbl.field[row_key]:kind` - or,
+-- where `row_key` is NULL, `tbl.field[=stored_value]:kind` - so it follows
+-- from the fact and not from the order the build filed it in. It is the
+-- natural key ID_STABILITY publishes; the columns cannot be, because their
+-- NULL would make one key of every grid-wide row.
 --
 -- `subject` is the display name, and is what a race, driver or constructor
 -- page finds its rows by. `status` is one of three words: open (nothing has
@@ -1596,6 +1601,19 @@ SELECT * FROM known_gaps WHERE state = 'open' ORDER BY id;
 CREATE TABLE discrepancies (
     id              INTEGER PRIMARY KEY,
     key             TEXT NOT NULL UNIQUE,
+    kind            TEXT NOT NULL CHECK (kind IN (
+                        'regulation',          -- a figure that is the rules, withdrawn
+                        'shared-fastest-lap',  -- a share the season table dropped
+                        'f1db-fastest-lap',    -- the harvest's setter against F1DB's
+                        'reclassification',    -- a race's order, the cause of a points split
+                        'running-table',       -- formula1.com's standings against F1DB's
+                        'final-table',         -- the same, for a final table
+                        'repeated-round',      -- an F1DB table that did not move
+                        'correction',          -- an external figure found wrong
+                        'external-figure',     -- an external figure against the records
+                        'career-span',         -- the register's span against the records'
+                        'car-season',          -- CAR_SEASONS against the entry lists
+                        'jolpica-result')),    -- tools/ergast_load.py, local only
     subject         TEXT NOT NULL,
     tbl             TEXT NOT NULL,
     row_key         TEXT,
