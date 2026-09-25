@@ -794,3 +794,43 @@ compared against 6
 first-pass FAILs in 10 and 8 FAIL rounds over 10 items — and run only after
 the behavioural probe above says the effort is reaching the fork at all. One
 item cannot tell 6 in 10 from 5 in 10, so it is several or it is nothing.
+
+### D-42 · The loop runs from the repository, not from an account — 2026-09-25
+Until this the loop's manager was whichever interactive session typed
+`/backlog-loop`, and two things that kept it going lived outside the
+repository. The restart after a usage limit was a `CronCreate` task, which is
+scoped to the session that made it — it is gone when that session ends and
+does not exist in another account. And five rules the loop had learned by
+failing were written only in one maintainer's Claude auto-memory, which no
+other account reads: a fork re-filing a decided item as needing a decision,
+three times, because the ruling was in a comment and the body still said
+"To decide" (#384, #378, #138); a board position diagnosed as a tooling bug
+and moved, when a person had dragged it (2026-09-21); auto mode refusing
+`gh pr merge` as *Merge Without Review* on a green PR with no verdict comment
+(#552, 2026-09-22); the maintainer's ruling of 2026-09-23 that the CI review
+stays off and is not relabelled on; and the restart itself. A run in another
+account would have met each of them again.
+
+So the rules moved into `backlog-item/SKILL.md`, the restart moved into
+`.claude/skills/backlog-loop/supervise.py`, a plain process — the one thing
+that outlives a session hitting its limit — and the manager became an agent
+definition, `.claude/agents/backlog-manager.md`, run as a session's main
+thread (`claude --agent`) rather than a skill somebody has to type.
+`make loop` runs it headless.
+
+- **The manager carries no `tools:` and no `model:`.** The fork it invokes
+  needs `Agent`, `Edit` and `Write`, and whether a forked skill inherits a
+  main-thread agent's allowlist was not probed — the CLI available when this
+  was written was not signed in. An allowlist could have taken the fork's
+  reviewers away, which is the failure that costs most. A model named there
+  becomes the session's, which is the one the fork implements on. Probe the
+  first before adding either.
+- **It reads the driver's procedure rather than restating it.** `backlog-loop`
+  is `disable-model-invocation`, so a headless session cannot invoke it; the
+  agent reads `backlog-loop/SKILL.md` and follows it, and says only where it
+  differs — it schedules nothing, and its result leads with a contract line a
+  script can read.
+- **`supervise.py` runs with no MCP servers** (`--strict-mcp-config`) for
+  `[D-18]`'s reason, and **refuses `bypassPermissions`**: auto mode's refusal
+  to merge an unreviewed PR is a control, and a supervisor that could switch
+  it off to keep going would be the loop weakening a control.

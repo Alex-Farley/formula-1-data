@@ -24,7 +24,7 @@ TEST_FLAGS = -v
 run = $(1)
 endif
 
-.PHONY: all build readme verify audit export release-due test lint clean check ci help
+.PHONY: all build readme verify audit export release-due test lint clean check ci help loop
 
 all: build readme verify export release-due   ## rebuild, regenerate the README figures, check, export and say whether a release is due (default)
 
@@ -92,6 +92,12 @@ ci:                               ## exactly what ci.yml's Python job runs (QUIE
 	$(call run,$(PYTHON) ./f1 circuit spa)
 	$(call run,$(PYTHON) ./f1 gaps)
 	@echo "ci: everything ci.yml's Python job runs passed on this interpreter, and the committed artefacts are current"
+
+# The backlog loop, unattended, from any clone and any Claude account: the
+# backlog-manager agent under a supervisor that restarts it after a usage
+# limit. Needs `claude` and a signed-in `gh` on PATH. docs/DECISIONS.md D-42.
+loop:                             ## run the backlog loop unattended (ARGS="until-paused balanced")
+	$(PYTHON) .claude/skills/backlog-loop/supervise.py $(ARGS)
 
 clean:                            ## remove built artefacts (not the sources)
 	rm -f f1.db f1_database.json f1_compat.json *.db.tmp

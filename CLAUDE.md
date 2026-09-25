@@ -178,7 +178,10 @@ restated anywhere else. The loop is a skill, invoked on purpose rather than
 run by default: `/backlog-loop next`, `/backlog-loop <ITEM-ID>` or
 `/backlog-loop until-paused`, with an optional pace. Every item runs in a
 forked context, because the driving session — not the reviewers — was 75–85 %
-of the loop's tokens `[D-16]`.
+of the loop's tokens `[D-16]`. Unattended, from any checkout and any Claude
+account, it is `make loop ARGS="until-paused"`: the `backlog-manager` agent
+under `supervise.py`, which restarts it after a usage limit, because nothing
+the loop depends on may live in one account's memory or session `[D-42]`.
 
 Four things are worth having in front of you before you start, because each
 one has cost this project an item:
