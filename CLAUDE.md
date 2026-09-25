@@ -204,9 +204,8 @@ one has cost this project an item:
   through it by merging — or lose history stops the loop.
 
 **Never weaken a control to keep going.** Not the checks, not the workflows,
-not branch protection, not repository visibility, not the licence
-classification, and not `review.yml`'s refusal to review a pull request that
-edits it. Changing one of those is a maintainer's decision, taken
+not branch protection, not repository visibility, and not the licence
+classification. Changing one of those is a maintainer's decision, taken
 deliberately and in the open — never a step on the way to something else.
 
 ## Measured and rejected — do not re-propose

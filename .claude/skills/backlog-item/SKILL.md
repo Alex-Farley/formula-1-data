@@ -338,9 +338,8 @@ Then `gh pr merge N --merge`, only with the PASS and `check (3.9)`,
 mode the merge is refused as *Merge Without Review* until a verdict is a
 comment on the PR, which `[D-23]` already puts there; a refusal means the
 record is missing, and the answer is to record it, never to route around it.
-Never add the `ci-review` label or re-enable `review.yml`: the loop's own
-review is the control, and the CI review is the maintainer's to turn back on
-`[D-42]`.
+There is no CI review to ask for: `review.yml` was removed, and the review
+above is the only one `[D-44]`.
 
 ## Keeping the cost down
 

@@ -351,8 +351,8 @@ choose one.
   before it is acted on.
 - **Nothing is changed to make the loop succeed**: not production
   infrastructure, Cloudflare DNS, credentials, branch protection, repository
-  visibility, billing, the licence controls, the source classification, the
-  redistribution checks, or `review.yml`.
+  visibility, billing, the licence controls, the source classification, or
+  the redistribution checks.
 
 The reasons behind each of these are in `docs/DECISIONS.md`.
 

@@ -9,7 +9,7 @@ the loop's manager, is neither, and has a section of its own.
 
 They enforce **this project's own rules** on a diff, and each carries a list of
 things not to propose because they were measured and rejected. Read-only. Used
-on a change, in a terminal or by `.github/workflows/review.yml`.
+on a change, by the backlog loop or from a terminal.
 
 They are project-specific by design, and will not transplant.
 

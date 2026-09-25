@@ -9,9 +9,7 @@
 #
 # Every pull request this opens runs ci.yml — the build, the artefact
 # comparison, the site build and the browser test — so a bump that breaks
-# the deploy chain is red before it is merged. review.yml skips on these:
-# Dependabot's token cannot read the repository's secrets, and the guard
-# in that file says so in the run summary rather than failing.
+# the deploy chain is red before it is merged.
 version: 2
 updates:
   - package-ecosystem: github-actions
