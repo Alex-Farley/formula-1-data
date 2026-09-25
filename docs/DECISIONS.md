@@ -579,6 +579,10 @@ It never gated a pull request and still does not. The control that protects
 duplicate, not a safeguard. Label a pull request `ci-review` for a second
 opinion from CI.
 
+*Superseded in part on 2026-09-23: the maintainer ruled that the CI review
+stays off, and the loop never adds `ci-review` or re-enables the workflow —
+`[D-42]`.*
+
 **A green `review` check now means findings were posted** (`AF-27`, #313).
 The #312 run had not timed out and had not been cut off at its turn cap: it
 stopped after 19 of 40 turns with a `success` result and five tool calls
@@ -831,6 +835,18 @@ thread (`claude --agent`) rather than a skill somebody has to type.
   differs — it schedules nothing, and its result leads with a contract line a
   script can read.
 - **`supervise.py` runs with no MCP servers** (`--strict-mcp-config`) for
-  `[D-18]`'s reason, and **refuses `bypassPermissions`**: auto mode's refusal
-  to merge an unreviewed PR is a control, and a supervisor that could switch
-  it off to keep going would be the loop weakening a control.
+  `[D-18]`'s reason, and **only in auto mode**, with no setting to change it.
+  Auto mode's refusal to merge an unreviewed PR is a control; refusing only
+  `bypassPermissions` was not enough, since any other mode can meet an allow
+  rule in the account's own settings that skips the refusal, and a supervisor
+  that could switch a control off to keep going would be the loop weakening
+  a control (found in review, #666).
+- **What a headless session returns when a limit kills it was not probed**,
+  for the same reason as the allowlist. The supervisor reads the interactive
+  wording of 2026-09-13 and an epoch form; an error naming a limit with no
+  readable reset waits thirty minutes, and one naming no limit ends the run.
+  A session that meets a limit within five minutes of starting did no work,
+  and those — not limits in general — are what its restart cap counts, each
+  doubling the wait, so a long run is not ended by its ordinary resets and a
+  late one is not retried every minute (both found in review, #666). Probe
+  the headless form on the first real limit and correct `supervise.py` to it.

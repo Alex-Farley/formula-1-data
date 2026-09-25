@@ -51,6 +51,22 @@ class ReadsTheContractLine(unittest.TestCase):
         kind, _, skips = sup.classify(result("LIMIT: resets 3am\nSkipped: AF-9, PD-2\nmore"), 0)
         self.assertEqual((kind, skips), ("LIMIT", ["AF-9", "PD-2"]))
 
+    def test_only_item_ids_are_skipped(self):
+        _, _, skips = sup.classify(result("STOP: x\nSkipped: AF-9 (gh down), none"), 0)
+        self.assertEqual(skips, ["AF-9"])
+
+    def test_a_manager_that_repeats_the_error_is_still_a_limit(self):
+        # Found in review: the manager's final message, not a CLI error, so
+        # is_error is false - and it must still resume, not end the run.
+        text = "You've hit your session limit · resets 1:30pm (Europe/London)\nstock-take"
+        self.assertEqual(sup.classify(result(text), 0)[0], "LIMIT")
+
+    def test_an_error_naming_a_limit_with_no_time_is_a_limit(self):
+        self.assertEqual(sup.classify(result("Claude AI usage limit reached", is_error=True), 1)[0], "LIMIT")
+
+    def test_a_github_rate_limit_in_a_stock_take_is_not_a_usage_limit(self):
+        self.assertEqual(sup.classify(result("Waiting.\nGitHub rate limit resets 3pm"), 0)[0], "NONE")
+
 
 class ReadsTheResetTime(unittest.TestCase):
     NOW = dt.datetime(2026, 9, 25, 12, 0, tzinfo=UTC)  # 13:00 in London
@@ -66,6 +82,15 @@ class ReadsTheResetTime(unittest.TestCase):
     def test_a_time_just_past_is_now_not_tomorrow(self):
         when = sup.reset_at("resets 12:50pm (Europe/London)", self.NOW)
         self.assertEqual(when, self.NOW)
+
+    def test_just_past_across_midnight(self):
+        # Found in review: 11:50pm read at 00:02 slept 23h 48m.
+        now = dt.datetime(2026, 9, 25, 23, 2, tzinfo=UTC)  # 00:02 on the 26th in London
+        self.assertEqual(sup.reset_at("resets 11:50pm (Europe/London)", now), now)
+
+    def test_an_epoch_reset(self):
+        when = sup.reset_at("Claude AI usage limit reached|1790344800", self.NOW)
+        self.assertEqual(when, dt.datetime.fromtimestamp(1790344800, UTC))
 
     def test_midnight_and_noon(self):
         self.assertEqual(sup.reset_at("resets 12am (UTC)", self.NOW).hour, 0)
@@ -84,14 +109,18 @@ class ReadsTheResetTime(unittest.TestCase):
 
 class TheCommandItRuns(unittest.TestCase):
     def test_the_manager_headless_without_mcp(self):
-        cmd = sup.command("claude", "until-paused", "fast", ["AF-9"], "auto")
+        cmd = sup.command("claude", "until-paused", "fast", ["AF-9"])
         self.assertEqual(cmd[:3], ["claude", "--agent", "backlog-manager"])
         self.assertIn("until-paused fast --skip AF-9", cmd)
         self.assertIn("--strict-mcp-config", cmd)
-        self.assertNotIn("--strict-mcp-config", sup.command("claude", "next", "balanced", [], "auto", keep_mcp=True))
+        self.assertNotIn("--strict-mcp-config", sup.command("claude", "next", "balanced", [], keep_mcp=True))
 
-    def test_bypass_is_refused(self):
-        self.assertIn("bypassPermissions", sup.REFUSED_MODES)
+    def test_always_auto_mode(self):
+        # Auto mode's refusal to merge an unreviewed PR is a control; no
+        # setting chooses another mode (D-42).
+        cmd = sup.command("claude", "next", "balanced", [])
+        self.assertEqual(cmd[cmd.index("--permission-mode") + 1], "auto")
+        self.assertNotIn("LOOP_PERMISSION_MODE", open(PATH).read())
 
     def test_the_agent_it_names_exists(self):
         self.assertTrue(os.path.exists(os.path.join(ROOT, ".claude", "agents", f"{sup.AGENT}.md")))

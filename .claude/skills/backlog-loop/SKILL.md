@@ -111,8 +111,9 @@ PRs, decisions needed, what `next.py` says is next. Then stop.
 headless as the `backlog-manager` agent (`.claude/agents/`), with no MCP
 servers, and starts a fresh session after a usage limit. It works from any
 clone, under any Claude account with `gh` signed in, because everything it
-reads is in the repository `[D-42]`. It passes `--permission-mode auto`
-(`LOOP_PERMISSION_MODE` to change it) and refuses `bypassPermissions`. Its own
+reads is in the repository `[D-42]`. It always runs `--permission-mode
+auto`, because auto mode's refusal to merge a PR with no recorded verdict is
+a control, and an account without auto mode runs the loop by hand. Its own
 lines go to `.claude/loop/progress.log` beside the forks', under the id
 `supervisor`.
 
