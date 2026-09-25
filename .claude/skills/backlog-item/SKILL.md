@@ -77,7 +77,7 @@ reviewed again on the same head `[D-23]`.
    move on. **A `**Decided (<date>):**` paragraph in the body is the
    ruling**, and a `**Was to decide:**` under it is history: work the
    option chosen, and do not re-file the question. `file.py decided` writes
-   both. Only a body that still says `**To decide:**` and carries no
+   both. Only a body with a line still opening `To decide:` and no
    `decision` label needs its comments read first — a ruling made before
    that command existed is a comment, and the body was never amended.
    A settled question is worked, not filed again `[D-42]` `[D-43]`.

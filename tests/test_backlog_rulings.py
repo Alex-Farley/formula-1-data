@@ -45,8 +45,36 @@ class WritingARuling(unittest.TestCase):
         with self.assertRaises(SystemExit):
             file_py.decided_body(BODY, "   ", DAY)
 
-    def test_next_py_would_no_longer_see_an_open_question(self):
+    def test_no_open_question_is_left_behind(self):
         self.assertIsNone(file_py.DECIDED.search(file_py.decided_body(BODY, "do A", DAY)))
+
+    def test_a_question_mentioned_in_prose_is_not_the_question(self):
+        # Found in review, on this item's own body.
+        body = "It turns **To decide:** into **Was to decide:**.\n\n**To decide:** A or B."
+        out = file_py.decided_body(body, "A", DAY)
+        self.assertTrue(out.startswith("It turns **To decide:** into **Was to decide:**.\n\n"
+                                       f"**Decided ({DAY}):** A\n\n**Was to decide:** A or B."), out)
+
+    def test_a_code_span_or_a_quote_is_not_the_question(self):
+        for body in ("The fork greps for `**To decide:**` lines.\n\n**To decide:** A or B.",
+                     "> From #12: **To decide:** X\n\n**To decide:** A or B."):
+            out = file_py.decided_body(body, "A", DAY)
+            self.assertIn(f"**Decided ({DAY}):** A\n\n**Was to decide:** A or B.", out)
+            self.assertEqual(out.split("\n\n")[0], body.split("\n\n")[0])
+
+    def test_two_questions_are_both_settled(self):
+        body = "**To decide:** A or B.\n\nMore.\n\n**To decide:** C or D."
+        out = file_py.decided_body(body, "A, and C", DAY)
+        self.assertEqual(out.count("**Was to decide:**"), 2)
+        self.assertIsNone(file_py.DECIDED.search(out))
+
+    def test_the_plain_spelling_older_bodies_use(self):
+        out = file_py.decided_body("Item.\n\nTo decide: A or B.", "A", DAY)
+        self.assertIn(f"**Decided ({DAY}):** A\n\n**Was to decide:** A or B.", out)
+
+    def test_the_same_ruling_twice_changes_nothing(self):
+        once = file_py.decided_body(BODY, "do A", DAY)
+        self.assertEqual(file_py.decided_body(once, "do  A", DAY), once)
 
 
 ROWS = [(10, "Now"), (11, "Now"), (12, "Now"), (20, "Next"), (21, "Next")]

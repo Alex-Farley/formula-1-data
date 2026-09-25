@@ -214,7 +214,7 @@ shippable pieces should be a decision to make, not a task to start.**
 **Status**, on the project board, is the ranking: *Now*, *Next*, *Someday*,
 top to bottom within each, and a person drags an item to rank it — or asks
 a session to, which runs `file.py rank <n> --top | --bottom | --after <m> |
---before <m>`; a fork never ranks on its own judgement `[D-43]`. *In
+--before <m>`; a fork never runs it `[D-43]`. *In
 progress* means a worktree is open on it. The loop takes the first item under
 *Now*, then *Next*, then *Someday*, and passes over two labels: `decision` —
 a person's call, put on an issue with what must be decided, worked around

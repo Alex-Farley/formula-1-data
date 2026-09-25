@@ -297,22 +297,34 @@ def decline(a):
     print(f"#{a.number} declined")
 
 
-DECIDED = re.compile(r"\*\*To decide:\*\*")
+# The question as this project writes it: a paragraph that opens with
+# `**To decide:**`, or the plain `To decide:` a few older bodies use. Only at
+# the start of a line - a mention in prose, a code span or a quote is not the
+# question (found in review: unanchored, it spliced the ruling into the
+# middle of a sentence and left the real question open).
+DECIDED = re.compile(r"^(\*\*)?To decide:(\*\*)?", re.M)
+
+
+def one_line(ruling):
+    return " ".join((ruling or "").split())
 
 
 def decided_body(body, ruling, day):
-    """`body` with the ruling written in: above the first `**To decide:**`,
-    which becomes `**Was to decide:**` so the question stays readable as
-    history and no longer reads as open, or at the top when there is none.
-    A later ruling goes above the earlier one the same way, so the newest
-    is the first thing a reader meets."""
-    ruling = " ".join(ruling.split())
+    """`body` with the ruling written in: above the first question, and
+    every question turned into `**Was to decide:**` so it stays readable as
+    history and no longer reads as open; at the top when there is none. A
+    later ruling goes above the earlier one, so the newest is the first thing
+    a reader meets. Writing the same ruling twice changes nothing."""
+    ruling = one_line(ruling)
     if not ruling:
         sys.exit("a ruling needs words: what was chosen, and why the rest stay rejected")
     para = f"**Decided ({day}):** {ruling}"
+    if para in body:
+        return body
     m = DECIDED.search(body)
     if m:
-        return body[:m.start()] + para + "\n\n**Was to decide:**" + body[m.end():]
+        head, tail = body[:m.start()], body[m.start():]
+        return head + para + "\n\n" + DECIDED.sub("**Was to decide:**", tail)
     return para + "\n\n" + body.lstrip("\n")
 
 
@@ -320,13 +332,21 @@ def decided(a):
     issue = gh("issue", "view", str(a.number), "--repo", REPO, "--json", "body,labels,state", as_json=True)
     if issue["state"] != "OPEN":
         sys.exit(f"#{a.number} is closed; a ruling on a closed item is a comment, not a body edit")
-    body = decided_body(issue.get("body") or "", a.reason, datetime.date.today().isoformat())
-    args = ["issue", "edit", str(a.number), "--repo", REPO, "--body", body]
+    ruling = one_line(a.reason)
+    old = issue.get("body") or ""
+    body = decided_body(old, ruling, datetime.date.today().isoformat())
+    # Before the writes, not after: a gh failure exits, and a queue cache
+    # holding the old labels would outlive a write that half landed.
+    loop_cache.drop("queue")
+    args = ["issue", "edit", str(a.number), "--repo", REPO]
+    if body != old:
+        args += ["--body", body]
     if any(lb["name"] == "decision" for lb in issue.get("labels") or []):
         args += ["--remove-label", "decision"]
-    gh(*args)
-    gh("issue", "comment", str(a.number), "--repo", REPO, "--body", f"**Decided:** {a.reason}")
-    loop_cache.drop("queue")
+    if len(args) > 4:
+        gh(*args)
+    if body != old:
+        gh("issue", "comment", str(a.number), "--repo", REPO, "--body", f"**Decided:** {ruling}")
     print(f"#{a.number} decided")
 
 
