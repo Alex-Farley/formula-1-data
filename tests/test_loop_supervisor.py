@@ -120,7 +120,8 @@ class TheCommandItRuns(unittest.TestCase):
         # setting chooses another mode (D-42).
         cmd = sup.command("claude", "next", "balanced", [])
         self.assertEqual(cmd[cmd.index("--permission-mode") + 1], "auto")
-        self.assertNotIn("LOOP_PERMISSION_MODE", open(PATH).read())
+        with open(PATH) as f:
+            self.assertNotIn("LOOP_PERMISSION_MODE", f.read())
 
     def test_the_agent_it_names_exists(self):
         self.assertTrue(os.path.exists(os.path.join(ROOT, ".claude", "agents", f"{sup.AGENT}.md")))
