@@ -68,15 +68,19 @@ reviewed again on the same head `[D-23]`.
 
    **Never page through the issue list or the board.** `next.py` does it for
    a few hundred tokens, which is the point of it. Open an issue only to work
-   on it. **A board position is a person's drag:** the only board writes are
-   `file.py`'s, and none of them moves an item to fit a theory of how it got
-   there `[D-42]`.
+   on it. **A board position is a person's:** a fork's only board writes are
+   `file.py status` changes, and it never runs `file.py rank` — that is for
+   a person, or a session a person has told what order to put things in —
+   nor moves an item to fit a theory of how it got there `[D-42]` `[D-43]`.
 2. **Reread the item against the code as it is now.** It may be stale, landed
    under another id, or superseded — if so, `file.py decline <n> "<why>"` and
-   move on. **Read its comments before its "To decide":** a ruling is
-   recorded as a comment and the body is never amended, so a question the
-   body still asks may already be settled. A settled question is worked, not
-   filed again as a decision `[D-42]`.
+   move on. **A `**Decided (<date>):**` paragraph in the body is the
+   ruling**, and a `**Was to decide:**` under it is history: work the
+   option chosen, and do not re-file the question. `file.py decided` writes
+   both. Only a body that still says `**To decide:**` and carries no
+   `decision` label needs its comments read first — a ruling made before
+   that command existed is a comment, and the body was never amended.
+   A settled question is worked, not filed again `[D-42]` `[D-43]`.
 3. **A fact needs a source before a line of code.** Never invent a value:
    NULL, a `discrepancies` row or a `known_gaps` row.
 4. **Anything that is a person's decision** — a licence reading, a scope

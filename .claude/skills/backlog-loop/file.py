@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Write to the queue: file an item, move one between statuses, mark one.
+Write to the queue: file an item, move one between statuses, mark one,
+record a ruling on one, or rank one within its status.
 
     python3 .claude/skills/backlog-loop/file.py new PD "Title." --size S --status Next --body-file note.md
     python3 .claude/skills/backlog-loop/file.py new AF "Title." --size M --body "one paragraph" --decision
@@ -9,12 +10,15 @@ Write to the queue: file an item, move one between statuses, mark one.
     python3 .claude/skills/backlog-loop/file.py blocked 123 "why, in one clause"
     python3 .claude/skills/backlog-loop/file.py decision 123 "what a person must decide"
     python3 .claude/skills/backlog-loop/file.py decline 123 "why, in one line"
+    python3 .claude/skills/backlog-loop/file.py decided 123 "option B; A and C stay rejected because ..."
+    python3 .claude/skills/backlog-loop/file.py rank 123 --top          # or --bottom, --after 45, --before 45
 
 The queue is GitHub Issues ranked on the Lap Ledger project; the conventions
 are in CONTRIBUTING.md under *The queue*. Filing an item by hand is four
 `gh` calls with three opaque ids; this does them in the right order and
-prints `#n ID`. Nothing here merges, closes a landed item (the pull request
-does that with `Closes #n`) or reorders the board (a person drags). The
+prints `#n ID`. Nothing here merges or closes a landed item (the pull request
+does that with `Closes #n`), and only `rank` reorders the board - on a
+person's word, never on a fork's own judgement `[D-43]`. The
 board auto-adds every new issue of the repository, so `status` finds the
 item before it adds one.
 
@@ -39,7 +43,21 @@ adds the label that keeps the loop off it.
 and refuses a closed one, so a landed record cannot be turned into a
 declined one by a wrong number; `blocked` and `decision` add the label and a comment, so the record of why
 is on the item, not in a fork's context that is about to be discarded.
+
+`decided` writes a ruling where a fork will read it: into the body, which
+`next.py` prints, rather than only into a comment, which it does not. The
+body's `**To decide:**` becomes `**Was to decide:**`, with a
+`**Decided (<date>):**` paragraph above it; a body with no `**To decide:**`
+gets the paragraph at the top. It also takes the `decision` label off, so
+the item is back in the queue, and comments the ruling for the record. A
+ruling kept only in a comment was re-filed as undecided three times `[D-43]`.
+
+`rank` moves an issue within the status it is already in: to the top, the
+bottom, or directly after or before another issue of the same status. A
+different status is `status` first. It is for a person, or a session a
+person has told what order to put things in; a fork never calls it.
 """
+import datetime
 import argparse
 import importlib.util
 import json
@@ -279,6 +297,83 @@ def decline(a):
     print(f"#{a.number} declined")
 
 
+DECIDED = re.compile(r"\*\*To decide:\*\*")
+
+
+def decided_body(body, ruling, day):
+    """`body` with the ruling written in: above the first `**To decide:**`,
+    which becomes `**Was to decide:**` so the question stays readable as
+    history and no longer reads as open, or at the top when there is none.
+    A later ruling goes above the earlier one the same way, so the newest
+    is the first thing a reader meets."""
+    ruling = " ".join(ruling.split())
+    if not ruling:
+        sys.exit("a ruling needs words: what was chosen, and why the rest stay rejected")
+    para = f"**Decided ({day}):** {ruling}"
+    m = DECIDED.search(body)
+    if m:
+        return body[:m.start()] + para + "\n\n**Was to decide:**" + body[m.end():]
+    return para + "\n\n" + body.lstrip("\n")
+
+
+def decided(a):
+    issue = gh("issue", "view", str(a.number), "--repo", REPO, "--json", "body,labels,state", as_json=True)
+    if issue["state"] != "OPEN":
+        sys.exit(f"#{a.number} is closed; a ruling on a closed item is a comment, not a body edit")
+    body = decided_body(issue.get("body") or "", a.reason, datetime.date.today().isoformat())
+    args = ["issue", "edit", str(a.number), "--repo", REPO, "--body", body]
+    if any(lb["name"] == "decision" for lb in issue.get("labels") or []):
+        args += ["--remove-label", "decision"]
+    gh(*args)
+    gh("issue", "comment", str(a.number), "--repo", REPO, "--body", f"**Decided:** {a.reason}")
+    loop_cache.drop("queue")
+    print(f"#{a.number} decided")
+
+
+def rank_after(rows, number, how, other=None):
+    """The issue number `number` should sit directly after once moved, or
+    None for the top of its status. `rows` is next.py's board_rows(), in the
+    board's order. Refuses a move across statuses: that is `status`."""
+    status = dict(rows).get(number)
+    if status is None:
+        sys.exit(f"#{number} is not on the board")
+    column = [n for n, s in rows if s == status and n != number]
+    if how == "top":
+        return None
+    if how == "bottom":
+        return column[-1] if column else None
+    if other == number:
+        sys.exit(f"#{number} cannot be ranked against itself")
+    if dict(rows).get(other) != status:
+        sys.exit(f"#{other} is not in {status!r} with #{number}; move #{number} with `status` first")
+    at = column.index(other)
+    if how == "after":
+        return other
+    return column[at - 1] if at else None
+
+
+RANK = """mutation($project: ID!, $item: ID!, $after: ID) {
+  updateProjectV2ItemPosition(input: {projectId: $project, itemId: $item, afterId: $after}) {
+    clientMutationId
+  }
+}"""
+
+
+def rank(a):
+    how = "top" if a.top else "bottom" if a.bottom else "after" if a.after else "before"
+    after = rank_after(next_py.board_rows(), a.number, how, a.after or a.before)
+    proj_id, _, _ = board(fresh=True)
+    ids = item_ids(fresh=True)
+    if a.number not in ids or (after is not None and after not in ids):
+        sys.exit("the board changed between two reads; run it again")
+    args = ["api", "graphql", "-f", f"query={RANK}", "-f", f"project={proj_id}", "-f", f"item={ids[a.number]}"]
+    if after is not None:
+        args += ["-f", f"after={ids[after]}"]
+    gh(*args)
+    loop_cache.drop("queue")
+    print(f"#{a.number} ranked " + (f"after #{after}" if after is not None else "first"))
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -294,10 +389,17 @@ def main():
     s = sub.add_parser("status")
     s.add_argument("number", type=int)
     s.add_argument("status")
-    for name in ("blocked", "decision", "decline"):
+    for name in ("blocked", "decision", "decline", "decided"):
         q = sub.add_parser(name)
         q.add_argument("number", type=int)
         q.add_argument("reason")
+    r = sub.add_parser("rank")
+    r.add_argument("number", type=int)
+    where = r.add_mutually_exclusive_group(required=True)
+    where.add_argument("--top", action="store_true")
+    where.add_argument("--bottom", action="store_true")
+    where.add_argument("--after", type=int, metavar="N")
+    where.add_argument("--before", type=int, metavar="N")
     a = p.parse_args()
     if a.cmd == "new":
         new(a)
@@ -310,6 +412,10 @@ def main():
         mark(a, "decision", "Decision needed")
     elif a.cmd == "decline":
         decline(a)
+    elif a.cmd == "decided":
+        decided(a)
+    elif a.cmd == "rank":
+        rank(a)
 
 
 if __name__ == "__main__":

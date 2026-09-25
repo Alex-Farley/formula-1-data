@@ -850,3 +850,23 @@ thread (`claude --agent`) rather than a skill somebody has to type.
   doubling the wait, so a long run is not ended by its ordinary resets and a
   late one is not retried every minute (both found in review, #666). Probe
   the headless form on the first real limit and correct `supervise.py` to it.
+
+### D-43 · A ruling goes in the body; ranking is a person's command — 2026-09-25
+Two of the rules `[D-42]` moved out of one account's memory had a cheaper
+fix than a rule. A fork re-filed three decided items as needing a decision
+(#384, #378, #138) because the ruling was a comment while the body still said
+**To decide**, and `next.py` prints the body and not the comments. The
+maintainer's first thought was a label saying the item was settled; a label
+says *that* it was decided and not *what*, so a fork would still open the
+comments to find out. `file.py decided` writes the ruling into the body
+instead — a `**Decided (<date>):**` paragraph above the question, which
+becomes `**Was to decide:**` — and removes the `decision` label, so one
+command settles the item and the fork pays nothing extra to read it. The
+comment is still posted, for the record.
+
+Board order stays a person's (`[D-36]`, and the 2026-09-21 case in `[D-42]`).
+What changed is that a person may now ask a session to rank: `file.py rank`
+moves an item within its status, to the top, the bottom, or beside another
+item, by `updateProjectV2ItemPosition`. A fork never calls it — choosing the
+order and taking the first item are separate jobs, and the second must not
+be able to do the first.

@@ -212,12 +212,21 @@ Time here is bursty and unpredictable, so **an L that cannot be broken into
 shippable pieces should be a decision to make, not a task to start.**
 
 **Status**, on the project board, is the ranking: *Now*, *Next*, *Someday*,
-top to bottom within each, and a person drags an item to rank it. *In
+top to bottom within each, and a person drags an item to rank it — or asks
+a session to, which runs `file.py rank <n> --top | --bottom | --after <m> |
+--before <m>`; a fork never ranks on its own judgement `[D-43]`. *In
 progress* means a worktree is open on it. The loop takes the first item under
 *Now*, then *Next*, then *Someday*, and passes over two labels: `decision` —
 a person's call, put on an issue with what must be decided, worked around
 and never taken by an autonomous run — and `blocked` — an ordinary blocker a
 run met, with a comment saying what.
+
+**Ruling on a decision.** `file.py decided <n> "<the option chosen, and why
+the others stay rejected>"` writes the ruling into the body as a
+`**Decided (<date>):**` paragraph, turns its `**To decide:**` into
+`**Was to decide:**`, takes the `decision` label off and comments the ruling
+for the record. The body is what a fork reads; a ruling left only in a
+comment has been re-filed as undecided three times `[D-43]`.
 
 **Landing.** The pull request body carries `Closes #n` on its own line, so
 the merge closes the issue and the board moves it to *Done*. The PR is the
