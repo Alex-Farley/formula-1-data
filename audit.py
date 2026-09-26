@@ -38,7 +38,7 @@ OPTIONAL = {
     "circuits.last_gp", "drivers.last_season", "grands_prix.last_held",
     "engine_manufacturers.last_year", "engine_eras.to_year",
     "constructor_lineage.to_year", "circuit_layouts.to_year",
-    "points_systems.to_year", "qualifying_formats.to_year", "eras.to_year", "tyre_suppliers.to_year",
+    "points_systems.to_year", "eras.to_year", "tyre_suppliers.to_year",
     "technical_innovations.banned_year", "known_gaps.races_affected",
     "race_entries.fastest_lap_shared", "race_entries.grid",
     "race_entries.entrant", "race_entries.constructor_id",

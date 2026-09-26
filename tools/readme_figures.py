@@ -256,9 +256,6 @@ class Figures:
     def points_systems(self):
         return n(self.count("points_systems"))
 
-    def qualifying_formats(self):
-        return n(self.count("qualifying_formats"))
-
     def personnel(self):
         return n(self.count("personnel"))
 
@@ -645,7 +642,7 @@ class Figures:
     # claims to have accounted for every one.
     WIKI = "en.wikipedia.org"
     WIKI_ITEMISED = ("races", "race_entries", "claims", "drivers", "cars",
-                     "regulation_limits", "qualifying_formats", "team_radio")
+                     "regulation_limits", "team_radio")
 
     def _wp(self, table):
         return self._licence_tally()[3].get((table, self.WIKI), 0)
@@ -688,7 +685,6 @@ class Figures:
     def wp_drivers_polesitters(self): return n(self._wp_drivers_split()[1])
     def wp_cars(self):              return n(self._wp("cars"))
     def wp_regulation_limits(self): return n(self._wp("regulation_limits"))
-    def wp_qualifying_formats(self): return n(self._wp("qualifying_formats"))
     def wp_radio(self):             return n(self._wp("team_radio"))
 
     # The season articles' URL, which is what data/harvest.py cites; a

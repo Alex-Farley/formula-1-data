@@ -1264,31 +1264,6 @@ CREATE TABLE points_systems (
     UNIQUE (session, from_year)
 );
 
--- How each grid was set, period by period (WK-01), in the shape DA-18 gave
--- points_systems: `session` is whose grid - 'race' for the Grand Prix,
--- 'sprint' for the sprint - and within one session no two periods overlap.
--- The format changed mid-season twice, so a period begins at `from_round` of
--- `from_year` and runs to the end of `to_year` or to the next period's start;
--- NULL `to_year` is the period still running. `sessions` counts the
--- qualifying sessions held for the grid (a knockout is one session in three
--- periods), and `rule_107` whether a driver outside 107% could be kept off
--- it. Nothing before 1996: known_gaps holds that span.
-CREATE TABLE qualifying_formats (
-    id              INTEGER PRIMARY KEY,
-    session         TEXT NOT NULL CHECK (session IN ('race', 'sprint')),
-    from_year       INTEGER NOT NULL,
-    from_round      INTEGER NOT NULL DEFAULT 1 CHECK (from_round >= 1),
-    to_year         INTEGER,
-    format          TEXT NOT NULL CHECK (format IN ('single session', 'single lap',
-                        'single lap, aggregate', 'knockout', 'knockout, elimination')),
-    sessions        INTEGER NOT NULL CHECK (sessions >= 1),
-    rule_107        INTEGER NOT NULL CHECK (rule_107 IN (0, 1)),
-    note            TEXT NOT NULL,
-    confidence      TEXT NOT NULL REFERENCES provenance(confidence),
-    source          TEXT NOT NULL,
-    UNIQUE (session, from_year, from_round)
-);
-
 -- DERIVED, not authored. Until v2.23 this held thirty rows typed from general
 -- knowledge, with twenty-four spellings of `as_of` and a Hamilton win count
 -- one behind the `drivers.wins` the same database computed. Every row is now

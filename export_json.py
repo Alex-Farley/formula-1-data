@@ -151,7 +151,6 @@ def main():
         "safety_milestones": dump(con, "safety_milestones", "year"),
         "tyre_suppliers": dump(con, "tyre_suppliers", "from_year"),
         "points_systems": dump(con, "points_systems", "from_year"),
-        "qualifying_formats": dump(con, "qualifying_formats", "session, from_year, from_round"),
         "governance": dump(con, "governance", "year"),
         "personnel": dump(con, "personnel", "full_name"),
         "records": dump(con, "records", "category"),

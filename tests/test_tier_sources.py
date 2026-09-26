@@ -71,12 +71,8 @@ class TheTierCheckRefuses(unittest.TestCase):
         self.assertRefused("every source a tier's rows cite is named in its definition")
 
     def test_a_source_no_row_at_the_tier_cites_is_refused(self):
-        # The two tables whose reference rows cite a Wikipedia article other
-        # than a season's: moved off the tier together, they leave the
-        # definition naming a source nothing at it cites.
-        for table in ("regulation_limits", "qualifying_formats"):
-            self.alter(f"UPDATE {table} SET confidence = 'medium' "
-                       "WHERE confidence = 'reference' AND source LIKE 'https://en.wikipedia.org/%'")
+        self.alter("UPDATE regulation_limits SET confidence = 'medium' "
+                   "WHERE confidence = 'reference' AND source LIKE 'https://en.wikipedia.org/%'")
         self.assertRefused("every source a tier's definition names is cited at that tier")
 
     def test_a_table_without_a_source_column_is_read_through_its_provenance(self):
