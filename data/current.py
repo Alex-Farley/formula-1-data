@@ -908,6 +908,7 @@ ID_STABILITY = {
     "governance":            ("unstable", None),
     "laps":                  ("unstable", None),
     "points_systems":        ("unstable", None),
+    "qualifying_formats":    ("unstable", None),
     "race_control_messages": ("unstable", None),
     "regulation_changes":    ("unstable", None),
     "regulation_limits":     ("unstable", None),

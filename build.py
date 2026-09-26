@@ -1301,6 +1301,11 @@ def _stage_15_rules_tech_safety(b):
             (i, fy, ty, scoring, json.dumps(list(scale), separators=(",", ":")), win,
              X.NO_FASTEST_LAP, 0, X.EVERY_RESULT_COUNTS, note))
 
+    for i, r in enumerate(X.QUALIFYING_FORMATS, 1):
+        cur.execute("""INSERT INTO qualifying_formats (id, session, from_year,
+            from_round, to_year, format, sessions, rule_107, note, confidence, source)
+            VALUES (?,?,?,?,?,?,?,?,?,'reference',?)""", (i,) + r + (X._QUALI,))
+
     # `records` is no longer loaded here: it is DERIVED in stage 31, after the
     # career figures it is computed from exist. See derive_records().
 

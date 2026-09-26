@@ -16,14 +16,14 @@ by the build rather than by anyone's memory.
 
     ./f1 licences
 
-<!-- fig:yes_share -->99.4%<!-- /fig --> of the <!-- fig:sourced_rows -->121,260<!-- /fig --> sourced rows carry a licence that permits
+<!-- fig:yes_share -->99.4%<!-- /fig --> of the <!-- fig:sourced_rows -->121,274<!-- /fig --> sourced rows carry a licence that permits
 redistribution outright. The remaining <!-- fig:facts_only_share -->0.6%<!-- /fig --> cite an official source as the
 **authority for a fact** and hold none of that source's prose. Nothing in the
 committed database may not be published.
 
 | Class | Rows | Share |
 |---|---:|---:|
-| `yes` — redistributable on the terms given | <!-- fig:yes_rows -->120,537<!-- /fig --> | <!-- fig:yes_share -->99.4%<!-- /fig --> |
+| `yes` — redistributable on the terms given | <!-- fig:yes_rows -->120,551<!-- /fig --> | <!-- fig:yes_share -->99.4%<!-- /fig --> |
 | `facts-only` — the facts, not the expression | <!-- fig:facts_only_rows -->723<!-- /fig --> | <!-- fig:facts_only_share -->0.6%<!-- /fig --> |
 | `no` — not redistributable | <!-- fig:no_rows -->0<!-- /fig --> | <!-- fig:no_share -->0.0%<!-- /fig --> |
 
@@ -340,14 +340,14 @@ use (§1(i)).
 
 On the pattern of [D-07] — a second file published beside `f1.db`, each
 carrying its own licence — the edition holds every sourced row that does not
-cite Wikipedia: <!-- fig:edition_rows -->116,525<!-- /fig --> of the <!-- fig:sourced_rows -->121,260<!-- /fig -->. That is F1DB's <!-- fig:f1db_rows -->115,802<!-- /fig --> and the
+cite Wikipedia: <!-- fig:edition_rows -->116,525<!-- /fig --> of the <!-- fig:sourced_rows -->121,274<!-- /fig -->. That is F1DB's <!-- fig:f1db_rows -->115,802<!-- /fig --> and the
 <!-- fig:facts_only_rows -->723<!-- /fig --> facts-only rows, which are bare facts on the reading above and put
 nothing of FOM's or the FIA's under anyone's licence. *Collective Database*
 is ODbL's term, not CC BY-SA's; the separation works for CC BY-SA only
 because §4(b) reaches the database holding the substantial portion and no
 other.
 
-It leaves out the <!-- fig:wp_rows -->4,735<!-- /fig --> rows that cite Wikipedia:
+It leaves out the <!-- fig:wp_rows -->4,749<!-- /fig --> rows that cite Wikipedia:
 
 | Rows | Table | What they are |
 |---:|---|---|
@@ -357,6 +357,7 @@ It leaves out the <!-- fig:wp_rows -->4,735<!-- /fig --> rows that cite Wikipedi
 | <!-- fig:wp_drivers -->64<!-- /fig --> | `drivers` | <!-- fig:wp_drivers_seasons -->15<!-- /fig --> winners a season article introduced, and <!-- fig:wp_drivers_polesitters -->49<!-- /fig --> drivers who took pole and never won, from *List of Formula One polesitters* |
 | <!-- fig:wp_cars -->29<!-- /fig --> | `cars` | design families citing their per-car article |
 | <!-- fig:wp_regulation_limits -->16<!-- /fig --> | `regulation_limits` | limits cited to the history of the regulations |
+| <!-- fig:wp_qualifying_formats -->14<!-- /fig --> | `qualifying_formats` | the qualifying periods from 1996, cited to the race-weekend article; the formats are facts and each `note` is this project's wording of them |
 | <!-- fig:wp_radio -->6<!-- /fig --> | `team_radio` | the radio quotations |
 
 — and four sets a count by `source` cannot see, because the value is

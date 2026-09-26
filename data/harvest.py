@@ -911,6 +911,24 @@ KNOWN_GAPS = [
      None,
      "Closes when a named, classified source publishes a career total for "
      "her, and that figure is read and cited."),
+    (18, "qualifying-format-before-1996", "qualifying_formats",
+     "how the grid was set before 1996",
+     "open",
+     "How qualifying worked before 1996 is not recorded here. The grids "
+     "themselves are, race by race; what is missing is the rule that set "
+     "them - how many sessions, and whether the best time or an aggregate "
+     "counted - season by season from 1950 to 1995.",
+     "WK-01 (#186). qualifying_formats starts in 1996 because the one "
+     "source read for it, Wikipedia's Formula One race weekend article, "
+     "says only that qualifying was two one-hour sessions, best time "
+     "counting, \"traditionally before 1996\", with no first year. That "
+     "sentence cannot bound a period, and the 1950s, when the grid came from "
+     "practice times, are not in it at all, so no row was written for any "
+     "part of the span.",
+     None,
+     "Closes when a source that states the format per season - the FIA "
+     "yearbooks, or Formula 1's own history pages - is read for 1950 to "
+     "1995 and each span is written as a row."),
 ]
 
 # Shared fastest laps the season tables render as ONE name. harvest/poles.txt
