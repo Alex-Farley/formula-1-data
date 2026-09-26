@@ -1831,8 +1831,9 @@ def points_systems_figures():
     season page's "who can still win" is arithmetic on these figures, and a
     reworded sentence that left them behind would publish a wrong claim about
     a live championship rather than merely look untidy."""
-    rows = con.execute("""SELECT id, from_year, to_year, scoring, scale, win_points,
-        fastest_lap, fastest_lap_points FROM points_systems ORDER BY id""").fetchall()
+    rows = con.execute("""SELECT id, session, from_year, to_year, scoring, scale,
+        win_points, fastest_lap, fastest_lap_points, dropped_scores
+        FROM points_systems ORDER BY id""").fetchall()
 
     # `scale` is the rule the build reads to write 0 below the paid places
     # (DA-08), so it is held to the sentence as a whole: the same figures in
@@ -1841,7 +1842,7 @@ def points_systems_figures():
     WORDS = {"three": 3, "five": 5, "six": 6, "eight": 8, "ten": 10}
     bad = []
     for r in rows:
-        head = r["scoring"][len("SPRINT: "):] if r["scoring"].startswith("SPRINT: ") else r["scoring"]
+        head = r["scoring"]
         try:
             scale = json.loads(r["scale"])
         except ValueError:
@@ -1863,7 +1864,7 @@ def points_systems_figures():
 
     bad = []
     for r in rows:
-        head = r["scoring"][len("SPRINT: "):] if r["scoring"].startswith("SPRINT: ") else r["scoring"]
+        head = r["scoring"]
         lead = re.match(r"\d+", head)
         said = int(lead.group()) if lead else None
         if said != r["win_points"]:
@@ -1872,19 +1873,42 @@ def points_systems_figures():
     check("win_points is the leading figure of the scoring rule it sits beside",
           not bad, "; ".join(bad))
 
-    # 'None' is the string these rows carry where there was no fastest-lap
-    # point, and NULL is what a sprint row carries; neither is a point.
-    bad = [f"#{r['id']} fastest_lap={r['fastest_lap']!r} but fastest_lap_points={r['fastest_lap_points']}"
+    # The sentence opens on the figure - '1 point, shared equally if tied' -
+    # or says 'No point', which is what every row without the rule says,
+    # sprint rows included (DA-18). Until then those rows said the string
+    # 'None' or held NULL, two spellings of one absence in one column.
+    bad = []
+    for r in rows:
+        m = re.match(r"(\d+) points?\b", r["fastest_lap"] or "")
+        said = int(m.group(1)) if m else (0 if r["fastest_lap"] == "No point" else None)
+        if said != r["fastest_lap_points"]:
+            bad.append(f"#{r['id']} fastest_lap={r['fastest_lap']!r} but "
+                       f"fastest_lap_points={r['fastest_lap_points']}")
+    check("fastest_lap_points is the figure its fastest-lap rule opens on, "
+          "or 0 where it says 'No point'", not bad, "; ".join(bad))
+
+    # The season page runs its title arithmetic only under 'Every result
+    # counts' (season.js, titlePermutations), so that exact spelling is what
+    # every system without dropped scores must say, and no system with them
+    # may say it. The eras page's note beside the table says the dropping
+    # ended with 1990, which is the line held here.
+    bad = [f"#{r['id']} {r['session']} {r['from_year']}: {r['dropped_scores']!r}"
            for r in rows
-           if (r["fastest_lap"] not in (None, "None")) != (r["fastest_lap_points"] > 0)]
-    check("fastest_lap_points is set exactly where a fastest-lap rule is named",
+           if (r["dropped_scores"] == "Every result counts")
+           != (r["session"] == "sprint" or r["from_year"] >= 1991)]
+    check("dropped_scores says 'Every result counts' exactly where no result was "
+          "dropped - every sprint and every season from 1991", not bad, "; ".join(bad))
+
+    bad = [f"#{r['id']} {c}" for r in rows for c in ("fastest_lap", "dropped_scores")
+           if r[c] in (None, "", "None")]
+    check("no points system leaves a rule blank or says 'None' for it",
           not bad, "; ".join(bad))
 
     bad = [f"#{r['id']}" for r in rows if r["fastest_lap_points"] not in (0, 1)]
     check("no fastest lap has ever been worth more than a point", not bad, "; ".join(bad))
 
     bad = [f"#{r['id']}" for r in rows
-           if r["scoring"].startswith("SPRINT: ") and r["fastest_lap_points"] != 0]
+           if r["session"] == "sprint" and r["fastest_lap_points"] != 0]
     check("no sprint carries a fastest-lap point", not bad, "; ".join(bad))
 
     # The season page picks one system per season with ORDER BY from_year DESC
@@ -1909,7 +1933,7 @@ def points_systems_figures():
         WHERE e.finish_position = 1 AND e.points IS NOT NULL
         GROUP BY r.year ORDER BY r.year"""):
         cap = con.execute("""SELECT win_points + fastest_lap_points FROM points_systems
-            WHERE scoring NOT LIKE 'SPRINT:%' AND from_year <= ? AND (to_year IS NULL OR to_year >= ?)
+            WHERE session = 'race' AND from_year <= ? AND (to_year IS NULL OR to_year >= ?)
             ORDER BY from_year DESC LIMIT 1""", (r["year"], r["year"])).fetchone()
         if cap is None:
             over.append(f"{r['year']}: no points system covers it")
@@ -1925,7 +1949,7 @@ def points_systems_figures():
         gaps = []
         for year in range(1950, last_season() + 1):
             n = sum(1 for r in rows
-                    if r["scoring"].startswith("SPRINT: ") == (kind == "sprint")
+                    if (r["session"] == "sprint") == (kind == "sprint")
                     and r["from_year"] <= year
                     and (r["to_year"] is None or r["to_year"] >= year))
             if n > 1 or (want is not None and n != want):
@@ -4410,7 +4434,7 @@ def points_below_the_paid_places():
     # The paid places per season, read from the scale in Python rather than
     # with SQLite's JSON functions, which nothing else here depends on.
     systems = con.execute("""SELECT from_year, to_year, scale,
-        scoring LIKE 'SPRINT:%' AS sprint FROM points_systems""").fetchall()
+        session = 'sprint' AS sprint FROM points_systems""").fetchall()
 
     def paid(year, sprint):
         for s in sorted(systems, key=lambda s: -s["from_year"]):

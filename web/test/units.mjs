@@ -784,7 +784,7 @@ describe('the queries a page and the prerenderer share', () => {
   // matters is where it declines to make one: the tests below are mostly the
   // nulls.
   it('works out who can still win, and says nothing where the arithmetic will not carry', () => {
-    const live = { races: 2, sprints: 1, run: 21, dropped_scores: 'None', available: 58 }
+    const live = { races: 2, sprints: 1, run: 21, dropped_scores: 'Every result counts', available: 58 }
     const table = [
       { entity: 'Antonelli', position: 1, points: 300 },
       { entity: 'Russell', position: 2, points: 250 },

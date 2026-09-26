@@ -40,6 +40,9 @@ export const ENGINE_COLUMNS = [
 
 export const POINTS_COLUMNS = [
   { key: 'from_year', rowHeader: true, label: 'Years', align: 'num', text: years },
+  // Two period tables in one (DA-18): a sprint row overlaps the Grand Prix
+  // row of the same seasons, and this is what says which it is.
+  { key: 'session', label: 'Session', text: (session) => (session === 'sprint' ? 'Sprint' : 'Grand Prix') },
   { key: 'scoring', label: 'Scoring', align: 'prose' },
   { key: 'fastest_lap', label: 'Fastest lap' },
   { key: 'dropped_scores', label: 'Dropped scores', align: 'prose' },

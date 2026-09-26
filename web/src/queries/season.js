@@ -116,8 +116,14 @@ export const FINAL = `
  * `dropped_scores` comes back unread so the caller can decline to make the
  * claim: before 1991 only a driver's best few results counted, so a driver
  * 40 behind with 50 available might still gain nothing from winning twice,
- * and no arithmetic this simple can say who is out.
+ * and no arithmetic this simple can say who is out. A system that dropped
+ * nothing says EVERY_RESULT_COUNTS, and verify.py holds that spelling to
+ * every such row (DA-18). `session` is which of the two period tables a row
+ * belongs to.
  */
+/** What `points_systems.dropped_scores` says of a system that dropped no result. */
+export const EVERY_RESULT_COUNTS = 'Every result counts'
+
 export const REMAINING = `
   WITH to_run AS (
     SELECT SUM(CASE WHEN r.status <> 'completed' THEN 1 ELSE 0 END)          AS races,
@@ -128,13 +134,13 @@ export const REMAINING = `
   gp AS (
     SELECT win_points, fastest_lap_points, dropped_scores
       FROM points_systems
-     WHERE scoring NOT LIKE 'SPRINT:%'
+     WHERE session = 'race'
        AND from_year <= ?1 AND (to_year IS NULL OR to_year >= ?1)
      ORDER BY from_year DESC LIMIT 1),
   sp AS (
     SELECT win_points
       FROM points_systems
-     WHERE scoring LIKE 'SPRINT:%'
+     WHERE session = 'sprint'
        AND from_year <= ?1 AND (to_year IS NULL OR to_year >= ?1)
      ORDER BY from_year DESC LIMIT 1)
   SELECT t.races, t.sprints, t.run, g.win_points, g.fastest_lap_points, g.dropped_scores,
@@ -438,7 +444,9 @@ const listed = (names) =>
  */
 export function titlePermutations({ drivers, remaining, afterRound, built }) {
   if (!remaining || !remaining.races) return null
-  if (remaining.dropped_scores && remaining.dropped_scores !== 'None') return null
+  // Anything but the one spelling - a rule, or a blank - declines, so a
+  // reworded row fails closed rather than into a wrong elimination.
+  if (remaining.dropped_scores !== EVERY_RESULT_COUNTS) return null
   if (missing(afterRound) || afterRound !== remaining.run) return null
   // A driver with points and no position was excluded from the classification,
   // which is the same table's footer: their points stand and their position
