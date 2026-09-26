@@ -1284,21 +1284,22 @@ def _stage_15_rules_tech_safety(b):
             exclusive, notes) VALUES (?,?,?,?,?,?)""", (i,) + r)
 
     for i, (fy, ty, scoring, scale, *rest) in enumerate(X.POINTS, 1):
-        cur.execute("""INSERT INTO points_systems (id, from_year, to_year, scoring,
-            scale, win_points, fastest_lap, fastest_lap_points, dropped_scores, notes)
-            VALUES (?,?,?,?,?,?,?,?,?,?)""",
+        cur.execute("""INSERT INTO points_systems (id, session, from_year, to_year,
+            scoring, scale, win_points, fastest_lap, fastest_lap_points, dropped_scores,
+            notes) VALUES (?,'race',?,?,?,?,?,?,?,?,?)""",
             (i, fy, ty, scoring, json.dumps(list(scale), separators=(",", ":")), *rest))
 
     # A sprint row has no fastest-lap point of its own - no sprint has ever
-    # carried one - so its fastest_lap_points is 0 rather than NULL, and
-    # verify.py checks that against the NULL `fastest_lap` beside it.
+    # carried one - and has never dropped a result, so it says both in the
+    # words the Grand Prix rows use for the same absence (DA-18), and its
+    # fastest_lap_points is 0, which verify.py holds to the words.
     off = len(X.POINTS)
     for i, (fy, ty, scoring, scale, win, note) in enumerate(X.SPRINT_POINTS, off + 1):
-        cur.execute("""INSERT INTO points_systems (id, from_year, to_year, scoring,
-            scale, win_points, fastest_lap, fastest_lap_points, dropped_scores, notes)
-            VALUES (?,?,?,?,?,?,?,?,?,?)""",
-            (i, fy, ty, "SPRINT: " + scoring,
-             json.dumps(list(scale), separators=(",", ":")), win, None, 0, None, note))
+        cur.execute("""INSERT INTO points_systems (id, session, from_year, to_year,
+            scoring, scale, win_points, fastest_lap, fastest_lap_points, dropped_scores,
+            notes) VALUES (?,'sprint',?,?,?,?,?,?,?,?,?)""",
+            (i, fy, ty, scoring, json.dumps(list(scale), separators=(",", ":")), win,
+             X.NO_FASTEST_LAP, 0, X.EVERY_RESULT_COUNTS, note))
 
     # `records` is no longer loaded here: it is DERIVED in stage 31, after the
     # career figures it is computed from exist. See derive_records().
@@ -2024,8 +2025,8 @@ def _zero_below_the_paid_places(cur):
     written = {}
     for table, sprint in (("race_entries", False), ("sprint_results", True)):
         for fy, ty, scale in cur.execute("""SELECT from_year, to_year, scale
-                FROM points_systems WHERE (scoring LIKE 'SPRINT:%') = ?
-                ORDER BY id""", (sprint,)).fetchall():
+                FROM points_systems WHERE session = ?
+                ORDER BY id""", ("sprint" if sprint else "race",)).fetchall():
             below = cur.execute(f"""
                 UPDATE {table} SET points = 0
                 WHERE points IS NULL AND finish_position > ?

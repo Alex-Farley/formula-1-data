@@ -412,20 +412,34 @@ TYRES = [
 # number and the sentence cannot drift apart.
 TOP_TEN = (25, 18, 15, 12, 10, 8, 6, 4, 2, 1)
 
+# What `fastest_lap` and `dropped_scores` say where a system had no such rule
+# (DA-18). Until then they said the string 'None', beside a SQL NULL on the
+# sprint rows for the same absence: two spellings of one fact in one column,
+# one of them the value this database reserves for *not established*. That
+# there was no fastest-lap point, or that every result counted, is
+# established, so it is said in words, on every row it is true of, sprint rows
+# included. verify.py holds `fastest_lap_points` to the first, and the season
+# page's title arithmetic runs only on the second.
+NO_FASTEST_LAP = "No point"
+EVERY_RESULT_COUNTS = "Every result counts"
+
 POINTS = [
     (1950, 1959, "8-6-4-3-2 to the top five", (8, 6, 4, 3, 2), 8, "1 point, shared equally if tied", 1, "Best 4 of 7 (1950), varying through the decade",
      "Shared drives split the points equally between the drivers involved."),
-    (1960, 1960, "8-6-4-3-2-1 to the top six", (8, 6, 4, 3, 2, 1), 8, "None", 0, "Best 6 of 10", "The fastest-lap point was dropped."),
-    (1961, 1990, "9-6-4-3-2-1 to the top six", (9, 6, 4, 3, 2, 1), 9, "None", 0, "Varied: typically best n from each half of the season",
+    (1960, 1960, "8-6-4-3-2-1 to the top six", (8, 6, 4, 3, 2, 1), 8, NO_FASTEST_LAP, 0, "Best 6 of 10", "The fastest-lap point was dropped."),
+    (1961, 1990, "9-6-4-3-2-1 to the top six", (9, 6, 4, 3, 2, 1), 9, NO_FASTEST_LAP, 0, "Varied: typically best n from each half of the season",
      "The long-running classic system. Dropped scores caused several championships to be decided on net rather than gross points, notably 1988."),
-    (1991, 2002, "10-6-4-3-2-1 to the top six", (10, 6, 4, 3, 2, 1), 10, "None", 0, "None", "The win was revalued to discourage points-accumulation racing."),
-    (2003, 2009, "10-8-6-5-4-3-2-1 to the top eight", (10, 8, 6, 5, 4, 3, 2, 1), 10, "None", 0, "None", "Widened deliberately to reduce Ferrari's dominance."),
-    (2010, 2018, "25-18-15-12-10-8-6-4-2-1 to the top ten", TOP_TEN, 25, "None", 0, "None", "Introduced with the expansion to 24 cars."),
-    (2019, 2024, "25-18-15-12-10-8-6-4-2-1 to the top ten", TOP_TEN, 25, "1 point for fastest lap if classified in the top ten", 1, "None", ""),
-    (2025, None, "25-18-15-12-10-8-6-4-2-1 to the top ten", TOP_TEN, 25, "None", 0, "None", "The fastest-lap point was removed."),
+    (1991, 2002, "10-6-4-3-2-1 to the top six", (10, 6, 4, 3, 2, 1), 10, NO_FASTEST_LAP, 0, EVERY_RESULT_COUNTS, "The win was revalued to discourage points-accumulation racing."),
+    (2003, 2009, "10-8-6-5-4-3-2-1 to the top eight", (10, 8, 6, 5, 4, 3, 2, 1), 10, NO_FASTEST_LAP, 0, EVERY_RESULT_COUNTS, "Widened deliberately to reduce Ferrari's dominance."),
+    (2010, 2018, "25-18-15-12-10-8-6-4-2-1 to the top ten", TOP_TEN, 25, NO_FASTEST_LAP, 0, EVERY_RESULT_COUNTS, "Introduced with the expansion to 24 cars."),
+    (2019, 2024, "25-18-15-12-10-8-6-4-2-1 to the top ten", TOP_TEN, 25, "1 point for fastest lap if classified in the top ten", 1, EVERY_RESULT_COUNTS, ""),
+    (2025, None, "25-18-15-12-10-8-6-4-2-1 to the top ten", TOP_TEN, 25, NO_FASTEST_LAP, 0, EVERY_RESULT_COUNTS, "The fastest-lap point was removed."),
 ]
 
-# from_year, to_year, scoring, scale, win_points, notes
+# from_year, to_year, scoring, scale, win_points, notes. The sprint's own
+# period table: the build writes these with session 'sprint', and with the two
+# rules above, since no sprint has carried a fastest-lap point or dropped a
+# result.
 SPRINT_POINTS = [
     (2021, 2021, "3-2-1 to the top three", (3, 2, 1), 3, "The sprint set the Grand Prix grid and its winner was credited with pole position."),
     (2022, None, "8-7-6-5-4-3-2-1 to the top eight", (8, 7, 6, 5, 4, 3, 2, 1), 8, "From 2024 the sprint runs to its own qualifying session and no longer sets the Grand Prix grid."),

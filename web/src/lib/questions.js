@@ -384,9 +384,9 @@ export const QUESTIONS = [
     topic: 'Seasons',
     q: 'How points have been scored over the years',
     also: 'points system scoring',
-    sql: `SELECT from_year, to_year, scoring, win_points, fastest_lap_points, dropped_scores
+    sql: `SELECT session, from_year, to_year, scoring, win_points, fastest_lap_points, dropped_scores
    FROM points_systems
-  ORDER BY from_year`,
+  ORDER BY session, from_year`,
   },
   {
     topic: 'Seasons',

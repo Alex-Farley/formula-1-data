@@ -1237,18 +1237,31 @@ CREATE TABLE tyre_suppliers (
 -- how far down the order the system paid, and the build reads it to write 0
 -- into race_entries.points and sprint_results.points for a classified
 -- finisher below that line.
+--
+-- Two period tables share these rows, and `session` says which a row is in
+-- (DA-18): 'race' for the Grand Prix, 'sprint' for the sprint. Within one
+-- session no two periods overlap, which verify.py checks season by season;
+-- across the two they do, so a query for one season's system names the
+-- session it wants. Until DA-18 the only mark of a sprint row was a
+-- 'SPRINT: ' prefix inside `scoring`.
+--
+-- `fastest_lap` and `dropped_scores` are never NULL: where a system had no
+-- such rule they say so, as 'No point' and 'Every result counts', because
+-- that there was none is established and NULL here means not established.
 CREATE TABLE points_systems (
     id              INTEGER PRIMARY KEY,
+    session         TEXT NOT NULL CHECK (session IN ('race', 'sprint')),
     from_year       INTEGER NOT NULL,
     to_year         INTEGER,
     scoring         TEXT NOT NULL,
     scale           TEXT NOT NULL,             -- JSON array, e.g. [8,6,4,3,2]
     win_points      INTEGER NOT NULL,          -- points for a win, e.g. 25
-    fastest_lap     TEXT,
+    fastest_lap     TEXT NOT NULL,             -- the rule, or 'No point'
     fastest_lap_points INTEGER NOT NULL DEFAULT 0,
-    dropped_scores  TEXT,
+    dropped_scores  TEXT NOT NULL,             -- the rule, or 'Every result counts'
     notes           TEXT,
-    confidence      TEXT NOT NULL DEFAULT 'high' REFERENCES provenance(confidence)
+    confidence      TEXT NOT NULL DEFAULT 'high' REFERENCES provenance(confidence),
+    UNIQUE (session, from_year)
 );
 
 -- DERIVED, not authored. Until v2.23 this held thirty rows typed from general
