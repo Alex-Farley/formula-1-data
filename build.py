@@ -3094,6 +3094,14 @@ def _resource_typed_career_figures(cur, f1db_drivers):
     no_source = set(HV.CAREER_FIGURES_NO_SOURCE)
     removed = set()
 
+    def counted(did, field):
+        """The count in the race records as they stand, read here because
+        poles and fastest laps are not re-derived until after this runs."""
+        flag = {"wins": "e.finish_position = 1", "poles": "e.pole = 1",
+                "fastest_laps": "e.fastest_lap = 1"}[field]
+        return cur.execute(f"""SELECT COUNT(*) FROM race_entries e
+            WHERE e.driver_id = ? AND {flag}""", (did,)).fetchone()[0]
+
     def claim(did, col, value, source):
         cur.execute("""INSERT INTO claims (tbl, row_key, field, value_given,
             source) VALUES ('drivers', ?, ?, ?, ?)""", (did, col, str(value), source))
@@ -3130,7 +3138,11 @@ def _resource_typed_career_figures(cur, f1db_drivers):
                 removed.add((did, field))
             elif given == typed:
                 claim(did, col, typed, HV.F1DB_SOURCE)
-            elif status == "active" and typed < given:
+            elif status == "active" and typed < given <= counted(did, field):
+                # Still racing, typed on an earlier date, and the race records
+                # have reached F1DB's figure: the driver added to the total.
+                # The records may run ahead of the pinned release after a
+                # refresh, never behind it.
                 cur.execute(f"UPDATE drivers SET {col} = ? WHERE id = ?", (given, did))
                 claim(did, col, given, HV.F1DB_SOURCE)
                 _file_discrepancy(
@@ -3138,9 +3150,9 @@ def _resource_typed_career_figures(cur, f1db_drivers):
                     str(typed), str(given),
                     f"The typed {typed} came from reference records that were "
                     f"never named, and from an earlier date: the driver is still "
-                    f"racing and has added to it since. F1DB's published career "
-                    f"total, {release}, is {given}, and it replaces the typed "
-                    f"figure as the one this column holds (PM-57).",
+                    f"racing, and the race records reach F1DB's published career "
+                    f"total, {release}, of {given}. F1DB's figure replaces the "
+                    f"typed one as the one this column holds (PM-57).",
                     "resolved", "replaced by a named source")
             else:
                 raise SystemExit(

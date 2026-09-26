@@ -1120,13 +1120,15 @@ fetching the relevant official page and editing the source module.
 
 Because the race records cover every championship race, career wins, poles
 and fastest laps are **computed from them**. That makes those three fields
-self-consistent by construction, always current, and impossible to drift. The
-previously hand-entered or externally checked values are kept in
-`wins_external`, `poles_external` and `fastest_laps_external`.
+self-consistent by construction, always current, and impossible to drift. A
+figure from a named source other than the race records - F1DB's published
+career total, a formula1.com driver page, a Wikipedia infobox - is kept in
+`wins_external`, `poles_external` and `fastest_laps_external`, each citing
+the source that gave it.
 
 The two are compared on every build. Across the
-**<!-- fig:drivers_with_external -->233<!-- /fig --> drivers that hold an
-official figure — <!-- fig:external_comparisons -->391<!-- /fig -->
+**<!-- fig:drivers_with_external -->233<!-- /fig --> drivers that hold such a
+figure — <!-- fig:external_comparisons -->391<!-- /fig -->
 comparisons — live differences: <!-- fig:external_differences -->1<!-- /fig -->**,
 and `verify.py` fails the build on any that is not declared in
 `discrepancies`. Two earlier differences were errors in the external figure,
@@ -1140,7 +1142,8 @@ Most of those figures were first typed in by hand from reference records
 nobody named. Each has since been checked against F1DB's own published
 career total, from the release the harvest was read from: where the two
 agree the figure cites F1DB, where a current driver has added to the total
-since it was typed F1DB's figure replaces it, and where F1DB differs
+since it was typed F1DB's figure replaces it and the typed one is kept in
+`discrepancies`, and where F1DB differs
 otherwise a second named source is read and the disagreement is kept open
 in `discrepancies`. The two figures no named source gives were removed,
 and `known_gaps` says so.

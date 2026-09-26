@@ -3432,6 +3432,33 @@ def claims():
                            (did,)).fetchone()[0] is not None]
     check("every typed career figure no named source gives is removed (known gap 17)",
           not kept, ", ".join(kept))
+    # The disagreements the re-sourcing files, held from the modules rather
+    # than from the build that filed them: a declared second source is an open
+    # row, typed figure against F1DB's; a typed figure F1DB's replaced is a
+    # resolved one, typed against the figure the column now holds. A row
+    # missing, or a row neither of these accounts for, fails.
+    typed = {}
+    for r in _D.CHAMPIONS:
+        typed.update({(r[0], "wins"): r[10], (r[0], "poles"): r[12],
+                      (r[0], "fastest_laps"): r[13]})
+    for r in (*_D.OTHER_DRIVERS, *harvest.NEW_DRIVERS):
+        typed.update({(r[0], "wins"): r[8], (r[0], "poles"): r[9]})
+    want = {}
+    for (did, f), (held, _src, _why) in harvest.RESOURCED_ELSEWHERE.items():
+        total = totals.get(f1db_ids.get(did) or "")
+        want[(did, f)] = (str(held), str(total[column[f"{f}_external"]]) if total else None, "open")
+    for did, f in f1db:
+        field = f[:-len("_external")]
+        t = typed.get((did, field))
+        if t is not None and str(t) != claimed[(did, f)][1]:
+            want[(did, field)] = (str(t), claimed[(did, f)][1], "resolved")
+    have = {(r["row_key"], r["field"]): (r["stored_value"], r["derived_value"], r["status"])
+            for r in con.execute("""SELECT row_key, field, stored_value, derived_value,
+                status FROM discrepancies WHERE kind = 'f1db-career-total'""")}
+    off = sorted(f"{k[0]}.{k[1]}: {have.get(k)} not {want.get(k)}"
+                 for k in set(want) | set(have) if have.get(k) != want.get(k))
+    check("every typed figure F1DB replaced, and every one a second source kept, "
+          "is a disagreement on the record", bool(want) and not off, "; ".join(off[:3]))
     print(f"        drivers: {len(f1db)} typed figures cite F1DB's career totals "
           f"({release}); {len(harvest.CAREER_FIGURES_NO_SOURCE)} no named source "
           f"gives are removed (#624)")

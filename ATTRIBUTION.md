@@ -64,11 +64,14 @@ There are two, from two different licences, and they are not the same shape.
 `harvest/chassis.txt`, `harvest/engines.txt`, `harvest/f1db_constructors.txt`
 and `harvest/entrants.txt` are generated from
 [F1DB](https://github.com/f1db/f1db), which is licensed
-[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). That is
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). So is
+`harvest/f1db_driver_totals.txt`, F1DB's published career wins, poles and
+fastest laps per driver, which `tools/f1db_totals_fetch.py` reads from an
+F1DB release rather than from its source tree. That is
 **attribution only — there is no share-alike**, so it places no condition on
 how the rest of this database is licensed. It does require attribution, which
 is given here, in the header of every generated file, in `source_registry`,
-and in `tools/f1db_fetch.py`.
+and in `tools/f1db_fetch.py` and `tools/f1db_totals_fetch.py`.
 
 `harvest/circuit_outlines.txt`, and the `circuit_outlines` table built from it,
 hold F1DB's SVG outline of every circuit layout — drawn by
@@ -218,7 +221,7 @@ the share-alike above:
 
 | Column | What it holds | Chars |
 |---|---|---:|
-| `discrepancies.assessment` | this project's reading of a disagreement between two sources — which figure it takes, and why | <!-- fig:prose_assessment -->19,504<!-- /fig --> |
+| `discrepancies.assessment` | this project's reading of a disagreement between two sources — which figure it takes, and why | <!-- fig:prose_assessment -->19,529<!-- /fig --> |
 | `known_gaps.reader` | what a reader is shown about a gap | <!-- fig:prose_gap_reader -->5,098<!-- /fig --> |
 | `known_gaps.description` | the maintainer's note on it | <!-- fig:prose_gap_description -->12,840<!-- /fig --> |
 | `known_gaps.resolution` | what would close it, or what did | <!-- fig:prose_gap_resolution -->4,875<!-- /fig --> |

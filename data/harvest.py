@@ -890,7 +890,7 @@ KNOWN_GAPS = [
      "Closes when the indexed figure for each indexed year is read from an "
      "FIA Determination or an FIA statement of the adjusted cap, and stored "
      "beside the base."),
-    (17, "career-figure-no-named-source", "drivers.wins_external",
+    (17, "career-figure-no-named-source", "drivers.*_external",
      "a typed career figure that no named source gives",
      "open",
      "Maria de Villota tested for Marussia in 2012 and never entered a "
@@ -986,9 +986,9 @@ EXTERNAL_FASTEST_LAPS = {
 # build checks every one of them against F1DB's own published career totals,
 # harvest/f1db_driver_totals.txt, and:
 #   - where F1DB gives the same figure, the figure cites F1DB;
-#   - where F1DB gives a larger one for a driver still racing, the typed
-#     figure was an earlier total and F1DB's replaces it, with the typed one
-#     kept in `discrepancies`;
+#   - where F1DB gives a larger one for a driver still racing, and the race
+#     records have reached it, the typed figure was an earlier total and
+#     F1DB's replaces it, with the typed one kept in `discrepancies`;
 #   - where F1DB gives a different figure otherwise, a second named source
 #     must be read and declared here, or the build fails;
 #   - where F1DB holds no such driver, the figure is removed and
