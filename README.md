@@ -43,7 +43,7 @@ here is a number the build checked.
 
 | File | What it is |
 |---|---|
-| `f1.db` | The SQLite database. <!-- fig:tables -->49<!-- /fig --> tables, <!-- fig:views -->41<!-- /fig --> views, <!-- fig:rows -->122,663<!-- /fig --> rows. This is the artefact. |
+| `f1.db` | The SQLite database. <!-- fig:tables -->50<!-- /fig --> tables, <!-- fig:views -->41<!-- /fig --> views, <!-- fig:rows -->122,685<!-- /fig --> rows. This is the artefact. |
 | `f1-geometry.db` | The OpenStreetMap circuit centrelines (ODbL), shipped beside `f1.db` and never merged into it. See *Illustration*. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
@@ -218,7 +218,9 @@ regulation changes by year and category,
 <!-- fig:innovations -->26<!-- /fig --> landmark innovations (with the year
 each was banned, where it was), <!-- fig:engine_eras -->11<!-- /fig --> engine
 eras, <!-- fig:safety_milestones -->26<!-- /fig --> safety milestones, tyre
-suppliers, <!-- fig:points_systems -->10<!-- /fig --> points systems, and
+suppliers, <!-- fig:points_systems -->10<!-- /fig --> points systems,
+how every grid from 1996 was set, in
+<!-- fig:qualifying_formats -->19<!-- /fig --> periods of qualifying rules, and
 <!-- fig:eras -->10<!-- /fig --> defined eras of the sport.
 
 **Also** — <!-- fig:personnel -->32<!-- /fig --> non-driving figures
@@ -408,6 +410,7 @@ doubles their rows instead of failing.
 | `pit_stops` | stable | `(race_id, source, driver_key, stop_number)` |
 | `points_systems` | unstable | — |
 | `qualifying` | stable | `(race_id, driver_id)` |
+| `qualifying_formats` | unstable | — |
 | `race_control_messages` | unstable | — |
 | `race_entries` | stable | `(race_id, driver_id)` |
 | `races` | stable | `(year, round)` |
@@ -1219,8 +1222,8 @@ queried, not just read here. `./f1 gaps` prints them with the fix for each.
   never recorded in a form anyone can retrieve. See *Timing, telemetry and
   radio* above.
 
-The `known_gaps` table holds <!-- fig:known_gaps -->17<!-- /fig --> entries,
-of which <!-- fig:known_gaps_open -->11<!-- /fig --> are open gaps — the figure
+The `known_gaps` table holds <!-- fig:known_gaps -->19<!-- /fig --> entries,
+of which <!-- fig:known_gaps_open -->13<!-- /fig --> are open gaps — the figure
 the site's homepage and `/data` state, counted from the same `v_open_gaps`
 view. The rest are either closed, and kept so the closure is on record, or
 positions: a deliberate absence rather than a gap, such as the race timing

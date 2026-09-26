@@ -911,6 +911,43 @@ KNOWN_GAPS = [
      None,
      "Closes when a named, classified source publishes a career total for "
      "her, and that figure is read and cited."),
+    (18, "qualifying-format-before-1996", "qualifying_formats",
+     "how the grid was set before 1996",
+     "open",
+     "How qualifying worked before 1996 is not recorded here. The grids "
+     "themselves are, race by race; what is missing is the rule that set "
+     "them - how many sessions, and which time counted - season by season "
+     "from 1950 to 1995.",
+     "WK-01 (#186). qualifying_formats starts in 1996 because that is the "
+     "first change Formula 1's own history of qualifying formats dates: the "
+     "single one-hour session of that season. For the years before, the "
+     "article gives one pattern, with exceptions it places by decade but "
+     "not by year, so it cannot bound a period, and no row "
+     "was written for any part of the span. The FIA's Sporting Regulations "
+     "read for this table begin with 2009.",
+     None,
+     "Closes when a source that states the format season by season - the "
+     "FIA's yearbooks or its Sporting Regulations for those years - is read "
+     "for 1950 to 1995 and each span is written as a row."),
+    (19, "qualifying-107-before-2009", "qualifying_formats.rule_107",
+     "whether the 107% rule applied, 1996 to 2008 and at two rounds of 2016",
+     "open",
+     "For the qualifying formats from 1996 to 2008, and for the first two "
+     "rounds of 2016, this database does not say whether a driver outside "
+     "107 per cent of the fastest time could be kept off the grid: the "
+     "column is empty rather than guessed.",
+     "WK-01 (#186). rule_107 is read only from the FIA Sporting Regulations, "
+     "and the earliest issue read is 2009's: the 2009 and 2010 issues set "
+     "no 107% limit, and every issue read from 2011 does. The periods before "
+     "2009 are dated by Formula 1's history of qualifying formats, which "
+     "does not mention the rule, and so are the two 2016 rounds run to the "
+     "elimination format, because the March 2016 issue that set it out was "
+     "not found; the 20 April issue read for the rest of 2016 postdates "
+     "them. Those rows hold NULL.",
+     None,
+     "Closes when the Sporting Regulations for 1996 to 2008, and the 2016 "
+     "issue in force at the first two rounds, are read and each row's "
+     "rule_107 is set from them."),
 ]
 
 # Shared fastest laps the season tables render as ONE name. harvest/poles.txt

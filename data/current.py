@@ -590,6 +590,9 @@ SOURCE_REGISTRY = [
 # is a table rather than one column.
 SOURCE_PATTERNS = [
     (1,  r"^https://www\.fia\.com/", "any FIA page"),
+    (1,  r"^https://argent\.fia\.com/",
+     "the FIA's older document server, which still serves the Sporting "
+     "Regulations issues from 2009 to 2013 that qualifying_formats reads"),
     (3,  r"^https://www\.formula1\.com/", "all of formula1.com; entries 4-7 are its sections"),
     (8,  r"^https://en\.wikipedia\.org/wiki/\d{4}_Formula_One_World_Championship",
      "season articles - the results, pole and venue harvests"),
@@ -908,6 +911,7 @@ ID_STABILITY = {
     "governance":            ("unstable", None),
     "laps":                  ("unstable", None),
     "points_systems":        ("unstable", None),
+    "qualifying_formats":    ("unstable", None),
     "race_control_messages": ("unstable", None),
     "regulation_changes":    ("unstable", None),
     "regulation_limits":     ("unstable", None),
@@ -938,7 +942,7 @@ ID_STABILITY_NOTE = (
 PROVENANCE = [
     ("verified", 1, "Checked directly against an official FIA or Formula 1 source during database construction. Safe to state as fact and to cite.", 1),
     ("high", 2, "A well-established record, consistently published in official sources over many years. Safe to rely on; cite the official archive if publishing.", 1),
-    ("reference", 3, "Taken from a published secondary record rather than an official one: F1DB for almost all of it, and for most of the rest Wikipedia's season results tables or its per-car and per-topic articles. A few regulation limits read from the FIA's own regulations sit here too. Where a second source held here covers the same fact the two are compared on load - a race's winner, where one is already held from another source, against F1DB's, for one - but some tables at this tier, the entrant, engine and sprint registers among them, have no second source, so the tier alone does not say a row was cross-checked. Reliable; not official under this database's policy, so cite the FIA/F1 archive if publishing.", 1),
+    ("reference", 3, "Taken from a published secondary record rather than an official one: F1DB for almost all of it, and for most of the rest Wikipedia's season results tables or its per-car and per-topic articles. A few regulation limits read from the FIA's own regulations sit here too, and the qualifying formats, read from those regulations and from Formula 1's own history of qualifying. Where a second source held here covers the same fact the two are compared on load - a race's winner, where one is already held from another source, against F1DB's, for one - but some tables at this tier, the entrant, engine and sprint registers among them, have no second source, so the tier alone does not say a row was cross-checked. Reliable; not official under this database's policy, so cite the FIA/F1 archive if publishing.", 1),
     ("medium", 4, "Correct in substance. An exact figure or date may have drifted or may move with the current season. Confirm before publication.", 0),
     ("unverified", 5, "Placeholder, disputed, or known to be incomplete. Never state as fact.", 0),
     # AF-42. Below unverified because it is not even a claim this database
@@ -966,6 +970,7 @@ PROVENANCE_SOURCES = {
         8:  "Wikipedia's season results tables",
         11: "per-car and per-topic articles",
         1:  "the FIA's own regulations",
+        3:  "Formula 1's own history",
     },
     "catalogued": {
         15: "Wikimedia Commons",

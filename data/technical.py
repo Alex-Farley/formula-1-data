@@ -445,6 +445,151 @@ SPRINT_POINTS = [
     (2022, None, "8-7-6-5-4-3-2-1 to the top eight", (8, 7, 6, 5, 4, 3, 2, 1), 8, "From 2024 the sprint runs to its own qualifying session and no longer sets the Grand Prix grid."),
 ]
 
+# Qualifying: how the grid was set, period by period (WK-01). Shaped like
+# points_systems after DA-18: `session` says whose grid a row sets - 'race'
+# for the Grand Prix, 'sprint' for the sprint - and a season is never covered
+# twice within one session. Twice the format changed mid-season, in 2005 and
+# 2016, so a period starts at a round as well as a year; `from_round` is 1
+# unless the source dates the change to an event, and verify.py holds that
+# event's name to the round.
+#
+# `sessions` is how many timed sessions' times went into the grid - not how
+# many were run. A knockout is one session in three parts, Q1 to Q3, as the
+# FIA's own text puts it; in 2003 and 2004 the first single-lap session set
+# only the running order for the second, so it is not counted; only the 2005
+# aggregate counts two.
+#
+# `rule_107` is 1 where the Sporting Regulations set a 107% limit on the
+# first qualifying part (Q1, or SQ1 for the sprint) for that grid, and 0 where
+# the issue read has none. What the limit cost a driver changed: to 2022 the
+# start was barred unless the stewards admitted the car (the 2022 issue also
+# leaves the driver unclassified); from 2023 the bar on starting is gone, the
+# driver is unclassified and the stewards decide whether they take part. The
+# notes and regulation_limits' `qualifying_107_pct` rows say which. It is
+# read only from the FIA's text, so a period dated by any other source holds
+# NULL - not established - and known_gaps #19 says so.
+#
+# Sources. From 2009 every row was read in each season's own Sporting
+# Regulations, a span being a run of issues that agree; the row cites the
+# first and its note names the articles. The issues from 2018 are `_SPORT`
+# above. fia.com still serves earlier issues, though its archive page does not
+# list them; the ones read are `_SPORT_EARLIER`, and each is the issue named,
+# not necessarily the season's last - the format did not change within any of
+# those seasons. Before 2009, and for the two elimination-format rounds of
+# 2016, the source is Formula 1's own history of qualifying formats
+# (formula1.com, facts-only), which dates every change from 1996 to 2016 but
+# says nothing about the 107% rule. The return to the knockout at the 2016
+# Chinese Grand Prix is dated by the FIA's announcement of 11 April 2016
+# (`_FIA_2016_CHINA`); the 20 April issue that row cites is the rule text.
+# Nothing before 1996: the history describes those years without dating any
+# period of them, and known_gaps #18 holds the span.
+_F1_QUALI = ("https://www.formula1.com/en/latest/article/"
+             "deciding-the-grid-a-history-of-f1-qualifying-formats."
+             "1oh1hemlnZ4x9rt2nff8vn")
+_FIA_2016_CHINA = ("https://www.fia.com/news/"
+                   "qualifying-officially-reverts-previous-format-chinese-gp")
+_SPORT_EARLIER = {
+    2009: "https://argent.fia.com/web/fia-public.nsf/0F0F8C66C7F4661DC125753C0056E87E/$FILE/1-2009%20F1%20SPORTING%20REGULATIONS%2012-12-2008.pdf",
+    2010: "https://argent.fia.com/web/fia-public.nsf/65EE8F15945D0941C12576C7005308AE/$FILE/1-2010%20SPORTING%20REGULATIONS%2023-06-2010.pdf",
+    2011: "https://argent.fia.com/web/fia-public.nsf/9A195FD4A47DA4E1C12577F8004AA63E/$FILE/1-2011%20SPORTING%20REGULATIONS%2010-12-2010.pdf",
+    2012: "https://argent.fia.com/web/fia-public.nsf/FE4C9612DB18AD8BC125797B00344B65/$FILE/1-2012%20SPORTING%20REGULATIONS%2007-12-2011.pdf",
+    2013: "https://argent.fia.com/web/fia-public.nsf/25823CA4432F6548C1257A85005177ED/$FILE/2013%20SPORTING%20REGULATIONS.pdf",
+    2014: "https://www.fia.com/sites/default/files/regulation/file/1-2014%20SPORTING%20REGULATIONS%202014-02-28.pdf",
+    2015: "https://www.fia.com/sites/default/files/regulation/file/2015%20SPORTING%20REGULATIONS%202014-12-03.pdf",
+    2016: "https://www.fia.com/file/40714/download/14519",
+    2017: "https://www.fia.com/file/54256/download/18381",
+}
+
+# session, from_year, from_round, to_year, format, sessions, rule_107, note, source
+QUALIFYING_FORMATS = [
+    ("race", 1996, 1, 2002, "single session", 1, None,
+     "One hour on the day before the race, each driver limited to twelve "
+     "laps, his best time setting the grid. It replaced a grid taken from "
+     "the better of two sessions on consecutive days.", _F1_QUALI),
+    ("race", 2003, 1, 2003, "single lap", 1, None,
+     "Each driver ran alone for one timed lap on the day before the race, "
+     "carrying the fuel he would start with, and that lap set the grid. A "
+     "single-lap session the previous day, run in championship order, set "
+     "only the order of the second, slowest first.", _F1_QUALI),
+    ("race", 2004, 1, 2004, "single lap", 1, None,
+     "Both single-lap sessions moved to the day before the race. The first, "
+     "run in the order of the previous race's finish, again set only the "
+     "running order of the second, whose lap set the grid.", _F1_QUALI),
+    ("race", 2005, 1, 2005, "single lap, aggregate", 2, None,
+     "The grid was the sum of two single laps: one the day before the race "
+     "on low fuel, and one on race morning with the fuel for the start.",
+     _F1_QUALI),
+    ("race", 2005, 7, 2005, "single lap", 1, None,
+     "From the seventh round, the European Grand Prix, the race-morning lap "
+     "was dropped: one lap each on race fuel the day before, in the order of "
+     "the previous race's finish.", _F1_QUALI),
+    ("race", 2006, 1, 2008, "knockout", 1, None,
+     "One session in three parts: the slowest cars are eliminated at the end "
+     "of the first and second, and the ten left set the top of the grid in "
+     "the third. The last ten ran on their starting fuel; from 2008 none "
+     "could be added after the session.", _F1_QUALI),
+    ("race", 2009, 1, 2010, "knockout", 1, 0,
+     "One hour on the day before the race: Q1 of 20 minutes, Q2 of 15 and "
+     "Q3 of 10, with seven cars eliminated after each of the first two for "
+     "24 entries in 2009 and eight for 26 in 2010. Neither issue sets a "
+     "107% limit (Articles 33.1 and 36).", _SPORT_EARLIER[2009]),
+    ("race", 2011, 1, 2015, "knockout", 1, 1,
+     "The 107% limit returned: a driver whose best Q1 lap was more than 107% "
+     "of the fastest in Q1 could not start the race unless the stewards "
+     "admitted the car (Article 36.3 in 2011; 36.1 from 2012, which adds a "
+     "driver who set no time). From 2014 the parts ran 18, 15 and 12 "
+     "minutes.", _SPORT_EARLIER[2011]),
+    ("race", 2016, 1, 2016, "knockout, elimination", 1, None,
+     "Used at the first two rounds only. Of 22 cars, 15 went through to "
+     "the second part and eight to the third, but cars dropped out one at a "
+     "time within each part: after an opening five minutes or more, one "
+     "every 90 seconds, the slowest then running.",
+     _F1_QUALI),
+    ("race", 2016, 3, 2017, "knockout", 1, 1,
+     "The 2015 knockout returned from the Chinese Grand Prix, as the FIA "
+     "announced on 11 April 2016: Article 33.1 of the 20 April issue, "
+     "restated in 2017, with the 107% limit at Article 35.1.",
+     _SPORT_EARLIER[2016]),
+    ("race", 2018, 1, 2020, "knockout", 1, 1,
+     "Parts of 18, 15 and 12 minutes, five cars eliminated after each of the "
+     "first two. The 107% limit no longer applies once the track has been "
+     "declared wet (Article 35.1 of the 2018 to 2020 issues).", _SPORT[2018]),
+    ("race", 2021, 1, 2022, "knockout", 1, 1,
+     "Where a sprint was held - called sprint qualifying in 2021 - the "
+     "qualifying session set the sprint's grid and the sprint's result set "
+     "the race's; everywhere else qualifying set the race grid as before "
+     "(Articles 35 and 36 in 2021, 41 and 42 in 2022).", _SPORT[2021]),
+    ("race", 2023, 1, 2023, "knockout", 1, 1,
+     "Qualifying sets the race grid at every Competition again, sprint "
+     "weekends included, where it ran on the first day, after P1 (Article "
+     "39.1(a)). A driver outside 107% in Q1 is unclassified, and whether "
+     "they race is for the stewards (Articles 39.4 and 42.1).", _SPORT[2023]),
+    ("race", 2024, 1, 2025, "knockout", 1, 1,
+     "At sprint weekends qualifying moved to the second day, after the "
+     "sprint (Article 39.1(a)); the race grid is still set by it, and the "
+     "107% limit is unchanged (Articles 39.4 and 42.1 of the 2024 and 2025 "
+     "issues).", _SPORT[2024]),
+    ("race", 2026, 1, None, "knockout", 1, 1,
+     "Written for 22 cars: six eliminated after each of Q1 and Q2, and a Q3 "
+     "of 13 minutes (Article B2.4.2).", _SPORT[2026]),
+    ("sprint", 2021, 1, 2022, "knockout", 1, 1,
+     "No session of its own: the qualifying session set the sprint's grid, "
+     "and a driver outside 107% in Q1 could not take part in the sprint "
+     "unless the stewards admitted the car (Article 35.2 in 2021, 41.2 in "
+     "2022).", _SPORT[2021]),
+    ("sprint", 2023, 1, 2023, "knockout", 1, 1,
+     "The sprint shootout, on the second day: SQ1, SQ2 and SQ3 of 12, 10 and "
+     "8 minutes, five cars eliminated after each of the first two (Article "
+     "39.3).", _SPORT[2023]),
+    ("sprint", 2024, 1, 2025, "knockout", 1, 1,
+     "Renamed sprint qualifying and moved to the first day, after P1 "
+     "(Article 39.1(b)); its parts are unchanged.",
+     _SPORT[2024]),
+    ("sprint", 2026, 1, None, "knockout", 1, 1,
+     "Written for 22 cars: six eliminated after each of SQ1 and SQ2 (Article "
+     "B2.2.2).", _SPORT[2026]),
+]
+
 # from_year, to_year, era_name, summary, dominant_teams, defining_features
 ERAS = [
     (1950, 1957, "The front-engined era", "Grand Prix racing resumed with pre-war machinery and pre-war attitudes to risk. Fangio won five titles in eight seasons.", "Alfa Romeo, Ferrari, Mercedes, Maserati", "Front engines, drum brakes, no seatbelts, treaded road-style tyres, races of 500 km"),
