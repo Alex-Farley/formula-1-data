@@ -2603,7 +2603,7 @@ try {
   await section('/cars/<car> that is one chassis  (one precedence, both halves)', async () => {
     const copies = db
       .prepare(
-        `SELECT ch.id AS chassis, c.id AS car, c.full_name AS subject
+        `SELECT ch.id AS chassis, c.id AS car
            FROM cars c JOIN chassis ch ON ch.car_id = c.id
           WHERE NOT EXISTS (SELECT 1 FROM chassis y WHERE y.id = c.id)
             AND (SELECT COUNT(*) FROM chassis x WHERE x.car_id = c.id) = 1
@@ -2628,13 +2628,13 @@ try {
       [...html.matchAll(/disagreement-pair num"><span>([^<]*)<\/span><span class="disagreement-vs">against<\/span><span>([^<]*)<\/span>/g)]
         .map((m) => `${unescaped(m[1])}/${unescaped(m[2])}`)
     const wrong = []
-    for (const { chassis, car, subject } of copies) {
+    for (const { chassis, car } of copies) {
       const want = db
         .prepare(
           `SELECT stored_value || '/' || derived_value AS pair FROM discrepancies
-            WHERE tbl = 'cars' AND subject = ? AND status = 'open' ORDER BY id`,
+            WHERE tbl = 'cars' AND row_key = ? AND status = 'open' ORDER BY id`,
         )
-        .all(subject)
+        .all(car)
         .map((r) => r.pair)
       const own = await (await fetch(`${BASE}/cars/${car}`)).text()
       const copy = await (await fetch(`${BASE}/cars/${chassis}`)).text()

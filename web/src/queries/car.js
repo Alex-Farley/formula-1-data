@@ -163,18 +163,17 @@ export const specificationFields = (facts) => ({
 })
 
 /**
- * Open disagreements about the curated car behind a page, found as CAR finds
- * the car - so the chassis address of a car that is one chassis shows the
- * same rows as the car's own - by that row's name, which is the subject
- * build.py files a car-and-chassis disagreement under, and only among rows
- * filed against `cars`, which is what verify.py holds such a subject to.
- * Args: [the address's id].
+ * Open disagreements filed against the curated car behind a page, found as
+ * CAR finds the car - so the chassis address of a car that is one chassis
+ * shows the same rows as the car's own. By the row's key, the car's id,
+ * rather than its free-text subject; verify.py holds every open `cars` row's
+ * key to a car and its subject to that car's name. Args: [the address's id].
  */
 export const CAR_DISAGREEMENTS = `
   SELECT d.id, d.field, d.status, d.status_note, d.assessment, d.stored_value, d.derived_value
     FROM discrepancies d
    WHERE d.tbl = 'cars'
-     AND d.subject = (SELECT full_name FROM cars
+     AND d.row_key = (SELECT id FROM cars
                        WHERE id = (SELECT car_id FROM chassis WHERE id = ?1) OR id = ?1
                        LIMIT 1)
      AND d.status = 'open'

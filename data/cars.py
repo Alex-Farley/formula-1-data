@@ -430,7 +430,7 @@ CARS = [
      1, 1, 1, "high", "medium", WIKI + "Mercedes_F1_W11"),
 
     ("red-bull-rb19", "red-bull", "RB19", "Red Bull RB19", 2023, 2023, "red-bull-rb6",
-     "Adrian Newey, Pierre Wache, Craig Skinner, Enrico Balbo", "rbpt",
+     "Adrian Newey, Pierre Waché, Craig Skinner, Enrico Balbo", "rbpt",
      "Honda RBPTH001 turbo V6", "Pirelli",
      "90-degree turbo V6 hybrid", 1600, "turbocharged hybrid", 1000, None, 15000,
      "carbon-fibre composite monocoque", "Red Bull 8-speed semi-automatic",

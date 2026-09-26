@@ -1372,8 +1372,8 @@ def external_figures_vs_the_race_records():
     # rely on: a subject that names no race, or no driver, is refused here.
     import build
     unresolved = []
-    for did, subject, tbl in con.execute(
-            "SELECT id, subject, tbl FROM discrepancies WHERE status = 'open' "
+    for did, subject, tbl, row_key in con.execute(
+            "SELECT id, subject, tbl, row_key FROM discrepancies WHERE status = 'open' "
             "OR (status = 'explained' AND status_note = ?)", (build.EACH_SIDE_RIGHT,)):
         m = re.fullmatch(r"(\d{4}) round (\d+)", subject or "")
         if m:
@@ -1386,11 +1386,14 @@ def external_figures_vs_the_race_records():
         elif con.execute("SELECT 1 FROM constructors WHERE name=?",
                          (subject,)).fetchone():
             pass
-        # A car's page asks for the rows about its curated row by that row's
-        # name, and only for rows filed against `cars` (IA-28).
-        elif tbl == "cars" and con.execute("SELECT 1 FROM cars WHERE full_name=?",
-                                           (subject,)).fetchone():
-            pass
+        # A car's page asks for the rows filed against its curated row by
+        # that row's id (IA-28), so the row key must name a car, and the
+        # subject must be that car's name - or the row is shown on one car's
+        # page under another's.
+        elif tbl == "cars":
+            if not con.execute("SELECT 1 FROM cars WHERE id=? AND full_name=?",
+                               (row_key, subject)).fetchone():
+                unresolved.append(f"#{did} '{subject}' is not the name of car {row_key!r}")
         else:
             unresolved.append(f"#{did} '{subject}' joins to nothing a reader can reach")
     check("every recorded disagreement the site shows can be shown beside the fact it is about",
