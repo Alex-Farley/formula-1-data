@@ -631,7 +631,7 @@ function SeasonBody({ year, season, data }) {
           ) : (
             <DataTable
               rows={constructorsFinal}
-              rowKey={(row) => `${row.constructor_id}-${row.engine_id ?? ''}`}
+              rowKey={(row) => row.id}
               sortable
               opening={STANDINGS_OPENING}
               page={40}

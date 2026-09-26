@@ -458,7 +458,10 @@ takes `basis` and `source` in its place. `entity_id` held a driver's id on a
 drivers' row and a constructor's on a constructors' one, and four ids —
 `brabham`, `fittipaldi`, `amon`, `modena` — are both, so a join on it that
 forgot `table_type` found the wrong one. Join on `driver_id` or
-`constructor_id`, whichever the row's table names.
+`constructor_id`, whichever the row's table names. A `discrepancies` row about
+`standings` names its row by the head of that key, so those keys change too:
+they gain `basis`, and a constructor's leaves its `driver_id` part empty, as
+in `standings.points[2026|constructors|12|running||mclaren]:running-table`.
 
 `records` is the cautionary one. Its ids look permanent — a small table,
 rebuilt whole every time — and they are a position in a derived list, so most
