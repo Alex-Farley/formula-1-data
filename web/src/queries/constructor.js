@@ -54,9 +54,9 @@ export const BY_SEASON = `
  * rule and its reasons are on the view in schema.sql.
  */
 export const STANDINGS = `
-  SELECT s.id, s.year, s.entity_id, s.engine_id, s.position, s.position_text, s.points, s.team
+  SELECT s.id, s.year, s.constructor_id, s.engine_id, s.position, s.position_text, s.points, s.team
     FROM v_standings_final s
-   WHERE s.table_type = 'constructors' AND s.entity_id = ?
+   WHERE s.table_type = 'constructors' AND s.constructor_id = ?
    ORDER BY s.year, s.position IS NULL, s.position
 `
 

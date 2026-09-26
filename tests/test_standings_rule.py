@@ -57,13 +57,15 @@ class PlantedInACopy(unittest.TestCase):
         """Write round `onto`'s totals under round `rnd`: the exact shape of
         the F1DB file that caused this."""
         rows = self.con.execute(
-            "SELECT entity_id, points FROM standings WHERE year=? AND "
+            "SELECT COALESCE(driver_id, constructor_id), points FROM standings "
+            "WHERE year=? AND "
             f"table_type=? AND after_round=? AND {standings_rule.SCOPE}",
             (year, table, onto)).fetchall()
         for entity, pts in rows:
             self.con.execute(
                 "UPDATE standings SET points=? WHERE year=? AND table_type=? "
-                f"AND entity_id=? AND after_round=? AND {standings_rule.SCOPE}",
+                "AND COALESCE(driver_id, constructor_id)=? AND after_round=? "
+                f"AND {standings_rule.SCOPE}",
                 (pts, year, table, entity, rnd))
         self.con.commit()
         return len(rows)
@@ -74,9 +76,9 @@ class TheRuleCatchesAStaleFile(PlantedInACopy):
         self.freeze(2026, "constructors", 14, 13)
         bad = standings_rule.violations(self.con)
         self.assertTrue(bad, "a frozen round 14 was not refused")
-        named = {v["entity_id"] for v in bad}
+        named = {standings_rule.ident(v) for v in bad}
         self.assertIn("mercedes", named)
-        mercedes = next(v for v in bad if v["entity_id"] == "mercedes")
+        mercedes = next(v for v in bad if v["constructor_id"] == "mercedes")
         self.assertAlmostEqual(mercedes["expected"], 503.0, places=3,
                                msg="the rule did not put Mercedes back on the "
                                    "sum of their drivers' points")
@@ -91,7 +93,7 @@ class TheRuleCatchesAStaleFile(PlantedInACopy):
         """
         self.freeze(2026, "constructors", 13, 12)
         self.freeze(2026, "constructors", 14, 13)
-        bad = {(v["entity_id"], v["after_round"]): v
+        bad = {(standings_rule.ident(v), v["after_round"]): v
                for v in standings_rule.violations(self.con)}
         self.assertIn(("ferrari", 14), bad)
         self.assertAlmostEqual(bad[("ferrari", 14)]["expected"], 358.0, places=3)
@@ -104,7 +106,7 @@ class TheRuleCatchesAStaleFile(PlantedInACopy):
         table frozen for eighteen rounds read as correct."""
         self.freeze(2022, "constructors", 20, 4)
         bad = [v for v in standings_rule.violations(self.con)
-               if v["entity_id"] == "sauber"]
+               if v["constructor_id"] == "sauber"]
         self.assertTrue(bad, "a frozen 2022 Sauber table was not refused")
 
 
@@ -113,9 +115,9 @@ class AnEntityTheResultsDoNotHoldStopsTheRule(PlantedInACopy):
         """The split DA-28 closed, put back in a copy: the 2022 table under
         F1DB's `alfa-romeo` while the results say `sauber`."""
         self.con.execute(
-            "UPDATE standings SET entity_id='alfa-romeo', constructor_id='alfa-romeo' "
+            "UPDATE standings SET constructor_id='alfa-romeo' "
             "WHERE year=2022 AND table_type='constructors' "
-            "AND entity_id='sauber'")
+            "AND constructor_id='sauber'")
         self.con.commit()
         with self.assertRaises(standings_rule.Unmappable) as caught:
             standings_rule.violations(self.con)
@@ -123,9 +125,8 @@ class AnEntityTheResultsDoNotHoldStopsTheRule(PlantedInACopy):
 
     def test_a_new_unmappable_entity_stops_it_too(self):
         self.con.execute(
-            "UPDATE standings SET entity_id='a-team-that-never-raced', "
-            "constructor_id='a-team-that-never-raced' "
-            "WHERE year=2026 AND table_type='constructors' AND entity_id='haas'")
+            "UPDATE standings SET constructor_id='a-team-that-never-raced' "
+            "WHERE year=2026 AND table_type='constructors' AND constructor_id='haas'")
         self.con.commit()
         with self.assertRaises(standings_rule.Unmappable):
             standings_rule.violations(self.con)
@@ -135,7 +136,7 @@ class TheDeclarationsAreRead(PlantedInACopy):
     def test_a_declared_adjustment_is_not_a_violation(self):
         self.assertEqual(
             [v for v in standings_rule.violations(self.con)
-             if (v["year"], v["entity_id"]) in
+             if (v["year"], standings_rule.ident(v)) in
              {(2007, "mclaren"), (2018, "force-india"), (2020, "racing-point"),
               (1995, "benetton"), (1995, "williams"), (2000, "mclaren")}],
             [])
@@ -147,7 +148,8 @@ class TheDeclarationsAreRead(PlantedInACopy):
                        standings_rule.STANDINGS_ADJUSTMENTS.items() if k != key}
             bad = standings_rule.violations(self.con, adjustments=without)
             self.assertTrue(
-                any(v["year"] == year and v["entity_id"] == entity for v in bad),
+                any(v["year"] == year and standings_rule.ident(v) == entity
+                    for v in bad),
                 f"{year} {entity} is declared and nothing needs the declaration")
 
     def test_the_floors_have_something_below_them(self):
@@ -190,7 +192,8 @@ class OnlyARepeatedRoundIsCorrected(PlantedInACopy):
     def points(self, year, table, entity, rnd):
         return self.con.execute(
             "SELECT points FROM standings WHERE year=? AND table_type=? AND "
-            f"entity_id=? AND after_round=? AND {standings_rule.SCOPE}",
+            "COALESCE(driver_id, constructor_id)=? AND after_round=? "
+            f"AND {standings_rule.SCOPE}",
             (year, table, entity, rnd)).fetchone()[0]
 
     def test_a_repeated_round_is_put_back_on_the_results(self):
@@ -227,7 +230,7 @@ class OnlyARepeatedRoundIsCorrected(PlantedInACopy):
         build's arithmetic and filed the real figure as the error."""
         self.con.execute(
             "UPDATE standings SET points = points - 10 WHERE year=2026 AND "
-            "table_type='constructors' AND entity_id='ferrari' AND after_round=14")
+            "table_type='constructors' AND constructor_id='ferrari' AND after_round=14")
         self.con.commit()
         with self.assertRaises(SystemExit) as stop:
             self.correct()
@@ -240,10 +243,11 @@ class OnlyARepeatedRoundIsCorrected(PlantedInACopy):
         entity's row changed as given."""
         rows = []
         for entity, engine, points, position_text in self.con.execute(
-                "SELECT entity_id, engine_id, points, position_text FROM standings "
+                "SELECT constructor_id, engine_id, points, position_text FROM standings "
                 "WHERE year=2026 AND table_type='constructors' AND after_round=14 "
                 f"AND {standings_rule.SCOPE} ORDER BY position"):
-            row = {"year": 2026, "table_type": "constructors", "entity_id": entity,
+            row = {"year": 2026, "table_type": "constructors",
+                   "driver_id": None, "constructor_id": entity,
                    "engine_id": engine, "points": points,
                    "position_text": position_text}
             row.update(changed.get(entity.replace("-", "_"), {}))
@@ -293,7 +297,7 @@ class OnlyARepeatedRoundIsCorrected(PlantedInACopy):
     def test_a_season_file_missing_an_entry_stops_the_build(self):
         """Both ways round: an entrant the latest round holds and the season
         file does not name is the same disagreement as the reverse."""
-        rows = [r for r in self.season_file() if r["entity_id"] != "haas"]
+        rows = [r for r in self.season_file() if r["constructor_id"] != "haas"]
         with self.assertRaises(SystemExit) as stop:
             self.hold(rows)
         self.assertIn("haas", str(stop.exception))
@@ -302,7 +306,7 @@ class OnlyARepeatedRoundIsCorrected(PlantedInACopy):
         """NULL points on both sides is agreement, not a stop."""
         self.con.execute(
             "UPDATE standings SET points = NULL WHERE year=2026 AND "
-            "table_type='constructors' AND entity_id='haas' AND after_round=14 "
+            "table_type='constructors' AND constructor_id='haas' AND after_round=14 "
             f"AND {standings_rule.SCOPE}")
         self.con.commit()
         build._hold_the_season_file_to_its_latest_round(

@@ -123,11 +123,11 @@ const driversRenders = (year, teams) => ({
   ...POSITION_SORT,
   entity: {
     render: (name, row) => {
-      const { colour, title } = lastTeamColour(teams.get(row.entity_id), year)
+      const { colour, title } = lastTeamColour(teams.get(row.driver_id), year)
       return (
         <>
           <LiveryMark colour={colour} title={title} year={year} />
-          {row.entity_id ? <Link to={`/drivers/${row.entity_id}`}>{name}</Link> : cell(name)}
+          {row.driver_id ? <Link to={`/drivers/${row.driver_id}`}>{name}</Link> : cell(name)}
         </>
       )
     },
@@ -138,11 +138,11 @@ const constructorsRenders = (year) => ({
   ...POSITION_SORT,
   entity: {
     render: (name, row) => {
-      const colour = colourForEntry({ constructorId: row.entity_id, country: row.constructor_country, year, team: name })
+      const colour = colourForEntry({ constructorId: row.constructor_id, country: row.constructor_country, year, team: name })
       return (
         <>
           <LiveryMark colour={colour} year={year} />
-          {row.entity_id ? <Link to={`/constructors/${row.entity_id}`}>{name}</Link> : cell(name)}
+          {row.constructor_id ? <Link to={`/constructors/${row.constructor_id}`}>{name}</Link> : cell(name)}
           {row.engine_id ? ' ' : ''}
           {row.engine_id ? <span className="tag">{row.engine_id}</span> : null}
         </>
@@ -351,7 +351,7 @@ function SeasonBody({ year, season, data }) {
    * weekend; it never falls, because a championship total cannot.
    */
   const progression = useMemo(() => {
-    const contenders = driversFinal.slice(0, 3).filter((d) => d.entity_id)
+    const contenders = driversFinal.slice(0, 3).filter((d) => d.driver_id)
     // Each line in its driver's team colour where the season has one (AF-04):
     // the livery from 2010, the national colour before 1968, the neutral
     // series palette between and wherever a colour is missing. Two drivers
@@ -359,7 +359,7 @@ function SeasonBody({ year, season, data }) {
     // (AX-16), so they are still two lines. A driver who changed teams wears
     // the one they finished with.
     return contenders.map((driver) => {
-      const last = (teams.get(driver.entity_id) ?? [])[0]
+      const last = (teams.get(driver.driver_id) ?? [])[0]
       const colour = last
         ? colourForEntry({ constructorId: last.constructor_id, country: last.country, year, team: last.constructor })
         : null
@@ -370,7 +370,7 @@ function SeasonBody({ year, season, data }) {
         // and drawing it here would put the final classification beside the
         // last round's running total, which before 1991 is another figure.
         points: standings
-          .filter((r) => r.table_type === 'drivers' && r.entity_id === driver.entity_id)
+          .filter((r) => r.table_type === 'drivers' && r.driver_id === driver.driver_id)
           .sort((a, b) => a.after_round - b.after_round)
           .map((r) => ({ x: r.after_round, y: r.points })),
       }
@@ -444,7 +444,7 @@ function SeasonBody({ year, season, data }) {
               {
                 label: 'Leads',
                 kind: 'name',
-                value: lead.entity_id ? <Link to={`/drivers/${lead.entity_id}`}>{lead.entity}</Link> : lead.entity,
+                value: lead.driver_id ? <Link to={`/drivers/${lead.driver_id}`}>{lead.entity}</Link> : lead.entity,
                 note: `${fmtPoints(lead.points)} points`,
               },
               {
@@ -456,8 +456,8 @@ function SeasonBody({ year, season, data }) {
                 label: "Constructors' leader",
                 kind: 'name',
                 value: teamLead ? (
-                  teamLead.entity_id ? (
-                    <Link to={`/constructors/${teamLead.entity_id}`}>{teamLead.entity}</Link>
+                  teamLead.constructor_id ? (
+                    <Link to={`/constructors/${teamLead.constructor_id}`}>{teamLead.entity}</Link>
                   ) : (
                     teamLead.entity
                   )
@@ -610,7 +610,7 @@ function SeasonBody({ year, season, data }) {
         <Section title={standingsHeading("Drivers'", live, after)} count={`${driversFinal.length} drivers`}>
           <DataTable
             rows={driversFinal}
-            rowKey={(row) => row.entity_id ?? row.entity}
+            rowKey={(row) => row.driver_id ?? row.entity}
             sortable
             opening={STANDINGS_OPENING}
             page={40}
@@ -631,7 +631,7 @@ function SeasonBody({ year, season, data }) {
           ) : (
             <DataTable
               rows={constructorsFinal}
-              rowKey={(row) => `${row.entity_id}-${row.engine_id ?? ''}`}
+              rowKey={(row) => row.id}
               sortable
               opening={STANDINGS_OPENING}
               page={40}

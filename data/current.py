@@ -876,20 +876,26 @@ ID_STABILITY = {
     # key needs `position_text` because 2018 holds Force India twice in the
     # constructors' final table - the excluded entity on nought points and
     # the re-entered one on 52 - which is a real fact and not a duplicate.
-    # Making the insert order deterministic is the M half of DA-04. Two of
-    # the seven columns hold NULL - `engine_id` on every drivers' row because a
-    # driver has no engine, and `position_text` on a handful - so this is a
-    # key to join with `IS`, SQLite's null-safe comparison, and not with `=`,
-    # which would drop most of the table in silence. The README marks both.
-    # `after_round` was the third until DA-01 filled it on every row; `basis`
-    # is not in the key because `as_of`, which says the same and more, still
-    # is. Retiring `as_of` is the decision that would swap one for the other.
+    # Making the insert order deterministic is the M half of DA-04. Four of
+    # the nine columns hold NULL - `driver_id` on every constructors' row and
+    # `constructor_id` on every drivers' one, `engine_id` on every drivers' row
+    # because a driver has no engine, and `position_text` on a handful - so
+    # this is a key to join with `IS`, SQLite's null-safe comparison, and not
+    # with `=`, which would drop most of the table in silence. The README
+    # marks all four.
+    # `after_round` was the third until DA-01 filled it on every row. After
+    # v2.24 (DA-31) `as_of` left the key and the table, and the two things it
+    # told apart are the two columns that replaced it: `basis`, a season's
+    # final table from its running one after the last round, and `source`,
+    # the official snapshot from F1DB's table after the same round. The one
+    # `entity_id` became `driver_id` and `constructor_id` (DA-10).
     # It is `ux_standings_identity` in schema.sql, column for column: the
     # database already enforces this key, and publishing a narrower one would
     # have said the grain was something the schema does not agree with.
     "standings":             ("unstable", ("year", "table_type", "after_round",
-                                           "entity_id", "engine_id", "as_of",
-                                           "position_text")),
+                                           "basis", "driver_id",
+                                           "constructor_id", "engine_id",
+                                           "source", "position_text")),
 
     # Unstable, with no natural key published yet. Each is either a register
     # small enough to read whole or one of the timing tables that ship empty

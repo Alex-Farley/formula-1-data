@@ -121,7 +121,7 @@ export const SEASON_NOW = `
  */
 export const SEASON_LEAD = `
   WITH now AS (SELECT CAST(value AS INTEGER) AS year FROM meta WHERE key = 'current_season')
-  SELECT f.entity, f.entity_id, f.team, f.points
+  SELECT f.entity, f.driver_id, f.team, f.points
     FROM v_standings_final f, now n
    WHERE f.year = n.year AND f.table_type = 'drivers' AND f.position IS NOT NULL
    ORDER BY f.position LIMIT 2

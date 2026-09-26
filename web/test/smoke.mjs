@@ -1020,7 +1020,7 @@ try {
     // round, straight from the table rather than the view, so a view that kept
     // the stale row fails here even though the count above would still be
     // right.
-    const leader = one(`SELECT entity_id FROM v_standings_final
+    const leader = one(`SELECT driver_id FROM v_standings_final
                        WHERE year = 2026 AND table_type = 'drivers' ORDER BY position LIMIT 1`)
     const leaderPoints = await page.$$eval('#root main table', (tables) => {
       const t = tables.find((el) => el.closest('section')?.querySelector('h2')?.textContent.toLowerCase().includes("drivers' standings"))
@@ -1028,7 +1028,7 @@ try {
       return cells
     })
     const leaderExpected = String(one(`SELECT MAX(points) FROM standings
-                                WHERE year = 2026 AND table_type = 'drivers' AND entity_id = ?
+                                WHERE year = 2026 AND table_type = 'drivers' AND driver_id = ?
                                   AND after_round = (SELECT MAX(x.after_round) FROM standings x
                                                       WHERE x.year = standings.year AND x.source = standings.source)`, leader))
     truthy(

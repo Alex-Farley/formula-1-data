@@ -52,29 +52,29 @@ export const SEASONS = `
       LEFT JOIN races r ON r.year = s.year
      GROUP BY s.year),
   ranked AS (
-    SELECT year, table_type, entity_id, entity, team, points,
+    SELECT year, table_type, driver_id, constructor_id, entity, team, points,
            ROW_NUMBER() OVER (PARTITION BY year, table_type
                               ORDER BY position IS NULL, position, points DESC) AS rank
       FROM v_standings_final),
   season_row AS (
     SELECT s.year, s.rounds, p.run, p.undecided, p.not_started,
-           CASE WHEN p.undecided THEN d1.entity_id ELSE s.drivers_champion END AS champion_id,
+           CASE WHEN p.undecided THEN d1.driver_id ELSE s.drivers_champion END AS champion_id,
            CASE WHEN p.undecided THEN d1.entity    ELSE d.full_name        END AS champion,
            CASE WHEN p.undecided THEN
                 (SELECT e.constructor_id FROM race_entries e JOIN races r ON r.id = e.race_id
-                  WHERE r.year = s.year AND e.driver_id = d1.entity_id
+                  WHERE r.year = s.year AND e.driver_id = d1.driver_id
                   ORDER BY r.round DESC LIMIT 1)
                 ELSE s.champion_team END                                AS champion_team_id,
            CASE WHEN p.undecided THEN d1.team      ELSE t.name             END AS champion_team,
            CASE WHEN p.undecided THEN d1.points    ELSE s.champion_points  END AS champion_points,
            CASE WHEN p.undecided THEN
                 (SELECT COUNT(*) FROM race_entries e JOIN races r ON r.id = e.race_id
-                  WHERE r.year = s.year AND e.driver_id = d1.entity_id AND e.finish_position = 1)
+                  WHERE r.year = s.year AND e.driver_id = d1.driver_id AND e.finish_position = 1)
                 ELSE s.champion_wins END                                AS champion_wins,
-           CASE WHEN p.undecided THEN d2.entity_id ELSE s.runner_up        END AS runner_up_id,
+           CASE WHEN p.undecided THEN d2.driver_id ELSE s.runner_up        END AS runner_up_id,
            CASE WHEN p.undecided THEN d2.entity    ELSE ru.full_name       END AS runner_up,
            CASE WHEN p.undecided THEN d1.points - d2.points ELSE s.margin  END AS margin,
-           CASE WHEN p.undecided THEN k1.entity_id ELSE s.constructors_champion END AS constructors_champion_id,
+           CASE WHEN p.undecided THEN k1.constructor_id ELSE s.constructors_champion END AS constructors_champion_id,
            CASE WHEN p.undecided THEN k1.entity    ELSE cc.name            END AS constructors_champion,
            s.engine_formula
       FROM seasons s

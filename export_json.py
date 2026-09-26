@@ -220,7 +220,7 @@ def main():
             SELECT c.name, c.full_name, c.base, c.first_entry,
                    s.position, s.points
             FROM constructors c
-            JOIN v_standings_final s ON s.entity_id=c.id AND s.year=?
+            JOIN v_standings_final s ON s.constructor_id=c.id AND s.year=?
                             AND s.table_type='constructors'
             ORDER BY s.position""", (SEASON,))]
         for t in teams:

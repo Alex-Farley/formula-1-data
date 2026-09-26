@@ -418,7 +418,7 @@ doubles their rows instead of failing.
 | `source_patterns` | unstable | — |
 | `source_registry` | unstable | — |
 | `sprint_results` | stable | `(race_id, driver_id)` |
-| `standings` | unstable | `(year, table_type, after_round, entity_id, engine_id?, as_of, position_text?)` |
+| `standings` | unstable | `(year, table_type, after_round, basis, driver_id?, constructor_id?, engine_id?, source, position_text?)` |
 | `stints` | unstable | — |
 | `team_radio` | unstable | — |
 | `technical_innovations` | unstable | — |
@@ -429,7 +429,8 @@ A `?` marks a key column that holds NULL on some rows. SQLite's `=` is not
 null-safe, so join those with `IS`: `standings.engine_id` is NULL on every
 drivers' row — a driver has no engine, while the constructors' championship is
 contested by a chassis-engine combination — and joining that key with `=`
-silently drops every drivers' row and reports no error at all.
+silently drops every drivers' row and reports no error at all. The same goes
+for `driver_id` and `constructor_id`, each NULL on the other table's rows.
 
 `standings` is the one to watch in general: it is the table a reader is most
 likely to have joined to by id, and a running season's table is reloaded whole,
@@ -439,19 +440,28 @@ entity on nought points and the re-entered one on 52 — which is a fact and not
 a duplicate.
 
 Every `standings` row says which round it stands after and which table it
-belongs to: `after_round`, now filled on every row, and `basis`, which is
+belongs to: `after_round`, filled on every row, and `basis`, which is
 `running` for the total after that round and `final` for the end-of-season
 classification. Those are two tables even after the last round — before 1991
 only a driver's best results counted, and an exclusion takes a position
 away. Up to v2.24 a NULL `after_round` marked the final table, and in the
 season being run it marked a snapshot too, so a query written with
 `after_round IS NULL` now finds nothing and wants `basis = 'final'` instead;
-`v_standings_final` is still the one to start from. `as_of` stays for one
-release beside the two columns that replace it. `driver_id` and
-`constructor_id` carry `entity_id` under a key the schema declares, because
-four ids — `brabham`, `fittipaldi`, `amon`, `modena` — are both a driver and
-a constructor, and a join on `entity_id` that forgets `table_type` finds the
-wrong one.
+`v_standings_final` is still the one to start from.
+
+**After v2.24, `standings` loses two columns**, in the table and in
+`v_standings_final` alike, and a query that names either now fails rather
+than answering. `as_of` said in prose what `after_round` and `basis` say; the
+one thing they do not, the day formula1.com published its snapshot of the
+season being run, is `snapshot_date`, NULL on every other row. The natural key
+takes `basis` and `source` in its place. `entity_id` held a driver's id on a
+drivers' row and a constructor's on a constructors' one, and four ids —
+`brabham`, `fittipaldi`, `amon`, `modena` — are both, so a join on it that
+forgot `table_type` found the wrong one. Join on `driver_id` or
+`constructor_id`, whichever the row's table names. A `discrepancies` row about
+`standings` names its row by the head of that key, so those keys change too:
+they gain `basis`, and a constructor's leaves its `driver_id` part empty, as
+in `standings.points[2026|constructors|12|running||mclaren]:running-table`.
 
 `records` is the cautionary one. Its ids look permanent — a small table,
 rebuilt whole every time — and they are a position in a derived list, so most
