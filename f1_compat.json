@@ -19,7 +19,7 @@
       {
         "confidence": "reference",
         "rank": 3,
-        "definition": "Taken from a published secondary record rather than an official one: F1DB for almost all of it, and for most of the rest Wikipedia's season results tables or its per-car and per-topic articles. A few regulation limits read from the FIA's own regulations sit here too. Where a second source held here covers the same fact the two are compared on load - a race's winner, where one is already held from another source, against F1DB's, for one - but some tables at this tier, the entrant, engine and sprint registers among them, have no second source, so the tier alone does not say a row was cross-checked. Reliable; not official under this database's policy, so cite the FIA/F1 archive if publishing.",
+        "definition": "Taken from a published secondary record rather than an official one: F1DB for almost all of it, and for most of the rest Wikipedia's season results tables or its per-car and per-topic articles. A few regulation limits read from the FIA's own regulations sit here too, and the qualifying formats, read from those regulations and from Formula 1's own history of qualifying. Where a second source held here covers the same fact the two are compared on load - a race's winner, where one is already held from another source, against F1DB's, for one - but some tables at this tier, the entrant, engine and sprint registers among them, have no second source, so the tier alone does not say a row was cross-checked. Reliable; not official under this database's policy, so cite the FIA/F1 archive if publishing.",
         "may_publish": 1
       },
       {

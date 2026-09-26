@@ -1264,6 +1264,36 @@ CREATE TABLE points_systems (
     UNIQUE (session, from_year)
 );
 
+-- How each grid was set, period by period (WK-01), in the shape DA-18 gave
+-- points_systems: `session` is whose grid - 'race' for the Grand Prix,
+-- 'sprint' for the sprint - and within one session no two periods overlap.
+-- The format changed mid-season twice, so a period begins at `from_round` of
+-- `from_year` and runs to the end of `to_year` or to the next period's start;
+-- NULL `to_year` is the period still running. `sessions` counts the timed
+-- sessions whose times went into the grid, not the sessions run (a knockout
+-- is one session in three parts). `rule_107` is 1 where the FIA Sporting
+-- Regulations set a 107% limit on the first part's times for that grid and 0
+-- where the issue read sets none; what the limit cost a driver changed in
+-- 2023, from a barred start to an unclassified result with the stewards
+-- deciding, and regulation_limits holds that. NULL is not established: the
+-- column is read only from the FIA's text (known_gaps #19). Nothing before
+-- 1996: known_gaps #18 holds that span.
+CREATE TABLE qualifying_formats (
+    id              INTEGER PRIMARY KEY,
+    session         TEXT NOT NULL CHECK (session IN ('race', 'sprint')),
+    from_year       INTEGER NOT NULL,
+    from_round      INTEGER NOT NULL DEFAULT 1 CHECK (from_round >= 1),
+    to_year         INTEGER,
+    format          TEXT NOT NULL CHECK (format IN ('single session', 'single lap',
+                        'single lap, aggregate', 'knockout', 'knockout, elimination')),
+    sessions        INTEGER NOT NULL CHECK (sessions >= 1),
+    rule_107        INTEGER CHECK (rule_107 IN (0, 1)),
+    note            TEXT NOT NULL,
+    confidence      TEXT NOT NULL REFERENCES provenance(confidence),
+    source          TEXT NOT NULL,
+    UNIQUE (session, from_year, from_round)
+);
+
 -- DERIVED, not authored. Until v2.23 this held thirty rows typed from general
 -- knowledge, with twenty-four spellings of `as_of` and a Hamilton win count
 -- one behind the `drivers.wins` the same database computed. Every row is now

@@ -1959,6 +1959,109 @@ def points_systems_figures():
               not gaps, "; ".join(gaps))
 
 
+@section('QUALIFYING FORMATS: THE PERIODS AGAINST THE SHEETS')
+def qualifying_formats_periods():
+    """`qualifying_formats` says how each grid was set from 1996 (WK-01), in
+    periods that start at a round of a season. The periods are only useful if
+    they tile - one per round, no hole, no overlap - and their two checkable
+    claims are held to data read by other routes: a knockout period to the
+    Q1/Q2/Q3 times F1DB's qualifying sheets carry, and the 107% column to the
+    FIA-read regulation_limits rows."""
+    rows = con.execute("""SELECT id, session, from_year, from_round, to_year, format,
+        sessions, rule_107, note, source FROM qualifying_formats
+        ORDER BY session, from_year, from_round""").fetchall()
+    rounds = {(r["year"], r["round"]): r["name_used"] for r in con.execute(
+        "SELECT year, round, name_used FROM races")}
+    first_sprint = con.execute("SELECT MIN(year) FROM races WHERE sprint = 1").fetchone()[0]
+
+    # Tiling: each period begins where the one before it ended, and the last
+    # is still running. A period that begins after round 1 shares its first
+    # season with the one before.
+    bad = []
+    for session, begin in (("race", 1996), ("sprint", first_sprint)):
+        ps = [r for r in rows if r["session"] == session]
+        if not ps or (ps[0]["from_year"], ps[0]["from_round"]) != (begin, 1):
+            bad.append(f"{session} does not open at {begin} round 1")
+        for a, b in zip(ps, ps[1:]):
+            want = a["to_year"] if b["from_round"] > 1 else (a["to_year"] or 0) + 1
+            if a["to_year"] is None or b["from_year"] != want:
+                bad.append(f"#{a['id']} to {a['to_year']} then #{b['id']} "
+                           f"from {b['from_year']} r{b['from_round']}")
+        if ps and ps[-1]["to_year"] is not None:
+            bad.append(f"{session}'s last period ends in {ps[-1]['to_year']}")
+    check("the qualifying periods tile each session with no hole or overlap, "
+          "the race from 1996 and the sprint from its first season", not bad, "; ".join(bad))
+
+    # A period that starts mid-season names the event it started at.
+    bad = [f"#{r['id']} {r['from_year']} r{r['from_round']}" for r in rows
+           if r["from_round"] > 1 and (rounds.get((r["from_year"], r["from_round"])) is None
+                                       or rounds[(r["from_year"], r["from_round"])] not in r["note"])]
+    check("a qualifying period starting mid-season names the Grand Prix at that round",
+          not bad, "; ".join(bad))
+
+    def period(year, rnd, session="race"):
+        hit = None
+        for r in rows:
+            if r["session"] == session and (r["from_year"], r["from_round"]) <= (year, rnd):
+                hit = r
+        return hit if hit and (hit["to_year"] is None or hit["to_year"] >= year) else None
+
+    # A knockout leaves Q1/Q2/Q3 times on the sheet and nothing else does.
+    bad = []
+    for q in con.execute("""SELECT r.year, r.round, MAX(q.q1 IS NOT NULL) AS split
+            FROM qualifying q JOIN races r ON r.id = q.race_id
+            WHERE r.year >= 1996 GROUP BY r.id ORDER BY r.year, r.round"""):
+        p = period(q["year"], q["round"])
+        if p is None:
+            bad.append(f"{q['year']} r{q['round']}: no period")
+        elif bool(q["split"]) != p["format"].startswith("knockout"):
+            bad.append(f"{q['year']} r{q['round']}: {p['format']}, "
+                       f"{'Q1 times' if q['split'] else 'no Q1 times'} on the sheet")
+    check("every qualifying sheet from 1996 has Q1/Q2/Q3 times exactly where "
+          "its period is a knockout", not bad, "; ".join(bad[:6]))
+
+    # `sessions` counts the sessions whose times made the grid, and only an
+    # aggregate adds two together.
+    bad = [f"#{r['id']} {r['format']}: {r['sessions']}" for r in rows
+           if (r["sessions"] == 2) != r["format"].endswith("aggregate")
+           or r["sessions"] not in (1, 2)]
+    check("qualifying_formats counts two sessions exactly where the grid was an aggregate",
+          not bad, "; ".join(bad))
+
+    # rule_107 is read only from the FIA's Sporting Regulations: it is set on
+    # every row citing an fia.com document and NULL on every other, which is
+    # the span known_gaps #19 declares.
+    fia = re.compile(r"https?://([a-z]+\.)?fia\.com/")
+    bad = [f"#{r['id']} {r['from_year']} r{r['from_round']}" for r in rows
+           if (r["rule_107"] is not None) != bool(fia.match(r["source"]))]
+    check("rule_107 is set exactly on the qualifying periods read from the FIA's regulations",
+          not bad, "; ".join(bad))
+
+    # The 107% column against the FIA's own text, where this database has read it.
+    bad = []
+    for lim in con.execute("""SELECT from_year, to_year FROM regulation_limits
+            WHERE field = 'qualifying_107_pct'"""):
+        for year in range(lim["from_year"], lim["to_year"] + 1):
+            p = period(year, 1)
+            if p is None or p["rule_107"] != 1:
+                bad.append(str(year))
+    check("rule_107 is set in every season regulation_limits holds a 107% rule for",
+          not bad, ", ".join(bad))
+
+    # Every season with a sprint has a sprint period, and the 1996 floor is a
+    # declared gap rather than an unexplained start.
+    bad = [str(y) for (y,) in con.execute("SELECT DISTINCT year FROM races WHERE sprint = 1")
+           if period(y, 1, "sprint") is None]
+    check("every season with a sprint has a sprint qualifying period", not bad, ", ".join(bad))
+    check("known_gaps declares the qualifying formats before 1996",
+          con.execute("""SELECT COUNT(*) FROM known_gaps WHERE field = 'qualifying_formats'
+              AND key = 'qualifying-format-before-1996' AND state = 'open'""").fetchone()[0] == 1)
+    unread = any(r["rule_107"] is None for r in rows)
+    check("known_gaps declares the unread 107% column exactly while a period holds NULL",
+          con.execute("""SELECT COUNT(*) FROM known_gaps WHERE field = 'qualifying_formats.rule_107'
+              AND key = 'qualifying-107-before-2009' AND state = 'open'""").fetchone()[0] == int(unread))
+
+
 @section('FINISHING ORDER AND PODIUMS')
 def finishing_order_and_podiums():
     n_pod = con.execute("""SELECT COUNT(*) FROM race_entries
