@@ -7,8 +7,8 @@
  *     through a function and look at the answer: it can only reach the values
  *     that happen to be in f1.db, on the pages it happens to open. Every rule
  *     these functions encode — a blank is not a zero, a hyphenated venue is not
- *     two words, a hole in a trace is not a join — is a rule that reads as
- *     working right up until the one row that breaks it appears.
+ *     two words — is a rule that reads as working right up until the one row
+ *     that breaks it appears.
  *
  * node:test and node:assert. No new dependency: the front end has four, and a
  * test runner is not going to be the fifth.
@@ -53,7 +53,6 @@ import {
   text,
   yearList,
 } from '../src/lib/format.js'
-import { metresBetween, stitch } from '../src/lib/lap.js'
 import { distance, elsewhere, fold, prepare, rank } from '../src/lib/search.js'
 import { EXAMPLES, QUESTIONS, TOPICS, questionPath } from '../src/lib/questions.js'
 import { complaint, emptyTimingTableRead, nearestStatement } from '../src/lib/sql.js'
@@ -132,15 +131,6 @@ import { recordColumns, tiersOf } from '../src/queries/records.js'
 import { clearState, oneOf, readState, writeState } from '../src/lib/urlstate.js'
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..')
-
-// A square about 111 m on a side, as [lon, lat] — the order the geometry uses.
-const P0 = [0, 0]
-const P1 = [0.001, 0]
-const P2 = [0.001, 0.001]
-const P3 = [0, 0.001]
-const DEGREE_M = (Math.PI / 180) * 6371008.8   // 111 195.080 m
-
-const ring = (lines) => ({ type: 'MultiLineString', coordinates: lines })
 
 describe('missing, and the em dash', () => {
   it('treats null, undefined and empty string as unestablished', () => {
@@ -414,66 +404,6 @@ describe('classificationOrder', () => {
     const none = classificationOrder({ finish_position: null, laps_completed: null })
     const some = classificationOrder({ finish_position: null, laps_completed: 0 })
     assert.ok(none > some)
-  })
-})
-
-describe('metresBetween', () => {
-  it('measures a degree of latitude', () => {
-    assert.ok(Math.abs(metresBetween([0, 0], [0, 1]) - DEGREE_M) < 0.01)
-  })
-
-  it('agrees with build.py, which measures the same traces independently', () => {
-    // build.py's _haversine returns 111195.080234 m for the same degree, and
-    // tests/test_geometry.py pins it there. The two are deliberately separate
-    // implementations — the point of re-measuring at build time is to check
-    // the tool's arithmetic, not to share it — so the figure is asserted on
-    // both sides. If one of them ever moved, the site and the database would
-    // disagree about how long a lap is.
-    assert.ok(Math.abs(metresBetween([0, 0], [0, 1]) - 111195.080234) < 1e-4)
-  })
-
-  it('is zero to itself', () => {
-    assert.equal(metresBetween([9.28, 45.62], [9.28, 45.62]), 0)
-  })
-})
-
-describe('stitch', () => {
-  it('walks unordered ways into one ring', () => {
-    // An OSM relation's members are unordered. This is the whole job.
-    const out = stitch(ring([[P2, P3], [P0, P1], [P3, P0], [P1, P2]]))
-    assert.equal(out.complete, true)
-    assert.equal(out.walked, 4)
-    assert.equal(out.ways, 4)
-  })
-
-  it('reverses a way that runs against the direction of travel', () => {
-    const out = stitch(ring([[P0, P1], [P2, P1], [P2, P3], [P3, P0]]))
-    assert.equal(out.complete, true)
-    assert.equal(out.walked, 4)
-  })
-
-  it('does not close a trace with a hole in it', () => {
-    const gap = [0, 0.00097] // 3.3 m short of P3
-    assert.equal(stitch(ring([[P0, P1], [P1, P2], [P2, P3], [gap, P0]])).complete, false)
-  })
-
-  it('does not read a 3 m hole as a join at the default tolerance', () => {
-    // At 30 m two of the real traces held here read as whole when they are not.
-    const gap = [0, 0.00097]
-    const lines = ring([[P0, P1], [P1, P2], [P2, P3], [gap, P0]])
-    assert.equal(stitch(lines).complete, false)
-    assert.equal(stitch(lines, 30).complete, true)
-  })
-
-  it('accepts the JSON string the database actually stores', () => {
-    const out = stitch(JSON.stringify(ring([[P0, P1, P2, P3, P0]])))
-    assert.equal(out.complete, true)
-  })
-
-  it('returns null rather than throwing on rubbish', () => {
-    assert.equal(stitch('not json'), null)
-    assert.equal(stitch(null), null)
-    assert.equal(stitch(ring([])), null)
   })
 })
 
