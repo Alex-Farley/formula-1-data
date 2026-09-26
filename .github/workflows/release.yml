@@ -78,9 +78,10 @@ jobs:
         run: pip install pyarrow
 
       - name: Export to Parquet
+        # --zip rather than a zip binary over parquet/*.parquet: the glob
+        # would leave out the README.txt that states the bundle's terms.
         run: |
-          python3 tools/parquet_export.py
-          zip -j -9 f1-parquet.zip parquet/*.parquet
+          python3 tools/parquet_export.py --zip f1-parquet.zip
           unzip -l f1-parquet.zip | tail -1
 
       # The database is reproducible from its sources, so a digest is a real
@@ -122,7 +123,10 @@ jobs:
             | `schema.sql` | The schema, commented. |
             | `SHA256SUMS` | Digests. The build is reproducible, so you can check these by rebuilding. |
 
-            Data is CC BY-SA 4.0. Circuit geometry is © OpenStreetMap
+            Data is CC BY-SA 4.0, except five columns of this project's own
+            writing, which are CC BY 4.0 (`LICENSE-DATA` names them), and
+            `f1-parquet.zip` carries a `README.txt` stating both. Circuit
+            geometry is © OpenStreetMap
             contributors under ODbL 1.0, and ships as its own file rather
             than inside `f1.db` or the JSON export: two databases distributed
             alongside each other are a Collective Database under ODbL, so the

@@ -39,16 +39,39 @@ WHAT IT REFUSES TO DO
     So this refuses to run at all on a database carrying either. verify.py
     enforces the same rule on the committed artefact; this enforces it at the
     moment the data would leave.
+
+WHY IT WRITES A README.txt
+    Unzipped, the bundle was forty-odd binary files and nothing else: no
+    licence, no version, no word that the centrelines ship separately. The
+    terms were there for a machine - meta.parquet and source_registry.parquet
+    - but this project's rule is that attribution fails closed rather than
+    asking the reader to go looking. So the bundle carries a plain-text
+    notice, and it is WRITTEN FROM THE DATA rather than kept by hand: the
+    version and date from meta, the CC BY columns from
+    meta.project_prose_columns and the grant in meta.project_prose's own
+    words, a line per source from source_registry, the tables left out from
+    NOT_EXPORTED, the centrelines' terms from f1-geometry.db's meta, and the
+    licence's title and attribution from LICENSE-DATA. A README kept by hand
+    is the one that drifted (PD-07). Without LICENSE-DATA or f1-geometry.db
+    there are terms it cannot state, so it refuses to write a bundle at all.
 """
 import argparse
 import os
 import sqlite3
 import sys
+import textwrap
 import zipfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 DB = os.path.join(ROOT, "f1.db")
+LICENCE = os.path.join(ROOT, "LICENSE-DATA")
+GEOMETRY = os.path.join(ROOT, "f1-geometry.db")
+
+# Where a reader of an unzipped copy can find the rest. The site serves the
+# licence documents beside the data (web/scripts/prepare-assets.js).
+SITE = "https://lapledger.org/"
+REPOSITORY = "https://github.com/Alex-Farley/formula-1-data"
 
 # Held empty in any publishable build; see docs/TIMING-ARCHITECTURE.md.
 FOM_OWNED = ("laps", "stints", "race_timing", "race_control_messages")
@@ -148,6 +171,125 @@ def table_to_arrow(pa, con, table):
     return pa.table(columns, names=names)
 
 
+def _wrap(text, indent=""):
+    return textwrap.fill(" ".join(text.split()), width=76,
+                         initial_indent=indent, subsequent_indent=indent,
+                         break_on_hyphens=False, break_long_words=False)
+
+
+def licence_words():
+    """LICENSE-DATA's title line and its *Attribution* section, verbatim.
+
+    Quoted rather than restated, so the notice cannot say something the
+    licence does not.
+    """
+    if not os.path.exists(LICENCE):
+        sys.exit(f"{LICENCE} not found. The bundle's README.txt states its "
+                 f"terms from it, and a bundle with no terms is not one to "
+                 f"hand on.")
+    with open(LICENCE, encoding="utf-8") as f:
+        lines = f.read().splitlines()
+    title = lines[0].strip()
+    try:
+        start = lines.index("## Attribution") + 1
+    except ValueError:
+        sys.exit("LICENSE-DATA has no '## Attribution' section for the "
+                 "bundle's README.txt to quote.")
+    end = next((i for i in range(start, len(lines))
+                if lines[i].startswith("## ")), len(lines))
+    attribution = " ".join(" ".join(lines[start:end]).split())
+    if not title or not attribution:
+        sys.exit("LICENSE-DATA's title line or its '## Attribution' section "
+                 "is empty, so the bundle's README.txt has nothing to quote.")
+    return title, attribution
+
+
+def geometry_terms():
+    """The centrelines' licence, as f1-geometry.db's own meta states it."""
+    if not os.path.exists(GEOMETRY):
+        sys.exit(f"{GEOMETRY} not found. The bundle's README.txt says where "
+                 f"the centrelines ship and on what terms, from that file's "
+                 f"own meta. Build it first:  python3 build.py")
+    with sqlite3.connect(GEOMETRY) as geo:
+        meta = dict(geo.execute("SELECT key, value FROM meta"))
+    return meta["licence"], meta["licence_url"], meta["attribution"]
+
+
+def notice(con, written):
+    """The bundle's README.txt, from the database it describes."""
+    meta = dict(con.execute("SELECT key, value FROM meta"))
+    prose = [c.strip() for c in meta["project_prose_columns"].split(",")]
+    title, attribution = licence_words()
+    odbl, odbl_url, odbl_credit = geometry_terms()
+
+    out = [
+        f"{meta['database_name']} - Parquet bundle",
+        f"Lap Ledger, version {meta['version']}, built {meta['built']}.",
+        "",
+        _wrap(f"{len(written)} Parquet files beside this one, one for each "
+              f"table of f1.db but the {len(NOT_EXPORTED)} under NOT IN THIS "
+              f"BUNDLE. They are f1.db in another format, and they are "
+              f"published under the same terms."),
+        "",
+        "TERMS",
+        "",
+        _wrap("LICENSE-DATA states them in full. Its title:"),
+        "",
+        f"    {title}",
+        "",
+        _wrap("The project's own writing is these columns "
+              "(meta.project_prose_columns):"),
+        "",
+        *(f"    {c}" for c in prose),
+        "",
+        _wrap("and meta.project_prose, which meta.parquet carries, states "
+              "the grant:"),
+        "",
+        _wrap(meta["project_prose"], "    "),
+        "",
+        _wrap("LICENSE-DATA's attribution, in its own words:"),
+        "",
+        _wrap(attribution, "    "),
+        "",
+        f"    {SITE}LICENSE-DATA",
+        f"    {SITE}ATTRIBUTION.md",
+        f"    {REPOSITORY}",
+        "",
+        "SOURCES",
+        "",
+        _wrap("Every source this database classifies, with its licence and "
+              "whether its data may be passed on (yes, facts-only or no). "
+              "The build refuses a row that cites a source classed no. "
+              "source_registry.parquet holds each in full."),
+        "",
+    ]
+    for source, licence, redistributable in con.execute(
+            "SELECT source, licence, redistributable FROM source_registry "
+            "ORDER BY priority, id"):
+        out.append(f"  {source} [{redistributable}]")
+        if licence:
+            out.append(_wrap(licence, "      "))
+    out += [
+        "",
+        "NOT IN THIS BUNDLE",
+        "",
+    ]
+    for table, why in sorted(NOT_EXPORTED.items()):
+        out.append(f"  {table} - {why}")
+    out += [
+        "",
+        _wrap(f"The circuit centrelines are OpenStreetMap data, "
+              f"{odbl_credit}, under {odbl} ({odbl_url}). They are not "
+              "in these files or in f1.db, and not under the terms above: "
+              "they ship on their own as f1-geometry.db "
+              f"({SITE}f1-geometry.db). Two databases distributed side by "
+              "side are a Collective Database under ODbL, so its share-alike "
+              "follows that file and no further."),
+        "",
+    ]
+    return "\n".join(out)
+
+
 def main():
     ap = argparse.ArgumentParser(
         description=__doc__,
@@ -190,6 +332,15 @@ def main():
 
     check_complete(con, written)
 
+    readme = os.path.join(args.out, "README.txt")
+    if args.check:
+        notice(con, written)
+        print("  README.txt (would be written)")
+    else:
+        with open(readme, "w", encoding="utf-8", newline="\n") as f:
+            f.write(notice(con, written))
+        print("  README.txt")
+
     # Bundled with zipfile, not a `zip` binary. Whether zip is installed is a
     # property of whatever machine happens to be building, and one fewer
     # thing that has to be true is one fewer way for this to fail somewhere
@@ -198,10 +349,11 @@ def main():
         os.makedirs(os.path.dirname(os.path.abspath(args.zip)), exist_ok=True)
         with zipfile.ZipFile(args.zip, "w", zipfile.ZIP_DEFLATED,
                              compresslevel=9) as z:
+            z.write(readme, "README.txt")
             for table in written:
                 z.write(os.path.join(args.out, f"{table}.parquet"),
                         f"{table}.parquet")
-        print(f"  bundled {len(written)} files into {args.zip} "
+        print(f"  bundled {len(written)} files and README.txt into {args.zip} "
               f"({os.path.getsize(args.zip)/1048576:.1f} MB)")
 
     print(f"\n  {len(written)} tables, {total_rows:,} rows"

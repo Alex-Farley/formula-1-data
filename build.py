@@ -3786,7 +3786,14 @@ def split_geometry(con):
         ("licence_url", "https://opendatacommons.org/licenses/odbl/1-0/"),
         ("attribution", "(c) OpenStreetMap contributors"),
         ("companion", "f1.db, which contains no OpenStreetMap data"),
-        ("apply", "python3 tools/geometry_overlay.py --apply"),
+        # A downloader holds this file and f1.db, not the repository, so the
+        # command names where the script is and works on the two files as
+        # they sit side by side. The script is standard library only.
+        ("apply", "python3 geometry_overlay.py --apply --db f1.db "
+                  "--geometry f1-geometry.db, with the script from "
+                  "https://raw.githubusercontent.com/Alex-Farley/"
+                  "formula-1-data/main/tools/geometry_overlay.py (in a "
+                  "checkout: python3 tools/geometry_overlay.py --apply)"),
     ])
     geo.commit()
     geo.execute("VACUUM")
