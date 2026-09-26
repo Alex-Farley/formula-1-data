@@ -213,9 +213,9 @@ def _listify(entry, single, plural, key):
     return uniq
 
 
-def write(name, header_fields, rows, version, commit, check):
+def write(name, header_fields, rows, version, commit, check, header=HEADER):
     path = os.path.join(HARVEST, name)
-    body = HEADER.format(version=version, commit=commit, fields=header_fields)
+    body = header.format(version=version, commit=commit, fields=header_fields)
     body += "".join(r + "\n" for r in rows)
     if check:
         old = open(path, encoding="utf-8").read() if os.path.exists(path) else ""

@@ -427,7 +427,7 @@ to be argued over. `as_of` is kept for the one source that dates its figures.
 
 |  | back-filled | how |
 |---|---|---|
-| `drivers.*_external` | yes, where a source is named | one claim per figure, citing where *that* figure came from; a figure typed from reference records nobody named has none |
+| `drivers.*_external` | yes | one claim per figure, citing where *that* figure came from; a figure typed from reference records nobody named cites F1DB's published career total, or a second named source where F1DB differs |
 | `chassis.published_*` | yes | the article's figures, citing the article: an F1DB row carrying Wikipedia's numbers |
 | `car_seasons` | yes, as `other_chassis` | what F1DB's entry lists name beyond the car's chassis; NULL is the corroboration |
 | `circuit_geometry` | **no** | `measured_km` is OpenStreetMap's, and `f1.db` carries no OpenStreetMap data |
@@ -450,10 +450,13 @@ Two things the field grain showed straight away:
 
 Two things the claims deliberately do not say:
 
-- Where the hand-typed figures came from. Several hundred of them name no
-  source at all, so they have no claim, rather than one borrowed from their
-  row - a list of polesitters does not publish career wins. Which source
-  they should cite is a question for a person (`PM-57`, #624).
+- Where the hand-typed figures came from. Several hundred of them were
+  typed from reference records nobody named, and a claim is not borrowed
+  from their row - a list of polesitters does not publish career wins. The
+  claim says which named source was *checked* and gives that figure: F1DB's
+  published career total for all but a handful, the Wikipedia infobox where
+  F1DB differs, and none for the two that no named source gives, which are
+  removed (`PM-57`, #624).
 - That a family article's total is one chassis's career. The register
   cannot tell a family article from a single-chassis one, so the claim is
   what the column always was: the article's figure for its subject.

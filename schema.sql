@@ -165,9 +165,11 @@ CREATE TABLE table_provenance (
 --                            Wikipedia figure a correction took. A correction
 --                            replaces the claim, and the old value stays in
 --                            `discrepancies`. A figure typed into the data
---                            modules from reference records nobody named has
---                            NO claim: no source is established for it, and
---                            which one it should cite is PM-57 (#624).
+--                            modules from reference records nobody named cites
+--                            F1DB's published career total where it equals it,
+--                            a second named source where F1DB differs, and is
+--                            removed where no named source gives it (PM-57,
+--                            #624).
 --   chassis.published_*      the article's figures, citing the article. As
 --                            the column is, the career of the article's
 --                            subject: for a family article, the family's.
@@ -1620,6 +1622,7 @@ CREATE TABLE discrepancies (
                         'repeated-round',      -- an F1DB table that did not move
                         'correction',          -- an external figure found wrong
                         'external-figure',     -- an external figure against the records
+                        'f1db-career-total',   -- a typed career figure against F1DB's total
                         'career-span',         -- the register's span against the records'
                         'car-season',          -- CAR_SEASONS against the entry lists
                         'car-chassis',         -- a car's figure against its one chassis's
