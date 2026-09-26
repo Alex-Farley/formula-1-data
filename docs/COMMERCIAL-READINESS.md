@@ -16,7 +16,7 @@ by the build rather than by anyone's memory.
 
     ./f1 licences
 
-<!-- fig:yes_share -->99.4%<!-- /fig --> of the <!-- fig:sourced_rows -->121,278<!-- /fig --> sourced rows carry a licence that permits
+<!-- fig:yes_share -->99.4%<!-- /fig --> of the <!-- fig:sourced_rows -->121,279<!-- /fig --> sourced rows carry a licence that permits
 redistribution outright. The remaining <!-- fig:facts_only_share -->0.6%<!-- /fig --> cite an official source as the
 **authority for a fact** and hold none of that source's prose. Nothing in the
 committed database may not be published.
@@ -24,14 +24,14 @@ committed database may not be published.
 | Class | Rows | Share |
 |---|---:|---:|
 | `yes` — redistributable on the terms given | <!-- fig:yes_rows -->120,537<!-- /fig --> | <!-- fig:yes_share -->99.4%<!-- /fig --> |
-| `facts-only` — the facts, not the expression | <!-- fig:facts_only_rows -->741<!-- /fig --> | <!-- fig:facts_only_share -->0.6%<!-- /fig --> |
+| `facts-only` — the facts, not the expression | <!-- fig:facts_only_rows -->742<!-- /fig --> | <!-- fig:facts_only_share -->0.6%<!-- /fig --> |
 | `no` — not redistributable | <!-- fig:no_rows -->0<!-- /fig --> | <!-- fig:no_share -->0.0%<!-- /fig --> |
 
 ---
 
 ## What was read
 
-<!-- fig:facts_only_rows -->741<!-- /fig --> rows cite `formula1.com` (<!-- fig:facts_only_formula1 -->645<!-- /fig -->) or `fia.com` (<!-- fig:facts_only_fia -->96<!-- /fig -->), the two sources whose
+<!-- fig:facts_only_rows -->742<!-- /fig --> rows cite `formula1.com` (<!-- fig:facts_only_formula1 -->645<!-- /fig -->) or `fia.com` (<!-- fig:facts_only_fia -->97<!-- /fig -->), the two sources whose
 licences are "FOM copyright; no reuse licence" and "FIA copyright; published
 for reference, not redistribution". Every one was examined and classified as
 either
@@ -40,7 +40,7 @@ either
   copyrightable, and restating one is not redistribution; or
 - **(b) text following the source's expression** — rewrite.
 
-**All <!-- fig:facts_only_rows -->741<!-- /fig --> are (a). None is (b).** The breakdown, across <!-- fig:facts_only_tables -->12<!-- /fig --> tables — every
+**All <!-- fig:facts_only_rows -->742<!-- /fig --> are (a). None is (b).** The breakdown, across <!-- fig:facts_only_tables -->12<!-- /fig --> tables — every
 figure here is a span `tools/readme_figures.py` writes from the database and
 `verify.py` checks. Two guards hold the list to the database: the writer
 refuses to run while a facts-only row sits in a table not listed here, and
@@ -58,14 +58,15 @@ fails — so a row nobody has read cannot be counted as read:
 | `race_entries` | <!-- fig:fo_race_entries -->36<!-- /fig --> | formula1.com | 2025–26 race winners | — |
 | `regulation_changes` | <!-- fig:fo_regulation_changes -->60<!-- /fig --> | fia.com | year, category | `detail`, `impact` |
 | `regulation_limits` | <!-- fig:fo_regulation_limits -->25<!-- /fig --> | fia.com | numeric limits | `note` |
-| `qualifying_formats` | <!-- fig:fo_qualifying_formats -->18<!-- /fig --> | fia.com, formula1.com | how each grid was set from 1996: the period, format, sessions counted and whether a 107% limit applied | `note` |
+| `qualifying_formats` | <!-- fig:fo_qualifying_formats -->19<!-- /fig --> | fia.com, formula1.com | how each grid was set from 1996: the period, format, sessions counted and whether a 107% limit applied | `note` |
 | `sessions` | <!-- fig:fo_sessions -->115<!-- /fig --> | formula1.com | 2026 session start times (UTC) and circuit zone | — |
 | `claims` | <!-- fig:fo_claims -->20<!-- /fig --> | formula1.com | career wins, poles and podiums of seven 2026 drivers, one figure a row, as their driver pages gave them on the fetch `drivers.stats_as_of` dates — the figures `drivers` carries as `*_external`, with the source of each | — |
 
 The prose columns in the right-hand column are **written for this project**,
 not taken from FOM or the FIA — `ATTRIBUTION.md` records regulations, safety,
 technical and glossary text as "written for this project from general
-knowledge". They carry a separate obligation, from Wikipedia and not from
+knowledge", and the `qualifying_formats` notes are written for it from the
+regulations and the history they cite. They carry a separate obligation, from Wikipedia and not from
 these sources, and are the subject of the prose pass rather than this one.
 
 ### The timetable: a whole season from one source, read as facts-only
@@ -341,8 +342,8 @@ use (§1(i)).
 
 On the pattern of [D-07] — a second file published beside `f1.db`, each
 carrying its own licence — the edition holds every sourced row that does not
-cite Wikipedia: <!-- fig:edition_rows -->116,543<!-- /fig --> of the <!-- fig:sourced_rows -->121,278<!-- /fig -->. That is F1DB's <!-- fig:f1db_rows -->115,802<!-- /fig --> and the
-<!-- fig:facts_only_rows -->741<!-- /fig --> facts-only rows, which are bare facts on the reading above and put
+cite Wikipedia: <!-- fig:edition_rows -->116,544<!-- /fig --> of the <!-- fig:sourced_rows -->121,279<!-- /fig -->. That is F1DB's <!-- fig:f1db_rows -->115,802<!-- /fig --> and the
+<!-- fig:facts_only_rows -->742<!-- /fig --> facts-only rows, which are bare facts on the reading above and put
 nothing of FOM's or the FIA's under anyone's licence. *Collective Database*
 is ODbL's term, not CC BY-SA's; the separation works for CC BY-SA only
 because §4(b) reaches the database holding the substantial portion and no

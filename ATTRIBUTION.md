@@ -40,6 +40,7 @@ the current position from the rows themselves.
 | Circuit centrelines | [OpenStreetMap](https://www.openstreetmap.org/), ids via [Wikidata](https://www.wikidata.org/) | see `v_geometry_coverage` |
 | Notable team radio transcripts | Wikipedia per-race articles | 6 |
 | 2026 season, entry list, standings, calendar | formula1.com | current season |
+| How each grid was set, from 1996 | The FIA Sporting Regulations of each season from 2009, and formula1.com's history of qualifying formats before that; the facts only, with notes written for this project | every season from 1996 |
 | Career totals (entries, starts, podiums, points) | formula1.com driver pages | 7 drivers at `verified` |
 | Regulations, safety, technical, glossary, eras | Written for this project from general knowledge. Since v2.16 this is a named provenance — `authored`, `source_registry` entry 18 — and everything carrying it sits at `medium`, because nothing here can contradict it | 13 tables, 357 rows |
 
@@ -223,7 +224,7 @@ the share-alike above:
 |---|---|---:|
 | `discrepancies.assessment` | this project's reading of a disagreement between two sources — which figure it takes, and why | <!-- fig:prose_assessment -->19,529<!-- /fig --> |
 | `known_gaps.reader` | what a reader is shown about a gap | <!-- fig:prose_gap_reader -->5,554<!-- /fig --> |
-| `known_gaps.description` | the maintainer's note on it | <!-- fig:prose_gap_description -->13,753<!-- /fig --> |
+| `known_gaps.description` | the maintainer's note on it | <!-- fig:prose_gap_description -->13,777<!-- /fig --> |
 | `known_gaps.resolution` | what would close it, or what did | <!-- fig:prose_gap_resolution -->5,221<!-- /fig --> |
 | `known_gaps.area` | the part of the database it falls in | <!-- fig:prose_gap_area -->955<!-- /fig --> |
 

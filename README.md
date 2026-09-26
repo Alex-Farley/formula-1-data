@@ -43,7 +43,7 @@ here is a number the build checked.
 
 | File | What it is |
 |---|---|
-| `f1.db` | The SQLite database. <!-- fig:tables -->50<!-- /fig --> tables, <!-- fig:views -->41<!-- /fig --> views, <!-- fig:rows -->122,684<!-- /fig --> rows. This is the artefact. |
+| `f1.db` | The SQLite database. <!-- fig:tables -->50<!-- /fig --> tables, <!-- fig:views -->41<!-- /fig --> views, <!-- fig:rows -->122,685<!-- /fig --> rows. This is the artefact. |
 | `f1-geometry.db` | The OpenStreetMap circuit centrelines (ODbL), shipped beside `f1.db` and never merged into it. See *Illustration*. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
@@ -220,7 +220,7 @@ each was banned, where it was), <!-- fig:engine_eras -->11<!-- /fig --> engine
 eras, <!-- fig:safety_milestones -->26<!-- /fig --> safety milestones, tyre
 suppliers, <!-- fig:points_systems -->10<!-- /fig --> points systems,
 how every grid from 1996 was set, in
-<!-- fig:qualifying_formats -->18<!-- /fig --> periods of qualifying rules, and
+<!-- fig:qualifying_formats -->19<!-- /fig --> periods of qualifying rules, and
 <!-- fig:eras -->10<!-- /fig --> defined eras of the sport.
 
 **Also** — <!-- fig:personnel -->32<!-- /fig --> non-driving figures

@@ -1274,8 +1274,9 @@ CREATE TABLE points_systems (
 -- is one session in three parts). `rule_107` is 1 where the FIA Sporting
 -- Regulations set a 107% limit on the first part's times for that grid and 0
 -- where the issue read sets none; what the limit cost a driver changed in
--- 2023, from a barred start to an unclassified result with the stewards
--- deciding, and regulation_limits holds that. NULL is not established: the
+-- 2023, when the bar on starting the race went and an unclassified driver's
+-- participation was left to the stewards, and regulation_limits holds that.
+-- NULL is not established: the
 -- column is read only from the FIA's text (known_gaps #19). Nothing before
 -- 1996: known_gaps #18 holds that span.
 CREATE TABLE qualifying_formats (

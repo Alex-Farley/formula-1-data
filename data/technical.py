@@ -461,8 +461,9 @@ SPRINT_POINTS = [
 #
 # `rule_107` is 1 where the Sporting Regulations set a 107% limit on the
 # first qualifying part (Q1, or SQ1 for the sprint) for that grid, and 0 where
-# the issue read has none. What the limit cost a driver changed: until 2022
-# the start was barred unless the stewards admitted the car; from 2023 the
+# the issue read has none. What the limit cost a driver changed: to 2022 the
+# start was barred unless the stewards admitted the car (the 2022 issue also
+# leaves the driver unclassified); from 2023 the bar on starting is gone, the
 # driver is unclassified and the stewards decide whether they take part. The
 # notes and regulation_limits' `qualifying_107_pct` rows say which. It is
 # read only from the FIA's text, so a period dated by any other source holds
@@ -539,10 +540,10 @@ QUALIFYING_FORMATS = [
      "driver who set no time). From 2014 the parts ran 18, 15 and 12 "
      "minutes.", _SPORT_EARLIER[2011]),
     ("race", 2016, 1, 2016, "knockout, elimination", 1, None,
-     "For the first two rounds each part opened with at least five minutes' "
-     "running, after which the slowest driver still in it was eliminated "
-     "every 90 seconds; of 22 cars, 15 reached the second part and eight "
-     "the third.",
+     "Used at the first two rounds only. Of 22 cars, 15 went through to "
+     "the second part and eight to the third, but cars dropped out one at a "
+     "time within each part: after an opening five minutes or more, one "
+     "every 90 seconds, the slowest then running.",
      _F1_QUALI),
     ("race", 2016, 3, 2017, "knockout", 1, 1,
      "The 2015 knockout returned from the Chinese Grand Prix, as the FIA "
@@ -558,11 +559,16 @@ QUALIFYING_FORMATS = [
      "qualifying session set the sprint's grid and the sprint's result set "
      "the race's; everywhere else qualifying set the race grid as before "
      "(Articles 35 and 36 in 2021, 41 and 42 in 2022).", _SPORT[2021]),
-    ("race", 2023, 1, 2025, "knockout", 1, 1,
+    ("race", 2023, 1, 2023, "knockout", 1, 1,
      "Qualifying sets the race grid at every Competition again, sprint "
-     "weekends included. A driver outside 107% in Q1 is unclassified, and "
-     "whether they race is for the stewards (Articles 39 and 42.1).",
-     _SPORT[2023]),
+     "weekends included, where it ran on the first day, after P1 (Article "
+     "39.1(a)). A driver outside 107% in Q1 is unclassified, and whether "
+     "they race is for the stewards (Articles 39.4 and 42.1).", _SPORT[2023]),
+    ("race", 2024, 1, 2025, "knockout", 1, 1,
+     "At sprint weekends qualifying moved to the second day, after the "
+     "sprint (Article 39.1(a)); the race grid is still set by it, and the "
+     "107% limit is unchanged (Articles 39.4 and 42.1 of the 2024 and 2025 "
+     "issues).", _SPORT[2024]),
     ("race", 2026, 1, None, "knockout", 1, 1,
      "Written for 22 cars: six eliminated after each of Q1 and Q2, and a Q3 "
      "of 13 minutes (Article B2.4.2).", _SPORT[2026]),

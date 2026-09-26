@@ -921,8 +921,8 @@ KNOWN_GAPS = [
      "WK-01 (#186). qualifying_formats starts in 1996 because that is the "
      "first change Formula 1's own history of qualifying formats dates: the "
      "single one-hour session of that season. For the years before, the "
-     "article gives one pattern with exceptions and dates neither, so it "
-     "cannot bound a period, and no row "
+     "article gives one pattern, with exceptions it places by decade but "
+     "not by year, so it cannot bound a period, and no row "
      "was written for any part of the span. The FIA's Sporting Regulations "
      "read for this table begin with 2009.",
      None,
@@ -938,7 +938,7 @@ KNOWN_GAPS = [
      "column is empty rather than guessed.",
      "WK-01 (#186). rule_107 is read only from the FIA Sporting Regulations, "
      "and the earliest issue read is 2009's: the 2009 and 2010 issues set "
-     "no 107% limit, and every issue from 2011 does. The periods before "
+     "no 107% limit, and every issue read from 2011 does. The periods before "
      "2009 are dated by Formula 1's history of qualifying formats, which "
      "does not mention the rule, and so are the two 2016 rounds run to the "
      "elimination format, because the March 2016 issue that set it out was "
