@@ -277,6 +277,7 @@ import {
   AMBIGUOUS_COLUMNS as CAR_AMBIGUOUS_COLUMNS,
   AMBIGUOUS_FOOTER as CAR_AMBIGUOUS_FOOTER,
   CAR as CAR_ROW,
+  CAR_DISAGREEMENTS,
   ENTRIES as CAR_ENTRIES,
   IMAGES as CAR_IMAGES,
   NO_ENTRIES,
@@ -285,11 +286,14 @@ import {
   VARIANTS_FOOTER,
   VARIANT_COLUMNS,
   carAddress,
+  carFacts,
   carPageName,
   entryColumns,
   entryResult,
   FIGURES_HEADING,
   leadsWithPhotograph,
+  specificationFields,
+  wholeOfOneChassis,
 } from '../src/queries/car.js'
 import {
   ENGINES,
@@ -2881,37 +2885,31 @@ page({
       ${note(CHASSIS_FOOTER)}`,
   })
 
-  for (const c of cars) {
+  // A curated car's page. `at` is the address: the car's own, or - where the
+  // car is the whole of one chassis - the chassis's, which is a declared copy
+  // of it (IA-06). The app draws the one page at both, so the static half
+  // does too, and names the car's as canonical from the copy.
+  const curatedPage = (c, at) => {
     const variants = all(VARIANTS, c.id)
     // The app's name for the page, from the same function (IA-06).
     const name = carPageName(variants, c)
     const carEntries = all(CAR_ENTRIES, c.id)
     // Second on the page, where Car.jsx puts it: after the figures that say
     // what the car is and before the prose that says why it mattered.
-    const photos = photographs(c.id)
+    const photos = photographs(at)
     const photoFirst = leadsWithPhotograph(variants, SEASON_NOW_YEAR)
-    page({
-      path: `cars/${c.id}`,
-      lastmod: LAST_RUN.car.get(c.id),
-      title: NAMES.car(name).title,
-      image: photos.image,
-      description: summarise(
-        `${name}, ${c.from_year ?? '?'}–${c.to_year ?? '?'}${c.engine_name ? `, ${c.engine_name}` : ''}${
-          c.designers ? `, designed by ${c.designers}` : ''
-        }. ${c.concept ?? c.story ?? ''}`,
-        300,
-      ),
-      trail: TRAIL.car(c.id, name),
-      onward: ONWARD.car({ chassis: variants[0] ?? c, car: c, entries: carEntries }),
-      body: `
-        <h1>${esc(NAMES.car(name).headline)}</h1>
-        ${photoFirst && photos.html ? `${photos.html}<h2>${esc(FIGURES_HEADING)}</h2>` : ''}
-        ${fields([
-          // The name, as the app prints it: the id was the storage model on
-          // the six most famous pages in the register (IA-06).
-          ['Constructor', c.constructor_id ? link(`constructors/${c.constructor_id}`, c.constructor_name ?? c.constructor_id) : '—'],
-          ['Years', `${c.from_year ?? '?'}–${c.to_year ?? '?'}`],
-          ['Designers', text(c.designers)],
+    // Where the car is one chassis, its figures are the ones Car.jsx prints,
+    // resolved by the same precedence (IA-28): the chassis's where it has
+    // one, the curated row's where it does not. Every other curated page
+    // still prints its curated row.
+    const row = one(CAR_ROW, c.id, c.id)
+    const whole = wholeOfOneChassis(row)
+    const facts = whole ? carFacts(variants[0], row) : c
+    const specification = whole
+      ? (({ chassis: build, engine }) => [...build, ...engine].map(({ label, value }) => [label, text(value)]))(
+          specificationFields(facts),
+        )
+      : [
           ['Engine', text(c.engine_name)],
           ['Configuration', text(list([c.engine_config, c.capacity_cc ? `${c.capacity_cc} cc` : null, c.aspiration]))],
           ['Power', c.power_bhp ? `${c.power_bhp} bhp${c.power_note ? ` (${c.power_note})` : ''}` : '—'],
@@ -2922,13 +2920,41 @@ page({
           ['Weight', c.weight_kg ? `${c.weight_kg} kg` : '—'],
           ['Wheelbase', c.wheelbase_mm ? `${c.wheelbase_mm} mm` : '—'],
           ['Tyres', text(c.tyres)],
+        ]
+    page({
+      path: `cars/${at}`,
+      canonical: at === c.id ? null : `cars/${c.id}`,
+      lastmod: LAST_RUN.car.get(at),
+      title: NAMES.car(name).title,
+      image: photos.image,
+      description: summarise(
+        `${name}, ${c.from_year ?? '?'}–${c.to_year ?? '?'}${facts.engine_name ? `, ${facts.engine_name}` : ''}${
+          facts.designers ? `, designed by ${facts.designers}` : ''
+        }. ${c.concept ?? c.story ?? ''}`,
+        300,
+      ),
+      trail: TRAIL.car(at, name),
+      onward: ONWARD.car({ chassis: variants[0] ?? c, car: c, entries: carEntries }),
+      body: `
+        <h1>${esc(NAMES.car(name).headline)}</h1>
+        ${photoFirst && photos.html ? `${photos.html}<h2>${esc(FIGURES_HEADING)}</h2>` : ''}
+        ${fields([
+          // The name, as the app prints it: the id was the storage model on
+          // the six most famous pages in the register (IA-06).
+          ['Constructor', c.constructor_id ? link(`constructors/${c.constructor_id}`, c.constructor_name ?? c.constructor_id) : '—'],
+          ['Years', `${c.from_year ?? '?'}–${c.to_year ?? '?'}`],
+          ['Designers', text(facts.designers)],
+          ...specification,
           ['Races', num(c.races)],
           ['Wins', num(c.wins)],
           ['Poles', num(c.poles)],
           ["Drivers' titles", num(c.drivers_titles)],
           ["Constructors' titles", num(c.constructors_titles)],
-          ['Specification confidence', text(c.spec_confidence)],
+          // The curated row's grade of its own figures, which a page showing
+          // the chassis's does not print; nor does the app.
+          ['Specification confidence', whole ? null : text(c.spec_confidence)],
         ])}
+        ${disagree(all(CAR_DISAGREEMENTS, at), 'this car')}
         ${photoFirst ? '' : photos.html}
         ${prose(c.concept)}
         ${prose(c.innovations)}
@@ -2937,6 +2963,8 @@ page({
         ${carTables(c.id, variants, carEntries)}`,
     })
   }
+
+  for (const c of cars) curatedPage(c, c.id)
 
   // The rest of the register. `cars` ids are skipped because the loop above has
   // already written those pages from the richer curated row.
@@ -2947,8 +2975,16 @@ page({
   // established a figure — which is true, and is not worth saying twenty times.
   const curated = new Set(cars.map((c) => c.id))
 
+  const byId = new Map(cars.map((c) => [c.id, c]))
   for (const ch of chassis) {
     if (curated.has(ch.id)) continue
+    // The chassis address of a car that is this chassis and nothing else is
+    // the car's page again, as it is in the app (IA-06, IA-28).
+    const carRow = one(CAR_ROW, ch.id, ch.id)
+    if (ch.car_id && wholeOfOneChassis(carRow)) {
+      curatedPage(byId.get(ch.car_id), ch.id)
+      continue
+    }
 
     const name = ch.full_name ?? ch.name
     const years = ch.first_year === ch.last_year
@@ -2963,7 +2999,7 @@ page({
     const photoFirst = leadsWithPhotograph(variants.length ? variants : [ch], SEASON_NOW_YEAR)
     // A chassis that is the whole of a curated car is a copy of the car's
     // page, and says so (IA-06); queries/car.js holds the rule for both halves.
-    const address = carAddress(ch.id, one(CAR_ROW, ch.id, ch.id))
+    const address = carAddress(ch.id, carRow)
 
     page({
       path: `cars/${ch.id}`,

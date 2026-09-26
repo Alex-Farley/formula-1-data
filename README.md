@@ -43,7 +43,7 @@ here is a number the build checked.
 
 | File | What it is |
 |---|---|
-| `f1.db` | The SQLite database. <!-- fig:tables -->49<!-- /fig --> tables, <!-- fig:views -->41<!-- /fig --> views, <!-- fig:rows -->122,285<!-- /fig --> rows. This is the artefact. |
+| `f1.db` | The SQLite database. <!-- fig:tables -->49<!-- /fig --> tables, <!-- fig:views -->41<!-- /fig --> views, <!-- fig:rows -->122,286<!-- /fig --> rows. This is the artefact. |
 | `f1-geometry.db` | The OpenStreetMap circuit centrelines (ODbL), shipped beside `f1.db` and never merged into it. See *Illustration*. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
@@ -1137,8 +1137,8 @@ and Wikipedia's infobox independently gave 11, matching the derived count.
 
 **Where two sources disagree and neither can be checked against an official
 source, the disagreement is itself the fact worth storing.** `discrepancies`
-holds <!-- fig:discrepancies -->59<!-- /fig --> rows:
-<!-- fig:discrepancies_open -->12<!-- /fig --> open,
+holds <!-- fig:discrepancies -->60<!-- /fig --> rows:
+<!-- fig:discrepancies_open -->13<!-- /fig --> open,
 <!-- fig:discrepancies_explained -->8<!-- /fig --> explained — an external
 figure older than the race it lacks, or two readings of a career span that
 are each right about something — and the rest resolved — corrected,

@@ -2197,6 +2197,62 @@ def _file_discrepancy(cur, kind, tbl, row_key, field, subject, stored,
          status, note))
 
 
+# The figures a curated car and its chassis both hold. Named rather than read
+# off the two schemas, because the tables also share `races` and `wins`, which
+# are derived from the race records and cannot disagree with anything.
+CAR_CHASSIS_FIGURES = ("capacity_cc", "power_bhp", "weight_kg", "wheelbase_mm",
+                       "track_front_mm", "track_rear_mm", "fuel_capacity_l")
+
+
+def _file_car_chassis_disagreements(cur):
+    """File every figure a car and its one chassis give differently (IA-28).
+
+    A car that is the whole of one chassis under another id - no chassis owns
+    the car's id, and exactly one names it as its design - is one object with
+    two rows, the same test web/src/queries/car.js makes to give it one
+    address. Its page shows the chassis's figure where there is one, so a
+    figure the two rows disagree on is shown from one of them, and it is on
+    the record here rather than picked silently. Each must be declared in
+    CHASSIS_DISAGREEMENTS with its assessment: an undeclared one stops the
+    build, and so does a declaration the rows no longer bear out."""
+    declared = {}
+    for car_id, field, why in CR.CHASSIS_DISAGREEMENTS:
+        if field not in CAR_CHASSIS_FIGURES:
+            raise SystemExit(f"CHASSIS_DISAGREEMENTS: {car_id}.{field} is not one "
+                             f"of the figures compared, {', '.join(CAR_CHASSIS_FIGURES)}")
+        if (car_id, field) in declared:
+            raise SystemExit(f"CHASSIS_DISAGREEMENTS declares {car_id}.{field} twice")
+        declared[(car_id, field)] = why
+    found = {}
+    for car_id, ch_id in cur.execute("""SELECT c.id, ch.id FROM cars c
+            JOIN chassis ch ON ch.car_id = c.id
+            WHERE NOT EXISTS (SELECT 1 FROM chassis y WHERE y.id = c.id)
+              AND (SELECT COUNT(*) FROM chassis x WHERE x.car_id = c.id) = 1
+            ORDER BY c.id""").fetchall():
+        for field in CAR_CHASSIS_FIGURES:
+            ours = cur.execute(f"SELECT {field} FROM cars WHERE id=?", (car_id,)).fetchone()[0]
+            theirs = cur.execute(f"SELECT {field} FROM chassis WHERE id=?", (ch_id,)).fetchone()[0]
+            if ours is not None and theirs is not None and ours != theirs:
+                found[(car_id, field)] = (ours, theirs)
+    undeclared = sorted(set(found) - set(declared))
+    if undeclared:
+        raise SystemExit(
+            "a car and its one chassis disagree, undeclared: "
+            + "; ".join(f"{c}.{f} {found[(c, f)][0]} against {found[(c, f)][1]}"
+                        for c, f in undeclared)
+            + ". Declare each in data/cars.py CHASSIS_DISAGREEMENTS, with why.")
+    stale = sorted(set(declared) - set(found))
+    if stale:
+        raise SystemExit(
+            "CHASSIS_DISAGREEMENTS declares what the rows no longer disagree on: "
+            + ", ".join(f"{c}.{f}" for c, f in stale)
+            + ". Remove the declaration, or say what changed.")
+    for (car_id, field), (ours, theirs) in sorted(found.items()):
+        _file_discrepancy(cur, "car-chassis", "cars", car_id, field,
+                          _full_name(cur, "cars", car_id), _points_text(ours),
+                          _points_text(theirs), declared[(car_id, field)], "open")
+
+
 def _table_words(year, table, after):
     """Which championship table a standings disagreement is about, in words:
     "2026 drivers' championship points after round 12"."""
@@ -2225,7 +2281,8 @@ def _race_row_key(cur, year, rnd):
 
 
 def _points_text(v):
-    """A points figure as a discrepancy row shows it: 104, not 104.0."""
+    """A points figure, or any other, as a discrepancy row shows it: 104, not
+    104.0."""
     return str(int(v)) if float(v).is_integer() else str(v)
 
 
@@ -3309,6 +3366,8 @@ def _stage_35_link_race_entries_to_the_curated(b):
              f"{', '.join(others)}. The blanket link is not applied; entries "
              f"that season get a car only where the entry lists resolved the "
              f"chassis itself.", "resolved", "claim not corroborated")
+
+    _file_car_chassis_disagreements(cur)
 
     # The two register spans the race records read differently, with the
     # reason beside the fact (CD-25). Not open: nothing is waiting to be

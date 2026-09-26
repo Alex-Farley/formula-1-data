@@ -12,7 +12,7 @@
  *
  * See queries/drivers.js for what a column's `text` is.
  */
-import { finished, missing, span, text } from '../lib/format.js'
+import { finished, missing, number, span, text } from '../lib/format.js'
 
 /**
  * Every chassis a page covers.
@@ -67,8 +67,119 @@ export const CAR = `
  * `id` is the address's own id and `car` the CAR row for it. Returns the
  * router path, which both renderers print as the canonical and cite.
  */
-export const carAddress = (id, car) =>
-  `/cars/${car && car.id !== id && !car.owned && car.family === 1 ? car.id : id}`
+export const carAddress = (id, car) => `/cars/${wholeOfOneChassis(car) && car.id !== id ? car.id : id}`
+
+/** Whether the curated car is the whole of one chassis registered under another id: one object, two rows. */
+export const wholeOfOneChassis = (car) => Boolean(car && !car.owned && car.family === 1)
+
+/**
+ * ONE PRECEDENCE, BOTH HALVES (IA-28).
+ *
+ * Every field the page shows about what the car is, resolved from the two
+ * rows it may have: `chassis`, the register's row the page is about, and
+ * `car`, the curated row behind it. Car.jsx and the static half in
+ * scripts/prerender.js both read the page's figures from here, so the two
+ * halves of one address cannot print different engines again.
+ *
+ * Where the car is the whole of one chassis (`mercedes-w11`, which is
+ * `mercedes-f1-w11`), the two rows are one object, and every field is the
+ * chassis's where it holds a value and the car's only where it does not -
+ * the maintainer's ruling on IA-28. A figure the two give differently is
+ * shown from the chassis and is on the record beside it: build.py files it
+ * in `discrepancies` and the page shows both readings. The power note goes
+ * with the power figure, so a figure is never captioned by the other row's
+ * description of a different number. The curated row's one `suspension`
+ * stands in only where the chassis has neither end's.
+ *
+ * Every other page keeps the precedence it had: the curated designers first,
+ * the engine, brakes and tyres the chassis's before the design's, and the
+ * rest the chassis's alone, because a variant of a design of several is its
+ * own machine and the family's weight is not its weight.
+ */
+export function carFacts(chassis, car) {
+  const whole = wholeOfOneChassis(car)
+  const either = (field) => chassis?.[field] ?? car?.[field] ?? null
+  const own = (field) => (whole ? either(field) : (chassis?.[field] ?? null))
+  const powered = whole && missing(chassis?.power_bhp) ? car : chassis
+  return {
+    designers: whole ? either('designers') : (car?.designers ?? chassis?.designers ?? null),
+    chassis_type: own('chassis_type'),
+    susp_front: chassis?.susp_front ?? null,
+    susp_rear: chassis?.susp_rear ?? null,
+    suspension: whole && missing(chassis?.susp_front) && missing(chassis?.susp_rear) ? (car?.suspension ?? null) : null,
+    brakes: either('brakes'),
+    gearbox: own('gearbox'),
+    gears: chassis?.gears ?? null,
+    tyres: either('tyres'),
+    fuel: chassis?.fuel ?? null,
+    engine_name: either('engine_name'),
+    engine_config: either('engine_config'),
+    capacity_cc: either('capacity_cc'),
+    aspiration: either('aspiration'),
+    power_bhp: own('power_bhp'),
+    power_note: whole ? (powered?.power_note ?? null) : either('power_note'),
+    weight_kg: own('weight_kg'),
+    wheelbase_mm: own('wheelbase_mm'),
+    track_front_mm: own('track_front_mm'),
+    track_rear_mm: own('track_rear_mm'),
+  }
+}
+
+const unit = (value, suffix) => (value ? `${number(value)} ${suffix}` : null)
+
+/**
+ * The Specification section's two lists, from carFacts(): the chassis's
+ * build and its engine, as label/value pairs of plain text, which Car.jsx
+ * draws and the static half prints. A null is a figure nobody published.
+ */
+export const specificationFields = (facts) => ({
+  chassis: [
+    { label: 'Chassis', value: facts.chassis_type },
+    // The curated row's one field in place of the two ends it has no figure for.
+    ...(missing(facts.suspension)
+      ? [
+          { label: 'Front suspension', value: facts.susp_front },
+          { label: 'Rear suspension', value: facts.susp_rear },
+        ]
+      : [{ label: 'Suspension', value: facts.suspension }]),
+    { label: 'Brakes', value: facts.brakes },
+    { label: 'Gearbox', value: facts.gearbox },
+    { label: 'Gears', value: facts.gears },
+    { label: 'Tyres', value: facts.tyres },
+    { label: 'Fuel', value: facts.fuel },
+  ],
+  engine: [
+    { label: 'Engine', value: facts.engine_name },
+    { label: 'Configuration', value: facts.engine_config },
+    { label: 'Capacity', value: unit(facts.capacity_cc, 'cc') },
+    { label: 'Aspiration', value: facts.aspiration },
+    { label: 'Power', value: unit(facts.power_bhp, 'bhp') },
+    { label: 'Power note', value: facts.power_note },
+    { label: 'Weight', value: facts.weight_kg ? `${facts.weight_kg} kg` : null },
+    { label: 'Wheelbase', value: unit(facts.wheelbase_mm, 'mm') },
+    { label: 'Track, front', value: unit(facts.track_front_mm, 'mm') },
+    { label: 'Track, rear', value: unit(facts.track_rear_mm, 'mm') },
+  ],
+})
+
+/**
+ * Open disagreements about the curated car behind a page, found as CAR finds
+ * the car - so the chassis address of a car that is one chassis shows the
+ * same rows as the car's own - by that row's name, which is the subject
+ * build.py files a car-and-chassis disagreement under, and only among rows
+ * filed against `cars`, which is what verify.py holds such a subject to.
+ * Args: [the address's id].
+ */
+export const CAR_DISAGREEMENTS = `
+  SELECT d.id, d.field, d.status, d.status_note, d.assessment, d.stored_value, d.derived_value
+    FROM discrepancies d
+   WHERE d.tbl = 'cars'
+     AND d.subject = (SELECT full_name FROM cars
+                       WHERE id = (SELECT car_id FROM chassis WHERE id = ?1) OR id = ?1
+                       LIMIT 1)
+     AND d.status = 'open'
+   ORDER BY d.id
+`
 
 /**
  * The page's name, the h1 and the title in both renderers: the car's where

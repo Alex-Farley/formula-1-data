@@ -9,10 +9,12 @@ import { missing, number, span } from '../lib/format.js'
 import { colourForEntry } from '../lib/liveries.js'
 import { CURRENT_SEASON } from '../lib/season.js'
 import { canShow } from '../lib/commons.js'
+import Disagreement from '../components/Disagreement.jsx'
 import {
   AMBIGUOUS_COLUMNS,
   AMBIGUOUS_FOOTER,
   CAR,
+  CAR_DISAGREEMENTS,
   FIGURES_HEADING,
   ENTRIES,
   IMAGES,
@@ -23,10 +25,12 @@ import {
   VARIANTS_FOOTER,
   VARIANT_COLUMNS,
   carAddress,
+  carFacts,
   carPageName,
   entryColumns,
   entryResult,
   leadsWithPhotograph as photographLeads,
+  specificationFields,
   specified,
 } from '../queries/car.js'
 
@@ -75,6 +79,7 @@ export default function Car() {
     images: [IMAGES, [id, id]],
     entries: [ENTRIES, [id]],
     seasons: [SEASONS, [id, id]],
+    disagreements: [CAR_DISAGREEMENTS, [id]],
     current: [CURRENT_SEASON],
   })
 
@@ -135,30 +140,10 @@ function CarBody({ id, chassis, variants, data }) {
   // eighteen fields holds anything before drawing eighteen em dashes at a
   // reader - which is what 339 of the 1,153 chassis pages did, each dash a
   // claim that nobody had established that figure, where one sentence says
-  // the whole of it. `car` is the curated row a variant falls back to, so a
-  // family's published engine still counts as this chassis's.
-  const specChassis = [
-    { label: 'Chassis', value: chassis.chassis_type },
-    { label: 'Front suspension', value: chassis.susp_front },
-    { label: 'Rear suspension', value: chassis.susp_rear },
-    { label: 'Brakes', value: chassis.brakes ?? car?.brakes },
-    { label: 'Gearbox', value: chassis.gearbox },
-    { label: 'Gears', value: chassis.gears },
-    { label: 'Tyres', value: chassis.tyres ?? car?.tyres },
-    { label: 'Fuel', value: chassis.fuel },
-  ]
-  const specEngine = [
-    { label: 'Engine', value: chassis.engine_name ?? car?.engine_name },
-    { label: 'Configuration', value: chassis.engine_config ?? car?.engine_config },
-    { label: 'Capacity', value: (chassis.capacity_cc ?? car?.capacity_cc) ? `${number(chassis.capacity_cc ?? car.capacity_cc)} cc` : null },
-    { label: 'Aspiration', value: chassis.aspiration ?? car?.aspiration },
-    { label: 'Power', value: chassis.power_bhp ? `${number(chassis.power_bhp)} bhp` : null },
-    { label: 'Power note', value: chassis.power_note ?? car?.power_note },
-    { label: 'Weight', value: chassis.weight_kg ? `${chassis.weight_kg} kg` : null },
-    { label: 'Wheelbase', value: chassis.wheelbase_mm ? `${number(chassis.wheelbase_mm)} mm` : null },
-    { label: 'Track, front', value: chassis.track_front_mm ? `${number(chassis.track_front_mm)} mm` : null },
-    { label: 'Track, rear', value: chassis.track_rear_mm ? `${number(chassis.track_rear_mm)} mm` : null },
-  ]
+  // the whole of it. Which of the two rows each field comes from is
+  // carFacts() in queries/car.js, which the static half reads too (IA-28).
+  const facts = carFacts(chassis, car)
+  const { chassis: specChassis, engine: specEngine } = specificationFields(facts)
   const hasSpecification = specified([...specChassis, ...specEngine])
   // This year's chassis opens on its photograph (PD-49); queries/car.js says why.
   const leadsWithPhotograph = photographLeads(variants, data.current.rows[0]?.season)
@@ -224,7 +209,7 @@ function CarBody({ id, chassis, variants, data }) {
             </div>
             <Fields
               items={[
-                { label: 'Designers', value: car.designers ?? chassis.designers },
+                { label: 'Designers', value: facts.designers },
                 { label: 'Supersedes', value: car.supersedes_id ? <Link to={`/cars/${car.supersedes_id}`}>{car.supersedes_id}</Link> : null },
                 { label: 'Design life', value: span(car.from_year, car.to_year) },
                 { label: 'Confidence', value: <Confidence value={car.confidence} /> },
@@ -270,6 +255,10 @@ function CarBody({ id, chassis, variants, data }) {
           <p className="source-note">{NO_SPECIFICATION}</p>
         )}
       </Section>
+
+      {/* Where the car's two rows give a figure differently, both readings,
+          beside the figure shown from one of them (IA-28). */}
+      <Disagreement rows={rows(data, 'disagreements')} what="this car" />
 
       {winsDiffer && (
         <Note>
