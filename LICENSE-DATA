@@ -1,7 +1,12 @@
 Data licence — CC BY-SA 4.0, except this project's own writing (CC BY 4.0)
 
-This licence covers the data in this repository: data/, harvest/, f1.db,
-f1_database.json and f1_compat.json (but not the code — see LICENSE).
+This licence covers the data in this repository and every file it is
+published as: data/, harvest/, f1.db, f1.db.gz (f1.db compressed, as
+lapledger.org serves it), f1-parquet.zip (every table of f1.db as Parquet),
+f1_database.json (released compressed, as f1_database.json.gz) and
+f1_compat.json. The published files are copies of f1.db in other formats and
+carry its terms. It does not cover the code (see LICENSE), nor f1-geometry.db,
+whose terms are under *Circuit geometry* below.
 
 Copyright (c) 2026 Alex Farley and Wikipedia contributors.
 
@@ -51,7 +56,8 @@ affects — hold facts and identifiers rather than expression.
 
 The grant is stated inside the database too, as `meta.project_prose` and
 `meta.project_prose_columns`, so a copy of `f1.db` carries its own terms; a
-build in which those disagree with this file fails. A CC BY grant cannot be
+build in which those disagree with this file fails. The Parquet bundle carries
+the same two rows in `meta.parquet`, and a `README.txt` that states them. A CC BY grant cannot be
 withdrawn from a copy already taken, which is why the list is exactly this
 long.
 

@@ -6,6 +6,14 @@ been public since 2026-09-14 and lapledger.org serves this file beside the
 data it covers, because the obligation follows the file rather than the
 repository.
 
+It covers every file the data is published as. `f1.db`, its compressed copy
+`f1.db.gz`, the Parquet bundle `f1-parquet.zip`, and the two JSON exports —
+`f1_database.json`, released as `f1_database.json.gz`, and `f1_compat.json` —
+are the same data in different formats, under the same terms, which
+`LICENSE-DATA` states. The Parquet bundle carries a `README.txt` saying so,
+written from the database it describes. `f1-geometry.db` is the one file on
+other terms: ODbL, under *OpenStreetMap* below.
+
 `docs/COMMERCIAL-READINESS.md` is the companion to this file: where this one
 records what each source requires, that one records which rows were read
 against those requirements, what they were found to hold, and which of those
@@ -247,8 +255,9 @@ Two licences, which is normal for a data project:
 
 - **Code** — `build.py`, `verify.py`, `audit.py`, `export_json.py`, `f1`,
   `tools/`, `schema.sql` — under MIT, or whatever you prefer.
-- **Data** — `data/`, `harvest/`, `f1.db`, `f1_database.json` — under
-  CC BY-SA 4.0, with attribution to Wikipedia contributors.
+- **Data** — `data/`, `harvest/`, `f1.db`, `f1.db.gz`, `f1-parquet.zip`,
+  `f1_database.json` — under CC BY-SA 4.0, with attribution to Wikipedia
+  contributors.
 
 Add a `LICENSE` for the code and a `LICENSE-DATA` for the data, and say which
 covers what in the README. I have deliberately not chosen for you.

@@ -75,7 +75,7 @@ here is a number the build checked.
 | `tools/wikispec_fetch.py` | Harvests chassis specifications from the `{{Racing car}}` infobox on each car's article, refusing any page that disagrees with the register. Needs network; not part of the build. |
 | `tools/ergast_load.py` | Loads the Jolpica-F1 classification onto a local copy and records where it disagrees with what is stored. Needs network; not part of the build. |
 | `tools/fastf1_load.py` | Loads per-lap timing, stints, pit stops, race control and radio onto a **local** copy from the F1 live timing API. Needs network; never committed — see *Timing*. |
-| `tools/parquet_export.py` | Writes every table as Parquet for the release bundle. Refuses a database carrying FOM timing or ODbL geometry. |
+| `tools/parquet_export.py` | Writes every table as Parquet for the release bundle, with a `README.txt` stating its terms. Refuses a database carrying FOM timing or ODbL geometry. |
 | `tools/geometry_overlay.py` | Merges `f1-geometry.db` into a local `f1.db` (`--apply`) or takes it out again (`--remove`). |
 | `tools/readme_figures.py` | Computes every figure this file states and rewrites it (`--write`) or checks it (`--check`). |
 | `docs/BUILD-NOTES.md` | What changed in each version, what it exposed, what was deliberately not done. |
@@ -103,8 +103,10 @@ repository, so a licence notice has to be reachable from where the data was
 taken; `web/scripts/prepare-assets.js` stages all three and refuses to build
 without them. The centrelines are ODbL instead, stated in `f1-geometry.db`'s
 own `meta` and in `LICENSE-DATA`'s *Circuit geometry* section. `LICENSE-DATA`
-enumerates the files it covers and `f1-parquet.zip` is not among them — `SD-22`
-(#410) has that gap.
+enumerates the files it covers — `f1.db.gz` and `f1-parquet.zip` among them,
+on the same terms as `f1.db` — and the Parquet bundle carries a `README.txt`
+that `tools/parquet_export.py` writes from `meta`, `source_registry` and
+`LICENSE-DATA`, so an unzipped copy still states its terms.
 
 **Citing it.** `CITATION.cff` at the repository root is the citation for
 the database, and GitHub renders a *Cite this repository* button from it in

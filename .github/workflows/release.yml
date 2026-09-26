@@ -78,9 +78,10 @@ jobs:
         run: pip install pyarrow
 
       - name: Export to Parquet
+        # --zip rather than a zip binary over parquet/*.parquet: the glob
+        # would leave out the README.txt that states the bundle's terms.
         run: |
-          python3 tools/parquet_export.py
-          zip -j -9 f1-parquet.zip parquet/*.parquet
+          python3 tools/parquet_export.py --zip f1-parquet.zip
           unzip -l f1-parquet.zip | tail -1
 
       # The database is reproducible from its sources, so a digest is a real
