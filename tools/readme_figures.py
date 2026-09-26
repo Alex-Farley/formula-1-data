@@ -506,9 +506,10 @@ class Figures:
 
     # -- docs/COMMERCIAL-READINESS.md: the licence position, counted -------
     def _licence_tally(self):
-        """(class -> rows, domain -> rows, (table, domain) -> rows) over every
-        sourced row, resolving each source URL to a registry domain the way
-        `./f1 licences` does; source_registry's own rows are not citations."""
+        """(class -> rows, domain -> rows, (table, domain) -> facts-only rows,
+        (table, domain) -> rows of every class) over every sourced row,
+        resolving each source URL to a registry domain the way `./f1
+        licences` does; source_registry's own rows are not citations."""
         if hasattr(self, "_tally"):
             return self._tally
         classes = {}
@@ -525,7 +526,7 @@ class Figures:
                 return key
             return next((d for d in classes if key.endswith("." + d)), None)
 
-        by_class, by_domain, by_table = {}, {}, {}
+        by_class, by_domain, by_table, by_table_domain = {}, {}, {}, {}
         for (t,) in self.con.execute("""SELECT name FROM sqlite_master WHERE type='table'
                 AND name <> 'source_registry' ORDER BY name"""):
             cols = [x[1] for x in self.con.execute(f'PRAGMA table_info("{t}")')]
@@ -538,9 +539,10 @@ class Figures:
                 cls = classes.get(d, "UNCLASSIFIED")
                 by_class[cls] = by_class.get(cls, 0) + k
                 by_domain[d] = by_domain.get(d, 0) + k
+                by_table_domain[(t, d)] = by_table_domain.get((t, d), 0) + k
                 if cls == "facts-only":
                     by_table[(t, d)] = by_table.get((t, d), 0) + k
-        self._tally = (by_class, by_domain, by_table)
+        self._tally = (by_class, by_domain, by_table, by_table_domain)
         return self._tally
 
     def sourced_rows(self):
@@ -629,6 +631,170 @@ class Figures:
     def prose_kb(self):
         granted = self.meta("project_prose_columns").split(", ")
         return f"{round(sum(self._prose_chars(c) for c in granted) / 1024)} KB"
+
+    # -- the Wikipedia-cited rows, read for PD-41's step 2 (PD-51) ----------
+    #
+    # docs/COMMERCIAL-READINESS.md reads the rows citing en.wikipedia.org the
+    # way it reads the facts-only ones, and sizes a CC BY 4.0 facts edition
+    # from them. Counted by registry domain, as the class table is, and held
+    # to the database the same way ITEMISED is: a Wikipedia-cited row in a
+    # table the note does not itemise stops the writer, because the note
+    # claims to have accounted for every one.
+    WIKI = "en.wikipedia.org"
+    WIKI_ITEMISED = ("races", "race_entries", "claims", "drivers", "cars",
+                     "regulation_limits", "team_radio")
+
+    def _wp(self, table):
+        return self._licence_tally()[3].get((table, self.WIKI), 0)
+
+    def wp_rows(self):
+        tally = self._licence_tally()[3]
+        held = {t for (t, d) in tally if d == self.WIKI}
+        extra = sorted(held - set(self.WIKI_ITEMISED))
+        if extra:
+            raise SystemExit(
+                f"Wikipedia-cited rows in {', '.join(extra)}, which "
+                f"docs/COMMERCIAL-READINESS.md does not itemise: read the rows, "
+                f"add them to the note and to Figures.WIKI_ITEMISED before "
+                f"writing the figures")
+        return n(self._licence_tally()[1].get(self.WIKI, 0))
+
+    def wp_races(self):             return n(self._wp("races"))
+    def wp_race_entries(self):      return n(self._wp("race_entries"))
+    def wp_race_rows(self):         return n(self._wp("races") + self._wp("race_entries"))
+    def wp_claims(self):            return n(self._wp("claims"))
+    def wp_drivers(self):           return n(self._wp("drivers"))
+
+    # The 'drivers' rows cite two kinds of article, and the note reads them
+    # apart: the season articles that introduced a winner, and the list of
+    # polesitters that introduced a driver who took pole and never won. A
+    # third kind would be an article the note has not read.
+    _WP_POLESITTERS = "source = 'https://en.wikipedia.org/wiki/List_of_Formula_One_polesitters'"
+
+    def _wp_drivers_split(self):
+        season = self.count("drivers", self._WP_RACE)
+        poles = self.count("drivers", self._WP_POLESITTERS)
+        if season + poles != self._wp("drivers"):
+            raise SystemExit(
+                f"{self._wp('drivers')} drivers cite Wikipedia, {season} a season "
+                f"article and {poles} the list of polesitters: "
+                f"docs/COMMERCIAL-READINESS.md reads those two and no other")
+        return season, poles
+
+    def wp_drivers_seasons(self):    return n(self._wp_drivers_split()[0])
+    def wp_drivers_polesitters(self): return n(self._wp_drivers_split()[1])
+    def wp_cars(self):              return n(self._wp("cars"))
+    def wp_regulation_limits(self): return n(self._wp("regulation_limits"))
+    def wp_radio(self):             return n(self._wp("team_radio"))
+
+    # The season articles' URL, which is what data/harvest.py cites; a
+    # Wikipedia race row citing anything else would be a second harvest the
+    # note has not read.
+    _WP_RACE = "source LIKE 'https://en.wikipedia.org/wiki/%_Formula_One_World_Championship'"
+
+    def _wp_race_one(self, sql):
+        cited = self.one(f"SELECT COUNT(*) FROM races WHERE {self._WP_RACE}")
+        if cited != self._wp("races"):
+            raise SystemExit(
+                f"{self._wp('races')} races cite Wikipedia and {cited} cite a "
+                f"season article: docs/COMMERCIAL-READINESS.md reads the season "
+                f"harvest only")
+        return self.one(sql)
+
+    def wp_first_season(self):
+        return str(self._wp_race_one(f"SELECT MIN(year) FROM races WHERE {self._WP_RACE}"))
+
+    def wp_last_season(self):
+        return str(self._wp_race_one(f"SELECT MAX(year) FROM races WHERE {self._WP_RACE}"))
+
+    def wp_races_f1db(self):
+        # Wikipedia-cited races F1DB also classifies: the ones the winner
+        # cross-check in build.py ran on, and would have refused whole on a
+        # disagreement.
+        return n(self._wp_race_one(f"""SELECT COUNT(*) FROM races r WHERE r.{self._WP_RACE}
+            AND EXISTS (SELECT 1 FROM race_entries e WHERE e.race_id = r.id
+                        AND e.source = 'https://github.com/f1db/f1db')"""))
+
+    def wp_winners_f1db(self):
+        # Winner rows citing a season article that F1DB's classification then
+        # filled - laps, points, grid - under the COALESCE in build.py. The
+        # note says "all" of them, so a shortfall stops the writer rather
+        # than printing a smaller number under the same word.
+        filled = self.count("race_entries", f"{self._WP_RACE} AND laps_completed IS NOT NULL")
+        if filled != self._wp("race_entries"):
+            raise SystemExit(
+                f"{filled} of {self._wp('race_entries')} Wikipedia-cited winner rows "
+                f"carry F1DB's classification: docs/COMMERCIAL-READINESS.md says all")
+        return n(filled)
+
+    def wp_poles(self):
+        return n(self.count("race_entries", f"{self._WP_RACE} AND pole = 1"))
+
+    def wp_fastest_laps(self):
+        return n(self.count("race_entries", f"{self._WP_RACE} AND fastest_lap = 1"))
+
+    def wp_dependent_rows(self):
+        # Rows keyed to a Wikipedia-cited race that do not themselves cite
+        # Wikipedia: what a facts edition would orphan if it simply left the
+        # race rows out. Every table with a race_id, from sqlite_master
+        # rather than a list.
+        total = 0
+        for (t,) in self.con.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"):
+            cols = [x[1] for x in self.con.execute(f'PRAGMA table_info("{t}")')]
+            if "race_id" not in cols:
+                continue
+            own = (f" AND (e.source IS NULL OR e.source NOT LIKE 'https://{self.WIKI}/%')"
+                   if "source" in cols else "")
+            total += self._wp_race_one(f"""SELECT COUNT(*) FROM "{t}" e
+                JOIN races r ON r.id = e.race_id WHERE r.{self._WP_RACE}{own}""")
+        return n(total)
+
+    # Wikipedia values on rows that cite something else, which a count by
+    # `source` cannot see: the per-car infobox specifications on chassis rows
+    # citing F1DB (spec_source), and the tables whose provenance is declared
+    # for the table in table_provenance rather than per row.
+    def wp_chassis_specs(self):
+        return n(self.count("chassis", f"spec_source LIKE 'https://{self.WIKI}/%'"))
+
+    def wp_layouts(self):
+        tables = []
+        for t, domains in self.con.execute("""SELECT p.tbl, s.domains
+                FROM table_provenance p JOIN source_registry s ON s.id = p.source_id
+                ORDER BY p.tbl"""):
+            if self.WIKI in [d.strip() for d in (domains or "").split(",")]:
+                tables.append(t)
+        if tables != ["circuit_layouts"]:
+            raise SystemExit(
+                f"table_provenance gives Wikipedia as the source of "
+                f"{', '.join(tables) or 'no table'}; docs/COMMERCIAL-READINESS.md "
+                f"reads circuit_layouts alone")
+        return n(self.count("circuit_layouts"))
+
+    # The registry entry for F1DB owns both of these domains, so a row
+    # resolving to either is F1DB's by the same rule `./f1 licences` applies.
+    F1DB_DOMAINS = ("github.com", "f1db")
+
+    def edition_rows(self):
+        # Every sourced row that does not cite Wikipedia: what a CC BY 4.0
+        # facts edition holds before anything is re-sourced. The note says
+        # that is F1DB's rows and the facts-only rows and nothing else, so a
+        # row from any other source stops the writer.
+        by_class, by_domain = self._licence_tally()[:2]
+        other = sorted(d or "an unresolved source" for d in by_domain
+                       if d != self.WIKI and d not in self.F1DB_DOMAINS
+                       and d not in self._facts_only_domains())
+        if other:
+            raise SystemExit(
+                f"sourced rows cite {', '.join(other)}: docs/COMMERCIAL-READINESS.md "
+                f"counts the facts edition as F1DB's rows and the facts-only rows alone")
+        return n(sum(by_class.values()) - by_domain.get(self.WIKI, 0))
+
+    def _facts_only_domains(self):
+        return {d for (_t, d) in self._licence_tally()[2]}
+
+    def f1db_rows(self):
+        by_domain = self._licence_tally()[1]
+        return n(sum(by_domain.get(d, 0) for d in self.F1DB_DOMAINS))
 
     def fo_drivers(self):            return self._fo("drivers")
     def fo_circuits(self):           return self._fo("circuits")
