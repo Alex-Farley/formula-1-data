@@ -54,11 +54,14 @@ they are. This goes before them.
 >
 > What makes it different from other copies of the same results:
 >
-> - **Every row says how far it was checked.** A `confidence` column on every
->   fact table, from `verified` (checked against fia.com or formula1.com)
->   through `reference` (a published secondary record, compared with a second
->   source where one is held) down to `unverified`. Most rows are `reference`,
->   and the file says so rather than calling them official.
+> - **Rows say how far they were checked.** Almost every fact table has a
+>   `confidence` column, on a six-step scale: `verified` (checked against
+>   fia.com or formula1.com), `high`, `reference` (a published secondary
+>   record, compared with a second source where one is held), `medium`,
+>   `unverified` and `catalogued`. Most rows are `reference`, and the file
+>   says so rather than calling them official. The one large table without
+>   it is `pit_stops`, which is all F1DB and names that source on every
+>   row.
 > - **Disagreements are published, not settled quietly.** The
 >   `discrepancies` table holds every case where two sources disagree, what
 >   each one says, an assessment, and whether it is still open.
@@ -103,12 +106,13 @@ Everything after them is for a place that allows length.
 > with JSON and Parquet copies. It covers every race, entry, qualifying
 > session and standings table, under an open licence. Other open F1 datasets
 > give you the results. This one also gives you its own reliability: how far
-> each row was checked, every place its sources disagree, and everything it
+> its rows were checked, every place its sources disagree, and everything it
 > does not hold.
 >
-> - `confidence` on every row: 95,241 of the 97,171 rows that carry it are
->   `reference`, 324 are `verified` against the FIA or Formula 1, and 623 say
->   plainly that they are `unverified`.
+> - `confidence`: a level on 97,171 rows. 324 are `verified` against the FIA
+>   or Formula 1, 326 are `high` and 95,241 are `reference`. 538 are
+>   `medium`, 623 say plainly that they are `unverified`, and 119 are
+>   `catalogued`, which means filed by a third party rather than checked.
 > - `discrepancies`: 61 recorded disagreements between sources, each with
 >   both values and an assessment. 44 are resolved, 3 explained and 14 still
 >   open.
@@ -146,7 +150,7 @@ drafts to match.
 
 | Figure in the draft | At `dfa576b` | Query |
 |---|---|---|
-| rows by `confidence` | 97,171 total; 95,241 `reference`, 324 `verified`, 623 `unverified` | sum of `SELECT confidence, count(*) … GROUP BY 1` over every table with a `confidence` column except `provenance` (derive the list from `pragma_table_info`) |
+| rows by `confidence` | 97,171 total; 95,241 `reference`, 326 `high`, 324 `verified`, 538 `medium`, 623 `unverified`, 119 `catalogued` (the six sum to the total) | sum of `SELECT confidence, count(*) … GROUP BY 1` over every table with a `confidence` column except `provenance` (derive the list from `pragma_table_info`) |
 | `discrepancies` | 61: 44 resolved, 3 explained, 14 open | `SELECT status, count(*) FROM discrepancies GROUP BY 1` |
 | `known_gaps` | 17 | `SELECT count(*) FROM known_gaps` |
 | sourced rows, all passable | 121,260, 100 % `yes` or `facts-only` | `./f1 licences` |
