@@ -416,14 +416,13 @@ CREATE TABLE standings (
     position        INTEGER,
     position_text   TEXT,                      -- "2", or DSQ / EX
     entity          TEXT NOT NULL,             -- driver or constructor display name
-    -- One column over two namespaces: a drivers.id on a drivers' row and a
-    -- constructors.id on a constructors' one. Four ids are both - brabham,
-    -- fittipaldi, amon, modena - so a join on this without table_type turned
-    -- 517 constructors' rows into drivers' ones and said nothing (DA-10).
-    -- driver_id and constructor_id below are the same id under a key the
-    -- schema can declare; join on those. This column stays, always equal to
-    -- whichever of the two is set, so a query written against it still works.
-    entity_id       TEXT NOT NULL,
+    -- The entrant, in the namespace table_type names: a drivers.id on a
+    -- drivers' row and a constructors.id on a constructors' one, exactly one
+    -- of the two set. Up to v2.24 one `entity_id` column held both, and four
+    -- ids are both - brabham, fittipaldi, amon, modena - so a join on it
+    -- without table_type turned 517 constructors' rows into drivers' ones and
+    -- said nothing (DA-10). It was retired after v2.24 (DA-31): these two
+    -- declare the key that one could not.
     driver_id       TEXT REFERENCES drivers(id),
     constructor_id  TEXT REFERENCES constructors(id),
     -- The constructors' championship is contested by a CHASSIS-ENGINE
@@ -453,16 +452,19 @@ CREATE TABLE standings (
     -- the table as it stands is each source's running table after the last
     -- round that source has counted, which is what v_standings_final reads.
     basis           TEXT NOT NULL CHECK (basis IN ('running', 'final')),
-    -- 'final' | 'round 7' | '2026-09-04 (after round 12)'. Everything this
-    -- said is now after_round and basis, except an official snapshot's
-    -- date; it stays for one release so queries written against it keep
-    -- working, and verify.py holds it to the two columns until then.
-    as_of           TEXT,
+    -- The day the source published this table, where the source dates it:
+    -- formula1.com's snapshot of the season being run. NULL on every other
+    -- row, which is not a gap - F1DB's tables are dated by the round they
+    -- stand after, which is after_round. This is the one thing the retired
+    -- `as_of` ('final' | 'round 7' | '2026-09-04 (after round 12)') said
+    -- that after_round and basis do not (DA-31); verify.py holds it inside
+    -- the days between the round it stands after and the next one.
+    snapshot_date   TEXT CHECK (snapshot_date GLOB
+                        '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
     confidence      TEXT NOT NULL DEFAULT 'high' REFERENCES provenance(confidence),
     source          TEXT,
     CHECK ((table_type = 'drivers') = (driver_id IS NOT NULL)),
-    CHECK ((table_type = 'constructors') = (constructor_id IS NOT NULL)),
-    CHECK (entity_id = COALESCE(driver_id, constructor_id))
+    CHECK ((table_type = 'constructors') = (constructor_id IS NOT NULL))
 );
 
 -- The key. The table used to declare UNIQUE (year, table_type, after_round,
@@ -475,12 +477,15 @@ CREATE TABLE standings (
 -- position_text is in it on purpose: it is the column that tells the two
 -- 2018 Force India constructor rows apart - EX on 0 points and P7 on 52, one
 -- entrant excluded and its successor scoring under the same id - which are
--- two facts and not a loader running twice. as_of is in it so an official
--- snapshot and F1DB's table after the same round can coexist without one
--- silently overwriting the other.
+-- two facts and not a loader running twice. `source` is in it so an
+-- official snapshot and F1DB's table after the same round can coexist
+-- without one silently overwriting the other, and `basis` so a season's
+-- final classification and its running table after the last round can; the
+-- retired `as_of` did both until DA-31 swapped it for these two.
 CREATE UNIQUE INDEX ux_standings_identity ON standings(
-    year, table_type, after_round, entity_id,
-    COALESCE(engine_id, ''), as_of, COALESCE(position_text, ''));
+    year, table_type, after_round, basis,
+    COALESCE(driver_id, ''), COALESCE(constructor_id, ''),
+    COALESCE(engine_id, ''), COALESCE(source, ''), COALESCE(position_text, ''));
 
 -- ------------------------------------------------- circuits and events
 CREATE TABLE circuits (
@@ -1795,7 +1800,7 @@ GROUP BY r.year ORDER BY r.year;
 -- round 12 and F1DB after round 14, and the larger figure kept Gasly and
 -- Alpine on the round-12 table beside every other row at round 14 (AF-35).
 -- How many rounds a row has counted is its after_round, which every row
--- carries (DA-01); it used to be read out of as_of's prose.
+-- carries (DA-01); it used to be read out of the retired as_of's prose.
 --
 -- The fill reads only an unambiguous row. Where the other source asserts two
 -- entries for the entity - 2018 Force India's shape, arriving in a season
@@ -1823,26 +1828,28 @@ final AS (
    WHERE CASE WHEN n.finished THEN s.basis = 'final'
               ELSE s.after_round = l.after_round END),
 ranked AS (
-  SELECT year, table_type, entity_id, source,
+  SELECT year, table_type, driver_id, constructor_id, source,
          ROW_NUMBER() OVER (
-           PARTITION BY year, table_type, entity_id
+           PARTITION BY year, table_type, driver_id, constructor_id
            ORDER BY MAX(after_round) DESC,
                     CASE WHEN source LIKE '%formula1.com%' THEN 0 ELSE 1 END) AS rank
-    FROM final GROUP BY year, table_type, entity_id, source)
+    FROM final GROUP BY year, table_type, driver_id, constructor_id, source)
 SELECT f.id, f.year, f.table_type,
        COALESCE(f.position, o.position)           AS position,
        COALESCE(f.position_text, o.position_text) AS position_text,
-       f.entity, f.entity_id, f.driver_id, f.constructor_id,
+       f.entity, f.driver_id, f.constructor_id,
        COALESCE(f.engine_id, o.engine_id)         AS engine_id,
        COALESCE(f.team, o.team)                   AS team,
-       f.points, f.after_round, f.basis, f.as_of, f.confidence, f.source
+       f.points, f.after_round, f.basis, f.snapshot_date, f.confidence, f.source
   FROM final f
   JOIN ranked k ON k.year = f.year AND k.table_type = f.table_type
-               AND k.entity_id = f.entity_id AND k.source = f.source AND k.rank = 1
+               AND k.driver_id IS f.driver_id AND k.constructor_id IS f.constructor_id
+               AND k.source = f.source AND k.rank = 1
   LEFT JOIN final o ON o.id = (
        SELECT CASE WHEN COUNT(*) = 1 THEN MIN(x.id) END FROM final x
         WHERE x.year = f.year AND x.table_type = f.table_type
-          AND x.entity_id = f.entity_id AND x.source <> f.source);
+          AND x.driver_id IS f.driver_id AND x.constructor_id IS f.constructor_id
+          AND x.source <> f.source);
 
 CREATE VIEW v_stat_reconciliation AS
 SELECT d.full_name,

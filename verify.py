@@ -330,7 +330,7 @@ def standings():
         GROUP BY year, table_type HAVING COUNT(DISTINCT after_round) > 1""").fetchall()
     check("formula1.com's rows are one table per season", not one_table,
           "; ".join(f"{r[0]} {r[1]}: {r[2]} rounds" for r in one_table))
-    OFFICIAL = ("SELECT position, points, entity_id FROM standings "
+    OFFICIAL = ("SELECT position, points FROM standings "
                 "WHERE year=? AND table_type=? "
                 "AND source LIKE '%formula1.com%' ORDER BY position")
     for y in recent_seasons():
@@ -363,44 +363,66 @@ def standings():
         ORDER BY year""").fetchall()
     mismatch, compared = [], 0
     for sr in season_rows:
-        top = con.execute("""SELECT entity_id, points FROM v_standings_final
+        top = con.execute("""SELECT driver_id, points FROM v_standings_final
             WHERE year=? AND table_type='drivers' AND position IS NOT NULL
             ORDER BY position LIMIT 2""", (sr["year"],)).fetchall()
         if len(top) < 2:
             continue
         compared += 1
-        if (top[0]["entity_id"] != sr["drivers_champion"]
+        if (top[0]["driver_id"] != sr["drivers_champion"]
                 or abs((top[0]["points"] or -1) - sr["champion_points"]) > 0.001):
             mismatch.append(f"{sr['year']} champion: seasons says "
                             f"{sr['drivers_champion']} on {sr['champion_points']}, "
-                            f"standings says {top[0]['entity_id']} on "
+                            f"standings says {top[0]['driver_id']} on "
                             f"{top[0]['points']}")
-        elif (sr["runner_up"] and top[1]["entity_id"] != sr["runner_up"]):
+        elif (sr["runner_up"] and top[1]["driver_id"] != sr["runner_up"]):
             mismatch.append(f"{sr['year']} runner-up: seasons says "
                             f"{sr['runner_up']}, standings says "
-                            f"{top[1]['entity_id']}")
+                            f"{top[1]['driver_id']}")
     check("every season's champion and runner-up match the final standings",
           not mismatch, f"{compared} seasons compared"
           if not mismatch else "; ".join(mismatch[:3]))
 
-    # as_of stays one release beside after_round and basis (DA-01), and while
-    # it does it must say what they say: 'round N' on a running row after
-    # round N, a snapshot's '... (after round N)' likewise, and 'final' on a
-    # final row, which stands after the season's last round. F1DB's
-    # season-level file for a season still being run used to be stored as
-    # 'current'; build.py now holds it to the latest round and stores
-    # neither twice, so a 'current' row fails here.
-    disagree = con.execute("""SELECT year, table_type, entity_id, as_of,
-               after_round, basis FROM standings s
-         WHERE NOT COALESCE(CASE s.basis
-             WHEN 'final' THEN s.as_of = 'final' AND s.after_round =
-                  (SELECT MAX(r.round) FROM races r WHERE r.year = s.year)
-             ELSE s.as_of = 'round ' || s.after_round
-                  OR s.as_of LIKE '% (after round ' || s.after_round || ')'
-           END, 0)""").fetchall()
-    check("every standings row's as_of says what after_round and basis say",
-          not disagree, "; ".join(f"{r[0]} {r[1]} {r[2]} as_of {r[3]!r} at "
-                                  f"{r[5]} {r[4]}" for r in disagree[:3]))
+    # A final row stands after the season's last round (DA-01); `as_of`
+    # said 'final' beside it until it was retired after v2.24 (DA-31).
+    early = con.execute("""SELECT year, table_type, COUNT(*) FROM standings s
+         WHERE s.basis = 'final' AND s.after_round IS NOT
+               (SELECT MAX(r.round) FROM races r WHERE r.year = s.year)
+         GROUP BY 1, 2""").fetchall()
+    check("every final standings row stands after its season's last round",
+          not early, "; ".join(f"{r[0]} {r[1]} x{r[2]}" for r in early[:3]))
+    # snapshot_date is the one thing `as_of` said that after_round and basis
+    # do not: the day an official snapshot was published. Only a source that
+    # dates its table gives one - formula1.com's running snapshot - so a date
+    # anywhere else is a date nobody published, and two in one table would
+    # be two snapshots under one after_round. And the date must fall where
+    # the round puts it: on or after the race the table stands after, and
+    # before the next one, or the table has counted a round it says it has
+    # not. That is the value constrained, which the old prose check on
+    # '(after round N)' was.
+    undated = [tuple(r) for r in con.execute("""SELECT year, table_type,
+               COUNT(DISTINCT snapshot_date), SUM(snapshot_date IS NULL)
+          FROM standings WHERE basis = 'running' AND source LIKE '%formula1.com%'
+         GROUP BY year, table_type
+        HAVING COUNT(DISTINCT snapshot_date) <> 1 OR SUM(snapshot_date IS NULL) > 0""")]
+    stray_dates = con.execute("""SELECT COUNT(*) FROM standings
+         WHERE snapshot_date IS NOT NULL
+           AND NOT (basis = 'running' AND source LIKE '%formula1.com%')""").fetchone()[0]
+    check("every official snapshot carries one publication date, and no other row one",
+          not undated and stray_dates == 0,
+          "; ".join(f"{r[0]} {r[1]}: {r[2]} dates, {r[3]} rows undated" for r in undated[:3])
+          + (f"; {stray_dates} other rows dated" if stray_dates else ""))
+    misdated = con.execute("""SELECT DISTINCT s.year, s.table_type, s.after_round,
+               s.snapshot_date, a.date_iso, n.date_iso FROM standings s
+          LEFT JOIN races a ON a.year = s.year AND a.round = s.after_round
+          LEFT JOIN races n ON n.year = s.year AND n.round = s.after_round + 1
+         WHERE s.snapshot_date IS NOT NULL
+           AND NOT COALESCE(s.snapshot_date >= a.date_iso
+                            AND (n.date_iso IS NULL OR s.snapshot_date < n.date_iso), 0)
+        """).fetchall()
+    check("every snapshot's date falls between the round it stands after and the next",
+          not misdated, "; ".join(f"{r[0]} {r[1]} after round {r[2]} dated {r[3]}, "
+                                  f"races {r[4]} and {r[5]}" for r in misdated[:3]))
 
     # Which rows are a season's table, read here independently of the view:
     # a finished season's final rows, otherwise each source's running rows
@@ -412,14 +434,20 @@ def standings():
     reach = {(r[0], r[1], r[2]): r[3] for r in con.execute(
         """SELECT year, table_type, source, MAX(after_round) FROM standings
             WHERE basis = 'running' GROUP BY year, table_type, source""")}
+    # One key per entrant across both tables: the table_type in front of the
+    # id is what keeps the four ids that are both a driver and a constructor
+    # apart (DA-10).
+    def eid(r):
+        return r["driver_id"] or r["constructor_id"]
+
     classified = {}
-    for r in con.execute("""SELECT id, year, table_type, entity_id, engine_id,
-            position, position_text, team, after_round, basis, source
+    for r in con.execute("""SELECT id, year, table_type, driver_id, constructor_id,
+            engine_id, position, position_text, team, after_round, basis, source
             FROM standings"""):
         season_ = (r["year"], r["table_type"])
         if (r["basis"] == "final" if season_ in finished
                 else r["after_round"] == reach[season_ + (r["source"],)]):
-            classified.setdefault(season_ + (r["entity_id"],), []).append(r)
+            classified.setdefault(season_ + (eid(r),), []).append(r)
     view_rows = con.execute("SELECT * FROM v_standings_final").fetchall()
 
     # v_standings_final is the answer to "who finished where" and is what the
@@ -427,11 +455,11 @@ def standings():
     # one entity into one without folding one source's two entries; the first
     # check is that fold, the second that nothing fell out of it.
     two = con.execute("""SELECT COUNT(*) FROM (
-        SELECT year, table_type, entity_id FROM v_standings_final
-        GROUP BY 1, 2, 3 HAVING COUNT(DISTINCT source) > 1)""").fetchone()[0]
+        SELECT year, table_type, driver_id, constructor_id FROM v_standings_final
+        GROUP BY 1, 2, 3, 4 HAVING COUNT(DISTINCT source) > 1)""").fetchone()[0]
     check("v_standings_final shows each entity from one source", two == 0,
           f"{two} entity-seasons from two sources")
-    lost = len(set(classified) - {(f["year"], f["table_type"], f["entity_id"])
+    lost = len(set(classified) - {(f["year"], f["table_type"], eid(f))
                                   for f in view_rows})
     check("v_standings_final keeps every entity the final table holds", lost == 0,
           f"{lost} entity-seasons dropped")
@@ -446,7 +474,7 @@ def standings():
     check("each season's table in v_standings_final stands after one round",
           not mixed, "; ".join(f"{r[0]} {r[1]}: rounds {r[2]}" for r in mixed[:3]))
     for y in recent_seasons():
-        n, d = con.execute("""SELECT COUNT(*), COUNT(DISTINCT entity_id)
+        n, d = con.execute("""SELECT COUNT(*), COUNT(DISTINCT driver_id)
             FROM v_standings_final WHERE year=? AND table_type='drivers'""",
             (y,)).fetchone()
         check(f"{y} drivers' final table is one row per driver", n == d,
@@ -460,15 +488,15 @@ def standings():
     # round-12 snapshot beside a round-14 table (AF-35), and this check passed
     # it, because it tested the rule rather than what the rule is for. So the
     # moment each row stands at is its after_round, on the rows the season's
-    # table is read from above - and the check that as_of agrees with it is
-    # what keeps the prose and the column saying one thing.
+    # table is read from above.
     counted = {}
     for key_, rows_ in classified.items():
         for r in rows_:
             counted.setdefault(key_, {})[r["source"]] = r["after_round"]
     stale = []
     for yr_, kind_, eid_, src_ in con.execute(
-            "SELECT DISTINCT year, table_type, entity_id, source FROM v_standings_final"):
+            """SELECT DISTINCT year, table_type, COALESCE(driver_id, constructor_id),
+                      source FROM v_standings_final"""):
         by_src = counted.get((yr_, kind_, eid_), {})
         best = max((n for n in by_src.values() if n is not None), default=None)
         kept = by_src.get(src_)
@@ -486,7 +514,7 @@ def standings():
     # position and engine; the second half of this check is what refuses it.
     misfilled = []
     for f in view_rows:
-        rows_ = classified.get((f["year"], f["table_type"], f["entity_id"]), [])
+        rows_ = classified.get((f["year"], f["table_type"], eid(f)), [])
         own = next((r for r in rows_ if r["id"] == f["id"]), None)
         others = [r for r in rows_ if r["source"] != f["source"]]
         one = others[0] if len(others) == 1 else None
@@ -494,7 +522,7 @@ def standings():
             want = (own[col] if own is not None and own[col] is not None
                     else one[col] if one is not None else None)
             if own is None or f[col] != want:
-                misfilled.append(f"{f['year']} {f['table_type']} {f['entity_id']} "
+                misfilled.append(f"{f['year']} {f['table_type']} {eid(f)} "
                                  f"{col}: {f[col]!r}, should be {want!r}")
     check("v_standings_final fills a blank from the other source's one row, "
           "and only from that", not misfilled, "; ".join(misfilled[:3]))
@@ -505,7 +533,7 @@ def standings():
     # row per entity passes every check above and silently erases 2018 Force
     # India's excluded entry and two of Cooper's three 1960 engines; this is
     # the check that refuses it, and the two are pinned by name as well.
-    in_view = Counter((f["year"], f["table_type"], f["entity_id"], f["source"])
+    in_view = Counter((f["year"], f["table_type"], eid(f), f["source"])
                       for f in view_rows)
     folded = sum(1 for (y_, t_, e_, s_), n_ in in_view.items()
                  if n_ != sum(1 for r in classified.get((y_, t_, e_), [])
@@ -520,11 +548,13 @@ def standings():
     unfiled = []
     pts_text = lambda v: str(int(v)) if float(v).is_integer() else str(v)  # noqa: E731
     for yr_, kind_, eid_, snap_, rnd_ in con.execute("""
-        SELECT s.year, s.table_type, s.entity_id, s.points, s.after_round
+        SELECT s.year, s.table_type, COALESCE(s.driver_id, s.constructor_id),
+               s.points, s.after_round
           FROM standings s
          WHERE s.basis = 'running' AND s.source LIKE '%formula1.com%'"""):
         f1db_ = con.execute("""SELECT points FROM standings
-            WHERE year=? AND table_type=? AND entity_id=? AND after_round=?
+            WHERE year=? AND table_type=? AND COALESCE(driver_id, constructor_id)=?
+              AND after_round=?
               AND basis = 'running' AND source LIKE '%f1db%'""",
             (yr_, kind_, eid_, rnd_)).fetchone()
         if f1db_ and f1db_[0] is not None and abs(f1db_[0] - snap_) > 0.001:
@@ -538,7 +568,9 @@ def standings():
                   AND row_key = ? AND field = 'points'
                   AND subject = ? AND stored_value = ?
                   AND derived_value = ? AND status = 'open'""",
-                (f"{yr_}|{kind_}|{rnd_}|{eid_}", subj_[0] if subj_ else eid_,
+                (f"{yr_}|{kind_}|{rnd_}|running|"
+                 + (eid_ if kind_ == "drivers" else f"|{eid_}"),
+                 subj_[0] if subj_ else eid_,
                  pts_text(snap_), pts_text(f1db_[0]))).fetchone()
             if not filed:
                 unfiled.append(f"{yr_} {kind_} {eid_} {snap_} v {f1db_[0]}")
@@ -560,7 +592,7 @@ def standings():
               FROM discrepancies d
              WHERE d.kind = 'running-table' AND d.tbl = 'standings'
                AND d.field = 'points' AND d.status = 'open'"""):
-        yr_, _kind, after_, _eid = row_key_.split("|", 3)
+        yr_, _kind, after_, _rest = row_key_.split("|", 3)
         groups.setdefault((yr_, after_), []).append((stored_, derived_, text_, is_driver_))
     for (yr_, after_), rows_ in sorted(groups.items()):
         field_ = f"{yr_} after round {after_}"
@@ -610,7 +642,7 @@ def standings():
     # the floor under standings in the_full_classification is what would say so.
     for yr_, eid_, want_ in ((2018, "force-india", 2), (1960, "cooper", 3)):
         got_ = con.execute("""SELECT COUNT(*) FROM v_standings_final
-            WHERE year=? AND table_type='constructors' AND entity_id=?""",
+            WHERE year=? AND table_type='constructors' AND constructor_id=?""",
             (yr_, eid_)).fetchone()[0]
         check(f"{yr_} {eid_} keeps its {want_} entries in the final table",
               got_ == want_, f"{got_} rows")
@@ -620,10 +652,11 @@ def standings():
     # tell ANY two rows apart - a running row loaded twice with its position
     # changed would stand twice and no count would notice. So the key without
     # it must break for that one declared pair and nothing else.
-    apart = [tuple(r) for r in con.execute("""SELECT year, table_type, entity_id, as_of
+    apart = [tuple(r) for r in con.execute("""SELECT year, table_type,
+               COALESCE(driver_id, constructor_id), basis
         FROM standings
-        GROUP BY year, table_type, after_round, entity_id,
-                 COALESCE(engine_id, ''), as_of
+        GROUP BY year, table_type, after_round, basis, driver_id, constructor_id,
+                 COALESCE(engine_id, ''), source
         HAVING COUNT(*) > 1""")]
     check("only 2018 Force India's final pair needs position_text to tell two rows apart",
           apart == [(2018, "constructors", "force-india", "final")],
@@ -680,7 +713,8 @@ def standings_are_the_sum_of_the_results():
         return
     compared = con.execute(
         f"""SELECT COUNT(*) FROM standings s WHERE {standings_rule.SCOPE}
-             AND s.points IS NOT NULL AND s.entity_id IS NOT NULL
+             AND s.points IS NOT NULL
+             AND COALESCE(s.driver_id, s.constructor_id) IS NOT NULL
              AND s.year >= (CASE s.table_type WHEN 'drivers' THEN ? ELSE ? END)""",
         (STANDINGS_ACCUMULATE_FROM["drivers"],
          STANDINGS_ACCUMULATE_FROM["constructors"])).fetchone()[0]
@@ -699,7 +733,7 @@ def standings_are_the_sum_of_the_results():
     # adjustment exists for must appear. Six separate runs asked the same
     # question six times and cost 40 seconds of the build's gate.
     undeclared = standings_rule.violations(con, adjustments={})
-    needed = {(v["table_type"], v["year"], v["entity_id"]) for v in undeclared}
+    needed = {(v["table_type"], v["year"], standings_rule.ident(v)) for v in undeclared}
     unused = [f"{t} {y} {e}" for (t, y, e) in STANDINGS_ADJUSTMENTS
               if (t, y, e) not in needed]
     check("every declared adjustment is still one", not unused, ", ".join(unused))
@@ -711,13 +745,13 @@ def standings_are_the_sum_of_the_results():
     from data.current import STANDINGS_MULTI_ENGINE_UNCHECKED as unchecked
     seasons, rows = con.execute(
         f"""WITH multi AS (
-             SELECT year, entity_id FROM standings
+             SELECT year, constructor_id FROM standings
               WHERE table_type='constructors' AND {standings_rule.SCOPE}
-              GROUP BY year, entity_id
+              GROUP BY year, constructor_id
              HAVING COUNT(DISTINCT COALESCE(engine_id, '')) > 1)
            SELECT (SELECT COUNT(*) FROM multi),
                   (SELECT COUNT(*) FROM standings s JOIN multi m
-                     ON m.year = s.year AND m.entity_id = s.entity_id
+                     ON m.year = s.year AND m.constructor_id = s.constructor_id
                     WHERE s.table_type='constructors'
                       AND {standings_rule.SCOPE})""").fetchone()
     check("the multi-engine exemption is the size it is declared to be",
@@ -926,14 +960,15 @@ def win_tallies_stored_figures_vs_figures_derived_from_r():
     # passed over: the F1DB loader skips what it cannot resolve, but a
     # hand-entered row could still arrive without one (review finding, #594).
     split = con.execute("""SELECT s.year, s.table_type,
-               COALESCE(s.entity_id, '(no id: ' || s.entity || ')'), COUNT(*)
+               COALESCE(s.driver_id, s.constructor_id,
+                        '(no id: ' || s.entity || ')'), COUNT(*)
         FROM standings s
         WHERE NOT EXISTS (
               SELECT 1 FROM race_entries e JOIN races r ON r.id = e.race_id
               WHERE r.year = s.year
-                AND (CASE s.table_type WHEN 'drivers' THEN e.driver_id
-                                       ELSE e.constructor_id END) = s.entity_id)
-        GROUP BY s.year, s.table_type, s.entity_id
+                AND (CASE s.table_type WHEN 'drivers' THEN e.driver_id = s.driver_id
+                                       ELSE e.constructor_id = s.constructor_id END))
+        GROUP BY s.year, s.table_type, s.driver_id, s.constructor_id
         ORDER BY s.year""").fetchall()
     check("every championship-table entrant has a race entry under the same id "
           "that season", not split,
@@ -1688,7 +1723,7 @@ def entries():
         (CURRENT,)).fetchall()
     check(f"{CURRENT} car numbers are unique", not dupnum)
     missing = con.execute("""SELECT entity FROM standings WHERE year=?1
-        AND table_type='drivers' AND entity_id NOT IN
+        AND table_type='drivers' AND driver_id NOT IN
         (SELECT driver_id FROM season_entries WHERE year=?1)""",
         (CURRENT,)).fetchall()
     check(f"every {CURRENT} driver in the standings has an entry", not missing,
@@ -3431,9 +3466,12 @@ def a_disagreement_names_the_value_it_is_about():
             dangling.append(f"#{r['id']} {r['tbl']} [{r['row_key']}]: "
                             f"{'no key to name a row by' if not key else 'longer than its key'}")
             continue
-        where = " AND ".join(f'CAST("{c}" AS TEXT) = ?' for c in key[:len(parts)])
+        # An empty part names a NULL, as an empty field does in the harvest
+        # files: a constructors' standings row leaves driver_id empty, the
+        # column its table does not use (DA-31).
+        where = " AND ".join(f'CAST("{c}" AS TEXT) IS ?' for c in key[:len(parts)])
         if not con.execute(f'SELECT 1 FROM "{r["tbl"]}" WHERE {where} LIMIT 1',
-                           parts).fetchone():
+                           [p if p != "" else None for p in parts]).fetchone():
             dangling.append(f"#{r['id']} {r['tbl']} [{r['row_key']}]")
     check("every disagreement names a table the database holds", not notable,
           "; ".join(notable[:4]))
@@ -3687,16 +3725,16 @@ def the_full_classification():
         # 1960 is the case that proves it: Cooper-Climax won with 48 points while
         # Cooper-Maserati and Cooper-Castellotti tied for fifth on 3.
         multi = con.execute("""SELECT COUNT(*) FROM (
-            SELECT year, entity_id FROM standings
+            SELECT year, constructor_id FROM standings
             WHERE table_type='constructors' AND basis = 'final'
               AND engine_id IS NOT NULL
-            GROUP BY year, entity_id HAVING COUNT(DISTINCT engine_id) > 1)"""
+            GROUP BY year, constructor_id HAVING COUNT(DISTINCT engine_id) > 1)"""
             ).fetchone()[0]
         multi_view = con.execute("""SELECT COUNT(*) FROM (
-            SELECT year, entity_id FROM v_standings_final
+            SELECT year, constructor_id FROM v_standings_final
             WHERE table_type='constructors' AND basis = 'final'
               AND engine_id IS NOT NULL
-            GROUP BY year, entity_id HAVING COUNT(DISTINCT engine_id) > 1)"""
+            GROUP BY year, constructor_id HAVING COUNT(DISTINCT engine_id) > 1)"""
             ).fetchone()[0]
         check("constructors entered under more than one engine are kept apart",
               multi > 0 and multi == multi_view,

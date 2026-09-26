@@ -1356,22 +1356,22 @@ def _stage_16_current_season(b):
             (i, N.CURRENT_SEASON, cid, did, car, pu, num, role, "verified"))
 
     # The official snapshot's moment, said once. after_round is the round it
-    # stood after and as_of keeps the date beside it for one more release;
-    # an end-of-season table stands after the season's last round (DA-01).
+    # stood after and snapshot_date the day it was published (DA-31); an
+    # end-of-season table stands after the season's last round (DA-01) and
+    # carries no date, because this build does not hold one for it.
     snap_date, snap_round = "2026-09-04", 12
-    snapshot = f"{snap_date} (after round {snap_round})"
     season_end = cur.execute("SELECT rounds FROM seasons WHERE year=?",
                              (N.PREVIOUS_SEASON,)).fetchone()[0]
     sid = 0
-    for year, tbl, rows, asof, after, basis in (
+    for year, tbl, rows, dated, after, basis in (
             (N.CURRENT_SEASON, "drivers", N.DRIVER_STANDINGS_2026,
-             snapshot, snap_round, "running"),
+             snap_date, snap_round, "running"),
             (N.CURRENT_SEASON, "constructors", N.TEAM_STANDINGS_2026,
-             snapshot, snap_round, "running"),
+             snap_date, snap_round, "running"),
             (N.PREVIOUS_SEASON, "drivers", N.DRIVER_STANDINGS_2025,
-             "final", season_end, "final"),
+             None, season_end, "final"),
             (N.PREVIOUS_SEASON, "constructors", N.TEAM_STANDINGS_2025,
-             "final", season_end, "final")):
+             None, season_end, "final")):
         for row in rows:
             sid += 1
             if tbl == "drivers":
@@ -1380,13 +1380,13 @@ def _stage_16_current_season(b):
                 pos, eid, disp, pts = row
                 team = None
             cur.execute("""INSERT INTO standings (id, year, table_type, position, entity,
-                entity_id, driver_id, constructor_id, team, points, after_round,
-                basis, as_of, confidence, source)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                (sid, year, tbl, pos, disp, eid,
+                driver_id, constructor_id, team, points, after_round,
+                basis, snapshot_date, confidence, source)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (sid, year, tbl, pos, disp,
                  eid if tbl == "drivers" else None,
                  eid if tbl == "constructors" else None,
-                 team, pts, after, basis, asof, "verified",
+                 team, pts, after, basis, dated, "verified",
                  N.f1_source(year, tbl)))
 
     # =================================================================
@@ -2253,7 +2253,8 @@ def _one_penalty_explains(cur, yr, after, observed, f1db_drivers):
     """The one race whose reclassification accounts for every points
     disagreement between an official snapshot and F1DB after the same round.
 
-    `observed` maps (table_type, entity_id) to official minus F1DB. For each
+    `observed` maps (table_type, driver or constructor id) to official minus
+    F1DB. For each
     time penalty F1DB applied in a round up to `after`, the race is reordered
     without that one penalty - the finishers on the same lap re-sorted by
     time, each position keeping the points F1DB gave it - and the change in
@@ -2379,6 +2380,8 @@ def _stage_25_championship_standings_after_every_round_and(b):
         if not eid:
             std_skipped += 1
             continue
+        did = eid if kind == "drivers" else None
+        cid = eid if kind == "constructors" else None
         # The engine is part of the constructors' championship entry, not a
         # decoration on it - losing it would merge two championship entries.
         # It is F1DB's own engine-manufacturer id, which is what the column
@@ -2395,12 +2398,13 @@ def _stage_25_championship_standings_after_every_round_and(b):
         # so it is held to that table below and not stored beside it: two
         # rows of one source saying one thing are one fact twice (DA-01).
         if after:
-            as_of, basis = f"round {after}", "running"
+            basis = "running"
         elif yr in completed_seasons:
-            as_of, basis, after = "final", "final", last_round[yr]
+            basis, after = "final", last_round[yr]
         else:
             season_file.append({
-                "year": yr, "table_type": kind, "entity_id": eid,
+                "year": yr, "table_type": kind,
+                "driver_id": did, "constructor_id": cid,
                 "engine_id": engine_id, "points": pts,
                 "position_text": str(pos) if pos else None})
             continue
@@ -2410,15 +2414,15 @@ def _stage_25_championship_standings_after_every_round_and(b):
         # highest-placed entry - which is the one those rows describe.
         # ...and a mid-season snapshot is compared with F1DB's running table
         # AFTER THE SAME ROUND, which is the only like-for-like there is: the
-        # snapshot's as_of says which round it stood after. Points only
+        # snapshot's after_round says which round it stood after. Points only
         # accumulate, so a difference here is two sources disagreeing about
         # one classification, and it is recorded rather than resolved - after
         # the loop, where the disagreements of one snapshot can be read
         # together and traced to the race that causes them.
         existing = cur.execute("""SELECT points FROM standings
-            WHERE year=? AND table_type=? AND entity_id=? AND after_round=?
-              AND basis=? AND source <> ? AND engine_id IS NULL""",
-            (yr, kind, eid, after, basis, HV.F1DB_SOURCE)).fetchone()
+            WHERE year=? AND table_type=? AND driver_id IS ? AND constructor_id IS ?
+              AND after_round=? AND basis=? AND source <> ? AND engine_id IS NULL""",
+            (yr, kind, did, cid, after, basis, HV.F1DB_SOURCE)).fetchone()
         if existing is not None:
             std_checked += 1
             if (existing[0] is not None and pts is not None
@@ -2433,16 +2437,14 @@ def _stage_25_championship_standings_after_every_round_and(b):
             "SELECT full_name FROM drivers WHERE id=?" if kind == "drivers"
             else "SELECT name FROM constructors WHERE id=?", (eid,)).fetchone()
         cur.execute("""INSERT OR IGNORE INTO standings (year, table_type,
-                position, position_text, entity, entity_id, driver_id,
-                constructor_id, engine_id, points, after_round, basis, as_of,
+                position, position_text, entity, driver_id,
+                constructor_id, engine_id, points, after_round, basis,
                 confidence, source)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (yr, kind,
              int(pos) if str(pos).isdigit() else None, str(pos) if pos else None,
-             name[0] if name else eid, eid,
-             eid if kind == "drivers" else None,
-             eid if kind == "constructors" else None,
-             engine_id, pts, after, basis, as_of,
+             name[0] if name else eid, did, cid,
+             engine_id, pts, after, basis,
              HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
         std_rows += cur.rowcount
 
@@ -2499,9 +2501,10 @@ def _correct_standings_the_results_contradict(b):
     for v in found:
         previous = cur.execute(
             """SELECT points FROM standings
-                WHERE year=? AND table_type=? AND entity_id=? AND after_round=?
+                WHERE year=? AND table_type=? AND driver_id IS ?
+                  AND constructor_id IS ? AND after_round=?
                   AND engine_id IS ? AND basis='running' AND source=?""",
-            (v["year"], v["table_type"], v["entity_id"],
+            (v["year"], v["table_type"], v["driver_id"], v["constructor_id"],
              v["after_round"] - 1, v["engine_id"], HV.F1DB_SOURCE)).fetchone()
         if (previous and previous[0] is not None
                 and abs(previous[0] - v["points"]) < 0.001):
@@ -2525,10 +2528,12 @@ def _correct_standings_the_results_contradict(b):
     for v in repeats:
         cur.execute(
             """UPDATE standings SET points = ?
-                WHERE year=? AND table_type=? AND entity_id=? AND after_round=?
+                WHERE year=? AND table_type=? AND driver_id IS ?
+                  AND constructor_id IS ? AND after_round=?
                   AND engine_id IS ? AND basis='running' AND source=?""",
-            (v["expected"], v["year"], v["table_type"], v["entity_id"],
-             v["after_round"], v["engine_id"], HV.F1DB_SOURCE))
+            (v["expected"], v["year"], v["table_type"], v["driver_id"],
+             v["constructor_id"], v["after_round"], v["engine_id"],
+             HV.F1DB_SOURCE))
     corrected = len(repeats)
     for year, table, rnd in sorted({(v["year"], v["table_type"], v["after_round"])
                                     for v in repeats}):
@@ -2549,7 +2554,8 @@ def _correct_standings_the_results_contradict(b):
 
 def _refuse_a_reordered_round(cur, year, table, rnd):
     """The corrected points must leave the source's own order intact."""
-    rows = cur.execute("""SELECT entity_id, position, points FROM standings
+    rows = cur.execute("""SELECT COALESCE(driver_id, constructor_id), position,
+               points FROM standings
         WHERE year=? AND table_type=? AND after_round=? AND position IS NOT NULL
           AND basis='running' AND source=?
         ORDER BY position""", (year, table, rnd, HV.F1DB_SOURCE)).fetchall()
@@ -2568,8 +2574,9 @@ def _file_a_standings_correction(cur, year, table, rnd, rows):
     Filed once, from the one pass, so `stored_value` is always what the source
     said and never an intermediate of this build's own (review finding, #583).
     """
-    published = ", ".join(f"{v['entity_id']} {v['points']:g}" for v in rows)
-    now = ", ".join(f"{v['entity_id']} {v['expected']:g}" for v in rows)
+    ident = _standings_rule().ident
+    published = ", ".join(f"{ident(v)} {v['points']:g}" for v in rows)
+    now = ", ".join(f"{ident(v)} {v['expected']:g}" for v in rows)
     # The whole table after the round - (year, table_type, after_round) is
     # the head of standings' key - since the repeat is the table's, not one
     # entrant's.
@@ -2593,14 +2600,15 @@ def _latest_round_row(cur, v):
     that season, as (points, position_text), or None."""
     return cur.execute(
         """SELECT points, position_text FROM standings s
-            WHERE s.year=? AND s.table_type=? AND s.entity_id=?
+            WHERE s.year=? AND s.table_type=? AND s.driver_id IS ?
+              AND s.constructor_id IS ?
               AND s.engine_id IS ? AND s.basis='running' AND s.source=?
               AND s.after_round = (SELECT MAX(x.after_round) FROM standings x
                                     WHERE x.year = s.year
                                       AND x.table_type = s.table_type
                                       AND x.basis='running' AND x.source = s.source)""",
-        (v["year"], v["table_type"], v["entity_id"], v["engine_id"],
-         HV.F1DB_SOURCE)).fetchone()
+        (v["year"], v["table_type"], v["driver_id"], v["constructor_id"],
+         v["engine_id"], HV.F1DB_SOURCE)).fetchone()
 
 
 def _latest_round_points(cur, season_file):
@@ -2632,26 +2640,27 @@ def _hold_the_season_file_to_its_latest_round(cur, season_file, published):
         return (a is None and b is None) or (
             a is not None and b is not None and abs(a - b) < 0.001)
 
+    ident = _standings_rule().ident
     wrong = []
     for v, before in zip(season_file, published):
         row = _latest_round_row(cur, v)
         if row is None:
-            wrong.append(f"{v['year']} {v['table_type']} {v['entity_id']}: "
+            wrong.append(f"{v['year']} {v['table_type']} {ident(v)}: "
                          f"in the season file and not in the latest round")
             continue
         now, position_text = row
         if position_text != v["position_text"] or not (
                 same(now, v["points"]) or same(before, v["points"])):
-            wrong.append(f"{v['year']} {v['table_type']} {v['entity_id']}: "
+            wrong.append(f"{v['year']} {v['table_type']} {ident(v)}: "
                          f"season file {v['position_text']} on {v['points']}, "
                          f"latest round {position_text} on {now}")
     # And the other way round: an entry the latest round holds and the
     # season file does not name.
-    named = {(v["year"], v["table_type"], v["entity_id"], v["engine_id"])
-             for v in season_file}
+    named = {(v["year"], v["table_type"], v["driver_id"], v["constructor_id"],
+              v["engine_id"]) for v in season_file}
     for year, table in sorted({(v["year"], v["table_type"]) for v in season_file}):
-        for entity, engine in cur.execute(
-                """SELECT s.entity_id, s.engine_id FROM standings s
+        for did, cid, engine in cur.execute(
+                """SELECT s.driver_id, s.constructor_id, s.engine_id FROM standings s
                     WHERE s.year=? AND s.table_type=? AND s.basis='running'
                       AND s.source=?
                       AND s.after_round = (SELECT MAX(x.after_round) FROM standings x
@@ -2660,8 +2669,8 @@ def _hold_the_season_file_to_its_latest_round(cur, season_file, published):
                                               AND x.basis='running'
                                               AND x.source = s.source)""",
                 (year, table, HV.F1DB_SOURCE)):
-            if (year, table, entity, engine) not in named:
-                wrong.append(f"{year} {table} {entity}: in the latest round "
+            if (year, table, did, cid, engine) not in named:
+                wrong.append(f"{year} {table} {did or cid}: in the latest round "
                              f"and not in the season file")
     if wrong:
         raise SystemExit(
@@ -2670,6 +2679,17 @@ def _hold_the_season_file_to_its_latest_round(cur, season_file, published):
             + (f" (+{len(wrong) - 4} more)" if len(wrong) > 4 else "")
             + ". The two are one table, so one of the files is wrong, and "
               "this build will not pick one.")
+
+
+def _standings_row_key(yr, kind, after_round, basis, eid):
+    """A discrepancy's row key on standings: the head of the table's natural
+    key down to the entrant - year, table, the round it stands after, basis,
+    and the id in the column its table names, so a constructor's leaves
+    driver_id empty (DA-09, DA-31). It names both sources' rows for that
+    entrant, as a disagreement between them should; `source` comes later in
+    the key."""
+    ids = [eid] if kind == "drivers" else ["", eid]
+    return "|".join(str(p) for p in (yr, kind, after_round, basis, *ids))
 
 
 def _file_points_disagreements(cur, conflicts, f1db_drivers):
@@ -2719,14 +2739,15 @@ def _file_points_disagreements(cur, conflicts, f1db_drivers):
             text = generic
         # Subject is the display name, which is how a race page or a driver
         # page finds its disagreements; a constructor's page does the same on
-        # constructors.name. The row key is the head of standings' own -
-        # year, table, the round it stands after, entity - which names both
-        # sources' rows for that entity, as a disagreement between them should.
+        # constructors.name. The row key is the head of standings' own, which
+        # names both sources' rows for that entity (_standings_row_key).
         # The field is the column, so the table and the round are said in
         # words at the head of the assessment: "points" alone on a driver's
         # page reads as a career total (review finding, #661).
         _file_discrepancy(cur, "final-table" if after is None else "running-table",
-                          "standings", f"{yr}|{kind}|{after_round}|{eid}",
+                          "standings",
+                          _standings_row_key(yr, kind, after_round,
+                                             "final" if after is None else "running", eid),
                           "points", name_of(kind, eid), _points_text(official),
                           _points_text(f1db), f"{_table_words(yr, kind, after)}. {text}",
                           "open")
@@ -4597,9 +4618,9 @@ def derive_records(cur):
         + ", ".join(f"{r[1]} {r[0]:.2f}% ({r[4]} of {races_in[r[3]]}, {r[3]})"
                     for r in _rest(rows, lead)) + ".")
 
-    rows = q("""SELECT MAX(points) pts, entity, entity_id, year FROM v_standings_final
+    rows = q("""SELECT MAX(points) pts, entity, constructor_id, year FROM v_standings_final
                  WHERE table_type = 'constructors' AND points IS NOT NULL
-                 GROUP BY year, entity_id ORDER BY pts DESC, year""")
+                 GROUP BY year, constructor_id ORDER BY pts DESC, year""")
     lead = _leaders(rows)
     add("most-constructor-points-in-a-season", "constructors",
         "Most points in a season by a constructor",
@@ -4652,7 +4673,7 @@ def derive_records(cur):
           f"cars, and cannot count.")
 
     # -------------------------------------------------------------- races
-    rows = q("""SELECT a.points - b.points m, a.entity, a.entity_id, a.year,
+    rows = q("""SELECT a.points - b.points m, a.entity, a.driver_id, a.year,
                        a.points, b.entity, b.points
                   FROM v_standings_final a
                   JOIN v_standings_final b ON b.year = a.year AND b.table_type = 'drivers'
@@ -4930,9 +4951,9 @@ def derive_records(cur):
         "drivers.podiums for every driver whose drivers.wins is 0. A driver still racing "
         f"can end it. Next: {_also(rows, lead, 1)}.")
 
-    rows = q("""SELECT MAX(points) pts, entity, entity_id, year FROM v_standings_final
+    rows = q("""SELECT MAX(points) pts, entity, driver_id, year FROM v_standings_final
                  WHERE table_type = 'drivers' AND points IS NOT NULL
-                 GROUP BY year, entity_id ORDER BY pts DESC, year""")
+                 GROUP BY year, driver_id ORDER BY pts DESC, year""")
     lead = _leaders(rows)
     add("most-driver-points-in-a-season", "drivers", "Most points in a season by a driver",
         [(r[1], r[2]) for r in lead], "drivers", lead[0][0], "points",

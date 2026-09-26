@@ -281,7 +281,7 @@ function Body({ data }) {
           away: the end-of-season rows, one source&rsquo;s reading of each entrant. What it does
           not fold is the constructors&rsquo; championship&rsquo;s own grain — Cooper-Climax and
           Cooper-Maserati are two 1960 entries and not one — so count that side on{' '}
-          <code>entity_id</code> and <code>engine_id</code> together. The console&rsquo;s schema
+          <code>constructor_id</code> and <code>engine_id</code> together. The console&rsquo;s schema
           panel prints the commented schema of every table and view, which is where each column
           says what it means.
         </p>

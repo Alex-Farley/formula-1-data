@@ -187,9 +187,9 @@ export const DRIVER_SOURCES = `
  * source asserts two entries, which never happens for a driver.
  */
 export const STANDINGS = `
-  SELECT s.id, s.year, s.entity_id, s.engine_id, s.position, s.position_text, s.points, s.team
+  SELECT s.id, s.year, s.driver_id, s.engine_id, s.position, s.position_text, s.points, s.team
     FROM v_standings_final s
-   WHERE s.table_type = 'drivers' AND s.entity_id = ?
+   WHERE s.table_type = 'drivers' AND s.driver_id = ?
    ORDER BY s.year
 `
 

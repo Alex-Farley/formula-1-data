@@ -1805,12 +1805,12 @@ const page = ({
             : running
             ? fields([
                 ['After', `${run} of ${num(s.rounds)} rounds`],
-                ['Leads', `${lead.entity_id ? driver(lead.entity_id) : text(lead.entity)} — ${num(lead.points)}`],
-                ['Second', `${second.entity_id ? driver(second.entity_id) : text(second.entity)} — ${num(second.points)}`],
+                ['Leads', `${lead.driver_id ? driver(lead.driver_id) : text(lead.entity)} — ${num(lead.points)}`],
+                ['Second', `${second.driver_id ? driver(second.driver_id) : text(second.entity)} — ${num(second.points)}`],
                 ['Gap', num(gap)],
                 [
                   "Constructors' leader",
-                  teamLead ? `${teamLead.entity_id ? team(teamLead.entity_id) : text(teamLead.entity)} — ${num(teamLead.points)}` : '—',
+                  teamLead ? `${teamLead.constructor_id ? team(teamLead.constructor_id) : text(teamLead.entity)} — ${num(teamLead.points)}` : '—',
                 ],
                 ['Engine formula', text(s.engine_formula)],
                 ['Tyres', text(s.tyre_suppliers)],
@@ -1867,7 +1867,7 @@ const page = ({
         ${
           driversFinal.length
             ? fromColumns(DRIVERS_FINAL_COLUMNS, driversFinal, {
-                entity: (name, row) => (row.entity_id ? link(`drivers/${row.entity_id}`, name) : text(name)),
+                entity: (name, row) => (row.driver_id ? link(`drivers/${row.driver_id}`, name) : text(name)),
               }) + note(DRIVERS_FINAL_FOOTER)
             : notRun
               ? `<p class="state is-empty">${esc(NOT_RUN_STANDINGS)}</p>`
@@ -1878,7 +1878,7 @@ const page = ({
           constructorsFinal.length
             ? fromColumns(CONSTRUCTORS_FINAL_COLUMNS, constructorsFinal, {
                 entity: (name, row) =>
-                  `${row.entity_id ? link(`constructors/${row.entity_id}`, name) : text(name)}${row.engine_id ? ` ${tag(row.engine_id)}` : ''}`,
+                  `${row.constructor_id ? link(`constructors/${row.constructor_id}`, name) : text(name)}${row.engine_id ? ` ${tag(row.engine_id)}` : ''}`,
               }) + note(constructorsFooter(constructorsFinal.some((r) => r.engine_id)))
             : noteBox(noConstructors.head, noConstructors.body)
         }
@@ -3290,7 +3290,7 @@ page({
         several times over. <code>v_standings_final</code> folds both away: the end-of-season rows, one
         source&rsquo;s reading of each entrant. What it does not fold is the constructors&rsquo;
         championship&rsquo;s own grain &mdash; Cooper-Climax and Cooper-Maserati are two 1960 entries and not
-        one &mdash; so count that side on <code>entity_id</code> and <code>engine_id</code> together. The
+        one &mdash; so count that side on <code>constructor_id</code> and <code>engine_id</code> together. The
         console&rsquo;s schema panel prints the commented schema of every table and view, which is where each
         column says what it means.</p>`,
     })

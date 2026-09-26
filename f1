@@ -647,7 +647,7 @@ def main():
     elif cmd == "standings":
         y = a[0] if a else "2026"
         print(f"\n  DRIVERS — {y}")
-        table(c.execute("""SELECT position, entity AS driver, team, points, as_of
+        table(c.execute("""SELECT position, entity AS driver, team, points, after_round
                            FROM v_standings_final WHERE year=? AND table_type='drivers'
                            ORDER BY position""", (y,)))
         print(f"\n  CONSTRUCTORS — {y}")

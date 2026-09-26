@@ -71,7 +71,7 @@ export const CALENDAR = `
  */
 export const STANDINGS = `
   SELECT id, year, table_type, after_round, position, position_text,
-         entity, entity_id, engine_id, team, points, source
+         entity, driver_id, constructor_id, engine_id, team, points, source
     FROM standings
    WHERE year = ?1 AND basis = 'running'
      AND source = (SELECT source FROM standings
@@ -88,18 +88,18 @@ export const STANDINGS = `
  * says why in schema.sql. A position nobody established sorts last.
  */
 export const FINAL = `
-  SELECT f.id, f.year, f.table_type, f.position, f.position_text, f.entity, f.entity_id,
-         f.engine_id, f.team, f.points, f.source,
+  SELECT f.id, f.year, f.table_type, f.position, f.position_text, f.entity,
+         f.driver_id, f.constructor_id, f.engine_id, f.team, f.points, f.source,
          k.country AS constructor_country,
          MAX(CASE WHEN f.position IS NOT NULL THEN f.points END)
            OVER (PARTITION BY f.table_type) - f.points AS gap,
-         CASE WHEN f.table_type = 'drivers' AND f.entity_id IS NOT NULL THEN (
+         CASE WHEN f.driver_id IS NOT NULL THEN (
            SELECT COUNT(DISTINCT e.race_id)
              FROM race_entries e JOIN races r ON r.id = e.race_id
             WHERE r.year = f.year AND e.finish_position = 1
-              AND e.driver_id = f.entity_id) END AS wins
+              AND e.driver_id = f.driver_id) END AS wins
     FROM v_standings_final f
-    LEFT JOIN constructors k ON f.table_type = 'constructors' AND k.id = f.entity_id
+    LEFT JOIN constructors k ON k.id = f.constructor_id
    WHERE f.year = ?
    ORDER BY f.table_type, f.position IS NULL, f.position, f.points DESC
 `

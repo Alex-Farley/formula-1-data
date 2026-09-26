@@ -63,10 +63,18 @@ _ROUND_POINTS = {
 }
 
 _MULTI_ENGINE = f"""
-    SELECT year, entity_id FROM standings
+    SELECT year, constructor_id FROM standings
      WHERE table_type = 'constructors' AND {SCOPE}
-     GROUP BY year, entity_id
+     GROUP BY year, constructor_id
     HAVING COUNT(DISTINCT COALESCE(engine_id, '')) > 1"""
+
+# The id column each table's rows carry their entrant in (DA-10, DA-31).
+_ID = {"drivers": "driver_id", "constructors": "constructor_id"}
+
+
+def ident(v):
+    """The entrant's id in a violation, whichever table it is from."""
+    return v["driver_id"] or v["constructor_id"]
 
 
 class Unmappable(Exception):
@@ -143,12 +151,13 @@ def violations(con, floors=None, adjustments=None):
             continue
         totals, rounds = _running_totals(con, table)
         in_season = {(y, ent) for (y, _r, ent) in totals}
+        col = _ID[table]
         for year, ent, engine, rnd, pts in con.execute(
-                f"""SELECT year, entity_id, engine_id, after_round, points
+                f"""SELECT year, {col}, engine_id, after_round, points
                      FROM standings
                     WHERE table_type = ? AND {SCOPE}
-                      AND points IS NOT NULL AND entity_id IS NOT NULL
-                    ORDER BY year, entity_id, after_round""", (table,)):
+                      AND points IS NOT NULL AND {col} IS NOT NULL
+                    ORDER BY year, {col}, after_round""", (table,)):
             if year < floor or (table == "constructors" and (year, ent) in multi):
                 continue
             if (year, ent) not in in_season:
@@ -170,17 +179,19 @@ def violations(con, floors=None, adjustments=None):
             want = expected(derived, adjustments.get((table, year, ent)), rnd)
             if abs(pts - want) > TOLERANCE:
                 out.append({
-                    "table_type": table, "year": year, "entity_id": ent,
+                    "table_type": table, "year": year,
+                    "driver_id": ent if table == "drivers" else None,
+                    "constructor_id": ent if table == "constructors" else None,
                     "engine_id": engine, "after_round": rnd, "points": pts,
                     "derived": round(derived, 3), "expected": round(want, 3),
                 })
-    out.sort(key=lambda v: (v["year"], v["after_round"], v["entity_id"]))
+    out.sort(key=lambda v: (v["year"], v["after_round"], ident(v)))
     return out
 
 
 def describe(v):
     return (f"{v['year']} round {v['after_round']} {v['table_type'][:-1]} "
-            f"{v['entity_id']}: table says {v['points']:g}, the results make "
+            f"{ident(v)}: table says {v['points']:g}, the results make "
             f"it {v['expected']:g}")
 
 
