@@ -267,10 +267,11 @@ calendar or a run of seasons without going back to a list.
 `circuit_geometry.centreline` is a GeoJSON MultiLineString: the ways of an
 OpenStreetMap relation, **in no particular order**. Measuring along it needs
 the ways stitched end to end into one ordered ring first. `build.py` does that
-walk when the row is admitted and `verify.py` re-derives it on every build; the
-front end does not repeat it. Its browser twin, `src/lib/lap.js`, was deleted
-under CR-32 once no page imported it, so the metre is pinned in one place:
-`tests/test_geometry.py`, against `build.py`'s `_haversine`.
+walk when the row is admitted and `verify.py` re-derives its verdict — the loose
+ends and whether it closes — on every build; the front end does not repeat it.
+Its browser twin, `src/lib/lap.js`, was deleted under CR-32 once no page
+imported it, so the metre is pinned in one place: `tests/test_geometry.py`,
+against `build.py`'s `_haversine`.
 
 **The site does not draw it.** AF-23 settled which of the two drawings of a
 circuit leads: F1DB's outlines, which cover 79 of the 80 venues and every
