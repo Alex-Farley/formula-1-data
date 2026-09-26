@@ -27,10 +27,8 @@ permissions:
 # reason — over the 24 hours before 2026-09-14, 55 runs of this workflow at
 # about five billable minutes each, which with `review.yml` came to roughly
 # 320 a day against the 2,000 a month a Free PRIVATE repository is allowed,
-# and that is what exhausted the Actions allowance. (`review.yml`'s own
-# failures are a Claude credential, a different allowance entirely; nothing
-# here touches them.) `review.yml` has had a group since it was written;
-# this file did not.
+# and that is what exhausted the Actions allowance. (`review.yml`, the CI
+# review, was removed on 2026-09-26 - docs/DECISIONS.md D-44.)
 #
 # CANCELLATION IS FOR PULL REQUESTS ONLY. A run on `main` is the gate: it
 # rebuilds the database, compares the committed artefact against a fresh

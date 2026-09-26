@@ -581,7 +581,8 @@ opinion from CI.
 
 *Superseded in part on 2026-09-23: the maintainer ruled that the CI review
 stays off, and the loop never adds `ci-review` or re-enables the workflow —
-`[D-42]`.*
+`[D-42]`. Reversed in full on 2026-09-26: the workflow was removed —
+`[D-44]`.*
 
 **A green `review` check now means findings were posted** (`AF-27`, #313).
 The #312 run had not timed out and had not been cut off at its turn cap: it
@@ -870,3 +871,24 @@ moves an item within its status, to the top, the bottom, or beside another
 item, by `updateProjectV2ItemPosition`. A fork never calls it — choosing the
 order and taking the first item are separate jobs, and the second must not
 be able to do the first.
+
+### D-44 · The CI review is removed — 2026-09-26
+`.github/workflows/review.yml` ran `anthropics/claude-code-action` with a
+credential from a second Claude account of the maintainer's. It was made
+opt-in on 2026-09-16 `[D-28]`, disabled in the repository the same day, and on
+2026-09-23 the maintainer ruled it stays off and is not to be deleted (#614).
+On 2026-09-26 the maintainer asked for it to be removed altogether, which
+reverses the "not deleted" half of that ruling.
+
+What it was for is done elsewhere and was already the control: a fresh,
+independent review from `.claude/agents/` before every merge, recorded by
+`verdict.sh` `[D-40]`. What it left behind was cost with no return — a
+credential on an account with no allowance, a label that started nothing, a
+file of 300-odd lines that `CLAUDE.md` asked every change to leave alone, and
+a rule telling the loop not to use it. It was never a required check on
+`main`, so removing it changes no merge gate. The conformance reviewers it
+ran are unchanged; the loop and a terminal still use them.
+
+The workflow's history is in git and in its runs. The `ci-review` label and
+the repository's Claude secrets are settings, not files, and go with the
+maintainer's say-so rather than with this change.
