@@ -257,7 +257,8 @@ Two licences, which is normal for a data project:
   `tools/`, `schema.sql` — under MIT, or whatever you prefer.
 - **Data** — `data/`, `harvest/`, `f1.db`, `f1.db.gz`, `f1-parquet.zip`,
   `f1_database.json` — under CC BY-SA 4.0, with attribution to Wikipedia
-  contributors.
+  contributors, except the five columns under *What this project wrote*,
+  which are CC BY 4.0.
 
 Add a `LICENSE` for the code and a `LICENSE-DATA` for the data, and say which
 covers what in the README. I have deliberately not chosen for you.

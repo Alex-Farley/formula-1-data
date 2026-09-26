@@ -123,7 +123,10 @@ jobs:
             | `schema.sql` | The schema, commented. |
             | `SHA256SUMS` | Digests. The build is reproducible, so you can check these by rebuilding. |
 
-            Data is CC BY-SA 4.0. Circuit geometry is © OpenStreetMap
+            Data is CC BY-SA 4.0, except five columns of this project's own
+            writing, which are CC BY 4.0 (`LICENSE-DATA` names them), and
+            `f1-parquet.zip` carries a `README.txt` stating both. Circuit
+            geometry is © OpenStreetMap
             contributors under ODbL 1.0, and ships as its own file rather
             than inside `f1.db` or the JSON export: two databases distributed
             alongside each other are a Collective Database under ODbL, so the
