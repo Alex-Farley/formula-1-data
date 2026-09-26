@@ -491,13 +491,13 @@ def _stage_03_drivers_admitted_from_the_f1db_register(b):
         wins_external = wins, poles_external = poles,
         fastest_laps_external = fastest_laps,
         external_source = 'hand-entered from reference records'""")
-    # These figures get NO claim (PM-14). A claim is the value a source gave,
-    # and the reference records they were typed from were never named: the
-    # row's own source is not established as theirs - a list of polesitters
-    # publishes no career wins - and entry 18 is for writing done here. So
-    # they stay what external_source says they are, and which source they
-    # should cite is a person's question (PM-57, #624). Every figure below
-    # that a source DID give is claimed where it arrives.
+    # These figures get no claim HERE. A claim is the value a source gave, and
+    # the reference records they were typed from were never named: the row's
+    # own source is not established as theirs - a list of polesitters
+    # publishes no career wins - and entry 18 is for writing done here. Stage
+    # 30 checks each one against a named source and claims, replaces or
+    # removes it (PM-57, #624). Every figure below that a source DID give is
+    # claimed where it arrives.
     # Fastest-lap totals for drivers whose hand-entered row carries none,
     # declared with their source so the derived figure has something to be
     # checked against. Fills a blank only.
@@ -2917,8 +2917,8 @@ def _stage_29_career_figures_checked_against_the_official(b):
         # The claims follow the columns: the three figures this fetch gave
         # are claimed, dated, replacing whatever backed the column before.
         # The fastest-lap total, which it did not give, stays as it was -
-        # typed, and unclaimed - though external_source now names this fetch
-        # for the whole row. That one column is the case it cannot express.
+        # typed, and unclaimed until stage 30 checks it against F1DB - and
+        # stage 30 rewrites external_source to name both.
         for field, value in (("wins_external", wins), ("poles_external", poles),
                              ("podiums_external", podiums)):
             cur.execute("""DELETE FROM claims WHERE tbl = 'drivers'
@@ -2986,6 +2986,8 @@ def _stage_30_derived_win_totals(b):
                 (did, f"{field}_external", str(new), new_source))
         elif n > 1:
             raise SystemExit(f"correction: {n} claims back {did} {field} = {old}")
+
+    _resource_typed_career_figures(cur, b.f1db_drivers)
 
     cur.execute("""UPDATE drivers SET poles = (
             SELECT COUNT(*) FROM race_entries e
@@ -3071,6 +3073,116 @@ def _stage_30_derived_win_totals(b):
                     f"external {external}, derived {derived}")
             _file_discrepancy(cur, "external-figure", "drivers", r[0], field, r[1],
                               str(external), str(derived), assessment, status, note)
+
+
+def _resource_typed_career_figures(cur, f1db_drivers):
+    """The career figures typed from reference records nobody named, each
+    checked against a named source (PM-57, #624).
+
+    Every *_external figure still without a claim was typed into the data
+    modules. F1DB's own published career total is the named source each is
+    checked against; data/harvest.py, above RESOURCED_ELSEWHERE, says what
+    each outcome does. After this no external figure is held without a claim,
+    which verify.py holds without exception.
+
+    `f1db_drivers` is stage 21's map, F1DB id -> ours: drivers.f1db_id is not
+    written until stage 36.
+    """
+    release, totals = HV.load_f1db_driver_totals()
+    f1db_of = {ours: theirs for theirs, ours in f1db_drivers.items()}
+    elsewhere = dict(HV.RESOURCED_ELSEWHERE)
+    no_source = set(HV.CAREER_FIGURES_NO_SOURCE)
+    removed = set()
+
+    def claim(did, col, value, source):
+        cur.execute("""INSERT INTO claims (tbl, row_key, field, value_given,
+            source) VALUES ('drivers', ?, ?, ?, ?)""", (did, col, str(value), source))
+
+    rows = cur.execute("""SELECT id, full_name, status, wins_external,
+        poles_external, fastest_laps_external FROM drivers ORDER BY id""").fetchall()
+    for did, name, status, *typed_row in rows:
+        given_row = totals.get(f1db_of.get(did))
+        for i, field in enumerate(("wins", "poles", "fastest_laps")):
+            col, typed = f"{field}_external", typed_row[i]
+            if typed is None or cur.execute("""SELECT 1 FROM claims
+                    WHERE tbl = 'drivers' AND row_key = ? AND field = ?""",
+                    (did, col)).fetchone():
+                continue
+            given = given_row[i] if given_row else None
+            declared = elsewhere.pop((did, field), None)
+            if declared is not None:
+                held, source, why = declared
+                if held != typed or given is None or given == typed:
+                    raise SystemExit(
+                        f"RESOURCED_ELSEWHERE {did} {field}: declares {held} against "
+                        f"F1DB's {given}, and the typed figure is {typed}")
+                claim(did, col, typed, source)
+                _file_discrepancy(cur, "f1db-career-total", "drivers", did, field,
+                                  name, str(typed), str(given), why, "open",
+                                  "sources differ")
+            elif given is None:
+                if (did, field) not in no_source:
+                    raise SystemExit(
+                        f"{name} {field}: typed {typed}, and F1DB holds no total "
+                        f"for this driver. Find a named source, or list it in "
+                        f"CAREER_FIGURES_NO_SOURCE beside known gap 17.")
+                cur.execute(f"UPDATE drivers SET {col} = NULL WHERE id = ?", (did,))
+                removed.add((did, field))
+            elif given == typed:
+                claim(did, col, typed, HV.F1DB_SOURCE)
+            elif status == "active" and typed < given:
+                cur.execute(f"UPDATE drivers SET {col} = ? WHERE id = ?", (given, did))
+                claim(did, col, given, HV.F1DB_SOURCE)
+                _file_discrepancy(
+                    cur, "f1db-career-total", "drivers", did, field, name,
+                    str(typed), str(given),
+                    f"The typed {typed} came from reference records that were "
+                    f"never named, and from an earlier date: the driver is still "
+                    f"racing and has added to it since. F1DB's published career "
+                    f"total, {release}, is {given}, and it replaces the typed "
+                    f"figure as the one this column holds (PM-57).",
+                    "resolved", "replaced by a named source")
+            else:
+                raise SystemExit(
+                    f"UNDECLARED: {name} {field} was typed as {typed} and F1DB's "
+                    f"published total is {given}. Read a second named source and "
+                    f"declare it in RESOURCED_ELSEWHERE, or correct the figure.")
+    if elsewhere:
+        raise SystemExit(f"RESOURCED_ELSEWHERE declares {sorted(elsewhere)}, which "
+                         f"no typed figure needed")
+    if removed != no_source:
+        raise SystemExit(f"CAREER_FIGURES_NO_SOURCE lists {sorted(no_source - removed)}, "
+                         f"which the build did not remove")
+
+    # external_source is the row's reading of what its claims now say: the
+    # formula1.com fetch where one gave figures, otherwise the source of the
+    # first figure, and each further source for the figures it gave. A row
+    # with no external figure left has no external source.
+    label = {HV.F1DB_SOURCE: f"F1DB career totals, {release}"}
+    words = {"wins_external": "wins", "poles_external": "poles",
+             "fastest_laps_external": "fastest laps", "podiums_external": "podiums"}
+    by_row = {}
+    for did, col, source in cur.execute("""SELECT row_key, field, source
+            FROM claims WHERE tbl = 'drivers' ORDER BY row_key""").fetchall():
+        by_row.setdefault(did, {})[col] = source
+    for did, current in cur.execute("SELECT id, external_source FROM drivers").fetchall():
+        claimed = by_row.get(did, {})
+        if not claimed:
+            cur.execute("UPDATE drivers SET external_source = NULL WHERE id = ?", (did,))
+            continue
+        ordered = [c for c in words if c in claimed]
+        if current and current.startswith("formula1.com driver page"):
+            head, lead = current.split(";")[0], "https://www.formula1.com/en/drivers"
+        else:
+            lead = claimed[ordered[0]]
+            head = label.get(lead, lead)
+        rest = [c for c in ordered if claimed[c] != lead]
+        parts = [head]
+        for source in dict.fromkeys(claimed[c] for c in rest):
+            fields = " and ".join(words[c] for c in rest if claimed[c] == source)
+            parts.append(f"{fields} from {label.get(source, source)}")
+        cur.execute("UPDATE drivers SET external_source = ? WHERE id = ?",
+                    ("; ".join(parts), did))
 
 
 def _stage_31_figures_derivable_from_the_race_records(b):

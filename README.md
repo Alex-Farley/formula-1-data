@@ -43,7 +43,7 @@ here is a number the build checked.
 
 | File | What it is |
 |---|---|
-| `f1.db` | The SQLite database. <!-- fig:tables -->49<!-- /fig --> tables, <!-- fig:views -->41<!-- /fig --> views, <!-- fig:rows -->122,286<!-- /fig --> rows. This is the artefact. |
+| `f1.db` | The SQLite database. <!-- fig:tables -->49<!-- /fig --> tables, <!-- fig:views -->41<!-- /fig --> views, <!-- fig:rows -->122,663<!-- /fig --> rows. This is the artefact. |
 | `f1-geometry.db` | The OpenStreetMap circuit centrelines (ODbL), shipped beside `f1.db` and never merged into it. See *Illustration*. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
@@ -177,8 +177,9 @@ full career figures, and the complete
 
 Their wins, poles, fastest laps and podiums are **computed from the race
 records**, so they are internally consistent by construction and cannot drift.
-The figures that were hand-entered or checked against an external source are
-preserved in the `*_external` columns so the two can always be compared.
+A separately sourced figure for each is kept in the `*_external` columns so
+the two can always be compared, and every one of those figures cites the
+source that gave it.
 
 **Constructors** — <!-- fig:constructors -->150<!-- /fig --> rows, plus a
 `constructor_lineage` table that tracks
@@ -1124,22 +1125,31 @@ previously hand-entered or externally checked values are kept in
 `wins_external`, `poles_external` and `fastest_laps_external`.
 
 The two are compared on every build. Across the
-**<!-- fig:drivers_with_external -->234<!-- /fig --> drivers that hold an
-official figure — <!-- fig:external_comparisons -->393<!-- /fig -->
-comparisons — there are <!-- fig:external_differences -->5<!-- /fig --> live
-differences**, and `verify.py` fails the build on any that is not declared in
+**<!-- fig:drivers_with_external -->233<!-- /fig --> drivers that hold an
+official figure — <!-- fig:external_comparisons -->391<!-- /fig -->
+comparisons — live differences: <!-- fig:external_differences -->1<!-- /fig -->**,
+and `verify.py` fails the build on any that is not declared in
 `discrepancies`. Two earlier differences were errors in the external figure,
 found the same way and since corrected, which is why they no longer appear:
-John Surtees's fastest laps were entered as 11 where the reference record
+John Surtees's fastest laps were entered as 11 where his Wikipedia infobox
 says 10, matching the race data; George Russell's poles came back as 12 from
 a formula1.com fetch that also returned internally inconsistent 2026 figures,
 and Wikipedia's infobox independently gave 11, matching the derived count.
 
+Most of those figures were first typed in by hand from reference records
+nobody named. Each has since been checked against F1DB's own published
+career total, from the release the harvest was read from: where the two
+agree the figure cites F1DB, where a current driver has added to the total
+since it was typed F1DB's figure replaces it, and where F1DB differs
+otherwise a second named source is read and the disagreement is kept open
+in `discrepancies`. The two figures no named source gives were removed,
+and `known_gaps` says so.
+
 **Where two sources disagree and neither can be checked against an official
 source, the disagreement is itself the fact worth storing.** `discrepancies`
-holds <!-- fig:discrepancies -->60<!-- /fig --> rows:
-<!-- fig:discrepancies_open -->13<!-- /fig --> open,
-<!-- fig:discrepancies_explained -->8<!-- /fig --> explained — an external
+holds <!-- fig:discrepancies -->61<!-- /fig --> rows:
+<!-- fig:discrepancies_open -->14<!-- /fig --> open,
+<!-- fig:discrepancies_explained -->3<!-- /fig --> explained — an external
 figure older than the race it lacks, or two readings of a career span that
 are each right about something — and the rest resolved — corrected,
 withdrawn or not corroborated — with the outcome on the row. Each open one is
@@ -1206,8 +1216,8 @@ queried, not just read here. `./f1 gaps` prints them with the fix for each.
   never recorded in a form anyone can retrieve. See *Timing, telemetry and
   radio* above.
 
-The `known_gaps` table holds <!-- fig:known_gaps -->16<!-- /fig --> entries,
-of which <!-- fig:known_gaps_open -->10<!-- /fig --> are open gaps — the figure
+The `known_gaps` table holds <!-- fig:known_gaps -->17<!-- /fig --> entries,
+of which <!-- fig:known_gaps_open -->11<!-- /fig --> are open gaps — the figure
 the site's homepage and `/data` state, counted from the same `v_open_gaps`
 view. The rest are either closed, and kept so the closure is on record, or
 positions: a deliberate absence rather than a gap, such as the race timing

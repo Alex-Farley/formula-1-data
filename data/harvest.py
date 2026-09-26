@@ -890,6 +890,27 @@ KNOWN_GAPS = [
      "Closes when the indexed figure for each indexed year is read from an "
      "FIA Determination or an FIA statement of the adjusted cap, and stored "
      "beside the base."),
+    (17, "career-figure-no-named-source", "drivers.wins_external",
+     "a typed career figure that no named source gives",
+     "open",
+     "Maria de Villota tested for Marussia in 2012 and never entered a "
+     "championship race. The career wins and poles once typed for her came "
+     "from reference records nobody named, and F1DB, the source every other "
+     "typed figure was checked against, holds only drivers who entered, so "
+     "no second figure is held to compare hers with. Her totals counted from "
+     "the race records are unaffected.",
+     "PM-57 (#624). Every career figure typed into data/drivers.py was "
+     "checked against a named source that publishes that figure: F1DB's own "
+     "career totals (harvest/f1db_driver_totals.txt), or where F1DB differs "
+     "a second one (RESOURCED_ELSEWHERE). Where one matched, the figure "
+     "cites it. These two - de-villota's wins and poles, both 0 - have no "
+     "F1DB driver to be checked against and no other named source, so the "
+     "build removes them (NULL, not established) rather than leave a figure "
+     "no source stands behind. CAREER_FIGURES_NO_SOURCE lists them and the "
+     "build refuses any other.",
+     None,
+     "Closes when a named, classified source publishes a career total for "
+     "her, and that figure is read and cited."),
 ]
 
 # Shared fastest laps the season tables render as ONE name. harvest/poles.txt
@@ -960,6 +981,43 @@ EXTERNAL_FASTEST_LAPS = {
     "ickx": (14, "https://en.wikipedia.org/wiki/Jacky_Ickx"),
 }
 
+# The career figures typed into data/drivers.py came from reference records
+# nobody named, and a claim is the value a SOURCE gave (PM-57, #624). So the
+# build checks every one of them against F1DB's own published career totals,
+# harvest/f1db_driver_totals.txt, and:
+#   - where F1DB gives the same figure, the figure cites F1DB;
+#   - where F1DB gives a larger one for a driver still racing, the typed
+#     figure was an earlier total and F1DB's replaces it, with the typed one
+#     kept in `discrepancies`;
+#   - where F1DB gives a different figure otherwise, a second named source
+#     must be read and declared here, or the build fails;
+#   - where F1DB holds no such driver, the figure is removed and
+#     CAREER_FIGURES_NO_SOURCE names it, beside known gap 17.
+# A declaration here keeps the typed figure, cites the source that gives it,
+# and files F1DB's figure against it as an open disagreement: two named
+# sources differ, and neither is an official one.
+#   (driver_id, field): (the typed figure, the named source that gives it, why)
+RESOURCED_ELSEWHERE = {
+    ("ascari", "fastest_laps"): (
+        12, "https://en.wikipedia.org/wiki/Alberto_Ascari",
+        "His Wikipedia career infobox gives 12, which is also the count in the "
+        "race records; F1DB's published total is 13. The difference is the "
+        "1953 French Grand Prix: F1DB credits Ascari and Fangio jointly with "
+        "the 2:41.1, while the race article credits Fangio and footnotes that "
+        "some sources credit Ascari with an equal lap. Two sources read one "
+        "lap differently, and neither is an official one. "
+        "Source: https://en.wikipedia.org/wiki/1953_French_Grand_Prix"),
+}
+
+# Typed career figures no named source gives, removed by the build (known gap
+# 17). The build refuses a removal not listed here, and a listing that did not
+# happen.
+#   (driver_id, field)
+CAREER_FIGURES_NO_SOURCE = (
+    ("de-villota", "wins"),
+    ("de-villota", "poles"),
+)
+
 # Differences between a hand-entered career figure and the figure derived
 # from the race records that are NOT explained by the gaps above. Declared
 # here so that verify.py can assert no NEW unexplained difference appears:
@@ -1017,10 +1075,13 @@ CORRECTIONS = [
      "from the race records. Corrected to 11.",
      "https://en.wikipedia.org/wiki/George_Russell_(racing_driver)"),
     ("surtees", "fastest_laps", 11, 10,
-     "The hand-entered total of 11 was wrong. The reference record gives 10, which is "
-     "also the number found in the race data. Corrected in favour of the derived "
-     "figure, which two independent sources now agree on.",
-     None),
+     "The hand-entered total of 11 was wrong by the race records and by his "
+     "Wikipedia career infobox, which both give 10. F1DB's published total is "
+     "11: it credits him with the fastest lap of the 1970 South African Grand "
+     "Prix, which the harvest gives Brabham, and that race-level disagreement "
+     "is on the record and open. Corrected to 10, the figure the infobox and "
+     "the race records agree on.",
+     "https://en.wikipedia.org/wiki/John_Surtees"),
 ]
 
 
@@ -1071,6 +1132,7 @@ CORRECTIONS = [
 # =====================================================================
 CHASSIS_FILE = os.path.join(HERE, "..", "harvest", "chassis.txt")
 F1DB_DRIVERS_FILE = os.path.join(HERE, "..", "harvest", "f1db_drivers.txt")
+F1DB_TOTALS_FILE = os.path.join(HERE, "..", "harvest", "f1db_driver_totals.txt")
 F1DB_COUNTRIES_FILE = os.path.join(HERE, "..", "harvest", "f1db_countries.txt")
 ENTRANT_DRIVERS_FILE = os.path.join(HERE, "..", "harvest", "entrant_drivers.txt")
 ENGINES_FILE = os.path.join(HERE, "..", "harvest", "engines.txt")
@@ -1406,6 +1468,20 @@ def load_f1db_drivers():
     abbreviation, nationality_country_id, place_of_birth,
     country_of_birth_country_id, permanent_number"""
     return _read_pipe(F1DB_DRIVERS_FILE, 11)
+
+
+def load_f1db_driver_totals():
+    """(release, {driver_id: (wins, poles, fastest_laps)}): F1DB's own career
+    totals, from the release tools/f1db_totals_fetch.py read. The release is
+    returned because the totals are pinned to it and not to the harvest the
+    rest of the F1DB files follow."""
+    with open(os.path.abspath(F1DB_TOTALS_FILE), encoding="utf-8") as f:
+        m = re.search(r"^# Source: F1DB (\S+) \(", f.read(), re.M)
+    if not m:
+        raise SystemExit("f1db_driver_totals.txt names no F1DB release. Rerun "
+                         "tools/f1db_totals_fetch.py.")
+    return m.group(1), {r[0]: tuple(int(v) for v in r[1:])
+                        for r in _read_pipe(F1DB_TOTALS_FILE, 4)}
 
 
 def load_entrant_drivers():

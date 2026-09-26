@@ -54,6 +54,17 @@ and never the network. **The repository holds a snapshot**, and the snapshot
 is what `build.py` turns into `f1.db`; the F1DB version in play is stated in
 `README.md` and in the header of every generated harvest file.
 
+One file arrives by a second route. F1DB's career totals per driver are
+computed by its own build and published only in its release artefacts, not
+in the source tree the clone reads, so `tools/f1db_totals_fetch.py` reads
+`f1db-drivers.csv` out of a release's `f1db-csv.zip` into
+`harvest/f1db_driver_totals.txt` - checked against the release's own
+checksum, and against the deed at the tagged commit. It is pinned to the
+release the harvest was read from when it was fetched, and the daily
+refresh does not move it: the totals are the named source the career
+figures typed into `data/drivers.py` are checked against (PM-57, #624), and
+they change only when somebody fetches another release on purpose.
+
 `.github/workflows/refresh.yml` runs the fetch daily at 06:00 UTC. If the
 harvest has not changed it stops there. If it has, it rebuilds, runs
 `verify.py`, the loader unit tests, the JSON export, the site build and the

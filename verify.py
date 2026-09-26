@@ -3331,10 +3331,11 @@ def claims():
     # Which driver figures a source is NAMED for, from the modules that say
     # so rather than from the build that copied them: the two fetched
     # fastest-lap totals, formula1.com for the three figures its driver pages
-    # gave, and the correction that replaced a figure with another source's.
+    # gave, the corrections that replaced a figure with another source's, and
+    # the typed figures a second source was read for where F1DB differs.
     # Every other external figure was typed from reference records nobody
-    # named, and has no claim - that is the declaration, and PM-57 (#624) is
-    # the question it leaves open.
+    # named, and cites F1DB's published career total, which it must equal
+    # (PM-57, #624).
     named = {}
     for did, (_n, src) in harvest.EXTERNAL_FASTEST_LAPS.items():
         named[(did, "fastest_laps_external")] = src
@@ -3346,7 +3347,8 @@ def claims():
     for did, f, *_rest, src in harvest.CORRECTIONS:
         if src is not None:
             named[(did, f"{f}_external")] = src
-    unnamed = {}   # (tbl, field) -> row_keys whose value no source is named for
+    for (did, f), (_typed, src, _why) in harvest.RESOURCED_ELSEWHERE.items():
+        named[(did, f"{f}_external")] = src
 
     held = {(r[0], r[1]): r[2] for r in con.execute(
         "SELECT tbl, field, COUNT(*) FROM claims GROUP BY tbl, field")}
@@ -3381,9 +3383,8 @@ def claims():
 
         # The column is exactly its claims: no row holds two, no claim
         # disagrees with the value the row holds, and no value is held
-        # without one - bar a driver figure no source is named for, which is
-        # declared above and counted here. A NULL claim may stand for a NULL
-        # value - a source consulted that named nothing - and matches it by IS.
+        # without one. A NULL claim may stand for a NULL value - a source
+        # consulted that named nothing - and matches it by IS.
         two = con.execute("""SELECT COUNT(*) FROM (SELECT 1 FROM claims
             WHERE tbl = ? AND field = ? GROUP BY row_key HAVING COUNT(*) > 1)""",
             (t, f)).fetchone()[0]
@@ -3393,9 +3394,6 @@ def claims():
         without = [r[0] for r in con.execute(f"""SELECT {expr} FROM "{t}" x
             WHERE x."{f}" IS NOT NULL AND NOT EXISTS (SELECT 1 FROM claims c
                 WHERE c.tbl = ? AND c.field = ? AND c.row_key = {expr})""", (t, f))]
-        if t == "drivers":
-            unnamed[(t, f)] = [k for k in without if (k, f) not in named]
-            without = [k for k in without if (k, f) in named]
         bare = len(without)
         check(f"{t}.{f} is exactly its claims", not (two or differ or bare),
               f"{two} rows with two, {differ} disagreeing, {bare} values with none")
@@ -3406,19 +3404,37 @@ def claims():
     check("every claim's row_key names exactly one row", not dangling,
           "; ".join(dangling))
 
-    # The driver claims are exactly the named figures, each citing the
-    # source its module names - and so none for a figure typed from records
-    # nobody named.
-    claimed = {(r["row_key"], r["field"]): r["source"] for r in con.execute(
-        "SELECT row_key, field, source FROM claims WHERE tbl = 'drivers'")}
-    stray = sorted(f"{k[0]}.{k[1]}" for k in set(claimed) ^ set(named)
-                   if claimed.get(k) != named.get(k))
-    stray += sorted(f"{k[0]}.{k[1]} cites {claimed[k]}" for k in set(claimed) & set(named)
-                    if claimed[k] != named[k])
+    # The driver claims are the named figures, each citing the source its
+    # module names, and the rest - the typed figures - cite F1DB's published
+    # career total and hold exactly it, read here from the harvest file rather
+    # than from the build that copied it.
+    claimed = {(r["row_key"], r["field"]): (r["source"], r["value_given"]) for r in con.execute(
+        "SELECT row_key, field, source, value_given FROM claims WHERE tbl = 'drivers'")}
+    stray = sorted(f"{k[0]}.{k[1]} has no claim" for k in set(named) - set(claimed))
+    stray += sorted(f"{k[0]}.{k[1]} cites {claimed[k][0]}" for k in set(claimed) & set(named)
+                    if claimed[k][0] != named[k])
+    release, totals = harvest.load_f1db_driver_totals()
+    f1db_ids = dict(con.execute("SELECT id, f1db_id FROM drivers").fetchall())
+    column = {"wins_external": 0, "poles_external": 1, "fastest_laps_external": 2}
+    f1db = [k for k in set(claimed) - set(named)]
+    for did, f in sorted(f1db):
+        source, value = claimed[(did, f)]
+        total = totals.get(f1db_ids.get(did) or "")
+        if source != harvest.F1DB_SOURCE or f not in column or total is None:
+            stray.append(f"{did}.{f} cites {source}, which no module names for it")
+        elif value != str(total[column[f]]):
+            stray.append(f"{did}.{f} is {value}; F1DB {release} publishes {total[column[f]]}")
     check("every driver claim is a figure its data module names a source for, "
-          "citing that source", not stray, "; ".join(stray[:3]))
-    print(f"        drivers: {sum(len(v) for v in unnamed.values())} figures "
-          f"typed from reference records nobody named carry no claim (#624)")
+          "citing that source, or F1DB's published career total, equal to it",
+          not stray, "; ".join(stray[:3]))
+    kept = [f"{did}.{f}" for did, f in harvest.CAREER_FIGURES_NO_SOURCE
+            if con.execute(f'SELECT "{f}_external" FROM drivers WHERE id = ?',
+                           (did,)).fetchone()[0] is not None]
+    check("every typed career figure no named source gives is removed (known gap 17)",
+          not kept, ", ".join(kept))
+    print(f"        drivers: {len(f1db)} typed figures cite F1DB's career totals "
+          f"({release}); {len(harvest.CAREER_FIGURES_NO_SOURCE)} no named source "
+          f"gives are removed (#624)")
 
     wrong_source = con.execute("""SELECT COUNT(*) FROM claims cl
         JOIN chassis c ON c.id = cl.row_key

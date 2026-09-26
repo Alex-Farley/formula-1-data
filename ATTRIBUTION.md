@@ -218,15 +218,15 @@ the share-alike above:
 
 | Column | What it holds | Chars |
 |---|---|---:|
-| `discrepancies.assessment` | this project's reading of a disagreement between two sources — which figure it takes, and why | <!-- fig:prose_assessment -->18,242<!-- /fig --> |
-| `known_gaps.reader` | what a reader is shown about a gap | <!-- fig:prose_gap_reader -->4,722<!-- /fig --> |
-| `known_gaps.description` | the maintainer's note on it | <!-- fig:prose_gap_description -->12,270<!-- /fig --> |
-| `known_gaps.resolution` | what would close it, or what did | <!-- fig:prose_gap_resolution -->4,768<!-- /fig --> |
-| `known_gaps.area` | the part of the database it falls in | <!-- fig:prose_gap_area -->806<!-- /fig --> |
+| `discrepancies.assessment` | this project's reading of a disagreement between two sources — which figure it takes, and why | <!-- fig:prose_assessment -->19,504<!-- /fig --> |
+| `known_gaps.reader` | what a reader is shown about a gap | <!-- fig:prose_gap_reader -->5,098<!-- /fig --> |
+| `known_gaps.description` | the maintainer's note on it | <!-- fig:prose_gap_description -->12,840<!-- /fig --> |
+| `known_gaps.resolution` | what would close it, or what did | <!-- fig:prose_gap_resolution -->4,875<!-- /fig --> |
+| `known_gaps.area` | the part of the database it falls in | <!-- fig:prose_gap_area -->854<!-- /fig --> |
 
 Every figure in that table is a span this build rewrites from the database
 itself:
-<!-- fig:prose_kb -->40 KB<!-- /fig --> between them.
+<!-- fig:prose_kb -->42 KB<!-- /fig --> between them.
 
 The share-alike on everything else comes from Wikipedia, and
 none of Wikipedia's text is in these columns: a disagreement between two
