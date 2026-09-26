@@ -82,7 +82,9 @@ Two words, either order, both optional.
      reviewer it launched die on the limit). Take the reset time from
      whichever arrived. Schedule a wake-up for one minute after it (a
      one-shot `CronCreate`, or `ScheduleWakeup` inside a `/loop`) that
-     reinvokes this skill with the same arguments, then stop. The fork is
+     reinvokes this skill with the same arguments, then stop. Run as the
+     `backlog-manager` agent, schedule nothing: return the line, and
+     `supervise.py` restarts the session `[D-42]`. The fork is
      relaunched fresh, never resumed. A PR or worktree it left open is
      picked up by the next fork, which checks `gh pr list` and
      `git worktree list` before starting.
@@ -101,6 +103,19 @@ Two words, either order, both optional.
 
 End with the stock-take, once, in at most five lines: merged this run, open
 PRs, decisions needed, what `next.py` says is next. Then stop.
+
+## Running it unattended
+
+`make loop ARGS="until-paused balanced"` — or `python3
+.claude/skills/backlog-loop/supervise.py until-paused` — runs this procedure
+headless as the `backlog-manager` agent (`.claude/agents/`), with no MCP
+servers, and starts a fresh session after a usage limit. It works from any
+clone, under any Claude account with `gh` signed in, because everything it
+reads is in the repository `[D-42]`. It always runs `--permission-mode
+auto`, because auto mode's refusal to merge a PR with no recorded verdict is
+a control, and an account without auto mode runs the loop by hand. Its own
+lines go to `.claude/loop/progress.log` beside the forks', under the id
+`supervisor`.
 
 ## Running it cheaply
 

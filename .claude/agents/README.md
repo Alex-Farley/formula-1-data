@@ -1,6 +1,7 @@
 # The agents
 
-Two families, with opposite postures. Keep them apart.
+Two families, with opposite postures. Keep them apart. A third file,
+the loop's manager, is neither, and has a section of its own.
 
 ## Conformance reviewers
 
@@ -56,6 +57,18 @@ the pressure points, how to drive the running site, and the output contract.
 **So a critic transplants to another project by copying the file and writing a
 new brief.** If you change what the project is, change the brief — not nine
 agents.
+
+## The loop manager
+
+`backlog-manager`.
+
+Not a reviewer and not a critic: it reads nothing for findings and judges no
+change. It is the backlog loop's driver, run as the **main thread** of a
+session — `claude --agent backlog-manager`, or unattended by
+`.claude/skills/backlog-loop/supervise.py` through `make loop` — so that the
+loop is defined here rather than in whichever session or account starts it
+(`docs/DECISIONS.md` D-42). It is never launched through the Agent tool and
+never sits on the merge path; the forks it invokes launch the reviewers.
 
 ## Adding to either family
 

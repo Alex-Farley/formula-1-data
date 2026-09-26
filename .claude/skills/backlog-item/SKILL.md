@@ -30,7 +30,8 @@ ever reports back to you. Never end a turn to wait for something.
 Arguments: a pace (`fast`, `balanced`, `thorough`; default `balanced`) and a
 target (`next` or an item id; default `next`), optionally `--skip A,B` for
 ids this run has already skipped. If you were not invoked by the
-`backlog-loop` driver or by a person typing `/backlog-item`, return
+`backlog-loop` driver, by the `backlog-manager` agent that runs its
+procedure unattended `[D-42]`, or by a person typing `/backlog-item`, return
 `STOP: not invoked by the loop` and do nothing.
 
 First, `bash .claude/skills/backlog-loop/start-check.sh`. It prints the open
@@ -67,10 +68,15 @@ reviewed again on the same head `[D-23]`.
 
    **Never page through the issue list or the board.** `next.py` does it for
    a few hundred tokens, which is the point of it. Open an issue only to work
-   on it.
+   on it. **A board position is a person's drag:** the only board writes are
+   `file.py`'s, and none of them moves an item to fit a theory of how it got
+   there `[D-42]`.
 2. **Reread the item against the code as it is now.** It may be stale, landed
    under another id, or superseded — if so, `file.py decline <n> "<why>"` and
-   move on.
+   move on. **Read its comments before its "To decide":** a ruling is
+   recorded as a comment and the body is never amended, so a question the
+   body still asks may already be settled. A settled question is worked, not
+   filed again as a decision `[D-42]`.
 3. **A fact needs a source before a line of code.** Never invent a value:
    NULL, a `discrepancies` row or a `known_gaps` row.
 4. **Anything that is a person's decision** — a licence reading, a scope
@@ -324,7 +330,13 @@ reads past a FAIL phrased as a sentence tomorrow `[D-37]`. Then:
   line each `[D-23]`.
 
 Then `gh pr merge N --merge`, only with the PASS and `check (3.9)`,
-`check (3.12)` and `web` green. **Merging deploys lapledger.org.**
+`check (3.12)` and `web` green. **Merging deploys lapledger.org.** In auto
+mode the merge is refused as *Merge Without Review* until a verdict is a
+comment on the PR, which `[D-23]` already puts there; a refusal means the
+record is missing, and the answer is to record it, never to route around it.
+Never add the `ci-review` label or re-enable `review.yml`: the loop's own
+review is the control, and the CI review is the maintainer's to turn back on
+`[D-42]`.
 
 ## Keeping the cost down
 

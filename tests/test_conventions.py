@@ -254,23 +254,25 @@ class AgentAndSkillFrontmatterIsWellFormed(unittest.TestCase):
             self.assertEqual(fm["name"], folder, f"{rel}: name {fm['name']!r} is not the folder name")
 
     def families(self):
-        """The two families in .claude/agents/README.md, as {name: family}.
+        """The families in .claude/agents/README.md, as {name: family}.
         Derived from the files on disk rather than trusting the prose to be
         complete: an agent the README forgets to mention is the whole point
         of the check, so it must be an error and not an absence. This is the
         circuit_geometry lesson (D-02) applied to a list of agents."""
         readme = read(".claude/agents/README.md")
         conformance = readme[readme.index("## Conformance reviewers"):readme.index("## Critics")]
-        critics = readme[readme.index("## Critics"):readme.index("## Adding to either family")]
+        critics = readme[readme.index("## Critics"):readme.index("## The loop manager")]
+        manager = readme[readme.index("## The loop manager"):readme.index("## Adding to either family")]
         out = {}
         for f in files_under(".claude/agents", (".md",)):
             name = os.path.basename(f)[:-3]
             if name == "README":
                 continue
-            where = [fam for fam, text in (("reviewer", conformance), ("critic", critics))
+            where = [fam for fam, text in (("reviewer", conformance), ("critic", critics),
+                                           ("manager", manager))
                      if name in text]
             self.assertEqual(len(where), 1,
-                             f"{name} is in {len(where)} of README.md's two families, not exactly 1")
+                             f"{name} is in {len(where)} of README.md's three families, not exactly 1")
             out[name] = where[0]
         return out
 
