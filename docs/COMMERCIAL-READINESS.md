@@ -214,6 +214,190 @@ pass is `PM-17`, #249.
 
 ---
 
+## For decision: the Wikipedia-cited race rows
+
+Step 1 of `PD-41` (#481), written as `PD-51` (#662), for the maintainer to
+decide step 2 on — a CC BY 4.0 facts edition beside `f1.db`, or CC BY-SA
+stated as permanent — and for a solicitor to check, if they choose to ask
+one. **It is an analysis, not legal advice.** It relicenses nothing, releases
+nothing and changes nothing in `LICENSE-DATA`.
+
+<!-- fig:wp_race_rows -->2,253<!-- /fig --> rows — <!-- fig:wp_races -->1,125<!-- /fig --> of `races` and <!-- fig:wp_race_entries -->1,128<!-- /fig --> of `race_entries`, every
+championship race from <!-- fig:wp_first_season -->1950<!-- /fig --> to <!-- fig:wp_last_season -->2024<!-- /fig --> and its winner — cite a Wikipedia season article.
+Wikipedia is a `yes` source, so they ship today under CC BY-SA and the class
+table counts them as redistributable. The question here is narrower: whether
+the share-alike actually reaches them, so that a file carrying them could be
+offered under CC BY 4.0 as F1DB's rows are. It is the test *What was read*
+applied to the formula1.com rows, plus the one that reading did not need —
+the database right.
+
+### Column by column
+
+A row's `source` names who established its **finishing position**, not every
+value on it. The season harvest created each winner row and F1DB's
+classification then filled its gaps, keeping the season article as the
+source — the upsert in `build.py` says so where it does it. A row citing
+Wikipedia is part Wikipedia and part F1DB:
+
+| Column | Came from | What it is |
+|---|---|---|
+| `races.year`, `round`, `name_used` | season article, `harvest/races.txt` | bare fact: which round, under the name it ran as |
+| `races.gp_id`, `circuit_id` | the article's race name and venue (`harvest/venues.txt`), resolved to this project's registers | bare fact, keyed by this project |
+| `races.dates`, `date_iso`, `f1db_layout_id`, `sprint` | F1DB | bare fact, CC BY 4.0 |
+| `races.layout_key`, `status`, `confidence` | this project | this project's classification |
+| `race_entries.driver_id`, `constructor_id`, `entrant`, `finish_position`, `shared_drive` | season article | bare fact: who won, in what, entered by whom |
+| `race_entries.pole`, `fastest_lap`, `fastest_lap_shared` | season article, `harvest/poles.txt`, and the race article for a shared fastest lap (`SHARED_FASTEST_LAPS`, `data/harvest.py`) | bare fact: a credit of the record — <!-- fig:wp_poles -->483<!-- /fig --> poles and <!-- fig:wp_fastest_laps -->404<!-- /fig --> fastest laps on these rows |
+| `race_entries.grid`, `grid_text`, `position_text`, `classified`, `status`, `laps_completed`, `points` | F1DB, on all <!-- fig:wp_winners_f1db -->1,128<!-- /fig --> rows | bare fact, CC BY 4.0 |
+| `race_entries.chassis_id`, `car_id` | F1DB's entry lists; this project's car linkage | bare fact; this project's classification |
+| `races.note`, `race_entries.note` | — | NULL on every one of these rows |
+
+No column carries prose, and none carries expression: a name is not a work,
+and a result is the sport's, not an editor's. The one judgement near
+selection — which races count as championship rounds, the Indianapolis 500 of
+1950–60 among them — is the championship's own, which Wikipedia records and
+does not make. None of Wikipedia's arrangement survives either: its season
+tables are grids of rounds against drivers, and these are rows re-keyed to
+this schema.
+
+**Copyright is therefore not what binds them.** In UK law a database has
+copyright only where its selection or arrangement is its author's own
+intellectual creation (CDPA 1988 s.3A, implementing art. 3 of Directive
+96/9/EC), and effort spent creating or collecting the data does not count
+towards that (*Football Dataco v Yahoo!*, C-604/10, 2012). These rows take no
+selection and no arrangement, and a single result is a fact. On copyright
+they are bare facts, on exactly the reading the formula1.com rows were given.
+
+### The database right
+
+The sui generis right is the harder question, and the one that decides this.
+It protects a database whose maker made a substantial investment in
+obtaining, verifying or presenting its contents, against extraction or
+re-utilisation of all or a substantial part of them — and against repeated,
+systematic extraction of insubstantial parts that adds up to the same
+(Directive art. 7; in UK law the Copyright and Rights in Databases
+Regulations 1997, regs. 13–16). Three steps:
+
+1. **Is the investment the kind that counts?** Investment in *creating* data
+   does not (*British Horseracing Board v William Hill*, C-203/02, and the
+   *Fixtures Marketing* cases decided with it, 2004): the FIA running and
+   classifying a race is not an investment in anybody's database.
+   Transcribing those classifications into tables and checking them is
+   investment in obtaining and verifying existing material, which is the kind
+   that does count. Whether volunteers' edits amount to a *substantial*
+   investment is unsettled, and no case settles it for a wiki.
+2. **Is there a maker the right protects?** The right needs a maker who is a
+   national or resident of, or a body established in, the territory whose law
+   applies — since the UK left the EU, the UK right for UK makers and the EU
+   right for EEA ones (reg. 18, as amended in 2019). The Wikimedia Foundation
+   is a US non-profit, and the United States has no database right; if the
+   editors are the makers, they are an unnamed group across many
+   jurisdictions. Whether any of them is a qualifying maker of these tables
+   is a question of fact that nobody holds the facts for.
+3. **If a right subsists, is the take substantial?** Almost certainly. The
+   harvest took the winner, constructor, venue, pole and fastest-lap entries
+   of every season article's race summary from <!-- fig:wp_first_season -->1950<!-- /fig --> to <!-- fig:wp_last_season -->2024<!-- /fig -->: the
+   whole of that content, not a sample. Substantiality is measured against
+   the investment in the part taken (*BHB*), and the part taken is the part
+   the investment went into.
+
+The answer turns on steps 1 and 2, not on how much was taken. **The reading
+is: whether a right reaching these rows subsists is unsettled, and depends on
+facts about Wikipedia's makers that are not established; if one does, this
+project's take was substantial.** That is weaker ground than the formula1.com
+reading, which rested on nothing more contestable than that facts are not
+copyright.
+
+**The same facts are held independently.** The right is against extraction
+from the protected database, not against the facts. F1DB classifies
+<!-- fig:wp_races_f1db -->1,125<!-- /fig --> of these <!-- fig:wp_races -->1,125<!-- /fig --> races, and the winner cross-check in `build.py`
+refuses a race whole where the two disagree, so every winner on these rows is
+one F1DB states too, under CC BY 4.0. The rows as stored were still taken
+from Wikipedia: it is the facts, not these rows, that have a second source.
+
+### What CC BY-SA 4.0 §4 changes
+
+Wikipedia's text is CC BY-SA 4.0, and its §4 says what happens where the
+licensed rights include a database right. It permits extracting all or a
+substantial portion of the contents (§4(a)) and requires attribution when a
+substantial portion is shared (§4(c)). The clause that matters is §4(b):
+where a substantial portion goes into a database in which *you* hold a
+database right, that database — "but not its individual contents" — is
+Adapted Material and takes the share-alike.
+
+Two consequences follow. §4 never makes an individual fact share-alike:
+F1DB's rows inside `f1.db` stay CC BY 4.0 row by row whatever is decided. And
+what it reaches is this project's own database right in the file holding the
+rows. `f1.db` may well carry one — the investment in verifying it is the
+cross-checks, and its maker's qualification is the same question as step 2,
+asked of this project — so *if* Wikipedia's right subsists, `f1.db`'s database
+right is share-alike by §4(b), and so would be any facts edition carrying a
+substantial portion of these rows. Where no right subsists, §4 adds nothing:
+the licence's conditions attach only to *Licensed Rights* that apply to the
+use (§1(i)).
+
+### A CC BY 4.0 facts edition, counted
+
+On the pattern of [D-07] — a second file published beside `f1.db`, each
+carrying its own licence — the edition holds every sourced row that does not
+cite Wikipedia: <!-- fig:edition_rows -->116,525<!-- /fig --> of the <!-- fig:sourced_rows -->121,260<!-- /fig -->. That is F1DB's <!-- fig:f1db_rows -->115,802<!-- /fig --> and the
+<!-- fig:facts_only_rows -->723<!-- /fig --> facts-only rows, which are bare facts on the reading above and put
+nothing of FOM's or the FIA's under anyone's licence. *Collective Database*
+is ODbL's term, not CC BY-SA's; the separation works for CC BY-SA only
+because §4(b) reaches the database holding the substantial portion and no
+other.
+
+It leaves out the <!-- fig:wp_rows -->4,735<!-- /fig --> rows that cite Wikipedia:
+
+| Rows | Table | What they are |
+|---:|---|---|
+| <!-- fig:wp_races -->1,125<!-- /fig --> | `races` | the race register to <!-- fig:wp_last_season -->2024<!-- /fig --> |
+| <!-- fig:wp_race_entries -->1,128<!-- /fig --> | `race_entries` | the winners |
+| <!-- fig:wp_claims -->2,367<!-- /fig --> | `claims` | race, win and pole totals as per-car and per-driver articles publish them |
+| <!-- fig:wp_drivers -->64<!-- /fig --> | `drivers` | drivers whose register row cites a season article |
+| <!-- fig:wp_cars -->29<!-- /fig --> | `cars` | design families citing their per-car article |
+| <!-- fig:wp_regulation_limits -->16<!-- /fig --> | `regulation_limits` | limits cited to the history of the regulations |
+| <!-- fig:wp_radio -->6<!-- /fig --> | `team_radio` | the radio quotations |
+
+— and three sets a count by `source` cannot see, because the value is
+Wikipedia's while the row cites something else: the per-car specifications
+on <!-- fig:wp_chassis_specs -->804<!-- /fig --> `chassis` rows citing F1DB (`spec_source`); the <!-- fig:wp_layouts -->51<!-- /fig --> rows of
+`circuit_layouts`, whose source `table_provenance` declares for the whole
+table; and the pole and fastest-lap credits, which came from the season
+harvest wherever it names one, including on rows citing F1DB for their
+classification (`schema.sql` declares it on the columns).
+
+The race rows cannot simply be dropped: <!-- fig:wp_dependent_rows -->73,480<!-- /fig --> rows in other tables —
+the rest of every classification, qualifying, sprints, pit stops — are keyed
+to them, and an edition without them has no spine. So a facts edition has two
+routes, and they are the substance of step 2:
+
+- **Re-source the race rows to F1DB** for the edition: build them from
+  F1DB's own races and classifications, which state every one of these
+  facts, and keep the season harvest as the cross-check it already is rather
+  than as the source. Nothing Wikipedia made is then in the file and §4 has
+  nothing to attach to; the other sets above are left out or NULL. The route
+  rests on F1DB's CC BY 4.0, whose statement `PM-61` (#680) has open, and the
+  repository's `harvest/` files stay CC BY-SA — the edition is the artefact,
+  not the repository.
+- **Keep the rows**, on the reading that no database right reaches them.
+  That rests on the maker question above, the least certain step in this
+  note.
+
+### What stays share-alike in any case
+
+Expression, which neither reading of the database right frees: the prose
+fields the pass above counts, and the <!-- fig:wp_radio -->6<!-- /fig --> radio quotations (`PM-19`, #251,
+and *Decided: the six radio quotations stay*). They are CC BY-SA whatever step
+2 decides, and a facts edition leaves them out.
+
+**What this note does not establish.** Whether any Wikipedia editor is a
+qualifying maker; whether F1DB's own compilation drew on Wikipedia, which is
+F1DB's to represent and is represented by its licence; and anything outside
+UK and EU law — in the United States there is no database right, and the
+copyright reading above is the whole question.
+
+---
+
 ## Decided: the history before the split stands
 
 Thirty-five commits carry the 25 centrelines inside `f1.db`, in ten distinct
