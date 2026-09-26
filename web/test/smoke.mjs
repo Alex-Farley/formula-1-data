@@ -2593,6 +2593,80 @@ try {
     is(await appCanonical(), '/cars/lotus-72b', 'a variant of a design of several is its own canonical')
   })
 
+  /*
+   * IA-28. Where a curated car is one chassis, both halves of both addresses
+   * print its figures by the one precedence in queries/car.js - the chassis's
+   * where it has one, the curated row's where it does not - so the static
+   * page and the app agree field for field, and a figure the two rows give
+   * differently is shown with both readings beside it.
+   */
+  await section('/cars/<car> that is one chassis  (one precedence, both halves)', async () => {
+    const copies = db
+      .prepare(
+        `SELECT ch.id AS chassis, c.id AS car
+           FROM cars c JOIN chassis ch ON ch.car_id = c.id
+          WHERE NOT EXISTS (SELECT 1 FROM chassis y WHERE y.id = c.id)
+            AND (SELECT COUNT(*) FROM chassis x WHERE x.car_id = c.id) = 1
+          ORDER BY c.id`,
+      )
+      .all()
+    atLeast(copies.length, 1, 'some curated car is a single chassis under another id')
+    const SPEC = ['Designers', 'Chassis', 'Suspension', 'Front suspension', 'Rear suspension', 'Brakes', 'Gearbox',
+      'Gears', 'Tyres', 'Fuel', 'Engine', 'Configuration', 'Capacity', 'Aspiration', 'Power', 'Power note', 'Weight',
+      'Wheelbase', 'Track, front', 'Track, rear']
+    const flat = (value) => unescaped(value.replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim()
+    const servedFields = (html) => {
+      const body = html.split('<div id="prerendered">')[1] ?? ''
+      const out = {}
+      for (const [, dt, dd] of body.matchAll(/<dt>([\s\S]*?)<\/dt><dd>([\s\S]*?)<\/dd>/g)) {
+        const label = flat(dt)
+        if (SPEC.includes(label) && !(label in out)) out[label] = flat(dd)
+      }
+      return out
+    }
+    const pairs = (html) =>
+      [...html.matchAll(/disagreement-pair num"><span>([^<]*)<\/span><span class="disagreement-vs">against<\/span><span>([^<]*)<\/span>/g)]
+        .map((m) => `${unescaped(m[1])}/${unescaped(m[2])}`)
+    const wrong = []
+    for (const { chassis, car } of copies) {
+      const want = db
+        .prepare(
+          `SELECT stored_value || '/' || derived_value AS pair FROM discrepancies
+            WHERE tbl = 'cars' AND row_key = ? AND status = 'open' ORDER BY id`,
+        )
+        .all(car)
+        .map((r) => r.pair)
+      const own = await (await fetch(`${BASE}/cars/${car}`)).text()
+      const copy = await (await fetch(`${BASE}/cars/${chassis}`)).text()
+      const served = servedFields(own)
+      if (JSON.stringify(servedFields(copy)) !== JSON.stringify(served)) {
+        wrong.push(`/cars/${chassis}: the static copy prints other figures than /cars/${car}`)
+      }
+      for (const [where, html] of [[car, own], [chassis, copy]]) {
+        if (pairs(html).join(',') !== want.join(',')) wrong.push(`/cars/${where}: static readings ${pairs(html)}, recorded ${want}`)
+      }
+      await go(`/cars/${car}`)
+      const app = await page.$$eval('#root main dl.fields', (lists) => {
+        const out = {}
+        for (const dl of lists) {
+          for (const dt of dl.querySelectorAll(':scope > dt')) {
+            const label = dt.textContent.trim()
+            if (!(label in out)) out[label] = dt.nextElementSibling?.textContent.replace(/\s+/g, ' ').trim() ?? ''
+          }
+        }
+        return out
+      })
+      for (const label of Object.keys(served)) {
+        if (app[label] !== served[label]) wrong.push(`/cars/${car} ${label}: app \u201c${app[label]}\u201d, static \u201c${served[label]}\u201d`)
+      }
+      const appPairs = await page.$$eval('#root main .disagreement-pair', (nodes) =>
+        nodes.map((p) => [...p.querySelectorAll('span')].filter((s) => !s.classList.contains('disagreement-vs')).map((s) => s.textContent).join('/')),
+      )
+      if (appPairs.join(',') !== want.join(',')) wrong.push(`/cars/${car}: app readings ${appPairs}, recorded ${want}`)
+    }
+    is(wrong.join('; '), '', `all ${copies.length} print the same figures in both halves, with every recorded reading beside them`)
+  })
+
   await section('/cars/mclaren-mp4-4', async () => {
     await go('/cars/mclaren-mp4-4', 'McLaren MP4/4')
     const mp44 = await tableRows()

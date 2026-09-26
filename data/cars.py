@@ -209,7 +209,7 @@ CARS = [
      0, 0, 1, "high", "high", WIKI + "Tyrrell_P34"),
 
     ("renault-rs01", "renault", "RS01", "Renault RS01", 1977, 1979, None,
-     "Andre de Cortanze, Jean-Pierre Jabouille, Francois Castaing", "renault-eng",
+     "André de Cortanze, Jean-Pierre Jabouille, François Castaing", "renault-eng",
      "Renault-Gordini EF1 turbo V6", "Michelin",
      "90-degree turbo V6", 1492, "turbocharged", 510,
      "About 510 bhp at 11,000 rpm; a single turbo at first, twin turbos later to attack the lag",
@@ -366,7 +366,7 @@ CARS = [
      1, 1, 1, "high", "high", WIKI + "Renault_R25"),
 
     ("brawn-bgp001", "brawn", "BGP 001", "Brawn BGP 001", 2009, 2009, None,
-     "Ross Brawn, Jorg Zander, Loic Bigois, John Owen, Masayuki Minagawa (double diffuser)",
+     "Ross Brawn, Jörg Zander, Loïc Bigois, John Owen, Masayuki Minagawa (double diffuser)",
      "mercedes-eng", "Mercedes-Benz FO 108W V8", "Bridgestone",
      "90-degree V8", 2400, "naturally aspirated", 750,
      "750 bhp at 18,000 rpm, the regulation rev limit", 18000,
@@ -397,7 +397,7 @@ CARS = [
      1, 1, 1, "high", "high", WIKI + "Red_Bull_RB6"),
 
     ("mercedes-w05", "mercedes", "W05", "Mercedes F1 W05 Hybrid", 2014, 2014, None,
-     "Bob Bell, Aldo Costa, Geoff Willis, John Owen, Mike Elliott, Loic Serra",
+     "Bob Bell, Aldo Costa, Geoff Willis, John Owen, Mike Elliott, Loïc Serra",
      "mercedes-eng", "Mercedes-Benz PU106A Hybrid turbo V6", "Pirelli",
      "90-degree turbo V6 hybrid", 1600, "turbocharged hybrid", 840,
      "About 840 bhp combined at up to 15,000 rpm, from a 1.6-litre V6 plus MGU-K and MGU-H",
@@ -415,7 +415,7 @@ CARS = [
     # ------------------------------------------------------------ the 2020s
     ("mercedes-w11", "mercedes", "W11", "Mercedes F1 W11 EQ Performance", 2020, 2020,
      "mercedes-w05",
-     "James Allison, John Owen, Mike Elliott, Loic Serra, Eric Blandin", "mercedes-eng",
+     "James Allison, John Owen, Mike Elliott, Loïc Serra, Eric Blandin", "mercedes-eng",
      "Mercedes-Benz M11 EQ Performance turbo V6", "Pirelli",
      "90-degree turbo V6 hybrid", 1600, "turbocharged hybrid", 1000,
      "Around 1,000 bhp combined, the peak of the first hybrid formula", 15000,
@@ -430,7 +430,7 @@ CARS = [
      1, 1, 1, "high", "medium", WIKI + "Mercedes_F1_W11"),
 
     ("red-bull-rb19", "red-bull", "RB19", "Red Bull RB19", 2023, 2023, "red-bull-rb6",
-     "Adrian Newey, Pierre Wache, Craig Skinner, Enrico Balbo", "rbpt",
+     "Adrian Newey, Pierre Waché, Craig Skinner, Enrico Balbo", "rbpt",
      "Honda RBPTH001 turbo V6", "Pirelli",
      "90-degree turbo V6 hybrid", 1600, "turbocharged hybrid", 1000, None, 15000,
      "carbon-fibre composite monocoque", "Red Bull 8-speed semi-automatic",
@@ -620,6 +620,32 @@ WITHDRAWN = [
     ("ferrari-f2004", "weight_kg", 605.0,
      "605 kg is the 2004 minimum in qualifying trim, including driver and "
      "fuel. Every car on the 2004 grid was built to it."),
+]
+
+
+# ---------------------------------------------------------------------
+# Where a car and its one chassis give a figure differently.
+#
+# Four cars here are the whole of one chassis registered under another id -
+# `mercedes-w11` is the chassis `mercedes-f1-w11` and nothing else - so the
+# two rows describe one object. The car's page shows each field from the
+# chassis where it holds a value and from this file only where it does not
+# (IA-28, the maintainer's ruling of 2026-09-24). A figure the two rows give
+# differently is not silently picked: it is declared here, with what is known
+# of each reading, and build.py files it in `discrepancies` as open, which
+# puts both readings on the car's page. The build refuses a disagreement that
+# is not declared here, and a declaration the two rows no longer disagree on.
+#
+#   car_id, field, assessment
+# ---------------------------------------------------------------------
+CHASSIS_DISAGREEMENTS = [
+    ("mercedes-w11", "power_bhp",
+     "This car's row gives 1,000 bhp, written as a round figure (\"around "
+     "1,000 bhp combined\") and marked medium confidence: widely reported, not "
+     "checked against a primary source. The chassis register gives 1,025, read "
+     "from the car's Wikipedia article. Neither has been checked against a "
+     "Mercedes or FIA figure. The page shows the register's, as it does every "
+     "figure the register holds for this car."),
 ]
 
 

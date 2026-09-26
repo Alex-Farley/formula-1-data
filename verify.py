@@ -1372,8 +1372,8 @@ def external_figures_vs_the_race_records():
     # rely on: a subject that names no race, or no driver, is refused here.
     import build
     unresolved = []
-    for did, subject in con.execute(
-            "SELECT id, subject FROM discrepancies WHERE status = 'open' "
+    for did, subject, tbl, row_key in con.execute(
+            "SELECT id, subject, tbl, row_key FROM discrepancies WHERE status = 'open' "
             "OR (status = 'explained' AND status_note = ?)", (build.EACH_SIDE_RIGHT,)):
         m = re.fullmatch(r"(\d{4}) round (\d+)", subject or "")
         if m:
@@ -1386,6 +1386,14 @@ def external_figures_vs_the_race_records():
         elif con.execute("SELECT 1 FROM constructors WHERE name=?",
                          (subject,)).fetchone():
             pass
+        # A car's page asks for the rows filed against its curated row by
+        # that row's id (IA-28), so the row key must name a car, and the
+        # subject must be that car's name - or the row is shown on one car's
+        # page under another's.
+        elif tbl == "cars":
+            if not con.execute("SELECT 1 FROM cars WHERE id=? AND full_name=?",
+                               (row_key, subject)).fetchone():
+                unresolved.append(f"#{did} '{subject}' is not the name of car {row_key!r}")
         else:
             unresolved.append(f"#{did} '{subject}' joins to nothing a reader can reach")
     check("every recorded disagreement the site shows can be shown beside the fact it is about",
@@ -2531,6 +2539,34 @@ def the_chassis_register():
           f"undeclared: {_fmt_late(_late_cars - _late_declared)}; "
           f"no longer late: {_fmt_late(_late_declared - _late_cars)}")
     print(f"  [info] the 29 curated cars cover {len(claimed)} register chassis")
+
+    # A car that is the whole of one chassis under another id shows each
+    # figure from the chassis where it has one (IA-28), so every figure the
+    # two rows give differently must be an open disagreement carrying both,
+    # and every such row must still be one: the car's figure stored, the
+    # chassis's derived, read here from the two tables, not from the build.
+    import build
+    _copies = con.execute("""SELECT c.id, ch.id FROM cars c
+        JOIN chassis ch ON ch.car_id = c.id
+        WHERE NOT EXISTS (SELECT 1 FROM chassis y WHERE y.id = c.id)
+          AND (SELECT COUNT(*) FROM chassis x WHERE x.car_id = c.id) = 1""").fetchall()
+    _differ = {}
+    for car_id, ch_id in _copies:
+        for field in build.CAR_CHASSIS_FIGURES:
+            ours = con.execute(f"SELECT {field} FROM cars WHERE id=?", (car_id,)).fetchone()[0]
+            theirs = con.execute(f"SELECT {field} FROM chassis WHERE id=?", (ch_id,)).fetchone()[0]
+            if ours is not None and theirs is not None and ours != theirs:
+                _differ[(car_id, field)] = (build._points_text(ours), build._points_text(theirs))
+    _filed = {(r[0], r[1]): (r[2], r[3], r[4]) for r in con.execute(
+        """SELECT row_key, field, stored_value, derived_value, status FROM discrepancies
+           WHERE kind = 'car-chassis'""")}
+    _bad = [f"{c}.{f} {a} against {b}: " + ("not filed" if (c, f) not in _filed else
+            f"filed as {_filed[(c, f)]}")
+            for (c, f), (a, b) in sorted(_differ.items()) if _filed.get((c, f)) != (a, b, "open")]
+    _bad += [f"{c}.{f} filed, but the rows do not disagree on it"
+             for c, f in sorted(set(_filed) - set(_differ))]
+    check("every figure a car and its one chassis give differently is an open disagreement carrying both",
+          not _bad, "; ".join(_bad))
 
     bad = con.execute("""SELECT COUNT(*) FROM chassis c WHERE c.car_id IS NOT NULL
         AND NOT EXISTS (SELECT 1 FROM cars x WHERE x.id = c.car_id)""").fetchone()[0]

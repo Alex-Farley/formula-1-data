@@ -1622,6 +1622,7 @@ CREATE TABLE discrepancies (
                         'external-figure',     -- an external figure against the records
                         'career-span',         -- the register's span against the records'
                         'car-season',          -- CAR_SEASONS against the entry lists
+                        'car-chassis',         -- a car's figure against its one chassis's
                         'jolpica-result')),    -- tools/ergast_load.py, local only
     subject         TEXT NOT NULL,
     tbl             TEXT NOT NULL,
