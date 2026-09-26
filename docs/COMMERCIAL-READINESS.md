@@ -245,7 +245,8 @@ Wikipedia is part Wikipedia and part F1DB:
 | `races.gp_id`, `circuit_id` | the article's race name and venue (`harvest/venues.txt`), resolved to this project's registers | bare fact, keyed by this project |
 | `races.dates`, `date_iso`, `f1db_layout_id`, `sprint` | F1DB | bare fact, CC BY 4.0 |
 | `races.layout_key`, `status`, `confidence` | this project | this project's classification |
-| `race_entries.driver_id`, `constructor_id`, `entrant`, `finish_position`, `shared_drive` | season article | bare fact: who won, in what, entered by whom |
+| `race_entries.driver_id`, `constructor_id`, `finish_position`, `shared_drive` | season article | bare fact: who won, and for whom |
+| `race_entries.entrant` | season article | bare fact: the chassis-engine name as published |
 | `race_entries.pole`, `fastest_lap`, `fastest_lap_shared` | season article, `harvest/poles.txt`, and the race article for a shared fastest lap (`SHARED_FASTEST_LAPS`, `data/harvest.py`) | bare fact: a credit of the record — <!-- fig:wp_poles -->483<!-- /fig --> poles and <!-- fig:wp_fastest_laps -->404<!-- /fig --> fastest laps on these rows |
 | `race_entries.grid`, `grid_text`, `position_text`, `classified`, `status`, `laps_completed`, `points` | F1DB, on all <!-- fig:wp_winners_f1db -->1,128<!-- /fig --> rows | bare fact, CC BY 4.0 |
 | `race_entries.chassis_id`, `car_id` | F1DB's entry lists; this project's car linkage | bare fact; this project's classification |
@@ -352,23 +353,33 @@ It leaves out the <!-- fig:wp_rows -->4,735<!-- /fig --> rows that cite Wikipedi
 |---:|---|---|
 | <!-- fig:wp_races -->1,125<!-- /fig --> | `races` | the race register to <!-- fig:wp_last_season -->2024<!-- /fig --> |
 | <!-- fig:wp_race_entries -->1,128<!-- /fig --> | `race_entries` | the winners |
-| <!-- fig:wp_claims -->2,367<!-- /fig --> | `claims` | race, win and pole totals as per-car and per-driver articles publish them |
-| <!-- fig:wp_drivers -->64<!-- /fig --> | `drivers` | drivers whose register row cites a season article |
+| <!-- fig:wp_claims -->2,367<!-- /fig --> | `claims` | race, win, pole and fastest-lap totals as per-car and per-driver articles publish them |
+| <!-- fig:wp_drivers -->64<!-- /fig --> | `drivers` | <!-- fig:wp_drivers_seasons -->15<!-- /fig --> winners a season article introduced, and <!-- fig:wp_drivers_polesitters -->49<!-- /fig --> drivers who took pole and never won, from *List of Formula One polesitters* |
 | <!-- fig:wp_cars -->29<!-- /fig --> | `cars` | design families citing their per-car article |
 | <!-- fig:wp_regulation_limits -->16<!-- /fig --> | `regulation_limits` | limits cited to the history of the regulations |
 | <!-- fig:wp_radio -->6<!-- /fig --> | `team_radio` | the radio quotations |
 
-— and three sets a count by `source` cannot see, because the value is
+— and four sets a count by `source` cannot see, because the value is
 Wikipedia's while the row cites something else: the per-car specifications
 on <!-- fig:wp_chassis_specs -->804<!-- /fig --> `chassis` rows citing F1DB (`spec_source`); the <!-- fig:wp_layouts -->51<!-- /fig --> rows of
 `circuit_layouts`, whose source `table_provenance` declares for the whole
-table; and the pole and fastest-lap credits, which came from the season
-harvest wherever it names one, including on rows citing F1DB for their
-classification (`schema.sql` declares it on the columns).
+table; the pole and fastest-lap credits, which came from the season harvest
+wherever it names one, including on rows citing F1DB for their
+classification (`schema.sql` declares it on the columns); and the seasons
+after <!-- fig:wp_last_season -->2024<!-- /fig -->, whose races cite formula1.com while the venue and pole
+harvests read those seasons' articles too — `races.circuit_id` and the pole
+and fastest-lap credits there are the harvest's.
 
-The race rows cannot simply be dropped: <!-- fig:wp_dependent_rows -->73,480<!-- /fig --> rows in other tables —
-the rest of every classification, qualifying, sprints, pit stops — are keyed
-to them, and an edition without them has no spine. So a facts edition has two
+The <!-- fig:wp_drivers_polesitters -->49<!-- /fig --> pole-only drivers raise the database-right question of
+one more article, a single list rather than a season's table. What they take
+from it is a name and a nationality each, bare facts; the `notes` line some
+of them carry is this project's writing and belongs to the prose pass. The
+three steps above apply to the list unchanged.
+
+The race rows cannot simply be dropped: <!-- fig:wp_dependent_rows -->73,480<!-- /fig --> further rows —
+the rest of every classification in `race_entries`, and qualifying, sprints
+and pit stops — are keyed to them, and an edition without them has no
+spine. So a facts edition has two
 routes, and they are the substance of step 2:
 
 - **Re-source the race rows to F1DB** for the edition: build them from

@@ -664,6 +664,25 @@ class Figures:
     def wp_race_rows(self):         return n(self._wp("races") + self._wp("race_entries"))
     def wp_claims(self):            return n(self._wp("claims"))
     def wp_drivers(self):           return n(self._wp("drivers"))
+
+    # The 'drivers' rows cite two kinds of article, and the note reads them
+    # apart: the season articles that introduced a winner, and the list of
+    # polesitters that introduced a driver who took pole and never won. A
+    # third kind would be an article the note has not read.
+    _WP_POLESITTERS = "source = 'https://en.wikipedia.org/wiki/List_of_Formula_One_polesitters'"
+
+    def _wp_drivers_split(self):
+        season = self.count("drivers", self._WP_RACE)
+        poles = self.count("drivers", self._WP_POLESITTERS)
+        if season + poles != self._wp("drivers"):
+            raise SystemExit(
+                f"{self._wp('drivers')} drivers cite Wikipedia, {season} a season "
+                f"article and {poles} the list of polesitters: "
+                f"docs/COMMERCIAL-READINESS.md reads those two and no other")
+        return season, poles
+
+    def wp_drivers_seasons(self):    return n(self._wp_drivers_split()[0])
+    def wp_drivers_polesitters(self): return n(self._wp_drivers_split()[1])
     def wp_cars(self):              return n(self._wp("cars"))
     def wp_regulation_limits(self): return n(self._wp("regulation_limits"))
     def wp_radio(self):             return n(self._wp("team_radio"))
@@ -698,8 +717,15 @@ class Figures:
 
     def wp_winners_f1db(self):
         # Winner rows citing a season article that F1DB's classification then
-        # filled - laps, points, grid - under the COALESCE in build.py.
-        return n(self.count("race_entries", f"{self._WP_RACE} AND laps_completed IS NOT NULL"))
+        # filled - laps, points, grid - under the COALESCE in build.py. The
+        # note says "all" of them, so a shortfall stops the writer rather
+        # than printing a smaller number under the same word.
+        filled = self.count("race_entries", f"{self._WP_RACE} AND laps_completed IS NOT NULL")
+        if filled != self._wp("race_entries"):
+            raise SystemExit(
+                f"{filled} of {self._wp('race_entries')} Wikipedia-cited winner rows "
+                f"carry F1DB's classification: docs/COMMERCIAL-READINESS.md says all")
+        return n(filled)
 
     def wp_poles(self):
         return n(self.count("race_entries", f"{self._WP_RACE} AND pole = 1"))
@@ -744,15 +770,31 @@ class Figures:
                 f"reads circuit_layouts alone")
         return n(self.count("circuit_layouts"))
 
+    # The registry entry for F1DB owns both of these domains, so a row
+    # resolving to either is F1DB's by the same rule `./f1 licences` applies.
+    F1DB_DOMAINS = ("github.com", "f1db")
+
     def edition_rows(self):
         # Every sourced row that does not cite Wikipedia: what a CC BY 4.0
-        # facts edition holds before anything is re-sourced.
-        return n(sum(self._licence_tally()[0].values())
-                 - self._licence_tally()[1].get(self.WIKI, 0))
+        # facts edition holds before anything is re-sourced. The note says
+        # that is F1DB's rows and the facts-only rows and nothing else, so a
+        # row from any other source stops the writer.
+        by_class, by_domain = self._licence_tally()[:2]
+        other = sorted(d or "an unresolved source" for d in by_domain
+                       if d != self.WIKI and d not in self.F1DB_DOMAINS
+                       and d not in self._facts_only_domains())
+        if other:
+            raise SystemExit(
+                f"sourced rows cite {', '.join(other)}: docs/COMMERCIAL-READINESS.md "
+                f"counts the facts edition as F1DB's rows and the facts-only rows alone")
+        return n(sum(by_class.values()) - by_domain.get(self.WIKI, 0))
+
+    def _facts_only_domains(self):
+        return {d for (_t, d) in self._licence_tally()[2]}
 
     def f1db_rows(self):
         by_domain = self._licence_tally()[1]
-        return n(by_domain.get("github.com", 0) + by_domain.get("f1db", 0))
+        return n(sum(by_domain.get(d, 0) for d in self.F1DB_DOMAINS))
 
     def fo_drivers(self):            return self._fo("drivers")
     def fo_circuits(self):           return self._fo("circuits")
