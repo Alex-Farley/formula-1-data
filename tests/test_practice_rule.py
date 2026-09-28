@@ -159,6 +159,19 @@ class TheSectionRefuses(unittest.TestCase):
                        AND position IN (1, 15)""")
         self.refused("every sprint qualifying sheet is knockout-shaped, SQ3 first")
 
+    def test_a_reordered_sq2_band_is_refused(self):
+        # P11 and P12 exchanged: both knocked out in SQ2, so the shape holds
+        # and only the order within the band says the sheet is wrong.
+        self.edit("""UPDATE sprint_qualifying SET position = CASE position WHEN 11 THEN 12 ELSE 11 END
+                     WHERE race_id = (SELECT id FROM races WHERE year = 2026 AND round = 12)
+                       AND position IN (11, 12)""")
+        self.refused("within the SQ2 and SQ1 bands a later place is never quicker")
+
+    def test_an_sq3_interval_that_is_not_the_lap_minus_the_car_aheads_is_refused(self):
+        self.edit("""UPDATE sprint_qualifying SET interval = '+9.999' WHERE id = (SELECT MIN(id)
+                     FROM sprint_qualifying WHERE position = 3)""")
+        self.refused("every SQ3 interval is the lap minus the car ahead's")
+
     def test_a_flag_on_a_driver_who_raced_is_refused(self):
         self.edit("UPDATE drivers SET practice_only = 1 WHERE id = "
                   "(SELECT driver_id FROM race_entries LIMIT 1)")

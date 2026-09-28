@@ -3022,33 +3022,60 @@ def practice_and_sprint_qualifying():
     # that shape and is declared as published: Miami 2026, where F1DB
     # classifies Alexander Albon 19th with an SQ2 time on the sheet.
     SQ_SHAPE_EXCEPTIONS = {(2026, 4, "albon")}
+    # And within each band the times run in order - SQ2 by the SQ2 lap, SQ1
+    # by the SQ1 lap - so the half of a sheet below SQ3 is held too (second
+    # review of #707). One sheet orders its SQ1 band otherwise, declared as
+    # published: Spa 2023, where F1DB classifies Albon, Sargeant and Stroll
+    # 12th to 14th with no SQ2 time, above Alonso's quicker SQ1 lap.
+    SQ_ORDER_EXCEPTIONS = {(2023, 12, "albon"), (2023, 12, "logan-sargeant"),
+                           (2023, 12, "stroll")}
     sq_sheets = {}
-    for yr, rnd, driver, q1, q2, q3, gap in con.execute(
-            """SELECT r.year, r.round, q.driver_id, q.q1, q.q2, q.q3, q.gap
+    for yr, rnd, pos, driver, q1, q2, q3, gap, itv in con.execute(
+            """SELECT r.year, r.round, q.position, q.driver_id, q.q1, q.q2, q.q3,
+                      q.gap, q.interval
                  FROM sprint_qualifying q JOIN races r ON r.id = q.race_id
                 WHERE q.position IS NOT NULL ORDER BY r.year, r.round, q.position"""):
-        sq_sheets.setdefault((yr, rnd), []).append((driver, q1, q2, q3, gap))
-    shape_bad, sq_order_bad, sq_gap_bad = [], 0, 0
+        sq_sheets.setdefault((yr, rnd), []).append((pos, driver, q1, q2, q3, gap, itv))
+    shape_bad, sq_order_bad, sq_gap_bad, sq_interval_bad, band_bad = [], 0, 0, 0, []
     for (yr, rnd), sheet in sq_sheets.items():
         seg = [3 if q3 else 2 if q2 else 1 if q1 else 0
-               for d, q1, q2, q3, _g in sheet if (yr, rnd, d) not in SQ_SHAPE_EXCEPTIONS]
+               for _p, d, q1, q2, q3, _g, _i in sheet if (yr, rnd, d) not in SQ_SHAPE_EXCEPTIONS]
         if seg != sorted(seg, reverse=True):
             shape_bad.append(f"{yr} r{rnd}")
-        top = [(secs(q3), gap) for _d, _q1, _q2, q3, gap in sheet if q3]
-        last = None
-        for v, gap in top:
+        top = [(p_, secs(q3), gap, itv) for p_, _d, _q1, _q2, q3, gap, itv in sheet if q3]
+        last = last_pos = None
+        for p_, v, gap, itv in top:
             if last is not None and v < last - 1e-9:
                 sq_order_bad += 1
             g = secs(gap[1:]) if gap and gap.startswith("+") else None
-            if g is not None and abs((v - top[0][0]) - g) > 0.0005:
+            if g is not None and top[0][0] == 1 and abs((v - top[0][1]) - g) > 0.0005:
                 sq_gap_bad += 1
-            last = v
+            i_ = secs(itv[1:]) if itv and itv.startswith("+") else None
+            if i_ is not None and last_pos == p_ - 1 and abs((v - last) - i_) > 0.0005:
+                sq_interval_bad += 1
+            last, last_pos = v, p_
+        for band, col in ((2, 3), (1, 2)):
+            last = None
+            for row in sheet:
+                d, q1, q2, q3 = row[1], row[2], row[3], row[4]
+                if (yr, rnd, d) in SQ_SHAPE_EXCEPTIONS | SQ_ORDER_EXCEPTIONS:
+                    continue
+                if (3 if q3 else 2 if q2 else 1 if q1 else 0) != band:
+                    continue
+                v = secs(row[col])
+                if last is not None and v < last - 1e-9:
+                    band_bad.append(f"{yr} r{rnd} SQ{band} {d}")
+                last = v
     check("every sprint qualifying sheet is knockout-shaped, SQ3 first",
           not shape_bad, ", ".join(shape_bad[:4]))
     check("within SQ3 a later place is never quicker", sq_order_bad == 0,
           f"{sq_order_bad} rows out of order")
     check("every sprint qualifying gap is the SQ3 lap minus the leader's",
           sq_gap_bad == 0, f"{sq_gap_bad} gaps disagree")
+    check("every SQ3 interval is the lap minus the car ahead's",
+          sq_interval_bad == 0, f"{sq_interval_bad} intervals disagree")
+    check("within the SQ2 and SQ1 bands a later place is never quicker",
+          not band_bad, ", ".join(band_bad[:4]))
 
     # Who drove for whom, against a second table: a driver's team in practice
     # is their team in that weekend's race. The one exception is a real one,
