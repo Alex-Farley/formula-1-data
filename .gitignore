@@ -85,3 +85,7 @@ f1_database.json
 # by .claude/skills/backlog-loop/progress.sh so a person can watch a fork
 # whose context they cannot see. Per machine, per run; never committed.
 .claude/loop/
+
+# The article text tools/prose_pass.py compared each field against. Regenerable,
+# and Wikipedia's to publish rather than this repository's.
+.prose-pass-cache/

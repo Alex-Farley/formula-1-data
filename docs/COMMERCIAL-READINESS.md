@@ -193,26 +193,65 @@ belongs to the prose pass, not here.
 
 ---
 
-## Still open: the prose pass
+## Measured: the prose pass
 
-552 short fields — averaging barely a sentence — carry a CC BY-SA obligation
-that comes from Wikipedia rather than from FOM. **They may ship, and they do.**
-The database is released under CC BY-SA and every row carries its source; what
-those fields need is not permission but a closer description. (The count
-matched the facts-only row total when both were written; that is coincidence.
-This one counts prose fields, is typed, and is not a figure the build writes.)
+The written fields — car histories, circuit and driver notes, glossary
+definitions, regulation details and the rest — are this project's own prose
+wherever nothing says otherwise, but the release had never said which of them
+follow Wikipedia, so the licence statement covered them all to be safe.
+**They may ship, and they do.** The database is released under CC BY-SA and
+every row carries its source. The pass is a closer description, not
+permission. It is `PM-17`, #249, and it relicenses nothing.
 
-What is unfinished is finer than whether the data may ship. Each field needs
-marking original, paraphrased, or close to source, so the licence statement
-can say which parts of the prose the share-alike actually reaches rather than
-covering the lot to be safe. Only the third class needs rewriting, and the
-pass is `PM-17`, #249.
+`tools/prose_pass.py` measured each written field in its scope against the Wikipedia
+articles a writer would have had open: the row's own article where it names
+one, the top three search results for its subject, and the general articles
+for its table. It measured two things: the longest run of words the field
+shares with an article, and the share of its four-word sequences the article
+also holds. Those two numbers are a screen. Every field the screen flagged
+was then read, and the reading is declared in the tool with its reason: a
+name, a result in the ordinary words for it, a points scale or a stock phrase
+of the sport is not the article's expression. `docs/prose_pass.tsv` holds one
+line per field with its evidence and the article revision measured. On
+2026-09-28, against v2.24:
+
+| | Fields |
+|---|---:|
+| Written fields measured (33 columns, 23 tables) | 1,208 |
+| Flagged by the screen and read | 151 |
+| **Original** — none of an article's expression found | 1,197 |
+| **Paraphrased** — an article's way of putting something, rearranged | 10 |
+| **Close to source** — a clause of an article reproduced | 1 |
+
+The one close field is `circuits.characteristics` for `jacarepagua`, whose long
+pit straight and longer back straight are the article's phrase. The ten
+paraphrased fields are three driver notes (Amon, Baghetti, Susie Wolff), the
+Brabham constructor note, four car fields (Lotus 78 and 88 concepts, Ferrari
+312T and Lotus 25 innovations), the 2003 team-orders rule in
+`regulation_changes`, and the fan-car entry in `technical_innovations`.
+Rewriting them is its own item, `PM-62` (#692). It would take out
+the Wikipedia wording the pass found, but it would not change the licence on
+its own.
+
+Of the twelve tables `source_registry` entry 18 records as written for this
+project (381 fields), one field is paraphrased and none is close. That is
+the evidence `PM-49` (#573) waited for. Whether any of those tables takes the
+CC BY 4.0 grant is still the maintainer's decision, table by table, and until
+it is taken they stay CC BY-SA.
+
+The earlier figure here, 552 fields, was counted on 2026-09-08 against a
+smaller database, and its scope was never written down. The 1,208 above is
+this pass's own count, and the tool's docstring names what it leaves out and
+why: the columns already granted CC BY 4.0, the text the build writes, the
+radio quotations and the short specification values. It is typed, not written by the build: it is a dated
+measurement, and `python3 tools/prose_pass.py --check` reports how far the
+database has moved from it without fetching anything.
 
 | | |
 |---|---|
 | May the data ship? | Yes, and it does |
-| What the pass changes | How exactly the statement can be put, not the permission |
-| What it would find | Fields close enough to source to be worth rewriting |
+| What the pass changed | The statement can name the fields the share-alike reaches, not the permission |
+| What it found | One field close to source, ten paraphrased |
 
 ---
 
