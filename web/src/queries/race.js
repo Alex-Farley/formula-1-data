@@ -121,6 +121,8 @@ export const RACE_SOURCES = `
            SELECT r.source_id FROM races r WHERE r.year = ?1 AND r.round = ?2
      UNION SELECT e.source_id FROM race_entries e JOIN races r ON r.id = e.race_id WHERE r.year = ?1 AND r.round = ?2
      UNION SELECT q.source_id FROM qualifying q JOIN races r ON r.id = q.race_id WHERE r.year = ?1 AND r.round = ?2
+     UNION SELECT f.source_id FROM practice f JOIN races r ON r.id = f.race_id WHERE r.year = ?1 AND r.round = ?2
+     UNION SELECT y.source_id FROM sprint_qualifying y JOIN races r ON r.id = y.race_id WHERE r.year = ?1 AND r.round = ?2
      UNION SELECT x.source_id FROM sprint_results x JOIN races r ON r.id = x.race_id WHERE r.year = ?1 AND r.round = ?2
      UNION SELECT p.source_id FROM pit_stops p JOIN races r ON r.id = p.race_id WHERE r.year = ?1 AND r.round = ?2
      UNION SELECT t.source_id FROM sessions t JOIN races r ON r.id = t.race_id WHERE r.year = ?1 AND r.round = ?2)
@@ -326,8 +328,18 @@ export const practiceFooter = (rows) =>
     .filter(Boolean)
     .join(' ')
 
+const SQ_LABELS = { q1: 'SQ1', q2: 'SQ2', q3: 'SQ3' }
+
 export const sprintQualifyingColumns = (rows) =>
-  qualifyingColumns(rows).map((column) => (column.key === 'driver' ? sessionDriver : column))
+  qualifyingColumns(rows).map((column) =>
+    // Object.hasOwn, not a lookup: every object answers `constructor`, which
+    // is also this table's column key.
+    column.key === 'driver'
+      ? sessionDriver
+      : Object.hasOwn(SQ_LABELS, column.key)
+        ? { ...column, label: SQ_LABELS[column.key] }
+        : column,
+  )
 
 export const sprintQualifyingFooter = (rows) =>
   [SPRINT_QUALIFYING_FOOTER, rows.some((r) => r.practice_only === 1) ? PRACTICE_ONLY_NOTE : ''].filter(Boolean).join(' ')

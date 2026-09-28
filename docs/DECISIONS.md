@@ -948,4 +948,13 @@ register's rule; `drivers.practice_only` is derived from the tables rather
 than stamped on the list, so it also marks Susie Wolff, in the register since
 before; and every figure the site labels "drivers" counts those who raced.
 
+What this rests on, and is the maintainer's to confirm: F1DB's practice sheets
+are almost certainly compiled from the same FOM classifications the two
+declined sources publish. Taking them through F1DB relies on the reading the
+`qualifying` table already rests on — that F1DB's provenance is F1DB's to
+represent, and is represented by its licence (`COMMERCIAL-READINESS.md`) —
+and this takes F1DB-carried session classifications from about 27,000 rows
+to about 69,000. The licence review of #185 passed the diff and asked that
+this be read once by a person rather than assumed.
+
 Cost: 31% on the compressed database the site sends (4.97 MB to 6.53 MB).

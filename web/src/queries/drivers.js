@@ -69,11 +69,11 @@ export const DRIVERS = `
    register and marked in it, with the dagger the session sheets use -
    queries/race.js holds the one mark both use. */
 
-/** How many drivers raced, and how many only drove in practice: the register's size said in two numbers. */
-export const registerCount = (rows) => {
-  const practice = rows.filter((r) => r.practice_only === 1).length
-  return { raced: rows.length - practice, practice }
-}
+/** How many drivers entered a race, from the race records, and how many only drove in practice. Maria de Villota is neither, so the two do not add to the register. */
+export const registerCount = (rows) => ({
+  raced: rows.filter((r) => r.entries > 0).length,
+  practice: rows.filter((r) => r.practice_only === 1).length,
+})
 
 export const REGISTER_FOOTER =
   'Most wins first; sort by any column. Entries is every race a driver was entered for, counted from the race records — an entry is not a start. A blank is a figure nobody has established, not a zero, and those rows sink to the bottom whichever way you sort. † Drove in practice and never started a Grand Prix.'

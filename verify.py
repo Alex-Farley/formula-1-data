@@ -2916,16 +2916,99 @@ def practice_and_sprint_qualifying():
                           (F1DB,)).fetchone()[0]
         check(f"every {t} row cites F1DB", bad == 0, f"{bad} cite another source")
 
+    # What the harvest holds per session, against what loaded. A session the
+    # build took fewer rows of had a driver the register does not place - a
+    # Friday driver with no line in F1DB_PRACTICE_DRIVERS yet - and that is a
+    # line to add, not a reason to hold up a refresh carrying a race's
+    # results: it warns, and its places are exempt from the gap check below.
+    here = os.path.dirname(os.path.abspath(__file__))
+    held = {}
+    for t, fname, keyed in (("practice", "practice.txt", True),
+                            ("sprint_qualifying", "sprint_qualifying.txt", False)):
+        path = os.path.join(here, "harvest", fname)
+        counts = Counter()
+        if os.path.exists(path):
+            with open(path, encoding="utf-8") as f:
+                for line in f:
+                    if not line.strip() or line.startswith("#"):
+                        continue
+                    part = line.split("|")
+                    counts[(int(part[0]), int(part[1]), part[2] if keyed else "sq")] += 1
+        held[t] = counts
+    short = {}
+    for t, sess in (("practice", "p.session"), ("sprint_qualifying", "'sq'")):
+        stored = Counter({(y, r, s_): n for y, r, s_, n in con.execute(
+            f"""SELECT r.year, r.round, {sess}, COUNT(*) FROM {t} p
+                JOIN races r ON r.id = p.race_id GROUP BY 1, 2, 3""")})
+        short[t] = {k for k, n in held[t].items() if stored.get(k, 0) < n}
+        warn(f"every {t} row in the harvest is loaded", not short[t],
+             "" if not short[t] else
+             f"{sum(held[t][k] - stored.get(k, 0) for k in short[t])} rows short in "
+             f"{', '.join(f'{y} r{r} {s_}' for y, r, s_ in sorted(short[t])[:4])}: a "
+             f"driver the register does not hold (add them to F1DB_PRACTICE_DRIVERS "
+             f"in data/drivers.py), or a round races does not")
+
     # One place per driver per session, and the classified places run 1..n
-    # with no gap: a hole is a driver the register could not place and the
-    # build skipped, which the warning below names.
-    for t, grain in (("practice", "race_id, session"), ("sprint_qualifying", "race_id")):
-        bad = con.execute(f"""SELECT COUNT(*) FROM (SELECT {grain} FROM {t}
-            WHERE position IS NOT NULL GROUP BY {grain}
-            HAVING COUNT(*) != COUNT(DISTINCT position) OR MIN(position) != 1
-                OR MAX(position) != COUNT(*))""").fetchone()[0]
+    # with no gap or repeat - except in a session the warning above names,
+    # where the hole is the driver it is about.
+    for t, sess in (("practice", "p.session"), ("sprint_qualifying", "'sq'")):
+        bad = [k for k in con.execute(f"""SELECT r.year, r.round, {sess} FROM {t} p
+            JOIN races r ON r.id = p.race_id WHERE p.position IS NOT NULL
+            GROUP BY p.race_id, {sess}
+            HAVING COUNT(*) != COUNT(DISTINCT p.position) OR MIN(p.position) != 1
+                OR MAX(p.position) != COUNT(*)""") if tuple(k) not in short[t]]
         check(f"every {t} session's places run from 1 with no gap or repeat",
-              bad == 0, f"{bad} sessions")
+              not bad, f"{len(bad)} sessions")
+
+    # THE VALUES. The checks above hold for any shuffle of drivers and times;
+    # these do not (review of #185). Within a session a later place is never
+    # quicker, an untimed driver sits below every timed one, and the gap F1DB
+    # prints is the lap minus the leader's to the millisecond - so a column
+    # shifted in the fetch, or a time on the wrong driver, fails here.
+    def secs(t_):
+        m_ = re.fullmatch(r"(?:(\d+):)?(\d+)\.(\d+)", t_ or "")
+        return None if not m_ else (int(m_.group(1) or 0) * 60 + int(m_.group(2))
+                                   + int(m_.group(3).ljust(3, "0")[:3]) / 1000)
+    sessions_ = {}
+    for rid, sess_, pos, t_, gap in con.execute(
+            """SELECT race_id, session, position, time, gap FROM practice
+                WHERE position IS NOT NULL ORDER BY race_id, session, position"""):
+        sessions_.setdefault((rid, sess_), []).append((t_, gap))
+    order_bad = gap_bad = 0
+    for sheet in sessions_.values():
+        last = lead = None
+        untimed = False
+        for t_, gap in sheet:
+            v = secs(t_)
+            if v is None:
+                untimed = True
+                continue
+            if untimed or (last is not None and v < last - 1e-9):
+                order_bad += 1
+            last = v
+            lead = v if lead is None else lead
+            g = secs(gap[1:]) if gap and gap.startswith("+") else None
+            if g is not None and abs((v - lead) - g) > 0.0005:
+                gap_bad += 1
+    check("within every practice session a later place is never quicker, "
+          "and no timed driver sits below an untimed one", order_bad == 0,
+          f"{order_bad} rows out of order")
+    check("every practice gap is the lap minus the leader's", gap_bad == 0,
+          f"{gap_bad} gaps disagree")
+
+    # Who drove for whom, against a second table: a driver's team in practice
+    # is their team in that weekend's race. The one exception is a real one,
+    # declared: Nyck de Vries ran FP1 at Monza in 2022 for Aston Martin, and
+    # raced there for Williams in Alexander Albon's place.
+    PRACTICE_TEAM_EXCEPTIONS = {(2022, 16, "fp1", "nyck-de-vries")}
+    for t, sess in (("practice", "p.session"), ("sprint_qualifying", "'sq'")):
+        wrong = [k for k in con.execute(f"""SELECT r.year, r.round, {sess}, p.driver_id
+            FROM {t} p JOIN races r ON r.id = p.race_id
+            JOIN race_entries e ON e.race_id = p.race_id AND e.driver_id = p.driver_id
+            WHERE p.constructor_id IS NOT e.constructor_id""")
+                 if tuple(k) not in PRACTICE_TEAM_EXCEPTIONS]
+        check(f"every {t} driver's team is their team in that weekend's race",
+              not wrong, ", ".join(f"{y} r{r} {s_} {d}" for y, r, s_, d in wrong[:4]))
 
     bad = con.execute("""SELECT COUNT(DISTINCT q.race_id) FROM sprint_qualifying q
         JOIN races r ON r.id = q.race_id WHERE r.sprint != 1""").fetchone()[0]
@@ -2954,17 +3037,6 @@ def practice_and_sprint_qualifying():
         WHERE practice_only = 1 AND status = 'active'""").fetchone()[0]
     check("no practice-only driver is held active", bad == 0, f"{bad} drivers")
 
-    # A Friday driver not yet in data/drivers.py F1DB_PRACTICE_DRIVERS has
-    # their rows skipped by the build. That is a line to add, not a broken
-    # refresh, so it warns.
-    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "harvest", "practice.txt")
-    if os.path.exists(path):
-        with open(path, encoding="utf-8") as f:
-            held = sum(1 for line in f if line.strip() and not line.startswith("#"))
-        stored = con.execute("SELECT COUNT(*) FROM practice").fetchone()[0]
-        warn("every practice row in the harvest is loaded", stored == held,
-             f"{held - stored} skipped for a driver the register does not hold; "
-             f"add them to F1DB_PRACTICE_DRIVERS in data/drivers.py")
 
 
 @section('TIMING AND RADIO')

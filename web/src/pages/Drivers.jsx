@@ -47,7 +47,7 @@ export default function Drivers() {
       title={NAMES.drivers().headline}
       documentName={NAMES.drivers().title}
       trail={TRAIL.drivers()}
-      lede="Every driver the championship has recorded an entry for, from 1950 to now, and the Friday drivers who ran in practice and never started a race. Filter by nationality, narrow to champions or race winners, then open anyone for their full career, season by season."
+      lede="Every driver the championship has recorded an entry for, from 1950 to now, and the Friday drivers who ran in practice and never started a race. Filter by nationality, narrow to champions or race winners, then open anyone for their record."
     >
       <Section>
         <Result state={state} skeleton>

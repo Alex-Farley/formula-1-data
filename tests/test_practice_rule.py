@@ -65,11 +65,11 @@ class TheSectionRefuses(unittest.TestCase):
                   "(SELECT MIN(id) FROM practice)")
         self.refused("every practice row cites F1DB")
 
-    def test_a_gap_in_a_session_is_refused(self):
-        # The winner of one session taken off the sheet: the places now run
-        # from 2, which is a driver the build skipped.
-        self.edit("""DELETE FROM practice WHERE id = (SELECT MIN(id) FROM practice
-                     WHERE position = 1)""")
+    def test_a_repeated_place_is_refused(self):
+        # Every row loaded, so no warning explains it: two drivers on one
+        # place is the sheet itself wrong.
+        self.edit("""UPDATE practice SET position = 2 WHERE id = (SELECT MIN(id)
+                     FROM practice WHERE position = 3)""")
         self.refused("every practice session's places run from 1 with no gap or repeat")
 
     def test_sprint_qualifying_on_a_grand_prix_only_weekend_is_refused(self):
@@ -78,12 +78,40 @@ class TheSectionRefuses(unittest.TestCase):
         self.refused("sprint qualifying is held only on a sprint weekend")
 
     def test_a_session_the_timetable_does_not_hold_is_refused(self):
-        # Baku 2026 is a conventional weekend with a timetable: an FP4 there
-        # is a session nobody ran.
+        # A 2026 weekend has a timetable, and none of them ran an FP4: one
+        # there is a session nobody ran.
         self.edit("""UPDATE practice SET session = 'fp4' WHERE id = (SELECT MIN(p.id)
                      FROM practice p WHERE EXISTS (SELECT 1 FROM sessions s
                      WHERE s.race_id = p.race_id))""")
         self.refused("every practice session on a timetabled weekend is on its timetable")
+
+    def test_a_time_on_the_wrong_driver_is_refused(self):
+        # The winner of a session given a lap slower than everyone's: the
+        # shape still holds, the order does not.
+        self.edit("""UPDATE practice SET time = '9:59.999' WHERE id = (SELECT MIN(id)
+                     FROM practice WHERE position = 1 AND time IS NOT NULL)""")
+        self.refused("within every practice session a later place is never quicker")
+
+    def test_a_gap_that_is_not_the_lap_minus_the_leaders_is_refused(self):
+        self.edit("""UPDATE practice SET gap = '+9.999' WHERE id = (SELECT MIN(id)
+                     FROM practice WHERE position = 2 AND gap LIKE '+%')""")
+        self.refused("every practice gap is the lap minus the leader's")
+
+    def test_a_team_the_race_does_not_give_the_driver_is_refused(self):
+        self.edit("""UPDATE practice SET constructor_id = 'minardi' WHERE id = (SELECT MIN(p.id)
+                     FROM practice p JOIN race_entries e ON e.race_id = p.race_id
+                     AND e.driver_id = p.driver_id WHERE e.constructor_id != 'minardi')""")
+        self.refused("every practice driver's team is their team in that weekend's race")
+
+    def test_a_friday_driver_not_yet_listed_warns_and_does_not_fail(self):
+        # The refresh case: a rookie runs FP1 before anyone has added their
+        # line, so the build skips their row and leaves a hole in the places.
+        # That holds up nothing - the section passes, and names the session.
+        self.edit("""DELETE FROM practice WHERE id = (SELECT MAX(p.id) FROM practice p
+                     WHERE p.position = 10)""")
+        code, out = run_section(self.db)
+        self.assertEqual(code, 0, out)
+        self.assertIn("[WARN] every practice row in the harvest is loaded", out)
 
     def test_a_flag_on_a_driver_who_raced_is_refused(self):
         self.edit("UPDATE drivers SET practice_only = 1 WHERE id = "

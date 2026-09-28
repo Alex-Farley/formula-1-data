@@ -31,8 +31,10 @@ import { number, points, span, text, yearList } from '../lib/format.js'
  * Ordered by the label itself, because a select answers typing by the start
  * of each label: "Sir Lewis Hamilton" is found by typing what it says.
  */
-// A practice-only driver (LV-03) has no race to compare, so is not offered.
-export const COMPARE_DRIVERS = `SELECT id, full_name FROM drivers WHERE practice_only = 0 ORDER BY full_name`
+// A driver with no race entry - the practice-only drivers of LV-03, and
+// Maria de Villota - has no race to compare, so is not offered.
+export const COMPARE_DRIVERS = `SELECT id, full_name FROM drivers d
+  WHERE EXISTS (SELECT 1 FROM race_entries e WHERE e.driver_id = d.id) ORDER BY full_name`
 
 /** "?a=senna&b=prost", "?a=senna", or "" with neither: the pair as the address holds it. */
 export const compareSearch = (a, b) => {

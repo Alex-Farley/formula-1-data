@@ -25,7 +25,7 @@ export const SHAPE = `
       WHERE EXISTS (SELECT 1 FROM race_entries e WHERE e.race_id = r.id)) AS races_run,
     (SELECT COUNT(*) FROM race_entries)                             AS entries,
     (SELECT COUNT(*) FROM qualifying)                               AS qualifying,
-    (SELECT COUNT(*) FROM drivers WHERE practice_only = 0)          AS drivers,
+    (SELECT COUNT(DISTINCT driver_id) FROM race_entries)            AS drivers,
     (SELECT COUNT(*) FROM constructors)                             AS constructors,
     (SELECT COUNT(*) FROM discrepancies WHERE status = 'open')      AS open_discrepancies,
     (SELECT COUNT(*) FROM v_open_gaps)                              AS open_gaps

@@ -34,6 +34,7 @@ import {
   DRIVER_PRACTICE,
   PRACTICE_ONLY_NOTICE,
   PRACTICE_SESSION_COLUMNS,
+  practiceCount,
   pointsDiffer,
   pointsNote,
   record,
@@ -368,7 +369,7 @@ function DriverBody({ driver, data }) {
       )}
 
       {practiceOnly && practice.length > 0 && (
-        <Section title="Practice sessions" count={`${practice.length} sessions`}>
+        <Section title="Practice sessions" count={practiceCount(practice)}>
           <DataTable
             rows={practice}
             rowKey={(row) => row.id}

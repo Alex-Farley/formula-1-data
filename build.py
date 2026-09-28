@@ -2293,6 +2293,14 @@ def _stage_24b_practice_and_sprint_qualifying_from_f1db(b):
               AND (EXISTS (SELECT 1 FROM practice p WHERE p.driver_id = drivers.id)
                    OR EXISTS (SELECT 1 FROM sprint_qualifying q WHERE q.driver_id = drivers.id))
              THEN 1 ELSE 0 END""")
+    # A practice-only row with no seasons of its own takes them from the
+    # sheets it is on, as the 53 admitted in stage 03 were given theirs.
+    cur.execute("""UPDATE drivers SET
+        first_season = (SELECT MIN(r.year) FROM practice p JOIN races r ON r.id = p.race_id
+                         WHERE p.driver_id = drivers.id),
+        last_season  = (SELECT MAX(r.year) FROM practice p JOIN races r ON r.id = p.race_id
+                         WHERE p.driver_id = drivers.id)
+        WHERE practice_only = 1 AND first_season IS NULL""")
 
     if practice or sq:
         print(f"  practice: {practice} rows over {len(races)} weekends, "
@@ -4563,7 +4571,7 @@ def coverage_note(cur):
         f"{n('SELECT COUNT(*) FROM standings'):,} championship standings rows after every round; "
         f"{n('SELECT COUNT(*) FROM sprint_results'):,} sprint classifications; "
         f"{n('SELECT COUNT(*) FROM pit_stops'):,} pit stops (lap and order, no durations); "
-        f"{n('SELECT COUNT(*) FROM drivers WHERE practice_only = 0'):,} drivers and "
+        f"{n('SELECT COUNT(DISTINCT driver_id) FROM race_entries'):,} drivers who entered a race and "
         f"{n('SELECT COUNT(*) FROM drivers WHERE practice_only = 1'):,} who drove only in practice, "
         f"{n('SELECT COUNT(*) FROM constructors'):,} constructors, "
         f"{n('SELECT COUNT(*) FROM chassis'):,} chassis, "
