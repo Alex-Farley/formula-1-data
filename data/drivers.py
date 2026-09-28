@@ -990,3 +990,83 @@ F1DB_DRIVERS = [
     "nyck-de-vries",                   # 2022-2023    11             Nyck de Vries
     "logan-sargeant",                  # 2023-2024    37             Logan Sargeant
 ]
+
+
+# ---------------------------------------------------------------------
+# Drivers who ran in a practice session and never started a race (LV-03)
+# ---------------------------------------------------------------------
+# F1DB's practice classifications name a driver the list above does not
+# hold, and could not: its test is "did the driver enter a championship
+# race", and these did not. They are the Friday drivers - a team's reserve or
+# junior, running FP1 in a race driver's car - and the maintainer ruled on
+# 2026-09-28 that they are in the register, and are shown as never having
+# started. build.py admits each with NULL `status` (a status describes a
+# racing career and there is none) and first and last season from the
+# practice years, and then derives `practice_only` from the tables for every
+# driver it is true of - Susie Wolff, in the register since before this list,
+# among them. verify.py holds the flag to exactly that meaning, both ways
+# round.
+#
+# One reviewed line each, for the reason the list above has one: nothing is
+# created from a bulk feed. A driver who first appears in a later FP1 has
+# their rows skipped and counted until a line is added here, and verify.py
+# names them as a warning rather than failing the refresh.
+#
+# Columns: first-last practice season, sessions (practice and sprint
+# qualifying), name as F1DB writes it.
+# ---------------------------------------------------------------------
+F1DB_PRACTICE_DRIVERS = [
+    "bas-leinders",                     # 2004          34  Bas Leinders
+    "bjorn-wirdheim",                   # 2004          34  Björn Wirdheim
+    "ryan-briscoe",                     # 2004          10  Ryan Briscoe
+    "chanoch-nissany",                  # 2005           1  Chanoch Nissany
+    "enrico-toccacelo",                 # 2005           5  Enrico Toccacelo
+    "alexandre-premat",                 # 2006           2  Alexandre Prémat
+    "ernesto-viso",                     # 2006           2  Ernesto Viso
+    "giorgio-mondini",                  # 2006          18  Giorgio Mondini
+    "michael-ammermuller",              # 2006           6  Michael Ammermüller
+    "neel-jani",                        # 2006          36  Neel Jani
+    "fairuz-fauzy",                     # 2010           5  Fairuz Fauzy
+    "davide-valsecchi",                 # 2011           1  Davide Valsecchi
+    "jan-charouz",                      # 2011           1  Jan Charouz
+    "luiz-razia",                       # 2011           2  Luiz Razia
+    "robert-wickens",                   # 2011           1  Robert Wickens
+    "dani-clos",                        # 2012           6  Dani Clos
+    "ma-qinghua",                       # 2012-2013      5  Qing Hua Ma
+    "james-calado",                     # 2013           5  James Calado
+    "rodolfo-gonzalez",                 # 2013           9  Rodolfo González
+    "adderly-fong",                     # 2014           1  Adderly Fong
+    "daniel-juncadella",                # 2014           3  Daniel Juncadella
+    "robin-frijns",                     # 2014           2  Robin Frijns
+    "fabio-leimer",                     # 2015           1  Fabio Leimer
+    "raffaele-marciello",               # 2015           4  Raffaele Marciello
+    "alfonso-celis-jr",                 # 2016-2017      9  Alfonso Celis Jr.
+    "jordan-king",                      # 2016           2  Jordan King
+    "sean-gelael",                      # 2017-2018      5  Sean Gelael
+    "artem-markelov",                   # 2018           1  Artem Markelov
+    "naoki-yamamoto",                   # 2019           1  Naoki Yamamoto
+    "roy-nissany",                      # 2020-2021      6  Roy Nissany
+    "callum-ilott",                     # 2021           2  Callum Ilott
+    "alex-palou",                       # 2022           1  Álex Palou
+    "felipe-drugovich",                 # 2022-2025      7  Felipe Drugovich
+    "juri-vips",                        # 2022           1  Jüri Vips
+    "patricio-oward",                   # 2022-2025      5  Patricio O'Ward
+    "robert-shwartzman",                # 2022-2024      6  Robert Shwartzman
+    "theo-pourchaire",                  # 2022-2023      3  Théo Pourchaire
+    "frederik-vesti",                   # 2023-2026      6  Frederik Vesti
+    "jake-dennis",                      # 2023           1  Jake Dennis
+    "zak-osullivan",                    # 2023           1  Zak O'Sullivan
+    "arthur-leclerc",                   # 2024-2025      2  Arthur Leclerc
+    "ayumu-iwasa",                      # 2024-2026      8  Ayumu Iwasa
+    "luke-browning",                    # 2024-2026      6  Luke Browning
+    "ryo-hirakawa",                     # 2024-2026      8  Ryō Hirakawa
+    "alexander-dunne",                  # 2025           2  Alexander Dunne
+    "antonio-fuoco",                    # 2025           1  Antonio Fuoco
+    "cian-shields",                     # 2025           1  Cian Shields
+    "dino-beganovic",                   # 2025-2026      4  Dino Beganovic
+    "jak-crawford",                     # 2025-2026      5  Jak Crawford
+    "paul-aron",                        # 2025-2026      9  Paul Aron
+    "victor-martins",                   # 2025           1  Victor Martins
+    "colton-herta",                     # 2026           3  Colton Herta
+    "leonardo-fornaroli",               # 2026           2  Leonardo Fornaroli
+]

@@ -1976,6 +1976,19 @@ try {
           )
         }
 
+        // LV-03: a practice-only driver is F1DB's row with no death on it, so
+        // is read as living too; the page says what they are, in the notice
+        // and in the Status row, and draws no race record to look for.
+        const friday = db
+          .prepare("SELECT id FROM drivers WHERE practice_only = 1 AND status IS NULL AND died IS NULL ORDER BY id LIMIT 1")
+          .get()
+        if (friday) {
+          const fridayHtml = await (await fetch(`${BASE}/drivers/${friday.id}`)).text()
+          truthy(!fridayHtml.includes('<dt>Died</dt>'), `a practice-only driver's page has no Died row — /drivers/${friday.id}`)
+          truthy(fridayHtml.includes('Practice only.'), `and opens on the practice-only notice — /drivers/${friday.id}`)
+          truthy(fridayHtml.includes('<h2>Practice sessions</h2>'), `and lists the sessions they drove — /drivers/${friday.id}`)
+        } else fail('no practice-only driver to check the page of')
+
         // PD-16: the same sentence is the page's OPENING one, in both
         // renderers, from lede() in queries/driver.js. Before this the 699
         // note-less pages opened straight onto the strip of tiles.
@@ -5372,6 +5385,9 @@ try {
       // row the app holds, not of the page it happens to show.
       await same('/drivers/senna', 'Ayrton Senna', 'Team-mates')
       await same('/drivers/brabham', 'Sir Jack Brabham', 'Team-mates')
+      // LV-03: a practice-only driver across several seasons, whose sessions
+      // the static page must list in the order the app sorts them.
+      await same('/drivers/felipe-drugovich', 'Felipe Drugovich', 'Practice sessions')
       await same('/records', 'Records')
 
       // Rung two: the seasons list, a season's calendar and its two standings
@@ -5457,10 +5473,21 @@ try {
       const gp = (year, round) => one('SELECT name_used FROM races WHERE year = ? AND round = ?', year, round)
       const sprintRound = one("SELECT MIN(r.round) FROM races r WHERE r.year = 2026 AND r.sprint = 1 AND r.status = 'completed'")
       if (sprintRound) {
-        for (const heading of ['Classification', 'Qualifying', 'Sprint', 'Pit stops']) {
+        for (const heading of ['Classification', 'Qualifying', 'Sprint', 'Sprint qualifying', 'Practice 1', 'Pit stops']) {
           await same(`/races/2026/${sprintRound}`, gp(2026, sprintRound), heading)
         }
       } else fail('no completed 2026 sprint weekend to compare the race tables on')
+      // LV-03: a practice sheet with a driver who never started a race on it,
+      // whose dagger and spoken meaning both halves must carry the same.
+      const marked = db
+        .prepare(`SELECT r.year, r.round, p.session FROM practice p JOIN races r ON r.id = p.race_id
+                    JOIN drivers d ON d.id = p.driver_id WHERE d.practice_only = 1
+                   ORDER BY r.year DESC, r.round DESC LIMIT 1`)
+        .get()
+      if (marked) {
+        const title = { fp1: 'Practice 1', fp2: 'Practice 2', fp3: 'Practice 3', fp4: 'Practice 4' }[marked.session]
+        await same(`/races/${marked.year}/${marked.round}`, gp(marked.year, marked.round), title)
+      } else fail('no practice sheet carries a practice-only driver')
       await same('/races/1976/9', gp(1976, 9), 'Qualifying')
       await same('/races/1955/1', gp(1955, 1), 'Classification')
       // Rung five: a constructor's and a circuit's three tables each.

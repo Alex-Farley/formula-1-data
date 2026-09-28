@@ -43,13 +43,13 @@ here is a number the build checked.
 
 | File | What it is |
 |---|---|
-| `f1.db` | The SQLite database. <!-- fig:tables -->50<!-- /fig --> tables, <!-- fig:views -->41<!-- /fig --> views, <!-- fig:rows -->122,784<!-- /fig --> rows. This is the artefact. |
+| `f1.db` | The SQLite database. <!-- fig:tables -->52<!-- /fig --> tables, <!-- fig:views -->41<!-- /fig --> views, <!-- fig:rows -->164,637<!-- /fig --> rows. This is the artefact. |
 | `f1-geometry.db` | The OpenStreetMap circuit centrelines (ODbL), shipped beside `f1.db` and never merged into it. See *Illustration*. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
 | `f1_compat.json` | JSON in the *original* v1 key layout, so anything already consuming that file keeps working. |
 | `schema.sql` | The schema, commented. Served at `lapledger.org/schema.sql`, so a downloader can read what the tables mean. |
-| `build.py` | Rebuilds `f1.db` and `f1-geometry.db` from the data modules. Idempotent, and byte-for-byte reproducible. <!-- fig:stages -->37<!-- /fig --> named stages; `STAGES` is the schedule. |
+| `build.py` | Rebuilds `f1.db` and `f1-geometry.db` from the data modules. Idempotent, and byte-for-byte reproducible. <!-- fig:stages -->38<!-- /fig --> named stages; `STAGES` is the schedule. |
 | `verify.py` | Integrity, cross-tabulation and sanity checks on the DATA. Exit code 1 on failure. |
 | `tests/` | Unit tests for the CODE — name matching, lap-closure arithmetic — plus `test_conventions.py`, the reviewer checklists' mechanical items as tests, and `test_verify_refuses.py`, the licence gate shown refusing each thing it exists to refuse. `make test`, stdlib only. |
 | `ruff.toml`, `web/biome.jsonc` | The linters CI runs on the Python and the front end, and every rule left out with its reason. `make lint`. Neither is a dependency of the build. |
@@ -64,14 +64,14 @@ here is a number the build checked.
 | `harvest/engines.txt` | Every engine, with capacity, configuration and aspiration. **Generated.** |
 | `harvest/entrants.txt` | Season → entrant → constructor → chassis/engine/tyre. **Generated.** |
 | `harvest/f1db_constructors.txt` | Constructor names, for the specification cross-check. **Generated.** |
-| `harvest/race_results.txt`, `qualifying.txt`, `standings.txt`, `sprint_results.txt`, `f1db_pit_stops.txt` | The full classification, qualifying, standings after every round, sprint classifications and pit stops. **Generated** by `tools/f1db_fetch.py`. |
+| `harvest/race_results.txt`, `qualifying.txt`, `practice.txt`, `sprint_qualifying.txt`, `standings.txt`, `sprint_results.txt`, `f1db_pit_stops.txt` | The full classification, qualifying, practice, sprint qualifying, standings after every round, sprint classifications and pit stops. **Generated** by `tools/f1db_fetch.py`. |
 | `harvest/circuit_outlines.txt`, `race_layouts.txt` | The SVG outline of every F1DB circuit layout (drawn by Jules Roy, CC BY 4.0) and the layout each race ran. **Generated** by `tools/f1db_fetch.py`. |
 | `harvest/car_specs.txt` | Chassis specifications off the per-car articles. **Generated** by `tools/wikispec_fetch.py`. |
 | `harvest/car_specs.log` | Every chassis that was refused, and the reason. **Generated.** |
 | `harvest/article_images.txt`, `.log` | The photograph of each car article and its licence; every article refused, and why. **Generated** by `tools/wikimedia_images.py`. |
 | `harvest/category_images.txt`, `.log` | For a chassis with no article, a photograph from the Commons category named for it; every such chassis refused, and why. **Generated** by `tools/wikimedia_images.py --route category`. |
 | `harvest/circuit_geometry.txt`, `.log` | The OSM centrelines and every relation refused. **Generated** by `tools/osm_geometry.py`. |
-| `tools/f1db_fetch.py` | Pulls the registers, the classification, qualifying, standings and pit stops from F1DB (CC BY 4.0) into the generated harvest files. Needs network; not part of the build. |
+| `tools/f1db_fetch.py` | Pulls the registers, the classification, qualifying, practice, standings and pit stops from F1DB (CC BY 4.0) into the generated harvest files. Needs network; not part of the build. |
 | `tools/wikispec_fetch.py` | Harvests chassis specifications from the `{{Racing car}}` infobox on each car's article, refusing any page that disagrees with the register. Needs network; not part of the build. |
 | `tools/ergast_load.py` | Loads the Jolpica-F1 classification onto a local copy and records where it disagrees with what is stored. Needs network; not part of the build. |
 | `tools/fastf1_load.py` | Loads per-lap timing, stints, pit stops, race control and radio onto a **local** copy from the F1 live timing API. Needs network; never committed — see *Timing*. |
@@ -164,13 +164,20 @@ towards the championship (1950–60) are included and flagged, with no
 constructor attributed, because their chassis were never Formula One
 constructors. Sprint classifications are held for all
 <!-- fig:sprint_races -->29<!-- /fig --> sprints since 2021
-(<!-- fig:sprint_results -->590<!-- /fig --> rows), and
+(<!-- fig:sprint_results -->590<!-- /fig --> rows), with the
+<!-- fig:sprint_qualifying -->466<!-- /fig --> rows of the sessions that set their
+grids; the classification of every practice session F1DB holds, 1986 on —
+<!-- fig:practice -->41,334<!-- /fig --> rows over
+<!-- fig:practice_weekends -->714<!-- /fig --> weekends, each driver's best lap
+and laps run, which is a classification and not lap timing; and
 <!-- fig:pit_stops -->22,526<!-- /fig --> pit stops — lap and order, no
 durations, because no source publishes those under a licence that permits
 passing them on.
 
-**Drivers** — <!-- fig:drivers -->862<!-- /fig --> rows: every driver in the
-full classification, with the World Champions and the current grid carrying
+**Drivers** — <!-- fig:drivers -->915<!-- /fig --> rows: every driver in the
+full classification, and the
+<!-- fig:drivers_practice_only -->54<!-- /fig --> who drove in practice and never
+started a race, with the World Champions and the current grid carrying
 full career figures, and the complete
 <!-- fig:season_entries_year -->2026<!-- /fig --> entry list
 (<!-- fig:season_entries -->23<!-- /fig --> seats).
@@ -409,6 +416,7 @@ doubles their rows instead of failing.
 | `laps` | unstable | — |
 | `pit_stops` | stable | `(race_id, source, driver_key, stop_number)` |
 | `points_systems` | unstable | — |
+| `practice` | unstable | `(race_id, session, driver_id)` |
 | `qualifying` | stable | `(race_id, driver_id)` |
 | `qualifying_formats` | unstable | — |
 | `race_control_messages` | unstable | — |
@@ -423,6 +431,7 @@ doubles their rows instead of failing.
 | `sessions` | unstable | — |
 | `source_patterns` | unstable | — |
 | `source_registry` | unstable | — |
+| `sprint_qualifying` | unstable | `(race_id, driver_id)` |
 | `sprint_results` | stable | `(race_id, driver_id)` |
 | `standings` | unstable | `(year, table_type, after_round, basis, driver_id?, constructor_id?, engine_id?, source, position_text?)` |
 | `stints` | unstable | — |

@@ -11,8 +11,9 @@ under a licence that permits passing it on, so this database holds none of it:
 tables, on purpose. Everything that is here may be passed on under the licence
 shown beside it. That is a claim about the licences on offer, not about what
 anyone may lawfully do — FOM and its licensees redistribute timing every
-weekend — and it is about *race* timing: the qualifying table holds lap times,
-which F1DB publishes under CC BY 4.0.
+weekend — and it is about *race* timing: the qualifying and practice tables
+hold lap times, which F1DB publishes under CC BY 4.0 — each driver's best lap
+of a session, a classification, and not the lap-by-lap record of it.
 
 The rest of this file is that paragraph with its working shown. `/data` states
 it for a reader, the console states it in one line where a reader meets an
@@ -40,7 +41,8 @@ No source publishes Formula One race timing on terms that allow passing it on.
 F1DB is the one source here whose licence permits redistribution, and it is why
 the full classification, qualifying, standings and **22,481 pit stops** are in
 the committed database. It publishes no lap times from a race — the
-qualifying times it does publish are the `qualifying` table, and are here.
+qualifying and practice times it does publish are the `qualifying`,
+`sprint_qualifying` and `practice` tables, and are here.
 
 So the empty tables are not a gap in the harvest. They are the correct and
 permanent state until a source appears that both has the data and permits

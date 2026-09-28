@@ -1182,6 +1182,8 @@ GEOMETRY_FILE = os.path.join(HERE, "..", "harvest", "circuit_geometry.txt")
 RESULTS_FILE = os.path.join(HERE, "..", "harvest", "race_results.txt")
 SPRINT_FILE = os.path.join(HERE, "..", "harvest", "sprint_results.txt")
 QUALIFYING_FILE = os.path.join(HERE, "..", "harvest", "qualifying.txt")
+PRACTICE_FILE = os.path.join(HERE, "..", "harvest", "practice.txt")
+SPRINT_QUALIFYING_FILE = os.path.join(HERE, "..", "harvest", "sprint_qualifying.txt")
 STANDINGS_FILE = os.path.join(HERE, "..", "harvest", "standings.txt")
 F1DB_PITS_FILE = os.path.join(HERE, "..", "harvest", "f1db_pit_stops.txt")
 RACE_DATES_FILE = os.path.join(HERE, "..", "harvest", "race_dates.txt")
@@ -1710,6 +1712,16 @@ def load_sprint_results():
 def load_qualifying():
     """Qualifying results, 1950-2026, from F1DB."""
     return _read_named(QUALIFYING_FILE, "tools/f1db_fetch.py")
+
+
+def load_practice():
+    """Every practice session's classification, 1986-2026, from F1DB (LV-03)."""
+    return _read_named(PRACTICE_FILE, "tools/f1db_fetch.py")
+
+
+def load_sprint_qualifying():
+    """Sprint qualifying and the 2023 sprint shootout, from F1DB (LV-03)."""
+    return _read_named(SPRINT_QUALIFYING_FILE, "tools/f1db_fetch.py")
 
 
 def load_standings():

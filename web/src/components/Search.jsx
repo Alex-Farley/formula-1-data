@@ -28,8 +28,11 @@ import { query } from '../data/client.js'
  * Autodromo Nazionale Monza, not at `monza`.
  */
 const INDEX_SQL = `
+  -- A practice-only driver (LV-03) says so beside the name, so a reader
+  -- who searches for one is not sent looking for a race record.
   SELECT 'Driver' AS kind, id AS key, full_name AS label,
-         COALESCE(nationality, '') AS meta,
+         COALESCE(nationality, '') || CASE WHEN practice_only = 1
+           THEN CASE WHEN nationality IS NULL THEN '' ELSE ' · ' END || 'practice only' ELSE '' END AS meta,
          first_season AS from_year, last_season AS to_year,
          COALESCE(wins, 0) AS weight, '' AS also, '/drivers/' || id AS path
     FROM drivers

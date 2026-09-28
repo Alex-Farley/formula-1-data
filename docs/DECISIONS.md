@@ -921,3 +921,40 @@ The same change moved the schedule to every three hours. A gate job stops
 every run except the day's first, a run started by hand, and runs within 72
 hours of a session in the `sessions` table, so a race weekend is followed
 without anyone editing a cron line (`.github/scripts/refresh_gate.py`).
+
+### D-46 · Practice comes from F1DB, and its Friday drivers join the register — 2026-09-28
+`LV-03` (#185) asked for each session of a weekend as soon as it has run. Three
+sources were looked at, in the order the maintainer asked:
+
+- **formula1.com's results pages.** FOM's site; `facts-only` under the
+  condition of no substantial extraction, and a whole season's sessions is the
+  nearest thing to extracting FOM's results database. Not used.
+- **The FIA's classification PDFs.** Read on 2026-09-28 (Baku FP1, qualifying
+  and race; Australia FP1; the Dutch sprint and sprint qualifying). The FIA
+  supplies only the covering sheet: every classification page is "© 2026
+  Formula One World Championship Limited" with a notice that no part may be
+  reproduced or stored without permission, press within 90 days excepted. The
+  same owner as formula1.com, stated more plainly. Not used, and the copies
+  read were deleted.
+- **F1DB.** Publishes every practice session from 1986 and sprint qualifying
+  from 2023 under CC BY 4.0, in the repository the refresh already clones, and
+  had Baku FP1 in it under six hours after the session began. Used.
+
+The practice sheets name 53 drivers who never started a race. The maintainer
+ruled the same day that they go in the register and are shown as never having
+started. They are admitted from an authored list (`F1DB_PRACTICE_DRIVERS`),
+one reviewed line each, because "nothing is created from a bulk feed" is the
+register's rule; `drivers.practice_only` is derived from the tables rather
+than stamped on the list, so it also marks Susie Wolff, in the register since
+before; and every figure the site labels "drivers" counts those who entered a race.
+
+What this rests on, and is the maintainer's to confirm: F1DB's practice sheets
+are almost certainly compiled from the same FOM classifications the two
+declined sources publish. Taking them through F1DB relies on the reading the
+`qualifying` table already rests on — that F1DB's provenance is F1DB's to
+represent, and is represented by its licence (`COMMERCIAL-READINESS.md`) —
+and this takes F1DB-carried session classifications from about 27,000 rows
+to about 69,000. The licence review of #185 passed the diff and asked that
+this be read once by a person rather than assumed.
+
+Cost: 31% on the compressed database the site sends (4.97 MB to 6.53 MB).

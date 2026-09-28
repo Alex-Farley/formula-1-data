@@ -23,6 +23,7 @@
  */
 import { span } from '../lib/format.js'
 import { CURRENT_SEASON_SQL } from '../lib/season.js'
+import { PRACTICE_ONLY_MARK } from './race.js'
 
 /**
  * The whole register in one query.
@@ -43,7 +44,7 @@ import { CURRENT_SEASON_SQL } from '../lib/season.js'
 export const DRIVERS = `
   SELECT d.id, d.full_name, d.nationality, d.first_season, d.last_season,
          d.wins, d.podiums, d.poles, d.fastest_laps, d.career_points,
-         d.titles, d.title_years, d.status, d.confidence,
+         d.titles, d.title_years, d.status, d.confidence, d.practice_only,
          (SELECT COUNT(*) FROM race_entries e WHERE e.driver_id = d.id) AS entries,
          -- The grid is derived, never read from drivers.status (IX-17), and
          -- the season it is derived for is the declared one (CR-07): see
@@ -64,8 +65,26 @@ export const DRIVERS = `
    ORDER BY d.wins DESC, d.podiums DESC, d.full_name
 `
 
+/* A driver who ran in practice and never started a race (LV-03) is in the
+   register and marked in it, with the dagger the session sheets use -
+   queries/race.js holds the one mark both use. */
+
+/** How many drivers entered a race, from the race records, and how many only drove in practice. Maria de Villota is neither, so the two do not add to the register. */
+export const registerCount = (rows) => ({
+  raced: rows.filter((r) => r.entries > 0).length,
+  practice: rows.filter((r) => r.practice_only === 1).length,
+})
+
+export const REGISTER_FOOTER =
+  'Most wins first; sort by any column. Entries is every race a driver was entered for, counted from the race records — an entry is not a start. A blank is a figure nobody has established, not a zero, and those rows sink to the bottom whichever way you sort. † Drove in practice and never started a Grand Prix.'
+
 export const DRIVER_COLUMNS = [
-  { key: 'full_name', rowHeader: true, label: 'Driver' },
+  {
+    key: 'full_name',
+    rowHeader: true,
+    label: 'Driver',
+    text: (name, row) => (row.practice_only === 1 ? `${name} ${PRACTICE_ONLY_MARK}` : name),
+  },
   { key: 'nationality', label: 'Nationality' },
   {
     key: 'first_season',

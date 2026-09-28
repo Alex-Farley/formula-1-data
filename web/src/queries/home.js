@@ -35,7 +35,7 @@ export const SHAPE = `
     (SELECT COUNT(*) FROM qualifying)     AS qualifying,
     (SELECT COUNT(*) FROM standings)      AS standings,
     (SELECT COUNT(*) FROM pit_stops)      AS pit_stops,
-    (SELECT COUNT(*) FROM drivers)        AS drivers,
+    (SELECT COUNT(DISTINCT driver_id) FROM race_entries) AS drivers,
     (SELECT COUNT(*) FROM constructors)   AS constructors,
     (SELECT COUNT(*) FROM chassis)        AS chassis,
     (SELECT COUNT(*) FROM circuits)       AS circuits,

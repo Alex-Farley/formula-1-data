@@ -766,12 +766,19 @@ export function record(driver) {
   // 441 are a death whose date nobody has established and that is exactly
   // what it means; so does a blank status, where nothing is established
   // either way.
-  const living = driver.status === 'active' || driver.status === 'retired'
+  //
+  // A practice-only driver (LV-03) has no status, because a status describes
+  // a racing career, but is not "nothing established": the row is F1DB's,
+  // F1DB's register carries a death where there is one, and build.py already
+  // reads its absence as alive for every racing driver it admits. So the
+  // same reading holds here, and the Status row says what the driver is.
+  const practiceOnly = driver.practice_only === 1 && !driver.status
+  const living = driver.status === 'active' || driver.status === 'retired' || (practiceOnly && !driver.died)
   return [
     ['Born', text(driver.born)],
     ...(living ? [] : [['Died', text(driver.died)]]),
     ['Nationality', text(driver.nationality)],
-    ['Status', text(driver.status)],
+    ['Status', practiceOnly ? 'practice only' : text(driver.status)],
     // How a harvest put the row here, where one did. It used to open
     // `notes`, which is the lede above and the meta description; it is
     // shown only where it exists, so most rows get no em dash for it.
@@ -885,7 +892,56 @@ export const careerSentence = (derived, constructors, titles) => {
  * is what is returned as well as what is tested: deciding on one string and
  * showing another is how the two would come to disagree.
  */
-export const lede = (driver, derived, constructors) => {
+export const lede = (driver, derived, constructors, practice = []) => {
   const written = driver.notes == null ? '' : String(driver.notes).trim()
-  return written || careerSentence(derived, constructors, driver.titles)
+  if (written) return written
+  return driver.practice_only === 1 ? practiceSentence(practice) : careerSentence(derived, constructors, driver.titles)
 }
+
+/*
+ * The Friday drivers (LV-03): in the register, and never in a race. Their
+ * whole record is the practice sheets, so their page opens on those and
+ * says, before anything else, that there is no race record to look for.
+ * `practice_only` is derived by the build - no race entry, and at least one
+ * practice or sprint qualifying row - and verify.py holds it both ways.
+ */
+export const DRIVER_PRACTICE = `
+  SELECT p.id, p.session, p.position, p.position_text, p.time, p.laps,
+         r.year, r.round, r.name_used, p.constructor_id, k.name AS constructor
+    FROM practice p
+    JOIN races r ON r.id = p.race_id
+    LEFT JOIN constructors k ON k.id = p.constructor_id
+   WHERE p.driver_id = ?
+   ORDER BY r.year DESC, r.round DESC, p.session
+`
+
+const SESSION_NAMES = { fp1: 'Practice 1', fp2: 'Practice 2', fp3: 'Practice 3', fp4: 'Practice 4' }
+
+export const PRACTICE_ONLY_NOTICE = {
+  head: 'Practice only.',
+  body: 'There is no race record to find here — the sessions below are the whole of it.',
+}
+
+/** The opening sentence for a practice-only driver, from their sessions, as careerSentence() is from the races. */
+export const practiceSentence = (sessions) => {
+  if (!sessions.length) return 'Never started a championship Grand Prix.'
+  const years = sessions.map((r) => r.year)
+  const first = Math.min(...years)
+  const last = Math.max(...years)
+  const when = first === last ? `in ${first}` : `across ${first}–${last}`
+  const teams = [...new Set(sessions.map((r) => r.constructor).filter(Boolean))]
+  const who = teams.length ? ` for ${constructorList(teams)}` : ''
+  return `Drove in ${plural(sessions.length, 'practice session')} ${when}${who}, and never started a championship Grand Prix.`
+}
+
+export const practiceCount = (sessions) => plural(sessions.length, 'session')
+
+export const PRACTICE_SESSION_COLUMNS = [
+  { key: 'year', rowHeader: true, label: 'Season', align: 'num' },
+  { key: 'name_used', rowHeader: true, label: 'Grand Prix' },
+  { key: 'session', label: 'Session', text: (value) => text(SESSION_NAMES[value] ?? value) },
+  { key: 'constructor', label: 'Constructor' },
+  { key: 'position_text', label: 'Pos', align: 'num', glossary: 'results' },
+  { key: 'time', label: 'Best lap', align: 'num' },
+  { key: 'laps', label: 'Laps', align: 'num' },
+]

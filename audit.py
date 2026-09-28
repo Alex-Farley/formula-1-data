@@ -218,8 +218,8 @@ if not pod:
     print("  why podiums, retirements, per-race points and grid positions are")
     print("  absent. tools/ergast_load.py fills all four in one run:")
     print("      python3 tools/ergast_load.py && python3 verify.py")
-noent = con.execute("""SELECT COUNT(*) FROM drivers d WHERE NOT EXISTS
-    (SELECT 1 FROM race_entries e WHERE e.driver_id = d.id)""").fetchone()[0]
+noent = con.execute("""SELECT COUNT(*) FROM drivers d WHERE d.practice_only = 0
+    AND NOT EXISTS (SELECT 1 FROM race_entries e WHERE e.driver_id = d.id)""").fetchone()[0]
 print(f"\n  {noent} of {con.execute('SELECT COUNT(*) FROM drivers').fetchone()[0]} "
       f"register entries have no race rows yet")
 print()
