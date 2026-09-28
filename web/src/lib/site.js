@@ -578,9 +578,10 @@ export const ABOUT = [
     title: 'How often it changes',
     paragraphs: [
       'F1DB publishes a race within a day or two of it being run; the harvest here is re-fetched ' +
-        'from it every morning at 06:00 UTC and committed only once the rebuilt database has ' +
-        'passed every check, so the race record follows a race weekend by a few days rather than ' +
-        'by a week. Everything else — the eras, the regulations, the registers, the prose — ' +
+        'from it every morning at 06:00 UTC, and every three hours from a weekend\u2019s first ' +
+        'practice session until three days after its race. It is published only once the rebuilt ' +
+        'database has passed every check, so the race record follows a race within hours of F1DB ' +
+        'publishing it. Everything else — the eras, the regulations, the registers, the prose — ' +
         'moves when somebody works on it.',
       'Every page names the database version it is running on, the date that database was built, ' +
         'and a digest of the file itself. The digest is what fixes which figures you were shown: ' +
