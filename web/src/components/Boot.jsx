@@ -99,6 +99,11 @@ export default function Boot({ children }) {
     </div>
   )
 
+  // A browser with no DecompressionStream cannot open the site since D-47,
+  // and every deployed page is prerendered, so this strip is where that
+  // reader finds out: the reason and the file, and no retry that cannot work.
+  const cannotUnpack = failed && typeof DecompressionStream !== 'function'
+
   if (standing) {
     return (
       <div className="boot-strip">
@@ -109,8 +114,19 @@ export default function Boot({ children }) {
             {phrase}
             {pending && !failed ? ` — opening ${pending} when it is ready` : ''}
             {stranded}
+            {cannotUnpack && (
+              <>
+                {' '}
+                This browser is older than the feature the site needs to unpack its data; updating it
+                will open the site. The database is{' '}
+                <a href={RAW_DATABASE_URL}>
+                  <code>f1.db</code> in the repository
+                </a>
+                .
+              </>
+            )}
           </p>
-          {failed ? (
+          {cannotUnpack ? null : failed ? (
             <button type="button" className="button" onClick={retry}>
               Try again
             </button>
@@ -140,7 +156,7 @@ export default function Boot({ children }) {
               on. That reader is told so, and where the file is, rather than
               offered a retry that cannot work and a sentence saying the
               problem is not at their end when it is. */}
-          {typeof DecompressionStream !== 'function' ? (
+          {cannotUnpack ? (
             <p className="error" role="alert">
               This browser cannot unpack the site’s data file: it is older than the feature the
               site needs, which every browser has had since early 2023. Updating it will open the

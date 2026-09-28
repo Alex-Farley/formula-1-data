@@ -981,6 +981,36 @@ try {
       'and the strip stops promising a page nothing is going to open',
     )
     await blocked.close()
+
+    /*
+     * D-47: a browser with no DecompressionStream cannot open the site, and
+     * the strip over the prerendered page is where it hears so - the reason
+     * and the repository copy, and no Try again that cannot work. The worker
+     * has a DecompressionStream of its own, so the download is refused too,
+     * which is what that browser's open comes to.
+     */
+    const old = await browser.newContext()
+    await old.addInitScript(() => {
+      delete window.DecompressionStream
+    })
+    await old.route('**/f1.db*', (route) => route.abort())
+    const oldPage = await old.newPage()
+    await oldPage.goto(`${BASE}/circuits`, { waitUntil: 'domcontentloaded' })
+    await oldPage.waitForFunction(
+      () => document.querySelector('.boot-strip .boot-phase')?.textContent.includes('updating it will open the site'),
+      null,
+      { timeout: 60000 },
+    )
+    truthy(
+      await oldPage.$eval('.boot-strip .boot-phase a[href$="/raw/main/f1.db"]', (a) => Boolean(a)),
+      'a browser that cannot unpack the data is told why, and where the file is',
+    )
+    is(
+      await oldPage.$$eval('.boot-strip button', (nodes) => nodes.length),
+      0,
+      'and is not offered a retry that cannot work',
+    )
+    await old.close()
   })
 
   // ------------------------------------------------------------------ home
