@@ -31,6 +31,9 @@ import {
   THIS_SEASON,
   THIS_SEASON_COLUMNS,
   lede,
+  DRIVER_PRACTICE,
+  PRACTICE_ONLY_NOTICE,
+  PRACTICE_SESSION_COLUMNS,
   pointsDiffer,
   pointsNote,
   record,
@@ -75,6 +78,17 @@ const seasonApp = (teams) => ({
   },
   championship_text: { sort: (row) => row.championship },
 })
+
+/* A practice session's row: the season and the weekend link as an entry's
+   do, and the team by name - no livery, since a Friday run is not a race
+   the livery record covers. */
+const PRACTICE_APP = {
+  year: { render: (year) => <Link to={`/seasons/${year}`}>{year}</Link> },
+  name_used: { render: (name, row) => <Link to={`/races/${row.year}/${row.round}`}>{name}</Link> },
+  constructor: {
+    render: (name, row) => (row.constructor_id ? <Link to={`/constructors/${row.constructor_id}`}>{name}</Link> : name),
+  },
+}
 
 const ENTRY_APP = {
   year: { render: (year) => <Link to={`/seasons/${year}`}>{year}</Link> },
@@ -226,6 +240,7 @@ export default function Driver() {
     thisSeason: [THIS_SEASON, [id]],
     teamMates: [TEAM_MATES, [id, null]],
     sources: [DRIVER_SOURCES, [id]],
+    practice: [DRIVER_PRACTICE, [id]],
   })
 
   return (
@@ -312,13 +327,16 @@ function DriverBody({ driver, data }) {
   const differ = pointsDiffer(driver, derived)
   const thisSeason = rows(data, 'thisSeason')
   const teamMates = rows(data, 'teamMates')
+  // A Friday driver's whole record is the practice sheets (LV-03).
+  const practiceOnly = driver.practice_only === 1
+  const practice = rows(data, 'practice')
 
   return (
     <Page
       eyebrow="Driver"
       title={NAMES.driver(driver.full_name).headline}
       trail={TRAIL.driver(driver.id, driver.full_name)}
-      lede={lede(driver, derived, constructors)}
+      lede={lede(driver, derived, constructors, practice)}
       sources={rows(data, 'sources')}
       aside={
         <LiveryScheme
@@ -337,9 +355,31 @@ function DriverBody({ driver, data }) {
         <ThisSeason name={driver.full_name} rows={thisSeason} standings={standings} />
       )}
 
-      <Section title={thisSeason.length > 0 ? CAREER_HEADING : undefined}>
-        <Stats items={leading(strip(driver, derived))} />
-      </Section>
+      {practiceOnly && (
+        <Note>
+          <strong>{PRACTICE_ONLY_NOTICE.head}</strong> {PRACTICE_ONLY_NOTICE.body}
+        </Note>
+      )}
+
+      {!practiceOnly && (
+        <Section title={thisSeason.length > 0 ? CAREER_HEADING : undefined}>
+          <Stats items={leading(strip(driver, derived))} />
+        </Section>
+      )}
+
+      {practiceOnly && practice.length > 0 && (
+        <Section title="Practice sessions" count={`${practice.length} sessions`}>
+          <DataTable
+            rows={practice}
+            rowKey={(row) => row.id}
+            sortable
+            sort="year"
+            direction="desc"
+            page={100}
+            columns={PRACTICE_SESSION_COLUMNS.map((column) => ({ ...column, ...PRACTICE_APP[column.key] }))}
+          />
+        </Section>
+      )}
 
       {standings.length > 1 && (
         <Section title="Where each championship finished">
@@ -406,17 +446,19 @@ function DriverBody({ driver, data }) {
         </Section>
       )}
 
-      <Section title="Season by season" count={`${seasons.length} seasons`}>
-        <DataTable
-          rows={seasons}
-          rowKey={(row) => row.year}
-          sortable
-          sort="year"
-          direction="desc"
-          columns={seasonColumns}
-          footer={SEASONS_FOOTER}
-        />
-      </Section>
+      {!practiceOnly && (
+        <Section title="Season by season" count={`${seasons.length} seasons`}>
+          <DataTable
+            rows={seasons}
+            rowKey={(row) => row.year}
+            sortable
+            sort="year"
+            direction="desc"
+            columns={seasonColumns}
+            footer={SEASONS_FOOTER}
+          />
+        </Section>
+      )}
 
       {/* A career with no team-mate on the record - 132 of the 862 - has
           no section, as it has no rows (PD-43). */}
@@ -440,17 +482,19 @@ function DriverBody({ driver, data }) {
         </Section>
       )}
 
-      <Section title="Every entry" count={`${results.length} races`}>
-        <DataTable
-          rows={results}
-          rowKey={(row) => `${row.year}-${row.round}`}
-          sortable
-          sort="year"
-          direction="desc"
-          page={100}
-          columns={ENTRY_COLUMNS.map((column) => ({ ...column, ...ENTRY_APP[column.key] }))}
-        />
-      </Section>
+      {!practiceOnly && (
+        <Section title="Every entry" count={`${results.length} races`}>
+          <DataTable
+            rows={results}
+            rowKey={(row) => `${row.year}-${row.round}`}
+            sortable
+            sort="year"
+            direction="desc"
+            page={100}
+            columns={ENTRY_COLUMNS.map((column) => ({ ...column, ...ENTRY_APP[column.key] }))}
+          />
+        </Section>
+      )}
 
       <Disagreement rows={rows(data, 'disagreements')} what="this career" />
 

@@ -901,6 +901,11 @@ ID_STABILITY = {
                                            "basis", "driver_id",
                                            "constructor_id", "engine_id",
                                            "source", "position_text")),
+    # New in LV-03 and not promised stable: rows go in in F1DB's file order,
+    # so one session F1DB adds to an old weekend would renumber every row
+    # after it. The keys are each table's own UNIQUE.
+    "practice":              ("unstable", ("race_id", "session", "driver_id")),
+    "sprint_qualifying":     ("unstable", ("race_id", "driver_id")),
 
     # Unstable, with no natural key published yet. Each is either a register
     # small enough to read whole or one of the timing tables that ship empty

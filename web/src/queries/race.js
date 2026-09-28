@@ -50,6 +50,31 @@ export const QUALIFYING = `
    ORDER BY q.position IS NULL, q.position
 `
 
+/* Practice, every session of the weekend in one read, and sprint qualifying
+   (LV-03). practice_only rides along so a Friday driver who never started a
+   race is marked on the sheet as well as on their own page. */
+export const PRACTICE = `
+  SELECT p.*, d.full_name AS driver, d.practice_only, k.name AS constructor,
+         k.country AS constructor_country
+    FROM practice p
+    JOIN races r         ON r.id = p.race_id
+    LEFT JOIN drivers d  ON d.id = p.driver_id
+    LEFT JOIN constructors k ON k.id = p.constructor_id
+   WHERE r.year = ? AND r.round = ?
+   ORDER BY p.session, p.position IS NULL, p.position
+`
+
+export const SPRINT_QUALIFYING = `
+  SELECT q.*, d.full_name AS driver, d.practice_only, k.name AS constructor,
+         k.country AS constructor_country
+    FROM sprint_qualifying q
+    JOIN races r         ON r.id = q.race_id
+    LEFT JOIN drivers d  ON d.id = q.driver_id
+    LEFT JOIN constructors k ON k.id = q.constructor_id
+   WHERE r.year = ? AND r.round = ?
+   ORDER BY q.position IS NULL, q.position
+`
+
 export const SPRINT = `
   SELECT s.*, d.full_name AS driver, k.name AS constructor, k.country AS constructor_country
     FROM sprint_results s
@@ -253,6 +278,62 @@ export const qualifyingColumns = (rows) => [
 
 export const QUALIFYING_FOOTER =
   'Before knock-out qualifying arrived in 2006 there is one time per driver; from 2006, the best lap of each of the three sessions.'
+
+/** The sessions practice rows can belong to, in weekend order, with the name the timetable gives each. */
+export const PRACTICE_SESSIONS = [
+  ['fp1', 'Practice 1'],
+  ['fp2', 'Practice 2'],
+  ['fp3', 'Practice 3'],
+  ['fp4', 'Practice 4'],
+]
+
+/** One weekend's practice rows, split by session and in weekend order; a session with no rows is left out. */
+export const practiceBySession = (rows) =>
+  PRACTICE_SESSIONS.map(([session, title]) => ({ session, title, rows: rows.filter((r) => r.session === session) })).filter(
+    (s) => s.rows.length > 0,
+  )
+
+/** The mark a practice-only driver carries on a session sheet, and what it means. */
+export const PRACTICE_ONLY_MARK = '†'
+export const PRACTICE_ONLY_NOTE = `${PRACTICE_ONLY_MARK} Drove in practice and never started a Grand Prix.`
+
+/* The driver cell of a session sheet: the name, and the mark where the driver
+   never started a race. The static page prints this text and the app renders
+   the same mark, so the two halves say the same thing. */
+const sessionDriver = {
+  key: 'driver',
+  rowHeader: true,
+  label: 'Driver',
+  text: (name, row) => text(name ?? row.driver_id) + (row.practice_only === 1 ? ` ${PRACTICE_ONLY_MARK}` : ''),
+}
+
+export const PRACTICE_COLUMNS = [
+  { key: 'position_text', label: 'Pos', align: 'num', glossary: 'results' },
+  sessionDriver,
+  { key: 'constructor', label: 'Constructor' },
+  { key: 'driver_number', label: 'No.', align: 'num' },
+  { key: 'time', label: 'Best lap', align: 'num' },
+  { key: 'gap', label: 'Gap', align: 'num' },
+  { key: 'interval', label: 'Interval', align: 'num' },
+  { key: 'laps', label: 'Laps', align: 'num' },
+]
+
+export const practiceFooter = (rows) =>
+  [
+    'Each driver’s best lap of the session and the laps they ran: a classification, not lap timing.',
+    rows.some((r) => r.practice_only === 1) ? PRACTICE_ONLY_NOTE : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+export const sprintQualifyingColumns = (rows) =>
+  qualifyingColumns(rows).map((column) => (column.key === 'driver' ? sessionDriver : column))
+
+export const sprintQualifyingFooter = (rows) =>
+  [SPRINT_QUALIFYING_FOOTER, rows.some((r) => r.practice_only === 1) ? PRACTICE_ONLY_NOTE : ''].filter(Boolean).join(' ')
+
+export const SPRINT_QUALIFYING_FOOTER =
+  'The session that sets the sprint grid: the sprint shootout in 2023, sprint qualifying since, with the best lap of each of its three parts.'
 
 export const SPRINT_COLUMNS = [
   rail,

@@ -2129,11 +2129,12 @@ def finishing_order_and_podiums():
              "no classification loaded, so the strongest check on this data "
              "is not running - see tools/ergast_load.py")
 
-    bad = con.execute("""SELECT COUNT(*) FROM drivers d
-        WHERE NOT EXISTS (SELECT 1 FROM race_entries e WHERE e.driver_id = d.id)"""
+    bad = con.execute("""SELECT COUNT(*) FROM drivers d WHERE d.practice_only = 0
+        AND NOT EXISTS (SELECT 1 FROM race_entries e WHERE e.driver_id = d.id)"""
         ).fetchone()[0]
     print(f"  [info] {bad} drivers in the register have no race entry yet "
-          f"(they gain one when the classification loads)")
+          f"(they gain one when the classification loads; the practice-only "
+          f"drivers never will, and are not counted here)")
 
 
 @section('CARS')
@@ -2900,6 +2901,70 @@ def the_chassis_register():
     print(f"  [info] {nlim} regulation limits recorded, covering "
           + ", ".join(str(r[0]) for r in con.execute(
               "SELECT DISTINCT field FROM regulation_limits ORDER BY field")))
+
+
+@section('PRACTICE AND SPRINT QUALIFYING (LV-03)')
+def practice_and_sprint_qualifying():
+    F1DB = "https://github.com/f1db/f1db"
+    for t in ("practice", "sprint_qualifying"):
+        n_ = con.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]
+        print(f"  [info] {t:<22} {n_} rows")
+        # The licence the rows ship under is F1DB's; a row from anywhere else
+        # is a row this project has no licence for. pit_stops is held the
+        # same way in REDISTRIBUTION.
+        bad = con.execute(f"SELECT COUNT(*) FROM {t} WHERE source IS NOT ?",
+                          (F1DB,)).fetchone()[0]
+        check(f"every {t} row cites F1DB", bad == 0, f"{bad} cite another source")
+
+    # One place per driver per session, and the classified places run 1..n
+    # with no gap: a hole is a driver the register could not place and the
+    # build skipped, which the warning below names.
+    for t, grain in (("practice", "race_id, session"), ("sprint_qualifying", "race_id")):
+        bad = con.execute(f"""SELECT COUNT(*) FROM (SELECT {grain} FROM {t}
+            WHERE position IS NOT NULL GROUP BY {grain}
+            HAVING COUNT(*) != COUNT(DISTINCT position) OR MIN(position) != 1
+                OR MAX(position) != COUNT(*))""").fetchone()[0]
+        check(f"every {t} session's places run from 1 with no gap or repeat",
+              bad == 0, f"{bad} sessions")
+
+    bad = con.execute("""SELECT COUNT(DISTINCT q.race_id) FROM sprint_qualifying q
+        JOIN races r ON r.id = q.race_id WHERE r.sprint != 1""").fetchone()[0]
+    check("sprint qualifying is held only on a sprint weekend", bad == 0,
+          f"{bad} races")
+
+    # Where the weekend has a timetable, a practice session the timetable does
+    # not hold is one of two sources wrong about the weekend - a sprint
+    # weekend has no FP2 or FP3.
+    bad = con.execute("""SELECT COUNT(*) FROM (SELECT DISTINCT p.race_id, p.session
+        FROM practice p WHERE EXISTS (SELECT 1 FROM sessions s WHERE s.race_id = p.race_id)
+        AND NOT EXISTS (SELECT 1 FROM sessions s WHERE s.race_id = p.race_id
+                        AND s.kind = p.session))""").fetchone()[0]
+    check("every practice session on a timetabled weekend is on its timetable",
+          bad == 0, f"{bad} sessions")
+
+    # The flag is the fact it names, both ways round.
+    wrong = con.execute("""SELECT id FROM drivers WHERE practice_only !=
+        CASE WHEN NOT EXISTS (SELECT 1 FROM race_entries e WHERE e.driver_id = drivers.id)
+              AND (EXISTS (SELECT 1 FROM practice p WHERE p.driver_id = drivers.id)
+                   OR EXISTS (SELECT 1 FROM sprint_qualifying q WHERE q.driver_id = drivers.id))
+             THEN 1 ELSE 0 END""").fetchall()
+    check("practice_only is exactly the drivers with a practice session and no race",
+          not wrong, ", ".join(r[0] for r in wrong[:5]))
+    bad = con.execute("""SELECT COUNT(*) FROM drivers
+        WHERE practice_only = 1 AND status = 'active'""").fetchone()[0]
+    check("no practice-only driver is held active", bad == 0, f"{bad} drivers")
+
+    # A Friday driver not yet in data/drivers.py F1DB_PRACTICE_DRIVERS has
+    # their rows skipped by the build. That is a line to add, not a broken
+    # refresh, so it warns.
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "harvest", "practice.txt")
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            held = sum(1 for line in f if line.strip() and not line.startswith("#"))
+        stored = con.execute("SELECT COUNT(*) FROM practice").fetchone()[0]
+        warn("every practice row in the harvest is loaded", stored == held,
+             f"{held - stored} skipped for a driver the register does not hold; "
+             f"add them to F1DB_PRACTICE_DRIVERS in data/drivers.py")
 
 
 @section('TIMING AND RADIO')
@@ -3806,6 +3871,8 @@ def the_full_classification():
         ("race_entries", 27482), ("qualifying", 26997), ("standings", 34563),
         ("pit_stops", 22481), ("sprint_results", 590), ("season_entrants", 1925),
         ("chassis", 1153), ("engines", 424),
+        # LV-03's two, at F1DB v2026.15.1 when they arrived.
+        ("practice", 41334), ("sprint_qualifying", 466),
     )
     for table, floor in FLOORS:
         n = con.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]

@@ -128,7 +128,7 @@ import { RACE_SESSIONS, SEASON_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE, eventD
 // The pages' own queries and column lists (PD-02). A page and this script
 // read the same module, so the static table is the app's table by
 // construction; the rest of the pages follow these.
-import { DRIVERS, DRIVER_COLUMNS } from '../src/queries/drivers.js'
+import { DRIVERS, DRIVER_COLUMNS, REGISTER_FOOTER, registerCount } from '../src/queries/drivers.js'
 import { SEASONS, SEASONS_COLUMNS, SEASON_LIST_FOOTER } from '../src/queries/seasons.js'
 import {
   CALENDAR,
@@ -219,8 +219,16 @@ import {
   PITS,
   PITS_FOOTER,
   PIT_COLUMNS,
+  PRACTICE,
+  PRACTICE_COLUMNS,
+  PRACTICE_ONLY_MARK,
   QUALIFYING,
   QUALIFYING_FOOTER,
+  SPRINT_QUALIFYING,
+  practiceBySession,
+  practiceFooter,
+  sprintQualifyingColumns,
+  sprintQualifyingFooter,
   RACE_SOURCES,
   SHARED_DRIVE_NOTE,
   SPRINT as SPRINT_RESULTS,
@@ -394,6 +402,10 @@ import {
   THIS_SEASON,
   THIS_SEASON_COLUMNS,
   careerSentence,
+  DRIVER_PRACTICE,
+  PRACTICE_ONLY_NOTICE,
+  PRACTICE_SESSION_COLUMNS,
+  practiceSentence,
   leading,
   lede,
   pointsDiffer,
@@ -1973,12 +1985,18 @@ const page = ({
   const rail = (_, row) => `<i class="${esc(railOf(row))}"></i>`
   const driverCell = (name, row) => (row.driver_id ? link(`drivers/${row.driver_id}`, name ?? row.driver_id) : text(name))
   const constructorCell = (name, row) => (row.constructor_id ? link(`constructors/${row.constructor_id}`, name) : text(name))
+  // A session sheet's driver, marked where they never started a race - the
+  // app's sessionDriverLink, and the column's own text, say the same.
+  const sessionDriverCell = (name, row) =>
+    driverCell(name, row) + (row.practice_only === 1 ? ` <span aria-hidden="true">${PRACTICE_ONLY_MARK}</span><span class="sr-only">(never started a Grand Prix)</span>` : '')
   const outCell = (value, row) => (finished(value, row.finish_position) ? 'Finished' : missing(value) ? '—' : tag(value))
 
   for (const r of races) {
     const neighbours = one(RACE_NEIGHBOURS, r.year, r.round) ?? {}
     const entries = inClassificationOrder(all(ENTRIES, r.year, r.round))
     const qualifying = all(QUALIFYING, r.year, r.round)
+    const practice = practiceBySession(all(PRACTICE, r.year, r.round))
+    const sprintQualifying = all(SPRINT_QUALIFYING, r.year, r.round)
     const sprintResults = inClassificationOrder(all(SPRINT_RESULTS, r.year, r.round))
     const pits = all(PITS, r.year, r.round)
     const scheduled = r.status === 'scheduled'
@@ -2195,6 +2213,23 @@ const page = ({
             : ''
         }
         ${
+          sprintQualifying.length
+            ? `<h2>Sprint qualifying</h2>${fromColumns(sprintQualifyingColumns(sprintQualifying), sprintQualifying, {
+                driver: sessionDriverCell,
+                constructor: constructorCell,
+              })}${note(sprintQualifyingFooter(sprintQualifying))}`
+            : ''
+        }
+        ${practice
+          .map(
+            ({ title, rows: sheet }) =>
+              `<h2>${text(title)}</h2>${fromColumns(PRACTICE_COLUMNS, sheet, {
+                driver: sessionDriverCell,
+                constructor: constructorCell,
+              })}${note(practiceFooter(sheet))}`,
+          )
+          .join('')}
+        ${
           pits.length
             ? `<h2>Pit stops</h2>${fromColumns(PIT_COLUMNS, pits, {
                 driver: (name, row) => (row.driver_id ? link(`drivers/${row.driver_id}`, name ?? row.driver_id) : text(name ?? row.driver_key)),
@@ -2229,16 +2264,19 @@ const page = ({
   page({
     path: 'drivers',
     title: NAMES.drivers().title,
-    description: `All ${register.length} drivers in the register, with entries, wins, podiums, poles and fastest laps counted from the race records, and titles from the championship tables.`,
+    description: `All ${registerCount(register).raced} drivers who entered a championship race, and ${registerCount(register).practice} who drove only in practice, with entries, wins, podiums, poles and fastest laps counted from the race records, and titles from the championship tables.`,
     trail: TRAIL.drivers(),
     onward: ONWARD.drivers(),
     body: `
       <h1>${esc(NAMES.drivers().headline)}</h1>
-      <p class="lede">${register.length} drivers. Career totals are counted from the race records
+      <p class="lede">${registerCount(register).raced} drivers who entered a championship race, and
+        ${registerCount(register).practice} who drove in practice and never started one. Career totals are counted from the race records
         wherever the records support it; an em dash means nobody has established that figure.</p>
       ${fromColumns(DRIVER_COLUMNS, register, {
-        full_name: (name, d) => link(`drivers/${d.id}`, name),
-      })}`,
+        full_name: (name, d) =>
+          link(`drivers/${d.id}`, name) +
+          (d.practice_only === 1 ? ` <span aria-hidden="true">${PRACTICE_ONLY_MARK}</span><span class="sr-only">(never started a Grand Prix)</span>` : ''),
+      })}<p class="faint">${esc(REGISTER_FOOTER)}</p>`,
   })
 
   const winsOf = db.prepare(
@@ -2287,7 +2325,11 @@ const page = ({
     // career had no team-mate.
     const teamMates = teamMatesOf.all(id, null)
     const constructors = constructorsOf.all(id).map((c) => c.name)
-    const career = careerSentence(derived, constructors, d.titles)
+    // A Friday driver's whole record is the practice sheets (LV-03), as in
+    // Driver.jsx: the sentence, the notice and the table are the app's.
+    const practiceOnly = d.practice_only === 1
+    const practice = practiceOnly ? all(DRIVER_PRACTICE, id) : []
+    const career = practiceOnly ? practiceSentence(practice) : careerSentence(derived, constructors, d.titles)
     // The lede follows the derived sentence where there is room for a whole
     // sentence of it; a note that is one long sentence would otherwise be
     // cut mid-thought with an ellipsis, and the career alone is complete.
@@ -2314,12 +2356,24 @@ const page = ({
       },
       body: `
         <h1>${esc(NAMES.driver(d.full_name).headline)}</h1>
-        <p class="lede">${esc(lede(d, derived, constructors))}</p>
+        <p class="lede">${esc(lede(d, derived, constructors, practice))}</p>
+        ${practiceOnly ? noteBox(PRACTICE_ONLY_NOTICE.head, PRACTICE_ONLY_NOTICE.body) : ''}
         ${thisSeasonSection}
         ${thisSeasonSection ? `<h2>${esc(CAREER_HEADING)}</h2>` : ''}
-        ${stats(
-          leading(strip(d, derived)).map((item) => ({ ...item, value: esc(item.value) })),
-        )}
+        ${
+          practiceOnly
+            ? ''
+            : stats(leading(strip(d, derived)).map((item) => ({ ...item, value: esc(item.value) })))
+        }
+        ${
+          practice.length
+            ? `<h2>Practice sessions</h2>${fromColumns(PRACTICE_SESSION_COLUMNS, practice, {
+                year: (year) => link(`seasons/${year}`, year),
+                name_used: (name, row) => link(`races/${row.year}/${row.round}`, name),
+                constructor: (name, row) => (row.constructor_id ? link(`constructors/${row.constructor_id}`, name) : text(name)),
+              })}`
+            : ''
+        }
         ${disagree(careerDisagreements.all(d.full_name), 'this career')}
         ${
           wins.length
