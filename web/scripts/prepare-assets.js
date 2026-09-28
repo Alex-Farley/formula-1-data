@@ -3,7 +3,6 @@
  * Stage the three files this app serves out of public/, and describe them.
  *
  *   f1.db.gz          the database, gzipped        ~4.7 MB   the normal path
- *   f1.db             the database, as built        ~20 MB   the fallback path
  *   sql-wasm.wasm     the SQLite engine            ~660 KB
  *   db-manifest.json  what the above are           ~200 B    fetched first
  *   SHA256SUMS        the SHA-256 of each file      ~600 B    shasum -c
@@ -25,18 +24,21 @@
  *     that produces identical bytes should not evict a warm cache. A content
  *     digest is a property of the data itself and behaves the same everywhere.
  *
- * WHY BOTH .gz AND THE RAW FILE
+ * WHY ONLY THE .gz
  *     Static hosts do not agree on whether they will compress an unknown
  *     binary type, and several will not. Shipping the gzip ourselves makes the
- *     4.7 MB transfer a property of this repository rather than of whoever is
- *     serving it. The raw file stays as the fallback for a browser without
- *     DecompressionStream, and costs nothing to a reader who never fetches it.
+ *     transfer a property of this repository rather than of whoever is
+ *     serving it. The raw file used to be staged too, as the fallback for a
+ *     browser without DecompressionStream, until practice took it past the
+ *     25 MiB Cloudflare hosts a single file at and every deploy failed
+ *     (D-47). Every browser since early 2023 has DecompressionStream; the
+ *     file as built is linked from the repository instead.
  *
  * Nothing here is committed. f1.db is a build artefact of build.py at the
  * repository root, and the wasm comes back with npm install; a second copy of
  * either in git is a copy that can drift.
  */
-import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { gzipSync } from 'node:zlib'
 import { dirname, join } from 'node:path'
@@ -90,7 +92,9 @@ if (!existsSync(dbPath)) {
 
 mkdirSync(publicDir, { recursive: true })
 
-const bytes = digested('f1.db', readFileSync(dbPath))
+// Not digested into SHA256SUMS: the raw file is not staged since D-47, and
+// the list names only what this run writes. Its digest is the manifest's.
+const bytes = readFileSync(dbPath)
 const fullDigest = sha256(bytes)
 const digest = fullDigest.slice(0, 16)
 
@@ -119,8 +123,9 @@ if (previous?.digest === digest && existsSync(gzPath)) {
   console.log(`  public/f1.db.gz          (${mb(gzipBytes)})`)
 }
 
-copyFileSync(dbPath, join(publicDir, 'f1.db'))
-console.log(`  public/f1.db             (${mb(bytes.length)}, fallback)`)
+// A raw copy left over in public/ from before D-47 would still be deployed,
+// and would still fail the deploy.
+rmSync(join(publicDir, 'f1.db'), { force: true })
 
 // The version and build date come out of the database's own meta table rather
 // than being restated here, so the footer can never claim a version the file
@@ -289,9 +294,6 @@ writeFileSync(
     '/SHA256SUMS',
     '  Cache-Control: no-cache',
     '  Content-Type: text/plain; charset=utf-8',
-    '',
-    '/f1.db',
-    '  Cache-Control: public, max-age=31536000, immutable',
     '',
     '/f1.db.gz',
     '  Cache-Control: public, max-age=31536000, immutable',

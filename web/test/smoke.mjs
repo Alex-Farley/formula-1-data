@@ -808,37 +808,39 @@ try {
     await sliced.close()
 
     /*
-     * And the links that are not routes at all. /data links to /f1.db,
+     * And the links that are not routes at all. /data links to /f1.db.gz,
      * /f1-geometry.db, /f1-parquet.zip, /schema.sql and /db-manifest.json,
      * none of them with a `download` attribute — a static host's
      * Content-Disposition is its own. Held as a route change, such a click
      * moved the address bar and fetched nothing; held and then served from
-     * the prerendered page, /f1.db is twenty-three megabytes pulled alongside
-     * the download the hold exists to protect, and parsed as HTML.
+     * the prerendered page, a data file is megabytes pulled alongside the
+     * download the hold exists to protect, and parsed as HTML.
      */
     const fileLink = await browser.newPage({ viewport: { width: 1280, height: 900 } })
     // Answered here rather than served, so the assertion costs a request and
-    // not twenty-three megabytes. What it reads is how the request was made:
-    // a navigation the browser owns is a `document` request, and the hold
-    // fetching a page to swap in is a `fetch` one.
+    // not megabytes. What it reads is how the request was made: a navigation
+    // the browser owns is a `document` request, and the hold fetching a page
+    // to swap in is a `fetch` one. The Parquet bundle and not the database,
+    // since D-47: the app fetches f1.db.gz itself while it boots, so those
+    // requests would be counted with the click's.
     const askedFor = []
-    await fileLink.route('**/f1.db', (route) => {
+    await fileLink.route('**/f1-parquet.zip', (route) => {
       askedFor.push(route.request().resourceType())
       return route.fulfill({
         status: 200,
         contentType: 'application/octet-stream',
-        body: 'stands in for the database file',
+        body: 'stands in for the Parquet bundle',
       })
     })
     await fileLink.goto(`${BASE}/data`, { waitUntil: 'domcontentloaded' })
     truthy(
       await fileLink.evaluate(() => {
-        const link = document.querySelector('#prerendered a[href="/f1.db"]')
+        const link = document.querySelector('#prerendered a[href="/f1-parquet.zip"]')
         if (!link || !document.getElementById('prerendered')) return false
         link.click()
         return true
       }),
-      'the static data page offers the database file before the database is open',
+      'the static data page offers the data files before the database is open',
     )
     await fileLink.waitForTimeout(500)
     is(
@@ -979,6 +981,36 @@ try {
       'and the strip stops promising a page nothing is going to open',
     )
     await blocked.close()
+
+    /*
+     * D-47: a browser with no DecompressionStream cannot open the site, and
+     * the strip over the prerendered page is where it hears so - the reason
+     * and the repository copy, and no Try again that cannot work. The worker
+     * has a DecompressionStream of its own, so the download is refused too,
+     * which is what that browser's open comes to.
+     */
+    const old = await browser.newContext()
+    await old.addInitScript(() => {
+      delete window.DecompressionStream
+    })
+    await old.route('**/f1.db*', (route) => route.abort())
+    const oldPage = await old.newPage()
+    await oldPage.goto(`${BASE}/circuits`, { waitUntil: 'domcontentloaded' })
+    await oldPage.waitForFunction(
+      () => document.querySelector('.boot-strip .boot-phase')?.textContent.includes('updating it will open the site'),
+      null,
+      { timeout: 60000 },
+    )
+    truthy(
+      await oldPage.$eval('.boot-strip .boot-phase a[href$="/raw/main/f1.db"]', (a) => Boolean(a)),
+      'a browser that cannot unpack the data is told why, and where the file is',
+    )
+    is(
+      await oldPage.$$eval('.boot-strip button', (nodes) => nodes.length),
+      0,
+      'and is not offered a retry that cannot work',
+    )
+    await old.close()
   })
 
   // ------------------------------------------------------------------ home
@@ -2850,7 +2882,14 @@ try {
     const dataText = await page.$eval('#root main', (n) => n.textContent)
     truthy(dataText.includes(`v${edition}`), `the data page states the database version — v${edition}`)
     truthy(dataText.includes(one(`SELECT value FROM meta WHERE key = 'built'`)), 'and the build date')
-    atLeast(await page.$$eval('#root main a[href$="/f1.db"]', (n) => n.length), 1, 'it links the database')
+    atLeast(await page.$$eval('#root main a[href$="/f1.db.gz"]', (n) => n.length), 1, 'it links the database')
+    // D-47: the file as built is the repository's, since the host will not
+    // serve it; the link says where it is rather than 404ing.
+    atLeast(
+      await page.$$eval('#root main a[href$="/raw/main/f1.db"]', (n) => n.length),
+      1,
+      'and the uncompressed file, from the repository',
+    )
     atLeast(
       await page.$$eval('#root main a[href$="/f1-geometry.db"]', (n) => n.length),
       1,
@@ -5001,7 +5040,7 @@ try {
      * During the boot window a click on the static page is held — the URL
      * moves, the asked-for page's prerendered half is fetched and swapped in,
      * and the database download is never restarted. That is right for a page
-     * and wrong for a file: /data links to /f1.db, /f1-parquet.zip,
+     * and wrong for a file: /data links to /f1.db.gz, /f1-parquet.zip,
      * /schema.sql, /ATTRIBUTION.md, /LICENSE-DATA and /SHA256SUMS with no
      * `download` attribute, and holding one of those moved the address bar,
      * downloaded nothing, and left the router to render a 404 for it when the
