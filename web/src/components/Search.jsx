@@ -82,9 +82,12 @@ const INDEX_SQL = `
    GROUP BY g.id
   UNION ALL
   -- The holder and the figure as the meta, so "most poles" is answered in the
-  -- row before it is opened.
-  SELECT 'Record', key, record, holder || ' · ' || value, NULL, NULL, 0, category,
-         '/records?category=' || category
+  -- row before it is opened. Its own page, not the list filtered to its
+  -- category: that filter went when the families replaced it (WK-08), and
+  -- the family's words are searchable beside the category's.
+  SELECT 'Record', key, record, holder || ' · ' || value, NULL, NULL, 0,
+         category || ' ' || family,
+         '/records/' || key
     FROM records
 `
 

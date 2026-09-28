@@ -68,6 +68,8 @@ function RecordBody({ record }) {
             { label: 'As of', value: record.as_of },
             { label: 'Confidence', value: <Confidence value={record.confidence} /> },
             { label: 'Category', value: record.category },
+            // The section of /records it is listed under (WK-08).
+            { label: 'Family', value: record.family },
             // The figure a query compares, which the value above is written
             // around: 6802 where the value reads "18 years, 228 days".
             { label: 'Comparable figure', value: number(record.value_num) },

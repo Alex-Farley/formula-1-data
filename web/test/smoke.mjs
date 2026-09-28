@@ -57,6 +57,7 @@ import { attribution, canShow, fileTitle } from '../src/lib/commons.js'
 import { ENTRIES as CAR_ENTRIES, FIGURES_HEADING, IMAGES as CAR_IMAGES } from '../src/queries/car.js'
 import { CHECKED_LABEL, LAST_CHECKED } from '../src/lib/refresh.js'
 import { EXAMPLES } from '../src/lib/questions.js'
+import { HEADLINE, RECORDS as RECORDS_SQL, recordFamilies } from '../src/queries/records.js'
 import { NO_DRAWING, NO_TIMELINE_ROW } from '../src/lib/outline.js'
 // The three surfaces VD-33 gave the photographs to, read from the app's own
 // queries so that the static pages are checked against what the app shows.
@@ -2770,8 +2771,32 @@ try {
 
   await section('/records', async () => {
     await go('/records', 'Records')
-    is((await tableRows())[0], count('SELECT COUNT(*) FROM records'), 'published records')
+    is((await tableRows())[0], count('SELECT COUNT(*) FROM records WHERE headline = 1'), 'the page leads with the headline records')
     atLeast(await page.$$eval('#root main .figure svg', (n) => n.length), 4, 'the leaderboards drew')
+
+    // WK-08: every other record once, under its family, in a section of its
+    // own that the line under the headline table links, in both halves.
+    {
+      const families = recordFamilies(db.prepare(RECORDS_SQL).all())
+      const html = await (await fetch(`${BASE}/records`)).text()
+      const app = await page.$$eval('#root main section[id]', (nodes) =>
+        nodes.map((n) => ({ id: n.id, rows: Number(n.querySelector('.table-wrap')?.dataset.rows) })),
+      )
+      const links = await page.$$eval('#root main nav[aria-label="Records by family"] a', (as) => as.map((a) => a.getAttribute('href')))
+      is(app.map((s) => s.id).join(', '), families.map((f) => f.anchor).join(', '), 'a section per family, in order, at its own address')
+      is(app.map((s) => s.rows).join(', '), families.map((f) => f.rows.length).join(', '), 'each holds its family’s records below the headline')
+      is(links.join(', '), families.map((f) => `#${f.anchor}`).join(', '), 'and the line under the headline table links each one')
+      is(
+        count('SELECT COUNT(*) FROM records WHERE headline = 1') + families.reduce((n, f) => n + f.rows.length, 0),
+        count('SELECT COUNT(*) FROM records'),
+        'every record is shown exactly once',
+      )
+      truthy(
+        families.every((f) => html.includes(`<h2 id="${f.anchor}">`) && html.includes(`href="#${f.anchor}"`)),
+        'the static page carries the same sections and the same links',
+      )
+      truthy(html.includes(`<h2>${HEADLINE} <span class="count">`), 'and leads with the same headline table')
+    }
 
     // PD-27: every record's name is its own page, and every champion and
     // decade leader a driver's, by the id the two views now carry.
@@ -5271,8 +5296,13 @@ try {
       // The first table after the h2 given, or the page's first table: its
       // headers, and every row.
       const staticTable = (html, heading) => {
-        // prerender.js escapes the apostrophe in "Drivers' standings".
-        const from = heading ? html.indexOf(`<h2>${heading.replace(/&/g, '&amp;').replace(/'/g, '&#39;')}</h2>`) : 0
+        // prerender.js escapes the apostrophe in "Drivers' standings". A
+        // heading may carry its section's address and a count, as the records
+        // families do (WK-08); neither is part of its name.
+        const escaped = heading?.replace(/&/g, '&amp;').replace(/'/g, '&#39;').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        const from = heading
+          ? html.search(new RegExp(`<h2(?: id="[^"]*")?>${escaped}(?: <span class="count">[^<]*</span>)?</h2>`))
+          : 0
         if (from < 0) return null
         const start = html.indexOf('<table>', from)
         const end = html.indexOf('</table>', start)
@@ -5373,6 +5403,7 @@ try {
       await same('/drivers/senna', 'Ayrton Senna', 'Team-mates')
       await same('/drivers/brabham', 'Sir Jack Brabham', 'Team-mates')
       await same('/records', 'Records')
+      await same('/records', 'Records', 'Wins')
 
       // Rung two: the seasons list, a season's calendar and its two standings
       // tables - headed by the shared rule, so the check asks for the heading

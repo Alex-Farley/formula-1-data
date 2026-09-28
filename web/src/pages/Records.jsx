@@ -19,12 +19,18 @@ import {
   DRIVER_WINS,
   GRAND_SLAM_COLUMNS,
   GRAND_SLAMS,
+  HEADLINE,
   POLE_TO_WIN,
   RECORDS,
   TIER_AFTER,
   TITLE_COLUMNS,
   TITLES,
+  asOfLine,
+  asOfOf,
+  familiesLead,
+  headlineRecords,
   recordColumns,
+  recordFamilies,
   recordPath,
   holderPath,
   tierBefore,
@@ -113,27 +119,32 @@ function Body({ data }) {
   const poleToWin = rows(data, 'poleToWin')
   const grandSlams = rows(data, 'grandSlams')
 
-  const categories = useMemo(
-    () => [...new Set(records.map((r) => r.category))].sort(),
-    [records],
-  )
-  const chips = [['', 'All'], ...categories.map((c) => [c, c])]
   const decadeOptions = [...new Set(decades.map((d) => d.decade))].sort((a, b) => b - a)
   const latestDecade = String(Math.max(...decades.map((d) => d.decade)))
 
-  // Both choices on this page, in the address (IA-08). The decade opens on
+  // The choice on this page, in the address (IA-08). The decade opens on
   // the most recent one, so that is its default and the address stays clean
   // until a reader picks another; `?decade=1730` is not one of the ten this
   // page holds, and falls back to the same.
-  const [params, set] = useUrlState({ category: '', decade: latestDecade })
-  const category = oneOf(params.category, chips)
+  //
+  // The records had a category filter too - drivers, constructors, races. The
+  // families replace it (WK-08): a filter over one table of sixty was worth
+  // having, and over a headline table and a section per family it would be a
+  // second grouping across the first. An old `?category=` is simply ignored.
+  const [params, set] = useUrlState({ decade: latestDecade })
   const decade = oneOf(
     params.decade,
     decadeOptions.map((d) => String(d)),
     latestDecade,
   )
-  const shownRecords = category ? records.filter((r) => r.category === category) : records
   const tiers = useMemo(() => tiersOf(records), [records])
+  const asOf = useMemo(() => asOfOf(records), [records])
+  const headline = useMemo(() => headlineRecords(records), [records])
+  const families = useMemo(() => recordFamilies(records), [records])
+  // One column list for every record table on the page, from all of them, so
+  // the headline table and each family's read alike.
+  const columns = recordColumns(records).map((column) => ({ ...column, ...RECORD_APP[column.key] }))
+  const below = records.length - headline.length
 
   // The fifteen bars of the constructor chart, in their teams' colours where
   // they have one (AF-55). This chart used to be all-or-nothing, and enough
@@ -166,34 +177,32 @@ function Body({ data }) {
 
   return (
     <>
-      <Section title="Records" count={`${records.length}`}>
+      <Section title={HEADLINE} count={`${headline.length}`}>
         {/* This sentence stays ABOVE the figures. Its predecessor caveated
             authored rows that could disagree with the leaderboards below, and
             sat 1,900 px under them; the rows are now derived from the same
             tables, so the sentence says that instead. */}
         <p className="note" style={{ marginTop: -4 }}>
           {RECORDS_LEDE}
+          {asOf && ` ${asOfLine(asOf)}`}
           {tiers.length === 1 && (
             <>
               {' '}{tierBefore(records.length)}<Confidence value={tiers[0]} />{TIER_AFTER}
             </>
           )}
         </p>
-        <div className="filters">
-          <Chips
-            label="Filter records by category"
-            value={category}
-            onChange={(value) => set({ category: value })}
-            options={chips}
-          />
-        </div>
-        <DataTable
-          rows={shownRecords}
-          rowKey={(row) => row.id}
-          sortable={false}
-          page={60}
-          columns={recordColumns(records).map((column) => ({ ...column, ...RECORD_APP[column.key] }))}
-        />
+        <DataTable rows={headline} rowKey={(row) => row.id} sortable={false} columns={columns} />
+        {families.length > 0 && (
+          <nav className="note" aria-label="Records by family">
+            {familiesLead(below)}{' '}
+            {families.map((f, i) => (
+              <span key={f.anchor}>
+                {i > 0 && ' · '}
+                <a href={`#${f.anchor}`}>{f.family}</a> <span className="faint">{f.rows.length}</span>
+              </span>
+            ))}
+          </nav>
+        )}
       </Section>
 
       <Section title="Counted from the race records">
@@ -374,6 +383,16 @@ function Body({ data }) {
           columns={GRAND_SLAM_COLUMNS.map((column) => ({ ...column, ...GRAND_SLAM_APP[column.key] }))}
         />
       </Section>
+
+      {/* Every record not in the headline table, once, under its family. Last
+          on the page, after the leaderboards, because it is the catalogue: the
+          headline table is what a reader came for, and the line under it is
+          how they reach the rest. */}
+      {families.map((f) => (
+        <Section key={f.anchor} id={f.anchor} title={f.family} count={`${f.rows.length}`}>
+          <DataTable rows={f.rows} rowKey={(row) => row.id} sortable={false} columns={columns} />
+        </Section>
+      ))}
 
       <Onward {...ONWARD.records({ driverWins })} />
     </>
