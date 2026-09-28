@@ -813,8 +813,8 @@ try {
      * none of them with a `download` attribute — a static host's
      * Content-Disposition is its own. Held as a route change, such a click
      * moved the address bar and fetched nothing; held and then served from
-     * the prerendered page, /f1.db is twenty-three megabytes pulled alongside
-     * the download the hold exists to protect, and parsed as HTML.
+     * the prerendered page, a data file is megabytes pulled alongside the
+     * download the hold exists to protect, and parsed as HTML.
      */
     const fileLink = await browser.newPage({ viewport: { width: 1280, height: 900 } })
     // Answered here rather than served, so the assertion costs a request and
@@ -829,7 +829,7 @@ try {
       return route.fulfill({
         status: 200,
         contentType: 'application/octet-stream',
-        body: 'stands in for the database file',
+        body: 'stands in for the Parquet bundle',
       })
     })
     await fileLink.goto(`${BASE}/data`, { waitUntil: 'domcontentloaded' })

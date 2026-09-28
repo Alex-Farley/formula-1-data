@@ -92,7 +92,9 @@ if (!existsSync(dbPath)) {
 
 mkdirSync(publicDir, { recursive: true })
 
-const bytes = digested('f1.db', readFileSync(dbPath))
+// Not digested into SHA256SUMS: the raw file is not staged since D-47, and
+// the list names only what this run writes. Its digest is the manifest's.
+const bytes = readFileSync(dbPath)
 const fullDigest = sha256(bytes)
 const digest = fullDigest.slice(0, 16)
 

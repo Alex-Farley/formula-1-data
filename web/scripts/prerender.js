@@ -3333,7 +3333,7 @@ page({
       <h2>The files</h2>
       <ul class="cards">
         <li><a href="${esc(href('f1.db.gz'))}"><code>f1.db.gz</code></a> — the database, gzipped. ${esc(GUNZIP_NOTE)} <code>gunzip f1.db.gz</code>, then open it with any SQLite client; <code>circuit_geometry</code> in it is deliberately empty.</li>
-        <li><a href="${esc(RAW_DATABASE_URL)}"><code>f1.db</code></a> — the same file uncompressed, from the repository: too large for this host to serve, and the copy this site is built from.</li>
+        <li><a href="${esc(RAW_DATABASE_URL)}"><code>f1.db</code></a> — the same file uncompressed, too large for this host to serve: the repository’s current copy, which the next deploy is built from.</li>
         <li><a href="${esc(href('f1-geometry.db'))}"><code>f1-geometry.db</code></a> — the circuit centrelines, © OpenStreetMap contributors under ODbL 1.0, in a file of their own.</li>
         <li><a href="${esc(href('f1-parquet.zip'))}"><code>f1-parquet.zip</code></a> — every table as Parquet, one file each; pandas, polars and DuckDB read it directly.</li>
       </ul>

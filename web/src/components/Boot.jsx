@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { onProgress, openDatabase, retryOpen } from '../data/client.js'
 import { onPending } from '../data/pending.js'
 import { bytes as formatBytes } from '../lib/format.js'
+import { RAW_DATABASE_URL } from '../lib/site.js'
 
 /**
  * The wait, made legible.
@@ -134,22 +135,41 @@ export default function Boot({ children }) {
               who is not. Both are still here; which of them is the page and
               which is behind a disclosure has swapped, the way Quality.jsx
               already puts a reader's sentence over a maintainer's note. */}
-          <p className="error" role="alert">
-            The site’s data file did not load. Try again below — and if it keeps happening, it
-            may be unavailable for the moment rather than anything being wrong at your end.
-          </p>
-          <p>
-            <button type="button" className="button" onClick={retry}>
-              Try again
-            </button>
-          </p>
+          {/* A browser with no DecompressionStream cannot open the site since
+              D-47: the host will not serve the raw file it used to fall back
+              on. That reader is told so, and where the file is, rather than
+              offered a retry that cannot work and a sentence saying the
+              problem is not at their end when it is. */}
+          {typeof DecompressionStream !== 'function' ? (
+            <p className="error" role="alert">
+              This browser cannot unpack the site’s data file: it is older than the feature the
+              site needs, which every browser has had since early 2023. Updating it will open the
+              site. The database itself is{' '}
+              <a href={RAW_DATABASE_URL}>
+                <code>f1.db</code> in the repository
+              </a>
+              , and opens in any SQLite client.
+            </p>
+          ) : (
+            <>
+              <p className="error" role="alert">
+                The site’s data file did not load. Try again below — and if it keeps happening, it
+                may be unavailable for the moment rather than anything being wrong at your end.
+              </p>
+              <p>
+                <button type="button" className="button" onClick={retry}>
+                  Try again
+                </button>
+              </p>
+            </>
+          )}
           <details className="gap-note">
             <summary>Running this from a checkout?</summary>
             <pre>{state.error}</pre>
             <p>
-              The site serves <code>f1.db.gz</code>, <code>f1.db</code>, <code>sql-wasm.wasm</code>{' '}
-              and <code>db-manifest.json</code> from the same directory as the page.{' '}
-              <code>npm run build</code> stages all four; opening <code>dist/index.html</code>{' '}
+              The site serves <code>f1.db.gz</code>, <code>sql-wasm.wasm</code> and{' '}
+              <code>db-manifest.json</code> from the same directory as the page.{' '}
+              <code>npm run build</code> stages all three; opening <code>dist/index.html</code>{' '}
               straight off the filesystem will not work, because a <code>file://</code> page may
               not start a worker.
             </p>

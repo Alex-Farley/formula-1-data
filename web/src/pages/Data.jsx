@@ -138,8 +138,8 @@ function Body({ data }) {
               <span className="n">{mb(manifest?.bytes) ?? 'SQLite'}</span>
             </b>
             <p>
-              The same file uncompressed, from the repository: too large for this host to serve,
-              and the copy this site is built from.
+              The same file uncompressed, too large for this host to serve: the repository’s current
+              copy, which the next deploy is built from.
             </p>
           </a>
           <a href={`${base}f1-geometry.db`}>
