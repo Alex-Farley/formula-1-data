@@ -237,6 +237,15 @@ class OnlyARepeatedRoundIsCorrected(PlantedInACopy):
         self.assertIn("ferrari", str(stop.exception))
         self.assertIn("STANDINGS_ADJUSTMENTS", str(stop.exception))
 
+    def latest(self):
+        """The round the season file stands after: the latest one the copy
+        holds. These tests were first written with round 14 typed in, and
+        passed until round 15 was run - the season file is held to the LATEST
+        round, so a fixed one stopped the build for a reason no test named."""
+        return self.con.execute(
+            "SELECT MAX(after_round) FROM standings WHERE year=2026 "
+            f"AND table_type='constructors' AND {standings_rule.SCOPE}").fetchone()[0]
+
     def season_file(self, **changed):
         """F1DB's season-level file for the 2026 constructors, as the loader
         holds it: the latest round's own rows as they stand now, with any
@@ -244,8 +253,8 @@ class OnlyARepeatedRoundIsCorrected(PlantedInACopy):
         rows = []
         for entity, engine, points, position_text in self.con.execute(
                 "SELECT constructor_id, engine_id, points, position_text FROM standings "
-                "WHERE year=2026 AND table_type='constructors' AND after_round=14 "
-                f"AND {standings_rule.SCOPE} ORDER BY position"):
+                "WHERE year=2026 AND table_type='constructors' AND after_round=? "
+                f"AND {standings_rule.SCOPE} ORDER BY position", (self.latest(),)):
             row = {"year": 2026, "table_type": "constructors",
                    "driver_id": None, "constructor_id": entity,
                    "engine_id": engine, "points": points,
@@ -266,23 +275,28 @@ class OnlyARepeatedRoundIsCorrected(PlantedInACopy):
         """The season file lags the same way the per-round one does. Where it
         carried the figure the stale round did, the correction repairing the
         round is not a disagreement between the two files."""
-        self.freeze(2026, "constructors", 14, 13)
+        latest = self.latest()
+        results = self.points(2026, "constructors", "mercedes", latest)
+        self.freeze(2026, "constructors", latest, latest - 1)
         self.hold(self.season_file())
-        self.assertAlmostEqual(self.points(2026, "constructors", "mercedes", 14),
-                               503.0, places=3)
+        self.assertAlmostEqual(self.points(2026, "constructors", "mercedes", latest),
+                               results, places=3)
 
     def test_a_season_file_ahead_of_a_stale_round_is_accepted(self):
         """The season file already on the results while its round file was
         stale: the correction brings the round to it."""
-        self.freeze(2026, "constructors", 14, 13)
-        self.hold(self.season_file(mercedes={"points": 503.0}))
+        latest = self.latest()
+        results = self.points(2026, "constructors", "mercedes", latest)
+        self.freeze(2026, "constructors", latest, latest - 1)
+        self.hold(self.season_file(mercedes={"points": results}))
 
     def test_a_season_file_that_is_neither_stops_the_build(self):
         """Neither the figure the round held nor the one it holds now: two
         files of one source disagree about one table, and the build does not
         pick one. Until DA-01 this row was stored as 'current' and verify.py
         refused the same state after the build had finished."""
-        self.freeze(2026, "constructors", 14, 13)
+        latest = self.latest()
+        self.freeze(2026, "constructors", latest, latest - 1)
         with self.assertRaises(SystemExit) as stop:
             self.hold(self.season_file(mercedes={"points": 999.0}))
         self.assertIn("mercedes", str(stop.exception))
@@ -306,8 +320,8 @@ class OnlyARepeatedRoundIsCorrected(PlantedInACopy):
         """NULL points on both sides is agreement, not a stop."""
         self.con.execute(
             "UPDATE standings SET points = NULL WHERE year=2026 AND "
-            "table_type='constructors' AND constructor_id='haas' AND after_round=14 "
-            f"AND {standings_rule.SCOPE}")
+            "table_type='constructors' AND constructor_id='haas' AND after_round=? "
+            f"AND {standings_rule.SCOPE}", (self.latest(),))
         self.con.commit()
         build._hold_the_season_file_to_its_latest_round(
             self.con.cursor(), self.season_file(),
