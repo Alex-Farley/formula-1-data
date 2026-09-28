@@ -70,7 +70,7 @@ class TheSectionRefuses(unittest.TestCase):
         # place is the sheet itself wrong.
         self.edit("""UPDATE practice SET position = 2 WHERE id = (SELECT MIN(id)
                      FROM practice WHERE position = 3)""")
-        self.refused("every practice session's places run from 1 with no gap or repeat")
+        self.refused("no practice session puts two drivers on one place")
 
     def test_sprint_qualifying_on_a_grand_prix_only_weekend_is_refused(self):
         self.edit("""UPDATE races SET sprint = 0 WHERE id =
@@ -112,6 +112,52 @@ class TheSectionRefuses(unittest.TestCase):
         code, out = run_section(self.db)
         self.assertEqual(code, 0, out)
         self.assertIn("[WARN] every practice row in the harvest is loaded", out)
+
+    def test_an_interval_that_is_not_the_lap_minus_the_car_aheads_is_refused(self):
+        self.edit("""UPDATE practice SET interval = '+9.999' WHERE id = (SELECT MIN(id)
+                     FROM practice WHERE position = 3 AND interval LIKE '+%')""")
+        self.refused("every practice interval is the lap minus the car ahead's")
+
+    def test_a_short_session_still_refuses_a_repeated_place(self):
+        # The warning excuses the hole a skipped driver leaves, and nothing
+        # else: two drivers on one place in the same session still fails.
+        self.edit("""DELETE FROM practice WHERE id = (SELECT MAX(id) FROM practice
+                     WHERE position = 10)""")
+        self.edit("""UPDATE practice SET position = 2 WHERE id = (SELECT MAX(id)
+                     FROM practice WHERE position = 3)""")
+        self.refused("no practice session puts two drivers on one place")
+
+    def test_a_friday_drivers_team_that_was_not_entered_is_refused(self):
+        # Brawn, which entered one season, 2009: the first Friday driver's
+        # row is Bas Leinders for Minardi in 2004, whose real team would pass.
+        self.edit("""UPDATE practice SET constructor_id = 'brawn' WHERE id = (SELECT MIN(p.id)
+                     FROM practice p JOIN drivers d ON d.id = p.driver_id
+                     JOIN races r ON r.id = p.race_id
+                     WHERE d.practice_only = 1 AND r.year != 2009)""")
+        self.refused("every practice team was entered for that weekend")
+
+    def test_a_weekend_caught_on_friday_is_not_held_to_a_list_that_does_not_exist(self):
+        # The refresh after FP1 and before qualifying: practice is loaded,
+        # and nobody is yet entered in anything, so there is no team list to
+        # hold the sheet to.
+        self.edit("""DELETE FROM race_entries WHERE race_id = (SELECT id FROM races
+                     WHERE year = 2026 AND round = 15)""")
+        self.edit("""DELETE FROM qualifying WHERE race_id = (SELECT id FROM races
+                     WHERE year = 2026 AND round = 15)""")
+        code, out = run_section(self.db)
+        self.assertNotIn("[FAIL] every practice team was entered for that weekend", out)
+
+    def test_a_sprint_qualifying_time_on_the_wrong_driver_is_refused(self):
+        self.edit("""UPDATE sprint_qualifying SET q3 = '9:59.999' WHERE id = (SELECT MIN(id)
+                     FROM sprint_qualifying WHERE position = 1)""")
+        self.refused("within SQ3 a later place is never quicker")
+
+    def test_a_reordered_sprint_qualifying_sheet_is_refused(self):
+        # P1 and P15 exchanged: an SQ2-only driver now heads the sheet.
+        self.edit("""UPDATE sprint_qualifying SET position = CASE position WHEN 1 THEN 15 ELSE 1 END
+                     WHERE race_id = (SELECT MIN(race_id) FROM sprint_qualifying)
+                       AND position IN (1, 15)""")
+        self.refused("every sprint qualifying sheet is knockout-shaped, SQ3 first")
 
     def test_a_flag_on_a_driver_who_raced_is_refused(self):
         self.edit("UPDATE drivers SET practice_only = 1 WHERE id = "

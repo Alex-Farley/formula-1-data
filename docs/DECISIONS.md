@@ -946,7 +946,7 @@ started. They are admitted from an authored list (`F1DB_PRACTICE_DRIVERS`),
 one reviewed line each, because "nothing is created from a bulk feed" is the
 register's rule; `drivers.practice_only` is derived from the tables rather
 than stamped on the list, so it also marks Susie Wolff, in the register since
-before; and every figure the site labels "drivers" counts those who raced.
+before; and every figure the site labels "drivers" counts those who entered a race.
 
 What this rests on, and is the maintainer's to confirm: F1DB's practice sheets
 are almost certainly compiled from the same FOM classifications the two

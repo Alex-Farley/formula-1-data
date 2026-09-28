@@ -2948,17 +2948,24 @@ def practice_and_sprint_qualifying():
              f"driver the register does not hold (add them to F1DB_PRACTICE_DRIVERS "
              f"in data/drivers.py), or a round races does not")
 
-    # One place per driver per session, and the classified places run 1..n
-    # with no gap or repeat - except in a session the warning above names,
-    # where the hole is the driver it is about.
+    # One place per driver per session, never two drivers on one; and the
+    # classified places run 1..n with no hole - except in a session the
+    # warning above names, where the hole is the driver it is about. Only the
+    # hole is excused there: a repeat in a short session is still the sheet
+    # wrong (review of #707).
     for t, sess in (("practice", "p.session"), ("sprint_qualifying", "'sq'")):
-        bad = [k for k in con.execute(f"""SELECT r.year, r.round, {sess} FROM {t} p
+        repeats = con.execute(f"""SELECT COUNT(*) FROM (SELECT 1 FROM {t} p
+            WHERE p.position IS NOT NULL GROUP BY p.race_id, {sess}
+            HAVING COUNT(*) != COUNT(DISTINCT p.position))""").fetchone()[0]
+        check(f"no {t} session puts two drivers on one place", repeats == 0,
+              f"{repeats} sessions")
+        holes = [k for k in con.execute(f"""SELECT r.year, r.round, {sess} FROM {t} p
             JOIN races r ON r.id = p.race_id WHERE p.position IS NOT NULL
             GROUP BY p.race_id, {sess}
-            HAVING COUNT(*) != COUNT(DISTINCT p.position) OR MIN(p.position) != 1
-                OR MAX(p.position) != COUNT(*)""") if tuple(k) not in short[t]]
-        check(f"every {t} session's places run from 1 with no gap or repeat",
-              not bad, f"{len(bad)} sessions")
+            HAVING MIN(p.position) != 1 OR MAX(p.position) != COUNT(DISTINCT p.position)""")
+                 if tuple(k) not in short[t]]
+        check(f"every {t} session's places run from 1 with no gap",
+              not holes, f"{len(holes)} sessions")
 
     # THE VALUES. The checks above hold for any shuffle of drivers and times;
     # these do not (review of #185). Within a session a later place is never
@@ -2970,37 +2977,100 @@ def practice_and_sprint_qualifying():
         return None if not m_ else (int(m_.group(1) or 0) * 60 + int(m_.group(2))
                                    + int(m_.group(3).ljust(3, "0")[:3]) / 1000)
     sessions_ = {}
-    for rid, sess_, pos, t_, gap in con.execute(
-            """SELECT race_id, session, position, time, gap FROM practice
+    for rid, sess_, pos, t_, gap, itv in con.execute(
+            """SELECT race_id, session, position, time, gap, interval FROM practice
                 WHERE position IS NOT NULL ORDER BY race_id, session, position"""):
-        sessions_.setdefault((rid, sess_), []).append((t_, gap))
-    order_bad = gap_bad = 0
+        sessions_.setdefault((rid, sess_), []).append((pos, t_, gap, itv))
+    # A gap is measured from P1 and an interval from the place above, so
+    # each is checked only where that row is on the sheet: a session the
+    # warning names may be missing the very driver either is measured to.
+    order_bad = gap_bad = interval_bad = 0
     for sheet in sessions_.values():
         last = lead = None
+        last_pos = None
         untimed = False
-        for t_, gap in sheet:
+        for pos, t_, gap, itv in sheet:
             v = secs(t_)
             if v is None:
                 untimed = True
+                last_pos = None
                 continue
             if untimed or (last is not None and v < last - 1e-9):
                 order_bad += 1
-            last = v
-            lead = v if lead is None else lead
             g = secs(gap[1:]) if gap and gap.startswith("+") else None
-            if g is not None and abs((v - lead) - g) > 0.0005:
+            if g is not None and lead is not None and abs((v - lead) - g) > 0.0005:
                 gap_bad += 1
+            i_ = secs(itv[1:]) if itv and itv.startswith("+") else None
+            if i_ is not None and last_pos == pos - 1 and abs((v - last) - i_) > 0.0005:
+                interval_bad += 1
+            last, last_pos = v, pos
+            if lead is None and pos == 1:
+                lead = v
     check("within every practice session a later place is never quicker, "
           "and no timed driver sits below an untimed one", order_bad == 0,
           f"{order_bad} rows out of order")
     check("every practice gap is the lap minus the leader's", gap_bad == 0,
           f"{gap_bad} gaps disagree")
+    check("every practice interval is the lap minus the car ahead's",
+          interval_bad == 0, f"{interval_bad} intervals disagree")
+
+    # Sprint qualifying is knockout-shaped: the drivers with an SQ3 time
+    # head the sheet, then those whose last time is SQ2, then SQ1, then
+    # none; within SQ3 a later place is never quicker; and the gap is the
+    # SQ3 lap minus the leader's. So a segment column shifted in the fetch,
+    # or a time on the wrong driver, fails. One sheet is published out of
+    # that shape and is declared as published: Miami 2026, where F1DB
+    # classifies Alexander Albon 19th with an SQ2 time on the sheet.
+    SQ_SHAPE_EXCEPTIONS = {(2026, 4, "albon")}
+    sq_sheets = {}
+    for yr, rnd, driver, q1, q2, q3, gap in con.execute(
+            """SELECT r.year, r.round, q.driver_id, q.q1, q.q2, q.q3, q.gap
+                 FROM sprint_qualifying q JOIN races r ON r.id = q.race_id
+                WHERE q.position IS NOT NULL ORDER BY r.year, r.round, q.position"""):
+        sq_sheets.setdefault((yr, rnd), []).append((driver, q1, q2, q3, gap))
+    shape_bad, sq_order_bad, sq_gap_bad = [], 0, 0
+    for (yr, rnd), sheet in sq_sheets.items():
+        seg = [3 if q3 else 2 if q2 else 1 if q1 else 0
+               for d, q1, q2, q3, _g in sheet if (yr, rnd, d) not in SQ_SHAPE_EXCEPTIONS]
+        if seg != sorted(seg, reverse=True):
+            shape_bad.append(f"{yr} r{rnd}")
+        top = [(secs(q3), gap) for _d, _q1, _q2, q3, gap in sheet if q3]
+        last = None
+        for v, gap in top:
+            if last is not None and v < last - 1e-9:
+                sq_order_bad += 1
+            g = secs(gap[1:]) if gap and gap.startswith("+") else None
+            if g is not None and abs((v - top[0][0]) - g) > 0.0005:
+                sq_gap_bad += 1
+            last = v
+    check("every sprint qualifying sheet is knockout-shaped, SQ3 first",
+          not shape_bad, ", ".join(shape_bad[:4]))
+    check("within SQ3 a later place is never quicker", sq_order_bad == 0,
+          f"{sq_order_bad} rows out of order")
+    check("every sprint qualifying gap is the SQ3 lap minus the leader's",
+          sq_gap_bad == 0, f"{sq_gap_bad} gaps disagree")
 
     # Who drove for whom, against a second table: a driver's team in practice
     # is their team in that weekend's race. The one exception is a real one,
     # declared: Nyck de Vries ran FP1 at Monza in 2022 for Aston Martin, and
     # raced there for Williams in Alexander Albon's place.
     PRACTICE_TEAM_EXCEPTIONS = {(2022, 16, "fp1", "nyck-de-vries")}
+    # The check above reaches only drivers who raced. This one reaches every
+    # row, the Friday drivers' included: a team in practice is a team entered
+    # for that weekend - in the race, or in qualifying, which holds HRT at
+    # Melbourne in 2011, outside 107% and so in no race. A weekend with
+    # neither yet is one the refresh has caught mid-way, and is not held to
+    # a list that does not exist.
+    wrong = con.execute("""SELECT r.year, r.round, p.session, p.driver_id FROM practice p
+        JOIN races r ON r.id = p.race_id
+        WHERE (EXISTS (SELECT 1 FROM race_entries e WHERE e.race_id = p.race_id)
+               OR EXISTS (SELECT 1 FROM qualifying q WHERE q.race_id = p.race_id))
+          AND NOT EXISTS (SELECT 1 FROM race_entries e WHERE e.race_id = p.race_id
+                          AND e.constructor_id = p.constructor_id)
+          AND NOT EXISTS (SELECT 1 FROM qualifying q WHERE q.race_id = p.race_id
+                          AND q.constructor_id = p.constructor_id)""").fetchall()
+    check("every practice team was entered for that weekend", not wrong,
+          ", ".join(f"{y} r{r} {s_} {d}" for y, r, s_, d in wrong[:4]))
     for t, sess in (("practice", "p.session"), ("sprint_qualifying", "'sq'")):
         wrong = [k for k in con.execute(f"""SELECT r.year, r.round, {sess}, p.driver_id
             FROM {t} p JOIN races r ON r.id = p.race_id
