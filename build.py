@@ -78,7 +78,7 @@ VERSION = "2.24"
 # pages. So the refresh workflow now bumps it whenever it commits a new
 # harvest — the only time the data actually changes — and a hand edit to
 # data/*.py should bump it too.
-BUILT = "2026-09-16"
+BUILT = "2026-09-28"
 
 
 def _haversine(a, b):
