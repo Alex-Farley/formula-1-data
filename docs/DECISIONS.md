@@ -958,3 +958,25 @@ to about 69,000. The licence review of #185 passed the diff and asked that
 this be read once by a person rather than assumed.
 
 Cost: 31% on the compressed database the site sends (4.97 MB to 6.53 MB).
+
+### D-47 · The site serves f1.db.gz, and the raw file is the repository's — 2026-09-28
+Cloudflare Workers will not host a single static file over 25 MiB
+(26,214,400 bytes), and a deploy carrying one fails whole. The site staged
+the raw `f1.db` beside `f1.db.gz` as a fallback for a browser without
+`DecompressionStream`; it was 23.8 MB, and `LV-03` (#707) took it to 30.6 MB.
+Every check in CI was green, #707 merged, and the Cloudflare build failed —
+nothing new could deploy, refreshes included, while the site kept serving the
+last good build. Nothing in the repository knew the limit.
+
+The maintainer chose, the same day, to stop hosting the raw file rather than
+to trim practice to recent seasons or revert. So: `prepare-assets.js` stages
+`f1.db.gz` only; the loader tells a browser without `DecompressionStream` —
+none since early 2023 — what it lacks instead of fetching a fallback; the
+data and SQL pages offer `f1.db.gz` with one `gunzip`, and the uncompressed
+file from the repository (`RAW_DATABASE_URL`), which is the committed copy
+`main` deploys from. The workflows' `cmp` of `dist/f1.db` becomes the
+existing proof that `dist/f1.db.gz` decompresses to the built database — now
+in `refresh.yml` too — and a new check that no file in `dist` exceeds 25 MiB,
+which is the check that would have stopped #707.
+
+The limit binds `f1.db.gz` too, at about four times today's 6.5 MB.

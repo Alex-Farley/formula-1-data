@@ -5,7 +5,19 @@ import SubNav from '../components/SubNav.jsx'
 import { currentProgress } from '../data/client.js'
 import { row, rows, useQueries } from '../data/useQuery.js'
 import { number } from '../lib/format.js'
-import { CROSS_CHECKED, DIGEST_NOTE, DOCUMENTS, DOCUMENTS_NOTE, NAMES, NOT_HELD, REPOSITORY, SELF_DESCRIBING, TWO_FILES } from '../lib/site.js'
+import {
+  CROSS_CHECKED,
+  DIGEST_NOTE,
+  DOCUMENTS,
+  DOCUMENTS_NOTE,
+  GUNZIP_NOTE,
+  NAMES,
+  NOT_HELD,
+  RAW_DATABASE_URL,
+  REPOSITORY,
+  SELF_DESCRIBING,
+  TWO_FILES,
+} from '../lib/site.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
 /**
@@ -110,15 +122,24 @@ function Body({ data }) {
         note="Two databases distributed together, and a columnar copy of the first for anyone who would rather not open SQLite."
       >
         <div className="board">
-          <a href={`${base}f1.db`}>
+          <a href={`${base}f1.db.gz`}>
+            <b>
+              f1.db.gz
+              <span className="n">{mb(manifest?.gzipBytes) ?? 'SQLite'}</span>
+            </b>
+            <p>
+              The database, gzipped. {GUNZIP_NOTE} <code>gunzip f1.db.gz</code>, then open it with any
+              SQLite client. <code>circuit_geometry</code> in it is deliberately empty.
+            </p>
+          </a>
+          <a href={RAW_DATABASE_URL}>
             <b>
               f1.db
               <span className="n">{mb(manifest?.bytes) ?? 'SQLite'}</span>
             </b>
             <p>
-              The database, as built. {manifest?.gzipBytes ? `${mb(manifest.gzipBytes)} over the wire; ` : ''}
-              open it with any SQLite client. <code>circuit_geometry</code> in it is deliberately
-              empty.
+              The same file uncompressed, from the repository: too large for this host to serve,
+              and the copy this site is built from.
             </p>
           </a>
           <a href={`${base}f1-geometry.db`}>

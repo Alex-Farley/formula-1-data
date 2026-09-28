@@ -413,6 +413,16 @@ export const UNCHECKED_NOTE = [
  * reader the same door, and a second copy of a URL is a copy that can rot.
  */
 export const REPOSITORY = 'https://github.com/Alex-Farley/formula-1-data'
+
+/*
+ * The uncompressed database is not served by this site: Cloudflare will not
+ * host a single file over 25 MiB, and f1.db passed that when practice arrived
+ * (LV-03, D-47). The site serves f1.db.gz, which the app reads and a reader
+ * gunzips; the file as built is the repository's committed copy, which is the
+ * one main deploys from, so it is always the database this site is running.
+ */
+export const RAW_DATABASE_URL = `${REPOSITORY}/raw/main/f1.db`
+export const GUNZIP_NOTE = 'One gunzip gives the SQLite file:'
 // The reader's form, named explicitly. Bare `issues/new` lands on the
 // chooser and then on item.yml, which prefills an `XX-nn:` title and asks
 // for a critique prefix, a `next.py --next-id` lookup and a board drag - it

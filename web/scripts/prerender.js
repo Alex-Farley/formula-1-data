@@ -85,6 +85,7 @@ import {
   REPORT_LINK,
   REPORT_PROMISE,
   REPORT_URL,
+  RAW_DATABASE_URL,
   REPOSITORY,
   SELF_DESCRIBING,
   SETTLE_ASK,
@@ -94,6 +95,7 @@ import {
   NAMES,
   SO_FAR,
   SPRINT,
+  GUNZIP_NOTE,
   TWO_FILES,
   UNCHECKED_MARK,
   UNCHECKED_NOTE,
@@ -3301,8 +3303,13 @@ page({
         creator: PUBLISHED_BY,
         publisher: PUBLISHED_BY,
         distribution: [
-          { ...download('f1.db', 'f1.db — the SQLite database'), encodingFormat: 'application/vnd.sqlite3' },
-          { ...download('f1.db.gz', 'f1.db.gz — the same, gzipped'), encodingFormat: 'application/gzip' },
+          { ...download('f1.db.gz', 'f1.db.gz — the SQLite database, gzipped'), encodingFormat: 'application/gzip' },
+          {
+            '@type': 'DataDownload',
+            name: 'f1.db — the SQLite database, uncompressed, from the repository',
+            contentUrl: RAW_DATABASE_URL,
+            encodingFormat: 'application/vnd.sqlite3',
+          },
           {
             ...download('f1-geometry.db', 'f1-geometry.db — circuit centrelines, © OpenStreetMap contributors, ODbL 1.0'),
             encodingFormat: 'application/vnd.sqlite3',
@@ -3325,7 +3332,8 @@ page({
       <p class="measure">${esc(CROSS_CHECKED)}</p>
       <h2>The files</h2>
       <ul class="cards">
-        <li><a href="${esc(href('f1.db'))}"><code>f1.db</code></a> — the database, as built. Open it with any SQLite client; <code>circuit_geometry</code> in it is deliberately empty.</li>
+        <li><a href="${esc(href('f1.db.gz'))}"><code>f1.db.gz</code></a> — the database, gzipped. ${esc(GUNZIP_NOTE)} <code>gunzip f1.db.gz</code>, then open it with any SQLite client; <code>circuit_geometry</code> in it is deliberately empty.</li>
+        <li><a href="${esc(RAW_DATABASE_URL)}"><code>f1.db</code></a> — the same file uncompressed, from the repository: too large for this host to serve, and the copy this site is built from.</li>
         <li><a href="${esc(href('f1-geometry.db'))}"><code>f1-geometry.db</code></a> — the circuit centrelines, © OpenStreetMap contributors under ODbL 1.0, in a file of their own.</li>
         <li><a href="${esc(href('f1-parquet.zip'))}"><code>f1-parquet.zip</code></a> — every table as Parquet, one file each; pandas, polars and DuckDB read it directly.</li>
       </ul>
@@ -3478,7 +3486,7 @@ page({
       <noscript><p class="measure">Running the console needs JavaScript. Downloading the file
         below does not.</p></noscript>
       <p class="measure">The database is a plain SQLite file. If you would rather query it with your own tools,
-        download <a href="${esc(href('f1.db'))}"><code>f1.db</code></a> and open it with any
+        download <a href="${esc(href('f1.db.gz'))}"><code>f1.db.gz</code></a>, gunzip it and open it with any
         SQLite client. The circuit centrelines are not in it — <code>circuit_geometry</code>
         there is deliberately empty — and ship beside it as
         <a href="${esc(href('f1-geometry.db'))}"><code>f1-geometry.db</code></a>.
