@@ -4153,10 +4153,11 @@ def project_prose():
         if column not in cols:
             missing.append(name)
         # Deliberately strict: a table that cites a source may hold prose
-        # somebody else wrote, and telling which is the prose pass (PM-17,
-        # #249). Until it has run, only a table with no external source at
-        # all may be granted, so adding one to the list is a decision a
-        # person has to take rather than a line somebody slips in.
+        # somebody else wrote. The prose pass (PM-17, #249) labels which, but
+        # its labels are evidence for a person's decision (PM-49, #573), not
+        # the decision: only a table with no external source at all may be
+        # granted, so adding one to the list is a decision a person has to
+        # take rather than a line somebody slips in.
         elif "source" in cols or con.execute(
                 "SELECT 1 FROM table_provenance WHERE tbl = ?", (table,)).fetchone():
             sourced.append(name)
