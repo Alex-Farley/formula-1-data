@@ -892,3 +892,32 @@ ran are unchanged; the loop and a terminal still use them.
 The workflow's history is in git and in its runs. The `ci-review` label and
 the repository's Claude secrets are settings, not files, and go with the
 maintainer's say-so rather than with this change.
+
+### D-45 · The refresh lands by pull request, not by push — 2026-09-28
+`refresh.yml` committed straight to `main` with `GITHUB_TOKEN`. Once the
+repository went public, branch protection on `main` began to require
+`ci.yml`'s four checks with admins included, and a push can't carry checks.
+From 2026-09-22 every run built, verified and passed everything, and was then
+refused at the push (GH006). The 2026-09-26 Azerbaijan Grand Prix sat in
+F1DB, unpublished, behind it. (On 2026-09-27 a second fault surfaced as
+well: tests with round 14 typed in, fixed in #690.)
+
+The maintainer chose between two fixes on 2026-09-28. **Chosen:** the refresh
+commits to one fixed branch, `refresh/f1db`, opens a pull request and enables
+auto-merge, so it merges when the required checks pass and not before
+(`.github/scripts/land-refresh.sh`). **Declined:** letting the workflow
+bypass the protection. That would remove the gate from the one change that
+arrives unattended.
+
+What it costs. The pull request has to be opened with a GitHub App's token,
+because GitHub starts no workflow from `GITHUB_TOKEN`'s pushes and the
+required checks would never report. That token is one credential the
+maintainer holds (`REFRESH_APP_ID`, `REFRESH_APP_PRIVATE_KEY`). The daily
+heartbeat (`SD-25`) is now also a pull request, one a day. Repository
+auto-merge is on for this purpose. It merges nothing a person could not, and
+nothing before the checks pass.
+
+The same change moved the schedule to every three hours. A gate job stops
+every run except the day's first, a run started by hand, and runs within 72
+hours of a session in the `sessions` table, so a race weekend is followed
+without anyone editing a cron line (`.github/scripts/refresh_gate.py`).

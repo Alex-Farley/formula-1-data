@@ -1251,7 +1251,10 @@ python3 build.py && python3 verify.py
 ```
 
 `.github/workflows/refresh.yml` does exactly that every day at 06:00 UTC,
-and commits the result **only if every check still passes**. A refresh that
+and every three hours from a race weekend's first practice session until
+three days after the race. It lands the result **only if every check still
+passes**, by a pull request that merges itself once CI's required checks
+pass - never by a push to `main`. A refresh that
 breaks a cross-check is thrown away rather than committed, so an unattended
 job can never replace a good database with a broken one. It can also be run
 by hand from the Actions tab for a race that lands out of step with the
