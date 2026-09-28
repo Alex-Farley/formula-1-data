@@ -203,7 +203,7 @@ follow Wikipedia, so the licence statement covered them all to be safe.
 every row carries its source. The pass is a closer description, not
 permission. It is `PM-17`, #249, and it relicenses nothing.
 
-`tools/prose_pass.py` measured every written field against the Wikipedia
+`tools/prose_pass.py` measured each written field in its scope against the Wikipedia
 articles a writer would have had open: the row's own article where it names
 one, the top three search results for its subject, and the general articles
 for its table. It measured two things: the longest run of words the field
@@ -219,16 +219,17 @@ line per field with its evidence and the article revision measured. On
 |---|---:|
 | Written fields measured (33 columns, 23 tables) | 1,208 |
 | Flagged by the screen and read | 151 |
-| **Original** — nothing of an article's expression | 1,199 |
-| **Paraphrased** — an article's way of putting something, rearranged | 8 |
+| **Original** — none of an article's expression found | 1,197 |
+| **Paraphrased** — an article's way of putting something, rearranged | 10 |
 | **Close to source** — a clause of an article reproduced | 1 |
 
 The one close field is `circuits.characteristics` for `jacarepagua`, whose long
-pit straight and longer back straight are the article's phrase. The eight
-paraphrased fields are two driver notes (Amon, Susie Wolff), four car fields
-(Lotus 78 and 88 concepts, Ferrari 312T and Lotus 25 innovations), the 2003
-team-orders rule in `regulation_changes`, and the fan-car entry in
-`technical_innovations`. Rewriting them is its own item. It would take out
+pit straight and longer back straight are the article's phrase. The ten
+paraphrased fields are three driver notes (Amon, Baghetti, Susie Wolff), the
+Brabham constructor note, four car fields (Lotus 78 and 88 concepts, Ferrari
+312T and Lotus 25 innovations), the 2003 team-orders rule in
+`regulation_changes`, and the fan-car entry in `technical_innovations`.
+Rewriting them is its own item, `PM-62` (#692). It would take out
 the Wikipedia wording the pass found, but it would not change the licence on
 its own.
 
@@ -240,7 +241,9 @@ it is taken they stay CC BY-SA.
 
 The earlier figure here, 552 fields, was counted on 2026-09-08 against a
 smaller database, and its scope was never written down. The 1,208 above is
-this pass's own count. It is typed, not written by the build: it is a dated
+this pass's own count, and the tool's docstring names what it leaves out and
+why: the columns already granted CC BY 4.0, the text the build writes, the
+radio quotations and the short specification values. It is typed, not written by the build: it is a dated
 measurement, and `python3 tools/prose_pass.py --check` reports how far the
 database has moved from it without fetching anything.
 
@@ -248,7 +251,7 @@ database has moved from it without fetching anything.
 |---|---|
 | May the data ship? | Yes, and it does |
 | What the pass changed | The statement can name the fields the share-alike reaches, not the permission |
-| What it found | One field close to source, eight paraphrased |
+| What it found | One field close to source, ten paraphrased |
 
 ---
 

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-The prose pass (PM-17, #249): label every written field original,
+The prose pass (PM-17, #249): label every written field in scope original,
 paraphrased or close to source, measured against Wikipedia.
 
     python3 tools/prose_pass.py            # fetch what is not cached, label, write
@@ -51,10 +51,10 @@ a failure of `--check`, so the declarations cannot drift from the evidence.
 
 What the labels mean
 --------------------
-  original          nothing of the article's expression: the project's own
-                    wording, or wording that shares with the article only
-                    names, facts in their ordinary words, figures, stock
-                    phrases or a quotation both of them quote
+  original          none of the article's expression found: the project's
+                    own wording, or wording that shares with the article
+                    only names, facts in their ordinary words, figures,
+                    stock phrases or a quotation both of them quote
   paraphrased       follows the article's way of putting something that could
                     be put other ways
   close to source   reproduces a clause of the article's expression; the one
@@ -81,7 +81,8 @@ Out of scope, and why
 ---------------------
 The five columns granted CC BY 4.0 (discrepancies.assessment and four of
 known_gaps) are about this database's own sources and state and were granted
-on that reading (PM-47). `records.detail` is written by build.py. The
+on that reading (PM-47). `records.detail` is written by build.py, and
+`drivers.provenance` is boilerplate build.py and data/harvest.py write. The
 registry and metadata tables describe this project. `team_radio.transcript` is
 a quotation and is kept as one (COMMERCIAL-READINESS.md). Specification values
 - `seasons.engine_formula`, `cars.suspension` and the harvested `chassis`
@@ -204,14 +205,14 @@ READ = {
     ]),
     "fact": ("original", "the shared words state a result, a date or a record in the "
                          "ordinary words for it", [
-        "drivers.notes baghetti", "drivers.notes beltoise", "drivers.notes brambilla",
+        "drivers.notes beltoise", "drivers.notes brambilla",
         "drivers.notes clark", "drivers.notes de-cesaris", "drivers.notes farina",
         "drivers.notes g-hill", "drivers.notes gethin", "drivers.notes kovalainen",
         "drivers.notes leclerc", "drivers.notes marimon", "drivers.notes mclaren-d",
         "drivers.notes ocon", "drivers.notes pace", "drivers.notes patrese",
         "drivers.notes perez", "drivers.notes scarfiotti", "drivers.notes villeneuve-j",
         "drivers.notes watson", "circuits.notes aida", "circuits.notes avus",
-        "circuits.notes hockenheim", "circuits.notes jarama", "constructors.notes brabham",
+        "circuits.notes hockenheim", "circuits.notes jarama",
         "constructors.notes mclaren", "seasons.notes 1961", "seasons.notes 1999",
         "seasons.notes 2007", "cars.concept brabham-bt46", "cars.story brabham-bt46",
         "cars.story brawn-bgp001", "cars.story ferrari-312t", "cars.story ferrari-f2004",
@@ -264,7 +265,8 @@ READ = {
     ]),
     "follows": ("paraphrased", "the field follows the article's way of putting something "
                                "that could be put other ways", [
-        "drivers.notes amon", "drivers.notes wolff-s", "cars.concept lotus-78",
+        "drivers.notes amon", "drivers.notes baghetti", "drivers.notes wolff-s",
+        "constructors.notes brabham", "cars.concept lotus-78",
         "cars.concept lotus-88", "cars.innovations ferrari-312t", "cars.innovations lotus-25",
         "regulation_changes.detail 33", "technical_innovations.description 10",
     ]),
@@ -443,6 +445,8 @@ def run_pass(con):
             if (run, c4) > best[:2]:
                 best = (run, c4, a, where)
         run, c4, a, where = best
+        # Labelled on the figure the file records, so --check can rederive it.
+        c4 = float(f"{c4:.2f}")
         screen = label(run, c4)
         lab, basis, why = screen, "auto", ""
         if (table, key, col) in read:
@@ -501,12 +505,24 @@ def check(con):
     gone = [f"{t}.{c} {k}" for (t, k, c) in held if (t, k, c) not in seen]
     rows = [[r[h] for h in HEADER] for r in held.values()]
     not_read, not_flagged = unread(rows)
+    # A label in the file is what READ says for a read field and what the
+    # screen says for any other, and the screen is what the file's own run and
+    # c4 give. A hand edit to the file, or a change to READ without a rerun,
+    # fails here rather than standing as evidence.
+    read, drifted = readings(), []
+    for (t, k, c), r in held.items():
+        want = read.get((t, k, c), (r["screen"], ""))
+        basis = "read" if (t, k, c) in read else "auto"
+        if ((r["label"], r["why"], r["basis"]) != (want[0], want[1], basis)
+                or r["screen"] != label(int(r["run"]), float(r["c4"]))):
+            drifted.append(f"{t}.{c} {k}")
     for name, items in (("changed since labelled", stale), ("never labelled", missing),
                         ("no longer in the database", gone),
                         ("flagged by the screen and not read", not_read),
-                        ("read but not flagged by the screen", not_flagged)):
+                        ("read but not flagged by the screen", not_flagged),
+                        ("label disagrees with READ or the screen", drifted)):
         print(f"{len(items):5d} {name}" + (": " + ", ".join(items[:8]) if items else ""))
-    return not (stale or missing or gone or not_read or not_flagged)
+    return not (stale or missing or gone or not_read or not_flagged or drifted)
 
 
 def main():

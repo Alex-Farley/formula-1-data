@@ -12,7 +12,7 @@ drivers	antonelli	notes	original	auto	original	2	0.00	Kimi Antonelli	1377072647	
 drivers	arnoux	notes	original	auto	original	3	0.00	Formula One	1375827499			553afb8120cc
 drivers	ascari	notes	original	auto	original	3	0.00	Alberto Ascari	1376827361			abd161b3e71a
 drivers	attwood	notes	original	auto	original	2	0.00	Richard Attwood	1370903569			00f1f3d720c0
-drivers	baghetti	notes	original	read	close	8	0.79	Giancarlo Baghetti	1358488883	driver to win on his world championship debut	fact: the shared words state a result, a date or a record in the ordinary words for it	340f73f19533
+drivers	baghetti	notes	paraphrased	read	close	8	0.79	Giancarlo Baghetti	1358488883	driver to win on his world championship debut	follows: the field follows the article's way of putting something that could be put other ways	340f73f19533
 drivers	bandini	notes	original	auto	original	3	0.00	Lorenzo Bandini Trophy	1364621033			9a94d7ff9a1b
 drivers	barrichello	notes	original	auto	original	4	0.08	Rubens Barrichello	1377151690			487713fbabc5
 drivers	bearman	notes	original	auto	original	3	0.00	Oliver Bearman	1374678717			d0e9240254fe
@@ -334,7 +334,7 @@ constructors	audi	notes	original	auto	original	4	0.03	Audi in Formula One	137685
 constructors	bar	notes	original	auto	original	3	0.00	2026 Formula One World Championship	1376997788			1c7f7abf75e7
 constructors	benetton	notes	original	auto	original	3	0.00	Benetton Formula	1370962585			938f9cada215
 constructors	bmw-sauber	notes	original	auto	original	3	0.00	Formula One	1375827499			f3cbd99ae57d
-constructors	brabham	notes	original	read	paraphrased	7	0.21	Brabham	1373369974	founded by jack brabham and ron tauranac	fact: the shared words state a result, a date or a record in the ordinary words for it	7923fd0f3066
+constructors	brabham	notes	paraphrased	read	paraphrased	7	0.21	Brabham	1373369974	founded by jack brabham and ron tauranac	follows: the field follows the article's way of putting something that could be put other ways	7923fd0f3066
 constructors	brawn	notes	original	auto	original	4	0.05	History of Formula One	1371272002			86a651c2401a
 constructors	brm	notes	original	auto	original	3	0.00	Formula One	1375827499			62efad08f791
 constructors	cadillac	notes	original	auto	original	3	0.00	Cadillac in Formula One	1376533252			d32b66add3c7
