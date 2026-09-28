@@ -778,8 +778,9 @@ SOURCE_LICENCE = {
 # wrote. The line stops here on purpose: `source_registry` entry 18 names
 # twelve further tables as authored, and whether that prose is equally free of
 # Wikipedia is read one way by ATTRIBUTION.md and another by the 2026-09-21
-# data-architecture critique. PM-49 (#573) holds that question, PM-17 (#249)
-# is the pass that would answer it, and nothing else moves until it does.
+# data-architecture critique. PM-17 (#249), the prose pass, has labelled every
+# field in them (docs/prose_pass.tsv); PM-49 (#573) holds the decision those
+# labels are evidence for, and nothing else moves until it is taken.
 #
 # build.py writes both values into `meta`, so the grant travels with the file
 # and not only with the repository, and verify.py checks that the two licence
