@@ -25,33 +25,89 @@ name: refresh the harvest
 # '0 6 * * *' started between 10:03 and 11:57 UTC, a mean of 4 h 52 m late,
 # which is most of a day of staleness bought for nothing. GitHub's own advice
 # for that is to pick a minute nobody else picked (AF-01).
+#
+# Every three hours at that minute, of which most runs stop in the `gate`
+# job below having checked out three files. The run goes ahead when it is the
+# day's first (LAST_CHECKED is not today, which is the daily check above and
+# survives GitHub starting it hours late), when it is started by hand, or
+# when a session of a race weekend began in the last 72 hours - read from
+# the `sessions` table, which holds formula1.com's published start times. So
+# the schedule follows the calendar without anyone editing it: from FP1 on
+# Friday to the Monday after, the harvest is looked at eight times a day,
+# and F1DB's release lands within three hours of it rather than by the next
+# morning. A season with no timetable in `sessions` falls back to daily.
 on:
   schedule:
-    - cron: '47 5 * * *'
+    - cron: '47 2-23/3 * * *'
   workflow_dispatch:
 
-# The workflow commits to the default branch on two paths, and they are not
+# The workflow lands on the default branch on two paths, and they are not
 # equally guarded because they are not equally risky. The refreshed HARVEST is
 # committed when, and only when, the rebuilt database passes every check
 # below. The dated check line is committed on the no-change path with no
 # rebuild at all: nothing is built from it, the sed that writes it asserts its
 # own result, and the web build gates it on every morning the harvest did
 # move.
+#
+# Neither path pushes to main. main's branch protection requires ci.yml's
+# four checks, admins included, and a push from here cannot carry them - from
+# 2026-09-22 every run built, verified and was then refused (GH006). Both
+# paths now open a pull request that merges itself once those checks pass
+# (.github/scripts/land-refresh.sh, [D-45]), so a refresh is held to exactly
+# what a person's change is. The pull request is opened with the refresh
+# GitHub App's token, because GitHub starts no workflow from GITHUB_TOKEN's
+# own pushes and the required checks would never report. The App needs
+# Contents and Pull requests (read and write) on this repository; its id is
+# the REFRESH_APP_ID variable and its key the REFRESH_APP_PRIVATE_KEY secret.
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: refresh
   cancel-in-progress: false
 
 jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.decide.outputs.run }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            f1.db
+            web/src/lib/refresh.js
+            .github/scripts/refresh_gate.py
+          sparse-checkout-cone-mode: false
+
+      - name: Is this run worth doing?
+        id: decide
+        env:
+          EVENT: ${{ github.event_name }}
+        run: python3 .github/scripts/refresh_gate.py >> "$GITHUB_OUTPUT"
+
   refresh:
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
     runs-on: ubuntu-latest
     # ci.yml budgets 10 for the Python half and 20 for the web half; a cold
     # npm ci alone has taken seven.
     timeout-minutes: 45
     steps:
+      # Before anything else, so a missing or broken App fails the run in its
+      # first second rather than after the build - and before the stamp, so
+      # the check date stops moving, which is the signal that date exists to
+      # give.
+      - uses: actions/create-github-app-token@v3
+        id: app
+        with:
+          app-id: ${{ vars.REFRESH_APP_ID }}
+          private-key: ${{ secrets.REFRESH_APP_PRIVATE_KEY }}
+
       - uses: actions/checkout@v7
+        with:
+          token: ${{ steps.app.outputs.token }}
 
       - uses: actions/setup-python@v7
         with:
@@ -146,13 +202,12 @@ jobs:
           ./f1 champions 2020 2025
           ./f1 gaps
 
-      # This commit reaches main without a pull request, and GitHub does not
-      # start workflows from a push made with GITHUB_TOKEN - so ci.yml never
-      # runs on it, while Cloudflare deploys it. The database half is
-      # covered above; this is the front end's half: the build that puts the
-      # database on the site, and the smoke test that reads its expectations
-      # out of that database. A data refresh is exactly the change that
-      # breaks a front-end assertion, and the only gate is here.
+      # ci.yml runs on the pull request this opens and gates its merge, so
+      # this is no longer the only gate. It stays because it is the gate
+      # BEFORE the pull request: a refresh the front end would refuse opens
+      # nothing, rather than a pull request nobody is watching. This is the
+      # front end's half: the build that puts the database on the site, and
+      # the smoke test that reads its expectations out of that database.
       - uses: actions/setup-node@v7
         if: steps.diff.outputs.changed == 'true'
         with:
@@ -181,37 +236,35 @@ jobs:
       # from the log as well as from the file.
       - name: Commit
         if: steps.diff.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
         run: |
           version=$(sed -n '2s/.*F1DB \(v[^ ]*\) (\([^)]*\)).*/\1 \2/p' harvest/race_results.txt)
-          git config user.name  "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "harvest: refresh from F1DB ${version}" \
-                     -m "Rebuilt and verified before committing; every check passed."
-          git push
+          .github/scripts/land-refresh.sh "harvest: refresh from F1DB ${version}" \
+            "Rebuilt and verified before committing; every check passed."
 
       # The no-change path's entire commit: one dated line. Cloudflare Workers
-      # Builds runs on every push to main, so this is also what re-deploys the
-      # site daily and so what keeps /build-status.txt - the deploy heartbeat,
-      # written per deploy and never committed - from ageing through a quiet
-      # week alongside everything else.
+      # Builds runs on every push to main, so its merge is also what re-deploys
+      # the site daily and so what keeps /build-status.txt - the deploy
+      # heartbeat, written per deploy and never committed - from ageing
+      # through a quiet week alongside everything else.
       #
-      # Guarded on the file having actually moved, because a second run on the
-      # same day (a workflow_dispatch after the schedule) would otherwise try
-      # an empty commit and fail. No rebase and no retry on a losing push: the
-      # run goes red, this date does not advance, and the next morning writes
-      # it. That is the same signal a real failure gives, which is the signal
-      # the date exists to carry.
+      # Guarded on the file having actually moved, because a later run on the
+      # same day - a race weekend's three-hourly look, or a workflow_dispatch -
+      # finds it already stamped. No rebase and no retry: a pull request CI
+      # refuses stays open, this date does not advance on main, and the next
+      # run replaces it. That is the same signal a real failure gives, which
+      # is the signal the date exists to carry.
       - name: Commit the check
         if: steps.diff.outputs.changed == 'false'
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
         run: |
           if git diff --quiet -- web/src/lib/refresh.js; then
             echo "Already stamped with today's date. Nothing to commit."
             exit 0
           fi
-          git config user.name  "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add web/src/lib/refresh.js
-          git commit -m "refresh: checked F1DB, nothing new" \
-                     -m "The harvest already matches F1DB. This records that the check ran."
-          git push
+          .github/scripts/land-refresh.sh "refresh: checked F1DB, nothing new" \
+            "The harvest already matches F1DB. This records that the check ran."

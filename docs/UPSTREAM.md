@@ -65,11 +65,13 @@ refresh does not move it: the totals are the named source the career
 figures typed into `data/drivers.py` are checked against (PM-57, #624), and
 they change only when somebody fetches another release on purpose.
 
-`.github/workflows/refresh.yml` runs the fetch daily at 06:00 UTC. If the
+`.github/workflows/refresh.yml` runs the fetch daily at 06:00 UTC, and every
+three hours from a race weekend's first session until 72 hours after it. If the
 harvest has not changed it stops there. If it has, it rebuilds, runs
 `verify.py`, the loader unit tests, the JSON export, the site build and the
-site's tests, and commits the refreshed harvest and artefacts to `main` only
-when every one of them passes. A refresh that fails commits nothing and the
+site's tests, and only when every one of them passes opens a pull request
+with the refreshed harvest and artefacts, which merges itself once CI's
+required checks pass `[D-45]`. A refresh that fails commits nothing and the
 site keeps the last good snapshot.
 
 ## What refuses a bad load

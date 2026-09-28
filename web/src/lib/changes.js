@@ -190,7 +190,7 @@ export const FEED_HEADING = 'Subscribe'
  * data moves has to be the schedule's claim or it is just a hope.
  */
 export const FEED_NOTE =
-  'The harvest is refreshed daily at 06:00 UTC and rebuilt only if F1DB has published something new, so an entry appears when the data has genuinely moved and not otherwise.'
+  'The harvest is refreshed daily at 06:00 UTC, and every three hours across a race weekend, and rebuilt only if F1DB has published something new, so an entry appears when the data has genuinely moved and not otherwise.'
 
 export const FEED_LINK_TEXT = 'Atom feed'
 
