@@ -548,6 +548,37 @@ it finds becomes issues and gets ranked against everything else. It is the
 wrong posture inside a merge gate, where it converts a sound change into
 rounds. Keep the families apart, which is what the README asks for.
 
+### D-49 · A security review, on a path list rather than on all code — 2026-09-29
+The maintainer asked for a `security-reviewer` beside the other conformance
+reviewers, to run on changes that touch code, workflows, dependencies or
+config and to skip data-only ones. Nothing on the merge path read for it: the
+licence reviewer reads a workflow for what it publishes, not for what its
+token can do, and no reviewer read a lockfile at all.
+
+Taken literally, "code" is nearly every pull request, and that would put a
+second Opus reviewer at `effort: high` on almost every item — against *Two
+reviewers are the exception, not the rule*, and roughly doubling the review
+cost of an item. The maintainer chose a path list instead, the way the
+licence reviewer's trigger is written: the workflows, the dependency
+manifests and lockfiles, `wrangler.jsonc`, the headers `prepare-assets.js`
+writes, the SQL worker and `lib/sql.js`, the `Makefile` and the Claude
+settings — plus any diff that adds an HTML sink, or network, subprocess or
+environment access to the build, which a grep of the diff settles. The list
+is in `.claude/skills/backlog-item/SKILL.md` and nowhere else.
+
+It runs at `effort: high` for the D-33 reason: the private key `refresh.yml`
+holds and the `contents: write` token `release.yml` holds are used by
+whoever gets them before anybody notices, and a merge to `main` deploys.
+It FAILs only on a blocker, and a finding it could not establish is never
+one, so an item does not stall on a possibility.
+
+Four things the survey for it found against `main` were filed as issues
+rather than folded into the change: no Content-Security-Policy is set
+anywhere (`AF-76`, #719); every action is pinned to a major tag rather
+than a commit (`AF-77`, #720); `refresh.yml` leaves the App's token in
+`.git/config` while `npm ci` runs (`AF-78`, #723); and `release.yml`
+interpolates its dispatch input into a shell script (`AF-79`, #724).
+
 ### D-29 · The track atlas was cut — 2026-09-14 (`AF-20`/`AF-21`, #302/#304)
 `/circuits/atlas` was a walkable, turn-rate-coloured lap compared across all
 25 traced circuits. The walk never worked — no play, no keyboard repeat,

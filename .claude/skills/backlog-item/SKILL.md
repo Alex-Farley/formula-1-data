@@ -250,8 +250,18 @@ Which one:
   touches a workflow, an export or a publishing path, or takes a whole
   dataset from one source. The build already refuses an unclassified source
   and `verify.py` fails on a forbidden one, which is why an ordinary data
-  change does not also need it. **Two reviewers are the exception, not the
-  rule.**
+  change does not also need it.
+- `security-reviewer` **only** when a change touches `.github/workflows/`,
+  `web/package.json`, `web/package-lock.json`, `requirements.txt`,
+  `wrangler.jsonc`, `web/scripts/prepare-assets.js`, `web/src/data/`,
+  `web/src/lib/sql.js`, the `Makefile` or `.claude/settings*.json`, or its
+  diff adds an HTML sink (`innerHTML`, `dangerouslySetInnerHTML`,
+  `insertAdjacentHTML`, `document.write`) or network, subprocess or
+  environment access to `build.py`, `verify.py`, `data/` or `harvest/`
+  (`git diff origin/main...HEAD | grep` settles it). A change to data values,
+  harvest rows or docs alone never needs it `[D-49]`.
+
+**Two reviewers are the exception, not the rule.**
 
 **Never launch a critic on a pull request** `[D-31]`. The nine critics in
 `.claude/agents/` — accessibility, interaction, visual, content, information
@@ -260,7 +270,7 @@ simulator — assess the whole project from outside and exist to *find things*,
 which is what refills the queue. On a diff they turn design opinions into
 fix-and-confirm rounds against a change that was already sound. They run
 deliberately against `main`, and what they find is filed as issues. The
-merge path has exactly the four agents named above and no others.
+merge path has exactly the five agents named above and no others.
 
 Model: **Opus for a first pass**, front-end and data alike, except where the
 pace table names the quick variant. **A confirmation of a fix is the
