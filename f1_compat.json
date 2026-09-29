@@ -963,7 +963,7 @@
       "priority": 17,
       "source": "Wikipedia per-circuit articles",
       "url": "https://en.wikipedia.org/wiki/Category:Formula_One_circuits",
-      "use": "Circuit configuration timelines: which layout was raced in which years, its length and turn count, and why it changed. Feeds circuit_layouts.",
+      "use": "Circuit configuration timelines: which layout was raced in which years, its length and turn count, and why it changed. Feeds circuit_layouts. Also, from the List of Formula One circuits, which article describes each circuit (harvest/circuit_articles.txt), matched on country, seasons and races held and checked by verify.py; nothing loads it yet.",
       "authority": "reference",
       "licence": "CC BY-SA 4.0. The change_reason prose follows the article and carries share-alike with it - see ATTRIBUTION.md.",
       "cadence": "Continuous, by anyone. A circuit that last changed shape in 1974 has an article that may not have been edited in years, which cuts both ways.",
