@@ -908,6 +908,44 @@ def _stage_10_the_chassis_engine_and_entrant_register(b):
         """
         return v if v and re.search(r"[0-9]", v) else None
 
+    def _aspiration(v):
+        """The infobox's turbo/na field, as schema.sql's vocabulary (AF-66).
+
+        The harvest keeps what the page said, which is the same three states
+        spelt some sixty ways, several with a rev limit or KERS carried along
+        ("Naturally aspirated, 18,000 RPM limited with KERS"). Only the
+        aspiration is kept; the rest was never this column's to hold.
+
+        Two readings are refused rather than guessed. `N/A` (BRM P48) is
+        "not applicable" as written and "naturally aspirated" as the page's
+        `NA` rows use it - opposite answers - so it is NULL. A bare rev limit
+        ("15,000 RPM limited") names no aspiration, whatever the era, so it
+        is NULL too. ERS on a turbo is a turbocharged hybrid, as F1DB's
+        engines have it; KERS on a normally aspirated V8 is not, as F1DB has
+        those too. Anything else unrecognised stops the build: a new spelling
+        is added here on purpose, never passed through.
+        """
+        if not v:
+            return None
+        t = v.strip().lower().rstrip(".*")
+        if t == "n/a" or re.fullmatch(r"[0-9,]+ rpm limited", t):
+            return None
+        if t == "gas turbine":
+            return "gas turbine"
+        if re.match(r"roots-type supercharger$", t):
+            return "supercharged"
+        if re.match(r"((single|twin)[- ])?turbo", t):
+            return ("turbocharged hybrid" if re.search(r"\bers\b", t)
+                    else "turbocharged")
+        if re.match(r"(naturally|normally)[- ]aspirated\b|na\b", t):
+            return "naturally aspirated"
+        raise SystemExit(f"harvest/car_specs.txt: aspiration {v!r} is not "
+                         f"a spelling build.py's _aspiration() knows")
+
+    def _stated(v):
+        """A lone '?' in an infobox field states nothing (BAR 002's fuel)."""
+        return None if v is not None and v.strip() == "?" else v
+
     for ch_id, f1db_cons, name, full in HV.load_chassis():
         if ch_id in chassis_car and chassis_car[ch_id] not in seen_cars:
             raise SystemExit(f"CAR_CHASSIS names unknown car "
@@ -943,9 +981,9 @@ def _stage_10_the_chassis_engine_and_entrant_register(b):
              min(yrs) if yrs else None, max(yrs) if yrs else None, len(yrs),
              sp.get("article"), sp.get("designers"), sp.get("chassis_type"),
              sp.get("susp_front"), sp.get("susp_rear"), sp.get("engine_name"),
-             sp.get("engine_config"), sp.get("aspiration"),
+             sp.get("engine_config"), _aspiration(sp.get("aspiration")),
              sp.get("engine_position"), sp.get("gearbox"), sp.get("gears"),
-             sp.get("brakes"), sp.get("fuel"), sp.get("tyres"),
+             sp.get("brakes"), _stated(sp.get("fuel")), sp.get("tyres"),
              _int(sp.get("capacity_cc")), _int(sp.get("power_bhp")),
              _power_note(sp.get("power_note")), _float(sp.get("weight_kg")),
              _int(sp.get("wheelbase_mm")), _int(sp.get("track_front_mm")),
@@ -3054,9 +3092,9 @@ def _stage_27_notable_team_radio_a_small_curated(b):
                                    (did,)).fetchone():
             raise SystemExit(f"notable radio: unknown driver {did}")
         cur.execute("""INSERT INTO team_radio (race_id, driver_id, speaker,
-            transcript, context, notable, confidence, source)
-            VALUES (?,?,?,?,?,1,?,?)""",
-            (rid, did, f"{speaker} [{channel}]", text, ctx, conf, src))
+            channel, transcript, context, notable, confidence, source)
+            VALUES (?,?,?,?,?,?,1,?,?)""",
+            (rid, did, speaker, channel, text, ctx, conf, src))
 
 
 def _stage_29_career_figures_checked_against_the_official(b):

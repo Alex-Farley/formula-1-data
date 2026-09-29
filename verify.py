@@ -4356,6 +4356,28 @@ def the_full_classification():
           con.execute("""SELECT COUNT(*) FROM circuits WHERE direction IS NOT NULL
               AND direction NOT IN ('clockwise', 'anti-clockwise')""").fetchone()[0] == 0)
 
+    # aspiration is a CHECK too (DA-13), which holds the spelling and not the
+    # fact. build.py's _aspiration() reads sixty harvested spellings into it,
+    # and a rule in it that read one the wrong way round would pass the CHECK.
+    # The regulations are the cross-check: turbochargers were banned from
+    # 1989 to 2013, and every car since 2014 has run a turbocharged hybrid,
+    # so a car or chassis that raced wholly inside either span cannot say
+    # otherwise. 'turbocharged' alone after 2014 is less than the page could
+    # have said, not a contradiction, so it is not refused.
+    _asp = con.execute("""
+        SELECT full_name || ' (' || y0 || '-' || y1 || ', ' || aspiration || ')'
+        FROM (SELECT full_name, first_year AS y0, last_year AS y1, aspiration
+                FROM chassis
+              UNION ALL
+              SELECT full_name, from_year, COALESCE(to_year, from_year), aspiration
+                FROM cars)
+        WHERE (y0 >= 1989 AND y1 <= 2013 AND aspiration LIKE 'turbo%')
+           OR (y0 >= 2014 AND aspiration = 'naturally aspirated')
+           OR (y1 < 2014 AND aspiration = 'turbocharged hybrid')
+        ORDER BY 1""").fetchall()
+    check("no car's aspiration contradicts the formula it raced under", not _asp,
+          "; ".join(r[0] for r in _asp[:5]))
+
     # constructors.last_entry: NULL means still competing, so no inactive
     # constructor with a race entry may carry it, and no active one may not.
     bad_last = con.execute("""SELECT COUNT(*) FROM constructors c
