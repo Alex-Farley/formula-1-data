@@ -1715,7 +1715,7 @@ def load_qualifying():
 
 
 def load_practice():
-    """Every practice session's classification, 1986-2026, from F1DB (LV-03)."""
+    """Every practice, warm-up and pre-qualifying classification, 1977-2026, from F1DB (LV-03)."""
     return _read_named(PRACTICE_FILE, "tools/f1db_fetch.py")
 
 

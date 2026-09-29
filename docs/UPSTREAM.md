@@ -17,7 +17,7 @@ and the source, wholly or mostly, of these tables:
 |---|---|---|
 | `standings` | 34,498 of 34,563 | championship standings after every round |
 | `qualifying` | 26,997 | every qualifying sheet |
-| `practice` | 41,334 | every practice session's classification, 1986 on (LV-03) |
+| `practice` | 49,664 | every practice, warm-up and pre-qualifying session's classification, 1977 on (LV-03) |
 | `race_entries` | 26,318 of 27,482 | the full classification of every race |
 | `pit_stops` | 22,481 | lap and order of every stop |
 | `season_entrants` | 1,925 | who entered what, season by season |

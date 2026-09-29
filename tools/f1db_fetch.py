@@ -644,16 +644,21 @@ def qualifying_rows(data, yaml):
 # kinds are the `sessions` table's, so a 2026 row can be held to the
 # timetable; fp4 is the fourth session a team could run at 37 races in
 # 2004-2005 and has no timetable row, because no season with one is there.
+# The warm-up (1984-2003) and pre-qualifying (1977-1992) are the same sheet -
+# one best lap per driver - for the two sessions a weekend no longer has.
 PRACTICE_FILES = (
+    ("pre_qualifying", "pre-qualifying-results.yml"),
     ("fp1", "free-practice-1-results.yml"),
     ("fp2", "free-practice-2-results.yml"),
     ("fp3", "free-practice-3-results.yml"),
     ("fp4", "free-practice-4-results.yml"),
+    ("warm_up", "warming-up-results.yml"),
 )
 
 
 def practice_rows(data, yaml):
-    """Every practice session's classification F1DB holds, 1986-2026 (LV-03).
+    """Every practice, warm-up and pre-qualifying classification F1DB holds,
+    1977-2026 (LV-03).
 
     A practice classification is the order of each driver's best lap, the
     lap itself, the gap and interval to it, and how many laps they ran - the
@@ -810,8 +815,8 @@ def main():
     ok &= write("practice.txt",
                 "year|round|session|position|position_text|driver_id|"
                 "constructor_id|driver_number|time|gap|interval|laps"
-                "   (session is fp1-fp4; one best lap per driver, not lap "
-                "timing)",
+                "   (session is pre_qualifying, fp1-fp4 or warm_up; one best lap "
+                "per driver, not lap timing)",
                 practice_rows(data, yaml), version, commit, args.check)
     ok &= write("sprint_qualifying.txt",
                 "year|round|position|position_text|driver_id|constructor_id|"

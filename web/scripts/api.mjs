@@ -287,7 +287,7 @@ write('index', {
   },
   notes: {
     drivers:
-      'race_entries is counted from the race records; entries and starts are the published figures, held for a few drivers, and are kept beside it rather than replaced by it. practice_only is 1 for a driver who drove in practice and never started a race.',
+      'race_entries is counted from the race records; entries and starts are the published figures, held for a few drivers, and are kept beside it rather than replaced by it. practice_only is 1 for a driver who drove in practice (or sprint qualifying) with no race entry and no qualifying row.',
     circuits:
       'In circuits.json, races, first_gp and last_gp are derived from the race records, as the circuits page shows them. A circuit file keeps its stored first_gp and last_gp (last_gp null while in use, or a scheduled year) and gives the derived ones beside them as derived_first_gp and derived_last_gp, as the circuit page does.',
     shared_drives: 'A shared drive puts two drivers on one finishing position; winner_ids is a list for that reason.',

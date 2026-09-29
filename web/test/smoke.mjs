@@ -43,7 +43,7 @@ import { spawn } from 'node:child_process'
 import { DatabaseSync } from 'node:sqlite'
 import { dirname, join, relative } from 'node:path'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
-import { CHASSIS_NOTE, OUT_NOTE, RACE_SOURCES } from '../src/queries/race.js'
+import { CHASSIS_NOTE, OUT_NOTE, PRACTICE_SESSIONS, RACE_SOURCES } from '../src/queries/race.js'
 import { CURRENT_SEASON_SQL } from '../src/lib/season.js'
 import { fileURLToPath } from 'node:url'
 // The heading rule and the cell marks both renderers share, so the checks
@@ -5637,8 +5637,17 @@ try {
                     JOIN drivers d ON d.id = p.driver_id WHERE d.practice_only = 1
                    ORDER BY r.year DESC, r.round DESC LIMIT 1`)
         .get()
+      // The two sessions a weekend no longer runs, each one sheet, static
+      // against app: a warm-up (1984-2003) and a pre-qualifying (1977-1992).
+      for (const session of ['warm_up', 'pre_qualifying']) {
+        const at = db
+          .prepare(`SELECT r.year, r.round FROM practice p JOIN races r ON r.id = p.race_id
+                     WHERE p.session = ? ORDER BY r.year DESC, r.round DESC LIMIT 1`)
+          .get(session)
+        await same(`/races/${at.year}/${at.round}`, gp(at.year, at.round), Object.fromEntries(PRACTICE_SESSIONS)[session])
+      }
       if (marked) {
-        const title = { fp1: 'Practice 1', fp2: 'Practice 2', fp3: 'Practice 3', fp4: 'Practice 4' }[marked.session]
+        const title = Object.fromEntries(PRACTICE_SESSIONS)[marked.session]
         await same(`/races/${marked.year}/${marked.round}`, gp(marked.year, marked.round), title)
       } else fail('no practice sheet carries a practice-only driver')
       await same('/races/1976/9', gp(1976, 9), 'Qualifying')
