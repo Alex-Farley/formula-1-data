@@ -1,4 +1,4 @@
-# Lap Ledger — v<!-- fig:version -->2.24<!-- /fig -->
+# Lap Ledger — v<!-- fig:version -->2.25<!-- /fig -->
 
 **The Formula One record that says how much it can be trusted.** The world
 championship, <!-- fig:season_span -->1950–2027<!-- /fig --> — every race,

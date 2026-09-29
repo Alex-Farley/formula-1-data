@@ -62,7 +62,7 @@ BUILD_DB = DB + ".tmp"
 # invisible. tests/test_conventions.py fails `make ci` and CI's check job
 # when the two drift.
 
-VERSION = "2.24"
+VERSION = "2.25"
 
 # The build date, as a CONSTANT and deliberately not date.today().
 #
