@@ -1071,7 +1071,19 @@ try {
       `a shared win keeps every winner — ${shared.year} round ${shared.round}`,
     )
     const monza = await get('circuits/monza.json')
-    is(monza.body?.data?.circuit?.last_gp, one("SELECT last_gp FROM v_circuits WHERE id = 'monza'"), "and a circuit in use has its last Grand Prix, as its page does")
+    is(
+      monza.body?.data?.circuit?.derived_last_gp,
+      one("SELECT last_gp FROM v_circuits WHERE id = 'monza'"),
+      'and a circuit in use has its last Grand Prix, as its page does',
+    )
+    // The stored figure is kept beside it, not overwritten: Istanbul's stored
+    // last Grand Prix is a scheduled year the race records cannot know yet.
+    const istanbul = await get('circuits/istanbul.json')
+    is(
+      `${istanbul.body?.data?.circuit?.last_gp} ${istanbul.body?.data?.circuit?.derived_last_gp}`,
+      `${one("SELECT last_gp FROM circuits WHERE id = 'istanbul'")} ${one("SELECT last_gp FROM v_circuits WHERE id = 'istanbul'")}`,
+      'and a stored last Grand Prix the records cannot know yet is kept beside the derived one',
+    )
 
     // The preview server does not read _headers; the host does. So the rule
     // is read from the file the host is given.

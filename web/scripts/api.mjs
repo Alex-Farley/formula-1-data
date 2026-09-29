@@ -179,23 +179,30 @@ for (const k of constructors) {
 
 // ---------------------------------------------------------------- circuits
 
-// The figures a circuit's page shows - races, first and last Grand Prix -
-// are derived from the race records by v_circuits, not read from the stored
-// columns, whose NULL last_gp means "still in use" and would read here as
-// "not established" (review of #711). So the stored row carries the derived
-// figures over it, and the list is the view's.
+// A circuit's first and last Grand Prix two ways, as its page gives them
+// (circuit.js): derived from the race records by v_circuits, and stored.
+// Neither replaces the other. The stored last_gp is NULL for a circuit in
+// use - which alone would read as "not established" - and is 2027 for
+// Istanbul and Portimao, whose next race is scheduled and not yet run, which
+// the derived figure cannot know (reviews of #711). So the stored row keeps
+// its own columns and the view's figures sit beside them as races,
+// scheduled, derived_first_gp and derived_last_gp. The list is the view's,
+// as the circuits page is.
 const derived = new Map(all('SELECT * FROM v_circuits').map((c) => [c.id, c]))
-const circuits = all('SELECT * FROM circuits ORDER BY name').map((c) => ({ ...c, ...derived.get(c.id) }))
+const circuits = all('SELECT * FROM circuits ORDER BY name').map((c) => {
+  const v = derived.get(c.id) ?? {}
+  return { ...c, races: v.races ?? null, scheduled: v.scheduled ?? null, derived_first_gp: v.first_gp ?? null, derived_last_gp: v.last_gp ?? null }
+})
 write(
   'circuits',
-  circuits.map(({ id, name, locality, country, races, first_gp, last_gp }) => ({
+  circuits.map(({ id, name, locality, country, races, derived_first_gp, derived_last_gp }) => ({
     id,
     name,
     locality,
     country,
     races,
-    first_gp,
-    last_gp,
+    first_gp: derived_first_gp,
+    last_gp: derived_last_gp,
     href: `${BASE}api/v1/circuits/${id}.json`,
   })),
 )
@@ -281,7 +288,8 @@ write('index', {
   notes: {
     drivers:
       'race_entries is counted from the race records; entries and starts are the published figures, held for a few drivers, and are kept beside it rather than replaced by it. practice_only is 1 for a driver who drove in practice and never started a race.',
-    circuits: 'races, first_gp and last_gp are derived from the race records, as the circuit pages show them.',
+    circuits:
+      'In circuits.json, races, first_gp and last_gp are derived from the race records, as the circuits page shows them. A circuit file keeps its stored first_gp and last_gp (last_gp null while in use, or a scheduled year) and gives the derived ones beside them as derived_first_gp and derived_last_gp, as the circuit page does.',
     shared_drives: 'A shared drive puts two drivers on one finishing position; winner_ids is a list for that reason.',
     nulls: 'null means not established; it is never a zero.',
   },
