@@ -36,14 +36,14 @@ def row(cid, article, linked, country, seasons, held, qid=""):
 
 
 REGISTER = {
-    "avus": ("Germany", [(1959, "1959-08-02")]),
-    "monsanto": ("Portugal", [(1959, "1959-08-23")]),
-    "nordschleife": ("Germany", [(1951, "1951-07-29"), (1952, "1952-08-03")]),
-    "nurburgring-gp": ("Germany", [(1984, "1984-10-07")]),
-    "nurburgring-sudschleife": ("Germany", []),
-    "monza": ("Italy", [(2025, "2025-09-07"), (2026, "2026-09-06")]),
-    "miami": ("United States of America", [(2026, "2026-05-03")]),
-    "singapore": ("Singapore", [(2025, "2025-10-05"), (2026, "2026-10-11")]),
+    "avus": ("Germany", [(1959, "1959-08-02")], 0),
+    "monsanto": ("Portugal", [(1959, "1959-08-23")], 0),
+    "nordschleife": ("Germany", [(1951, "1951-07-29"), (1952, "1952-08-03")], 0),
+    "nurburgring-gp": ("Germany", [(1984, "1984-10-07")], 0),
+    "nurburgring-sudschleife": ("Germany", [], 0),
+    "monza": ("Italy", [(2025, "2025-09-07"), (2026, "2026-09-06")], 0),
+    "miami": ("United States of America", [(2026, "2026-05-03")], 0),
+    "singapore": ("Singapore", [(2025, "2025-10-05"), (2026, "2026-10-11")], 0),
 }
 ROWS = [
     row("avus", "AVUS", "AVUS", "West Germany", "1959", 1),
@@ -52,7 +52,7 @@ ROWS = [
     row("nurburgring-gp", "Nürburgring", "Nürburgring", "Germany", "1951-1952,1984", 3),
     row("monza", "Monza Circuit", "Monza Circuit", "Italy", "2025-2026", 2, "Q171417"),
     row("miami", "Miami International Autodrome", "Miami International Autodrome",
-        "United States", "2026", 1),
+        "United States", "2026", 1, "Q2"),
     # The 2026 Singapore race is after the list's date, so it is not counted.
     row("singapore", "Marina Bay Street Circuit", "Marina Bay Street Circuit",
         "Singapore", "2025", 1),
@@ -64,13 +64,17 @@ DECLARED = {
     "gaps": {"nurburgring-sudschleife": "circuit-article-sudschleife"},
     "gap_keys": {"circuit-article-sudschleife"},
     "admitted": {"monza": "Q171417", "miami": "Q1"},
-    "wrong": {"miami": "Q1"},
+    "wrong": {"miami": ("Q1", "Q2")},
 }
 
 
+def run(rows=ROWS, register=REGISTER, declared=DECLARED):
+    return verify.circuit_article_faults(
+        copy.deepcopy(rows), copy.deepcopy(register), copy.deepcopy(declared))
+
+
 def faults(rows=ROWS, register=REGISTER, declared=DECLARED):
-    return {k: v for k, v in verify.circuit_article_faults(
-        copy.deepcopy(rows), copy.deepcopy(register), copy.deepcopy(declared)).items() if v}
+    return {k: v for k, v in run(rows, register, declared)[0].items() if v}
 
 
 def edited(cid, **changes):
@@ -113,7 +117,28 @@ class TheCheckRefuses(unittest.TestCase):
     def test_a_circuit_neither_mapped_nor_declared(self):
         rows = [r for r in ROWS if r["circuit_id"] != "monsanto"]
         self.assertRefused(faults(rows),
-                           "every circuit that had raced by the list's date is mapped or declared")
+                           "every circuit is mapped or declared, unless all its races postdate the list")
+
+    def test_a_raceless_circuit_losing_its_declaration(self):
+        # The Sudschleife has no race at all, so "it has not raced yet" is
+        # not an excuse it can use: dropping its declaration and its
+        # known_gaps row together must still fail (PR #730's review).
+        declared = dict(DECLARED, gaps={}, gap_keys=set())
+        self.assertRefused(faults(declared=declared),
+                           "every circuit is mapped or declared, unless all its races postdate the list")
+
+    def test_a_new_venue_waits_for_the_next_list(self):
+        register = dict(REGISTER, madring=("Spain", [], 1),
+                        lusail=("Qatar", [(2026, "2026-11-29")], 0))
+        found, waiting = run(register=register)
+        self.assertEqual({k: v for k, v in found.items() if v}, {})
+        self.assertEqual(waiting, ["lusail", "madring"])
+
+    def test_a_row_whose_facts_fit_another_circuit(self):
+        register = dict(REGISTER, sebring=("Portugal", [(1959, "1959-12-12")], 0))
+        rows = ROWS + [row("sebring", "Sebring", "Sebring", "Portugal", "1959", 1)]
+        self.assertRefused(faults(rows, register),
+                           "every list row's country, seasons and races fit no other circuit")
 
     def test_a_declared_gap_with_no_known_gaps_row(self):
         declared = dict(DECLARED, gap_keys=set())
@@ -127,6 +152,10 @@ class TheCheckRefuses(unittest.TestCase):
 
     def test_an_article_of_another_wikidata_entity(self):
         self.assertRefused(faults(edited("monza", wikidata_id="Q2")),
+                           "every article is the Wikidata entity admitted for its circuit")
+
+    def test_a_declared_wrong_id_still_pins_the_article(self):
+        self.assertRefused(faults(edited("miami", wikidata_id="")),
                            "every article is the Wikidata entity admitted for its circuit")
 
     def test_a_stale_declaration_of_a_wrong_id(self):

@@ -1739,7 +1739,10 @@ HISTORIC_COUNTRIES = {
 }
 
 # A circuit no source maps to an article, and the known_gaps key that says
-# why. verify.py fails on a circuit that is neither mapped nor named here.
+# why. verify.py fails on a circuit that is neither mapped nor named here,
+# unless it has races and every one of them postdates the list read - a new
+# venue, which the next harvest reaches. A circuit with no race at all, like
+# this one, has no such excuse.
 CIRCUIT_ARTICLE_GAPS = {
     "nurburgring-sudschleife": "circuit-article-sudschleife",
 }
@@ -1748,12 +1751,14 @@ CIRCUIT_ARTICLE_GAPS = {
 # to be wrong, and the issue that will correct it. The article check compares
 # each mapped article's Wikidata entity with the admitted one, and this is
 # the one place it disagrees: Long Beach was admitted as Q16739, which is the
-# CITY; the circuit is Q173889. The OSM relation admitted with it is the
+# CITY; the circuit is Q173889, and the article is held to that. The OSM
+# relation admitted with it is the
 # circuit's, which is why the length check passed. verify.py fails on a
 # declaration that no longer matches what data/circuits.py admits, so the fix
 # for PM-63 (#727) has to delete this line too.
 CIRCUIT_WIKIDATA_WRONG = {
-    "long-beach": "Q16739",        # PM-63 (#727): the city of Long Beach
+    # circuit_id: (the admitted id, which is wrong; the article's, which is right)
+    "long-beach": ("Q16739", "Q173889"),   # PM-63 (#727): Q16739 is the city
 }
 
 
