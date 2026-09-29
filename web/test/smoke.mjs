@@ -4556,6 +4556,22 @@ try {
       'palette-option-1',
       'an arrow key moves the active descendant with the highlight, and a still pointer does not take it back',
     )
+    // And the other half (review of #710): a pointer that really moves onto
+    // another row does take the highlight, so a guard that dropped hover
+    // altogether cannot pass the check above alone.
+    // Row 2: not row 0, where the pointer already rests, nor row 1, which
+    // the key has just highlighted - so the search has to find three.
+    atLeast(await page.$$eval('#palette-results li a', (rows) => rows.length), 3, 'the search finds three rows to move between')
+    const target = await page.$$eval('#palette-results li a', (rows) => {
+      const r = rows[2].getBoundingClientRect()
+      return { i: 2, x: r.x + r.width / 2, y: r.y + r.height / 2 }
+    })
+    await page.mouse.move(target.x, target.y, { steps: 5 })
+    is(
+      await page.$eval('.palette input', (field) => field.getAttribute('aria-activedescendant')),
+      `palette-option-${target.i}`,
+      'and a pointer that moves onto another row takes the highlight',
+    )
     await page.keyboard.press('ArrowUp')
     // Escape is the one way out of the palette that needs no pointer, and the
     // only modal on the site. The route-change close (AF-60) is asserted in the
