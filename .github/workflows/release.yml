@@ -1,7 +1,8 @@
 name: release the artefacts
 
 # WHY THIS EXISTS
-#     f1_database.json is a 21 MB export of a 20 MB database, and neither
+#     f1_database.json was a 21 MB export of a 20 MB database when this was
+#     written (25 MB of 32 MB at v2.25), and neither
 #     delta-compresses: a refresh that changed one row used to write a whole
 #     new copy of both into git history. Four commits in a single session took
 #     .git from 13 MB to 34 MB, and the harvest refreshes every Monday.
@@ -67,8 +68,16 @@ jobs:
       - name: Export
         run: python3 export_json.py --compat
 
+      # And the export's size for the notes below, measured from the files
+      # uploaded rather than typed: the notes said "21 MB" from v2.x to v2.25,
+      # when the export was 25 MB, because nothing read the file.
       - name: Compress the export
-        run: gzip -9 -k f1_database.json
+        id: export
+        run: |
+          gzip -9 -k f1_database.json
+          mb() { python3 -c 'import os, sys; print(f"{os.path.getsize(sys.argv[1]) / 1e6:.1f}")' "$1"; }
+          echo "json_mb=$(mb f1_database.json)" >> "$GITHUB_OUTPUT"
+          echo "gz_mb=$(mb f1_database.json.gz)" >> "$GITHUB_OUTPUT"
 
       # The bulk export, for readers who want the data rather than a page of
       # it. pyarrow is installed HERE and nowhere else: the build stays
@@ -117,7 +126,7 @@ jobs:
             |---|---|
             | `f1.db` | The SQLite database. Open it with any SQLite client. |
             | `f1-geometry.db` | Circuit centrelines, © OpenStreetMap contributors under ODbL 1.0. A separate file so its share-alike does not reach the rest — see below. `circuit_geometry` in `f1.db` is deliberately empty. |
-            | `f1_database.json.gz` | Full JSON export of every table. Not kept in git — it is 21 MB and regenerates in about a second with `make export`. |
+            | `f1_database.json.gz` | Full JSON export of every table: ${{ steps.export.outputs.gz_mb }} MB compressed, ${{ steps.export.outputs.json_mb }} MB unpacked. Not kept in git — it does not delta-compress, and regenerates in about a second with `make export`. |
             | `f1_compat.json` | JSON in the original v1 key layout. |
             | `f1-parquet.zip` | Every table as Parquet, one file each — including the four the JSON export omits for size: `qualifying`, `practice`, `sprint_qualifying` and `pit_stops`. Columnar and compressed: pandas, polars and DuckDB read it directly. |
             | `schema.sql` | The schema, commented. |

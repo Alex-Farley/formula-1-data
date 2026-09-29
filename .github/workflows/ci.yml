@@ -151,7 +151,7 @@ jobs:
       # A committed artefact that does not match its sources is a stale
       # artefact. Fail rather than let the two drift apart.
       #
-      # f1_database.json is no longer committed — it is 21 MB, it does not
+      # f1_database.json is no longer committed — it is 25 MB at v2.25, it does not
       # delta-compress, and it regenerates in a second — so there is nothing
       # there to go stale. f1_compat.json is 109 KB and is the v1 key layout
       # other things were written against, so it stays, and being able to see

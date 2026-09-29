@@ -71,6 +71,12 @@
  */
 export const RELEASES = [
   {
+    version: '2.25',
+    built: '2026-09-28',
+    published: '2026-09-29',
+    title: 'v2.25: practice, sprint qualifying and the Friday drivers, and the JSON API',
+  },
+  {
     version: '2.24',
     built: '2026-09-16',
     published: '2026-09-16',
