@@ -60,7 +60,7 @@ const one = (sql, ...params) => db.prepare(sql).get(...params) ?? null
 const SERVED = [
   'drivers', 'constructors', 'circuits', 'seasons', 'races', 'race_entries',
   'qualifying', 'sprint_results', 'sprint_qualifying', 'practice', 'pit_stops',
-  'season_entrants', 'sessions', 'standings',
+  'season_entrants', 'sessions', 'standings', 'driver_note_sources',
 ]
 const refuse = (why) => {
   console.error(`\nREFUSED: ${why}\nThe API is a redistribution format; nothing was written.\n`)
@@ -144,9 +144,14 @@ const qualifyingOf = db.prepare(`
 const practiceOf = db.prepare(`
   SELECT r.year, r.round, p.* FROM practice p JOIN races r ON r.id = p.race_id
    WHERE p.driver_id = ? ORDER BY r.year, r.round, p.session`)
+// The driver row's `source` is F1DB's, for the name, dates and nationality.
+// A note written from another source cites it in driver_note_sources, and
+// that citation travels with the note here as it does on the page (LV-08).
+const noteSourceOf = db.prepare('SELECT * FROM driver_note_sources WHERE driver_id = ?')
 for (const d of drivers) {
   write(`drivers/${d.id}`, {
     driver: d,
+    note_source: noteSourceOf.get(d.id) ?? null,
     entries: entriesOf.all(d.id),
     qualifying: qualifyingOf.all(d.id),
     practice: practiceOf.all(d.id),

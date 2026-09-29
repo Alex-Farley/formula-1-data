@@ -199,6 +199,12 @@ TABLES = {
 # screen no longer flags.
 READ = {
     "name": ("original", "the shared words are a name or a title", [
+        "drivers.notes antonio-fuoco", "drivers.notes callum-ilott",
+        "drivers.notes cian-shields", "drivers.notes dino-beganovic",
+        "drivers.notes enrico-toccacelo", "drivers.notes jake-dennis",
+        "drivers.notes jan-charouz", "drivers.notes leonardo-fornaroli",
+        "drivers.notes luke-browning", "drivers.notes theo-pourchaire",
+        "drivers.notes victor-martins", "drivers.notes zak-osullivan",
         "drivers.notes bonnier", "circuits.characteristics madring",
         "circuits.notes anderstorp", "circuits.notes imola", "circuits.notes pedralbes",
         "circuits.notes rodriguez", "seasons.notes 1955", "seasons.notes 1963",
@@ -210,6 +216,10 @@ READ = {
     ]),
     "fact": ("original", "the shared words state a result, a date or a record in the "
                          "ordinary words for it", [
+        "drivers.notes alexandre-premat", "drivers.notes alfonso-celis-jr",
+        "drivers.notes bas-leinders", "drivers.notes felipe-drugovich",
+        "drivers.notes naoki-yamamoto", "drivers.notes neel-jani",
+        "drivers.notes patricio-oward", "drivers.notes raffaele-marciello",
         "drivers.notes beltoise", "drivers.notes brambilla",
         "drivers.notes clark", "drivers.notes de-cesaris", "drivers.notes farina",
         "drivers.notes g-hill", "drivers.notes gethin", "drivers.notes kovalainen",
@@ -241,6 +251,7 @@ READ = {
         "regulation_limits.note 2", "engine_eras.notes 6",
     ]),
     "stock": ("original", "the shared words are a stock phrase of English or of the sport", [
+        "drivers.notes chanoch-nissany", "drivers.notes michael-ammermuller",
         "drivers.notes brabham", "drivers.notes gurney", "drivers.notes gonzalez",
         "drivers.notes von-trips", "drivers.notes bryan", "drivers.notes flaherty",
         "drivers.notes hanks", "drivers.notes parsons", "drivers.notes rathmann",

@@ -1168,9 +1168,9 @@ PRACTICE_DRIVER_NOTES = {
         "HRT's test driver for 2012, while racing in GP2 for Barwa Addax.",
         _WP + "Dani_Clos"),
     "ma-qinghua": (
-        "The first Chinese driver to take part in a Grand Prix weekend, as a "
-        "member of HRT's development programme in 2012, and Caterham's "
-        "Friday test driver the following year.",
+        "A member of HRT's development programme who became, in 2012, "
+        "China's first driver in a Grand Prix practice session, and "
+        "Caterham's Friday test driver the following year.",
         _WP + "Ma_Qinghua"),
     "james-calado": (
         "A GP2 driver with ART Grand Prix and the 2011 GP3 runner-up, whom "
@@ -1186,8 +1186,8 @@ PRACTICE_DRIVER_NOTES = {
         "year he tested for Sauber.",
         _WP + "Adderly_Fong"),
     "daniel-juncadella": (
-        "A Macau Grand Prix winner and Formula 3 champion, who joined Force "
-        "India as its reserve driver in 2014.",
+        "Winner of the Macau Grand Prix and a Formula 3 champion before he "
+        "joined Force India as its reserve driver in 2014.",
         _WP + "Daniel_Juncadella"),
     "robin-frijns": (
         "The 2012 Formula Renault 3.5 champion and formerly Sauber's test "
@@ -1252,8 +1252,9 @@ PRACTICE_DRIVER_NOTES = {
         "finished second in Formula 2 with Prema in 2021.",
         _WP + "Robert_Shwartzman"),
     "theo-pourchaire": (
-        "A Sauber junior who was runner-up in Formula 2 in 2022 and champion "
-        "in 2023.",
+        "A Sauber junior and Alfa Romeo's reserve driver for 2023, runner-up "
+        "in Formula 2 in 2022 and leading the 2023 Formula 2 championship "
+        "into its final round.",
         _WP + "Th%C3%A9o_Pourchaire"),
     "frederik-vesti": (
         "A Mercedes junior, runner-up in Formula 2 in 2023, who became the "
@@ -1264,8 +1265,8 @@ PRACTICE_DRIVER_NOTES = {
         "simulator and development driver.",
         _WP + "Jake_Dennis"),
     "zak-osullivan": (
-        "Runner-up in the 2023 FIA Formula 3 Championship, and a member of "
-        "the Williams Driver Academy.",
+        "Second in FIA Formula 3 in 2023, and a member of the Williams "
+        "Driver Academy.",
         _WP + "Zak_O'Sullivan"),
     "arthur-leclerc": (
         "Ferrari's development driver, who had raced in Formula 2 with DAMS; "

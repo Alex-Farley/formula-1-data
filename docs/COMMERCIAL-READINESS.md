@@ -399,7 +399,7 @@ It leaves out the <!-- fig:wp_rows -->4,788<!-- /fig --> rows that cite Wikipedi
 | <!-- fig:wp_cars -->29<!-- /fig --> | `cars` | design families citing their per-car article |
 | <!-- fig:wp_regulation_limits -->16<!-- /fig --> | `regulation_limits` | limits cited to the history of the regulations |
 | <!-- fig:wp_radio -->6<!-- /fig --> | `team_radio` | the radio quotations |
-| <!-- fig:wp_note_sources -->53<!-- /fig --> | `driver_note_sources` | the driver articles the Friday drivers' notes were checked against (LV-08); each is a citation, and the note it backs is this project's writing |
+| <!-- fig:wp_note_sources -->53<!-- /fig --> | `driver_note_sources` | the driver articles the Friday drivers' notes were checked against (LV-08); each is a citation, and the note it backs is this project's writing, measured against the article in `docs/prose_pass.tsv` |
 
 — and four sets a count by `source` cannot see, because the value is
 Wikipedia's while the row cites something else: the per-car specifications
