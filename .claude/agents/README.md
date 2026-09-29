@@ -5,7 +5,8 @@ the loop's manager, is neither, and has a section of its own.
 
 ## Conformance reviewers
 
-`licence-reviewer`, `data-integrity-reviewer`, `frontend-reviewer`.
+`licence-reviewer`, `data-integrity-reviewer`, `frontend-reviewer`,
+`security-reviewer`.
 
 They enforce **this project's own rules** on a diff, and each carries a list of
 things not to propose because they were measured and rejected. Read-only. Used
@@ -19,11 +20,12 @@ stop, not a budget: a reviewer that hits it returns without recording a
 verdict through `verdict.sh`, and the backlog loop treats that as no review — so a cap set too low wastes a pass
 rather than saving one.
 
-The two front-end reviewers run at `effort: medium` and the licence and data
-reviewers at `effort: high`, because the consequences are asymmetric: a missed
-front-end finding is a cosmetic regression the suite or the next item catches,
-a missed licence or data finding is a published database that cannot be
-withdrawn (`docs/DECISIONS.md` D-33). `frontend-reviewer-quick` is the same
+The two front-end reviewers run at `effort: medium` and the licence, data and
+security reviewers at `effort: high`, because the consequences are asymmetric:
+a missed front-end finding is a cosmetic regression the suite or the next item
+catches, a missed licence or data finding is a published database that cannot
+be withdrawn (`docs/DECISIONS.md` D-33), and a missed security finding is a
+key or a workflow token already used by the time anybody looks (D-49). `frontend-reviewer-quick` is the same
 checklist, read from `frontend-reviewer.md` so the rules stay in one file, on
 Sonnet with a smaller cap; the loop uses it only at pace `fast` for a small
 front-end change that does not touch the prerenderer. Which agent a pace

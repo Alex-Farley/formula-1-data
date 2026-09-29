@@ -186,7 +186,8 @@ EFFORTS = {"low", "medium", "high", "xhigh", "max"}
 # reviewer that loses its way returns rather than runs until the session
 # limit ends it; .claude/skills/backlog-item/SKILL.md says a pass that
 # recorded no verdict through verdict.sh is not a PASS.
-LOOP_REVIEWERS = ("frontend-reviewer", "frontend-reviewer-quick", "data-integrity-reviewer", "licence-reviewer")
+LOOP_REVIEWERS = ("frontend-reviewer", "frontend-reviewer-quick", "data-integrity-reviewer", "licence-reviewer",
+                  "security-reviewer")
 
 
 def frontmatter(rel):
