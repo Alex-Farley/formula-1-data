@@ -1053,6 +1053,26 @@ try {
     )
     is((await get('drivers/no-such-driver.json')).status, 404, 'and an id the register does not hold is a 404, not an empty file')
 
+    // Review of #711: a shared win keeps both drivers, and a circuit still in
+    // use has a last Grand Prix rather than a null that reads as unknown.
+    const shared = db
+      .prepare(`SELECT r.circuit_id, r.year, r.round FROM races r WHERE
+                  (SELECT COUNT(*) FROM race_entries e WHERE e.race_id = r.id AND e.finish_position = 1) > 1
+                ORDER BY r.year LIMIT 1`)
+      .get()
+    const circuitFile = await get(`circuits/${shared.circuit_id}.json`)
+    is(
+      circuitFile.body?.data?.races?.find((r) => r.year === shared.year && r.round === shared.round)?.winner_ids?.length,
+      count(
+        'SELECT COUNT(*) FROM race_entries e JOIN races r ON r.id = e.race_id WHERE r.year = ? AND r.round = ? AND e.finish_position = 1',
+        shared.year,
+        shared.round,
+      ),
+      `a shared win keeps every winner — ${shared.year} round ${shared.round}`,
+    )
+    const monza = await get('circuits/monza.json')
+    is(monza.body?.data?.circuit?.last_gp, one("SELECT last_gp FROM v_circuits WHERE id = 'monza'"), "and a circuit in use has its last Grand Prix, as its page does")
+
     // The preview server does not read _headers; the host does. So the rule
     // is read from the file the host is given.
     const headers = readFileSync(join(web, 'dist', '_headers'), 'utf8')

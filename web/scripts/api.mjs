@@ -46,9 +46,44 @@ const root = join(dist, 'api', 'v1')
 const ORIGIN = (process.env.SITE_ORIGIN ?? 'https://lapledger.org').replace(/\/$/, '')
 const BASE = (process.env.SITE_BASE ?? '/').replace(/\/*$/, '/')
 
-const db = new DatabaseSync(join(repo, 'f1.db'), { readOnly: true })
+// LAPLEDGER_DB is for the test that plants what the refusal exists for.
+const db = new DatabaseSync(process.env.LAPLEDGER_DB ?? join(repo, 'f1.db'), { readOnly: true })
 const all = (sql, ...params) => db.prepare(sql).all(...params)
 const one = (sql, ...params) => db.prepare(sql).get(...params) ?? null
+
+// REFUSED BEFORE ANYTHING IS WRITTEN (review of #711). An API exists to be
+// handed to somebody, and the f1.db beside this script can be a local copy:
+// the timing loaders write into it, and tools/geometry_overlay.py merges
+// ODbL centrelines into it. The deploy builds from the committed file, which
+// CI has already held to verify.py - but a local `npm run build` does not,
+// so this stops the way tools/parquet_export.py does, naming what to undo.
+const SERVED = [
+  'drivers', 'constructors', 'circuits', 'seasons', 'races', 'race_entries',
+  'qualifying', 'sprint_results', 'sprint_qualifying', 'practice', 'pit_stops',
+  'season_entrants', 'sessions', 'standings',
+]
+const refuse = (why) => {
+  console.error(`\nREFUSED: ${why}\nThe API is a redistribution format; nothing was written.\n`)
+  process.exit(1)
+}
+for (const table of ['laps', 'stints', 'race_timing', 'race_control_messages']) {
+  const n = one(`SELECT COUNT(*) AS n FROM ${table}`).n
+  if (n) refuse(`${table} holds ${n} rows of FOM-owned timing, from a local load. Rebuild without it (python3 build.py).`)
+}
+{
+  const n = one('SELECT COUNT(*) AS n FROM circuit_geometry').n
+  if (n) refuse(`circuit_geometry holds ${n} OpenStreetMap rows under ODbL. Remove the overlay (python3 tools/geometry_overlay.py --remove).`)
+}
+{
+  const n = one("SELECT COUNT(*) AS n FROM pit_stops WHERE source IS NOT 'f1db'").n
+  if (n) refuse(`pit_stops holds ${n} rows from a source other than F1DB, from a local load. Rebuild without it (python3 build.py).`)
+}
+for (const table of SERVED) {
+  const n = one(`SELECT COUNT(*) AS n FROM ${table} t
+                  WHERE (t.source_id IS NULL AND t.source IS NOT NULL)
+                     OR t.source_id IN (SELECT id FROM source_registry WHERE redistributable = 'no')`).n
+  if (n) refuse(`${table} holds ${n} rows citing a source that may not be passed on, or none the registry classifies. Rebuild (python3 build.py) and run verify.py.`)
+}
 
 const manifest = JSON.parse(readFileSync(join(dist, 'db-manifest.json'), 'utf8'))
 const metaRow = (key) => one('SELECT value FROM meta WHERE key = ?', key)?.value ?? null
@@ -60,9 +95,9 @@ const META = {
   built: metaRow('built'),
   // The digest of the f1.db these files were written from, as /data states it.
   database_sha256: manifest.sha256 ?? null,
-  // CC BY-SA 4.0, bar five columns of the project's own writing under CC BY
-  // 4.0: LICENSE-DATA says which, and names these files among those it
-  // covers.
+  // CC BY-SA 4.0 - the five columns LICENSE-DATA puts under CC BY 4.0 are
+  // in tables this API does not serve - and LICENSE-DATA names these files
+  // among those it covers.
   licence: 'CC BY-SA 4.0',
   licence_url: 'https://creativecommons.org/licenses/by-sa/4.0/',
   terms: `${ORIGIN}${BASE}LICENSE-DATA`,
@@ -144,22 +179,42 @@ for (const k of constructors) {
 
 // ---------------------------------------------------------------- circuits
 
-const circuits = all('SELECT * FROM circuits ORDER BY name')
+// The figures a circuit's page shows - races, first and last Grand Prix -
+// are derived from the race records by v_circuits, not read from the stored
+// columns, whose NULL last_gp means "still in use" and would read here as
+// "not established" (review of #711). So the stored row carries the derived
+// figures over it, and the list is the view's.
+const derived = new Map(all('SELECT * FROM v_circuits').map((c) => [c.id, c]))
+const circuits = all('SELECT * FROM circuits ORDER BY name').map((c) => ({ ...c, ...derived.get(c.id) }))
 write(
   'circuits',
-  circuits.map(({ id, name, locality, country }) => ({
+  circuits.map(({ id, name, locality, country, races, first_gp, last_gp }) => ({
     id,
     name,
     locality,
     country,
+    races,
+    first_gp,
+    last_gp,
     href: `${BASE}api/v1/circuits/${id}.json`,
   })),
 )
-const racesAt = db.prepare(`
-  SELECT r.*, (SELECT e.driver_id FROM race_entries e WHERE e.race_id = r.id AND e.finish_position = 1
-                ORDER BY e.id LIMIT 1) AS winner_id
-    FROM races r WHERE r.circuit_id = ? ORDER BY r.year, r.round`)
-for (const c of circuits) write(`circuits/${c.id}`, { circuit: c, races: racesAt.all(c.id) })
+// Every winner, not the first: three races were shared wins - Reims 1951,
+// Buenos Aires 1956, Aintree 1957 - and a single field would drop a driver's
+// win without saying so (review of #711).
+const winners = new Map()
+for (const { race_id, driver_id } of all(
+  'SELECT race_id, driver_id FROM race_entries WHERE finish_position = 1 ORDER BY race_id, id',
+)) {
+  winners.set(race_id, [...(winners.get(race_id) ?? []), driver_id])
+}
+const racesAt = db.prepare('SELECT * FROM races WHERE circuit_id = ? ORDER BY year, round')
+for (const c of circuits) {
+  write(`circuits/${c.id}`, {
+    circuit: c,
+    races: racesAt.all(c.id).map((r) => ({ ...r, winner_ids: winners.get(r.id) ?? [] })),
+  })
+}
 
 // ----------------------------------------------------------------- seasons
 
@@ -195,7 +250,8 @@ const RACE = {
   sprint_qualifying: sheet('sprint_qualifying'),
   practice: sheet('practice', 't.session, '),
 }
-const pitsOf = db.prepare('SELECT * FROM pit_stops WHERE race_id = ? ORDER BY stop_number, id')
+// F1DB's only, on top of the refusal above: the one table a local load adds rows to.
+const pitsOf = db.prepare("SELECT * FROM pit_stops WHERE race_id = ? AND source = 'f1db' ORDER BY stop_number, id")
 const sessionsOf = db.prepare('SELECT * FROM sessions WHERE race_id = ? ORDER BY start_utc')
 for (const r of all('SELECT * FROM races ORDER BY year, round')) {
   write(`races/${r.year}/${r.round}`, {
@@ -221,6 +277,13 @@ write('index', {
     seasons: `${BASE}api/v1/seasons.json`,
     season: `${BASE}api/v1/seasons/{year}.json`,
     race: `${BASE}api/v1/races/{year}/{round}.json`,
+  },
+  notes: {
+    drivers:
+      'race_entries is counted from the race records; entries and starts are the published figures, held for a few drivers, and are kept beside it rather than replaced by it. practice_only is 1 for a driver who drove in practice and never started a race.',
+    circuits: 'races, first_gp and last_gp are derived from the race records, as the circuit pages show them.',
+    shared_drives: 'A shared drive puts two drivers on one finishing position; winner_ids is a list for that reason.',
+    nulls: 'null means not established; it is never a zero.',
   },
   counts: {
     drivers: drivers.length,
