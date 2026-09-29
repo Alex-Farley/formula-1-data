@@ -2922,6 +2922,34 @@ try {
         'the static page carries the same sections and the same links',
       )
       truthy(html.includes(`<h2>${HEADLINE} <span class="count">`), 'and leads with the same headline table')
+
+      // The handover puts back the static page's offset, so the families have
+      // to stand where they stand on the static page. They came after the
+      // leaderboards in the app, and /records#<family> arriving cold was put
+      // down 7,000 px away, in the decade chart (WK-08 review). A fresh page,
+      // so the database is fetched again and the fragment is resolved on the
+      // static page first; the init script records how far down it was.
+      const family = families[1] ?? families[0]
+      const cold = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+      await cold.addInitScript(() => {
+        window.__staticY = 0
+        const id = setInterval(() => {
+          if (document.getElementById('prerendered')) window.__staticY = Math.max(window.__staticY, window.scrollY)
+          else if (document.readyState !== 'loading') clearInterval(id)
+        }, 16)
+      })
+      await cold.bringToFront()
+      await cold.goto(`${BASE}/records#${family.anchor}`, { waitUntil: 'domcontentloaded' })
+      await cold.waitForSelector('#root main h1', { timeout: 60000 })
+      await cold.waitForFunction(() => !document.getElementById('prerendered'), null, { timeout: 60000 })
+      await cold.waitForTimeout(1500)
+      atLeast(await cold.evaluate(() => window.__staticY), 500, `the static page opened at #${family.anchor}, down the page`)
+      const top = await cold.evaluate((id) => document.getElementById(id)?.getBoundingClientRect().top ?? null, family.anchor)
+      truthy(
+        top !== null && top > -450 && top < 900,
+        `and after the handover the app's #${family.anchor} is still on screen (its top at ${Math.round(top)} px)`,
+      )
+      await cold.close()
     }
 
     // PD-27: every record's name is its own page, and every champion and
@@ -2929,7 +2957,7 @@ try {
     const recordLinks = await page.$$eval('#root main table tbody th a[href^="/records/"]', (n) => n.length)
     is(recordLinks, count('SELECT COUNT(*) FROM records'), 'every record links its own page')
     const championLinks = await page.$$eval('#root main h2', (nodes) =>
-      [...(nodes.find((h) => h.textContent.startsWith('Champions'))?.closest('section')?.querySelectorAll('tbody a[href^="/drivers/"]') ?? [])].length,
+      [...(nodes.find((h) => /^Champions\b/.test(h.textContent.trim()))?.closest('section')?.querySelectorAll('tbody a[href^="/drivers/"]') ?? [])].length,
     )
     is(championLinks, count('SELECT COUNT(*) FROM v_title_count'), 'every champion links the driver')
 

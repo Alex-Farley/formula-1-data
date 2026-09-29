@@ -205,6 +205,20 @@ function Body({ data }) {
         )}
       </Section>
 
+      {/* Every record not in the headline table, once, under its family, and
+          straight after the headline table rather than after the leaderboards.
+          The static half has no leaderboards, so this is the order it has too,
+          and the two halves have to agree on it: handOver() puts back the
+          reader's scroll offset, and when the families came last here, a
+          reader who arrived at /records#wins, or scrolled into the families
+          before the database opened, was put down 7,000 px away in the
+          decade chart (WK-08 review). */}
+      {families.map((f) => (
+        <Section key={f.anchor} id={f.anchor} title={f.family} count={`${f.rows.length}`}>
+          <DataTable rows={f.rows} rowKey={(row) => row.id} sortable={false} columns={columns} />
+        </Section>
+      ))}
+
       <Section title="Counted from the race records">
         <div className="split">
           <Figure
@@ -383,16 +397,6 @@ function Body({ data }) {
           columns={GRAND_SLAM_COLUMNS.map((column) => ({ ...column, ...GRAND_SLAM_APP[column.key] }))}
         />
       </Section>
-
-      {/* Every record not in the headline table, once, under its family. Last
-          on the page, after the leaderboards, because it is the catalogue: the
-          headline table is what a reader came for, and the line under it is
-          how they reach the rest. */}
-      {families.map((f) => (
-        <Section key={f.anchor} id={f.anchor} title={f.family} count={`${f.rows.length}`}>
-          <DataTable rows={f.rows} rowKey={(row) => row.id} sortable={false} columns={columns} />
-        </Section>
-      ))}
 
       <Onward {...ONWARD.records({ driverWins })} />
     </>

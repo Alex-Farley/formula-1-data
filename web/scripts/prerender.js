@@ -3123,9 +3123,10 @@ page({
   // tier that sentence is the app's, around a link to the ladder.
   //
   // WK-08: the headline records, then every other record once under its
-  // family, from the same helpers the app groups them with. The app puts its
-  // leaderboards between the two; this half has no leaderboards, so the
-  // families follow the headline table directly. Each family's heading
+  // family, from the same helpers the app groups them with, and in the app's
+  // order: the families follow the headline table directly in both halves,
+  // and the app's leaderboards come after them, so the offset handOver() puts
+  // back lands on the same section. Each family's heading
   // carries its section's address, which the line under the headline table
   // links, as the app's does.
   const records = all(RECORDS)

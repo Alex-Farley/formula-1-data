@@ -189,7 +189,9 @@ export function recordColumns(records) {
 }
 
 /** The date, said once, where every record shares it. */
-export const asOfLine = (date) => `The last completed race the database holds was run on ${date}.`
+// It follows RECORDS_LEDE, which has just named that race, so it does not
+// name it again.
+export const asOfLine = (date) => `That race was run on ${date}.`
 
 /**
  * The sentence above the table when every record shares a tier, in two
