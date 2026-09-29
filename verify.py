@@ -2368,6 +2368,25 @@ def the_driver_register():
         if (_m := _figure.search(r[1]))]
     check("no driver note states a figure the page derives",
           not _typed, "; ".join(_typed[:6]))
+    # A note's citation is for a note (LV-08). The driver page lists every
+    # source behind it, driver_note_sources among them, so a citation for a
+    # driver with no note would name an article nothing on the page came from.
+    _uncited = [r[0] for r in con.execute("""SELECT s.driver_id
+        FROM driver_note_sources s JOIN drivers d ON d.id = s.driver_id
+        WHERE d.notes IS NULL OR TRIM(d.notes) = '' ORDER BY 1""")]
+    check("every driver note citation is for a written note", not _uncited,
+          "; ".join(_uncited[:6]))
+    # And every Friday driver's page says who they were, rather than only
+    # what the practice sheets show. A driver a later refresh admits arrives
+    # without a line, and the line needs a source before it is written, so
+    # this warns rather than holding up the refresh: the answer is a line in
+    # PRACTICE_DRIVER_NOTES, or a known_gaps row where no source describes
+    # the driver.
+    _unwritten = [r[0] for r in con.execute("""SELECT id FROM drivers
+        WHERE practice_only = 1 AND (notes IS NULL OR TRIM(notes) = '')
+        ORDER BY id""")]
+    warn("every practice-only driver's page says who they were",
+         not _unwritten, "; ".join(_unwritten[:6]))
     # The figures that check leaves alone on purpose - "Six Monaco wins" - name
     # a subset of a career, and nothing totalled them until now (CD-24). Where
     # the place is a Grand Prix the race records count it, from race_entries,
@@ -3040,13 +3059,27 @@ def practice_and_sprint_qualifying():
     # SQ3 lap minus the leader's. So a segment column shifted in the fetch,
     # or a time on the wrong driver, fails. One sheet is published out of
     # that shape and is declared as published: Miami 2026, where F1DB
-    # classifies Alexander Albon 19th with an SQ2 time on the sheet.
+    # classifies Alexander Albon 19th with an SQ2 time on the sheet. The
+    # reason is published (LV-08): after the session his SQ1 lap was deleted
+    # for exceeding track limits, and as that lap was what took him into SQ2,
+    # his SQ2 times went with it and he was classified behind the drivers
+    # eliminated in SQ1 (https://en.wikipedia.org/wiki/2026_Miami_Grand_Prix,
+    # "Sprint qualifying report"). The sheet keeps the SQ2 lap the deletion
+    # voided, so the row stays declared.
     SQ_SHAPE_EXCEPTIONS = {(2026, 4, "albon")}
     # And within each band the times run in order - SQ2 by the SQ2 lap, SQ1
     # by the SQ1 lap - so the half of a sheet below SQ3 is held too (second
     # review of #707). One sheet orders its SQ1 band otherwise, declared as
     # published: Spa 2023, where F1DB classifies Albon, Sargeant and Stroll
     # 12th to 14th with no SQ2 time, above Alonso's quicker SQ1 lap in 15th.
+    # None of the four is an SQ1 eliminee (LV-08): all four went through to
+    # SQ2 and set no time there, the segment being red-flagged after Stroll
+    # crashed on his out-lap, so they hold SQ2's places and the band check
+    # reads them as SQ1's only because no SQ2 lap is on the sheet
+    # (https://en.wikipedia.org/wiki/2023_Belgian_Grand_Prix, "Sprint
+    # shootout report", whose classification gives all four "No time" in
+    # SQ2). Why they are ordered among themselves otherwise than by SQ1 lap
+    # nothing this project can cite says, so the declaration stands.
     # Alonso alone is excepted, so the three above him are still held to
     # their own order - one row declared hides less than three.
     SQ_ORDER_EXCEPTIONS = {(2023, 12, "alonso")}
@@ -3100,11 +3133,17 @@ def practice_and_sprint_qualifying():
 
     # The laps of the drivers who went through, which no band holds: every
     # SQ3 driver's SQ2 lap is quicker than every SQ2 eliminee's (the gaps
-    # of #707's third review). Three eliminees are published with an SQ2 lap
-    # quicker than drivers who went through, and are declared as published,
-    # one row each, so the rest of each sheet is still held (review of #712):
-    # Alonso at Qatar 2023, Leclerc at Austria 2024, Bearman at Sao Paulo
-    # 2024. The sheets do not say why.
+    # of #707's third review). Three drivers are published with an SQ2 lap
+    # quicker than drivers who went through, and none of them was eliminated
+    # in SQ2 (LV-08): each went through to SQ3, set no time there and is
+    # classified in SQ3's places - Alonso 9th at Qatar 2023, Leclerc 10th at
+    # Austria 2024, Bearman 10th at Sao Paulo 2024. The Wikipedia article on
+    # each of those Grands Prix gives the driver "No time" in SQ3 in its
+    # sprint qualifying classification (2023_Qatar_Grand_Prix,
+    # 2024_Austrian_Grand_Prix, 2024_S%C3%A3o_Paulo_Grand_Prix). This check
+    # reads a driver with no SQ3 lap as an SQ2 eliminee, so each is declared
+    # as published, one row each, so the rest of each sheet is still held
+    # (review of #712). Why each set no SQ3 time none of the three says.
     SQ_CUT_EXCEPTIONS = {(2023, 17, "alonso"), (2024, 11, "leclerc"), (2024, 21, "bearman")}
     cut_bad = []
     for (yr, rnd), sheet in sq_sheets.items():

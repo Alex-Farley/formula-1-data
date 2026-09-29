@@ -126,6 +126,9 @@ def main():
         "coverage": meta.get("coverage_note"),
         "seasons": dump(con, "seasons", "year"),
         "drivers": dump(con, "drivers", "titles DESC, wins DESC, full_name"),
+        # The article a driver's note was checked against, where that is not
+        # the row's own source (LV-08).
+        "driver_note_sources": dump(con, "driver_note_sources", "driver_id"),
         "constructors": dump(con, "constructors", "constructors_titles DESC, name"),
         "constructor_lineage": dump(con, "constructor_lineage", "chain_id, sequence"),
         "engine_manufacturers": dump(con, "engine_manufacturers", "first_year"),
