@@ -3026,9 +3026,10 @@ def practice_and_sprint_qualifying():
     # by the SQ1 lap - so the half of a sheet below SQ3 is held too (second
     # review of #707). One sheet orders its SQ1 band otherwise, declared as
     # published: Spa 2023, where F1DB classifies Albon, Sargeant and Stroll
-    # 12th to 14th with no SQ2 time, above Alonso's quicker SQ1 lap.
-    SQ_ORDER_EXCEPTIONS = {(2023, 12, "albon"), (2023, 12, "logan-sargeant"),
-                           (2023, 12, "stroll")}
+    # 12th to 14th with no SQ2 time, above Alonso's quicker SQ1 lap in 15th.
+    # Alonso alone is excepted, so the three above him are still held to
+    # their own order - one row declared hides less than three.
+    SQ_ORDER_EXCEPTIONS = {(2023, 12, "alonso")}
     sq_sheets = {}
     for yr, rnd, pos, driver, q1, q2, q3, gap, itv in con.execute(
             """SELECT r.year, r.round, q.position, q.driver_id, q.q1, q.q2, q.q3,
@@ -3077,6 +3078,22 @@ def practice_and_sprint_qualifying():
     check("within the SQ2 and SQ1 bands a later place is never quicker",
           not band_bad, ", ".join(band_bad[:4]))
 
+    # The laps of the drivers who went through, which no band holds: every
+    # SQ3 driver's SQ2 lap is quicker than every SQ2 eliminee's (the gaps
+    # of #707's third review). Three sheets are published otherwise, a lap
+    # that did not count or a driver moved, and are declared as published.
+    SQ_CUT_EXCEPTIONS = {(2023, 17), (2024, 11), (2024, 21)}
+    cut_bad = []
+    for (yr, rnd), sheet in sq_sheets.items():
+        if (yr, rnd) in SQ_CUT_EXCEPTIONS:
+            continue
+        through = [secs(q2) for _p, _d, _q1, q2, q3, _g, _i in sheet if q3 and q2]
+        out = [secs(q2) for _p, _d, _q1, q2, q3, _g, _i in sheet if q2 and not q3]
+        if through and out and max(through) > min(out) + 1e-9:
+            cut_bad.append(f"{yr} r{rnd}")
+    check("every SQ3 driver's SQ2 lap beats every SQ2 eliminee's",
+          not cut_bad, ", ".join(cut_bad[:4]))
+
     # Who drove for whom, against a second table: a driver's team in practice
     # is their team in that weekend's race. The one exception is a real one,
     # declared: Nyck de Vries ran FP1 at Monza in 2022 for Aston Martin, and
@@ -3098,6 +3115,51 @@ def practice_and_sprint_qualifying():
                           AND q.constructor_id = p.constructor_id)""").fetchall()
     check("every practice team was entered for that weekend", not wrong,
           ", ".join(f"{y} r{r} {s_} {d}" for y, r, s_, d in wrong[:4]))
+
+    # How many cars a team ran: no more than it entered in the race, and
+    # one more in 2004-2006, when a team outside the top four could run a
+    # third car on Friday. Two sessions are published otherwise and are
+    # declared as published: Spa 2014 FP1, Force India with three drivers
+    # on the sheet and two race entries, and Melbourne 2024 FP1, Williams
+    # with two drivers and one race entry. A weekend with no entries yet is
+    # not held (the Friday case).
+    CARS_EXCEPTIONS = {(2014, 13, "fp1", "force-india"), (2024, 3, "fp1", "williams")}
+    over = [k for k in con.execute("""SELECT r.year, r.round, p.session, p.constructor_id
+        FROM practice p JOIN races r ON r.id = p.race_id
+        GROUP BY p.race_id, p.session, p.constructor_id
+        HAVING (SELECT COUNT(*) FROM race_entries e WHERE e.race_id = p.race_id
+                AND e.constructor_id = p.constructor_id) > 0
+           AND COUNT(*) > (SELECT COUNT(*) FROM race_entries e WHERE e.race_id = p.race_id
+                           AND e.constructor_id = p.constructor_id)
+                          + (CASE WHEN r.year BETWEEN 2004 AND 2006 THEN 1 ELSE 0 END)""")
+            if tuple(k) not in CARS_EXCEPTIONS]
+    check("no team ran more cars in a practice session than it entered",
+          not over, ", ".join(f"{y} r{r} {s_} {c}" for y, r, s_, c in over[:4]))
+
+    # One number per car in a session, and a driver who also qualified that
+    # weekend carries their qualifying number - except three who are on the
+    # practice sheet under one number and the qualifying sheet under
+    # another: Glock (Canada 2004), Zonta (USA 2005) and de Vries (Monza
+    # 2022, for Aston Martin in FP1 and Williams after). Declared as
+    # published.
+    repeated = con.execute("""SELECT COUNT(*) FROM (SELECT 1 FROM practice
+        WHERE driver_number IS NOT NULL GROUP BY race_id, session, driver_number
+        HAVING COUNT(*) > 1)""").fetchone()[0]
+    check("no two drivers carry one number in a practice session", repeated == 0,
+          f"{repeated} sessions")
+    NUMBER_EXCEPTIONS = {(2004, 8, "glock"), (2005, 9, "ricardo-zonta"), (2022, 16, "nyck-de-vries")}
+    renumbered = [k for k in con.execute("""SELECT DISTINCT r.year, r.round, p.driver_id
+        FROM practice p JOIN races r ON r.id = p.race_id
+        JOIN qualifying q ON q.race_id = p.race_id AND q.driver_id = p.driver_id
+        WHERE p.driver_number IS NOT q.driver_number""") if tuple(k) not in NUMBER_EXCEPTIONS]
+    check("a driver's practice number is their qualifying number that weekend",
+          not renumbered, ", ".join(f"{y} r{r} {d}" for y, r, d in renumbered[:4]))
+
+    # Laps: F1DB holds them from 1994, and a timed lap means at least one.
+    no_laps = con.execute("""SELECT COUNT(*) FROM practice p JOIN races r ON r.id = p.race_id
+        WHERE r.year >= 1994 AND p.time IS NOT NULL AND (p.laps IS NULL OR p.laps < 1)""").fetchone()[0]
+    check("every timed practice row from 1994 ran at least one lap", no_laps == 0,
+          f"{no_laps} rows")
     for t, sess in (("practice", "p.session"), ("sprint_qualifying", "'sq'")):
         wrong = [k for k in con.execute(f"""SELECT r.year, r.round, {sess}, p.driver_id
             FROM {t} p JOIN races r ON r.id = p.race_id

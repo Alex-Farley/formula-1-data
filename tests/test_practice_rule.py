@@ -172,6 +172,48 @@ class TheSectionRefuses(unittest.TestCase):
                      FROM sprint_qualifying WHERE position = 3)""")
         self.refused("every SQ3 interval is the lap minus the car ahead's")
 
+    def test_a_team_with_a_car_too_many_is_refused(self):
+        # A 2020 driver moved onto another team's sheet in one session: that
+        # team now runs three cars on two race entries.
+        self.edit("""UPDATE practice SET constructor_id = (SELECT e.constructor_id FROM race_entries e
+                       WHERE e.race_id = practice.race_id AND e.constructor_id != practice.constructor_id LIMIT 1)
+                     WHERE id = (SELECT MIN(p.id) FROM practice p JOIN races r ON r.id = p.race_id
+                                 WHERE r.year = 2020)""")
+        self.refused("no team ran more cars in a practice session than it entered")
+
+    def test_two_drivers_on_one_number_is_refused(self):
+        self.edit("""UPDATE practice SET driver_number = (SELECT q.driver_number FROM practice q
+                       WHERE q.race_id = practice.race_id AND q.session = practice.session
+                         AND q.position = 1)
+                     WHERE id = (SELECT MIN(p.id) FROM practice p JOIN races r ON r.id = p.race_id
+                                 WHERE r.year = 2020 AND p.position = 2)""")
+        self.refused("no two drivers carry one number in a practice session")
+
+    def test_a_number_the_qualifying_sheet_does_not_give_is_refused(self):
+        self.edit("""UPDATE practice SET driver_number = 99 WHERE id = (SELECT MIN(p.id)
+                     FROM practice p JOIN races r ON r.id = p.race_id WHERE r.year = 2019)""")
+        self.refused("a driver's practice number is their qualifying number that weekend")
+
+    def test_a_timed_row_with_no_laps_is_refused(self):
+        self.edit("""UPDATE practice SET laps = 0 WHERE id = (SELECT MIN(p.id) FROM practice p
+                     JOIN races r ON r.id = p.race_id WHERE r.year = 2019 AND p.time IS NOT NULL)""")
+        self.refused("every timed practice row from 1994 ran at least one lap")
+
+    def test_an_sq3_driver_slower_in_sq2_than_an_eliminee_is_refused(self):
+        # The SQ3 pole-sitter's SQ2 lap made the slowest of the sheet: the
+        # bands and SQ3 still read true, only the cut does not.
+        self.edit("""UPDATE sprint_qualifying SET q2 = '9:59.999' WHERE id = (SELECT q.id
+                     FROM sprint_qualifying q JOIN races r ON r.id = q.race_id
+                     WHERE r.year = 2026 AND r.round = 12 AND q.position = 1)""")
+        self.refused("every SQ3 driver's SQ2 lap beats every SQ2 eliminee's")
+
+    def test_the_spa_2023_exception_still_holds_albon(self):
+        # Only Alonso is excepted there, so the three above him are held.
+        self.edit("""UPDATE sprint_qualifying SET q1 = '9:59.999' WHERE id = (SELECT q.id
+                     FROM sprint_qualifying q JOIN races r ON r.id = q.race_id
+                     WHERE r.year = 2023 AND r.round = 12 AND q.driver_id = 'albon')""")
+        self.refused("within the SQ2 and SQ1 bands a later place is never quicker")
+
     def test_a_flag_on_a_driver_who_raced_is_refused(self):
         self.edit("UPDATE drivers SET practice_only = 1 WHERE id = "
                   "(SELECT driver_id FROM race_entries LIMIT 1)")
