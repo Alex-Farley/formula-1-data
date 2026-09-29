@@ -358,7 +358,15 @@ export default function Search({ open, onClose }) {
                 to={entry.path}
                 tabIndex={-1}
                 onClick={() => pick(entry.path)}
-                onMouseEnter={() => setActive(i)}
+                // The pointer takes the highlight only when it moves. A
+                // pointer standing still where a row has just rendered gets
+                // a hover event from the browser's own layout pass, with no
+                // movement in it, and that used to snap an arrow key's
+                // highlight back to the row under the cursor (CR-58, #687).
+                onMouseMove={(event) => {
+                  if (event.movementX === 0 && event.movementY === 0) return
+                  if (active !== i) setActive(i)
+                }}
               >
                 <span className="kind">{entry.kind}</span>
                 <span>{entry.label}</span>
