@@ -572,10 +572,12 @@ whoever gets them before anybody notices, and a merge to `main` deploys.
 It FAILs only on a blocker, and a finding it could not establish is never
 one, so an item does not stall on a possibility.
 
-Two things the survey for it found against `main` were filed as issues
+Four things the survey for it found against `main` were filed as issues
 rather than folded into the change: no Content-Security-Policy is set
-anywhere (`AF-76`, #719), and every action is pinned to a major tag rather
-than a commit (`AF-77`, #720).
+anywhere (`AF-76`, #719); every action is pinned to a major tag rather
+than a commit (`AF-77`, #720); `refresh.yml` leaves the App's token in
+`.git/config` while `npm ci` runs (`AF-78`, #723); and `release.yml`
+interpolates its dispatch input into a shell script (`AF-79`, #724).
 
 ### D-29 · The track atlas was cut — 2026-09-14 (`AF-20`/`AF-21`, #302/#304)
 `/circuits/atlas` was a walkable, turn-rate-coloured lap compared across all
