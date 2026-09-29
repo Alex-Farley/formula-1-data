@@ -657,7 +657,7 @@ class Figures:
     # claims to have accounted for every one.
     WIKI = "en.wikipedia.org"
     WIKI_ITEMISED = ("races", "race_entries", "claims", "drivers", "cars",
-                     "regulation_limits", "team_radio")
+                     "regulation_limits", "team_radio", "driver_note_sources")
 
     def _wp(self, table):
         return self._licence_tally()[3].get((table, self.WIKI), 0)
@@ -701,6 +701,7 @@ class Figures:
     def wp_cars(self):              return n(self._wp("cars"))
     def wp_regulation_limits(self): return n(self._wp("regulation_limits"))
     def wp_radio(self):             return n(self._wp("team_radio"))
+    def wp_note_sources(self):      return n(self._wp("driver_note_sources"))
 
     # The season articles' URL, which is what data/harvest.py cites; a
     # Wikipedia race row citing anything else would be a second harvest the

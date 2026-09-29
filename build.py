@@ -520,6 +520,21 @@ def _stage_03_drivers_admitted_from_the_f1db_register(b):
              HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
         known_drv.add(f1db_id)
 
+    # Who each of them was (LV-08): a line written from the driver's own
+    # article, which is the page's lede, and the article, which is its
+    # citation. The row's `source` stays F1DB's, since the row's facts are;
+    # the line's goes in driver_note_sources. A line for a driver the list
+    # above does not admit has no row to describe.
+    for f1db_id, (note, cited) in sorted(D.PRACTICE_DRIVER_NOTES.items()):
+        if f1db_id not in D.F1DB_PRACTICE_DRIVERS:
+            raise SystemExit(
+                f"PRACTICE_DRIVER_NOTES describes {f1db_id}, whom "
+                f"F1DB_PRACTICE_DRIVERS does not admit.")
+        cur.execute("UPDATE drivers SET notes = ? WHERE id = ?",
+                    (note, f1db_id))
+        cur.execute("""INSERT INTO driver_note_sources (driver_id, source)
+            VALUES (?, ?)""", (f1db_id, cited))
+
     # The wins / poles / fastest_laps just inserted are hand-entered from
     # reference records. Move them to the *_external columns now, before the
     # derived figures overwrite the main ones.

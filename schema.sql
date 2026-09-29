@@ -274,6 +274,19 @@ CREATE TABLE drivers (
     source          TEXT
 );
 
+-- Where a driver's note was checked, where that is not the row's own source
+-- (LV-08). A Friday driver's row is F1DB's - name, dates, nationality - and
+-- F1DB says nothing about who they were, so the line that says it is checked
+-- against the driver's own article and cites it here rather than in the
+-- row's `source`, which would re-attribute F1DB's facts. One citation per
+-- note. The build gives this table `source_id` like every table carrying
+-- `source`, so its licence is a join and verify.py's licence checks read it;
+-- the driver page's sources list reads it too.
+CREATE TABLE driver_note_sources (
+    driver_id       TEXT PRIMARY KEY REFERENCES drivers(id),
+    source          TEXT NOT NULL
+);
+
 CREATE TABLE personnel (
     id              TEXT PRIMARY KEY,
     full_name       TEXT NOT NULL,

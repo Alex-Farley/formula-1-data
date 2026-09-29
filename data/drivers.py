@@ -1070,3 +1070,256 @@ F1DB_PRACTICE_DRIVERS = [
     "colton-herta",                     # 2026           3  Colton Herta
     "leonardo-fornaroli",               # 2026           2  Leonardo Fornaroli
 ]
+
+
+# ---------------------------------------------------------------------
+# Who the Friday drivers were (LV-08)
+# ---------------------------------------------------------------------
+# The page of a driver on the list above opened on a sentence the practice
+# sheets write - "Drove in N practice sessions across ... for ..." - and said
+# nothing about the driver. The maintainer asked, when ruling they join the
+# register, that it say who they were; F1DB holds no such fact.
+#
+# So each line here is written for this project from the driver's own
+# Wikipedia article (en.wikipedia.org, SOURCE_LICENCE `yes`), and cites it:
+# build.py writes the line to `drivers.notes`, which is the page's lede and
+# meta description, and the article to `driver_note_sources`, which is how
+# the page's sources list reaches it. Each line keeps to what was true when
+# the driver ran on a Friday - the series they came from, their role at the
+# team, a championship they held - and to what the article states. None
+# states a figure the page derives (tools/lede_figures.py), and none says how
+# the row came to be here.
+#
+# A Friday driver no article describes gets no line, and a `known_gaps` row
+# instead of an invented sentence. Susie Wolff's note was written before this
+# list and is not repeated here.
+#
+# driver id -> (note, the article the note was checked against)
+# ---------------------------------------------------------------------
+_WP = "https://en.wikipedia.org/wiki/"
+PRACTICE_DRIVER_NOTES = {
+    "bas-leinders": (
+        "The 1998 German Formula Three champion, and Minardi's test and "
+        "reserve driver in 2004, running on Grand Prix Fridays.",
+        _WP + "Bas_Leinders"),
+    "bjorn-wirdheim": (
+        "The 2003 International Formula 3000 champion, and Jaguar's third "
+        "driver in 2004, doing the team's Friday running at Grand Prix "
+        "weekends.",
+        _WP + "Bj%C3%B6rn_Wirdheim"),
+    "ryan-briscoe": (
+        "The 2003 Formula Three Euroseries champion and a Toyota test driver "
+        "since 2002, who became the team's Friday third driver for the last "
+        "part of 2004.",
+        _WP + "Ryan_Briscoe"),
+    "chanoch-nissany": (
+        "An Israeli real-estate developer who became Minardi's official test "
+        "driver for 2005, and the first Israeli to take part in a Grand Prix "
+        "weekend.",
+        _WP + "Chanoch_Nissany"),
+    "enrico-toccacelo": (
+        "Runner-up in the 2004 International Formula 3000 championship, and "
+        "Minardi's third driver on Grand Prix Fridays from the 2005 Turkish "
+        "Grand Prix.",
+        _WP + "Enrico_Toccacelo"),
+    "alexandre-premat": (
+        "A GP2 driver with ART Grand Prix and A1 Team France's driver, who "
+        "ran the third Spyker MF1 car at the 2006 Chinese Grand Prix.",
+        _WP + "Alexandre_Pr%C3%A9mat"),
+    "ernesto-viso": (
+        "A GP2 driver who ran the third Spyker MF1 car in Friday practice at "
+        "the 2006 Brazilian Grand Prix.",
+        _WP + "E._J._Viso"),
+    "giorgio-mondini": (
+        "The 2004 Formula Renault V6 Eurocup champion, and one of Midland's "
+        "third drivers in 2006.",
+        _WP + "Giorgio_Mondini"),
+    "michael-ammermuller": (
+        "A Red Bull junior racing in GP2 for Arden, promoted to Red Bull "
+        "Racing's third driver for the end of the 2006 season.",
+        _WP + "Michael_Ammerm%C3%BCller"),
+    "neel-jani": (
+        "A GP2 driver in 2005 and A1 Team Switzerland's driver, and Scuderia "
+        "Toro Rosso's third driver throughout 2006.",
+        _WP + "Neel_Jani"),
+    "fairuz-fauzy": (
+        "Lotus Racing's third driver in 2010, having been one of Spyker's "
+        "test and reserve drivers.",
+        _WP + "Fairuz_Fauzy"),
+    "davide-valsecchi": (
+        "A GP2 driver confirmed as Team Lotus's test driver in 2011, who took "
+        "Heikki Kovalainen's car in Friday practice at the Malaysian Grand "
+        "Prix.",
+        _WP + "Davide_Valsecchi"),
+    "jan-charouz": (
+        "The 2009 Le Mans Series champion and Renault's reserve driver in "
+        "2010, who took Vitantonio Liuzzi's car for first practice at the "
+        "last round of 2011.",
+        _WP + "Jan_Charouz"),
+    "luiz-razia": (
+        "A GP2 driver with Team AirAsia, and Team Lotus's reserve and test "
+        "driver in 2011, having tested for Virgin Racing.",
+        _WP + "Luiz_Razia"),
+    "robert-wickens": (
+        "GP3 runner-up in 2010 and Formula Renault 3.5 champion in 2011, the "
+        "year Virgin Racing signed him as its reserve driver.",
+        _WP + "Robert_Wickens"),
+    "dani-clos": (
+        "HRT's test driver for 2012, while racing in GP2 for Barwa Addax.",
+        _WP + "Dani_Clos"),
+    "ma-qinghua": (
+        "The first Chinese driver to take part in a Grand Prix weekend, as a "
+        "member of HRT's development programme in 2012, and Caterham's "
+        "Friday test driver the following year.",
+        _WP + "Ma_Qinghua"),
+    "james-calado": (
+        "A GP2 driver with ART Grand Prix and the 2011 GP3 runner-up, whom "
+        "Force India chose as its third driver for the 2013 Italian Grand "
+        "Prix.",
+        _WP + "James_Calado"),
+    "rodolfo-gonzalez": (
+        "A GP2 driver, with Caterham Racing in 2012, named Marussia's reserve "
+        "driver for 2013.",
+        _WP + "Rodolfo_Gonz%C3%A1lez_(racing_driver)"),
+    "adderly-fong": (
+        "A Hong Kong driver racing in GP3 with Jenzer Motorsport in 2014, the "
+        "year he tested for Sauber.",
+        _WP + "Adderly_Fong"),
+    "daniel-juncadella": (
+        "A Macau Grand Prix winner and Formula 3 champion, who joined Force "
+        "India as its reserve driver in 2014.",
+        _WP + "Daniel_Juncadella"),
+    "robin-frijns": (
+        "The 2012 Formula Renault 3.5 champion and formerly Sauber's test "
+        "and reserve driver, who became Caterham's reserve driver in 2014.",
+        _WP + "Robin_Frijns"),
+    "fabio-leimer": (
+        "The 2013 GP2 champion, signed as Manor Marussia's reserve driver "
+        "for 2015.",
+        _WP + "Fabio_Leimer"),
+    "raffaele-marciello": (
+        "The 2013 FIA Formula 3 European champion, who had raced in GP2, "
+        "signed as Sauber's test and reserve driver for 2015.",
+        _WP + "Raffaele_Marciello"),
+    "alfonso-celis-jr": (
+        "A former GP3 driver, signed by Force India as its development and "
+        "free practice driver for 2016.",
+        _WP + "Alfonso_Celis_Jr."),
+    "jordan-king": (
+        "A GP2 driver signed as Manor's development driver for 2015 and "
+        "kept on for 2016, the year he drove for the team in Friday "
+        "practice.",
+        _WP + "Jordan_King"),
+    "sean-gelael": (
+        "Toro Rosso's test driver in 2017 and 2018, racing in Formula 2 for "
+        "Pertamina Arden and then Prema.",
+        _WP + "Sean_Gelael"),
+    "artem-markelov": (
+        "Renault's development driver in 2018, racing in Formula 2 for "
+        "Russian Time.",
+        _WP + "Artem_Markelov"),
+    "naoki-yamamoto": (
+        "A Honda driver who won both the Super Formula and the Super GT "
+        "GT500 titles in 2018, and drove for Toro Rosso in first practice at "
+        "the 2019 Japanese Grand Prix.",
+        _WP + "Naoki_Yamamoto_(racing_driver)"),
+    "roy-nissany": (
+        "Williams' official test driver in 2020 and 2021, racing in Formula "
+        "2 for Trident and then DAMS; the son of Chanoch Nissany.",
+        _WP + "Roy_Nissany"),
+    "callum-ilott": (
+        "Runner-up in the 2020 Formula 2 Championship, then Ferrari's test "
+        "driver and a reserve for Alfa Romeo in 2021.",
+        _WP + "Callum_Ilott"),
+    "alex-palou": (
+        "The 2021 IndyCar champion with Chip Ganassi Racing, and a reserve "
+        "driver for McLaren in 2022.",
+        _WP + "%C3%81lex_Palou"),
+    "felipe-drugovich": (
+        "The 2022 Formula 2 champion, taken on by Aston Martin as a reserve "
+        "driver and the first member of its driver development programme.",
+        _WP + "Felipe_Drugovich"),
+    "juri-vips": (
+        "A Red Bull junior racing in Formula 2, and one of Red Bull's reserve "
+        "drivers in 2022.",
+        _WP + "J%C3%BCri_Vips"),
+    "patricio-oward": (
+        "The 2018 Indy Lights champion, racing in IndyCar for McLaren's team "
+        "there, and one of McLaren's Formula One reserve drivers.",
+        _WP + "Pato_O'Ward"),
+    "robert-shwartzman": (
+        "The 2019 FIA Formula 3 champion and a Ferrari reserve driver, having "
+        "finished second in Formula 2 with Prema in 2021.",
+        _WP + "Robert_Shwartzman"),
+    "theo-pourchaire": (
+        "A Sauber junior who was runner-up in Formula 2 in 2022 and champion "
+        "in 2023.",
+        _WP + "Th%C3%A9o_Pourchaire"),
+    "frederik-vesti": (
+        "A Mercedes junior, runner-up in Formula 2 in 2023, who became the "
+        "team's reserve driver in 2024.",
+        _WP + "Frederik_Vesti"),
+    "jake-dennis": (
+        "The 2022-23 Formula E champion with Andretti, and Red Bull's "
+        "simulator and development driver.",
+        _WP + "Jake_Dennis"),
+    "zak-osullivan": (
+        "Runner-up in the 2023 FIA Formula 3 Championship, and a member of "
+        "the Williams Driver Academy.",
+        _WP + "Zak_O'Sullivan"),
+    "arthur-leclerc": (
+        "Ferrari's development driver, who had raced in Formula 2 with DAMS; "
+        "the younger brother of Charles Leclerc.",
+        _WP + "Arthur_Leclerc"),
+    "ayumu-iwasa": (
+        "A Red Bull junior from Honda's Formula Dream Project, who moved from "
+        "Formula 2 to Super Formula and won its title in 2025.",
+        _WP + "Ayumu_Iwasa"),
+    "luke-browning": (
+        "A member of the Williams Driver Academy, who came up through FIA "
+        "Formula 3 into Formula 2.",
+        _WP + "Luke_Browning"),
+    "ryo-hirakawa": (
+        "A Toyota driver, Le Mans winner and world endurance champion in "
+        "2022; McLaren's reserve in 2024, then reserve driver at Alpine and "
+        "at Haas.",
+        _WP + "Ryo_Hirakawa"),
+    "alexander-dunne": (
+        "A McLaren junior, racing in Formula 2 for Rodin Motorsport in 2025.",
+        _WP + "Alex_Dunne"),
+    "antonio-fuoco": (
+        "A Ferrari factory driver in the World Endurance Championship, winner "
+        "of the 2024 24 Hours of Le Mans, and a development driver for "
+        "Ferrari's Formula One team.",
+        _WP + "Antonio_Fuoco"),
+    "cian-shields": (
+        "Runner-up in the 2023 Euroformula Open Championship and a Hitech "
+        "driver in FIA Formula 3 in 2024, given Fernando Alonso's Aston "
+        "Martin for a Friday session.",
+        _WP + "Cian_Shields"),
+    "dino-beganovic": (
+        "A member of the Ferrari Driver Academy racing in Formula 2, whom "
+        "Ferrari put in Charles Leclerc's car for Friday practice.",
+        _WP + "Dino_Beganovic"),
+    "jak-crawford": (
+        "A member of Aston Martin's driver development programme, runner-up "
+        "in Formula 2 with DAMS in 2025, and the team's reserve driver.",
+        _WP + "Jak_Crawford"),
+    "paul-aron": (
+        "A former Mercedes junior, third in Formula 2 in 2024, who joined "
+        "Alpine as its reserve driver and ran Friday sessions for Sauber as "
+        "well.",
+        _WP + "Paul_Aron"),
+    "victor-martins": (
+        "The 2020 Formula Renault Eurocup and 2022 FIA Formula 3 champion, "
+        "and Williams' test and development driver.",
+        _WP + "Victor_Martins"),
+    "colton-herta": (
+        "An IndyCar driver from 2018 to 2025, who moved to Formula 2 with "
+        "Hitech in 2026 as Cadillac's Formula One test driver.",
+        _WP + "Colton_Herta"),
+    "leonardo-fornaroli": (
+        "The 2024 FIA Formula 3 and 2025 Formula 2 champion, and McLaren's "
+        "reserve driver in 2026.",
+        _WP + "Leonardo_Fornaroli"),
+}
