@@ -295,6 +295,15 @@ writeFileSync(
     '  Cache-Control: no-cache',
     '  Content-Type: text/plain; charset=utf-8',
     '',
+    // The static JSON API (scripts/api.mjs): open to any origin, since a
+    // file another site's script cannot read is not an API, and revalidated
+    // like the manifest, since the files are rewritten on every deploy under
+    // names that do not change.
+    '/api/*',
+    '  Access-Control-Allow-Origin: *',
+    '  Cache-Control: no-cache',
+    '  Content-Type: application/json; charset=utf-8',
+    '',
     '/f1.db.gz',
     '  Cache-Control: public, max-age=31536000, immutable',
     '',

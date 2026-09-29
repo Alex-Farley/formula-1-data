@@ -1013,6 +1013,55 @@ try {
     await old.close()
   })
 
+  // ------------------------------------------------------------- the JSON API
+
+  // D-48: the database as static JSON, one file per thing, written at build
+  // time from the same f1.db. Every figure here is read out of the database,
+  // so the files are held to it rather than to a number typed in the test.
+  await section('The JSON API  (/api/v1)', async () => {
+    const get = async (path) => {
+      const response = await fetch(`${BASE}/api/v1/${path}`)
+      return { status: response.status, body: response.ok ? await response.json() : null }
+    }
+    const index = await get('index.json')
+    is(index.status, 200, 'the index is served')
+    is(index.body?.meta?.version, one("SELECT value FROM meta WHERE key = 'version'"), 'and names the version it was written from')
+    truthy(index.body?.meta?.licence === 'CC BY-SA 4.0' && index.body?.meta?.attribution?.endsWith('/data/sources'), 'and carries the licence and where the attribution is')
+
+    const register = await get('drivers.json')
+    is(register.body?.data?.length, count('SELECT COUNT(*) FROM drivers'), 'the drivers file holds every driver in the register')
+
+    const [year, round] = [2026, one("SELECT MAX(round) FROM races WHERE year = 2026 AND status = 'completed'")]
+    const race = await get(`races/${year}/${round}.json`)
+    const winner = race.body?.data?.classification?.find((e) => e.finish_position === 1)?.driver_id
+    is(
+      winner,
+      one('SELECT e.driver_id FROM race_entries e JOIN races r ON r.id = e.race_id WHERE r.year = ? AND r.round = ? AND e.finish_position = 1', year, round),
+      `a race weekend's file carries its classification — ${year} round ${round}`,
+    )
+    is(
+      race.body?.data?.practice?.length,
+      count('SELECT COUNT(*) FROM practice p JOIN races r ON r.id = p.race_id WHERE r.year = ? AND r.round = ?', year, round),
+      'and every practice row of it',
+    )
+
+    const driver = await get('drivers/hamilton.json')
+    is(
+      driver.body?.data?.entries?.length,
+      count("SELECT COUNT(*) FROM race_entries WHERE driver_id = 'hamilton'"),
+      "a driver's file carries every race entry",
+    )
+    is((await get('drivers/no-such-driver.json')).status, 404, 'and an id the register does not hold is a 404, not an empty file')
+
+    // The preview server does not read _headers; the host does. So the rule
+    // is read from the file the host is given.
+    const headers = readFileSync(join(web, 'dist', '_headers'), 'utf8')
+    truthy(
+      /\/api\/\*\n\s+Access-Control-Allow-Origin: \*/.test(headers),
+      "the host is told to open /api/ to any origin, since a file another site's script cannot read is not an API",
+    )
+  })
+
   // ------------------------------------------------------------------ home
 
   await section('/  (overview)', async () => {
