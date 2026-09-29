@@ -96,6 +96,9 @@ import {
   SO_FAR,
   SPRINT,
   GUNZIP_NOTE,
+  API_ENDPOINTS,
+  API_HEADING,
+  API_NOTE,
   TWO_FILES,
   UNCHECKED_MARK,
   UNCHECKED_NOTE,
@@ -3348,6 +3351,11 @@ page({
       <p class="source-note">${DIGEST_NOTE.split('SHA256SUMS')
         .map(esc)
         .join(`<a href="${esc(href('SHA256SUMS'))}"><code>SHA256SUMS</code></a>`)}</p>
+      <h2>${esc(API_HEADING)}</h2>
+      <p class="measure">${esc(API_NOTE)}</p>
+      <ul class="cards">
+        ${API_ENDPOINTS.map(([path, what]) => `<li><a href="${esc(href(path))}"><code>/${esc(path)}</code></a> — ${esc(what)}</li>`).join('')}
+      </ul>
       <h2>What explains it</h2>
       <ul class="cards">
         ${DOCUMENTS.map(([file, what]) => `<li><a href="${esc(href(file))}"><code>${esc(file)}</code></a> — ${esc(what)}</li>`).join('')}

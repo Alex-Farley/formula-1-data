@@ -11,6 +11,9 @@ import {
   DOCUMENTS,
   DOCUMENTS_NOTE,
   GUNZIP_NOTE,
+  API_ENDPOINTS,
+  API_HEADING,
+  API_NOTE,
   NAMES,
   NOT_HELD,
   RAW_DATABASE_URL,
@@ -193,6 +196,19 @@ function Body({ data }) {
             {DIGEST_NOTE.split('SHA256SUMS')[1]}
           </p>
         )}
+      </Section>
+
+      <Section title={API_HEADING} note={API_NOTE}>
+        <div className="board">
+          {API_ENDPOINTS.map(([path, what]) => (
+            <a key={path} href={`${base}${path}`}>
+              <b>
+                <code>/{path}</code>
+              </b>
+              <p>{what}</p>
+            </a>
+          ))}
+        </div>
       </Section>
 
       <Section
