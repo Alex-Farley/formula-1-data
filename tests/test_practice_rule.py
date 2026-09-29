@@ -237,14 +237,43 @@ class TheSectionRefuses(unittest.TestCase):
                                  WHERE r.year = 2005 AND p.session = 'fp3')""")
         self.refused("no team ran more cars in a practice session than it entered")
 
+    def test_a_declared_hole_excepts_its_place_and_not_the_sheet(self):
+        # The 1984 Portuguese warm-up is declared for its missing P18 alone:
+        # a second hole on the same sheet is refused.
+        self.edit("""UPDATE practice SET position = 28, position_text = '28' WHERE id = (SELECT p.id
+                     FROM practice p JOIN races r ON r.id = p.race_id
+                     WHERE r.year = 1984 AND r.round = 16 AND p.session = 'warm_up' AND p.position = 27)""")
+        self.refused("every practice session's places run from 1 with no gap")
+
+    def test_a_pre_qualifying_sheet_with_its_drivers_swapped_is_refused(self):
+        # Blundell went through at Monza 1991 and Chaves did not; swapping
+        # who holds P1 and P8 keeps every lap in order and puts a DNPQ above
+        # a driver who went through.
+        # Through a placeholder id, since the sheet is UNIQUE on the driver.
+        where = ("session = 'pre_qualifying' AND race_id = "
+                 "(SELECT id FROM races WHERE year = 1991 AND round = 10)")
+        self.edit(f"UPDATE practice SET driver_id = 'swap' WHERE driver_id = 'blundell' AND {where}")
+        self.edit(f"UPDATE practice SET driver_id = 'blundell' WHERE driver_id = 'pedro-chaves' AND {where}")
+        self.edit(f"UPDATE practice SET driver_id = 'pedro-chaves' WHERE driver_id = 'swap' AND {where}")
+        self.refused("in pre-qualifying, nobody who failed it sits above a driver who went through")
+
+    def test_a_non_qualifier_on_a_warm_up_sheet_is_refused(self):
+        # A driver who did not qualify, put on that race's warm-up sheet.
+        self.edit("""UPDATE practice SET driver_id = (SELECT e.driver_id FROM race_entries e
+                       WHERE e.race_id = practice.race_id AND e.position_text = 'DNQ' LIMIT 1)
+                     WHERE id = (SELECT MIN(p.id) FROM practice p WHERE p.session = 'warm_up'
+                       AND EXISTS (SELECT 1 FROM race_entries e WHERE e.race_id = p.race_id
+                                   AND e.position_text = 'DNQ'))""")
+        self.refused("everyone on a warm-up sheet qualified for that race")
+
     def test_a_flag_on_a_driver_who_raced_is_refused(self):
         self.edit("UPDATE drivers SET practice_only = 1 WHERE id = "
                   "(SELECT driver_id FROM race_entries LIMIT 1)")
-        self.refused("practice_only is exactly the drivers with a practice session and no race")
+        self.refused("practice_only is exactly the drivers with a practice session, no race entry and no qualifying row")
 
     def test_a_practice_only_driver_without_the_flag_is_refused(self):
         self.edit("UPDATE drivers SET practice_only = 0 WHERE id = 'colton-herta'")
-        self.refused("practice_only is exactly the drivers with a practice session and no race")
+        self.refused("practice_only is exactly the drivers with a practice session, no race entry and no qualifying row")
 
     def test_a_practice_only_driver_held_active_is_refused(self):
         self.edit("UPDATE drivers SET status = 'active' WHERE id = 'colton-herta'")

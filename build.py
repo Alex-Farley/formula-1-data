@@ -2283,9 +2283,12 @@ def _stage_24b_practice_and_sprint_qualifying_from_f1db(b):
              num(r["laps"]), HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
         sq += 1
 
-    # `practice_only` is derived, not stamped on F1DB_PRACTICE_DRIVERS - and
-    # a driver with a qualifying row is not one, since a driver who went no
-    # further than pre-qualifying (DNPQ) entered the championship. The
+    # `practice_only` is derived, not stamped on F1DB_PRACTICE_DRIVERS. It
+    # also needs no qualifying row: a driver who went no further than
+    # pre-qualifying is not caught without it, since race_entries holds the
+    # DNPQ rows, but a driver on a debut weekend caught between qualifying
+    # and the race has a qualifying row and no race entry yet, and is not a
+    # Friday driver (review of #714). The
     # register held two drivers with no race before LV-03, and Susie Wolff,
     # who ran FP1 in 2014 and 2015, is exactly this - Maria de Villota, who
     # tested and never ran a session, is not. So the flag is the fact it

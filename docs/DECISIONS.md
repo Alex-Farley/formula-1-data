@@ -962,8 +962,16 @@ Cost: 31% on the compressed database the site sends (4.97 MB to 6.53 MB).
 *2026-09-29.* The warm-up (1984-2003) and pre-qualifying (1977-1992) joined
 `practice` as two more sessions, from the same F1DB files, as the maintainer
 asked when the gaps were listed. `practice_only` now also requires no
-qualifying row: a driver who went no further than pre-qualifying entered the
-championship, and is not a Friday driver.
+qualifying row. Not for the drivers who went no further than pre-qualifying,
+as first written: `race_entries` holds their DNPQ rows, which already keep
+them out, and the flagged set is the same 54 either way (review of #714). It
+is for a driver on a debut weekend caught between qualifying and the race,
+with a qualifying row and no race entry yet, who is not a Friday driver.
+
+The reliance above was confirmed by the maintainer on 2026-09-28, in the
+session that merged #707. With these two sessions it covers about 77,000
+F1DB-carried session rows - qualifying, sprint qualifying and practice from
+1977 - under the same CC BY 4.0 licence.
 
 ### D-47 · The site serves f1.db.gz, and the raw file is the repository's — 2026-09-28
 Cloudflare Workers will not host a single static file over 25 MiB

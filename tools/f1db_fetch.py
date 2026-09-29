@@ -657,7 +657,8 @@ PRACTICE_FILES = (
 
 
 def practice_rows(data, yaml):
-    """Every practice session's classification F1DB holds, 1986-2026 (LV-03).
+    """Every practice, warm-up and pre-qualifying classification F1DB holds,
+    1977-2026 (LV-03).
 
     A practice classification is the order of each driver's best lap, the
     lap itself, the gap and interval to it, and how many laps they ran - the

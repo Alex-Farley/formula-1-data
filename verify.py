@@ -2963,12 +2963,16 @@ def practice_and_sprint_qualifying():
         # published: the 1984 Portuguese warm-up has no P18 and the 1992
         # Hungarian pre-qualifying no P4. The build dropped nothing - the
         # harvest has the same rows - so the warning above cannot excuse them.
-        SHEET_HOLES = {(1984, 16, "warm_up"), (1992, 11, "pre_qualifying")}
-        holes = [k for k in con.execute(f"""SELECT r.year, r.round, {sess} FROM {t} p
-            JOIN races r ON r.id = p.race_id WHERE p.position IS NOT NULL
-            GROUP BY p.race_id, {sess}
-            HAVING MIN(p.position) != 1 OR MAX(p.position) != COUNT(DISTINCT p.position)""")
-                 if tuple(k) not in short[t] and tuple(k) not in SHEET_HOLES]
+        # Declared by the place, not the session, so any other hole on those
+        # two sheets is still refused (review of #714).
+        SHEET_HOLES = {(1984, 16, "warm_up"): {18}, (1992, 11, "pre_qualifying"): {4}}
+        places = {}
+        for y, r_, s_, pos in con.execute(f"""SELECT r.year, r.round, {sess}, p.position
+                FROM {t} p JOIN races r ON r.id = p.race_id WHERE p.position IS NOT NULL"""):
+            places.setdefault((y, r_, s_), set()).add(pos)
+        holes = [k for k, got in places.items()
+                 if k not in short[t]
+                 and set(range(1, max(got) + 1)) - got != SHEET_HOLES.get(k, set())]
         check(f"every {t} session's places run from 1 with no gap",
               not holes, f"{len(holes)} sessions")
 
@@ -3106,8 +3110,9 @@ def practice_and_sprint_qualifying():
     # declared: Nyck de Vries ran FP1 at Monza in 2022 for Aston Martin, and
     # raced there for Williams in Alexander Albon's place.
     PRACTICE_TEAM_EXCEPTIONS = {(2022, 16, "fp1", "nyck-de-vries"),
-                                # Monza 1978: Harald Ertl pre-qualified an Ensign,
-                                # then qualified an ATS and did not qualify.
+                                # Monza 1978: Harald Ertl ran an Ensign in
+                                # pre-qualifying (DNPQ), then an ATS in
+                                # qualifying (DNQ).
                                 (1978, 14, "pre_qualifying", "harald-ertl")}
     # The check above reaches only drivers who raced. This one reaches every
     # row, the Friday drivers' included: a team in practice is a team entered
@@ -3125,6 +3130,33 @@ def practice_and_sprint_qualifying():
                           AND q.constructor_id = p.constructor_id)""").fetchall()
     check("every practice team was entered for that weekend", not wrong,
           ", ".join(f"{y} r{r} {s_} {d}" for y, r, s_, d in wrong[:4]))
+
+    # Who holds which place in the two old sessions, against the race
+    # records (review of #714): the checks above tie a place to its lap, not
+    # a driver to the place. In pre-qualifying, nobody who failed it (DNPQ,
+    # or excluded) sits above a driver who went through - bar one sheet,
+    # declared as published: Monza 1991, Tarquini 5th and DNPQ above Caffi
+    # 6th, who went through and did not qualify. And the warm-up was run by
+    # the race's entrants: nobody on a warm-up sheet failed to qualify.
+    PREQUAL_ORDER_EXCEPTIONS = {(1991, 10, "gabriele-tarquini")}
+    above = [k for k in con.execute("""
+        WITH pq AS (SELECT p.race_id, p.position, p.driver_id, e.position_text AS result
+                      FROM practice p JOIN race_entries e
+                        ON e.race_id = p.race_id AND e.driver_id = p.driver_id
+                     WHERE p.session = 'pre_qualifying' AND p.position IS NOT NULL)
+        SELECT DISTINCT r.year, r.round, a.driver_id FROM pq a
+          JOIN pq b ON b.race_id = a.race_id AND a.position < b.position
+          JOIN races r ON r.id = a.race_id
+         WHERE a.result IN ('DNPQ', 'EX') AND b.result NOT IN ('DNPQ', 'EX')""")
+             if tuple(k) not in PREQUAL_ORDER_EXCEPTIONS]
+    check("in pre-qualifying, nobody who failed it sits above a driver who went through",
+          not above, ", ".join(f"{y} r{r} {d}" for y, r, d in above[:4]))
+    not_entrants = con.execute("""SELECT COUNT(*) FROM practice p
+        LEFT JOIN race_entries e ON e.race_id = p.race_id AND e.driver_id = p.driver_id
+        WHERE p.session = 'warm_up'
+          AND (e.id IS NULL OR e.position_text IN ('DNQ', 'DNPQ', 'EX', 'DNP'))""").fetchone()[0]
+    check("everyone on a warm-up sheet qualified for that race", not_entrants == 0,
+          f"{not_entrants} rows")
 
     # How many cars a team ran: no more than it entered in the race, and
     # one more in FP1 and FP2 in 2004-2006, when a team could run a third
@@ -3164,7 +3196,7 @@ def practice_and_sprint_qualifying():
     NUMBER_EXCEPTIONS = {(2004, 8, "fp1", "glock"), (2004, 8, "fp2", "glock"),
                          (2005, 9, "fp1", "ricardo-zonta"), (2005, 9, "fp2", "ricardo-zonta"),
                          (2022, 16, "fp1", "nyck-de-vries"),
-                         # Ertl's Ensign number in pre-qualifying, his ATS one after.
+                         # Ertl's Ensign number in pre-qualifying (DNPQ), his ATS one in qualifying.
                          (1978, 14, "pre_qualifying", "harald-ertl")}
     renumbered = [k for k in con.execute("""SELECT r.year, r.round, p.session, p.driver_id
         FROM practice p JOIN races r ON r.id = p.race_id
@@ -3209,7 +3241,7 @@ def practice_and_sprint_qualifying():
               AND (EXISTS (SELECT 1 FROM practice p WHERE p.driver_id = drivers.id)
                    OR EXISTS (SELECT 1 FROM sprint_qualifying q WHERE q.driver_id = drivers.id))
              THEN 1 ELSE 0 END""").fetchall()
-    check("practice_only is exactly the drivers with a practice session and no race",
+    check("practice_only is exactly the drivers with a practice session, no race entry and no qualifying row",
           not wrong, ", ".join(r[0] for r in wrong[:5]))
     bad = con.execute("""SELECT COUNT(*) FROM drivers
         WHERE practice_only = 1 AND status = 'active'""").fetchone()[0]

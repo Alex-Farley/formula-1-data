@@ -903,8 +903,9 @@ export const lede = (driver, derived, constructors, practice = []) => {
  * The Friday drivers (LV-03): in the register, and never in a race. Their
  * whole record is the practice sheets, so their page opens on those and
  * says, before anything else, that there is no race record to look for.
- * `practice_only` is derived by the build - no race entry, and at least one
- * practice or sprint qualifying row - and verify.py holds it both ways.
+ * `practice_only` is derived by the build - no race entry, no qualifying row,
+ * and at least one practice or sprint qualifying row - and verify.py holds it
+ * both ways.
  */
 export const DRIVER_PRACTICE = `
   SELECT p.id, p.session, p.position, p.position_text, p.time, p.laps,
@@ -913,7 +914,9 @@ export const DRIVER_PRACTICE = `
     JOIN races r ON r.id = p.race_id
     LEFT JOIN constructors k ON k.id = p.constructor_id
    WHERE p.driver_id = ?
-   ORDER BY r.year DESC, r.round DESC, p.session
+   ORDER BY r.year DESC, r.round DESC,
+            CASE p.session WHEN 'pre_qualifying' THEN 0 WHEN 'fp1' THEN 1 WHEN 'fp2' THEN 2
+                           WHEN 'fp3' THEN 3 WHEN 'fp4' THEN 4 WHEN 'warm_up' THEN 5 END
 `
 
 const SESSION_NAMES = Object.fromEntries(PRACTICE_SESSIONS)
