@@ -127,7 +127,14 @@ import {
   roundStates,
 } from '../src/lib/outline.js'
 import { THUMB_WIDTH, attribution, canShow, fileTitle, thumbUrl } from '../src/lib/commons.js'
-import { recordColumns, tiersOf } from '../src/queries/records.js'
+import {
+  asOfOf,
+  familyAnchor,
+  headlineRecords,
+  recordColumns,
+  recordFamilies,
+  tiersOf,
+} from '../src/queries/records.js'
 import { clearState, oneOf, readState, writeState } from '../src/lib/urlstate.js'
 
 const web = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -1027,16 +1034,43 @@ describe('the queries a page and the prerenderer share', () => {
     assert.equal(raceWinnerHere(null, { status: 'completed' }), EMPTY)
   })
 
-  it('adds a Confidence column only where the records differ on it', () => {
-    const shared = [{ confidence: 'reference' }, { confidence: 'reference' }]
+  it('adds a Confidence or an As of column only where the records differ on it', () => {
+    const shared = [
+      { confidence: 'reference', as_of: '2026-09-21' },
+      { confidence: 'reference', as_of: '2026-09-21' },
+    ]
     assert.deepEqual(tiersOf(shared), ['reference'])
+    assert.equal(asOfOf(shared), '2026-09-21')
     assert.deepEqual(
       recordColumns(shared).map((c) => c.label),
       // The value is second: the record and its figure are the pair the
       // page is for, and the holder answers the question after that (VD-51).
-      ['Record', 'Value', 'Holder', 'How it is derived', 'As of'],
+      ['Record', 'Value', 'Holder', 'How it is derived'],
     )
     assert.equal(recordColumns([{ confidence: 'reference' }, { confidence: 'high' }]).at(-1).key, 'confidence')
+    const apart = [{ ...shared[0] }, { ...shared[1], as_of: '2026-09-07' }]
+    assert.equal(asOfOf(apart), null)
+    assert.equal(recordColumns(apart).at(-1).key, 'as_of')
+  })
+
+  it('leads with the headline records and shows every other one once, under its family (WK-08)', () => {
+    const rows = [
+      { id: 1, key: 'a', family: 'Championships', headline: 1 },
+      { id: 2, key: 'b', family: 'Wins', headline: 1 },
+      { id: 3, key: 'c', family: 'Pole positions', headline: 0 },
+      { id: 4, key: 'd', family: 'Wins', headline: 0 },
+      { id: 5, key: 'e', family: 'Championships', headline: 0 },
+    ]
+    assert.deepEqual(headlineRecords(rows).map((r) => r.key), ['a', 'b'])
+    const families = recordFamilies(rows)
+    // In the order each family's FIRST record comes, the headline ones
+    // included: Wins is second though its first row below the headline is id 4.
+    assert.deepEqual(families.map((f) => f.family), ['Championships', 'Wins', 'Pole positions'])
+    assert.deepEqual(families.map((f) => f.rows.map((r) => r.key)), [['e'], ['d'], ['c']])
+    assert.equal(families[2].anchor, 'pole-positions')
+    // A family with nothing below the headline has no section.
+    assert.deepEqual(recordFamilies(rows.slice(0, 2)), [])
+    assert.equal(familyAnchor('Races and circuits'), 'races-and-circuits')
   })
 })
 
@@ -1566,7 +1600,7 @@ describe('a column every row agrees on (VD-29)', () => {
     ].filter((c) => c.collapse === true)
     assert.deepEqual(
       declared.map((c) => c.key),
-      ['layout_key', 'wins', 'podiums', 'poles', 'fastest_laps', 'wins', 'podiums', 'poles', 'source', 'as_of'],
+      ['layout_key', 'wins', 'podiums', 'poles', 'fastest_laps', 'wins', 'podiums', 'poles', 'source'],
     )
   })
 })

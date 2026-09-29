@@ -1436,6 +1436,16 @@ def records_are_derived():
     check(f"the records table holds at least {FLOOR} derived rows", len(rows) >= FLOOR,
           f"{len(rows)}")
 
+    # WK-08: /records is built from `family` and `headline`, so a record with
+    # a blank family has no section to be shown in, and a headline table that
+    # grows past a screenful is the ~210-row wall the ruling turned down, in
+    # another place.
+    blank = [k for k, r in rows.items() if not (r["family"] or "").strip()]
+    check("every record is filed under a family", not blank, ", ".join(blank[:4]))
+    lead = sum(r["headline"] for r in rows.values())
+    check("the headline records are few enough to lead /records (1 to 15)",
+          1 <= lead <= 15, f"{lead}")
+
     as_of = con.execute(
         "SELECT MAX(date_iso) FROM races WHERE status = 'completed'").fetchone()[0]
     stale = [k for k, r in rows.items() if r["as_of"] != as_of]

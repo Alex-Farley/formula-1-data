@@ -1124,11 +1124,13 @@ describe('a column declaring collapse: true is drawn by nobody (VD-29)', () => {
   it('the repository declares the columns this rule expects', () => {
     assert.deepEqual(
       [...new Set(declared.map(([key]) => key))].sort(),
-      ['as_of', 'fastest_laps', 'layout_key', 'podiums', 'poles', 'source', 'wins'],
+      ['fastest_laps', 'layout_key', 'podiums', 'poles', 'source', 'wins'],
     )
-    // Ten declarations of those seven keys: a driver's season table and a
-    // constructor's each declare wins, podiums and poles.
-    assert.equal(declared.length, 10, declared.map(([key, file]) => `${file}: ${key}`).join(', '))
+    // Nine declarations of those six keys: a driver's season table and a
+    // constructor's each declare wins, podiums and poles. The records' as_of
+    // was the tenth; it is said once for the page now, above a table per
+    // family, rather than once above each (WK-08).
+    assert.equal(declared.length, 9, declared.map(([key, file]) => `${file}: ${key}`).join(', '))
   })
 
   // The override maps are written as `<key>: { ... }`; this reads the block

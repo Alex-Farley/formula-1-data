@@ -3365,12 +3365,15 @@ def _stage_31_figures_derivable_from_the_race_records(b):
     if not as_of:
         raise SystemExit("records: no completed race has a date; as_of cannot be derived")
     rows = derive_records(cur)
+    family_of = record_families([r["key"] for r in rows])
     for i, r in enumerate(rows, 1):
-        cur.execute("""INSERT INTO records (id, key, category, record, holder,
-            holder_table, holder_id, value, value_num, unit, detail, as_of, confidence)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'reference')""",
-            (i, r["key"], r["category"], r["record"], r["holder"], r["holder_table"],
-             r["holder_id"], r["value"], r["value_num"], r["unit"], r["detail"], as_of))
+        cur.execute("""INSERT INTO records (id, key, category, family, headline, record,
+            holder, holder_table, holder_id, value, value_num, unit, detail, as_of, confidence)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,'reference')""",
+            (i, r["key"], r["category"], family_of[r["key"]],
+             1 if r["key"] in RECORD_HEADLINES else 0, r["record"], r["holder"],
+             r["holder_table"], r["holder_id"], r["value"], r["value_num"], r["unit"],
+             r["detail"], as_of))
     # Every holder_id must be a row in the table it names, now, not in verify -
     # a record that points at nothing is a build defect, not a data finding.
     for r in cur.execute("""SELECT key, holder_table, holder_id FROM records
@@ -4647,6 +4650,94 @@ def _also(rows, leaders, name_index, limit=3):
     seen = {r[name_index] for r in leaders}
     rest = [r for r in rows if r[name_index] not in seen][:limit]
     return ", ".join(f"{r[name_index]} on {_num(r[0])}" for r in rest)
+
+
+# The family /records shows each record under, and the few it leads with
+# (WK-08). The maintainer's ruling of 2026-09-24 takes every table the two
+# Wikipedia records lists hold that the race records can derive - about 150
+# more - and asks that the page grow more focused rather than longer: the
+# headline records first, the rest in families, with the grouping in the data
+# so the page is built from it and not from a hand list.
+#
+# A family is the statistic a record is a form of, so the batches still to
+# come have somewhere to go: a win rate, a season's wins and the most wins at
+# one Grand Prix are all Wins. Who holds it is `category`, and is not a family.
+# The page shows the families in the order their first record is derived.
+#
+# Every derived key is in exactly one family. record_families() refuses a
+# record in none, a key here that nothing derives, a key in two, and a
+# headline that is not a derived record: a record with no family would fall
+# off the page, which is built from this column.
+RECORD_FAMILIES = {
+    "Championships": (
+        "most-drivers-titles", "posthumous-champion", "most-constructors-titles",
+        "most-consecutive-constructors-titles", "closest-championship-margin",
+        "most-wins-without-a-title", "most-consecutive-drivers-titles",
+    ),
+    "Wins": (
+        "most-wins", "highest-win-rate", "most-wins-in-a-season", "most-consecutive-wins",
+        "most-entries-before-first-win", "most-constructor-wins",
+        "most-constructor-wins-in-a-season", "highest-season-win-share-constructor",
+        "most-races-without-a-win-constructor", "won-on-debut-constructor",
+        "lowest-grid-position-for-a-winner", "most-wins-with-one-constructor",
+        "highest-season-win-share-driver", "most-entries-without-a-win",
+        "most-wins-at-one-grand-prix", "most-wins-from-pole", "most-pole-win-fastest-lap",
+        "most-one-two-finishes", "most-consecutive-constructor-wins",
+    ),
+    "Pole positions": (
+        "most-poles", "closest-pole-margin", "most-poles-in-a-season", "most-consecutive-poles",
+        "most-constructor-poles", "most-constructor-poles-in-a-season",
+        "most-consecutive-constructor-poles",
+    ),
+    "Podiums": (
+        "most-podiums", "most-podiums-in-a-season", "most-consecutive-podiums",
+        "most-podiums-without-a-win", "most-constructor-podiums",
+        "most-consecutive-constructor-podiums",
+    ),
+    "Fastest laps": (
+        "most-fastest-laps", "most-fastest-laps-in-a-season", "most-consecutive-fastest-laps",
+    ),
+    "Entries and starts": ("most-race-entries", "most-consecutive-starts"),
+    "Age": (
+        "youngest-winner", "oldest-winner", "youngest-starter", "oldest-starter",
+        "youngest-polesitter", "oldest-polesitter", "youngest-podium", "oldest-podium",
+        "youngest-fastest-lap", "oldest-fastest-lap",
+    ),
+    "Points": ("most-constructor-points-in-a-season", "most-driver-points-in-a-season"),
+    "Races and circuits": ("longest-circuit", "fewest-classified-finishers", "fewest-starters"),
+    "Sprints": ("most-sprint-wins",),
+}
+
+# The records /records leads with: the career totals a reader comes for, the
+# two titles counts, and the season, run and age records the sport quotes
+# most. A short table on purpose - verify.py holds it to fifteen - because
+# the ruling asked for a page that leads, not one that lists.
+RECORD_HEADLINES = (
+    "most-drivers-titles", "most-wins", "most-poles", "most-podiums", "most-fastest-laps",
+    "most-race-entries", "most-wins-in-a-season", "most-consecutive-wins",
+    "youngest-winner", "oldest-winner", "most-constructors-titles", "most-constructor-wins",
+)
+
+
+def record_families(derived):
+    """{key: family} for every derived record key, or SystemExit naming what
+    RECORD_FAMILIES or RECORD_HEADLINES leaves undeclared or declares twice."""
+    family_of, twice = {}, []
+    for family, keys in RECORD_FAMILIES.items():
+        for key in keys:
+            if key in family_of:
+                twice.append(f"{key} ({family_of[key]}, {family})")
+            family_of.setdefault(key, family)
+    unfiled = [k for k in derived if k not in family_of]
+    stray = sorted(set(family_of) - set(derived))
+    loose = sorted(set(RECORD_HEADLINES) - set(derived))
+    for what, keys in (("in no family", unfiled), ("in two families", twice),
+                       ("in a family but not derived", stray),
+                       ("a headline but not derived", loose)):
+        if keys:
+            raise SystemExit(f"records: {what} (RECORD_FAMILIES, RECORD_HEADLINES): "
+                             + ", ".join(keys))
+    return family_of
 
 
 def derive_records(cur):

@@ -434,11 +434,17 @@ import {
 import {
   DERIVATION,
   DRIVER_WINS,
+  HEADLINE,
   KEY_SHAPE,
   RECORD,
   RECORDS,
   TIER_AFTER,
+  asOfLine,
+  asOfOf,
+  familiesLead,
+  headlineRecords,
   holderPath,
+  recordFamilies,
   recordPath,
   recordColumns,
   tierBefore,
@@ -3115,8 +3121,28 @@ page({
   // sorted by a different key (CR-23), and said nothing about the tier the
   // app states once above its table (CR-22). Where every record shares a
   // tier that sentence is the app's, around a link to the ladder.
+  //
+  // WK-08: the headline records, then every other record once under its
+  // family, from the same helpers the app groups them with, and in the app's
+  // order: the families follow the headline table directly in both halves,
+  // and the app's leaderboards come after them, so the offset handOver() puts
+  // back lands on the same section. Each family's heading
+  // carries its section's address, which the line under the headline table
+  // links, as the app's does.
   const records = all(RECORDS)
   const tiers = tiersOf(records)
+  const asOf = asOfOf(records)
+  const headline = headlineRecords(records)
+  const families = recordFamilies(records)
+  const recordTable = (rows) =>
+    fromColumns(recordColumns(records), rows, {
+      record: (value, row) => link(recordPath(row), value),
+      confidence: (value) => (value ? link('data/quality', value) : text(value)),
+      holder: (value, row) => {
+        const path = holderPath(row)
+        return path ? link(path, value) : text(value)
+      },
+    })
   page({
     path: 'records',
     title: NAMES.records().title,
@@ -3125,19 +3151,26 @@ page({
     onward: ONWARD.records({ driverWins: all(DRIVER_WINS) }),
     body: `
       <h1>${esc(NAMES.records().headline)}</h1>
-      <p class="lede">${esc(RECORDS_LEDE)}${
+      <p class="lede">${esc(RECORDS_LEDE)}${asOf ? ` ${esc(asOfLine(asOf))}` : ''}${
           tiers.length === 1
             ? ` ${esc(tierBefore(records.length))}${link('data/quality', tiers[0])}${esc(TIER_AFTER)}`
             : ''
         }</p>
-      ${fromColumns(recordColumns(records), records, {
-        record: (value, row) => link(recordPath(row), value),
-        confidence: (value) => (value ? link('data/quality', value) : text(value)),
-        holder: (value, row) => {
-          const path = holderPath(row)
-          return path ? link(path, value) : text(value)
-        },
-      })}`,
+      <h2>${esc(HEADLINE)} <span class="count">${headline.length}</span></h2>
+      ${recordTable(headline)}
+      ${
+        families.length
+          ? `<nav class="note" aria-label="Records by family">${esc(familiesLead(records.length - headline.length))} ${families
+              .map((f) => `<a href="#${esc(f.anchor)}">${esc(f.family)}</a> <span class="faint">${f.rows.length}</span>`)
+              .join(' · ')}</nav>`
+          : ''
+      }
+      ${families
+        .map(
+          (f) =>
+            `<h2 id="${esc(f.anchor)}">${esc(f.family)} <span class="count">${f.rows.length}</span></h2>${recordTable(f.rows)}`,
+        )
+        .join('')}`,
   })
 
   // One page per record, at its key (PD-27): the row, and the citation
@@ -3167,6 +3200,7 @@ page({
           ['As of', esc(record.as_of)],
           ['Confidence', confidencePill(record.confidence)],
           ['Category', esc(record.category)],
+          ['Family', esc(record.family)],
           ['Comparable figure', esc(number(record.value_num))],
           ['Unit', esc(record.unit)],
           ['Key', `<code>${esc(record.key)}</code>`],

@@ -13,11 +13,16 @@
 
 // A race holder is stored by races.id; the page needs year and round to
 // link it, so they ride along (NULL for every other holder).
+//
+// In the order they are derived, which is the order build.py writes them:
+// a family's own records in that order, and the families in the order their
+// first record comes (WK-08). By category first, as this once was, put every
+// constructor's record ahead of the driver's it answers.
 export const RECORDS = `
   SELECT rec.*, ra.year AS race_year, ra.round AS race_round
     FROM records rec
     LEFT JOIN races ra ON rec.holder_table = 'races' AND ra.id = CAST(rec.holder_id AS INTEGER)
-   ORDER BY rec.category, rec.id
+   ORDER BY rec.id
 `
 
 /**
@@ -104,6 +109,48 @@ export const GRAND_SLAMS = `SELECT * FROM v_grand_slams ORDER BY year DESC, roun
 /** The confidence tiers the records carry, in first-seen order. */
 export const tiersOf = (records) => [...new Set(records.map((r) => r.confidence))]
 
+/** The one date every record is as of, or null where they differ. */
+export const asOfOf = (records) => {
+  const dates = [...new Set(records.map((r) => r.as_of))]
+  return dates.length === 1 ? dates[0] : null
+}
+
+/**
+ * The page's grouping (WK-08), read from `records.family` and
+ * `records.headline` and from no list here, so a family the build adds is on
+ * the page without a line of this file changing.
+ *
+ * The headline records lead, and every other record is shown once, under its
+ * family: the ruling asked for a page that grows more focused as the records
+ * list grows to some two hundred, not a longer table. The families come in
+ * the order their first record does - the headline ones included, so Wins
+ * stays second although its first record is in the headline table - and a
+ * family with nothing below the headline has no section at all.
+ */
+export const HEADLINE = 'Headline records'
+export const headlineRecords = (records) => records.filter((r) => r.headline)
+
+/** The in-page address of a family's section: "Pole positions" -> "pole-positions". */
+export const familyAnchor = (family) =>
+  family
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+
+export function recordFamilies(records) {
+  const families = new Map()
+  for (const r of records) {
+    if (!families.has(r.family)) families.set(r.family, [])
+    if (!r.headline) families.get(r.family).push(r)
+  }
+  return [...families]
+    .filter(([, rows]) => rows.length)
+    .map(([family, rows]) => ({ family, anchor: familyAnchor(family), rows }))
+}
+
+/** The line that leads from the headline table to the families. */
+export const familiesLead = (count) => `The other ${count}, by family:`
+
 /**
  * The records table. Thirty identical badges in a column mean nothing, so
  * the tier is a column only where the rows differ on it; where they all
@@ -131,11 +178,20 @@ export function recordColumns(records) {
     // it was set in the same ink at the same size (VD-51).
     { key: 'detail', label: DERIVATION, align: 'prose', cellClass: 'record-derivation' },
     // Every record is derived in one pass, so the date is the same on all of
-    // them until a figure moves (VD-29).
-    { key: 'as_of', label: 'As of', collapse: true },
+    // them until a figure moves (VD-29). It was a collapsing column, said once
+    // above the table; with a table per family it would be said eleven times,
+    // and not at all under a family of fewer than five, so it is said once for
+    // the page (asOfLine) and is a column only where the records differ on it,
+    // as the tier is.
+    ...(asOfOf(records) === null ? [{ key: 'as_of', label: 'As of' }] : []),
     ...(tiersOf(records).length === 1 ? [] : [{ key: 'confidence', label: 'Confidence' }]),
   ]
 }
+
+/** The date, said once, where every record shares it. */
+// It follows RECORDS_LEDE, which has just named that race, so it does not
+// name it again.
+export const asOfLine = (date) => `That race was run on ${date}.`
 
 /**
  * The sentence above the table when every record shares a tier, in two

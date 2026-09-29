@@ -1366,6 +1366,14 @@ CREATE TABLE records (
     id              INTEGER PRIMARY KEY,
     key             TEXT NOT NULL UNIQUE,      -- stable slug, e.g. 'most-wins'
     category        TEXT NOT NULL,             -- drivers | constructors | races
+    -- The statistic a record is a form of, which is what /records groups it
+    -- under (WK-08): 'Wins' holds a career's wins, a season's and a win rate
+    -- alike. Not who holds it - that is `category`. Declared per key in
+    -- build.py (RECORD_FAMILIES), which refuses a record in no family.
+    family          TEXT NOT NULL,
+    -- 1 for the few records /records leads with (RECORD_HEADLINES); every
+    -- other record is shown under its family instead.
+    headline        INTEGER NOT NULL DEFAULT 0 CHECK (headline IN (0, 1)),
     record          TEXT NOT NULL,
     holder          TEXT NOT NULL,             -- name(s), for display
     -- The row `holder_id` joins to. `records` is the one place a holder can
