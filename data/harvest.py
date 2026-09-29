@@ -948,6 +948,29 @@ KNOWN_GAPS = [
      "Closes when the Sporting Regulations for 1996 to 2008, and the 2016 "
      "issue in force at the first two rounds, are read and each row's "
      "rule_107 is set from them."),
+
+    (20, "circuit-article-sudschleife", "harvest/circuit_articles.txt",
+     "which Wikipedia article describes the Nurburgring Sudschleife",
+     "position",
+     "The Nurburgring's southern loop is held in the register for a race "
+     "that did not count towards the championship, so no list of "
+     "championship circuits names an article for it, and none is guessed.",
+     "VD-47 (#420). Every other circuit is mapped to its Wikipedia article "
+     "by the List of Formula One circuits, matched on country, seasons and "
+     "races held rather than on the name (tools/circuit_articles.py). The "
+     "Sudschleife held no championship Grand Prix - the 1960 German Grand "
+     "Prix run on it was a Formula Two race - so the list does not carry "
+     "it, and a source that does is what the ruling of 2026-09-24 asks for. "
+     "Wikipedia has no article of its own for it: the title redirects into "
+     "a section of the Nurburgring article, the same article the list gives "
+     "the Nordschleife and the GP-Strecke. A redirect found by trying a "
+     "title is a name match, which is the thing the mapping refuses.",
+     None,
+     "A source that names the article for this circuit - a list of "
+     "circuits beyond the championship, or the Nurburgring article's own "
+     "account of its layouts read as one. Until then this is the position, "
+     "not an omission: CIRCUIT_ARTICLE_GAPS declares it and verify.py "
+     "fails on any circuit neither mapped nor declared."),
 ]
 
 # Shared fastest laps the season tables render as ONE name. harvest/poles.txt
@@ -1177,6 +1200,7 @@ F1DB_CONS_FILE = os.path.join(HERE, "..", "harvest", "f1db_constructors.txt")
 ENTRANTS_FILE = os.path.join(HERE, "..", "harvest", "entrants.txt")
 SPECS_FILE = os.path.join(HERE, "..", "harvest", "car_specs.txt")
 IMAGES_FILE = os.path.join(HERE, "..", "harvest", "article_images.txt")
+CIRCUIT_ARTICLES_FILE = os.path.join(HERE, "..", "harvest", "circuit_articles.txt")
 CATEGORY_IMAGES_FILE = os.path.join(HERE, "..", "harvest", "category_images.txt")
 GEOMETRY_FILE = os.path.join(HERE, "..", "harvest", "circuit_geometry.txt")
 RESULTS_FILE = os.path.join(HERE, "..", "harvest", "race_results.txt")
@@ -1685,6 +1709,63 @@ def load_category_images():
     """
     return _read_named(CATEGORY_IMAGES_FILE,
                        "tools/wikimedia_images.py --route category")
+
+
+# =====================================================================
+# Circuit articles (harvest/circuit_articles.txt, VD-47)
+#
+# Which Wikipedia article describes each circuit, read from the List of
+# Formula One circuits by tools/circuit_articles.py and matched on country,
+# seasons and races held - never on the name. Nothing loads it yet; verify.py
+# cross-checks every row against the register. What follows are the
+# declared exceptions the harvest and the check both read.
+# =====================================================================
+
+# One list row that this register holds as several circuits. The list's
+# Nurburgring row covers 1951-2020 and 41 races: the Nordschleife's 22 and
+# the GP-Strecke's 19. Wikipedia has one article for both - "Nurburgring
+# Nordschleife" redirects into a section of it - so both map to it, and the
+# check compares the row with the union of their seasons and the sum of
+# their races, never with either alone.
+CIRCUIT_ARTICLE_SPLITS = [
+    ("nordschleife", "nurburgring-gp"),
+]
+
+# A country the list names by the state of the day, and the register's
+# country for the same ground. Not a COUNTRY_ALIASES entry: that is a
+# spelling of a registry country, and West Germany is not one.
+HISTORIC_COUNTRIES = {
+    "West Germany": "Germany",     # AVUS, 1959
+}
+
+# A circuit no source maps to an article, and the known_gaps key that says
+# why. verify.py fails on a circuit that is neither mapped nor named here,
+# unless it has races and every one of them postdates the list read - a new
+# venue, which the next harvest reaches. A circuit with no race at all, like
+# this one, has no such excuse.
+CIRCUIT_ARTICLE_GAPS = {
+    "nurburgring-sudschleife": "circuit-article-sudschleife",
+}
+
+# An admitted Wikidata id (data/circuits.py WIKIDATA_CIRCUITS) that is known
+# to be wrong, and the issue that will correct it. The article check compares
+# each mapped article's Wikidata entity with the admitted one, and this is
+# the one place it disagrees: Long Beach was admitted as Q16739, which is the
+# CITY; the circuit is Q173889, and the article is held to that. The OSM
+# relation admitted with it is the circuit's, which is why the length check
+# passed. verify.py fails on a declaration that no longer matches what
+# data/circuits.py admits, so the fix for PM-63 (#727) has to delete this
+# line too.
+CIRCUIT_WIKIDATA_WRONG = {
+    # circuit_id: (the admitted id, which is wrong; the article's, which is right)
+    "long-beach": ("Q16739", "Q173889"),   # PM-63 (#727): Q16739 is the city
+}
+
+
+def load_circuit_articles():
+    """circuit_id, article, section, linked_as, wikidata_id, country,
+    seasons, held, as_of, source - by the file's own header."""
+    return _read_named(CIRCUIT_ARTICLES_FILE, "tools/circuit_articles.py")
 
 
 def load_race_results():

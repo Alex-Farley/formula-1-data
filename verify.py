@@ -3586,6 +3586,197 @@ def circuits_and_venues():
          f"plus any venue on a future calendar)")
 
 
+CIRCUIT_LIST_SOURCE = re.compile(
+    r"https://en\.wikipedia\.org/w/index\.php\?title=List_of_Formula_One_circuits&oldid=\d+")
+
+
+def _list_seasons(text):
+    """'1951-1954,1956' -> {1951, 1952, 1953, 1954, 1956}. None if it does
+    not read, which the check reports rather than skipping."""
+    years = set()
+    for part in (text or "").split(","):
+        m = re.fullmatch(r"(\d{4})(?:-(\d{4}))?", part.strip())
+        if not m:
+            return None
+        years.update(range(int(m.group(1)), int(m.group(2) or m.group(1)) + 1))
+    return years or None
+
+
+def circuit_article_faults(rows, register, declared):
+    """The checks on harvest/circuit_articles.txt, as data, so that a test
+    can show each one refusing (tests/test_circuit_articles.py).
+
+    rows      the harvest's rows, as data/harvest.py reads them
+    register  circuit_id -> (country, [(year, date_iso) of each completed
+              race], number of races still scheduled)
+    declared  splits, historic, aliases, gaps (circuit_id -> known_gaps key),
+              gap_keys (the known_gaps keys in the database), admitted
+              (circuit_id -> Wikidata id), wrong (circuit_id -> (the admitted
+              id known to be wrong, the article's right one))
+
+    Returns ({check name: [faults]}, [circuits waiting on a later list]),
+    every name present, so a check with no faults is a pass and not an
+    absence. The only circuit let off unmapped and undeclared is one whose
+    every race is after the list's date or still to be run: a new venue the
+    next harvest will reach. A circuit with no race at all is not one of
+    those - it must be declared. The arithmetic is this file's own:
+    tools/circuit_articles.py matched the rows, and sharing its code would
+    check nothing.
+    """
+    names = ["every row names one circuit in the register, once",
+             "every row cites a permanent revision of the list",
+             "every circuit is mapped or declared, unless all its races postdate the list",
+             "no declared circuit is also mapped, and each declaration has its known_gaps row",
+             "every mapped circuit is in the country its list row names",
+             "every list row's seasons and races are its circuits' own",
+             "every list row's country, seasons and races fit no other circuit",
+             "only a declared split shares one list row",
+             "no two list rows name the same article",
+             "every article is the Wikidata entity admitted for its circuit"]
+    f = {n: [] for n in names}
+    splits = {frozenset(s) for s in declared["splits"]}
+
+    seen = Counter(r["circuit_id"] for r in rows)
+    f[names[0]] += [f"{c} is not a circuit" for c in seen if c not in register]
+    f[names[0]] += [f"{c} has {n} rows" for c, n in seen.items() if n > 1]
+    rows = [r for r in rows if r["circuit_id"] in register]
+
+    for r in rows:
+        if not CIRCUIT_LIST_SOURCE.fullmatch(r["source"] or "") or \
+                not re.fullmatch(r"\d{4}-\d{2}-\d{2}", r["as_of"] or ""):
+            f[names[1]].append(r["circuit_id"])
+    latest = max((r["as_of"] or "" for r in rows), default="")
+
+    mapped = {r["circuit_id"] for r in rows}
+    waiting = []
+    for cid, (_, races, scheduled) in sorted(register.items()):
+        if cid in mapped or cid in declared["gaps"]:
+            continue
+        if (races or scheduled) and not any(d and d <= latest for _, d in races):
+            waiting.append(cid)
+        else:
+            f[names[2]].append(cid)
+    for cid, key in sorted(declared["gaps"].items()):
+        if cid in mapped:
+            f[names[3]].append(f"{cid} is mapped and declared")
+        if key not in declared["gap_keys"]:
+            f[names[3]].append(f"{cid}: no known_gaps row {key}")
+        if cid not in register:
+            f[names[3]].append(f"{cid} is not a circuit")
+
+    for r in rows:
+        said = declared["historic"].get(r["country"], r["country"])
+        said = declared["aliases"].get(said, said)
+        if said != register[r["circuit_id"]][0]:
+            f[names[4]].append(f"{r['circuit_id']}: list {r['country']}, "
+                               f"register {register[r['circuit_id']][0]}")
+
+    by_row = {}
+    for r in rows:
+        by_row.setdefault((r["source"], r["linked_as"]), []).append(r)
+    for (_, linked), group in sorted(by_row.items()):
+        cids = frozenset(r["circuit_id"] for r in group)
+        if len(cids) > 1 and cids not in splits:
+            f[names[7]].append(f"{linked}: {', '.join(sorted(cids))}")
+        if len({(r["article"], r["seasons"], r["held"], r["as_of"]) for r in group}) > 1:
+            f[names[5]].append(f"{linked}: its rows disagree with each other")
+            continue
+        r0 = group[0]
+        listed = _list_seasons(r0["seasons"])
+        races = [(y, d) for c in cids for y, d in register[c][1]
+                 if d and d <= r0["as_of"]]
+        ours = {y for y, _ in races}
+        if listed is None or listed != ours or str(len(races)) != r0["held"]:
+            f[names[5]].append(
+                f"{linked}: list {r0['seasons']} ({r0['held']} races), register "
+                f"{len(ours)} seasons ({len(races)} races) to {r0['as_of']}")
+    grouped = {frozenset(r["circuit_id"] for r in g) for g in by_row.values()}
+    f[names[7]] += [f"declared split {', '.join(sorted(s))} is not one list row"
+                    for s in sorted(splits, key=sorted) if s not in grouped]
+
+    # The row's facts must pick out its circuits and nothing else in the
+    # register: a circuit that shared them would have been as good a match.
+    units = [frozenset([c]) for c in register] + list(splits)
+    for (_, linked), group in sorted(by_row.items()):
+        r0, cids = group[0], frozenset(r["circuit_id"] for r in group)
+        said = declared["historic"].get(r0["country"], r0["country"])
+        said = declared["aliases"].get(said, said)
+        listed = _list_seasons(r0["seasons"])
+        others = []
+        for u in units:
+            if u == cids:
+                continue
+            races = [(y, d) for c in u for y, d in register[c][1] if d and d <= r0["as_of"]]
+            if {register[c][0] for c in u} == {said} and {y for y, _ in races} == listed \
+                    and str(len(races)) == r0["held"]:
+                others.append("+".join(sorted(u)))
+        if others:
+            f[names[6]].append(f"{linked}: fits {', '.join(others)} as well")
+
+    articles = Counter(g[0]["article"] for g in by_row.values())
+    f[names[8]] += [f"{a}: {n} rows" for a, n in articles.items() if n > 1]
+
+    # Where the admitted id is declared wrong, the article is held to the
+    # right one the declaration names, so the row keeps an independent check.
+    for r in rows:
+        cid, got = r["circuit_id"], r["wikidata_id"]
+        want = declared["admitted"].get(cid)
+        if want is None:
+            continue
+        wrong, right = declared["wrong"].get(cid, (None, None))
+        if wrong == want:
+            want = right
+        if got != want:
+            f[names[9]].append(f"{cid}: article {got or 'none'}, expected {want}")
+    for cid, (wrong, _) in sorted(declared["wrong"].items()):
+        if declared["admitted"].get(cid) != wrong:
+            f[names[9]].append(f"{cid}: declared wrong as {wrong}, which is no longer "
+                               f"admitted - delete the declaration")
+    return f, waiting
+
+
+@section('CIRCUIT ARTICLES')
+def circuit_articles():
+    """VD-47 (#420). Which Wikipedia article describes each circuit, read
+    from the List of Formula One circuits and matched on country, seasons
+    and races held. Nothing loads it yet; a wrong row would put a photograph
+    of the wrong place on a circuit page under someone else's name, so it is
+    checked from the day it exists."""
+    import build
+    from data import circuits as C
+    H = harvest_module()
+    rows = H.load_circuit_articles()
+    check("the circuit-article harvest is present", bool(rows),
+          "" if rows else "harvest/circuit_articles.txt is empty or missing")
+    if not rows:
+        return
+    register = {cid: [country, [], 0] for cid, country in
+                con.execute("SELECT id, country FROM circuits")}
+    for cid, year, d, status in con.execute(
+            "SELECT circuit_id, year, date_iso, status FROM races"):
+        if status == "completed":
+            register[cid][1].append((year, d))
+        else:
+            register[cid][2] += 1
+    declared = {
+        "splits": H.CIRCUIT_ARTICLE_SPLITS,
+        "historic": H.HISTORIC_COUNTRIES,
+        "aliases": build.COUNTRY_ALIASES,
+        "gaps": H.CIRCUIT_ARTICLE_GAPS,
+        "gap_keys": {k for (k,) in con.execute("SELECT key FROM known_gaps")},
+        "admitted": {cid: q for cid, (q, _) in C.WIKIDATA_CIRCUITS.items()},
+        "wrong": H.CIRCUIT_WIKIDATA_WRONG,
+    }
+    faults, later = circuit_article_faults(rows, register, declared)
+    for name, found in faults.items():
+        check(name, not found, "; ".join(found[:5]))
+    warn("every circuit in the register is mapped or declared", not later,
+         f"{', '.join(later)}: no completed race by the list's date - rerun "
+         f"tools/circuit_articles.py once it has one" if later else "")
+    print(f"  [info] {len(rows)} of {len(register)} circuits mapped to an article; "
+          f"{sum(1 for r in rows if r['section'])} to a section of one")
+
+
 @section('OVERLAP CHECKS')
 def overlap_checks():
     rows = con.execute("""SELECT chain_id, entity_name, from_year, to_year

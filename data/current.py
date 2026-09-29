@@ -547,7 +547,10 @@ SOURCE_REGISTRY = [
 
     (17, "Wikipedia per-circuit articles", "https://en.wikipedia.org/wiki/Category:Formula_One_circuits",
      "Circuit configuration timelines: which layout was raced in which years, "
-     "its length and turn count, and why it changed. Feeds circuit_layouts.",
+     "its length and turn count, and why it changed. Feeds circuit_layouts. "
+     "Also, from the List of Formula One circuits, which article describes "
+     "each circuit (harvest/circuit_articles.txt), matched on country, "
+     "seasons and races held and checked by verify.py; nothing loads it yet.",
      "reference",
      "CC BY-SA 4.0. The change_reason prose follows the article and carries "
      "share-alike with it - see ATTRIBUTION.md.",
