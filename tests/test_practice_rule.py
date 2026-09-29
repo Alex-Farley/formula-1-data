@@ -247,8 +247,8 @@ class TheSectionRefuses(unittest.TestCase):
 
     def test_a_pre_qualifying_sheet_with_its_drivers_swapped_is_refused(self):
         # Blundell went through at Monza 1991 and Chaves did not; swapping
-        # who holds P1 and P8 keeps every lap in order and puts a DNPQ above
-        # a driver who went through.
+        # who holds P1 and P8 keeps every lap in order and puts a driver with
+        # no qualifying row above one who went through.
         # Through a placeholder id, since the sheet is UNIQUE on the driver.
         where = ("session = 'pre_qualifying' AND race_id = "
                  "(SELECT id FROM races WHERE year = 1991 AND round = 10)")
@@ -265,6 +265,11 @@ class TheSectionRefuses(unittest.TestCase):
                        AND EXISTS (SELECT 1 FROM race_entries e WHERE e.race_id = p.race_id
                                    AND e.position_text = 'DNQ'))""")
         self.refused("everyone on a warm-up sheet qualified for that race")
+
+    def test_a_place_below_one_is_refused(self):
+        self.edit("""UPDATE practice SET position = 0, position_text = '0' WHERE id = (SELECT MAX(p.id)
+                     FROM practice p JOIN races r ON r.id = p.race_id WHERE r.year = 2020)""")
+        self.refused("every practice session's places run from 1 with no gap")
 
     def test_a_flag_on_a_driver_who_raced_is_refused(self):
         self.edit("UPDATE drivers SET practice_only = 1 WHERE id = "

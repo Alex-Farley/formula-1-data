@@ -2971,8 +2971,9 @@ def practice_and_sprint_qualifying():
                 FROM {t} p JOIN races r ON r.id = p.race_id WHERE p.position IS NOT NULL"""):
             places.setdefault((y, r_, s_), set()).add(pos)
         holes = [k for k, got in places.items()
-                 if k not in short[t]
-                 and set(range(1, max(got) + 1)) - got != SHEET_HOLES.get(k, set())]
+                 if min(got) < 1
+                 or (k not in short[t]
+                     and set(range(1, max(got) + 1)) - got != SHEET_HOLES.get(k, set()))]
         check(f"every {t} session's places run from 1 with no gap",
               not holes, f"{len(holes)} sessions")
 
@@ -3133,21 +3134,27 @@ def practice_and_sprint_qualifying():
 
     # Who holds which place in the two old sessions, against the race
     # records (review of #714): the checks above tie a place to its lap, not
-    # a driver to the place. In pre-qualifying, nobody who failed it (DNPQ,
-    # or excluded) sits above a driver who went through - bar one sheet,
-    # declared as published: Monza 1991, Tarquini 5th and DNPQ above Caffi
-    # 6th, who went through and did not qualify. And the warm-up was run by
-    # the race's entrants: nobody on a warm-up sheet failed to qualify.
-    PREQUAL_ORDER_EXCEPTIONS = {(1991, 10, "gabriele-tarquini")}
+    # a driver to the place. In pre-qualifying, nobody who failed it sits
+    # above a driver who went through - "went through" being a qualifying
+    # row that weekend, which is what going through means, rather than the
+    # race result, which F1DB gets wrong at least once: Caffi at Monza 1991
+    # is DNQ there with no qualifying row (review of #714; #716, with
+    # Brancatelli 1979, DNPQ with one). One sheet is published
+    # out of this order, declared as published: Mexico 1990, where Moreno
+    # is 3rd with no qualifying row and DSQ in the race results, above
+    # Suzuki, who went through. And the warm-up was run by the race's
+    # entrants: nobody on a warm-up sheet failed to qualify.
+    PREQUAL_ORDER_EXCEPTIONS = {(1990, 6, "moreno")}
     above = [k for k in con.execute("""
-        WITH pq AS (SELECT p.race_id, p.position, p.driver_id, e.position_text AS result
-                      FROM practice p JOIN race_entries e
-                        ON e.race_id = p.race_id AND e.driver_id = p.driver_id
+        WITH pq AS (SELECT p.race_id, p.position, p.driver_id,
+                           EXISTS (SELECT 1 FROM qualifying q WHERE q.race_id = p.race_id
+                                   AND q.driver_id = p.driver_id) AS through
+                      FROM practice p
                      WHERE p.session = 'pre_qualifying' AND p.position IS NOT NULL)
         SELECT DISTINCT r.year, r.round, a.driver_id FROM pq a
           JOIN pq b ON b.race_id = a.race_id AND a.position < b.position
           JOIN races r ON r.id = a.race_id
-         WHERE a.result IN ('DNPQ', 'EX') AND b.result NOT IN ('DNPQ', 'EX')""")
+         WHERE a.through = 0 AND b.through = 1""")
              if tuple(k) not in PREQUAL_ORDER_EXCEPTIONS]
     check("in pre-qualifying, nobody who failed it sits above a driver who went through",
           not above, ", ".join(f"{y} r{r} {d}" for y, r, d in above[:4]))

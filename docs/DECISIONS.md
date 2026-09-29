@@ -970,8 +970,9 @@ with a qualifying row and no race entry yet, who is not a Friday driver.
 
 The reliance above was confirmed by the maintainer on 2026-09-28, in the
 session that merged #707. With these two sessions it covers about 77,000
-F1DB-carried session rows - qualifying, sprint qualifying and practice from
-1977 - under the same CC BY 4.0 licence.
+F1DB-carried session rows - qualifying from 1950, sprint qualifying from
+2023, and practice, warm-up and pre-qualifying from 1977 - under the same
+CC BY 4.0 licence.
 
 ### D-47 · The site serves f1.db.gz, and the raw file is the repository's — 2026-09-28
 Cloudflare Workers will not host a single static file over 25 MiB
