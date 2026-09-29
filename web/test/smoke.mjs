@@ -1013,6 +1013,87 @@ try {
     await old.close()
   })
 
+  // ------------------------------------------------------------- the JSON API
+
+  // D-48: the database as static JSON, one file per thing, written at build
+  // time from the same f1.db. Every figure here is read out of the database,
+  // so the files are held to it rather than to a number typed in the test.
+  await section('The JSON API  (/api/v1)', async () => {
+    const get = async (path) => {
+      const response = await fetch(`${BASE}/api/v1/${path}`)
+      return { status: response.status, body: response.ok ? await response.json() : null }
+    }
+    const index = await get('index.json')
+    is(index.status, 200, 'the index is served')
+    is(index.body?.meta?.version, one("SELECT value FROM meta WHERE key = 'version'"), 'and names the version it was written from')
+    truthy(index.body?.meta?.licence === 'CC BY-SA 4.0' && index.body?.meta?.attribution?.endsWith('/data/sources'), 'and carries the licence and where the attribution is')
+
+    const register = await get('drivers.json')
+    is(register.body?.data?.length, count('SELECT COUNT(*) FROM drivers'), 'the drivers file holds every driver in the register')
+
+    const [year, round] = [2026, one("SELECT MAX(round) FROM races WHERE year = 2026 AND status = 'completed'")]
+    const race = await get(`races/${year}/${round}.json`)
+    const winner = race.body?.data?.classification?.find((e) => e.finish_position === 1)?.driver_id
+    is(
+      winner,
+      one('SELECT e.driver_id FROM race_entries e JOIN races r ON r.id = e.race_id WHERE r.year = ? AND r.round = ? AND e.finish_position = 1', year, round),
+      `a race weekend's file carries its classification — ${year} round ${round}`,
+    )
+    is(
+      race.body?.data?.practice?.length,
+      count('SELECT COUNT(*) FROM practice p JOIN races r ON r.id = p.race_id WHERE r.year = ? AND r.round = ?', year, round),
+      'and every practice row of it',
+    )
+
+    const driver = await get('drivers/hamilton.json')
+    is(
+      driver.body?.data?.entries?.length,
+      count("SELECT COUNT(*) FROM race_entries WHERE driver_id = 'hamilton'"),
+      "a driver's file carries every race entry",
+    )
+    is((await get('drivers/no-such-driver.json')).status, 404, 'and an id the register does not hold is a 404, not an empty file')
+
+    // Review of #711: a shared win keeps both drivers, and a circuit still in
+    // use has a last Grand Prix rather than a null that reads as unknown.
+    const shared = db
+      .prepare(`SELECT r.circuit_id, r.year, r.round FROM races r WHERE
+                  (SELECT COUNT(*) FROM race_entries e WHERE e.race_id = r.id AND e.finish_position = 1) > 1
+                ORDER BY r.year LIMIT 1`)
+      .get()
+    const circuitFile = await get(`circuits/${shared.circuit_id}.json`)
+    is(
+      circuitFile.body?.data?.races?.find((r) => r.year === shared.year && r.round === shared.round)?.winner_ids?.length,
+      count(
+        'SELECT COUNT(*) FROM race_entries e JOIN races r ON r.id = e.race_id WHERE r.year = ? AND r.round = ? AND e.finish_position = 1',
+        shared.year,
+        shared.round,
+      ),
+      `a shared win keeps every winner — ${shared.year} round ${shared.round}`,
+    )
+    const monza = await get('circuits/monza.json')
+    is(
+      monza.body?.data?.circuit?.derived_last_gp,
+      one("SELECT last_gp FROM v_circuits WHERE id = 'monza'"),
+      'and a circuit in use has its last Grand Prix, as its page does',
+    )
+    // The stored figure is kept beside it, not overwritten: Istanbul's stored
+    // last Grand Prix is a scheduled year the race records cannot know yet.
+    const istanbul = await get('circuits/istanbul.json')
+    is(
+      `${istanbul.body?.data?.circuit?.last_gp} ${istanbul.body?.data?.circuit?.derived_last_gp}`,
+      `${one("SELECT last_gp FROM circuits WHERE id = 'istanbul'")} ${one("SELECT last_gp FROM v_circuits WHERE id = 'istanbul'")}`,
+      'and a stored last Grand Prix the records cannot know yet is kept beside the derived one',
+    )
+
+    // The preview server does not read _headers; the host does. So the rule
+    // is read from the file the host is given.
+    const headers = readFileSync(join(web, 'dist', '_headers'), 'utf8')
+    truthy(
+      /\/api\/\*\n\s+Access-Control-Allow-Origin: \*/.test(headers),
+      "the host is told to open /api/ to any origin, since a file another site's script cannot read is not an API",
+    )
+  })
+
   // ------------------------------------------------------------------ home
 
   await section('/  (overview)', async () => {

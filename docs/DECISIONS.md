@@ -980,3 +980,24 @@ in `refresh.yml` too — and a new check that no file in `dist` exceeds 25 MiB,
 which is the check that would have stopped #707.
 
 The limit binds `f1.db.gz` too, at about four times today's 6.5 MB.
+
+### D-48 · The API is static JSON, written at build time — 2026-09-29
+The maintainer asked for API access on 2026-09-28, alongside D-47, and chose
+static JSON over a live endpoint. `web/scripts/api.mjs` runs last in
+`npm run build` and writes `/api/v1/…` beside the pages from the same
+`f1.db`: an index, a list and one file each for drivers, constructors,
+circuits and seasons, and one file per race weekend carrying every session's
+sheet. Every file carries the licence, the version and the database's
+SHA-256, because a file is read far from the page that explains it.
+
+Why not a live endpoint: every query on this site runs in the reader's
+browser, and there is no server. One would be a running service with a cost,
+a rate limit and an abuse problem, for data that moves a few times a week.
+Files cannot disagree with the pages, because they are written from the same
+database in the same build.
+
+What it costs: about 2,400 files and 84 MB per deploy. Cloudflare allows
+20,000 files per deployment, and the workflows now check that number beside
+the 25 MiB per-file limit of D-47. The rows are `SELECT *`, so a column added
+to a table arrives without an edit — and a column removed disappears from the
+API without one, which is why the path is versioned.

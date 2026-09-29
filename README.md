@@ -95,8 +95,12 @@ Workflow for any change: edit `data/*.py` → `python3 build.py` → `python3 ve
 **No dependencies.** Everything except `tools/fastf1_load.py` is Python 3.9+
 standard library.
 
-**What the site publishes.** lapledger.org serves `f1.db`, `f1-geometry.db`
-and `f1-parquet.zip`, and beside them `schema.sql`, `ATTRIBUTION.md` and
+**What the site publishes.** lapledger.org serves `f1.db.gz` (the raw
+`f1.db` is over the host's 25 MiB per-file limit, and is linked from this
+repository instead, `docs/DECISIONS.md` D-47), `f1-geometry.db`,
+`f1-parquet.zip` and the same data as static JSON under `/api/v1/`, one file
+per driver, constructor, circuit, season and race weekend (D-48), and beside
+them `schema.sql`, `ATTRIBUTION.md` and
 `LICENSE-DATA` — what the tables mean, where the data came from, and the
 terms it is offered under. The obligation follows the file rather than the
 repository, so a licence notice has to be reachable from where the data was
