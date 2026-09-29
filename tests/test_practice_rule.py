@@ -214,6 +214,29 @@ class TheSectionRefuses(unittest.TestCase):
                      WHERE r.year = 2023 AND r.round = 12 AND q.driver_id = 'albon')""")
         self.refused("within the SQ2 and SQ1 bands a later place is never quicker")
 
+    def test_a_declared_cut_excepts_its_driver_and_not_the_sheet(self):
+        # Qatar 2023 is declared for Alonso alone: a driver who went through
+        # given an SQ2 lap slower than the next eliminee is still refused.
+        self.edit("""UPDATE sprint_qualifying SET q2 = '9:59.999' WHERE id = (SELECT q.id
+                     FROM sprint_qualifying q JOIN races r ON r.id = q.race_id
+                     WHERE r.year = 2023 AND r.round = 17 AND q.position = 1)""")
+        self.refused("every SQ3 driver's SQ2 lap beats every SQ2 eliminee's")
+
+    def test_a_declared_number_excepts_its_session_and_not_the_weekend(self):
+        # Glock's Friday number is declared; his Saturday number is not.
+        self.edit("""UPDATE practice SET driver_number = 99 WHERE driver_id = 'glock'
+                     AND session = 'fp3' AND race_id = (SELECT id FROM races
+                     WHERE year = 2004 AND round = 8)""")
+        self.refused("a driver's practice number is their qualifying number that weekend")
+
+    def test_the_third_car_allowance_is_friday_only(self):
+        # A third car on a 2005 Saturday sheet: the allowance is FP1 and FP2.
+        self.edit("""UPDATE practice SET constructor_id = (SELECT e.constructor_id FROM race_entries e
+                       WHERE e.race_id = practice.race_id AND e.constructor_id != practice.constructor_id LIMIT 1)
+                     WHERE id = (SELECT MIN(p.id) FROM practice p JOIN races r ON r.id = p.race_id
+                                 WHERE r.year = 2005 AND p.session = 'fp3')""")
+        self.refused("no team ran more cars in a practice session than it entered")
+
     def test_a_flag_on_a_driver_who_raced_is_refused(self):
         self.edit("UPDATE drivers SET practice_only = 1 WHERE id = "
                   "(SELECT driver_id FROM race_entries LIMIT 1)")
