@@ -107,7 +107,12 @@ DB = os.path.join(ROOT, "f1.db")
 OUT = os.path.join(ROOT, "docs", "prose_pass.tsv")
 CACHE = os.path.join(ROOT, ".prose-pass-cache")
 
-UA = ("formula-1-data/2.24 (https://github.com/Alex-Farley/formula-1-data; "
+# The release it runs as, read from build.py rather than typed here, where
+# it went stale at every release (review of #717). Read, not imported:
+# importing build.py loads the whole build for one string.
+with open(os.path.join(ROOT, "build.py"), encoding="utf-8") as _f:
+    _VERSION = re.search(r'^VERSION = "([^"]+)"', _f.read(), re.M).group(1)
+UA = (f"formula-1-data/{_VERSION} (https://github.com/Alex-Farley/formula-1-data; "
       "prose pass, PM-17)")
 API = "https://en.wikipedia.org/w/api.php"
 

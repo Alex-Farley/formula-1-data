@@ -119,7 +119,7 @@ jobs:
             | `f1-geometry.db` | Circuit centrelines, © OpenStreetMap contributors under ODbL 1.0. A separate file so its share-alike does not reach the rest — see below. `circuit_geometry` in `f1.db` is deliberately empty. |
             | `f1_database.json.gz` | Full JSON export of every table. Not kept in git — it is 21 MB and regenerates in about a second with `make export`. |
             | `f1_compat.json` | JSON in the original v1 key layout. |
-            | `f1-parquet.zip` | Every table as Parquet, one file each — including the two the JSON export omits for size. Columnar and compressed: pandas, polars and DuckDB read it directly. |
+            | `f1-parquet.zip` | Every table as Parquet, one file each — including the four the JSON export omits for size: `qualifying`, `practice`, `sprint_qualifying` and `pit_stops`. Columnar and compressed: pandas, polars and DuckDB read it directly. |
             | `schema.sql` | The schema, commented. |
             | `SHA256SUMS` | Digests. The build is reproducible, so you can check these by rebuilding. |
 
@@ -141,8 +141,9 @@ jobs:
             licence shown beside it. That is about the licences on offer
             rather than about what anyone may lawfully do — FOM and its
             licensees redistribute timing every weekend — and about race
-            timing: the qualifying table holds lap times, which F1DB
-            publishes under CC BY 4.0.
+            timing: the `qualifying`, `sprint_qualifying` and `practice`
+            tables hold lap times, each driver's best lap of a session,
+            which F1DB publishes under CC BY 4.0.
             `docs/TIMING-ARCHITECTURE.md` is that decision in full.
 
             **Stable links.** Every asset above is also reachable at a URL
