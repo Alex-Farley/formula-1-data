@@ -234,6 +234,10 @@ jobs:
           # took it to 30 MB, with every check here green (D-47).
           big=$(find dist -type f -size +26214400c)
           test -z "$big" || { echo "::error::over Cloudflare's 25 MiB per-file limit: $big"; exit 1; }
+          # And its 20,000 files per deployment, which the static API (D-48)
+          # brought within sight.
+          files=$(find dist -type f | wc -l)
+          test "$files" -le 20000 || { echo "::error::$files files in dist, over Cloudflare's 20,000"; exit 1; }
           urls=$(grep -c '<loc>' dist/sitemap.xml)
           test "$urls" -gt 2000 || { echo "::error::sitemap lists only $urls pages"; exit 1; }
 
