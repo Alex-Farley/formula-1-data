@@ -20,6 +20,7 @@ WHY THIS FILE EXISTS
     python3 -m unittest tests.test_prose_figures
 """
 import os
+import re
 import shutil
 import sqlite3
 import subprocess
@@ -56,6 +57,14 @@ class TheGateRefuses(unittest.TestCase):
         con.commit()
         con.close()
 
+    def use_of_priority_10(self):
+        con = sqlite3.connect(self.db)
+        try:
+            return con.execute(
+                "SELECT use FROM source_registry WHERE priority = 10").fetchone()[0]
+        finally:
+            con.close()
+
     def test_the_database_as_built_passes(self):
         code, out = run_gate(self.db)
         self.assertEqual(code, 0, out)
@@ -63,8 +72,13 @@ class TheGateRefuses(unittest.TestCase):
     def test_a_stale_figure_in_the_prose_is_refused(self):
         # The defect this exists for: a count that moved and prose that did
         # not. One digit, in one row, in the sentence /data/sources leads with.
+        # The figure is read off the copy rather than typed: typed, it went
+        # stale the morning the next race was run, and the REPLACE matched
+        # nothing, so the gate passed and the test failed for the wrong reason.
+        stated = re.search(r"\d[\d,]* races", self.use_of_priority_10()).group(0)
+        n = int(stated.split()[0].replace(",", ""))
         self.edit("UPDATE source_registry SET use = REPLACE(use, ?, ?) WHERE priority = 10",
-                  "1,163 races", "1,161 races")
+                  stated, f"{n - 2:,} races")
         code, out = run_gate(self.db)
         self.assertEqual(code, 1, out)
         self.assertIn("source_registry.use", out)

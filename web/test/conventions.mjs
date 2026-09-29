@@ -229,6 +229,7 @@ describe('every declared table names its rows (AX-21)', () => {
   const BUILT = {
     entryColumns: [true],
     qualifyingColumns: [[{ q1: '1:20.000' }]],
+    sprintQualifyingColumns: [[{ q1: '1:20.000' }]],
     recordColumns: [[]],
     careerColumns: ['Ayrton Senna', 'Alain Prost'],
   }

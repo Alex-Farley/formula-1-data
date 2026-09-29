@@ -151,7 +151,7 @@ jobs:
       # A committed artefact that does not match its sources is a stale
       # artefact. Fail rather than let the two drift apart.
       #
-      # f1_database.json is no longer committed — it is 21 MB, it does not
+      # f1_database.json is no longer committed — it is 25 MB at v2.25, it does not
       # delta-compress, and it regenerates in a second — so there is nothing
       # there to go stale. f1_compat.json is 109 KB and is the v1 key layout
       # other things were written against, so it stays, and being able to see
@@ -222,10 +222,18 @@ jobs:
       - name: Check the site carries the database and the engine
         working-directory: web
         run: |
-          for f in f1.db f1.db.gz sql-wasm.wasm db-manifest.json; do
+          for f in f1.db.gz sql-wasm.wasm db-manifest.json; do
             test -s "dist/$f" || { echo "::error::dist/$f is missing"; exit 1; }
           done
-          cmp ../f1.db dist/f1.db || { echo "::error::dist/f1.db is not the built database"; exit 1; }
+          # Cloudflare will not host a single file over 25 MiB, and a deploy
+          # carrying one fails whole - which the raw f1.db did once practice
+          # took it to 30 MB, with every check here green (D-47).
+          big=$(find dist -type f -size +26214400c)
+          test -z "$big" || { echo "::error::over Cloudflare's 25 MiB per-file limit: $big"; exit 1; }
+          # And its 20,000 files per deployment, which the static API (D-48)
+          # brought within sight.
+          files=$(find dist -type f | wc -l)
+          test "$files" -le 20000 || { echo "::error::$files files in dist, over Cloudflare's 20,000"; exit 1; }
           gunzip -c dist/f1.db.gz | cmp - ../f1.db \
             || { echo "::error::dist/f1.db.gz does not decompress to the built database"; exit 1; }
 

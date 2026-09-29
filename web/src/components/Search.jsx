@@ -28,8 +28,11 @@ import { query } from '../data/client.js'
  * Autodromo Nazionale Monza, not at `monza`.
  */
 const INDEX_SQL = `
+  -- A practice-only driver (LV-03) says so beside the name, so a reader
+  -- who searches for one is not sent looking for a race record.
   SELECT 'Driver' AS kind, id AS key, full_name AS label,
-         COALESCE(nationality, '') AS meta,
+         COALESCE(nationality, '') || CASE WHEN practice_only = 1
+           THEN CASE WHEN nationality IS NULL THEN '' ELSE ' · ' END || 'practice only' ELSE '' END AS meta,
          first_season AS from_year, last_season AS to_year,
          COALESCE(wins, 0) AS weight, '' AS also, '/drivers/' || id AS path
     FROM drivers
@@ -358,7 +361,15 @@ export default function Search({ open, onClose }) {
                 to={entry.path}
                 tabIndex={-1}
                 onClick={() => pick(entry.path)}
-                onMouseEnter={() => setActive(i)}
+                // The pointer takes the highlight only when it moves. A
+                // pointer standing still where a row has just rendered gets
+                // a hover event from the browser's own layout pass, with no
+                // movement in it, and that used to snap an arrow key's
+                // highlight back to the row under the cursor (CR-58, #687).
+                onMouseMove={(event) => {
+                  if (event.movementX === 0 && event.movementY === 0) return
+                  if (active !== i) setActive(i)
+                }}
               >
                 <span className="kind">{entry.kind}</span>
                 <span>{entry.label}</span>

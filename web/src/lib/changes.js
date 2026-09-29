@@ -71,6 +71,12 @@
  */
 export const RELEASES = [
   {
+    version: '2.25',
+    built: '2026-09-28',
+    published: '2026-09-29',
+    title: 'v2.25: practice, sprint qualifying and the Friday drivers, and the JSON API',
+  },
+  {
     version: '2.24',
     built: '2026-09-16',
     published: '2026-09-16',
@@ -190,7 +196,7 @@ export const FEED_HEADING = 'Subscribe'
  * data moves has to be the schedule's claim or it is just a hope.
  */
 export const FEED_NOTE =
-  'The harvest is refreshed daily at 06:00 UTC and rebuilt only if F1DB has published something new, so an entry appears when the data has genuinely moved and not otherwise.'
+  'The harvest is refreshed daily at 06:00 UTC, and every three hours across a race weekend, and rebuilt only if F1DB has published something new, so an entry appears when the data has genuinely moved and not otherwise.'
 
 export const FEED_LINK_TEXT = 'Atom feed'
 

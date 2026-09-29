@@ -202,8 +202,8 @@ export default function Sql() {
 
       <p className="measure">
         The database is a plain SQLite file. If you would rather query it with your own tools,
-        download <a href={`${import.meta.env.BASE_URL}f1.db`}><code>f1.db</code></a> and open it
-        with any SQLite client. The circuit centrelines are not in it — <code>circuit_geometry</code>{' '}
+        download <a href={`${import.meta.env.BASE_URL}f1.db.gz`}><code>f1.db.gz</code></a>, gunzip it
+        and open it with any SQLite client. The circuit centrelines are not in it — <code>circuit_geometry</code>{' '}
         there is deliberately empty — and ship beside it as{' '}
         <a href={`${import.meta.env.BASE_URL}f1-geometry.db`}><code>f1-geometry.db</code></a>.{' '}
         {TWO_FILES} {SELF_DESCRIBING}

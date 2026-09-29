@@ -211,6 +211,18 @@ class Figures:
     def drivers(self):
         return n(self.count("drivers"))
 
+    def practice(self):
+        return n(self.count("practice"))
+
+    def practice_weekends(self):
+        return n(self.one("SELECT COUNT(DISTINCT race_id) FROM practice"))
+
+    def sprint_qualifying(self):
+        return n(self.count("sprint_qualifying"))
+
+    def drivers_practice_only(self):
+        return n(self.count("drivers", "practice_only = 1"))
+
     def constructors(self):
         return n(self.count("constructors"))
 

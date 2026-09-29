@@ -548,6 +548,37 @@ it finds becomes issues and gets ranked against everything else. It is the
 wrong posture inside a merge gate, where it converts a sound change into
 rounds. Keep the families apart, which is what the README asks for.
 
+### D-49 · A security review, on a path list rather than on all code — 2026-09-29
+The maintainer asked for a `security-reviewer` beside the other conformance
+reviewers, to run on changes that touch code, workflows, dependencies or
+config and to skip data-only ones. Nothing on the merge path read for it: the
+licence reviewer reads a workflow for what it publishes, not for what its
+token can do, and no reviewer read a lockfile at all.
+
+Taken literally, "code" is nearly every pull request, and that would put a
+second Opus reviewer at `effort: high` on almost every item — against *Two
+reviewers are the exception, not the rule*, and roughly doubling the review
+cost of an item. The maintainer chose a path list instead, the way the
+licence reviewer's trigger is written: the workflows, the dependency
+manifests and lockfiles, `wrangler.jsonc`, the headers `prepare-assets.js`
+writes, the SQL worker and `lib/sql.js`, the `Makefile` and the Claude
+settings — plus any diff that adds an HTML sink, or network, subprocess or
+environment access to the build, which a grep of the diff settles. The list
+is in `.claude/skills/backlog-item/SKILL.md` and nowhere else.
+
+It runs at `effort: high` for the D-33 reason: the private key `refresh.yml`
+holds and the `contents: write` token `release.yml` holds are used by
+whoever gets them before anybody notices, and a merge to `main` deploys.
+It FAILs only on a blocker, and a finding it could not establish is never
+one, so an item does not stall on a possibility.
+
+Four things the survey for it found against `main` were filed as issues
+rather than folded into the change: no Content-Security-Policy is set
+anywhere (`AF-76`, #719); every action is pinned to a major tag rather
+than a commit (`AF-77`, #720); `refresh.yml` leaves the App's token in
+`.git/config` while `npm ci` runs (`AF-78`, #723); and `release.yml`
+interpolates its dispatch input into a shell script (`AF-79`, #724).
+
 ### D-29 · The track atlas was cut — 2026-09-14 (`AF-20`/`AF-21`, #302/#304)
 `/circuits/atlas` was a walkable, turn-rate-coloured lap compared across all
 25 traced circuits. The walk never worked — no play, no keyboard repeat,
@@ -892,3 +923,127 @@ ran are unchanged; the loop and a terminal still use them.
 The workflow's history is in git and in its runs. The `ci-review` label and
 the repository's Claude secrets are settings, not files, and go with the
 maintainer's say-so rather than with this change.
+
+### D-45 · The refresh lands by pull request, not by push — 2026-09-28
+`refresh.yml` committed straight to `main` with `GITHUB_TOKEN`. Once the
+repository went public, branch protection on `main` began to require
+`ci.yml`'s four checks with admins included, and a push can't carry checks.
+From 2026-09-22 every run built, verified and passed everything, and was then
+refused at the push (GH006). The 2026-09-26 Azerbaijan Grand Prix sat in
+F1DB, unpublished, behind it. (On 2026-09-27 a second fault surfaced as
+well: tests with round 14 typed in, fixed in #690.)
+
+The maintainer chose between two fixes on 2026-09-28. **Chosen:** the refresh
+commits to one fixed branch, `refresh/f1db`, opens a pull request and enables
+auto-merge, so it merges when the required checks pass and not before
+(`.github/scripts/land-refresh.sh`). **Declined:** letting the workflow
+bypass the protection. That would remove the gate from the one change that
+arrives unattended.
+
+What it costs. The pull request has to be opened with a GitHub App's token,
+because GitHub starts no workflow from `GITHUB_TOKEN`'s pushes and the
+required checks would never report. That token is one credential the
+maintainer holds (`REFRESH_APP_ID`, `REFRESH_APP_PRIVATE_KEY`). The daily
+heartbeat (`SD-25`) is now also a pull request, one a day. Repository
+auto-merge is on for this purpose. It merges nothing a person could not, and
+nothing before the checks pass.
+
+The same change moved the schedule to every three hours. A gate job stops
+every run except the day's first, a run started by hand, and runs within 72
+hours of a session in the `sessions` table, so a race weekend is followed
+without anyone editing a cron line (`.github/scripts/refresh_gate.py`).
+
+### D-46 · Practice comes from F1DB, and its Friday drivers join the register — 2026-09-28
+`LV-03` (#185) asked for each session of a weekend as soon as it has run. Three
+sources were looked at, in the order the maintainer asked:
+
+- **formula1.com's results pages.** FOM's site; `facts-only` under the
+  condition of no substantial extraction, and a whole season's sessions is the
+  nearest thing to extracting FOM's results database. Not used.
+- **The FIA's classification PDFs.** Read on 2026-09-28 (Baku FP1, qualifying
+  and race; Australia FP1; the Dutch sprint and sprint qualifying). The FIA
+  supplies only the covering sheet: every classification page is "© 2026
+  Formula One World Championship Limited" with a notice that no part may be
+  reproduced or stored without permission, press within 90 days excepted. The
+  same owner as formula1.com, stated more plainly. Not used, and the copies
+  read were deleted.
+- **F1DB.** Publishes every practice session from 1986 and sprint qualifying
+  from 2023 under CC BY 4.0, in the repository the refresh already clones, and
+  had Baku FP1 in it under six hours after the session began. Used.
+
+The practice sheets name 53 drivers who never started a race. The maintainer
+ruled the same day that they go in the register and are shown as never having
+started. They are admitted from an authored list (`F1DB_PRACTICE_DRIVERS`),
+one reviewed line each, because "nothing is created from a bulk feed" is the
+register's rule; `drivers.practice_only` is derived from the tables rather
+than stamped on the list, so it also marks Susie Wolff, in the register since
+before; and every figure the site labels "drivers" counts those who entered a race.
+
+What this rests on, and is the maintainer's to confirm: F1DB's practice sheets
+are almost certainly compiled from the same FOM classifications the two
+declined sources publish. Taking them through F1DB relies on the reading the
+`qualifying` table already rests on — that F1DB's provenance is F1DB's to
+represent, and is represented by its licence (`COMMERCIAL-READINESS.md`) —
+and this takes F1DB-carried session classifications from about 27,000 rows
+to about 69,000. The licence review of #185 passed the diff and asked that
+this be read once by a person rather than assumed.
+
+Cost: 31% on the compressed database the site sends (4.97 MB to 6.53 MB).
+
+*2026-09-29.* The warm-up (1984-2003) and pre-qualifying (1977-1992) joined
+`practice` as two more sessions, from the same F1DB files, as the maintainer
+asked when the gaps were listed. `practice_only` now also requires no
+qualifying row. Not for the drivers who went no further than pre-qualifying,
+as first written: `race_entries` holds their DNPQ rows, which already keep
+them out, and the flagged set is the same 54 either way (review of #714). It
+is for a driver on a debut weekend caught between qualifying and the race,
+with a qualifying row and no race entry yet, who is not a Friday driver.
+
+The reliance above was confirmed by the maintainer on 2026-09-28, in the
+session that merged #707. With these two sessions it covers about 77,000
+F1DB-carried session rows - qualifying from 1950, sprint qualifying from
+2023, and practice, warm-up and pre-qualifying from 1977 - under the same
+CC BY 4.0 licence.
+
+### D-47 · The site serves f1.db.gz, and the raw file is the repository's — 2026-09-28
+Cloudflare Workers will not host a single static file over 25 MiB
+(26,214,400 bytes), and a deploy carrying one fails whole. The site staged
+the raw `f1.db` beside `f1.db.gz` as a fallback for a browser without
+`DecompressionStream`; it was 23.8 MB, and `LV-03` (#707) took it to 30.6 MB.
+Every check in CI was green, #707 merged, and the Cloudflare build failed —
+nothing new could deploy, refreshes included, while the site kept serving the
+last good build. Nothing in the repository knew the limit.
+
+The maintainer chose, the same day, to stop hosting the raw file rather than
+to trim practice to recent seasons or revert. So: `prepare-assets.js` stages
+`f1.db.gz` only; the loader tells a browser without `DecompressionStream` —
+none since early 2023 — what it lacks instead of fetching a fallback; the
+data and SQL pages offer `f1.db.gz` with one `gunzip`, and the uncompressed
+file from the repository (`RAW_DATABASE_URL`), which is the committed copy
+`main` deploys from. The workflows' `cmp` of `dist/f1.db` becomes the
+existing proof that `dist/f1.db.gz` decompresses to the built database — now
+in `refresh.yml` too — and a new check that no file in `dist` exceeds 25 MiB,
+which is the check that would have stopped #707.
+
+The limit binds `f1.db.gz` too, at about four times today's 6.5 MB.
+
+### D-48 · The API is static JSON, written at build time — 2026-09-29
+The maintainer asked for API access on 2026-09-28, alongside D-47, and chose
+static JSON over a live endpoint. `web/scripts/api.mjs` runs last in
+`npm run build` and writes `/api/v1/…` beside the pages from the same
+`f1.db`: an index, a list and one file each for drivers, constructors,
+circuits and seasons, and one file per race weekend carrying every session's
+sheet. Every file carries the licence, the version and the database's
+SHA-256, because a file is read far from the page that explains it.
+
+Why not a live endpoint: every query on this site runs in the reader's
+browser, and there is no server. One would be a running service with a cost,
+a rate limit and an abuse problem, for data that moves a few times a week.
+Files cannot disagree with the pages, because they are written from the same
+database in the same build.
+
+What it costs: about 2,400 files and 84 MB per deploy. Cloudflare allows
+20,000 files per deployment, and the workflows now check that number beside
+the 25 MiB per-file limit of D-47. The rows are `SELECT *`, so a column added
+to a table arrives without an edit — and a column removed disappears from the
+API without one, which is why the path is versioned.

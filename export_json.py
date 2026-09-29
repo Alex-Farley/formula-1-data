@@ -74,6 +74,8 @@ NOT_EXPORTED = {
     # export and starts being a download. They are in f1.db, which ships in
     # this repository, and one SQL query away.
     "qualifying": "27k rows of session detail; query it in f1.db",
+    "practice": "50k rows of session detail, as qualifying (LV-03)",
+    "sprint_qualifying": "session detail, kept beside qualifying for the same reason",
     "pit_stops": "22k rows; and FastF1 adds more locally",
     # The centreline of one circuit is tens of thousands of coordinates, and it
     # is the only ODbL-licensed data in the project. ODbL carries share-alike

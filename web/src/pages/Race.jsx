@@ -35,6 +35,14 @@ import {
   raceLede,
   railOf,
   scheduledNote,
+  PRACTICE,
+  PRACTICE_COLUMNS,
+  PRACTICE_ONLY_MARK,
+  SPRINT_QUALIFYING,
+  practiceBySession,
+  practiceFooter,
+  sprintQualifyingColumns,
+  sprintQualifyingFooter,
 } from '../queries/race.js'
 import { colourForEntry } from '../lib/liveries.js'
 import LiveryMark from '../components/LiveryMark.jsx'
@@ -136,6 +144,25 @@ const classificationRenders = (year) => ({
 
 const qualifyingRenders = (year) => ({ driver: driverLink, constructor: constructorLink(year) })
 
+/* A session sheet's driver: the link, and the mark with its meaning spoken
+   for a screen reader, which would otherwise read a dagger. */
+const sessionDriverLink = {
+  render: (name, row) => (
+    <>
+      {driverLink.render(name, row)}
+      {row.practice_only === 1 && (
+        <>
+          {' '}
+          <span aria-hidden="true">{PRACTICE_ONLY_MARK}</span>
+          <span className="sr-only">(never started a Grand Prix)</span>
+        </>
+      )}
+    </>
+  ),
+}
+
+const sessionRenders = (year) => ({ driver: sessionDriverLink, constructor: constructorLink(year) })
+
 const sprintRenders = (year) => ({ rail: RAIL, driver: driverLink, constructor: constructorLink(year), status: outTag })
 
 const PITS_APP = {
@@ -154,6 +181,8 @@ export default function Race() {
     race: [RACE, args],
     entries: [ENTRIES, args],
     qualifying: [QUALIFYING, args],
+    practice: [PRACTICE, args],
+    sprintQualifying: [SPRINT_QUALIFYING, args],
     sprint: [SPRINT, args],
     pits: [PITS, args],
     neighbours: [NEIGHBOURS, args],
@@ -185,6 +214,8 @@ export default function Race() {
 function RaceBody({ race, data, year, round }) {
   const entries = rows(data, 'entries')
   const qualifying = rows(data, 'qualifying')
+  const practice = practiceBySession(rows(data, 'practice'))
+  const sprintQualifying = rows(data, 'sprintQualifying')
   const pits = rows(data, 'pits')
   /* The sprint is a separate race on the same weekend, so it is ordered the
      same way a race is: finishers by position, then everyone else. */
@@ -418,6 +449,32 @@ function RaceBody({ race, data, year, round }) {
           />
         </Section>
       )}
+
+      {sprintQualifying.length > 0 && (
+        <Section title="Sprint qualifying" count={`${sprintQualifying.length} entries`}>
+          <DataTable
+            rows={sprintQualifying}
+            rowKey={(row) => row.id}
+            sortable={false}
+            page={40}
+            columns={withRenders(sprintQualifyingColumns(sprintQualifying), sessionRenders(year))}
+            footer={sprintQualifyingFooter(sprintQualifying)}
+          />
+        </Section>
+      )}
+
+      {practice.map(({ session, title, rows: sheet }) => (
+        <Section key={session} title={title} count={`${sheet.length} entries`}>
+          <DataTable
+            rows={sheet}
+            rowKey={(row) => row.id}
+            sortable={false}
+            page={40}
+            columns={withRenders(PRACTICE_COLUMNS, sessionRenders(year))}
+            footer={practiceFooter(sheet)}
+          />
+        </Section>
+      ))}
 
       {pits.length > 0 && (
         <Section title="Pit stops" count={`${pits.length} stops`}>

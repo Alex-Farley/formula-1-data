@@ -85,6 +85,7 @@ import {
   REPORT_LINK,
   REPORT_PROMISE,
   REPORT_URL,
+  RAW_DATABASE_URL,
   REPOSITORY,
   SELF_DESCRIBING,
   SETTLE_ASK,
@@ -94,6 +95,10 @@ import {
   NAMES,
   SO_FAR,
   SPRINT,
+  GUNZIP_NOTE,
+  API_ENDPOINTS,
+  API_HEADING,
+  API_NOTE,
   TWO_FILES,
   UNCHECKED_MARK,
   UNCHECKED_NOTE,
@@ -128,7 +133,7 @@ import { RACE_SESSIONS, SEASON_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE, eventD
 // The pages' own queries and column lists (PD-02). A page and this script
 // read the same module, so the static table is the app's table by
 // construction; the rest of the pages follow these.
-import { DRIVERS, DRIVER_COLUMNS } from '../src/queries/drivers.js'
+import { DRIVERS, DRIVER_COLUMNS, REGISTER_FOOTER, registerCount } from '../src/queries/drivers.js'
 import { SEASONS, SEASONS_COLUMNS, SEASON_LIST_FOOTER } from '../src/queries/seasons.js'
 import {
   CALENDAR,
@@ -219,8 +224,16 @@ import {
   PITS,
   PITS_FOOTER,
   PIT_COLUMNS,
+  PRACTICE,
+  PRACTICE_COLUMNS,
+  PRACTICE_ONLY_MARK,
   QUALIFYING,
   QUALIFYING_FOOTER,
+  SPRINT_QUALIFYING,
+  practiceBySession,
+  practiceFooter,
+  sprintQualifyingColumns,
+  sprintQualifyingFooter,
   RACE_SOURCES,
   SHARED_DRIVE_NOTE,
   SPRINT as SPRINT_RESULTS,
@@ -394,6 +407,10 @@ import {
   THIS_SEASON,
   THIS_SEASON_COLUMNS,
   careerSentence,
+  DRIVER_PRACTICE,
+  PRACTICE_ONLY_NOTICE,
+  PRACTICE_SESSION_COLUMNS,
+  practiceSentence,
   leading,
   lede,
   pointsDiffer,
@@ -1979,12 +1996,18 @@ const page = ({
   const rail = (_, row) => `<i class="${esc(railOf(row))}"></i>`
   const driverCell = (name, row) => (row.driver_id ? link(`drivers/${row.driver_id}`, name ?? row.driver_id) : text(name))
   const constructorCell = (name, row) => (row.constructor_id ? link(`constructors/${row.constructor_id}`, name) : text(name))
+  // A session sheet's driver, marked where they never started a race - the
+  // app's sessionDriverLink, and the column's own text, say the same.
+  const sessionDriverCell = (name, row) =>
+    driverCell(name, row) + (row.practice_only === 1 ? ` <span aria-hidden="true">${PRACTICE_ONLY_MARK}</span><span class="sr-only">(never started a Grand Prix)</span>` : '')
   const outCell = (value, row) => (finished(value, row.finish_position) ? 'Finished' : missing(value) ? '—' : tag(value))
 
   for (const r of races) {
     const neighbours = one(RACE_NEIGHBOURS, r.year, r.round) ?? {}
     const entries = inClassificationOrder(all(ENTRIES, r.year, r.round))
     const qualifying = all(QUALIFYING, r.year, r.round)
+    const practice = practiceBySession(all(PRACTICE, r.year, r.round))
+    const sprintQualifying = all(SPRINT_QUALIFYING, r.year, r.round)
     const sprintResults = inClassificationOrder(all(SPRINT_RESULTS, r.year, r.round))
     const pits = all(PITS, r.year, r.round)
     const scheduled = r.status === 'scheduled'
@@ -2201,6 +2224,23 @@ const page = ({
             : ''
         }
         ${
+          sprintQualifying.length
+            ? `<h2>Sprint qualifying</h2>${fromColumns(sprintQualifyingColumns(sprintQualifying), sprintQualifying, {
+                driver: sessionDriverCell,
+                constructor: constructorCell,
+              })}${note(sprintQualifyingFooter(sprintQualifying))}`
+            : ''
+        }
+        ${practice
+          .map(
+            ({ title, rows: sheet }) =>
+              `<h2>${text(title)}</h2>${fromColumns(PRACTICE_COLUMNS, sheet, {
+                driver: sessionDriverCell,
+                constructor: constructorCell,
+              })}${note(practiceFooter(sheet))}`,
+          )
+          .join('')}
+        ${
           pits.length
             ? `<h2>Pit stops</h2>${fromColumns(PIT_COLUMNS, pits, {
                 driver: (name, row) => (row.driver_id ? link(`drivers/${row.driver_id}`, name ?? row.driver_id) : text(name ?? row.driver_key)),
@@ -2235,16 +2275,19 @@ const page = ({
   page({
     path: 'drivers',
     title: NAMES.drivers().title,
-    description: `All ${register.length} drivers in the register, with entries, wins, podiums, poles and fastest laps counted from the race records, and titles from the championship tables.`,
+    description: `All ${registerCount(register).raced} drivers who entered a championship race, and ${registerCount(register).practice} who drove only in practice, with entries, wins, podiums, poles and fastest laps counted from the race records, and titles from the championship tables.`,
     trail: TRAIL.drivers(),
     onward: ONWARD.drivers(),
     body: `
       <h1>${esc(NAMES.drivers().headline)}</h1>
-      <p class="lede">${register.length} drivers. Career totals are counted from the race records
+      <p class="lede">${registerCount(register).raced} drivers who entered a championship race, and
+        ${registerCount(register).practice} who drove in practice and never started one. Career totals are counted from the race records
         wherever the records support it; an em dash means nobody has established that figure.</p>
       ${fromColumns(DRIVER_COLUMNS, register, {
-        full_name: (name, d) => link(`drivers/${d.id}`, name),
-      })}`,
+        full_name: (name, d) =>
+          link(`drivers/${d.id}`, name) +
+          (d.practice_only === 1 ? ` <span aria-hidden="true">${PRACTICE_ONLY_MARK}</span><span class="sr-only">(never started a Grand Prix)</span>` : ''),
+      })}<p class="faint">${esc(REGISTER_FOOTER)}</p>`,
   })
 
   const winsOf = db.prepare(
@@ -2293,7 +2336,11 @@ const page = ({
     // career had no team-mate.
     const teamMates = teamMatesOf.all(id, null)
     const constructors = constructorsOf.all(id).map((c) => c.name)
-    const career = careerSentence(derived, constructors, d.titles)
+    // A Friday driver's whole record is the practice sheets (LV-03), as in
+    // Driver.jsx: the sentence, the notice and the table are the app's.
+    const practiceOnly = d.practice_only === 1
+    const practice = practiceOnly ? all(DRIVER_PRACTICE, id) : []
+    const career = practiceOnly ? practiceSentence(practice) : careerSentence(derived, constructors, d.titles)
     // The lede follows the derived sentence where there is room for a whole
     // sentence of it; a note that is one long sentence would otherwise be
     // cut mid-thought with an ellipsis, and the career alone is complete.
@@ -2320,12 +2367,24 @@ const page = ({
       },
       body: `
         <h1>${esc(NAMES.driver(d.full_name).headline)}</h1>
-        <p class="lede">${esc(lede(d, derived, constructors))}</p>
+        <p class="lede">${esc(lede(d, derived, constructors, practice))}</p>
+        ${practiceOnly ? noteBox(PRACTICE_ONLY_NOTICE.head, PRACTICE_ONLY_NOTICE.body) : ''}
         ${thisSeasonSection}
         ${thisSeasonSection ? `<h2>${esc(CAREER_HEADING)}</h2>` : ''}
-        ${stats(
-          leading(strip(d, derived)).map((item) => ({ ...item, value: esc(item.value) })),
-        )}
+        ${
+          practiceOnly
+            ? ''
+            : stats(leading(strip(d, derived)).map((item) => ({ ...item, value: esc(item.value) })))
+        }
+        ${
+          practice.length
+            ? `<h2>Practice sessions</h2>${fromColumns(PRACTICE_SESSION_COLUMNS, practice, {
+                year: (year) => link(`seasons/${year}`, year),
+                name_used: (name, row) => link(`races/${row.year}/${row.round}`, name),
+                constructor: (name, row) => (row.constructor_id ? link(`constructors/${row.constructor_id}`, name) : text(name)),
+              })}`
+            : ''
+        }
         ${disagree(careerDisagreements.all(d.full_name), 'this career')}
         ${
           wins.length
@@ -3280,8 +3339,13 @@ page({
         creator: PUBLISHED_BY,
         publisher: PUBLISHED_BY,
         distribution: [
-          { ...download('f1.db', 'f1.db — the SQLite database'), encodingFormat: 'application/vnd.sqlite3' },
-          { ...download('f1.db.gz', 'f1.db.gz — the same, gzipped'), encodingFormat: 'application/gzip' },
+          { ...download('f1.db.gz', 'f1.db.gz — the SQLite database, gzipped'), encodingFormat: 'application/gzip' },
+          {
+            '@type': 'DataDownload',
+            name: 'f1.db — the SQLite database, uncompressed, from the repository',
+            contentUrl: RAW_DATABASE_URL,
+            encodingFormat: 'application/vnd.sqlite3',
+          },
           {
             ...download('f1-geometry.db', 'f1-geometry.db — circuit centrelines, © OpenStreetMap contributors, ODbL 1.0'),
             encodingFormat: 'application/vnd.sqlite3',
@@ -3304,7 +3368,8 @@ page({
       <p class="measure">${esc(CROSS_CHECKED)}</p>
       <h2>The files</h2>
       <ul class="cards">
-        <li><a href="${esc(href('f1.db'))}"><code>f1.db</code></a> — the database, as built. Open it with any SQLite client; <code>circuit_geometry</code> in it is deliberately empty.</li>
+        <li><a href="${esc(href('f1.db.gz'))}"><code>f1.db.gz</code></a> — the database, gzipped. ${esc(GUNZIP_NOTE)} <code>gunzip f1.db.gz</code>, then open it with any SQLite client; <code>circuit_geometry</code> in it is deliberately empty.</li>
+        <li><a href="${esc(RAW_DATABASE_URL)}"><code>f1.db</code></a> — the same file uncompressed, too large for this host to serve: the repository’s current copy, which the next deploy is built from.</li>
         <li><a href="${esc(href('f1-geometry.db'))}"><code>f1-geometry.db</code></a> — the circuit centrelines, © OpenStreetMap contributors under ODbL 1.0, in a file of their own.</li>
         <li><a href="${esc(href('f1-parquet.zip'))}"><code>f1-parquet.zip</code></a> — every table as Parquet, one file each; pandas, polars and DuckDB read it directly.</li>
       </ul>
@@ -3319,6 +3384,11 @@ page({
       <p class="source-note">${DIGEST_NOTE.split('SHA256SUMS')
         .map(esc)
         .join(`<a href="${esc(href('SHA256SUMS'))}"><code>SHA256SUMS</code></a>`)}</p>
+      <h2>${esc(API_HEADING)}</h2>
+      <p class="measure">${esc(API_NOTE)}</p>
+      <ul class="cards">
+        ${API_ENDPOINTS.map(([path, what]) => `<li><a href="${esc(href(path))}"><code>/${esc(path)}</code></a> — ${esc(what)}</li>`).join('')}
+      </ul>
       <h2>What explains it</h2>
       <ul class="cards">
         ${DOCUMENTS.map(([file, what]) => `<li><a href="${esc(href(file))}"><code>${esc(file)}</code></a> — ${esc(what)}</li>`).join('')}
@@ -3457,7 +3527,7 @@ page({
       <noscript><p class="measure">Running the console needs JavaScript. Downloading the file
         below does not.</p></noscript>
       <p class="measure">The database is a plain SQLite file. If you would rather query it with your own tools,
-        download <a href="${esc(href('f1.db'))}"><code>f1.db</code></a> and open it with any
+        download <a href="${esc(href('f1.db.gz'))}"><code>f1.db.gz</code></a>, gunzip it and open it with any
         SQLite client. The circuit centrelines are not in it — <code>circuit_geometry</code>
         there is deliberately empty — and ship beside it as
         <a href="${esc(href('f1-geometry.db'))}"><code>f1-geometry.db</code></a>.

@@ -1,7 +1,7 @@
 {
   "database_name": "F1 Verified Facts Project Memory Database",
-  "version": "2.24",
-  "verification_date": "2026-09-16",
+  "version": "2.25",
+  "verification_date": "2026-09-28",
   "verification_policy": {
     "confidence_ladder": [
       {
@@ -63,7 +63,7 @@
       "base": "Brackley, United Kingdom",
       "first_entry": 1954,
       "position": 1,
-      "points": 503.0,
+      "points": 538.0,
       "drivers": [
         "George Russell",
         "Andrea Kimi Antonelli"
@@ -75,7 +75,7 @@
       "base": "Maranello, Italy",
       "first_entry": 1950,
       "position": 2,
-      "points": 358.0,
+      "points": 378.0,
       "drivers": [
         "Charles Leclerc",
         "Sir Lewis Hamilton"
@@ -99,7 +99,7 @@
       "base": "Milton Keynes, United Kingdom",
       "first_entry": 2005,
       "position": 4,
-      "points": 230.0,
+      "points": 263.0,
       "drivers": [
         "Max Verstappen",
         "Isack Hadjar"
@@ -111,7 +111,7 @@
       "base": "Faenza, Italy",
       "first_entry": 1985,
       "position": 5,
-      "points": 77.0,
+      "points": 83.0,
       "drivers": [
         "Liam Lawson",
         "Arvid Lindblad"
@@ -135,7 +135,7 @@
       "base": "Kannapolis, United States",
       "first_entry": 2016,
       "position": 7,
-      "points": 21.0,
+      "points": 27.0,
       "drivers": [
         "Esteban Ocon",
         "Oliver Bearman"
@@ -159,7 +159,7 @@
       "base": "Grove, United Kingdom",
       "first_entry": 1977,
       "position": 9,
-      "points": 11.0,
+      "points": 12.0,
       "drivers": [
         "Carlos Sainz",
         "Alexander Albon"
@@ -340,19 +340,19 @@
       "position": 1,
       "driver": "Andrea Kimi Antonelli",
       "team": "Mercedes",
-      "points": 292.0
+      "points": 302.0
     },
     {
       "position": 2,
       "driver": "George Russell",
       "team": "Mercedes",
-      "points": 211.0
+      "points": 236.0
     },
     {
       "position": 3,
       "driver": "Sir Lewis Hamilton",
       "team": "Ferrari",
-      "points": 191.0
+      "points": 199.0
     },
     {
       "position": 4,
@@ -364,13 +364,13 @@
       "position": 5,
       "driver": "Charles Leclerc",
       "team": "Ferrari",
-      "points": 167.0
+      "points": 179.0
     },
     {
       "position": 6,
       "driver": "Max Verstappen",
       "team": "Red Bull Racing",
-      "points": 145.0
+      "points": 163.0
     },
     {
       "position": 7,
@@ -382,7 +382,7 @@
       "position": 8,
       "driver": "Isack Hadjar",
       "team": "Red Bull Racing",
-      "points": 71.0
+      "points": 86.0
     },
     {
       "position": 9,
@@ -400,7 +400,7 @@
       "position": 11,
       "driver": "Arvid Lindblad",
       "team": "Racing Bulls",
-      "points": 31.0
+      "points": 37.0
     },
     {
       "position": 12,
@@ -412,7 +412,7 @@
       "position": 13,
       "driver": "Oliver Bearman",
       "team": "Haas F1 Team",
-      "points": 18.0
+      "points": 20.0
     },
     {
       "position": 14,
@@ -428,21 +428,21 @@
     },
     {
       "position": 16,
-      "driver": "Carlos Sainz",
-      "team": "Williams",
-      "points": 6.0
+      "driver": "Esteban Ocon",
+      "team": "Haas F1 Team",
+      "points": 7.0
     },
     {
       "position": 17,
-      "driver": "Alexander Albon",
+      "driver": "Carlos Sainz",
       "team": "Williams",
-      "points": 5.0
+      "points": 7.0
     },
     {
       "position": 18,
-      "driver": "Esteban Ocon",
-      "team": "Haas F1 Team",
-      "points": 3.0
+      "driver": "Alexander Albon",
+      "team": "Williams",
+      "points": 5.0
     },
     {
       "position": 19,
@@ -624,7 +624,7 @@
       "circuit_name": "Baku City Circuit",
       "circuit_id": "baku",
       "sprint": 0,
-      "status": "scheduled"
+      "status": "completed"
     },
     {
       "round": 16,
@@ -858,11 +858,11 @@
       "priority": 10,
       "source": "F1DB",
       "url": "https://github.com/f1db/f1db",
-      "use": "Since v2.15 the primary source for RESULTS as well as registers: the full classification for all 1,163 races (27,504 entries, 1950-2026), qualifying (27,017), championship standings after every round (34,563) and pit stops (22,506) - plus the chassis, engine, constructor and per-season entrant register it already supplied, and since 2026-09-13 the outline of every one of its 160 circuit layouts (SVG assets drawn by Jules Roy) with the layout each race ran. Loaded by tools/f1db_fetch.py into diffable text, then built offline.",
+      "use": "Since v2.15 the primary source for RESULTS as well as registers: the full classification for all 1,164 races (27,526 entries, 1950-2026), qualifying (27,039), championship standings after every round (34,597) and pit stops (22,526) - plus the chassis, engine, constructor and per-season entrant register it already supplied, and since 2026-09-13 the outline of every one of its 160 circuit layouts (SVG assets drawn by Jules Roy) with the layout each race ran. Loaded by tools/f1db_fetch.py into diffable text, then built offline.",
       "authority": "reference",
       "licence": "CC BY 4.0 - attribution only, no share-alike, and NO NON-COMMERCIAL CLAUSE. That last absence is not a footnote: it is the reason the full classification ships in the committed database when the same facts from Jolpica-F1 could only ever be loaded onto a local copy. The most permissive licence of any bulk source used here, and now the most consequential.",
       "cadence": "Re-released after every race, versioned, with a public commit history and a changelog. Better maintained than anything else at this scale.",
-      "checkability": "Heavily, in four independent places, all of them held here before F1DB was read. (1) The winner of every one of the 1,163 races was established here before F1DB was read - from the Wikipedia harvest, and from formula1.com for the seasons it covers; a race whose winner disagreed is refused WHOLE, and none was. The comparison is on sets, because a shared drive puts two drivers on position 1 and both are winners. (2) The champion, the runner-up and both their point totals for 76 seasons were already in `seasons`; the final standings must reproduce all four and do. (3) Qualifying position 1 is checked against the pole-sitter already stored - 13 races differ, every one a grid penalty or a sprint weekend, each recorded rather than resolved. (4) Its (constructor, season) -> chassis mapping is checked against the 41 CAR_SEASONS assertions already proved against published win totals. It carries NO technical specifications at all, so nothing it says can be mistaken for one.",
+      "checkability": "Heavily, in four independent places, all of them held here before F1DB was read. (1) The winner of every one of the 1,164 races was established here before F1DB was read - from the Wikipedia harvest, and from formula1.com for the seasons it covers; a race whose winner disagreed is refused WHOLE, and none was. The comparison is on sets, because a shared drive puts two drivers on position 1 and both are winners. (2) The champion, the runner-up and both their point totals for 76 seasons were already in `seasons`; the final standings must reproduce all four and do. (3) Qualifying position 1 is checked against the pole-sitter already stored - 13 races differ, every one a grid penalty or a sprint weekend, each recorded rather than resolved. (4) Its (constructor, season) -> chassis mapping is checked against the 41 CAR_SEASONS assertions already proved against published win totals. It carries NO technical specifications at all, so nothing it says can be mistaken for one.",
       "redistributable": "yes",
       "share_alike": 0,
       "attribution_required": 1,

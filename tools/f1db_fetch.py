@@ -9,9 +9,9 @@ Fetch the chassis, engine and per-season entrant register from F1DB.
 Source:  https://github.com/f1db/f1db   (CC BY 4.0)
 Writes:  harvest/chassis.txt, harvest/engines.txt, harvest/entrants.txt,
          harvest/entrant_drivers.txt, harvest/f1db_constructors.txt,
-         harvest/f1db_drivers.txt, and the results, qualifying, standings,
-         pit stop, race date, fastest lap, circuit outline and race layout
-         files main() lists
+         harvest/f1db_drivers.txt, and the results, qualifying, practice,
+         sprint qualifying, standings, pit stop, race date, fastest lap,
+         circuit outline and race layout files main() lists
 
 Why a tool and not a person
 ---------------------------
@@ -640,6 +640,65 @@ def qualifying_rows(data, yaml):
     return rows
 
 
+# F1DB's file for each practice session, and the session it is (LV-03). The
+# kinds are the `sessions` table's, so a 2026 row can be held to the
+# timetable; fp4 is the fourth session a team could run at 37 races in
+# 2004-2005 and has no timetable row, because no season with one is there.
+# The warm-up (1984-2003) and pre-qualifying (1977-1992) are the same sheet -
+# one best lap per driver - for the two sessions a weekend no longer has.
+PRACTICE_FILES = (
+    ("pre_qualifying", "pre-qualifying-results.yml"),
+    ("fp1", "free-practice-1-results.yml"),
+    ("fp2", "free-practice-2-results.yml"),
+    ("fp3", "free-practice-3-results.yml"),
+    ("fp4", "free-practice-4-results.yml"),
+    ("warm_up", "warming-up-results.yml"),
+)
+
+
+def practice_rows(data, yaml):
+    """Every practice, warm-up and pre-qualifying classification F1DB holds,
+    1977-2026 (LV-03).
+
+    A practice classification is the order of each driver's best lap, the
+    lap itself, the gap and interval to it, and how many laps they ran - the
+    same facts as a qualifying session's, under the same licence, and like
+    it not lap-by-lap timing: one lap per driver, the fastest. A driver with
+    no time is on the sheet with an empty time and keeps the place F1DB
+    gives them.
+    """
+    rows = []
+    for year, rnd, path in _races(data, yaml):
+        for session, fname in PRACTICE_FILES:
+            for r in _load(os.path.join(path, fname), yaml):
+                pos, text = _pos(r.get("position"))
+                rows.append("|".join(_clean(v) for v in (
+                    year, rnd, session, pos, text,
+                    r.get("driverId"), r.get("constructorId"),
+                    r.get("driverNumber"), r.get("time"),
+                    r.get("gap"), r.get("interval"), r.get("laps"))))
+    return rows
+
+
+def sprint_qualifying_rows(data, yaml):
+    """The session that sets a sprint's grid, 2023-2026 (LV-03).
+
+    Shaped as knockout qualifying is - three segments and no single time -
+    because it is one. It was the sprint shootout in 2023 and sprint
+    qualifying after; F1DB files both under one name, and so does this.
+    """
+    rows = []
+    for year, rnd, path in _races(data, yaml):
+        for r in _load(os.path.join(path, "sprint-qualifying-results.yml"), yaml):
+            pos, text = _pos(r.get("position"))
+            rows.append("|".join(_clean(v) for v in (
+                year, rnd, pos, text,
+                r.get("driverId"), r.get("constructorId"),
+                r.get("driverNumber"), r.get("q1"), r.get("q2"), r.get("q3"),
+                r.get("gap"), r.get("interval"), r.get("laps"))))
+    return rows
+
+
 def standings_rows(data, yaml):
     """Championship standings after every round, and at the end of a season.
 
@@ -753,6 +812,16 @@ def main():
                 "year|round|position|position_text|driver_id|constructor_id|"
                 "driver_number|time|q1|q2|q3|gap|interval|laps",
                 qualifying_rows(data, yaml), version, commit, args.check)
+    ok &= write("practice.txt",
+                "year|round|session|position|position_text|driver_id|"
+                "constructor_id|driver_number|time|gap|interval|laps"
+                "   (session is pre_qualifying, fp1-fp4 or warm_up; one best lap "
+                "per driver, not lap timing)",
+                practice_rows(data, yaml), version, commit, args.check)
+    ok &= write("sprint_qualifying.txt",
+                "year|round|position|position_text|driver_id|constructor_id|"
+                "driver_number|q1|q2|q3|gap|interval|laps",
+                sprint_qualifying_rows(data, yaml), version, commit, args.check)
     ok &= write("standings.txt",
                 "year|round|table_type|position|entity_id|"
                 "engine_manufacturer_id|points"

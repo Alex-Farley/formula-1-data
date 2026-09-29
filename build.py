@@ -62,7 +62,7 @@ BUILD_DB = DB + ".tmp"
 # invisible. tests/test_conventions.py fails `make ci` and CI's check job
 # when the two drift.
 
-VERSION = "2.24"
+VERSION = "2.25"
 
 # The build date, as a CONSTANT and deliberately not date.today().
 #
@@ -78,7 +78,7 @@ VERSION = "2.24"
 # pages. So the refresh workflow now bumps it whenever it commits a new
 # harvest — the only time the data actually changes — and a hand edit to
 # data/*.py should bump it too.
-BUILT = "2026-09-16"
+BUILT = "2026-09-28"
 
 
 def _haversine(a, b):
@@ -481,6 +481,42 @@ def _stage_03_drivers_admitted_from_the_f1db_register(b):
             (f1db_id, name, nat, code, born, died, min(yrs), max(yrs),
              "deceased" if died else
              ("active" if max(yrs) >= b.current_season else "retired"),
+             HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
+        known_drv.add(f1db_id)
+
+    # The Friday drivers (LV-03, data/drivers.py F1DB_PRACTICE_DRIVERS): in
+    # a practice classification and in no race. Each guard is one way the
+    # line could be wrong - a driver the entry lists show racing belongs in
+    # F1DB_DRIVERS, and one no practice sheet names has nothing to be here
+    # for.
+    practice_years = {}
+    for r in list(HV.load_practice()) + list(HV.load_sprint_qualifying()):
+        practice_years.setdefault(r["driver_id"], set()).add(int(r["year"]))
+    for f1db_id in D.F1DB_PRACTICE_DRIVERS:
+        if f1db_id in known_drv:
+            raise SystemExit(
+                f"F1DB_PRACTICE_DRIVERS admits {f1db_id}, which the register "
+                f"already holds. Remove it from the list.")
+        if f1db_id in drv_years:
+            raise SystemExit(
+                f"F1DB_PRACTICE_DRIVERS admits {f1db_id}, which the entry "
+                f"lists show entering a championship race: it belongs in "
+                f"F1DB_DRIVERS.")
+        meta = f1db_drv.get(f1db_id)
+        yrs = practice_years.get(f1db_id)
+        if meta is None or not yrs:
+            raise SystemExit(
+                f"F1DB_PRACTICE_DRIVERS admits {f1db_id}, which "
+                f"{'harvest/f1db_drivers.txt does not hold' if meta is None else 'no practice or sprint qualifying sheet names'}. "
+                f"Rerun tools/f1db_fetch.py, or remove the line.")
+        _id, name, _first, _last, born, died, _abbr, nat_id = meta[:8]
+        nat, code = f1db_ctry.get(nat_id, (None, None))
+        cur.execute("""INSERT INTO drivers (id, full_name, nationality,
+            nationality_code, born, died, first_season, last_season, titles,
+            status, confidence, source)
+            VALUES (?,?,?,?,?,?,?,?,0,?,?,?)""",
+            (f1db_id, name, nat, code, born, died, min(yrs), max(yrs),
+             "deceased" if died else None,
              HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
         known_drv.add(f1db_id)
 
@@ -2169,6 +2205,113 @@ def _stage_24_qualifying_checked_against_the_pole_already(b):
               f"{len(quali_by_race)} races; {qual_skipped} skipped for an "
               f"unresolvable driver; {len(pole_disagreements)} races where "
               f"the fastest qualifier is not the stored pole-sitter")
+
+
+def _stage_24b_practice_and_sprint_qualifying_from_f1db(b):
+    """practice and sprint qualifying, from F1DB"""
+    cur = b.cur
+    f1db_drivers = b.f1db_drivers
+
+    # --- practice and sprint qualifying, from F1DB (LV-03)
+    #
+    # The two sessions of a weekend that set nothing the championship counts,
+    # loaded the way qualifying is: same source, same licence, same driver
+    # and constructor resolution, and a row whose driver the register cannot
+    # place is counted and skipped rather than guessed. These are
+    # classifications - one best lap per driver - and not the lap timing the
+    # four empty tables are empty of.
+    def num(v):
+        return int(v) if v else None
+
+    def constructor(cid, yr):
+        cons = HV.constructor_for_f1db(cid, yr)
+        if cons and not cur.execute("SELECT 1 FROM constructors WHERE id=?",
+                                    (cons,)).fetchone():
+            return None
+        return cons
+
+    practice = skipped = 0
+    races = set()
+    for r in HV.load_practice():
+        yr, rnd = int(r["year"]), int(r["round"])
+        rid = b.race_for(yr, rnd, "practice")
+        if rid is None:
+            continue
+        did = f1db_drivers.get(r["driver_id"])
+        if not did:
+            skipped += 1
+            continue
+        cur.execute("""INSERT INTO practice (race_id, session, driver_id,
+                constructor_id, position, position_text, driver_number, time,
+                gap, interval, laps, confidence, source)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (rid, r["session"], did, constructor(r["constructor_id"], yr),
+             num(r["position"]), r["position_text"] or None,
+             num(r["driver_number"]), r["time"] or None, r["gap"] or None,
+             r["interval"] or None, num(r["laps"]),
+             HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
+        practice += 1
+        races.add(rid)
+
+    # Sprint qualifying belongs to a sprint weekend and to nothing else. A
+    # row on a race the calendar does not hold as a sprint is one of the two
+    # sources wrong about which weekend this was, and the build does not
+    # choose between them.
+    sq = sq_skipped = 0
+    for r in HV.load_sprint_qualifying():
+        yr, rnd = int(r["year"]), int(r["round"])
+        rid = b.race_for(yr, rnd, "sprint qualifying")
+        if rid is None:
+            continue
+        if not cur.execute("SELECT sprint FROM races WHERE id=?", (rid,)).fetchone()[0]:
+            raise SystemExit(
+                f"sprint qualifying: F1DB has a sprint qualifying session at "
+                f"{yr} round {rnd}, which races does not hold as a sprint "
+                f"weekend. One of the two is wrong; this build will not pick.")
+        did = f1db_drivers.get(r["driver_id"])
+        if not did:
+            sq_skipped += 1
+            continue
+        cur.execute("""INSERT INTO sprint_qualifying (race_id, driver_id,
+                constructor_id, position, position_text, driver_number, q1,
+                q2, q3, gap, interval, laps, confidence, source)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (rid, did, constructor(r["constructor_id"], yr),
+             num(r["position"]), r["position_text"] or None,
+             num(r["driver_number"]), r["q1"] or None, r["q2"] or None,
+             r["q3"] or None, r["gap"] or None, r["interval"] or None,
+             num(r["laps"]), HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
+        sq += 1
+
+    # `practice_only` is derived, not stamped on F1DB_PRACTICE_DRIVERS. It
+    # also needs no qualifying row: a driver who went no further than
+    # pre-qualifying is not caught without it, since race_entries holds the
+    # DNPQ rows, but a driver on a debut weekend caught between qualifying
+    # and the race has a qualifying row and no race entry yet, and is not a
+    # Friday driver (review of #714). The
+    # register held two drivers with no race before LV-03, and Susie Wolff,
+    # who ran FP1 in 2014 and 2015, is exactly this - Maria de Villota, who
+    # tested and never ran a session, is not. So the flag is the fact it
+    # names, for whoever it is true of. verify.py holds it both ways round.
+    cur.execute("""UPDATE drivers SET practice_only =
+        CASE WHEN NOT EXISTS (SELECT 1 FROM race_entries e WHERE e.driver_id = drivers.id)
+              AND NOT EXISTS (SELECT 1 FROM qualifying q0 WHERE q0.driver_id = drivers.id)
+              AND (EXISTS (SELECT 1 FROM practice p WHERE p.driver_id = drivers.id)
+                   OR EXISTS (SELECT 1 FROM sprint_qualifying q WHERE q.driver_id = drivers.id))
+             THEN 1 ELSE 0 END""")
+    # A practice-only row with no seasons of its own takes them from the
+    # sheets it is on, as the 53 admitted in stage 03 were given theirs.
+    cur.execute("""UPDATE drivers SET
+        first_season = (SELECT MIN(r.year) FROM practice p JOIN races r ON r.id = p.race_id
+                         WHERE p.driver_id = drivers.id),
+        last_season  = (SELECT MAX(r.year) FROM practice p JOIN races r ON r.id = p.race_id
+                         WHERE p.driver_id = drivers.id)
+        WHERE practice_only = 1 AND first_season IS NULL""")
+
+    if practice or sq:
+        print(f"  practice: {practice} rows over {len(races)} weekends, "
+              f"{skipped} skipped for an unresolvable driver; sprint "
+              f"qualifying: {sq} rows, {sq_skipped} skipped")
 
 
 # The status_note of the register's and the race records' two readings of a
@@ -4334,6 +4477,7 @@ STAGES = [
     _stage_22_the_sprint_races,
     _stage_23_a_round_that_has_a_result,
     _stage_24_qualifying_checked_against_the_pole_already,
+    _stage_24b_practice_and_sprint_qualifying_from_f1db,
     _stage_25_championship_standings_after_every_round_and,
     _stage_26_pit_stops_from_f1db_under_their,
     _stage_27_notable_team_radio_a_small_curated,
@@ -4431,10 +4575,13 @@ def coverage_note(cur):
         f"and a fastest lap for {with_fl:,} of them; the full classification of "
         f"{classified:,} races in {n('SELECT COUNT(*) FROM race_entries'):,} race entries; "
         f"{n('SELECT COUNT(*) FROM qualifying'):,} qualifying rows; "
+        f"{n('SELECT COUNT(*) FROM practice'):,} practice rows and "
+        f"{n('SELECT COUNT(*) FROM sprint_qualifying'):,} sprint qualifying rows (each driver's best lap, not lap timing); "
         f"{n('SELECT COUNT(*) FROM standings'):,} championship standings rows after every round; "
         f"{n('SELECT COUNT(*) FROM sprint_results'):,} sprint classifications; "
         f"{n('SELECT COUNT(*) FROM pit_stops'):,} pit stops (lap and order, no durations); "
-        f"{n('SELECT COUNT(*) FROM drivers'):,} drivers, "
+        f"{n('SELECT COUNT(DISTINCT driver_id) FROM race_entries'):,} drivers who entered a race and "
+        f"{n('SELECT COUNT(*) FROM drivers WHERE practice_only = 1'):,} who drove only in practice, "
         f"{n('SELECT COUNT(*) FROM constructors'):,} constructors, "
         f"{n('SELECT COUNT(*) FROM chassis'):,} chassis, "
         f"{n('SELECT COUNT(*) FROM circuits'):,} circuits; the circuit of every race; "

@@ -43,7 +43,7 @@ import { spawn } from 'node:child_process'
 import { DatabaseSync } from 'node:sqlite'
 import { dirname, join, relative } from 'node:path'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
-import { CHASSIS_NOTE, OUT_NOTE, RACE_SOURCES } from '../src/queries/race.js'
+import { CHASSIS_NOTE, OUT_NOTE, PRACTICE_SESSIONS, RACE_SOURCES } from '../src/queries/race.js'
 import { CURRENT_SEASON_SQL } from '../src/lib/season.js'
 import { fileURLToPath } from 'node:url'
 // The heading rule and the cell marks both renderers share, so the checks
@@ -809,37 +809,39 @@ try {
     await sliced.close()
 
     /*
-     * And the links that are not routes at all. /data links to /f1.db,
+     * And the links that are not routes at all. /data links to /f1.db.gz,
      * /f1-geometry.db, /f1-parquet.zip, /schema.sql and /db-manifest.json,
      * none of them with a `download` attribute — a static host's
      * Content-Disposition is its own. Held as a route change, such a click
      * moved the address bar and fetched nothing; held and then served from
-     * the prerendered page, /f1.db is twenty-three megabytes pulled alongside
-     * the download the hold exists to protect, and parsed as HTML.
+     * the prerendered page, a data file is megabytes pulled alongside the
+     * download the hold exists to protect, and parsed as HTML.
      */
     const fileLink = await browser.newPage({ viewport: { width: 1280, height: 900 } })
     // Answered here rather than served, so the assertion costs a request and
-    // not twenty-three megabytes. What it reads is how the request was made:
-    // a navigation the browser owns is a `document` request, and the hold
-    // fetching a page to swap in is a `fetch` one.
+    // not megabytes. What it reads is how the request was made: a navigation
+    // the browser owns is a `document` request, and the hold fetching a page
+    // to swap in is a `fetch` one. The Parquet bundle and not the database,
+    // since D-47: the app fetches f1.db.gz itself while it boots, so those
+    // requests would be counted with the click's.
     const askedFor = []
-    await fileLink.route('**/f1.db', (route) => {
+    await fileLink.route('**/f1-parquet.zip', (route) => {
       askedFor.push(route.request().resourceType())
       return route.fulfill({
         status: 200,
         contentType: 'application/octet-stream',
-        body: 'stands in for the database file',
+        body: 'stands in for the Parquet bundle',
       })
     })
     await fileLink.goto(`${BASE}/data`, { waitUntil: 'domcontentloaded' })
     truthy(
       await fileLink.evaluate(() => {
-        const link = document.querySelector('#prerendered a[href="/f1.db"]')
+        const link = document.querySelector('#prerendered a[href="/f1-parquet.zip"]')
         if (!link || !document.getElementById('prerendered')) return false
         link.click()
         return true
       }),
-      'the static data page offers the database file before the database is open',
+      'the static data page offers the data files before the database is open',
     )
     await fileLink.waitForTimeout(500)
     is(
@@ -980,6 +982,117 @@ try {
       'and the strip stops promising a page nothing is going to open',
     )
     await blocked.close()
+
+    /*
+     * D-47: a browser with no DecompressionStream cannot open the site, and
+     * the strip over the prerendered page is where it hears so - the reason
+     * and the repository copy, and no Try again that cannot work. The worker
+     * has a DecompressionStream of its own, so the download is refused too,
+     * which is what that browser's open comes to.
+     */
+    const old = await browser.newContext()
+    await old.addInitScript(() => {
+      delete window.DecompressionStream
+    })
+    await old.route('**/f1.db*', (route) => route.abort())
+    const oldPage = await old.newPage()
+    await oldPage.goto(`${BASE}/circuits`, { waitUntil: 'domcontentloaded' })
+    await oldPage.waitForFunction(
+      () => document.querySelector('.boot-strip .boot-phase')?.textContent.includes('updating it will open the site'),
+      null,
+      { timeout: 60000 },
+    )
+    truthy(
+      await oldPage.$eval('.boot-strip .boot-phase a[href$="/raw/main/f1.db"]', (a) => Boolean(a)),
+      'a browser that cannot unpack the data is told why, and where the file is',
+    )
+    is(
+      await oldPage.$$eval('.boot-strip button', (nodes) => nodes.length),
+      0,
+      'and is not offered a retry that cannot work',
+    )
+    await old.close()
+  })
+
+  // ------------------------------------------------------------- the JSON API
+
+  // D-48: the database as static JSON, one file per thing, written at build
+  // time from the same f1.db. Every figure here is read out of the database,
+  // so the files are held to it rather than to a number typed in the test.
+  await section('The JSON API  (/api/v1)', async () => {
+    const get = async (path) => {
+      const response = await fetch(`${BASE}/api/v1/${path}`)
+      return { status: response.status, body: response.ok ? await response.json() : null }
+    }
+    const index = await get('index.json')
+    is(index.status, 200, 'the index is served')
+    is(index.body?.meta?.version, one("SELECT value FROM meta WHERE key = 'version'"), 'and names the version it was written from')
+    truthy(index.body?.meta?.licence === 'CC BY-SA 4.0' && index.body?.meta?.attribution?.endsWith('/data/sources'), 'and carries the licence and where the attribution is')
+
+    const register = await get('drivers.json')
+    is(register.body?.data?.length, count('SELECT COUNT(*) FROM drivers'), 'the drivers file holds every driver in the register')
+
+    const [year, round] = [2026, one("SELECT MAX(round) FROM races WHERE year = 2026 AND status = 'completed'")]
+    const race = await get(`races/${year}/${round}.json`)
+    const winner = race.body?.data?.classification?.find((e) => e.finish_position === 1)?.driver_id
+    is(
+      winner,
+      one('SELECT e.driver_id FROM race_entries e JOIN races r ON r.id = e.race_id WHERE r.year = ? AND r.round = ? AND e.finish_position = 1', year, round),
+      `a race weekend's file carries its classification — ${year} round ${round}`,
+    )
+    is(
+      race.body?.data?.practice?.length,
+      count('SELECT COUNT(*) FROM practice p JOIN races r ON r.id = p.race_id WHERE r.year = ? AND r.round = ?', year, round),
+      'and every practice row of it',
+    )
+
+    const driver = await get('drivers/hamilton.json')
+    is(
+      driver.body?.data?.entries?.length,
+      count("SELECT COUNT(*) FROM race_entries WHERE driver_id = 'hamilton'"),
+      "a driver's file carries every race entry",
+    )
+    is((await get('drivers/no-such-driver.json')).status, 404, 'and an id the register does not hold is a 404, not an empty file')
+
+    // Review of #711: a shared win keeps both drivers, and a circuit still in
+    // use has a last Grand Prix rather than a null that reads as unknown.
+    const shared = db
+      .prepare(`SELECT r.circuit_id, r.year, r.round FROM races r WHERE
+                  (SELECT COUNT(*) FROM race_entries e WHERE e.race_id = r.id AND e.finish_position = 1) > 1
+                ORDER BY r.year LIMIT 1`)
+      .get()
+    const circuitFile = await get(`circuits/${shared.circuit_id}.json`)
+    is(
+      circuitFile.body?.data?.races?.find((r) => r.year === shared.year && r.round === shared.round)?.winner_ids?.length,
+      count(
+        'SELECT COUNT(*) FROM race_entries e JOIN races r ON r.id = e.race_id WHERE r.year = ? AND r.round = ? AND e.finish_position = 1',
+        shared.year,
+        shared.round,
+      ),
+      `a shared win keeps every winner — ${shared.year} round ${shared.round}`,
+    )
+    const monza = await get('circuits/monza.json')
+    is(
+      monza.body?.data?.circuit?.derived_last_gp,
+      one("SELECT last_gp FROM v_circuits WHERE id = 'monza'"),
+      'and a circuit in use has its last Grand Prix, as its page does',
+    )
+    // The stored figure is kept beside it, not overwritten: Istanbul's stored
+    // last Grand Prix is a scheduled year the race records cannot know yet.
+    const istanbul = await get('circuits/istanbul.json')
+    is(
+      `${istanbul.body?.data?.circuit?.last_gp} ${istanbul.body?.data?.circuit?.derived_last_gp}`,
+      `${one("SELECT last_gp FROM circuits WHERE id = 'istanbul'")} ${one("SELECT last_gp FROM v_circuits WHERE id = 'istanbul'")}`,
+      'and a stored last Grand Prix the records cannot know yet is kept beside the derived one',
+    )
+
+    // The preview server does not read _headers; the host does. So the rule
+    // is read from the file the host is given.
+    const headers = readFileSync(join(web, 'dist', '_headers'), 'utf8')
+    truthy(
+      /\/api\/\*\n\s+Access-Control-Allow-Origin: \*/.test(headers),
+      "the host is told to open /api/ to any origin, since a file another site's script cannot read is not an API",
+    )
   })
 
   // ------------------------------------------------------------------ home
@@ -1977,6 +2090,19 @@ try {
           )
         }
 
+        // LV-03: a practice-only driver is F1DB's row with no death on it, so
+        // is read as living too; the page says what they are, in the notice
+        // and in the Status row, and draws no race record to look for.
+        const friday = db
+          .prepare("SELECT id FROM drivers WHERE practice_only = 1 AND status IS NULL AND died IS NULL ORDER BY id LIMIT 1")
+          .get()
+        if (friday) {
+          const fridayHtml = await (await fetch(`${BASE}/drivers/${friday.id}`)).text()
+          truthy(!fridayHtml.includes('<dt>Died</dt>'), `a practice-only driver's page has no Died row — /drivers/${friday.id}`)
+          truthy(fridayHtml.includes('Practice only.'), `and opens on the practice-only notice — /drivers/${friday.id}`)
+          truthy(fridayHtml.includes('<h2>Practice sessions</h2>'), `and lists the sessions they drove — /drivers/${friday.id}`)
+        } else fail('no practice-only driver to check the page of')
+
         // PD-16: the same sentence is the page's OPENING one, in both
         // renderers, from lede() in queries/driver.js. Before this the 699
         // note-less pages opened straight onto the strip of tiles.
@@ -2862,7 +2988,14 @@ try {
     const dataText = await page.$eval('#root main', (n) => n.textContent)
     truthy(dataText.includes(`v${edition}`), `the data page states the database version — v${edition}`)
     truthy(dataText.includes(one(`SELECT value FROM meta WHERE key = 'built'`)), 'and the build date')
-    atLeast(await page.$$eval('#root main a[href$="/f1.db"]', (n) => n.length), 1, 'it links the database')
+    atLeast(await page.$$eval('#root main a[href$="/f1.db.gz"]', (n) => n.length), 1, 'it links the database')
+    // D-47: the file as built is the repository's, since the host will not
+    // serve it; the link says where it is rather than 404ing.
+    atLeast(
+      await page.$$eval('#root main a[href$="/raw/main/f1.db"]', (n) => n.length),
+      1,
+      'and the uncompressed file, from the repository',
+    )
     atLeast(
       await page.$$eval('#root main a[href$="/f1-geometry.db"]', (n) => n.length),
       1,
@@ -4425,11 +4558,44 @@ try {
     truthy(await inField(), 'Shift+Tab does not leave the palette for the page behind it')
     await page.keyboard.press('Tab')
     truthy(await inField(), 'nor does Tab')
+    // CR-58 (#687): the pointer is left standing where the first result
+    // renders by the section before, and the browser's hover update for a
+    // row appearing under a still cursor used to snap the key's highlight
+    // back to it - intermittently, as the two raced. Made certain here: the
+    // pointer rests on row 0, the key moves the highlight, and a hover event
+    // with no movement in it, the kind the browser sends, must not move it
+    // back.
+    const firstRow = await page.$eval('#palette-results li a', (a) => {
+      const r = a.getBoundingClientRect()
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2 }
+    })
+    await page.mouse.move(firstRow.x, firstRow.y)
     await page.keyboard.press('ArrowDown')
+    await page.$eval('#palette-results li a', (a) => {
+      a.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, movementX: 0, movementY: 0 }))
+      a.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, movementX: 0, movementY: 0 }))
+    })
+    await page.waitForTimeout(150)
     is(
       await page.$eval('.palette input', (field) => field.getAttribute('aria-activedescendant')),
       'palette-option-1',
-      'an arrow key moves the active descendant with the highlight',
+      'an arrow key moves the active descendant with the highlight, and a still pointer does not take it back',
+    )
+    // And the other half (review of #710): a pointer that really moves onto
+    // another row does take the highlight, so a guard that dropped hover
+    // altogether cannot pass the check above alone.
+    // Row 2: not row 0, where the pointer already rests, nor row 1, which
+    // the key has just highlighted - so the search has to find three.
+    atLeast(await page.$$eval('#palette-results li a', (rows) => rows.length), 3, 'the search finds three rows to move between')
+    const target = await page.$$eval('#palette-results li a', (rows) => {
+      const r = rows[2].getBoundingClientRect()
+      return { i: 2, x: r.x + r.width / 2, y: r.y + r.height / 2 }
+    })
+    await page.mouse.move(target.x, target.y, { steps: 5 })
+    is(
+      await page.$eval('.palette input', (field) => field.getAttribute('aria-activedescendant')),
+      `palette-option-${target.i}`,
+      'and a pointer that moves onto another row takes the highlight',
     )
     await page.keyboard.press('ArrowUp')
     // Escape is the one way out of the palette that needs no pointer, and the
@@ -5013,7 +5179,7 @@ try {
      * During the boot window a click on the static page is held — the URL
      * moves, the asked-for page's prerendered half is fetched and swapped in,
      * and the database download is never restarted. That is right for a page
-     * and wrong for a file: /data links to /f1.db, /f1-parquet.zip,
+     * and wrong for a file: /data links to /f1.db.gz, /f1-parquet.zip,
      * /schema.sql, /ATTRIBUTION.md, /LICENSE-DATA and /SHA256SUMS with no
      * `download` attribute, and holding one of those moved the address bar,
      * downloaded nothing, and left the router to render a 404 for it when the
@@ -5402,6 +5568,9 @@ try {
       // row the app holds, not of the page it happens to show.
       await same('/drivers/senna', 'Ayrton Senna', 'Team-mates')
       await same('/drivers/brabham', 'Sir Jack Brabham', 'Team-mates')
+      // LV-03: a practice-only driver across several seasons, whose sessions
+      // the static page must list in the order the app sorts them.
+      await same('/drivers/felipe-drugovich', 'Felipe Drugovich', 'Practice sessions')
       await same('/records', 'Records')
       await same('/records', 'Records', 'Wins')
 
@@ -5488,10 +5657,30 @@ try {
       const gp = (year, round) => one('SELECT name_used FROM races WHERE year = ? AND round = ?', year, round)
       const sprintRound = one("SELECT MIN(r.round) FROM races r WHERE r.year = 2026 AND r.sprint = 1 AND r.status = 'completed'")
       if (sprintRound) {
-        for (const heading of ['Classification', 'Qualifying', 'Sprint', 'Pit stops']) {
+        for (const heading of ['Classification', 'Qualifying', 'Sprint', 'Sprint qualifying', 'Practice 1', 'Pit stops']) {
           await same(`/races/2026/${sprintRound}`, gp(2026, sprintRound), heading)
         }
       } else fail('no completed 2026 sprint weekend to compare the race tables on')
+      // LV-03: a practice sheet with a driver who never started a race on it,
+      // whose dagger and spoken meaning both halves must carry the same.
+      const marked = db
+        .prepare(`SELECT r.year, r.round, p.session FROM practice p JOIN races r ON r.id = p.race_id
+                    JOIN drivers d ON d.id = p.driver_id WHERE d.practice_only = 1
+                   ORDER BY r.year DESC, r.round DESC LIMIT 1`)
+        .get()
+      // The two sessions a weekend no longer runs, each one sheet, static
+      // against app: a warm-up (1984-2003) and a pre-qualifying (1977-1992).
+      for (const session of ['warm_up', 'pre_qualifying']) {
+        const at = db
+          .prepare(`SELECT r.year, r.round FROM practice p JOIN races r ON r.id = p.race_id
+                     WHERE p.session = ? ORDER BY r.year DESC, r.round DESC LIMIT 1`)
+          .get(session)
+        await same(`/races/${at.year}/${at.round}`, gp(at.year, at.round), Object.fromEntries(PRACTICE_SESSIONS)[session])
+      }
+      if (marked) {
+        const title = Object.fromEntries(PRACTICE_SESSIONS)[marked.session]
+        await same(`/races/${marked.year}/${marked.round}`, gp(marked.year, marked.round), title)
+      } else fail('no practice sheet carries a practice-only driver')
       await same('/races/1976/9', gp(1976, 9), 'Qualifying')
       await same('/races/1955/1', gp(1955, 1), 'Classification')
       // Rung five: a constructor's and a circuit's three tables each.

@@ -7,7 +7,8 @@ import { Chips, Filters, NoMatch, SearchField, Select } from '../components/Filt
 import { useQuery } from '../data/useQuery.js'
 import { anyThisSeason, gridLabel, seasonOf } from '../lib/season.js'
 import { oneOf, useUrlState } from '../lib/urlstate.js'
-import { DRIVERS, DRIVER_COLUMNS } from '../queries/drivers.js'
+import { DRIVERS, DRIVER_COLUMNS, REGISTER_FOOTER } from '../queries/drivers.js'
+import { PRACTICE_ONLY_MARK } from '../queries/race.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
 import { NAMES } from '../lib/site.js'
@@ -18,7 +19,20 @@ import { NAMES } from '../lib/site.js'
  * scripts/prerender.js too, so the static register is this one.
  */
 const APP = {
-  full_name: { render: (name, row) => <Link to={`/drivers/${row.id}`}>{name}</Link> },
+  full_name: {
+    render: (name, row) => (
+      <>
+        <Link to={`/drivers/${row.id}`}>{name}</Link>
+        {row.practice_only === 1 && (
+          <>
+            {' '}
+            <span aria-hidden="true">{PRACTICE_ONLY_MARK}</span>
+            <span className="sr-only">(never started a Grand Prix)</span>
+          </>
+        )}
+      </>
+    ),
+  },
   first_season: { sort: (row) => row.first_season },
   titles: {
     render: (value, row) =>
@@ -33,7 +47,7 @@ export default function Drivers() {
       title={NAMES.drivers().headline}
       documentName={NAMES.drivers().title}
       trail={TRAIL.drivers()}
-      lede="Every driver the championship has recorded an entry for, from 1950 to now. Filter by nationality, narrow to champions or race winners, then open anyone for their full career, season by season."
+      lede="Every driver the championship has recorded an entry for, from 1950 to now, and the Friday drivers who ran in practice and never started a race. Filter by nationality, narrow to champions or race winners, then open anyone for their record."
     >
       <Section>
         <Result state={state} skeleton>
@@ -61,6 +75,7 @@ function Register({ rows }) {
     ['winners', 'Race winners'],
     ['champions', 'Champions'],
     ...(hasGrid ? [['grid', gridLabel(gridSeason)]] : []),
+    ['practice', 'Practice only'],
   ]
 
   // The filters are in the address, so the register can be sent to somebody
@@ -83,6 +98,7 @@ function Register({ rows }) {
       // query; the register's open span is a NULL last_season, so the year
       // was never the test (IX-17).
       if (kind === 'grid' && !row.on_grid) return false
+      if (kind === 'practice' && row.practice_only !== 1) return false
       if (!needle) return true
       return row.full_name.toLowerCase().includes(needle)
     })
@@ -101,7 +117,9 @@ function Register({ rows }) {
               ? 'champions'
               : kind === 'grid'
                 ? `drivers on the ${gridSeason} grid`
-                : 'drivers',
+                : kind === 'practice'
+                  ? 'practice-only drivers'
+                  : 'drivers',
           nationality ? `from ${nationality}` : '',
         ]
           .filter(Boolean)
@@ -141,7 +159,7 @@ function Register({ rows }) {
         page={150}
         columns={DRIVER_COLUMNS.map((column) => ({ ...column, ...APP[column.key] }))}
         empty={<NoMatch noun="driver" term={term} among={among} onClear={clear} />}
-        footer="Most wins first; sort by any column. Entries is every race a driver was entered for, counted from the race records — an entry is not a start. A blank is a figure nobody has established, not a zero, and those rows sink to the bottom whichever way you sort."
+        footer={REGISTER_FOOTER}
       />
     </>
   )

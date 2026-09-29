@@ -246,6 +246,11 @@ CREATE TABLE drivers (
     titles          INTEGER DEFAULT 0,
     title_years     TEXT,                      -- comma-separated
     status          TEXT CHECK (status IN ('active', 'retired', 'deceased')),
+    -- 1 for a driver who ran in practice or sprint qualifying and never
+    -- entered a championship race: a Friday reserve (LV-03). Derived by the
+    -- build from those tables, never typed, and no page counts one among
+    -- the drivers who raced.
+    practice_only   INTEGER NOT NULL DEFAULT 0 CHECK (practice_only IN (0, 1)),
     stats_as_of     TEXT,                      -- when the career figures were true
     -- wins / poles / fastest_laps / podiums above are DERIVED from the race
     -- records, which cover every championship race 1950-2026. Podiums became
@@ -1169,6 +1174,60 @@ CREATE TABLE qualifying (
     position_text   TEXT,                      -- "1", DNQ, DNPQ, DNS ...
     driver_number   INTEGER,
     time            TEXT,                      -- as published: "1:50.800"
+    q1              TEXT,
+    q2              TEXT,
+    q3              TEXT,
+    gap             TEXT,
+    interval        TEXT,
+    laps            INTEGER,
+    confidence      TEXT NOT NULL DEFAULT 'reference' REFERENCES provenance(confidence),
+    source          TEXT,
+    UNIQUE (race_id, driver_id)
+);
+
+-- Practice, one row per driver per session (LV-03). The session's
+-- classification as F1DB publishes it: the order of best laps, the lap, the
+-- gap and interval to it, and laps run. One lap per driver - the fastest -
+-- so this is a classification, not the lap timing that stays FOM's (the four
+-- empty tables, docs/TIMING-ARCHITECTURE.md). `session` is the `sessions`
+-- table's own word, so a 2026 row is held to that weekend's timetable; fp4
+-- is the fourth session of 2004-2005 and has no timetable row, and so have
+-- pre_qualifying (1977-1992) and warm_up (1984-2003), the sessions a weekend
+-- no longer runs. A driver who set no time has an empty `time` and the
+-- place F1DB gives them.
+CREATE TABLE practice (
+    id              INTEGER PRIMARY KEY,
+    race_id         INTEGER NOT NULL REFERENCES races(id),
+    session         TEXT NOT NULL CHECK (session IN ('pre_qualifying', 'fp1', 'fp2', 'fp3', 'fp4', 'warm_up')),
+    driver_id       TEXT NOT NULL REFERENCES drivers(id),
+    constructor_id  TEXT REFERENCES constructors(id),
+    position        INTEGER,                   -- NULL where not classified
+    position_text   TEXT,                      -- "1", or NC
+    driver_number   INTEGER,
+    time            TEXT,                      -- best lap, as published: "1:45.387"
+    gap             TEXT,
+    interval        TEXT,
+    laps            INTEGER,
+    confidence      TEXT NOT NULL DEFAULT 'reference' REFERENCES provenance(confidence),
+    source          TEXT,
+    UNIQUE (race_id, session, driver_id)
+);
+
+CREATE INDEX idx_practice_race   ON practice(race_id, session);
+CREATE INDEX idx_practice_driver ON practice(driver_id);
+
+-- The session that sets a sprint's grid (LV-03): the sprint shootout in 2023,
+-- sprint qualifying since. Knockout-shaped like qualifying - three segments
+-- and no single time - and kept apart from it for the reason qualifying is
+-- kept apart from the race: it is its own session with its own order.
+CREATE TABLE sprint_qualifying (
+    id              INTEGER PRIMARY KEY,
+    race_id         INTEGER NOT NULL REFERENCES races(id),
+    driver_id       TEXT NOT NULL REFERENCES drivers(id),
+    constructor_id  TEXT REFERENCES constructors(id),
+    position        INTEGER,
+    position_text   TEXT,
+    driver_number   INTEGER,
     q1              TEXT,
     q2              TEXT,
     q3              TEXT,

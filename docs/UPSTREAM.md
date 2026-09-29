@@ -17,11 +17,13 @@ and the source, wholly or mostly, of these tables:
 |---|---|---|
 | `standings` | 34,498 of 34,563 | championship standings after every round |
 | `qualifying` | 26,997 | every qualifying sheet |
+| `practice` | 49,664 | every practice, warm-up and pre-qualifying session's classification, 1977 on (LV-03) |
 | `race_entries` | 26,318 of 27,482 | the full classification of every race |
 | `pit_stops` | 22,481 | lap and order of every stop |
 | `season_entrants` | 1,925 | who entered what, season by season |
 | `chassis` | 1,153 | every chassis that has raced |
 | `sprint_results` | 590 | every sprint classification |
+| `sprint_qualifying` | 466 | the session that sets each sprint's grid, 2023 on |
 | `engines` | 424 | the engine register |
 | `circuit_outlines` | 160 | the outline of every circuit layout, drawn by Jules Roy, and through `races.f1db_layout_id` the layout each race ran |
 | `drivers` | 680 of 862 | rows admitted to the register from F1DB's |
@@ -65,11 +67,13 @@ refresh does not move it: the totals are the named source the career
 figures typed into `data/drivers.py` are checked against (PM-57, #624), and
 they change only when somebody fetches another release on purpose.
 
-`.github/workflows/refresh.yml` runs the fetch daily at 06:00 UTC. If the
+`.github/workflows/refresh.yml` runs the fetch daily at 06:00 UTC, and every
+three hours from a race weekend's first session until 72 hours after it. If the
 harvest has not changed it stops there. If it has, it rebuilds, runs
 `verify.py`, the loader unit tests, the JSON export, the site build and the
-site's tests, and commits the refreshed harvest and artefacts to `main` only
-when every one of them passes. A refresh that fails commits nothing and the
+site's tests, and only when every one of them passes opens a pull request
+with the refreshed harvest and artefacts, which merges itself once CI's
+required checks pass `[D-45]`. A refresh that fails commits nothing and the
 site keeps the last good snapshot.
 
 ## What refuses a bad load
@@ -94,9 +98,10 @@ knowing: it reads fields with `.get()`, so a renamed field yields an empty
 column, and a moved or renamed YAML file yields zero rows, silently. What
 stops a shape change is downstream. The fetch tool exits on a position code
 it does not know — "the vocabulary has changed; decide what it means before
-storing it" — and `verify.py` holds a **row floor** for eight F1DB tables
+storing it" — and `verify.py` holds a **row floor** for ten F1DB tables
 (`race_entries`, `qualifying`, `standings`, `pit_stops`, `sprint_results`,
-`season_entrants`, `chassis`, `engines`) at their counts as of v2.22, added
+`season_entrants`, `chassis`, `engines`, and since LV-03 `practice` and
+`sprint_qualifying`) at their counts as of v2.22, or of their arrival, added
 after a database built with `standings.txt` deleted, 34,498 rows gone,
 passed every gate; `drivers` and `constructors` have no floor, and are held
 instead by `build.py`'s admission check, which refuses a driver the register
@@ -136,7 +141,7 @@ The replacements, in order of how much they cost:
 - **The hand-written harvest** carries the winner of every completed race,
   the pole and fastest lap of every race it has reached, and the champion of
   every season, so the register of what happened does not depend on F1DB;
-  the full classification, qualifying, standings and pit stops do.
+  the full classification, qualifying, practice, standings and pit stops do.
 
 ## If F1DB changes licence
 

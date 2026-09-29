@@ -142,8 +142,12 @@ async function download(manifest, init) {
     return gunzip(bytes)
   }
 
-  const response = await get('f1.db', init, manifest.digest)
-  return drain(response, manifest.bytes, manifest.bytes)
+  // No raw copy to fall back on since D-47: the host will not serve a file
+  // that size. Every browser since early 2023 has DecompressionStream, so
+  // the reader without it is told what is missing and where the file is.
+  throw new Error(
+    'this browser cannot decompress the database (it has no DecompressionStream); any browser from 2023 on can, or download f1.db from the repository and open it with any SQLite client',
+  )
 }
 
 /** Did the download come back a different size from the one promised? */

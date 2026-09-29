@@ -40,11 +40,10 @@ build artefact of `build.py` at the repository root, the wasm comes back with
 
 | File | What it is | Size |
 |---|---|---|
-| `f1.db.gz` | the database, gzipped — the normal path | ~4.5 MB |
-| `f1.db` | the database as built — the fallback path | 20 MB |
+| `f1.db.gz` | the database, gzipped — the only copy served, since the raw file passed Cloudflare's 25 MiB per-file limit (D-47); the raw file is linked from the repository | ~6.5 MB |
 | `sql-wasm.wasm` | the SQLite engine, from the installed sql.js | 643 KB |
 | `db-manifest.json` | a digest, the sizes, and the database's version | ~200 B |
-| `SHA256SUMS` | the full SHA-256 of each file it names, in `sha256sum` format — the two databases, the gzip, the wasm, the Parquet bundle and the three documents | ~600 B |
+| `SHA256SUMS` | the full SHA-256 of each file it names, in `sha256sum` format — the geometry database, the gzip, the wasm, the Parquet bundle and the three documents | ~600 B |
 
 ## How twenty megabytes gets to a reader
 

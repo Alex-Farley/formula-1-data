@@ -245,15 +245,15 @@ function holdLinks() {
       // with a fragment.
       if (url.hash && url.pathname === location.pathname && url.search === location.search) return
       // Only a route of this site is worth holding. /data links to the
-      // database and to the documents that explain it — /f1.db,
+      // database and to the documents that explain it — /f1.db.gz,
       // /f1-geometry.db, /f1-parquet.zip, /schema.sql, /ATTRIBUTION.md,
       // /LICENSE-DATA, /SHA256SUMS — and not one of those anchors carries a
       // `download` attribute, because a static host's Content-Disposition is
       // its own. Held, such a click moved the address bar and downloaded
       // nothing, and left the router to render a 404 for it twenty seconds
-      // later; held and then served from the prerendered page, /f1.db is
-      // twenty-three megabytes pulled alongside the download this function
-      // exists to protect, and run through DOMParser.
+      // later; held and then served from the prerendered page, a data file is
+      // megabytes pulled alongside the download this function exists to
+      // protect, and run through DOMParser.
       //
       // A prerendered path is a slug — lower-case, digits and hyphens between
       // slashes — and every file served beside the app has either an
