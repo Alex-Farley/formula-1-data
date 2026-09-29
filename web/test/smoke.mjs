@@ -4452,11 +4452,28 @@ try {
     truthy(await inField(), 'Shift+Tab does not leave the palette for the page behind it')
     await page.keyboard.press('Tab')
     truthy(await inField(), 'nor does Tab')
+    // CR-58 (#687): the pointer is left standing where the first result
+    // renders by the section before, and the browser's hover update for a
+    // row appearing under a still cursor used to snap the key's highlight
+    // back to it - intermittently, as the two raced. Made certain here: the
+    // pointer rests on row 0, the key moves the highlight, and a hover event
+    // with no movement in it, the kind the browser sends, must not move it
+    // back.
+    const firstRow = await page.$eval('#palette-results li a', (a) => {
+      const r = a.getBoundingClientRect()
+      return { x: r.x + r.width / 2, y: r.y + r.height / 2 }
+    })
+    await page.mouse.move(firstRow.x, firstRow.y)
     await page.keyboard.press('ArrowDown')
+    await page.$eval('#palette-results li a', (a) => {
+      a.dispatchEvent(new MouseEvent('mouseover', { bubbles: true, movementX: 0, movementY: 0 }))
+      a.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, movementX: 0, movementY: 0 }))
+    })
+    await page.waitForTimeout(150)
     is(
       await page.$eval('.palette input', (field) => field.getAttribute('aria-activedescendant')),
       'palette-option-1',
-      'an arrow key moves the active descendant with the highlight',
+      'an arrow key moves the active descendant with the highlight, and a still pointer does not take it back',
     )
     await page.keyboard.press('ArrowUp')
     // Escape is the one way out of the palette that needs no pointer, and the
