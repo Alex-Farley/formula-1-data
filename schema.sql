@@ -1191,12 +1191,14 @@ CREATE TABLE qualifying (
 -- so this is a classification, not the lap timing that stays FOM's (the four
 -- empty tables, docs/TIMING-ARCHITECTURE.md). `session` is the `sessions`
 -- table's own word, so a 2026 row is held to that weekend's timetable; fp4
--- is the fourth session of 2004-2005 and has no timetable row. A driver who
--- set no time has an empty `time` and the place F1DB gives them.
+-- is the fourth session of 2004-2005 and has no timetable row, and so have
+-- pre_qualifying (1977-1992) and warm_up (1984-2003), the sessions a weekend
+-- no longer runs. A driver who set no time has an empty `time` and the
+-- place F1DB gives them.
 CREATE TABLE practice (
     id              INTEGER PRIMARY KEY,
     race_id         INTEGER NOT NULL REFERENCES races(id),
-    session         TEXT NOT NULL CHECK (session IN ('fp1', 'fp2', 'fp3', 'fp4')),
+    session         TEXT NOT NULL CHECK (session IN ('pre_qualifying', 'fp1', 'fp2', 'fp3', 'fp4', 'warm_up')),
     driver_id       TEXT NOT NULL REFERENCES drivers(id),
     constructor_id  TEXT REFERENCES constructors(id),
     position        INTEGER,                   -- NULL where not classified

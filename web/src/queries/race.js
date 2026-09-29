@@ -283,10 +283,12 @@ export const QUALIFYING_FOOTER =
 
 /** The sessions practice rows can belong to, in weekend order, with the name the timetable gives each. */
 export const PRACTICE_SESSIONS = [
+  ['pre_qualifying', 'Pre-qualifying'],
   ['fp1', 'Practice 1'],
   ['fp2', 'Practice 2'],
   ['fp3', 'Practice 3'],
   ['fp4', 'Practice 4'],
+  ['warm_up', 'Warm-up'],
 ]
 
 /** One weekend's practice rows, split by session and in weekend order; a session with no rows is left out. */

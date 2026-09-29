@@ -15,6 +15,7 @@
  */
 import { EMPTY, finished, missing, number, points, result, span, text, yearList } from '../lib/format.js'
 import { CURRENT_SEASON_SQL } from '../lib/season.js'
+import { PRACTICE_SESSIONS } from './race.js'
 
 export const DRIVER = `SELECT * FROM drivers WHERE id = ?`
 
@@ -915,7 +916,7 @@ export const DRIVER_PRACTICE = `
    ORDER BY r.year DESC, r.round DESC, p.session
 `
 
-const SESSION_NAMES = { fp1: 'Practice 1', fp2: 'Practice 2', fp3: 'Practice 3', fp4: 'Practice 4' }
+const SESSION_NAMES = Object.fromEntries(PRACTICE_SESSIONS)
 
 export const PRACTICE_ONLY_NOTICE = {
   head: 'Practice only.',

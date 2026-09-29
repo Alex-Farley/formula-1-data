@@ -2283,13 +2283,16 @@ def _stage_24b_practice_and_sprint_qualifying_from_f1db(b):
              num(r["laps"]), HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
         sq += 1
 
-    # `practice_only` is derived, not stamped on F1DB_PRACTICE_DRIVERS: the
+    # `practice_only` is derived, not stamped on F1DB_PRACTICE_DRIVERS - and
+    # a driver with a qualifying row is not one, since a driver who went no
+    # further than pre-qualifying (DNPQ) entered the championship. The
     # register held two drivers with no race before LV-03, and Susie Wolff,
     # who ran FP1 in 2014 and 2015, is exactly this - Maria de Villota, who
     # tested and never ran a session, is not. So the flag is the fact it
     # names, for whoever it is true of. verify.py holds it both ways round.
     cur.execute("""UPDATE drivers SET practice_only =
         CASE WHEN NOT EXISTS (SELECT 1 FROM race_entries e WHERE e.driver_id = drivers.id)
+              AND NOT EXISTS (SELECT 1 FROM qualifying q0 WHERE q0.driver_id = drivers.id)
               AND (EXISTS (SELECT 1 FROM practice p WHERE p.driver_id = drivers.id)
                    OR EXISTS (SELECT 1 FROM sprint_qualifying q WHERE q.driver_id = drivers.id))
              THEN 1 ELSE 0 END""")

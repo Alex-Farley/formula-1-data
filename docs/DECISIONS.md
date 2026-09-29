@@ -959,6 +959,12 @@ this be read once by a person rather than assumed.
 
 Cost: 31% on the compressed database the site sends (4.97 MB to 6.53 MB).
 
+*2026-09-29.* The warm-up (1984-2003) and pre-qualifying (1977-1992) joined
+`practice` as two more sessions, from the same F1DB files, as the maintainer
+asked when the gaps were listed. `practice_only` now also requires no
+qualifying row: a driver who went no further than pre-qualifying entered the
+championship, and is not a Friday driver.
+
 ### D-47 · The site serves f1.db.gz, and the raw file is the repository's — 2026-09-28
 Cloudflare Workers will not host a single static file over 25 MiB
 (26,214,400 bytes), and a deploy carrying one fails whole. The site staged

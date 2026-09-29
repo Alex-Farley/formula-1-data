@@ -2959,11 +2959,16 @@ def practice_and_sprint_qualifying():
             HAVING COUNT(*) != COUNT(DISTINCT p.position))""").fetchone()[0]
         check(f"no {t} session puts two drivers on one place", repeats == 0,
               f"{repeats} sessions")
+        # Two sheets F1DB publishes with a place missing, declared as
+        # published: the 1984 Portuguese warm-up has no P18 and the 1992
+        # Hungarian pre-qualifying no P4. The build dropped nothing - the
+        # harvest has the same rows - so the warning above cannot excuse them.
+        SHEET_HOLES = {(1984, 16, "warm_up"), (1992, 11, "pre_qualifying")}
         holes = [k for k in con.execute(f"""SELECT r.year, r.round, {sess} FROM {t} p
             JOIN races r ON r.id = p.race_id WHERE p.position IS NOT NULL
             GROUP BY p.race_id, {sess}
             HAVING MIN(p.position) != 1 OR MAX(p.position) != COUNT(DISTINCT p.position)""")
-                 if tuple(k) not in short[t]]
+                 if tuple(k) not in short[t] and tuple(k) not in SHEET_HOLES]
         check(f"every {t} session's places run from 1 with no gap",
               not holes, f"{len(holes)} sessions")
 
@@ -3100,7 +3105,10 @@ def practice_and_sprint_qualifying():
     # is their team in that weekend's race. The one exception is a real one,
     # declared: Nyck de Vries ran FP1 at Monza in 2022 for Aston Martin, and
     # raced there for Williams in Alexander Albon's place.
-    PRACTICE_TEAM_EXCEPTIONS = {(2022, 16, "fp1", "nyck-de-vries")}
+    PRACTICE_TEAM_EXCEPTIONS = {(2022, 16, "fp1", "nyck-de-vries"),
+                                # Monza 1978: Harald Ertl pre-qualified an Ensign,
+                                # then qualified an ATS and did not qualify.
+                                (1978, 14, "pre_qualifying", "harald-ertl")}
     # The check above reaches only drivers who raced. This one reaches every
     # row, the Friday drivers' included: a team in practice is a team entered
     # for that weekend - in the race, or in qualifying, which holds HRT at
@@ -3155,7 +3163,9 @@ def practice_and_sprint_qualifying():
           f"{repeated} sessions")
     NUMBER_EXCEPTIONS = {(2004, 8, "fp1", "glock"), (2004, 8, "fp2", "glock"),
                          (2005, 9, "fp1", "ricardo-zonta"), (2005, 9, "fp2", "ricardo-zonta"),
-                         (2022, 16, "fp1", "nyck-de-vries")}
+                         (2022, 16, "fp1", "nyck-de-vries"),
+                         # Ertl's Ensign number in pre-qualifying, his ATS one after.
+                         (1978, 14, "pre_qualifying", "harald-ertl")}
     renumbered = [k for k in con.execute("""SELECT r.year, r.round, p.session, p.driver_id
         FROM practice p JOIN races r ON r.id = p.race_id
         JOIN qualifying q ON q.race_id = p.race_id AND q.driver_id = p.driver_id
@@ -3195,6 +3205,7 @@ def practice_and_sprint_qualifying():
     # The flag is the fact it names, both ways round.
     wrong = con.execute("""SELECT id FROM drivers WHERE practice_only !=
         CASE WHEN NOT EXISTS (SELECT 1 FROM race_entries e WHERE e.driver_id = drivers.id)
+              AND NOT EXISTS (SELECT 1 FROM qualifying q0 WHERE q0.driver_id = drivers.id)
               AND (EXISTS (SELECT 1 FROM practice p WHERE p.driver_id = drivers.id)
                    OR EXISTS (SELECT 1 FROM sprint_qualifying q WHERE q.driver_id = drivers.id))
              THEN 1 ELSE 0 END""").fetchall()
@@ -4110,8 +4121,9 @@ def the_full_classification():
         ("race_entries", 27482), ("qualifying", 26997), ("standings", 34563),
         ("pit_stops", 22481), ("sprint_results", 590), ("season_entrants", 1925),
         ("chassis", 1153), ("engines", 424),
-        # LV-03's two, at F1DB v2026.15.1 when they arrived.
-        ("practice", 41334), ("sprint_qualifying", 466),
+        # LV-03's two, at F1DB v2026.15.1 when they arrived; practice raised
+        # when the warm-up and pre-qualifying joined it.
+        ("practice", 49664), ("sprint_qualifying", 466),
     )
     for table, floor in FLOORS:
         n = con.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
