@@ -209,10 +209,14 @@ class NoExpressionInsideAScript(unittest.TestCase):
         self.assertEqual(found, [], "a ${{ }} expression inside run: — pass it through env:")
 
     def test_the_parser_sees_a_block_and_an_inline_script(self):
+        # Line 8's block is clean and followed by an expression in env: (a
+        # parser that reads past a block's end reports 8); line 13's carries
+        # one after a blank line (a parser that stops at the blank misses 13).
         text = ("jobs:\n  a:\n    outputs:\n      run: ${{ steps.x.outputs.run }}\n    steps:\n"
-                "      - run: echo ${{ a }}\n      - name: x\n        run: |\n          ok\n\n"
-                "          echo ${{ b }}\n        env:\n          C: ${{ c }}\n")
-        self.assertEqual([n for n, s in run_scripts(text) if "${{" in s], [6, 8])
+                "      - run: echo ${{ a }}\n      - name: x\n        run: |\n          ok\n"
+                "        env:\n          C: ${{ c }}\n"
+                "      - name: y\n        run: |\n          ok\n\n          echo ${{ b }}\n")
+        self.assertEqual([n for n, s in run_scripts(text) if "${{" in s], [6, 13])
 
 
 if __name__ == "__main__":
