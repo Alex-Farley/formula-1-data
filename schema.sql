@@ -1032,8 +1032,10 @@ CREATE TABLE races (
     -- THE RACE DAY, AND THE WEEKEND AROUND IT WHERE ONE IS STATED.
     --   date_iso   is the day the race itself was held, YYYY-MM-DD, on every
     --              row: F1DB's date for every round it holds, and the last
-    --              day of the announced weekend for a round it has not
-    --              reached yet.
+    --              day of the announced weekend - the LOCAL day - for a
+    --              round it has not reached yet. The two readings differ
+    --              only where a race runs past midnight UTC, so Las Vegas
+    --              2027's date_iso moves a day when F1DB lists it.
     --   date_from  the first and last day of the weekend, YYYY-MM-DD, where
     --   date_to    a source states one - today the calendars formula1.com
     --              announces, so the current season and the next. NULL on
@@ -1045,11 +1047,12 @@ CREATE TABLE races (
     -- the rest, so a renderer printed raw ISO most of the time and no check
     -- could read the range. Both halves are now dates, and verify.py holds
     -- them to each other: date_from <= date_to, and the race day is date_to.
-    -- The one exception is measured, not declared: with a timetable in
-    -- `sessions`, date_to is the race's local day and date_iso its UTC day,
-    -- which is F1DB's reading - Las Vegas races on a Saturday evening that is
-    -- Sunday in UTC. The `calendar` view still offers the old display string
-    -- as `dates`, derived from these three.
+    -- The one exception: with a timetable in `sessions`, date_to is the
+    -- race's local day and date_iso its UTC day, which is F1DB's reading -
+    -- Las Vegas races on a Saturday evening that is Sunday in UTC. That is
+    -- measured where a timetable is held and declared where none is yet
+    -- (data/current.py RACE_DAY_AFTER_WEEKEND). The `calendar` view still
+    -- offers the old display string as `dates`, derived from these three.
     date_iso        TEXT,                      -- YYYY-MM-DD, the race day
     date_from       TEXT,                      -- YYYY-MM-DD, the weekend's first day, or NULL
     date_to         TEXT,                      -- YYYY-MM-DD, its last day, or NULL

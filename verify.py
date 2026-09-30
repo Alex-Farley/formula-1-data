@@ -1713,14 +1713,27 @@ def calendar():
     # The race is the weekend's last day. A round with a timetable is held to
     # its sessions below instead, because there the two can rightly differ:
     # the timetable proves date_to is the local day and date_iso the UTC one.
-    outside = [f"{r[0]} r{r[1]}: {r[2]}, weekend ends {r[3]}" for r in con.execute("""
+    # Without one, the day after is allowed only at a circuit declared in
+    # data/current.py RACE_DAY_AFTER_WEEKEND, whose race runs past midnight
+    # UTC - F1DB lists a season before its timetable can be held, and its day
+    # for Las Vegas is the Sunday.
+    from data import current as _N
+    after = sorted(_N.RACE_DAY_AFTER_WEEKEND)
+    unknown = [c for c in after if con.execute(
+        "SELECT 1 FROM circuits WHERE id = ?", (c,)).fetchone() is None]
+    check("every circuit whose race day may follow its weekend is in the register",
+          not unknown, ", ".join(unknown))
+    marks = ", ".join("?" * len(after)) or "NULL"
+    outside = [f"{r[0]} r{r[1]}: {r[2]}, weekend ends {r[3]}" for r in con.execute(f"""
         SELECT r.year, r.round, r.date_iso, r.date_to FROM races r
         WHERE r.date_to IS NOT NULL AND r.date_iso IS NOT r.date_to
+          AND NOT (r.circuit_id IN ({marks})
+                   AND r.date_iso = date(r.date_to, '+1 day'))
           AND NOT EXISTS (SELECT 1 FROM sessions s
                           WHERE s.race_id = r.id AND s.kind = 'race')
-        ORDER BY r.year, r.round""")]
-    check("the race day is the last day of its weekend", not outside,
-          "; ".join(outside[:4]))
+        ORDER BY r.year, r.round""", after)]
+    check("the race day is the last day of its weekend, or the next at a declared circuit",
+          not outside, "; ".join(outside[:4]))
 
     # `note` is the standfirst of a race's page and part of its meta
     # description (CD-03), which is the job drivers.notes does on a driver's,

@@ -189,6 +189,20 @@ CALENDAR_2027 = [
     (24, "Abu Dhabi Grand Prix", "Abu Dhabi", "Yas Marina", "yas-marina", "10-12 Dec 2027", 1, "scheduled"),
 ]
 
+# Circuits whose race starts after midnight UTC on its local race day, so the
+# date F1DB gives the round - the UTC day - is the day after the weekend
+# formula1.com announces ends. verify.py lets races.date_iso be that day at
+# these circuits and nowhere else, and wherever the round has a timetable it
+# proves the reading from the start time instead (DA-15). Without the entry,
+# the first F1DB release to list a season would fail the build on a correct
+# value, because a timetable is only held for the season in progress.
+#   circuit_id: why
+RACE_DAY_AFTER_WEEKEND = {
+    "las-vegas": "a Saturday-evening race, 22:00 local in 2023 and 20:00 in "
+                 "2026, which is Sunday in UTC; F1DB dates 2023-2026 on the "
+                 "Sunday and formula1.com's weekends end on the Saturday",
+}
+
 # year -> (calendar, source). build.py loads every season named here, so a
 # new season arrives by being added to this map and to data/seasons.py, and
 # nothing in the loader names a year.
