@@ -5,7 +5,7 @@ import Figure from '../charts/Figure.jsx'
 import ColumnChart from '../charts/ColumnChart.jsx'
 import LiveryMark from '../components/LiveryMark.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
-import { number } from '../lib/format.js'
+import { number, raceDates } from '../lib/format.js'
 import { colourForEntry } from '../lib/liveries.js'
 import { NAMES } from '../lib/site.js'
 
@@ -126,7 +126,7 @@ export default function Home() {
                             </Link>
                           </h3>
                           <p className="muted small">
-                            {[latest.circuit, latest.dates].filter(Boolean).join(' · ')}
+                            {[latest.circuit, raceDates(latest)].filter(Boolean).join(' · ')}
                           </p>
                           <p>
                             {WON_BY}
@@ -164,7 +164,7 @@ export default function Home() {
                             </Link>
                           </h3>
                           <p className="muted small">
-                            {next.dates} · round {next.round}
+                            {raceDates(next)} · round {next.round}
                           </p>
                           <p className="muted">{stillToRunNote(now)}</p>
                           <p>

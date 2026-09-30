@@ -52,7 +52,7 @@ import { fileURLToPath } from 'node:url'
 // hardcoded `circuit_geometry` columns went wrong. `formatted` is the
 // app's own cell text — text() in lib/format.js — for the tables below
 // that are drawn from a page's column list.
-import { finished, missing, number, result, span, text as formatted, yearList } from '../src/lib/format.js'
+import { finished, missing, number, raceDates, result, span, text as formatted, yearList } from '../src/lib/format.js'
 import { WIDE_ONLY, defaultColumns, glossaryKey, onPhone, shared, sharedLine } from '../src/lib/table.js'
 // The ONE attribution rule (web/src/lib/commons.js), not a second copy of it.
 // This script cannot import CommonsImage - that is a React component and this
@@ -1590,7 +1590,7 @@ const page = ({
   const lastPanel = `<div class="panel round-panel"><p class="eyebrow">${esc(LAST_RACE)}</p>${
     latest
       ? `<h3>${link(`races/${latest.year}/${latest.round}`, `${latest.year} ${latest.name_used}`)}</h3>
-        <p class="muted small">${esc([latest.circuit, latest.dates].filter(Boolean).join(' \u00b7 '))}</p>
+        <p class="muted small">${esc([latest.circuit, raceDates(latest)].filter(Boolean).join(' \u00b7 '))}</p>
         <p>${esc(WON_BY)}${
           latest.winner_id ? link(`drivers/${latest.winner_id}`, latest.winner) : esc(UNRECORDED_WINNER)
         }${
@@ -1613,7 +1613,7 @@ const page = ({
     : `<div class="panel round-panel"><p class="eyebrow">${esc(NEXT_RACE)}</p>${
     upcoming
       ? `<h3>${link(`races/${upcoming.year}/${upcoming.round}`, `${upcoming.year} ${upcoming.name_used}`)}</h3>
-        <p class="muted small">${esc(`${upcoming.dates} \u00b7 round ${upcoming.round}`)}</p>
+        <p class="muted small">${esc(`${raceDates(upcoming)} \u00b7 round ${upcoming.round}`)}</p>
         <p class="muted">${esc(stillToRunNote(now))}</p>
         <p>${link(`seasons/${upcoming.year}`, calendarLink(upcoming.year))}</p>`
       : `<p class="muted">${esc(seasonComplete(now.year))}</p>${
@@ -1930,7 +1930,7 @@ const page = ({
   const team = (id, fallback) => (id ? link(`constructors/${id}`, teams[id] ?? id) : text(fallback))
 
   const races = all(
-    `SELECT r.id, r.year, r.round, r.name_used, r.dates, r.date_iso, r.status, r.sprint, r.note,
+    `SELECT r.id, r.year, r.round, r.name_used, r.date_iso, r.date_from, r.date_to, r.status, r.sprint, r.note,
             r.gp_id, g.name AS gp_full,
             r.circuit_id, c.name AS circuit, c.locality, c.country, c.length_km, c.turns,
             rr.winner_id, rr.winner, rr.constructor_id, rr.constructor, rr.entrant,
@@ -2059,11 +2059,10 @@ const page = ({
         ...(r.winner && !scheduled
           ? { winner: { '@type': 'Person', name: r.winner } }
           : {}),
-        // The day, not the display value. `dates` may be a weekend range
-        // no parser can read, and the races that carry one are the SCHEDULED
-        // ones - exactly where a search engine most wants a date. Still
-        // guarded on the shape, because invalid structured data is worse
-        // than none.
+        // The day, not the weekend: a grand prix is a one-day event, and the
+        // races that state a weekend are the SCHEDULED ones - exactly where
+        // a search engine most wants a date. Still guarded on the shape,
+        // because invalid structured data is worse than none.
         //
         // `endDate` beside it, under the same guard, because Search Console
         // asks for both and a grand prix is a one-day event: the same day,
@@ -2099,7 +2098,7 @@ const page = ({
           ['Grand Prix', r.gp_id ? link(`grands-prix/${r.gp_id}`, r.gp_full ?? r.name_used) : text(r.name_used)],
           ['Circuit', r.circuit_id ? link(`circuits/${r.circuit_id}`, r.circuit ?? r.circuit_id) : '—'],
           ['Location', text(list([r.locality, r.country]))],
-          ['Dates', text(r.dates)],
+          ['Dates', text(raceDates(r))],
           ['Format', r.sprint ? 'Sprint weekend' : 'Standard weekend'],
           ...(scheduled
             ? [[

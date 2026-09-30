@@ -1181,7 +1181,7 @@ def pole_position_and_fastest_lap():
             continue
         actual = con.execute(
             f"SELECT COUNT(*) FROM races WHERE {g['field']} IS NULL").fetchone()[0] \
-            if g["field"] in ("circuit_id", "dates") else None
+            if g["field"] in ("circuit_id", "date_iso") else None
         if actual is not None and actual != g["races_affected"]:
             stale.append(f"{g['field']}: declared {g['races_affected']}, actual {actual}")
     check("declared gaps match the actual gaps", not stale, "; ".join(stale))
@@ -1663,17 +1663,15 @@ def calendar():
     # because that is the same definition the fastest-lap check above uses
     # and it cannot be satisfied by a status field alone.
     undated = con.execute("""SELECT COUNT(*) FROM races r
-        WHERE (r.dates IS NULL OR TRIM(r.dates) = '')
+        WHERE r.date_iso IS NULL
           AND EXISTS (SELECT 1 FROM race_entries e
                       WHERE e.race_id = r.id AND e.finish_position = 1)""").fetchone()[0]
     check("every completed race has a date", undated == 0,
           f"{undated} completed races carry none")
 
-    # date_iso is the machine-readable half of the pair and is set for every
-    # race F1DB knows, run or not - which is the point of splitting it from
-    # `dates`. A scheduled race is exactly where a search engine wants a
-    # startDate, and those are the 23 whose display value is a weekend range
-    # that no parser can read.
+    # date_iso is set for every race, run or not: F1DB's day where F1DB holds
+    # the round, the announced weekend's last day where it does not yet. A
+    # scheduled race is exactly where a search engine wants a startDate.
     noiso = con.execute(
         "SELECT COUNT(*) FROM races WHERE date_iso IS NULL").fetchone()[0]
     check("every race has an ISO date", noiso == 0, f"{noiso} carry none")
@@ -1684,15 +1682,45 @@ def calendar():
     check("every ISO race date is a well-formed day", badiso == 0,
           f"{badiso} malformed")
 
-    # The two columns may differ in SHAPE but never in FACT. Where `dates`
-    # is itself an ISO day, it is the same day date_iso holds; a divergence
-    # would mean the display and the structured data disagree about when a
-    # race happened, which is worse than either being absent.
-    disagree = con.execute("""SELECT COUNT(*) FROM races
-        WHERE dates GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'
-          AND dates <> date_iso""").fetchone()[0]
-    check("the display date and the ISO date never disagree", disagree == 0,
-          f"{disagree} disagree")
+    # The weekend (DA-15). date_from and date_to were one display string,
+    # `dates`, that held an ISO day on 98% of rows and a range on the rest,
+    # and no check could read the range - which is how Las Vegas 2026 stood
+    # with a race day outside its own weekend and nothing said why. Now both
+    # ends are days, so they are held to each other and to the race.
+    half = con.execute("""SELECT COUNT(*) FROM races
+        WHERE (date_from IS NULL) <> (date_to IS NULL)""").fetchone()[0]
+    check("a weekend has both ends or neither", half == 0, f"{half} have one")
+    badend = con.execute("""SELECT COUNT(*) FROM races
+        WHERE date_from IS NOT NULL
+          AND (date_from NOT GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'
+               OR date_to NOT GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'
+               OR date(date_from) IS NOT date_from
+               OR date(date_to) IS NOT date_to)""").fetchone()[0]
+    check("every weekend's ends are real days", badend == 0, f"{badend} are not")
+    # A weekend runs forwards and is a weekend: Friday to Sunday is two days
+    # on, and a Thursday start - Monaco's, until 2022 - is three.
+    long_ = [f"{r[0]} r{r[1]}: {r[2]} to {r[3]}" for r in con.execute("""
+        SELECT year, round, date_from, date_to FROM races
+        WHERE date_from IS NOT NULL
+          AND NOT julianday(date_to) - julianday(date_from) BETWEEN 0 AND 3
+        ORDER BY year, round""")]
+    check("every weekend runs forwards over four days at most", not long_,
+          "; ".join(long_[:4]))
+    unstated = con.execute("""SELECT COUNT(*) FROM races
+        WHERE status = 'scheduled' AND date_from IS NULL""").fetchone()[0]
+    check("every race still to come states its weekend", unstated == 0,
+          f"{unstated} do not")
+    # The race is the weekend's last day. A round with a timetable is held to
+    # its sessions below instead, because there the two can rightly differ:
+    # the timetable proves date_to is the local day and date_iso the UTC one.
+    outside = [f"{r[0]} r{r[1]}: {r[2]}, weekend ends {r[3]}" for r in con.execute("""
+        SELECT r.year, r.round, r.date_iso, r.date_to FROM races r
+        WHERE r.date_to IS NOT NULL AND r.date_iso IS NOT r.date_to
+          AND NOT EXISTS (SELECT 1 FROM sessions s
+                          WHERE s.race_id = r.id AND s.kind = 'race')
+        ORDER BY r.year, r.round""")]
+    check("the race day is the last day of its weekend", not outside,
+          "; ".join(outside[:4]))
 
     # `note` is the standfirst of a race's page and part of its meta
     # description (CD-03), which is the job drivers.notes does on a driver's,
@@ -2523,12 +2551,12 @@ def the_weekend_timetable():
           f"{stray} rows outside {CURRENT}")
     unz = con.execute("SELECT COUNT(*) FROM sessions WHERE start_utc NOT GLOB '????-??-??T??:??Z'").fetchone()[0]
     check("every session start is YYYY-MM-DDTHH:MMZ, so a browser reads it as UTC", unz == 0, f"{unz} rows")
-    rows = con.execute("""SELECT r.round, r.sprint, r.dates, s.kind, s.start_utc, s.zone
+    rows = con.execute("""SELECT r.round, r.sprint, r.date_to, r.date_iso, s.kind, s.start_utc, s.zone
         FROM sessions s JOIN races r ON r.id = s.race_id WHERE r.year = ?
         ORDER BY r.round, s.start_utc""", (CURRENT,)).fetchall()
     by_round = {}
-    for rnd, sprint, dates, kind, start, zone in rows:
-        by_round.setdefault(rnd, []).append((sprint, dates, kind, start, zone))
+    for rnd, sprint, date_to, date_iso, kind, start, zone in rows:
+        by_round.setdefault(rnd, []).append((sprint, (date_to, date_iso), kind, start, zone))
     rounds = {r[0] for r in con.execute(
         "SELECT round FROM races WHERE year = ?", (CURRENT,))}
     check(f"every {CURRENT} round has a timetable", set(by_round) == rounds,
@@ -2548,27 +2576,29 @@ def the_weekend_timetable():
     check("each weekend's sessions run in the order they are named", not order, ", ".join(order))
     # The race's local day is the last day of the weekend the calendar states,
     # which is what proves the UTC reading and the zone together: Las Vegas
-    # races on a Saturday evening that is Sunday in UTC.
-    _MON = {m: i for i, m in enumerate(
-        ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"), 1)}
-    wrong, badzone = [], []
+    # races on a Saturday evening that is Sunday in UTC. And its UTC day is
+    # date_iso, F1DB's day - which is why Las Vegas's date_iso is the day
+    # after its weekend ends, and the only reason one may be (DA-15).
+    wrong, badzone, utc_day = [], [], []
     for rnd, ss in by_round.items():
-        for sprint, dates, kind, start, zone in ss:
+        for sprint, (date_to, date_iso), kind, start, zone in ss:
             if kind != "race":
                 continue
             try:
                 tz = _zi.ZoneInfo(zone)
             except Exception:
                 badzone.append(f"r{rnd} {zone}"); continue
-            local = _dt.datetime.fromisoformat(start.rstrip("Z")).replace(tzinfo=_dt.timezone.utc).astimezone(tz)
-            m = re.search(r"(\d{1,2}) (\w{3}) (\d{4})$", dates or "")
-            if not m:
-                wrong.append(f"r{rnd}: races.dates {dates!r} does not end in a day"); continue
-            last = _dt.date(int(m.group(3)), _MON[m.group(2)], int(m.group(1)))
-            if local.date() != last:
-                wrong.append(f"r{rnd}: race {start}Z is {local.date()} in {zone}, the weekend ends {last}")
+            utc = _dt.datetime.fromisoformat(start.rstrip("Z")).replace(tzinfo=_dt.timezone.utc)
+            local = utc.astimezone(tz)
+            if date_to is None:
+                wrong.append(f"r{rnd}: races.date_to is NULL"); continue
+            if local.date().isoformat() != date_to:
+                wrong.append(f"r{rnd}: race {start}Z is {local.date()} in {zone}, the weekend ends {date_to}")
+            if utc.date().isoformat() != date_iso:
+                utc_day.append(f"r{rnd}: race {start}Z, date_iso {date_iso}")
     check("every zone is an IANA tz database name", not badzone, ", ".join(badzone))
     check("each race's local day is the last day of its weekend", not wrong, "; ".join(wrong[:4]))
+    check("each race's UTC day is its date_iso", not utc_day, "; ".join(utc_day[:4]))
     print(f"  [info] {len(rows)} sessions across {len(by_round)} weekends")
 
 

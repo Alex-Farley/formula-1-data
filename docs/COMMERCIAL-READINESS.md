@@ -284,7 +284,7 @@ Wikipedia is part Wikipedia and part F1DB:
 |---|---|---|
 | `races.year`, `round`, `name_used` | season article, `harvest/races.txt` | bare fact: which round, under the name it ran as |
 | `races.gp_id`, `circuit_id` | the article's race name and venue (`harvest/venues.txt`), resolved to this project's registers | bare fact, keyed by this project |
-| `races.dates`, `date_iso`, `f1db_layout_id`, `sprint` | F1DB | bare fact, CC BY 4.0 |
+| `races.date_iso`, `f1db_layout_id`, `sprint` | F1DB | bare fact, CC BY 4.0 |
 | `races.layout_key`, `status`, `confidence` | this project | this project's classification |
 | `race_entries.driver_id`, `constructor_id`, `finish_position`, `shared_drive` | season article | bare fact: who won, and for whom |
 | `race_entries.entrant` | season article | bare fact: the chassis-engine name as published |

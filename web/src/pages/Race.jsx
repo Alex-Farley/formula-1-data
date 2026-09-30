@@ -8,7 +8,7 @@ import { OutlineCard } from '../components/Outline.jsx'
 import Photographs from '../components/Photographs.jsx'
 import { RACE_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE, clock, nextSession, raceStage, readerZone, until, yourTimeColumn } from '../queries/sessions.js'
 import { rows, useQueries } from '../data/useQuery.js'
-import { finished, missing, number, result } from '../lib/format.js'
+import { finished, missing, number, raceDates, result } from '../lib/format.js'
 import { NAMES, SHARED } from '../lib/site.js'
 import { outlineCaption } from '../lib/outline.js'
 import { RACE_IMAGES } from '../queries/photographs.js'
@@ -304,7 +304,7 @@ function RaceBody({ race, data, year, round }) {
                 note: [race.locality, race.country].filter(Boolean).join(', ') || undefined,
               },
               scheduled
-                ? { label: 'Status', value: 'Scheduled', note: race.dates ?? undefined }
+                ? { label: 'Status', value: 'Scheduled', note: raceDates(race) ?? undefined }
                 : {
                     label: 'Winner',
                     kind: 'name',
@@ -505,7 +505,7 @@ function RaceBody({ race, data, year, round }) {
                 race.name_used
               ),
             },
-            { label: 'Dates', value: race.dates },
+            { label: 'Dates', value: raceDates(race) },
             {
               label: 'Layout raced',
               value: race.layout_name

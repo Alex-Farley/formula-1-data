@@ -129,6 +129,8 @@ TEAM_PERSONNEL_2026 = [
 ]
 
 # round, gp_name, country, city, circuit_id, dates, sprint, status
+# `dates` is the weekend as formula1.com writes it; build.py reads it into
+# races.date_from and races.date_to and refuses one it cannot read.
 CALENDAR_2026 = [
     (1, "Australian Grand Prix", "Australia", "Melbourne", "albert-park", "06-08 Mar 2026", 0, "completed"),
     (2, "Chinese Grand Prix", "China", "Shanghai", "shanghai", "13-15 Mar 2026", 1, "completed"),

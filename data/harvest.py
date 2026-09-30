@@ -864,7 +864,7 @@ KNOWN_GAPS = [
      "(LV-02, #91), whose schema.org markup states each start in UTC; the "
      "review of #91 reproduced all 115 from that markup. verify.py holds the "
      "structure - the five sessions a sprint flag implies, their order, and "
-     "the race's local day against races.dates - but no non-race start is "
+     "the race's local day against races.date_to - but no non-race start is "
      "constrained by anything independent of the source it came from. The "
      "FIA's per-event 'Event & Timing Information' PDFs carry the same "
      "timetable and are the independent source; the project has no tool "
