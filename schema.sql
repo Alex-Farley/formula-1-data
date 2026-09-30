@@ -234,6 +234,25 @@ CREATE TABLE drivers (
     -- The country, in the one country vocabulary: normalise_countries() holds
     -- this column to the F1DB registry the same way it holds nationality.
     country_of_birth TEXT,
+    -- The career block below mixes figures counted here with figures stored
+    -- as a source gave them, and the two read alike (DA-16). Which is which:
+    --   DERIVED on every build from the race records, which cover every
+    --   championship race 1950-2026, so always consistent and current:
+    --   wins, poles, fastest_laps, podiums (derivable since v2.7, when
+    --   second and third place were harvested for every race), and
+    --   practice_only.
+    --   TYPED AND CHECKED: titles and title_years are typed in
+    --   data/drivers.py, and verify.py holds both to the champions in
+    --   `seasons`, so neither can disagree with them.
+    --   STORED as typed: entries, starts and career_points, for the
+    --   champions in data/drivers.py and the seven current drivers whose
+    --   formula1.com pages were read on the date stats_as_of gives, and NULL
+    --   for everyone else. They are not recounted from race_entries and need
+    --   not equal a count of it - a total from a season that dropped scores
+    --   is net of them, and a current driver's has moved on since the date.
+    --   MIXED: first_season and last_season are typed for the authored
+    --   drivers and taken from the race, practice and sprint-qualifying
+    --   records for the rest.
     first_season    INTEGER,
     last_season     INTEGER,
     entries         INTEGER,
@@ -252,11 +271,6 @@ CREATE TABLE drivers (
     -- the drivers who raced.
     practice_only   INTEGER NOT NULL DEFAULT 0 CHECK (practice_only IN (0, 1)),
     stats_as_of     TEXT,                      -- when the career figures were true
-    -- wins / poles / fastest_laps / podiums above are DERIVED from the race
-    -- records, which cover every championship race 1950-2026. Podiums became
-    -- derivable in v2.7, when second and third place were harvested for every
-    -- race; before that the figure was hand-entered. They are
-    -- therefore always internally consistent and always current.
     -- The *_external columns hold the separately sourced figure for the same
     -- statistic, so the two can be compared. Where they disagree, the
     -- difference is recorded in the discrepancies table rather than hidden.
@@ -1748,6 +1762,10 @@ CREATE TABLE known_gaps (
     state           TEXT NOT NULL CHECK (state IN ('open', 'closed', 'position')),
     reader          TEXT NOT NULL,             -- what a reader is shown
     description     TEXT NOT NULL,             -- the maintainer's note
+    -- How many races the gap touches, MEASURED: build.py runs the gap's query
+    -- in data/harvest.py GAP_RACES and verify.py re-runs it. NULL where the
+    -- gap is not counted in races, or no query here can yet say which races
+    -- it touches - never 0 for "not counted", which reads as "none" (DA-16).
     races_affected  INTEGER,
     resolution      TEXT                       -- what would close it, or what did
 );

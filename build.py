@@ -321,6 +321,10 @@ def _stage_01_meta(b):
         # the grant off the file rather than having to find LICENSE-DATA.
         ("project_prose", N.PROJECT_PROSE_NOTE),
         ("project_prose_columns", ", ".join(N.PROJECT_PROSE_COLUMNS)),
+        # DA-16. The columns NULL on every row, each with the reason, so a
+        # reader holding only the file can tell a column nothing fills from
+        # a fact nobody holds. verify.py holds the list to the database.
+        ("empty_columns", empty_columns_note()),
     ])
 
 
@@ -3262,15 +3266,13 @@ def _stage_30_derived_win_totals(b):
                 JOIN races r ON r.id=e.race_id WHERE e.driver_id=?)
             WHERE id = ?""", (did, did, did))
 
-    for i, key, field, area, state, reader, desc, n, res in HV.KNOWN_GAPS:
+    for i, key, field, area, state, reader, desc, res in HV.KNOWN_GAPS:
         cur.execute("""INSERT INTO known_gaps (id, key, field, area, state,
-            reader, description, races_affected, resolution)
-            VALUES (?,?,?,?,?,?,?,?,?)""",
-            (i, key, field, area, state, reader, desc, n, res))
-    # the circuit gap is measured, not asserted
-    cur.execute("""UPDATE known_gaps SET races_affected =
-        (SELECT COUNT(*) FROM races WHERE circuit_id IS NULL)
-        WHERE field = 'circuit_id'""")
+            reader, description, resolution)
+            VALUES (?,?,?,?,?,?,?,?)""",
+            (i, key, field, area, state, reader, desc, res))
+    # races_affected is left NULL here and measured in the final stage,
+    # once the chassis links and the qualifying sheets it counts are loaded.
 
     # Record every stored-vs-derived difference, and assert that each one is
     # either explained by a known gap (the driver was still racing in a season
@@ -3867,6 +3869,17 @@ def _stage_35_link_race_entries_to_the_curated(b):
                 (coverage_note(cur),))
     if cur.rowcount != 1:
         raise SystemExit("meta.coverage_note is missing")
+
+    # A gap's race count is measured, never typed (DA-16, #210): each query
+    # in data/harvest.py GAP_RACES counts the races its gap touches, run here
+    # because the chassis links and qualifying sheets it counts are loaded by
+    # the stages above, and re-run by verify.py. A gap with no query holds
+    # NULL - not counted in races - where a typed 0 said no race was touched.
+    for key, query in HV.GAP_RACES.items():
+        n = cur.execute(query).fetchone()[0]
+        if cur.execute("UPDATE known_gaps SET races_affected = ? WHERE key = ?",
+                       (n, key)).rowcount != 1:
+            raise SystemExit(f"GAP_RACES measures {key!r}, which is not a known gap")
 
     # The same discipline for the prose the database carries about itself.
     # `source_registry` is read straight onto /data/sources, and its figures
@@ -4628,6 +4641,18 @@ def harvest_covers_every_completed_race(cur, race_key, rows, what):
     if missing:
         raise SystemExit(f"{what}: no row for {len(missing)} completed race(s) before "
                          f"its last row {last}, e.g. {missing[:3]}")
+
+
+def empty_columns_note():
+    """meta.empty_columns: data/current.py EMPTY_COLUMNS as one string.
+
+    One function, so verify.py builds the same string and compares it whole.
+    """
+    bad = [c for c, why in N.EMPTY_COLUMNS.items() if "; " in why or not why.strip()]
+    if bad:
+        raise SystemExit("EMPTY_COLUMNS: a reason is empty or contains '; ': "
+                         + ", ".join(bad))
+    return "; ".join(f"{c}: {why}" for c, why in sorted(N.EMPTY_COLUMNS.items()))
 
 
 def coverage_note(cur):

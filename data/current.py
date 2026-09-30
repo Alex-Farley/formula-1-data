@@ -822,6 +822,65 @@ PROJECT_PROSE_NOTE = (
     "share-alike comes from. The remaining columns of those two tables hold "
     "facts and identifiers rather than expression.")
 
+# ---------------------------------------------------------- empty columns
+#
+# The columns that are NULL on every row of a table that has rows, and why
+# (DA-16, #210). A consumer meeting one cannot otherwise tell "empty because
+# nobody knows" - which is what NULL means everywhere else in this file -
+# from "empty because nothing here ever fills it", and the project's own
+# convention insists on the first reading. So each is declared with its
+# reason, build.py publishes the declaration as meta.empty_columns, and
+# verify.py derives the set from the database itself and fails on a
+# difference in either direction: a column that falls empty undeclared, and
+# a declared one that has started to hold values.
+#
+# Kept rather than dropped. A dropped column breaks every query that names
+# it, and most of these are the shape a loader writes: the timing and radio
+# columns are filled by tools/fastf1_load.py and tools/ergast_load.py in a
+# local F1_LOCAL_TIMING build, which is why verify.py only warns about a
+# filled one there. A reason may not contain "; ", which separates them in
+# meta.
+EMPTY_COLUMNS = {
+    "cars.fuel_capacity_l":
+        "typed in data/cars.py beside the other specifications, and no "
+        "source read for a curated car has given one",
+    "chassis.fuel_capacity_l":
+        "tools/wikispec_fetch.py reads it from the car article's infobox "
+        "and has found it in none of the articles it harvested",
+    "constructors.entries":
+        "never stored: the site counts a constructor's race entries from "
+        "race_entries, and no source's figure has been read to set beside "
+        "that count",
+    "pit_stops.driver_code":
+        "written only by the local timing loaders: F1DB, the one pit-stop "
+        "source that may be passed on, identifies a driver by id",
+    "pit_stops.pit_lane_seconds":
+        "written only by the local timing loaders: F1DB publishes the lap "
+        "and the order of each stop and no duration",
+    "pit_stops.stationary_seconds":
+        "no source read here gives it: the timing sources publish pit-lane "
+        "time, and F1DB no duration at all",
+    "race_entries.note":
+        "a per-row annotation that no loader writes and no row has needed",
+    "season_entries.note":
+        "a per-row annotation that no loader writes and no row has needed",
+    "sprint_results.note":
+        "a per-row annotation that no loader writes and no row has needed",
+    "team_radio.audio_url":
+        "written only by tools/fastf1_load.py, whose radio is FOM's and is "
+        "never distributed: the six exchanges shipped are quotations",
+    "team_radio.driver_code":
+        "written only by tools/fastf1_load.py: the six exchanges shipped "
+        "name the driver by driver_id",
+    "team_radio.lap_number":
+        "written only by tools/fastf1_load.py: the six exchanges shipped are "
+        "quotations, and the article quoted is not read for a lap",
+    "team_radio.utc_time":
+        "written only by tools/fastf1_load.py: the six exchanges shipped are "
+        "quotations and carry no timestamp",
+}
+
+
 # ------------------------------------------------------------- identifiers
 #
 # Which `id` a reader may keep, and which one they may not (DA-04).
