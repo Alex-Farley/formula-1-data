@@ -16,7 +16,8 @@ tz database name, so a browser can show the circuit's local time with Intl).
 Kinds: fp1 fp2 fp3 sprint_qualifying sprint qualifying race. A sprint weekend
 has fp1, sprint_qualifying, sprint, qualifying, race; any other has fp1, fp2,
 fp3, qualifying, race - verify.py checks each weekend's set against
-races.sprint, and that the race's local day is the last day of races.dates.
+races.sprint, that the race's local day is races.date_to, and that its UTC day
+is races.date_iso.
 Las Vegas is the reason the zone travels with the row: its Saturday-evening
 race is Sunday in UTC.
 """

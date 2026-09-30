@@ -1029,18 +1029,33 @@ CREATE TABLE races (
     -- into circuit_outlines, so every race can be drawn whether or not its
     -- circuit has a layout timeline here.
     f1db_layout_id  TEXT REFERENCES circuit_outlines(f1db_layout_id),
-    -- TWO COLUMNS, BECAUSE THEY ANSWER DIFFERENT QUESTIONS.
-    --   dates     is for a reader. It may be a RANGE - "27-29 Mar 2026" -
-    --             because a Grand Prix is a weekend, and for a race still to
-    --             be run that is the more useful fact.
-    --   date_iso  is the day the race itself was held, always YYYY-MM-DD,
-    --             for anything that has to compute: schema.org startDate,
-    --             sorting, date arithmetic.
-    -- Storing only one loses something either way. A single ISO day cannot
-    -- express a weekend; a range cannot be parsed. verify.py checks that
-    -- where `dates` IS an ISO day the two agree.
-    dates           TEXT,
+    -- THE RACE DAY, AND THE WEEKEND AROUND IT WHERE ONE IS STATED.
+    --   date_iso   is the day the race itself was held, YYYY-MM-DD, on every
+    --              row: F1DB's date for every round it holds, and the last
+    --              day of the announced weekend - the LOCAL day - for a
+    --              round it has not reached yet. The two readings differ
+    --              only where a race runs past midnight UTC, so Las Vegas
+    --              2027's date_iso moves a day when F1DB lists it.
+    --   date_from  the first and last day of the weekend, YYYY-MM-DD, where
+    --   date_to    a source states one - today the calendars formula1.com
+    --              announces, so the current season and the next. NULL on
+    --              every other row, because nothing here says which day
+    --              practice began at Silverstone in 1950; a renderer shows
+    --              the race day there instead.
+    -- Until DA-15 this was one `dates` column that held an ISO day on 98% of
+    -- rows and a display range - "27-29 Mar 2026", "30 Oct-01 Nov 2026" - on
+    -- the rest, so a renderer printed raw ISO most of the time and no check
+    -- could read the range. Both halves are now dates, and verify.py holds
+    -- them to each other: date_from <= date_to, and the race day is date_to.
+    -- The one exception: with a timetable in `sessions`, date_to is the
+    -- race's local day and date_iso its UTC day, which is F1DB's reading -
+    -- Las Vegas races on a Saturday evening that is Sunday in UTC. That is
+    -- measured where a timetable is held and declared where none is yet
+    -- (data/current.py RACE_DAY_AFTER_WEEKEND). The `calendar` view still
+    -- offers the old display string as `dates`, derived from these three.
     date_iso        TEXT,                      -- YYYY-MM-DD, the race day
+    date_from       TEXT,                      -- YYYY-MM-DD, the weekend's first day, or NULL
+    date_to         TEXT,                      -- YYYY-MM-DD, its last day, or NULL
     sprint          INTEGER NOT NULL DEFAULT 0,
     -- completed | scheduled. A cancelled round has no row rather than a
     -- third value: the calendar holds what was and will be run, and the
@@ -1062,8 +1077,8 @@ CREATE TABLE races (
 -- against. A sprint weekend is fp1, sprint_qualifying, sprint, qualifying,
 -- race; any other is fp1, fp2, fp3, qualifying, race - verify.py holds each
 -- weekend to the set races.sprint implies, and holds the race's local day to
--- the last day of races.dates. Las Vegas is why the zone travels with the
--- row: its Saturday-evening race is Sunday in UTC.
+-- races.date_to and its UTC day to races.date_iso. Las Vegas is why the zone
+-- travels with the row: its Saturday-evening race is Sunday in UTC.
 CREATE TABLE sessions (
     id              INTEGER PRIMARY KEY,
     race_id         INTEGER NOT NULL REFERENCES races(id),
@@ -2152,10 +2167,41 @@ GROUP BY g.id ORDER BY editions DESC;
 
 -- The calendar is the race table seen as a schedule. It was a separate table
 -- until v2.4, which meant the 2026 season existed in two places.
+--
+-- `dates` is the display string races.dates held until DA-15, derived now
+-- from the three dates it stood for, so a reader of this view and
+-- f1_compat.json sees what it always saw: the weekend where one is stated -
+-- "27-29 Mar 2026", "30 Oct-01 Nov 2026" - and the ISO race day otherwise.
+-- web/src/lib/format.js raceDates() writes the same string for the site.
 CREATE VIEW calendar AS
 SELECT r.id, r.year, r.round, r.name_used AS gp_name, r.gp_id,
        g.country, ci.locality AS city, r.circuit_id, ci.name AS circuit_name,
-       r.dates, r.sprint, r.status, r.confidence, r.source
+       CASE
+         WHEN r.date_from IS NULL OR r.date_to IS NULL THEN r.date_iso
+         WHEN substr(r.date_from, 1, 7) = substr(r.date_to, 1, 7)
+           THEN substr(r.date_from, 9, 2) || '-' || substr(r.date_to, 9, 2)
+                || ' ' || substr('JanFebMarAprMayJunJulAugSepOctNovDec',
+                                 3 * CAST(substr(r.date_to, 6, 2) AS INTEGER) - 2, 3)
+                || ' ' || substr(r.date_to, 1, 4)
+         WHEN substr(r.date_from, 1, 4) = substr(r.date_to, 1, 4)
+           THEN substr(r.date_from, 9, 2) || ' '
+                || substr('JanFebMarAprMayJunJulAugSepOctNovDec',
+                          3 * CAST(substr(r.date_from, 6, 2) AS INTEGER) - 2, 3)
+                || '-' || substr(r.date_to, 9, 2) || ' '
+                || substr('JanFebMarAprMayJunJulAugSepOctNovDec',
+                          3 * CAST(substr(r.date_to, 6, 2) AS INTEGER) - 2, 3)
+                || ' ' || substr(r.date_to, 1, 4)
+         ELSE substr(r.date_from, 9, 2) || ' '
+                || substr('JanFebMarAprMayJunJulAugSepOctNovDec',
+                          3 * CAST(substr(r.date_from, 6, 2) AS INTEGER) - 2, 3)
+                || ' ' || substr(r.date_from, 1, 4)
+                || '-' || substr(r.date_to, 9, 2) || ' '
+                || substr('JanFebMarAprMayJunJulAugSepOctNovDec',
+                          3 * CAST(substr(r.date_to, 6, 2) AS INTEGER) - 2, 3)
+                || ' ' || substr(r.date_to, 1, 4)
+       END AS dates,
+       r.date_iso, r.date_from, r.date_to,
+       r.sprint, r.status, r.confidence, r.source
 FROM races r
 LEFT JOIN grands_prix g ON g.id = r.gp_id
 LEFT JOIN circuits ci   ON ci.id = r.circuit_id

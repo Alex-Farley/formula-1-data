@@ -72,6 +72,30 @@ export function yearList(value) {
     .join(', ')
 }
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+/**
+ * When a race was run, as a reader is shown it: the weekend where one is
+ * stated - "27-29 Mar 2026", "30 Oct-01 Nov 2026" - and the race day where
+ * none is, which is every round before the current season. Null where the
+ * row has neither, so a caller's em dash or empty clause still decides.
+ *
+ * `races` holds three dates rather than a display string (DA-15): date_iso,
+ * the race day, and date_from / date_to, the weekend. This writes what the
+ * old `dates` column held, character for character, and the `calendar` view
+ * in schema.sql derives the same string in SQL for f1_compat.json.
+ */
+export function raceDates(race) {
+  const { date_iso: day, date_from: from, date_to: to } = race ?? {}
+  if (missing(from) || missing(to)) return missing(day) ? null : String(day)
+  const [fy, fm, fd] = String(from).split('-')
+  const [ty, tm, td] = String(to).split('-')
+  const month = (m) => MONTHS[Number(m) - 1]
+  if (fy !== ty) return `${fd} ${month(fm)} ${fy}-${td} ${month(tm)} ${ty}`
+  if (fm !== tm) return `${fd} ${month(fm)}-${td} ${month(tm)} ${ty}`
+  return `${fd}-${td} ${month(tm)} ${ty}`
+}
+
 /** "1950–2026", "1950–", "1950". The dash is an en dash, as a span should be. */
 export function span(from, to) {
   if (missing(from) && missing(to)) return EMPTY

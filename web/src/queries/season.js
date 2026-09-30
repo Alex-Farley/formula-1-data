@@ -15,7 +15,7 @@
  *
  * See queries/drivers.js for what a column's `text` is.
  */
-import { EMPTY, missing, number, points, text } from '../lib/format.js'
+import { EMPTY, missing, number, points, raceDates, text } from '../lib/format.js'
 import { NOT_YET_RUN, SPRINT } from '../lib/site.js'
 import { CURRENT_SEASON_SQL } from '../lib/season.js'
 
@@ -35,7 +35,7 @@ export const SEASON = `
  * counted from the race records. Two winners in one cell is a shared drive.
  */
 export const CALENDAR = `
-  SELECT r.round, r.name_used, r.dates, r.status, r.sprint, r.circuit_id, c.name AS circuit,
+  SELECT r.round, r.name_used, r.date_iso, r.date_from, r.date_to, r.status, r.sprint, r.circuit_id, c.name AS circuit,
          r.f1db_layout_id, o.path AS outline,
          (SELECT group_concat(d.full_name, ' / ') FROM race_entries e
             JOIN drivers d ON d.id = e.driver_id
@@ -249,7 +249,7 @@ export const CURRENT_GRID = `
  * section is absent.
  */
 export const NEXT_ROUND = `
-  SELECT r.year, r.round, r.name_used, r.dates, r.sprint, r.circuit_id,
+  SELECT r.year, r.round, r.name_used, r.date_iso, r.date_from, r.date_to, r.sprint, r.circuit_id,
          c.name AS circuit, c.locality, c.country,
          r.f1db_layout_id, o.path AS outline, o.length_km AS outline_km, o.turns AS outline_turns
     FROM races r
@@ -317,7 +317,7 @@ export const WON_HERE_HEADING = 'Won here before'
 export const nextLine = (next) => {
   const place = [next.locality, next.country].filter(Boolean).join(', ')
   return {
-    before: `Round ${next.round}${next.dates ? `, ${next.dates}` : ''}: `,
+    before: `Round ${next.round}${raceDates(next) ? `, ${raceDates(next)}` : ''}: `,
     at: next.circuit ? ' at ' : '',
     circuit: next.circuit ?? '',
     after: `${next.circuit && place ? `, ${place}` : ''}.`,
@@ -505,7 +505,7 @@ export const CALENDAR_COLUMNS = [
   { key: 'round', label: 'R', align: 'num' },
   { key: 'name_used', rowHeader: true, label: 'Grand Prix', text: roundName },
   { key: 'circuit', label: 'Circuit' },
-  { key: 'dates', label: 'Dates' },
+  { key: 'date_iso', label: 'Dates', text: (_, row) => text(raceDates(row)) },
   { key: 'winner', label: 'Winner', text: roundWinner },
   { key: 'winning_team', label: 'Car', text: roundResult },
   { key: 'pole', label: 'Pole', text: roundResult },
