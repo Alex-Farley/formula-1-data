@@ -2,24 +2,35 @@
 # Measured against f1.db v2.24 and the Wikipedia revision in `revid`.
 # screen: close = a shared run of 8+ words; paraphrased = a run of 5+ or c4 >= 0.25; original = neither. Every field the screen flags is read (basis=read), and `label` is the reading.
 table	key	column	label	basis	screen	run	c4	article	revid	shared_words	why	text_sha
+drivers	adderly-fong	notes	original	auto	original	3	0.00	Adderly Fong	1376872817			0ed0ad4bd796
 drivers	albon	notes	original	auto	original	3	0.00	Alex Albon	1374482099			70e92b6a3b47
 drivers	alboreto	notes	original	auto	original	4	0.08	Michele Alboreto	1375138923			acf9b70a0246
 drivers	alesi	notes	original	auto	original	3	0.00	Jean Alesi	1372946503			d27f58e6095d
+drivers	alex-palou	notes	original	auto	original	4	0.08	Álex Palou	1374110661			097a552ae239
+drivers	alexander-dunne	notes	original	auto	original	3	0.00	Alex Dunne	1376806493			485aa6380fa5
+drivers	alexandre-premat	notes	original	read	paraphrased	7	0.23	Alexandre Prémat	1374408745	car at the 2006 chinese grand prix	fact: the shared words state a result, a date or a record in the ordinary words for it	0d1e486d2eb0
+drivers	alfonso-celis-jr	notes	original	read	paraphrased	5	0.14	Alfonso Celis Jr.	1364865233	development and free practice driver	fact: the shared words state a result, a date or a record in the ordinary words for it	56190963abb1
 drivers	alonso	notes	original	auto	original	4	0.03	Fernando Alonso	1377011126			3e5de35dd4c3
 drivers	amon	notes	paraphrased	read	paraphrased	7	0.36	Chris Amon	1366473012	never to win a championship grand prix	follows: the field follows the article's way of putting something that could be put other ways	f39fed164c93
 drivers	andretti	notes	original	auto	original	4	0.04	Michael Andretti	1373557364			098afa569192
 drivers	antonelli	notes	original	auto	original	2	0.00	Kimi Antonelli	1377072647			cd3f2513d354
+drivers	antonio-fuoco	notes	original	read	paraphrased	7	0.25	Antonio Fuoco	1377124262	the 2024 24 hours of le mans	name: the shared words are a name or a title	77d7b76a9fee
 drivers	arnoux	notes	original	auto	original	3	0.00	Formula One	1375827499			553afb8120cc
+drivers	artem-markelov	notes	original	auto	original	3	0.00	Formula One	1375827499			d7ff0caac2a9
+drivers	arthur-leclerc	notes	original	auto	original	4	0.14	Arthur Leclerc	1375886407			de937cef8f68
 drivers	ascari	notes	original	auto	original	3	0.00	Alberto Ascari	1376827361			abd161b3e71a
 drivers	attwood	notes	original	auto	original	2	0.00	Richard Attwood	1370903569			00f1f3d720c0
+drivers	ayumu-iwasa	notes	original	auto	original	4	0.05	Ayumu Iwasa	1373249600			799509b15841
 drivers	baghetti	notes	paraphrased	read	close	8	0.79	Giancarlo Baghetti	1358488883	driver to win on his world championship debut	follows: the field follows the article's way of putting something that could be put other ways	340f73f19533
 drivers	bandini	notes	original	auto	original	3	0.00	Lorenzo Bandini Trophy	1364621033			9a94d7ff9a1b
 drivers	barrichello	notes	original	auto	original	4	0.08	Rubens Barrichello	1377151690			487713fbabc5
+drivers	bas-leinders	notes	original	read	paraphrased	6	0.25	Bas Leinders	1367405642	test and reserve driver in 2004	fact: the shared words state a result, a date or a record in the ordinary words for it	3ec77935b71f
 drivers	bearman	notes	original	auto	original	3	0.00	Oliver Bearman	1374678717			d0e9240254fe
 drivers	behra	notes	original	auto	original	4	0.12	Pedro Rodríguez (racing driver)	1370310755			765acf486bf2
 drivers	beltoise	notes	original	read	paraphrased	6	0.12	Jean-Pierre Beltoise	1360140310	won the 1972 monaco grand prix	fact: the shared words state a result, a date or a record in the ordinary words for it	3fdccb276bfe
 drivers	berger	notes	original	auto	original	3	0.00	Nelson Piquet	1369586850			5cfc8e161862
 drivers	bianchi	notes	original	auto	original	4	0.03	Jules Bianchi	1374648280			7302f907331c
+drivers	bjorn-wirdheim	notes	original	auto	original	3	0.00	Björn Wirdheim	1371285054			ec1274271d32
 drivers	bonnier	notes	original	read	paraphrased	7	0.29	Jo Bonnier	1365184651	chairman of the grand prix drivers association	name: the shared words are a name or a title	fdcbb6240a7b
 drivers	bortoleto	notes	original	auto	original	3	0.00	Gabriel Bortoleto	1376189549			aa27ad7e8c0b
 drivers	bottas	notes	original	auto	original	3	0.00	Valtteri Bottas	1376988284			6d0c3e0dd45b
@@ -29,25 +40,39 @@ drivers	brambilla	notes	original	read	paraphrased	5	0.14	Vittorio Brambilla	1370
 drivers	brooks	notes	original	auto	original	3	0.00	Tony Brooks (racing driver)	1361561275			3bec9b9a75df
 drivers	bryan	notes	original	read	paraphrased	5	0.10	Formula One	1375827499	the formula one world championship	stock: the shared words are a stock phrase of English or of the sport	045be76ca2b8
 drivers	button	notes	original	auto	original	3	0.00	Jenson Button	1375268791			8a382bdc7047
+drivers	callum-ilott	notes	original	read	paraphrased	6	0.29	Callum Ilott	1371238506	in the 2020 formula 2 championship	name: the shared words are a name or a title	d11d7a4fa155
 drivers	castellotti	notes	original	auto	original	2	0.00	Eugenio Castellotti	1362487836			6f6927484855
 drivers	cevert	notes	original	auto	original	3	0.00	François Cevert	1373336150			2e6157467a23
+drivers	chanoch-nissany	notes	original	read	paraphrased	5	0.09	Formula One	1375827499	in a grand prix weekend	stock: the shared words are a stock phrase of English or of the sport	72191fa869a3
+drivers	cian-shields	notes	original	read	paraphrased	5	0.12	Cian Shields	1376842254	the 2023 euroformula open championship	name: the shared words are a name or a title	146baa4e88da
 drivers	clark	notes	original	read	paraphrased	5	0.12	History of Formula One	1371272002	in a formula 2 race	fact: the shared words state a result, a date or a record in the ordinary words for it	e63a6abe860f
 drivers	colapinto	notes	original	auto	original	2	0.00	Franco Colapinto	1376877554			4585ad8d0c2e
 drivers	collins	notes	original	auto	original	3	0.00	Peter Collins (racing driver)	1375127559			ec4de283ba33
+drivers	colton-herta	notes	original	auto	original	4	0.05	Colton Herta	1377155039			e207dc4029b4
 drivers	coulthard	notes	original	auto	original	3	0.00	David Coulthard	1376496339			b5655f7e0135
 drivers	d-hill	notes	original	auto	original	4	0.06	Graham Hill	1374901282			c8d9ee6548b5
+drivers	dani-clos	notes	original	auto	original	3	0.00	Dani Clos	1369012098			b8799588bda1
+drivers	daniel-juncadella	notes	original	auto	original	4	0.05	Daniel Juncadella	1377397721			fff094980269
+drivers	davide-valsecchi	notes	original	auto	original	4	0.05	Davide Valsecchi	1376924368			1d95ece72bfe
 drivers	de-angelis	notes	original	auto	original	3	0.00	Elio de Angelis	1374834843			ec8462fffc51
 drivers	de-cesaris	notes	original	read	paraphrased	5	0.10	Andrea de Cesaris	1364178972	without a win until nico	fact: the shared words state a result, a date or a record in the ordinary words for it	d7a4f61e9dbc
 drivers	de-villota	notes	original	auto	original	4	0.08	History of Formula One	1371272002			b06cca1267ea
 drivers	depailler	notes	original	auto	original	3	0.00	Patrick Depailler	1376961540			8599252b250b
+drivers	dino-beganovic	notes	original	read	paraphrased	7	0.22	Dino Beganovic	1376834700	a member of the ferrari driver academy	name: the shared words are a name or a title	375bb9207461
 drivers	doohan	notes	original	auto	original	4	0.15	Jack Doohan	1377154066			4e53758c216e
+drivers	enrico-toccacelo	notes	original	read	paraphrased	6	0.15	Enrico Toccacelo	1374865575	from the 2005 turkish grand prix	name: the shared words are a name or a title	1d77deefa9f8
+drivers	ernesto-viso	notes	original	auto	original	4	0.06	E. J. Viso	1375957738			fca8c13ec3ce
 drivers	fabi	notes	original	auto	original	3	0.00	Teo Fabi	1370965765			79ad43649b7b
+drivers	fabio-leimer	notes	original	auto	original	3	0.00	Fabio Leimer	1371530014			bbb1c41e6030
 drivers	fagioli	notes	original	auto	original	3	0.00	Luigi Fagioli	1361559520			15988e694b45
+drivers	fairuz-fauzy	notes	original	auto	original	4	0.08	Fairuz Fauzy	1377059486			6047aed19ff3
 drivers	fangio	notes	original	auto	original	4	0.04	Juan Manuel Fangio	1374472196			348b6c6e0b02
 drivers	farina	notes	original	read	paraphrased	5	0.14	Giuseppe Farina	1375700749	way to the 1966 french	fact: the shared words state a result, a date or a record in the ordinary words for it	764749407e8a
+drivers	felipe-drugovich	notes	original	read	paraphrased	6	0.30	Felipe Drugovich	1375284119	aston martin as a reserve driver	fact: the shared words state a result, a date or a record in the ordinary words for it	31786907d112
 drivers	fisichella	notes	original	auto	original	3	0.00	Giancarlo Fisichella	1374553003			cfbb49ee3990
 drivers	fittipaldi	notes	original	auto	original	3	0.00	Emerson Fittipaldi	1376888990			5e001622b905
 drivers	flaherty	notes	original	read	paraphrased	5	0.10	Formula One	1375827499	the formula one world championship	stock: the shared words are a stock phrase of English or of the sport	045be76ca2b8
+drivers	frederik-vesti	notes	original	auto	original	4	0.07	2023 Formula 2 Championship	1377087326			7122c194d549
 drivers	frentzen	notes	original	auto	original	3	0.00	Heinz-Harald Frentzen	1369507794			42fb49ded81e
 drivers	g-hill	notes	original	read	paraphrased	7	0.15	Graham Hill	1374901282	only driver to complete the triple crown	fact: the shared words state a result, a date or a record in the ordinary words for it	f942cdfad13f
 drivers	gachot	notes	original	auto	original	2	0.00	Bertrand Gachot	1367679972			b4d13df97a03
@@ -55,6 +80,7 @@ drivers	gasly	notes	original	auto	original	4	0.10	Pierre Gasly	1373686464			16ac
 drivers	gethin	notes	original	read	paraphrased	6	0.13	Peter Gethin	1352578509	won the 1971 italian grand prix	fact: the shared words state a result, a date or a record in the ordinary words for it	228a00bbe7f2
 drivers	giacomelli	notes	original	auto	original	4	0.14	Bruno Giacomelli	1364075575			76bbe1a62669
 drivers	ginther	notes	original	auto	original	3	0.00	Pedro Rodríguez (racing driver)	1370310755			56730bbd3934
+drivers	giorgio-mondini	notes	original	auto	original	4	0.08	Giorgio Mondini	1377065695			17b54256bc7c
 drivers	glock	notes	original	auto	original	2	0.00	Timo Glock	1375372480			2e828d714b90
 drivers	gonzalez	notes	original	read	paraphrased	6	0.30	History of Formula One	1371272002	first world championship grand prix win	stock: the shared words are a stock phrase of English or of the sport	13bfbedf2772
 drivers	grosjean	notes	original	auto	original	3	0.00	History of Formula One	1371272002			62f3ebce0167
@@ -75,8 +101,14 @@ drivers	ickx	notes	original	auto	original	3	0.00	Jacky Ickx	1372099631			873c246
 drivers	ireland	notes	original	auto	original	3	0.00	Innes Ireland	1368463071			70c7c82cbc6e
 drivers	irvine	notes	original	auto	original	3	0.00	Max Verstappen	1376712648			51a61d655d67
 drivers	jabouille	notes	original	auto	original	4	0.10	Jean-Pierre Jabouille	1375284523			bee5965bde8e
+drivers	jak-crawford	notes	original	auto	original	4	0.05	2025 Formula 2 Championship	1343374870			7213735e2a3a
+drivers	jake-dennis	notes	original	read	paraphrased	5	0.25	Jake Dennis	1375283805	the 2022 23 formula e	name: the shared words are a name or a title	d2419ba222bd
+drivers	james-calado	notes	original	auto	original	4	0.04	James Calado	1377246486			5005c1e3e5c3
+drivers	jan-charouz	notes	original	read	paraphrased	5	0.09	Jan Charouz	1374202430	the 2009 le mans series	name: the shared words are a name or a title	e37d97980a19
 drivers	jarier	notes	original	auto	original	3	0.00	Jean-Pierre Jarier	1363683133			11c3ac05546a
 drivers	jones	notes	original	auto	original	3	0.00	History of Formula One	1371272002			1ea9b30aaa4d
+drivers	jordan-king	notes	original	auto	original	3	0.00	Jordan King	1371346022			a313006ed73f
+drivers	juri-vips	notes	original	auto	original	3	0.00	Jüri Vips	1368377195			b47fd724054e
 drivers	k-rosberg	notes	original	auto	original	3	0.00	Williams Racing	1376063266			e5e23ce5ba69
 drivers	kling	notes	original	auto	original	2	0.00	Karl Kling	1376891284			299b512311a0
 drivers	kobayashi	notes	original	auto	original	3	0.00	Kamui Kobayashi	1377122278			a071c3f08075
@@ -87,9 +119,13 @@ drivers	laffite	notes	original	auto	original	3	0.00	Jacques Laffite	1370084271		
 drivers	lauda	notes	original	auto	original	4	0.05	Niki Lauda	1375709623			a019ae4ade06
 drivers	lawson	notes	original	auto	original	3	0.00	Formula One	1375827499			0bb31d4c9b32
 drivers	leclerc	notes	original	read	paraphrased	5	0.13	Charles Leclerc	1375968451	monaco grand prix in 2024	fact: the shared words state a result, a date or a record in the ordinary words for it	6f97e6d4bfad
+drivers	leonardo-fornaroli	notes	original	read	paraphrased	5	0.15	Leonardo Fornaroli	1374117831	the 2024 fia formula 3	name: the shared words are a name or a title	c53694535f67
 drivers	lewis-evans	notes	original	auto	original	3	0.00	Stuart Lewis-Evans	1361561291			f14caf1ae77e
 drivers	lindblad	notes	original	auto	original	3	0.00	Arvid Lindblad	1377170721			e5cdcde0761b
 drivers	lombardi	notes	original	auto	original	4	0.11	List of female Formula One drivers	1373332670			f0c0cd15bfbd
+drivers	luiz-razia	notes	original	auto	original	4	0.06	Luiz Razia	1361779914			9141bfe2fb6f
+drivers	luke-browning	notes	original	read	paraphrased	7	0.29	Luke Browning	1374068236	a member of the williams driver academy	name: the shared words are a name or a title	69cfd1099961
+drivers	ma-qinghua	notes	original	auto	original	4	0.04	Ma Qinghua	1371348638			c659f330e658
 drivers	magnussen	notes	original	auto	original	3	0.00	George Russell (racing driver)	1376988288			6c978b58a8f7
 drivers	maldonado	notes	original	auto	original	2	0.00	Pastor Maldonado	1374488954			998e0b6a3437
 drivers	mansell	notes	original	auto	original	4	0.07	History of Formula One	1371272002			e23cecc57b07
@@ -97,12 +133,15 @@ drivers	marimon	notes	original	read	paraphrased	5	0.20	Onofre Marimón	136157381
 drivers	mass	notes	original	auto	original	2	0.00	Jochen Mass	1370337201			40eac58d93bb
 drivers	massa	notes	original	auto	original	3	0.00	Felipe Massa	1376380293			5c7197e8f5fe
 drivers	mclaren-d	notes	original	read	paraphrased	5	0.10	Bruce McLaren	1370825753	can am car at goodwood	fact: the shared words state a result, a date or a record in the ordinary words for it	b6a2d69725df
+drivers	michael-ammermuller	notes	original	read	paraphrased	6	0.15	History of Formula One	1371272002	the end of the 2006 season	stock: the shared words are a stock phrase of English or of the sport	e577c63d82e3
 drivers	montoya	notes	original	auto	original	4	0.06	Juan Pablo Montoya	1373620876			9c15f1748d5d
 drivers	moss	notes	original	auto	original	3	0.00	Stirling Moss	1373674963			d77d7904c71f
 drivers	musso	notes	original	auto	original	3	0.00	Luigi Musso	1375661614			4bafab8c69c6
 drivers	n-rosberg	notes	original	auto	original	3	0.00	Nico Rosberg	1376974535			06bbe32694d2
 drivers	nakajima	notes	original	auto	original	3	0.00	Nakajima Satoru Kanshū F1 Hero MD	1372862310			6b5bf6d010d5
 drivers	nannini	notes	original	auto	original	4	0.12	Alessandro Nannini	1367768222			bccecb5b6a20
+drivers	naoki-yamamoto	notes	original	read	paraphrased	6	0.11	Naoki Yamamoto (racing driver)	1376510442	won both the super formula and	fact: the shared words state a result, a date or a record in the ordinary words for it	1e9b57121a1d
+drivers	neel-jani	notes	original	read	paraphrased	5	0.13	Neel Jani	1377064292	scuderia toro rosso's third driver	fact: the shared words state a result, a date or a record in the ordinary words for it	e42d08f3f272
 drivers	nilsson	notes	original	auto	original	4	0.14	Gunnar Nilsson	1355644949			e3443e9f6965
 drivers	norris	notes	original	auto	original	4	0.06	George Russell (racing driver)	1376988288			646e9a4daa69
 drivers	ocon	notes	original	read	paraphrased	4	0.25	Esteban Ocon	1377171269		fact: the shared words state a result, a date or a record in the ordinary words for it	2f7479aeb1e6
@@ -114,6 +153,8 @@ drivers	panis	notes	original	auto	original	2	0.00	Olivier Panis	1366144549			cff
 drivers	parkes	notes	original	auto	original	2	0.00	Mike Harmon (racing driver)	1373296153			cf92f7b2f8fa
 drivers	parsons	notes	original	read	paraphrased	5	0.10	Formula One	1375827499	the formula one world championship	stock: the shared words are a stock phrase of English or of the sport	045be76ca2b8
 drivers	patrese	notes	original	read	paraphrased	5	0.25	Riccardo Patrese	1373704113	grand prix starts when he	fact: the shared words state a result, a date or a record in the ordinary words for it	443294ed4217
+drivers	patricio-oward	notes	original	read	paraphrased	5	0.12	Pato O'Ward	1373871393	the 2018 indy lights champion	fact: the shared words state a result, a date or a record in the ordinary words for it	4016ecef8260
+drivers	paul-aron	notes	original	auto	original	3	0.00	Paul Aron	1374197844			121899554839
 drivers	perez	notes	original	read	paraphrased	5	0.20	Sergio Pérez	1377042985	returned with cadillac in 2026	fact: the shared words state a result, a date or a record in the ordinary words for it	e4607a5afca8
 drivers	pescarolo	notes	original	auto	original	2	0.00	Henri Pescarolo	1365286497			85987a68ad2e
 drivers	peterson	notes	original	auto	original	3	0.00	John Watson (racing driver)	1373265624			744fafbdefa5
@@ -124,6 +165,7 @@ drivers	pironi	notes	original	auto	original	3	0.00	Didier Pironi	1364511155			40
 drivers	prost	notes	original	auto	original	2	0.00	Alain Prost	1366968700			1279c6c44172
 drivers	pryce	notes	original	auto	original	3	0.00	Alan Jones (racing driver)	1374902434			f5756bf94aac
 drivers	r-schumacher	notes	original	auto	original	3	0.00	Ralf Schumacher	1373499752			535a88d7a98a
+drivers	raffaele-marciello	notes	original	read	paraphrased	5	0.22	Raffaele Marciello	1377008083	fia formula 3 european champion	fact: the shared words state a result, a date or a record in the ordinary words for it	04802ca304ec
 drivers	raikkonen	notes	original	auto	original	4	0.09	Kimi Räikkönen	1375939551			780ffb35cf6d
 drivers	rathmann	notes	original	read	paraphrased	5	0.10	Formula One	1375827499	the formula one world championship	stock: the shared words are a stock phrase of English or of the sport	045be76ca2b8
 drivers	regazzoni	notes	original	auto	original	3	0.00	Clay Regazzoni	1365509025			b00e44b0b066
@@ -131,13 +173,21 @@ drivers	reutemann	notes	original	auto	original	4	0.06	Carlos Reutemann	137577787
 drivers	revson	notes	original	auto	original	2	0.00	Peter Revson	1365286904			6ca98559a291
 drivers	ricciardo	notes	original	auto	original	4	0.12	Daniel Ricciardo	1371437160			1701e6ebe6e2
 drivers	rindt	notes	original	auto	original	4	0.05	Jochen Rindt	1370335431			8de80dd73786
+drivers	robert-shwartzman	notes	original	auto	original	4	0.11	Robert Shwartzman	1376324866			d79ad4adc460
+drivers	robert-wickens	notes	original	auto	original	4	0.05	Robert Wickens	1374416483			937c7d477db9
+drivers	robin-frijns	notes	original	auto	original	4	0.11	Robin Frijns	1377007506			b5183c261e8d
+drivers	rodolfo-gonzalez	notes	original	auto	original	3	0.00	Rodolfo González (racing driver)	1377291201			ec5e5110f03b
 drivers	rodriguez-p	notes	original	auto	original	3	0.00	History of Formula One	1371272002			b3b67fd5a4a2
+drivers	roy-nissany	notes	original	auto	original	3	0.00	Roy Nissany	1372393495			cee194023a74
 drivers	russell	notes	original	auto	original	3	0.00	Kimi Antonelli	1377072647			b288595c7c74
 drivers	ruttman	notes	original	read	paraphrased	5	0.10	Formula One	1375827499	the formula one world championship	stock: the shared words are a stock phrase of English or of the sport	045be76ca2b8
+drivers	ryan-briscoe	notes	original	auto	original	3	0.00	Ryan Briscoe	1374035796			0e7fa50ac165
+drivers	ryo-hirakawa	notes	original	auto	original	2	0.00	Ryo Hirakawa	1377006576			7377ebdb6730
 drivers	sainz	notes	original	auto	original	3	0.00	Carlos Sainz Jr.	1377171645			54fd5329b81a
 drivers	scarfiotti	notes	original	read	paraphrased	4	0.25	Ludovico Scarfiotti	1373537518		fact: the shared words state a result, a date or a record in the ordinary words for it	63c584683e44
 drivers	scheckter	notes	original	auto	original	3	0.00	History of Formula One	1371272002			d9172b6e6d1c
 drivers	schumacher	notes	original	auto	original	4	0.04	History of Formula One	1371272002			3e079d56bdf0
+drivers	sean-gelael	notes	original	auto	original	4	0.07	Sean Gelael	1377013728			30ff471b4e4c
 drivers	senna	notes	original	auto	original	4	0.05	Death of Ayrton Senna	1372935412			527f14e2955e
 drivers	senna-b	notes	original	auto	original	3	0.00	Ayrton Senna	1375562895			49a63f500234
 drivers	siffert	notes	original	auto	original	4	0.17	Jo Siffert	1377127681			02fcb30081d6
@@ -147,11 +197,13 @@ drivers	surtees	notes	original	auto	original	3	0.00	John Surtees	1377128744			29
 drivers	sweikert	notes	original	read	paraphrased	5	0.10	Formula One	1375827499	the formula one world championship	stock: the shared words are a stock phrase of English or of the sport	045be76ca2b8
 drivers	tambay	notes	original	auto	original	3	0.00	Alan Jones (racing driver)	1374902434			e27c6b76d996
 drivers	taruffi	notes	original	auto	original	4	0.20	Piero Taruffi	1361566491			0982d5e8a567
+drivers	theo-pourchaire	notes	original	read	paraphrased	5	0.12	2023 Formula 2 Championship	1377087326	the 2023 formula 2 championship	name: the shared words are a name or a title	d1bea6439e6e
 drivers	trintignant	notes	original	auto	original	3	0.00	Maurice Trintignant	1377128589			83d430ce3a61
 drivers	trulli	notes	original	auto	original	3	0.00	Jarno Trulli	1377059751			faa656059f5e
 drivers	tsunoda	notes	original	auto	original	3	0.00	Yuki Tsunoda	1377010647			48513cf9739a
 drivers	verstappen	notes	original	auto	original	4	0.03	Red Bull Racing	1371252330			2b6dcb8c0c57
 drivers	vettel	notes	original	auto	original	4	0.05	History of Formula One	1371272002			483e5a9f701a
+drivers	victor-martins	notes	original	read	paraphrased	6	0.36	Victor Martins	1377229248	the 2020 formula renault eurocup and	name: the shared words are a name or a title	60faaa7c84e9
 drivers	villeneuve-g	notes	original	auto	original	3	0.00	Gilles Villeneuve	1374647953			d9a909c157ae
 drivers	villeneuve-j	notes	original	read	paraphrased	5	0.11	Gilles Villeneuve	1374647953	won the indianapolis 500 and	fact: the shared words state a result, a date or a record in the ordinary words for it	e4f0d7d5a0ba
 drivers	villoresi	notes	original	auto	original	2	0.00	Luigi Villoresi	1361571601			816075ac3b03
@@ -164,6 +216,7 @@ drivers	watson	notes	original	read	paraphrased	5	0.12	John Watson (racing driver
 drivers	webber	notes	original	auto	original	4	0.10	Mark Webber (racing driver)	1375099511			851c5d3a0493
 drivers	wolff-s	notes	paraphrased	read	paraphrased	6	0.37	Susie Wolff	1365650105	first woman to take part in	follows: the field follows the article's way of putting something that could be put other ways	c681063be089
 drivers	wurz	notes	original	auto	original	2	0.00	Alexander Wurz	1362494650			d4eb560b5a20
+drivers	zak-osullivan	notes	original	read	paraphrased	7	0.33	Zak O'Sullivan	1376512443	a member of the williams driver academy	name: the shared words are a name or a title	7b8a31c26d09
 drivers	zhou	notes	original	auto	original	3	0.00	Zhou Guanyu	1359822613			6f72f1f71aa9
 circuits	adelaide	characteristics	original	auto	original	2	0.00	Adelaide Street Circuit	1376968680			cb28879c2b02
 circuits	aida	characteristics	original	auto	original	1	0.00	Okayama International Circuit	1372088300			49172d135e33

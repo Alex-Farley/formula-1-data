@@ -13,7 +13,7 @@
  *
  * See queries/drivers.js for what a column's `text` is.
  */
-import { EMPTY, classificationOrder, finished, missing, points, result, text } from '../lib/format.js'
+import { EMPTY, classificationOrder, finished, missing, points, raceDates, result, text } from '../lib/format.js'
 import { SHARED } from '../lib/site.js'
 
 export const RACE = `
@@ -412,7 +412,8 @@ export const raceSentence = (race, winners, stage = 'awaited') => {
     // queries/sessions.js, read from the clock by whichever renderer has one;
     // where nobody passes it the sentence is what the record says, unchanged.
     const held = stage === 'awaited' ? 'not yet run' : 'no result is recorded yet'
-    return `Scheduled${race.dates ? ` for ${race.dates}` : ''}${where}; ${held}.`
+    const when = raceDates(race)
+    return `Scheduled${when ? ` for ${when}` : ''}${where}; ${held}.`
   }
   if (!winners.length) return 'No winner is recorded for this round.'
   const first = winners[0]
