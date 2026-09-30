@@ -1723,12 +1723,17 @@ def calendar():
         "SELECT 1 FROM circuits WHERE id = ?", (c,)).fetchone() is None]
     check("every circuit whose race day may follow its weekend is in the register",
           not unknown, ", ".join(unknown))
-    marks = ", ".join("?" * len(after)) or "NULL"
+    # Built only when something is declared, and never NULL: `x IN (NULL)`
+    # and `NULL IN (...)` are NULL, and NOT (NULL AND TRUE) would drop the
+    # very row this refuses - an empty declaration or a race with no circuit
+    # would admit the day after at any circuit (review of #737).
+    exempt = ("AND NOT (r.circuit_id IS NOT NULL AND r.circuit_id IN ("
+              + ", ".join("?" * len(after))
+              + ") AND r.date_iso IS date(r.date_to, '+1 day'))") if after else ""
     outside = [f"{r[0]} r{r[1]}: {r[2]}, weekend ends {r[3]}" for r in con.execute(f"""
         SELECT r.year, r.round, r.date_iso, r.date_to FROM races r
         WHERE r.date_to IS NOT NULL AND r.date_iso IS NOT r.date_to
-          AND NOT (r.circuit_id IN ({marks})
-                   AND r.date_iso = date(r.date_to, '+1 day'))
+          {exempt}
           AND NOT EXISTS (SELECT 1 FROM sessions s
                           WHERE s.race_id = r.id AND s.kind = 'race')
         ORDER BY r.year, r.round""", after)]
