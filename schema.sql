@@ -287,11 +287,34 @@ CREATE TABLE driver_note_sources (
     source          TEXT NOT NULL
 );
 
+-- `role` is one or more roles from one list, joined by ' / ' in the order
+-- the person held or is known for them: "founder / designer". The CHECK
+-- strips each listed role, separators and all, and requires nothing to be
+-- left - a CHECK cannot hold a subquery, so this is how one column is held
+-- to a list without splitting it into a table. A role not on the list, a
+-- different separator and an empty part are refused; a repeated role only
+-- when the two are side by side, since replace() consumes one separator.
+-- Adding a role means adding it here (DA-13).
 CREATE TABLE personnel (
     id              TEXT PRIMARY KEY,
     full_name       TEXT NOT NULL,
     nationality     TEXT,
-    role            TEXT,                      -- designer | team principal | official | founder
+    role            TEXT CHECK (role IS NULL OR replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(' / ' || role || ' / ',
+            ' / team principal / ', ' / '),
+            ' / technical director / ', ' / '),
+            ' / sporting director / ', ' / '),
+            ' / race director / ', ' / '),
+            ' / designer / ', ' / '),
+            ' / engineer / ', ' / '),
+            ' / founder / ', ' / '),
+            ' / co-founder / ', ' / '),
+            ' / team owner / ', ' / '),
+            ' / commercial rights holder / ', ' / '),
+            ' / executive / ', ' / '),
+            ' / official / ', ' / '),
+            ' / neurosurgeon / ', ' / '),
+            ' / driver / ', ' / '),
+            ' / advisor / ', ' / ') = ' / '),
     active_from     INTEGER,
     active_to       INTEGER,
     associated_with TEXT,
@@ -383,7 +406,12 @@ CREATE TABLE engine_eras (
     to_year         INTEGER,
     era_name        TEXT NOT NULL,
     formula         TEXT NOT NULL,
-    aspiration      TEXT,
+    -- what the era's cars actually raced, not what the formula allowed
+    -- (the `formula` column says that): 1966-76 permitted forced induction
+    -- and nobody ran it. 'both' is an era where the two routes raced.
+    aspiration      TEXT CHECK (aspiration IN ('naturally aspirated',
+                        'supercharged', 'turbocharged', 'turbocharged hybrid',
+                        'both')),
     typical_config  TEXT,
     approx_power_bhp TEXT,
     rev_limit       TEXT,
@@ -654,7 +682,9 @@ CREATE TABLE cars (
     -- power unit
     engine_config   TEXT,                      -- V8, V12, flat-12, turbo I4
     capacity_cc     INTEGER,
-    aspiration      TEXT,                      -- naturally aspirated | turbo | hybrid
+    -- one vocabulary with chassis and engines (DA-13)
+    aspiration      TEXT CHECK (aspiration IN ('naturally aspirated', 'supercharged', 'turbocharged',
+                                        'turbocharged hybrid', 'gas turbine')),
     power_bhp       INTEGER,                   -- peak race power as published
     power_note      TEXT,                      -- qualifying boost, era caveats
     rev_limit_rpm   INTEGER,
@@ -736,7 +766,10 @@ CREATE TABLE chassis (
     susp_rear       TEXT,
     engine_name     TEXT,
     engine_config   TEXT,
-    aspiration      TEXT,
+    -- the infobox's turbo/na field, normalised by build.py's
+    -- _aspiration(): 'N/A' and a bare rev limit are NULL, not a guess
+    aspiration      TEXT CHECK (aspiration IN ('naturally aspirated', 'supercharged', 'turbocharged',
+                                        'turbocharged hybrid', 'gas turbine')),
     engine_position TEXT,
     gearbox         TEXT,
     gears           TEXT,
@@ -898,7 +931,9 @@ CREATE TABLE engines (
     full_name       TEXT NOT NULL,
     capacity_l      REAL,
     configuration   TEXT,                      -- V10, F12, L6 ...
-    aspiration      TEXT,                      -- NATURALLY_ASPIRATED | TURBOCHARGED
+    -- F1DB's NATURALLY_ASPIRATED etc., lower-cased with spaces
+    aspiration      TEXT CHECK (aspiration IN ('naturally aspirated', 'supercharged', 'turbocharged',
+                                        'turbocharged hybrid', 'gas turbine')),
     confidence      TEXT NOT NULL DEFAULT 'reference' REFERENCES provenance(confidence),
     source          TEXT NOT NULL
 );
@@ -1651,7 +1686,13 @@ CREATE TABLE team_radio (
     driver_code     TEXT,
     utc_time        TEXT,
     lap_number      INTEGER,
-    speaker         TEXT,                      -- driver | engineer | team
+    -- who spoke and to whom, as the source attributes it: "Rob Smedley
+    -- (race engineer) to Felipe Massa". Prose, not a vocabulary - the
+    -- controlled part is `channel`. Up to v2.25 the channel was appended to
+    -- this column in brackets (DA-13).
+    speaker         TEXT,
+    channel         TEXT CHECK (channel IN ('pit-to-car', 'car-to-pit',
+                        'team to race director', 'race director to team')),
     transcript      TEXT,
     audio_url       TEXT,
     notable         INTEGER NOT NULL DEFAULT 0,
