@@ -164,6 +164,61 @@ class WorkflowsDeclareTheirPermissions(unittest.TestCase):
         self.assertEqual(missing, [], "workflows without a top-level permissions: block")
 
 
+def run_scripts(text):
+    """(line number, script) for every `run:` in a workflow, the block scalar's
+    lines included. A block runs while its lines are blank or indented past
+    the `run` key; a YAML comment inside one is part of the script, which is
+    the point — Actions expands an expression in a shell comment too. A key
+    named `run` in a mapping of names — a job's `outputs:`, a step's `env:` —
+    is a value, not a script, and is passed over."""
+    lines = text.splitlines()
+    out, i = [], 0
+    while i < len(lines):
+        m = re.match(r"^(\s*(?:-\s+)?)run:\s*(.*)$", lines[i])
+        if not m:
+            i += 1
+            continue
+        col, rest, start = len(m.group(1)), m.group(2), i + 1
+        parent = next((line for line in reversed(lines[:i])
+                       if line.strip() and not line.lstrip().startswith("#")
+                       and len(line) - len(line.lstrip()) < col), "")
+        if re.match(r"^\s*(?:-\s+)?(outputs|env|with|inputs|secrets):\s*$", parent):
+            i += 1
+            continue
+        body = [rest]
+        i += 1
+        if re.match(r"^[|>][-+0-9]*\s*(#.*)?$", rest):
+            while i < len(lines) and (not lines[i].strip() or len(lines[i]) - len(lines[i].lstrip()) > col):
+                body.append(lines[i])
+                i += 1
+        out.append((start, "\n".join(body)))
+    return out
+
+
+class NoExpressionInsideAScript(unittest.TestCase):
+    """security-reviewer, item 4. A `${{ }}` inside `run:` is pasted into the
+    script text before the shell parses it, so a value with a quote in it
+    runs as shell. actionlint flags the contexts it knows to be untrusted and
+    not `github.event.inputs`, which is how release.yml's tag check carried
+    one until AF-79. Every value goes through `env:` and is read quoted —
+    trusted or not, so nobody has to decide which."""
+
+    def test_no_run_script_contains_an_expression(self):
+        found = [f"{f}:{n}" for f in files_under(".github/workflows", (".yml", ".yaml"))
+                 for n, script in run_scripts(read(f)) if "${{" in script]
+        self.assertEqual(found, [], "a ${{ }} expression inside run: — pass it through env:")
+
+    def test_the_parser_sees_a_block_and_an_inline_script(self):
+        # Line 8's block is clean and followed by an expression in env: (a
+        # parser that reads past a block's end reports 8); line 13's carries
+        # one after a blank line (a parser that stops at the blank misses 13).
+        text = ("jobs:\n  a:\n    outputs:\n      run: ${{ steps.x.outputs.run }}\n    steps:\n"
+                "      - run: echo ${{ a }}\n      - name: x\n        run: |\n          ok\n"
+                "        env:\n          C: ${{ c }}\n"
+                "      - name: y\n        run: |\n          ok\n\n          echo ${{ b }}\n")
+        self.assertEqual([n for n, s in run_scripts(text) if "${{" in s], [6, 13])
+
+
 if __name__ == "__main__":
     unittest.main()
 
