@@ -43,9 +43,16 @@ jobs:
       # with it publishes artefacts that misreport their own identity. There
       # is nothing downstream to catch that, so catch it here, before the
       # build burns twenty minutes.
+      #
+      # The tag reaches the script through env, never as ${{ }} inside run:
+      # an expression there is pasted into the script text before the shell
+      # parses it, so a dispatch input with a quote in it would run as shell
+      # in a job holding contents: write.
       - name: The tag must match VERSION
+        env:
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
         run: |
-          tag='${{ github.event.inputs.tag || github.ref_name }}'
+          tag="$TAG"
           version=$(python3 -c 'import build; print(build.VERSION)')
           if [ "$tag" != "v$version" ]; then
             echo "::error::tag $tag does not match VERSION $version (expected v$version)"

@@ -121,7 +121,9 @@ flag a new request, beacon or storage write that would make that untrue.
 
 - **Item 4**, workflow syntax and shell in `run:` steps, and actionlint's
   own check for untrusted expressions in inline scripts, in `make lint` and
-  CI's `lint` job. An injection actionlint does not see — through an
+  CI's `lint` job; and any `${{ }}` at all inside a `run:` script, trusted
+  context or not, in `tests/test_conventions.py`
+  (`NoExpressionInsideAScript`). An injection neither sees — through an
   intermediate `env:` or an output — is still yours.
 - **Item 7**, `release.yml` uploading and digesting both databases and
   `SHA256SUMS`, in `tests/test_conventions.py`
