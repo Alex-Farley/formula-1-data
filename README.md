@@ -43,7 +43,7 @@ here is a number the build checked.
 
 | File | What it is |
 |---|---|
-| `f1.db` | The SQLite database. <!-- fig:tables -->53<!-- /fig --> tables, <!-- fig:views -->41<!-- /fig --> views, <!-- fig:rows -->173,021<!-- /fig --> rows. This is the artefact. |
+| `f1.db` | The SQLite database. <!-- fig:tables -->53<!-- /fig --> tables, <!-- fig:views -->43<!-- /fig --> views, <!-- fig:rows -->173,021<!-- /fig --> rows. This is the artefact. |
 | `f1-geometry.db` | The OpenStreetMap circuit centrelines (ODbL), shipped beside `f1.db` and never merged into it. See *Illustration*. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
@@ -112,7 +112,10 @@ own `meta` and in `LICENSE-DATA`'s *Circuit geometry* section. `LICENSE-DATA`
 enumerates the files it covers — `f1.db.gz` and `f1-parquet.zip` among them,
 on the same terms as `f1.db` — and the Parquet bundle carries a `README.txt`
 that `tools/parquet_export.py` writes from `meta`, `source_registry` and
-`LICENSE-DATA`, so an unzipped copy still states its terms.
+`LICENSE-DATA`, so an unzipped copy still states its terms. It carries a
+`views.sql` too: every view `f1.db` holds, read from the database as it
+stores them, so the joins written down here — a race classification, a final
+table — are not left for a Parquet reader to reinvent.
 
 **Citing it.** `CITATION.cff` at the repository root is the citation for
 the database, and GitHub renders a *Cite this repository* button from it in
@@ -350,6 +353,16 @@ SELECT * FROM v_car_lineage WHERE root = 'lotus-25';
 
 -- The final championship table, one row per entity
 SELECT * FROM v_standings_final WHERE year = 1960;
+
+-- A race's classification, with qualifying, the sprint and the points beside it
+SELECT driver, qualifying_position, grid, sprint_position, position_text,
+       points, weekend_points
+FROM v_race_classification WHERE year = 2023 AND round = 12;
+
+-- A season's points from the results and from the championship, side by side:
+-- sprint points live in their own table, and before 1991 not every result counted
+SELECT driver, race_points, sprint_points, points, championship_points
+FROM v_driver_season_points WHERE year = 2023;
 ```
 
 ---

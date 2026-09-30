@@ -5081,9 +5081,115 @@ def illustration_and_geometry():
 def views():
     for v in ("v_champions", "v_title_count", "v_constructor_titles",
               "v_current_grid", "v_season_timeline", "v_unverified",
-              "v_standings_final"):
+              "v_standings_final", "v_race_classification",
+              "v_driver_season_points"):
         n = con.execute(f"SELECT COUNT(*) FROM {v}").fetchone()[0]
         check(f"view {v} returns rows", n > 0, f"{n} rows")
+
+    # v_race_classification is race_entries with the weekend beside it, and
+    # its whole claim is the grain: qualifying and sprint_results are joined
+    # on (race_id, driver_id), so a second row for one driver in one race in
+    # either would repeat an entry. The other way it can go wrong is a join
+    # that matches too little, so the joined COLUMNS are counted against the
+    # tables they come from - not the view's race_id and driver_id, which are
+    # race_entries' own and would pass with the join matching nothing.
+    entries, rows, distinct = con.execute("""
+        SELECT (SELECT COUNT(*) FROM race_entries),
+               (SELECT COUNT(*) FROM v_race_classification),
+               (SELECT COUNT(DISTINCT entry_id) FROM v_race_classification)""").fetchone()
+    check("v_race_classification is one row per race entry",
+          rows == entries == distinct,
+          f"{rows} rows, {distinct} entries of {entries}")
+    got = con.execute("""SELECT COUNT(sprint_position), COUNT(sprint_position_text),
+               TOTAL(sprint_points), COUNT(qualifying_position),
+               COUNT(qualifying_position_text)
+          FROM v_race_classification""").fetchone()
+    # A qualifying row with no race entry is outside the view's grain; which
+    # rows those are is pinned by identity in THE FULL CLASSIFICATION.
+    want = con.execute("""SELECT
+          (SELECT COUNT(finish_position) FROM sprint_results),
+          (SELECT COUNT(position_text) FROM sprint_results),
+          (SELECT TOTAL(points) FROM sprint_results),
+          (SELECT COUNT(q.position) FROM qualifying q WHERE EXISTS (
+             SELECT 1 FROM race_entries e
+              WHERE e.race_id = q.race_id AND e.driver_id = q.driver_id)),
+          (SELECT COUNT(q.position_text) FROM qualifying q WHERE EXISTS (
+             SELECT 1 FROM race_entries e
+              WHERE e.race_id = q.race_id AND e.driver_id = q.driver_id))""").fetchone()
+    check("v_race_classification carries every sprint result and every qualifying "
+          "result an entry has", tuple(got) == tuple(want),
+          f"sprint positions, texts, points and qualifying positions, texts: "
+          f"{tuple(got)} against {tuple(want)}")
+    # weekend_points: the two sessions' points together, and NULL exactly
+    # where either is not established - a COALESCE would turn a blank into a
+    # nought and every total built on it would read as established.
+    total, blank = con.execute("""SELECT TOTAL(weekend_points),
+          SUM(weekend_points IS NULL) FROM v_race_classification""").fetchone()
+    want_total, want_blank = con.execute("""SELECT
+          TOTAL(e.points) + TOTAL(CASE WHEN e.points IS NOT NULL THEN s.points END),
+          SUM(e.points IS NULL OR (s.id IS NOT NULL AND s.points IS NULL))
+          FROM race_entries e
+          LEFT JOIN sprint_results s ON s.race_id = e.race_id
+                                    AND s.driver_id = e.driver_id""").fetchone()
+    check("v_race_classification's weekend_points are both sessions', NULL where "
+          "either is", abs(total - want_total) < 0.01 and blank == want_blank,
+          f"{total:.2f} and {blank} blank against {want_total:.2f} and {want_blank}")
+
+    # And v_driver_season_points is one row per driver per season, whose
+    # points are the two tables' together. Where every result counted and the
+    # season is over, the championship is exactly that sum - which is the
+    # thing the view exists to say - so a view that dropped the sprints, or
+    # joined a second standings row, disagrees with it here. The seasons are
+    # read from points_systems rather than written down, so a change to what
+    # counted is a change to what this checks.
+    rows, keys = con.execute("""SELECT COUNT(*), COUNT(DISTINCT year || ' ' || driver_id)
+        FROM v_driver_season_points""").fetchone()
+    check("v_driver_season_points is one row per driver per season",
+          rows == keys, f"{rows} rows, {keys} driver-seasons")
+    view_total, table_total = con.execute("""
+        SELECT (SELECT SUM(points) FROM v_driver_season_points),
+               (SELECT SUM(points) FROM race_entries)
+             + (SELECT SUM(points) FROM sprint_results)""").fetchone()
+    check("v_driver_season_points sums every point the results hold",
+          abs(view_total - table_total) < 0.01,
+          f"{view_total:.2f} against {table_total:.2f}")
+    # A season none of whose entries has established points is NULL, not 0,
+    # and so is one whose sprint results, where it has any, have none: the
+    # same rule as weekend_points, one level up, on both of its sides.
+    blank, want_blank = con.execute("""
+        WITH race AS (SELECT r.year, e.driver_id, COUNT(e.points) AS n
+                        FROM race_entries e JOIN races r ON r.id = e.race_id
+                       GROUP BY r.year, e.driver_id),
+           sprint AS (SELECT r.year, s.driver_id, COUNT(s.points) AS n
+                        FROM sprint_results s JOIN races r ON r.id = s.race_id
+                       GROUP BY r.year, s.driver_id)
+        SELECT (SELECT COUNT(*) FROM v_driver_season_points WHERE points IS NULL),
+               (SELECT COUNT(*) FROM race g LEFT JOIN sprint p
+                   ON p.year = g.year AND p.driver_id = g.driver_id
+                 WHERE g.n = 0 OR p.n = 0)""").fetchone()
+    check("v_driver_season_points is NULL for a season with no established points",
+          blank == want_blank, f"{blank} blank against {want_blank}")
+    apart = [f"{r['year']} {r['driver_id']}: {r['points']} against {r['championship_points']}"
+             for r in con.execute("""
+        SELECT v.year, v.driver_id, v.points, v.championship_points
+          FROM v_driver_season_points v
+          JOIN v_standings_final f ON f.year = v.year AND f.table_type = 'drivers'
+                                  AND f.driver_id = v.driver_id AND f.basis = 'final'
+         WHERE NOT EXISTS (SELECT 1 FROM points_systems ps
+                            WHERE ps.session = 'race'
+                              AND v.year BETWEEN ps.from_year AND COALESCE(ps.to_year, v.year)
+                              AND ps.dropped_scores != 'Every result counts')
+           AND ABS(COALESCE(v.points, -1) - COALESCE(v.championship_points, -1)) > 0.001
+         ORDER BY v.year, v.driver_id""")]
+    counted = con.execute("""SELECT COUNT(DISTINCT year) FROM v_standings_final f
+         WHERE table_type = 'drivers' AND basis = 'final'
+           AND NOT EXISTS (SELECT 1 FROM points_systems ps
+                            WHERE ps.session = 'race'
+                              AND f.year BETWEEN ps.from_year AND COALESCE(ps.to_year, f.year)
+                              AND ps.dropped_scores != 'Every result counts')""").fetchone()[0]
+    check("v_driver_season_points is the championship wherever every result counted",
+          not apart and counted > 0,
+          "; ".join(apart[:4]) if apart else f"{counted} finished seasons compared")
 
     # SQLite accepts CREATE VIEW over a column that does not exist and only
     # fails on SELECT, so a view nothing reads can be broken for a release
