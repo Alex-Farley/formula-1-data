@@ -2047,8 +2047,9 @@ SELECT f.id, f.year, f.table_type,
 -- no sprint result, which is every entry before 2021.
 --
 -- weekend_points is the Grand Prix's points plus the sprint's, NULL where
--- the Grand Prix's are: NULL is "not established", and a total that quietly
--- read it as nought would establish it. The order is the race page's -
+-- either is: NULL is "not established", and a total that quietly read it as
+-- nought would establish it. No sprint result adds nothing, because none
+-- was paid; a sprint result whose points are NULL is not established. The order is the race page's -
 -- classified finishers in order, then the rest by laps completed.
 CREATE VIEW v_race_classification AS
 SELECT r.id AS race_id, r.year, r.round, r.name_used AS gp_name, r.circuit_id,
@@ -2064,7 +2065,8 @@ SELECT r.id AS race_id, r.year, r.round, r.name_used AS gp_name, r.circuit_id,
        e.finish_position, e.position_text, e.status, e.laps_completed,
        e.classified, e.shared_drive, e.fastest_lap, e.fastest_lap_shared,
        e.points,
-       e.points + COALESCE(s.points, 0) AS weekend_points,
+       e.points + CASE WHEN s.id IS NULL THEN 0 ELSE s.points END
+                         AS weekend_points,
        e.confidence, e.source
   FROM race_entries e
   JOIN races r               ON r.id = e.race_id
@@ -2097,20 +2099,23 @@ SELECT r.id AS race_id, r.year, r.round, r.name_used AS gp_name, r.circuit_id,
 -- so the two part for as long as one source is a round behind the other.
 --
 -- An entry whose points are NULL - not established - adds nothing to the
--- sum. A season with no established points at all is NULL, not 0.
+-- sum, in either table: the championship is the sum of the established
+-- points (the ineligible entries of the 1950s and 1980s are the NULLs, and
+-- they scored nothing). A season with no established points at all is NULL,
+-- not 0, in race_points or sprint_points, and so in points.
 CREATE VIEW v_driver_season_points AS
 WITH race AS (
   SELECT r.year, e.driver_id, COUNT(*) AS entries, SUM(e.points) AS points
     FROM race_entries e JOIN races r ON r.id = e.race_id
    GROUP BY r.year, e.driver_id),
 sprint AS (
-  SELECT r.year, s.driver_id, SUM(s.points) AS points
+  SELECT r.year, s.driver_id, COUNT(*) AS results, SUM(s.points) AS points
     FROM sprint_results s JOIN races r ON r.id = s.race_id
    GROUP BY r.year, s.driver_id)
 SELECT g.year, g.driver_id, d.full_name AS driver, g.entries,
        g.points                    AS race_points,
-       COALESCE(p.points, 0)       AS sprint_points,
-       g.points + COALESCE(p.points, 0) AS points,
+       CASE WHEN p.results IS NULL THEN 0 ELSE p.points END AS sprint_points,
+       g.points + CASE WHEN p.results IS NULL THEN 0 ELSE p.points END AS points,
        f.position                  AS championship_position,
        f.position_text             AS championship_position_text,
        f.points                    AS championship_points,
@@ -2121,7 +2126,8 @@ SELECT g.year, g.driver_id, d.full_name AS driver, g.entries,
   LEFT JOIN v_standings_final f ON f.year = g.year AND f.table_type = 'drivers'
                                AND f.driver_id = g.driver_id
  ORDER BY g.year, f.position IS NULL, f.position,
-          g.points + COALESCE(p.points, 0) DESC, g.driver_id;
+          g.points + CASE WHEN p.results IS NULL THEN 0 ELSE p.points END DESC,
+          g.driver_id;
 
 CREATE VIEW v_stat_reconciliation AS
 SELECT d.full_name,

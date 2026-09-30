@@ -162,7 +162,10 @@ def views_sql(con):
         f"beside this one are the tables, one file per table and named for "
         f"it; load each as a table of that name and these run over them. "
         f"The SQL is SQLite's. A view that reads a table listed under NOT IN "
-        f"THIS BUNDLE in README.txt has nothing to read here.", "-- ")
+        f"THIS BUNDLE in README.txt cannot run here, because that table is "
+        f"not in the bundle: SQLite refuses such a view when it is read, and "
+        f"an engine that resolves names when a view is created - DuckDB - "
+        f"refuses it then. Leave those out.", "-- ")
     return "\n\n".join([head, *(f"{sql};" for _, sql in held)]) + "\n"
 
 

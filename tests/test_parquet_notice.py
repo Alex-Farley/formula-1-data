@@ -99,7 +99,7 @@ class Views(unittest.TestCase):
         for name, sql in P.views(self.con):
             body = sql.split(" AS", 1)[1]
             reads = {v for v in order if v != name
-                     and re.search(rf"\b(FROM|JOIN)\s+{v}\b", body)}
+                     and re.search(rf"(\bFROM|\bJOIN|,)\s*{v}\b", body)}
             self.assertLessEqual(reads, seen, f"{name} reads {reads - seen} first")
             seen.add(name)
 

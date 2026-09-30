@@ -5089,21 +5089,51 @@ def views():
     # v_race_classification is race_entries with the weekend beside it, and
     # its whole claim is the grain: qualifying and sprint_results are joined
     # on (race_id, driver_id), so a second row for one driver in one race in
-    # either would repeat an entry, and a key the join misses would drop a
-    # sprint result from the only view that shows one beside its race.
-    entries, rows, distinct, lost = con.execute("""
+    # either would repeat an entry. The other way it can go wrong is a join
+    # that matches too little, so the joined COLUMNS are counted against the
+    # tables they come from - not the view's race_id and driver_id, which are
+    # race_entries' own and would pass with the join matching nothing.
+    entries, rows, distinct = con.execute("""
         SELECT (SELECT COUNT(*) FROM race_entries),
                (SELECT COUNT(*) FROM v_race_classification),
-               (SELECT COUNT(DISTINCT entry_id) FROM v_race_classification),
-               (SELECT COUNT(*) FROM sprint_results s
-                 WHERE NOT EXISTS (SELECT 1 FROM v_race_classification v
-                                    WHERE v.race_id = s.race_id
-                                      AND v.driver_id = s.driver_id))""").fetchone()
+               (SELECT COUNT(DISTINCT entry_id) FROM v_race_classification)""").fetchone()
     check("v_race_classification is one row per race entry",
           rows == entries == distinct,
           f"{rows} rows, {distinct} entries of {entries}")
-    check("v_race_classification carries every sprint result",
-          lost == 0, f"{lost} sprint results with no race entry to sit beside")
+    got = con.execute("""SELECT COUNT(sprint_position), COUNT(sprint_position_text),
+               TOTAL(sprint_points), COUNT(qualifying_position),
+               COUNT(qualifying_position_text)
+          FROM v_race_classification""").fetchone()
+    # A qualifying row with no race entry is outside the view's grain; which
+    # rows those are is pinned by identity in THE FULL CLASSIFICATION.
+    want = con.execute("""SELECT
+          (SELECT COUNT(finish_position) FROM sprint_results),
+          (SELECT COUNT(position_text) FROM sprint_results),
+          (SELECT TOTAL(points) FROM sprint_results),
+          (SELECT COUNT(q.position) FROM qualifying q WHERE EXISTS (
+             SELECT 1 FROM race_entries e
+              WHERE e.race_id = q.race_id AND e.driver_id = q.driver_id)),
+          (SELECT COUNT(q.position_text) FROM qualifying q WHERE EXISTS (
+             SELECT 1 FROM race_entries e
+              WHERE e.race_id = q.race_id AND e.driver_id = q.driver_id))""").fetchone()
+    check("v_race_classification carries every sprint result and every qualifying "
+          "result an entry has", tuple(got) == tuple(want),
+          f"sprint positions, texts, points and qualifying positions, texts: "
+          f"{tuple(got)} against {tuple(want)}")
+    # weekend_points: the two sessions' points together, and NULL exactly
+    # where either is not established - a COALESCE would turn a blank into a
+    # nought and every total built on it would read as established.
+    total, blank = con.execute("""SELECT TOTAL(weekend_points),
+          SUM(weekend_points IS NULL) FROM v_race_classification""").fetchone()
+    want_total, want_blank = con.execute("""SELECT
+          TOTAL(e.points) + TOTAL(CASE WHEN e.points IS NOT NULL THEN s.points END),
+          SUM(e.points IS NULL OR (s.id IS NOT NULL AND s.points IS NULL))
+          FROM race_entries e
+          LEFT JOIN sprint_results s ON s.race_id = e.race_id
+                                    AND s.driver_id = e.driver_id""").fetchone()
+    check("v_race_classification's weekend_points are both sessions', NULL where "
+          "either is", abs(total - want_total) < 0.01 and blank == want_blank,
+          f"{total:.2f} and {blank} blank against {want_total:.2f} and {want_blank}")
 
     # And v_driver_season_points is one row per driver per season, whose
     # points are the two tables' together. Where every result counted and the
@@ -5123,6 +5153,15 @@ def views():
     check("v_driver_season_points sums every point the results hold",
           abs(view_total - table_total) < 0.01,
           f"{view_total:.2f} against {table_total:.2f}")
+    # A season none of whose entries has established points is NULL, not 0:
+    # the same rule as weekend_points, one level up.
+    blank, want_blank = con.execute("""SELECT
+          (SELECT COUNT(*) FROM v_driver_season_points WHERE points IS NULL),
+          (SELECT COUNT(*) FROM (SELECT 1 FROM race_entries e
+             JOIN races r ON r.id = e.race_id
+            GROUP BY r.year, e.driver_id HAVING COUNT(e.points) = 0))""").fetchone()
+    check("v_driver_season_points is NULL for a season with no established points",
+          blank == want_blank, f"{blank} blank against {want_blank}")
     apart = [f"{r['year']} {r['driver_id']}: {r['points']} against {r['championship_points']}"
              for r in con.execute("""
         SELECT v.year, v.driver_id, v.points, v.championship_points
