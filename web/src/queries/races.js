@@ -31,7 +31,7 @@ import { NOT_YET_RUN, SHARED, SPRINT } from '../lib/site.js'
  * is.
  */
 export const LATEST = `
-  SELECT r.year, r.round, r.name_used, r.dates, c.name AS circuit,
+  SELECT r.year, r.round, r.name_used, r.date_iso, r.date_from, r.date_to, c.name AS circuit,
          d.full_name AS winner, d.id AS winner_id,
          k.name AS constructor, k.id AS constructor_id, k.country AS constructor_country
     FROM races r

@@ -151,7 +151,9 @@ export const BY_SEASON = `
 /**
  * The registry entries behind the rows this page prints, for the citation's
  * second sentence (CD-08; site.js's behindThisPage says what it reads): the
- * driver's own row, every entry, the race each entry was in, every round of
+ * driver's own row, the article the row's note was checked against where
+ * that is not the row's own source (driver_note_sources, LV-08), every
+ * entry, the race each entry was in, every round of
  * the current season that THIS_SEASON prints - the whole calendar, including
  * rounds the driver did not enter and rounds still to run, so its races are
  * reached by the same condition and not through the entries - and every
@@ -166,6 +168,7 @@ export const DRIVER_SOURCES = `
     FROM source_registry s
    WHERE s.id IN (
            SELECT source_id FROM drivers WHERE id = ?1
+     UNION SELECT source_id FROM driver_note_sources WHERE driver_id = ?1
      UNION SELECT source_id FROM race_entries WHERE driver_id = ?1
      UNION SELECT r.source_id FROM races r JOIN race_entries e ON e.race_id = r.id WHERE e.driver_id = ?1
      UNION SELECT r.source_id FROM races r
@@ -926,7 +929,12 @@ export const PRACTICE_ONLY_NOTICE = {
   body: 'There is no race record to find here — the sessions below are the whole of it.',
 }
 
-/** The opening sentence for a practice-only driver, from their sessions, as careerSentence() is from the races. */
+/**
+ * The opening sentence for a practice-only driver, from their sessions, as
+ * careerSentence() is from the races - where nobody has written who they
+ * were. Every Friday driver has a sourced note since LV-08, so this is the
+ * fallback for one a later refresh admits before a line is written.
+ */
 export const practiceSentence = (sessions) => {
   if (!sessions.length) return 'Never started a championship Grand Prix.'
   const years = sessions.map((r) => r.year)

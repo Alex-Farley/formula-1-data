@@ -72,7 +72,7 @@ export const PER_SEASON = `
  */
 export const NEXT = `
   WITH now AS (SELECT CAST(value AS INTEGER) AS year FROM meta WHERE key = 'current_season')
-  SELECT r.year, r.round, r.name_used, r.dates
+  SELECT r.year, r.round, r.name_used, r.date_iso, r.date_from, r.date_to
     FROM races r, now n
    WHERE r.status = 'scheduled' AND r.year = n.year
    ORDER BY r.round LIMIT 1

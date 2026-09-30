@@ -42,6 +42,7 @@ the current position from the rows themselves.
 | 2026 season, entry list, standings, calendar | formula1.com | current season |
 | How each grid was set, from 1996 | The FIA Sporting Regulations of each season from 2009, and formula1.com's history of qualifying formats before that; the facts only, with notes written for this project | every season from 1996 |
 | Career totals (entries, starts, podiums, points) | formula1.com driver pages | 7 drivers at `verified` |
+| Background lines for the drivers who only ran in Friday practice | Each driver's own Wikipedia article, cited row by row in `driver_note_sources`; the lines are written for this project, and labelled in `docs/prose_pass.tsv` | <!-- fig:wp_note_sources -->53<!-- /fig --> drivers |
 | Regulations, safety, technical, glossary, eras | Written for this project from general knowledge. Since v2.16 this is a named provenance — `authored`, `source_registry` entry 18 — and everything carrying it sits at `medium`, because nothing here can contradict it | 13 tables, 357 rows |
 
 Every row carries a `confidence` value and most carry a `source` URL. The
@@ -228,14 +229,14 @@ the share-alike above:
 | Column | What it holds | Chars |
 |---|---|---:|
 | `discrepancies.assessment` | this project's reading of a disagreement between two sources — which figure it takes, and why | <!-- fig:prose_assessment -->19,236<!-- /fig --> |
-| `known_gaps.reader` | what a reader is shown about a gap | <!-- fig:prose_gap_reader -->5,554<!-- /fig --> |
-| `known_gaps.description` | the maintainer's note on it | <!-- fig:prose_gap_description -->13,777<!-- /fig --> |
-| `known_gaps.resolution` | what would close it, or what did | <!-- fig:prose_gap_resolution -->5,221<!-- /fig --> |
-| `known_gaps.area` | the part of the database it falls in | <!-- fig:prose_gap_area -->955<!-- /fig --> |
+| `known_gaps.reader` | what a reader is shown about a gap | <!-- fig:prose_gap_reader -->5,747<!-- /fig --> |
+| `known_gaps.description` | the maintainer's note on it | <!-- fig:prose_gap_description -->14,457<!-- /fig --> |
+| `known_gaps.resolution` | what would close it, or what did | <!-- fig:prose_gap_resolution -->5,531<!-- /fig --> |
+| `known_gaps.area` | the part of the database it falls in | <!-- fig:prose_gap_area -->1,016<!-- /fig --> |
 
 Every figure in that table is a span this build rewrites from the database
 itself:
-<!-- fig:prose_kb -->44 KB<!-- /fig --> between them.
+<!-- fig:prose_kb -->45 KB<!-- /fig --> between them.
 
 The share-alike on everything else comes from Wikipedia, and
 none of Wikipedia's text is in these columns: a disagreement between two

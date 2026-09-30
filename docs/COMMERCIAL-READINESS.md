@@ -16,14 +16,14 @@ by the build rather than by anyone's memory.
 
     ./f1 licences
 
-<!-- fig:yes_share -->99.6%<!-- /fig --> of the <!-- fig:sourced_rows -->171,560<!-- /fig --> sourced rows carry a licence that permits
+<!-- fig:yes_share -->99.6%<!-- /fig --> of the <!-- fig:sourced_rows -->171,613<!-- /fig --> sourced rows carry a licence that permits
 redistribution outright. The remaining <!-- fig:facts_only_share -->0.4%<!-- /fig --> cite an official source as the
 **authority for a fact** and hold none of that source's prose. Nothing in the
 committed database may not be published.
 
 | Class | Rows | Share |
 |---|---:|---:|
-| `yes` — redistributable on the terms given | <!-- fig:yes_rows -->170,818<!-- /fig --> | <!-- fig:yes_share -->99.6%<!-- /fig --> |
+| `yes` — redistributable on the terms given | <!-- fig:yes_rows -->170,871<!-- /fig --> | <!-- fig:yes_share -->99.6%<!-- /fig --> |
 | `facts-only` — the facts, not the expression | <!-- fig:facts_only_rows -->742<!-- /fig --> | <!-- fig:facts_only_share -->0.4%<!-- /fig --> |
 | `no` — not redistributable | <!-- fig:no_rows -->0<!-- /fig --> | <!-- fig:no_share -->0.0%<!-- /fig --> |
 
@@ -284,7 +284,7 @@ Wikipedia is part Wikipedia and part F1DB:
 |---|---|---|
 | `races.year`, `round`, `name_used` | season article, `harvest/races.txt` | bare fact: which round, under the name it ran as |
 | `races.gp_id`, `circuit_id` | the article's race name and venue (`harvest/venues.txt`), resolved to this project's registers | bare fact, keyed by this project |
-| `races.dates`, `date_iso`, `f1db_layout_id`, `sprint` | F1DB | bare fact, CC BY 4.0 |
+| `races.date_iso`, `f1db_layout_id`, `sprint` | F1DB | bare fact, CC BY 4.0 |
 | `races.layout_key`, `status`, `confidence` | this project | this project's classification |
 | `race_entries.driver_id`, `constructor_id`, `finish_position`, `shared_drive` | season article | bare fact: who won, and for whom |
 | `race_entries.entrant` | season article | bare fact: the chassis-engine name as published |
@@ -381,14 +381,14 @@ use (§1(i)).
 
 On the pattern of [D-07] — a second file published beside `f1.db`, each
 carrying its own licence — the edition holds every sourced row that does not
-cite Wikipedia: <!-- fig:edition_rows -->166,825<!-- /fig --> of the <!-- fig:sourced_rows -->171,560<!-- /fig -->. That is F1DB's <!-- fig:f1db_rows -->166,083<!-- /fig --> and the
+cite Wikipedia: <!-- fig:edition_rows -->166,825<!-- /fig --> of the <!-- fig:sourced_rows -->171,613<!-- /fig -->. That is F1DB's <!-- fig:f1db_rows -->166,083<!-- /fig --> and the
 <!-- fig:facts_only_rows -->742<!-- /fig --> facts-only rows, which are bare facts on the reading above and put
 nothing of FOM's or the FIA's under anyone's licence. *Collective Database*
 is ODbL's term, not CC BY-SA's; the separation works for CC BY-SA only
 because §4(b) reaches the database holding the substantial portion and no
 other.
 
-It leaves out the <!-- fig:wp_rows -->4,735<!-- /fig --> rows that cite Wikipedia:
+It leaves out the <!-- fig:wp_rows -->4,788<!-- /fig --> rows that cite Wikipedia:
 
 | Rows | Table | What they are |
 |---:|---|---|
@@ -399,6 +399,7 @@ It leaves out the <!-- fig:wp_rows -->4,735<!-- /fig --> rows that cite Wikipedi
 | <!-- fig:wp_cars -->29<!-- /fig --> | `cars` | design families citing their per-car article |
 | <!-- fig:wp_regulation_limits -->16<!-- /fig --> | `regulation_limits` | limits cited to the history of the regulations |
 | <!-- fig:wp_radio -->6<!-- /fig --> | `team_radio` | the radio quotations |
+| <!-- fig:wp_note_sources -->53<!-- /fig --> | `driver_note_sources` | the driver articles the Friday drivers' notes were checked against (LV-08); each is a citation, and the note it backs is this project's writing, measured against the article in `docs/prose_pass.tsv` |
 
 — and four sets a count by `source` cannot see, because the value is
 Wikipedia's while the row cites something else: the per-car specifications

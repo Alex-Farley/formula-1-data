@@ -572,12 +572,13 @@ def main():
         nr = c.execute("SELECT COUNT(*) FROM team_radio WHERE notable=1").fetchone()[0]
         if nr:
             print(f"\n  {nr} notable radio exchanges:\n")
-            for r in c.execute("""SELECT t.speaker, t.transcript, t.context,
+            for r in c.execute("""SELECT t.speaker, t.channel, t.transcript, t.context,
                     rc.year, rc.name_used
                 FROM team_radio t LEFT JOIN races rc ON rc.id=t.race_id
                 WHERE t.notable=1 ORDER BY rc.year, t.id"""):
                 print(f"    {r['year']} {r['name_used']}")
-                print(f"      {r['speaker']}")
+                print(f"      {r['speaker']}"
+                      + (f" [{r['channel']}]" if r["channel"] else ""))
                 print(f'      "{r["transcript"]}"')
                 if r["context"]:
                     for line in textwrap.wrap(r["context"], W - 8):

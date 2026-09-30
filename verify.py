@@ -1181,7 +1181,7 @@ def pole_position_and_fastest_lap():
             continue
         actual = con.execute(
             f"SELECT COUNT(*) FROM races WHERE {g['field']} IS NULL").fetchone()[0] \
-            if g["field"] in ("circuit_id", "dates") else None
+            if g["field"] in ("circuit_id", "date_iso") else None
         if actual is not None and actual != g["races_affected"]:
             stale.append(f"{g['field']}: declared {g['races_affected']}, actual {actual}")
     check("declared gaps match the actual gaps", not stale, "; ".join(stale))
@@ -1663,17 +1663,15 @@ def calendar():
     # because that is the same definition the fastest-lap check above uses
     # and it cannot be satisfied by a status field alone.
     undated = con.execute("""SELECT COUNT(*) FROM races r
-        WHERE (r.dates IS NULL OR TRIM(r.dates) = '')
+        WHERE r.date_iso IS NULL
           AND EXISTS (SELECT 1 FROM race_entries e
                       WHERE e.race_id = r.id AND e.finish_position = 1)""").fetchone()[0]
     check("every completed race has a date", undated == 0,
           f"{undated} completed races carry none")
 
-    # date_iso is the machine-readable half of the pair and is set for every
-    # race F1DB knows, run or not - which is the point of splitting it from
-    # `dates`. A scheduled race is exactly where a search engine wants a
-    # startDate, and those are the 23 whose display value is a weekend range
-    # that no parser can read.
+    # date_iso is set for every race, run or not: F1DB's day where F1DB holds
+    # the round, the announced weekend's last day where it does not yet. A
+    # scheduled race is exactly where a search engine wants a startDate.
     noiso = con.execute(
         "SELECT COUNT(*) FROM races WHERE date_iso IS NULL").fetchone()[0]
     check("every race has an ISO date", noiso == 0, f"{noiso} carry none")
@@ -1684,15 +1682,63 @@ def calendar():
     check("every ISO race date is a well-formed day", badiso == 0,
           f"{badiso} malformed")
 
-    # The two columns may differ in SHAPE but never in FACT. Where `dates`
-    # is itself an ISO day, it is the same day date_iso holds; a divergence
-    # would mean the display and the structured data disagree about when a
-    # race happened, which is worse than either being absent.
-    disagree = con.execute("""SELECT COUNT(*) FROM races
-        WHERE dates GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'
-          AND dates <> date_iso""").fetchone()[0]
-    check("the display date and the ISO date never disagree", disagree == 0,
-          f"{disagree} disagree")
+    # The weekend (DA-15). date_from and date_to were one display string,
+    # `dates`, that held an ISO day on 98% of rows and a range on the rest,
+    # and no check could read the range - which is how Las Vegas 2026 stood
+    # with a race day outside its own weekend and nothing said why. Now both
+    # ends are days, so they are held to each other and to the race.
+    half = con.execute("""SELECT COUNT(*) FROM races
+        WHERE (date_from IS NULL) <> (date_to IS NULL)""").fetchone()[0]
+    check("a weekend has both ends or neither", half == 0, f"{half} have one")
+    badend = con.execute("""SELECT COUNT(*) FROM races
+        WHERE date_from IS NOT NULL
+          AND (date_from NOT GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'
+               OR date_to NOT GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]'
+               OR date(date_from) IS NOT date_from
+               OR date(date_to) IS NOT date_to)""").fetchone()[0]
+    check("every weekend's ends are real days", badend == 0, f"{badend} are not")
+    # A weekend runs forwards and is a weekend: Friday to Sunday is two days
+    # on, and a Thursday start - Monaco's, until 2022 - is three.
+    long_ = [f"{r[0]} r{r[1]}: {r[2]} to {r[3]}" for r in con.execute("""
+        SELECT year, round, date_from, date_to FROM races
+        WHERE date_from IS NOT NULL
+          AND NOT julianday(date_to) - julianday(date_from) BETWEEN 0 AND 3
+        ORDER BY year, round""")]
+    check("every weekend runs forwards over four days at most", not long_,
+          "; ".join(long_[:4]))
+    unstated = con.execute("""SELECT COUNT(*) FROM races
+        WHERE status = 'scheduled' AND date_from IS NULL""").fetchone()[0]
+    check("every race still to come states its weekend", unstated == 0,
+          f"{unstated} do not")
+    # The race is the weekend's last day. A round with a timetable is held to
+    # its sessions below instead, because there the two can rightly differ:
+    # the timetable proves date_to is the local day and date_iso the UTC one.
+    # Without one, the day after is allowed only at a circuit declared in
+    # data/current.py RACE_DAY_AFTER_WEEKEND, whose race runs past midnight
+    # UTC - F1DB lists a season before its timetable can be held, and its day
+    # for Las Vegas is the Sunday.
+    from data import current as _N
+    after = sorted(_N.RACE_DAY_AFTER_WEEKEND)
+    unknown = [c for c in after if con.execute(
+        "SELECT 1 FROM circuits WHERE id = ?", (c,)).fetchone() is None]
+    check("every circuit whose race day may follow its weekend is in the register",
+          not unknown, ", ".join(unknown))
+    # Built only when something is declared, and never NULL: `x IN (NULL)`
+    # and `NULL IN (...)` are NULL, and NOT (NULL AND TRUE) would drop the
+    # very row this refuses - an empty declaration or a race with no circuit
+    # would admit the day after at any circuit (review of #737).
+    exempt = ("AND NOT (r.circuit_id IS NOT NULL AND r.circuit_id IN ("
+              + ", ".join("?" * len(after))
+              + ") AND r.date_iso IS date(r.date_to, '+1 day'))") if after else ""
+    outside = [f"{r[0]} r{r[1]}: {r[2]}, weekend ends {r[3]}" for r in con.execute(f"""
+        SELECT r.year, r.round, r.date_iso, r.date_to FROM races r
+        WHERE r.date_to IS NOT NULL AND r.date_iso IS NOT r.date_to
+          {exempt}
+          AND NOT EXISTS (SELECT 1 FROM sessions s
+                          WHERE s.race_id = r.id AND s.kind = 'race')
+        ORDER BY r.year, r.round""", after)]
+    check("the race day is the last day of its weekend, or the next at a declared circuit",
+          not outside, "; ".join(outside[:4]))
 
     # `note` is the standfirst of a race's page and part of its meta
     # description (CD-03), which is the job drivers.notes does on a driver's,
@@ -2368,6 +2414,25 @@ def the_driver_register():
         if (_m := _figure.search(r[1]))]
     check("no driver note states a figure the page derives",
           not _typed, "; ".join(_typed[:6]))
+    # A note's citation is for a note (LV-08). The driver page lists every
+    # source behind it, driver_note_sources among them, so a citation for a
+    # driver with no note would name an article nothing on the page came from.
+    _uncited = [r[0] for r in con.execute("""SELECT s.driver_id
+        FROM driver_note_sources s JOIN drivers d ON d.id = s.driver_id
+        WHERE d.notes IS NULL OR TRIM(d.notes) = '' ORDER BY 1""")]
+    check("every driver note citation is for a written note", not _uncited,
+          "; ".join(_uncited[:6]))
+    # And every Friday driver's page says who they were, rather than only
+    # what the practice sheets show. A driver a later refresh admits arrives
+    # without a line, and the line needs a source before it is written, so
+    # this warns rather than holding up the refresh: the answer is a line in
+    # PRACTICE_DRIVER_NOTES, or a known_gaps row where no source describes
+    # the driver.
+    _unwritten = [r[0] for r in con.execute("""SELECT id FROM drivers
+        WHERE practice_only = 1 AND (notes IS NULL OR TRIM(notes) = '')
+        ORDER BY id""")]
+    warn("every practice-only driver's page says who they were",
+         not _unwritten, "; ".join(_unwritten[:6]))
     # The figures that check leaves alone on purpose - "Six Monaco wins" - name
     # a subset of a career, and nothing totalled them until now (CD-24). Where
     # the place is a Grand Prix the race records count it, from race_entries,
@@ -2504,12 +2569,12 @@ def the_weekend_timetable():
           f"{stray} rows outside {CURRENT}")
     unz = con.execute("SELECT COUNT(*) FROM sessions WHERE start_utc NOT GLOB '????-??-??T??:??Z'").fetchone()[0]
     check("every session start is YYYY-MM-DDTHH:MMZ, so a browser reads it as UTC", unz == 0, f"{unz} rows")
-    rows = con.execute("""SELECT r.round, r.sprint, r.dates, s.kind, s.start_utc, s.zone
+    rows = con.execute("""SELECT r.round, r.sprint, r.date_to, r.date_iso, s.kind, s.start_utc, s.zone
         FROM sessions s JOIN races r ON r.id = s.race_id WHERE r.year = ?
         ORDER BY r.round, s.start_utc""", (CURRENT,)).fetchall()
     by_round = {}
-    for rnd, sprint, dates, kind, start, zone in rows:
-        by_round.setdefault(rnd, []).append((sprint, dates, kind, start, zone))
+    for rnd, sprint, date_to, date_iso, kind, start, zone in rows:
+        by_round.setdefault(rnd, []).append((sprint, (date_to, date_iso), kind, start, zone))
     rounds = {r[0] for r in con.execute(
         "SELECT round FROM races WHERE year = ?", (CURRENT,))}
     check(f"every {CURRENT} round has a timetable", set(by_round) == rounds,
@@ -2529,27 +2594,29 @@ def the_weekend_timetable():
     check("each weekend's sessions run in the order they are named", not order, ", ".join(order))
     # The race's local day is the last day of the weekend the calendar states,
     # which is what proves the UTC reading and the zone together: Las Vegas
-    # races on a Saturday evening that is Sunday in UTC.
-    _MON = {m: i for i, m in enumerate(
-        ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"), 1)}
-    wrong, badzone = [], []
+    # races on a Saturday evening that is Sunday in UTC. And its UTC day is
+    # date_iso, F1DB's day - which is why Las Vegas's date_iso is the day
+    # after its weekend ends, and the only reason one may be (DA-15).
+    wrong, badzone, utc_day = [], [], []
     for rnd, ss in by_round.items():
-        for sprint, dates, kind, start, zone in ss:
+        for sprint, (date_to, date_iso), kind, start, zone in ss:
             if kind != "race":
                 continue
             try:
                 tz = _zi.ZoneInfo(zone)
             except Exception:
                 badzone.append(f"r{rnd} {zone}"); continue
-            local = _dt.datetime.fromisoformat(start.rstrip("Z")).replace(tzinfo=_dt.timezone.utc).astimezone(tz)
-            m = re.search(r"(\d{1,2}) (\w{3}) (\d{4})$", dates or "")
-            if not m:
-                wrong.append(f"r{rnd}: races.dates {dates!r} does not end in a day"); continue
-            last = _dt.date(int(m.group(3)), _MON[m.group(2)], int(m.group(1)))
-            if local.date() != last:
-                wrong.append(f"r{rnd}: race {start}Z is {local.date()} in {zone}, the weekend ends {last}")
+            utc = _dt.datetime.fromisoformat(start.rstrip("Z")).replace(tzinfo=_dt.timezone.utc)
+            local = utc.astimezone(tz)
+            if date_to is None:
+                wrong.append(f"r{rnd}: races.date_to is NULL"); continue
+            if local.date().isoformat() != date_to:
+                wrong.append(f"r{rnd}: race {start}Z is {local.date()} in {zone}, the weekend ends {date_to}")
+            if utc.date().isoformat() != date_iso:
+                utc_day.append(f"r{rnd}: race {start}Z, date_iso {date_iso}")
     check("every zone is an IANA tz database name", not badzone, ", ".join(badzone))
     check("each race's local day is the last day of its weekend", not wrong, "; ".join(wrong[:4]))
+    check("each race's UTC day is its date_iso", not utc_day, "; ".join(utc_day[:4]))
     print(f"  [info] {len(rows)} sessions across {len(by_round)} weekends")
 
 
@@ -3040,13 +3107,27 @@ def practice_and_sprint_qualifying():
     # SQ3 lap minus the leader's. So a segment column shifted in the fetch,
     # or a time on the wrong driver, fails. One sheet is published out of
     # that shape and is declared as published: Miami 2026, where F1DB
-    # classifies Alexander Albon 19th with an SQ2 time on the sheet.
+    # classifies Alexander Albon 19th with an SQ2 time on the sheet. The
+    # reason is published (LV-08): after the session his SQ1 lap was deleted
+    # for exceeding track limits, and as that lap was what took him into SQ2,
+    # his SQ2 times went with it and he was classified behind the drivers
+    # eliminated in SQ1 (https://en.wikipedia.org/wiki/2026_Miami_Grand_Prix,
+    # "Sprint qualifying report"). The sheet keeps the SQ2 lap the deletion
+    # voided, so the row stays declared.
     SQ_SHAPE_EXCEPTIONS = {(2026, 4, "albon")}
     # And within each band the times run in order - SQ2 by the SQ2 lap, SQ1
     # by the SQ1 lap - so the half of a sheet below SQ3 is held too (second
     # review of #707). One sheet orders its SQ1 band otherwise, declared as
     # published: Spa 2023, where F1DB classifies Albon, Sargeant and Stroll
     # 12th to 14th with no SQ2 time, above Alonso's quicker SQ1 lap in 15th.
+    # None of the four is an SQ1 eliminee (LV-08): all four went through to
+    # SQ2 and set no time there, the segment being red-flagged after Stroll
+    # crashed on his out-lap, so they hold SQ2's places and the band check
+    # reads them as SQ1's only because no SQ2 lap is on the sheet
+    # (https://en.wikipedia.org/wiki/2023_Belgian_Grand_Prix, "Sprint
+    # shootout report", whose classification gives all four "No time" in
+    # SQ2). Why they are ordered among themselves otherwise than by SQ1 lap
+    # nothing this project can cite says, so the declaration stands.
     # Alonso alone is excepted, so the three above him are still held to
     # their own order - one row declared hides less than three.
     SQ_ORDER_EXCEPTIONS = {(2023, 12, "alonso")}
@@ -3100,11 +3181,17 @@ def practice_and_sprint_qualifying():
 
     # The laps of the drivers who went through, which no band holds: every
     # SQ3 driver's SQ2 lap is quicker than every SQ2 eliminee's (the gaps
-    # of #707's third review). Three eliminees are published with an SQ2 lap
-    # quicker than drivers who went through, and are declared as published,
-    # one row each, so the rest of each sheet is still held (review of #712):
-    # Alonso at Qatar 2023, Leclerc at Austria 2024, Bearman at Sao Paulo
-    # 2024. The sheets do not say why.
+    # of #707's third review). Three drivers are published with an SQ2 lap
+    # quicker than drivers who went through, and none of them was eliminated
+    # in SQ2 (LV-08): each went through to SQ3, set no time there and is
+    # classified in SQ3's places - Alonso 9th at Qatar 2023, Leclerc 10th at
+    # Austria 2024, Bearman 10th at Sao Paulo 2024. The Wikipedia article on
+    # each of those Grands Prix gives the driver "No time" in SQ3 in its
+    # sprint qualifying classification (2023_Qatar_Grand_Prix,
+    # 2024_Austrian_Grand_Prix, 2024_S%C3%A3o_Paulo_Grand_Prix). This check
+    # reads a driver with no SQ3 lap as an SQ2 eliminee, so each is declared
+    # as published, one row each, so the rest of each sheet is still held
+    # (review of #712). Why each set no SQ3 time none of the three says.
     SQ_CUT_EXCEPTIONS = {(2023, 17, "alonso"), (2024, 11, "leclerc"), (2024, 21, "bearman")}
     cut_bad = []
     for (yr, rnd), sheet in sq_sheets.items():
@@ -3545,6 +3632,197 @@ def circuits_and_venues():
     warn("every circuit in the register has hosted a race", bad == 0,
          f"{bad} with none (expected: 1, the Nurburgring Sudschleife, "
          f"plus any venue on a future calendar)")
+
+
+CIRCUIT_LIST_SOURCE = re.compile(
+    r"https://en\.wikipedia\.org/w/index\.php\?title=List_of_Formula_One_circuits&oldid=\d+")
+
+
+def _list_seasons(text):
+    """'1951-1954,1956' -> {1951, 1952, 1953, 1954, 1956}. None if it does
+    not read, which the check reports rather than skipping."""
+    years = set()
+    for part in (text or "").split(","):
+        m = re.fullmatch(r"(\d{4})(?:-(\d{4}))?", part.strip())
+        if not m:
+            return None
+        years.update(range(int(m.group(1)), int(m.group(2) or m.group(1)) + 1))
+    return years or None
+
+
+def circuit_article_faults(rows, register, declared):
+    """The checks on harvest/circuit_articles.txt, as data, so that a test
+    can show each one refusing (tests/test_circuit_articles.py).
+
+    rows      the harvest's rows, as data/harvest.py reads them
+    register  circuit_id -> (country, [(year, date_iso) of each completed
+              race], number of races still scheduled)
+    declared  splits, historic, aliases, gaps (circuit_id -> known_gaps key),
+              gap_keys (the known_gaps keys in the database), admitted
+              (circuit_id -> Wikidata id), wrong (circuit_id -> (the admitted
+              id known to be wrong, the article's right one))
+
+    Returns ({check name: [faults]}, [circuits waiting on a later list]),
+    every name present, so a check with no faults is a pass and not an
+    absence. The only circuit let off unmapped and undeclared is one whose
+    every race is after the list's date or still to be run: a new venue the
+    next harvest will reach. A circuit with no race at all is not one of
+    those - it must be declared. The arithmetic is this file's own:
+    tools/circuit_articles.py matched the rows, and sharing its code would
+    check nothing.
+    """
+    names = ["every row names one circuit in the register, once",
+             "every row cites a permanent revision of the list",
+             "every circuit is mapped or declared, unless all its races postdate the list",
+             "no declared circuit is also mapped, and each declaration has its known_gaps row",
+             "every mapped circuit is in the country its list row names",
+             "every list row's seasons and races are its circuits' own",
+             "every list row's country, seasons and races fit no other circuit",
+             "only a declared split shares one list row",
+             "no two list rows name the same article",
+             "every article is the Wikidata entity admitted for its circuit"]
+    f = {n: [] for n in names}
+    splits = {frozenset(s) for s in declared["splits"]}
+
+    seen = Counter(r["circuit_id"] for r in rows)
+    f[names[0]] += [f"{c} is not a circuit" for c in seen if c not in register]
+    f[names[0]] += [f"{c} has {n} rows" for c, n in seen.items() if n > 1]
+    rows = [r for r in rows if r["circuit_id"] in register]
+
+    for r in rows:
+        if not CIRCUIT_LIST_SOURCE.fullmatch(r["source"] or "") or \
+                not re.fullmatch(r"\d{4}-\d{2}-\d{2}", r["as_of"] or ""):
+            f[names[1]].append(r["circuit_id"])
+    latest = max((r["as_of"] or "" for r in rows), default="")
+
+    mapped = {r["circuit_id"] for r in rows}
+    waiting = []
+    for cid, (_, races, scheduled) in sorted(register.items()):
+        if cid in mapped or cid in declared["gaps"]:
+            continue
+        if (races or scheduled) and not any(d and d <= latest for _, d in races):
+            waiting.append(cid)
+        else:
+            f[names[2]].append(cid)
+    for cid, key in sorted(declared["gaps"].items()):
+        if cid in mapped:
+            f[names[3]].append(f"{cid} is mapped and declared")
+        if key not in declared["gap_keys"]:
+            f[names[3]].append(f"{cid}: no known_gaps row {key}")
+        if cid not in register:
+            f[names[3]].append(f"{cid} is not a circuit")
+
+    for r in rows:
+        said = declared["historic"].get(r["country"], r["country"])
+        said = declared["aliases"].get(said, said)
+        if said != register[r["circuit_id"]][0]:
+            f[names[4]].append(f"{r['circuit_id']}: list {r['country']}, "
+                               f"register {register[r['circuit_id']][0]}")
+
+    by_row = {}
+    for r in rows:
+        by_row.setdefault((r["source"], r["linked_as"]), []).append(r)
+    for (_, linked), group in sorted(by_row.items()):
+        cids = frozenset(r["circuit_id"] for r in group)
+        if len(cids) > 1 and cids not in splits:
+            f[names[7]].append(f"{linked}: {', '.join(sorted(cids))}")
+        if len({(r["article"], r["seasons"], r["held"], r["as_of"]) for r in group}) > 1:
+            f[names[5]].append(f"{linked}: its rows disagree with each other")
+            continue
+        r0 = group[0]
+        listed = _list_seasons(r0["seasons"])
+        races = [(y, d) for c in cids for y, d in register[c][1]
+                 if d and d <= r0["as_of"]]
+        ours = {y for y, _ in races}
+        if listed is None or listed != ours or str(len(races)) != r0["held"]:
+            f[names[5]].append(
+                f"{linked}: list {r0['seasons']} ({r0['held']} races), register "
+                f"{len(ours)} seasons ({len(races)} races) to {r0['as_of']}")
+    grouped = {frozenset(r["circuit_id"] for r in g) for g in by_row.values()}
+    f[names[7]] += [f"declared split {', '.join(sorted(s))} is not one list row"
+                    for s in sorted(splits, key=sorted) if s not in grouped]
+
+    # The row's facts must pick out its circuits and nothing else in the
+    # register: a circuit that shared them would have been as good a match.
+    units = [frozenset([c]) for c in register] + list(splits)
+    for (_, linked), group in sorted(by_row.items()):
+        r0, cids = group[0], frozenset(r["circuit_id"] for r in group)
+        said = declared["historic"].get(r0["country"], r0["country"])
+        said = declared["aliases"].get(said, said)
+        listed = _list_seasons(r0["seasons"])
+        others = []
+        for u in units:
+            if u == cids:
+                continue
+            races = [(y, d) for c in u for y, d in register[c][1] if d and d <= r0["as_of"]]
+            if {register[c][0] for c in u} == {said} and {y for y, _ in races} == listed \
+                    and str(len(races)) == r0["held"]:
+                others.append("+".join(sorted(u)))
+        if others:
+            f[names[6]].append(f"{linked}: fits {', '.join(others)} as well")
+
+    articles = Counter(g[0]["article"] for g in by_row.values())
+    f[names[8]] += [f"{a}: {n} rows" for a, n in articles.items() if n > 1]
+
+    # Where the admitted id is declared wrong, the article is held to the
+    # right one the declaration names, so the row keeps an independent check.
+    for r in rows:
+        cid, got = r["circuit_id"], r["wikidata_id"]
+        want = declared["admitted"].get(cid)
+        if want is None:
+            continue
+        wrong, right = declared["wrong"].get(cid, (None, None))
+        if wrong == want:
+            want = right
+        if got != want:
+            f[names[9]].append(f"{cid}: article {got or 'none'}, expected {want}")
+    for cid, (wrong, _) in sorted(declared["wrong"].items()):
+        if declared["admitted"].get(cid) != wrong:
+            f[names[9]].append(f"{cid}: declared wrong as {wrong}, which is no longer "
+                               f"admitted - delete the declaration")
+    return f, waiting
+
+
+@section('CIRCUIT ARTICLES')
+def circuit_articles():
+    """VD-47 (#420). Which Wikipedia article describes each circuit, read
+    from the List of Formula One circuits and matched on country, seasons
+    and races held. Nothing loads it yet; a wrong row would put a photograph
+    of the wrong place on a circuit page under someone else's name, so it is
+    checked from the day it exists."""
+    import build
+    from data import circuits as C
+    H = harvest_module()
+    rows = H.load_circuit_articles()
+    check("the circuit-article harvest is present", bool(rows),
+          "" if rows else "harvest/circuit_articles.txt is empty or missing")
+    if not rows:
+        return
+    register = {cid: [country, [], 0] for cid, country in
+                con.execute("SELECT id, country FROM circuits")}
+    for cid, year, d, status in con.execute(
+            "SELECT circuit_id, year, date_iso, status FROM races"):
+        if status == "completed":
+            register[cid][1].append((year, d))
+        else:
+            register[cid][2] += 1
+    declared = {
+        "splits": H.CIRCUIT_ARTICLE_SPLITS,
+        "historic": H.HISTORIC_COUNTRIES,
+        "aliases": build.COUNTRY_ALIASES,
+        "gaps": H.CIRCUIT_ARTICLE_GAPS,
+        "gap_keys": {k for (k,) in con.execute("SELECT key FROM known_gaps")},
+        "admitted": {cid: q for cid, (q, _) in C.WIKIDATA_CIRCUITS.items()},
+        "wrong": H.CIRCUIT_WIKIDATA_WRONG,
+    }
+    faults, later = circuit_article_faults(rows, register, declared)
+    for name, found in faults.items():
+        check(name, not found, "; ".join(found[:5]))
+    warn("every circuit in the register is mapped or declared", not later,
+         f"{', '.join(later)}: no completed race by the list's date - rerun "
+         f"tools/circuit_articles.py once it has one" if later else "")
+    print(f"  [info] {len(rows)} of {len(register)} circuits mapped to an article; "
+          f"{sum(1 for r in rows if r['section'])} to a section of one")
 
 
 @section('OVERLAP CHECKS')
@@ -4125,6 +4403,39 @@ def the_full_classification():
     check("every circuit's direction is one of the two spellings",
           con.execute("""SELECT COUNT(*) FROM circuits WHERE direction IS NOT NULL
               AND direction NOT IN ('clockwise', 'anti-clockwise')""").fetchone()[0] == 0)
+
+    # aspiration is a CHECK too (DA-13), which holds the spelling and not the
+    # fact. build.py's _aspiration() reads sixty harvested spellings into
+    # chassis.aspiration, and a rule in it that read one the wrong way round
+    # would pass the CHECK. F1DB is the second source: every chassis is
+    # entered with its engines in season_entrants, and engines.aspiration is
+    # F1DB's. A chassis must agree with at least one engine it was entered
+    # with - "at least one" because an entrant row lists its chassis and its
+    # engines without pairing them. An engine F1DB leaves NULL (the Lotus
+    # 56B's turbine) settles nothing either way. A curated car in
+    # data/teams.py is held to the engines of the chassis linked to it, so
+    # both tables answer to the same source. build.py reads every turbo from
+    # 2014 on as a hybrid, so the two agree exactly and nothing is excused.
+    _eng = dict(con.execute("SELECT id, aspiration FROM engines"))
+    _with = {}
+    for _chs, _engs in con.execute("""SELECT chassis_ids, engine_ids FROM season_entrants
+            WHERE chassis_ids IS NOT NULL AND engine_ids IS NOT NULL"""):
+        for _ch in _chs.split("+"):
+            _with.setdefault(_ch, set()).update(
+                _eng.get(e) for e in _engs.split("+") if _eng.get(e))
+    _asp = []
+    for _name, _a, _chs in con.execute("""
+            SELECT full_name, aspiration, id FROM chassis WHERE aspiration IS NOT NULL
+            UNION ALL
+            SELECT c.full_name, c.aspiration, group_concat(ch.id, '+')
+              FROM cars c JOIN chassis ch ON ch.car_id = c.id
+             WHERE c.aspiration IS NOT NULL GROUP BY c.id
+            ORDER BY 1"""):
+        _f1db = set().union(*(_with.get(_ch, set()) for _ch in _chs.split("+")))
+        if _f1db and _a not in _f1db:
+            _asp.append(f"{_name}: {_a}, F1DB {'/'.join(sorted(_f1db))}")
+    check("every chassis's and car's aspiration agrees with an engine F1DB entered it with",
+          not _asp, "; ".join(_asp[:5]) + (f" (+{len(_asp) - 5})" if len(_asp) > 5 else ""))
 
     # constructors.last_entry: NULL means still competing, so no inactive
     # constructor with a race entry may carry it, and no active one may not.
@@ -4818,9 +5129,115 @@ def illustration_and_geometry():
 def views():
     for v in ("v_champions", "v_title_count", "v_constructor_titles",
               "v_current_grid", "v_season_timeline", "v_unverified",
-              "v_standings_final"):
+              "v_standings_final", "v_race_classification",
+              "v_driver_season_points"):
         n = con.execute(f"SELECT COUNT(*) FROM {v}").fetchone()[0]
         check(f"view {v} returns rows", n > 0, f"{n} rows")
+
+    # v_race_classification is race_entries with the weekend beside it, and
+    # its whole claim is the grain: qualifying and sprint_results are joined
+    # on (race_id, driver_id), so a second row for one driver in one race in
+    # either would repeat an entry. The other way it can go wrong is a join
+    # that matches too little, so the joined COLUMNS are counted against the
+    # tables they come from - not the view's race_id and driver_id, which are
+    # race_entries' own and would pass with the join matching nothing.
+    entries, rows, distinct = con.execute("""
+        SELECT (SELECT COUNT(*) FROM race_entries),
+               (SELECT COUNT(*) FROM v_race_classification),
+               (SELECT COUNT(DISTINCT entry_id) FROM v_race_classification)""").fetchone()
+    check("v_race_classification is one row per race entry",
+          rows == entries == distinct,
+          f"{rows} rows, {distinct} entries of {entries}")
+    got = con.execute("""SELECT COUNT(sprint_position), COUNT(sprint_position_text),
+               TOTAL(sprint_points), COUNT(qualifying_position),
+               COUNT(qualifying_position_text)
+          FROM v_race_classification""").fetchone()
+    # A qualifying row with no race entry is outside the view's grain; which
+    # rows those are is pinned by identity in THE FULL CLASSIFICATION.
+    want = con.execute("""SELECT
+          (SELECT COUNT(finish_position) FROM sprint_results),
+          (SELECT COUNT(position_text) FROM sprint_results),
+          (SELECT TOTAL(points) FROM sprint_results),
+          (SELECT COUNT(q.position) FROM qualifying q WHERE EXISTS (
+             SELECT 1 FROM race_entries e
+              WHERE e.race_id = q.race_id AND e.driver_id = q.driver_id)),
+          (SELECT COUNT(q.position_text) FROM qualifying q WHERE EXISTS (
+             SELECT 1 FROM race_entries e
+              WHERE e.race_id = q.race_id AND e.driver_id = q.driver_id))""").fetchone()
+    check("v_race_classification carries every sprint result and every qualifying "
+          "result an entry has", tuple(got) == tuple(want),
+          f"sprint positions, texts, points and qualifying positions, texts: "
+          f"{tuple(got)} against {tuple(want)}")
+    # weekend_points: the two sessions' points together, and NULL exactly
+    # where either is not established - a COALESCE would turn a blank into a
+    # nought and every total built on it would read as established.
+    total, blank = con.execute("""SELECT TOTAL(weekend_points),
+          SUM(weekend_points IS NULL) FROM v_race_classification""").fetchone()
+    want_total, want_blank = con.execute("""SELECT
+          TOTAL(e.points) + TOTAL(CASE WHEN e.points IS NOT NULL THEN s.points END),
+          SUM(e.points IS NULL OR (s.id IS NOT NULL AND s.points IS NULL))
+          FROM race_entries e
+          LEFT JOIN sprint_results s ON s.race_id = e.race_id
+                                    AND s.driver_id = e.driver_id""").fetchone()
+    check("v_race_classification's weekend_points are both sessions', NULL where "
+          "either is", abs(total - want_total) < 0.01 and blank == want_blank,
+          f"{total:.2f} and {blank} blank against {want_total:.2f} and {want_blank}")
+
+    # And v_driver_season_points is one row per driver per season, whose
+    # points are the two tables' together. Where every result counted and the
+    # season is over, the championship is exactly that sum - which is the
+    # thing the view exists to say - so a view that dropped the sprints, or
+    # joined a second standings row, disagrees with it here. The seasons are
+    # read from points_systems rather than written down, so a change to what
+    # counted is a change to what this checks.
+    rows, keys = con.execute("""SELECT COUNT(*), COUNT(DISTINCT year || ' ' || driver_id)
+        FROM v_driver_season_points""").fetchone()
+    check("v_driver_season_points is one row per driver per season",
+          rows == keys, f"{rows} rows, {keys} driver-seasons")
+    view_total, table_total = con.execute("""
+        SELECT (SELECT SUM(points) FROM v_driver_season_points),
+               (SELECT SUM(points) FROM race_entries)
+             + (SELECT SUM(points) FROM sprint_results)""").fetchone()
+    check("v_driver_season_points sums every point the results hold",
+          abs(view_total - table_total) < 0.01,
+          f"{view_total:.2f} against {table_total:.2f}")
+    # A season none of whose entries has established points is NULL, not 0,
+    # and so is one whose sprint results, where it has any, have none: the
+    # same rule as weekend_points, one level up, on both of its sides.
+    blank, want_blank = con.execute("""
+        WITH race AS (SELECT r.year, e.driver_id, COUNT(e.points) AS n
+                        FROM race_entries e JOIN races r ON r.id = e.race_id
+                       GROUP BY r.year, e.driver_id),
+           sprint AS (SELECT r.year, s.driver_id, COUNT(s.points) AS n
+                        FROM sprint_results s JOIN races r ON r.id = s.race_id
+                       GROUP BY r.year, s.driver_id)
+        SELECT (SELECT COUNT(*) FROM v_driver_season_points WHERE points IS NULL),
+               (SELECT COUNT(*) FROM race g LEFT JOIN sprint p
+                   ON p.year = g.year AND p.driver_id = g.driver_id
+                 WHERE g.n = 0 OR p.n = 0)""").fetchone()
+    check("v_driver_season_points is NULL for a season with no established points",
+          blank == want_blank, f"{blank} blank against {want_blank}")
+    apart = [f"{r['year']} {r['driver_id']}: {r['points']} against {r['championship_points']}"
+             for r in con.execute("""
+        SELECT v.year, v.driver_id, v.points, v.championship_points
+          FROM v_driver_season_points v
+          JOIN v_standings_final f ON f.year = v.year AND f.table_type = 'drivers'
+                                  AND f.driver_id = v.driver_id AND f.basis = 'final'
+         WHERE NOT EXISTS (SELECT 1 FROM points_systems ps
+                            WHERE ps.session = 'race'
+                              AND v.year BETWEEN ps.from_year AND COALESCE(ps.to_year, v.year)
+                              AND ps.dropped_scores != 'Every result counts')
+           AND ABS(COALESCE(v.points, -1) - COALESCE(v.championship_points, -1)) > 0.001
+         ORDER BY v.year, v.driver_id""")]
+    counted = con.execute("""SELECT COUNT(DISTINCT year) FROM v_standings_final f
+         WHERE table_type = 'drivers' AND basis = 'final'
+           AND NOT EXISTS (SELECT 1 FROM points_systems ps
+                            WHERE ps.session = 'race'
+                              AND f.year BETWEEN ps.from_year AND COALESCE(ps.to_year, f.year)
+                              AND ps.dropped_scores != 'Every result counts')""").fetchone()[0]
+    check("v_driver_season_points is the championship wherever every result counted",
+          not apart and counted > 0,
+          "; ".join(apart[:4]) if apart else f"{counted} finished seasons compared")
 
     # SQLite accepts CREATE VIEW over a column that does not exist and only
     # fails on SELECT, so a view nothing reads can be broken for a release

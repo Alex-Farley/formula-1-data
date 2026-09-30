@@ -48,6 +48,7 @@ import {
   number,
   percent,
   points,
+  raceDates,
   result,
   span,
   text,
@@ -352,6 +353,34 @@ describe('the question library (IA-20, PD-32)', () => {
     } finally {
       db.close()
     }
+  })
+})
+
+describe('raceDates', () => {
+  // The strings races.dates held before DA-15, so no page changes with the column.
+  it('writes a weekend inside one month', () => {
+    assert.equal(raceDates({ date_iso: '2026-03-29', date_from: '2026-03-27', date_to: '2026-03-29' }), '27-29 Mar 2026')
+  })
+
+  it('names both months for a weekend across two', () => {
+    assert.equal(raceDates({ date_iso: '2026-11-01', date_from: '2026-10-30', date_to: '2026-11-01' }), '30 Oct-01 Nov 2026')
+  })
+
+  it('names both years for a weekend across two', () => {
+    assert.equal(raceDates({ date_iso: '2028-01-01', date_from: '2027-12-30', date_to: '2028-01-01' }), '30 Dec 2027-01 Jan 2028')
+  })
+
+  it('is the race day where no weekend is stated', () => {
+    assert.equal(raceDates({ date_iso: '1950-05-13', date_from: null, date_to: null }), '1950-05-13')
+  })
+
+  it('shows the weekend, not the UTC race day, for Las Vegas', () => {
+    assert.equal(raceDates({ date_iso: '2026-11-22', date_from: '2026-11-19', date_to: '2026-11-21' }), '19-21 Nov 2026')
+  })
+
+  it('is null when nothing is held, so the caller decides', () => {
+    assert.equal(raceDates({ date_iso: null, date_from: null, date_to: null }), null)
+    assert.equal(raceDates(null), null)
   })
 })
 
@@ -980,11 +1009,11 @@ describe('the queries a page and the prerenderer share', () => {
       'a sentence states only what it holds, rather than an empty clause',
     )
     assert.equal(
-      raceSentence({ year: 2027, status: 'scheduled', circuit: 'Istanbul Park', dates: '01-03 Oct 2027', note: null }, []),
+      raceSentence({ year: 2027, status: 'scheduled', circuit: 'Istanbul Park', date_iso: '2027-10-03', date_from: '2027-10-01', date_to: '2027-10-03', note: null }, []),
       'Scheduled for 01-03 Oct 2027 at Istanbul Park; not yet run.',
     )
     assert.equal(
-      raceSentence({ year: 2027, status: 'scheduled', circuit: null, dates: null, note: null }, []),
+      raceSentence({ year: 2027, status: 'scheduled', circuit: null, date_iso: null, date_from: null, date_to: null, note: null }, []),
       'Scheduled; not yet run.',
     )
     // AF-01: once the clock says the race has been run, "not yet run" is the
@@ -992,14 +1021,14 @@ describe('the queries a page and the prerenderer share', () => {
     // because no classification has been loaded, which is what it says
     // instead. The note below the classification agrees with it.
     assert.equal(
-      raceSentence({ year: 2027, status: 'scheduled', circuit: 'Istanbul Park', dates: '01-03 Oct 2027', note: null }, [], 'run'),
+      raceSentence({ year: 2027, status: 'scheduled', circuit: 'Istanbul Park', date_iso: '2027-10-03', date_from: '2027-10-01', date_to: '2027-10-03', note: null }, [], 'run'),
       'Scheduled for 01-03 Oct 2027 at Istanbul Park; no result is recorded yet.',
     )
     assert.equal(
-      raceLede({ year: 2027, status: 'scheduled', circuit: 'Istanbul Park', dates: '01-03 Oct 2027', note: null }, [], 'running'),
+      raceLede({ year: 2027, status: 'scheduled', circuit: 'Istanbul Park', date_iso: '2027-10-03', date_from: '2027-10-01', date_to: '2027-10-03', note: null }, [], 'running'),
       'Scheduled for 01-03 Oct 2027 at Istanbul Park; no result is recorded yet.',
     )
-    const scheduledRound = { year: 2027, status: 'scheduled', circuit: 'Istanbul Park', dates: '01-03 Oct 2027', note: null }
+    const scheduledRound = { year: 2027, status: 'scheduled', circuit: 'Istanbul Park', date_iso: '2027-10-03', date_from: '2027-10-01', date_to: '2027-10-03', note: null }
     assert.equal(scheduledNote(scheduledRound).head, 'This race has not been run.')
     assert.equal(scheduledNote(scheduledRound).body, 'It is on the 2027 calendar and carries no result yet.')
     assert.equal(scheduledNote(scheduledRound, 'running').head, 'This race is under way.')

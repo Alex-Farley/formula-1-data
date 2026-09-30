@@ -43,7 +43,7 @@ here is a number the build checked.
 
 | File | What it is |
 |---|---|
-| `f1.db` | The SQLite database. <!-- fig:tables -->52<!-- /fig --> tables, <!-- fig:views -->41<!-- /fig --> views, <!-- fig:rows -->172,967<!-- /fig --> rows. This is the artefact. |
+| `f1.db` | The SQLite database. <!-- fig:tables -->53<!-- /fig --> tables, <!-- fig:views -->43<!-- /fig --> views, <!-- fig:rows -->173,021<!-- /fig --> rows. This is the artefact. |
 | `f1-geometry.db` | The OpenStreetMap circuit centrelines (ODbL), shipped beside `f1.db` and never merged into it. See *Illustration*. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
@@ -71,8 +71,10 @@ here is a number the build checked.
 | `harvest/article_images.txt`, `.log` | The photograph of each car article and its licence; every article refused, and why. **Generated** by `tools/wikimedia_images.py`. |
 | `harvest/category_images.txt`, `.log` | For a chassis with no article, a photograph from the Commons category named for it; every such chassis refused, and why. **Generated** by `tools/wikimedia_images.py --route category`. |
 | `harvest/circuit_geometry.txt`, `.log` | The OSM centrelines and every relation refused. **Generated** by `tools/osm_geometry.py`. |
+| `harvest/circuit_articles.txt`, `.log` | The Wikipedia article that describes each circuit, off the List of Formula One circuits and matched on country, seasons and races held, never on the name; every row and circuit not matched, and why. **Generated** by `tools/circuit_articles.py`. Not loaded yet: `verify.py` checks it against the register. |
 | `tools/f1db_fetch.py` | Pulls the registers, the classification, qualifying, practice, standings and pit stops from F1DB (CC BY 4.0) into the generated harvest files. Needs network; not part of the build. |
 | `tools/wikispec_fetch.py` | Harvests chassis specifications from the `{{Racing car}}` infobox on each car's article, refusing any page that disagrees with the register. Needs network; not part of the build. |
+| `tools/circuit_articles.py` | Maps each circuit to its Wikipedia article from one revision of the List of Formula One circuits, refusing any row whose country, seasons or race count is not one circuit's own. Needs network; not part of the build. |
 | `tools/ergast_load.py` | Loads the Jolpica-F1 classification onto a local copy and records where it disagrees with what is stored. Needs network; not part of the build. |
 | `tools/fastf1_load.py` | Loads per-lap timing, stints, pit stops, race control and radio onto a **local** copy from the F1 live timing API. Needs network; never committed — see *Timing*. |
 | `tools/parquet_export.py` | Writes every table as Parquet for the release bundle, with a `README.txt` stating its terms. Refuses a database carrying FOM timing or ODbL geometry. |
@@ -110,7 +112,10 @@ own `meta` and in `LICENSE-DATA`'s *Circuit geometry* section. `LICENSE-DATA`
 enumerates the files it covers — `f1.db.gz` and `f1-parquet.zip` among them,
 on the same terms as `f1.db` — and the Parquet bundle carries a `README.txt`
 that `tools/parquet_export.py` writes from `meta`, `source_registry` and
-`LICENSE-DATA`, so an unzipped copy still states its terms.
+`LICENSE-DATA`, so an unzipped copy still states its terms. It carries a
+`views.sql` too: every view `f1.db` holds, read from the database as it
+stores them, so the joins written down here — a race classification, a final
+table — are not left for a Parquet reader to reinvent.
 
 **Citing it.** `CITATION.cff` at the repository root is the citation for
 the database, and GitHub renders a *Cite this repository* button from it in
@@ -348,6 +353,16 @@ SELECT * FROM v_car_lineage WHERE root = 'lotus-25';
 
 -- The final championship table, one row per entity
 SELECT * FROM v_standings_final WHERE year = 1960;
+
+-- A race's classification, with qualifying, the sprint and the points beside it
+SELECT driver, qualifying_position, grid, sprint_position, position_text,
+       points, weekend_points
+FROM v_race_classification WHERE year = 2023 AND round = 12;
+
+-- A season's points from the results and from the championship, side by side:
+-- sprint points live in their own table, and before 1991 not every result counted
+SELECT driver, race_points, sprint_points, points, championship_points
+FROM v_driver_season_points WHERE year = 2023;
 ```
 
 ---
@@ -1236,7 +1251,7 @@ queried, not just read here. `./f1 gaps` prints them with the fix for each.
   never recorded in a form anyone can retrieve. See *Timing, telemetry and
   radio* above.
 
-The `known_gaps` table holds <!-- fig:known_gaps -->19<!-- /fig --> entries,
+The `known_gaps` table holds <!-- fig:known_gaps -->20<!-- /fig --> entries,
 of which <!-- fig:known_gaps_open -->13<!-- /fig --> are open gaps — the figure
 the site's homepage and `/data` state, counted from the same `v_open_gaps`
 view. The rest are either closed, and kept so the closure is on record, or

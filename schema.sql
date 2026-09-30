@@ -274,11 +274,47 @@ CREATE TABLE drivers (
     source          TEXT
 );
 
+-- Where a driver's note was checked, where that is not the row's own source
+-- (LV-08). A Friday driver's row is F1DB's - name, dates, nationality - and
+-- F1DB says nothing about who they were, so the line that says it is checked
+-- against the driver's own article and cites it here rather than in the
+-- row's `source`, which would re-attribute F1DB's facts. One citation per
+-- note. The build gives this table `source_id` like every table carrying
+-- `source`, so its licence is a join and verify.py's licence checks read it;
+-- the driver page's sources list reads it too.
+CREATE TABLE driver_note_sources (
+    driver_id       TEXT PRIMARY KEY REFERENCES drivers(id),
+    source          TEXT NOT NULL
+);
+
+-- `role` is one or more roles from one list, joined by ' / ' in the order
+-- the person held or is known for them: "founder / designer". The CHECK
+-- strips each listed role, separators and all, and requires nothing to be
+-- left - a CHECK cannot hold a subquery, so this is how one column is held
+-- to a list without splitting it into a table. A role not on the list, a
+-- different separator and an empty part are refused; a repeated role only
+-- when the two are side by side, since replace() consumes one separator.
+-- Adding a role means adding it here (DA-13).
 CREATE TABLE personnel (
     id              TEXT PRIMARY KEY,
     full_name       TEXT NOT NULL,
     nationality     TEXT,
-    role            TEXT,                      -- designer | team principal | official | founder
+    role            TEXT CHECK (role IS NULL OR replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(' / ' || role || ' / ',
+            ' / team principal / ', ' / '),
+            ' / technical director / ', ' / '),
+            ' / sporting director / ', ' / '),
+            ' / race director / ', ' / '),
+            ' / designer / ', ' / '),
+            ' / engineer / ', ' / '),
+            ' / founder / ', ' / '),
+            ' / co-founder / ', ' / '),
+            ' / team owner / ', ' / '),
+            ' / commercial rights holder / ', ' / '),
+            ' / executive / ', ' / '),
+            ' / official / ', ' / '),
+            ' / neurosurgeon / ', ' / '),
+            ' / driver / ', ' / '),
+            ' / advisor / ', ' / ') = ' / '),
     active_from     INTEGER,
     active_to       INTEGER,
     associated_with TEXT,
@@ -370,7 +406,12 @@ CREATE TABLE engine_eras (
     to_year         INTEGER,
     era_name        TEXT NOT NULL,
     formula         TEXT NOT NULL,
-    aspiration      TEXT,
+    -- what the era's cars actually raced, not what the formula allowed
+    -- (the `formula` column says that): 1966-76 permitted forced induction
+    -- and nobody ran it. 'both' is an era where the two routes raced.
+    aspiration      TEXT CHECK (aspiration IN ('naturally aspirated',
+                        'supercharged', 'turbocharged', 'turbocharged hybrid',
+                        'both')),
     typical_config  TEXT,
     approx_power_bhp TEXT,
     rev_limit       TEXT,
@@ -641,7 +682,9 @@ CREATE TABLE cars (
     -- power unit
     engine_config   TEXT,                      -- V8, V12, flat-12, turbo I4
     capacity_cc     INTEGER,
-    aspiration      TEXT,                      -- naturally aspirated | turbo | hybrid
+    -- one vocabulary with chassis and engines (DA-13)
+    aspiration      TEXT CHECK (aspiration IN ('naturally aspirated', 'supercharged', 'turbocharged',
+                                        'turbocharged hybrid', 'gas turbine')),
     power_bhp       INTEGER,                   -- peak race power as published
     power_note      TEXT,                      -- qualifying boost, era caveats
     rev_limit_rpm   INTEGER,
@@ -723,7 +766,10 @@ CREATE TABLE chassis (
     susp_rear       TEXT,
     engine_name     TEXT,
     engine_config   TEXT,
-    aspiration      TEXT,
+    -- the infobox's turbo/na field, normalised by build.py's
+    -- _aspiration(): 'N/A' and a bare rev limit are NULL, not a guess
+    aspiration      TEXT CHECK (aspiration IN ('naturally aspirated', 'supercharged', 'turbocharged',
+                                        'turbocharged hybrid', 'gas turbine')),
     engine_position TEXT,
     gearbox         TEXT,
     gears           TEXT,
@@ -885,7 +931,9 @@ CREATE TABLE engines (
     full_name       TEXT NOT NULL,
     capacity_l      REAL,
     configuration   TEXT,                      -- V10, F12, L6 ...
-    aspiration      TEXT,                      -- NATURALLY_ASPIRATED | TURBOCHARGED
+    -- F1DB's NATURALLY_ASPIRATED etc., lower-cased with spaces
+    aspiration      TEXT CHECK (aspiration IN ('naturally aspirated', 'supercharged', 'turbocharged',
+                                        'turbocharged hybrid', 'gas turbine')),
     confidence      TEXT NOT NULL DEFAULT 'reference' REFERENCES provenance(confidence),
     source          TEXT NOT NULL
 );
@@ -981,18 +1029,33 @@ CREATE TABLE races (
     -- into circuit_outlines, so every race can be drawn whether or not its
     -- circuit has a layout timeline here.
     f1db_layout_id  TEXT REFERENCES circuit_outlines(f1db_layout_id),
-    -- TWO COLUMNS, BECAUSE THEY ANSWER DIFFERENT QUESTIONS.
-    --   dates     is for a reader. It may be a RANGE - "27-29 Mar 2026" -
-    --             because a Grand Prix is a weekend, and for a race still to
-    --             be run that is the more useful fact.
-    --   date_iso  is the day the race itself was held, always YYYY-MM-DD,
-    --             for anything that has to compute: schema.org startDate,
-    --             sorting, date arithmetic.
-    -- Storing only one loses something either way. A single ISO day cannot
-    -- express a weekend; a range cannot be parsed. verify.py checks that
-    -- where `dates` IS an ISO day the two agree.
-    dates           TEXT,
+    -- THE RACE DAY, AND THE WEEKEND AROUND IT WHERE ONE IS STATED.
+    --   date_iso   is the day the race itself was held, YYYY-MM-DD, on every
+    --              row: F1DB's date for every round it holds, and the last
+    --              day of the announced weekend - the LOCAL day - for a
+    --              round it has not reached yet. The two readings differ
+    --              only where a race runs past midnight UTC, so Las Vegas
+    --              2027's date_iso moves a day when F1DB lists it.
+    --   date_from  the first and last day of the weekend, YYYY-MM-DD, where
+    --   date_to    a source states one - today the calendars formula1.com
+    --              announces, so the current season and the next. NULL on
+    --              every other row, because nothing here says which day
+    --              practice began at Silverstone in 1950; a renderer shows
+    --              the race day there instead.
+    -- Until DA-15 this was one `dates` column that held an ISO day on 98% of
+    -- rows and a display range - "27-29 Mar 2026", "30 Oct-01 Nov 2026" - on
+    -- the rest, so a renderer printed raw ISO most of the time and no check
+    -- could read the range. Both halves are now dates, and verify.py holds
+    -- them to each other: date_from <= date_to, and the race day is date_to.
+    -- The one exception: with a timetable in `sessions`, date_to is the
+    -- race's local day and date_iso its UTC day, which is F1DB's reading -
+    -- Las Vegas races on a Saturday evening that is Sunday in UTC. That is
+    -- measured where a timetable is held and declared where none is yet
+    -- (data/current.py RACE_DAY_AFTER_WEEKEND). The `calendar` view still
+    -- offers the old display string as `dates`, derived from these three.
     date_iso        TEXT,                      -- YYYY-MM-DD, the race day
+    date_from       TEXT,                      -- YYYY-MM-DD, the weekend's first day, or NULL
+    date_to         TEXT,                      -- YYYY-MM-DD, its last day, or NULL
     sprint          INTEGER NOT NULL DEFAULT 0,
     -- completed | scheduled. A cancelled round has no row rather than a
     -- third value: the calendar holds what was and will be run, and the
@@ -1014,8 +1077,8 @@ CREATE TABLE races (
 -- against. A sprint weekend is fp1, sprint_qualifying, sprint, qualifying,
 -- race; any other is fp1, fp2, fp3, qualifying, race - verify.py holds each
 -- weekend to the set races.sprint implies, and holds the race's local day to
--- the last day of races.dates. Las Vegas is why the zone travels with the
--- row: its Saturday-evening race is Sunday in UTC.
+-- races.date_to and its UTC day to races.date_iso. Las Vegas is why the zone
+-- travels with the row: its Saturday-evening race is Sunday in UTC.
 CREATE TABLE sessions (
     id              INTEGER PRIMARY KEY,
     race_id         INTEGER NOT NULL REFERENCES races(id),
@@ -1638,7 +1701,13 @@ CREATE TABLE team_radio (
     driver_code     TEXT,
     utc_time        TEXT,
     lap_number      INTEGER,
-    speaker         TEXT,                      -- driver | engineer | team
+    -- who spoke and to whom, as the source attributes it: "Rob Smedley
+    -- (race engineer) to Felipe Massa". Prose, not a vocabulary - the
+    -- controlled part is `channel`. Up to v2.25 the channel was appended to
+    -- this column in brackets (DA-13).
+    speaker         TEXT,
+    channel         TEXT CHECK (channel IN ('pit-to-car', 'car-to-pit',
+                        'team to race director', 'race director to team')),
     transcript      TEXT,
     audio_url       TEXT,
     notable         INTEGER NOT NULL DEFAULT 0,
@@ -1966,6 +2035,117 @@ SELECT f.id, f.year, f.table_type,
           AND x.driver_id IS f.driver_id AND x.constructor_id IS f.constructor_id
           AND x.source <> f.source);
 
+-- One row per race entry, with the rest of the driver's weekend beside it:
+-- where they qualified, where they started, where they finished in the
+-- sprint, where they finished in the Grand Prix, and what each paid. The
+-- first query a stranger writes of this database, which until DA-14 had to
+-- be written as a four-way join by somebody who knew the four tables exist.
+--
+-- The grain is race_entries', exactly: qualifying and sprint_results are
+-- each one row per driver per race, so joining them on (race_id, driver_id)
+-- adds columns and never rows, and verify.py checks that it stays so. What
+-- the grain costs, said plainly:
+--
+--   A qualifying row with no race entry is not here. Two exist - the HRTs
+--   that missed the 107 per cent limit at Melbourne in 2011, which F1DB's
+--   qualifying holds and its classification omits (known_gaps) - and a car
+--   that did not take the start of the race is not in its classification.
+--
+--   A driver who drove two cars in one Grand Prix keeps one result, because
+--   race_entries does (known_gaps: one row per driver per race, normal
+--   before 1965, the 1955 Argentine Grand Prix in particular).
+--
+-- The three positions are three different facts and none is derived from
+-- another: qualifying_position is who was quickest, grid is where the car
+-- started and pole is who was credited with pole - see WHAT 'POLE' MEANS
+-- HERE, in schema.sql above races. sprint_position is NULL for a driver with
+-- no sprint result, which is every entry before 2021.
+--
+-- weekend_points is the Grand Prix's points plus the sprint's, NULL where
+-- either is: NULL is "not established", and a total that quietly read it as
+-- nought would establish it. No sprint result adds nothing, because none
+-- was paid; a sprint result whose points are NULL is not established.
+--
+-- The order is the race page's: classified finishers in order, then the
+-- rest by laps completed.
+CREATE VIEW v_race_classification AS
+SELECT r.id AS race_id, r.year, r.round, r.name_used AS gp_name, r.circuit_id,
+       e.id AS entry_id,
+       e.driver_id, d.full_name AS driver,
+       e.constructor_id, c.name AS constructor, e.entrant, e.car_id,
+       q.position       AS qualifying_position,
+       q.position_text  AS qualifying_position_text,
+       e.grid, e.grid_text, e.pole,
+       s.finish_position AS sprint_position,
+       s.position_text   AS sprint_position_text,
+       s.points          AS sprint_points,
+       e.finish_position, e.position_text, e.status, e.laps_completed,
+       e.classified, e.shared_drive, e.fastest_lap, e.fastest_lap_shared,
+       e.points,
+       e.points + CASE WHEN s.id IS NULL THEN 0 ELSE s.points END
+                         AS weekend_points,
+       e.confidence, e.source
+  FROM race_entries e
+  JOIN races r               ON r.id = e.race_id
+  LEFT JOIN drivers d        ON d.id = e.driver_id
+  LEFT JOIN constructors c   ON c.id = e.constructor_id
+  LEFT JOIN qualifying q     ON q.race_id = e.race_id AND q.driver_id = e.driver_id
+  LEFT JOIN sprint_results s ON s.race_id = e.race_id AND s.driver_id = e.driver_id
+ ORDER BY r.year, r.round, e.finish_position IS NULL, e.finish_position,
+          e.laps_completed IS NULL, e.laps_completed DESC, e.id;
+
+-- A driver's season in points, from the results and from the championship,
+-- side by side - because they are two figures and a season's points live in
+-- two tables. Summing race_entries alone gives Verstappen 2023 530; the
+-- sprints paid him 45 more, in sprint_results, and the championship says
+-- 575 (DA-17).
+--
+--   race_points     the Grand Prix points his entries scored
+--   sprint_points   the sprint points his sprint results scored; 0, not NULL,
+--                   where he held none, because none was paid - which is true
+--                   of every season before 2021
+--   points          the two together: what the results say he scored
+--   championship_*  his row in v_standings_final's drivers' table
+--
+-- points and championship_points are equal wherever every result counted
+-- (points_systems.dropped_scores), and verify.py checks it for every finished
+-- season. Before 1991 they are not, and the difference is not an error:
+-- only a driver's best results counted, so the championship is the smaller.
+-- In the season being run the championship stands after
+-- championship_after_round, and points counts every round the results hold,
+-- so the two part for as long as one source is a round behind the other.
+--
+-- An entry whose points are NULL - not established - adds nothing to the
+-- sum, in either table: the championship is the sum of the established
+-- points (the ineligible entries of the 1950s and 1980s are the NULLs, and
+-- they scored nothing). A season with no established points at all is NULL,
+-- not 0, in race_points or sprint_points, and so in points.
+CREATE VIEW v_driver_season_points AS
+WITH race AS (
+  SELECT r.year, e.driver_id, COUNT(*) AS entries, SUM(e.points) AS points
+    FROM race_entries e JOIN races r ON r.id = e.race_id
+   GROUP BY r.year, e.driver_id),
+sprint AS (
+  SELECT r.year, s.driver_id, COUNT(*) AS results, SUM(s.points) AS points
+    FROM sprint_results s JOIN races r ON r.id = s.race_id
+   GROUP BY r.year, s.driver_id)
+SELECT g.year, g.driver_id, d.full_name AS driver, g.entries,
+       g.points                    AS race_points,
+       CASE WHEN p.results IS NULL THEN 0 ELSE p.points END AS sprint_points,
+       g.points + CASE WHEN p.results IS NULL THEN 0 ELSE p.points END AS points,
+       f.position                  AS championship_position,
+       f.position_text             AS championship_position_text,
+       f.points                    AS championship_points,
+       f.after_round               AS championship_after_round
+  FROM race g
+  LEFT JOIN sprint p   ON p.year = g.year AND p.driver_id = g.driver_id
+  LEFT JOIN drivers d  ON d.id = g.driver_id
+  LEFT JOIN v_standings_final f ON f.year = g.year AND f.table_type = 'drivers'
+                               AND f.driver_id = g.driver_id
+ ORDER BY g.year, f.position IS NULL, f.position,
+          g.points + CASE WHEN p.results IS NULL THEN 0 ELSE p.points END DESC,
+          g.driver_id;
+
 CREATE VIEW v_stat_reconciliation AS
 SELECT d.full_name,
        d.wins AS derived_wins, d.wins_external,
@@ -1987,10 +2167,41 @@ GROUP BY g.id ORDER BY editions DESC;
 
 -- The calendar is the race table seen as a schedule. It was a separate table
 -- until v2.4, which meant the 2026 season existed in two places.
+--
+-- `dates` is the display string races.dates held until DA-15, derived now
+-- from the three dates it stood for, so a reader of this view and
+-- f1_compat.json sees what it always saw: the weekend where one is stated -
+-- "27-29 Mar 2026", "30 Oct-01 Nov 2026" - and the ISO race day otherwise.
+-- web/src/lib/format.js raceDates() writes the same string for the site.
 CREATE VIEW calendar AS
 SELECT r.id, r.year, r.round, r.name_used AS gp_name, r.gp_id,
        g.country, ci.locality AS city, r.circuit_id, ci.name AS circuit_name,
-       r.dates, r.sprint, r.status, r.confidence, r.source
+       CASE
+         WHEN r.date_from IS NULL OR r.date_to IS NULL THEN r.date_iso
+         WHEN substr(r.date_from, 1, 7) = substr(r.date_to, 1, 7)
+           THEN substr(r.date_from, 9, 2) || '-' || substr(r.date_to, 9, 2)
+                || ' ' || substr('JanFebMarAprMayJunJulAugSepOctNovDec',
+                                 3 * CAST(substr(r.date_to, 6, 2) AS INTEGER) - 2, 3)
+                || ' ' || substr(r.date_to, 1, 4)
+         WHEN substr(r.date_from, 1, 4) = substr(r.date_to, 1, 4)
+           THEN substr(r.date_from, 9, 2) || ' '
+                || substr('JanFebMarAprMayJunJulAugSepOctNovDec',
+                          3 * CAST(substr(r.date_from, 6, 2) AS INTEGER) - 2, 3)
+                || '-' || substr(r.date_to, 9, 2) || ' '
+                || substr('JanFebMarAprMayJunJulAugSepOctNovDec',
+                          3 * CAST(substr(r.date_to, 6, 2) AS INTEGER) - 2, 3)
+                || ' ' || substr(r.date_to, 1, 4)
+         ELSE substr(r.date_from, 9, 2) || ' '
+                || substr('JanFebMarAprMayJunJulAugSepOctNovDec',
+                          3 * CAST(substr(r.date_from, 6, 2) AS INTEGER) - 2, 3)
+                || ' ' || substr(r.date_from, 1, 4)
+                || '-' || substr(r.date_to, 9, 2) || ' '
+                || substr('JanFebMarAprMayJunJulAugSepOctNovDec',
+                          3 * CAST(substr(r.date_to, 6, 2) AS INTEGER) - 2, 3)
+                || ' ' || substr(r.date_to, 1, 4)
+       END AS dates,
+       r.date_iso, r.date_from, r.date_to,
+       r.sprint, r.status, r.confidence, r.source
 FROM races r
 LEFT JOIN grands_prix g ON g.id = r.gp_id
 LEFT JOIN circuits ci   ON ci.id = r.circuit_id

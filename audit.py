@@ -34,7 +34,8 @@ def views():
 # gaps rather than noise.
 OPTIONAL = {
     "race_entries.note", "races.note", "season_entries.note", "drivers.died",
-    "drivers.stats_as_of", "races.dates", "constructors.last_entry",
+    "drivers.stats_as_of", "races.date_from", "races.date_to",
+    "constructors.last_entry",
     "circuits.last_gp", "drivers.last_season", "grands_prix.last_held",
     "engine_manufacturers.last_year", "engine_eras.to_year",
     "constructor_lineage.to_year", "circuit_layouts.to_year",

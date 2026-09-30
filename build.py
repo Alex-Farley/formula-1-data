@@ -520,6 +520,21 @@ def _stage_03_drivers_admitted_from_the_f1db_register(b):
              HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
         known_drv.add(f1db_id)
 
+    # Who each of them was (LV-08): a line written from the driver's own
+    # article, which is the page's lede, and the article, which is its
+    # citation. The row's `source` stays F1DB's, since the row's facts are;
+    # the line's goes in driver_note_sources. A line for a driver the list
+    # above does not admit has no row to describe.
+    for f1db_id, (note, cited) in sorted(D.PRACTICE_DRIVER_NOTES.items()):
+        if f1db_id not in D.F1DB_PRACTICE_DRIVERS:
+            raise SystemExit(
+                f"PRACTICE_DRIVER_NOTES describes {f1db_id}, whom "
+                f"F1DB_PRACTICE_DRIVERS does not admit.")
+        cur.execute("UPDATE drivers SET notes = ? WHERE id = ?",
+                    (note, f1db_id))
+        cur.execute("""INSERT INTO driver_note_sources (driver_id, source)
+            VALUES (?, ?)""", (f1db_id, cited))
+
     # The wins / poles / fastest_laps just inserted are hand-entered from
     # reference records. Move them to the *_external columns now, before the
     # derived figures overwrite the main ones.
@@ -893,6 +908,64 @@ def _stage_10_the_chassis_engine_and_entrant_register(b):
         """
         return v if v and re.search(r"[0-9]", v) else None
 
+    def _aspiration(v, first_year):
+        """The infobox's turbo/na field, as schema.sql's vocabulary (AF-66).
+
+        The harvest keeps what the page said, which is the same three states
+        spelt some sixty ways, several with a rev limit or KERS carried along
+        ("Naturally aspirated, 18,000 RPM limited with KERS"). Only the
+        aspiration is kept; the rest was never this column's to hold.
+
+        Two readings are refused rather than guessed. `N/A` (BRM P48) is
+        "not applicable" as written and "naturally aspirated" as the page's
+        `NA` rows use it - opposite answers - so it is NULL. A bare rev limit
+        ("15,000 RPM limited") names no aspiration, whatever the era, so it
+        is NULL too. ERS on a turbo is a turbocharged hybrid, as F1DB's
+        engines have it; KERS on a normally aspirated V8 is not, as F1DB has
+        those too. So is any turbo from 2014 on, whether or not the page says
+        so: the formula has required the energy-recovery system since then,
+        and "turbocharged" alone is a page naming the turbo and not the
+        hybrid, not a car without one. Anything else unrecognised stops the
+        build: a new spelling is added here on purpose, never passed
+        through.
+        """
+        if not v:
+            return None
+        t = v.strip().lower().rstrip(".*")
+        if t == "n/a" or re.fullmatch(r"[0-9,]+ rpm limited", t):
+            return None
+        if t == "gas turbine":
+            return "gas turbine"
+        if re.match(r"roots-type supercharger$", t):
+            return "supercharged"
+        if re.match(r"((single|twin)[- ])?turbo", t):
+            return ("turbocharged hybrid"
+                    if re.search(r"\bers\b", t) or (first_year or 0) >= 2014
+                    else "turbocharged")
+        if re.match(r"(naturally|normally)[- ]aspirated\b|na\b", t):
+            return "naturally aspirated"
+        raise SystemExit(f"harvest/car_specs.txt: aspiration {v!r} is not "
+                         f"a spelling build.py's _aspiration() knows")
+
+    def _engine_config(cfg, asp):
+        """engine_config, with the rev figure the aspiration field carried.
+
+        Three McLaren pages (MP4/6, MP4/7A, MP4/8) put the engine's maximum
+        revs in the turbo/na field - "NA (max: 15000 rpm)" - where the Jordan
+        193 and 194 put the same figure in the engine field. _aspiration()
+        keeps only the aspiration, so the figure moves to engine_config,
+        spelt as the Jordans have it, rather than being held nowhere. A rev
+        *limit* ("18,000 RPM limited") is the formula's and is not moved.
+        """
+        i = asp.find("(max:") if asp else -1
+        if i < 0:
+            return cfg
+        return f"{cfg} {asp[i:].strip()}" if cfg else asp[i:].strip()
+
+    def _stated(v):
+        """A lone '?' in an infobox field states nothing (BAR 002's fuel)."""
+        return None if v is not None and v.strip() == "?" else v
+
     for ch_id, f1db_cons, name, full in HV.load_chassis():
         if ch_id in chassis_car and chassis_car[ch_id] not in seen_cars:
             raise SystemExit(f"CAR_CHASSIS names unknown car "
@@ -928,9 +1001,10 @@ def _stage_10_the_chassis_engine_and_entrant_register(b):
              min(yrs) if yrs else None, max(yrs) if yrs else None, len(yrs),
              sp.get("article"), sp.get("designers"), sp.get("chassis_type"),
              sp.get("susp_front"), sp.get("susp_rear"), sp.get("engine_name"),
-             sp.get("engine_config"), sp.get("aspiration"),
+             _engine_config(sp.get("engine_config"), sp.get("aspiration")),
+             _aspiration(sp.get("aspiration"), min(yrs) if yrs else None),
              sp.get("engine_position"), sp.get("gearbox"), sp.get("gears"),
-             sp.get("brakes"), sp.get("fuel"), sp.get("tyres"),
+             sp.get("brakes"), _stated(sp.get("fuel")), sp.get("tyres"),
              _int(sp.get("capacity_cc")), _int(sp.get("power_bhp")),
              _power_note(sp.get("power_note")), _float(sp.get("weight_kg")),
              _int(sp.get("wheelbase_mm")), _int(sp.get("track_front_mm")),
@@ -1357,31 +1431,40 @@ def _stage_15_rules_tech_safety(b):
             VALUES (?,?,?,?,?)""", (i,) + r)
 
 
-def _calendar_date_iso(dates):
-    """The race day of an announced weekend, as ISO.
+def _calendar_weekend(dates):
+    """An announced weekend as two ISO days, (date_from, date_to).
 
     A Grand Prix is a weekend and the calendar states it as a span - "12-14
-    Mar 2027", or "30 Apr-02 May 2027" where it crosses a month. The race is
-    the last day of that span, which is the same relationship verify.py
-    already checks between a weekend's timetable and races.dates. F1DB
-    publishes a date_iso for every round it holds and overwrites this later;
-    a season F1DB has not reached yet - a calendar announced but not started
-    - would otherwise carry no machine-readable day at all, which is exactly
-    where a search engine wants a startDate.
+    Mar 2027", or "30 Apr-02 May 2027" where it crosses a month - in the
+    words formula1.com uses, which is how data/current.py keeps it. The
+    database holds the two ends as dates rather than the words, so a check
+    can read them (DA-15): the race is the last day of the span, which
+    verify.py holds against date_iso and against the weekend's timetable.
+    F1DB publishes a date_iso for every round it holds and overwrites the
+    race day taken from here; a season F1DB has not reached yet - a calendar
+    announced but not started - would otherwise carry no machine-readable
+    day at all, which is exactly where a search engine wants a startDate.
 
     Strict on purpose: a span this cannot read is a typo in the calendar, not
-    a date to guess at.
+    a date to guess at. The span never crosses a year in the calendar's own
+    notation, so one that runs backwards is a typo too.
     """
     m = re.match(r"^(\d{1,2})(?:\s+([A-Za-z]{3}))?-(\d{1,2})\s+([A-Za-z]{3})"
                  r"\s+(\d{4})$", dates.strip())
     if not m:
-        raise SystemExit(f"calendar: cannot read a race day from {dates!r}")
-    day, mon, year = m.group(3), m.group(4), m.group(5)
+        raise SystemExit(f"calendar: cannot read a weekend from {dates!r}")
     months = ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
               "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
-    if mon not in months:
-        raise SystemExit(f"calendar: unknown month {mon!r} in {dates!r}")
-    return f"{year}-{months.index(mon) + 1:02d}-{int(day):02d}"
+    first, first_mon, last, mon, year = m.groups()
+    first_mon = first_mon or mon
+    for name in (first_mon, mon):
+        if name not in months:
+            raise SystemExit(f"calendar: unknown month {name!r} in {dates!r}")
+    date_from = f"{year}-{months.index(first_mon) + 1:02d}-{int(first):02d}"
+    date_to = f"{year}-{months.index(mon) + 1:02d}-{int(last):02d}"
+    if date_from > date_to:
+        raise SystemExit(f"calendar: {dates!r} ends before it starts")
+    return date_from, date_to
 
 
 def _stage_16_current_season(b):
@@ -1487,15 +1570,16 @@ def _stage_16_current_season(b):
         if gid is None:
             raise SystemExit(f"unmapped grand prix {r['gp_name']!r}")
         circuit = EV.SINGLE_CIRCUIT.get(gid)
-        dates = sprint = None
+        date_from = date_to = sprint = None
         if r["round"] in cal.get(r["year"], {}):
             c = cal[r["year"]][r["round"]]
-            circuit, dates, sprint = c[4], c[5], c[6]
+            circuit, sprint = c[4], c[6]
+            date_from, date_to = _calendar_weekend(c[5])
         cur.execute("""INSERT INTO races (id, year, round, gp_id, name_used,
-            circuit_id, dates, sprint, status, confidence, source)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
-            (rid, r["year"], r["round"], gid, r["gp_name"], circuit, dates,
-             sprint or 0, "completed", r["confidence"], r["source"]))
+            circuit_id, date_from, date_to, sprint, status, confidence, source)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (rid, r["year"], r["round"], gid, r["gp_name"], circuit, date_from,
+             date_to, sprint or 0, "completed", r["confidence"], r["source"]))
         race_key[(r["year"], r["round"])] = rid
 
         # winner entries
@@ -1528,11 +1612,13 @@ def _stage_16_current_season(b):
             gid = gp_map.get(c[1])
             if gid is None:
                 raise SystemExit(f"unmapped grand prix {c[1]!r}")
+            date_from, date_to = _calendar_weekend(c[5])
             cur.execute("""INSERT INTO races (id, year, round, gp_id, name_used,
-                circuit_id, dates, date_iso, sprint, status, confidence, source)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
-                (rid, year, c[0], gid, c[1], c[4], c[5],
-                 _calendar_date_iso(c[5]), c[6], c[7], "verified", src))
+                circuit_id, date_from, date_to, date_iso, sprint, status,
+                confidence, source)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (rid, year, c[0], gid, c[1], c[4], date_from, date_to,
+                 date_to, c[6], c[7], "verified", src))
             race_key[(year, c[0])] = rid
 
     # The weekend timetable, keyed to the races just written (LV-02). Every
@@ -3039,9 +3125,9 @@ def _stage_27_notable_team_radio_a_small_curated(b):
                                    (did,)).fetchone():
             raise SystemExit(f"notable radio: unknown driver {did}")
         cur.execute("""INSERT INTO team_radio (race_id, driver_id, speaker,
-            transcript, context, notable, confidence, source)
-            VALUES (?,?,?,?,?,1,?,?)""",
-            (rid, did, f"{speaker} [{channel}]", text, ctx, conf, src))
+            channel, transcript, context, notable, confidence, source)
+            VALUES (?,?,?,?,?,?,1,?,?)""",
+            (rid, did, speaker, channel, text, ctx, conf, src))
 
 
 def _stage_29_career_figures_checked_against_the_official(b):
@@ -4174,18 +4260,12 @@ def _stage_28_race_dates_and_the_fastest_lap_where(b):
     # "Dates -", and the SportsEvent JSON-LD could not emit startDate, which
     # is the one field a search engine most wants from an event.
     #
-    # ONLY A RACE WITH NO DATE IS FILLED. The 23 already held were written by
-    # hand and some express a RANGE - a meeting run over several days - which
-    # a single ISO day cannot represent. Overwriting them would trade a
-    # richer fact for a uniform one.
-    # date_iso is set for EVERY race, dates only where it is empty. The two
-    # columns answer different questions and the split is deliberate: a
-    # Grand Prix is a weekend, so the 23 hand-written ranges ("27-29 Mar
-    # 2026") are the better fact for a reader and are kept, while date_iso
-    # gives every race a machine-readable day. Storing only `dates` left
-    # those 23 - all of them races still to come, which is exactly where a
-    # search engine wants a date - unable to emit startDate at all.
-    dated = 0
+    # date_iso is set for EVERY race F1DB holds, over the calendar's last
+    # day where a weekend was announced. The weekend itself - date_from and
+    # date_to - is the calendar's and is not touched: F1DB states the race
+    # day, not the days around it. Until DA-15 this also copied the day into
+    # a `dates` display column wherever it was empty, which is how that
+    # column came to be a duplicate on 98% of its rows.
     iso = 0
     for h in HV.load_race_dates():
         rid = b.race_for(h["year"], h["round"], "race dates")
@@ -4193,9 +4273,6 @@ def _stage_28_race_dates_and_the_fastest_lap_where(b):
             continue
         cur.execute("UPDATE races SET date_iso=? WHERE id=?", (h["date"], rid))
         iso += cur.rowcount
-        cur.execute("""UPDATE races SET dates=? WHERE id=?
-            AND (dates IS NULL OR TRIM(dates)='')""", (h["date"], rid))
-        dated += cur.rowcount
 
     # --- the fastest lap, where the pole harvest has none
     #
@@ -4254,8 +4331,7 @@ def _stage_28_race_dates_and_the_fastest_lap_where(b):
                           "fastest_lap", f"{yr_} round {rnd_}", ours_, theirs_,
                           assessment_, status_, note_)
 
-    print(f"  race dates: {iso} ISO days, {dated} display values filled "
-          f"from F1DB; fastest laps: "
+    print(f"  race dates: {iso} ISO days from F1DB; fastest laps: "
           f"{fl_filled} filled, {len(fl_disagreements)} disagreements, "
           f"{fl_no_entry} with no matching entry")
 

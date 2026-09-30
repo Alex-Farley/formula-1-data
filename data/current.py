@@ -129,6 +129,8 @@ TEAM_PERSONNEL_2026 = [
 ]
 
 # round, gp_name, country, city, circuit_id, dates, sprint, status
+# `dates` is the weekend as formula1.com writes it; build.py reads it into
+# races.date_from and races.date_to and refuses one it cannot read.
 CALENDAR_2026 = [
     (1, "Australian Grand Prix", "Australia", "Melbourne", "albert-park", "06-08 Mar 2026", 0, "completed"),
     (2, "Chinese Grand Prix", "China", "Shanghai", "shanghai", "13-15 Mar 2026", 1, "completed"),
@@ -186,6 +188,20 @@ CALENDAR_2027 = [
     (23, "Qatar Grand Prix", "Qatar", "Lusail", "lusail", "03-05 Dec 2027", 1, "scheduled"),
     (24, "Abu Dhabi Grand Prix", "Abu Dhabi", "Yas Marina", "yas-marina", "10-12 Dec 2027", 1, "scheduled"),
 ]
+
+# Circuits whose race starts after midnight UTC on its local race day, so the
+# date F1DB gives the round - the UTC day - is the day after the weekend
+# formula1.com announces ends. verify.py lets races.date_iso be that day at
+# these circuits and nowhere else, and wherever the round has a timetable it
+# proves the reading from the start time instead (DA-15). Without the entry,
+# the first F1DB release to list a season would fail the build on a correct
+# value, because a timetable is only held for the season in progress.
+#   circuit_id: why
+RACE_DAY_AFTER_WEEKEND = {
+    "las-vegas": "a Saturday-evening race, 22:00 local in 2023 and 20:00 in "
+                 "2026, which is Sunday in UTC; F1DB dates 2023-2026 on the "
+                 "Sunday and formula1.com's weekends end on the Saturday",
+}
 
 # year -> (calendar, source). build.py loads every season named here, so a
 # new season arrives by being added to this map and to data/seasons.py, and
@@ -547,7 +563,10 @@ SOURCE_REGISTRY = [
 
     (17, "Wikipedia per-circuit articles", "https://en.wikipedia.org/wiki/Category:Formula_One_circuits",
      "Circuit configuration timelines: which layout was raced in which years, "
-     "its length and turn count, and why it changed. Feeds circuit_layouts.",
+     "its length and turn count, and why it changed. Feeds circuit_layouts. "
+     "Also, from the List of Formula One circuits, which article describes "
+     "each circuit (harvest/circuit_articles.txt), matched on country, "
+     "seasons and races held and checked by verify.py; nothing loads it yet.",
      "reference",
      "CC BY-SA 4.0. The change_reason prose follows the article and carries "
      "share-alike with it - see ATTRIBUTION.md.",
