@@ -54,6 +54,15 @@ WHY IT WRITES A README.txt
     licence's title and attribution from LICENSE-DATA. A README kept by hand
     is the one that drifted (PD-07). Without LICENSE-DATA or f1-geometry.db
     there are terms it cannot state, so it refuses to write a bundle at all.
+
+WHY IT WRITES A views.sql
+    The tables are the data and the views are where the logic is written down:
+    which layout was raced where, one row per entity in a final table, a race
+    classification with the weekend beside it. Parquet has no views, so a
+    bundle of tables alone made every reader reinvent the joins (DA-14). The
+    file is every CREATE VIEW as f1.db stores it, read from sqlite_master
+    rather than kept here, so a view added to schema.sql ships without an
+    edit to this file.
 """
 import argparse
 import os
@@ -130,6 +139,31 @@ def tables(con):
     return [r[0] for r in con.execute(
         "SELECT name FROM sqlite_master WHERE type='table' "
         "AND name NOT LIKE 'sqlite_%' ORDER BY name")]
+
+
+def views(con):
+    """Every view's name and CREATE statement, in the order f1.db made them.
+
+    Creation order, because a view may read another and an engine that
+    resolves names at CREATE time - DuckDB does, SQLite does not - needs the
+    one it reads to exist first.
+    """
+    return con.execute("SELECT name, sql FROM sqlite_master WHERE type='view' "
+                       "ORDER BY rowid").fetchall()
+
+
+def views_sql(con):
+    """views.sql: the header, then each view's statement as f1.db holds it."""
+    meta = dict(con.execute("SELECT key, value FROM meta"))
+    held = views(con)
+    head = _wrap(
+        f"{meta['database_name']}, version {meta['version']}: the {len(held)} "
+        f"views of f1.db, each as the database stores it. The Parquet files "
+        f"beside this one are the tables, one file per table and named for "
+        f"it; load each as a table of that name and these run over them. "
+        f"The SQL is SQLite's. A view that reads a table listed under NOT IN "
+        f"THIS BUNDLE in README.txt has nothing to read here.", "-- ")
+    return "\n\n".join([head, *(f"{sql};" for _, sql in held)]) + "\n"
 
 
 def check_complete(con, written):
@@ -230,6 +264,11 @@ def notice(con, written):
               f"table of f1.db but the {len(NOT_EXPORTED)} under NOT IN THIS "
               f"BUNDLE. They are f1.db in another format, and they are "
               f"published under the same terms."),
+        "",
+        _wrap(f"views.sql holds f1.db's {len(views(con))} views - "
+              f"v_race_classification, v_standings_final and the rest - as "
+              f"CREATE VIEW statements in SQLite's SQL, to run over these "
+              f"files once each is loaded as a table of its own name."),
         "",
         "TERMS",
         "",
@@ -333,13 +372,18 @@ def main():
     check_complete(con, written)
 
     readme = os.path.join(args.out, "README.txt")
+    viewfile = os.path.join(args.out, "views.sql")
     if args.check:
         notice(con, written)
         print("  README.txt (would be written)")
+        print(f"  views.sql, {len(views(con))} views (would be written)")
     else:
         with open(readme, "w", encoding="utf-8", newline="\n") as f:
             f.write(notice(con, written))
         print("  README.txt")
+        with open(viewfile, "w", encoding="utf-8", newline="\n") as f:
+            f.write(views_sql(con))
+        print(f"  views.sql, {len(views(con))} views")
 
     # Bundled with zipfile, not a `zip` binary. Whether zip is installed is a
     # property of whatever machine happens to be building, and one fewer
@@ -350,10 +394,11 @@ def main():
         with zipfile.ZipFile(args.zip, "w", zipfile.ZIP_DEFLATED,
                              compresslevel=9) as z:
             z.write(readme, "README.txt")
+            z.write(viewfile, "views.sql")
             for table in written:
                 z.write(os.path.join(args.out, f"{table}.parquet"),
                         f"{table}.parquet")
-        print(f"  bundled {len(written)} files and README.txt into {args.zip} "
+        print(f"  bundled {len(written)} files, README.txt and views.sql into {args.zip} "
               f"({os.path.getsize(args.zip)/1048576:.1f} MB)")
 
     print(f"\n  {len(written)} tables, {total_rows:,} rows"

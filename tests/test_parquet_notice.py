@@ -8,6 +8,7 @@ leaves out and the file the centrelines ship in. None of this needs pyarrow,
 which the build and CI's Python job deliberately do not have.
 """
 import os
+import re
 import shutil
 import sqlite3
 import sys
@@ -66,6 +67,55 @@ class Notice(unittest.TestCase):
             "SELECT value FROM meta WHERE key = 'version'").fetchone()
         self.assertIn(f"version {version},", self.text)
         self.assertIn(f"{len(self.written)} Parquet files", self.text)
+
+    def test_it_names_the_views_file(self):
+        n = len(P.views(self.con))
+        self.assertIn(f"views.sql holds f1.db's {n} views", " ".join(self.text.split()))
+
+
+class Views(unittest.TestCase):
+    """views.sql is every view f1.db holds, as it holds it (DA-14)."""
+
+    def setUp(self):
+        self.con = sqlite3.connect(P.DB)
+        self.addCleanup(self.con.close)
+        self.text = P.views_sql(self.con)
+
+    def test_it_carries_every_view_verbatim(self):
+        held = self.con.execute(
+            "SELECT name, sql FROM sqlite_master WHERE type = 'view'").fetchall()
+        self.assertTrue(held)
+        for name, sql in held:
+            self.assertIn(f"{sql};\n", self.text, name)
+        self.assertEqual(self.text.count("CREATE VIEW"), len(held))
+        self.assertIn("v_race_classification", self.text)
+        self.assertIn("v_driver_season_points", self.text)
+
+    def test_a_view_comes_after_every_view_it_reads(self):
+        # An engine that resolves names when the view is created - DuckDB -
+        # needs the one it reads first, which is why the order is f1.db's.
+        order = [name for name, _ in P.views(self.con)]
+        seen = set()
+        for name, sql in P.views(self.con):
+            body = sql.split(" AS", 1)[1]
+            reads = {v for v in order if v != name
+                     and re.search(rf"\b(FROM|JOIN)\s+{v}\b", body)}
+            self.assertLessEqual(reads, seen, f"{name} reads {reads - seen} first")
+            seen.add(name)
+
+    def test_it_states_the_version_and_the_dialect(self):
+        (version,) = self.con.execute(
+            "SELECT value FROM meta WHERE key = 'version'").fetchone()
+        folded = " ".join(self.text.split())
+        self.assertIn(f"version {version}:", folded)
+        self.assertIn("The SQL is SQLite's.", folded)
+
+
+class NoticeFailures(unittest.TestCase):
+    def setUp(self):
+        self.con = sqlite3.connect(P.DB)
+        self.addCleanup(self.con.close)
+        self.written = [t for t in P.tables(self.con) if t not in P.NOT_EXPORTED]
 
     def test_no_licence_document_means_no_bundle(self):
         with mock.patch.object(P, "LICENCE", os.path.join(HERE, "no-such-file")):

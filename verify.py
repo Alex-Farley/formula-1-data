@@ -5081,9 +5081,69 @@ def illustration_and_geometry():
 def views():
     for v in ("v_champions", "v_title_count", "v_constructor_titles",
               "v_current_grid", "v_season_timeline", "v_unverified",
-              "v_standings_final"):
+              "v_standings_final", "v_race_classification",
+              "v_driver_season_points"):
         n = con.execute(f"SELECT COUNT(*) FROM {v}").fetchone()[0]
         check(f"view {v} returns rows", n > 0, f"{n} rows")
+
+    # v_race_classification is race_entries with the weekend beside it, and
+    # its whole claim is the grain: qualifying and sprint_results are joined
+    # on (race_id, driver_id), so a second row for one driver in one race in
+    # either would repeat an entry, and a key the join misses would drop a
+    # sprint result from the only view that shows one beside its race.
+    entries, rows, distinct, lost = con.execute("""
+        SELECT (SELECT COUNT(*) FROM race_entries),
+               (SELECT COUNT(*) FROM v_race_classification),
+               (SELECT COUNT(DISTINCT entry_id) FROM v_race_classification),
+               (SELECT COUNT(*) FROM sprint_results s
+                 WHERE NOT EXISTS (SELECT 1 FROM v_race_classification v
+                                    WHERE v.race_id = s.race_id
+                                      AND v.driver_id = s.driver_id))""").fetchone()
+    check("v_race_classification is one row per race entry",
+          rows == entries == distinct,
+          f"{rows} rows, {distinct} entries of {entries}")
+    check("v_race_classification carries every sprint result",
+          lost == 0, f"{lost} sprint results with no race entry to sit beside")
+
+    # And v_driver_season_points is one row per driver per season, whose
+    # points are the two tables' together. Where every result counted and the
+    # season is over, the championship is exactly that sum - which is the
+    # thing the view exists to say - so a view that dropped the sprints, or
+    # joined a second standings row, disagrees with it here. The seasons are
+    # read from points_systems rather than written down, so a change to what
+    # counted is a change to what this checks.
+    rows, keys = con.execute("""SELECT COUNT(*), COUNT(DISTINCT year || ' ' || driver_id)
+        FROM v_driver_season_points""").fetchone()
+    check("v_driver_season_points is one row per driver per season",
+          rows == keys, f"{rows} rows, {keys} driver-seasons")
+    view_total, table_total = con.execute("""
+        SELECT (SELECT SUM(points) FROM v_driver_season_points),
+               (SELECT SUM(points) FROM race_entries)
+             + (SELECT SUM(points) FROM sprint_results)""").fetchone()
+    check("v_driver_season_points sums every point the results hold",
+          abs(view_total - table_total) < 0.01,
+          f"{view_total:.2f} against {table_total:.2f}")
+    apart = [f"{r['year']} {r['driver_id']}: {r['points']} against {r['championship_points']}"
+             for r in con.execute("""
+        SELECT v.year, v.driver_id, v.points, v.championship_points
+          FROM v_driver_season_points v
+          JOIN v_standings_final f ON f.year = v.year AND f.table_type = 'drivers'
+                                  AND f.driver_id = v.driver_id AND f.basis = 'final'
+         WHERE NOT EXISTS (SELECT 1 FROM points_systems ps
+                            WHERE ps.session = 'race'
+                              AND v.year BETWEEN ps.from_year AND COALESCE(ps.to_year, v.year)
+                              AND ps.dropped_scores != 'Every result counts')
+           AND ABS(COALESCE(v.points, -1) - COALESCE(v.championship_points, -1)) > 0.001
+         ORDER BY v.year, v.driver_id""")]
+    counted = con.execute("""SELECT COUNT(DISTINCT year) FROM v_standings_final f
+         WHERE table_type = 'drivers' AND basis = 'final'
+           AND NOT EXISTS (SELECT 1 FROM points_systems ps
+                            WHERE ps.session = 'race'
+                              AND f.year BETWEEN ps.from_year AND COALESCE(ps.to_year, f.year)
+                              AND ps.dropped_scores != 'Every result counts')""").fetchone()[0]
+    check("v_driver_season_points is the championship wherever every result counted",
+          not apart and counted > 0,
+          "; ".join(apart[:4]) if apart else f"{counted} finished seasons compared")
 
     # SQLite accepts CREATE VIEW over a column that does not exist and only
     # fails on SELECT, so a view nothing reads can be broken for a release

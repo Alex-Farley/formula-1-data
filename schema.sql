@@ -2020,6 +2020,109 @@ SELECT f.id, f.year, f.table_type,
           AND x.driver_id IS f.driver_id AND x.constructor_id IS f.constructor_id
           AND x.source <> f.source);
 
+-- One row per race entry, with the rest of the driver's weekend beside it:
+-- where they qualified, where they started, where they finished in the
+-- sprint, where they finished in the Grand Prix, and what each paid. The
+-- first query a stranger writes of this database, which until DA-14 had to
+-- be written as a four-way join by somebody who knew the four tables exist.
+--
+-- The grain is race_entries', exactly: qualifying and sprint_results are
+-- each one row per driver per race, so joining them on (race_id, driver_id)
+-- adds columns and never rows, and verify.py checks that it stays so. What
+-- the grain costs, said plainly:
+--
+--   A qualifying row with no race entry is not here. Two exist - the HRTs
+--   that missed the 107 per cent limit at Melbourne in 2011, which F1DB's
+--   qualifying holds and its classification omits (known_gaps) - and a car
+--   that did not take the start of the race is not in its classification.
+--
+--   A driver who drove two cars in one Grand Prix keeps one result, because
+--   race_entries does (known_gaps: one row per driver per race, normal
+--   before 1965, the 1955 Argentine Grand Prix in particular).
+--
+-- The three positions are three different facts and none is derived from
+-- another: qualifying_position is who was quickest, grid is where the car
+-- started and pole is who was credited with pole - see WHAT 'POLE' MEANS
+-- HERE, in schema.sql above races. sprint_position is NULL for a driver with
+-- no sprint result, which is every entry before 2021.
+--
+-- weekend_points is the Grand Prix's points plus the sprint's, NULL where
+-- the Grand Prix's are: NULL is "not established", and a total that quietly
+-- read it as nought would establish it. The order is the race page's -
+-- classified finishers in order, then the rest by laps completed.
+CREATE VIEW v_race_classification AS
+SELECT r.id AS race_id, r.year, r.round, r.name_used AS gp_name, r.circuit_id,
+       e.id AS entry_id,
+       e.driver_id, d.full_name AS driver,
+       e.constructor_id, c.name AS constructor, e.entrant, e.car_id,
+       q.position       AS qualifying_position,
+       q.position_text  AS qualifying_position_text,
+       e.grid, e.grid_text, e.pole,
+       s.finish_position AS sprint_position,
+       s.position_text   AS sprint_position_text,
+       s.points          AS sprint_points,
+       e.finish_position, e.position_text, e.status, e.laps_completed,
+       e.classified, e.shared_drive, e.fastest_lap, e.fastest_lap_shared,
+       e.points,
+       e.points + COALESCE(s.points, 0) AS weekend_points,
+       e.confidence, e.source
+  FROM race_entries e
+  JOIN races r               ON r.id = e.race_id
+  LEFT JOIN drivers d        ON d.id = e.driver_id
+  LEFT JOIN constructors c   ON c.id = e.constructor_id
+  LEFT JOIN qualifying q     ON q.race_id = e.race_id AND q.driver_id = e.driver_id
+  LEFT JOIN sprint_results s ON s.race_id = e.race_id AND s.driver_id = e.driver_id
+ ORDER BY r.year, r.round, e.finish_position IS NULL, e.finish_position,
+          e.laps_completed IS NULL, e.laps_completed DESC, e.id;
+
+-- A driver's season in points, from the results and from the championship,
+-- side by side - because they are two figures and a season's points live in
+-- two tables. Summing race_entries alone gives Verstappen 2023 530; the
+-- sprints paid him 45 more, in sprint_results, and the championship says
+-- 575 (DA-17).
+--
+--   race_points     the Grand Prix points his entries scored
+--   sprint_points   the sprint points his sprint results scored; 0, not NULL,
+--                   where he held none, because none was paid - which is true
+--                   of every season before 2021
+--   points          the two together: what the results say he scored
+--   championship_*  his row in v_standings_final's drivers' table
+--
+-- points and championship_points are equal wherever every result counted
+-- (points_systems.dropped_scores), and verify.py checks it for every finished
+-- season. Before 1991 they are not, and the difference is not an error:
+-- only a driver's best results counted, so the championship is the smaller.
+-- In the season being run the championship stands after
+-- championship_after_round, and points counts every round the results hold,
+-- so the two part for as long as one source is a round behind the other.
+--
+-- An entry whose points are NULL - not established - adds nothing to the
+-- sum. A season with no established points at all is NULL, not 0.
+CREATE VIEW v_driver_season_points AS
+WITH race AS (
+  SELECT r.year, e.driver_id, COUNT(*) AS entries, SUM(e.points) AS points
+    FROM race_entries e JOIN races r ON r.id = e.race_id
+   GROUP BY r.year, e.driver_id),
+sprint AS (
+  SELECT r.year, s.driver_id, SUM(s.points) AS points
+    FROM sprint_results s JOIN races r ON r.id = s.race_id
+   GROUP BY r.year, s.driver_id)
+SELECT g.year, g.driver_id, d.full_name AS driver, g.entries,
+       g.points                    AS race_points,
+       COALESCE(p.points, 0)       AS sprint_points,
+       g.points + COALESCE(p.points, 0) AS points,
+       f.position                  AS championship_position,
+       f.position_text             AS championship_position_text,
+       f.points                    AS championship_points,
+       f.after_round               AS championship_after_round
+  FROM race g
+  LEFT JOIN sprint p   ON p.year = g.year AND p.driver_id = g.driver_id
+  LEFT JOIN drivers d  ON d.id = g.driver_id
+  LEFT JOIN v_standings_final f ON f.year = g.year AND f.table_type = 'drivers'
+                               AND f.driver_id = g.driver_id
+ ORDER BY g.year, f.position IS NULL, f.position,
+          g.points + COALESCE(p.points, 0) DESC, g.driver_id;
+
 CREATE VIEW v_stat_reconciliation AS
 SELECT d.full_name,
        d.wins AS derived_wins, d.wins_external,
