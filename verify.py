@@ -4357,26 +4357,37 @@ def the_full_classification():
               AND direction NOT IN ('clockwise', 'anti-clockwise')""").fetchone()[0] == 0)
 
     # aspiration is a CHECK too (DA-13), which holds the spelling and not the
-    # fact. build.py's _aspiration() reads sixty harvested spellings into it,
-    # and a rule in it that read one the wrong way round would pass the CHECK.
-    # The regulations are the cross-check: turbochargers were banned from
-    # 1989 to 2013, and every car since 2014 has run a turbocharged hybrid,
-    # so a car or chassis that raced wholly inside either span cannot say
-    # otherwise. 'turbocharged' alone after 2014 is less than the page could
-    # have said, not a contradiction, so it is not refused.
-    _asp = con.execute("""
-        SELECT full_name || ' (' || y0 || '-' || y1 || ', ' || aspiration || ')'
-        FROM (SELECT full_name, first_year AS y0, last_year AS y1, aspiration
-                FROM chassis
-              UNION ALL
-              SELECT full_name, from_year, COALESCE(to_year, from_year), aspiration
-                FROM cars)
-        WHERE (y0 >= 1989 AND y1 <= 2013 AND aspiration LIKE 'turbo%')
-           OR (y0 >= 2014 AND aspiration = 'naturally aspirated')
-           OR (y1 < 2014 AND aspiration = 'turbocharged hybrid')
-        ORDER BY 1""").fetchall()
-    check("no car's aspiration contradicts the formula it raced under", not _asp,
-          "; ".join(r[0] for r in _asp[:5]))
+    # fact. build.py's _aspiration() reads sixty harvested spellings into
+    # chassis.aspiration, and a rule in it that read one the wrong way round
+    # would pass the CHECK. F1DB is the second source: every chassis is
+    # entered with its engines in season_entrants, and engines.aspiration is
+    # F1DB's. A chassis must agree with at least one engine it was entered
+    # with - "at least one" because an entrant row lists its chassis and its
+    # engines without pairing them. An engine F1DB leaves NULL (the Lotus
+    # 56B's turbine) settles nothing either way. A curated car in
+    # data/teams.py is held to the engines of the chassis linked to it, so
+    # both tables answer to the same source. build.py reads every turbo from
+    # 2014 on as a hybrid, so the two agree exactly and nothing is excused.
+    _eng = dict(con.execute("SELECT id, aspiration FROM engines"))
+    _with = {}
+    for _chs, _engs in con.execute("""SELECT chassis_ids, engine_ids FROM season_entrants
+            WHERE chassis_ids IS NOT NULL AND engine_ids IS NOT NULL"""):
+        for _ch in _chs.split("+"):
+            _with.setdefault(_ch, set()).update(
+                _eng.get(e) for e in _engs.split("+") if _eng.get(e))
+    _asp = []
+    for _name, _a, _chs in con.execute("""
+            SELECT full_name, aspiration, id FROM chassis WHERE aspiration IS NOT NULL
+            UNION ALL
+            SELECT c.full_name, c.aspiration, group_concat(ch.id, '+')
+              FROM cars c JOIN chassis ch ON ch.car_id = c.id
+             WHERE c.aspiration IS NOT NULL GROUP BY c.id
+            ORDER BY 1"""):
+        _f1db = set().union(*(_with.get(_ch, set()) for _ch in _chs.split("+")))
+        if _f1db and _a not in _f1db:
+            _asp.append(f"{_name}: {_a}, F1DB {'/'.join(sorted(_f1db))}")
+    check("every chassis's and car's aspiration agrees with an engine F1DB entered it with",
+          not _asp, "; ".join(_asp[:5]) + (f" (+{len(_asp) - 5})" if len(_asp) > 5 else ""))
 
     # constructors.last_entry: NULL means still competing, so no inactive
     # constructor with a race entry may carry it, and no active one may not.

@@ -292,7 +292,8 @@ CREATE TABLE driver_note_sources (
 -- strips each listed role, separators and all, and requires nothing to be
 -- left - a CHECK cannot hold a subquery, so this is how one column is held
 -- to a list without splitting it into a table. A role not on the list, a
--- different separator, an empty part and a repeated role are all refused.
+-- different separator and an empty part are refused; a repeated role only
+-- when the two are side by side, since replace() consumes one separator.
 -- Adding a role means adding it here (DA-13).
 CREATE TABLE personnel (
     id              TEXT PRIMARY KEY,
