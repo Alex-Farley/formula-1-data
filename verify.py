@@ -5153,13 +5153,20 @@ def views():
     check("v_driver_season_points sums every point the results hold",
           abs(view_total - table_total) < 0.01,
           f"{view_total:.2f} against {table_total:.2f}")
-    # A season none of whose entries has established points is NULL, not 0:
-    # the same rule as weekend_points, one level up.
-    blank, want_blank = con.execute("""SELECT
-          (SELECT COUNT(*) FROM v_driver_season_points WHERE points IS NULL),
-          (SELECT COUNT(*) FROM (SELECT 1 FROM race_entries e
-             JOIN races r ON r.id = e.race_id
-            GROUP BY r.year, e.driver_id HAVING COUNT(e.points) = 0))""").fetchone()
+    # A season none of whose entries has established points is NULL, not 0,
+    # and so is one whose sprint results, where it has any, have none: the
+    # same rule as weekend_points, one level up, on both of its sides.
+    blank, want_blank = con.execute("""
+        WITH race AS (SELECT r.year, e.driver_id, COUNT(e.points) AS n
+                        FROM race_entries e JOIN races r ON r.id = e.race_id
+                       GROUP BY r.year, e.driver_id),
+           sprint AS (SELECT r.year, s.driver_id, COUNT(s.points) AS n
+                        FROM sprint_results s JOIN races r ON r.id = s.race_id
+                       GROUP BY r.year, s.driver_id)
+        SELECT (SELECT COUNT(*) FROM v_driver_season_points WHERE points IS NULL),
+               (SELECT COUNT(*) FROM race g LEFT JOIN sprint p
+                   ON p.year = g.year AND p.driver_id = g.driver_id
+                 WHERE g.n = 0 OR p.n = 0)""").fetchone()
     check("v_driver_season_points is NULL for a season with no established points",
           blank == want_blank, f"{blank} blank against {want_blank}")
     apart = [f"{r['year']} {r['driver_id']}: {r['points']} against {r['championship_points']}"

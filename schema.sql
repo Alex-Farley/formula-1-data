@@ -2049,8 +2049,10 @@ SELECT f.id, f.year, f.table_type,
 -- weekend_points is the Grand Prix's points plus the sprint's, NULL where
 -- either is: NULL is "not established", and a total that quietly read it as
 -- nought would establish it. No sprint result adds nothing, because none
--- was paid; a sprint result whose points are NULL is not established. The order is the race page's -
--- classified finishers in order, then the rest by laps completed.
+-- was paid; a sprint result whose points are NULL is not established.
+--
+-- The order is the race page's: classified finishers in order, then the
+-- rest by laps completed.
 CREATE VIEW v_race_classification AS
 SELECT r.id AS race_id, r.year, r.round, r.name_used AS gp_name, r.circuit_id,
        e.id AS entry_id,
