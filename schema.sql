@@ -246,8 +246,9 @@ CREATE TABLE drivers (
     --   `seasons`, so neither can disagree with them.
     --   STORED as typed: entries and career_points for the champions in
     --   data/drivers.py and the seven current drivers whose formula1.com
-    --   pages were read on the date stats_as_of gives, starts for the
-    --   champions only (those pages were not read for it), and NULL for
+    --   pages were read on the date stats_as_of gives; starts for the
+    --   champions among the typed rows only - those pages give no starts,
+    --   so the four champions among the seven hold NULL - and NULL for
     --   everyone else. They are not recounted from race_entries and need
     --   not equal a count of it - a total from a season that dropped scores
     --   is net of them, and a current driver's has moved on since the date.
