@@ -1025,14 +1025,11 @@ def pole_position_and_fastest_lap():
 
     # 2021 Belgium is the one settled race with no fastest lap: two laps behind
     # the safety car, no racing lap set, so there is nothing to record. It is
-    # declared in known_gaps and that declaration is what this counts against.
+    # declared in known_gaps, whose race count is now that gap's measure of
+    # this same set (DA-16) - so the count is checked by re-running the
+    # measure, below, and this pins the set itself to the one race.
     nofl = _missing("fastest_lap")
     settled_fl = [x for x in nofl if x[0] != CURRENT_YEAR]
-    declared_gap = con.execute("""SELECT SUM(races_affected) FROM known_gaps
-        WHERE field = 'fastest_lap'""").fetchone()[0]
-    check("races without a fastest lap equal the declared gaps",
-          len(settled_fl) == declared_gap,
-          f"{len(settled_fl)} missing, {declared_gap} declared")
     check("the only settled race without a fastest lap is 2021 Belgium",
           settled_fl == [(2021, 12)], str(settled_fl))
     warn(f"fastest lap recorded for every {CURRENT_YEAR} race run so far",
@@ -1173,18 +1170,40 @@ def pole_position_and_fastest_lap():
     check("every race name resolves to the event it is linked to", not bad,
           "; ".join(bad[:5]))
 
-    # Every declared gap's count must still be the count. A gap that has been
-    # filled is marked closed and kept on the record, never removed.
-    stale = []
-    for g in con.execute("SELECT field, area, races_affected FROM known_gaps"):
-        if g["races_affected"] is None or g["races_affected"] == 0:
+    # A gap's race count is measured, never typed (DA-16, #210). It used to
+    # be typed and checked only where the field was circuit_id or date_iso,
+    # which no gap named, so twelve rows said 0 - including one whose own
+    # note counted 287 races. Each count is re-measured here by the query
+    # build.py filled it from; a gap with no query must hold NULL, not a
+    # number nobody can reproduce. A measured open or position gap must
+    # touch at least one race - at 0 it has closed, or its query no longer
+    # finds it - and a measured closed one none.
+    measures = harvest_module().GAP_RACES
+    stale, unmeasured, wrong_state = [], [], []
+    rows_ = con.execute("SELECT key, state, races_affected FROM known_gaps").fetchall()
+    keys_ = {g["key"] for g in rows_}
+    for g in rows_:
+        query = measures.get(g["key"])
+        if query is None:
+            if g["races_affected"] is not None:
+                unmeasured.append(f"{g['key']} ({g['races_affected']})")
             continue
-        actual = con.execute(
-            f"SELECT COUNT(*) FROM races WHERE {g['field']} IS NULL").fetchone()[0] \
-            if g["field"] in ("circuit_id", "date_iso") else None
-        if actual is not None and actual != g["races_affected"]:
-            stale.append(f"{g['field']}: declared {g['races_affected']}, actual {actual}")
-    check("declared gaps match the actual gaps", not stale, "; ".join(stale))
+        actual = con.execute(query).fetchone()[0]
+        if actual != g["races_affected"]:
+            stale.append(f"{g['key']}: holds {g['races_affected']}, measures {actual}")
+        if (actual == 0) != (g["state"] == "closed"):
+            wrong_state.append(f"{g['key']}: {g['state']}, {actual} races")
+    # The local timing loaders write after build.py has measured, so under
+    # F1_LOCAL_TIMING the lap and race-timing counts are stale by design.
+    (warn if LOCAL_TIMING else check)(
+        "every gap's race count is its measure, re-run", not stale, "; ".join(stale))
+    check("a gap with no measure holds no race count", not unmeasured,
+          "; ".join(unmeasured))
+    orphans = sorted(set(measures) - keys_)
+    check("every measure in GAP_RACES names a known gap", not orphans,
+          ", ".join(orphans))
+    check("a measured gap touches races exactly when it is not closed",
+          not wrong_state, "; ".join(wrong_state))
 
     # The register carries three states and the site counts one of them. Every
     # row must say which it is in and give a reader the one-paragraph version;
@@ -1280,6 +1299,46 @@ def structure():
           AND e.driver_id = s.drivers_champion)""").fetchone()[0]
     check("champion_wins matches the race records in every season", bad == 0,
           f"{bad} seasons")
+
+
+@section('EMPTY COLUMNS ARE DECLARED')
+def empty_columns_are_declared():
+    """A column NULL on every row of a table that has rows is declared in
+    data/current.py EMPTY_COLUMNS with its reason, and published in
+    meta.empty_columns (DA-16, #210). The set is derived here from the
+    database, not listed: an undeclared empty column is one a reader cannot
+    tell from a fact nobody holds, and a declared one that holds values is a
+    reason that has stopped being true. A local F1_LOCAL_TIMING build fills
+    the timing and radio columns on purpose, and gives the timing tables
+    rows whose other columns its loaders leave NULL, so there both are
+    warnings."""
+    import build
+    from data import current as _N
+
+    empty, columns = set(), set()
+    for (t,) in con.execute("""SELECT name FROM sqlite_master
+            WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"""):
+        cols = [r[1] for r in con.execute(f'PRAGMA table_info("{t}")')]
+        columns.update(f"{t}.{c}" for c in cols)
+        if not con.execute(f'SELECT 1 FROM "{t}" LIMIT 1').fetchone():
+            continue
+        for c in cols:
+            if not con.execute(f'SELECT 1 FROM "{t}" WHERE "{c}" IS NOT NULL LIMIT 1').fetchone():
+                empty.add(f"{t}.{c}")
+    declared = set(_N.EMPTY_COLUMNS)
+    missing = sorted(declared - columns)
+    check("every column EMPTY_COLUMNS declares exists", not missing, ", ".join(missing))
+    undeclared = sorted(empty - declared)
+    (warn if LOCAL_TIMING else check)(
+          "every column NULL on every row is declared in EMPTY_COLUMNS",
+          not undeclared, ", ".join(undeclared) if undeclared else f"{len(empty)} declared")
+    filled = sorted((declared & columns) - empty)
+    (warn if LOCAL_TIMING else check)(
+        "no column EMPTY_COLUMNS declares holds a value", not filled,
+        ", ".join(filled))
+    published = value_or_none("empty_columns")
+    check("meta.empty_columns publishes the declaration with its reasons",
+          published == build.empty_columns_note())
 
 
 @section('IDENTIFIER STABILITY')

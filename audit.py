@@ -10,6 +10,10 @@ Run it after any schema change:  python3 audit.py
 """
 import os
 import sqlite3
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from data import current as N  # noqa: E402
 
 DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "f1.db")
 con = sqlite3.connect(DB)
@@ -53,7 +57,7 @@ OPTIONAL = {
     "races.circuit_id", "grands_prix.aliases", "constructors.title_years",
     "drivers.entries", "drivers.starts", "drivers.podiums",
     "drivers.career_points", "constructors.entries",
-}
+} | set(N.EMPTY_COLUMNS)  # NULL on every row by declaration, each with its reason (DA-16)
 
 head(1, "COLUMN FILL RATES  (base tables; optional columns excluded)")
 issues = 0
