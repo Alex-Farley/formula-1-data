@@ -1193,7 +1193,10 @@ def pole_position_and_fastest_lap():
             stale.append(f"{g['key']}: holds {g['races_affected']}, measures {actual}")
         if (actual == 0) != (g["state"] == "closed"):
             wrong_state.append(f"{g['key']}: {g['state']}, {actual} races")
-    check("every gap's race count is its measure, re-run", not stale, "; ".join(stale))
+    # The local timing loaders write after build.py has measured, so under
+    # F1_LOCAL_TIMING the lap and race-timing counts are stale by design.
+    (warn if LOCAL_TIMING else check)(
+        "every gap's race count is its measure, re-run", not stale, "; ".join(stale))
     check("a gap with no measure holds no race count", not unmeasured,
           "; ".join(unmeasured))
     orphans = sorted(set(measures) - keys_)
@@ -1306,8 +1309,9 @@ def empty_columns_are_declared():
     database, not listed: an undeclared empty column is one a reader cannot
     tell from a fact nobody holds, and a declared one that holds values is a
     reason that has stopped being true. A local F1_LOCAL_TIMING build fills
-    the timing and radio columns on purpose, so there the second is a
-    warning."""
+    the timing and radio columns on purpose, and gives the timing tables
+    rows whose other columns its loaders leave NULL, so there both are
+    warnings."""
     import build
     from data import current as _N
 
@@ -1325,7 +1329,8 @@ def empty_columns_are_declared():
     missing = sorted(declared - columns)
     check("every column EMPTY_COLUMNS declares exists", not missing, ", ".join(missing))
     undeclared = sorted(empty - declared)
-    check("every column NULL on every row is declared in EMPTY_COLUMNS",
+    (warn if LOCAL_TIMING else check)(
+          "every column NULL on every row is declared in EMPTY_COLUMNS",
           not undeclared, ", ".join(undeclared) if undeclared else f"{len(empty)} declared")
     filled = sorted((declared & columns) - empty)
     (warn if LOCAL_TIMING else check)(
