@@ -234,8 +234,9 @@ class WorkflowsRunWhatWasChosen(unittest.TestCase):
     by `-r` from inside a pinned file - is still the reviewer's."""
 
     USES = re.compile(r"""["']?\buses["']?\s*:\s*["']?([^\s,}"']+)["']?(.*)$""")
-    PIP = re.compile(r"(?:\bpython[\d.]*\s+-m\s+)?\bpip[\d.]*\s+install\b[^\n;&|]*")
-    PINNED_PIP = re.compile(r"(?:python[\d.]*\s+-m\s+)?pip[\d.]*\s+install(?:\s+--quiet)?\s+-r\s+(\S+)\s*")
+    PIP = re.compile(r"(?:\bpython[\d.]*\s+-m\s+)?\bpip[\d.]*(?:\s+-\S+)*\s+install\b[^\n;&|]*")
+    PINNED_PIP = re.compile(r"(?:python[\d.]*\s+-m\s+)?pip[\d.]*(?:\s+(?:-q|--quiet))*\s+install"
+                            r"(?:\s+(?:-q|--quiet))*\s+-r\s+(\S+)\s*")
 
     def workflows(self):
         return files_under(".github/workflows", (".yml", ".yaml"))
@@ -301,8 +302,11 @@ class WorkflowsRunWhatWasChosen(unittest.TestCase):
         script = ("jobs:\n  a:\n    steps:\n      - run: |\n"
                   "          pip3.12 install pyyaml\n"
                   "          python3 -m pip  install pyyaml\n"
+                  "          pip -q install pyyaml\n"
+                  "          pip -q install -r req.txt\n"
                   "          pip install --quiet -r req.txt\n")
-        self.assertEqual(self.pip_installs(script), [(4, None), (4, None), (4, "req.txt")])
+        self.assertEqual(self.pip_installs(script),
+                         [(4, None), (4, None), (4, None), (4, "req.txt"), (4, "req.txt")])
 
 
 
