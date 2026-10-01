@@ -3311,6 +3311,130 @@ def _stage_30_derived_win_totals(b):
             _file_discrepancy(cur, "external-figure", "drivers", r[0], field, r[1],
                               str(external), str(derived), assessment, status, note)
 
+    _reconcile_stored_totals(cur)
+
+
+# The career figures stored as a source gave them and never recounted (DA-16),
+# which DA-42 compares with the race records' count of each.
+STORED_TOTALS = ("entries", "starts", "career_points")
+
+
+def stored_total_readings(cur, until=None):
+    """{(driver_id, field): (stored, the race records' count)} for every
+    stored entries, starts and career_points figure (DA-42).
+
+    The records' entries are the rows race_entries holds for the driver, its
+    starts those of them STARTED admits, and its points those rows' points
+    and his sprint_results'. Points are held to two places on both sides,
+    because the records hold a seventh of a point as 0.14. `until`, an ISO
+    day, counts only the races run by then: what the records said on the
+    date a dated figure was read."""
+    dated = "" if until is None else "AND r.date_iso <= :until"
+    out = {}
+    for did, entries, starts, pts, n, s, p in cur.execute(f"""
+            WITH e AS (SELECT e.driver_id, COUNT(*) AS n,
+                              SUM(CASE WHEN {STARTED} THEN 1 ELSE 0 END) AS s,
+                              TOTAL(e.points) AS p
+                         FROM race_entries e JOIN races r ON r.id = e.race_id
+                        WHERE 1 {dated} GROUP BY e.driver_id),
+                 x AS (SELECT x.driver_id, TOTAL(x.points) AS p
+                         FROM sprint_results x JOIN races r ON r.id = x.race_id
+                        WHERE 1 {dated} GROUP BY x.driver_id)
+            SELECT d.id, d.entries, d.starts, d.career_points,
+                   COALESCE(e.n, 0), COALESCE(e.s, 0),
+                   COALESCE(e.p, 0) + COALESCE(x.p, 0)
+              FROM drivers d
+              LEFT JOIN e ON e.driver_id = d.id
+              LEFT JOIN x ON x.driver_id = d.id
+             WHERE d.entries IS NOT NULL OR d.starts IS NOT NULL
+                OR d.career_points IS NOT NULL
+             ORDER BY d.id""", {"until": until}).fetchall():
+        for field, stored, counted in (("entries", entries, n), ("starts", starts, s),
+                                       ("career_points", pts, p)):
+            if stored is not None:
+                out[(did, field)] = ((round(stored, 2), round(counted, 2))
+                                     if field == "career_points" else (stored, counted))
+    return out
+
+
+def _reconcile_stored_totals(cur):
+    """The stored career figures against the race records (DA-42).
+
+    Correct the typed figures no source gives, keeping the typed value on the
+    record; then file every difference that remains, and refuse one nothing
+    accounts for. data/harvest.py, above STORED_TOTALS_CORRECTED, says what
+    accounts for one."""
+    for did, field, typed, fixed, why in HV.STORED_TOTALS_CORRECTED:
+        if field not in STORED_TOTALS:
+            raise SystemExit(f"STORED_TOTALS_CORRECTED {did}: {field!r} is not a "
+                             f"stored career figure")
+        n = cur.execute(f"""UPDATE drivers SET {field} = ?
+            WHERE id = ? AND ABS({field} - ?) < 0.001""", (fixed, did, typed)).rowcount
+        if n != 1:
+            raise SystemExit(f"STORED_TOTALS_CORRECTED {did} {field}: the row does "
+                             f"not hold the typed {typed} it corrects")
+        _file_discrepancy(cur, "correction", "drivers", did, field,
+                          _full_name(cur, "drivers", did), _points_text(typed),
+                          _points_text(fixed), why, "resolved", "corrected")
+
+    declared = {}
+    for did, field, stored, counted, status, note, why in HV.STORED_TOTALS_DECLARED:
+        if (did, field) in declared:
+            raise SystemExit(f"STORED_TOTALS_DECLARED declares {did} {field} twice")
+        declared[(did, field)] = (stored, counted, status, note, why)
+    # A dated figure - a current driver's, read from formula1.com on the day
+    # stats_as_of gives - is compared with the records as they stood on that
+    # day, so the races run since are never what explains a difference unless
+    # they are the whole of it, and a declaration about one does not go stale
+    # at the next race.
+    as_of, then = {}, {}
+    for did, stamp in cur.execute("""SELECT id, stats_as_of FROM drivers
+            WHERE stats_as_of IS NOT NULL""").fetchall():
+        day = re.match(r"\d{4}-\d{2}-\d{2}\b", stamp)
+        if day is None:
+            raise SystemExit(f"{did}: stats_as_of {stamp!r} does not open with its day")
+        as_of[did] = (stamp, day.group(0))
+    for day in sorted({d for _s, d in as_of.values()}):
+        then[day] = stored_total_readings(cur, until=day)
+    for (did, field), (stored, counted) in stored_total_readings(cur).items():
+        declaration = declared.pop((did, field), None)
+        if stored == counted:
+            if declaration is not None:
+                raise SystemExit(
+                    f"STORED_TOTALS_DECLARED {did} {field}: declares {declaration[0]} "
+                    f"against {declaration[1]}, and both now read {stored}")
+            continue
+        name = _full_name(cur, "drivers", did)
+        # What the declaration's second figure is: the records then, for a
+        # dated figure, and the records now for any other.
+        compared = then[as_of[did][1]][(did, field)][1] if did in as_of else counted
+        if declaration is not None:
+            if declaration[:2] != (stored, compared):
+                raise SystemExit(
+                    f"STORED_TOTALS_DECLARED {did} {field}: declares {declaration[0]} "
+                    f"against {declaration[1]}, and the database holds {stored} "
+                    f"against the race records' {compared}. Read the reason again.")
+            status, note, why = declaration[2:]
+        elif did in as_of and compared == stored:
+            status, note = "explained", "external figure is older"
+            why = (f"Driver is still competing. The stored figure is formula1.com's, "
+                   f"read on {as_of[did][0]}, and the race records counted to that "
+                   f"day give the same; the difference is the races run since. "
+                   f"Not an error.")
+        else:
+            dated = (f", {compared} counted to {as_of[did][1]}, the day the stored "
+                     f"figure was read" if did in as_of else "")
+            raise SystemExit(
+                f"UNEXPLAINED: {name} {field} is stored as {stored}, and the race "
+                f"records give {counted}{dated}. Correct it in "
+                f"STORED_TOTALS_CORRECTED or declare it in STORED_TOTALS_DECLARED, "
+                f"data/harvest.py.")
+        _file_discrepancy(cur, "stored-total", "drivers", did, field, name,
+                          _points_text(stored), _points_text(counted), why, status, note)
+    if declared:
+        raise SystemExit(f"STORED_TOTALS_DECLARED declares {sorted(declared)}, which "
+                         f"no stored figure needed")
+
 
 def _resource_typed_career_figures(cur, f1db_drivers):
     """The career figures typed from reference records nobody named, each
