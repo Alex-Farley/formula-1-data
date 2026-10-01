@@ -72,11 +72,17 @@ answer a missing asset with HTML and a 200.
   `env:` and quote it.
 - `refresh.yml` mints a token from `REFRESH_APP_ID` and
   `REFRESH_APP_PRIVATE_KEY`, and that token can push and open pull requests.
-  Flag it reaching a step that does not need it — an `npm ci`, a third-party
-  action, a script fetched at run time — or being persisted by
-  `actions/checkout` into a job that then runs code from the network. Flag any
-  secret echoed, written to a file that is uploaded, or passed on a command
-  line.
+  Since AF-78 the key is a secret of `gate` (a mint that only proves the App
+  works) and `land` (which opens the pull request), and of no job that runs
+  npm: the `refresh` job builds and tests with no token that writes, and
+  hands `land` its changes as an artifact that
+  `.github/scripts/refresh_tree.py` checks path by path before applying.
+  Flag the key or the token reaching a job that runs npm, a script fetched at
+  run time or anything from the artifact; a step in `land` that executes a
+  file the artifact could have written; a widening of what
+  `refresh_tree.py` lets across; and a credential persisted by
+  `actions/checkout` into any of the three. Flag any secret echoed, written
+  to a file that is uploaded, or passed on a command line.
 - A new third-party action, or an existing one moved to another commit.
   Say what a new one can reach with the token it gets, and treat a new
   action in `release.yml` or `refresh.yml` as the serious case. That each

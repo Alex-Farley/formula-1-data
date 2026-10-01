@@ -17,6 +17,10 @@
 # no workflow from a push or pull request made with GITHUB_TOKEN, so CI
 # would never report and the merge would wait forever.
 #
+# The checkout persists no credential (AF-78), so the push asks gh for one:
+# gh answers git's credential request with GH_TOKEN, for that one command,
+# and nothing is written to .git/config or to the global git config.
+#
 # The branch is rewritten from main on every run, so a pull request still
 # open from yesterday is replaced by today's rather than stacked under it,
 # and the repository deletes it on merge.
@@ -30,7 +34,8 @@ git config user.name  "github-actions[bot]"
 git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 git switch -C "$branch"
 git commit -m "$subject" -m "$body"
-git push --force origin "$branch"
+git -c credential.helper= -c 'credential.helper=!gh auth git-credential' \
+  push --force origin "$branch"
 
 if [ "$(gh pr list --head "$branch" --base main --state open --json number --jq length)" = 0 ]; then
   gh pr create --base main --head "$branch" --title "$subject" --body "$body"
