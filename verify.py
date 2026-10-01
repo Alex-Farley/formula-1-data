@@ -1446,6 +1446,33 @@ def external_figures_vs_the_race_records():
              for d, f in sorted(set(_filed) - set(_differ))]
     check("every stored entries, starts or points figure that differs from the race "
           "records is filed carrying both", not _bad, "; ".join(_bad[:4]))
+    # 'External figure is older' is a claim about the races run since the
+    # figure was read, and is held to be the whole of the difference: the
+    # race records counted to that day give the stored figure exactly.
+    _bad = []
+    for did, field, stored, stamp in con.execute("""SELECT x.row_key, x.field,
+            x.stored_value, d.stats_as_of FROM discrepancies x
+            JOIN drivers d ON d.id = x.row_key
+           WHERE x.kind = 'stored-total' AND x.status_note = 'external figure is older'"""):
+        day = re.match(r"\d{4}-\d{2}-\d{2}\b", stamp or "")
+        if day is None:
+            _bad.append(f"{did} {field}: no day the figure was read")
+            continue
+        then = con.execute(f"""SELECT
+            (SELECT {"COUNT(*)" if field == "entries" else
+                     f"SUM(CASE WHEN {build.STARTED} THEN 1 ELSE 0 END)"
+                     if field == "starts" else "TOTAL(e.points)"}
+               FROM race_entries e JOIN races r ON r.id = e.race_id
+              WHERE e.driver_id = :d AND r.date_iso <= :day)
+          + (SELECT {"TOTAL(x.points)" if field == "career_points" else "0"}
+               FROM sprint_results x JOIN races r ON r.id = x.race_id
+              WHERE x.driver_id = :d AND r.date_iso <= :day)""",
+            {"d": did, "day": day.group(0)}).fetchone()[0] or 0
+        if build._points_text(round(then, 2)) != stored:
+            _bad.append(f"{did} {field}: stored {stored}, the records on "
+                        f"{day.group(0)} {build._points_text(round(then, 2))}")
+    check("every stored figure explained as older equals the race records on the day "
+          "it was read", not _bad, "; ".join(_bad[:4]))
     # A corrected figure holds its correction, and the typed value it
     # replaced stays on the record beside it.
     _bad = []

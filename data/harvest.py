@@ -1181,8 +1181,9 @@ CORRECTIONS = [
 # accounted for, as it does for wins, poles and fastest laps.
 #
 # Accounted for means one of three things:
-#   - a current driver's formula1.com figure (VERIFIED_STATS) that the races
-#     run since its date have passed: explained, and nothing to declare;
+#   - a current driver's formula1.com figure (VERIFIED_STATS) that equals the
+#     race records counted to the day it was read, the races run since being
+#     the whole of the difference: explained, and nothing to declare;
 #   - a typed figure no source gives, corrected below to the one a named
 #     source does, with the typed value kept on the record;
 #   - a difference declared below with the reason for it. Most are each
@@ -1242,6 +1243,9 @@ STORED_TOTALS_CORRECTED = [
      "Source: https://en.wikipedia.org/wiki/Phil_Hill"),
 ]
 
+# For a dated figure - a current driver's - the race-records value is the
+# count to the day stats_as_of gives, so the declaration holds from one race
+# to the next; the row filed carries the count as it is now.
 #   driver_id, field, stored value, race-records value, status, status_note,
 #   why
 STORED_TOTALS_DECLARED = [
@@ -1299,12 +1303,67 @@ STORED_TOTALS_DECLARED = [
      "for the round, but its race results, which its published total of 352 "
      "counts, and the race records name Kubica. "
      "Source: https://en.wikipedia.org/wiki/Kimi_R%C3%A4ikk%C3%B6nen"),
+    ("alonso", "entries", 439, 440, "open", "sources differ",
+     "formula1.com's driver page, read on 2026-09-04 after round 12, gave "
+     "439; counted to that day, the race records hold 440 rows for him, two "
+     "of them races he did not start, the 2005 United States and 2017 "
+     "Russian Grands Prix. The page's figure is one fewer, and which race it "
+     "leaves out is not established. Source: "
+     "https://www.formula1.com/en/drivers"),
+    ("leclerc", "entries", 183, 185, "open", "sources differ",
+     "formula1.com's driver page, read on 2026-09-04 after round 12, gave "
+     "183; counted to that day, the race records hold 185 rows for him, two "
+     "of them races he did not start, the 2021 Monaco and 2023 Sao Paulo "
+     "Grands Prix, and the page's figure is two fewer. Hamilton's and "
+     "Verstappen's pages, read the same day, agree with the records, and "
+     "neither has a race he did not start; but Alonso's and Russell's "
+     "differences do not follow the non-starts, so that the page counts only "
+     "starts is not established. Source: https://www.formula1.com/en/drivers"),
+    ("norris", "entries", 163, 164, "open", "sources differ",
+     "formula1.com's driver page, read on 2026-09-04 after round 12, gave "
+     "163; counted to that day, the race records hold 164 rows for him, one "
+     "of them a race he did not start, the 2026 Chinese Grand Prix, and the "
+     "page's figure is one fewer. Hamilton's and Verstappen's pages, read "
+     "the same day, agree with the records, and neither has a race he did "
+     "not start; but Alonso's and Russell's differences do not follow the "
+     "non-starts, so that the page counts only starts is not established. "
+     "Source: https://www.formula1.com/en/drivers"),
+    ("piastri", "entries", 80, 82, "open", "sources differ",
+     "formula1.com's driver page, read on 2026-09-04 after round 12, gave "
+     "80; counted to that day, the race records hold 82 rows for him, two of "
+     "them races he did not start, the 2026 Australian and Chinese Grands "
+     "Prix, and the page's figure is two fewer. Hamilton's and Verstappen's "
+     "pages, read the same day, agree with the records, and neither has a "
+     "race he did not start; but Alonso's and Russell's differences do not "
+     "follow the non-starts, so that the page counts only starts is not "
+     "established. Source: https://www.formula1.com/en/drivers"),
+    ("russell", "entries", 163, 164, "open", "sources differ",
+     "formula1.com's driver page, read on 2026-09-04 after round 12, gave "
+     "163; counted to that day, the race records hold 164 rows for him, "
+     "every one a start. The page's figure is one fewer, and which race it "
+     "leaves out is not established. Source: "
+     "https://www.formula1.com/en/drivers"),
+    ("piastri", "career_points", 903, 905, "open", "sources differ",
+     "formula1.com's driver page, read on 2026-09-04 after round 12, gave "
+     "903; counted to that day, the race records give 905. The 2 points are "
+     "the 2026 Monaco Grand Prix: formula1.com's own table after round 12 "
+     "gives him 104 points for the season and F1DB's, which the race records "
+     "follow, 106, and that disagreement is open on the race, 2026 round 6. "
+     "Source: https://www.formula1.com/en/results/2026/drivers"),
+    ("russell", "career_points", 1193, 1216, "open", "sources differ",
+     "formula1.com's driver page, read on 2026-09-04 after round 12, gave "
+     "1193; counted to that day, the race records give 1216, 23 more. The "
+     "same fetch gave his 2026 total as 160 points against the standings' "
+     "183 - the inconsistency that had his pole count corrected - and the "
+     "career figure is short by the same 23. The records' 2026 figure, 183, "
+     "agrees with formula1.com's and F1DB's tables; the page has not been "
+     "read again. Source: https://www.formula1.com/en/drivers"),
     ("raikkonen", "starts", 349, 350, "open", "sources differ",
-     "The 2001 Belgian Grand Prix was stopped on its first lap and started "
-     "again. "
-     "He took the first start and not the second, and the official results "
-     "list him as not having started - the first start was void under the "
-     "regulations of the time - which is the 349 Wikipedia gives. F1DB's "
+     "The 2001 Belgian Grand Prix was stopped on lap five, declared void "
+     "and run again from the start. He retired from the first race with a "
+     "transmission failure and took no part in the second, and the official "
+     "results list him as not having started, which is the 349 Wikipedia "
+     "gives. F1DB's "
      "published total, 350, and the race records count it as a start he "
      "retired from. One race read two ways. "
      "Source: https://en.wikipedia.org/wiki/2001_Belgian_Grand_Prix"),

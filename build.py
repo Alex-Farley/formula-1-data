@@ -3319,22 +3319,27 @@ def _stage_30_derived_win_totals(b):
 STORED_TOTALS = ("entries", "starts", "career_points")
 
 
-def stored_total_readings(cur):
+def stored_total_readings(cur, until=None):
     """{(driver_id, field): (stored, the race records' count)} for every
     stored entries, starts and career_points figure (DA-42).
 
     The records' entries are the rows race_entries holds for the driver, its
     starts those of them STARTED admits, and its points those rows' points
     and his sprint_results'. Points are held to two places on both sides,
-    because the records hold a seventh of a point as 0.14."""
+    because the records hold a seventh of a point as 0.14. `until`, an ISO
+    day, counts only the races run by then: what the records said on the
+    date a dated figure was read."""
+    dated = "" if until is None else "AND r.date_iso <= :until"
     out = {}
     for did, entries, starts, pts, n, s, p in cur.execute(f"""
             WITH e AS (SELECT e.driver_id, COUNT(*) AS n,
                               SUM(CASE WHEN {STARTED} THEN 1 ELSE 0 END) AS s,
                               TOTAL(e.points) AS p
-                         FROM race_entries e GROUP BY e.driver_id),
-                 x AS (SELECT driver_id, TOTAL(points) AS p
-                         FROM sprint_results GROUP BY driver_id)
+                         FROM race_entries e JOIN races r ON r.id = e.race_id
+                        WHERE 1 {dated} GROUP BY e.driver_id),
+                 x AS (SELECT x.driver_id, TOTAL(x.points) AS p
+                         FROM sprint_results x JOIN races r ON r.id = x.race_id
+                        WHERE 1 {dated} GROUP BY x.driver_id)
             SELECT d.id, d.entries, d.starts, d.career_points,
                    COALESCE(e.n, 0), COALESCE(e.s, 0),
                    COALESCE(e.p, 0) + COALESCE(x.p, 0)
@@ -3343,7 +3348,7 @@ def stored_total_readings(cur):
               LEFT JOIN x ON x.driver_id = d.id
              WHERE d.entries IS NOT NULL OR d.starts IS NOT NULL
                 OR d.career_points IS NOT NULL
-             ORDER BY d.id""").fetchall():
+             ORDER BY d.id""", {"until": until}).fetchall():
         for field, stored, counted in (("entries", entries, n), ("starts", starts, s),
                                        ("career_points", pts, p)):
             if stored is not None:
@@ -3377,8 +3382,20 @@ def _reconcile_stored_totals(cur):
         if (did, field) in declared:
             raise SystemExit(f"STORED_TOTALS_DECLARED declares {did} {field} twice")
         declared[(did, field)] = (stored, counted, status, note, why)
-    as_of = dict(cur.execute("""SELECT id, stats_as_of FROM drivers
-        WHERE status = 'active' AND stats_as_of IS NOT NULL""").fetchall())
+    # A dated figure - a current driver's, read from formula1.com on the day
+    # stats_as_of gives - is compared with the records as they stood on that
+    # day, so the races run since are never what explains a difference unless
+    # they are the whole of it, and a declaration about one does not go stale
+    # at the next race.
+    as_of, then = {}, {}
+    for did, stamp in cur.execute("""SELECT id, stats_as_of FROM drivers
+            WHERE stats_as_of IS NOT NULL""").fetchall():
+        day = re.match(r"\d{4}-\d{2}-\d{2}\b", stamp)
+        if day is None:
+            raise SystemExit(f"{did}: stats_as_of {stamp!r} does not open with its day")
+        as_of[did] = (stamp, day.group(0))
+    for day in sorted({d for _s, d in as_of.values()}):
+        then[day] = stored_total_readings(cur, until=day)
     for (did, field), (stored, counted) in stored_total_readings(cur).items():
         declaration = declared.pop((did, field), None)
         if stored == counted:
@@ -3388,23 +3405,30 @@ def _reconcile_stored_totals(cur):
                     f"against {declaration[1]}, and both now read {stored}")
             continue
         name = _full_name(cur, "drivers", did)
+        # What the declaration's second figure is: the records then, for a
+        # dated figure, and the records now for any other.
+        compared = then[as_of[did][1]][(did, field)][1] if did in as_of else counted
         if declaration is not None:
-            if declaration[:2] != (stored, counted):
+            if declaration[:2] != (stored, compared):
                 raise SystemExit(
                     f"STORED_TOTALS_DECLARED {did} {field}: declares {declaration[0]} "
-                    f"against {declaration[1]}, and the database now holds {stored} "
-                    f"against the race records' {counted}. Read the reason again.")
+                    f"against {declaration[1]}, and the database holds {stored} "
+                    f"against the race records' {compared}. Read the reason again.")
             status, note, why = declaration[2:]
-        elif did in as_of and counted > stored:
+        elif did in as_of and compared == stored:
             status, note = "explained", "external figure is older"
             why = (f"Driver is still competing. The stored figure is formula1.com's, "
-                   f"true on {as_of[did]}; the race records include the races run "
-                   f"since. Not an error.")
+                   f"read on {as_of[did][0]}, and the race records counted to that "
+                   f"day give the same; the difference is the races run since. "
+                   f"Not an error.")
         else:
+            dated = (f", {compared} counted to {as_of[did][1]}, the day the stored "
+                     f"figure was read" if did in as_of else "")
             raise SystemExit(
                 f"UNEXPLAINED: {name} {field} is stored as {stored}, and the race "
-                f"records give {counted}. Correct it in STORED_TOTALS_CORRECTED or "
-                f"declare it in STORED_TOTALS_DECLARED, data/harvest.py.")
+                f"records give {counted}{dated}. Correct it in "
+                f"STORED_TOTALS_CORRECTED or declare it in STORED_TOTALS_DECLARED, "
+                f"data/harvest.py.")
         _file_discrepancy(cur, "stored-total", "drivers", did, field, name,
                           _points_text(stored), _points_text(counted), why, status, note)
     if declared:

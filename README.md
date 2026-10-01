@@ -1183,8 +1183,8 @@ and `known_gaps` says so.
 **Where two sources disagree and neither can be checked against an official
 source, the disagreement is itself the fact worth storing.** `discrepancies`
 holds <!-- fig:discrepancies -->90<!-- /fig --> rows:
-<!-- fig:discrepancies_open -->15<!-- /fig --> open,
-<!-- fig:discrepancies_explained -->26<!-- /fig --> explained — an external
+<!-- fig:discrepancies_open -->22<!-- /fig --> open,
+<!-- fig:discrepancies_explained -->19<!-- /fig --> explained — an external
 figure older than the race it lacks, a championship total net of the scores
 the best-results rule dropped, an entry or a car a source counts that the race
 records hold no row for, or two readings of a career span that are each right
