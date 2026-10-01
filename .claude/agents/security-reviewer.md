@@ -77,11 +77,11 @@ answer a missing asset with HTML and a 200.
   `actions/checkout` into a job that then runs code from the network. Flag any
   secret echoed, written to a file that is uploaded, or passed on a command
   line.
-- A new third-party action, or an existing one moved to another ref.
-  Until `AF-77` (#720) lands, actions here are pinned to a major tag, not a
-  commit SHA; say what a new one
-  can reach with the token it gets, and treat a new action in `release.yml`
-  or `refresh.yml` as the serious case.
+- A new third-party action, or an existing one moved to another commit.
+  Say what a new one can reach with the token it gets, and treat a new
+  action in `release.yml` or `refresh.yml` as the serious case. That each
+  is pinned to a SHA is a test (below); whether the SHA is the release its
+  comment names is yours.
 
 **5. Dependencies arrive deliberately.** The build has no third-party
 dependencies, and that is a property worth keeping. For `web/package.json`,
@@ -127,6 +127,12 @@ flag a new request, beacon or storage write that would make that untrue.
   a quoted `run` key or a plain scalar folded onto a second line is not
   parsed by it, and an injection neither sees — through an intermediate
   `env:` or an output — is still yours.
+- **Item 4**, every `uses:` pinned to a full commit SHA with its release
+  in a comment, every script fetched from `raw.githubusercontent.com` at
+  a SHA, every `actions/checkout` setting `persist-credentials: false`,
+  and every `pip install` in a workflow reading a file of `==` pins, in
+  `tests/test_conventions.py` (`WorkflowsRunWhatWasChosen`). A token
+  reaching a step that does not need it by any other route is still yours.
 - **Item 7**, `release.yml` uploading and digesting both databases and
   `SHA256SUMS`, in `tests/test_conventions.py`
   (`PublishingPathsCarryBothDatabases`). A new publishing path the test does

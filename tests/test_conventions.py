@@ -219,6 +219,93 @@ class NoExpressionInsideAScript(unittest.TestCase):
         self.assertEqual([n for n, s in run_scripts(text) if "${{" in s], [6, 13])
 
 
+
+def steps_using(text, action):
+    """(line number, the step's lines) for every step whose `uses:` names
+    `action`: the `uses` line and every line after it indented past the
+    step's `-`, which is the step's `with:` block."""
+    lines = text.splitlines()
+    out = []
+    for i, line in enumerate(lines):
+        m = re.match(r"^(\s*)-?\s*uses:\s*" + re.escape(action) + r"@", line)
+        if not m:
+            continue
+        col = len(m.group(1))
+        body = [line]
+        for nxt in lines[i + 1:]:
+            if nxt.strip() and len(nxt) - len(nxt.lstrip()) <= col:
+                break
+            body.append(nxt)
+        out.append((i + 1, "\n".join(body)))
+    return out
+
+
+class WorkflowsRunWhatWasChosen(unittest.TestCase):
+    """security-reviewer, item 4 (AF-77, AF-78). A tag is the action owner's to
+    move, and an unpinned `pip install` is whatever was released this
+    morning; either runs inside a job holding a token that writes to this
+    repository. So every action is a commit SHA with its release in a
+    comment (Dependabot moves both), every script fetched at run time is
+    fetched at a SHA, and every package pip installs is pinned in a file
+    Dependabot watches. And no checkout persists its token into .git/config,
+    where the install scripts `npm ci` runs could read it: a step that pushes
+    is given its token itself."""
+
+    WORKFLOWS = ".github/workflows"
+
+    def workflows(self):
+        return files_under(self.WORKFLOWS, (".yml", ".yaml"))
+
+    def test_every_action_is_pinned_to_a_commit(self):
+        bad = []
+        for f in self.workflows():
+            for n, line in enumerate(read(f).splitlines(), 1):
+                m = re.match(r"^\s*(?:-\s+)?uses:\s*(\S+)(.*)$", line)
+                if not m or m.group(1).startswith("./"):
+                    continue
+                if not (re.fullmatch(r"[\w.-]+/[\w./-]+@[0-9a-f]{40}", m.group(1))
+                        and re.fullmatch(r"\s+# v\d+(\.\d+)*", m.group(2))):
+                    bad.append(f"{f}:{n}")
+        self.assertEqual(bad, [], "a `uses:` not pinned as `owner/repo@<40-hex sha> # vX.Y.Z`")
+
+    def test_every_fetched_script_is_pinned_to_a_commit(self):
+        bad = [f"{f}:{n}" for f in self.workflows()
+               for n, line in enumerate(read(f).splitlines(), 1)
+               for url in re.findall(r"https://raw\.githubusercontent\.com/\S+", line)
+               if not re.match(r"https://raw\.githubusercontent\.com/[^/]+/[^/]+/[0-9a-f]{40}/", url)]
+        self.assertEqual(bad, [], "a script fetched from a branch or tag rather than a commit")
+
+    def test_no_checkout_persists_its_credential(self):
+        bad = [f"{f}:{n}" for f in self.workflows()
+               for n, step in steps_using(read(f), "actions/checkout")
+               if not re.search(r"^\s+persist-credentials:\s*false\s*$", step, re.M)]
+        self.assertEqual(bad, [], "an actions/checkout without `persist-credentials: false`")
+
+    def test_every_pip_install_reads_a_file_of_pins(self):
+        bad, files = [], []
+        for f in self.workflows():
+            for n, script in run_scripts(read(f)):
+                for cmd in re.findall(r"pip3? install[^\n;&|]*", script):
+                    m = re.fullmatch(r"pip3? install(?:\s+--quiet)?\s+-r\s+(\S+)\s*", cmd)
+                    if m:
+                        files.append(m.group(1))
+                    else:
+                        bad.append(f"{f}:{n}")
+        self.assertEqual(bad, [], "a workflow `pip install` that names packages instead of a pinned file")
+        self.assertTrue(files, "no workflow installs from a requirements file; is this test still reading them?")
+        for req in files:
+            for line in read(req).splitlines():
+                line = line.split("#", 1)[0].strip()
+                if line:
+                    self.assertRegex(line, r"^[A-Za-z0-9._-]+==[0-9][\w.]*$", f"{req}: {line} is not an == pin")
+
+    def test_the_step_reader_stops_at_the_next_step(self):
+        text = ("    steps:\n      - uses: actions/checkout@abc\n\n      - uses: x/y@abc\n"
+                "        with:\n          persist-credentials: false\n")
+        self.assertEqual(steps_using(text, "actions/checkout"),
+                         [(2, "      - uses: actions/checkout@abc\n")])
+
+
 if __name__ == "__main__":
     unittest.main()
 
