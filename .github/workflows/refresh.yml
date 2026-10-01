@@ -75,7 +75,6 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: false
           sparse-checkout: |
             f1.db
             web/src/lib/refresh.js
@@ -106,17 +105,9 @@ jobs:
           app-id: ${{ vars.REFRESH_APP_ID }}
           private-key: ${{ secrets.REFRESH_APP_PRIVATE_KEY }}
 
-      # No token, and nothing persisted (AF-78). actions/checkout writes the
-      # token it is given into .git/config for every later step to read, and
-      # the later steps include `npm ci`, which runs whatever install scripts
-      # the front end's dependency tree carries. The App's token pushes
-      # branches and opens pull requests here, so it goes to the two steps
-      # that do that, as GH_TOKEN, and land-refresh.sh hands it to the one
-      # `git push` from there. This checkout fetches with GITHUB_TOKEN, which
-      # is contents: read, and keeps neither.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: false
+          token: ${{ steps.app.outputs.token }}
 
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:

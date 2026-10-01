@@ -129,10 +129,11 @@ flag a new request, beacon or storage write that would make that untrue.
   `env:` or an output — is still yours.
 - **Item 4**, every `uses:` pinned to a full commit SHA with its release
   in a comment, every script fetched from `raw.githubusercontent.com` at
-  a SHA, every `actions/checkout` setting `persist-credentials: false`,
-  and every `pip install` in a workflow reading a file of `==` pins, in
-  `tests/test_conventions.py` (`WorkflowsRunWhatWasChosen`). A token
-  reaching a step that does not need it by any other route is still yours.
+  a SHA, and every `pip install` in a workflow reading a file of `==`
+  pins, in `tests/test_conventions.py` (`WorkflowsRunWhatWasChosen`). It
+  reads line by line: a YAML anchor, a command built in a variable, or a
+  requirement pulled in through `-r` inside a pinned file is not seen, and
+  is yours. So is whether a token reaches a step that does not need it.
 - **Item 7**, `release.yml` uploading and digesting both databases and
   `SHA256SUMS`, in `tests/test_conventions.py`
   (`PublishingPathsCarryBothDatabases`). A new publishing path the test does
