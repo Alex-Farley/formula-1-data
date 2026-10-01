@@ -75,6 +75,21 @@ class OnlyRefetchesWhatItNames(unittest.TestCase):
         self.assertEqual(len(got), 6)
         self.assertEqual(self.lines(self.log)[1:], [KEPT_LOG, OLD_LOG])
 
+    def test_a_rerun_the_same_day_states_its_clause_once(self):
+        fetched = mock.Mock(return_value=(GEO, 3258.4, 206, "2024-09-16T16:57:01Z"))
+        self.run_only({"long-beach"}, fetched)
+        once = self.lines(self.txt)
+        self.run_only({"long-beach"}, fetched)
+        self.assertEqual(self.lines(self.txt), once)
+
+    def test_a_file_with_no_header_is_refused_before_anything_is_written(self):
+        with open(self.txt, "w", encoding="utf-8") as f:
+            f.write(KEPT + "\n")
+        with self.assertRaises(SystemExit):
+            self.run_only({"long-beach"},
+                          mock.Mock(return_value=(GEO, 3258.4, 206, "2024-09-16T16:57:01Z")))
+        self.assertEqual(self.lines(self.txt), [KEPT])
+
     def test_a_refused_refetch_drops_its_row_and_logs_why(self):
         self.run_only({"long-beach"}, mock.Mock(return_value=(None, 0, 0, None)))
         self.assertEqual(self.lines(self.txt)[4:], [KEPT])

@@ -585,9 +585,14 @@ def harvest(only=None):
     if only:
         # The first line keeps the date of the last full run and adds this
         # one, so the file still says which rows are older than which.
-        (first,), kept = _kept(out, only, 1)
-        stamp = (first.removesuffix(". Do not edit by hand.")
-                 + f"; {', '.join(sorted(only))} refetched on {today}")
+        head, kept = _kept(out, only, 1)
+        if not head:
+            raise SystemExit(f"{os.path.relpath(out, ROOT)} has no header line "
+                             f"to keep; run a full harvest first")
+        stamp = head[0].removesuffix(". Do not edit by hand.")
+        clause = f"; {', '.join(sorted(only))} refetched on {today}"
+        if not stamp.endswith(clause):     # a rerun the same day says it once
+            stamp += clause
         lines = sorted(kept + lines, key=lambda x: x.split("|", 1)[0])
         _, kept_log = _kept(log_path, only, 0)
         refused = [x for x in kept_log + log_lines if "\tACCEPTED\t" not in x]
