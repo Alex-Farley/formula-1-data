@@ -73,7 +73,7 @@ jobs:
     outputs:
       run: ${{ steps.decide.outputs.run }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           sparse-checkout: |
             f1.db
@@ -99,24 +99,26 @@ jobs:
       # first second rather than after the build - and before the stamp, so
       # the check date stops moving, which is the signal that date exists to
       # give.
-      - uses: actions/create-github-app-token@v3
+      - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         id: app
         with:
           app-id: ${{ vars.REFRESH_APP_ID }}
           private-key: ${{ secrets.REFRESH_APP_PRIVATE_KEY }}
 
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           token: ${{ steps.app.outputs.token }}
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.12'
 
       # PyYAML is needed by the fetch tool to read F1DB's source files. The
-      # build itself has no dependencies and does not get any here.
+      # build itself has no dependencies and does not get any here. Pinned
+      # in the file, which Dependabot bumps by pull request (AF-77): this
+      # job holds the App's token, so what it installs is a choice.
       - name: Install the fetch tool's dependency
-        run: pip install --quiet pyyaml
+        run: pip install --quiet -r .github/requirements/refresh.txt
 
       - name: Fetch F1DB and rewrite the harvest
         run: python3 tools/f1db_fetch.py
@@ -208,7 +210,7 @@ jobs:
       # nothing, rather than a pull request nobody is watching. This is the
       # front end's half: the build that puts the database on the site, and
       # the smoke test that reads its expectations out of that database.
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         if: steps.diff.outputs.changed == 'true'
         with:
           node-version: '22'
