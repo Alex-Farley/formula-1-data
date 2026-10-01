@@ -1172,6 +1172,152 @@ CORRECTIONS = [
 ]
 
 
+# The three career figures stored as a source gave them and never recounted
+# (DA-16) - drivers.entries, drivers.starts and drivers.career_points -
+# compared with what the race records give for the same driver (DA-42): the
+# rows race_entries holds for him, the ones of them that are starts by
+# build.STARTED, and the points of those rows and of his sprint_results. The
+# build files every difference in `discrepancies` and fails on one that is not
+# accounted for, as it does for wins, poles and fastest laps.
+#
+# Accounted for means one of three things:
+#   - a current driver's formula1.com figure (VERIFIED_STATS) that the races
+#     run since its date have passed: explained, and nothing to declare;
+#   - a typed figure no source gives, corrected below to the one a named
+#     source does, with the typed value kept on the record;
+#   - a difference declared below with the reason for it. Most are each
+#     source counting by its own rule - a championship total net of the
+#     scores the best-results rule dropped, an entry at a race the driver
+#     never reached the grid of - and are explained; where two named sources
+#     disagree about the race itself, the row is open.
+#
+# The figures F1DB publishes, quoted below, are its career totals in release
+# v2026.14.0, f1db-drivers.csv in f1db-csv.zip (totalRaceEntries,
+# totalRaceStarts, totalPoints, totalChampionshipPoints): the release
+# harvest/f1db_driver_totals.txt is pinned to. The infobox figures are
+# Wikipedia's, read on 2026-10-01, where the figure outside the brackets is
+# the championship total and the one inside it everything scored.
+#
+# A declaration names both readings, and the build refuses one the database
+# no longer holds - so a refresh that moves either side reopens the question
+# rather than carrying the old answer past it.
+#   driver_id, field, typed value, corrected value, why
+STORED_TOTALS_CORRECTED = [
+    ("ascari", "career_points", 140.64, 140.14,
+     "No source gives 140.64. His Wikipedia infobox gives 107 9/14 (140 1/7) "
+     "- a championship total of 107 9/14 out of 140 1/7 scored - and F1DB's "
+     "published totals are the same, 107.64 and 140.14, as is the sum of the "
+     "race records. The typed figure is the scored total with the fraction "
+     "of the championship one. Corrected to 140.14, the points he scored, "
+     "held to two places as the race records hold a seventh of a point. "
+     "Source: https://en.wikipedia.org/wiki/Alberto_Ascari"),
+    ("ascari", "entries", 33, 34,
+     "No source gives 33. His Wikipedia infobox gives 34 entries and 32 "
+     "starts, the 34 counting the two races he was entered for and did not "
+     "start: the 1950 French Grand Prix, where he did not start, and the "
+     "1953 Indianapolis 500, where he was entered and did not arrive. That "
+     "is the rule every other champion's stored entries follow, so the "
+     "figure is corrected to 34. The difference from the race records' 32 "
+     "is declared beside it. "
+     "Source: https://en.wikipedia.org/wiki/Alberto_Ascari"),
+    ("fangio", "career_points", 245.14, 245,
+     "No source gives 245.14. His Wikipedia infobox gives 245 (277 9/14), "
+     "F1DB's published totals give 245 championship points of 277.64 "
+     "scored, and the final tables here sum to 245. Corrected to 245, the "
+     "championship total the typed figure's whole points are; the "
+     "difference from the race records' 277.64 is declared beside it. "
+     "Source: https://en.wikipedia.org/wiki/Juan_Manuel_Fangio"),
+    ("hulme", "entries", 114, 112,
+     "No source gives 114. His Wikipedia infobox gives 112 entries, every "
+     "one a start, F1DB's published total is 112, and the race records hold "
+     "112 rows for him. Corrected to 112. "
+     "Source: https://en.wikipedia.org/wiki/Denny_Hulme"),
+    ("p-hill", "entries", 51, 52,
+     "No source gives 51. His Wikipedia infobox gives 52 entries, F1DB's "
+     "published total is 52, and the race records hold 52 rows for him, "
+     "four of them races he did not start - the 1962 United States Grand Prix, "
+     "the 1966 Monaco and Belgian Grands Prix, where he drove a camera car "
+     "for the film Grand Prix, and the 1966 Italian Grand Prix, which he "
+     "did not qualify for. Corrected to 52. "
+     "Source: https://en.wikipedia.org/wiki/Phil_Hill"),
+]
+
+#   driver_id, field, stored value, race-records value, status, status_note,
+#   why
+STORED_TOTALS_DECLARED = [
+    ("senna", "career_points", 610, 614, "explained", "net of dropped scores",
+     "The stored 610 is his championship total and the race records' 614 "
+     "everything he scored: in 1988 only the best eleven of sixteen results "
+     "counted, and four of his 94 points that year were dropped. Both are "
+     "his - his Wikipedia infobox gives 610 (614), and F1DB's published "
+     "totals give 610 championship points of 614 scored. "
+     "Source: https://en.wikipedia.org/wiki/Ayrton_Senna"),
+    ("fangio", "career_points", 245, 277.64, "explained", "net of dropped scores",
+     "The stored 245 is his championship total and the race records' 277.64 "
+     "everything he scored: the best-results rule dropped points from six "
+     "of his eight seasons, 1951 and 1953 to 1957, 32 9/14 of them in all. "
+     "Both are his - his Wikipedia infobox gives 245 (277 9/14), and F1DB's "
+     "published totals give 245 championship points of 277.64 scored. "
+     "Source: https://en.wikipedia.org/wiki/Juan_Manuel_Fangio"),
+    ("farina", "career_points", 127.33, 126, "explained",
+     "a car the records do not hold",
+     "He finished the 1955 Argentine Grand Prix in two cars, each shared "
+     "three ways and its points divided: second in the Ferrari he shared "
+     "with Gonzalez and Trintignant, for 2 points, and third in the one he "
+     "shared with Maglioli and Trintignant, for 1 1/3. The race records hold "
+     "one row per driver per race, so they carry the 2 and not the 1 1/3. "
+     "The stored 127 1/3 is everything he scored: his Wikipedia infobox "
+     "gives 115 1/3 (127 1/3), and F1DB, which holds both cars, publishes "
+     "127.33. Source: https://en.wikipedia.org/wiki/Giuseppe_Farina"),
+    ("ascari", "entries", 34, 32, "explained", "an entry the records do not hold",
+     "Wikipedia's 34 counts two races he was entered for and did not start: "
+     "the 1950 French Grand Prix and the 1953 Indianapolis 500, where he did "
+     "not arrive. The race records hold neither, and F1DB's published "
+     "total, 32, counts neither. "
+     "Source: https://en.wikipedia.org/wiki/Alberto_Ascari"),
+    ("fangio", "entries", 52, 51, "explained", "an entry the records do not hold",
+     "Wikipedia's 52 counts the 1958 Indianapolis 500, which he went to, "
+     "tried cars at and did not qualify for. The race records hold no "
+     "Indianapolis non-qualifier and have no row for him there; F1DB's "
+     "published total, 51, does not count it either. "
+     "Source: https://en.wikipedia.org/wiki/Juan_Manuel_Fangio"),
+    ("farina", "entries", 35, 34, "explained", "an entry the records do not hold",
+     "Wikipedia's 35 counts the 1956 Indianapolis 500, which he did not "
+     "qualify for. The race records hold no Indianapolis non-qualifier and "
+     "have no row for him there; F1DB's published total, 34, does not count "
+     "it either. Source: https://en.wikipedia.org/wiki/Giuseppe_Farina"),
+    ("lauda", "entries", 177, 176, "explained", "an entry the records do not hold",
+     "Wikipedia's 177 counts the 1979 Canadian Grand Prix, where he stopped "
+     "during practice, told Ecclestone he was retiring, and left: it lists "
+     "him as withdrawn. The race records have no row for him there, and "
+     "F1DB's published total, 176, does not count it. "
+     "Source: https://en.wikipedia.org/wiki/Niki_Lauda"),
+    ("raikkonen", "entries", 353, 352, "explained", "an entry the records do not hold",
+     "Wikipedia's 353 counts the 2021 Dutch Grand Prix, which he was entered "
+     "for and withdrew from during the weekend after testing positive for "
+     "COVID-19, Robert Kubica driving his car. F1DB's entry list names him "
+     "for the round, but its race results, which its published total of 352 "
+     "counts, and the race records name Kubica. "
+     "Source: https://en.wikipedia.org/wiki/Kimi_R%C3%A4ikk%C3%B6nen"),
+    ("raikkonen", "starts", 349, 350, "open", "sources differ",
+     "The 2001 Belgian Grand Prix was stopped on its first lap and started "
+     "again. "
+     "He took the first start and not the second, and the official results "
+     "list him as not having started - the first start was void under the "
+     "regulations of the time - which is the 349 Wikipedia gives. F1DB's "
+     "published total, 350, and the race records count it as a start he "
+     "retired from. One race read two ways. "
+     "Source: https://en.wikipedia.org/wiki/2001_Belgian_Grand_Prix"),
+    ("piquet", "starts", 204, 203, "open", "sources differ",
+     "The race records, and F1DB's published total of 203, hold his 1985 "
+     "Canadian Grand Prix as a race he did not start, with a transmission "
+     "failure. The race's Wikipedia article, citing formula1.com, has him "
+     "retiring on lap 0 from ninth on the grid, which is a start, and his "
+     "own article's infobox gives 204 starts. One race read two ways. "
+     "Source: https://en.wikipedia.org/wiki/1985_Canadian_Grand_Prix"),
+]
+
+
 # =====================================================================
 # The chassis, engine and entrant register (harvest/chassis.txt,
 # harvest/engines.txt, harvest/f1db_constructors.txt, harvest/entrants.txt)

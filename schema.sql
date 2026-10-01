@@ -250,8 +250,14 @@ CREATE TABLE drivers (
     --   champions among the typed rows only - those pages give no starts,
     --   so the four champions among the seven hold NULL - and NULL for
     --   everyone else. They are not recounted from race_entries and need
-    --   not equal a count of it - a total from a season that dropped scores
-    --   is net of them, and a current driver's has moved on since the date.
+    --   not equal a count of it: a points total is everything the driver
+    --   scored, but Fangio's and Senna's are championship totals, net of
+    --   the scores the best-results rule dropped; a source may count an
+    --   entry at a race the records hold no row for; and a current
+    --   driver's figure has moved on since the date. Every difference from
+    --   the race records is a 'stored-total' row in `discrepancies`, and a
+    --   typed figure no source gave was corrected, its 'correction' row
+    --   keeping the typed value (DA-42).
     --   MIXED: first_season and last_season are typed for the authored
     --   drivers and taken from the race records - or, for a driver who only
     --   ran in practice, the practice sheets - for the rest.
@@ -1823,6 +1829,7 @@ CREATE TABLE discrepancies (
                         'correction',          -- an external figure found wrong
                         'external-figure',     -- an external figure against the records
                         'f1db-career-total',   -- a typed career figure against F1DB's total
+                        'stored-total',        -- a stored entries, starts or points total against the records
                         'career-span',         -- the register's span against the records'
                         'car-season',          -- CAR_SEASONS against the entry lists
                         'car-chassis',         -- a car's figure against its one chassis's

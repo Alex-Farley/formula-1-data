@@ -1414,6 +1414,57 @@ def external_figures_vs_the_race_records():
     check("every driver's wins, poles and fastest laps equal the race records",
           not bad, "; ".join(bad[:6]))
 
+    # The figures stored as a source gave them, never recounted (DA-42):
+    # every one that differs from the race records' count is a 'stored-total'
+    # row carrying both, and no such row stands where the two agree. Counted
+    # here, not through build.stored_total_readings, so a fault in one is not
+    # a fault in both; only the rule for a start is shared, as it is with
+    # the front end.
+    import build
+    _differ = {}
+    for r in con.execute(f"""SELECT d.id, d.entries, d.starts, d.career_points,
+            (SELECT COUNT(*) FROM race_entries e WHERE e.driver_id = d.id) AS n,
+            (SELECT COUNT(*) FROM race_entries e
+              WHERE e.driver_id = d.id AND {build.STARTED}) AS s,
+            (SELECT TOTAL(e.points) FROM race_entries e WHERE e.driver_id = d.id)
+          + (SELECT TOTAL(x.points) FROM sprint_results x WHERE x.driver_id = d.id) AS p
+          FROM drivers d WHERE d.entries IS NOT NULL OR d.starts IS NOT NULL
+            OR d.career_points IS NOT NULL"""):
+        for field, stored, counted in (("entries", r["entries"], r["n"]),
+                                       ("starts", r["starts"], r["s"]),
+                                       ("career_points", r["career_points"], r["p"])):
+            if stored is not None and round(stored, 2) != round(counted, 2):
+                _differ[(r["id"], field)] = (build._points_text(round(stored, 2)),
+                                             build._points_text(round(counted, 2)))
+    _filed = {(r[0], r[1]): (r[2], r[3]) for r in con.execute("""
+        SELECT row_key, field, stored_value, derived_value FROM discrepancies
+         WHERE kind = 'stored-total' AND tbl = 'drivers'""")}
+    _bad = [f"{d} {f} {a} against {b}: " + ("not filed" if (d, f) not in _filed
+            else f"filed as {_filed[(d, f)]}")
+            for (d, f), (a, b) in sorted(_differ.items()) if _filed.get((d, f)) != (a, b)]
+    _bad += [f"{d} {f} filed, but the figure agrees with the race records"
+             for d, f in sorted(set(_filed) - set(_differ))]
+    check("every stored entries, starts or points figure that differs from the race "
+          "records is filed carrying both", not _bad, "; ".join(_bad[:4]))
+    # A corrected figure holds its correction, and the typed value it
+    # replaced stays on the record beside it.
+    _bad = []
+    for did, field, typed, fixed, _why in harvest_module().STORED_TOTALS_CORRECTED:
+        if field not in build.STORED_TOTALS:
+            _bad.append(f"{did} {field}: not a stored career figure")
+            continue
+        held = con.execute(f"SELECT {field} FROM drivers WHERE id = ?", (did,)).fetchone()
+        row = con.execute("""SELECT stored_value, derived_value, status FROM discrepancies
+            WHERE kind = 'correction' AND tbl = 'drivers' AND row_key = ?
+              AND field = ?""", (did, field)).fetchone()
+        if held is None or held[0] is None or abs(held[0] - fixed) > 0.001:
+            _bad.append(f"{did} {field} holds {held and held[0]}, not {fixed}")
+        if row is None or tuple(row) != (build._points_text(typed),
+                                         build._points_text(fixed), "resolved"):
+            _bad.append(f"{did} {field}: correction filed as {row and tuple(row)}")
+    check("every corrected stored figure holds its correction, with the typed one on "
+          "the record", not _bad, "; ".join(_bad[:4]))
+
     n = con.execute("SELECT COUNT(*) FROM drivers WHERE wins_external IS NOT NULL").fetchone()[0]
     d = con.execute("SELECT COUNT(*) FROM discrepancies").fetchone()[0]
     print(f"        {n} drivers compared on three fields; {d} differences, all accounted for")
@@ -1429,7 +1480,6 @@ def external_figures_vs_the_race_records():
     # the problem, because the disagreement would simply stop being shown and
     # nothing would say so. This is the check that makes the quiet join safe to
     # rely on: a subject that names no race, or no driver, is refused here.
-    import build
     unresolved = []
     for did, subject, tbl, row_key in con.execute(
             "SELECT id, subject, tbl, row_key FROM discrepancies WHERE status = 'open' "
