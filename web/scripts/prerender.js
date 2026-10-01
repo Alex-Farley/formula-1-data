@@ -485,8 +485,47 @@ const dbPath = join(repo, 'f1.db')
 if (!existsSync(dbPath)) die('f1.db not found at the repository root.\nBuild it first:  cd .. && python3 build.py')
 
 const db = new DatabaseSync(dbPath, { readOnly: true })
-const all = (sql, ...params) => db.prepare(sql).all(...params)
-const one = (sql, ...params) => db.prepare(sql).get(...params) ?? null
+
+/* One prepared statement per distinct SQL text, reused across every page:
+   the per-entity loops below call the same few dozen queries thousands of
+   times, and preparing each call re-parsed and re-planned it. A statement
+   resets itself on each .all()/.get(), so reuse cannot leak a cursor. */
+const statements = new Map()
+const prepared = (sql) => {
+  let statement = statements.get(sql)
+  if (!statement) {
+    statement = db.prepare(sql)
+    statements.set(sql, statement)
+  }
+  return statement
+}
+const all = (sql, ...params) => prepared(sql).all(...params)
+const one = (sql, ...params) => prepared(sql).get(...params) ?? null
+
+/* A driver's standings, from a copy of v_standings_final. The view is
+   evaluated whole for every query that reads it - its windows and CTEs run
+   over all of `standings` before a driver filter applies - so each of ~915
+   driver pages paid ~40 ms for a few rows, 35 s of the run. The file is
+   read-only and does not change while this runs, so a second connection
+   copies the view's rows once into an indexed TEMP table of the same name,
+   which unqualified names resolve to first, and the shared STANDINGS query
+   runs unchanged against it.
+
+   Only that query reads the copy, and only while its ORDER BY s.year settles
+   every row's place - one drivers' row per driver per season - because a tie
+   is ordered by the plan, and a different plan would put the page out of step
+   with the app's. The season and constructor tables do tie (Cooper's two
+   1960 engines share fifth), and a copy reordered 40 season pages. If a
+   driver ever holds two rows in a season, this falls back to the view. */
+const standingsDb = new DatabaseSync(dbPath, { readOnly: true })
+standingsDb.exec(`CREATE TEMP TABLE v_standings_final AS SELECT * FROM main.v_standings_final;
+  CREATE INDEX temp.v_standings_final_driver ON v_standings_final (table_type, driver_id);`)
+const driverYearTies = standingsDb
+  .prepare(`SELECT COUNT(*) AS n FROM (SELECT 1 FROM v_standings_final WHERE table_type = 'drivers'
+             GROUP BY driver_id, year HAVING COUNT(*) > 1)`)
+  .get().n
+const driverStandingsStatement = (driverYearTies === 0 ? standingsDb : db).prepare(STANDINGS)
+const driverStandings = (id) => driverStandingsStatement.all(id)
 
 /* The span the site describes itself by, read from the register rather than
    written down: the moment a calendar is announced for a season nobody has
@@ -2310,7 +2349,7 @@ const page = ({
     // 0 poles" for 81 drivers whose lede had just moved to `provenance`.
     const derived = one(DERIVED, id) ?? {}
     const bySeason = all(BY_SEASON, id)
-    const standings = all(STANDINGS, id)
+    const standings = driverStandings(id)
     const seasons = seasonRows(bySeason, standings)
     // A driver of the season being run opens on it (PD-49), as Driver.jsx
     // does: the same rows, heading, sentence and table. The app draws the

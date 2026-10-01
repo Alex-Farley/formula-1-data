@@ -23,6 +23,7 @@ For tests of the CODE — the name matching, the lap arithmetic — see tests/.
 This file checks what came out; those check what does the work.
 """
 import contextlib
+import importlib
 import io
 import json
 import os
@@ -32,18 +33,23 @@ import sys
 from collections import Counter
 
 
+def _tool(name):
+    """A module from tools/, imported from beside this file. The directory
+    goes on sys.path once, however many times a section asks."""
+    tools = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tools")
+    if tools not in sys.path:
+        sys.path.insert(0, tools)
+    return importlib.import_module(name)
+
+
 def _lede_figures():
     """tools/lede_figures.py, imported from beside this file."""
-    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "tools"))
-    import lede_figures
-    return lede_figures
+    return _tool("lede_figures")
 
 
 def _prose_figures():
     """tools/prose_figures.py, imported from beside this file."""
-    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "tools"))
-    import prose_figures
-    return prose_figures
+    return _tool("prose_figures")
 
 DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "f1.db")
 
@@ -361,11 +367,18 @@ def standings():
         runner_up, runner_up_points FROM seasons
         WHERE drivers_champion IS NOT NULL AND champion_points IS NOT NULL
         ORDER BY year""").fetchall()
+    # One read of the view, not one per season: a year filter is not pushed
+    # into its window and CTEs, so each per-year query evaluated all of it.
+    top_two = {}
+    for r in con.execute("""SELECT year, driver_id, points FROM v_standings_final
+            WHERE table_type='drivers' AND position IS NOT NULL
+            ORDER BY year, position"""):
+        top = top_two.setdefault(r["year"], [])
+        if len(top) < 2:
+            top.append(r)
     mismatch, compared = [], 0
     for sr in season_rows:
-        top = con.execute("""SELECT driver_id, points FROM v_standings_final
-            WHERE year=? AND table_type='drivers' AND position IS NOT NULL
-            ORDER BY position LIMIT 2""", (sr["year"],)).fetchall()
+        top = top_two.get(sr["year"], [])
         if len(top) < 2:
             continue
         compared += 1

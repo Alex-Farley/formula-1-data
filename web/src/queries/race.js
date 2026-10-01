@@ -13,7 +13,7 @@
  *
  * See queries/drivers.js for what a column's `text` is.
  */
-import { EMPTY, classificationOrder, finished, missing, points, raceDates, result, text } from '../lib/format.js'
+import { classificationOrder, finished, missing, points, raceDates, result, text } from '../lib/format.js'
 import { SHARED } from '../lib/site.js'
 
 export const RACE = `
@@ -174,7 +174,6 @@ export const driverName = (name, row) => `${text(name ?? row.driver_id)}${row.sh
 /** "●" with the words "fastest lap" for a screen reader; nothing otherwise. */
 export const fastestLapMark = (value) => (value === 1 ? `●${FASTEST_LAP}` : '')
 
-const pts = (value) => (missing(value) ? EMPTY : points(value))
 
 /**
  * The car an entry raced, for every surface that names one.
@@ -209,7 +208,7 @@ export const CLASSIFICATION_COLUMNS = [
   { key: 'grid_text', label: 'Grid', align: 'num' },
   { key: 'laps_completed', label: 'Laps', align: 'num' },
   { key: 'status', label: 'Out', text: outcome },
-  { key: 'points', label: 'Points', align: 'num', text: pts },
+  { key: 'points', label: 'Points', align: 'num', text: points },
   { key: 'fastest_lap', label: 'FL', align: 'num', text: fastestLapMark },
 ]
 
@@ -358,7 +357,7 @@ export const SPRINT_COLUMNS = [
   { key: 'laps_completed', label: 'Laps', align: 'num' },
   { key: 'status', label: 'Out', text: outcome },
   { key: 'gap', label: 'Gap', align: 'num' },
-  { key: 'points', label: 'Points', align: 'num', text: pts },
+  { key: 'points', label: 'Points', align: 'num', text: points },
 ]
 
 export const SPRINT_FOOTER =
