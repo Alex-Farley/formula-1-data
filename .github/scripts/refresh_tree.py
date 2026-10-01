@@ -47,10 +47,11 @@ HARVEST = re.compile(r"harvest/[A-Za-z0-9_-]+\.txt")
 DOCUMENTS = tuple(os.path.relpath(p, readme_figures.ROOT).replace(os.sep, "/")
                   for p in readme_figures.DOCUMENTS)
 # The one line each of these may change, as it must read afterwards. These
-# are the lines refresh.yml's sed steps write and assert.
+# are the lines refresh.yml's sed steps write and assert, in ASCII digits
+# (`\d` would also take any other script's).
 ONE_LINE = {
-    "build.py": re.compile(r'BUILT = "\d{4}-\d{2}-\d{2}"'),
-    "web/src/lib/refresh.js": re.compile(r"export const LAST_CHECKED = '\d{4}-\d{2}-\d{2}'"),
+    "build.py": re.compile(r'BUILT = "[0-9]{4}-[0-9]{2}-[0-9]{2}"'),
+    "web/src/lib/refresh.js": re.compile(r"export const LAST_CHECKED = '[0-9]{4}-[0-9]{2}-[0-9]{2}'"),
 }
 LIST = "paths.txt"
 TREE = "tree"

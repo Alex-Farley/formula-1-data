@@ -83,6 +83,7 @@ class WhatARefreshDoesNotChangeIsRefused(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertIsNotNone(tree.problem(path, stamped(path) + b"\nextra", real(path)))
                 self.assertIsNotNone(tree.problem(path, stamped(path, "today"), real(path)))
+                self.assertIsNotNone(tree.problem(path, stamped(path, "\u0662\u0660\u0669\u0669-01-01"), real(path)))
                 self.assertIsNotNone(tree.problem(path, stamped(path), None))
                 lines = stamped(path).split(b"\n")
                 lines[0] += b" "
