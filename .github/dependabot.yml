@@ -6,8 +6,8 @@
 # the comment together. web/package.json, whose devDependencies include the
 # bundler and the browser driver the site is built and tested with. And
 # the two packages workflows install with pip, pinned in
-# .github/requirements/ - one in the job holding the refresh App's token,
-# one in the job holding contents: write. Not requirements.txt at the root:
+# .github/requirements/ - one in the job that builds what the refresh App
+# lands on main, one in the job holding contents: write. Not requirements.txt at the root:
 # that is one optional range (`fastf1>=3.8`) for a tool that never runs in
 # CI, and there is nothing there to pin.
 #
