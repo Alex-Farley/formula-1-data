@@ -159,7 +159,7 @@ OTHER_DRIVERS = [
     ("ginther", "Richie Ginther", "United States", "USA", "1930-08-05", "1989-09-20", 1960, 1967, 1, 0, 0, "deceased",
      "Gave Honda its first Grand Prix victory, in Mexico in 1965.", "high"),
     ("gurney", "Dan Gurney", "United States", "USA", "1931-04-13", "2018-01-14", 1959, 1970, 4, 3, 0, "deceased",
-     "Won a GP in a car of his own construction (Eagle, Spa 1967) — one of only two men to do so. Invented the Gurney flap and the podium champagne spray.", "high"),
+     "Won a GP in a car of his own construction (Eagle, Spa 1967) — one of three men to do so, with Jack Brabham and Bruce McLaren. Invented the Gurney flap and the podium champagne spray.", "high"),
     ("bandini", "Lorenzo Bandini", "Italy", "ITA", "1935-12-21", "1967-05-10", 1961, 1967, 1, 1, 0, "deceased",
      "Died from burns three days after crashing at the Monaco harbour chicane — a crash that drove home the sport's fire-safety failings.", "medium"),
     ("siffert", "Jo Siffert", "Switzerland", "SUI", "1936-07-07", "1971-10-24", 1962, 1971, 2, 2, 0, "deceased",

@@ -138,7 +138,8 @@ measured the written fields against Wikipedia: of the 381 fields in those
 twelve tables, one is paraphrased and none is close to source
 (`docs/COMMERCIAL-READINESS.md`, *Measured: the prose pass*;
 `docs/prose_pass.tsv` line by line). Across the whole database it found one
-field close to source and ten paraphrased out of 1,208. `PM-49` (#573)
+field close to source and ten paraphrased out of 1,208, and one of the ten
+has since been reworded as original (`CR-60`, #693). `PM-49` (#573)
 holds the decision the evidence was for. Until it is taken the twelve tables
 stay CC BY-SA, which is the safe side of a disagreement about share-alike.
 

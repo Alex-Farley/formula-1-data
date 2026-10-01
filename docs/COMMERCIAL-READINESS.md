@@ -229,7 +229,9 @@ paraphrased fields are three driver notes (Amon, Baghetti, Susie Wolff), the
 Brabham constructor note, four car fields (Lotus 78 and 88 concepts, Ferrari
 312T and Lotus 25 innovations), the 2003 team-orders rule in
 `regulation_changes`, and the fan-car entry in `technical_innovations`.
-Rewriting them is its own item, `PM-62` (#692). It would take out
+On 2026-10-01 `CR-60` (#693) rewrote Baghetti's note, which overstated his
+record, and the pass now reads the new wording as original, so nine are
+paraphrased. Rewriting the other nine is its own item, `PM-62` (#692). It would take out
 the Wikipedia wording the pass found, but it would not change the licence on
 its own.
 
@@ -251,7 +253,7 @@ database has moved from it without fetching anything.
 |---|---|
 | May the data ship? | Yes, and it does |
 | What the pass changed | The statement can name the fields the share-alike reaches, not the permission |
-| What it found | One field close to source, ten paraphrased |
+| What it found | One field close to source, ten paraphrased (nine since `CR-60` reworded one) |
 
 ---
 
