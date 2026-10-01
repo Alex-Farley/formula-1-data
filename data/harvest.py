@@ -1981,16 +1981,18 @@ CIRCUIT_ARTICLE_GAPS = {
 
 # An admitted Wikidata id (data/circuits.py WIKIDATA_CIRCUITS) that is known
 # to be wrong, and the issue that will correct it. The article check compares
-# each mapped article's Wikidata entity with the admitted one, and this is
-# the one place it disagrees: Long Beach was admitted as Q16739, which is the
-# CITY; the circuit is Q173889, and the article is held to that. The OSM
-# relation admitted with it is the circuit's, which is why the length check
-# passed. verify.py fails on a declaration that no longer matches what
-# data/circuits.py admits, so the fix for PM-63 (#727) has to delete this
-# line too.
+# each mapped article's Wikidata entity with the admitted one; a declared
+# disagreement holds the article to the right id instead, so the row keeps an
+# independent check until the admission is corrected. verify.py fails on a
+# declaration that no longer matches what data/circuits.py admits, so the fix
+# deletes its line here too.
+#
+# Empty since PM-63 (#727): Long Beach had been admitted as Q16739, which is
+# the CITY, with the circuit's own OSM relation - so the length check, which
+# measures the relation and not the entity, passed it. The circuit is
+# Q173889, the entity its article carries.
 CIRCUIT_WIKIDATA_WRONG = {
     # circuit_id: (the admitted id, which is wrong; the article's, which is right)
-    "long-beach": ("Q16739", "Q173889"),   # PM-63 (#727): Q16739 is the city
 }
 
 
