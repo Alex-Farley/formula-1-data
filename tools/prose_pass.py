@@ -205,7 +205,7 @@ READ = {
         "drivers.notes jan-charouz", "drivers.notes leonardo-fornaroli",
         "drivers.notes luke-browning", "drivers.notes theo-pourchaire",
         "drivers.notes victor-martins", "drivers.notes zak-osullivan",
-        "drivers.notes bonnier", "circuits.characteristics madring",
+        "drivers.notes bonnier", "drivers.notes baghetti", "circuits.characteristics madring",
         "circuits.notes anderstorp", "circuits.notes imola", "circuits.notes pedralbes",
         "circuits.notes rodriguez", "seasons.notes 1955", "seasons.notes 1963",
         "cars.innovations mercedes-w11", "cars.story vanwall-vw5", "cars.story williams-fw14",
@@ -281,7 +281,7 @@ READ = {
     ]),
     "follows": ("paraphrased", "the field follows the article's way of putting something "
                                "that could be put other ways", [
-        "drivers.notes amon", "drivers.notes baghetti", "drivers.notes wolff-s",
+        "drivers.notes amon", "drivers.notes wolff-s",
         "constructors.notes brabham", "cars.concept lotus-78",
         "cars.concept lotus-88", "cars.innovations ferrari-312t", "cars.innovations lotus-25",
         "regulation_changes.detail 33", "technical_innovations.description 10",

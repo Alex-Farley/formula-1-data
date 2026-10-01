@@ -80,7 +80,7 @@ NEW_DRIVERS = [
      "Won his home Grand Prix at Interlagos in 1975 for Brabham. Killed in a light-aircraft crash; the Interlagos circuit is named after him.", "reference"),
     ("baghetti", "Giancarlo Baghetti", "Italy", "ITA", "1934-12-25", "1995-11-27", 1961, 1967,
      1, 0, 0, "deceased",
-     "The only driver to win on his World Championship debut, the 1961 French Grand Prix at Reims.", "reference"),
+     "Won the 1961 French Grand Prix at Reims in his first World Championship race. Only Nino Farina and Johnnie Parsons, both in the championship's first season, had done the same, and nobody has since.", "reference"),
 ]
 
 # Indianapolis 500 winners, 1950-1960, when the race counted towards the

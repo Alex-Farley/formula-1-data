@@ -21,7 +21,7 @@ drivers	arthur-leclerc	notes	original	auto	original	4	0.14	Arthur Leclerc	137588
 drivers	ascari	notes	original	auto	original	3	0.00	Alberto Ascari	1376827361			abd161b3e71a
 drivers	attwood	notes	original	auto	original	2	0.00	Richard Attwood	1370903569			00f1f3d720c0
 drivers	ayumu-iwasa	notes	original	auto	original	4	0.05	Ayumu Iwasa	1373249600			799509b15841
-drivers	baghetti	notes	paraphrased	read	close	8	0.79	Giancarlo Baghetti	1358488883	driver to win on his world championship debut	follows: the field follows the article's way of putting something that could be put other ways	340f73f19533
+drivers	baghetti	notes	original	read	paraphrased	7	0.16	Giancarlo Baghetti	1358488883	the 1961 french grand prix at reims	name: the shared words are a name or a title	c6d4d01ce75f
 drivers	bandini	notes	original	auto	original	3	0.00	Lorenzo Bandini Trophy	1364621033			9a94d7ff9a1b
 drivers	barrichello	notes	original	auto	original	4	0.08	Rubens Barrichello	1377151690			487713fbabc5
 drivers	bas-leinders	notes	original	read	paraphrased	6	0.25	Bas Leinders	1367405642	test and reserve driver in 2004	fact: the shared words state a result, a date or a record in the ordinary words for it	3ec77935b71f
@@ -84,7 +84,7 @@ drivers	giorgio-mondini	notes	original	auto	original	4	0.08	Giorgio Mondini	1377
 drivers	glock	notes	original	auto	original	2	0.00	Timo Glock	1375372480			2e828d714b90
 drivers	gonzalez	notes	original	read	paraphrased	6	0.30	History of Formula One	1371272002	first world championship grand prix win	stock: the shared words are a stock phrase of English or of the sport	13bfbedf2772
 drivers	grosjean	notes	original	auto	original	3	0.00	History of Formula One	1371272002			62f3ebce0167
-drivers	gurney	notes	original	read	paraphrased	7	0.22	Dan Gurney	1377128433	in a car of his own construction	stock: the shared words are a stock phrase of English or of the sport	52ff7224847d
+drivers	gurney	notes	original	read	paraphrased	7	0.25	Dan Gurney	1377128433	in a car of his own construction	stock: the shared words are a stock phrase of English or of the sport	026341e14e02
 drivers	hadjar	notes	original	auto	original	3	0.00	Isack Hadjar	1377038452			3e6ad952e610
 drivers	hailwood	notes	original	auto	original	4	0.06	Mike Hailwood	1375866838			6cf8a1a7762d
 drivers	hakkinen	notes	original	auto	original	2	0.00	Mika Häkkinen	1366692195			2fbbae789a7d
@@ -395,7 +395,7 @@ constructors	caterham	notes	original	auto	original	3	0.00	Caterham F1	1371382446
 constructors	connaught	notes	original	auto	original	2	0.00	List of Formula One constructors	1377015989			769954ceb20b
 constructors	cooper	notes	original	auto	original	3	0.00	2024 Formula One World Championship	1376189329			1b691435c061
 constructors	dallara	notes	original	auto	original	2	0.00	List of Formula One constructors	1377015989			f4abedf7e3ac
-constructors	eagle	notes	original	auto	original	3	0.00	Formula One	1375827499			b49e57253b19
+constructors	eagle	notes	original	auto	original	3	0.00	Formula One	1375827499			a4b9780888dd
 constructors	ferrari	notes	original	auto	original	3	0.00	List of Formula One constructors	1377015989			344ca5b4e54b
 constructors	fittipaldi	notes	original	auto	original	3	0.00	List of Formula One constructors	1377015989			8eb0a3e8649f
 constructors	footwork	notes	original	auto	original	3	0.00	Formula One	1375827499			7208ffb28195
