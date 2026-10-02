@@ -272,11 +272,13 @@ exactly this long and why the twelve `authored` tables are not on it yet
 Two licences, which is normal for a data project:
 
 - **Code** — `build.py`, `verify.py`, `audit.py`, `export_json.py`, `f1`,
-  `tools/`, `schema.sql` — under MIT, or whatever you prefer.
+  `tools/`, `schema.sql`, and `views.sql` in `f1-parquet.zip` — under MIT,
+  or whatever you prefer. `views.sql` is the views' statements as `schema.sql`
+  writes them, so it is offered on the same terms (`PM-64`).
 - **Data** — `data/`, `harvest/`, `f1.db`, `f1.db.gz`, `f1-parquet.zip`,
   `f1_database.json` — under CC BY-SA 4.0, with attribution to Wikipedia
   contributors, except the five columns under *What this project wrote*,
-  which are CC BY 4.0.
+  which are CC BY 4.0, and `views.sql`, which is code.
 
 Add a `LICENSE` for the code and a `LICENSE-DATA` for the data, and say which
 covers what in the README. I have deliberately not chosen for you.

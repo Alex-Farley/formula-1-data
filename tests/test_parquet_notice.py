@@ -72,6 +72,14 @@ class Notice(unittest.TestCase):
         n = len(P.views(self.con))
         self.assertIn(f"views.sql holds f1.db's {n} views", " ".join(self.text.split()))
 
+    def test_it_offers_views_sql_on_schema_sqls_terms(self):
+        # PM-64: the same SQL is under MIT in schema.sql, so the bundle may
+        # not state LICENSE-DATA as its only terms.
+        folded = " ".join(self.text.split())
+        self.assertIn("views.sql is also available under LICENSE (MIT), as "
+                      "schema.sql is", folded)
+        self.assertIn(f"{P.REPOSITORY}/blob/main/LICENSE", self.text)
+
 
 class Views(unittest.TestCase):
     """views.sql is every view f1.db holds, as it holds it (DA-14)."""
