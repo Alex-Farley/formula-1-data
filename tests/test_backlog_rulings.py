@@ -157,6 +157,11 @@ class RankingARun(unittest.TestCase):
             with self.assertRaises(SystemExit, msg=(numbers, how, other)):
                 file_py.rank_plan(ROWS, numbers, how, other)
 
+    def test_a_later_issue_off_the_board_is_named_as_off_it(self):
+        with self.assertRaises(SystemExit) as caught:
+            file_py.rank_plan(ROWS, [10, 99], "top")
+        self.assertEqual(caught.exception.code, "#99 is not on the board")
+
 
 class ARankRun(unittest.TestCase):
     """What `rank` sends GitHub: one read, then one write per planned move."""
@@ -207,10 +212,29 @@ class ARankRun(unittest.TestCase):
     def test_a_refusal_stops_the_run_and_names_what_was_not_placed(self):
         with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as caught:
             self.run_rank([12, 11, 10], refuse_at=2, top=True)
-        self.assertIn("rate limit", str(caught.exception.code))
-        # 12 first, then 11 after it is refused; 10 then already sits after 11
-        # in the plan, so the plan was two writes and one is left.
-        self.assertIn("not placed: #11;", str(caught.exception.code))
+        said = str(caught.exception.code)
+        self.assertIn("rate limit", said)
+        # 12 went first; 11 after it was refused, so 10, which was to follow
+        # 11, is not in place either.
+        self.assertIn("not yet in place: #11, #10;", said)
+        self.assertIn("once the limiter has cleared", said)
+
+    def test_a_refusal_that_waiting_will_not_clear_says_so(self):
+        # A token that can read but not write is refused for ever, and
+        # being told to wait for the limiter would be wrong (found in review).
+        writes = []
+
+        def gh_try(*args):
+            writes.append(args)
+            return False, "GraphQL: Forbidden"
+
+        a = SimpleNamespace(numbers=[12], top=True, bottom=False, after=None, before=None)
+        with mock.patch.object(file_py.next_py, "board_items", lambda ids=False: ("P", self.ITEMS)), \
+                mock.patch.object(file_py, "gh_try", gh_try), \
+                contextlib.redirect_stdout(io.StringIO()), self.assertRaises(SystemExit) as caught:
+            file_py.rank(a)
+        self.assertIn("waiting will not clear", str(caught.exception.code))
+        self.assertEqual(len(writes), 1)
 
 
 if __name__ == "__main__":

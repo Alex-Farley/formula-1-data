@@ -65,9 +65,9 @@ out any whose issue already sits where it would go, and writes the rest
 `RANK_SPACING` seconds apart. Re-ranking about 35 items one call at a time
 read the whole board three times per move and tripped the secondary limiter
 three times; one read and one write per move ten seconds apart did 30 writes
-with no refusal `AF-81` `[D-27]`. A run cut short by a refusal says what it
-placed, and the same command run again once the limiter clears finishes it,
-because what already sits in place is not written twice.
+with no refusal `AF-81` `[D-27]`. A run cut short by a refusal says what is not
+yet in place, and the same command run again once the refusal's cause has
+cleared finishes it, because what already sits in place is not written twice.
 """
 import datetime
 import argparse
@@ -144,9 +144,11 @@ def gh(*args, as_json=False):
 
 
 def gh_try(*args):
-    """(succeeded, stderr), for the one call allowed to fail: an `item-edit`
-    against a cached id GitHub may no longer recognise. The caller decides,
-    because most failures are not staleness and must not be retried."""
+    """(succeeded, stderr), for the calls whose caller handles a failure
+    itself: an `item-edit` against a cached id GitHub may no longer
+    recognise, and a `rank` write, which reports what it had not placed. The
+    caller decides, because most failures are not staleness and must not be
+    retried."""
     try:
         r = subprocess.run(["gh", *args], capture_output=True, text=True, check=False)
     except FileNotFoundError:
@@ -412,6 +414,8 @@ def rank_plan(rows, numbers, how, other=None):
     anchor = rank_after(rows, first, how, other, moving=rest)
     status = dict(rows)[first]
     for n in rest:
+        if n not in dict(rows):
+            sys.exit(f"#{n} is not on the board")
         if dict(rows).get(n) != status:
             sys.exit(f"#{n} is not in {status!r} with #{first}; one run is one status")
     order = [n for n, s in rows if s == status]
@@ -443,11 +447,15 @@ def rank(a):
         ok, err = gh_try(*args)
         if not ok:
             # Never retried here: against the limiter a second attempt
-            # extends the block `[D-27]`. What is placed stays placed, and a
-            # rerun skips it.
-            left = ", ".join(f"#{n}" for n, _ in plan[k:])
-            sys.exit(f"{err or 'gh api graphql failed'}\nnot placed: {left}; "
-                     "run the same command again once the refusal has cleared")
+            # extends the block `[D-27]`. Every issue of the run above this
+            # one is in place; from this one on, none can be counted on to
+            # be, since each goes after the one before. A rerun skips what
+            # is placed.
+            left = ", ".join(f"#{n}" for n in a.numbers[a.numbers.index(number):])
+            when = ("once the limiter has cleared" if gh_preflight.LIMITER.search(err or "")
+                    else "once the cause is fixed; waiting will not clear this one")
+            sys.exit(f"{err or 'gh api graphql failed'}\nnot yet in place: {left}; "
+                     f"run the same command again {when}")
         loop_cache.drop("queue")
         print(f"#{number} ranked " + (f"after #{after}" if after is not None else "first"), flush=True)
 
