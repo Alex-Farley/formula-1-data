@@ -8,7 +8,9 @@ f1_compat.json, and the JSON files lapledger.org serves under /api/v1/
 (the rows of f1.db, one file per driver, constructor, circuit, season and
 race). The published files are copies of f1.db in other formats and
 carry its terms. It does not cover the code (see LICENSE), nor f1-geometry.db,
-whose terms are under *Circuit geometry* below.
+whose terms are under *Circuit geometry* below. The views.sql in
+f1-parquet.zip is the views' SQL as schema.sql writes it, and like schema.sql
+it is also available under LICENSE (MIT).
 
 Copyright (c) 2026 Alex Farley and Wikipedia contributors.
 

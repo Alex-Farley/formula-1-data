@@ -67,7 +67,10 @@ WHY IT WRITES A views.sql
     bundle of tables alone made every reader reinvent the joins (DA-14). The
     file is every CREATE VIEW as f1.db stores it, read from sqlite_master
     rather than kept here, so a view added to schema.sql ships without an
-    edit to this file.
+    edit to this file. Those statements are already published under MIT in
+    schema.sql, so README.txt says views.sql is also available under LICENSE
+    (MIT), and ATTRIBUTION.md and LICENSE-DATA say the same (PM-64): one set
+    of terms for the same SQL, whichever file a reader took it from.
 """
 import argparse
 import os
@@ -294,6 +297,14 @@ def notice(con, written):
               f"v_race_classification, v_standings_final and the rest - as "
               f"CREATE VIEW statements in SQLite's SQL, to run over these "
               f"files once each is loaded as a table of its own name."),
+        "",
+        _wrap("Those statements are the project's code as well as part of "
+              "f1.db. schema.sql publishes the same statements under LICENSE "
+              "(MIT), so views.sql is also available under LICENSE (MIT), as "
+              "schema.sql is: the same SQL on the same terms whichever file "
+              "it came from."),
+        "",
+        f"    {REPOSITORY}/blob/main/LICENSE",
         "",
         "TERMS",
         "",
