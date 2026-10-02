@@ -30,6 +30,7 @@ import os
 import re
 import sqlite3
 import sys
+import unicodedata
 from collections import Counter
 
 
@@ -3936,9 +3937,9 @@ def circuit_article_faults(rows, register, declared):
 def circuit_articles():
     """VD-47 (#420). Which Wikipedia article describes each circuit, read
     from the List of Formula One circuits and matched on country, seasons
-    and races held. Nothing loads it yet; a wrong row would put a photograph
-    of the wrong place on a circuit page under someone else's name, so it is
-    checked from the day it exists."""
+    and races held. build.py loads it into circuits.article and
+    circuits.article_section (VD-61); a wrong row would put a photograph
+    of the wrong place on a circuit page under someone else's name."""
     import build
     from data import circuits as C
     H = harvest_module()
@@ -3967,6 +3968,22 @@ def circuit_articles():
     faults, later = circuit_article_faults(rows, register, declared)
     for name, found in faults.items():
         check(name, not found, "; ".join(found[:5]))
+
+    # The loaded columns are the file, row for row, read here from the file
+    # rather than from the build that copied it: a circuit the file maps
+    # holds its article and section, and one it does not holds neither.
+    want = {r["circuit_id"]: (r["article"], r["section"]) for r in rows}
+    off = [f"{cid}: {(a, s)} not {want.get(cid, (None, None))}"
+           for cid, a, s in con.execute(
+               "SELECT id, article, article_section FROM circuits ORDER BY id")
+           if (a, s) != want.get(cid, (None, None))]
+    check("circuits.article and article_section are the harvest's mapping",
+          not off, "; ".join(off[:3]))
+    # A declared not-the-circuit row is a statement about a mapped row; one
+    # whose row has gone is a declaration nothing reads.
+    stale = sorted(set(H.CIRCUIT_ARTICLE_NOT_THE_CIRCUIT) - set(want))
+    check("every circuit declared not to be its article's subject is mapped",
+          not stale, ", ".join(stale))
     warn("every circuit in the register is mapped or declared", not later,
          f"{', '.join(later)}: no completed race by the list's date - rerun "
          f"tools/circuit_articles.py once it has one" if later else "")
@@ -4651,6 +4668,10 @@ def the_full_classification():
         # the category route (AF-42), so each floor names one harvest.
         ("article_images", "article", 623, "harvest/article_images.txt"),
         ("article_images", "chassis_id", 119, "harvest/category_images.txt"),
+        # VD-61's two, at the counts they arrived with: `circuit_id` is filled
+        # only on the circuit route, and `circuits.article` from the mapping.
+        ("article_images", "circuit_id", 20, "harvest/circuit_images.txt"),
+        ("circuits", "article", 79, "harvest/circuit_articles.txt"),
     )
     for table, column, floor, source in COLUMN_FLOORS:
         n = con.execute(f"SELECT COUNT({column}) FROM {table}").fetchone()[0]
@@ -5056,6 +5077,7 @@ def illustration_and_geometry():
     nimg = con.execute("SELECT COUNT(*) FROM article_images").fetchone()[0]
     ngeo = con.execute(f"SELECT COUNT(*) FROM {GEO}").fetchone()[0]
     print(f"  [info] {nimg} article images, {ngeo} circuit centrelines")
+    H = harvest_module()
 
     if nimg:
         # A file hosted locally on en.wikipedia.org is local BECAUSE it is
@@ -5067,7 +5089,7 @@ def illustration_and_geometry():
         # and the File namespace instead and records 'commons'. The pairing is
         # also a CHECK in schema.sql; this is where a loosened schema shows.
         local = con.execute("""SELECT COUNT(*) FROM article_images
-            WHERE NOT ((route = 'article' AND repository = 'shared')
+            WHERE NOT ((route IN ('article', 'circuit') AND repository = 'shared')
                     OR (route = 'category' AND repository = 'commons'))"""
                             ).fetchone()[0]
         check("every linked image is on Wikimedia Commons, not a local upload",
@@ -5099,7 +5121,8 @@ def illustration_and_geometry():
         import urllib.parse as _up
         misaddressed, nthumb = [], 0
         for key, file_name, url in con.execute(
-                """SELECT COALESCE(article, chassis_id), file_name, thumb_url
+                """SELECT COALESCE(article, chassis_id, circuit_id), file_name,
+                          thumb_url
                    FROM article_images WHERE thumb_url IS NOT NULL"""):
             nthumb += 1
             name = file_name.removeprefix("File:").replace(" ", "_")
@@ -5144,6 +5167,56 @@ def illustration_and_geometry():
         check("every category image belongs to a chassis no article describes",
               stray == 0)
 
+        # The circuit route (VD-61), re-applied from the database and the
+        # declarations rather than trusted from the harvest: the circuit's
+        # article is about the circuit as a whole - not a section of a larger
+        # one, not a race - and the file is an aerial photograph whose name
+        # names the circuit. The name is tested more loosely than the
+        # harvest's word-boundary test, as a run of the file name's letters
+        # and digits, so that it is a second route to the same answer rather
+        # than the same code run twice; the forms are the ones the harvest
+        # names (tools/wikimedia_images.py, the circuit route).
+        def _alnum(s):
+            s = unicodedata.normalize("NFKD", s or "")
+            return re.sub(r"[^a-z0-9]", "", "".join(
+                c for c in s if not unicodedata.combining(c)).lower())
+        linked = {r["circuit_id"]: r["linked_as"]
+                  for r in H.load_circuit_articles()}
+        not_place = []
+        for r in con.execute("""SELECT i.circuit_id, i.file_name,
+                    i.confidence, i.name_matches, c.article,
+                    c.article_section, c.name, c.official_name
+                FROM article_images i
+                LEFT JOIN circuits c ON c.id = i.circuit_id
+                WHERE i.route = 'circuit'"""):
+            cid, f = r["circuit_id"], r["file_name"]
+            forms = [r["article"], linked.get(cid), r["name"],
+                     r["official_name"]]
+            if r["article"] is None:
+                not_place.append(f"{cid}: no article is mapped to it")
+            elif r["article_section"] is not None:
+                not_place.append(f"{cid}: its article is a section of "
+                                 f"{r['article']}")
+            elif cid in H.CIRCUIT_ARTICLE_NOT_THE_CIRCUIT:
+                not_place.append(f"{cid}: its article is not about the "
+                                 f"circuit")
+            elif not (f.lower().endswith(H.CIRCUIT_PHOTOGRAPH_SUFFIX)
+                      and H.CIRCUIT_PHOTOGRAPH.search(f)):
+                not_place.append(f"{cid}: {f} is not an aerial photograph")
+            elif not any(_alnum(x) and _alnum(x) in _alnum(f)
+                         for x in forms):
+                not_place.append(f"{cid}: {f} does not name the circuit")
+            elif r["confidence"] != "unverified" or r["name_matches"] != 1:
+                not_place.append(f"{cid}: held at {r['confidence']}, "
+                                 f"name_matches {r['name_matches']}")
+        ncirc = con.execute("SELECT COUNT(*) FROM article_images "
+                            "WHERE route = 'circuit'").fetchone()[0]
+        check("every circuit image is an aerial photograph naming its "
+              "circuit, from an article about the circuit as a whole, at "
+              "'unverified'", not not_place,
+              "; ".join(not_place[:3]) if not_place
+              else f"{ncirc} circuits")
+
         # The two routes make different claims and sit on different rungs.
         # An article-route row at 'catalogued' would blur exactly the line
         # the rung was added to draw.
@@ -5167,7 +5240,8 @@ def illustration_and_geometry():
              promoted == 0,
              f"{unnamed} of {narticle} do not name the car in the file name; "
              f"see v_images_to_check")
-        ncat = nimg - narticle
+        ncat = con.execute("SELECT COUNT(*) FROM article_images "
+                           "WHERE route = 'category'").fetchone()[0]
         lifted = con.execute("SELECT COUNT(*) FROM article_images "
                              "WHERE route = 'category' "
                              "AND confidence <> 'catalogued'").fetchone()[0]

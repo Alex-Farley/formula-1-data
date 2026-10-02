@@ -165,6 +165,13 @@ their own: a photograph filed on Commons under a category named for the
 chassis. They are held under the same rules — Commons-hosted, a free licence,
 someone to credit — and are not shown on the site.
 
+A third (`route = 'circuit'`) covers circuits: an aerial photograph in the
+body of the Wikipedia article the List of Formula One circuits links for the
+circuit, whose file name names it. The same rules hold, and the files are
+asked of en.wikipedia.org as the article route's are. Which article that is
+(`circuits.article`) is a fact taken from one revision of the list, cited per
+circuit in `claims`; no text of the list or the articles is copied.
+
 There is **no single licence** covering these files. Across the 623 article rows there are
 sixteen distinct licence strings — CC BY-SA at 1.0, 2.0, 2.5, 3.0 and 4.0,
 CC BY at 2.0, 2.5, 3.0 and 4.0, CC0, public domain, and national variants such

@@ -510,7 +510,9 @@ SOURCE_REGISTRY = [
      "https://commons.wikimedia.org/",
      "The lead photograph of each accepted car article, and the attribution "
      "needed to display it; for a chassis with no article, a photograph filed "
-     "under the Commons category named for it (AF-42). Loaded by "
+     "under the Commons category named for it (AF-42); for a circuit, an "
+     "aerial photograph in the body of the article mapped to it (VD-61). "
+     "Loaded by "
      "tools/wikimedia_images.py. NO IMAGE IS "
      "STORED - article_images holds a reference and its credit, and the "
      "pixels are fetched from upload.wikimedia.org by whatever renders the "
@@ -630,6 +632,12 @@ SOURCE_PATTERNS = [
     # check read only tables with a `confidence` column, and pit_stops has
     # none (DA-03).
     (10, r"^f1db$", "the bare token pit_stops carries"),
+    # The dated revision of the List of Formula One circuits that
+    # harvest/circuit_articles.txt was read from (VD-47), which the claims
+    # behind circuits.article cite (VD-61). A revision, not the live page:
+    # the mapping is that revision's. Last, so no id above moves.
+    (17, r"^https://en\.wikipedia\.org/w/index\.php\?title=List_of_Formula_One_circuits&oldid=\d+$",
+     "the revision of the circuit list the circuit-article mapping reads"),
 ]
 
 # ------------------------------------------------------------------ claims
@@ -656,6 +664,8 @@ CLAIM_FIELDS = {
     ("chassis", "published_wins"): "likewise, wins",
     ("chassis", "published_poles"): "likewise, poles",
     ("car_seasons", "other_chassis"): "chassis F1DB's entry lists name for the constructor that season beyond the ones the car covers",
+    ("circuits", "article"): "the Wikipedia article the List of Formula One circuits links for the circuit",
+    ("circuits", "article_section"): "likewise, the section of it the list links, where it links a section",
 }
 
 # Provenance for the tables that carry `confidence` and no `source` column.
@@ -698,7 +708,9 @@ TABLE_PROVENANCE = [
      "car is not established and nothing here can establish it. known_gaps #11. "
      "Rows on the category route (AF-42) have no article at all: a Commons "
      "category named for the chassis stands in for it, and they sit a rung "
-     "lower, at 'catalogued'."),
+     "lower, at 'catalogued'. Rows on the circuit route (VD-61) are an "
+     "aerial photograph in the article mapped to the circuit, whose file "
+     "name names it; that it shows the circuit is no better established."),
     ("circuit_geometry", 16, 0, None),
 ]
 

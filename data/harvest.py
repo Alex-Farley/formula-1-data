@@ -1434,6 +1434,7 @@ SPECS_FILE = os.path.join(HERE, "..", "harvest", "car_specs.txt")
 IMAGES_FILE = os.path.join(HERE, "..", "harvest", "article_images.txt")
 CIRCUIT_ARTICLES_FILE = os.path.join(HERE, "..", "harvest", "circuit_articles.txt")
 CATEGORY_IMAGES_FILE = os.path.join(HERE, "..", "harvest", "category_images.txt")
+CIRCUIT_IMAGES_FILE = os.path.join(HERE, "..", "harvest", "circuit_images.txt")
 GEOMETRY_FILE = os.path.join(HERE, "..", "harvest", "circuit_geometry.txt")
 RESULTS_FILE = os.path.join(HERE, "..", "harvest", "race_results.txt")
 SPRINT_FILE = os.path.join(HERE, "..", "harvest", "sprint_results.txt")
@@ -1964,14 +1965,24 @@ def load_category_images():
                        "tools/wikimedia_images.py --route category")
 
 
+def load_circuit_images():
+    """The aerial photograph of each circuit whose article carries one
+    (VD-61): the same licence obligation as load_article_images(), keyed on
+    the circuit. See CIRCUIT_PHOTOGRAPH below for which file qualifies."""
+    return _read_named(CIRCUIT_IMAGES_FILE,
+                       "tools/wikimedia_images.py --route circuit")
+
+
 # =====================================================================
 # Circuit articles (harvest/circuit_articles.txt, VD-47)
 #
 # Which Wikipedia article describes each circuit, read from the List of
 # Formula One circuits by tools/circuit_articles.py and matched on country,
-# seasons and races held - never on the name. Nothing loads it yet; verify.py
-# cross-checks every row against the register. What follows are the
-# declared exceptions the harvest and the check both read.
+# seasons and races held - never on the name. build.py loads it into
+# circuits.article and circuits.article_section (VD-61), and verify.py
+# cross-checks every row against the register and the loaded columns against
+# the file. What follows are the declared exceptions the harvest and the
+# check both read.
 # =====================================================================
 
 # One list row that this register holds as several circuits. The list's
@@ -2015,6 +2026,30 @@ CIRCUIT_ARTICLE_GAPS = {
 CIRCUIT_WIKIDATA_WRONG = {
     # circuit_id: (the admitted id, which is wrong; the article's, which is right)
 }
+
+
+# A mapped row whose article is not the circuit's, and why, so that the
+# circuit route of tools/wikimedia_images.py takes no photograph from it. A
+# photograph of the wrong place under the circuit's name is what the ruling
+# of 2026-09-24 exists to prevent. The three rows that link a SECTION of a
+# larger article - Fair Park, the Bugatti Circuit, Zeltweg Air Base - need
+# no line here: `section` already says so, and the route refuses every one.
+# verify.py fails on a line here that no longer names a mapped circuit.
+CIRCUIT_ARTICLE_NOT_THE_CIRCUIT = {
+    "caesars-palace": "the list links the race, Caesars Palace Grand Prix, "
+                      "and not an article about the circuit",
+}
+
+# Which body image of a circuit's article stands for the circuit (VD-61,
+# ruled 2026-09-30): a JPEG whose file name names the circuit and says one of
+# these words - an aerial or satellite photograph, which shows the whole
+# circuit. Nothing else. The article's lead image is a track map beside the
+# outline the circuit page already draws; any other named body JPEG picks
+# cars, a music festival, a statue and a road car. A circuit with no such
+# file has no photograph, which fails closed. The harvest applies it, the
+# build refuses a row that breaks it, and verify.py re-applies it.
+CIRCUIT_PHOTOGRAPH = re.compile(r"skysat|aerial|luftaufnahme", re.I)
+CIRCUIT_PHOTOGRAPH_SUFFIX = (".jpg", ".jpeg")
 
 
 def load_circuit_articles():

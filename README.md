@@ -43,13 +43,13 @@ here is a number the build checked.
 
 | File | What it is |
 |---|---|
-| `f1.db` | The SQLite database. <!-- fig:tables -->53<!-- /fig --> tables, <!-- fig:views -->43<!-- /fig --> views, <!-- fig:rows -->173,050<!-- /fig --> rows. This is the artefact. |
+| `f1.db` | The SQLite database. <!-- fig:tables -->53<!-- /fig --> tables, <!-- fig:views -->43<!-- /fig --> views, <!-- fig:rows -->173,153<!-- /fig --> rows. This is the artefact. |
 | `f1-geometry.db` | The OpenStreetMap circuit centrelines (ODbL), shipped beside `f1.db` and never merged into it. See *Illustration*. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
 | `f1_compat.json` | JSON in the *original* v1 key layout, so anything already consuming that file keeps working. |
 | `schema.sql` | The schema, commented. Served at `lapledger.org/schema.sql`, so a downloader can read what the tables mean. |
-| `build.py` | Rebuilds `f1.db` and `f1-geometry.db` from the data modules. Idempotent, and byte-for-byte reproducible. <!-- fig:stages -->38<!-- /fig --> named stages; `STAGES` is the schedule. |
+| `build.py` | Rebuilds `f1.db` and `f1-geometry.db` from the data modules. Idempotent, and byte-for-byte reproducible. <!-- fig:stages -->39<!-- /fig --> named stages; `STAGES` is the schedule. |
 | `verify.py` | Integrity, cross-tabulation and sanity checks on the DATA. Exit code 1 on failure. |
 | `tests/` | Unit tests for the CODE — name matching, lap-closure arithmetic — plus `test_conventions.py`, the reviewer checklists' mechanical items as tests, and `test_verify_refuses.py`, the licence gate shown refusing each thing it exists to refuse. `make test`, stdlib only. |
 | `ruff.toml`, `web/biome.jsonc` | The linters CI runs on the Python and the front end, and every rule left out with its reason. `make lint`. Neither is a dependency of the build. |
@@ -71,7 +71,8 @@ here is a number the build checked.
 | `harvest/article_images.txt`, `.log` | The photograph of each car article and its licence; every article refused, and why. **Generated** by `tools/wikimedia_images.py`. |
 | `harvest/category_images.txt`, `.log` | For a chassis with no article, a photograph from the Commons category named for it; every such chassis refused, and why. **Generated** by `tools/wikimedia_images.py --route category`. |
 | `harvest/circuit_geometry.txt`, `.log` | The OSM centrelines and every relation refused. **Generated** by `tools/osm_geometry.py`. |
-| `harvest/circuit_articles.txt`, `.log` | The Wikipedia article that describes each circuit, off the List of Formula One circuits and matched on country, seasons and races held, never on the name; every row and circuit not matched, and why. **Generated** by `tools/circuit_articles.py`. Not loaded yet: `verify.py` checks it against the register. |
+| `harvest/circuit_articles.txt`, `.log` | The Wikipedia article that describes each circuit, off the List of Formula One circuits and matched on country, seasons and races held, never on the name; every row and circuit not matched, and why. **Generated** by `tools/circuit_articles.py`. Loaded into `circuits.article` and `circuits.article_section`; `verify.py` checks it against the register. |
+| `harvest/circuit_images.txt`, `.log` | The aerial photograph of each circuit whose article carries one, and its licence; every mapped circuit refused, and why. **Generated** by `tools/wikimedia_images.py --route circuit`. |
 | `tools/f1db_fetch.py` | Pulls the registers, the classification, qualifying, practice, standings and pit stops from F1DB (CC BY 4.0) into the generated harvest files. Needs network; not part of the build. |
 | `tools/wikispec_fetch.py` | Harvests chassis specifications from the `{{Racing car}}` infobox on each car's article, refusing any page that disagrees with the register. Needs network; not part of the build. |
 | `tools/circuit_articles.py` | Maps each circuit to its Wikipedia article from one revision of the List of Formula One circuits, refusing any row whose country, seasons or race count is not one circuit's own. Needs network; not part of the build. |
@@ -831,6 +832,21 @@ attribution checks apply; the Commons check is restated rather than dropped,
 because Commons says `local` about its own files — the harvest checks
 instead that Commons answered, for a page in the File namespace. The site
 does not show these photographs.
+
+**A third route, for circuits.** The
+<!-- fig:circuits_with_article -->79<!-- /fig --> circuits the List of Formula
+One circuits maps to an article (`circuits.article`, each value a claim citing
+the list's revision) are illustrated from that article, and only by an aerial
+photograph: a JPEG in its body whose file name names the circuit and says
+SkySat, aerial or Luftaufnahme. The lead image is a track map — a second
+outline beside the one the circuit page already draws — and the first other
+photograph naming the circuit is as often a car, a music festival or a
+statue. <!-- fig:images_circuit -->20<!-- /fig --> circuits carry one, keyed
+on the circuit because the Nordschleife and the GP-Strecke share an article;
+the rest have none, which fails closed. The three circuits whose list row
+links a section of a larger article, and Caesars Palace, whose link is the
+race, take none whatever their article holds. The same licence and
+attribution checks apply, and the rows sit at `unverified`.
 
 ### Centrelines — `circuit_geometry`
 
