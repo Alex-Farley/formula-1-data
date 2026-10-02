@@ -712,8 +712,7 @@ def standings_are_the_sum_of_the_results():
     rows sat in that state under the first version of this check and could
     not have failed it however wrong they were.
     """
-    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "tools"))
-    import standings_rule
+    standings_rule = _tool("standings_rule")
 
     from data.current import (STANDINGS_ACCUMULATE_FROM,
                               STANDINGS_ADJUSTMENTS)

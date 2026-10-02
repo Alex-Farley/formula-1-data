@@ -174,7 +174,6 @@ export const driverName = (name, row) => `${text(name ?? row.driver_id)}${row.sh
 /** "●" with the words "fastest lap" for a screen reader; nothing otherwise. */
 export const fastestLapMark = (value) => (value === 1 ? `●${FASTEST_LAP}` : '')
 
-
 /**
  * The car an entry raced, for every surface that names one.
  *

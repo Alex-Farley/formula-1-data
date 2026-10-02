@@ -104,7 +104,6 @@ export const SEASONS = `
 export const soFar = (name, row) =>
   row.not_started ? NOT_YET_RUN : missing(name) ? EMPTY : row.undecided ? `${name} ${SO_FAR}` : String(name)
 
-
 export const SEASONS_COLUMNS = [
   // The year is a link in both renderers; text() would print 2,026.
   { key: 'year', rowHeader: true, label: 'Season', align: 'num', text: (year) => String(year) },
