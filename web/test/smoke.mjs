@@ -5410,6 +5410,7 @@ try {
     const broken = []
     let reached = 0
     let strips = 0
+    let circuitsReached = 0
     for (const { at, query, args, subject = (row) => row.article, alt: altFor = (row) => row.article } of surfaces) {
       const file = join(distDir, at, 'index.html')
       if (!existsSync(file)) continue
@@ -5427,13 +5428,14 @@ try {
       strips += 1
       expected.forEach((row, at_) => {
         reached += 1
+        if (at.startsWith('circuits/')) circuitsReached += 1
         const figure = drawn[at_]
         const caption = unescaped(/<figcaption>([\s\S]*?)<\/figcaption>/.exec(figure)?.[1]?.replace(/<[^>]+>/g, '') ?? '')
         const alt = unescaped(/<img [^>]*alt="([^"]*)"/.exec(figure)?.[1] ?? '')
         if (!caption.includes(attribution(row))) broken.push(`/${at}: ${row.file_name} names no photographer`)
         else if (!caption.includes(row.licence.trim())) broken.push(`/${at}: ${row.file_name} names no licence`)
         else if (!caption.includes(fileTitle(row.file_name))) broken.push(`/${at}: ${row.file_name} names no file`)
-        else if (subject && !caption.includes(subject(row))) broken.push(`/${at}: ${row.file_name} does not say which car it is`)
+        else if (subject && !caption.includes(subject(row))) broken.push(`/${at}: ${row.file_name} does not say what it is of`)
         else if (alt !== altFor(row)) broken.push(`/${at}: alt is "${alt}", not "${altFor(row)}"`)
       })
     }
@@ -5443,6 +5445,15 @@ try {
       for (const message of broken.slice(0, 5)) fail(message)
       if (broken.length > 5) fail(`…and ${broken.length - 5} more`)
     }
+    // The circuit half on its own count, so it cannot pass by reaching
+    // nothing inside a total of two thousand: every showable circuit
+    // photograph whose page was written, each one checked above.
+    const circuitRows = db
+      .prepare("SELECT * FROM article_images WHERE route = 'circuit'")
+      .all()
+      .filter((row) => canShow(row) && circuitPages.includes(row.circuit_id))
+    atLeast(circuitRows.length, 1, 'circuit photographs to check')
+    is(circuitsReached, circuitRows.length, 'every circuit photograph was reached on its static page')
   })
 
   /*
