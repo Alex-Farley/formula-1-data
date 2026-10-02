@@ -376,6 +376,14 @@ class CircuitPhotograph(unittest.TestCase):
             ["Hungaroring"])
         self.assertFalse(self.H.circuit_file_names(
             "File:Long Beach aerial view.jpg", forms))
+        # A town whose name ends in -ring is still a town.
+        self.assertEqual(self.H.circuit_name_forms(
+            "Sebring International Raceway", "Sebring International Raceway",
+            "Sebring", "Sebring International Raceway"),
+            ["Sebring International Raceway"])
+        self.assertEqual(self.H.circuit_name_forms(
+            "Nürburgring", "Nürburgring", "Nurburgring (GP-Strecke)",
+            "Nurburgring"), ["Nürburgring", "Nurburgring"])
 
     def test_a_copyright_mark_in_the_name_refuses_the_file(self):
         self.assertEqual(self.take(

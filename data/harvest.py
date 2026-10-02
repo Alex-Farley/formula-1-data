@@ -2065,14 +2065,17 @@ CIRCUIT_PHOTOGRAPH_MARKED = re.compile(r"\(c\)|\u00a9", re.I)
 # names a venue rather than a place. A third of the register's short names
 # are the town, the suburb or the hill (Long Beach, Sebring, Kyalami,
 # Montjuic), and "Long Beach aerial view.jpg" is the city. A form counts when
-# it carries one of these words, or is one word ending in -ring (Hungaroring,
-# Nurburgring). "Park" stays: every such name in the register is a circuit's
+# it carries one of these words, or is one of the one-word -ring names in
+# CIRCUIT_RING_NAMES - listed, because a word ending in -ring is as often a
+# town: Sebring is one. "Park" stays: every such name in the register is a circuit's
 # (Istanbul Park, Donington Park), Albert Park's included, whose roads are
 # the circuit. A circuit none of whose forms counts (AVUS, Rouen-les-Essarts)
 # takes no photograph, which fails closed.
 CIRCUIT_VENUE_WORD = re.compile(
     r"\b(circuit|circuito|autodromo|autodrom|autodrome|speedway|raceway|"
-    r"racing course|international|park)\b|ring\b", re.I)
+    r"racing course|international|park|ring)\b", re.I)
+CIRCUIT_RING_NAMES = {"hungaroring", "hockenheimring", "nurburgring",
+                      "madring"}
 
 
 def _fold(s):
@@ -2085,7 +2088,8 @@ def circuit_name_forms(article, linked_as, name, official_name):
     those of the four that name a venue (CIRCUIT_VENUE_WORD)."""
     out = []
     for f in (article, (linked_as or "").split("#")[0], name, official_name):
-        if f and f not in out and CIRCUIT_VENUE_WORD.search(_fold(f)):
+        if f and f not in out and (CIRCUIT_VENUE_WORD.search(_fold(f))
+                                   or _fold(f).lower() in CIRCUIT_RING_NAMES):
             out.append(f)
     return out
 
