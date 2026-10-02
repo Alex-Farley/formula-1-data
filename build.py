@@ -6,6 +6,7 @@ Build f1.db from schema.sql and the data modules.
 
 Idempotent: deletes and rebuilds the database each run.
 """
+import importlib
 import json
 import math
 import os
@@ -33,18 +34,23 @@ from data import results as RS     # noqa: E402
 from data import sessions as SS    # noqa: E402
 
 
+def _tool(name):
+    """A module from tools/, imported from beside this file. The directory
+    goes on sys.path once, however many times a stage asks."""
+    tools = os.path.join(HERE, "tools")
+    if tools not in sys.path:
+        sys.path.insert(0, tools)
+    return importlib.import_module(name)
+
+
 def _prose_figures():
     """tools/prose_figures.py, imported from beside this file."""
-    sys.path.insert(0, os.path.join(HERE, "tools"))
-    import prose_figures
-    return prose_figures
+    return _tool("prose_figures")
 
 
 def _standings_rule():
     """tools/standings_rule.py, imported from beside this file."""
-    sys.path.insert(0, os.path.join(HERE, "tools"))
-    import standings_rule
-    return standings_rule
+    return _tool("standings_rule")
 
 
 DB = os.path.join(HERE, "f1.db")
@@ -5332,13 +5338,19 @@ def derive_records(cur):
           f"cars, and cannot count.")
 
     # -------------------------------------------------------------- races
-    rows = q("""SELECT a.points - b.points m, a.entity, a.driver_id, a.year,
+    # The view is read once into a MATERIALIZED CTE and the CTE is joined to
+    # itself. Joining v_standings_final to itself directly makes SQLite
+    # re-evaluate the view's correlated fill subquery for every candidate
+    # pair - 22 s of a 32 s build, for the same 76 rows.
+    rows = q("""WITH top2 AS MATERIALIZED (
+                  SELECT year, position, entity, driver_id, points FROM v_standings_final
+                   WHERE table_type = 'drivers' AND position IN (1, 2))
+                SELECT a.points - b.points m, a.entity, a.driver_id, a.year,
                        a.points, b.entity, b.points
-                  FROM v_standings_final a
-                  JOIN v_standings_final b ON b.year = a.year AND b.table_type = 'drivers'
-                                          AND b.position = 2
+                  FROM top2 a
+                  JOIN top2 b ON b.year = a.year AND b.position = 2
                   JOIN seasons s ON s.year = a.year
-                 WHERE a.table_type = 'drivers' AND a.position = 1
+                 WHERE a.position = 1
                    AND s.drivers_champion IS NOT NULL
                  ORDER BY m, a.year""")
     lead = _leaders(rows, biggest=False)

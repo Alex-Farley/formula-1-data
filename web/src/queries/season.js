@@ -527,7 +527,6 @@ export const GAP_FOOTER =
   'before 1991 it is a difference of net totals, dropped scores and all.'
 
 const position = (value, row) => text(value ?? row.position)
-const pts = (value) => (missing(value) ? EMPTY : points(value))
 // The leader is nobody's gap: a 0 here means no one is ahead of you on points,
 // which an em dash says and a nought does not. Two drivers tied at the top
 // both get it, which is the same statement about each of them.
@@ -538,7 +537,7 @@ export const DRIVERS_FINAL_COLUMNS = [
   { key: 'position_text', label: 'Pos', align: 'num', text: position, glossary: 'results' },
   { key: 'entity', rowHeader: true, label: 'Driver' },
   { key: 'wins', label: 'Wins', align: 'num', text: won },
-  { key: 'points', label: 'Points', align: 'num', text: pts },
+  { key: 'points', label: 'Points', align: 'num', text: points },
   { key: 'gap', label: 'Gap', align: 'num', text: behind },
 ]
 
@@ -553,7 +552,7 @@ export const constructorEntity = (name, row) => (row.engine_id ? `${text(name)} 
 export const CONSTRUCTORS_FINAL_COLUMNS = [
   { key: 'position_text', label: 'Pos', align: 'num', text: position, glossary: 'results' },
   { key: 'entity', rowHeader: true, label: 'Constructor', text: constructorEntity },
-  { key: 'points', label: 'Points', align: 'num', text: pts },
+  { key: 'points', label: 'Points', align: 'num', text: points },
   { key: 'gap', label: 'Gap', align: 'num', text: behind },
 ]
 
