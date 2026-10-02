@@ -271,9 +271,11 @@ import {
   TEAMS as TEAMS_HERE,
   TEAM_COLUMNS,
   OUTLINES as CIRCUIT_OUTLINES,
+  PHOTOGRAPH as CIRCUIT_PHOTOGRAPH,
   WINNERS as WINNERS_HERE,
   WINNER_COLUMNS,
   heldAs,
+  photographAlt as circuitPhotographAlt,
 } from '../src/queries/circuit.js'
 import { GRANDS_PRIX, GRANDS_PRIX_COLUMNS, GRANDS_PRIX_FOOTER, GRANDS_PRIX_LEDE } from '../src/queries/grandsprix.js'
 import {
@@ -1201,12 +1203,12 @@ const outbound = (url, label) =>
  * ready and failed, and a static page claiming "loading" for ever would be a
  * worse answer than none.
  */
-const photograph = (image, width, caption = null) => {
+const photograph = (image, width, caption = null, alt = caption) => {
   const title = fileTitle(image.file_name)
   const licence = (image.licence ?? '').trim()
   const size = image.width && image.height ? ` width="${esc(image.width)}" height="${esc(image.height)}"` : ''
   return `<figure class="photo">
-        <img src="${esc(thumbUrl(image, width))}" alt="${esc(photoAlt(image, caption))}"${size} loading="lazy" decoding="async" />
+        <img src="${esc(thumbUrl(image, width))}" alt="${esc(photoAlt(image, alt))}"${size} loading="lazy" decoding="async" />
         <figcaption>${caption ? `<div class="photo-subject">${esc(caption)}</div>` : ''}${outbound(image.description_url, title)} · ${esc(attribution(image))} · ${
           image.licence_url ? outbound(image.licence_url, licence) : esc(licence)
         }${image.name_matches === 0 ? ` · <span class="pill pill-unverified">${esc(UNCHECKED_MARK)}</span>` : ''}</figcaption>
@@ -1552,11 +1554,14 @@ const structure = (body, tail = '') => {
   // The stepper belongs to the header, because <Page aside> renders it there:
   // a nav left in the body would be swept into the first section instead, and
   // the two halves would put the same two links in different places.
+  // The circuit's photograph is the header's too (VD-62), for the same
+  // reason: Circuit.jsx passes it as <Page aside>. Its wrapper closes on the
+  // figure's own </figure>, which a photograph holds exactly one of.
   const opening = body.match(
-    /^\s*(<h1\b[\s\S]*?<\/h1>)(\s*<p class="lede">[\s\S]*?<\/p>)?(\s*<nav class="stepper"[\s\S]*?<\/nav>)?/,
+    /^\s*(<h1\b[\s\S]*?<\/h1>)(\s*<p class="lede">[\s\S]*?<\/p>)?(\s*<nav class="stepper"[\s\S]*?<\/nav>)?(\s*<div class="page-photo">[\s\S]*?<\/figure>\s*<\/div>)?/,
   )
   if (!opening) die('prerender: a page body that does not open on an h1')
-  return `<article class="page"><header>${opening[1]}${opening[2] ?? ''}${opening[3] ?? ''}</header>${sectioned(
+  return `<article class="page"><header>${opening[1]}${opening[2] ?? ''}${opening[3] ?? ''}${opening[4] ?? ''}</header>${sectioned(
     body.slice(opening[0].length),
   )}${tail}</article>`
 }
@@ -2684,6 +2689,9 @@ page({
     const outlinesHere = all(CIRCUIT_OUTLINES, c.id)
     const layoutsHere = all(CIRCUIT_LAYOUTS, c.id)
     const outlineSplit = leadOutline(outlinesHere)
+    // The photograph beside the heading, as Circuit.jsx draws it (VD-62):
+    // the same query, through canShow() first, and nothing where there is none.
+    const pictured = all(CIRCUIT_PHOTOGRAPH, c.id).find(canShow) ?? null
     const card = (row) => outlineCard(row.path, c.name, row.f1db_layout_id, outlineCaption(row))
     // The events held here, in Circuit.jsx's words (IA-01).
     const held = heldAs(all(CIRCUIT_GRANDS_PRIX, c.id))
@@ -2721,6 +2729,7 @@ page({
       },
       body: `
         <h1>${esc(NAMES.circuit(c.name).headline)}</h1>
+        ${pictured ? `<div class="page-photo">${photograph(pictured, PHOTOGRAPH_WIDTH, null, circuitPhotographAlt(c.name))}</div>` : ''}
         ${fields([
           ['Official name', text(c.official_name)],
           ['Location', text(list([c.locality, c.country]))],

@@ -62,6 +62,7 @@ import { NO_DRAWING, NO_TIMELINE_ROW } from '../src/lib/outline.js'
 // The three surfaces VD-33 gave the photographs to, read from the app's own
 // queries so that the static pages are checked against what the app shows.
 import { CONSTRUCTOR_IMAGES, RACE_IMAGES, SEASON_IMAGES } from '../src/queries/photographs.js'
+import { PHOTOGRAPH as CIRCUIT_PHOTOGRAPH, photographAlt as circuitPhotographAlt } from '../src/queries/circuit.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const web = join(here, '..')
@@ -2450,6 +2451,32 @@ try {
         staticCircuit.includes('not to scale'),
       'the app and the static page both say the outlines are not to scale',
     )
+
+    // VD-62: the circuit's photograph, beside the heading - in the header in
+    // both halves, with its credit, and an alt that says what it is of. The
+    // credit on every circuit page's static half is checked with the other
+    // Commons surfaces below; this is the app's half, and the one place in it.
+    const pictured = db.prepare(CIRCUIT_PHOTOGRAPH).all('silverstone').filter(canShow)
+    is(pictured.length, 1, 'Silverstone has a photograph to show')
+    const shown = await page.$$eval('#root main .page > header figure.photo', (figures) =>
+      figures.map((figure) => ({
+        alt: figure.querySelector('img')?.getAttribute('alt') ?? '',
+        caption: figure.querySelector('figcaption')?.textContent ?? '',
+      })),
+    )
+    is(shown.length, 1, 'the app draws it in the header')
+    is(await page.$$eval('#root main figure.photo', (n) => n.length), 1, 'and nowhere else on the page')
+    if (pictured[0] && shown[0]) {
+      is(shown[0].alt, circuitPhotographAlt('Silverstone Circuit'), 'its alt names the circuit, not the file')
+      truthy(
+        shown[0].caption.includes(attribution(pictured[0])) &&
+          shown[0].caption.includes(pictured[0].licence.trim()) &&
+          shown[0].caption.includes(fileTitle(pictured[0].file_name)),
+        'its caption names the file, the photographer and the licence',
+      )
+    }
+    const staticHeader = /<header>([\s\S]*?)<\/header>/.exec(staticCircuit)?.[1] ?? ''
+    truthy(staticHeader.includes('<div class="page-photo"><figure class="photo">'), 'the static page draws it in the header too')
     // VD-37: the latest layout leads, drawn large, in both renderers - it
     // was the eighth card, alone under a row of seven, and 42 venues with a
     // single layout drew nothing larger than a card a sixth of the row.
@@ -2474,6 +2501,15 @@ try {
     truthy(
       (await page.$eval('#root main', (n) => n.textContent)).includes('No traced centreline for this circuit'),
       'a circuit with no trace says so',
+    )
+
+    // VD-62: a circuit with no photograph - the Sudschleife is one - draws
+    // its page as it always did.
+    await go('/circuits/nurburgring-sudschleife', 'Sudschleife')
+    is(
+      await page.$$eval('#root main figure.photo, #root main .page-photo', (n) => n.length),
+      0,
+      'a circuit with no photograph draws none, and no empty frame',
     )
 
     // IX-32: at Monza the two sides disagree, and the list shows both gaps
@@ -5358,12 +5394,23 @@ try {
       }
     }
     atLeast(surfaces.length, 1000, 'constructor, season and race pages read from dist')
+    // VD-62: the circuit page's one photograph. It carries no subject line -
+    // it sits beside the heading that names the place - so what is asked of
+    // it is the credit and an alt that names the circuit.
+    const circuitName = db.prepare('SELECT name FROM circuits WHERE id = ?')
+    const circuitPages = dirsIn('circuits')
+    atLeast(circuitPages.length, 70, 'circuit pages read from dist')
+    for (const id of circuitPages) {
+      const name = circuitName.get(id)?.name
+      if (name === undefined) continue
+      surfaces.push({ at: `circuits/${id}`, query: CIRCUIT_PHOTOGRAPH, args: [id], subject: null, alt: () => circuitPhotographAlt(name) })
+    }
 
     const prepared = new Map()
     const broken = []
     let reached = 0
     let strips = 0
-    for (const { at, query, args } of surfaces) {
+    for (const { at, query, args, subject = (row) => row.article, alt: altFor = (row) => row.article } of surfaces) {
       const file = join(distDir, at, 'index.html')
       if (!existsSync(file)) continue
       if (!prepared.has(query)) prepared.set(query, db.prepare(query))
@@ -5386,12 +5433,12 @@ try {
         if (!caption.includes(attribution(row))) broken.push(`/${at}: ${row.file_name} names no photographer`)
         else if (!caption.includes(row.licence.trim())) broken.push(`/${at}: ${row.file_name} names no licence`)
         else if (!caption.includes(fileTitle(row.file_name))) broken.push(`/${at}: ${row.file_name} names no file`)
-        else if (!caption.includes(row.article)) broken.push(`/${at}: ${row.file_name} does not say which car it is`)
-        else if (alt !== row.article) broken.push(`/${at}: alt is "${alt}", not "${row.article}"`)
+        else if (subject && !caption.includes(subject(row))) broken.push(`/${at}: ${row.file_name} does not say which car it is`)
+        else if (alt !== altFor(row)) broken.push(`/${at}: alt is "${alt}", not "${altFor(row)}"`)
       })
     }
     if (broken.length === 0) {
-      pass(`all ${reached} photograph(s) on ${strips} constructor, season and race pages carry their credit, their car and an alt that names it`)
+      pass(`all ${reached} photograph(s) on ${strips} constructor, season, race and circuit pages carry their credit, their subject and an alt that names it`)
     } else {
       for (const message of broken.slice(0, 5)) fail(message)
       if (broken.length > 5) fail(`…and ${broken.length - 5} more`)
