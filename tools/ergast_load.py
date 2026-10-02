@@ -96,6 +96,7 @@ DUMP_INDEX = "https://api.jolpi.ca/data/dumps/download/"
 DUMP_CACHE = os.path.join(HERE, ".jolpicadump")
 
 from data import results as RS          # noqa: E402  (id maps live here)
+from loader_citation import cite_changed, snapshot  # noqa: E402
 
 
 def fetch(url, tries=4):
@@ -754,6 +755,15 @@ def main():
                     loaded += 1
                     continue
 
+                # A row this changes is re-cited as Jolpica's, with no
+                # source_id: F1DB's citation on Jolpica's values is a row
+                # every licence check would pass (CR-61). One it writes back
+                # unchanged keeps F1DB's.
+                cite = (source_note.format(year=year)
+                        if "{year}" in source_note else source_note)
+                key = (rid, did)
+                before = snapshot(cur, "race_entries",
+                                  "race_id=? AND driver_id=?", key)
                 cur.execute("""INSERT INTO race_entries (race_id, driver_id,
                         constructor_id, finish_position, grid, classified,
                         status, laps_completed, points, shared_drive,
@@ -772,9 +782,9 @@ def main():
                         shared_drive    = MAX(shared_drive,
                                               excluded.shared_drive)""",
                     (rid, did, cid, e["position"], grid, classified,
-                     e["status"], e["laps"], e["points"], shared,
-                     source_note.format(year=year)
-                     if "{year}" in source_note else source_note))
+                     e["status"], e["laps"], e["points"], shared, cite))
+                cite_changed(cur, "race_entries", before, cite,
+                             "race_id=? AND driver_id=?", key)
                 loaded += 1
             totals["races"] += 1
 
@@ -805,10 +815,16 @@ def main():
         WHERE finish_position = 2""").fetchone()[0]
     whole = covered >= held and pmin <= 1 and pmax >= 3
     if not a.dry_run and whole:
+        # A driver whose count this moves is re-cited as Jolpica's, like a
+        # race_entries row above: the count is derived from rows this load
+        # wrote (CR-61).
+        before = snapshot(cur, "drivers")
         cur.execute("""UPDATE drivers SET podiums = (
                 SELECT COUNT(DISTINCT e.race_id) FROM race_entries e
                 WHERE e.driver_id = drivers.id
                   AND e.finish_position BETWEEN 1 AND 3)""")
+        cite_changed(cur, "drivers", before,
+                     source_note if from_dump is not None else f"{BASE}/")
         con.commit()
         derived = True
     else:

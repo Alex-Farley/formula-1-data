@@ -50,6 +50,15 @@ describe('the JSON API refuses a database it may not publish', () => {
     refused(planted('UPDATE race_entries SET source_id = 12 WHERE id = (SELECT MIN(id) FROM race_entries)'), 'race_entries')
   })
 
+  it('a race entry a local loader changed, cited as the loader with no source_id (CR-61)', () => {
+    refused(
+      planted(
+        "UPDATE race_entries SET points = points + 1, source = 'https://api.jolpi.ca/ergast/f1/2024/results/', source_id = NULL WHERE id = (SELECT MAX(id) FROM race_entries WHERE points IS NOT NULL)",
+      ),
+      'race_entries',
+    )
+  })
+
   it('a lap of FOM-owned timing', () => {
     refused(
       planted(

@@ -36,9 +36,14 @@ WHAT IT REFUSES TO DO
     merges the ODbL centrelines back in. Neither may be redistributed, and
     Parquet is a redistribution format - it exists to be handed to somebody.
 
-    So this refuses to run at all on a database carrying either. verify.py
-    enforces the same rule on the committed artefact; this enforces it at the
-    moment the data would leave.
+    Both loaders also write into rows the build made, and a row a loader
+    inserted or changed cites the loader with no source_id
+    (tools/loader_citation.py, CR-61).
+
+    So this refuses to run at all on a database carrying any of them - and on
+    any row citing a source classed `no` - the same rule web/scripts/api.mjs
+    applies. verify.py enforces it on the committed artefact; this enforces
+    it at the moment the data would leave.
 
 WHY IT WRITES A README.txt
     Unzipped, the bundle was forty-odd binary files and nothing else: no
@@ -133,6 +138,23 @@ def refuse_unpublishable(con):
             f"tools/geometry_overlay.py --apply. Exporting them here would "
             f"put every other table under ODbL's share-alike. Remove the "
             f"overlay (tools/geometry_overlay.py --remove) and try again.")
+    # A source with no stored id is one the build never resolved: a local
+    # loader's row, inserted or changed after it (CR-61). The columns are
+    # read, never listed, so a table that gains them is covered.
+    for table in tables(con):
+        cols = {c[1] for c in con.execute(f'PRAGMA table_info("{table}")')}
+        if not {"source", "source_id"} <= cols:
+            continue
+        n = con.execute(f"""SELECT COUNT(*) FROM "{table}"
+            WHERE (source_id IS NULL AND source IS NOT NULL)
+               OR source_id IN (SELECT id FROM source_registry
+                                WHERE redistributable = 'no')""").fetchone()[0]
+        if n:
+            sys.exit(
+                f"REFUSED: {table} holds {n} rows citing a source that may "
+                f"not be passed on, or one the build never resolved - what "
+                f"a local loader leaves on a row it writes. Rebuild "
+                f"(python3 build.py) and run verify.py.")
 
 
 def tables(con):
