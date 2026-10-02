@@ -1842,6 +1842,45 @@ figure.photo figcaption a {
   margin-bottom: var(--space-1);
 }
 
+/* The circuit's photograph (VD-62): an identification image beside the
+   heading, not a hero. It is <Page aside>, so it sits in the header in both
+   renderers. Below the lede on a narrow screen; beside the heading block on a
+   wide one, in a column of its own that the eyebrow, h1 and lede stay left
+   of, with the photograph's extra height taken by the last row rather than
+   spread between them. The height is capped because Suzuka's is portrait,
+   and contained rather than cropped, because the picture is somebody's work
+   shown under their licence. */
+.page-photo {
+  margin-top: var(--space-7);
+  max-width: 22rem;
+}
+
+.page-photo figure.photo img {
+  max-height: 16rem;
+  object-fit: contain;
+}
+
+@media (min-width: 760px) {
+  .page > header:has(> .page-photo) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(12rem, 20rem);
+    grid-template-rows: repeat(3, auto) 1fr;
+    column-gap: var(--space-9);
+    align-items: start;
+  }
+
+  .page > header:has(> .page-photo) > * {
+    grid-column: 1;
+  }
+
+  .page > header > .page-photo {
+    grid-column: 2;
+    grid-row: 1 / span 4;
+    margin-top: 0;
+    max-width: none;
+  }
+}
+
 /* ------------------------------------------------------- circuit outlines */
 
 /* F1DB's drawing of a layout (lib/outline.js): the current ink at a constant

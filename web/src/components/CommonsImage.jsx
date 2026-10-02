@@ -49,7 +49,12 @@ export function useThumbSrc(image, width) {
   return [src, retry]
 }
 
-export default function CommonsImage({ image, width = THUMB_WIDTH, caption, showCheck = true }) {
+/**
+ * `alt` is for a figure that names its subject without a visible caption - the
+ * circuit page's photograph, beside a heading that already names the place
+ * (VD-62). Where a caption is given and no alt, the caption is the alt.
+ */
+export default function CommonsImage({ image, width = THUMB_WIDTH, caption, alt, showCheck = true }) {
   // Loading, arrived, or failed: three states that used to look the same -
   // a sunk grey box - for the seconds a Commons thumbnail takes to arrive,
   // and for ever when it does not. The box now says which it is.
@@ -67,7 +72,7 @@ export default function CommonsImage({ image, width = THUMB_WIDTH, caption, show
     <figure className="photo" data-state={state}>
       <img
         src={src}
-        alt={photoAlt(image, caption)}
+        alt={photoAlt(image, alt ?? caption)}
         width={image.width || undefined}
         height={image.height || undefined}
         loading="lazy"
