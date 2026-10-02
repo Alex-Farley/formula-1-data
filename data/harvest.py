@@ -932,7 +932,7 @@ KNOWN_GAPS = [
      "issue in force at the first two rounds, are read and each row's "
      "rule_107 is set from them."),
 
-    (20, "circuit-article-sudschleife", "harvest/circuit_articles.txt",
+    (20, "circuit-article-sudschleife", "circuits.article",
      "which Wikipedia article describes the Nurburgring Sudschleife",
      "position",
      "The Nurburgring's southern loop is held in the register for a race "
@@ -1434,6 +1434,7 @@ SPECS_FILE = os.path.join(HERE, "..", "harvest", "car_specs.txt")
 IMAGES_FILE = os.path.join(HERE, "..", "harvest", "article_images.txt")
 CIRCUIT_ARTICLES_FILE = os.path.join(HERE, "..", "harvest", "circuit_articles.txt")
 CATEGORY_IMAGES_FILE = os.path.join(HERE, "..", "harvest", "category_images.txt")
+CIRCUIT_IMAGES_FILE = os.path.join(HERE, "..", "harvest", "circuit_images.txt")
 GEOMETRY_FILE = os.path.join(HERE, "..", "harvest", "circuit_geometry.txt")
 RESULTS_FILE = os.path.join(HERE, "..", "harvest", "race_results.txt")
 SPRINT_FILE = os.path.join(HERE, "..", "harvest", "sprint_results.txt")
@@ -1964,14 +1965,24 @@ def load_category_images():
                        "tools/wikimedia_images.py --route category")
 
 
+def load_circuit_images():
+    """The aerial photograph of each circuit whose article carries one
+    (VD-61): the same licence obligation as load_article_images(), keyed on
+    the circuit. See CIRCUIT_PHOTOGRAPH below for which file qualifies."""
+    return _read_named(CIRCUIT_IMAGES_FILE,
+                       "tools/wikimedia_images.py --route circuit")
+
+
 # =====================================================================
 # Circuit articles (harvest/circuit_articles.txt, VD-47)
 #
 # Which Wikipedia article describes each circuit, read from the List of
 # Formula One circuits by tools/circuit_articles.py and matched on country,
-# seasons and races held - never on the name. Nothing loads it yet; verify.py
-# cross-checks every row against the register. What follows are the
-# declared exceptions the harvest and the check both read.
+# seasons and races held - never on the name. build.py loads it into
+# circuits.article and circuits.article_section (VD-61), and verify.py
+# cross-checks every row against the register and the loaded columns against
+# the file. What follows are the declared exceptions the harvest and the
+# check both read.
 # =====================================================================
 
 # One list row that this register holds as several circuits. The list's
@@ -2015,6 +2026,82 @@ CIRCUIT_ARTICLE_GAPS = {
 CIRCUIT_WIKIDATA_WRONG = {
     # circuit_id: (the admitted id, which is wrong; the article's, which is right)
 }
+
+
+# A mapped row whose article is not the circuit's, and why, so that the
+# circuit route of tools/wikimedia_images.py takes no photograph from it. A
+# photograph of the wrong place under the circuit's name is what the ruling
+# of 2026-09-24 exists to prevent. The three rows that link a SECTION of a
+# larger article - Fair Park, the Bugatti Circuit, Zeltweg Air Base - need
+# no line here: `section` already says so, and the route refuses every one.
+# verify.py fails on a line here that no longer names a mapped circuit.
+CIRCUIT_ARTICLE_NOT_THE_CIRCUIT = {
+    "caesars-palace": "the list links the race, Caesars Palace Grand Prix, "
+                      "and not an article about the circuit",
+}
+
+# Which body image of a circuit's article stands for the circuit (VD-61,
+# ruled 2026-09-30): a JPEG whose file name names the circuit and says one of
+# these words - an aerial or satellite photograph, which shows the whole
+# circuit. Nothing else. The article's lead image is a track map beside the
+# outline the circuit page already draws; any other named body JPEG picks
+# cars, a music festival, a statue and a road car. A circuit with no such
+# file has no photograph, which fails closed. The harvest applies it, the
+# build refuses a row that breaks it, and verify.py re-applies it.
+CIRCUIT_PHOTOGRAPH = re.compile(r"skysat|aerial|luftaufnahme", re.I)
+CIRCUIT_PHOTOGRAPH_SUFFIX = (".jpg", ".jpeg")
+
+# A file whose own name carries a copyright mark is refused on the circuit
+# route, whatever its licence says. `Luftaufnahme (c)Red Bull Ring.jpg` is
+# uploaded as its uploader's own work under CC BY-SA 4.0 while its
+# description says "(c) Red Bull Ring", with no permission ticket: the grant
+# is in doubt, and a reference that states a licence to every reader of this
+# database is not the place to settle it (VD-61 review). Refusing fails
+# closed, as the GFDL Nurburgring file's missing author does.
+CIRCUIT_PHOTOGRAPH_MARKED = re.compile(r"\(c\)|\u00a9", re.I)
+
+# What "names the circuit" may be named BY: the article's title, the list's
+# link text, the register's name and official name - but only a form that
+# names a venue rather than a place. A third of the register's short names
+# are the town, the suburb or the hill (Long Beach, Sebring, Kyalami,
+# Montjuic), and "Long Beach aerial view.jpg" is the city. A form counts when
+# it carries one of these words, or is one of the one-word -ring names in
+# CIRCUIT_RING_NAMES - listed, because a word ending in -ring is as often a
+# town: Sebring is one. "Park" stays: every such name in the register is a circuit's
+# (Istanbul Park, Donington Park), Albert Park's included, whose roads are
+# the circuit. A circuit none of whose forms counts (AVUS, Rouen-les-Essarts)
+# takes no photograph, which fails closed.
+CIRCUIT_VENUE_WORD = re.compile(
+    r"\b(circuit|circuito|autodromo|autodrom|autodrome|speedway|raceway|"
+    r"racing course|international|park|ring)\b", re.I)
+CIRCUIT_RING_NAMES = {"hungaroring", "hockenheimring", "nurburgring",
+                      "madring"}
+
+
+def _fold(s):
+    s = unicodedata.normalize("NFKD", s or "")
+    return "".join(c for c in s if not unicodedata.combining(c))
+
+
+def circuit_name_forms(article, linked_as, name, official_name):
+    """The names a circuit's photograph may be named by, in a stable order:
+    those of the four that name a venue (CIRCUIT_VENUE_WORD)."""
+    out = []
+    for f in (article, (linked_as or "").split("#")[0], name, official_name):
+        if f and f not in out and (CIRCUIT_VENUE_WORD.search(_fold(f))
+                                   or _fold(f).lower() in CIRCUIT_RING_NAMES):
+            out.append(f)
+    return out
+
+
+def circuit_file_names(file_name, forms):
+    """Does the file name hold one of `forms`, letters and digits only? The
+    build's and verify.py's test, looser than the harvest's word-boundary
+    one, so it is a second route to the same answer."""
+    def alnum(s):
+        return re.sub(r"[^a-z0-9]", "", _fold(s).lower())
+    have = alnum(file_name)
+    return any(alnum(f) and alnum(f) in have for f in forms)
 
 
 def load_circuit_articles():
