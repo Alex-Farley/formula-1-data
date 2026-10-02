@@ -182,11 +182,14 @@ thing it leaves out was measured first:
 
 An aerial photograph shows the whole circuit, which is what a photograph of
 a circuit is for. A file **names the circuit** by the test `name_matches`
-uses for a car (names_car), against the article's title, the list's link
-text and the register's name and official name - never the locality, since
-"Sochi adler aerial view" is the Olympic park and a city's aerial is the
-city. Among several that qualify the first by title is taken. A circuit with
-none has no photograph, and that fails closed.
+uses for a car (names_car), against those of the article's title, the
+list's link text and the register's name and official name that name a
+venue rather than a place (data/harvest.py circuit_name_forms): "Long Beach
+Street Circuit" counts and "Long Beach" does not, since a city's aerial is
+the city - and "Sochi adler aerial view" is the Olympic park. A file whose
+name carries a copyright mark is refused whatever its licence says
+(CIRCUIT_PHOTOGRAPH_MARKED). Among several that qualify the first by title
+is taken. A circuit with none has no photograph, and that fails closed.
 
 Four mapped circuits take nothing whatever their article carries: the three
 whose list row links a section of a larger article (the `section` column -
@@ -1077,12 +1080,14 @@ def circuit_data():
     return H, {r[0]: (r[1], r[2]) for r in C.CIRCUITS}
 
 
-def circuit_candidates(files, names, rule, suffixes):
+def circuit_candidates(files, names, rule, suffixes, marked=None):
     """The body images of a circuit's article that may stand for it: JPEGs
-    whose name names the circuit and says it is an aerial photograph, in
-    title order. `names` is '+'-joined, as names_car takes chassis ids."""
+    whose name names the circuit and says it is an aerial photograph, and
+    carries no copyright mark, in title order. `names` is '+'-joined, as
+    names_car takes chassis ids."""
     return sorted(f for f in files
                   if f.lower().endswith(suffixes) and rule.search(f)
+                  and not (marked and marked.search(f))
                   and names_car(f, "", names))
 
 
@@ -1118,20 +1123,27 @@ def main_circuit(args):
             raise SystemExit(f"circuit_articles.txt maps {cid}, which "
                              f"data/circuits.py does not hold")
         name, official = register[cid]
-        forms = [r["article"], r.get("linked_as"), name, official]
-        wanted_for[cid] = (r["article"], "+".join(f for f in forms if f))
+        forms = H.circuit_name_forms(r["article"], r.get("linked_as"), name,
+                                     official)
+        if not forms:
+            log.append(f"{cid}\tREFUSED\tnone of its names names a venue "
+                       f"rather than a place")
+            continue
+        wanted_for[cid] = (r["article"], "+".join(forms))
 
     found = body_images(sorted({a for a, _n in wanted_for.values()}))
     plan = {}
     for cid, (article, names) in sorted(wanted_for.items()):
         files = circuit_candidates(found.get(article, ()), names,
                                    H.CIRCUIT_PHOTOGRAPH,
-                                   H.CIRCUIT_PHOTOGRAPH_SUFFIX)
+                                   H.CIRCUIT_PHOTOGRAPH_SUFFIX,
+                                   H.CIRCUIT_PHOTOGRAPH_MARKED)
         if files:
             plan[cid] = files
         else:
             log.append(f"{cid}\tREFUSED\t{article} carries no aerial "
-                       f"photograph whose file name names the circuit")
+                       f"photograph whose file name names the circuit and "
+                       f"carries no copyright mark")
     print(f"{len(plan)} of {len(wanted_for)} whole-circuit articles carry an "
           f"aerial photograph that names the circuit", flush=True)
     info = file_info(sorted({f for v in plan.values() for f in v}), log)

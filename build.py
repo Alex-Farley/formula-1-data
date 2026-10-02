@@ -1197,7 +1197,8 @@ def _stage_11b_the_article_of_each_circuit_and_its(b):
     # Keyed on the circuit, at 'unverified', the article route's rung on the
     # article route's claim. The harvest's checks run again here, and so
     # does the rule of 2026-09-30: a JPEG whose name says it is an aerial
-    # photograph, from an article about the circuit as a whole.
+    # photograph and names the circuit by a venue name, carrying no copyright
+    # mark, from an article about the circuit as a whole.
     circ_rows = 0
     for im in HV.load_circuit_images():
         cid = im.get("circuit_id")
@@ -1215,6 +1216,17 @@ def _stage_11b_the_article_of_each_circuit_and_its(b):
             raise SystemExit(f"circuit_images: {cid}'s {f} is not an aerial "
                              f"photograph by data/harvest.py "
                              f"CIRCUIT_PHOTOGRAPH.")
+        if HV.CIRCUIT_PHOTOGRAPH_MARKED.search(f):
+            raise SystemExit(f"circuit_images: {cid}'s {f} carries a "
+                             f"copyright mark in its name.")
+        name, official = cur.execute(
+            "SELECT name, official_name FROM circuits WHERE id = ?",
+            (cid,)).fetchone()
+        forms = HV.circuit_name_forms(r["article"], r.get("linked_as"),
+                                      name, official)
+        if not HV.circuit_file_names(f, forms) or im.get("name_matches") != "1":
+            raise SystemExit(f"circuit_images: {cid}'s {f} does not name the "
+                             f"circuit by any of {forms}.")
         if im.get("repository") != "shared":
             raise SystemExit(
                 f"circuit_images: {cid} points at a file hosted "
@@ -1235,7 +1247,7 @@ def _stage_11b_the_article_of_each_circuit_and_its(b):
              im.get("thumb_url") or None,
              int(im["width"]) if im.get("width") else None,
              int(im["height"]) if im.get("height") else None,
-             1 if im.get("name_matches") == "1" else 0, "unverified"))
+             1, "unverified"))
         circ_rows += 1
     print(f"  circuit articles: {len(mapped)} of {len(register)} circuits "
           f"mapped; {circ_rows} carry an aerial photograph")

@@ -356,7 +356,31 @@ class CircuitPhotograph(unittest.TestCase):
 
     def take(self, files, names):
         return WI.circuit_candidates(files, names, self.H.CIRCUIT_PHOTOGRAPH,
-                                     self.H.CIRCUIT_PHOTOGRAPH_SUFFIX)
+                                     self.H.CIRCUIT_PHOTOGRAPH_SUFFIX,
+                                     self.H.CIRCUIT_PHOTOGRAPH_MARKED)
+
+    def test_a_bare_place_is_not_a_name_of_the_circuit(self):
+        # The register's short names are often the town; only the forms
+        # that name a venue count, so a city's aerial is not taken.
+        forms = self.H.circuit_name_forms(
+            "Long Beach Street Circuit", "Long Beach Street Circuit",
+            "Long Beach", "Long Beach Street Circuit")
+        self.assertEqual(forms, ["Long Beach Street Circuit"])
+        self.assertEqual(self.take(["File:Long Beach aerial view.jpg"],
+                                   "+".join(forms)), [])
+        self.assertEqual(self.H.circuit_name_forms(
+            "Kyalami", "Kyalami", "Kyalami", "Kyalami Grand Prix Circuit"),
+            ["Kyalami Grand Prix Circuit"])
+        self.assertEqual(self.H.circuit_name_forms(
+            "Hungaroring", "Hungaroring", "Hungaroring", "Hungaroring"),
+            ["Hungaroring"])
+        self.assertFalse(self.H.circuit_file_names(
+            "File:Long Beach aerial view.jpg", forms))
+
+    def test_a_copyright_mark_in_the_name_refuses_the_file(self):
+        self.assertEqual(self.take(
+            ["File:Luftaufnahme (c)Red Bull Ring.jpg"],
+            "Red Bull Ring"), [])
 
     def test_an_aerial_photograph_naming_the_circuit_is_taken(self):
         self.assertEqual(self.take(

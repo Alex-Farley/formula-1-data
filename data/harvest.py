@@ -932,7 +932,7 @@ KNOWN_GAPS = [
      "issue in force at the first two rounds, are read and each row's "
      "rule_107 is set from them."),
 
-    (20, "circuit-article-sudschleife", "harvest/circuit_articles.txt",
+    (20, "circuit-article-sudschleife", "circuits.article",
      "which Wikipedia article describes the Nurburgring Sudschleife",
      "position",
      "The Nurburgring's southern loop is held in the register for a race "
@@ -2050,6 +2050,54 @@ CIRCUIT_ARTICLE_NOT_THE_CIRCUIT = {
 # build refuses a row that breaks it, and verify.py re-applies it.
 CIRCUIT_PHOTOGRAPH = re.compile(r"skysat|aerial|luftaufnahme", re.I)
 CIRCUIT_PHOTOGRAPH_SUFFIX = (".jpg", ".jpeg")
+
+# A file whose own name carries a copyright mark is refused on the circuit
+# route, whatever its licence says. `Luftaufnahme (c)Red Bull Ring.jpg` is
+# uploaded as its uploader's own work under CC BY-SA 4.0 while its
+# description says "(c) Red Bull Ring", with no permission ticket: the grant
+# is in doubt, and a reference that states a licence to every reader of this
+# database is not the place to settle it (VD-61 review). Refusing fails
+# closed, as the GFDL Nurburgring file's missing author does.
+CIRCUIT_PHOTOGRAPH_MARKED = re.compile(r"\(c\)|\u00a9", re.I)
+
+# What "names the circuit" may be named BY: the article's title, the list's
+# link text, the register's name and official name - but only a form that
+# names a venue rather than a place. A third of the register's short names
+# are the town, the suburb or the hill (Long Beach, Sebring, Kyalami,
+# Montjuic), and "Long Beach aerial view.jpg" is the city. A form counts when
+# it carries one of these words, or is one word ending in -ring (Hungaroring,
+# Nurburgring). "Park" stays: every such name in the register is a circuit's
+# (Istanbul Park, Donington Park), Albert Park's included, whose roads are
+# the circuit. A circuit none of whose forms counts (AVUS, Rouen-les-Essarts)
+# takes no photograph, which fails closed.
+CIRCUIT_VENUE_WORD = re.compile(
+    r"\b(circuit|circuito|autodromo|autodrom|autodrome|speedway|raceway|"
+    r"racing course|international|park)\b|ring\b", re.I)
+
+
+def _fold(s):
+    s = unicodedata.normalize("NFKD", s or "")
+    return "".join(c for c in s if not unicodedata.combining(c))
+
+
+def circuit_name_forms(article, linked_as, name, official_name):
+    """The names a circuit's photograph may be named by, in a stable order:
+    those of the four that name a venue (CIRCUIT_VENUE_WORD)."""
+    out = []
+    for f in (article, (linked_as or "").split("#")[0], name, official_name):
+        if f and f not in out and CIRCUIT_VENUE_WORD.search(_fold(f)):
+            out.append(f)
+    return out
+
+
+def circuit_file_names(file_name, forms):
+    """Does the file name hold one of `forms`, letters and digits only? The
+    build's and verify.py's test, looser than the harvest's word-boundary
+    one, so it is a second route to the same answer."""
+    def alnum(s):
+        return re.sub(r"[^a-z0-9]", "", _fold(s).lower())
+    have = alnum(file_name)
+    return any(alnum(f) and alnum(f) in have for f in forms)
 
 
 def load_circuit_articles():

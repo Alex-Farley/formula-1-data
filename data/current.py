@@ -537,7 +537,11 @@ SOURCE_REGISTRY = [
      "police. These rows are 'unverified' because that is what they are. "
      "For a chassis with no article, a photograph filed under a Commons "
      "category named for it is taken instead and held one rung lower, at "
-     "'catalogued' (AF-42)."),
+     "'catalogued' (AF-42). For a circuit (VD-61) the file name test is the "
+     "condition of taking the file, not a signal: an aerial photograph in "
+     "the mapped article whose name names the circuit by a venue name, "
+     "re-checked on every build. What it shows is no better established, "
+     "and those rows are 'unverified' too."),
 
     (16, "OpenStreetMap (via api.openstreetmap.org)",
      "https://www.openstreetmap.org/",
@@ -568,7 +572,9 @@ SOURCE_REGISTRY = [
      "its length and turn count, and why it changed. Feeds circuit_layouts. "
      "Also, from the List of Formula One circuits, which article describes "
      "each circuit (harvest/circuit_articles.txt), matched on country, "
-     "seasons and races held and checked by verify.py; nothing loads it yet.",
+     "seasons and races held and checked by verify.py; build.py loads it "
+     "into circuits.article and circuits.article_section, each value a claim "
+     "citing the list's revision (VD-61).",
      "reference",
      "CC BY-SA 4.0. The change_reason prose follows the article and carries "
      "share-alike with it - see ATTRIBUTION.md.",

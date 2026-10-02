@@ -43,7 +43,7 @@ here is a number the build checked.
 
 | File | What it is |
 |---|---|
-| `f1.db` | The SQLite database. <!-- fig:tables -->53<!-- /fig --> tables, <!-- fig:views -->43<!-- /fig --> views, <!-- fig:rows -->173,153<!-- /fig --> rows. This is the artefact. |
+| `f1.db` | The SQLite database. <!-- fig:tables -->53<!-- /fig --> tables, <!-- fig:views -->43<!-- /fig --> views, <!-- fig:rows -->173,152<!-- /fig --> rows. This is the artefact. |
 | `f1-geometry.db` | The OpenStreetMap circuit centrelines (ODbL), shipped beside `f1.db` and never merged into it. See *Illustration*. |
 | `f1` | Command-line query tool. `./f1` with no arguments prints the commands. |
 | `f1_database.json` | Full JSON export of every table. **Not committed** — `make export` writes it in about a second, and each release carries a copy. |
@@ -837,11 +837,13 @@ does not show these photographs.
 <!-- fig:circuits_with_article -->79<!-- /fig --> circuits the List of Formula
 One circuits maps to an article (`circuits.article`, each value a claim citing
 the list's revision) are illustrated from that article, and only by an aerial
-photograph: a JPEG in its body whose file name names the circuit and says
-SkySat, aerial or Luftaufnahme. The lead image is a track map — a second
+photograph: a JPEG in its body whose file name names the circuit — by a
+name that is a venue's, never a bare town or hill, since a city's aerial is
+the city — says SkySat, aerial or Luftaufnahme, and carries no copyright
+mark. The lead image is a track map — a second
 outline beside the one the circuit page already draws — and the first other
 photograph naming the circuit is as often a car, a music festival or a
-statue. <!-- fig:images_circuit -->20<!-- /fig --> circuits carry one, keyed
+statue. <!-- fig:images_circuit -->19<!-- /fig --> circuits carry one, keyed
 on the circuit because the Nordschleife and the GP-Strecke share an article;
 the rest have none, which fails closed. The three circuits whose list row
 links a section of a larger article, and Caesars Palace, whose link is the

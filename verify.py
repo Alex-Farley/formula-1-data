@@ -30,7 +30,6 @@ import os
 import re
 import sqlite3
 import sys
-import unicodedata
 from collections import Counter
 
 
@@ -4670,7 +4669,7 @@ def the_full_classification():
         ("article_images", "chassis_id", 119, "harvest/category_images.txt"),
         # VD-61's two, at the counts they arrived with: `circuit_id` is filled
         # only on the circuit route, and `circuits.article` from the mapping.
-        ("article_images", "circuit_id", 20, "harvest/circuit_images.txt"),
+        ("article_images", "circuit_id", 19, "harvest/circuit_images.txt"),
         ("circuits", "article", 79, "harvest/circuit_articles.txt"),
     )
     for table, column, floor, source in COLUMN_FLOORS:
@@ -5170,16 +5169,13 @@ def illustration_and_geometry():
         # The circuit route (VD-61), re-applied from the database and the
         # declarations rather than trusted from the harvest: the circuit's
         # article is about the circuit as a whole - not a section of a larger
-        # one, not a race - and the file is an aerial photograph whose name
-        # names the circuit. The name is tested more loosely than the
-        # harvest's word-boundary test, as a run of the file name's letters
-        # and digits, so that it is a second route to the same answer rather
-        # than the same code run twice; the forms are the ones the harvest
-        # names (tools/wikimedia_images.py, the circuit route).
-        def _alnum(s):
-            s = unicodedata.normalize("NFKD", s or "")
-            return re.sub(r"[^a-z0-9]", "", "".join(
-                c for c in s if not unicodedata.combining(c)).lower())
+        # one, not a race - and the file is an aerial photograph, with no
+        # copyright mark in its name, that names the circuit by one of its
+        # venue names (data/harvest.py circuit_name_forms: never a bare
+        # place). The name is tested more loosely than the harvest's
+        # word-boundary test, as a run of the file name's letters and digits,
+        # so that it is a second route to the harvest's answer rather than
+        # the harvest's code run twice.
         linked = {r["circuit_id"]: r["linked_as"]
                   for r in H.load_circuit_articles()}
         not_place = []
@@ -5190,8 +5186,8 @@ def illustration_and_geometry():
                 LEFT JOIN circuits c ON c.id = i.circuit_id
                 WHERE i.route = 'circuit'"""):
             cid, f = r["circuit_id"], r["file_name"]
-            forms = [r["article"], linked.get(cid), r["name"],
-                     r["official_name"]]
+            forms = H.circuit_name_forms(r["article"], linked.get(cid),
+                                         r["name"], r["official_name"])
             if r["article"] is None:
                 not_place.append(f"{cid}: no article is mapped to it")
             elif r["article_section"] is not None:
@@ -5203,8 +5199,9 @@ def illustration_and_geometry():
             elif not (f.lower().endswith(H.CIRCUIT_PHOTOGRAPH_SUFFIX)
                       and H.CIRCUIT_PHOTOGRAPH.search(f)):
                 not_place.append(f"{cid}: {f} is not an aerial photograph")
-            elif not any(_alnum(x) and _alnum(x) in _alnum(f)
-                         for x in forms):
+            elif H.CIRCUIT_PHOTOGRAPH_MARKED.search(f):
+                not_place.append(f"{cid}: {f} carries a copyright mark")
+            elif not H.circuit_file_names(f, forms):
                 not_place.append(f"{cid}: {f} does not name the circuit")
             elif r["confidence"] != "unverified" or r["name_matches"] != 1:
                 not_place.append(f"{cid}: held at {r['confidence']}, "

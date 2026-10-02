@@ -403,8 +403,11 @@ It leaves out the <!-- fig:wp_rows -->4,870<!-- /fig --> rows that cite Wikipedi
 | <!-- fig:wp_radio -->6<!-- /fig --> | `team_radio` | the radio quotations |
 | <!-- fig:wp_note_sources -->53<!-- /fig --> | `driver_note_sources` | the driver articles the Friday drivers' notes were checked against (LV-08); each is a citation, and the note it backs is this project's writing, measured against the article in `docs/prose_pass.tsv` |
 
-— and four sets a count by `source` cannot see, because the value is
-Wikipedia's while the row cites something else: the per-car specifications
+— and five sets a count by `source` cannot see, because the value is
+Wikipedia's while the row cites something else: `circuits.article` and
+`circuits.article_section`, the article the *List of Formula One circuits*
+links for each circuit, on rows citing formula1.com (each value a claim, so
+counted in `claims` above, but not by the circuit row's `source`); the per-car specifications
 on <!-- fig:wp_chassis_specs -->804<!-- /fig --> `chassis` rows citing F1DB (`spec_source`); the <!-- fig:wp_layouts -->51<!-- /fig --> rows of
 `circuit_layouts`, whose source `table_provenance` declares for the whole
 table; the pole and fastest-lap credits, which came from the season harvest
