@@ -71,11 +71,19 @@ Until somebody reads those fields, they stay CC BY-SA.
 
 ## Attribution
 
-Race results, driver, constructor, circuit and car data in this repository
-are derived from Wikipedia and are licensed under CC BY-SA 4.0. Current-season
-data is from formula1.com. Formula 1, F1 and Grand Prix are trademarks of
-Formula One Licensing BV; this project is unaffiliated with and unendorsed by
-Formula One or the FIA.
+Driver, constructor, circuit and car data in this repository, and each
+race's winner, pole position and fastest lap, are derived from Wikipedia,
+licensed under CC BY-SA 4.0. The full race classification, qualifying,
+championship standings, pit stops, and the chassis, engine and season-entrant
+register are derived from F1DB, licensed under CC BY 4.0, as are F1DB's
+circuit outlines, drawn by Jules Roy. Circuit centrelines, published
+separately as `f1-geometry.db`, are © OpenStreetMap contributors, licensed
+under ODbL 1.0; their relation ids come from Wikidata (CC0). Car and circuit
+photographs are hosted on Wikimedia Commons, and each carries its own licence
+and credit, recorded per file in `article_images`. Current-season data is
+from formula1.com. Formula 1, F1 and Grand Prix are trademarks of Formula One
+Licensing BV; this project is unaffiliated with and unendorsed by Formula One
+or the FIA.
 
 ## Circuit geometry
 

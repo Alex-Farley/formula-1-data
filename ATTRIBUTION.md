@@ -283,22 +283,30 @@ covers what in the README. I have deliberately not chosen for you.
 
 ## Attribution text
 
-If you go with CC BY-SA, something like this in the README covers it:
+This is the credit the data carries, and it has one wording.
+LICENSE-DATA's *Attribution* section is this text without its links, word
+for word, and the Parquet bundle's `README.txt` quotes that section, so a
+change here is a change to both; `tests/test_parquet_notice.py` fails if
+the two drift apart.
 
-> Race results, driver, constructor, circuit and car data in this repository
-> are derived from Wikipedia and are licensed under
-> [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
-> The chassis, engine and season-entrant register is derived from
-> [F1DB](https://github.com/f1db/f1db), licensed
-> [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
-> Circuit centrelines are © OpenStreetMap contributors, licensed
+> Driver, constructor, circuit and car data in this repository, and each
+> race's winner, pole position and fastest lap, are derived from
+> [Wikipedia](https://en.wikipedia.org/), licensed under
+> [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). The full
+> race classification, qualifying, championship standings, pit stops, and the
+> chassis, engine and season-entrant register are derived from
+> [F1DB](https://github.com/f1db/f1db), licensed under
+> [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), as are F1DB's
+> circuit outlines, drawn by [Jules Roy](https://github.com/julesr0y).
+> Circuit centrelines, published separately as `f1-geometry.db`, are
+> © OpenStreetMap contributors, licensed under
 > [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/); their relation
-> ids come from [Wikidata](https://www.wikidata.org/) (CC0). Car photographs
-> are hosted on Wikimedia Commons and each carries its own licence and
-> credit, recorded per file in `article_images`.
-> Current-season data is from formula1.com. Formula 1, F1 and Grand Prix are
-> trademarks of Formula One Licensing BV; this project is unaffiliated with
-> and unendorsed by Formula One or the FIA.
+> ids come from [Wikidata](https://www.wikidata.org/) (CC0). Car and circuit
+> photographs are hosted on Wikimedia Commons, and each carries its own
+> licence and credit, recorded per file in `article_images`. Current-season
+> data is from formula1.com. Formula 1, F1 and Grand Prix are trademarks of
+> Formula One Licensing BV; this project is unaffiliated with and unendorsed
+> by Formula One or the FIA.
 
 ## Jolpica-F1 — CC BY-NC-SA 4.0, and why those rows are not committed
 

@@ -111,6 +111,38 @@ class Views(unittest.TestCase):
         self.assertIn("The SQL is SQLite's.", folded)
 
 
+class OneAttributionWording(unittest.TestCase):
+    """LICENSE-DATA's Attribution section is ATTRIBUTION.md's *Attribution
+    text*, links dropped (CR-55). Two statements of one credit were how
+    the licence went on crediting Wikipedia for the race results after
+    v2.15 took the classification from F1DB."""
+
+    def attribution_text(self):
+        path = os.path.join(os.path.dirname(P.LICENCE), "ATTRIBUTION.md")
+        with open(path, encoding="utf-8") as f:
+            lines = f.read().splitlines()
+        start = lines.index("## Attribution text") + 1
+        end = next((i for i in range(start, len(lines))
+                    if lines[i].startswith("## ")), len(lines))
+        quoted = [ln[1:].strip() for ln in lines[start:end]
+                  if ln.startswith(">")]
+        self.assertTrue(quoted, "ATTRIBUTION.md's Attribution text has no "
+                                "quoted block")
+        text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", " ".join(quoted))
+        return " ".join(text.split())
+
+    def test_the_licence_states_the_attribution_text(self):
+        _, attribution = P.licence_words()
+        self.assertEqual(attribution, self.attribution_text())
+
+    def test_it_credits_every_bulk_source(self):
+        text = self.attribution_text()
+        for name in ("Wikipedia", "F1DB", "Jules Roy", "OpenStreetMap",
+                     "Wikidata", "Wikimedia Commons", "formula1.com",
+                     "Formula One Licensing BV"):
+            self.assertIn(name, text)
+
+
 class NoticeFailures(unittest.TestCase):
     def setUp(self):
         self.con = sqlite3.connect(P.DB)
