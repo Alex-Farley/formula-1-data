@@ -1169,6 +1169,11 @@ CREATE TABLE race_entries (
     note            TEXT,
     confidence      TEXT NOT NULL DEFAULT 'reference' REFERENCES provenance(confidence),
     source          TEXT,
+    -- One row per driver per race (known_gaps #2). A driver F1DB enters
+    -- twice in one race - a shared drive, a car taken over, a second car
+    -- entered - keeps the first row's car; the build merges the rest into
+    -- it, and refuses an undeclared one whose car was another constructor's
+    -- (data/harvest.py SECOND_ENTRIES, CR-62).
     UNIQUE (race_id, driver_id)
 );
 

@@ -1641,6 +1641,27 @@ def svg_path_in_box(d, box=OUTLINE_BOX, margin=5.0):
 F1DB_SOURCE = "https://github.com/f1db/f1db"
 F1DB_CONFIDENCE = "reference"
 
+# A driver F1DB enters twice in one race, in cars of two constructors this
+# database holds (CR-62). race_entries is one row per driver per race
+# (known_gaps #2), so build.py merges a driver's later rows in a race into
+# the first, which keeps that row's car. Where both cars were one
+# constructor's, or the constructor is one the register does not hold (the
+# Indianapolis makes), nothing a constructor is counted by is lost. These are
+# the entries that are: the other constructor's car is not this driver's row.
+# build.py refuses one not named here, and a name here F1DB no longer bears
+# out, so a new case arrives as a question and not as a silent merge.
+# Keyed (year, round, our driver id, constructor of the entry NOT kept).
+SECOND_ENTRIES = {
+    (1961, 5, "moss", "ferguson"):
+        "F1DB lists Moss in a Lotus, DNF, and in the Ferguson, DSQ, that Jack "
+        "Fairman also drove; the Lotus row is kept, and Fairman's row holds "
+        "the Ferguson's entry.",
+    (1978, 14, "harald-ertl", "ensign"):
+        "F1DB lists Ertl in an ATS, DNQ, and an Ensign, DNPQ; the ATS row is "
+        "kept, and the practice table holds the Ensign's pre-qualifying run "
+        "(verify.py PRACTICE_TEAM_EXCEPTIONS).",
+}
+
 # F1DB constructor id -> this database's constructor id, for the seven that
 # do not already share one. Six are spelling; the seventh is not.
 F1DB_CONSTRUCTORS = {

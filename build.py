@@ -1948,6 +1948,9 @@ def _stage_21_the_full_classification_qualifying_and_stand(b):
 
     res_rows = res_skipped_driver = res_races = 0
     unknown_drivers = set()
+    # (race_id, driver_id) -> the constructor of each F1DB row for it, for
+    # the second-entry check after the loop.
+    cars_entered = {}
     for (yr, rnd), rows in sorted(results_by_race.items()):
         rid = b.race_for(yr, rnd, "race results")
         if rid is None:
@@ -2002,6 +2005,7 @@ def _stage_21_the_full_classification_qualifying_and_stand(b):
             # that at most one car starts from grid 1.
             grid_text = r["grid"] or None
             grid = int(r["grid"]) if r["grid"] and r["grid"].isdigit() else None
+            cars_entered.setdefault((rid, did), []).append((yr, rnd, cons))
             cur.execute("""INSERT INTO race_entries (race_id, driver_id,
                     constructor_id, entrant, grid, grid_text,
                     finish_position, position_text, shared_drive, classified,
@@ -2046,12 +2050,44 @@ def _stage_21_the_full_classification_qualifying_and_stand(b):
                  HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
             res_rows += 1
 
+    # SECOND ENTRIES (CR-62). race_entries is one row per driver per race, so
+    # a driver's later rows in one race land on the first through the ON
+    # CONFLICT above and only fill its gaps - a shared drive, a car taken
+    # over, a second car entered. Where the row not kept was another
+    # constructor's car, the driver's record loses that car, and whether the
+    # constructor still has the entry through a team-mate is something a
+    # person has to look at - so each such row is declared by identity in
+    # data/harvest.py SECOND_ENTRIES. A new one, or a
+    # declaration F1DB no longer bears out, stops the build. Compared with
+    # the STORED constructor, not F1DB's first row: a pole-harvest row
+    # created before this stage may already have set it.
+    merged = 0
+    lost = set()
+    for (rid, did), cars in cars_entered.items():
+        if len(cars) < 2:
+            continue
+        merged += len(cars) - 1
+        kept = cur.execute("SELECT constructor_id FROM race_entries "
+                           "WHERE race_id=? AND driver_id=?", (rid, did)).fetchone()[0]
+        lost.update((yr, rnd, did, cons) for yr, rnd, cons in cars
+                    if cons and cons != kept)
+    if res_rows and lost != set(HV.SECOND_ENTRIES):
+        new = sorted(lost - set(HV.SECOND_ENTRIES))
+        gone = sorted(set(HV.SECOND_ENTRIES) - lost)
+        raise SystemExit(
+            f"race results: a second entry for another constructor is "
+            f"undeclared {new} or declared and no longer held {gone}. "
+            f"race_entries keeps one row per driver per race; declare the "
+            f"entry it cannot keep in data/harvest.py SECOND_ENTRIES, or "
+            f"remove the declaration.")
+
     if res_rows:
         print(f"  race results: {res_rows} entries over {res_races} races "
               f"from F1DB; {res_skipped_driver} rows skipped for "
               f"{len(unknown_drivers)} unresolvable drivers; "
               f"{len(b.skipped_rounds.get('race results', ()))} rounds not yet "
-              f"on the calendar")
+              f"on the calendar; {merged} later rows merged into the driver's "
+              f"entry, {len(lost)} of them another constructor's car (declared)")
 
     b.f1db_drivers = f1db_drivers
 

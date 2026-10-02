@@ -3358,7 +3358,8 @@ def practice_and_sprint_qualifying():
     PRACTICE_TEAM_EXCEPTIONS = {(2022, 16, "fp1", "nyck-de-vries"),
                                 # Monza 1978: Harald Ertl ran an Ensign in
                                 # pre-qualifying (DNPQ), then an ATS in
-                                # qualifying (DNQ).
+                                # qualifying (DNQ). race_entries keeps the
+                                # ATS row (data/harvest.py SECOND_ENTRIES).
                                 (1978, 14, "pre_qualifying", "harald-ertl")}
     # The check above reaches only drivers who raced. This one reaches every
     # row, the Friday drivers' included: a team in practice is a team entered
