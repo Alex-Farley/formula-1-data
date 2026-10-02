@@ -12,6 +12,7 @@ record a ruling on one, or rank one within its status.
     python3 .claude/skills/backlog-loop/file.py decline 123 "why, in one line"
     python3 .claude/skills/backlog-loop/file.py decided 123 "option B; A and C stay rejected because ..."
     python3 .claude/skills/backlog-loop/file.py rank 123 --top          # or --bottom, --after 45, --before 45
+    python3 .claude/skills/backlog-loop/file.py rank 724 723 720 --after 45   # a run, in that order
 
 The queue is GitHub Issues ranked on the Lap Ledger project; the conventions
 are in CONTRIBUTING.md under *The queue*. Filing an item by hand is four
@@ -56,6 +57,17 @@ ruling kept only in a comment was re-filed as undecided three times `[D-43]`.
 bottom, or directly after or before another issue of the same status. A
 different status is `status` first. It is for a person, or a session a
 person has told what order to put things in; a fork never calls it.
+
+Given several issues, `rank` places the first where the flag says and each
+of the rest directly after the one before it, so a whole order is one call.
+It reads the board once, ids included, works the moves out locally, leaves
+out any whose issue already sits where it would go, and writes the rest
+`RANK_SPACING` seconds apart. Re-ranking about 35 items one call at a time
+read the whole board three times per move and tripped the secondary limiter
+three times; one read and one write per move ten seconds apart did 30 writes
+with no refusal `AF-81` `[D-27]`. A run cut short by a refusal says what is not
+yet in place, and the same command run again once the refusal's cause has
+cleared finishes it, because what already sits in place is not written twice.
 """
 import datetime
 import argparse
@@ -65,6 +77,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))  # behind the stdlib
 import gh_preflight  # noqa: E402  (a sibling script, not an installed package)
@@ -111,6 +124,9 @@ ITEMS_TTL = 900
 # with `PM-44`, so `next.py` can name the same failure without a second copy
 # of it going quietly out of step with this one.
 REFUSED = gh_preflight.DO_NOT_RETRY
+# Seconds between two writes of one `rank` run: the spacing that placed 30
+# items without a refusal `AF-81`.
+RANK_SPACING = 10
 
 
 def gh(*args, as_json=False):
@@ -128,9 +144,11 @@ def gh(*args, as_json=False):
 
 
 def gh_try(*args):
-    """(succeeded, stderr), for the one call allowed to fail: an `item-edit`
-    against a cached id GitHub may no longer recognise. The caller decides,
-    because most failures are not staleness and must not be retried."""
+    """(succeeded, stderr), for the calls whose caller handles a failure
+    itself: an `item-edit` against a cached id GitHub may no longer
+    recognise, and a `rank` write, which reports what it had not placed. The
+    caller decides, because most failures are not staleness and must not be
+    retried."""
     try:
         r = subprocess.run(["gh", *args], capture_output=True, text=True, check=False)
     except FileNotFoundError:
@@ -350,14 +368,17 @@ def decided(a):
     print(f"#{a.number} decided")
 
 
-def rank_after(rows, number, how, other=None):
+def rank_after(rows, number, how, other=None, moving=()):
     """The issue number `number` should sit directly after once moved, or
     None for the top of its status. `rows` is next.py's board_rows(), in the
-    board's order. Refuses a move across statuses: that is `status`."""
+    board's order; `moving` names the rest of a run, which is lifted out with
+    `number`, so a run sent to the bottom ends at the bottom. Refuses a move
+    across statuses: that is `status`."""
     status = dict(rows).get(number)
     if status is None:
         sys.exit(f"#{number} is not on the board")
-    column = [n for n, s in rows if s == status and n != number]
+    lifted = {number, *moving}
+    column = [n for n, s in rows if s == status and n not in lifted]
     if how == "top":
         return None
     if how == "bottom":
@@ -379,19 +400,64 @@ RANK = """mutation($project: ID!, $item: ID!, $after: ID) {
 }"""
 
 
+def rank_plan(rows, numbers, how, other=None):
+    """[(issue number, the number it goes directly after, or None for the
+    top)], the writes that put `numbers` in that order: the first where `how`
+    and `other` say, each of the rest after the one before. A write whose
+    issue already sits there is left out, so a run that is already in order
+    is no writes at all."""
+    if len(set(numbers)) != len(numbers):
+        sys.exit("an issue is named twice in one run")
+    first, rest = numbers[0], numbers[1:]
+    if other in rest:
+        sys.exit(f"#{other} is one of the issues being ranked, so it cannot be where they go")
+    anchor = rank_after(rows, first, how, other, moving=rest)
+    status = dict(rows)[first]
+    for n in rest:
+        if n not in dict(rows):
+            sys.exit(f"#{n} is not on the board")
+        if dict(rows).get(n) != status:
+            sys.exit(f"#{n} is not in {status!r} with #{first}; one run is one status")
+    order = [n for n, s in rows if s == status]
+    plan = []
+    for n in numbers:
+        moved = [m for m in order if m != n]
+        moved.insert(moved.index(anchor) + 1 if anchor is not None else 0, n)
+        if moved != order:
+            plan.append((n, anchor))
+            order = moved
+        anchor = n
+    return plan
+
+
 def rank(a):
     how = "top" if a.top else "bottom" if a.bottom else "after" if a.after else "before"
-    after = rank_after(next_py.board_rows(), a.number, how, a.after or a.before)
-    proj_id, _, _ = board(fresh=True)
-    ids = item_ids(fresh=True)
-    if a.number not in ids or (after is not None and after not in ids):
-        sys.exit("the board changed between two reads; run it again")
-    args = ["api", "graphql", "-f", f"query={RANK}", "-f", f"project={proj_id}", "-f", f"item={ids[a.number]}"]
-    if after is not None:
-        args += ["-f", f"after={ids[after]}"]
-    gh(*args)
-    loop_cache.drop("queue")
-    print(f"#{a.number} ranked " + (f"after #{after}" if after is not None else "first"))
+    proj_id, items = next_py.board_items(ids=True)
+    plan = rank_plan([(n, s) for n, s, _ in items], a.numbers, how, a.after or a.before)
+    ids = {n: i for n, _, i in items}
+    if not plan:
+        print("already in that order; nothing moved")
+        return
+    for k, (number, after) in enumerate(plan):
+        if k:
+            time.sleep(RANK_SPACING)
+        args = ["api", "graphql", "-f", f"query={RANK}", "-f", f"project={proj_id}", "-f", f"item={ids[number]}"]
+        if after is not None:
+            args += ["-f", f"after={ids[after]}"]
+        ok, err = gh_try(*args)
+        if not ok:
+            # Never retried here: against the limiter a second attempt
+            # extends the block `[D-27]`. Every issue of the run above this
+            # one is in place; from this one on, none can be counted on to
+            # be, since each goes after the one before. A rerun skips what
+            # is placed.
+            left = ", ".join(f"#{n}" for n in a.numbers[a.numbers.index(number):])
+            when = ("once the limiter has cleared" if gh_preflight.LIMITER.search(err or "")
+                    else "once the cause is fixed; waiting will not clear this one")
+            sys.exit(f"{err or 'gh api graphql failed'}\nnot yet in place: {left}; "
+                     f"run the same command again {when}")
+        loop_cache.drop("queue")
+        print(f"#{number} ranked " + (f"after #{after}" if after is not None else "first"), flush=True)
 
 
 def main():
@@ -414,7 +480,7 @@ def main():
         q.add_argument("number", type=int)
         q.add_argument("reason")
     r = sub.add_parser("rank")
-    r.add_argument("number", type=int)
+    r.add_argument("numbers", type=int, nargs="+", metavar="number")
     where = r.add_mutually_exclusive_group(required=True)
     where.add_argument("--top", action="store_true")
     where.add_argument("--bottom", action="store_true")

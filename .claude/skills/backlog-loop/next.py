@@ -188,13 +188,18 @@ def gh(*args):
 
 # Number and status, and nothing else. `fieldValueByName` is the whole
 # reason this is written out rather than left to `gh project item-list`.
+# `$ids` adds the project's id and each item's, which only `file.py rank`
+# needs: it places items from this one read instead of three `AF-81`, and
+# every other reader goes on asking for exactly what it did before.
 BOARD_QUERY = """
-query($owner: String!, $number: Int!, $endCursor: String) {
+query($owner: String!, $number: Int!, $endCursor: String, $ids: Boolean = false) {
   user(login: $owner) {
     projectV2(number: $number) {
+      id @include(if: $ids)
       items(first: 100, after: $endCursor) {
         pageInfo { hasNextPage endCursor }
         nodes {
+          id @include(if: $ids)
           content { __typename ... on Issue { number } }
           fieldValueByName(name: "Status") {
             ... on ProjectV2ItemFieldSingleSelectValue { name }
@@ -209,6 +214,15 @@ query($owner: String!, $number: Int!, $endCursor: String) {
 
 def board_rows():
     """[(issue number, status)], in the board's own order, top to bottom.
+    `board_items()` is the read; this is the shape every reader but
+    `file.py rank` wants."""
+    return [(number, status) for number, status, _ in board_items()[1]]
+
+
+def board_items(ids=False):
+    """(project id, [(issue number, status, item id)]), the items in the
+    board's own order. Both ids are None unless `ids` asks for them, and with
+    `ids` a missing one stops the read rather than reaching a mutation.
 
     `gh project item-list --format json` has no field selection: it returns
     every field of every item, each issue's body included, and this read used
@@ -229,8 +243,9 @@ def board_rows():
     `--paginate` concatenates one JSON document per page, so the reply is
     decoded as a stream and not parsed whole."""
     raw = run("api", "graphql", "--paginate", "-F", f"owner={OWNER}",
-              "-F", f"number={PROJECT}", "-f", f"query={BOARD_QUERY}")
-    rows, decoder, at, pages = [], json.JSONDecoder(), 0, 0
+              "-F", f"number={PROJECT}", "-F", f"ids={'true' if ids else 'false'}",
+              "-f", f"query={BOARD_QUERY}")
+    rows, decoder, at, pages, project_id = [], json.JSONDecoder(), 0, 0, None
     while at < len(raw):
         while at < len(raw) and raw[at].isspace():
             at += 1
@@ -248,6 +263,7 @@ def board_rows():
         project = ((page.get("data") or {}).get("user") or {}).get("projectV2")
         if project is None:
             die(f"no ProjectsV2 number {PROJECT} for user {OWNER}")
+        project_id = project_id or project.get("id")
         for node in project["items"]["nodes"]:
             content = node.get("content") or {}
             # A draft item or a pull request is on the board and is not an
@@ -255,7 +271,8 @@ def board_rows():
             if content.get("__typename") != "Issue":
                 continue
             rows.append((content["number"],
-                         (node.get("fieldValueByName") or {}).get("name") or ""))
+                         (node.get("fieldValueByName") or {}).get("name") or "",
+                         node.get("id")))
     if not pages:
         # gh exited 0 and said nothing. Every other way this read can come up
         # short raises or exits; this one would return an empty board, and an
@@ -264,7 +281,11 @@ def board_rows():
         # The shortest short board is the one that has to be loudest (found
         # in review).
         die("the board read returned nothing; gh exited 0 with empty output")
-    return rows
+    if ids and (not project_id or any(not item for _, _, item in rows)):
+        # A write against a missing id is a write against nothing, or worse,
+        # a `null` afterId - which GitHub reads as "the top of the board".
+        die("the board read asked for ids and came back without some of them")
+    return project_id, rows
 
 
 def one_body(number):
