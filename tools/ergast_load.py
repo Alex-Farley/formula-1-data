@@ -729,17 +729,18 @@ def main():
                 # that a source conflict neither side can settle goes on the
                 # record rather than to whichever loader ran last.
                 #
-                # A row an earlier run of this loader re-cited (CR-61, below)
-                # cites Jolpica, but its finishing position is still F1DB's
-                # unless that run inserted the row, since a disagreeing
-                # position is never written. So it is held the same way: a
+                # A row an earlier local load re-cited (CR-61, below) cites
+                # Jolpica or FastF1, but its finishing position is still
+                # F1DB's unless a local load inserted the row or filled a
+                # NULL position, since a disagreeing position is never
+                # written. So it is held the same way: a
                 # second snapshot that disagrees with it is recorded, never
                 # lowered into it.
                 held = cur.execute("""SELECT finish_position, source
                     FROM race_entries WHERE race_id=? AND driver_id=?""",
                     (rid, did)).fetchone()
                 cited = (held[1] or "").lower() if held else ""
-                recited = "api.jolpi.ca" in cited
+                recited = "api.jolpi.ca" in cited or cited == "fastf1"
                 if (held and held[0] is not None and e["position"] is not None
                         and held[0] != e["position"]
                         and ("f1db" in cited or recited)):
@@ -757,10 +758,10 @@ def main():
                          str(held[0]), str(e["position"]),
                          ("Jolpica-F1 gives a different finishing position "
                           "from the one stored, on a row an earlier local "
-                          "Jolpica load re-cited. The stored position is "
-                          "F1DB's unless that load inserted the row; it is "
-                          "kept, and this row is the evidence of the "
-                          "difference." if recited else
+                          "load re-cited. The stored position is F1DB's "
+                          "unless a local load inserted the row or filled a "
+                          "NULL position; it is kept, and this row is the "
+                          "evidence of the difference." if recited else
                           "F1DB and Jolpica-F1 give different finishing "
                           "positions for the same driver in the same race. "
                           "The F1DB value is the one stored, because it is "
