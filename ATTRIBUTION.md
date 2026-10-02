@@ -289,24 +289,25 @@ for word, and the Parquet bundle's `README.txt` quotes that section, so a
 change here is a change to both; `tests/test_parquet_notice.py` fails if
 the two drift apart.
 
-> Driver, constructor, circuit and car data in this repository, and each
-> race's winner, pole position and fastest lap, are derived from
-> [Wikipedia](https://en.wikipedia.org/), licensed under
-> [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). The full
-> race classification, qualifying, championship standings, pit stops, and the
-> chassis, engine and season-entrant register are derived from
-> [F1DB](https://github.com/f1db/f1db), licensed under
+> Car and circuit data in this repository, each race's winner, pole position
+> and fastest lap, some driver records and six team radio quotations are
+> derived from [Wikipedia](https://en.wikipedia.org/), licensed under
+> [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). Most driver
+> and constructor records, the full race classification, sprint results,
+> practice, qualifying and sprint qualifying, championship standings, pit
+> stops, and the chassis, engine and season-entrant register are derived from
+> [F1DB](https://github.com/f1db/f1db), which its authors publish under
 > [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), as are F1DB's
-> circuit outlines, drawn by [Jules Roy](https://github.com/julesr0y).
-> Circuit centrelines, published separately as `f1-geometry.db`, are
-> © OpenStreetMap contributors, licensed under
+> circuit outlines, drawn by [Jules Roy](https://github.com/julesr0y). Circuit
+> centrelines, published separately as `f1-geometry.db`, are © OpenStreetMap
+> contributors, licensed under
 > [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/); their relation
 > ids come from [Wikidata](https://www.wikidata.org/) (CC0). Car and circuit
 > photographs are hosted on Wikimedia Commons, and each carries its own
 > licence and credit, recorded per file in `article_images`. Current-season
-> data is from formula1.com. Formula 1, F1 and Grand Prix are trademarks of
-> Formula One Licensing BV; this project is unaffiliated with and unendorsed
-> by Formula One or the FIA.
+> data, and the other driver and constructor records, are from formula1.com.
+> Formula 1, F1 and Grand Prix are trademarks of Formula One Licensing BV;
+> this project is unaffiliated with and unendorsed by Formula One or the FIA.
 
 ## Jolpica-F1 — CC BY-NC-SA 4.0, and why those rows are not committed
 

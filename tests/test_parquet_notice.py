@@ -121,6 +121,8 @@ class OneAttributionWording(unittest.TestCase):
         path = os.path.join(os.path.dirname(P.LICENCE), "ATTRIBUTION.md")
         with open(path, encoding="utf-8") as f:
             lines = f.read().splitlines()
+        self.assertIn("## Attribution text", lines,
+                      "ATTRIBUTION.md has no Attribution text heading")
         start = lines.index("## Attribution text") + 1
         end = next((i for i in range(start, len(lines))
                     if lines[i].startswith("## ")), len(lines))
