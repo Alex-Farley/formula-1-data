@@ -7,10 +7,19 @@ WHY THIS FILE EXISTS
     ruling has to land in the body, in a form that no longer reads as an
     open question. And a rank that lands one place off, or across a status,
     quietly rewrites the order a person chose.
+
+    Ranking a run of about 35 items one call at a time read the whole board
+    three times per move and tripped GitHub's secondary limiter three times
+    (AF-81, D-27). So a run is one read and one write per move that changes
+    anything, spaced, and the plan is tested here without GitHub.
 """
+import contextlib
 import importlib.util
+import io
 import os
 import unittest
+from types import SimpleNamespace
+from unittest import mock
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 spec = importlib.util.spec_from_file_location(
@@ -107,6 +116,101 @@ class Ranking(unittest.TestCase):
             file_py.rank_after(ROWS, 10, "after", 10)
         with self.assertRaises(SystemExit):
             file_py.rank_after(ROWS, 99, "top")
+
+
+class RankingARun(unittest.TestCase):
+    def test_a_run_goes_where_the_first_goes_in_the_order_given(self):
+        rows = [(10, "Now"), (11, "Now"), (12, "Now"), (13, "Now")]
+        self.assertEqual(file_py.rank_plan(rows, [13, 11], "top"), [(13, None), (11, 13)])
+
+    def test_a_run_sent_to_the_bottom_ends_at_the_bottom(self):
+        # 13 is last now and is in the run, so it is lifted out with it: the
+        # bottom is after 12, and the run 11, 13 lands there in one write.
+        rows = [(10, "Now"), (11, "Now"), (12, "Now"), (13, "Now")]
+        self.assertEqual(file_py.rank_after(rows, 11, "bottom", moving=[13]), 12)
+        self.assertEqual(file_py.rank_plan(rows, [11, 13], "bottom"), [(11, 12)])
+
+    def test_before_an_issue_lands_the_whole_run_above_it(self):
+        rows = [(10, "Now"), (11, "Now"), (12, "Now"), (13, "Now")]
+        self.assertEqual(file_py.rank_plan(rows, [13, 12], "before", 11), [(13, 10), (12, 13)])
+
+    def test_what_already_sits_in_place_is_not_written(self):
+        # So a run cut short by a refusal is finished by running it again.
+        rows = [(10, "Now"), (11, "Now"), (12, "Now"), (13, "Now")]
+        self.assertEqual(file_py.rank_plan(rows, [10, 11, 13], "top"), [(13, 11)])
+        self.assertEqual(file_py.rank_plan(rows, [10, 11, 12], "top"), [])
+
+    def test_one_issue_is_the_move_it_always_was(self):
+        for how, other in (("top", None), ("bottom", None), ("after", 12), ("before", 11), ("before", 12)):
+            after = file_py.rank_after(ROWS, 10, how, other)
+            plan = file_py.rank_plan(ROWS, [10], how, other)
+            self.assertIn(plan, ([], [(10, after)]), (how, other))
+        self.assertEqual(file_py.rank_plan(ROWS, [10], "after", 12), [(10, 12)])
+
+    def test_other_statuses_are_left_where_they_are(self):
+        rows = [(10, "Now"), (20, "Next"), (11, "Now")]
+        self.assertEqual(file_py.rank_plan(rows, [11], "top"), [(11, None)])
+
+    def test_a_run_across_statuses_a_repeat_or_an_anchor_inside_it_is_refused(self):
+        for numbers, how, other in (([10, 20], "top", None), ([10, 11, 10], "top", None),
+                                    ([10, 11], "after", 11), ([10, 99], "top", None)):
+            with self.assertRaises(SystemExit, msg=(numbers, how, other)):
+                file_py.rank_plan(ROWS, numbers, how, other)
+
+
+class ARankRun(unittest.TestCase):
+    """What `rank` sends GitHub: one read, then one write per planned move."""
+
+    ITEMS = [(10, "Now", "I10"), (11, "Now", "I11"), (12, "Now", "I12"), (20, "Next", "I20")]
+
+    def run_rank(self, numbers, refuse_at=None, **flags):
+        reads, writes, sleeps = [], [], []
+
+        def board_items(ids=False):
+            reads.append(ids)
+            return "P", self.ITEMS
+
+        def gh_try(*args):
+            writes.append(args)
+            if refuse_at is not None and len(writes) == refuse_at:
+                return False, "API rate limit exceeded"
+            return True, ""
+
+        a = SimpleNamespace(numbers=numbers, top=False, bottom=False, after=None, before=None)
+        vars(a).update(flags)
+        with mock.patch.object(file_py.next_py, "board_items", board_items), \
+                mock.patch.object(file_py, "gh_try", gh_try), \
+                mock.patch.object(file_py.time, "sleep", sleeps.append), \
+                mock.patch.object(file_py.loop_cache, "drop", lambda *_: None), \
+                mock.patch.object(file_py, "board", side_effect=AssertionError("board() read")), \
+                mock.patch.object(file_py, "item_ids", side_effect=AssertionError("item_ids() read")), \
+                contextlib.redirect_stdout(io.StringIO()) as out:
+            file_py.rank(a)
+        return reads, writes, sleeps, out.getvalue()
+
+    def test_one_read_with_ids_and_spaced_writes(self):
+        reads, writes, sleeps, out = self.run_rank([12, 11], top=True)
+        self.assertEqual(reads, [True])
+        self.assertEqual(len(writes), 2)
+        self.assertIn("item=I12", writes[0])
+        self.assertFalse(any(w.startswith("after=") for w in writes[0]))
+        self.assertIn("after=I12", writes[1])
+        self.assertIn("project=P", writes[1])
+        self.assertEqual(sleeps, [file_py.RANK_SPACING])
+        self.assertEqual(out, "#12 ranked first\n#11 ranked after #12\n")
+
+    def test_a_run_already_in_order_writes_nothing(self):
+        reads, writes, sleeps, out = self.run_rank([10, 11], top=True)
+        self.assertEqual((writes, sleeps), ([], []))
+        self.assertIn("nothing moved", out)
+
+    def test_a_refusal_stops_the_run_and_names_what_was_not_placed(self):
+        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as caught:
+            self.run_rank([12, 11, 10], refuse_at=2, top=True)
+        self.assertIn("rate limit", str(caught.exception.code))
+        # 12 first, then 11 after it is refused; 10 then already sits after 11
+        # in the plan, so the plan was two writes and one is left.
+        self.assertIn("not placed: #11;", str(caught.exception.code))
 
 
 if __name__ == "__main__":
