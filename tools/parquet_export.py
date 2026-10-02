@@ -36,9 +36,9 @@ WHAT IT REFUSES TO DO
     merges the ODbL centrelines back in. Neither may be redistributed, and
     Parquet is a redistribution format - it exists to be handed to somebody.
 
-    Both loaders also write into rows the build made, and a row a loader
-    inserted or changed cites the loader with no source_id
-    (tools/loader_citation.py, CR-61).
+    Both loaders also write into rows the build made, and a race_entries or
+    drivers row a loader inserted or changed cites the loader with no
+    source_id (tools/loader_citation.py, CR-61).
 
     So this refuses to run at all on a database carrying any of them - and on
     any row citing a source classed `no` - the same rule web/scripts/api.mjs
