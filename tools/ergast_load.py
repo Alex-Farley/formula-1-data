@@ -730,10 +730,10 @@ def main():
                 # record rather than to whichever loader ran last.
                 #
                 # A row an earlier local load re-cited (CR-61, below) cites
-                # Jolpica or FastF1, but its finishing position is still
-                # F1DB's unless a local load inserted the row or filled a
-                # NULL position, since a disagreeing position is never
-                # written. So it is held the same way: a
+                # Jolpica or FastF1, and its finishing position may still be
+                # F1DB's: this loader never writes a disagreeing position,
+                # only inserts a row or fills a NULL one. (FastF1 overwrites
+                # any position it supplies, so a `fastf1` row's may be FOM's.) So it is held the same way: a
                 # second snapshot that disagrees with it is recorded, never
                 # lowered into it.
                 held = cur.execute("""SELECT finish_position, source
@@ -758,9 +758,10 @@ def main():
                          str(held[0]), str(e["position"]),
                          ("Jolpica-F1 gives a different finishing position "
                           "from the one stored, on a row an earlier local "
-                          "load re-cited. The stored position is F1DB's "
-                          "unless a local load inserted the row or filled a "
-                          "NULL position; it is kept, and this row is the "
+                          "load re-cited. The stored position is F1DB's or "
+                          "a local loader's: FastF1 overwrites a position it "
+                          "supplies, and Jolpica only inserts a row or fills "
+                          "a NULL position. It is kept, and this row is the "
                           "evidence of the difference." if recited else
                           "F1DB and Jolpica-F1 give different finishing "
                           "positions for the same driver in the same race. "
