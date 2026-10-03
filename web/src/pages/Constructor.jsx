@@ -296,9 +296,9 @@ function ConstructorBody({ constructor, data }) {
       <Section title="On the record">
         {constructor.confidence === 'medium' && (
           <Note>
-            <strong>Trust the tables above this one.</strong> The figures counted from the races
-            carry more weight than the summary values in this panel, which is why the two are kept
-            apart.
+            <strong>Trust the counted figures.</strong> Where this panel gives a figure twice, the
+            derived one is counted from the race records above and carries more weight than the
+            published one beside it, which is why both are shown.
           </Note>
         )}
         <Fields
