@@ -261,6 +261,7 @@ import {
   WINS_FOOTER as TEAM_WINS_FOOTER,
   WIN_COLUMNS,
   constructorSeasons,
+  recordFigures,
 } from '../src/queries/constructor.js'
 import {
   CIRCUIT as CIRCUIT_ROW,
@@ -2544,14 +2545,25 @@ page({
     const engineSplit = teamStandings.some((s) => s.engine_id)
     const wins = all(TEAM_WINS, c.id)
     const designs = all(DESIGNS, c.id)
+    // The description's figures. Wins are the derived count, as the Stats
+    // strip gives them (CD-34), and only for a team with a race entry under
+    // its own id: rob-walker has none, its wins being credited to Cooper and
+    // Lotus, so a count of zero would be a figure nobody established. Joined,
+    // so a team with neither figure gets no stray ". ." in its description.
+    const teamFigures = [
+      teamDerived.entries > 0 ? `${formatted(teamDerived.wins ?? 0)} wins` : '',
+      c.constructors_titles ? `${c.constructors_titles} constructors' titles` : '',
+    ]
+      .filter(Boolean)
+      .join(', ')
     page({
       path: `constructors/${c.id}`,
       lastmod: LAST_RUN.constructor.get(c.id),
       title: NAMES.constructor(c.name).title,
       description: summarise(
         `${c.full_name ?? c.name}${c.country ? `, ${c.country}` : ''}, Formula One ${c.first_entry ?? '?'}–${c.last_entry ?? 'present'}. ${
-          c.wins !== null ? `${c.wins} wins` : ''
-        }${c.constructors_titles ? `, ${c.constructors_titles} constructors' titles` : ''}. ${c.notes ?? ''}`,
+          teamFigures ? `${teamFigures}. ` : ''
+        }${c.notes ?? ''}`,
         300,
       ),
       trail: TRAIL.constructor(c.id, c.name),
@@ -2578,8 +2590,10 @@ page({
           // changed to close. A zero stays 0 - rob-walker has no race entry
           // and both halves say so.
           ['Race entries', esc(formatted(teamDerived.entries))],
-          ['Wins', num(c.wins)],
-          ['Poles', num(c.poles)],
+          // Both figures, as the app's "On the record" gives them (CD-34):
+          // the stored wins are published ones and part from the count on
+          // four teams, so the list no longer prints one the strip contradicts.
+          ...recordFigures(c, teamDerived).map(([label, value]) => [label, esc(value)]),
           ["Constructors' titles", c.constructors_titles ? `${c.constructors_titles} (${yearList(c.title_years)})` : num(c.constructors_titles)],
           ["Drivers' titles", num(c.drivers_titles)],
           // No "Active" row: the app has no such field, and "Entered" above

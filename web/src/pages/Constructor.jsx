@@ -26,6 +26,7 @@ import {
   WINS_FOOTER,
   WIN_COLUMNS,
   constructorSeasons,
+  recordFigures,
 } from '../queries/constructor.js'
 
 import { ONWARD, TRAIL, lastSeasonOf } from '../lib/wayfinding.js'
@@ -295,9 +296,9 @@ function ConstructorBody({ constructor, data }) {
       <Section title="On the record">
         {constructor.confidence === 'medium' && (
           <Note>
-            <strong>Trust the tables above this one.</strong> The figures counted from the races
-            carry more weight than the summary values in this panel, which is why the two are kept
-            apart.
+            <strong>Trust the counted figures.</strong> Where this panel gives a figure twice, the
+            derived one is counted from the race records above and carries more weight than the
+            published one beside it, which is why both are shown.
           </Note>
         )}
         <Fields
@@ -305,8 +306,7 @@ function ConstructorBody({ constructor, data }) {
             { label: 'Full name', value: constructor.full_name },
             { label: 'Country', value: constructor.country },
             { label: 'Base', value: constructor.base },
-            { label: 'Wins (register)', value: number(constructor.wins) },
-            { label: 'Poles (register)', value: number(constructor.poles) },
+            ...recordFigures(constructor, derived).map(([label, value]) => ({ label, value })),
             { label: 'Lineage chain', value: constructor.lineage_chain },
             { label: 'Confidence', value: <Confidence value={constructor.confidence} /> },
             {

@@ -95,7 +95,8 @@ import { CHASSIS_COLUMNS, chassisName } from '../src/queries/cars.js'
 import { PIT_COLUMNS, driverName, fastestLapMark, inClassificationOrder, outcome, position, raceLede, raceSentence, railOf, scheduledNote } from '../src/queries/race.js'
 import { RACE_COLUMNS, raceWinnerHere } from '../src/queries/circuit.js'
 import { SEASON_COLUMNS as TEAM_SEASON_COLUMNS } from '../src/queries/constructor.js'
-import { constructorSeasons } from '../src/queries/constructor.js'
+import { DERIVED as TEAM_DERIVED, STANDINGS as TEAM_STANDINGS, constructorSeasons, recordFigures } from '../src/queries/constructor.js'
+import { FINAL as SEASON_FINAL } from '../src/queries/season.js'
 import { DIGEST_NOTE, NOT_YET_RUN, behindThisPage, citation, licenceTerms } from '../src/lib/site.js'
 import { seasonComplete, seasonHeading, seasonStrip, stillToRunNote } from '../src/queries/home.js'
 import {
@@ -2265,5 +2266,95 @@ describe('a Grand Prix and the venues it has used', () => {
     assert.equal(editionCar(null, run), 'Kurtis Kraft-Offenhauser')
     assert.equal(editionCar('Ferrari', { status: 'completed', constructor_id: 'ferrari', constructor: 'Ferrari', entrant: 'Scuderia Ferrari' }), 'Ferrari')
     assert.equal(editionCar(null, { status: 'scheduled', constructor_id: null, constructor: null, entrant: null }), '')
+  })
+})
+
+// CR-64: two renderers run these queries on two SQLite builds - sql.js in the
+// app, node:sqlite in the prerender - and they print the same rows in the
+// same order only if the ORDER BY leaves the engine no choice. 121 (season,
+// table, position) groups hold more than one row, so every adjacent pair is
+// checked against the whole sort key: a pair the key cannot tell apart is a
+// pair whose order is the query plan's, which is the defect.
+describe('the standings orders are total (CR-64)', () => {
+  const nullsLast = (a, b) => (a === null) - (b === null) || (a === null ? 0 : a - b)
+  const strictlyOrdered = (rows, compare, label) => {
+    for (let i = 1; i < rows.length; i++) {
+      assert.ok(compare(rows[i - 1], rows[i]) < 0, `${label}: rows ${rows[i - 1].id} and ${rows[i].id} tie on the whole key`)
+    }
+  }
+
+  // The rows below come out in id order within a tie today with or without
+  // the last term, because that is the plan both engines happen to choose -
+  // so the data check alone would still pass with it removed. What makes the
+  // order total is the query ending on a key no two rows share.
+  it('ends both ORDER BYs on the row id, which no two rows of the view share', () => {
+    assert.match(SEASON_FINAL, /ORDER BY [^\n]*, f\.id\s*$/)
+    assert.match(TEAM_STANDINGS, /ORDER BY [^\n]*, s\.id\s*$/)
+    const db = new DatabaseSync(join(web, '..', 'f1.db'), { readOnly: true })
+    try {
+      assert.equal(db.prepare('SELECT COUNT(*) - COUNT(DISTINCT id) AS n FROM v_standings_final').get().n, 0)
+    } finally {
+      db.close()
+    }
+  })
+
+  it("orders every season's final table with nothing left to the plan", () => {
+    const db = new DatabaseSync(join(web, '..', 'f1.db'), { readOnly: true })
+    try {
+      const years = db.prepare('SELECT DISTINCT year FROM v_standings_final ORDER BY year').all()
+      assert.ok(years.length > 70)
+      const key = (a, b) =>
+        (a.table_type < b.table_type ? -1 : a.table_type > b.table_type ? 1 : 0) ||
+        nullsLast(a.position, b.position) ||
+        (b.points ?? 0) - (a.points ?? 0) ||
+        a.id - b.id
+      for (const { year } of years) strictlyOrdered(db.prepare(SEASON_FINAL).all(year), key, String(year))
+      // Cooper 1960: Maserati and Castellotti, both fifth - the tie the
+      // issue named, kept in the order it has always shown.
+      const fifth = db.prepare(SEASON_FINAL).all(1960).filter((row) => row.table_type === 'constructors' && row.position === 5)
+      assert.ok(fifth.length > 1, 'the 1960 tie is still in the register')
+    } finally {
+      db.close()
+    }
+  })
+
+  it("orders every constructor's standings with nothing left to the plan", () => {
+    const db = new DatabaseSync(join(web, '..', 'f1.db'), { readOnly: true })
+    try {
+      const teams = db.prepare("SELECT DISTINCT constructor_id AS id FROM v_standings_final WHERE table_type = 'constructors' AND constructor_id IS NOT NULL").all()
+      const key = (a, b) => a.year - b.year || nullsLast(a.position, b.position) || a.id - b.id
+      for (const { id } of teams) strictlyOrdered(db.prepare(TEAM_STANDINGS).all(id), key, id)
+    } finally {
+      db.close()
+    }
+  })
+})
+
+// CD-34: Wins and Poles on a constructor's "On the record" and the static
+// facts list, the count beside the published figure as the driver page does.
+describe("a constructor's record figures (CD-34)", () => {
+  it('gives both figures, and the count alone where nothing is published', () => {
+    assert.deepEqual(recordFigures({ wins: 250, poles: 254 }, { wins: 251, poles: 254 }), [
+      ['Wins', '251 derived · 250 published'],
+      ['Poles', '254 derived · 254 published'],
+    ])
+    // rob-walker: no race entry, so SUM gives NULL, and no published wins.
+    assert.deepEqual(recordFigures({ wins: null, poles: null }, { wins: null, poles: null }), [
+      ['Wins', '0 derived'],
+      ['Poles', '0 derived'],
+    ])
+  })
+
+  it('names the four teams where the register and the count part, from f1.db', () => {
+    const db = new DatabaseSync(join(web, '..', 'f1.db'), { readOnly: true })
+    try {
+      const wins = (id) => recordFigures(db.prepare('SELECT * FROM constructors WHERE id = ?').get(id), db.prepare(TEAM_DERIVED).get(id) ?? {})[0][1]
+      for (const id of ['ferrari', 'vanwall', 'alfa-romeo']) {
+        assert.match(wins(id), /^[\d,]+ derived · [\d,]+ published$/, id)
+      }
+      assert.equal(wins('rob-walker'), '0 derived')
+    } finally {
+      db.close()
+    }
   })
 })
