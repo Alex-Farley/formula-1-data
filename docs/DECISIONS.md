@@ -207,10 +207,15 @@ already come back — a 1.5 s `gh issue view`, a 0.6 s `tail`, a 0.6 s
 background launch, and a 6-minute wait loop that had finished — followed by
 10 to 17 minutes of nothing until the kill. What stalled was the model
 request after the tool, not the tool. A slow model phase is not itself fatal:
-one fork went 924 s between a tool result and its next message and carried
-on, so the watchdog fires on a stream that delivers nothing, not one that is
-slow. On 2026-10-02 the Mac running the loop had 10.3 of 11.2 GB of swap in
-use; the other three days were not measured.
+one fork went 1,134 s between a tool result and its next message, longer
+than any of the four silences before a kill, and carried on, so the watchdog
+fires on a stream that delivers nothing, not one that is slow. Why the stream
+delivered nothing is not established. On 2026-10-02 the Mac running the loop
+had 10.3 of 11.2 GB of swap in use, and another fork that day logged `Your
+computer went to sleep mid-response`; 26 long tool calls overran their own
+600 s timeout by more than a minute, which a suspended machine would also
+explain. Memory pressure, sleep or the network, it is outside the fork, and
+the two rules below hold for each.
 
 So short foreground checks would not have saved any of the four, and the
 item skill says the opposite: wait on a slow build in the foreground, as on
