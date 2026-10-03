@@ -261,6 +261,7 @@ import {
   WINS_FOOTER as TEAM_WINS_FOOTER,
   WIN_COLUMNS,
   constructorSeasons,
+  recordFigures,
 } from '../src/queries/constructor.js'
 import {
   CIRCUIT as CIRCUIT_ROW,
@@ -2550,7 +2551,7 @@ page({
       title: NAMES.constructor(c.name).title,
       description: summarise(
         `${c.full_name ?? c.name}${c.country ? `, ${c.country}` : ''}, Formula One ${c.first_entry ?? '?'}–${c.last_entry ?? 'present'}. ${
-          c.wins !== null ? `${c.wins} wins` : ''
+          `${formatted(teamDerived.wins ?? 0)} wins`
         }${c.constructors_titles ? `, ${c.constructors_titles} constructors' titles` : ''}. ${c.notes ?? ''}`,
         300,
       ),
@@ -2578,8 +2579,10 @@ page({
           // changed to close. A zero stays 0 - rob-walker has no race entry
           // and both halves say so.
           ['Race entries', esc(formatted(teamDerived.entries))],
-          ['Wins', num(c.wins)],
-          ['Poles', num(c.poles)],
+          // Both figures, as the app's "On the record" gives them (CD-34):
+          // the stored wins are published ones and part from the count on
+          // four teams, so the list no longer prints one the strip contradicts.
+          ...recordFigures(c, teamDerived).map(([label, value]) => [label, esc(value)]),
           ["Constructors' titles", c.constructors_titles ? `${c.constructors_titles} (${yearList(c.title_years)})` : num(c.constructors_titles)],
           ["Drivers' titles", num(c.drivers_titles)],
           // No "Active" row: the app has no such field, and "Entered" above

@@ -12,6 +12,7 @@
  * See queries/drivers.js for what a column's `text` is.
  */
 import { EMPTY, missing, points, span, text } from '../lib/format.js'
+import { derivedAndPublished } from './driver.js'
 
 export const CONSTRUCTOR = `SELECT * FROM constructors WHERE id = ?`
 
@@ -29,6 +30,20 @@ export const DERIVED = `
     JOIN races r ON r.id = e.race_id
    WHERE e.constructor_id = ?
 `
+
+/**
+ * Wins and Poles as the register states them (CD-34): the count from the race
+ * records beside the published figure, in the driver page's words - "251
+ * derived · 250 published". The stored `constructors.wins` is hand-entered
+ * from reference records and parts from the count on four teams (ferrari,
+ * vanwall, alfa-romeo, rob-walker), so neither figure is shown alone. Read by
+ * the app's "On the record" and the static page's facts list, which is how
+ * the two say the same thing; the Stats strip's Wins is the derived half.
+ */
+export const recordFigures = (constructor, derived) => [
+  ['Wins', derivedAndPublished(derived.wins ?? 0, constructor.wins)],
+  ['Poles', derivedAndPublished(derived.poles ?? 0, constructor.poles)],
+]
 
 export const BY_SEASON = `
   SELECT r.year,
@@ -52,12 +67,16 @@ export const BY_SEASON = `
  * under the same id, and Cooper contested 1960 with three engines. Both
  * survive v_standings_final; the same-fact-from-two-sources rows do not. The
  * rule and its reasons are on the view in schema.sql.
+ *
+ * Two such rows can share a position (Cooper's 1960 Maserati and Castellotti
+ * rows are both fifth), so the row id closes the order, as on the season's
+ * FINAL (CR-64): constructorSeasons shows the first of them.
  */
 export const STANDINGS = `
   SELECT s.id, s.year, s.constructor_id, s.engine_id, s.position, s.position_text, s.points, s.team
     FROM v_standings_final s
    WHERE s.table_type = 'constructors' AND s.constructor_id = ?
-   ORDER BY s.year, s.position IS NULL, s.position
+   ORDER BY s.year, s.position IS NULL, s.position, s.id
 `
 
 /** Newest first: the order the app's table opens in. */

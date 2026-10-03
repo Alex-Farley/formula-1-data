@@ -200,7 +200,12 @@ describe('a NULL is "not established", never zero (frontend-reviewer, item 2)', 
     ['src/pages/Quality.jsx', [1, 'rows in a confidence class']],
     ['src/pages/Data.jsx', [1, 'sources in a licence class']],
     ['src/pages/Circuit.jsx', [1, 'seasons a layout was used']],
-    ['scripts/prerender.js', [3, 'sources in a licence class, the static copy of Data.jsx']],
+    // CD-34: a constructor's Wins and Poles beside the published figure.
+    // DERIVED's SUM over race_entries is NULL only where the team has no
+    // entry (rob-walker), and a team with no entry has no win. The static
+    // page's description reads the same derived wins, which is its fourth.
+    ['src/queries/constructor.js', [2, "derived wins and poles in a constructor's record"]],
+    ['scripts/prerender.js', [4, "sources in a licence class, the static copy of Data.jsx; a constructor's derived wins"]],
   ])
 
   it('every zero fallback is a declared count or weight', () => {

@@ -86,6 +86,13 @@ export const STANDINGS = `
  * The season as it stands, one row per entity: v_standings_final folds the
  * two-sources-one-season rows and keeps the one-source-two-entries rows, and
  * says why in schema.sql. A position nobody established sorts last.
+ *
+ * The last term makes the order total (CR-64). 121 (season, table, position)
+ * groups hold more than one row - shared places, and a constructor's two
+ * engines in one season - and without it their order is whatever the query
+ * plan gives, which the app (sql.js) and the prerender (node:sqlite) agree on
+ * only while their plans happen to coincide. The row id is the order the
+ * source listed the tie in, and the order every tied group already showed.
  */
 export const FINAL = `
   SELECT f.id, f.year, f.table_type, f.position, f.position_text, f.entity,
@@ -101,7 +108,7 @@ export const FINAL = `
     FROM v_standings_final f
     LEFT JOIN constructors k ON k.id = f.constructor_id
    WHERE f.year = ?
-   ORDER BY f.table_type, f.position IS NULL, f.position, f.points DESC
+   ORDER BY f.table_type, f.position IS NULL, f.position, f.points DESC, f.id
 `
 
 /**
