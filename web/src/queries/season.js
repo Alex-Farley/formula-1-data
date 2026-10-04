@@ -86,6 +86,13 @@ export const STANDINGS = `
  * The season as it stands, one row per entity: v_standings_final folds the
  * two-sources-one-season rows and keeps the one-source-two-entries rows, and
  * says why in schema.sql. A position nobody established sorts last.
+ *
+ * The last term makes the order total (CR-64). 121 (season, table, position)
+ * groups hold more than one row - shared places, and a constructor's two
+ * engines in one season - and without it their order is whatever the query
+ * plan gives, which the app (sql.js) and the prerender (node:sqlite) agree on
+ * only while their plans happen to coincide. The row id is the order the
+ * source listed the tie in, and the order every tied group already showed.
  */
 export const FINAL = `
   SELECT f.id, f.year, f.table_type, f.position, f.position_text, f.entity,
@@ -101,7 +108,7 @@ export const FINAL = `
     FROM v_standings_final f
     LEFT JOIN constructors k ON k.id = f.constructor_id
    WHERE f.year = ?
-   ORDER BY f.table_type, f.position IS NULL, f.position, f.points DESC
+   ORDER BY f.table_type, f.position IS NULL, f.position, f.points DESC, f.id
 `
 
 /**
@@ -527,7 +534,6 @@ export const GAP_FOOTER =
   'before 1991 it is a difference of net totals, dropped scores and all.'
 
 const position = (value, row) => text(value ?? row.position)
-const pts = (value) => (missing(value) ? EMPTY : points(value))
 // The leader is nobody's gap: a 0 here means no one is ahead of you on points,
 // which an em dash says and a nought does not. Two drivers tied at the top
 // both get it, which is the same statement about each of them.
@@ -538,7 +544,7 @@ export const DRIVERS_FINAL_COLUMNS = [
   { key: 'position_text', label: 'Pos', align: 'num', text: position, glossary: 'results' },
   { key: 'entity', rowHeader: true, label: 'Driver' },
   { key: 'wins', label: 'Wins', align: 'num', text: won },
-  { key: 'points', label: 'Points', align: 'num', text: pts },
+  { key: 'points', label: 'Points', align: 'num', text: points },
   { key: 'gap', label: 'Gap', align: 'num', text: behind },
 ]
 
@@ -553,7 +559,7 @@ export const constructorEntity = (name, row) => (row.engine_id ? `${text(name)} 
 export const CONSTRUCTORS_FINAL_COLUMNS = [
   { key: 'position_text', label: 'Pos', align: 'num', text: position, glossary: 'results' },
   { key: 'entity', rowHeader: true, label: 'Constructor', text: constructorEntity },
-  { key: 'points', label: 'Points', align: 'num', text: pts },
+  { key: 'points', label: 'Points', align: 'num', text: points },
   { key: 'gap', label: 'Gap', align: 'num', text: behind },
 ]
 

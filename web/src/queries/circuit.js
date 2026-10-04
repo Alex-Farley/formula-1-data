@@ -27,6 +27,27 @@ export const CIRCUIT = `
    WHERE c.id = ?
 `
 
+/**
+ * The circuit's photograph (VD-62), where it has one: the aerial view VD-61
+ * took by the `circuit` route of article_images. `circuit_id` is UNIQUE
+ * there, so this is one row or none, and a circuit with none - the
+ * Sudschleife, anything VD-61 declined - draws its page exactly as before.
+ */
+export const PHOTOGRAPH = `
+  SELECT i.* FROM article_images i
+   WHERE i.route = 'circuit' AND i.circuit_id = ?
+`
+
+/**
+ * What that photograph is OF, for its alt (AX-13): the venue, and from where.
+ * The harvest admits only a file whose name says SkySat, aerial or
+ * Luftaufnahme (CIRCUIT_PHOTOGRAPH in data/harvest.py), so every one of them
+ * looks down on the circuit. The figure carries no subject line - it sits
+ * beside the heading that already names the place - so the alt is the one
+ * place this is said, and both renderers say it from here.
+ */
+export const photographAlt = (name) => `${name} from above`
+
 /** The centreline is a few hundred kilobytes of coordinates; only ever fetched for the one circuit being looked at. */
 export const GEOMETRY = `SELECT * FROM circuit_geometry WHERE circuit_id = ?`
 

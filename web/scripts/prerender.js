@@ -261,6 +261,7 @@ import {
   WINS_FOOTER as TEAM_WINS_FOOTER,
   WIN_COLUMNS,
   constructorSeasons,
+  recordFigures,
 } from '../src/queries/constructor.js'
 import {
   CIRCUIT as CIRCUIT_ROW,
@@ -271,9 +272,11 @@ import {
   TEAMS as TEAMS_HERE,
   TEAM_COLUMNS,
   OUTLINES as CIRCUIT_OUTLINES,
+  PHOTOGRAPH as CIRCUIT_PHOTOGRAPH,
   WINNERS as WINNERS_HERE,
   WINNER_COLUMNS,
   heldAs,
+  photographAlt as circuitPhotographAlt,
 } from '../src/queries/circuit.js'
 import { GRANDS_PRIX, GRANDS_PRIX_COLUMNS, GRANDS_PRIX_FOOTER, GRANDS_PRIX_LEDE } from '../src/queries/grandsprix.js'
 import {
@@ -485,8 +488,47 @@ const dbPath = join(repo, 'f1.db')
 if (!existsSync(dbPath)) die('f1.db not found at the repository root.\nBuild it first:  cd .. && python3 build.py')
 
 const db = new DatabaseSync(dbPath, { readOnly: true })
-const all = (sql, ...params) => db.prepare(sql).all(...params)
-const one = (sql, ...params) => db.prepare(sql).get(...params) ?? null
+
+/* One prepared statement per distinct SQL text, reused across every page:
+   the per-entity loops below call the same few dozen queries thousands of
+   times, and preparing each call re-parsed and re-planned it. A statement
+   resets itself on each .all()/.get(), so reuse cannot leak a cursor. */
+const statements = new Map()
+const prepared = (sql) => {
+  let statement = statements.get(sql)
+  if (!statement) {
+    statement = db.prepare(sql)
+    statements.set(sql, statement)
+  }
+  return statement
+}
+const all = (sql, ...params) => prepared(sql).all(...params)
+const one = (sql, ...params) => prepared(sql).get(...params) ?? null
+
+/* A driver's standings, from a copy of v_standings_final. The view is
+   evaluated whole for every query that reads it - its windows and CTEs run
+   over all of `standings` before a driver filter applies - so each of ~915
+   driver pages paid ~40 ms for a few rows, 35 s of the run. The file is
+   read-only and does not change while this runs, so a second connection
+   copies the view's rows once into an indexed TEMP table of the same name,
+   which unqualified names resolve to first, and the shared STANDINGS query
+   runs unchanged against it.
+
+   Only that query reads the copy, and only while its ORDER BY s.year settles
+   every row's place - one drivers' row per driver per season - because a tie
+   is ordered by the plan, and a different plan would put the page out of step
+   with the app's. The season and constructor tables do tie (Cooper's two
+   1960 engines share fifth), and a copy reordered 40 season pages. If a
+   driver ever holds two rows in a season, this falls back to the view. */
+const standingsDb = new DatabaseSync(dbPath, { readOnly: true })
+standingsDb.exec(`CREATE TEMP TABLE v_standings_final AS SELECT * FROM main.v_standings_final;
+  CREATE INDEX temp.v_standings_final_driver ON v_standings_final (table_type, driver_id);`)
+const driverYearTies = standingsDb
+  .prepare(`SELECT COUNT(*) AS n FROM (SELECT 1 FROM v_standings_final WHERE table_type = 'drivers'
+             GROUP BY driver_id, year HAVING COUNT(*) > 1)`)
+  .get().n
+const driverStandingsStatement = (driverYearTies === 0 ? standingsDb : db).prepare(STANDINGS)
+const driverStandings = (id) => driverStandingsStatement.all(id)
 
 /* The span the site describes itself by, read from the register rather than
    written down: the moment a calendar is announced for a season nobody has
@@ -1162,12 +1204,12 @@ const outbound = (url, label) =>
  * ready and failed, and a static page claiming "loading" for ever would be a
  * worse answer than none.
  */
-const photograph = (image, width, caption = null) => {
+const photograph = (image, width, caption = null, alt = caption) => {
   const title = fileTitle(image.file_name)
   const licence = (image.licence ?? '').trim()
   const size = image.width && image.height ? ` width="${esc(image.width)}" height="${esc(image.height)}"` : ''
   return `<figure class="photo">
-        <img src="${esc(thumbUrl(image, width))}" alt="${esc(photoAlt(image, caption))}"${size} loading="lazy" decoding="async" />
+        <img src="${esc(thumbUrl(image, width))}" alt="${esc(photoAlt(image, alt))}"${size} loading="lazy" decoding="async" />
         <figcaption>${caption ? `<div class="photo-subject">${esc(caption)}</div>` : ''}${outbound(image.description_url, title)} · ${esc(attribution(image))} · ${
           image.licence_url ? outbound(image.licence_url, licence) : esc(licence)
         }${image.name_matches === 0 ? ` · <span class="pill pill-unverified">${esc(UNCHECKED_MARK)}</span>` : ''}</figcaption>
@@ -1513,11 +1555,14 @@ const structure = (body, tail = '') => {
   // The stepper belongs to the header, because <Page aside> renders it there:
   // a nav left in the body would be swept into the first section instead, and
   // the two halves would put the same two links in different places.
+  // The circuit's photograph is the header's too (VD-62), for the same
+  // reason: Circuit.jsx passes it as <Page aside>. Its wrapper closes on the
+  // figure's own </figure>, which a photograph holds exactly one of.
   const opening = body.match(
-    /^\s*(<h1\b[\s\S]*?<\/h1>)(\s*<p class="lede">[\s\S]*?<\/p>)?(\s*<nav class="stepper"[\s\S]*?<\/nav>)?/,
+    /^\s*(<h1\b[\s\S]*?<\/h1>)(\s*<p class="lede">[\s\S]*?<\/p>)?(\s*<nav class="stepper"[\s\S]*?<\/nav>)?(\s*<div class="page-photo">[\s\S]*?<\/figure>\s*<\/div>)?/,
   )
   if (!opening) die('prerender: a page body that does not open on an h1')
-  return `<article class="page"><header>${opening[1]}${opening[2] ?? ''}${opening[3] ?? ''}</header>${sectioned(
+  return `<article class="page"><header>${opening[1]}${opening[2] ?? ''}${opening[3] ?? ''}${opening[4] ?? ''}</header>${sectioned(
     body.slice(opening[0].length),
   )}${tail}</article>`
 }
@@ -2310,7 +2355,7 @@ const page = ({
     // 0 poles" for 81 drivers whose lede had just moved to `provenance`.
     const derived = one(DERIVED, id) ?? {}
     const bySeason = all(BY_SEASON, id)
-    const standings = all(STANDINGS, id)
+    const standings = driverStandings(id)
     const seasons = seasonRows(bySeason, standings)
     // A driver of the season being run opens on it (PD-49), as Driver.jsx
     // does: the same rows, heading, sentence and table. The app draws the
@@ -2500,14 +2545,25 @@ page({
     const engineSplit = teamStandings.some((s) => s.engine_id)
     const wins = all(TEAM_WINS, c.id)
     const designs = all(DESIGNS, c.id)
+    // The description's figures. Wins are the derived count, as the Stats
+    // strip gives them (CD-34), and only for a team with a race entry under
+    // its own id: rob-walker has none, its wins being credited to Cooper and
+    // Lotus, so a count of zero would be a figure nobody established. Joined,
+    // so a team with neither figure gets no stray ". ." in its description.
+    const teamFigures = [
+      teamDerived.entries > 0 ? `${formatted(teamDerived.wins ?? 0)} wins` : '',
+      c.constructors_titles ? `${c.constructors_titles} constructors' titles` : '',
+    ]
+      .filter(Boolean)
+      .join(', ')
     page({
       path: `constructors/${c.id}`,
       lastmod: LAST_RUN.constructor.get(c.id),
       title: NAMES.constructor(c.name).title,
       description: summarise(
         `${c.full_name ?? c.name}${c.country ? `, ${c.country}` : ''}, Formula One ${c.first_entry ?? '?'}–${c.last_entry ?? 'present'}. ${
-          c.wins !== null ? `${c.wins} wins` : ''
-        }${c.constructors_titles ? `, ${c.constructors_titles} constructors' titles` : ''}. ${c.notes ?? ''}`,
+          teamFigures ? `${teamFigures}. ` : ''
+        }${c.notes ?? ''}`,
         300,
       ),
       trail: TRAIL.constructor(c.id, c.name),
@@ -2534,8 +2590,10 @@ page({
           // changed to close. A zero stays 0 - rob-walker has no race entry
           // and both halves say so.
           ['Race entries', esc(formatted(teamDerived.entries))],
-          ['Wins', num(c.wins)],
-          ['Poles', num(c.poles)],
+          // Both figures, as the app's "On the record" gives them (CD-34):
+          // the stored wins are published ones and part from the count on
+          // four teams, so the list no longer prints one the strip contradicts.
+          ...recordFigures(c, teamDerived).map(([label, value]) => [label, esc(value)]),
           ["Constructors' titles", c.constructors_titles ? `${c.constructors_titles} (${yearList(c.title_years)})` : num(c.constructors_titles)],
           ["Drivers' titles", num(c.drivers_titles)],
           // No "Active" row: the app has no such field, and "Entered" above
@@ -2645,6 +2703,9 @@ page({
     const outlinesHere = all(CIRCUIT_OUTLINES, c.id)
     const layoutsHere = all(CIRCUIT_LAYOUTS, c.id)
     const outlineSplit = leadOutline(outlinesHere)
+    // The photograph beside the heading, as Circuit.jsx draws it (VD-62):
+    // the same query, through canShow() first, and nothing where there is none.
+    const pictured = all(CIRCUIT_PHOTOGRAPH, c.id).find(canShow) ?? null
     const card = (row) => outlineCard(row.path, c.name, row.f1db_layout_id, outlineCaption(row))
     // The events held here, in Circuit.jsx's words (IA-01).
     const held = heldAs(all(CIRCUIT_GRANDS_PRIX, c.id))
@@ -2682,6 +2743,7 @@ page({
       },
       body: `
         <h1>${esc(NAMES.circuit(c.name).headline)}</h1>
+        ${pictured ? `<div class="page-photo">${photograph(pictured, PHOTOGRAPH_WIDTH, null, circuitPhotographAlt(c.name))}</div>` : ''}
         ${fields([
           ['Official name', text(c.official_name)],
           ['Location', text(list([c.locality, c.country]))],

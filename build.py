@@ -6,6 +6,7 @@ Build f1.db from schema.sql and the data modules.
 
 Idempotent: deletes and rebuilds the database each run.
 """
+import importlib
 import json
 import math
 import os
@@ -33,18 +34,23 @@ from data import results as RS     # noqa: E402
 from data import sessions as SS    # noqa: E402
 
 
+def _tool(name):
+    """A module from tools/, imported from beside this file. The directory
+    goes on sys.path once, however many times a stage asks."""
+    tools = os.path.join(HERE, "tools")
+    if tools not in sys.path:
+        sys.path.insert(0, tools)
+    return importlib.import_module(name)
+
+
 def _prose_figures():
     """tools/prose_figures.py, imported from beside this file."""
-    sys.path.insert(0, os.path.join(HERE, "tools"))
-    import prose_figures
-    return prose_figures
+    return _tool("prose_figures")
 
 
 def _standings_rule():
     """tools/standings_rule.py, imported from beside this file."""
-    sys.path.insert(0, os.path.join(HERE, "tools"))
-    import standings_rule
-    return standings_rule
+    return _tool("standings_rule")
 
 
 DB = os.path.join(HERE, "f1.db")
@@ -1149,6 +1155,104 @@ def _stage_11_the_lead_image_of_each_accepted(b):
               f"{cat_skipped} for chassis that are not without an article")
 
 
+def _stage_11b_the_article_of_each_circuit_and_its(b):
+    """the article of each circuit, and its aerial photograph"""
+    cur = b.cur
+
+    # --- which Wikipedia article describes each circuit (VD-47, VD-61)
+    #
+    # Read from one revision of the List of Formula One circuits and matched
+    # on country, seasons and races held, never on the name; verify.py
+    # checks every row against the register. Each value is a claim citing
+    # that revision, because the circuit row's own source is formula1.com
+    # and cannot say where the article came from.
+    register = {r[0] for r in cur.execute("SELECT id FROM circuits")}
+    mapped = {}
+    for r in HV.load_circuit_articles():
+        cid = r["circuit_id"]
+        if cid not in register:
+            raise SystemExit(f"circuit_articles: {cid} is not a circuit in "
+                             f"the register. Rerun tools/circuit_articles.py.")
+        if cid in mapped:
+            raise SystemExit(f"circuit_articles: {cid} is mapped twice.")
+        if not r.get("article") or not r.get("source"):
+            raise SystemExit(f"circuit_articles: {cid} names no article or "
+                             f"no source.")
+        mapped[cid] = r
+        cur.execute("UPDATE circuits SET article = ?, article_section = ? "
+                    "WHERE id = ?", (r["article"], r.get("section"), cid))
+        for field in ("article", "article_section"):
+            value = r.get("section" if field == "article_section" else field)
+            if value is not None:
+                cur.execute("""INSERT INTO claims (tbl, row_key, field,
+                    value_given, as_of, source) VALUES ('circuits',?,?,?,?,?)""",
+                    (cid, field, value, r.get("as_of"), r["source"]))
+    stale = sorted(set(HV.CIRCUIT_ARTICLE_NOT_THE_CIRCUIT) - set(mapped))
+    if stale:
+        raise SystemExit(f"CIRCUIT_ARTICLE_NOT_THE_CIRCUIT names "
+                         f"{', '.join(stale)}, which no row maps.")
+
+    # --- the circuit route: an aerial photograph of each circuit
+    #
+    # Keyed on the circuit, at 'unverified', the article route's rung on the
+    # article route's claim. The harvest's checks run again here, and so
+    # does the rule of 2026-09-30: a JPEG whose name says it is an aerial
+    # photograph and names the circuit by a venue name, carrying no copyright
+    # mark, from an article about the circuit as a whole.
+    circ_rows = 0
+    for im in HV.load_circuit_images():
+        cid = im.get("circuit_id")
+        r = mapped.get(cid)
+        if r is None:
+            raise SystemExit(f"circuit_images: {cid} has no mapped article. "
+                             f"Rerun tools/wikimedia_images.py --route circuit.")
+        if r.get("section") or cid in HV.CIRCUIT_ARTICLE_NOT_THE_CIRCUIT:
+            raise SystemExit(
+                f"circuit_images: {cid}'s article is not about the circuit "
+                f"as a whole, so it takes no photograph.")
+        f = im.get("file_name") or ""
+        if not (f.lower().endswith(HV.CIRCUIT_PHOTOGRAPH_SUFFIX)
+                and HV.CIRCUIT_PHOTOGRAPH.search(f)):
+            raise SystemExit(f"circuit_images: {cid}'s {f} is not an aerial "
+                             f"photograph by data/harvest.py "
+                             f"CIRCUIT_PHOTOGRAPH.")
+        if HV.CIRCUIT_PHOTOGRAPH_MARKED.search(f):
+            raise SystemExit(f"circuit_images: {cid}'s {f} carries a "
+                             f"copyright mark in its name.")
+        name, official = cur.execute(
+            "SELECT name, official_name FROM circuits WHERE id = ?",
+            (cid,)).fetchone()
+        forms = HV.circuit_name_forms(r["article"], r.get("linked_as"),
+                                      name, official)
+        if not HV.circuit_file_names(f, forms) or im.get("name_matches") != "1":
+            raise SystemExit(f"circuit_images: {cid}'s {f} does not name the "
+                             f"circuit by any of {forms}.")
+        if im.get("repository") != "shared":
+            raise SystemExit(
+                f"circuit_images: {cid} points at a file hosted "
+                f"{im.get('repository')!r}, not Wikimedia Commons.")
+        if not im.get("licence"):
+            raise SystemExit(f"circuit_images: {cid} states no licence.")
+        if not (im.get("artist") or im.get("credit")):
+            raise SystemExit(f"circuit_images: {cid} names no author for {f}.")
+        if not im.get("description_url"):
+            raise SystemExit(f"circuit_images: {cid} has no description page.")
+        cur.execute("""INSERT INTO article_images (route, circuit_id,
+            file_name, repository, licence, licence_url, artist, credit,
+            description_url, thumb_url, width, height, name_matches,
+            confidence)
+            VALUES ('circuit',?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (cid, f, im["repository"], im["licence"], im.get("licence_url"),
+             im.get("artist"), im.get("credit"), im["description_url"],
+             im.get("thumb_url") or None,
+             int(im["width"]) if im.get("width") else None,
+             int(im["height"]) if im.get("height") else None,
+             1, "unverified"))
+        circ_rows += 1
+    print(f"  circuit articles: {len(mapped)} of {len(register)} circuits "
+          f"mapped; {circ_rows} carry an aerial photograph")
+
+
 def _stage_12_circuit_centrelines_re_measured_before_they(b):
     """circuit centrelines, re-measured before they are admitted"""
     cur = b.cur
@@ -1942,6 +2046,9 @@ def _stage_21_the_full_classification_qualifying_and_stand(b):
 
     res_rows = res_skipped_driver = res_races = 0
     unknown_drivers = set()
+    # (race_id, driver_id) -> the constructor of each F1DB row for it, for
+    # the second-entry check after the loop.
+    cars_entered = {}
     for (yr, rnd), rows in sorted(results_by_race.items()):
         rid = b.race_for(yr, rnd, "race results")
         if rid is None:
@@ -1996,6 +2103,7 @@ def _stage_21_the_full_classification_qualifying_and_stand(b):
             # that at most one car starts from grid 1.
             grid_text = r["grid"] or None
             grid = int(r["grid"]) if r["grid"] and r["grid"].isdigit() else None
+            cars_entered.setdefault((rid, did), []).append((yr, rnd, cons))
             cur.execute("""INSERT INTO race_entries (race_id, driver_id,
                     constructor_id, entrant, grid, grid_text,
                     finish_position, position_text, shared_drive, classified,
@@ -2040,12 +2148,44 @@ def _stage_21_the_full_classification_qualifying_and_stand(b):
                  HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
             res_rows += 1
 
+    # SECOND ENTRIES (CR-62). race_entries is one row per driver per race, so
+    # a driver's later rows in one race land on the first through the ON
+    # CONFLICT above and only fill its gaps - a shared drive, a car taken
+    # over, a second car entered. Where the row not kept was another
+    # constructor's car, the driver's record loses that car, and whether the
+    # constructor still has the entry through a team-mate is something a
+    # person has to look at - so each such row is declared by identity in
+    # data/harvest.py SECOND_ENTRIES. A new one, or a
+    # declaration F1DB no longer bears out, stops the build. Compared with
+    # the STORED constructor, not F1DB's first row: a pole-harvest row
+    # created before this stage may already have set it.
+    merged = 0
+    lost = set()
+    for (rid, did), cars in cars_entered.items():
+        if len(cars) < 2:
+            continue
+        merged += len(cars) - 1
+        kept = cur.execute("SELECT constructor_id FROM race_entries "
+                           "WHERE race_id=? AND driver_id=?", (rid, did)).fetchone()[0]
+        lost.update((yr, rnd, did, cons) for yr, rnd, cons in cars
+                    if cons and cons != kept)
+    if res_rows and lost != set(HV.SECOND_ENTRIES):
+        new = sorted(lost - set(HV.SECOND_ENTRIES))
+        gone = sorted(set(HV.SECOND_ENTRIES) - lost)
+        raise SystemExit(
+            f"race results: a second entry for another constructor is "
+            f"undeclared {new} or declared and no longer held {gone}. "
+            f"race_entries keeps one row per driver per race; declare the "
+            f"entry it cannot keep in data/harvest.py SECOND_ENTRIES, or "
+            f"remove the declaration.")
+
     if res_rows:
         print(f"  race results: {res_rows} entries over {res_races} races "
               f"from F1DB; {res_skipped_driver} rows skipped for "
               f"{len(unknown_drivers)} unresolvable drivers; "
               f"{len(b.skipped_rounds.get('race results', ()))} rounds not yet "
-              f"on the calendar")
+              f"on the calendar; {merged} later rows merged into the driver's "
+              f"entry, {len(lost)} of them another constructor's car (declared)")
 
     b.f1db_drivers = f1db_drivers
 
@@ -4677,6 +4817,7 @@ STAGES = [
     _stage_09_regulation_limits_loaded_before_the_chassis,
     _stage_10_the_chassis_engine_and_entrant_register,
     _stage_11_the_lead_image_of_each_accepted,
+    _stage_11b_the_article_of_each_circuit_and_its,
     _stage_12_circuit_centrelines_re_measured_before_they,
     _stage_13_a_regulation_figure_is_not_a,
     _stage_14_a_regulation_figure_is_not_a,
@@ -5332,13 +5473,19 @@ def derive_records(cur):
           f"cars, and cannot count.")
 
     # -------------------------------------------------------------- races
-    rows = q("""SELECT a.points - b.points m, a.entity, a.driver_id, a.year,
+    # The view is read once into a MATERIALIZED CTE and the CTE is joined to
+    # itself. Joining v_standings_final to itself directly makes SQLite
+    # re-evaluate the view's correlated fill subquery for every candidate
+    # pair - 22 s of a 32 s build, for the same 76 rows.
+    rows = q("""WITH top2 AS MATERIALIZED (
+                  SELECT year, position, entity, driver_id, points FROM v_standings_final
+                   WHERE table_type = 'drivers' AND position IN (1, 2))
+                SELECT a.points - b.points m, a.entity, a.driver_id, a.year,
                        a.points, b.entity, b.points
-                  FROM v_standings_final a
-                  JOIN v_standings_final b ON b.year = a.year AND b.table_type = 'drivers'
-                                          AND b.position = 2
+                  FROM top2 a
+                  JOIN top2 b ON b.year = a.year AND b.position = 2
                   JOIN seasons s ON s.year = a.year
-                 WHERE a.table_type = 'drivers' AND a.position = 1
+                 WHERE a.position = 1
                    AND s.drivers_champion IS NOT NULL
                  ORDER BY m, a.year""")
     lead = _leaders(rows, biggest=False)

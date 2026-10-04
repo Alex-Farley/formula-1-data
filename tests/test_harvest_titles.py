@@ -346,5 +346,84 @@ class CategoryTail(unittest.TestCase):
             "Antonelli (028A8052).jpg"))
 
 
+class CircuitPhotograph(unittest.TestCase):
+    """The circuit route in tools/wikimedia_images.py (VD-61): an aerial
+    JPEG whose file name names the circuit, and nothing else. Every file
+    below is one a mapped article carried on 2026-10-02 or 2026-09-29."""
+
+    def setUp(self):
+        self.H, _register = WI.circuit_data()
+
+    def take(self, files, names):
+        return WI.circuit_candidates(files, names, self.H.CIRCUIT_PHOTOGRAPH,
+                                     self.H.CIRCUIT_PHOTOGRAPH_SUFFIX,
+                                     self.H.CIRCUIT_PHOTOGRAPH_MARKED)
+
+    def test_a_bare_place_is_not_a_name_of_the_circuit(self):
+        # The register's short names are often the town; only the forms
+        # that name a venue count, so a city's aerial is not taken.
+        forms = self.H.circuit_name_forms(
+            "Long Beach Street Circuit", "Long Beach Street Circuit",
+            "Long Beach", "Long Beach Street Circuit")
+        self.assertEqual(forms, ["Long Beach Street Circuit"])
+        self.assertEqual(self.take(["File:Long Beach aerial view.jpg"],
+                                   "+".join(forms)), [])
+        self.assertEqual(self.H.circuit_name_forms(
+            "Kyalami", "Kyalami", "Kyalami", "Kyalami Grand Prix Circuit"),
+            ["Kyalami Grand Prix Circuit"])
+        self.assertEqual(self.H.circuit_name_forms(
+            "Hungaroring", "Hungaroring", "Hungaroring", "Hungaroring"),
+            ["Hungaroring"])
+        self.assertFalse(self.H.circuit_file_names(
+            "File:Long Beach aerial view.jpg", forms))
+        # A town whose name ends in -ring is still a town.
+        self.assertEqual(self.H.circuit_name_forms(
+            "Sebring International Raceway", "Sebring International Raceway",
+            "Sebring", "Sebring International Raceway"),
+            ["Sebring International Raceway"])
+        self.assertEqual(self.H.circuit_name_forms(
+            "Nürburgring", "Nürburgring", "Nurburgring (GP-Strecke)",
+            "Nurburgring"), ["Nürburgring", "Nurburgring"])
+
+    def test_a_copyright_mark_in_the_name_refuses_the_file(self):
+        self.assertEqual(self.take(
+            ["File:Luftaufnahme (c)Red Bull Ring.jpg"],
+            "Red Bull Ring"), [])
+
+    def test_an_aerial_photograph_naming_the_circuit_is_taken(self):
+        self.assertEqual(self.take(
+            ["File:Silverstone Circuit, July 2, 2018 SkySat (cropped).jpg",
+             "File:Silverstone Circuit 2020.png"],
+            "Silverstone Circuit+Silverstone Circuit+Silverstone+Silverstone"),
+            ["File:Silverstone Circuit, July 2, 2018 SkySat (cropped).jpg"])
+
+    def test_a_named_photograph_that_is_not_aerial_is_not(self):
+        # The cars, festivals and statues the ruling of 2026-09-30 refused.
+        self.assertEqual(self.take(
+            ["File:Vanwall VW5 Aintree 1957.jpg",
+             "File:Ayrton Senna Statue - Donington Park.jpg"],
+            "Aintree Motor Racing Circuit+Aintree+Donington Park"), [])
+
+    def test_an_aerial_map_or_vector_is_not_a_photograph(self):
+        self.assertEqual(self.take(
+            ["File:Monza aerial track map.svg", "File:Monza aerial.png"],
+            "Monza Circuit+Monza"), [])
+
+    def test_an_aerial_photograph_must_name_the_circuit_not_the_town(self):
+        # The register's names and the article's, never the locality: the
+        # Melbourne file names none of Albert Park's, and Sochi's Adler
+        # aerial is the Olympic park.
+        self.assertEqual(self.take(
+            ["File:Melbourne Grand Prix Circuit, March 22, 2018 SkySat "
+             "(cropped).jpg"],
+            "Albert Park Circuit+Albert Park Circuit+Albert Park+"
+            "Albert Park Grand Prix Circuit"), [])
+        self.assertEqual(self.take(
+            ["File:Sochi adler aerial view 2018 15.jpg",
+             "File:Sochi Autodrom, July 10, 2018 SkySat (cropped).jpg"],
+            "Sirius Autodrom+Sochi Autodrom+Sochi Autodrom+Sochi Autodrom"),
+            ["File:Sochi Autodrom, July 10, 2018 SkySat (cropped).jpg"])
+
+
 if __name__ == "__main__":
     unittest.main()

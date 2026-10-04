@@ -392,6 +392,13 @@ above is the only one `[D-44]`.
   foreground with the Bash tool's maximum timeout
   (600000 ms) and run it again if the tool times out first. Empty output from
   `gh` is pending.
+- **A slow build is waited on the same way**, in the foreground. A tool call
+  past 600 s does not trip the `no progress for 600s` watchdog, which watches
+  the model's response stream, not your tools: every kill so far came after a
+  tool had returned, and 81 foreground calls past 600 s did not cause one
+  `[D-50]`. A command the Bash tool moves to the background at its timeout is
+  waited on with a foreground loop on its output file, never by ending the
+  turn.
 - **Main moved under the branch:** `python3
   .claude/skills/backlog-loop/merge-main.py` from the worktree. It resolves
   only what it can safely — the generated artefacts with a rebuild, and a

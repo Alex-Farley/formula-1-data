@@ -96,6 +96,7 @@ DUMP_INDEX = "https://api.jolpi.ca/data/dumps/download/"
 DUMP_CACHE = os.path.join(HERE, ".jolpicadump")
 
 from data import results as RS          # noqa: E402  (id maps live here)
+from loader_citation import cite_changed, snapshot  # noqa: E402
 
 
 def fetch(url, tries=4):
@@ -727,12 +728,22 @@ def main():
                 # anything was ever in doubt, and this database's rule is
                 # that a source conflict neither side can settle goes on the
                 # record rather than to whichever loader ran last.
+                #
+                # A row an earlier local load re-cited (CR-61, below) cites
+                # Jolpica or FastF1, and its finishing position may still be
+                # F1DB's: this loader never writes a disagreeing position,
+                # only inserts a row or fills a NULL one. (FastF1 overwrites
+                # any position it supplies, so a `fastf1` row's may be FOM's.) So it is held the same way: a
+                # second snapshot that disagrees with it is recorded, never
+                # lowered into it.
                 held = cur.execute("""SELECT finish_position, source
                     FROM race_entries WHERE race_id=? AND driver_id=?""",
                     (rid, did)).fetchone()
+                cited = (held[1] or "").lower() if held else ""
+                recited = "api.jolpi.ca" in cited or cited == "fastf1"
                 if (held and held[0] is not None and e["position"] is not None
                         and held[0] != e["position"]
-                        and "f1db" in (held[1] or "").lower()):
+                        and ("f1db" in cited or recited)):
                     conflicts.append((year, rnd, did, held[0], e["position"]))
                     # One entry's line: race_entries' natural key whole,
                     # spelt and named the way build.py files every other
@@ -745,15 +756,31 @@ def main():
                          "jolpica-result", f"{year} round {rnd}, {did}", "race_entries",
                          f"{rid}|{did}", "finish_position",
                          str(held[0]), str(e["position"]),
-                         "F1DB and Jolpica-F1 give different finishing "
-                         "positions for the same driver in the same race. "
-                         "The F1DB value is the one stored, because it is "
-                         "what the committed build is a function of; this "
-                         "row is the evidence that the two sources differ.",
+                         ("Jolpica-F1 gives a different finishing position "
+                          "from the one stored, on a row an earlier local "
+                          "load re-cited. The stored position is F1DB's or "
+                          "a local loader's: FastF1 overwrites a position it "
+                          "supplies, and Jolpica only inserts a row or fills "
+                          "a NULL position. It is kept, and this row is the "
+                          "evidence of the difference." if recited else
+                          "F1DB and Jolpica-F1 give different finishing "
+                          "positions for the same driver in the same race. "
+                          "The F1DB value is the one stored, because it is "
+                          "what the committed build is a function of; this "
+                          "row is the evidence that the two sources differ."),
                          "open"))
                     loaded += 1
                     continue
 
+                # A row this changes is re-cited as Jolpica's, with no
+                # source_id: F1DB's citation on Jolpica's values is a row
+                # every licence check would pass (CR-61). One it writes back
+                # unchanged keeps F1DB's.
+                cite = (source_note.format(year=year)
+                        if "{year}" in source_note else source_note)
+                key = (rid, did)
+                before = snapshot(cur, "race_entries",
+                                  "race_id=? AND driver_id=?", key)
                 cur.execute("""INSERT INTO race_entries (race_id, driver_id,
                         constructor_id, finish_position, grid, classified,
                         status, laps_completed, points, shared_drive,
@@ -772,9 +799,9 @@ def main():
                         shared_drive    = MAX(shared_drive,
                                               excluded.shared_drive)""",
                     (rid, did, cid, e["position"], grid, classified,
-                     e["status"], e["laps"], e["points"], shared,
-                     source_note.format(year=year)
-                     if "{year}" in source_note else source_note))
+                     e["status"], e["laps"], e["points"], shared, cite))
+                cite_changed(cur, "race_entries", before, cite,
+                             "race_id=? AND driver_id=?", key)
                 loaded += 1
             totals["races"] += 1
 
@@ -805,10 +832,16 @@ def main():
         WHERE finish_position = 2""").fetchone()[0]
     whole = covered >= held and pmin <= 1 and pmax >= 3
     if not a.dry_run and whole:
+        # A driver whose count this moves is re-cited as Jolpica's, like a
+        # race_entries row above: the count is derived from rows this load
+        # wrote (CR-61).
+        before = snapshot(cur, "drivers")
         cur.execute("""UPDATE drivers SET podiums = (
                 SELECT COUNT(DISTINCT e.race_id) FROM race_entries e
                 WHERE e.driver_id = drivers.id
                   AND e.finish_position BETWEEN 1 AND 3)""")
+        cite_changed(cur, "drivers", before,
+                     source_note if from_dump is not None else f"{BASE}/")
         con.commit()
         derived = True
     else:

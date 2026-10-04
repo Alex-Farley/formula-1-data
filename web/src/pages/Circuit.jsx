@@ -4,10 +4,12 @@ import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import { OutlineCard } from '../components/Outline.jsx'
 import LiveryMark from '../components/LiveryMark.jsx'
+import CommonsImage from '../components/CommonsImage.jsx'
 import { currentProgress } from '../data/client.js'
 import { rows, row as firstRow, useQueries } from '../data/useQuery.js'
 import { number, span } from '../lib/format.js'
 import { colourForEntry } from '../lib/liveries.js'
+import { canShow } from '../lib/commons.js'
 import {
   NO_DRAWING,
   NO_TIMELINE_ROW,
@@ -19,13 +21,14 @@ import {
 } from '../lib/outline.js'
 import { TRACE_NOT_LOADED, TRACE_RULE, measured, noTrace, odblCredit } from '../lib/trace.js'
 
-import { NAMES, NOT_YET_RUN } from '../lib/site.js'
+import { NAMES, NOT_YET_RUN, PHOTOGRAPH_WIDTH } from '../lib/site.js'
 import {
   CIRCUIT,
   GEOMETRY,
   GRANDS_PRIX,
   LAYOUTS,
   OUTLINES,
+  PHOTOGRAPH,
   RACES,
   RACE_COLUMNS,
   TEAMS,
@@ -34,6 +37,7 @@ import {
   WINNERS,
   WINNER_COLUMNS,
   heldAs,
+  photographAlt,
 } from '../queries/circuit.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
@@ -96,6 +100,7 @@ export default function Circuit() {
     geometry: [GEOMETRY, [id]],
     layouts: [LAYOUTS, [id]],
     outlines: [OUTLINES, [id]],
+    photograph: [PHOTOGRAPH, [id]],
     coverage: [TRACE_COVERAGE],
     races: [RACES, [id]],
     winners: [WINNERS, [id]],
@@ -138,12 +143,23 @@ function CircuitBody({ circuit, data }) {
   const winners = rows(data, 'winners')
   const teams = rows(data, 'teams')
   const held = heldAs(rows(data, 'grandsPrix'))
+  // VD-62: the photograph identifies the place, beside the heading - not a
+  // hero, and not in place of the outlines below. canShow() before anything
+  // is drawn, so a row with nobody to credit leaves the page as it was.
+  const photograph = rows(data, 'photograph').find(canShow) ?? null
   return (
     <Page
       eyebrow={[circuit.locality, circuit.country].filter(Boolean).join(', ')}
       title={NAMES.circuit(circuit.name).headline}
       trail={TRAIL.circuit(circuit.id, circuit.name)}
       lede={circuit.notes}
+      aside={
+        photograph && (
+          <div className="page-photo">
+            <CommonsImage image={photograph} width={PHOTOGRAPH_WIDTH} alt={photographAlt(circuit.name)} />
+          </div>
+        )
+      }
     >
       <Section>
         <Stats

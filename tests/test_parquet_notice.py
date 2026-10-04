@@ -72,6 +72,14 @@ class Notice(unittest.TestCase):
         n = len(P.views(self.con))
         self.assertIn(f"views.sql holds f1.db's {n} views", " ".join(self.text.split()))
 
+    def test_it_offers_views_sql_on_schema_sqls_terms(self):
+        # PM-64: the same SQL is under MIT in schema.sql, so the bundle may
+        # not state LICENSE-DATA as its only terms.
+        folded = " ".join(self.text.split())
+        self.assertIn("views.sql is also available under LICENSE (MIT), as "
+                      "schema.sql is", folded)
+        self.assertIn(f"{P.REPOSITORY}/blob/main/LICENSE", self.text)
+
 
 class Views(unittest.TestCase):
     """views.sql is every view f1.db holds, as it holds it (DA-14)."""
@@ -109,6 +117,40 @@ class Views(unittest.TestCase):
         folded = " ".join(self.text.split())
         self.assertIn(f"version {version}:", folded)
         self.assertIn("The SQL is SQLite's.", folded)
+
+
+class OneAttributionWording(unittest.TestCase):
+    """LICENSE-DATA's Attribution section is ATTRIBUTION.md's *Attribution
+    text*, links dropped (CR-55). Two statements of one credit were how
+    the licence went on crediting Wikipedia for the race results after
+    v2.15 took the classification from F1DB."""
+
+    def attribution_text(self):
+        path = os.path.join(os.path.dirname(P.LICENCE), "ATTRIBUTION.md")
+        with open(path, encoding="utf-8") as f:
+            lines = f.read().splitlines()
+        self.assertIn("## Attribution text", lines,
+                      "ATTRIBUTION.md has no Attribution text heading")
+        start = lines.index("## Attribution text") + 1
+        end = next((i for i in range(start, len(lines))
+                    if lines[i].startswith("## ")), len(lines))
+        quoted = [ln[1:].strip() for ln in lines[start:end]
+                  if ln.startswith(">")]
+        self.assertTrue(quoted, "ATTRIBUTION.md's Attribution text has no "
+                                "quoted block")
+        text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", " ".join(quoted))
+        return " ".join(text.split())
+
+    def test_the_licence_states_the_attribution_text(self):
+        _, attribution = P.licence_words()
+        self.assertEqual(attribution, self.attribution_text())
+
+    def test_it_credits_every_bulk_source(self):
+        text = self.attribution_text()
+        for name in ("Wikipedia", "F1DB", "Jules Roy", "OpenStreetMap",
+                     "Wikidata", "Wikimedia Commons", "formula1.com",
+                     "Formula One Licensing BV"):
+            self.assertIn(name, text)
 
 
 class NoticeFailures(unittest.TestCase):
