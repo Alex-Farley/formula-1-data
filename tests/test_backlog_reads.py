@@ -101,6 +101,29 @@ class TheBoardRead(unittest.TestCase):
         with self.reply(raw):
             self.assertEqual(next_py.board_rows(), [(4, "")])
 
+    def test_ids_are_asked_for_only_by_the_reader_that_needs_them(self):
+        # `file.py rank` takes the project's and items' ids from this read,
+        # in place of the two extra board reads it used to make `AF-81`;
+        # `next.py` goes on asking for numbers and statuses alone.
+        asked = []
+        with mock.patch.object(next_py, "run", lambda *a: asked.append(a) or page([issue(1, "Now")])):
+            next_py.board_rows()
+        self.assertIn("ids=false", asked[0])
+        raw = json.dumps({"data": {"user": {"projectV2": {"id": "P", "items": {
+            "pageInfo": {"hasNextPage": False, "endCursor": None},
+            "nodes": [dict(issue(1, "Now"), id="I1")]}}}}})
+        with mock.patch.object(next_py, "run", lambda *a: asked.append(a) or raw):
+            self.assertEqual(next_py.board_items(ids=True), ("P", [(1, "Now", "I1")]))
+        self.assertIn("ids=true", asked[1])
+
+    def test_ids_asked_for_and_missing_stop_rather_than_reach_a_write(self):
+        # A missing item id would go out as a null `afterId`, which GitHub
+        # reads as the top of the board.
+        with self.reply(page([issue(1, "Now")])), contextlib.redirect_stderr(io.StringIO()):
+            with self.assertRaises(SystemExit) as caught:
+                next_py.board_items(ids=True)
+        self.assertEqual(caught.exception.code, 2)
+
     def test_errors_beside_a_partial_page_stop_rather_than_shorten_the_board(self):
         # GraphQL answers 200 with `errors` alongside whatever `data` it
         # managed, and gh does not always exit non-zero on it. Half a board

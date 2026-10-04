@@ -59,6 +59,17 @@ on:
 # own pushes and the required checks would never report. The App needs
 # Contents and Pull requests (read and write) on this repository; its id is
 # the REFRESH_APP_ID variable and its key the REFRESH_APP_PRIVATE_KEY secret.
+#
+# No job that runs npm holds that token or that key (AF-78). Code from npm
+# shares its job's working tree, .git and $GITHUB_ENV with every later step,
+# so a token anywhere in the job is a token it can reach - by a git hook, a
+# rewritten script, BASH_ENV or a url.insteadOf, whether or not checkout
+# persisted it. So the work is three jobs. `gate` decides whether to run and
+# checks that the App can still mint a token. `refresh` fetches, builds,
+# verifies and tests with no token that writes, and packs what it changed
+# before npm runs. `land` takes that pack, applies only what
+# .github/scripts/refresh_tree.py allows a refresh to change, mints the token
+# and opens the pull request - and runs nothing from npm.
 permissions:
   contents: read
 
@@ -73,8 +84,9 @@ jobs:
     outputs:
       run: ${{ steps.decide.outputs.run }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           sparse-checkout: |
             f1.db
             web/src/lib/refresh.js
@@ -87,6 +99,18 @@ jobs:
           EVENT: ${{ github.event_name }}
         run: python3 .github/scripts/refresh_gate.py >> "$GITHUB_OUTPUT"
 
+      # Before the build, so a missing or broken App fails the run in its
+      # first minute rather than after three-quarters of an hour of it, and
+      # the check date stops moving, which is the signal that date exists to
+      # give. The token is used by nothing and revoked when this job ends;
+      # `land` mints its own.
+      - name: Can the App still mint a token?
+        if: steps.decide.outputs.run == 'true'
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ vars.REFRESH_APP_ID }}
+          private-key: ${{ secrets.REFRESH_APP_PRIVATE_KEY }}
+
   refresh:
     needs: gate
     if: needs.gate.outputs.run == 'true'
@@ -94,29 +118,26 @@ jobs:
     # ci.yml budgets 10 for the Python half and 20 for the web half; a cold
     # npm ci alone has taken seven.
     timeout-minutes: 45
+    outputs:
+      artifact: ${{ steps.upload.outputs.artifact-id }}
     steps:
-      # Before anything else, so a missing or broken App fails the run in its
-      # first second rather than after the build - and before the stamp, so
-      # the check date stops moving, which is the signal that date exists to
-      # give.
-      - uses: actions/create-github-app-token@v3
-        id: app
+      # This job runs npm, so it holds no token that writes (AF-78, and the
+      # header above): only the workflow's read-only GITHUB_TOKEN, and not
+      # even that left in .git/config.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          app-id: ${{ vars.REFRESH_APP_ID }}
-          private-key: ${{ secrets.REFRESH_APP_PRIVATE_KEY }}
+          persist-credentials: false
 
-      - uses: actions/checkout@v7
-        with:
-          token: ${{ steps.app.outputs.token }}
-
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.12'
 
       # PyYAML is needed by the fetch tool to read F1DB's source files. The
-      # build itself has no dependencies and does not get any here.
+      # build itself has no dependencies and does not get any here. Pinned
+      # in the file, which Dependabot bumps by pull request (AF-77): what it
+      # installs runs before the pack below, so it is a choice.
       - name: Install the fetch tool's dependency
-        run: pip install --quiet pyyaml
+        run: pip install --quiet -r .github/requirements/refresh.txt
 
       - name: Fetch F1DB and rewrite the harvest
         run: python3 tools/f1db_fetch.py
@@ -202,13 +223,33 @@ jobs:
           ./f1 champions 2020 2025
           ./f1 gaps
 
-      # ci.yml runs on the pull request this opens and gates its merge, so
+      # THE HANDOVER (AF-78). Everything this job changed, packed for `land`
+      # here, after the Python half has passed and before any npm code has
+      # run, and uploaded at once. `land` downloads it by the id uploaded
+      # here, not by name, so a later upload in this job is not what lands.
+      # On a quiet morning the pack is the one dated line of refresh.js.
+      # The pack refuses a change to any path a refresh does not write, so a
+      # refresh that starts writing somewhere new fails here rather than
+      # being dropped on the way across; `land` checks it all again.
+      - name: Pack what the refresh changed
+        run: python3 -B .github/scripts/refresh_tree.py pack "$RUNNER_TEMP/refresh"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        id: upload
+        with:
+          name: refresh
+          path: ${{ runner.temp }}/refresh
+          if-no-files-found: error
+          retention-days: 1
+
+      # ci.yml runs on the pull request `land` opens and gates its merge, so
       # this is no longer the only gate. It stays because it is the gate
       # BEFORE the pull request: a refresh the front end would refuse opens
-      # nothing, rather than a pull request nobody is watching. This is the
+      # nothing, rather than a pull request nobody is watching - `land` only
+      # runs when every step of this job passed. This is the
       # front end's half: the build that puts the database on the site, and
       # the smoke test that reads its expectations out of that database.
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         if: steps.diff.outputs.changed == 'true'
         with:
           node-version: '22'
@@ -240,6 +281,45 @@ jobs:
           test "$files" -le 20000 || { echo "::error::$files files in dist, over Cloudflare's 20,000"; exit 1; }
           urls=$(grep -c '<loc>' dist/sitemap.xml)
           test "$urls" -gt 2000 || { echo "::error::sitemap lists only $urls pages"; exit 1; }
+
+  # The only job that holds the App's token, and it runs nothing from npm and
+  # nothing from the pack: refresh_tree.py and land-refresh.sh come from this
+  # job's own checkout of the commit `refresh` started from, and the pack is
+  # data that refresh_tree.py checks before a byte of it is applied.
+  land:
+    needs: refresh
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ needs.refresh.outputs.artifact }}
+          path: ${{ runner.temp }}/refresh
+
+      - name: Apply what the refresh changed
+        run: python3 -B .github/scripts/refresh_tree.py apply "$RUNNER_TEMP/refresh"
+
+      - name: Did the harvest move?
+        id: diff
+        run: |
+          if git diff --quiet -- harvest/; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Last, so the token exists only for the two steps that use it. The
+      # checkout above persisted no credential; land-refresh.sh hands the
+      # token to its one push through gh.
+      - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        id: app
+        with:
+          app-id: ${{ vars.REFRESH_APP_ID }}
+          private-key: ${{ secrets.REFRESH_APP_PRIVATE_KEY }}
 
       # The commit message names the F1DB version it came from, which the
       # harvest headers also carry, so the provenance of a row is answerable

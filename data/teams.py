@@ -188,7 +188,7 @@ CONSTRUCTORS = [
      "John Surtees's own constructor.", "medium"),
     ("eagle", "Eagle", "Anglo American Racers", "United States", "Rye, United States", 1966, 1969,
      1, 0, 0, None, "eagle-chain", 0,
-     "Dan Gurney won the 1967 Belgian GP in a car of his own construction — one of only two men to do so.", "high"),
+     "Dan Gurney won the 1967 Belgian GP in a car of his own construction — one of three men to do so, with Jack Brabham and Bruce McLaren.", "high"),
     ("porsche", "Porsche", "Porsche System Engineering", "Germany", "Stuttgart, Germany", 1957, 1964,
      1, 0, 0, None, "porsche-chain", 0,
      "Won the 1962 French GP with Dan Gurney. Returned as an engine supplier badged TAG in the 1980s.", "high"),

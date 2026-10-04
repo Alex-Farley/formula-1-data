@@ -432,6 +432,13 @@ class Figures:
     def images_catalogued(self):
         return n(self.count("article_images", "route = 'category'"))
 
+    # The circuit route (VD-61), and the mapping it reads.
+    def images_circuit(self):
+        return n(self.count("article_images", "route = 'circuit'"))
+
+    def circuits_with_article(self):
+        return n(self.count("circuits", "article IS NOT NULL"))
+
     def chassis_without_article(self):
         return n(self.count("chassis", "article IS NULL"))
 

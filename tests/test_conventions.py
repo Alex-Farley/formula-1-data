@@ -164,6 +164,152 @@ class WorkflowsDeclareTheirPermissions(unittest.TestCase):
         self.assertEqual(missing, [], "workflows without a top-level permissions: block")
 
 
+def run_scripts(text):
+    """(line number, script) for every `run:` in a workflow, the block scalar's
+    lines included. A block runs while its lines are blank or indented past
+    the `run` key; a YAML comment inside one is part of the script, which is
+    the point — Actions expands an expression in a shell comment too. A key
+    named `run` in a mapping of names — a job's `outputs:`, a step's `env:` —
+    is a value, not a script, and is passed over."""
+    lines = text.splitlines()
+    out, i = [], 0
+    while i < len(lines):
+        m = re.match(r"^(\s*(?:-\s+)?)run:\s*(.*)$", lines[i])
+        if not m:
+            i += 1
+            continue
+        col, rest, start = len(m.group(1)), m.group(2), i + 1
+        parent = next((line for line in reversed(lines[:i])
+                       if line.strip() and not line.lstrip().startswith("#")
+                       and len(line) - len(line.lstrip()) < col), "")
+        if re.match(r"^\s*(?:-\s+)?(outputs|env|with|inputs|secrets):\s*$", parent):
+            i += 1
+            continue
+        body = [rest]
+        i += 1
+        if re.match(r"^[|>][-+0-9]*\s*(#.*)?$", rest):
+            while i < len(lines) and (not lines[i].strip() or len(lines[i]) - len(lines[i].lstrip()) > col):
+                body.append(lines[i])
+                i += 1
+        out.append((start, "\n".join(body)))
+    return out
+
+
+class NoExpressionInsideAScript(unittest.TestCase):
+    """security-reviewer, item 4. A `${{ }}` inside `run:` is pasted into the
+    script text before the shell parses it, so a value with a quote in it
+    runs as shell. actionlint flags the contexts it knows to be untrusted and
+    not `github.event.inputs`, which is how release.yml's tag check carried
+    one until AF-79. Every value goes through `env:` and is read quoted —
+    trusted or not, so nobody has to decide which."""
+
+    def test_no_run_script_contains_an_expression(self):
+        found = [f"{f}:{n}" for f in files_under(".github/workflows", (".yml", ".yaml"))
+                 for n, script in run_scripts(read(f)) if "${{" in script]
+        self.assertEqual(found, [], "a ${{ }} expression inside run: — pass it through env:")
+
+    def test_the_parser_sees_a_block_and_an_inline_script(self):
+        # Line 8's block is clean and followed by an expression in env: (a
+        # parser that reads past a block's end reports 8); line 13's carries
+        # one after a blank line (a parser that stops at the blank misses 13).
+        text = ("jobs:\n  a:\n    outputs:\n      run: ${{ steps.x.outputs.run }}\n    steps:\n"
+                "      - run: echo ${{ a }}\n      - name: x\n        run: |\n          ok\n"
+                "        env:\n          C: ${{ c }}\n"
+                "      - name: y\n        run: |\n          ok\n\n          echo ${{ b }}\n")
+        self.assertEqual([n for n, s in run_scripts(text) if "${{" in s], [6, 13])
+
+
+
+class WorkflowsRunWhatWasChosen(unittest.TestCase):
+    """security-reviewer, item 4 (AF-77). A tag is the action owner's to move,
+    and an unpinned `pip install` is whatever was released this morning;
+    either runs inside a job holding a token that writes to this repository
+    (refresh.yml's App, release.yml's contents: write). So every action is a
+    commit SHA with its release in a comment, which Dependabot moves
+    together; every script fetched at run time is fetched at a SHA; and
+    every package pip installs is an == pin in a file Dependabot watches.
+
+    Read line by line, so a `uses` or a `pip` the patterns cannot see - a
+    YAML anchor, a command assembled in a variable, a requirement pulled in
+    by `-r` from inside a pinned file - is still the reviewer's."""
+
+    USES = re.compile(r"""["']?\buses["']?\s*:\s*["']?([^\s,}"']+)["']?(.*)$""")
+    PIP = re.compile(r"(?:\bpython[\d.]*\s+-m\s+)?\bpip[\d.]*(?:\s+-\S+)*\s+install\b[^\n;&|]*")
+    PINNED_PIP = re.compile(r"(?:python[\d.]*\s+-m\s+)?pip[\d.]*(?:\s+(?:-q|--quiet))*\s+install"
+                            r"(?:\s+(?:-q|--quiet))*\s+-r\s+(\S+)\s*")
+
+    def workflows(self):
+        return files_under(".github/workflows", (".yml", ".yaml"))
+
+    def unpinned_uses(self, text):
+        bad = []
+        for n, line in enumerate(text.splitlines(), 1):
+            if line.lstrip().startswith("#"):
+                continue
+            for m in self.USES.finditer(line):
+                ref, rest = m.group(1), m.group(2)
+                if ref.startswith("./"):
+                    continue
+                if not (re.fullmatch(r"[\w.-]+/[\w./-]+@[0-9a-f]{40}", ref)
+                        and re.match(r"\s*(?:[,}]\s*)*(?:#\s*v\d+(?:\.\d+)*\b|$)", rest)
+                        and re.search(r"#\s*v\d+(?:\.\d+)*", line)):
+                    bad.append(n)
+        return bad
+
+    def pip_installs(self, text):
+        """(line, file or None) for every pip install in a run script: the
+        requirements file it reads, or None when it names packages."""
+        out = []
+        for n, script in run_scripts(text):
+            for cmd in self.PIP.findall(script):
+                m = self.PINNED_PIP.fullmatch(cmd.strip())
+                out.append((n, m.group(1) if m else None))
+        return out
+
+    def test_every_action_is_pinned_to_a_commit(self):
+        bad = [f"{f}:{n}" for f in self.workflows() for n in self.unpinned_uses(read(f))]
+        self.assertEqual(bad, [], "a `uses:` not pinned as `owner/repo@<40-hex sha> # vX.Y.Z`")
+
+    def test_every_fetched_script_is_pinned_to_a_commit(self):
+        bad = [f"{f}:{n}" for f in self.workflows()
+               for n, line in enumerate(read(f).splitlines(), 1)
+               for url in re.findall(r"https://raw\.githubusercontent\.com/\S+", line)
+               if not re.match(r"https://raw\.githubusercontent\.com/[^/]+/[^/]+/[0-9a-f]{40}/", url)]
+        self.assertEqual(bad, [], "a script fetched from a branch or tag rather than a commit")
+
+    def test_every_pip_install_reads_a_file_of_pins(self):
+        found = [(f, n, req) for f in self.workflows() for n, req in self.pip_installs(read(f))]
+        bad = [f"{f}:{n}" for f, n, req in found if req is None]
+        self.assertEqual(bad, [], "a workflow `pip install` that names packages instead of a pinned file")
+        files = [req for _, _, req in found]
+        self.assertTrue(files, "no workflow installs from a requirements file; is this test still reading them?")
+        for req in files:
+            for line in read(req).splitlines():
+                line = line.split("#", 1)[0].strip()
+                if line:
+                    self.assertRegex(line, r"^[A-Za-z0-9._-]+==[0-9][\w.]*$", f"{req}: {line} is not an == pin")
+
+    def test_the_patterns_see_the_other_spellings(self):
+        sha = "a" * 40
+        text = ("steps:\n"
+                f"  - uses: a/b@{sha} # v1.2.3\n"                      # pinned: passes
+                "  - {uses: a/b@v1, with: {x: 1}}\n"                    # flow mapping
+                "  - \"uses\": a/b@v1\n"                                # quoted key
+                f"  - uses: a/b@{sha}\n"                                # no release comment
+                f"  - {{uses: a/b@{sha}}} # v1\n"                       # flow mapping, pinned
+                "  - uses: ./local-action\n")                           # local: passes
+        self.assertEqual(self.unpinned_uses(text), [3, 4, 5])
+        script = ("jobs:\n  a:\n    steps:\n      - run: |\n"
+                  "          pip3.12 install pyyaml\n"
+                  "          python3 -m pip  install pyyaml\n"
+                  "          pip -q install pyyaml\n"
+                  "          pip -q install -r req.txt\n"
+                  "          pip install --quiet -r req.txt\n")
+        self.assertEqual(self.pip_installs(script),
+                         [(4, None), (4, None), (4, None), (4, "req.txt"), (4, "req.txt")])
+
+
+
 if __name__ == "__main__":
     unittest.main()
 

@@ -80,7 +80,7 @@ NEW_DRIVERS = [
      "Won his home Grand Prix at Interlagos in 1975 for Brabham. Killed in a light-aircraft crash; the Interlagos circuit is named after him.", "reference"),
     ("baghetti", "Giancarlo Baghetti", "Italy", "ITA", "1934-12-25", "1995-11-27", 1961, 1967,
      1, 0, 0, "deceased",
-     "The only driver to win on his World Championship debut, the 1961 French Grand Prix at Reims.", "reference"),
+     "Won the 1961 French Grand Prix at Reims in his first World Championship race. Only Nino Farina and Johnnie Parsons, both in the championship's first season, had done the same, and nobody has since.", "reference"),
 ]
 
 # Indianapolis 500 winners, 1950-1960, when the race counted towards the
@@ -470,7 +470,8 @@ POLE_ONLY_PROVENANCE = ("Added to the register from the pole position and fastes
 
 # ---------------------------------------------------------------------
 # What the database does not hold, and why. One tuple per row of known_gaps:
-#   id, key, field, area, state, reader, description, races_affected, resolution
+#   id, key, field, area, state, reader, description, resolution
+# races_affected is not in the tuple: it is measured, by GAP_RACES below.
 # `id` is written here, not counted: it used to come from the list position,
 # so filing a gap mid-list renumbered every `known_gaps #N` citation after
 # it, and nine had drifted by the time #87 read them (PM-30). A new gap takes
@@ -503,12 +504,6 @@ KNOWN_GAPS = [
      "between a Grand Prix and somebody editing that file, the site shows a "
      "completed race with no fastest lap. Pole used to sit in the same hole "
      "and no longer does: F1DB may now fill grid 1 where nothing else has.",
-     # 0, not 1: races_affected counts SETTLED races missing a fastest lap,
-     # and verify.py checks that total against the one real one (2021 Belgium,
-     # where no racing lap was ever set). This gap is about the current season
-     # being temporarily behind, which is a warning and not a hole in the
-     # record.
-     0,
      "CLOSED in v2.18, the same way pole was closed. tools/f1db_fetch.py now "
      "reads the fastest-lap results beside race-results.yml and writes "
      "harvest/fastest_laps.txt (1,161 rows, 1950-2026); build.py fills "
@@ -544,7 +539,6 @@ KNOWN_GAPS = [
      "disqualified driver's position VACANT while Jolpica promotes everyone "
      "below, so the 1983 Brazilian Grand Prix has no second place in one "
      "reading and Lauda second in the other. Neither is wrong.",
-     0,
      "CLOSED in v2.15: the full classification comes from F1DB under CC BY "
      "4.0, so the rows could be committed. "
      "Nothing to fetch. Run tools/ergast_load.py --from-dump to put Jolpica "
@@ -569,7 +563,7 @@ KNOWN_GAPS = [
      "single Garvey Team Lotus entry resolves. v_ambiguous_seasons lists "
      "them. The gap is concentrated before 1980 because a modern team runs "
      "one car all season while a 1960s constructor was a name several "
-     "privateers entered several different chassis under.", 0,
+     "privateers entered several different chassis under.",
      "Per-round chassis data, which no source in use here has. The season "
      "articles print a chassis column in the same results table the winners "
      "came from, and that column IS per round. Harvesting it is only safe "
@@ -591,7 +585,7 @@ KNOWN_GAPS = [
      "constructor ran more than one chassis, where attributing a pole to a "
      "particular car would be a guess - McLaren ran the M23 and the M26 "
      "through 1976 and 1977, and the blanket season claim gave the M23 "
-     "sixteen poles against a published fourteen before this was checked.", 0,
+     "sixteen poles against a published fourteen before this was checked.",
      "Per-round chassis data, which no source in use here has. The remaining "
      "seasons are listed in v_ambiguous_seasons and in car_seasons where "
      "corroborated = 0."),
@@ -622,7 +616,7 @@ KNOWN_GAPS = [
      "than one overwriting the other. "
      "Car telemetry (speed, throttle, brake, gear at about 4 Hz) is "
      "deliberately NOT stored here at all: it is hundreds of megabytes per "
-     "weekend and fastf1_load.py writes it to Parquet beside the database.", 0,
+     "weekend and fastf1_load.py writes it to Parquet beside the database.",
      "LOCALLY ONLY, and there is no version of this that ends in a shipped "
      "table: no source has lap times under a licence that permits passing "
      "them on. F1DB is the one source here that does permit it - which is "
@@ -651,7 +645,7 @@ KNOWN_GAPS = [
      "rather than per season, so filling them for 1950-2017 means reading "
      "1,161 individual race articles, which was judged too expensive against "
      "what it returns. From 2018 the FastF1 loader supplies the same "
-     "information at far greater resolution.", 0,
+     "information at far greater resolution.",
      "Either harvest race articles for the pre-2018 seasons, or accept that "
      "timing starts in 2018 and fill it with tools/fastf1_load.py."),
     (7, "layout-as-raced", "layout_name", "circuit configuration as raced, for most circuits",
@@ -670,7 +664,7 @@ KNOWN_GAPS = [
      "and 'current layout' where it does not. Zandvoort, Suzuka, Imola, "
      "Jerez, Estoril, Paul Ricard, Zolder, Brands Hatch, Kyalami and Buenos "
      "Aires all changed shape between championship races and are not yet "
-     "broken out.", 0,
+     "broken out.",
      "Research the configuration history of each remaining multi-race circuit "
      "and add the rows; verify.py already enforces that a circuit's layout "
      "rows, once present, form a complete non-overlapping timeline."),
@@ -682,7 +676,7 @@ KNOWN_GAPS = [
      "correct.",
      "No fastest lap is recorded because none was set. The race was abandoned after "
      "two laps behind the safety car, half points were awarded and no racing lap was "
-     "completed. This is a true null, not missing data.", 1,
+     "completed. This is a true null, not missing data.",
      "Nothing to fix - the absence is correct."),
 
     (9, "qualifying-before-1996", "qualifying.q1", "qualifying session detail before 1996, and sector times",
@@ -699,7 +693,6 @@ KNOWN_GAPS = [
      "ever carries both. What is missing throughout is sector times, tyre "
      "compound and the lap a time was set on, none of which was published "
      "before the live timing era.",
-     0,
      "From 2018, tools/fastf1_load.py has all of it at far greater "
      "resolution. Before that it does not exist in any retrievable form."),
 
@@ -720,7 +713,6 @@ KNOWN_GAPS = [
      "source for them anywhere. A trace is therefore attached to a layout "
      "only where that layout is still current, and historic layouts have no "
      "row rather than a modern shape standing in for them.",
-     0,
      "Nothing available. A historic centreline would have to be traced from "
      "period maps or aerial survey, which is a research project rather than "
      "a harvest, and any such trace would have no independent length to be "
@@ -749,7 +741,6 @@ KNOWN_GAPS = [
      "It is stored as name_matches and enforced nowhere. The failure it "
      "half-detects is real: the ATS D5 article leads with a photograph of "
      "officials and police.",
-     0,
      "A person looking. v_images_to_check lists the 337 whose file name does "
      "not name the car, worst first by how many chassis depend on the "
      "article. Every row sits at 'unverified' until then, which is where "
@@ -796,7 +787,6 @@ KNOWN_GAPS = [
      "round - the youngest champion, the most races left when a title was "
      "won - wait on the same derivation as the youngest and oldest champion "
      "above, and its pit-stop durations need timing too.",
-     0,
      "The clinching round is computable from `standings` and `points_systems`, "
      "and the per-season maximum-points rule that route was waiting on is now "
      "written down: points_systems.win_points and .fastest_lap_points carry as "
@@ -824,7 +814,6 @@ KNOWN_GAPS = [
      "the project's rule is that a fact needs a source before it needs a row: "
      "a governance row would carry a newspaper's number as if it were the "
      "contract's. Filed from the survey of the Wikipedia page (WK-04).",
-     0,
      "Closes if the FIA or Formula One publishes the figure, or if the "
      "Concorde Agreement is published; the row would then go in governance "
      "citing that document."),
@@ -849,7 +838,6 @@ KNOWN_GAPS = [
      "a pole or a fastest lap. A hand-written row would be overwritten at the "
      "next fetch. verify.py pins the pair by identity, so a third orphan "
      "qualifying row fails the build.",
-     1,
      "Closes when F1DB's classification for 2011 round 1 carries the two DNQ "
      "rows, which the next fetch would pick up; or by a curated-entry "
      "mechanism with its own source column, if a second case appears."),
@@ -869,7 +857,6 @@ KNOWN_GAPS = [
      "FIA's per-event 'Event & Timing Information' PDFs carry the same "
      "timetable and are the independent source; the project has no tool "
      "that reads them yet.",
-     23,
      "Closes when a tool reads the FIA event timetable and verify.py compares "
      "every start against it, with a disagreement filed in discrepancies."),
     (16, "cost-cap-indexation", "regulation_limits.cost_cap_usd", "the cost cap after Indexation",
@@ -886,7 +873,6 @@ KNOWN_GAPS = [
      "2026 inflation is determined, and the rate to 30 June 2027 can raise "
      "it. The stored values are the regulations' own figures, which "
      "verify.py and the 2026 regulation_changes prose agree on.",
-     None,
      "Closes when the indexed figure for each indexed year is read from an "
      "FIA Determination or an FIA statement of the adjusted cap, and stored "
      "beside the base."),
@@ -908,7 +894,6 @@ KNOWN_GAPS = [
      "build removes them (NULL, not established) rather than leave a figure "
      "no source stands behind. CAREER_FIGURES_NO_SOURCE lists them and the "
      "build refuses any other.",
-     None,
      "Closes when a named, classified source publishes a career total for "
      "her, and that figure is read and cited."),
     (18, "qualifying-format-before-1996", "qualifying_formats",
@@ -925,7 +910,6 @@ KNOWN_GAPS = [
      "not by year, so it cannot bound a period, and no row "
      "was written for any part of the span. The FIA's Sporting Regulations "
      "read for this table begin with 2009.",
-     None,
      "Closes when a source that states the format season by season - the "
      "FIA's yearbooks or its Sporting Regulations for those years - is read "
      "for 1950 to 1995 and each span is written as a row."),
@@ -944,12 +928,11 @@ KNOWN_GAPS = [
      "elimination format, because the March 2016 issue that set it out was "
      "not found; the 20 April issue read for the rest of 2016 postdates "
      "them. Those rows hold NULL.",
-     None,
      "Closes when the Sporting Regulations for 1996 to 2008, and the 2016 "
      "issue in force at the first two rounds, are read and each row's "
      "rule_107 is set from them."),
 
-    (20, "circuit-article-sudschleife", "harvest/circuit_articles.txt",
+    (20, "circuit-article-sudschleife", "circuits.article",
      "which Wikipedia article describes the Nurburgring Sudschleife",
      "position",
      "The Nurburgring's southern loop is held in the register for a race "
@@ -965,13 +948,57 @@ KNOWN_GAPS = [
      "a section of the Nurburgring article, the same article the list gives "
      "the Nordschleife and the GP-Strecke. A redirect found by trying a "
      "title is a name match, which is the thing the mapping refuses.",
-     None,
      "A source that names the article for this circuit - a list of "
      "circuits beyond the championship, or the Nurburgring article's own "
      "account of its layouts read as one. Until then this is the position, "
      "not an omission: CIRCUIT_ARTICLE_GAPS declares it and verify.py "
      "fails on any circuit neither mapped nor declared."),
 ]
+
+# known_gaps.races_affected, measured rather than typed (DA-16, #210).
+#
+# It was typed, and it said 0 on twelve of the twenty rows - including the winning
+# chassis gap, whose own description counted 287 races without one, and the
+# lap timing gap, which covers every race. A 0 is a claim that no race is
+# affected, so a typed one is only ever the figure nobody checked.
+#
+# Each entry is a query returning the number of races the gap touches, run
+# by build.py to fill the column and re-run by verify.py against it. A gap
+# with no entry holds NULL: either it is not counted in races - a photograph,
+# a circuit's shape, a fee - or no query here can yet say which races it
+# touches (the pole car, the layout as raced, qualifying detail), and a count
+# nobody can reproduce is the thing this replaced. verify.py fails an open
+# or position gap that measures 0 - the gap has closed, or its query has
+# stopped finding it - and a closed one that measures anything else.
+_RUN = "SELECT r.id FROM races r WHERE r.status = 'completed'"
+GAP_RACES = {
+    # a race won in a car nobody here can name
+    "winning-chassis": f"""SELECT COUNT(*) FROM ({_RUN}) r WHERE EXISTS (
+        SELECT 1 FROM race_entries e WHERE e.race_id = r.id
+        AND e.finish_position = 1 AND e.chassis_id IS NULL)""",
+    # a run race with no lap in the table - every one, by design
+    "lap-timing": f"""SELECT COUNT(*) FROM ({_RUN}) r WHERE NOT EXISTS (
+        SELECT 1 FROM laps l WHERE l.race_id = r.id)""",
+    "race-timing": f"""SELECT COUNT(*) FROM ({_RUN}) r WHERE NOT EXISTS (
+        SELECT 1 FROM race_timing t WHERE t.race_id = r.id)""",
+    # a settled race - not the season in progress, which the pole and
+    # fastest-lap refresh may simply not have reached - with no fastest lap
+    "fastest-lap-2021-belgian-gp": f"""SELECT COUNT(*) FROM ({_RUN}
+        AND r.year < (SELECT CAST(value AS INTEGER) FROM meta
+                      WHERE key = 'current_season')) r
+        WHERE NOT EXISTS (SELECT 1 FROM race_entries e
+                          WHERE e.race_id = r.id AND e.fastest_lap = 1)""",
+    # a race whose qualifying sheet names a driver its classification omits
+    "107-per-cent-2011-australian-gp": f"""SELECT COUNT(*) FROM ({_RUN}) r
+        WHERE EXISTS (SELECT 1 FROM qualifying q WHERE q.race_id = r.id
+            AND NOT EXISTS (SELECT 1 FROM race_entries e
+                WHERE e.race_id = q.race_id AND e.driver_id = q.driver_id))""",
+    # a weekend whose timetable rests on formula1.com's page alone
+    "session-timetable": """SELECT COUNT(*) FROM races r
+        WHERE EXISTS (SELECT 1 FROM sessions s WHERE s.race_id = r.id)
+          AND NOT EXISTS (SELECT 1 FROM sessions s WHERE s.race_id = r.id
+              AND s.source NOT LIKE 'https://www.formula1.com/%')""",
+}
 
 # Shared fastest laps the season tables render as ONE name. harvest/poles.txt
 # is read from the season summary tables, and where two or three drivers set
@@ -1145,6 +1172,211 @@ CORRECTIONS = [
 ]
 
 
+# The three career figures stored as a source gave them and never recounted
+# (DA-16) - drivers.entries, drivers.starts and drivers.career_points -
+# compared with what the race records give for the same driver (DA-42): the
+# rows race_entries holds for him, the ones of them that are starts by
+# build.STARTED, and the points of those rows and of his sprint_results. The
+# build files every difference in `discrepancies` and fails on one that is not
+# accounted for, as it does for wins, poles and fastest laps.
+#
+# Accounted for means one of three things:
+#   - a current driver's formula1.com figure (VERIFIED_STATS) that equals the
+#     race records counted to the day it was read, the races run since being
+#     the whole of the difference: explained, and nothing to declare;
+#   - a typed figure no source gives, corrected below to the one a named
+#     source does, with the typed value kept on the record;
+#   - a difference declared below with the reason for it. Most are each
+#     source counting by its own rule - a championship total net of the
+#     scores the best-results rule dropped, an entry at a race the driver
+#     never reached the grid of - and are explained; where two named sources
+#     disagree about the race itself, the row is open.
+#
+# The figures F1DB publishes, quoted below, are its career totals in release
+# v2026.14.0, f1db-drivers.csv in f1db-csv.zip (totalRaceEntries,
+# totalRaceStarts, totalPoints, totalChampionshipPoints): the release
+# harvest/f1db_driver_totals.txt is pinned to. The infobox figures are
+# Wikipedia's, read on 2026-10-01, where the figure outside the brackets is
+# the championship total and the one inside it everything scored.
+#
+# A declaration names both readings, and the build refuses one the database
+# no longer holds - so a refresh that moves either side reopens the question
+# rather than carrying the old answer past it.
+#   driver_id, field, typed value, corrected value, why
+STORED_TOTALS_CORRECTED = [
+    ("ascari", "career_points", 140.64, 140.14,
+     "No source gives 140.64. His Wikipedia infobox gives 107 9/14 (140 1/7) "
+     "- a championship total of 107 9/14 out of 140 1/7 scored - and F1DB's "
+     "published totals are the same, 107.64 and 140.14, as is the sum of the "
+     "race records. The typed figure is the scored total with the fraction "
+     "of the championship one. Corrected to 140.14, the points he scored, "
+     "held to two places as the race records hold a seventh of a point. "
+     "Source: https://en.wikipedia.org/wiki/Alberto_Ascari"),
+    ("ascari", "entries", 33, 34,
+     "No source gives 33. His Wikipedia infobox gives 34 entries and 32 "
+     "starts, the 34 counting the two races he was entered for and did not "
+     "start: the 1950 French Grand Prix, where he did not start, and the "
+     "1953 Indianapolis 500, where he was entered and did not arrive. That "
+     "is the rule every other champion's stored entries follow, so the "
+     "figure is corrected to 34. The difference from the race records' 32 "
+     "is declared beside it. "
+     "Source: https://en.wikipedia.org/wiki/Alberto_Ascari"),
+    ("fangio", "career_points", 245.14, 245,
+     "No source gives 245.14. His Wikipedia infobox gives 245 (277 9/14), "
+     "F1DB's published totals give 245 championship points of 277.64 "
+     "scored, and the final tables here sum to 245. Corrected to 245, the "
+     "championship total the typed figure's whole points are; the "
+     "difference from the race records' 277.64 is declared beside it. "
+     "Source: https://en.wikipedia.org/wiki/Juan_Manuel_Fangio"),
+    ("hulme", "entries", 114, 112,
+     "No source gives 114. His Wikipedia infobox gives 112 entries, every "
+     "one a start, F1DB's published total is 112, and the race records hold "
+     "112 rows for him. Corrected to 112. "
+     "Source: https://en.wikipedia.org/wiki/Denny_Hulme"),
+    ("p-hill", "entries", 51, 52,
+     "No source gives 51. His Wikipedia infobox gives 52 entries, F1DB's "
+     "published total is 52, and the race records hold 52 rows for him, "
+     "four of them races he did not start - the 1962 United States Grand Prix, "
+     "the 1966 Monaco and Belgian Grands Prix, where he drove a camera car "
+     "for the film Grand Prix, and the 1966 Italian Grand Prix, which he "
+     "did not qualify for. Corrected to 52. "
+     "Source: https://en.wikipedia.org/wiki/Phil_Hill"),
+]
+
+# For a dated figure - a current driver's - the race-records value is the
+# count to the day stats_as_of gives, so the declaration holds from one race
+# to the next; the row filed carries the count as it is now.
+#   driver_id, field, stored value, race-records value, status, status_note,
+#   why
+STORED_TOTALS_DECLARED = [
+    ("senna", "career_points", 610, 614, "explained", "net of dropped scores",
+     "The stored 610 is his championship total and the race records' 614 "
+     "everything he scored: in 1988 only the best eleven of sixteen results "
+     "counted, and four of his 94 points that year were dropped. Both are "
+     "his - his Wikipedia infobox gives 610 (614), and F1DB's published "
+     "totals give 610 championship points of 614 scored. "
+     "Source: https://en.wikipedia.org/wiki/Ayrton_Senna"),
+    ("fangio", "career_points", 245, 277.64, "explained", "net of dropped scores",
+     "The stored 245 is his championship total and the race records' 277.64 "
+     "everything he scored: the best-results rule dropped points from six "
+     "of his eight seasons, 1951 and 1953 to 1957, 32 9/14 of them in all. "
+     "Both are his - his Wikipedia infobox gives 245 (277 9/14), and F1DB's "
+     "published totals give 245 championship points of 277.64 scored. "
+     "Source: https://en.wikipedia.org/wiki/Juan_Manuel_Fangio"),
+    ("farina", "career_points", 127.33, 126, "explained",
+     "a car the records do not hold",
+     "He finished the 1955 Argentine Grand Prix in two cars, each shared "
+     "three ways and its points divided: second in the Ferrari he shared "
+     "with Gonzalez and Trintignant, for 2 points, and third in the one he "
+     "shared with Maglioli and Trintignant, for 1 1/3. The race records hold "
+     "one row per driver per race, so they carry the 2 and not the 1 1/3. "
+     "The stored 127 1/3 is everything he scored: his Wikipedia infobox "
+     "gives 115 1/3 (127 1/3), and F1DB, which holds both cars, publishes "
+     "127.33. Source: https://en.wikipedia.org/wiki/Giuseppe_Farina"),
+    ("ascari", "entries", 34, 32, "explained", "an entry the records do not hold",
+     "Wikipedia's 34 counts two races he was entered for and did not start: "
+     "the 1950 French Grand Prix and the 1953 Indianapolis 500, where he did "
+     "not arrive. The race records hold neither, and F1DB's published "
+     "total, 32, counts neither. "
+     "Source: https://en.wikipedia.org/wiki/Alberto_Ascari"),
+    ("fangio", "entries", 52, 51, "explained", "an entry the records do not hold",
+     "Wikipedia's 52 counts the 1958 Indianapolis 500, which he went to, "
+     "tried cars at and did not qualify for. The race records hold no "
+     "Indianapolis non-qualifier and have no row for him there; F1DB's "
+     "published total, 51, does not count it either. "
+     "Source: https://en.wikipedia.org/wiki/Juan_Manuel_Fangio"),
+    ("farina", "entries", 35, 34, "explained", "an entry the records do not hold",
+     "Wikipedia's 35 counts the 1956 Indianapolis 500, which he did not "
+     "qualify for. The race records hold no Indianapolis non-qualifier and "
+     "have no row for him there; F1DB's published total, 34, does not count "
+     "it either. Source: https://en.wikipedia.org/wiki/Giuseppe_Farina"),
+    ("lauda", "entries", 177, 176, "explained", "an entry the records do not hold",
+     "Wikipedia's 177 counts the 1979 Canadian Grand Prix, where he stopped "
+     "during practice, told Ecclestone he was retiring, and left: it lists "
+     "him as withdrawn. The race records have no row for him there, and "
+     "F1DB's published total, 176, does not count it. "
+     "Source: https://en.wikipedia.org/wiki/Niki_Lauda"),
+    ("raikkonen", "entries", 353, 352, "explained", "an entry the records do not hold",
+     "Wikipedia's 353 counts the 2021 Dutch Grand Prix, which he was entered "
+     "for and withdrew from during the weekend after testing positive for "
+     "COVID-19, Robert Kubica driving his car. F1DB's entry list names him "
+     "for the round, but its race results, which its published total of 352 "
+     "counts, and the race records name Kubica. "
+     "Source: https://en.wikipedia.org/wiki/Kimi_R%C3%A4ikk%C3%B6nen"),
+    ("alonso", "entries", 439, 440, "open", "sources differ",
+     "formula1.com's driver page, read on 2026-09-04 after round 12, gave "
+     "439; counted to that day, the race records hold 440 rows for him, two "
+     "of them races he did not start, the 2005 United States and 2017 "
+     "Russian Grands Prix. The page's figure is one fewer, and which race it "
+     "leaves out is not established. Source: "
+     "https://www.formula1.com/en/drivers"),
+    ("leclerc", "entries", 183, 185, "open", "sources differ",
+     "formula1.com's driver page, read on 2026-09-04 after round 12, gave "
+     "183; counted to that day, the race records hold 185 rows for him, two "
+     "of them races he did not start, the 2021 Monaco and 2023 Sao Paulo "
+     "Grands Prix, and the page's figure is two fewer. Hamilton's and "
+     "Verstappen's pages, read the same day, agree with the records, and "
+     "neither has a race he did not start; but Alonso's and Russell's "
+     "differences do not follow the non-starts, so that the page counts only "
+     "starts is not established. Source: https://www.formula1.com/en/drivers"),
+    ("norris", "entries", 163, 164, "open", "sources differ",
+     "formula1.com's driver page, read on 2026-09-04 after round 12, gave "
+     "163; counted to that day, the race records hold 164 rows for him, one "
+     "of them a race he did not start, the 2026 Chinese Grand Prix, and the "
+     "page's figure is one fewer. Hamilton's and Verstappen's pages, read "
+     "the same day, agree with the records, and neither has a race he did "
+     "not start; but Alonso's and Russell's differences do not follow the "
+     "non-starts, so that the page counts only starts is not established. "
+     "Source: https://www.formula1.com/en/drivers"),
+    ("piastri", "entries", 80, 82, "open", "sources differ",
+     "formula1.com's driver page, read on 2026-09-04 after round 12, gave "
+     "80; counted to that day, the race records hold 82 rows for him, two of "
+     "them races he did not start, the 2026 Australian and Chinese Grands "
+     "Prix, and the page's figure is two fewer. Hamilton's and Verstappen's "
+     "pages, read the same day, agree with the records, and neither has a "
+     "race he did not start; but Alonso's and Russell's differences do not "
+     "follow the non-starts, so that the page counts only starts is not "
+     "established. Source: https://www.formula1.com/en/drivers"),
+    ("russell", "entries", 163, 164, "open", "sources differ",
+     "formula1.com's driver page, read on 2026-09-04 after round 12, gave "
+     "163; counted to that day, the race records hold 164 rows for him, "
+     "every one a start. The page's figure is one fewer, and which race it "
+     "leaves out is not established. Source: "
+     "https://www.formula1.com/en/drivers"),
+    ("piastri", "career_points", 903, 905, "open", "sources differ",
+     "formula1.com's driver page, read on 2026-09-04 after round 12, gave "
+     "903; counted to that day, the race records give 905. The 2 points are "
+     "the 2026 Monaco Grand Prix: formula1.com's own table after round 12 "
+     "gives him 104 points for the season and F1DB's, which the race records "
+     "follow, 106, and that disagreement is open on the race, 2026 round 6. "
+     "Source: https://www.formula1.com/en/results/2026/drivers"),
+    ("russell", "career_points", 1193, 1216, "open", "sources differ",
+     "formula1.com's driver page, read on 2026-09-04 after round 12, gave "
+     "1193; counted to that day, the race records give 1216, 23 more. The "
+     "same fetch gave his 2026 total as 160 points against the standings' "
+     "183 - the inconsistency that had his pole count corrected - and the "
+     "career figure is short by the same 23. The records' 2026 figure, 183, "
+     "agrees with formula1.com's and F1DB's tables; the page has not been "
+     "read again. Source: https://www.formula1.com/en/drivers"),
+    ("raikkonen", "starts", 349, 350, "open", "sources differ",
+     "The 2001 Belgian Grand Prix was stopped on lap five, declared void "
+     "and run again from the start. He retired from the first race with a "
+     "transmission failure and took no part in the second, and the official "
+     "results list him as not having started, which is the 349 Wikipedia "
+     "gives. F1DB's "
+     "published total, 350, and the race records count it as a start he "
+     "retired from. One race read two ways. "
+     "Source: https://en.wikipedia.org/wiki/2001_Belgian_Grand_Prix"),
+    ("piquet", "starts", 204, 203, "open", "sources differ",
+     "The race records, and F1DB's published total of 203, hold his 1985 "
+     "Canadian Grand Prix as a race he did not start, with a transmission "
+     "failure. The race's Wikipedia article, citing formula1.com, has him "
+     "retiring on lap 0 from ninth on the grid, which is a start, and his "
+     "own article's infobox gives 204 starts. One race read two ways. "
+     "Source: https://en.wikipedia.org/wiki/1985_Canadian_Grand_Prix"),
+]
+
+
 # =====================================================================
 # The chassis, engine and entrant register (harvest/chassis.txt,
 # harvest/engines.txt, harvest/f1db_constructors.txt, harvest/entrants.txt)
@@ -1202,6 +1434,7 @@ SPECS_FILE = os.path.join(HERE, "..", "harvest", "car_specs.txt")
 IMAGES_FILE = os.path.join(HERE, "..", "harvest", "article_images.txt")
 CIRCUIT_ARTICLES_FILE = os.path.join(HERE, "..", "harvest", "circuit_articles.txt")
 CATEGORY_IMAGES_FILE = os.path.join(HERE, "..", "harvest", "category_images.txt")
+CIRCUIT_IMAGES_FILE = os.path.join(HERE, "..", "harvest", "circuit_images.txt")
 GEOMETRY_FILE = os.path.join(HERE, "..", "harvest", "circuit_geometry.txt")
 RESULTS_FILE = os.path.join(HERE, "..", "harvest", "race_results.txt")
 SPRINT_FILE = os.path.join(HERE, "..", "harvest", "sprint_results.txt")
@@ -1408,6 +1641,27 @@ def svg_path_in_box(d, box=OUTLINE_BOX, margin=5.0):
 
 F1DB_SOURCE = "https://github.com/f1db/f1db"
 F1DB_CONFIDENCE = "reference"
+
+# A driver F1DB enters twice in one race, in cars of two constructors this
+# database holds (CR-62). race_entries is one row per driver per race
+# (known_gaps #2), so build.py merges a driver's later rows in a race into
+# the first, which keeps that row's car. Where both cars were one
+# constructor's, or the constructor is one the register does not hold (the
+# Indianapolis makes), nothing a constructor is counted by is lost. These are
+# the entries that are: the other constructor's car is not this driver's row.
+# build.py refuses one not named here, and a name here F1DB no longer bears
+# out, so a new case arrives as a question and not as a silent merge.
+# Keyed (year, round, our driver id, constructor of the entry NOT kept).
+SECOND_ENTRIES = {
+    (1961, 5, "moss", "ferguson"):
+        "F1DB lists Moss in a Lotus, DNF, and in the Ferguson, DSQ, that Jack "
+        "Fairman also drove; the Lotus row is kept, and Fairman's row holds "
+        "the Ferguson's entry.",
+    (1978, 14, "harald-ertl", "ensign"):
+        "F1DB lists Ertl in an ATS, DNQ, and an Ensign, DNPQ; the ATS row is "
+        "kept, and the practice table holds the Ensign's pre-qualifying run "
+        "(verify.py PRACTICE_TEAM_EXCEPTIONS).",
+}
 
 # F1DB constructor id -> this database's constructor id, for the seven that
 # do not already share one. Six are spelling; the seventh is not.
@@ -1711,14 +1965,24 @@ def load_category_images():
                        "tools/wikimedia_images.py --route category")
 
 
+def load_circuit_images():
+    """The aerial photograph of each circuit whose article carries one
+    (VD-61): the same licence obligation as load_article_images(), keyed on
+    the circuit. See CIRCUIT_PHOTOGRAPH below for which file qualifies."""
+    return _read_named(CIRCUIT_IMAGES_FILE,
+                       "tools/wikimedia_images.py --route circuit")
+
+
 # =====================================================================
 # Circuit articles (harvest/circuit_articles.txt, VD-47)
 #
 # Which Wikipedia article describes each circuit, read from the List of
 # Formula One circuits by tools/circuit_articles.py and matched on country,
-# seasons and races held - never on the name. Nothing loads it yet; verify.py
-# cross-checks every row against the register. What follows are the
-# declared exceptions the harvest and the check both read.
+# seasons and races held - never on the name. build.py loads it into
+# circuits.article and circuits.article_section (VD-61), and verify.py
+# cross-checks every row against the register and the loaded columns against
+# the file. What follows are the declared exceptions the harvest and the
+# check both read.
 # =====================================================================
 
 # One list row that this register holds as several circuits. The list's
@@ -1749,17 +2013,95 @@ CIRCUIT_ARTICLE_GAPS = {
 
 # An admitted Wikidata id (data/circuits.py WIKIDATA_CIRCUITS) that is known
 # to be wrong, and the issue that will correct it. The article check compares
-# each mapped article's Wikidata entity with the admitted one, and this is
-# the one place it disagrees: Long Beach was admitted as Q16739, which is the
-# CITY; the circuit is Q173889, and the article is held to that. The OSM
-# relation admitted with it is the circuit's, which is why the length check
-# passed. verify.py fails on a declaration that no longer matches what
-# data/circuits.py admits, so the fix for PM-63 (#727) has to delete this
-# line too.
+# each mapped article's Wikidata entity with the admitted one; a declared
+# disagreement holds the article to the right id instead, so the row keeps an
+# independent check until the admission is corrected. verify.py fails on a
+# declaration that no longer matches what data/circuits.py admits, so the fix
+# deletes its line here too.
+#
+# Empty since PM-63 (#727): Long Beach had been admitted as Q16739, which is
+# the CITY, with the circuit's own OSM relation - so the length check, which
+# measures the relation and not the entity, passed it. The circuit is
+# Q173889, the entity its article carries.
 CIRCUIT_WIKIDATA_WRONG = {
     # circuit_id: (the admitted id, which is wrong; the article's, which is right)
-    "long-beach": ("Q16739", "Q173889"),   # PM-63 (#727): Q16739 is the city
 }
+
+
+# A mapped row whose article is not the circuit's, and why, so that the
+# circuit route of tools/wikimedia_images.py takes no photograph from it. A
+# photograph of the wrong place under the circuit's name is what the ruling
+# of 2026-09-24 exists to prevent. The three rows that link a SECTION of a
+# larger article - Fair Park, the Bugatti Circuit, Zeltweg Air Base - need
+# no line here: `section` already says so, and the route refuses every one.
+# verify.py fails on a line here that no longer names a mapped circuit.
+CIRCUIT_ARTICLE_NOT_THE_CIRCUIT = {
+    "caesars-palace": "the list links the race, Caesars Palace Grand Prix, "
+                      "and not an article about the circuit",
+}
+
+# Which body image of a circuit's article stands for the circuit (VD-61,
+# ruled 2026-09-30): a JPEG whose file name names the circuit and says one of
+# these words - an aerial or satellite photograph, which shows the whole
+# circuit. Nothing else. The article's lead image is a track map beside the
+# outline the circuit page already draws; any other named body JPEG picks
+# cars, a music festival, a statue and a road car. A circuit with no such
+# file has no photograph, which fails closed. The harvest applies it, the
+# build refuses a row that breaks it, and verify.py re-applies it.
+CIRCUIT_PHOTOGRAPH = re.compile(r"skysat|aerial|luftaufnahme", re.I)
+CIRCUIT_PHOTOGRAPH_SUFFIX = (".jpg", ".jpeg")
+
+# A file whose own name carries a copyright mark is refused on the circuit
+# route, whatever its licence says. `Luftaufnahme (c)Red Bull Ring.jpg` is
+# uploaded as its uploader's own work under CC BY-SA 4.0 while its
+# description says "(c) Red Bull Ring", with no permission ticket: the grant
+# is in doubt, and a reference that states a licence to every reader of this
+# database is not the place to settle it (VD-61 review). Refusing fails
+# closed, as the GFDL Nurburgring file's missing author does.
+CIRCUIT_PHOTOGRAPH_MARKED = re.compile(r"\(c\)|\u00a9", re.I)
+
+# What "names the circuit" may be named BY: the article's title, the list's
+# link text, the register's name and official name - but only a form that
+# names a venue rather than a place. A third of the register's short names
+# are the town, the suburb or the hill (Long Beach, Sebring, Kyalami,
+# Montjuic), and "Long Beach aerial view.jpg" is the city. A form counts when
+# it carries one of these words, or is one of the one-word -ring names in
+# CIRCUIT_RING_NAMES - listed, because a word ending in -ring is as often a
+# town: Sebring is one. "Park" stays: every such name in the register is a circuit's
+# (Istanbul Park, Donington Park), Albert Park's included, whose roads are
+# the circuit. A circuit none of whose forms counts (AVUS, Rouen-les-Essarts)
+# takes no photograph, which fails closed.
+CIRCUIT_VENUE_WORD = re.compile(
+    r"\b(circuit|circuito|autodromo|autodrom|autodrome|speedway|raceway|"
+    r"racing course|international|park|ring)\b", re.I)
+CIRCUIT_RING_NAMES = {"hungaroring", "hockenheimring", "nurburgring",
+                      "madring"}
+
+
+def _fold(s):
+    s = unicodedata.normalize("NFKD", s or "")
+    return "".join(c for c in s if not unicodedata.combining(c))
+
+
+def circuit_name_forms(article, linked_as, name, official_name):
+    """The names a circuit's photograph may be named by, in a stable order:
+    those of the four that name a venue (CIRCUIT_VENUE_WORD)."""
+    out = []
+    for f in (article, (linked_as or "").split("#")[0], name, official_name):
+        if f and f not in out and (CIRCUIT_VENUE_WORD.search(_fold(f))
+                                   or _fold(f).lower() in CIRCUIT_RING_NAMES):
+            out.append(f)
+    return out
+
+
+def circuit_file_names(file_name, forms):
+    """Does the file name hold one of `forms`, letters and digits only? The
+    build's and verify.py's test, looser than the harvest's word-boundary
+    one, so it is a second route to the same answer."""
+    def alnum(s):
+        return re.sub(r"[^a-z0-9]", "", _fold(s).lower())
+    have = alnum(file_name)
+    return any(alnum(f) and alnum(f) in have for f in forms)
 
 
 def load_circuit_articles():

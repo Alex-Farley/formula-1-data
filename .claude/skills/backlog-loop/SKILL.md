@@ -88,6 +88,16 @@ Two words, either order, both optional.
      relaunched fresh, never resumed. A PR or worktree it left open is
      picked up by the next fork, which checks `gh pr list` and
      `git worktree list` before starting.
+   - **A fork that fails with `Agent stalled: no progress for 600s`** (the
+     stream watchdog): the model's response stream went quiet, not the
+     fork's tools; every one so far came after a tool had returned
+     `[D-50]`. It is the environment, not the item.
+     Invoke the fork once more with the same arguments: its `start-check.sh`
+     prints the worktree or PR the stalled fork left, and it finishes that
+     from where it stopped. A second stall in a row stops the loop - the
+     machine needs a person, not a third fork - and leaves the item
+     claimed, so report what is open as for anything else: `gh pr list
+     --state open` and `git worktree list`, in two lines.
    - Anything else - no contract line, an empty result, an error that names
      no limit, a fork that says it is waiting for a reviewer or for CI - is
      not a merge and not a PASS. Run `gh pr list --state open` and

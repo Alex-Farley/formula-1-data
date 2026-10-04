@@ -191,6 +191,39 @@ the maintainer interrupted it three times believing it had stalled, killing
 the fork each time. One line per stage in `.claude/loop/progress.log` is the
 replacement for the visibility the fork took away.
 
+### D-50 · The stall watchdog watches the model, not the tools — 2026-10-03 (`AF-84`, #760)
+Four forks were stopped with `Agent stalled: no progress for 600s (stream
+watchdog did not recover)`: on 2026-09-30 (DA-13), twice on 2026-10-01
+(AF-78, CR-62) and on 2026-10-02 (CR-55, after its first review). Three were
+near a slow `make all`, and AF-84 proposed that a fork run builds in the
+background and check on them with short foreground calls, measuring first
+that a short call resets the watchdog.
+
+The measurement said the watchdog is not about tool calls at all. Across the
+142 fork transcripts then on disk (4,491 tool calls), 81 foreground calls ran
+past 600 s, the longest 1,270 s, and none of them was followed by a kill. In
+all four kills the last thing in the transcript is a tool result that had
+already come back — a 1.5 s `gh issue view`, a 0.6 s `tail`, a 0.6 s
+background launch, and a 6-minute wait loop that had finished — followed by
+10 to 17 minutes of nothing until the kill. What stalled was the model
+request after the tool, not the tool. A slow model phase is not itself fatal:
+one fork went 1,134 s between a tool result and its next message, longer
+than any of the four silences before a kill, and carried on, so the watchdog
+fires on a stream that delivers nothing, not one that is slow. Why the stream
+delivered nothing is not established. On 2026-10-02 the Mac running the loop
+had 10.3 of 11.2 GB of swap in use, and another fork that day logged `Your
+computer went to sleep mid-response`; 26 long tool calls overran their own
+600 s timeout by more than a minute, which a suspended machine would also
+explain. Memory pressure, sleep or the network, it is outside the fork, and
+the two rules below hold for each.
+
+So short foreground checks would not have saved any of the four, and the
+item skill says the opposite: wait on a slow build in the foreground, as on
+CI. What the loop can do is not lose the item. The driver treats a stall as
+the environment and invokes the fork once more with the same arguments; the
+new fork's `start-check.sh` shows the stalled one's worktree, and the
+inheritance rule finishes it. A second stall in a row stops the loop.
+
 ### D-18 · Run the loop with connectors off
 Every connected MCP server's tool schemas sit in the fixed prefix of every
 turn. The loop uses none of them.

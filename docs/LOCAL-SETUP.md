@@ -357,7 +357,7 @@ right binary for your machine, and this is what CI runs too:
 cd ~
 ```
 ```bash
-curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash | bash -s 1.7.12
+curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/914e7df21a07ef503a81201c76d2b11c789d3fca/scripts/download-actionlint.bash | bash -s 1.7.12
 ```
 ```bash
 sudo mv actionlint /usr/local/bin/

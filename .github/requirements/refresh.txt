@@ -1,0 +1,5 @@
+# What refresh.yml installs. Pinned because what it installs runs in the
+# job that builds what lands on main, and bumped by Dependabot pull request
+# (.github/dependabot.yml) so the pin does not go stale (AF-77). That job no
+# longer holds the App's token (AF-78). The build itself installs nothing.
+pyyaml==6.0.3

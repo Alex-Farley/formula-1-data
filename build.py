@@ -6,6 +6,7 @@ Build f1.db from schema.sql and the data modules.
 
 Idempotent: deletes and rebuilds the database each run.
 """
+import importlib
 import json
 import math
 import os
@@ -33,18 +34,23 @@ from data import results as RS     # noqa: E402
 from data import sessions as SS    # noqa: E402
 
 
+def _tool(name):
+    """A module from tools/, imported from beside this file. The directory
+    goes on sys.path once, however many times a stage asks."""
+    tools = os.path.join(HERE, "tools")
+    if tools not in sys.path:
+        sys.path.insert(0, tools)
+    return importlib.import_module(name)
+
+
 def _prose_figures():
     """tools/prose_figures.py, imported from beside this file."""
-    sys.path.insert(0, os.path.join(HERE, "tools"))
-    import prose_figures
-    return prose_figures
+    return _tool("prose_figures")
 
 
 def _standings_rule():
     """tools/standings_rule.py, imported from beside this file."""
-    sys.path.insert(0, os.path.join(HERE, "tools"))
-    import standings_rule
-    return standings_rule
+    return _tool("standings_rule")
 
 
 DB = os.path.join(HERE, "f1.db")
@@ -321,6 +327,10 @@ def _stage_01_meta(b):
         # the grant off the file rather than having to find LICENSE-DATA.
         ("project_prose", N.PROJECT_PROSE_NOTE),
         ("project_prose_columns", ", ".join(N.PROJECT_PROSE_COLUMNS)),
+        # DA-16. The columns NULL on every row, each with the reason, so a
+        # reader holding only the file can tell a column nothing fills from
+        # a fact nobody holds. verify.py holds the list to the database.
+        ("empty_columns", empty_columns_note()),
     ])
 
 
@@ -1145,6 +1155,104 @@ def _stage_11_the_lead_image_of_each_accepted(b):
               f"{cat_skipped} for chassis that are not without an article")
 
 
+def _stage_11b_the_article_of_each_circuit_and_its(b):
+    """the article of each circuit, and its aerial photograph"""
+    cur = b.cur
+
+    # --- which Wikipedia article describes each circuit (VD-47, VD-61)
+    #
+    # Read from one revision of the List of Formula One circuits and matched
+    # on country, seasons and races held, never on the name; verify.py
+    # checks every row against the register. Each value is a claim citing
+    # that revision, because the circuit row's own source is formula1.com
+    # and cannot say where the article came from.
+    register = {r[0] for r in cur.execute("SELECT id FROM circuits")}
+    mapped = {}
+    for r in HV.load_circuit_articles():
+        cid = r["circuit_id"]
+        if cid not in register:
+            raise SystemExit(f"circuit_articles: {cid} is not a circuit in "
+                             f"the register. Rerun tools/circuit_articles.py.")
+        if cid in mapped:
+            raise SystemExit(f"circuit_articles: {cid} is mapped twice.")
+        if not r.get("article") or not r.get("source"):
+            raise SystemExit(f"circuit_articles: {cid} names no article or "
+                             f"no source.")
+        mapped[cid] = r
+        cur.execute("UPDATE circuits SET article = ?, article_section = ? "
+                    "WHERE id = ?", (r["article"], r.get("section"), cid))
+        for field in ("article", "article_section"):
+            value = r.get("section" if field == "article_section" else field)
+            if value is not None:
+                cur.execute("""INSERT INTO claims (tbl, row_key, field,
+                    value_given, as_of, source) VALUES ('circuits',?,?,?,?,?)""",
+                    (cid, field, value, r.get("as_of"), r["source"]))
+    stale = sorted(set(HV.CIRCUIT_ARTICLE_NOT_THE_CIRCUIT) - set(mapped))
+    if stale:
+        raise SystemExit(f"CIRCUIT_ARTICLE_NOT_THE_CIRCUIT names "
+                         f"{', '.join(stale)}, which no row maps.")
+
+    # --- the circuit route: an aerial photograph of each circuit
+    #
+    # Keyed on the circuit, at 'unverified', the article route's rung on the
+    # article route's claim. The harvest's checks run again here, and so
+    # does the rule of 2026-09-30: a JPEG whose name says it is an aerial
+    # photograph and names the circuit by a venue name, carrying no copyright
+    # mark, from an article about the circuit as a whole.
+    circ_rows = 0
+    for im in HV.load_circuit_images():
+        cid = im.get("circuit_id")
+        r = mapped.get(cid)
+        if r is None:
+            raise SystemExit(f"circuit_images: {cid} has no mapped article. "
+                             f"Rerun tools/wikimedia_images.py --route circuit.")
+        if r.get("section") or cid in HV.CIRCUIT_ARTICLE_NOT_THE_CIRCUIT:
+            raise SystemExit(
+                f"circuit_images: {cid}'s article is not about the circuit "
+                f"as a whole, so it takes no photograph.")
+        f = im.get("file_name") or ""
+        if not (f.lower().endswith(HV.CIRCUIT_PHOTOGRAPH_SUFFIX)
+                and HV.CIRCUIT_PHOTOGRAPH.search(f)):
+            raise SystemExit(f"circuit_images: {cid}'s {f} is not an aerial "
+                             f"photograph by data/harvest.py "
+                             f"CIRCUIT_PHOTOGRAPH.")
+        if HV.CIRCUIT_PHOTOGRAPH_MARKED.search(f):
+            raise SystemExit(f"circuit_images: {cid}'s {f} carries a "
+                             f"copyright mark in its name.")
+        name, official = cur.execute(
+            "SELECT name, official_name FROM circuits WHERE id = ?",
+            (cid,)).fetchone()
+        forms = HV.circuit_name_forms(r["article"], r.get("linked_as"),
+                                      name, official)
+        if not HV.circuit_file_names(f, forms) or im.get("name_matches") != "1":
+            raise SystemExit(f"circuit_images: {cid}'s {f} does not name the "
+                             f"circuit by any of {forms}.")
+        if im.get("repository") != "shared":
+            raise SystemExit(
+                f"circuit_images: {cid} points at a file hosted "
+                f"{im.get('repository')!r}, not Wikimedia Commons.")
+        if not im.get("licence"):
+            raise SystemExit(f"circuit_images: {cid} states no licence.")
+        if not (im.get("artist") or im.get("credit")):
+            raise SystemExit(f"circuit_images: {cid} names no author for {f}.")
+        if not im.get("description_url"):
+            raise SystemExit(f"circuit_images: {cid} has no description page.")
+        cur.execute("""INSERT INTO article_images (route, circuit_id,
+            file_name, repository, licence, licence_url, artist, credit,
+            description_url, thumb_url, width, height, name_matches,
+            confidence)
+            VALUES ('circuit',?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (cid, f, im["repository"], im["licence"], im.get("licence_url"),
+             im.get("artist"), im.get("credit"), im["description_url"],
+             im.get("thumb_url") or None,
+             int(im["width"]) if im.get("width") else None,
+             int(im["height"]) if im.get("height") else None,
+             1, "unverified"))
+        circ_rows += 1
+    print(f"  circuit articles: {len(mapped)} of {len(register)} circuits "
+          f"mapped; {circ_rows} carry an aerial photograph")
+
+
 def _stage_12_circuit_centrelines_re_measured_before_they(b):
     """circuit centrelines, re-measured before they are admitted"""
     cur = b.cur
@@ -1938,6 +2046,9 @@ def _stage_21_the_full_classification_qualifying_and_stand(b):
 
     res_rows = res_skipped_driver = res_races = 0
     unknown_drivers = set()
+    # (race_id, driver_id) -> the constructor of each F1DB row for it, for
+    # the second-entry check after the loop.
+    cars_entered = {}
     for (yr, rnd), rows in sorted(results_by_race.items()):
         rid = b.race_for(yr, rnd, "race results")
         if rid is None:
@@ -1992,6 +2103,7 @@ def _stage_21_the_full_classification_qualifying_and_stand(b):
             # that at most one car starts from grid 1.
             grid_text = r["grid"] or None
             grid = int(r["grid"]) if r["grid"] and r["grid"].isdigit() else None
+            cars_entered.setdefault((rid, did), []).append((yr, rnd, cons))
             cur.execute("""INSERT INTO race_entries (race_id, driver_id,
                     constructor_id, entrant, grid, grid_text,
                     finish_position, position_text, shared_drive, classified,
@@ -2036,12 +2148,44 @@ def _stage_21_the_full_classification_qualifying_and_stand(b):
                  HV.F1DB_CONFIDENCE, HV.F1DB_SOURCE))
             res_rows += 1
 
+    # SECOND ENTRIES (CR-62). race_entries is one row per driver per race, so
+    # a driver's later rows in one race land on the first through the ON
+    # CONFLICT above and only fill its gaps - a shared drive, a car taken
+    # over, a second car entered. Where the row not kept was another
+    # constructor's car, the driver's record loses that car, and whether the
+    # constructor still has the entry through a team-mate is something a
+    # person has to look at - so each such row is declared by identity in
+    # data/harvest.py SECOND_ENTRIES. A new one, or a
+    # declaration F1DB no longer bears out, stops the build. Compared with
+    # the STORED constructor, not F1DB's first row: a pole-harvest row
+    # created before this stage may already have set it.
+    merged = 0
+    lost = set()
+    for (rid, did), cars in cars_entered.items():
+        if len(cars) < 2:
+            continue
+        merged += len(cars) - 1
+        kept = cur.execute("SELECT constructor_id FROM race_entries "
+                           "WHERE race_id=? AND driver_id=?", (rid, did)).fetchone()[0]
+        lost.update((yr, rnd, did, cons) for yr, rnd, cons in cars
+                    if cons and cons != kept)
+    if res_rows and lost != set(HV.SECOND_ENTRIES):
+        new = sorted(lost - set(HV.SECOND_ENTRIES))
+        gone = sorted(set(HV.SECOND_ENTRIES) - lost)
+        raise SystemExit(
+            f"race results: a second entry for another constructor is "
+            f"undeclared {new} or declared and no longer held {gone}. "
+            f"race_entries keeps one row per driver per race; declare the "
+            f"entry it cannot keep in data/harvest.py SECOND_ENTRIES, or "
+            f"remove the declaration.")
+
     if res_rows:
         print(f"  race results: {res_rows} entries over {res_races} races "
               f"from F1DB; {res_skipped_driver} rows skipped for "
               f"{len(unknown_drivers)} unresolvable drivers; "
               f"{len(b.skipped_rounds.get('race results', ()))} rounds not yet "
-              f"on the calendar")
+              f"on the calendar; {merged} later rows merged into the driver's "
+              f"entry, {len(lost)} of them another constructor's car (declared)")
 
     b.f1db_drivers = f1db_drivers
 
@@ -3262,15 +3406,13 @@ def _stage_30_derived_win_totals(b):
                 JOIN races r ON r.id=e.race_id WHERE e.driver_id=?)
             WHERE id = ?""", (did, did, did))
 
-    for i, key, field, area, state, reader, desc, n, res in HV.KNOWN_GAPS:
+    for i, key, field, area, state, reader, desc, res in HV.KNOWN_GAPS:
         cur.execute("""INSERT INTO known_gaps (id, key, field, area, state,
-            reader, description, races_affected, resolution)
-            VALUES (?,?,?,?,?,?,?,?,?)""",
-            (i, key, field, area, state, reader, desc, n, res))
-    # the circuit gap is measured, not asserted
-    cur.execute("""UPDATE known_gaps SET races_affected =
-        (SELECT COUNT(*) FROM races WHERE circuit_id IS NULL)
-        WHERE field = 'circuit_id'""")
+            reader, description, resolution)
+            VALUES (?,?,?,?,?,?,?,?)""",
+            (i, key, field, area, state, reader, desc, res))
+    # races_affected is left NULL here and measured in the final stage,
+    # once the chassis links and the qualifying sheets it counts are loaded.
 
     # Record every stored-vs-derived difference, and assert that each one is
     # either explained by a known gap (the driver was still racing in a season
@@ -3308,6 +3450,130 @@ def _stage_30_derived_win_totals(b):
                     f"external {external}, derived {derived}")
             _file_discrepancy(cur, "external-figure", "drivers", r[0], field, r[1],
                               str(external), str(derived), assessment, status, note)
+
+    _reconcile_stored_totals(cur)
+
+
+# The career figures stored as a source gave them and never recounted (DA-16),
+# which DA-42 compares with the race records' count of each.
+STORED_TOTALS = ("entries", "starts", "career_points")
+
+
+def stored_total_readings(cur, until=None):
+    """{(driver_id, field): (stored, the race records' count)} for every
+    stored entries, starts and career_points figure (DA-42).
+
+    The records' entries are the rows race_entries holds for the driver, its
+    starts those of them STARTED admits, and its points those rows' points
+    and his sprint_results'. Points are held to two places on both sides,
+    because the records hold a seventh of a point as 0.14. `until`, an ISO
+    day, counts only the races run by then: what the records said on the
+    date a dated figure was read."""
+    dated = "" if until is None else "AND r.date_iso <= :until"
+    out = {}
+    for did, entries, starts, pts, n, s, p in cur.execute(f"""
+            WITH e AS (SELECT e.driver_id, COUNT(*) AS n,
+                              SUM(CASE WHEN {STARTED} THEN 1 ELSE 0 END) AS s,
+                              TOTAL(e.points) AS p
+                         FROM race_entries e JOIN races r ON r.id = e.race_id
+                        WHERE 1 {dated} GROUP BY e.driver_id),
+                 x AS (SELECT x.driver_id, TOTAL(x.points) AS p
+                         FROM sprint_results x JOIN races r ON r.id = x.race_id
+                        WHERE 1 {dated} GROUP BY x.driver_id)
+            SELECT d.id, d.entries, d.starts, d.career_points,
+                   COALESCE(e.n, 0), COALESCE(e.s, 0),
+                   COALESCE(e.p, 0) + COALESCE(x.p, 0)
+              FROM drivers d
+              LEFT JOIN e ON e.driver_id = d.id
+              LEFT JOIN x ON x.driver_id = d.id
+             WHERE d.entries IS NOT NULL OR d.starts IS NOT NULL
+                OR d.career_points IS NOT NULL
+             ORDER BY d.id""", {"until": until}).fetchall():
+        for field, stored, counted in (("entries", entries, n), ("starts", starts, s),
+                                       ("career_points", pts, p)):
+            if stored is not None:
+                out[(did, field)] = ((round(stored, 2), round(counted, 2))
+                                     if field == "career_points" else (stored, counted))
+    return out
+
+
+def _reconcile_stored_totals(cur):
+    """The stored career figures against the race records (DA-42).
+
+    Correct the typed figures no source gives, keeping the typed value on the
+    record; then file every difference that remains, and refuse one nothing
+    accounts for. data/harvest.py, above STORED_TOTALS_CORRECTED, says what
+    accounts for one."""
+    for did, field, typed, fixed, why in HV.STORED_TOTALS_CORRECTED:
+        if field not in STORED_TOTALS:
+            raise SystemExit(f"STORED_TOTALS_CORRECTED {did}: {field!r} is not a "
+                             f"stored career figure")
+        n = cur.execute(f"""UPDATE drivers SET {field} = ?
+            WHERE id = ? AND ABS({field} - ?) < 0.001""", (fixed, did, typed)).rowcount
+        if n != 1:
+            raise SystemExit(f"STORED_TOTALS_CORRECTED {did} {field}: the row does "
+                             f"not hold the typed {typed} it corrects")
+        _file_discrepancy(cur, "correction", "drivers", did, field,
+                          _full_name(cur, "drivers", did), _points_text(typed),
+                          _points_text(fixed), why, "resolved", "corrected")
+
+    declared = {}
+    for did, field, stored, counted, status, note, why in HV.STORED_TOTALS_DECLARED:
+        if (did, field) in declared:
+            raise SystemExit(f"STORED_TOTALS_DECLARED declares {did} {field} twice")
+        declared[(did, field)] = (stored, counted, status, note, why)
+    # A dated figure - a current driver's, read from formula1.com on the day
+    # stats_as_of gives - is compared with the records as they stood on that
+    # day, so the races run since are never what explains a difference unless
+    # they are the whole of it, and a declaration about one does not go stale
+    # at the next race.
+    as_of, then = {}, {}
+    for did, stamp in cur.execute("""SELECT id, stats_as_of FROM drivers
+            WHERE stats_as_of IS NOT NULL""").fetchall():
+        day = re.match(r"\d{4}-\d{2}-\d{2}\b", stamp)
+        if day is None:
+            raise SystemExit(f"{did}: stats_as_of {stamp!r} does not open with its day")
+        as_of[did] = (stamp, day.group(0))
+    for day in sorted({d for _s, d in as_of.values()}):
+        then[day] = stored_total_readings(cur, until=day)
+    for (did, field), (stored, counted) in stored_total_readings(cur).items():
+        declaration = declared.pop((did, field), None)
+        if stored == counted:
+            if declaration is not None:
+                raise SystemExit(
+                    f"STORED_TOTALS_DECLARED {did} {field}: declares {declaration[0]} "
+                    f"against {declaration[1]}, and both now read {stored}")
+            continue
+        name = _full_name(cur, "drivers", did)
+        # What the declaration's second figure is: the records then, for a
+        # dated figure, and the records now for any other.
+        compared = then[as_of[did][1]][(did, field)][1] if did in as_of else counted
+        if declaration is not None:
+            if declaration[:2] != (stored, compared):
+                raise SystemExit(
+                    f"STORED_TOTALS_DECLARED {did} {field}: declares {declaration[0]} "
+                    f"against {declaration[1]}, and the database holds {stored} "
+                    f"against the race records' {compared}. Read the reason again.")
+            status, note, why = declaration[2:]
+        elif did in as_of and compared == stored:
+            status, note = "explained", "external figure is older"
+            why = (f"Driver is still competing. The stored figure is formula1.com's, "
+                   f"read on {as_of[did][0]}, and the race records counted to that "
+                   f"day give the same; the difference is the races run since. "
+                   f"Not an error.")
+        else:
+            dated = (f", {compared} counted to {as_of[did][1]}, the day the stored "
+                     f"figure was read" if did in as_of else "")
+            raise SystemExit(
+                f"UNEXPLAINED: {name} {field} is stored as {stored}, and the race "
+                f"records give {counted}{dated}. Correct it in "
+                f"STORED_TOTALS_CORRECTED or declare it in STORED_TOTALS_DECLARED, "
+                f"data/harvest.py.")
+        _file_discrepancy(cur, "stored-total", "drivers", did, field, name,
+                          _points_text(stored), _points_text(counted), why, status, note)
+    if declared:
+        raise SystemExit(f"STORED_TOTALS_DECLARED declares {sorted(declared)}, which "
+                         f"no stored figure needed")
 
 
 def _resource_typed_career_figures(cur, f1db_drivers):
@@ -3867,6 +4133,17 @@ def _stage_35_link_race_entries_to_the_curated(b):
                 (coverage_note(cur),))
     if cur.rowcount != 1:
         raise SystemExit("meta.coverage_note is missing")
+
+    # A gap's race count is measured, never typed (DA-16, #210): each query
+    # in data/harvest.py GAP_RACES counts the races its gap touches, run here
+    # because the chassis links and qualifying sheets it counts are loaded by
+    # the stages above, and re-run by verify.py. A gap with no query holds
+    # NULL - not counted in races - where a typed 0 said no race was touched.
+    for key, query in HV.GAP_RACES.items():
+        n = cur.execute(query).fetchone()[0]
+        if cur.execute("UPDATE known_gaps SET races_affected = ? WHERE key = ?",
+                       (n, key)).rowcount != 1:
+            raise SystemExit(f"GAP_RACES measures {key!r}, which is not a known gap")
 
     # The same discipline for the prose the database carries about itself.
     # `source_registry` is read straight onto /data/sources, and its figures
@@ -4540,6 +4817,7 @@ STAGES = [
     _stage_09_regulation_limits_loaded_before_the_chassis,
     _stage_10_the_chassis_engine_and_entrant_register,
     _stage_11_the_lead_image_of_each_accepted,
+    _stage_11b_the_article_of_each_circuit_and_its,
     _stage_12_circuit_centrelines_re_measured_before_they,
     _stage_13_a_regulation_figure_is_not_a,
     _stage_14_a_regulation_figure_is_not_a,
@@ -4628,6 +4906,18 @@ def harvest_covers_every_completed_race(cur, race_key, rows, what):
     if missing:
         raise SystemExit(f"{what}: no row for {len(missing)} completed race(s) before "
                          f"its last row {last}, e.g. {missing[:3]}")
+
+
+def empty_columns_note():
+    """meta.empty_columns: data/current.py EMPTY_COLUMNS as one string.
+
+    One function, so verify.py builds the same string and compares it whole.
+    """
+    bad = [c for c, why in N.EMPTY_COLUMNS.items() if "; " in why or not why.strip()]
+    if bad:
+        raise SystemExit("EMPTY_COLUMNS: a reason is empty or contains '; ': "
+                         + ", ".join(bad))
+    return "; ".join(f"{c}: {why}" for c, why in sorted(N.EMPTY_COLUMNS.items()))
 
 
 def coverage_note(cur):
@@ -5183,13 +5473,19 @@ def derive_records(cur):
           f"cars, and cannot count.")
 
     # -------------------------------------------------------------- races
-    rows = q("""SELECT a.points - b.points m, a.entity, a.driver_id, a.year,
+    # The view is read once into a MATERIALIZED CTE and the CTE is joined to
+    # itself. Joining v_standings_final to itself directly makes SQLite
+    # re-evaluate the view's correlated fill subquery for every candidate
+    # pair - 22 s of a 32 s build, for the same 76 rows.
+    rows = q("""WITH top2 AS MATERIALIZED (
+                  SELECT year, position, entity, driver_id, points FROM v_standings_final
+                   WHERE table_type = 'drivers' AND position IN (1, 2))
+                SELECT a.points - b.points m, a.entity, a.driver_id, a.year,
                        a.points, b.entity, b.points
-                  FROM v_standings_final a
-                  JOIN v_standings_final b ON b.year = a.year AND b.table_type = 'drivers'
-                                          AND b.position = 2
+                  FROM top2 a
+                  JOIN top2 b ON b.year = a.year AND b.position = 2
                   JOIN seasons s ON s.year = a.year
-                 WHERE a.table_type = 'drivers' AND a.position = 1
+                 WHERE a.position = 1
                    AND s.drivers_champion IS NOT NULL
                  ORDER BY m, a.year""")
     lead = _leaders(rows, biggest=False)

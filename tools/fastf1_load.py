@@ -49,6 +49,8 @@ import os
 import sqlite3
 import sys
 
+from loader_citation import cite_changed, snapshot
+
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB = os.path.join(HERE, "f1.db")
 
@@ -241,6 +243,11 @@ def load_results(cur, rid, session, dmap):
     it is written as an UPSERT: an existing row (the winner, the pole-sitter,
     the fastest-lap setter) is filled in, not duplicated.
 
+    A row this changes is re-cited as `fastf1` with no source_id, so it no
+    longer claims F1DB for FOM's values (CR-61, tools/loader_citation.py).
+    `fastf1` is the token every other table this writes carries, and the one
+    the registry classes; the prose this used to write resolved to nothing.
+
     SELF-VALIDATING, like every other loader in this project: the winner
     FastF1 reports must equal the winner already stored. If it does not, the
     race is refused outright rather than half-written - a mismatch means the
@@ -275,10 +282,12 @@ def load_results(cur, rid, session, dmap):
         pos = val(r.get("Position"))
         cls = val(r.get("ClassifiedPosition"))
         grid = val(r.get("GridPosition"))
+        key = (rid, did)
+        before = snapshot(cur, "race_entries", "race_id=? AND driver_id=?", key)
         cur.execute("""INSERT INTO race_entries (race_id, driver_id,
                 finish_position, grid, classified, status, laps_completed,
                 points, confidence, source)
-            VALUES (?,?,?,?,?,?,?,?,'reference','f1 live timing via FastF1')
+            VALUES (?,?,?,?,?,?,?,?,'reference','fastf1')
             ON CONFLICT (race_id, driver_id) DO UPDATE SET
                 finish_position = COALESCE(excluded.finish_position, finish_position),
                 grid            = COALESCE(excluded.grid, grid),
@@ -290,6 +299,8 @@ def load_results(cur, rid, session, dmap):
              int(grid) if grid else None,
              1 if (cls or "").isdigit() else 0,
              val(r.get("Status")), val(r.get("Laps")), val(r.get("Points"))))
+        cite_changed(cur, "race_entries", before, "fastf1",
+                     "race_id=? AND driver_id=?", key)
         n += 1
     return n, None
 

@@ -23,6 +23,7 @@ For tests of the CODE — the name matching, the lap arithmetic — see tests/.
 This file checks what came out; those check what does the work.
 """
 import contextlib
+import importlib
 import io
 import json
 import os
@@ -32,18 +33,23 @@ import sys
 from collections import Counter
 
 
+def _tool(name):
+    """A module from tools/, imported from beside this file. The directory
+    goes on sys.path once, however many times a section asks."""
+    tools = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tools")
+    if tools not in sys.path:
+        sys.path.insert(0, tools)
+    return importlib.import_module(name)
+
+
 def _lede_figures():
     """tools/lede_figures.py, imported from beside this file."""
-    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "tools"))
-    import lede_figures
-    return lede_figures
+    return _tool("lede_figures")
 
 
 def _prose_figures():
     """tools/prose_figures.py, imported from beside this file."""
-    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "tools"))
-    import prose_figures
-    return prose_figures
+    return _tool("prose_figures")
 
 DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "f1.db")
 
@@ -361,11 +367,18 @@ def standings():
         runner_up, runner_up_points FROM seasons
         WHERE drivers_champion IS NOT NULL AND champion_points IS NOT NULL
         ORDER BY year""").fetchall()
+    # One read of the view, not one per season: a year filter is not pushed
+    # into its window and CTEs, so each per-year query evaluated all of it.
+    top_two = {}
+    for r in con.execute("""SELECT year, driver_id, points FROM v_standings_final
+            WHERE table_type='drivers' AND position IS NOT NULL
+            ORDER BY year, position"""):
+        top = top_two.setdefault(r["year"], [])
+        if len(top) < 2:
+            top.append(r)
     mismatch, compared = [], 0
     for sr in season_rows:
-        top = con.execute("""SELECT driver_id, points FROM v_standings_final
-            WHERE year=? AND table_type='drivers' AND position IS NOT NULL
-            ORDER BY position LIMIT 2""", (sr["year"],)).fetchall()
+        top = top_two.get(sr["year"], [])
         if len(top) < 2:
             continue
         compared += 1
@@ -699,8 +712,7 @@ def standings_are_the_sum_of_the_results():
     rows sat in that state under the first version of this check and could
     not have failed it however wrong they were.
     """
-    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "tools"))
-    import standings_rule
+    standings_rule = _tool("standings_rule")
 
     from data.current import (STANDINGS_ACCUMULATE_FROM,
                               STANDINGS_ADJUSTMENTS)
@@ -1025,14 +1037,11 @@ def pole_position_and_fastest_lap():
 
     # 2021 Belgium is the one settled race with no fastest lap: two laps behind
     # the safety car, no racing lap set, so there is nothing to record. It is
-    # declared in known_gaps and that declaration is what this counts against.
+    # declared in known_gaps, whose race count is now that gap's measure of
+    # this same set (DA-16) - so the count is checked by re-running the
+    # measure, below, and this pins the set itself to the one race.
     nofl = _missing("fastest_lap")
     settled_fl = [x for x in nofl if x[0] != CURRENT_YEAR]
-    declared_gap = con.execute("""SELECT SUM(races_affected) FROM known_gaps
-        WHERE field = 'fastest_lap'""").fetchone()[0]
-    check("races without a fastest lap equal the declared gaps",
-          len(settled_fl) == declared_gap,
-          f"{len(settled_fl)} missing, {declared_gap} declared")
     check("the only settled race without a fastest lap is 2021 Belgium",
           settled_fl == [(2021, 12)], str(settled_fl))
     warn(f"fastest lap recorded for every {CURRENT_YEAR} race run so far",
@@ -1173,18 +1182,40 @@ def pole_position_and_fastest_lap():
     check("every race name resolves to the event it is linked to", not bad,
           "; ".join(bad[:5]))
 
-    # Every declared gap's count must still be the count. A gap that has been
-    # filled is marked closed and kept on the record, never removed.
-    stale = []
-    for g in con.execute("SELECT field, area, races_affected FROM known_gaps"):
-        if g["races_affected"] is None or g["races_affected"] == 0:
+    # A gap's race count is measured, never typed (DA-16, #210). It used to
+    # be typed and checked only where the field was circuit_id or date_iso,
+    # which no gap named, so twelve rows said 0 - including one whose own
+    # note counted 287 races. Each count is re-measured here by the query
+    # build.py filled it from; a gap with no query must hold NULL, not a
+    # number nobody can reproduce. A measured open or position gap must
+    # touch at least one race - at 0 it has closed, or its query no longer
+    # finds it - and a measured closed one none.
+    measures = harvest_module().GAP_RACES
+    stale, unmeasured, wrong_state = [], [], []
+    rows_ = con.execute("SELECT key, state, races_affected FROM known_gaps").fetchall()
+    keys_ = {g["key"] for g in rows_}
+    for g in rows_:
+        query = measures.get(g["key"])
+        if query is None:
+            if g["races_affected"] is not None:
+                unmeasured.append(f"{g['key']} ({g['races_affected']})")
             continue
-        actual = con.execute(
-            f"SELECT COUNT(*) FROM races WHERE {g['field']} IS NULL").fetchone()[0] \
-            if g["field"] in ("circuit_id", "date_iso") else None
-        if actual is not None and actual != g["races_affected"]:
-            stale.append(f"{g['field']}: declared {g['races_affected']}, actual {actual}")
-    check("declared gaps match the actual gaps", not stale, "; ".join(stale))
+        actual = con.execute(query).fetchone()[0]
+        if actual != g["races_affected"]:
+            stale.append(f"{g['key']}: holds {g['races_affected']}, measures {actual}")
+        if (actual == 0) != (g["state"] == "closed"):
+            wrong_state.append(f"{g['key']}: {g['state']}, {actual} races")
+    # The local timing loaders write after build.py has measured, so under
+    # F1_LOCAL_TIMING the lap and race-timing counts are stale by design.
+    (warn if LOCAL_TIMING else check)(
+        "every gap's race count is its measure, re-run", not stale, "; ".join(stale))
+    check("a gap with no measure holds no race count", not unmeasured,
+          "; ".join(unmeasured))
+    orphans = sorted(set(measures) - keys_)
+    check("every measure in GAP_RACES names a known gap", not orphans,
+          ", ".join(orphans))
+    check("a measured gap touches races exactly when it is not closed",
+          not wrong_state, "; ".join(wrong_state))
 
     # The register carries three states and the site counts one of them. Every
     # row must say which it is in and give a reader the one-paragraph version;
@@ -1282,6 +1313,46 @@ def structure():
           f"{bad} seasons")
 
 
+@section('EMPTY COLUMNS ARE DECLARED')
+def empty_columns_are_declared():
+    """A column NULL on every row of a table that has rows is declared in
+    data/current.py EMPTY_COLUMNS with its reason, and published in
+    meta.empty_columns (DA-16, #210). The set is derived here from the
+    database, not listed: an undeclared empty column is one a reader cannot
+    tell from a fact nobody holds, and a declared one that holds values is a
+    reason that has stopped being true. A local F1_LOCAL_TIMING build fills
+    the timing and radio columns on purpose, and gives the timing tables
+    rows whose other columns its loaders leave NULL, so there both are
+    warnings."""
+    import build
+    from data import current as _N
+
+    empty, columns = set(), set()
+    for (t,) in con.execute("""SELECT name FROM sqlite_master
+            WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"""):
+        cols = [r[1] for r in con.execute(f'PRAGMA table_info("{t}")')]
+        columns.update(f"{t}.{c}" for c in cols)
+        if not con.execute(f'SELECT 1 FROM "{t}" LIMIT 1').fetchone():
+            continue
+        for c in cols:
+            if not con.execute(f'SELECT 1 FROM "{t}" WHERE "{c}" IS NOT NULL LIMIT 1').fetchone():
+                empty.add(f"{t}.{c}")
+    declared = set(_N.EMPTY_COLUMNS)
+    missing = sorted(declared - columns)
+    check("every column EMPTY_COLUMNS declares exists", not missing, ", ".join(missing))
+    undeclared = sorted(empty - declared)
+    (warn if LOCAL_TIMING else check)(
+          "every column NULL on every row is declared in EMPTY_COLUMNS",
+          not undeclared, ", ".join(undeclared) if undeclared else f"{len(empty)} declared")
+    filled = sorted((declared & columns) - empty)
+    (warn if LOCAL_TIMING else check)(
+        "no column EMPTY_COLUMNS declares holds a value", not filled,
+        ", ".join(filled))
+    published = value_or_none("empty_columns")
+    check("meta.empty_columns publishes the declaration with its reasons",
+          published == build.empty_columns_note())
+
+
 @section('IDENTIFIER STABILITY')
 def identifier_stability():
     """Which ids a reader may keep (DA-04). The policy is declared in
@@ -1355,6 +1426,84 @@ def external_figures_vs_the_race_records():
     check("every driver's wins, poles and fastest laps equal the race records",
           not bad, "; ".join(bad[:6]))
 
+    # The figures stored as a source gave them, never recounted (DA-42):
+    # every one that differs from the race records' count is a 'stored-total'
+    # row carrying both, and no such row stands where the two agree. Counted
+    # here, not through build.stored_total_readings, so a fault in one is not
+    # a fault in both; only the rule for a start is shared, as it is with
+    # the front end.
+    import build
+    _differ = {}
+    for r in con.execute(f"""SELECT d.id, d.entries, d.starts, d.career_points,
+            (SELECT COUNT(*) FROM race_entries e WHERE e.driver_id = d.id) AS n,
+            (SELECT COUNT(*) FROM race_entries e
+              WHERE e.driver_id = d.id AND {build.STARTED}) AS s,
+            (SELECT TOTAL(e.points) FROM race_entries e WHERE e.driver_id = d.id)
+          + (SELECT TOTAL(x.points) FROM sprint_results x WHERE x.driver_id = d.id) AS p
+          FROM drivers d WHERE d.entries IS NOT NULL OR d.starts IS NOT NULL
+            OR d.career_points IS NOT NULL"""):
+        for field, stored, counted in (("entries", r["entries"], r["n"]),
+                                       ("starts", r["starts"], r["s"]),
+                                       ("career_points", r["career_points"], r["p"])):
+            if stored is not None and round(stored, 2) != round(counted, 2):
+                _differ[(r["id"], field)] = (build._points_text(round(stored, 2)),
+                                             build._points_text(round(counted, 2)))
+    _filed = {(r[0], r[1]): (r[2], r[3]) for r in con.execute("""
+        SELECT row_key, field, stored_value, derived_value FROM discrepancies
+         WHERE kind = 'stored-total' AND tbl = 'drivers'""")}
+    _bad = [f"{d} {f} {a} against {b}: " + ("not filed" if (d, f) not in _filed
+            else f"filed as {_filed[(d, f)]}")
+            for (d, f), (a, b) in sorted(_differ.items()) if _filed.get((d, f)) != (a, b)]
+    _bad += [f"{d} {f} filed, but the figure agrees with the race records"
+             for d, f in sorted(set(_filed) - set(_differ))]
+    check("every stored entries, starts or points figure that differs from the race "
+          "records is filed carrying both", not _bad, "; ".join(_bad[:4]))
+    # 'External figure is older' is a claim about the races run since the
+    # figure was read, and is held to be the whole of the difference: the
+    # race records counted to that day give the stored figure exactly.
+    _bad = []
+    for did, field, stored, stamp in con.execute("""SELECT x.row_key, x.field,
+            x.stored_value, d.stats_as_of FROM discrepancies x
+            JOIN drivers d ON d.id = x.row_key
+           WHERE x.kind = 'stored-total' AND x.status_note = 'external figure is older'"""):
+        day = re.match(r"\d{4}-\d{2}-\d{2}\b", stamp or "")
+        if day is None:
+            _bad.append(f"{did} {field}: no day the figure was read")
+            continue
+        then = con.execute(f"""SELECT
+            (SELECT {"COUNT(*)" if field == "entries" else
+                     f"SUM(CASE WHEN {build.STARTED} THEN 1 ELSE 0 END)"
+                     if field == "starts" else "TOTAL(e.points)"}
+               FROM race_entries e JOIN races r ON r.id = e.race_id
+              WHERE e.driver_id = :d AND r.date_iso <= :day)
+          + (SELECT {"TOTAL(x.points)" if field == "career_points" else "0"}
+               FROM sprint_results x JOIN races r ON r.id = x.race_id
+              WHERE x.driver_id = :d AND r.date_iso <= :day)""",
+            {"d": did, "day": day.group(0)}).fetchone()[0] or 0
+        if build._points_text(round(then, 2)) != stored:
+            _bad.append(f"{did} {field}: stored {stored}, the records on "
+                        f"{day.group(0)} {build._points_text(round(then, 2))}")
+    check("every stored figure explained as older equals the race records on the day "
+          "it was read", not _bad, "; ".join(_bad[:4]))
+    # A corrected figure holds its correction, and the typed value it
+    # replaced stays on the record beside it.
+    _bad = []
+    for did, field, typed, fixed, _why in harvest_module().STORED_TOTALS_CORRECTED:
+        if field not in build.STORED_TOTALS:
+            _bad.append(f"{did} {field}: not a stored career figure")
+            continue
+        held = con.execute(f"SELECT {field} FROM drivers WHERE id = ?", (did,)).fetchone()
+        row = con.execute("""SELECT stored_value, derived_value, status FROM discrepancies
+            WHERE kind = 'correction' AND tbl = 'drivers' AND row_key = ?
+              AND field = ?""", (did, field)).fetchone()
+        if held is None or held[0] is None or abs(held[0] - fixed) > 0.001:
+            _bad.append(f"{did} {field} holds {held and held[0]}, not {fixed}")
+        if row is None or tuple(row) != (build._points_text(typed),
+                                         build._points_text(fixed), "resolved"):
+            _bad.append(f"{did} {field}: correction filed as {row and tuple(row)}")
+    check("every corrected stored figure holds its correction, with the typed one on "
+          "the record", not _bad, "; ".join(_bad[:4]))
+
     n = con.execute("SELECT COUNT(*) FROM drivers WHERE wins_external IS NOT NULL").fetchone()[0]
     d = con.execute("SELECT COUNT(*) FROM discrepancies").fetchone()[0]
     print(f"        {n} drivers compared on three fields; {d} differences, all accounted for")
@@ -1370,7 +1519,6 @@ def external_figures_vs_the_race_records():
     # the problem, because the disagreement would simply stop being shown and
     # nothing would say so. This is the check that makes the quiet join safe to
     # rely on: a subject that names no race, or no driver, is refused here.
-    import build
     unresolved = []
     for did, subject, tbl, row_key in con.execute(
             "SELECT id, subject, tbl, row_key FROM discrepancies WHERE status = 'open' "
@@ -3210,7 +3358,8 @@ def practice_and_sprint_qualifying():
     PRACTICE_TEAM_EXCEPTIONS = {(2022, 16, "fp1", "nyck-de-vries"),
                                 # Monza 1978: Harald Ertl ran an Ensign in
                                 # pre-qualifying (DNPQ), then an ATS in
-                                # qualifying (DNQ).
+                                # qualifying (DNQ). race_entries keeps the
+                                # ATS row (data/harvest.py SECOND_ENTRIES).
                                 (1978, 14, "pre_qualifying", "harald-ertl")}
     # The check above reaches only drivers who raced. This one reaches every
     # row, the Friday drivers' included: a team in practice is a team entered
@@ -3787,9 +3936,9 @@ def circuit_article_faults(rows, register, declared):
 def circuit_articles():
     """VD-47 (#420). Which Wikipedia article describes each circuit, read
     from the List of Formula One circuits and matched on country, seasons
-    and races held. Nothing loads it yet; a wrong row would put a photograph
-    of the wrong place on a circuit page under someone else's name, so it is
-    checked from the day it exists."""
+    and races held. build.py loads it into circuits.article and
+    circuits.article_section (VD-61); a wrong row would put a photograph
+    of the wrong place on a circuit page under someone else's name."""
     import build
     from data import circuits as C
     H = harvest_module()
@@ -3818,6 +3967,22 @@ def circuit_articles():
     faults, later = circuit_article_faults(rows, register, declared)
     for name, found in faults.items():
         check(name, not found, "; ".join(found[:5]))
+
+    # The loaded columns are the file, row for row, read here from the file
+    # rather than from the build that copied it: a circuit the file maps
+    # holds its article and section, and one it does not holds neither.
+    want = {r["circuit_id"]: (r["article"], r["section"]) for r in rows}
+    off = [f"{cid}: {(a, s)} not {want.get(cid, (None, None))}"
+           for cid, a, s in con.execute(
+               "SELECT id, article, article_section FROM circuits ORDER BY id")
+           if (a, s) != want.get(cid, (None, None))]
+    check("circuits.article and article_section are the harvest's mapping",
+          not off, "; ".join(off[:3]))
+    # A declared not-the-circuit row is a statement about a mapped row; one
+    # whose row has gone is a declaration nothing reads.
+    stale = sorted(set(H.CIRCUIT_ARTICLE_NOT_THE_CIRCUIT) - set(want))
+    check("every circuit declared not to be its article's subject is mapped",
+          not stale, ", ".join(stale))
     warn("every circuit in the register is mapped or declared", not later,
          f"{', '.join(later)}: no completed race by the list's date - rerun "
          f"tools/circuit_articles.py once it has one" if later else "")
@@ -4502,6 +4667,10 @@ def the_full_classification():
         # the category route (AF-42), so each floor names one harvest.
         ("article_images", "article", 623, "harvest/article_images.txt"),
         ("article_images", "chassis_id", 119, "harvest/category_images.txt"),
+        # VD-61's two, at the counts they arrived with: `circuit_id` is filled
+        # only on the circuit route, and `circuits.article` from the mapping.
+        ("article_images", "circuit_id", 19, "harvest/circuit_images.txt"),
+        ("circuits", "article", 79, "harvest/circuit_articles.txt"),
     )
     for table, column, floor, source in COLUMN_FLOORS:
         n = con.execute(f"SELECT COUNT({column}) FROM {table}").fetchone()[0]
@@ -4907,6 +5076,7 @@ def illustration_and_geometry():
     nimg = con.execute("SELECT COUNT(*) FROM article_images").fetchone()[0]
     ngeo = con.execute(f"SELECT COUNT(*) FROM {GEO}").fetchone()[0]
     print(f"  [info] {nimg} article images, {ngeo} circuit centrelines")
+    H = harvest_module()
 
     if nimg:
         # A file hosted locally on en.wikipedia.org is local BECAUSE it is
@@ -4918,7 +5088,7 @@ def illustration_and_geometry():
         # and the File namespace instead and records 'commons'. The pairing is
         # also a CHECK in schema.sql; this is where a loosened schema shows.
         local = con.execute("""SELECT COUNT(*) FROM article_images
-            WHERE NOT ((route = 'article' AND repository = 'shared')
+            WHERE NOT ((route IN ('article', 'circuit') AND repository = 'shared')
                     OR (route = 'category' AND repository = 'commons'))"""
                             ).fetchone()[0]
         check("every linked image is on Wikimedia Commons, not a local upload",
@@ -4950,7 +5120,8 @@ def illustration_and_geometry():
         import urllib.parse as _up
         misaddressed, nthumb = [], 0
         for key, file_name, url in con.execute(
-                """SELECT COALESCE(article, chassis_id), file_name, thumb_url
+                """SELECT COALESCE(article, chassis_id, circuit_id), file_name,
+                          thumb_url
                    FROM article_images WHERE thumb_url IS NOT NULL"""):
             nthumb += 1
             name = file_name.removeprefix("File:").replace(" ", "_")
@@ -4995,6 +5166,54 @@ def illustration_and_geometry():
         check("every category image belongs to a chassis no article describes",
               stray == 0)
 
+        # The circuit route (VD-61), re-applied from the database and the
+        # declarations rather than trusted from the harvest: the circuit's
+        # article is about the circuit as a whole - not a section of a larger
+        # one, not a race - and the file is an aerial photograph, with no
+        # copyright mark in its name, that names the circuit by one of its
+        # venue names (data/harvest.py circuit_name_forms: never a bare
+        # place). The name is tested more loosely than the harvest's
+        # word-boundary test, as a run of the file name's letters and digits,
+        # so that it is a second route to the harvest's answer rather than
+        # the harvest's code run twice.
+        linked = {r["circuit_id"]: r["linked_as"]
+                  for r in H.load_circuit_articles()}
+        not_place = []
+        for r in con.execute("""SELECT i.circuit_id, i.file_name,
+                    i.confidence, i.name_matches, c.article,
+                    c.article_section, c.name, c.official_name
+                FROM article_images i
+                LEFT JOIN circuits c ON c.id = i.circuit_id
+                WHERE i.route = 'circuit'"""):
+            cid, f = r["circuit_id"], r["file_name"]
+            forms = H.circuit_name_forms(r["article"], linked.get(cid),
+                                         r["name"], r["official_name"])
+            if r["article"] is None:
+                not_place.append(f"{cid}: no article is mapped to it")
+            elif r["article_section"] is not None:
+                not_place.append(f"{cid}: its article is a section of "
+                                 f"{r['article']}")
+            elif cid in H.CIRCUIT_ARTICLE_NOT_THE_CIRCUIT:
+                not_place.append(f"{cid}: its article is not about the "
+                                 f"circuit")
+            elif not (f.lower().endswith(H.CIRCUIT_PHOTOGRAPH_SUFFIX)
+                      and H.CIRCUIT_PHOTOGRAPH.search(f)):
+                not_place.append(f"{cid}: {f} is not an aerial photograph")
+            elif H.CIRCUIT_PHOTOGRAPH_MARKED.search(f):
+                not_place.append(f"{cid}: {f} carries a copyright mark")
+            elif not H.circuit_file_names(f, forms):
+                not_place.append(f"{cid}: {f} does not name the circuit")
+            elif r["confidence"] != "unverified" or r["name_matches"] != 1:
+                not_place.append(f"{cid}: held at {r['confidence']}, "
+                                 f"name_matches {r['name_matches']}")
+        ncirc = con.execute("SELECT COUNT(*) FROM article_images "
+                            "WHERE route = 'circuit'").fetchone()[0]
+        check("every circuit image is an aerial photograph naming its "
+              "circuit, from an article about the circuit as a whole, at "
+              "'unverified'", not not_place,
+              "; ".join(not_place[:3]) if not_place
+              else f"{ncirc} circuits")
+
         # The two routes make different claims and sit on different rungs.
         # An article-route row at 'catalogued' would blur exactly the line
         # the rung was added to draw.
@@ -5018,7 +5237,8 @@ def illustration_and_geometry():
              promoted == 0,
              f"{unnamed} of {narticle} do not name the car in the file name; "
              f"see v_images_to_check")
-        ncat = nimg - narticle
+        ncat = con.execute("SELECT COUNT(*) FROM article_images "
+                           "WHERE route = 'category'").fetchone()[0]
         lifted = con.execute("SELECT COUNT(*) FROM article_images "
                              "WHERE route = 'category' "
                              "AND confidence <> 'catalogued'").fetchone()[0]

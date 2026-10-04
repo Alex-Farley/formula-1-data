@@ -6,7 +6,8 @@ database, with the attribution needed to display it.
     python3 tools/wikimedia_images.py               # full run, ~26 requests
     python3 tools/wikimedia_images.py --limit 100   # a sample, for a trial
     python3 tools/wikimedia_images.py --route category   # ~700 requests
-    python3 tools/wikimedia_images.py --thumbs      # thumb_url only, both files
+    python3 tools/wikimedia_images.py --route circuit    # ~30 requests
+    python3 tools/wikimedia_images.py --thumbs      # thumb_url only, all three files
 
 Reads:   harvest/car_specs.txt      the articles the spec harvest accepted
 Writes:  harvest/article_images.txt the accepted rows
@@ -14,8 +15,10 @@ Writes:  harvest/article_images.txt the accepted rows
 
 The category route (AF-42, at the end of this docstring) reads
 harvest/chassis.txt as well and writes harvest/category_images.txt and
-harvest/category_images.log instead. The two routes never write each other's
-files.
+harvest/category_images.log instead. The circuit route (VD-61, at the end
+of this docstring) reads harvest/circuit_articles.txt and writes
+harvest/circuit_images.txt and harvest/circuit_images.log. No route writes
+another's files.
 
 No image is downloaded and none is stored. What is stored is a *reference*
 and its attribution: which file an article leads with, who took it, and
@@ -159,12 +162,52 @@ which is where a file hosted on Commons lives; a non-free local upload is on
 en.wikipedia.org and cannot be answered by this query at all. Those rows are
 stored with `repository` = `commons`, and the schema's CHECK accepts that
 value only on the category route.
+
+The circuit route, for the circuit page
+---------------------------------------
+`--route circuit` takes the photograph of each circuit from the article
+harvest/circuit_articles.txt maps it to (tools/circuit_articles.py), and
+only an aerial one: a JPEG in the body of the article whose file name names
+the circuit and says SkySat, aerial or Luftaufnahme (data/harvest.py
+CIRCUIT_PHOTOGRAPH). That is the maintainer's ruling of 2026-09-30, and each
+thing it leaves out was measured first:
+
+  - **The lead image.** 59 of the 79 articles lead with an SVG and 16 with a
+    PNG, every one a layout diagram - a second outline beside the one the
+    circuit page draws, under the word photograph.
+  - **Any body JPEG that names the circuit.** The first by title picks a car
+    (Vanwall VW5 Aintree 1957), a music festival (Canadian Tire Motorsport
+    Park Concert Boots and Hearts), a statue (Ayrton Senna Statue -
+    Donington Park), a road car and two maps saved as JPEGs.
+
+An aerial photograph shows the whole circuit, which is what a photograph of
+a circuit is for. A file **names the circuit** by the test `name_matches`
+uses for a car (names_car), against those of the article's title, the
+list's link text and the register's name and official name that name a
+venue rather than a place (data/harvest.py circuit_name_forms): "Long Beach
+Street Circuit" counts and "Long Beach" does not, since a city's aerial is
+the city - and "Sochi adler aerial view" is the Olympic park. A file whose
+name carries a copyright mark is refused whatever its licence says
+(CIRCUIT_PHOTOGRAPH_MARKED). Among several that qualify the first by title
+is taken. A circuit with none has no photograph, and that fails closed.
+
+Four mapped circuits take nothing whatever their article carries: the three
+whose list row links a section of a larger article (the `section` column -
+Fair Park, the Bugatti Circuit, Zeltweg Air Base), whose photographs are of
+the park, the 24-hour circuit and the air base; and Caesars Palace, whose
+link is the race (data/harvest.py CIRCUIT_ARTICLE_NOT_THE_CIRCUIT).
+
+Checks 1 to 3 apply unchanged, asked of en.wikipedia.org like the article
+route, so `repository` is `shared`. The rows are keyed on the circuit - the
+Nordschleife and the GP-Strecke share one article - and enter at
+`unverified`, the article route's rung, on the article route's claim.
 """
 import argparse
 import html
 import json
 import os
 import re
+import sys
 import time
 import unicodedata
 import urllib.error
@@ -1020,24 +1063,164 @@ def main_category(args):
     print(f"wrote {out}")
 
 
+# ------------------------------------------------------- the circuit route
+
+CIRCUIT_COLUMNS = ["circuit_id", "file_name", "repository", "licence",
+                   "licence_url", "artist", "credit", "description_url",
+                   "thumb_url", "width", "height", "name_matches"]
+
+
+def circuit_data():
+    """data/harvest.py and data/circuits.py, from the repository root: the
+    mapping, its declared exceptions and the rule, and the register's names."""
+    if ROOT not in sys.path:
+        sys.path.insert(0, ROOT)
+    from data import circuits as C
+    from data import harvest as H
+    return H, {r[0]: (r[1], r[2]) for r in C.CIRCUITS}
+
+
+def circuit_candidates(files, names, rule, suffixes, marked=None):
+    """The body images of a circuit's article that may stand for it: JPEGs
+    whose name names the circuit and says it is an aerial photograph, and
+    carries no copyright mark, in title order. `names` is '+'-joined, as
+    names_car takes chassis ids."""
+    return sorted(f for f in files
+                  if f.lower().endswith(suffixes) and rule.search(f)
+                  and not (marked and marked.search(f))
+                  and names_car(f, "", names))
+
+
+def main_circuit(args):
+    H, register = circuit_data()
+    mapped = H.load_circuit_articles()
+    if not mapped:
+        raise SystemExit("harvest/circuit_articles.txt is missing. Run "
+                         "tools/circuit_articles.py first.")
+    if args.only:
+        needle = args.only.lower()
+        mapped = [r for r in mapped if needle in r["circuit_id"]
+                  or needle in r["article"].lower()]
+    if args.limit:
+        mapped = mapped[:args.limit]
+    if not mapped:
+        raise SystemExit("no circuits selected")
+    print(f"{len(mapped)} mapped circuits", flush=True)
+
+    log, wanted_for = [], {}
+    for r in mapped:
+        cid = r["circuit_id"]
+        if r["section"]:
+            log.append(f"{cid}\tREFUSED\tthe list links the section "
+                       f"{r['section']!r} of {r['article']}, not an article "
+                       f"about the circuit")
+            continue
+        why = H.CIRCUIT_ARTICLE_NOT_THE_CIRCUIT.get(cid)
+        if why:
+            log.append(f"{cid}\tREFUSED\t{why}")
+            continue
+        if cid not in register:
+            raise SystemExit(f"circuit_articles.txt maps {cid}, which "
+                             f"data/circuits.py does not hold")
+        name, official = register[cid]
+        forms = H.circuit_name_forms(r["article"], r.get("linked_as"), name,
+                                     official)
+        if not forms:
+            log.append(f"{cid}\tREFUSED\tnone of its names names a venue "
+                       f"rather than a place")
+            continue
+        wanted_for[cid] = (r["article"], "+".join(forms))
+
+    found = body_images(sorted({a for a, _n in wanted_for.values()}))
+    plan = {}
+    for cid, (article, names) in sorted(wanted_for.items()):
+        files = circuit_candidates(found.get(article, ()), names,
+                                   H.CIRCUIT_PHOTOGRAPH,
+                                   H.CIRCUIT_PHOTOGRAPH_SUFFIX,
+                                   H.CIRCUIT_PHOTOGRAPH_MARKED)
+        if files:
+            plan[cid] = files
+        else:
+            log.append(f"{cid}\tREFUSED\t{article} carries no aerial "
+                       f"photograph whose file name names the circuit and "
+                       f"carries no copyright mark")
+    print(f"{len(plan)} of {len(wanted_for)} whole-circuit articles carry an "
+          f"aerial photograph that names the circuit", flush=True)
+    info = file_info(sorted({f for v in plan.values() for f in v}), log)
+
+    rows = []
+    for cid, files in sorted(plan.items()):
+        tried = []
+        for f in files:
+            row = admit(cid, f, info.get(title_key(f)), wanted_for[cid][1],
+                        tried)
+            if row:
+                row["circuit_id"] = cid
+                # The condition of taking it, as on the article route's body
+                # images: names_car above, against the circuit's own names.
+                row["name_matches"] = 1
+                rows.append(row)
+                break
+        else:
+            log.extend(tried)
+    thumb_log = check_thumbs(rows, "circuit_id")
+
+    out = os.path.join(HARVEST, "circuit_images.txt")
+    with open(out, "w", encoding="utf-8") as fh:
+        fh.write("# Generated by tools/wikimedia_images.py --route circuit on "
+                 + time.strftime("%Y-%m-%d") + ". Do not edit by hand.\n")
+        fh.write("# Source: an aerial photograph in the body of the article "
+                 "harvest/circuit_articles.txt maps each circuit to, whose "
+                 "file name names the circuit, via the MediaWiki API.\n")
+        fh.write("# Files are on Wikimedia Commons and each carries its OWN "
+                 "licence - see the licence column.\n")
+        fh.write("# No image is stored here or in the database. These are "
+                 "references and their attribution.\n")
+        fh.write("# " + "|".join(CIRCUIT_COLUMNS) + "\n")
+        for r in rows:
+            fh.write("|".join("" if r[c] is None else str(r[c])
+                              for c in CIRCUIT_COLUMNS) + "\n")
+
+    with open(os.path.join(HARVEST, "circuit_images.log"), "w",
+              encoding="utf-8") as fh:
+        fh.write("# Every mapped circuit, and why it was refused.\n")
+        for line in sorted(log):
+            fh.write(line + "\n")
+        for r in rows:
+            fh.write(f"{r['circuit_id']}\tACCEPTED\t{r['file_name']}\t"
+                     f"{r['licence']}\n")
+        if thumb_log:
+            fh.write(NO_THUMB_NOTE)
+            for line in sorted(thumb_log):
+                fh.write(line + "\n")
+
+    print(f"\naccepted {len(rows)} of {len(mapped)} mapped circuits")
+    print(f"refused  {len(mapped) - len(rows)}  "
+          f"(see harvest/circuit_images.log)")
+    print(f"wrote {out}")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[1])
     ap.add_argument("--limit", type=int, default=0,
                     help="only the first N articles, for a trial run")
     ap.add_argument("--only", default=None,
                     help="only articles containing this substring")
-    ap.add_argument("--route", choices=("article", "category"),
+    ap.add_argument("--route", choices=("article", "category", "circuit"),
                     default="article",
-                    help="article (the default), or a Commons category for "
-                         "each chassis with no article")
+                    help="article (the default), a Commons category for "
+                         "each chassis with no article, or the aerial "
+                         "photograph of each mapped circuit")
     ap.add_argument("--thumbs", action="store_true",
-                    help="refresh thumb_url in both committed files and "
+                    help="refresh thumb_url in the three committed files and "
                          "nothing else")
     args = ap.parse_args()
     if args.thumbs:
         return main_thumbs()
     if args.route == "category":
         return main_category(args)
+    if args.route == "circuit":
+        return main_circuit(args)
 
     articles = read_articles()
     if args.only:
@@ -1138,7 +1321,7 @@ THUMBS_NOTE = "# thumb_url last fetched by tools/wikimedia_images.py --thumbs on
 
 
 def main_thumbs():
-    """Refill thumb_url in both committed files, and change nothing else.
+    """Refill thumb_url in the three committed files, and change nothing else.
 
     Each file is read by its column header, the way data/harvest.py reads it,
     and written back line for line: the rows, their order and their credits
@@ -1146,7 +1329,8 @@ def main_thumbs():
     """
     for name, key, columns, endpoint in (
             ("article_images.txt", "article", COLUMNS, API),
-            ("category_images.txt", "chassis_id", CAT_COLUMNS, COMMONS_API)):
+            ("category_images.txt", "chassis_id", CAT_COLUMNS, COMMONS_API),
+            ("circuit_images.txt", "circuit_id", CIRCUIT_COLUMNS, API)):
         path = os.path.join(HARVEST, name)
         with open(path, encoding="utf-8") as fh:
             lines = fh.read().splitlines()

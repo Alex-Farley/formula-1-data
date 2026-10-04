@@ -42,7 +42,8 @@ your own skip list from it.
 - **The result is for a script as well as a person.** Your final message's
   first line is exactly one of the fork's contract lines — the last one you
   acted on — or your own `STOP: <reason in one clause>` (two consecutive
-  skips, a fork that returned no contract line). If this run skipped
+  skips, a second stall in a row, a fork that returned no contract line and
+  did not stall - a first stall is relaunched, as the driver's step 3 says). If this run skipped
   anything, the next line is `Skipped: <ids, comma-separated>`. Then the
   stock-take, at most five lines. Nothing before the first line.
 

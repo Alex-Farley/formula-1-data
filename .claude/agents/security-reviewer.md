@@ -72,16 +72,22 @@ answer a missing asset with HTML and a 200.
   `env:` and quote it.
 - `refresh.yml` mints a token from `REFRESH_APP_ID` and
   `REFRESH_APP_PRIVATE_KEY`, and that token can push and open pull requests.
-  Flag it reaching a step that does not need it — an `npm ci`, a third-party
-  action, a script fetched at run time — or being persisted by
-  `actions/checkout` into a job that then runs code from the network. Flag any
-  secret echoed, written to a file that is uploaded, or passed on a command
-  line.
-- A new third-party action, or an existing one moved to another ref.
-  Until `AF-77` (#720) lands, actions here are pinned to a major tag, not a
-  commit SHA; say what a new one
-  can reach with the token it gets, and treat a new action in `release.yml`
-  or `refresh.yml` as the serious case.
+  Since AF-78 the key is a secret of `gate` (a mint that only proves the App
+  works) and `land` (which opens the pull request), and of no job that runs
+  npm: the `refresh` job builds and tests with no token that writes, and
+  hands `land` its changes as an artifact that
+  `.github/scripts/refresh_tree.py` checks path by path before applying.
+  Flag the key or the token reaching a job that runs npm, a script fetched at
+  run time or anything from the artifact; a step in `land` that executes a
+  file the artifact could have written; a widening of what
+  `refresh_tree.py` lets across; and a credential persisted by
+  `actions/checkout` into any of the three. Flag any secret echoed, written
+  to a file that is uploaded, or passed on a command line.
+- A new third-party action, or an existing one moved to another commit.
+  Say what a new one can reach with the token it gets, and treat a new
+  action in `release.yml` or `refresh.yml` as the serious case. That each
+  is pinned to a SHA is a test (below); whether the SHA is the release its
+  comment names is yours.
 
 **5. Dependencies arrive deliberately.** The build has no third-party
 dependencies, and that is a property worth keeping. For `web/package.json`,
@@ -121,8 +127,19 @@ flag a new request, beacon or storage write that would make that untrue.
 
 - **Item 4**, workflow syntax and shell in `run:` steps, and actionlint's
   own check for untrusted expressions in inline scripts, in `make lint` and
-  CI's `lint` job. An injection actionlint does not see — through an
-  intermediate `env:` or an output — is still yours.
+  CI's `lint` job; and any `${{ }}` inside a `run:` script written as a
+  block keyed plain `run:` or inline on one line, trusted context or not, in
+  `tests/test_conventions.py` (`NoExpressionInsideAScript`). A flow mapping,
+  a quoted `run` key or a plain scalar folded onto a second line is not
+  parsed by it, and an injection neither sees — through an intermediate
+  `env:` or an output — is still yours.
+- **Item 4**, every `uses:` pinned to a full commit SHA with its release
+  in a comment, every script fetched from `raw.githubusercontent.com` at
+  a SHA, and every `pip install` in a workflow reading a file of `==`
+  pins, in `tests/test_conventions.py` (`WorkflowsRunWhatWasChosen`). It
+  reads line by line: a YAML anchor, a command built in a variable, or a
+  requirement pulled in through `-r` inside a pinned file is not seen, and
+  is yours. So is whether a token reaches a step that does not need it.
 - **Item 7**, `release.yml` uploading and digesting both databases and
   `SHA256SUMS`, in `tests/test_conventions.py`
   (`PublishingPathsCarryBothDatabases`). A new publishing path the test does

@@ -510,7 +510,9 @@ SOURCE_REGISTRY = [
      "https://commons.wikimedia.org/",
      "The lead photograph of each accepted car article, and the attribution "
      "needed to display it; for a chassis with no article, a photograph filed "
-     "under the Commons category named for it (AF-42). Loaded by "
+     "under the Commons category named for it (AF-42); for a circuit, an "
+     "aerial photograph in the body of the article mapped to it (VD-61). "
+     "Loaded by "
      "tools/wikimedia_images.py. NO IMAGE IS "
      "STORED - article_images holds a reference and its credit, and the "
      "pixels are fetched from upload.wikimedia.org by whatever renders the "
@@ -535,7 +537,11 @@ SOURCE_REGISTRY = [
      "police. These rows are 'unverified' because that is what they are. "
      "For a chassis with no article, a photograph filed under a Commons "
      "category named for it is taken instead and held one rung lower, at "
-     "'catalogued' (AF-42)."),
+     "'catalogued' (AF-42). For a circuit (VD-61) the file name test is the "
+     "condition of taking the file, not a signal: an aerial photograph in "
+     "the mapped article whose name names the circuit by a venue name, "
+     "re-checked on every build. What it shows is no better established, "
+     "and those rows are 'unverified' too."),
 
     (16, "OpenStreetMap (via api.openstreetmap.org)",
      "https://www.openstreetmap.org/",
@@ -566,7 +572,9 @@ SOURCE_REGISTRY = [
      "its length and turn count, and why it changed. Feeds circuit_layouts. "
      "Also, from the List of Formula One circuits, which article describes "
      "each circuit (harvest/circuit_articles.txt), matched on country, "
-     "seasons and races held and checked by verify.py; nothing loads it yet.",
+     "seasons and races held and checked by verify.py; build.py loads it "
+     "into circuits.article and circuits.article_section, each value a claim "
+     "citing the list's revision (VD-61).",
      "reference",
      "CC BY-SA 4.0. The change_reason prose follows the article and carries "
      "share-alike with it - see ATTRIBUTION.md.",
@@ -630,6 +638,12 @@ SOURCE_PATTERNS = [
     # check read only tables with a `confidence` column, and pit_stops has
     # none (DA-03).
     (10, r"^f1db$", "the bare token pit_stops carries"),
+    # The dated revision of the List of Formula One circuits that
+    # harvest/circuit_articles.txt was read from (VD-47), which the claims
+    # behind circuits.article cite (VD-61). A revision, not the live page:
+    # the mapping is that revision's. Last, so no id above moves.
+    (17, r"^https://en\.wikipedia\.org/w/index\.php\?title=List_of_Formula_One_circuits&oldid=\d+$",
+     "the revision of the circuit list the circuit-article mapping reads"),
 ]
 
 # ------------------------------------------------------------------ claims
@@ -656,6 +670,8 @@ CLAIM_FIELDS = {
     ("chassis", "published_wins"): "likewise, wins",
     ("chassis", "published_poles"): "likewise, poles",
     ("car_seasons", "other_chassis"): "chassis F1DB's entry lists name for the constructor that season beyond the ones the car covers",
+    ("circuits", "article"): "the Wikipedia article the List of Formula One circuits links for the circuit",
+    ("circuits", "article_section"): "likewise, the section of it the list links, where it links a section",
 }
 
 # Provenance for the tables that carry `confidence` and no `source` column.
@@ -698,7 +714,9 @@ TABLE_PROVENANCE = [
      "car is not established and nothing here can establish it. known_gaps #11. "
      "Rows on the category route (AF-42) have no article at all: a Commons "
      "category named for the chassis stands in for it, and they sit a rung "
-     "lower, at 'catalogued'."),
+     "lower, at 'catalogued'. Rows on the circuit route (VD-61) are an "
+     "aerial photograph in the article mapped to the circuit, whose file "
+     "name names it; that it shows the circuit is no better established."),
     ("circuit_geometry", 16, 0, None),
 ]
 
@@ -821,6 +839,65 @@ PROJECT_PROSE_NOTE = (
     "in this file stays CC BY-SA 4.0: see LICENSE-DATA, which names what the "
     "share-alike comes from. The remaining columns of those two tables hold "
     "facts and identifiers rather than expression.")
+
+# ---------------------------------------------------------- empty columns
+#
+# The columns that are NULL on every row of a table that has rows, and why
+# (DA-16, #210). A consumer meeting one cannot otherwise tell "empty because
+# nobody knows" - which is what NULL means everywhere else in this file -
+# from "empty because nothing here ever fills it", and the project's own
+# convention insists on the first reading. So each is declared with its
+# reason, build.py publishes the declaration as meta.empty_columns, and
+# verify.py derives the set from the database itself and fails on a
+# difference in either direction: a column that falls empty undeclared, and
+# a declared one that has started to hold values.
+#
+# Kept rather than dropped. A dropped column breaks every query that names
+# it, and most of these are the shape a loader writes: the timing and radio
+# columns are filled by tools/fastf1_load.py and tools/ergast_load.py in a
+# local F1_LOCAL_TIMING build, which is why verify.py only warns about a
+# filled one there. A reason may not contain "; ", which separates them in
+# meta.
+EMPTY_COLUMNS = {
+    "cars.fuel_capacity_l":
+        "typed in data/cars.py beside the other specifications, and no "
+        "source read for a curated car has given one",
+    "chassis.fuel_capacity_l":
+        "tools/wikispec_fetch.py reads it from the car article's infobox "
+        "and has found it in none of the articles it harvested",
+    "constructors.entries":
+        "never stored: the site counts a constructor's race entries from "
+        "race_entries, and no source's figure has been read to set beside "
+        "that count",
+    "pit_stops.driver_code":
+        "written only by the local timing loaders: F1DB, the one pit-stop "
+        "source that may be passed on, identifies a driver by id",
+    "pit_stops.pit_lane_seconds":
+        "written only by the local timing loaders: F1DB publishes the lap "
+        "and the order of each stop and no duration",
+    "pit_stops.stationary_seconds":
+        "no source read here gives it: the timing sources publish pit-lane "
+        "time, and F1DB no duration at all",
+    "race_entries.note":
+        "a per-row annotation that no loader writes and no row has needed",
+    "season_entries.note":
+        "a per-row annotation that no loader writes and no row has needed",
+    "sprint_results.note":
+        "a per-row annotation that no loader writes and no row has needed",
+    "team_radio.audio_url":
+        "written only by tools/fastf1_load.py, whose radio is FOM's and is "
+        "never distributed: the six exchanges shipped are quotations",
+    "team_radio.driver_code":
+        "written only by tools/fastf1_load.py: the six exchanges shipped "
+        "name the driver by driver_id",
+    "team_radio.lap_number":
+        "written only by tools/fastf1_load.py: the six exchanges shipped are "
+        "quotations, and the article quoted is not read for a lap",
+    "team_radio.utc_time":
+        "written only by tools/fastf1_load.py: the six exchanges shipped are "
+        "quotations and carry no timestamp",
+}
+
 
 # ------------------------------------------------------------- identifiers
 #

@@ -33,9 +33,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.12'
 
@@ -43,9 +43,16 @@ jobs:
       # with it publishes artefacts that misreport their own identity. There
       # is nothing downstream to catch that, so catch it here, before the
       # build burns twenty minutes.
+      #
+      # The tag reaches the script through env, never as ${{ }} inside run:
+      # an expression there is pasted into the script text before the shell
+      # parses it, so a dispatch input with a quote in it would run as shell
+      # in a job holding contents: write.
       - name: The tag must match VERSION
+        env:
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
         run: |
-          tag='${{ github.event.inputs.tag || github.ref_name }}'
+          tag="$TAG"
           version=$(python3 -c 'import build; print(build.VERSION)')
           if [ "$tag" != "v$version" ]; then
             echo "::error::tag $tag does not match VERSION $version (expected v$version)"
@@ -82,9 +89,11 @@ jobs:
       # The bulk export, for readers who want the data rather than a page of
       # it. pyarrow is installed HERE and nowhere else: the build stays
       # standard-library-only, so `git clone && make all` still needs nothing,
-      # and only the job that publishes needs a Parquet writer.
+      # and only the job that publishes needs a Parquet writer. Pinned in
+      # the file, which Dependabot bumps by pull request (AF-77), because
+      # this job holds contents: write.
       - name: Install the Parquet writer
-        run: pip install pyarrow
+        run: pip install -r .github/requirements/release.txt
 
       - name: Export to Parquet
         # --zip rather than a zip binary over parquet/*.parquet: the glob
@@ -106,7 +115,7 @@ jobs:
             f1-parquet.zip schema.sql > SHA256SUMS
           cat SHA256SUMS
 
-      - uses: softprops/action-gh-release@v3
+      - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           tag_name: ${{ github.event.inputs.tag || github.ref_name }}
           generate_release_notes: true

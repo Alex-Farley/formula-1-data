@@ -234,6 +234,33 @@ CREATE TABLE drivers (
     -- The country, in the one country vocabulary: normalise_countries() holds
     -- this column to the F1DB registry the same way it holds nationality.
     country_of_birth TEXT,
+    -- The career block below mixes figures counted here with figures stored
+    -- as a source gave them, and the two read alike (DA-16). Which is which:
+    --   DERIVED on every build from the race records, which cover every
+    --   championship race 1950-2026, so always consistent and current:
+    --   wins, poles, fastest_laps, podiums (derivable since v2.7, when
+    --   second and third place were harvested for every race), and
+    --   practice_only.
+    --   TYPED AND CHECKED: titles and title_years are typed in
+    --   data/drivers.py, and verify.py holds both to the champions in
+    --   `seasons`, so neither can disagree with them.
+    --   STORED as typed: entries and career_points for the champions in
+    --   data/drivers.py and the seven current drivers whose formula1.com
+    --   pages were read on the date stats_as_of gives; starts for the
+    --   champions among the typed rows only - those pages give no starts,
+    --   so the four champions among the seven hold NULL - and NULL for
+    --   everyone else. They are not recounted from race_entries and need
+    --   not equal a count of it: a points total is everything the driver
+    --   scored, but Fangio's and Senna's are championship totals, net of
+    --   the scores the best-results rule dropped; a source may count an
+    --   entry at a race the records hold no row for; and a current
+    --   driver's figure has moved on since the date. Every difference from
+    --   the race records is a 'stored-total' row in `discrepancies`, and a
+    --   typed figure no source gave was corrected, its 'correction' row
+    --   keeping the typed value (DA-42).
+    --   MIXED: first_season and last_season are typed for the authored
+    --   drivers and taken from the race records - or, for a driver who only
+    --   ran in practice, the practice sheets - for the rest.
     first_season    INTEGER,
     last_season     INTEGER,
     entries         INTEGER,
@@ -252,11 +279,6 @@ CREATE TABLE drivers (
     -- the drivers who raced.
     practice_only   INTEGER NOT NULL DEFAULT 0 CHECK (practice_only IN (0, 1)),
     stats_as_of     TEXT,                      -- when the career figures were true
-    -- wins / poles / fastest_laps / podiums above are DERIVED from the race
-    -- records, which cover every championship race 1950-2026. Podiums became
-    -- derivable in v2.7, when second and third place were harvested for every
-    -- race; before that the figure was hand-entered. They are
-    -- therefore always internally consistent and always current.
     -- The *_external columns hold the separately sourced figure for the same
     -- statistic, so the two can be compared. Where they disagree, the
     -- difference is recorded in the discrepancies table rather than hidden.
@@ -554,6 +576,17 @@ CREATE TABLE circuits (
     direction       TEXT CHECK (direction IN ('clockwise', 'anti-clockwise')),
     characteristics TEXT,
     notes           TEXT,
+    -- The Wikipedia article the List of Formula One circuits links for this
+    -- circuit (VD-47, VD-61), from harvest/circuit_articles.txt, matched on
+    -- country, seasons and races held and never on the name. Each value is a
+    -- claim citing the list's revision. Not UNIQUE: the Nordschleife and the
+    -- GP-Strecke are one article. NULL: no list maps it - the Sudschleife,
+    -- known_gaps 'circuit-article-sudschleife'.
+    article         TEXT,
+    -- Where the list links a SECTION of a larger article rather than one
+    -- about the circuit - Fair Park, the Bugatti Circuit, Zeltweg Air Base -
+    -- the section's name. NULL with an article: the whole article.
+    article_section TEXT,
     confidence      TEXT NOT NULL DEFAULT 'medium' REFERENCES provenance(confidence),
     source          TEXT
 );
@@ -841,14 +874,23 @@ CREATE TABLE chassis (
 -- keyed on the chassis, not an article, and sit at 'catalogued', one rung
 -- below 'unverified'. `route` keeps the two separable whatever a person
 -- later does to `confidence`.
+--
+-- A third route (VD-61) is a circuit's: an aerial or satellite photograph in
+-- the body of the article circuits.article names, whose file name names the
+-- circuit (data/harvest.py CIRCUIT_PHOTOGRAPH). Keyed on the circuit, not
+-- the article, because two circuits share one. The claim is the article
+-- route's - "the article mapped to this circuit carries this file" - and so
+-- is the rung, 'unverified'. A circuit whose article is a section of a
+-- larger one, or not about the circuit, takes none.
 CREATE TABLE article_images (
     route           TEXT NOT NULL DEFAULT 'article'
-                    CHECK (route IN ('article', 'category')),
+                    CHECK (route IN ('article', 'category', 'circuit')),
     article         TEXT UNIQUE,               -- joins chassis.article; the article route's key
     chassis_id      TEXT UNIQUE REFERENCES chassis(id), -- the category route's key
+    circuit_id      TEXT UNIQUE REFERENCES circuits(id), -- the circuit route's key
     category        TEXT,                      -- 'Category:...' on Commons, category route only
     file_name       TEXT NOT NULL,             -- 'File:...' as Commons spells it
-    -- 'shared' on the article route. A file hosted locally on
+    -- 'shared' on the article and circuit routes. A file hosted locally on
     -- en.wikipedia.org is local BECAUSE it is non-free; linking one would be
     -- a licence violation.
     --
@@ -881,9 +923,14 @@ CREATE TABLE article_images (
     confidence      TEXT NOT NULL DEFAULT 'unverified' REFERENCES provenance(confidence),
     -- Exactly one key per route, and each route's repository with it.
     CHECK ((route = 'article' AND article IS NOT NULL AND chassis_id IS NULL
-            AND category IS NULL AND repository = 'shared')
+            AND circuit_id IS NULL AND category IS NULL
+            AND repository = 'shared')
         OR (route = 'category' AND article IS NULL AND chassis_id IS NOT NULL
-            AND category IS NOT NULL AND repository = 'commons'))
+            AND circuit_id IS NULL AND category IS NOT NULL
+            AND repository = 'commons')
+        OR (route = 'circuit' AND article IS NULL AND chassis_id IS NULL
+            AND circuit_id IS NOT NULL AND category IS NULL
+            AND repository = 'shared'))
 );
 
 CREATE TABLE car_seasons (
@@ -1147,6 +1194,11 @@ CREATE TABLE race_entries (
     note            TEXT,
     confidence      TEXT NOT NULL DEFAULT 'reference' REFERENCES provenance(confidence),
     source          TEXT,
+    -- One row per driver per race (known_gaps #2). A driver F1DB enters
+    -- twice in one race - a shared drive, a car taken over, a second car
+    -- entered - keeps the first row's car; the build merges the rest into
+    -- it, and refuses an undeclared one whose car was another constructor's
+    -- (data/harvest.py SECOND_ENTRIES, CR-62).
     UNIQUE (race_id, driver_id)
 );
 
@@ -1748,6 +1800,10 @@ CREATE TABLE known_gaps (
     state           TEXT NOT NULL CHECK (state IN ('open', 'closed', 'position')),
     reader          TEXT NOT NULL,             -- what a reader is shown
     description     TEXT NOT NULL,             -- the maintainer's note
+    -- How many races the gap touches, MEASURED: build.py runs the gap's query
+    -- in data/harvest.py GAP_RACES and verify.py re-runs it. NULL where the
+    -- gap is not counted in races, or no query here can yet say which races
+    -- it touches - never 0 for "not counted", which reads as "none" (DA-16).
     races_affected  INTEGER,
     resolution      TEXT                       -- what would close it, or what did
 );
@@ -1803,6 +1859,7 @@ CREATE TABLE discrepancies (
                         'correction',          -- an external figure found wrong
                         'external-figure',     -- an external figure against the records
                         'f1db-career-total',   -- a typed career figure against F1DB's total
+                        'stored-total',        -- a stored entries, starts or points total against the records
                         'career-span',         -- the register's span against the records'
                         'car-season',          -- CAR_SEASONS against the entry lists
                         'car-chassis',         -- a car's figure against its one chassis's
