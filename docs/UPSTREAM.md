@@ -62,10 +62,12 @@ in the source tree the clone reads, so `tools/f1db_totals_fetch.py` reads
 `f1db-drivers.csv` out of a release's `f1db-csv.zip` into
 `harvest/f1db_driver_totals.txt` - checked against the release's own
 checksum, and against the deed at the tagged commit. It is pinned to the
-release the harvest was read from when it was fetched, and the daily
-refresh does not move it: the totals are the named source the career
-figures typed into `data/drivers.py` are checked against (PM-57, #624), and
-they change only when somebody fetches another release on purpose.
+release the harvest was read from, and every refresh fetches it again
+straight after the harvest, so the two always name the same release -
+`verify.py` fails when they do not. The totals are the named source the
+career figures typed into `data/drivers.py` are checked against (PM-57,
+#624), and the figure a driver still racing is held to (CR-69, #785): a
+total from an older release goes stale with that driver's next result.
 
 `.github/workflows/refresh.yml` runs the fetch daily at 06:00 UTC, and every
 three hours from a race weekend's first session until 72 hours after it. If the

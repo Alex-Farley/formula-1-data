@@ -28,9 +28,12 @@ F1DB's reading of every tied lap - which is what the figures are compared on.
 What pins it
 ------------
 - The release is, by default, the one the committed harvest was read from:
-  the version stamped in harvest/f1db_drivers.txt. A refresh that moves the
-  harvest past a release does not move this file; the totals stay the ones
-  that release published until somebody fetches another on purpose.
+  the version stamped in harvest/f1db_drivers.txt. refresh.yml runs this
+  straight after tools/f1db_fetch.py, so a refresh that moves the harvest
+  moves the totals to the same release, and verify.py fails when the two
+  differ (CR-69, #785): a driver still racing is held to the total F1DB
+  published with the results the harvest carries, which a total pinned to
+  an older release cannot be.
 - The tag must resolve to a commit, and that commit is stamped in the header.
 - The zip must match the digest the release's own checksums_sha256.txt gives.
 - The deed at that commit must be CC BY 4.0, read by the same licence_check()
@@ -52,7 +55,7 @@ import zipfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from f1db_fetch import HARVEST, HEADER, licence_check, run  # noqa: E402
+from f1db_fetch import HARVEST, HEADER, _clean, licence_check, run  # noqa: E402
 from f1db_fetch import write as write_harvest  # noqa: E402
 
 RELEASES = "https://github.com/f1db/f1db/releases/download"
@@ -103,7 +106,9 @@ def total_rows(zipped):
         values = [r[c] for _f, c in FIELDS]
         if not all(v.isdigit() for v in values):
             sys.exit(f"{MEMBER}: {r['id']} has a total that is not a count: {values}")
-        rows.append("|".join([r["id"], *values]))
+        # The id is upstream text, and the refresh writes it unattended: a
+        # pipe or a newline in it stops the fetch rather than forging a row.
+        rows.append("|".join([_clean(r["id"]), *values]))
     return sorted(rows)
 
 
