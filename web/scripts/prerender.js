@@ -412,7 +412,6 @@ import {
   RESULTS as DRIVER_RESULTS,
   SEASON_COLUMNS,
   SEASONS_FOOTER,
-  CAREER_HEADING,
   STANDINGS,
   TEAM_MATES,
   TEAM_MATE_COLUMNS,
@@ -423,14 +422,13 @@ import {
   PRACTICE_ONLY_NOTICE,
   PRACTICE_SESSION_COLUMNS,
   practiceSentence,
-  leading,
+  careerStrip,
   lede,
   pointsDiffer,
   pointsNote,
   record,
   roundsRun,
   seasonRows,
-  strip,
   thisSeasonFooter,
   thisSeasonHeading,
   thisSeasonNote,
@@ -2442,9 +2440,10 @@ const page = ({
     const bySeason = all(BY_SEASON, id)
     const standings = driverStandings(id)
     const seasons = seasonRows(bySeason, standings)
-    // A driver of the season being run opens on it (PD-49), as Driver.jsx
-    // does: the same rows, heading, sentence and table. The app draws the
-    // dots above the table; a page with no script has the table itself.
+    // A driver of the season being run has it as a section (PD-49), as
+    // Driver.jsx does: the same rows, heading, sentence and table, after the
+    // career strip rather than before it (PD-59). The app draws the dots
+    // above the table; a page with no script has the table itself.
     const thisSeason = thisSeasonOf.all(id)
     const thisSeasonSection = (() => {
       if (!thisSeason.length) return ''
@@ -2498,13 +2497,12 @@ const page = ({
         <h1>${esc(NAMES.driver(d.full_name).headline)}</h1>
         <p class="lede">${esc(lede(d, derived, constructors, practice))}</p>
         ${practiceOnly ? noteBox(PRACTICE_ONLY_NOTICE.head, PRACTICE_ONLY_NOTICE.body) : ''}
-        ${thisSeasonSection}
-        ${thisSeasonSection ? `<h2>${esc(CAREER_HEADING)}</h2>` : ''}
         ${
           practiceOnly
             ? ''
-            : stats(leading(strip(d, derived)).map((item) => ({ ...item, value: esc(item.value) })))
+            : stats(careerStrip(d, derived, thisSeason, standings).map((item) => ({ ...item, value: esc(item.value) })))
         }
+        ${thisSeasonSection}
         ${
           practice.length
             ? `<h2>Practice sessions</h2>${fromColumns(PRACTICE_SESSION_COLUMNS, practice, {

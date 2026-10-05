@@ -264,17 +264,42 @@ export const THIS_SEASON = `
 export const thisSeasonHeading = (rows) =>
   rows.some((row) => row.status !== 'completed') ? `The ${rows[0]?.season} season so far` : `The ${rows[0]?.season} season`
 
-/**
- * The heading the career strip takes when the season leads the page. Below
- * an h2 the untitled strip read as that section's own - "Entries 117" under
- * a heading about 2026 - so where the season section is drawn the career
- * gets a heading of its own, and where it is not the strip stays directly
- * under the h1, as on every other driver's page.
- */
-export const CAREER_HEADING = 'The career'
-
 /** The rounds run, which are the table's rows: a round still to come has no result to state. */
 export const roundsRun = (rows) => rows.filter((row) => row.status === 'completed')
+
+/**
+ * The season being run, as one tile at the end of the career strip (PD-59).
+ *
+ * PD-49 opened a current driver's page on the season, with the career under
+ * a heading of its own below it, and that put the career totals a searcher
+ * came for below the first screen on the most visited driver pages - y =
+ * 999 at 1440 and 1,131 at 400. The strip is straight under the lede again,
+ * as on every other driver's page, and the season keeps a place in it: where
+ * the drivers' championship has this driver, and on how many points. The
+ * section with a dot per round follows the career chart.
+ *
+ * The figures are the standings' own row for the season, as thisSeasonNote()
+ * reads them, never the rounds added up: the championship counts the Sprint
+ * races as well. A driver the standings do not place gets no tile rather
+ * than an em dash, since nothing is missing - the section below says what
+ * there is. "So far" on the same test as the section's heading.
+ */
+export const seasonTile = (rows, standings) => {
+  if (!rows.length) return null
+  const season = rows[0].season
+  const standing = standings.find((row) => row.year === season)
+  if (!standing || missing(standing.position)) return null
+  const running = rows.some((row) => row.status !== 'completed')
+  const rounds = new Set(rows.map((row) => row.round)).size
+  const ran = new Set(roundsRun(rows).map((row) => row.round)).size
+  const total = missing(standing.points) ? null : `${points(standing.points)} ${standing.points === 1 ? 'point' : 'points'}`
+  const note = [total, running ? `${number(ran)} of ${plural(rounds, 'round')} run` : null].filter(Boolean).join(', ')
+  return {
+    label: running ? `${season} so far` : String(season),
+    value: ordinal(standing.position),
+    note: note || undefined,
+  }
+}
 
 /**
  * A round the driver was not entered for is a fact about the round, not a
@@ -661,6 +686,15 @@ const worthLeading = (item) => LEAD_FIGURES.has(item.label) && /[1-9]/.test(Stri
 
 export const leading = (items) =>
   items.map((item) => (worthLeading(item) ? { ...item, lead: true } : item))
+
+/**
+ * The strip both renderers draw under the lede: strip() with its leads, then
+ * the season being run where the driver has one (PD-59). `rows` is
+ * THIS_SEASON's, `standings` STANDINGS'; a driver of another season has no
+ * rows and so no season tile.
+ */
+export const careerStrip = (driver, derived, rows, standings) =>
+  [...leading(strip(driver, derived)), seasonTile(rows, standings)].filter(Boolean)
 
 /** "1 start", "3 starts", "1 entry", "4 entries". */
 const plural = (n, one, many = `${one}s`) => `${number(n)} ${n === 1 ? one : many}`

@@ -49,7 +49,7 @@ import { fileURLToPath } from 'node:url'
 // The heading rule and the cell marks both renderers share, so the checks
 // below ask for the strings the pages compute rather than copies of them.
 import { NEXT_HEADING, NEXT_ROUND, WON_HERE, WON_HERE_HEADING, standingsHeading, titleHeading } from '../src/queries/season.js'
-import { CAREER_HEADING, DRIVER_SOURCES, THIS_SEASON, roundsRun, thisSeasonHeading } from '../src/queries/driver.js'
+import { DRIVER_SOURCES, STANDINGS, THIS_SEASON, roundsRun, seasonTile, thisSeasonHeading } from '../src/queries/driver.js'
 import {
   ABOUT,
   DOCUMENTS,
@@ -1537,8 +1537,9 @@ try {
       )
     }
 
-    // A driver of the season opens on it: its heading first, a dot per
-    // classified round, the table the rounds run. A driver of another era
+    // A driver of the season has it as a section after the career - the
+    // strip under the lede, then the career chart (PD-59) - with a dot per
+    // classified round and the table the rounds run. A driver of another era
     // does not.
     const racer = db
       .prepare('SELECT d.id, d.full_name FROM race_entries e JOIN races r ON r.id = e.race_id JOIN drivers d ON d.id = e.driver_id WHERE r.year = ? ORDER BY e.id LIMIT 1')
@@ -1548,11 +1549,30 @@ try {
       const heading = thisSeasonHeading(calendar)
       const run = roundsRun(calendar).length
       const placed = calendar.filter((row) => typeof row.finish_position === 'number').length
+      const standings = db.prepare(STANDINGS).all(racer.id)
+      const tile = seasonTile(calendar, standings)
+      // Driver.jsx's heading for the career chart, drawn where there are two
+      // or more seasons to plot. Required there, so a renamed heading fails
+      // here rather than letting the order check below pass on an index of -1.
+      const CAREER_CHART = 'Where each championship finished'
       await go(`/drivers/${racer.id}`, racer.full_name)
-      is((await appHeadings())[0], heading, `/drivers/${racer.id} opens on “${heading}”`)
-      // The career strip below it has a heading of its own, so it does not
-      // read as the season section's figures.
-      is((await appHeadings())[1], CAREER_HEADING, `and the career below it is headed “${CAREER_HEADING}”`)
+      const headings = await appHeadings()
+      const chart = headings.indexOf(CAREER_CHART)
+      if (standings.length > 1) truthy(chart >= 0, `/drivers/${racer.id} draws “${CAREER_CHART}” for its ${standings.length} seasons`)
+      truthy(
+        headings.includes(heading) && headings.indexOf(heading) > chart,
+        `/drivers/${racer.id} has “${heading}”${chart < 0 ? '' : ` after “${CAREER_CHART}”`}`,
+      )
+      const lead = await page.$eval('#root main', (main) => {
+        const strip = main.querySelector('dl.stats')
+        const first = main.querySelector('h2')
+        return {
+          before: !!strip && (!first || !!(strip.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING)),
+          labels: strip ? [...strip.querySelectorAll('dt')].map((dt) => dt.textContent.trim()) : [],
+        }
+      })
+      truthy(lead.before, 'and the career strip comes before every heading, straight under the lede')
+      if (tile) truthy(lead.labels.at(-1) === tile.label, `and ends on the season's tile, “${tile.label}”`)
       const drawn = await page.$$eval(
         '#root main h2',
         (nodes, heading) => {
@@ -1567,10 +1587,40 @@ try {
       is(drawn.dots, placed, `a dot for each of the ${placed} rounds ${racer.full_name} was classified in`)
       is(drawn.rows, run, `and the table under it holds the ${run} rounds run`)
       const html = await served(`/drivers/${racer.id}`)
-      is(staticHeadings(html)[0], heading, 'the static page opens on the same heading')
-      is(staticHeadings(html)[1], CAREER_HEADING, 'and heads the career the same way')
+      is(staticHeadings(html)[0], heading, 'the static page has the same section first among its headings')
+      truthy(
+        html.indexOf('<dl class="stats"') >= 0 && html.indexOf('<dl class="stats"') < html.indexOf(`<h2>${heading}</h2>`),
+        'after the career strip, as the app has it',
+      )
+      if (tile) truthy(html.includes(`<dt>${tile.label}</dt>`), `and the static strip carries “${tile.label}” too`)
       is(staticRowsUnder(html, heading), run, 'and holds the same rounds')
     }
+
+    // The career tiles a searcher came for are on the first screen for every
+    // driver of the season (PD-59): above y = 700 at 1440, and the first row
+    // inside an 800 px screen at 400. Under PD-49 they sat at 999 and 1,131.
+    const field = db
+      .prepare('SELECT DISTINCT d.id, d.full_name FROM race_entries e JOIN races r ON r.id = e.race_id JOIN drivers d ON d.id = e.driver_id WHERE r.year = ? ORDER BY d.id')
+      .all(season)
+    const stripAt = () =>
+      page.$eval('#root main dl.stats', (strip) => {
+        const first = strip.querySelector(':scope > div')?.getBoundingClientRect()
+        return { top: strip.getBoundingClientRect().top + window.scrollY, firstBottom: first ? first.bottom + window.scrollY : Infinity }
+      })
+    for (const [width, height, limit, what] of [
+      [1440, 900, (at) => at.top < 700, (at) => `the strip's top at ${Math.round(at.top)}`],
+      [400, 800, (at) => at.firstBottom <= 800, (at) => `the first tile's foot at ${Math.round(at.firstBottom)}`],
+    ]) {
+      await page.setViewportSize({ width, height })
+      const late = []
+      for (const driver of field) {
+        await go(`/drivers/${driver.id}`, driver.full_name)
+        const at = await stripAt()
+        if (!limit(at)) late.push(`${driver.id} (${what(at)})`)
+      }
+      truthy(late.length === 0, `at ${width}, all ${field.length} drivers of ${season} have their career tiles on the first screen${late.length ? `; not ${late.join(', ')}` : ''}`)
+    }
+    await page.setViewportSize({ width: 1280, height: 900 })
     await go('/drivers/senna', 'Senna')
     truthy(
       !(await appHeadings()).some((h) => h.startsWith(`The ${season} season`)) &&

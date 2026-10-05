@@ -69,6 +69,7 @@ import {
   pointsDiffer,
   record,
   seasonRows,
+  seasonTile,
   seasonsNote,
   strip,
 } from '../src/queries/driver.js'
@@ -742,6 +743,30 @@ describe('the queries a page and the prerenderer share', () => {
     const some = strip({ titles: 3, title_years: '1969,1971,1973' }, { best: 1, seasons: 1 })
     assert.deepEqual(some.find((i) => i.label === 'Titles'), { label: 'Titles', value: '3', note: '1969, 1971, 1973' })
     assert.equal(some.find((i) => i.label === 'Best finish').value, 'P1')
+  })
+
+  it('carries the season being run as one tile, from the standings rather than the rounds (PD-59)', () => {
+    const calendar = [
+      { season: 2026, round: 1, status: 'completed' },
+      { season: 2026, round: 2, status: 'completed' },
+      { season: 2026, round: 3, status: 'scheduled' },
+    ]
+    const standings = [
+      { year: 2025, position: 2, points: 300 },
+      { year: 2026, position: 6, points: 163 },
+    ]
+    assert.deepEqual(seasonTile(calendar, standings), { label: '2026 so far', value: '6th', note: '163 points, 2 of 3 rounds run' })
+    // Once every round is run the label is the season and the note the total.
+    const done = calendar.map((row) => ({ ...row, status: 'completed' }))
+    assert.deepEqual(seasonTile(done, standings), { label: '2026', value: '6th', note: '163 points' })
+    assert.equal(seasonTile(done, [{ year: 2026, position: 1, points: 1 }]).note, '1 point')
+    // No points figure: the place alone, no "— points".
+    assert.equal(seasonTile(done, [{ year: 2026, position: 21, points: null }]).note, undefined)
+    // Nothing to place: no tile, rather than an em dash claiming a gap.
+    assert.equal(seasonTile(done, [{ year: 2026, position: null, points: 0 }]), null)
+    assert.equal(seasonTile(done, [{ year: 2025, position: 2, points: 300 }]), null)
+    // A driver of another season has no rows and so no tile.
+    assert.equal(seasonTile([], standings), null)
   })
 
   it('labels the stored figures as published, and shows a row only where there is a figure or a fact', () => {
