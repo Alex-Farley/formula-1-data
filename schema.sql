@@ -29,7 +29,8 @@
 --   unverified = placeholder / disputed / known-incomplete
 --   catalogued = below unverified: a third party's filing, not a check -
 --                a photograph a Commons editor filed under a category
---                named for the chassis (article_images, route 'category')
+--                named for the chassis or the race (article_images, routes
+--                'category' and 'race')
 --
 -- Rule inherited from v1: never promote a fact to 'verified' without
 -- an official source. See the `provenance` table for the ladder.
@@ -882,19 +883,27 @@ CREATE TABLE chassis (
 -- route's - "the article mapped to this circuit carries this file" - and so
 -- is the rung, 'unverified'. A circuit whose article is a section of a
 -- larger one, or not about the circuit, takes none.
+--
+-- A fourth route (PD-64) is a race's: photographs filed under the Commons
+-- category named for the race, `Category:<year> <races.name_used>`
+-- (data/harvest.py race_category), filed as that season's Formula One. The
+-- category route's claim and rung, 'catalogued'. The only route that keys
+-- several rows on one subject - a race keeps up to RACE_PHOTOGRAPHS_KEPT -
+-- so `race_id` is not UNIQUE and the pair with the file is.
 CREATE TABLE article_images (
     route           TEXT NOT NULL DEFAULT 'article'
-                    CHECK (route IN ('article', 'category', 'circuit')),
+                    CHECK (route IN ('article', 'category', 'circuit', 'race')),
     article         TEXT UNIQUE,               -- joins chassis.article; the article route's key
     chassis_id      TEXT UNIQUE REFERENCES chassis(id), -- the category route's key
     circuit_id      TEXT UNIQUE REFERENCES circuits(id), -- the circuit route's key
-    category        TEXT,                      -- 'Category:...' on Commons, category route only
+    race_id         INTEGER REFERENCES races(id), -- the race route's key; several rows each
+    category        TEXT,                      -- 'Category:...' on Commons, category and race routes
     file_name       TEXT NOT NULL,             -- 'File:...' as Commons spells it
     -- 'shared' on the article and circuit routes. A file hosted locally on
     -- en.wikipedia.org is local BECAUSE it is non-free; linking one would be
     -- a licence violation.
     --
-    -- 'commons' on the category route, and this is a RESTATEMENT of that
+    -- 'commons' on the category and race routes, and this is a RESTATEMENT of that
     -- check, not a weakening of it. Asked about its own file, Commons answers
     -- 'local'; 'shared' is only what en.wikipedia.org says of a file it does
     -- not host. The harvest instead requires that the answer came from
@@ -923,14 +932,20 @@ CREATE TABLE article_images (
     confidence      TEXT NOT NULL DEFAULT 'unverified' REFERENCES provenance(confidence),
     -- Exactly one key per route, and each route's repository with it.
     CHECK ((route = 'article' AND article IS NOT NULL AND chassis_id IS NULL
-            AND circuit_id IS NULL AND category IS NULL
+            AND circuit_id IS NULL AND race_id IS NULL AND category IS NULL
             AND repository = 'shared')
         OR (route = 'category' AND article IS NULL AND chassis_id IS NOT NULL
-            AND circuit_id IS NULL AND category IS NOT NULL
-            AND repository = 'commons')
+            AND circuit_id IS NULL AND race_id IS NULL
+            AND category IS NOT NULL AND repository = 'commons')
         OR (route = 'circuit' AND article IS NULL AND chassis_id IS NULL
-            AND circuit_id IS NOT NULL AND category IS NULL
-            AND repository = 'shared'))
+            AND circuit_id IS NOT NULL AND race_id IS NULL
+            AND category IS NULL AND repository = 'shared')
+        OR (route = 'race' AND article IS NULL AND chassis_id IS NULL
+            AND circuit_id IS NULL AND race_id IS NOT NULL
+            AND category IS NOT NULL AND repository = 'commons')),
+    -- A race's photographs, each once. NULL race_id on the other routes is
+    -- distinct under UNIQUE, so this binds the race route alone.
+    UNIQUE (race_id, file_name)
 );
 
 CREATE TABLE car_seasons (

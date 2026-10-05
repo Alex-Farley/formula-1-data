@@ -146,10 +146,12 @@ def main():
         # point: a consumer of the JSON needs the licence and the photographer
         # as much as the file name, because showing one without the other is
         # not allowed.
-        # Three routes, each keyed on its own column (AF-42, VD-61); the
-        # others are NULL.
+        # Four routes, each keyed on its own column (AF-42, VD-61, PD-64);
+        # the others are NULL. A race keys several rows, so its file breaks
+        # the tie.
         "article_images": dump(con, "article_images",
-                               "route, article, chassis_id, circuit_id"),
+                               "route, article, chassis_id, circuit_id, "
+                               "race_id, file_name"),
         "grands_prix": dump(con, "grands_prix", "first_held"),
         "eras": dump(con, "eras", "from_year"),
         "regulation_changes": dump(con, "regulation_changes", "year, category"),

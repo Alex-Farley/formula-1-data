@@ -4694,6 +4694,9 @@ def the_full_classification():
         # VD-61's two, at the counts they arrived with: `circuit_id` is filled
         # only on the circuit route, and `circuits.article` from the mapping.
         ("article_images", "circuit_id", 19, "harvest/circuit_images.txt"),
+        # PD-64's, at the count it arrived with: `race_id` is filled only on
+        # the race route.
+        ("article_images", "race_id", 3953, "harvest/race_images.txt"),
         ("circuits", "article", 79, "harvest/circuit_articles.txt"),
     )
     for table, column, floor, source in COLUMN_FLOORS:
@@ -5113,7 +5116,7 @@ def illustration_and_geometry():
         # also a CHECK in schema.sql; this is where a loosened schema shows.
         local = con.execute("""SELECT COUNT(*) FROM article_images
             WHERE NOT ((route IN ('article', 'circuit') AND repository = 'shared')
-                    OR (route = 'category' AND repository = 'commons'))"""
+                    OR (route IN ('category', 'race') AND repository = 'commons'))"""
                             ).fetchone()[0]
         check("every linked image is on Wikimedia Commons, not a local upload",
               local == 0, f"{nimg} files")
@@ -5144,7 +5147,8 @@ def illustration_and_geometry():
         import urllib.parse as _up
         misaddressed, nthumb = [], 0
         for key, file_name, url in con.execute(
-                """SELECT COALESCE(article, chassis_id, circuit_id), file_name,
+                """SELECT COALESCE(article, chassis_id, circuit_id,
+                                   'race ' || race_id), file_name,
                           thumb_url
                    FROM article_images WHERE thumb_url IS NOT NULL"""):
             nthumb += 1
@@ -5238,6 +5242,51 @@ def illustration_and_geometry():
               "; ".join(not_place[:3]) if not_place
               else f"{ncirc} circuits")
 
+        # The race route (PD-64), re-applied from the database: the category
+        # is the one data/harvest.py race_category() names for the race's
+        # season and name - so a row cannot carry a category chosen by hand -
+        # the race was run, the file is a JPEG with no copyright mark in its
+        # name and nothing there saying it was taken elsewhere or another
+        # year, no name test is claimed for it, and no race keeps more than
+        # RACE_PHOTOGRAPHS_KEPT. The rung is a warning below, beside the
+        # category route's, because a person may one day move it.
+        off_race = []
+        for r in con.execute("""SELECT i.race_id, i.category, i.file_name,
+                    i.confidence, i.name_matches, r.year, r.name_used,
+                    r.status
+                FROM article_images i LEFT JOIN races r ON r.id = i.race_id
+                WHERE i.route = 'race'"""):
+            rid, f = r["race_id"], r["file_name"]
+            if r["year"] is None:
+                off_race.append(f"race {rid}: no such race")
+            elif r["category"] != H.race_category(r["year"], r["name_used"]):
+                off_race.append(f"race {rid}: {r['category']} is not "
+                                f"{H.race_category(r['year'], r['name_used'])}")
+            elif r["status"] != "completed":
+                off_race.append(f"race {rid}: not yet run")
+            elif not f.lower().endswith(H.RACE_PHOTOGRAPH_SUFFIX):
+                off_race.append(f"race {rid}: {f} is not a JPEG")
+            elif H.RACE_PHOTOGRAPH_MARKED.search(f):
+                off_race.append(f"race {rid}: {f} carries a copyright mark")
+            elif (H.RACE_PHOTOGRAPH_ELSEWHERE.search(f)
+                  or H.race_file_names_another_season(f, r["year"])):
+                off_race.append(f"race {rid}: {f} says it was taken "
+                                f"elsewhere or another year")
+            elif r["name_matches"] != 0:
+                off_race.append(f"race {rid}: {f} claims a name test the "
+                                f"race route does not make")
+        crowded = con.execute("""SELECT race_id, COUNT(*) FROM article_images
+            WHERE route = 'race' GROUP BY race_id HAVING COUNT(*) > ?""",
+                              (H.RACE_PHOTOGRAPHS_KEPT,)).fetchall()
+        off_race += [f"race {rid}: {n} photographs" for rid, n in crowded]
+        nrace, nraces = con.execute("""SELECT COUNT(*), COUNT(DISTINCT race_id)
+            FROM article_images WHERE route = 'race'""").fetchone()
+        check("every race image is a JPEG filed under its own race's Commons "
+              "category, of a race that was run",
+              not off_race,
+              "; ".join(off_race[:3]) if off_race
+              else f"{nrace} photographs of {nraces} races")
+
         # The two routes make different claims and sit on different rungs.
         # An article-route row at 'catalogued' would blur exactly the line
         # the rung was added to draw.
@@ -5268,6 +5317,11 @@ def illustration_and_geometry():
                              "AND confidence <> 'catalogued'").fetchone()[0]
         warn("no category image has left 'catalogued' without a person",
              lifted == 0, f"{ncat} rows from a Commons category (AF-42)")
+        raced = con.execute("SELECT COUNT(*) FROM article_images "
+                            "WHERE route = 'race' "
+                            "AND confidence <> 'catalogued'").fetchone()[0]
+        warn("no race image has left 'catalogued' without a person",
+             raced == 0, f"{nrace} rows from a race's Commons category (PD-64)")
 
     if ngeo:
         # The check that matters, re-run from the stored coordinates rather than

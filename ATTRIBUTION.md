@@ -172,6 +172,14 @@ asked of en.wikipedia.org as the article route's are. Which article that is
 (`circuits.article`) is a fact taken from one revision of the list, cited per
 circuit in `claims`; no text of the list or the articles is copied.
 
+A fourth (`route = 'race'`) covers races: up to twelve photographs filed on
+Commons under the category named for the race — `Category:1967 Dutch Grand
+Prix` — taken only where Commons files that category as the season's Formula
+One. The same rules hold, asked of Commons itself as the category route's
+are, and a file whose name carries a copyright mark is refused whatever
+licence it states, as on the circuit route. The category's title is a fact
+about where Commons files things; nothing of Commons' text is copied.
+
 There is **no single licence** covering these files. Across the 623 article rows there are
 sixteen distinct licence strings — CC BY-SA at 1.0, 2.0, 2.5, 3.0 and 4.0,
 CC BY at 2.0, 2.5, 3.0 and 4.0, CC0, public domain, and national variants such
@@ -304,8 +312,8 @@ the two drift apart.
 > centrelines, published separately as `f1-geometry.db`, are © OpenStreetMap
 > contributors, licensed under
 > [ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/); their relation
-> ids come from [Wikidata](https://www.wikidata.org/) (CC0). Car and circuit
-> photographs are hosted on Wikimedia Commons, and each carries its own
+> ids come from [Wikidata](https://www.wikidata.org/) (CC0). Car, circuit and
+> race photographs are hosted on Wikimedia Commons, and each carries its own
 > licence and credit, recorded per file in `article_images`. Current-season
 > data, and the other driver and constructor records, are from formula1.com.
 > Formula 1, F1 and Grand Prix are trademarks of Formula One Licensing BV;

@@ -461,7 +461,7 @@ from it is a name and a nationality each, bare facts; the `notes` line some
 of them carry is this project's writing and belongs to the prose pass. The
 three steps above apply to the list unchanged.
 
-The race rows cannot simply be dropped: <!-- fig:wp_dependent_rows -->121,421<!-- /fig --> further rows —
+The race rows cannot simply be dropped: <!-- fig:wp_dependent_rows -->125,218<!-- /fig --> further rows —
 the rest of every classification in `race_entries`, and qualifying, sprints
 and pit stops — are keyed to them, and an edition without them has no
 spine. So a facts edition has two

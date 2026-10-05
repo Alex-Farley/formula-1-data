@@ -436,6 +436,14 @@ class Figures:
     def images_circuit(self):
         return n(self.count("article_images", "route = 'circuit'"))
 
+    # The race route (PD-64): several photographs a race, so two counts.
+    def images_race(self):
+        return n(self.count("article_images", "route = 'race'"))
+
+    def races_with_images(self):
+        return n(self.one("SELECT COUNT(DISTINCT race_id) FROM article_images "
+                          "WHERE route = 'race'"))
+
     def circuits_with_article(self):
         return n(self.count("circuits", "article IS NOT NULL"))
 

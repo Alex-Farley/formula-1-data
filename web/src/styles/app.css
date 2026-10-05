@@ -1879,6 +1879,27 @@ figure.photo figcaption a {
   grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
 }
 
+/* The rest of a strip past its six, behind a disclosure (PD-64). Closed by
+   default, so the page grows only for the reader who asks; the app and the
+   static page write the same element. */
+.photo-more {
+  margin-top: var(--space-6);
+}
+
+.photo-more > summary {
+  cursor: pointer;
+  font-weight: var(--weight-medium);
+  color: var(--ink-soft);
+}
+
+.photo-more > summary:hover {
+  color: var(--ink);
+}
+
+.photo-more[open] > summary {
+  margin-bottom: var(--space-6);
+}
+
 /* Which car a photograph is of, above its credit — a constructor, a season or
    a race shows six different cars (VD-33) and the credit line names the file,
    not the machine. The app and the static page write the same element. */

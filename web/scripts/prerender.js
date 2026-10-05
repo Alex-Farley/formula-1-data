@@ -59,7 +59,7 @@ import { WIDE_ONLY, defaultColumns, glossaryKey, onPhone, shared, sharedLine } f
 // file emits HTML - but the question it answers, "who is credited and may this
 // be shown at all", has exactly one answer on this site, and it is imported
 // here for the same reason the cars gallery had to stop writing its own.
-import { attribution, canShow, fileTitle, photoAlt, thumbUrl } from '../src/lib/commons.js'
+import { attribution, canShow, categoryUrl, fileTitle, photoAlt, thumbUrl } from '../src/lib/commons.js'
 import {
   ABOUT,
   ABOUT_LEDE,
@@ -81,6 +81,13 @@ import {
   PHOTOGRAPHS_NOTE,
   PHOTOGRAPHS_SHOWN,
   PHOTOGRAPH_WIDTH,
+  RACE_CARS_NOTE,
+  RACE_CARS_TITLE,
+  RACE_PHOTOGRAPHS_NOTE,
+  RACE_PHOTOGRAPHS_TITLE,
+  photographsMore,
+  raceCategoryLink,
+  racePhotographAlt,
   REPORT_ASK,
   REPORT_LINK,
   REPORT_PROMISE,
@@ -204,7 +211,7 @@ import {
   stillToRunNote,
   strip as homeStrip,
 } from '../src/queries/home.js'
-import { CONSTRUCTOR_IMAGES, RACE_IMAGES, SEASON_IMAGES } from '../src/queries/photographs.js'
+import { CONSTRUCTOR_IMAGES, RACE_IMAGES, RACE_PHOTOGRAPHS, SEASON_IMAGES } from '../src/queries/photographs.js'
 import { CONSTRUCTORS, CONSTRUCTOR_COLUMNS, CONSTRUCTORS_FOOTER } from '../src/queries/constructors.js'
 import {
   CIRCUITS,
@@ -1207,7 +1214,7 @@ const outbound = (url, label) =>
  * ready and failed, and a static page claiming "loading" for ever would be a
  * worse answer than none.
  */
-const photograph = (image, width, caption = null, alt = caption) => {
+const photograph = (image, width, caption = null, alt = caption, checks = true) => {
   const title = fileTitle(image.file_name)
   const licence = (image.licence ?? '').trim()
   const size = image.width && image.height ? ` width="${esc(image.width)}" height="${esc(image.height)}"` : ''
@@ -1215,7 +1222,7 @@ const photograph = (image, width, caption = null, alt = caption) => {
         <img src="${esc(thumbUrl(image, width))}" alt="${esc(photoAlt(image, alt))}"${size} loading="lazy" decoding="async" />
         <figcaption>${caption ? `<div class="photo-subject">${esc(caption)}</div>` : ''}${outbound(image.description_url, title)} · ${esc(attribution(image))} · ${
           image.licence_url ? outbound(image.licence_url, licence) : esc(licence)
-        }${image.name_matches === 0 ? ` · <span class="pill pill-unverified">${esc(UNCHECKED_MARK)}</span>` : ''}</figcaption>
+        }${checks && image.name_matches === 0 ? ` · <span class="pill pill-unverified">${esc(UNCHECKED_MARK)}</span>` : ''}</figcaption>
       </figure>`
 }
 
@@ -1271,28 +1278,70 @@ const CARD_WIDTH = 1200
  * of where the page is showing several cars, and the caveat.
  *
  * `subjects` is what the app's `subjects` prop is — the car a photograph is
- * of, above its credit. A car page needs none: the page is that car.
+ * of, above its credit. A car page needs none: the page is that car. The
+ * rest are the app's props too (PD-64): `title` and `note` say what the
+ * photographs are, `alt` describes one with no subject line, `checks` is
+ * false where the `unchecked` mark's question is not one the rows answer,
+ * and `more` links everything their category holds. Every photograph past
+ * the six sits in the same closed disclosure Photographs.jsx draws.
  */
-const photographSection = (rows, { subjects = false, width = PHOTOGRAPH_WIDTH } = {}) => {
+const photographSection = (
+  rows,
+  {
+    subjects = false,
+    width = PHOTOGRAPH_WIDTH,
+    title = 'Photographs',
+    note: lede = PHOTOGRAPHS_NOTE,
+    alt = null,
+    checks = true,
+    more = null,
+  } = {},
+) => {
   const images = rows.filter(canShow)
   if (!images.length) return ''
   const drawn = images.slice(0, PHOTOGRAPHS_SHOWN)
-  return `<h2>Photographs</h2>
-      <p class="note">${esc(PHOTOGRAPHS_NOTE)}</p>
-      <div class="photo-grid">${drawn
-        .map((image) => photograph(image, width, subjects ? image.article : null))
-        .join('')}</div>${
-        // Over the six DRAWN, which is what Photographs.jsx tests: a
-        // constructor draws six of fifty-one, and a caveat explaining a mark
-        // that is nowhere on the page explains nothing. A caveat that appears
-        // in one renderer and not the other is worse than either, so both
-        // renderers slice first and ask afterwards.
-        drawn.some((image) => image.name_matches === 0)
-          ? `\n      <p class="source-note">${esc(UNCHECKED_NOTE[0])} <span class="pill pill-unverified">${esc(
-              UNCHECKED_MARK,
-            )}</span> ${esc(UNCHECKED_NOTE[1])}</p>`
+  const rest = images.slice(PHOTOGRAPHS_SHOWN)
+  const figures = (list) =>
+    list.map((image) => photograph(image, width, subjects ? image.article : null, alt ?? (subjects ? image.article : null), checks)).join('')
+  // Where the mark is, as Photographs.jsx decides it: under the strip when
+  // the six DRAWN carry one - a caveat explaining a mark nowhere in sight
+  // explains nothing - and inside the disclosure when only its photographs
+  // do. A caveat in one renderer and not the other is worse than either.
+  const marked = (list) => checks && list.some((image) => image.name_matches === 0)
+  const unchecked = `\n      <p class="source-note">${esc(UNCHECKED_NOTE[0])} <span class="pill pill-unverified">${esc(
+    UNCHECKED_MARK,
+  )}</span> ${esc(UNCHECKED_NOTE[1])}</p>`
+  return `<h2>${esc(title)}</h2>
+      <p class="note">${esc(lede)}</p>
+      <div class="photo-grid">${figures(drawn)}</div>${marked(drawn) ? unchecked : ''}${
+        rest.length
+          ? `\n      <details class="photo-more"><summary>${esc(photographsMore(rest.length))}</summary><div class="photo-grid">${figures(
+              rest,
+            )}</div>${!marked(drawn) && marked(rest) ? unchecked : ''}</details>`
           : ''
-      }`
+      }${more ? `\n      <p class="source-note">${outbound(more.href, more.label)}</p>` : ''}`
+}
+
+/**
+ * A race page's two strips, as Race.jsx draws them (PD-64): the race's own
+ * photographs under a heading that says they are of this race, then the
+ * cars entered under one that says they are the cars.
+ */
+const raceStrips = (r) => {
+  const own = all(RACE_PHOTOGRAPHS, r.year, r.round)
+  const category = own[0]?.category
+  return `${photographSection(own, {
+    title: RACE_PHOTOGRAPHS_TITLE,
+    note: RACE_PHOTOGRAPHS_NOTE,
+    alt: racePhotographAlt(r.year, r.name_used),
+    checks: false,
+    more: category ? { href: categoryUrl(category), label: raceCategoryLink(category) } : null,
+  })}
+        ${photographSection(all(RACE_IMAGES, r.year, r.round), {
+          subjects: true,
+          title: RACE_CARS_TITLE,
+          note: RACE_CARS_NOTE,
+        })}`
 }
 
 const photographs = (id) => {
@@ -2318,7 +2367,7 @@ const page = ({
                 .join('')}</details>`
             : ''
         }
-        ${photographSection(all(RACE_IMAGES, r.year, r.round), { subjects: true })}
+        ${raceStrips(r)}
         ${scheduled ? '' : timetable}`,
     })
   }
