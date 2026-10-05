@@ -201,7 +201,9 @@ one has cost this project an item:
   an unavailable service or a missing non-critical credential is recorded and
   worked around. Anything that could corrupt data, breach a licence, weaken a
   safeguard, change production infrastructure — as distinct from deploying
-  through it by merging — or lose history stops the loop.
+  through it by merging — or lose history stops the loop, unless the change
+  has not happened and the item can be held: the question goes on the issue
+  and the loop carries on `[D-52]`.
 
 **Never weaken a control to keep going.** Not the checks, not the workflows,
 not branch protection, not repository visibility, and not the licence
