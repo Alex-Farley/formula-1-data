@@ -2174,11 +2174,58 @@ RACE_PHOTOGRAPH_MARKED = CIRCUIT_PHOTOGRAPH_MARKED
 # were taken there. A real podium photograph that names its trophy is lost
 # with them, which fails closed.
 # Trophy, ticket and museum match inside a word as well - a file name run
-# together, "1988F1JapaneseGrandPrixWinnerTrophyHCH", still says it.
+# together, "1988F1JapaneseGrandPrixWinnerTrophyHCH", still says it. The
+# second run's review added the Indianapolis 500's own kind: the winning car
+# in the Speedway's museum ("Indy500winningcar1956", "... 1950 Indy 500
+# Winner - Johnnie Parsons") and the pace car at a show decades later, which
+# had left every photograph of four of its races a museum or show shot; and
+# documents rather than photographs - a lap chart (Rundentabelle), a
+# magazine cover, a German ticket (Eintrittskarte).
 RACE_PHOTOGRAPH_ELSEWHERE = re.compile(
-    r"troph|ticket|museum|museo|"
-    r"\b(collections?|exhibitions?|posters?|programmes?|stamps?|"
+    r"troph|ticket|museum|museo|eintrittskarte|rundentabelle|"
+    r"winning ?car|indy ?500 winner|pace ?car|lap ?chart|"
+    r"\b(collections?|exhibitions?|posters?|programmes?|stamps?|covers?|"
     r"(track)?maps?|replicas?|models?|diecast|die-cast|lego)\b", re.I)
+
+# Two files that are one photograph: "X.jpg" and "X (cropped).jpg", or "X
+# (cropped2).jpg" and "X restored.jpg" beside them. race_twin_key() is what
+# they share, and a race keeps one of them - the first derivative by title,
+# an editor's framing of the subject, or the original where there is none.
+_TWIN_TAIL = re.compile(
+    r"(\s*\(\s*(cropped|crop|restored|retouched|edited)\s*\d*\s*\)"
+    r"|[\s_-]+(cropped|crop|restored|retouched|edited)\d*)+$", re.I)
+
+
+def race_twin_key(file_name):
+    """The photograph a file is a version of: its name without the extension
+    and without a trailing crop, restoration or edit marker, folded."""
+    base = re.sub(r"\.[A-Za-z0-9]+$", "", file_name.removeprefix("File:"))
+    return _TWIN_TAIL.sub("", base).strip().lower()
+
+
+# A credit line is what the page shows beside the photograph, and Commons
+# sometimes puts its own boilerplate in the field it is read from: "Own
+# work", or the opening of its licence sentence, "I, the copyright holder of
+# this work, hereby publish it ...". Shown alone, either credits nobody. The
+# race route reads such a field as empty, so the other field speaks or the
+# file is refused for naming nobody; build.py and verify.py refuse a row
+# whose shown credit is boilerplate.
+CREDIT_BOILERPLATE = re.compile(
+    r"^\s*(own work|i,? the copyright holder of this work\b.*)\s*$", re.I)
+
+
+def credit_shown(artist, credit):
+    """The credit a page shows: web/src/lib/commons.js attribution(), which
+    takes the artist and falls back to the credit."""
+    return (artist or "").strip() or (credit or "").strip() or None
+
+
+# A credit that says the file was uploaded on somebody else's permission is
+# a grant in doubt unless a permission ticket stands behind it, and nothing
+# here reads tickets: the copyright-mark rule's reasoning, applied to the
+# credit rather than the name. The review of the race route found one, a
+# team's livery image "uploaded with permission given by original author".
+CREDIT_PERMISSION = re.compile(r"\bpermission\b", re.I)
 
 # A season named in a file's name, whole: not inside a longer run of digits,
 # so an archive's reference number or a Flickr id names none.

@@ -240,12 +240,20 @@ whose name names a season other than the race's
 (race_file_names_another_season) - the first full run took the 1995
 winner's trophy photographed in a private collection in 2019. A file two
 races' categories both hold says which race it is to neither, and is
-passed over; so is an uncropped original whose crop is
-filed beside it, which would show the same moment twice. What is left is
-taken in title order, which is the order the API returns and does not
-change between runs, and checks 1 to 3 apply as on the category route - the
-answer came from Commons for a page in the File namespace, so `repository`
-is `commons`. The first RACE_PHOTOGRAPHS_KEPT that pass are kept.
+passed over; so is every version but one of a photograph filed more than
+once - an original beside its crop, a second crop, a restoration
+(race_twin_key) - which would show the same moment twice. Every file passed
+over is logged with its reason. What is left is taken in title order, which
+is the order the API returns and does not change between runs, and checks 1
+to 3 apply as on the category route - the answer came from Commons for a
+page in the File namespace, so `repository` is `commons`. Two more apply to
+the credit, because a race keeps twelve files where a car keeps one and
+meets Commons' odd fields more often: a field holding Commons' own
+boilerplate ("Own work", "I, the copyright holder of this work ...") is read
+as empty, so the other field speaks or the file names nobody and is
+refused (CREDIT_BOILERPLATE); and a credit claiming somebody else's
+permission is a grant in doubt and is refused (CREDIT_PERMISSION). The
+first RACE_PHOTOGRAPHS_KEPT that pass are kept.
 
 `name_matches` is 0 on every row and tested by nothing. It asks whether a
 file name names the car, and a race photograph is of a race: filed under
@@ -712,11 +720,26 @@ def admit(article, file_name, meta, chassis_ids, log, route="article"):
     # domain file with nobody named far more often than one lead image does.
     # The build and verify.py refuse a row with nobody to credit whatever
     # its licence asks, and the page fails closed on one, so it is refused
-    # here rather than written for the build to stop on.
-    if route == "race" and not (meta["artist"] or meta["credit"]):
-        log.append(f"{article}\tREFUSED\t{file_name} names nobody to "
-                   f"credit")
-        return None
+    # here rather than written for the build to stop on. A field holding
+    # Commons' own boilerplate ("Own work") names nobody either, and is read
+    # as empty, so the other field speaks or the file is refused
+    # (data/harvest.py CREDIT_BOILERPLATE); a credit claiming somebody
+    # else's permission is a grant in doubt (CREDIT_PERMISSION).
+    if route == "race":
+        H, _register = circuit_data()
+        meta = dict(meta)
+        for field in ("artist", "credit"):
+            if meta[field] and H.CREDIT_BOILERPLATE.match(meta[field]):
+                meta[field] = None
+        if not (meta["artist"] or meta["credit"]):
+            log.append(f"{article}\tREFUSED\t{file_name} names nobody to "
+                       f"credit")
+            return None
+        if any(H.CREDIT_PERMISSION.search(meta[f] or "")
+               for f in ("artist", "credit")):
+            log.append(f"{article}\tREFUSED\t{file_name} is credited as "
+                       f"uploaded on somebody else's permission")
+            return None
 
     if not meta["description_url"]:
         log.append(f"{article}\tREFUSED\t{file_name} has no description page")
@@ -1288,14 +1311,12 @@ RACE_COLUMNS = ["year", "round", "category", "file_name", "repository",
                 "description_url", "thumb_url", "width", "height",
                 "name_matches"]
 
-# "Alonso Bahrain 2010 (cropped).jpg" beside "Alonso Bahrain 2010.jpg".
-CROPPED = re.compile(r"\s*\(cropped\)(?=\.[^.]+$)", re.I)
-
-
 def read_races(db):
-    """(season, round, name run under) of every completed race, as the
-    build holds them - the build re-derives each row's category from the
-    same columns, so the two cannot be reading different races."""
+    """(season, round, name run under) of every completed race, from the
+    last build. The build re-derives each row's category from the races it
+    is building and passes over a row whose race has since been renamed or
+    renumbered, so a stale file costs a race its photographs until the next
+    harvest, never the build."""
     if not os.path.exists(db):
         raise SystemExit(f"{db} is missing. Run python3 build.py first.")
     con = sqlite3.connect(db)
@@ -1308,17 +1329,37 @@ def read_races(db):
 
 
 def race_candidates(files, year, H):
-    """The files of a race's category worth asking about, in title order:
-    a JPEG with no copyright mark and nothing in its name saying it was
-    taken elsewhere or another year, an uncropped original passed over
-    where its crop is filed beside it."""
-    keep = [f for f in files
-            if f.lower().endswith(H.RACE_PHOTOGRAPH_SUFFIX)
-            and not H.RACE_PHOTOGRAPH_MARKED.search(f)
-            and not H.RACE_PHOTOGRAPH_ELSEWHERE.search(f)
-            and not H.race_file_names_another_season(f, year)]
-    crops = {CROPPED.sub("", f) for f in keep if CROPPED.search(f)}
-    return sorted(f for f in keep if f not in crops)
+    """The files of a race's category worth asking about, in title order,
+    and every file passed over with the reason: a JPEG with no copyright
+    mark and nothing in its name saying it was taken elsewhere or another
+    year, and one file of each set of twins (data/harvest.py
+    race_twin_key)."""
+    keep, passed = [], []
+    for f in sorted(files):
+        if not f.lower().endswith(H.RACE_PHOTOGRAPH_SUFFIX):
+            passed.append((f, "is not a JPEG"))
+        elif H.RACE_PHOTOGRAPH_MARKED.search(f):
+            passed.append((f, "carries a copyright mark in its name"))
+        elif H.RACE_PHOTOGRAPH_ELSEWHERE.search(f):
+            passed.append((f, "says in its name it is not of the race "
+                              "as run (RACE_PHOTOGRAPH_ELSEWHERE)"))
+        elif H.race_file_names_another_season(f, year):
+            passed.append((f, "names a season other than the race's"))
+        else:
+            keep.append(f)
+    twins = {}
+    for f in keep:
+        twins.setdefault(H.race_twin_key(f), []).append(f)
+    chosen = set()
+    for group in twins.values():
+        # A version carries a marker its twin key drops; the original none.
+        derived = [f for f in group if H.race_twin_key(f) != re.sub(
+            r"\.[A-Za-z0-9]+$", "", f.removeprefix("File:")).strip().lower()]
+        pick = (sorted(derived) or sorted(group))[0]
+        chosen.add(pick)
+        passed.extend((f, f"is a version of {pick}") for f in group
+                      if f != pick)
+    return [f for f in keep if f in chosen], passed
 
 
 def main_race(args):
@@ -1367,8 +1408,12 @@ def main_race(args):
     plan = {}
     for title, files in members.items():
         year, _rnd, key = accepted[title]
-        files = race_candidates([f for f in files if len(holders[f]) == 1],
-                                year, H)
+        log.extend(f"{key}\tPASSED OVER\t{f} is filed under another "
+                   f"race's category too" for f in files
+                   if len(holders[f]) > 1)
+        files, passed = race_candidates(
+            [f for f in files if len(holders[f]) == 1], year, H)
+        log.extend(f"{key}\tPASSED OVER\t{f} {why}" for f, why in passed)
         if files:
             plan[title] = files
         else:

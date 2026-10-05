@@ -177,7 +177,9 @@ Commons under the category named for the race — `Category:1967 Dutch Grand
 Prix` — taken only where Commons files that category as the season's Formula
 One. The same rules hold, asked of Commons itself as the category route's
 are, and a file whose name carries a copyright mark is refused whatever
-licence it states, as on the circuit route. The category's title is a fact
+licence it states, as on the circuit route. So is a file whose credit
+claims it was uploaded on somebody else's permission, and one whose only
+credit is Commons' own boilerplate ("Own work"), which names nobody. The category's title is a fact
 about where Commons files things; nothing of Commons' text is copied.
 
 There is **no single licence** covering these files. Across the 623 article rows there are

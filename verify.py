@@ -4696,7 +4696,7 @@ def the_full_classification():
         ("article_images", "circuit_id", 19, "harvest/circuit_images.txt"),
         # PD-64's, at the count it arrived with: `race_id` is filled only on
         # the race route.
-        ("article_images", "race_id", 3953, "harvest/race_images.txt"),
+        ("article_images", "race_id", 3911, "harvest/race_images.txt"),
         ("circuits", "article", 79, "harvest/circuit_articles.txt"),
     )
     for table, column, floor, source in COLUMN_FLOORS:
@@ -5129,6 +5129,17 @@ def illustration_and_geometry():
                            ).fetchone()[0]
         check("every image names someone to attribute it to", anon == 0)
 
+        # And the name it shows is a name. A page credits the artist, or the
+        # credit where there is no artist (web/src/lib/commons.js
+        # attribution()), and Commons sometimes fills the field with its own
+        # boilerplate - "Own work", or the opening of its licence sentence -
+        # which shown alone credits nobody (PD-64 review).
+        boiler = [f"{f}: {H.credit_shown(a, c)!r}" for f, a, c in con.execute(
+            "SELECT file_name, artist, credit FROM article_images")
+            if H.CREDIT_BOILERPLATE.match(H.credit_shown(a, c) or "")]
+        check("no image is credited with Commons boilerplate instead of a name",
+              not boiler, "; ".join(boiler[:3]))
+
         nolic = con.execute("SELECT COUNT(*) FROM article_images "
                             "WHERE licence IS NULL OR TRIM(licence) = ''"
                             ).fetchone()[0]
@@ -5247,16 +5258,19 @@ def illustration_and_geometry():
         # season and name - so a row cannot carry a category chosen by hand -
         # the race was run, the file is a JPEG with no copyright mark in its
         # name and nothing there saying it was taken elsewhere or another
-        # year, no name test is claimed for it, and no race keeps more than
+        # year, no name test is claimed for it, no credit leans on somebody
+        # else's permission, no race keeps two versions of one photograph or
+        # a photograph another race keeps, and no race keeps more than
         # RACE_PHOTOGRAPHS_KEPT. The rung is a warning below, beside the
         # category route's, because a person may one day move it.
-        off_race = []
+        off_race, twins = [], {}
         for r in con.execute("""SELECT i.race_id, i.category, i.file_name,
-                    i.confidence, i.name_matches, r.year, r.name_used,
-                    r.status
+                    i.confidence, i.name_matches, i.artist, i.credit,
+                    r.year, r.name_used, r.status
                 FROM article_images i LEFT JOIN races r ON r.id = i.race_id
                 WHERE i.route = 'race'"""):
             rid, f = r["race_id"], r["file_name"]
+            twins.setdefault((rid, H.race_twin_key(f)), []).append(f)
             if r["year"] is None:
                 off_race.append(f"race {rid}: no such race")
             elif r["category"] != H.race_category(r["year"], r["name_used"]):
@@ -5275,6 +5289,15 @@ def illustration_and_geometry():
             elif r["name_matches"] != 0:
                 off_race.append(f"race {rid}: {f} claims a name test the "
                                 f"race route does not make")
+            elif any(H.CREDIT_PERMISSION.search(r[c] or "")
+                     for c in ("artist", "credit")):
+                off_race.append(f"race {rid}: {f} is credited on somebody "
+                                f"else's permission")
+        off_race += [f"race {rid}: {' and '.join(fs)} are one photograph"
+                     for (rid, _k), fs in twins.items() if len(fs) > 1]
+        off_race += [f"{f} is kept for {n} races" for f, n in con.execute(
+            """SELECT file_name, COUNT(DISTINCT race_id) FROM article_images
+               WHERE route = 'race' GROUP BY file_name HAVING COUNT(DISTINCT race_id) > 1""")]
         crowded = con.execute("""SELECT race_id, COUNT(*) FROM article_images
             WHERE route = 'race' GROUP BY race_id HAVING COUNT(*) > ?""",
                               (H.RACE_PHOTOGRAPHS_KEPT,)).fetchall()

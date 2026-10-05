@@ -4729,31 +4729,34 @@ def _stage_36b_the_photographs_filed_under_each_race(b):
     # harvest's rules run again here, from the race as the build holds it:
     # the category is the one data/harvest.py race_category() names for that
     # season and name, never a title carried through from the file; the race
-    # was run; the file is a JPEG whose name carries no copyright mark and
-    # says nothing of being taken elsewhere or another year; and the licence
-    # checks every route keeps.
+    # was run; the file is a JPEG whose name carries no copyright mark, says
+    # nothing of being taken elsewhere or another year, and is no other kept
+    # file's twin; the credit shown names somebody and claims nobody else's
+    # permission; and the licence checks every route keeps.
+    #
+    # A row whose race has since been renamed, renumbered or is not this
+    # build's completed race is passed over and counted, never a stop: the
+    # harvest reads its races from the last build, so a stop here would ask
+    # for a harvest that reads the same stale name back (the article route
+    # passes over an article no chassis claims for the same reason). The
+    # race loses its photographs until the next harvest; nothing it shows is
+    # under another race's name.
     races = {(y, r): (rid, name, status) for rid, y, r, name, status in
              cur.execute("SELECT id, year, round, name_used, status FROM races")}
-    kept, per_race = 0, {}
+    kept, stale, per_race, twins = 0, 0, {}, set()
     for im in HV.load_race_images():
         try:
             key = (int(im.get("year") or ""), int(im.get("round") or ""))
         except ValueError:
             raise SystemExit(f"race_images: a row names no season and round: "
                              f"{im.get('file_name')}") from None
-        if key not in races:
-            raise SystemExit(f"race_images: {key[0]} round {key[1]} is not a "
-                             f"race this database holds. Rerun "
-                             f"tools/wikimedia_images.py --route race.")
-        rid, name, status = races[key]
+        rid, name, status = races.get(key, (None, None, None))
+        if (rid is None or status != "completed"
+                or im.get("category") != HV.race_category(key[0], name)):
+            stale += 1
+            continue
         f = im.get("file_name") or ""
         where = f"race_images: {key[0]} round {key[1]}"
-        if status != "completed":
-            raise SystemExit(f"{where} has not been run, so it takes no "
-                             f"photograph.")
-        if im.get("category") != HV.race_category(key[0], name):
-            raise SystemExit(f"{where} carries {im.get('category')!r}, not "
-                             f"{HV.race_category(key[0], name)!r}.")
         if not f.lower().endswith(HV.RACE_PHOTOGRAPH_SUFFIX):
             raise SystemExit(f"{where}'s {f} is not a JPEG photograph.")
         if HV.RACE_PHOTOGRAPH_MARKED.search(f):
@@ -4773,6 +4776,18 @@ def _stage_36b_the_photographs_filed_under_each_race(b):
             raise SystemExit(f"{where} states no licence for {f}.")
         if not (im.get("artist") or im.get("credit")):
             raise SystemExit(f"{where} names no author for {f}.")
+        shown = HV.credit_shown(im.get("artist"), im.get("credit"))
+        if HV.CREDIT_BOILERPLATE.match(shown):
+            raise SystemExit(f"{where}'s {f} would be credited {shown!r}, "
+                             f"which names nobody.")
+        if any(HV.CREDIT_PERMISSION.search(im.get(c) or "")
+               for c in ("artist", "credit")):
+            raise SystemExit(f"{where}'s {f} is credited as uploaded on "
+                             f"somebody else's permission.")
+        if (rid, HV.race_twin_key(f)) in twins:
+            raise SystemExit(f"{where}'s {f} is a version of a photograph "
+                             f"the race already keeps.")
+        twins.add((rid, HV.race_twin_key(f)))
         if not im.get("description_url"):
             raise SystemExit(f"{where} has no description page for {f}.")
         per_race[rid] = per_race.get(rid, 0) + 1
@@ -4792,7 +4807,8 @@ def _stage_36b_the_photographs_filed_under_each_race(b):
              0, "catalogued"))
         kept += 1
     print(f"  race images: {kept} photographs of {len(per_race)} races, at "
-          f"'catalogued'")
+          f"'catalogued'; {stale} for a race renamed, renumbered or not run "
+          f"since the harvest")
 
 
 def _stage_36_what_f1db_publishes_about_a_driver_and(b):

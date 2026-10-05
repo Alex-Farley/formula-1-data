@@ -544,7 +544,11 @@ SOURCE_REGISTRY = [
      "condition of taking the file, not a signal: an aerial photograph in "
      "the mapped article whose name names the circuit by a venue name, "
      "re-checked on every build. What it shows is no better established, "
-     "and those rows are 'unverified' too."),
+     "and those rows are 'unverified' too. For a race (PD-64) the claim is "
+     "a Commons editor's filing under the race's category, narrowed by "
+     "what the file's name says - a trophy, a museum, another season - and "
+     "held at 'catalogued' with no name test claimed (name_matches 0): "
+     "that a photograph was taken at the race is checked by nothing."),
 
     (16, "OpenStreetMap (via api.openstreetmap.org)",
      "https://www.openstreetmap.org/",

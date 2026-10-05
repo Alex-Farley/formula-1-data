@@ -5602,7 +5602,7 @@ try {
         surfaces.push({
           at: `races/${year}/${round}`,
           strips: [
-            { query: RACE_PHOTOGRAPHS, args, subject: null, alt: () => racePhotographAlt(year, name) },
+            { query: RACE_PHOTOGRAPHS, args, subject: null, alt: () => racePhotographAlt(year, name), checks: false },
             { query: RACE_IMAGES, args },
           ],
         })
@@ -5636,11 +5636,11 @@ try {
       // page writes in full as the app does.
       const expected = []
       let held = 0
-      for (const { query, args, subject = (row) => row.article, alt = (row) => row.article } of surface.strips ?? [surface]) {
+      for (const { query, args, subject = (row) => row.article, alt = (row) => row.article, checks = true } of surface.strips ?? [surface]) {
         if (!prepared.has(query)) prepared.set(query, db.prepare(query))
         const rows = prepared.get(query).all(...args).filter(canShow)
         held += Math.max(0, rows.length - PHOTOGRAPHS_SHOWN)
-        for (const row of rows) expected.push({ row, subject, altFor: alt })
+        for (const row of rows) expected.push({ row, subject, altFor: alt, checks })
       }
       const html = readFileSync(file, 'utf8')
       // The photographs only: a race page also draws the circuit's outline,
@@ -5657,7 +5657,7 @@ try {
       disclosed += behind
       if (expected.length === 0) continue
       strips += 1
-      expected.forEach(({ row, subject, altFor }, at_) => {
+      expected.forEach(({ row, subject, altFor, checks }, at_) => {
         reached += 1
         if (at.startsWith('circuits/')) circuitsReached += 1
         const figure = drawn[at_]
@@ -5668,6 +5668,10 @@ try {
         else if (!caption.includes(fileTitle(row.file_name))) broken.push(`/${at}: ${row.file_name} names no file`)
         else if (subject && !caption.includes(subject(row))) broken.push(`/${at}: ${row.file_name} does not say what it is of`)
         else if (alt !== altFor(row)) broken.push(`/${at}: alt is "${alt}", not "${altFor(row)}"`)
+        // A race's own photograph (PD-64) has no subject line - the heading
+        // is its caption - and no unchecked mark, whose question is a car's.
+        else if (!subject && figure.includes('photo-subject')) broken.push(`/${at}: ${row.file_name} carries a subject line`)
+        else if (!checks && figure.includes('pill-unverified')) broken.push(`/${at}: ${row.file_name} carries the ${UNCHECKED_MARK} mark`)
       })
     }
     if (broken.length === 0) {
