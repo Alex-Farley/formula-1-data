@@ -1931,7 +1931,9 @@ try {
       return {
         blocks: [...main.querySelectorAll('h2')].map(clean),
         heading: top(heading),
-        drawing: top(heading?.closest('section')?.querySelector('svg')),
+        // The plot, which is the labelled svg: a line chart's legend keys
+        // come first and are svgs too, aria-hidden and 8 px tall.
+        drawing: top(heading?.closest('section')?.querySelector('svg[role="img"][aria-label]')),
         tilesEnd: tiles ? tiles.getBoundingClientRect().bottom + window.scrollY : null,
       }
     }
@@ -1958,8 +1960,9 @@ try {
     // `drawn`: the drawing itself, not only its heading, is inside the
     // first screen. The season being run carries two sentences under its
     // tiles (who can still win, and the grid) that the others do not, so
-    // there it is the heading that is held to 900 px; its drawing sat at
-    // 882 when this was written, too close to the line to be a test.
+    // there it is the heading that is held to 900 px: its plot started at
+    // 906 when this was written, and setting that sentence where it can
+    // share the first screen is VD-53's layout work, not this order's.
     const leads = (route, chart, got, drawn = true) =>
       truthy(
         got.heading !== null && got.drawing !== null && got.heading > got.tilesEnd && (drawn ? got.drawing : got.heading) < 900,
