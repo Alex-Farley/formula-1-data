@@ -24,7 +24,6 @@ import {
   SEASON_COLUMNS,
   SEASONS_FOOTER,
   SEASON_TEAMS,
-  CAREER_HEADING,
   STANDINGS,
   TEAM_MATES,
   TEAM_MATE_COLUMNS,
@@ -39,8 +38,7 @@ import {
   pointsNote,
   record,
   seasonRows,
-  leading,
-  strip,
+  careerStrip,
   teamsBySeason,
   roundsRun,
   thisSeasonFooter,
@@ -148,7 +146,9 @@ const teamMateColumns = TEAM_MATE_COLUMNS.map((column) => ({ ...column, ...TEAM_
  * The season being run, a dot per round (PD-49): where the driver finished,
  * P1 at the top, across the whole calendar, so the rounds still to come are
  * the space to the right. The words above it and the table under it are
- * queries/driver.js's, which scripts/prerender.js prints too.
+ * queries/driver.js's, which scripts/prerender.js prints too. It follows the
+ * career chart; the strip under the lede carries the season as one tile
+ * (PD-59).
  */
 function ThisSeason({ name, rows: calendar, standings }) {
   const season = calendar[0].season
@@ -350,21 +350,18 @@ function DriverBody({ driver, data }) {
         />
       }
     >
-      {/* A driver of the season being run opens on it, the career below
-          (PD-49). Absent for every other driver: no rows, no section. */}
-      {thisSeason.length > 0 && (
-        <ThisSeason name={driver.full_name} rows={thisSeason} standings={standings} />
-      )}
-
       {practiceOnly && (
         <Note>
           <strong>{PRACTICE_ONLY_NOTICE.head}</strong> {PRACTICE_ONLY_NOTICE.body}
         </Note>
       )}
 
+      {/* The career strip straight under the lede, on every driver's page:
+          the season being run is its last tile, and its own section follows
+          the career chart (PD-59). */}
       {!practiceOnly && (
-        <Section title={thisSeason.length > 0 ? CAREER_HEADING : undefined}>
-          <Stats items={leading(strip(driver, derived))} />
+        <Section>
+          <Stats items={careerStrip(driver, derived, thisSeason, standings)} />
         </Section>
       )}
 
@@ -446,6 +443,13 @@ function DriverBody({ driver, data }) {
             />
           </Figure>
         </Section>
+      )}
+
+      {/* A driver of the season being run has it round by round under the
+          career chart (PD-49, placed by PD-59). Absent for every other
+          driver: no rows, no section. */}
+      {thisSeason.length > 0 && (
+        <ThisSeason name={driver.full_name} rows={thisSeason} standings={standings} />
       )}
 
       {!practiceOnly && (
