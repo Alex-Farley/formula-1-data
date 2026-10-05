@@ -511,15 +511,18 @@ SOURCE_REGISTRY = [
      "The lead photograph of each accepted car article, and the attribution "
      "needed to display it; for a chassis with no article, a photograph filed "
      "under the Commons category named for it (AF-42); for a circuit, an "
-     "aerial photograph in the body of the article mapped to it (VD-61). "
+     "aerial photograph in the body of the article mapped to it (VD-61); "
+     "for a race, photographs filed under the Commons category named for "
+     "it (PD-64): {{fig:article_images}} references across the four. "
      "Loaded by "
      "tools/wikimedia_images.py. NO IMAGE IS "
      "STORED - article_images holds a reference and its credit, and the "
      "pixels are fetched from upload.wikimedia.org by whatever renders the "
      "page.", "reference",
-     "Per file, and they differ: sixteen distinct licence strings across {{fig:article_images}} "
-     "rows - CC BY-SA at four versions, CC BY at four more, CC0, public "
-     "domain and national variants. There is no blanket credit line, so each "
+     "Per file, and they differ: sixteen distinct licence strings across the "
+     "{{fig:article_route_images}} car-article rows alone - CC BY-SA at "
+     "four versions, CC BY at four more, CC0, public domain and national "
+     "variants. There is no blanket credit line, so each "
      "row carries its own and the build refuses a file that names no author.",
      "Continuous, by anyone. The lead image of an article is whatever an "
      "editor last put there, which is why the Commons-only and licence "
@@ -541,7 +544,11 @@ SOURCE_REGISTRY = [
      "condition of taking the file, not a signal: an aerial photograph in "
      "the mapped article whose name names the circuit by a venue name, "
      "re-checked on every build. What it shows is no better established, "
-     "and those rows are 'unverified' too."),
+     "and those rows are 'unverified' too. For a race (PD-64) the claim is "
+     "a Commons editor's filing under the race's category, narrowed by "
+     "what the file's name says - a trophy, a museum, another season - and "
+     "held at 'catalogued' with no name test claimed (name_matches 0): "
+     "that a photograph was taken at the race is checked by nothing."),
 
     (16, "OpenStreetMap (via api.openstreetmap.org)",
      "https://www.openstreetmap.org/",
@@ -716,7 +723,10 @@ TABLE_PROVENANCE = [
      "category named for the chassis stands in for it, and they sit a rung "
      "lower, at 'catalogued'. Rows on the circuit route (VD-61) are an "
      "aerial photograph in the article mapped to the circuit, whose file "
-     "name names it; that it shows the circuit is no better established."),
+     "name names it; that it shows the circuit is no better established. "
+     "Rows on the race route (PD-64) were filed by Commons editors under "
+     "the category named for the race, and sit at 'catalogued' with the "
+     "category route's."),
     ("circuit_geometry", 16, 0, None),
 ]
 

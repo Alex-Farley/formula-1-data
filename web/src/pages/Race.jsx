@@ -9,9 +9,19 @@ import Photographs from '../components/Photographs.jsx'
 import { RACE_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE, clock, nextSession, raceStage, readerZone, until, yourTimeColumn } from '../queries/sessions.js'
 import { rows, useQueries } from '../data/useQuery.js'
 import { finished, missing, number, raceDates, result } from '../lib/format.js'
-import { NAMES, SHARED } from '../lib/site.js'
+import {
+  NAMES,
+  RACE_CARS_NOTE,
+  RACE_CARS_TITLE,
+  RACE_PHOTOGRAPHS_NOTE,
+  RACE_PHOTOGRAPHS_TITLE,
+  SHARED,
+  raceCategoryLink,
+  racePhotographAlt,
+} from '../lib/site.js'
+import { categoryUrl } from '../lib/commons.js'
 import { outlineCaption } from '../lib/outline.js'
-import { RACE_IMAGES } from '../queries/photographs.js'
+import { RACE_IMAGES, RACE_PHOTOGRAPHS } from '../queries/photographs.js'
 import {
   CLASSIFICATION_COLUMNS,
   ENTRIES,
@@ -191,6 +201,7 @@ export default function Race() {
     disagreements: [RACE_DISAGREEMENTS, args],
     sessions: [RACE_SESSIONS, args],
     images: [RACE_IMAGES, args],
+    photographs: [RACE_PHOTOGRAPHS, args],
     sources: [RACE_SOURCES, args],
   })
 
@@ -219,6 +230,7 @@ function RaceBody({ race, data, year, round }) {
   const practice = practiceBySession(rows(data, 'practice'))
   const sprintQualifying = rows(data, 'sprintQualifying')
   const pits = rows(data, 'pits')
+  const photographs = rows(data, 'photographs')
   /* The sprint is a separate race on the same weekend, so it is ordered the
      same way a race is: finishers by position, then everyone else. */
   const sprint = useMemo(() => inClassificationOrder(rows(data, 'sprint')), [data])
@@ -511,12 +523,26 @@ function RaceBody({ race, data, year, round }) {
         </section>
       )}
 
-      {/* The cars entered, the best finisher first (VD-33). Six of them,
-          captioned with the car each one is - a race is twenty machines and an
-          uncaptioned strip is twenty red cars. Below the tables since PD-57:
-          a reader came for the result, and the strip stood between it and
-          the tiles. */}
-      <Photographs images={rows(data, 'images')} subjects />
+      {/* The race's own photographs first, filed under its Commons category,
+          then the cars entered, the best finisher first (VD-33), captioned
+          with the car each one is - a race is twenty machines and an
+          uncaptioned strip is twenty red cars. Each strip is headed with
+          what it is (PD-64): a car's photograph was taken wherever its
+          article's editors found it, and must not pass for this race's.
+          Below the tables since PD-57: a reader came for the result. */}
+      <Photographs
+        images={photographs}
+        title={RACE_PHOTOGRAPHS_TITLE}
+        note={RACE_PHOTOGRAPHS_NOTE}
+        alt={racePhotographAlt(year, race.name_used)}
+        checks={false}
+        more={
+          photographs[0]?.category
+            ? { href: categoryUrl(photographs[0].category), label: raceCategoryLink(photographs[0].category) }
+            : null
+        }
+      />
+      <Photographs images={rows(data, 'images')} title={RACE_CARS_TITLE} note={RACE_CARS_NOTE} subjects />
 
       {!scheduled && timetable}
 

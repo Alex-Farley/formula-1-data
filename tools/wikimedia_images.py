@@ -7,7 +7,8 @@ database, with the attribution needed to display it.
     python3 tools/wikimedia_images.py --limit 100   # a sample, for a trial
     python3 tools/wikimedia_images.py --route category   # ~700 requests
     python3 tools/wikimedia_images.py --route circuit    # ~30 requests
-    python3 tools/wikimedia_images.py --thumbs      # thumb_url only, all three files
+    python3 tools/wikimedia_images.py --route race       # ~1,000 requests
+    python3 tools/wikimedia_images.py --thumbs      # thumb_url only, all four files
 
 Reads:   harvest/car_specs.txt      the articles the spec harvest accepted
 Writes:  harvest/article_images.txt the accepted rows
@@ -17,8 +18,10 @@ The category route (AF-42, at the end of this docstring) reads
 harvest/chassis.txt as well and writes harvest/category_images.txt and
 harvest/category_images.log instead. The circuit route (VD-61, at the end
 of this docstring) reads harvest/circuit_articles.txt and writes
-harvest/circuit_images.txt and harvest/circuit_images.log. No route writes
-another's files.
+harvest/circuit_images.txt and harvest/circuit_images.log. The race route
+(PD-64, at the end of this docstring) reads the completed races from f1.db
+and writes harvest/race_images.txt and harvest/race_images.log. No route
+writes another's files.
 
 No image is downloaded and none is stored. What is stored is a *reference*
 and its attribution: which file an article leads with, who took it, and
@@ -201,12 +204,69 @@ Checks 1 to 3 apply unchanged, asked of en.wikipedia.org like the article
 route, so `repository` is `shared`. The rows are keyed on the circuit - the
 Nordschleife and the GP-Strecke share one article - and enter at
 `unverified`, the article route's rung, on the article route's claim.
+
+The race route, for the race page
+---------------------------------
+`--route race` takes photographs of a race from the Wikimedia Commons
+category Commons keeps for it, so that the race page can show the race and
+not only the cars that entered it, photographed wherever their articles'
+editors found them. The claim is the category route's - "Commons editors
+filed this file under the category for this race" - and so is the rung,
+`catalogued`. A category holds what its editors put there: the 2010 Bahrain
+category holds the Williams FW18 that Damon Hill drove in that weekend's
+anniversary parade, which was taken at the race and is not a car that
+raced in it.
+
+A category is taken only when all of these hold (data/harvest.py):
+
+  a. **Its title is the race's.** `Category:<season> <name the race was run
+     under>`, exactly (race_category). Never searched for and never chosen
+     per file: a race whose category Commons spells otherwise has none.
+  b. **Commons files it as that season's Formula One.** A visible parent is
+     `<season> Formula One races` or `<season> in Formula One`
+     (race_category_parents). A category in another season's - Commons
+     files the 1994 Monaco Grand Prix under 1995 - is refused.
+  c. **The race was run.** Only completed races are read; a category for a
+     race not yet run holds the build-up, not the race.
+
+Only the files filed directly under it are read - a subcategory is a
+driver's or a team's, and is a different claim - and of those only a JPEG
+whose name carries no copyright mark (RACE_PHOTOGRAPH_SUFFIX,
+RACE_PHOTOGRAPH_MARKED, the circuit route's rules for the circuit route's
+reasons). Two narrowing rules follow, because a category holds what is of
+the race as well as what is from it: a file whose name says trophy, ticket,
+museum, collection, map and the like (RACE_PHOTOGRAPH_ELSEWHERE), and one
+whose name names a season other than the race's
+(race_file_names_another_season) - the first full run took the 1995
+winner's trophy photographed in a private collection in 2019. A file two
+races' categories both hold says which race it is to neither, and is
+passed over; so is every version but one of a photograph filed more than
+once - an original beside its crop, a second crop, a restoration
+(race_twin_key) - which would show the same moment twice. Every file passed
+over is logged with its reason. What is left is taken in title order, which
+is the order the API returns and does not change between runs, and checks 1
+to 3 apply as on the category route - the answer came from Commons for a
+page in the File namespace, so `repository` is `commons`. Two more apply to
+the credit, because a race keeps twelve files where a car keeps one and
+meets Commons' odd fields more often: a field holding Commons' own
+boilerplate ("Own work", "I, the copyright holder of this work ...") is read
+as empty, so the other field speaks or the file names nobody and is
+refused (CREDIT_BOILERPLATE); and a credit claiming somebody else's
+permission is a grant in doubt and is refused (CREDIT_PERMISSION). The
+first RACE_PHOTOGRAPHS_KEPT that pass are kept.
+
+`name_matches` is 0 on every row and tested by nothing. It asks whether a
+file name names the car, and a race photograph is of a race: filed under
+the driver, the circuit or an archive's reference number
+(`Grand Prix te Zandvoort, Bestanddeelnr 920-3789.jpg`), with no name a
+test could hold it to.
 """
 import argparse
 import html
 import json
 import os
 import re
+import sqlite3
 import sys
 import time
 import unicodedata
@@ -346,6 +406,22 @@ def thumb_address(url):
         return None
     return urllib.parse.urlunsplit((parts.scheme, parts.netloc, parts.path,
                                     "", ""))
+
+
+def thumb_names_file(url, file_name):
+    """Does the address's last segment name the file it was given for?
+
+    Commons writes a thumbnail as `960px-<the file's own name>`, but for a
+    long name it writes `960px-thumbnail.jpg` instead. verify.py holds every
+    stored address to the first shape, because a tail that does not name the
+    row's file is not checkable against it; so an address of the second is
+    not stored, and the page builds the Special:FilePath one, as it does for
+    any row without an address. The original, served as itself, passes.
+    """
+    name = title_key(file_name).removeprefix("File:").replace(" ", "_")
+    last = urllib.parse.unquote(urllib.parse.urlsplit(url).path).rsplit("/", 1)[-1]
+    return last == name or bool(
+        re.fullmatch(r"\d+px-" + re.escape(name) + r"(\.(png|jpg))?", last))
 
 
 # Pacing for the thumbnail check. These are HEAD requests to the media
@@ -570,6 +646,9 @@ def file_info(files, log, endpoint=API):
         for p in d.get("query", {}).get("pages", []) or []:
             name = title_key(p.get("title"))
             ii = (p.get("imageinfo") or [{}])[0]
+            thumb = thumb_address(ii.get("thumburl"))
+            if thumb and not thumb_names_file(thumb, name):
+                thumb = None
             em = ii.get("extmetadata", {}) or {}
             get = lambda k: (em.get(k) or {}).get("value")
             info[name] = {
@@ -581,7 +660,7 @@ def file_info(files, log, endpoint=API):
                 "artist": plain(get("Artist")),
                 "credit": plain(get("Credit")),
                 "description_url": ii.get("descriptionurl"),
-                "thumb_url": thumb_address(ii.get("thumburl")),
+                "thumb_url": thumb,
                 "attribution_required": (get("AttributionRequired") or ""),
                 "width": ii.get("thumbwidth") or ii.get("width"),
                 "height": ii.get("thumbheight") or ii.get("height"),
@@ -602,7 +681,7 @@ def admit(article, file_name, meta, chassis_ids, log, route="article"):
         return None
 
     # 1. Commons only. A local en.wiki file is local because it is non-free.
-    if route == "category":
+    if route in ("category", "race"):
         # Asked of Commons itself, a Commons file answers 'local'. What
         # proves it is on Commons is who answered and where the page is.
         if (meta.get("host") != COMMONS_HOST or meta.get("namespace") != 6
@@ -637,6 +716,30 @@ def admit(article, file_name, meta, chassis_ids, log, route="article"):
         log.append(f"{article}\tREFUSED\t{file_name} requires attribution "
                    f"and names no author")
         return None
+    # The race route keeps several files a race and so meets the public-
+    # domain file with nobody named far more often than one lead image does.
+    # The build and verify.py refuse a row with nobody to credit whatever
+    # its licence asks, and the page fails closed on one, so it is refused
+    # here rather than written for the build to stop on. A field holding
+    # Commons' own boilerplate ("Own work") names nobody either, and is read
+    # as empty, so the other field speaks or the file is refused
+    # (data/harvest.py CREDIT_BOILERPLATE); a credit claiming somebody
+    # else's permission is a grant in doubt (CREDIT_PERMISSION).
+    if route == "race":
+        H, _register = circuit_data()
+        meta = dict(meta)
+        for field in ("artist", "credit"):
+            if meta[field] and H.CREDIT_BOILERPLATE.match(meta[field]):
+                meta[field] = None
+        if not (meta["artist"] or meta["credit"]):
+            log.append(f"{article}\tREFUSED\t{file_name} names nobody to "
+                       f"credit")
+            return None
+        if any(H.CREDIT_PERMISSION.search(meta[f] or "")
+               for f in ("artist", "credit")):
+            log.append(f"{article}\tREFUSED\t{file_name} is credited as "
+                       f"uploaded on somebody else's permission")
+            return None
 
     if not meta["description_url"]:
         log.append(f"{article}\tREFUSED\t{file_name} has no description page")
@@ -646,7 +749,8 @@ def admit(article, file_name, meta, chassis_ids, log, route="article"):
     # See the module docstring: it finds under half the correct lead images,
     # because most are filed under the driver rather than the car. A body
     # image is only a candidate when it holds.
-    matches = 1 if names_car(file_name, article, chassis_ids) else 0
+    matches = (0 if route == "race"
+               else 1 if names_car(file_name, article, chassis_ids) else 0)
 
     return {
         "article": article,
@@ -1200,19 +1304,198 @@ def main_circuit(args):
     print(f"wrote {out}")
 
 
+# ---------------------------------------------------------- the race route
+
+RACE_COLUMNS = ["year", "round", "category", "file_name", "repository",
+                "licence", "licence_url", "artist", "credit",
+                "description_url", "thumb_url", "width", "height",
+                "name_matches"]
+
+def read_races(db):
+    """(season, round, name run under) of every completed race, from the
+    last build. The build re-derives each row's category from the races it
+    is building and passes over a row whose race has since been renamed or
+    renumbered, so a stale file costs a race its photographs until the next
+    harvest, never the build."""
+    if not os.path.exists(db):
+        raise SystemExit(f"{db} is missing. Run python3 build.py first.")
+    con = sqlite3.connect(db)
+    try:
+        return con.execute("""SELECT year, round, name_used FROM races
+                              WHERE status = 'completed'
+                              ORDER BY year, round""").fetchall()
+    finally:
+        con.close()
+
+
+def race_candidates(files, year, H):
+    """The files of a race's category worth asking about, in title order,
+    and every file passed over with the reason: a JPEG with no copyright
+    mark and nothing in its name saying it was taken elsewhere or another
+    year, and one file of each set of twins (data/harvest.py
+    race_twin_key)."""
+    keep, passed = [], []
+    for f in sorted(files):
+        if not f.lower().endswith(H.RACE_PHOTOGRAPH_SUFFIX):
+            passed.append((f, "is not a JPEG"))
+        elif H.RACE_PHOTOGRAPH_MARKED.search(f):
+            passed.append((f, "carries a copyright mark in its name"))
+        elif H.RACE_PHOTOGRAPH_ELSEWHERE.search(f):
+            passed.append((f, "says in its name it is not of the race "
+                              "as run (RACE_PHOTOGRAPH_ELSEWHERE)"))
+        elif H.race_file_names_another_season(f, year):
+            passed.append((f, "names a season other than the race's"))
+        else:
+            keep.append(f)
+    twins = {}
+    for f in keep:
+        twins.setdefault(H.race_twin_key(f), []).append(f)
+    chosen = set()
+    for group in twins.values():
+        # A version carries a marker its twin key drops; the original none.
+        derived = [f for f in group if H.race_twin_key(f) != re.sub(
+            r"\.[A-Za-z0-9]+$", "", f.removeprefix("File:")).strip().lower()]
+        pick = (sorted(derived) or sorted(group))[0]
+        chosen.add(pick)
+        passed.extend((f, f"is a version of {pick}") for f in group
+                      if f != pick)
+    return [f for f in keep if f in chosen], passed
+
+
+def main_race(args):
+    H, _register = circuit_data()
+    races = read_races(args.db)
+    if args.only:
+        needle = args.only.lower()
+        races = [r for r in races if needle in f"{r[0]} {r[2]}".lower()]
+    if args.limit:
+        races = races[:args.limit]
+    if not races:
+        raise SystemExit("no races selected")
+    print(f"{len(races)} completed races", flush=True)
+
+    log = []
+    want = {}
+    for year, rnd, name in races:
+        title = H.race_category(year, name)
+        if title in want:
+            raise SystemExit(f"{title} is the category of two races")
+        want[title] = (year, rnd, f"{year}-{rnd:02d}")
+    parents = category_parents(set(want))
+    accepted = {}
+    for title, (year, rnd, key) in want.items():
+        ps = parents.get(title)
+        if ps is None:
+            log.append(f"{key}\tREFUSED\tCommons holds no {title}")
+            continue
+        if not set(H.race_category_parents(year)) & set(ps):
+            log.append(f"{key}\tREFUSED\t{title} is not filed as {year} "
+                       f"Formula One ({'; '.join(cat_bare(p) for p in ps) or 'no parents'})")
+            continue
+        accepted[title] = (year, rnd, key)
+    print(f"{len(accepted)} of {len(races)} races have a category filed as "
+          f"their season's Formula One", flush=True)
+
+    members = {}
+    for n, title in enumerate(sorted(accepted), 1):
+        if n % 50 == 0:
+            print(f"  read {n}/{len(accepted)} categories", flush=True)
+        members[title] = category_members(title)[0]
+    holders = {}
+    for title, files in members.items():
+        for f in files:
+            holders.setdefault(f, set()).add(title)
+    plan = {}
+    for title, files in members.items():
+        year, _rnd, key = accepted[title]
+        log.extend(f"{key}\tPASSED OVER\t{f} is filed under another "
+                   f"race's category too" for f in files
+                   if len(holders[f]) > 1)
+        files, passed = race_candidates(
+            [f for f in files if len(holders[f]) == 1], year, H)
+        log.extend(f"{key}\tPASSED OVER\t{f} {why}" for f, why in passed)
+        if files:
+            plan[title] = files
+        else:
+            log.append(f"{key}\tREFUSED\t{title} holds no JPEG that no other "
+                       f"race's category holds, whose name carries no "
+                       f"copyright mark and says it was not taken at the race")
+    info = file_info(sorted({f for v in plan.values() for f in v}), log,
+                     endpoint=COMMONS_API)
+
+    rows = []
+    for title in sorted(plan, key=lambda t: accepted[t][:2]):
+        year, rnd, key = accepted[title]
+        tried, kept = [], []
+        for f in plan[title]:
+            row = admit(key, f, info.get(title_key(f)), "", tried,
+                        route="race")
+            if row:
+                row.update(race=key, year=year, round=rnd, category=title)
+                kept.append(row)
+                if len(kept) == H.RACE_PHOTOGRAPHS_KEPT:
+                    break
+        # Every refusal is kept, not only a race's last: a file passed over
+        # for its licence is the answer to "why not that one?".
+        log.extend(tried)
+        if kept:
+            rows.extend(kept)
+        else:
+            log.append(f"{key}\tREFUSED\t{title}: no file passed the "
+                       f"licence and attribution checks")
+    thumb_log = check_thumbs(rows, "race")
+
+    out = os.path.join(HARVEST, "race_images.txt")
+    with open(out, "w", encoding="utf-8") as fh:
+        fh.write("# Generated by tools/wikimedia_images.py --route race on "
+                 + time.strftime("%Y-%m-%d") + ". Do not edit by hand.\n")
+        fh.write("# Source: the Wikimedia Commons category named for each "
+                 "completed race, via the Commons API.\n")
+        fh.write("# The claim is only that Commons editors filed the file "
+                 "there; the build holds these rows at 'catalogued'.\n")
+        fh.write("# Each file carries its OWN licence. No image is stored "
+                 "here or in the database.\n")
+        fh.write("# " + "|".join(RACE_COLUMNS) + "\n")
+        for r in rows:
+            fh.write("|".join("" if r[c] is None else str(r[c])
+                              for c in RACE_COLUMNS) + "\n")
+
+    with open(os.path.join(HARVEST, "race_images.log"), "w",
+              encoding="utf-8") as fh:
+        fh.write("# Every completed race, and why it or a file of its "
+                 "category was refused.\n")
+        for line in sorted(log):
+            fh.write(line + "\n")
+        for r in rows:
+            fh.write(f"{r['race']}\tACCEPTED\t{r['file_name']}\t"
+                     f"{r['licence']}\n")
+        if thumb_log:
+            fh.write(NO_THUMB_NOTE)
+            for line in sorted(thumb_log):
+                fh.write(line + "\n")
+
+    print(f"\naccepted {len(rows)} photographs of "
+          f"{len({r['race'] for r in rows})} of {len(races)} races")
+    print(f"wrote {out}")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[1])
     ap.add_argument("--limit", type=int, default=0,
                     help="only the first N articles, for a trial run")
     ap.add_argument("--only", default=None,
                     help="only articles containing this substring")
-    ap.add_argument("--route", choices=("article", "category", "circuit"),
+    ap.add_argument("--route",
+                    choices=("article", "category", "circuit", "race"),
                     default="article",
                     help="article (the default), a Commons category for "
-                         "each chassis with no article, or the aerial "
-                         "photograph of each mapped circuit")
+                         "each chassis with no article, the aerial "
+                         "photograph of each mapped circuit, or the Commons "
+                         "category of each completed race")
+    ap.add_argument("--db", default=os.path.join(ROOT, "f1.db"),
+                    help="the database the race route reads its races from")
     ap.add_argument("--thumbs", action="store_true",
-                    help="refresh thumb_url in the three committed files and "
+                    help="refresh thumb_url in the four committed files and "
                          "nothing else")
     args = ap.parse_args()
     if args.thumbs:
@@ -1221,6 +1504,8 @@ def main():
         return main_category(args)
     if args.route == "circuit":
         return main_circuit(args)
+    if args.route == "race":
+        return main_race(args)
 
     articles = read_articles()
     if args.only:
@@ -1321,7 +1606,7 @@ THUMBS_NOTE = "# thumb_url last fetched by tools/wikimedia_images.py --thumbs on
 
 
 def main_thumbs():
-    """Refill thumb_url in the three committed files, and change nothing else.
+    """Refill thumb_url in the four committed files, and change nothing else.
 
     Each file is read by its column header, the way data/harvest.py reads it,
     and written back line for line: the rows, their order and their credits
@@ -1330,7 +1615,8 @@ def main_thumbs():
     for name, key, columns, endpoint in (
             ("article_images.txt", "article", COLUMNS, API),
             ("category_images.txt", "chassis_id", CAT_COLUMNS, COMMONS_API),
-            ("circuit_images.txt", "circuit_id", CIRCUIT_COLUMNS, API)):
+            ("circuit_images.txt", "circuit_id", CIRCUIT_COLUMNS, API),
+            ("race_images.txt", "category", RACE_COLUMNS, COMMONS_API)):
         path = os.path.join(HARVEST, name)
         with open(path, encoding="utf-8") as fh:
             lines = fh.read().splitlines()

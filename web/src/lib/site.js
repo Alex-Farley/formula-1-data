@@ -395,6 +395,46 @@ export const PHOTOGRAPHS_NOTE =
 export const PHOTOGRAPHS_SHOWN = 6
 export const PHOTOGRAPH_WIDTH = 600
 
+/**
+ * The rest of a strip, behind a disclosure (PD-64).
+ *
+ * "6 of 51" in a heading with no way to the other 45 is a count of what the
+ * page withholds. The remainder sits in a closed <details> in both
+ * renderers: there to open, and not drawn inline, because the VD-66
+ * critique found these pages too long already. A lazy image inside a closed
+ * disclosure is not fetched until it is opened.
+ */
+export const photographsMore = (n) => `${n} more photograph${n === 1 ? '' : 's'}`
+
+/**
+ * A race page's two strips, each headed with what it is (PD-64).
+ *
+ * The race page used to head the lead photograph of each car that entered
+ * "Photographs", and a reader takes a photograph on a race page to be of
+ * that race. Now the race's own photographs - filed under its Commons
+ * category - lead, under a heading that says so, and the cars follow under
+ * one that says what they are: on every race page that has them, whether or
+ * not the race has photographs of its own, so the heading never changes
+ * meaning from one race to the next.
+ */
+export const RACE_PHOTOGRAPHS_TITLE = 'Photographs from this race'
+
+export const RACE_PHOTOGRAPHS_NOTE =
+  "Filed on Wikimedia Commons under this race's own category, each shown with the photographer " +
+  "and licence its terms require. The filing is the Commons editors' and has not been checked here."
+
+export const RACE_CARS_TITLE = 'The cars in this race'
+
+export const RACE_CARS_NOTE =
+  "The photograph each car's Wikipedia article leads with, from Wikimedia Commons: taken wherever " +
+  'and whenever that was, not necessarily at this race.'
+
+/** What a race photograph shows, for its alt: the race, since the heading is the caption. */
+export const racePhotographAlt = (year, name) => `At the ${year} ${name}`
+
+/** The link under a race's own strip, to everything its category holds. */
+export const raceCategoryLink = (category) => `Everything filed under ${category.replace(/^Category:/, '')} on Wikimedia Commons`
+
 export const UNCHECKED_MARK = 'unchecked'
 
 export const UNCHECKED_NOTE = [

@@ -50,10 +50,23 @@ import { fileURLToPath } from 'node:url'
 // below ask for the strings the pages compute rather than copies of them.
 import { NEXT_HEADING, NEXT_ROUND, WON_HERE, WON_HERE_HEADING, standingsHeading, titleHeading } from '../src/queries/season.js'
 import { CAREER_HEADING, DRIVER_SOURCES, THIS_SEASON, roundsRun, thisSeasonHeading } from '../src/queries/driver.js'
-import { ABOUT, DOCUMENTS, MAINTAINER, NOT_YET_RUN, PHOTOGRAPHS_SHOWN, SO_FAR, licenceTerms } from '../src/lib/site.js'
+import {
+  ABOUT,
+  DOCUMENTS,
+  MAINTAINER,
+  NOT_YET_RUN,
+  PHOTOGRAPHS_SHOWN,
+  RACE_CARS_TITLE,
+  RACE_PHOTOGRAPHS_TITLE,
+  SO_FAR,
+  UNCHECKED_MARK,
+  licenceTerms,
+  photographsMore,
+  racePhotographAlt,
+} from '../src/lib/site.js'
 // The rule that decides who is credited and whether a file may be shown at
 // all — asked of the served HTML below rather than restated in it.
-import { attribution, canShow, fileTitle } from '../src/lib/commons.js'
+import { attribution, canShow, categoryUrl, fileTitle } from '../src/lib/commons.js'
 import { ENTRIES as CAR_ENTRIES, FIGURES_HEADING, IMAGES as CAR_IMAGES } from '../src/queries/car.js'
 import { CHECKED_LABEL, LAST_CHECKED } from '../src/lib/refresh.js'
 import { EXAMPLES } from '../src/lib/questions.js'
@@ -61,7 +74,7 @@ import { HEADLINE, RECORDS as RECORDS_SQL, recordFamilies } from '../src/queries
 import { NO_DRAWING, NO_TIMELINE_ROW } from '../src/lib/outline.js'
 // The three surfaces VD-33 gave the photographs to, read from the app's own
 // queries so that the static pages are checked against what the app shows.
-import { CONSTRUCTOR_IMAGES, RACE_IMAGES, SEASON_IMAGES } from '../src/queries/photographs.js'
+import { CONSTRUCTOR_IMAGES, RACE_IMAGES, RACE_PHOTOGRAPHS, SEASON_IMAGES } from '../src/queries/photographs.js'
 import { PHOTOGRAPH as CIRCUIT_PHOTOGRAPH, photographAlt as circuitPhotographAlt } from '../src/queries/circuit.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -1821,12 +1834,14 @@ try {
         shape: [main.querySelector('.with-lead'), sheets].map((n) => n?.parentElement?.matches('section.section') ?? null),
       }
     }
-    // Every block named here is on the page, in this order; Photographs may
-    // be absent, since not every race has a car pictured.
+    // Every block named here is on the page, in this order; either strip of
+    // photographs may be absent, since not every race has a car pictured or
+    // a Commons category of its own (PD-64).
+    const optional = new Set([RACE_PHOTOGRAPHS_TITLE, RACE_CARS_TITLE])
     const inOrder = (blocks, names) => {
       const at = names.map((name) => blocks.findIndex((b) => b.startsWith(name)))
       const held = at.filter((i) => i >= 0)
-      return at.every((i, k) => i >= 0 || names[k] === 'Photographs') && held.every((i, k) => k === 0 || i > held[k - 1])
+      return at.every((i, k) => i >= 0 || optional.has(names[k])) && held.every((i, k) => k === 0 || i > held[k - 1])
     }
     const run = db
       .prepare(
@@ -1846,7 +1861,7 @@ try {
       return
     }
     const route = `/races/${run.year}/${run.round}`
-    const order = ['Classification', 'Qualifying', 'Pit stops', 'Practice sessions', 'Photographs', 'Timetable']
+    const order = ['Classification', 'Qualifying', 'Pit stops', 'Practice sessions', RACE_PHOTOGRAPHS_TITLE, RACE_CARS_TITLE, 'Timetable']
     await go(route, run.name_used)
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.evaluate(() => window.scrollTo(0, 0))
@@ -1891,6 +1906,71 @@ try {
         'and so does the app',
       )
     } else pass('no round is scheduled with a timetable, so there is none to lead with')
+  })
+
+  await section('/races  (the race photographs lead, and say so)', async () => {
+    /*
+     * PD-64. The race page showed each entered car's article photograph under
+     * "Photographs", and a reader takes a photograph on a race page to be of
+     * that race. The race's own - filed under its Commons category - now lead
+     * under a heading that says so, and the cars follow under one that says
+     * what they are. Read on the race with the most photographs of its own,
+     * so the disclosure is exercised, and on a race with none.
+     */
+    const own = db
+      .prepare(
+        `SELECT r.year, r.round, r.name_used, COUNT(*) AS n FROM article_images i
+           JOIN races r ON r.id = i.race_id WHERE i.route = 'race'
+          GROUP BY r.id ORDER BY n DESC, r.year, r.round LIMIT 1`,
+      )
+      .get()
+    if (!own) {
+      fail('no race has photographs of its own to read')
+      return
+    }
+    const rows = db.prepare(RACE_PHOTOGRAPHS).all(own.year, own.round).filter(canShow)
+    await go(`/races/${own.year}/${own.round}`, own.name_used)
+    const read = () =>
+      [...document.querySelectorAll('#root main section.section')]
+        .map((section) => ({
+          title: section.querySelector('h2')?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+          strip: section.querySelectorAll('.photo-grid figure.photo').length,
+          disclosed: section.querySelectorAll('details.photo-more figure.photo').length,
+          alts: [...section.querySelectorAll('figure.photo img')].map((img) => img.getAttribute('alt')),
+          marks: section.querySelectorAll('figure.photo .pill-unverified').length,
+          link: section.querySelector('p.source-note a')?.getAttribute('href') ?? null,
+        }))
+        .filter((section) => section.strip > 0)
+    const strips = await page.evaluate(read)
+    is(strips[0]?.title.startsWith(RACE_PHOTOGRAPHS_TITLE), true, `the race's own photographs lead — ${strips.map((x) => x.title).join(' · ')}`)
+    is(strips[0]?.strip, rows.length, `all ${rows.length} of them are in the page`)
+    is(strips[0]?.disclosed, Math.max(0, rows.length - PHOTOGRAPHS_SHOWN), 'the ones past six behind the disclosure')
+    is(
+      strips[0]?.alts.every((alt) => alt === racePhotographAlt(own.year, own.name_used)),
+      true,
+      'each says it was taken at this race',
+    )
+    is(strips[0]?.marks, 0, `none carries the "${UNCHECKED_MARK}" mark, whose question is about a car`)
+    is(strips[0]?.link, categoryUrl(rows[0].category), 'the strip links everything the category holds')
+    const cars = db.prepare(RACE_IMAGES).all(own.year, own.round).filter(canShow).length
+    if (cars) is(strips[1]?.title.startsWith(RACE_CARS_TITLE), true, 'the cars follow, under a heading that says what they are')
+
+    const none = db
+      .prepare(
+        `SELECT r.year, r.round, r.name_used FROM races r
+          WHERE r.status = 'completed'
+            AND NOT EXISTS (SELECT 1 FROM article_images i WHERE i.route = 'race' AND i.race_id = r.id)
+            AND EXISTS (SELECT 1 FROM race_entries e JOIN chassis ch ON ch.id = e.chassis_id
+                         JOIN article_images i ON i.article = ch.article WHERE e.race_id = r.id)
+          ORDER BY r.year DESC, r.round DESC LIMIT 1`,
+      )
+      .get()
+    if (none) {
+      await go(`/races/${none.year}/${none.round}`, none.name_used)
+      const titles = (await page.evaluate(read)).map((x) => x.title)
+      is(titles.some((t) => t.startsWith(RACE_PHOTOGRAPHS_TITLE)), false, `/races/${none.year}/${none.round} has none of its own, and claims none`)
+      is(titles.some((t) => t.startsWith(RACE_CARS_TITLE)), true, 'and its cars are headed as the cars')
+    } else pass('every race with a pictured car has photographs of its own')
   })
 
   await section('/races/1955/1  (a shared drive)', async () => {
@@ -2346,15 +2426,27 @@ try {
      * same time because the two are one figure: it must say what the picture
      * is OF, which is the car, and never the file name it used to read.
      */
-    const team = await page.$$eval('figure.photo', (figures) =>
+    const everyTeam = await page.$$eval('figure.photo', (figures) =>
       figures.map((figure) => ({
         subject: figure.querySelector('.photo-subject')?.textContent?.trim() ?? '',
         alt: figure.querySelector('img')?.getAttribute('alt') ?? '',
         file: figure.querySelector('figcaption a')?.textContent?.trim() ?? '',
         caption: figure.querySelector('figcaption')?.textContent ?? '',
+        disclosed: Boolean(figure.closest('details.photo-more')),
       })),
     )
+    const team = everyTeam.filter((figure) => !figure.disclosed)
     is(team.length, PHOTOGRAPHS_SHOWN, `the constructor page shows ${PHOTOGRAPHS_SHOWN} photographs`)
+    // PD-64: "6 of N" with no way to the other N - 6 counted what the page
+    // withheld. The rest are in the page, behind a closed disclosure that
+    // names how many it holds.
+    {
+      const held = db.prepare(CONSTRUCTOR_IMAGES).all('ferrari').filter(canShow).length - PHOTOGRAPHS_SHOWN
+      const more = await page.$eval('details.photo-more', (d) => ({ open: d.open, summary: d.querySelector('summary').textContent.trim() })).catch(() => null)
+      is(everyTeam.length - team.length, held, `the other ${held} are on the page`)
+      is(more?.summary ?? null, photographsMore(held), 'behind a disclosure that says how many')
+      is(more?.open ?? null, false, 'which starts closed, so the page is no longer for it')
+    }
     is(new Set(team.map((figure) => figure.subject)).size, team.length, 'each one a different Ferrari')
     const unnamed = team.filter((figure) => figure.alt !== figure.subject || /\.(jpe?g|png)$/i.test(figure.alt))
     if (unnamed.length === 0) pass('every alt names the car, not the file')
@@ -5457,7 +5549,9 @@ try {
     for (const id of withPhotos) {
       const html = readFileSync(join(distDir, 'cars', id, 'index.html'), 'utf8')
       const captions = [...html.matchAll(/<figcaption>([\s\S]*?)<\/figcaption>/g)].map((m) => m[1])
-      const expected = images.all(id, id).filter(canShow).slice(0, PHOTOGRAPHS_SHOWN)
+      // Every one, the strip and its disclosure (PD-64): the static page
+      // writes the rest as the app does, and each owes its credit.
+      const expected = images.all(id, id).filter(canShow)
       if (captions.length !== expected.length) {
         uncredited.push(`/cars/${id}: ${expected.length} photograph(s), ${captions.length} caption(s)`)
         continue
@@ -5494,12 +5588,24 @@ try {
         ? readdirSync(dir).filter((entry) => statSync(join(dir, entry)).isDirectory())
         : []
     }
+    // A surface is one or more strips, in page order. A race page draws two
+    // (PD-64): its own photographs, captioned by the heading rather than per
+    // figure, then its cars.
     const surfaces = []
     for (const id of dirsIn('constructors')) surfaces.push({ at: `constructors/${id}`, query: CONSTRUCTOR_IMAGES, args: [id] })
     for (const year of dirsIn('seasons')) surfaces.push({ at: `seasons/${year}`, query: SEASON_IMAGES, args: [Number(year)] })
+    const raceName = db.prepare('SELECT name_used FROM races WHERE year = ? AND round = ?')
     for (const year of dirsIn('races')) {
       for (const round of dirsIn('races', year)) {
-        surfaces.push({ at: `races/${year}/${round}`, query: RACE_IMAGES, args: [Number(year), Number(round)] })
+        const args = [Number(year), Number(round)]
+        const name = raceName.get(...args)?.name_used
+        surfaces.push({
+          at: `races/${year}/${round}`,
+          strips: [
+            { query: RACE_PHOTOGRAPHS, args, subject: null, alt: () => racePhotographAlt(year, name), checks: false },
+            { query: RACE_IMAGES, args },
+          ],
+        })
       }
     }
     atLeast(surfaces.length, 1000, 'constructor, season and race pages read from dist')
@@ -5519,12 +5625,23 @@ try {
     const broken = []
     let reached = 0
     let strips = 0
+    let disclosed = 0
     let circuitsReached = 0
-    for (const { at, query, args, subject = (row) => row.article, alt: altFor = (row) => row.article } of surfaces) {
+    for (const surface of surfaces) {
+      const { at } = surface
       const file = join(distDir, at, 'index.html')
       if (!existsSync(file)) continue
-      if (!prepared.has(query)) prepared.set(query, db.prepare(query))
-      const expected = prepared.get(query).all(...args).filter(canShow).slice(0, PHOTOGRAPHS_SHOWN)
+      // Every photograph each strip's query returns, in strip order: the six
+      // drawn and the rest behind the disclosure (PD-64), which the static
+      // page writes in full as the app does.
+      const expected = []
+      let held = 0
+      for (const { query, args, subject = (row) => row.article, alt = (row) => row.article, checks = true } of surface.strips ?? [surface]) {
+        if (!prepared.has(query)) prepared.set(query, db.prepare(query))
+        const rows = prepared.get(query).all(...args).filter(canShow)
+        held += Math.max(0, rows.length - PHOTOGRAPHS_SHOWN)
+        for (const row of rows) expected.push({ row, subject, altFor: alt, checks })
+      }
       const html = readFileSync(file, 'utf8')
       // The photographs only: a race page also draws the circuit's outline,
       // which is a <figure> with a caption of its own and no licence to name.
@@ -5533,9 +5650,14 @@ try {
         broken.push(`/${at}: ${expected.length} photograph(s), ${drawn.length} drawn`)
         continue
       }
+      const behind = [...html.matchAll(/<details class="photo-more">([\s\S]*?)<\/details>/g)]
+        .map((m) => (m[1].match(/<figure class="photo">/g) ?? []).length)
+        .reduce((a, b) => a + b, 0)
+      if (behind !== held) broken.push(`/${at}: ${held} photograph(s) past the strip, ${behind} behind a disclosure`)
+      disclosed += behind
       if (expected.length === 0) continue
       strips += 1
-      expected.forEach((row, at_) => {
+      expected.forEach(({ row, subject, altFor, checks }, at_) => {
         reached += 1
         if (at.startsWith('circuits/')) circuitsReached += 1
         const figure = drawn[at_]
@@ -5546,10 +5668,14 @@ try {
         else if (!caption.includes(fileTitle(row.file_name))) broken.push(`/${at}: ${row.file_name} names no file`)
         else if (subject && !caption.includes(subject(row))) broken.push(`/${at}: ${row.file_name} does not say what it is of`)
         else if (alt !== altFor(row)) broken.push(`/${at}: alt is "${alt}", not "${altFor(row)}"`)
+        // A race's own photograph (PD-64) has no subject line - the heading
+        // is its caption - and no unchecked mark, whose question is a car's.
+        else if (!subject && figure.includes('photo-subject')) broken.push(`/${at}: ${row.file_name} carries a subject line`)
+        else if (!checks && figure.includes('pill-unverified')) broken.push(`/${at}: ${row.file_name} carries the ${UNCHECKED_MARK} mark`)
       })
     }
     if (broken.length === 0) {
-      pass(`all ${reached} photograph(s) on ${strips} constructor, season, race and circuit pages carry their credit, their subject and an alt that names it`)
+      pass(`all ${reached} photograph(s) on ${strips} constructor, season, race and circuit pages carry their credit, their subject and an alt that names it, ${disclosed} of them behind a disclosure`)
     } else {
       for (const message of broken.slice(0, 5)) fail(message)
       if (broken.length > 5) fail(`…and ${broken.length - 5} more`)

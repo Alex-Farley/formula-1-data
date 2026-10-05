@@ -4716,6 +4716,101 @@ def _stage_34_circuit_outlines_from_f1db(b):
              f"{', '.join(unplaced)}" if unplaced else ""))
 
 
+def _stage_36b_the_photographs_filed_under_each_race(b):
+    """the photographs filed under each race's Commons category"""
+    cur = b.cur
+
+    # --- the race route (PD-64): a race's own photographs
+    #
+    # After the races exist and their status is settled, which is why this is
+    # a stage of its own and not a part of stage 11. Keyed on the race and
+    # held at 'catalogued', the category route's rung on the category route's
+    # claim: a Commons editor filed the file under the race's category. The
+    # harvest's rules run again here, from the race as the build holds it:
+    # the category is the one data/harvest.py race_category() names for that
+    # season and name, never a title carried through from the file; the race
+    # was run; the file is a JPEG whose name carries no copyright mark, says
+    # nothing of being taken elsewhere or another year, and is no other kept
+    # file's twin; the credit shown names somebody and claims nobody else's
+    # permission; and the licence checks every route keeps.
+    #
+    # A row whose race has since been renamed, renumbered or is not this
+    # build's completed race is passed over and counted, never a stop: the
+    # harvest reads its races from the last build, so a stop here would ask
+    # for a harvest that reads the same stale name back (the article route
+    # passes over an article no chassis claims for the same reason). The
+    # race loses its photographs until the next harvest; nothing it shows is
+    # under another race's name.
+    races = {(y, r): (rid, name, status) for rid, y, r, name, status in
+             cur.execute("SELECT id, year, round, name_used, status FROM races")}
+    kept, stale, per_race, twins = 0, 0, {}, set()
+    for im in HV.load_race_images():
+        try:
+            key = (int(im.get("year") or ""), int(im.get("round") or ""))
+        except ValueError:
+            raise SystemExit(f"race_images: a row names no season and round: "
+                             f"{im.get('file_name')}") from None
+        rid, name, status = races.get(key, (None, None, None))
+        if (rid is None or status != "completed"
+                or im.get("category") != HV.race_category(key[0], name)):
+            stale += 1
+            continue
+        f = im.get("file_name") or ""
+        where = f"race_images: {key[0]} round {key[1]}"
+        if not f.lower().endswith(HV.RACE_PHOTOGRAPH_SUFFIX):
+            raise SystemExit(f"{where}'s {f} is not a JPEG photograph.")
+        if HV.RACE_PHOTOGRAPH_MARKED.search(f):
+            raise SystemExit(f"{where}'s {f} carries a copyright mark in its "
+                             f"name.")
+        if (HV.RACE_PHOTOGRAPH_ELSEWHERE.search(f)
+                or HV.race_file_names_another_season(f, key[0])):
+            raise SystemExit(f"{where}'s {f} says in its name that it was "
+                             f"not taken at the race.")
+        # Commons answers 'local' about its own file; the harvest wrote
+        # 'commons' only after checking the answer came from Commons for a
+        # page in the File namespace, as on the category route.
+        if im.get("repository") != "commons":
+            raise SystemExit(f"{where} carries repository "
+                             f"{im.get('repository')!r}, not 'commons'.")
+        if not im.get("licence"):
+            raise SystemExit(f"{where} states no licence for {f}.")
+        if not (im.get("artist") or im.get("credit")):
+            raise SystemExit(f"{where} names no author for {f}.")
+        shown = HV.credit_shown(im.get("artist"), im.get("credit"))
+        if HV.CREDIT_BOILERPLATE.match(shown):
+            raise SystemExit(f"{where}'s {f} would be credited {shown!r}, "
+                             f"which names nobody.")
+        if any(HV.CREDIT_PERMISSION.search(im.get(c) or "")
+               for c in ("artist", "credit")):
+            raise SystemExit(f"{where}'s {f} is credited as uploaded on "
+                             f"somebody else's permission.")
+        if (rid, HV.race_twin_key(f)) in twins:
+            raise SystemExit(f"{where}'s {f} is a version of a photograph "
+                             f"the race already keeps.")
+        twins.add((rid, HV.race_twin_key(f)))
+        if not im.get("description_url"):
+            raise SystemExit(f"{where} has no description page for {f}.")
+        per_race[rid] = per_race.get(rid, 0) + 1
+        if per_race[rid] > HV.RACE_PHOTOGRAPHS_KEPT:
+            raise SystemExit(f"{where} keeps more than "
+                             f"{HV.RACE_PHOTOGRAPHS_KEPT} photographs.")
+        cur.execute("""INSERT INTO article_images (route, race_id, category,
+            file_name, repository, licence, licence_url, artist, credit,
+            description_url, thumb_url, width, height, name_matches,
+            confidence)
+            VALUES ('race',?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (rid, im["category"], f, im["repository"], im["licence"],
+             im.get("licence_url"), im.get("artist"), im.get("credit"),
+             im["description_url"], im.get("thumb_url") or None,
+             int(im["width"]) if im.get("width") else None,
+             int(im["height"]) if im.get("height") else None,
+             0, "catalogued"))
+        kept += 1
+    print(f"  race images: {kept} photographs of {len(per_race)} races, at "
+          f"'catalogued'; {stale} for a race renamed, renumbered or not run "
+          f"since the harvest")
+
+
 def _stage_36_what_f1db_publishes_about_a_driver_and(b):
     """what F1DB publishes about a driver, and the id it publishes it under"""
     cur = b.cur
@@ -4844,6 +4939,7 @@ STAGES = [
     _stage_33_rule_two_resolve_through_the_driver,
     _stage_34_circuit_outlines_from_f1db,
     _stage_36_what_f1db_publishes_about_a_driver_and,
+    _stage_36b_the_photographs_filed_under_each_race,
     # Last on purpose: it closes the build - the authored ceiling, the
     # geometry split and the VACUUM live at its end - so a loader after it
     # would write into a connection nothing commits.

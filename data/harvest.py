@@ -1437,6 +1437,7 @@ IMAGES_FILE = os.path.join(HERE, "..", "harvest", "article_images.txt")
 CIRCUIT_ARTICLES_FILE = os.path.join(HERE, "..", "harvest", "circuit_articles.txt")
 CATEGORY_IMAGES_FILE = os.path.join(HERE, "..", "harvest", "category_images.txt")
 CIRCUIT_IMAGES_FILE = os.path.join(HERE, "..", "harvest", "circuit_images.txt")
+RACE_IMAGES_FILE = os.path.join(HERE, "..", "harvest", "race_images.txt")
 GEOMETRY_FILE = os.path.join(HERE, "..", "harvest", "circuit_geometry.txt")
 RESULTS_FILE = os.path.join(HERE, "..", "harvest", "race_results.txt")
 SPRINT_FILE = os.path.join(HERE, "..", "harvest", "sprint_results.txt")
@@ -2118,6 +2119,142 @@ def circuit_file_names(file_name, forms):
         return re.sub(r"[^a-z0-9]", "", _fold(s).lower())
     have = alnum(file_name)
     return any(alnum(f) and alnum(f) in have for f in forms)
+
+
+# =====================================================================
+# Race photographs (harvest/race_images.txt, PD-64)
+#
+# The race page showed the lead photograph of each car that entered, which
+# is a photograph of the car taken wherever it was taken - a launch, a
+# museum, another race - on a page a reader takes to be about one
+# afternoon. Wikimedia Commons keeps a category per Grand Prix, and the
+# race route of tools/wikimedia_images.py takes its photographs from that.
+# The rules are here, once, because the harvest applies them, the build
+# refuses a row that breaks them and verify.py re-applies them from the
+# database.
+# =====================================================================
+
+def race_category(year, name_used):
+    """The Commons category a race's photographs are taken from: the season
+    and the name the race was run under, exactly - `Category:1967 Dutch
+    Grand Prix`. Matched from the race and never chosen per file, so a race
+    whose category Commons spells otherwise (`São Paulo` for the register's
+    `Sao Paulo`) has none, which fails closed."""
+    return f"Category:{year} {name_used}"
+
+
+def race_category_parents(year):
+    """Check b of the race route: a visible parent that files the category
+    as that season's Formula One. Commons uses both forms. A category filed
+    under another season's races - `1994 Monaco Grand Prix` sits in `1995
+    Formula One races` - is refused rather than corrected here."""
+    return (f"Category:{year} Formula One races",
+            f"Category:{year} in Formula One")
+
+
+# A photograph or nothing: Commons race categories also hold PDFs of the
+# FIA's documents, PNG maps and logos, and SVG flags. The circuit route's
+# suffixes, for the circuit route's reason.
+RACE_PHOTOGRAPH_SUFFIX = (".jpg", ".jpeg")
+
+# The circuit route's copyright-mark refusal applies here unchanged, for its
+# reason: a file whose own name says (c) or carries the sign has a grant in
+# doubt whatever licence its uploader stated, and a reference that states a
+# licence to every reader is not the place to settle it. One pattern, so the
+# two routes cannot come to disagree about what a mark is.
+RACE_PHOTOGRAPH_MARKED = CIRCUIT_PHOTOGRAPH_MARKED
+
+# The narrowing rules: a file whose name says it was not taken at the race.
+# A race's category holds what its editors filed there, and the first full
+# run took the winner's trophy photographed in a private collection in
+# 2019, the same race's ticket, a track map and a museum's pace car - each
+# of the race, none from it. A heading that says "from this race" over them
+# is the defect PD-64 was filed about, so they are passed over. As on the
+# category route (REPLICA), this narrows; it is not a check that the rest
+# were taken there. A real podium photograph that names its trophy is lost
+# with them, which fails closed.
+# Trophy, ticket and museum match inside a word as well - a file name run
+# together, "1988F1JapaneseGrandPrixWinnerTrophyHCH", still says it. The
+# second run's review added the Indianapolis 500's own kind: the winning car
+# in the Speedway's museum ("Indy500winningcar1956", "... 1950 Indy 500
+# Winner - Johnnie Parsons") and the pace car at a show decades later, which
+# had left every photograph of four of its races a museum or show shot; and
+# documents rather than photographs - a lap chart (Rundentabelle), a
+# magazine cover, a German ticket (Eintrittskarte).
+RACE_PHOTOGRAPH_ELSEWHERE = re.compile(
+    r"troph|ticket|museum|museo|eintrittskarte|rundentabelle|"
+    r"winning ?car|indy ?500 winner|pace ?car|lap ?chart|"
+    r"\b(collections?|exhibitions?|posters?|programmes?|stamps?|covers?|"
+    r"(track)?maps?|replicas?|models?|diecast|die-cast|lego)\b", re.I)
+
+# Two files that are one photograph: "X.jpg" and "X (cropped).jpg", or "X
+# (cropped2).jpg" and "X restored.jpg" beside them. race_twin_key() is what
+# they share, and a race keeps one of them - the first derivative by title,
+# an editor's framing of the subject, or the original where there is none.
+_TWIN_TAIL = re.compile(
+    r"(\s*\(\s*(cropped|crop|restored|retouched|edited)\s*\d*\s*\)"
+    r"|[\s_-]+(cropped|crop|restored|retouched|edited)\d*)+$", re.I)
+
+
+def race_twin_key(file_name):
+    """The photograph a file is a version of: its name without the extension
+    and without a trailing crop, restoration or edit marker, folded."""
+    base = re.sub(r"\.[A-Za-z0-9]+$", "", file_name.removeprefix("File:"))
+    return _TWIN_TAIL.sub("", base).strip().lower()
+
+
+# A credit line is what the page shows beside the photograph, and Commons
+# sometimes puts its own boilerplate in the field it is read from: "Own
+# work", or the opening of its licence sentence, "I, the copyright holder of
+# this work, hereby publish it ...". Shown alone, either credits nobody. The
+# race route reads such a field as empty, so the other field speaks or the
+# file is refused for naming nobody; build.py and verify.py refuse a row
+# whose shown credit is boilerplate.
+CREDIT_BOILERPLATE = re.compile(
+    r"^\s*(own work|i,? the copyright holder of this work\b.*)\s*$", re.I)
+
+
+def credit_shown(artist, credit):
+    """The credit a page shows: web/src/lib/commons.js attribution(), which
+    takes the artist and falls back to the credit."""
+    return (artist or "").strip() or (credit or "").strip() or None
+
+
+# A credit that says the file was uploaded on somebody else's permission is
+# a grant in doubt unless a permission ticket stands behind it, and nothing
+# here reads tickets: the copyright-mark rule's reasoning, applied to the
+# credit rather than the name. The review of the race route found one, a
+# team's livery image "uploaded with permission given by original author".
+CREDIT_PERMISSION = re.compile(r"\bpermission\b", re.I)
+
+# A season named in a file's name, whole: not inside a longer run of digits,
+# so an archive's reference number or a Flickr id names none.
+_SEASON_IN_NAME = re.compile(r"(?<![0-9])((?:19|20)[0-9]{2})(?![0-9])")
+
+
+def race_file_names_another_season(file_name, year):
+    """Does the file's name name a season that is not the race's? "Clay
+    Regazzoni 1975 Watkins Glen" filed under the 1974 race, or a trophy
+    "2019 Michael Schumacher Private Collection" under the 1995 one, was
+    photographed another year. An archive caption that names the year it was
+    donated is lost with them, which fails closed."""
+    return any(int(y) != int(year) for y in _SEASON_IN_NAME.findall(file_name))
+
+# How many photographs a race keeps. The strip draws six (PHOTOGRAPHS_SHOWN
+# in web/src/lib/site.js) and the rest sit behind a disclosure, so twelve is
+# six more than the strip, not a figure about Commons: the largest category
+# holds 669 files and the median seven, and f1.db travels to every reader's
+# browser whole. The page links the category for the rest.
+RACE_PHOTOGRAPHS_KEPT = 12
+
+
+def load_race_images():
+    """The photographs filed under each race's Commons category (PD-64): the
+    same licence obligation as load_article_images(), keyed on the season and
+    round, held at 'catalogued' because the claim is a Commons editor's
+    filing."""
+    return _read_named(RACE_IMAGES_FILE,
+                       "tools/wikimedia_images.py --route race")
 
 
 def load_circuit_articles():

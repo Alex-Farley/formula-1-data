@@ -42,6 +42,15 @@ export function thumbUrl(image, width = THUMB_WIDTH, { direct = true } = {}) {
   return `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(bare)}?width=${width}`
 }
 
+/**
+ * The Commons page of a category a row was taken from (the race route,
+ * PD-64). The title is the database's own, which verify.py holds to the
+ * race it is keyed on; spaces become underscores as MediaWiki writes them,
+ * and the rest is encoded as a URI, so the colon stays a colon.
+ */
+export const categoryUrl = (category) =>
+  `https://commons.wikimedia.org/wiki/${encodeURI(String(category ?? '').replace(/ /g, '_'))}`
+
 /** The file name without its "File:" prefix, for a caption. */
 export const fileTitle = (fileName) => String(fileName ?? '').replace(/^File:/, '').replace(/_/g, ' ')
 

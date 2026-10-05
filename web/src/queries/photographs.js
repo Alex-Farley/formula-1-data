@@ -36,6 +36,13 @@
  *     cars by what they won that year; the race's cars by where they
  *     finished that afternoon. `article` last in every one of them, because a
  *     tie has to break the same way in both renderers.
+ *
+ * A RACE'S OWN PHOTOGRAPHS (PD-64)
+ *     The race's cars are the cars, photographed wherever their articles'
+ *     editors found them - a launch, a museum, another race. RACE_PHOTOGRAPHS
+ *     is the race itself: the `race` route, filed under the race's own
+ *     Commons category. A race page draws both, each under a heading that
+ *     says which it is (lib/site.js), and the race's own come first.
  */
 
 /** The cars this constructor built, oldest first, one photograph each. */
@@ -75,6 +82,19 @@ export const SEASON_IMAGES = `
     JOIN raced ON raced.article = i.article
    WHERE i.route = 'article'
    ORDER BY raced.wins DESC, raced.entries DESC, i.article
+`
+
+/**
+ * The photographs filed under one Grand Prix's own Commons category, in the
+ * order the harvest took them: by file name, which is the order Commons
+ * lists a category and the order that broke the tie of which twelve to keep.
+ * The UNIQUE pair (race_id, file_name) makes that order total.
+ */
+export const RACE_PHOTOGRAPHS = `
+  SELECT i.* FROM article_images i
+    JOIN races r ON r.id = i.race_id
+   WHERE i.route = 'race' AND r.year = ? AND r.round = ?
+   ORDER BY i.file_name
 `
 
 /**
