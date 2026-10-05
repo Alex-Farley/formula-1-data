@@ -1801,6 +1801,19 @@ def load_f1db_driver_totals():
                         for r in _read_pipe(F1DB_TOTALS_FILE, 4)}
 
 
+def f1db_harvest_release():
+    """The F1DB release tools/f1db_fetch.py read the harvest from, as
+    harvest/f1db_drivers.txt's header names it - the release
+    tools/f1db_totals_fetch.py reads by default, and the one verify.py holds
+    the career totals to (CR-69)."""
+    with open(os.path.abspath(F1DB_DRIVERS_FILE), encoding="utf-8") as f:
+        m = re.search(r"^# Source: F1DB (\S+) \(", f.read(), re.M)
+    if not m:
+        raise SystemExit("f1db_drivers.txt names no F1DB release. Rerun "
+                         "tools/f1db_fetch.py.")
+    return m.group(1)
+
+
 def load_entrant_drivers():
     """year, entrant_id, constructor_id, engine_manufacturer_id, driver_id,
     {rounds}, test_driver

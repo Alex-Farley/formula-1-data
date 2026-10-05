@@ -1547,19 +1547,43 @@ def external_figures_vs_the_race_records():
     check("every recorded disagreement the site shows can be shown beside the fact it is about",
           not unresolved, "; ".join(unresolved[:4]))
 
-    # spot-check a sample of headline career records against the known official figures
-    KNOWN = {"Sir Lewis Hamilton": (106, 104, 69), "Michael Schumacher": (91, 68, 77),
+    # Spot-check a sample of headline career records against official figures.
+    # A typed figure is held only for a driver who can no longer change it -
+    # retired or deceased. A driver still racing changes it with every win,
+    # pole or fastest lap: Verstappen's typed (71, 48, 37) stopped every
+    # refresh from 2026-10-02 on correct data (CR-69, #785). So a driver still
+    # racing, or one with no typed figure (None), is held to F1DB's own
+    # published career total from the release the harvest was read from,
+    # never to a literal; tools/f1db_totals_fetch.py writes it in the same
+    # refresh run that moves the harvest.
+    KNOWN = {"Sir Lewis Hamilton": None, "Michael Schumacher": (91, 68, 77),
              "Ayrton Senna": (41, 65, 19), "Alain Prost": (51, 33, 41),
              "Juan Manuel Fangio": (24, 29, 23), "Jim Clark": (25, 33, 28),
-             "Sebastian Vettel": (53, 57, 38), "Max Verstappen": (71, 48, 37),
+             "Sebastian Vettel": (53, 57, 38), "Max Verstappen": None,
              "Nigel Mansell": (31, 32, 30), "Sir Jackie Stewart": (27, 17, 15)}
+    harvest = harvest_module()
+    release, totals = harvest.load_f1db_driver_totals()
+    harvested = harvest.f1db_harvest_release()
+    check("F1DB's career totals are from the release the harvest was read from",
+          release == harvested, f"totals {release}, harvest {harvested}: rerun "
+          f"tools/f1db_totals_fetch.py")
     bad = []
-    for name, (w, p, f) in KNOWN.items():
-        r = con.execute("""SELECT wins, poles, fastest_laps FROM drivers
-            WHERE full_name = ?""", (name,)).fetchone()
-        if r is None or tuple(r) != (w, p, f):
-            bad.append(f"{name}: expected {(w, p, f)}, got {tuple(r) if r else None}")
-    check("headline career records match the known official figures", not bad,
+    for name, typed in KNOWN.items():
+        r = con.execute("""SELECT status, f1db_id, wins, poles, fastest_laps
+            FROM drivers WHERE full_name = ?""", (name,)).fetchone()
+        if r is None:
+            bad.append(f"{name}: not in drivers")
+            continue
+        got = (r["wins"], r["poles"], r["fastest_laps"])
+        if typed is not None and r["status"] in ("retired", "deceased"):
+            if got != typed:
+                bad.append(f"{name}: expected {typed}, got {got}")
+        elif totals.get(r["f1db_id"] or "") is None:
+            bad.append(f"{name}: F1DB {release} publishes no career total")
+        elif got != totals[r["f1db_id"]]:
+            bad.append(f"{name}: F1DB {release} publishes {totals[r['f1db_id']]}, got {got}")
+    check("headline career records match the official figures: typed for a "
+          "retired driver, F1DB's published total for one still racing", not bad,
           "; ".join(bad))
 
     slams = con.execute("SELECT COUNT(*) FROM v_grand_slams").fetchone()[0]

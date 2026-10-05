@@ -142,6 +142,16 @@ jobs:
       - name: Fetch F1DB and rewrite the harvest
         run: python3 tools/f1db_fetch.py
 
+      # F1DB's published career totals come from the release artefact, not
+      # the clone, so they are a second fetch - of the release the step above
+      # just stamped into harvest/f1db_drivers.txt, which is the tool's
+      # default. verify.py holds a driver still racing to these totals and
+      # fails when they are from another release than the harvest: a total
+      # typed in, or pinned to an older release, goes stale with the driver's
+      # next result, and from 2026-10-02 that stopped every run (CR-69).
+      - name: Fetch F1DB's career totals for the same release
+        run: python3 tools/f1db_totals_fetch.py
+
       - name: Has anything changed?
         id: diff
         run: |
