@@ -38,9 +38,11 @@ import {
   PRACTICE,
   PRACTICE_COLUMNS,
   PRACTICE_ONLY_MARK,
+  PRACTICE_SUMMARY,
   SPRINT_QUALIFYING,
   practiceBySession,
   practiceFooter,
+  practiceSummaryCount,
   sprintQualifyingColumns,
   sprintQualifyingFooter,
 } from '../queries/race.js'
@@ -260,6 +262,23 @@ function RaceBody({ race, data, year, round }) {
   const scheduled = race.status === 'scheduled'
   const pending = scheduled ? scheduledNote(race, stage) : null
 
+  const timetable = sessions.length > 0 && (
+    <Section title="Timetable" count={`${sessions.length} sessions`}>
+      <DataTable
+        rows={sessions}
+        rowKey={(row) => row.kind}
+        sortable={false}
+        columns={[...SESSION_COLUMNS, ...(zone ? [yourTimeColumn(zone)] : [])]}
+        footer={TIMETABLE_NOTE}
+      />
+      {upcoming && (
+        <p className="note" style={{ marginTop: 10 }}>
+          Next: {upcoming.name}, {clock(upcoming.start_utc, upcoming.zone)} at the circuit — {until(upcoming.start_utc, now)}.
+        </p>
+      )}
+    </Section>
+  )
+
   const nameList = (list) =>
     list.length === 0 ? null : (
       <>
@@ -288,7 +307,7 @@ function RaceBody({ race, data, year, round }) {
         {/* The outline beside the figures, where the circuit used to be a
             text link alone (VD-32). F1DB's drawing of the layout this race
             ran, credited on the card; the caption says whose figures. */}
-        <div className={race.outline ? 'with-outline' : undefined}>
+        <div className={race.outline ? 'with-outline with-lead' : undefined}>
           <Stats
             items={[
               {
@@ -369,60 +388,50 @@ function RaceBody({ race, data, year, round }) {
               rule
             />
           )}
+          {/* PD-57: what the reader came for, under the figures and beside
+              the outline rather than below its caption - the classification
+              once a result is held, the timetable before. On a phone the
+              grid is one column and this follows the outline. */}
+          <div className="lead">
+            {pending && (
+              <Note>
+                <strong>{pending.head}</strong> {pending.body}
+              </Note>
+            )}
+
+            {/* PD-57: before a round is run its timetable is the answer, so it
+                leads; once a result is held it follows the photographs, near the
+                end. `scheduled` rather than the clock's stage, because it is what
+                the static page can know too, and a round past its date with no
+                result held still has nothing to put above its timetable. */}
+            {scheduled && timetable}
+
+            <Disagreement rows={rows(data, 'disagreements')} what="this race" />
+
+            {shared && (
+              <Note>
+                <strong>{SHARED_DRIVE_NOTE.head}</strong> {SHARED_DRIVE_NOTE.body}
+              </Note>
+            )}
+
+            {classified.length > 0 && (
+              <Section title="Classification" count={`${classified.length} entries`}>
+                <DataTable
+                  rows={classified}
+                  rowKey={(row) => row.id}
+                  sortable
+                  // Already in classification order, from inClassificationOrder().
+                  opening={{ key: 'position_text', direction: 'asc' }}
+                  page={60}
+                  highlight={(row) => row.finish_position === 1}
+                  columns={withRenders(CLASSIFICATION_COLUMNS, classificationRenders(year))}
+                  footer={classificationFooter(classified)}
+                />
+              </Section>
+            )}
+          </div>
         </div>
       </Section>
-
-      {pending && (
-        <Note>
-          <strong>{pending.head}</strong> {pending.body}
-        </Note>
-      )}
-
-      {/* The cars entered, the best finisher first (VD-33). Six of them,
-          captioned with the car each one is - a race is twenty machines and an
-          uncaptioned strip is twenty red cars. */}
-      <Photographs images={rows(data, 'images')} subjects />
-
-      {sessions.length > 0 && (
-        <Section title="Timetable" count={`${sessions.length} sessions`}>
-          <DataTable
-            rows={sessions}
-            rowKey={(row) => row.kind}
-            sortable={false}
-            columns={[...SESSION_COLUMNS, ...(zone ? [yourTimeColumn(zone)] : [])]}
-            footer={TIMETABLE_NOTE}
-          />
-          {upcoming && (
-            <p className="note" style={{ marginTop: 10 }}>
-              Next: {upcoming.name}, {clock(upcoming.start_utc, upcoming.zone)} at the circuit — {until(upcoming.start_utc, now)}.
-            </p>
-          )}
-        </Section>
-      )}
-
-      <Disagreement rows={rows(data, 'disagreements')} what="this race" />
-
-      {shared && (
-        <Note>
-          <strong>{SHARED_DRIVE_NOTE.head}</strong> {SHARED_DRIVE_NOTE.body}
-        </Note>
-      )}
-
-      {classified.length > 0 && (
-        <Section title="Classification" count={`${classified.length} entries`}>
-          <DataTable
-            rows={classified}
-            rowKey={(row) => row.id}
-            sortable
-            // Already in classification order, from inClassificationOrder().
-            opening={{ key: 'position_text', direction: 'asc' }}
-            page={60}
-            highlight={(row) => row.finish_position === 1}
-            columns={withRenders(CLASSIFICATION_COLUMNS, classificationRenders(year))}
-            footer={classificationFooter(classified)}
-          />
-        </Section>
-      )}
 
       {qualifying.length > 0 && (
         <Section title="Qualifying" count={`${qualifying.length} entries`}>
@@ -463,19 +472,6 @@ function RaceBody({ race, data, year, round }) {
         </Section>
       )}
 
-      {practice.map(({ session, title, rows: sheet }) => (
-        <Section key={session} title={title} count={`${sheet.length} entries`}>
-          <DataTable
-            rows={sheet}
-            rowKey={(row) => row.id}
-            sortable={false}
-            page={40}
-            columns={withRenders(PRACTICE_COLUMNS, sessionRenders(year))}
-            footer={practiceFooter(sheet)}
-          />
-        </Section>
-      ))}
-
       {pits.length > 0 && (
         <Section title="Pit stops" count={`${pits.length} stops`}>
           <DataTable
@@ -490,6 +486,37 @@ function RaceBody({ race, data, year, round }) {
           />
         </Section>
       )}
+
+      {/* PD-57: the session sheets after the result and the strategy, closed;
+          queries/race.js says why, and the static page draws the same. */}
+      {practice.length > 0 && (
+        <details className="session-sheets">
+          <summary>
+            {PRACTICE_SUMMARY} <span className="count">{practiceSummaryCount(practice)}</span>
+          </summary>
+          {practice.map(({ session, title, rows: sheet }) => (
+            <Section key={session} title={title} count={`${sheet.length} entries`}>
+              <DataTable
+                rows={sheet}
+                rowKey={(row) => row.id}
+                sortable={false}
+                page={40}
+                columns={withRenders(PRACTICE_COLUMNS, sessionRenders(year))}
+                footer={practiceFooter(sheet)}
+              />
+            </Section>
+          ))}
+        </details>
+      )}
+
+      {/* The cars entered, the best finisher first (VD-33). Six of them,
+          captioned with the car each one is - a race is twenty machines and an
+          uncaptioned strip is twenty red cars. Below the tables since PD-57:
+          a reader came for the result, and the strip stood between it and
+          the tiles. */}
+      <Photographs images={rows(data, 'images')} subjects />
+
+      {!scheduled && timetable}
 
       <Section title="Where this comes from">
         <Fields

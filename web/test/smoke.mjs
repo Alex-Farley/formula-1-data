@@ -1784,6 +1784,110 @@ try {
     is(railCells.filter((c) => !c.includes('aria-hidden="true"')).length, 0, 'and every one is aria-hidden')
   })
 
+  /*
+   * PD-57: a race page leads with the result. The classification's heading
+   * sits under the tiles inside the first 900 px at 1440, with at least eight
+   * rows showing in the app, and both halves put the rest in one order:
+   * qualifying, the strategy, the practice sheets closed (their tables still
+   * in the page), the photographs, the timetable. The photograph strip and a
+   * run race's timetable used to stand between the tiles and the table, which
+   * put it on the second screen of 1,151 race pages. Before a round is run,
+   * its timetable leads instead.
+   */
+  await section('/races  (the result leads)', async () => {
+    const readLead = (root) => {
+      const main = document.querySelector(root)
+      const clean = (node) => node.textContent.replace(/\s+/g, ' ').trim()
+      const sheets = main.querySelector('details.session-sheets')
+      const classification = [...main.querySelectorAll('h2')].find((h) => clean(h).startsWith('Classification'))
+      const table = classification?.closest('section')?.querySelector('table')
+      const tiles = main.querySelector('.stats, .fields')
+      return {
+        // Each block once, in document order: an h2 outside the disclosure,
+        // and the disclosure by its summary.
+        blocks: [...main.querySelectorAll('h2, details.session-sheets > summary')]
+          .filter((n) => n.tagName === 'SUMMARY' || !n.closest('details.session-sheets'))
+          .map(clean),
+        heading: classification ? classification.getBoundingClientRect().top + window.scrollY : null,
+        tilesEnd: tiles ? tiles.getBoundingClientRect().bottom + window.scrollY : null,
+        rows: table
+          ? [...table.querySelectorAll('tbody tr')].filter((tr) => tr.getBoundingClientRect().bottom <= window.innerHeight).length
+          : 0,
+        sheetsOpen: sheets ? sheets.open : null,
+        sheetTables: sheets ? sheets.querySelectorAll('table').length : 0,
+      }
+    }
+    // Every block named here is on the page, in this order; Photographs may
+    // be absent, since not every race has a car pictured.
+    const inOrder = (blocks, names) => {
+      const at = names.map((name) => blocks.findIndex((b) => b.startsWith(name)))
+      const held = at.filter((i) => i >= 0)
+      return at.every((i, k) => i >= 0 || names[k] === 'Photographs') && held.every((i, k) => k === 0 || i > held[k - 1])
+    }
+    const run = db
+      .prepare(
+        `SELECT r.year, r.round, r.name_used,
+                (SELECT COUNT(DISTINCT p.session) FROM practice p WHERE p.race_id = r.id) AS sheets
+           FROM races r
+          WHERE r.status = 'completed'
+            AND EXISTS (SELECT 1 FROM qualifying q WHERE q.race_id = r.id)
+            AND EXISTS (SELECT 1 FROM pit_stops s WHERE s.race_id = r.id)
+            AND EXISTS (SELECT 1 FROM practice p WHERE p.race_id = r.id)
+            AND EXISTS (SELECT 1 FROM sessions x WHERE x.race_id = r.id)
+          ORDER BY r.year DESC, r.round DESC LIMIT 1`,
+      )
+      .get()
+    if (!run) {
+      fail('no completed race with qualifying, pit stops, practice and a timetable to read the order on')
+      return
+    }
+    const route = `/races/${run.year}/${run.round}`
+    const order = ['Classification', 'Qualifying', 'Pit stops', 'Practice sessions', 'Photographs', 'Timetable']
+    await go(route, run.name_used)
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.evaluate(() => window.scrollTo(0, 0))
+    const app = await page.evaluate(readLead, '#root main')
+    await page.setViewportSize({ width: 1280, height: 900 })
+    const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } })
+    const plain = await noJs.newPage()
+    await plain.goto(`${BASE}${route}`, { waitUntil: 'load' })
+    const served = await plain.evaluate(readLead, '#prerendered')
+    await noJs.close()
+    for (const [half, got] of [['the app', app], ['the static page', served]]) {
+      truthy(
+        inOrder(got.blocks, order),
+        `${route}, ${half}: ${order.join(' → ')} — ${got.blocks.join(' · ')}`,
+      )
+      truthy(
+        got.heading !== null && got.heading > got.tilesEnd && got.heading < 900,
+        `${half}: the classification heading is under the tiles and inside the first 900 px at 1440 — at ${Math.round(got.heading)}, the tiles ending at ${Math.round(got.tilesEnd)}`,
+      )
+      is(got.sheetsOpen, false, `${half}: the practice sheets are behind a closed disclosure`)
+      is(got.sheetTables, run.sheets, `${half}: with all ${run.sheets} of their tables inside it`)
+    }
+    atLeast(app.rows, 8, 'the app shows at least eight rows of the classification on a 1440 × 900 screen')
+
+    // A round not yet run: the timetable is what there is to lead with.
+    const unrun = db
+      .prepare(
+        `SELECT r.year, r.round FROM races r WHERE r.status = 'scheduled'
+            AND EXISTS (SELECT 1 FROM sessions x WHERE x.race_id = r.id)
+          ORDER BY r.year, r.round LIMIT 1`,
+      )
+      .get()
+    if (unrun) {
+      const html = await (await fetch(`${BASE}/races/${unrun.year}/${unrun.round}`)).text()
+      const first = html.match(/<h2>([^<]*)/)?.[1]
+      is(first, 'Timetable', `/races/${unrun.year}/${unrun.round}: the static page of a round not yet run leads with its timetable`)
+      await go(`/races/${unrun.year}/${unrun.round}`, 'Grand Prix')
+      is(
+        (await page.$eval('#root main h2', (h) => h.textContent.trim()).catch(() => null))?.startsWith('Timetable'),
+        true,
+        'and so does the app',
+      )
+    } else pass('no round is scheduled with a timetable, so there is none to lead with')
+  })
+
   await section('/races/1955/1  (a shared drive)', async () => {
     const shared = one('SELECT id FROM races WHERE year = 1955 AND round = 1')
     await go('/races/1955/1')
