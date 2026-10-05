@@ -65,9 +65,20 @@ Two words, either order, both optional.
      list; with `until-paused`, go to step 2 with `next --skip <the list>`,
      so the next fork passes over it rather than meeting it again. Two
      consecutive skips of different items stop the loop: a blocker that
-     hits two unrelated items is the environment, not the items.
-   - `STOP: <reason>`: a stop condition or a person's decision. Stop; print
-     the stock-take. Two of these are the environment rather than the item,
+     hits two unrelated items is the environment, not the items. A hold
+     between them neither counts as one nor resets the count.
+   - `DECIDE <ID>: <question>`: the fork met a person's decision it could
+     hold, so it put the question on the issue (label `decision`), made
+     the items that build on it wait for it, and left the repository clean.
+     Nothing is half-done and the queue can carry on: with `until-paused`,
+     go to step 2 with `next` and the same skip list - `next.py` passes over
+     a `decision` label on its own; otherwise stop and print the stock-take.
+     Keep the id for the stock-take's decisions line. Two holds in a row
+     are two questions for a person, not a broken environment; **three with
+     no merge between them stop the loop**, because a classifier or a rule refusing every item
+     would otherwise label the whole queue one fork at a time `[D-52]`.
+   - `STOP: <reason>`: a stop condition, or a person's decision the fork
+     could not hold. Stop; print the stock-take. Two of these are the environment rather than the item,
      and both are a person's to clear: the fork's `start-check.sh` refusing
      because this checkout is on a feature branch or has uncommitted changes
      — a session worked in it directly instead of in a worktree — and

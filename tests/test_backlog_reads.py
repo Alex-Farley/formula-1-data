@@ -77,14 +77,14 @@ class TheBoardRead(unittest.TestCase):
         # first would quietly hand back a board ending at item 100.
         raw = page([issue(1, "Now")], True) + "\n" + page([issue(2, "Next")])
         with self.reply(raw):
-            self.assertEqual(next_py.board_rows(), [(1, "Now"), (2, "Next")])
+            self.assertEqual(next_py.board_rows(), [(1, "Now", 0), (2, "Next", 0)])
 
     def test_the_boards_own_order_is_kept(self):
         # Not sorted, not by number: the order is what a person drags, and it
         # is the whole ranking `next.py` exists to read.
         raw = page([issue(9, "Now"), issue(3, "Now"), issue(7, "Next")])
         with self.reply(raw):
-            self.assertEqual([n for n, _ in next_py.board_rows()], [9, 3, 7])
+            self.assertEqual([n for n, *_ in next_py.board_rows()], [9, 3, 7])
 
     def test_a_draft_or_a_pull_request_on_the_board_is_not_an_item(self):
         raw = page([{"content": {"__typename": "DraftIssue"}, "fieldValueByName": {"name": "Now"}},
@@ -92,14 +92,14 @@ class TheBoardRead(unittest.TestCase):
                      "fieldValueByName": {"name": "Now"}},
                     issue(5, "Now")])
         with self.reply(raw):
-            self.assertEqual(next_py.board_rows(), [(5, "Now")])
+            self.assertEqual(next_py.board_rows(), [(5, "Now", 0)])
 
     def test_an_item_with_no_status_reads_as_no_status_not_as_a_crash(self):
         # An issue auto-added in the web UI has no Status, and `load()` files
         # it under *unplaced* rather than losing it.
         raw = page([{"content": {"__typename": "Issue", "number": 4}, "fieldValueByName": None}])
         with self.reply(raw):
-            self.assertEqual(next_py.board_rows(), [(4, "")])
+            self.assertEqual(next_py.board_rows(), [(4, "", 0)])
 
     def test_ids_are_asked_for_only_by_the_reader_that_needs_them(self):
         # `file.py rank` takes the project's and items' ids from this read,
@@ -113,8 +113,20 @@ class TheBoardRead(unittest.TestCase):
             "pageInfo": {"hasNextPage": False, "endCursor": None},
             "nodes": [dict(issue(1, "Now"), id="I1")]}}}}})
         with mock.patch.object(next_py, "run", lambda *a: asked.append(a) or raw):
-            self.assertEqual(next_py.board_items(ids=True), ("P", [(1, "Now", "I1")]))
+            self.assertEqual(next_py.board_items(ids=True), ("P", [(1, "Now", "I1", 0)]))
         self.assertIn("ids=true", asked[1])
+
+    def test_an_item_blocked_by_an_open_issue_carries_the_count(self):
+        # GitHub's own dependency summary, a scalar beside the number, so an
+        # item that builds on one held for a decision is not the next fork's
+        # to take `AF-85`. An issue with no summary reads as nothing waiting.
+        waiting = dict(issue(6, "Next"))
+        waiting["content"] = dict(waiting["content"], issueDependenciesSummary={"blockedBy": 1})
+        raw = page([waiting, issue(7, "Next")])
+        asked = []
+        with mock.patch.object(next_py, "run", lambda *a: asked.append(a) or raw):
+            self.assertEqual(next_py.board_rows(), [(6, "Next", 1), (7, "Next", 0)])
+        self.assertIn("issueDependenciesSummary { blockedBy }", " ".join(asked[0]))
 
     def test_ids_asked_for_and_missing_stop_rather_than_reach_a_write(self):
         # A missing item id would go out as a null `afterId`, which GitHub

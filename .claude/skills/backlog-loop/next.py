@@ -23,6 +23,13 @@ it was docs/BACKLOG.md, and this script read that file. What it reads now:
   never returned as next; `blocked` is an ordinary blocker a fork recorded
   (the comment says what) and is passed over, as `--skip` passes over ids
   the driver names.
+- the issue's *blocked by* relationships, GitHub's own issue dependencies:
+  an item blocked by an issue that is still open waits, is never returned as
+  next and never proposed as a companion, and is flagged `[waits]` in
+  `--list`. `file.py blocked-by` records one. It is how the items that build
+  on an item held for a person's decision stay out of the next fork's hands
+  without a label anyone must remember to take off: the dependency lifts on
+  its own when the item it waits on closes `AF-85` `[D-52]`.
 - open issues only. A closed issue stays on the board as *Done*. An open
   issue with no Status (filed in the web UI and auto-added) or with *Done*
   while still open is not lost: it is listed under every item as
@@ -186,8 +193,12 @@ def gh(*args):
     return json.loads(run(*args))
 
 
-# Number and status, and nothing else. `fieldValueByName` is the whole
-# reason this is written out rather than left to `gh project item-list`.
+# Number, status and how many open issues block it, and nothing else.
+# `fieldValueByName` is the whole reason this is written out rather than left
+# to `gh project item-list`. The blocker count is the scalar summary, not the
+# `blockedBy` connection: a nested connection under every one of the board's
+# items is the expensive kind of read `[D-27]`, and whether an item waits is
+# all `next.py` asks of it `AF-85`.
 # `$ids` adds the project's id and each item's, which only `file.py rank`
 # needs: it places items from this one read instead of three `AF-81`, and
 # every other reader goes on asking for exactly what it did before.
@@ -200,7 +211,7 @@ query($owner: String!, $number: Int!, $endCursor: String, $ids: Boolean = false)
         pageInfo { hasNextPage endCursor }
         nodes {
           id @include(if: $ids)
-          content { __typename ... on Issue { number } }
+          content { __typename ... on Issue { number issueDependenciesSummary { blockedBy } } }
           fieldValueByName(name: "Status") {
             ... on ProjectV2ItemFieldSingleSelectValue { name }
           }
@@ -213,15 +224,15 @@ query($owner: String!, $number: Int!, $endCursor: String, $ids: Boolean = false)
 
 
 def board_rows():
-    """[(issue number, status)], in the board's own order, top to bottom.
-    `board_items()` is the read; this is the shape every reader but
+    """[(issue number, status, open blockers)], in the board's own order, top
+    to bottom. `board_items()` is the read; this is the shape every reader but
     `file.py rank` wants."""
-    return [(number, status) for number, status, _ in board_items()[1]]
+    return [(number, status, waits) for number, status, _, waits in board_items()[1]]
 
 
 def board_items(ids=False):
-    """(project id, [(issue number, status, item id)]), the items in the
-    board's own order. Both ids are None unless `ids` asks for them, and with
+    """(project id, [(issue number, status, item id, open blockers)]), the
+    items in the board's own order. Both ids are None unless `ids` asks for them, and with
     `ids` a missing one stops the read rather than reaching a mutation.
 
     `gh project item-list --format json` has no field selection: it returns
@@ -272,7 +283,8 @@ def board_items(ids=False):
                 continue
             rows.append((content["number"],
                          (node.get("fieldValueByName") or {}).get("name") or "",
-                         node.get("id")))
+                         node.get("id"),
+                         ((content.get("issueDependenciesSummary") or {}).get("blockedBy") or 0)))
     if not pages:
         # gh exited 0 and said nothing. Every other way this read can come up
         # short raises or exits; this one would return an empty board, and an
@@ -281,7 +293,7 @@ def board_items(ids=False):
         # The shortest short board is the one that has to be loudest (found
         # in review).
         die("the board read returned nothing; gh exited 0 with empty output")
-    if ids and (not project_id or any(not item for _, _, item in rows)):
+    if ids and (not project_id or any(not item for _, _, item, _ in rows)):
         # A write against a missing id is a write against nothing, or worse,
         # a `null` afterId - which GitHub reads as "the top of the board".
         die("the board read asked for ids and came back without some of them")
@@ -324,14 +336,15 @@ def load(allow_cache=False, bodies=False):
     open_issues = {i["number"]: i for i in gh("issue", "list", "--repo", REPO, "--state", "open",
                                               "--limit", "1000", "--json", fields)}
     rows = []
-    for n, status in board:
+    for n, status, *waits in board:
         issue = open_issues.get(n)
         if issue is None:
             continue
         m = ID.match(issue["title"])
         rows.append(dict(status=status, number=n, ident=m.group(1) if m else f"#{n}",
                          title=issue["title"], labels=sorted(lb["name"] for lb in issue["labels"]),
-                         body=issue.get("body") or "", url=issue["url"]))
+                         body=issue.get("body") or "", url=issue["url"],
+                         waits=(waits[0] if waits else 0) or 0))
     ranked = [r for s in QUEUE for r in rows if r["status"] == s]
     in_progress = [r for r in rows if r["status"] == "In progress"]
     # Open, on the board, and in no queue status: no Status at all, or Done
@@ -370,7 +383,9 @@ def size_of(row):
 
 
 def eligible(row, skip):
-    return (row["ident"] not in skip
+    # `waits` is read with .get: a queue cached before AF-85 has no such key,
+    # and a row with no count is a row nothing was recorded as blocking.
+    return (row["ident"] not in skip and not row.get("waits")
             and "decision" not in row["labels"] and "blocked" not in row["labels"])
 
 
@@ -584,6 +599,8 @@ def main(argv):
         rows = unplaced if name == "unplaced" else [r for r in everything if r["status"] == name]
         for r in rows:
             flags = "".join(f" [{f}]" for f in ("decision", "blocked") if f in r["labels"])
+            if r.get("waits"):
+                flags += " [waits]"
             if name == "unplaced":
                 flags += f" (status: {r['status'] or 'none'})"
             size = next((lb[6:] for lb in r["labels"] if lb.startswith("size: ")), "-")
@@ -602,7 +619,7 @@ def main(argv):
     else:
         head = first_eligible(ranked, skip)
         if head is None:
-            sys.exit(f"no open item under {', '.join(QUEUE)} that is not a decision, blocked or in progress"
+            sys.exit(f"no open item under {', '.join(QUEUE)} that is not a decision, blocked, waiting or in progress"
                      + (f"; {len(unplaced)} unplaced (--list unplaced)" if unplaced else ""))
         heads = [head]
 

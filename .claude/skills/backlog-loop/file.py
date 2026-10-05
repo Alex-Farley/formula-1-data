@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
 Write to the queue: file an item, move one between statuses, mark one,
-record a ruling on one, or rank one within its status.
+record a ruling on one, make one wait on another, or rank one within its
+status.
 
     python3 .claude/skills/backlog-loop/file.py new PD "Title." --size S --status Next --body-file note.md
     python3 .claude/skills/backlog-loop/file.py new AF "Title." --size M --body "one paragraph" --decision
@@ -9,6 +10,7 @@ record a ruling on one, or rank one within its status.
     python3 .claude/skills/backlog-loop/file.py status 123 "In progress"     # or Now, Next, Someday, Done
     python3 .claude/skills/backlog-loop/file.py blocked 123 "why, in one clause"
     python3 .claude/skills/backlog-loop/file.py decision 123 "what a person must decide"
+    python3 .claude/skills/backlog-loop/file.py blocked-by 124 125 --on 123   # 124 and 125 wait for 123 to close
     python3 .claude/skills/backlog-loop/file.py decline 123 "why, in one line"
     python3 .claude/skills/backlog-loop/file.py decided 123 "option B; A and C stay rejected because ..."
     python3 .claude/skills/backlog-loop/file.py rank 123 --top          # or --bottom, --after 45, --before 45
@@ -44,6 +46,14 @@ adds the label that keeps the loop off it.
 and refuses a closed one, so a landed record cannot be turned into a
 declined one by a wrong number; `blocked` and `decision` add the label and a comment, so the record of why
 is on the item, not in a fork's context that is about to be discarded.
+
+`blocked-by` records GitHub's own issue dependency: each issue named waits
+until the `--on` issue closes, and `next.py` passes over an issue blocked by
+an open one. It is for the items that build on one held for a person's
+decision: a label on each of them would have to be taken off again by hand
+once the decision was made and the item landed, and a dependency lifts on
+its own. An issue blocking itself, or a closed one, is refused before any
+write `AF-85` `[D-52]`.
 
 `decided` writes a ruling where a fork will read it: into the body, which
 `next.py` prints, rather than only into a comment, which it does not. The
@@ -368,6 +378,30 @@ def decided(a):
     print(f"#{a.number} decided")
 
 
+BLOCKED_BY = """mutation($issue: ID!, $blocker: ID!) {
+  addBlockedBy(input: {issueId: $issue, blockingIssueId: $blocker}) { clientMutationId }
+}"""
+
+
+def blocked_by(a):
+    if a.on in a.numbers:
+        sys.exit(f"#{a.on} cannot wait on itself")
+    issues = {}
+    for n in [a.on, *a.numbers]:
+        issues[n] = gh("issue", "view", str(n), "--repo", REPO, "--json", "id,state,title", as_json=True)
+    # Every read before any write: a dependency on a closed issue is already
+    # lifted, and a wrong number caught on the third of three would leave two
+    # written that the person never meant.
+    shut = [n for n, i in issues.items() if i["state"] != "OPEN"]
+    if shut:
+        sys.exit("closed, so nothing to wait on or for: " + ", ".join(f"#{n}" for n in shut))
+    loop_cache.drop("queue")
+    for n in a.numbers:
+        gh("api", "graphql", "-f", f"query={BLOCKED_BY}",
+           "-f", f"issue={issues[n]['id']}", "-f", f"blocker={issues[a.on]['id']}")
+        print(f"#{n} blocked by #{a.on}")
+
+
 def rank_after(rows, number, how, other=None, moving=()):
     """The issue number `number` should sit directly after once moved, or
     None for the top of its status. `rows` is next.py's board_rows(), in the
@@ -433,8 +467,8 @@ def rank_plan(rows, numbers, how, other=None):
 def rank(a):
     how = "top" if a.top else "bottom" if a.bottom else "after" if a.after else "before"
     proj_id, items = next_py.board_items(ids=True)
-    plan = rank_plan([(n, s) for n, s, _ in items], a.numbers, how, a.after or a.before)
-    ids = {n: i for n, _, i in items}
+    plan = rank_plan([(n, s) for n, s, *_ in items], a.numbers, how, a.after or a.before)
+    ids = {n: i for n, _, i, *_ in items}
     if not plan:
         print("already in that order; nothing moved")
         return
@@ -479,6 +513,9 @@ def main():
         q = sub.add_parser(name)
         q.add_argument("number", type=int)
         q.add_argument("reason")
+    b = sub.add_parser("blocked-by")
+    b.add_argument("numbers", type=int, nargs="+", metavar="number")
+    b.add_argument("--on", type=int, required=True, metavar="N", help="the issue they wait for")
     r = sub.add_parser("rank")
     r.add_argument("numbers", type=int, nargs="+", metavar="number")
     where = r.add_mutually_exclusive_group(required=True)
@@ -500,6 +537,8 @@ def main():
         decline(a)
     elif a.cmd == "decided":
         decided(a)
+    elif a.cmd == "blocked-by":
+        blocked_by(a)
     elif a.cmd == "rank":
         rank(a)
 

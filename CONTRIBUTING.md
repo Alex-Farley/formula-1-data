@@ -221,7 +221,10 @@ progress* means a worktree is open on it. The loop takes the first item under
 *Now*, then *Next*, then *Someday*, and passes over two labels: `decision` —
 a person's call, put on an issue with what must be decided, worked around
 and never taken by an autonomous run — and `blocked` — an ordinary blocker a
-run met, with a comment saying what.
+run met, with a comment saying what. It passes over, too, an issue GitHub
+records as *blocked by* one still open: `file.py blocked-by <n> --on <m>`
+writes that, for the items that build on one held for a decision, and it
+lifts on its own when `<m>` closes `[D-52]`.
 
 **Ruling on a decision.** `file.py decided <n> "<the option chosen, and why
 the others stay rejected>"` writes the ruling into the body as a
