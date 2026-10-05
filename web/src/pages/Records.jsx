@@ -230,8 +230,8 @@ function Body({ data }) {
               columns: [
                 { key: 'full_name', label: 'Driver', rowHeader: true, render: (name, row) => <Link to={`/drivers/${row.driver_id}`}>{name}</Link> },
                 { key: 'wins', label: 'Wins', align: 'num' },
-                { key: 'first_win', label: 'First', align: 'num' },
-                { key: 'last_win', label: 'Last', align: 'num' },
+                { key: 'first_win', label: 'First', align: 'num', text: (year) => String(year) },
+                { key: 'last_win', label: 'Last', align: 'num', text: (year) => String(year) },
               ],
             }}
           >
@@ -293,8 +293,8 @@ function Body({ data }) {
               },
               { key: 'country', label: 'Country' },
               { key: 'wins', label: 'Wins', align: 'num' },
-              { key: 'first_win', label: 'First', align: 'num' },
-              { key: 'last_win', label: 'Last', align: 'num' },
+              { key: 'first_win', label: 'First', align: 'num', text: (year) => String(year) },
+              { key: 'last_win', label: 'Last', align: 'num', text: (year) => String(year) },
               { key: 'constructors_titles', label: "Constructors' titles", align: 'num' },
             ],
           }}
@@ -358,7 +358,7 @@ function Body({ data }) {
               share: percent(r.pole_converted, r.races),
             })),
             columns: [
-              { key: 'year', label: 'Season', align: 'num', rowHeader: true },
+              { key: 'year', label: 'Season', align: 'num', rowHeader: true, text: (year) => String(year) },
               { key: 'races', label: 'Races', align: 'num' },
               { key: 'pole_converted', label: 'Won from pole', align: 'num' },
               { key: 'share', label: 'Share', align: 'num' },

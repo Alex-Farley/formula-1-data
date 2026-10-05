@@ -1667,3 +1667,38 @@ describe('type, weight and spacing are steps on the scales in tokens.css (VD-03)
     }
   })
 })
+
+describe('a season is printed as written, never as a quantity (PD-63)', () => {
+  // DataTable's default cell sends a number through format.js's number(),
+  // which separates thousands: right for 12,345 entries, wrong for a year,
+  // which every figure's "numbers behind this chart" printed as 1,950 until
+  // PD-63. So a column keyed on a year says how it prints - a `text`, or a
+  // `render`, in the literal that declares it - and a new one cannot fall
+  // back to the quantity format by leaving it out. An app overlay that adds
+  // a link elsewhere is not enough: a figure's table takes none, and a column
+  // reused somewhere without its overlay would print the separator again.
+  const YEAR_KEYS = /^(year|decade|(first|last)_(win|year|season|held|gp|entry)|(from|to|banned)_year|active_(from|to))$/
+
+  it('every column keyed on a year declares how it prints', () => {
+    const bare = []
+    for (const file of sourceFiles(join(web, 'src'), /\.jsx?$/)) {
+      const source = read(file)
+      for (const match of source.matchAll(/\bkey: '([a-z_]+)'/g)) {
+        if (!YEAR_KEYS.test(match[1])) continue
+        // The column literal: from the brace that opens it to the one that
+        // closes it, so a declaration over several lines is read whole.
+        const open = source.lastIndexOf('{', match.index)
+        let depth = 0
+        let close = open
+        for (; close < source.length; close++) {
+          if (source[close] === '{') depth++
+          else if (source[close] === '}' && --depth === 0) break
+        }
+        if (!/\b(text|render):/.test(source.slice(open, close + 1))) {
+          bare.push(`${rel(file)}:${source.slice(0, match.index).split('\n').length} ${match[1]}`)
+        }
+      }
+    }
+    assert.deepEqual(bare, [], 'a year column with no text or render prints 1,950')
+  })
+})

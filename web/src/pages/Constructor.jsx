@@ -231,7 +231,7 @@ function ConstructorBody({ constructor, data }) {
             table={{
               rows: seasonsAsc,
               columns: [
-                { key: 'year', label: 'Season', align: 'num', rowHeader: true },
+                { key: 'year', label: 'Season', align: 'num', rowHeader: true, text: (year) => String(year) },
                 { key: 'wins', label: 'Wins', align: 'num' },
                 { key: 'entries', label: 'Entries', align: 'num' },
               ],
