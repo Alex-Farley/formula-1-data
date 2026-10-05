@@ -4780,6 +4780,15 @@ def _stage_36b_the_photographs_filed_under_each_race(b):
         if HV.CREDIT_BOILERPLATE.match(shown):
             raise SystemExit(f"{where}'s {f} would be credited {shown!r}, "
                              f"which names nobody.")
+        # A licence paragraph as the credit, or the unknown-author value
+        # where the credit names the source (CR-70): the harvest stores the
+        # fields as clean_credit leaves them, so a row it would change is
+        # one the harvest did not write.
+        if HV.clean_credit(im.get("artist"), im.get("credit")) != (
+                im.get("artist"), im.get("credit")):
+            raise SystemExit(f"{where}'s {f} carries artist and credit the "
+                             f"credit rule would change; rerun "
+                             f"tools/wikimedia_images.py --credits.")
         if any(HV.CREDIT_PERMISSION.search(im.get(c) or "")
                for c in ("artist", "credit")):
             raise SystemExit(f"{where}'s {f} is credited as uploaded on "

@@ -198,31 +198,10 @@ function ConstructorBody({ constructor, data }) {
         />
       </Section>
 
-      {/* The cars, oldest first - the order "Cars built" prints them in
-          further down. Six of them: this is a team's page, not a gallery, and
-          the table below it lists every design with a link to its own page. */}
-      <Photographs images={images} subjects />
-
-      {lineage.length > 1 && (
-        <Section
-          title={lineage[0].chain_name}
-          note="One factory, several names. Each name keeps its own record here; the chain is what connects them."
-        >
-          <div className="timeline">
-            {lineage.map((step) => (
-              <article key={step.id}>
-                <h3>
-                  {step.entity_name}
-                  <span className="years">{span(step.from_year, step.to_year)}</span>
-                  {step.entity_name === constructor.name && <span className="pill">this page</span>}
-                </h3>
-                {step.note && <p>{step.note}</p>}
-              </article>
-            ))}
-          </div>
-        </Section>
-      )}
-
+      {/* What leads (PD-58): the tiles, then the shape of the team's
+          success, then the season table - after the lineage and any
+          disagreement, which say how to read it. The photographs and the
+          exhaustive lists follow; scripts/prerender.js keeps the order. */}
       {winsBySeason.length > 1 && (
         <Section title="Wins by season">
           <Figure
@@ -253,6 +232,26 @@ function ConstructorBody({ constructor, data }) {
         </Section>
       )}
 
+      {lineage.length > 1 && (
+        <Section
+          title={lineage[0].chain_name}
+          note="One factory, several names. Each name keeps its own record here; the chain is what connects them."
+        >
+          <div className="timeline">
+            {lineage.map((step) => (
+              <article key={step.id}>
+                <h3>
+                  {step.entity_name}
+                  <span className="years">{span(step.from_year, step.to_year)}</span>
+                  {step.entity_name === constructor.name && <span className="pill">this page</span>}
+                </h3>
+                {step.note && <p>{step.note}</p>}
+              </article>
+            ))}
+          </div>
+        </Section>
+      )}
+
       <Disagreement rows={rows(data, 'disagreements')} what="this team" />
 
       <Section title="Season by season" count={`${bySeason.length} seasons`}>
@@ -265,6 +264,14 @@ function ConstructorBody({ constructor, data }) {
           footer={engineSplit ? ENGINE_SPLIT_FOOTER : undefined}
         />
       </Section>
+
+      {/* The cars, oldest first - the order "Cars built" prints them in
+          further down. Six of them: this is a team's page, not a gallery, and
+          the table below it lists every design with a link to its own page.
+          Below the season table, not above the chart (PD-58): the strip
+          used to stand between the tiles and *Wins by season*, and pushed
+          the page's best answer off the first screen. */}
+      <Photographs images={images} subjects />
 
       {wins.length > 0 && (
         <Section title="Every win" count={`${wins.length}`}>

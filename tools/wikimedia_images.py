@@ -248,10 +248,7 @@ is the order the API returns and does not change between runs, and checks 1
 to 3 apply as on the category route - the answer came from Commons for a
 page in the File namespace, so `repository` is `commons`. Two more apply to
 the credit, because a race keeps twelve files where a car keeps one and
-meets Commons' odd fields more often: a field holding Commons' own
-boilerplate ("Own work", "I, the copyright holder of this work ...") is read
-as empty, so the other field speaks or the file names nobody and is
-refused (CREDIT_BOILERPLATE); and a credit claiming somebody else's
+meets Commons' odd fields more often: a credit claiming somebody else's
 permission is a grant in doubt and is refused (CREDIT_PERMISSION). The
 first RACE_PHOTOGRAPHS_KEPT that pass are kept.
 
@@ -716,25 +713,27 @@ def admit(article, file_name, meta, chassis_ids, log, route="article"):
         log.append(f"{article}\tREFUSED\t{file_name} requires attribution "
                    f"and names no author")
         return None
-    # The race route keeps several files a race and so meets the public-
-    # domain file with nobody named far more often than one lead image does.
-    # The build and verify.py refuse a row with nobody to credit whatever
-    # its licence asks, and the page fails closed on one, so it is refused
-    # here rather than written for the build to stop on. A field holding
-    # Commons' own boilerplate ("Own work") names nobody either, and is read
-    # as empty, so the other field speaks or the file is refused
-    # (data/harvest.py CREDIT_BOILERPLATE); a credit claiming somebody
-    # else's permission is a grant in doubt (CREDIT_PERMISSION).
+    # The credit fields as every route stores them (data/harvest.py
+    # clean_credit, CR-70): Commons' own boilerplate ("Own work") read as
+    # empty, a licence paragraph in the author field cut to the name, and
+    # the unknown-author value read as empty where the credit names the
+    # source. The build and verify.py refuse a row with nobody to credit
+    # whatever its licence asks, and the page fails closed on one, so a file
+    # left naming nobody is refused here rather than written for the build
+    # to stop on - on every route, so no route's refresh can meet "Own work"
+    # and fail verify.py on it.
+    H, _register = circuit_data()
+    meta = dict(meta)
+    meta["artist"], meta["credit"] = H.clean_credit(meta["artist"],
+                                                    meta["credit"])
+    if not (meta["artist"] or meta["credit"]):
+        log.append(f"{article}\tREFUSED\t{file_name} names nobody to "
+                   f"credit")
+        return None
+    # The race route keeps several files a race and so meets Commons' odd
+    # fields far more often than one lead image does: a credit claiming
+    # somebody else's permission is a grant in doubt (CREDIT_PERMISSION).
     if route == "race":
-        H, _register = circuit_data()
-        meta = dict(meta)
-        for field in ("artist", "credit"):
-            if meta[field] and H.CREDIT_BOILERPLATE.match(meta[field]):
-                meta[field] = None
-        if not (meta["artist"] or meta["credit"]):
-            log.append(f"{article}\tREFUSED\t{file_name} names nobody to "
-                       f"credit")
-            return None
         if any(H.CREDIT_PERMISSION.search(meta[f] or "")
                for f in ("artist", "credit")):
             log.append(f"{article}\tREFUSED\t{file_name} is credited as "
@@ -1497,9 +1496,15 @@ def main():
     ap.add_argument("--thumbs", action="store_true",
                     help="refresh thumb_url in the four committed files and "
                          "nothing else")
+    ap.add_argument("--credits", action="store_true",
+                    help="re-read artist and credit in the four committed "
+                         "files through the credit rule, offline, and "
+                         "nothing else")
     args = ap.parse_args()
     if args.thumbs:
         return main_thumbs()
+    if args.credits:
+        return main_credits()
     if args.route == "category":
         return main_category(args)
     if args.route == "circuit":
@@ -1603,6 +1608,65 @@ def main():
 
 
 THUMBS_NOTE = "# thumb_url last fetched by tools/wikimedia_images.py --thumbs on "
+CREDITS_NOTE = ("# artist and credit last re-read by tools/wikimedia_images.py "
+                "--credits on ")
+
+# The four committed files: name, the column a row is keyed on, the columns
+# this tool writes, and the API that answers for the route's files.
+COMMITTED = (("article_images.txt", "article", COLUMNS, API),
+             ("category_images.txt", "chassis_id", CAT_COLUMNS, COMMONS_API),
+             ("circuit_images.txt", "circuit_id", CIRCUIT_COLUMNS, API),
+             ("race_images.txt", "category", RACE_COLUMNS, COMMONS_API))
+
+
+def read_committed(name, columns, own_note):
+    """A committed file's notes and rows, read by its column header the way
+    data/harvest.py reads it. `own_note` is the dated note of the pass
+    reading it, dropped so the pass writes it afresh."""
+    path = os.path.join(HARVEST, name)
+    with open(path, encoding="utf-8") as fh:
+        lines = fh.read().splitlines()
+    notes = [ln for ln in lines if ln.startswith("#") and "|" not in ln
+             and not ln.startswith(own_note)]
+    header = [ln for ln in lines if ln.startswith("#") and "|" in ln]
+    if len(header) != 1:
+        raise SystemExit(f"{name}: expected one column header, "
+                         f"found {len(header)}")
+    cols = header[0].lstrip("# ").split("|")
+    missing = [c for c in columns if c not in cols and c != "thumb_url"]
+    if missing:
+        raise SystemExit(f"{name}: no column {', '.join(missing)}")
+    # Written back by this tool's own list, so a column it does not know
+    # would vanish. Refused instead: that file wants a full run.
+    unknown = [c for c in cols if c not in columns]
+    if unknown:
+        raise SystemExit(f"{name}: column {', '.join(unknown)} is not one "
+                         f"this tool writes; rerun the full harvest")
+    rows = []
+    for ln in lines:
+        if not ln.strip() or ln.startswith("#"):
+            continue
+        parts = ln.split("|")
+        if len(parts) != len(cols):
+            raise SystemExit(f"{name}: {len(parts)} fields where the "
+                             f"header names {len(cols)}: {ln[:60]}")
+        rows.append(dict(zip(cols, parts)))
+    return notes, rows
+
+
+def write_committed(name, columns, notes, rows, note):
+    """Write a committed file back line for line, with `note` dated under
+    the notes it already carried."""
+    path = os.path.join(HARVEST, name)
+    with open(path, "w", encoding="utf-8") as fh:
+        for ln in notes:
+            fh.write(ln + "\n")
+        fh.write(note + time.strftime("%Y-%m-%d")
+                 + "; no file was chosen afresh.\n")
+        fh.write("# " + "|".join(columns) + "\n")
+        for r in rows:
+            fh.write("|".join(r.get(c) or "" for c in columns) + "\n")
+    print(f"wrote {path}")
 
 
 def main_thumbs():
@@ -1612,39 +1676,8 @@ def main_thumbs():
     and written back line for line: the rows, their order and their credits
     are the dated run's. Only the column and a dated note in the header move.
     """
-    for name, key, columns, endpoint in (
-            ("article_images.txt", "article", COLUMNS, API),
-            ("category_images.txt", "chassis_id", CAT_COLUMNS, COMMONS_API),
-            ("circuit_images.txt", "circuit_id", CIRCUIT_COLUMNS, API),
-            ("race_images.txt", "category", RACE_COLUMNS, COMMONS_API)):
-        path = os.path.join(HARVEST, name)
-        with open(path, encoding="utf-8") as fh:
-            lines = fh.read().splitlines()
-        notes = [ln for ln in lines if ln.startswith("#") and "|" not in ln
-                 and not ln.startswith(THUMBS_NOTE)]
-        header = [ln for ln in lines if ln.startswith("#") and "|" in ln]
-        if len(header) != 1:
-            raise SystemExit(f"{name}: expected one column header, "
-                             f"found {len(header)}")
-        cols = header[0].lstrip("# ").split("|")
-        missing = [c for c in columns if c not in cols and c != "thumb_url"]
-        if missing:
-            raise SystemExit(f"{name}: no column {', '.join(missing)}")
-        # Written back by this tool's own list, so a column it does not know
-        # would vanish. Refused instead: that file wants a full run.
-        unknown = [c for c in cols if c not in columns]
-        if unknown:
-            raise SystemExit(f"{name}: column {', '.join(unknown)} is not one "
-                             f"this tool writes; rerun the full harvest")
-        rows = []
-        for ln in lines:
-            if not ln.strip() or ln.startswith("#"):
-                continue
-            parts = ln.split("|")
-            if len(parts) != len(cols):
-                raise SystemExit(f"{name}: {len(parts)} fields where the "
-                                 f"header names {len(cols)}: {ln[:60]}")
-            rows.append(dict(zip(cols, parts)))
+    for name, key, columns, endpoint in COMMITTED:
+        notes, rows = read_committed(name, columns, THUMBS_NOTE)
         print(f"{name}: {len(rows)} rows", flush=True)
         info = file_info(sorted({r["file_name"] for r in rows}), [],
                          endpoint=endpoint)
@@ -1653,15 +1686,38 @@ def main_thumbs():
                               ).get("thumb_url")
         for line in check_thumbs(rows, key):
             print("  " + line.replace("\t", "  "))
-        with open(path, "w", encoding="utf-8") as fh:
-            for ln in notes:
-                fh.write(ln + "\n")
-            fh.write(THUMBS_NOTE + time.strftime("%Y-%m-%d")
-                     + "; no file was chosen afresh.\n")
-            fh.write("# " + "|".join(columns) + "\n")
-            for r in rows:
-                fh.write("|".join(r.get(c) or "" for c in columns) + "\n")
-        print(f"wrote {path}")
+        write_committed(name, columns, notes, rows, THUMBS_NOTE)
+
+
+def main_credits():
+    """Re-read artist and credit in the four committed files through the
+    credit rule admit() applies (data/harvest.py clean_credit), and change
+    nothing else. Nothing is fetched: the rule reads the two fields as
+    Commons answered them, which is what the files hold, so this is the
+    answer a full run would give for the same files without choosing any
+    afresh. A row the rule would leave naming nobody is not dropped here -
+    that is choosing - and stops the pass instead, for a full run of its
+    route."""
+    H, _register = circuit_data()
+    for name, _key, columns, _endpoint in COMMITTED:
+        notes, rows = read_committed(name, columns, CREDITS_NOTE)
+        changed, nobody = 0, []
+        for r in rows:
+            artist, credit = H.clean_credit(r["artist"] or None,
+                                            r["credit"] or None)
+            if not (artist or credit):
+                nobody.append(r["file_name"])
+            if (artist or "", credit or "") != (r["artist"], r["credit"]):
+                changed += 1
+                r["artist"], r["credit"] = artist or "", credit or ""
+        if nobody:
+            raise SystemExit(f"{name}: {len(nobody)} rows would name nobody "
+                             f"to credit ({'; '.join(nobody[:3])}); rerun "
+                             f"the full harvest of that route")
+        print(f"{name}: {len(rows)} rows, {changed} credits re-read",
+              flush=True)
+        if changed:
+            write_committed(name, columns, notes, rows, CREDITS_NOTE)
 
 
 if __name__ == "__main__":

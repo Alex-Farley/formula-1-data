@@ -860,8 +860,8 @@ the race was run under, exactly (`Category:1967 Dutch Grand Prix`), filed by
 Commons as that season's Formula One, for a race that has been run. Only
 the files filed directly under it, only JPEGs, none whose name carries a
 copyright mark, none another race's category also holds and one version
-of a photograph filed twice, in title order; a credit that is Commons'
-boilerplate or claims somebody else's permission is refused.
+of a photograph filed twice, in title order; a credit that claims somebody
+else's permission is refused.
 A category holds what is *of* a race as well as what is *from* it — the first
 run took the 1995 winner's trophy photographed in a private collection in
 2019 — so a file whose name says trophy, ticket, museum, collection or map,
@@ -873,6 +873,19 @@ race. The claim is the category route's — a Commons editor filed the file
 there — and so is the rung, `catalogued`. The race page shows them first,
 under a heading that says they are of that race, and the cars after them
 under one that says what they are.
+
+**What a credit says.** A page credits a photograph's artist, or its credit
+field where there is no artist, and every route's harvest reads the two
+fields the same way before storing them. Commons' own boilerplate — "Own
+work", or the opening of its licence sentence — is read as empty, so the
+other field speaks or the file is refused for naming nobody. An author field
+that carries the whole licence paragraph is cut to the name before it; the
+file page the credit links keeps the full terms. Where the artist is
+Commons' unknown-author value and the credit field names the source — a
+newspaper, a magazine, an archive — the source is what is stored and shown;
+where the credit names nobody either (a footnote marker, "here", a note that
+the file was transferred from another wiki), "Unknown author" stays. A bare
+link is left as it is, because a link is an acceptable credit under CC BY.
 
 ### Centrelines — `circuit_geometry`
 

@@ -1896,6 +1896,50 @@ const page = ({
           ? null
           : '—'
 
+    // What leads (PD-58), in Season.jsx's order: a season with a round still
+    // to run reads its calendar before standings that are not final yet, a
+    // concluded one reads who won first. The grid, the photographs and the
+    // entrants follow both.
+    const seasonCalendar = `
+  <h2>The calendar</h2>
+  ${outlineStrip(year, calendar)}
+  ${fromColumns(CALENDAR_COLUMNS, calendar, {
+    name_used: (name, row) => `${link(`races/${year}/${row.round}`, name)}${row.sprint ? ` ${tag(SPRINT)}` : ''}`,
+    circuit: (name, row) => (row.circuit_id ? link(`circuits/${row.circuit_id}`, name ?? row.circuit_id) : text(name)),
+    winner: (name, row) =>
+      row.status !== 'completed'
+        ? tag(NOT_YET_RUN)
+        : row.winner_id && !String(name ?? '').includes(' / ')
+          ? link(`drivers/${row.winner_id}`, name)
+          : text(name),
+    // Nothing on a round still to come, as the app draws it: the
+    // Winner cell beside it carries the "not yet run" tag, and three
+    // more em dashes said a fact was missing about a race that has not
+    // happened (CD-37). queries/season.js roundResult is the rule.
+    winning_team: (name, row) =>
+      row.status !== 'completed' ? '' : row.winning_team_id ? link(`constructors/${row.winning_team_id}`, name) : text(name),
+  })}
+  ${note(CALENDAR_FOOTER)}`
+    const seasonStandings = `
+  <h2>${esc(standingsHeading("Drivers'", live, after))}</h2>
+  ${
+    driversFinal.length
+      ? fromColumns(DRIVERS_FINAL_COLUMNS, driversFinal, {
+          entity: (name, row) => (row.driver_id ? link(`drivers/${row.driver_id}`, name) : text(name)),
+        }) + note(DRIVERS_FINAL_FOOTER)
+      : notRun
+        ? `<p class="state is-empty">${esc(NOT_RUN_STANDINGS)}</p>`
+        : EMPTY_STATE
+  }
+  <h2>${esc(standingsHeading("Constructors'", live, after))}</h2>
+  ${
+    constructorsFinal.length
+      ? fromColumns(CONSTRUCTORS_FINAL_COLUMNS, constructorsFinal, {
+          entity: (name, row) =>
+            `${row.constructor_id ? link(`constructors/${row.constructor_id}`, name) : text(name)}${row.engine_id ? ` ${tag(row.engine_id)}` : ''}`,
+        }) + note(constructorsFooter(constructorsFinal.some((r) => r.engine_id)))
+      : noteBox(noConstructors.head, noConstructors.body)
+  }`
     page({
       path: `seasons/${year}`,
       lastmod: LAST_RUN.season.get(String(year)),
@@ -1959,6 +2003,7 @@ const page = ({
         ${permutations ? note(permutations) : ''}
         ${prose(s.notes)}
         ${nextSection}
+        ${live ? seasonCalendar + seasonStandings : seasonStandings + seasonCalendar}
         ${
           currentGrid.length
             ? `<h2>${esc(GRID_HEADING)}</h2>${note(GRID_NOTE)}${fromColumns(GRID_COLUMNS, currentGrid, {
@@ -1971,44 +2016,6 @@ const page = ({
             : ''
         }
         ${photographSection(all(SEASON_IMAGES, year), { subjects: true })}
-        <h2>The calendar</h2>
-        ${outlineStrip(year, calendar)}
-        ${fromColumns(CALENDAR_COLUMNS, calendar, {
-          name_used: (name, row) => `${link(`races/${year}/${row.round}`, name)}${row.sprint ? ` ${tag(SPRINT)}` : ''}`,
-          circuit: (name, row) => (row.circuit_id ? link(`circuits/${row.circuit_id}`, name ?? row.circuit_id) : text(name)),
-          winner: (name, row) =>
-            row.status !== 'completed'
-              ? tag(NOT_YET_RUN)
-              : row.winner_id && !String(name ?? '').includes(' / ')
-                ? link(`drivers/${row.winner_id}`, name)
-                : text(name),
-          // Nothing on a round still to come, as the app draws it: the
-          // Winner cell beside it carries the "not yet run" tag, and three
-          // more em dashes said a fact was missing about a race that has not
-          // happened (CD-37). queries/season.js roundResult is the rule.
-          winning_team: (name, row) =>
-            row.status !== 'completed' ? '' : row.winning_team_id ? link(`constructors/${row.winning_team_id}`, name) : text(name),
-        })}
-        ${note(CALENDAR_FOOTER)}
-        <h2>${esc(standingsHeading("Drivers'", live, after))}</h2>
-        ${
-          driversFinal.length
-            ? fromColumns(DRIVERS_FINAL_COLUMNS, driversFinal, {
-                entity: (name, row) => (row.driver_id ? link(`drivers/${row.driver_id}`, name) : text(name)),
-              }) + note(DRIVERS_FINAL_FOOTER)
-            : notRun
-              ? `<p class="state is-empty">${esc(NOT_RUN_STANDINGS)}</p>`
-              : EMPTY_STATE
-        }
-        <h2>${esc(standingsHeading("Constructors'", live, after))}</h2>
-        ${
-          constructorsFinal.length
-            ? fromColumns(CONSTRUCTORS_FINAL_COLUMNS, constructorsFinal, {
-                entity: (name, row) =>
-                  `${row.constructor_id ? link(`constructors/${row.constructor_id}`, name) : text(name)}${row.engine_id ? ` ${tag(row.engine_id)}` : ''}`,
-              }) + note(constructorsFooter(constructorsFinal.some((r) => r.engine_id)))
-            : noteBox(noConstructors.head, noConstructors.body)
-        }
         ${
           entrants.length
             ? `<h2>Who entered</h2>${fromColumns(ENTRANT_COLUMNS, entrants, {
@@ -2679,7 +2686,6 @@ page({
           ['Confidence', c.confidence ? link('data/quality', c.confidence) : text(c.confidence)],
         ])}
         ${prose(c.notes)}
-        ${photographSection(all(CONSTRUCTOR_IMAGES, c.id), { subjects: true })}
         ${disagree(teamDisagreements.all(c.name), 'this team')}
         <h2>Season by season</h2>
         ${
@@ -2689,6 +2695,7 @@ page({
               })}${engineSplit ? note(ENGINE_SPLIT_FOOTER) : ''}`
             : EMPTY_STATE
         }
+        ${photographSection(all(CONSTRUCTOR_IMAGES, c.id), { subjects: true })}
         ${
           wins.length
             ? `<h2>Every win</h2>${fromColumns(WIN_COLUMNS, wins, {
