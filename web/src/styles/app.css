@@ -460,6 +460,33 @@ main {
   margin-top: var(--space-6);
 }
 
+/* A race weekend's session sheets behind one disclosure (PD-57), its
+   summary set as the section headings around it are, so it reads as the
+   next section rather than as a footnote. Its section gives the margin. */
+.session-sheets > summary {
+  cursor: pointer;
+  font-family: var(--disp);
+  font-weight: var(--weight-bold);
+  font-size: var(--size-7);
+  line-height: 1.1;
+  text-transform: uppercase;
+  letter-spacing: 0.035em;
+}
+
+.session-sheets > summary .count {
+  margin-left: var(--space-3);
+  font-family: var(--mono);
+  font-size: var(--size-3);
+  font-weight: var(--weight-medium);
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.session-sheets > summary:hover .count {
+  color: var(--ink);
+}
+
 /* --------------------------------------------------------------- panels */
 
 .panel {
@@ -699,6 +726,24 @@ main {
 .fields > dt:first-of-type,
 .fields > dt:first-of-type + dd {
   border-top: 0;
+}
+
+/* PD-57: the static race page opens on up to fourteen facts where the app
+   has tiles; one to a line they put the classification below the first
+   screen, so at desktop width they run two to a line. */
+@media (min-width: 1024px) {
+  .fields-paired {
+    grid-template-columns: minmax(120px, auto) minmax(0, 1fr) minmax(120px, auto) minmax(0, 1fr);
+  }
+
+  .fields-paired > dt:nth-of-type(even) {
+    padding-left: var(--space-8);
+  }
+
+  .fields-paired > dt:nth-of-type(2),
+  .fields-paired > dt:nth-of-type(2) + dd {
+    border-top: 0;
+  }
 }
 
 /* --------------------------------------------------------------- tables */
@@ -1945,6 +1990,25 @@ figure.photo figcaption a {
   align-items: start;
 }
 
+/* PD-57: a race page's result in the column under the figures, the outline
+   beside both, so the classification starts where the tiles end rather than
+   where the outline's caption does - which put it 250 px further down, past
+   the eighth row of a 900 px screen. */
+.with-lead > .outline-card {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+.with-lead > .lead {
+  grid-column: 1;
+  grid-row: 2;
+  min-width: 0;
+}
+
+.lead > .section:first-child {
+  margin-top: var(--space-7);
+}
+
 @media (max-width: 720px) {
   .with-outline {
     grid-template-columns: 1fr;
@@ -1952,6 +2016,12 @@ figure.photo figcaption a {
 
   .with-outline .outline-card {
     max-width: 220px;
+  }
+
+  .with-lead > .outline-card,
+  .with-lead > .lead {
+    grid-column: auto;
+    grid-row: auto;
   }
 }
 

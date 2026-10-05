@@ -227,11 +227,13 @@ import {
   PRACTICE,
   PRACTICE_COLUMNS,
   PRACTICE_ONLY_MARK,
+  PRACTICE_SUMMARY,
   QUALIFYING,
   QUALIFYING_FOOTER,
   SPRINT_QUALIFYING,
   practiceBySession,
   practiceFooter,
+  practiceSummaryCount,
   sprintQualifyingColumns,
   sprintQualifyingFooter,
   RACE_SOURCES,
@@ -730,10 +732,11 @@ const fromColumns = (declared, rows, links = {}) => {
  * rather than about its shape; the call sites that want a dash already ask
  * for one through text().
  */
-const fields = (pairs) => {
+// `paired` sets two facts to a row at desktop width (app.css says where).
+const fields = (pairs, { paired = false } = {}) => {
   const kept = pairs.filter(([, value]) => value !== null && value !== undefined && value !== '')
   if (!kept.length) return ''
-  return `<dl class="fields">${kept
+  return `<dl class="fields${paired ? ' fields-paired' : ''}">${kept
     .map(([label, value]) => `<dt>${esc(label)}</dt><dd>${value}</dd>`)
     .join('')}</dl>`
 }
@@ -1525,7 +1528,10 @@ const nameTables = (body) => {
  * itself and is left alone; wrapping it would nest a section in a section
  * for no gain.
  */
-const SECTIONING = /<(\/?)(section|h2)\b/g
+// A race page's session-sheets disclosure (PD-57) also starts a block: it
+// has no h2 of its own at this depth, and Race.jsx renders it as a section
+// beside the others rather than inside the one before it.
+const SECTIONING = /<(\/?)(section|h2)\b|<details class="session-sheets">/g
 
 const sectioned = (html) => {
   // A block starts at every h2 that is not already inside a section of its
@@ -2046,6 +2052,11 @@ const page = ({
   const sessionDriverCell = (name, row) =>
     driverCell(name, row) + (row.practice_only === 1 ? ` <span aria-hidden="true">${PRACTICE_ONLY_MARK}</span><span class="sr-only">(never started a Grand Prix)</span>` : '')
   const outCell = (value, row) => (finished(value, row.finish_position) ? 'Finished' : missing(value) ? '—' : tag(value))
+  // PD-57: a block that leads with an h2 inside the grid at the top of the
+  // page carries its own section, as Race.jsx's do. sectioned() starts a
+  // block at every h2 not already inside one, so a bare h2 there would cut
+  // the grid in half.
+  const ownSection = (html) => (html ? `<section class="section">${html}</section>` : '')
 
   for (const r of races) {
     const neighbours = one(RACE_NEIGHBOURS, r.year, r.round) ?? {}
@@ -2080,6 +2091,11 @@ const page = ({
     // now that the lede is the note in both halves, that paragraph would be
     // the same words twice on the page, so it has gone.
     const written = raceNote(r)
+    // PD-57: the timetable leads a round not yet run and follows the
+    // photographs once a result is held, as Race.jsx places it.
+    const timetable = sessions.length
+      ? `<h2>Timetable</h2>${fromColumns(SESSION_COLUMNS, sessions)}<p class="source-note">${esc(TIMETABLE_NOTE)}</p>`
+      : ''
     const description = `${headline}. ${raceSentence(r, raceWinners, stage)}${written ? ` ${written}` : ''}${
       scheduled ? '' : ' Full classification, grid, pole and fastest lap.'
     }`
@@ -2137,7 +2153,7 @@ const page = ({
         <h1>${esc(headline)}</h1>
         <p class="lede">${esc(standfirst)}</p>
         ${stepperNav(raceSteps(neighbours))}
-        ${fields([
+        <section class="section"><div${r.outline ? ' class="with-outline with-lead"' : ''}><div>${fields([
           ['Round', `${r.round} of ${r.year}`],
           // The event this race is an edition of, linked as Race.jsx links it (IA-01).
           ['Grand Prix', r.gp_id ? link(`grands-prix/${r.gp_id}`, r.gp_full ?? r.name_used) : text(r.name_used)],
@@ -2212,7 +2228,11 @@ const page = ({
                 ],
                 ['Confidence', r.confidence ? link('data/quality', r.confidence) : text(r.confidence)],
               ]),
-        ])}
+          ],
+          // PD-57: up to fourteen facts, one to a line, were 443-560 px of a
+          // 900 px screen above the classification; two to a line halves it.
+          { paired: true },
+        )}</div>
         ${outlineCard(
           r.outline,
           r.circuit,
@@ -2220,13 +2240,10 @@ const page = ({
           outlineCaption({ f1db_layout_id: r.f1db_layout_id, length_km: r.outline_km, turns: r.outline_turns }),
           true,
         )}
-        ${photographSection(all(RACE_IMAGES, r.year, r.round), { subjects: true })}
-        ${
-          sessions.length
-            ? `<h2>Timetable</h2>${fromColumns(SESSION_COLUMNS, sessions)}<p class="source-note">${esc(TIMETABLE_NOTE)}</p>`
-            : ''
-        }
-        ${disagree(disagreements.all(`${r.year} round ${r.round}`), 'this race')}
+        <div class="lead">
+        ${scheduled ? noteBox(pending.head, pending.body) : ''}
+        ${scheduled ? ownSection(timetable) : ''}
+        ${ownSection(disagree(disagreements.all(`${r.year} round ${r.round}`), 'this race'))}
         ${
           entries.some((e) => e.shared_drive === 1)
             ? noteBox(SHARED_DRIVE_NOTE.head, SHARED_DRIVE_NOTE.body)
@@ -2234,7 +2251,7 @@ const page = ({
         }
         ${
           entries.length
-            ? `<h2>Classification</h2>${fromColumns(CLASSIFICATION_COLUMNS, entries, {
+            ? `<section class="section"><h2>Classification</h2>${fromColumns(CLASSIFICATION_COLUMNS, entries, {
                 rail,
                 position_text: (_, row) =>
                   missing(row.finish_position) ? `<span class="tag tag-dnf">${esc(result(row))}</span>` : `<b>${esc(result(row))}</b>`,
@@ -2244,11 +2261,10 @@ const page = ({
                 status: outCell,
                 fastest_lap: (value) =>
                   value === 1 ? `<span class="fl" aria-hidden="true">●</span><span class="sr-only">${esc(FASTEST_LAP)}</span>` : '',
-              })}${note(classificationFooter(entries))}`
-            : scheduled
-              ? noteBox(pending.head, pending.body)
-              : ''
+              })}${note(classificationFooter(entries))}</section>`
+            : ''
         }
+        </div></div></section>
         ${
           qualifying.length
             ? `<h2>Qualifying</h2>${fromColumns(qualifyingColumns(qualifying), qualifying, {
@@ -2275,22 +2291,35 @@ const page = ({
               })}${note(sprintQualifyingFooter(sprintQualifying))}`
             : ''
         }
-        ${practice
-          .map(
-            ({ title, rows: sheet }) =>
-              `<h2>${text(title)}</h2>${fromColumns(PRACTICE_COLUMNS, sheet, {
-                driver: sessionDriverCell,
-                constructor: constructorCell,
-              })}${note(practiceFooter(sheet))}`,
-          )
-          .join('')}
         ${
           pits.length
             ? `<h2>Pit stops</h2>${fromColumns(PIT_COLUMNS, pits, {
                 driver: (name, row) => (row.driver_id ? link(`drivers/${row.driver_id}`, name ?? row.driver_id) : text(name ?? row.driver_key)),
               })}${note(PITS_FOOTER)}`
             : ''
-        }`,
+        }
+        ${
+          // PD-57: the session sheets closed, after the result and the
+          // strategy - every table still in this HTML, open or not. Each
+          // sheet is written as its own section, as Race.jsx renders it:
+          // sectioned() starts a block at every h2 not already inside one,
+          // and would otherwise end the disclosure at its first sheet.
+          practice.length
+            ? `<details class="session-sheets"><summary>${esc(PRACTICE_SUMMARY)} <span class="count">${esc(
+                practiceSummaryCount(practice),
+              )}</span></summary>${practice
+                .map(
+                  ({ title, rows: sheet }) =>
+                    `<section class="section"><h2>${text(title)}</h2>${fromColumns(PRACTICE_COLUMNS, sheet, {
+                      driver: sessionDriverCell,
+                      constructor: constructorCell,
+                    })}${note(practiceFooter(sheet))}</section>`,
+                )
+                .join('')}</details>`
+            : ''
+        }
+        ${photographSection(all(RACE_IMAGES, r.year, r.round), { subjects: true })}
+        ${scheduled ? '' : timetable}`,
     })
   }
 }

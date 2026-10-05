@@ -295,6 +295,18 @@ export const practiceBySession = (rows) =>
     (s) => s.rows.length > 0,
   )
 
+/*
+ * PD-57: a weekend's session sheets sit behind one disclosure below the
+ * result, because a reader who came for the classification had three of them
+ * (about 3,000 px in 2025) between qualifying and the pit stops. Closed, not
+ * gone: the tables are in the page, and in the static HTML, either way. The
+ * summary names the sheets inside, since a pre-qualifying or a warm-up is not
+ * what "practice" alone promises. Race.jsx and scripts/prerender.js print
+ * these words, so the two halves label the same disclosure the same way.
+ */
+export const PRACTICE_SUMMARY = 'Practice sessions'
+export const practiceSummaryCount = (practice) => practice.map((s) => s.title).join(' · ')
+
 /** The mark a practice-only driver carries on a session sheet, and what it means. */
 export const PRACTICE_ONLY_MARK = '†'
 export const PRACTICE_ONLY_NOTE = `${PRACTICE_ONLY_MARK} Drove in practice and never started a Grand Prix.`
