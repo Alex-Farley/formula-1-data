@@ -189,6 +189,14 @@ class TheIssues(unittest.TestCase):
         stopped = self.results(refresh="skipped", land="skipped")
         self.assertIsNone(alarm.failure_action(stopped, True))
 
+    def test_a_pull_request_ci_refuses_opens_it_on_a_green_run(self):
+        self.assertEqual(alarm.failure_action(self.results(), False, refused=True), "open")
+        stopped = self.results(refresh="skipped", land="skipped")
+        self.assertEqual(alarm.failure_action(stopped, False, refused=True), "open")
+
+    def test_a_land_that_passed_does_not_close_it_while_ci_refuses(self):
+        self.assertEqual(alarm.failure_action(self.results(), True, refused=True), "update")
+
     def test_freshness_follows_the_check(self):
         late = [("2026/16", "- late")]
         self.assertEqual(alarm.freshness_action(late, False), "open")
@@ -205,10 +213,68 @@ class TheIssues(unittest.TestCase):
         state = dict(signature="`refresh`: Fetch {F1DB}", count=2, first="2026-10-02")
         self.assertEqual(alarm.read_mark(alarm.with_mark("body", state)), state)
 
+    def test_a_refusal_alone_does_not_claim_this_run_failed(self):
+        body = alarm.failure_body(None, "u", "w", 1, "2026-10-05",
+                                  ("#900 (pr), in ci", ["`web`: Smoke test"]))
+        self.assertIn("refusing the refresh's pull request", body)
+        self.assertIn("`web`: Smoke test", body)
+        self.assertNotIn("latest run:", body)
+
     def test_a_body_without_state_reads_as_none(self):
         self.assertEqual(alarm.read_mark("edited by hand"), {})
         self.assertEqual(alarm.read_mark("<!-- refresh-alarm {broken -->"), {})
         self.assertEqual(alarm.read_mark(None), {})
+
+
+class ThePullRequestCIRefuses(unittest.TestCase):
+    """refused_run() reads ci.yml's runs on refresh/f1db, newest first."""
+    PR = dict(number=900, url="pr", createdAt="2026-10-05T03:00:00Z")
+
+    def run_(self, at, status="completed", conclusion="success"):
+        return dict(createdAt=f"2026-10-05T{at}:00Z", status=status, conclusion=conclusion,
+                    url=at, databaseId=at)
+
+    def test_a_failed_run_is_a_refusal(self):
+        runs = [self.run_("04:00", conclusion="failure")]
+        self.assertEqual(alarm.refused_run(self.PR, runs)["url"], "04:00")
+
+    def test_a_pass_is_not(self):
+        self.assertIsNone(alarm.refused_run(self.PR, [self.run_("04:00")]))
+        self.assertIsNone(alarm.refused_run(self.PR, []))
+
+    def test_a_push_that_is_still_pending_does_not_hide_the_refusal(self):
+        # land rewrites the branch on every run that goes ahead, so the
+        # head's own checks are usually pending when report looks.
+        runs = [self.run_("06:00", status="in_progress", conclusion=""),
+                self.run_("04:00", conclusion="failure")]
+        self.assertEqual(alarm.refused_run(self.PR, runs)["url"], "04:00")
+
+    def test_a_run_a_newer_push_cancelled_says_nothing(self):
+        runs = [self.run_("06:00"), self.run_("04:00", conclusion="cancelled")]
+        self.assertIsNone(alarm.refused_run(self.PR, runs))
+        runs = [self.run_("07:00", status="queued", conclusion=""),
+                self.run_("06:00", conclusion="cancelled"),
+                self.run_("04:00", conclusion="failure")]
+        self.assertEqual(alarm.refused_run(self.PR, runs)["url"], "04:00")
+
+    def test_a_cancelled_run_with_nothing_newer_timed_out(self):
+        runs = [self.run_("04:00", conclusion="cancelled")]
+        self.assertEqual(alarm.refused_run(self.PR, runs)["url"], "04:00")
+
+    def test_runs_from_before_the_pull_request_belong_to_one_that_merged(self):
+        runs = [self.run_("02:00", conclusion="failure")]
+        self.assertIsNone(alarm.refused_run(self.PR, runs))
+
+    def test_the_matrix_sibling_cancelled_by_a_failure_is_not_named(self):
+        jobs = [dict(name="check (3.9)", conclusion="failure",
+                     steps=[dict(name="Verify", conclusion="failure")]),
+                dict(name="check (3.12)", conclusion="cancelled",
+                     steps=[dict(name="Verify", conclusion="cancelled")]),
+                dict(name="web", conclusion="success", steps=[])]
+        self.assertEqual(alarm.failed_steps(jobs, only_failed=True), ["`check (3.9)`: Verify"])
+        self.assertEqual(len(alarm.failed_steps(jobs)), 2)
+        timed_out = [dict(name="web", conclusion="cancelled", steps=[])]
+        self.assertEqual(alarm.failed_steps(timed_out, only_failed=True), ["`web`"])
 
 
 if __name__ == "__main__":
