@@ -18,10 +18,12 @@ WHY THIS EXISTS
 WHAT IT DOES
     Runs the `backlog-manager` agent (.claude/agents/backlog-manager.md)
     headless, with no MCP servers (D-18), reads the first line of what it
-    returns - the driver's contract, MERGED / SKIPPED / STOP / LIMIT - and on
-    a usage limit sleeps until the reset and starts a fresh session with the
-    same target and the run's skip list. Everything else ends the run: a STOP
-    is a person's, and a result with no contract line is not a merge.
+    returns - the driver's contract, MERGED / SKIPPED / DECIDE / STOP / LIMIT
+    - and on a usage limit sleeps until the reset and starts a fresh session
+    with the same target and the run's skip list. Everything else ends the
+    run: a STOP is a person's, and a result with no contract line is not a
+    merge. A DECIDE reaches this script only as the result of a one-item run,
+    because under `until-paused` the manager carries on past it (D-52).
 
     It never merges, reviews or edits anything. The manager drives, the fork
     (backlog-item) does the item, and this only decides whether to start the
@@ -55,6 +57,8 @@ EXIT
        the way an `until-paused` run ends when the manager stops it
     3  SKIPPED - the one item asked for was recorded as blocked
     4  the environment: no CLI, or limits that did not lift
+    5  DECIDE - the one item asked for is held on a person's decision,
+       labelled, with the repository left clean
 """
 import datetime as dt
 import json
@@ -75,7 +79,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 AGENT = "backlog-manager"
 PACES = ("fast", "balanced", "thorough")
 PERMISSION_MODE = "auto"
-CONTRACT = re.compile(r"^(MERGED #\d+ \S+|SKIPPED \S+:.*|STOP:.*|LIMIT:.*)$")
+CONTRACT = re.compile(r"^(MERGED #\d+ \S+|SKIPPED \S+:.*|DECIDE \S+:.*|STOP:.*|LIMIT:.*)$")
 SKIPS = re.compile(r"^Skipped:\s*(\S.*)$", re.M)
 ITEM_ID = re.compile(r"^[A-Z]{2,4}-\d+$")
 # "You've hit your session limit · resets 1:30pm (Europe/London)" was the
@@ -169,7 +173,7 @@ def reset_at(text, now=None):
 def classify(stdout, returncode):
     """(kind, line, skips) from what `claude -p --output-format json` printed.
 
-    kind is MERGED, SKIPPED, STOP, LIMIT or NONE. A usage limit arrives in
+    kind is MERGED, SKIPPED, DECIDE, STOP, LIMIT or NONE. A usage limit arrives in
     one of two forms, as it does for the driver: the manager's own LIMIT
     line, or text naming a limit and a reset - the CLI's error for a session
     the limit killed, or a manager that repeated the error instead of writing
@@ -288,6 +292,8 @@ def main(argv):
             return 0
         if kind == "SKIPPED":
             return 3
+        if kind == "DECIDE":
+            return 5
         if kind == "STOP":
             return 2
         print("supervise: no contract line - not a merge and not a PASS. Check `gh pr list --state open` "

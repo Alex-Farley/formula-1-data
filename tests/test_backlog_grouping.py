@@ -161,6 +161,22 @@ class GroupingProposals(unittest.TestCase):
     def test_the_head_is_the_queues_next_item_not_the_best_scoring_one(self):
         self.assertEqual(next_py.first_eligible(self.ranked, set())["ident"], "VD-33")
 
+    def test_an_item_waiting_on_an_open_issue_is_neither_next_nor_a_companion(self):
+        # A dependant of an item held for a person's decision: GitHub says it
+        # is blocked by an open issue, so the next fork does not meet the
+        # same question through it `AF-85`. Lifted, it is next again.
+        vd33 = self.item("VD-33")
+        vd33["waits"] = 1
+        self.assertNotEqual(next_py.first_eligible(self.ranked, set())["ident"], "VD-33")
+        self.assertNotIn("VD-33", self.propose("AX-13")[0])
+        vd33["waits"] = 0
+        self.assertEqual(next_py.first_eligible(self.ranked, set())["ident"], "VD-33")
+
+    def test_a_queue_cached_before_the_count_existed_reads_as_nothing_waiting(self):
+        row = dict(self.item("VD-33"))
+        row.pop("waits")
+        self.assertTrue(next_py.eligible(row, set()))
+
     def test_a_shared_file_and_a_cross_reference_are_what_propose_a_companion(self):
         idents, why = self.propose("VD-33")
         # Seven, which is also the cap test: candidates used to be cut at six,

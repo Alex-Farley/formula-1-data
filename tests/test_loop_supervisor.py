@@ -30,6 +30,7 @@ class ReadsTheContractLine(unittest.TestCase):
     def test_each_contract_line(self):
         for line, kind in (("MERGED #664 DA-36", "MERGED"), ("MERGED #12 VD-33+AX-13", "MERGED"),
                            ("SKIPPED AF-9: gh unreachable", "SKIPPED"), ("STOP: two consecutive skips", "STOP"),
+                           ("DECIDE PD-52: whether the licence record may say bare facts", "DECIDE"),
                            ("LIMIT: resets 1:30pm (Europe/London)", "LIMIT")):
             self.assertEqual(sup.classify(result(line + "\nstock-take"), 0)[0], kind, line)
 

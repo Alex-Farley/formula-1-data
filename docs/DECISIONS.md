@@ -272,6 +272,46 @@ the environment and invokes the fork once more with the same arguments; the
 new fork's `start-check.sh` shows the stalled one's worktree, and the
 inheritance rule finishes it. A second stall in a row stops the loop.
 
+### D-52 · A fork holds an item on a person's decision rather than stopping the loop — 2026-10-05 (`AF-85`, #780)
+On 2026-10-03 the permission classifier refused PD-52's (#740) edits to the
+licence record as weakening security. The fork returned `STOP`, so the whole
+loop ended although nothing was half-done, and it put #740 back at *Next*
+without the `decision` label, so `next.py` would have handed the same item
+to every restart until a person labelled it by hand. Two rules in the item
+skill pulled against each other: a person's decision goes on the item "and
+the work continues around it", and the fork stops "when a decision is a
+person's".
+
+The ruling is one sentence: stop on a decision only when it cannot be held.
+A hold is the refused change not happening, the question on the issue with
+`file.py decision`, the items that build on it made to wait, the repository
+left clean with nothing lost, and a `DECIDE <ID>: <question>` line back. The
+driver carries on with `next`. Nothing routes around the classifier: the
+edit it refused is not made by another path, and the question waits for a
+person, which is where a refusal of that kind belongs anyway. `STOP` stays
+for danger a hold cannot leave behind — something already merged or
+published, a state that cannot be left clean, a question whose record could
+not be written.
+
+A hold is not a skip. Two skips of unrelated items in a row are the
+environment; two holds are two questions. But a classifier, or a rule,
+that refuses every item would label the queue `decision` one fork at a time,
+which is a broken environment wearing the clothes of a decision, so three
+holds with no merge between them stop the loop. The count lives in the
+manager's session, as the skip count does, so a restart after a usage limit
+starts it again from nought: the guard bounds a session, not a run.
+
+The dependants are GitHub's own *blocked by* relationship rather than a
+label. PD-53 to PD-55 build on PD-52, and the next fork could have taken
+PD-53 and met the same question. A `decision` label on each would have to
+come off by hand once PD-52 was ruled on and had landed, and a person ruling
+on one item would not know three others carried its label. A dependency
+lifts on its own when the item it waits on closes. `next.py` reads it as
+`issueDependenciesSummary { blockedBy }` in the board query it already
+makes — a scalar beside the number rather than a `blockedBy` connection
+under each of the board's items, which is the expensive kind of read
+`[D-27]` — and `file.py blocked-by` writes it with `addBlockedBy`.
+
 ### D-18 · Run the loop with connectors off
 Every connected MCP server's tool schemas sit in the fixed prefix of every
 turn. The loop uses none of them.

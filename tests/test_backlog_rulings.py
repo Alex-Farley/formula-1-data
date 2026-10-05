@@ -237,5 +237,52 @@ class ARankRun(unittest.TestCase):
         self.assertEqual(len(writes), 1)
 
 
+class MakingOneWait(unittest.TestCase):
+    """file.py blocked-by: the items that build on one held for a person's
+    decision wait for it, by GitHub's own dependency (AF-85, D-52). Every
+    issue is read before anything is written, so a wrong number writes
+    nothing."""
+
+    def run_it(self, numbers, on, states):
+        # On self, so a call that exits still leaves its writes to be counted.
+        self.calls = calls = []
+
+        def gh(*args, as_json=False):
+            calls.append(args)
+            if args[:2] == ("issue", "view"):
+                n = int(args[2])
+                return {"id": f"N{n}", "state": states.get(n, "OPEN"), "title": f"#{n}"}
+            return ""
+
+        a = SimpleNamespace(numbers=list(numbers), on=on)
+        with mock.patch.object(file_py, "gh", gh), \
+                mock.patch.object(file_py.loop_cache, "drop", lambda *_: None), \
+                contextlib.redirect_stdout(io.StringIO()):
+            file_py.blocked_by(a)
+        return [c for c in calls if c[:2] == ("api", "graphql")]
+
+    def test_each_named_issue_is_blocked_by_the_one_it_waits_on(self):
+        writes = self.run_it([741, 742], 740, {})
+        self.assertEqual([(w[5], w[7]) for w in writes],
+                         [("issue=N741", "blocker=N740"), ("issue=N742", "blocker=N740")])
+
+    def test_a_repeated_number_is_written_once(self):
+        self.assertEqual(len(self.run_it([741, 741], 740, {})), 1)
+
+    def test_a_closed_issue_anywhere_writes_nothing(self):
+        # #742 is read last: a version that wrote each issue as it read it
+        # would have blocked #741 before finding #742 closed.
+        for states in ({740: "CLOSED"}, {742: "CLOSED"}):
+            with self.assertRaises(SystemExit) as caught:
+                self.run_it([741, 742], 740, states)
+            self.assertIn("closed", str(caught.exception.code))
+            self.assertEqual([c for c in self.calls if c[:2] == ("api", "graphql")], [])
+
+    def test_an_issue_cannot_wait_on_itself(self):
+        with self.assertRaises(SystemExit) as caught:
+            self.run_it([740], 740, {})
+        self.assertIn("itself", str(caught.exception.code))
+
+
 if __name__ == "__main__":
     unittest.main()
