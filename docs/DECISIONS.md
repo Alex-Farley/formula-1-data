@@ -116,7 +116,11 @@ classifying it.
 championship race the season harvest covers in `races`, and its winner in
 `race_entries` — are bare facts, on the reading
 `docs/COMMERCIAL-READINESS.md` already gave the formula1.com rows: results,
-dates and positions are not the expression CC BY-SA protects. The
+dates and positions are not the expression CC BY-SA protects. The ruling's
+count also took in the other rows citing Wikipedia outside `claims` and
+`driver_note_sources` — in `drivers`, `cars`, `regulation_limits` and
+`team_radio` — and the document says how it breaks down; the radio rows
+among them are quotations, which stay share-alike as expression. The
 Wikipedia-derived prose fields are not facts and keep CC BY-SA 4.0. A CC BY
 4.0 facts artefact is to be published beside `f1.db` on the pattern of
 [D-07], leaving out the prose and anything else that stays share-alike — the

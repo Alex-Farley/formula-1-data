@@ -266,12 +266,18 @@ below, which was written for that decision and is kept as what it rests on
 - The <!-- fig:wp_race_rows -->2,253<!-- /fig --> race rows that cite a Wikipedia season article — <!-- fig:wp_races -->1,125<!-- /fig --> of
   `races` and <!-- fig:wp_race_entries -->1,128<!-- /fig --> of `race_entries` — are **bare facts**, on the same reading
   *What was read* gives the <!-- fig:facts_only_formula1 -->645<!-- /fig --> formula1.com rows: results, dates and
-  positions are not the expression CC BY-SA protects.
+  positions are not the expression CC BY-SA protects. The ruling's count was
+  wider than these two tables: it took in every other row citing Wikipedia
+  outside `claims` and `driver_note_sources` — <!-- fig:wp_drivers -->64<!-- /fig --> of `drivers`, <!-- fig:wp_cars -->29<!-- /fig --> of
+  `cars`, <!-- fig:wp_regulation_limits -->16<!-- /fig --> of `regulation_limits` and <!-- fig:wp_radio -->6<!-- /fig --> of `team_radio`. The
+  first three are bare facts on the same reading, their prose fields aside.
+  The radio rows are quotations, and expression stays share-alike (*What
+  stays share-alike in any case*, below).
 - The Wikipedia-derived prose fields are **not** facts, and keep CC BY-SA 4.0.
-  The ruling counted them as roughly 552, the 2026-09-08 figure whose scope
-  *Measured: the prose pass* says was never written down; that pass is the
-  measurement of which fields follow an article. The radio quotations stay
-  share-alike too (*What stays share-alike in any case*, below).
+  The ruling counted them as roughly 552, a figure that matches the earlier
+  count *Measured: the prose pass* records and says never had its scope
+  written down; that pass is the measurement of which fields follow an
+  article.
 - A **CC BY 4.0 facts artefact** is to be published beside `f1.db`, on the
   pattern of [D-07], leaving out everything that stays share-alike. `f1.db`
   itself stays CC BY-SA 4.0. Relicensing `f1.db` whole was rejected, because
@@ -404,7 +410,7 @@ Two consequences follow. §4 never makes an individual fact share-alike:
 F1DB's rows inside `f1.db` stay CC BY 4.0 row by row whatever is decided. And
 what it reaches is this project's own database right in the file holding the
 rows. `f1.db` may well carry one — the investment in verifying it is the
-cross-checks, and its maker's qualification is the same question as step 2,
+cross-checks, and its maker's qualification is the same question as the database right's second step,
 asked of this project — so *if* Wikipedia's right subsists, `f1.db`'s database
 right is share-alike by §4(b), and so would be any facts edition carrying a
 substantial portion of these rows. Where no right subsists, §4 adds nothing:
