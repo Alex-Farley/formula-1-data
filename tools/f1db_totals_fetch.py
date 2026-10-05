@@ -55,7 +55,7 @@ import zipfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from f1db_fetch import HARVEST, HEADER, licence_check, run  # noqa: E402
+from f1db_fetch import HARVEST, HEADER, _clean, licence_check, run  # noqa: E402
 from f1db_fetch import write as write_harvest  # noqa: E402
 
 RELEASES = "https://github.com/f1db/f1db/releases/download"
@@ -106,7 +106,9 @@ def total_rows(zipped):
         values = [r[c] for _f, c in FIELDS]
         if not all(v.isdigit() for v in values):
             sys.exit(f"{MEMBER}: {r['id']} has a total that is not a count: {values}")
-        rows.append("|".join([r["id"], *values]))
+        # The id is upstream text, and the refresh writes it unattended: a
+        # pipe or a newline in it stops the fetch rather than forging a row.
+        rows.append("|".join([_clean(r["id"]), *values]))
     return sorted(rows)
 
 

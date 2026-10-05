@@ -1195,7 +1195,9 @@ CORRECTIONS = [
 # The figures F1DB publishes, quoted below, are its career totals in release
 # v2026.14.0, f1db-drivers.csv in f1db-csv.zip (totalRaceEntries,
 # totalRaceStarts, totalPoints, totalChampionshipPoints): the release
-# harvest/f1db_driver_totals.txt is pinned to. The infobox figures are
+# harvest/f1db_driver_totals.txt was at when they were read. That file now
+# moves with every refresh (CR-69), so a later release may publish other
+# figures for a driver still racing. The infobox figures are
 # Wikipedia's, read on 2026-10-01, where the figure outside the brackets is
 # the championship total and the one inside it everything scored.
 #
@@ -1790,8 +1792,9 @@ def load_f1db_drivers():
 def load_f1db_driver_totals():
     """(release, {driver_id: (wins, poles, fastest_laps)}): F1DB's own career
     totals, from the release tools/f1db_totals_fetch.py read. The release is
-    returned because the totals are pinned to it and not to the harvest the
-    rest of the F1DB files follow."""
+    returned because the totals come from a release artefact, not the clone
+    the rest of the F1DB files are read from; the refresh fetches both for the
+    same release, and verify.py fails when they differ (CR-69)."""
     with open(os.path.abspath(F1DB_TOTALS_FILE), encoding="utf-8") as f:
         m = re.search(r"^# Source: F1DB (\S+) \(", f.read(), re.M)
     if not m:

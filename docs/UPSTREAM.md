@@ -62,8 +62,8 @@ in the source tree the clone reads, so `tools/f1db_totals_fetch.py` reads
 `f1db-drivers.csv` out of a release's `f1db-csv.zip` into
 `harvest/f1db_driver_totals.txt` - checked against the release's own
 checksum, and against the deed at the tagged commit. It is pinned to the
-release the harvest was read from, and the refresh fetches it again
-whenever it moves the harvest, so the two always name the same release -
+release the harvest was read from, and every refresh fetches it again
+straight after the harvest, so the two always name the same release -
 `verify.py` fails when they do not. The totals are the named source the
 career figures typed into `data/drivers.py` are checked against (PM-57,
 #624), and the figure a driver still racing is held to (CR-69, #785): a

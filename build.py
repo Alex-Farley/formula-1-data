@@ -3642,8 +3642,9 @@ def _resource_typed_career_figures(cur, f1db_drivers):
             elif status == "active" and typed < given <= counted(did, field):
                 # Still racing, typed on an earlier date, and the race records
                 # have reached F1DB's figure: the driver added to the total.
-                # The records may run ahead of the pinned release after a
-                # refresh, never behind it.
+                # The refresh fetches the totals for the release the records
+                # came from (CR-69), so the two agree; the records may still
+                # run ahead of F1DB's total, never behind it.
                 cur.execute(f"UPDATE drivers SET {col} = ? WHERE id = ?", (given, did))
                 claim(did, col, given, HV.F1DB_SOURCE)
                 _file_discrepancy(
