@@ -257,13 +257,51 @@ database has moved from it without fetching anything.
 
 ---
 
-## For decision: the Wikipedia-cited race rows
+## Decided: the Wikipedia-cited race rows are bare facts
 
-Step 1 of `PD-41` (#481), written as `PD-51` (#662), for the maintainer to
-decide step 2 on — a CC BY 4.0 facts edition beside `f1.db`, or CC BY-SA
-stated as permanent — and for a solicitor to check, if they choose to ask
-one. **It is an analysis, not legal advice.** It relicenses nothing, releases
-nothing and changes nothing in `LICENSE-DATA`.
+**Decided by the maintainer on 2026-09-30** (`PD-41`, #481), on the reading
+below, which was written for that decision and is kept as what it rests on
+([D-51] in `docs/DECISIONS.md`):
+
+- The <!-- fig:wp_race_rows -->2,253<!-- /fig --> race rows that cite a Wikipedia season article — <!-- fig:wp_races -->1,125<!-- /fig --> of
+  `races` and <!-- fig:wp_race_entries -->1,128<!-- /fig --> of `race_entries` — are **bare facts**, on the same reading
+  *What was read* gives the <!-- fig:facts_only_formula1 -->645<!-- /fig --> formula1.com rows: results, dates and
+  positions are not the expression CC BY-SA protects. The ruling's count was
+  wider than these two tables: it took in every other row citing Wikipedia
+  outside `claims` and `driver_note_sources` — <!-- fig:wp_drivers -->64<!-- /fig --> of `drivers`, <!-- fig:wp_cars -->29<!-- /fig --> of
+  `cars`, <!-- fig:wp_regulation_limits -->16<!-- /fig --> of `regulation_limits` and <!-- fig:wp_radio -->6<!-- /fig --> of `team_radio`. The
+  first three are bare facts on the same reading, their prose fields aside.
+  The radio rows are quotations, and expression stays share-alike (*What
+  stays share-alike in any case*, below).
+- The Wikipedia-derived prose fields are **not** facts, and keep CC BY-SA 4.0.
+  The ruling counted them as roughly 552, a figure that matches the earlier
+  count *Measured: the prose pass* records and says never had its scope
+  written down; that pass is the measurement of which fields follow an
+  article.
+- A **CC BY 4.0 facts artefact** is to be published beside `f1.db`, on the
+  pattern of [D-07], leaving out everything that stays share-alike. `f1.db`
+  itself stays CC BY-SA 4.0. Relicensing `f1.db` whole was rejected, because
+  it waits on the prose pass (`PM-17`, #249); stating CC BY-SA as permanent
+  was rejected, because it leaves this project strictly less usable than F1DB,
+  its principal upstream.
+
+**What the ruling does not decide.** The database-right reading below is
+unchanged by it: whether a right reaching these rows subsists stays
+unsettled, and the choice of route under *A CC BY 4.0 facts edition,
+counted* — the race rows stored as they are, or rebuilt from F1DB — turns on
+it. Which of the other Wikipedia-touched sets counted there the artefact may
+carry (`claims` and `driver_note_sources` among them) is open too. Both are
+measured first, under `PD-53` (#741). **Nothing is offered under CC BY 4.0
+yet.** The artefact does not exist until `PD-53` (#741), `PD-54` (#742) and
+`PD-55` (#743) ship; until then every row in `f1.db` ships under CC BY-SA 4.0
+as before, and `LICENSE-DATA` is unchanged.
+
+### The reading it was decided on
+
+Written as `PD-51` (#662), step 1 of `PD-41`, for the maintainer to decide
+on, and for a solicitor to check if they choose to ask one. **It is an
+analysis, not legal advice.** It relicenses nothing, releases nothing and
+changes nothing in `LICENSE-DATA`; the ruling above is what it informed.
 
 <!-- fig:wp_race_rows -->2,253<!-- /fig --> rows — <!-- fig:wp_races -->1,125<!-- /fig --> of `races` and <!-- fig:wp_race_entries -->1,128<!-- /fig --> of `race_entries`, every
 championship race from <!-- fig:wp_first_season -->1950<!-- /fig --> to <!-- fig:wp_last_season -->2024<!-- /fig --> and its winner — cite a Wikipedia season article.
@@ -274,7 +312,7 @@ offered under CC BY 4.0 as F1DB's rows are. It is the test *What was read*
 applied to the formula1.com rows, plus the one that reading did not need —
 the database right.
 
-### Column by column
+#### Column by column
 
 A row's `source` names who established its **finishing position**, not every
 value on it. The season harvest created each winner row and F1DB's
@@ -311,7 +349,7 @@ towards that (*Football Dataco v Yahoo!*, C-604/10, 2012). These rows take no
 selection and no arrangement, and a single result is a fact. On copyright
 they are bare facts, on exactly the reading the formula1.com rows were given.
 
-### The database right
+#### The database right
 
 The sui generis right is the harder question, and the one that decides this.
 It protects a database whose maker made a substantial investment in
@@ -358,7 +396,7 @@ refuses a race whole where the two disagree, so every winner on these rows is
 one F1DB states too, under CC BY 4.0. The rows as stored were still taken
 from Wikipedia: it is the facts, not these rows, that have a second source.
 
-### What CC BY-SA 4.0 §4 changes
+#### What CC BY-SA 4.0 §4 changes
 
 Wikipedia's text is CC BY-SA 4.0, and its §4 says what happens where the
 licensed rights include a database right. It permits extracting all or a
@@ -372,14 +410,14 @@ Two consequences follow. §4 never makes an individual fact share-alike:
 F1DB's rows inside `f1.db` stay CC BY 4.0 row by row whatever is decided. And
 what it reaches is this project's own database right in the file holding the
 rows. `f1.db` may well carry one — the investment in verifying it is the
-cross-checks, and its maker's qualification is the same question as step 2,
+cross-checks, and its maker's qualification is the same question as the database right's second step,
 asked of this project — so *if* Wikipedia's right subsists, `f1.db`'s database
 right is share-alike by §4(b), and so would be any facts edition carrying a
 substantial portion of these rows. Where no right subsists, §4 adds nothing:
 the licence's conditions attach only to *Licensed Rights* that apply to the
 use (§1(i)).
 
-### A CC BY 4.0 facts edition, counted
+#### A CC BY 4.0 facts edition, counted
 
 On the pattern of [D-07] — a second file published beside `f1.db`, each
 carrying its own licence — the edition holds every sourced row that does not
@@ -427,7 +465,8 @@ The race rows cannot simply be dropped: <!-- fig:wp_dependent_rows -->121,421<!-
 the rest of every classification in `race_entries`, and qualifying, sprints
 and pit stops — are keyed to them, and an edition without them has no
 spine. So a facts edition has two
-routes, and they are the substance of step 2:
+routes. The ruling above chose the edition and left the route open, for
+`PD-53` (#741) to measure:
 
 - **Re-source the race rows to F1DB** for the edition: build them from
   F1DB's own races and classifications, which state every one of these
@@ -441,12 +480,12 @@ routes, and they are the substance of step 2:
   That rests on the maker question above, the least certain step in this
   note.
 
-### What stays share-alike in any case
+#### What stays share-alike in any case
 
 Expression, which neither reading of the database right frees: the prose
 fields the pass above counts, and the <!-- fig:wp_radio -->6<!-- /fig --> radio quotations (`PM-19`, #251,
-and *Decided: the six radio quotations stay*). They are CC BY-SA whatever step
-2 decides, and a facts edition leaves them out.
+and *Decided: the six radio quotations stay*). They are CC BY-SA under the
+ruling above, and the facts artefact leaves them out.
 
 **What this note does not establish.** Whether any Wikipedia editor is a
 qualifying maker; whether F1DB's own compilation drew on Wikipedia, which is

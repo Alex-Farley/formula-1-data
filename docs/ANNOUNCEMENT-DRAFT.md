@@ -20,9 +20,14 @@ The maintainer's steps, in the order the 2026-09-24 ruling set:
    below are from the committed `f1.db` at `main` `dfa576b`, which still
    says `meta.version` 2.24 but holds rows the v2.24 release does not. The
    table at the end gives the query for each.
-4. **Recheck the licence paragraph.** PD-41 (#481) is an open decision on the
-   data licence: a CC BY 4.0 facts artefact, or CC BY-SA stated as permanent.
-   If it is decided before the post goes out, that paragraph changes. CR-55
+4. **Recheck the licence paragraph.** PD-41 (#481) was decided on
+   2026-09-30: the Wikipedia-cited race rows are bare facts, and a CC BY 4.0
+   facts artefact is to be published beside `f1.db`, which stays CC BY-SA
+   4.0 (`COMMERCIAL-READINESS.md`; D-51 in `DECISIONS.md`). Nothing is
+   offered under CC BY 4.0 until PD-53 (#741), PD-54 (#742) and PD-55 (#743)
+   ship. If the artefact is published before the post goes out, that
+   paragraph changes; until then the data is CC BY-SA 4.0, as the release's
+   licence paragraphs say. CR-55
    (#674) and PM-61 (#680) are open against the licence text a reader will
    click through to.
 5. **Check the correction route.** The route a reader is given is the GitHub

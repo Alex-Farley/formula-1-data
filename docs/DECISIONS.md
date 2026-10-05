@@ -111,6 +111,54 @@ refuses an unclassified source where it assembles `source_registry`, and
 `verify.py` fails on any row citing a `no` source. Adding a source means
 classifying it.
 
+### D-51 · The Wikipedia-cited race rows are bare facts; the prose stays share-alike — 2026-09-30 (`PD-41`, #481; recorded by `PD-52`, #740)
+**What was decided.** The rows citing a Wikipedia season article — every
+championship race the season harvest covers in `races`, and its winner in
+`race_entries` — are bare facts, on the reading
+`docs/COMMERCIAL-READINESS.md` already gave the formula1.com rows: results,
+dates and positions are not the expression CC BY-SA protects. The ruling's
+count also took in the other rows citing Wikipedia outside `claims` and
+`driver_note_sources` — in `drivers`, `cars`, `regulation_limits` and
+`team_radio` — and the document says how it breaks down; the radio rows
+among them are quotations, which stay share-alike as expression. The
+Wikipedia-derived prose fields are not facts and keep CC BY-SA 4.0. A CC BY
+4.0 facts artefact is to be published beside `f1.db` on the pattern of
+[D-07], leaving out the prose and anything else that stays share-alike — the
+six radio quotations among them, on the reading; `f1.db` itself stays CC
+BY-SA 4.0. The figures are spans in that document, written
+from the database, and are not repeated here.
+
+**Why.** Nearly every sourced row cites F1DB under CC BY 4.0, yet the
+share-alike on the Wikipedia-cited minority reached the whole release, so a
+builder found this project strictly less usable than its principal upstream —
+and the part worth having, the cross-checks, `discrepancies` and
+`known_gaps`, was the part they could not take cleanly. The reading written
+for the decision (`PD-51`, #662) found no prose, expression, selection or
+arrangement of Wikipedia's on those rows: a result is the sport's, not an
+editor's, and database copyright needs selection or arrangement that is its
+author's own intellectual creation (CDPA 1988 s.3A; *Football Dataco v
+Yahoo!*, C-604/10). F1DB states every one of the same facts, and the winner
+cross-check refuses a race where the two disagree.
+
+**Rejected.** Relicensing `f1.db` whole, because it waits on the prose pass
+(`PM-17`, #249). Stating CC BY-SA as permanent, because it leaves the project
+strictly less usable than its upstream.
+
+**Not decided here.** The database right: whether one reaching these rows
+subsists is unsettled and turns on facts about Wikipedia's makers that nobody
+holds, so whether the artefact stores the race rows as they are or rebuilds
+them from F1DB is open, as is which other Wikipedia-touched sets (`claims`,
+`driver_note_sources`, the column-level values the document lists) it may
+carry. Those are measured first under `PD-53` (#741). **Nothing is offered
+under CC BY 4.0 until `PD-53`, `PD-54` (#742) and `PD-55` (#743) ship**;
+until then `LICENSE-DATA` is unchanged and every row ships CC BY-SA 4.0.
+
+An unattended run's attempt to write this down, on 2026-10-03, was refused by
+the permission classifier as weakening a control. Recording a ruling the
+maintainer has made is not that, but the classifier cannot tell a ruling from
+a fork's own reading, which is the point of it; the maintainer approved the
+record on 2026-10-05 (#740) and it was made then.
+
 ---
 
 ## The front end and the deploy
