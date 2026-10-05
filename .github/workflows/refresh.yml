@@ -361,7 +361,8 @@ jobs:
       # finds it already stamped. No rebase and no retry: a pull request CI
       # refuses stays open, this date does not advance on main, and the next
       # run replaces it. That is the same signal a real failure gives, which
-      # is the signal the date exists to carry.
+      # is the signal the date exists to carry - and `report` says so too,
+      # since this run went green (SD-36).
       - name: Commit the check
         if: steps.diff.outputs.changed == 'false'
         env:
@@ -377,15 +378,21 @@ jobs:
 
   # SAYING SO (SD-35). Runs after the other three on every run that was not
   # cancelled - the gate's quick stops included - and holds the workflow's
-  # own token with the two scopes it needs and nothing else: issues: write to
-  # open, edit and close its two issues, actions: read to name the step that
-  # failed. Never the App's token, and nothing from npm or from the pack: it
-  # checks out four files and runs two scripts from them.
+  # own token with the three scopes it needs and nothing else: issues: write
+  # to open, edit and close its two issues; actions: read to name the step
+  # that failed, here or in ci.yml's run on the refresh's pull request; and
+  # pull-requests: read to find that pull request, because a refresh CI
+  # refuses leaves every run of this workflow green and the pull request
+  # open, which said nothing until a race went late (SD-36). Never the App's
+  # token, and nothing from npm or from the pack: it checks out four files
+  # and runs two scripts from them.
   #
   # Two questions, two issues, each found by its label so a failure that
   # lasts a day is one issue rewritten eight times rather than eight issues:
-  #   failure    did a job of this run fail? Opened on the first that does,
-  #              closed by the first run after it whose `land` passes.
+  #   failure    did a job of this run fail, or is CI refusing the refresh's
+  #              pull request? Opened on the first run that finds either,
+  #              closed by the first after it whose `land` passes while CI
+  #              is not refusing that pull request.
   #   freshness  is a race more than three days past its date with no
   #              result? Read from the committed f1.db and F1DB's calendar
   #              in the harvest, not from anything this run did, so it holds
@@ -400,6 +407,7 @@ jobs:
       contents: read
       issues: write
       actions: read
+      pull-requests: read
     env:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}

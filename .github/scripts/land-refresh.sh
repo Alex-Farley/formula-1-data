@@ -11,7 +11,8 @@
 # commits onto one fixed branch, opens a pull request from it if none is
 # open, and asks GitHub to merge it once the required checks pass. The
 # checks are not skipped and nothing bypasses them: a refresh that CI
-# refuses stays an open pull request, and the check date on main stops.
+# refuses stays an open pull request, the check date on main stops, and
+# refresh.yml's `report` job keeps the refresh-failing issue open (SD-36).
 #
 # GH_TOKEN must be the refresh App's token, not GITHUB_TOKEN: GitHub starts
 # no workflow from a push or pull request made with GITHUB_TOKEN, so CI
