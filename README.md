@@ -883,8 +883,9 @@ that carries the whole licence paragraph is cut to the name before it; the
 file page the credit links keeps the full terms. Where the artist is
 Commons' unknown-author value and the credit field names the source — a
 newspaper, a magazine, an archive — the source is what is stored and shown;
-where the credit names nobody either, "Unknown author" stays. A bare link is
-left as it is, because a link is an acceptable credit under CC BY.
+where the credit names nobody either (a footnote marker, "here", a note that
+the file was transferred from another wiki), "Unknown author" stays. A bare
+link is left as it is, because a link is an acceptable credit under CC BY.
 
 ### Centrelines — `circuit_geometry`
 

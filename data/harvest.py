@@ -2234,13 +2234,26 @@ CREDIT_LICENCE = re.compile(
 # newspaper - the artist field is read as empty so that source is shown with
 # the public-domain mark. Where the credit names nobody either, the artist
 # stays: refusing the file was ruled out, and there is nothing better to show.
+# The other languages' word for it as Commons' Italian, Spanish, French,
+# German and Dutch uploads write it alone in a field ("sconosciuta").
 CREDIT_UNKNOWN = re.compile(
     r"^\s*(template:\s*)?(anonymous\s+)?"
     r"(unknown\s+(author|photographer|photograph|source)\s*)+$"
-    r"|^\s*(anonymous|unknown)\s*$", re.I)
+    r"|^\s*(anonymous|unknown)\s*$"
+    r"|^\s*((autore|autor|auteur|fotografo|fot[oó]grafo)\s+)?"
+    r"(sconosciut[oa]|ignot[oa]|desconocid[oa]|inconnue?|unbekannt|onbekend)"
+    r"\s*\.?\s*$", re.I)
 
 # A footnote marker left where the source should be ("[2]"): names nobody.
 CREDIT_REFERENCE = re.compile(r"^\s*\[\d+\]\s*$")
+
+# A credit field that says only how the file reached Commons, or keeps the
+# text of a link whose address was lost: "Transferred from it.wikipedia to
+# Commons.", "here". Names nobody (CR-70 review). A transfer note followed
+# by its original source - "Transferred from it.wikipedia La Stampa del
+# 12-09-1976" - names one, and is not matched.
+CREDIT_NOBODY = re.compile(
+    r"^\s*(here|transferr?ed from \S+( to commons)?)\s*\.?\s*$", re.I)
 
 
 def credit_without_licence(text):
@@ -2263,6 +2276,7 @@ def credit_names_somebody(text):
                 and not CREDIT_BOILERPLATE.match(text)
                 and not CREDIT_UNKNOWN.match(text)
                 and not CREDIT_REFERENCE.match(text)
+                and not CREDIT_NOBODY.match(text)
                 and not CREDIT_LICENCE.search(text))
 
 

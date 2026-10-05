@@ -179,6 +179,9 @@ class TheCreditIsAName(unittest.TestCase):
                      "Template:Unknown photograph", "unknown", "Anonymous",
                      "Unknown source Unknown source"):
             self.assertTrue(H.CREDIT_UNKNOWN.match(text), text)
+        for text in ("sconosciuta", "Autore sconosciuto", "Desconocido",
+                     "onbekend"):
+            self.assertTrue(H.CREDIT_UNKNOWN.match(text), text)
         for text in ("Unknown photographer from Anefo Fotograaf Onbekend "
                      "for Anefo", "Anonymous Studio", "El Gráfico"):
             self.assertFalse(H.CREDIT_UNKNOWN.match(text), text)
@@ -195,10 +198,18 @@ class TheCreditIsAName(unittest.TestCase):
     def test_the_artist_stays_where_the_credit_names_nobody(self):
         # Refusing the file was ruled out; with nothing better, it stays.
         for credit in ("[2]", "Unknown source Unknown source", "Own work",
-                       None):
+                       None, "here", "sconosciuta",
+                       "Transfered from it.wikipedia",
+                       "Transferred from it.wikipedia to Commons."):
             self.assertEqual(
                 H.clean_credit("Unknown author Unknown author", credit)[0],
                 "Unknown author Unknown author", credit)
+
+    def test_a_transfer_note_with_its_source_names_it(self):
+        self.assertEqual(
+            H.clean_credit("Unknown author Unknown author",
+                           "Transferred from it.wikipedia La Stampa del "
+                           "12-09-1976")[0], None)
 
     def test_a_name_is_left_alone(self):
         for pair in (("Koreller", None), (None, "Los Angeles Daily News"),
