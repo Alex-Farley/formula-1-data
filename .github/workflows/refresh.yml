@@ -70,6 +70,12 @@ on:
 # before npm runs. `land` takes that pack, applies only what
 # .github/scripts/refresh_tree.py allows a refresh to change, mints the token
 # and opens the pull request - and runs nothing from npm.
+#
+# A fourth, `report`, says when any of that is going wrong (SD-35): it keeps
+# one issue open while runs are failing and one while a race has gone
+# unreported past its date. From 2026-10-02 sixteen runs failed in three days
+# and nobody knew, because a failed scheduled run tells only whoever last
+# touched the workflow.
 permissions:
   contents: read
 
@@ -368,3 +374,58 @@ jobs:
           git add web/src/lib/refresh.js
           .github/scripts/land-refresh.sh "refresh: checked F1DB, nothing new" \
             "The harvest already matches F1DB. This records that the check ran."
+
+  # SAYING SO (SD-35). Runs after the other three on every run that was not
+  # cancelled - the gate's quick stops included - and holds the workflow's
+  # own token with the two scopes it needs and nothing else: issues: write to
+  # open, edit and close its two issues, actions: read to name the step that
+  # failed. Never the App's token, and nothing from npm or from the pack: it
+  # checks out four files and runs two scripts from them.
+  #
+  # Two questions, two issues, each found by its label so a failure that
+  # lasts a day is one issue rewritten eight times rather than eight issues:
+  #   failure    did a job of this run fail? Opened on the first that does,
+  #              closed by the first run after it whose `land` passes.
+  #   freshness  is a race more than three days past its date with no
+  #              result? Read from the committed f1.db and F1DB's calendar
+  #              in the harvest, not from anything this run did, so it holds
+  #              when the refresh is not running at all.
+  # refresh_alarm.py and refresh_health.py say the rest.
+  report:
+    needs: [gate, refresh, land]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      OWNER: ${{ github.repository_owner }}
+      RUN_ID: ${{ github.run_id }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            f1.db
+            harvest/race_dates.txt
+            .github/scripts/refresh_alarm.py
+            .github/scripts/refresh_health.py
+          sparse-checkout-cone-mode: false
+
+      - name: Did this run fail?
+        env:
+          GATE: ${{ needs.gate.result }}
+          REFRESH: ${{ needs.refresh.result }}
+          LAND: ${{ needs.land.result }}
+        run: python3 -B .github/scripts/refresh_alarm.py failure
+
+      # Even when the step above failed, so a broken issue write for one
+      # question does not silence the other.
+      - name: Is the data behind the calendar?
+        if: ${{ !cancelled() }}
+        run: python3 -B .github/scripts/refresh_alarm.py freshness
