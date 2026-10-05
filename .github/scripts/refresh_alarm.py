@@ -47,7 +47,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import refresh_health  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-MARK = re.compile(r"<!-- refresh-alarm (\{.*?\}) -->")
+# Greedy to the ` -->` that closes the marker, so a brace inside a step's
+# name cannot end the JSON early. json.dumps writes it on one line.
+MARK = re.compile(r"<!-- refresh-alarm (\{.*\}) -->")
 
 FAILING = dict(label="refresh-failing", colour="B60205",
                description="refresh.yml is failing; opened and closed by the workflow",
