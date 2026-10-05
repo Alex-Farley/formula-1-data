@@ -1609,10 +1609,11 @@ try {
 
   await section('/seasons/1976', async () => {
     await go('/seasons/1976', '1976')
-    const s76 = await tableRows()
-    is(s76[0], count('SELECT COUNT(*) FROM races WHERE year = 1976'), '1976 calendar rounds')
+    // By heading, not by index: a concluded season reads its standings
+    // before its calendar (PD-58), a season being run the other way round.
+    is(await rowsUnder('The calendar'), count('SELECT COUNT(*) FROM races WHERE year = 1976'), '1976 calendar rounds')
     is(
-      s76[1],
+      await rowsUnder("Final drivers' standings"),
       // basis = 'final' is the season as it finished, which is what the page
       // shows — not the running table after the last round, which it stands
       // beside.
@@ -1695,7 +1696,7 @@ try {
   await section('/seasons/2018  (an entity that finished twice)', async () => {
     await go('/seasons/2018', '2018')
     is(
-      (await tableRows())[2],
+      await rowsUnder("Final constructors' standings"),
       count(
         `SELECT COUNT(*) FROM standings
         WHERE year = 2018 AND table_type = 'constructors' AND basis = 'final'`,
@@ -1906,6 +1907,146 @@ try {
         'and so does the app',
       )
     } else pass('no round is scheduled with a timetable, so there is none to lead with')
+  })
+
+  /*
+   * PD-58: a season or constructor page leads with its chart. VD-33 put the
+   * photograph strip straight after the tiles on every one of them, 680 px
+   * of it at 1440, and that is what pushed *Wins by season* and the title
+   * race off the first screen. The chart's heading and its drawing now start
+   * under the tiles and inside 900 px at 1440, and both halves put the rest
+   * in one order: the main table, then the photographs, then the long lists.
+   * A season with a round still to run reads its next round and calendar
+   * before standings that are not final; a concluded one, who won first. The
+   * static page draws neither chart (VD-53 is where that goes), so it is
+   * held to the order alone.
+   */
+  await section('/seasons and /constructors  (the chart leads, the photographs follow)', async () => {
+    const readLead = ([root, chart]) => {
+      const main = document.querySelector(root)
+      const clean = (node) => node.textContent.replace(/\s+/g, ' ').trim()
+      const top = (node) => (node ? node.getBoundingClientRect().top + window.scrollY : null)
+      const heading = [...main.querySelectorAll('h2')].find((h) => clean(h).startsWith(chart))
+      const tiles = main.querySelector('.stats, .fields')
+      return {
+        blocks: [...main.querySelectorAll('h2')].map(clean),
+        heading: top(heading),
+        // The plot, which is the labelled svg: a line chart's legend keys
+        // come first and are svgs too, aria-hidden and 8 px tall.
+        drawing: top(heading?.closest('section')?.querySelector('svg[role="img"][aria-label]')),
+        tilesEnd: tiles ? tiles.getBoundingClientRect().bottom + window.scrollY : null,
+      }
+    }
+    // Every block named is on the page, in this order, except the optional
+    // ones, which may be absent but are in order where present.
+    const inOrder = (blocks, names, optional = new Set()) => {
+      const at = names.map((name) => blocks.findIndex((b) => b.startsWith(name)))
+      const held = at.filter((i) => i >= 0)
+      return at.every((i, k) => i >= 0 || optional.has(names[k])) && held.every((i, k) => k === 0 || i > held[k - 1])
+    }
+    const bothHalves = async (route, wait, chart) => {
+      await go(route, wait)
+      await page.setViewportSize({ width: 1440, height: 900 })
+      await page.evaluate(() => window.scrollTo(0, 0))
+      const app = await page.evaluate(readLead, ['#root main', chart])
+      await page.setViewportSize({ width: 1280, height: 900 })
+      const noJs = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } })
+      const plain = await noJs.newPage()
+      await plain.goto(`${BASE}${route}`, { waitUntil: 'load' })
+      const served = await plain.evaluate(readLead, ['#prerendered', chart])
+      await noJs.close()
+      return { app, served }
+    }
+    // `drawn`: the drawing itself, not only its heading, is inside the
+    // first screen. The season being run carries two sentences under its
+    // tiles (who can still win, and the grid) that the others do not, so
+    // there it is the heading that is held to 900 px: its plot started at
+    // 906 when this was written, and setting that sentence where it can
+    // share the first screen is VD-53's layout work, not this order's.
+    const leads = (route, chart, got, drawn = true) =>
+      truthy(
+        got.heading !== null && got.drawing !== null && got.heading > got.tilesEnd && (drawn ? got.drawing : got.heading) < 900,
+        `${route}: “${chart}” starts under the tiles and ${drawn ? 'is drawn' : 'is headed'} inside the first 900 px at 1440 — heading at ${Math.round(got.heading)}, drawing at ${Math.round(got.drawing)}, the tiles ending at ${Math.round(got.tilesEnd)}`,
+      )
+    const checkOrder = (route, got, order, optional) => {
+      truthy(inOrder(got.app.blocks, order, optional), `${route}, the app: ${order.join(' → ')} — ${got.app.blocks.join(' · ')}`)
+      const plain = order.slice(1)
+      truthy(inOrder(got.served.blocks, plain, optional), `${route}, the static page: ${plain.join(' → ')} — ${got.served.blocks.join(' · ')}`)
+    }
+
+    // The constructor with the most titles that has photographs to show.
+    const team = db
+      .prepare('SELECT id, name FROM constructors WHERE constructors_titles > 0 ORDER BY constructors_titles DESC, id')
+      .all()
+      .find((c) => db.prepare(CONSTRUCTOR_IMAGES).all(c.id).some(canShow))
+    if (team) {
+      const route = `/constructors/${team.id}`
+      const got = await bothHalves(route, team.name, 'Wins by season')
+      leads(route, 'Wins by season', got.app)
+      checkOrder(route, got, ['Wins by season', 'Season by season', 'Photographs', 'Every win', 'Cars built'])
+    } else fail('no constructor with a title has photographs to read the order on')
+
+    // A concluded season with photographs: who won, then the calendar.
+    const done = db
+      .prepare(
+        `SELECT s.year FROM seasons s
+          WHERE s.drivers_champion IS NOT NULL
+            AND NOT EXISTS (SELECT 1 FROM races r WHERE r.year = s.year AND r.status = 'scheduled')
+          ORDER BY s.year DESC`,
+      )
+      .all()
+      .find((s) => db.prepare(SEASON_IMAGES).all(s.year).some(canShow))
+    if (done) {
+      const route = `/seasons/${done.year}`
+      const got = await bothHalves(route, String(done.year), titleHeading(false))
+      leads(route, titleHeading(false), got.app)
+      checkOrder(
+        route,
+        got,
+        [
+          titleHeading(false),
+          standingsHeading("Drivers'", false),
+          standingsHeading("Constructors'", false),
+          'The calendar',
+          'On the grid',
+          'Photographs',
+          'Who entered',
+        ],
+        new Set(['On the grid']),
+      )
+    } else fail('no concluded season has photographs to read the order on')
+
+    // The season being run, if a round of it is still to come: the next
+    // round and the calendar before the standings.
+    const live = db
+      .prepare(
+        `SELECT s.year FROM seasons s
+          WHERE s.year = ${CURRENT_SEASON_SQL}
+            AND EXISTS (SELECT 1 FROM races r WHERE r.year = s.year AND r.status = 'scheduled')
+            AND EXISTS (SELECT 1 FROM races r WHERE r.year = s.year AND r.status = 'completed')`,
+      )
+      .get()?.year
+    if (live) {
+      const route = `/seasons/${live}`
+      const got = await bothHalves(route, String(live), titleHeading(true))
+      leads(route, titleHeading(true), got.app, false)
+      checkOrder(
+        route,
+        got,
+        [
+          titleHeading(true),
+          NEXT_HEADING,
+          WON_HERE_HEADING,
+          'The calendar',
+          "Drivers' standings",
+          "Constructors' standings",
+          'On the grid',
+          'Photographs',
+          'Who entered',
+        ],
+        new Set(['On the grid', 'Photographs']),
+      )
+    } else pass('no season is part-run, so there is no next round to lead the calendar')
   })
 
   await section('/races  (the race photographs lead, and say so)', async () => {

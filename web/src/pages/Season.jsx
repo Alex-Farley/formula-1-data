@@ -420,6 +420,65 @@ function SeasonBody({ year, season, data }) {
       }
     : null
 
+  /*
+   * What leads (PD-58): the tiles, the title race, then what it came to.
+   * A season with a round still to run reads the next round and its
+   * calendar before standings that are not final yet; a concluded one
+   * reads who won first and the calendar after. Then the grid, the
+   * photographs and the entrants. scripts/prerender.js keeps this order.
+   */
+  const calendarSection = (
+    <Section title="The calendar" count={`${calendar.length} rounds`}>
+      {/* The season as a strip of outlines — run, next, to come — above
+          the table that carries the facts (AF-03, PD-28). */}
+      <OutlineStrip year={year} calendar={calendar} />
+      <DataTable
+        rows={calendar}
+        rowKey={(row) => row.round}
+        sortable={false}
+        columns={withRenders(CALENDAR_COLUMNS, calendarRenders(year))}
+        footer={CALENDAR_FOOTER}
+      />
+    </Section>
+  )
+  const standingsSection = (
+    <div className="split" style={{ marginTop: 34 }}>
+      <Section title={standingsHeading("Drivers'", live, after)} count={`${driversFinal.length} drivers`}>
+        <DataTable
+          rows={driversFinal}
+          rowKey={(row) => row.driver_id ?? row.entity}
+          sortable
+          opening={STANDINGS_OPENING}
+          page={40}
+          columns={withRenders(DRIVERS_FINAL_COLUMNS, driversRenders(year, teams))}
+          footer={DRIVERS_FINAL_FOOTER}
+          // "No rows here." is true of a season nobody has raced and says
+          // nothing about it; the reason is the whole of what the page has
+          // (CD-32). Both renderers print this string.
+          empty={notRun ? NOT_RUN_STANDINGS : undefined}
+        />
+      </Section>
+
+      <Section title={standingsHeading("Constructors'", live, after)} count={`${constructorsFinal.length} constructors`}>
+        {constructorsFinal.length === 0 ? (
+          <Note>
+            <strong>{noConstructors.head}</strong> {noConstructors.body}
+          </Note>
+        ) : (
+          <DataTable
+            rows={constructorsFinal}
+            rowKey={(row) => row.id}
+            sortable
+            opening={STANDINGS_OPENING}
+            page={40}
+            columns={withRenders(CONSTRUCTORS_FINAL_COLUMNS, constructorsRenders(year))}
+            footer={constructorsFooter(ambiguous)}
+          />
+        )}
+      </Section>
+    </div>
+  )
+
   return (
     // No eyebrow: the h1 is "2026 FIA Formula One World Championship" now
     // rather than the bare year (PD-40), so the "Season" above it restated
@@ -529,39 +588,6 @@ function SeasonBody({ year, season, data }) {
         )}
       </Section>
 
-      {next && (
-        <NextRound
-          year={year}
-          next={next}
-          sessions={data.sessions.rows.filter((row) => row.round === next.round)}
-          traces={rows(data, 'nextTrace')}
-          wonHere={rows(data, 'wonHere')}
-        />
-      )}
-
-      {/* Who is in the cars this season (PD-38). Only a season with a
-          declared entry list has one, so the section is absent rather than
-          empty on the 76 that have only the record of who entered. */}
-      {currentGrid.length > 0 && (
-        <Section title={GRID_HEADING} count={`${currentGrid.length} drivers`} note={GRID_NOTE}>
-          {/* No opening sort, as with the entrants below: the query's ORDER BY
-              is the order the table opens in, and the static page prints the
-              rows as they come. */}
-          <DataTable
-            rows={currentGrid}
-            rowKey={(row) => row.id}
-            sortable
-            columns={withRenders(GRID_COLUMNS, gridRenders(year))}
-            footer={GRID_FOOTER}
-          />
-        </Section>
-      )}
-
-      {/* The cars of the year, what they won first (VD-33). A season that
-          has not run yet has no entries and so no strip, which is right: the
-          photographs are of cars that raced. */}
-      <Photographs images={rows(data, 'images')} subjects />
-
       {progression.length > 1 && (
         <Section title={titleHeading(live)}>
           <Figure
@@ -593,54 +619,53 @@ function SeasonBody({ year, season, data }) {
         </Section>
       )}
 
-      <Section title="The calendar" count={`${calendar.length} rounds`}>
-        {/* The season as a strip of outlines — run, next, to come — above
-            the table that carries the facts (AF-03, PD-28). */}
-        <OutlineStrip year={year} calendar={calendar} />
-        <DataTable
-          rows={calendar}
-          rowKey={(row) => row.round}
-          sortable={false}
-          columns={withRenders(CALENDAR_COLUMNS, calendarRenders(year))}
-          footer={CALENDAR_FOOTER}
+      {next && (
+        <NextRound
+          year={year}
+          next={next}
+          sessions={data.sessions.rows.filter((row) => row.round === next.round)}
+          traces={rows(data, 'nextTrace')}
+          wonHere={rows(data, 'wonHere')}
         />
-      </Section>
+      )}
 
-      <div className="split" style={{ marginTop: 34 }}>
-        <Section title={standingsHeading("Drivers'", live, after)} count={`${driversFinal.length} drivers`}>
+      {live ? (
+        <>
+          {calendarSection}
+          {standingsSection}
+        </>
+      ) : (
+        <>
+          {standingsSection}
+          {calendarSection}
+        </>
+      )}
+
+      {/* Who is in the cars this season (PD-38). Only a season with a
+          declared entry list has one, so the section is absent rather than
+          empty on the 76 that have only the record of who entered. */}
+      {currentGrid.length > 0 && (
+        <Section title={GRID_HEADING} count={`${currentGrid.length} drivers`} note={GRID_NOTE}>
+          {/* No opening sort, as with the entrants below: the query's ORDER BY
+              is the order the table opens in, and the static page prints the
+              rows as they come. */}
           <DataTable
-            rows={driversFinal}
-            rowKey={(row) => row.driver_id ?? row.entity}
+            rows={currentGrid}
+            rowKey={(row) => row.id}
             sortable
-            opening={STANDINGS_OPENING}
-            page={40}
-            columns={withRenders(DRIVERS_FINAL_COLUMNS, driversRenders(year, teams))}
-            footer={DRIVERS_FINAL_FOOTER}
-            // "No rows here." is true of a season nobody has raced and says
-            // nothing about it; the reason is the whole of what the page has
-            // (CD-32). Both renderers print this string.
-            empty={notRun ? NOT_RUN_STANDINGS : undefined}
+            columns={withRenders(GRID_COLUMNS, gridRenders(year))}
+            footer={GRID_FOOTER}
           />
         </Section>
+      )}
 
-        <Section title={standingsHeading("Constructors'", live, after)} count={`${constructorsFinal.length} constructors`}>
-          {constructorsFinal.length === 0 ? (
-            <Note>
-              <strong>{noConstructors.head}</strong> {noConstructors.body}
-            </Note>
-          ) : (
-            <DataTable
-              rows={constructorsFinal}
-              rowKey={(row) => row.id}
-              sortable
-              opening={STANDINGS_OPENING}
-              page={40}
-              columns={withRenders(CONSTRUCTORS_FINAL_COLUMNS, constructorsRenders(year))}
-              footer={constructorsFooter(ambiguous)}
-            />
-          )}
-        </Section>
-      </div>
+      {/* The cars of the year, what they won first (VD-33), below the
+          title race and the tables it came to (PD-58): the strip used to
+          stand between the tiles and the chart, and pushed the chart off
+          the first screen. A season that has not run yet has no entries
+          and so no strip, which is right: the photographs are of cars that
+          raced. */}
+      <Photographs images={rows(data, 'images')} subjects />
 
       <Section title="Who entered" count={`${entrants.length} entrants`}>
         {/* No opening sort: the query's ORDER BY is the order the table opens
