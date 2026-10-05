@@ -2171,8 +2171,16 @@ try {
       }
       const lead = article.querySelector(':scope > section.section-lead')
       const tiles = article.querySelector(':scope > header + section.section')
+      // The strip's last row of tiles, and the blank after its last tile.
+      const strip = tiles?.querySelector('.stats')
+      const cells = [...(strip?.querySelectorAll(':scope > div') ?? [])].map((tile) => tile.getBoundingClientRect())
+      const lastTop = cells.length ? Math.max(...cells.map((b) => Math.round(b.top))) : null
+      const lastRow = cells.filter((b) => Math.round(b.top) === lastTop)
       return {
         lead: box(lead),
+        tileSection: box(tiles),
+        lastRow: lastRow.map((b) => b.width),
+        blank: strip && lastRow.length ? strip.getBoundingClientRect().right - Math.max(...lastRow.map((b) => b.right)) : 0,
         plot: box(lead?.querySelector('svg[role="img"][aria-label]')),
         heading: box(article.querySelector(':scope > header h1')),
         lede: box(article.querySelector(':scope > header .lede')),
@@ -2192,6 +2200,8 @@ try {
     const cases = [
       ['/drivers/fangio', db.prepare("SELECT full_name FROM drivers WHERE id = 'fangio'").get().full_name],
       ['/constructors/ferrari', db.prepare("SELECT name FROM constructors WHERE id = 'ferrari'").get().name],
+      // A recorded disagreement is the block straight after the chart.
+      ['/constructors/mclaren', db.prepare("SELECT name FROM constructors WHERE id = 'mclaren'").get().name],
       ['/seasons/1976', '1976'],
       ...(live ? [[`/seasons/${live}`, String(live)]] : []),
     ]
@@ -2213,8 +2223,15 @@ try {
           )
           truthy(got.plot.bottom <= 900, `${route} at ${width}: the plot is drawn inside the first 900 px, ending at ${Math.round(got.plot.bottom)}`)
           truthy(
-            !got.next || (got.next.top >= got.lead.bottom && got.next.top >= got.tiles.bottom && got.next.width === got.page.width),
-            `${route} at ${width}: the block after the opening starts under both columns and spans the page`,
+            !!got.next && got.next.top >= Math.max(got.lead.bottom, got.tileSection.bottom) + 24,
+            `${route} at ${width}: the block after the opening starts clear under both columns — at ${got.next ? Math.round(got.next.top) : 'none'}, the opening ending at ${Math.round(Math.max(got.lead.bottom, got.tileSection.bottom))}`,
+          )
+          // The strip wraps at half the page. The blank closing its last row
+          // takes no more than a tile's share of that row, so the tiles there
+          // keep room for their notes, and no tile spreads across the strip.
+          truthy(
+            got.lastRow.length > 0 && got.lastRow.every((w) => w >= got.blank && w <= 0.8 * got.tiles.width),
+            `${route} at ${width}: the strip's last row (${got.lastRow.map(Math.round).join(', ')} px) is wider tile by tile than the blank after it (${Math.round(got.blank)}) and spans no row alone (${Math.round(got.tiles.width)})`,
           )
         } else {
           truthy(

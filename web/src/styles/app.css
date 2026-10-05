@@ -2000,15 +2000,23 @@ figure.photo figcaption a {
     margin-top: 0;
   }
 
+  /* The first block after the opening is clear of it. A section brings its
+     own 40 px; a disagreement has none above it, and set straight under the
+     tile strip at nearly its width it read as one more row of tiles. */
+  .page:has(> .section-lead) > .section-lead + * {
+    margin-top: var(--space-9);
+  }
+
   /* Half the width, so a strip of eight or nine wraps - and flex-grow would
      spread the tile left alone on the last row across all of it, ranking a
-     figure by accident (the rule .stats > div gives above). The blank fills
-     what the last row leaves instead, in the tile's own ground, and the
-     hairline before it closes the last tile. A full row is still filled by
-     its tiles, since the blank takes only space left over on its own row. */
+     figure by accident (the rule .stats > div gives above). The blank, in
+     the tile's own ground, grows as one more tile on the last row and takes
+     its share of what that row leaves: a lone tile gets half, not all, and
+     still has room for its note. It has no width of its own, so it never
+     wraps onto a row by itself. */
   .page:has(> .section-lead) > header + .section .stats::after {
     content: '';
-    flex: 999 1 0;
+    flex: 1 1 0;
     background: var(--panel);
   }
 }
