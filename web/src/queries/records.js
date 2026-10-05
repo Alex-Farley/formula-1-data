@@ -211,7 +211,7 @@ export const TITLE_COLUMNS = [
 ]
 
 export const GRAND_SLAM_COLUMNS = [
-  { key: 'year', rowHeader: true, label: 'Season', align: 'num' },
+  { key: 'year', rowHeader: true, label: 'Season', align: 'num', text: (year) => String(year) },
   { key: 'gp_name', rowHeader: true, label: 'Grand Prix' },
   { key: 'driver', label: 'Driver' },
   { key: 'constructor', label: 'Constructor' },

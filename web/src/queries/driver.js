@@ -378,7 +378,7 @@ export function seasonRows(bySeason, standings) {
 }
 
 export const SEASON_COLUMNS = [
-  { key: 'year', rowHeader: true, label: 'Season', align: 'num' },
+  { key: 'year', rowHeader: true, label: 'Season', align: 'num', text: (year) => String(year) },
   { key: 'teams', label: 'Constructor', align: 'prose' },
   { key: 'entries', label: 'Entries', align: 'num' },
   // Counted from the race records, so a 0 is a true zero and a column of them
@@ -503,7 +503,7 @@ const HEAD_TO_HEAD_COLUMNS = [
 
 /** The season and the team-mate name the row: a pairing is both. */
 export const TEAM_MATE_COLUMNS = [
-  { key: 'year', rowHeader: true, label: 'Season', align: 'num' },
+  { key: 'year', rowHeader: true, label: 'Season', align: 'num', text: (year) => String(year) },
   { key: 'mate', rowHeader: true, label: 'Team-mate' },
   { key: 'constructor', label: 'Constructor' },
   ...HEAD_TO_HEAD_COLUMNS,
@@ -511,7 +511,7 @@ export const TEAM_MATE_COLUMNS = [
 
 /** On /compare the team-mate is the page's second driver on every row, so the season and team name it. */
 export const PAIR_COLUMNS = [
-  { key: 'year', rowHeader: true, label: 'Season', align: 'num' },
+  { key: 'year', rowHeader: true, label: 'Season', align: 'num', text: (year) => String(year) },
   { key: 'constructor', rowHeader: true, label: 'Constructor' },
   ...HEAD_TO_HEAD_COLUMNS,
 ]
@@ -538,7 +538,7 @@ export const teamMatesFooter = (name) =>
 
 /** "Every entry": one row per race the driver was entered for, latest first. */
 export const ENTRY_COLUMNS = [
-  { key: 'year', rowHeader: true, label: 'Season', align: 'num' },
+  { key: 'year', rowHeader: true, label: 'Season', align: 'num', text: (year) => String(year) },
   { key: 'name_used', rowHeader: true, label: 'Grand Prix' },
   { key: 'constructor', label: 'Constructor' },
   { key: 'chassis', label: 'Chassis', text: (name, row) => text(name ?? row.chassis_id) },
@@ -949,7 +949,7 @@ export const practiceSentence = (sessions) => {
 export const practiceCount = (sessions) => plural(sessions.length, 'session')
 
 export const PRACTICE_SESSION_COLUMNS = [
-  { key: 'year', rowHeader: true, label: 'Season', align: 'num' },
+  { key: 'year', rowHeader: true, label: 'Season', align: 'num', text: (year) => String(year) },
   { key: 'name_used', rowHeader: true, label: 'Grand Prix' },
   { key: 'session', label: 'Session', text: (value) => text(SESSION_NAMES[value] ?? value) },
   { key: 'constructor', label: 'Constructor' },

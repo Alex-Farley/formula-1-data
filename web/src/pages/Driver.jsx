@@ -398,7 +398,7 @@ function DriverBody({ driver, data }) {
             table={{
               rows: finishes,
               columns: [
-                { key: 'year', label: 'Season', align: 'num', rowHeader: true },
+                { key: 'year', label: 'Season', align: 'num', rowHeader: true, text: (year) => String(year) },
                 { key: 'constructor', label: 'Constructor' },
                 // The chart plots `position`; its table - the non-fallback source
                 // of the same numbers - must not dash a season the dot has placed.
