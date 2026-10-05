@@ -315,3 +315,75 @@ export const specified = (fields) => fields.some(({ value }) => !missing(value))
 
 export const NO_ENTRIES =
   'No race entry in this database resolves here. That is usually a constructor that ran several designs in a season and no source saying which raced when, not a car that never raced.'
+
+/**
+ * What a car page counts from its rows: the seasons its variants raced, and
+ * the wins, poles and fastest laps in its entries. One reading for the strip
+ * and for the rest of Car.jsx, which prints the same span as the strip's
+ * Raced and sets its derived wins against the published figure.
+ *
+ * `raced` runs from the first variant's first season to the last season any
+ * variant ran, a variant with no last season counting its first; a page
+ * whose variants carry no season at all has [null, null], and the strip
+ * then has no Raced tile.
+ */
+export const carRecord = (variants, entries) => {
+  const firsts = variants.map((v) => v.first_year).filter((y) => !missing(y))
+  const lasts = variants.map((v) => v.last_year ?? v.first_year).filter((y) => !missing(y))
+  return {
+    raced: [firsts.length ? Math.min(...firsts) : null, lasts.length ? Math.max(...lasts) : null],
+    wins: entries.filter((e) => e.finish_position === 1).length,
+    poles: entries.filter((e) => e.pole === 1).length,
+    fastest: entries.filter((e) => e.fastest_lap === 1).length,
+  }
+}
+
+/**
+ * The car's tiles, as both renderers draw them (VD-49): VARIANTS' rows, the
+ * curated CAR row where there is one, and ENTRIES' rows.
+ *
+ * VD-28: the same two ranks the driver and constructor pages take, and the
+ * same rule that a zero does not lead - most chassis in the register never
+ * won, and a car page two clicks from a constructor page that ranks should
+ * not be the one that does not.
+ */
+export const carStrip = (variants, car, entries) => {
+  const { raced, wins, poles, fastest } = carRecord(variants, entries)
+  return [
+    { label: 'Raced', value: raced[0] === null ? null : span(raced[0], raced[1]) },
+    variants.length > 1 ? { label: 'Variants', value: number(variants.length) } : null,
+    { label: 'Recorded entries', value: number(entries.length) },
+    { label: 'Wins', value: number(wins), lead: wins > 0 },
+    { label: 'Poles', value: number(poles) },
+    { label: 'Fastest laps', value: number(fastest) },
+    car?.constructors_titles ? { label: "Constructors' titles", value: car.constructors_titles, lead: true } : null,
+    car?.drivers_titles ? { label: "Drivers' titles", value: car.drivers_titles } : null,
+  ].filter(Boolean)
+}
+
+/**
+ * The car's published wins (CD-37): chassis.published_wins is the CAR's
+ * figure, taken from the article the whole family shares, and it is
+ * repeated verbatim on every variant row - all eleven multi-variant cars in
+ * the register carry one distinct value across their variants. So it is
+ * read once, never added up: summing the four Lotus 72 rows would claim the
+ * 72 won sixty Grands Prix.
+ */
+export const publishedWins = (variants) =>
+  variants.map((row) => row.published_wins).find((value) => !missing(value)) ?? null
+
+/**
+ * Where the wins counted from the race records and the article's figure
+ * differ, both, and why neither is wrong - or null where they agree or no
+ * figure is published. Both renderers print it, so a page whose strip says
+ * "Wins 0" never stands alone beside an article that publishes sixteen.
+ */
+export const winsNote = (variants, entries) => {
+  const published = publishedWins(variants)
+  const { wins } = carRecord(variants, entries)
+  if (missing(published) || published === wins) return null
+  return {
+    head: `${number(wins)} wins can be traced to ${variants.length > 1 ? 'this car' : 'this chassis'}; its article publishes ${number(published)}.`,
+    body: 'Neither is wrong. A win counts here only where the entry list says which car the driver was in, and a team running two designs in a season does not always say. The unresolved seasons are listed below.',
+  }
+}

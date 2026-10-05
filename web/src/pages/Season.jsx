@@ -56,6 +56,7 @@ import {
   teamsByDriver,
   titleHeading,
   titlePermutations,
+  titleStrip,
   wonHereNote,
 } from '../queries/season.js'
 
@@ -386,8 +387,6 @@ function SeasonBody({ year, season, data }) {
   // out and nobody has raced it. Its champion slots are not unknown, they are
   // not yet run, and IA-17 is the rule that they must not read the same.
   const notRun = run === 0
-  // The words a champion slot carries where there is no fact to miss.
-  const notYet = <span className="muted" style={{ fontSize: 15, fontWeight: 500 }}>{NOT_YET_RUN}</span>
   const ambiguous = constructorsFinal.some((r) => r.engine_id)
   // Why there is no constructors' table, where there is none: the 1950-1957
   // sentence, or the one a season nobody has raced needs (CD-32).
@@ -415,7 +414,8 @@ function SeasonBody({ year, season, data }) {
     ? {
         label: 'Next session',
         kind: 'name',
-        value: <Link to={`/races/${year}/${upcoming.round}`}>{upcoming.name}</Link>,
+        value: upcoming.name,
+        href: `races/${year}/${upcoming.round}`,
         note: `${upcoming.name_used}, ${clock(upcoming.start_utc, upcoming.zone)} at the circuit, ${until(upcoming.start_utc, now)}`,
       }
     : null
@@ -493,85 +493,9 @@ function SeasonBody({ year, season, data }) {
       }
     >
       <Section>
-        {/* A season still running leads with who leads, by how much, after how
-            many rounds. The champion's slots would be a row of em dashes on
-            the most-searched page of the year. */}
-        {running ? (
-          <Stats
-            items={[
-              { label: 'Rounds', value: number(season.rounds), note: `${run} run` },
-              {
-                label: 'Leads',
-                kind: 'name',
-                value: lead.driver_id ? <Link to={`/drivers/${lead.driver_id}`}>{lead.entity}</Link> : lead.entity,
-                note: `${fmtPoints(lead.points)} points`,
-              },
-              {
-                label: 'Gap',
-                value: fmtPoints(lead.points - second.points),
-                note: `over ${second.entity}`,
-              },
-              {
-                label: "Constructors' leader",
-                kind: 'name',
-                value: teamLead ? (
-                  teamLead.constructor_id ? (
-                    <Link to={`/constructors/${teamLead.constructor_id}`}>{teamLead.entity}</Link>
-                  ) : (
-                    teamLead.entity
-                  )
-                ) : null,
-                note: teamLead ? `${fmtPoints(teamLead.points)} points` : undefined,
-              },
-              nextTile,
-            ]}
-          />
-        ) : (
-          <Stats
-            items={[
-              {
-                label: 'Rounds',
-                value: number(season.rounds),
-                note: notRun ? NOT_YET_RUN : run === season.rounds ? 'all run' : `${run} run`,
-              },
-              {
-                label: "Drivers' champion",
-                kind: 'name',
-                value: season.drivers_champion ? (
-                  <Link to={`/drivers/${season.drivers_champion}`}>{season.champion}</Link>
-                ) : notRun ? (
-                  notYet
-                ) : null,
-                note: season.champion_points !== null ? `${fmtPoints(season.champion_points)} points` : undefined,
-              },
-              {
-                label: "Constructors' champion",
-                kind: 'name',
-                value: season.constructors_champion ? (
-                  <Link to={`/constructors/${season.constructors_champion}`}>
-                    {season.constructors_champion_name}
-                  </Link>
-                ) : year < 1958 ? (
-                  <span className="muted" style={{ fontSize: 15, fontWeight: 500 }}>
-                    not contested
-                  </span>
-                ) : notRun ? (
-                  notYet
-                ) : null,
-                note:
-                  season.constructors_points !== null && season.constructors_points !== undefined
-                    ? `${fmtPoints(season.constructors_points)} points`
-                    : undefined,
-              },
-              {
-                label: 'Margin',
-                value: season.margin !== null ? fmtPoints(season.margin) : notRun ? notYet : null,
-                note: season.runner_up_name ? `over ${season.runner_up_name}` : undefined,
-              },
-              nextTile,
-            ]}
-          />
-        )}
+        {/* The strip is queries/season.js's, which the static page draws
+            too (VD-49); the next session's tile is the browser's alone. */}
+        <Stats items={[...titleStrip({ season, year, running, run, notRun, lead, second, teamLead }), nextTile]} />
         {permutations && (
           <p className="note" style={{ marginTop: 10 }}>
             {permutations}

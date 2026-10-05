@@ -11,7 +11,7 @@
  *
  * See queries/drivers.js for what a column's `text` is.
  */
-import { span, text } from '../lib/format.js'
+import { number, span, text } from '../lib/format.js'
 import { NOT_YET_RUN } from '../lib/site.js'
 
 /**
@@ -202,3 +202,25 @@ export function heldAs(rows) {
   clause('On the calendar here as', rows.filter((row) => !(row.races > 0) && row.scheduled > 0), false)
   return words.map((segment, place) => ({ ...segment, key: `${place}` }))
 }
+
+/** "1 season", "76 seasons". */
+const seasonCount = (n) => `${n} ${n === 1 ? 'season' : 'seasons'}`
+
+/**
+ * The circuit's tiles, as both renderers draw them (VD-49), from CIRCUIT's
+ * row: the races and the span are v_circuits', derived from the races, since
+ * the stored last_gp is NULL for every venue still in use and the stored
+ * count is not the races.
+ */
+export const circuitStrip = (circuit) => [
+  { label: 'Championship races', value: number(circuit.races) },
+  {
+    label: 'Grands Prix',
+    value: span(circuit.derived_first, circuit.derived_last),
+    note: seasonCount(circuit.seasons_used ?? 0),
+  },
+  { label: 'Length', value: circuit.length_km ? `${circuit.length_km} km` : null, note: 'current layout' },
+  { label: 'Turns', value: circuit.turns },
+  { label: 'Direction', value: circuit.direction },
+  { label: 'Type', value: circuit.circuit_type },
+]

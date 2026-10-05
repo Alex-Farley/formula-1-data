@@ -13,7 +13,8 @@
  *
  * See queries/drivers.js for what a column's `text` is.
  */
-import { classificationOrder, finished, missing, points, raceDates, result, text } from '../lib/format.js'
+import { classificationOrder, finished, missing, number, points, raceDates, result, text } from '../lib/format.js'
+import { linked } from '../lib/tiles.js'
 import { SHARED } from '../lib/site.js'
 
 export const RACE = `
@@ -490,3 +491,88 @@ export const scheduledNote = (race, stage = 'awaited') => {
  * copies of this rule are how the two would come to disagree.
  */
 export const raceNote = (race) => (race.note == null ? '' : String(race.note).trim())
+
+/**
+ * The race's tiles, as both renderers draw them (VD-49).
+ *
+ * `entries` are the ENTRIES rows in the order the query returns them, and
+ * `qualifying` QUALIFYING's: the pole-sitters and fastest-lap setters are
+ * listed in that order, so a static page handed the classification order
+ * instead would name a shared fastest lap in another order than the app.
+ *
+ * "Pole" is the driver the season record credits with pole position. Two
+ * neighbouring facts are held separately and shown only where they name
+ * someone else: the fastest qualifier (thirteen races, where a penalty or a
+ * sprint-set grid moved the quickest driver back) and the car that actually
+ * started from grid 1 (one race, 2022 Brazil, where the sprint winner
+ * started first and pole stayed with the fastest qualifier). The database
+ * records that they differ, not why, so neither tile states a cause.
+ *
+ * A round not yet run has a Status tile where the result would be, and no
+ * Entries tile while no entry is held (PD-47, UR-20): "0" on this site is a
+ * positive claim that nobody entered.
+ */
+export const raceStrip = (race, entries, qualifying) => {
+  const scheduled = race.status === 'scheduled'
+  const winners = inClassificationOrder(entries).filter((e) => e.finish_position === 1)
+  const poles = entries.filter((e) => e.pole === 1)
+  const quickest = qualifying.find((q) => q.position === 1)
+  const outqualified = quickest && poles.length === 1 && quickest.driver_id !== poles[0].driver_id ? quickest : null
+  const front = entries.filter((e) => e.grid === 1)
+  const startedFirst =
+    front.length === 1 && poles.length === 1 && front[0].driver_id !== poles[0].driver_id ? front[0] : null
+  const fastest = entries.filter((e) => e.fastest_lap === 1)
+  const finishers = entries.filter((e) => !missing(e.finish_position)).length
+  const names = (list) => linked(list.map((e) => ({ label: e.driver ?? e.driver_id, href: `drivers/${e.driver_id}` })))
+  return [
+    {
+      // VD-28: a name is set in the sans face at a reading size by the rule
+      // in app.css, not by an inline size on one link.
+      label: 'Circuit',
+      kind: 'name',
+      value: race.circuit_id ? race.circuit : null,
+      href: `circuits/${race.circuit_id}`,
+      note: [race.locality, race.country].filter(Boolean).join(', ') || undefined,
+    },
+    scheduled
+      ? { label: 'Status', value: 'Scheduled', note: raceDates(race) ?? undefined }
+      : {
+          label: 'Winner',
+          kind: 'name',
+          ...names(winners),
+          // The car by the classification's own rule, so the tile, the
+          // standfirst above it and the table below it name the same one on
+          // the eleven Indianapolis 500s (AF-64).
+          note: carName(winners[0]) ?? undefined,
+        },
+    scheduled ? null : { label: 'Pole', kind: 'name', ...names(poles) },
+    scheduled || !startedFirst
+      ? null
+      : {
+          label: 'Started first',
+          kind: 'name',
+          value: startedFirst.driver ?? startedFirst.driver_id,
+          href: `drivers/${startedFirst.driver_id}`,
+          note: `the pole-sitter started ${poles[0].grid_text ?? '—'}`,
+        },
+    scheduled || !outqualified
+      ? null
+      : {
+          label: 'Fastest qualifier',
+          kind: 'name',
+          value: outqualified.driver ?? outqualified.driver_id,
+          href: `drivers/${outqualified.driver_id}`,
+          note: `started ${entries.find((e) => e.driver_id === outqualified.driver_id)?.grid_text ?? '—'}${
+            race.sprint ? ', the grid set by the sprint' : ''
+          }`,
+        },
+    scheduled ? null : { label: 'Fastest lap', kind: 'name', ...names(fastest) },
+    entries.length === 0
+      ? null
+      : {
+          label: 'Entries',
+          value: number(entries.length),
+          note: scheduled ? undefined : `${finishers} classified`,
+        },
+  ].filter(Boolean)
+}

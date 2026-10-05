@@ -624,3 +624,86 @@ export const ENTRANT_COLUMNS = [
 
 export const ENTRANTS_FOOTER =
   'Where an entrant ran more than one design, no source records which car raced which round — so those race results carry no chassis.'
+
+/**
+ * The season's tiles, as both renderers draw them (VD-49).
+ *
+ * A season still running leads with who leads, by how much, after how many
+ * rounds; the champion's slots would be a row of em dashes on the
+ * most-searched page of the year. A season nobody has raced carries
+ * NOT_YET_RUN in those slots rather than a dash (IA-17), and the
+ * constructors' title before 1958 is "not contested", which is a fact, where
+ * a dash would be a gap.
+ *
+ * `running` and `notRun` are the page's own two questions, passed in rather
+ * than asked again here, so the strip cannot answer them differently from
+ * the headings below it. The next session's tile is not here: only a
+ * browser knows how long until it starts, so Season.jsx adds it to the end
+ * of this list and the static page carries no such tile.
+ */
+export const titleStrip = ({ season, year, running, run, notRun, lead, second, teamLead }) => {
+  if (running) {
+    return [
+      { label: 'Rounds', value: number(season.rounds), note: `${run} run` },
+      {
+        label: 'Leads',
+        kind: 'name',
+        value: lead.entity,
+        href: lead.driver_id ? `drivers/${lead.driver_id}` : null,
+        note: `${points(lead.points)} points`,
+      },
+      {
+        label: 'Gap',
+        value: points(lead.points - second.points),
+        note: `over ${second.entity}`,
+      },
+      teamLead
+        ? {
+            label: "Constructors' leader",
+            kind: 'name',
+            value: teamLead.entity,
+            href: teamLead.constructor_id ? `constructors/${teamLead.constructor_id}` : null,
+            note: `${points(teamLead.points)} points`,
+          }
+        : null,
+    ].filter(Boolean)
+  }
+  const notYet = { value: NOT_YET_RUN, quiet: true }
+  return [
+    {
+      label: 'Rounds',
+      value: number(season.rounds),
+      note: notRun ? NOT_YET_RUN : run === season.rounds ? 'all run' : `${run} run`,
+    },
+    {
+      label: "Drivers' champion",
+      kind: 'name',
+      ...(season.drivers_champion
+        ? { value: season.champion, href: `drivers/${season.drivers_champion}` }
+        : notRun
+          ? notYet
+          : { value: null }),
+      note: season.champion_points !== null ? `${points(season.champion_points)} points` : undefined,
+    },
+    {
+      label: "Constructors' champion",
+      kind: 'name',
+      ...(season.constructors_champion
+        ? { value: season.constructors_champion_name, href: `constructors/${season.constructors_champion}` }
+        : year < 1958
+          ? { value: 'not contested', quiet: true }
+          : notRun
+            ? notYet
+            : { value: null }),
+      note:
+        season.constructors_points !== null && season.constructors_points !== undefined
+          ? `${points(season.constructors_points)} points`
+          : undefined,
+    },
+    {
+      label: 'Margin',
+      ...(season.margin !== null ? { value: points(season.margin) } : notRun ? notYet : { value: null }),
+      note: season.runner_up_name ? `over ${season.runner_up_name}` : undefined,
+    },
+  ]
+}

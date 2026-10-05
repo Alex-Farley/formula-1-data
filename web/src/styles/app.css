@@ -686,6 +686,15 @@ main {
   text-underline-offset: 3px;
 }
 
+/* Words standing where a figure would be - "not yet run", "not contested" -
+   are not set at a figure's size. A tile's `quiet` (lib/tiles.js), which
+   both renderers draw as this class, where the season page used to write
+   the size inline on each one. */
+.stats dd .tile-quiet {
+  font-size: var(--size-5);
+  font-weight: var(--weight-medium);
+}
+
 .hero-figure {
   font-size: var(--size-hero);
   font-weight: var(--weight-bold);

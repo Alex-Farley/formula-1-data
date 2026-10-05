@@ -36,6 +36,7 @@ import {
   TRACE_COVERAGE,
   WINNERS,
   WINNER_COLUMNS,
+  circuitStrip,
   heldAs,
   photographAlt,
 } from '../queries/circuit.js'
@@ -162,20 +163,8 @@ function CircuitBody({ circuit, data }) {
       }
     >
       <Section>
-        <Stats
-          items={[
-            { label: 'Championship races', value: number(circuit.races) },
-            {
-              label: 'Grands Prix',
-              value: span(circuit.derived_first, circuit.derived_last),
-              note: `${circuit.seasons_used ?? 0} seasons`,
-            },
-            { label: 'Length', value: circuit.length_km ? `${circuit.length_km} km` : null, note: 'current layout' },
-            { label: 'Turns', value: circuit.turns },
-            { label: 'Direction', value: circuit.direction },
-            { label: 'Type', value: circuit.circuit_type },
-          ]}
-        />
+        {/* queries/circuit.js's strip, which the static page draws too (VD-49). */}
+        <Stats items={circuitStrip(circuit)} />
       </Section>
 
       {/* AF-23: this page used to draw the circuit twice — the ODbL trace and

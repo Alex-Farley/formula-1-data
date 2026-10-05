@@ -23,6 +23,7 @@ import {
 } from '../lib/site.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
+import { SHAPE, fileStrip, trustStrip } from '../queries/data.js'
 /**
  * The database's front door.
  *
@@ -40,20 +41,7 @@ import { ONWARD, TRAIL } from '../lib/wayfinding.js'
  */
 const SPEC = {
   meta: ['SELECT key, value FROM meta'],
-  shape: [
-    `SELECT
-       (SELECT COUNT(*) FROM sqlite_master WHERE type = 'table') AS tables,
-       (SELECT COUNT(*) FROM sqlite_master WHERE type = 'view')  AS views,
-       (SELECT COUNT(*) FROM source_registry)                    AS sources,
-       (SELECT COUNT(*) FROM discrepancies)                      AS discrepancies,
-       (SELECT COUNT(*) FROM discrepancies WHERE status = 'open')     AS open_discrepancies,
-       (SELECT COUNT(*) FROM v_open_gaps)                        AS gaps,
-       (SELECT COUNT(*) FROM races)                              AS races,
-       (SELECT COUNT(*) FROM race_entries)                       AS entries,
-       (SELECT COUNT(*) FROM laps) + (SELECT COUNT(*) FROM stints)
-         + (SELECT COUNT(*) FROM race_timing)
-         + (SELECT COUNT(*) FROM race_control_messages)          AS timing_rows`,
-  ],
+  shape: [SHAPE],
   classes: ['SELECT redistributable, COUNT(*) AS n FROM source_registry GROUP BY redistributable'],
   ladder: ['SELECT confidence FROM provenance ORDER BY rank'],
 }
@@ -101,15 +89,8 @@ function Body({ data }) {
   return (
     <>
       <Section>
-        <Stats
-          items={[
-            { label: 'Database', value: meta.version ? `v${meta.version}` : null, note: 'meta.version' },
-            { label: 'Built', value: meta.built ?? null, note: 'meta.built' },
-            { label: 'Covers', value: meta.coverage_seasons ?? null },
-            { label: 'Tables', value: number(shape.tables), note: `and ${number(shape.views)} views` },
-            { label: 'Races', value: number(shape.races), note: `${number(shape.entries)} race entries` },
-          ]}
-        />
+        {/* queries/data.js's strips, which the static page draws too (VD-49). */}
+        <Stats items={fileStrip(meta, shape)} />
         <p className="measure">{CROSS_CHECKED}</p>
         <p className="measure">
           The races, classifications, qualifying, standings and pit stops are F1DB&rsquo;s race
@@ -237,17 +218,7 @@ function Body({ data }) {
         title="How far to trust it"
         note="Every row carries one of five confidence tiers; every disagreement between sources is kept rather than quietly resolved; everything known to be missing is listed."
       >
-        <Stats
-          items={[
-            {
-              label: 'Disagreements on record',
-              value: number(shape.discrepancies),
-              note: `${number(shape.open_discrepancies)} still open`,
-            },
-            { label: 'Open gaps', value: number(shape.gaps), note: 'and what would close each' },
-            { label: 'Sources', value: number(shape.sources), note: 'each with its licence' },
-          ]}
-        />
+        <Stats items={trustStrip(shape)} />
         <p className="measure">
           The ladder, from the top:{' '}
           {ladder.map((tier, i) => (

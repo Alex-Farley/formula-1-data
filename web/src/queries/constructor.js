@@ -11,7 +11,7 @@
  *
  * See queries/drivers.js for what a column's `text` is.
  */
-import { EMPTY, missing, points, span, text } from '../lib/format.js'
+import { EMPTY, missing, number, points, span, text, yearList } from '../lib/format.js'
 import { derivedAndPublished } from './driver.js'
 
 export const CONSTRUCTOR = `SELECT * FROM constructors WHERE id = ?`
@@ -167,3 +167,37 @@ export const DESIGN_COLUMNS = [
   { key: 'races', label: 'Races', align: 'num' },
   { key: 'wins', label: 'Wins', align: 'num' },
 ]
+
+/**
+ * The constructor's tiles, as both renderers draw them (VD-49). The figures
+ * are DERIVED's, counted from the race records, never the stored columns:
+ * constructors.entries is NULL for every row.
+ *
+ * VD-28: wins and the constructors' titles lead, the same two ranks the
+ * driver page takes and for the same reason - and, for the same reason, a
+ * zero does not lead: of the constructors in the register most never won,
+ * and leading their 0 would point the emphasis at what is not there. A strip
+ * with no lead keeps the one rank it always had.
+ */
+export const teamStrip = (constructor, derived) =>
+  [
+    {
+      label: 'Entered',
+      value: span(constructor.first_entry, constructor.active ? null : constructor.last_entry),
+      note: `${derived.seasons ?? 0} ${derived.seasons === 1 ? 'season' : 'seasons'}`,
+    },
+    { label: 'Race entries', value: number(derived.entries) },
+    { label: 'Wins', value: number(derived.wins ?? 0), lead: Number(derived.wins) > 0 },
+    { label: 'Podiums', value: number(derived.podiums ?? 0) },
+    { label: 'Poles', value: number(derived.poles ?? 0) },
+    { label: 'Drivers', value: number(derived.drivers) },
+    constructor.constructors_titles
+      ? {
+          label: "Constructors' titles",
+          value: number(constructor.constructors_titles),
+          note: missing(constructor.title_years) ? undefined : yearList(constructor.title_years),
+          lead: true,
+        }
+      : null,
+    constructor.drivers_titles ? { label: "Drivers' titles", value: number(constructor.drivers_titles) } : null,
+  ].filter(Boolean)
