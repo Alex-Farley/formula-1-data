@@ -5140,6 +5140,33 @@ def illustration_and_geometry():
         check("no image is credited with Commons boilerplate instead of a name",
               not boiler, "; ".join(boiler[:3]))
 
+        # Every route's harvest stores the two fields as the credit rule
+        # leaves them (data/harvest.py clean_credit, CR-70): no licence
+        # paragraph printed as the credit, and no "Unknown author" shown
+        # where the credit names the source. A field no rule touches comes
+        # back unchanged, so the stored pair must be its own image.
+        unclean = [f"{f}: {(a or '')[:40]!r}" for f, a, c in con.execute(
+            "SELECT file_name, artist, credit FROM article_images")
+            if H.clean_credit(a or None, c or None) != (a or None, c or None)]
+        check("every image's artist and credit are as the credit rule "
+              "leaves them", not unclean,
+              f"{len(unclean)}: " + "; ".join(unclean[:3]))
+        # The two rules a reader would see broken, each on its own so a
+        # failure says which: no shown credit carries a licence sentence,
+        # and none is the unknown-author value while the credit holds a
+        # source.
+        para = [f for f, a, c in con.execute(
+            "SELECT file_name, artist, credit FROM article_images")
+            if H.CREDIT_LICENCE.search(H.credit_shown(a, c) or "")]
+        check("no image is credited with a licence paragraph", not para,
+              "; ".join(para[:3]))
+        unknown = [f for f, a, c in con.execute(
+            "SELECT file_name, artist, credit FROM article_images")
+            if H.CREDIT_UNKNOWN.match(H.credit_shown(a, c) or "")
+            and H.credit_names_somebody(c)]
+        check("no image is credited 'Unknown author' where its credit names "
+              "the source", not unknown, "; ".join(unknown[:3]))
+
         nolic = con.execute("SELECT COUNT(*) FROM article_images "
                             "WHERE licence IS NULL OR TRIM(licence) = ''"
                             ).fetchone()[0]

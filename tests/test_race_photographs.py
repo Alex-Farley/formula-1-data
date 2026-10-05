@@ -133,6 +133,95 @@ class TheCreditNamesSomebody(unittest.TestCase):
                                    route="race"))
         self.assertIn("names nobody", log[-1])
 
+    def test_every_route_reads_boilerplate_as_empty(self):
+        # CR-70 (4): the rule is admit()'s for every route, not the race
+        # route's, so no route's refresh can fail verify.py on "Own work".
+        meta = {"host": None, "namespace": None, "repository": "shared",
+                "licence": "CC BY-SA 4.0", "licence_url": None,
+                "artist": "Koreller", "credit": "Own work",
+                "attribution_required": "true",
+                "description_url": "https://commons.wikimedia.org/wiki/File:X.jpg",
+                "thumb_url": None, "width": 800, "height": 600}
+        row = WI.admit("AGS JH22", "File:X.jpg", meta, "", [])
+        self.assertEqual((row["artist"], row["credit"]), ("Koreller", None))
+        log = []
+        nobody = dict(meta, artist="Own work", attribution_required="false")
+        self.assertIsNone(WI.admit("AGS JH22", "File:X.jpg", nobody, "", log,
+                                   route="circuit"))
+        self.assertIn("names nobody", log[-1])
+
+
+KOLFORN = ("Kolforn ( Kolforn ) I'd appreciate if you could mail me "
+           "(someone@example.com) if you want to use this picture out of the "
+           "Wikimedia project scope. This file is licensed under the Creative "
+           "Commons Attribution-Share Alike 4.0 International license. You "
+           "are free: to share - to copy, distribute and transmit the work")
+
+
+class TheCreditIsAName(unittest.TestCase):
+    """CR-70, ruled 2026-10-05: a licence paragraph is cut to the name, and
+    the unknown-author value gives way to a credit that names the source."""
+
+    def test_a_licence_paragraph_is_cut_to_the_name(self):
+        self.assertEqual(H.credit_without_licence(KOLFORN), "Kolforn")
+        self.assertEqual(H.clean_credit(KOLFORN, None), ("Kolforn", None))
+        # Nothing before the licence is nothing to show.
+        self.assertIsNone(H.credit_without_licence(
+            "This file is licensed under the Creative Commons license."))
+        # A field without a licence sentence is left whole, brackets and all.
+        for text in ("Dan Smith (from the stands)", "Joop van Bilsen / Anefo",
+                     None, ""):
+            self.assertEqual(H.credit_without_licence(text), text)
+
+    def test_the_unknown_author_value(self):
+        for text in ("Unknown author Unknown author", "Unknown author",
+                     "Anonymous Unknown author", "Unknown photographer",
+                     "Template:Unknown photograph", "unknown", "Anonymous",
+                     "Unknown source Unknown source"):
+            self.assertTrue(H.CREDIT_UNKNOWN.match(text), text)
+        for text in ("Unknown photographer from Anefo Fotograaf Onbekend "
+                     "for Anefo", "Anonymous Studio", "El Gráfico"):
+            self.assertFalse(H.CREDIT_UNKNOWN.match(text), text)
+
+    def test_the_source_is_shown_where_there_is_one(self):
+        self.assertEqual(
+            H.clean_credit("Unknown author Unknown author", "El Gráfico"),
+            (None, "El Gráfico"))
+        # A bare URL is a credit (CR-70 (3)).
+        self.assertEqual(
+            H.clean_credit("Unknown photographer", "http://example.org/a"),
+            (None, "http://example.org/a"))
+
+    def test_the_artist_stays_where_the_credit_names_nobody(self):
+        # Refusing the file was ruled out; with nothing better, it stays.
+        for credit in ("[2]", "Unknown source Unknown source", "Own work",
+                       None):
+            self.assertEqual(
+                H.clean_credit("Unknown author Unknown author", credit)[0],
+                "Unknown author Unknown author", credit)
+
+    def test_a_name_is_left_alone(self):
+        for pair in (("Koreller", None), (None, "Los Angeles Daily News"),
+                     ("Lothar Spurzem", "[2]"),
+                     ("Hans van Dijk for Anefo", "http://proxy.handle.net/x")):
+            self.assertEqual(H.clean_credit(*pair), pair)
+
+    def test_the_harvest_applies_it(self):
+        meta = {"host": WI.COMMONS_HOST, "namespace": 6, "repository": "local",
+                "licence": "Public domain", "licence_url": None,
+                "artist": "Unknown author Unknown author",
+                "credit": "Corsa no. 354", "attribution_required": "false",
+                "description_url": "https://commons.wikimedia.org/wiki/File:X.jpg",
+                "thumb_url": None, "width": 800, "height": 600}
+        row = WI.admit("1975-01", "File:X.jpg", meta, "", [], route="race")
+        self.assertEqual((row["artist"], row["credit"]),
+                         (None, "Corsa no. 354"))
+        row = WI.admit("1992-09", "File:X.jpg",
+                       dict(meta, licence="CC BY-SA 4.0", artist=KOLFORN,
+                            credit=None, attribution_required="true"),
+                       "", [], route="race")
+        self.assertEqual((row["artist"], row["credit"]), ("Kolforn", None))
+
 
 if __name__ == "__main__":
     unittest.main()

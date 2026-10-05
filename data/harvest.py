@@ -2206,12 +2206,82 @@ def race_twin_key(file_name):
 # A credit line is what the page shows beside the photograph, and Commons
 # sometimes puts its own boilerplate in the field it is read from: "Own
 # work", or the opening of its licence sentence, "I, the copyright holder of
-# this work, hereby publish it ...". Shown alone, either credits nobody. The
-# race route reads such a field as empty, so the other field speaks or the
-# file is refused for naming nobody; build.py and verify.py refuse a row
-# whose shown credit is boilerplate.
+# this work, hereby publish it ...". Shown alone, either credits nobody.
+# Every route's harvest reads such a field as empty (clean_credit), so the
+# other field speaks or the file is refused for naming nobody; build.py and
+# verify.py refuse a row whose shown credit is boilerplate.
 CREDIT_BOILERPLATE = re.compile(
     r"^\s*(own work|i,? the copyright holder of this work\b.*)\s*$", re.I)
+
+# Three more ways a field names nobody, or names somebody inside something
+# else (CR-70, ruled 2026-10-05):
+#
+# A licence paragraph. An uploader can write the whole licence into the
+# author field - "Kolforn ( Kolforn ) I'd appreciate if you could mail me
+# ... This file is licensed under the Creative Commons Attribution-Share
+# Alike 4.0 International license. You are free: ..." - and a page that
+# shows the field prints a paragraph as the credit. The field is cut to the
+# name: the text before the licence, up to its first bracket. The file page
+# the credit line links keeps the full terms and any request readable; the
+# licence link shows as for every photograph.
+CREDIT_LICENCE = re.compile(
+    r"\bthis (file|work|image|photograph) is licensed under\b"
+    r"|\byou are free\s*:", re.I)
+
+# Commons' unknown-author value, as its templates render it ("Unknown author
+# Unknown author", "Anonymous Unknown author", "Unknown photographer"), names
+# nobody. Where the credit field names the source - El Grafico, Corsa, a
+# newspaper - the artist field is read as empty so that source is shown with
+# the public-domain mark. Where the credit names nobody either, the artist
+# stays: refusing the file was ruled out, and there is nothing better to show.
+CREDIT_UNKNOWN = re.compile(
+    r"^\s*(template:\s*)?(anonymous\s+)?"
+    r"(unknown\s+(author|photographer|photograph|source)\s*)+$"
+    r"|^\s*(anonymous|unknown)\s*$", re.I)
+
+# A footnote marker left where the source should be ("[2]"): names nobody.
+CREDIT_REFERENCE = re.compile(r"^\s*\[\d+\]\s*$")
+
+
+def credit_without_licence(text):
+    """A credit field cut to the name before any licence paragraph in it, or
+    None where nothing comes before it. A field with no licence paragraph is
+    returned as it is."""
+    if not text:
+        return text
+    m = CREDIT_LICENCE.search(text)
+    if not m:
+        return text
+    name = text[:m.start()].split("(", 1)[0].strip(" \t.,;:-\u2013\u2014")
+    return name or None
+
+
+def credit_names_somebody(text):
+    """Does a credit field, shown alone, name a person or a source? A bare
+    URL does: a link is an acceptable CC BY credit (CR-70)."""
+    return bool(text and text.strip()
+                and not CREDIT_BOILERPLATE.match(text)
+                and not CREDIT_UNKNOWN.match(text)
+                and not CREDIT_REFERENCE.match(text)
+                and not CREDIT_LICENCE.search(text))
+
+
+def clean_credit(artist, credit):
+    """(artist, credit) as every route's harvest stores them, given the two
+    fields as Commons answered them: a licence paragraph cut to the name,
+    boilerplate read as empty, and the unknown-author value read as empty
+    where the credit names somebody. A field no rule touches comes back as
+    it went in, so a stored row is its own image under this function, which
+    is what build.py and verify.py hold it to."""
+    artist = credit_without_licence(artist)
+    credit = credit_without_licence(credit)
+    if artist and CREDIT_BOILERPLATE.match(artist):
+        artist = None
+    if credit and CREDIT_BOILERPLATE.match(credit):
+        credit = None
+    if artist and CREDIT_UNKNOWN.match(artist) and credit_names_somebody(credit):
+        artist = None
+    return artist, credit
 
 
 def credit_shown(artist, credit):
