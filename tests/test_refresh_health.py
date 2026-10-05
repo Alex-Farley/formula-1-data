@@ -265,6 +265,25 @@ class ThePullRequestCIRefuses(unittest.TestCase):
         runs = [self.run_("02:00", conclusion="failure")]
         self.assertIsNone(alarm.refused_run(self.PR, runs))
 
+    def test_a_fork_with_a_branch_of_the_same_name_is_not_the_refresh(self):
+        def api(repo, at, conclusion):
+            return dict(id=at, status="completed", conclusion=conclusion,
+                        created_at=f"2026-10-05T{at}:00Z", html_url=at,
+                        head_repository=dict(full_name=repo))
+        mine = "Alex-Farley/formula-1-data"
+        runs = [api("stranger/formula-1-data", "06:00", "success"),
+                api(mine, "04:00", "failure"),
+                dict(id="05:00", status="completed", conclusion="failure",
+                     created_at="2026-10-05T05:00:00Z", head_repository=None)]
+        own = alarm.own_runs(mine, runs)
+        self.assertEqual([r["url"] for r in own], ["04:00"])
+        self.assertEqual(alarm.refused_run(self.PR, own)["url"], "04:00")
+
+    def test_a_backtick_in_a_job_name_cannot_close_the_code_span(self):
+        jobs = [dict(name="web` **x**", conclusion="failure",
+                     steps=[dict(name="a`b", conclusion="failure")])]
+        self.assertEqual(alarm.failed_steps(jobs), ["`web' **x**`: a'b"])
+
     def test_the_matrix_sibling_cancelled_by_a_failure_is_not_named(self):
         jobs = [dict(name="check (3.9)", conclusion="failure",
                      steps=[dict(name="Verify", conclusion="failure")]),

@@ -53,6 +53,12 @@ THE PULL REQUEST CI REFUSES (SD-36)
     progress on pull requests) and says nothing, unless nothing is newer,
     in which case it is a job that hit its timeout.
 
+    Only this repository's own: a branch name is not an identity. Anyone
+    can open a pull request from a fork's `refresh/f1db`, and ci.yml runs
+    on it from the fork's copy of the workflow, so matched by name a
+    stranger's run could raise the alarm, hide a real refusal, or write
+    its own job names into the issue (security review on #812).
+
 Needs GH_TOKEN (the workflow's own token, with issues: write, actions: read
 and pull-requests: read - never the refresh App's), GH_REPO, RUN_ID, RUN_URL
 and OWNER; for `failure`, the three jobs' results as GATE, REFRESH and LAND.
@@ -101,6 +107,15 @@ def failure_action(results, is_open, refused=False):
     if results.get("land") == "success" and is_open:
         return "close"
     return None
+
+
+def own_runs(repo, api_runs):
+    """The REST API's workflow runs reduced to the fields refused_run()
+    reads, keeping only those whose head is in `repo`."""
+    return [dict(databaseId=r["id"], status=r.get("status"), conclusion=r.get("conclusion"),
+                 createdAt=r.get("created_at", ""), url=r.get("html_url"))
+            for r in api_runs
+            if (r.get("head_repository") or {}).get("full_name") == repo]
 
 
 def refused_run(pr, runs):
@@ -221,6 +236,8 @@ def failed_steps(jobs, only_failed=False):
     With `only_failed`, a cancelled job is named only when none failed: a
     matrix cancels its sibling when one leg fails, and naming the sibling
     would send whoever reads it to a job that did nothing wrong."""
+    def name(text):
+        return str(text).replace("`", "'")   # cannot close the code span
     bad = ("failure", "cancelled")
     if only_failed and any(j.get("conclusion") == "failure" for j in jobs):
         bad = ("failure",)
@@ -228,8 +245,8 @@ def failed_steps(jobs, only_failed=False):
     for job in jobs:
         if job.get("conclusion") not in bad:
             continue
-        steps = [s["name"] for s in job.get("steps", []) if s.get("conclusion") in bad]
-        found += [f"`{job['name']}`: {s}" for s in steps] or [f"`{job['name']}`"]
+        steps = [name(s["name"]) for s in job.get("steps", []) if s.get("conclusion") in bad]
+        found += [f"`{name(job['name'])}`: {s}" for s in steps] or [f"`{name(job['name'])}`"]
     return found
 
 
@@ -257,14 +274,17 @@ def refusal():
     pull request, else None. Raises Unreadable when the pull request or
     its CI runs cannot be read: a check that cannot see is not a check
     that found nothing."""
-    prs = read_json("pr", "list", "--head", BRANCH, "--base", "main", "--state", "open",
-                    "--json", "number,url,createdAt", "--limit", "1")
+    prs = [p for p in read_json("pr", "list", "--head", BRANCH, "--base", "main",
+                                "--state", "open", "--limit", "20",
+                                "--json", "number,url,createdAt,isCrossRepository")
+           if not p.get("isCrossRepository")]
     if not prs:
         return None
     pr = prs[0]
-    runs = read_json("run", "list", "--workflow", CI, "--branch", BRANCH,
-                     "--json", "databaseId,status,conclusion,createdAt,url", "--limit", "20")
-    run = refused_run(pr, runs)
+    # The REST API, because `gh run list` does not say whose head a run is.
+    api = read_json("api", f"repos/{{owner}}/{{repo}}/actions/workflows/{CI}/runs"
+                           f"?branch={BRANCH}&event=pull_request&per_page=30")
+    run = refused_run(pr, own_runs(os.environ["GH_REPO"], api.get("workflow_runs", [])))
     if not run:
         return None
     steps = failing_steps(run["databaseId"], only_failed=True)
