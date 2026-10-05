@@ -224,10 +224,18 @@ export const SectionTitle = createContext(null)
  */
 export const PageTitle = createContext(null)
 
-export function Section({ title, count, note, children, id }) {
+/**
+ * `lead` marks the section whose figure leads its page (VD-53): straight
+ * after the tile strip in the document, which is where it reads below
+ * 1024 px, and beside the heading and the tiles above that width, in the
+ * column the lede leaves empty. app.css places it; the order a screen
+ * reader and the Tab key take - sentence, tiles, figure - is the same at
+ * every width, because only the grid moves and the markup does not.
+ */
+export function Section({ title, count, note, children, id, lead = false }) {
   return (
     <SectionTitle.Provider value={typeof title === 'string' ? title : null}>
-      <section className="section" id={id}>
+      <section className={lead ? 'section section-lead' : 'section'} id={id}>
         {title && (
           <h2>
             {title}
