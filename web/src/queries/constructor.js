@@ -184,7 +184,7 @@ export const teamStrip = (constructor, derived) =>
     {
       label: 'Entered',
       value: span(constructor.first_entry, constructor.active ? null : constructor.last_entry),
-      note: `${derived.seasons ?? 0} seasons`,
+      note: `${derived.seasons ?? 0} ${derived.seasons === 1 ? 'season' : 'seasons'}`,
     },
     { label: 'Race entries', value: number(derived.entries) },
     { label: 'Wins', value: number(derived.wins ?? 0), lead: Number(derived.wins) > 0 },

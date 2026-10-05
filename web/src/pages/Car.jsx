@@ -32,8 +32,10 @@ import {
   entryColumns,
   entryResult,
   leadsWithPhotograph as photographLeads,
+  publishedWins,
   specificationFields,
   specified,
+  winsNote,
 } from '../queries/car.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
@@ -119,18 +121,16 @@ function CarBody({ id, chassis, variants, data }) {
   const entries = rows(data, 'entries')
   const seasons = rows(data, 'seasons')
 
-  // The span and the derived wins, as the strip counts them (queries/car.js).
-  const { raced, wins } = carRecord(variants, entries)
+  // The span, as the strip counts it (queries/car.js).
+  const { raced } = carRecord(variants, entries)
   const ambiguous = seasons.filter((s) => !s.corroborated)
 
   const several = variants.length > 1
-  // chassis.published_wins is the CAR's figure, taken from the article the
-  // whole family shares, and it is repeated verbatim on every variant row —
-  // all eleven multi-variant cars in the register carry one distinct value
-  // across their variants. So it is read once, never added up: summing the
-  // four Lotus 72 rows would claim the 72 won sixty Grands Prix.
-  const publishedWins = variants.map((row) => row.published_wins).find((value) => !missing(value)) ?? null
-  const winsDiffer = !missing(publishedWins) && publishedWins !== wins
+  // The car's published wins, read once (queries/car.js says why), and the
+  // note that sets them beside the derived count where the two differ -
+  // which the static page prints too (VD-49).
+  const published = publishedWins(variants)
+  const winsDiffer = winsNote(variants, entries)
 
   // THE SPECIFICATION, WHERE THERE IS ONE (CD-37). The two lists are built
   // here rather than inline so the section can ask whether any of the
@@ -243,13 +243,7 @@ function CarBody({ id, chassis, variants, data }) {
 
       {winsDiffer && (
         <Note>
-          <strong>
-            {number(wins)} wins can be traced to {several ? 'this car' : 'this chassis'}; its
-            article publishes {number(publishedWins)}.
-          </strong>{' '}
-          Neither is wrong. A win counts here only where the entry list says which car the driver
-          was in, and a team running two designs in a season does not always say. The unresolved
-          seasons are listed below.
+          <strong>{winsDiffer.head}</strong> {winsDiffer.body}
         </Note>
       )}
 
@@ -308,7 +302,7 @@ function CarBody({ id, chassis, variants, data }) {
             { label: 'Predecessor', value: chassis.predecessor },
             { label: 'Successor', value: chassis.successor },
             { label: 'Races (published)', value: number(chassis.published_races) },
-            { label: 'Wins (published)', value: number(publishedWins) },
+            { label: 'Wins (published)', value: number(published) },
             { label: 'Poles (published)', value: number(chassis.published_poles) },
             { label: 'Confidence', value: <Confidence value={chassis.confidence} /> },
             {

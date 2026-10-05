@@ -320,6 +320,7 @@ import {
   carFacts,
   carPageName,
   carStrip,
+  winsNote,
   entryColumns,
   entryResult,
   FIGURES_HEADING,
@@ -2987,13 +2988,17 @@ page({
   const carTables = (id, variants, entries) => {
     const several = variants.length > 1
     const ambiguous = all(CAR_SEASONS, id, id).filter((s) => !s.corroborated)
+    // Where the strip's derived wins and the article's figure differ, both
+    // and why, in Car.jsx's words and where it puts them: before the seasons
+    // that cannot be attributed, which are the reason (VD-49).
+    const wins = winsNote(variants, entries)
     return `${
       several
         ? `<h2>Variants</h2>${fromColumns(VARIANT_COLUMNS, variants, {
             name: (name, row) => link(`cars/${row.id}`, name),
           })}${note(VARIANTS_FOOTER)}`
         : ''
-    }${
+    }${wins ? noteBox(wins.head, wins.body) : ''}${
       ambiguous.length
         ? `<h2>Seasons that cannot be attributed</h2>${fromColumns(CAR_AMBIGUOUS_COLUMNS, ambiguous, {
             year: (year) => link(`seasons/${year}`, year),

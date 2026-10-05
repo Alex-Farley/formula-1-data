@@ -203,6 +203,9 @@ export function heldAs(rows) {
   return words.map((segment, place) => ({ ...segment, key: `${place}` }))
 }
 
+/** "1 season", "76 seasons". */
+const seasonCount = (n) => `${n} ${n === 1 ? 'season' : 'seasons'}`
+
 /**
  * The circuit's tiles, as both renderers draw them (VD-49), from CIRCUIT's
  * row: the races and the span are v_circuits', derived from the races, since
@@ -214,7 +217,7 @@ export const circuitStrip = (circuit) => [
   {
     label: 'Grands Prix',
     value: span(circuit.derived_first, circuit.derived_last),
-    note: `${circuit.seasons_used ?? 0} seasons`,
+    note: seasonCount(circuit.seasons_used ?? 0),
   },
   { label: 'Length', value: circuit.length_km ? `${circuit.length_km} km` : null, note: 'current layout' },
   { label: 'Turns', value: circuit.turns },
