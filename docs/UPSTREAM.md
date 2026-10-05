@@ -78,6 +78,34 @@ with the refreshed harvest and artefacts, which merges itself once CI's
 required checks pass `[D-45]`. A refresh that fails commits nothing and the
 site keeps the last good snapshot.
 
+**A failing refresh says so (SD-35).** Every run ends with a `report` job
+that keeps two issues, each found by its label so a run that fails eight
+times a day is one issue rather than eight. `refresh-failing` opens on the
+first run in which a job fails or times out, names the step, is rewritten on
+each repeat and commented on only when what is failing changes, and closes
+on the first run after it that gets through `land`. `results-late` opens
+while a race is more than three days past its date in `races` with no
+result, and closes when none is. That second one is measured against the
+race dates rather than against the refresh, so it holds when the refresh
+is not running at all, and raises nothing through a break or the winter,
+when no race date passes. A round F1DB's calendar for that season no
+longer lists is taken as cancelled and raises nothing; a season F1DB does
+not hold yet counts on the dates typed in `data/current.py`. From 1
+February it also flags a season with no calendar. Both issues are assigned
+to the repository's owner. What neither sees is a refresh pull request
+that CI refuses after `land` has opened it: that stays an open pull
+request, and is caught only when a race goes late.
+
+**Checking the sync by hand.** Look at the check date in the site's footer
+or on `/changes`: it is the last morning a refresh got as far as fetching
+F1DB, and a date more than a day old means runs are failing - the Actions
+tab's *refresh the harvest* runs say where. Then run
+`python3 .github/scripts/refresh_health.py` in a checkout of `main`: it
+reads the committed `f1.db` and F1DB's calendar in the harvest, prints
+every race more than three days past with no result, and exits 1 if there
+is one. `--now YYYY-MM-DD` asks the same question of another day. An open
+`refresh/f1db` pull request with a red check is a refresh CI refused.
+
 ## What refuses a bad load
 
 Four cross-checks hold facts this project held before F1DB was read, and a

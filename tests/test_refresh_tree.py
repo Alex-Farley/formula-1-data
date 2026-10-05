@@ -199,7 +199,7 @@ class NoJobThatRunsNpmHoldsTheToken(unittest.TestCase):
         return "\n".join(line for line in body.splitlines() if not line.lstrip().startswith("#"))
 
     def test_the_jobs_are_still_there(self):
-        self.assertEqual(sorted(self.jobs()), ["gate", "land", "refresh"])
+        self.assertEqual(sorted(self.jobs()), ["gate", "land", "refresh", "report"])
 
     def test_no_job_that_runs_npm_holds_a_secret_or_the_app(self):
         npm = [name for name, body in self.jobs().items()
@@ -219,6 +219,16 @@ class NoJobThatRunsNpmHoldsTheToken(unittest.TestCase):
                 continue
             with self.subTest(job=name):
                 self.assertEqual(body.count("actions/checkout@"), body.count("persist-credentials: false"))
+
+    def test_report_writes_issues_and_nothing_else(self):
+        # SD-35. The one job that holds a token that writes, other than
+        # `land`: the workflow's own, scoped to issues, with no secret, no
+        # App, no npm and nothing from the pack.
+        body = self.code(self.jobs()["report"])
+        self.assertIn("issues: write", body)
+        self.assertNotRegex(body, r"contents: write|pull-requests: write|secrets\.|create-github-app-token")
+        self.assertNotRegex(body, r"\b(?:npm|npx|node|pip|download-artifact)\b")
+        self.assertEqual(body.count("actions/checkout@"), body.count("persist-credentials: false"))
 
     def test_land_runs_only_its_own_checkout(self):
         body = self.code(self.jobs()["land"])
