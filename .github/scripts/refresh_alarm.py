@@ -122,7 +122,7 @@ def refused_run(pr, runs):
     """The ci.yml run that settles whether CI refuses the pull request,
     if it does, else None.
 
-    `runs` newest first, as `gh run list` gives them. Only runs since the
+    `runs` newest first, as the REST API gives them. Only runs since the
     pull request was opened count: the branch is deleted on merge and
     reused by the next refresh, so older runs belong to a pull request that
     has already merged. The first finished run decides, skipping a
@@ -262,10 +262,13 @@ class Unreadable(Exception):
     pass
 
 
-def read_json(*args):
+def read_json(*args, lines=False):
+    """gh's output as JSON, or with `lines` one JSON value per line."""
     out = gh(*args, check=False)
     if out.returncode:
         raise Unreadable(f"gh {' '.join(args[:2])}: {out.stderr.strip()}")
+    if lines:
+        return [json.loads(line) for line in out.stdout.splitlines() if line.strip()]
     return json.loads(out.stdout)
 
 
@@ -275,16 +278,21 @@ def refusal():
     its CI runs cannot be read: a check that cannot see is not a check
     that found nothing."""
     prs = [p for p in read_json("pr", "list", "--head", BRANCH, "--base", "main",
-                                "--state", "open", "--limit", "20",
+                                "--state", "open", "--limit", "100",
                                 "--json", "number,url,createdAt,isCrossRepository")
            if not p.get("isCrossRepository")]
     if not prs:
         return None
     pr = prs[0]
     # The REST API, because `gh run list` does not say whose head a run is.
-    api = read_json("api", f"repos/{{owner}}/{{repo}}/actions/workflows/{CI}/runs"
-                           f"?branch={BRANCH}&event=pull_request&per_page=30")
-    run = refused_run(pr, own_runs(os.environ["GH_REPO"], api.get("workflow_runs", [])))
+    # Every run since the pull request was opened, every page of them, so
+    # no number of a stranger's runs can push the refresh's own out of a
+    # window before own_runs() has seen it.
+    api = read_json("api", "--paginate", "--jq", ".workflow_runs[]",
+                    f"repos/{{owner}}/{{repo}}/actions/workflows/{CI}/runs"
+                    f"?branch={BRANCH}&event=pull_request&per_page=100"
+                    f"&created=%3E%3D{pr['createdAt']}", lines=True)
+    run = refused_run(pr, own_runs(os.environ["GH_REPO"], api))
     if not run:
         return None
     steps = failing_steps(run["databaseId"], only_failed=True)
