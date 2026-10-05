@@ -16,14 +16,14 @@ by the build rather than by anyone's memory.
 
     ./f1 licences
 
-<!-- fig:yes_share -->99.6%<!-- /fig --> of the <!-- fig:sourced_rows -->171,695<!-- /fig --> sourced rows carry a licence that permits
+<!-- fig:yes_share -->99.6%<!-- /fig --> of the <!-- fig:sourced_rows -->171,839<!-- /fig --> sourced rows carry a licence that permits
 redistribution outright. The remaining <!-- fig:facts_only_share -->0.4%<!-- /fig --> cite an official source as the
 **authority for a fact** and hold none of that source's prose. Nothing in the
 committed database may not be published.
 
 | Class | Rows | Share |
 |---|---:|---:|
-| `yes` — redistributable on the terms given | <!-- fig:yes_rows -->170,953<!-- /fig --> | <!-- fig:yes_share -->99.6%<!-- /fig --> |
+| `yes` — redistributable on the terms given | <!-- fig:yes_rows -->171,097<!-- /fig --> | <!-- fig:yes_share -->99.6%<!-- /fig --> |
 | `facts-only` — the facts, not the expression | <!-- fig:facts_only_rows -->742<!-- /fig --> | <!-- fig:facts_only_share -->0.4%<!-- /fig --> |
 | `no` — not redistributable | <!-- fig:no_rows -->0<!-- /fig --> | <!-- fig:no_share -->0.0%<!-- /fig --> |
 
@@ -421,7 +421,7 @@ use (§1(i)).
 
 On the pattern of [D-07] — a second file published beside `f1.db`, each
 carrying its own licence — the edition holds every sourced row that does not
-cite Wikipedia: <!-- fig:edition_rows -->166,825<!-- /fig --> of the <!-- fig:sourced_rows -->171,695<!-- /fig -->. That is F1DB's <!-- fig:f1db_rows -->166,083<!-- /fig --> and the
+cite Wikipedia: <!-- fig:edition_rows -->166,969<!-- /fig --> of the <!-- fig:sourced_rows -->171,839<!-- /fig -->. That is F1DB's <!-- fig:f1db_rows -->166,227<!-- /fig --> and the
 <!-- fig:facts_only_rows -->742<!-- /fig --> facts-only rows, which are bare facts on the reading above and put
 nothing of FOM's or the FIA's under anyone's licence. *Collective Database*
 is ODbL's term, not CC BY-SA's; the separation works for CC BY-SA only
