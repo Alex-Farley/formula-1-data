@@ -1549,13 +1549,16 @@ try {
       const heading = thisSeasonHeading(calendar)
       const run = roundsRun(calendar).length
       const placed = calendar.filter((row) => typeof row.finish_position === 'number').length
-      const tile = seasonTile(calendar, db.prepare(STANDINGS).all(racer.id))
+      const standings = db.prepare(STANDINGS).all(racer.id)
+      const tile = seasonTile(calendar, standings)
       // Driver.jsx's heading for the career chart, drawn where there are two
-      // or more seasons to plot.
+      // or more seasons to plot. Required there, so a renamed heading fails
+      // here rather than letting the order check below pass on an index of -1.
       const CAREER_CHART = 'Where each championship finished'
       await go(`/drivers/${racer.id}`, racer.full_name)
       const headings = await appHeadings()
       const chart = headings.indexOf(CAREER_CHART)
+      if (standings.length > 1) truthy(chart >= 0, `/drivers/${racer.id} draws “${CAREER_CHART}” for its ${standings.length} seasons`)
       truthy(
         headings.includes(heading) && headings.indexOf(heading) > chart,
         `/drivers/${racer.id} has “${heading}”${chart < 0 ? '' : ` after “${CAREER_CHART}”`}`,
