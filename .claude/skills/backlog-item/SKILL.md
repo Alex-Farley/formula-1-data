@@ -57,7 +57,8 @@ reviewed again on the same head `[D-23]`.
    `next.py <ID> <ID> <ID>` several, which is how a proposed group is read
    before it is taken; `--list <status>` prints one line per open item;
    `--skip A,B` passes over named ids, and an issue labelled `blocked` or
-   `decision`, or at *In progress*, is passed over on its own.
+   `decision`, at *In progress*, or blocked by an open issue (`[waits]`) is
+   passed over on its own.
 
    The order is the board's: *Now* before *Next* before *Someday*, top to
    bottom within a status, which is what a person drags. Where a person has
@@ -426,12 +427,15 @@ is five steps, in this order:
    file. The question waits on the issue, and a person answers it.
 2. `file.py decision <n> "<what must be decided, and what the item does
    under each answer>"`.
-3. **Its dependants wait for it.** Of the items `--group` printed as naming
-   the head or named by it, each whose body says it builds on the head's
-   outcome gets `file.py blocked-by <n> [<n>...] --on <head>`; `next.py`
-   passes over an item blocked by an open one, and the block lifts on its
-   own when the head closes. An item that only mentions the head does not
-   wait.
+3. **Its dependants wait for it.** The candidates are the items `--group`
+   printed as naming the head or named by it, and — because `--group` looks
+   only at the head's status and the one below, and leaves out a `blocked`
+   item — any line of `next.py --list Now`, `Next` and `Someday` whose
+   title names the head. Read their bodies with `next.py <ID>...`; each that
+   says it builds on the head's outcome gets `file.py blocked-by <n>
+   [<n>...] --on <head>`. `next.py` passes over an item blocked by an open
+   one, and the block lifts on its own when the head closes. An item that
+   only mentions the head does not wait.
 4. **The repository is left clean, and nothing is lost:** no worktree, no
    open PR, no half-edited file. Commits worth keeping are pushed to their
    branch and the branch is named in a comment on the issue; an open PR is

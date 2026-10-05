@@ -297,7 +297,9 @@ A hold is not a skip. Two skips of unrelated items in a row are the
 environment; two holds are two questions. But a classifier, or a rule,
 that refuses every item would label the queue `decision` one fork at a time,
 which is a broken environment wearing the clothes of a decision, so three
-holds with no merge between them stop the loop.
+holds with no merge between them stop the loop. The count lives in the
+manager's session, as the skip count does, so a restart after a usage limit
+starts it again from nought: the guard bounds a session, not a run.
 
 The dependants are GitHub's own *blocked by* relationship rather than a
 label. PD-53 to PD-55 build on PD-52, and the next fork could have taken

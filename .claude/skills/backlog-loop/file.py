@@ -384,6 +384,9 @@ BLOCKED_BY = """mutation($issue: ID!, $blocker: ID!) {
 
 
 def blocked_by(a):
+    # Once each, in the order given: a repeated number would be written
+    # twice, and the second write fails after the first has landed.
+    a.numbers = list(dict.fromkeys(a.numbers))
     if a.on in a.numbers:
         sys.exit(f"#{a.on} cannot wait on itself")
     issues = {}

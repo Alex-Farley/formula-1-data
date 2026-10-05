@@ -56,9 +56,9 @@ EXIT
     2  STOP - a person's decision, a condition no fork can work around, or
        the way an `until-paused` run ends when the manager stops it
     3  SKIPPED - the one item asked for was recorded as blocked
+    4  the environment: no CLI, or limits that did not lift
     5  DECIDE - the one item asked for is held on a person's decision,
        labelled, with the repository left clean
-    4  the environment: no CLI, or limits that did not lift
 """
 import datetime as dt
 import json

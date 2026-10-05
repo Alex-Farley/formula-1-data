@@ -359,7 +359,10 @@ def load(allow_cache=False, bodies=False):
 def show(row):
     print(f"## {row['status'] or 'no status'}  #{row['number']}  {row['url']}\n")
     print(row["title"])
-    print("Labels: " + (", ".join(row["labels"]) or "none") + "\n")
+    print("Labels: " + (", ".join(row["labels"]) or "none")
+          + ("" if not row.get("waits") else
+             f"\nWaits: blocked by {row['waits']} open issue(s) - not the queue's to take until they close")
+          + "\n")
     print(row["body"].rstrip() + "\n")
 
 
