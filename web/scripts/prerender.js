@@ -1528,7 +1528,10 @@ const nameTables = (body) => {
  * itself and is left alone; wrapping it would nest a section in a section
  * for no gain.
  */
-const SECTIONING = /<(\/?)(section|h2)\b/g
+// A race page's session-sheets disclosure (PD-57) also starts a block: it
+// has no h2 of its own at this depth, and Race.jsx renders it as a section
+// beside the others rather than inside the one before it.
+const SECTIONING = /<(\/?)(section|h2)\b|<details class="session-sheets">/g
 
 const sectioned = (html) => {
   // A block starts at every h2 that is not already inside a section of its
@@ -2150,7 +2153,7 @@ const page = ({
         <h1>${esc(headline)}</h1>
         <p class="lede">${esc(standfirst)}</p>
         ${stepperNav(raceSteps(neighbours))}
-        <div${r.outline ? ' class="with-outline with-lead"' : ''}><div>${fields([
+        <section class="section"><div${r.outline ? ' class="with-outline with-lead"' : ''}><div>${fields([
           ['Round', `${r.round} of ${r.year}`],
           // The event this race is an edition of, linked as Race.jsx links it (IA-01).
           ['Grand Prix', r.gp_id ? link(`grands-prix/${r.gp_id}`, r.gp_full ?? r.name_used) : text(r.name_used)],
@@ -2261,7 +2264,7 @@ const page = ({
               })}${note(classificationFooter(entries))}</section>`
             : ''
         }
-        </div></div>
+        </div></div></section>
         ${
           qualifying.length
             ? `<h2>Qualifying</h2>${fromColumns(qualifyingColumns(qualifying), qualifying, {

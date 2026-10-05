@@ -462,11 +462,7 @@ main {
 
 /* A race weekend's session sheets behind one disclosure (PD-57), its
    summary set as the section headings around it are, so it reads as the
-   next section rather than as a footnote. */
-.session-sheets {
-  margin: var(--space-9) 0 0;
-}
-
+   next section rather than as a footnote. Its section gives the margin. */
 .session-sheets > summary {
   cursor: pointer;
   font-family: var(--disp);

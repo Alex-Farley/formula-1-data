@@ -1815,6 +1815,10 @@ try {
           : 0,
         sheetsOpen: sheets ? sheets.open : null,
         sheetTables: sheets ? sheets.querySelectorAll('table').length : 0,
+        // The two halves' blocks are the same shape: the grid and the
+        // disclosure each the child of a section of its own, not folded into
+        // a neighbour's by prerender.js's sectioned().
+        shape: [main.querySelector('.with-lead'), sheets].map((n) => n?.parentElement?.matches('section.section') ?? null),
       }
     }
     // Every block named here is on the page, in this order; Photographs may
@@ -1859,11 +1863,12 @@ try {
         `${route}, ${half}: ${order.join(' → ')} — ${got.blocks.join(' · ')}`,
       )
       truthy(
-        got.heading !== null && got.heading > got.tilesEnd && got.heading < 900,
+        got.heading !== null && got.tilesEnd !== null && got.heading > got.tilesEnd && got.heading < 900,
         `${half}: the classification heading is under the tiles and inside the first 900 px at 1440 — at ${Math.round(got.heading)}, the tiles ending at ${Math.round(got.tilesEnd)}`,
       )
       is(got.sheetsOpen, false, `${half}: the practice sheets are behind a closed disclosure`)
       is(got.sheetTables, run.sheets, `${half}: with all ${run.sheets} of their tables inside it`)
+      is(got.shape.join(' '), 'true true', `${half}: the grid and the disclosure each sit in a section of their own`)
     }
     atLeast(app.rows, 8, 'the app shows at least eight rows of the classification on a 1440 × 900 screen')
 

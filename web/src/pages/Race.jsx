@@ -490,23 +490,25 @@ function RaceBody({ race, data, year, round }) {
       {/* PD-57: the session sheets after the result and the strategy, closed;
           queries/race.js says why, and the static page draws the same. */}
       {practice.length > 0 && (
-        <details className="session-sheets">
-          <summary>
-            {PRACTICE_SUMMARY} <span className="count">{practiceSummaryCount(practice)}</span>
-          </summary>
-          {practice.map(({ session, title, rows: sheet }) => (
-            <Section key={session} title={title} count={`${sheet.length} entries`}>
-              <DataTable
-                rows={sheet}
-                rowKey={(row) => row.id}
-                sortable={false}
-                page={40}
-                columns={withRenders(PRACTICE_COLUMNS, sessionRenders(year))}
-                footer={practiceFooter(sheet)}
-              />
-            </Section>
-          ))}
-        </details>
+        <section className="section">
+          <details className="session-sheets">
+            <summary>
+              {PRACTICE_SUMMARY} <span className="count">{practiceSummaryCount(practice)}</span>
+            </summary>
+            {practice.map(({ session, title, rows: sheet }) => (
+              <Section key={session} title={title} count={`${sheet.length} entries`}>
+                <DataTable
+                  rows={sheet}
+                  rowKey={(row) => row.id}
+                  sortable={false}
+                  page={40}
+                  columns={withRenders(PRACTICE_COLUMNS, sessionRenders(year))}
+                  footer={practiceFooter(sheet)}
+                />
+              </Section>
+            ))}
+          </details>
+        </section>
       )}
 
       {/* The cars entered, the best finisher first (VD-33). Six of them,
