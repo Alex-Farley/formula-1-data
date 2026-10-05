@@ -2053,9 +2053,10 @@ try {
     // A figure that leads a page sets one line of title, then the plot, then
     // its method note. Above the plot, Fangio's note was 217 px over a 210 px
     // plot at 400, which is a phone's first screen given to prose. Held at
-    // both widths: the plot starts within 40 px of the box top, the title is
-    // one line and not clipped, and the note is still on the page, under the
-    // plot and named as the figure's description.
+    // 1440, 400, the 375 phone width and the 320 reflow width: the plot starts
+    // within 40 px of the box top, the title is one line and not clipped, and
+    // the note is still on the page, under the plot and named as the figure's
+    // description.
     const readFigure = (heading) => {
       const clean = (node) => node.textContent.replace(/\s+/g, ' ').trim()
       const section = [...document.querySelectorAll('#root main h2')].find((h) => clean(h).startsWith(heading))?.closest('section')
@@ -2084,7 +2085,7 @@ try {
     ]
     for (const [route, wait, heading] of cases) {
       await go(route, wait)
-      for (const width of [1440, 400]) {
+      for (const width of [1440, 400, 375, 320]) {
         await page.setViewportSize({ width, height: 900 })
         await settle()
         const got = await page.evaluate(readFigure, heading)

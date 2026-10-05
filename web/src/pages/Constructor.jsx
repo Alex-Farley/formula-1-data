@@ -206,7 +206,7 @@ function ConstructorBody({ constructor, data }) {
         <Section title="Wins by season">
           <Figure
             lead
-            title="Race wins in each season entered"
+            title="Race wins by season"
             note="Every season entered, winless ones included, so a drought is visible as a gap. A shared drive counts once, to the car."
             table={{
               rows: seasonsAsc,

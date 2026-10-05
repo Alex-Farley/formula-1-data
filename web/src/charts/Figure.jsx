@@ -64,8 +64,8 @@ export function LineKey({ index, colour }) {
  * plot, and the figure names it as its description so a screen reader still
  * hears it with the figure. The figcaption is the title alone, which is the
  * figure's name either way. A lead title is short by construction - the
- * page's h1 already names the entity - and the stylesheet keeps it to one
- * line; the smoke suite fails a lead title that would be clipped.
+ * page's h1 already names the entity - so that it sits on one line down to
+ * 320 px; the smoke suite fails one that wraps there.
  */
 export default function Figure({ title, note, legend, marks = 'swatch', lead = false, table, children }) {
   const noteId = useId()
