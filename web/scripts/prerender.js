@@ -53,6 +53,7 @@ import { fileURLToPath } from 'node:url'
 // app's own cell text — text() in lib/format.js — for the tables below
 // that are drawn from a page's column list.
 import { finished, missing, number, raceDates, result, span, text as formatted, yearList } from '../src/lib/format.js'
+import { TILE_JOIN, tileSegments } from '../src/lib/tiles.js'
 import { WIDE_ONLY, defaultColumns, glossaryKey, onPhone, shared, sharedLine } from '../src/lib/table.js'
 // The ONE attribution rule (web/src/lib/commons.js), not a second copy of it.
 // This script cannot import CommonsImage - that is a React component and this
@@ -135,6 +136,7 @@ import {
 } from '../src/lib/changes.js'
 import { CHECKED_LABEL, CHECKED_NOTE, LAST_CHECKED } from '../src/lib/refresh.js'
 import { LATEST as CHANGES_LATEST, SHAPE as CHANGES_SHAPE } from '../src/queries/changes.js'
+import { SHAPE as DATA_SHAPE, fileStrip, trustStrip } from '../src/queries/data.js'
 import { colourForEntry, markStyleAttr, winnerColour } from '../src/lib/liveries.js'
 import { RACE_SESSIONS, SEASON_SESSIONS, SESSION_COLUMNS, TIMETABLE_NOTE, eventDay, raceStage } from '../src/queries/sessions.js'
 // The pages' own queries and column lists (PD-02). A page and this script
@@ -176,6 +178,7 @@ import {
   standingsHeading,
   stillRunning,
   titlePermutations,
+  titleStrip,
   wonHereNote,
 } from '../src/queries/season.js'
 import { LATEST as LATEST_RUN, RACES, RACE_COLUMNS, RACES_FOOTER } from '../src/queries/races.js'
@@ -255,6 +258,7 @@ import {
   raceLede,
   raceNote,
   raceSentence,
+  raceStrip,
   railOf,
   scheduledNote,
 } from '../src/queries/race.js'
@@ -271,6 +275,7 @@ import {
   WIN_COLUMNS,
   constructorSeasons,
   recordFigures,
+  teamStrip,
 } from '../src/queries/constructor.js'
 import {
   CIRCUIT as CIRCUIT_ROW,
@@ -284,6 +289,7 @@ import {
   PHOTOGRAPH as CIRCUIT_PHOTOGRAPH,
   WINNERS as WINNERS_HERE,
   WINNER_COLUMNS,
+  circuitStrip,
   heldAs,
   photographAlt as circuitPhotographAlt,
 } from '../src/queries/circuit.js'
@@ -313,6 +319,7 @@ import {
   carAddress,
   carFacts,
   carPageName,
+  carStrip,
   entryColumns,
   entryResult,
   FIGURES_HEADING,
@@ -773,6 +780,28 @@ const stats = (items) => {
     )
     .join('')}</dl>`
 }
+
+/**
+ * A strip built as data in a queries/*.js module, drawn as the app's <Stats>
+ * draws it (VD-49): its links by their `href` or `links`, a number as the
+ * app formats it, a `quiet` value in the class the app gives it. Each
+ * page's strip is the app's own list, from the module its page reads, so
+ * this file draws a strip and never writes one. lib/tiles.js says what each
+ * field means.
+ */
+const tiles = (items) =>
+  stats(
+    items.map((item) => {
+      if (!item || item.value === null || item.value === undefined || item.value === '') return null
+      const drawn = tileSegments(item)
+        .map(({ label, href }) => {
+          const shown = typeof label === 'number' ? formatted(label) : label
+          return href ? link(href, shown) : esc(shown)
+        })
+        .join(esc(TILE_JOIN))
+      return { ...item, value: item.quiet ? `<span class="muted tile-quiet">${drawn}</span>` : drawn }
+    }),
+  )
 
 // `.measure` is the app's class for a paragraph held to a readable line, and
 // the static page's prose takes it rather than `#prerendered p` holding every
@@ -1721,7 +1750,7 @@ const page = ({
 
   const seasonBlock = now
     ? `${heading(seasonHeading(now.year))}
-      ${stats(seasonStrip(now, lead).map((item) => ({ ...item, value: esc(item.value) })))}
+      ${tiles(seasonStrip(now, lead))}
       <div class="split">${lastPanel}${nextPanel}</div>
       <p class="season-more">${link(`seasons/${now.year}`, seasonLink(now.year))}</p>`
     : ''
@@ -1744,7 +1773,7 @@ const page = ({
     body: `
       <h1>${esc(headline)}</h1>
       <p class="lede">${esc(HOME_LEDE)}</p>
-      ${stats(homeStrip(shape).map((item) => ({ ...item, value: esc(item.value) })))}
+      ${tiles(homeStrip(shape))}
       ${seasonBlock}
       ${heading(BOARD_HEADING)}
       <p class="note">${esc(BOARD_NOTE)}</p>
@@ -1961,43 +1990,7 @@ const page = ({
       body: `
         <h1>${esc(NAMES.season(year).headline)}</h1>
         ${stepperNav(seasonSteps(neighbours))}
-        ${
-          notRun
-            ? fields([
-                ['Rounds', num(s.rounds)],
-                ["Drivers' champion", NOT_YET_RUN],
-                ["Constructors' champion", NOT_YET_RUN],
-                ['Engine formula', text(s.engine_formula)],
-                ['Tyres', text(s.tyre_suppliers)],
-                ['Entered', entered],
-              ])
-            : running
-            ? fields([
-                ['After', `${run} of ${num(s.rounds)} rounds`],
-                ['Leads', `${lead.driver_id ? driver(lead.driver_id) : text(lead.entity)} — ${num(lead.points)}`],
-                ['Second', `${second.driver_id ? driver(second.driver_id) : text(second.entity)} — ${num(second.points)}`],
-                ['Gap', num(gap)],
-                [
-                  "Constructors' leader",
-                  teamLead ? `${teamLead.constructor_id ? team(teamLead.constructor_id) : text(teamLead.entity)} — ${num(teamLead.points)}` : '—',
-                ],
-                ['Engine formula', text(s.engine_formula)],
-                ['Tyres', text(s.tyre_suppliers)],
-                ['Entered', entered],
-              ])
-            : fields([
-                ["Drivers' champion", driver(s.drivers_champion)],
-                ['Team', team(s.champion_team)],
-                ['Points', num(s.champion_points)],
-                ['Runner-up', `${driver(s.runner_up)} — ${num(s.runner_up_points)}`],
-                ['Margin', num(s.margin)],
-                ["Constructors' champion", s.constructors_champion ? team(s.constructors_champion) : year < 1958 ? 'not contested' : '—'],
-                ['Rounds', num(s.rounds)],
-                ['Engine formula', text(s.engine_formula)],
-                ['Tyres', text(s.tyre_suppliers)],
-                ['Entered', entered],
-              ])
-        }
+        ${tiles(titleStrip({ season: s, year, running, run, notRun, lead, second, teamLead }))}
         ${permutations ? note(permutations) : ''}
         ${prose(s.notes)}
         ${nextSection}
@@ -2021,7 +2014,23 @@ const page = ({
                   row.constructor_id ? link(`constructors/${row.constructor_id}`, name ?? row.constructor_id) : text(name ?? row.entrant_id),
               })}${note(ENTRANTS_FOOTER)}`
             : ''
-        }`,
+        }
+        <h2>The season on the record</h2>
+        ${fields([
+          // What the old opening list said that the strip above does not
+          // (VD-49): the strip is queries/season.js's, as the app's is, and
+          // these follow it under the heading Season.jsx gives its own
+          // record, at the foot where it puts it.
+          ...(running || notRun
+            ? []
+            : [
+                ['Team', team(s.champion_team)],
+                ['Runner-up', `${driver(s.runner_up)} — ${num(s.runner_up_points)}`],
+              ]),
+          ['Engine formula', text(s.engine_formula)],
+          ['Tyres', text(s.tyre_suppliers)],
+          ['Entered', entered],
+        ])}`,
     })
   }
 }
@@ -2040,11 +2049,7 @@ const page = ({
             r.circuit_id, c.name AS circuit, c.locality, c.country, c.length_km, c.turns,
             rr.winner_id, rr.winner, rr.constructor_id, rr.constructor, rr.entrant,
             rr.pole, rr.pole_id, rr.fastest_lap, rr.fastest_lap_id, rr.confidence, rr.source,
-            r.f1db_layout_id, o.path AS outline, o.length_km AS outline_km, o.turns AS outline_turns,
-            (SELECT q.driver_id FROM qualifying q
-              WHERE q.race_id = r.id AND q.position = 1) AS quickest_id,
-            (SELECT e.driver_id FROM race_entries e
-              WHERE e.race_id = r.id AND e.grid = 1) AS front_id
+            r.f1db_layout_id, o.path AS outline, o.length_km AS outline_km, o.turns AS outline_turns
        FROM races r
        LEFT JOIN grands_prix g ON g.id = r.gp_id
        LEFT JOIN circuits c ON c.id = r.circuit_id
@@ -2114,7 +2119,11 @@ const page = ({
 
   for (const r of races) {
     const neighbours = one(RACE_NEIGHBOURS, r.year, r.round) ?? {}
-    const entries = inClassificationOrder(all(ENTRIES, r.year, r.round))
+    // The rows as the query returns them, which is the order the strip lists
+    // a shared pole or fastest lap in, as the app's does; the tables below
+    // take the classification's order.
+    const entryRows = all(ENTRIES, r.year, r.round)
+    const entries = inClassificationOrder(entryRows)
     const qualifying = all(QUALIFYING, r.year, r.round)
     const practice = practiceBySession(all(PRACTICE, r.year, r.round))
     const sprintQualifying = all(SPRINT_QUALIFYING, r.year, r.round)
@@ -2207,86 +2216,7 @@ const page = ({
         <h1>${esc(headline)}</h1>
         <p class="lede">${esc(standfirst)}</p>
         ${stepperNav(raceSteps(neighbours))}
-        <section class="section"><div${r.outline ? ' class="with-outline with-lead"' : ''}><div>${fields([
-          ['Round', `${r.round} of ${r.year}`],
-          // The event this race is an edition of, linked as Race.jsx links it (IA-01).
-          ['Grand Prix', r.gp_id ? link(`grands-prix/${r.gp_id}`, r.gp_full ?? r.name_used) : text(r.name_used)],
-          ['Circuit', r.circuit_id ? link(`circuits/${r.circuit_id}`, r.circuit ?? r.circuit_id) : '—'],
-          ['Location', text(list([r.locality, r.country]))],
-          ['Dates', text(raceDates(r))],
-          ['Format', r.sprint ? 'Sprint weekend' : 'Standard weekend'],
-          ...(scheduled
-            ? [[
-                'Status',
-                // The third place this page says it, and it says it in the
-                // same frame as the other two: a round the clock has passed
-                // is still `scheduled`, because no classification is held for
-                // it, but it is not still to come (AF-01).
-                stage === 'awaited' ? 'Scheduled — not yet run' : 'Scheduled — no result recorded yet',
-              ]]
-            : [
-                ['Winner', driver(r.winner_id, r.winner)],
-                // The entrant's name where no constructor row exists, the
-                // rule queries/race.js applies everywhere a car is named; the
-                // eleven championship Indianapolis 500s are the entries that
-                // have one and it is the only name they have (AF-64). The
-                // Entrant row below repeats it there, as it already repeats
-                // the constructor wherever the two designations agree.
-                ['Constructor', team(r.constructor_id, carName(r))],
-                ['Entrant', text(r.entrant)],
-                // "Pole position" is the driver the season record credits,
-                // which is what race_results holds. Where the car at grid 1
-                // or the fastest qualifier was someone else, saying so is the
-                // difference between a page that looks wrong and a page that
-                // explains itself. The database records that they differ,
-                // not why, so no cause is stated (Race.jsx says the same).
-                ['Pole position', r.pole_id ? driver(r.pole_id, r.pole) : text(r.pole)],
-                ...(r.front_id && r.pole_id && r.front_id !== r.pole_id
-                  ? [[
-                      'Started first',
-                      `${driver(r.front_id)} <span class="faint">— the pole-sitter started ${text(
-                        one(
-                          'SELECT grid_text FROM race_entries WHERE race_id = ? AND driver_id = ?',
-                          r.id,
-                          r.pole_id,
-                        )?.grid_text,
-                      )}</span>`,
-                    ]]
-                  : []),
-                ...(r.quickest_id && r.pole_id && r.quickest_id !== r.pole_id
-                  ? [[
-                      'Fastest qualifier',
-                      `${driver(r.quickest_id)} <span class="faint">— started ${text(
-                        one(
-                          'SELECT grid_text FROM race_entries WHERE race_id = ? AND driver_id = ?',
-                          r.id,
-                          r.quickest_id,
-                        )?.grid_text,
-                      )}${r.sprint ? ', the grid set by the sprint' : ''}</span>`,
-                    ]]
-                  : []),
-                // Every setter, not race_results' one: eight races share the
-                // fastest lap between two or more drivers, and the app lists
-                // them all, so the static page has to as well.
-                [
-                  'Fastest lap',
-                  (() => {
-                    const setters = all(
-                      'SELECT driver_id FROM race_entries WHERE race_id = ? AND fastest_lap = 1 ORDER BY id',
-                      r.id,
-                    )
-                    return setters.length
-                      ? setters.map((e) => driver(e.driver_id)).join(' / ')
-                      : text(r.fastest_lap)
-                  })(),
-                ],
-                ['Confidence', r.confidence ? link('data/quality', r.confidence) : text(r.confidence)],
-              ]),
-          ],
-          // PD-57: up to fourteen facts, one to a line, were 443-560 px of a
-          // 900 px screen above the classification; two to a line halves it.
-          { paired: true },
-        )}</div>
+        <section class="section"><div${r.outline ? ' class="with-outline with-lead"' : ''}>${tiles(raceStrip(r, entryRows, qualifying))}
         ${outlineCard(
           r.outline,
           r.circuit,
@@ -2373,7 +2303,31 @@ const page = ({
             : ''
         }
         ${raceStrips(r)}
-        ${scheduled ? '' : timetable}`,
+        ${scheduled ? '' : timetable}
+        <h2>Where this comes from</h2>
+        ${fields([
+          // What the old opening list said that the strip above does not
+          // (VD-49): the circuit, the result, the pole and the fastest lap
+          // are queries/race.js's tiles now, as they are the app's, and the
+          // rest follow under the heading Race.jsx gives its own record, at
+          // the foot where it puts it.
+          ['Round', `${r.round} of ${r.year}`],
+          // The event this race is an edition of, linked as Race.jsx links it (IA-01).
+          ['Grand Prix', r.gp_id ? link(`grands-prix/${r.gp_id}`, r.gp_full ?? r.name_used) : text(r.name_used)],
+          ['Dates', text(raceDates(r))],
+          ['Format', r.sprint ? 'Sprint weekend' : 'Standard weekend'],
+          // The entrant's name where no constructor row exists, the rule
+          // queries/race.js applies everywhere a car is named; the eleven
+          // championship Indianapolis 500s are the entries that have one and
+          // it is the only name they have (AF-64).
+          ...(scheduled
+            ? []
+            : [
+                ['Constructor', team(r.constructor_id, carName(r))],
+                ['Entrant', text(r.entrant)],
+              ]),
+          ['Confidence', r.confidence ? link('data/quality', r.confidence) : text(r.confidence)],
+        ])}`,
     })
   }
 }
@@ -2500,7 +2454,7 @@ const page = ({
         ${
           practiceOnly
             ? ''
-            : stats(careerStrip(d, derived, thisSeason, standings).map((item) => ({ ...item, value: esc(item.value) })))
+            : tiles(careerStrip(d, derived, thisSeason, standings))
         }
         ${thisSeasonSection}
         ${
@@ -2661,28 +2615,7 @@ page({
       },
       body: `
         <h1>${esc(NAMES.constructor(c.name).headline)}</h1>
-        ${fields([
-          ['Full name', text(c.full_name)],
-          ['Country', text(c.country)],
-          ['Base', text(c.base)],
-          ['Entered', `${c.first_entry ?? '?'}–${c.last_entry ?? 'present'}`],
-          // `formatted`, not `num`: the app's own lib/format.js `text`,
-          // which routes a number through `number()` and separates
-          // thousands. `num` would print 2496 against the app's 2,496 and
-          // the /constructors table's, which is the divergence this row was
-          // changed to close. A zero stays 0 - rob-walker has no race entry
-          // and both halves say so.
-          ['Race entries', esc(formatted(teamDerived.entries))],
-          // Both figures, as the app's "On the record" gives them (CD-34):
-          // the stored wins are published ones and part from the count on
-          // four teams, so the list no longer prints one the strip contradicts.
-          ...recordFigures(c, teamDerived).map(([label, value]) => [label, esc(value)]),
-          ["Constructors' titles", c.constructors_titles ? `${c.constructors_titles} (${yearList(c.title_years)})` : num(c.constructors_titles)],
-          ["Drivers' titles", num(c.drivers_titles)],
-          // No "Active" row: the app has no such field, and "Entered" above
-          // already says it - an open span ends in "present" (CD-30).
-          ['Confidence', c.confidence ? link('data/quality', c.confidence) : text(c.confidence)],
-        ])}
+        ${tiles(teamStrip(c, teamDerived))}
         ${prose(c.notes)}
         ${disagree(teamDisagreements.all(c.name), 'this team')}
         <h2>Season by season</h2>
@@ -2711,7 +2644,23 @@ page({
                 name: (name, row) => link(`cars/${row.id}`, name),
               })}`
             : ''
-        }`,
+        }
+        <h2>On the record</h2>
+        ${fields([
+          // What the old opening list said that the strip above does not
+          // (VD-49): the span, the entries and the titles are
+          // queries/constructor.js's tiles now, as they are the app's, and
+          // the rest follow under the heading Constructor.jsx gives its own
+          // record, at the foot where it puts it.
+          ['Full name', text(c.full_name)],
+          ['Country', text(c.country)],
+          ['Base', text(c.base)],
+          // Both figures, as the app's "On the record" gives them (CD-34):
+          // the stored wins are published ones and part from the count on
+          // four teams, so the list no longer prints one the strip contradicts.
+          ...recordFigures(c, teamDerived).map(([label, value]) => [label, esc(value)]),
+          ['Confidence', c.confidence ? link('data/quality', c.confidence) : text(c.confidence)],
+        ])}`,
     })
   }
 }
@@ -2827,18 +2776,7 @@ page({
       body: `
         <h1>${esc(NAMES.circuit(c.name).headline)}</h1>
         ${pictured ? `<div class="page-photo">${photograph(pictured, PHOTOGRAPH_WIDTH, null, circuitPhotographAlt(c.name))}</div>` : ''}
-        ${fields([
-          ['Official name', text(c.official_name)],
-          ['Location', text(list([c.locality, c.country]))],
-          ['Type', text(c.circuit_type)],
-          ['Length', c.length_km === null ? '—' : `${c.length_km} km`],
-          ['Turns', num(c.turns)],
-          ['Direction', text(c.direction)],
-          ['Championship races', num(cv.races)],
-          ['First', cv.derived_first ? link(`seasons/${cv.derived_first}`, cv.derived_first) : '—'],
-          ['Last', cv.derived_last ? link(`seasons/${cv.derived_last}`, cv.derived_last) : '—'],
-          ['Confidence', c.confidence ? link('data/quality', c.confidence) : text(c.confidence)],
-        ])}
+        ${tiles(circuitStrip(cv))}
         ${prose(c.characteristics)}
         ${prose(c.notes)}
         ${
@@ -2885,7 +2823,18 @@ page({
                       : text(name),
               })}`
             : EMPTY_STATE
-        }`,
+        }
+        <h2>On the record</h2>
+        ${fields([
+          // What the old opening list said that the strip above does not
+          // (VD-49): the races, the span and the layout's figures are
+          // queries/circuit.js's tiles now, as they are the app's, and the
+          // rest follow under the heading Circuit.jsx gives its own record,
+          // at the foot where it puts it.
+          ['Official name', text(c.official_name)],
+          ['Location', text(list([c.locality, c.country]))],
+          ['Confidence', c.confidence ? link('data/quality', c.confidence) : text(c.confidence)],
+        ])}`,
     })
   }
 }
@@ -3147,29 +3096,32 @@ page({
       body: `
         <h1>${esc(NAMES.car(name).headline)}</h1>
         ${photoFirst && photos.html ? `${photos.html}<h2>${esc(FIGURES_HEADING)}</h2>` : ''}
-        ${fields([
-          // The name, as the app prints it: the id was the storage model on
-          // the six most famous pages in the register (IA-06).
-          ['Constructor', c.constructor_id ? link(`constructors/${c.constructor_id}`, c.constructor_name ?? c.constructor_id) : '—'],
-          ['Years', `${c.from_year ?? '?'}–${c.to_year ?? '?'}`],
-          ['Designers', text(facts.designers)],
-          ...specification,
-          ['Races', num(c.races)],
-          ['Wins', num(c.wins)],
-          ['Poles', num(c.poles)],
-          ["Drivers' titles", num(c.drivers_titles)],
-          ["Constructors' titles", num(c.constructors_titles)],
-          // The curated row's grade of its own figures, which a page showing
-          // the chassis's does not print; nor does the app.
-          ['Specification confidence', whole ? null : text(c.spec_confidence)],
-        ])}
+        ${tiles(carStrip(variants, row, carEntries))}
         ${disagree(all(CAR_DISAGREEMENTS, at), 'this car')}
         ${photoFirst ? '' : photos.html}
         ${prose(c.concept)}
         ${prose(c.innovations)}
         ${prose(c.story)}
         ${prose(c.outcome)}
-        ${carTables(c.id, variants, carEntries)}`,
+        ${carTables(c.id, variants, carEntries)}
+        <h2>On the record</h2>
+        ${fields([
+          // What the old opening list said that the strip above does not
+          // (VD-49). The strip is queries/car.js's, as the app's is, so its
+          // entries, wins and poles are counted from the race records; the
+          // curated row's own races, wins and poles, which the app prints
+          // nowhere and which part from the count on several of these cars,
+          // are no longer printed beside them as a second "Wins".
+          // The name, as the app prints it: the id was the storage model on
+          // the six most famous pages in the register (IA-06).
+          ['Constructor', c.constructor_id ? link(`constructors/${c.constructor_id}`, c.constructor_name ?? c.constructor_id) : '—'],
+          ['Years', `${c.from_year ?? '?'}–${c.to_year ?? '?'}`],
+          ['Designers', text(facts.designers)],
+          ...specification,
+          // The curated row's grade of its own figures, which a page showing
+          // the chassis's does not print; nor does the app.
+          ['Specification confidence', whole ? null : text(c.spec_confidence)],
+        ])}`,
     })
   }
 
@@ -3228,9 +3180,22 @@ page({
       body: `
         <h1>${esc(NAMES.car(name).headline)}</h1>
         ${photoFirst && photos.html ? `${photos.html}<h2>${esc(FIGURES_HEADING)}</h2>` : ''}
+        ${tiles(carStrip(variants, carRow, carEntries))}
+        ${photoFirst ? '' : photos.html}
+        ${
+          ch.car_id && curated.has(ch.car_id)
+            ? `<p class="measure">One of the ${link(`cars/${ch.car_id}`, 'design family')} that has a specified page of its own.</p>`
+            : ''
+        }
+        ${carTables(ch.id, variants, carEntries)}
+        <h2>On the record</h2>
         ${fields([
+          // What the old opening list said that the strip above does not
+          // (VD-49): the seasons, the entries and the wins are
+          // queries/car.js's tiles now, counted from the race records as the
+          // app's are, so the stored wins - which part from that count on
+          // some chassis - are no longer a second "Wins" beside them.
           ['Constructor', ch.constructor_id ? link(`constructors/${ch.constructor_id}`, constructor) : null],
-          ['Years', years],
           ['Designers', ch.designers],
           ['Engine', ch.engine_name],
           ['Configuration', list([ch.engine_config, ch.capacity_cc ? `${ch.capacity_cc} cc` : null, ch.aspiration]) || null],
@@ -3241,18 +3206,9 @@ page({
           ['Tyres', ch.tyres],
           ['Weight', ch.weight_kg ? `${ch.weight_kg} kg` : null],
           ['Wheelbase', ch.wheelbase_mm ? `${ch.wheelbase_mm} mm` : null],
-          ['Races', num(entries.length)],
-          ['Wins', num(ch.wins)],
           ['Published wins', ch.published_wins === null ? null : num(ch.published_wins)],
           ['Confidence', ch.confidence ? link('data/quality', ch.confidence) : text(ch.confidence)],
-        ])}
-        ${photoFirst ? '' : photos.html}
-        ${
-          ch.car_id && curated.has(ch.car_id)
-            ? `<p class="measure">One of the ${link(`cars/${ch.car_id}`, 'design family')} that has a specified page of its own.</p>`
-            : ''
-        }
-        ${carTables(ch.id, variants, carEntries)}`,
+        ])}`,
     })
   }
 }
@@ -3443,15 +3399,8 @@ page({
   // app cannot claim different things. The JSON-LD is a Dataset: the one
   // search surface built for the reader this page is for.
   {
-    const shape = one(`
-      SELECT (SELECT COUNT(*) FROM sqlite_master WHERE type = 'table') AS tables,
-             (SELECT COUNT(*) FROM sqlite_master WHERE type = 'view')  AS views,
-             (SELECT COUNT(*) FROM source_registry)                    AS sources,
-             (SELECT COUNT(*) FROM discrepancies)                      AS discrepancies,
-             (SELECT COUNT(*) FROM discrepancies WHERE status = 'open')     AS open_discrepancies,
-             (SELECT COUNT(*) FROM v_open_gaps)                        AS gaps,
-             (SELECT COUNT(*) FROM races)                              AS races,
-             (SELECT COUNT(*) FROM race_entries)                       AS entries`)
+    // The app's query, from the module Data.jsx reads (VD-49).
+    const shape = one(DATA_SHAPE)
     const classes = Object.fromEntries(
       all('SELECT redistributable, COUNT(*) AS n FROM source_registry GROUP BY redistributable').map((r) => [r.redistributable, r.n]),
     )
@@ -3503,13 +3452,7 @@ page({
       <h1>${esc(NAMES.data().headline)}</h1>
       <p class="lede">The whole site is one SQLite file, and you can have it. What it is, the files
         it comes as, how far to trust it, and what you may do with it.</p>
-      ${fields([
-        ['Database', `v${esc(META.version)}`],
-        ['Built', esc(META.built)],
-        ['Covers', esc(META.coverage_seasons)],
-        ['Tables', `${shape.tables.toLocaleString()}, and ${shape.views.toLocaleString()} views`],
-        ['Races', `${shape.races.toLocaleString()}, in ${shape.entries.toLocaleString()} race entries`],
-      ])}
+      ${tiles(fileStrip(META, shape))}
       <p class="measure">${esc(CROSS_CHECKED)}</p>
       <h2>The files</h2>
       <ul class="cards">
@@ -3542,13 +3485,8 @@ page({
         checks that gate it and the source data they read, so the cross-checking claimed above can
         be read rather than taken on trust.</p>
       <h2>How far to trust it</h2>
-      ${fields([
-        ['Disagreements on record', `${shape.discrepancies.toLocaleString()}, ${shape.open_discrepancies.toLocaleString()} still open`],
-        ['Open gaps', `${shape.gaps.toLocaleString()}, and what would close each`],
-        ['Sources', `${shape.sources.toLocaleString()}, each with its licence`],
-        ['The ladder', esc(ladder.join(' › '))],
-      ])}
-      <p class="measure">Only an official source — the FIA or formula1.com — carries a row to the top. Where a
+      ${tiles(trustStrip(shape))}
+      <p class="measure">The ladder, from the top: ${ladder.map(confidencePill).join(' ')}. Only an official source — the FIA or formula1.com — carries a row to the top. Where a
         career total derived from the race records differs from a published one, both are shown.
         ${link('data/quality', 'The full account')}: the ladder defined, every gap, every
         disagreement, and the reconciliation that runs on each build.</p>

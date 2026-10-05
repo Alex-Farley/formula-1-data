@@ -27,6 +27,8 @@ import {
   carAddress,
   carFacts,
   carPageName,
+  carRecord,
+  carStrip,
   entryColumns,
   entryResult,
   leadsWithPhotograph as photographLeads,
@@ -117,9 +119,8 @@ function CarBody({ id, chassis, variants, data }) {
   const entries = rows(data, 'entries')
   const seasons = rows(data, 'seasons')
 
-  const wins = entries.filter((e) => e.finish_position === 1).length
-  const poles = entries.filter((e) => e.pole === 1).length
-  const fastest = entries.filter((e) => e.fastest_lap === 1).length
+  // The span and the derived wins, as the strip counts them (queries/car.js).
+  const { raced, wins } = carRecord(variants, entries)
   const ambiguous = seasons.filter((s) => !s.corroborated)
 
   const several = variants.length > 1
@@ -130,10 +131,6 @@ function CarBody({ id, chassis, variants, data }) {
   // four Lotus 72 rows would claim the 72 won sixty Grands Prix.
   const publishedWins = variants.map((row) => row.published_wins).find((value) => !missing(value)) ?? null
   const winsDiffer = !missing(publishedWins) && publishedWins !== wins
-  const raced = [
-    Math.min(...variants.map((v) => v.first_year).filter((y) => !missing(y))),
-    Math.max(...variants.map((v) => v.last_year ?? v.first_year).filter((y) => !missing(y))),
-  ]
 
   // THE SPECIFICATION, WHERE THERE IS ONE (CD-37). The two lists are built
   // here rather than inline so the section can ask whether any of the
@@ -161,24 +158,8 @@ function CarBody({ id, chassis, variants, data }) {
       {/* A heading only when the photograph is above it and something is
           drawn there; otherwise the strip sits under the h1 as before. */}
       <Section title={leadsWithPhotograph && images.some(canShow) ? FIGURES_HEADING : undefined}>
-        <Stats
-          items={[
-            { label: 'Raced', value: span(raced[0], raced[1]) },
-            several ? { label: 'Variants', value: number(variants.length) } : null,
-            { label: 'Recorded entries', value: number(entries.length) },
-            // VD-28: the same two ranks the driver and constructor pages take,
-            // and the same rule that a zero does not lead - most chassis in
-            // the register never won, and a car page two clicks from a
-            // constructor page that ranks should not be the one that does not.
-            { label: 'Wins', value: number(wins), lead: wins > 0 },
-            { label: 'Poles', value: number(poles) },
-            { label: 'Fastest laps', value: number(fastest) },
-            car?.constructors_titles
-              ? { label: "Constructors' titles", value: car.constructors_titles, lead: true }
-              : null,
-            car?.drivers_titles ? { label: "Drivers' titles", value: car.drivers_titles } : null,
-          ].filter(Boolean)}
-        />
+        {/* queries/car.js's strip, which the static page draws too (VD-49). */}
+        <Stats items={carStrip(variants, car, entries)} />
       </Section>
 
       {/* The section itself is components/Photographs.jsx, which the

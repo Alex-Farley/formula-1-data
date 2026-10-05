@@ -7,7 +7,7 @@ import Figure from '../charts/Figure.jsx'
 import Photographs from '../components/Photographs.jsx'
 import ColumnChart from '../charts/ColumnChart.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
-import { missing, number, span, yearList } from '../lib/format.js'
+import { span } from '../lib/format.js'
 import LiveryScheme from '../components/LiveryScheme.jsx'
 import { LIVERY_ERA, colourForEntry, liveryFor, nationalEntry, sourceHost } from '../lib/liveries.js'
 
@@ -27,6 +27,7 @@ import {
   WIN_COLUMNS,
   constructorSeasons,
   recordFigures,
+  teamStrip,
 } from '../queries/constructor.js'
 
 import { ONWARD, TRAIL, lastSeasonOf } from '../lib/wayfinding.js'
@@ -165,37 +166,8 @@ function ConstructorBody({ constructor, data }) {
       }
     >
       <Section>
-        <Stats
-          items={[
-            {
-              label: 'Entered',
-              value: span(constructor.first_entry, constructor.active ? null : constructor.last_entry),
-              note: `${derived.seasons ?? 0} seasons`,
-            },
-            { label: 'Race entries', value: number(derived.entries) },
-            // VD-28: wins and the constructors' titles lead, the same two
-            // ranks the driver page takes and for the same reason - and, for
-            // the same reason, a zero does not lead: of the constructors in
-            // the register most never won, and leading their 0 would point
-            // the emphasis at what is not there. A strip with no lead keeps
-            // the one rank it always had.
-            { label: 'Wins', value: number(derived.wins ?? 0), lead: Number(derived.wins) > 0 },
-            { label: 'Podiums', value: number(derived.podiums ?? 0) },
-            { label: 'Poles', value: number(derived.poles ?? 0) },
-            { label: 'Drivers', value: number(derived.drivers) },
-            constructor.constructors_titles
-              ? {
-                  label: "Constructors' titles",
-                  value: number(constructor.constructors_titles),
-                  note: missing(constructor.title_years) ? undefined : yearList(constructor.title_years),
-                  lead: true,
-                }
-              : null,
-            constructor.drivers_titles
-              ? { label: "Drivers' titles", value: number(constructor.drivers_titles) }
-              : null,
-          ].filter(Boolean)}
-        />
+        {/* queries/constructor.js's strip, which the static page draws too (VD-49). */}
+        <Stats items={teamStrip(constructor, derived)} />
       </Section>
 
       {/* What leads (PD-58): the tiles, then the shape of the team's

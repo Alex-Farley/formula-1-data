@@ -315,3 +315,48 @@ export const specified = (fields) => fields.some(({ value }) => !missing(value))
 
 export const NO_ENTRIES =
   'No race entry in this database resolves here. That is usually a constructor that ran several designs in a season and no source saying which raced when, not a car that never raced.'
+
+/**
+ * What a car page counts from its rows: the seasons its variants raced, and
+ * the wins, poles and fastest laps in its entries. One reading for the strip
+ * and for the rest of Car.jsx, which prints the same span as the strip's
+ * Raced and sets its derived wins against the published figure.
+ *
+ * `raced` runs from the first variant's first season to the last season any
+ * variant ran, a variant with no last season counting its first; a page
+ * whose variants carry no season at all has [null, null], and the strip
+ * then has no Raced tile.
+ */
+export const carRecord = (variants, entries) => {
+  const firsts = variants.map((v) => v.first_year).filter((y) => !missing(y))
+  const lasts = variants.map((v) => v.last_year ?? v.first_year).filter((y) => !missing(y))
+  return {
+    raced: [firsts.length ? Math.min(...firsts) : null, lasts.length ? Math.max(...lasts) : null],
+    wins: entries.filter((e) => e.finish_position === 1).length,
+    poles: entries.filter((e) => e.pole === 1).length,
+    fastest: entries.filter((e) => e.fastest_lap === 1).length,
+  }
+}
+
+/**
+ * The car's tiles, as both renderers draw them (VD-49): VARIANTS' rows, the
+ * curated CAR row where there is one, and ENTRIES' rows.
+ *
+ * VD-28: the same two ranks the driver and constructor pages take, and the
+ * same rule that a zero does not lead - most chassis in the register never
+ * won, and a car page two clicks from a constructor page that ranks should
+ * not be the one that does not.
+ */
+export const carStrip = (variants, car, entries) => {
+  const { raced, wins, poles, fastest } = carRecord(variants, entries)
+  return [
+    { label: 'Raced', value: raced[0] === null ? null : span(raced[0], raced[1]) },
+    variants.length > 1 ? { label: 'Variants', value: number(variants.length) } : null,
+    { label: 'Recorded entries', value: number(entries.length) },
+    { label: 'Wins', value: number(wins), lead: wins > 0 },
+    { label: 'Poles', value: number(poles) },
+    { label: 'Fastest laps', value: number(fastest) },
+    car?.constructors_titles ? { label: "Constructors' titles", value: car.constructors_titles, lead: true } : null,
+    car?.drivers_titles ? { label: "Drivers' titles", value: car.drivers_titles } : null,
+  ].filter(Boolean)
+}

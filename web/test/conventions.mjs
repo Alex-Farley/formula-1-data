@@ -170,7 +170,6 @@ describe('a NULL is "not established", never zero (frontend-reviewer, item 2)', 
   // fact. The number is the most a file may carry; a new site anywhere fails
   // until it is added here with its reason, or written as `missing()`.
   const DECLARED = new Map([
-    ['src/pages/Constructor.jsx', [4, 'derived career counts']],
     // IA-03 moved the two sorts that pick an onward band's car and season out
     // of Constructor.jsx and Driver.jsx and into one module both renderers
     // read. Same eight comparisons, same reason: every key is a COUNT over the
@@ -199,7 +198,10 @@ describe('a NULL is "not established", never zero (frontend-reviewer, item 2)', 
     ['src/lib/handover.js', [1, 'rows a static table drew; a name it does not hold drew none']],
     ['src/pages/Quality.jsx', [1, 'rows in a confidence class']],
     ['src/pages/Data.jsx', [1, 'sources in a licence class']],
-    ['src/pages/Circuit.jsx', [1, 'seasons a layout was used']],
+    // VD-49 moved the circuit's strip, and its one count with it, from
+    // Circuit.jsx: v_circuits' seasons_used is a COUNT over the races held
+    // there, and a venue with none was used in no season.
+    ['src/queries/circuit.js', [1, 'seasons a circuit was used, in its strip']],
     // CD-34: a constructor's Wins and Poles beside the published figure.
     // DERIVED's SUM over race_entries is NULL where the team has no entry
     // (rob-walker), and where every entry's finish position (for wins) or
@@ -208,7 +210,10 @@ describe('a NULL is "not established", never zero (frontend-reviewer, item 2)', 
     // has no win.
     // The static page's description reads the same derived wins, which is
     // its fourth, and states them only for a team with an entry.
-    ['src/queries/constructor.js', [2, "derived wins and poles in a constructor's record"]],
+    // VD-49 moved the constructor's strip here from Constructor.jsx with its
+    // four: seasons, wins, podiums and poles, each a COUNT over DERIVED's
+    // race entries, where a team none of whose cars won has no win.
+    ['src/queries/constructor.js', [6, "derived wins and poles in a constructor's record; the strip's derived career counts"]],
     ['scripts/prerender.js', [4, "sources in a licence class, the static copy of Data.jsx; a constructor's derived wins"]],
   ])
 

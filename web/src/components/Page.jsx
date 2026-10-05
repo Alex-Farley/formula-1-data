@@ -2,6 +2,7 @@ import { createContext, Fragment, useEffect, useRef } from 'react'
 import { currentProgress } from '../data/client.js'
 import { Link, useLocation } from 'react-router-dom'
 import { missing, text } from '../lib/format.js'
+import { TILE_JOIN, tileSegments } from '../lib/tiles.js'
 import { SITE, SOURCES_LINK, behindThisPage, titled, citation } from '../lib/site.js'
 
 /**
@@ -248,6 +249,22 @@ export function Section({ title, count, note, children, id }) {
   )
 }
 
+/**
+ * A tile's value. A strip built as data in a queries/*.js module (VD-49)
+ * names its links rather than holding <Link> elements, so that
+ * scripts/prerender.js can draw the same strip; lib/tiles.js says what each
+ * field means. A value that is already an element draws as it is.
+ */
+const tileValue = (item) => {
+  const drawn = tileSegments(item).map(({ label, href }, i) => (
+    <Fragment key={i}>
+      {i > 0 && TILE_JOIN}
+      {href ? <Link to={`/${href}`}>{label}</Link> : typeof label === 'number' ? text(label) : label}
+    </Fragment>
+  ))
+  return item.quiet ? <span className="muted tile-quiet">{drawn}</span> : drawn
+}
+
 /** Headline figures. A value of null is dropped rather than shown as a dash —
  *  an empty stat tile is noise, where an empty table cell is information. */
 export function Stats({ items }) {
@@ -260,20 +277,23 @@ export function Stats({ items }) {
   const ranked = shown.some((item) => item.lead)
   return (
     <dl className="stats" data-ranked={ranked ? '' : undefined}>
-      {shown.map(({ label, value, note, lead, kind }) => (
+      {shown.map((item) => {
+        const { label, note, lead, kind } = item
         // `kind="name"` is a value that is a person, a team or a place rather
         // than a figure. The display face is condensed and drawn for numerals;
         // set a name in it at 25px and the tile reads as a headline, which is
         // how three of five tiles on a race page came to be underlined names
         // in display type. Names take the sans face at a reading size.
-        <div key={label} data-lead={lead ? '' : undefined} data-kind={kind || undefined}>
-          <dt>{label}</dt>
-          <dd>
-            {typeof value === 'number' ? text(value) : value}
-            {note && <small>{note}</small>}
-          </dd>
-        </div>
-      ))}
+        return (
+          <div key={label} data-lead={lead ? '' : undefined} data-kind={kind || undefined}>
+            <dt>{label}</dt>
+            <dd>
+              {tileValue(item)}
+              {note && <small>{note}</small>}
+            </dd>
+          </div>
+        )
+      })}
     </dl>
   )
 }
