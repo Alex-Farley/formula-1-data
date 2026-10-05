@@ -244,7 +244,8 @@ class MakingOneWait(unittest.TestCase):
     nothing."""
 
     def run_it(self, numbers, on, states):
-        calls = []
+        # On self, so a call that exits still leaves its writes to be counted.
+        self.calls = calls = []
 
         def gh(*args, as_json=False):
             calls.append(args)
@@ -269,10 +270,13 @@ class MakingOneWait(unittest.TestCase):
         self.assertEqual(len(self.run_it([741, 741], 740, {})), 1)
 
     def test_a_closed_issue_anywhere_writes_nothing(self):
+        # #742 is read last: a version that wrote each issue as it read it
+        # would have blocked #741 before finding #742 closed.
         for states in ({740: "CLOSED"}, {742: "CLOSED"}):
             with self.assertRaises(SystemExit) as caught:
                 self.run_it([741, 742], 740, states)
             self.assertIn("closed", str(caught.exception.code))
+            self.assertEqual([c for c in self.calls if c[:2] == ("api", "graphql")], [])
 
     def test_an_issue_cannot_wait_on_itself(self):
         with self.assertRaises(SystemExit) as caught:
