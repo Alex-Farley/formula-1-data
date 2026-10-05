@@ -591,6 +591,7 @@ function SeasonBody({ year, season, data }) {
       {progression.length > 1 && (
         <Section title={titleHeading(live)}>
           <Figure
+            lead
             title={`Championship points after each round, ${year}`}
             note={progressionNote(live)}
             legend={progression.map((s) => ({ name: s.name, colour: inColour ? s.colour : null }))}

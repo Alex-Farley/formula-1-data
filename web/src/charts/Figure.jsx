@@ -1,3 +1,4 @@
+import { useId } from 'react'
 import DataTable from '../components/DataTable.jsx'
 import { seriesColour, seriesDash } from './palette.js'
 
@@ -53,8 +54,69 @@ export function LineKey({ index, colour }) {
  * than absent. It also used to be the relief the light palette's sub-3:1
  * green leaned on; that green clears 3:1 now (AX-07) and the table stays,
  * for the reason above.
+ *
+ * `lead` is the variant a figure takes where it leads a page (VD-67): the
+ * title on one line, then the plot, then the legend and the method note
+ * beneath it. Above the plot, a two-to-five-line note was 58-154 px at 1440
+ * and 77-231 px at 400 against plots of 180-250 px, so a figure moved to the
+ * top as it stood gave a phone's first screen to caption prose and no data.
+ * The note is not dropped or hidden: it is the same text, read after the
+ * plot, and the figure names it as its description so a screen reader still
+ * hears it with the figure. The figcaption is the title alone, which is the
+ * figure's name either way. A lead title is short by construction - the
+ * page's h1 already names the entity - and the stylesheet keeps it to one
+ * line; the smoke suite fails a lead title that would be clipped.
  */
-export default function Figure({ title, note, legend, marks = 'swatch', table, children }) {
+export default function Figure({ title, note, legend, marks = 'swatch', lead = false, table, children }) {
+  const noteId = useId()
+  const key = legend && legend.length > 1 && (
+    <div className="legend">
+      {legend.map((item, i) => {
+        const entry = typeof item === 'string' ? { name: item } : item
+        return (
+          <span key={entry.name}>
+            {marks === 'line' ? (
+              <LineKey index={i} colour={entry.colour} />
+            ) : entry.colour ? (
+              <i
+                className="livery-series"
+                style={{ '--livery-light': entry.colour.light, '--livery-dark': entry.colour.dark, background: 'var(--livery)' }}
+                aria-hidden="true"
+              />
+            ) : (
+              <i style={{ background: seriesColour(i) }} aria-hidden="true" />
+            )}
+            {entry.name}
+          </span>
+        )
+      })}
+    </div>
+  )
+  const numbers = table && (
+    <details>
+      <summary>The numbers behind this chart</summary>
+      <DataTable rows={table.rows} columns={table.columns} caption={table.caption} sortable={false} page={5000} />
+    </details>
+  )
+  if (lead) {
+    return (
+      <figure className="figure figure-lead" aria-describedby={note ? noteId : undefined}>
+        {title && (
+          <figcaption>
+            <b>{title}</b>
+          </figcaption>
+        )}
+        <div className="figure-body">{children}</div>
+        {key}
+        {note && (
+          <p className="figure-note" id={noteId}>
+            {note}
+          </p>
+        )}
+        {numbers}
+      </figure>
+    )
+  }
   return (
     <figure className="figure">
       {(title || note) && (
@@ -63,36 +125,9 @@ export default function Figure({ title, note, legend, marks = 'swatch', table, c
           {note && <span>{note}</span>}
         </figcaption>
       )}
-      {legend && legend.length > 1 && (
-        <div className="legend">
-          {legend.map((item, i) => {
-            const entry = typeof item === 'string' ? { name: item } : item
-            return (
-              <span key={entry.name}>
-                {marks === 'line' ? (
-                  <LineKey index={i} colour={entry.colour} />
-                ) : entry.colour ? (
-                  <i
-                    className="livery-series"
-                    style={{ '--livery-light': entry.colour.light, '--livery-dark': entry.colour.dark, background: 'var(--livery)' }}
-                    aria-hidden="true"
-                  />
-                ) : (
-                  <i style={{ background: seriesColour(i) }} aria-hidden="true" />
-                )}
-                {entry.name}
-              </span>
-            )
-          })}
-        </div>
-      )}
+      {key}
       <div className="figure-body">{children}</div>
-      {table && (
-        <details>
-          <summary>The numbers behind this chart</summary>
-          <DataTable rows={table.rows} columns={table.columns} caption={table.caption} sortable={false} page={5000} />
-        </details>
-      )}
+      {numbers}
     </figure>
   )
 }

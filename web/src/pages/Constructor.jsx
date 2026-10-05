@@ -205,7 +205,8 @@ function ConstructorBody({ constructor, data }) {
       {winsBySeason.length > 1 && (
         <Section title="Wins by season">
           <Figure
-            title={`${constructor.name} race wins`}
+            lead
+            title="Race wins in each season entered"
             note="Every season entered, winless ones included, so a drought is visible as a gap. A shared drive counts once, to the car."
             table={{
               rows: seasonsAsc,
