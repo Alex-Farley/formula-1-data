@@ -385,7 +385,8 @@ function DriverBody({ driver, data }) {
       {standings.length > 1 && (
         <Section title="Where each championship finished">
           <Figure
-            title={`${driver.full_name} in the drivers' championship`}
+            lead
+            title="Final standing by season"
             note={`Final classified position at the end of each season. A season with points but no position is one the driver was excluded from, so there is nothing to plot. A season finished first is ringed. ${
               finishesInColour
                 ? `Each dot is coloured for the team that season finished with, named in the table: ${colourSource(plotted.map((s) => s.colour))}.${

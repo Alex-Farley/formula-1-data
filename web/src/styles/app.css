@@ -2372,6 +2372,33 @@ figure.figure > figcaption span {
   max-width: 60ch;
 }
 
+/* A figure that leads its page (VD-67): one line of title, then the plot,
+   then the legend and the method note beneath it. The plot starts within
+   40 px of the box top at any width: 10 px of padding, a 19.5 px title line
+   and the body's 6 px. That holds for a title of one line, so a lead title
+   is short by construction: it fits one line down to 320 px, the reflow
+   width, and the smoke suite measures it there. It is never clipped - a
+   title too long wraps and is all still read, and the suite fails it. */
+figure.figure-lead > figcaption {
+  padding-top: var(--space-5);
+}
+
+figure.figure-lead > figcaption b {
+  line-height: 1.3;
+}
+
+figure.figure-lead > .legend {
+  padding-top: var(--space-2);
+}
+
+.figure-note {
+  margin: 0;
+  padding: 0 var(--space-7) var(--space-6);
+  font-size: var(--size-3);
+  color: var(--ink-faint);
+  max-width: calc(60ch + 2 * var(--space-7));
+}
+
 .figure-body {
   padding: var(--space-3) var(--space-5) var(--space-5);
 }

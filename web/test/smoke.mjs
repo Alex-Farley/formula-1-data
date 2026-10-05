@@ -2049,6 +2049,61 @@ try {
     } else pass('no season is part-run, so there is no next round to lead the calendar')
   })
 
+  await section('Lead figures  (the plot before its method: VD-67)', async () => {
+    // A figure that leads a page sets one line of title, then the plot, then
+    // its method note. Above the plot, Fangio's note was 217 px over a 210 px
+    // plot at 400, which is a phone's first screen given to prose. Held at
+    // 1440, 400, the 375 phone width and the 320 reflow width: the plot starts
+    // within 40 px of the box top, the title is one line and not clipped, and
+    // the note is still on the page, under the plot and named as the figure's
+    // description.
+    const readFigure = (heading) => {
+      const clean = (node) => node.textContent.replace(/\s+/g, ' ').trim()
+      const section = [...document.querySelectorAll('#root main h2')].find((h) => clean(h).startsWith(heading))?.closest('section')
+      const figure = section?.querySelector('figure.figure-lead')
+      if (!figure) return null
+      const box = figure.getBoundingClientRect()
+      const plot = figure.querySelector('.figure-body svg[role="img"]')?.getBoundingClientRect()
+      const title = figure.querySelector(':scope > figcaption b')
+      const note = figure.querySelector(':scope > p.figure-note')
+      return {
+        gap: plot ? plot.top - box.top : null,
+        lines: title ? Math.round(title.getBoundingClientRect().height / Number.parseFloat(getComputedStyle(title).lineHeight)) : 0,
+        clipped: title ? title.scrollWidth > title.clientWidth : true,
+        caption: figure.querySelector('figcaption')?.textContent.trim() ?? '',
+        note: note ? clean(note) : '',
+        below: plot && note ? note.getBoundingClientRect().top >= plot.bottom : false,
+        described: !!note && figure.getAttribute('aria-describedby') === note.id,
+      }
+    }
+    const team = db.prepare("SELECT name FROM constructors WHERE id = 'ferrari'").get().name
+    const fangio = db.prepare("SELECT full_name FROM drivers WHERE id = 'fangio'").get().full_name
+    const cases = [
+      ['/drivers/fangio', fangio, 'Where each championship finished'],
+      ['/seasons/1976', '1976', titleHeading(false)],
+      ['/constructors/ferrari', team, 'Wins by season'],
+    ]
+    for (const [route, wait, heading] of cases) {
+      await go(route, wait)
+      for (const width of [1440, 400, 375, 320]) {
+        await page.setViewportSize({ width, height: 900 })
+        await settle()
+        const got = await page.evaluate(readFigure, heading)
+        if (!got) {
+          fail(`${route} at ${width}: “${heading}” has no lead figure`)
+          continue
+        }
+        truthy(
+          got.gap !== null && got.gap <= 40,
+          `${route} at ${width}: the plot starts ${Math.round(got.gap)} px into its box, within 40`,
+        )
+        truthy(got.lines === 1 && !got.clipped, `${route} at ${width}: the title “${got.caption}” is one line, not clipped`)
+        truthy(got.note.length > 0 && got.below && got.described, `${route} at ${width}: the method note is under the plot and describes the figure`)
+      }
+      await page.setViewportSize({ width: 1280, height: 900 })
+    }
+  })
+
   await section('/races  (the race photographs lead, and say so)', async () => {
     /*
      * PD-64. The race page showed each entered car's article photograph under
