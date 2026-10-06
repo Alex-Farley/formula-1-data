@@ -887,20 +887,21 @@ def _stage_10_the_chassis_engine_and_entrant_register(b):
         """The engine name and configuration, parted where the page parted
         them (CD-54).
 
-        Thirty-three modern infoboxes, when this was written, put a horizontal rule inside the engine
-        field - "Honda RBPTH001<hr>1.6 L direct injection V6 ..." - to set
-        the unit's name above a sentence describing it, and the harvest keeps
-        the `<hr>` as the page wrote it. Some carry it at the end of the name
-        and the sentence in the configuration field; some open the
-        configuration field with it. Either way the name is what stands
-        before the rule and the configuration what stands after.
+        Thirty-three modern infoboxes, when this was written, put a
+        horizontal rule inside the engine field - "Honda RBPTH001<hr>1.6 L
+        direct injection V6 ..." - to set the unit's name above a sentence
+        describing it, and the harvest keeps the `<hr>` as the page wrote
+        it. Some carry it at the end of the name and the sentence in the
+        configuration field; some open the configuration field with it.
+        Either way the name is what stands before the rule and the
+        configuration what stands after.
 
         Where the page also fills its own configuration field (eight cars:
-        "V6 (90°)", "V6"), that field is the configuration and the sentence
-        after the rule is not kept: it is the same boilerplate on every one
-        of them - a 1.6 L direct-injection turbocharged V6, rev-limited to
-        15,000 rpm, mid-mounted - which the formula sets for every car of
-        the period and the aspiration column already carries.
+        "V6 (90°)", "V6"), that field comes first and the sentence follows
+        it, after a semicolon. The sentence is not dropped: on five of the
+        eight (the Haas VF-22, VF-24, VF-25 and VF-26 and the Sauber C45)
+        it is the only place the page says the engine is a turbocharged
+        1.6 L, and the aspiration, capacity and position columns are NULL.
         """
         name, cfg = row.get("engine_name"), row.get("engine_config")
         rest = None
@@ -908,7 +909,8 @@ def _stage_10_the_chassis_engine_and_entrant_register(b):
             name, rest = (p.strip() or None for p in name.split("<hr>", 1))
         if cfg and cfg.startswith("<hr>"):
             cfg = cfg[len("<hr>"):].strip() or None
-        return {**row, "engine_name": name, "engine_config": cfg or rest}
+        cfg = "; ".join(p for p in (cfg, rest) if p) or None
+        return {**row, "engine_name": name, "engine_config": cfg}
 
     def _plain(v):
         """A harvested value as plain text: no wikitext tag, no entity.
