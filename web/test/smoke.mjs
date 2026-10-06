@@ -2187,6 +2187,9 @@ try {
         tiles: box(tiles?.querySelector('.stats')),
         follows: !!lead && lead.previousElementSibling === tiles,
         next: box(lead?.nextElementSibling),
+        // Placed across both columns (a disagreement is narrower than the
+        // page by its own max-width, so it is the placement that is read).
+        spans: !!lead?.nextElementSibling && getComputedStyle(lead.nextElementSibling).gridColumn === '1 / -1',
         page: box(article),
       }
     }
@@ -2223,8 +2226,8 @@ try {
           )
           truthy(got.plot.bottom <= 900, `${route} at ${width}: the plot is drawn inside the first 900 px, ending at ${Math.round(got.plot.bottom)}`)
           truthy(
-            !!got.next && got.next.top >= Math.max(got.lead.bottom, got.tileSection.bottom) + 24,
-            `${route} at ${width}: the block after the opening starts clear under both columns — at ${got.next ? Math.round(got.next.top) : 'none'}, the opening ending at ${Math.round(Math.max(got.lead.bottom, got.tileSection.bottom))}`,
+            !!got.next && got.spans && got.next.top >= Math.max(got.lead.bottom, got.tileSection.bottom) + 24,
+            `${route} at ${width}: the block after the opening spans both columns and starts clear under them — at ${got.next ? Math.round(got.next.top) : 'none'}, the opening ending at ${Math.round(Math.max(got.lead.bottom, got.tileSection.bottom))}`,
           )
           // The strip wraps at half the page. The blank closing its last row
           // takes no more than a tile's share of that row, so the tiles there
