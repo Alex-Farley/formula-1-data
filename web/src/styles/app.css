@@ -790,6 +790,39 @@ main {
   pointer-events: none;
 }
 
+/*
+ * An exhaustive list's fold (VD-69): past its first ten rows, hidden while
+ * the <details> after it is closed. Every row is in the document in both
+ * halves and only the stylesheet hides them, so the 11 here is FOLD_TO + 1
+ * from lib/table.js, which web/test/conventions.mjs holds it to.
+ */
+.table-wrap.is-folded:not(:has(> .table-fold[open])) tbody tr:nth-child(n + 11) {
+  display: none;
+}
+
+.table-fold > summary {
+  padding: var(--space-4) var(--space-6);
+  border-top: 1px solid var(--rule);
+  font-size: var(--size-3);
+  font-weight: var(--weight-medium);
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.table-fold > summary:hover {
+  color: var(--ink);
+}
+
+/* Inside the box: .table-wrap clips what overflows it, the ring included. */
+.table-fold > summary:focus-visible {
+  outline-offset: -2px;
+}
+
+.table-fold[open] .fold-more,
+.table-fold:not([open]) .fold-less {
+  display: none;
+}
+
 table {
   border-collapse: collapse;
   width: 100%;

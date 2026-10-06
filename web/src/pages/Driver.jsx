@@ -369,6 +369,7 @@ function DriverBody({ driver, data }) {
         <Section title="Practice sessions" count={practiceCount(practice)}>
           <DataTable
             rows={practice}
+            fold
             rowKey={(row) => row.id}
             sortable
             sort="year"
@@ -456,6 +457,7 @@ function DriverBody({ driver, data }) {
         <Section title="Season by season" count={`${seasons.length} seasons`}>
           <DataTable
             rows={seasons}
+            fold
             rowKey={(row) => row.year}
             sortable
             sort="year"
@@ -472,6 +474,7 @@ function DriverBody({ driver, data }) {
         <Section title="Team-mates" count={teamMateCount(teamMates)}>
           <DataTable
             rows={teamMates}
+            fold
             rowKey={(row) => `${row.year}-${row.constructor_id}-${row.mate_id}`}
             sortable
             sort="year"
@@ -492,6 +495,7 @@ function DriverBody({ driver, data }) {
         <Section title="Every entry" count={`${results.length} races`}>
           <DataTable
             rows={results}
+            fold
             rowKey={(row) => `${row.year}-${row.round}`}
             sortable
             sort="year"

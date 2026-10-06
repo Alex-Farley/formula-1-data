@@ -1,8 +1,21 @@
 import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { EMPTY, isNumericColumn, isProseColumn, label as humanise, missing, text } from '../lib/format.js'
-import { staticRows } from '../lib/handover.js'
+import { staticOpen, staticRows } from '../lib/handover.js'
 import { Link } from 'react-router-dom'
-import { PHONE, WIDE_ONLY, chosenColumns, defaultColumns, glossaryKey, onPhone, shared, sharedLine } from '../lib/table.js'
+import {
+  FOLD_LESS,
+  FOLD_TO,
+  PHONE,
+  WIDE_ONLY,
+  chosenColumns,
+  defaultColumns,
+  foldMore,
+  folds,
+  glossaryKey,
+  onPhone,
+  shared,
+  sharedLine,
+} from '../lib/table.js'
 import { useUrlState } from '../lib/urlstate.js'
 import Columns from './Columns.jsx'
 import { PageTitle, SectionTitle } from './Page.jsx'
@@ -77,6 +90,15 @@ import TakeAway from './TakeAway.jsx'
  *     by is drawn whether or not the phone set holds it, and second - after
  *     the cells that name the row - so the order a reader asked for is the
  *     one thing on screen that says what it is (VD-31, folded into IX-27).
+ *
+ * `fold` is for the exhaustive lists on an entity page - every win, every
+ * entry, every race held (VD-69). Over FOLD_OVER rows the table opens on its
+ * first FOLD_TO behind a <details> that names the whole count; every row is
+ * still drawn, and the stylesheet hides the ones past the fold while it is
+ * closed, so a sort reorders the full set and the fold shows its new first
+ * ten. Opening it is expanding the table, so it replaces "Show the remaining"
+ * rather than sitting beside it. scripts/prerender.js writes the same element
+ * (lib/table.js says why it is a <details>).
  *
  * NULLS SORT LAST, ALWAYS.
  *     SQLite sorts NULL first, and this database uses NULL for "not
@@ -227,6 +249,7 @@ function Table({
   highlight,
   page = PAGE,
   sortable = true,
+  fold = false,
   footer,
   // The SQL console shows data as data: 1950, not 1,950.
   raw = false,
@@ -255,7 +278,9 @@ function Table({
     caption ?? [pageTitle, name === pageTitle ? null : name].filter(Boolean).join(' ')
   const [ownSort, setOwnSort] = useState(givenSort)
   const [ownDirection, setOwnDirection] = useState(givenDirection)
-  const [ownShowAll, setOwnShowAll] = useState(false)
+  // A fold the reader opened on the static page stays open at the handover,
+  // as the rows it was showing stay drawn (lib/handover.js).
+  const [ownShowAll, setOwnShowAll] = useState(() => fold && staticOpen(name))
   const sort = onSort ? givenSort : ownSort
   const direction = onSort ? givenDirection : ownDirection
   const showAll = onShowAll ? givenShowAll : ownShowAll
@@ -426,6 +451,9 @@ function Table({
   // Only an expansion the reader made can be undone: a seeded table that
   // opened on every row has no smaller self to go back to (see above).
   const collapsible = showAll && ordered.length > size
+  // The fold is the expansion on a table that declares one, so the button
+  // below is not drawn beside it: opening it shows every row.
+  const folded = fold && folds(ordered.length)
   const expand = (next) => {
     collapsed.current = !next
     if (onShowAll) onShowAll(next)
@@ -495,7 +523,7 @@ function Table({
         />
       )}
       <div
-        className="table-wrap"
+        className={folded ? 'table-wrap is-folded' : 'table-wrap'}
         data-rows={ordered.length}
         data-shown={visible.length}
         data-clipped={clipped || undefined}
@@ -604,6 +632,28 @@ function Table({
             </tbody>
           </table>
         </div>
+        {folded && (
+          <details
+            className="table-fold"
+            open={showAll}
+            // The browser toggles the element itself and React's `open` follows
+            // it here; the guard is for the toggle event that setting `open`
+            // fires in turn, which would otherwise expand again.
+            onToggle={(event) => {
+              if (event.currentTarget.open !== showAll) expand(event.currentTarget.open)
+            }}
+          >
+            {/* Both faces in the markup and the stylesheet showing one, because
+                the static page has no script to turn the words round. The
+                table's name is for a screen reader's list of controls, where
+                three folds on one page would otherwise read alike. */}
+            <summary ref={more}>
+              <span className="fold-more">{foldMore(ordered.length)}</span>
+              <span className="fold-less">{FOLD_LESS}</span>
+              {name && <span className="sr-only">, {name}</span>}
+            </summary>
+          </details>
+        )}
         {/* The footer is drawn on every table that has rows now, where before
             it appeared only to hold a "Show the remaining" button or a page's
             own note. It carries the way out of the site (IX-26), and a table
@@ -616,7 +666,7 @@ function Table({
                 (IX-41): the element stays, so focus stays on it, and a
                 reader who expanded a register and wants it short again
                 presses the thing they just pressed. */}
-            {(hidden > 0 || collapsible) && (
+            {!folded && (hidden > 0 || collapsible) && (
               <button
                 ref={more}
                 type="button"
@@ -643,7 +693,15 @@ function Table({
                 than `all`: a reader who chose the columns chose the file's,
                 while the phone default, which is a matter of screen width,
                 does not narrow a file that will be opened somewhere wider. */}
-            <TakeAway columns={cols} rows={ordered} shown={visible.length} name={name} fileLabel={fileLabel} />
+            {/* A closed fold shows ten, whatever is drawn behind it, so the
+                buttons say "all" as they do on a paged table. */}
+            <TakeAway
+              columns={cols}
+              rows={ordered}
+              shown={folded && !showAll ? Math.min(FOLD_TO, visible.length) : visible.length}
+              name={name}
+              fileLabel={fileLabel}
+            />
           </div>
         </div>
       </div>
