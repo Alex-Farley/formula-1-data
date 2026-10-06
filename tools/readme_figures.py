@@ -42,7 +42,7 @@ README = os.path.join(ROOT, "README.md")
 # Every document whose figures are spans this tool writes and verify.py
 # checks. docs/COMMERCIAL-READINESS.md typed its class table and per-table
 # breakdown by hand and drifted, 539 stated against 552 held (PM-31).
-# ATTRIBUTION.md joined them with PM-47: it sizes the five columns offered
+# ATTRIBUTION.md joined them with PM-47: it sizes the columns offered
 # under CC BY 4.0, and a licence document is the last place a figure should be
 # left to drift.
 DOCUMENTS = (README, os.path.join(ROOT, "docs", "COMMERCIAL-READINESS.md"),
@@ -661,6 +661,16 @@ class Figures:
     def prose_kb(self):
         granted = self.meta("project_prose_columns").split(", ")
         return f"{round(sum(self._prose_chars(c) for c in granted) / 1024)} KB"
+
+    # The share of the grant that is entry 18's prose (PM-49): the granted
+    # columns of the tables whose provenance is the project's own writing,
+    # found by the registry's authority as verify.py finds them.
+    def prose_authored_kb(self):
+        granted = self.meta("project_prose_columns").split(", ")
+        authored = {t for (t,) in self.con.execute(
+            "SELECT p.tbl FROM table_provenance p JOIN source_registry s "
+            "ON s.id = p.source_id WHERE s.authority = 'authored'")}
+        return f"{round(sum(self._prose_chars(c) for c in granted if c.partition('.')[0] in authored) / 1024)} KB"
 
     # -- the Wikipedia-cited rows, read for PD-41's step 2 (PD-51) ----------
     #

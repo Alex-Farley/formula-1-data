@@ -601,8 +601,12 @@ SOURCE_REGISTRY = [
      "notes. Twelve tables; the records list left it in v2.23, derived from "
      "the race records instead of written.",
      "authored",
-     "Original to this repository, and the only content here under no "
-     "external obligation at all.",
+     "Original to this repository, with no upstream to owe anything to. The "
+     "prose of ten of its twelve tables is offered under CC BY 4.0 "
+     "(meta.project_prose_columns, PM-49). The glossary and "
+     "technical_innovations stay under the release's CC BY-SA 4.0: one "
+     "technical_innovations description follows a Wikipedia article's "
+     "wording, and the glossary's grant is an open question.",
      "Whenever somebody edits it. There is no upstream to track and no "
      "version to pin.",
      "NOTHING, and that is the entire point of giving it a name. It has no "
@@ -795,10 +799,12 @@ SOURCE_LICENCE = {
     16: ("yes", 1, 1, "openstreetmap.org"),
 
     # The project's own writing. It has no upstream to be licensed FROM and no
-    # domain to match a URL against, so it takes the licence the release itself
-    # carries. Nothing here may sit above 'medium' - see the authored ceiling
-    # in build.py and docs/DERIVED-CONFIDENCE.md - but that is a confidence
-    # question, not a redistribution one: it is ours to publish.
+    # domain to match a URL against. Nothing here may sit above 'medium' - see
+    # the authored ceiling in build.py and docs/DERIVED-CONFIDENCE.md - but
+    # that is a confidence question, not a redistribution one: it is ours to
+    # publish. share_alike stays set because two of its twelve tables, the
+    # glossary and technical_innovations, still carry the release's CC BY-SA;
+    # the prose of the other ten is CC BY 4.0 (PROJECT_PROSE_COLUMNS, PM-49).
     18: ("yes", 1, 1, None),
 }
 
@@ -821,23 +827,55 @@ SOURCE_LICENCE = {
 # sourced rows.
 #
 # A CC BY grant is not retractable from a copy already taken, which is why
-# this list is short and why every name on it has to be a column nobody else
-# wrote. The line stops here on purpose: `source_registry` entry 18 names
-# twelve further tables as authored, and whether that prose is equally free of
-# Wikipedia is read one way by ATTRIBUTION.md and another by the 2026-09-21
-# data-architecture critique. PM-17 (#249), the prose pass, has labelled every
-# field in them (docs/prose_pass.tsv); PM-49 (#573) holds the decision those
-# labels are evidence for, and nothing else moves until it is taken.
+# every name on this list has to be a column nobody else wrote.
+#
+# PM-49 (#573). `source_registry` entry 18 names twelve further tables as
+# written here from general knowledge, and ATTRIBUTION.md once read some of
+# their prose as following Wikipedia. The prose pass (PM-17, #249) measured
+# every field in them against the articles a writer would have reached for
+# (docs/prose_pass.tsv), and the maintainer ruled on 2026-09-30: an entry-18
+# table takes the grant only if every prose field in it is labelled original,
+# and is granted whole - every column the pass measures in it - or not at all.
+# Ten tables are granted below. Two are not:
+#
+#   technical_innovations  its fan-car description is labelled paraphrased,
+#                          and it stays CC BY-SA until that field is rewritten
+#                          (PM-62, #692) and the pass reads it again.
+#   glossary               all 55 definitions read original, but the ruling
+#                          expected the glossary to stay CC BY-SA, and a grant
+#                          that cannot be withdrawn is not made on a
+#                          contradiction. PM-67 (#835) holds the question.
+#
+# The headings and short values of the granted tables - an era's name, a
+# governance event, a points scale, a grand prix's aliases - are not on the
+# list: the pass does not measure them, because they are facts, names and
+# titles rather than expression.
 #
 # build.py writes both values into `meta`, so the grant travels with the file
-# and not only with the repository, and verify.py checks that the two licence
-# documents name every column it covers.
+# and not only with the repository. verify.py checks that the two licence
+# documents name every column it covers, and that every granted column of an
+# entry-18 table is still the text the pass labelled original: a field
+# rewritten since, or added since, fails until the pass has read it.
 PROJECT_PROSE_COLUMNS = [
     "discrepancies.assessment",
     "known_gaps.area",
     "known_gaps.reader",
     "known_gaps.description",
     "known_gaps.resolution",
+    # Entry 18, granted table by table on the prose pass (PM-49).
+    "eras.summary",
+    "eras.defining_features",
+    "engine_eras.notes",
+    "governance.detail",
+    "governance.significance",
+    "safety_milestones.trigger_event",
+    "safety_milestones.description",
+    "points_systems.notes",
+    "tyre_suppliers.notes",
+    "constructor_lineage.note",
+    "grands_prix.notes",
+    "personnel.significance",
+    "engine_manufacturers.notes",
 ]
 
 PROJECT_PROSE_NOTE = (
@@ -847,8 +885,8 @@ PROJECT_PROSE_NOTE = (
     "(https://creativecommons.org/licenses/by/4.0/) - attribution to Lap "
     "Ledger, and no condition on what you build from them. Everything else "
     "in this file stays CC BY-SA 4.0: see LICENSE-DATA, which names what the "
-    "share-alike comes from. The remaining columns of those two tables hold "
-    "facts and identifiers rather than expression.")
+    "share-alike comes from. The remaining columns of the tables they sit in "
+    "hold facts, identifiers and headings rather than expression.")
 
 # ---------------------------------------------------------- empty columns
 #

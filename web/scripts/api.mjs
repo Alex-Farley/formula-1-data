@@ -95,7 +95,7 @@ const META = {
   built: metaRow('built'),
   // The digest of the f1.db these files were written from, as /data states it.
   database_sha256: manifest.sha256 ?? null,
-  // CC BY-SA 4.0 - the five columns LICENSE-DATA puts under CC BY 4.0 are
+  // CC BY-SA 4.0 - the columns LICENSE-DATA puts under CC BY 4.0 are all
   // in tables this API does not serve - and LICENSE-DATA names these files
   // among those it covers.
   licence: 'CC BY-SA 4.0',

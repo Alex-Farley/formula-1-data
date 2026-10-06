@@ -5029,7 +5029,9 @@ def redistribution():
 # nobody. A licence grant is only as good as its list of what it covers, and
 # a CC BY grant cannot be taken back from a copy already made — so what this
 # section checks is that the list, the database and the two licence documents
-# say the same thing, and that nothing sourced has drifted onto the list.
+# say the same thing, that nothing sourced has drifted onto the list, and
+# (PM-49) that every granted column of an authored table is still the text
+# the prose pass read as original.
 # ---------------------------------------------------------------------------
 @section("THE PROJECT'S OWN PROSE")
 def project_prose():
@@ -5037,27 +5039,81 @@ def project_prose():
 
     declared = list(_N.PROJECT_PROSE_COLUMNS)
 
+    # The tables whose provenance is this project's own writing: source
+    # registry entry 18, found by its authority rather than its number.
+    authored = {t for (t,) in con.execute(
+        "SELECT p.tbl FROM table_provenance p JOIN source_registry s "
+        "ON s.id = p.source_id WHERE s.authority = 'authored'")}
+
     # A grant naming a column that does not exist grants nothing, and a
     # renamed column would leave it pointing at nothing without a word.
-    missing, sourced = [], []
+    missing, sourced, granted_authored = [], [], {}
     for name in declared:
         table, _, column = name.partition(".")
         cols = [c[1] for c in con.execute(f'PRAGMA table_info("{table}")')]
         if column not in cols:
             missing.append(name)
         # Deliberately strict: a table that cites a source may hold prose
-        # somebody else wrote. The prose pass (PM-17, #249) labels which, but
-        # its labels are evidence for a person's decision (PM-49, #573), not
-        # the decision: only a table with no external source at all may be
-        # granted, so adding one to the list is a decision a person has to
-        # take rather than a line somebody slips in.
-        elif "source" in cols or con.execute(
+        # somebody else wrote, and only a table with no external source at
+        # all may be granted. An authored table is the one kind with a
+        # provenance row that qualifies, and only on the evidence below.
+        elif "source" in cols:
+            sourced.append(name)
+        elif table in authored:
+            granted_authored.setdefault(table, []).append(column)
+        elif con.execute(
                 "SELECT 1 FROM table_provenance WHERE tbl = ?", (table,)).fetchone():
             sourced.append(name)
     check("every column offered under CC BY 4.0 exists", not missing,
           ", ".join(missing))
     check("no column offered under CC BY 4.0 sits in a table that cites a source",
           not sourced, ", ".join(sourced))
+
+    # PM-49 (#573). "Written for this project" was a claim until the prose
+    # pass (PM-17, #249) measured it against Wikipedia, and the ruling grants
+    # an authored table only if every prose field in it is labelled original,
+    # whole or not at all. So a granted authored table must grant exactly the
+    # columns the pass measures in it, and every field in them must be the
+    # text the pass labelled original - by its hash, with the label the
+    # screen's own figures and the pass's declared readings give, so neither
+    # a field rewritten since nor a careless edit to docs/prose_pass.tsv
+    # stands as evidence. (A hash retyped by hand to match new text would
+    # pass offline; only rerunning the pass catches that, and the file's
+    # header forbids editing it.) A field that fails here is read again by the pass, or
+    # comes off the grant by a person's decision; the grant is never kept by
+    # loosening this.
+    pp = _tool("prose_pass")
+    labels, readings = pp.read_labels(), pp.readings()
+    partial = []
+    for table, cols_ in sorted(granted_authored.items()):
+        measured = pp.TABLES.get(table, ([],))[0]
+        if sorted(cols_) != sorted(measured):
+            partial.append(f"{table} grants {', '.join(cols_)} of "
+                           f"{', '.join(measured) or 'nothing the pass measures'}")
+    unproven = []
+    for table, key, col, text in pp.fields(con):
+        if col not in granted_authored.get(table, ()):
+            continue
+        r = labels.get((table, key, col))
+        if r is None:
+            why = "never labelled"
+        elif r["text_sha"] != pp.sha(text):
+            why = "changed since labelled"
+        elif (r["label"], r["why"]) != readings.get((table, key, col), (r["screen"], "")) \
+                or r["screen"] != pp.label(int(r["run"]), float(r["c4"])):
+            why = "label disagrees with READ or the screen"
+        elif r["label"] != "original":
+            why = f"labelled {r['label']}"
+        else:
+            continue
+        unproven.append(f"{table}.{col} {key} ({why})")
+    print(f"  [info] {sum(map(len, granted_authored.values()))} columns of "
+          f"{len(granted_authored)} authored tables granted on the prose pass")
+    check("an authored table is granted whole: every column the prose pass measures",
+          not partial, "; ".join(partial))
+    check("every granted field of an authored table is the text the prose pass read as original",
+          not unproven,
+          f"{len(unproven)}: " + ", ".join(unproven[:6]) if unproven else "")
 
     # The grant travels inside the file: a reader with f1.db and no repository
     # still holds the terms.
