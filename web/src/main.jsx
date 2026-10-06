@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import App from './App.jsx'
 import { currentProgress, onProgress } from './data/client.js'
 import { setPending } from './data/pending.js'
-import { captureOpenFolds, captureStaticTables, staticArrival } from './lib/handover.js'
+import { arrived, captureOpenFolds, captureStaticTables, staticArrival } from './lib/handover.js'
 import './styles/app.css'
 
 /**
@@ -29,58 +29,124 @@ import './styles/app.css'
  * win the race on a long page, which is what IX-30 measured; it now leaves the
  * arrival alone, so this is the only thing that decides where the reader is
  * standing when the app takes over.
+ *
+ * NOT AT 'ready', BUT AT THE APP'S FIRST PAGE (VD-79, DP-32). 'ready' means
+ * the database is open, not that the page has an answer: every data page
+ * then asks its own queries, and the app painted a header, a "Querying the
+ * database…" line and the footer in between. The footer, drawn 390 px down a
+ * page that was about to be 7,000 px long, was then pushed off the screen -
+ * a cumulative layout shift of 0.57 on the race and driver pages, every one
+ * of it the app's own empty frame. And the h1 handOver() focused was not
+ * there yet, so focus fell to <body> on the driver, constructor and season
+ * pages in six cold loads of six (DP-28).
+ *
+ * So at 'ready' the app renders out of sight, laid over the static page
+ * (`data-handover` in app.css: in the box the static page has, so a chart
+ * measures the width it will have), and the two change places once the app's
+ * page is drawn - one swap, in one task, with nothing painted between.
+ * A page that never finishes still takes over after HANDOVER_WAIT, because
+ * a static page left standing over a working app is worse than a jump.
  */
+const HANDOVER_WAIT = 4000
+
 function handOver() {
   const stop = onProgress((state) => {
     if (state.phase !== 'ready') return
-    // Unless the reader has moved on. A click on the static page is held as a
-    // route change (below), so by the time this runs the app may be about to
-    // render a different page from the one that was scrolled: the offset
-    // belongs to what they were reading, not to a stranger, and 1,500 px into
-    // the circuit register is nowhere in particular on one circuit's page.
-    // staticArrival() is the route of the static page ACTUALLY on screen,
-    // which a held click now replaces rather than leaves behind (IX-37).
-    const y = location.pathname === staticArrival() ? window.scrollY : 0
-    // The folds the reader opened while they waited (VD-69), read now because
-    // now is the last moment they are there to read: opened at boot, none was.
-    captureOpenFolds()
-    document.getElementById('prerendered')?.remove()
     stop()
-
-    /*
-     * Two frames was a guess at "once the app has painted", and it was wrong
-     * on any machine slower than the one it was written on. Every data page
-     * renders a skeleton while its query resolves, so two frames after the
-     * removal the document can be a few hundred pixels tall -- scrollTo then
-     * clamps the offset to 0 and the reader is returned to the top after all,
-     * which is the defect this whole function exists to prevent, arriving by
-     * a different route. CI read 0 where the laptop read 1,500.
-     *
-     * So: put the offset back as soon as there is a document that can hold it,
-     * rather than counting frames. It gives up after a second, because a page
-     * that has legitimately got shorter is not going to grow. A register no
-     * longer shrinks fivefold under the offset - DataTable opens on the rows
-     * captureStaticTables() counted below (IX-19) - and it gives
-     * up the moment the reader scrolls for themselves -- being dragged back to
-     * where you were a second ago is worse than the thing being fixed.
-     */
-    const land = (tries, left) => {
-      if (left !== null && window.scrollY !== left) return
-      window.scrollTo(0, y)
-      const room = document.documentElement.scrollHeight - window.innerHeight
-      if (tries > 0 && window.scrollY < y && room < y) {
-        const at = window.scrollY
-        requestAnimationFrame(() => land(tries - 1, at))
-      }
+    // The folds the reader opened while they waited (VD-69), read now
+    // because the app's tables read them on their first render, which comes
+    // next, out of sight; opened at boot, none was.
+    captureOpenFolds()
+    const pre = document.getElementById('prerendered')
+    const root = document.documentElement
+    // No static page - a route prerender.js does not write - is nothing to
+    // hand over from: the app is the page already.
+    if (pre) root.dataset.handover = ''
+    let swapped = false
+    let watch = null
+    let timer = null
+    const swap = () => {
+      if (swapped) return
+      swapped = true
+      watch?.disconnect()
+      clearTimeout(timer)
+      // Read at the swap rather than at 'ready': the reader goes on
+      // scrolling while the app renders out of sight.
+      //
+      // Unless the reader has moved on. A click on the static page is held as
+      // a route change (below), so by the time this runs the app may be about
+      // to render a different page from the one that was scrolled: the offset
+      // belongs to what they were reading, not to a stranger, and 1,500 px
+      // into the circuit register is nowhere in particular on one circuit's
+      // page. staticArrival() is the route of the static page ACTUALLY on
+      // screen, which a held click now replaces rather than leaves behind
+      // (IX-37).
+      const y = location.pathname === staticArrival() ? window.scrollY : 0
+      document.getElementById('prerendered')?.remove()
+      delete root.dataset.handover
+      settle(y)
     }
-
-    requestAnimationFrame(() =>
-      requestAnimationFrame(() => {
-        land(60, null)
-        document.querySelector('#root main h1')?.focus({ preventScroll: true })
-      }),
-    )
+    if (!pre) {
+      swap()
+      return
+    }
+    // Drawn means an h1 and nothing still loading under it. Several pages
+    // draw their h1 at once and their body when the queries answer - the
+    // home page, the registers, /records, /data/quality - and swapping on the
+    // h1 alone painted that empty body: a shift of 0.44 on the home page.
+    // The placeholders are components/States.jsx's; `.is-empty` is a query
+    // that answered with nothing, which is a page that has finished.
+    const drawn = () =>
+      document.querySelector('#root main h1') &&
+      !document.querySelector('#root main .state:not(.is-empty), #root main .skeleton-table')
+    // A MutationObserver's callback runs before the next paint, so the app's
+    // first frame that is drawn is also the first frame in which it is seen.
+    watch = new MutationObserver(() => {
+      if (drawn()) swap()
+    })
+    watch.observe(document.getElementById('root'), { childList: true, subtree: true })
+    timer = setTimeout(swap, HANDOVER_WAIT)
   })
+}
+
+/** Put the reader back where they were, and give the page's h1 focus. */
+function settle(y) {
+  /*
+   * Two frames was a guess at "once the app has painted", and it was wrong
+   * on any machine slower than the one it was written on. Every data page
+   * renders a skeleton while its query resolves, so two frames after the
+   * removal the document can be a few hundred pixels tall -- scrollTo then
+   * clamps the offset to 0 and the reader is returned to the top after all,
+   * which is the defect this whole function exists to prevent, arriving by
+   * a different route. CI read 0 where the laptop read 1,500.
+   *
+   * So: put the offset back as soon as there is a document that can hold it,
+   * rather than counting frames. It gives up after a second, because a page
+   * that has legitimately got shorter is not going to grow. A register no
+   * longer shrinks fivefold under the offset - DataTable opens on the rows
+   * captureStaticTables() counted below (IX-19) - and it gives
+   * up the moment the reader scrolls for themselves -- being dragged back to
+   * where you were a second ago is worse than the thing being fixed.
+   */
+  const land = (tries, left) => {
+    if (left !== null && window.scrollY !== left) return
+    window.scrollTo(0, y)
+    const room = document.documentElement.scrollHeight - window.innerHeight
+    if (tries > 0 && window.scrollY < y && room < y) {
+      const at = window.scrollY
+      requestAnimationFrame(() => land(tries - 1, at))
+    }
+  }
+
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      land(60, null)
+      // Page's own arrival effect does the same for a page whose h1 arrives
+      // after this frame (components/Page.jsx); whichever runs second finds
+      // the work done.
+      arrived(document.querySelector('#root main h1'))
+    }),
+  )
 }
 
 /**

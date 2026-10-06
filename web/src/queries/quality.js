@@ -185,3 +185,11 @@ export const UNVERIFIED_COLUMNS = [
 
 export const UNVERIFIED_FOOTER =
   'These are not errors — they are rows nobody has yet been able to raise above medium confidence.'
+
+/**
+ * The page's lede, under its h1 in both renderers (VD-79): the app's words,
+ * read by pages/Quality.jsx and by scripts/prerender.js, where the static page
+ * used to open on a sentence of its own and swap it at the handover.
+ */
+export const QUALITY_LEDE =
+  'How far to trust anything on this site. Every row carries a confidence level, every disagreement between sources is kept rather than quietly resolved, and everything known to be missing is listed here.'

@@ -89,6 +89,25 @@ export const NAMES = {
 }
 
 /**
+ * The line above a page's h1, for the six kinds of page that carry one
+ * (VD-79, DP-03): read by the page and by scripts/prerender.js, so both
+ * renderers draw the same header. The static page wrote none, and the line
+ * appeared at the handover on 1,196 race pages, 862 driver pages and every
+ * constructor, circuit, car and Grand Prix page, moving the heading down
+ * under the reader (VD-56). What an eyebrow should say is VD-81's to settle
+ * (docs/design-system.md section 3, *Page header*); these are the words each
+ * page already used, in the one place that change will be made.
+ */
+export const EYEBROWS = {
+  race: (round, year) => `Round ${round} of ${year}`,
+  driver: () => 'Driver',
+  constructor: () => 'Constructor',
+  circuit: (locality, country) => [locality, country].filter(Boolean).join(', ') || null,
+  car: (team) => team ?? 'Chassis',
+  grandPrix: (country) => country ?? null,
+}
+
+/**
  * Why a driver's page can show two entry counts, and two start counts. Said
  * once, in both renderers: the review of #75 found fourteen pages printing
  * 393 beside 392 with nothing between them.

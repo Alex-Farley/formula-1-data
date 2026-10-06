@@ -53,6 +53,7 @@ import { fileURLToPath } from 'node:url'
 import { NEXT_HEADING, NEXT_ROUND, WON_HERE, WON_HERE_HEADING, standingsHeading, titleHeading } from '../src/queries/season.js'
 import { DRIVER_SOURCES, SEASON_TEAMS, STANDINGS, THIS_SEASON, roundsRun, seasonTile, teamsBySeason, thisSeasonHeading } from '../src/queries/driver.js'
 import { lastTeamColour } from '../src/lib/liveries.js'
+import { handoverWords } from '../src/lib/handover.js'
 import {
   ABOUT,
   DOCUMENTS,
@@ -347,8 +348,11 @@ try {
      * navigates in-app instead.
      */
     /**
-     * The stat strip as it is laid out, for VD-28's three rules: a label
-     * never wraps, the figures share a baseline, and one or two lead.
+     * The stat strip as it is laid out, for VD-28's rules as VD-79 left them:
+     * the figures in a row share a baseline, and one or two lead. VD-28 also
+     * forbade a label to wrap, because a two-line label dropped its own
+     * figure below its row; the strip is a grid with a shared label track
+     * now (app.css), so a label may wrap and the baseline is the claim.
      *
      * Read from the rendered box rather than from the stylesheet - the defect
      * was a layout, not a declaration, and a rule that is written but loses to
@@ -366,9 +370,19 @@ try {
             kind: el.dataset.kind ?? null,
             size: parseFloat(style.fontSize),
             family: style.fontFamily,
-            lines: Math.round(dt.getBoundingClientRect().height / parseFloat(getComputedStyle(dt).lineHeight)),
             row: Math.round(el.getBoundingClientRect().top),
-            ddTop: Math.round(dd.getBoundingClientRect().top),
+            // The figure's baseline: the foot of an empty inline box set on
+            // it, which is where the first line's glyphs stand whatever their
+            // size - a lead figure's box starts higher than its neighbours',
+            // and its baseline must not.
+            baseline: (() => {
+              const probe = document.createElement('span')
+              probe.style.cssText = 'display:inline-block;width:0;height:0;vertical-align:baseline'
+              dd.prepend(probe)
+              const at = Math.round(probe.getBoundingClientRect().bottom)
+              probe.remove()
+              return at
+            })(),
           }
         })
         // A strip wide enough for every tile has one row; a narrower one
@@ -377,9 +391,8 @@ try {
         const rows = new Map()
         for (const tile of tiles) rows.set(tile.row, [...(rows.get(tile.row) ?? []), tile])
         return {
-          wrapped: tiles.filter((t) => t.lines > 1).map((t) => t.label),
           misalignedRows: [...rows.values()]
-            .filter((row) => new Set(row.map((t) => t.ddTop)).size > 1)
+            .filter((row) => new Set(row.map((t) => t.baseline)).size > 1)
             .map((row) => row.map((t) => t.label).join(', ')),
           lead: tiles.filter((t) => t.lead),
           rest: tiles.filter((t) => !t.lead),
@@ -916,6 +929,100 @@ try {
     // Every section after this one drives the shared page, which has been in
     // the background throughout.
     await page.bringToFront()
+  })
+
+  /**
+   * The handover, on every page type (VD-79; docs/design-system.md section 8,
+   * test 10).
+   *
+   * Focus fell to <body> at the handover on the driver, constructor and
+   * season pages in six cold loads of six, because main.jsx focused an h1
+   * the page had not drawn yet; the status region's last words were
+   * "Querying the database…"; and the app's empty first frame pushed the
+   * footer off the screen, a layout shift of 0.57 on every race and driver
+   * page. The app now renders out of sight and takes the static page's place
+   * once its h1 is there (main.jsx), the h1 takes focus, and index.html's
+   * status region says the page has finished loading.
+   *
+   * One context, so the first arrival is cold - the database fetched, and
+   * held a moment so the static page is read first, as on the slow line the
+   * critique measured - and the rest open from IndexedDB: the same handover,
+   * faster. The shift is counted from the moment the static page leaves.
+   */
+  await section('The handover  (focus, the status line and nothing moving, on every page type: VD-79)', async () => {
+    const ROUTES = [
+      '/',
+      '/drivers/hamilton',
+      '/constructors/ferrari',
+      '/seasons/2026',
+      '/races/2024/21',
+      '/circuits/monza',
+      '/cars/lotus-72',
+      '/grands-prix/monaco',
+      '/records/most-wins',
+      '/drivers',
+      '/data/quality',
+    ]
+    const held = await browser.newContext({ viewport: { width: 1280, height: 900 } })
+    await held.route(/f1\.db\.gz/, async (request) => {
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+      await request.continue()
+    })
+    await held.addInitScript(() => {
+      window.__static = false
+      window.__handedAt = null
+      window.__shift = 0
+      new MutationObserver(() => {
+        const there = Boolean(document.getElementById('prerendered'))
+        if (there) window.__static = true
+        else if (window.__static && window.__handedAt === null) window.__handedAt = performance.now()
+      }).observe(document, { childList: true, subtree: true })
+      new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) {
+          if (!entry.hadRecentInput && window.__handedAt !== null && entry.startTime >= window.__handedAt) {
+            window.__shift += entry.value
+          }
+        }
+      }).observe({ type: 'layout-shift', buffered: true })
+    })
+    const lost = []
+    const unsaid = []
+    const moved = []
+    let handed = 0
+    for (const route of ROUTES) {
+      const target = await held.newPage()
+      await target.goto(`${BASE}${route}`, { waitUntil: 'domcontentloaded' })
+      await target.waitForFunction(() => window.__handedAt !== null && document.querySelector('#root main h1'), null, {
+        timeout: 60000,
+      })
+      // handOver() focuses two frames after the swap, and Page's own effect
+      // later still where its h1 arrives late; a settled read, not a poll.
+      await target.waitForTimeout(1500)
+      const got = await target.evaluate(() => {
+        const h1 = document.querySelector('#root main h1')
+        const active = document.activeElement
+        return {
+          focused: active === h1,
+          on: active === document.body ? '<body>' : `${active?.tagName.toLowerCase()} “${(active?.textContent ?? '').trim().slice(0, 40)}”`,
+          h1: h1?.textContent ?? '',
+          status: document.getElementById('page-status')?.textContent ?? null,
+          shift: window.__shift,
+        }
+      })
+      handed += 1
+      if (!got.focused) lost.push(`${route}: focus is on ${got.on}`)
+      if (got.status !== handoverWords(got.h1)) unsaid.push(`${route}: the status region says “${got.status ?? '(no region)'}”`)
+      if (got.shift >= 0.05) moved.push(`${route}: ${got.shift.toFixed(3)}`)
+      await target.close()
+    }
+    await held.close()
+    is(handed, ROUTES.length, 'every page type was handed over from its static page')
+    if (lost.length === 0) pass(`focus is on the h1 after the handover on all ${ROUTES.length} page types`)
+    for (const message of lost) fail(message)
+    if (unsaid.length === 0) pass('and the status region, mounted from the first paint, says the page has finished loading')
+    for (const message of unsaid) fail(message)
+    if (moved.length === 0) pass('and nothing moves when the app takes over: a layout shift under 0.05 on every one (it was 0.57)')
+    for (const message of moved) fail(`the handover moved the page — ${message}`)
   })
 
   /**
@@ -1802,7 +1909,6 @@ try {
       '',
       'a figure keeps the display face',
     )
-    is(strip.wrapped.join(' · '), '', 'no stat label wraps')
     is(strip.misalignedRows.join(' · '), '', 'no value sits below the values beside it')
 
     // CD-03: the largest page type opens on a sentence. 1,194 of the 1,196
@@ -3492,10 +3598,10 @@ try {
 
     // VD-28, and this page is where it was measured: eight tiles, and
     // "Constructors' titles" took two lines for its label and dropped its own
-    // figure below every figure beside it. A shared top is the whole of the
-    // claim - a strip whose labels all fit on one line has nothing to drop.
+    // figure below every figure beside it. A shared baseline is the whole of
+    // the claim (VD-79): the label may wrap, and the row's figures move down
+    // together.
     const strip = await statStrip()
-    is(strip.wrapped.join(' · '), '', 'no stat label wraps')
     // Per row, not per strip. A strip wide enough to hold every tile on one
     // row proves the claim only while it stays that wide: add a title, or
     // read the page at 1024, and a check on one shared top would fail for
@@ -7106,8 +7212,16 @@ try {
    * The static half is read from the server rather than from the app's own
    * DOM, and the app's is read after the handover, so this compares the two
    * documents a reader actually gets.
+   *
+   * ONE PAGE, TWO RENDERERS (VD-79; docs/design-system.md section 8, tests 5
+   * and the header). The same pass reads the rest of what the reader sees
+   * change at the handover: the header - eyebrow, h1, lede and aside, child
+   * for child - the tile strips, label and value, and the section headings in
+   * their order. A difference that is known is declared below with its
+   * reason and the item that will remove it; an undeclared one fails, and so
+   * does a declared one that has gone, so the list cannot outlive its cause.
    */
-  await section('Both renderers name the page the same way', async () => {
+  await section('Both renderers draw one page  (the name, the header, the tiles and the sections: VD-79)', async () => {
     const ROUTES = [
       '/',
       '/seasons',
@@ -7142,9 +7256,112 @@ try {
       '/data/sql',
       '/about',
       '/changes',
+      // VD-79: a Grand Prix's eyebrow and its strip (VD-71), and a chassis of
+      // a curated family, whose lede is the family's story.
+      '/grands-prix/monaco',
+      '/cars/lotus-72b',
     ]
+    // The console's static page is not the console: it has no examples and
+    // no schema for the app's lede to point at, so it says what the console
+    // is instead.
+    const HEADER_DIFFERS = new Set(['/data/sql'])
+    // Only a browser knows how long until the next session starts, so the
+    // static season page carries no such tile (Season.jsx).
+    const APP_TILES = new Set(['Next session'])
+    // The section headings each half has that the other does not, or has
+    // elsewhere (`moved`), by route. VD-73 (#822) is the lead charts; VD-87
+    // (#886) the rest of the static sections; the trace sections are drawn
+    // by the browser from f1-geometry.db, which the static half never reads
+    // ([D-07]); and the console's static page is not the console.
+    const LEAD = '#822'
+    const DRIFT = '#886'
+    const TRACE = '[D-07]'
+    const CONSOLE = 'the console'
+    const eras = db.prepare('SELECT era_name FROM eras ORDER BY from_year').all().map((e) => e.era_name)
+    const SECTIONS = {
+      '/seasons/2026': { app: [[titleHeading(true), LEAD]] },
+      '/seasons/1976': { app: [[titleHeading(false), LEAD]] },
+      '/drivers/senna': {
+        app: [
+          ['Where each championship finished', LEAD],
+          ['Every entry', DRIFT],
+        ],
+        static: [['Wins', DRIFT]],
+      },
+      '/constructors/ferrari': { app: [['Wins by season', LEAD]] },
+      '/circuits': { app: [['The traced centrelines', TRACE]] },
+      '/circuits/monza': { app: [['Traced and measured', TRACE]] },
+      '/cars/lotus-72': {
+        app: [
+          ['Why it mattered', DRIFT],
+          ['Specification — 72B', DRIFT],
+        ],
+      },
+      '/cars/mercedes-w11': {
+        app: [
+          ['Why it mattered', DRIFT],
+          ['Specification', DRIFT],
+        ],
+        moved: [['Two sources disagree about this car', DRIFT]],
+      },
+      '/cars/brabham-bt46': {
+        app: [
+          ['Why it mattered', DRIFT],
+          ['Specification', DRIFT],
+        ],
+      },
+      '/cars/lotus-72b': {
+        app: [
+          ['Why it mattered', DRIFT],
+          ['Specification', DRIFT],
+        ],
+      },
+      '/records': {
+        app: ['Champions', 'Who won the decade', 'How often pole becomes a win', 'Grand slams'].map((h) => [h, DRIFT]),
+      },
+      '/reference/eras': {
+        app: [['Ten eras', DRIFT]],
+        static: eras.map((name) => [name, DRIFT]),
+      },
+      '/data/quality': {
+        app: [['How the database is distributed across it', DRIFT]],
+        moved: [['The confidence ladder', DRIFT]],
+      },
+      '/data/sources': { app: [['Using this data', DRIFT]] },
+      '/data/sql': {
+        app: [
+          ['Try one of these', CONSOLE],
+          ['Schema', CONSOLE],
+        ],
+      },
+    }
+    // What a reader sees of each half, read the same way from both, in the
+    // browser: the header's children as text, each strip's tiles, and the
+    // h2s without the count or the faint span beside them, which are figures
+    // rather than the heading's name. The static page is parsed from what the
+    // server sent; the app's is the document after the handover.
+    const readBoth = (html) => {
+      const read = (main) => {
+        const flatten = (node) => (node?.textContent ?? '').replace(/\s+/g, ' ').trim()
+        const header = main?.querySelector('article.page > header')
+        return {
+          header: [...(header?.children ?? [])].map((child) => `${child.tagName.toLowerCase()}.${child.classList[0] ?? ''} ${flatten(child)}`),
+          tiles: [...(main?.querySelectorAll('dl.stats') ?? [])].map((dl) =>
+            [...dl.children].map((tile) => [flatten(tile.querySelector('dt')), flatten(tile.querySelector('dd'))]),
+          ),
+          sections: [...(main?.querySelectorAll('h2') ?? [])].map((h2) => {
+            const copy = h2.cloneNode(true)
+            for (const extra of copy.querySelectorAll('.count, .faint')) extra.remove()
+            return flatten(copy)
+          }),
+        }
+      }
+      const parsed = new DOMParser().parseFromString(html, 'text/html')
+      return [read(parsed.querySelector('#prerendered main')), read(document.querySelector('#root main'))]
+    }
     const flat = (value) => unescaped(value).replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()
     const wrong = []
+    const drawn = []
     for (const route of ROUTES) {
       const html = await (await fetch(`${BASE}${route}`)).text()
       const served = {
@@ -7163,6 +7380,9 @@ try {
       else if (app.h1 !== served.h1) wrong.push(`${route}: h1 \u2014 app \u201c${app.h1}\u201d, static \u201c${served.h1}\u201d`)
       else if (app.title !== served.title)
         wrong.push(`${route}: title \u2014 app \u201c${app.title}\u201d, static \u201c${served.title}\u201d`)
+
+      const [fromStatic, fromApp] = await page.evaluate(readBoth, html)
+      drawn.push({ route, fromStatic, fromApp })
     }
     if (wrong.length === 0) {
       pass(`all ${ROUTES.length} routes carry one h1 and one document title across both renderers`)
@@ -7170,6 +7390,53 @@ try {
       for (const message of wrong.slice(0, 6)) fail(message)
       if (wrong.length > 6) fail(`\u2026and ${wrong.length - 6} more`)
     }
+
+    // The header, child for child: the eyebrow, the h1, the lede and the
+    // aside - a stepper, a photograph, a livery band - in the same order and
+    // the same words (DP-03). The static page drew no eyebrow and no band,
+    // and on most entity pages put the lede under the tiles.
+    const headers = drawn.filter(({ route }) => !HEADER_DIFFERS.has(route))
+    const headerWrong = headers.filter(({ fromStatic, fromApp }) => fromStatic.header.join(' | ') !== fromApp.header.join(' | '))
+    if (headerWrong.length === 0) pass(`all ${headers.length} routes open on the same header in both renderers, eyebrow to aside`)
+    for (const { route, fromStatic, fromApp } of headerWrong.slice(0, 6)) {
+      const at = fromApp.header.findIndex((child, i) => child !== fromStatic.header[i])
+      fail(`${route}: header child ${at + 1} \u2014 app \u201c${fromApp.header[at] ?? '(none)'}\u201d, static \u201c${fromStatic.header[at] ?? '(none)'}\u201d`)
+    }
+
+    // The tile strips, label and value (DP-02).
+    const tileText = (strips, dropped = new Set()) =>
+      strips.map((strip) => strip.filter(([label]) => !dropped.has(label)).map((tile) => tile.join('=')).join(' | ')).join(' || ')
+    const tilesWrong = drawn.filter(({ fromStatic, fromApp }) => tileText(fromStatic.tiles) !== tileText(fromApp.tiles, APP_TILES))
+    if (tilesWrong.length === 0) {
+      pass(`all ${drawn.length} routes draw the same tile strips in both renderers, but the tile only a browser can fill`)
+    }
+    for (const { route, fromStatic, fromApp } of tilesWrong.slice(0, 6)) {
+      fail(`${route}: tiles \u2014 app \u201c${tileText(fromApp.tiles, APP_TILES)}\u201d, static \u201c${tileText(fromStatic.tiles)}\u201d`)
+    }
+
+    // The sections, in order (section 8, test 5), but what is declared.
+    let declared = 0
+    const sectionsWrong = []
+    for (const { route, fromStatic, fromApp } of drawn) {
+      const known = SECTIONS[route] ?? {}
+      const names = (list) => new Set((list ?? []).map(([name]) => name))
+      const appOnly = names([...(known.app ?? []), ...(known.moved ?? [])])
+      const staticOnly = names([...(known.static ?? []), ...(known.moved ?? [])])
+      for (const name of appOnly) if (!fromApp.sections.includes(name)) sectionsWrong.push(`${route}: the app no longer has the declared \u201c${name}\u201d \u2014 delete it from SECTIONS`)
+      for (const name of staticOnly) if (!fromStatic.sections.includes(name)) sectionsWrong.push(`${route}: the static page no longer has the declared \u201c${name}\u201d \u2014 delete it from SECTIONS`)
+      declared += appOnly.size + staticOnly.size
+      const a = fromApp.sections.filter((name) => !appOnly.has(name))
+      const s = fromStatic.sections.filter((name) => !staticOnly.has(name))
+      if (a.join(' | ') !== s.join(' | ')) {
+        const at = a.findIndex((name, i) => name !== s[i])
+        sectionsWrong.push(`${route}: section ${at + 1} \u2014 app \u201c${a[at] ?? '(none)'}\u201d, static \u201c${s[at] ?? '(none)'}\u201d`)
+      }
+    }
+    if (sectionsWrong.length === 0) {
+      pass(`all ${drawn.length} routes have the same sections in the same order in both renderers, but the ${declared} declared`)
+    }
+    for (const message of sectionsWrong.slice(0, 8)) fail(message)
+    if (sectionsWrong.length > 8) fail(`\u2026and ${sectionsWrong.length - 8} more`)
   })
 
   await section('Static tables are the app’s tables', async () => {

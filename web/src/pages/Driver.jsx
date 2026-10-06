@@ -10,10 +10,9 @@ import Figure from '../charts/Figure.jsx'
 import DotPlot from '../charts/DotPlot.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
 import { EMPTY, missing, points as fmtPoints, result, text as valueText } from '../lib/format.js'
-import { ENTRIES_NOTE, NAMES } from '../lib/site.js'
+import { EYEBROWS, ENTRIES_NOTE, NAMES } from '../lib/site.js'
 import { FOLD_NOUN } from '../lib/table.js'
-import { colourForEntry, colourSource, lastTeamColour } from '../lib/liveries.js'
-import { canonicalCountry } from '../lib/racingColours.js'
+import { colourForEntry, colourSource, driverBandNote, lastTeamColour } from '../lib/liveries.js'
 import {
   BY_SEASON,
   DERIVED,
@@ -335,20 +334,13 @@ function DriverBody({ driver, data }) {
 
   return (
     <Page
-      eyebrow="Driver"
+      eyebrow={EYEBROWS.driver()}
       title={NAMES.driver(driver.full_name).headline}
       trail={TRAIL.driver(driver.id, driver.full_name)}
       lede={lede(driver, derived, constructors, practice)}
       sources={rows(data, 'sources')}
       aside={
-        <LiveryScheme
-          colour={teamColour}
-          note={
-            teamColour?.kind === 'livery'
-              ? `The colour ${lastTeam.constructor} raced in ${lastTeam.year}, ${teamColour.claim} - the last team on this record.`
-              : `${canonicalCountry(lastTeam?.constructor_country)}'s international racing colour, under the convention that painted a car for the country that entered it, as it stood when ${lastTeam?.constructor} raced in ${lastTeam?.year}. Not the team's own livery.`
-          }
-        />
+        <LiveryScheme colour={teamColour} note={driverBandNote(lastTeam, teamColour)} />
       }
     >
       {practiceOnly && (

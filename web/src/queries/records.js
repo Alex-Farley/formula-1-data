@@ -304,6 +304,24 @@ export const GRAND_SLAM_COLUMNS = [
   { key: 'constructor', label: 'Constructor' },
 ]
 
-/** The sentence both renderers open the records with; CR-22's claim rests on it. */
+/** The sentence both renderers open the headline records with; CR-22's claim rests on it. */
 export const RECORDS_LEDE =
   'Every record here is derived from the same tables as the leaderboards on every build, as of the last completed race the database holds, and each one says how.'
+
+/**
+ * The page's lede, under its h1 in both renderers (VD-79): the app's words,
+ * read by pages/Records.jsx and by scripts/prerender.js, where the static page
+ * used to open on a sentence of its own and swap it at the handover.
+ */
+export const RECORDS_STANDFIRST =
+  'Who has the most of everything: wins, poles, titles, grand slams, and the decade each of them owned. The records at the top are derived from the same tables as the leaderboards below on every build; the leaderboards are counted from the race records as this page loads.'
+
+/**
+ * A record's tile strip, as data (VD-71, after VD-49): read by
+ * pages/Record.jsx and drawn by scripts/prerender.js's tiles(). The holder
+ * links to their page where holderPath() finds one.
+ */
+export const recordStrip = (record) => [
+  { label: 'Value', value: record.value, lead: true },
+  { label: 'Holder', value: record.holder, href: holderPath(record) },
+]

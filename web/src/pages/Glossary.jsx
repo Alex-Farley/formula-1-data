@@ -5,7 +5,7 @@ import DataTable from '../components/DataTable.jsx'
 import { SportNav } from '../components/SubNav.jsx'
 import { Chips, Filters, NoMatch, SearchField } from '../components/Filters.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
-import { GLOSSARY, GLOSSARY_COLUMNS, PERSONNEL, PERSONNEL_COLUMNS } from '../queries/glossary.js'
+import { GLOSSARY, GLOSSARY_COLUMNS, PERSONNEL, PERSONNEL_COLUMNS, GLOSSARY_LEDE } from '../queries/glossary.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
 import { oneOf, useUrlState } from '../lib/urlstate.js'
@@ -28,7 +28,7 @@ export default function Glossary() {
       title={NAMES.glossary().headline}
       documentName={NAMES.glossary().title}
       trail={TRAIL.glossary()}
-      lede="What the words on a classification actually mean — and the designers, administrators and team principals whose decisions are behind most of the rest of this site."
+      lede={GLOSSARY_LEDE}
     >
       <SportNav />
       <Result state={state}>

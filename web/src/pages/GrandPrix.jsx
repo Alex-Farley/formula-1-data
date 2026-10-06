@@ -4,8 +4,8 @@ import { Result } from '../components/States.jsx'
 import DataTable, { cell } from '../components/DataTable.jsx'
 import SearchKey from '../components/SearchKey.jsx'
 import { rows, useQueries } from '../data/useQuery.js'
-import { number, span } from '../lib/format.js'
-import { NAMES, NOT_YET_RUN, SHARED, SPRINT } from '../lib/site.js'
+import { span } from '../lib/format.js'
+import { EYEBROWS, NAMES, NOT_YET_RUN, SHARED, SPRINT } from '../lib/site.js'
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
 import {
   CIRCUITS,
@@ -17,6 +17,7 @@ import {
   editionCar,
   WINNERS,
   WINNER_COLUMNS,
+  grandPrixStrip,
 } from '../queries/grandprix.js'
 
 /*
@@ -117,16 +118,10 @@ function GrandPrixBody({ gp, data }) {
   const editions = rows(data, 'editions')
   const winners = rows(data, 'winners')
   return (
-    <Page eyebrow={gp.country} title={NAMES.grandPrix(gp.name).headline} trail={TRAIL.grandPrix(gp.id, gp.name)} lede={gp.notes}>
+    <Page eyebrow={EYEBROWS.grandPrix(gp.country)} title={NAMES.grandPrix(gp.name).headline} trail={TRAIL.grandPrix(gp.id, gp.name)} lede={gp.notes}>
       <Section>
-        <Stats
-          items={[
-            { label: 'Times held', value: number(gp.held) },
-            { label: 'Span', value: span(gp.first_held, gp.last_held) },
-            { label: 'Circuits', value: number(gp.circuits) },
-            gp.scheduled ? { label: 'Still to come', value: number(gp.scheduled) } : null,
-          ]}
-        />
+        {/* queries/grandprix.js's strip, which the static page draws too (VD-71). */}
+        <Stats items={grandPrixStrip(gp)} />
       </Section>
 
       <Section title="Where it has been held" count={venuesCount(circuits)}>

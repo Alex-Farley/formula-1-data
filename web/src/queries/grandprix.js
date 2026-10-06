@@ -129,3 +129,15 @@ export const WINNER_COLUMNS = [
   { key: 'first_win', label: 'Span', align: 'num', text: (_, row) => span(row.first_win, row.last_win) },
 ]
 
+/**
+ * The Grand Prix's tile strip, as data (VD-71, after VD-49): read by
+ * pages/GrandPrix.jsx and drawn by scripts/prerender.js's tiles(), where the
+ * static page used to write the four tiles out again. lib/tiles.js says what
+ * each field means.
+ */
+export const grandPrixStrip = (gp) => [
+  { label: 'Times held', value: gp.held },
+  { label: 'Span', value: span(gp.first_held, gp.last_held) },
+  { label: 'Circuits', value: gp.circuits },
+  gp.scheduled ? { label: 'Still to come', value: gp.scheduled } : null,
+]

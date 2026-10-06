@@ -39,7 +39,7 @@ import {
 } from '../queries/car.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
-import { NAMES } from '../lib/site.js'
+import { EYEBROWS, NAMES } from '../lib/site.js'
 import SearchKey from '../components/SearchKey.jsx'
 /*
  * The React renders for the columns queries/car.js defines — the links and
@@ -147,7 +147,7 @@ function CarBody({ id, chassis, variants, data }) {
 
   return (
     <Page
-      eyebrow={chassis.constructor ?? 'Chassis'}
+      eyebrow={EYEBROWS.car(chassis.constructor)}
       title={NAMES.car(name).headline}
       trail={TRAIL.car(chassis.id, name)}
       canonical={carAddress(id, car)}

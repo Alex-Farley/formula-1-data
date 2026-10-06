@@ -10,7 +10,7 @@ import { rows, useQueries } from '../data/useQuery.js'
 import { span } from '../lib/format.js'
 import { FOLD_NOUN } from '../lib/table.js'
 import LiveryScheme from '../components/LiveryScheme.jsx'
-import { LIVERY_ERA, colourForEntry, liveryFor, nationalEntry, sourceHost } from '../lib/liveries.js'
+import { LIVERY_ERA, colourForEntry, constructorBandNote, liveryFor, nationalEntry } from '../lib/liveries.js'
 
 import { CONSTRUCTOR_IMAGES } from '../queries/photographs.js'
 import {
@@ -32,7 +32,7 @@ import {
 } from '../queries/constructor.js'
 
 import { ONWARD, TRAIL, lastSeasonOf } from '../lib/wayfinding.js'
-import { NAMES } from '../lib/site.js'
+import { EYEBROWS, NAMES } from '../lib/site.js'
 import SearchKey from '../components/SearchKey.jsx'
 /*
  * The React renders for the columns queries/constructor.js defines — the
@@ -141,29 +141,12 @@ function ConstructorBody({ constructor, data }) {
 
   return (
     <Page
-      eyebrow="Constructor"
+      eyebrow={EYEBROWS.constructor()}
       title={NAMES.constructor(constructor.name).headline}
       trail={TRAIL.constructor(constructor.id, constructor.name)}
       lede={constructor.notes}
       aside={
-        <LiveryScheme
-          colour={identity}
-          note={
-            livery ? (
-              <>
-                The colour {constructor.name} raced in {lastSeason.year}, {identity.claim}. Read from{' '}
-                {[...new Set(livery.source.map(sourceHost))].join(' and ')}; the shades here are this
-                site's rendering of them, not a measurement.
-              </>
-            ) : (
-              <>
-                {constructor.country}'s international racing colour, under the convention that
-                painted a car for the country that entered it until sponsor liveries took over around
-                1968. Not this team's own livery.
-              </>
-            )
-          }
-        />
+        <LiveryScheme colour={identity} note={constructorBandNote(constructor, lastSeason, livery, identity)} />
       }
     >
       <Section>

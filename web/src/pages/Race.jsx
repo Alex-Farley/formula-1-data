@@ -19,6 +19,7 @@ import {
   SHARED,
   raceCategoryLink,
   racePhotographAlt,
+  EYEBROWS,
 } from '../lib/site.js'
 import { categoryUrl } from '../lib/commons.js'
 import { outlineCaption } from '../lib/outline.js'
@@ -297,7 +298,7 @@ function RaceBody({ race, data, year, round }) {
 
   return (
     <Page
-      eyebrow={`Round ${round} of ${year}`}
+      eyebrow={EYEBROWS.race(round, year)}
       title={NAMES.race(year, race.name_used).headline}
       documentName={NAMES.race(year, race.name_used).title}
       trail={TRAIL.race(year, round, race.name_used)}

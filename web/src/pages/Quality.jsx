@@ -42,6 +42,7 @@ import {
   UNVERIFIED_FOOTER,
   disagrees,
   photographsCatalogued,
+  QUALITY_LEDE,
 } from '../queries/quality.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
@@ -93,7 +94,7 @@ export default function Quality() {
       title={NAMES.quality().headline}
       documentName={NAMES.quality().title}
       trail={TRAIL.quality()}
-      lede="How far to trust anything on this site. Every row carries a confidence level, every disagreement between sources is kept rather than quietly resolved, and everything known to be missing is listed here."
+      lede={QUALITY_LEDE}
     >
       <SubNav />
       <Result state={state}>{(data) => <Body data={data} />}</Result>
