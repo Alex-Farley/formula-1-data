@@ -21,8 +21,7 @@ committed artefacts against a fresh build, so run it after staging a rebuild,
 not before.
 
 `make lint` (Ruff, Biome, actionlint) is a **separate CI job that nothing
-else here runs** `[D-04]`. It belongs in the local order too. Ruff is not on
-`PATH` on this machine; use `python3 -m ruff check`.
+else here runs** `[D-04]`. It belongs in the local order too.
 
 The front end has its own: `cd web && npm test`. Use the quiet forms —
 `QUIET=1`, `--quiet` — which keep every exit code and print failures and a

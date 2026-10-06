@@ -266,7 +266,9 @@ interpreter is the first thing to suspect. Installing a 3.12 alongside it
 is not the whole fix, though: the build runs whatever `python3` is, so you
 have to point it at the new one. `Makefile` takes a `PYTHON` setting for
 exactly this — `make all PYTHON=python3.12`, and the same on `make test`.
-(`make lint` has no Python in it; it runs ruff, Biome and actionlint.)
+(`make lint` runs ruff, Biome and actionlint; it takes the `ruff` on your
+PATH, and only with none there does it try `PYTHON`'s own, as
+`python3 -m ruff`.)
 
 ### 6. Node, for the website
 
@@ -452,9 +454,10 @@ or that the host is missing dependencies to run browsers, the
 
 If `make lint` stops with `make: actionlint: No such file or directory`
 (older `make`, including macOS's, says `Command not found` instead),
-the actionlint half of step 7 did not finish. The same message with `ruff`
-in it means the pipx half did not — and that one stops the command before
-anything else runs, because ruff goes first. Biome is the only one of the
+the actionlint half of step 7 did not finish. `No module named ruff` means
+the pipx half did not: with no `ruff` on PATH, `make lint` falls back to
+`python3 -m ruff`, and that is its complaint — and it stops the command
+before anything else runs, because ruff goes first. Biome is the only one of the
 three that fetches itself.
 
 ## Your first run
