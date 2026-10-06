@@ -19,6 +19,7 @@ import {
   leadOutline,
   outlineCaption,
   timelineName,
+  timelineStripName,
   timelineYears,
 } from '../lib/outline.js'
 import { TRACE_NOT_LOADED, TRACE_RULE, measured, noTrace, odblCredit } from '../lib/trace.js'
@@ -274,7 +275,7 @@ function CircuitBody({ circuit, data }) {
           <ol className="layout-strip">
             {timeline.map((entry) => (
               <li key={entry.key}>
-                <span className="years">{timelineYears(entry)}</span> {timelineName(entry)}
+                <span className="years">{timelineYears(entry)}</span> {timelineStripName(entry)}
               </li>
             ))}
           </ol>

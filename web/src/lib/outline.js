@@ -60,11 +60,14 @@ export const leadOutline = (rows) => {
 
 /**
  * The note over a circuit page's outlines: the rule and the scale caveat,
- * and - where one is drawn larger than the others - why that one.
+ * and - where one is drawn larger than the others beside it - why that one.
+ * Over a timeline it says why the figures can differ instead: since PD-60
+ * the timeline's section sits below the winners, apart from the large lead
+ * under the tiles, so "the large one" would point at nothing in view.
  */
 export const OUTLINE_LEAD_NOTE = 'The large one is the latest layout raced or on the calendar here, not the longest.'
 export const circuitOutlinesNote = (count, timeline = false) =>
-  [OUTLINE_RULE, OUTLINE_SCALE_NOTE, count > 1 ? OUTLINE_LEAD_NOTE : null, timeline ? OUTLINE_FIGURES_NOTE : null]
+  [OUTLINE_RULE, OUTLINE_SCALE_NOTE, count > 1 && !timeline ? OUTLINE_LEAD_NOTE : null, timeline ? OUTLINE_FIGURES_NOTE : null]
     .filter(Boolean)
     .join(' ')
 
@@ -107,9 +110,17 @@ export const NO_TIMELINE_ROW = 'No timeline row names this drawing'
  * One entry of layoutTimeline() in words: the register's name for the layout
  * and its years, or, for a drawing no row names, the words saying so and the
  * years it was raced. The row's heading and the strip over the rows (PD-60)
- * both print these, in both renderers.
+ * both print the years, in both renderers; the strip names an unnamed
+ * drawing in its own words, below.
  */
 export const timelineName = ({ layout }) => (layout ? layout.layout_name : NO_TIMELINE_ROW)
+
+/**
+ * The same name in the strip over the rows, which draws nothing, so a
+ * drawing no row names cannot be "this drawing" there.
+ */
+export const NOT_IN_TIMELINE = 'An F1DB layout no timeline row names'
+export const timelineStripName = ({ layout }) => (layout ? layout.layout_name : NOT_IN_TIMELINE)
 export const timelineYears = ({ layout, outline }) =>
   layout ? span(layout.from_year, layout.to_year) : span(outline.first_year, outline.last_year)
 

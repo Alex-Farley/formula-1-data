@@ -374,6 +374,7 @@ import {
   roundStates,
   stripLabel,
   timelineName,
+  timelineStripName,
   timelineYears,
 } from '../src/lib/outline.js'
 import {
@@ -980,7 +981,7 @@ const confidencePill = (value) =>
 // first, and the cards behind a disclosure, closed, as the app has them.
 const layoutRows = (circuit, entries) =>
   `<ol class="layout-strip">${entries
-    .map((entry) => `<li><span class="years">${esc(timelineYears(entry))}</span> ${esc(timelineName(entry))}</li>`)
+    .map((entry) => `<li><span class="years">${esc(timelineYears(entry))}</span> ${esc(timelineStripName(entry))}</li>`)
     .join('')}</ol><details class="layout-cards"><summary>${esc(LAYOUT_CARDS)}</summary><div class="timeline layout-timeline">${entries
     .map(
       (entry) =>
