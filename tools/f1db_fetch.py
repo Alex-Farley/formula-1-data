@@ -2,8 +2,8 @@
 """
 Fetch the chassis, engine and per-season entrant register from F1DB.
 
-    python3 tools/f1db_fetch.py                    # clone and regenerate
-    python3 tools/f1db_fetch.py --source ~/f1db    # use an existing checkout
+    python3 tools/f1db_fetch.py                    # clone the latest release
+    python3 tools/f1db_fetch.py --source ~/f1db    # use a checkout at a release
     python3 tools/f1db_fetch.py --check            # regenerate and diff only
 
 Source:  https://github.com/f1db/f1db   (CC BY 4.0)
@@ -81,6 +81,14 @@ from data.harvest import (  # noqa: E402  (the one rule for what an outline may 
 HARVEST = os.path.join(ROOT, "harvest")
 CACHE = os.path.join(ROOT, ".f1dbcache")
 REPO = "https://github.com/f1db/f1db.git"
+# GitHub's documented link to a repository's latest published release: it
+# redirects to the release's own page, which names the tag. Published means
+# not a draft and not a pre-release, and a release is published once its
+# artefacts are attached - which is what tools/f1db_totals_fetch.py reads
+# straight after this, for the same tag.
+LATEST = "https://github.com/f1db/f1db/releases/latest"
+# A release tag. F1DB's beta tags (v2026.0.0.beta1) are not releases.
+RELEASE_TAG = re.compile(r"v\d+\.\d+\.\d+")
 
 # The licence the header states, and the licence SOURCE_LICENCE in
 # data/current.py classifies F1DB under. The header used to be stamped from
@@ -160,22 +168,64 @@ def _yaml():
 
 
 def checkout(source):
-    """Return (path, version, commit) for an F1DB working tree."""
+    """Return (path, version, commit) for an F1DB working tree at a release.
+
+    The harvest is read from a release, never from the tip of F1DB's default
+    branch. The version stamped in every header is the release's tag, and
+    tools/f1db_totals_fetch.py fetches that release's artefact by it - the
+    career totals exist only there - so verify.py can hold the two to the
+    same release (CR-69). The version used to be read off the last commit's
+    subject, which named a release only while nothing had been pushed since
+    one: three fixes on 2026-10-05 made it "updated incorrect per-round
+    standings (#165)", the totals fetch found no version in the header, and
+    the refresh failed (#830). Reading the tip would also have stamped and
+    committed data F1DB had not released."""
     if source:
         path = os.path.abspath(os.path.expanduser(source))
         if not os.path.isdir(os.path.join(path, "src", "data")):
             sys.exit(f"{path} does not look like an F1DB checkout")
     else:
         path = CACHE
+        tag = latest_release()
         if os.path.isdir(os.path.join(path, ".git")):
-            run(["git", "-C", path, "fetch", "--depth", "1", "origin", "HEAD"])
-            run(["git", "-C", path, "reset", "--hard", "FETCH_HEAD"])
+            run(["git", "-C", path, "fetch", "--depth", "1", "origin",
+                 f"+refs/tags/{tag}:refs/tags/{tag}"])
+            run(["git", "-C", path, "reset", "--hard", f"refs/tags/{tag}"])
         else:
-            run(["git", "clone", "--depth", "1", REPO, path])
+            run(["git", "clone", "--depth", "1", "--branch", tag, REPO, path])
+    version = release_at(path)
+    if not source and version != tag:
+        sys.exit(f"{path} is at {version}, not the latest release {tag}")
     commit = run(["git", "-C", path, "rev-parse", "--short", "HEAD"]).strip()
-    version = run(["git", "-C", path, "log", "-1", "--format=%s"]).strip()
-    version = version.split(":")[-1].strip()
     return path, version, commit
+
+
+def latest_release():
+    """The tag of F1DB's latest published release."""
+    import urllib.request
+    with urllib.request.urlopen(LATEST, timeout=60) as r:
+        return release_from_url(r.geturl())
+
+
+def release_from_url(url):
+    """The tag named by the release page LATEST redirected to."""
+    m = re.fullmatch(r"https://github\.com/f1db/f1db/releases/tag/([^/]+)", url)
+    if not m or not RELEASE_TAG.fullmatch(m.group(1)):
+        sys.exit(f"{LATEST} did not lead to a release: it went to {url}")
+    return m.group(1)
+
+
+def release_at(path):
+    """The one release tag on the commit checked out at path."""
+    tags = run(["git", "-C", path, "tag", "--points-at", "HEAD"]).split()
+    releases = sorted(t for t in tags if RELEASE_TAG.fullmatch(t))
+    if len(releases) != 1:
+        found = ", ".join(releases) if releases else "no release tag"
+        sys.exit(f"{path} must be checked out at exactly one F1DB release "
+                 f"(git checkout v<year>.<n>.<n>), and HEAD has {found}. The "
+                 f"harvest is read from a release, so that its version names "
+                 f"the release tools/f1db_totals_fetch.py reads.")
+    return releases[0]
 
 
 def run(cmd):
