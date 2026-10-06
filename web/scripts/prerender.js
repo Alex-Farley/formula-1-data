@@ -603,6 +603,12 @@ const driverStandings = (id) => driverStandingsStatement.all(id)
    prints it in the wordmark - the two renderers are compared on it. */
 const { from: SPAN_FROM, to: SPAN_TO } = one('SELECT MIN(year) AS "from", MAX(year) AS "to" FROM seasons')
 const SPAN = `${SPAN_FROM}–${SPAN_TO}`
+// A run of seasons in prose and in a meta description: the year once when it
+// was one season, never "2009–2009" (CD-55); "?" for an end nobody states and
+// `open` for one still running. span() in lib/format.js is the app's cell
+// form, which leaves a running end bare ("1950–") where a sentence says so.
+const yearRun = (from, to, open = '?') =>
+  (from ?? '?') === (to ?? open) ? String(from ?? '?') : `${from ?? '?'}–${to ?? open}`
 // The version and build date, for the static footer: a search arrival's
 // figures used to be undated until the app took over, so the page Google
 // served carried numbers with no currency statement at all.
@@ -2828,7 +2834,7 @@ page({
       lastmod: LAST_RUN.constructor.get(c.id),
       title: NAMES.constructor(c.name).title,
       description: summarise(
-        `${c.full_name ?? c.name}${c.country ? `, ${c.country}` : ''}, Formula One ${c.first_entry ?? '?'}–${c.last_entry ?? 'present'}. ${
+        `${c.full_name ?? c.name}${c.country ? `, ${c.country}` : ''}, Formula One ${yearRun(c.first_entry, c.last_entry, 'present')}. ${
           teamFigures ? `${teamFigures}. ` : ''
         }${c.notes ?? ''}`,
         300,
@@ -3333,7 +3339,7 @@ page({
       title: NAMES.car(name).title,
       image: photos.image,
       description: summarise(
-        `${name}, ${c.from_year ?? '?'}–${c.to_year ?? '?'}${facts.engine_name ? `, ${facts.engine_name}` : ''}${
+        `${name}, ${yearRun(c.from_year, c.to_year)}${facts.engine_name ? `, ${facts.engine_name}` : ''}${
           facts.designers ? `, designed by ${facts.designers}` : ''
         }. ${c.concept ?? c.story ?? ''}`,
         300,
@@ -3362,7 +3368,7 @@ page({
           // The name, as the app prints it: the id was the storage model on
           // the six most famous pages in the register (IA-06).
           ['Constructor', c.constructor_id ? link(`constructors/${c.constructor_id}`, c.constructor_name ?? c.constructor_id) : '—'],
-          ['Years', `${c.from_year ?? '?'}–${c.to_year ?? '?'}`],
+          ['Years', yearRun(c.from_year, c.to_year)],
           ['Designers', text(facts.designers)],
           ...specification,
           // The curated row's grade of its own figures, which a page showing
@@ -3395,9 +3401,7 @@ page({
     }
 
     const name = ch.full_name ?? ch.name
-    const years = ch.first_year === ch.last_year
-      ? String(ch.first_year ?? '?')
-      : `${ch.first_year ?? '?'}–${ch.last_year ?? '?'}`
+    const years = yearRun(ch.first_year, ch.last_year)
     const entries = raced.get(ch.id) ?? []
     const variants = all(VARIANTS, ch.id)
     const carEntries = all(CAR_ENTRIES, ch.id)

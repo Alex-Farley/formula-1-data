@@ -6,6 +6,7 @@ Build f1.db from schema.sql and the data modules.
 
 Idempotent: deletes and rebuilds the database each run.
 """
+import html
 import importlib
 import json
 import math
@@ -882,8 +883,61 @@ def _stage_10_the_chassis_engine_and_entrant_register(b):
                     f"and {car_id}")
             chassis_car[ch] = car_id
 
+    def _engine_split(row):
+        """The engine name and configuration, parted where the page parted
+        them (CD-54).
+
+        Thirty-three modern infoboxes, when this was written, put a
+        horizontal rule inside the engine field - "Honda RBPTH001<hr>1.6 L
+        direct injection V6 ..." - to set the unit's name above a sentence
+        describing it, and the harvest keeps the `<hr>` as the page wrote
+        it. Some carry it at the end of the name and the sentence in the
+        configuration field; some open the configuration field with it.
+        Either way the name is what stands before the rule and the
+        configuration what stands after.
+
+        Where the page also fills its own configuration field (eight cars:
+        "V6 (90°)", "V6"), that field comes first and the sentence follows
+        it, after a semicolon. The sentence is not dropped: on five of the
+        eight (the Haas VF-22, VF-24, VF-25 and VF-26 and the Sauber C45)
+        it is the only place the page says the engine is a turbocharged
+        1.6 L, and the aspiration, capacity and position columns are NULL.
+        """
+        name, cfg = row.get("engine_name"), row.get("engine_config")
+        rest = None
+        if name and "<hr>" in name:
+            name, rest = (p.strip() or None for p in name.split("<hr>", 1))
+        if cfg and cfg.startswith("<hr>"):
+            cfg = cfg[len("<hr>"):].strip() or None
+        cfg = "; ".join(p for p in (cfg, rest) if p) or None
+        return {**row, "engine_name": name, "engine_config": cfg}
+
+    def _plain(v):
+        """A harvested value as plain text: no wikitext tag, no entity.
+
+        The harvest strips the markup tools/wikispec_fetch.py understands and
+        leaves the rest where it can be seen; this is where it is seen. Two
+        survive into the infoboxes this build reads: `<nowiki>*</nowiki>`
+        around a footnote star (Alfa Romeo 158/159's rear suspension), and
+        `&nbsp;` and `&ndash;` written as entities, which are read as the
+        characters they name - a non-breaking space as a space. Anything
+        tag-shaped left after that stops the build - a new kind is handled here on purpose, never
+        printed on a page - and verify.py holds every text column in the
+        database to the same rule.
+        """
+        if v is None:
+            return None
+        s = re.sub(r"</?nowiki>", "", v, flags=re.I)
+        s = html.unescape(s)
+        s = re.sub(r"\s+", " ", s).strip()
+        if HV.MARKUP.search(s):
+            raise SystemExit(f"harvest/car_specs.txt: markup in {v!r}; "
+                             f"build.py's _plain() does not know it")
+        return s or None
+
     specs = {}
     for row in HV.load_car_specs():
+        row = {k: _plain(v) for k, v in _engine_split(row).items()}
         for ch in (row["chassis_ids"] or "").split("+"):
             if ch:
                 specs[ch] = row
