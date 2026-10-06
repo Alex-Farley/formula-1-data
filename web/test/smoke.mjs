@@ -1444,7 +1444,7 @@ try {
     )
     const appLede = (await text('#root main .lede')) ?? ''
     truthy(appLede.endsWith(written), `the calendar\'s explanation is in the lede — "${appLede}"`)
-    if (winner) truthy(appLede.startsWith(`${winner} won`), 'after the sentence saying who won')
+    truthy(Boolean(winner) && appLede.startsWith(`${winner} won`), `after the sentence saying who won (${winner})`)
     const staticRaceHtml = await (await fetch(`${BASE}/races/2026/16`)).text()
     const staticLede = unescaped(staticRaceHtml.match(/<h1>[^<]*<\/h1>\s*<p class="lede">([^<]*)<\/p>/)?.[1] ?? '')
     is(staticLede, appLede, 'the static page opens on the same lede')
