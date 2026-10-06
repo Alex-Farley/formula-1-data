@@ -1956,6 +1956,15 @@ def _read_named(path, rerun):
     return rows
 
 
+# Markup in a text value: an HTML or wikitext tag, a comment, or a character
+# entity. No column of the database holds any - a value that reaches a page
+# or a meta description is printed as written, so a tag in one is a tag on
+# the page (CD-54). build.py refuses one in the spec harvest; verify.py holds
+# every text column of every table to it.
+MARKUP = re.compile(r"<\s*/?\s*[A-Za-z][A-Za-z0-9]*(\s[^<>]*)?/?\s*>|<!--"
+                    r"|&[A-Za-z]+;|&#[0-9]+;|&#x[0-9A-Fa-f]+;")
+
+
 def load_car_specs():
     """The Wikipedia infobox harvest, keyed by the file's own column names."""
     return _read_named(SPECS_FILE, "tools/wikispec_fetch.py")

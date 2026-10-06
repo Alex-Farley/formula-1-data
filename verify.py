@@ -3090,6 +3090,23 @@ def the_chassis_register():
              AND power_note NOT GLOB '*[0-9]*'""")]
     check("no harvested power note names a power without a number", not empty,
           f"{len(empty)}: " + "; ".join(empty[:4]))
+    # No text value holds markup (CD-54): a tag or an entity in a column is
+    # printed as written on the page and in its meta description, as the
+    # modern chassis printed "<hr>" in their engine. Every table and every column,
+    # read from the schema rather than listed, so a table added later is
+    # held to it without being named here. LIKE narrows; the pattern decides.
+    marked = []
+    _mk = harvest_module().MARKUP
+    for (t,) in con.execute("SELECT name FROM sqlite_master WHERE type = 'table' "
+                            "AND name NOT LIKE 'sqlite_%'").fetchall():
+        for c in [r[1] for r in con.execute(f'PRAGMA table_info("{t}")')]:
+            for (v,) in con.execute(
+                    f"""SELECT "{c}" FROM "{t}" WHERE typeof("{c}") = 'text'
+                         AND ("{c}" LIKE '%<%' OR "{c}" LIKE '%&%;%')"""):
+                if _mk.search(v):
+                    marked.append(f"{t}.{c}: {v[:50]!r}")
+    check("no text column holds markup", not marked,
+          f"{len(marked)}: " + "; ".join(marked[:4]))
     overlaps = []
     for field in [r[0] for r in con.execute("SELECT DISTINCT field FROM regulation_limits")]:
         spans = con.execute("SELECT from_year, to_year FROM regulation_limits WHERE field = ? "
