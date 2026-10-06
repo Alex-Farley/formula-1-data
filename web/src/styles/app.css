@@ -314,25 +314,21 @@ main {
   background: var(--panel-sunk);
 }
 
-/* The footer sits outside `main`, so it is a container of its own and its
-   columns and measure are counted off its own content box, which is the same
-   width. */
+/* The footer sits outside `main`, so the page's spans cannot be counted
+   off it: a container query unit resolves against a container above the
+   element, never the element itself, and above this box there is none. So
+   its two columns are its own. It is still a container, so the measure on
+   its paragraphs below is counted off its content box, the same 1,232 px. */
 .sitefoot-inner {
   max-width: var(--page);
   margin: 0 auto;
   padding: var(--space-8) var(--space-8) var(--space-9);
   display: grid;
   gap: var(--space-7) var(--gutter);
-  grid-template-columns: minmax(0, 1fr) var(--span-3);
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); /* the footer's own columns: it is outside main and the page's grid */
   font-size: var(--size-4);
   color: var(--ink-soft);
   container-type: inline-size;
-}
-
-@media (width >= 1180px) {
-  .sitefoot-inner {
-    grid-template-columns: minmax(0, 1fr) var(--span-4);
-  }
 }
 
 .sitefoot p {
@@ -1092,9 +1088,9 @@ tbody th.num {
  */
 td.prose,
 tbody th.prose {
-  min-width: 18ch; /* a prose cell's measure, inside its table */
-  width: 42ch; /* the same */
-  max-width: 60ch; /* the same */
+  min-width: 18ch; /* a prose cell's narrowest, inside its table */
+  width: 42ch; /* a prose cell's preferred measure, inside its table */
+  max-width: 60ch; /* a prose cell's widest, inside its table */
   white-space: normal;
   color: var(--ink-soft);
 }
@@ -1132,7 +1128,7 @@ tbody th:not(.prose) {
 td.record-name,
 tbody th.record-name {
   white-space: normal;
-  min-width: 16ch;
+  min-width: 16ch; /* a record name's narrowest, inside its table */
 }
 
 td.record-value,
@@ -1143,7 +1139,7 @@ tbody th.record-value {
   font-weight: var(--weight-medium);
   line-height: 1.4;
   color: var(--ink);
-  min-width: 9ch;
+  min-width: 9ch; /* a record value's narrowest, inside its table */
   max-width: 30ch; /* a record cell's own measure, inside its table */
 }
 
@@ -1475,7 +1471,7 @@ tbody th.strong {
   top: 100%;
   z-index: 5;
   margin: var(--space-2) 0 0;
-  min-width: 15rem;
+  min-width: 15rem; /* the Columns overlay's narrowest */
   max-width: calc(100vw - 32px); /* an overlay, held inside the viewport */
   padding: var(--space-4) var(--space-6) var(--space-5);
   display: grid;
@@ -1604,7 +1600,7 @@ tbody th.strong {
 }
 
 .filters input[type='search'] {
-  min-width: 200px;
+  min-width: 200px; /* a search field's narrowest: a control, not a block */
   flex: 1 1 220px;
   max-width: 340px; /* a search field: a control's width, not a block's */
 }
@@ -2793,7 +2789,7 @@ figure.figure-lead > .legend {
   padding: 0 var(--space-7) var(--space-6);
   font-size: var(--size-3);
   color: var(--ink-faint);
-  max-width: calc(var(--measure-small) + 2 * var(--space-7));
+  max-width: calc(var(--measure-small) + 2 * var(--space-7)); /* the small measure plus the note's own padding */
 }
 
 .figure-body {
@@ -3161,10 +3157,12 @@ figure.figure-lead > .legend {
   font-weight: var(--weight-semibold);
 }
 
+/* The rail is drawn inside the box, 6 px in, rather than as a border on a
+   box pushed 6 px right: that put the block's edge off the column line
+   (VD-78). The rail, the dots and the entries are where they were. */
 .timeline {
-  border-left: 2px solid var(--rule);
-  padding-left: var(--space-7);
-  margin-left: var(--space-3);
+  padding-left: var(--space-8);
+  background: linear-gradient(var(--rule), var(--rule)) no-repeat var(--space-3) 0 / 2px 100%;
 }
 
 .timeline > article {

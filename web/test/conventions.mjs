@@ -1735,19 +1735,23 @@ describe('the design system holds its grid: widths, breakpoints and tokens (VD-7
   // the grid, a measure, the page or the full width; anything else - a
   // control, a swatch, a cell's measure inside its table, an overlay - says
   // what it is in a comment on its own line, where a reviewer reads it.
-  it('every width, max-width and grid-template-columns in app.css is on the grid, or says why', () => {
-    const ON_GRID = /var\(--(span-\d+|measure(-small)?|page)\)/
-    const FULL = new Set(['100%', 'auto', 'none', 'max-content', 'min-content', 'fit-content', '1px', 'minmax(0, 1fr)'])
+  it('every width, min-width, max-width and grid-template-columns in app.css is on the grid, or says why', () => {
+    // A value on the grid is made of nothing but these parts: a span, a
+    // measure, the page, or a track that takes what the spans leave.
+    const PARTS = /var\(--(span-\d+|measure(-small)?|page)\)|minmax\(0, 1fr\)/g
+    const FULL = new Set(['100%', 'auto', 'none', 'max-content', 'min-content', 'fit-content', '0', '1px'])
     // Two halves a gutter apart are two spans at any even column count.
     const HALVES = 'repeat(2, minmax(0, 1fr))'
     const off = []
-    for (const m of app.matchAll(/(?<=[{;\s])(width|max-width|grid-template-columns)\s*:\s*([^;{}]+?)\s*;/g)) {
+    for (const m of app.matchAll(/(?<=[{;\s])(width|min-width|max-width|grid-template-columns)\s*:\s*([^;{}]+?)\s*;/g)) {
       const value = m[2]
-      if (ON_GRID.test(value) || FULL.has(value) || value === HALVES) continue
+      if (FULL.has(value) || value === HALVES || value.replace(PARTS, '').trim() === '') continue
       const at = lineOf(app, m.index)
       const source = appRaw.split('\n')[at - 1]
       const end = source.indexOf(';', source.indexOf(m[1]))
-      if (end >= 0 && /\/\*\s*\S[\s\S]*\*\//.test(source.slice(end))) continue
+      // A reason is a sentence, not a ditto: three words at least.
+      const reason = end >= 0 ? /\/\*([\s\S]*)\*\//.exec(source.slice(end))?.[1].trim() : null
+      if (reason && reason.split(/\s+/).length >= 3) continue
       off.push(`app.css:${at} ${m[1]}: ${value}`)
     }
     assert.deepEqual(off, [], `a width off the grid, with no reason beside it:\n  ${off.join('\n  ')}\nUse a --span-* or --measure* token, or say on the line what the width is for.`)
@@ -1782,8 +1786,9 @@ describe('the design system holds its grid: widths, breakpoints and tokens (VD-7
   // not a literal and stays inline.
   it('no style={{ }} in the pages, components or charts writes a size as a literal (VD-60)', () => {
     const SIZED = /^(margin|padding|gap|rowGap|columnGap|width|height|minWidth|maxWidth|minHeight|maxHeight|fontSize|fontWeight|lineHeight|letterSpacing|borderRadius|top|right|bottom|left|inset)/
-    const literal = /^(-?\d+(\.\d+)?|'[^']*\d[^']*'|"[^"]*\d[^"]*")$/
-    const files = ['pages', 'components', 'charts'].flatMap((dir) => sourceFiles(join(web, 'src', dir), /\.jsx$/))
+    const literal = /^(-?\d+(\.\d+)?|'[^']*\d[^']*'|"[^"]*\d[^"]*"|`[^`$]*\d[^`$]*`)$/
+    const top = readdirSync(join(web, 'src')).filter((f) => f.endsWith('.jsx')).map((f) => join(web, 'src', f))
+    const files = [...top, ...['pages', 'components', 'charts'].flatMap((dir) => sourceFiles(join(web, 'src', dir), /\.jsx$/))]
     const off = []
     for (const file of files) {
       const source = read(file)

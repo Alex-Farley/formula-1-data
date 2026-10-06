@@ -262,8 +262,8 @@
    * source line - none of them a column line, and the framed boxes that
    * inherited it lined up with nothing. Now --measure is five columns (499
    * px at 1440, about 60-75 characters of 15-17 px text) and --measure-small
-   * four (395 px, the same count at 12-13.5 px), with a floor in rem between
-   * the breakpoints and the full column on a phone. Free prose takes the
+   * four (395 px, the same count at 12-13.5 px), capped in rem between the
+   * breakpoints and the full column on a phone. Free prose takes the
    * first, credits and source lines the second (the text-width rule,
    * docs/design-system.md section 3), and neither is ever wider than the
    * block it sits in.

@@ -2311,7 +2311,7 @@ try {
         for (const child of node.children) {
           const s = getComputedStyle(child)
           const b = child.getBoundingClientRect()
-          const shown = b.width > 0 && b.height > 0 && !/^(inline|contents|none)/.test(s.display) && !/absolute|fixed/.test(s.position)
+          const shown = b.width > 0 && b.height > 0 && !/^(inline|contents|none)$/.test(s.display) && !/absolute|fixed/.test(s.position)
           if (!shown || child.matches('.sr-only')) continue
           const path = trail ? `${trail} > ${name(child)}` : name(child)
           blocks.push({ path, left: b.left - L, right: b.right - L })
