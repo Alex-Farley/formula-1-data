@@ -54,12 +54,21 @@ pyfiles=""
 for f in $(git diff --name-only origin/main...HEAD -- '*.py' f1 2>/dev/null); do
   [ -f "$f" ] && pyfiles="$pyfiles $f"
 done
+# Which Ruff: $RUFF if set, as `make lint RUFF=...` takes it; else a binary on
+# PATH; else the module, which is how `make lint` runs it by default and how a
+# pip install that is not on PATH is reached. $PYTHON names the interpreter
+# for that last probe, as the Makefile's PYTHON does.
+ruff="${RUFF:-}"
+if [ -z "$ruff" ]; then
+  if command -v ruff >/dev/null 2>&1; then ruff="ruff"
+  elif ${PYTHON:-python3} -m ruff --version >/dev/null 2>&1; then ruff="${PYTHON:-python3} -m ruff"; fi
+fi
 if [ -n "$pyfiles" ]; then
-  if command -v ruff >/dev/null 2>&1; then
-    if ruff check --quiet $pyfiles >/dev/null 2>&1; then say ok "ruff clean on the changed Python"
+  if [ -n "$ruff" ]; then
+    if $ruff check --quiet $pyfiles >/dev/null 2>&1; then say ok "ruff clean on the changed Python"
     else
       say FAIL "ruff finds what CI's lint job will fail on:"
-      ruff check --output-format concise $pyfiles 2>&1 | head -5
+      $ruff check --output-format concise $pyfiles 2>&1 | head -5
       fail=1
     fi
   else say WARN "ruff not installed, so CI's lint job is unchecked here (pip install ruff)"; fi

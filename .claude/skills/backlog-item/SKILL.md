@@ -347,7 +347,7 @@ reads past a FAIL phrased as a sentence tomorrow `[D-37]`. Then:
   line each `[D-23]`.
 
 Then `gh pr merge N --merge`, only with the PASS and `check (3.9)`,
-`check (3.12)` and `web` green. **Merging deploys lapledger.org.** In auto
+`check (3.12)`, `web` **and `lint`** green — the four *Never slides* names. **Merging deploys lapledger.org.** In auto
 mode the merge is refused as *Merge Without Review* until a verdict is a
 comment on the PR, which `[D-23]` already puts there; a refusal means the
 record is missing, and the answer is to record it, never to route around it.

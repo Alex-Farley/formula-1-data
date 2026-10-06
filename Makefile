@@ -1,5 +1,6 @@
 # The whole workflow. `make` rebuilds, checks and exports.
 PYTHON ?= python3
+RUFF ?= $(PYTHON) -m ruff
 
 # QUIET=1 is for a reader who will not go through the output line by line —
 # an agent running this after every edit, or a log nobody opens unless it is
@@ -55,11 +56,13 @@ test:                             ## unit tests for the code (not the data)
 	$(PYTHON) -m unittest discover -s tests $(TEST_FLAGS)
 
 # What ci.yml's lint job runs. None of the three is a dependency of the
-# build; install them yourself: `pip install ruff` (or brew), `brew install
-# actionlint`, and Biome comes down through npx. The rule sets, and every
+# build; install them yourself: `pip install ruff`, `brew install
+# actionlint`, and Biome comes down through npx. Ruff runs as a module, the
+# way every other Python tool here does, so it need not be on PATH; a
+# standalone binary instead (brew, say) is `make lint RUFF=ruff`. The rule sets, and every
 # rule left out, are in ruff.toml and web/biome.jsonc with their reasons.
 lint:                             ## Ruff, Biome and actionlint, as CI runs them
-	ruff check
+	$(RUFF) check
 	cd web && npm run --silent lint
 	actionlint
 
