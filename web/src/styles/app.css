@@ -2705,12 +2705,15 @@ figure.figure-lead > .legend {
 }
 
 /* The ring round a dot the caller flagged - a season finished first, on a
-   driver's page (VD-34). Set below the mark's own weight so it reads as a
-   surround rather than a second mark, and drawn in the series' own colour,
-   which the element carries as a stroke. */
+   driver's page (VD-34). Drawn in the series' own colour, which the element
+   carries as a stroke, and at full strength: that colour is the pair
+   test/conventions.mjs holds to 3:1 on the panel, and the 0.5 opacity this
+   ring had took it to 2.33:1 in light and 2.69:1 in dark (AX-23), under
+   1.4.11's floor for a mark that is the site's flag for a title. It reads as
+   a surround rather than a second mark by its weight instead: a hairline,
+   under the dot's own 2 px edge. conventions.mjs refuses an opacity here. */
 .figure .mark-halo {
-  stroke-width: 1.5;
-  opacity: 0.5;
+  stroke-width: 1;
 }
 
 /* THE MARK FOR A SEASON OR A TEAM WITH NO RECORDED COLOUR (AF-55).
@@ -2738,8 +2741,8 @@ figure.figure-lead > .legend {
 }
 
 /* The ring round a hollow dot - a title won inside the gap. Ink, like the
-   dot it surrounds, and it keeps .mark-halo's lighter weight and opacity so
-   it still reads as a surround rather than a second mark. */
+   dot it surrounds, and it keeps .mark-halo's hairline weight so it still
+   reads as a surround rather than a second mark. */
 .figure .mark-halo-hollow {
   stroke: var(--ink-soft);
 }
@@ -2921,7 +2924,12 @@ figure.figure-lead > .legend {
   padding: var(--space-3) var(--space-5);
   font-size: var(--size-3);
   white-space: nowrap;
-  transform: translate(-50%, calc(-100% - 10px));
+  /* Centred above the point by default. A chart may place it itself, held
+     inside the plot, and drop it below a point too near the top of a figure,
+     which clips what overflows it (DotPlot, CR-74). Either way it is clear of the
+     pointer and takes no pointer events, so it cannot take the hover from
+     the mark it describes. */
+  transform: translate(var(--tooltip-shift, -50%), var(--tooltip-rise, calc(-100% - 10px)));
 }
 
 .tooltip b {

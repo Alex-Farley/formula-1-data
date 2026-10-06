@@ -51,7 +51,8 @@ import { fileURLToPath } from 'node:url'
 // The heading rule and the cell marks both renderers share, so the checks
 // below ask for the strings the pages compute rather than copies of them.
 import { NEXT_HEADING, NEXT_ROUND, WON_HERE, WON_HERE_HEADING, standingsHeading, titleHeading } from '../src/queries/season.js'
-import { DRIVER_SOURCES, STANDINGS, THIS_SEASON, roundsRun, seasonTile, thisSeasonHeading } from '../src/queries/driver.js'
+import { DRIVER_SOURCES, SEASON_TEAMS, STANDINGS, THIS_SEASON, roundsRun, seasonTile, teamsBySeason, thisSeasonHeading } from '../src/queries/driver.js'
+import { lastTeamColour } from '../src/lib/liveries.js'
 import {
   ABOUT,
   DOCUMENTS,
@@ -1644,8 +1645,8 @@ try {
     await page.setViewportSize({ width: 1280, height: 900 })
     await go('/drivers/senna', 'Senna')
     truthy(
-      !(await appHeadings()).some((h) => h.startsWith(`The ${season} season`)) &&
-        !staticHeadings(await served('/drivers/senna')).some((h) => h.startsWith(`The ${season} season`)),
+      !(await appHeadings()).includes(thisSeasonHeading([{ season }])) &&
+        !staticHeadings(await served('/drivers/senna')).includes(thisSeasonHeading([{ season }])),
       `a driver with no ${season} entry has no ${season} section`,
     )
 
@@ -2976,6 +2977,208 @@ try {
       )
     }
 
+  })
+
+  await section('/drivers/<id>  (the championship dots: colour, hover and focus: CR-74)', async () => {
+    // Each dot is the colour of the team that season finished with, or hollow
+    // where the record holds none (AF-55), in both themes. The drivers are
+    // chosen for the classes a dot comes in: a title inside the 1968-2009
+    // colour gap (Hamilton 2008, Schumacher 1994), a title in a sourced
+    // livery (Hamilton 2014), a position shared with other drivers
+    // (Schumacher 1991, P13 with two others) and a season with no position to
+    // plot (Schumacher 1997), national colours and a title in them (Fangio),
+    // and a career that crosses from national colours into the gap (G. Hill).
+    // The expected colour is lastTeamColour()'s, which the page reads, so
+    // what is checked is that the colour reaches the dot: a class or an
+    // opacity that drops it, or a dot drawn for the wrong season, fails here.
+    // A livery's value is a hex, a national colour's a token; the browser
+    // resolves either in the theme being read, as the dot's own fill does.
+    const resolve = (values) =>
+      page.evaluate((list) => {
+        const probe = document.createElement('i')
+        document.body.append(probe)
+        const out = list.map((value) => {
+          probe.style.color = ''
+          probe.style.color = value
+          return getComputedStyle(probe).color
+        })
+        probe.remove()
+        return out
+      }, values)
+    const CHART = 'Where each championship finished'
+    const dotsOf = () =>
+      page.$$eval(
+        '#root main h2',
+        (nodes, heading) => {
+          const scope = nodes.find((node) => node.textContent.trim() === heading)?.closest('section')
+          const circles = [...(scope?.querySelectorAll('figure.figure svg circle.mark-ring, figure.figure svg circle.mark-hollow') ?? [])]
+          const halos = [...(scope?.querySelectorAll('figure.figure svg circle.mark-halo') ?? [])]
+          return {
+            dots: circles.map((c) => ({ hollow: c.classList.contains('mark-hollow'), fill: getComputedStyle(c).fill })),
+            halos: halos.map((c) => ({ opacity: getComputedStyle(c).opacity, stroke: getComputedStyle(c).stroke })),
+          }
+        },
+        CHART,
+      )
+    const hamilton = one("SELECT full_name FROM drivers WHERE id = 'hamilton'")
+    const chart = () =>
+      page.locator('#root main section', { has: page.locator('h2', { hasText: CHART }) }).locator('figure.figure svg[role="img"]').first()
+    const covered = new Set()
+    for (const id of ['hamilton', 'schumacher', 'fangio', 'g-hill']) {
+      const name = one('SELECT full_name FROM drivers WHERE id = ?', id)
+      const teams = teamsBySeason(db.prepare(SEASON_TEAMS).all(id))
+      const plotted = db
+        .prepare(STANDINGS)
+        .all(id)
+        .filter((s) => typeof s.position === 'number')
+        .map((s) => ({ ...s, colour: lastTeamColour(teams.get(s.year), s.year).colour }))
+      for (const s of plotted) covered.add(s.colour ? (s.position === 1 ? 'title in colour' : 'colour') : s.position === 1 ? 'title in the gap' : 'gap')
+      await go(`/drivers/${id}`, name)
+      for (const scheme of ['light', 'dark']) {
+        await page.emulateMedia({ colorScheme: scheme })
+        const { dots, halos } = await dotsOf()
+        const wants = await resolve(plotted.map((s) => (s.colour ? s.colour[scheme] : 'transparent')))
+        is(dots.length, plotted.length, `${id}, ${scheme}: a dot for each of the ${plotted.length} seasons with a position`)
+        const wrong = plotted
+          .map((s, i) => {
+            const dot = dots[i]
+            if (!dot) return `${s.year} has no dot`
+            if (!s.colour) return dot.hollow && dot.fill === 'none' ? null : `${s.year} should be hollow, is ${dot.fill}`
+            const want = wants[i]
+            return !dot.hollow && dot.fill === want ? null : `${s.year} should be ${want}, is ${dot.hollow ? 'hollow' : dot.fill}`
+          })
+          .filter(Boolean)
+        truthy(wrong.length === 0, `${id}, ${scheme}: every dot is its season's colour, or hollow where there is none${wrong.length ? `; ${wrong.join('; ')}` : ''}`)
+        const titles = plotted.filter((s) => s.position === 1).length
+        is(halos.length, titles, `${id}, ${scheme}: a ring round each of the ${titles} seasons finished first`)
+        truthy(halos.every((h) => h.opacity === '1'), `${id}, ${scheme}: and every ring at full strength, where its colour clears 3:1 (AX-23)`)
+      }
+      await page.emulateMedia({ colorScheme: 'light' })
+    }
+    is([...covered].sort().join(', '), 'colour, gap, title in colour, title in the gap', 'the drivers between them cover every class of dot')
+    truthy(
+      db.prepare(STANDINGS).all('schumacher').some((s) => s.position === null) &&
+        one("SELECT COUNT(*) FROM v_standings_final WHERE table_type = 'drivers' AND year = 1991 AND position = 13") > 1,
+      'and among them a season with no position, and a position shared with other drivers',
+    )
+
+    // Pointed at and held, a dot keeps one box - Hamilton 2008 above all,
+    // which is hollow and answered the pointer only on its outline. Read at
+    // 1440 and at 400, where the dots are 15 px apart.
+    for (const width of [1440, 400]) {
+      await page.setViewportSize({ width, height: 900 })
+      await go('/drivers/hamilton', hamilton)
+      const svg = await chart().elementHandle()
+      await svg.scrollIntoViewIfNeeded()
+      const unstable = []
+      for (const year of [2008, 2014]) {
+        const index = db
+          .prepare(STANDINGS)
+          .all('hamilton')
+          .filter((s) => typeof s.position === 'number')
+          .findIndex((s) => s.year === year)
+        const dot = (await svg.$$('circle.mark-ring, circle.mark-hollow'))[index]
+        const box = await dot.boundingBox()
+        const [cx, cy] = [box.x + box.width / 2, box.y + box.height / 2]
+        await page.mouse.move(cx - 30, cy)
+        const seen = []
+        // In from the left across the ring and the outline to the centre,
+        // then a pixel's wander there, then held.
+        for (let step = 22; step >= 0; step -= 2) {
+          await page.mouse.move(cx - step, cy)
+          if (step <= 4) seen.push(await page.$$eval('#root main .tooltip', (n) => n.length))
+        }
+        for (const [dx, dy] of [[1, 0], [0, 1], [-1, 0], [0, -1], [1, 1]]) {
+          await page.mouse.move(cx + dx, cy + dy)
+          seen.push(await page.$$eval('#root main .tooltip', (n) => n.length))
+        }
+        await page.waitForTimeout(250)
+        seen.push(await page.$$eval('#root main .tooltip', (n) => n.length))
+        const said = await page.$eval('#root main .tooltip b', (b) => b.textContent).catch(() => null)
+        if (seen.some((n) => n !== 1) || said !== String(year)) unstable.push(`${year}: boxes ${seen.join('')}, reading ${said}`)
+        // And whole: figure.figure clips what overflows it, which cut the
+        // box off a title year's dot at the top of the plot.
+        const inside = await page
+          .$eval('#root main .tooltip', (tip) => {
+            const t = tip.getBoundingClientRect()
+            const f = tip.closest('figure.figure').getBoundingClientRect()
+            return t.top >= f.top && t.bottom <= f.bottom && t.left >= f.left && t.right <= f.right
+          })
+          .catch(() => false)
+        if (!inside) unstable.push(`${year}: the box runs outside the figure, which clips it`)
+        await page.mouse.move(0, 0)
+      }
+      truthy(unstable.length === 0, `at ${width}, a dot pointed at and held keeps one box, for its own season${unstable.length ? `; ${unstable.join('; ')}` : ''}`)
+      const tip = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
+      truthy(tip, `at ${width}, and the page does not scroll sideways`)
+    }
+    // Every dot of a career with long team names, at 400, keeps its box
+    // inside the figure: the middle of the plot is where a centred box of
+    // "British American Racing" ran out of it at either side.
+    await page.setViewportSize({ width: 400, height: 900 })
+    for (const id of ['button', 'verstappen']) {
+      await go(`/drivers/${id}`, one('SELECT full_name FROM drivers WHERE id = ?', id))
+      const svg = await chart().elementHandle()
+      await svg.scrollIntoViewIfNeeded()
+      const outside = []
+      const dots = await svg.$$('circle.mark-ring, circle.mark-hollow')
+      for (const dot of dots) {
+        const box = await dot.boundingBox()
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+        const at = await page
+          .$eval('#root main .tooltip', (tip) => {
+            const t = tip.getBoundingClientRect()
+            const f = tip.closest('figure.figure').getBoundingClientRect()
+            return { year: tip.querySelector('b').textContent, inside: t.top >= f.top && t.bottom <= f.bottom && t.left >= f.left && t.right <= f.right }
+          })
+          .catch(() => ({ year: null, inside: false }))
+        if (!at.inside) outside.push(at.year ?? 'a dot with no box')
+      }
+      await page.mouse.move(0, 0)
+      truthy(outside.length === 0, `at 400, each of ${id}'s ${dots.length} dots opens its box inside the figure${outside.length ? `; not ${outside.join(', ')}` : ''}`)
+    }
+    await page.setViewportSize({ width: 1280, height: 900 })
+
+    // A tap on a touch screen opens the box too, and it stays when the
+    // finger lifts: a tap sends no pointermove, and a pointerleave follows it.
+    {
+      const touch = await browser.newContext({ viewport: { width: 400, height: 900 }, hasTouch: true, isMobile: true })
+      const phone = await touch.newPage()
+      await phone.goto(`${BASE}/drivers/hamilton`)
+      const plot = phone
+        .locator('#root main section', { has: phone.locator('h2', { hasText: CHART }) })
+        .locator('figure.figure svg[role="img"]')
+        .first()
+      await plot.locator('circle.mark-hollow').nth(1).waitFor({ timeout: 30000 })
+      await plot.scrollIntoViewIfNeeded()
+      const box = await plot.locator('circle.mark-hollow').nth(1).boundingBox()
+      await phone.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2)
+      await phone.waitForTimeout(250)
+      const tapped = await phone.$eval('#root main .tooltip b', (b) => b.textContent).catch(() => null)
+      is(tapped, '2008', "a tap on Hamilton's hollow 2008 dot opens its box, and it is still open after the finger lifts")
+      await touch.close()
+    }
+
+    // The keyboard reaches the same points: focus the plot, and its first
+    // season is read; the arrows step along; Escape lets go.
+    await go('/drivers/hamilton', hamilton)
+    await chart().focus()
+    await page.keyboard.press('End')
+    const first = await page.$eval('#root main .tooltip b', (b) => b.textContent).catch(() => null)
+    await page.keyboard.press('Home')
+    await page.keyboard.press('ArrowRight')
+    const second = await page.$eval('#root main .tooltip b', (b) => b.textContent).catch(() => null)
+    const status = await chart().locator('xpath=..').locator('[role="status"]').textContent()
+    const years = db
+      .prepare(STANDINGS)
+      .all('hamilton')
+      .filter((s) => typeof s.position === 'number')
+      .map((s) => String(s.year))
+    is(first, years.at(-1), 'End on the focused plot reads its last season')
+    is(second, years[1], 'Home then the right arrow reads its second')
+    truthy(status.startsWith(`${years[1]}: `), `and the status region says it, “${status}”`)
+    await page.keyboard.press('Escape')
+    is(await page.$$eval('#root main .tooltip', (n) => n.length), 0, 'Escape lets go of it')
   })
 
   await section('/constructors', async () => {

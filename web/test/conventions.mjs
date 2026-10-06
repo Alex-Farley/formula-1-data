@@ -1014,6 +1014,31 @@ describe('a chart series clears 3:1 on the surface figures draw on (AX-07)', () 
       assert.deepEqual(failing, [])
     })
   }
+
+  it('the ring round a title is drawn at full strength, in colours that clear 3:1 (AX-23)', () => {
+    // The halo takes the dot's own colour - a series slot, or a livery pair
+    // the livery checks above hold to 3:1 on the panel - so the pair's ratio
+    // is the ring's only while nothing thins it. At opacity 0.5 it was
+    // 2.33:1 in light and 2.69:1 in dark. The hollow ring is --ink-soft,
+    // measured here because nothing else measures it as a mark.
+    const rule = (selector) => {
+      const at = app.indexOf(`\n${selector} {`)
+      assert.ok(at >= 0, `app.css has no ${selector} rule`)
+      return app.slice(at, app.indexOf('}', at))
+    }
+    for (const selector of ['.figure .mark-halo', '.figure .mark-halo-hollow']) {
+      const body = rule(selector)
+      assert.ok(!/opacity\s*:/.test(body), `${selector} sets an opacity, which takes its colour under the 3:1 it is held to: ${body.trim()}`)
+      assert.ok(!/stroke-opacity\s*:/.test(body), `${selector} sets a stroke-opacity: ${body.trim()}`)
+    }
+    assert.match(rule('.figure .mark-halo-hollow'), /stroke:\s*var\(--ink-soft\)/)
+    for (const [label, block] of [['light', blocks.light], ['dark', blocks.stampedDark]]) {
+      const t = tokens(block)
+      assert.ok(t['ink-soft'], `${label} block has no six-digit --ink-soft`)
+      const ratio = contrast(t['ink-soft'], t.panel)
+      assert.ok(ratio >= 3, `${label}: the hollow ring's --ink-soft ${t['ink-soft']} on --panel is ${ratio.toFixed(2)}:1`)
+    }
+  })
 })
 
 describe('the button carries a foreground that clears 4.5:1 on its own fill (AX-06)', () => {
