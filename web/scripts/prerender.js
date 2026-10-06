@@ -303,6 +303,7 @@ import {
   GRANDS_PRIX as CIRCUIT_GRANDS_PRIX,
   LAYOUTS as CIRCUIT_LAYOUTS,
   RACES as CIRCUIT_RACES,
+  RACES_HEADING as CIRCUIT_RACES_HEADING,
   RACE_COLUMNS as CIRCUIT_RACE_COLUMNS,
   TEAMS as TEAMS_HERE,
   TEAM_COLUMNS,
@@ -313,6 +314,7 @@ import {
   circuitStrip,
   heldAs,
   photographAlt as circuitPhotographAlt,
+  racesCount as circuitRacesCount,
 } from '../src/queries/circuit.js'
 import { GRANDS_PRIX, GRANDS_PRIX_COLUMNS, GRANDS_PRIX_FOOTER, GRANDS_PRIX_LEDE } from '../src/queries/grandsprix.js'
 import {
@@ -3049,7 +3051,7 @@ page({
               )}${layoutRows(c.name, layoutTimeline(layoutsHere, outlinesHere))}`
             : ''
         }
-        <h2>Every race held here</h2>
+        ${heading(CIRCUIT_RACES_HEADING, circuitRacesCount(racesHere))}
         ${heldLine}
         ${
           racesHere.length

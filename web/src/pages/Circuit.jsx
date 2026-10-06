@@ -33,6 +33,7 @@ import {
   OUTLINES,
   PHOTOGRAPH,
   RACES,
+  RACES_HEADING,
   RACE_COLUMNS,
   TEAMS,
   TEAM_COLUMNS,
@@ -42,6 +43,7 @@ import {
   circuitStrip,
   heldAs,
   photographAlt,
+  racesCount,
 } from '../queries/circuit.js'
 
 import { ONWARD, TRAIL } from '../lib/wayfinding.js'
@@ -315,7 +317,7 @@ function CircuitBody({ circuit, data }) {
         </Section>
       )}
 
-      <Section title="Every race held here" count={`${races.length}`}>
+      <Section title={RACES_HEADING} count={racesCount(races)}>
         {/* IA-01: the way from a venue to every other place its Grand Prix
             has been run. The words are queries/circuit.js's, which
             prerender.js prints too. */}
