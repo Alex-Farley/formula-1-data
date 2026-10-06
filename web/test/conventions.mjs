@@ -1654,6 +1654,8 @@ describe('type, weight and spacing are steps on the scales in tokens.css (VD-03)
   const RELATIVE = /^-?[0-9.]+em$/
   const VIEWPORT = /^[0-9.]+(vh|vw)$/
   const SPACE_LITERAL = new Set(['0', 'auto', '1px', '-1px'])
+  // The grid's gutter is a step under the name of its role (tokens.css).
+  const GUTTER = 'var(--gutter)'
 
   it('every font-size, font and font-weight in app.css is a step, or relative', () => {
     const off = declarations(/^font(-size|-weight)?$/)
@@ -1671,7 +1673,7 @@ describe('type, weight and spacing are steps on the scales in tokens.css (VD-03)
     for (const { prop, value } of declarations(/^(padding|margin)(-[a-z-]+)?$|^(row-|column-)?gap$/)) {
       const parts = value.match(/calc\(-1 \* var\(--space-\d+\)\)|var\(--space-\d+\)|\S+/g)
       for (const part of parts) {
-        if (/^(calc\(-1 \* )?var\(--space-\d+\)\)?$/.test(part) || SPACE_LITERAL.has(part) || RELATIVE.test(part) || VIEWPORT.test(part)) continue
+        if (/^(calc\(-1 \* )?var\(--space-\d+\)\)?$/.test(part) || part === GUTTER || SPACE_LITERAL.has(part) || RELATIVE.test(part) || VIEWPORT.test(part)) continue
         off.push(`${prop}: ${value}`)
         break
       }
@@ -1702,6 +1704,147 @@ describe('type, weight and spacing are steps on the scales in tokens.css (VD-03)
         assert.ok(ratio >= floor, `--${steps[i]} is ${ratio.toFixed(3)}x --${steps[i - 1]}, under ${floor}`)
       }
     }
+  })
+})
+
+describe('the design system holds its grid: widths, breakpoints and tokens (VD-78, DP-08)', () => {
+  // Thirteen layout changes on 5 and 6 October each fixed one page well and
+  // together left five two-column systems, seven text widths and seven
+  // breakpoints, because nothing written down said a width was wrong. The
+  // grid in tokens.css is that statement (docs/design-system.md section 2);
+  // these are the parts of it a pattern can hold. smoke.mjs measures the
+  // rest, the edges on a rendered page. A deviation is declared here, by
+  // name, with its reason and the issue that removes it.
+  const tokens = read(join(web, 'src', 'styles', 'tokens.css'))
+  const appRaw = read(join(web, 'src', 'styles', 'app.css'))
+  // Comments blanked rather than removed, so an index still finds its line.
+  const blank = (text) => text.replace(/\/\*[\s\S]*?\*\//g, (c) => c.replace(/[^\n]/g, ' '))
+  const app = blank(appRaw)
+  const lineOf = (text, index) => text.slice(0, index).split('\n').length
+  const breakpoints = new Map([...tokens.matchAll(/--(bp-[a-z]+):\s*(\d+)px;/g)].map((m) => [Number(m[2]), m[1]]))
+
+  it('tokens.css names the grid: columns, gutter, spans, measures and breakpoints', () => {
+    for (const name of ['--columns', '--gutter', '--col', '--measure', '--measure-small', '--bp-tablet', '--bp-desktop']) {
+      assert.match(tokens, new RegExp(`${name}:`), `${name} is defined`)
+    }
+    assert.deepEqual([...breakpoints.keys()].sort((a, b) => a - b), [768, 1180], 'the two breakpoints the bands turn on')
+    assert.match(appRaw, /^main \{[^}]*container-type: inline-size;/m, 'main is the container a span counts its columns off')
+  })
+
+  // The width equivalent of VD-03's scale test. A layout width is a span of
+  // the grid, a measure, the page or the full width; anything else - a
+  // control, a swatch, a cell's measure inside its table, an overlay - says
+  // what it is in a comment on its own line, where a reviewer reads it.
+  it('every width, max-width and grid-template-columns in app.css is on the grid, or says why', () => {
+    const ON_GRID = /var\(--(span-\d+|measure(-small)?|page)\)/
+    const FULL = new Set(['100%', 'auto', 'none', 'max-content', 'min-content', 'fit-content', '1px', 'minmax(0, 1fr)'])
+    // Two halves a gutter apart are two spans at any even column count.
+    const HALVES = 'repeat(2, minmax(0, 1fr))'
+    const off = []
+    for (const m of app.matchAll(/(?<=[{;\s])(width|max-width|grid-template-columns)\s*:\s*([^;{}]+?)\s*;/g)) {
+      const value = m[2]
+      if (ON_GRID.test(value) || FULL.has(value) || value === HALVES) continue
+      const at = lineOf(app, m.index)
+      const source = appRaw.split('\n')[at - 1]
+      const end = source.indexOf(';', source.indexOf(m[1]))
+      if (end >= 0 && /\/\*\s*\S[\s\S]*\*\//.test(source.slice(end))) continue
+      off.push(`app.css:${at} ${m[1]}: ${value}`)
+    }
+    assert.deepEqual(off, [], `a width off the grid, with no reason beside it:\n  ${off.join('\n  ')}\nUse a --span-* or --measure* token, or say on the line what the width is for.`)
+  })
+
+  // A custom property cannot stand in a media query, so the breakpoints are
+  // literals in app.css and this is what keeps them two. The range form only:
+  // `width < 768px` and `width >= 768px` meet without the 767.98 a
+  // max-width/min-width pair needs, and cannot overlap by a pixel.
+  it('every breakpoint in app.css and lib/table.js is one of the tokens', async () => {
+    const off = []
+    const used = new Set()
+    for (const m of app.matchAll(/@media\s+([^{]+)\{/g)) {
+      const query = m[1].trim()
+      if (!/width/.test(query)) continue
+      if (/(min|max)-width/.test(query)) off.push(`app.css:${lineOf(app, m.index)} ${query} (write it as a range: width < N or width >= N)`)
+      for (const px of query.matchAll(/(\d+(?:\.\d+)?)px/g)) {
+        if (breakpoints.has(Number(px[1]))) used.add(Number(px[1]))
+        else off.push(`app.css:${lineOf(app, m.index)} ${query}`)
+      }
+    }
+    const { PHONE } = await import('../src/lib/table.js')
+    for (const px of PHONE.matchAll(/(\d+)px/g)) if (!breakpoints.has(Number(px[1]))) off.push(`lib/table.js PHONE ${PHONE}`)
+    assert.deepEqual(off, [], `a breakpoint that is not --bp-tablet or --bp-desktop:\n  ${off.join('\n  ')}`)
+    assert.deepEqual([...used].sort((a, b) => a - b), [...breakpoints.keys()].sort((a, b) => a - b), 'every breakpoint token is a query app.css turns on')
+  })
+
+  // VD-60 (#615): fifteen inline style literals sat outside the scales,
+  // where the stylesheet tests could not see them, and an inline style also
+  // outranks every rule, so a page's gap could not be changed from app.css.
+  // A computed value - a width from the data, a colour from a livery - is
+  // not a literal and stays inline.
+  it('no style={{ }} in the pages, components or charts writes a size as a literal (VD-60)', () => {
+    const SIZED = /^(margin|padding|gap|rowGap|columnGap|width|height|minWidth|maxWidth|minHeight|maxHeight|fontSize|fontWeight|lineHeight|letterSpacing|borderRadius|top|right|bottom|left|inset)/
+    const literal = /^(-?\d+(\.\d+)?|'[^']*\d[^']*'|"[^"]*\d[^"]*")$/
+    const files = ['pages', 'components', 'charts'].flatMap((dir) => sourceFiles(join(web, 'src', dir), /\.jsx$/))
+    const off = []
+    for (const file of files) {
+      const source = read(file)
+      for (const m of source.matchAll(/style=\{\{([\s\S]*?)\}\}/g)) {
+        for (const entry of m[1].split(',')) {
+          const pair = /^\s*([A-Za-z]+)\s*:\s*([\s\S]+?)\s*$/.exec(entry)
+          if (pair && SIZED.test(pair[1]) && literal.test(pair[2])) off.push(`${rel(file)}:${lineOf(source, m.index)} ${pair[1]}: ${pair[2]}`)
+        }
+      }
+    }
+    assert.deepEqual(off, [], `an inline size the scales cannot see:\n  ${off.join('\n  ')}\nGive it a class in app.css, on a --space-* or --size-* step.`)
+  })
+
+  // Holding a token the stylesheet never uses is the one choice the design
+  // system rules out (section 2): it is a claim the page does not make. The
+  // breakpoints are held by the test above, and a racing colour is named by
+  // lib/racingColours.js rather than written out.
+  const UNUSED = {
+    'size-9': 'the middle type register, kept and used by version A (DP-10): the opening slot in step 7 sets the one hero figure in it (#871)',
+    'size-10': 'the same (#871)',
+    'size-11': 'the same (#871)',
+  }
+  it('every token tokens.css defines is used somewhere, or is declared here', () => {
+    const files = [...sourceFiles(join(web, 'src')), ...sourceFiles(join(web, 'scripts'))]
+    const corpus = files.map(read).join('\n')
+    const named = new Set(Object.values(COLOURS).map((c) => c.token))
+    const defined = [...new Set([...tokens.matchAll(/^\s*--([a-z0-9-]+):/gm)].map((m) => m[1]))]
+    const unused = defined.filter(
+      (name) => !name.startsWith('bp-') && !named.has(name) && !corpus.includes(`var(--${name})`) && !corpus.includes(`var(--${name},`),
+    )
+    assert.deepEqual(unused.filter((name) => !(name in UNUSED)), [], 'defined in tokens.css and used nowhere')
+    const stale = Object.keys(UNUSED).filter((name) => !unused.includes(name))
+    assert.deepEqual(stale, [], 'declared unused, and now used: take it out of UNUSED')
+  })
+
+  // 2.4.7. A rule that unsets a control's outline - `all: unset` takes it
+  // with everything else, and outranks the global :focus-visible ring by
+  // specificity - must draw a ring of its own, or a keyboard reader loses
+  // their place on every element it matches. axe cannot see this; the sort
+  // buttons went without a ring from 5 September to the design pass.
+  const NO_RING = {
+    'th.sortable button': 'the column-sort buttons: AX-31 (#863), folded into step 5, the one reveal control (#869)',
+    '.example': "the SQL console's examples: the same finding (#863, #869)",
+    '.page h1:focus': 'not a control: the h1 takes focus on navigation so a screen reader announces the page',
+    '.app > main:focus': 'not a control: main takes focus from the skip link, for the same reason',
+    '.palette input:focus': "the search palette's one field, which holds focus from the moment the dialog opens; its caret is the cue",
+  }
+  it('every rule that unsets an outline has a :focus-visible ring beside it, or is declared here', () => {
+    const rules = [...app.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({ selectors: m[1].split(',').map((s) => s.trim().replace(/\s+/g, ' ')), body: m[2] }))
+    const ringed = new Set(rules.flatMap((r) => r.selectors).filter((s) => s.endsWith(':focus-visible')).map((s) => s.slice(0, -':focus-visible'.length)))
+    const off = []
+    for (const rule of rules) {
+      if (!/\ball:\s*unset\b|\boutline:\s*(none|0)\b/.test(rule.body)) continue
+      for (const selector of rule.selectors) {
+        if (selector.endsWith(':focus-visible') || ringed.has(selector) || selector in NO_RING) continue
+        off.push(selector)
+      }
+    }
+    assert.deepEqual(off, [], `unsets the focus ring and draws none of its own:\n  ${off.join('\n  ')}\nAdd \`<selector>:focus-visible { outline: ... }\`.`)
+    const stale = Object.keys(NO_RING).filter((s) => ringed.has(s))
+    assert.deepEqual(stale, [], 'declared ringless, and now ringed: take it out of NO_RING')
   })
 })
 

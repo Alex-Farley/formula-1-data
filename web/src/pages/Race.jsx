@@ -288,7 +288,7 @@ function RaceBody({ race, data, year, round }) {
         footer={TIMETABLE_NOTE}
       />
       {upcoming && (
-        <p className="note" style={{ marginTop: 10 }}>
+        <p className="note follows">
           Next: {upcoming.name}, {clock(upcoming.start_utc, upcoming.zone)} at the circuit — {until(upcoming.start_utc, now)}.
         </p>
       )}

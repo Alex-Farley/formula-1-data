@@ -42,7 +42,7 @@ export default function LiveryScheme({ colour, note }) {
   const { sourced, chosen } = accentsBySource(colour.scheme)
   const them = chosen.length === 1 ? 'it' : 'them'
   return (
-    <p className="livery-band" style={{ marginTop: 14 }}>
+    <p className="livery-band">
       {/* aria-hidden: the band repeats the names beside it, and the sentence
           below says what it is. A second announcement of the same colour is
           noise, not information. */}

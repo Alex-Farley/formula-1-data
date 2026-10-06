@@ -1,12 +1,14 @@
 # The Lap Ledger design system — a proposal in three versions
 
-**Status: proposal, not built.** Written for VD-75 (#843) on 2026-10-06 from
-the five critiques in
+**Status: version A chosen, and being built.** Written for VD-75 (#843) on
+2026-10-06 from the five critiques in
 [`critiques/2026-10-06-design-pass.md`](critiques/2026-10-06-design-pass.md).
-Nothing in `web/` changes until the maintainer chooses a version. That choice is
-recorded on #843 as a decision. Until then, this file
-describes what the site *should* hold, and says so wherever that differs from
-what it holds today.
+The maintainer chose version A on #843 the same day, with DP-01 to DP-08
+accepted, to be built in seven reviewed steps (#865 to #871). Step 1, the grid,
+the measure and the design-system tests, is in `web/src/styles/tokens.css`
+(VD-78): where a value below and that file differ, the file is the value. The
+rest of this file still describes what the site *should* hold, and says so
+wherever that differs from what it holds today.
 
 **What it is for.** The thirteen layout changes of 5–6 October each fixed one
 page type well. Together they left five two-column systems, seven text widths
@@ -84,7 +86,7 @@ opens and how wide its columns run. Where they differ, the text says
 | `--gutter` | 24 px (`--space-8`) | new; replaces the 40, 24 and 16 px gutters the five rules use today |
 | `--col` | `(content − 11 × gutter) / 12` | 80.7 px at 1440 |
 | `--span-n` | `n × col + (n − 1) × gutter` | spans 4, 5, 6, 7, 8 and 12 are the ones in use |
-| Breakpoints | `--bp-tablet` 768, `--bp-desktop` 1180, `--bp-wide` 1280 | new; **replaces the seven in use today** (480, 560, 600, 720, 760, 860, 1024) and the masthead's implicit wrap at 1099 |
+| Breakpoints | `--bp-tablet` 768, `--bp-desktop` 1180; 1280 is `--page` | **replaces the seven in use before step 1** (480, 560, 600, 720, 760, 860, 1024) and the masthead's implicit wrap at 1099. Three widths, two queries: from 1280 the content stops at 1,232 px and only the margins grow, so `--page` holds that width and no rule needs a query for it |
 | Test widths | 400, 768, 1024, 1440, plus 1180 for the switch | the four the maintainer named |
 
 **Why 1180 for the switch, not 1024.** Between 1024 and 1180 a side column

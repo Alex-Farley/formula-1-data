@@ -78,7 +78,7 @@ export default function Cars() {
               title="The cars with a page of their own"
               count={`${pick(data, 'gallery').length} designs, in order`}
             >
-              <p className="note" style={{ marginTop: 0 }}>
+              <p className="note">
                 Every one of these is flagged a landmark in the register, so the flag is not
                 drawn: it would sit on all {pick(data, 'gallery').length} and mean nothing. What
                 each card carries instead is the line the database holds on what the design was

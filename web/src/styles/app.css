@@ -295,12 +295,18 @@ hr {
   background: var(--panel-sunk);
 }
 
+/* `main` is the size container the grid counts its columns off: 100cqi in
+   tokens.css is this box's content width, the 1,232 px between the margins
+   at 1440, so a --span-* is the same width in any block inside it. Inline
+   size only, which is all a span reads; it adds no layout containment, so a
+   fixed overlay inside still positions against the viewport. */
 main {
   flex: 1;
   max-width: var(--page);
   width: 100%;
   margin: 0 auto;
   padding: var(--space-8) var(--space-8) var(--space-10);
+  container-type: inline-size;
 }
 
 .sitefoot {
@@ -308,25 +314,35 @@ main {
   background: var(--panel-sunk);
 }
 
+/* The footer sits outside `main`, so it is a container of its own and its
+   columns and measure are counted off its own content box, which is the same
+   width. */
 .sitefoot-inner {
   max-width: var(--page);
   margin: 0 auto;
   padding: var(--space-8) var(--space-8) var(--space-9);
   display: grid;
-  gap: var(--space-7) var(--space-9);
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: var(--space-7) var(--gutter);
+  grid-template-columns: minmax(0, 1fr) var(--span-3);
   font-size: var(--size-4);
   color: var(--ink-soft);
+  container-type: inline-size;
+}
+
+@media (width >= 1180px) {
+  .sitefoot-inner {
+    grid-template-columns: minmax(0, 1fr) var(--span-4);
+  }
 }
 
 .sitefoot p {
-  max-width: 62ch;
+  max-width: var(--measure);
 }
 
 .sitefoot dl {
   margin: 0;
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto 1fr; /* a label and its value: the list's own columns */
   gap: var(--space-1) var(--space-6);
   font-variant-numeric: tabular-nums;
 }
@@ -339,23 +355,39 @@ main {
   margin: 0;
 }
 
-/* The wordmark's second line is longer than its first, so on a narrow screen
-   it is what pushes the search button onto a row of its own. */
-@media (max-width: 560px) {
+/* VD-76: the masthead is one row at every width above the phone layout.
+   The wordmark, eight links and the search button need 999 px at full size,
+   and from 1,099 px down the links wrapped - a second row at 1024 that moved
+   every page's heading down 24 px, a third at 768. Below --bp-desktop they
+   tighten instead: the wordmark drops its second line, the button its key,
+   and each link four pixels a side, which brings the row to under 700 px and
+   keeps it whole down to 768. */
+@media (width < 1180px) {
   .wordmark span span {
     display: none;
   }
   .search-trigger kbd {
     display: none;
   }
+  .masthead-inner {
+    gap: var(--space-6);
+  }
+  .masthead nav a {
+    padding: var(--space-3) var(--space-2);
+  }
 }
 
-@media (max-width: 720px) {
+@media (width < 768px) {
   .sitefoot-inner {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .masthead-inner {
     flex-wrap: wrap;
+  }
+  /* The phone's links are a row of their own, so they take their full
+     padding back: the room is there, and a wider target is easier to hit. */
+  .masthead nav a {
+    padding: var(--space-3) var(--space-5);
   }
   /* Two rows rather than a strip: the strip hid its scrollbar, and four of
      the eight items were off-screen on an iPhone 13 with nothing to say so.
@@ -454,6 +486,19 @@ main {
   font-size: var(--size-4);
 }
 
+/* A note under a block - a tile strip, a table - rather than under its
+   heading stands a step clear of it. It was an inline marginTop of 10 on
+   three pages, which the stylesheet's scale could not see (VD-60). */
+.section > .note.follows {
+  margin-top: var(--space-5);
+}
+
+/* A sentence under a board of download cards, clear of the cards (VD-60:
+   an inline marginTop of 18, twice, on /data). */
+.board + .measure {
+  margin-top: var(--space-7);
+}
+
 .section > h2 + .table-wrap,
 .section > h2 + .grid,
 .section > h2 + figure {
@@ -499,7 +544,7 @@ main {
 .grid {
   display: grid;
   gap: var(--space-7);
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); /* a card grid: the box spans its column, and its tracks are cards, not page columns */
 }
 
 /* The home page's panels: the two rounds either side of today, and the four
@@ -532,26 +577,36 @@ main {
 }
 
 .grid.wide {
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); /* a card grid: the box spans its column, and its tracks are cards, not page columns */
 }
 
+/* Two halves a gutter apart, which is two spans of the page's grid at any
+   column count it has: half of 12 columns, or of 8. */
 .split {
   display: grid;
-  gap: var(--space-8);
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--gutter);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: start;
 }
 
 /* The wider-left variant, a class rather than an inline style: an inline
    grid-template-columns outranks the stacking rule below, so the SQL console
-   stayed two columns at 320 px and its example list overflowed the page. */
+   stayed two columns at 320 px and its example list overflowed the page.
+   Eight columns of twelve and five of eight: 2fr/1fr drew an edge 8 px off
+   every column line. */
 .split.uneven {
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  grid-template-columns: var(--span-5) minmax(0, 1fr);
 }
 
-/* This block must stay below .split.uneven: the two rules are the same
+@media (width >= 1180px) {
+  .split.uneven {
+    grid-template-columns: var(--span-8) minmax(0, 1fr);
+  }
+}
+
+/* This block must stay below .split.uneven: the rules are the same
    specificity, so source order is what makes the stack win. */
-@media (max-width: 860px) {
+@media (width < 768px) {
   /* minmax(0, 1fr), never 1fr: a bare 1fr track is floored at its content's
      min-content width, so a wide table inside a .table-wrap pushed the track
      past the viewport and scrolled the whole body sideways instead of
@@ -706,7 +761,7 @@ main {
 .fields {
   margin: 0;
   display: grid;
-  grid-template-columns: minmax(120px, auto) minmax(0, 1fr);
+  grid-template-columns: minmax(120px, auto) minmax(0, 1fr); /* a label column, floored at the shortest label's width: the list's own, not the page's */
   gap: 0;
 }
 
@@ -739,10 +794,10 @@ main {
 
 /* PD-57: the static race page opens on up to fourteen facts where the app
    has tiles; one to a line they put the classification below the first
-   screen, so at desktop width they run two to a line. */
-@media (min-width: 1024px) {
+   screen, so from the tablet layout up they run two to a line. */
+@media (width >= 768px) {
   .fields-paired {
-    grid-template-columns: minmax(120px, auto) minmax(0, 1fr) minmax(120px, auto) minmax(0, 1fr);
+    grid-template-columns: minmax(120px, auto) minmax(0, 1fr) minmax(120px, auto) minmax(0, 1fr); /* two label columns, as .fields */
   }
 
   .fields-paired > dt:nth-of-type(even) {
@@ -766,6 +821,10 @@ main {
   overflow: hidden;
 }
 
+.skeleton-table > .skeleton {
+  border-radius: 0;
+}
+
 .table-scroll {
   overflow-x: auto;
   max-width: 100%;
@@ -785,7 +844,7 @@ main {
   top: 0;
   right: 0;
   bottom: 0;
-  width: 44px;
+  width: 44px; /* the fade's own width, over the table's edge */
   background: linear-gradient(90deg, transparent, var(--panel));
   pointer-events: none;
 }
@@ -935,7 +994,7 @@ th .key {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
+  width: 24px; /* a key column's own control */
   height: 24px;
   margin-inline: var(--space-1);
   vertical-align: middle;
@@ -949,7 +1008,7 @@ th .key::before {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.5em;
+  width: 1.5em; /* a glyph, sized to the text it sits in */
   height: 1.5em;
   border: 1px solid currentColor;
   border-radius: 50%;
@@ -1033,9 +1092,9 @@ tbody th.num {
  */
 td.prose,
 tbody th.prose {
-  min-width: 18ch;
-  width: 42ch;
-  max-width: 60ch;
+  min-width: 18ch; /* a prose cell's measure, inside its table */
+  width: 42ch; /* the same */
+  max-width: 60ch; /* the same */
   white-space: normal;
   color: var(--ink-soft);
 }
@@ -1085,14 +1144,14 @@ tbody th.record-value {
   line-height: 1.4;
   color: var(--ink);
   min-width: 9ch;
-  max-width: 30ch;
+  max-width: 30ch; /* a record cell's own measure, inside its table */
 }
 
 td.record-derivation,
 tbody th.record-derivation {
   font-size: var(--size-3);
   color: var(--ink-faint);
-  max-width: 46ch;
+  max-width: 46ch; /* the derivation's measure, inside its table */
 }
 
 /*
@@ -1105,20 +1164,25 @@ tbody th.record-derivation {
  * printed in full on the record's own page.
  *
  * Four to a row at 1440 and two at a phone's width, never one: one card to a
- * row at 400 put the second value below the first screen. The cards of a row
- * share its height, so the disclosure is pushed to each card's foot and the
- * summaries line up across the row.
+ * row at 400 put the second value below the first screen.
+ *
+ * Each card keeps its own height (IX-47). The cards of a row used to share
+ * it, which lined the closed summaries up, and opening one derivation then
+ * stretched all four cards from 126 to 258 px and dropped the other three
+ * summaries 132 px to their new feet: opening a disclosure moved the
+ * controls beside it. Now a card opens downwards alone.
  */
 .record-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  align-items: start;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); /* a card grid: the box spans its column, and its tracks are cards, not page columns */
   gap: var(--space-6);
   margin: 0 0 var(--space-7);
   padding: 0;
   list-style: none;
 }
 
-@media (max-width: 600px) {
+@media (width < 768px) {
   .record-cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-4);
@@ -1200,7 +1264,7 @@ tbody th.record-derivation {
   line-height: 1.5;
 }
 
-@media (max-width: 600px) {
+@media (width < 768px) {
   .record-card {
     padding: var(--space-5) var(--space-5) var(--space-5);
   }
@@ -1260,12 +1324,12 @@ td.rail {
   /* The header inherits thead's side padding unless it is told not to,
      which silently turns a 4px rail into a 28px column. */
   padding: 0;
-  width: 4px;
+  width: 4px; /* the result rail: a mark, not a column */
 }
 
 td.rail i {
   display: block;
-  width: 4px;
+  width: 4px; /* the result rail: a mark, not a column */
   height: 100%;
   min-height: 34px;
   background: var(--rail-none, transparent);
@@ -1361,7 +1425,7 @@ tbody th.strong {
  * A reader who has chosen columns gets no marks at all, so nothing here can
  * hide a column somebody asked for.
  */
-@media (max-width: 560px) {
+@media (width < 768px) {
   .table-wrap .wide-only {
     display: none;
   }
@@ -1412,7 +1476,7 @@ tbody th.strong {
   z-index: 5;
   margin: var(--space-2) 0 0;
   min-width: 15rem;
-  max-width: calc(100vw - 32px);
+  max-width: calc(100vw - 32px); /* an overlay, held inside the viewport */
   padding: var(--space-4) var(--space-6) var(--space-5);
   display: grid;
   gap: var(--space-1);
@@ -1501,7 +1565,7 @@ tbody th.strong {
  * is never announced.
  */
 .take-said:not(:empty) {
-  max-width: 34ch;
+  max-width: 34ch; /* a one-line status beside the copy buttons, not a text block */
 }
 
 /* --------------------------------------------------------- filter strip */
@@ -1512,6 +1576,18 @@ tbody th.strong {
   flex-wrap: wrap;
   align-items: center;
   margin: 0 0 var(--space-6);
+}
+
+/* The console's Run row under its editor, and the line under that. */
+.filters.run-bar {
+  margin-top: var(--space-5);
+}
+
+.run-notes {
+  margin: var(--space-4) 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6);
 }
 
 .filters input[type='search'],
@@ -1530,7 +1606,7 @@ tbody th.strong {
 .filters input[type='search'] {
   min-width: 200px;
   flex: 1 1 220px;
-  max-width: 340px;
+  max-width: 340px; /* a search field: a control's width, not a block's */
 }
 
 .filters .spacer {
@@ -1563,6 +1639,13 @@ tbody th.strong {
 .chip:hover {
   border-color: var(--ink-faint);
   color: var(--ink);
+}
+
+/* The masthead's theme toggle: a chip with a glyph rather than a word, so a
+   squarer box (VD-60: an inline padding of 4px 9px). */
+.chip.theme-toggle {
+  padding: var(--space-2) var(--space-4);
+  line-height: 1.4;
 }
 
 .chip[aria-pressed='true'] {
@@ -1648,6 +1731,8 @@ tbody th.strong {
 
 /* ------------------------------------------------------------ prose bits */
 
+/* A note box has one edge, its left rule, so the box and its lines end
+   together at the measure: a column line from --bp-desktop. */
 .note-box {
   border-left: 3px solid var(--rule-strong);
   padding: var(--space-1) 0 var(--space-1) var(--space-6);
@@ -1669,14 +1754,28 @@ tbody th.strong {
  * ink rather than accent because accent means "you can act on this" here, and
  * nobody can act on this one - it is open for somebody to settle, which is a
  * different thing from broken.
+ *
+ * It is framed, so under the text-width rule the frame spans its column and
+ * only its lines stop at the measure: a box 463 px wide lined up with
+ * nothing on the page (VD-78).
  */
 .disagreement {
   border: 1px solid var(--rule-strong);
   border-left-width: 3px;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   padding: var(--space-6) var(--space-7);
   margin: 0 0 var(--space-7);
+}
+
+.disagreement > * {
   max-width: var(--measure);
+}
+
+/* One placed between two sections takes the section gap above it, as every
+   other block does. It had none: on /cars/red-bull-rb19 its frame sat a
+   pixel from Specification's source line (VD-77). */
+.page > .disagreement {
+  margin-top: var(--space-9);
 }
 
 .disagreement h2 {
@@ -1728,11 +1827,13 @@ tbody th.strong {
   margin: var(--space-3) 0 0;
 }
 
+/* A source line belongs to the table or figure above it, and is set at the
+   small measure: four columns from --bp-desktop. */
 .source-note {
   font-size: var(--size-3);
   color: var(--ink-faint);
   margin: var(--space-5) 0 0;
-  max-width: var(--measure);
+  max-width: var(--measure-small);
 }
 
 .source-note a {
@@ -1824,7 +1925,7 @@ tbody th.strong {
 }
 
 .boot-inner {
-  width: min(440px, 100%);
+  width: min(440px, 100%); /* the boot card, an overlay before the page exists */
   text-align: left;
 }
 
@@ -1855,7 +1956,7 @@ tbody th.strong {
 }
 
 .bar.indeterminate > i {
-  width: 35%;
+  width: 35%; /* the indeterminate bar's moving segment */
   animation: slide 1.2s ease-in-out infinite alternate;
 }
 
@@ -1895,7 +1996,7 @@ tbody th.strong {
   max-width: var(--page);
   margin: 0 auto;
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr auto; /* the boot strip: a message and its control, outside main */
   gap: var(--space-3) var(--space-7);
   align-items: center;
   font-size: var(--size-4);
@@ -1938,7 +2039,7 @@ tbody th.strong {
 }
 
 .palette {
-  width: min(600px, 100%);
+  width: min(600px, 100%); /* the search palette, an overlay */
   background: var(--panel-raised);
   border: 1px solid var(--rule-strong);
   border-radius: var(--radius);
@@ -1994,7 +2095,7 @@ tbody th.strong {
   letter-spacing: 0.05em;
   color: var(--ink-faint);
   flex: none;
-  width: 78px;
+  width: 78px; /* a result's kind label in the palette */
 }
 
 .palette .meta {
@@ -2082,7 +2183,7 @@ figure.photo figcaption a {
 .photo-grid {
   display: grid;
   gap: var(--space-6);
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); /* a card grid: the box spans its column, and its tracks are cards, not page columns */
 }
 
 /* The rest of a strip past its six, behind a disclosure (PD-64). Closed by
@@ -2124,7 +2225,7 @@ figure.photo figcaption a {
    shown under their licence. */
 .page-photo {
   margin-top: var(--space-7);
-  max-width: 22rem;
+  max-width: 22rem; /* a picture under the lede on a phone, capped rather than a hero (VD-62) */
 }
 
 .page-photo figure.photo img {
@@ -2132,12 +2233,13 @@ figure.photo figcaption a {
   object-fit: contain;
 }
 
-@media (min-width: 760px) {
+/* Three columns of eight beside the heading, then four of twelve. */
+@media (width >= 768px) {
   .page > header:has(> .page-photo) {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(12rem, 20rem);
+    grid-template-columns: minmax(0, 1fr) var(--span-3);
     grid-template-rows: repeat(3, auto) 1fr;
-    column-gap: var(--space-9);
+    column-gap: var(--gutter);
     align-items: start;
   }
 
@@ -2153,24 +2255,33 @@ figure.photo figcaption a {
   }
 }
 
+@media (width >= 1180px) {
+  .page > header:has(> .page-photo) {
+    grid-template-columns: minmax(0, 1fr) var(--span-4);
+  }
+}
+
 /* The lead figure (VD-53): the chart that answers why a reader came to a
    driver's, a team's or a season's page - the championship finishes, wins
-   by season, the title race - in the column the 525 px lede leaves empty.
+   by season, the title race - in the column the lede leaves empty.
    In the document it follows the tile strip, which is where it stays below
-   1024 px; above that the page is two columns for its opening, the heading
+   --bp-desktop; from there the page is two columns for its opening, the heading
    and the tiles in the first and the figure in the second, so the eye reads
    the left column then the right in the order the markup and the Tab key
    take. The row the tiles sit in takes any height the figure has over the
    heading and the tiles together, as the circuit photograph's last row does
    above, so neither is pushed apart from the other. Every block after the
    opening spans both columns. A page without a lead section is untouched,
-   and so is the static page, which draws none of these charts. */
-@media (min-width: 1024px) {
+   and so is the static page, which draws none of these charts. The two
+   columns are six of twelve each, a gutter apart (VD-78); version A's
+   opening slot replaces them in its own step. 1180 and not 1024: between the
+   two a lead chart's bars were 3.7 px wide, against 6.0 stacked. */
+@media (width >= 1180px) {
   .page:has(> .section-lead) {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-template-rows: auto auto 1fr;
-    column-gap: var(--space-9);
+    column-gap: var(--gutter);
     align-items: start;
   }
 
@@ -2253,7 +2364,7 @@ figure.photo figcaption a {
 .outline-grid {
   display: grid;
   gap: var(--space-7);
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); /* a card grid: the box spans its column, and its tracks are cards, not page columns */
 }
 
 /* A circuit page's outlines (VD-37): the latest layout large, the rest in
@@ -2262,23 +2373,31 @@ figure.photo figcaption a {
    at the size Silverstone's lead is drawn, not the width of the row. */
 .outline-set {
   display: grid;
-  gap: var(--space-8);
-  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: var(--gutter);
+  grid-template-columns: var(--span-3) minmax(0, 1fr);
   align-items: start;
 }
 
-@media (max-width: 720px) {
+/* Five columns of twelve for the lead: 5fr/7fr drew it 4 px off the line. */
+@media (width >= 1180px) {
+  .outline-set {
+    grid-template-columns: var(--span-5) minmax(0, 1fr);
+  }
+}
+
+@media (width < 768px) {
   .outline-set {
     grid-template-columns: minmax(0, 1fr);
   }
 }
 
-/* The race page: the figures with the outline beside them; below them on a
-   phone, where it is capped rather than left to fill the width. */
+/* The race page: the figures with the outline beside them in two columns of
+   the grid; below them on a phone, where it is capped rather than left to
+   fill the width. */
 .with-outline {
   display: grid;
-  gap: var(--space-7);
-  grid-template-columns: minmax(0, 1fr) 200px;
+  gap: var(--gutter);
+  grid-template-columns: minmax(0, 1fr) var(--span-2);
   align-items: start;
 }
 
@@ -2301,13 +2420,13 @@ figure.photo figcaption a {
   margin-top: var(--space-7);
 }
 
-@media (max-width: 720px) {
+@media (width < 768px) {
   .with-outline {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .with-outline .outline-card {
-    max-width: 220px;
+    max-width: 220px; /* a drawing capped on a phone rather than filling the column */
   }
 
   .with-lead > .outline-card,
@@ -2331,7 +2450,7 @@ figure.photo figcaption a {
   padding: 0;
   display: grid;
   gap: var(--space-4);
-  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); /* a card grid: the box spans its column, and its tracks are cards, not page columns */
 }
 
 .outline-strip li a {
@@ -2412,7 +2531,8 @@ figure.photo figcaption a {
 }
 
 /* The citation, last on every page: quiet, one sentence, the address in mono
-   so it can be selected as one run. */
+   so it can be selected as one run. Its rule spans the page, as a framed
+   note's frame does, and its lines stop at the small measure. */
 .cite {
   margin-top: var(--space-9);
   padding-top: var(--space-6);
@@ -2420,12 +2540,12 @@ figure.photo figcaption a {
   font-size: var(--size-3);
   line-height: 1.6;
   color: var(--ink-faint);
-  max-width: var(--measure);
 }
 
 .cite p {
   margin: 0;
   color: var(--ink-faint);
+  max-width: var(--measure-small);
 }
 
 /* The sources behind the page (CD-08), a second sentence under the first. */
@@ -2541,6 +2661,12 @@ textarea.sql {
   line-height: 1.7;
 }
 
+/* A timing table's "empty by design" line, under its columns. */
+.schema-list .ddl-empty {
+  margin: 0 0 var(--space-4);
+  padding-left: var(--space-6);
+}
+
 .schema-list .ddl {
   /* The DDL keeps its own alignment: a comment written beside a column stops
      meaning that column once the line wraps. So it scrolls sideways, and the
@@ -2640,7 +2766,7 @@ figure.figure > figcaption span {
   font-size: var(--size-3);
   color: var(--ink-faint);
   margin-top: var(--space-1);
-  max-width: 60ch;
+  max-width: var(--measure-small);
 }
 
 /* A figure that leads its page (VD-67): one line of title, then the plot,
@@ -2667,7 +2793,7 @@ figure.figure-lead > .legend {
   padding: 0 var(--space-7) var(--space-6);
   font-size: var(--size-3);
   color: var(--ink-faint);
-  max-width: calc(60ch + 2 * var(--space-7));
+  max-width: calc(var(--measure-small) + 2 * var(--space-7));
 }
 
 .figure-body {
@@ -2690,6 +2816,12 @@ figure.figure-lead > .legend {
   fill: var(--ink-faint);
   font-size: var(--size-2);
   font-variant-numeric: tabular-nums;
+}
+
+/* A bar's name, set a step above the axis because it is the reading, not a
+   tick (VD-60: an inline 12.5, off the scale). */
+.figure .axis-text.bar-label {
+  font-size: var(--size-3);
 }
 
 .figure .value-text {
@@ -2859,7 +2991,7 @@ figure.figure-lead > .legend {
 }
 
 .legend i {
-  width: 11px;
+  width: 11px; /* a legend swatch */
   height: 11px;
   border-radius: 3px;
   flex: none;
@@ -2946,7 +3078,7 @@ figure.figure-lead > .legend {
 }
 
 .tooltip .row i {
-  width: 8px;
+  width: 8px; /* a tooltip swatch */
   height: 8px;
   border-radius: 2px;
   flex: none;
@@ -2961,7 +3093,7 @@ figure.figure-lead > .legend {
 .board {
   display: grid;
   gap: var(--space-7);
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); /* a card grid: the box spans its column, and its tracks are cards, not page columns */
 }
 
 .board a {
@@ -3045,7 +3177,7 @@ figure.figure-lead > .legend {
   position: absolute;
   left: -26px;
   top: 7px;
-  width: 9px;
+  width: 9px; /* a timeline's dot */
   height: 9px;
   border-radius: 50%;
   background: var(--ink-faint);
@@ -3124,7 +3256,7 @@ figure.figure-lead > .legend {
 .layout-timeline > article {
   display: grid;
   gap: var(--space-7);
-  grid-template-columns: 150px minmax(0, 1fr);
+  grid-template-columns: 150px minmax(0, 1fr); /* a drawing beside its entry: the outline's own size */
   align-items: start;
 }
 
@@ -3143,9 +3275,9 @@ figure.figure-lead > .legend {
   text-align: center;
 }
 
-@media (max-width: 480px) {
+@media (width < 768px) {
   .layout-timeline > article {
-    grid-template-columns: 104px minmax(0, 1fr);
+    grid-template-columns: 104px minmax(0, 1fr); /* the same drawing, smaller on a phone */
     gap: var(--space-6);
   }
 }
@@ -3186,7 +3318,7 @@ figure.figure-lead > .legend {
    to be one - needs no exemption of its own. */
 .livery {
   display: inline-block;
-  width: 7px;
+  width: 7px; /* a livery mark */
   height: 1.05em;
   margin-right: var(--space-4);
   vertical-align: -2px;
@@ -3231,7 +3363,7 @@ figure.figure-lead > .legend {
 .figure svg.line-key {
   display: inline-block;
   flex: none;
-  width: 20px;
+  width: 20px; /* a line key */
   height: 8px;
   overflow: visible;
 }
@@ -3246,7 +3378,7 @@ figure.figure-lead > .legend {
    the other way: every gradient here runs one direction (AF-46). */
 .outline-strip .livery {
   display: block;
-  width: 26px;
+  width: 26px; /* a livery mark on an outline tile */
   height: 3px;
   margin: var(--space-3) 0 0;
   background-image: none;
@@ -3254,6 +3386,7 @@ figure.figure-lead > .legend {
 
 .livery-band {
   display: block;
+  margin-top: var(--space-6);
   max-width: var(--measure);
   font-family: var(--mono);
   font-size: var(--size-2);
@@ -3328,7 +3461,7 @@ figure.figure-lead > .legend {
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); /* a card grid: the box spans its column, and its tracks are cards, not page columns */
   gap: var(--space-7);
 }
 
@@ -3443,7 +3576,7 @@ figure.figure-lead > .legend {
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); /* a card grid: the box spans its column, and its tracks are cards, not page columns */
   gap: var(--space-6);
 }
 
@@ -3516,7 +3649,7 @@ figure.figure-lead > .legend {
 .onward > div {
   display: grid;
   gap: var(--space-5);
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); /* a card grid: the box spans its column, and its tracks are cards, not page columns */
 }
 
 .onward a {
@@ -3624,7 +3757,7 @@ a.button.secondary:hover {
    it across the full measure. */
 #prerendered .photo-grid {
   margin: 0 0 var(--space-6);
-  grid-template-columns: repeat(auto-fill, minmax(230px, 320px));
+  grid-template-columns: repeat(auto-fill, minmax(230px, 320px)); /* a card grid: the box spans its column, and its tracks are cards, not page columns */
 }
 
 #prerendered .photo-grid + .source-note {
